@@ -67,9 +67,9 @@ func instanceLoadCache() error {
 	return nil
 }
 
-func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
+func instanceRefreshTypesTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		s := d.State()
+		s := stateFunc()
 
 		opRun := func(op *operations.Operation) error {
 			return instanceRefreshTypes(ctx, s)
@@ -103,14 +103,14 @@ func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
 func instanceRefreshTypes(ctx context.Context, s *state.State) error {
 	// Attempt to download the new definitions
 	downloadParse := func(filename string, target any) error {
-		url := fmt.Sprintf("https://images.lxd.canonical.com/meta/instance-types/%s", filename)
+		url := "https://images.lxd.canonical.com/meta/instance-types/" + filename
 
 		httpClient, err := util.HTTPClient("", s.Proxy)
 		if err != nil {
 			return err
 		}
 
-		httpReq, err := http.NewRequest("GET", url, nil)
+		httpReq, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
 			return err
 		}
@@ -216,9 +216,10 @@ func instanceParseType(value string) (map[string]string, error) {
 					return nil, fmt.Errorf("Bad custom instance type: %s", value)
 				}
 
-				if field[0] == 'c' {
+				switch field[0] {
+				case 'c':
 					newLimits.CPU = float32(floatValue)
-				} else if field[0] == 'm' {
+				case 'm':
 					newLimits.Memory = float32(floatValue)
 				}
 			}
@@ -241,7 +242,7 @@ func instanceParseType(value string) (map[string]string, error) {
 
 		cpuTime := int(limits.CPU / float32(cpuCores) * 100.0)
 
-		out["limits.cpu"] = fmt.Sprintf("%d", cpuCores)
+		out["limits.cpu"] = strconv.Itoa(cpuCores)
 		if cpuTime < 100 {
 			out["limits.cpu.allowance"] = fmt.Sprintf("%d%%", cpuTime)
 		}

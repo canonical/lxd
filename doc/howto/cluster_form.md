@@ -1,14 +1,15 @@
 ---
-relatedlinks: '[MicroCloud](https://canonical.com/microcloud)'
+relatedlinks: "[MicroCloud](https://canonical.com/microcloud)"
 ---
 
 (cluster-form)=
 # How to form a cluster
 
 ````{only} integrated
-```{note}
-MicroCloud users can disregard the instructions on this page, because the MicroCloud setup process handles forming a LXD cluster. Following MicroCloud setup, LXD cluster commands can be used on the MicroCloud.
-```
+```{admonition} For MicroCloud users
+:class: note
+The MicroCloud setup process forms a LXD cluster. Thus, you do not need to follow the steps on this page. After MicroCloud setup, LXD cluster commands can be used with the MicroCloud cluster.
+``
 ````
 
 When forming a LXD cluster, you start with a bootstrap server.
@@ -431,4 +432,4 @@ Following the CLI prompts, a working MicroCloud will be ready within minutes.
 
 When the initialization is complete, you’ll have an OVN cluster, a Ceph cluster and a LXD cluster, and LXD itself will have been configured with both networking and storage suitable for use in a cluster.
 
-See the [MicroCloud documentation](https://canonical-microcloud.readthedocs-hosted.com) for more information.
+See the [MicroCloud documentation](https://documentation.ubuntu.com/microcloud/latest/microcloud/) for more information.

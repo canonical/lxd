@@ -247,14 +247,14 @@ config:
 
 #### Add a user account
 
-To add a user account, use the `user` key.
+To add a user account, use the `users` key.
 See the {ref}`cloud-init:reference/examples:including users and groups` example in the `cloud-init` documentation for details about default users and which keys are supported.
 
 ```yaml
 config:
   cloud-init.user-data: |
     #cloud-config
-    user:
+    users:
       - name: documentation_example
 ```
 
@@ -278,19 +278,15 @@ To configure a specific network interface with a static IPv4 address and also us
 ```yaml
 config:
   cloud-init.network-config: |
-    version: 1
-    config:
-      - type: physical
-        name: eth1
-        subnets:
-          - type: static
-            ipv4: true
-            address: 10.10.101.20
-            netmask: 255.255.255.0
-            gateway: 10.10.101.1
-            control: auto
-      - type: nameserver
-        address: 10.10.10.254
+    version: 2
+    ethernets:
+      eth1:
+        addresses:
+          - 10.10.101.20/24
+        gateway4: 10.10.101.1
+        nameservers:
+          addresses:
+            - 10.10.10.254
 ```
 
 ## How to inject SSH keys into instances

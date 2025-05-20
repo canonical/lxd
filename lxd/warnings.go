@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -215,11 +216,9 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SyncResponse(true, resultList)
 	}
 
-	if filters == nil {
-		filters, err = filterWarnings(warnings, clauses)
-		if err != nil {
-			return response.SmartError(err)
-		}
+	filters, err = filterWarnings(warnings, clauses)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	// Return detailed list of warning
@@ -370,7 +369,7 @@ func warningPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if status != warningtype.StatusAcknowledged && status != warningtype.StatusNew {
-		return response.Forbidden(fmt.Errorf(`Status may only be set to "acknowledge" or "new"`))
+		return response.Forbidden(errors.New(`Status may only be set to "acknowledge" or "new"`))
 	}
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -433,9 +432,9 @@ func warningDelete(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-func pruneResolvedWarningsTask(d *Daemon) (task.Func, task.Schedule) {
+func pruneResolvedWarningsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		s := d.State()
+		s := stateFunc()
 
 		opRun := func(op *operations.Operation) error {
 			return pruneResolvedWarnings(ctx, s)

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/cancel"
 )
 
 // This is a modified version of https://github.com/grafana/loki/blob/v1.6.1/pkg/promtail/client/.
@@ -55,8 +57,7 @@ type entry struct {
 type Client struct {
 	cfg     config
 	client  *http.Client
-	quit    chan struct{}
-	once    sync.Once
+	cancel  cancel.Canceller
 	entries chan entry
 	wg      sync.WaitGroup
 }
@@ -80,7 +81,7 @@ func NewClient(ctx context.Context, u *url.URL, username string, password string
 		},
 		client:  &http.Client{},
 		entries: make(chan entry),
-		quit:    make(chan struct{}),
+		cancel:  cancel.New(),
 	}
 
 	if caCert != "" {
@@ -132,7 +133,7 @@ func (c *Client) run() {
 
 	for {
 		select {
-		case <-c.quit:
+		case <-c.cancel.Done():
 			return
 
 		case e := <-c.entries:
@@ -161,7 +162,7 @@ func (c *Client) run() {
 }
 
 func (c *Client) checkLoki(ctx context.Context) error {
-	req, err := http.NewRequest("GET", c.cfg.url.String()+"/ready", nil)
+	req, err := http.NewRequest(http.MethodGet, c.cfg.url.String()+"/ready", nil)
 	if err != nil {
 		return err
 	}
@@ -171,7 +172,7 @@ func (c *Client) checkLoki(ctx context.Context) error {
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to connect to Loki")
+		return errors.New("failed to connect to Loki")
 	}
 
 	defer resp.Body.Close()
@@ -218,7 +219,7 @@ func (c *Client) sendBatch(batch *batch) {
 
 		// Retry every 10s, but exit if Stop() is called.
 		select {
-		case <-c.quit:
+		case <-c.cancel.Done():
 			return
 		case <-time.After(c.cfg.timeout):
 		}
@@ -226,7 +227,7 @@ func (c *Client) sendBatch(batch *batch) {
 }
 
 func (c *Client) send(ctx context.Context, buf []byte) (int, error) {
-	req, err := http.NewRequest("POST", c.cfg.url.String()+"/loki/api/v1/push", bytes.NewReader(buf))
+	req, err := http.NewRequest(http.MethodPost, c.cfg.url.String()+"/loki/api/v1/push", bytes.NewReader(buf))
 	if err != nil {
 		return -1, err
 	}
@@ -259,7 +260,7 @@ func (c *Client) send(ctx context.Context, buf []byte) (int, error) {
 
 // Stop the client.
 func (c *Client) Stop() {
-	c.once.Do(func() { close(c.quit) })
+	c.cancel.Cancel()
 	c.wg.Wait()
 }
 
@@ -289,7 +290,8 @@ func (c *Client) HandleEvent(event api.Event) {
 
 	context := make(map[string]string)
 
-	if event.Type == api.EventTypeLifecycle {
+	switch event.Type {
+	case api.EventTypeLifecycle:
 		lifecycleEvent := api.EventLifecycle{}
 
 		err := json.Unmarshal(event.Metadata, &lifecycleEvent)
@@ -340,7 +342,7 @@ func (c *Client) HandleEvent(event api.Event) {
 		}
 
 		entry.Line = messagePrefix + lifecycleEvent.Action
-	} else if event.Type == api.EventTypeLogging || event.Type == api.EventTypeOVN {
+	case api.EventTypeLogging, api.EventTypeOVN:
 		logEvent := api.EventLogging{}
 
 		err := json.Unmarshal(event.Metadata, &logEvent)

@@ -9,6 +9,7 @@ spawn_lxd() {
 
     lxddir=${1}
     shift
+    chmod +x "${lxddir}"
 
     storage=${1}
     shift
@@ -322,6 +323,8 @@ panic_checker() {
   local test_dir daemon_dir
   test_dir="${1}"
 
+  [ -e "${test_dir}/daemons" ] || return
+
   while read -r daemon_dir; do
     deps/panic-checker "${daemon_dir}/lxd.log"
   done < "${test_dir}/daemons"
@@ -333,9 +336,11 @@ cleanup_lxds() {
     test_dir="$1"
 
     # Kill all LXD instances
-    while read -r daemon_dir; do
-        kill_lxd "${daemon_dir}"
-    done < "${test_dir}/daemons"
+    if [ -s "${test_dir}/daemons" ]; then
+      while read -r daemon_dir; do
+          kill_lxd "${daemon_dir}"
+      done < "${test_dir}/daemons"
+    fi
 
     # Cleanup leftover networks
     # shellcheck disable=SC2009

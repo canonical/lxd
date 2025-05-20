@@ -7,6 +7,7 @@ import (
 	"os"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -84,7 +85,8 @@ type cmdNetworkACLList struct {
 	global     *cmdGlobal
 	networkACL *cmdNetworkACL
 
-	flagFormat string
+	flagFormat      string
+	flagAllProjects bool
 }
 
 func (c *cmdNetworkACLList) command() *cobra.Command {
@@ -96,10 +98,11 @@ func (c *cmdNetworkACLList) command() *cobra.Command {
 
 	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
+	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, i18n.G("Display network ACLs from all projects"))
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemotes(toComplete, false)
+			return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -133,18 +136,30 @@ func (c *cmdNetworkACLList) run(cmd *cobra.Command, args []string) error {
 		return errors.New(i18n.G("Filtering isn't supported yet"))
 	}
 
-	acls, err := resource.server.GetNetworkACLs()
-	if err != nil {
-		return err
+	var acls []api.NetworkACL
+	if c.flagAllProjects {
+		acls, err = resource.server.GetNetworkACLsAllProjects()
+		if err != nil {
+			return err
+		}
+	} else {
+		acls, err = resource.server.GetNetworkACLs()
+		if err != nil {
+			return err
+		}
 	}
 
 	data := [][]string{}
 	for _, acl := range acls {
-		strUsedBy := fmt.Sprint(len(acl.UsedBy))
+		strUsedBy := strconv.Itoa(len(acl.UsedBy))
 		details := []string{
 			acl.Name,
 			acl.Description,
 			strUsedBy,
+		}
+
+		if c.flagAllProjects {
+			details = append([]string{acl.Project}, details...)
 		}
 
 		data = append(data, details)
@@ -156,6 +171,10 @@ func (c *cmdNetworkACLList) run(cmd *cobra.Command, args []string) error {
 		i18n.G("NAME"),
 		i18n.G("DESCRIPTION"),
 		i18n.G("USED BY"),
+	}
+
+	if c.flagAllProjects {
+		header = append([]string{i18n.G("PROJECT")}, header...)
 	}
 
 	return cli.RenderTable(c.flagFormat, header, data, acls)
@@ -176,7 +195,7 @@ func (c *cmdNetworkACLShow) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkACLs(toComplete)
+			return c.global.cmpTopLevelResource("network_acl", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -237,7 +256,7 @@ func (c *cmdNetworkACLShowLog) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkACLs(toComplete)
+			return c.global.cmpTopLevelResource("network_acl", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -295,7 +314,7 @@ func (c *cmdNetworkACLGet) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkACLs(toComplete)
+			return c.global.cmpTopLevelResource("network_acl", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -371,7 +390,7 @@ lxc network acl create a1 < config.yaml
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkACLs(toComplete)
+			return c.global.cmpTopLevelResource("network_acl", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -469,7 +488,7 @@ For backward compatibility, a single configuration key may still be set with:
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkACLs(toComplete)
+			return c.global.cmpTopLevelResource("network_acl", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -553,7 +572,7 @@ func (c *cmdNetworkACLUnset) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkACLs(toComplete)
+			return c.global.cmpTopLevelResource("network_acl", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -595,7 +614,7 @@ func (c *cmdNetworkACLEdit) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkACLs(toComplete)
+			return c.global.cmpTopLevelResource("network_acl", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -733,7 +752,7 @@ func (c *cmdNetworkACLRename) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkACLs(toComplete)
+			return c.global.cmpTopLevelResource("network_acl", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -790,7 +809,7 @@ func (c *cmdNetworkACLDelete) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkACLs(toComplete)
+			return c.global.cmpTopLevelResource("network_acl", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -862,7 +881,7 @@ func (c *cmdNetworkACLRule) commandAdd() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkACLs(toComplete)
+			return c.global.cmpTopLevelResource("network_acl", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -979,11 +998,12 @@ func (c *cmdNetworkACLRule) runAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	// Add rule to the requested direction (if direction valid).
-	if args[1] == "ingress" {
+	switch args[1] {
+	case "ingress":
 		netACL.Ingress = append(netACL.Ingress, *rule)
-	} else if args[1] == "egress" {
+	case "egress":
 		netACL.Egress = append(netACL.Egress, *rule)
-	} else {
+	default:
 		return errors.New(i18n.G("The direction argument must be one of: ingress, egress"))
 	}
 
@@ -1001,7 +1021,7 @@ func (c *cmdNetworkACLRule) commandRemove() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkACLs(toComplete)
+			return c.global.cmpTopLevelResource("network_acl", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -1107,21 +1127,22 @@ func (c *cmdNetworkACLRule) runRemove(cmd *cobra.Command, args []string) error {
 	}
 
 	// Remove matching rule(s) from the requested direction (if direction valid).
-	if args[1] == "ingress" {
+	switch args[1] {
+	case "ingress":
 		rules, err := removeFromRules(netACL.Ingress, filters)
 		if err != nil {
 			return err
 		}
 
 		netACL.Ingress = rules
-	} else if args[1] == "egress" {
+	case "egress":
 		rules, err := removeFromRules(netACL.Egress, filters)
 		if err != nil {
 			return err
 		}
 
 		netACL.Egress = rules
-	} else {
+	default:
 		return errors.New(i18n.G("The direction argument must be one of: ingress, egress"))
 	}
 

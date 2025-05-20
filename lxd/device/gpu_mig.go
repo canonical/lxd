@@ -1,6 +1,7 @@
 package device
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -68,7 +69,7 @@ func (d *gpuMIG) validateConfig(instConf instance.ConfigReader) error {
 			}
 		}
 	} else if d.config["mig.gi"] == "" || d.config["mig.ci"] == "" {
-		return fmt.Errorf(`Either "mig.uuid" or both "mig.gi" and "mig.ci" must be set`)
+		return errors.New(`Either "mig.uuid" or both "mig.gi" and "mig.ci" must be set`)
 	}
 
 	return nil
@@ -77,7 +78,7 @@ func (d *gpuMIG) validateConfig(instConf instance.ConfigReader) error {
 // validateEnvironment checks the runtime environment for correctness.
 func (d *gpuMIG) validateEnvironment() error {
 	if shared.IsFalseOrEmpty(d.inst.ExpandedConfig()["nvidia.runtime"]) {
-		return fmt.Errorf("nvidia.runtime must be set to true for MIG GPUs to work")
+		return errors.New("nvidia.runtime must be set to true for MIG GPUs to work")
 	}
 
 	return validatePCIDevice(d.config["pci"])
@@ -90,7 +91,7 @@ func (d *gpuMIG) buildMIGDeviceName(gpu api.ResourcesGPUCard) string {
 			return d.config["mig.uuid"]
 		}
 
-		return fmt.Sprintf("MIG-%s", d.config["mig.uuid"])
+		return "MIG-" + d.config["mig.uuid"]
 	}
 
 	return fmt.Sprintf("MIG-%s/%s/%s", gpu.Nvidia.UUID, d.config["mig.gi"], d.config["mig.ci"])
@@ -126,20 +127,20 @@ func (d *gpuMIG) Start() (*deviceConfig.RunConfig, error) {
 
 		// We found a match.
 		if pciAddress != "" {
-			return nil, fmt.Errorf("More than one GPU matched the MIG device")
+			return nil, errors.New("More than one GPU matched the MIG device")
 		}
 
 		pciAddress = gpu.PCIAddress
 
 		// Validate the GPU.
 		if gpu.Nvidia == nil {
-			return nil, fmt.Errorf("Card isn't a NVIDIA GPU or driver isn't properly setup")
+			return nil, errors.New("Card isn't a NVIDIA GPU or driver isn't properly setup")
 		}
 
 		// Validate the MIG.
 		fields := strings.SplitN(gpu.Nvidia.CardDevice, ":", 2)
 		if len(fields) != 2 {
-			return nil, fmt.Errorf("Bad NVIDIA GPU (couldn't find ID)")
+			return nil, errors.New("Bad NVIDIA GPU (couldn't find ID)")
 		}
 
 		gpuID := fields[1]
@@ -156,7 +157,7 @@ func (d *gpuMIG) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	if pciAddress == "" {
-		return nil, fmt.Errorf("Failed to detect requested GPU device")
+		return nil, errors.New("Failed to detect requested GPU device")
 	}
 
 	return &runConf, nil

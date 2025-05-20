@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 	"io"
 	"net"
 	"os"
@@ -16,18 +16,18 @@ type cmdNetcat struct {
 	global *cmdGlobal
 }
 
-func (c *cmdNetcat) Command() *cobra.Command {
+func (c *cmdNetcat) command() *cobra.Command {
 	cmd := &cobra.Command{}
 
 	cmd.Use = "netcat <address>"
 	cmd.Short = "Sends stdin data to a unix socket"
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Hidden = true
 
 	return cmd
 }
 
-func (c *cmdNetcat) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetcat) run(cmd *cobra.Command, args []string) error {
 	// Help and usage
 	if len(args) == 0 {
 		_ = cmd.Help()
@@ -37,7 +37,7 @@ func (c *cmdNetcat) Run(cmd *cobra.Command, args []string) error {
 	// Handle mandatory arguments
 	if len(args) != 1 {
 		_ = cmd.Help()
-		return fmt.Errorf("Missing required argument")
+		return errors.New("Missing required argument")
 	}
 
 	// Connect to the provided address

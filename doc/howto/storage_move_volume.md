@@ -73,7 +73,43 @@ If the volume already exists in the target location, use the `--refresh` flag to
 (storage-move-instance)=
 ## Move instance storage volumes to another pool
 
-To move an instance storage volume to another storage pool, make sure the instance is stopped.
-Then use the following command to move the instance to a different pool:
+To move an instance storage volume to another storage pool, {ref}`stop the instance <instances-manage-stop>` that contains the storage volume you want to move.
+
+`````{tabs}
+````{group-tab} CLI
+Use the following command to move the instance to a different pool:
 
     lxc move <instance_name> --storage <target_pool_name>
+````
+
+````{group-tab} UI
+
+Navigate to the overview page of the selected instance, and click on the {guilabel}`Move` button in the top right corner.
+
+```{figure} /images/instances/instance_overview_page.png
+:width: 80%
+:alt: LXD Instance overview page
+```
+
+Within the move modal, click {guilabel}`Move instance root storage to a different pool` to view available storage pools to move to.
+
+```{figure} /images/instances/move_instance_modal.png
+:width: 80%
+:alt: LXD Instance root storage move method modal
+```
+Click {guilabel}`Select` in the row of the target storage pool for the move.
+
+```{figure} /images/instances/move_instance_modal_2.png
+:width: 80%
+:alt: LXD Instance root storage move pool selection modal
+```
+
+On the resulting confirmation modal, click {guilabel}`Move` to finalize the process.
+
+```{figure} /images/instances/move_confirmation_modal.png
+:width: 80%
+:alt: LXD Instance root storage confirmation modal
+```
+
+````
+`````

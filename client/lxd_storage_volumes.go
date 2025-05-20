@@ -1,6 +1,7 @@
 package lxd
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -27,7 +28,7 @@ func (r *ProtocolLXD) GetStoragePoolVolumeNames(pool string) ([]string, error) {
 	// Fetch the raw URL values.
 	urls := []string{}
 	baseURL := "/storage-pools/" + url.PathEscape(pool) + "/volumes"
-	_, err = r.queryStruct("GET", baseURL, nil, "", &urls)
+	_, err = r.queryStruct(http.MethodGet, baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +52,7 @@ func (r *ProtocolLXD) GetStoragePoolVolumeNamesAllProjects(pool string) (map[str
 	// Fetch the raw URL values.
 	urls := []string{}
 	u := api.NewURL().Path("storage-pools", pool, "volumes").WithQuery("all-projects", "true")
-	_, err = r.queryStruct("GET", u.String(), nil, "", &urls)
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +90,7 @@ func (r *ProtocolLXD) GetStoragePoolVolumes(pool string) ([]api.StorageVolume, e
 	volumes := []api.StorageVolume{}
 
 	// Fetch the raw value
-	_, err = r.queryStruct("GET", "/storage-pools/"+url.PathEscape(pool)+"/volumes?recursion=1", nil, "", &volumes)
+	_, err = r.queryStruct(http.MethodGet, "/storage-pools/"+url.PathEscape(pool)+"/volumes?recursion=1", nil, "", &volumes)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +117,7 @@ func (r *ProtocolLXD) GetStoragePoolVolumesAllProjects(pool string) ([]api.Stora
 		WithQuery("all-projects", "true")
 
 	// Fetch the raw value.
-	_, err = r.queryStruct("GET", url.String(), nil, "", &volumes)
+	_, err = r.queryStruct(http.MethodGet, url.String(), nil, "", &volumes)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +198,7 @@ func (r *ProtocolLXD) GetStoragePoolVolumesWithFilter(pool string, filters []str
 	v.Set("recursion", "1")
 	v.Set("filter", parseFilters(filters))
 	// Fetch the raw value
-	_, err = r.queryStruct("GET", "/storage-pools/"+url.PathEscape(pool)+"/volumes?"+v.Encode(), nil, "", &volumes)
+	_, err = r.queryStruct(http.MethodGet, "/storage-pools/"+url.PathEscape(pool)+"/volumes?"+v.Encode(), nil, "", &volumes)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +226,7 @@ func (r *ProtocolLXD) GetStoragePoolVolumesWithFilterAllProjects(pool string, fi
 		WithQuery("all-projects", "true")
 
 	// Fetch the raw value.
-	_, err = r.queryStruct("GET", url.String(), nil, "", &volumes)
+	_, err = r.queryStruct(http.MethodGet, url.String(), nil, "", &volumes)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +245,7 @@ func (r *ProtocolLXD) GetStoragePoolVolume(pool string, volType string, name str
 
 	// Fetch the raw value
 	path := "/storage-pools/" + url.PathEscape(pool) + "/volumes/" + url.PathEscape(volType) + "/" + url.PathEscape(name)
-	etag, err := r.queryStruct("GET", path, nil, "", &volume)
+	etag, err := r.queryStruct(http.MethodGet, path, nil, "", &volume)
 	if err != nil {
 		return nil, "", err
 	}
@@ -262,7 +263,7 @@ func (r *ProtocolLXD) GetStoragePoolVolumeState(pool string, volType string, nam
 	// Fetch the raw value
 	state := api.StorageVolumeState{}
 	path := "/storage-pools/" + url.PathEscape(pool) + "/volumes/" + url.PathEscape(volType) + "/" + url.PathEscape(name) + "/state"
-	_, err = r.queryStruct("GET", path, nil, "", &state)
+	_, err = r.queryStruct(http.MethodGet, path, nil, "", &state)
 	if err != nil {
 		return nil, err
 	}
@@ -279,7 +280,7 @@ func (r *ProtocolLXD) CreateStoragePoolVolume(pool string, volume api.StorageVol
 
 	// Send the request
 	path := "/storage-pools/" + url.PathEscape(pool) + "/volumes/" + url.PathEscape(volume.Type)
-	_, _, err = r.query("POST", path, volume, "")
+	_, _, err = r.query(http.MethodPost, path, volume, "")
 	if err != nil {
 		return err
 	}
@@ -296,7 +297,7 @@ func (r *ProtocolLXD) CreateStoragePoolVolumeSnapshot(pool string, volumeType st
 
 	// Send the request
 	path := "/storage-pools/" + url.PathEscape(pool) + "/volumes/" + url.PathEscape(volumeType) + "/" + url.PathEscape(volumeName) + "/snapshots"
-	op, _, err := r.queryOperation("POST", path, snapshot, "", true)
+	op, _, err := r.queryOperation(http.MethodPost, path, snapshot, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -315,7 +316,7 @@ func (r *ProtocolLXD) GetStoragePoolVolumeSnapshotNames(pool string, volumeType 
 	// Fetch the raw URL values.
 	urls := []string{}
 	baseURL := "/storage-pools/" + url.PathEscape(pool) + "/volumes/" + url.PathEscape(volumeType) + "/" + url.PathEscape(volumeName) + "/snapshots"
-	_, err = r.queryStruct("GET", baseURL, nil, "", &urls)
+	_, err = r.queryStruct(http.MethodGet, baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
@@ -335,7 +336,7 @@ func (r *ProtocolLXD) GetStoragePoolVolumeSnapshots(pool string, volumeType stri
 	snapshots := []api.StorageVolumeSnapshot{}
 
 	path := "/storage-pools/" + url.PathEscape(pool) + "/volumes/" + url.PathEscape(volumeType) + "/" + url.PathEscape(volumeName) + "/snapshots?recursion=1"
-	_, err = r.queryStruct("GET", path, nil, "", &snapshots)
+	_, err = r.queryStruct(http.MethodGet, path, nil, "", &snapshots)
 	if err != nil {
 		return nil, err
 	}
@@ -353,7 +354,7 @@ func (r *ProtocolLXD) GetStoragePoolVolumeSnapshot(pool string, volumeType strin
 	snapshot := api.StorageVolumeSnapshot{}
 
 	path := "/storage-pools/" + url.PathEscape(pool) + "/volumes/" + url.PathEscape(volumeType) + "/" + url.PathEscape(volumeName) + "/snapshots/" + url.PathEscape(snapshotName)
-	etag, err := r.queryStruct("GET", path, nil, "", &snapshot)
+	etag, err := r.queryStruct(http.MethodGet, path, nil, "", &snapshot)
 	if err != nil {
 		return nil, "", err
 	}
@@ -370,7 +371,7 @@ func (r *ProtocolLXD) RenameStoragePoolVolumeSnapshot(pool string, volumeType st
 
 	path := "/storage-pools/" + url.PathEscape(pool) + "/volumes/" + url.PathEscape(volumeType) + "/" + url.PathEscape(volumeName) + "/snapshots/" + url.PathEscape(snapshotName)
 	// Send the request
-	op, _, err := r.queryOperation("POST", path, snapshot, "", true)
+	op, _, err := r.queryOperation(http.MethodPost, path, snapshot, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -388,7 +389,7 @@ func (r *ProtocolLXD) DeleteStoragePoolVolumeSnapshot(pool string, volumeType st
 	// Send the request
 	path := "/storage-pools/" + url.PathEscape(pool) + "/volumes/" + url.PathEscape(volumeType) + "/" + url.PathEscape(volumeName) + "/snapshots/" + url.PathEscape(snapshotName)
 
-	op, _, err := r.queryOperation("DELETE", path, nil, "", true)
+	op, _, err := r.queryOperation(http.MethodDelete, path, nil, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -405,7 +406,7 @@ func (r *ProtocolLXD) UpdateStoragePoolVolumeSnapshot(pool string, volumeType st
 
 	// Send the request
 	path := "/storage-pools/" + url.PathEscape(pool) + "/volumes/" + url.PathEscape(volumeType) + "/" + url.PathEscape(volumeName) + "/snapshots/" + url.PathEscape(snapshotName)
-	_, _, err = r.queryOperation("PUT", path, volume, ETag, true)
+	_, _, err = r.queryOperation(http.MethodPut, path, volume, ETag, true)
 	if err != nil {
 		return err
 	}
@@ -422,7 +423,7 @@ func (r *ProtocolLXD) MigrateStoragePoolVolume(pool string, volume api.StorageVo
 
 	// Quick check.
 	if !volume.Migration {
-		return nil, fmt.Errorf("Can't ask for a rename through MigrateStoragePoolVolume")
+		return nil, errors.New("Can't ask for a rename through MigrateStoragePoolVolume")
 	}
 
 	var req any
@@ -449,7 +450,7 @@ func (r *ProtocolLXD) MigrateStoragePoolVolume(pool string, volume api.StorageVo
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", path, req, "", true)
+	op, _, err := r.queryOperation(http.MethodPost, path, req, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -459,7 +460,7 @@ func (r *ProtocolLXD) MigrateStoragePoolVolume(pool string, volume api.StorageVo
 
 func (r *ProtocolLXD) tryMigrateStoragePoolVolume(source InstanceServer, pool string, req api.StorageVolumePost, urls []string) (RemoteOperation, error) {
 	if len(urls) == 0 {
-		return nil, fmt.Errorf("The source server isn't listening on the network")
+		return nil, errors.New("The source server isn't listening on the network")
 	}
 
 	rop := remoteOperation{
@@ -520,7 +521,7 @@ func (r *ProtocolLXD) tryMigrateStoragePoolVolume(source InstanceServer, pool st
 // It will try to do this on every server in the provided list of urls, and waits for the creation to be complete.
 func (r *ProtocolLXD) tryCreateStoragePoolVolume(pool string, req api.StorageVolumesPost, urls []string) (RemoteOperation, error) {
 	if len(urls) == 0 {
-		return nil, fmt.Errorf("The source server isn't listening on the network")
+		return nil, errors.New("The source server isn't listening on the network")
 	}
 
 	rop := remoteOperation{
@@ -538,7 +539,7 @@ func (r *ProtocolLXD) tryCreateStoragePoolVolume(pool string, req api.StorageVol
 
 			// Send the request
 			path := "/storage-pools/" + url.PathEscape(pool) + "/volumes/" + url.PathEscape(req.Type)
-			top, _, err := r.queryOperation("POST", path, req, "", true)
+			top, _, err := r.queryOperation(http.MethodPost, path, req, "", true)
 			if err != nil {
 				errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
 				continue
@@ -586,11 +587,11 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 	}
 
 	if args != nil && args.VolumeOnly && r.CheckExtension("storage_api_volume_snapshots") != nil {
-		return nil, fmt.Errorf("The target server is missing the required \"storage_api_volume_snapshots\" API extension")
+		return nil, errors.New("The target server is missing the required \"storage_api_volume_snapshots\" API extension")
 	}
 
 	if args != nil && args.Refresh && r.CheckExtension("custom_volume_refresh") != nil {
-		return nil, fmt.Errorf("The target server is missing the required \"custom_volume_refresh\" API extension")
+		return nil, errors.New("The target server is missing the required \"custom_volume_refresh\" API extension")
 	}
 
 	req := api.StorageVolumesPost{
@@ -638,7 +639,7 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 		}
 
 		// Send the request
-		op, _, err := r.queryOperation("POST", "/storage-pools/"+url.PathEscape(pool)+"/volumes/"+url.PathEscape(volume.Type), req, "", true)
+		op, _, err := r.queryOperation(http.MethodPost, "/storage-pools/"+url.PathEscape(pool)+"/volumes/"+url.PathEscape(volume.Type), req, "", true)
 		if err != nil {
 			return nil, err
 		}
@@ -688,7 +689,7 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 		path := "/storage-pools/" + url.PathEscape(pool) + "/volumes/" + url.PathEscape(volume.Type)
 
 		// Send the request
-		op, _, err := r.queryOperation("POST", path, req, "", true)
+		op, _, err := r.queryOperation(http.MethodPost, path, req, "", true)
 		if err != nil {
 			return nil, err
 		}
@@ -746,7 +747,7 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 		path := "/storage-pools/" + url.PathEscape(pool) + "/volumes/" + url.PathEscape(volume.Type)
 
 		// Send the request
-		targetOp, _, err := r.queryOperation("POST", path, req, "", true)
+		targetOp, _, err := r.queryOperation(http.MethodPost, path, req, "", true)
 		if err != nil {
 			return nil, err
 		}
@@ -801,7 +802,7 @@ func (r *ProtocolLXD) MoveStoragePoolVolume(pool string, source InstanceServer, 
 	}
 
 	if r != source {
-		return nil, fmt.Errorf("Moving storage volumes between remotes is not implemented")
+		return nil, errors.New("Moving storage volumes between remotes is not implemented")
 	}
 
 	req := api.StorageVolumePost{
@@ -819,7 +820,7 @@ func (r *ProtocolLXD) MoveStoragePoolVolume(pool string, source InstanceServer, 
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", "/storage-pools/"+url.PathEscape(sourcePool)+"/volumes/"+url.PathEscape(volume.Type)+"/"+url.PathEscape(volume.Name), req, "", true)
+	op, _, err := r.queryOperation(http.MethodPost, "/storage-pools/"+url.PathEscape(sourcePool)+"/volumes/"+url.PathEscape(volume.Type)+"/"+url.PathEscape(volume.Name), req, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -854,7 +855,7 @@ func (r *ProtocolLXD) UpdateStoragePoolVolume(pool string, volType string, name 
 
 	// Send the request
 	path := "/storage-pools/" + url.PathEscape(pool) + "/volumes/" + url.PathEscape(volType) + "/" + url.PathEscape(name)
-	_, _, err = r.query("PUT", path, volume, ETag)
+	_, _, err = r.query(http.MethodPut, path, volume, ETag)
 	if err != nil {
 		return err
 	}
@@ -871,7 +872,7 @@ func (r *ProtocolLXD) DeleteStoragePoolVolume(pool string, volType string, name 
 
 	// Send the request
 	path := "/storage-pools/" + url.PathEscape(pool) + "/volumes/" + url.PathEscape(volType) + "/" + url.PathEscape(name)
-	_, _, err = r.query("DELETE", path, nil, "")
+	_, _, err = r.query(http.MethodDelete, path, nil, "")
 	if err != nil {
 		return err
 	}
@@ -889,7 +890,7 @@ func (r *ProtocolLXD) RenameStoragePoolVolume(pool string, volType string, name 
 	path := "/storage-pools/" + url.PathEscape(pool) + "/volumes/" + url.PathEscape(volType) + "/" + url.PathEscape(name)
 
 	// Send the request
-	_, _, err = r.query("POST", path, volume, "")
+	_, _, err = r.query(http.MethodPost, path, volume, "")
 	if err != nil {
 		return err
 	}
@@ -907,7 +908,7 @@ func (r *ProtocolLXD) GetStoragePoolVolumeBackupNames(pool string, volName strin
 	// Fetch the raw URL values.
 	urls := []string{}
 	baseURL := "/storage-pools/" + url.PathEscape(pool) + "/volumes/custom/" + url.PathEscape(volName) + "/backups"
-	_, err = r.queryStruct("GET", baseURL, nil, "", &urls)
+	_, err = r.queryStruct(http.MethodGet, baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
@@ -926,7 +927,7 @@ func (r *ProtocolLXD) GetStoragePoolVolumeBackups(pool string, volName string) (
 	// Fetch the raw value
 	backups := []api.StoragePoolVolumeBackup{}
 
-	_, err = r.queryStruct("GET", "/storage-pools/"+url.PathEscape(pool)+"/volumes/custom/"+url.PathEscape(volName)+"/backups?recursion=1", nil, "", &backups)
+	_, err = r.queryStruct(http.MethodGet, "/storage-pools/"+url.PathEscape(pool)+"/volumes/custom/"+url.PathEscape(volName)+"/backups?recursion=1", nil, "", &backups)
 	if err != nil {
 		return nil, err
 	}
@@ -943,7 +944,7 @@ func (r *ProtocolLXD) GetStoragePoolVolumeBackup(pool string, volName string, na
 
 	// Fetch the raw value
 	backup := api.StoragePoolVolumeBackup{}
-	etag, err := r.queryStruct("GET", "/storage-pools/"+url.PathEscape(pool)+"/volumes/custom/"+url.PathEscape(volName)+"/backups/"+url.PathEscape(name), nil, "", &backup)
+	etag, err := r.queryStruct(http.MethodGet, "/storage-pools/"+url.PathEscape(pool)+"/volumes/custom/"+url.PathEscape(volName)+"/backups/"+url.PathEscape(name), nil, "", &backup)
 	if err != nil {
 		return nil, "", err
 	}
@@ -959,7 +960,7 @@ func (r *ProtocolLXD) CreateStoragePoolVolumeBackup(pool string, volName string,
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", "/storage-pools/"+url.PathEscape(pool)+"/volumes/custom/"+url.PathEscape(volName)+"/backups", backup, "", true)
+	op, _, err := r.queryOperation(http.MethodPost, "/storage-pools/"+url.PathEscape(pool)+"/volumes/custom/"+url.PathEscape(volName)+"/backups", backup, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -975,7 +976,7 @@ func (r *ProtocolLXD) RenameStoragePoolVolumeBackup(pool string, volName string,
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", "/storage-pools/"+url.PathEscape(pool)+"/volumes/custom/"+url.PathEscape(volName)+"/backups/"+url.PathEscape(name), backup, "", true)
+	op, _, err := r.queryOperation(http.MethodPost, "/storage-pools/"+url.PathEscape(pool)+"/volumes/custom/"+url.PathEscape(volName)+"/backups/"+url.PathEscape(name), backup, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -991,7 +992,7 @@ func (r *ProtocolLXD) DeleteStoragePoolVolumeBackup(pool string, volName string,
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("DELETE", "/storage-pools/"+url.PathEscape(pool)+"/volumes/custom/"+url.PathEscape(volName)+"/backups/"+url.PathEscape(name), nil, "", true)
+	op, _, err := r.queryOperation(http.MethodDelete, "/storage-pools/"+url.PathEscape(pool)+"/volumes/custom/"+url.PathEscape(volName)+"/backups/"+url.PathEscape(name), nil, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -1014,7 +1015,7 @@ func (r *ProtocolLXD) GetStoragePoolVolumeBackupFile(pool string, volName string
 	}
 
 	// Prepare the download request
-	request, err := http.NewRequest("GET", uri, nil)
+	request, err := http.NewRequest(http.MethodGet, uri, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -1079,13 +1080,13 @@ func (r *ProtocolLXD) CreateStoragePoolVolumeFromISO(pool string, args StoragePo
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", reqURL, args.BackupFile)
+	req, err := http.NewRequest(http.MethodPost, reqURL, args.BackupFile)
 	if err != nil {
 		return nil, err
 	}
 
 	if args.Name == "" {
-		return nil, fmt.Errorf("Missing volume name")
+		return nil, errors.New("Missing volume name")
 	}
 
 	req.Header.Set("Content-Type", "application/octet-stream")
@@ -1144,7 +1145,7 @@ func (r *ProtocolLXD) CreateStoragePoolVolumeFromBackup(pool string, args Storag
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", reqURL, args.BackupFile)
+	req, err := http.NewRequest(http.MethodPost, reqURL, args.BackupFile)
 	if err != nil {
 		return nil, err
 	}

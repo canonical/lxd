@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -185,7 +186,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if len(ops) > 1 {
-			return fmt.Errorf("More than one operation matches")
+			return errors.New("More than one operation matches")
 		}
 
 		operation := ops[0]
@@ -305,7 +306,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if len(ops) > 1 {
-			return fmt.Errorf("More than one operation matches")
+			return errors.New("More than one operation matches")
 		}
 
 		operation := ops[0]
@@ -357,7 +358,7 @@ func operationCancel(s *state.State, r *http.Request, projectName string, op *ap
 		}
 
 		if len(ops) > 1 {
-			return fmt.Errorf("More than one operation matches")
+			return errors.New("More than one operation matches")
 		}
 
 		operation := ops[0]
@@ -700,7 +701,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 			if recursion {
 				md[status] = append(md[status].([]*api.Operation), &op)
 			} else {
-				md[status] = append(md[status].([]string), fmt.Sprintf("/1.0/operations/%s", op.ID))
+				md[status] = append(md[status].([]string), "/1.0/operations/"+op.ID)
 			}
 		}
 	}
@@ -996,7 +997,7 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if len(ops) > 1 {
-			return fmt.Errorf("More than one operation matches")
+			return errors.New("More than one operation matches")
 		}
 
 		operation := ops[0]
@@ -1087,7 +1088,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	secret := r.FormValue("secret")
 	if secret == "" {
-		return response.BadRequest(fmt.Errorf("Missing websocket secret"))
+		return response.BadRequest(errors.New("Missing websocket secret"))
 	}
 
 	var address string
@@ -1103,7 +1104,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if len(ops) > 1 {
-			return fmt.Errorf("More than one operation matches")
+			return errors.New("More than one operation matches")
 		}
 
 		operation := ops[0]
@@ -1128,9 +1129,9 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 	return operations.ForwardedOperationWebSocket(id, source)
 }
 
-func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
+func autoRemoveOrphanedOperationsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		s := d.State()
+		s := stateFunc()
 
 		leaderInfo, err := s.LeaderInfo()
 		if err != nil {

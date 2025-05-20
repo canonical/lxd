@@ -6,8 +6,10 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -72,7 +74,7 @@ func EtagHash(data any) (string, error) {
 		return "", err
 	}
 
-	return fmt.Sprintf("%x", etag.Sum(nil)), nil
+	return hex.EncodeToString(etag.Sum(nil)), nil
 }
 
 // EtagCheck validates the hash of the current state with the hash
@@ -105,7 +107,7 @@ func HTTPClient(certificate string, proxy proxyFunc) (*http.Client, error) {
 	if certificate != "" {
 		certBlock, _ := pem.Decode([]byte(certificate))
 		if certBlock == nil {
-			return nil, fmt.Errorf("Invalid certificate")
+			return nil, errors.New("Invalid certificate")
 		}
 
 		cert, err = x509.ParseCertificate(certBlock.Bytes)

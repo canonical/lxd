@@ -6,8 +6,9 @@ discourse: "[Building&#32;custom&#32;LXD&#32;binaries&#32;for&#32;side&#32;loadi
 # How to install LXD
 
 ````{only} integrated
-```{note}
-MicroCloud users can disregard the instructions on this page, because the MicroCloud setup process handles the installation and configuration of LXD.
+```{admonition} For MicroCloud users
+:class: note
+The MicroCloud setup process installs LXD on cluster members. Thus, you do not need to follow the steps on this page.
 ```
 ````
 
@@ -209,7 +210,7 @@ version to work. On Ubuntu, you can get those with:
 
 ```bash
 sudo apt update
-sudo apt install acl attr autoconf automake dnsmasq-base git libacl1-dev libcap-dev liblxc1 liblxc-dev libsqlite3-dev libtool libudev-dev liblz4-dev libuv1-dev make pkg-config rsync squashfs-tools tar tcl xz-utils ebtables
+sudo apt install acl attr autoconf automake dnsmasq-base git libacl1-dev libapparmor-dev libcap-dev libsqlite3-dev libtool libudev-dev liblz4-dev libuv1-dev make meson ninja-build pkg-config python3-venv rsync squashfs-tools tar tcl xz-utils ebtables
 command -v snap >/dev/null || sudo apt-get install snapd
 sudo snap install --classic go
 ```

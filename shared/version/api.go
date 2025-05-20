@@ -445,6 +445,11 @@ var APIExtensions = []string{
 	"clustering_groups_used_by",
 	"container_bpf_delegation",
 	"override_snapshot_profiles_on_copy",
+	"backup_metadata_version",
+	"storage_buckets_all_projects",
+	"network_acls_all_projects",
+	"networks_all_projects",
+	"clustering_restore_skip_mode",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

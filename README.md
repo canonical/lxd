@@ -14,11 +14,11 @@ You should consider using LXD if you want to containerize different environments
 
 ## Get started
 
-See [Getting started](https://documentation.ubuntu.com/lxd/en/stable-5.21/getting_started/) in the LXD documentation for installation instructions and first steps.
+See [Getting started](https://documentation.ubuntu.com/lxd/stable-5.21/getting_started/) in the LXD documentation for installation instructions and first steps.
 
 - Release announcements: [`https://discourse.ubuntu.com/c/lxd/news/`](https://discourse.ubuntu.com/c/lxd/news/143)
 - Release tarballs: [`https://github.com/canonical/lxd/releases/`](https://github.com/canonical/lxd/releases/)
-- Documentation: [`https://documentation.ubuntu.com/lxd/en/stable-5.21/`](https://documentation.ubuntu.com/lxd/en/stable-5.21/)
+- Documentation: [`https://documentation.ubuntu.com/lxd/stable-5.21/`](https://documentation.ubuntu.com/lxd/stable-5.21/)
 
 ## Status
 
@@ -41,7 +41,7 @@ macOS               | [Homebrew](https://formulae.brew.sh/formula/lxc)  | `brew 
 
 The LXD snap packaging repository is available [here](https://github.com/canonical/lxd-pkg-snap).
 
-For more instructions on installing LXD for a wide variety of Linux distributions and operating systems, and to install LXD from source, see [How to install LXD](https://documentation.ubuntu.com/lxd/en/stable-5.21/installing/) in the documentation.
+For more instructions on installing LXD for a wide variety of Linux distributions and operating systems, and to install LXD from source, see [How to install LXD](https://documentation.ubuntu.com/lxd/stable-5.21/installing/) in the documentation.
 
 ## Client SDK packages
 
@@ -54,7 +54,7 @@ Language  | URL
 Go        | https://pkg.go.dev/github.com/canonical/lxd/client
 Python    | https://github.com/canonical/pylxd
 
-For more information on using the LXD API, see [REST API](https://documentation.ubuntu.com/lxd/en/stable-5.21/restapi_landing/) in the documentation.
+For more information on using the LXD API, see [REST API](https://documentation.ubuntu.com/lxd/stable-5.21/restapi_landing/) in the documentation.
 
 ## Tools for managing LXD
 
@@ -81,9 +81,9 @@ Consider the following aspects to ensure that your LXD installation is secure:
 - Configure your network interfaces to be secure.
 - Do not use privileged containers unless required. If you use privileged containers, put appropriate security measures in place.
   <!-- Include end security -->
-  See [Container security](https://documentation.ubuntu.com/lxd/en/stable-5.21/explanation/security/#container-security) for more information.
+  See [Container security](https://documentation.ubuntu.com/lxd/latstable-5.21/explanation/security/#container-security) for more information.
 
-See [Security](https://documentation.ubuntu.com/lxd/en/stable-5.21/explanation/security/) for detailed information.
+See [Security](https://documentation.ubuntu.com/lxd/stable-5.21/explanation/security/) for detailed information.
 
 **IMPORTANT:**
 <!-- Include start security note -->
@@ -112,14 +112,16 @@ If you prefer live discussions, you can find us in [`#lxd`](https://web.libera.c
 
 ### Commercial support
 
-Commercial support for LXD is available through [Ubuntu Pro](https://ubuntu.com/support) (Ubuntu Pro (Infra-only) or full Ubuntu Pro).
+Commercial support for LXD is available through [Ubuntu Pro](https://ubuntu.com/support) (Infra-only or full Ubuntu Pro).
 The support covers all LTS versions for five years starting from the day of the release.
+
+LXD instances are also eligible for Ubuntu Pro support. See: [How to get Ubuntu Pro on LXD guests](https://documentation.ubuntu.com/pro-client/en/latest/howtoguides/use_pro_lxd_guests/) in the Ubuntu Pro Client documentation.
 
 See the [full service description](https://ubuntu.com/legal/ubuntu-pro-description) for detailed information about what support Ubuntu Pro provides.
 
 ## Documentation
 
-The official documentation is available at: [`https://documentation.ubuntu.com/lxd/en/stable-5.21/`](https://documentation.ubuntu.com/lxd/en/stable-5.21/)
+The official documentation is available at: [`https://documentation.ubuntu.com/lxd/stable-5.21/`](https://documentation.ubuntu.com/lxd/stable-5.21/)
 
 You can find additional resources on the [website](https://canonical.com/lxd), on [YouTube](https://www.youtube.com/channel/UCuP6xPt0WTeZu32CkQPpbvA) and in the [Tutorials section](https://discourse.ubuntu.com/c/lxd/tutorials/146) in the forum.
 

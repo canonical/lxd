@@ -1,21 +1,26 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 )
 
 type cmdWaitready struct {
 	global *cmdGlobal
 
-	flagTimeout int
+	flagTimeout uint64
 }
 
+// Command returns a cobra.Command object representing the "waitready" command.
 func (c *cmdWaitready) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "waitready"
@@ -28,71 +33,71 @@ func (c *cmdWaitready) Command() *cobra.Command {
   containers.
 `
 	cmd.RunE = c.Run
-	cmd.Flags().IntVarP(&c.flagTimeout, "timeout", "t", 0, "Number of seconds to wait before giving up"+"``")
+	cmd.Flags().Uint64VarP(&c.flagTimeout, "timeout", "t", 0, "Number of seconds to wait before giving up"+"``")
 
 	return cmd
 }
 
+// Run executes the "waitready" command.
 func (c *cmdWaitready) Run(cmd *cobra.Command, args []string) error {
-	finger := make(chan error, 1)
-	var errLast error
-	go func() {
-		for i := 0; ; i++ {
-			// Start logging only after the 10'th attempt (about 5
-			// seconds). Then after the 30'th attempt (about 15
-			// seconds), log only only one attempt every 10
-			// attempts (about 5 seconds), to avoid being too
-			// verbose.
-			doLog := false
-			if i > 10 {
-				doLog = i < 30 || ((i % 10) == 0)
-			}
-
-			if doLog {
-				logger.Debugf("Connecting to LXD daemon (attempt %d)", i)
-			}
-
-			d, err := lxd.ConnectLXDUnix("", nil)
-			if err != nil {
-				errLast = err
-				if doLog {
-					logger.Debugf("Failed connecting to LXD daemon (attempt %d): %v", i, err)
-				}
-
-				time.Sleep(500 * time.Millisecond)
-				continue
-			}
-
-			if doLog {
-				logger.Debugf("Checking if LXD daemon is ready (attempt %d)", i)
-			}
-
-			_, _, err = d.RawQuery("GET", "/internal/ready", nil, "")
-			if err != nil {
-				errLast = err
-				if doLog {
-					logger.Debugf("Failed to check if LXD daemon is ready (attempt %d): %v", i, err)
-				}
-
-				time.Sleep(500 * time.Millisecond)
-				continue
-			}
-
-			finger <- nil
-			return
-		}
-	}()
-
+	ctx := context.Background() // Default to no timeout.
 	if c.flagTimeout > 0 {
-		select {
-		case <-finger:
-			break
-		case <-time.After(time.Second * time.Duration(c.flagTimeout)):
-			return fmt.Errorf("LXD still not running after %ds timeout (%v)", c.flagTimeout, errLast)
-		}
-	} else {
-		<-finger
+		var cancel context.CancelFunc
+
+		// Add 100ms longer than timeout to allow receipt of response message from server so we can
+		// differentiate between the server being unreachable or just not ready yet.
+		ctx, cancel = context.WithTimeout(ctx, (time.Duration(c.flagTimeout)*time.Second)+(time.Millisecond*100))
+		defer cancel()
 	}
 
-	return nil
+	log := func(i int, format string, args ...any) {
+		// Start logging only after the 10'th attempt (about 5seconds).
+		// Then after the 30'th attempt (about 15 seconds), log only only one attempt every 10 attempts
+		// (about 5 seconds), to avoid being too verbose.
+		doLog := false
+		if i > 10 {
+			doLog = i < 30 || ((i % 10) == 0)
+		}
+
+		if doLog {
+			logger.Debugf(format, args...)
+		}
+	}
+
+	for i := 0; ; i++ {
+		if ctx.Err() != nil {
+			return fmt.Errorf("LXD daemon not reachable after %ds timeout", c.flagTimeout)
+		}
+
+		if i > 0 {
+			time.Sleep(time.Second)
+		}
+
+		log(i, "Connecting to LXD daemon (attempt %d)", i)
+
+		var d lxd.InstanceServer
+		d, err := lxd.ConnectLXDUnixWithContext(ctx, "", &lxd.ConnectionArgs{
+			SkipGetServer: true,
+		})
+		if err != nil {
+			log(i, "Failed connecting to LXD daemon (attempt %d): %v", i, err)
+			continue
+		}
+
+		log(i, "Checking if LXD daemon is ready (attempt %d)", i)
+
+		u := api.NewURL().Path("internal", "ready").WithQuery("timeout", strconv.FormatUint(c.flagTimeout, 10))
+		_, _, err = d.RawQuery(http.MethodGet, u.String(), nil, "")
+		if err != nil {
+			// LXD is reachable but is internally reporting as not ready after the specified timeout.
+			if api.StatusErrorCheck(err, http.StatusServiceUnavailable) {
+				return fmt.Errorf("LXD daemon not ready after %ds timeout", c.flagTimeout)
+			}
+
+			log(i, "Failed to check if LXD daemon is ready (attempt %d): %v", i, err)
+			continue
+		}
+
+		return nil // LXD is ready.
+	}
 }

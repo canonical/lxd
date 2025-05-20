@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -36,7 +38,7 @@ func (c *cmdRecover) command() *cobra.Command {
 func (c *cmdRecover) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if len(args) > 0 {
-		return fmt.Errorf("Invalid arguments")
+		return errors.New("Invalid arguments")
 	}
 
 	d, err := lxd.ConnectLXDUnix("", nil)
@@ -95,7 +97,7 @@ func (c *cmdRecover) run(cmd *cobra.Command, args []string) error {
 
 			unknownPool.Name, err = c.global.asker.AskString("Name of the storage pool: ", "", validate.Required(func(value string) error {
 				if value == "" {
-					return fmt.Errorf("Pool name cannot be empty")
+					return errors.New("Pool name cannot be empty")
 				}
 
 				for _, p := range unknownPools {
@@ -125,7 +127,7 @@ func (c *cmdRecover) run(cmd *cobra.Command, args []string) error {
 				_, _ = c.global.asker.AskString("Additional storage pool configuration property (KEY=VALUE, empty when done): ", "", validate.Optional(func(value string) error {
 					configParts := strings.SplitN(value, "=", 2)
 					if len(configParts) < 2 {
-						return fmt.Errorf("Config option should be in the format KEY=VALUE")
+						return errors.New("Config option should be in the format KEY=VALUE")
 					}
 
 					configKey = configParts[0]
@@ -181,7 +183,7 @@ func (c *cmdRecover) run(cmd *cobra.Command, args []string) error {
 	reqValidate.Pools = append(reqValidate.Pools, unknownPools...)
 
 	for {
-		resp, _, err := d.RawQuery("POST", "/internal/recover/validate", reqValidate, "")
+		resp, _, err := d.RawQuery(http.MethodPost, "/internal/recover/validate", reqValidate, "")
 		if err != nil {
 			return fmt.Errorf("Failed validation request: %w", err)
 		}
@@ -243,7 +245,7 @@ func (c *cmdRecover) run(cmd *cobra.Command, args []string) error {
 		Pools: reqValidate.Pools,
 	}
 
-	_, _, err = d.RawQuery("POST", "/internal/recover/import", reqImport, "")
+	_, _, err = d.RawQuery(http.MethodPost, "/internal/recover/import", reqImport, "")
 	if err != nil {
 		return fmt.Errorf("Failed import request: %w", err)
 	}

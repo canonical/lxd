@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -154,7 +155,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	if used {
-		return response.BadRequest(fmt.Errorf("Volumes used by LXD itself cannot have snapshots"))
+		return response.BadRequest(errors.New("Volumes used by LXD itself cannot have snapshots"))
 	}
 
 	var parentDBVolume *db.StorageVolume
@@ -210,20 +211,9 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		return response.SmartError(err)
 	}
 
-	// Fill in the expiry.
-	var expiry time.Time
-	if req.ExpiresAt != nil {
-		expiry = *req.ExpiresAt
-	} else {
-		expiry, err = shared.GetExpiry(time.Now(), parentDBVolume.Config["snapshots.expiry"])
-		if err != nil {
-			return response.BadRequest(err)
-		}
-	}
-
 	// Create the snapshot.
 	snapshot := func(op *operations.Operation) error {
-		return details.pool.CreateCustomVolumeSnapshot(effectiveProjectName, details.volumeName, req.Name, req.Description, expiry, op)
+		return details.pool.CreateCustomVolumeSnapshot(effectiveProjectName, details.volumeName, req.Name, req.Description, req.ExpiresAt, op)
 	}
 
 	resources := map[string][]api.URL{}
@@ -365,6 +355,12 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 		return response.SmartError(err)
 	}
 
+	// Forward if needed.
+	resp := forwardedResponseIfTargetIsRemote(s, r)
+	if resp != nil {
+		return resp
+	}
+
 	var volumes []db.StorageVolumeArgs
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -421,11 +417,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 			snap.Description = vol.Description
 			snap.Name = vol.Name
 			snap.CreatedAt = vol.CreatedAt
-
-			expiryDate := volume.ExpiryDate
-			if expiryDate.Unix() > 0 {
-				snap.ExpiresAt = &expiryDate
-			}
+			snap.ExpiresAt = &volume.ExpiryDate
 
 			resultMap = append(resultMap, snap)
 		}
@@ -1000,9 +992,10 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	return operations.OperationResponse(op)
 }
 
-func pruneExpiredAndAutoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
+func pruneExpiredAndAutoCreateCustomVolumeSnapshotsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		s := d.State()
+		s := stateFunc()
+
 		var volumes, remoteVolumes, expiredSnapshots, expiredRemoteSnapshots []db.StorageVolumeArgs
 		var memberCount int
 		var onlineMemberIDs []int64
@@ -1271,17 +1264,12 @@ func autoCreateCustomVolumeSnapshots(ctx context.Context, s *state.State, volume
 			return fmt.Errorf("Error retrieving next snapshot name for volume %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
 		}
 
-		expiry, err := shared.GetExpiry(time.Now(), v.Config["snapshots.expiry"])
-		if err != nil {
-			return fmt.Errorf("Error getting snapshot expiry for volume %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
-		}
-
 		pool, err := storagePools.LoadByName(s, v.PoolName)
 		if err != nil {
 			return fmt.Errorf("Error loading pool for volume %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
 		}
 
-		err = pool.CreateCustomVolumeSnapshot(v.ProjectName, v.Name, snapshotName, v.Description, expiry, nil)
+		err = pool.CreateCustomVolumeSnapshot(v.ProjectName, v.Name, snapshotName, v.Description, nil, nil)
 		if err != nil {
 			return fmt.Errorf("Error creating snapshot for volume %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
 		}

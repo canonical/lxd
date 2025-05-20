@@ -329,7 +329,7 @@ func (d *common) VolatileSet(changes map[string]string) error {
 	// Quick check.
 	for key := range changes {
 		if !strings.HasPrefix(key, instancetype.ConfigVolatilePrefix) {
-			return fmt.Errorf("Only volatile keys can be modified with VolatileSet")
+			return errors.New("Only volatile keys can be modified with VolatileSet")
 		}
 	}
 
@@ -576,7 +576,7 @@ func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) er
 		}
 	} else {
 		if inst.IsFrozen() {
-			err = fmt.Errorf("Instance is not running")
+			err = errors.New("Instance is not running")
 			op.Done(err)
 			return err
 		}
@@ -620,7 +620,7 @@ func (d *common) rebuildCommon(inst instance.Instance, img *api.Image, op *opera
 	delete(instLocalConfig, "volatile.base_image")
 	if img != nil {
 		for k, v := range img.Properties {
-			instLocalConfig[fmt.Sprintf("image.%s", k)] = v
+			instLocalConfig["image."+k] = v
 		}
 
 		instLocalConfig["volatile.base_image"] = img.Fingerprint
@@ -691,9 +691,22 @@ func (d *common) runHooks(hooks []func() error) error {
 }
 
 // snapshot handles the common part of the snapshoting process.
-func (d *common) snapshotCommon(inst instance.Instance, name string, expiry time.Time, stateful bool) error {
+func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *time.Time, stateful bool) error {
 	revert := revert.New()
 	defer revert.Fail()
+
+	snapshotCreationDate := time.Now().UTC()
+
+	// If the expiry is unset, retrieve it from the instance's expanded config.
+	if expiry == nil {
+		// Use the snapshot creation date as reference for an exact expiry date.
+		instanceSnapshotExpiry, err := shared.GetExpiry(snapshotCreationDate, inst.ExpandedConfig()["snapshots.expiry"])
+		if err != nil {
+			return err
+		}
+
+		expiry = &instanceSnapshotExpiry
+	}
 
 	// Setup the arguments.
 	args := db.InstanceArgs{
@@ -707,7 +720,8 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry time
 		Name:         inst.Name() + shared.SnapshotDelimiter + name,
 		Profiles:     inst.Profiles(),
 		Stateful:     stateful,
-		ExpiryDate:   expiry,
+		ExpiryDate:   *expiry,
+		CreationDate: snapshotCreationDate,
 	}
 
 	// Create the snapshot.
@@ -811,7 +825,7 @@ func (d *common) isRunningStatusCode(statusCode api.StatusCode) bool {
 // isStartableStatusCode returns an error if the status code means the instance cannot be started currently.
 func (d *common) isStartableStatusCode(statusCode api.StatusCode) error {
 	if d.isRunningStatusCode(statusCode) {
-		return fmt.Errorf("The instance is already running")
+		return errors.New("The instance is already running")
 	}
 
 	// If the instance process exists but is crashed, don't allow starting until its been cleaned up, as it
@@ -877,7 +891,7 @@ func (d *common) maasUpdate(inst instance.Instance, oldDevices map[string]map[st
 
 	// See if we're connected to MAAS
 	if d.state.MAAS == nil {
-		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
+		return errors.New("Can't perform the operation because MAAS is currently unavailable")
 	}
 
 	exists, err := d.state.MAAS.DefinedContainer(d)
@@ -963,7 +977,7 @@ func (d *common) maasRename(inst instance.Instance, newName string) error {
 	}
 
 	if d.state.MAAS == nil {
-		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
+		return errors.New("Can't perform the operation because MAAS is currently unavailable")
 	}
 
 	exists, err := d.state.MAAS.DefinedContainer(d)
@@ -995,7 +1009,7 @@ func (d *common) maasDelete(inst instance.Instance) error {
 	}
 
 	if d.state.MAAS == nil {
-		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
+		return errors.New("Can't perform the operation because MAAS is currently unavailable")
 	}
 
 	exists, err := d.state.MAAS.DefinedContainer(d)
@@ -1348,7 +1362,7 @@ func (d *common) getParentStoragePool() (string, error) {
 	}
 
 	if parentStoragePool == "" {
-		return "", fmt.Errorf("Instance's root device is missing the pool property")
+		return "", errors.New("Instance's root device is missing the pool property")
 	}
 
 	return parentStoragePool, nil
@@ -1387,7 +1401,7 @@ func (d *common) deviceAdd(dev device.Device, instanceRunning bool) error {
 	l.Debug("Adding device")
 
 	if instanceRunning && !dev.CanHotPlug() {
-		return fmt.Errorf("Device cannot be added when instance is running")
+		return errors.New("Device cannot be added when instance is running")
 	}
 
 	return dev.Add()
@@ -1399,7 +1413,7 @@ func (d *common) deviceRemove(dev device.Device, instanceRunning bool) error {
 	l.Debug("Removing device")
 
 	if instanceRunning && !dev.CanHotPlug() {
-		return fmt.Errorf("Device cannot be removed when instance is running")
+		return errors.New("Device cannot be removed when instance is running")
 	}
 
 	return dev.Remove()
@@ -1482,7 +1496,7 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 
 	dm, ok := inst.(deviceManager)
 	if !ok {
-		return nil, fmt.Errorf("Instance is not compatible with deviceManager interface")
+		return nil, errors.New("Instance is not compatible with deviceManager interface")
 	}
 
 	// Remove devices in reverse order to how they were added.

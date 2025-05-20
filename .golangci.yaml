@@ -3,8 +3,10 @@ linters:
   enable:
     - godot
     - misspell
+    - perfsprint
     - prealloc
     - revive
+    - testifylint
     - whitespace
   settings:
     errcheck:
@@ -80,12 +82,17 @@ linters:
         - name: duplicated-imports
         # https://github.com/mgechev/revive/blob/2a1701aadbedfcc175cb92836a51407bec382652/RULES_DESCRIPTIONS.md#error-return
         - name: error-return
+    testifylint:
+      disable:
+        - float-compare
+        - require-error
   exclusions:
     generated: lax
     paths:
       - third_party$
       - builtin$
       - examples$
+      - lxd/idmap/idmapset_linux\.go$
     rules:
       - linters:
           - staticcheck

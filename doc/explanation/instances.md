@@ -1,6 +1,6 @@
 ---
 discourse: lxc:[Overview&#32;-&#32;GUI&#32;inside&#32;Containers](8767),lxc:[Running&#32;virtual&#32;machines&#32;with&#32;LXD&#32;4.0](7519),lxc:[Install&#32;any&#32;OS&#32;via&#32;ISO&#32;in&#32;a&#32;Virtual&#32;machine/VM](9281)
-relatedlinks: '[LXD&#32;virtual&#32;machines:&#32;an&#32;overview](https://ubuntu.com/blog/lxd-virtual-machines-an-overview)'
+relatedlinks: "[LXD&#32;virtual&#32;machines:&#32;an&#32;overview](https://ubuntu.com/blog/lxd-virtual-machines-an-overview)"
 ---
 
 (containers-and-vms)=

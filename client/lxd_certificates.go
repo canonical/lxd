@@ -1,7 +1,8 @@
 package lxd
 
 import (
-	"fmt"
+	"errors"
+	"net/http"
 	"net/url"
 
 	"github.com/canonical/lxd/shared/api"
@@ -14,7 +15,7 @@ func (r *ProtocolLXD) GetCertificateFingerprints() ([]string, error) {
 	// Fetch the raw URL values.
 	urls := []string{}
 	baseURL := "/certificates"
-	_, err := r.queryStruct("GET", baseURL, nil, "", &urls)
+	_, err := r.queryStruct(http.MethodGet, baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +29,7 @@ func (r *ProtocolLXD) GetCertificates() ([]api.Certificate, error) {
 	certificates := []api.Certificate{}
 
 	// Fetch the raw value
-	_, err := r.queryStruct("GET", "/certificates?recursion=1", nil, "", &certificates)
+	_, err := r.queryStruct(http.MethodGet, "/certificates?recursion=1", nil, "", &certificates)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +42,7 @@ func (r *ProtocolLXD) GetCertificate(fingerprint string) (*api.Certificate, stri
 	certificate := api.Certificate{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", "/certificates/"+url.PathEscape(fingerprint), nil, "", &certificate)
+	etag, err := r.queryStruct(http.MethodGet, "/certificates/"+url.PathEscape(fingerprint), nil, "", &certificate)
 	if err != nil {
 		return nil, "", err
 	}
@@ -52,7 +53,7 @@ func (r *ProtocolLXD) GetCertificate(fingerprint string) (*api.Certificate, stri
 // CreateCertificate adds a new certificate to the LXD trust store.
 func (r *ProtocolLXD) CreateCertificate(certificate api.CertificatesPost) error {
 	// Send the request
-	_, _, err := r.query("POST", "/certificates", certificate, "")
+	_, _, err := r.query(http.MethodPost, "/certificates", certificate, "")
 	if err != nil {
 		return err
 	}
@@ -68,7 +69,7 @@ func (r *ProtocolLXD) UpdateCertificate(fingerprint string, certificate api.Cert
 	}
 
 	// Send the request
-	_, _, err = r.query("PUT", "/certificates/"+url.PathEscape(fingerprint), certificate, ETag)
+	_, _, err = r.query(http.MethodPut, "/certificates/"+url.PathEscape(fingerprint), certificate, ETag)
 	if err != nil {
 		return err
 	}
@@ -79,7 +80,7 @@ func (r *ProtocolLXD) UpdateCertificate(fingerprint string, certificate api.Cert
 // DeleteCertificate removes a certificate from the LXD trust store.
 func (r *ProtocolLXD) DeleteCertificate(fingerprint string) error {
 	// Send the request
-	_, _, err := r.query("DELETE", "/certificates/"+url.PathEscape(fingerprint), nil, "")
+	_, _, err := r.query(http.MethodDelete, "/certificates/"+url.PathEscape(fingerprint), nil, "")
 	if err != nil {
 		return err
 	}
@@ -95,11 +96,11 @@ func (r *ProtocolLXD) CreateCertificateToken(certificate api.CertificatesPost) (
 	}
 
 	if !certificate.Token {
-		return nil, fmt.Errorf("Token needs to be true if requesting a token")
+		return nil, errors.New("Token needs to be true if requesting a token")
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", "/certificates", certificate, "", true)
+	op, _, err := r.queryOperation(http.MethodPost, "/certificates", certificate, "", true)
 	if err != nil {
 		return nil, err
 	}

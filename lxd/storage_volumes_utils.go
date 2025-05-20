@@ -8,6 +8,7 @@ import (
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
@@ -24,7 +25,11 @@ func storagePoolVolumeUpdateUsers(s *state.State, projectName string, oldPoolNam
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Update all instances that are using the volume with a local (non-expanded) device.
+	var instances []instance.Instance
+	var instancesOldArgs []db.InstanceArgs
+	var instancesNewDevices []config.Devices
+
+	// Get all instances that are using the volume with a local (non-expanded) device.
 	err := storagePools.VolumeUsedByInstanceDevices(s, oldPoolName, projectName, oldVol, false, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
 		inst, err := instance.Load(s, dbInst, project)
 		if err != nil {
@@ -42,11 +47,25 @@ func storagePoolVolumeUpdateUsers(s *state.State, projectName string, oldPoolNam
 			}
 		}
 
+		instances = append(instances, inst)
+		instancesOldArgs = append(instancesOldArgs, dbInst)
+		instancesNewDevices = append(instancesNewDevices, newDevices)
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Iterate over all instances and update their devices.
+	// Don't perform this within a transaction as the instance's Update will persist the updates to file.
+	// Furthermore this allows requesting further information from the database down the line.
+	for i, inst := range instances {
 		args := db.InstanceArgs{
 			Architecture: inst.Architecture(),
 			Description:  inst.Description(),
 			Config:       inst.LocalConfig(),
-			Devices:      newDevices,
+			Devices:      instancesNewDevices[i],
 			Ephemeral:    inst.IsEphemeral(),
 			Profiles:     inst.Profiles(),
 			Project:      inst.Project().Name,
@@ -56,20 +75,15 @@ func storagePoolVolumeUpdateUsers(s *state.State, projectName string, oldPoolNam
 
 		err = inst.Update(args, false)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		revert.Add(func() {
-			err := inst.Update(dbInst, false)
+			err := inst.Update(instancesOldArgs[i], false)
 			if err != nil {
-				logger.Error("Failed to revert instance update", logger.Ctx{"project": dbInst.Project, "instance": dbInst.Name, "error": err})
+				logger.Error("Failed to revert instance update", logger.Ctx{"project": instancesOldArgs[i].Project, "instance": instancesOldArgs[i].Name, "error": err})
 			}
 		})
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
 	}
 
 	// Update all profiles that are using the volume with a device.

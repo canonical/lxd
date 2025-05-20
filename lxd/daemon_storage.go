@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -61,7 +62,7 @@ func daemonStorageVolumesUnmount(s *state.State, ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("Timed out waiting for image and backup volume")
+		return errors.New("Timed out waiting for image and backup volume")
 	default:
 		if storageBackups != "" {
 			err := unmount(storageBackups)
@@ -139,7 +140,7 @@ func daemonStorageMount(s *state.State) error {
 
 func daemonStorageSplitVolume(volume string) (poolName string, volumeName string, err error) {
 	if strings.Count(volume, "/") != 1 {
-		return "", "", fmt.Errorf("Invalid syntax for volume, must be <pool>/<volume>")
+		return "", "", errors.New("Invalid syntax for volume, must be <pool>/<volume>")
 	}
 
 	poolName, volumeName, _ = strings.Cut(volume, "/")
@@ -212,7 +213,7 @@ func daemonStorageValidate(s *state.State, target string) (validatedTarget strin
 	}
 
 	if len(snapshots) != 0 {
-		return "", fmt.Errorf("Storage volumes for use by LXD itself cannot have snapshots")
+		return "", errors.New("Storage volumes for use by LXD itself cannot have snapshots")
 	}
 
 	// Mount volume.

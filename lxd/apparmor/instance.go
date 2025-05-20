@@ -1,6 +1,7 @@
 package apparmor
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -42,7 +43,7 @@ func InstanceProfileName(inst instance) string {
 // InstanceNamespaceName returns the instance's AppArmor namespace.
 func InstanceNamespaceName(inst instance) string {
 	// Unlike in profile names, / isn't an allowed character so replace with a -.
-	path := strings.Replace(strings.Trim(shared.VarPath(""), "/"), "/", "-", -1)
+	path := strings.ReplaceAll(strings.Trim(shared.VarPath(""), "/"), "/", "-")
 	name := project.Instance(inst.Project().Name, inst.Name()) + "_<" + path + ">"
 	return profileName("", name)
 }
@@ -203,7 +204,7 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 
 		vmInst, ok := inst.(instanceVM)
 		if !ok {
-			return "", fmt.Errorf("Instance is not VM type")
+			return "", errors.New("Instance is not VM type")
 		}
 
 		// Get start time firmware path to allow access to it.

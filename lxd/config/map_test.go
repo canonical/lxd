@@ -1,7 +1,7 @@
 package config_test
 
 import (
-	"fmt"
+	"errors"
 	"strings"
 	"testing"
 
@@ -311,7 +311,7 @@ func TestMap_Getters(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, "hello", m.GetString("foo"))
-	assert.Equal(t, true, m.GetBool("bar"))
+	assert.True(t, m.GetBool("bar"))
 	assert.Equal(t, int64(123), m.GetInt64("egg"))
 }
 
@@ -334,7 +334,7 @@ func TestMap_GettersPanic(t *testing.T) {
 
 // A Key setter that always fail.
 func failingSetter(string) (string, error) {
-	return "", fmt.Errorf("Boom")
+	return "", errors.New("Boom")
 }
 
 // A Key setter that uppercases the value.

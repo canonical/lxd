@@ -1,3 +1,4 @@
+(ref-idmap)=
 # Idmaps for user namespace
 
 LXD runs safe containers. This is achieved mostly through the use of
@@ -22,10 +23,20 @@ the POSIX range including root (0) and nobody (65534).
 User namespaces require a kernel >= 3.12, LXD will start even on older
 kernels but will refuse to start containers.
 
+(ref-idmap-allowed-ranges)=
 ## Allowed ranges
 
+```{admonition} If you installed LXD via snap
+:class: note
+
+If you {ref}`installed LXD via the Snap Store <installing-snap-package>` (the recommended method), this section does not apply.
+
+The `lxd` daemon runs as root inside the snap environment and does not use the `newuidmap` or `newgidmap` utilities. Thus, the allowed ID ranges in `/etc/subuid` and `/etc/subgid` are ignored, and you don't need to set them.
+
+```
+
 On most hosts, LXD will check `/etc/subuid` and `/etc/subgid` for
-allocations for the `lxd` user and on first start, set the default
+allocations for the `root` user and on first start, set the default
 profile to use the first 65536 UIDs and GIDs from that range.
 
 If the range is shorter than 65536 (which includes no range at all),
@@ -90,3 +101,6 @@ host, and the third entry is the range inside the container. These ranges must
 be the same size.
 
 This property requires a container reboot to take effect.
+
+For non-snap installations of LXD, you might need to add an entry for the `root` user into
+`/etc/subid` and/or `/etc/subgid` so the container is allowed to make use of it. See: {ref}`ref-idmap-allowed-ranges`.

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -13,7 +14,7 @@ type cmdForkmigrate struct {
 	global *cmdGlobal
 }
 
-func (c *cmdForkmigrate) Command() *cobra.Command {
+func (c *cmdForkmigrate) command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
 	cmd.Use = "forkmigrate <container name> <containers path> <config> <images path> <preserve>"
@@ -24,13 +25,13 @@ func (c *cmdForkmigrate) Command() *cobra.Command {
   This internal command is used to start the container as a separate
   process, restoring its recorded state.
 `
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Hidden = true
 
 	return cmd
 }
 
-func (c *cmdForkmigrate) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdForkmigrate) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if len(args) != 5 {
 		_ = cmd.Help()
@@ -39,12 +40,12 @@ func (c *cmdForkmigrate) Run(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
-		return fmt.Errorf("Missing required arguments")
+		return errors.New("Missing required arguments")
 	}
 
 	// Only root should run this
 	if os.Geteuid() != 0 {
-		return fmt.Errorf("This must be run as root")
+		return errors.New("This must be run as root")
 	}
 
 	name := args[0]

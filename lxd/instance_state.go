@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -81,7 +82,7 @@ func instanceState(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	// Handle requests targeted to a container on a different node
@@ -155,7 +156,7 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	// Handle requests targeted to a container on a different node
@@ -179,7 +180,7 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 
 	// Check if the cluster member is evacuated.
 	if s.DB.Cluster.LocalNodeIsEvacuated() && req.Action != "stop" {
-		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
+		return response.Forbidden(errors.New("Cluster member is evacuated"))
 	}
 
 	// Don't mess with instances while in setup mode.
@@ -245,21 +246,23 @@ func doInstanceStatePut(inst instance.Instance, req api.InstanceStatePut) error 
 	case instancetype.Start:
 		if inst.IsFrozen() {
 			return inst.Unfreeze()
-		} else {
-			return inst.Start(req.Stateful)
 		}
 
+		return inst.Start(req.Stateful)
 	case instancetype.Stop:
 		if req.Stateful {
 			return inst.Stop(req.Stateful)
-		} else if req.Timeout == 0 {
-			return inst.Stop(false)
-		} else if inst.IsFrozen() {
-			return fmt.Errorf("Cannot shutdown frozen instance (try force to stop)")
-		} else {
-			return inst.Shutdown(timeout)
 		}
 
+		if req.Timeout == 0 {
+			return inst.Stop(false)
+		}
+
+		if inst.IsFrozen() {
+			return errors.New("Cannot shutdown frozen instance (try force to stop)")
+		}
+
+		return inst.Shutdown(timeout)
 	case instancetype.Restart:
 		return inst.Restart(timeout)
 	case instancetype.Freeze:

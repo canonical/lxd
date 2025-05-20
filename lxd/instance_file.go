@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -9,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,6 +18,7 @@ import (
 	"github.com/pkg/sftp"
 
 	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
@@ -35,7 +38,7 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	// Redirect to correct server if needed.
@@ -62,7 +65,7 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 	// Parse and cleanup the path.
 	path := r.FormValue("path")
 	if path == "" {
-		return response.BadRequest(fmt.Errorf("Missing path argument"))
+		return response.BadRequest(errors.New("Missing path argument"))
 	}
 
 	if !strings.HasPrefix(path, "/") {
@@ -180,14 +183,15 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 
 	// Prepare the response.
 	headers := map[string]string{
-		"X-LXD-uid":      fmt.Sprint(fs.UID),
-		"X-LXD-gid":      fmt.Sprint(fs.GID),
+		"X-LXD-uid":      strconv.FormatUint(uint64(fs.UID), 10),
+		"X-LXD-gid":      strconv.FormatUint(uint64(fs.GID), 10),
 		"X-LXD-mode":     fmt.Sprintf("%04o", stat.Mode().Perm()),
 		"X-LXD-modified": stat.ModTime().UTC().String(),
 		"X-LXD-type":     fileType,
 	}
 
-	if fileType == "file" {
+	switch fileType {
+	case "file":
 		// Open the file.
 		file, err := client.Open(path)
 		if err != nil {
@@ -213,7 +217,7 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 
 		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFileRetrieved.Event(inst, logger.Ctx{"path": path}))
 		return response.FileResponse(files, headers)
-	} else if fileType == "symlink" {
+	case "symlink":
 		// Find symlink target.
 		target, err := client.ReadLink(path)
 		if err != nil {
@@ -244,7 +248,7 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 
 		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFileRetrieved.Event(inst, logger.Ctx{"path": path}))
 		return response.FileResponse(files, headers)
-	} else if fileType == "directory" {
+	case "directory":
 		dirEnts := []string{}
 
 		// List the directory.
@@ -343,8 +347,8 @@ func instanceFileHead(inst instance.Instance, path string) response.Response {
 
 	// Prepare the response.
 	headers := map[string]string{
-		"X-LXD-uid":      fmt.Sprint(fs.UID),
-		"X-LXD-gid":      fmt.Sprint(fs.GID),
+		"X-LXD-uid":      strconv.FormatUint(uint64(fs.UID), 10),
+		"X-LXD-gid":      strconv.FormatUint(uint64(fs.GID), 10),
 		"X-LXD-mode":     fmt.Sprintf("%04o", stat.Mode().Perm()),
 		"X-LXD-modified": stat.ModTime().UTC().String(),
 		"X-LXD-type":     fileType,
@@ -352,7 +356,7 @@ func instanceFileHead(inst instance.Instance, path string) response.Response {
 
 	if fileType == "file" {
 		headers["Content-Type"] = "application/octet-stream"
-		headers["Content-Length"] = fmt.Sprint(stat.Size())
+		headers["Content-Length"] = strconv.FormatInt(stat.Size(), 10)
 	}
 
 	// Return an empty body (per RFC for HEAD).
@@ -366,6 +370,55 @@ func instanceFileHead(inst instance.Instance, path string) response.Response {
 		w.WriteHeader(http.StatusOK)
 		return nil
 	})
+}
+
+// For containers we can only run chown/chgrp if target uid/gid is within uidmap allowed range.
+func applyEffectiveFileOwnership(inst instance.Instance, headers *shared.LXDFileHeaders, file *sftp.File) error {
+	uid := headers.UID
+	gid := headers.GID
+	if inst.Type() != instancetype.Container {
+		return nil
+	}
+
+	c, ok := inst.(instance.Container)
+	if !ok {
+		return fmt.Errorf("Invalid instance type: %T", inst)
+	}
+
+	idmapset, err := c.CurrentIdmap()
+	if err != nil {
+		return err
+	}
+
+	if idmapset == nil {
+		return nil
+	}
+
+	idmapranges, err := idmapset.ValidRanges()
+	if len(idmapranges) != 2 {
+		return err
+	}
+
+	l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "file": file.Name()})
+	for _, idmaprange := range idmapranges {
+		if idmaprange.Isuid && !idmaprange.Contains(headers.UID) {
+			l.Info("Requested UID not within idmap range", logger.Ctx{"uid": uid})
+			uid = -1
+		}
+
+		if idmaprange.Isgid && !idmaprange.Contains(headers.GID) {
+			l.Info("Requested GID not within idmap range", logger.Ctx{"gid": gid})
+			gid = -1
+		}
+	}
+
+	// -1 leaves the id unchanged
+	err = file.Chown(int(uid), int(gid))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // swagger:operation POST /1.0/instances/{name}/files instances instance_files_post
@@ -459,7 +512,8 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 	_, err = client.Stat(path)
 	exists := err == nil
 
-	if headers.Type == "file" {
+	switch headers.Type {
+	case "file":
 		fileMode := os.O_RDWR
 
 		if headers.Write == "overwrite" {
@@ -502,8 +556,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 		// Set file ownership.
 		if !exists || headers.UIDModifyExisting || headers.GIDModifyExisting {
 			if headers.UID >= 0 || headers.GID >= 0 {
-				// -1 leaves the id unchanged
-				err = file.Chown(int(headers.UID), int(headers.GID))
+				err = applyEffectiveFileOwnership(inst, headers, file)
 				if err != nil {
 					return response.SmartError(err)
 				}
@@ -512,7 +565,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 
 		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFilePushed.Event(inst, logger.Ctx{"path": path}))
 		return response.EmptySyncResponse
-	} else if headers.Type == "symlink" {
+	case "symlink":
 		// Figure out target.
 		target, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -533,7 +586,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 
 		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFilePushed.Event(inst, logger.Ctx{"path": path}))
 		return response.EmptySyncResponse
-	} else if headers.Type == "directory" {
+	case "directory":
 		// Check if it already exists.
 		if exists {
 			return response.EmptySyncResponse

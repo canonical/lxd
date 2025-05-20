@@ -11,7 +11,8 @@ on:
 
 env:
   LXD_REQUIRED_TESTS: "storage_buckets,network_ovn"
-  GOCOVERDIR: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && '"${GITHUB_WORKSPACE}/coverage"' || '' }}
+  GOCOVERAGE: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && 'true' || 'false' }}
+  GOCOVERDIR: ''  # Later set to the fully qualified path if needed
 
 permissions:
   contents: read
@@ -29,7 +30,7 @@ defaults:
 jobs:
   code-tests:
     env:
-      CGO_CFLAGS: "-I/home/runner/go/bin/dqlite/include/"
+      CGO_CFLAGS: "-I/home/runner/go/bin/dqlite/include/ -I/home/runner/go/bin/liblxc/include/"
       CGO_LDFLAGS: "-L/home/runner/go/bin/dqlite/libs/"
       LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
       LD_RUN_PATH: "/home/runner/go/bin/dqlite/libs/"
@@ -50,7 +51,7 @@ jobs:
         uses: ./.github/actions/tune-disk-performance
 
       - name: Dependency Review
-        uses: actions/dependency-review-action@38ecb5b593bf0eb19e335c03f97670f792489a8b # v4.7.0
+        uses: actions/dependency-review-action@da24556b548a50705dd671f47852072ea4c105d9 # v4.7.1
         if: github.event_name == 'pull_request'
 
       # XXX: `make static-analysis` also run shellcheck but this one provides
@@ -94,6 +95,14 @@ jobs:
           DOC_GOMIN="$(sed -n 's/^LXD requires Go \([0-9.]\+\) .*/\1/p' doc/requirements.md)"
           [ "${GOMIN}" = "${DOC_GOMIN}" ]
 
+      - name: Make GOCOVERDIR
+        run: |
+          set -eux
+          mkdir -p coverage
+          cd coverage
+          echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
+        if: env.GOCOVERAGE == 'true'
+
       - name: Make LXD tarball and unpack it
         env:
           CUSTOM_VERSION: "test"
@@ -116,6 +125,23 @@ jobs:
           mv /home/runner/work/lxd/lxd-test/vendor/dqlite/include /home/runner/go/bin/dqlite/include
           mv /home/runner/work/lxd/lxd-test/vendor/dqlite/.libs /home/runner/go/bin/dqlite/libs
 
+          # Include liblxc libs in dependencies for system tests.
+          mkdir -p /home/runner/go/bin/liblxc
+          mv /home/runner/work/lxd/lxd-test/vendor/liblxc/include /home/runner/go/bin/liblxc/include
+          mv /home/runner/work/lxd/lxd-test/vendor/liblxc/lib /home/runner/go/bin/liblxc/libs
+
+          # liblxc requires a rootfs dir
+          mkdir -p /home/runner/go/bin/liblxc/rootfs
+
+          # Update env variables for liblxc
+          LIBLXC_ARCH_LIBS="$(readlink -e /home/runner/go/bin/liblxc/libs/*-linux-gnu)"
+          PKG_CONFIG_PATH="$(pkg-config --variable pc_path pkg-config):${LIBLXC_ARCH_LIBS}/pkgconfig"
+
+          echo "CGO_LDFLAGS=${CGO_LDFLAGS} -L${LIBLXC_ARCH_LIBS}"       >> "${GITHUB_ENV}"
+          echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${LIBLXC_ARCH_LIBS}" >> "${GITHUB_ENV}"
+          echo "LD_RUN_PATH=${LD_RUN_PATH}:${LIBLXC_ARCH_LIBS}"         >> "${GITHUB_ENV}"
+          echo "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}"                     >> "${GITHUB_ENV}"
+
       - name: Build binaries
         run: |
           set -eux
@@ -125,20 +151,19 @@ jobs:
           make
 
       - name: Check lxc/lxd-agent binary sizes
+        if: env.GOCOVERAGE != 'true'
         run: |
           set -eux
 
-          # Build lxc/lxd-agent the same way as done in the snap
-          go build -trimpath -o "/tmp/bin/lxc" github.com/canonical/lxd/lxc
-          CGO_ENABLED=0 go build -trimpath -o "/tmp/bin/lxd-agent" -tags=agent,netgo github.com/canonical/lxd/lxd-agent
-          strip -s /tmp/bin/*
-
           # bin/max (sizes are in MiB)
           SIZES="lxc 16
-                 lxd-agent 13"
+                 lxd-agent 14"
           MIB="$((1024 * 1024))"
 
+          # Strip a copy of the freshly built binaries and check their size
+          mkdir /tmp/bin
           while read -r bin max; do
+            install --strip "/home/runner/go/bin/${bin}" /tmp/bin/
             cur="$(stat --format=%s "/tmp/bin/${bin}")"
             min=$((max - 1))
             min_mib="$((min * MIB))"
@@ -173,10 +198,6 @@ jobs:
             exit 1
           fi
 
-      - name: Make GOCOVERDIR
-        run: mkdir -p "${GOCOVERDIR}"
-        if: env.GOCOVERDIR != ''
-
       - name: Run static analysis
         env:
           GITHUB_BEFORE: ${{ github.event.before }}
@@ -192,7 +213,9 @@ jobs:
       - name: Unit tests (all)
         run: |
           set -eux
-          sudo --preserve-env=CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,GOCOVERDIR,LD_LIBRARY_PATH LD_LIBRARY_PATH=${LD_LIBRARY_PATH} env "PATH=${PATH}" make check-unit
+          chmod +x ~
+          echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
+          sudo --preserve-env=CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,GOCOVERDIR,PKG_CONFIG_PATH,LD_LIBRARY_PATH LD_LIBRARY_PATH=${LD_LIBRARY_PATH} env "PATH=${PATH}" make check-unit
 
       - name: Upload coverage data
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -215,6 +238,7 @@ jobs:
             /home/runner/go/bin/mc
             /home/runner/go/bin/minio
             /home/runner/go/bin/dqlite
+            /home/runner/go/bin/liblxc
           retention-days: 1
 
   system-tests:
@@ -290,8 +314,10 @@ jobs:
       - name: Make GOCOVERDIR
         run: |
           set -eux
-          mkdir -p "${GOCOVERDIR}"
-        if: env.GOCOVERDIR != ''
+          mkdir -p coverage
+          cd coverage
+          echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
+        if: env.GOCOVERAGE == 'true'
 
       - name: "Run system tests (${{ matrix.suite }}, ${{ matrix.backend }})"
         run: |
@@ -351,6 +377,14 @@ jobs:
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
           go-version-file: 'go.mod'
+
+      - name: Make GOCOVERDIR
+        run: |
+          set -eux
+          mkdir -p coverage
+          cd coverage
+          echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
+        if: env.GOCOVERAGE == 'true'
 
       - name: Download coverage data
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -420,8 +454,12 @@ jobs:
           mkdir bin
 
       - name: Make GOCOVERDIR
-        run: mkdir -p "${GOCOVERDIR}"
-        if: env.GOCOVERDIR != ''
+        run: |
+          set -eux
+          mkdir -p coverage
+          cd coverage
+          echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
+        if: env.GOCOVERAGE == 'true'
 
       - name: Build static lxc
         env:
@@ -569,8 +607,10 @@ jobs:
       - name: Make GOCOVERDIR
         run: |
           set -eux
-          mkdir -p "${GOCOVERDIR}"
-        if: env.GOCOVERDIR != ''
+          mkdir -p coverage
+          cd coverage
+          echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
+        if: env.GOCOVERAGE == 'true'
 
       - name: Run LXD daemon
         run: |

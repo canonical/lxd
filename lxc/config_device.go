@@ -65,6 +65,99 @@ func (c *cmdConfigDevice) command() *cobra.Command {
 	return cmd
 }
 
+func (c *cmdConfigDevice) deviceAddValidArgsFunc(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) == 0 {
+		if c.config != nil {
+			return c.global.cmpTopLevelResource("instance", toComplete)
+		} else if c.profile != nil {
+			return c.global.cmpTopLevelResource("profile", toComplete)
+		}
+	}
+
+	if len(args) == 1 {
+		return nil, cobra.ShellCompDirectiveNoFileComp // Device name
+	}
+
+	remote, _, err := c.global.conf.ParseRemote(args[0])
+	if err != nil {
+		return handleCompletionError(err)
+	}
+
+	// The second positional argument is used for the device name, so we provide device completions for the third positional argument.
+	if len(args) == 2 {
+		return c.global.cmpInstanceAllDeviceTypes(remote, toComplete)
+	}
+
+	// If it's a nic device, suggest nictype or network, as this will narrow down further completions (there are too many options if considering
+	// all types of nic devices).
+	if len(args) == 3 {
+		key, value, ok := strings.Cut(toComplete, "=")
+		switch args[2] {
+		case "nic":
+			if !ok {
+				completions := completionsFor([]string{"network", "nictype"}, "=", toComplete)
+				if len(completions) > 0 {
+					return completions, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
+				}
+			}
+
+			var values []string
+			switch key {
+			case "nictype":
+				values, _ = c.global.cmpDeviceSubtype(remote, "nic", "nictype=", value)
+			case "network":
+				values, _ = c.global.cmpTopLevelResourceInRemote(remote, "network", value)
+				for i, v := range values {
+					values[i] = "network=" + v
+				}
+			}
+
+			if len(values) > 0 {
+				return values, cobra.ShellCompDirectiveNoFileComp
+			}
+
+		case "gpu":
+			if !ok && strings.HasPrefix("gputype=", toComplete) {
+				return []string{"gputype="}, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
+			}
+
+			if key == "gputype" {
+				gpuTypes, _ := c.global.cmpDeviceSubtype(remote, "gpu", "gputype=", value)
+				if len(gpuTypes) > 0 {
+					return gpuTypes, cobra.ShellCompDirectiveNoFileComp
+				}
+			}
+		}
+	}
+
+	subtype := ""
+argLoop:
+	for _, arg := range args[3:] {
+		switch args[2] {
+		case "nic":
+			nictype, ok := strings.CutPrefix(arg, "nictype=")
+			if ok {
+				subtype = nictype
+				break argLoop
+			}
+
+			if strings.HasPrefix(arg, "network=") {
+				// If network is specified, no need to give completions as the configuration is derived from the network server-side
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+
+		case "gpu":
+			gputype, ok := strings.CutPrefix(arg, "gputype=")
+			if ok {
+				subtype = gputype
+				break argLoop
+			}
+		}
+	}
+
+	return c.global.cmpInstanceAllDeviceOptions(remote, args[2], subtype, toComplete)
+}
+
 // Add.
 type cmdConfigDeviceAdd struct {
 	global       *cmdGlobal
@@ -98,27 +191,7 @@ lxc profile device add [<remote>:]profile1 <device-name> disk pool=some-pool sou
 
 	cmd.RunE = c.run
 
-	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) == 0 {
-			if c.config != nil {
-				return c.global.cmpInstances(toComplete)
-			} else if c.profile != nil {
-				return c.global.cmpProfiles(toComplete, true)
-			}
-		}
-
-		// The second positional argument is used for the device name, so we provide device completions for the third positional argument.
-		if len(args) == 2 {
-			return c.global.cmpInstanceAllDevices(toComplete)
-		}
-
-		if len(args) == 3 {
-			return c.global.cmpInstanceAllDeviceOptions(args[0], args[2])
-		}
-
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-
+	cmd.ValidArgsFunction = c.configDevice.deviceAddValidArgsFunc
 	return cmd
 }
 
@@ -235,9 +308,9 @@ func (c *cmdConfigDeviceGet) command() *cobra.Command {
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
 			if c.config != nil {
-				return c.global.cmpInstances(toComplete)
+				return c.global.cmpTopLevelResource("instance", toComplete)
 			} else if c.profile != nil {
-				return c.global.cmpProfiles(toComplete, true)
+				return c.global.cmpTopLevelResource("profile", toComplete)
 			}
 		}
 
@@ -337,9 +410,9 @@ func (c *cmdConfigDeviceList) command() *cobra.Command {
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
 			if c.config != nil {
-				return c.global.cmpInstances(toComplete)
+				return c.global.cmpTopLevelResource("instance", toComplete)
 			} else if c.profile != nil {
-				return c.global.cmpProfiles(toComplete, true)
+				return c.global.cmpTopLevelResource("profile", toComplete)
 			}
 		}
 
@@ -412,13 +485,7 @@ func (c *cmdConfigDeviceOverride) command() *cobra.Command {
 
 	cmd.RunE = c.run
 
-	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) == 0 {
-			return c.global.cmpInstances(toComplete)
-		}
-
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
+	cmd.ValidArgsFunction = c.configDevice.deviceAddValidArgsFunc
 
 	return cmd
 }
@@ -517,9 +584,9 @@ func (c *cmdConfigDeviceRemove) command() *cobra.Command {
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
 			if c.config != nil {
-				return c.global.cmpInstances(toComplete)
+				return c.global.cmpTopLevelResource("instance", toComplete)
 			} else if c.profile != nil {
-				return c.global.cmpProfiles(toComplete, true)
+				return c.global.cmpTopLevelResource("profile", toComplete)
 			}
 		}
 
@@ -644,9 +711,9 @@ For backward compatibility, a single configuration key may still be set with:
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
 			if c.config != nil {
-				return c.global.cmpInstances(toComplete)
+				return c.global.cmpTopLevelResource("instance", toComplete)
 			} else if c.profile != nil {
-				return c.global.cmpProfiles(toComplete, true)
+				return c.global.cmpTopLevelResource("profile", toComplete)
 			}
 		}
 
@@ -725,7 +792,7 @@ func (c *cmdConfigDeviceSet) run(cmd *cobra.Command, args []string) error {
 				return errors.New(i18n.G("Device doesn't exist"))
 			}
 
-			return errors.New(i18n.G("Device from profile(s) cannot be modified for individual instance. Override device or modify profile instead"))
+			return fmt.Errorf("Device %q from profile(s) %q cannot be modified for individual instance %q: %w", devname, inst.Profiles, inst.Name, errors.New(i18n.G("Override device or modify profile instead")))
 		}
 
 		for k, v := range keys {
@@ -773,10 +840,16 @@ func (c *cmdConfigDeviceShow) command() *cobra.Command {
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
 			if c.config != nil {
-				return c.global.cmpInstances(toComplete)
+				return c.global.cmpTopLevelResource("instance", toComplete)
 			} else if c.profile != nil {
-				return c.global.cmpProfiles(toComplete, true)
+				return c.global.cmpTopLevelResource("profile", toComplete)
 			}
+		}
+
+		if c.config != nil {
+			return c.global.cmpInstanceDeviceNames(args[0])
+		} else if c.profile != nil {
+			return c.global.cmpProfileDeviceNames(args[0])
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -858,9 +931,9 @@ func (c *cmdConfigDeviceUnset) command() *cobra.Command {
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
 			if c.config != nil {
-				return c.global.cmpInstances(toComplete)
+				return c.global.cmpTopLevelResource("instance", toComplete)
 			} else if c.profile != nil {
-				return c.global.cmpProfiles(toComplete, true)
+				return c.global.cmpTopLevelResource("profile", toComplete)
 			}
 		}
 

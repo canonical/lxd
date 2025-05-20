@@ -2642,3 +2642,33 @@ Adds new {config:option}`instance-security:security.delegate_bpf`.* group of opt
 ## `override_snapshot_profiles_on_copy`
 
 This adds a request option to set snapshot's target profile on instance copy to be inherited from target instance.
+
+## `backup_metadata_version`
+
+Adds the field `version` when exporting instances and custom storage volumes to define the backup file format.
+In case the field is omitted, the server's default version is used.
+This maintains backwards compatibility with older clients.
+
+When exporting an instance, the specific version can be provided using the `--export-version` flag:
+
+`lxc export v1 --export-version 2`
+
+The same applies when exporting a custom storage volume:
+
+`lxc storage volume export pool1 vol1 --export-version 2`
+
+## `storage_buckets_all_projects`
+
+This adds support for listing storage buckets across all projects using the `all-projects` parameter in `GET /1.0/storage-pools/POOL/buckets` requests.
+
+## `network_acls_all_projects`
+
+This adds support for listing network ACLs across all projects using the `all-projects` parameter in `GET /1.0/network-acls` requests.
+
+## `networks_all_projects`
+
+This adds support for listing networks across all projects using the `all-projects` parameter in `GET /1.0/networks` requests.
+
+## `clustering_restore_skip_mode`
+
+Adds a `skip` mode to the restore request. This mode restores a cluster member's status to `ONLINE` without restarting any of its stopped local instances or migrating back instances that were evacuated to other cluster members.

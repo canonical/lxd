@@ -11,17 +11,22 @@ GOPATH ?= $(shell go env GOPATH)
 CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 SPHINXENV=doc/.sphinx/venv/bin/activate
 SPHINXPIPPATH=doc/.sphinx/venv/bin/pip
-GOMIN=1.23.7
+GOMIN=1.24.2
 GOTOOLCHAIN=local
 export GOTOOLCHAIN
 GOCOVERDIR ?= $(shell go env GOCOVERDIR)
+ARCH ?= $(shell uname -m)
 DQLITE_BRANCH=lts-1.17.x
+LIBLXC_BRANCH=stable-6.0
 
 ifneq "$(wildcard vendor)" ""
-	DQLITE_PATH=$(CURDIR)/vendor/dqlite
+	DEPS_PATH=$(CURDIR)/vendor
 else
-	DQLITE_PATH=$(GOPATH)/deps/dqlite
+	DEPS_PATH=$(GOPATH)/deps
 endif
+DQLITE_PATH=$(DEPS_PATH)/dqlite
+LIBLXC_PATH=$(DEPS_PATH)/liblxc
+LIBLXC_ROOTFS_MOUNT_PATH=$(GOPATH)/bin/liblxc/rootfs
 
 .PHONY: default
 default: all
@@ -39,10 +44,10 @@ ifeq "$(TAG_SQLITE3)" ""
 endif
 
 ifeq "$(GOCOVERDIR)" ""
-	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" -trimpath $(DEBUG) ./lxd ./lxc-to-lxd
+	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" -trimpath $(DEBUG) ./lxd
 	CGO_ENABLED=0 go install -v -tags netgo -trimpath $(DEBUG) ./lxd-user ./lxd-benchmark
 else
-	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" -trimpath -cover $(DEBUG) ./lxd ./lxc-to-lxd
+	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" -trimpath -cover $(DEBUG) ./lxd
 	CGO_ENABLED=0 go install -v -tags netgo -trimpath -cover $(DEBUG) ./lxd-user ./lxd-benchmark
 endif
 
@@ -88,15 +93,15 @@ endif
 
 	@echo "LXD-MIGRATE built successfully"
 
-.PHONY: deps
-deps:
+.PHONY: dqlite
+dqlite:
 	# dqlite (+raft)
 	@if [ ! -e "$(DQLITE_PATH)" ]; then \
 		echo "Retrieving dqlite from ${DQLITE_BRANCH} branch"; \
 		git clone --depth=1 --branch "${DQLITE_BRANCH}" "https://github.com/canonical/dqlite" "$(DQLITE_PATH)"; \
 	elif [ -e "$(DQLITE_PATH)/.git" ]; then \
 		echo "Updating existing dqlite branch"; \
-		cd "$(DQLITE_PATH)"; git pull; \
+		git -C "$(DQLITE_PATH)" pull; \
 	fi
 
 	cd "$(DQLITE_PATH)" && \
@@ -104,12 +109,60 @@ deps:
 		./configure --enable-build-raft && \
 		make
 
+.PHONY: liblxc
+liblxc:
+	# lxc/liblxc
+	@if [ ! -e "$(LIBLXC_PATH)" ]; then \
+		echo "Retrieving lxc/liblxc from ${LIBLXC_BRANCH} branch"; \
+		git clone --depth=1 --branch "${LIBLXC_BRANCH}" "https://github.com/lxc/lxc" "$(LIBLXC_PATH)"; \
+	elif [ -e "$(LIBLXC_PATH)/.git" ]; then \
+		echo "Updating existing lxc/liblxc branch"; \
+		git -C "$(LIBLXC_PATH)" pull; \
+	fi
+
+	# XXX: the rootfs-mount-path must not depend on LIBLXC_PATH to allow
+	# building in "vendor" mode but move the resulting binaries elsewhere for
+	# caching purposes
+	cd "$(LIBLXC_PATH)" && \
+		meson setup \
+			--buildtype=release \
+			-Dapparmor=true \
+			-Dcapabilities=true \
+			-Dcommands=false \
+			-Ddbus=false \
+			-Dexamples=false \
+			-Dinstall-init-files=false \
+			-Dinstall-state-dirs=false \
+			-Dman=false \
+			-Dmemfd-rexec=false \
+			-Dopenssl=false \
+			-Dprefix="$(LIBLXC_PATH)" \
+			-Drootfs-mount-path="$(LIBLXC_ROOTFS_MOUNT_PATH)" \
+			-Dseccomp=true \
+			-Dselinux=false \
+			-Dspecfile=false \
+			-Dtests=false \
+			-Dtools=false \
+			build && \
+		meson compile -C build && \
+		ninja -C build install
+
+ifneq ($(shell command -v ldd),)
+	# verify that liblxc.so is linked against some critically important libs
+	ldd "$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/liblxc.so" | grep -wE 'libapparmor|libcap|libseccomp'
+	[ "$$(ldd "$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/liblxc.so" | grep -cwE 'libapparmor|libcap|libseccomp')" = "3" ]
+	@echo "OK: liblxc .so link check passed"
+endif
+
+.PHONY: deps
+deps: dqlite liblxc
 	# environment
 	@echo ""
 	@echo "Please set the following in your environment (possibly ~/.bashrc)"
-	@echo "export CGO_CFLAGS=\"-I$(DQLITE_PATH)/include/\""
-	@echo "export CGO_LDFLAGS=\"-L$(DQLITE_PATH)/.libs/\""
-	@echo "export LD_LIBRARY_PATH=\"$(DQLITE_PATH)/.libs/\""
+	@echo "export CGO_CFLAGS=\"-I$(DQLITE_PATH)/include/ -I$(LIBLXC_PATH)/include/\""
+	@echo "export CGO_LDFLAGS=\"-L$(DQLITE_PATH)/.libs/ -L$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/\""
+	@echo "export LD_LIBRARY_PATH=\"$(DQLITE_PATH)/.libs/:$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/\""
+	@echo "export PKG_CONFIG_PATH=\"$(pkg-config --variable pc_path pkg-config):$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/pkgconfig/\""
 	@echo "export CGO_LDFLAGS_ALLOW=\"(-Wl,-wrap,pthread_create)|(-Wl,-z,now)\""
 
 .PHONY: update-gomod
@@ -124,7 +177,7 @@ endif
 	# Static pins
 	go get github.com/gorilla/websocket@v1.5.1 # Due to riscv64 crashes in LP
 	go get tags.cncf.io/container-device-interface@v0.8.1 # Due to incompat with nvidia-container-toolkit
-	go get github.com/go-jose/go-jose/v4@v4.0.5 # Due to requirement for go 1.24 which needs a fix for with nvidia-container-toolkit
+	go get github.com/olekukonko/tablewriter@v0.0.5 # Due to breaking API in later versions
 
 	# Enforce minimum go version
 	go mod tidy -go=$(GOMIN)
@@ -210,7 +263,7 @@ endif
 check: default check-unit
 	cd test && ./main.sh
 
-.PHONY: unit
+.PHONY: check-unit
 check-unit:
 ifeq "$(GOCOVERDIR)" ""
 	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
@@ -289,7 +342,7 @@ ifeq ($(shell command -v go-licenses),)
 	(cd / ; go install github.com/google/go-licenses@latest)
 endif
 ifeq ($(shell command -v golangci-lint),)
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v2.0.2
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v2.1.5
 endif
 ifneq ($(shell command -v yamllint),)
 	yamllint .github/workflows/*.yml

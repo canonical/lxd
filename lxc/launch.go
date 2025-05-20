@@ -46,11 +46,15 @@ lxc launch ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,si
 	cmd.Flags().Lookup("console").NoOptDefVal = "console"
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) != 0 {
+		if len(args) > 1 {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return c.global.cmpImages(toComplete)
+		if len(args) == 0 {
+			return c.global.cmpImages(toComplete, false)
+		}
+
+		return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 	}
 
 	return cmd

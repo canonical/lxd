@@ -72,7 +72,7 @@ const (
 // returns an error.
 func (a *AuthMethod) Scan(value any) error {
 	if value == nil {
-		return fmt.Errorf("Authentication method cannot be null")
+		return errors.New("Authentication method cannot be null")
 	}
 
 	intValue, err := driver.Int32.ConvertValue(value)
@@ -132,7 +132,7 @@ const (
 // returns an error.
 func (i *IdentityType) Scan(value any) error {
 	if value == nil {
-		return fmt.Errorf("Identity type cannot be null")
+		return errors.New("Identity type cannot be null")
 	}
 
 	intValue, err := driver.Int32.ConvertValue(value)
@@ -296,7 +296,7 @@ func (i Identity) CertificateMetadata() (*CertificateMetadata, error) {
 	}
 
 	if i.Type == api.IdentityTypeCertificateClientPending {
-		return nil, fmt.Errorf("Cannot get certificate metadata: Identity is pending")
+		return nil, errors.New("Cannot get certificate metadata: Identity is pending")
 	}
 
 	var metadata CertificateMetadata

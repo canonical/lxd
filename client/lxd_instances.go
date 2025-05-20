@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -40,7 +41,7 @@ func (r *ProtocolLXD) instanceTypeToPath(instanceType api.InstanceType) (string,
 			return "/containers", v, nil
 		}
 
-		return "", v, fmt.Errorf("Requested instance type not supported by server")
+		return "", v, errors.New("Requested instance type not supported by server")
 	}
 
 	// If a specific instance type has been requested, add the instance-type filter parameter
@@ -62,7 +63,7 @@ func (r *ProtocolLXD) GetInstanceNames(instanceType api.InstanceType) ([]string,
 
 	// Fetch the raw URL values.
 	urls := []string{}
-	_, err = r.queryStruct("GET", baseURL+"?"+v.Encode(), nil, "", &urls)
+	_, err = r.queryStruct(http.MethodGet, baseURL+"?"+v.Encode(), nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +85,7 @@ func (r *ProtocolLXD) GetInstanceNamesAllProjects(instanceType api.InstanceType)
 	v.Set("all-projects", "true")
 
 	// Fetch the raw URL values.
-	_, err = r.queryStruct("GET", path+"?"+v.Encode(), nil, "", &instances)
+	_, err = r.queryStruct(http.MethodGet, path+"?"+v.Encode(), nil, "", &instances)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +110,7 @@ func (r *ProtocolLXD) GetInstances(instanceType api.InstanceType) ([]api.Instanc
 	v.Set("recursion", "1")
 
 	// Fetch the raw value
-	_, err = r.queryStruct("GET", path+"?"+v.Encode(), nil, "", &instances)
+	_, err = r.queryStruct(http.MethodGet, path+"?"+v.Encode(), nil, "", &instances)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +136,7 @@ func (r *ProtocolLXD) GetInstancesWithFilter(instanceType api.InstanceType, filt
 	v.Set("filter", parseFilters(filters))
 
 	// Fetch the raw value
-	_, err = r.queryStruct("GET", path+"?"+v.Encode(), nil, "", &instances)
+	_, err = r.queryStruct(http.MethodGet, path+"?"+v.Encode(), nil, "", &instances)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +162,7 @@ func (r *ProtocolLXD) GetInstancesAllProjects(instanceType api.InstanceType) ([]
 	}
 
 	// Fetch the raw value
-	_, err = r.queryStruct("GET", path+"?"+v.Encode(), nil, "", &instances)
+	_, err = r.queryStruct(http.MethodGet, path+"?"+v.Encode(), nil, "", &instances)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +194,7 @@ func (r *ProtocolLXD) GetInstancesAllProjectsWithFilter(instanceType api.Instanc
 	}
 
 	// Fetch the raw value
-	_, err = r.queryStruct("GET", path+"?"+v.Encode(), nil, "", &instances)
+	_, err = r.queryStruct(http.MethodGet, path+"?"+v.Encode(), nil, "", &instances)
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +210,7 @@ func (r *ProtocolLXD) UpdateInstances(state api.InstancesPut, ETag string) (Oper
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("PUT", path+"?"+v.Encode(), state, ETag, true)
+	op, _, err := r.queryOperation(http.MethodPut, path+"?"+v.Encode(), state, ETag, true)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +226,7 @@ func (r *ProtocolLXD) rebuildInstance(instanceName string, instance api.Instance
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", path+"/"+url.PathEscape(instanceName)+"/rebuild", instance, "", true)
+	op, _, err := r.queryOperation(http.MethodPost, path+"/"+url.PathEscape(instanceName)+"/rebuild", instance, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +238,7 @@ func (r *ProtocolLXD) rebuildInstance(instanceName string, instance api.Instance
 // It runs the rebuild process asynchronously and returns a RemoteOperation to monitor the progress and any errors.
 func (r *ProtocolLXD) tryRebuildInstance(instanceName string, req api.InstanceRebuildPost, urls []string, op Operation) (RemoteOperation, error) {
 	if len(urls) == 0 {
-		return nil, fmt.Errorf("The source server isn't listening on the network")
+		return nil, errors.New("The source server isn't listening on the network")
 	}
 
 	rop := remoteOperation{
@@ -360,7 +361,7 @@ func (r *ProtocolLXD) GetInstancesFull(instanceType api.InstanceType) ([]api.Ins
 	}
 
 	// Fetch the raw value
-	_, err = r.queryStruct("GET", path+"?"+v.Encode(), nil, "", &instances)
+	_, err = r.queryStruct(http.MethodGet, path+"?"+v.Encode(), nil, "", &instances)
 	if err != nil {
 		return nil, err
 	}
@@ -391,7 +392,7 @@ func (r *ProtocolLXD) GetInstancesFullWithFilter(instanceType api.InstanceType, 
 	}
 
 	// Fetch the raw value
-	_, err = r.queryStruct("GET", path+"?"+v.Encode(), nil, "", &instances)
+	_, err = r.queryStruct(http.MethodGet, path+"?"+v.Encode(), nil, "", &instances)
 	if err != nil {
 		return nil, err
 	}
@@ -422,7 +423,7 @@ func (r *ProtocolLXD) GetInstancesFullAllProjects(instanceType api.InstanceType)
 	}
 
 	// Fetch the raw value
-	_, err = r.queryStruct("GET", path+"?"+v.Encode(), nil, "", &instances)
+	_, err = r.queryStruct(http.MethodGet, path+"?"+v.Encode(), nil, "", &instances)
 	if err != nil {
 		return nil, err
 	}
@@ -459,7 +460,7 @@ func (r *ProtocolLXD) GetInstancesFullAllProjectsWithFilter(instanceType api.Ins
 	}
 
 	// Fetch the raw value
-	_, err = r.queryStruct("GET", path+"?"+v.Encode(), nil, "", &instances)
+	_, err = r.queryStruct(http.MethodGet, path+"?"+v.Encode(), nil, "", &instances)
 	if err != nil {
 		return nil, err
 	}
@@ -477,7 +478,7 @@ func (r *ProtocolLXD) GetInstance(name string) (*api.Instance, string, error) {
 	}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", path+"/"+url.PathEscape(name), nil, "", &instance)
+	etag, err := r.queryStruct(http.MethodGet, path+"/"+url.PathEscape(name), nil, "", &instance)
 	if err != nil {
 		return nil, "", err
 	}
@@ -500,7 +501,7 @@ func (r *ProtocolLXD) GetInstanceUEFIVars(name string) (*api.InstanceUEFIVars, s
 	}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", path+"/"+url.PathEscape(name)+"/uefi-vars", nil, "", &instanceUEFI)
+	etag, err := r.queryStruct(http.MethodGet, path+"/"+url.PathEscape(name)+"/uefi-vars", nil, "", &instanceUEFI)
 	if err != nil {
 		return nil, "", err
 	}
@@ -521,7 +522,7 @@ func (r *ProtocolLXD) UpdateInstanceUEFIVars(name string, instanceUEFI api.Insta
 	}
 
 	// Send the request
-	_, _, err = r.query("PUT", path+"/"+url.PathEscape(name)+"/uefi-vars", instanceUEFI, ETag)
+	_, _, err = r.query(http.MethodPut, path+"/"+url.PathEscape(name)+"/uefi-vars", instanceUEFI, ETag)
 	if err != nil {
 		return err
 	}
@@ -569,7 +570,7 @@ func (r *ProtocolLXD) GetInstanceFull(name string) (*api.InstanceFull, string, e
 	}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", path+"/"+url.PathEscape(name)+"?recursion=1", nil, "", &instance)
+	etag, err := r.queryStruct(http.MethodGet, path+"/"+url.PathEscape(name)+"?recursion=1", nil, "", &instance)
 	if err != nil {
 		return nil, "", err
 	}
@@ -592,7 +593,7 @@ func (r *ProtocolLXD) CreateInstanceFromBackup(args InstanceBackupArgs) (Operati
 
 	if args.PoolName == "" && args.Name == "" && len(args.Devices) == 0 {
 		// Send the request
-		op, _, err := r.queryOperation("POST", path, args.BackupFile, "", true)
+		op, _, err := r.queryOperation(http.MethodPost, path, args.BackupFile, "", true)
 		if err != nil {
 			return nil, err
 		}
@@ -628,7 +629,7 @@ func (r *ProtocolLXD) CreateInstanceFromBackup(args InstanceBackupArgs) (Operati
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", reqURL, args.BackupFile)
+	req, err := http.NewRequest(http.MethodPost, reqURL, args.BackupFile)
 	if err != nil {
 		return nil, err
 	}
@@ -705,7 +706,7 @@ func (r *ProtocolLXD) CreateInstance(instance api.InstancesPost) (Operation, err
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", path, instance, "", true)
+	op, _, err := r.queryOperation(http.MethodPost, path, instance, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -717,7 +718,7 @@ func (r *ProtocolLXD) CreateInstance(instance api.InstancesPost) (Operation, err
 // It runs the instance creation asynchronously and returns a RemoteOperation to monitor the progress and any errors.
 func (r *ProtocolLXD) tryCreateInstance(req api.InstancesPost, urls []string, op Operation) (RemoteOperation, error) {
 	if len(urls) == 0 {
-		return nil, fmt.Errorf("The source server isn't listening on the network")
+		return nil, errors.New("The source server isn't listening on the network")
 	}
 
 	rop := remoteOperation{
@@ -851,41 +852,41 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 		// Quick checks.
 		if args.InstanceOnly {
 			if !r.HasExtension("container_only_migration") {
-				return nil, fmt.Errorf("The target server is missing the required \"container_only_migration\" API extension")
+				return nil, errors.New("The target server is missing the required \"container_only_migration\" API extension")
 			}
 
 			if !source.HasExtension("container_only_migration") {
-				return nil, fmt.Errorf("The source server is missing the required \"container_only_migration\" API extension")
+				return nil, errors.New("The source server is missing the required \"container_only_migration\" API extension")
 			}
 		}
 
 		if shared.ValueInSlice(args.Mode, []string{"push", "relay"}) {
 			if !r.HasExtension("container_push") {
-				return nil, fmt.Errorf("The target server is missing the required \"container_push\" API extension")
+				return nil, errors.New("The target server is missing the required \"container_push\" API extension")
 			}
 
 			if !source.HasExtension("container_push") {
-				return nil, fmt.Errorf("The source server is missing the required \"container_push\" API extension")
+				return nil, errors.New("The source server is missing the required \"container_push\" API extension")
 			}
 		}
 
 		if args.Mode == "push" && !source.HasExtension("container_push_target") {
-			return nil, fmt.Errorf("The source server is missing the required \"container_push_target\" API extension")
+			return nil, errors.New("The source server is missing the required \"container_push_target\" API extension")
 		}
 
 		if args.Refresh {
 			if !r.HasExtension("container_incremental_copy") {
-				return nil, fmt.Errorf("The target server is missing the required \"container_incremental_copy\" API extension")
+				return nil, errors.New("The target server is missing the required \"container_incremental_copy\" API extension")
 			}
 
 			if !source.HasExtension("container_incremental_copy") {
-				return nil, fmt.Errorf("The source server is missing the required \"container_incremental_copy\" API extension")
+				return nil, errors.New("The source server is missing the required \"container_incremental_copy\" API extension")
 			}
 		}
 
 		if args.AllowInconsistent {
 			if !r.HasExtension("instance_allow_inconsistent_copy") {
-				return nil, fmt.Errorf("The target server is missing the required \"instance_allow_inconsistent_copy\" API extension")
+				return nil, errors.New("The target server is missing the required \"instance_allow_inconsistent_copy\" API extension")
 			}
 		}
 
@@ -1092,7 +1093,7 @@ func (r *ProtocolLXD) UpdateInstance(name string, instance api.InstancePut, ETag
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("PUT", path+"/"+url.PathEscape(name), instance, ETag, true)
+	op, _, err := r.queryOperation(http.MethodPut, path+"/"+url.PathEscape(name), instance, ETag, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1109,11 +1110,11 @@ func (r *ProtocolLXD) RenameInstance(name string, instance api.InstancePost) (Op
 
 	// Quick check.
 	if instance.Migration {
-		return nil, fmt.Errorf("Can't ask for a migration through RenameInstance")
+		return nil, errors.New("Can't ask for a migration through RenameInstance")
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", path+"/"+url.PathEscape(name), instance, "", true)
+	op, _, err := r.queryOperation(http.MethodPost, path+"/"+url.PathEscape(name), instance, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -1125,7 +1126,7 @@ func (r *ProtocolLXD) RenameInstance(name string, instance api.InstancePost) (Op
 // The function runs the migration operation asynchronously and returns a RemoteOperation to track the progress and handle any errors.
 func (r *ProtocolLXD) tryMigrateInstance(source InstanceServer, name string, req api.InstancePost, urls []string, op Operation) (RemoteOperation, error) {
 	if len(urls) == 0 {
-		return nil, fmt.Errorf("The target server isn't listening on the network")
+		return nil, errors.New("The target server isn't listening on the network")
 	}
 
 	rop := remoteOperation{
@@ -1244,11 +1245,11 @@ func (r *ProtocolLXD) MigrateInstance(name string, instance api.InstancePost) (O
 
 	// Quick check.
 	if !instance.Migration {
-		return nil, fmt.Errorf("Can't ask for a rename through MigrateInstance")
+		return nil, errors.New("Can't ask for a rename through MigrateInstance")
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", path+"/"+url.PathEscape(name), instance, "", true)
+	op, _, err := r.queryOperation(http.MethodPost, path+"/"+url.PathEscape(name), instance, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -1264,7 +1265,7 @@ func (r *ProtocolLXD) DeleteInstance(name string) (Operation, error) {
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("DELETE", path+"/"+url.PathEscape(name), nil, "", true)
+	op, _, err := r.queryOperation(http.MethodDelete, path+"/"+url.PathEscape(name), nil, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -1307,7 +1308,7 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", uri, exec, "", true)
+	op, _, err := r.queryOperation(http.MethodPost, uri, exec, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -1562,7 +1563,7 @@ func (r *ProtocolLXD) GetInstanceFile(instanceName string, filePath string) (io.
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest("GET", requestURL, nil)
+	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1661,7 +1662,7 @@ func (r *ProtocolLXD) CreateInstanceFile(instanceName string, filePath string, a
 		return err
 	}
 
-	req, err := http.NewRequest("POST", requestURL, args.Content)
+	req, err := http.NewRequest(http.MethodPost, requestURL, args.Content)
 	if err != nil {
 		return err
 	}
@@ -1747,7 +1748,7 @@ func (r *ProtocolLXD) DeleteInstanceFile(instanceName string, filePath string) e
 	}
 
 	// Send the request
-	_, _, err = r.query("DELETE", requestURL, nil, "")
+	_, _, err = r.query(http.MethodDelete, requestURL, nil, "")
 	if err != nil {
 		return err
 	}
@@ -1817,7 +1818,7 @@ func (r *ProtocolLXD) rawSFTPConn(apiURL *url.URL) (net.Conn, error) {
 	}
 
 	if resp.Header.Get("Upgrade") != "sftp" {
-		return nil, fmt.Errorf("Missing or unexpected Upgrade header in response")
+		return nil, errors.New("Missing or unexpected Upgrade header in response")
 	}
 
 	return conn, err
@@ -1866,7 +1867,7 @@ func (r *ProtocolLXD) GetInstanceSnapshotNames(instanceName string) ([]string, e
 	// Fetch the raw URL values.
 	urls := []string{}
 	baseURL := path + "/" + url.PathEscape(instanceName) + "/snapshots"
-	_, err = r.queryStruct("GET", baseURL, nil, "", &urls)
+	_, err = r.queryStruct(http.MethodGet, baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
@@ -1885,7 +1886,7 @@ func (r *ProtocolLXD) GetInstanceSnapshots(instanceName string) ([]api.InstanceS
 	snapshots := []api.InstanceSnapshot{}
 
 	// Fetch the raw value
-	_, err = r.queryStruct("GET", path+"/"+url.PathEscape(instanceName)+"/snapshots?recursion=1", nil, "", &snapshots)
+	_, err = r.queryStruct(http.MethodGet, path+"/"+url.PathEscape(instanceName)+"/snapshots?recursion=1", nil, "", &snapshots)
 	if err != nil {
 		return nil, err
 	}
@@ -1903,7 +1904,7 @@ func (r *ProtocolLXD) GetInstanceSnapshot(instanceName string, name string) (*ap
 	snapshot := api.InstanceSnapshot{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", path+"/"+url.PathEscape(instanceName)+"/snapshots/"+url.PathEscape(name), nil, "", &snapshot)
+	etag, err := r.queryStruct(http.MethodGet, path+"/"+url.PathEscape(instanceName)+"/snapshots/"+url.PathEscape(name), nil, "", &snapshot)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1927,7 +1928,7 @@ func (r *ProtocolLXD) CreateInstanceSnapshot(instanceName string, snapshot api.I
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", path+"/"+url.PathEscape(instanceName)+"/snapshots", snapshot, "", true)
+	op, _, err := r.queryOperation(http.MethodPost, path+"/"+url.PathEscape(instanceName)+"/snapshots", snapshot, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -1976,12 +1977,12 @@ func (r *ProtocolLXD) CopyInstanceSnapshot(source InstanceServer, instanceName s
 			}
 
 			if !source.HasExtension("container_push") {
-				return nil, fmt.Errorf("The source server is missing the required \"container_push\" API extension")
+				return nil, errors.New("The source server is missing the required \"container_push\" API extension")
 			}
 		}
 
 		if args.Mode == "push" && !source.HasExtension("container_push_target") {
-			return nil, fmt.Errorf("The source server is missing the required \"container_push_target\" API extension")
+			return nil, errors.New("The source server is missing the required \"container_push_target\" API extension")
 		}
 
 		// Allow overriding the target name
@@ -2188,11 +2189,11 @@ func (r *ProtocolLXD) RenameInstanceSnapshot(instanceName string, name string, i
 
 	// Quick check.
 	if instance.Migration {
-		return nil, fmt.Errorf("Can't ask for a migration through RenameInstanceSnapshot")
+		return nil, errors.New("Can't ask for a migration through RenameInstanceSnapshot")
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", path+"/"+url.PathEscape(instanceName)+"/snapshots/"+url.PathEscape(name), instance, "", true)
+	op, _, err := r.queryOperation(http.MethodPost, path+"/"+url.PathEscape(instanceName)+"/snapshots/"+url.PathEscape(name), instance, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -2202,7 +2203,7 @@ func (r *ProtocolLXD) RenameInstanceSnapshot(instanceName string, name string, i
 
 func (r *ProtocolLXD) tryMigrateInstanceSnapshot(source InstanceServer, instanceName string, name string, req api.InstanceSnapshotPost, urls []string) (RemoteOperation, error) {
 	if len(urls) == 0 {
-		return nil, fmt.Errorf("The target server isn't listening on the network")
+		return nil, errors.New("The target server isn't listening on the network")
 	}
 
 	rop := remoteOperation{
@@ -2264,11 +2265,11 @@ func (r *ProtocolLXD) MigrateInstanceSnapshot(instanceName string, name string, 
 
 	// Quick check.
 	if !instance.Migration {
-		return nil, fmt.Errorf("Can't ask for a rename through MigrateInstanceSnapshot")
+		return nil, errors.New("Can't ask for a rename through MigrateInstanceSnapshot")
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", path+"/"+url.PathEscape(instanceName)+"/snapshots/"+url.PathEscape(name), instance, "", true)
+	op, _, err := r.queryOperation(http.MethodPost, path+"/"+url.PathEscape(instanceName)+"/snapshots/"+url.PathEscape(name), instance, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -2284,7 +2285,7 @@ func (r *ProtocolLXD) DeleteInstanceSnapshot(instanceName string, name string) (
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("DELETE", path+"/"+url.PathEscape(instanceName)+"/snapshots/"+url.PathEscape(name), nil, "", true)
+	op, _, err := r.queryOperation(http.MethodDelete, path+"/"+url.PathEscape(instanceName)+"/snapshots/"+url.PathEscape(name), nil, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -2305,7 +2306,7 @@ func (r *ProtocolLXD) UpdateInstanceSnapshot(instanceName string, name string, i
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("PUT", path+"/"+url.PathEscape(instanceName)+"/snapshots/"+url.PathEscape(name), instance, ETag, true)
+	op, _, err := r.queryOperation(http.MethodPut, path+"/"+url.PathEscape(instanceName)+"/snapshots/"+url.PathEscape(name), instance, ETag, true)
 	if err != nil {
 		return nil, err
 	}
@@ -2331,7 +2332,7 @@ func (r *ProtocolLXD) GetInstanceState(name string) (*api.InstanceState, string,
 	state := api.InstanceState{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", uri, nil, "", &state)
+	etag, err := r.queryStruct(http.MethodGet, uri, nil, "", &state)
 	if err != nil {
 		return nil, "", err
 	}
@@ -2347,7 +2348,7 @@ func (r *ProtocolLXD) UpdateInstanceState(name string, state api.InstanceStatePu
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("PUT", path+"/"+url.PathEscape(name)+"/state", state, ETag, true)
+	op, _, err := r.queryOperation(http.MethodPut, path+"/"+url.PathEscape(name)+"/state", state, ETag, true)
 	if err != nil {
 		return nil, err
 	}
@@ -2365,7 +2366,7 @@ func (r *ProtocolLXD) GetInstanceLogfiles(name string) ([]string, error) {
 	// Fetch the raw URL values.
 	urls := []string{}
 	baseURL := path + "/" + url.PathEscape(name) + "/logs"
-	_, err = r.queryStruct("GET", baseURL, nil, "", &urls)
+	_, err = r.queryStruct(http.MethodGet, baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
@@ -2391,7 +2392,7 @@ func (r *ProtocolLXD) GetInstanceLogfile(name string, filename string) (io.ReadC
 		return nil, err
 	}
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -2421,7 +2422,7 @@ func (r *ProtocolLXD) DeleteInstanceLogfile(name string, filename string) error 
 	}
 
 	// Send the request
-	_, _, err = r.query("DELETE", path+"/"+url.PathEscape(name)+"/logs/"+url.PathEscape(filename), nil, "")
+	_, _, err = r.query(http.MethodDelete, path+"/"+url.PathEscape(name)+"/logs/"+url.PathEscape(filename), nil, "")
 	if err != nil {
 		return err
 	}
@@ -2451,7 +2452,7 @@ func (r *ProtocolLXD) getInstanceExecOutputLogFile(name string, filename string)
 		return nil, err
 	}
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -2486,7 +2487,7 @@ func (r *ProtocolLXD) deleteInstanceExecOutputLogFile(instanceName string, filen
 	}
 
 	// Send the request
-	_, _, err = r.query("DELETE", path+"/"+url.PathEscape(instanceName)+"/logs/exec-output/"+url.PathEscape(filename), nil, "")
+	_, _, err = r.query(http.MethodDelete, path+"/"+url.PathEscape(instanceName)+"/logs/exec-output/"+url.PathEscape(filename), nil, "")
 	if err != nil {
 		return err
 	}
@@ -2509,7 +2510,7 @@ func (r *ProtocolLXD) GetInstanceMetadata(name string) (*api.ImageMetadata, stri
 	metadata := api.ImageMetadata{}
 
 	url := path + "/" + url.PathEscape(name) + "/metadata"
-	etag, err := r.queryStruct("GET", url, nil, "", &metadata)
+	etag, err := r.queryStruct(http.MethodGet, url, nil, "", &metadata)
 	if err != nil {
 		return nil, "", err
 	}
@@ -2530,7 +2531,7 @@ func (r *ProtocolLXD) UpdateInstanceMetadata(name string, metadata api.ImageMeta
 	}
 
 	url := path + "/" + url.PathEscape(name) + "/metadata"
-	_, _, err = r.query("PUT", url, metadata, ETag)
+	_, _, err = r.query(http.MethodPut, url, metadata, ETag)
 	if err != nil {
 		return err
 	}
@@ -2553,7 +2554,7 @@ func (r *ProtocolLXD) GetInstanceTemplateFiles(instanceName string) ([]string, e
 	templates := []string{}
 
 	url := path + "/" + url.PathEscape(instanceName) + "/metadata/templates"
-	_, err = r.queryStruct("GET", url, nil, "", &templates)
+	_, err = r.queryStruct(http.MethodGet, url, nil, "", &templates)
 	if err != nil {
 		return nil, err
 	}
@@ -2580,7 +2581,7 @@ func (r *ProtocolLXD) GetInstanceTemplateFile(instanceName string, templateName 
 		return nil, err
 	}
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -2621,7 +2622,7 @@ func (r *ProtocolLXD) CreateInstanceTemplateFile(instanceName string, templateNa
 		return err
 	}
 
-	req, err := http.NewRequest("POST", url, content)
+	req, err := http.NewRequest(http.MethodPost, url, content)
 	if err != nil {
 		return err
 	}
@@ -2652,7 +2653,7 @@ func (r *ProtocolLXD) DeleteInstanceTemplateFile(name string, templateName strin
 		return err
 	}
 
-	_, _, err = r.query("DELETE", path+"/"+url.PathEscape(name)+"/metadata/templates?path="+url.QueryEscape(templateName), nil, "")
+	_, _, err = r.query(http.MethodDelete, path+"/"+url.PathEscape(name)+"/metadata/templates?path="+url.QueryEscape(templateName), nil, "")
 	return err
 }
 
@@ -2681,7 +2682,7 @@ func (r *ProtocolLXD) ConsoleInstance(instanceName string, console api.InstanceC
 
 	// Send the request
 	useEventListener := r.CheckExtension("operation_wait") != nil
-	op, _, err := r.queryOperation("POST", path+"/"+url.PathEscape(instanceName)+"/console", console, "", useEventListener)
+	op, _, err := r.queryOperation(http.MethodPost, path+"/"+url.PathEscape(instanceName)+"/console", console, "", useEventListener)
 	if err != nil {
 		return nil, err
 	}
@@ -2689,11 +2690,11 @@ func (r *ProtocolLXD) ConsoleInstance(instanceName string, console api.InstanceC
 	opAPI := op.Get()
 
 	if args == nil || args.Terminal == nil {
-		return nil, fmt.Errorf("A terminal must be set")
+		return nil, errors.New("A terminal must be set")
 	}
 
 	if args.Control == nil {
-		return nil, fmt.Errorf("A control channel must be set")
+		return nil, errors.New("A control channel must be set")
 	}
 
 	// Parse the fds
@@ -2714,16 +2715,19 @@ func (r *ProtocolLXD) ConsoleInstance(instanceName string, console api.InstanceC
 		}
 	}
 
-	var controlConn *websocket.Conn
 	// Call the control handler with a connection to the control socket
 	if fds[api.SecretNameControl] == "" {
-		return nil, fmt.Errorf("Did not receive a file descriptor for the control channel")
+		return nil, errors.New("Did not receive a file descriptor for the control channel")
 	}
 
-	controlConn, err = r.GetOperationWebsocket(opAPI.ID, fds[api.SecretNameControl])
+	controlConn, err := r.GetOperationWebsocket(opAPI.ID, fds[api.SecretNameControl])
 	if err != nil {
 		return nil, err
 	}
+
+	go func() {
+		_, _, _ = controlConn.ReadMessage() // Consume pings from server.
+	}()
 
 	go args.Control(controlConn)
 
@@ -2780,7 +2784,7 @@ func (r *ProtocolLXD) ConsoleInstanceDynamic(instanceName string, console api.In
 	}
 
 	// Send the request.
-	op, _, err := r.queryOperation("POST", path+"/"+url.PathEscape(instanceName)+"/console", console, "", true)
+	op, _, err := r.queryOperation(http.MethodPost, path+"/"+url.PathEscape(instanceName)+"/console", console, "", true)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -2788,11 +2792,11 @@ func (r *ProtocolLXD) ConsoleInstanceDynamic(instanceName string, console api.In
 	opAPI := op.Get()
 
 	if args == nil {
-		return nil, nil, fmt.Errorf("No arguments provided")
+		return nil, nil, errors.New("No arguments provided")
 	}
 
 	if args.Control == nil {
-		return nil, nil, fmt.Errorf("A control channel must be set")
+		return nil, nil, errors.New("A control channel must be set")
 	}
 
 	// Parse the fds.
@@ -2815,13 +2819,17 @@ func (r *ProtocolLXD) ConsoleInstanceDynamic(instanceName string, console api.In
 
 	// Call the control handler with a connection to the control socket.
 	if fds[api.SecretNameControl] == "" {
-		return nil, nil, fmt.Errorf("Did not receive a file descriptor for the control channel")
+		return nil, nil, errors.New("Did not receive a file descriptor for the control channel")
 	}
 
 	controlConn, err := r.GetOperationWebsocket(opAPI.ID, fds[api.SecretNameControl])
 	if err != nil {
 		return nil, nil, err
 	}
+
+	go func() {
+		_, _, _ = controlConn.ReadMessage() // Consume pings from server.
+	}()
 
 	go args.Control(controlConn)
 
@@ -2874,7 +2882,7 @@ func (r *ProtocolLXD) GetInstanceConsoleLog(instanceName string, args *InstanceC
 		return nil, err
 	}
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -2909,7 +2917,7 @@ func (r *ProtocolLXD) DeleteInstanceConsoleLog(instanceName string, args *Instan
 	}
 
 	// Send the request
-	_, _, err = r.query("DELETE", path+"/"+url.PathEscape(instanceName)+"/console", nil, "")
+	_, _, err = r.query(http.MethodDelete, path+"/"+url.PathEscape(instanceName)+"/console", nil, "")
 	if err != nil {
 		return err
 	}
@@ -2932,7 +2940,7 @@ func (r *ProtocolLXD) GetInstanceBackupNames(instanceName string) ([]string, err
 	// Fetch the raw URL values.
 	urls := []string{}
 	baseURL := path + "/" + url.PathEscape(instanceName) + "/backups"
-	_, err = r.queryStruct("GET", baseURL, nil, "", &urls)
+	_, err = r.queryStruct(http.MethodGet, baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
@@ -2956,7 +2964,7 @@ func (r *ProtocolLXD) GetInstanceBackups(instanceName string) ([]api.InstanceBac
 	// Fetch the raw value
 	backups := []api.InstanceBackup{}
 
-	_, err = r.queryStruct("GET", path+"/"+url.PathEscape(instanceName)+"/backups?recursion=1", nil, "", &backups)
+	_, err = r.queryStruct(http.MethodGet, path+"/"+url.PathEscape(instanceName)+"/backups?recursion=1", nil, "", &backups)
 	if err != nil {
 		return nil, err
 	}
@@ -2978,7 +2986,7 @@ func (r *ProtocolLXD) GetInstanceBackup(instanceName string, name string) (*api.
 
 	// Fetch the raw value
 	backup := api.InstanceBackup{}
-	etag, err := r.queryStruct("GET", path+"/"+url.PathEscape(instanceName)+"/backups/"+url.PathEscape(name), nil, "", &backup)
+	etag, err := r.queryStruct(http.MethodGet, path+"/"+url.PathEscape(instanceName)+"/backups/"+url.PathEscape(name), nil, "", &backup)
 	if err != nil {
 		return nil, "", err
 	}
@@ -2999,7 +3007,7 @@ func (r *ProtocolLXD) CreateInstanceBackup(instanceName string, backup api.Insta
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", path+"/"+url.PathEscape(instanceName)+"/backups", backup, "", true)
+	op, _, err := r.queryOperation(http.MethodPost, path+"/"+url.PathEscape(instanceName)+"/backups", backup, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -3020,7 +3028,7 @@ func (r *ProtocolLXD) RenameInstanceBackup(instanceName string, name string, bac
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", path+"/"+url.PathEscape(instanceName)+"/backups/"+url.PathEscape(name), backup, "", true)
+	op, _, err := r.queryOperation(http.MethodPost, path+"/"+url.PathEscape(instanceName)+"/backups/"+url.PathEscape(name), backup, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -3041,7 +3049,7 @@ func (r *ProtocolLXD) DeleteInstanceBackup(instanceName string, name string) (Op
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("DELETE", path+"/"+url.PathEscape(instanceName)+"/backups/"+url.PathEscape(name), nil, "", true)
+	op, _, err := r.queryOperation(http.MethodDelete, path+"/"+url.PathEscape(instanceName)+"/backups/"+url.PathEscape(name), nil, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -3068,7 +3076,7 @@ func (r *ProtocolLXD) GetInstanceBackupFile(instanceName string, name string, re
 	}
 
 	// Prepare the download request
-	request, err := http.NewRequest("GET", uri, nil)
+	request, err := http.NewRequest(http.MethodGet, uri, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -3128,7 +3136,7 @@ func (r *ProtocolLXD) proxyMigration(targetOp *operation, targetSecrets map[stri
 	}
 
 	if targetSecrets[api.SecretNameControl] == "" {
-		return fmt.Errorf("Migration target didn't setup the required \"control\" socket")
+		return errors.New("Migration target didn't setup the required \"control\" socket")
 	}
 
 	// Struct used to hold everything together

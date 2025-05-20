@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -69,7 +70,7 @@ func OVNNetworkPrefix(networkID int64) string {
 
 // OVNIntSwitchName returns the internal logical switch name for a Network ID.
 func OVNIntSwitchName(networkID int64) openvswitch.OVNSwitch {
-	return openvswitch.OVNSwitch(fmt.Sprintf("%s-ls-int", OVNNetworkPrefix(networkID)))
+	return openvswitch.OVNSwitch(OVNNetworkPrefix(networkID) + "-ls-int")
 }
 
 // OVNIntSwitchRouterPortName returns OVN logical internal switch router port name.
@@ -417,8 +418,8 @@ func ovnApplyToPortGroup(l logger.Logger, client *openvswitch.OVN, aclInfo *api.
 
 		// Setup per-network dynamic replacements for @internal/@external subject port selectors.
 		matchReplace := map[string]string{
-			fmt.Sprintf("@%s", ruleSubjectInternal): fmt.Sprintf("@%s", OVNIntSwitchPortGroupName(aclNet.ID)),
-			fmt.Sprintf("@%s", ruleSubjectExternal): fmt.Sprintf(`"%s"`, OVNIntSwitchRouterPortName(aclNet.ID)),
+			"@" + ruleSubjectInternal: fmt.Sprintf("@%s", OVNIntSwitchPortGroupName(aclNet.ID)),
+			"@" + ruleSubjectExternal: fmt.Sprintf(`"%s"`, OVNIntSwitchRouterPortName(aclNet.ID)),
 		}
 
 		err = client.PortGroupSetACLRules(netPortGroupName, matchReplace, networkRules...)
@@ -841,7 +842,7 @@ func OVNPortGroupDeleteIfUnused(s *state.State, l logger.Logger, client *openvsw
 			ignoreInst, isIgnoreInst := ignoreUsageType.(instance.Instance)
 
 			if isIgnoreInst && ignoreUsageNicName == "" {
-				return fmt.Errorf("ignoreUsageNicName should be specified when providing an instance in ignoreUsageType")
+				return errors.New("ignoreUsageNicName should be specified when providing an instance in ignoreUsageType")
 			}
 
 			// If an ignore instance was provided, then skip the device that the ACLs were just removed
@@ -869,7 +870,7 @@ func OVNPortGroupDeleteIfUnused(s *state.State, l logger.Logger, client *openvsw
 			ignoreNet, isIgnoreNet := ignoreUsageType.(*api.Network)
 
 			if isIgnoreNet && ignoreUsageNicName != "" {
-				return fmt.Errorf("ignoreUsageNicName should be empty when providing a network in ignoreUsageType")
+				return errors.New("ignoreUsageNicName should be empty when providing a network in ignoreUsageType")
 			}
 
 			// If an ignore network was provided, then skip the network that the ACLs were just removed
@@ -897,7 +898,7 @@ func OVNPortGroupDeleteIfUnused(s *state.State, l logger.Logger, client *openvsw
 			ignoreProfile, isIgnoreProfile := ignoreUsageType.(cluster.Profile)
 
 			if isIgnoreProfile && ignoreUsageNicName == "" {
-				return fmt.Errorf("ignoreUsageNicName should be specified when providing a profile in ignoreUsageType")
+				return errors.New("ignoreUsageNicName should be specified when providing a profile in ignoreUsageType")
 			}
 
 			// If an ignore profile was provided, then skip the device that the ACLs were just removed
@@ -1009,7 +1010,7 @@ func OVNApplyInstanceNICDefaultRules(client *openvswitch.OVN, switchPortGroup op
 			Direction: "to-lport",
 			Action:    egressAction,
 			Log:       egressLogged,
-			LogName:   fmt.Sprintf("%s-egress", logPrefix), // Max 63 chars.
+			LogName:   logPrefix + "-egress", // Max 63 chars.
 			Priority:  ovnACLPriorityNICDefaultActionEgress,
 			Match:     fmt.Sprintf(`inport == "%s"`, nicPortName), // From NIC.
 		},
@@ -1017,7 +1018,7 @@ func OVNApplyInstanceNICDefaultRules(client *openvswitch.OVN, switchPortGroup op
 			Direction: "to-lport",
 			Action:    ingressAction,
 			Log:       ingressLogged,
-			LogName:   fmt.Sprintf("%s-ingress", logPrefix), // Max 63 chars.
+			LogName:   logPrefix + "-ingress", // Max 63 chars.
 			Priority:  ovnACLPriorityNICDefaultActionIngress,
 			Match:     fmt.Sprintf(`outport == "%s"`, nicPortName), // To NIC.
 		},

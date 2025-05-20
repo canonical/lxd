@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -432,7 +433,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 		rHost = host
 		rPort = port
 	} else {
-		rPort = fmt.Sprint(shared.HTTPSDefaultPort)
+		rPort = strconv.Itoa(shared.HTTPSDefaultPort)
 	}
 
 	if rScheme == "unix" {
@@ -878,7 +879,7 @@ func (c *cmdRemoteRename) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemoteNames(true)
+			return c.global.cmpRemotes(toComplete, "", false, filterStaticRemotes)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -959,7 +960,7 @@ func (c *cmdRemoteRemove) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemoteNames(false)
+			return c.global.cmpRemotes(toComplete, "", false, filterStaticRemotes, filterGlobalRemotes, filterDefaultRemote(*c.global.conf))
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -1023,7 +1024,8 @@ func (c *cmdRemoteSwitch) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemoteNames(false)
+			// It's valid to switch to a public remote, but filter them from completions to prevent leading new users down a bad path.
+			return c.global.cmpRemotes(toComplete, "", false, filterDefaultRemote(*c.global.conf), filterPublicRemotes)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -1071,7 +1073,7 @@ func (c *cmdRemoteSetURL) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemoteNames(true)
+			return c.global.cmpRemotes(toComplete, "", false, filterStaticRemotes)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp

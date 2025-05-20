@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/fs"
 	"net"
 	"os"
@@ -10,81 +11,210 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxc/config"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
 
-// cmpClusterGroupNames provides shell completion for cluster group names.
-// It takes a partial input string and returns a list of matching names along with a shell completion directive.
-func (g *cmdGlobal) cmpClusterGroupNames(toComplete string) ([]string, cobra.ShellCompDirective) {
-	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
-
-	resources, _ := g.ParseServers(toComplete)
-
-	if len(resources) <= 0 {
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	resource := resources[0]
-
-	cluster, _, err := resource.server.GetCluster()
-	if err != nil || !cluster.Enabled {
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	results, err := resource.server.GetClusterGroupNames()
-	if err != nil {
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	return results, cmpDirectives
+// handleCompletionError should always be returned when an error occurs in a cobra.CompletionFunc.
+// If the BASH_COMP_DEBUG_FILE environment variable is set, it logs the error message there before returning
+// the error directive.
+func handleCompletionError(err error) ([]string, cobra.ShellCompDirective) {
+	cobra.CompErrorln(err.Error())
+	return nil, cobra.ShellCompDirectiveError
 }
 
-// cmpClusterGroups provides shell completion for cluster groups and their remotes.
-// It takes a partial input string and returns a list of matching cluster groups along with a shell completion directive.
-func (g *cmdGlobal) cmpClusterGroups(toComplete string) ([]string, cobra.ShellCompDirective) {
-	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
-
-	resources, _ := g.ParseServers(toComplete)
-
-	if len(resources) <= 0 {
-		return nil, cobra.ShellCompDirectiveError
+// completionsFor returns completions for a given list of names, based on the partial input `toComplete`.
+// If a suffix is provided, it is appended to the completion (this is useful for config keys, where an "=" can be provided).
+func completionsFor(names []string, suffix string, toComplete string) []string {
+	results := make([]string, 0, len(names))
+	for _, n := range names {
+		if strings.HasPrefix(n, toComplete) {
+			results = append(results, n+suffix)
+		}
 	}
 
-	resource := resources[0]
+	return results
+}
 
-	cluster, _, err := resource.server.GetCluster()
-	if err != nil || !cluster.Enabled {
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	groups, err := resource.server.GetClusterGroupNames()
-	if err != nil {
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	results := make([]string, 0, len(groups))
-
-	for _, group := range groups {
-		var name string
-
-		if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
-			name = group
-		} else {
-			name = resource.remote + ":" + group
+// topLevelInstanceServerResourceNameFuncs is a map of functions that can return LXD API resource names without any arguments.
+// This is used when returning completions for arguments like `<remote>:<name>` where the remote is an instance server.
+var topLevelInstanceServerResourceNameFuncs = map[string]func(server lxd.InstanceServer) ([]string, error){
+	"certificate": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetCertificateFingerprints()
+	},
+	"group": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetAuthGroupNames()
+	},
+	"identity": func(server lxd.InstanceServer) ([]string, error) {
+		methodToIdentifier, err := server.GetIdentityAuthenticationMethodsIdentifiers()
+		if err != nil {
+			return nil, err
 		}
 
-		results = append(results, name)
+		var names []string
+		for method, identifiers := range methodToIdentifier {
+			for _, identifier := range identifiers {
+				names = append(names, strings.Join([]string{method, identifier}, "/"))
+			}
+		}
+
+		return names, nil
+	},
+	"identity_provider_group": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetIdentityProviderGroupNames()
+	},
+	"instance": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetInstanceNames(api.InstanceTypeAny)
+	},
+	"network": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetNetworkNames()
+	},
+	"network_acl": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetNetworkACLNames()
+	},
+	"network_zone": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetNetworkZoneNames()
+	},
+	"profile": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetProfileNames()
+	},
+	"project": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetProjectNames()
+	},
+	"storage_pool": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetStoragePoolNames()
+	},
+	"cluster_member": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetClusterMemberNames()
+	},
+	"cluster_group": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetClusterGroupNames()
+	},
+}
+
+var topLevelImageServerResourceNameFuncs = map[string]func(server lxd.ImageServer) ([]string, error){
+	"image": func(server lxd.ImageServer) ([]string, error) {
+		return server.GetImageFingerprints()
+	},
+	"image_alias": func(server lxd.ImageServer) ([]string, error) {
+		return server.GetImageAliasNames()
+	},
+}
+
+// cmpTopLevelResource is used for general comparison of `<remote>:<resource>` arguments.
+// If no `:` is present in the partial argument `toComplete`, resources from the default remote are returned alongside
+// a list of remote names. The default project for the given remote is used to get the resource list.
+func (g *cmdGlobal) cmpTopLevelResource(entityType string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	remote, partialResourceName, err := g.conf.ParseRemote(toComplete)
+	if err != nil {
+		return handleCompletionError(err)
 	}
 
+	names, _ := g.cmpTopLevelResourceInRemote(remote, entityType, partialResourceName)
+	results := make([]string, 0, len(names)+len(g.conf.Remotes))
+	for _, name := range names {
+		var completion string
+
+		if remote == g.conf.DefaultRemote {
+			completion = name
+		} else {
+			completion = remote + ":" + name
+		}
+
+		results = append(results, completion)
+	}
+
+	directive := cobra.ShellCompDirectiveNoFileComp
 	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(toComplete, false)
-		results = append(results, remotes...)
-		cmpDirectives |= directives
+		filters := instanceServerRemoteCompletionFilters(*g.conf)
+		if shared.ValueInSlice(entityType, []string{"image", "image_alias"}) {
+			filters = imageServerRemoteCompletionFilters(*g.conf)
+		}
+
+		remotes, directives := g.cmpRemotes(toComplete, ":", true, filters...)
+		if len(remotes) > 0 {
+			// Only append the no space directive if we're returning any remotes.
+			results = append(results, remotes...)
+			directive |= directives
+		}
 	}
 
-	return results, cmpDirectives
+	return results, directive
+}
+
+// cmpTopLevelResourceInRemote returns completions for a given entity type in a given remote, based on the partial `toComplete` argument.
+func (g *cmdGlobal) cmpTopLevelResourceInRemote(remote string, entityType string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	instanceServerResourceNameFunc, ok := topLevelInstanceServerResourceNameFuncs[entityType]
+	if !ok {
+		imageServerResourceNameFunc, ok := topLevelImageServerResourceNameFuncs[entityType]
+		if !ok {
+			return handleCompletionError(fmt.Errorf("Cannot compare names: Entity type %q is not a top level resource", entityType))
+		}
+
+		server, err := g.conf.GetImageServer(remote)
+		if err != nil {
+			return handleCompletionError(err)
+		}
+
+		names, err := imageServerResourceNameFunc(server)
+		if err != nil {
+			handleCompletionError(err)
+		}
+
+		return completionsFor(names, "", toComplete), cobra.ShellCompDirectiveNoFileComp
+	}
+
+	server, err := g.conf.GetInstanceServerWithConnectionArgs(remote, &lxd.ConnectionArgs{SkipGetServer: true})
+	if err != nil {
+		return handleCompletionError(err)
+	}
+
+	names, err := instanceServerResourceNameFunc(server)
+	if err != nil {
+		return handleCompletionError(err)
+	}
+
+	return completionsFor(names, "", toComplete), cobra.ShellCompDirectiveNoFileComp
+}
+
+// configOptionAppender returns two functions, the first appends config options to a slice, the second returns the current
+// slice value. Config options are trimmed to the last '.' to improve discoverability. If there is no trailing '.', the
+// given suffix will be appended. This allows lists like: ["gid=", "id=", "mdev=", "mig."] when setting configuration.
+func configOptionAppender(toComplete string, suffix string, size int) (func(option string), func() []string) {
+	var out []string
+	if size > 0 {
+		out = make([]string, 0, size)
+	}
+
+	return func(option string) {
+			trimmed, found := strings.CutPrefix(option, toComplete)
+			if !found {
+				return // Does not have prefix
+			}
+
+			var key string
+			remaining, _, ok := strings.Cut(trimmed, ".")
+			if ok {
+				// The option contains a `.<something>` after the completion, append only up to the '.'
+				key = toComplete + remaining + "."
+			} else if !strings.HasSuffix(option, ".") {
+				// The option does not contain anymore `.<something>` after the completion and does not end with '.', append the suffix.
+				key = option + suffix
+			} else {
+				// The option ends with a '.', so it's a general prefix. Don't append the suffix (else we'll get "user.=").
+				key = option
+			}
+
+			// Avoid duplicates.
+			if !shared.ValueInSlice(key, out) {
+				out = append(out, key)
+			}
+		}, func() []string {
+			return out
+		}
 }
 
 // cmpClusterMemberAllConfigKeys provides shell completion for all cluster member configuration keys.
@@ -190,82 +320,63 @@ func (g *cmdGlobal) cmpClusterMemberRoles(memberName string) ([]string, cobra.Sh
 	return member.Roles, cobra.ShellCompDirectiveNoFileComp
 }
 
-// cmpClusterMembers provides shell completion for cluster members.
-// It takes a partial input string and returns a list of matching cluster members along with a shell completion directive.
-func (g *cmdGlobal) cmpClusterMembers(toComplete string) ([]string, cobra.ShellCompDirective) {
-	var results []string
-	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
-
-	resources, _ := g.ParseServers(toComplete)
-
-	if len(resources) > 0 {
-		resource := resources[0]
-
-		cluster, _, err := resource.server.GetCluster()
-		if err != nil || !cluster.Enabled {
-			return nil, cobra.ShellCompDirectiveError
-		}
-
-		// Get the cluster members
-		members, err := resource.server.GetClusterMembers()
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveError
-		}
-
-		results = make([]string, 0, len(members))
-		for _, member := range members {
-			var name string
-
-			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
-				name = member.ServerName
-			} else {
-				name = resource.remote + ":" + member.ServerName
-			}
-
-			results = append(results, name)
-		}
+// cmpImages provides shell completion for image fingerprints and aliases. It takes a partial input string and returns a
+// list of matching image aliases and fingerprints along with a shell completion directive.
+func (g *cmdGlobal) cmpImages(toComplete string, instanceServerOnly bool) ([]string, cobra.ShellCompDirective) {
+	remote, partial, err := g.conf.ParseRemote(toComplete)
+	if err != nil {
+		return handleCompletionError(err)
 	}
 
-	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(toComplete, false)
-		results = append(results, remotes...)
-		cmpDirectives |= directives
+	client, err := g.conf.GetImageServer(remote)
+	if err != nil {
+		return handleCompletionError(err)
 	}
 
-	return results, cmpDirectives
-}
-
-// cmpImages provides shell completion for image aliases.
-// It takes a partial input string and returns a list of matching image aliases along with a shell completion directive.
-func (g *cmdGlobal) cmpImages(toComplete string) ([]string, cobra.ShellCompDirective) {
-	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
-
-	remote, _, found := strings.Cut(toComplete, ":")
-	if !found {
-		remote = g.conf.DefaultRemote
+	images, err := client.GetImages()
+	if err != nil {
+		return handleCompletionError(err)
 	}
-
-	remoteServer, _ := g.conf.GetImageServer(remote)
-
-	images, _ := remoteServer.GetImages()
 
 	results := make([]string, 0, len(images))
+	appendResult := func(result string) {
+		if !strings.HasPrefix(result, partial) {
+			return
+		}
+
+		var name string
+		if remote == g.conf.DefaultRemote && !strings.HasPrefix(toComplete, g.conf.DefaultRemote) {
+			name = result
+		} else {
+			name = remote + ":" + result
+		}
+
+		results = append(results, name)
+	}
+
 	for _, image := range images {
+		// Only suggest fingerprints if there are no aliases, the remote is private, and the image is not cached.
+		// This is so that user provided images with no aliases can still be suggested, but we'll never suggest
+		// images that have more friendly names elsewhere. E.g. we won't suggest `local:<fingerprint>` if it is a
+		// cached version of `images:<alias>`.
+		if len(image.Aliases) == 0 && !g.conf.Remotes[remote].Public && !image.Cached {
+			// Only take the first 12 characters as it should be enough to be unique and we don't want long completions.
+			appendResult(image.Fingerprint[:12])
+		}
+
 		for _, alias := range image.Aliases {
-			var name string
-
-			if remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
-				name = alias.Name
-			} else {
-				name = remote + ":" + alias.Name
-			}
-
-			results = append(results, name)
+			appendResult(alias.Name)
 		}
 	}
 
+	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(toComplete, true)
+		filters := imageServerRemoteCompletionFilters(*g.conf)
+		if instanceServerOnly {
+			filters = instanceServerRemoteCompletionFilters(*g.conf)
+		}
+
+		remotes, directives := g.cmpRemotes(toComplete, ":", true, filters...)
 		results = append(results, remotes...)
 		cmpDirectives |= directives
 	}
@@ -273,172 +384,87 @@ func (g *cmdGlobal) cmpImages(toComplete string) ([]string, cobra.ShellCompDirec
 	return results, cmpDirectives
 }
 
-// cmpImageFingerprintsFromRemote provides shell completion for image fingerprints.
-// It takes a partial input string and a remote and returns image fingerprints for that remote along with a shell completion directive.
-func (g *cmdGlobal) cmpImageFingerprintsFromRemote(toComplete string, remote string) ([]string, cobra.ShellCompDirective) {
-	if remote == "" {
-		remote = g.conf.DefaultRemote
+// getInstanceType gets the instance type by the "lightest" means, by not requiring the server to recurse.
+func (g *cmdGlobal) getInstanceType(remote string, instanceName string) api.InstanceType {
+	client, err := g.conf.GetInstanceServerWithConnectionArgs(remote, &lxd.ConnectionArgs{SkipGetServer: true})
+	if err != nil {
+		return api.InstanceTypeAny
 	}
 
-	remoteServer, _ := g.conf.GetImageServer(remote)
+	vmNames, err := client.GetInstanceNames(api.InstanceTypeVM)
+	if err != nil {
+		return api.InstanceTypeAny
+	}
 
-	images, _ := remoteServer.GetImages()
+	if shared.ValueInSlice(instanceName, vmNames) {
+		return api.InstanceTypeVM
+	}
 
-	results := make([]string, 0, len(images))
-	for _, image := range images {
-		if !strings.HasPrefix(image.Fingerprint, toComplete) {
+	return api.InstanceTypeContainer
+}
+
+// cmpInstanceKeysByType provides shell completion for all instance configuration keys appropriate for the given instance type.
+func (g *cmdGlobal) cmpInstanceKeysByType(instanceType api.InstanceType, suffix string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	instanceKeys := make([]string, 0, len(instancetype.InstanceConfigKeysAny)+len(instancetype.InstanceConfigKeysVM)+len(instancetype.InstanceConfigKeysContainer))
+
+	// Keys for all instances
+	for key := range instancetype.InstanceConfigKeysAny {
+		instanceKeys = append(instanceKeys, key)
+	}
+
+	// Prefixes for all instances
+	instanceKeys = append(instanceKeys, instancetype.ConfigKeyPrefixesAny...)
+
+	switch instanceType {
+	case api.InstanceTypeVM:
+		// VM Specific keys
+		for key := range instancetype.InstanceConfigKeysVM {
+			instanceKeys = append(instanceKeys, key)
+		}
+
+	case api.InstanceTypeContainer:
+		// Container specific keys
+		for key := range instancetype.InstanceConfigKeysContainer {
+			instanceKeys = append(instanceKeys, key)
+		}
+
+		// Container specific prefixes
+		instanceKeys = append(instanceKeys, instancetype.ConfigKeyPrefixesContainer...)
+
+	default:
+		// Unknown instance type (or profile), show completions for all keys and prefixes
+		for key := range instancetype.InstanceConfigKeysVM {
+			instanceKeys = append(instanceKeys, key)
+		}
+
+		for key := range instancetype.InstanceConfigKeysContainer {
+			instanceKeys = append(instanceKeys, key)
+		}
+
+		instanceKeys = append(instanceKeys, instancetype.ConfigKeyPrefixesContainer...)
+	}
+
+	appendOption, result := configOptionAppender(toComplete, suffix, -1)
+	for _, keyName := range instanceKeys {
+		if shared.StringHasPrefix(keyName, "image", "volatile") {
 			continue
 		}
 
-		results = append(results, image.Fingerprint)
+		appendOption(keyName)
 	}
 
-	return results, cobra.ShellCompDirectiveNoFileComp
-}
-
-// cmpInstanceKeys provides shell completion for all instance configuration keys.
-// It takes an instance name to determine instance type and returns a list of all instance configuration keys along with a shell completion directive.
-func (g *cmdGlobal) cmpInstanceKeys(instanceName string) ([]string, cobra.ShellCompDirective) {
-	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
-
-	// Early return when completing server keys.
-	_, instanceNameOnly, found := strings.Cut(instanceName, ":")
-	if instanceNameOnly == "" && found {
-		return g.cmpServerAllKeys(instanceName)
-	}
-
-	resources, err := g.ParseServers(instanceName)
-	if err != nil || len(resources) == 0 {
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	resource := resources[0]
-	client := resource.server
-
-	instance, _, err := client.GetInstance(instanceName)
-	if err != nil {
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	// Complete keys based on instance type.
-	instanceType := instance.Type
-
-	metadataConfiguration, err := client.GetMetadataConfiguration()
-	if err != nil {
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	instanceConfig, ok := metadataConfiguration.Configs["instance"]
-	if !ok {
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	instanceTypeAnyKeys := make([]string, 0, len(instancetype.InstanceConfigKeysAny))
-	for key := range instancetype.InstanceConfigKeysAny {
-		instanceTypeAnyKeys = append(instanceTypeAnyKeys, key)
-	}
-
-	instanceTypeContainerKeys := make([]string, 0, len(instancetype.InstanceConfigKeysContainer))
-	for key := range instancetype.InstanceConfigKeysContainer {
-		instanceTypeContainerKeys = append(instanceTypeContainerKeys, key)
-	}
-
-	instanceTypeVMKeys := make([]string, 0, len(instancetype.InstanceConfigKeysVM))
-	for key := range instancetype.InstanceConfigKeysVM {
-		instanceTypeVMKeys = append(instanceTypeVMKeys, key)
-	}
-
-	// Pre-allocate configKeys slice capacity.
-	keyCount := 0
-	for _, field := range instanceConfig {
-		keyCount += len(field.Keys)
-	}
-
-	configKeys := make([]string, 0, keyCount)
-
-	for _, field := range instanceConfig {
-		for _, key := range field.Keys {
-			for configKey := range key {
-				configKey = strings.TrimSuffix(configKey, "*")
-
-				if shared.ValueInSlice(configKey, instanceTypeAnyKeys) || shared.StringHasPrefix(configKey, instancetype.ConfigKeyPrefixesAny...) {
-					configKeys = append(configKeys, configKey)
-				}
-
-				if instanceType == string(api.InstanceTypeContainer) && (shared.ValueInSlice(configKey, instanceTypeContainerKeys) || shared.StringHasPrefix(configKey, instancetype.ConfigKeyPrefixesContainer...)) {
-					configKeys = append(configKeys, configKey)
-				} else if instanceType == string(api.InstanceTypeVM) && shared.ValueInSlice(configKey, instanceTypeVMKeys) {
-					configKeys = append(configKeys, configKey)
-				}
-			}
-		}
-	}
-
-	return configKeys, cmpDirectives | cobra.ShellCompDirectiveNoSpace
-}
-
-// cmpInstanceAllKeys provides shell completion for all possible instance configuration keys.
-// It returns a list of all possible instance configuration keys along with a shell completion directive.
-func (g *cmdGlobal) cmpInstanceAllKeys(profileName string) ([]string, cobra.ShellCompDirective) {
-	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
-
-	// Parse remote
-	resources, err := g.ParseServers(profileName)
-	if err != nil {
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	resource := resources[0]
-	client := resource.server
-
-	metadataConfiguration, err := client.GetMetadataConfiguration()
-	if err != nil {
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	instanceConfig, ok := metadataConfiguration.Configs["instance"]
-	if !ok {
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	// Pre-allocate configKeys slice capacity.
-	keyCount := 0
-	for _, field := range instanceConfig {
-		keyCount += len(field.Keys)
-	}
-
-	configKeys := make([]string, 0, keyCount)
-
-	for _, field := range instanceConfig {
-		for _, key := range field.Keys {
-			for configKey := range key {
-				configKey = strings.TrimSuffix(configKey, "*")
-				configKeys = append(configKeys, configKey)
-			}
-		}
-	}
-
-	return configKeys, cmpDirectives | cobra.ShellCompDirectiveNoSpace
+	return result(), cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
 }
 
 // cmpInstanceSetKeys provides shell completion for instance configuration keys which are currently set.
 // It takes an instance name to determine instance type and returns a list of instance configuration keys along with a shell completion directive.
-func (g *cmdGlobal) cmpInstanceSetKeys(instanceName string) ([]string, cobra.ShellCompDirective) {
+func (g *cmdGlobal) cmpInstanceSetKeys(remote string, instanceName string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
 
-	// Early return when completing server keys.
-	_, instanceNameOnly, found := strings.Cut(instanceName, ":")
-	if instanceNameOnly == "" && found {
-		return g.cmpServerSetKeys(instanceName)
+	client, err := g.conf.GetInstanceServerWithConnectionArgs(remote, &lxd.ConnectionArgs{SkipGetServer: true})
+	if err != nil {
+		return handleCompletionError(err)
 	}
-
-	resources, err := g.ParseServers(instanceName)
-	if err != nil || len(resources) == 0 {
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	resource := resources[0]
-	client := resource.server
 
 	instance, _, err := client.GetInstance(instanceName)
 	if err != nil {
@@ -450,7 +476,7 @@ func (g *cmdGlobal) cmpInstanceSetKeys(instanceName string) ([]string, cobra.She
 	configKeys := make([]string, 0, keyCount)
 
 	for configKey := range instance.Config {
-		if !shared.StringHasPrefix(configKey, []string{"volatile", "image"}...) {
+		if !shared.StringHasPrefix(configKey, "volatile", "image") && strings.HasPrefix(configKey, toComplete) {
 			configKeys = append(configKeys, configKey)
 		}
 	}
@@ -460,23 +486,20 @@ func (g *cmdGlobal) cmpInstanceSetKeys(instanceName string) ([]string, cobra.She
 
 // cmpServerAllKeys provides shell completion for all server configuration keys.
 // It takes a partial input string and returns a list of all server configuration keys along with a shell completion directive.
-func (g *cmdGlobal) cmpServerAllKeys(toComplete string) ([]string, cobra.ShellCompDirective) {
-	resources, err := g.ParseServers(toComplete)
-	if err != nil || len(resources) == 0 {
-		return nil, cobra.ShellCompDirectiveError
+func (g *cmdGlobal) cmpServerAllKeys(remote string, suffix string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	client, err := g.conf.GetInstanceServerWithConnectionArgs(remote, &lxd.ConnectionArgs{SkipGetServer: true})
+	if err != nil {
+		return handleCompletionError(err)
 	}
-
-	resource := resources[0]
-	client := resource.server
 
 	metadataConfiguration, err := client.GetMetadataConfiguration()
 	if err != nil {
-		return nil, cobra.ShellCompDirectiveError
+		return handleCompletionError(err)
 	}
 
 	server, ok := metadataConfiguration.Configs["server"]
 	if !ok {
-		return nil, cobra.ShellCompDirectiveError
+		return handleCompletionError(fmt.Errorf("Remote %q metadata response did not include server configuration", remote))
 	}
 
 	keyCount := 0
@@ -484,57 +507,39 @@ func (g *cmdGlobal) cmpServerAllKeys(toComplete string) ([]string, cobra.ShellCo
 		keyCount += len(field.Keys)
 	}
 
-	keys := make([]string, 0, keyCount)
-
+	appendOption, result := configOptionAppender(toComplete, suffix, keyCount)
 	for _, field := range server {
 		for _, keyMap := range field.Keys {
 			for key := range keyMap {
-				keys = append(keys, key)
+				appendOption(key)
 			}
 		}
 	}
 
-	return keys, cobra.ShellCompDirectiveNoFileComp
+	return result(), cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
 }
 
 // cmpServerSetKeys provides shell completion for server configuration keys which are currently set.
 // It takes a partial input string and returns a list of server configuration keys along with a shell completion directive.
-func (g *cmdGlobal) cmpServerSetKeys(toComplete string) ([]string, cobra.ShellCompDirective) {
-	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
-
-	resources, err := g.ParseServers(toComplete)
-	if err != nil || len(resources) == 0 {
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	resource := resources[0]
-	server, _, err := resource.server.GetServer()
+func (g *cmdGlobal) cmpServerSetKeys(remote string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	client, err := g.conf.GetInstanceServerWithConnectionArgs(remote, &lxd.ConnectionArgs{SkipGetServer: true})
 	if err != nil {
-		return nil, cobra.ShellCompDirectiveError
+		return handleCompletionError(err)
 	}
 
-	// Fetch all server config keys that can be set.
-	allServerConfigKeys, _ := g.cmpServerAllKeys(resource.remote)
-
-	// Convert slice to map[string]struct{} for O(1) lookups.
-	keySet := make(map[string]struct{}, len(allServerConfigKeys))
-	for _, key := range allServerConfigKeys {
-		keySet[key] = struct{}{}
+	server, _, err := client.GetServer()
+	if err != nil {
+		return handleCompletionError(err)
 	}
 
-	// Pre-allocate configKeys slice capacity.
-	keyCount := len(allServerConfigKeys)
-	configKeys := make([]string, 0, keyCount)
-
-	for configKey := range server.Config {
-		// We only want to return the intersection between allServerConfigKeys and configKeys to avoid returning the full server config.
-		_, exists := keySet[configKey]
-		if exists {
-			configKeys = append(configKeys, configKey)
+	results := make([]string, 0, len(server.Config))
+	for k := range server.Config {
+		if strings.HasPrefix(k, toComplete) {
+			results = append(results, k)
 		}
 	}
 
-	return configKeys, cmpDirectives | cobra.ShellCompDirectiveNoSpace
+	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
 // cmpInstanceConfigTemplates provides shell completion for instance config templates.
@@ -588,16 +593,13 @@ func (g *cmdGlobal) cmpInstanceDeviceNames(instanceName string) ([]string, cobra
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
-// cmpInstanceAllDevices provides shell completion for all instance devices.
+// cmpInstanceAllDeviceTypes provides shell completion for all instance device types.
 // It takes an instance name and returns a list of all possible instance devices along with a shell completion directive.
-func (g *cmdGlobal) cmpInstanceAllDevices(instanceName string) ([]string, cobra.ShellCompDirective) {
-	resources, err := g.ParseServers(instanceName)
-	if err != nil || len(resources) == 0 {
-		return nil, cobra.ShellCompDirectiveError
+func (g *cmdGlobal) cmpInstanceAllDeviceTypes(remote string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	client, err := g.conf.GetInstanceServerWithConnectionArgs(remote, &lxd.ConnectionArgs{SkipGetServer: true})
+	if err != nil {
+		return handleCompletionError(err)
 	}
-
-	resource := resources[0]
-	client := resource.server
 
 	metadataConfiguration, err := client.GetMetadataConfiguration()
 	if err != nil {
@@ -607,86 +609,112 @@ func (g *cmdGlobal) cmpInstanceAllDevices(instanceName string) ([]string, cobra.
 	devices := make([]string, 0, len(metadataConfiguration.Configs))
 
 	for key := range metadataConfiguration.Configs {
-		if strings.HasPrefix(key, "device-") {
-			parts := strings.Split(key, "-")
-			deviceName := parts[1]
-			devices = append(devices, deviceName)
+		if !strings.HasPrefix(key, "device-") {
+			continue
+		}
+
+		parts := strings.Split(key, "-")
+		deviceType := parts[1]
+
+		// "unix" is not a device, get the next part.
+		if deviceType == "unix" && len(parts) > 2 {
+			// The metadata API has "unix-usb", but the device type is just "usb"
+			if parts[2] == "usb" {
+				deviceType = "usb"
+			} else {
+				// Otherwise append the next part.
+				deviceType += "-" + parts[2]
+			}
+		}
+
+		if strings.HasPrefix(deviceType, toComplete) && !shared.ValueInSlice(deviceType, devices) {
+			devices = append(devices, deviceType)
 		}
 	}
 
 	return devices, cobra.ShellCompDirectiveNoFileComp
 }
 
-// cmpInstanceAllDeviceOptions provides shell completion for all instance device options.
-// It takes an instance name and device name and returns a list of all possible instance device options along with a shell completion directive.
-func (g *cmdGlobal) cmpInstanceAllDeviceOptions(instanceName string, deviceName string) ([]string, cobra.ShellCompDirective) {
-	resources, err := g.ParseServers(instanceName)
-	if err != nil || len(resources) == 0 {
-		return nil, cobra.ShellCompDirectiveError
+// cmpDeviceSubtype returns completions for device subtypes. For example, if the device type is "nic", the subtype may be "bridged".
+// It is expected that the metadata API returns config keys per subtype under "device-<device_type>-<subtype>".
+// A prefix may be provided so that the completed result may be used as a config key directly, e.g. "nictype=".
+func (g *cmdGlobal) cmpDeviceSubtype(remote string, deviceType string, prefix string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	client, err := g.conf.GetInstanceServerWithConnectionArgs(remote, &lxd.ConnectionArgs{SkipGetServer: true})
+	if err != nil {
+		return handleCompletionError(err)
 	}
-
-	resource := resources[0]
-	client := resource.server
 
 	metadataConfiguration, err := client.GetMetadataConfiguration()
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	deviceOptions := make([]string, 0, len(metadataConfiguration.Configs))
+	subTypes := make([]string, 0, len(metadataConfiguration.Configs))
+	for key := range metadataConfiguration.Configs {
+		subType, ok := strings.CutPrefix(key, "device-"+deviceType+"-")
+		if !ok {
+			continue
+		}
 
+		if strings.HasPrefix(subType, toComplete) {
+			subTypes = append(subTypes, prefix+subType)
+		}
+	}
+
+	return subTypes, cobra.ShellCompDirectiveNoFileComp
+}
+
+// cmpInstanceAllDeviceOptions provides shell completion for all instance device options.
+// It takes an instance name and device type and returns a list of all possible instance device options along with a shell completion directive.
+// If the subtype is given, only options supported by that subtype will be returned.
+func (g *cmdGlobal) cmpInstanceAllDeviceOptions(remote string, deviceType string, subtype string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	client, err := g.conf.GetInstanceServerWithConnectionArgs(remote, &lxd.ConnectionArgs{SkipGetServer: true})
+	if err != nil {
+		return handleCompletionError(err)
+	}
+
+	metadataConfiguration, err := client.GetMetadataConfiguration()
+	if err != nil {
+		return handleCompletionError(err)
+	}
+
+	appendOption, result := configOptionAppender(toComplete, "=", -1)
 	for key, device := range metadataConfiguration.Configs {
+		if !strings.HasPrefix(key, "device-") {
+			continue
+		}
+
 		parts := strings.Split(key, "-")
-		if strings.HasPrefix(key, "device-") && parts[1] == deviceName {
+		metadataDeviceType := parts[1]
+		if metadataDeviceType == "unix" && len(parts) > 2 {
+			if parts[2] == "usb" {
+				metadataDeviceType = "usb"
+			} else {
+				metadataDeviceType += "-" + parts[2]
+			}
+		}
+
+		if metadataDeviceType == deviceType {
+			if subtype != "" {
+				if len(parts) < 3 {
+					continue
+				}
+
+				if parts[2] != subtype {
+					continue
+				}
+			}
+
 			conf := device["device-conf"]
 			for _, keyMap := range conf.Keys {
 				for option := range keyMap {
-					deviceOptions = append(deviceOptions, option)
+					appendOption(option)
 				}
 			}
 		}
 	}
 
-	return deviceOptions, cobra.ShellCompDirectiveNoFileComp
-}
-
-// cmpInstances provides shell completion for all instances.
-// It takes a partial input string and returns a list of matching instances along with a shell completion directive.
-func (g *cmdGlobal) cmpInstances(toComplete string) ([]string, cobra.ShellCompDirective) {
-	var results []string
-	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
-
-	resources, _ := g.ParseServers(toComplete)
-
-	if len(resources) > 0 {
-		resource := resources[0]
-
-		instances, _ := resource.server.GetInstanceNames("")
-
-		results = make([]string, 0, len(instances))
-		for _, instance := range instances {
-			var name string
-
-			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
-				name = instance
-			} else {
-				name = resource.remote + ":" + instance
-			}
-
-			if !strings.HasPrefix(name, toComplete) {
-				continue
-			}
-
-			results = append(results, name)
-		}
-	}
-
-	if !strings.Contains(toComplete, ":") {
-		remotes, _ := g.cmpRemotes(toComplete, false)
-		results = append(results, remotes...)
-	}
-
-	return results, cmpDirectives
+	return result(), cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
 }
 
 // cmpInstancesAction provides shell completion for all instance actions (start, pause, exec, stop and delete).
@@ -732,7 +760,7 @@ func (g *cmdGlobal) cmpInstancesAction(toComplete string, action string, flagFor
 			var name string
 
 			if shared.ValueInSlice(instance.Status, filteredInstanceStatuses) {
-				if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
+				if resource.remote == g.conf.DefaultRemote && !strings.HasPrefix(toComplete, g.conf.DefaultRemote) {
 					name = instance.Name
 				} else {
 					name = resource.remote + ":" + instance.Name
@@ -743,13 +771,27 @@ func (g *cmdGlobal) cmpInstancesAction(toComplete string, action string, flagFor
 		}
 
 		if !strings.Contains(toComplete, ":") {
-			remotes, directives := g.cmpRemotes(toComplete, false)
+			remotes, directives := g.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*g.conf)...)
 			results = append(results, remotes...)
 			cmpDirectives |= directives
 		}
 	}
 
-	return results, cmpDirectives
+	return completionsFor(results, "", toComplete), cmpDirectives
+}
+
+func (g *cmdGlobal) cmpSnapshotNames(remote string, instanceName string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	server, err := g.conf.GetInstanceServerWithConnectionArgs(remote, &lxd.ConnectionArgs{SkipGetServer: true})
+	if err != nil {
+		return handleCompletionError(err)
+	}
+
+	snapshotNames, err := server.GetInstanceSnapshotNames(instanceName)
+	if err != nil {
+		return handleCompletionError(err)
+	}
+
+	return completionsFor(snapshotNames, "", toComplete), cobra.ShellCompDirectiveNoFileComp
 }
 
 // cmpInstancesAndSnapshots provides shell completion for instances and their snapshots.
@@ -757,59 +799,33 @@ func (g *cmdGlobal) cmpInstancesAction(toComplete string, action string, flagFor
 func (g *cmdGlobal) cmpInstancesAndSnapshots(toComplete string) ([]string, cobra.ShellCompDirective) {
 	results := []string{}
 	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
+	remote, partial, err := g.conf.ParseRemote(toComplete)
+	if err != nil {
+		return handleCompletionError(err)
+	}
 
-	resources, _ := g.ParseServers(toComplete)
+	instanceName, partialSnapshotName, isSnapshot := strings.Cut(partial, shared.SnapshotDelimiter)
+	if !isSnapshot {
+		return g.cmpTopLevelResource("instance", toComplete)
+	}
 
-	if len(resources) > 0 {
-		resource := resources[0]
-
-		if strings.Contains(resource.name, shared.SnapshotDelimiter) {
-			instName, _, _ := strings.Cut(resource.name, shared.SnapshotDelimiter)
-			snapshots, _ := resource.server.GetInstanceSnapshotNames(instName)
-			for _, snapshot := range snapshots {
-				results = append(results, instName+"/"+snapshot)
-			}
-		} else {
-			instances, _ := resource.server.GetInstanceNames("")
-			for _, instance := range instances {
-				var name string
-
-				if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
-					name = instance
-				} else {
-					name = resource.remote + ":" + instance
-				}
-
-				results = append(results, name)
-			}
+	completions, _ := g.cmpSnapshotNames(remote, instanceName, partialSnapshotName)
+	for _, snapshot := range completions {
+		name := instanceName + shared.SnapshotDelimiter + snapshot
+		if remote != g.conf.DefaultRemote || strings.HasPrefix(toComplete, g.conf.DefaultRemote) {
+			name = remote + ":" + name
 		}
+
+		results = append(results, name)
 	}
 
 	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(toComplete, false)
+		remotes, directives := g.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*g.conf)...)
 		results = append(results, remotes...)
 		cmpDirectives |= directives
 	}
 
-	return results, cmpDirectives
-}
-
-// cmpInstanceNamesFromRemote provides shell completion for instances for a specific remote.
-// It takes a partial input string and returns a list of matching instances along with a shell completion directive.
-func (g *cmdGlobal) cmpInstanceNamesFromRemote(toComplete string) ([]string, cobra.ShellCompDirective) {
-	resources, _ := g.ParseServers(toComplete)
-
-	if len(resources) > 0 {
-		resource := resources[0]
-
-		containers, _ := resource.server.GetInstanceNames("container")
-		vms, _ := resource.server.GetInstanceNames("virtual-machine")
-		results := append(containers, vms...)
-
-		return results, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	return nil, cobra.ShellCompDirectiveNoFileComp
+	return completionsFor(results, "", toComplete), cmpDirectives
 }
 
 // cmpNetworkACLConfigs provides shell completion for network ACL configs.
@@ -835,46 +851,6 @@ func (g *cmdGlobal) cmpNetworkACLConfigs(aclName string) ([]string, cobra.ShellC
 	}
 
 	return results, cobra.ShellCompDirectiveNoFileComp
-}
-
-// cmpNetworkACLs provides shell completion for network ACL's.
-// It takes a partial input string and returns a list of matching network ACL's along with a shell completion directive.
-func (g *cmdGlobal) cmpNetworkACLs(toComplete string) ([]string, cobra.ShellCompDirective) {
-	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
-
-	resources, _ := g.ParseServers(toComplete)
-
-	if len(resources) <= 0 {
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	resource := resources[0]
-
-	acls, err := resource.server.GetNetworkACLNames()
-	if err != nil {
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	results := make([]string, 0, len(acls))
-	for _, acl := range acls {
-		var name string
-
-		if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
-			name = acl
-		} else {
-			name = resource.remote + ":" + acl
-		}
-
-		results = append(results, name)
-	}
-
-	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(toComplete, false)
-		results = append(results, remotes...)
-		cmpDirectives |= directives
-	}
-
-	return results, cmpDirectives
 }
 
 // cmpNetworkACLRuleProperties provides shell completion for network ACL rule properties.
@@ -1045,45 +1021,6 @@ func (g *cmdGlobal) cmpNetworkPeers(networkName string) ([]string, cobra.ShellCo
 	return results, cmpDirectives
 }
 
-// cmpNetworks provides shell completion for networks.
-// It takes a partial input string and returns a list of matching networks along with a shell completion directive.
-func (g *cmdGlobal) cmpNetworks(toComplete string) ([]string, cobra.ShellCompDirective) {
-	var results []string
-	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
-
-	resources, _ := g.ParseServers(toComplete)
-
-	if len(resources) > 0 {
-		resource := resources[0]
-
-		networks, err := resource.server.GetNetworkNames()
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveError
-		}
-
-		results = make([]string, 0, len(networks))
-		for _, network := range networks {
-			var name string
-
-			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
-				name = network
-			} else {
-				name = resource.remote + ":" + network
-			}
-
-			results = append(results, name)
-		}
-	}
-
-	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(toComplete, false)
-		results = append(results, remotes...)
-		cmpDirectives |= directives
-	}
-
-	return results, cmpDirectives
-}
-
 // cmpNetworkConfigs provides shell completion for network configs.
 // It takes a network name and returns a list of network configs along with a shell completion directive.
 func (g *cmdGlobal) cmpNetworkConfigs(networkName string) ([]string, cobra.ShellCompDirective) {
@@ -1241,45 +1178,6 @@ func (g *cmdGlobal) cmpNetworkZoneRecords(zoneName string) ([]string, cobra.Shel
 	return results, cmpDirectives
 }
 
-// cmpNetworkZones provides shell completion for network zones.
-// It takes a partial input string and returns a list of network zones along with a shell completion directive.
-func (g *cmdGlobal) cmpNetworkZones(toComplete string) ([]string, cobra.ShellCompDirective) {
-	var results []string
-	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
-
-	resources, _ := g.ParseServers(toComplete)
-
-	if len(resources) > 0 {
-		resource := resources[0]
-
-		zones, err := resource.server.GetNetworkZoneNames()
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveError
-		}
-
-		results = make([]string, 0, len(zones))
-		for _, project := range zones {
-			var name string
-
-			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
-				name = project
-			} else {
-				name = resource.remote + ":" + project
-			}
-
-			results = append(results, name)
-		}
-	}
-
-	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(toComplete, false)
-		results = append(results, remotes...)
-		cmpDirectives |= directives
-	}
-
-	return results, cmpDirectives
-}
-
 // cmpProfileConfigs provides shell completion for profile configs.
 // It takes a profile name and returns a list of profile configs along with a shell completion directive.
 func (g *cmdGlobal) cmpProfileConfigs(profileName string) ([]string, cobra.ShellCompDirective) {
@@ -1329,58 +1227,6 @@ func (g *cmdGlobal) cmpProfileDeviceNames(instanceName string) ([]string, cobra.
 	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
-// cmpProfileNamesFromRemote provides shell completion for profile names from a remote.
-// It takes a partial input string and returns a list of profile names along with a shell completion directive.
-func (g *cmdGlobal) cmpProfileNamesFromRemote(toComplete string) ([]string, cobra.ShellCompDirective) {
-	var results []string
-
-	resources, _ := g.ParseServers(toComplete)
-
-	if len(resources) > 0 {
-		resource := resources[0]
-
-		results, _ = resource.server.GetProfileNames()
-	}
-
-	return results, cobra.ShellCompDirectiveNoFileComp
-}
-
-// cmpProfiles provides shell completion for profiles.
-// It takes a partial input string and a boolean specifying whether to include remotes or not, and returns a list of profiles along with a shell completion directive.
-func (g *cmdGlobal) cmpProfiles(toComplete string, includeRemotes bool) ([]string, cobra.ShellCompDirective) {
-	var results []string
-	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
-
-	resources, _ := g.ParseServers(toComplete)
-
-	if len(resources) > 0 {
-		resource := resources[0]
-
-		profiles, _ := resource.server.GetProfileNames()
-
-		results = make([]string, 0, len(profiles))
-		for _, profile := range profiles {
-			var name string
-
-			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
-				name = profile
-			} else {
-				name = resource.remote + ":" + profile
-			}
-
-			results = append(results, name)
-		}
-	}
-
-	if includeRemotes && !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(toComplete, false)
-		results = append(results, remotes...)
-		cmpDirectives |= directives
-	}
-
-	return results, cmpDirectives
-}
-
 // cmpProjectConfigs provides shell completion for project configs.
 // It takes a project name and returns a list of project configs along with a shell completion directive.
 func (g *cmdGlobal) cmpProjectConfigs(projectName string) ([]string, cobra.ShellCompDirective) {
@@ -1405,79 +1251,73 @@ func (g *cmdGlobal) cmpProjectConfigs(projectName string) ([]string, cobra.Shell
 	return configs, cobra.ShellCompDirectiveNoFileComp
 }
 
-// cmpProjects provides shell completion for projects.
-// It takes a partial input string and returns a list of projects along with a shell completion directive.
-func (g *cmdGlobal) cmpProjects(toComplete string) ([]string, cobra.ShellCompDirective) {
-	var results []string
-	cmpDirectives := cobra.ShellCompDirectiveNoFileComp
+// remoteCompletionFilter is passed into cmpRemotes to determine which remotes to include in the result.
+// Filter functions must match positively. E.g. Return true to filter the remote from the result.
+type remoteCompletionFilter func(name string, remote config.Remote) bool
 
-	resources, _ := g.ParseServers(toComplete)
-
-	if len(resources) > 0 {
-		resource := resources[0]
-
-		projects, err := resource.server.GetProjectNames()
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveError
-		}
-
-		results = make([]string, 0, len(projects))
-		for _, project := range projects {
-			var name string
-
-			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
-				name = project
-			} else {
-				name = resource.remote + ":" + project
-			}
-
-			results = append(results, name)
-		}
+// filterDefault returns a function that returns true if the given remote name equals the default remote.
+func filterDefaultRemote(conf config.Config) remoteCompletionFilter {
+	return func(name string, remote config.Remote) bool {
+		return name == conf.DefaultRemote
 	}
+}
 
-	if !strings.Contains(toComplete, ":") {
-		remotes, directives := g.cmpRemotes(toComplete, false)
-		results = append(results, remotes...)
-		cmpDirectives |= directives
+// filterPublicRemotes returns true if the remote is public (e.g. cannot create instances).
+func filterPublicRemotes(name string, remote config.Remote) bool {
+	return remote.Public
+}
+
+// filterStaticRemotes returns true if the remote is static (cannot be modified).
+func filterStaticRemotes(name string, remote config.Remote) bool {
+	return remote.Static
+}
+
+// filterGlobalRemotes returns true if the remote is global (cannot be removed).
+func filterGlobalRemotes(name string, remote config.Remote) bool {
+	return remote.Global
+}
+
+// instanceServerRemoteCompletionFilters returns a slice of remoteCompletionFilter for use when a command requires an
+// instance server only.
+func instanceServerRemoteCompletionFilters(conf config.Config) []remoteCompletionFilter {
+	return []remoteCompletionFilter{
+		filterPublicRemotes,
+		filterDefaultRemote(conf),
 	}
+}
 
-	return results, cmpDirectives
+// imageServerRemoteCompletionFilters returns a slice of remoteCompletionFilter for use when a command requires an image
+// server (including instance servers).
+func imageServerRemoteCompletionFilters(conf config.Config) []remoteCompletionFilter {
+	return []remoteCompletionFilter{
+		filterDefaultRemote(conf),
+	}
 }
 
 // cmpRemotes provides shell completion for remotes.
-// It takes a boolean specifying whether to include all remotes or not and returns a list of remotes along with a shell completion directive.
-func (g *cmdGlobal) cmpRemotes(toComplete string, includeAll bool) ([]string, cobra.ShellCompDirective) {
+// It accepts a completion string, a suffix (usually a ":"), a boolean to indicate whether the cobra.ShellCompDirectiveNoSpace should be included
+// and a list of filters. The filters are used to return only applicable remotes dependant on usage. For example, if listing images we should
+// complete for all remotes (image servers and instance servers). If listing instances we should return only instance servers.
+func (g *cmdGlobal) cmpRemotes(toComplete string, suffix string, noSpace bool, filters ...remoteCompletionFilter) ([]string, cobra.ShellCompDirective) {
 	results := []string{}
 
+remoteLoop:
 	for remoteName, rc := range g.conf.Remotes {
-		if remoteName == "local" && g.conf.DefaultRemote == "local" || remoteName == g.conf.DefaultRemote || (!includeAll && rc.Protocol != "lxd" && rc.Protocol != "") {
-			continue
-		}
-
 		if !strings.HasPrefix(remoteName, toComplete) {
 			continue
 		}
 
-		results = append(results, remoteName+":")
-	}
-
-	if len(results) > 0 {
-		return results, cobra.ShellCompDirectiveNoSpace
-	}
-
-	return results, cobra.ShellCompDirectiveNoFileComp
-}
-
-// cmpRemoteNames provides shell completion for remote names.
-// It returns a list of remote names provided by `g.conf.Remotes` along with a shell completion directive.
-func (g *cmdGlobal) cmpRemoteNames(includeDefaultRemote bool) ([]string, cobra.ShellCompDirective) {
-	results := make([]string, 0, len(g.conf.Remotes))
-	for remoteName := range g.conf.Remotes {
-		if !includeDefaultRemote && remoteName == g.conf.DefaultRemote {
-			continue
+		for _, f := range filters {
+			if f(remoteName, rc) {
+				continue remoteLoop
+			}
 		}
 
-		results = append(results, remoteName)
+		results = append(results, remoteName+suffix)
+	}
+
+	if noSpace {
+		return results, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
 	}
 
 	return results, cobra.ShellCompDirectiveNoFileComp
@@ -1516,7 +1356,7 @@ func (g *cmdGlobal) cmpStoragePoolConfigs(poolName string) ([]string, cobra.Shel
 // It takes a partial input string and returns a list of storage pools and their volumes, along with a shell completion directive.
 func (g *cmdGlobal) cmpStoragePoolWithVolume(toComplete string) ([]string, cobra.ShellCompDirective) {
 	if !strings.Contains(toComplete, "/") {
-		pools, compdir := g.cmpStoragePools(toComplete, false)
+		pools, compdir := g.cmpTopLevelResource("storage_pool", toComplete)
 		if compdir == cobra.ShellCompDirectiveError {
 			return nil, compdir
 		}
@@ -1530,7 +1370,7 @@ func (g *cmdGlobal) cmpStoragePoolWithVolume(toComplete string) ([]string, cobra
 			}
 		}
 
-		return results, cobra.ShellCompDirectiveNoSpace
+		return results, compdir | cobra.ShellCompDirectiveNoSpace
 	}
 
 	pool := strings.Split(toComplete, "/")[0]
@@ -1543,44 +1383,6 @@ func (g *cmdGlobal) cmpStoragePoolWithVolume(toComplete string) ([]string, cobra
 	for _, volume := range volumes {
 		volName, _ := parseVolume("custom", volume)
 		results = append(results, pool+"/"+volName)
-	}
-
-	return results, cobra.ShellCompDirectiveNoFileComp
-}
-
-// cmpStoragePools provides shell completion for storage pool names.
-// It takes a partial input string and a boolean indicating whether to avoid appending a space after the completion. The function returns a list of matching storage pool names and a shell completion directive.
-func (g *cmdGlobal) cmpStoragePools(toComplete string, noSpace bool) ([]string, cobra.ShellCompDirective) {
-	var results []string
-
-	resources, _ := g.ParseServers(toComplete)
-
-	if len(resources) > 0 {
-		resource := resources[0]
-
-		storagePools, _ := resource.server.GetStoragePoolNames()
-
-		results = make([]string, 0, len(storagePools))
-		for _, storage := range storagePools {
-			var name string
-
-			if resource.remote == g.conf.DefaultRemote && !strings.Contains(toComplete, g.conf.DefaultRemote) {
-				name = storage
-			} else {
-				name = resource.remote + ":" + storage
-			}
-
-			results = append(results, name)
-		}
-	}
-
-	if !strings.Contains(toComplete, ":") {
-		remotes, _ := g.cmpRemotes(toComplete, false)
-		results = append(results, remotes...)
-	}
-
-	if noSpace {
-		return results, cobra.ShellCompDirectiveNoSpace
 	}
 
 	return results, cobra.ShellCompDirectiveNoFileComp
@@ -1779,11 +1581,74 @@ func isSymlinkToDir(path string, d fs.DirEntry) bool {
 	return true
 }
 
+func (g *cmdGlobal) cmpLocalFiles(toComplete string, allowedExtensions []string) ([]string, cobra.ShellCompDirective) {
+	var files []string
+	sep := string(filepath.Separator)
+	dir, prefix := filepath.Split(toComplete)
+	if prefix == "." || prefix == ".." {
+		files = append(files, dir+prefix+sep)
+	}
+
+	root, err := filepath.EvalSymlinks(filepath.Dir(dir))
+	if err != nil {
+		return handleCompletionError(err)
+	}
+
+	hasExtension := func(entry string) bool {
+		if len(allowedExtensions) == 0 {
+			return true
+		}
+
+		for _, e := range allowedExtensions {
+			if strings.HasSuffix(entry, e) {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || path == root {
+			return err
+		}
+
+		base := filepath.Base(path)
+		if strings.HasPrefix(base, prefix) {
+			// Match files and directories starting with the given prefix.
+			file := dir + base
+			switch {
+			case d.IsDir():
+				file += sep
+			case isSymlinkToDir(path, d):
+				if base == prefix {
+					file += sep
+				}
+
+			default:
+				if !hasExtension(file) {
+					return nil
+				}
+			}
+
+			files = append(files, file)
+		}
+
+		if d.IsDir() {
+			return fs.SkipDir
+		}
+
+		return nil
+	})
+
+	return files, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
+}
+
 // cmpFiles provides shell completions for instances and files based on the input.
 //
 // If `includeLocalFiles` is true, it includes local file completions relative to the `toComplete` path.
 func (g *cmdGlobal) cmpFiles(toComplete string, includeLocalFiles bool) ([]string, cobra.ShellCompDirective) {
-	instances, directives := g.cmpInstances(toComplete)
+	instances, directives := g.cmpTopLevelResource("instance", toComplete)
 	// Append "/" to instances to indicate directory-like behavior.
 	for i := range instances {
 		if strings.HasSuffix(instances[i], ":") {
@@ -1809,45 +1674,6 @@ func (g *cmdGlobal) cmpFiles(toComplete string, includeLocalFiles bool) ([]strin
 		return instances, directives
 	}
 
-	var files []string
-	sep := string(filepath.Separator)
-	dir, prefix := filepath.Split(toComplete)
-	if prefix == "." || prefix == ".." {
-		files = append(files, dir+prefix+sep)
-	}
-
-	root, err := filepath.EvalSymlinks(filepath.Dir(dir))
-	if err != nil {
-		return append(instances, files...), directives
-	}
-
-	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || path == root {
-			return err
-		}
-
-		base := filepath.Base(path)
-		if strings.HasPrefix(base, prefix) {
-			// Match files and directories starting with the given prefix.
-			file := dir + base
-			switch {
-			case d.IsDir():
-				file += sep
-			case isSymlinkToDir(path, d):
-				if base == prefix {
-					file += sep
-				}
-			}
-
-			files = append(files, file)
-		}
-
-		if d.IsDir() {
-			return fs.SkipDir
-		}
-
-		return nil
-	})
-
-	return append(instances, files...), directives
+	files, fileDirectives := g.cmpLocalFiles(toComplete, nil)
+	return append(instances, files...), directives | fileDirectives
 }

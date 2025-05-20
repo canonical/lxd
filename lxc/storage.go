@@ -107,7 +107,7 @@ lxc storage create s1 dir < config.yaml
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemotes(toComplete, false)
+			return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -207,7 +207,7 @@ func (c *cmdStorageDelete) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpStoragePools(toComplete, false)
+			return c.global.cmpTopLevelResource("storage_pool", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -268,7 +268,7 @@ func (c *cmdStorageEdit) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpStoragePools(toComplete, false)
+			return c.global.cmpTopLevelResource("storage_pool", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -399,7 +399,7 @@ func (c *cmdStorageGet) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpStoragePools(toComplete, false)
+			return c.global.cmpTopLevelResource("storage_pool", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -481,7 +481,7 @@ func (c *cmdStorageInfo) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpStoragePools(toComplete, false)
+			return c.global.cmpTopLevelResource("storage_pool", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -660,7 +660,7 @@ func (c *cmdStorageList) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemotes(toComplete, false)
+			return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -751,7 +751,7 @@ For backward compatibility, a single configuration key may still be set with:
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpStoragePools(toComplete, false)
+			return c.global.cmpTopLevelResource("storage_pool", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -852,7 +852,7 @@ func (c *cmdStorageShow) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpStoragePools(toComplete, false)
+			return c.global.cmpTopLevelResource("storage_pool", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -946,7 +946,7 @@ func (c *cmdStorageUnset) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpStoragePools(toComplete, false)
+			return c.global.cmpTopLevelResource("storage_pool", toComplete)
 		}
 
 		if len(args) == 1 {

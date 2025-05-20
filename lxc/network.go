@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -140,11 +141,16 @@ func (c *cmdNetworkAttach) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworks(toComplete)
+			return c.global.cmpTopLevelResource("network", toComplete)
+		}
+
+		remote, _, err := c.global.conf.ParseRemote(args[0])
+		if err != nil {
+			return handleCompletionError(err)
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpInstances(args[0])
+			return c.global.cmpTopLevelResourceInRemote(remote, "instance", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -236,15 +242,20 @@ func (c *cmdNetworkAttachProfile) command() *cobra.Command {
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) > 1 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
 		if len(args) == 0 {
-			return c.global.cmpNetworks(toComplete)
+			return c.global.cmpTopLevelResource("network", toComplete)
 		}
 
-		if len(args) == 1 {
-			return c.global.cmpProfiles(args[0], false)
+		remote, _, err := c.global.conf.ParseRemote(args[0])
+		if err != nil {
+			return handleCompletionError(err)
 		}
 
-		return nil, cobra.ShellCompDirectiveNoFileComp
+		return c.global.cmpTopLevelResourceInRemote(remote, "profile", toComplete)
 	}
 
 	return cmd
@@ -332,7 +343,7 @@ lxc network create bar network=baz --type ovn
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return c.global.cmpRemotes(toComplete, false)
+		return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 	}
 
 	return cmd
@@ -412,7 +423,7 @@ func (c *cmdNetworkDelete) command() *cobra.Command {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return c.global.cmpNetworks(toComplete)
+		return c.global.cmpTopLevelResource("network", toComplete)
 	}
 
 	return cmd
@@ -467,7 +478,7 @@ func (c *cmdNetworkDetach) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworks(toComplete)
+			return c.global.cmpTopLevelResource("network", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -564,7 +575,7 @@ func (c *cmdNetworkDetachProfile) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworks(toComplete)
+			return c.global.cmpTopLevelResource("network", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -664,7 +675,7 @@ func (c *cmdNetworkEdit) command() *cobra.Command {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return c.global.cmpNetworks(toComplete)
+		return c.global.cmpTopLevelResource("network", toComplete)
 	}
 
 	return cmd
@@ -799,7 +810,7 @@ func (c *cmdNetworkGet) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworks(toComplete)
+			return c.global.cmpTopLevelResource("network", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -882,7 +893,7 @@ func (c *cmdNetworkInfo) command() *cobra.Command {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return c.global.cmpNetworks(toComplete)
+		return c.global.cmpTopLevelResource("network", toComplete)
 	}
 
 	return cmd
@@ -994,8 +1005,9 @@ type cmdNetworkList struct {
 	global  *cmdGlobal
 	network *cmdNetwork
 
-	flagFormat string
-	flagTarget string
+	flagFormat      string
+	flagTarget      string
+	flagAllProjects bool
 }
 
 func (c *cmdNetworkList) command() *cobra.Command {
@@ -1009,13 +1021,14 @@ func (c *cmdNetworkList) command() *cobra.Command {
 	cmd.RunE = c.run
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, i18n.G("Display networks from all projects"))
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) != 0 {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return c.global.cmpRemotes(toComplete, false)
+		return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 	}
 
 	return cmd
@@ -1053,9 +1066,17 @@ func (c *cmdNetworkList) run(cmd *cobra.Command, args []string) error {
 		client = client.UseTarget(c.flagTarget)
 	}
 
-	networks, err := client.GetNetworks()
-	if err != nil {
-		return err
+	var networks []api.Network
+	if c.flagAllProjects {
+		networks, err = client.GetNetworksAllProjects()
+		if err != nil {
+			return err
+		}
+	} else {
+		networks, err = client.GetNetworks()
+		if err != nil {
+			return err
+		}
 	}
 
 	data := [][]string{}
@@ -1069,7 +1090,7 @@ func (c *cmdNetworkList) run(cmd *cobra.Command, args []string) error {
 			strManaged = i18n.G("YES")
 		}
 
-		strUsedBy := fmt.Sprint(len(network.UsedBy))
+		strUsedBy := strconv.Itoa(len(network.UsedBy))
 		details := []string{
 			network.Name,
 			network.Type,
@@ -1079,6 +1100,10 @@ func (c *cmdNetworkList) run(cmd *cobra.Command, args []string) error {
 			network.Description,
 			strUsedBy,
 			strings.ToUpper(network.Status),
+		}
+
+		if c.flagAllProjects {
+			details = append([]string{network.Project}, details...)
 		}
 
 		data = append(data, details)
@@ -1095,6 +1120,10 @@ func (c *cmdNetworkList) run(cmd *cobra.Command, args []string) error {
 		i18n.G("DESCRIPTION"),
 		i18n.G("USED BY"),
 		i18n.G("STATE"),
+	}
+
+	if c.flagAllProjects {
+		header = append([]string{i18n.G("PROJECT")}, header...)
 	}
 
 	return cli.RenderTable(c.flagFormat, header, data, networks)
@@ -1123,7 +1152,7 @@ func (c *cmdNetworkListLeases) command() *cobra.Command {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return c.global.cmpNetworks(toComplete)
+		return c.global.cmpTopLevelResource("network", toComplete)
 	}
 
 	return cmd
@@ -1201,7 +1230,7 @@ func (c *cmdNetworkRename) command() *cobra.Command {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return c.global.cmpNetworks(toComplete)
+		return c.global.cmpTopLevelResource("network", toComplete)
 	}
 
 	return cmd
@@ -1266,7 +1295,7 @@ For backward compatibility, a single configuration key may still be set with:
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return c.global.cmpNetworks(toComplete)
+		return c.global.cmpTopLevelResource("network", toComplete)
 	}
 
 	return cmd
@@ -1358,7 +1387,7 @@ func (c *cmdNetworkShow) command() *cobra.Command {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return c.global.cmpNetworks(toComplete)
+		return c.global.cmpTopLevelResource("network", toComplete)
 	}
 
 	return cmd
@@ -1428,7 +1457,7 @@ func (c *cmdNetworkUnset) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworks(toComplete)
+			return c.global.cmpTopLevelResource("network", toComplete)
 		}
 
 		if len(args) == 1 {

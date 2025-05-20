@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -311,22 +312,22 @@ func imgPostInstanceInfo(s *state.State, r *http.Request, req api.ImagesPost, op
 	name := req.Source.Name
 	ctype := req.Source.Type
 	if ctype == "" || name == "" {
-		return nil, fmt.Errorf("No source provided")
+		return nil, errors.New("No source provided")
 	}
 
 	switch ctype {
 	case "snapshot":
 		if !shared.IsSnapshot(name) {
-			return nil, fmt.Errorf("Not a snapshot")
+			return nil, errors.New("Not a snapshot")
 		}
 
 	case "container", "virtual-machine", "instance":
 		if shared.IsSnapshot(name) {
-			return nil, fmt.Errorf("This is a snapshot")
+			return nil, errors.New("This is a snapshot")
 		}
 
 	default:
-		return nil, fmt.Errorf("Bad type")
+		return nil, errors.New("Bad type")
 	}
 
 	info.Filename = req.Filename
@@ -483,7 +484,7 @@ func imgPostInstanceInfo(s *state.State, r *http.Request, req api.ImagesPost, op
 	}
 
 	info.Size = fi.Size()
-	info.Fingerprint = fmt.Sprintf("%x", sha256.Sum(nil))
+	info.Fingerprint = hex.EncodeToString(sha256.Sum(nil))
 	info.CreatedAt = time.Now().UTC()
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -529,7 +530,7 @@ func imgPostRemoteInfo(s *state.State, r *http.Request, req api.ImagesPost, op *
 	} else if req.Source.Alias != "" {
 		hash = req.Source.Alias
 	} else {
-		return nil, fmt.Errorf("must specify one of alias or fingerprint for init from image")
+		return nil, errors.New("must specify one of alias or fingerprint for init from image")
 	}
 
 	info, err := ImageDownload(r, s, op, &ImageDownloadArgs{
@@ -602,7 +603,7 @@ func imgPostURLInfo(s *state.State, r *http.Request, req api.ImagesPost, op *ope
 	var err error
 
 	if req.Source.URL == "" {
-		return nil, fmt.Errorf("Missing URL")
+		return nil, errors.New("Missing URL")
 	}
 
 	myhttp, err := util.HTTPClient("", s.Proxy)
@@ -637,12 +638,12 @@ func imgPostURLInfo(s *state.State, r *http.Request, req api.ImagesPost, op *ope
 
 	hash := raw.Header.Get("LXD-Image-Hash")
 	if hash == "" {
-		return nil, fmt.Errorf("Missing LXD-Image-Hash header")
+		return nil, errors.New("Missing LXD-Image-Hash header")
 	}
 
 	url := raw.Header.Get("LXD-Image-URL")
 	if url == "" {
-		return nil, fmt.Errorf("Missing LXD-Image-URL header")
+		return nil, errors.New("Missing LXD-Image-URL header")
 	}
 
 	// Import the image
@@ -733,7 +734,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 		}
 
 		if part.FormName() != "metadata" {
-			return nil, fmt.Errorf("Invalid multipart image")
+			return nil, errors.New("Invalid multipart image")
 		}
 
 		size, err = io.Copy(io.MultiWriter(imageTarf, sha256), part)
@@ -758,7 +759,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 			info.Type = instancetype.VM.String()
 		} else {
 			l.Error("Invalid multipart image")
-			return nil, fmt.Errorf("Invalid multipart image")
+			return nil, errors.New("Invalid multipart image")
 		}
 
 		// Create a temporary file for the rootfs tarball
@@ -800,7 +801,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 		imageTmpFilename = post.Name()
 	}
 
-	info.Fingerprint = fmt.Sprintf("%x", sha256.Sum(nil))
+	info.Fingerprint = hex.EncodeToString(sha256.Sum(nil))
 
 	expectedFingerprint := r.Header.Get("X-LXD-fingerprint")
 	if expectedFingerprint != "" && info.Fingerprint != expectedFingerprint {
@@ -857,7 +858,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 	if ok {
 		info.ExpiresAt, ok = expiresAt.(time.Time)
 		if !ok {
-			return nil, fmt.Errorf("Invalid type for field \"expires_at\"")
+			return nil, errors.New("Invalid type for field \"expires_at\"")
 		}
 	} else {
 		info.ExpiresAt = time.Unix(imageMeta.ExpiryDate, 0)
@@ -867,7 +868,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 	if ok {
 		info.Properties, ok = properties.(map[string]string)
 		if !ok {
-			return nil, fmt.Errorf("Invalid type for field \"properties\"")
+			return nil, errors.New("Invalid type for field \"properties\"")
 		}
 	} else {
 		info.Properties = imageMeta.Properties
@@ -922,7 +923,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 		// Do not create a database entry if the request is coming from the internal
 		// cluster communications for image synchronization
 		if !isClusterNotification(r) {
-			return &info, fmt.Errorf("Image with same fingerprint already exists")
+			return &info, errors.New("Image with same fingerprint already exists")
 		}
 
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -936,7 +937,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 		if ok {
 			info.Public, ok = public.(bool)
 			if !ok {
-				return nil, fmt.Errorf("Invalid type for key \"public\"")
+				return nil, errors.New("Invalid type for key \"public\"")
 			}
 		}
 
@@ -958,7 +959,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 // database and hence has already a storage volume in at least one storage pool.
 func imageCreateInPool(s *state.State, info *api.Image, storagePool string) error {
 	if storagePool == "" {
-		return fmt.Errorf("No storage pool specified")
+		return errors.New("No storage pool specified")
 	}
 
 	pool, err := storagePools.LoadByName(s, storagePool)
@@ -1199,7 +1200,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 
 	if !imageUpload && !shared.ValueInSlice(req.Source.Type, []string{"container", "instance", "virtual-machine", "snapshot", "image", "url"}) {
 		cleanup(builddir, post)
-		return response.InternalError(fmt.Errorf("Invalid images JSON"))
+		return response.InternalError(errors.New("Invalid images JSON"))
 	}
 
 	// Forward requests for containers on other nodes.
@@ -1237,13 +1238,14 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			/* Processing image upload */
 			info, err = getImgPostInfo(s, r, builddir, projectName, post, imageMetadata)
 		} else {
-			if req.Source.Type == api.SourceTypeImage {
+			switch req.Source.Type {
+			case api.SourceTypeImage:
 				/* Processing image copy from remote */
 				info, err = imgPostRemoteInfo(s, r, req, op, projectName, budget)
-			} else if req.Source.Type == "url" {
+			case "url":
 				/* Processing image copy from URL */
 				info, err = imgPostURLInfo(s, r, req, op, projectName, budget)
-			} else {
+			default:
 				/* Processing image creation from container */
 				imagePublishLock.Lock()
 				info, err = imgPostInstanceInfo(s, r, req, op, builddir, budget)
@@ -1262,7 +1264,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			if ok {
 				metadata["secret"], ok = secret.(string)
 				if !ok {
-					return fmt.Errorf("Invalid type for field \"secret\"")
+					return errors.New("Invalid type for field \"secret\"")
 				}
 			}
 
@@ -1283,7 +1285,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		if ok {
 			req.Aliases, ok = aliases.([]api.ImageAlias)
 			if !ok {
-				return fmt.Errorf("Invalid type for field \"aliases\"")
+				return errors.New("Invalid type for field \"aliases\"")
 			}
 		}
 
@@ -1370,7 +1372,7 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 	}
 
 	if unpacker == nil {
-		return nil, "unknown", fmt.Errorf("Unsupported backup compression")
+		return nil, "unknown", errors.New("Unsupported backup compression")
 	}
 
 	// Open the tarball
@@ -1445,7 +1447,7 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 	}
 
 	if !hasMeta {
-		return nil, "unknown", fmt.Errorf("Metadata tarball is missing metadata.yaml")
+		return nil, "unknown", errors.New("Metadata tarball is missing metadata.yaml")
 	}
 
 	_, err = osarch.ArchitectureId(result.Architecture)
@@ -1454,7 +1456,7 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 	}
 
 	if result.CreationDate == 0 {
-		return nil, "unknown", fmt.Errorf("Missing creation date")
+		return nil, "unknown", errors.New("Missing creation date")
 	}
 
 	return &result, imageType, nil
@@ -1774,7 +1776,7 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 
 	// ProjectParam returns default if not set
 	if allProjects && projectName != api.ProjectDefaultName {
-		return response.BadRequest(fmt.Errorf("Cannot specify a project when requesting all projects"))
+		return response.BadRequest(errors.New("Cannot specify a project when requesting all projects"))
 	}
 
 	s := d.State()
@@ -1832,7 +1834,7 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 		// thanks to the `extractEntitlementsFromQuery` function passed with `allowRecursion=true`.
 		images, ok := result.([]*api.Image)
 		if !ok {
-			return response.InternalError(fmt.Errorf("Images response is not a slice of Image pointer structs"))
+			return response.InternalError(errors.New("Images response is not a slice of Image pointer structs"))
 		}
 
 		urlToImage := make(map[*api.URL]auth.EntitlementReporter, len(images))
@@ -1849,9 +1851,9 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, result)
 }
 
-func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
+func autoUpdateImagesTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		s := d.State()
+		s := stateFunc()
 
 		opRun := func(op *operations.Operation) error {
 			return autoUpdateImages(ctx, s)
@@ -2147,7 +2149,7 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 				var ok bool
 				vol, ok = val.(string)
 				if !ok {
-					return fmt.Errorf("Invalid type for field \"storage.images_volume\"")
+					return errors.New("Invalid type for field \"storage.images_volume\"")
 				}
 			}
 
@@ -2244,7 +2246,7 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 				Pool:  poolName,
 			}
 
-			_, _, err = client.RawQuery("POST", "/internal/image-optimize", req, "")
+			_, _, err = client.RawQuery(http.MethodPost, "/internal/image-optimize", req, "")
 			if err != nil {
 				logger.Error("Failed creating new image in storage pool", logger.Ctx{"err": err, "remote": nodeAddress, "pool": poolName, "fingerprint": newImage.Fingerprint})
 			}
@@ -2277,7 +2279,7 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 // Returns whether the image has been updated.
 func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operation, id int, info *api.Image, projectName string, manual bool) (*api.Image, error) {
 	fingerprint := info.Fingerprint
-	var source api.ImageSource
+	var source *api.ImageSource
 
 	if !manual {
 		var interval int64
@@ -2321,7 +2323,7 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 
 	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		_, source, err = tx.GetImageSource(ctx, id)
+		_, source, err = dbCluster.GetImageSource(ctx, tx.Tx(), id)
 		if err != nil {
 			logger.Error("Error getting source image", logger.Ctx{"err": err, "fingerprint": fingerprint})
 			return err
@@ -2498,9 +2500,9 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 	return newInfo, nil
 }
 
-func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
+func pruneExpiredImagesTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		s := d.State()
+		s := stateFunc()
 
 		opRun := func(op *operations.Operation) error {
 			return pruneExpiredImages(ctx, s, op)
@@ -3503,7 +3505,7 @@ func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if req.Name == "" || req.Target == "" {
-		return response.BadRequest(fmt.Errorf("name and target are required"))
+		return response.BadRequest(errors.New("name and target are required"))
 	}
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -3956,7 +3958,7 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if req.Target == "" {
-		return response.BadRequest(fmt.Errorf("The target field is required"))
+		return response.BadRequest(errors.New("The target field is required"))
 	}
 
 	var imgAlias api.ImageAliasesEntry
@@ -4301,7 +4303,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// A devlxd query must be for a public or cached image.
-		if !(imgInfo.Public || imgInfo.Cached) {
+		if !imgInfo.Public && !imgInfo.Cached {
 			return response.NotFound(nil)
 		}
 
@@ -4520,7 +4522,7 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 		if ok {
 			secret, ok = val.(string)
 			if !ok {
-				return fmt.Errorf("Invalid type for field \"secret\"")
+				return errors.New("Invalid type for field \"secret\"")
 			}
 		}
 
@@ -4733,9 +4735,9 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
-func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
+func autoSyncImagesTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		s := d.State()
+		s := stateFunc()
 
 		leaderInfo, err := s.LeaderInfo()
 		if err != nil {

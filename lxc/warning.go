@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -170,7 +171,7 @@ func (c *cmdWarningList) run(cmd *cobra.Command, args []string) error {
 }
 
 func (c *cmdWarningList) countColumnData(warning api.Warning) string {
-	return fmt.Sprint(warning.Count)
+	return strconv.Itoa(warning.Count)
 }
 
 func (c *cmdWarningList) firstSeenColumnData(warning api.Warning) string {
@@ -225,7 +226,7 @@ func (c *cmdWarningList) parseColumns(clustered bool) ([]warningColumn, error) {
 				return nil, errors.New(i18n.G("Can't specify column L when not clustered"))
 			}
 		}
-		c.flagColumns = strings.Replace(c.flagColumns, "L", "", -1)
+		c.flagColumns = strings.ReplaceAll(c.flagColumns, "L", "")
 	}
 
 	columnList := strings.Split(c.flagColumns, ",")

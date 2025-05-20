@@ -39,9 +39,9 @@ func TestGetNetworksLocalConfigs(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, config, map[string]map[string]string{
+	assert.Equal(t, map[string]map[string]string{
 		"lxdbr0": {"bridge.external_interfaces": "vlan0"},
-	})
+	}, config)
 }
 
 func TestCreatePendingNetwork(t *testing.T) {
@@ -59,7 +59,7 @@ func TestCreatePendingNetwork(t *testing.T) {
 
 	networkID, err := tx.GetNetworkID(context.Background(), api.ProjectDefaultName, "network1")
 	require.NoError(t, err)
-	assert.True(t, networkID > 0)
+	assert.Positive(t, networkID)
 
 	config = map[string]string{"bridge.external_interfaces": "bar"}
 	err = tx.CreatePendingNetwork(context.Background(), "rusp", api.ProjectDefaultName, "network1", db.NetworkTypeBridge, config)

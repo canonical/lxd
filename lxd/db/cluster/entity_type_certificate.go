@@ -29,7 +29,7 @@ func (e entityTypeCertificate) urlsByProjectQuery() string {
 }
 
 func (e entityTypeCertificate) urlByIDQuery() string {
-	return fmt.Sprintf(`%s AND identities.id = ?`, e.allURLsQuery())
+	return e.allURLsQuery() + " AND identities.id = ?"
 }
 
 func (e entityTypeCertificate) idFromURLQuery() string {

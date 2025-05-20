@@ -175,11 +175,11 @@ It requires the source to be an alias and for it to be public.`))
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpImages(toComplete)
+			return c.global.cmpImages(toComplete, false)
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpRemotes(toComplete, false)
+			return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -341,7 +341,7 @@ func (c *cmdImageDelete) command() *cobra.Command {
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return c.global.cmpImages(toComplete)
+		return c.global.cmpImages(toComplete, true)
 	}
 
 	return cmd
@@ -407,7 +407,7 @@ lxc image edit <image> < image.yaml
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpImages(toComplete)
+			return c.global.cmpImages(toComplete, true)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -533,7 +533,7 @@ The output target is optional and defaults to the working directory.`))
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpImages(toComplete)
+			return c.global.cmpImages(toComplete, false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -712,7 +712,7 @@ Descriptive properties can be set by providing key=value pairs. Example: os=Ubun
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpRemotes(toComplete, false)
+			return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -954,7 +954,7 @@ func (c *cmdImageInfo) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpImages(toComplete)
+			return c.global.cmpImages(toComplete, false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -1125,7 +1125,7 @@ Column shorthand chars:
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return c.global.cmpImages(toComplete)
+		return c.global.cmpRemotes(toComplete, ":", false, imageServerRemoteCompletionFilters(*c.global.conf)...)
 	}
 
 	return cmd
@@ -1289,7 +1289,7 @@ func (c *cmdImageList) imageShouldShow(filters []string, state *api.Image) bool 
 				if list.dotPrefixMatch(key, configKey) {
 					// Try to test filter value as a regexp.
 					regexpValue := value
-					if !(strings.Contains(value, "^") || strings.Contains(value, "$")) {
+					if !strings.Contains(value, "^") && !strings.Contains(value, "$") {
 						regexpValue = "^" + regexpValue + "$"
 					}
 
@@ -1376,7 +1376,7 @@ func (c *cmdImageList) run(cmd *cobra.Command, args []string) error {
 	if c.flagAllProjects {
 		instanceServer, ok := remoteServer.(lxd.InstanceServer)
 		if !ok {
-			return fmt.Errorf("--all-projects flag is not supported for this server")
+			return errors.New("--all-projects flag is not supported for this server")
 		}
 
 		allImages, err = instanceServer.GetImagesAllProjectsWithFilter(serverFilters)
@@ -1455,7 +1455,11 @@ func (c *cmdImageRefresh) command() *cobra.Command {
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return c.global.cmpImages(toComplete)
+		if len(args) == 0 {
+			return c.global.cmpImages(toComplete, false)
+		}
+
+		return c.global.cmpImages(toComplete, true)
 	}
 
 	return cmd
@@ -1548,7 +1552,7 @@ func (c *cmdImageShow) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpImages(toComplete)
+			return c.global.cmpImages(toComplete, false)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -1613,7 +1617,7 @@ func (c *cmdImageGetProp) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpImages(toComplete)
+			return c.global.cmpImages(toComplete, false)
 		}
 
 		if len(args) == 1 {
@@ -1677,7 +1681,7 @@ func (c *cmdImageSetProp) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpImages(toComplete)
+			return c.global.cmpImages(toComplete, true)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -1740,7 +1744,7 @@ func (c *cmdImageUnsetProp) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpImages(toComplete)
+			return c.global.cmpImages(toComplete, true)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp

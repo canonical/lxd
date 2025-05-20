@@ -2,6 +2,7 @@ package scriptlet
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -40,11 +41,11 @@ func InstancePlacementRun(ctx context.Context, l logger.Logger, s *state.State, 
 
 		switch b.Name() {
 		case "log_info":
-			l.Info(fmt.Sprintf("Instance placement scriptlet: %s", sb.String()))
+			l.Info("Instance placement scriptlet: " + sb.String())
 		case "log_warn":
-			l.Warn(fmt.Sprintf("Instance placement scriptlet: %s", sb.String()))
+			l.Warn("Instance placement scriptlet: " + sb.String())
 		default:
-			l.Error(fmt.Sprintf("Instance placement scriptlet: %s", sb.String()))
+			l.Error("Instance placement scriptlet: " + sb.String())
 		}
 
 		return starlark.None, nil
@@ -332,7 +333,7 @@ func InstancePlacementRun(ctx context.Context, l logger.Logger, s *state.State, 
 	// Retrieve a global variable from starlark environment.
 	instancePlacement := globals["instance_placement"]
 	if instancePlacement == nil {
-		return nil, fmt.Errorf("Scriptlet missing instance_placement function")
+		return nil, errors.New("Scriptlet missing instance_placement function")
 	}
 
 	rv, err := StarlarkMarshal(req)

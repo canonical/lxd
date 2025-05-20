@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -375,7 +376,7 @@ func certificateTokenValid(s *state.State, r *http.Request, addToken *api.Certif
 	// Certificate add tokens must have a request field in the metadata.
 	tokenReqAny, ok := foundOp.Metadata["request"]
 	if !ok {
-		return nil, fmt.Errorf(`Missing "request" key in certificate add operation data`)
+		return nil, errors.New(`Missing "request" key in certificate add operation data`)
 	}
 
 	var tokenReq api.CertificatesPost
@@ -489,16 +490,16 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 
 	// Quick check.
 	if req.Token && req.Certificate != "" {
-		return response.BadRequest(fmt.Errorf("Can't use certificate if token is requested"))
+		return response.BadRequest(errors.New("Can't use certificate if token is requested"))
 	}
 
 	if req.Token {
 		if req.Type != "client" {
-			return response.BadRequest(fmt.Errorf("Tokens can only be issued for client certificates"))
+			return response.BadRequest(errors.New("Tokens can only be issued for client certificates"))
 		}
 
 		if localHTTPSAddress == "" {
-			return response.BadRequest(fmt.Errorf("Can't issue token when server isn't listening on network"))
+			return response.BadRequest(errors.New("Can't issue token when server isn't listening on network"))
 		}
 	}
 
@@ -549,15 +550,15 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if tokenReq == nil {
-			return response.Forbidden(fmt.Errorf("No matching certificate add operation found"))
+			return response.Forbidden(errors.New("No matching certificate add operation found"))
 		}
 
-		return response.Conflict(fmt.Errorf("Client is already trusted"))
+		return response.Conflict(errors.New("Client is already trusted"))
 	}
 
 	// If caller is already trusted and does not have permission to create certificates, they cannot create more certificates.
 	if trusted && !userCanCreateCertificates && req.Certificate == "" && !req.Token {
-		return response.BadRequest(fmt.Errorf("Client is already trusted"))
+		return response.BadRequest(errors.New("Client is already trusted"))
 	}
 
 	if !userCanCreateCertificates {
@@ -588,7 +589,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			if joinOp == nil {
-				return response.Forbidden(fmt.Errorf("No matching cluster join operation found"))
+				return response.Forbidden(errors.New("No matching cluster join operation found"))
 			}
 		} else {
 			// Check if certificate add token supplied as password or token.
@@ -601,7 +602,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 				}
 
 				if tokenReq == nil {
-					return response.Forbidden(fmt.Errorf("No matching certificate add operation found"))
+					return response.Forbidden(errors.New("No matching certificate add operation found"))
 				}
 
 				// Create a new request from the token data as the user isn't allowed to override anything.
@@ -698,12 +699,12 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			// This can happen if the client doesn't send a client certificate or if the server is in
 			// CA mode. We rely on this check to prevent non-CA trusted client certificates from being
 			// added when in CA mode.
-			return response.BadRequest(fmt.Errorf("No client certificate provided"))
+			return response.BadRequest(errors.New("No client certificate provided"))
 		}
 
 		cert = r.TLS.PeerCertificates[len(r.TLS.PeerCertificates)-1]
 	} else {
-		return response.BadRequest(fmt.Errorf("Can't use TLS data on non-TLS link"))
+		return response.BadRequest(errors.New("Can't use TLS data on non-TLS link"))
 	}
 
 	// Check validity.
@@ -1023,17 +1024,17 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 	certProjects := req.Projects
 	if !userCanEditCertificate {
 		if r.TLS == nil {
-			response.Forbidden(fmt.Errorf("Cannot update certificate information"))
+			response.Forbidden(errors.New("Cannot update certificate information"))
 		}
 
 		// Ensure the user in not trying to change fields other than the certificate.
 		if dbInfo.Restricted != req.Restricted || dbInfo.Name != req.Name || len(dbInfo.Projects) != len(req.Projects) {
-			return response.Forbidden(fmt.Errorf("Only the certificate can be changed"))
+			return response.Forbidden(errors.New("Only the certificate can be changed"))
 		}
 
 		for i := 0; i < len(dbInfo.Projects); i++ {
 			if dbInfo.Projects[i] != req.Projects[i] {
-				return response.Forbidden(fmt.Errorf("Only the certificate can be changed"))
+				return response.Forbidden(errors.New("Only the certificate can be changed"))
 			}
 		}
 
@@ -1071,7 +1072,7 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 			}
 
 			if !trusted {
-				return response.Forbidden(fmt.Errorf("Certificate cannot be changed"))
+				return response.Forbidden(errors.New("Certificate cannot be changed"))
 			}
 		}
 	}
@@ -1177,6 +1178,11 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// Disallow deletion of server certificates.
+	if certInfo.Type == certificate.TypeServer {
+		return response.BadRequest(errors.New("Cannot delete a server certificate. Remove the cluster member instead"))
+	}
+
 	var userCanEditCertificate bool
 	err = s.Authorizer.CheckPermission(r.Context(), entity.CertificateURL(certInfo.Fingerprint), auth.EntitlementCanDelete)
 	if err != nil && !auth.IsDeniedError(err) {
@@ -1188,7 +1194,7 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	// Non-admins are able to delete only their own certificate.
 	if !userCanEditCertificate {
 		if r.TLS == nil {
-			response.Forbidden(fmt.Errorf("Cannot delete certificate"))
+			response.Forbidden(errors.New("Cannot delete certificate"))
 		}
 
 		certBlock, _ := pem.Decode([]byte(certInfo.Certificate))
@@ -1213,7 +1219,7 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if !trusted {
-			return response.Forbidden(fmt.Errorf("Certificate cannot be deleted"))
+			return response.Forbidden(errors.New("Certificate cannot be deleted"))
 		}
 	}
 
@@ -1267,7 +1273,7 @@ func certificateValidate(networkCert *shared.CertInfo, cert *x509.Certificate) e
 	if cert.PublicKeyAlgorithm == x509.RSA {
 		pubKey, ok := cert.PublicKey.(*rsa.PublicKey)
 		if !ok {
-			return fmt.Errorf("Unable to validate the RSA certificate")
+			return errors.New("Unable to validate the RSA certificate")
 		}
 
 		// Check that we're dealing with at least 2048bit (Size returns a value in bytes).

@@ -3,6 +3,7 @@ package acl
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -112,6 +113,7 @@ func (d *common) Info() *api.NetworkACL {
 	info.Egress = append(make([]api.NetworkACLRule, 0, len(d.info.Egress)), d.info.Egress...)
 	info.Config = util.CopyConfig(d.info.Config)
 	info.UsedBy = nil // To indicate its not populated (use Usedby() function to populate).
+	info.Project = d.projectName
 
 	return &info
 }
@@ -127,28 +129,28 @@ func (d *common) usedBy(firstOnly bool) ([]string, error) {
 		case db.InstanceArgs:
 			uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, u.Name)
 			if u.Project != api.ProjectDefaultName {
-				uri += fmt.Sprintf("?project=%s", u.Project)
+				uri += "?project=" + u.Project
 			}
 
 			usedBy = append(usedBy, uri)
 		case *api.Network:
 			uri := fmt.Sprintf("/%s/networks/%s", version.APIVersion, u.Name)
 			if d.projectName != api.ProjectDefaultName {
-				uri += fmt.Sprintf("?project=%s", d.projectName)
+				uri += "?project=" + d.projectName
 			}
 
 			usedBy = append(usedBy, uri)
 		case dbCluster.Profile:
 			uri := fmt.Sprintf("/%s/profiles/%s", version.APIVersion, u.Name)
 			if u.Project != api.ProjectDefaultName {
-				uri += fmt.Sprintf("?project=%s", u.Project)
+				uri += "?project=" + u.Project
 			}
 
 			usedBy = append(usedBy, uri)
 		case *api.NetworkACL:
 			uri := fmt.Sprintf("/%s/network-acls/%s", version.APIVersion, u.Name)
 			if d.projectName != api.ProjectDefaultName {
-				uri += fmt.Sprintf("?project=%s", d.projectName)
+				uri += "?project=" + d.projectName
 			}
 
 			usedBy = append(usedBy, uri)
@@ -346,7 +348,7 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 			(dstHasIPv4 && !srcHasIPv4 && !srcHasName) ||
 			(srcHasIPv6 && !dstHasIPv6 && !dstHasName) ||
 			(dstHasIPv6 && !srcHasIPv6 && !srcHasName) {
-			return fmt.Errorf("Conflicting IP family types used for Source and Destination")
+			return errors.New("Conflicting IP family types used for Source and Destination")
 		}
 	}
 
@@ -361,11 +363,11 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 	// Validate protocol dependent fields.
 	if shared.ValueInSlice(rule.Protocol, []string{"tcp", "udp"}) {
 		if rule.ICMPType != "" {
-			return fmt.Errorf("ICMP type cannot be used with non-ICMP protocol")
+			return errors.New("ICMP type cannot be used with non-ICMP protocol")
 		}
 
 		if rule.ICMPCode != "" {
-			return fmt.Errorf("ICMP code cannot be used with non-ICMP protocol")
+			return errors.New("ICMP code cannot be used with non-ICMP protocol")
 		}
 
 		// Validate SourcePort field.
@@ -392,7 +394,8 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 			return fmt.Errorf("Destination port cannot be used with %q protocol", rule.Protocol)
 		}
 
-		if rule.Protocol == "icmp4" {
+		switch rule.Protocol {
+		case "icmp4":
 			if srcHasIPv6 {
 				return fmt.Errorf("Cannot use IPv6 source addresses with %q protocol", rule.Protocol)
 			}
@@ -400,7 +403,8 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 			if dstHasIPv6 {
 				return fmt.Errorf("Cannot use IPv6 destination addresses with %q protocol", rule.Protocol)
 			}
-		} else if rule.Protocol == "icmp6" {
+
+		case "icmp6":
 			if srcHasIPv4 {
 				return fmt.Errorf("Cannot use IPv4 source addresses with %q protocol", rule.Protocol)
 			}
@@ -427,19 +431,19 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 		}
 	} else {
 		if rule.ICMPType != "" {
-			return fmt.Errorf("ICMP type cannot be used without specifying protocol")
+			return errors.New("ICMP type cannot be used without specifying protocol")
 		}
 
 		if rule.ICMPCode != "" {
-			return fmt.Errorf("ICMP code cannot be used without specifying protocol")
+			return errors.New("ICMP code cannot be used without specifying protocol")
 		}
 
 		if rule.SourcePort != "" {
-			return fmt.Errorf("Source port cannot be used without specifying protocol")
+			return errors.New("Source port cannot be used without specifying protocol")
 		}
 
 		if rule.DestinationPort != "" {
-			return fmt.Errorf("Destination port cannot be used without specifying protocol")
+			return errors.New("Destination port cannot be used without specifying protocol")
 		}
 	}
 
@@ -451,10 +455,7 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 // Returns whether the subjects include names, IPv4 and IPv6 addresses respectively.
 func (d *common) validateRuleSubjects(fieldName string, direction ruleDirection, subjects []string, validSubjectNames []string) (hasName bool, hasIPv4 bool, hasIPv6 bool, err error) {
 	// Check if named subjects are allowed in field/direction combination.
-	allowSubjectNames := false
-	if (fieldName == "Source" && direction == ruleDirectionIngress) || (fieldName == "Destination" && direction == ruleDirectionEgress) {
-		allowSubjectNames = true
-	}
+	allowSubjectNames := (fieldName == "Source" && direction == ruleDirectionIngress) || (fieldName == "Destination" && direction == ruleDirectionEgress)
 
 	isNetworkAddress := func(value string) (uint, error) {
 		ip := net.ParseIP(value)
@@ -492,7 +493,7 @@ func (d *common) validateRuleSubjects(fieldName string, direction ruleDirection,
 
 		ips := strings.SplitN(value, "-", 2)
 		if len(ips) != 2 {
-			return 0, fmt.Errorf("IP range must contain start and end IP addresses")
+			return 0, errors.New("IP range must contain start and end IP addresses")
 		}
 
 		ip := net.ParseIP(ips[0])
@@ -702,7 +703,7 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 func (d *common) Rename(newName string) error {
 	_, err := LoadByName(d.state, d.projectName, newName)
 	if err == nil {
-		return fmt.Errorf("An ACL by that name exists already")
+		return errors.New("An ACL by that name exists already")
 	}
 
 	isUsed, err := d.isUsed()
@@ -711,7 +712,7 @@ func (d *common) Rename(newName string) error {
 	}
 
 	if isUsed {
-		return fmt.Errorf("Cannot rename an ACL that is in use")
+		return errors.New("Cannot rename an ACL that is in use")
 	}
 
 	err = d.validateName(newName)
@@ -740,7 +741,7 @@ func (d *common) Delete() error {
 	}
 
 	if isUsed {
-		return fmt.Errorf("Cannot delete an ACL that is in use")
+		return errors.New("Cannot delete an ACL that is in use")
 	}
 
 	return d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -767,7 +768,7 @@ func (d *common) GetLog(ctx context.Context, clientType request.ClientType) (str
 		prefix := fmt.Sprintf("lxd_acl%d-", d.id)
 		logPath := shared.HostPath("/var/log/ovn/ovn-controller.log")
 		if !shared.PathExists(logPath) {
-			return "", fmt.Errorf("Only OVN log entries may be retrieved at this time")
+			return "", errors.New("Only OVN log entries may be retrieved at this time")
 		}
 
 		// Open the log file.

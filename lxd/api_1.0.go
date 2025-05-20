@@ -3,16 +3,19 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net"
 	"net/http"
 	"os"
 	"slices"
+	"strconv"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/auth/oidc"
+	backupConfig "github.com/canonical/lxd/lxd/backup/config"
 	"github.com/canonical/lxd/lxd/cluster"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/config"
@@ -309,35 +312,36 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	}
 
 	env := api.ServerEnvironment{
-		Addresses:              addresses,
-		Architectures:          architectures,
-		Certificate:            certificate,
-		CertificateFingerprint: certificateFingerprint,
-		Kernel:                 s.OS.Uname.Sysname,
-		KernelArchitecture:     s.OS.Uname.Machine,
-		KernelVersion:          s.OS.Uname.Release,
-		OSName:                 s.OS.ReleaseInfo["NAME"],
-		OSVersion:              s.OS.ReleaseInfo["VERSION_ID"],
-		Project:                projectName,
-		Server:                 "lxd",
-		ServerPid:              os.Getpid(),
-		ServerVersion:          version.Version,
-		ServerLTS:              version.IsLTSVersion,
-		ServerClustered:        s.ServerClustered,
-		ServerEventMode:        string(cluster.ServerEventMode()),
-		ServerName:             serverName,
-		Firewall:               s.Firewall.String(),
+		Addresses:                  addresses,
+		Architectures:              architectures,
+		BackupMetadataVersionRange: []uint32{api.BackupMetadataVersion1, backupConfig.MaxMetadataVersion},
+		Certificate:                certificate,
+		CertificateFingerprint:     certificateFingerprint,
+		Kernel:                     s.OS.Uname.Sysname,
+		KernelArchitecture:         s.OS.Uname.Machine,
+		KernelVersion:              s.OS.Uname.Release,
+		OSName:                     s.OS.ReleaseInfo["NAME"],
+		OSVersion:                  s.OS.ReleaseInfo["VERSION_ID"],
+		Project:                    projectName,
+		Server:                     "lxd",
+		ServerPid:                  os.Getpid(),
+		ServerVersion:              version.Version,
+		ServerLTS:                  version.IsLTSVersion,
+		ServerClustered:            s.ServerClustered,
+		ServerEventMode:            string(cluster.ServerEventMode()),
+		ServerName:                 serverName,
+		Firewall:                   s.Firewall.String(),
 	}
 
 	env.KernelFeatures = map[string]string{
-		"bpf_token":                 fmt.Sprint(s.OS.BPFToken),
-		"netnsid_getifaddrs":        fmt.Sprint(s.OS.NetnsGetifaddrs),
-		"uevent_injection":          fmt.Sprint(s.OS.UeventInjection),
-		"unpriv_binfmt":             fmt.Sprint(s.OS.UnprivBinfmt),
-		"unpriv_fscaps":             fmt.Sprint(s.OS.VFS3Fscaps),
-		"seccomp_listener":          fmt.Sprint(s.OS.SeccompListener),
-		"seccomp_listener_continue": fmt.Sprint(s.OS.SeccompListenerContinue),
-		"idmapped_mounts":           fmt.Sprint(s.OS.IdmappedMounts),
+		"bpf_token":                 strconv.FormatBool(s.OS.BPFToken),
+		"netnsid_getifaddrs":        strconv.FormatBool(s.OS.NetnsGetifaddrs),
+		"uevent_injection":          strconv.FormatBool(s.OS.UeventInjection),
+		"unpriv_binfmt":             strconv.FormatBool(s.OS.UnprivBinfmt),
+		"unpriv_fscaps":             strconv.FormatBool(s.OS.VFS3Fscaps),
+		"seccomp_listener":          strconv.FormatBool(s.OS.SeccompListener),
+		"seccomp_listener_continue": strconv.FormatBool(s.OS.SeccompListenerContinue),
+		"idmapped_mounts":           strconv.FormatBool(s.OS.IdmappedMounts),
 	}
 
 	drivers := instanceDrivers.DriverStatuses()
@@ -381,7 +385,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	if s.OS.LXCFeatures != nil {
 		env.LXCFeatures = map[string]string{}
 		for k, v := range s.OS.LXCFeatures {
-			env.LXCFeatures[k] = fmt.Sprint(v)
+			env.LXCFeatures[k] = strconv.FormatBool(v)
 		}
 	}
 
@@ -644,7 +648,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 			}
 
 			if curConfig["cluster.https_address"] != newClusterHTTPSAddress {
-				return fmt.Errorf("Changing cluster.https_address is currently not supported")
+				return errors.New("Changing cluster.https_address is currently not supported")
 			}
 		}
 
@@ -994,7 +998,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		routerid := nodeConfig.BGPRouterID()
 
 		if asn > math.MaxUint32 {
-			return fmt.Errorf("Cannot convert BGP ASN to uint32: Upper bound exceeded")
+			return errors.New("Cannot convert BGP ASN to uint32: Upper bound exceeded")
 		}
 
 		err := s.BGP.Configure(address, uint32(asn), net.ParseIP(routerid))

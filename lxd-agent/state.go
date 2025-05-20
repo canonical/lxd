@@ -189,39 +189,26 @@ func networkState() map[string]api.InstanceStateNetwork {
 		addrs, _ := iface.Addrs()
 
 		for _, addr := range addrs {
-			addressFields := strings.SplitN(addr.String(), "/", 2)
-			if len(addressFields) != 2 {
+			address, netmask, found := strings.Cut(addr.String(), "/")
+			if !found {
 				continue
 			}
 
 			networkAddress := api.InstanceStateNetworkAddress{
-				Address: addressFields[0],
-				Netmask: addressFields[1],
+				Address: address,
+				Family:  "inet",
+				Netmask: netmask,
+				Scope:   "global",
 			}
 
-			scope := "global"
-			if strings.HasPrefix(addressFields[0], "127") {
-				scope = "local"
+			if strings.HasPrefix(address, "127.") || address == "::1" {
+				networkAddress.Scope = "local"
+			} else if strings.HasPrefix(address, "169.254") || strings.HasPrefix(address, "fe80:") {
+				networkAddress.Scope = "link"
 			}
 
-			if addressFields[0] == "::1" {
-				scope = "local"
-			}
-
-			if strings.HasPrefix(addressFields[0], "169.254") {
-				scope = "link"
-			}
-
-			if strings.HasPrefix(addressFields[0], "fe80:") {
-				scope = "link"
-			}
-
-			networkAddress.Scope = scope
-
-			if strings.Contains(addressFields[0], ":") {
+			if strings.Contains(address, ":") {
 				networkAddress.Family = "inet6"
-			} else {
-				networkAddress.Family = "inet"
 			}
 
 			network.Addresses = append(network.Addresses, networkAddress)

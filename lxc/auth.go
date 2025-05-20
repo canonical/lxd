@@ -648,7 +648,7 @@ func parsePermissionArgs(args []string) (*api.Permission, error) {
 
 	if entityType == entity.TypeServer {
 		if len(args) != 3 {
-			return nil, fmt.Errorf("Expected three arguments: `lxc auth group grant [<remote>:]<group> server <entitlement>`")
+			return nil, errors.New("Expected three arguments: `lxc auth group grant [<remote>:]<group> server <entitlement>`")
 		}
 
 		return &api.Permission{
@@ -659,7 +659,7 @@ func parsePermissionArgs(args []string) (*api.Permission, error) {
 	}
 
 	if len(args) < 4 {
-		return nil, fmt.Errorf("Expected at least four arguments: `lxc auth group grant [<remote>:]<group> <object_type> <object_name> <entitlement> [<key>=<value>...]`")
+		return nil, errors.New("Expected at least four arguments: `lxc auth group grant [<remote>:]<group> <object_type> <object_name> <entitlement> [<key>=<value>...]`")
 	}
 
 	entityName := args[2]
@@ -670,7 +670,7 @@ func parsePermissionArgs(args []string) (*api.Permission, error) {
 		for _, arg := range args[4:] {
 			k, v, ok := strings.Cut(arg, "=")
 			if !ok {
-				return nil, fmt.Errorf("Supplementary arguments must be of the form <key>=<value>")
+				return nil, errors.New("Supplementary arguments must be of the form <key>=<value>")
 			}
 
 			kv[k] = v
@@ -809,7 +809,7 @@ func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
 	}
 
 	transporter, wrapper := newLocationHeaderTransportWrapper()
-	client, err := c.global.conf.GetInstanceServerWithTransportWrapper(remoteName, wrapper)
+	client, err := c.global.conf.GetInstanceServerWithConnectionArgs(remoteName, &lxd.ConnectionArgs{TransportWrapper: wrapper})
 	if err != nil {
 		return err
 	}
@@ -1503,15 +1503,17 @@ func (c *cmdPermissionList) run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("Badly formatted supplementary argument %q", filter)
 		}
 
-		if k == "project" {
+		switch k {
+		case "project":
 			projectName = v
-		} else if k == "entity_type" {
+		case "entity_type":
 			entityType = entity.Type(v)
 			err = entityType.Validate()
 			if err != nil {
 				return fmt.Errorf("Invalid entity type in supplementary argument %q: %w", filter, err)
 			}
-		} else {
+
+		default:
 			return fmt.Errorf("Available filters are `entity_type` and `project`, got %q", filter)
 		}
 	}

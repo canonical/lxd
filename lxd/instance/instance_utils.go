@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -57,11 +58,11 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanc
 
 	for k, v := range config {
 		if instanceType == instancetype.Any && !expanded && strings.HasPrefix(k, instancetype.ConfigVolatilePrefix) {
-			return fmt.Errorf("Volatile keys can only be set on instances")
+			return errors.New("Volatile keys can only be set on instances")
 		}
 
 		if instanceType == instancetype.Any && !expanded && strings.HasPrefix(k, "image.") {
-			return fmt.Errorf("Image keys can only be set on instances")
+			return errors.New("Image keys can only be set on instances")
 		}
 
 		err := validConfigKey(sysOS, k, v, instanceType)
@@ -77,11 +78,11 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanc
 	isDenyCompat := shared.IsTrue(config["security.syscalls.deny_compat"])
 
 	if rawSeccomp && (isAllow || isDeny || isDenyDefault || isDenyCompat) {
-		return fmt.Errorf("raw.seccomp is mutually exclusive with security.syscalls*")
+		return errors.New("raw.seccomp is mutually exclusive with security.syscalls*")
 	}
 
 	if isAllow && (isDeny || isDenyDefault || isDenyCompat) {
-		return fmt.Errorf("security.syscalls.allow is mutually exclusive with security.syscalls.deny*")
+		return errors.New("security.syscalls.allow is mutually exclusive with security.syscalls.deny*")
 	}
 
 	_, err := seccomp.SyscallInterceptMountFilter(config)
@@ -90,7 +91,7 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanc
 	}
 
 	if expanded && (shared.IsFalseOrEmpty(config["security.privileged"])) && sysOS.IdmapSet == nil {
-		return fmt.Errorf("LXD doesn't have a uid/gid allocation. In this mode, only privileged containers are supported")
+		return errors.New("LXD doesn't have a uid/gid allocation. In this mode, only privileged containers are supported")
 	}
 
 	unprivOnly := os.Getenv("LXD_UNPRIVILEGED_ONLY")
@@ -103,16 +104,16 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanc
 		}
 
 		if shared.IsTrue(config["security.privileged"]) {
-			return fmt.Errorf("LXD was configured to only allow unprivileged containers")
+			return errors.New("LXD was configured to only allow unprivileged containers")
 		}
 	}
 
 	if shared.IsTrue(config["security.privileged"]) && shared.IsTrue(config["nvidia.runtime"]) {
-		return fmt.Errorf("nvidia.runtime is incompatible with privileged containers")
+		return errors.New("nvidia.runtime is incompatible with privileged containers")
 	}
 
 	if sysOS.InUbuntuCore() && shared.IsTrue(config["nvidia.runtime"]) {
-		return fmt.Errorf("nvidia.runtime is incompatible with Ubuntu Core")
+		return errors.New("nvidia.runtime is incompatible with Ubuntu Core")
 	}
 
 	// Validate pinning strategy when limits.cpu specifies static pinning.
@@ -120,7 +121,7 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanc
 	cpuLimit := config["limits.cpu"]
 	err = validate.IsStaticCPUPinning(cpuLimit)
 	if err == nil && !expanded && cpuPinStrategy == "auto" {
-		return fmt.Errorf(`CPU pinning specified, but pinning strategy is set to "auto"`)
+		return errors.New(`CPU pinning specified, but pinning strategy is set to "auto"`)
 	}
 
 	return nil
@@ -233,19 +234,19 @@ func lxcValidConfig(rawLxc string) error {
 
 		// block some keys
 		if key == "lxc.logfile" || key == "lxc.log.file" {
-			return fmt.Errorf("Setting lxc.logfile is not allowed")
+			return errors.New("Setting lxc.logfile is not allowed")
 		}
 
 		if key == "lxc.syslog" || key == "lxc.log.syslog" {
-			return fmt.Errorf("Setting lxc.log.syslog is not allowed")
+			return errors.New("Setting lxc.log.syslog is not allowed")
 		}
 
 		if key == "lxc.ephemeral" {
-			return fmt.Errorf("Setting lxc.ephemeral is not allowed")
+			return errors.New("Setting lxc.ephemeral is not allowed")
 		}
 
 		if strings.HasPrefix(key, "lxc.prlimit.") {
-			return fmt.Errorf(`Process limits should be set via ` +
+			return errors.New(`Process limits should be set via ` +
 				`"limits.kernel.[limit name]" and not ` +
 				`directly via "lxc.prlimit.[limit name]"`)
 		}
@@ -280,7 +281,7 @@ func AllowedUnprivilegedOnlyMap(rawIdmap string) error {
 
 	for _, ent := range rawMaps {
 		if ent.Hostid == 0 {
-			return fmt.Errorf("Cannot map root user into container as LXD was configured to only allow unprivileged containers")
+			return errors.New("Cannot map root user into container as LXD was configured to only allow unprivileged containers")
 		}
 	}
 
@@ -431,14 +432,14 @@ func LoadFromBackup(s *state.State, projectName string, instancePath string) (In
 
 	// Stop instance.Load() from expanding profile config from DB, and apply expanded config from
 	// backup file to local config. This way we can still see the devices even if DB not available.
-	instDBArgs.Config = backupConf.Container.ExpandedConfig
-	instDBArgs.Devices = deviceConfig.NewDevices(backupConf.Container.ExpandedDevices)
+	instDBArgs.Config = backupConf.Instance.ExpandedConfig
+	instDBArgs.Devices = deviceConfig.NewDevices(backupConf.Instance.ExpandedDevices)
 
 	// Set Node field to local node.
 	instDBArgs.Node = s.ServerName
 
 	p := api.Project{
-		Name: backupConf.Container.Project,
+		Name: backupConf.Instance.Project,
 	}
 
 	inst, err := Load(s, *instDBArgs, p)
@@ -513,7 +514,7 @@ func ResolveImage(ctx context.Context, tx *db.ClusterTx, projectName string, sou
 
 	if source.Properties != nil {
 		if source.Server != "" {
-			return "", fmt.Errorf("Property match is only supported for local images")
+			return "", errors.New("Property match is only supported for local images")
 		}
 
 		hashes, err := tx.GetImagesFingerprints(ctx, projectName, false)
@@ -551,10 +552,10 @@ func ResolveImage(ctx context.Context, tx *db.ClusterTx, projectName string, sou
 			return image.Fingerprint, nil
 		}
 
-		return "", fmt.Errorf("No matching image could be found")
+		return "", errors.New("No matching image could be found")
 	}
 
-	return "", fmt.Errorf("Must specify one of alias, fingerprint or properties for init from image")
+	return "", errors.New("Must specify one of alias, fingerprint or properties for init from image")
 }
 
 // SuitableArchitectures returns a slice of architecture ids based on an instance create request.
@@ -704,7 +705,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 			return err
 		})
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("Failed to get default profile for new instance")
+			return nil, nil, nil, errors.New("Failed to get default profile for new instance")
 		}
 	}
 
@@ -765,7 +766,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 	}
 
 	if !shared.ValueInSlice(args.Architecture, s.OS.Architectures) {
-		return nil, nil, nil, fmt.Errorf("Requested architecture isn't supported by this host")
+		return nil, nil, nil, errors.New("Requested architecture isn't supported by this host")
 	}
 
 	var profiles []string
@@ -787,7 +788,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 		}
 
 		if checkedProfiles[profile.Name] {
-			return nil, nil, nil, fmt.Errorf("Duplicate profile found in request")
+			return nil, nil, nil, errors.New("Duplicate profile found in request")
 		}
 
 		checkedProfiles[profile.Name] = true
@@ -1002,7 +1003,7 @@ func NextSnapshotName(s *state.State, inst Instance, defaultPattern string) (str
 
 	count := strings.Count(pattern, "%d")
 	if count > 1 {
-		return "", fmt.Errorf("Snapshot pattern may contain '%%d' only once")
+		return "", errors.New("Snapshot pattern may contain '%%d' only once")
 	} else if count == 1 {
 		var i int
 
@@ -1032,7 +1033,7 @@ func NextSnapshotName(s *state.State, inst Instance, defaultPattern string) (str
 
 	// Append '-0', '-1', etc. if the actual pattern/snapshot name already exists
 	if snapshotExists {
-		pattern = fmt.Sprintf("%s-%%d", pattern)
+		pattern = pattern + "-%d"
 
 		var i int
 

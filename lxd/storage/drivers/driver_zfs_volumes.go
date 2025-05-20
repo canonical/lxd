@@ -350,7 +350,7 @@ func (d *zfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcD
 	}
 
 	if volExists {
-		return nil, nil, fmt.Errorf("Cannot restore volume, already exists on target")
+		return nil, nil, errors.New("Cannot restore volume, already exists on target")
 	}
 
 	revert := revert.New()
@@ -376,7 +376,7 @@ func (d *zfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcD
 	unpackVolume := func(v Volume, r io.ReadSeeker, unpacker []string, srcFile string, target string) error {
 		d.Logger().Debug("Unpacking optimized volume", logger.Ctx{"source": srcFile, "target": target})
 
-		targetPath := shared.VarPath("") + "/storage-pools/" + target
+		targetPath := shared.VarPath("storage-pools", target)
 		tr, cancelFunc, err := archive.CompressedTarReader(context.Background(), r, unpacker, d.state.OS, targetPath)
 		if err != nil {
 			return err
@@ -454,12 +454,14 @@ func (d *zfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcD
 
 			prefix := "snapshots"
 			fileName := snapName + ".bin"
-			if v.volType == VolumeTypeVM {
+			switch v.volType {
+			case VolumeTypeVM:
 				prefix = "virtual-machine-snapshots"
 				if v.contentType == ContentTypeFS {
 					fileName = snapName + "-config.bin"
 				}
-			} else if v.volType == VolumeTypeCustom {
+
+			case VolumeTypeCustom:
 				prefix = "volume-snapshots"
 			}
 
@@ -473,13 +475,15 @@ func (d *zfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcD
 
 		// Extract main volume.
 		fileName := "container.bin"
-		if v.volType == VolumeTypeVM {
+		switch v.volType {
+		case VolumeTypeVM:
 			if v.contentType == ContentTypeFS {
 				fileName = "virtual-machine-config.bin"
 			} else {
 				fileName = "virtual-machine.bin"
 			}
-		} else if v.volType == VolumeTypeCustom {
+
+		case VolumeTypeCustom:
 			fileName = "volume.bin"
 		}
 
@@ -1893,7 +1897,7 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 		}
 	}
 
-	value := fmt.Sprint(sizeBytes)
+	value := strconv.FormatInt(sizeBytes, 10)
 	if sizeBytes == 0 {
 		return nil
 	}
@@ -2477,7 +2481,7 @@ func (d *zfs) DelegateVolume(vol Volume, pid int) error {
 
 	// Check that the current ZFS version supports it.
 	if !zfsDelegate {
-		return fmt.Errorf("Local ZFS version doesn't support delegation")
+		return errors.New("Local ZFS version doesn't support delegation")
 	}
 
 	// Set the property.
@@ -2533,7 +2537,7 @@ func (d *zfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs 
 	// Handle zfs send/receive migration.
 	if volSrcArgs.MultiSync || volSrcArgs.FinalSync {
 		// This is not needed if the migration is performed using zfs send/receive.
-		return fmt.Errorf("MultiSync should not be used with optimized migration")
+		return errors.New("MultiSync should not be used with optimized migration")
 	}
 
 	var srcMigrationHeader *ZFSMetaDataHeader
@@ -2570,7 +2574,7 @@ func (d *zfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs 
 
 	// If we haven't negotiated zvol support, ensure volume is not a zvol.
 	if !shared.ValueInSlice(migration.ZFSFeatureZvolFilesystems, volSrcArgs.MigrationType.Features) && d.isBlockBacked(vol.Volume) {
-		return fmt.Errorf("Filesystem zvol detected in source but target does not support receiving zvols")
+		return errors.New("Filesystem zvol detected in source but target does not support receiving zvols")
 	}
 
 	incrementalStream := true
@@ -2881,12 +2885,14 @@ func (d *zfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceTar
 			// Make a binary zfs backup.
 			prefix := "snapshots"
 			fileName := snapName + ".bin"
-			if vol.volType == VolumeTypeVM {
+			switch vol.volType {
+			case VolumeTypeVM:
 				prefix = "virtual-machine-snapshots"
 				if vol.contentType == ContentTypeFS {
 					fileName = snapName + "-config.bin"
 				}
-			} else if vol.volType == VolumeTypeCustom {
+
+			case VolumeTypeCustom:
 				prefix = "volume-snapshots"
 			}
 
@@ -2917,13 +2923,15 @@ func (d *zfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceTar
 
 	// Dump the container to a file.
 	fileName := "container.bin"
-	if vol.volType == VolumeTypeVM {
+	switch vol.volType {
+	case VolumeTypeVM:
 		if vol.contentType == ContentTypeFS {
 			fileName = "virtual-machine-config.bin"
 		} else {
 			fileName = "virtual-machine.bin"
 		}
-	} else if vol.volType == VolumeTypeCustom {
+
+	case VolumeTypeCustom:
 		fileName = "volume.bin"
 	}
 
@@ -3090,7 +3098,7 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 		// Order is important here, the parent volmode=dev must be set before snapdev=visible otherwise
 		// it won't take effect.
 		if parentVolMode != "dev" {
-			return nil, fmt.Errorf("Parent block volume needs to be mounted first")
+			return nil, errors.New("Parent block volume needs to be mounted first")
 		}
 
 		// Check if snapdev already set visible.

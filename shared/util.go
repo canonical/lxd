@@ -9,6 +9,7 @@ import (
 	"encoding/gob"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -424,7 +425,7 @@ func RandomCryptoString() (string, error) {
 	}
 
 	if n != len(buf) {
-		return "", fmt.Errorf("not enough random bytes read")
+		return "", errors.New("not enough random bytes read")
 	}
 
 	return hex.EncodeToString(buf), nil
@@ -593,7 +594,7 @@ func DirCopy(source string, dest string) error {
 	}
 
 	if !info.IsDir() {
-		return fmt.Errorf("source is not a directory")
+		return errors.New("source is not a directory")
 	}
 
 	// Remove dest if it already exists.
@@ -669,7 +670,7 @@ func MkdirAllOwner(path string, perm os.FileMode, uid int, gid int) error {
 			return nil
 		}
 
-		return fmt.Errorf("path exists but isn't a directory")
+		return errors.New("path exists but isn't a directory")
 	}
 
 	// Slow path: make sure parent exists and then call Mkdir for path.
@@ -903,7 +904,7 @@ func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 				}
 			}
 			if editor == "" {
-				return []byte{}, fmt.Errorf("No text editor found, please set the EDITOR environment variable")
+				return []byte{}, errors.New("No text editor found, please set the EDITOR environment variable")
 			}
 		}
 	}
@@ -970,7 +971,7 @@ func ParseMetadata(metadata any) (map[string]any, error) {
 	if s.Kind() == reflect.Map {
 		for _, k := range s.MapKeys() {
 			if k.Kind() != reflect.String {
-				return nil, fmt.Errorf("Invalid metadata provided (key isn't a string)")
+				return nil, errors.New("Invalid metadata provided (key isn't a string)")
 			}
 
 			newMetadata[k.String()] = s.MapIndex(k).Interface()
@@ -978,7 +979,7 @@ func ParseMetadata(metadata any) (map[string]any, error) {
 	} else if s.Kind() == reflect.Ptr && !s.Elem().IsValid() {
 		return nil, nil
 	} else {
-		return nil, fmt.Errorf("Invalid metadata provided (type isn't a map)")
+		return nil, errors.New("Invalid metadata provided (type isn't a map)")
 	}
 
 	return newMetadata, nil
@@ -1219,7 +1220,7 @@ func DownloadFileHash(ctx context.Context, httpClient *http.Client, useragent st
 	if ctx != nil {
 		req, err = http.NewRequestWithContext(ctx, "GET", url, nil)
 	} else {
-		req, err = http.NewRequest("GET", url, nil)
+		req, err = http.NewRequest(http.MethodGet, url, nil)
 	}
 
 	if err != nil {
@@ -1269,7 +1270,7 @@ func DownloadFileHash(ctx context.Context, httpClient *http.Client, useragent st
 			return -1, err
 		}
 
-		result := fmt.Sprintf("%x", hashFunc.Sum(nil))
+		result := hex.EncodeToString(hashFunc.Sum(nil))
 		if result != hash {
 			return -1, fmt.Errorf("Hash mismatch for %s: %s != %s", url, result, hash)
 		}
@@ -1385,12 +1386,12 @@ func GetExpiry(refDate time.Time, s string) (time.Time, error) {
 	for _, value := range values {
 		fields := re.FindStringSubmatch(value)
 		if fields == nil {
-			return time.Time{}, fmt.Errorf("Invalid expiry expression")
+			return time.Time{}, errors.New("Invalid expiry expression")
 		}
 
 		if expiry[fields[2]] > 0 {
 			// We don't allow fields to be set multiple times
-			return time.Time{}, fmt.Errorf("Invalid expiry expression")
+			return time.Time{}, errors.New("Invalid expiry expression")
 		}
 
 		val, err := strconv.Atoi(fields[1])
@@ -1460,19 +1461,19 @@ func JoinTokenDecode(input string) (*api.ClusterMemberJoinToken, error) {
 	}
 
 	if j.ServerName == "" {
-		return nil, fmt.Errorf("No server name in join token")
+		return nil, errors.New("No server name in join token")
 	}
 
 	if len(j.Addresses) < 1 {
-		return nil, fmt.Errorf("No cluster member addresses in join token")
+		return nil, errors.New("No cluster member addresses in join token")
 	}
 
 	if j.Secret == "" {
-		return nil, fmt.Errorf("No secret in join token")
+		return nil, errors.New("No secret in join token")
 	}
 
 	if j.Fingerprint == "" {
-		return nil, fmt.Errorf("No certificate fingerprint in join token")
+		return nil, errors.New("No certificate fingerprint in join token")
 	}
 
 	return &j, nil

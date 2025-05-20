@@ -14,6 +14,10 @@ test_basic_usage() {
   lxc image show "${sum}"
   lxc image alias create a/b/ "${sum}"
 
+  echo "Test using alias with slashes"
+  lxc init a/b/ c1 -d "${SMALL_ROOT_DISK}"
+  lxc delete c1
+
   # Ensure aliased image won't launch with vm flag set
   ! lxc launch a/b/ --vm || false
 
@@ -299,7 +303,6 @@ test_basic_usage() {
 
   # Test activateifneeded/shutdown
   LXD_ACTIVATION_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  chmod +x "${LXD_ACTIVATION_DIR}"
   spawn_lxd "${LXD_ACTIVATION_DIR}" true
   (
     set -e
@@ -406,7 +409,7 @@ test_basic_usage() {
   lxc start foo
 
   # Test instance types
-  lxc launch testimage test-limits -t c0.5-m0.2
+  lxc init --empty test-limits -t c0.5-m0.2 -d "${SMALL_ROOT_DISK}"
   [ "$(lxc config get test-limits limits.cpu)" = "1" ]
   [ "$(lxc config get test-limits limits.cpu.allowance)" = "50%" ]
   [ "$(lxc config get test-limits limits.memory)" = "204MiB" ]
@@ -414,9 +417,9 @@ test_basic_usage() {
 
   # Test last_used_at field is working properly
   lxc init testimage last-used-at-test
-  lxc list last-used-at-test  --format json | jq -r '.[].last_used_at' | grep '1970-01-01T00:00:00Z'
+  [ "$(lxc list last-used-at-test --format json | jq -r '.[].last_used_at')" = "1970-01-01T00:00:00Z" ]
   lxc start last-used-at-test
-  lxc list last-used-at-test  --format json | jq -r '.[].last_used_at' | grep -v '1970-01-01T00:00:00Z'
+  [ "$(lxc list last-used-at-test --format json | jq -r '.[].last_used_at')" != "1970-01-01T00:00:00Z" ]
   lxc delete last-used-at-test --force
 
   # Test user, group and cwd

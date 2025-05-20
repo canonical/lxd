@@ -5,7 +5,6 @@ test_migration() {
   lxd_backend=$(storage_backend "$LXD_DIR")
 
   LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  chmod +x "${LXD2_DIR}"
   spawn_lxd "${LXD2_DIR}" true
   LXD2_ADDR=$(cat "${LXD2_DIR}/lxd.addr")
 

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"net/http"
 	"net/url"
 	"time"
@@ -20,6 +20,7 @@ import (
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
@@ -69,6 +70,11 @@ var networkACLLogCmd = APIEndpoint{
 //      description: Project name
 //      type: string
 //      example: default
+//    - in: query
+//      name: all-projects
+//      description: Retrieve network ACLs from all projects
+//      type: boolean
+//      example: true
 //  responses:
 //    "200":
 //      description: API endpoints
@@ -118,6 +124,11 @@ var networkACLLogCmd = APIEndpoint{
 //	    description: Project name
 //	    type: string
 //	    example: default
+//	  - in: query
+//	    name: all-projects
+//	    description: Retrieve network ACLs from all projects
+//	    type: boolean
+//	    example: true
 //	responses:
 //	  "200":
 //	    description: API endpoints
@@ -149,10 +160,29 @@ var networkACLLogCmd = APIEndpoint{
 func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	requestProjectName := request.ProjectParam(r)
-	effectiveProjectName, _, err := project.NetworkProject(s.DB.Cluster, requestProjectName)
-	if err != nil {
-		return response.SmartError(err)
+	allProjects := shared.IsTrue(request.QueryParam(r, "all-projects"))
+	requestProjectName := request.QueryParam(r, "project")
+
+	// requestProjectName is only valid for project specific requests.
+	if allProjects && requestProjectName != "" {
+		return response.BadRequest(errors.New("Cannot specify a project when requesting all projects"))
+	}
+
+	var effectiveProjectName string
+	var err error
+	if !allProjects {
+		if requestProjectName == "" {
+			requestProjectName = api.ProjectDefaultName
+		}
+
+		// Project specific requests require an effective project, when "features.networks" is enabled this is the requested project, otherwise it is the default project.
+		effectiveProjectName, _, err = project.NetworkProject(s.DB.Cluster, requestProjectName)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// If the request is project specific, then set effective project name in the request context so that the authorizer can generate the correct URL.
+		request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	}
 
 	recursion := util.IsRecursionRequest(r)
@@ -161,13 +191,27 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var aclNames []string
-
+	var aclNames map[string][]string
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
-		// Get list of Network ACLs.
-		aclNames, err = tx.GetNetworkACLs(ctx, effectiveProjectName)
+		if allProjects {
+			// Get list of Network ACLs across all projects.
+			aclNames, err = tx.GetNetworkACLsAllProjects(ctx)
+			if err != nil {
+				return err
+			}
+		} else {
+			// Get list of Network ACLs.
+			acls, err := tx.GetNetworkACLs(ctx, effectiveProjectName)
+			if err != nil {
+				return err
+			}
+
+			// ACL names should be mapped to the requested project for project specific requests.
+			aclNames = map[string][]string{}
+			aclNames[requestProjectName] = acls
+		}
 
 		return err
 	})
@@ -175,7 +219,6 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeNetworkACL)
 	if err != nil {
 		return response.SmartError(err)
@@ -184,25 +227,34 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 	resultString := []string{}
 	resultMap := []*api.NetworkACL{}
 	urlToNetworkACL := make(map[*api.URL]auth.EntitlementReporter)
-	for _, aclName := range aclNames {
-		if !userHasPermission(entity.NetworkACLURL(requestProjectName, aclName)) {
-			continue
-		}
-
-		if !recursion {
-			resultString = append(resultString, fmt.Sprintf("/%s/network-acls/%s", version.APIVersion, aclName))
-		} else {
-			netACL, err := acl.LoadByName(s, effectiveProjectName, aclName)
-			if err != nil {
+	for projectName, acls := range aclNames {
+		for _, aclName := range acls {
+			if !userHasPermission(entity.NetworkACLURL(projectName, aclName)) {
 				continue
 			}
 
-			netACLInfo := netACL.Info()
-			netACLInfo.UsedBy, _ = netACL.UsedBy() // Ignore errors in UsedBy, will return nil.
-			netACLInfo.UsedBy = project.FilterUsedBy(s.Authorizer, r, netACLInfo.UsedBy)
+			if !recursion {
+				resultString = append(resultString, api.NewURL().Path(version.APIVersion, "network-acls", aclName).String())
+			} else {
+				var netACL acl.NetworkACL
+				if !allProjects {
+					netACL, err = acl.LoadByName(s, effectiveProjectName, aclName)
+				} else {
+					netACL, err = acl.LoadByName(s, projectName, aclName)
+				}
 
-			resultMap = append(resultMap, netACLInfo)
-			urlToNetworkACL[entity.NetworkACLURL(requestProjectName, aclName)] = netACLInfo
+				if err != nil {
+					return response.SmartError(err)
+				}
+
+				netACLInfo := netACL.Info()
+				netACLInfo.UsedBy, _ = netACL.UsedBy() // Ignore errors in UsedBy, will return nil.
+				netACLInfo.UsedBy = project.FilterUsedBy(s.Authorizer, r, netACLInfo.UsedBy)
+				netACLInfo.Project = projectName
+
+				resultMap = append(resultMap, netACLInfo)
+				urlToNetworkACL[entity.NetworkACLURL(requestProjectName, aclName)] = netACLInfo
+			}
 		}
 	}
 
@@ -270,7 +322,7 @@ func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 
 	_, err = acl.LoadByName(s, projectName, req.Name)
 	if err == nil {
-		return response.BadRequest(fmt.Errorf("The network ACL already exists"))
+		return response.BadRequest(errors.New("The network ACL already exists"))
 	}
 
 	err = acl.Create(s, projectName, &req)

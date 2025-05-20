@@ -124,7 +124,7 @@ func USBNewEvent(action string, vendor string, product string, serial string, ma
 		path = fmt.Sprintf("/dev/bus/usb/%03d/%03d", busnumInt, devnumInt)
 	} else {
 		if !filepath.IsAbs(devname) {
-			path = fmt.Sprintf("/dev/%s", devname)
+			path = "/dev/" + devname
 		}
 	}
 

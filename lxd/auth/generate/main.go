@@ -60,7 +60,7 @@ func snakeToPascal(str string) string {
 
 	s := b.String()
 	for wrong, right := range knownAcronyms {
-		s = strings.Replace(s, wrong, right, -1)
+		s = strings.ReplaceAll(s, wrong, right)
 	}
 
 	return s
@@ -199,7 +199,7 @@ func writeOutput(w io.Writer, entityToEntitlements map[entity.Type][]entitlement
 		}
 
 		for i := range entityTypes {
-			entityTypes[i] = fmt.Sprintf("entity.Type%s", snakeToPascal(entityTypes[i]))
+			entityTypes[i] = "entity.Type" + snakeToPascal(entityTypes[i])
 		}
 
 		sort.Strings(entityTypes)
@@ -216,7 +216,7 @@ func writeOutput(w io.Writer, entityToEntitlements map[entity.Type][]entitlement
 	builder.WriteString(")\n\n")
 
 	// To ensure the entity to entitlement map is always in the same order, get a list of entity types and sort it alphabetically.
-	var entityTypes []string
+	entityTypes := make([]string, 0, len(entityToEntitlements))
 	for entityType := range entityToEntitlements {
 		entityTypes = append(entityTypes, string(entityType))
 	}
@@ -243,7 +243,7 @@ func writeOutput(w io.Writer, entityToEntitlements map[entity.Type][]entitlement
 	// "group" could have many meanings so we don't have an `entity.TypeGroup`, instead we have `entity.TypeAuthGroup`.
 	// The Pascal cased "group" type will have led to adding `entity.TypeGroup` to the generated file erroneously, so we
 	// need to replace it with `entity.TypeAuthGroup`.
-	s := strings.Replace(builder.String(), "entity.TypeGroup", "entity.TypeAuthGroup", -1)
+	s := strings.ReplaceAll(builder.String(), "entity.TypeGroup", "entity.TypeAuthGroup")
 
 	_, err := w.Write([]byte(s))
 	if err != nil {

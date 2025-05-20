@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 
@@ -15,6 +17,7 @@ type cmdMigratedumpsuccess struct {
 	global *cmdGlobal
 }
 
+// Command returns a cobra.Command object representing the "migratedumpsuccess" command.
 func (c *cmdMigratedumpsuccess) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "migratedumpsuccess <operation> <secret>"
@@ -31,6 +34,7 @@ func (c *cmdMigratedumpsuccess) Command() *cobra.Command {
 	return cmd
 }
 
+// Run executes the "migratedumpsuccess" command.
 func (c *cmdMigratedumpsuccess) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if len(args) < 2 {
@@ -40,12 +44,12 @@ func (c *cmdMigratedumpsuccess) Run(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
-		return fmt.Errorf("Missing required arguments")
+		return errors.New("Missing required arguments")
 	}
 
 	// Only root should run this
 	if os.Geteuid() != 0 {
-		return fmt.Errorf("This must be run as root")
+		return errors.New("This must be run as root")
 	}
 
 	lxdArgs := lxd.ConnectionArgs{
@@ -65,7 +69,7 @@ func (c *cmdMigratedumpsuccess) Run(cmd *cobra.Command, args []string) error {
 
 	_ = conn.Close()
 
-	resp, _, err := d.RawQuery("GET", fmt.Sprintf("%s/wait", args[0]), nil, "")
+	resp, _, err := d.RawQuery(http.MethodGet, args[0]+"/wait", nil, "")
 	if err != nil {
 		return err
 	}
@@ -79,5 +83,5 @@ func (c *cmdMigratedumpsuccess) Run(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	return fmt.Errorf(op.Err)
+	return errors.New(op.Err)
 }

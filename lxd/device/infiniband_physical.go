@@ -1,6 +1,7 @@
 package device
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -81,10 +82,10 @@ func (d *infinibandPhysical) validateConfig(instConf instance.ConfigReader) erro
 // validateEnvironment checks the runtime environment for correctness.
 func (d *infinibandPhysical) validateEnvironment() error {
 	if d.inst.Type() == instancetype.Container && d.config["name"] == "" {
-		return fmt.Errorf("Requires name property to start")
+		return errors.New("Requires name property to start")
 	}
 
-	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["parent"])) {
+	if !shared.PathExists("/sys/class/net/" + d.config["parent"]) {
 		return fmt.Errorf("Parent device '%s' doesn't exist", d.config["parent"])
 	}
 
@@ -204,7 +205,7 @@ func (d *infinibandPhysical) Start() (*deviceConfig.RunConfig, error) {
 			[]deviceConfig.RunConfigItem{
 				{Key: "devName", Value: d.name},
 				{Key: "pciSlotName", Value: saveData["last_state.pci.slot.name"]},
-				{Key: "pciIOMMUGroup", Value: fmt.Sprintf("%d", pciIOMMUGroup)},
+				{Key: "pciIOMMUGroup", Value: strconv.FormatUint(pciIOMMUGroup, 10)},
 			}...)
 	}
 

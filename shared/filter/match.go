@@ -2,6 +2,7 @@ package filter
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -55,7 +56,7 @@ func Match(obj any, set ClauseSet) (bool, error) {
 		case set.Ops.Or:
 			match = match || clauseMatch
 		default:
-			return false, fmt.Errorf("unexpected clause operator")
+			return false, errors.New("unexpected clause operator")
 		}
 	}
 
@@ -85,7 +86,7 @@ func DefaultParseBool(c Clause) (bool, error) {
 // DefaultParseRegexp converts the value of the clause to regexp.
 func DefaultParseRegexp(c Clause) (*regexp.Regexp, error) {
 	regexpValue := c.Value
-	if !(strings.Contains(regexpValue, "^") || strings.Contains(regexpValue, "$")) {
+	if !strings.Contains(regexpValue, "^") && !strings.Contains(regexpValue, "$") {
 		regexpValue = "^" + regexpValue + "$"
 	}
 
@@ -131,11 +132,11 @@ func (s ClauseSet) match(c Clause, objValue any) (bool, error) {
 	case reflect.Bool:
 		valueBool, err = s.ParseBool(c)
 	case reflect.Slice:
-		if reflect.TypeOf(objValue).Elem().Kind() == reflect.String {
-			valueSlice, err = s.ParseStringSlice(c)
-		} else {
+		if reflect.TypeOf(objValue).Elem().Kind() != reflect.String {
 			return false, fmt.Errorf("Invalid slice type %q for field %q", reflect.TypeOf(objValue).Elem().Kind(), c.Field)
 		}
+
+		valueSlice, err = s.ParseStringSlice(c)
 
 	default:
 		return false, fmt.Errorf("Invalid type %q for field %q", kind.String(), c.Field)
@@ -163,11 +164,16 @@ func (s ClauseSet) match(c Clause, objValue any) (bool, error) {
 			return objValue == valueBool, nil
 		case []string:
 			match := func() bool {
-				if len(objValue.([]string)) != len(valueSlice) {
+				stringSlice, ok := objValue.([]string)
+				if !ok {
 					return false
 				}
 
-				for k, v := range objValue.([]string) {
+				if len(stringSlice) != len(valueSlice) {
+					return false
+				}
+
+				for k, v := range stringSlice {
 					if valueSlice[k] != v {
 						return false
 					}
@@ -196,11 +202,16 @@ func (s ClauseSet) match(c Clause, objValue any) (bool, error) {
 			return objValue != valueBool, nil
 		case []string:
 			match := func() bool {
-				if len(objValue.([]string)) != len(valueSlice) {
+				stringSlice, ok := objValue.([]string)
+				if !ok {
 					return false
 				}
 
-				for k, v := range objValue.([]string) {
+				if len(stringSlice) != len(valueSlice) {
+					return false
+				}
+
+				for k, v := range stringSlice {
 					if valueSlice[k] != v {
 						return false
 					}
@@ -253,7 +264,7 @@ func (s ClauseSet) match(c Clause, objValue any) (bool, error) {
 		}
 
 	default:
-		return false, fmt.Errorf("Unsupported operation")
+		return false, errors.New("Unsupported operation")
 	}
 
 	return false, fmt.Errorf("Unsupported filter type %q for field %q", kind.String(), c.Field)

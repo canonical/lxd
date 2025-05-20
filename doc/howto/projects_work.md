@@ -107,6 +107,7 @@ Instead, {ref}`switch to the other project <projects-switch>`.
 ```
 ````
 
+(howto-projects-work-move-instance)=
 ## Move an instance to another project
 
 ````{tabs}

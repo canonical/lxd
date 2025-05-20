@@ -70,12 +70,12 @@ lxc move <instance>/<old snapshot name> <instance>/<new snapshot name>
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			instances, directives := c.global.cmpInstances(toComplete)
+			instances, directives := c.global.cmpTopLevelResource("instance", toComplete)
 			return instances, directives | cobra.ShellCompDirectiveNoSpace
 		}
 
 		if len(args) == 1 {
-			return c.global.cmpRemotes(toComplete, false)
+			return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -238,7 +238,7 @@ func (c *cmdMove) run(cmd *cobra.Command, args []string) error {
 
 		if source.HasExtension("instance_pool_move") && source.HasExtension("instance_project_move") {
 			if len(c.flagConfig) != 0 || len(c.flagDevice) != 0 || len(c.flagProfile) != 0 || c.flagNoProfiles {
-				return fmt.Errorf("The move command does not support flags --config, --device, --profile, and --no-profiles. Please use copy instead")
+				return errors.New("The move command does not support flags --config, --device, --profile, and --no-profiles. Please use copy instead")
 			}
 
 			if c.flagMode != moveDefaultMode {

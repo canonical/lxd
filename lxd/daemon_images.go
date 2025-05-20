@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -54,7 +56,7 @@ func imageOperationLock(fingerprint string) (locking.UnlockFunc, error) {
 	l.Debug("Acquiring lock for image")
 	defer l.Debug("Lock acquired for image")
 
-	return locking.Lock(context.TODO(), fmt.Sprintf("ImageOperation_%s", fingerprint))
+	return locking.Lock(context.TODO(), "ImageOperation_"+fingerprint)
 }
 
 // ImageDownload resolves the image fingerprint and if not in the database, downloads it.
@@ -356,7 +358,8 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 		op.SetCanceler(canceler)
 	}
 
-	if protocol == "lxd" || protocol == "simplestreams" {
+	switch protocol {
+	case "lxd", "simplestreams":
 		// Create the target files
 		dest, err := os.Create(destName)
 		if err != nil {
@@ -457,7 +460,8 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 		if err != nil {
 			return nil, err
 		}
-	} else if protocol == "direct" {
+
+	case "direct":
 		// Setup HTTP client
 		httpClient, err := util.HTTPClient(args.Certificate, s.Proxy)
 		if err != nil {
@@ -467,12 +471,12 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 		// Use relatively short response header timeout so as not to hold the image lock open too long.
 		httpTransport, ok := httpClient.Transport.(*http.Transport)
 		if !ok {
-			return nil, fmt.Errorf("Invalid http client type")
+			return nil, errors.New("Invalid http client type")
 		}
 
 		httpTransport.ResponseHeaderTimeout = 30 * time.Second
 
-		req, err := http.NewRequest("GET", args.Server, nil)
+		req, err := http.NewRequest(http.MethodGet, args.Server, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -521,7 +525,7 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 		}
 
 		// Validate hash
-		result := fmt.Sprintf("%x", sha256.Sum(nil))
+		result := hex.EncodeToString(sha256.Sum(nil))
 		if result != fp {
 			return nil, fmt.Errorf("Hash mismatch for %q: %s != %s", args.Server, result, fp)
 		}
@@ -545,7 +549,8 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 		if err != nil {
 			return nil, err
 		}
-	} else {
+
+	default:
 		return nil, fmt.Errorf("Unsupported protocol: %v", protocol)
 	}
 

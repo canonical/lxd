@@ -1,6 +1,7 @@
 package device
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -69,11 +70,11 @@ func (d *nicPhysical) validateConfig(instConf instance.ConfigReader) error {
 		}
 
 		if d.network.Status() != api.NetworkStatusCreated {
-			return fmt.Errorf("Specified network is not fully created")
+			return errors.New("Specified network is not fully created")
 		}
 
 		if d.network.Type() != "physical" {
-			return fmt.Errorf("Specified network must be of type physical")
+			return errors.New("Specified network must be of type physical")
 		}
 
 		netConfig := d.network.Config()
@@ -104,14 +105,14 @@ func (d *nicPhysical) validateConfig(instConf instance.ConfigReader) error {
 // validateEnvironment checks the runtime environment for correctness.
 func (d *nicPhysical) validateEnvironment() error {
 	if d.inst.Type() == instancetype.VM && shared.IsTrue(d.inst.ExpandedConfig()["migration.stateful"]) {
-		return fmt.Errorf("Network physical devices cannot be used when migration.stateful is enabled")
+		return errors.New("Network physical devices cannot be used when migration.stateful is enabled")
 	}
 
 	if d.inst.Type() == instancetype.Container && d.config["name"] == "" {
-		return fmt.Errorf("Requires name property to start")
+		return errors.New("Requires name property to start")
 	}
 
-	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["parent"])) {
+	if !shared.PathExists("/sys/class/net/" + d.config["parent"]) {
 		return fmt.Errorf("Parent device '%s' doesn't exist", d.config["parent"])
 	}
 
@@ -157,7 +158,7 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 		}
 
 		// Record whether we created this device or not so it can be removed on stop.
-		saveData["last_state.created"] = fmt.Sprintf("%t", statusDev != "existing")
+		saveData["last_state.created"] = strconv.FormatBool(statusDev != "existing")
 
 		if shared.IsTrue(saveData["last_state.created"]) {
 			revert.Add(func() {
@@ -252,7 +253,7 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 			[]deviceConfig.RunConfigItem{
 				{Key: "devName", Value: d.name},
 				{Key: "pciSlotName", Value: saveData["last_state.pci.slot.name"]},
-				{Key: "pciIOMMUGroup", Value: fmt.Sprintf("%d", pciIOMMUGroup)},
+				{Key: "pciIOMMUGroup", Value: strconv.FormatUint(pciIOMMUGroup, 10)},
 				{Key: "hwaddr", Value: hwaddr},
 			}...)
 	}

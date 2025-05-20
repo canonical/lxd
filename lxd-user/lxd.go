@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/canonical/lxd/client"
@@ -141,17 +143,17 @@ func lxdInitialConfiguration(client lxd.InstanceServer) error {
 func lxdSetupUser(uid uint32) error {
 	projectName := fmt.Sprint("user-", uid)
 	networkName := fmt.Sprint("lxdbr-", uid)
-	userPath := filepath.Join("users", fmt.Sprint(uid))
+	userPath := filepath.Join("users", strconv.FormatUint(uint64(uid), 10))
 
 	// User account.
-	out, err := shared.RunCommandContext(context.TODO(), "getent", "passwd", fmt.Sprint(uid))
+	out, err := shared.RunCommandContext(context.TODO(), "getent", "passwd", strconv.FormatUint(uint64(uid), 10))
 	if err != nil {
 		return fmt.Errorf("Failed to retrieve user information: %w", err)
 	}
 
 	pw := strings.Split(out, ":")
 	if len(pw) != 7 {
-		return fmt.Errorf("Invalid user entry")
+		return errors.New("Invalid user entry")
 	}
 
 	// Setup reverter.

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -39,7 +40,7 @@ func (l *Link) args() []string {
 	}
 
 	if l.MTU > 0 {
-		result = append(result, "mtu", fmt.Sprint(l.MTU))
+		result = append(result, "mtu", strconv.FormatUint(uint64(l.MTU), 10))
 	}
 
 	if l.Address != nil {
@@ -47,7 +48,7 @@ func (l *Link) args() []string {
 	}
 
 	if l.TXQueueLength > 0 {
-		result = append(result, "txqueuelen", fmt.Sprint(l.TXQueueLength))
+		result = append(result, "txqueuelen", strconv.FormatUint(uint64(l.TXQueueLength), 10))
 	}
 
 	if l.AllMutlicast {
@@ -101,7 +102,7 @@ func (l *Link) SetDown() error {
 
 // SetMTU sets the MTU of the link device.
 func (l *Link) SetMTU(mtu uint32) error {
-	_, err := shared.RunCommandContext(context.TODO(), "ip", "link", "set", "dev", l.Name, "mtu", fmt.Sprint(mtu))
+	_, err := shared.RunCommandContext(context.TODO(), "ip", "link", "set", "dev", l.Name, "mtu", strconv.FormatUint(uint64(mtu), 10))
 	if err != nil {
 		return err
 	}
@@ -111,7 +112,7 @@ func (l *Link) SetMTU(mtu uint32) error {
 
 // SetTXQueueLength sets the txqueuelen of the link device.
 func (l *Link) SetTXQueueLength(queueLength uint32) error {
-	_, err := shared.RunCommandContext(context.TODO(), "ip", "link", "set", "dev", l.Name, "txqueuelen", fmt.Sprint(queueLength))
+	_, err := shared.RunCommandContext(context.TODO(), "ip", "link", "set", "dev", l.Name, "txqueuelen", strconv.FormatUint(uint64(queueLength), 10))
 	if err != nil {
 		return err
 	}
@@ -223,11 +224,11 @@ type VirtFuncInfo struct {
 // GetVFInfo returns info about virtual function.
 func (l *Link) GetVFInfo(vfID int) (VirtFuncInfo, error) {
 	vf := VirtFuncInfo{}
-	vfNotFoundErr := fmt.Errorf("no matching virtual function found")
+	vfNotFoundErr := errors.New("no matching virtual function found")
 
 	ipPath, err := exec.LookPath("ip")
 	if err != nil {
-		return vf, fmt.Errorf("ip command not found")
+		return vf, errors.New("ip command not found")
 	}
 
 	// Function to get VF info using regex matching, for older versions of ip tool. Less reliable.
@@ -248,14 +249,14 @@ func (l *Link) GetVFInfo(vfID int) (VirtFuncInfo, error) {
 		defer func() { _ = cmd.Wait() }()
 
 		// Try and match: "vf 1 MAC 00:00:00:00:00:00, vlan 4095, spoof checking off"
-		reVlan, err := regexp.Compile(`vf ` + fmt.Sprint(vfID) + ` MAC ((?:[[:xdigit:]]{2}:){5}[[:xdigit:]]{2}).*, vlan (\d+), spoof checking (\w+)`)
+		reVlan, err := regexp.Compile(`vf ` + strconv.Itoa(vfID) + ` MAC ((?:[[:xdigit:]]{2}:){5}[[:xdigit:]]{2}).*, vlan (\d+), spoof checking (\w+)`)
 		if err != nil {
 			return vf, err
 		}
 
 		// IP link command doesn't show the vlan property if its set to 0, so we need to detect that.
 		// Try and match: "vf 1 MAC 00:00:00:00:00:00, spoof checking off"
-		reNoVlan, err := regexp.Compile(`vf ` + fmt.Sprint(vfID) + ` MAC ((?:[[:xdigit:]]{2}:){5}[[:xdigit:]]{2}).*, spoof checking (\w+)`)
+		reNoVlan, err := regexp.Compile(`vf ` + strconv.Itoa(vfID) + ` MAC ((?:[[:xdigit:]]{2}:){5}[[:xdigit:]]{2}).*, spoof checking (\w+)`)
 		if err != nil {
 			return vf, err
 		}

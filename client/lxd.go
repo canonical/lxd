@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	neturl "net/url"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -27,15 +27,8 @@ type ProtocolLXD struct {
 	ctxConnected       context.Context
 	ctxConnectedCancel context.CancelFunc
 
-	// eventConns contains event listener connections associated to a project name (or empty for all projects).
-	eventConns map[string]*websocket.Conn
-
-	// eventConnsLock controls write access to the eventConns.
-	eventConnsLock sync.Mutex
-
-	// eventListeners is a slice of event listeners associated to a project name (or empty for all projects).
-	eventListeners     map[string][]*EventListener
-	eventListenersLock sync.Mutex
+	// eventListenersLock is used to synchronize access to the event listeners.
+	eventListenerManager *eventListenerManager
 
 	http            *http.Client
 	httpCertificate string
@@ -137,7 +130,7 @@ func (r *ProtocolLXD) isSameServer(server Server) bool {
 // GetHTTPClient returns the http client used for the connection. This can be used to set custom http options.
 func (r *ProtocolLXD) GetHTTPClient() (*http.Client, error) {
 	if r.http == nil {
-		return nil, fmt.Errorf("HTTP client isn't set, bad connection")
+		return nil, errors.New("HTTP client isn't set, bad connection")
 	}
 
 	return r.http, nil

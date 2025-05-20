@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
@@ -13,7 +13,7 @@ type cmdManpage struct {
 	global *cmdGlobal
 }
 
-func (c *cmdManpage) Command() *cobra.Command {
+func (c *cmdManpage) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "manpage <target>"
 	cmd.Short = "Generate manpages for all commands"
@@ -21,12 +21,12 @@ func (c *cmdManpage) Command() *cobra.Command {
 		`Generate manpages for all commands`)
 	cmd.Hidden = true
 
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdManpage) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdManpage) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if len(args) != 1 {
 		_ = cmd.Help()
@@ -35,7 +35,7 @@ func (c *cmdManpage) Run(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
-		return fmt.Errorf("Missing required arguments")
+		return errors.New("Missing required arguments")
 	}
 
 	// Generate the manpages

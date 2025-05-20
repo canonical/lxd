@@ -2,6 +2,7 @@ AAAA
 ABI
 ACL
 ACLs
+ACL's
 AGPL
 AIO
 allocator
@@ -138,6 +139,7 @@ Libera
 LogCLI
 lookups
 LoongArch
+loopback
 LRU
 LV
 LVM
@@ -173,6 +175,7 @@ NBD
 NFS
 NIC
 NICs
+NIC's
 NUMA
 NVMe
 NVML
@@ -280,6 +283,7 @@ subnet
 subnets
 subpage
 subpages
+submenu
 subtrees
 subvolume
 subvolumes
@@ -317,6 +321,7 @@ unixgram
 unmanaged
 unmount
 unmounting
+unsets
 uplink
 uptime
 URI

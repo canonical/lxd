@@ -250,6 +250,7 @@ type InstanceServer interface {
 	// Network functions ("network" API extension)
 	GetNetworkNames() (names []string, err error)
 	GetNetworks() (networks []api.Network, err error)
+	GetNetworksAllProjects() (networks []api.Network, err error)
 	GetNetwork(name string) (network *api.Network, ETag string, err error)
 	GetNetworkLeases(name string) (leases []api.NetworkLease, err error)
 	GetNetworkState(name string) (state *api.NetworkState, err error)
@@ -285,6 +286,7 @@ type InstanceServer interface {
 	// Network ACL functions ("network_acl" API extension)
 	GetNetworkACLNames() (names []string, err error)
 	GetNetworkACLs() (acls []api.NetworkACL, err error)
+	GetNetworkACLsAllProjects() (acls []api.NetworkACL, err error)
 	GetNetworkACL(name string) (acl *api.NetworkACL, ETag string, err error)
 	GetNetworkACLLogfile(name string) (log io.ReadCloser, err error)
 	CreateNetworkACL(acl api.NetworkACLsPost) (err error)
@@ -352,6 +354,7 @@ type InstanceServer interface {
 
 	// Storage bucket functions ("storage_buckets" API extension)
 	GetStoragePoolBucketNames(poolName string) ([]string, error)
+	GetStoragePoolBucketsAllProjects(poolName string) ([]api.StorageBucket, error)
 	GetStoragePoolBuckets(poolName string) ([]api.StorageBucket, error)
 	GetStoragePoolBucket(poolName string, bucketName string) (bucket *api.StorageBucket, ETag string, err error)
 	CreateStoragePoolBucket(poolName string, bucket api.StorageBucketsPost) (*api.StorageBucketKey, error)
@@ -467,6 +470,38 @@ type InstanceServer interface {
 	RawQuery(method string, path string, data any, queryETag string) (resp *api.Response, ETag string, err error)
 	RawWebsocket(path string) (conn *websocket.Conn, err error)
 	RawOperation(method string, path string, data any, queryETag string) (op Operation, ETag string, err error)
+}
+
+// The DevLXDServer type represents a devLXD server.
+type DevLXDServer interface {
+	Server
+
+	// DevLXD info/state.
+	GetState() (state *api.DevLXDGet, err error)
+	UpdateState(state api.DevLXDPut) error
+
+	// DevLXD config.
+	GetConfig() (map[string]string, error)
+	GetConfigByKey(key string) (string, error)
+
+	// DevLXD metadata.
+	GetMetadata() (metadata string, err error)
+
+	// DevLXD devices.
+	GetDevices() (devices map[string]map[string]string, err error)
+
+	// DevLXD events.
+	GetEvents() (*EventListener, error)
+
+	// DevLXD images.
+	GetImageFile(fingerprint string, req ImageFileRequest) (resp *ImageFileResponse, err error)
+
+	// DevLXD Ubuntu Pro.
+	GetUbuntuPro() (*api.UbuntuProSettings, error)
+	CreateUbuntuProToken() (*api.UbuntuProGuestTokenResponse, error)
+
+	// Internal functions (for internal use)
+	RawQuery(method string, path string, data any, queryETag string) (resp *api.DevLXDResponse, ETag string, err error)
 }
 
 // The ConnectionInfo struct represents general information for a connection.

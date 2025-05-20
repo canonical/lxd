@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -262,12 +263,12 @@ func (d Xtables) networkSetupACLFilteringChains(networkName string) error {
 
 			// Allow core ICMPv4 to/from LXD host.
 			for _, icmpType := range []int{3, 11, 12} {
-				err = d.iptablesPrepend(ipVersion, comment, "filter", "INPUT", "-i", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", fmt.Sprint(icmpType), "-j", "ACCEPT")
+				err = d.iptablesPrepend(ipVersion, comment, "filter", "INPUT", "-i", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", strconv.Itoa(icmpType), "-j", "ACCEPT")
 				if err != nil {
 					return err
 				}
 
-				err = d.iptablesPrepend(ipVersion, comment, "filter", "OUTPUT", "-o", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", fmt.Sprint(icmpType), "-j", "ACCEPT")
+				err = d.iptablesPrepend(ipVersion, comment, "filter", "OUTPUT", "-o", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", strconv.Itoa(icmpType), "-j", "ACCEPT")
 				if err != nil {
 					return err
 				}
@@ -288,7 +289,7 @@ func (d Xtables) networkSetupACLFilteringChains(networkName string) error {
 
 			// Allow core ICMPv6 to/from LXD host.
 			for _, icmpType := range []int{1, 2, 3, 4, 133, 135, 136, 143} {
-				err = d.iptablesPrepend(ipVersion, comment, "filter", "INPUT", "-i", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", fmt.Sprint(icmpType), "-j", "ACCEPT")
+				err = d.iptablesPrepend(ipVersion, comment, "filter", "INPUT", "-i", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", strconv.Itoa(icmpType), "-j", "ACCEPT")
 				if err != nil {
 					return err
 				}
@@ -296,7 +297,7 @@ func (d Xtables) networkSetupACLFilteringChains(networkName string) error {
 
 			// Allow ICMPv6 ping from host into network as dnsmasq uses this to probe IP allocations.
 			for _, icmpType := range []int{1, 2, 3, 4, 128, 134, 135, 136, 143} {
-				err = d.iptablesPrepend(ipVersion, comment, "filter", "OUTPUT", "-o", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", fmt.Sprint(icmpType), "-j", "ACCEPT")
+				err = d.iptablesPrepend(ipVersion, comment, "filter", "OUTPUT", "-o", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", strconv.Itoa(icmpType), "-j", "ACCEPT")
 				if err != nil {
 					return err
 				}
@@ -387,7 +388,8 @@ func (d Xtables) networkSetupOutboundNAT(networkName string, subnet *net.IPNet, 
 // networkSetupICMPDHCPDNSAccess sets up basic iptables overrides for ICMP, DHCP and DNS.
 func (d Xtables) networkSetupICMPDHCPDNSAccess(networkName string, networkAddress net.IP, ipVersion uint) error {
 	var rules [][]string
-	if ipVersion == 4 {
+	switch ipVersion {
+	case 4:
 		rules = [][]string{
 			{"4", networkName, "filter", "INPUT", "-i", networkName, "-p", "udp", "--dport", "67", "-j", "ACCEPT"},
 			// Prevent DNS requests to the bridge's dnsmasq except from lo and the bridge
@@ -404,10 +406,11 @@ func (d Xtables) networkSetupICMPDHCPDNSAccess(networkName string, networkAddres
 
 		// Allow core ICMPv4 to/from LXD host.
 		for _, icmpType := range []int{3, 11, 12} {
-			rules = append(rules, []string{"4", networkName, "filter", "INPUT", "-i", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", fmt.Sprint(icmpType), "-j", "ACCEPT"})
-			rules = append(rules, []string{"4", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", fmt.Sprint(icmpType), "-j", "ACCEPT"})
+			rules = append(rules, []string{"4", networkName, "filter", "INPUT", "-i", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", strconv.Itoa(icmpType), "-j", "ACCEPT"})
+			rules = append(rules, []string{"4", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", strconv.Itoa(icmpType), "-j", "ACCEPT"})
 		}
-	} else if ipVersion == 6 {
+
+	case 6:
 		rules = [][]string{
 			{"6", networkName, "filter", "INPUT", "-i", networkName, "-p", "udp", "--dport", "547", "-j", "ACCEPT"},
 			{"6", networkName, "filter", "INPUT", "-d", networkAddress.String(), "-p", "udp", "--dport", "53", "-j", "DROP"},
@@ -422,15 +425,16 @@ func (d Xtables) networkSetupICMPDHCPDNSAccess(networkName string, networkAddres
 
 		// Allow core ICMPv6 to/from LXD host.
 		for _, icmpType := range []int{1, 2, 3, 4, 133, 135, 136, 143} {
-			rules = append(rules, []string{"6", networkName, "filter", "INPUT", "-i", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", fmt.Sprint(icmpType), "-j", "ACCEPT"})
+			rules = append(rules, []string{"6", networkName, "filter", "INPUT", "-i", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", strconv.Itoa(icmpType), "-j", "ACCEPT"})
 		}
 
 		// Allow ICMPv6 ping from host into network as dnsmasq uses this to probe IP allocations.
 		for _, icmpType := range []int{1, 2, 3, 4, 128, 134, 135, 136, 143} {
-			rules = append(rules, []string{"6", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", fmt.Sprint(icmpType), "-j", "ACCEPT"})
+			rules = append(rules, []string{"6", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", strconv.Itoa(icmpType), "-j", "ACCEPT"})
 		}
-	} else {
-		return fmt.Errorf("Invalid IP version")
+
+	default:
+		return errors.New("Invalid IP version")
 	}
 
 	comment := d.networkIPTablesComment(networkName)
@@ -675,7 +679,7 @@ func (d Xtables) aclRuleCriteriaToArgs(networkName string, ipVersion uint, rule 
 		}
 
 		if rule.ICMPCode != "" && rule.ICMPType == "" {
-			return nil, nil, fmt.Errorf("Invalid use of ICMP code without ICMP type")
+			return nil, nil, errors.New("Invalid use of ICMP code without ICMP type")
 		}
 
 		args = append(args, "-p", protoName)
@@ -919,22 +923,22 @@ func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName stri
 // InstanceSetupProxyNAT creates DNAT rules for proxy devices.
 func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, deviceName string, forward *AddressForward) error {
 	if forward.ListenAddress == nil {
-		return fmt.Errorf("Listen address is required")
+		return errors.New("Listen address is required")
 	}
 
 	if forward.TargetAddress == nil {
-		return fmt.Errorf("Target address is required")
+		return errors.New("Target address is required")
 	}
 
 	listenPortsLen := len(forward.ListenPorts)
 	if listenPortsLen <= 0 {
-		return fmt.Errorf("At least 1 listen port must be supplied")
+		return errors.New("At least 1 listen port must be supplied")
 	}
 
 	// If multiple target ports supplied, check they match the listen port(s) count.
 	targetPortsLen := len(forward.TargetPorts)
 	if targetPortsLen != 1 && targetPortsLen != listenPortsLen {
-		return fmt.Errorf("Mismatch between listen port(s) and target port(s) count")
+		return errors.New("Mismatch between listen port(s) and target port(s) count")
 	}
 
 	ipVersion := uint(4)
@@ -1227,12 +1231,13 @@ func (d Xtables) matchEbtablesRule(activeRule []string, matchRule []string, dele
 // iptablesAdd adds an iptables rule.
 func (d Xtables) iptablesAdd(ipVersion uint, comment string, table string, method string, chain string, rule ...string) error {
 	var cmd string
-	if ipVersion == 4 {
+	switch ipVersion {
+	case 4:
 		cmd = "iptables"
-	} else if ipVersion == 6 {
+	case 6:
 		cmd = "ip6tables"
-	} else {
-		return fmt.Errorf("Invalid IP version")
+	default:
+		return errors.New("Invalid IP version")
 	}
 
 	_, err := exec.LookPath(cmd)
@@ -1266,14 +1271,15 @@ func (d Xtables) iptablesPrepend(ipVersion uint, comment string, table string, c
 func (d Xtables) iptablesClear(ipVersion uint, comments []string, fromTables ...string) error {
 	var cmd string
 	var tablesFile string
-	if ipVersion == 4 {
+	switch ipVersion {
+	case 4:
 		cmd = "iptables"
 		tablesFile = "/proc/self/net/ip_tables_names"
-	} else if ipVersion == 6 {
+	case 6:
 		cmd = "ip6tables"
 		tablesFile = "/proc/self/net/ip6_tables_names"
-	} else {
-		return fmt.Errorf("Invalid IP version")
+	default:
+		return errors.New("Invalid IP version")
 	}
 
 	// Detect kernels that lack IPv6 support.
@@ -1441,12 +1447,13 @@ func (d Xtables) InstanceClearNetPrio(projectName string, instanceName string, d
 // iptablesChainExists checks whether a chain exists in a table, and whether it has any rules.
 func (d Xtables) iptablesChainExists(ipVersion uint, table string, chain string) (exists, hasRules bool, err error) {
 	var cmd string
-	if ipVersion == 4 {
+	switch ipVersion {
+	case 4:
 		cmd = "iptables"
-	} else if ipVersion == 6 {
+	case 6:
 		cmd = "ip6tables"
-	} else {
-		return false, false, fmt.Errorf("Invalid IP version")
+	default:
+		return false, false, errors.New("Invalid IP version")
 	}
 
 	_, err = exec.LookPath(cmd)
@@ -1472,12 +1479,13 @@ func (d Xtables) iptablesChainExists(ipVersion uint, table string, chain string)
 // iptablesChainCreate creates a chain in a table.
 func (d Xtables) iptablesChainCreate(ipVersion uint, table string, chain string) error {
 	var cmd string
-	if ipVersion == 4 {
+	switch ipVersion {
+	case 4:
 		cmd = "iptables"
-	} else if ipVersion == 6 {
+	case 6:
 		cmd = "ip6tables"
-	} else {
-		return fmt.Errorf("Invalid IP version")
+	default:
+		return errors.New("Invalid IP version")
 	}
 
 	// Attempt to create chain in table.
@@ -1492,12 +1500,13 @@ func (d Xtables) iptablesChainCreate(ipVersion uint, table string, chain string)
 // iptablesChainDelete deletes a chain in a table.
 func (d Xtables) iptablesChainDelete(ipVersion uint, table string, chain string, flushFirst bool) error {
 	var cmd string
-	if ipVersion == 4 {
+	switch ipVersion {
+	case 4:
 		cmd = "iptables"
-	} else if ipVersion == 6 {
+	case 6:
 		cmd = "ip6tables"
-	} else {
-		return fmt.Errorf("Invalid IP version")
+	default:
+		return errors.New("Invalid IP version")
 	}
 
 	// Attempt to flush rules from chain in table.

@@ -85,7 +85,7 @@ func ensureDownloadedImageFitWithinBudget(s *state.State, r *http.Request, op *o
 
 func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []api.Profile, img *api.Image, imgAlias string, req *api.InstancesPost) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
-		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
+		return response.Forbidden(errors.New("Cluster member is evacuated"))
 	}
 
 	dbType, err := instancetype.New(string(req.Type))
@@ -118,7 +118,7 @@ func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []
 				return err
 			}
 		} else {
-			return fmt.Errorf("Image not provided for instance creation")
+			return errors.New("Image not provided for instance creation")
 		}
 
 		args.Architecture, err = osarch.ArchitectureId(img.Architecture)
@@ -152,7 +152,7 @@ func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []
 
 func createFromNone(s *state.State, r *http.Request, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
-		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
+		return response.Forbidden(errors.New("Cluster member is evacuated"))
 	}
 
 	dbType, err := instancetype.New(string(req.Type))
@@ -219,7 +219,7 @@ func createFromMigration(s *state.State, r *http.Request, projectName string, pr
 		// If the protocol is not auth.AuthenticationMethodCluster (e.g. not an internal request) and the node has been
 		// evacuated, reject the request.
 		if s.DB.Cluster.LocalNodeIsEvacuated() && protocol != auth.AuthenticationMethodCluster {
-			return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
+			return response.Forbidden(errors.New("Cluster member is evacuated"))
 		}
 	}
 
@@ -250,7 +250,7 @@ func createFromMigration(s *state.State, r *http.Request, projectName string, pr
 	var clusterMoveSourceName string
 	if r != nil && isClusterNotification(r) {
 		if req.Source.Source == "" {
-			return response.BadRequest(fmt.Errorf("Source instance name must be provided for cluster member move"))
+			return response.BadRequest(errors.New("Source instance name must be provided for cluster member move"))
 		}
 
 		clusterMoveSourceName = req.Source.Source
@@ -266,7 +266,7 @@ func createFromMigration(s *state.State, r *http.Request, projectName string, pr
 
 			if clusterMoveSourceName != "" {
 				// Cluster move doesn't allow renaming as part of migration so fail here.
-				return response.SmartError(fmt.Errorf("Cluster move doesn't allow renaming"))
+				return response.SmartError(errors.New("Cluster move doesn't allow renaming"))
 			}
 
 			req.Source.Refresh = false
@@ -383,7 +383,7 @@ func createFromMigration(s *state.State, r *http.Request, projectName string, pr
 // instance from it. Conversion options also allow the uploaded image to be converted into a raw format.
 func createFromConversion(s *state.State, r *http.Request, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
-		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
+		return response.Forbidden(errors.New("Cluster member is evacuated"))
 	}
 
 	// Validate migration mode.
@@ -487,11 +487,11 @@ func createFromConversion(s *state.State, r *http.Request, projectName string, p
 
 func createFromCopy(s *state.State, r *http.Request, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
-		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
+		return response.Forbidden(errors.New("Cluster member is evacuated"))
 	}
 
 	if req.Source.Source == "" {
-		return response.BadRequest(fmt.Errorf("Must specify a source instance"))
+		return response.BadRequest(errors.New("Must specify a source instance"))
 	}
 
 	sourceProject := req.Source.Project
@@ -598,7 +598,7 @@ func createFromCopy(s *state.State, r *http.Request, projectName string, profile
 	}
 
 	if dbType != instancetype.Any && dbType != source.Type() {
-		return response.BadRequest(fmt.Errorf("Instance type should not be specified or should match source type"))
+		return response.BadRequest(errors.New("Instance type should not be specified or should match source type"))
 	}
 
 	args := db.InstanceArgs{
@@ -728,7 +728,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		return response.BadRequest(errors.New("Backup config is missing"))
 	}
 
-	if bInfo.Config.Container == nil {
+	if bInfo.Config.Instance == nil {
 		return response.BadRequest(errors.New("Instance definition in backup config is missing"))
 	}
 
@@ -736,10 +736,10 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	var req api.InstancesPost
 	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		req = api.InstancesPost{
-			InstancePut: bInfo.Config.Container.Writable(),
+			InstancePut: bInfo.Config.Instance.Writable(),
 			Name:        bInfo.Name,
 			Source:      api.InstanceSource{}, // Only relevant for "copy" or "migration", but may not be nil.
-			Type:        api.InstanceType(bInfo.Config.Container.Type),
+			Type:        api.InstanceType(bInfo.Config.Instance.Type),
 		}
 
 		return limits.AllowInstanceCreation(ctx, s.GlobalConfig, tx, projectName, req)
@@ -760,15 +760,20 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		bInfo.Name = instanceName
 	}
 
+	rootVol, err := bInfo.Config.RootVolume()
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed getting the root volume: %w", err))
+	}
+
 	// Override the volume's UUID.
 	// Normally a volume (and its snapshots) gets a new UUID if their config doesn't already have
 	// a `volatile.uuid` field during creation of the volume's record in the DB.
 	// When importing a backup we have to ensure to not pass the backup volume's UUID when
 	// calling the actual backend functions for the target volume that perform some preliminary validation checks.
-	bInfo.Config.Volume.Config["volatile.uuid"] = uuid.New().String()
+	rootVol.Config["volatile.uuid"] = uuid.New().String()
 
 	// Override the volume snapshot's UUID.
-	for _, snapshot := range bInfo.Config.VolumeSnapshots {
+	for _, snapshot := range rootVol.Snapshots {
 		snapshot.Config["volatile.uuid"] = uuid.New().String()
 	}
 
@@ -916,7 +921,7 @@ func setupInstanceArgs(s *state.State, instType instancetype.Type, projectName s
 	}
 
 	if storagePool == "" {
-		return "", nil, response.BadRequest(fmt.Errorf("Can't find a storage pool for the instance to use"))
+		return "", nil, response.BadRequest(errors.New("Can't find a storage pool for the instance to use"))
 	}
 
 	if localRootDiskDeviceKey == "" && storagePoolProfile == "" {
@@ -1229,7 +1234,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				}
 
 				if i > 100 {
-					return fmt.Errorf("Couldn't generate a new unique name after 100 tries")
+					return errors.New("Couldn't generate a new unique name after 100 tries")
 				}
 			}
 
@@ -1427,7 +1432,7 @@ func instanceFindStoragePool(s *state.State, projectName string, req *api.Instan
 		})
 		if err != nil {
 			if response.IsNotFoundError(err) {
-				return "", "", "", nil, response.BadRequest(fmt.Errorf("This LXD instance does not have any storage pools configured"))
+				return "", "", "", nil, response.BadRequest(errors.New("This LXD instance does not have any storage pools configured"))
 			}
 
 			return "", "", "", nil, response.SmartError(err)
@@ -1462,7 +1467,7 @@ func clusterCopyContainerInternal(s *state.State, r *http.Request, source instan
 	}
 
 	if nodeAddress == "" {
-		return response.BadRequest(fmt.Errorf("The source instance is currently offline"))
+		return response.BadRequest(errors.New("The source instance is currently offline"))
 	}
 
 	// Connect to the container source

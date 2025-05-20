@@ -85,13 +85,13 @@ func (n *bridge) Info() Info {
 func (n *bridge) checkClusterWideMACSafe(config map[string]string) error {
 	// Fan mode breaks if using the same MAC address on each node.
 	if config["bridge.mode"] == "fan" {
-		return fmt.Errorf(`Cannot use static "bridge.hwaddr" MAC address in fan mode`)
+		return errors.New(`Cannot use static "bridge.hwaddr" MAC address in fan mode`)
 	}
 
 	// We can't be sure that multiple clustered nodes aren't connected to the same network segment so don't
 	// use a static MAC address for the bridge interface to avoid introducing a MAC conflict.
 	if config["bridge.external_interfaces"] != "" && config["ipv4.address"] == "none" && config["ipv6.address"] == "none" {
-		return fmt.Errorf(`Cannot use static "bridge.hwaddr" MAC address when bridge has no IP addresses and has external interfaces set`)
+		return errors.New(`Cannot use static "bridge.hwaddr" MAC address when bridge has no IP addresses and has external interfaces set`)
 	}
 
 	return nil
@@ -798,25 +798,32 @@ func (n *bridge) Validate(config map[string]string) error {
 		return err
 	}
 
+	// Check that ipv4.routes and ipv6.routes contain the routes for existing OVN network
+	// forwards and load balancers.
+	err = n.validateRoutes(config)
+	if err != nil {
+		return err
+	}
+
 	// Validate network name when used in fan mode.
 	bridgeMode := config["bridge.mode"]
 	if bridgeMode == "fan" && len(n.name) > 11 {
-		return fmt.Errorf("Network name too long to use with the FAN (must be 11 characters or less)")
+		return errors.New("Network name too long to use with the FAN (must be 11 characters or less)")
 	}
 
 	for k, v := range config {
 		key := k
 		// Bridge mode checks
 		if bridgeMode == "fan" && strings.HasPrefix(key, "ipv4.") && !shared.ValueInSlice(key, []string{"ipv4.dhcp.expiry", "ipv4.firewall", "ipv4.nat", "ipv4.nat.order"}) && v != "" {
-			return fmt.Errorf("IPv4 configuration may not be set when in 'fan' mode")
+			return errors.New("IPv4 configuration may not be set when in 'fan' mode")
 		}
 
 		if bridgeMode == "fan" && strings.HasPrefix(key, "ipv6.") && v != "" {
-			return fmt.Errorf("IPv6 configuration may not be set when in 'fan' mode")
+			return errors.New("IPv6 configuration may not be set when in 'fan' mode")
 		}
 
 		if bridgeMode != "fan" && strings.HasPrefix(key, "fan.") && v != "" {
-			return fmt.Errorf("FAN configuration may only be set when in 'fan' mode")
+			return errors.New("FAN configuration may only be set when in 'fan' mode")
 		}
 
 		// MTU checks
@@ -828,22 +835,22 @@ func (n *bridge) Validate(config map[string]string) error {
 
 			ipv6 := config["ipv6.address"]
 			if ipv6 != "" && ipv6 != "none" && mtu < 1280 {
-				return fmt.Errorf("The minimum MTU for an IPv6 network is 1280")
+				return errors.New("The minimum MTU for an IPv6 network is 1280")
 			}
 
 			ipv4 := config["ipv4.address"]
 			if ipv4 != "" && ipv4 != "none" && mtu < 68 {
-				return fmt.Errorf("The minimum MTU for an IPv4 network is 68")
+				return errors.New("The minimum MTU for an IPv4 network is 68")
 			}
 
 			if config["bridge.mode"] == "fan" {
 				if config["fan.type"] == "ipip" {
 					if mtu > 1480 {
-						return fmt.Errorf("Maximum MTU for an IPIP FAN bridge is 1480")
+						return errors.New("Maximum MTU for an IPIP FAN bridge is 1480")
 					}
 				} else {
 					if mtu > 1450 {
-						return fmt.Errorf("Maximum MTU for a VXLAN FAN bridge is 1450")
+						return errors.New("Maximum MTU for a VXLAN FAN bridge is 1450")
 					}
 				}
 			}
@@ -865,7 +872,7 @@ func (n *bridge) Validate(config map[string]string) error {
 
 		if dhcpSubnet != nil {
 			if config["ipv4.dhcp.ranges"] == "" {
-				return fmt.Errorf(`"ipv4.ovn.ranges" must be used in conjunction with non-overlapping "ipv4.dhcp.ranges" when DHCPv4 is enabled`)
+				return errors.New(`"ipv4.ovn.ranges" must be used in conjunction with non-overlapping "ipv4.dhcp.ranges" when DHCPv4 is enabled`)
 			}
 
 			allowedNets = append(allowedNets, dhcpSubnet)
@@ -897,7 +904,7 @@ func (n *bridge) Validate(config map[string]string) error {
 
 		if dhcpSubnet != nil {
 			if config["ipv6.dhcp.ranges"] == "" && shared.IsTrue(config["ipv6.dhcp.stateful"]) {
-				return fmt.Errorf(`"ipv6.ovn.ranges" must be used in conjunction with non-overlapping "ipv6.dhcp.ranges" when stateful DHCPv6 is enabled`)
+				return errors.New(`"ipv6.ovn.ranges" must be used in conjunction with non-overlapping "ipv6.dhcp.ranges" when stateful DHCPv6 is enabled`)
 			}
 
 			allowedNets = append(allowedNets, dhcpSubnet)
@@ -1142,7 +1149,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		if n.config["bridge.driver"] == "openvswitch" {
 			ovs := openvswitch.NewOVS()
 			if !ovs.Installed() {
-				return fmt.Errorf("Open vSwitch isn't installed on this system")
+				return errors.New("Open vSwitch isn't installed on this system")
 			}
 
 			// Add and configure the interface in one operation to reduce the number of executions and
@@ -1185,7 +1192,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	// IPv6 bridge configuration.
 	if !shared.ValueInSlice(n.config["ipv6.address"], []string{"", "none"}) {
 		if !shared.PathExists("/proc/sys/net/ipv6") {
-			return fmt.Errorf("Network has ipv6.address but kernel IPv6 support is missing")
+			return errors.New("Network has ipv6.address but kernel IPv6 support is missing")
 		}
 
 		err := util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", n.name), "0")
@@ -1288,7 +1295,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			}
 
 			if !unused {
-				return fmt.Errorf("Only unconfigured network interfaces can be bridged")
+				return errors.New("Only unconfigured network interfaces can be bridged")
 			}
 
 			err = AttachInterface(n.name, entry)
@@ -1431,11 +1438,11 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		dnsmasqCmd = append(dnsmasqCmd, "--listen-address="+ipv4Address.String())
 		if n.DHCPv4Subnet() != nil {
 			if !shared.ValueInSlice("--dhcp-no-override", dnsmasqCmd) {
-				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-no-override", "--dhcp-authoritative", fmt.Sprintf("--dhcp-leasefile=%s", shared.VarPath("networks", n.name, "dnsmasq.leases")), fmt.Sprintf("--dhcp-hostsfile=%s", shared.VarPath("networks", n.name, "dnsmasq.hosts"))}...)
+				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-no-override", "--dhcp-authoritative", "--dhcp-leasefile=" + shared.VarPath("networks", n.name, "dnsmasq.leases"), "--dhcp-hostsfile=" + shared.VarPath("networks", n.name, "dnsmasq.hosts")}...)
 			}
 
 			if n.config["ipv4.dhcp.gateway"] != "" {
-				dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--dhcp-option-force=3,%s", n.config["ipv4.dhcp.gateway"]))
+				dnsmasqCmd = append(dnsmasqCmd, "--dhcp-option-force=3,"+n.config["ipv4.dhcp.gateway"])
 			}
 
 			if bridge.MTU != bridgeMTUDefault {
@@ -1444,7 +1451,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 			dnsSearch := n.config["dns.search"]
 			if dnsSearch != "" {
-				dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--dhcp-option-force=119,%s", strings.Trim(dnsSearch, " ")))
+				dnsmasqCmd = append(dnsmasqCmd, "--dhcp-option-force=119,"+strings.Trim(dnsSearch, " "))
 			}
 
 			expiry := "1h"
@@ -1580,7 +1587,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Update the dnsmasq config.
-		dnsmasqCmd = append(dnsmasqCmd, []string{fmt.Sprintf("--listen-address=%s", ipv6Address.String()), "--enable-ra"}...)
+		dnsmasqCmd = append(dnsmasqCmd, []string{"--listen-address=" + ipv6Address.String(), "--enable-ra"}...)
 		if n.DHCPv6Subnet() != nil {
 			if n.hasIPv6Firewall() {
 				fwOpts.FeaturesV6.ICMPDHCPDNSAccess = true
@@ -1588,7 +1595,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 			// Build DHCP configuration.
 			if !shared.ValueInSlice("--dhcp-no-override", dnsmasqCmd) {
-				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-no-override", "--dhcp-authoritative", fmt.Sprintf("--dhcp-leasefile=%s", shared.VarPath("networks", n.name, "dnsmasq.leases")), fmt.Sprintf("--dhcp-hostsfile=%s", shared.VarPath("networks", n.name, "dnsmasq.hosts"))}...)
+				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-no-override", "--dhcp-authoritative", "--dhcp-leasefile=" + shared.VarPath("networks", n.name, "dnsmasq.leases"), "--dhcp-hostsfile=" + shared.VarPath("networks", n.name, "dnsmasq.hosts")}...)
 			}
 
 			expiry := "1h"
@@ -1711,7 +1718,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	dnsClusteredAddress := ""
 	var overlaySubnet *net.IPNet
 	if n.config["bridge.mode"] == "fan" {
-		tunName := fmt.Sprintf("%s-fan", n.name)
+		tunName := n.name + "-fan"
 
 		// Parse the underlay.
 		underlay := n.config["fan.underlay_subnet"]
@@ -1737,9 +1744,9 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			return err
 		}
 
-		addr := strings.Split(fanAddress, "/")
+		address, _, _ := strings.Cut(fanAddress, "/")
 		if n.config["fan.type"] == "ipip" {
-			fanAddress = fmt.Sprintf("%s/24", addr[0])
+			fanAddress = address + "/24"
 		}
 
 		// Update the MTU based on overlay device (if available).
@@ -1756,7 +1763,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			if fanMTU != bridge.MTU {
 				bridge.MTU = fanMTU
 				if n.config["bridge.driver"] != "openvswitch" {
-					mtuLink := &ip.Link{Name: fmt.Sprintf("%s-mtu", n.name)}
+					mtuLink := &ip.Link{Name: n.name + "-mtu"}
 					err = mtuLink.SetMTU(bridge.MTU)
 					if err != nil {
 						return err
@@ -1771,7 +1778,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Parse the host subnet.
-		_, hostSubnet, err := net.ParseCIDR(fmt.Sprintf("%s/24", addr[0]))
+		_, hostSubnet, err := net.ParseCIDR(address + "/24")
 		if err != nil {
 			return fmt.Errorf("Failed parsing fan address: %w", err)
 		}
@@ -1795,15 +1802,15 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		dnsmasqCmd = append(dnsmasqCmd, []string{
-			fmt.Sprintf("--listen-address=%s", addr[0]),
+			"--listen-address=" + address,
 			"--dhcp-no-override", "--dhcp-authoritative",
 			fmt.Sprintf("--dhcp-option-force=26,%d", fanMTU),
-			fmt.Sprintf("--dhcp-leasefile=%s", shared.VarPath("networks", n.name, "dnsmasq.leases")),
-			fmt.Sprintf("--dhcp-hostsfile=%s", shared.VarPath("networks", n.name, "dnsmasq.hosts")),
+			"--dhcp-leasefile=" + shared.VarPath("networks", n.name, "dnsmasq.leases"),
+			"--dhcp-hostsfile=" + shared.VarPath("networks", n.name, "dnsmasq.hosts"),
 			"--dhcp-range", fmt.Sprintf("%s,%s,%s", dhcpalloc.GetIP(hostSubnet, 2).String(), dhcpalloc.GetIP(hostSubnet, -2).String(), expiry)}...)
 
 		// Save the dnsmasq listen address so that firewall rules can be added later
-		ipv4Address = net.ParseIP(addr[0])
+		ipv4Address = net.ParseIP(address)
 
 		// Setup the tunnel.
 		if n.config["fan.type"] == "ipip" {
@@ -1829,7 +1836,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			r = &ip.Route{
 				DevName: "tunl0",
 				Route:   overlay,
-				Src:     addr[0],
+				Src:     address,
 				Proto:   "static",
 			}
 
@@ -1838,7 +1845,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				return err
 			}
 		} else {
-			vxlanID := fmt.Sprintf("%d", binary.BigEndian.Uint32(overlaySubnet.IP.To4())>>8)
+			vxlanID := strconv.FormatUint(uint64(binary.BigEndian.Uint32(overlaySubnet.IP.To4())>>8), 10)
 			vxlan := &ip.Vxlan{
 				Link:    ip.Link{Name: tunName},
 				VxlanID: vxlanID,
@@ -2051,12 +2058,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Create a config file to contain additional config (and to prevent dnsmasq from reading /etc/dnsmasq.conf)
-		err = os.WriteFile(shared.VarPath("networks", n.name, "dnsmasq.raw"), []byte(fmt.Sprintf("%s\n", n.config["raw.dnsmasq"])), 0644)
+		err = os.WriteFile(shared.VarPath("networks", n.name, "dnsmasq.raw"), []byte(n.config["raw.dnsmasq"]+"\n"), 0644)
 		if err != nil {
 			return err
 		}
 
-		dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--conf-file=%s", shared.VarPath("networks", n.name, "dnsmasq.raw")))
+		dnsmasqCmd = append(dnsmasqCmd, "--conf-file="+shared.VarPath("networks", n.name, "dnsmasq.raw"))
 
 		// Attempt to drop privileges.
 		if n.state.OS.UnprivUser != "" {
@@ -2078,7 +2085,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		// Check for dnsmasq.
 		_, err := exec.LookPath("dnsmasq")
 		if err != nil {
-			return fmt.Errorf("dnsmasq is required for LXD managed bridges")
+			return errors.New("dnsmasq is required for LXD managed bridges")
 		}
 
 		// Update the static leases.
@@ -2237,6 +2244,17 @@ func (n *bridge) Stop() error {
 		return err
 	}
 
+	// Kill any existing dnsmasq and forkdns daemon for this network
+	err = dnsmasq.Kill(n.name, false)
+	if err != nil {
+		return err
+	}
+
+	err = n.killForkDNS()
+	if err != nil {
+		return err
+	}
+
 	// Destroy the bridge interface
 	if n.config["bridge.driver"] == "openvswitch" {
 		ovs := openvswitch.NewOVS()
@@ -2271,17 +2289,6 @@ func (n *bridge) Stop() error {
 		}
 	}
 
-	// Kill any existing dnsmasq and forkdns daemon for this network
-	err = dnsmasq.Kill(n.name, false)
-	if err != nil {
-		return err
-	}
-
-	err = n.killForkDNS()
-	if err != nil {
-		return err
-	}
-
 	// Get a list of interfaces
 	ifaces, err := net.Interfaces()
 	if err != nil {
@@ -2290,7 +2297,7 @@ func (n *bridge) Stop() error {
 
 	// Cleanup any existing tunnel device
 	for _, iface := range ifaces {
-		if strings.HasPrefix(iface.Name, fmt.Sprintf("%s-", n.name)) {
+		if strings.HasPrefix(iface.Name, n.name+"-") {
 			tunLink := &ip.Link{Name: iface.Name}
 			err = tunLink.Delete()
 			if err != nil {
@@ -2413,7 +2420,7 @@ func (n *bridge) spawnForkDNS(listenAddress string) error {
 	// Spawn the daemon using subprocess
 	command := n.state.OS.ExecPath
 	forkdnsargs := []string{"forkdns",
-		fmt.Sprintf("%s:1053", listenAddress),
+		listenAddress + ":1053",
 		dnsDomain,
 		n.name}
 
@@ -2603,16 +2610,16 @@ func (n *bridge) fanAddress(underlay *net.IPNet, overlay *net.IPNet) (cidr strin
 	// Quick checks.
 	underlaySize, _ := underlay.Mask.Size()
 	if underlaySize != 16 && underlaySize != 24 {
-		return "", "", "", fmt.Errorf("Only /16 or /24 underlays are supported at this time")
+		return "", "", "", errors.New("Only /16 or /24 underlays are supported at this time")
 	}
 
 	overlaySize, _ := overlay.Mask.Size()
 	if overlaySize != 8 && overlaySize != 16 {
-		return "", "", "", fmt.Errorf("Only /8 or /16 overlays are supported at this time")
+		return "", "", "", errors.New("Only /8 or /16 overlays are supported at this time")
 	}
 
 	if overlaySize+(32-underlaySize)+8 > 32 {
-		return "", "", "", fmt.Errorf("Underlay or overlay networks too large to accommodate the FAN")
+		return "", "", "", errors.New("Underlay or overlay networks too large to accommodate the FAN")
 	}
 
 	// Get the IP
@@ -2644,7 +2651,7 @@ func (n *bridge) fanAddress(underlay *net.IPNet, overlay *net.IPNet) (cidr strin
 
 	ipBytes[3] = 1
 
-	return ipBytes.String() + "/" + fmt.Sprint(overlaySize), dev, ipStr, err
+	return ipBytes.String() + "/" + strconv.Itoa(overlaySize), dev, ipStr, err
 }
 
 func (n *bridge) addressForSubnet(subnet *net.IPNet) (net.IP, string, error) {
@@ -2677,7 +2684,7 @@ func (n *bridge) addressForSubnet(subnet *net.IPNet) (net.IP, string, error) {
 		}
 	}
 
-	return net.IP{}, "", fmt.Errorf("No address found in subnet")
+	return net.IP{}, "", errors.New("No address found in subnet")
 }
 
 func (n *bridge) killForkDNS() error {
@@ -2888,8 +2895,8 @@ func (n *bridge) bridgeNetworkExternalSubnets(bridgeProjectNetworks map[string][
 		for _, netInfo := range networks {
 			for _, keyPrefix := range []string{"ipv4", "ipv6"} {
 				// If NAT is disabled, then network subnet is an external subnet.
-				if shared.IsFalseOrEmpty(netInfo.Config[fmt.Sprintf("%s.nat", keyPrefix)]) {
-					key := fmt.Sprintf("%s.address", keyPrefix)
+				if shared.IsFalseOrEmpty(netInfo.Config[keyPrefix+".nat"]) {
+					key := keyPrefix + ".address"
 
 					_, ipNet, err := net.ParseCIDR(netInfo.Config[key])
 					if err != nil {
@@ -2905,8 +2912,8 @@ func (n *bridge) bridgeNetworkExternalSubnets(bridgeProjectNetworks map[string][
 				}
 
 				// Find any external subnets used for network SNAT.
-				if netInfo.Config[fmt.Sprintf("%s.nat.address", keyPrefix)] != "" {
-					key := fmt.Sprintf("%s.nat.address", keyPrefix)
+				if netInfo.Config[keyPrefix+".nat.address"] != "" {
+					key := keyPrefix + ".nat.address"
 
 					subnetSize := 128
 					if keyPrefix == "ipv4" {
@@ -2927,7 +2934,7 @@ func (n *bridge) bridgeNetworkExternalSubnets(bridgeProjectNetworks map[string][
 				}
 
 				// Find any routes being used by the network.
-				for _, cidr := range shared.SplitNTrimSpace(netInfo.Config[fmt.Sprintf("%s.routes", keyPrefix)], ",", -1, true) {
+				for _, cidr := range shared.SplitNTrimSpace(netInfo.Config[keyPrefix+".routes"], ",", -1, true) {
 					_, ipNet, err := net.ParseCIDR(cidr)
 					if err != nil {
 						continue // Skip invalid/unspecified network addresses.
@@ -3118,6 +3125,16 @@ func (n *bridge) getExternalSubnetInUse() ([]externalSubnetUsage, error) {
 	}
 
 	return externalSubnets, nil
+}
+
+// forwardValidate validates the forward request.
+func (n *bridge) forwardValidate(listenAddress net.IP, forward api.NetworkForwardPut) ([]*forwardPortMap, error) {
+	err := n.checkAddressNotInOVNRange(listenAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	return n.common.forwardValidate(listenAddress, forward)
 }
 
 // ForwardCreate creates a network forward.
@@ -3738,4 +3755,36 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 // UsesDNSMasq indicates if network's config indicates if it needs to use dnsmasq.
 func (n *bridge) UsesDNSMasq() bool {
 	return n.config["bridge.mode"] == "fan" || !shared.ValueInSlice(n.config["ipv4.address"], []string{"", "none"}) || !shared.ValueInSlice(n.config["ipv6.address"], []string{"", "none"})
+}
+
+// checkAddressNotInOVNRange checks that a given IP address does not overlap
+// with OVN ranges set on this network bridge.
+// Returns an error if the check could not be performed or the IP address
+// overlaps with OVN ranges.
+func (n *bridge) checkAddressNotInOVNRange(addr net.IP) error {
+	if addr == nil {
+		return errors.New("Invalid listen address")
+	}
+
+	addrIsIP4 := addr.To4() != nil
+
+	ovnRangesKey := "ipv4.ovn.ranges"
+	if !addrIsIP4 {
+		ovnRangesKey = "ipv6.ovn.ranges"
+	}
+
+	if n.config[ovnRangesKey] != "" {
+		ovnRanges, err := shared.ParseIPRanges(n.config[ovnRangesKey])
+		if err != nil {
+			return fmt.Errorf("Failed parsing %q: %w", ovnRangesKey, err)
+		}
+
+		for _, ovnRange := range ovnRanges {
+			if ovnRange.ContainsIP(addr) {
+				return fmt.Errorf("Listen address %q overlaps with %q (%q)", addr, ovnRangesKey, ovnRange)
+			}
+		}
+	}
+
+	return nil
 }

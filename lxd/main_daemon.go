@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -21,7 +22,7 @@ type cmdDaemon struct {
 	flagGroup string
 }
 
-func (c *cmdDaemon) Command() *cobra.Command {
+func (c *cmdDaemon) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "lxd"
 	cmd.Short = "The LXD container manager (daemon)"
@@ -34,20 +35,20 @@ func (c *cmdDaemon) Command() *cobra.Command {
   There are however a number of subcommands that let you interact directly with
   the local LXD daemon and which may not be performed through the REST API alone.
 `
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Flags().StringVar(&c.flagGroup, "group", "", "The group of users that will be allowed to talk to LXD"+"``")
 
 	return cmd
 }
 
-func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdDaemon) run(cmd *cobra.Command, args []string) error {
 	if len(args) > 1 || (len(args) == 1 && args[0] != "daemon" && args[0] != "") {
 		return fmt.Errorf("unknown command \"%s\" for \"%s\"", args[0], cmd.CommandPath())
 	}
 
 	// Only root should run this
 	if os.Geteuid() != 0 {
-		return fmt.Errorf("This must be run as root")
+		return errors.New("This must be run as root")
 	}
 
 	neededPrograms := []string{"ip", "rsync", "setfattr", "tar", "unsquashfs", "xz"}
@@ -74,25 +75,35 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 	chIgnore := make(chan os.Signal, 1)
 	signal.Notify(chIgnore, unix.SIGHUP)
 
-	err := d.Init()
-	if err != nil {
-		return err
-	}
-
-	for {
-		select {
-		case sig := <-sigCh:
+	go func() {
+		for {
+			sig := <-sigCh
 			logger.Info("Received signal", logger.Ctx{"signal": sig})
 			if d.shutdownCtx.Err() != nil {
 				logger.Warn("Ignoring signal, shutdown already in progress", logger.Ctx{"signal": sig})
 			} else {
 				go func() {
-					d.shutdownDoneCh <- d.Stop(context.Background(), sig)
+					_ = d.Stop(context.Background(), sig)
+					d.shutdownDoneCh <- nil // Send nil error to cmdDaemon to ensure LXD isn't restarted by systemd.
 				}()
 			}
+		}
+	}()
 
-		case err = <-d.shutdownDoneCh:
+	err := d.Init()
+	if err != nil {
+		logger.Error("Failed starting daemon", logger.Ctx{"err": err})
+
+		// Only trigger d.Stop() and return start up error if manual shutdown hasn't been requested.
+		// This avoids calling d.Stop() twice and ensures start up errors don't trigger systemd restart.
+		if d.shutdownCtx.Err() == nil {
+			// If an error occurred while starting up, try to cleanup any setup done so far.
+			// Return the error from the failed d.Init() call so the original start up error can be
+			// translated into an exit status and considered by systemd (which may restart).
+			_ = d.Stop(context.Background(), unix.SIGINT)
 			return err
 		}
 	}
+
+	return <-d.shutdownDoneCh
 }

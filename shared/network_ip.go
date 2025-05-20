@@ -2,6 +2,7 @@ package shared
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -77,7 +78,7 @@ func ParseIPRange(ipRange string, allowedNets ...*net.IPNet) (*IPRange, error) {
 		matchFound := false
 		for _, allowedNet := range allowedNets {
 			if allowedNet == nil {
-				return nil, fmt.Errorf("Invalid allowed network")
+				return nil, errors.New("Invalid allowed network")
 			}
 
 			combinedStartIP := inAllowedNet(startIP, allowedNet)
@@ -153,4 +154,20 @@ func (r *IPRange) String() string {
 	}
 
 	return fmt.Sprintf("%v-%v", r.Start, r.End)
+}
+
+// ParseNetworks parses a comma separated list of IP networks in CIDR notation.
+func ParseNetworks(netList string) ([]*net.IPNet, error) {
+	networks := strings.Split(netList, ",")
+	ipNetworks := make([]*net.IPNet, 0, len(networks))
+	for _, network := range networks {
+		_, ipNet, err := net.ParseCIDR(strings.TrimSpace(network))
+		if err != nil {
+			return nil, err
+		}
+
+		ipNetworks = append(ipNetworks, ipNet)
+	}
+
+	return ipNetworks, nil
 }

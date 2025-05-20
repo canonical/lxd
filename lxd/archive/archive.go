@@ -4,10 +4,12 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -192,7 +194,7 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 		mem, err := shared.DeviceTotalMemory()
 		mem = mem / 1024 / 1024 / 10
 		if err == nil && mem < 256 {
-			memString := fmt.Sprint(mem)
+			memString := strconv.FormatInt(mem, 10)
 			args = append(args, "-da", memString, "-fr", memString, "-p", "1")
 		}
 
@@ -264,10 +266,10 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 		// Check if we're running out of space
 		if int64(fs.Bfree) < 10 {
 			if blockBackend {
-				return fmt.Errorf("Unable to unpack image, run out of disk space (consider increasing your pool's volume.size)")
+				return errors.New("Unable to unpack image, run out of disk space (consider increasing your pool's volume.size)")
 			}
 
-			return fmt.Errorf("Unable to unpack image, run out of disk space")
+			return errors.New("Unable to unpack image, run out of disk space")
 		}
 
 		logger.Warn("Unpack failed", logger.Ctx{"file": file, "allowedCmds": allowedCmds, "extension": extension, "path": path, "err": err})

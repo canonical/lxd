@@ -1,8 +1,10 @@
 package device
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"strconv"
 
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
@@ -54,7 +56,7 @@ func (d *nicP2P) validateConfig(instConf instance.ConfigReader) error {
 // validateEnvironment checks the runtime environment for correctness.
 func (d *nicP2P) validateEnvironment() error {
 	if d.inst.Type() == instancetype.Container && d.config["name"] == "" {
-		return fmt.Errorf("Requires name property to start")
+		return errors.New("Requires name property to start")
 	}
 
 	return nil
@@ -154,7 +156,7 @@ func (d *nicP2P) Start() (*deviceConfig.RunConfig, error) {
 		runConf.NetworkInterface = append(runConf.NetworkInterface,
 			[]deviceConfig.RunConfigItem{
 				{Key: "devName", Value: d.name},
-				{Key: "mtu", Value: fmt.Sprintf("%d", mtu)},
+				{Key: "mtu", Value: strconv.FormatUint(uint64(mtu), 10)},
 			}...)
 	}
 

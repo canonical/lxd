@@ -73,7 +73,7 @@ type Pool interface {
 	RenameInstance(inst instance.Instance, newName string, op *operations.Operation) error
 	DeleteInstance(inst instance.Instance, op *operations.Operation) error
 	UpdateInstance(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error
-	UpdateInstanceBackupFile(inst instance.Instance, snapshots bool, op *operations.Operation) error
+	UpdateInstanceBackupFile(inst instance.Instance, snapshots bool, version uint32, op *operations.Operation) error
 	GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, op *operations.Operation) (*backupConfig.Config, error)
 	CheckInstanceBackupFileSnapshots(backupConf *backupConfig.Config, projectName string, op *operations.Operation) ([]*api.InstanceSnapshot, error)
 	ImportInstance(inst instance.Instance, poolVol *backupConfig.Config, op *operations.Operation) (revert.Hook, error)
@@ -81,7 +81,7 @@ type Pool interface {
 
 	MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error
 	RefreshInstance(inst instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, allowInconsistent bool, op *operations.Operation) error
-	BackupInstance(inst instance.Instance, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error
+	BackupInstance(inst instance.Instance, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, version uint32, op *operations.Operation) error
 
 	GetInstanceUsage(inst instance.Instance) (*VolumeUsage, error)
 	SetInstanceQuota(inst instance.Instance, size string, vmStateSize string, op *operations.Operation) error
@@ -129,7 +129,7 @@ type Pool interface {
 	CreateCustomVolumeFromISO(projectName string, volName string, srcData io.ReadSeeker, size int64, op *operations.Operation) error
 
 	// Custom volume snapshots.
-	CreateCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, newDescription string, newExpiryDate time.Time, op *operations.Operation) error
+	CreateCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, newDescription string, newExpiryDate *time.Time, op *operations.Operation) error
 	RenameCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, op *operations.Operation) error
 	DeleteCustomVolumeSnapshot(projectName string, volName string, op *operations.Operation) error
 	UpdateCustomVolumeSnapshot(projectName string, volName string, newDesc string, newConfig map[string]string, newExpiryDate time.Time, op *operations.Operation) error

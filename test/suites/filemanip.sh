@@ -19,6 +19,12 @@ test_filemanip() {
   err=$(my_curl -o /dev/null -w "%{http_code}" -X GET "https://${LXD_ADDR}/1.0/containers/filemanip/files?path=/tmp/foo")
   [ "${err}" -eq "404" ]
 
+  myuid=1522341878
+  chown "${myuid}" "${TEST_DIR}/filemanip"
+  lxc --project=test file push "${TEST_DIR}"/filemanip filemanip/root/
+  [ "$(lxc exec filemanip --project=test -- cat /root/filemanip)" = "test" ]
+  chown root "${TEST_DIR}/filemanip"
+
   # lxc {push|pull} -r
   mkdir "${TEST_DIR}"/source
   mkdir "${TEST_DIR}"/source/another_level

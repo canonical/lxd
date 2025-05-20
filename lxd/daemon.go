@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -65,7 +66,6 @@ import (
 	scriptletLoad "github.com/canonical/lxd/lxd/scriptlet/load"
 	"github.com/canonical/lxd/lxd/seccomp"
 	"github.com/canonical/lxd/lxd/state"
-	storagePools "github.com/canonical/lxd/lxd/storage"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/lxd/storage/s3/miniod"
@@ -94,7 +94,7 @@ type Daemon struct {
 	dns           *dns.Server
 
 	// Event servers
-	devlxdEvents     *events.DevLXDServer
+	devLXDEvents     *events.DevLXDServer
 	events           *events.Server
 	internalListener *events.InternalListener
 
@@ -133,11 +133,11 @@ type Daemon struct {
 	serverCertInt *shared.CertInfo // Do not use this directly, use servertCert func.
 
 	// Status control.
-	setupChan      chan struct{}      // Closed when basic Daemon setup is completed
-	waitReady      *cancel.Canceller  // Cancelled when LXD is fully ready
-	shutdownCtx    context.Context    // Cancelled when shutdown starts.
-	shutdownCancel context.CancelFunc // Cancels the shutdownCtx to indicate shutdown starting.
-	shutdownDoneCh chan error         // Receives the result of the d.Stop() function and tells LXD to end.
+	startStopLock  sync.Mutex       // Prevent concurrent starts and stops.
+	setupChan      chan struct{}    // Closed when basic Daemon setup is completed
+	waitReady      cancel.Canceller // Cancelled when LXD is fully ready
+	shutdownCtx    cancel.Canceller // Cancelled when shutdown starts.
+	shutdownDoneCh chan error       // Receives the result of the d.Stop() function and tells LXD to end.
 
 	// Device monitor for watching filesystem events
 	devmonitor fsmonitor.FSMonitor
@@ -183,13 +183,13 @@ type DaemonConfig struct {
 // newDaemon returns a new Daemon object with the given configuration.
 func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 	lxdEvents := events.NewServer(daemon.Debug, daemon.Verbose, cluster.EventHubPush)
-	devlxdEvents := events.NewDevLXDServer(daemon.Debug, daemon.Verbose)
-	shutdownCtx, shutdownCancel := context.WithCancel(context.Background())
+	devLXDEvents := events.NewDevLXDServer(daemon.Debug, daemon.Verbose)
+	shutdownCtx := cancel.New()
 
 	d := &Daemon{
 		identityCache:  &identity.Cache{},
 		config:         config,
-		devlxdEvents:   devlxdEvents,
+		devLXDEvents:   devLXDEvents,
 		events:         lxdEvents,
 		tasks:          task.NewGroup(),
 		clusterTasks:   task.NewGroup(),
@@ -197,9 +197,8 @@ func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 		http01Provider: acme.NewHTTP01Provider(),
 		os:             os,
 		setupChan:      make(chan struct{}),
-		waitReady:      cancel.New(context.Background()),
+		waitReady:      cancel.New(),
 		shutdownCtx:    shutdownCtx,
-		shutdownCancel: shutdownCancel,
 		shutdownDoneCh: make(chan error),
 	}
 
@@ -345,12 +344,12 @@ func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
 
 	// all-projects requests are not allowed
 	if shared.IsTrue(request.QueryParam(r, "all-projects")) {
-		return response.Forbidden(fmt.Errorf("Certificate is restricted"))
+		return response.Forbidden(errors.New("Certificate is restricted"))
 	}
 
 	// Disallow listing resources in projects the caller does not have access to.
 	if !shared.ValueInSlice(request.ProjectParam(r), id.Projects) {
-		return response.Forbidden(fmt.Errorf("Certificate is restricted"))
+		return response.Forbidden(errors.New("Certificate is restricted"))
 	}
 
 	return response.EmptySyncResponse
@@ -370,7 +369,7 @@ func reportEntitlements(ctx context.Context, authorizer auth.Authorizer, identit
 	}
 
 	if !identity.IsFineGrainedIdentityType(id.IdentityType) {
-		return fmt.Errorf("Not fine grained")
+		return errors.New("Not fine grained")
 	}
 
 	// In the case where we have only one entity URL, we'll use the authorizer's CheckPermission method
@@ -443,7 +442,7 @@ func extractEntitlementsFromQuery(r *http.Request, entityType entity.Type, allow
 	// Entitlements can only be requested when recursion is enabled for a request returning multiple entities (this function call uses `allowRecursion=true`).
 	// If the request is meant to return a single entity, the entitlements can be requested regardless of the recursion setting (in this case, the function is called with `allowRecursion=false`).
 	if len(validEntitlements) > 0 && (!util.IsRecursionRequest(r) && allowRecursion) {
-		return nil, fmt.Errorf("Entitlements can only be requested when recursion is enabled")
+		return nil, errors.New("Entitlements can only be requested when recursion is enabled")
 	}
 
 	return validEntitlements, nil
@@ -476,7 +475,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 				return false, "", "", nil, err
 			}
 
-			u, err := user.LookupId(fmt.Sprint(cred.Uid))
+			u, err := user.LookupId(strconv.FormatUint(uint64(cred.Uid), 10))
 			if err != nil {
 				return true, fmt.Sprint("uid=", cred.Uid), auth.AuthenticationMethodUnix, nil, nil
 			}
@@ -489,12 +488,12 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 
 	// Cluster notification with wrong certificate.
 	if isClusterNotification(r) {
-		return false, "", "", nil, fmt.Errorf("Cluster notification isn't using trusted server certificate")
+		return false, "", "", nil, errors.New("Cluster notification isn't using trusted server certificate")
 	}
 
 	// Bad query, no TLS found.
 	if r.TLS == nil {
-		return false, "", "", nil, fmt.Errorf("Bad/missing TLS on network query")
+		return false, "", "", nil, errors.New("Bad/missing TLS on network query")
 	}
 
 	if d.oidcVerifier != nil && d.oidcVerifier.IsRequest(r) {
@@ -683,7 +682,7 @@ func (d *Daemon) State() *state.State {
 		OS:                  d.os,
 		Endpoints:           d.endpoints,
 		Events:              d.events,
-		DevlxdEvents:        d.devlxdEvents,
+		DevlxdEvents:        d.devLXDEvents,
 		Firewall:            d.firewall,
 		Proxy:               d.proxy,
 		ServerCert:          d.serverCert,
@@ -767,7 +766,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			select {
 			case <-d.setupChan:
 			default:
-				response := response.Unavailable(fmt.Errorf("LXD daemon setup in progress"))
+				response := response.Unavailable(errors.New("LXD daemon setup in progress"))
 				_ = response.Render(w, r)
 				return
 			}
@@ -900,7 +899,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		if d.shutdownCtx.Err() == context.Canceled && !allowedDuringShutdown() {
-			_ = response.Unavailable(fmt.Errorf("LXD is shutting down")).Render(w, r)
+			_ = response.Unavailable(errors.New("LXD is shutting down")).Render(w, r)
 			return
 		}
 
@@ -1006,18 +1005,7 @@ func setupSharedMounts() error {
 func (d *Daemon) Init() error {
 	d.startTime = time.Now()
 
-	err := d.init()
-
-	// If an error occurred synchronously while starting up, let's try to
-	// cleanup any state we produced so far. Errors happening here will be
-	// ignored.
-	if err != nil {
-		logger.Error("Failed to start the daemon", logger.Ctx{"err": err})
-		_ = d.Stop(context.Background(), unix.SIGINT)
-		return err
-	}
-
-	return nil
+	return d.init()
 }
 
 func (d *Daemon) setupLoki(URL string, cert string, key string, caCert string, instanceName string, logLevel string, labels []string, types []string) error {
@@ -1066,6 +1054,9 @@ func (d *Daemon) setupLoki(URL string, cert string, key string, caCert string, i
 }
 
 func (d *Daemon) init() error {
+	d.startStopLock.Lock()
+	defer d.startStopLock.Unlock()
+
 	var err error
 
 	var dbWarnings []dbCluster.Warning
@@ -1362,6 +1353,25 @@ func (d *Daemon) init() error {
 		}
 	}
 
+	// Load local config (must come after processing incoming recovery tarball as it can update local config).
+	logger.Info("Loading daemon configuration")
+	err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+		d.localConfig, err = node.ConfigLoad(ctx, tx)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	localHTTPAddress := d.localConfig.HTTPSAddress()
+	localClusterAddress := d.localConfig.ClusterAddress()
+	debugAddress := d.localConfig.DebugAddress()
+
+	// Sense check for clustering mode.
+	if localClusterAddress == "" && d.serverClustered {
+		return errors.New("Server is clustered (has local raft addresses) but cluster.https_address is not set")
+	}
+
 	/* Setup dqlite */
 	clusterLogLevel := "ERROR"
 	if shared.ValueInSlice("dqlite", trace) {
@@ -1389,28 +1399,15 @@ func (d *Daemon) init() error {
 			logger.Warn("Failed setting up shared mounts", logger.Ctx{"err": err})
 		}
 
-		// Attempt to Mount the devlxd tmpfs
-		devlxd := filepath.Join(d.os.VarDir, "devlxd")
-		if !filesystem.IsMountPoint(devlxd) {
-			err = unix.Mount("tmpfs", devlxd, "tmpfs", 0, "size=100k,mode=0755")
+		// Attempt to Mount the devLXD tmpfs
+		devLXD := filepath.Join(d.os.VarDir, "devlxd")
+		if !filesystem.IsMountPoint(devLXD) {
+			err = unix.Mount("tmpfs", devLXD, "tmpfs", 0, "size=100k,mode=0755")
 			if err != nil {
-				logger.Warn("Failed to mount devlxd", logger.Ctx{"err": err})
+				logger.Warn("Failed to mount devLXD", logger.Ctx{"err": err})
 			}
 		}
 	}
-
-	logger.Info("Loading daemon configuration")
-	err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		d.localConfig, err = node.ConfigLoad(ctx, tx)
-		return err
-	})
-	if err != nil {
-		return err
-	}
-
-	localHTTPAddress := d.localConfig.HTTPSAddress()
-	localClusterAddress := d.localConfig.ClusterAddress()
-	debugAddress := d.localConfig.DebugAddress()
 
 	if os.Getenv("LISTEN_PID") != "" {
 		d.systemdSocketActivated = true
@@ -1422,7 +1419,7 @@ func (d *Daemon) init() error {
 		UnixSocket:           d.UnixSocket(),
 		Cert:                 networkCert,
 		RestServer:           restServer(d),
-		DevLxdServer:         devLxdServer(d),
+		DevLxdServer:         devLXDServer(d),
 		LocalUnixSocketGroup: d.config.Group,
 		NetworkAddress:       localHTTPAddress,
 		ClusterAddress:       localClusterAddress,
@@ -1474,9 +1471,15 @@ func (d *Daemon) init() error {
 			options = append(options, driver.WithTracing(dqliteClient.LogDebug))
 		}
 
-		d.db.Cluster, err = db.OpenCluster(context.Background(), "db.bin", store, localClusterAddress, dir, d.config.DqliteSetupTimeout, nil, options...)
+		// Assign cluster DB handle to d.gateway.Cluster so its immediately usable by gateway even if DB
+		// returns StatusPreconditionFailed. This way its usable for heartbeats whilst it waits for the
+		// other members to become aligned.
+		d.gateway.Cluster, err = db.OpenCluster(d.shutdownCtx, "db.bin", store, localClusterAddress, dir, d.config.DqliteSetupTimeout, nil, options...)
 		if err == nil {
 			logger.Info("Initialized global database")
+
+			// If cluster DB handle is established without issue, make available to the rest of LXD.
+			d.db.Cluster = d.gateway.Cluster
 			break
 		} else if api.StatusErrorCheck(err, http.StatusPreconditionFailed) {
 			// If some other nodes have schema or API versions less recent
@@ -1488,16 +1491,21 @@ func (d *Daemon) init() error {
 			// The only thing we want to still do on this node is
 			// to run the heartbeat task, in case we are the raft
 			// leader.
-			d.gateway.Cluster = d.db.Cluster
 			taskFunc, taskSchedule := cluster.HeartbeatTask(d.gateway)
 			hbGroup := task.NewGroup()
 			d.taskClusterHeartbeat = hbGroup.Add(taskFunc, taskSchedule)
 			hbGroup.Start(d.shutdownCtx)
-			d.gateway.WaitUpgradeNotification()
-			_ = hbGroup.Stop(time.Second)
-			d.gateway.Cluster = nil
 
-			_ = d.db.Cluster.Close()
+			{
+				// Wait for refresh notification from other members.
+				waitNotificationCtx, cancel := context.WithTimeout(d.shutdownCtx, time.Minute)
+				d.gateway.WaitUpgradeNotification(waitNotificationCtx)
+				cancel()
+			}
+
+			_ = hbGroup.Stop(time.Second)
+			_ = d.gateway.Cluster.Close()
+			d.gateway.Cluster = nil
 
 			continue
 		}
@@ -1522,8 +1530,6 @@ func (d *Daemon) init() error {
 		// offline.
 		logger.Warn("Could not notify all nodes of database upgrade", logger.Ctx{"err": err})
 	}
-
-	d.gateway.Cluster = d.db.Cluster
 
 	// Setup the user-agent.
 	if d.serverClustered {
@@ -1747,7 +1753,7 @@ func (d *Daemon) init() error {
 	// Setup tertiary listeners that may use managed network addresses and must be started after networks.
 	if bgpAddress != "" && bgpASN != 0 && bgpRouterID != "" {
 		if bgpASN > math.MaxUint32 {
-			return fmt.Errorf("Cannot convert BGP ASN to uint32: Upper bound exceeded")
+			return errors.New("Cannot convert BGP ASN to uint32: Upper bound exceeded")
 		}
 
 		err := d.bgp.Configure(bgpAddress, uint32(bgpASN), net.ParseIP(bgpRouterID))
@@ -1832,7 +1838,7 @@ func (d *Daemon) init() error {
 		// Setup seccomp handler
 		if d.os.SeccompListener {
 			seccompServer, err := seccomp.NewSeccompServer(d.State(), shared.VarPath("seccomp.socket"), func(pid int32, state *state.State) (seccomp.Instance, error) {
-				return findContainerForPid(pid, state)
+				return findContainerForPID(pid, state)
 			})
 			if err != nil {
 				return err
@@ -1926,34 +1932,34 @@ func (d *Daemon) init() error {
 	//        but has not been fully completed.
 	if !d.os.MockMode {
 		// Log expiry (daily)
-		d.tasks.Add(expireLogsTask(d.State()))
+		d.tasks.Add(expireLogsTask(d.State))
 
 		// Remove expired images (daily)
-		d.taskPruneImages = d.tasks.Add(pruneExpiredImagesTask(d))
+		d.taskPruneImages = d.tasks.Add(pruneExpiredImagesTask(d.State))
 
 		// Auto-update images (every 6 hours, configurable)
-		d.tasks.Add(autoUpdateImagesTask(d))
+		d.tasks.Add(autoUpdateImagesTask(d.State))
 
 		// Auto-update instance types (daily)
-		d.tasks.Add(instanceRefreshTypesTask(d))
+		d.tasks.Add(instanceRefreshTypesTask(d.State))
 
 		// Remove expired backups (hourly)
-		d.tasks.Add(pruneExpiredBackupsTask(d))
+		d.tasks.Add(pruneExpiredBackupsTask(d.State))
 
 		// Prune expired instance snapshots and take snapshot of instances (minutely check of configurable cron expression)
-		d.tasks.Add(pruneExpiredAndAutoCreateInstanceSnapshotsTask(d))
+		d.tasks.Add(pruneExpiredAndAutoCreateInstanceSnapshotsTask(d.State))
 
 		// Prune expired custom volume snapshots and take snapshots of custom volumes (minutely check of configurable cron expression)
-		d.tasks.Add(pruneExpiredAndAutoCreateCustomVolumeSnapshotsTask(d))
+		d.tasks.Add(pruneExpiredAndAutoCreateCustomVolumeSnapshotsTask(d.State))
 
 		// Remove resolved warnings (daily)
-		d.tasks.Add(pruneResolvedWarningsTask(d))
+		d.tasks.Add(pruneResolvedWarningsTask(d.State))
 
 		// Auto-renew server certificate (daily)
 		d.tasks.Add(autoRenewCertificateTask(d))
 
 		// Remove expired tokens (hourly)
-		d.tasks.Add(autoRemoveExpiredTokensTask(d))
+		d.tasks.Add(autoRemoveExpiredTokensTask(d.State))
 	}
 
 	// Start all background tasks
@@ -1987,13 +1993,13 @@ func (d *Daemon) startClusterTasks() {
 	d.taskClusterHeartbeat = d.clusterTasks.Add(cluster.HeartbeatTask(d.gateway))
 
 	// Auto-sync images across the cluster (hourly)
-	d.clusterTasks.Add(autoSyncImagesTask(d))
+	d.clusterTasks.Add(autoSyncImagesTask(d.State))
 
 	// Remove orphaned operations
-	d.clusterTasks.Add(autoRemoveOrphanedOperationsTask(d))
+	d.clusterTasks.Add(autoRemoveOrphanedOperationsTask(d.State))
 
 	// Perform automatic evacuation for offline cluster members
-	d.clusterTasks.Add(autoHealClusterTask(d))
+	d.clusterTasks.Add(autoHealClusterTask(d.State))
 
 	// Start all background tasks
 	d.clusterTasks.Start(d.shutdownCtx)
@@ -2039,10 +2045,15 @@ func cancelCancelableOps() error {
 
 // Stop stops the shared daemon.
 func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
+	// Cancelling the context will make everyone aware that we're shutting down.
+	d.shutdownCtx.Cancel()
+
+	d.startStopLock.Lock()
+	defer d.startStopLock.Unlock()
+
 	logger.Info("Starting shutdown sequence", logger.Ctx{"signal": sig})
 
-	// Cancelling the context will make everyone aware that we're shutting down.
-	d.shutdownCancel()
+	s := d.State()
 
 	if d.gateway != nil {
 		d.stopClusterTasks()
@@ -2053,8 +2064,6 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 			d.gateway.Kill()
 		}
 	}
-
-	s := d.State()
 
 	// Stop any running minio processes cleanly before unmount storage pools.
 	miniod.StopAll()
@@ -2087,12 +2096,20 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	if sig == unix.SIGPWR || sig == unix.SIGTERM {
 		// Full shutdown requested.
 		if sig == unix.SIGPWR {
-			logger.Debug("Shutting down instances")
+			{
+				logger.Debug("Shutting down instances")
+				var instOperationWaitCtx context.Context
+				var cancel context.CancelFunc
+				if s.GlobalConfig != nil {
+					instOperationWaitCtx, cancel = context.WithTimeout(ctx, s.GlobalConfig.ShutdownTimeout())
+					defer cancel()
+				} else {
+					instOperationWaitCtx, cancel = context.WithCancel(ctx)
+					cancel() // Don't wait for operations to finish.
+				}
 
-			shutdownCtx, cancel := context.WithTimeout(ctx, s.GlobalConfig.ShutdownTimeout())
-			defer cancel()
-
-			instancesShutdown(shutdownCtx, instances)
+				instancesShutdown(instOperationWaitCtx, instances)
+			}
 
 			if d.db.Cluster != nil {
 				// Try to cancel any cancelable operations.
@@ -2102,8 +2119,8 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 				}
 			}
 
-			logger.Info("Stopping networks")
-			networkShutdown(s)
+			// Stop networks.
+			networkingStop(s)
 
 			// Unmount daemon image and backup volumes if set.
 			logger.Info("Stopping daemon storage volumes")
@@ -2118,34 +2135,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 			logger.Debug("Daemon storage volumes unmounted")
 
 			// Unmount storage pools after instances stopped and images/backup volumes unmounted.
-			logger.Info("Stopping storage pools")
-
-			var pools []string
-
-			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				var err error
-
-				pools, err = tx.GetStoragePoolNames(ctx)
-
-				return err
-			})
-			if err != nil && !response.IsNotFoundError(err) {
-				logger.Error("Failed to get storage pools", logger.Ctx{"err": err})
-			}
-
-			for _, poolName := range pools {
-				pool, err := storagePools.LoadByName(s, poolName)
-				if err != nil {
-					logger.Error("Failed to get storage pool", logger.Ctx{"pool": poolName, "err": err})
-					continue
-				}
-
-				_, err = pool.Unmount()
-				if err != nil {
-					logger.Error("Unable to unmount storage pool", logger.Ctx{"pool": poolName, "err": err})
-					continue
-				}
-			}
+			storageStop(s)
 		}
 
 		if d.db.Cluster != nil {
@@ -2187,7 +2177,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		logger.Info("Closing the database")
 		err := d.db.Cluster.Close()
 		if err != nil {
-			logger.Debug("Could not close global database cleanly", logger.Ctx{"err": err})
+			logger.Warn("Could not close global database cleanly", logger.Ctx{"err": err})
 		}
 	}
 
@@ -2217,6 +2207,8 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	if d.seccomp != nil {
 		trackError(d.seccomp.Stop(), "Stop seccomp")
 	}
+
+	trackError(filesystem.SyncFS(filepath.Join(d.os.VarDir, "database")), "Sync database directory")
 
 	n = len(errs)
 	if n > 0 {

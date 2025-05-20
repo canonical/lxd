@@ -5,6 +5,7 @@ package idmap
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/user"
@@ -26,7 +27,7 @@ const VFS3FscapsSupported int32 = 1
 const VFS3FscapsUnknown int32 = -1
 
 var VFS3Fscaps int32 = VFS3FscapsUnknown
-var ErrNoUserMap = fmt.Errorf("No map found for user")
+var ErrNoUserMap = errors.New("No map found for user")
 
 type IdRange struct {
 	Isuid   bool
@@ -235,7 +236,7 @@ func (e *IdmapEntry) parse(s string) error {
 
 	// wraparound
 	if e.Hostid+e.Maprange < e.Hostid || e.Nsid+e.Maprange < e.Nsid {
-		return fmt.Errorf("Bad mapping: id wraparound")
+		return errors.New("Bad mapping: id wraparound")
 	}
 
 	return nil
@@ -248,7 +249,7 @@ func (e *IdmapEntry) parse(s string) error {
 func (e *IdmapEntry) shift_into_ns(id int64) (int64, error) {
 	if id < e.Nsid || id >= e.Nsid+e.Maprange {
 		// this mapping doesn't apply
-		return 0, fmt.Errorf("ID mapping doesn't apply")
+		return 0, errors.New("ID mapping doesn't apply")
 	}
 
 	return id - e.Nsid + e.Hostid, nil
@@ -261,7 +262,7 @@ func (e *IdmapEntry) shift_into_ns(id int64) (int64, error) {
 func (e *IdmapEntry) shift_from_ns(id int64) (int64, error) {
 	if id < e.Hostid || id >= e.Hostid+e.Maprange {
 		// this mapping doesn't apply
-		return 0, fmt.Errorf("ID mapping doesn't apply")
+		return 0, errors.New("ID mapping doesn't apply")
 	}
 
 	return id - e.Hostid + e.Nsid, nil
@@ -415,7 +416,7 @@ func (m IdmapSet) ValidRanges() ([]*IdRange, error) {
 	return ranges, nil
 }
 
-var ErrHostIdIsSubId = fmt.Errorf("Host id is in the range of subids")
+var ErrHostIdIsSubId = errors.New("Host id is in the range of subids")
 
 /* AddSafe adds an entry to the idmap set, breaking apart any ranges that the
  * new idmap intersects with in the process.
@@ -556,7 +557,7 @@ func (m IdmapSet) Append(s string) (IdmapSet, error) {
 	}
 
 	if m.Intersects(e) {
-		return m, fmt.Errorf("Conflicting id mapping")
+		return m, errors.New("Conflicting id mapping")
 	}
 
 	m.Idmap = Extend(m.Idmap, e)
@@ -836,7 +837,7 @@ func getFromProc(fname string) ([][]int64, error) {
 	}
 
 	if len(entries) == 0 {
-		return nil, fmt.Errorf("Namespace doesn't have any map set")
+		return nil, errors.New("Namespace doesn't have any map set")
 	}
 
 	return entries, nil
@@ -1087,23 +1088,23 @@ func GetIdmapSet() *IdmapSet {
 	idmapSet, err := DefaultIdmapSet("", "")
 	if err != nil {
 		logger.Warn("Error reading default uid/gid map", map[string]any{"err": err.Error()})
-		logger.Warnf("Only privileged containers will be able to run")
+		logger.Warn("Only privileged containers will be able to run")
 		idmapSet = nil
 	} else {
 		kernelIdmapSet, err := CurrentIdmapSet()
 		if err == nil {
-			logger.Infof("Kernel uid/gid map:")
+			logger.Info("Kernel uid/gid map:")
 			for _, lxcmap := range kernelIdmapSet.ToLxcString() {
-				logger.Infof(fmt.Sprintf(" - %s", lxcmap))
+				logger.Info(" - " + lxcmap)
 			}
 		}
 
 		if len(idmapSet.Idmap) == 0 {
-			logger.Warnf("No available uid/gid map could be found")
-			logger.Warnf("Only privileged containers will be able to run")
+			logger.Warn("No available uid/gid map could be found")
+			logger.Warn("Only privileged containers will be able to run")
 			idmapSet = nil
 		} else {
-			logger.Infof("Configured LXD uid/gid map:")
+			logger.Info("Configured LXD uid/gid map:")
 			for _, lxcmap := range idmapSet.Idmap {
 				suffix := ""
 
@@ -1112,14 +1113,14 @@ func GetIdmapSet() *IdmapSet {
 				}
 
 				for _, lxcEntry := range lxcmap.ToLxcString() {
-					logger.Infof(" - %s%s", lxcEntry, suffix)
+					logger.Info(" - " + lxcEntry + suffix)
 				}
 			}
 
 			err = idmapSet.Usable()
 			if err != nil {
-				logger.Warnf("One or more uid/gid map entry isn't usable (typically due to nesting)")
-				logger.Warnf("Only privileged containers will be able to run")
+				logger.Warn("One or more uid/gid map entry isn't usable (typically due to nesting)")
+				logger.Warn("Only privileged containers will be able to run")
 				idmapSet = nil
 			}
 		}

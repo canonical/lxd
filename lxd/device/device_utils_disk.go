@@ -135,7 +135,7 @@ func diskCephRbdMap(clusterName string, userName string, poolName string, volume
 
 	idx := strings.Index(devPath, "/dev/rbd")
 	if idx < 0 {
-		return "", fmt.Errorf("Failed to detect mapped device path")
+		return "", errors.New("Failed to detect mapped device path")
 	}
 
 	devPath = devPath[idx:]
@@ -262,7 +262,7 @@ func DiskVMVirtfsProxyStart(execPath string, pidPath string, sharePath string, i
 	}
 
 	if cmd == "" {
-		return nil, nil, fmt.Errorf(`Required binary "virtfs-proxy-helper" couldn't be found`)
+		return nil, nil, errors.New(`Required binary "virtfs-proxy-helper" couldn't be found`)
 	}
 
 	listener, err := net.Listen("unix", "")
@@ -281,7 +281,7 @@ func DiskVMVirtfsProxyStart(execPath string, pidPath string, sharePath string, i
 
 	cDialUnix, ok := cDial.(*net.UnixConn)
 	if !ok {
-		return nil, nil, fmt.Errorf("Dialled virtfs-proxy-helper connection isn't unix socket")
+		return nil, nil, errors.New("Dialled virtfs-proxy-helper connection isn't unix socket")
 	}
 
 	defer func() { _ = cDialUnix.Close() }()
@@ -302,7 +302,7 @@ func DiskVMVirtfsProxyStart(execPath string, pidPath string, sharePath string, i
 
 	cAcceptUnix, ok := cAccept.(*net.UnixConn)
 	if !ok {
-		return nil, nil, fmt.Errorf("Accepted virtfs-proxy-helper connection isn't unix socket")
+		return nil, nil, errors.New("Accepted virtfs-proxy-helper connection isn't unix socket")
 	}
 
 	defer func() { _ = cAcceptUnix.Close() }()
@@ -431,7 +431,7 @@ func DiskVMVirtiofsdStart(kernelVersion version.DottedVersion, inst instance.Ins
 
 	unixListener, ok := listener.(*net.UnixListener)
 	if !ok {
-		return nil, nil, fmt.Errorf("Failed getting UnixListener for virtiofsd")
+		return nil, nil, errors.New("Failed getting UnixListener for virtiofsd")
 	}
 
 	revert.Add(func() {

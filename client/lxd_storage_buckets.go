@@ -1,6 +1,8 @@
 package lxd
 
 import (
+	"net/http"
+
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -14,7 +16,7 @@ func (r *ProtocolLXD) GetStoragePoolBucketNames(poolName string) ([]string, erro
 	// Fetch the raw URL values.
 	urls := []string{}
 	u := api.NewURL().Path("storage-pools", poolName, "buckets")
-	_, err = r.queryStruct("GET", u.String(), nil, "", &urls)
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +36,25 @@ func (r *ProtocolLXD) GetStoragePoolBuckets(poolName string) ([]api.StorageBucke
 
 	// Fetch the raw value.
 	u := api.NewURL().Path("storage-pools", poolName, "buckets").WithQuery("recursion", "1")
-	_, err = r.queryStruct("GET", u.String(), nil, "", &buckets)
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &buckets)
+	if err != nil {
+		return nil, err
+	}
+
+	return buckets, nil
+}
+
+// GetStoragePoolBucketsAllProjects returns a list of storage pool buckets across all projects.
+func (r *ProtocolLXD) GetStoragePoolBucketsAllProjects(poolName string) ([]api.StorageBucket, error) {
+	err := r.CheckExtension("storage_buckets_all_projects")
+	if err != nil {
+		return nil, err
+	}
+
+	buckets := []api.StorageBucket{}
+
+	u := api.NewURL().Path("storage-pools", poolName, "buckets").WithQuery("recursion", "1").WithQuery("all-projects", "true")
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &buckets)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +73,7 @@ func (r *ProtocolLXD) GetStoragePoolBucket(poolName string, bucketName string) (
 
 	// Fetch the raw value.
 	u := api.NewURL().Path("storage-pools", poolName, "buckets", bucketName)
-	etag, err := r.queryStruct("GET", u.String(), nil, "", &bucket)
+	etag, err := r.queryStruct(http.MethodGet, u.String(), nil, "", &bucket)
 	if err != nil {
 		return nil, "", err
 	}
@@ -75,7 +95,7 @@ func (r *ProtocolLXD) CreateStoragePoolBucket(poolName string, bucket api.Storag
 	// Send the request and get the resulting key info (including generated keys).
 	if r.CheckExtension("storage_buckets_create_credentials") == nil {
 		var newKey api.StorageBucketKey
-		_, err = r.queryStruct("POST", u.String(), bucket, "", &newKey)
+		_, err = r.queryStruct(http.MethodPost, u.String(), bucket, "", &newKey)
 		if err != nil {
 			return nil, err
 		}
@@ -83,7 +103,7 @@ func (r *ProtocolLXD) CreateStoragePoolBucket(poolName string, bucket api.Storag
 		return &newKey, nil
 	}
 
-	_, _, err = r.query("POST", u.String(), bucket, "")
+	_, _, err = r.query(http.MethodPost, u.String(), bucket, "")
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +120,7 @@ func (r *ProtocolLXD) UpdateStoragePoolBucket(poolName string, bucketName string
 
 	// Send the request.
 	u := api.NewURL().Path("storage-pools", poolName, "buckets", bucketName)
-	_, _, err = r.query("PUT", u.String(), bucket, ETag)
+	_, _, err = r.query(http.MethodPut, u.String(), bucket, ETag)
 	if err != nil {
 		return err
 	}
@@ -117,7 +137,7 @@ func (r *ProtocolLXD) DeleteStoragePoolBucket(poolName string, bucketName string
 
 	// Send the request.
 	u := api.NewURL().Path("storage-pools", poolName, "buckets", bucketName)
-	_, _, err = r.query("DELETE", u.String(), nil, "")
+	_, _, err = r.query(http.MethodDelete, u.String(), nil, "")
 	if err != nil {
 		return err
 	}
@@ -135,7 +155,7 @@ func (r *ProtocolLXD) GetStoragePoolBucketKeyNames(poolName string, bucketName s
 	// Fetch the raw URL values.
 	urls := []string{}
 	u := api.NewURL().Path("storage-pools", poolName, "buckets", bucketName, "keys")
-	_, err = r.queryStruct("GET", u.String(), nil, "", &urls)
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +175,7 @@ func (r *ProtocolLXD) GetStoragePoolBucketKeys(poolName string, bucketName strin
 
 	// Fetch the raw value.
 	u := api.NewURL().Path("storage-pools", poolName, "buckets", bucketName, "keys").WithQuery("recursion", "1")
-	_, err = r.queryStruct("GET", u.String(), nil, "", &bucketKeys)
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &bucketKeys)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +194,7 @@ func (r *ProtocolLXD) GetStoragePoolBucketKey(poolName string, bucketName string
 
 	// Fetch the raw value.
 	u := api.NewURL().Path("storage-pools", poolName, "buckets", bucketName, "keys", keyName)
-	etag, err := r.queryStruct("GET", u.String(), nil, "", &bucketKey)
+	etag, err := r.queryStruct(http.MethodGet, u.String(), nil, "", &bucketKey)
 	if err != nil {
 		return nil, "", err
 	}
@@ -192,7 +212,7 @@ func (r *ProtocolLXD) CreateStoragePoolBucketKey(poolName string, bucketName str
 	// Send the request and get the resulting key info (including generated keys).
 	var newKey api.StorageBucketKey
 	u := api.NewURL().Path("storage-pools", poolName, "buckets", bucketName, "keys")
-	_, err = r.queryStruct("POST", u.String(), key, "", &newKey)
+	_, err = r.queryStruct(http.MethodPost, u.String(), key, "", &newKey)
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +229,7 @@ func (r *ProtocolLXD) UpdateStoragePoolBucketKey(poolName string, bucketName str
 
 	// Send the request.
 	u := api.NewURL().Path("storage-pools", poolName, "buckets", bucketName, "keys", keyName)
-	_, _, err = r.query("PUT", u.String(), key, ETag)
+	_, _, err = r.query(http.MethodPut, u.String(), key, ETag)
 	if err != nil {
 		return err
 	}
@@ -226,7 +246,7 @@ func (r *ProtocolLXD) DeleteStoragePoolBucketKey(poolName string, bucketName str
 
 	// Send the request.
 	u := api.NewURL().Path("storage-pools", poolName, "buckets", bucketName, "keys", keyName)
-	_, _, err = r.query("DELETE", u.String(), nil, "")
+	_, _, err = r.query(http.MethodDelete, u.String(), nil, "")
 	if err != nil {
 		return err
 	}

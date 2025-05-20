@@ -19,7 +19,7 @@ func (e Error) Error() string {
 		message += fmt.Sprintf(" to %q", e.Value)
 	}
 
-	return message + fmt.Sprintf(": %s", e.Reason)
+	return message + ": " + e.Reason
 }
 
 // ErrorList is a list of configuration Errors occurred during Load() or

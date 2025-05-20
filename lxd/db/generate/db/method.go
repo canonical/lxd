@@ -176,9 +176,9 @@ func (m *Method) getMany(buf *file.Buffer) error {
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		stmtVar := stmtCodeVar(m.entity, "objects")
 		stmtLocal := stmtVar + "Local"
-		buf.L("%s := strings.Replace(%s, \"%%s_id\", parent+\"_id\", -1)", stmtLocal, stmtVar)
+		buf.L("%s := strings.ReplaceAll(%s, \"%%s_id\", parent+\"_id\")", stmtLocal, stmtVar)
 		buf.L("fillParent := make([]any, strings.Count(%s, \"%%s\"))", stmtLocal)
-		buf.L("mangledParent := strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
+		buf.L("mangledParent := strings.ReplaceAll(parent, \"_\", \"s_\") + \"s\"")
 		buf.L("for i := range fillParent {")
 		buf.L("fillParent[i] = mangledParent")
 		buf.L("}")
@@ -219,7 +219,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 		}
 
 		buf.L("if len(entries) == 0 {")
-		buf.L("return nil, fmt.Errorf(\"Cannot filter on empty %s\")", entityFilter(mapping.Name))
+		buf.L("return nil, errors.New(\"Cannot filter on empty %s\")", entityFilter(mapping.Name))
 		buf.L("}")
 		buf.N()
 		buf.L("queryParts[0] += fmt.Sprintf(cond, strings.Join(entries, \" AND \"))")
@@ -312,15 +312,16 @@ func (m *Method) getMany(buf *file.Buffer) error {
 		}
 
 		buf.L("%s %s {", branch, activeCriteria([]string{}, FieldNames(mapping.Filters)))
-		buf.L("return nil, fmt.Errorf(\"Cannot filter on empty %s\")", entityFilter(mapping.Name))
+		buf.L("return nil, errors.New(\"Cannot filter on empty %s\")", entityFilter(mapping.Name))
 		buf.L("} else {")
-		buf.L("return nil, fmt.Errorf(\"No statement exists for the given Filter\")")
+		buf.L("return nil, errors.New(\"No statement exists for the given Filter\")")
 		buf.L("}")
 		buf.L("}")
 		buf.N()
 	}
 
-	if mapping.Type == EntityTable {
+	switch mapping.Type {
+	case EntityTable:
 		buf.L("// Select.")
 		buf.L("if sqlStmt != nil {")
 		buf.L("objects, err = get%s(ctx, sqlStmt, args...)", lex.Plural(mapping.Name))
@@ -330,11 +331,11 @@ func (m *Method) getMany(buf *file.Buffer) error {
 		buf.L("}")
 		buf.N()
 		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%s\" table: %%w", err)`, entityTable(m.entity, m.config["table"])))
-	} else if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+	case ReferenceTable, MapTable:
 		buf.L("// Select.")
 		buf.L("objects, err = get%sRaw(ctx, tx, queryStr, parent, args...)", lex.Plural(mapping.Name))
 		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%%s_%s\" table: %%w", parent, err)`, entityTable(m.entity, m.config["table"])))
-	} else {
+	default:
 		buf.N()
 		buf.L("// Select.")
 		buf.L("objects, err = get%s(ctx, sqlStmt, args...)", lex.Plural(mapping.Name))
@@ -379,7 +380,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 			buf.L("filter := f.%s", refStruct)
 			buf.L("if filter != nil {")
 			buf.L("if %s {", activeCriteria(nil, FieldNames(refMapping.Filters)))
-			buf.L("return nil, fmt.Errorf(\"Cannot filter on empty %s\")", entityFilter(refMapping.Name))
+			buf.L("return nil, errors.New(\"Cannot filter on empty %s\")", entityFilter(refMapping.Name))
 			buf.L("}")
 			buf.N()
 			buf.L("%sFilters = append(%sFilters, *filter)", refVar, refVar)
@@ -396,9 +397,10 @@ func (m *Method) getMany(buf *file.Buffer) error {
 			}
 
 			buf.L("for i := range objects {")
-			if field.Type.Code == TypeSlice {
+			switch field.Type.Code {
+			case TypeSlice:
 				buf.L("objects[i].%s = %s[objects[i].ID]", lex.Plural(refStruct), refSlice)
-			} else if field.Type.Code == TypeMap {
+			case TypeMap:
 				buf.L("objects[i].%s = map[string]%s{}", lex.Plural(refStruct), refStruct)
 				buf.L("for _, obj := range %s[objects[i].ID] {", refSlice)
 				buf.L("_, ok := objects[i].%s[obj.%s]", lex.Plural(refStruct), refMapping.NaturalKey()[0].Name)
@@ -417,7 +419,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 			buf.L("filter := f.%s", refStruct)
 			buf.L("if filter != nil {")
 			buf.L("if %s {", activeCriteria(nil, FieldNames(refMapping.Filters)))
-			buf.L("return nil, fmt.Errorf(\"Cannot filter on empty %s\")", entityFilter(refMapping.Name))
+			buf.L("return nil, errors.New(\"Cannot filter on empty %s\")", entityFilter(refMapping.Name))
 			buf.L("}")
 			buf.N()
 			buf.L("%sFilters = append(%sFilters, *filter)", refVar, refVar)
@@ -448,7 +450,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 
 	switch mapping.Type {
 	case AssociationTable:
-		ref := strings.Replace(mapping.Name, m.config["struct"], "", -1)
+		ref := strings.ReplaceAll(mapping.Name, m.config["struct"], "")
 		buf.L("result := make([]%s, len(objects))", ref)
 		buf.L("for i, object := range objects {")
 		buf.L("%s, err := Get%s(ctx, tx, %sFilter{ID: &object.%sID})", lex.Minuscule(ref), lex.Plural(ref), ref, ref)
@@ -575,7 +577,7 @@ func (m *Method) getOne(buf *file.Buffer) error {
 	buf.L("case 1:")
 	buf.L("        return &objects[0], nil")
 	buf.L("default:")
-	buf.L(`        return nil, fmt.Errorf("More than one \"%s\" entry matches")`, entityTable(m.entity, m.config["table"]))
+	buf.L(`        return nil, errors.New("More than one \"%s\" entry matches")`, entityTable(m.entity, m.config["table"]))
 	buf.L("}")
 
 	return nil
@@ -701,10 +703,10 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		stmtVar := stmtCodeVar(m.entity, "create")
 		stmtLocal := stmtVar + "Local"
-		buf.L("%s := strings.Replace(%s, \"%%s_id\", parent+\"_id\", -1)", stmtLocal, stmtVar)
+		buf.L("%s := strings.ReplaceAll(%s, \"%%s_id\", parent+\"_id\")", stmtLocal, stmtVar)
 		buf.L("fillParent := make([]any, strings.Count(%s, \"%%s\"))", stmtLocal)
 		buf.L("for i := range fillParent {")
-		buf.L("fillParent[i] = strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
+		buf.L("fillParent[i] = strings.ReplaceAll(parent, \"_\", \"s_\") + \"s\"")
 		buf.L("}")
 		buf.N()
 		buf.L("queryStr := fmt.Sprintf(%s, fillParent...)", stmtLocal)
@@ -715,7 +717,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		}
 
 		for i, field := range columnFields {
-			createParams += fmt.Sprintf("object.%s", field.Name)
+			createParams += "object." + field.Name
 			if i < len(columnFields) {
 				createParams += ", "
 			}
@@ -735,7 +737,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		nk := mapping.NaturalKey()
 		nkParams := make([]string, len(nk))
 		for i, field := range nk {
-			nkParams[i] = fmt.Sprintf("object.%s", field.Name)
+			nkParams[i] = "object." + field.Name
 		}
 
 		kind := "create"
@@ -814,7 +816,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 			buf.L("// Update association table.")
 			buf.L("object.ID = int(id)")
 			buf.L("err = %sUpdate%s(ctx, tx, object)", m.db, lex.Plural(assocStruct))
-			m.ifErrNotNil(buf, true, "-1", fmt.Sprintf("fmt.Errorf(\"Could not update association table: %%w\", err)"))
+			m.ifErrNotNil(buf, true, "-1", "fmt.Errorf(\"Could not update association table: %%w\", err)")
 			continue
 		case ReferenceTable:
 			buf.L("for _, insert := range object.%s {", field.Name)
@@ -842,13 +844,14 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		buf.L("}")
 	}
 
-	if mapping.Type == ReferenceTable || mapping.Type == AssociationTable {
+	switch mapping.Type {
+	case ReferenceTable, AssociationTable:
 		buf.L("}")
 		buf.N()
 		buf.L("return nil")
-	} else if mapping.Type == MapTable {
+	case MapTable:
 		buf.L("return nil")
-	} else {
+	default:
 		buf.L("return id, nil")
 	}
 
@@ -979,7 +982,7 @@ func (m *Method) update(buf *file.Buffer) error {
 
 	switch mapping.Type {
 	case AssociationTable:
-		ref := strings.Replace(mapping.Name, m.config["struct"], "", -1)
+		ref := strings.ReplaceAll(mapping.Name, m.config["struct"], "")
 		refMapping, err := Parse(m.pkg, ref, "")
 		if err != nil {
 			return fmt.Errorf("Parse entity struct: %w", err)
@@ -1051,9 +1054,9 @@ func (m *Method) update(buf *file.Buffer) error {
 			if shared.IsTrue(field.Config.Get("marshal")) {
 				buf.L("marshaled%s, err := query.Marshal(object.%s)", field.Name, field.Name)
 				m.ifErrNotNil(buf, true, "err")
-				params[i] = fmt.Sprintf("marshaled%s", field.Name)
+				params[i] = "marshaled" + field.Name
 			} else {
-				params[i] = fmt.Sprintf("object.%s", field.Name)
+				params[i] = "object." + field.Name
 			}
 		}
 
@@ -1137,7 +1140,8 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 	}
 
 	defer m.end(buf)
-	if mapping.Type == AssociationTable {
+	switch mapping.Type {
+	case AssociationTable:
 		if m.db == "" {
 			buf.L("stmt, err := Stmt(tx, %s)", stmtCodeVar(m.entity, "delete", m.config["struct"]+"ID"))
 		} else {
@@ -1147,19 +1151,19 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, "delete", m.config["struct"]+"ID")))
 		buf.L("result, err := stmt.Exec(int(%sID))", lex.Minuscule(m.config["struct"]))
 		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Delete \"%s\" entry failed: %%w", err)`, entityTable(m.entity, m.config["table"])))
-	} else if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+	case ReferenceTable, MapTable:
 		stmtVar := stmtCodeVar(m.entity, "delete")
 		stmtLocal := stmtVar + "Local"
-		buf.L("%s := strings.Replace(%s, \"%%s_id\", parent+\"_id\", -1)", stmtLocal, stmtVar)
+		buf.L("%s := strings.ReplaceAll(%s, \"%%s_id\", parent+\"_id\")", stmtLocal, stmtVar)
 		buf.L("fillParent := make([]any, strings.Count(%s, \"%%s\"))", stmtLocal)
 		buf.L("for i := range fillParent {")
-		buf.L("fillParent[i] = strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
+		buf.L("fillParent[i] = strings.ReplaceAll(parent, \"_\", \"s_\") + \"s\"")
 		buf.L("}")
 		buf.N()
 		buf.L("queryStr := fmt.Sprintf(%s, fillParent...)", stmtLocal)
 		buf.L("result, err := tx.ExecContext(ctx, queryStr, referenceID)")
 		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Delete entry for \"%%s_%s\" failed: %%w", parent, err)`, m.entity))
-	} else {
+	default:
 		activeFilters := mapping.ActiveFilters(m.kind)
 		if m.db == "" {
 			buf.L("stmt, err := Stmt(tx, %s)", stmtCodeVar(m.entity, "delete", FieldNames(activeFilters)...))
@@ -1212,7 +1216,7 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 
 	switch mapping.Type {
 	case AssociationTable:
-		ref := strings.Replace(mapping.Name, m.config["struct"], "", -1)
+		ref := strings.ReplaceAll(mapping.Name, m.config["struct"], "")
 		refMapping, err := Parse(m.pkg, ref, "")
 		if err != nil {
 			return fmt.Errorf("Failed to parse struct %q", ref)
@@ -1221,11 +1225,11 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 		switch operation(m.kind) {
 		case "GetMany":
 			comment = fmt.Sprintf("returns all available %s for the %s.", lex.Plural(ref), m.config["struct"])
-			args += fmt.Sprintf("%sID int", lex.Minuscule(m.config["struct"]))
+			args += lex.Minuscule(m.config["struct"]) + "ID int"
 			rets = fmt.Sprintf("([]%s, error)", ref)
 		case "Create":
 			comment = fmt.Sprintf("adds a new %s to the database.", m.entity)
-			args += fmt.Sprintf("objects []%s", mapping.Name)
+			args += "objects []" + mapping.Name
 			rets = "error"
 		case "Update":
 			comment = fmt.Sprintf("updates the %s matching the given key parameters.", m.entity)
@@ -1239,7 +1243,7 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 			rets = "error"
 		case "DeleteMany":
 			comment = fmt.Sprintf("deletes the %s matching the given key parameters.", m.entity)
-			args += fmt.Sprintf("%sID int", lex.Minuscule(m.config["struct"]))
+			args += lex.Minuscule(m.config["struct"]) + "ID int"
 			rets = "error"
 		default:
 			return fmt.Errorf("Unknown method kind '%s'", m.kind)
@@ -1249,11 +1253,11 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 		switch operation(m.kind) {
 		case "GetMany":
 			comment = fmt.Sprintf("returns all available %s for the parent entity.", lex.Plural(m.entity))
-			args += fmt.Sprintf("parent string, filters ...%s", entityFilter(m.entity))
+			args += "parent string, filters ..." + entityFilter(m.entity)
 			rets = fmt.Sprintf("(map[int][]%s, error)", mapping.Name)
 		case "Create":
 			comment = fmt.Sprintf("adds a new %s to the database.", m.entity)
-			args += fmt.Sprintf("parent string, objects map[string]%s", mapping.Name)
+			args += "parent string, objects map[string]" + mapping.Name
 			rets = "error"
 		case "Update":
 			comment = fmt.Sprintf("updates the %s matching the given key parameters.", m.entity)
@@ -1271,11 +1275,11 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 		switch operation(m.kind) {
 		case "GetMany":
 			comment = fmt.Sprintf("returns all available %s.", lex.Plural(m.entity))
-			args += fmt.Sprintf("parent string, filters ...%s", entityFilter(m.entity))
+			args += "parent string, filters ..." + entityFilter(m.entity)
 			rets = "(map[int]map[string]string, error)"
 		case "Create":
 			comment = fmt.Sprintf("adds a new %s to the database.", m.entity)
-			args += fmt.Sprintf("parent string, object %s", mapping.Name)
+			args += "parent string, object " + mapping.Name
 			rets = "error"
 		case "Update":
 			comment = fmt.Sprintf("updates the %s matching the given key parameters.", m.entity)
@@ -1293,12 +1297,12 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 		switch operation(m.kind) {
 		case "URIs":
 			comment = fmt.Sprintf("returns all available %s URIs.", m.entity)
-			args += fmt.Sprintf("filter %s", entityFilter(m.entity))
+			args += "filter " + entityFilter(m.entity)
 			rets = "([]string, error)"
 		case "GetMany":
 			if m.ref == "" {
 				comment = fmt.Sprintf("returns all available %s.", lex.Plural(m.entity))
-				args += fmt.Sprintf("filters ...%s", entityFilter(m.entity))
+				args += "filters ..." + entityFilter(m.entity)
 				rets = fmt.Sprintf("(%s, error)", lex.Slice(lex.Camel(m.entity)))
 			} else {
 				comment = fmt.Sprintf("returns all available %s %s", mapping.Name, lex.Plural(m.ref))
@@ -1339,7 +1343,7 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 				}
 
 				comment = fmt.Sprintf("adds a new %s to the database.", m.entity)
-				args += fmt.Sprintf("object %s", lex.Camel(entityCreate))
+				args += "object " + lex.Camel(entityCreate)
 				rets = "(int64, error)"
 			} else {
 				comment = fmt.Sprintf("adds new %s %s to the database.", m.entity, lex.Plural(m.ref))
@@ -1364,7 +1368,7 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 			}
 
 			comment = fmt.Sprintf("adds a new %s to the database.", m.entity)
-			args += fmt.Sprintf("object %s", lex.Camel(entityCreate))
+			args += "object " + lex.Camel(entityCreate)
 			rets = "(int64, error)"
 		case "Rename":
 			comment = fmt.Sprintf("renames the %s matching the given key parameters.", m.entity)
@@ -1378,7 +1382,7 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 				}
 
 				comment = fmt.Sprintf("updates the %s matching the given key parameters.", m.entity)
-				args += mapping.FieldArgs(mapping.NaturalKey(), fmt.Sprintf("object %s", lex.Camel(entityUpdate)))
+				args += mapping.FieldArgs(mapping.NaturalKey(), "object "+lex.Camel(entityUpdate))
 				rets = "error"
 			} else {
 				comment = fmt.Sprintf("updates the %s %s matching the given key parameters.", m.entity, m.ref)
@@ -1423,7 +1427,7 @@ func (m *Method) begin(buf *file.Buffer, comment string, args string, rets strin
 
 	if mapping.Type == AssociationTable {
 		parent := m.config["struct"]
-		ref := strings.Replace(entity, parent, "", -1)
+		ref := strings.ReplaceAll(entity, parent, "")
 		switch operation(m.kind) {
 		case "GetMany":
 			name = "Get" + parent + lex.Plural(ref)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"os/exec"
@@ -49,7 +50,7 @@ func (d Nftables) Compat() (bool, error) {
 	// We require a >= 5.2 kernel to avoid weird conflicts with xtables and support for inet table NAT rules.
 	releaseLen := len(uname.Release)
 	if releaseLen > 1 {
-		verErr := fmt.Errorf("Kernel version does not meet minimum requirement of 5.2")
+		verErr := errors.New("Kernel version does not meet minimum requirement of 5.2")
 		releaseParts := strings.SplitN(uname.Release, ".", 3)
 		if len(releaseParts) < 2 {
 			return false, fmt.Errorf("Failed parsing kernel version number into parts: %w", err)
@@ -116,7 +117,7 @@ func (d Nftables) Compat() (bool, error) {
 	}
 
 	for _, item := range ruleset {
-		if item.ItemType == "rule" {
+		if item.itemType == "rule" {
 			return true, nil // At least one rule found indicates in use.
 		}
 	}
@@ -126,7 +127,7 @@ func (d Nftables) Compat() (bool, error) {
 
 // nftGenericItem represents some common fields amongst the different nftables types.
 type nftGenericItem struct {
-	ItemType string `json:"-"`      // Type of item (table, chain or rule). Populated by LXD.
+	itemType string // Type of item (table, chain or rule). Populated by LXD.
 	Family   string `json:"family"` // Family of item (ip, ip6, bridge etc).
 	Table    string `json:"table"`  // Table the item belongs to (for chains and rules).
 	Chain    string `json:"chain"`  // Chain the item belongs to (for rules).
@@ -165,13 +166,13 @@ func (d Nftables) nftParseRuleset() ([]nftGenericItem, error) {
 		chain, foundChain := item["chain"]
 		table, foundTable := item["table"]
 		if foundRule {
-			rule.ItemType = "rule"
+			rule.itemType = "rule"
 			items = append(items, rule)
 		} else if foundChain {
-			chain.ItemType = "chain"
+			chain.itemType = "chain"
 			items = append(items, chain)
 		} else if foundTable {
-			table.ItemType = "table"
+			table.itemType = "table"
 			items = append(items, table)
 		}
 	}
@@ -461,22 +462,22 @@ func (d Nftables) InstanceClearBridgeFilter(projectName string, instanceName str
 // InstanceSetupProxyNAT creates DNAT rules for proxy devices.
 func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string, deviceName string, forward *AddressForward) error {
 	if forward.ListenAddress == nil {
-		return fmt.Errorf("Listen address is required")
+		return errors.New("Listen address is required")
 	}
 
 	if forward.TargetAddress == nil {
-		return fmt.Errorf("Target address is required")
+		return errors.New("Target address is required")
 	}
 
 	listenPortsLen := len(forward.ListenPorts)
 	if listenPortsLen <= 0 {
-		return fmt.Errorf("At least 1 listen port must be supplied")
+		return errors.New("At least 1 listen port must be supplied")
 	}
 
 	// If multiple target ports supplied, check they match the listen port(s) count.
 	targetPortsLen := len(forward.TargetPorts)
 	if targetPortsLen != 1 && targetPortsLen != listenPortsLen {
-		return fmt.Errorf("Mismatch between listen port(s) and target port(s) count")
+		return errors.New("Mismatch between listen port(s) and target port(s) count")
 	}
 
 	ipFamily := "ip"
@@ -605,7 +606,7 @@ func (d Nftables) removeChains(families []string, chainSuffix string, chains ...
 	foundChains := make(map[string]nftGenericItem)
 	for _, family := range families {
 		for _, item := range ruleset {
-			if item.ItemType == "chain" && item.Family == family && item.Table == nftablesNamespace && shared.ValueInSlice(item.Name, fullChains) {
+			if item.itemType == "chain" && item.Family == family && item.Table == nftablesNamespace && shared.ValueInSlice(item.Name, fullChains) {
 				foundChains[item.Name] = item
 			}
 		}
@@ -719,12 +720,12 @@ func (d Nftables) NetworkApplyACLRules(networkName string, rules []ACLRule) erro
 			}
 
 			if nftRule == "" {
-				return fmt.Errorf("Invalid empty rule generated")
+				return errors.New("Invalid empty rule generated")
 			}
 
 			nftRules = append(nftRules, nftRule)
 		} else if nftRule == "" {
-			return fmt.Errorf("Invalid empty rule generated")
+			return errors.New("Invalid empty rule generated")
 		}
 	}
 

@@ -179,7 +179,7 @@ func (d *disk) checkBlockVolSharing(instanceType instancetype.Type, projectName 
 	}
 
 	if instanceType == instancetype.Any {
-		return fmt.Errorf("Cannot add block volume to profiles if security.shared is false or unset")
+		return errors.New("Cannot add block volume to profiles if security.shared is false or unset")
 	}
 
 	return storagePools.VolumeUsedByInstanceDevices(d.state, d.pool.Name(), projectName, volume, true, func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error {
@@ -203,7 +203,7 @@ func (d *disk) checkBlockVolSharing(instanceType instancetype.Type, projectName 
 			}
 		}
 
-		return fmt.Errorf("Cannot add block volume to more than one instance if security.shared is false or unset")
+		return errors.New("Cannot add block volume to more than one instance if security.shared is false or unset")
 	})
 }
 
@@ -412,51 +412,51 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	if instConf.Type() == instancetype.Container && d.config["io.bus"] != "" {
-		return fmt.Errorf("IO bus configuration cannot be applied to containers")
+		return errors.New("IO bus configuration cannot be applied to containers")
 	}
 
 	if instConf.Type() == instancetype.Container && d.config["io.cache"] != "" {
-		return fmt.Errorf("IO cache configuration cannot be applied to containers")
+		return errors.New("IO cache configuration cannot be applied to containers")
 	}
 
 	if d.config["required"] != "" && d.config["optional"] != "" {
-		return fmt.Errorf(`Cannot use both "required" and deprecated "optional" properties at the same time`)
+		return errors.New(`Cannot use both "required" and deprecated "optional" properties at the same time`)
 	}
 
 	if d.config["source.snapshot"] != "" && (d.config["pool"] == "" || d.config["path"] == "/") {
-		return fmt.Errorf(`"source.snapshot" can only be used on storage volume disk devices`)
+		return errors.New(`"source.snapshot" can only be used on storage volume disk devices`)
 	}
 
 	if d.config["source.type"] != "" && d.config["pool"] == "" {
-		return fmt.Errorf(`"source.type" can only be used on storage volume disk devices`)
+		return errors.New(`"source.type" can only be used on storage volume disk devices`)
 	}
 
 	if d.config["source"] == "" && d.config["path"] != "/" {
-		return fmt.Errorf(`Non root disk devices require the "source" property`)
+		return errors.New(`Non root disk devices require the "source" property`)
 	}
 
 	if d.config["path"] == "/" && d.config["source"] != "" {
-		return fmt.Errorf(`Root disk entry may not have a "source" property set`)
+		return errors.New(`Root disk entry may not have a "source" property set`)
 	}
 
 	if d.config["path"] == "/" && d.config["pool"] == "" {
-		return fmt.Errorf(`Root disk entry must have a "pool" property set`)
+		return errors.New(`Root disk entry must have a "pool" property set`)
 	}
 
 	if d.config["size"] != "" && d.config["path"] != "/" {
-		return fmt.Errorf("Only the root disk may have a size quota")
+		return errors.New("Only the root disk may have a size quota")
 	}
 
 	if d.config["size.state"] != "" && d.config["path"] != "/" {
-		return fmt.Errorf("Only the root disk may have a migration size quota")
+		return errors.New("Only the root disk may have a migration size quota")
 	}
 
 	if d.config["recursive"] != "" && (d.config["path"] == "/" || !shared.IsDir(shared.HostPath(d.config["source"]))) {
-		return fmt.Errorf("The recursive option is only supported for additional bind-mounted paths")
+		return errors.New("The recursive option is only supported for additional bind-mounted paths")
 	}
 
 	if shared.IsTrue(d.config["recursive"]) && shared.IsTrue(d.config["readonly"]) {
-		return fmt.Errorf("Recursive read-only bind-mounts aren't currently supported by the kernel")
+		return errors.New("Recursive read-only bind-mounts aren't currently supported by the kernel")
 	}
 
 	// Check ceph options are only used when ceph or cephfs type source is specified.
@@ -483,7 +483,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	srcPathIsAbs := filepath.IsAbs(d.config["source"])
 
 	if srcPathIsLocal && !srcPathIsAbs {
-		return fmt.Errorf("Source path must be absolute for local sources")
+		return errors.New("Source path must be absolute for local sources")
 	}
 
 	// Check that external disk source path exists. External disk sources have a non-empty "source" property
@@ -498,11 +498,11 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	// Check if validating a storage volume disk.
 	if d.config["pool"] != "" {
 		if d.config["shift"] != "" {
-			return fmt.Errorf(`The "shift" property cannot be used with custom storage volumes (set "security.shifted=true" on the volume instead)`)
+			return errors.New(`The "shift" property cannot be used with custom storage volumes (set "security.shifted=true" on the volume instead)`)
 		}
 
 		if srcPathIsAbs {
-			return fmt.Errorf("Storage volumes cannot be specified as absolute paths")
+			return errors.New("Storage volumes cannot be specified as absolute paths")
 		}
 
 		var dbCustomVolume *db.StorageVolume
@@ -569,28 +569,28 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 				}
 
 				if remoteInstance != nil && remoteInstance.ID != instConf.ID() {
-					return fmt.Errorf("Custom volume is already attached to an instance on a different cluster member")
+					return errors.New("Custom volume is already attached to an instance on a different cluster member")
 				}
 
 				// Check that block volumes are *only* attached to VM instances.
 				if dbCustomVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock {
 					if instConf.Type() == instancetype.Container {
-						return fmt.Errorf("Custom block volumes cannot be used on containers")
+						return errors.New("Custom block volumes cannot be used on containers")
 					}
 
 					if d.config["path"] != "" {
-						return fmt.Errorf("Custom block volumes cannot have a path defined")
+						return errors.New("Custom block volumes cannot have a path defined")
 					}
 				} else if dbCustomVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameISO {
 					if instConf.Type() == instancetype.Container {
-						return fmt.Errorf("Custom ISO volumes cannot be used on containers")
+						return errors.New("Custom ISO volumes cannot be used on containers")
 					}
 
 					if d.config["path"] != "" {
-						return fmt.Errorf("Custom ISO volumes cannot have a path defined")
+						return errors.New("Custom ISO volumes cannot have a path defined")
 					}
 				} else if d.config["path"] == "" {
-					return fmt.Errorf("Custom filesystem volumes require a path to be defined")
+					return errors.New("Custom filesystem volumes require a path to be defined")
 				}
 			}
 
@@ -606,7 +606,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 
 			if len(initialConfig) > 0 {
 				if !instancetype.IsRootDiskDevice(d.config) {
-					return fmt.Errorf("Non-root disk device cannot contain initial.* configuration")
+					return errors.New("Non-root disk device cannot contain initial.* configuration")
 				}
 
 				volumeType, err := storagePools.InstanceTypeToVolumeType(d.inst.Type())
@@ -635,19 +635,19 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	// Restrict disks allowed when live-migratable.
 	if instConf.Type() == instancetype.VM && shared.IsTrue(instConf.ExpandedConfig()["migration.stateful"]) {
 		if d.config["path"] != "" && d.config["path"] != "/" {
-			return fmt.Errorf("Shared filesystem are incompatible with migration.stateful=true")
+			return errors.New("Shared filesystem are incompatible with migration.stateful=true")
 		}
 
 		if d.config["pool"] == "" {
-			return fmt.Errorf("Only LXD-managed disks are allowed with migration.stateful=true")
+			return errors.New("Only LXD-managed disks are allowed with migration.stateful=true")
 		}
 
 		if d.config["io.bus"] == "nvme" {
-			return fmt.Errorf("NVME disks aren't supported with migration.stateful=true")
+			return errors.New("NVME disks aren't supported with migration.stateful=true")
 		}
 
 		if d.config["path"] != "/" && d.pool != nil && !d.pool.Driver().Info().Remote {
-			return fmt.Errorf("Only additional disks coming from a shared storage pool are supported with migration.stateful=true")
+			return errors.New("Only additional disks coming from a shared storage pool are supported with migration.stateful=true")
 		}
 	}
 
@@ -694,7 +694,7 @@ func (d *disk) validateEnvironmentSourcePath() error {
 			}
 
 			if shared.IsTrue(d.config["shift"]) {
-				return fmt.Errorf(`The "shift" property cannot be used with a restricted source path`)
+				return errors.New(`The "shift" property cannot be used with a restricted source path`)
 			}
 
 			d.restrictedParentSourcePath = shared.HostPath(restrictedParentSourcePath)
@@ -995,10 +995,9 @@ func (d *disk) vmVirtfsProxyHelperPaths() string {
 
 // vmVirtiofsdPaths returns the path for the socket and PID file to use with virtiofsd process.
 func (d *disk) vmVirtiofsdPaths() (sockPath string, pidPath string) {
-	sockPath = filepath.Join(d.inst.DevicesPath(), "virtio-fs."+filesystem.PathNameEncode(d.name)+".sock")
-	pidPath = filepath.Join(d.inst.DevicesPath(), "virtio-fs."+filesystem.PathNameEncode(d.name)+".pid")
+	prefix := filepath.Join(d.inst.DevicesPath(), "virtio-fs."+filesystem.PathNameEncode(d.name))
 
-	return sockPath, pidPath
+	return prefix + ".sock", prefix + ".pid"
 }
 
 func (d *disk) detectVMPoolMountOpts() []string {
@@ -1234,7 +1233,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			pathSource, isPath := mount.DevSource.(deviceConfig.DevSourcePath)
 			if (isPath && shared.IsDir(pathSource.Path)) || d.sourceIsCephFs() {
 				if d.config["path"] == "" {
-					return nil, fmt.Errorf(`Missing mount "path" setting`)
+					return nil, errors.New(`Missing mount "path" setting`)
 				}
 
 				// Mount the source in the instance devices directory.
@@ -1375,7 +1374,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 		return &runConf, nil
 	}
 
-	return nil, fmt.Errorf("Disk type not supported for VMs")
+	return nil, errors.New("Disk type not supported for VMs")
 }
 
 // postStart is run after the instance is started.
@@ -1414,7 +1413,7 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 		oldRootDiskDevicePool := oldDevices[oldRootDiskDeviceKey]["pool"]
 		newRootDiskDevicePool := expandedDevices[newRootDiskDeviceKey]["pool"]
 		if oldRootDiskDevicePool != newRootDiskDevicePool {
-			return fmt.Errorf("The storage pool of the root disk can only be changed through move")
+			return errors.New("The storage pool of the root disk can only be changed through move")
 		}
 
 		// Deal with quota changes.
@@ -1574,7 +1573,7 @@ func (d *disk) generateLimits(runConf *deviceConfig.RunConfig) error {
 
 	if hasDiskLimits {
 		if !d.state.OS.CGInfo.Supports(cgroup.Blkio, nil) {
-			return fmt.Errorf("Cannot apply disk limits as blkio cgroup controller is missing")
+			return errors.New("Cannot apply disk limits as blkio cgroup controller is missing")
 		}
 
 		diskLimits, err := d.getDiskLimits()
@@ -1627,7 +1626,7 @@ type cgroupWriter struct {
 
 // Get returns the cgroup's controller key.
 func (w *cgroupWriter) Get(version cgroup.Backend, controller string, key string) (string, error) {
-	return "", fmt.Errorf("This cgroup handler does not support reading")
+	return "", errors.New("This cgroup handler does not support reading")
 }
 
 // Set applies the cgroup's controller key value.
@@ -1655,7 +1654,7 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 	var mountInfo *storagePools.MountInfo
 
 	if filepath.IsAbs(d.config["source"]) {
-		return nil, "", nil, fmt.Errorf(`When the "pool" property is set "source" must specify the name of a volume, not a path`)
+		return nil, "", nil, errors.New(`When the "pool" property is set "source" must specify the name of a volume, not a path`)
 	}
 
 	volumeName, volumeType, dbVolumeType, err := d.sourceVolumeFields()
@@ -1718,7 +1717,7 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 
 	if d.inst.Type() == instancetype.Container {
 		if dbVolume.ContentType != cluster.StoragePoolVolumeContentTypeNameFS {
-			return nil, "", nil, fmt.Errorf("Only filesystem volumes are supported for containers")
+			return nil, "", nil, errors.New("Only filesystem volumes are supported for containers")
 		}
 
 		err = d.storagePoolVolumeAttachShift(storageProjectName, d.pool.Name(), volumeName, dbVolumeType, srcPath)
@@ -2035,7 +2034,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 					}
 
 					if err != nil {
-						return fmt.Errorf("Failed to retrieve idmap of container")
+						return errors.New("Failed to retrieve idmap of container")
 					}
 
 					if !nextIdmap.Equals(ctNextIdmap) {
@@ -2047,7 +2046,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 				// we can shift the storage volume.
 				// I'm not sure if we want some locking here.
 				if volumeUsedBy[0].Name() != d.inst.Name() {
-					return fmt.Errorf("Idmaps of container and storage volume are not identical")
+					return errors.New("Idmaps of container and storage volume are not identical")
 				}
 			}
 		}
@@ -2450,7 +2449,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 	}
 
 	if dev == nil {
-		return nil, fmt.Errorf("Couldn't find a match /proc/self/mountinfo entry")
+		return nil, errors.New("Couldn't find a match /proc/self/mountinfo entry")
 	}
 
 	// Handle the most simple case

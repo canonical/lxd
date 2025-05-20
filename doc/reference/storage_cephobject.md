@@ -1,6 +1,6 @@
 ---
 discourse: lxc:[LXD&#32;object&#32;storage&#32;(S3&#32;API)](14579),lxc:[Introducing&#32;MicroCeph](15457)
-relatedlinks: '[Ceph&#32;and&#32;a&#32;LXD&#32;cluster&#32;-&#32;YouTube](https://youtube.com/watch?v=kVLGbvRU98A)'
+relatedlinks: "[Ceph&#32;and&#32;a&#32;LXD&#32;cluster&#32;-&#32;YouTube](https://youtube.com/watch?v=kVLGbvRU98A)"
 ---
 
 (storage-cephobject)=

@@ -721,7 +721,7 @@ func projectChange(s *state.State, project *api.Project, req api.ProjectPut) res
 	// Quick checks.
 	if len(featuresChanged) > 0 {
 		if project.Name == api.ProjectDefaultName {
-			return response.BadRequest(fmt.Errorf("You can't change the features of the default project"))
+			return response.BadRequest(errors.New("You can't change the features of the default project"))
 		}
 
 		// Consider the project empty if it is only used by the default profile.
@@ -840,7 +840,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 
 	// Quick checks.
 	if name == api.ProjectDefaultName {
-		return response.Forbidden(fmt.Errorf("The 'default' project cannot be renamed"))
+		return response.Forbidden(errors.New("The 'default' project cannot be renamed"))
 	}
 
 	// Perform the rename.
@@ -866,7 +866,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			if !empty {
-				return fmt.Errorf("Only empty projects can be renamed")
+				return errors.New("Only empty projects can be renamed")
 			}
 
 			err = projecthelpers.ValidName(req.Name)
@@ -922,7 +922,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 
 	// Quick checks.
 	if name == api.ProjectDefaultName {
-		return response.Forbidden(fmt.Errorf("The 'default' project cannot be deleted"))
+		return response.Forbidden(errors.New("The 'default' project cannot be deleted"))
 	}
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -937,7 +937,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if !empty {
-			return fmt.Errorf("Only empty projects can be removed")
+			return errors.New("Only empty projects can be removed")
 		}
 
 		return cluster.DeleteProject(ctx, tx.Tx(), name)
@@ -1568,7 +1568,7 @@ func projectValidateConfig(s *state.State, config map[string]string, defaultNetw
 	// be bypassed by settings from the default project's profiles that are not checked against this project's
 	// restrictions when they are configured.
 	if shared.IsTrue(config["restricted"]) && shared.IsFalse(config["features.profiles"]) {
-		return fmt.Errorf("Projects without their own profiles cannot be restricted")
+		return errors.New("Projects without their own profiles cannot be restricted")
 	}
 
 	return nil

@@ -3,6 +3,7 @@ package apparmor
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -81,7 +82,7 @@ func deleteNamespace(sysOS *sys.OS, name string) error {
 
 // hasProfile checks if the profile is already loaded.
 func hasProfile(name string) (bool, error) {
-	mangled := strings.Replace(strings.Replace(strings.Replace(name, "/", ".", -1), "<", "", -1), ">", "", -1)
+	mangled := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(name, "/", "."), "<", ""), ">", "")
 
 	profilesPath := "/sys/kernel/security/apparmor/policy/profiles"
 	if shared.PathExists(profilesPath) {
@@ -262,7 +263,7 @@ func profileName(prefix string, name string) string {
 	if len(name)+len(prefix)+3+separators >= 253 {
 		hash := sha256.New()
 		_, _ = io.WriteString(hash, name)
-		name = fmt.Sprintf("%x", hash.Sum(nil))
+		name = hex.EncodeToString(hash.Sum(nil))
 	}
 
 	if len(prefix) > 0 {

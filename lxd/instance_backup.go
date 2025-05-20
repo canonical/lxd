@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/backup"
+	"github.com/canonical/lxd/lxd/backup/config"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
@@ -137,7 +139,7 @@ func instanceBackupsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(cname) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	// Handle requests targeted to a container on a different node
@@ -173,7 +175,7 @@ func instanceBackupsGet(d *Daemon, r *http.Request) response.Response {
 		_, backupName, ok := strings.Cut(backup.Name(), "/")
 		if !ok {
 			// Not adding the name to the error response here because we were unable to check if the caller is allowed to view it.
-			return response.InternalError(fmt.Errorf("Instance backup has invalid name"))
+			return response.InternalError(errors.New("Instance backup has invalid name"))
 		}
 
 		if !canView(entity.InstanceBackupURL(projectName, c.Name(), backupName)) {
@@ -244,7 +246,7 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -328,6 +330,15 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 		req.Name = fmt.Sprintf("backup%d", backupNo)
 	}
 
+	// In case no version was selected for the backup format use the globally set format by default.
+	// This allows staying backwards compatible with older CLIs which don't yet support
+	// sending this field.
+	if req.Version == 0 {
+		req.Version = config.DefaultMetadataVersion
+	} else if req.Version > config.MaxMetadataVersion {
+		return response.BadRequest(fmt.Errorf("Invalid backup format version %d", req.Version))
+	}
+
 	// Validate the name.
 	backupName, err := backup.ValidateBackupName(req.Name)
 	if err != nil {
@@ -349,7 +360,7 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 			CompressionAlgorithm: req.CompressionAlgorithm,
 		}
 
-		err := backupCreate(s, args, inst, op)
+		err := backupCreate(s, args, inst, req.Version, op)
 		if err != nil {
 			return fmt.Errorf("Create backup: %w", err)
 		}
@@ -430,7 +441,7 @@ func instanceBackupGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
@@ -504,7 +515,7 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
@@ -610,7 +621,7 @@ func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
@@ -695,7 +706,7 @@ func instanceBackupExportGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])

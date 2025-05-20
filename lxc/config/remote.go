@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/http"
 	"os"
 	"runtime"
 	"strings"
@@ -52,6 +51,12 @@ func (c *Config) ParseRemote(raw string) (remoteName string, resourceName string
 
 // GetInstanceServer returns a lxd.InstanceServer for the remote with the given name.
 func (c *Config) GetInstanceServer(name string) (lxd.InstanceServer, error) {
+	return c.GetInstanceServerWithConnectionArgs(name, nil)
+}
+
+// GetInstanceServerWithConnectionArgs returns a lxd.InstanceServer for the remote with the given name. Any
+// populated fields of the given connection arguments override the default connection arguments for the remote.
+func (c *Config) GetInstanceServerWithConnectionArgs(name string, inArgs *lxd.ConnectionArgs) (lxd.InstanceServer, error) {
 	remote, err := c.getPrivateRemoteByName(name)
 	if err != nil {
 		return nil, err
@@ -63,7 +68,80 @@ func (c *Config) GetInstanceServer(name string) (lxd.InstanceServer, error) {
 		return nil, err
 	}
 
+	if inArgs != nil {
+		args = mergeConnectionArgs(*args, *inArgs)
+	}
+
 	return c.connectRemote(*remote, args)
+}
+
+// mergeConnectionArgs returns a copy of baseArgs where each field is overwritten with fields from additionalArgs (if
+// non-zero). This is useful for when the CLI needs the base connection arguments for a remote, but also needs to set
+// a transport wrapper for extracting headers, or to skip calling GET /1.0 on each API call.
+func mergeConnectionArgs(baseArgs lxd.ConnectionArgs, additionalArgs lxd.ConnectionArgs) *lxd.ConnectionArgs {
+	args := baseArgs
+
+	if additionalArgs.TLSServerCert != "" {
+		args.TLSServerCert = additionalArgs.TLSServerCert
+	}
+
+	if additionalArgs.TLSClientCert != "" {
+		args.TLSClientCert = additionalArgs.TLSClientCert
+	}
+
+	if additionalArgs.TLSClientKey != "" {
+		args.TLSClientKey = additionalArgs.TLSClientKey
+	}
+
+	if additionalArgs.TLSCA != "" {
+		args.TLSCA = additionalArgs.TLSCA
+	}
+
+	if additionalArgs.UserAgent != "" {
+		args.UserAgent = additionalArgs.UserAgent
+	}
+
+	if additionalArgs.AuthType != "" {
+		args.AuthType = additionalArgs.AuthType
+	}
+
+	if additionalArgs.Proxy != nil {
+		args.Proxy = additionalArgs.Proxy
+	}
+
+	if additionalArgs.HTTPClient != nil {
+		args.HTTPClient = additionalArgs.HTTPClient
+	}
+
+	if additionalArgs.TransportWrapper != nil {
+		args.TransportWrapper = additionalArgs.TransportWrapper
+	}
+
+	if additionalArgs.InsecureSkipVerify {
+		args.InsecureSkipVerify = additionalArgs.InsecureSkipVerify
+	}
+
+	if additionalArgs.CookieJar != nil {
+		args.CookieJar = additionalArgs.CookieJar
+	}
+
+	if additionalArgs.OIDCTokens != nil {
+		args.OIDCTokens = additionalArgs.OIDCTokens
+	}
+
+	if additionalArgs.SkipGetServer {
+		args.SkipGetServer = additionalArgs.SkipGetServer
+	}
+
+	if additionalArgs.CachePath != "" {
+		args.CachePath = additionalArgs.CachePath
+	}
+
+	if additionalArgs.CacheExpiry != 0 {
+		args.CacheExpiry = additionalArgs.CacheExpiry
+	}
+
+	return &args
 }
 
 // getPrivateRemoteByName returns the Remote with the given name and ensures that the remote is not public.
@@ -75,7 +153,7 @@ func (c *Config) getPrivateRemoteByName(name string) (*Remote, error) {
 
 	// Check the remote is private.
 	if remote.Public || remote.Protocol == "simplestreams" {
-		return nil, fmt.Errorf("The remote isn't a private LXD server")
+		return nil, errors.New("The remote isn't a private LXD server")
 	}
 
 	return remote, nil
@@ -133,7 +211,7 @@ func (c *Config) connectRemote(remote Remote, args *lxd.ConnectionArgs) (lxd.Ins
 
 	// HTTPS
 	if !shared.ValueInSlice(remote.AuthType, []string{api.AuthenticationMethodOIDC}) && (args.TLSClientCert == "" || args.TLSClientKey == "") {
-		return nil, fmt.Errorf("Missing TLS client certificate and key")
+		return nil, errors.New("Missing TLS client certificate and key")
 	}
 
 	d, err := lxd.ConnectLXD(remote.Addr, args)
@@ -150,25 +228,6 @@ func (c *Config) connectRemote(remote Remote, args *lxd.ConnectionArgs) (lxd.Ins
 	}
 
 	return d, nil
-}
-
-// GetInstanceServerWithTransportWrapper returns a lxd.InstanceServer for the remote with the given name and adds the
-// given transport wrapper to the lxd.ConnectionArgs.
-func (c *Config) GetInstanceServerWithTransportWrapper(name string, wrapper func(*http.Transport) lxd.HTTPTransporter) (lxd.InstanceServer, error) {
-	remote, err := c.getPrivateRemoteByName(name)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get connection arguments
-	args, err := c.getConnectionArgs(name)
-	if err != nil {
-		return nil, err
-	}
-
-	args.TransportWrapper = wrapper
-
-	return c.connectRemote(*remote, args)
 }
 
 // GetImageServer returns a ImageServer struct for the remote.
@@ -333,7 +392,7 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 		// key file (client.key is only readable to the user in any case), so we'll ignore deprecation.
 		if x509.IsEncryptedPEMBlock(pemKey) { //nolint:staticcheck
 			if c.PromptPassword == nil {
-				return nil, fmt.Errorf("Private key is password protected and no helper was configured")
+				return nil, errors.New("Private key is password protected and no helper was configured")
 			}
 
 			password, err := c.PromptPassword("client.crt")

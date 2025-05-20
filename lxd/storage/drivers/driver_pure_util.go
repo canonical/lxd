@@ -14,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -68,9 +69,9 @@ type pureError struct {
 		Message string `json:"message"`
 	} `json:"errors"`
 
-	// StatusCode is not part of the response body but is used
+	// statusCode is not part of the response body but is used
 	// to store the HTTP status code.
-	StatusCode int `json:"-"`
+	statusCode int
 }
 
 // Error returns the first error message from the Pure Storage API error.
@@ -92,7 +93,7 @@ func isPureErrorOf(err error, statusCode int, substrings ...string) bool {
 		return false
 	}
 
-	if perr.StatusCode != statusCode {
+	if perr.statusCode != statusCode {
 		return false
 	}
 
@@ -343,7 +344,7 @@ func (p *pureClient) request(method string, url url.URL, reqBody map[string]any,
 	// Return the formatted error from the body
 	pureErr, ok := respBody.(*pureError)
 	if ok {
-		pureErr.StatusCode = resp.StatusCode
+		pureErr.statusCode = resp.StatusCode
 		return pureErr
 	}
 
@@ -402,7 +403,7 @@ func (p *pureClient) getAPIVersions() ([]string, error) {
 	}
 
 	if len(resp.APIVersions) == 0 {
-		return nil, fmt.Errorf("Pure Storage does not support any API versions")
+		return nil, errors.New("Pure Storage does not support any API versions")
 	}
 
 	return resp.APIVersions, nil
@@ -792,7 +793,7 @@ func (p *pureClient) resizeVolume(poolName string, volName string, sizeBytes int
 		"provisioned": sizeBytes,
 	}
 
-	url := api.NewURL().Path("volumes").WithQuery("names", poolName+"::"+volName).WithQuery("truncate", fmt.Sprint(truncate))
+	url := api.NewURL().Path("volumes").WithQuery("names", poolName+"::"+volName).WithQuery("truncate", strconv.FormatBool(truncate))
 	err := p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
 	if err != nil {
 		return fmt.Errorf("Failed to resize volume %q in storage pool %q: %w", volName, poolName, err)
@@ -810,7 +811,7 @@ func (p *pureClient) copyVolume(srcPoolName string, srcVolName string, dstPoolNa
 		},
 	}
 
-	url := api.NewURL().Path("volumes").WithQuery("names", dstPoolName+"::"+dstVolName).WithQuery("overwrite", fmt.Sprint(overwrite))
+	url := api.NewURL().Path("volumes").WithQuery("names", dstPoolName+"::"+dstVolName).WithQuery("overwrite", strconv.FormatBool(overwrite))
 
 	if !overwrite {
 		// Disable default protection groups when creating a new volume to avoid potential issues

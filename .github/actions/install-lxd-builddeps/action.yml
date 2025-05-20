@@ -8,12 +8,7 @@ runs:
       shell: bash
       run: |
         set -eux
-        sudo add-apt-repository ppa:ubuntu-lxc/daily -y --no-update
         sudo apt-get update
-
-        # mask services from lxc-utils (`lxc-*` tools are used in test/suites/lxc-to-lxd.sh)
-        # doing this masking before the package is installed means they won't even start
-        sudo systemctl mask lxc.service lxc-net.service
 
         sudo apt-get install --no-install-recommends -y \
           build-essential \
@@ -21,13 +16,13 @@ runs:
           gettext \
           git \
           libacl1-dev \
+          libapparmor-dev \
           libcap-dev \
-          libdbus-1-dev \
-          liblxc-dev \
-          lxc-utils \
           libseccomp-dev \
-          libselinux-dev \
           libsqlite3-dev \
+          meson \
+          ninja-build \
+          python3-venv \
           libtool \
           libudev-dev \
           libuv1-dev \

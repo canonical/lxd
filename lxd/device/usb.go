@@ -1,9 +1,11 @@
 package device
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
@@ -25,8 +27,8 @@ func usbIsOurDevice(config deviceConfig.Device, usb *USBEvent) bool {
 	if (config["vendorid"] != "" && config["vendorid"] != usb.Vendor) ||
 		(config["productid"] != "" && config["productid"] != usb.Product) ||
 		(config["serial"] != "" && config["serial"] != usb.Serial) ||
-		(config["busnum"] != "" && config["busnum"] != fmt.Sprintf("%d", usb.BusNum)) ||
-		(config["devnum"] != "" && config["devnum"] != fmt.Sprintf("%d", usb.DevNum)) {
+		(config["busnum"] != "" && config["busnum"] != strconv.Itoa(usb.BusNum)) ||
+		(config["devnum"] != "" && config["devnum"] != strconv.Itoa(usb.DevNum)) {
 		return false
 	}
 
@@ -50,7 +52,7 @@ func (d *usb) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	if instConf.Architecture() == osarch.ARCH_64BIT_S390_BIG_ENDIAN {
-		return fmt.Errorf("USB devices aren't supported on s390x")
+		return errors.New("USB devices aren't supported on s390x")
 	}
 
 	rules := map[string]func(string) error{
@@ -109,12 +111,14 @@ func (d *usb) Register() error {
 
 		runConf := deviceConfig.RunConfig{}
 
-		if e.Action == "add" {
+		switch e.Action {
+		case "add":
 			err := unixDeviceSetupCharNum(state, devicesPath, "unix", deviceName, devConfig, e.Major, e.Minor, e.Path, false, &runConf)
 			if err != nil {
 				return nil, err
 			}
-		} else if e.Action == "remove" {
+
+		case "remove":
 			relativeTargetPath := strings.TrimPrefix(e.Path, "/")
 			err := unixDeviceRemove(devicesPath, "unix", deviceName, relativeTargetPath, &runConf)
 			if err != nil {
@@ -178,7 +182,7 @@ func (d *usb) startContainer() (*deviceConfig.RunConfig, error) {
 	}
 
 	if d.isRequired() && len(runConf.Mounts) <= 0 {
-		return nil, fmt.Errorf("Required USB device not found")
+		return nil, errors.New("Required USB device not found")
 	}
 
 	return &runConf, nil
@@ -186,7 +190,7 @@ func (d *usb) startContainer() (*deviceConfig.RunConfig, error) {
 
 func (d *usb) startVM() (*deviceConfig.RunConfig, error) {
 	if d.inst.Type() == instancetype.VM && shared.IsTrue(d.inst.ExpandedConfig()["migration.stateful"]) {
-		return nil, fmt.Errorf("USB devices cannot be used when migration.stateful is enabled")
+		return nil, errors.New("USB devices cannot be used when migration.stateful is enabled")
 	}
 
 	usbs, err := d.loadUsb()
@@ -207,7 +211,7 @@ func (d *usb) startVM() (*deviceConfig.RunConfig, error) {
 	}
 
 	if d.isRequired() && len(runConf.USBDevice) <= 0 {
-		return nil, fmt.Errorf("Required USB device not found")
+		return nil, errors.New("Required USB device not found")
 	}
 
 	return &runConf, nil

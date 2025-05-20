@@ -1,5 +1,5 @@
 ---
-discourse: '[Online&#32;VM&#32;live-migration&#32;(QEMU&#32;to&#32;QEMU)](50734)'
+discourse: "[Online&#32;VM&#32;live-migration&#32;(QEMU&#32;to&#32;QEMU)](50734)"
 ---
 
 (vm-live-migration-internals)=

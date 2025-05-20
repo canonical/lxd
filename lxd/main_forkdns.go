@@ -172,7 +172,7 @@ func (h *dnsHandler) handlePTR(r *dns.Msg) (dns.Msg, error) {
 		req.RecursionDesired = false
 		req.Id = r.Id
 
-		resp, err := dns.Exchange(&req, fmt.Sprintf("%s:1053", server))
+		resp, err := dns.Exchange(&req, server+":1053")
 		if err != nil || len(resp.Answer) == 0 {
 			// Error or empty response, try the next one
 			continue
@@ -275,7 +275,7 @@ func (h *dnsHandler) handleA(r *dns.Msg) (dns.Msg, error) {
 		req.RecursionDesired = false
 		req.Id = r.Id
 
-		resp, err := dns.Exchange(&req, fmt.Sprintf("%s:1053", server))
+		resp, err := dns.Exchange(&req, server+":1053")
 		if err != nil || resp.Rcode != dns.RcodeSuccess {
 			// Error sending request or error response, try next server.
 			continue
@@ -319,7 +319,7 @@ func (h *dnsHandler) getLeaseHostByDNSName(dnsName string) (string, error) {
 	return "", nil
 }
 
-func (c *cmdForkDNS) Command() *cobra.Command {
+func (c *cmdForkDNS) command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
 	cmd.Use = "forkdns <listen address> <domain> <network name>"
@@ -335,13 +335,13 @@ func (c *cmdForkDNS) Command() *cobra.Command {
   When "recursion desired" flag is set to no, this indicates the request has been sent from another
   forkdns process, and the local dnsmasq lease file only is parsed to try and answer the query.
 `
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Hidden = true
 
 	return cmd
 }
 
-func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdForkDNS) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if len(args) < 3 {
 		_ = cmd.Help()
@@ -350,7 +350,7 @@ func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
-		return fmt.Errorf("Missing required arguments")
+		return errors.New("Missing required arguments")
 	}
 
 	err := logger.InitLogger("", "lxd-forkdns", c.global.flagLogVerbose, c.global.flagLogDebug, nil)

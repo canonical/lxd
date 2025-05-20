@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -34,7 +35,7 @@ func NotifyUpgradeCompleted(state *state.State, networkCert *shared.CertInfo, se
 		}
 
 		url := info.Addresses[0] + databaseEndpoint
-		request, err := http.NewRequest("PATCH", url, nil)
+		request, err := http.NewRequest(http.MethodPatch, url, nil)
 		if err != nil {
 			return fmt.Errorf("failed to create database notify upgrade request: %w", err)
 		}
@@ -74,7 +75,7 @@ func MaybeUpdate(state *state.State) error {
 	}
 
 	if state.DB.Cluster == nil {
-		return fmt.Errorf("Failed checking cluster update, state not initialised yet")
+		return errors.New("Failed checking cluster update, state not initialised yet")
 	}
 
 	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {

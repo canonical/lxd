@@ -45,15 +45,15 @@ type Response interface {
 	String() string
 }
 
-// Devlxd response.
-type devLxdResponse struct {
+// devLXDResponse represents a devLXD API response.
+type devLXDResponse struct {
 	content     any
 	code        int
 	contentType string
 }
 
 // Render renders a response for requests against the /dev/lxd socket.
-func (r *devLxdResponse) Render(w http.ResponseWriter, req *http.Request) (err error) {
+func (r *devLXDResponse) Render(w http.ResponseWriter, req *http.Request) (err error) {
 	if r.code != http.StatusOK {
 		http.Error(w, fmt.Sprint(r.content), r.code)
 	} else if r.contentType == "json" {
@@ -74,7 +74,7 @@ func (r *devLxdResponse) Render(w http.ResponseWriter, req *http.Request) (err e
 	return err
 }
 
-func (r *devLxdResponse) String() string {
+func (r *devLXDResponse) String() string {
 	if r.code == http.StatusOK {
 		return "success"
 	}
@@ -82,27 +82,27 @@ func (r *devLxdResponse) String() string {
 	return "failure"
 }
 
-// DevLxdErrorResponse returns an error response. If rawResponse is true, a api.ResponseRaw will be sent instead of a minimal devLxdResponse.
-func DevLxdErrorResponse(err error, rawResponse bool) Response {
+// DevLXDErrorResponse returns an error response. If rawResponse is true, a api.ResponseRaw will be sent instead of a minimal devLXDResponse.
+func DevLXDErrorResponse(err error, rawResponse bool) Response {
 	if rawResponse {
 		return SmartError(err)
 	}
 
 	code, ok := api.StatusErrorMatch(err)
 	if ok {
-		return &devLxdResponse{content: err.Error(), code: code, contentType: "raw"}
+		return &devLXDResponse{content: err.Error(), code: code, contentType: "raw"}
 	}
 
-	return &devLxdResponse{content: err.Error(), code: http.StatusInternalServerError, contentType: "raw"}
+	return &devLXDResponse{content: err.Error(), code: http.StatusInternalServerError, contentType: "raw"}
 }
 
-// DevLxdResponse represents a devLxdResponse. If rawResponse is true, a api.ResponseRaw will be sent instead of a minimal devLxdResponse.
-func DevLxdResponse(code int, content any, contentType string, rawResponse bool) Response {
+// DevLXDResponse represents a devLXDResponse. If rawResponse is true, a api.ResponseRaw will be sent instead of a minimal devLXDResponse.
+func DevLXDResponse(code int, content any, contentType string, rawResponse bool) Response {
 	if rawResponse {
 		return SyncResponse(true, content)
 	}
 
-	return &devLxdResponse{content: content, code: code, contentType: contentType}
+	return &devLXDResponse{content: content, code: code, contentType: contentType}
 }
 
 // Sync response.

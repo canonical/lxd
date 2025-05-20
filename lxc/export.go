@@ -23,6 +23,7 @@ type cmdExport struct {
 	flagInstanceOnly         bool
 	flagOptimizedStorage     bool
 	flagCompressionAlgorithm string
+	flagExportVersion        string
 }
 
 func (c *cmdExport) command() *cobra.Command {
@@ -41,6 +42,16 @@ func (c *cmdExport) command() *cobra.Command {
 	cmd.Flags().BoolVar(&c.flagOptimizedStorage, "optimized-storage", false,
 		i18n.G("Use storage driver optimized format (can only be restored on a similar pool)"))
 	cmd.Flags().StringVar(&c.flagCompressionAlgorithm, "compression", "", i18n.G("Compression algorithm to use (none for uncompressed)")+"``")
+	cmd.Flags().StringVar(&c.flagExportVersion, "export-version", "",
+		i18n.G("Use a different metadata format version than the latest one supported by the server")+"``")
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
+		if len(args) > 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		return c.global.cmpTopLevelResource("instance", toComplete)
+	}
 
 	return cmd
 }
@@ -74,6 +85,11 @@ func (c *cmdExport) run(cmd *cobra.Command, args []string) error {
 		InstanceOnly:         instanceOnly,
 		OptimizedStorage:     c.flagOptimizedStorage,
 		CompressionAlgorithm: c.flagCompressionAlgorithm,
+	}
+
+	req.Version, err = getExportVersion(d, c.flagExportVersion)
+	if err != nil {
+		return err
 	}
 
 	op, err := d.CreateInstanceBackup(name, req)

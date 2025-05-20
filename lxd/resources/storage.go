@@ -41,7 +41,7 @@ func storageAddDriveInfo(devicePath string, disk *api.ResourcesStorageDisk) erro
 	}
 
 	// Retrieve udev information
-	udevInfo := filepath.Join(runUdevData, fmt.Sprintf("b%s", disk.Device))
+	udevInfo := filepath.Join(runUdevData, "b"+disk.Device)
 	if sysfsExists(udevInfo) {
 		// Get the udev information
 		f, err := os.Open(udevInfo)

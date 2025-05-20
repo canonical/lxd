@@ -510,13 +510,7 @@ func autoCreateInstanceSnapshots(ctx context.Context, s *state.State, instances 
 			return err
 		}
 
-		expiry, err := shared.GetExpiry(time.Now(), inst.ExpandedConfig()["snapshots.expiry"])
-		if err != nil {
-			l.Error("Error getting snapshots.expiry date")
-			return err
-		}
-
-		err = inst.Snapshot(snapshotName, expiry, false)
+		err = inst.Snapshot(snapshotName, nil, false)
 		if err != nil {
 			l.Error("Error creating snapshot", logger.Ctx{"snapshot": snapshotName, "err": err})
 			return err
@@ -553,10 +547,10 @@ func pruneExpiredInstanceSnapshots(ctx context.Context, snapshots []instance.Ins
 	return nil
 }
 
-func pruneExpiredAndAutoCreateInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
+func pruneExpiredAndAutoCreateInstanceSnapshotsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
 	// `f` creates new scheduled instance snapshots and then, prune the expired ones
 	f := func(ctx context.Context) {
-		s := d.State()
+		s := stateFunc()
 		var instances, expiredSnapshotInstances []instance.Instance
 
 		// Get list of expired instance snapshots for this local member.
@@ -780,5 +774,5 @@ func instanceOperationLock(ctx context.Context, projectName string, instanceName
 	l.Debug("Acquiring lock for instance")
 	defer l.Debug("Lock acquired for instance")
 
-	return locking.Lock(ctx, fmt.Sprintf("InstanceOperation_%s", project.Instance(projectName, instanceName)))
+	return locking.Lock(ctx, "InstanceOperation_"+project.Instance(projectName, instanceName))
 }

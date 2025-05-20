@@ -31,7 +31,7 @@ type InfoResponse struct {
 // Err returns the error of the response.
 func (r *InfoResponse) Err() error {
 	if r.StatusCode != http.StatusOK {
-		return api.StatusErrorf(r.StatusCode, r.Error)
+		return api.NewStatusError(r.StatusCode, r.Error)
 	}
 
 	return nil
@@ -104,11 +104,12 @@ func TypesToHeader(types ...Type) *MigrationHeader {
 		}
 
 		for _, feature := range preferredType.Features {
-			if feature == "compress" {
+			switch feature {
+			case "compress":
 				features.Compress = &hasFeature
-			} else if feature == ZFSFeatureMigrationHeader {
+			case ZFSFeatureMigrationHeader:
 				features.MigrationHeader = &hasFeature
-			} else if feature == ZFSFeatureZvolFilesystems {
+			case ZFSFeatureZvolFilesystems:
 				features.HeaderZvols = &hasFeature
 			}
 		}
@@ -124,11 +125,12 @@ func TypesToHeader(types ...Type) *MigrationHeader {
 		}
 
 		for _, feature := range preferredType.Features {
-			if feature == BTRFSFeatureMigrationHeader {
+			switch feature {
+			case BTRFSFeatureMigrationHeader:
 				features.MigrationHeader = &hasFeature
-			} else if feature == BTRFSFeatureSubvolumes {
+			case BTRFSFeatureSubvolumes:
 				features.HeaderSubvolumes = &hasFeature
-			} else if feature == BTRFSFeatureSubvolumeUUIDs {
+			case BTRFSFeatureSubvolumeUUIDs:
 				features.HeaderSubvolumeUuids = &hasFeature
 			}
 		}
@@ -150,13 +152,14 @@ func TypesToHeader(types ...Type) *MigrationHeader {
 		}
 
 		for _, feature := range t.Features {
-			if feature == "xattrs" {
+			switch feature {
+			case "xattrs":
 				features.Xattrs = &hasFeature
-			} else if feature == "delete" {
+			case "delete":
 				features.Delete = &hasFeature
-			} else if feature == "compress" {
+			case "compress":
 				features.Compress = &hasFeature
-			} else if feature == "bidirectional" {
+			case "bidirectional":
 				features.Bidirectional = &hasFeature
 			}
 		}

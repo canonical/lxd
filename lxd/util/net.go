@@ -3,9 +3,10 @@ package util
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
+	"errors"
 	"net"
 	"os"
+	"strconv"
 
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
@@ -43,7 +44,7 @@ func (l *inMemoryListener) Accept() (net.Conn, error) {
 	case conn := <-l.conns:
 		return conn, nil
 	case <-l.closed:
-		return nil, fmt.Errorf("closed")
+		return nil, errors.New("closed")
 	}
 }
 
@@ -81,15 +82,15 @@ func CanonicalNetworkAddress(address string, defaultPort int64) string {
 		if ip != nil {
 			// If the input address is a bare IP address, then convert it to a proper listen address
 			// using the canonical IP with default port and wrap IPv6 addresses in square brackets.
-			address = net.JoinHostPort(ip.String(), fmt.Sprint(defaultPort))
+			address = net.JoinHostPort(ip.String(), strconv.FormatInt(defaultPort, 10))
 		} else {
 			// Otherwise assume this is either a host name or a partial address (e.g `[::]`) without
 			// a port number, so append the default port.
-			address = address + ":" + fmt.Sprint(defaultPort)
+			address = address + ":" + strconv.FormatInt(defaultPort, 10)
 		}
 	} else if port == "" && address[len(address)-1] == ':' {
 		// An address that ends with a trailing colon will be parsed as having an empty port.
-		address = net.JoinHostPort(host, fmt.Sprint(defaultPort))
+		address = net.JoinHostPort(host, strconv.FormatInt(defaultPort, 10))
 	}
 
 	return address
@@ -100,7 +101,7 @@ func CanonicalNetworkAddress(address string, defaultPort int64) string {
 func CanonicalNetworkAddressFromAddressAndPort(address string, port int64, defaultPort int64) string {
 	// Because we accept just the host part of an IPv6 listen address (e.g. `[::]`) don't use net.JoinHostPort.
 	// If a bare IP address is supplied then CanonicalNetworkAddress will use net.JoinHostPort if needed.
-	return CanonicalNetworkAddress(address+":"+fmt.Sprint(port), defaultPort)
+	return CanonicalNetworkAddress(address+":"+strconv.FormatInt(port, 10), defaultPort)
 }
 
 // ServerTLSConfig returns a new server-side tls.Config generated from the give
@@ -285,7 +286,7 @@ func SysctlGet(path string) (string, error) {
 func SysctlSet(parts ...string) error {
 	partsLen := len(parts)
 	if partsLen%2 != 0 {
-		return fmt.Errorf("Requires even number of arguments")
+		return errors.New("Requires even number of arguments")
 	}
 
 	for i := 0; i < partsLen; i = i + 2 {

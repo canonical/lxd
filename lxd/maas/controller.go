@@ -1,6 +1,7 @@
 package maas
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -42,7 +43,7 @@ type ContainerInterfaceSubnet struct {
 func parseInterfaces(interfaces []ContainerInterface) (map[string]ContainerInterface, error) {
 	// Quick checks.
 	if len(interfaces) == 0 {
-		return nil, fmt.Errorf("At least one interface must be provided")
+		return nil, errors.New("At least one interface must be provided")
 	}
 
 	// Parse the MACs and interfaces
@@ -50,15 +51,15 @@ func parseInterfaces(interfaces []ContainerInterface) (map[string]ContainerInter
 	for _, iface := range interfaces {
 		_, ok := macInterfaces[iface.MACAddress]
 		if ok {
-			return nil, fmt.Errorf("MAAS doesn't allow duplicate MAC addresses")
+			return nil, errors.New("MAAS doesn't allow duplicate MAC addresses")
 		}
 
 		if iface.MACAddress == "" {
-			return nil, fmt.Errorf("Interfaces must have a MAC address")
+			return nil, errors.New("Interfaces must have a MAC address")
 		}
 
 		if len(iface.Subnets) == 0 {
-			return nil, fmt.Errorf("Interfaces must have at least one subnet")
+			return nil, errors.New("Interfaces must have at least one subnet")
 		}
 
 		macInterfaces[iface.MACAddress] = iface
@@ -69,7 +70,7 @@ func parseInterfaces(interfaces []ContainerInterface) (map[string]ContainerInter
 
 // NewController returns a new Controller using the specific MAAS server and machine.
 func NewController(url string, key string, machine string) (*Controller, error) {
-	baseURL := fmt.Sprintf("%s/api/2.0/", url)
+	baseURL := url + "/api/2.0/"
 
 	// Connect to MAAS
 	srv, err := gomaasapi.NewController(gomaasapi.ControllerArgs{
@@ -172,7 +173,7 @@ func (c *Controller) CreateContainer(inst Instance, interfaces []ContainerInterf
 
 	// Validation
 	if len(interfaces) < 1 {
-		return fmt.Errorf("Empty list of MAAS interface provided")
+		return errors.New("Empty list of MAAS interface provided")
 	}
 
 	for _, iface := range interfaces {
@@ -291,7 +292,7 @@ func (c *Controller) UpdateContainer(inst Instance, interfaces []ContainerInterf
 
 	// Validation
 	if len(interfaces) < 1 {
-		return fmt.Errorf("Empty list of MAAS interface provided")
+		return errors.New("Empty list of MAAS interface provided")
 	}
 
 	for _, iface := range interfaces {

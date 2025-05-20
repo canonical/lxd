@@ -1,8 +1,9 @@
 package simplestreams
 
 import (
-	"fmt"
+	"errors"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -118,19 +119,21 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 				// Figure out the fingerprint
 				fingerprint := ""
 				if root != nil {
-					if root.FileType == "root.tar.xz" {
+					switch root.FileType {
+					case "root.tar.xz":
 						if meta.LXDHashSha256RootXz != "" {
 							fingerprint = meta.LXDHashSha256RootXz
 						} else {
 							fingerprint = meta.LXDHashSha256
 						}
-					} else if root.FileType == "squashfs" {
+
+					case "squashfs":
 						fingerprint = meta.LXDHashSha256SquashFs
-					} else if root.FileType == "disk-kvm.img" {
+					case "disk-kvm.img":
 						fingerprint = meta.LXDHashSha256DiskKvmImg
-					} else if root.FileType == "disk1.img" {
+					case "disk1.img":
 						fingerprint = meta.LXDHashSha256DiskImg
-					} else if root.FileType == "uefi1.img" {
+					case "uefi1.img":
 						fingerprint = meta.LXDHashSha256DiskUefiImg
 					}
 				} else {
@@ -138,7 +141,7 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 				}
 
 				if fingerprint == "" {
-					return fmt.Errorf("No LXD image fingerprint found")
+					return errors.New("No LXD image fingerprint found")
 				}
 
 				// Figure out the size
@@ -149,7 +152,7 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 
 				// Determine filename
 				if meta.Path == "" {
-					return fmt.Errorf("Missing path field on metadata entry")
+					return errors.New("Missing path field on metadata entry")
 				}
 
 				fields := strings.Split(meta.Path, "/")
@@ -233,11 +236,11 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 				// Set the file list
 				var imgDownloads [][]string
 				if root == nil {
-					imgDownloads = [][]string{{meta.Path, meta.HashSha256, "meta", fmt.Sprint(meta.Size)}}
+					imgDownloads = [][]string{{meta.Path, meta.HashSha256, "meta", strconv.FormatInt(meta.Size, 10)}}
 				} else {
 					imgDownloads = [][]string{
-						{meta.Path, meta.HashSha256, "meta", fmt.Sprint(meta.Size)},
-						{root.Path, root.HashSha256, "root", fmt.Sprint(root.Size)}}
+						{meta.Path, meta.HashSha256, "meta", strconv.FormatInt(meta.Size, 10)},
+						{root.Path, root.HashSha256, "root", strconv.FormatInt(root.Size, 10)}}
 				}
 
 				// Add the deltas
@@ -257,9 +260,10 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 
 						// Take correct source image fingerprint based on
 						// delta file type.
-						if delta.FileType == "disk-kvm.img.vcdiff" {
+						switch delta.FileType {
+						case "disk-kvm.img.vcdiff":
 							srcFingerprint = item.LXDHashSha256DiskKvmImg
-						} else if delta.FileType == "squashfs.vcdiff" {
+						case "squashfs.vcdiff":
 							srcFingerprint = item.LXDHashSha256SquashFs
 						}
 
@@ -276,7 +280,7 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 						delta.Path,
 						delta.HashSha256,
 						"root.delta-" + srcFingerprint,
-						fmt.Sprint(delta.Size)})
+						strconv.FormatInt(delta.Size, 10)})
 				}
 
 				// Add the image

@@ -5,7 +5,6 @@ test_storage_volume_snapshots() {
 
   lxd_backend=$(storage_backend "$LXD_DIR")
   LXD_STORAGE_DIR=$(mktemp -d -p "${TEST_DIR}" XXXXXXXXX)
-  chmod +x "${LXD_STORAGE_DIR}"
   spawn_lxd "${LXD_STORAGE_DIR}" false
   lxc remote add test "${LXD_ADDR}" --accept-certificate --password foo
 
@@ -92,9 +91,19 @@ EOF
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | sed '/^expires_at:/d' | lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0"
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep -q '^expires_at: 0001-01-01T00:00:00Z'
 
+  # Check the API returns the zero time representation when listing all snapshots in recursive mode.
+  [ "$(lxc query "/1.0/storage-pools/${storage_pool}/volumes/custom/${storage_volume}/snapshots?recursion=2" | jq -r '.[] | select(.name == "'"${storage_volume}/snap0"'") | .expires_at')" = "0001-01-01T00:00:00Z" ]
+
   lxc storage volume set "${storage_pool}" "${storage_volume}" snapshots.expiry '1d'
   lxc storage volume snapshot "${storage_pool}" "${storage_volume}"
-  ! lxc storage volume show "${storage_pool}" "${storage_volume}/snap1" | grep -q 'expires_at: 0001-01-01T00:00:00Z' || false
+
+  # Get snapshot created_at and expires_at properties.
+  # Remove the " +0000 UTC" from the end of the timestamp so we can add one day using `date`.
+  created_at="$(lxc storage volume get "${storage_pool}" "${storage_volume}/snap1" --property created_at | awk -F' +' '{print $1}')"
+  expires_at="$(lxc storage volume get "${storage_pool}" "${storage_volume}/snap1" --property expires_at | awk -F' +' '{print $1}')"
+
+  # Check if the expires_at propery is exactly 1d ahead.
+  [ "$(date -d "${created_at} today + 1days")" = "$(date -d "${expires_at}")" ]
 
   lxc storage volume snapshot "${storage_pool}" "${storage_volume}" --no-expiry
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap2" | grep -q 'expires_at: 0001-01-01T00:00:00Z'

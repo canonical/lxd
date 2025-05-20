@@ -293,7 +293,7 @@ type ClusterMemberStatePost struct {
 	// Override the configured evacuation mode.
 	// Example: stop
 	//
-	// API extension: clustering_evacuate_mode
+	// API extension: clustering_evacuation_mode
 	Mode string `json:"mode" yaml:"mode"`
 }
 

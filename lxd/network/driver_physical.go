@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -219,6 +220,13 @@ func (n *physical) Validate(config map[string]string) error {
 		return err
 	}
 
+	// Check that ipv4.routes and ipv6.routes contain the routes for existing OVN network
+	// forwards and load balancers.
+	err = n.validateRoutes(config)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -363,7 +371,7 @@ func (n *physical) setup(oldConfig map[string]string) error {
 	// Record if we created this device or not (if we have not already recorded that we created it previously),
 	// so it can be removed on stop. This way we won't overwrite the setting on LXD restart.
 	if shared.IsFalseOrEmpty(n.config["volatile.last_state.created"]) {
-		n.config["volatile.last_state.created"] = fmt.Sprint(created)
+		n.config["volatile.last_state.created"] = strconv.FormatBool(created)
 		err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.UpdateNetwork(ctx, n.project, n.name, n.description, n.config)
 		})
@@ -455,7 +463,7 @@ func (n *physical) Update(newNetwork api.NetworkPut, targetNode string, clientTy
 		if hostNameChanged {
 			isUsed, err := n.IsUsed()
 			if isUsed || err != nil {
-				return fmt.Errorf("Cannot update network parent interface when in use")
+				return errors.New("Cannot update network parent interface when in use")
 			}
 
 			inUse, err := n.checkParentUse(newNetwork.Config)

@@ -59,11 +59,11 @@ copyright = '2014-%s %s' % (datetime.date.today().year, author)
 # don't know yet)
 # NOTE: If no ogp_* variable is defined (e.g. if you remove this section) the
 # sphinxext.opengraph extension will be disabled.
-ogp_site_url = 'https://documentation.ubuntu.com/lxd/en/latest/'
+ogp_site_url = 'https://documentation.ubuntu.com/lxd/latest/'
 # The documentation website name (usually the same as the product name)
 ogp_site_name = 'LXD documentation'
 # The URL of an image or logo that is used in the preview
-ogp_image = 'https://documentation.ubuntu.com/lxd/en/latest/_static/tag.png'
+ogp_image = 'https://documentation.ubuntu.com/lxd/latest/_static/tag.png'
 
 # Update with the local path to the favicon for your product
 # (default is the circle of friends)
@@ -158,12 +158,14 @@ linkcheck_ignore = [
     'http://localhost:8000',
     'http://localhost:8080',
     'http://localhost:8080/admin',
-    r'/lxd/en/latest/api/.*',
+    r'/lxd/latest/api/.*',
     r'/api/.*',
     # Those links may fail from time to time
     'https://www.dell.com/',
     'https://www.dell.com/en-us/shop/powerflex/sf/powerflex',
     'https://www.gnu.org/licenses/agpl-3.0.en.html',
+    # 403 from GH runners
+    'https://www.schlachter.tech/solutions/pongo2-template-engine/',
     ]
 
 # Pages on which to ignore anchors
@@ -282,7 +284,7 @@ if os.path.exists('./related_topics.yaml'):
 if ('LOCAL_SPHINX_BUILD' in os.environ) and (os.environ['LOCAL_SPHINX_BUILD'] == 'True'):
     swagger_url_scheme = '/api/#{{path}}'
 else:
-    swagger_url_scheme = '/lxd/en/latest/api/#{{path}}'
+    swagger_url_scheme = '/lxd/latest/api/#{{path}}'
 
 myst_url_schemes = {
     'http': None,
@@ -405,9 +407,8 @@ if ('TOPICAL' in os.environ) and (os.environ['TOPICAL'] == 'True'):
     custom_tags.append('topical')
     toc_filter_exclude = ['diataxis']
 else:
-    custom_excludes.extend(['security.md','external_resources.md','reference/network_external.md','migration.md'])
+    custom_excludes.extend(['security.md','external_resources.md','reference/network_external.md'])
     redirects['security/index'] = '../explanation/security/'
-    redirects['migration/index'] = '../howto/import_machines_to_instances/'
     custom_tags.append('diataxis')
     toc_filter_exclude = ['topical']
 

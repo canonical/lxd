@@ -151,7 +151,7 @@ func transferRootDiskForConversion(ctx context.Context, op lxd.Operation, rootfs
 
 func (c *cmdMigrate) connectLocal(path string) (lxd.InstanceServer, error) {
 	args := lxd.ConnectionArgs{}
-	args.UserAgent = fmt.Sprintf("LXD-MIGRATE %s", version.Version)
+	args.UserAgent = "LXD-MIGRATE " + version.Version
 
 	return lxd.ConnectLXDUnix(path, &args)
 }
@@ -204,7 +204,7 @@ func (c *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 	}
 
 	// Attempt to connect using the system CA
-	args.UserAgent = fmt.Sprintf("LXD-MIGRATE %s", version.Version)
+	args.UserAgent = "LXD-MIGRATE " + version.Version
 	instanceServer, err := lxd.ConnectLXD(url, &args)
 
 	var certificate *x509.Certificate
@@ -254,7 +254,7 @@ func (c *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 			// In non-interactive mode stop at this point, as we know that the server
 			// does not trust us, but we should not make any further interaction with the caller.
 			if certPath != "" || keyPath != "" {
-				return nil, "", fmt.Errorf("Provided certificate is not trusted by the server")
+				return nil, "", errors.New("Provided certificate is not trusted by the server")
 			}
 
 			return nil, "", errors.New("Failed to authenticate with the server: Please, either provide a trust token or an already trusted certificate")
@@ -363,7 +363,7 @@ func parseURL(URL string) (string, error) {
 
 	// Create a URL with scheme and hostname since it wasn't provided
 	if u.Scheme == "" && u.Host == "" && u.Path != "" {
-		u, err = url.Parse(fmt.Sprintf("https://%s", u.Path))
+		u, err = url.Parse("https://" + u.Path)
 		if err != nil {
 			return "", err
 		}

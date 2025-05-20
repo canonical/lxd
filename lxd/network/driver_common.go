@@ -209,6 +209,105 @@ func (n *common) validateZoneNames(config map[string]string) error {
 	return nil
 }
 
+// validateRoutes checks that ip routes are compatible with existing forwards and load balancers.
+func (n *common) validateRoutes(config map[string]string) error {
+	var (
+		routesListIPv4 []*net.IPNet
+		routesListIPv6 []*net.IPNet
+
+		forwards      map[string]map[string][]string
+		loadBalancers map[string]map[string][]string
+
+		err error
+	)
+
+	if config["ipv4.routes"] != "" {
+		routesListIPv4, err = shared.ParseNetworks(config["ipv4.routes"])
+		if err != nil {
+			return fmt.Errorf("Failed parsing ipv4.routes: %w", err)
+		}
+	}
+
+	if config["ipv6.routes"] != "" {
+		routesListIPv6, err = shared.ParseNetworks(config["ipv6.routes"])
+		if err != nil {
+			return fmt.Errorf("Failed parsing ipv6.routes: %w", err)
+		}
+	}
+
+	// Get all listen addresses for all dependent OVN networks.
+	// OVN networks do not support per-member forwards.
+	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		forwards, err = tx.GetProjectNetworkForwardListenAddressesByUplink(ctx, n.name, false)
+		if err != nil {
+			return fmt.Errorf("Failed to get listen addresses of OVN network forwards: %w", err)
+		}
+
+		loadBalancers, err = tx.GetProjectNetworkLoadBalancerListenAddressesByUplink(ctx, n.name, false)
+		if err != nil {
+			return fmt.Errorf("Failed to get listen addresses of OVN load balancers: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	checkListenAddressesOVN := func(project string, network string, ips []string) error {
+		for _, ip := range ips {
+			var routesKey string
+
+			netIP := net.ParseIP(ip)
+			routeExists := false
+
+			if netIP.To4() != nil {
+				// Listen address is IPv4.
+				for _, routes := range routesListIPv4 {
+					if routes.Contains(netIP) {
+						routeExists = true
+					}
+				}
+
+				routesKey = "ipv4.routes"
+			} else {
+				// Listen address is IPv6.
+				for _, routes := range routesListIPv6 {
+					if routes.Contains(netIP) {
+						routeExists = true
+					}
+				}
+
+				routesKey = "ipv6.routes"
+			}
+
+			if !routeExists {
+				return fmt.Errorf("%q is missing network for listener %q of network %q in project %q", routesKey, ip, network, project)
+			}
+		}
+
+		return nil
+	}
+
+	// Check that IP routes are provided for already existing OVN forwards and load balancers.
+	for _, listenAddresses := range []map[string]map[string][]string{forwards, loadBalancers} {
+		for project, networks := range listenAddresses {
+			for network, ips := range networks {
+				if n.name == network && n.project == project {
+					continue // Skip forwards set up on the uplink.
+				}
+
+				err = checkListenAddressesOVN(project, network, ips)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // ValidateName validates network name.
 func (n *common) ValidateName(name string) error {
 	err := validate.IsURLSegmentSafe(name)
@@ -853,7 +952,7 @@ func (n *common) projectUplinkIPQuotaAvailable(ctx context.Context, tx *db.Clust
 // forwardValidate validates the forward request.
 func (n *common) forwardValidate(listenAddress net.IP, forward api.NetworkForwardPut) ([]*forwardPortMap, error) {
 	if listenAddress == nil {
-		return nil, fmt.Errorf("Invalid listen address")
+		return nil, errors.New("Invalid listen address")
 	}
 
 	if listenAddress.IsUnspecified() {
@@ -898,17 +997,17 @@ func (n *common) forwardValidate(listenAddress net.IP, forward api.NetworkForwar
 
 	if forward.Config["target_address"] != "" {
 		if defaultTargetAddress == nil {
-			return nil, fmt.Errorf("Invalid default target address")
+			return nil, errors.New("Invalid default target address")
 		}
 
 		defaultTargetIsIP4 := defaultTargetAddress.To4() != nil
 		if listenIsIP4 != defaultTargetIsIP4 {
-			return nil, fmt.Errorf("Cannot mix IP versions in listen address and default target address")
+			return nil, errors.New("Cannot mix IP versions in listen address and default target address")
 		}
 
 		// Check default target address is within network's subnet.
 		if netSubnet != nil && !SubnetContainsIP(netSubnet, defaultTargetAddress) {
-			return nil, fmt.Errorf("Default target address is not within the network subnet")
+			return nil, errors.New("Default target address is not within the network subnet")
 		}
 	}
 
@@ -1173,7 +1272,7 @@ func (n *common) getExternalSubnetInUse(ctx context.Context, tx *db.ClusterTx, u
 // loadBalancerValidate validates the load balancer request.
 func (n *common) loadBalancerValidate(listenAddress net.IP, forward api.NetworkLoadBalancerPut) ([]*loadBalancerPortMap, error) {
 	if listenAddress == nil {
-		return nil, fmt.Errorf("Invalid listen address")
+		return nil, errors.New("Invalid listen address")
 	}
 
 	listenIsIP4 := listenAddress.To4() != nil

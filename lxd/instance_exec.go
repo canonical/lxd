@@ -33,7 +33,6 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/logger"
-	"github.com/canonical/lxd/shared/tcp"
 	"github.com/canonical/lxd/shared/version"
 	"github.com/canonical/lxd/shared/ws"
 )
@@ -49,8 +48,8 @@ type execWs struct {
 	instance              instance.Instance
 	conns                 map[int]*websocket.Conn
 	connsLock             sync.Mutex
-	waitRequiredConnected *cancel.Canceller
-	waitControlConnected  *cancel.Canceller
+	waitRequiredConnected cancel.Canceller
+	waitControlConnected  cancel.Canceller
 	fds                   map[int]string
 	s                     *state.State
 }
@@ -78,7 +77,7 @@ func (s *execWs) Metadata() any {
 func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
-		return fmt.Errorf("missing secret")
+		return errors.New("missing secret")
 	}
 
 	for fd, fdSecret := range s.fds {
@@ -94,30 +93,7 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 			if found && val == nil {
 				s.conns[fd] = conn
 
-				// Set TCP timeout options.
-				remoteTCP, _ := tcp.ExtractConn(conn.UnderlyingConn())
-				if remoteTCP != nil {
-					err = tcp.SetTimeouts(remoteTCP, 0)
-					if err != nil {
-						logger.Warn("Failed setting TCP timeouts on remote connection", logger.Ctx{"err": err})
-					}
-
-					// Start channel keep alive to run until channel is closed.
-					go func() {
-						pingInterval := time.Second * 10
-						t := time.NewTicker(pingInterval)
-						defer t.Stop()
-
-						for {
-							err := conn.WriteControl(websocket.PingMessage, []byte("keepalive"), time.Now().Add(5*time.Second))
-							if err != nil {
-								return
-							}
-
-							<-t.C
-						}
-					}()
-				}
+				ws.StartKeepAlive(conn)
 
 				if fd == execWSControl {
 					s.waitControlConnected.Cancel() // Control connection connected.
@@ -144,10 +120,10 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 				s.connsLock.Unlock()
 				return nil
 			} else if !found {
-				return fmt.Errorf("Unknown websocket number")
+				return errors.New("Unknown websocket number")
 			}
 
-			return fmt.Errorf("Websocket number already connected")
+			return errors.New("Websocket number already connected")
 		}
 	}
 
@@ -175,7 +151,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 	select {
 	case <-s.waitRequiredConnected.Done():
 	case <-time.After(time.Second * 5):
-		return fmt.Errorf("Timed out waiting for websockets to connect")
+		return errors.New("Timed out waiting for websockets to connect")
 	}
 
 	var err error
@@ -197,7 +173,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 			c, ok := s.instance.(instance.Container)
 			if !ok {
-				return fmt.Errorf("Invalid instance type")
+				return errors.New("Invalid instance type")
 			}
 
 			idmapset, err := c.CurrentIdmap()
@@ -314,15 +290,14 @@ func (s *execWs) Do(op *operations.Operation) error {
 	l := logger.AddContext(logger.Ctx{"project": s.instance.Project().Name, "instance": s.instance.Name(), "PID": cmd.PID(), "interactive": s.req.Interactive})
 	l.Debug("Instance process started")
 
-	var cmdKillOnce sync.Once
-	cmdKill := func() {
+	cmdKill := sync.OnceFunc(func() {
 		err := cmd.Signal(unix.SIGKILL)
 		if err != nil {
 			l.Debug("Failed to send SIGKILL signal", logger.Ctx{"err": err})
 		} else {
 			l.Debug("Sent SIGKILL signal")
 		}
-	}
+	})
 
 	// Now that process has started, we can start the control handler.
 	wgEOF.Add(1)
@@ -356,7 +331,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 					l.Warn("Failed getting exec control websocket reader, killing command", logger.Ctx{"err": err})
 				}
 
-				cmdKillOnce.Do(cmdKill)
+				cmdKill()
 
 				return
 			}
@@ -370,7 +345,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 				l.Warn("Failed reading control websocket message, killing command", logger.Ctx{"err": err})
 
-				cmdKillOnce.Do(cmdKill)
+				cmdKill()
 
 				return
 			}
@@ -464,7 +439,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 					// detect when the client disconnects to avoid leaving the command running
 					// in the background.
 					go func() {
-						_, _, err := conn.ReadMessage()
+						_, _, err := conn.ReadMessage() // Consume pings from server.
 
 						// If there is a control connection, then leave it to that handler
 						// to clean the command up. If there's no control connection, the
@@ -474,7 +449,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 						// then it is our responsibility to kill the command now.
 						if s.waitControlConnected.Err() == nil {
 							l.Warn("Unexpected read on stdout websocket, killing command", logger.Ctx{"number": i, "err": err})
-							cmdKillOnce.Do(cmdKill)
+							cmdKill()
 						}
 					}()
 				}
@@ -484,7 +459,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 					// avoid a situation where we hit an inactivity timeout on
 					// stderr during long exec sessions
 					go func() {
-						_, _, _ = conn.ReadMessage()
+						_, _, _ = conn.ReadMessage() // Consume pings from server.
 					}()
 				}
 
@@ -559,7 +534,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.IsSnapshot(name) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
 	post := api.InstanceExecPost{}
@@ -590,7 +565,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 
 	if client != nil {
 		url := api.NewURL().Path(version.APIVersion, "instances", name, "exec").Project(projectName)
-		resp, _, err := client.RawQuery("POST", url.String(), post, "")
+		resp, _, err := client.RawQuery(http.MethodPost, url.String(), post, "")
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -609,11 +584,11 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if !inst.IsRunning() {
-		return response.BadRequest(fmt.Errorf("Instance is not running"))
+		return response.BadRequest(errors.New("Instance is not running"))
 	}
 
 	if inst.IsFrozen() {
-		return response.BadRequest(fmt.Errorf("Instance is frozen"))
+		return response.BadRequest(errors.New("Instance is frozen"))
 	}
 
 	// Process environment.
@@ -690,8 +665,8 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 			ws.conns[execWSStderr] = nil
 		}
 
-		ws.waitRequiredConnected = cancel.New(context.Background())
-		ws.waitControlConnected = cancel.New(context.Background())
+		ws.waitRequiredConnected = cancel.New()
+		ws.waitControlConnected = cancel.New()
 
 		for i := range ws.conns {
 			ws.fds[i], err = shared.RandomCryptoString()

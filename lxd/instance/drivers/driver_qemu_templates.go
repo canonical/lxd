@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/resources"
@@ -168,13 +169,14 @@ type qemuDevEntriesOpts struct {
 func qemuDeviceEntries(opts *qemuDevEntriesOpts) []cfgEntry {
 	entries := []cfgEntry{}
 
-	if opts.dev.busName == "pci" || opts.dev.busName == "pcie" {
+	switch opts.dev.busName {
+	case "pci", "pcie":
 		entries = append(entries, []cfgEntry{
 			{key: "driver", value: opts.pciName},
 			{key: "bus", value: opts.dev.devBus},
 			{key: "addr", value: opts.dev.devAddr},
 		}...)
-	} else if opts.dev.busName == "ccw" {
+	case "ccw":
 		entries = append(entries, cfgEntry{key: "driver", value: opts.ccwName})
 	}
 
@@ -275,7 +277,7 @@ func qemuPCIe(opts *qemuPCIeOpts) []cfgSection {
 		{key: "driver", value: "pcie-root-port"},
 		{key: "bus", value: "pcie.0"},
 		{key: "addr", value: opts.devAddr},
-		{key: "chassis", value: fmt.Sprintf("%d", opts.index)},
+		{key: "chassis", value: strconv.Itoa(opts.index)},
 	}
 
 	if opts.multifunction {
@@ -348,8 +350,8 @@ type qemuSevOpts struct {
 func qemuSEV(opts *qemuSevOpts) []cfgSection {
 	entries := []cfgEntry{
 		{key: "qom-type", value: "sev-guest"},
-		{key: "cbitpos", value: fmt.Sprintf("%d", opts.cbitpos)},
-		{key: "reduced-phys-bits", value: fmt.Sprintf("%d", opts.reducedPhysBits)},
+		{key: "cbitpos", value: strconv.Itoa(opts.cbitpos)},
+		{key: "reduced-phys-bits", value: strconv.Itoa(opts.reducedPhysBits)},
 		{key: "policy", value: opts.policy},
 	}
 
@@ -381,8 +383,8 @@ func qemuVsock(opts *qemuVsockOpts) []cfgSection {
 		name:    `device "qemu_vsock"`,
 		comment: "Vsock",
 		entries: append(qemuDeviceEntries(&entriesOpts),
-			cfgEntry{key: "guest-cid", value: fmt.Sprintf("%d", opts.vsockID)},
-			cfgEntry{key: "vhostfd", value: fmt.Sprintf("%d", opts.vsockFD)}),
+			cfgEntry{key: "guest-cid", value: strconv.FormatUint(uint64(opts.vsockID), 10)},
+			cfgEntry{key: "vhostfd", value: strconv.Itoa(opts.vsockFD)}),
 	}}
 }
 
@@ -486,7 +488,7 @@ func qemuCPUNumaHostNode(opts *qemuCPUOpts, index int) []cfgSection {
 		name: "numa",
 		entries: []cfgEntry{
 			{key: "type", value: "node"},
-			{key: "nodeid", value: fmt.Sprintf("%d", index)},
+			{key: "nodeid", value: strconv.Itoa(index)},
 			{key: "memdev", value: fmt.Sprintf("mem%d", index)},
 		},
 	}}
@@ -494,16 +496,16 @@ func qemuCPUNumaHostNode(opts *qemuCPUOpts, index int) []cfgSection {
 
 func qemuCPU(opts *qemuCPUOpts, pinning bool) []cfgSection {
 	entries := []cfgEntry{
-		{key: "cpus", value: fmt.Sprintf("%d", opts.cpuCount)},
+		{key: "cpus", value: strconv.Itoa(opts.cpuCount)},
 	}
 
 	if pinning {
 		entries = append(entries, cfgEntry{
-			key: "sockets", value: fmt.Sprintf("%d", opts.cpuSockets),
+			key: "sockets", value: strconv.Itoa(opts.cpuSockets),
 		}, cfgEntry{
-			key: "cores", value: fmt.Sprintf("%d", opts.cpuCores),
+			key: "cores", value: strconv.Itoa(opts.cpuCores),
 		}, cfgEntry{
-			key: "threads", value: fmt.Sprintf("%d", opts.cpuThreads),
+			key: "threads", value: strconv.Itoa(opts.cpuThreads),
 		})
 	} else {
 		cpu, err := resources.GetCPU()
@@ -522,7 +524,7 @@ func qemuCPU(opts *qemuCPUOpts, pinning bool) []cfgSection {
 		}
 
 		entries = append(entries, cfgEntry{
-			key: "maxcpus", value: fmt.Sprintf("%d", maxCPU),
+			key: "maxcpus", value: strconv.Itoa(maxCPU),
 		})
 	}
 
@@ -563,7 +565,7 @@ func qemuCPU(opts *qemuCPUOpts, pinning bool) []cfgSection {
 			hostNodesKey = "host-nodes"
 		}
 
-		hostNode := cfgEntry{key: hostNodesKey, value: fmt.Sprintf("%d", element)}
+		hostNode := cfgEntry{key: hostNodesKey, value: strconv.FormatUint(element, 10)}
 		extraMemEntries = append(extraMemEntries, hostNode)
 		// append the extra entries to the [object "mem{{idx}}"] section
 		numaHostNode[0].entries = append(numaHostNode[0].entries, extraMemEntries...)
@@ -575,10 +577,10 @@ func qemuCPU(opts *qemuCPUOpts, pinning bool) []cfgSection {
 			name: "numa",
 			entries: []cfgEntry{
 				{key: "type", value: "cpu"},
-				{key: "node-id", value: fmt.Sprintf("%d", numa.node)},
-				{key: "socket-id", value: fmt.Sprintf("%d", numa.socket)},
-				{key: "core-id", value: fmt.Sprintf("%d", numa.core)},
-				{key: "thread-id", value: fmt.Sprintf("%d", numa.thread)},
+				{key: "node-id", value: strconv.FormatUint(numa.node, 10)},
+				{key: "socket-id", value: strconv.FormatUint(numa.socket, 10)},
+				{key: "core-id", value: strconv.FormatUint(numa.core, 10)},
+				{key: "thread-id", value: strconv.FormatUint(numa.thread, 10)},
 			},
 		})
 	}
@@ -673,7 +675,8 @@ func qemuHostDrive(opts *qemuHostDriveOpts) []cfgSection {
 	var driveSection cfgSection
 	deviceOpts := qemuDevEntriesOpts{dev: opts.dev}
 
-	if opts.protocol == "9p" {
+	switch opts.protocol {
+	case "9p":
 		var readonly string
 		if opts.readonly {
 			readonly = "on"
@@ -700,7 +703,8 @@ func qemuHostDrive(opts *qemuHostDriveOpts) []cfgSection {
 			{key: "mount_tag", value: opts.mountTag},
 			{key: "fsdev", value: opts.id},
 		}
-	} else if opts.protocol == "virtio-fs" {
+
+	case "virtio-fs":
 		driveSection = cfgSection{
 			name:    `chardev "` + opts.id + `"`,
 			comment: opts.comment,
@@ -717,7 +721,8 @@ func qemuHostDrive(opts *qemuHostDriveOpts) []cfgSection {
 			{key: "tag", value: opts.mountTag},
 			{key: "chardev", value: opts.id},
 		}
-	} else {
+
+	default:
 		return []cfgSection{}
 	}
 
@@ -774,7 +779,7 @@ func qemuDriveDir(opts *qemuDriveDirOpts) []cfgSection {
 		fsdriver: "proxy",
 		readonly: opts.readonly,
 		path:     opts.path,
-		sockFd:   fmt.Sprintf("%d", opts.proxyFD),
+		sockFd:   strconv.Itoa(opts.proxyFD),
 	})
 }
 
@@ -861,8 +866,8 @@ func qemuUSB(opts *qemuUSBOpts) []cfgSection {
 		name:    `device "qemu_usb"`,
 		comment: "USB controller",
 		entries: append(qemuDeviceEntries(&deviceOpts), []cfgEntry{
-			{key: "p2", value: fmt.Sprintf("%d", opts.ports)},
-			{key: "p3", value: fmt.Sprintf("%d", opts.ports)},
+			{key: "p2", value: strconv.Itoa(opts.ports)},
+			{key: "p3", value: strconv.Itoa(opts.ports)},
 		}...),
 	}}
 

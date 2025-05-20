@@ -5,8 +5,6 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/gorilla/websocket"
-
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
@@ -18,7 +16,7 @@ func (r *ProtocolLXD) GetServer() (*api.Server, string, error) {
 	server := api.Server{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", "", nil, "", &server)
+	etag, err := r.queryStruct(http.MethodGet, "", nil, "", &server)
 	if err != nil {
 		return nil, "", err
 	}
@@ -46,7 +44,7 @@ func (r *ProtocolLXD) GetServer() (*api.Server, string, error) {
 // UpdateServer updates the server status to match the provided Server struct.
 func (r *ProtocolLXD) UpdateServer(server api.ServerPut, ETag string) error {
 	// Send the request
-	_, _, err := r.query("PUT", "", server, ETag)
+	_, _, err := r.query(http.MethodPut, "", server, ETag)
 	if err != nil {
 		return err
 	}
@@ -91,7 +89,7 @@ func (r *ProtocolLXD) GetServerResources() (*api.Resources, error) {
 	resources := api.Resources{}
 
 	// Fetch the raw value
-	_, err = r.queryStruct("GET", "/resources", nil, "", &resources)
+	_, err = r.queryStruct(http.MethodGet, "/resources", nil, "", &resources)
 	if err != nil {
 		return nil, err
 	}
@@ -114,8 +112,7 @@ func (r *ProtocolLXD) UseProject(name string) InstanceServer {
 		requireAuthenticated: r.requireAuthenticated,
 		clusterTarget:        r.clusterTarget,
 		project:              name,
-		eventConns:           make(map[string]*websocket.Conn),  // New project specific listener conns.
-		eventListeners:       make(map[string][]*EventListener), // New project specific listeners.
+		eventListenerManager: r.eventListenerManager,
 		oidcClient:           r.oidcClient,
 	}
 }
@@ -136,8 +133,7 @@ func (r *ProtocolLXD) UseTarget(name string) InstanceServer {
 		httpUserAgent:        r.httpUserAgent,
 		requireAuthenticated: r.requireAuthenticated,
 		project:              r.project,
-		eventConns:           make(map[string]*websocket.Conn),  // New target specific listener conns.
-		eventListeners:       make(map[string][]*EventListener), // New target specific listeners.
+		eventListenerManager: r.eventListenerManager,
 		oidcClient:           r.oidcClient,
 		clusterTarget:        name,
 	}
@@ -162,7 +158,7 @@ func (r *ProtocolLXD) GetMetrics() (string, error) {
 		return "", err
 	}
 
-	req, err := http.NewRequest("GET", requestURL, nil)
+	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
 	if err != nil {
 		return "", err
 	}

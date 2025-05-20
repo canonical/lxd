@@ -1,6 +1,7 @@
 package device
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -165,7 +166,7 @@ func (d *unixCommon) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	if d.config["source"] == "" && d.config["path"] == "" {
-		return fmt.Errorf("Unix device entry is missing the required \"source\" or \"path\" property")
+		return errors.New("Unix device entry is missing the required \"source\" or \"path\" property")
 	}
 
 	return nil
@@ -200,7 +201,8 @@ func (d *unixCommon) Register() error {
 
 		runConf := deviceConfig.RunConfig{}
 
-		if e.Action == fsmonitor.EventAdd {
+		switch e.Action {
+		case fsmonitor.EventAdd:
 			// Skip if host side instance device file already exists.
 			if shared.PathExists(devPath) {
 				return nil, nil
@@ -226,7 +228,8 @@ func (d *unixCommon) Register() error {
 			if err != nil {
 				return nil, err
 			}
-		} else if e.Action == fsmonitor.EventRemove {
+
+		case fsmonitor.EventRemove:
 			// Skip if host side instance device file doesn't exist.
 			if !shared.PathExists(devPath) {
 				return nil, nil
@@ -289,7 +292,7 @@ func (d *unixCommon) Start() (*deviceConfig.RunConfig, error) {
 			}
 		} else if d.isRequired() {
 			// If the file is missing and the device is required then we cannot proceed.
-			return nil, fmt.Errorf("The required device path doesn't exist and the major and minor settings are not specified")
+			return nil, errors.New("The required device path doesn't exist and the major and minor settings are not specified")
 		}
 	}
 

@@ -3,7 +3,7 @@ package query_test
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,7 +19,7 @@ func TestTransaction_BeginError(t *testing.T) {
 	require.NoError(t, err)
 
 	err = query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error { return nil })
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Failed to begin transaction")
 }
 
@@ -30,7 +30,7 @@ func TestTransaction_FunctionError(t *testing.T) {
 	err := query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
 		_, err := tx.Exec("CREATE TABLE test (id INTEGER)")
 		assert.NoError(t, err)
-		return fmt.Errorf("boom")
+		return errors.New("boom")
 	})
 	assert.EqualError(t, err, "boom")
 

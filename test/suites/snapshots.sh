@@ -381,10 +381,19 @@ test_snap_expiry() {
   lxc config show c1/snap0 | grep -q 'expires_at: 0001-01-01T00:00:00Z'
   [ "$(lxc config get --property c1/snap0 expires_at)" = "0001-01-01 00:00:00 +0000 UTC" ]
 
+  # Check the API returns the zero time representation when listing all snapshots in recursive mode.
+  [ "$(lxc query "/1.0/instances/c1?recursion=2" | jq -r '.snapshots[] | select(.name == "snap0") | .expires_at')" = "0001-01-01T00:00:00Z" ]
+
   lxc config set c1 snapshots.expiry '1d'
   lxc snapshot c1
-  ! lxc config show c1/snap1 | grep -q 'expires_at: 0001-01-01T00:00:00Z' || false
-  [ "$(lxc config get --property c1/snap1 expires_at)" != "0001-01-01 00:00:00 +0000 UTC" ]
+
+  # Get snapshot created_at and expires_at properties.
+  # Remove the " +0000 UTC" from the end of the timestamp so we can add one day using `date`.
+  created_at="$(lxc config get c1/snap1 --property created_at | awk -F' +' '{print $1}')"
+  expires_at="$(lxc config get c1/snap1 --property expires_at | awk -F' +' '{print $1}')"
+
+  # Check if the expires_at propery is exactly 1d ahead.
+  [ "$(date -d "${created_at} today + 1days")" = "$(date -d "${expires_at}")" ]
 
   lxc copy c1 c2
   ! lxc config show c2/snap1 | grep -q 'expires_at: 0001-01-01T00:00:00Z' || false

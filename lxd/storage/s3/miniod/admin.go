@@ -67,7 +67,7 @@ func NewAdminClient(url string, username string, password string) (*minioAdmin, 
 
 	args := m.commonArgs
 	args = append(args, "alias", "set", m.alias, api.NewURL().Scheme("http").Host(url).String(), username, password)
-	_, err := shared.RunCommand("mc", args...)
+	_, err := shared.RunCommandContext(context.TODO(), "mc", args...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to set MinIO client alias: %w", err)
 	}
@@ -116,7 +116,7 @@ func (m *minioAdmin) ExportIAM(ctx context.Context) (*zip.Reader, error) {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	tmpDir, err := os.MkdirTemp(shared.VarPath("storage-pools"), fmt.Sprintf("%s_iam_export_", m.alias))
+	tmpDir, err := os.MkdirTemp(shared.VarPath("storage-pools"), m.alias+"_iam_export_")
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (m *minioAdmin) ExportIAM(ctx context.Context) (*zip.Reader, error) {
 		return nil, shared.NewRunError(name, args, err, &stdout, &stderr)
 	}
 
-	f, err := os.Open(filepath.Join(tmpDir, fmt.Sprintf("%s-iam-info.zip", m.alias)))
+	f, err := os.Open(filepath.Join(tmpDir, m.alias+"-iam-info.zip"))
 	if err != nil {
 		return nil, fmt.Errorf("Failed to open exported IAM information: %w", err)
 	}
@@ -174,7 +174,7 @@ func (m *minioAdmin) UpdateServiceAccount(ctx context.Context, opts ServiceAccou
 	policyPath := ""
 	if len(opts.Policy) > 0 {
 		// The mc command can only read the policy from a file, so save it to a temp dir.
-		tmpDir, err := os.MkdirTemp(shared.VarPath("storage-pools"), fmt.Sprintf("%s_svcacct_update", m.alias))
+		tmpDir, err := os.MkdirTemp(shared.VarPath("storage-pools"), m.alias+"_svcacct_update")
 		if err != nil {
 			return err
 		}
@@ -211,7 +211,7 @@ func (m *minioAdmin) UpdateServiceAccount(ctx context.Context, opts ServiceAccou
 // AddServiceAccount creates a new service account with the given args.
 func (m *minioAdmin) AddServiceAccount(ctx context.Context, opts ServiceAccountArgs) (*Credentials, error) {
 	// The mc command can only read the policy from a file, so save it to a temp dir.
-	tmpDir, err := os.MkdirTemp(shared.VarPath("storage-pools"), fmt.Sprintf("%s_svcacct_add", m.alias))
+	tmpDir, err := os.MkdirTemp(shared.VarPath("storage-pools"), m.alias+"_svcacct_add")
 	if err != nil {
 		return nil, err
 	}

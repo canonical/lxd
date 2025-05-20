@@ -185,12 +185,12 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 			logger.Error("Failed connecting to global database", logCtx)
 		}
 
-		select {
-		case <-connectCtx.Done():
-			return nil, connectCtx.Err()
-		default:
-			time.Sleep(2 * time.Second)
+		err = connectCtx.Err()
+		if err != nil {
+			return nil, err
 		}
+
+		time.Sleep(2 * time.Second)
 	}
 
 	// FIXME: https://github.com/canonical/dqlite/issues/163
@@ -201,7 +201,7 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 
 	if dump != nil {
 		logger.Infof("Migrating data from local to global database")
-		err := query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
+		err := query.Transaction(closingCtx, db, func(ctx context.Context, tx *sql.Tx) error {
 			return importPreClusteringData(tx, dump)
 		})
 		if err != nil {
@@ -250,7 +250,7 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 		closingCtx: closingCtx,
 	}
 
-	err = clusterDB.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+	err = clusterDB.Transaction(closingCtx, func(ctx context.Context, tx *ClusterTx) error {
 		// Figure out the ID of this node.
 		members, err := tx.GetNodes(ctx)
 		if err != nil {
@@ -289,7 +289,7 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 		return nil, err
 	}
 
-	return clusterDB, err
+	return clusterDB, nil
 }
 
 // ForLocalInspection is a aid for the hack in initializeDbObject, which
@@ -436,7 +436,7 @@ func begin(db *sql.DB) (*sql.Tx, error) {
 
 	logger.Debug("DbBegin: DB still locked")
 	logger.Debug(logger.GetStack())
-	return nil, fmt.Errorf("DB is locked")
+	return nil, errors.New("DB is locked")
 }
 
 // TxCommit commits the given transaction.
@@ -497,78 +497,4 @@ func DqliteLatestSegment() (string, error) {
 
 func dbQueryRowScan(ctx context.Context, c *ClusterTx, q string, args []any, outargs []any) error {
 	return c.tx.QueryRowContext(ctx, q, args...).Scan(outargs...)
-}
-
-/*
- * . db a reference to a sql.DB instance
- * . q is the database query
- * . inargs is an array of interfaces containing the query arguments
- * . outfmt is an array of interfaces containing the right types of output
- *   arguments, i.e.
- *      var arg1 string
- *      var arg2 int
- *      outfmt := {}any{arg1, arg2}
- *
- * The result will be an array (one per output row) of arrays (one per output argument)
- * of interfaces, containing pointers to the actual output arguments.
- */
-func queryScan(ctx context.Context, c *ClusterTx, q string, inargs []any, outfmt []any) ([][]any, error) {
-	result := [][]any{}
-
-	rows, err := c.tx.QueryContext(ctx, q, inargs...)
-	if err != nil {
-		return [][]any{}, err
-	}
-
-	defer func() { _ = rows.Close() }()
-
-	for rows.Next() {
-		ptrargs := make([]any, len(outfmt))
-		for i := range outfmt {
-			switch t := outfmt[i].(type) {
-			case string:
-				str := ""
-				ptrargs[i] = &str
-			case int:
-				integer := 0
-				ptrargs[i] = &integer
-			case int64:
-				integer := int64(0)
-				ptrargs[i] = &integer
-			case bool:
-				boolean := bool(false)
-				ptrargs[i] = &boolean
-			default:
-				return [][]any{}, fmt.Errorf("Bad interface type: %s", t)
-			}
-		}
-		err = rows.Scan(ptrargs...)
-		if err != nil {
-			return [][]any{}, err
-		}
-
-		newargs := make([]any, len(outfmt))
-		for i := range ptrargs {
-			switch t := outfmt[i].(type) {
-			case string:
-				newargs[i] = *ptrargs[i].(*string)
-			case int:
-				newargs[i] = *ptrargs[i].(*int)
-			case int64:
-				newargs[i] = *ptrargs[i].(*int64)
-			case bool:
-				newargs[i] = *ptrargs[i].(*bool)
-			default:
-				return [][]any{}, fmt.Errorf("Bad interface type: %s", t)
-			}
-		}
-		result = append(result, newargs)
-	}
-
-	err = rows.Err()
-	if err != nil {
-		return [][]any{}, err
-	}
-
-	return result, nil
 }

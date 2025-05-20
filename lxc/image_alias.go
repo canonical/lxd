@@ -68,15 +68,15 @@ func (c *cmdImageAliasCreate) command() *cobra.Command {
 		}
 
 		if len(args) == 0 {
-			return c.global.cmpRemotes(toComplete, true)
+			return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 		}
 
-		remote, _, found := strings.Cut(args[0], ":")
-		if !found {
-			remote = ""
+		remote, _, err := c.global.conf.ParseRemote(args[0])
+		if err != nil {
+			return handleCompletionError(err)
 		}
 
-		return c.global.cmpImageFingerprintsFromRemote(toComplete, remote)
+		return c.global.cmpTopLevelResourceInRemote(remote, "image", toComplete)
 	}
 
 	return cmd
@@ -131,7 +131,7 @@ func (c *cmdImageAliasDelete) command() *cobra.Command {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return c.global.cmpImages(toComplete)
+		return c.global.cmpImages(toComplete, true)
 	}
 
 	return cmd
@@ -188,7 +188,7 @@ Filters may be part of the image hash or part of the image alias name.
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return c.global.cmpRemotes(toComplete, true)
+		return c.global.cmpRemotes(toComplete, ":", true, imageServerRemoteCompletionFilters(*c.global.conf)...)
 	}
 
 	return cmd
@@ -295,7 +295,7 @@ func (c *cmdImageAliasRename) command() *cobra.Command {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return c.global.cmpImages(toComplete)
+		return c.global.cmpImages(toComplete, true)
 	}
 
 	return cmd

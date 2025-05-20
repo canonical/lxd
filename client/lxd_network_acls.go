@@ -18,7 +18,7 @@ func (r *ProtocolLXD) GetNetworkACLNames() ([]string, error) {
 	// Fetch the raw URL values.
 	urls := []string{}
 	baseURL := "/network-acls"
-	_, err = r.queryStruct("GET", baseURL, nil, "", &urls)
+	_, err = r.queryStruct(http.MethodGet, baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,24 @@ func (r *ProtocolLXD) GetNetworkACLs() ([]api.NetworkACL, error) {
 	acls := []api.NetworkACL{}
 
 	// Fetch the raw value.
-	_, err = r.queryStruct("GET", "/network-acls?recursion=1", nil, "", &acls)
+	_, err = r.queryStruct(http.MethodGet, "/network-acls?recursion=1", nil, "", &acls)
+	if err != nil {
+		return nil, err
+	}
+
+	return acls, nil
+}
+
+// GetNetworkACLsAllProjects returns a list of Network ACLs across all projects.
+func (r *ProtocolLXD) GetNetworkACLsAllProjects() ([]api.NetworkACL, error) {
+	err := r.CheckExtension("network_acls_all_projects")
+	if err != nil {
+		return nil, err
+	}
+
+	acls := []api.NetworkACL{}
+	u := api.NewURL().Path("network-acls").WithQuery("recursion", "1").WithQuery("all-projects", "true")
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &acls)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +72,7 @@ func (r *ProtocolLXD) GetNetworkACL(name string) (*api.NetworkACL, string, error
 	acl := api.NetworkACL{}
 
 	// Fetch the raw value.
-	etag, err := r.queryStruct("GET", "/network-acls/"+url.PathEscape(name), nil, "", &acl)
+	etag, err := r.queryStruct(http.MethodGet, "/network-acls/"+url.PathEscape(name), nil, "", &acl)
 	if err != nil {
 		return nil, "", err
 	}
@@ -79,7 +96,7 @@ func (r *ProtocolLXD) GetNetworkACLLogfile(name string) (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +126,7 @@ func (r *ProtocolLXD) CreateNetworkACL(acl api.NetworkACLsPost) error {
 	}
 
 	// Send the request.
-	_, _, err = r.query("POST", "/network-acls", acl, "")
+	_, _, err = r.query(http.MethodPost, "/network-acls", acl, "")
 	if err != nil {
 		return err
 	}
@@ -125,7 +142,7 @@ func (r *ProtocolLXD) UpdateNetworkACL(name string, acl api.NetworkACLPut, ETag 
 	}
 
 	// Send the request.
-	_, _, err = r.query("PUT", "/network-acls/"+url.PathEscape(name), acl, ETag)
+	_, _, err = r.query(http.MethodPut, "/network-acls/"+url.PathEscape(name), acl, ETag)
 	if err != nil {
 		return err
 	}
@@ -141,7 +158,7 @@ func (r *ProtocolLXD) RenameNetworkACL(name string, acl api.NetworkACLPost) erro
 	}
 
 	// Send the request.
-	_, _, err = r.query("POST", "/network-acls/"+url.PathEscape(name), acl, "")
+	_, _, err = r.query(http.MethodPost, "/network-acls/"+url.PathEscape(name), acl, "")
 	if err != nil {
 		return err
 	}
@@ -157,7 +174,7 @@ func (r *ProtocolLXD) DeleteNetworkACL(name string) error {
 	}
 
 	// Send the request.
-	_, _, err = r.query("DELETE", "/network-acls/"+url.PathEscape(name), nil, "")
+	_, _, err = r.query(http.MethodDelete, "/network-acls/"+url.PathEscape(name), nil, "")
 	if err != nil {
 		return err
 	}

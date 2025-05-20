@@ -2,9 +2,11 @@ package cdi
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -38,14 +40,14 @@ func specDevToNativeDev(configDevices *ConfigDevices, d specs.DeviceNode) error 
 		d.Minor = int64(unix.Minor(uint64(stat.Rdev)))
 	}
 
-	configDevices.UnixCharDevs = append(configDevices.UnixCharDevs, map[string]string{"type": "unix-char", "source": hostPath, "path": d.Path, "major": fmt.Sprintf("%d", d.Major), "minor": fmt.Sprintf("%d", d.Minor)})
+	configDevices.UnixCharDevs = append(configDevices.UnixCharDevs, map[string]string{"type": "unix-char", "source": hostPath, "path": d.Path, "major": strconv.FormatInt(d.Major, 10), "minor": strconv.FormatInt(d.Minor, 10)})
 	return nil
 }
 
 // specMountToNativeDev builds a list of disk mounts to be created from a CDI spec.
 func specMountToNativeDev(configDevices *ConfigDevices, cdiID ID, mounts []*specs.Mount) ([]SymlinkEntry, error) {
 	if len(mounts) == 0 {
-		return nil, fmt.Errorf("CDI mounts are empty")
+		return nil, errors.New("CDI mounts are empty")
 	}
 
 	indirectSymlinks := make([]SymlinkEntry, 0)
@@ -110,7 +112,7 @@ func specMountToNativeDev(configDevices *ConfigDevices, cdiID ID, mounts []*spec
 		}
 
 		if len(tegraCSVFiles) == 0 {
-			return nil, fmt.Errorf("No CSV files detected for Tegra iGPU")
+			return nil, errors.New("No CSV files detected for Tegra iGPU")
 		}
 
 		for _, tegraFile := range tegraCSVFiles {

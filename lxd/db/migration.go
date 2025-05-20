@@ -5,6 +5,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -54,7 +55,7 @@ DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FRO
 	for _, table := range preClusteringTables {
 		logger.Debugf("Loading data from table %s", table)
 		data := [][]any{}
-		stmt := fmt.Sprintf("SELECT * FROM %s", table)
+		stmt := "SELECT * FROM " + table
 
 		rows, err := tx.QueryContext(ctx, stmt)
 		if err != nil {
@@ -194,7 +195,12 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 						break
 					}
 				}
-				key := row[index].(string)
+
+				key, ok := row[index].(string)
+				if !ok {
+					return fmt.Errorf("Failed to convert key to string for row %d in networks_config", i)
+				}
+
 				if !shared.ValueInSlice(key, NodeSpecificNetworkConfig) {
 					nullNodeID = true
 					break
@@ -213,7 +219,12 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 						break
 					}
 				}
-				key := row[index].(string)
+
+				key, ok := row[index].(string)
+				if !ok {
+					return fmt.Errorf("Failed to convert key to string for row %d in storage_pools_config", i)
+				}
+
 				if !shared.ValueInSlice(key, NodeSpecificStorageConfig) {
 					nullNodeID = true
 					break
@@ -236,7 +247,7 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 			}
 
 			stmt := fmt.Sprintf("INSERT INTO %s(%s)", table, strings.Join(columns, ", "))
-			stmt += fmt.Sprintf(" VALUES %s", query.Params(len(columns)))
+			stmt += " VALUES " + query.Params(len(columns))
 			result, err := tx.Exec(stmt, row...)
 			if err != nil {
 				return fmt.Errorf("failed to insert row %d into %s: %w", i, table, err)
@@ -256,7 +267,7 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 				entity := table[:len(table)-1]
 				err := importNodeAssociation(entity, columns, row, tx)
 				if err != nil {
-					return fmt.Errorf("Failed to import node associations")
+					return errors.New("Failed to import node associations")
 				}
 			}
 		}
@@ -271,19 +282,24 @@ func importNodeAssociation(entity string, columns []string, row []any, tx *sql.T
 	stmt := fmt.Sprintf(
 		"INSERT INTO %ss_nodes(%s_id, node_id) VALUES(?, 1)", entity, entity)
 	var id int64
+	var ok bool
 	for i, column := range columns {
 		if column == "id" {
-			id = row[i].(int64)
+			id, ok = row[i].(int64)
+			if !ok {
+				return fmt.Errorf("Failed to convert %q ID to int64", entity)
+			}
+
 			break
 		}
 	}
 	if id == 0 {
-		return fmt.Errorf("entity %s has invalid ID", entity)
+		return fmt.Errorf("entity %q has invalid ID", entity)
 	}
 
 	_, err := tx.Exec(stmt, id)
 	if err != nil {
-		return fmt.Errorf("failed to associate %s to node: %w", entity, err)
+		return fmt.Errorf("failed to associate %q to node: %w", entity, err)
 	}
 
 	return nil

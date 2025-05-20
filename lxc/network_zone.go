@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -92,7 +93,7 @@ func (c *cmdNetworkZoneList) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemotes(toComplete, false)
+			return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -141,7 +142,7 @@ func (c *cmdNetworkZoneList) run(cmd *cobra.Command, args []string) error {
 
 	data := [][]string{}
 	for _, zone := range zones {
-		strUsedBy := fmt.Sprint(len(zone.UsedBy))
+		strUsedBy := strconv.Itoa(len(zone.UsedBy))
 		details := []string{
 			zone.Name,
 			zone.Description,
@@ -185,7 +186,7 @@ func (c *cmdNetworkZoneShow) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkZones(toComplete)
+			return c.global.cmpTopLevelResource("network_zone", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -250,7 +251,7 @@ func (c *cmdNetworkZoneGet) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkZones(toComplete)
+			return c.global.cmpTopLevelResource("network_zone", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -326,7 +327,7 @@ lxc network zone create z1 < config.yaml
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkZones(toComplete)
+			return c.global.cmpTopLevelResource("network_zone", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -422,7 +423,7 @@ For backward compatibility, a single configuration key may still be set with:
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkZones(toComplete)
+			return c.global.cmpTopLevelResource("network_zone", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -506,7 +507,7 @@ func (c *cmdNetworkZoneUnset) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkZones(toComplete)
+			return c.global.cmpTopLevelResource("network_zone", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -548,7 +549,7 @@ func (c *cmdNetworkZoneEdit) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkZones(toComplete)
+			return c.global.cmpTopLevelResource("network_zone", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -674,7 +675,7 @@ func (c *cmdNetworkZoneDelete) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkZones(toComplete)
+			return c.global.cmpTopLevelResource("network_zone", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -789,7 +790,7 @@ func (c *cmdNetworkZoneRecordList) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkZones(toComplete)
+			return c.global.cmpTopLevelResource("network_zone", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -865,7 +866,7 @@ func (c *cmdNetworkZoneRecordShow) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkZones(toComplete)
+			return c.global.cmpTopLevelResource("network_zone", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -931,7 +932,7 @@ func (c *cmdNetworkZoneRecordGet) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkZones(toComplete)
+			return c.global.cmpTopLevelResource("network_zone", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -1010,7 +1011,7 @@ lxc network zone record create z1 r1 < config.yaml
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkZones(toComplete)
+			return c.global.cmpTopLevelResource("network_zone", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -1107,7 +1108,7 @@ func (c *cmdNetworkZoneRecordSet) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkZones(toComplete)
+			return c.global.cmpTopLevelResource("network_zone", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -1194,7 +1195,7 @@ func (c *cmdNetworkZoneRecordUnset) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkZones(toComplete)
+			return c.global.cmpTopLevelResource("network_zone", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -1240,7 +1241,7 @@ func (c *cmdNetworkZoneRecordEdit) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkZones(toComplete)
+			return c.global.cmpTopLevelResource("network_zone", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -1369,7 +1370,7 @@ func (c *cmdNetworkZoneRecordDelete) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkZones(toComplete)
+			return c.global.cmpTopLevelResource("network_zone", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -1446,7 +1447,7 @@ func (c *cmdNetworkZoneRecordEntry) commandAdd() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkZones(toComplete)
+			return c.global.cmpTopLevelResource("network_zone", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -1503,7 +1504,7 @@ func (c *cmdNetworkZoneRecordEntry) commandRemove() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpNetworkZones(toComplete)
+			return c.global.cmpTopLevelResource("network_zone", toComplete)
 		}
 
 		if len(args) == 1 {

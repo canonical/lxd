@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -303,7 +304,7 @@ func (d *pure) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInco
 	// Finally, copy the source volume (or snapshot) into destination volume snapshots.
 	if srcVol.IsSnapshot() {
 		// Get snapshot parent volume name.
-		srcParentVol := srcVol.Volume.GetParent()
+		srcParentVol := srcVol.GetParent()
 		srcParentVolName, err := d.getVolumeName(srcParentVol)
 		if err != nil {
 			return err
@@ -533,7 +534,7 @@ func (d *pure) refreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots
 	// Finally, copy the source volume (or snapshot) into destination volume snapshots.
 	if srcVol.IsSnapshot() {
 		// Find snapshot parent volume.
-		srcParentVol := srcVol.Volume.GetParent()
+		srcParentVol := srcVol.GetParent()
 		srcParentVolName, err := d.getVolumeName(srcParentVol)
 		if err != nil {
 			return nil, err
@@ -728,7 +729,7 @@ func (d *pure) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 		remainder := sizeBytes % 512
 		if remainder > 0 {
 			sizeBytes = (sizeBytes/512 + 1) * 512
-			vol.SetConfigSize(fmt.Sprintf("%d", sizeBytes))
+			vol.SetConfigSize(strconv.FormatInt(sizeBytes, 10))
 		}
 	}
 
@@ -961,7 +962,8 @@ func (d *pure) MountVolume(vol Volume, op *operations.Operation) error {
 
 	revert.Add(cleanup)
 
-	if vol.contentType == ContentTypeFS {
+	switch vol.contentType {
+	case ContentTypeFS:
 		mountPath := vol.MountPath()
 		if !filesystem.IsMountPoint(mountPath) {
 			err = vol.EnsureMountPath()
@@ -986,7 +988,8 @@ func (d *pure) MountVolume(vol Volume, op *operations.Operation) error {
 
 			d.logger.Debug("Mounted Pure Storage volume", logger.Ctx{"volName": vol.name, "dev": volDevPath, "path": mountPath, "options": mountOptions})
 		}
-	} else if vol.contentType == ContentTypeBlock {
+
+	case ContentTypeBlock:
 		// For VMs, mount the filesystem volume.
 		if vol.IsVMBlock() {
 			fsVol := vol.NewVMBlockFilesystemVolume()

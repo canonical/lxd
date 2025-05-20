@@ -6,6 +6,7 @@ import (
 	"hash/fnv"
 	"io"
 	"math/rand"
+	"strconv"
 )
 
 // GetStableRandomGenerator returns a stable random generator. Uses the FNV-1a hash algorithm to convert the seed
@@ -24,10 +25,10 @@ func GetStableRandomGenerator(seed string) (*rand.Rand, error) {
 // GetStableRandomInt64FromList returns a stable random value from a given list.
 func GetStableRandomInt64FromList(seed int64, list []int64) (int64, error) {
 	if len(list) <= 0 {
-		return 0, fmt.Errorf("Cannot get stable random value from empty list")
+		return 0, errors.New("Cannot get stable random value from empty list")
 	}
 
-	r, err := GetStableRandomGenerator(fmt.Sprint(seed))
+	r, err := GetStableRandomGenerator(strconv.FormatInt(seed, 10))
 	if err != nil {
 		return 0, fmt.Errorf("Failed to get stable random generator: %w", err)
 	}

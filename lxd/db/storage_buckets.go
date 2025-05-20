@@ -29,7 +29,6 @@ type StorageBucket struct {
 	api.StorageBucket
 
 	ID       int64
-	Project  string
 	PoolID   int64
 	PoolName string
 }
@@ -78,7 +77,7 @@ func (c *ClusterTx) GetStoragePoolBuckets(ctx context.Context, memberSpecific bo
 		for i, filter := range filters {
 			// Validate filter.
 			if !memberSpecific && filter.Name != nil && ((filter.PoolID == nil && filter.PoolName == nil) || filter.Project == nil) {
-				return nil, fmt.Errorf("Cannot filter by bucket name without specifying pool and project when doing member inspecific search")
+				return nil, errors.New("Cannot filter by bucket name without specifying pool and project when doing member inspecific search")
 			}
 
 			var qFilters []string
@@ -104,14 +103,14 @@ func (c *ClusterTx) GetStoragePoolBuckets(ctx context.Context, memberSpecific bo
 			}
 
 			if qFilters == nil {
-				return nil, fmt.Errorf("Invalid storage bucket filter")
+				return nil, errors.New("Invalid storage bucket filter")
 			}
 
 			if i > 0 {
 				q.WriteString(" OR ")
 			}
 
-			q.WriteString(fmt.Sprintf("(%s)", strings.Join(qFilters, " AND ")))
+			fmt.Fprintf(q, "(%s)", strings.Join(qFilters, " AND "))
 		}
 
 		q.WriteString(")")
@@ -452,14 +451,14 @@ func (c *ClusterTx) GetStoragePoolBucketKeys(ctx context.Context, bucketID int64
 			}
 
 			if qFilters == nil {
-				return nil, fmt.Errorf("Invalid storage bucket key filter")
+				return nil, errors.New("Invalid storage bucket key filter")
 			}
 
 			if i > 0 {
 				q.WriteString(" OR ")
 			}
 
-			q.WriteString(fmt.Sprintf("(%s)", strings.Join(qFilters, " AND ")))
+			fmt.Fprintf(q, "(%s)", strings.Join(qFilters, " AND "))
 		}
 
 		q.WriteString(")")

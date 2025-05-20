@@ -2,6 +2,7 @@ package lxd
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
 
 	"github.com/canonical/lxd/shared/api"
@@ -19,7 +20,7 @@ func (r *ProtocolLXD) GetStoragePoolNames() ([]string, error) {
 	// Fetch the raw URL values.
 	urls := []string{}
 	baseURL := "/storage-pools"
-	_, err = r.queryStruct("GET", baseURL, nil, "", &urls)
+	_, err = r.queryStruct(http.MethodGet, baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +39,7 @@ func (r *ProtocolLXD) GetStoragePools() ([]api.StoragePool, error) {
 	pools := []api.StoragePool{}
 
 	// Fetch the raw value
-	_, err = r.queryStruct("GET", "/storage-pools?recursion=1", nil, "", &pools)
+	_, err = r.queryStruct(http.MethodGet, "/storage-pools?recursion=1", nil, "", &pools)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +57,7 @@ func (r *ProtocolLXD) GetStoragePool(name string) (*api.StoragePool, string, err
 	pool := api.StoragePool{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s", url.PathEscape(name)), nil, "", &pool)
+	etag, err := r.queryStruct(http.MethodGet, "/storage-pools/"+url.PathEscape(name), nil, "", &pool)
 	if err != nil {
 		return nil, "", err
 	}
@@ -79,7 +80,7 @@ func (r *ProtocolLXD) CreateStoragePool(pool api.StoragePoolsPost) error {
 	}
 
 	// Send the request
-	_, _, err = r.query("POST", "/storage-pools", pool, "")
+	_, _, err = r.query(http.MethodPost, "/storage-pools", pool, "")
 	if err != nil {
 		return err
 	}
@@ -95,7 +96,7 @@ func (r *ProtocolLXD) UpdateStoragePool(name string, pool api.StoragePoolPut, ET
 	}
 
 	// Send the request
-	_, _, err = r.query("PUT", fmt.Sprintf("/storage-pools/%s", url.PathEscape(name)), pool, ETag)
+	_, _, err = r.query(http.MethodPut, "/storage-pools/"+url.PathEscape(name), pool, ETag)
 	if err != nil {
 		return err
 	}
@@ -111,7 +112,7 @@ func (r *ProtocolLXD) DeleteStoragePool(name string) error {
 	}
 
 	// Send the request
-	_, _, err = r.query("DELETE", fmt.Sprintf("/storage-pools/%s", url.PathEscape(name)), nil, "")
+	_, _, err = r.query(http.MethodDelete, "/storage-pools/"+url.PathEscape(name), nil, "")
 	if err != nil {
 		return err
 	}
@@ -129,7 +130,7 @@ func (r *ProtocolLXD) GetStoragePoolResources(name string) (*api.ResourcesStorag
 	res := api.ResourcesStoragePool{}
 
 	// Fetch the raw value
-	_, err = r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s/resources", url.PathEscape(name)), nil, "", &res)
+	_, err = r.queryStruct(http.MethodGet, fmt.Sprintf("/storage-pools/%s/resources", url.PathEscape(name)), nil, "", &res)
 	if err != nil {
 		return nil, err
 	}

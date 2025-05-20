@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -55,7 +54,7 @@ func setupDir() error {
 		return err
 	}
 
-	_ = os.MkdirAll(fmt.Sprintf("%s/devlxd", testDir), 0755)
+	_ = os.MkdirAll(testDir+"/devlxd", 0755)
 
 	return os.Setenv("LXD_DIR", testDir)
 }
@@ -121,7 +120,7 @@ func TestCredsSendRecv(t *testing.T) {
 		result <- cred.Pid
 	}()
 
-	conn, err := connect(fmt.Sprintf("%s/test-devlxd-sock", testDir))
+	conn, err := connect(testDir + "/test-devlxd-sock")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,15 +152,15 @@ func TestHttpRequest(t *testing.T) {
 
 	defer func() { _ = d.Stop(context.Background(), unix.SIGQUIT) }()
 
-	c := http.Client{Transport: &http.Transport{DialContext: DevLxdDialer{Path: fmt.Sprintf("%s/devlxd/sock", testDir)}.DevLxdDial}}
+	c := http.Client{Transport: &http.Transport{DialContext: DevLxdDialer{Path: testDir + "/devlxd/sock"}.DevLxdDial}}
 
-	raw, err := c.Get("http://1.0")
+	raw, err := c.Get("http://lxd/1.0")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if raw.StatusCode != 500 {
-		t.Fatal(err)
+		t.Fatalf("Expected status code 500, got %d: %v", raw.StatusCode, err)
 	}
 
 	resp, err := io.ReadAll(raw.Body)

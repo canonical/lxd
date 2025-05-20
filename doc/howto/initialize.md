@@ -2,8 +2,9 @@
 # How to initialize LXD
 
 ````{only} integrated
-```{note}
-MicroCloud users can disregard the instructions on this page, because the MicroCloud setup process handles the initialization of LXD.
+```{admonition} For MicroCloud users
+:class: note
+The MicroCloud setup process initializes LXD on cluster members. Thus, you do not need to follow the steps on this page.
 ```
 ````
 
@@ -32,7 +33,7 @@ Clustering (see {ref}`exp-clusters` and {ref}`cluster-form`)
   The default answer is `no`, which means clustering is not enabled.
   If you answer `yes`, you can either connect to an existing cluster or create one.
 
-MAAS support (see [`maas.io`](https://maas.io/) and [MAAS - Setting up LXD for VMs](https://maas.io/docs/how-to-manage-machines#p-9078-add-lxd-for-vm-hosts))
+MAAS support (see [`maas.io`](https://maas.io/) and [MAAS - Setting up LXD for VMs](https://maas.io/docs/how-to-manage-machines#p-9078-use-lxd-vms))
 : MAAS is an open-source tool that lets you build a data center from bare-metal servers.
 
   The default answer is `no`, which means MAAS support is not enabled.

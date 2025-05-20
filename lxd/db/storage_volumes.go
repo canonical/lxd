@@ -163,11 +163,11 @@ func (c *ClusterTx) GetStorageVolumes(ctx context.Context, memberSpecific bool, 
 		for i, filter := range filters {
 			// Validate filter.
 			if filter.Name != nil && filter.Type == nil {
-				return nil, fmt.Errorf("Cannot filter by volume name if volume type not specified")
+				return nil, errors.New("Cannot filter by volume name if volume type not specified")
 			}
 
 			if filter.Name != nil && filter.Project == nil {
-				return nil, fmt.Errorf("Cannot filter by volume name if volume project not specified")
+				return nil, errors.New("Cannot filter by volume name if volume project not specified")
 			}
 
 			var qFilters []string
@@ -193,7 +193,7 @@ func (c *ClusterTx) GetStorageVolumes(ctx context.Context, memberSpecific bool, 
 			}
 
 			if qFilters == nil {
-				return nil, fmt.Errorf("Invalid storage volume filter")
+				return nil, errors.New("Invalid storage volume filter")
 			}
 
 			if i > 0 {
@@ -463,7 +463,7 @@ func (c *ClusterTx) CreateStoragePoolVolume(ctx context.Context, projectName str
 	var volumeID int64
 
 	if shared.IsSnapshot(volumeName) {
-		return -1, fmt.Errorf("Volume name may not be a snapshot")
+		return -1, errors.New("Volume name may not be a snapshot")
 	}
 
 	remoteDrivers := StorageRemoteDriverNames()
@@ -631,7 +631,7 @@ func (c *ClusterTx) GetStorageVolumeNodes(ctx context.Context, poolID int64, pro
 		// equivalent to db.ErrNoClusterMember that is used in newer schemas where a single remote volume
 		// DB record is created that is not associated to any single member.
 		if StorageRemoteDriverNames == nil {
-			return nil, fmt.Errorf("No remote storage drivers function defined")
+			return nil, errors.New("No remote storage drivers function defined")
 		}
 
 		remoteDrivers := StorageRemoteDriverNames()
@@ -690,10 +690,7 @@ SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
    AND storage_pools.name=?
    AND (storage_volumes.node_id=? OR storage_volumes.node_id IS NULL AND storage_pools.driver IN ` + query.Params(len(remoteDrivers)) + `)`
 
-	var numstr string
 	inargs := []any{typ, name, pool, c.nodeID}
-	outfmt := []any{numstr}
-
 	for _, driver := range remoteDrivers {
 		inargs = append(inargs, driver)
 	}
@@ -702,26 +699,27 @@ SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
 		return 0
 	}
 
-	results, err := queryScan(ctx, c, q, inargs, outfmt)
-	if err != nil {
-		return 0
-	}
-
-	for _, r := range results {
-		substr, ok := r[0].(string)
-		if !ok {
-			continue
+	err := query.Scan(ctx, c.tx, q, func(scan func(dest ...any) error) error {
+		var substr string
+		err := scan(&substr)
+		if err != nil {
+			return err
 		}
 
 		var num int
 		count, err := fmt.Sscanf(substr, pattern, &num)
 		if err != nil || count != 1 {
-			continue
+			return nil
 		}
 
 		if num >= nextIndex {
 			nextIndex = num + 1
 		}
+
+		return nil
+	}, inargs...)
+	if err != nil {
+		return 0
 	}
 
 	return nextIndex

@@ -1,6 +1,7 @@
 package device
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -74,11 +75,11 @@ func (d *nicMACVLAN) validateConfig(instConf instance.ConfigReader) error {
 		}
 
 		if d.network.Status() != api.NetworkStatusCreated {
-			return fmt.Errorf("Specified network is not fully created")
+			return errors.New("Specified network is not fully created")
 		}
 
 		if d.network.Type() != "macvlan" {
-			return fmt.Errorf("Specified network must be of type macvlan")
+			return errors.New("Specified network must be of type macvlan")
 		}
 
 		netConfig := d.network.Config()
@@ -125,10 +126,10 @@ func (d *nicMACVLAN) PreStartCheck() error {
 // validateEnvironment checks the runtime environment for correctness.
 func (d *nicMACVLAN) validateEnvironment() error {
 	if d.inst.Type() == instancetype.Container && d.config["name"] == "" {
-		return fmt.Errorf("Requires name property to start")
+		return errors.New("Requires name property to start")
 	}
 
-	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["parent"])) {
+	if !shared.PathExists("/sys/class/net/" + d.config["parent"]) {
 		return fmt.Errorf("Parent device '%s' doesn't exist", d.config["parent"])
 	}
 
@@ -167,7 +168,7 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Record whether we created the parent device or not so it can be removed on stop.
-	saveData["last_state.created"] = fmt.Sprintf("%t", statusDev != "existing")
+	saveData["last_state.created"] = strconv.FormatBool(statusDev != "existing")
 
 	if shared.IsTrue(saveData["last_state.created"]) {
 		revert.Add(func() {
@@ -292,7 +293,7 @@ func (d *nicMACVLAN) postStop() error {
 	v := d.volatileGet()
 
 	// Delete the detached device.
-	if v["host_name"] != "" && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", v["host_name"])) {
+	if v["host_name"] != "" && shared.PathExists("/sys/class/net/"+v["host_name"]) {
 		err := network.InterfaceRemove(v["host_name"])
 		if err != nil {
 			errs = append(errs, err)

@@ -2,8 +2,10 @@ package zone
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 
@@ -149,11 +151,11 @@ func (d *zone) Etag() []any {
 // validateName checks name is valid.
 func (d *zone) validateName(name string) error {
 	if name == "" {
-		return fmt.Errorf("Name is required")
+		return errors.New("Name is required")
 	}
 
 	if strings.HasPrefix(name, "/") {
-		return fmt.Errorf(`Name cannot start with "/"`)
+		return errors.New(`Name cannot start with "/"`)
 	}
 
 	return nil
@@ -324,7 +326,7 @@ func (d *zone) Delete() error {
 	}
 
 	if isUsed {
-		return fmt.Errorf("Cannot delete a zone that is in use")
+		return errors.New("Cannot delete a zone that is in use")
 	}
 
 	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -504,7 +506,7 @@ func (d *zone) Content() (*strings.Builder, error) {
 		for _, entry := range extraRecord.Entries {
 			record := map[string]string{}
 			if entry.TTL > 0 {
-				record["ttl"] = fmt.Sprintf("%d", entry.TTL)
+				record["ttl"] = strconv.FormatUint(entry.TTL, 10)
 			} else {
 				record["ttl"] = "300"
 			}

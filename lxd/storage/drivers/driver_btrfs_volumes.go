@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -161,7 +162,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, sr
 	}
 
 	if volExists {
-		return nil, nil, fmt.Errorf("Cannot restore volume, already exists on target")
+		return nil, nil, errors.New("Cannot restore volume, already exists on target")
 	}
 
 	revert := revert.New()
@@ -336,12 +337,14 @@ func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, sr
 			snapVol, _ := vol.NewSnapshot(snapName)
 			snapDir := "snapshots"
 			srcFilePrefix := snapName
-			if vol.volType == VolumeTypeVM {
+			switch vol.volType {
+			case VolumeTypeVM:
 				snapDir = "virtual-machine-snapshots"
 				if vol.contentType == ContentTypeFS {
 					srcFilePrefix = snapName + "-config"
 				}
-			} else if vol.volType == VolumeTypeCustom {
+
+			case VolumeTypeCustom:
 				snapDir = "volume-snapshots"
 			}
 
@@ -355,13 +358,15 @@ func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, sr
 
 	// Extract main volume.
 	srcFilePrefix := "container"
-	if vol.volType == VolumeTypeVM {
+	switch vol.volType {
+	case VolumeTypeVM:
 		if vol.contentType == ContentTypeFS {
 			srcFilePrefix = "virtual-machine-config"
 		} else {
 			srcFilePrefix = "virtual-machine"
 		}
-	} else if vol.volType == VolumeTypeCustom {
+
+	case VolumeTypeCustom:
 		srcFilePrefix = "volume"
 	}
 
@@ -394,7 +399,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, sr
 
 		v := vol.Volume
 		if subVol.Snapshot != "" {
-			v, _ = vol.Volume.NewSnapshot(subVol.Snapshot)
+			v, _ = vol.NewSnapshot(subVol.Snapshot)
 		}
 
 		path := filepath.Join(v.MountPath(), subVol.Path)
@@ -839,7 +844,7 @@ func (d *btrfs) DeleteVolume(vol Volume, op *operations.Operation) error {
 	}
 
 	if len(snapshots) > 0 {
-		return fmt.Errorf("Cannot remove a volume that has snapshots")
+		return errors.New("Cannot remove a volume that has snapshots")
 	}
 
 	volName := vol.name
@@ -990,6 +995,7 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, 
 				_, value, found := strings.Cut(line, "Subvolume ID:")
 				if found {
 					id = strings.TrimSpace(value)
+					break
 				}
 			}
 
@@ -1028,7 +1034,7 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, 
 		}
 
 		// Apply the limit to referenced data in qgroup.
-		_, err = shared.RunCommandContext(context.TODO(), "btrfs", "qgroup", "limit", fmt.Sprint(sizeBytes), qgroup, volPath)
+		_, err = shared.RunCommandContext(context.TODO(), "btrfs", "qgroup", "limit", strconv.FormatInt(sizeBytes, 10), qgroup, volPath)
 		if err != nil {
 			return err
 		}
@@ -1182,7 +1188,7 @@ func (d *btrfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArg
 	// Handle btrfs send/receive migration.
 	if volSrcArgs.MultiSync || volSrcArgs.FinalSync {
 		// This is not needed if the migration is performed using btrfs send/receive.
-		return fmt.Errorf("MultiSync should not be used with optimized migration")
+		return errors.New("MultiSync should not be used with optimized migration")
 	}
 
 	var snapshots []string
@@ -1206,7 +1212,7 @@ func (d *btrfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArg
 	if !shared.ValueInSlice(migration.BTRFSFeatureMigrationHeader, volSrcArgs.MigrationType.Features) || !shared.ValueInSlice(migration.BTRFSFeatureSubvolumes, volSrcArgs.MigrationType.Features) {
 		for _, subVol := range migrationHeader.Subvolumes {
 			if subVol.Path != string(filepath.Separator) {
-				return fmt.Errorf("Subvolumes detected in source but target does not support receiving subvolumes")
+				return errors.New("Subvolumes detected in source but target does not support receiving subvolumes")
 			}
 		}
 	}
@@ -1586,12 +1592,14 @@ func (d *btrfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceT
 		// Make a binary btrfs backup.
 		snapDir := "snapshots"
 		fileName := snapName
-		if vol.volType == VolumeTypeVM {
+		switch vol.volType {
+		case VolumeTypeVM:
 			snapDir = "virtual-machine-snapshots"
 			if vol.contentType == ContentTypeFS {
 				fileName = snapName + "-config"
 			}
-		} else if vol.volType == VolumeTypeCustom {
+
+		case VolumeTypeCustom:
 			snapDir = "volume-snapshots"
 		}
 
@@ -1636,13 +1644,15 @@ func (d *btrfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceT
 
 	// Dump the instance to a file.
 	fileNamePrefix := "container"
-	if vol.volType == VolumeTypeVM {
+	switch vol.volType {
+	case VolumeTypeVM:
 		if vol.contentType == ContentTypeFS {
 			fileNamePrefix = "virtual-machine-config"
 		} else {
 			fileNamePrefix = "virtual-machine"
 		}
-	} else if vol.volType == VolumeTypeCustom {
+
+	case VolumeTypeCustom:
 		fileNamePrefix = "volume"
 	}
 

@@ -8,12 +8,7 @@ runs:
       shell: bash
       run: |
         set -eux
-        sudo add-apt-repository ppa:ubuntu-lxc/daily -y --no-update
         sudo apt-get update
-
-        # mask services from lxc-utils (`lxc-*` tools are used in test/suites/lxc-to-lxd.sh)
-        # doing this masking before the package is installed means they won't even start
-        sudo systemctl mask lxc.service lxc-net.service
 
         sudo apt-get install --no-install-recommends -y \
           curl \
@@ -28,7 +23,6 @@ runs:
           easy-rsa \
           gettext \
           jq \
-          lxc-utils \
           lvm2 \
           nftables \
           quota \
@@ -46,6 +40,17 @@ runs:
           xz-utils \
           zfsutils-linux \
           openvswitch-switch
+
+        if ! command -v yq >/dev/null; then
+          # Releases before 24.04 don't have a yq deb so use the snap instead.
+          # shellcheck disable=SC1091
+          . /etc/os-release
+          if dpkg --compare-versions "${VERSION_ID}" ge 24.04; then
+              sudo apt-get install --no-install-recommends -y yq
+          else
+              sudo snap install yq
+          fi
+        fi
 
         # reclaim some space
         sudo apt-get clean

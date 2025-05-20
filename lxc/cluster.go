@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"sort"
 	"strings"
@@ -128,7 +129,7 @@ func (c *cmdClusterList) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemotes(toComplete, false)
+			return c.global.cmpRemotes(toComplete, ":", false, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -219,7 +220,7 @@ func (c *cmdClusterShow) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -276,7 +277,7 @@ func (c *cmdClusterInfo) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -335,7 +336,7 @@ func (c *cmdClusterGet) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -408,7 +409,7 @@ func (c *cmdClusterSet) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -492,7 +493,7 @@ func (c *cmdClusterUnset) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -536,7 +537,7 @@ func (c *cmdClusterRename) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -596,7 +597,7 @@ func (c *cmdClusterRemove) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -693,7 +694,7 @@ func (c *cmdClusterEnable) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemotes(toComplete, false)
+			return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -782,7 +783,7 @@ func (c *cmdClusterEdit) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -902,7 +903,7 @@ func (c *cmdClusterAdd) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -986,7 +987,7 @@ func (c *cmdClusterListTokens) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemotes(toComplete, false)
+			return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -1095,7 +1096,7 @@ func (c *cmdClusterRevokeToken) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -1184,7 +1185,7 @@ func (c *cmdClusterUpdateCertificate) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		if len(args) == 1 {
@@ -1301,14 +1302,21 @@ func (c *cmdClusterEvacuate) command() *cobra.Command {
 	cmd.Aliases = []string{"evac"}
 	cmd.Use = usage("evacuate", i18n.G("[<remote>:]<member>"))
 	cmd.Short = i18n.G("Evacuate cluster member")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Evacuate cluster member`))
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Evacuate cluster member
+
+Evacuation actions:
+ - stop: stop all instances on the member
+ - migrate: migrate all instances on the member to other members
+ - live-migrate: live migrate all instances on the member to other members
+`))
 
 	cmd.Flags().BoolVar(&c.action.flagForce, "force", false, i18n.G(`Force evacuation without user confirmation`)+"``")
-	cmd.Flags().StringVar(&c.action.flagAction, "action", "", i18n.G(`Force a particular evacuation action`)+"``")
+	cmd.Flags().StringVar(&c.action.flagAction, "action", "", i18n.G(`Force a particular instance evacuation action. One of stop, migrate or live-migrate`)+"``")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -1334,10 +1342,11 @@ func (c *cmdClusterRestore) command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Restore cluster member`))
 
 	cmd.Flags().BoolVar(&c.action.flagForce, "force", false, i18n.G(`Force restoration without user confirmation`)+"``")
+	cmd.Flags().StringVar(&c.action.flagAction, "action", "", i18n.G(`Force a particular instance restore action. Use "skip" to restore only the cluster member status without starting local instances or migrating back evacuated instances`)+"``")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpClusterMembers(toComplete)
+			return c.global.cmpTopLevelResource("cluster_member", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -1390,6 +1399,12 @@ func (c *cmdClusterEvacuateAction) run(cmd *cobra.Command, args []string) error 
 
 	op, err := resource.server.UpdateClusterMemberState(resource.name, state)
 	if err != nil {
+		var statusErr api.StatusError
+
+		if errors.As(err, &statusErr) && statusErr.Status() == http.StatusServiceUnavailable {
+			return errors.New("Offline cluster members cannot be evacuated")
+		}
+
 		return fmt.Errorf("Failed to update cluster member state: %w", err)
 	}
 

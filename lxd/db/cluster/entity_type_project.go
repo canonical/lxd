@@ -20,7 +20,7 @@ func (e entityTypeProject) urlsByProjectQuery() string {
 }
 
 func (e entityTypeProject) urlByIDQuery() string {
-	return fmt.Sprintf(`%s WHERE id = ?`, e.allURLsQuery())
+	return e.allURLsQuery() + " WHERE id = ?"
 }
 
 func (e entityTypeProject) idFromURLQuery() string {

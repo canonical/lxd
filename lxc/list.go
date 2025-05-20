@@ -136,7 +136,7 @@ lxc list -c ns,user.comment:comment
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpRemotes(toComplete, false)
+			return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -192,7 +192,7 @@ func (c *cmdList) shouldShow(filters []string, inst *api.Instance, state *api.In
 				if c.dotPrefixMatch(key, configKey) {
 					// Try to test filter value as a regexp.
 					regexpValue := value
-					if !(strings.Contains(value, "^") || strings.Contains(value, "$")) {
+					if !strings.Contains(value, "^") && !strings.Contains(value, "$") {
 						regexpValue = "^" + regexpValue + "$"
 					}
 
@@ -222,7 +222,7 @@ func (c *cmdList) shouldShow(filters []string, inst *api.Instance, state *api.In
 			}
 		} else {
 			regexpValue := filter
-			if !(strings.Contains(filter, "^") || strings.Contains(filter, "$")) {
+			if !strings.Contains(filter, "^") && !strings.Contains(filter, "$") {
 				regexpValue = "^" + regexpValue + "$"
 			}
 
@@ -610,7 +610,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 				return nil, false, errors.New(i18n.G("Can't specify column L when not clustered"))
 			}
 		}
-		c.flagColumns = strings.Replace(c.flagColumns, "L", "", -1)
+		c.flagColumns = strings.ReplaceAll(c.flagColumns, "L", "")
 	}
 
 	columnList := strings.Split(c.flagColumns, ",")
@@ -880,7 +880,7 @@ func (c *cmdList) typeColumnData(cInfo api.InstanceFull) string {
 
 func (c *cmdList) numberSnapshotsColumnData(cInfo api.InstanceFull) string {
 	if cInfo.Snapshots != nil {
-		return fmt.Sprint(len(cInfo.Snapshots))
+		return strconv.Itoa(len(cInfo.Snapshots))
 	}
 
 	return "0"
@@ -888,7 +888,7 @@ func (c *cmdList) numberSnapshotsColumnData(cInfo api.InstanceFull) string {
 
 func (c *cmdList) pidColumnData(cInfo api.InstanceFull) string {
 	if cInfo.IsActive() && cInfo.State != nil {
-		return fmt.Sprint(cInfo.State.Pid)
+		return strconv.FormatInt(cInfo.State.Pid, 10)
 	}
 
 	return ""
@@ -934,7 +934,7 @@ func (c *cmdList) lastUsedColumnData(cInfo api.InstanceFull) string {
 
 func (c *cmdList) numberOfProcessesColumnData(cInfo api.InstanceFull) string {
 	if cInfo.IsActive() && cInfo.State != nil {
-		return fmt.Sprint(cInfo.State.Processes)
+		return strconv.FormatInt(cInfo.State.Processes, 10)
 	}
 
 	return ""

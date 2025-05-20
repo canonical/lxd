@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -49,7 +50,8 @@ func (m *Map) Change(changes map[string]any) (map[string]string, error) {
 		// When a hidden value is set to "true" in the change set, it
 		// means "keep it unchanged", so we replace it with our current
 		// value.
-		if ok && key.Hidden && change == true {
+		changeBool, _ := change.(bool)
+		if ok && key.Hidden && changeBool {
 			change = m.GetRaw(name)
 		}
 
@@ -214,7 +216,7 @@ func (m *Map) set(name string, value string, initial bool) (bool, error) {
 		for _, r := range strings.TrimPrefix(name, "user.") {
 			// Only allow letters, digits, and punctuation characters.
 			if !unicode.In(r, unicode.Letter, unicode.Digit, unicode.Punct) {
-				return false, fmt.Errorf("Invalid key name")
+				return false, errors.New("Invalid key name")
 			}
 		}
 
@@ -235,7 +237,7 @@ func (m *Map) set(name string, value string, initial bool) (bool, error) {
 
 	key, ok := m.schema[name]
 	if !ok {
-		return false, fmt.Errorf("Unknown key")
+		return false, errors.New("Unknown key")
 	}
 
 	// When unsetting a config key, the value argument will be empty.

@@ -1,7 +1,6 @@
 package osarch
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -24,7 +23,7 @@ VERSION_ID="16.04"
 	defer cleanup()
 
 	lsbRelease, err := getLSBRelease(filename)
-	s.Nil(err)
+	s.NoError(err)
 	s.Equal(
 		map[string]string{
 			"NAME":       "Ubuntu",
@@ -39,7 +38,7 @@ func (s *releaseTestSuite) TestGetLSBReleaseSingleQuotes() {
 	defer cleanup()
 
 	lsbRelease, err := getLSBRelease(filename)
-	s.Nil(err)
+	s.NoError(err)
 	s.Equal(map[string]string{"NAME": "Ubuntu"}, lsbRelease)
 }
 
@@ -49,7 +48,7 @@ func (s *releaseTestSuite) TestGetLSBReleaseNoQuotes() {
 	defer cleanup()
 
 	lsbRelease, err := getLSBRelease(filename)
-	s.Nil(err)
+	s.NoError(err)
 	s.Equal(map[string]string{"NAME": "Ubuntu"}, lsbRelease)
 }
 
@@ -65,7 +64,7 @@ VERSION_ID="16.04"
 	defer cleanup()
 
 	lsbRelease, err := getLSBRelease(filename)
-	s.Nil(err)
+	s.NoError(err)
 	s.Equal(
 		map[string]string{
 			"NAME":       "Ubuntu",
@@ -84,5 +83,5 @@ ID="ubuntu"
 	defer cleanup()
 
 	_, err := getLSBRelease(filename)
-	s.EqualError(err, fmt.Sprintf("%s: invalid format on line 3", filename))
+	s.EqualError(err, filename+": invalid format on line 3")
 }

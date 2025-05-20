@@ -16,8 +16,21 @@ type typeInfo interface {
 	// specific, false if not.
 	requiresProject() bool
 
+	// requiresLocation() bool returns whether the Type requires a location to be uniquely specified, e.g. true if it is
+	// node specific, false if not.
+	requiresLocation() bool
+
 	// path returns the API path for the resource. The pathPlaceholder constant should be used in place of mux variables.
 	path() []string
+}
+
+// typeInfoCommon partially implements typeInfo and can be embedded in typeInfo
+// implementations for convenience.
+type typeInfoCommon struct{}
+
+// requiresLocation returns false by default.
+func (typeInfoCommon) requiresLocation() bool {
+	return false
 }
 
 const (
@@ -180,7 +193,9 @@ func APIMetricsEntityTypes() []Type {
 	return metricsEntityTypes
 }
 
-type container struct{}
+type container struct {
+	typeInfoCommon
+}
 
 func (container) requiresProject() bool {
 	return true
@@ -190,7 +205,9 @@ func (container) path() []string {
 	return []string{"containers", pathPlaceholder}
 }
 
-type image struct{}
+type image struct {
+	typeInfoCommon
+}
 
 func (image) requiresProject() bool {
 	return true
@@ -200,7 +217,9 @@ func (image) path() []string {
 	return []string{"images", pathPlaceholder}
 }
 
-type profile struct{}
+type profile struct {
+	typeInfoCommon
+}
 
 func (profile) requiresProject() bool {
 	return true
@@ -210,7 +229,9 @@ func (profile) path() []string {
 	return []string{"profiles", pathPlaceholder}
 }
 
-type project struct{}
+type project struct {
+	typeInfoCommon
+}
 
 func (project) requiresProject() bool {
 	return false
@@ -220,7 +241,9 @@ func (project) path() []string {
 	return []string{"projects", pathPlaceholder}
 }
 
-type certificate struct{}
+type certificate struct {
+	typeInfoCommon
+}
 
 func (certificate) requiresProject() bool {
 	return false
@@ -230,7 +253,9 @@ func (certificate) path() []string {
 	return []string{"certificates", pathPlaceholder}
 }
 
-type instance struct{}
+type instance struct {
+	typeInfoCommon
+}
 
 func (instance) requiresProject() bool {
 	return true
@@ -240,7 +265,9 @@ func (instance) path() []string {
 	return []string{"instances", pathPlaceholder}
 }
 
-type instanceBackup struct{}
+type instanceBackup struct {
+	typeInfoCommon
+}
 
 func (instanceBackup) requiresProject() bool {
 	return true
@@ -250,7 +277,9 @@ func (instanceBackup) path() []string {
 	return []string{"instances", pathPlaceholder, "backups", pathPlaceholder}
 }
 
-type instanceSnapshot struct{}
+type instanceSnapshot struct {
+	typeInfoCommon
+}
 
 func (instanceSnapshot) requiresProject() bool {
 	return true
@@ -260,7 +289,9 @@ func (instanceSnapshot) path() []string {
 	return []string{"instances", pathPlaceholder, "snapshots", pathPlaceholder}
 }
 
-type network struct{}
+type network struct {
+	typeInfoCommon
+}
 
 func (network) requiresProject() bool {
 	return true
@@ -270,7 +301,9 @@ func (network) path() []string {
 	return []string{"networks", pathPlaceholder}
 }
 
-type networkACL struct{}
+type networkACL struct {
+	typeInfoCommon
+}
 
 func (networkACL) requiresProject() bool {
 	return true
@@ -280,7 +313,9 @@ func (networkACL) path() []string {
 	return []string{"network-acls", pathPlaceholder}
 }
 
-type clusterMember struct{}
+type clusterMember struct {
+	typeInfoCommon
+}
 
 func (clusterMember) requiresProject() bool {
 	return false
@@ -290,7 +325,9 @@ func (clusterMember) path() []string {
 	return []string{"cluster", "members", pathPlaceholder}
 }
 
-type operation struct{}
+type operation struct {
+	typeInfoCommon
+}
 
 func (operation) requiresProject() bool {
 	return false
@@ -300,7 +337,9 @@ func (operation) path() []string {
 	return []string{"operations", pathPlaceholder}
 }
 
-type storagePool struct{}
+type storagePool struct {
+	typeInfoCommon
+}
 
 func (storagePool) requiresProject() bool {
 	return false
@@ -320,6 +359,10 @@ func (storageVolume) path() []string {
 	return []string{"storage-pools", pathPlaceholder, "volumes", pathPlaceholder, pathPlaceholder}
 }
 
+func (storageVolume) requiresLocation() bool {
+	return true
+}
+
 type storageVolumeBackup struct{}
 
 func (storageVolumeBackup) requiresProject() bool {
@@ -328,6 +371,10 @@ func (storageVolumeBackup) requiresProject() bool {
 
 func (storageVolumeBackup) path() []string {
 	return []string{"storage-pools", pathPlaceholder, "volumes", pathPlaceholder, pathPlaceholder, "backups", pathPlaceholder}
+}
+
+func (storageVolumeBackup) requiresLocation() bool {
+	return true
 }
 
 type storageVolumeSnapshot struct{}
@@ -340,7 +387,13 @@ func (storageVolumeSnapshot) path() []string {
 	return []string{"storage-pools", pathPlaceholder, "volumes", pathPlaceholder, pathPlaceholder, "snapshots", pathPlaceholder}
 }
 
-type warning struct{}
+func (storageVolumeSnapshot) requiresLocation() bool {
+	return true
+}
+
+type warning struct {
+	typeInfoCommon
+}
 
 func (warning) requiresProject() bool {
 	return false
@@ -350,7 +403,9 @@ func (warning) path() []string {
 	return []string{"warnings", pathPlaceholder}
 }
 
-type clusterGroup struct{}
+type clusterGroup struct {
+	typeInfoCommon
+}
 
 func (clusterGroup) requiresProject() bool {
 	return false
@@ -360,7 +415,9 @@ func (clusterGroup) path() []string {
 	return []string{"cluster", "groups", pathPlaceholder}
 }
 
-type storageBucket struct{}
+type storageBucket struct {
+	typeInfoCommon
+}
 
 func (storageBucket) requiresProject() bool {
 	return true
@@ -370,7 +427,9 @@ func (storageBucket) path() []string {
 	return []string{"storage-pools", pathPlaceholder, "buckets", pathPlaceholder}
 }
 
-type server struct{}
+type server struct {
+	typeInfoCommon
+}
 
 func (server) requiresProject() bool {
 	return false
@@ -380,7 +439,9 @@ func (server) path() []string {
 	return []string{}
 }
 
-type imageAlias struct{}
+type imageAlias struct {
+	typeInfoCommon
+}
 
 func (imageAlias) requiresProject() bool {
 	return true
@@ -390,7 +451,9 @@ func (imageAlias) path() []string {
 	return []string{"images", "aliases", pathPlaceholder}
 }
 
-type networkZone struct{}
+type networkZone struct {
+	typeInfoCommon
+}
 
 func (networkZone) requiresProject() bool {
 	return true
@@ -400,7 +463,9 @@ func (networkZone) path() []string {
 	return []string{"network-zones", pathPlaceholder}
 }
 
-type identity struct{}
+type identity struct {
+	typeInfoCommon
+}
 
 func (identity) requiresProject() bool {
 	return false
@@ -410,7 +475,9 @@ func (identity) path() []string {
 	return []string{"auth", "identities", pathPlaceholder, pathPlaceholder}
 }
 
-type authGroup struct{}
+type authGroup struct {
+	typeInfoCommon
+}
 
 func (authGroup) requiresProject() bool {
 	return false
@@ -420,7 +487,9 @@ func (authGroup) path() []string {
 	return []string{"auth", "groups", pathPlaceholder}
 }
 
-type identityProviderGroup struct{}
+type identityProviderGroup struct {
+	typeInfoCommon
+}
 
 func (identityProviderGroup) requiresProject() bool {
 	return false

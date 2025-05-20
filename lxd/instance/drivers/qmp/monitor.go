@@ -3,6 +3,7 @@ package qmp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -69,13 +70,14 @@ func (m *Monitor) start() error {
 			status := entries[len(entries)-2]
 
 			m.agentStartedMu.Lock()
-			if status == "STARTED" {
+			switch status {
+			case "STARTED":
 				if !m.agentStarted && m.eventHandler != nil {
 					go m.eventHandler(EventAgentStarted, nil)
 				}
 
 				m.agentStarted = true
-			} else if status == "STOPPED" {
+			case "STOPPED":
 				m.agentStarted = false
 			}
 
@@ -243,7 +245,7 @@ func Connect(path string, serialCharDev string, eventHandler func(name string, d
 
 	case <-time.After(5 * time.Second):
 		_ = qmpConn.Disconnect()
-		return nil, fmt.Errorf("QMP connection timed out")
+		return nil, errors.New("QMP connection timed out")
 	}
 
 	// Setup the monitor struct.

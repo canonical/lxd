@@ -21,15 +21,15 @@ var transactions uint64
 
 type cmdDaemon struct{}
 
-func (c *cmdDaemon) Command() *cobra.Command {
+func (c *cmdDaemon) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "lxd-user"
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 
 	return cmd
 }
 
-func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdDaemon) run(cmd *cobra.Command, args []string) error {
 	// Setup logger.
 	log.SetFormatter(&log.TextFormatter{
 		FullTimestamp: true,
@@ -64,7 +64,7 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 	// Setup the unix socket.
 	listeners := util.GetListeners(util.SystemdListenFDsStart)
 	if len(listeners) > 1 {
-		return fmt.Errorf("More than one socket-activation FD received")
+		return errors.New("More than one socket-activation FD received")
 	}
 
 	var listener *net.UnixListener
@@ -72,7 +72,7 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 		// Handle socket activation.
 		unixListener, ok := listeners[0].(*net.UnixListener)
 		if !ok {
-			return fmt.Errorf("Socket-activation FD isn't a unix socket")
+			return errors.New("Socket-activation FD isn't a unix socket")
 		}
 
 		listener = unixListener
@@ -100,7 +100,7 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 					mu.RUnlock()
 
 					// Daemon has been inactive for 10s, exit.
-					os.Exit(0)
+					os.Exit(0) //nolint:revive
 				}
 
 				mu.RUnlock()

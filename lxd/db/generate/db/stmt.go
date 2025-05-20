@@ -162,7 +162,7 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 
 	table += strings.Join(joins, "")
 	sql := fmt.Sprintf(boiler, strings.Join(columns, ", "), table, strings.Join(orderBy, ", "))
-	kind := strings.Replace(s.kind, "-", "_", -1)
+	kind := strings.ReplaceAll(s.kind, "-", "_")
 	stmtName := stmtCodeVar(s.entity, kind)
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		buf.L("const %s = `%s`", stmtName, sql)
@@ -228,7 +228,7 @@ func (s *Stmt) objectsBy(buf *file.Buffer) error {
 			// Ensure filters operate on the coalesced value for fields using coalesce setting.
 			where = append(where, fmt.Sprintf("coalesce(%s, %s) = ? ", column, coalesce[0]))
 		} else {
-			where = append(where, fmt.Sprintf("%s = ? ", column))
+			where = append(where, column+" = ? ")
 		}
 	}
 
@@ -314,7 +314,7 @@ func (s *Stmt) id(buf *file.Buffer) error {
 			column = mapping.FieldColumnName(field.Name, table)
 		}
 
-		where = append(where, fmt.Sprintf("%s = ?", column))
+		where = append(where, column+" = ?")
 	}
 
 	sql := fmt.Sprintf(stmts[s.kind], table, table+strings.Join(joins, ""), strings.Join(where, " AND "))
@@ -347,7 +347,7 @@ func (s *Stmt) rename(buf *file.Buffer) error {
 	}
 
 	sql := fmt.Sprintf(stmts[s.kind], table, strings.Join(updates, " AND "))
-	kind := strings.Replace(s.kind, "-", "_", -1)
+	kind := strings.ReplaceAll(s.kind, "-", "_")
 	stmtName := stmtCodeVar(s.entity, kind)
 	s.register(buf, stmtName, sql)
 	return nil
@@ -378,7 +378,7 @@ func (s *Stmt) update(buf *file.Buffer) error {
 	}
 
 	sql := fmt.Sprintf(stmts[s.kind], table, strings.Join(updates, ", "), "id = ?")
-	kind := strings.Replace(s.kind, "-", "_", -1)
+	kind := strings.ReplaceAll(s.kind, "-", "_")
 	stmtName := stmtCodeVar(s.entity, kind)
 	s.register(buf, stmtName, sql)
 
@@ -422,7 +422,7 @@ func (s *Stmt) delete(buf *file.Buffer) error {
 	}
 
 	sql := fmt.Sprintf(stmts["delete"], table, where)
-	kind := strings.Replace(s.kind, "-", "_", -1)
+	kind := strings.ReplaceAll(s.kind, "-", "_")
 	stmtName := stmtCodeVar(s.entity, kind)
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		buf.L("const %s = `%s`", stmtName, sql)

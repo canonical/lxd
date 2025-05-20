@@ -48,7 +48,7 @@ as well as retrieve past log entries from it.`))
 	cmd.Flags().StringVarP(&c.flagType, "type", "t", "console", i18n.G("Type of connection to establish: 'console' for serial console, 'vga' for SPICE graphical output")+"``")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return c.global.cmpInstances(toComplete)
+		return c.global.cmpTopLevelResource("instance", toComplete)
 	}
 
 	return cmd
@@ -313,7 +313,7 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 			return errors.New("Failed to get TCP listen address")
 		}
 
-		socket = "spice://127.0.0.1:" + fmt.Sprint(addr.Port)
+		socket = "spice://127.0.0.1:" + strconv.Itoa(addr.Port)
 	}
 
 	// Clean everything up when the viewer is done.

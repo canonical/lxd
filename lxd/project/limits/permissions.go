@@ -2,6 +2,7 @@ package limits
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"slices"
@@ -514,7 +515,7 @@ func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profi
 					disabled := shared.IsFalseOrEmpty(instanceValue)
 
 					if restrictionValue != "allow" && !disabled {
-						return fmt.Errorf("Container syscall interception is forbidden")
+						return errors.New("Container syscall interception is forbidden")
 					}
 
 					return nil
@@ -523,7 +524,7 @@ func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profi
 		case "restricted.containers.nesting":
 			containerConfigChecks["security.nesting"] = func(instanceValue string) error {
 				if restrictionValue == "block" && shared.IsTrue(instanceValue) {
-					return fmt.Errorf("Container nesting is forbidden")
+					return errors.New("Container nesting is forbidden")
 				}
 
 				return nil
@@ -537,7 +538,7 @@ func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profi
 		case "restricted.containers.privilege":
 			containerConfigChecks["security.privileged"] = func(instanceValue string) error {
 				if restrictionValue != "allow" && shared.IsTrue(instanceValue) {
-					return fmt.Errorf("Privileged containers are forbidden")
+					return errors.New("Privileged containers are forbidden")
 				}
 
 				return nil
@@ -545,7 +546,7 @@ func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profi
 
 			containerConfigChecks["security.idmap.isolated"] = func(instanceValue string) error {
 				if restrictionValue == "isolated" && shared.IsFalseOrEmpty(instanceValue) {
-					return fmt.Errorf("Non-isolated containers are forbidden")
+					return errors.New("Non-isolated containers are forbidden")
 				}
 
 				return nil
@@ -559,7 +560,7 @@ func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profi
 		case "restricted.devices.unix-char":
 			devicesChecks["unix-char"] = func(device map[string]string) error {
 				if restrictionValue != "allow" {
-					return fmt.Errorf("Unix character devices are forbidden")
+					return errors.New("Unix character devices are forbidden")
 				}
 
 				return nil
@@ -568,7 +569,7 @@ func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profi
 		case "restricted.devices.unix-block":
 			devicesChecks["unix-block"] = func(device map[string]string) error {
 				if restrictionValue != "allow" {
-					return fmt.Errorf("Unix block devices are forbidden")
+					return errors.New("Unix block devices are forbidden")
 				}
 
 				return nil
@@ -577,7 +578,7 @@ func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profi
 		case "restricted.devices.unix-hotplug":
 			devicesChecks["unix-hotplug"] = func(device map[string]string) error {
 				if restrictionValue != "allow" {
-					return fmt.Errorf("Unix hotplug devices are forbidden")
+					return errors.New("Unix hotplug devices are forbidden")
 				}
 
 				return nil
@@ -586,7 +587,7 @@ func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profi
 		case "restricted.devices.infiniband":
 			devicesChecks["infiniband"] = func(device map[string]string) error {
 				if restrictionValue != "allow" {
-					return fmt.Errorf("Infiniband devices are forbidden")
+					return errors.New("Infiniband devices are forbidden")
 				}
 
 				return nil
@@ -595,7 +596,7 @@ func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profi
 		case "restricted.devices.gpu":
 			devicesChecks["gpu"] = func(device map[string]string) error {
 				if restrictionValue != "allow" {
-					return fmt.Errorf("GPU devices are forbidden")
+					return errors.New("GPU devices are forbidden")
 				}
 
 				return nil
@@ -604,7 +605,7 @@ func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profi
 		case "restricted.devices.usb":
 			devicesChecks["usb"] = func(device map[string]string) error {
 				if restrictionValue != "allow" {
-					return fmt.Errorf("USB devices are forbidden")
+					return errors.New("USB devices are forbidden")
 				}
 
 				return nil
@@ -613,7 +614,7 @@ func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profi
 		case "restricted.devices.pci":
 			devicesChecks["pci"] = func(device map[string]string) error {
 				if restrictionValue != "allow" {
-					return fmt.Errorf("PCI devices are forbidden")
+					return errors.New("PCI devices are forbidden")
 				}
 
 				return nil
@@ -622,7 +623,7 @@ func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profi
 		case "restricted.devices.proxy":
 			devicesChecks["proxy"] = func(device map[string]string) error {
 				if restrictionValue != "allow" {
-					return fmt.Errorf("Proxy devices are forbidden")
+					return errors.New("Proxy devices are forbidden")
 				}
 
 				return nil
@@ -633,10 +634,10 @@ func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profi
 				// Check if the NICs are allowed at all.
 				switch restrictionValue {
 				case "block":
-					return fmt.Errorf("Network devices are forbidden")
+					return errors.New("Network devices are forbidden")
 				case "managed":
 					if device["network"] == "" {
-						return fmt.Errorf("Only managed network devices are allowed")
+						return errors.New("Only managed network devices are allowed")
 					}
 				}
 
@@ -644,11 +645,11 @@ func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profi
 				// restricted.devices.nic and restricted.networks.access settings.
 				if device["network"] != "" {
 					if !project.NetworkAllowed(proj.Config, device["network"], true) {
-						return fmt.Errorf("Network not allowed in project")
+						return errors.New("Network not allowed in project")
 					}
 				} else if device["parent"] != "" {
 					if !project.NetworkAllowed(proj.Config, device["parent"], false) {
-						return fmt.Errorf("Network not allowed in project")
+						return errors.New("Network not allowed in project")
 					}
 				}
 
@@ -669,10 +670,10 @@ func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profi
 
 				switch restrictionValue {
 				case "block":
-					return fmt.Errorf("Disk devices are forbidden")
+					return errors.New("Disk devices are forbidden")
 				case "managed":
 					if device["pool"] == "" {
-						return fmt.Errorf("Attaching disks not backed by a pool is forbidden")
+						return errors.New("Attaching disks not backed by a pool is forbidden")
 					}
 
 				case "allow":
@@ -1056,7 +1057,7 @@ func checkUplinkUse(ctx context.Context, tx *db.ClusterTx, projectName string, c
 		}
 
 		if hasIPV4Limits && invalidIPV4Quota || hasIPV6Limits && invalidIPV6Quota {
-			return fmt.Errorf("Uplink IP limit is below current number of used uplink addresses")
+			return errors.New("Uplink IP limit is below current number of used uplink addresses")
 		}
 	}
 
@@ -1520,7 +1521,7 @@ func getInstanceLimits(instance api.Instance, keys []string, skipUnset bool, sto
 var aggregateLimitConfigValueParsers = map[string]func(string) (int64, error){
 	"limits.memory": func(value string) (int64, error) {
 		if strings.HasSuffix(value, "%") {
-			return -1, fmt.Errorf("Value can't be a percentage")
+			return -1, errors.New("Value can't be a percentage")
 		}
 
 		return units.ParseByteSizeString(value)
@@ -1535,7 +1536,7 @@ var aggregateLimitConfigValueParsers = map[string]func(string) (int64, error){
 	},
 	"limits.cpu": func(value string) (int64, error) {
 		if strings.Contains(value, ",") || strings.Contains(value, "-") {
-			return -1, fmt.Errorf("CPUs can't be pinned if project limits are used")
+			return -1, errors.New("CPUs can't be pinned if project limits are used")
 		}
 
 		limit, err := strconv.Atoi(value)
@@ -1555,10 +1556,10 @@ var aggregateLimitConfigValuePrinters = map[string]func(int64) string{
 		return units.GetByteSizeStringIEC(limit, 1)
 	},
 	"limits.processes": func(limit int64) string {
-		return fmt.Sprintf("%d", limit)
+		return strconv.FormatInt(limit, 10)
 	},
 	"limits.cpu": func(limit int64) string {
-		return fmt.Sprintf("%d", limit)
+		return strconv.FormatInt(limit, 10)
 	},
 	"limits.disk": func(limit int64) string {
 		return units.GetByteSizeStringIEC(limit, 1)

@@ -6,6 +6,7 @@ import (
 	"context"
 	cryptorand "crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"math/rand"
@@ -74,7 +75,7 @@ func RandomDevName(prefix string) string {
 // MACDevName returns interface name with prefix 'lxd' and MAC without leading 2 digits.
 func MACDevName(mac net.HardwareAddr) string {
 	devName := strings.Join(strings.Split(mac.String(), ":"), "")
-	return fmt.Sprintf("lxd%s", devName[2:])
+	return "lxd" + devName[2:]
 }
 
 // UsedByInstanceDevices looks for instance NIC devices using the network and runs the supplied usageFunc for each.
@@ -360,7 +361,7 @@ func DefaultGatewaySubnetV4() (*net.IPNet, string, error) {
 	}
 
 	if ifaceName == "" {
-		return nil, "", fmt.Errorf("No default gateway for IPv4")
+		return nil, "", errors.New("No default gateway for IPv4")
 	}
 
 	iface, err := net.InterfaceByName(ifaceName)
@@ -386,14 +387,14 @@ func DefaultGatewaySubnetV4() (*net.IPNet, string, error) {
 		}
 
 		if subnet != nil {
-			return nil, "", fmt.Errorf("More than one IPv4 subnet on default interface")
+			return nil, "", errors.New("More than one IPv4 subnet on default interface")
 		}
 
 		subnet = addrNet
 	}
 
 	if subnet == nil {
-		return nil, "", fmt.Errorf("No IPv4 subnet on default interface")
+		return nil, "", errors.New("No IPv4 subnet on default interface")
 	}
 
 	return subnet, ifaceName, nil
@@ -621,7 +622,7 @@ func randomSubnetV4() (string, error) {
 		return cidr, nil
 	}
 
-	return "", fmt.Errorf("Failed to automatically find an unused IPv4 subnet, manual configuration required")
+	return "", errors.New("Failed to automatically find an unused IPv4 subnet, manual configuration required")
 }
 
 func randomSubnetV6() (string, error) {
@@ -643,7 +644,7 @@ func randomSubnetV6() (string, error) {
 		return cidr, nil
 	}
 
-	return "", fmt.Errorf("Failed to automatically find an unused IPv6 subnet, manual configuration required")
+	return "", errors.New("Failed to automatically find an unused IPv6 subnet, manual configuration required")
 }
 
 // noAvailableAddressErr is used by randomAddressInSubnet to indicate that the subnet was exhausted while searching for
@@ -773,7 +774,7 @@ func inRoutingTable(subnet *net.IPNet) bool {
 		filename = "ipv6_route"
 	}
 
-	file, err := os.Open(fmt.Sprintf("/proc/net/%s", filename))
+	file, err := os.Open("/proc/net/" + filename)
 	if err != nil {
 		return false
 	}
@@ -858,7 +859,7 @@ func pingIP(ctx context.Context, ip net.IP) error {
 		timeout = time.Until(deadline)
 	}
 
-	_, err := shared.RunCommandContext(ctx, cmd, "-n", "-q", ip.String(), "-c", "1", "-w", fmt.Sprintf("%d", int(timeout.Seconds())))
+	_, err := shared.RunCommandContext(ctx, cmd, "-n", "-q", ip.String(), "-c", "1", "-w", strconv.Itoa(int(timeout.Seconds())))
 
 	return err
 }
@@ -884,7 +885,7 @@ func pingSubnet(subnet *net.IPNet) bool {
 	poke := func(ip net.IP) {
 		defer wgChecks.Done()
 
-		addr := fmt.Sprintf("%s:22", ip.String())
+		addr := ip.String() + ":22"
 		if ip.To4() == nil {
 			addr = fmt.Sprintf("[%s]:22", ip.String())
 		}
@@ -1150,7 +1151,7 @@ func InterfaceRemove(nic string) error {
 
 // InterfaceExists returns true if network interface exists.
 func InterfaceExists(nic string) bool {
-	if nic != "" && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", nic)) {
+	if nic != "" && shared.PathExists("/sys/class/net/"+nic) {
 		return true
 	}
 
@@ -1308,7 +1309,7 @@ func ParsePortRange(r string) (base int64, size int64, err error) {
 		}
 
 		if size <= base {
-			return -1, -1, fmt.Errorf("End port should be higher than start port")
+			return -1, -1, errors.New("End port should be higher than start port")
 		}
 
 		size -= base
@@ -1381,10 +1382,10 @@ func BridgeNetfilterEnabled(ipVersion uint) error {
 		sysctlName = "ip6tables"
 	}
 
-	sysctlPath := fmt.Sprintf("net/bridge/bridge-nf-call-%s", sysctlName)
+	sysctlPath := "net/bridge/bridge-nf-call-" + sysctlName
 	sysctlVal, err := util.SysctlGet(sysctlPath)
 	if err != nil {
-		return fmt.Errorf("br_netfilter kernel module not loaded")
+		return errors.New("br_netfilter kernel module not loaded")
 	}
 
 	sysctlVal = strings.TrimSpace(sysctlVal)
@@ -1405,7 +1406,7 @@ func ProxyParseAddr(data string) (*deviceConfig.ProxyAddress, error) {
 	}
 
 	if len(fields) < 2 || fields[1] == "" {
-		return nil, fmt.Errorf("Missing address")
+		return nil, errors.New("Missing address")
 	}
 
 	newProxyAddr := &deviceConfig.ProxyAddress{
@@ -1437,7 +1438,7 @@ func ProxyParseAddr(data string) (*deviceConfig.ProxyAddress, error) {
 	newProxyAddr.Address = address
 
 	// Split <ports> into individual ports and port ranges.
-	ports := strings.SplitN(port, ",", -1)
+	ports := strings.Split(port, ",")
 
 	newProxyAddr.Ports = make([]uint64, 0, len(ports))
 
@@ -1453,7 +1454,7 @@ func ProxyParseAddr(data string) (*deviceConfig.ProxyAddress, error) {
 	}
 
 	if len(newProxyAddr.Ports) <= 0 {
-		return nil, fmt.Errorf("At least one port is required")
+		return nil, errors.New("At least one port is required")
 	}
 
 	return newProxyAddr, nil

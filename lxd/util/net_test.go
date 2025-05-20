@@ -23,7 +23,7 @@ func TestInMemoryNetwork(t *testing.T) {
 
 	go func() {
 		_, err := client.Write([]byte("hello"))
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}()
 
 	buffer := make([]byte, 5)

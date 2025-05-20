@@ -3,6 +3,7 @@ package schema_test
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -67,7 +68,7 @@ func TestSchemaEnsure_VersionMoreRecentThanExpected(t *testing.T) {
 
 	schema, _ = newSchemaAndDB(t)
 	_, err = schema.Ensure(db)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.EqualError(t, err, "schema version '1' is more recent than expected '0'")
 }
 
@@ -79,7 +80,7 @@ func TestSchemaEnsure_FreshStatementError(t *testing.T) {
 	schema.Fresh("garbage")
 
 	_, err := schema.Ensure(db)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot apply fresh schema")
 }
 
@@ -98,7 +99,7 @@ func TestSchemaEnsure_MissingVersion(t *testing.T) {
 	schema.Add(updateNoop)
 
 	_, err = schema.Ensure(db)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.EqualError(t, err, "Missing updates: 1 to 3")
 }
 
@@ -225,7 +226,7 @@ func TestSchemaEnsure_FailingUpdate(t *testing.T) {
 func TestSchemaEnsure_FailingHook(t *testing.T) {
 	schema, db := newSchemaAndDB(t)
 	schema.Add(updateCreateTable)
-	schema.Hook(func(context.Context, int, *sql.Tx) error { return fmt.Errorf("boom") })
+	schema.Hook(func(context.Context, int, *sql.Tx) error { return errors.New("boom") })
 	_, err := schema.Ensure(db)
 	assert.EqualError(t, err, "failed to execute hook (version 0): boom")
 
@@ -493,5 +494,5 @@ func updateAddColumn(ctx context.Context, tx *sql.Tx) error {
 
 // An update that unconditionally fails with an error.
 func updateBoom(ctx context.Context, tx *sql.Tx) error {
-	return fmt.Errorf("boom")
+	return errors.New("boom")
 }

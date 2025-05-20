@@ -2,9 +2,12 @@
 # How to create a network
 
 ````{only} integrated
-```{note}
-MicroCloud users can disregard the instructions on this page, because the MicroCloud setup process handles forming a network. Following MicroCloud setup, LXD networking commands can be used with the MicroCloud.
+
+```{admonition} For MicroCloud users
+:class: note
+The MicroCloud setup process creates a network. Thus, you do not need to follow the steps on this page. After MicroCloud setup, LXD networking commands can be used with the cluster.
 ```
+
 ````
 
 To create a managed network, use the [`lxc network`](lxc_network.md) command and its subcommands.
@@ -41,6 +44,9 @@ The following network types are available:
 
 ## Create a network
 
+`````{tabs}
+````{group-tab} CLI
+
 Use the following command to create a network:
 
 ```bash
@@ -76,9 +82,30 @@ Network UPLINK created
 ```
 
 Also see {ref}`cluster-config-networks`.
+````
+```` {group-tab} UI
+
+From the main navigation, select {guilabel}`Networks`.
+
+On the resulting page, click {guilabel}`Create network` in the upper-right corner.
+
+You can then configure the network name and type, as well as other attributes. Optional additional attributes are split into the categories {guilabel}`Bridge`, {guilabel}`IPv4`, {guilabel}`IPv6` and {guilabel}`DNS`, which can be seen in the submenu on the right.
+
+Click {guilabel}`Create` to create the network.
+
+```{figure} /images/networks/network_create.png
+:width: 80%
+:alt: Create a network in LXD
+```
+
+````
+`````
 
 (network-attach)=
 ## Attach a network to an instance
+
+`````{tabs}
+````{group-tab} CLI
 
 After creating a managed network, you can attach it to an instance as a {ref}`NIC device <devices-nic>`.
 
@@ -93,6 +120,29 @@ For example, LXD images perform IP auto-configuration on the `eth0` interface, w
 For example, to attach the network `my-network` to the instance `my-instance` as `eth0` device, enter the following command:
 
     lxc network attach my-network my-instance eth0
+
+
+````
+```` {group-tab} UI
+
+When {ref}`creating <instances-create>` or {ref}`configuring an instance <instances-configure>`, go to the {guilabel}`Devices` section in the left-hand submenu, then select {guilabel}`Network` to view and edit the networks linked to the instance.
+
+```{figure} /images/networks/network_add_to_instance.png
+:width: 80%
+:alt: Add a network to an instance in LXD
+```
+
+Click the {guilabel}`Attach network` button to add a new network. From here, you can select an existing network from the {guilabel}`Network` dropdown and assign it a device name.
+
+```{figure} /images/networks/network_attach_instance.png
+:width: 80%
+:alt: Attach a network to an instance in LXD
+```
+
+If configuring an instance, select {guilabel}`Save changes` to save your changes. If creating an instance, select {guilabel}`Create` to create your instance.
+
+````
+`````
 
 ### Attach the network as a device
 

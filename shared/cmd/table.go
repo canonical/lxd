@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -147,7 +148,7 @@ func RenderSlice(data any, format string, displayColumns string, sortColumns str
 func anyToSlice(slice any) ([]any, error) {
 	s := reflect.ValueOf(slice)
 	if s.Kind() != reflect.Slice {
-		return nil, fmt.Errorf("Provided argument is not a slice")
+		return nil, errors.New("Provided argument is not a slice")
 	}
 
 	// Keep the distinction between nil and empty slice input

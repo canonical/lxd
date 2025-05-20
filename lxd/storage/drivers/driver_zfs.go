@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -224,7 +225,7 @@ func (d *zfs) FillConfig() error {
 				return err
 			}
 
-			d.config["size"] = fmt.Sprint(defaultSize) + "GiB"
+			d.config["size"] = strconv.FormatUint(defaultSize, 10) + "GiB"
 		}
 	} else if filepath.IsAbs(d.config["source"]) {
 		// Set default pool_name.
@@ -262,7 +263,7 @@ func (d *zfs) Create() error {
 	if d.config["source"] == "" || d.config["source"] == loopPath {
 		// Validate pool_name.
 		if strings.Contains(d.config["zfs.pool_name"], "/") {
-			return fmt.Errorf("zfs.pool_name can't point to a dataset when source isn't set")
+			return errors.New("zfs.pool_name can't point to a dataset when source isn't set")
 		}
 
 		// Create the loop file itself.
@@ -292,12 +293,12 @@ func (d *zfs) Create() error {
 	} else if filepath.IsAbs(d.config["source"]) {
 		// Handle existing block devices.
 		if !shared.IsBlockdevPath(d.config["source"]) {
-			return fmt.Errorf("Custom loop file locations are not supported")
+			return errors.New("Custom loop file locations are not supported")
 		}
 
 		// Validate pool_name.
 		if strings.Contains(d.config["zfs.pool_name"], "/") {
-			return fmt.Errorf("zfs.pool_name can't point to a dataset when source isn't set")
+			return errors.New("zfs.pool_name can't point to a dataset when source isn't set")
 		}
 
 		// Wipe if requested.
@@ -335,7 +336,7 @@ func (d *zfs) Create() error {
 	} else {
 		// Validate pool_name.
 		if d.config["zfs.pool_name"] != d.config["source"] {
-			return fmt.Errorf("The source must match zfs.pool_name if specified")
+			return errors.New("The source must match zfs.pool_name if specified")
 		}
 
 		if strings.Contains(d.config["zfs.pool_name"], "/") {
@@ -493,7 +494,7 @@ func (d *zfs) Validate(config map[string]string) error {
 func (d *zfs) Update(changedConfig map[string]string) error {
 	_, ok := changedConfig["zfs.pool_name"]
 	if ok {
-		return fmt.Errorf("zfs.pool_name cannot be modified")
+		return errors.New("zfs.pool_name cannot be modified")
 	}
 
 	size, ok := changedConfig["size"]
@@ -502,7 +503,7 @@ func (d *zfs) Update(changedConfig map[string]string) error {
 		loopPath := loopFilePath(d.name)
 
 		if d.config["source"] != loopPath {
-			return fmt.Errorf("Cannot resize non-loopback pools")
+			return errors.New("Cannot resize non-loopback pools")
 		}
 
 		// Resize loop file
@@ -553,7 +554,7 @@ func (d *zfs) importPool() (bool, error) {
 	}
 
 	if exists {
-		return false, fmt.Errorf("ZFS zpool exists but dataset is missing")
+		return false, errors.New("ZFS zpool exists but dataset is missing")
 	}
 
 	// Import the pool.
@@ -580,7 +581,7 @@ func (d *zfs) importPool() (bool, error) {
 		return true, nil
 	}
 
-	return false, fmt.Errorf("ZFS zpool exists but dataset is missing")
+	return false, errors.New("ZFS zpool exists but dataset is missing")
 }
 
 // Mount mounts the storage pool.

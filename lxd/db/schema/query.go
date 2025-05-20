@@ -3,6 +3,7 @@ package schema
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 
@@ -24,7 +25,7 @@ SELECT COUNT(name) FROM sqlite_master WHERE type = 'table' AND name = 'schema'
 	defer func() { _ = rows.Close() }()
 
 	if !rows.Next() {
-		return false, fmt.Errorf("schema table query returned no rows")
+		return false, errors.New("schema table query returned no rows")
 	}
 
 	var count int
@@ -73,11 +74,11 @@ CREATE TABLE schema (
 }
 
 // Insert a new version into the schema table.
-func insertSchemaVersion(tx *sql.Tx, new int) error {
+func insertSchemaVersion(tx *sql.Tx, newVersion int) error {
 	statement := `
 INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"))
 `
-	_, err := tx.Exec(statement, new)
+	_, err := tx.Exec(statement, newVersion)
 	return err
 }
 

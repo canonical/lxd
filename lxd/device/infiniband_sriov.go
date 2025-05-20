@@ -1,6 +1,7 @@
 package device
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -53,10 +54,10 @@ func (d *infinibandSRIOV) validateConfig(instConf instance.ConfigReader) error {
 // validateEnvironment checks the runtime environment for correctness.
 func (d *infinibandSRIOV) validateEnvironment() error {
 	if d.inst.Type() == instancetype.Container && d.config["name"] == "" {
-		return fmt.Errorf("Requires name property to start")
+		return errors.New("Requires name property to start")
 	}
 
-	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["parent"])) {
+	if !shared.PathExists("/sys/class/net/" + d.config["parent"]) {
 		return fmt.Errorf("Parent device '%s' doesn't exist", d.config["parent"])
 	}
 
@@ -90,7 +91,7 @@ func (d *infinibandSRIOV) startContainer() (*deviceConfig.RunConfig, error) {
 	}
 
 	if len(ibDevs) < 1 {
-		return nil, fmt.Errorf("All virtual functions on parent device are already in use")
+		return nil, errors.New("All virtual functions on parent device are already in use")
 	}
 
 	// Get first VF device that is free.
@@ -201,7 +202,7 @@ func (d *infinibandSRIOV) startVM() (*deviceConfig.RunConfig, error) {
 	}
 
 	if vfID == -1 {
-		return nil, fmt.Errorf("All virtual functions on parent device are already in use")
+		return nil, errors.New("All virtual functions on parent device are already in use")
 	}
 
 	vfPCIDev, err := d.setupSriovParent(parentPCIAddress, vfID, saveData)
@@ -230,7 +231,7 @@ func (d *infinibandSRIOV) startVM() (*deviceConfig.RunConfig, error) {
 	runConf.NetworkInterface = append(runConf.NetworkInterface, []deviceConfig.RunConfigItem{
 		{Key: "devName", Value: d.name},
 		{Key: "pciSlotName", Value: vfPCIDev.SlotName},
-		{Key: "pciIOMMUGroup", Value: fmt.Sprintf("%d", pciIOMMUGroup)},
+		{Key: "pciIOMMUGroup", Value: strconv.FormatUint(pciIOMMUGroup, 10)},
 	}...)
 
 	return &runConf, nil
@@ -327,7 +328,7 @@ func (d *infinibandSRIOV) setupSriovParent(parentPCIAddress string, vfID int, vo
 	defer revert.Fail()
 
 	volatile["last_state.pci.parent"] = parentPCIAddress
-	volatile["last_state.vf.id"] = fmt.Sprintf("%d", vfID)
+	volatile["last_state.vf.id"] = strconv.Itoa(vfID)
 	volatile["last_state.created"] = "false" // Indicates don't delete device at stop time.
 
 	// Get VF device's PCI Slot Name so we can unbind and rebind it from the host.

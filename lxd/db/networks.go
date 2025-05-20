@@ -199,7 +199,7 @@ func (c *ClusterTx) GetNetworkID(ctx context.Context, projectName string, name s
 	case 1:
 		return int64(ids[0]), nil
 	default:
-		return -1, fmt.Errorf("More than one network has the given name")
+		return -1, errors.New("More than one network has the given name")
 	}
 }
 
@@ -302,7 +302,7 @@ func (c *ClusterTx) CreatePendingNetwork(ctx context.Context, node string, proje
 	err := query.Scan(ctx, c.tx, sql, func(scan func(dest ...any) error) error {
 		// Ensure that there is at most one network with the given name.
 		if count != 0 {
-			return fmt.Errorf("More than one network exists with the given name")
+			return errors.New("More than one network exists with the given name")
 		}
 
 		count++
@@ -330,12 +330,12 @@ func (c *ClusterTx) CreatePendingNetwork(ctx context.Context, node string, proje
 	} else {
 		// Check that the existing network is in the networkPending state.
 		if network.state != networkPending {
-			return fmt.Errorf("Network is not in pending state")
+			return errors.New("Network is not in pending state")
 		}
 
 		// Check that the existing network type matches the requested type.
 		if network.netType != netType {
-			return fmt.Errorf("Requested network type doesn't match type in existing database record")
+			return errors.New("Requested network type doesn't match type in existing database record")
 		}
 	}
 
@@ -480,6 +480,36 @@ func (c *ClusterTx) GetNetworks(ctx context.Context, project string) ([]string, 
 	return c.networks(ctx, project, "")
 }
 
+// GetNetworksAllProjects returns the names of all networks across all projects.
+func (c *ClusterTx) GetNetworksAllProjects(ctx context.Context) (map[string][]string, error) {
+	q := "SELECT projects.name, networks.name FROM networks JOIN projects ON networks.project_id=projects.id"
+
+	networkNames := map[string][]string{}
+	err := query.Scan(ctx, c.tx, q, func(scan func(dest ...any) error) error {
+		var projectName string
+		var networkName string
+
+		err := scan(&projectName, &networkName)
+		if err != nil {
+			return err
+		}
+
+		_, ok := networkNames[projectName]
+		if !ok {
+			networkNames[projectName] = []string{}
+		}
+
+		networkNames[projectName] = append(networkNames[projectName], networkName)
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return networkNames, nil
+}
+
 // Get all networks matching the given WHERE filter (if given).
 func (c *ClusterTx) networks(ctx context.Context, project string, where string, args ...any) ([]string, error) {
 	q := "SELECT name FROM networks WHERE project_id = (SELECT id FROM projects WHERE name = ?)"
@@ -490,20 +520,24 @@ func (c *ClusterTx) networks(ctx context.Context, project string, where string, 
 		inargs = append(inargs, args...)
 	}
 
-	var name string
-	outfmt := []any{name}
+	networkNames := []string{}
+	err := query.Scan(ctx, c.tx, q, func(scan func(dest ...any) error) error {
+		var networkName string
 
-	result, err := queryScan(ctx, c, q, inargs, outfmt)
+		err := scan(&networkName)
+		if err != nil {
+			return err
+		}
+
+		networkNames = append(networkNames, networkName)
+
+		return nil
+	}, inargs...)
 	if err != nil {
-		return []string{}, err
+		return nil, err
 	}
 
-	response := []string{}
-	for _, r := range result {
-		response = append(response, r[0].(string))
-	}
-
-	return response, nil
+	return networkNames, nil
 }
 
 // NetworkState indicates the state of the network or network node.
@@ -660,37 +694,35 @@ func networkFillType(network *api.Network, netType NetworkType) {
 
 // GetNetworkWithInterface returns the network associated with the interface with the given name.
 func (c *ClusterTx) GetNetworkWithInterface(ctx context.Context, devName string) (int64, *api.Network, error) {
-	id := int64(-1)
-	name := ""
-	value := ""
+	var id int64 = -1
+	var name string
 
 	q := "SELECT networks.id, networks.name, networks_config.value FROM networks LEFT JOIN networks_config ON networks.id=networks_config.network_id WHERE networks_config.key=\"bridge.external_interfaces\" AND networks_config.node_id=?"
-	arg1 := []any{c.nodeID}
-	arg2 := []any{id, name, value}
 
-	result, err := queryScan(ctx, c, q, arg1, arg2)
-	if err != nil {
-		return -1, nil, err
-	}
+	err := query.Scan(ctx, c.tx, q, func(scan func(dest ...any) error) error {
+		var networkID int64
+		var networkName string
+		var value string
 
-	for _, r := range result {
-		for _, entry := range strings.Split(r[2].(string), ",") {
+		err := scan(&networkID, &networkName, &value)
+		if err != nil {
+			return err
+		}
+
+		for _, entry := range strings.Split(value, ",") {
 			entry = strings.TrimSpace(entry)
 			if entry == devName {
-				entryID, ok := r[0].(int64)
-				if !ok {
-					continue
-				}
+				id = networkID
+				name = networkName
 
-				entryName, ok := r[1].(string)
-				if !ok {
-					continue
-				}
-
-				id = entryID
-				name = entryName
+				return nil
 			}
 		}
+
+		return nil
+	}, c.nodeID)
+	if err != nil {
+		return -1, nil, err
 	}
 
 	if id == -1 {

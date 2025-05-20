@@ -3,6 +3,7 @@ package cgroup
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -686,9 +687,10 @@ func (cg *CGroup) SetBlkioLimit(dev string, oType string, uType string, limit in
 		return cg.rw.Set(version, "blkio", "blkio.throttle."+oType+"_"+uType+"_device", dev+strconv.FormatInt(limit, 10))
 	case V2:
 		var op string
-		if oType == "read" {
+		switch oType {
+		case "read":
 			op = "r" + uType
-		} else if oType == "write" {
+		case "write":
 			op = "w" + uType
 		}
 
@@ -899,7 +901,7 @@ func (cg *CGroup) GetOOMKills() (uint64, error) {
 		return out, nil
 	}
 
-	return 0, fmt.Errorf("Failed getting oom_kill")
+	return 0, errors.New("Failed getting oom_kill")
 }
 
 // GetIOStats returns disk stats.

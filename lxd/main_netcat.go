@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -17,7 +18,7 @@ type cmdNetcat struct {
 	global *cmdGlobal
 }
 
-func (c *cmdNetcat) Command() *cobra.Command {
+func (c *cmdNetcat) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "netcat <address> <name>"
 	cmd.Short = "Send stdin data to a unix socket"
@@ -30,13 +31,13 @@ func (c *cmdNetcat) Command() *cobra.Command {
   Its main use is when running rsync or btrfs/zfs send/receive between
   two machines over the LXD websocket API.
 `
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Hidden = true
 
 	return cmd
 }
 
-func (c *cmdNetcat) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdNetcat) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if len(args) < 2 {
 		_ = cmd.Help()
@@ -45,12 +46,12 @@ func (c *cmdNetcat) Run(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
-		return fmt.Errorf("Missing required arguments")
+		return errors.New("Missing required arguments")
 	}
 
 	// Only root should run this
 	if os.Geteuid() != 0 {
-		return fmt.Errorf("This must be run as root")
+		return errors.New("This must be run as root")
 	}
 
 	logPath := shared.LogPath(args[1], "netcat.log")
@@ -66,7 +67,7 @@ func (c *cmdNetcat) Run(cmd *cobra.Command, args []string) error {
 	uAddr, err := net.ResolveUnixAddr("unix", args[0])
 	if err != nil {
 		if logErr == nil {
-			_, _ = logFile.WriteString(fmt.Sprintf("Could not resolve unix domain socket \"%s\": %s\n", args[0], err))
+			_, _ = fmt.Fprintf(logFile, "Could not resolve unix domain socket \"%s\": %s\n", args[0], err)
 		}
 
 		return err
@@ -75,7 +76,7 @@ func (c *cmdNetcat) Run(cmd *cobra.Command, args []string) error {
 	conn, err := net.DialUnix("unix", nil, uAddr)
 	if err != nil {
 		if logErr == nil {
-			_, _ = logFile.WriteString(fmt.Sprintf("Could not dial unix domain socket \"%s\": %s\n", args[0], err))
+			_, _ = fmt.Fprintf(logFile, "Could not dial unix domain socket \"%s\": %s\n", args[0], err)
 		}
 
 		return err
@@ -87,7 +88,7 @@ func (c *cmdNetcat) Run(cmd *cobra.Command, args []string) error {
 	go func() {
 		_, err := io.Copy(eagain.Writer{Writer: os.Stdout}, eagain.Reader{Reader: conn})
 		if err != nil && logErr == nil {
-			_, _ = logFile.WriteString(fmt.Sprintf("Error while copying from stdout to unix domain socket \"%s\": %s\n", args[0], err))
+			_, _ = fmt.Fprintf(logFile, "Error while copying from stdout to unix domain socket \"%s\": %s\n", args[0], err)
 		}
 
 		_ = conn.Close()
@@ -97,7 +98,7 @@ func (c *cmdNetcat) Run(cmd *cobra.Command, args []string) error {
 	go func() {
 		_, err := io.Copy(eagain.Writer{Writer: conn}, eagain.Reader{Reader: os.Stdin})
 		if err != nil && logErr == nil {
-			_, _ = logFile.WriteString(fmt.Sprintf("Error while copying from unix domain socket \"%s\" to stdin: %s\n", args[0], err))
+			_, _ = fmt.Fprintf(logFile, "Error while copying from unix domain socket \"%s\" to stdin: %s\n", args[0], err)
 		}
 	}()
 

@@ -1,8 +1,8 @@
 package events
 
 import (
-	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -69,7 +69,7 @@ func (s *Server) SetLocalLocation(location string) {
 // AddListener creates and returns a new event listener.
 func (s *Server) AddListener(projectName string, allProjects bool, projectPermissionFunc auth.PermissionChecker, connection EventListenerConnection, messageTypes []string, excludeSources []EventSource, recvFunc EventHandler, excludeLocations []string) (*Listener, error) {
 	if allProjects && projectName != "" {
-		return nil, fmt.Errorf("Cannot specify project name when listening for events on all projects")
+		return nil, errors.New("Cannot specify project name when listening for events on all projects")
 	}
 
 	if projectPermissionFunc == nil {
@@ -82,7 +82,7 @@ func (s *Server) AddListener(projectName string, allProjects bool, projectPermis
 		listenerCommon: listenerCommon{
 			EventListenerConnection: connection,
 			messageTypes:            messageTypes,
-			done:                    cancel.New(context.Background()),
+			done:                    cancel.New(),
 			id:                      uuid.New().String(),
 			recvFunc:                recvFunc,
 		},

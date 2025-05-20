@@ -326,14 +326,6 @@ func (c *cmdFileDelete) command() *cobra.Command {
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) == 0 {
-			return c.global.cmpInstances(toComplete)
-		}
-
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return c.global.cmpFiles(toComplete, false)
 	}
 
@@ -388,7 +380,7 @@ func (c *cmdFileEdit) command() *cobra.Command {
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
-			return c.global.cmpInstances(toComplete)
+			return c.global.cmpTopLevelResource("instance", toComplete)
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -621,7 +613,7 @@ func (c *cmdFilePull) run(cmd *cobra.Command, args []string) error {
 
 				i++
 				if i > 255 {
-					return fmt.Errorf("Too many links")
+					return errors.New("Too many links")
 				}
 
 				// Update link target for next iteration.

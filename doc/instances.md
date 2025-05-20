@@ -1,5 +1,5 @@
 ---
-relatedlinks: '[How&#32;to&#32;install&#32;a&#32;Windows&#32;11&#32;VM&#32;using&#32;LXD](https://ubuntu.com/tutorials/how-to-install-a-windows-11-vm-using-lxd)'
+relatedlinks: "[How&#32;to&#32;install&#32;a&#32;Windows&#32;11&#32;VM&#32;using&#32;LXD](https://ubuntu.com/tutorials/how-to-install-a-windows-11-vm-using-lxd)"
 ---
 
 (instances)=
@@ -43,7 +43,7 @@ How to export and move instances:
 :titlesonly:
 
 :diataxis:Back up instances </howto/instances_backup.md>
-:diataxis:Move instances </howto/move_instances>
+:diataxis:Migrate instances </howto/instances_migrate>
 ```
 
 ```{only} diataxis
@@ -54,7 +54,6 @@ How to import instances:
 :titlesonly:
 
 :diataxis:Import existing machines </howto/import_machines_to_instances>
-:diataxis:Migrate from LXC </howto/migrate_from_lxc>
 ```
 
 ```{only} diataxis

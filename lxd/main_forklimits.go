@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -17,7 +18,7 @@ type cmdForklimits struct {
 	global *cmdGlobal
 }
 
-func (c *cmdForklimits) Command() *cobra.Command {
+func (c *cmdForklimits) command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
 	cmd.Use = "forklimits [fd=<number>...] [limit=<name>:<softlimit>:<hardlimit>...] -- <command> [<arg>...]"
@@ -28,13 +29,13 @@ func (c *cmdForklimits) Command() *cobra.Command {
   This internal command is used to spawn a command with limits set. It can also pass through one or more filed escriptors specified by fd=n arguments.
   These are passed through in the order they are specified.
 `
-	cmd.RunE = c.Run
+	cmd.RunE = c.run
 	cmd.Hidden = true
 
 	return cmd
 }
 
-func (c *cmdForklimits) Run(cmd *cobra.Command, _ []string) error {
+func (c *cmdForklimits) run(cmd *cobra.Command, _ []string) error {
 	// Use raw args instead of cobra passed args, as we need to access the "--" argument.
 	args := c.global.rawArgs(cmd)
 
@@ -45,7 +46,7 @@ func (c *cmdForklimits) Run(cmd *cobra.Command, _ []string) error {
 
 	// Only root should run this
 	if os.Geteuid() != 0 {
-		return fmt.Errorf("This must be run as root")
+		return errors.New("This must be run as root")
 	}
 
 	type limit struct {
@@ -71,7 +72,7 @@ func (c *cmdForklimits) Run(cmd *cobra.Command, _ []string) error {
 			fdNum, err := strconv.Atoi(fdParts[1])
 			if err != nil {
 				_ = cmd.Help()
-				return fmt.Errorf("Invalid file descriptor number")
+				return errors.New("Invalid file descriptor number")
 			}
 
 			fds = append(fds, uintptr(fdNum))
@@ -83,7 +84,7 @@ func (c *cmdForklimits) Run(cmd *cobra.Command, _ []string) error {
 			break // No more passing of arguments needed.
 		} else {
 			_ = cmd.Help()
-			return fmt.Errorf("Unrecognised argument")
+			return errors.New("Unrecognised argument")
 		}
 	}
 
@@ -92,11 +93,11 @@ func (c *cmdForklimits) Run(cmd *cobra.Command, _ []string) error {
 		var resource int
 		var rLimit unix.Rlimit
 
-		if limit.name == "memlock" {
-			resource = unix.RLIMIT_MEMLOCK
-		} else {
+		if limit.name != "memlock" {
 			return fmt.Errorf("Unsupported limit type: %q", limit.name)
 		}
+
+		resource = unix.RLIMIT_MEMLOCK
 
 		if limit.soft == "unlimited" {
 			rLimit.Cur = unix.RLIM_INFINITY
@@ -128,7 +129,7 @@ func (c *cmdForklimits) Run(cmd *cobra.Command, _ []string) error {
 
 	if len(cmdParts) == 0 {
 		_ = cmd.Help()
-		return fmt.Errorf("Missing required command argument")
+		return errors.New("Missing required command argument")
 	}
 
 	// Clear the cloexec flag on the file descriptors we are passing through.

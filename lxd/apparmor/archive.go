@@ -141,12 +141,12 @@ func archiveProfile(outputPath string, allowedCommandPaths []string) (string, er
 
 // ArchiveProfileName returns the AppArmor profile name.
 func ArchiveProfileName(outputPath string) string {
-	name := strings.Replace(strings.Trim(outputPath, "/"), "/", "-", -1)
+	name := strings.ReplaceAll(strings.Trim(outputPath, "/"), "/", "-")
 	return profileName("archive", name)
 }
 
 // ArchiveProfileFilename returns the name of the on-disk profile name.
 func ArchiveProfileFilename(outputPath string) string {
-	name := strings.Replace(strings.Trim(outputPath, "/"), "/", "-", -1)
+	name := strings.ReplaceAll(strings.Trim(outputPath, "/"), "/", "-")
 	return profileName("archive", name)
 }

@@ -1,5 +1,9 @@
 #!/bin/bash
 set -eu
+if [ -z "${GOPATH:-}" ] && command -v go >/dev/null; then
+    GOPATH="$(go env GOPATH)"
+fi
+
 [ -n "${GOPATH:-}" ] && export "PATH=${GOPATH}/bin:${PATH}"
 
 # Don't translate lxc output for parsing in it in tests.
@@ -45,7 +49,7 @@ import_subdir_files() {
 import_subdir_files includes
 
 echo "==> Checking for dependencies"
-check_dependencies lxd lxc curl dnsmasq jq git sqlite3 msgmerge msgfmt shuf setfacl socat swtpm dig
+check_dependencies lxd lxc curl /bin/busybox dnsmasq iptables jq yq git sqlite3 msgmerge msgfmt rsync shuf setfacl setfattr socat swtpm dig
 
 if [ "${USER:-'root'}" != "root" ]; then
   echo "The testsuite must be run as root." >&2
@@ -127,8 +131,11 @@ cleanup() {
     echo "==> Cleaning up"
 
     kill_oidc
-    umount -l "${TEST_DIR}/dev"
+    mountpoint -q "${TEST_DIR}/dev" && umount -l "${TEST_DIR}/dev"
     cleanup_lxds "$TEST_DIR"
+
+    mountpoint -q "${TEST_DIR}" && umount -l "${TEST_DIR}"
+    rm -rf "${TEST_DIR}"
   fi
 
   echo ""
@@ -153,6 +160,14 @@ import_subdir_files suites
 # Setup test directory
 TEST_DIR=$(mktemp -d -p "$(pwd)" tmp.XXX)
 chmod +x "${TEST_DIR}"
+
+# Verify the dir chain is accessible for other users
+INACCESSIBLE_DIRS="$(namei -m "${TEST_DIR}" | awk '/^ d/ {print $1}' | grep -v 'x$' || true)"
+if [ -n "${INACCESSIBLE_DIRS:-}" ]; then
+    echo "Some directories are not accessible by other users" >&2
+    namei -m "${TEST_DIR}"
+    exit 1
+fi
 
 if [ -n "${LXD_TMPFS:-}" ]; then
   mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=6G
@@ -258,6 +273,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_sql "lxd sql"
     run_test test_tls_restrictions "TLS restrictions"
     run_test test_tls_version "TLS version"
+    run_test test_completions "CLI completions"
     run_test test_oidc "OpenID Connect"
     run_test test_authorization "Authorization"
     run_test test_certificate_edit "Certificate edit"
@@ -288,6 +304,7 @@ if [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_address "clustering address"
     run_test test_clustering_image_replication "clustering image replication"
     run_test test_clustering_dns "clustering DNS"
+    run_test test_clustering_fan "clustering FAN"
     run_test test_clustering_recover "clustering recovery"
     run_test test_clustering_handover "clustering handover"
     run_test test_clustering_rebalance "clustering rebalance"
@@ -390,7 +407,6 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_devlxd "/dev/lxd"
     run_test test_fuidshift "fuidshift"
     run_test test_migration "migration"
-    run_test test_lxc_to_lxd "LXC to LXD"
     run_test test_fdleak "fd leak"
     run_test test_storage "storage"
     run_test test_storage_volume_snapshots "storage volume snapshots"
@@ -422,6 +438,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_backup_rename "backup rename"
     run_test test_backup_volume_export "backup volume export"
     run_test test_backup_export_import_instance_only "backup export and import instance only"
+    run_test test_backup_metadata "backup metadata checks for containers and custom storage volumes"
     run_test test_backup_volume_rename_delete "backup volume rename and delete"
     run_test test_backup_instance_uuid "backup instance and check instance UUIDs"
     run_test test_backup_volume_expiry "backup volume expiry"

@@ -2,6 +2,7 @@ package device
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"net/http"
@@ -110,7 +111,7 @@ func (d *gpuPhysical) validateConfig(instConf instance.ConfigReader) error {
 // validateEnvironment checks the runtime environment for correctness.
 func (d *gpuPhysical) validateEnvironment() error {
 	if d.inst.Type() == instancetype.VM && shared.IsTrue(d.inst.ExpandedConfig()["migration.stateful"]) {
-		return fmt.Errorf("GPU devices cannot be used when migration.stateful is enabled")
+		return errors.New("GPU devices cannot be used when migration.stateful is enabled")
 	}
 
 	return validatePCIDevice(d.config["pci"])
@@ -153,7 +154,7 @@ func (d *gpuPhysical) startCDIDevices(configDevices cdi.ConfigDevices, runConf *
 		}
 
 		// Remove the CDI device files (both unix-char and disk devices as long as JSON CDI metadata files).
-		if strings.HasPrefix(e.Name(), cdi.CDIUnixPrefix) || strings.HasPrefix(e.Name(), cdi.CDIDiskPrefix) || path == hooksFilePath || path == deviceConfigFilePath {
+		if strings.HasPrefix(e.Name(), cdi.CDIUnixPrefix+"."+d.name+".") || strings.HasPrefix(e.Name(), cdi.CDIDiskPrefix+"."+d.name+".") || path == hooksFilePath || path == deviceConfigFilePath {
 			err := os.Remove(path)
 			if err != nil {
 				return err
@@ -334,7 +335,7 @@ func (d *gpuPhysical) startContainer() (*deviceConfig.RunConfig, error) {
 		cdiID, _ := cdi.ToCDI(d.config["id"])
 		if cdiID != nil {
 			if cdiID.Class == cdi.MIG {
-				return nil, fmt.Errorf(`MIG GPU notation detected for a "physical" gputype device. Choose a "mig" gputype device instead.`)
+				return nil, errors.New(`MIG GPU notation detected for a "physical" gputype device. Choose a "mig" gputype device instead.`)
 			}
 
 			configDevices, hooks, err := cdi.GenerateFromCDI(d.state, d.inst, *cdiID, d.logger)
@@ -472,7 +473,7 @@ func (d *gpuPhysical) startContainer() (*deviceConfig.RunConfig, error) {
 	}
 
 	if !found {
-		return nil, fmt.Errorf("Failed to detect requested GPU device")
+		return nil, errors.New("Failed to detect requested GPU device")
 	}
 
 	return &runConf, nil
@@ -514,14 +515,14 @@ func (d *gpuPhysical) startVM() (*deviceConfig.RunConfig, error) {
 		}
 
 		if pciAddress != "" {
-			return nil, fmt.Errorf("VMs cannot match multiple GPUs per device")
+			return nil, errors.New("VMs cannot match multiple GPUs per device")
 		}
 
 		pciAddress = gpu.PCIAddress
 	}
 
 	if pciAddress == "" {
-		return nil, fmt.Errorf("Failed to detect requested GPU device")
+		return nil, errors.New("Failed to detect requested GPU device")
 	}
 
 	// Make sure that vfio-pci is loaded.

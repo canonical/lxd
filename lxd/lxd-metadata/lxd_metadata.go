@@ -16,10 +16,10 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/yaml.v2"
+
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-
-	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -375,7 +375,7 @@ func writeDocFile(inputJSONPath, outputTxtPath string) error {
 		sortedGroupKeys := getSortedKeysFromMap(entityEntries)
 		for _, groupKey := range sortedGroupKeys {
 			groupEntries := entityEntries[groupKey]
-			buffer.WriteString(fmt.Sprintf("<!-- config group %s-%s start -->\n", entityKey, groupKey))
+			fmt.Fprintf(buffer, "<!-- config group %s-%s start -->\n", entityKey, groupKey)
 			for _, configEntryAny := range groupEntries["keys"] {
 				configEntry, ok := configEntryAny.(map[string]any)
 				if !ok {
@@ -412,7 +412,7 @@ func writeDocFile(inputJSONPath, outputTxtPath string) error {
 							case int, float64, bool:
 								configContentValueStr = fmt.Sprint(configEntryContentTyped)
 							case time.Time:
-								configContentValueStr = fmt.Sprint(configEntryContentTyped.Format(time.RFC3339))
+								configContentValueStr = configEntryContentTyped.Format(time.RFC3339)
 							}
 						}
 
@@ -432,41 +432,36 @@ func writeDocFile(inputJSONPath, outputTxtPath string) error {
 							quoteFormattedValue = fmt.Sprintf("\"%s\"", configContentValueStr)
 						}
 
-						kvBuffer.WriteString(
-							fmt.Sprintf(
-								":%s: %s\n",
-								configEntryContentKey,
-								quoteFormattedValue,
-							),
-						)
+						fmt.Fprintf(kvBuffer,
+							":%s: %s\n",
+							configEntryContentKey,
+							quoteFormattedValue)
 					}
 
 					if backticksCount < 3 {
-						buffer.WriteString(
-							fmt.Sprintf("```{config:option} %s %s-%s\n%s%s\n```\n\n",
-								configKey,
-								entityKey,
-								groupKey,
-								kvBuffer.String(),
-								strings.TrimLeft(longDescContent, "\n"),
-							))
+						fmt.Fprintf(buffer,
+							"```{config:option} %s %s-%s\n%s%s\n```\n\n",
+							configKey,
+							entityKey,
+							groupKey,
+							kvBuffer.String(),
+							strings.TrimLeft(longDescContent, "\n"))
 					} else {
 						configQuotes := strings.Repeat("`", backticksCount+1)
-						buffer.WriteString(
-							fmt.Sprintf("%s{config:option} %s %s-%s\n%s%s\n%s\n\n",
-								configQuotes,
-								configKey,
-								entityKey,
-								groupKey,
-								kvBuffer.String(),
-								strings.TrimLeft(longDescContent, "\n"),
-								configQuotes,
-							))
+						fmt.Fprintf(buffer,
+							"%s{config:option} %s %s-%s\n%s%s\n%s\n\n",
+							configQuotes,
+							configKey,
+							entityKey,
+							groupKey,
+							kvBuffer.String(),
+							strings.TrimLeft(longDescContent, "\n"),
+							configQuotes)
 					}
 				}
 			}
 
-			buffer.WriteString(fmt.Sprintf("<!-- config group %s-%s end -->\n", entityKey, groupKey))
+			fmt.Fprintf(buffer, "<!-- config group %s-%s end -->\n", entityKey, groupKey)
 		}
 	}
 
@@ -485,14 +480,14 @@ func writeDocFile(inputJSONPath, outputTxtPath string) error {
 
 	for _, entityName := range sortedEntityNames {
 		entity := entities[entityName]
-		buffer.WriteString(fmt.Sprintf("<!-- entity group %s start -->\n", entityName))
+		fmt.Fprintf(buffer, "<!-- entity group %s start -->\n", entityName)
 		for _, entitlement := range entity.Entitlements {
-			buffer.WriteString(fmt.Sprintf("`%s`\n", entitlement.Name))
-			buffer.WriteString(fmt.Sprintf(": %s\n\n", entitlement.Description))
+			fmt.Fprintf(buffer, "`%s`\n", entitlement.Name)
+			fmt.Fprintf(buffer, ": %s\n\n", entitlement.Description)
 		}
 
 		buffer.WriteString("\n")
-		buffer.WriteString(fmt.Sprintf("<!-- entity group %s end -->\n", entityName))
+		fmt.Fprintf(buffer, "<!-- entity group %s end -->\n", entityName)
 	}
 
 	err = os.WriteFile(outputTxtPath, buffer.Bytes(), 0644)

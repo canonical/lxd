@@ -1869,6 +1869,11 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     InstanceBackupsPost:
         properties:
+            Version:
+                description: What backup format version to use
+                example: 1
+                format: uint32
+                type: integer
             compression_algorithm:
                 description: What compression algorithm to use
                 example: gzip
@@ -3117,6 +3122,11 @@ definitions:
                 readOnly: true
                 type: string
                 x-go-name: Name
+            project:
+                description: Project name
+                example: project1
+                type: string
+                x-go-name: Project
             status:
                 description: The state of the network (for managed network in clusters)
                 example: Created
@@ -3182,6 +3192,11 @@ definitions:
                 example: bar
                 type: string
                 x-go-name: Name
+            project:
+                description: Project name
+                example: project1
+                type: string
+                x-go-name: Project
             used_by:
                 description: List of URLs of objects using this profile
                 example:
@@ -6029,6 +6044,16 @@ definitions:
                     type: string
                 type: array
                 x-go-name: Architectures
+            backup_metadata_version_range:
+                description: Range of supported backup metadata versions
+                example:
+                    - 1
+                    - 2
+                items:
+                    format: uint32
+                    type: integer
+                type: array
+                x-go-name: BackupMetadataVersionRange
             certificate:
                 description: Server certificate as PEM encoded X509
                 example: X509 PEM certificate
@@ -6295,6 +6320,11 @@ definitions:
                 example: foo
                 type: string
                 x-go-name: Name
+            project:
+                description: Project name
+                example: project1
+                type: string
+                x-go-name: Project
             s3_url:
                 description: Bucket S3 URL
                 example: https://127.0.0.1:8080/foo
@@ -6565,6 +6595,11 @@ definitions:
     StoragePoolVolumeBackupsPost:
         description: StoragePoolVolumeBackupsPost represents the fields available for a new LXD volume backup
         properties:
+            Version:
+                description: What backup format version to use
+                example: 1
+                format: uint32
+                type: integer
             compression_algorithm:
                 description: What compression algorithm to use
                 example: gzip
@@ -12184,6 +12219,11 @@ paths:
                   in: query
                   name: project
                   type: string
+                - description: Retrieve network ACLs from all projects
+                  example: true
+                  in: query
+                  name: all-projects
+                  type: boolean
             produces:
                 - application/json
             responses:
@@ -12445,6 +12485,11 @@ paths:
                   in: query
                   name: project
                   type: string
+                - description: Retrieve network ACLs from all projects
+                  example: true
+                  in: query
+                  name: all-projects
+                  type: boolean
             produces:
                 - application/json
             responses:
@@ -13046,6 +13091,11 @@ paths:
                   in: query
                   name: project
                   type: string
+                - description: Retrieve networks from all projects
+                  example: true
+                  in: query
+                  name: all-projects
+                  type: boolean
             produces:
                 - application/json
             responses:
@@ -14160,6 +14210,11 @@ paths:
                   in: query
                   name: target
                   type: string
+                - description: Retrieve networks from all projects
+                  example: true
+                  in: query
+                  name: all-projects
+                  type: boolean
             produces:
                 - application/json
             responses:
@@ -15545,6 +15600,11 @@ paths:
                   in: query
                   name: project
                   type: string
+                - description: Retrieve storage pool buckets from all projects
+                  example: true
+                  in: query
+                  name: all-projects
+                  type: boolean
             produces:
                 - application/json
             responses:
@@ -15826,6 +15886,11 @@ paths:
                   in: query
                   name: project
                   type: string
+                - description: Retrieve storage pool buckets from all projects
+                  example: true
+                  in: query
+                  name: all-projects
+                  type: boolean
             produces:
                 - application/json
             responses:

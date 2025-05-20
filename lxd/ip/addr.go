@@ -1,6 +1,8 @@
 package ip
 
 import (
+	"context"
+
 	"github.com/canonical/lxd/shared"
 )
 
@@ -14,7 +16,7 @@ type Addr struct {
 
 // Add adds new protocol address.
 func (a *Addr) Add() error {
-	_, err := shared.RunCommand("ip", a.Family, "addr", "add", "dev", a.DevName, a.Address)
+	_, err := shared.RunCommandContext(context.TODO(), "ip", a.Family, "addr", "add", "dev", a.DevName, a.Address)
 	if err != nil {
 		return err
 	}
@@ -34,7 +36,7 @@ func (a *Addr) Flush() error {
 		cmd = append(cmd, "scope", a.Scope)
 	}
 
-	_, err := shared.RunCommand("ip", cmd...)
+	_, err := shared.RunCommandContext(context.TODO(), "ip", cmd...)
 	if err != nil {
 		return err
 	}

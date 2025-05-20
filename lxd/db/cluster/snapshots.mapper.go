@@ -221,9 +221,9 @@ func GetInstanceSnapshots(ctx context.Context, tx *sql.Tx, filters ...InstanceSn
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
 		} else if filter.ID == nil && filter.Project == nil && filter.Instance == nil && filter.Name == nil {
-			return nil, fmt.Errorf("Cannot filter on empty InstanceSnapshotFilter")
+			return nil, errors.New("Cannot filter on empty InstanceSnapshotFilter")
 		} else {
-			return nil, fmt.Errorf("No statement exists for the given Filter")
+			return nil, errors.New("No statement exists for the given Filter")
 		}
 	}
 
@@ -298,7 +298,7 @@ func GetInstanceSnapshot(ctx context.Context, tx *sql.Tx, project string, instan
 	case 1:
 		return &objects[0], nil
 	default:
-		return nil, fmt.Errorf("More than one \"instances_snapshots\" entry matches")
+		return nil, errors.New("More than one \"instances_snapshots\" entry matches")
 	}
 }
 

@@ -39,7 +39,7 @@ Use separate commits for different types of changes:
 | **Documentation**    | Files in `doc/`                                  | `doc: Update XYZ`                   |
 | **API structure**    | Files in `shared/api/`                           | `shared/api: Add XYZ`               |
 | **Go client package**| Files in `client/`                               | `client: Add XYZ`                   |
-| **CLI changes**      | Files in `lxc/`                                  | `lxc/<command>: Change XYZ`         | 
+| **CLI changes**      | Files in `lxc/`                                  | `lxc/<command>: Change XYZ`         |
 | **LXD daemon**       | Files in `lxd/`                                  | `lxd/<package>: Add support for XYZ`|
 | **Tests**            | Files in `tests/`                                | `tests: Add test for XYZ`           |
 
@@ -136,4 +136,4 @@ If you add or update configuration options, regenerate and commit the documentat
 
 ## More information
 
-For more information, including details about contributing to the code as well as the documentation for LXD, see [How to contribute to LXD](https://documentation.ubuntu.com/lxd/en/stable-5.21/contributing/) in the documentation.
+For more information, including details about contributing to the code as well as the documentation for LXD, see [How to contribute to LXD](https://documentation.ubuntu.com/lxd/stable-5.21/contributing/) in the documentation.

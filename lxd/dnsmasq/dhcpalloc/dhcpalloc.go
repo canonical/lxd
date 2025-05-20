@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"math"
 	"math/big"
 	"net"
@@ -210,11 +209,7 @@ func (t *Transaction) getDHCPFreeIPv4(usedIPs map[[4]byte]dnsmasq.DHCPAllocation
 		endBig := big.NewInt(0)
 		endBig.SetBytes(IPRange.End)
 
-		for {
-			if startBig.Cmp(endBig) >= 0 {
-				break
-			}
-
+		for startBig.Cmp(endBig) < 0 {
 			IP := net.IP(startBig.Bytes())
 
 			// Check IP generated is not LXD's IP.
@@ -237,7 +232,7 @@ func (t *Transaction) getDHCPFreeIPv4(usedIPs map[[4]byte]dnsmasq.DHCPAllocation
 		}
 	}
 
-	return nil, fmt.Errorf("No available IP could not be found")
+	return nil, errors.New("No available IP could not be found")
 }
 
 // getDHCPFreeIPv6 attempts to find a free IPv6 address for the device.
@@ -300,11 +295,7 @@ func (t *Transaction) getDHCPFreeIPv6(usedIPs map[[16]byte]dnsmasq.DHCPAllocatio
 		endBig := big.NewInt(0)
 		endBig.SetBytes(IPRange.End)
 
-		for {
-			if startBig.Cmp(endBig) >= 0 {
-				break
-			}
-
+		for startBig.Cmp(endBig) < 0 {
 			IP := net.IP(startBig.Bytes())
 
 			// Check IP generated is not LXD's IP.
@@ -327,7 +318,7 @@ func (t *Transaction) getDHCPFreeIPv6(usedIPs map[[16]byte]dnsmasq.DHCPAllocatio
 		}
 	}
 
-	return nil, fmt.Errorf("No available IP could not be found")
+	return nil, errors.New("No available IP could not be found")
 }
 
 // AllocateTask initialises a new locked Transaction for a specific host and executes the supplied function on it.

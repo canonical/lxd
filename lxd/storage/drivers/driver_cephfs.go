@@ -130,11 +130,11 @@ func (d *cephfs) Create() error {
 
 	// Config validation.
 	if d.config["source"] == "" {
-		return fmt.Errorf("Missing required source name/path")
+		return errors.New("Missing required source name/path")
 	}
 
 	if d.config["cephfs.path"] != "" && d.config["cephfs.path"] != d.config["source"] {
-		return fmt.Errorf("cephfs.path must match the source")
+		return errors.New("cephfs.path must match the source")
 	}
 
 	d.config["cephfs.path"] = d.config["source"]
@@ -155,7 +155,7 @@ func (d *cephfs) Create() error {
 
 	if fsExists {
 		for _, key := range []string{"create_missing", "osd_pg_num", "meta_pool", "data_pool"} {
-			cephfsSourceKey := fmt.Sprintf("cephfs.%s", key)
+			cephfsSourceKey := "cephfs." + key
 			if d.config[cephfsSourceKey] != "" {
 				return fmt.Errorf("Invalid config key %q: CephFS filesystem already exists", cephfsSourceKey)
 			}
@@ -317,7 +317,7 @@ func (d *cephfs) Create() error {
 	// Check that the existing path is empty.
 	ok, _ := shared.PathIsEmpty(filepath.Join(mountPoint, fsPath))
 	if !ok {
-		return fmt.Errorf("Only empty CephFS paths can be used as a LXD storage pool")
+		return errors.New("Only empty CephFS paths can be used as a LXD storage pool")
 	}
 
 	revert.Success()
