@@ -1106,9 +1106,9 @@ test_backup_metadata() {
 
   # Test pool changes are reflected in the config file.
   lxc storage set "${poolName}" user.foo bar
-  [ "$(yq '.pools.[] | select(.name == "'"${poolName}"'") | .config."user.foo"' < "${backup_yaml_path}")" = "bar" ]
+  [ "$(yq -r '.pools.[] | select(.name == "'"${poolName}"'") | .config."user.foo"' < "${backup_yaml_path}")" = "bar" ]
   lxc storage unset "${poolName}" user.foo
-  [ "$(yq '.pools.[] | select(.name == "'"${poolName}"'") | .config."user.foo"' < "${backup_yaml_path}")" = "null" ]
+  [ "$(yq -r '.pools.[] | select(.name == "'"${poolName}"'") | .config."user.foo"' < "${backup_yaml_path}")" = "null" ]
 
   lxc stop -f c1
 
