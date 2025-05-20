@@ -336,7 +336,10 @@ test_basic_usage() {
     shutdown_lxd "${LXD_DIR}"
     [ -d "/proc/${PID}" ] && false
 
-    lxd activateifneeded --debug 2>&1 | grep -F "Daemon has auto-started instances, activating..."
+    # `lxd activateifneeded` will error out due to LXD being stopped and not having any Unix socket to wake it up
+    # but it should also log something about the activation status
+    OUTPUT="$(! lxd activateifneeded --debug 2>&1 || false)"
+    echo "${OUTPUT}" | grep -F "Daemon has auto-started instances, activating..."
 
     # shellcheck disable=SC2031
     respawn_lxd "${LXD_DIR}" true
@@ -347,7 +350,11 @@ test_basic_usage() {
     lxc stop --force autostart --force-local
     lxc config set autostart snapshots.schedule "* * * * *" --force-local
     shutdown_lxd "${LXD_DIR}"
-    lxd activateifneeded --debug 2>&1 | grep -F "Daemon has scheduled instance snapshots, activating..."
+
+    # `lxd activateifneeded` will error out due to LXD being stopped and not having any Unix socket to wake it up
+    # but it should also log something about the activation status
+    OUTPUT="$(! lxd activateifneeded --debug 2>&1 || false)"
+    echo "${OUTPUT}" | grep -F "Daemon has scheduled instance snapshots, activating..."
 
     # shellcheck disable=SC2031
     respawn_lxd "${LXD_DIR}" true
@@ -368,7 +375,11 @@ test_basic_usage() {
     lxc storage volume set "${storage_pool}" vol snapshots.schedule="* * * * *" --force-local
 
     shutdown_lxd "${LXD_DIR}"
-    lxd activateifneeded --debug 2>&1 | grep -F "Daemon has scheduled volume snapshots, activating..."
+
+    # `lxd activateifneeded` will error out due to LXD being stopped and not having any Unix socket to wake it up
+    # but it should also log something about the activation status
+    OUTPUT="$(! lxd activateifneeded --debug 2>&1 || false)"
+    echo "${OUTPUT}" | grep -F "Daemon has scheduled volume snapshots, activating..."
 
     # shellcheck disable=SC2031
     respawn_lxd "${LXD_DIR}" true
