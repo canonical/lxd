@@ -31,7 +31,7 @@ test_network() {
   # Cleanup
   systemctl start openvswitch-switch
   ovs-vsctl del-br ovs-br0
-  sudo ip link delete native-br0
+  ip link delete native-br0
   ip link delete dummy0
 
   # Standard bridge with random subnet and a bunch of options
