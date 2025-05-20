@@ -85,7 +85,7 @@ cleanup() {
   # Allow for inspection
   if [ -n "${LXD_INSPECT:-}" ]; then
     if [ "${TEST_RESULT}" != "success" ]; then
-      echo "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION}"
+      echo "==> FAILED TEST: ${TEST_CURRENT#test_} (${TEST_CURRENT_DESCRIPTION})"
     fi
     echo "==> Test result: ${TEST_RESULT}"
 
@@ -141,7 +141,7 @@ cleanup() {
   echo ""
   echo ""
   if [ "${TEST_RESULT}" != "success" ]; then
-    echo "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION}"
+    echo "==> FAILED TEST: ${TEST_CURRENT#test_} (${TEST_CURRENT_DESCRIPTION})"
   fi
   echo "==> Test result: ${TEST_RESULT}"
 }
