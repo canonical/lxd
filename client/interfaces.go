@@ -477,6 +477,17 @@ type InstanceServer interface {
 	GetOIDCSession(sessionID string) (session *api.OIDCSession, err error)
 	DeleteOIDCSession(sessionID string) error
 
+	// Placement groups
+	GetPlacementGroupNames() (placementGroupNames []string, err error)
+	GetPlacementGroupNamesAllProjects() (projectToPlacementGroups map[string][]string, err error)
+	GetPlacementGroups() (placementGroups []api.PlacementGroup, err error)
+	GetPlacementGroupsAllProjects() (placementGroups []api.PlacementGroup, err error)
+	GetPlacementGroup(placementGroupName string) (placementGroup *api.PlacementGroup, ETag string, err error)
+	CreatePlacementGroup(placementGroupsPost api.PlacementGroupsPost) error
+	UpdatePlacementGroup(placementGroupName string, placementGroupPut api.PlacementGroupPut, ETag string) error
+	DeletePlacementGroup(placementGroupName string) error
+	RenamePlacementGroup(placementGroupName string, placementGroupPost api.PlacementGroupPost) error
+
 	// Internal functions (for internal use)
 	RawQuery(method string, path string, data any, queryETag string) (resp *api.Response, ETag string, err error)
 	RawWebsocket(path string) (conn *websocket.Conn, err error)
