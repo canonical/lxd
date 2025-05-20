@@ -134,3 +134,19 @@ If you are on Ubuntu 20.04 LTS, you can resolve the issue by installing the HWE 
     sudo apt-get install linux-generic-hwe-20.04
 
 If you are on earlier versions of Ubuntu, you should use a compatible LTS release of LXD.
+
+(faq-gpu-passthrough-stop)=
+## Why does my VM stop responding when I try to pass through a GPU?
+
+If you try to pass through a GPU with a large amount of VRAM, the VM might stop responding during boot or fail to start. This is often caused by the default {abbr}`MMIO (Memory-Mapped Input/Output)` window size in QEMU being too small to map the GPU's memory.
+
+To resolve this, stop the instance, then increase the available 64-bit PCI MMIO address space by setting the following values in {config:option}`instance-raw:raw.qemu`:
+
+```bash
+lxc config set <vm-name> raw.qemu='
+-global q35-pcihost.pci-hole64-size=2048G
+-fw_cfg name=opt/ovmf/X-PciMmio64Mb,string=65536
+'
+```
+
+These settings reserve sufficient 64-bit MMIO space in both the QEMU host and the guest firmware ({abbr}`OVMF (Open Virtual Machine Firmware)`), which is required for GPUs with large {abbr}`BARs (Base Address Registers)`.
