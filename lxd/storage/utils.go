@@ -1137,43 +1137,6 @@ func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName st
 	})
 }
 
-// PoolUsedByInstanceDevices finds instances using a pool in any of their devices (either directly or via their expanded profiles if
-// expandDevices is true) and passes them to instanceFunc for evaluation. If instanceFunc returns an error then it
-// is returned immediately. The instanceFunc is executed during a DB transaction, so DB queries are not permitted.
-// The instanceFunc is provided with a instance config, project config, instance's profiles and a list of device
-// names that are using the pool.
-func PoolUsedByInstanceDevices(s *state.State, poolName string, expandDevices bool, instanceFunc func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error) error {
-	return s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return tx.InstanceList(ctx, func(inst db.InstanceArgs, p api.Project) error {
-			// Use local devices for usage check by if expandDevices is false (but don't modify instance).
-			devices := inst.Devices
-
-			// Expand devices for usage check if expandDevices is true.
-			if expandDevices {
-				devices = instancetype.ExpandInstanceDevices(devices.Clone(), inst.Profiles)
-			}
-
-			var usedByDevices []string
-
-			// Iterate through each of the instance's devices, looking for disks in the given pool.
-			for devName, dev := range devices {
-				if dev["pool"] == poolName {
-					usedByDevices = append(usedByDevices, devName)
-				}
-			}
-
-			if len(usedByDevices) > 0 {
-				err := instanceFunc(inst, p, usedByDevices)
-				if err != nil {
-					return err
-				}
-			}
-
-			return nil
-		})
-	})
-}
-
 // VolumeUsedByExclusiveRemoteInstancesWithProfiles checks if custom volume is exclusively attached to a remote
 // instance. Returns the remote instance that has the volume exclusively attached. Returns nil if volume available.
 func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName string, projectName string, vol *api.StorageVolume) (*db.InstanceArgs, error) {
