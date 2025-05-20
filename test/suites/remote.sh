@@ -171,11 +171,9 @@ test_remote_admin() {
   ! lxc_remote remote add badpass "${LXD_ADDR}" --accept-certificate --password bad || false
   ! lxc_remote list badpass: || false
 
-  echo "Verify error due to bad token and inspect error message"
+  lxc_remote remote add badtoken "${LXD_ADDR}" --token badtoken 2>&1 | grep -F "Error: Failed to decode trust token:"
   OUTPUT="$(! lxc_remote remote add badtoken "${LXD_ADDR}" --token badtoken 2>&1 || false)"
   echo "${OUTPUT}" | grep -F "Error: Failed to decode trust token:"
-
-  echo "Verify that a bad token does not succeed in adding remote"
   ! lxc_remote remote add badtoken "${LXD_ADDR}" --token badtoken || false
   ! lxc_remote remote list | grep -wF badtoken || false
 
