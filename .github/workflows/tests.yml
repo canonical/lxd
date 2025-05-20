@@ -633,6 +633,7 @@ jobs:
       - name: Run LXD daemon
         run: |
           set -eux
+          chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
           export LXD_DOCUMENTATION="/home/runner/work/lxd/lxd/doc/_build/"
           export PATH="/home/runner/go/bin:$PATH"
