@@ -686,7 +686,10 @@ jobs:
           cd lxd-ui
           sudo chown $USER -R /home/runner/.config
           sudo chown $USER /var/lib/lxd/unix.socket
-          CI=true DISABLE_VM_TESTS=true LXD_DIR=/var/lib/lxd PATH=/home/runner/go/bin:$PATH npx playwright test --project chromium:lxd-$TARGET
+          export PATH="/home/runner/go/bin:$PATH"
+          export CI=true
+          export DISABLE_VM_TESTS=true
+          npx playwright test --project chromium:lxd-$TARGET
 
       - name: Upload lxd-ui test artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
