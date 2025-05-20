@@ -650,14 +650,16 @@ test_backup_rename() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  if ! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 | grep -F "Error: Instance backup not found" ; then
+  OUTPUT="$(! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 || false)"
+  if ! echo "${OUTPUT}" | grep -F "Error: Instance backup not found" ; then
     echo "invalid rename response for missing container"
     false
   fi
 
   lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
 
-  if ! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 | grep -F "Error: Instance backup not found" ; then
+  OUTPUT="$(! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 || false)"
+  if ! echo "${OUTPUT}" | grep -F "Error: Instance backup not found" ; then
     echo "invalid rename response for missing backup"
     false
   fi
@@ -916,7 +918,8 @@ test_backup_volume_rename_delete() {
   # Create test volume.
   lxc storage volume create "${pool}" vol1 size=32MiB
 
-  if ! lxc query -X POST /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 | grep -F "Error: Storage volume backup not found" ; then
+  OUTPUT="$(! lxc query -X POST /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 || false)"
+  if ! echo "${OUTPUT}" | grep -F "Error: Storage volume backup not found" ; then
     echo "invalid rename response for missing storage volume"
     false
   fi
