@@ -18,7 +18,7 @@ do_dir_on_empty_fs() {
   mkfs.ext4 "${tmp_file}"
 
   mount_point=$(mktemp -d "${TEST_DIR}/mountpoint.XXXXXX")
-  sudo mount -o loop "${tmp_file}" "${mount_point}"
+  mount -o loop "${tmp_file}" "${mount_point}"
 
   if [ ! -d "${mount_point}/lost+found" ]; then
     echo "Error: Expected ${mount_point}/lost+found subdirectory to exist"
@@ -30,14 +30,14 @@ do_dir_on_empty_fs() {
   lxc storage delete s1
 
   # Create storage pool in the non-root path of the mounted filesystem where lost+found subdirectory exists.
-  sudo mkdir -p "${mount_point}/dir/lost+found"
+  mkdir -p "${mount_point}/dir/lost+found"
   if lxc storage create s1 dir source="${mount_point}/dir"; then
     echo "Error: Storage pool creation should have failed: Directory '${mount_point}/dir' is not empty"
     return 1
   fi
 
   # Cleanup.
-  sudo umount "${mount_point}"
+  umount "${mount_point}"
   rm -rf "${mount_point}"
   rm -f "${tmp_file}"
 }
