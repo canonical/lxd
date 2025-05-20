@@ -214,7 +214,7 @@ func (d *cephobject) Update(changedConfig map[string]string) error {
 
 		for _, bucketName := range buckets {
 			if strings.HasPrefix(bucketName, d.config["cephobject.bucket.name_prefix"]) {
-				return errors.New(`Cannot change "cephobject.bucket.name_prefix" when there are existing buclets`)
+				return errors.New(`Cannot change "cephobject.bucket.name_prefix" when there are existing buckets`)
 			}
 		}
 	}
