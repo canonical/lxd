@@ -293,6 +293,9 @@ For help with any of those, simply call them with --help.`))
 	authCmd := cmdAuth{global: &globalCmd}
 	app.AddCommand(authCmd.command())
 
+	placementGroupCmd := cmdPlacementGroup{global: &globalCmd}
+	app.AddCommand(placementGroupCmd.command())
+
 	// Get help command
 	app.InitDefaultHelpCmd()
 	var help *cobra.Command
