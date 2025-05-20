@@ -351,7 +351,7 @@ jobs:
     runs-on: ubuntu-22.04
     needs: [client, system-tests, ui-e2e-tests]
     env:
-      CGO_CFLAGS: "-I/home/runner/go/bin/dqlite/include/"
+      CGO_CFLAGS: "-I/home/runner/go/bin/dqlite/include/ -I/home/runner/go/bin/liblxc/include/"
       CGO_LDFLAGS: "-L/home/runner/go/bin/dqlite/libs/"
       LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
