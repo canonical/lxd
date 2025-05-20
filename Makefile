@@ -161,7 +161,7 @@ env:
 	@echo "export CGO_CFLAGS=\"-I$(DQLITE_PATH)/include/ -I$(LIBLXC_PATH)/include/\""
 	@echo "export CGO_LDFLAGS=\"-L$(DQLITE_PATH)/.libs/ -L$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/\""
 	@echo "export LD_LIBRARY_PATH=\"$(DQLITE_PATH)/.libs/:$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/\""
-	@echo "export PKG_CONFIG_PATH=\"$(pkg-config --variable pc_path pkg-config):$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/pkgconfig\""
+	@echo "export PKG_CONFIG_PATH=\"$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/pkgconfig\""
 	@echo "export CGO_LDFLAGS_ALLOW=\"(-Wl,-wrap,pthread_create)|(-Wl,-z,now)\""
 
 .PHONY: deps
