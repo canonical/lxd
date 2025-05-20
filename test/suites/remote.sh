@@ -198,7 +198,7 @@ test_remote_admin() {
 
   lxc_remote remote rename foo bar
   lxc_remote remote list | grep 'bar'
-  lxc_remote remote list | grep -v 'foo'
+  ! lxc_remote remote list | grep -F 'foo' || false
   [ "$(lxc_remote remote get-default)" = "bar" ]
 
   ! lxc_remote remote remove bar || false
