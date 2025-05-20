@@ -173,12 +173,12 @@ test_completions() {
     [ "$(complete config get localhost:c1 '')" = 'boot.,cloud-init.,cluster.,environment.,limits.,linux.,migration.,nvidia.,raw.,security.,snapshots.,ubuntu_pro.,user.' ]
     [ "$(complete config get c1 limits.)" = 'limits.cpu,limits.cpu.,limits.disk.,limits.hugepages.,limits.kernel.,limits.memory,limits.memory.,limits.processes' ]
     lxc config set user.foo=bar
-    [ "$(complete config unset '')" = 'c1,c2,core.https_address,localhost:,user.foo' ]
-    [ "$(complete config unset c)" = 'c1,c2,core.https_address' ]
+    [ "$(complete config unset '')" = 'c1,c2,core.https_address,core.trust_password,localhost:,user.foo' ]
+    [ "$(complete config unset c)" = 'c1,c2,core.https_address,core.trust_password' ]
     [ "$(complete config unset l)" = 'localhost:' ]
-    [ "$(complete config unset localhost: '')" = 'core.https_address,user.foo' ]
+    [ "$(complete config unset localhost: '')" = 'core.https_address,core.trust_password,user.foo' ]
     [ "$(complete config unset localhost:c)" = 'localhost:c1,localhost:c2' ]
-    [ "$(complete config unset localhost: c)" = 'core.https_address' ]
+    [ "$(complete config unset localhost: c)" = 'core.https_address,core.trust_password' ]
     [ "$(complete config unset c1 '')" = '' ]
     lxc config set c1 user.foo=bar
     [ "$(complete config unset c1 '')" = 'user.foo' ]
