@@ -156,8 +156,11 @@ test_remote_url_with_token() {
 }
 
 test_remote_admin() {
+  echo "Verify error due to bad token and inspect error message"
   OUTPUT="$(! lxc_remote remote add badtoken "${LXD_ADDR}" --token badtoken 2>&1 || false)"
   echo "${OUTPUT}" | grep -F "Error: Failed to decode trust token:"
+
+  echo "Verify that a bad token does not succeed in adding remote"
   ! lxc_remote remote add badtoken "${LXD_ADDR}" --token badtoken || false
   ! lxc_remote remote list | grep -wF badtoken || false
 
