@@ -656,21 +656,22 @@ jobs:
         run: |
           set -eux
           export PATH="/home/runner/go/bin:$PATH"
-          sudo -E LXD_DIR=/var/lib/lxd lxc storage create default zfs
-          sudo -E LXD_DIR=/var/lib/lxd lxc profile device add default root disk path=/ pool=default
-          sudo -E LXD_DIR=/var/lib/lxd lxc network create local-network
-          sudo -E LXD_DIR=/var/lib/lxd lxc profile device add default eth0 nic network=local-network
-          sudo -E LXD_DIR=/var/lib/lxd lxc config set core.https_address "[::]:8443"
-          sudo -E LXD_DIR=/var/lib/lxd lxc config set cluster.https_address "127.0.0.1"
-          sudo -E LXD_DIR=/var/lib/lxd lxc cluster enable local
-          sudo -E LXD_DIR=/var/lib/lxd lxc config set user.show_permissions=true
-          sudo -E LXD_DIR=/var/lib/lxd lxc config trust add lxd-ui/keys/lxd-ui.crt
+          sudo -E lxc storage create default zfs
+          sudo -E lxc profile device add default root disk path=/ pool=default
+          sudo -E lxc network create local-network
+          sudo -E lxc profile device add default eth0 nic network=local-network
+          sudo -E lxc config set core.https_address "[::]:8443"
+          sudo -E lxc config set cluster.https_address "127.0.0.1"
+          sudo -E lxc cluster enable local
+          sudo -E lxc config set user.show_permissions=true
+          sudo -E lxc config trust add lxd-ui/keys/lxd-ui.crt
 
       - name: Setup for LXD-UI tests
         shell: bash
         run: |
           set -eux
-          sudo -E LXD_DIR=/var/lib/lxd PATH=/home/runner/go/bin:$PATH ./lxd-ui/tests/scripts/setup_test
+          export PATH="/home/runner/go/bin:$PATH"
+          sudo -E ./lxd-ui/tests/scripts/setup_test
 
       - name: Run Playwright tests
         env:
