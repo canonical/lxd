@@ -1093,6 +1093,9 @@ test_backup_metadata() {
   lowest_version=$(lxc query /1.0 | jq -r .environment.backup_metadata_version_range[0])
   highest_version=$(lxc query /1.0 | jq -r .environment.backup_metadata_version_range[1])
 
+  [ "$lowest_version" = "1" ]
+  [ "$highest_version" = "2" ]
+
   tmpDir=$(mktemp -d)
 
   # Create an instance with one snapshot.
@@ -1106,9 +1109,9 @@ test_backup_metadata() {
 
   # Test pool changes are reflected in the config file.
   lxc storage set "${poolName}" user.foo bar
-  [ "$(yq '.pools.[] | select(.name == "'"${poolName}"'") | .config."user.foo"' < "${backup_yaml_path}")" = "bar" ]
+  [ "$(yq -r '.pools.[] | select(.name == "'"${poolName}"'") | .config."user.foo"' < "${backup_yaml_path}")" = "bar" ]
   lxc storage unset "${poolName}" user.foo
-  [ "$(yq '.pools.[] | select(.name == "'"${poolName}"'") | .config."user.foo"' < "${backup_yaml_path}")" = "null" ]
+  [ "$(yq -r '.pools.[] | select(.name == "'"${poolName}"'") | .config."user.foo"' < "${backup_yaml_path}")" = "null" ]
 
   lxc stop -f c1
 
