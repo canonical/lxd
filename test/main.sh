@@ -89,10 +89,10 @@ cleanup() {
     fi
     echo "==> Test result: ${TEST_RESULT}"
 
-    # shellcheck disable=SC2086
-    printf "To poke around, use:\\n LXD_DIR=%s LXD_CONF=%s sudo -E %s/bin/lxc COMMAND\\n" "${LXD_DIR}" "${LXD_CONF}" ${GOPATH:-}
-    echo "Tests Completed (${TEST_RESULT}): hit enter to continue"
-    read -r _
+    echo "Tests Completed (${TEST_RESULT})"
+    echo "Dropping to a shell for inspection"
+    echo "Once done, exit (Ctrl-D) to continue"
+    bash
   fi
 
   echo ""
