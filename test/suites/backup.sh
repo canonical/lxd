@@ -1106,9 +1106,9 @@ test_backup_metadata() {
 
   # Test pool changes are reflected in the config file.
   lxc storage set "${poolName}" user.foo bar
-  [ "$(yq -r '.pools.[] | select(.name == "'"${poolName}"'") | .config."user.foo"' < "${backup_yaml_path}")" = "bar" ]
+  [ "$(yq -r '.pool.config."user.foo"' < "${backup_yaml_path}")" = "bar" ]
   lxc storage unset "${poolName}" user.foo
-  [ "$(yq -r '.pools.[] | select(.name == "'"${poolName}"'") | .config."user.foo"' < "${backup_yaml_path}")" = "null" ]
+  [ "$(yq -r '.pool.config."user.foo"' < "${backup_yaml_path}")" = "null" ]
 
   lxc stop -f c1
 
@@ -1119,9 +1119,8 @@ test_backup_metadata() {
 
   cat "${tmpDir}/backup/index.yaml"
   [ "$(yq '.snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
-  [ "$(yq .config.version < "${tmpDir}/backup/index.yaml")" = "${highest_version}" ]
-  [ "$(yq '.config.volumes | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
-  [ "$(yq '.config.volumes.[0].snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
+  [ "$(yq .config.version < "${tmpDir}/backup/index.yaml")" = "null" ]
+  [ "$(yq '.config.volume_snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
 
   rm -rf "${tmpDir}/backup" "${tmpDir}/c1.tar.gz"
 
@@ -1152,10 +1151,9 @@ test_backup_metadata() {
 
   cat "${tmpDir}/backup/index.yaml"
   [ "$(yq '.snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
-  [ "$(yq .config.version < "${tmpDir}/backup/index.yaml")" = "${highest_version}" ]
+  [ "$(yq .config.version < "${tmpDir}/backup/index.yaml")" = "null" ]
   [ "$(yq .config.instance < "${tmpDir}/backup/index.yaml")" = "null" ]
-  [ "$(yq '.config.volumes | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
-  [ "$(yq '.config.volumes.[0].snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
+  [ "$(yq '.config.volume_snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
 
   rm -rf "${tmpDir}/backup" "${tmpDir}/vol1.tar.gz"
 
