@@ -135,12 +135,11 @@ jobs:
 
           # Update env variables for liblxc
           LIBLXC_ARCH_LIBS="$(readlink -e /home/runner/go/bin/liblxc/libs/*-linux-gnu)"
-          PKG_CONFIG_PATH="$(pkg-config --variable pc_path pkg-config):${LIBLXC_ARCH_LIBS}/pkgconfig"
 
           echo "CGO_LDFLAGS=${CGO_LDFLAGS} -L${LIBLXC_ARCH_LIBS}"       >> "${GITHUB_ENV}"
           echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${LIBLXC_ARCH_LIBS}" >> "${GITHUB_ENV}"
           echo "LD_RUN_PATH=${LD_RUN_PATH}:${LIBLXC_ARCH_LIBS}"         >> "${GITHUB_ENV}"
-          echo "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}"                     >> "${GITHUB_ENV}"
+          echo "PKG_CONFIG_PATH=${LIBLXC_ARCH_LIBS}/pkgconfig"          >> "${GITHUB_ENV}"
 
       - name: Build binaries
         run: |
