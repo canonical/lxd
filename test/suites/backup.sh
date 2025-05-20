@@ -1093,6 +1093,9 @@ test_backup_metadata() {
   lowest_version=$(lxc query /1.0 | jq -r .environment.backup_metadata_version_range[0])
   highest_version=$(lxc query /1.0 | jq -r .environment.backup_metadata_version_range[1])
 
+  [ "$lowest_version" = "1" ]
+  [ "$highest_version" = "2" ]
+
   tmpDir=$(mktemp -d)
 
   # Create an instance with one snapshot.
