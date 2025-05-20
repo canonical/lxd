@@ -112,8 +112,10 @@ If you prefer live discussions, you can find us in [`#lxd`](https://web.libera.c
 
 ### Commercial support
 
-Commercial support for LXD is available through [Ubuntu Pro](https://ubuntu.com/support) (Ubuntu Pro (Infra-only) or full Ubuntu Pro).
+Commercial support for LXD is available through [Ubuntu Pro](https://ubuntu.com/support) (Infra-only or full Ubuntu Pro).
 The support covers all LTS versions for five years starting from the day of the release.
+
+LXD instances are also eligible for Ubuntu Pro support. See: [How to get Ubuntu Pro on LXD guests](https://documentation.ubuntu.com/pro-client/en/latest/howtoguides/use_pro_lxd_guests/) in the Ubuntu Pro Client documentation.
 
 See the [full service description](https://ubuntu.com/legal/ubuntu-pro-description) for detailed information about what support Ubuntu Pro provides.
 
