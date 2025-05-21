@@ -1,5 +1,5 @@
 test_image_auto_update() {
-  if lxc image alias list | grep -q "^| testimage\\s*|.*$"; then
+  if lxc image alias list testimage | grep -wF "testimage"; then
       lxc image delete testimage
   fi
 

@@ -124,14 +124,14 @@ test_config_profiles() {
 
   # validate unsets
   lxc profile set default user.foo bar
-  lxc profile show default | grep -q user.foo
+  lxc profile show default | grep -F user.foo
   lxc profile unset default user.foo
-  ! lxc profile show default | grep -q user.foo || false
+  ! lxc profile show default | grep -F user.foo || false
 
   lxc profile device set default eth0 limits.egress 100Mbit
-  lxc profile show default | grep -q limits.egress
+  lxc profile show default | grep -F limits.egress
   lxc profile device unset default eth0 limits.egress
-  ! lxc profile show default | grep -q limits.egress || false
+  ! lxc profile show default | grep -F limits.egress || false
 
   # check that various profile application mechanisms work
   lxc profile create one
@@ -171,7 +171,7 @@ test_config_profiles() {
   # test profile rename
   lxc profile create foo
   lxc profile rename foo bar
-  lxc profile list | grep -qv foo  # the old name is gone
+  ! lxc profile list | grep -wF foo || false  # the old name is gone
   lxc profile delete bar
 
   lxc config device list foo | grep mnt1
@@ -190,11 +190,11 @@ test_config_profiles() {
   # test live-adding a nic
   veth_host_name="veth$$"
   lxc start foo
-  lxc exec foo -- cat /proc/self/mountinfo | grep -q "/mnt1.*ro,"
-  ! lxc config show foo | grep -q "raw.lxc" || false
-  lxc config show foo --expanded | grep -q "raw.lxc"
-  ! lxc config show foo | grep -v "volatile.eth0" | grep -q "eth0" || false
-  lxc config show foo --expanded | grep -v "volatile.eth0" | grep -q "eth0"
+  lxc exec foo -- cat /proc/self/mountinfo | grep "/mnt1.*ro,"
+  ! lxc config show foo | grep -F "raw.lxc" || false
+  lxc config show foo --expanded | grep -F "raw.lxc"
+  ! lxc config show foo | grep -vF "volatile.eth0" | grep -F "eth0" || false
+  lxc config show foo --expanded | grep -vF "volatile.eth0" | grep -F "eth0"
   lxc config device add foo eth2 nic nictype=p2p name=eth10 host_name="${veth_host_name}"
   lxc exec foo -- /sbin/ifconfig -a | grep eth0
   lxc exec foo -- /sbin/ifconfig -a | grep eth10
@@ -205,7 +205,7 @@ test_config_profiles() {
   mkdir "${TEST_DIR}/mnt2"
   touch "${TEST_DIR}/mnt2/hosts"
   lxc config device add foo mnt2 disk source="${TEST_DIR}/mnt2" path=/mnt2 readonly=true
-  lxc exec foo -- cat /proc/self/mountinfo | grep -q "/mnt2.*ro,"
+  lxc exec foo -- cat /proc/self/mountinfo | grep "/mnt2.*ro,"
   lxc exec foo -- ls /mnt2/hosts
   lxc stop foo --force
   lxc start foo
@@ -283,7 +283,7 @@ test_config_edit() {
 
     lxc init testimage foo -s "lxdtest-$(basename "${LXD_DIR}")"
     lxc config show foo | sed 's/^description:.*/description: bar/' | lxc config edit foo
-    lxc config show foo | grep -q 'description: bar'
+    lxc config show foo | grep -xF 'description: bar'
 
     # Check instance name is included in edit screen.
     cmd=$(unset -f lxc; command -v lxc)
@@ -304,30 +304,30 @@ test_property() {
   # Set a property of an instance
   lxc config set foo description="a new description" --property
   # Check that the property is set
-  lxc config show foo | grep -q "description: a new description"
+  lxc config show foo | grep -xF "description: a new description"
 
   # Unset a property of an instance
   lxc config unset foo description --property
   # Check that the property is unset
-  ! lxc config show foo | grep -q "description: a new description" || false
+  ! lxc config show foo | grep -xF "description: a new description" || false
 
   # Set a property of an instance (bool)
   lxc config set foo ephemeral=true --property
   # Check that the property is set
-  lxc config show foo | grep -q "ephemeral: true"
+  lxc config show foo | grep -xF "ephemeral: true"
 
   # Unset a property of an instance (bool)
   lxc config unset foo ephemeral --property
   # Check that the property is unset (i.e false)
-  lxc config show foo | grep -q "ephemeral: false"
+  lxc config show foo | grep -xF "ephemeral: false"
 
   # Create a snap of the instance to set its expiration timestamp
   lxc snapshot foo s1
   lxc config set foo/s1 expires_at="2024-03-23T17:38:37.753398689-04:00" --property
-  lxc config get foo/s1 expires_at --property | grep -q "2024-03-23 17:38:37.753398689 -0400 -0400"
-  lxc config show foo/s1 | grep -q "expires_at: 2024-03-23T17:38:37.753398689-04:00"
+  lxc config get foo/s1 expires_at --property | grep -F "2024-03-23 17:38:37.753398689 -0400 -0400"
+  lxc config show foo/s1 | grep -F "expires_at: 2024-03-23T17:38:37.753398689-04:00"
   lxc config unset foo/s1 expires_at --property
-  lxc config show foo/s1 | grep -q "expires_at: 0001-01-01T00:00:00Z"
+  lxc config show foo/s1 | grep -F "expires_at: 0001-01-01T00:00:00Z"
 
 
   # Create a storage volume, create a volume snapshot and set its expiration timestamp
@@ -363,12 +363,12 @@ test_config_edit_container_snapshot_pool_config() {
     lxc storage volume show "$storage_pool" container/c1 | \
         sed 's/^description:.*/description: bar/' | \
         lxc storage volume edit "$storage_pool" container/c1
-    lxc storage volume show "$storage_pool" container/c1 | grep -q 'description: bar'
+    lxc storage volume show "$storage_pool" container/c1 | grep -xF 'description: bar'
     # edit the container snapshot volume name
     lxc storage volume show "$storage_pool" container/c1/s1 | \
         sed 's/^description:.*/description: baz/' | \
         lxc storage volume edit "$storage_pool" container/c1/s1
-    lxc storage volume show "$storage_pool" container/c1/s1 | grep -q 'description: baz'
+    lxc storage volume show "$storage_pool" container/c1/s1 | grep -xF 'description: baz'
     lxc delete c1
 }
 
@@ -377,21 +377,21 @@ test_container_metadata() {
     lxc init testimage c
 
     # metadata for the container are printed
-    lxc config metadata show c | grep -q BusyBox
+    lxc config metadata show c | grep -wF BusyBox
 
     # metadata can be edited
     lxc config metadata show c | sed 's/BusyBox/BB/' | lxc config metadata edit c
-    lxc config metadata show c | grep -q BB
+    lxc config metadata show c | grep -wF BB
 
     # templates can be listed
-    lxc config template list c | grep -q template.tpl
+    lxc config template list c | grep -F template.tpl
 
     # template content can be returned
-    lxc config template show c template.tpl | grep -q "name:"
+    lxc config template show c template.tpl | grep -F "name:"
 
     # templates can be added
     lxc config template create c my.tpl
-    lxc config template list c | grep -q my.tpl
+    lxc config template list c | grep -F my.tpl
 
     # templates cannot contain some illegal chars
     ! lxc config template create c foo/bar || false
@@ -399,11 +399,11 @@ test_container_metadata() {
 
     # template content can be updated
     echo "some content" | lxc config template edit c my.tpl
-    lxc config template show c my.tpl | grep -q "some content"
+    lxc config template show c my.tpl | grep -F "some content"
 
     # templates can be removed
     lxc config template delete c my.tpl
-    ! lxc config template list c | grep -q my.tpl || false
+    ! lxc config template list c | grep -F my.tpl || false
 
     lxc delete c
 }
@@ -418,21 +418,21 @@ test_container_snapshot_config() {
 
     lxc init testimage foo -s "lxdtest-$(basename "${LXD_DIR}")"
     lxc snapshot foo
-    lxc config show foo/snap0 | grep -q 'expires_at: 0001-01-01T00:00:00Z'
+    lxc config show foo/snap0 | grep -F 'expires_at: 0001-01-01T00:00:00Z'
 
     echo 'expires_at: 2100-01-01T00:00:00Z' | lxc config edit foo/snap0
-    lxc config show foo/snap0 | grep -q 'expires_at: 2100-01-01T00:00:00Z'
+    lxc config show foo/snap0 | grep -F 'expires_at: 2100-01-01T00:00:00Z'
 
     # Remove expiry date using zero time
     echo 'expires_at: 0001-01-01T00:00:00Z' | lxc config edit foo/snap0
-    lxc config show foo/snap0 | grep -q 'expires_at: 0001-01-01T00:00:00Z'
+    lxc config show foo/snap0 | grep -F 'expires_at: 0001-01-01T00:00:00Z'
 
     echo 'expires_at: 2100-01-01T00:00:00Z' | lxc config edit foo/snap0
-    lxc config show foo/snap0 | grep -q 'expires_at: 2100-01-01T00:00:00Z'
+    lxc config show foo/snap0 | grep -F 'expires_at: 2100-01-01T00:00:00Z'
 
     # Remove expiry date using empty value
     echo 'expires_at:' | lxc config edit foo/snap0
-    lxc config show foo/snap0 | grep -q 'expires_at: 0001-01-01T00:00:00Z'
+    lxc config show foo/snap0 | grep -F 'expires_at: 0001-01-01T00:00:00Z'
 
     # Check instance name is included in edit screen.
     cmd=$(unset -f lxc; command -v lxc)

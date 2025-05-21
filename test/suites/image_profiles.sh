@@ -15,8 +15,8 @@ _image_empty_profile_list() {
   lxc image show testimage | sed "s/profiles.*/profiles: []/; s/- default//" | lxc image edit testimage
 
   # Check that the profile list is correct
-  lxc image show testimage | grep -qF 'profiles: []'
-  ! lxc image show testimage | grep -q -- '- default' || false
+  lxc image show testimage | grep -xF 'profiles: []'
+  ! lxc image show testimage | grep -xF -- '- default' || false
 
   # Launch the container and check its profiles
   storage=$(lxc storage list | grep "^| " | tail -n 1 | cut -d' ' -f2)
@@ -37,10 +37,10 @@ _image_alternate_profile_list() {
   lxc image show testimage | sed "s/profiles.*/profiles: ['p1','p2','p3']/; s/- default//" | lxc image edit testimage
 
   # Check that the profile list is correct
-  lxc image show testimage | grep -q -- '- p1'
-  lxc image show testimage | grep -q -- '- p2'
-  lxc image show testimage | grep -q -- '- p3'
-  ! lxc image show testimage | grep -q -- '- default' || false
+  lxc image show testimage | grep -xF -- '- p1'
+  lxc image show testimage | grep -xF -- '- p2'
+  lxc image show testimage | grep -xF -- '- p3'
+  ! lxc image show testimage | grep -xF -- '- default' || false
 
   # Launch the container and check its profiles
   storage=$(lxc storage list | grep "^| " | tail -n 1 | cut -d' ' -f2)

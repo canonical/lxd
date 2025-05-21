@@ -156,7 +156,11 @@ test_remote_url_with_token() {
 }
 
 test_remote_admin() {
-  lxc_remote remote add badtoken "${LXD_ADDR}" --token badtoken 2>&1 | grep -F "Error: Failed to decode trust token:"
+  echo "Verify error due to bad token and inspect error message"
+  OUTPUT="$(! lxc_remote remote add badtoken "${LXD_ADDR}" --token badtoken 2>&1 || false)"
+  echo "${OUTPUT}" | grep -F "Error: Failed to decode trust token:"
+
+  echo "Verify that a bad token does not succeed in adding remote"
   ! lxc_remote remote add badtoken "${LXD_ADDR}" --token badtoken || false
   ! lxc_remote remote list | grep -wF badtoken || false
 
@@ -166,14 +170,14 @@ test_remote_admin() {
   ! lxc_remote remote add foo "${LXD_ADDR}" --accept-certificate --token "${token}" || false
 
   lxc_remote remote add foo "${LXD_ADDR}" --token "${token}"
-  lxc_remote remote list | grep 'foo'
+  lxc_remote remote list | grep -wF 'foo'
 
   lxc_remote remote set-default foo
   [ "$(lxc_remote remote get-default)" = "foo" ]
 
   lxc_remote remote rename foo bar
   lxc_remote remote list | grep 'bar'
-  lxc_remote remote list | grep -v 'foo'
+  ! lxc_remote remote list | grep -F 'foo' || false
   [ "$(lxc_remote remote get-default)" = "bar" ]
 
   ! lxc_remote remote remove bar || false
@@ -247,8 +251,8 @@ test_remote_usage() {
   # test remote publish
   lxc_remote init testimage pub
   lxc_remote publish pub lxd2: --alias bar --public a=b
-  lxc_remote image show lxd2:bar | grep -q "a: b"
-  lxc_remote image show lxd2:bar | grep -q "public: true"
+  lxc_remote image show lxd2:bar | grep -F "a: b"
+  lxc_remote image show lxd2:bar | grep -xF "public: true"
   ! lxc_remote image show bar || false
   lxc_remote delete pub
 
@@ -282,7 +286,7 @@ test_remote_usage() {
   mv "${LXD_CONF}/client.key" "${LXD_CONF}/client.key.bak"
 
   # testimage should still exist on the local server.
-  lxc_remote image list local: | grep -q testimage
+  lxc_remote image list local: | grep -wF testimage
 
   # Skip the truly remote servers in offline mode.
   # There should always be Ubuntu images in the results from cloud-images.ubuntu.com remote.
@@ -301,13 +305,13 @@ test_remote_usage() {
 
   lxc_remote image copy "localhost:${sum}" lxd2: --mode=push
   lxc_remote image show lxd2:"${sum}"
-  lxc_remote image show lxd2:"${sum}" | grep -q 'public: false'
+  lxc_remote image show lxd2:"${sum}" | grep -xF 'public: false'
   ! lxc_remote image show lxd2:foo || false
   lxc_remote image delete "lxd2:${sum}"
 
   lxc_remote image copy "localhost:${sum}" lxd2: --mode=push --copy-aliases --public
   lxc_remote image show lxd2:"${sum}"
-  lxc_remote image show lxd2:"${sum}" | grep -q 'public: true'
+  lxc_remote image show lxd2:"${sum}" | grep -xF 'public: true'
   lxc_remote image show lxd2:foo
   lxc_remote image delete "lxd2:${sum}"
 
@@ -319,13 +323,13 @@ test_remote_usage() {
 
   lxc_remote image copy "localhost:${sum}" lxd2: --mode=relay
   lxc_remote image show lxd2:"${sum}"
-  lxc_remote image show lxd2:"${sum}" | grep -q 'public: false'
+  lxc_remote image show lxd2:"${sum}" | grep -xF 'public: false'
   ! lxc_remote image show lxd2:foo || false
   lxc_remote image delete "lxd2:${sum}"
 
   lxc_remote image copy "localhost:${sum}" lxd2: --mode=relay --copy-aliases --public
   lxc_remote image show lxd2:"${sum}"
-  lxc_remote image show lxd2:"${sum}" | grep -q 'public: true'
+  lxc_remote image show lxd2:"${sum}" | grep -xF 'public: true'
   lxc_remote image show lxd2:foo
   lxc_remote image delete "lxd2:${sum}"
 
@@ -351,22 +355,22 @@ test_remote_usage() {
   # Test image copy with --profile option
   lxc_remote profile create lxd2:foo
   lxc_remote image copy "localhost:${sum}" lxd2: --profile foo
-  lxc_remote image show lxd2:"${sum}" | grep -q '\- foo'
+  lxc_remote image show lxd2:"${sum}" | grep -xF -- '- foo'
   lxc_remote image delete "lxd2:${sum}"
 
   lxc_remote image copy "localhost:${sum}" lxd2: --profile foo --mode=push
-  lxc_remote image show lxd2:"${sum}" | grep -q '\- foo'
+  lxc_remote image show lxd2:"${sum}" | grep -xF -- '- foo'
   lxc_remote image delete "lxd2:${sum}"
 
   lxc_remote image copy "localhost:${sum}" lxd2: --profile foo --mode=relay
-  lxc_remote image show lxd2:"${sum}" | grep -q '\- foo'
+  lxc_remote image show lxd2:"${sum}" | grep -xF -- '- foo'
   lxc_remote image delete "lxd2:${sum}"
   lxc_remote profile delete lxd2:foo
 
   lxc_remote image copy localhost:testimage lxd2: --alias bar
   # Get the `cached` and `aliases` fields for the image `bar` in lxd2
-  cached=$(lxc_remote image info lxd2:bar | awk '/Cached/ { print $2 }')
-  alias=$(lxc_remote image info lxd2:bar | grep -A 1 "Aliases:" | tail -n1 | awk '{print $2}')
+  cached=$(lxc_remote image info lxd2:bar | awk '/^Cached/ { print $2 }')
+  alias=$(lxc_remote image info lxd2:bar | grep -xF -A 1 "Aliases:" | tail -n1 | awk '{print $2}')
 
   # Check that image is not cached
   [ "${cached}" = "no" ]
@@ -375,19 +379,19 @@ test_remote_usage() {
 
   # Now, lets delete the image and observe that when its downloaded implicitly as part of an instance create,
   # the image becomes `cached` and has no alias.
-  fingerprint=$(lxc_remote image info lxd2:bar | awk '/Fingerprint/ { print $2 }')
+  fingerprint=$(lxc_remote image info lxd2:bar | awk '/^Fingerprint/ { print $2 }')
   lxc_remote image delete lxd2:bar
   lxc_remote init localhost:testimage lxd2:c1
-  cached=$(lxc_remote image info "lxd2:${fingerprint}" | awk '/Cached/ { print $2 }')
+  cached=$(lxc_remote image info "lxd2:${fingerprint}" | awk '/^Cached/ { print $2 }')
   # The `cached` field should be set to `yes` since the image was implicitly downloaded by the instance create operation
   [ "${cached}" = "yes" ]
   # There should be no alias for the image
-  ! lxc_remote image info "lxd2:${fingerprint}" | grep -q "Aliases:"
+  ! lxc_remote image info "lxd2:${fingerprint}" | grep -F "Aliases:"
 
   # Finally, lets copy the remote image explicitly to the local server with an alias like we did before
   lxc_remote image copy localhost:testimage lxd2: --alias bar
-  cached=$(lxc_remote image info lxd2:bar | awk '/Cached/ { print $2 }')
-  alias=$(lxc_remote image info lxd2:bar | grep -A 1 "Aliases:" | tail -n1 | awk '{print $2}')
+  cached=$(lxc_remote image info lxd2:bar | awk '/^Cached/ { print $2 }')
+  alias=$(lxc_remote image info lxd2:bar | grep -xF -A 1 "Aliases:" | tail -n1 | awk '{print $2}')
   # The `cached` field should be set to `no` since the image was explicitly copied.
   [ "${cached}" = "no" ]
   # The alias should be set to `bar`.

@@ -21,8 +21,8 @@ test_tls_restrictions() {
   lxc_remote project create localhost:blah
 
   # Validate normal view with no restrictions
-  lxc_remote project list localhost: | grep -q default
-  lxc_remote project list localhost: | grep -q blah
+  lxc_remote project list localhost: | grep -wF default
+  lxc_remote project list localhost: | grep -wF blah
 
   # Apply restrictions
   lxc config trust show "${FINGERPRINT}" | sed -e "s/restricted: false/restricted: true/" | lxc config trust edit "${FINGERPRINT}"
@@ -47,8 +47,8 @@ test_tls_restrictions() {
   lxc config trust show "${FINGERPRINT}" | sed -e "s/projects: \[\]/projects: ['blah']/" -e "s/restricted: false/restricted: true/" | lxc config trust edit "${FINGERPRINT}"
 
   # Validate restricted view
-  ! lxc_remote project list localhost: | grep -q default || false
-  lxc_remote project list localhost: | grep -q blah
+  ! lxc_remote project list localhost: | grep -wF default || false
+  lxc_remote project list localhost: | grep -wF blah
 
   # Validate that the restricted caller cannot edit or delete the project.
   ! lxc_remote project set localhost:blah user.foo=bar || false
@@ -454,5 +454,7 @@ test_tls_version() {
 
   echo "TLS 1.2 is refused with a protocol version error"
   ! my_curl --tls-max 1.2 -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" || false
-  my_curl --tls-max 1.2 -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" | grep -F "alert protocol version"
+  # rc=35: SSL connect error. The SSL handshaking failed.
+  CURL_ERR="$(my_curl --tls-max 1.2 -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" || [ "${?}" = 35 ])"
+  echo "${CURL_ERR}" | grep -F "alert protocol version"
 }

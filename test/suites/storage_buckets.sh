@@ -125,7 +125,8 @@ EOF
   [ "${ORIG_MD5SUM}" = "${INFO_MD5SUM}" ]
   [ "${ORIG_MD5SUM}" = "$(md5sum < "${lxdTestFile}.get")" ]
   rm "${lxdTestFile}.get"
-  INFO_MD5SUM="$(s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" info "s3://${bucketPrefix}.foo/${lxdTestFile}" | awk '{ if ($1 == "MD5") {print $3}}')  -"
+  # roAccessKey cannot get the `info`
+  ! s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" info "s3://${bucketPrefix}.foo/${lxdTestFile}" || false
   s3cmdrun "${lxd_backend}" "${roAccessKey}" "${roSecretKey}" get "s3://${bucketPrefix}.foo/${lxdTestFile}" "${lxdTestFile}.get"
   [ "${ORIG_MD5SUM}" = "${INFO_MD5SUM}" ]
   [ "${ORIG_MD5SUM}" = "$(md5sum < "${lxdTestFile}.get")" ]

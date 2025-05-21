@@ -15,7 +15,7 @@ do_zfs_delegate() {
     return
   fi
 
-  if ! zfs --help | grep -q '^\s\+zone\b'; then
+  if ! zfs --help | grep -wF "zone" >/dev/null; then
     echo "==> SKIP: Skipping ZFS delegation tests due as installed version doesn't support it"
     return
   fi
@@ -31,7 +31,7 @@ do_zfs_delegate() {
   lxc start c1
 
   PID=$(lxc info c1 | awk '/^PID:/ {print $2}')
-  nsenter -t "${PID}" -U -- zfs list | grep -q containers/c1
+  nsenter -t "${PID}" -U -- zfs list | grep -wF containers/c1
 
   # Confirm that ZFS dataset is empty when off.
   lxc stop -f c1
@@ -39,7 +39,7 @@ do_zfs_delegate() {
   lxc start c1
 
   PID=$(lxc info c1 | awk '/^PID:/ {print $2}')
-  ! nsenter -t "${PID}" -U -- zfs list | grep -q containers/c1
+  ! nsenter -t "${PID}" -U -- zfs list | grep -wF containers/c1
 
   lxc delete -f c1
 }
