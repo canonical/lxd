@@ -672,6 +672,20 @@ jobs:
           export PATH="/home/runner/go/bin:$PATH"
           sudo -E ./lxd-ui/tests/scripts/setup_test
 
+      - name: Test basic LXD functionality
+        shell: bash
+        run: |
+          set -eux
+          export PATH="/home/runner/go/bin:$PATH"
+
+          # launch a test instance
+          sudo -E ./test/deps/import-busybox --alias testimage
+          sudo -E lxc launch testimage --quiet c1 -d root,size=32MiB || { sudo -E lxc info --show-log c1; false; }
+
+          # cleanup
+          sudo -E lxc delete -f c1
+          sudo -E lxc image delete testimage
+
       - name: Run Playwright tests
         env:
           TARGET: >-
