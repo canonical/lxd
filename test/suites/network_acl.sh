@@ -101,14 +101,15 @@ EOF
   ! lxc network acl rule add testacl ingress action=allow protocol=icmp4 icmp_code=256 || false # Invalid icmp combination
   ! lxc network acl rule add testacl ingress action=allow protocol=icmp6 icmp_type=-1 || false # Invalid icmp combination
 
-  lxc network acl rule add testacl ingress action=allow source=192.168.1.2/32 protocol=tcp destination=192.168.1.1-192.168.1.3 destination_port="22, 2222-2223"
-  ! lxc network acl rule add testacl ingress action=allow source=192.168.1.2/32 protocol=tcp destination=192.168.1.1-192.168.1.3 destination_port=22,2222-2223 || false # Dupe rule detection
+  daddr="192.168.1.1-192.168.1.3"
+  lxc network acl rule add testacl ingress action=allow source=192.168.1.2/32 protocol=tcp destination="${daddr}" destination_port="22, 2222-2223"
+  ! lxc network acl rule add testacl ingress action=allow source=192.168.1.2/32 protocol=tcp destination="${daddr}" destination_port=22,2222-2223 || false # Dupe rule detection
   acl_show_output=$(lxc network acl show testacl)
-  [ "$(echo "$acl_show_output" | grep -cF "destination: 192.168.1.1-192.168.1.3")" = 1 ]
-  [ "$(echo "$acl_show_output" | grep -cF "state: enabled")" -ge 2 ] # Default state enabled for new rules.
+  [ "$(echo "$acl_show_output" | grep -cF "destination: ${daddr}")" = 1 ]
+  [ "$(echo "$acl_show_output" | grep -cF 'state: enabled')" -ge 2 ] # Default state enabled for new rules.
 
   # ACL rule removal.
-  lxc network acl rule add testacl ingress action=allow source=192.168.1.3/32 protocol=tcp destination=192.168.1.1-192.168.1.3 destination_port=22,2222-2223 description="removal rule test"
+  lxc network acl rule add testacl ingress action=allow source=192.168.1.3/32 protocol=tcp destination="${daddr}" destination_port=22,2222-2223 description="removal rule test"
   ! lxc network acl rule remove testacl ingress || false # Fail if match multiple rules with no filter and no --force.
   ! lxc network acl rule remove testacl ingress destination_port=22,2222-2223 || false # Fail if match multiple rules with filter and no --force.
   lxc network acl rule remove testacl ingress description="removal rule test" # Single matching rule removal.
