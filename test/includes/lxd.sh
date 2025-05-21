@@ -300,12 +300,6 @@ wipe() {
         fi
     fi
 
-    local pid
-    # shellcheck disable=SC2009
-    ps aux | grep lxc-monitord | grep "${1}" | awk '{print $2}' | while read -r pid; do
-        kill -9 "${pid}" || true
-    done
-
     if mountpoint -q "${1}"; then
         umount -l "${1}"
     fi
@@ -317,7 +311,7 @@ panic_checker() {
   # Only run if DEBUG is set (e.g. LXD_VERBOSE or LXD_DEBUG is set)
   # Panics are logged at info level, which won't be outputted unless this is set.
   if [ -z "${DEBUG:-}" ]; then
-    return
+    return 0
   fi
 
   local test_dir daemon_dir

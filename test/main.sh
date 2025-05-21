@@ -85,14 +85,14 @@ cleanup() {
   # Allow for inspection
   if [ -n "${LXD_INSPECT:-}" ]; then
     if [ "${TEST_RESULT}" != "success" ]; then
-      echo "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION}"
+      echo "==> FAILED TEST: ${TEST_CURRENT#test_} (${TEST_CURRENT_DESCRIPTION})"
     fi
     echo "==> Test result: ${TEST_RESULT}"
 
-    # shellcheck disable=SC2086
-    printf "To poke around, use:\\n LXD_DIR=%s LXD_CONF=%s sudo -E %s/bin/lxc COMMAND\\n" "${LXD_DIR}" "${LXD_CONF}" ${GOPATH:-}
-    echo "Tests Completed (${TEST_RESULT}): hit enter to continue"
-    read -r _
+    echo "Tests Completed (${TEST_RESULT})"
+    echo "Dropping to a shell for inspection"
+    echo "Once done, exit (Ctrl-D) to continue"
+    bash
   fi
 
   echo ""
@@ -141,7 +141,7 @@ cleanup() {
   echo ""
   echo ""
   if [ "${TEST_RESULT}" != "success" ]; then
-    echo "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION}"
+    echo "==> FAILED TEST: ${TEST_CURRENT#test_} (${TEST_CURRENT_DESCRIPTION})"
   fi
   echo "==> Test result: ${TEST_RESULT}"
 }
@@ -199,7 +199,7 @@ export SMALL_ROOT_DISK
 
 run_test() {
   TEST_CURRENT=${1}
-  TEST_CURRENT_DESCRIPTION=${2:-${1}}
+  TEST_CURRENT_DESCRIPTION=${2:-${1#test_}}
   TEST_UNMET_REQUIREMENT=""
   cwd="$(pwd)"
 
@@ -455,6 +455,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_storage_volume_recover "Recover storage volumes"
     run_test test_syslog_socket "Syslog socket"
     run_test test_lxd_user "lxd user"
+    run_test test_waitready "waitready"
 fi
 
 # shellcheck disable=SC2034

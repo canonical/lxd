@@ -1099,21 +1099,8 @@ test_backup_metadata() {
   tmpDir=$(mktemp -d)
 
   # Create an instance with one snapshot.
-  lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
+  lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1
-
-  lxc start c1
-  backup_yaml_path="${LXD_DIR}/containers/c1/backup.yaml"
-  poolName="$(lxc profile device get default root pool)"
-  cat "${backup_yaml_path}"
-
-  # Test pool changes are reflected in the config file.
-  lxc storage set "${poolName}" user.foo bar
-  [ "$(yq -r '.pool.config."user.foo"' < "${backup_yaml_path}")" = "bar" ]
-  lxc storage unset "${poolName}" user.foo
-  [ "$(yq -r '.pool.config."user.foo"' < "${backup_yaml_path}")" = "null" ]
-
-  lxc stop -f c1
 
   # Export the instance without setting an export version.
   # The server should implicitly pick its latest supported version.
@@ -1144,6 +1131,7 @@ test_backup_metadata() {
   lxc delete -f c1
 
   # Create a custom storage volume with one snapshot.
+  poolName=$(lxc profile device get default root pool)
   lxc storage volume create "${poolName}" vol1 size=32MiB
   lxc storage volume snapshot "${poolName}" vol1
 

@@ -7,11 +7,13 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -371,7 +373,7 @@ func parseURL(URL string) (string, error) {
 
 	// If no port was provided, use default port
 	if u.Port() == "" {
-		u.Host = fmt.Sprintf("%s:%d", u.Hostname(), shared.HTTPSDefaultPort)
+		u.Host = net.JoinHostPort(u.Hostname(), strconv.Itoa(shared.HTTPSDefaultPort))
 	}
 
 	return u.String(), nil
