@@ -165,6 +165,7 @@ type Instance interface {
 	CanMigrate() (bool, bool)
 	MigrateSend(args MigrateSendArgs) error
 	MigrateReceive(args MigrateReceiveArgs) error
+	PostMigrateSend() error
 
 	// Conversion.
 	ConversionReceive(args ConversionReceiveArgs) error
