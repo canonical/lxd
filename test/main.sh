@@ -93,16 +93,20 @@ cleanup() {
   if [ -n "${LXD_INSPECT:-}" ]; then
     if [ "${TEST_RESULT}" != "success" ]; then
       echo "==> FAILED TEST: ${TEST_CURRENT#test_} (${TEST_CURRENT_DESCRIPTION})"
+      # red
+      PS1_PREFIX="\033[0;31mLXD-TEST\033[0m"
+    else
+      # green
+      PS1_PREFIX="\033[0;32mLXD-TEST\033[0m"
     fi
     echo "==> Test result: ${TEST_RESULT}"
 
     # Re-execution prevention
     export LXD_INSPECT_INPROGRESS=true
 
-    echo "Tests Completed (${TEST_RESULT})"
-    echo "Dropping to a shell for inspection"
-    echo "Once done, exit (Ctrl-D) to continue"
-    bash
+    echo -e "\033[0;33mDropping to a shell for inspection.\nOnce done, exit (Ctrl-D) to continue\033[0m"
+    export PS1="${PS1_PREFIX} ${PS1:-\u@\h:\w\$ }"
+    bash --norc
   fi
 
   echo ""
