@@ -291,7 +291,7 @@ func (c *cmdMove) moveInstance(sourceResource string, destResource string, state
 	}
 
 	if !source.IsClustered() && c.flagTarget != "" {
-		return fmt.Errorf(i18n.G("--target can only be used with clusters"))
+		return errors.New(i18n.G("--target can only be used with clusters"))
 	}
 
 	// Set the target if specified.
