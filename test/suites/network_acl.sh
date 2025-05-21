@@ -2,6 +2,13 @@ test_network_acl() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
+  firewallDriver=$(lxc info | awk -F ":" '/firewall:/{gsub(/ /, "", $0); print $2}')
+  netName=lxdt$$
+
+  lxc network create "${netName}" \
+        ipv4.address=192.0.2.1/24 \
+        ipv6.address=fd42:4242:4242:1010::1/64
+
   # Check basic ACL creation, listing, deletion and project namespacing support.
   ! lxc network acl create 192.168.1.1 || false # Don't allow non-hostname compatible names.
   lxc network acl create testacl
@@ -101,12 +108,33 @@ EOF
   ! lxc network acl rule add testacl ingress action=allow protocol=icmp4 icmp_code=256 || false # Invalid icmp combination
   ! lxc network acl rule add testacl ingress action=allow protocol=icmp6 icmp_type=-1 || false # Invalid icmp combination
 
+  echo "iptables does not support ipranges (192.168.1.1-192.168.1.3) so use CIDR instead"
   daddr="192.168.1.1-192.168.1.3"
+  if [ "$firewallDriver" = "xtables" ]; then
+    daddr="192.168.1.0/24"
+  fi
+
   lxc network acl rule add testacl ingress action=allow source=192.168.1.2/32 protocol=tcp destination="${daddr}" destination_port="22, 2222-2223"
   ! lxc network acl rule add testacl ingress action=allow source=192.168.1.2/32 protocol=tcp destination="${daddr}" destination_port=22,2222-2223 || false # Dupe rule detection
   acl_show_output=$(lxc network acl show testacl)
   [ "$(echo "$acl_show_output" | grep -cF "destination: ${daddr}")" = 1 ]
   [ "$(echo "$acl_show_output" | grep -cF 'state: enabled')" -ge 2 ] # Default state enabled for new rules.
+
+  echo "Apply ACL to network"
+  lxc network set "${netName}" security.acls=testacl
+
+  echo "Verify corresponding firewall rules"
+  if [ "$firewallDriver" = "xtables" ]; then
+    iptables -w -S | grep -xF -- "-A lxd_acl_${netName} -s 192.168.1.2/32 -d ${daddr} -o ${netName} -p tcp -m multiport --dports 22,2222:2223 -j ACCEPT"
+  else
+    nft -nn list chain inet lxd "acl.${netName}" | grep -F "oifname \"${netName}\" ip saddr 192.168.1.2 ip daddr ${daddr} tcp dport { 22, 2222-2223 } accept"
+  fi
+
+  echo "Stop applying ACL to test network"
+  lxc network unset "${netName}" security.acls
+
+  echo "Delete test network"
+  lxc network delete "${netName}"
 
   # ACL rule removal.
   lxc network acl rule add testacl ingress action=allow source=192.168.1.3/32 protocol=tcp destination="${daddr}" destination_port=22,2222-2223 description="removal rule test"
