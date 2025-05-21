@@ -316,6 +316,8 @@ user.foo: {{ config_get("user.foo", "_unset_") }}
 if __name__ == "__main__":
     if "LXD_DIR" in os.environ:
         lxd_socket = os.path.join(os.environ["LXD_DIR"], "unix.socket")
+    elif os.path.exists("/var/snap/lxd/common/lxd/unix.socket"):
+        lxd_socket = "/var/snap/lxd/common/lxd/unix.socket"
     else:
         lxd_socket = "/var/lib/lxd/unix.socket"
 
