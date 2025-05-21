@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -309,7 +310,7 @@ func lxdDownloadImage(fingerprint string, uri string, userAgent string, do func(
 			return nil, err
 		}
 
-		if !shared.ValueInSlice(part.FormName(), []string{"rootfs", "rootfs.img"}) {
+		if !slices.Contains([]string{"rootfs", "rootfs.img"}, part.FormName()) {
 			return nil, errors.New("Invalid multipart image")
 		}
 

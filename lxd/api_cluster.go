@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -1031,7 +1032,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 				continue
 			}
 
-			if !shared.ValueInSlice(config.Key, db.NodeSpecificStorageConfig) {
+			if !slices.Contains(db.NodeSpecificStorageConfig, config.Key) {
 				logger.Warnf("Ignoring config key %q for storage pool %q", config.Key, config.Name)
 				continue
 			}
@@ -1097,7 +1098,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 						continue
 					}
 
-					if !shared.ValueInSlice(config.Key, db.NodeSpecificNetworkConfig) {
+					if !slices.Contains(db.NodeSpecificNetworkConfig, config.Key) {
 						logger.Warnf("Ignoring config key %q for network %q in project %q", config.Key, config.Name, p.Name)
 						continue
 					}
@@ -1745,11 +1746,11 @@ func updateClusterNode(s *state.State, gateway *cluster.Gateway, r *http.Request
 	}
 
 	// Validate the request
-	if shared.ValueInSlice(string(db.ClusterRoleDatabase), memberInfo.Roles) && !shared.ValueInSlice(string(db.ClusterRoleDatabase), req.Roles) {
+	if slices.Contains(memberInfo.Roles, string(db.ClusterRoleDatabase)) && !slices.Contains(req.Roles, string(db.ClusterRoleDatabase)) {
 		return response.BadRequest(fmt.Errorf("The %q role cannot be dropped at this time", db.ClusterRoleDatabase))
 	}
 
-	if !shared.ValueInSlice(string(db.ClusterRoleDatabase), memberInfo.Roles) && shared.ValueInSlice(string(db.ClusterRoleDatabase), req.Roles) {
+	if !slices.Contains(memberInfo.Roles, string(db.ClusterRoleDatabase)) && slices.Contains(req.Roles, string(db.ClusterRoleDatabase)) {
 		return response.BadRequest(fmt.Errorf("The %q role cannot be added at this time", db.ClusterRoleDatabase))
 	}
 
@@ -4137,7 +4138,7 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 		skipMembers := []string{}
 
 		for _, oldMember := range members {
-			if !shared.ValueInSlice(oldMember, req.Members) {
+			if !slices.Contains(req.Members, oldMember) {
 				// Get all cluster groups this member belongs to.
 				groups, err := tx.GetClusterGroupsWithNode(ctx, oldMember)
 				if err != nil {
@@ -4160,7 +4161,7 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 
 		for _, member := range req.Members {
 			// Skip these members as they already belong to this group.
-			if shared.ValueInSlice(member, skipMembers) {
+			if slices.Contains(skipMembers, member) {
 				continue
 			}
 
@@ -4310,7 +4311,7 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 		skipMembers := []string{}
 
 		for _, oldMember := range members {
-			if !shared.ValueInSlice(oldMember, req.Members) {
+			if !slices.Contains(req.Members, oldMember) {
 				// Get all cluster groups this member belongs to.
 				groups, err := tx.GetClusterGroupsWithNode(ctx, oldMember)
 				if err != nil {
@@ -4334,7 +4335,7 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 
 		for _, member := range req.Members {
 			// Skip these members as they already belong to this group.
-			if shared.ValueInSlice(member, skipMembers) {
+			if slices.Contains(skipMembers, member) {
 				continue
 			}
 

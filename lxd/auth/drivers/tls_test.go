@@ -3,6 +3,7 @@ package drivers
 import (
 	"context"
 	"net/http"
+	"slices"
 	"testing"
 
 	"github.com/dustinkirkland/golang-petname"
@@ -237,7 +238,7 @@ func (s *tlsSuite) TestTLSAuthorizer() {
 				entitlements: entitlements,
 			})
 
-			if !shared.ValueInSlice(entityType, []entity.Type{entity.TypeServer, entity.TypeStoragePool, entity.TypeIdentity, entity.TypeProject, entity.TypeCertificate}) {
+			if !slices.Contains([]entity.Type{entity.TypeServer, entity.TypeStoragePool, entity.TypeIdentity, entity.TypeProject, entity.TypeCertificate}, entityType) {
 				// If it's not project specific and we don't have a special case, all access checks should be denied.
 				cases = append(cases, testCase{
 					id:            &s.fooRestrictedClient,

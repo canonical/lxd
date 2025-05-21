@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -696,7 +697,7 @@ var ConfigSchema = config.Schema{
 		Default: strings.Join([]string{oidc.ScopeOpenID, oidc.ScopeEmail, oidc.ScopeOfflineAccess, oidc.ScopeProfile}, " "),
 		Validator: validate.Optional(func(value string) error {
 			scopes := strings.Fields(value)
-			if !shared.ValueInSlice(oidc.ScopeOpenID, scopes) || !shared.ValueInSlice(oidc.ScopeEmail, scopes) {
+			if !slices.Contains(scopes, oidc.ScopeOpenID) || !slices.Contains(scopes, oidc.ScopeEmail) {
 				return fmt.Errorf("oidc.scopes requires the %q and %q OpenID Connect scopes", oidc.ScopeOpenID, oidc.ScopeEmail)
 			}
 

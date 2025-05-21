@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -313,7 +314,7 @@ func ovnAddReferencedACLs(info *api.NetworkACL, referencedACLNames map[string]st
 				continue // Skip subjects already seen.
 			}
 
-			if shared.ValueInSlice(subject, append(ruleSubjectInternalAliases, ruleSubjectExternalAliases...)) {
+			if slices.Contains(append(ruleSubjectInternalAliases, ruleSubjectExternalAliases...), subject) {
 				continue // Skip special reserved subjects that are not ACL names.
 			}
 
@@ -495,7 +496,7 @@ func ovnRuleCriteriaToOVNACLRule(direction string, rule *api.NetworkACLRule, por
 	}
 
 	// Add protocol filters.
-	if shared.ValueInSlice(rule.Protocol, []string{"tcp", "udp"}) {
+	if slices.Contains([]string{"tcp", "udp"}, rule.Protocol) {
 		matchParts = append(matchParts, rule.Protocol)
 
 		if rule.SourcePort != "" {
@@ -505,7 +506,7 @@ func ovnRuleCriteriaToOVNACLRule(direction string, rule *api.NetworkACLRule, por
 		if rule.DestinationPort != "" {
 			matchParts = append(matchParts, ovnRulePortToOVNACLMatch(rule.Protocol, "dst", shared.SplitNTrimSpace(rule.DestinationPort, ",", -1, false)...))
 		}
-	} else if shared.ValueInSlice(rule.Protocol, []string{"icmp4", "icmp6"}) {
+	} else if slices.Contains([]string{"icmp4", "icmp6"}, rule.Protocol) {
 		matchParts = append(matchParts, rule.Protocol)
 
 		if rule.ICMPType != "" {
@@ -581,13 +582,13 @@ func ovnRuleSubjectToOVNACLMatch(direction string, aclNameIDs map[string]int64, 
 			} else {
 				// If not valid IP subnet, check if subject is ACL name or network peer name.
 				var subjectPortSelector openvswitch.OVNPortGroup
-				if shared.ValueInSlice(subjectCriterion, ruleSubjectInternalAliases) {
+				if slices.Contains(ruleSubjectInternalAliases, subjectCriterion) {
 					// Use pseudo port group name for special reserved port selector types.
 					// These will be expanded later for each network specific rule.
 					// Convert deprecated #internal to non-deprecated @internal if needed.
 					subjectPortSelector = openvswitch.OVNPortGroup(ruleSubjectInternal)
 					networkSpecific = true
-				} else if shared.ValueInSlice(subjectCriterion, ruleSubjectExternalAliases) {
+				} else if slices.Contains(ruleSubjectExternalAliases, subjectCriterion) {
 					// Use pseudo port group name for special reserved port selector types.
 					// These will be expanded later for each network specific rule.
 					// Convert deprecated #external to non-deprecated @external if needed.
@@ -929,7 +930,7 @@ func OVNPortGroupDeleteIfUnused(s *state.State, l logger.Logger, client *openvsw
 					aclUsedACLS[matchedACLName] = make([]string, 0, 1)
 				}
 
-				if !shared.ValueInSlice(u.Name, aclUsedACLS[matchedACLName]) {
+				if !slices.Contains(aclUsedACLS[matchedACLName], u.Name) {
 					// Record as in use by another ACL entity.
 					aclUsedACLS[matchedACLName] = append(aclUsedACLS[matchedACLName], u.Name)
 				}
@@ -997,11 +998,11 @@ func OVNPortGroupInstanceNICSchedule(portUUID openvswitch.OVNSwitchPortUUID, cha
 
 // OVNApplyInstanceNICDefaultRules applies instance NIC default rules to per-network port group.
 func OVNApplyInstanceNICDefaultRules(client *openvswitch.OVN, switchPortGroup openvswitch.OVNPortGroup, logPrefix string, nicPortName openvswitch.OVNSwitchPort, ingressAction string, ingressLogged bool, egressAction string, egressLogged bool) error {
-	if !shared.ValueInSlice(ingressAction, ValidActions) {
+	if !slices.Contains(ValidActions, ingressAction) {
 		return fmt.Errorf("Invalid ingress action %q", ingressAction)
 	}
 
-	if !shared.ValueInSlice(egressAction, ValidActions) {
+	if !slices.Contains(ValidActions, egressAction) {
 		return fmt.Errorf("Invalid egress action %q", egressAction)
 	}
 

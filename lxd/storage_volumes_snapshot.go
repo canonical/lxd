@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"sync"
 	"time"
 
@@ -26,7 +27,6 @@ import (
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/lxd/task"
 	"github.com/canonical/lxd/lxd/util"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
@@ -346,7 +346,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 	recursion := util.IsRecursionRequest(r)
 
 	// Check that the storage volume type is valid.
-	if !shared.ValueInSlice(details.volumeType, supportedVolumeTypes) {
+	if !slices.Contains(supportedVolumeTypes, details.volumeType) {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName))
 	}
 

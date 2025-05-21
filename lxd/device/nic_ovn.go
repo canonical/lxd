@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -829,7 +830,7 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 		newACLs := shared.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)
 		removedACLs := []string{}
 		for _, oldACL := range oldACLs {
-			if !shared.ValueInSlice(oldACL, newACLs) {
+			if !slices.Contains(newACLs, oldACL) {
 				removedACLs = append(removedACLs, oldACL)
 			}
 		}

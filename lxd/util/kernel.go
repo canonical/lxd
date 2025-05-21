@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/canonical/lxd/shared"
@@ -74,7 +75,7 @@ func HugepagesPath() (string, error) {
 	}
 
 	if len(matches) > 1 {
-		if shared.ValueInSlice("/dev/hugepages", matches) {
+		if slices.Contains(matches, "/dev/hugepages") {
 			return "/dev/hugepages", nil
 		}
 

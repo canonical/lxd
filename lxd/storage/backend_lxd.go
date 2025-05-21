@@ -1861,7 +1861,7 @@ func (b *lxdBackend) imageConversionFiller(imgPath string, imgFormat string, op 
 
 		// Ensure conversion supports the uploaded image format.
 		supportedImageFormats := []string{"qcow", "qcow2", "raw", "vdi", "vhdx", "vmdk"}
-		if !shared.ValueInSlice(imgFormat, supportedImageFormats) {
+		if !slices.Contains(supportedImageFormats, imgFormat) {
 			return -1, fmt.Errorf("Unsupported image format %q, allowed formats are [%s]", imgFormat, strings.Join(supportedImageFormats, ", "))
 		}
 
@@ -3986,7 +3986,7 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 			// Go through all the snapshots.
 			for _, snap := range snaps {
 				_, snapName, _ := api.GetParentAndSnapshotName(snap.Name())
-				if !shared.ValueInSlice(snapName, snapErr.Snapshots) {
+				if !slices.Contains(snapErr.Snapshots, snapName) {
 					continue
 				}
 
@@ -7411,7 +7411,7 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 		fullSnapshotName := drivers.GetSnapshotVolumeName(instName, snapshot.Name)
 
 		// Check if an entry for the instance already exists in the DB.
-		if shared.ValueInSlice(fullSnapshotName, instSnapshots) {
+		if slices.Contains(instSnapshots, fullSnapshotName) {
 			return fmt.Errorf("Instance %q snapshot %q in project %q already has instance DB record", instName, snapshot.Name, projectName)
 		}
 

@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"slices"
 
 	"github.com/olekukonko/tablewriter"
 	"gopkg.in/yaml.v2"
 
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/i18n"
 )
 
@@ -27,7 +27,7 @@ const (
 
 // isTableFormat returns true if the given format can be rendered as an actual table or csv with columns and rows.
 func isTableFormat(format string) bool {
-	return shared.ValueInSlice(format, []string{TableFormatTable, TableFormatCSV, TableFormatCompact, TableFormatSQLResult})
+	return slices.Contains([]string{TableFormatTable, TableFormatCSV, TableFormatCompact, TableFormatSQLResult}, format)
 }
 
 // RenderTable renders tabular data in various formats.

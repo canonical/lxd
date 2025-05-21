@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 
@@ -555,7 +556,7 @@ func (c *cmdGroupPermissionAdd) run(cmd *cobra.Command, args []string) error {
 	}
 
 	added := false
-	if !shared.ValueInSlice(*permission, group.Permissions) {
+	if !slices.Contains(group.Permissions, *permission) {
 		group.Permissions = append(group.Permissions, *permission)
 		added = true
 	}
@@ -830,7 +831,7 @@ func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
 	// Add name and groups to any stdin data
 	stdinData.Name = name
 	for _, group := range c.flagGroups {
-		if !shared.ValueInSlice(group, stdinData.Groups) {
+		if !slices.Contains(stdinData.Groups, group) {
 			stdinData.Groups = append(stdinData.Groups, group)
 		}
 	}
@@ -1348,7 +1349,7 @@ func (c *cmdIdentityGroupAdd) run(cmd *cobra.Command, args []string) error {
 	}
 
 	added := false
-	if !shared.ValueInSlice(args[1], identity.Groups) {
+	if !slices.Contains(identity.Groups, args[1]) {
 		identity.Groups = append(identity.Groups, args[1])
 		added = true
 	}
@@ -2115,7 +2116,7 @@ func (c *cmdIdentityProviderGroupGroupAdd) run(cmd *cobra.Command, args []string
 	}
 
 	added := false
-	if !shared.ValueInSlice(args[1], idpGroup.Groups) {
+	if !slices.Contains(idpGroup.Groups, args[1]) {
 		idpGroup.Groups = append(idpGroup.Groups, args[1])
 		added = true
 	}

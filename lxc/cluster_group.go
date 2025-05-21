@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -576,7 +577,7 @@ func (c *cmdClusterGroupRemove) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if !shared.ValueInSlice(args[1], member.Groups) {
+	if !slices.Contains(member.Groups, args[1]) {
 		return fmt.Errorf(i18n.G("Cluster group %s isn't currently applied to %s"), args[1], resource.name)
 	}
 
@@ -783,7 +784,7 @@ func (c *cmdClusterGroupAdd) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if shared.ValueInSlice(args[1], member.Groups) {
+	if slices.Contains(member.Groups, args[1]) {
 		return fmt.Errorf(i18n.G("Cluster member %s is already in group %s"), resource.name, args[1])
 	}
 

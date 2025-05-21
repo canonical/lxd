@@ -4,12 +4,12 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
 	"golang.org/x/term"
 
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -37,9 +37,9 @@ func (a *Asker) AskBool(question string, defaultAnswer string) (bool, error) {
 			return false, err
 		}
 
-		if shared.ValueInSlice(strings.ToLower(answer), []string{"yes", "y"}) {
+		if slices.Contains([]string{"yes", "y"}, strings.ToLower(answer)) {
 			return true, nil
-		} else if shared.ValueInSlice(strings.ToLower(answer), []string{"no", "n"}) {
+		} else if slices.Contains([]string{"no", "n"}, strings.ToLower(answer)) {
 			return false, nil
 		}
 
@@ -59,7 +59,7 @@ func (a *Asker) AskChoice(question string, choices []string, defaultAnswer strin
 			return "", err
 		}
 
-		if shared.ValueInSlice(answer, choices) {
+		if slices.Contains(choices, answer) {
 			return answer, nil
 		} else if a.logger != nil {
 			a.logger.Error("Answer not among the available choices", logger.Ctx{"answer": answer, "choices": choices})

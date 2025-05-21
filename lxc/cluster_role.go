@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/spf13/cobra"
 
@@ -91,7 +92,7 @@ func (c *cmdClusterRoleAdd) run(cmd *cobra.Command, args []string) error {
 	memberWritable := member.Writable()
 	newRoles := shared.SplitNTrimSpace(args[1], ",", -1, false)
 	for _, newRole := range newRoles {
-		if shared.ValueInSlice(newRole, memberWritable.Roles) {
+		if slices.Contains(memberWritable.Roles, newRole) {
 			return fmt.Errorf(i18n.G("Member %q already has role %q"), resource.name, newRole)
 		}
 	}
@@ -159,7 +160,7 @@ func (c *cmdClusterRoleRemove) run(cmd *cobra.Command, args []string) error {
 	memberWritable := member.Writable()
 	rolesToRemove := shared.SplitNTrimSpace(args[1], ",", -1, false)
 	for _, roleToRemove := range rolesToRemove {
-		if !shared.ValueInSlice(roleToRemove, memberWritable.Roles) {
+		if !slices.Contains(memberWritable.Roles, roleToRemove) {
 			return fmt.Errorf(i18n.G("Member %q does not have role %q"), resource.name, roleToRemove)
 		}
 	}

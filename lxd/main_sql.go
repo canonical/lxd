@@ -7,11 +7,11 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"slices"
 
 	"github.com/spf13/cobra"
 
 	"github.com/canonical/lxd/client"
-	"github.com/canonical/lxd/shared"
 	cli "github.com/canonical/lxd/shared/cmd"
 )
 
@@ -74,7 +74,7 @@ func (c *cmdSQL) run(cmd *cobra.Command, args []string) error {
 	database := args[0]
 	query := args[1]
 
-	if !shared.ValueInSlice(database, []string{"local", "global"}) {
+	if !slices.Contains([]string{"local", "global"}, database) {
 		_ = cmd.Help()
 
 		return errors.New("Invalid database type")

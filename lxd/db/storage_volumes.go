@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -475,7 +476,7 @@ func (c *ClusterTx) CreateStoragePoolVolume(ctx context.Context, projectName str
 
 	var result sql.Result
 
-	if shared.ValueInSlice(driver, remoteDrivers) {
+	if slices.Contains(remoteDrivers, driver) {
 		result, err = c.tx.ExecContext(ctx, `
 INSERT INTO storage_volumes (storage_pool_id, type, name, description, project_id, content_type, creation_date)
  VALUES (?, ?, ?, ?, (SELECT id FROM projects WHERE name = ?), ?, ?)
@@ -635,7 +636,7 @@ func (c *ClusterTx) GetStorageVolumeNodes(ctx context.Context, poolID int64, pro
 		}
 
 		remoteDrivers := StorageRemoteDriverNames()
-		if shared.ValueInSlice(driver, remoteDrivers) {
+		if slices.Contains(remoteDrivers, driver) {
 			return nil, ErrNoClusterMember
 		}
 	}

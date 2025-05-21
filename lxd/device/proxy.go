@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -74,7 +75,7 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 	// Supported bind types are: "host" or "instance" (or "guest" or "container", legacy options equivalent to "instance").
 	// If an empty value is supplied the default behavior is to assume "host" bind mode.
 	validateBind := func(input string) error {
-		if !shared.ValueInSlice(d.config["bind"], []string{"host", "instance", "guest", "container"}) {
+		if !slices.Contains([]string{"host", "instance", "guest", "container"}, d.config["bind"]) {
 			return errors.New("Invalid binding side given. Must be \"host\" or \"instance\"")
 		}
 
@@ -488,7 +489,7 @@ func (d *proxy) setupNAT() error {
 		}
 
 		// Check if the instance has a NIC with a static IP that is reachable from the host.
-		if !shared.ValueInSlice(nicType, []string{"bridged", "routed"}) {
+		if !slices.Contains([]string{"bridged", "routed"}, nicType) {
 			continue
 		}
 

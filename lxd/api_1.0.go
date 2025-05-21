@@ -377,7 +377,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 
 		// Add supported instance types.
 		instType := driver.Info.Type.String()
-		if !shared.ValueInSlice(instType, env.InstanceTypes) {
+		if !slices.Contains(env.InstanceTypes, instType) {
 			env.InstanceTypes = append(env.InstanceTypes, instType)
 		}
 	}

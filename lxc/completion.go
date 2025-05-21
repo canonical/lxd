@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -130,7 +131,7 @@ func (g *cmdGlobal) cmpTopLevelResource(entityType string, toComplete string) ([
 	directive := cobra.ShellCompDirectiveNoFileComp
 	if !strings.Contains(toComplete, ":") {
 		filters := instanceServerRemoteCompletionFilters(*g.conf)
-		if shared.ValueInSlice(entityType, []string{"image", "image_alias"}) {
+		if slices.Contains([]string{"image", "image_alias"}, entityType) {
 			filters = imageServerRemoteCompletionFilters(*g.conf)
 		}
 
@@ -209,7 +210,7 @@ func configOptionAppender(toComplete string, suffix string, size int) (func(opti
 			}
 
 			// Avoid duplicates.
-			if !shared.ValueInSlice(key, out) {
+			if !slices.Contains(out, key) {
 				out = append(out, key)
 			}
 		}, func() []string {
@@ -396,7 +397,7 @@ func (g *cmdGlobal) getInstanceType(remote string, instanceName string) api.Inst
 		return api.InstanceTypeAny
 	}
 
-	if shared.ValueInSlice(instanceName, vmNames) {
+	if slices.Contains(vmNames, instanceName) {
 		return api.InstanceTypeVM
 	}
 
@@ -627,7 +628,7 @@ func (g *cmdGlobal) cmpInstanceAllDeviceTypes(remote string, toComplete string) 
 			}
 		}
 
-		if strings.HasPrefix(deviceType, toComplete) && !shared.ValueInSlice(deviceType, devices) {
+		if strings.HasPrefix(deviceType, toComplete) && !slices.Contains(devices, deviceType) {
 			devices = append(devices, deviceType)
 		}
 	}
@@ -759,7 +760,7 @@ func (g *cmdGlobal) cmpInstancesAction(toComplete string, action string, flagFor
 		for _, instance := range instances {
 			var name string
 
-			if shared.ValueInSlice(instance.Status, filteredInstanceStatuses) {
+			if slices.Contains(filteredInstanceStatuses, instance.Status) {
 				if resource.remote == g.conf.DefaultRemote && !strings.HasPrefix(toComplete, g.conf.DefaultRemote) {
 					name = instance.Name
 				} else {
@@ -938,7 +939,7 @@ func (g *cmdGlobal) cmpNetworkForwardPortTargetAddresses(networkName string, lis
 
 				results = make([]string, 0, len(network.Addresses))
 				for _, address := range network.Addresses {
-					if shared.ValueInSlice(address.Scope, []string{"link", "local"}) {
+					if slices.Contains([]string{"link", "local"}, address.Scope) {
 						continue
 					}
 
@@ -1560,7 +1561,7 @@ func (g *cmdGlobal) cmpStoragePoolVolumes(poolName string, volumeTypes ...string
 		}
 
 		_, volType := parseVolume("custom", volume)
-		if shared.ValueInSlice(volType, volumeTypes) {
+		if slices.Contains(volumeTypes, volType) {
 			customVolumeNames = append(customVolumeNames, volume)
 		}
 	}

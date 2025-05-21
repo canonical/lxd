@@ -3,6 +3,7 @@ package drivers
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 
 	"github.com/canonical/lxd/lxd/db"
@@ -14,7 +15,6 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/state"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
@@ -87,7 +87,7 @@ func validDevices(state *state.State, p api.Project, instanceType instancetype.T
 	checkDevices := func(devices deviceConfig.Devices, expanded bool) error {
 		// Check each device individually using the device package.
 		for deviceName, deviceConfig := range devices {
-			if expanded && shared.ValueInSlice(deviceName, checkedDevices) {
+			if expanded && slices.Contains(checkedDevices, deviceName) {
 				continue // Don't check the device twice if present in both local and expanded.
 			}
 

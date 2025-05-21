@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -65,7 +66,7 @@ func specMountToNativeDev(configDevices *ConfigDevices, cdiID ID, mounts []*spec
 
 		chosenOpts = []string{}
 		for _, opt := range mount.Options {
-			if !shared.ValueInSlice(opt, chosenOpts) {
+			if !slices.Contains(chosenOpts, opt) {
 				chosenOpts = append(chosenOpts, opt)
 			}
 		}
