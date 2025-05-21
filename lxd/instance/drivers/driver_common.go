@@ -510,6 +510,24 @@ func (d *common) deviceVolatileSetFunc(devName string) func(save map[string]stri
 	}
 }
 
+// postMigrateSendCommon handles the common part of instance post-migration send.
+func (d *common) postMigrateSendCommon(inst instance.Instance) error {
+	// Perform post-migration device cleanup.
+	for devName, devConfig := range d.ExpandedDevices() {
+		dev, err := d.deviceLoad(inst, devName, devConfig)
+		if err != nil {
+			return err
+		}
+
+		err = dev.PostMigrateSend()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // expandConfig applies the config of each profile in order, followed by the local config.
 func (d *common) expandConfig() error {
 	var globalConfigDump map[string]any
