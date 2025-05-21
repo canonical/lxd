@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -198,8 +199,8 @@ func EnsureRunning(s *state.State, bucketVol storageDrivers.Volume) (*Process, e
 		return nil, fmt.Errorf("Failed finding free listen port for bucket MinIO process: %w", err)
 	}
 
-	listenPort := listener1.Addr().(*net.TCPAddr).Port
-	consolePort := listener2.Addr().(*net.TCPAddr).Port
+	listenPort := strconv.Itoa(listener1.Addr().(*net.TCPAddr).Port)
+	consolePort := strconv.Itoa(listener2.Addr().(*net.TCPAddr).Port)
 
 	err = listener1.Close()
 	if err != nil {
@@ -214,8 +215,8 @@ func EnsureRunning(s *state.State, bucketVol storageDrivers.Volume) (*Process, e
 	minioProc = &Process{
 		bucketName:   bucketName,
 		transactions: 1,
-		url:          api.NewURL().Scheme("http").Host(fmt.Sprintf("%s:%d", minioHost, listenPort)).URL,
-		consoleURL:   api.NewURL().Scheme("http").Host(fmt.Sprintf("%s:%d", minioHost, consolePort)).URL,
+		url:          api.NewURL().Scheme("http").Host(net.JoinHostPort(minioHost, listenPort)).URL,
+		consoleURL:   api.NewURL().Scheme("http").Host(net.JoinHostPort(minioHost, consolePort)).URL,
 		username:     minioAdminUser,      // Persistent admin user required to keep config between restarts.
 		password:     uuid.New().String(), // Random admin password for service.
 		cancel:       cancel.New(),
