@@ -10,21 +10,21 @@ test_network_acl() {
   lxc project create testproj3 -c features.networks=true
   lxc network acl create testacl --project testproj
   lxc network acl create testacl2 --project testproj3
-  [ "$(lxc project show testproj | grep -cF 'testacl')" = 1 ] # Check project sees testacl using it.
+  [ "$(lxc project show testproj | grep -cwF 'testacl')" = 1 ] # Check project sees testacl using it.
   ! lxc network acl create testacl --project testproj2 || false
-  [ "$(lxc network acl ls -f csv | grep -cF 'testacl')" = 1 ]
-  [ "$(lxc network acl ls -f csv --project testproj | grep -cF 'testacl')" = 1 ]
-  [ "$(lxc network acl ls --project testproj3 -f csv | grep -cF 'testacl2')" = 1 ]
-  [ "$(lxc network acl ls --all-projects -f csv | grep -cF 'testacl2')" = 1 ]
-  [ "$(lxc network acl ls -f csv | grep -cF 'testacl2')" = 0 ]
+  [ "$(lxc network acl ls -f csv | grep -cwF 'testacl')" = 1 ]
+  [ "$(lxc network acl ls -f csv --project testproj | grep -cwF 'testacl')" = 1 ]
+  [ "$(lxc network acl ls --project testproj3 -f csv | grep -cwF 'testacl2')" = 1 ]
+  [ "$(lxc network acl ls --all-projects -f csv | grep -cwF 'testacl2')" = 1 ]
+  ! lxc network acl ls -f csv | grep -wF 'testacl2' || false
   lxc network acl delete testacl
   lxc network acl delete testacl --project testproj
   lxc network acl delete testacl2 --project testproj3
-  [ "$(lxc network acl ls -f csv | wc -l)" = 0 ]
-  [ "$(lxc network acl ls -f csv | wc -l)" = 0 ]
-  [ "$(lxc network acl ls -f csv --project testproj | wc -l)" = 0 ]
-  [ "$(lxc network acl ls --project testproj3 -f csv | wc -l)" = 0 ]
-  [ "$(lxc network acl ls --all-projects -f csv | wc -l)" = 0 ]
+  [ "$(lxc network acl ls -f csv)" = "" ]
+  [ "$(lxc network acl ls -f csv)" = "" ]
+  [ "$(lxc network acl ls -f csv --project testproj)" = "" ]
+  [ "$(lxc network acl ls --project testproj3 -f csv)" = "" ]
+  [ "$(lxc network acl ls --all-projects -f csv)" = "" ]
   lxc project delete testproj
   lxc project delete testproj3
 
@@ -104,8 +104,8 @@ EOF
   lxc network acl rule add testacl ingress action=allow source=192.168.1.2/32 protocol=tcp destination=192.168.1.1-192.168.1.3 destination_port="22, 2222-2223"
   ! lxc network acl rule add testacl ingress action=allow source=192.168.1.2/32 protocol=tcp destination=192.168.1.1-192.168.1.3 destination_port=22,2222-2223 || false # Dupe rule detection
   acl_show_output=$(lxc network acl show testacl)
-  [ "$(echo "$acl_show_output" | grep -cF 'destination: 192.168.1.1-192.168.1.3')" = 1 ]
-  [ "$(echo "$acl_show_output" | grep -c 'state: enabled')" -ge 2 ] # Default state enabled for new rules.
+  [ "$(echo "$acl_show_output" | grep -cF "destination: 192.168.1.1-192.168.1.3")" = 1 ]
+  [ "$(echo "$acl_show_output" | grep -cF "state: enabled")" -ge 2 ] # Default state enabled for new rules.
 
   # ACL rule removal.
   lxc network acl rule add testacl ingress action=allow source=192.168.1.3/32 protocol=tcp destination=192.168.1.1-192.168.1.3 destination_port=22,2222-2223 description="removal rule test"
@@ -123,7 +123,7 @@ EOF
 
   # ACL custom config.
   lxc network acl set testacl2 user.somekey foo
-  [ "$(lxc network acl get testacl2 user.somekey | grep -cF 'foo')" = 1 ]
+  [ "$(lxc network acl get testacl2 user.somekey | grep -cwF 'foo')" = 1 ]
   ! lxc network acl set testacl2 non.userkey || false
   lxc network acl unset testacl2 user.somekey
   [ "$(lxc network acl get testacl2 user.somekey)" = "" ]
