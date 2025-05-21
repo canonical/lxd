@@ -651,7 +651,8 @@ func instancePostMigration(s *state.State, inst instance.Instance, req api.Insta
 	return nil
 }
 
-// Move a non-ceph instance to another cluster node. Source and target members must be online.
+// Migrate an instance to another cluster node (supports both local and remote storage).
+// Source and target members must be online.
 func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, srcMember db.NodeInfo, newMember db.NodeInfo, stateful bool, allowInconsistent bool) (func(op *operations.Operation) error, error) {
 	srcMemberOffline := srcMember.IsOffline(s.GlobalConfig.OfflineThreshold())
 
