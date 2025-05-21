@@ -113,7 +113,7 @@ dqlite:
 liblxc:
 	# lxc/liblxc
 	@if [ ! -e "$(LIBLXC_PATH)" ]; then \
-		echo "Retrieving lxc/liblxc from ${LIBLXC_BRANCH} branch"; \
+		echo "Retrieving lxc/liblxc from $(LIBLXC_BRANCH) branch"; \
 		git clone --depth=1 --branch "${LIBLXC_BRANCH}" "https://github.com/lxc/lxc" "$(LIBLXC_PATH)"; \
 	elif [ -e "$(LIBLXC_PATH)/.git" ]; then \
 		echo "Updating existing lxc/liblxc branch"; \
@@ -270,7 +270,7 @@ check-unit:
 ifeq "$(GOCOVERDIR)" ""
 	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 else
-	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./... -cover -test.gocoverdir="${GOCOVERDIR}"
+	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./... -cover -test.gocoverdir="$(GOCOVERDIR)"
 endif
 
 .PHONY: dist
@@ -287,7 +287,7 @@ dist: doc
 	(cd $(TMP)/lxd-$(VERSION) ; go mod vendor)
 
 	# Download the dqlite library
-	git clone --depth=1 --branch "${DQLITE_BRANCH}" https://github.com/canonical/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
+	git clone --depth=1 --branch "$(DQLITE_BRANCH)" https://github.com/canonical/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
 	(cd $(TMP)/lxd-$(VERSION)/vendor/dqlite ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
 
 	# Copy doc output
