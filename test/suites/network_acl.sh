@@ -54,8 +54,8 @@ EOF
   [ "$(echo "$acl_show_output" | grep -cF 'destination_port: "22"')" = 1 ]
   [ "$(echo "$acl_show_output" | grep -cF 'user.mykey: foo')" = 1 ]
 
- # ACL Patch. Check for merged config and replaced description, ingress and egress fields.
- lxc query -X PATCH -d "{\\\"config\\\": {\\\"user.myotherkey\\\": \\\"bah\\\"}}" /1.0/network-acls/testacl
+  # ACL Patch. Check for merged config and replaced description, ingress and egress fields.
+  lxc query -X PATCH -d "{\\\"config\\\": {\\\"user.myotherkey\\\": \\\"bah\\\"}}" /1.0/network-acls/testacl
   acl_show_output=$(lxc network acl show testacl)
   [ "$(echo "$acl_show_output" | grep -cF 'user.mykey: foo')" = 1 ]
   [ "$(echo "$acl_show_output" | grep -cF 'user.myotherkey: bah')" = 1 ]
@@ -63,8 +63,8 @@ EOF
   [ "$(echo "$acl_show_output" | grep -cF 'ingress: []')" = 1 ]
   [ "$(echo "$acl_show_output" | grep -cF 'egress: []')" = 1 ]
 
- # ACL edit from stdin.
- cat <<EOF | lxc network acl edit testacl
+  # ACL edit from stdin.
+  cat <<EOF | lxc network acl edit testacl
 description: Test ACL updated
 egress: []
 ingress:
@@ -81,52 +81,52 @@ ingress:
 config:
   user.mykey: foo
 EOF
- acl_show_output=$(lxc network acl show testacl)
- [ "$(echo "$acl_show_output" | grep -cF 'description: Test ACL updated')" = 1 ]
- [ "$(echo "$acl_show_output" | grep -cF 'description: a rule description')" = 1 ]
+  acl_show_output=$(lxc network acl show testacl)
+  [ "$(echo "$acl_show_output" | grep -cF 'description: Test ACL updated')" = 1 ]
+  [ "$(echo "$acl_show_output" | grep -cF 'description: a rule description')" = 1 ]
 
- # ACL rule addition.
- ! lxc network acl rule add testacl outbound || false # Invalid direction
- ! lxc network acl rule add testacl ingress invalidfield=foo || false # Invalid field
- ! lxc network acl rule add testacl ingress action=accept || false # Invalid action
- ! lxc network acl rule add testacl ingress action=allow state=foo || false # Invalid state
- ! lxc network acl rule add testacl ingress action=allow source=foo || false # Invalid source
- ! lxc network acl rule add testacl ingress action=allow destination=foo || false # Invalid destination
- ! lxc network acl rule add testacl ingress action=allow source_port=foo || false # Invalid source port
- ! lxc network acl rule add testacl ingress action=allow destination_port=foo || false # Invalid destination port
- ! lxc network acl rule add testacl ingress action=allow source_port=999999999 || false # Invalid source port
- ! lxc network acl rule add testacl ingress action=allow destination_port=999999999 || false # Invalid destination port
- ! lxc network acl rule add testacl ingress action=allow protocol=foo || false # Invalid protocol
- ! lxc network acl rule add testacl ingress action=allow protocol=udp icmp_code=1 || false # Invalid icmp combination
- ! lxc network acl rule add testacl ingress action=allow protocol=icmp4 icmp_code=256 || false # Invalid icmp combination
- ! lxc network acl rule add testacl ingress action=allow protocol=icmp6 icmp_type=-1 || false # Invalid icmp combination
+  # ACL rule addition.
+  ! lxc network acl rule add testacl outbound || false # Invalid direction
+  ! lxc network acl rule add testacl ingress invalidfield=foo || false # Invalid field
+  ! lxc network acl rule add testacl ingress action=accept || false # Invalid action
+  ! lxc network acl rule add testacl ingress action=allow state=foo || false # Invalid state
+  ! lxc network acl rule add testacl ingress action=allow source=foo || false # Invalid source
+  ! lxc network acl rule add testacl ingress action=allow destination=foo || false # Invalid destination
+  ! lxc network acl rule add testacl ingress action=allow source_port=foo || false # Invalid source port
+  ! lxc network acl rule add testacl ingress action=allow destination_port=foo || false # Invalid destination port
+  ! lxc network acl rule add testacl ingress action=allow source_port=999999999 || false # Invalid source port
+  ! lxc network acl rule add testacl ingress action=allow destination_port=999999999 || false # Invalid destination port
+  ! lxc network acl rule add testacl ingress action=allow protocol=foo || false # Invalid protocol
+  ! lxc network acl rule add testacl ingress action=allow protocol=udp icmp_code=1 || false # Invalid icmp combination
+  ! lxc network acl rule add testacl ingress action=allow protocol=icmp4 icmp_code=256 || false # Invalid icmp combination
+  ! lxc network acl rule add testacl ingress action=allow protocol=icmp6 icmp_type=-1 || false # Invalid icmp combination
 
- lxc network acl rule add testacl ingress action=allow source=192.168.1.2/32 protocol=tcp destination=192.168.1.1-192.168.1.3 destination_port="22, 2222-2223"
- ! lxc network acl rule add testacl ingress action=allow source=192.168.1.2/32 protocol=tcp destination=192.168.1.1-192.168.1.3 destination_port=22,2222-2223 || false # Dupe rule detection
- acl_show_output=$(lxc network acl show testacl)
- [ "$(echo "$acl_show_output" | grep -cF 'destination: 192.168.1.1-192.168.1.3')" = 1 ]
- [ "$(echo "$acl_show_output" | grep -c 'state: enabled')" -ge 2 ] # Default state enabled for new rules.
+  lxc network acl rule add testacl ingress action=allow source=192.168.1.2/32 protocol=tcp destination=192.168.1.1-192.168.1.3 destination_port="22, 2222-2223"
+  ! lxc network acl rule add testacl ingress action=allow source=192.168.1.2/32 protocol=tcp destination=192.168.1.1-192.168.1.3 destination_port=22,2222-2223 || false # Dupe rule detection
+  acl_show_output=$(lxc network acl show testacl)
+  [ "$(echo "$acl_show_output" | grep -cF 'destination: 192.168.1.1-192.168.1.3')" = 1 ]
+  [ "$(echo "$acl_show_output" | grep -c 'state: enabled')" -ge 2 ] # Default state enabled for new rules.
 
- # ACL rule removal.
- lxc network acl rule add testacl ingress action=allow source=192.168.1.3/32 protocol=tcp destination=192.168.1.1-192.168.1.3 destination_port=22,2222-2223 description="removal rule test"
- ! lxc network acl rule remove testacl ingress || false # Fail if match multiple rules with no filter and no --force.
- ! lxc network acl rule remove testacl ingress destination_port=22,2222-2223 || false # Fail if match multiple rules with filter and no --force.
- lxc network acl rule remove testacl ingress description="removal rule test" # Single matching rule removal.
- ! lxc network acl rule remove testacl ingress description="removal rule test" || false # No match for removal fails.
- lxc network acl rule remove testacl ingress --force # Remove all ingress rules.
+  # ACL rule removal.
+  lxc network acl rule add testacl ingress action=allow source=192.168.1.3/32 protocol=tcp destination=192.168.1.1-192.168.1.3 destination_port=22,2222-2223 description="removal rule test"
+  ! lxc network acl rule remove testacl ingress || false # Fail if match multiple rules with no filter and no --force.
+  ! lxc network acl rule remove testacl ingress destination_port=22,2222-2223 || false # Fail if match multiple rules with filter and no --force.
+  lxc network acl rule remove testacl ingress description="removal rule test" # Single matching rule removal.
+  ! lxc network acl rule remove testacl ingress description="removal rule test" || false # No match for removal fails.
+  lxc network acl rule remove testacl ingress --force # Remove all ingress rules.
   [ "$(lxc network acl show testacl | grep -cF 'ingress: []')" = 1 ] # Check all ingress rules removed.
 
- # ACL rename.
- ! lxc network acl rename testacl 192.168.1.1 || false # Don't allow non-hostname compatible names.
- lxc network acl rename testacl testacl2
- lxc network acl show testacl2
+  # ACL rename.
+  ! lxc network acl rename testacl 192.168.1.1 || false # Don't allow non-hostname compatible names.
+  lxc network acl rename testacl testacl2
+  lxc network acl show testacl2
 
- # ACL custom config.
- lxc network acl set testacl2 user.somekey foo
- [ "$(lxc network acl get testacl2 user.somekey | grep -cF 'foo')" = 1 ]
- ! lxc network acl set testacl2 non.userkey || false
- lxc network acl unset testacl2 user.somekey
- [ "$(lxc network acl get testacl2 user.somekey | wc -l)" = 0 ]
+  # ACL custom config.
+  lxc network acl set testacl2 user.somekey foo
+  [ "$(lxc network acl get testacl2 user.somekey | grep -cF 'foo')" = 1 ]
+  ! lxc network acl set testacl2 non.userkey || false
+  lxc network acl unset testacl2 user.somekey
+  [ "$(lxc network acl get testacl2 user.somekey)" = "" ]
 
- lxc network acl delete testacl2
+  lxc network acl delete testacl2
 }
