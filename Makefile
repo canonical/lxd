@@ -296,10 +296,26 @@ dist: doc
 	(cd $(TMP)/lxd-$(VERSION)/vendor/liblxc ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
 
 	# Copy doc output
-	cp -r doc/_build $(TMP)/lxd-$(VERSION)/doc/html/
+	cp -r --preserve=mode doc/_build $(TMP)/lxd-$(VERSION)/doc/html/
 
-	# Assemble tarball
-	tar --exclude-vcs -C $(TMP) -zcf $(ARCHIVE).gz lxd-$(VERSION)/
+	# Assemble a reproducible tarball
+	# The reproducibility comes from:
+	# * predictable file sorting (`--sort=name`)
+	# * clamping mtime to that of the HEAD commit timestamp
+	# * omit irrelevant information about file access or status change time
+	# * omit irrelevant information about user and group names
+	# * omit irrelevant information about file ownership and group
+	# * tell `gzip` to not embed the file name when compressing
+	# For more details: https://www.gnu.org/software/tar/manual/html_node/Reproducibility.html
+	$(eval SOURCE_EPOCH := $(shell TZ=UTC0 git log -1 --format=tformat:%cd --date=format:%Y-%m-%dT%H:%M:%SZ $(HASH)))
+	LC_ALL=C tar --sort=name --format=posix \
+		--pax-option=exthdr.name=%d/PaxHeaders/%f \
+		--pax-option=delete=atime,delete=ctime \
+		--clamp-mtime --mtime=$(SOURCE_EPOCH) \
+		--numeric-owner --owner=0 --group=0 \
+		--mode=go+u,go-w \
+		--use-compress-program="gzip --no-name" \
+		--exclude-vcs -C $(TMP) -cf $(ARCHIVE).gz lxd-$(VERSION)/
 
 	# Cleanup
 	rm -Rf $(TMP)
