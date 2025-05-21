@@ -98,6 +98,8 @@ var patches = []patch{
 	{name: "entity_type_identity_certificate_split", stage: patchPreLoadClusterConfig, run: patchSplitIdentityCertificateEntityTypes},
 	{name: "storage_unset_powerflex_sdt_setting", stage: patchPostDaemonStorage, run: patchUnsetPowerFlexSDTSetting},
 	{name: "oidc_groups_claim_scope", stage: patchPreLoadClusterConfig, run: patchOIDCGroupsClaimScope},
+	{name: "remove_backupsimages_symlinks", stage: patchPostDaemonStorage, run: patchRemoveBackupsImagesSymlinks},
+	{name: "move_images_storage", stage: patchPostDaemonStorage, run: patchMoveBackupsImagesStorage},
 }
 
 type patch struct {
@@ -739,20 +741,21 @@ func patchNetworkOVNEnableNAT(name string, d *Daemon) error {
 
 // Moves backups from shared.VarPath("backups") to shared.VarPath("backups", "instances").
 func patchMoveBackupsInstances(name string, d *Daemon) error {
-	if !shared.PathExists(shared.VarPath("backups")) {
+	backupsPathBase := d.State().BackupsStoragePath()
+	if !shared.PathExists(backupsPathBase) {
 		return nil // Nothing to do, no backups directory.
 	}
 
-	backupsPath := shared.VarPath("backups", "instances")
+	backupsPath := filepath.Join(backupsPathBase, "instances")
 
 	err := os.MkdirAll(backupsPath, 0700)
 	if err != nil {
 		return fmt.Errorf("Failed creating instances backup directory %q: %w", backupsPath, err)
 	}
 
-	backups, err := os.ReadDir(shared.VarPath("backups"))
+	backups, err := os.ReadDir(backupsPathBase)
 	if err != nil {
-		return fmt.Errorf("Failed listing existing backup directory %q: %w", shared.VarPath("backups"), err)
+		return fmt.Errorf("Failed listing existing backup directory %q: %w", backupsPathBase, err)
 	}
 
 	for _, backupDir := range backups {
@@ -760,7 +763,7 @@ func patchMoveBackupsInstances(name string, d *Daemon) error {
 			continue // Don't try and move our new instances directory or temporary directories.
 		}
 
-		oldPath := shared.VarPath("backups", backupDir.Name())
+		oldPath := filepath.Join(backupsPathBase, backupDir.Name())
 		newPath := filepath.Join(backupsPath, backupDir.Name())
 		logger.Debugf("Moving backup from %q to %q", oldPath, newPath)
 		err = os.Rename(oldPath, newPath)
@@ -1480,6 +1483,84 @@ func patchOIDCGroupsClaimScope(_ string, d *Daemon) error {
 	})
 	if err != nil {
 		return fmt.Errorf("Failed to configure oidc.groups.claim as an OIDC scope: %w", err)
+	}
+
+	return nil
+}
+
+// Remove shared.VarPath("backups") and shared.VarPath("images") symlinks.
+func patchRemoveBackupsImagesSymlinks(_ string, d *Daemon) error {
+	dirs := []string{
+		shared.VarPath("backups"),
+		shared.VarPath("images"),
+	}
+
+	for _, dir := range dirs {
+		if !shared.PathExists(dir) {
+			continue // Nothing to do, symlink doesn't exist
+		}
+
+		info, err := os.Lstat(dir)
+		if err != nil {
+			return fmt.Errorf("Failed to call Lstat() on %q: %w", dir, err)
+		}
+
+		if info.Mode()&os.ModeSymlink != 0 {
+			// Remove the symlink.
+			err = os.Remove(dir)
+			if err != nil {
+				return fmt.Errorf("Failed to delete storage symlink at %q: %w", dir, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func moveStorage(destPath string) error {
+	sourcePath, dirName := filepath.Split(destPath)
+
+	err := os.MkdirAll(destPath, 0700)
+	if err != nil {
+		return fmt.Errorf("Failed creating directory %q: %w", destPath, err)
+	}
+
+	items, err := os.ReadDir(sourcePath)
+	if err != nil {
+		return fmt.Errorf("Failed listing existing directory %q: %w", sourcePath, err)
+	}
+
+	for _, item := range items {
+		if item.Name() == dirName {
+			continue // Don't try and move our new directory.
+		}
+
+		oldPath := filepath.Join(sourcePath, item.Name())
+		newPath := filepath.Join(destPath, item.Name())
+		logger.Debugf("Moving backup from %q to %q", oldPath, newPath)
+		err = os.Rename(oldPath, newPath)
+		if err != nil {
+			return fmt.Errorf("Failed moving file from %q to %q: %w", oldPath, newPath, err)
+		}
+	}
+
+	return nil
+}
+
+// If storage.images_volume is set, move images into an `images` subfolder.
+func patchMoveBackupsImagesStorage(name string, d *Daemon) error {
+	if d.localConfig.StorageImagesVolume() != "" {
+		err := moveStorage(d.State().ImagesStoragePath())
+		if err != nil {
+			return err
+		}
+	}
+
+	if d.localConfig.StorageBackupsVolume() != "" {
+		err := moveStorage(d.State().BackupsStoragePath())
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

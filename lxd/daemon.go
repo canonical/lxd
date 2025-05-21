@@ -60,6 +60,7 @@ import (
 	networkZone "github.com/canonical/lxd/lxd/network/zone"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/rsync"
@@ -726,6 +727,25 @@ func (d *Daemon) State() *state.State {
 			Leader:    localClusterAddress == leaderAddress,
 			Address:   leaderAddress,
 		}, nil
+	}
+
+	storagePath := func(config string, target string) string {
+		if config == "" {
+			return shared.VarPath(target)
+		}
+
+		poolName, volumeName, _ := daemonStorageSplitVolume(config)
+		volStorageName := project.StorageVolume(api.ProjectDefaultName, volumeName)
+		volMountPath := storageDrivers.GetVolumeMountPath(poolName, storageDrivers.VolumeTypeCustom, volStorageName)
+		return filepath.Join(volMountPath, target)
+	}
+
+	s.ImagesStoragePath = func() string {
+		return storagePath(s.LocalConfig.StorageImagesVolume(), "images")
+	}
+
+	s.BackupsStoragePath = func() string {
+		return storagePath(s.LocalConfig.StorageBackupsVolume(), "backups")
 	}
 
 	return s
@@ -1618,7 +1638,7 @@ func (d *Daemon) init() error {
 	}
 
 	// Create directories on daemon storage mounts.
-	err = d.os.InitStorage()
+	err = d.os.InitStorage(d.localConfig)
 	if err != nil {
 		return err
 	}
