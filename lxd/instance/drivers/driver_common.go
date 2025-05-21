@@ -510,6 +510,32 @@ func (d *common) deviceVolatileSetFunc(devName string) func(save map[string]stri
 	}
 }
 
+// postMigrateSendCommon handles the common part of instance post-migration send.
+func (d *common) postMigrateSendCommon(inst instance.Instance) error {
+	// Perform post-migration device cleanup.
+	devices := d.ExpandedDevices()
+	localConfig := d.LocalConfig()
+
+	for devName, devConfig := range devices {
+		// Restore hardware address for NIC devices from volatile config.
+		if devConfig["type"] == "nic" && devConfig["hwaddr"] == "" && localConfig["volatile."+devName+".hwaddr"] != "" {
+			devices[devName]["hwaddr"] = localConfig["volatile."+devName+".hwaddr"]
+		}
+
+		dev, err := d.deviceLoad(inst, devName, devConfig)
+		if err != nil {
+			return err
+		}
+
+		err = dev.PostMigrateSend()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // expandConfig applies the config of each profile in order, followed by the local config.
 func (d *common) expandConfig() error {
 	var globalConfigDump map[string]any
