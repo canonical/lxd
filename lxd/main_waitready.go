@@ -18,6 +18,8 @@ type cmdWaitready struct {
 	global *cmdGlobal
 
 	flagTimeout uint64
+	flagNetwork bool
+	flagStorage bool
 }
 
 // Command returns a cobra.Command object representing the "waitready" command.
@@ -31,9 +33,13 @@ func (c *cmdWaitready) Command() *cobra.Command {
   This command will block until LXD is reachable over its REST API and
   is done with early start tasks like re-starting previously started
   containers.
+
+  Optional flags can be set to wait for additional resources to be ready.
 `
 	cmd.RunE = c.Run
 	cmd.Flags().Uint64VarP(&c.flagTimeout, "timeout", "t", 0, "Number of seconds to wait before giving up"+"``")
+	cmd.Flags().BoolVar(&c.flagNetwork, "network", false, "Whether to wait for all networks to be ready"+"``")
+	cmd.Flags().BoolVar(&c.flagStorage, "storage", false, "Whether to wait for all storage pools to be ready"+"``")
 
 	return cmd
 }
@@ -87,11 +93,22 @@ func (c *cmdWaitready) Run(cmd *cobra.Command, args []string) error {
 		log(i, "Checking if LXD daemon is ready (attempt %d)", i)
 
 		u := api.NewURL().Path("internal", "ready").WithQuery("timeout", strconv.FormatUint(c.flagTimeout, 10))
+
+		// Add the network query parameter to the URL to wait for all networks to be ready.
+		if c.flagNetwork {
+			u.WithQuery("network", "1")
+		}
+
+		// Add the storage query parameter to the URL to wait for all storage pools to be ready.
+		if c.flagStorage {
+			u.WithQuery("storage", "1")
+		}
+
 		_, _, err = d.RawQuery(http.MethodGet, u.String(), nil, "")
 		if err != nil {
 			// LXD is reachable but is internally reporting as not ready after the specified timeout.
 			if api.StatusErrorCheck(err, http.StatusServiceUnavailable) {
-				return fmt.Errorf("LXD daemon not ready after %ds timeout", c.flagTimeout)
+				return fmt.Errorf("%s after %ds timeout", err.Error(), c.flagTimeout)
 			}
 
 			log(i, "Failed to check if LXD daemon is ready (attempt %d): %v", i, err)
