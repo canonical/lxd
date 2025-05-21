@@ -5,6 +5,12 @@ if [ -z "${GOPATH:-}" ] && command -v go >/dev/null; then
     GOPATH="$(go env GOPATH)"
 fi
 
+# Avoid accidental re-execution
+if [ -n "${LXD_INSPECT_INPROGRESS:-}" ]; then
+    echo "Refusing to run tests from inside a LXD_INSPECT session" >&2
+    exit 1
+fi
+
 [ -n "${GOPATH:-}" ] && export "PATH=${GOPATH}/bin:${PATH}"
 
 # Don't translate lxc output for parsing in it in tests.
@@ -89,6 +95,9 @@ cleanup() {
       echo "==> FAILED TEST: ${TEST_CURRENT#test_} (${TEST_CURRENT_DESCRIPTION})"
     fi
     echo "==> Test result: ${TEST_RESULT}"
+
+    # Re-execution prevention
+    export LXD_INSPECT_INPROGRESS=true
 
     echo "Tests Completed (${TEST_RESULT})"
     echo "Dropping to a shell for inspection"
