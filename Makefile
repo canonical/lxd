@@ -276,7 +276,7 @@ endif
 .PHONY: dist
 dist: doc
 	# Cleanup
-	rm -Rf $(ARCHIVE).gz
+	rm -f $(ARCHIVE).gz
 
 	# Create build dir
 	$(eval TMP := $(shell mktemp -d))
