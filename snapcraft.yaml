@@ -651,21 +651,32 @@ parts:
 
   nvidia-container:
     source: https://github.com/NVIDIA/libnvidia-container
-    source-commit: 63d366ee3b4183513c310ac557bf31b05b83328f # v1.17.2
+    source-commit: d26524ab5db96a55ae86033f53de50d3794fb547 # v1.17.7
     source-depth: 1
     source-type: git
     plugin: make
     build-environment:
-      - GIT_TAG: "1.17.2" # Enables source-depth: 1, should match git tag without "v" prefix.
+      - GIT_TAG: "1.17.7" # Enables source-depth: 1, should match git tag without "v" prefix.
     build-packages:
-      - bmake
-      - curl
-      - libelf-dev
-      - libseccomp-dev
-      - lsb-release
-      - libtirpc-dev
+      - to amd64:
+        - bmake
+        - curl
+        - libelf-dev
+        - libseccomp-dev
+        - lsb-release
+        - libtirpc-dev
+      - to arm64:
+        - bmake
+        - curl
+        - libelf-dev
+        - libseccomp-dev
+        - lsb-release
+        - libtirpc-dev
     build-snaps:
       - go/1.24/stable
+    override-stage: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+      craftctl default
     override-prime: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
