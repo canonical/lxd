@@ -12,8 +12,8 @@ test_concurrent() {
     name=concurrent-${1}
 
     lxc launch testimage "${name}"
-    lxc info "${name}" | grep RUNNING
-    echo abc | lxc exec "${name}" -- cat | grep abc
+    lxc info "${name}" | grep -wF RUNNING
+    echo abc | lxc exec "${name}" -- cat | grep -xF abc
     lxc stop "${name}" --force
     lxc delete "${name}"
   }
@@ -29,5 +29,5 @@ test_concurrent() {
     wait "${pid}"
   done
 
-  ! lxc list | grep -q concurrent || false
+  ! lxc list | grep -F concurrent || false
 }

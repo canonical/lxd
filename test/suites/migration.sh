@@ -367,10 +367,10 @@ migration() {
   lxc_remote copy l1:c1 l2:c2 --refresh
   lxc_remote ls l2:
   lxc_remote config show l2:c2/snap0
-  ! lxc_remote config show l2:c2/snap0 | grep -q 'expires_at: 0001-01-01T00:00:00Z' || false
-  lxc_remote config device get l2:c2 testdev type | grep -q 'none'
+  ! lxc_remote config show l2:c2/snap0 | grep -F 'expires_at: 0001-01-01T00:00:00Z' || false
+  [ "$(lxc_remote config device get l2:c2 testdev type)" = "none" ]
   lxc_remote restore l2:c2 snap0
-  lxc_remote config device get l2:c2 testsnapdev type | grep -q 'none'
+  [ "$(lxc_remote config device get l2:c2 testsnapdev type)" = "none" ]
 
   # This will create snapshot c2/snap1
   lxc_remote snapshot l2:c2
@@ -544,10 +544,10 @@ migration() {
   # Check snapshot creation dates after migration.
   lxc_remote init testimage l1:c1
   lxc_remote snapshot l1:c1
-  ! lxc_remote storage volume show "l1:${remote_pool1}" container/c1 | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
-  ! lxc_remote storage volume show "l1:${remote_pool1}" container/c1/snap0 | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
+  ! lxc_remote storage volume show "l1:${remote_pool1}" container/c1 | grep '^created_at: 0001-01-01T00:00:00Z' || false
+  ! lxc_remote storage volume show "l1:${remote_pool1}" container/c1/snap0 | grep '^created_at: 0001-01-01T00:00:00Z' || false
   lxc_remote copy l1:c1 l2:c1
-  ! lxc_remote storage volume show "l2:${remote_pool2}" container/c1 | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
+  ! lxc_remote storage volume show "l2:${remote_pool2}" container/c1 | grep '^created_at: 0001-01-01T00:00:00Z' || false
   [ "$(lxc_remote storage volume show "l1:${remote_pool1}" container/c1/snap0 | awk /created_at:/)" = "$(lxc_remote storage volume show "l2:${remote_pool2}" container/c1/snap0 | awk /created_at:/)" ]
   lxc_remote delete l1:c1 -f
   lxc_remote delete l2:c1 -f
@@ -650,9 +650,9 @@ migration() {
   lxc storage volume import l1:"${pool}" ./foo.iso iso1
   lxc storage volume copy l1:"${pool}"/iso1 l2:"${remote_pool}"/iso1
 
-  lxc storage volume show l2:"${remote_pool}" iso1 | grep -q 'content_type: iso'
+  lxc storage volume show l2:"${remote_pool}" iso1 | grep -xF 'content_type: iso'
   lxc storage volume move l1:"${pool}"/iso1 l2:"${remote_pool}"/iso2
-  lxc storage volume show l2:"${remote_pool}" iso2 | grep -q 'content_type: iso'
+  lxc storage volume show l2:"${remote_pool}" iso2 | grep -xF 'content_type: iso'
   ! lxc storage volume show l1:"${pool}" iso1 || false
 
   lxc storage volume delete l2:"${remote_pool}" iso1

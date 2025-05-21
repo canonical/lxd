@@ -141,7 +141,7 @@ test_metrics() {
 
   previous="$(curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep 'lxd_api_requests_completed_total{entity_type="instance",result="error_server"}' | awk '{print $2}')"
   lxc storage create broken dir
-  sudo rmdir "$(lxc storage get broken source)"/containers # Break the storage pool.
+  rmdir "$(lxc storage get broken source)"/containers # Break the storage pool.
   ! lxc init testimage failed-container -s broken || false  # Error when creating a container on broken.
   [ "$(curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep 'lxd_api_requests_completed_total{entity_type="instance",result="error_server"}' | awk '{print $2}')" -eq $((previous+1)) ]
 

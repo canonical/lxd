@@ -17,8 +17,8 @@ test_image_acl() {
 
   # Check if the ACLs are still present
   CONTAINER_PID="$(lxc query /1.0/instances/c2?recursion=1 | jq '.state.pid')"
-  getfacl "/proc/$CONTAINER_PID/root/root/foo" | grep -q "user:1000001:rwx"
-  getfacl "/proc/$CONTAINER_PID/root/root/foo" | grep -q "group:1000001:rwx"
+  getfacl "/proc/$CONTAINER_PID/root/root/foo" | grep -xF "user:1000001:rwx"
+  getfacl "/proc/$CONTAINER_PID/root/root/foo" | grep -xF "group:1000001:rwx"
 
   lxc delete -f c1 c2
   lxc image delete c1-with-acl
