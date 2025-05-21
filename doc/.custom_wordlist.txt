@@ -19,6 +19,7 @@ backport
 backporting
 backticks
 balancers
+BARs
 benchmarking
 BGP
 BitLocker
@@ -98,6 +99,7 @@ GIDs
 Golang
 goroutines
 GPUs
+GPU's
 HAProxy
 Hellman
 Homebrew
@@ -162,6 +164,7 @@ MicroOVN
 MII
 MinIO
 MITM
+MMIO
 MNIST
 MTU
 Mullvad
@@ -342,6 +345,7 @@ VLANs
 VMs
 VPD
 VPN
+VRAM
 vSwitch
 vTree
 VXLAN
