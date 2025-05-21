@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -13,7 +14,6 @@ import (
 	"github.com/digitalocean/go-smbios/smbios"
 	"golang.org/x/sys/unix"
 
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -469,7 +469,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			}
 		}
 		thread.ID = threadNumber
-		thread.Isolated = shared.ValueInSlice(threadNumber, isolated)
+		thread.Isolated = slices.Contains(isolated, threadNumber)
 		thread.Thread = uint64(len(resCore.Threads))
 
 		// NUMA node

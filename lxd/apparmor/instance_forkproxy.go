@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"text/template"
 
@@ -147,7 +148,7 @@ func forkproxyProfile(inst instance, dev device) (string, error) {
 			return "", err
 		}
 
-		if !shared.ValueInSlice(v, sockets) {
+		if !slices.Contains(sockets, v) {
 			sockets = append(sockets, v)
 		}
 	}

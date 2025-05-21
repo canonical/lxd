@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -151,7 +152,7 @@ func patchesApply(d *Daemon, stage patchStage) error {
 			continue
 		}
 
-		if shared.ValueInSlice(patch.name, appliedPatches) {
+		if slices.Contains(appliedPatches, patch.name) {
 			continue
 		}
 
@@ -1465,7 +1466,7 @@ func patchOIDCGroupsClaimScope(_ string, d *Daemon) error {
 
 		// If the groups claim is not set, or this patch was already run on another member and the groups claim is
 		// already present in the list of scopes, then there is nothing to do.
-		if groupsClaim == "" || shared.ValueInSlice(groupsClaim, scopes) {
+		if groupsClaim == "" || slices.Contains(scopes, groupsClaim) {
 			return nil
 		}
 

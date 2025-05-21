@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -438,7 +439,7 @@ func filesystemTypeCanBeShrunk(fsType string) bool {
 		fsType = DefaultFilesystem
 	}
 
-	if shared.ValueInSlice(fsType, []string{"ext4", "btrfs"}) {
+	if slices.Contains([]string{"ext4", "btrfs"}, fsType) {
 		return true
 	}
 
