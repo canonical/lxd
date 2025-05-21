@@ -6,6 +6,17 @@ on:
       - stable-*
   pull_request:
   workflow_dispatch:
+    inputs:
+      static-analysis:
+        description: Whether to run `make static-analysis`
+        required: true
+        type: boolean
+        default: true
+      unit-tests:
+        description: Whether to run `make check-unit`
+        required: true
+        type: boolean
+        default: true
   schedule:
     - cron: '0 0 * * *'  # Test TICS daily
 
@@ -198,6 +209,7 @@ jobs:
           fi
 
       - name: Run static analysis
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.static-analysis == 'true' }}
         env:
           GITHUB_BEFORE: ${{ github.event.before }}
         run: |
@@ -210,6 +222,7 @@ jobs:
           make static-analysis
 
       - name: Unit tests (all)
+        if: ${{ github.event_name != 'workflow_dispatch' && inputs.unit-tests == 'true' }}
         run: |
           set -eux
           chmod +x ~
