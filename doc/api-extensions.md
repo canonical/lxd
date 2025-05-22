@@ -2672,3 +2672,15 @@ This adds support for listing networks across all projects using the `all-projec
 ## `clustering_restore_skip_mode`
 
 Adds a `skip` mode to the restore request. This mode restores a cluster member's status to `ONLINE` without restarting any of its stopped local instances or migrating back instances that were evacuated to other cluster members.
+
+## `cluster_links`
+
+This introduces the cluster links API and identity type.
+
+This includes the following new endpoints (see [RESTful API](rest-api.md) for details):
+
+* `GET /1.0/cluster/links/<name>` - returns information about a specific cluster link.
+* `GET /1.0/cluster/links` - returns a combined view of cluster links (if any).
+* `PUT /1.0/cluster/links/<name>` - allows for modification of a specific cluster link.
+* `POST /1.0/cluster/links` - adds a cluster link.
+* `DELETE /1.0/cluster/links/<name>` - deletes a specific cluster link.

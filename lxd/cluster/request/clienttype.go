@@ -8,6 +8,10 @@ const UserAgentNotifier = "lxd-cluster-notifier"
 // joining a node to a cluster.
 const UserAgentJoiner = "lxd-cluster-joiner"
 
+// UserAgentDelegator used to distinguish between a regular client request and a delegation request when
+// creating a cluster link.
+const UserAgentDelegator = "lxd-cluster-delegator"
+
 // ClientType indicates which sort of client type is being used.
 type ClientType string
 
@@ -20,6 +24,9 @@ const ClientTypeJoiner ClientType = "joiner"
 // ClientTypeNormal normal client.
 const ClientTypeNormal ClientType = "normal"
 
+// ClientTypeDelegator cluster delegator client.
+const ClientTypeDelegator ClientType = "delegator"
+
 // UserAgentClientType converts user agent to client type.
 func UserAgentClientType(userAgent string) ClientType {
 	switch userAgent {
@@ -27,6 +34,8 @@ func UserAgentClientType(userAgent string) ClientType {
 		return ClientTypeNotifier
 	case UserAgentJoiner:
 		return ClientTypeJoiner
+	case UserAgentDelegator:
+		return ClientTypeDelegator
 	}
 
 	return ClientTypeNormal
