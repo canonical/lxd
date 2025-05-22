@@ -1286,27 +1286,27 @@ test_clustering_network() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net1}" --type=physical parent=i1 --target=node1
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net1}" --type=physical parent=i1 --target=node2
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net1}" --type=physical
-  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net1}" | grep status: | grep -q Created
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net1}" | grep -xF 'status: Created'
 
   echo "Check that parent interface i1 on node1 cannot be used for another physical network net2."
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i1 --target=node1
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i2 --target=node2
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical || false
-  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep status: | grep -q Errored
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep -xF 'status: Errored'
   LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net2}"
 
   echo "Check that parent interface i1 on node2 cannot be used for another physical network net2."
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i2 --target=node1
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i1 --target=node2
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical || false
-  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep status: | grep -q Errored
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep -xF 'status: Errored'
   LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net2}"
 
   echo "Create a physical network net2."
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i2 --target=node1
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i2 --target=node2
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical
-  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep status: | grep -q Created
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep -xF 'status: Created'
 
   echo "Clean up physical networks."
   LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net2}"
