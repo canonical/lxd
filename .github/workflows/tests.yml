@@ -702,7 +702,7 @@ jobs:
           export PATH="/home/runner/go/bin:$PATH"
           export CI=true
           export DISABLE_VM_TESTS=true
-          npx playwright test --project chromium:lxd-$TARGET
+          npx playwright test --project "chromium:lxd-${TARGET:-latest-edge}"
 
       - name: Upload lxd-ui test artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
