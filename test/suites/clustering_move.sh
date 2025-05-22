@@ -184,7 +184,7 @@ EOF
   # - c2 is deployed on node2
   # - c3 is deployed on node3
   # - default project restricted to cluster groups foobar1,foobar2
-  LXD_DIR="${LXD_ONE_DIR}" lxc project set default restricted=true restricted.networks.uplinks=${bridge}
+  LXD_DIR="${LXD_ONE_DIR}" lxc project set default restricted=true restricted.networks.uplinks="${bridge}"
   LXD_DIR="${LXD_ONE_DIR}" lxc project set default restricted.cluster.groups=foobar1,foobar2
 
   # Moving to an unlisted group fails.
