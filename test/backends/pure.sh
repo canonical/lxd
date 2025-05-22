@@ -1,17 +1,13 @@
 pure_setup() {
-  local LXD_DIR
+  local LXD_DIR="${1}"
 
-  LXD_DIR=$1
-
-  echo "==> Setting up Pure Storage backend in ${LXD_DIR}"
+  echo "==> Setting up Pure Storage backend in ${1}"
 }
 
 # pure_configure creates Pure Storage storage pool and configures instance root disk
 # device in default profile to use that storage pool.
 pure_configure() {
-  local LXD_DIR
-
-  LXD_DIR=$1
+  local LXD_DIR="${1}"
 
   echo "==> Configuring Pure Storage backend in ${LXD_DIR}"
 
@@ -31,7 +27,7 @@ pure_configure() {
 # Additional arguments are appended to the lxc storage create command.
 # If there is anything on the stdin, the content is passed to the lxc storage create command as stdin as well.
 configure_pure_pool() {
-  poolName=$1
+  poolName="${1}"
   shift 1
 
   if [ -p /dev/stdin ]; then
@@ -56,9 +52,7 @@ EOF
 }
 
 pure_teardown() {
-  local LXD_DIR
-
-  LXD_DIR=$1
+  local LXD_DIR="${1}"
 
   echo "==> Tearing down Pure Storage backend in ${LXD_DIR}"
 }
