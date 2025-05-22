@@ -150,7 +150,7 @@ test_tls_restrictions() {
   lxc_remote network list localhost: --project blah | grep -F "${networkName}"
 
   # The reported project is blah when listing networks with request project set to blah.
-  [ "$(lxc_remote query -X GET "/1.0/networks?project=blah&recursion=1" | jq -r '.[] | select(.name == "'${networkName}'") | .project' | grep -cF "blah")" = "1" ]
+  [ "$(lxc_remote query -X GET "/1.0/networks?project=blah&recursion=1" | jq -r '.[] | select(.name == "'"${networkName}"'") | .project' | grep -cF "blah")" = "1" ]
 
   # The restricted client can't view it via project default.
   ! lxc_remote network show "localhost:${networkName}" --project default || false
@@ -187,7 +187,7 @@ test_tls_restrictions() {
   [ "$(lxc_remote network acl list localhost: --project blah | grep -cF "${networkACLName}")" = "1" ]
 
   # The reported project is blah when listing network ACLs with request project set to blah.
-  [ "$(lxc_remote query -X GET "/1.0/network-acls?project=blah&recursion=1" | jq -r '.[] | select(.name == "'${networkACLName}'") | .project' | grep -cF "blah")" = "1" ]
+  [ "$(lxc_remote query -X GET "/1.0/network-acls?project=blah&recursion=1" | jq -r '.[] | select(.name == "'"${networkACLName}"'") | .project' | grep -cF "blah")" = "1" ]
 
   # The restricted client can't view it via project default.
   ! lxc_remote network acl show "localhost:${networkACLName}" --project default || false
