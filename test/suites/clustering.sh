@@ -4246,9 +4246,9 @@ test_clustering_events() {
   done
 
   # Kill monitors.
-  kill -9 ${monitorNode1PID} || true
-  kill -9 ${monitorNode2PID} || true
-  kill -9 ${monitorNode3PID} || true
+  kill -9 "${monitorNode1PID}" || true
+  kill -9 "${monitorNode2PID}" || true
+  kill -9 "${monitorNode3PID}" || true
 
   # Cleanup.
   LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1
