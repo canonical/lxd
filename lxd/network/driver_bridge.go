@@ -812,10 +812,11 @@ func (n *bridge) Validate(config map[string]string) error {
 		return errors.New("Network name too long to use with the FAN (must be 11 characters or less)")
 	}
 
+	bridgeModeOptions := []string{"ipv4.dhcp.expiry", "ipv4.firewall", "ipv4.nat", "ipv4.nat.order"}
 	for k, v := range config {
 		key := k
 		// Bridge mode checks
-		if bridgeMode == "fan" && strings.HasPrefix(key, "ipv4.") && !slices.Contains([]string{"ipv4.dhcp.expiry", "ipv4.firewall", "ipv4.nat", "ipv4.nat.order"}, key) && v != "" {
+		if bridgeMode == "fan" && strings.HasPrefix(key, "ipv4.") && !slices.Contains(bridgeModeOptions, key) && v != "" {
 			return errors.New("IPv4 configuration may not be set when in 'fan' mode")
 		}
 
