@@ -61,8 +61,8 @@ test_storage_local_volume_handling() {
     if [ "$driver" = "pure" ]; then
       configure_pure_pool "${pool}1" "${pool_opts}"
     elif [ -n "${pool_opts}" ]; then
-      # shellcheck disable=SC2086
-      lxc storage create "${pool}1" "${driver}" $pool_opts
+      # shellcheck disable=SC2086,SC2248
+      lxc storage create "${pool}1" "${driver}" ${pool_opts}
     else
       lxc storage create "${pool}1" "${driver}"
     fi
