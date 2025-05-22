@@ -802,7 +802,8 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 
 	// If we're requesting for just one project, set the effective project name of volumes in this project.
 	if !allProjects {
-		request.SetCtxValue(r, request.CtxEffectiveProjectName, customVolProjectName)
+		reqInfo := request.SetupContextInfo(r)
+		reqInfo.EffectiveProjectName = customVolProjectName
 	}
 
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeStorageVolume)
@@ -1419,11 +1420,13 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Renaming storage volumes of type %q is not allowed", details.volumeTypeName))
 	}
 
-	requestProjectName := request.ProjectParam(r)
-	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
-	if err != nil {
-		return response.SmartError(err)
+	var effectiveProjectName string
+	reqInfo := request.GetContextInfo(r.Context())
+	if reqInfo != nil {
+		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
+
+	requestProjectName := request.ProjectParam(r)
 
 	targetProjectName := effectiveProjectName
 	if req.Project != "" {
@@ -2025,11 +2028,13 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName))
 	}
 
-	requestProjectName := request.ProjectParam(r)
-	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
-	if err != nil {
-		return response.SmartError(err)
+	var effectiveProjectName string
+	reqInfo := request.GetContextInfo(r.Context())
+	if reqInfo != nil {
+		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
+
+	requestProjectName := request.ProjectParam(r)
 
 	// Detect if we want to also return entitlements for each volume.
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeStorageVolume, false)
@@ -2120,12 +2125,13 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
-	if err != nil {
-		return response.SmartError(err)
+	var effectiveProjectName string
+	reqInfo := request.GetContextInfo(r.Context())
+	if reqInfo != nil {
+		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
+	details, err := request.GetCtxValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2285,9 +2291,10 @@ func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName))
 	}
 
-	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
-	if err != nil {
-		return response.SmartError(err)
+	var effectiveProjectName string
+	reqInfo := request.GetContextInfo(r.Context())
+	if reqInfo != nil {
+		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
 	target := request.QueryParam(r, "target")
@@ -2406,11 +2413,13 @@ func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	requestProjectName := request.ProjectParam(r)
-	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
-	if err != nil {
-		return response.SmartError(err)
+	var effectiveProjectName string
+	reqInfo := request.GetContextInfo(r.Context())
+	if reqInfo != nil {
+		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
+
+	requestProjectName := request.ProjectParam(r)
 
 	if details.volumeType != cluster.StoragePoolVolumeTypeCustom && details.volumeType != cluster.StoragePoolVolumeTypeImage {
 		return response.BadRequest(fmt.Errorf("Storage volumes of type %q cannot be deleted with the storage API", details.volumeTypeName))
@@ -2787,12 +2796,13 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 	details.pool = storagePool
 
 	// Get the effective project.
-	effectiveProject, err := project.StorageVolumeProject(s.DB.Cluster, request.ProjectParam(r), volumeType)
+	effectiveProjectName, err := project.StorageVolumeProject(s.DB.Cluster, request.ProjectParam(r), volumeType)
 	if err != nil {
 		return fmt.Errorf("Failed to get effective project name: %w", err)
 	}
 
-	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProject)
+	reqInfo := request.SetupContextInfo(r)
+	reqInfo.EffectiveProjectName = effectiveProjectName
 
 	// If the target is set, the location of the volume is user specified, so we don't need to perform further logic.
 	target := request.QueryParam(r, "target")
@@ -2803,14 +2813,13 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 
 	// If the request has already been forwarded, the other member already performed the logic to determine the volume
 	// location, so we can set the location in the volume details as ourselves.
-	reqInfo := request.GetContextInfo(r.Context())
-	if reqInfo != nil && reqInfo.ForwardedProtocol != "" {
+	if reqInfo.ForwardedProtocol != "" {
 		location = s.ServerName
 		return nil
 	}
 
 	// Get information about the cluster member containing the volume.
-	remoteNodeInfo, err := getRemoteVolumeNodeInfo(r.Context(), s, poolName, effectiveProject, volumeName, volumeType)
+	remoteNodeInfo, err := getRemoteVolumeNodeInfo(r.Context(), s, poolName, effectiveProjectName, volumeName, volumeType)
 	if err != nil {
 		return err
 	}
