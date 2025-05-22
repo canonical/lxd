@@ -1,15 +1,11 @@
 zfs_setup() {
-  local LXD_DIR
-
-  LXD_DIR=$1
+  local LXD_DIR="${1}"
 
   echo "==> Setting up ZFS backend in ${LXD_DIR}"
 }
 
 zfs_configure() {
-  local LXD_DIR
-
-  LXD_DIR=$1
+  local LXD_DIR="${1}"
 
   echo "==> Configuring ZFS backend in ${LXD_DIR}"
 
@@ -18,9 +14,7 @@ zfs_configure() {
 }
 
 zfs_teardown() {
-  local LXD_DIR
-
-  LXD_DIR=$1
+  local LXD_DIR="${1}"
 
   echo "==> Tearing down ZFS backend in ${LXD_DIR}"
 }
