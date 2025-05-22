@@ -8,11 +8,12 @@ pure_setup() {
 # device in default profile to use that storage pool.
 pure_configure() {
   local LXD_DIR="${1}"
+  local POOL_NAME="lxdtest-${LXD_DIR##*/}" # Use the last part of the LXD_DIR as pool name
 
   echo "==> Configuring Pure Storage backend in ${LXD_DIR}"
 
   # Create pure storage storage pool.
-  lxc storage create "lxdtest-$(basename "${LXD_DIR}")" pure \
+  lxc storage create "${POOL_NAME}" pure \
     pure.gateway="${PURE_GATEWAY}" \
     pure.gateway.verify="${PURE_GATEWAY_VERIFY:-true}" \
     pure.api.token="${PURE_API_TOKEN}" \
@@ -20,7 +21,7 @@ pure_configure() {
     volume.size=25MiB
 
   # Add the storage pool to the default profile.
-  lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")"
+  lxc profile device add default root disk path="/" pool="${POOL_NAME}"
 }
 
 # configure_pure_pool creates new Pure Storage storage pool with a given name.
