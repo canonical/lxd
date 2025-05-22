@@ -104,7 +104,9 @@ func addNetworkDetailsToRequestContext(s *state.State, r *http.Request) error {
 		return fmt.Errorf("Failed to check project %q network feature: %w", requestProjectName, err)
 	}
 
-	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
+	info := request.SetupContextInfo(r)
+	info.EffectiveProjectName = effectiveProjectName
+
 	request.SetCtxValue(r, ctxNetworkDetails, networkDetails{
 		networkName:    networkName,
 		requestProject: *requestProject,
@@ -274,7 +276,8 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
+	reqInfo := request.SetupContextInfo(r)
+	reqInfo.EffectiveProjectName = effectiveProjectName
 
 	recursion := util.IsRecursionRequest(r)
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeNetwork, true)
@@ -979,9 +982,10 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 // If the network being requested is a managed network and allNodes is true then node specific config is removed.
 // Otherwise if allNodes is false then the network's local status is returned.
 func doNetworkGet(s *state.State, r *http.Request, allNodes bool, requestProjectName string, reqProjectConfig map[string]string, networkName string) (api.Network, error) {
-	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
-	if err != nil {
-		return api.Network{}, err
+	var effectiveProjectName string
+	reqInfo := request.GetContextInfo(r.Context())
+	if reqInfo != nil {
+		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
 	// Ignore veth pairs (for performance reasons).
@@ -1114,9 +1118,10 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, requestProject
 func networkDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
-	if err != nil {
-		return response.SmartError(err)
+	var effectiveProjectName string
+	reqInfo := request.GetContextInfo(r.Context())
+	if reqInfo != nil {
+		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
 	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
@@ -1240,9 +1245,10 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(errors.New("Renaming clustered network not supported"))
 	}
 
-	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
-	if err != nil {
-		return response.SmartError(err)
+	var effectiveProjectName string
+	reqInfo := request.GetContextInfo(r.Context())
+	if reqInfo != nil {
+		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
 	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
@@ -1371,9 +1377,10 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
-	if err != nil {
-		return response.SmartError(err)
+	var effectiveProjectName string
+	reqInfo := request.GetContextInfo(r.Context())
+	if reqInfo != nil {
+		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
 	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
