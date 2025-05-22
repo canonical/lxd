@@ -84,13 +84,13 @@ configure_loop_device() {
 
     local __tmp1="${1}"
     local res1="${lv_loop_file}"
-    if [ "${__tmp1}" ]; then
+    if [ -n "${__tmp1}" ]; then
         eval "${__tmp1}='${res1}'"
     fi
 
     local __tmp2="${2}"
     local res2="${pvloopdev}"
-    if [ "${__tmp2}" ]; then
+    if [ -n "${__tmp2}" ]; then
         eval "${__tmp2}='${res2}'"
     fi
 }
