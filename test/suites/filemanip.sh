@@ -165,7 +165,7 @@ test_filemanip() {
   sleep 1
 
   output=$(curl -s -S --insecure sftp://127.0.0.1:2022/foo || true)
-  kill -9 ${mountPID}
+  kill -9 "${mountPID}"
   lxc delete filemanip -f
   [ "$output" = "foo" ]
 
