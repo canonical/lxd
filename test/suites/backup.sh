@@ -248,6 +248,9 @@ ceph.osd.pool_name=$(lxc storage get "${poolName}" ceph.osd.pool_name)
 ceph.user.name=$(lxc storage get "${poolName}" ceph.user.name)
 "
       ;;
+      *)
+        # nothing extra config needed
+      ;;
     esac
 
     lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='c1'"
