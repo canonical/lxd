@@ -1267,6 +1267,52 @@ test_clustering_network() {
 
   LXD_DIR="${LXD_ONE_DIR}" lxc project delete foo
 
+  echo "Test creating physical networks."
+  net1="${prefix}network1"
+  net2="${prefix}network2"
+
+  echo "Create two dummy interfaces (i1 and i2) on both nodes."
+  nsenter -n -t "${LXD_PID1}" -- ip link add i1 type dummy
+  nsenter -n -t "${LXD_PID1}" -- ip link add i2 type dummy
+  nsenter -n -t "${LXD_PID2}" -- ip link add i1 type dummy
+  nsenter -n -t "${LXD_PID2}" -- ip link add i2 type dummy
+
+  echo "Create a physical network net1."
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net1}" --type=physical parent=i1 --target=node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net1}" --type=physical parent=i1 --target=node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net1}" --type=physical
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net1}" | grep status: | grep -q Created
+
+  echo "Check that parent interface i1 on node1 cannot be used for another physical network net2."
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i1 --target=node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i2 --target=node2
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep status: | grep -q Errored
+  LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net2}"
+
+  echo "Check that parent interface i1 on node2 cannot be used for another physical network net2."
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i2 --target=node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i1 --target=node2
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep status: | grep -q Errored
+  LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net2}"
+
+  echo "Create a physical network net2."
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i2 --target=node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i2 --target=node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep status: | grep -q Created
+
+  echo "Clean up physical networks."
+  LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net2}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net1}"
+
+  echo "Delete dummy interfaces."
+  nsenter -n -t "${LXD_PID1}" -- ip link delete i2
+  nsenter -n -t "${LXD_PID1}" -- ip link delete i1
+  nsenter -n -t "${LXD_PID2}" -- ip link delete i2
+  nsenter -n -t "${LXD_PID2}" -- ip link delete i1
+
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   sleep 0.5
