@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -458,7 +459,7 @@ func GetPendingTLSIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret 
 	// Convert identity types to strings for the IN clause.
 	typeStrings := make([]string, len(identityTypes))
 	for i, idType := range identityTypes {
-		typeStrings[i] = fmt.Sprintf("%d", idType)
+		typeStrings[i] = strconv.FormatInt(idType, 10)
 	}
 
 	// Construct statement with identity types.
