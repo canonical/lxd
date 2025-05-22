@@ -12,11 +12,12 @@ dir_setup() {
 # Do the API voodoo necessary to configure LXD to use this backend
 dir_configure() {
   local LXD_DIR="${1}"
+  local POOL_NAME="lxdtest-${LXD_DIR##*/}" # Use the last part of the LXD_DIR as pool name
 
   echo "==> Configuring directory backend in ${LXD_DIR}"
 
-  lxc storage create "lxdtest-$(basename "${LXD_DIR}")" dir
-  lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")"
+  lxc storage create "${POOL_NAME}" dir
+  lxc profile device add default root disk path="/" pool="${POOL_NAME}"
 }
 
 dir_teardown() {
