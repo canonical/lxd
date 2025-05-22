@@ -560,6 +560,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
+      - name: Tune disk performance
+        uses: ./.github/actions/tune-disk-performance
+
       - name: Checkout LXD-UI
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -586,9 +589,6 @@ jobs:
           set -eux
           cd lxd-ui
           npx playwright install --with-deps chromium
-
-      - name: Tune disk performance
-        uses: ./.github/actions/tune-disk-performance
 
       - name: Install runtime dependencies
         uses: ./.github/actions/install-lxd-runtimedeps
