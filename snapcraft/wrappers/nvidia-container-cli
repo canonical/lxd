@@ -1,18 +1,4 @@
 #!/bin/sh
 
-#
-# This is a bit hacky, as we rely on a library names but at the moment,
-# we don't have any way to distinguish generic mesa-2404 snap from
-# mesa-2404 snap with NVIDIA drivers connected to it. (At least, I don't know one.)
-# Let's do this like that for now at least for PoC purpose.
-#
-if [ -f "${SNAP}/gpu-2404-2/usr/lib/x86_64-linux-gnu/libnvidia-ml.so" ] &&
-   [ -f "${SNAP}/gpu-2404-2/usr/lib/x86_64-linux-gnu/libcuda.so" ] &&
-   snapctl is-connected gpu-2404;
-then
-    # We have NVIDIA drivers snap connected, let's use it
-    exec nvidia-container-cli.real "$@"
-else
-    # Set the root path to use NVIDIA libraries from the host
-    exec nvidia-container-cli.real -r /var/lib/snapd/hostfs/ "$@"
-fi
+# Set the root path
+exec nvidia-container-cli.real -r /var/lib/snapd/hostfs/ "$@"
