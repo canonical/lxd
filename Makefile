@@ -280,8 +280,9 @@ dist: doc
 
 	# Create build dir
 	$(eval TMP := $(shell mktemp -d))
-	git archive --prefix=lxd-$(VERSION)/ HEAD | tar -x -C $(TMP)
-	git show-ref HEAD | cut -d' ' -f1 > $(TMP)/lxd-$(VERSION)/.gitref
+	$(eval HASH := $(shell git show-ref --hash HEAD))
+	git archive --prefix=lxd-$(VERSION)/ $(HASH) | tar -x -C $(TMP)
+	echo $(HASH) > $(TMP)/lxd-$(VERSION)/.gitref
 
 	# Download dependencies
 	(cd $(TMP)/lxd-$(VERSION) ; go mod vendor)
