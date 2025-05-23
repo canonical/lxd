@@ -61,7 +61,7 @@ type StoragePoolVolumeBackupsPost struct {
 	// Example: 1
 	//
 	// API extension: backup_metadata_version
-	Version uint32
+	Version uint32 `json:"version" yaml:"version"`
 }
 
 // StoragePoolVolumeBackupPost represents the fields available for the renaming of a volume backup

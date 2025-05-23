@@ -42,7 +42,7 @@ type InstanceBackupsPost struct {
 	// Example: 1
 	//
 	// API extension: backup_metadata_version
-	Version uint32
+	Version uint32 `json:"version" yaml:"version"`
 }
 
 // InstanceBackup represents a LXD instance backup.
