@@ -280,9 +280,9 @@ dist: doc
 
 	# Create build dir
 	$(eval TMP := $(shell mktemp -d))
-	$(eval HASH := $(shell git show-ref --hash HEAD))
-	git archive --prefix=lxd-$(VERSION)/ $(HASH) | tar -x -C $(TMP)
-	echo $(HASH) > $(TMP)/lxd-$(VERSION)/.gitref
+	$(eval COMMIT_HASH := $(shell git rev-parse HEAD))
+	git archive --prefix=lxd-$(VERSION)/ $(COMMIT_HASH) | tar -x -C $(TMP)
+	echo $(COMMIT_HASH) > $(TMP)/lxd-$(VERSION)/.gitref
 
 	# Download dependencies
 	(cd $(TMP)/lxd-$(VERSION) ; go mod vendor)
@@ -307,7 +307,7 @@ dist: doc
 	# * omit irrelevant information about file ownership and group
 	# * tell `gzip` to not embed the file name when compressing
 	# For more details: https://www.gnu.org/software/tar/manual/html_node/Reproducibility.html
-	$(eval SOURCE_EPOCH := $(shell TZ=UTC0 git log -1 --format=tformat:%cd --date=format:%Y-%m-%dT%H:%M:%SZ $(HASH)))
+	$(eval SOURCE_EPOCH := $(shell TZ=UTC0 git log -1 --format=tformat:%cd --date=format:%Y-%m-%dT%H:%M:%SZ $(COMMIT_HASH)))
 	LC_ALL=C tar --sort=name --format=posix \
 		--pax-option=exthdr.name=%d/PaxHeaders/%f \
 		--pax-option=delete=atime,delete=ctime \
