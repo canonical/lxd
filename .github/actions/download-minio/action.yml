@@ -1,18 +1,39 @@
 name: Download minio/mc
-description: Download minio/mc
+description: Download minio/mc and cache them for the day
 
 runs:
   using: composite
   steps:
-    - name: Download minio/mc
+    - name: Cache key
+      id: cache-key
       shell: bash
       run: |
         set -eux
-        mkdir -p "$(go env GOPATH)/bin"
+        echo "ARCH=$(dpkg --print-architecture)" >> $GITHUB_OUTPUT
+        echo "DATE=$(date --utc "+%Y%m%d")"      >> $GITHUB_OUTPUT
+
+    - name: Cache minio/mc cache
+      uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+      id: cache-minio
+      with:
+        path: |
+          ~/go/bin/minio
+          ~/go/bin/mc
+        key: cache-minio-${{ steps.cache-key.outputs.ARCH }}-${{ steps.cache-key.outputs.DATE }}
+
+    - name: Download minio/mc
+      if: ${{ steps.cache-npm.outputs.cache-hit != 'true' }}
+      env:
+        ARCH: ${{ steps.cache-key.outputs.ARCH }}
+      shell: bash
+      run: |
+        set -eux
+        DIR="$(go env GOPATH)/bin"
+        mkdir -p "${DIR}"
         # Download minio ready to include in dependencies for system tests.
-        curl -sSfL https://dl.min.io/server/minio/release/linux-amd64/minio --output "$(go env GOPATH)/bin/minio"
-        chmod +x "$(go env GOPATH)/bin/minio"
+        curl -sSfL "https://dl.min.io/server/minio/release/linux-${ARCH}/minio" --output "${DIR}/minio"
+        chmod +x "${DIR}/minio"
 
         # Also grab the latest minio client to maintain compatibility with the server.
-        curl -sSfL https://dl.min.io/client/mc/release/linux-amd64/mc --output "$(go env GOPATH)/bin/mc"
-        chmod +x "$(go env GOPATH)/bin/mc"
+        curl -sSfL "https://dl.min.io/client/mc/release/linux-${ARCH}/mc" --output "${DIR}/mc"
+        chmod +x "${DIR}/mc"
