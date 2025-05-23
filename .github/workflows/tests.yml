@@ -88,6 +88,9 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
+      - name: Download minio/mc to add to system test dependencies
+        uses: ./.github/actions/download-minio
+
       - name: Install build dependencies
         uses: ./.github/actions/install-lxd-builddeps
 
