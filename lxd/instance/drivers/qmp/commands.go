@@ -133,7 +133,7 @@ func (m *Monitor) SendFile(name string, file *os.File) error {
 	}
 
 	// Query the status.
-	_, err = m.qmp.RunWithFile(reqJSON, file)
+	_, err = m.qmp.runWithFile(reqJSON, file)
 	if err != nil {
 		// Confirm the daemon didn't die.
 		errPing := m.ping()
@@ -190,7 +190,7 @@ func (m *Monitor) SendFileWithFDSet(name string, file *os.File, readonly bool) (
 		return nil, err
 	}
 
-	ret, err := m.qmp.RunWithFile(reqJSON, file)
+	ret, err := m.qmp.runWithFile(reqJSON, file)
 	if err != nil {
 		// Confirm the daemon didn't die.
 		errPing := m.ping()
