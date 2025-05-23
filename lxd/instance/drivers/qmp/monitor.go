@@ -5,11 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/digitalocean/go-qemu/qmp"
 
 	"github.com/canonical/lxd/shared/logger"
 )
@@ -32,7 +31,7 @@ var EventVMShutdownReasonDisconnect = "disconnect"
 // Monitor represents a QMP monitor.
 type Monitor struct {
 	path string
-	qmp  *qmp.SocketMonitor
+	qmp  *qemuMachineProtocol
 
 	agentStarted      bool
 	agentStartedMu    sync.Mutex
@@ -226,9 +225,13 @@ func Connect(path string, serialCharDev string, eventHandler func(name string, d
 	}
 
 	// Setup the connection.
-	qmpConn, err := qmp.NewSocketMonitor("unix", path, time.Second)
+	c, err := net.DialTimeout("unix", path, time.Second)
 	if err != nil {
 		return nil, err
+	}
+
+	qmpConn := &qemuMachineProtocol{
+		c: c,
 	}
 
 	chError := make(chan error, 1)
