@@ -1859,11 +1859,6 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     InstanceBackupsPost:
         properties:
-            Version:
-                description: What backup format version to use
-                example: 1
-                format: uint32
-                type: integer
             compression_algorithm:
                 description: What compression algorithm to use
                 example: gzip
@@ -1895,6 +1890,12 @@ definitions:
                 example: true
                 type: boolean
                 x-go-name: OptimizedStorage
+            version:
+                description: What backup format version to use
+                example: 1
+                format: uint32
+                type: integer
+                x-go-name: Version
         title: InstanceBackupsPost represents the fields available for a new LXD instance backup.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
@@ -6585,11 +6586,6 @@ definitions:
     StoragePoolVolumeBackupsPost:
         description: StoragePoolVolumeBackupsPost represents the fields available for a new LXD volume backup
         properties:
-            Version:
-                description: What backup format version to use
-                example: 1
-                format: uint32
-                type: integer
             compression_algorithm:
                 description: What compression algorithm to use
                 example: gzip
@@ -6611,6 +6607,12 @@ definitions:
                 example: true
                 type: boolean
                 x-go-name: OptimizedStorage
+            version:
+                description: What backup format version to use
+                example: 1
+                format: uint32
+                type: integer
+                x-go-name: Version
             volume_only:
                 description: Whether to ignore snapshots
                 example: false
