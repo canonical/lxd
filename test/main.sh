@@ -116,7 +116,7 @@ cleanup() {
   if [ "${TEST_RESULT}" != "success" ]; then
     if command -v ceph >/dev/null; then
       echo "::group::ceph status"
-      ceph status || true
+      ceph status --connect-timeout 5 || true
       echo "::endgroup::"
     fi
 
