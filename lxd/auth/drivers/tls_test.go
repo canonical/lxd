@@ -58,15 +58,15 @@ func (s *tlsSuite) newIdentity(name string, identityType string, projects []stri
 }
 
 func (s *tlsSuite) setupCtx(id *identity.CacheEntry) context.Context {
-	ctx := context.Background()
-	if id == nil {
-		ctx = context.WithValue(ctx, request.CtxTrusted, false)
-		return ctx
+	reqInfo := &request.Info{}
+
+	if id != nil {
+		reqInfo.Username = id.Identifier
+		reqInfo.Protocol = id.AuthenticationMethod
+		reqInfo.Trusted = true
 	}
 
-	ctx = context.WithValue(ctx, request.CtxTrusted, true)
-	ctx = context.WithValue(ctx, request.CtxProtocol, id.AuthenticationMethod)
-	return context.WithValue(ctx, request.CtxUsername, id.Identifier)
+	return context.WithValue(context.Background(), request.CtxRequestInfo, reqInfo)
 }
 
 func (s *tlsSuite) TestTLSAuthorizer() {

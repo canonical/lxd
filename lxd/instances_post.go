@@ -208,16 +208,15 @@ func createFromNone(ctx context.Context, s *state.State, projectName string, pro
 }
 
 func createFromMigration(ctx context.Context, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost, isClusterNotification bool) response.Response {
-	if request.IsRequestContext(ctx) {
-		// Get the protocol if request context is provided,.
-		protocol, err := request.GetCtxValue[string](ctx, request.CtxProtocol)
-		if err != nil {
-			return response.SmartError(fmt.Errorf("Failed to check request origin: %w", err))
+	reqInfo := request.GetContextInfo(ctx)
+	if reqInfo != nil {
+		if reqInfo.Protocol == "" {
+			return response.SmartError(errors.New("Failed to check request origin: Protocol not set in request context"))
 		}
 
 		// If the protocol is not auth.AuthenticationMethodCluster (e.g. not an internal request) and the node has been
 		// evacuated, reject the request.
-		if s.DB.Cluster.LocalNodeIsEvacuated() && protocol != auth.AuthenticationMethodCluster {
+		if s.DB.Cluster.LocalNodeIsEvacuated() && reqInfo.Protocol != auth.AuthenticationMethodCluster {
 			return response.Forbidden(errors.New("Cluster member is evacuated"))
 		}
 	}
