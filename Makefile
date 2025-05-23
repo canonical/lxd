@@ -289,11 +289,11 @@ dist: doc
 
 	# Download the dqlite library
 	git clone --depth=1 --branch "$(DQLITE_BRANCH)" https://github.com/canonical/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
-	(cd $(TMP)/lxd-$(VERSION)/vendor/dqlite ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
+	(cd $(TMP)/lxd-$(VERSION)/vendor/dqlite ; git rev-parse HEAD | tee .gitref)
 
 	# Download the liblxc library
 	git clone --depth=1 --branch "$(LIBLXC_BRANCH)" https://github.com/lxc/lxc $(TMP)/lxd-$(VERSION)/vendor/liblxc
-	(cd $(TMP)/lxd-$(VERSION)/vendor/liblxc ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
+	(cd $(TMP)/lxd-$(VERSION)/vendor/liblxc ; git rev-parse HEAD | tee .gitref)
 
 	# Copy doc output
 	cp -r --preserve=mode doc/_build $(TMP)/lxd-$(VERSION)/doc/html/
