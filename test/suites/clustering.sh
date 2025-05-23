@@ -949,7 +949,7 @@ test_clustering_storage() {
     LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node1 data web | grep -F "location: node1"
     LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node2 data web | grep -F "location: node2"
 
-    # rename updates the disk devices that refer to the disk
+    # Rename updates the disk devices that refer to the disk.
     LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename --target node1 data web webbaz
 
     [ "$(LXD_DIR=${LXD_TWO_DIR} lxc config device get c1 web source)" = "webbaz" ]
@@ -962,24 +962,23 @@ test_clustering_storage() {
 
     LXD_DIR="${LXD_TWO_DIR}" lxc config device remove c1 web
 
-    # renaming a local storage volume when attached via profile fails
+    # Renaming a local storage volume when attached via profile succeeds.
     LXD_DIR="${LXD_TWO_DIR}" lxc profile create stovol-webbaz
     LXD_DIR="${LXD_TWO_DIR}" lxc profile device add stovol-webbaz webbaz disk pool=data source=webbaz path=/mnt/web
 
     LXD_DIR="${LXD_TWO_DIR}" lxc profile add c3 stovol-webbaz # c2 and c3 both have webbaz attached
 
-    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename --target node2 data webbaz webbaz2 || false
-
-    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc profile device get stovol-webbaz webbaz source)" = "webbaz" ]
-    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc config device get c2 web source)" = "webbaz" ]
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename --target node2 data webbaz webbaz2
+    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc profile device get stovol-webbaz webbaz source)" = "webbaz2" ]
+    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc config device get c2 web source)" = "webbaz2" ]
 
     LXD_DIR="${LXD_TWO_DIR}" lxc profile remove c3 stovol-webbaz
     LXD_DIR="${LXD_TWO_DIR}" lxc profile delete stovol-webbaz
 
-    # clean up
+    # Clean up.
     LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 c2 c3
 
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete --target node2 data webbaz
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete --target node2 data webbaz2
 
     # Since now there's only one volume in the pool left named webbaz,
     # it's possible to delete it without specifying --target.
