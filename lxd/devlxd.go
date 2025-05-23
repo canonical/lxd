@@ -449,7 +449,7 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 		reqInfo := request.SetupContextInfo(r)
 
 		// Set devLXD auth method to identify this request as coming from the /dev/lxd socket.
-		request.SetCtxValue(r, request.CtxProtocol, auth.AuthenticationMethodDevLXD)
+		reqInfo.Protocol = auth.AuthenticationMethodDevLXD
 
 		// Indicate whether the devLXD is being accessed over vsock. This allowes the handler
 		// to determine the correct response type. The responses over vsock are always

@@ -822,7 +822,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		reqInfo := request.SetupContextInfo(r)
 
 		// Set the "trusted" value in the request context.
-		request.SetCtxValue(r, request.CtxTrusted, trusted)
+		reqInfo.Trusted = trusted
 
 		// Set request source address value in the request context.
 		reqInfo.SourceAddress = r.RemoteAddr
@@ -849,18 +849,19 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			logger.Debug("Handling API request", logCtx)
 
 			// Add authentication/authorization context data.
-			ctx := context.WithValue(r.Context(), request.CtxUsername, username)
-			ctx = context.WithValue(ctx, request.CtxProtocol, protocol)
+			reqInfo.Username = username
+			reqInfo.Protocol = protocol
 			if len(identityProviderGroups) > 0 {
-				ctx = context.WithValue(ctx, request.CtxIdentityProviderGroups, identityProviderGroups)
+				reqInfo.IdentityProviderGroups = identityProviderGroups
 			}
 
 			// Add forwarded requestor data.
 			if protocol == auth.AuthenticationMethodCluster {
 				// Add authentication/authorization context data.
-				ctx = context.WithValue(ctx, request.CtxForwardedAddress, r.Header.Get(request.HeaderForwardedAddress))
-				ctx = context.WithValue(ctx, request.CtxForwardedUsername, r.Header.Get(request.HeaderForwardedUsername))
-				ctx = context.WithValue(ctx, request.CtxForwardedProtocol, r.Header.Get(request.HeaderForwardedProtocol))
+				reqInfo.ForwardedAddress = r.Header.Get(request.HeaderForwardedAddress)
+				reqInfo.ForwardedUsername = r.Header.Get(request.HeaderForwardedUsername)
+				reqInfo.ForwardedProtocol = r.Header.Get(request.HeaderForwardedProtocol)
+
 				forwardedIdentityProviderGroupsJSON := r.Header.Get(request.HeaderForwardedIdentityProviderGroups)
 				if forwardedIdentityProviderGroupsJSON != "" {
 					var forwardedIdentityProviderGroups []string
@@ -868,12 +869,10 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 					if err != nil {
 						logger.Error("Failed unmarshalling identity provider groups from forwarded request header", logger.Ctx{"err": err})
 					} else {
-						ctx = context.WithValue(ctx, request.CtxForwardedIdentityProviderGroups, forwardedIdentityProviderGroups)
+						reqInfo.ForwardedIdentityProviderGroups = forwardedIdentityProviderGroups
 					}
 				}
 			}
-
-			r = r.WithContext(ctx)
 		} else if untrustedOk && r.Header.Get("X-LXD-authenticated") == "" {
 			logger.Debug("Allowing untrusted "+r.Method, logger.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else {

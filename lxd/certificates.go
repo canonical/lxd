@@ -514,14 +514,14 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		userCanCreateCertificates = true
 	}
 
-	trusted, err := request.GetCtxValue[bool](r.Context(), request.CtxTrusted)
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed to get authentication status: %w", err))
+	reqInfo := request.GetContextInfo(r.Context())
+	if reqInfo == nil {
+		return response.SmartError(errors.New("Failed to get authentication status: Missing request context info"))
 	}
 
 	// If caller is already trusted and the trust token is provided, we validate the token and cancel
 	// the corresponding token operation.
-	if trusted && req.TrustToken != "" {
+	if reqInfo.Trusted && req.TrustToken != "" {
 		// Decode the trust token.
 		joinToken, err := shared.CertificateTokenDecode(req.TrustToken)
 		if err != nil {
@@ -542,7 +542,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// If caller is already trusted and does not have permission to create certificates, they cannot create more certificates.
-	if trusted && !userCanCreateCertificates && req.Certificate == "" && !req.Token {
+	if reqInfo.Trusted && !userCanCreateCertificates && req.Certificate == "" && !req.Token {
 		return response.BadRequest(errors.New("Client is already trusted"))
 	}
 

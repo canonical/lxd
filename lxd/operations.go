@@ -919,10 +919,8 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 
 	secret := r.FormValue("secret")
 
-	trusted, err := request.GetCtxValue[bool](r.Context(), request.CtxTrusted)
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed to get authentication status: %w", err))
-	}
+	reqInfo := request.GetContextInfo(r.Context())
+	trusted := reqInfo != nil && reqInfo.Trusted
 
 	if !trusted && secret == "" {
 		return response.Forbidden(nil)
