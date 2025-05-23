@@ -825,7 +825,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		request.SetCtxValue(r, request.CtxTrusted, trusted)
 
 		// Set request source address value in the request context.
-		request.SetCtxValue(r, request.CtxRequestSourceAddress, r.RemoteAddr)
+		reqInfo.SourceAddress = r.RemoteAddr
 
 		// Reject internal queries to remote, non-cluster, clients
 		if version == "internal" && !slices.Contains([]string{auth.AuthenticationMethodUnix, auth.AuthenticationMethodCluster}, protocol) {

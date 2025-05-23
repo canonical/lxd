@@ -54,7 +54,8 @@ func Connect(ctx context.Context, address string, networkCert *shared.CertInfo, 
 		args.UserAgent = clusterRequest.UserAgentNotifier
 	}
 
-	if request.IsRequestContext(ctx) {
+	reqInfo := request.GetContextInfo(ctx)
+	if reqInfo != nil {
 		proxy := func(req *http.Request) (*url.URL, error) {
 			val, ok := ctx.Value(request.CtxUsername).(string)
 			if ok {
@@ -66,8 +67,7 @@ func Connect(ctx context.Context, address string, networkCert *shared.CertInfo, 
 				req.Header.Add(request.HeaderForwardedProtocol, val)
 			}
 
-			reqSourceAddress, _ := ctx.Value(request.CtxRequestSourceAddress).(string)
-			req.Header.Add(request.HeaderForwardedAddress, reqSourceAddress)
+			req.Header.Add(request.HeaderForwardedAddress, reqInfo.SourceAddress)
 
 			identityProviderGroupsAny := ctx.Value(request.CtxIdentityProviderGroups)
 			if ok {
