@@ -113,7 +113,7 @@ dqlite:
 liblxc:
 	# lxc/liblxc
 	@if [ ! -e "$(LIBLXC_PATH)" ]; then \
-		echo "Retrieving lxc/liblxc from ${LIBLXC_BRANCH} branch"; \
+		echo "Retrieving lxc/liblxc from $(LIBLXC_BRANCH) branch"; \
 		git clone --depth=1 --branch "${LIBLXC_BRANCH}" "https://github.com/lxc/lxc" "$(LIBLXC_PATH)"; \
 	elif [ -e "$(LIBLXC_PATH)/.git" ]; then \
 		echo "Updating existing lxc/liblxc branch"; \
@@ -270,31 +270,52 @@ check-unit:
 ifeq "$(GOCOVERDIR)" ""
 	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 else
-	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./... -cover -test.gocoverdir="${GOCOVERDIR}"
+	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./... -cover -test.gocoverdir="$(GOCOVERDIR)"
 endif
 
 .PHONY: dist
 dist: doc
 	# Cleanup
-	rm -Rf $(ARCHIVE).gz
+	rm -f $(ARCHIVE).gz
 
 	# Create build dir
 	$(eval TMP := $(shell mktemp -d))
-	git archive --prefix=lxd-$(VERSION)/ HEAD | tar -x -C $(TMP)
-	git show-ref HEAD | cut -d' ' -f1 > $(TMP)/lxd-$(VERSION)/.gitref
+	$(eval HASH := $(shell git show-ref --hash HEAD))
+	git archive --prefix=lxd-$(VERSION)/ $(HASH) | tar -x -C $(TMP)
+	echo $(HASH) > $(TMP)/lxd-$(VERSION)/.gitref
 
 	# Download dependencies
 	(cd $(TMP)/lxd-$(VERSION) ; go mod vendor)
 
 	# Download the dqlite library
-	git clone --depth=1 --branch "${DQLITE_BRANCH}" https://github.com/canonical/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
+	git clone --depth=1 --branch "$(DQLITE_BRANCH)" https://github.com/canonical/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
 	(cd $(TMP)/lxd-$(VERSION)/vendor/dqlite ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
 
-	# Copy doc output
-	cp -r doc/_build $(TMP)/lxd-$(VERSION)/doc/html/
+	# Download the liblxc library
+	git clone --depth=1 --branch "$(LIBLXC_BRANCH)" https://github.com/lxc/lxc $(TMP)/lxd-$(VERSION)/vendor/liblxc
+	(cd $(TMP)/lxd-$(VERSION)/vendor/liblxc ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
 
-	# Assemble tarball
-	tar --exclude-vcs -C $(TMP) -zcf $(ARCHIVE).gz lxd-$(VERSION)/
+	# Copy doc output
+	cp -r --preserve=mode doc/_build $(TMP)/lxd-$(VERSION)/doc/html/
+
+	# Assemble a reproducible tarball
+	# The reproducibility comes from:
+	# * predictable file sorting (`--sort=name`)
+	# * clamping mtime to that of the HEAD commit timestamp
+	# * omit irrelevant information about file access or status change time
+	# * omit irrelevant information about user and group names
+	# * omit irrelevant information about file ownership and group
+	# * tell `gzip` to not embed the file name when compressing
+	# For more details: https://www.gnu.org/software/tar/manual/html_node/Reproducibility.html
+	$(eval SOURCE_EPOCH := $(shell TZ=UTC0 git log -1 --format=tformat:%cd --date=format:%Y-%m-%dT%H:%M:%SZ $(HASH)))
+	LC_ALL=C tar --sort=name --format=posix \
+		--pax-option=exthdr.name=%d/PaxHeaders/%f \
+		--pax-option=delete=atime,delete=ctime \
+		--clamp-mtime --mtime=$(SOURCE_EPOCH) \
+		--numeric-owner --owner=0 --group=0 \
+		--mode=go+u,go-w \
+		--use-compress-program="gzip --no-name" \
+		--exclude-vcs -C $(TMP) -cf $(ARCHIVE).gz lxd-$(VERSION)/
 
 	# Cleanup
 	rm -Rf $(TMP)
