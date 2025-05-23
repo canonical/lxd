@@ -1597,10 +1597,6 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     InitNetworksProjectPost:
         properties:
-            Project:
-                description: Project in which the network will reside
-                example: '"default"'
-                type: string
             config:
                 additionalProperties:
                     type: string
@@ -1621,6 +1617,11 @@ definitions:
                 example: lxdbr1
                 type: string
                 x-go-name: Name
+            project:
+                description: Project in which the network will reside
+                example: '"default"'
+                type: string
+                x-go-name: Project
             type:
                 description: The network type (refer to doc/networks.md)
                 example: bridge
@@ -2124,14 +2125,25 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     InstancePost:
         properties:
-            Config:
+            allow_inconsistent:
+                description: AllowInconsistent allow inconsistent copies when migrating.
+                example: false
+                type: boolean
+                x-go-name: AllowInconsistent
+            config:
                 additionalProperties:
                     type: string
                 description: Instance configuration file.
                 example:
                     security.nesting: "true"
                 type: object
-            Devices:
+                x-go-name: Config
+            container_only:
+                description: Whether snapshots should be discarded (migration only, deprecated, use instance_only)
+                example: false
+                type: boolean
+                x-go-name: ContainerOnly
+            devices:
                 additionalProperties:
                     additionalProperties:
                         type: string
@@ -2143,23 +2155,7 @@ definitions:
                         pool: default
                         type: disk
                 type: object
-            Profiles:
-                description: List of profiles applied to the instance.
-                example:
-                    - default
-                items:
-                    type: string
-                type: array
-            allow_inconsistent:
-                description: AllowInconsistent allow inconsistent copies when migrating.
-                example: false
-                type: boolean
-                x-go-name: AllowInconsistent
-            container_only:
-                description: Whether snapshots should be discarded (migration only, deprecated, use instance_only)
-                example: false
-                type: boolean
-                x-go-name: ContainerOnly
+                x-go-name: Devices
             instance_only:
                 description: Whether snapshots should be discarded (migration only)
                 example: false
@@ -2190,6 +2186,14 @@ definitions:
                 example: baz
                 type: string
                 x-go-name: Pool
+            profiles:
+                description: List of profiles applied to the instance.
+                example:
+                    - default
+                items:
+                    type: string
+                type: array
+                x-go-name: Profiles
             project:
                 description: Target project for local cross-project move
                 example: foo

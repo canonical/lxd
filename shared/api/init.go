@@ -49,7 +49,7 @@ type InitNetworksProjectPost struct {
 
 	// Project in which the network will reside
 	// Example: "default"
-	Project string
+	Project string `json:"project" yaml:"project"`
 }
 
 // InitStorageVolumesProjectPost represents the fields of a new LXD storage volume along with its associated pool.
