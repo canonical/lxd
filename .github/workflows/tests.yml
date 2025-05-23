@@ -237,9 +237,6 @@ jobs:
           retention-days: 1
         if: env.GOCOVERDIR != ''
 
-      - name: Download minio/mc to add to system test dependencies
-        uses: ./.github/actions/download-minio
-
       - name: Upload system test dependencies
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -247,8 +244,6 @@ jobs:
           path: |
             /home/runner/go/bin/lxc*
             /home/runner/go/bin/lxd*
-            /home/runner/go/bin/mc
-            /home/runner/go/bin/minio
             /home/runner/go/bin/dqlite
             /home/runner/go/bin/liblxc
           retention-days: 1
@@ -299,6 +294,9 @@ jobs:
 
       - name: Install runtime dependencies
         uses: ./.github/actions/install-lxd-runtimedeps
+
+      - name: Download minio/mc to add to system test dependencies
+        uses: ./.github/actions/download-minio
 
       - name: Download system test dependencies
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
