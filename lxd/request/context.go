@@ -6,14 +6,41 @@ import (
 	"net/http"
 )
 
+// Info represents the request information that are stored in the request
+// context, which is passed around.
+type Info struct{}
+
+// SetupContextInfo ensures an Info is set on the request context.
+// If already present, it returns the existing Info. Otherwise, it sets and returns a new one.
+func SetupContextInfo(r *http.Request) *Info {
+	info := GetContextInfo(r.Context())
+	if info != nil {
+		return info
+	}
+
+	info = &Info{}
+	SetCtxValue(r, CtxRequestInfo, info)
+	return info
+}
+
+// GetContextInfo gets the request information from the request context.
+func GetContextInfo(ctx context.Context) *Info {
+	info, ok := ctx.Value(CtxRequestInfo).(*Info)
+	if !ok {
+		return nil
+	}
+
+	return info
+}
+
 // IsRequestContext checks if the given context is a request context.
-// The request context is identified by the presence of the CtxRequestSourceAddress key.
+// This is determined by checking the presence of the request information in the context.
 func IsRequestContext(ctx context.Context) bool {
 	if ctx == nil {
 		return false
 	}
 
-	return ctx.Value(CtxRequestSourceAddress) != nil
+	return GetContextInfo(ctx) != nil
 }
 
 // GetCtxValue gets a value of type T from the context using the given key.

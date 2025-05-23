@@ -5,6 +5,9 @@ type CtxKey string
 
 // Context keys.
 const (
+	// CtxRequestInfo is the request information that are stored in the request context.
+	CtxRequestInfo CtxKey = "request_info"
+
 	// CtxDevLXDInstance is the instance that made a request over the devLXD API.
 	CtxDevLXDInstance CtxKey = "devlxd_instance"
 
