@@ -11,9 +11,6 @@ const (
 	// CtxDevLXDOverVsock indicates whether the devLXD is being interacted with over vsock.
 	CtxDevLXDOverVsock CtxKey = "devlxd_over_vsock"
 
-	// CtxAccess is the access field in request context.
-	CtxAccess CtxKey = "access"
-
 	// CtxConn is the connection field in the request context.
 	CtxConn CtxKey = "conn"
 
