@@ -11,6 +11,11 @@ import (
 func CreateRequestor(ctx context.Context) *api.EventLifecycleRequestor {
 	requestor := &api.EventLifecycleRequestor{}
 
+	reqInfo := GetContextInfo(ctx)
+	if reqInfo != nil {
+		requestor.Address = reqInfo.SourceAddress
+	}
+
 	// Normal requestor.
 	val, ok := ctx.Value(CtxUsername).(string)
 	if ok {
@@ -21,8 +26,6 @@ func CreateRequestor(ctx context.Context) *api.EventLifecycleRequestor {
 	if ok {
 		requestor.Protocol = val
 	}
-
-	requestor.Address, _ = ctx.Value(CtxRequestSourceAddress).(string)
 
 	// Forwarded requestor override.
 	val, ok = ctx.Value(CtxForwardedUsername).(string)
