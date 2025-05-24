@@ -144,7 +144,9 @@ jobs:
           # liblxc requires a rootfs dir
           mkdir -p /home/runner/go/bin/liblxc/rootfs
 
-          # Update env variables for liblxc
+      - name: Update env variables for deps
+        run: |
+          set -eux
           LIBLXC_ARCH_LIBS="$(readlink -e /home/runner/go/bin/liblxc/libs/*-linux-gnu)"
 
           echo "CGO_LDFLAGS=${CGO_LDFLAGS} -L${LIBLXC_ARCH_LIBS}"       >> "${GITHUB_ENV}"
