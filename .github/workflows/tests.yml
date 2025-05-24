@@ -319,6 +319,14 @@ jobs:
 
       - name: Setup MicroCeph
         if: ${{ matrix.backend == 'ceph' }}
+        run: |
+          set -eux
+          # LXD snap holds on to the swap that prevents the clearing of the ephemeral disk for microceph
+          # https://github.com/canonical/lxd/issues/14768
+          sudo snap remove --purge lxd
+
+      - name: Setup MicroCeph
+        if: ${{ matrix.backend == 'ceph' }}
         uses: ./.github/actions/setup-microceph
         with:
           osd-count: 3
