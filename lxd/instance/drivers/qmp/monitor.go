@@ -153,8 +153,11 @@ func (m *Monitor) ping() error {
 		return ErrMonitorDisconnect
 	}
 
+	id := m.qmp.qmpIncreaseID()
+
 	// Query the capabilities to validate the monitor.
-	_, err := m.qmp.run([]byte("{'execute': 'query-version'}"))
+	_, err := m.qmp.run(fmt.Appendf([]byte{},
+		`{"execute": "query-version", "id": %d}`, id), id)
 	if err != nil {
 		m.Disconnect()
 		return ErrMonitorDisconnect
@@ -184,7 +187,7 @@ func (m *Monitor) run(cmd string, args any, resp any) error {
 		return err
 	}
 
-	out, err := m.qmp.run(request)
+	out, err := m.qmp.run(request, qmpZeroKey)
 	if err != nil {
 		// Confirm the daemon didn't die.
 		errPing := m.ping()
