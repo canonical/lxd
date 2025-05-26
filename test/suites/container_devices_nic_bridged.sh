@@ -31,7 +31,7 @@ test_container_devices_nic_bridged() {
   lxc network set "${brName}" ipv6.address 2001:db8::1/64
   lxc network set "${brName}" ipv4.routes 192.0.3.0/24
   lxc network set "${brName}" ipv6.routes 2001:db8::/64
-  [ "$(cat /sys/class/net/${brName}/address)" = "00:11:22:33:44:55" ]
+  [ "$(cat "/sys/class/net/${brName}/address")" = "00:11:22:33:44:55" ]
 
   # Record how many nics we started with.
   startNicCount=$(find /sys/class/net | wc -l)
@@ -71,20 +71,20 @@ test_container_devices_nic_bridged() {
 
   # Check that adding another NIC to the same network fails because it triggers duplicate instance DNS name checks.
   # Because this would effectively cause 2 NICs with the same instance name to be connected to the same network.
-  ! lxc config device add "${ctName}" eth1 nic network=${brName} || false
+  ! lxc config device add "${ctName}" eth1 nic network="${brName}" || false
 
   # Test device name validation (use vlan=1 to avoid trigger instance DNS name conflict detection).
-  lxc config device add "${ctName}" 127.0.0.1 nic network=${brName} vlan=1
+  lxc config device add "${ctName}" 127.0.0.1 nic network="${brName}" vlan=1
   lxc config device remove "${ctName}" 127.0.0.1
-  lxc config device add "${ctName}" ::1 nic network=${brName} vlan=1
+  lxc config device add "${ctName}" ::1 nic network="${brName}" vlan=1
   lxc config device remove "${ctName}" ::1
-  lxc config device add "${ctName}" _valid-name nic network=${brName} vlan=1
+  lxc config device add "${ctName}" _valid-name nic network="${brName}" vlan=1
   lxc config device remove "${ctName}" _valid-name
-  lxc config device add "${ctName}" /foo nic network=${brName} vlan=1
+  lxc config device add "${ctName}" /foo nic network="${brName}" vlan=1
   lxc config device remove "${ctName}" /foo
-  ! lxc config device add "${ctName}" .invalid nic network=${brName} vlan=1 || false
-  ! lxc config device add "${ctName}" ./invalid nic network=${brName} vlan=1 || false
-  ! lxc config device add "${ctName}" ../invalid nic network=${brName} vlan=1 || false
+  ! lxc config device add "${ctName}" .invalid nic network="${brName}" vlan=1 || false
+  ! lxc config device add "${ctName}" ./invalid nic network="${brName}" vlan=1 || false
+  ! lxc config device add "${ctName}" ../invalid nic network="${brName}" vlan=1 || false
 
   # Start instance.
   lxc start "${ctName}"
@@ -160,7 +160,7 @@ test_container_devices_nic_bridged() {
   lxc config device add "${ctName}" eth0 nic \
     nictype=bridged \
     name=eth0 \
-    parent=${brName} \
+    parent="${brName}" \
     ipv4.routes="192.0.2.2${ipRand}/32" \
     ipv6.routes="2001:db8::2${ipRand}/128" \
     limits.ingress=3Mbit \
@@ -288,7 +288,7 @@ test_container_devices_nic_bridged() {
   lxc config device add "${ctName}" eth0 nic \
     nictype=bridged \
     name=eth0 \
-    parent=${brName} \
+    parent="${brName}" \
     host_name="${vethHostName}" \
     ipv4.routes="192.0.2.1${ipRand}/32" \
     ipv6.routes="2001:db8::1${ipRand}/128"
@@ -586,7 +586,7 @@ test_container_devices_nic_bridged() {
   lxc network set "${brName}" ipv6.address none
 
   # Confirm IPv6 is disabled.
-  [ "$(cat /proc/sys/net/ipv6/conf/${brName}/disable_ipv6)" = "1" ]
+  [ "$(cat "/proc/sys/net/ipv6/conf/${brName}/disable_ipv6")" = "1" ]
 
   if [ -f "${LXD_DIR}/networks/${brName}/dnsmasq.leases" ] ; then
     echo "dnsmasq.leases file still present after disabling DHCP"
@@ -612,7 +612,7 @@ test_container_devices_nic_bridged() {
   lxc profile device set "${ctName}" eth0 ipv6.routes "2001:db8::1${ipRand}/128"
 
   # Confirm IPv6 is re-enabled.
-  [ "$(cat /proc/sys/net/ipv6/conf/${brName}/disable_ipv6)" = "0" ]
+  [ "$(cat "/proc/sys/net/ipv6/conf/${brName}/disable_ipv6")" = "0" ]
 
   # Check dnsmasq host file is created on add.
   lxc config device add "${ctName}" eth0 nic nictype=bridged parent="${brName}" name=eth0
