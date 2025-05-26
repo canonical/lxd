@@ -23,33 +23,33 @@ test_container_devices_nic_p2p() {
   lxc launch testimage "${ctName}" -p "${ctName}"
 
   # Check profile routes are applied on boot.
-  if ! ip -4 r list dev "${vethHostName}" | grep "192.0.2.1${ipRand}" ; then
+  if ! ip -4 r list dev "${vethHostName}" | grep -F "192.0.2.1${ipRand}" ; then
     echo "ipv4.routes invalid"
     false
   fi
-  if ! ip -6 r list dev "${vethHostName}" | grep "2001:db8::1${ipRand}" ; then
+  if ! ip -6 r list dev "${vethHostName}" | grep -F "2001:db8::1${ipRand}" ; then
     echo "ipv4.routes invalid"
     false
   fi
 
   # Check profile limits are applied on boot.
-  if ! tc class show dev "${vethHostName}" | grep "1Mbit" ; then
+  if ! tc class show dev "${vethHostName}" | grep -F "1Mbit" ; then
     echo "limits.ingress invalid"
     false
   fi
-  if ! tc filter show dev "${vethHostName}" egress | grep "2Mbit" ; then
+  if ! tc filter show dev "${vethHostName}" egress | grep -F "2Mbit" ; then
     echo "limits.egress invalid"
     false
   fi
 
   # Check profile custom MTU is applied in container on boot.
-  if ! lxc exec "${ctName}" -- grep "1400" /sys/class/net/eth0/mtu ; then
+  if ! lxc exec "${ctName}" -- grep -xF "1400" /sys/class/net/eth0/mtu ; then
     echo "container veth mtu invalid"
     false
   fi
 
   # Check profile custom MTU is applied on host-side on boot.
-  if !  grep "1400" /sys/class/net/"${vethHostName}"/mtu ; then
+  if !  grep -xF "1400" /sys/class/net/"${vethHostName}"/mtu ; then
     echo "host veth mtu invalid"
     false
   fi
@@ -85,33 +85,33 @@ test_container_devices_nic_p2p() {
     mtu=1401
 
   # Check routes are applied on hot-plug.
-  if ! ip -4 r list dev "${vethHostName}p2p" | grep "192.0.2.3${ipRand}" ; then
+  if ! ip -4 r list dev "${vethHostName}p2p" | grep -F "192.0.2.3${ipRand}" ; then
     echo "ipv4.routes invalid"
     false
   fi
-  if ! ip -6 r list dev "${vethHostName}p2p" | grep "2001:db8::3${ipRand}" ; then
+  if ! ip -6 r list dev "${vethHostName}p2p" | grep -F "2001:db8::3${ipRand}" ; then
     echo "ipv4.routes invalid"
     false
   fi
 
   # Check limits are applied on hot-plug.
-  if ! tc class show dev "${vethHostName}p2p" | grep "3Mbit" ; then
+  if ! tc class show dev "${vethHostName}p2p" | grep -F "3Mbit" ; then
     echo "limits.ingress invalid"
     false
   fi
-  if ! tc filter show dev "${vethHostName}p2p" egress | grep "4Mbit" ; then
+  if ! tc filter show dev "${vethHostName}p2p" egress | grep -F "4Mbit" ; then
     echo "limits.egress invalid"
     false
   fi
 
   # Check custom MTU is applied on hot-plug.
-  if ! lxc exec "${ctName}" -- grep "1401" /sys/class/net/eth0/mtu ; then
+  if ! lxc exec "${ctName}" -- grep -xF "1401" /sys/class/net/eth0/mtu ; then
     echo "container veth mtu invalid"
     false
   fi
 
   # Check custom MTU is applied on host-side on hot-plug.
-  if !  grep "1401" /sys/class/net/"${vethHostName}p2p"/mtu ; then
+  if !  grep -xF "1401" /sys/class/net/"${vethHostName}p2p"/mtu ; then
     echo "host veth mtu invalid"
     false
   fi
@@ -126,33 +126,33 @@ test_container_devices_nic_p2p() {
   lxc config device remove "${ctName}" eth0
 
   # Check profile routes are applied on hot-removal.
-  if ! ip -4 r list dev "${vethHostName}" | grep "192.0.2.1${ipRand}" ; then
+  if ! ip -4 r list dev "${vethHostName}" | grep -F "192.0.2.1${ipRand}" ; then
     echo "ipv4.routes invalid"
     false
   fi
-  if ! ip -6 r list dev "${vethHostName}" | grep "2001:db8::1${ipRand}" ; then
+  if ! ip -6 r list dev "${vethHostName}" | grep -F "2001:db8::1${ipRand}" ; then
     echo "ipv4.routes invalid"
     false
   fi
-  if ! tc class show dev "${vethHostName}" | grep "1Mbit" ; then
+  if ! tc class show dev "${vethHostName}" | grep -F "1Mbit" ; then
     echo "limits.ingress invalid"
     false
   fi
 
   # Check profile limits are applied on hot-removal.
-  if ! tc filter show dev "${vethHostName}" egress | grep "2Mbit" ; then
+  if ! tc filter show dev "${vethHostName}" egress | grep -F "2Mbit" ; then
     echo "limits.egress invalid"
     false
   fi
 
   # Check profile custom MTU is applied on hot-removal.
-  if ! lxc exec "${ctName}" -- grep "1400" /sys/class/net/eth0/mtu ; then
+  if ! lxc exec "${ctName}" -- grep -xF "1400" /sys/class/net/eth0/mtu ; then
     echo "container veth mtu invalid"
     false
   fi
 
   # Check profile custom MTU is applied on host-side on hot-removal.
-  if ! grep "1400" /sys/class/net/"${vethHostName}"/mtu ; then
+  if ! grep -xF "1400" /sys/class/net/"${vethHostName}"/mtu ; then
     echo "host veth mtu invalid"
     false
   fi
@@ -171,27 +171,27 @@ test_container_devices_nic_p2p() {
   lxc config device set "${ctName}" eth0 hwaddr "${ctMAC}"
 
   # Check routes are applied on update.
-  if ! ip -4 r list dev "${vethHostName}" | grep "192.0.2.2${ipRand}" ; then
+  if ! ip -4 r list dev "${vethHostName}" | grep -F "192.0.2.2${ipRand}" ; then
     echo "ipv4.routes invalid"
     false
   fi
-  if ! ip -6 r list dev "${vethHostName}" | grep "2001:db8::2${ipRand}" ; then
+  if ! ip -6 r list dev "${vethHostName}" | grep -F "2001:db8::2${ipRand}" ; then
     echo "ipv4.routes invalid"
     false
   fi
 
   # Check limits are applied on update.
-  if ! tc class show dev "${vethHostName}" | grep "3Mbit" ; then
+  if ! tc class show dev "${vethHostName}" | grep -F "3Mbit" ; then
     echo "limits.ingress invalid"
     false
   fi
-  if ! tc filter show dev "${vethHostName}" egress | grep "4Mbit" ; then
+  if ! tc filter show dev "${vethHostName}" egress | grep -F "4Mbit" ; then
     echo "limits.egress invalid"
     false
   fi
 
   # Check custom MTU is applied update.
-  if ! lxc exec "${ctName}" -- grep "1402" /sys/class/net/eth0/mtu ; then
+  if ! lxc exec "${ctName}" -- grep -xF "1402" /sys/class/net/eth0/mtu ; then
     echo "mtu invalid"
     false
   fi
@@ -217,11 +217,11 @@ test_container_devices_nic_p2p() {
   lxc config device set "${ctName}" eth0 ipv6.routes "2001:db8::2${ipRand}/128"
 
   # Check routes are applied on update. The host name is dynamic, so just check routes exist.
-  if ! ip -4 r list | grep "192.0.2.2${ipRand}" ; then
+  if ! ip -4 r list | grep -F "192.0.2.2${ipRand}" ; then
     echo "ipv4.routes invalid"
     false
   fi
-  if ! ip -6 r list | grep "2001:db8::2${ipRand}" ; then
+  if ! ip -6 r list | grep -F "2001:db8::2${ipRand}" ; then
     echo "ipv6.routes invalid"
     false
   fi
@@ -231,21 +231,21 @@ test_container_devices_nic_p2p() {
   lxc config device set "${ctName}" eth0 ipv6.routes "2001:db8::3${ipRand}/128"
 
   # Check routes are applied on update. The host name is dynamic, so just check routes exist.
-  if ! ip -4 r list | grep "192.0.2.3${ipRand}" ; then
+  if ! ip -4 r list | grep -F "192.0.2.3${ipRand}" ; then
     echo "ipv4.routes invalid"
     false
   fi
-  if ! ip -6 r list | grep "2001:db8::3${ipRand}" ; then
+  if ! ip -6 r list | grep -F "2001:db8::3${ipRand}" ; then
     echo "ipv6.routes invalid"
     false
   fi
 
   # Check old routes removed
-  if ip -4 r list | grep "192.0.2.2${ipRand}" ; then
+  if ip -4 r list | grep -F "192.0.2.2${ipRand}" ; then
     echo "ipv4.routes invalid"
     false
   fi
-  if ip -6 r list | grep "2001:db8::2${ipRand}" ; then
+  if ip -6 r list | grep -F "2001:db8::2${ipRand}" ; then
     echo "ipv6.routes invalid"
     false
   fi
@@ -253,11 +253,11 @@ test_container_devices_nic_p2p() {
   # Now remove device, check routes go
   lxc config device remove "${ctName}" eth0
 
-  if ip -4 r list | grep "192.0.2.3${ipRand}" ; then
+  if ip -4 r list | grep -F "192.0.2.3${ipRand}" ; then
     echo "ipv4.routes invalid"
     false
   fi
-  if ip -6 r list | grep "2001:db8::3${ipRand}" ; then
+  if ip -6 r list | grep -F "2001:db8::3${ipRand}" ; then
     echo "ipv6.routes invalid"
     false
   fi
@@ -278,11 +278,11 @@ test_container_devices_nic_p2p() {
   lxc start "${ctName}"
 
   # Check routes are applied on start. The host name is dynamic, so just check routes exist.
-  if ! ip -4 r list | grep "192.0.2.2${ipRand}" ; then
+  if ! ip -4 r list | grep -F "192.0.2.2${ipRand}" ; then
     echo "ipv4.routes invalid"
     false
   fi
-  if ! ip -6 r list | grep "2001:db8::2${ipRand}" ; then
+  if ! ip -6 r list | grep -F "2001:db8::2${ipRand}" ; then
     echo "ipv6.routes invalid"
     false
   fi
@@ -292,21 +292,21 @@ test_container_devices_nic_p2p() {
   lxc config device set "${ctName}" eth0 ipv6.routes "2001:db8::3${ipRand}/128"
 
   # Check routes are applied on update. The host name is dynamic, so just check routes exist.
-  if ! ip -4 r list | grep "192.0.2.3${ipRand}" ; then
+  if ! ip -4 r list | grep -F "192.0.2.3${ipRand}" ; then
     echo "ipv4.routes invalid"
     false
   fi
-  if ! ip -6 r list | grep "2001:db8::3${ipRand}" ; then
+  if ! ip -6 r list | grep -F "2001:db8::3${ipRand}" ; then
     echo "ipv6.routes invalid"
     false
   fi
 
   # Check old routes removed
-  if ip -4 r list | grep "192.0.2.2${ipRand}" ; then
+  if ip -4 r list | grep -F "192.0.2.2${ipRand}" ; then
     echo "ipv4.routes invalid"
     false
   fi
-  if ip -6 r list | grep "2001:db8::2${ipRand}" ; then
+  if ip -6 r list | grep -F "2001:db8::2${ipRand}" ; then
     echo "ipv6.routes invalid"
     false
   fi
@@ -315,11 +315,11 @@ test_container_devices_nic_p2p() {
   lxc config device remove "${ctName}" eth0
 
   # Check old routes removed
-  if ip -4 r list | grep "192.0.2.3${ipRand}" ; then
+  if ip -4 r list | grep -F "192.0.2.3${ipRand}" ; then
     echo "ipv4.routes invalid"
     false
   fi
-  if ip -6 r list | grep "2001:db8::3${ipRand}" ; then
+  if ip -6 r list | grep -F "2001:db8::3${ipRand}" ; then
     echo "ipv6.routes invalid"
     false
   fi
@@ -333,11 +333,11 @@ test_container_devices_nic_p2p() {
   lxc config device set "${ctName}" eth0 ipv6.routes "2001:db8::2${ipRand}/128"
 
   # Check routes are applied. The host name is dynamic, so just check routes exist.
-  if ! ip -4 r list | grep "192.0.2.2${ipRand}" ; then
+  if ! ip -4 r list | grep -F "192.0.2.2${ipRand}" ; then
     echo "ipv4.routes invalid"
     false
   fi
-  if ! ip -6 r list | grep "2001:db8::2${ipRand}" ; then
+  if ! ip -6 r list | grep -F "2001:db8::2${ipRand}" ; then
     echo "ipv6.routes invalid"
     false
   fi
@@ -346,11 +346,11 @@ test_container_devices_nic_p2p() {
   lxc config device remove "${ctName}" eth0
 
   # Check old routes removed
-  if ip -4 r list | grep "192.0.2.2${ipRand}" ; then
+  if ip -4 r list | grep -F "192.0.2.2${ipRand}" ; then
     echo "ipv4.routes invalid"
     false
   fi
-  if ip -6 r list | grep "2001:db8::2${ipRand}" ; then
+  if ip -6 r list | grep -F "2001:db8::2${ipRand}" ; then
     echo "ipv6.routes invalid"
     false
   fi
