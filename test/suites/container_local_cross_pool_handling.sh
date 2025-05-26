@@ -50,7 +50,7 @@ test_container_local_cross_pool_handling() {
         fi
 
         if [ -n "${pool_opts}" ]; then
-          # shellcheck disable=SC2086
+          # shellcheck disable=SC2086,SC2248
           lxc storage create "lxdtest-$(basename "${LXD_DIR}")-${driver}1" "${driver}" $pool_opts
         else
           lxc storage create "lxdtest-$(basename "${LXD_DIR}")-${driver}1" "${driver}"
