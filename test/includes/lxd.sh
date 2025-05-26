@@ -31,7 +31,6 @@ spawn_lxd() {
     echo "$lxd_backend" > "${lxddir}/lxd.backend"
 
     echo "==> Spawning lxd in ${lxddir}"
-    # shellcheck disable=SC2086
 
     # Set ulimit to ensure core dump is outputted.
     ulimit -c unlimited
@@ -94,7 +93,6 @@ respawn_lxd() {
     shift
 
     echo "==> Spawning lxd in ${lxddir}"
-    # shellcheck disable=SC2086
     if [ "${LXD_NETNS}" = "" ]; then
         LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     else
