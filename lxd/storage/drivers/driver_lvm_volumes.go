@@ -948,6 +948,11 @@ func (d *lvm) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 func (d *lvm) RenameVolume(vol Volume, newVolName string, op *operations.Operation) error {
 	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 
+	// Defend against path traversal attacks.
+	if !shared.IsFileName(newVolName) {
+		return fmt.Errorf("Invalid volume name %q", newVolName)
+	}
+
 	return vol.UnmountTask(func(op *operations.Operation) error {
 		snapNames, err := d.VolumeSnapshots(vol, op)
 		if err != nil {
