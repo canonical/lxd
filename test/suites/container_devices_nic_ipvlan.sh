@@ -32,7 +32,7 @@ test_container_devices_nic_ipvlan() {
   lxc start "${ctName}"
 
   # Check custom MTU is applied.
-  if ! lxc exec "${ctName}" -- ip link show eth0 | grep "mtu 1400" ; then
+  if ! lxc exec "${ctName}" -- ip link show eth0 | grep -F "mtu 1400" ; then
     echo "mtu invalid"
     false
   fi
@@ -43,7 +43,7 @@ test_container_devices_nic_ipvlan() {
   ip link set "${ctName}" mtu 1405
   lxc config device unset "${ctName}" eth0 mtu
   lxc start "${ctName}"
-  if ! lxc exec "${ctName}" -- grep "1405" /sys/class/net/eth0/mtu ; then
+  if ! lxc exec "${ctName}" -- grep -xF "1405" /sys/class/net/eth0/mtu ; then
     echo "mtu not inherited from parent"
     false
   fi
@@ -79,14 +79,14 @@ test_container_devices_nic_ipvlan() {
   lxc start "${ctName}"
 
   # Check VLAN interface created
-  if ! grep "1" "/sys/class/net/${ctName}.1234/carrier" ; then
+  if ! grep -xF "1" "/sys/class/net/${ctName}.1234/carrier" ; then
     echo "vlan interface not created"
     false
   fi
 
   # Check static routes added to custom routing table
-  ip -4 route show table 100 | grep "192.0.2.1${ipRand}"
-  ip -6 route show table 101 | grep "2001:db8::1${ipRand}"
+  ip -4 route show table 100 | grep -F "192.0.2.1${ipRand}"
+  ip -6 route show table 101 | grep -F "2001:db8::1${ipRand}"
 
   # Check volatile cleanup on stop.
   lxc stop -f "${ctName}"
@@ -96,7 +96,7 @@ test_container_devices_nic_ipvlan() {
   fi
 
   # Check parent device is still up.
-  if ! grep "1" "/sys/class/net/${ctName}/carrier" ; then
+  if ! grep -xF "1" "/sys/class/net/${ctName}/carrier" ; then
     echo "parent is down"
     false
   fi
