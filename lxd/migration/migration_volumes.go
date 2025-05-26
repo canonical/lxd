@@ -23,9 +23,10 @@ type Info struct {
 // But in the future the itention is to use it allow the target to send back additional information to the source
 // about which frames (such as snapshots) it needs for the migration after having inspected the Info index header.
 type InfoResponse struct {
-	StatusCode int
-	Error      string
-	Refresh    *bool // This is used to let the source know whether to actually refresh a volume.
+	// To not break the migration API, the struct tags cannot use the lowercase representation of the struct's fields.
+	StatusCode int    `json:"StatusCode"`
+	Error      string `json:"Error"`
+	Refresh    *bool  `json:"Refresh"` // This is used to let the source know whether to actually refresh a volume.
 }
 
 // Err returns the error of the response.
