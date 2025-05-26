@@ -12,7 +12,6 @@ runs:
 
         sudo apt-get install --no-install-recommends -y \
           build-essential \
-          curl \
           gettext \
           git \
           libacl1-dev \
