@@ -23,7 +23,7 @@ test_container_devices_nic_ipvlan() {
   lxc init testimage "${ctName}"
   lxc config device add "${ctName}" eth0 nic \
     nictype=ipvlan \
-    parent=${ctName} \
+    parent="${ctName}" \
     ipv4.address="192.0.2.1${ipRand}" \
     ipv6.address="2001:db8::1${ipRand}" \
     ipv4.gateway=auto \
@@ -52,7 +52,7 @@ test_container_devices_nic_ipvlan() {
   lxc init testimage "${ctName}2"
   lxc config device add "${ctName}2" eth0 nic \
     nictype=ipvlan \
-    parent=${ctName} \
+    parent="${ctName}" \
     ipv4.address="192.0.2.2${ipRand}, 192.0.2.3${ipRand}" \
     ipv6.address="2001:db8::2${ipRand}, 2001:db8::3${ipRand}"
   lxc start "${ctName}2"
@@ -110,7 +110,7 @@ test_container_devices_nic_ipvlan() {
   lxc config device add "${ctName}" eth0 nic \
     nictype=ipvlan \
     mode=l2 \
-    parent=${ctName} \
+    parent="${ctName}" \
     ipv4.address="192.0.2.1${ipRand},192.0.2.2${ipRand}/32" \
     ipv6.address="2001:db8::1${ipRand},2001:db8::2${ipRand}/128" \
     ipv4.gateway=192.0.2.254 \
@@ -121,7 +121,7 @@ test_container_devices_nic_ipvlan() {
   lxc config device remove "${ctName}2" eth0
   lxc config device add "${ctName}2" eth0 nic \
     nictype=ipvlan \
-    parent=${ctName} \
+    parent="${ctName}" \
     ipv4.address="192.0.2.3${ipRand}" \
     ipv6.address="2001:db8::3${ipRand}" \
     mtu=1400
