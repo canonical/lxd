@@ -227,7 +227,7 @@ type InstanceRebuildPost struct {
 //
 // API extension: instances.
 type Instance struct {
-	WithEntitlements `yaml:",inline"`
+	WithEntitlements `yaml:",inline"` //nolint:musttag
 
 	// Instance name
 	// Example: foo
