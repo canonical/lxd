@@ -833,6 +833,18 @@ func IsFileName(name string) bool {
 	return !strings.Contains(name, "/") && !strings.Contains(name, "\\") && !strings.Contains(name, "..")
 }
 
+// IsPathWithinBaseDir validates that the given path, when resolved relative to baseDir remains within the baseDir.
+func IsPathWithinBaseDir(baseDir string, path string) bool {
+	// Clean and resolve absolute path.
+	cleanPath := filepath.Clean(path)
+	absPath, err := filepath.Abs(filepath.Join(baseDir, cleanPath))
+	if err != nil || !strings.HasPrefix(absPath, baseDir) {
+		return false
+	}
+
+	return true
+}
+
 // DeepCopy copies src to dest by using encoding/gob so its not that fast.
 func DeepCopy(src, dest any) error {
 	buff := new(bytes.Buffer)
