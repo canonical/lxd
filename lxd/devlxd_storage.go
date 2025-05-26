@@ -38,6 +38,7 @@ var devLXDStoragePoolVolumesTypeEndpoint = APIEndpoint{
 var devLXDStoragePoolVolumeTypeEndpoint = APIEndpoint{
 	Path:   "storage-pools/{poolName}/volumes/{type}/{volumeName}",
 	Get:    APIEndpointAction{Handler: devLXDStoragePoolVolumeGetHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanView)},
+	Put:    APIEndpointAction{Handler: devLXDStoragePoolVolumePutHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanEdit)},
 	Delete: APIEndpointAction{Handler: devLXDStoragePoolVolumeDeleteHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanDelete)},
 }
 
@@ -330,6 +331,92 @@ func devLXDStoragePoolVolumeGetHandler(d *Daemon, r *http.Request) response.Resp
 	}
 
 	return response.DevLXDResponseETag(http.StatusOK, vol, "json", etag)
+}
+
+// devLXDStoragePoolVolumePutHandler updates the specified custom storage volume if it is owned by the caller.
+// If the volume is not found or not owned by the caller, it returns a generic not found error.
+func devLXDStoragePoolVolumePutHandler(d *Daemon, r *http.Request) response.Response {
+	inst, err := getInstanceFromContextAndCheckSecurityFlags(r.Context(), devLXDSecurityKey, devLXDSecurityManagementVolumesKey)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	projectName := inst.Project().Name
+	target := r.URL.Query().Get("target")
+	pathVars := mux.Vars(r)
+
+	poolName, err := url.PathUnescape(pathVars["poolName"])
+	if err != nil {
+		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
+	}
+
+	volName, err := url.PathUnescape(pathVars["volumeName"])
+	if err != nil {
+		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
+	}
+
+	volType, err := url.PathUnescape(pathVars["type"])
+	if err != nil {
+		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
+	}
+
+	// Retrieve the volume first to ensure the caller owns it.
+	_, _, err = devLXDStoragePoolVolumeGet(r.Context(), d, target, inst.Project().Name, poolName, volName, volType)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	// Get identity from the request context.
+	identity, err := request.GetCallerIdentityFromContext(r.Context())
+	if identity == nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	// Decode the request body.
+	vol := api.DevLXDStorageVolumePut{}
+	err = json.NewDecoder(r.Body).Decode(&vol)
+	if err != nil {
+		return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "Failed decoding request body: %w", err))
+	}
+
+	if vol.Config == nil {
+		vol.Config = make(map[string]string)
+	}
+
+	// Ensure the volume owner cannot be changed.
+	_, ok := vol.Config["volatile.devlxd.owner"]
+	if ok && !isDevLXDVolumeOwner(vol.Config, identity.Identifier) {
+		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusBadRequest, "Volume owner cannot be changed"))
+	}
+
+	// Ensure caller's identity ID is retained as the volume owner.
+	vol.Config["volatile.devlxd.owner"] = identity.Identifier
+
+	//nolint:staticcheck // Explicitly copying fields to avoid future issues if the types diverge.
+	reqBody := api.StorageVolumePut{
+		Config:      vol.Config,
+		Description: vol.Description,
+	}
+
+	etag := r.Header.Get("If-Match")
+
+	url := api.NewURL().Path("1.0", "storage-pools", poolName, "volumes", "custom", volName).Project(projectName)
+	if target != "" {
+		url = url.WithQuery("target", target)
+	}
+
+	req, err := lxd.NewRequestWithContext(r.Context(), http.MethodPut, url.String(), reqBody, etag)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	resp := storagePoolVolumePut(d, req)
+	err = response.NewResponseCapture(req).Render(resp)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	return response.DevLXDResponse(http.StatusOK, "", "raw")
 }
 
 // devLXDStoragePoolVolumeDeleteHandler deletes the specified custom storage volume if it is owned by the caller.
