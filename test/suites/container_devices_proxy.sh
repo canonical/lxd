@@ -739,8 +739,8 @@ container_devices_proxy_with_overlapping_forward_net() {
   lxc config device add proxyTester eth0 nic \
     nictype=bridged \
     name=eth0 \
-    parent=${netName} \
-    ipv4.address=${proxyTesterStaticIP}
+    parent="${netName}" \
+    ipv4.address="${proxyTesterStaticIP}"
 
   # Check creating empty forward doesn't create any firewall rules.
   lxc network forward create "${netName}" "${overlappingAddr}"
@@ -757,8 +757,8 @@ container_devices_proxy_with_overlapping_forward_net() {
   lxc config device add proxyTester eth0 nic \
     nictype=bridged \
     name=eth0 \
-    parent=${netName} \
-    ipv4.address=${proxyTesterStaticIP}
+    parent="${netName}" \
+    ipv4.address="${proxyTesterStaticIP}"
 
   lxc config device add proxyTester proxyDev proxy "listen=tcp:${overlappingAddr}:$HOST_TCP_PORT" "connect=tcp:${proxyTesterStaticIP}:4321" nat=true
 
