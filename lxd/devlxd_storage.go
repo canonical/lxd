@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -201,4 +202,81 @@ func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) response.Re
 	}
 
 	return response.DevLXDResponse(http.StatusOK, "", "raw")
+}
+
+var devLXDStoragePoolVolumeTypeEndpoint = devLXDAPIEndpoint{
+	Path: "storage-pools/{poolName}/volumes/{type}/{volumeName}",
+	Get:  devLXDAPIEndpointAction{Handler: devLXDStoragePoolVolumeGetHandler, AccessHandler: allowDevLXDAuthenticated},
+}
+
+func devLXDStoragePoolVolumeGet(ctx context.Context, d *Daemon, target string, project string, poolName string, volName string, volType string) (*api.DevLXDStorageVolume, string, error) {
+	// Get identity from the request context.
+	identity, err := getDevLXDIdentity(ctx)
+	if identity == nil {
+		return nil, "", err
+	}
+
+	// Restrict access to custom volumes.
+	if volType != "custom" {
+		return nil, "", api.NewStatusError(http.StatusBadRequest, "Only custom storage volumes can be retrieved")
+	}
+
+	// Get storage volumes.
+	vol := api.StorageVolume{}
+
+	url := api.NewURL().Path("1.0", "storage-pools", poolName, "volumes", "custom", volName).Project(project)
+	if target != "" {
+		url = url.WithQuery("target", target)
+	}
+
+	req, err := NewRequestWithContext(ctx, http.MethodGet, url.String(), nil, "")
+	if err != nil {
+		return nil, "", err
+	}
+
+	err = addStoragePoolVolumeDetailsToRequestContext(d.State(), req)
+	if err != nil {
+		return nil, "", err
+	}
+
+	resp := storagePoolVolumeGet(d, req)
+	etag, err := RenderToStruct(req, resp, &vol)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// If the volume does not belong to the caller, return not found.
+	if vol.Config["volatile.owner"] != identity.Identifier {
+		return nil, "", api.NewGenericStatusError(http.StatusNotFound)
+	}
+
+	respVol := &api.DevLXDStorageVolume{
+		Name:        vol.Name,
+		Description: vol.Description,
+		Pool:        vol.Pool,
+		Type:        vol.Type,
+		Config:      vol.Config,
+		Location:    vol.Location,
+	}
+
+	return respVol, etag, nil
+}
+
+func devLXDStoragePoolVolumeGetHandler(d *Daemon, r *http.Request) response.Response {
+	inst, err := getInstanceFromContextAndCheckSecurityFlags(r.Context(), devLXDSecurityKey, devLXDSecurityMgmtVolumesKey)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	poolName := mux.Vars(r)["poolName"]
+	volName := mux.Vars(r)["volumeName"]
+	volType := mux.Vars(r)["type"]
+	projectName := inst.Project().Name
+
+	vol, etag, err := devLXDStoragePoolVolumeGet(r.Context(), d, r.URL.Query().Get("target"), projectName, poolName, volName, volType)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	return response.DevLXDResponseETag(http.StatusOK, vol, "json", etag)
 }
