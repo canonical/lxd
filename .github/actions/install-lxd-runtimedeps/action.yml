@@ -21,7 +21,6 @@ runs:
           busybox-static \
           dnsmasq-base \
           easy-rsa \
-          gettext \
           jq \
           lvm2 \
           nftables \
