@@ -211,6 +211,7 @@ func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) response.Re
 var devLXDStoragePoolVolumeTypeEndpoint = devLXDAPIEndpoint{
 	Path:   "storage-pools/{poolName}/volumes/{type}/{volumeName}",
 	Get:    devLXDAPIEndpointAction{Handler: devLXDStoragePoolVolumeGetHandler, AccessHandler: allowDevLXDAuthenticated},
+	Put:    devLXDAPIEndpointAction{Handler: devLXDStoragePoolVolumePutHandler, AccessHandler: allowDevLXDAuthenticated},
 	Delete: devLXDAPIEndpointAction{Handler: devLXDStoragePoolVolumeDeleteHandler, AccessHandler: allowDevLXDAuthenticated},
 }
 
@@ -284,6 +285,82 @@ func devLXDStoragePoolVolumeGetHandler(d *Daemon, r *http.Request) response.Resp
 	}
 
 	return response.DevLXDResponseETag(http.StatusOK, vol, "json", etag)
+}
+
+func devLXDStoragePoolVolumePutHandler(d *Daemon, r *http.Request) response.Response {
+	inst, err := getInstanceFromContextAndCheckSecurityFlags(r.Context(), devLXDSecurityKey, devLXDSecurityMgmtVolumesKey)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	poolName := mux.Vars(r)["poolName"]
+	volName := mux.Vars(r)["volumeName"]
+	volType := mux.Vars(r)["type"]
+	projectName := inst.Project().Name
+	target := r.URL.Query().Get("target")
+
+	// Retrieve the volume first to ensure the caller owns it.
+	_, _, err = devLXDStoragePoolVolumeGet(r.Context(), d, target, inst.Project().Name, poolName, volName, volType)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	// Get identity from the request context.
+	identity, err := getDevLXDIdentity(r.Context())
+	if identity == nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	// Decode the request body.
+	vol := api.DevLXDStorageVolumePut{}
+	err = json.NewDecoder(r.Body).Decode(&vol)
+	if err != nil {
+		return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "Failed decoding request body: %w", err))
+	}
+
+	if vol.Config == nil {
+		vol.Config = make(map[string]string)
+	}
+
+	// Ensure the volume owner cannot be changed.
+	owner, ok := vol.Config["volatile.devlxd.owner"]
+	if ok && owner != identity.Identifier {
+		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusBadRequest, "Volume owner cannot be changed"))
+	}
+
+	// Ensure caller's identity ID is retained as the volume owner.
+	vol.Config["volatile.devlxd.owner"] = identity.Identifier
+
+	//nolint:staticcheck // Explicitly copying fields to avoid future issues if the types diverge.
+	reqBody := api.StorageVolumePut{
+		Config:      vol.Config,
+		Description: vol.Description,
+	}
+
+	etag := r.Header.Get("If-Match")
+
+	url := api.NewURL().Path("1.0", "storage-pools", poolName, "volumes", "custom", volName).Project(projectName)
+	if target != "" {
+		url = url.WithQuery("target", target)
+	}
+
+	req, err := request.NewRequestWithContext(r.Context(), http.MethodPut, url.String(), reqBody, etag)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	err = addStoragePoolVolumeDetailsToRequestContext(d.State(), req)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	resp := storagePoolVolumePut(d, req)
+	err = Render(req, resp)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	return response.DevLXDResponse(http.StatusOK, "", "raw")
 }
 
 func devLXDStoragePoolVolumeDeleteHandler(d *Daemon, r *http.Request) response.Response {
