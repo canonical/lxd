@@ -14,7 +14,7 @@ for pkg in client lxc/config lxd-agent shared/api; do
   TAGS=""
   [ "${pkg}" = "lxd-agent" ] && TAGS="-tags agent,netgo"
 
-  CURRENT_DEPS="$(go list ${TAGS:+${TAGS}} -f '{{ join .Deps "\n" }}' ./${pkg} | grep -F . | sort -u)"
+  CURRENT_DEPS="$(go list ${TAGS:+${TAGS}} -f '{{ join .Deps "\n" }}' "./${pkg}" | grep -F . | sort -u)"
   OUT="$(diff --new-file -u "${DEP_FILE}" - <<< "${CURRENT_DEPS}" || true)"
   if [ -n "${OUT}" ]; then
     if [ "${UPDATE_LISTS:-"false"}" = "true" ]; then
