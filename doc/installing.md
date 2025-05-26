@@ -211,31 +211,25 @@ version to work. On Ubuntu, you can get those with:
 ```bash
 sudo apt update
 sudo apt install \
-    acl \
-    attr \
     autoconf \
     automake \
-    dnsmasq-base \
+    build-essential \
+    gettext \
     git \
     libacl1-dev \
     libapparmor-dev \
     libcap-dev \
+    liblz4-dev \
+    libseccomp-dev \
     libsqlite3-dev \
     libtool \
     libudev-dev \
-    liblz4-dev \
     libuv1-dev \
     make \
     meson \
     ninja-build \
     pkg-config \
-    python3-venv \
-    rsync \
-    squashfs-tools \
-    tar \
-    tcl \
-    xz-utils \
-    ebtables
+    python3-venv
 command -v snap >/dev/null || sudo apt-get install snapd
 sudo snap install --classic go
 ```
@@ -256,18 +250,36 @@ sudo apt install lvm2 thin-provisioning-tools
 sudo apt install btrfs-progs
 ```
 
-To run the test suite, you'll also need:
+At runtime, LXD might need the following packages to be installed on the host system:
 
 ```bash
+sudo apt update
 sudo apt install \
+    attr \
+    iproute2 \
+    rsync \
+    squashfs-tools \
+    tar \
+    xz-utils
+```
+
+To run the test suite or test related `make` targets, you'll also need:
+
+```bash
+sudo apt update
+sudo apt install \
+    acl \
     bind9-dnsutils \
     busybox-static \
     curl \
-    gettext \
+    dnsmasq-base \
+    iptables \
     jq \
-    sqlite3 \
+    shellcheck \
     socat \
-    swtpm
+    sqlite3 \
+    swtpm \
+    yq
 ```
 
 ### From source: Build the latest version
