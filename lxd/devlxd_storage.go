@@ -36,8 +36,9 @@ var devLXDStoragePoolVolumesTypeEndpoint = APIEndpoint{
 }
 
 var devLXDStoragePoolVolumeTypeEndpoint = APIEndpoint{
-	Path: "storage-pools/{poolName}/volumes/{type}/{volumeName}",
-	Get:  APIEndpointAction{Handler: devLXDStoragePoolVolumeGetHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanView)},
+	Path:   "storage-pools/{poolName}/volumes/{type}/{volumeName}",
+	Get:    APIEndpointAction{Handler: devLXDStoragePoolVolumeGetHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanView)},
+	Delete: APIEndpointAction{Handler: devLXDStoragePoolVolumeDeleteHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolume, auth.EntitlementCanDelete)},
 }
 
 // devLXDStoragePoolGetHandler retrieves information about the specified storage pool.
@@ -329,6 +330,59 @@ func devLXDStoragePoolVolumeGetHandler(d *Daemon, r *http.Request) response.Resp
 	}
 
 	return response.DevLXDResponseETag(http.StatusOK, vol, "json", etag)
+}
+
+// devLXDStoragePoolVolumeDeleteHandler deletes the specified custom storage volume if it is owned by the caller.
+// If the volume is not found or not owned by the caller, it returns a generic not found error.
+func devLXDStoragePoolVolumeDeleteHandler(d *Daemon, r *http.Request) response.Response {
+	inst, err := getInstanceFromContextAndCheckSecurityFlags(r.Context(), devLXDSecurityKey, devLXDSecurityManagementVolumesKey)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	projectName := inst.Project().Name
+	target := r.URL.Query().Get("target")
+	pathVars := mux.Vars(r)
+
+	poolName, err := url.PathUnescape(pathVars["poolName"])
+	if err != nil {
+		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
+	}
+
+	volName, err := url.PathUnescape(pathVars["volumeName"])
+	if err != nil {
+		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
+	}
+
+	volType, err := url.PathUnescape(pathVars["type"])
+	if err != nil {
+		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
+	}
+
+	// Retrieve the volume first to ensure the caller owns it.
+	_, _, err = devLXDStoragePoolVolumeGet(r.Context(), d, target, inst.Project().Name, poolName, volName, volType)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	// Delete storage volume.
+	url := api.NewURL().Path("1.0", "storage-pools", poolName, "volumes", "custom", volName).Project(projectName)
+	if target != "" {
+		url = url.WithQuery("target", target)
+	}
+
+	req, err := lxd.NewRequestWithContext(r.Context(), http.MethodDelete, url.String(), nil, "")
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	resp := storagePoolVolumeDelete(d, req)
+	err = response.NewResponseCapture(req).Render(resp)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	return response.DevLXDResponse(http.StatusOK, "", "raw")
 }
 
 // isDevLXDVolumeOwner checks whether the given storage volume is owned by the specified identity ID.
