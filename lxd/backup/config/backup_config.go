@@ -18,34 +18,34 @@ const MaxMetadataVersion = api.BackupMetadataVersion2
 // Volume represents the config of a volume including its snapshots.
 type Volume struct {
 	// Make sure to have the embedded structs fields inline to avoid nesting.
-	api.StorageVolume `yaml:",inline"`
+	api.StorageVolume `yaml:",inline"` //nolint:musttag
 
-	Snapshots []*api.StorageVolumeSnapshot `yaml:"snapshots,omitempty"`
+	Snapshots []*api.StorageVolumeSnapshot `json:"snapshots,omitempty" yaml:"snapshots,omitempty"`
 }
 
 // Bucket represents the config of a bucket including its snapshots.
 type Bucket struct {
 	// Make sure to have the embedded structs fields inline to avoid nesting.
-	*api.StorageBucket `yaml:",inline"`
+	*api.StorageBucket `yaml:",inline"` //nolint:musttag
 }
 
 // Config represents the config of a backup that can be stored in a backup.yaml file (or embedded in index.yaml).
 type Config struct {
-	Version   uint32                  `yaml:"version,omitempty"`
-	Instance  *api.Instance           `yaml:"instance,omitempty"`
-	Snapshots []*api.InstanceSnapshot `yaml:"snapshots,omitempty"`
-	Pools     []*api.StoragePool      `yaml:"pools,omitempty"`
-	Profiles  []*api.Profile          `yaml:"profiles,omitempty"`
-	Volumes   []*Volume               `yaml:"volumes,omitempty"`
-	Bucket    *Bucket                 `yaml:"bucket,omitempty"`
+	Version   uint32                  `json:"version,omitempty" yaml:"version,omitempty"`
+	Instance  *api.Instance           `json:"instance,omitempty" yaml:"instance,omitempty"`
+	Snapshots []*api.InstanceSnapshot `json:"snapshots,omitempty" yaml:"snapshots,omitempty"`
+	Pools     []*api.StoragePool      `json:"pools,omitempty" yaml:"pools,omitempty"`
+	Profiles  []*api.Profile          `json:"profiles,omitempty" yaml:"profiles,omitempty"`
+	Volumes   []*Volume               `json:"volumes,omitempty" yaml:"volumes,omitempty"`
+	Bucket    *Bucket                 `json:"bucket,omitempty" yaml:"bucket,omitempty"`
 	// Deprecated: Use Instance instead.
-	Container *api.Instance `yaml:"container,omitempty"`
+	Container *api.Instance `json:"container,omitempty" yaml:"container,omitempty"`
 	// Deprecated: Use Pools instead.
-	Pool *api.StoragePool `yaml:"pool,omitempty"`
+	Pool *api.StoragePool `json:"pool,omitempty" yaml:"pool,omitempty"`
 	// Deprecated: Use Volumes instead.
-	Volume *api.StorageVolume `yaml:"volume,omitempty"`
+	Volume *api.StorageVolume `json:"volume,omitempty" yaml:"volume,omitempty"`
 	// Deprecated: Use the list of Snapshots under Volumes.
-	VolumeSnapshots []*api.StorageVolumeSnapshot `yaml:"volume_snapshots,omitempty"`
+	VolumeSnapshots []*api.StorageVolumeSnapshot `json:"volume_snapshots,omitempty" yaml:"volume_snapshots,omitempty"`
 }
 
 // rootVolPoolName returns the pool name of an instance's root volume.
