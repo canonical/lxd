@@ -37,7 +37,7 @@ test_container_devices_nic_bridged_filtering() {
   lxc network set "${brName}" bridge.hwaddr 00:11:22:33:44:55
   lxc network set "${brName}" ipv4.address 192.0.2.1/24
   lxc network set "${brName}" ipv6.address 2001:db8:1::1/64
-  [ "$(cat /sys/class/net/${brName}/address)" = "00:11:22:33:44:55" ]
+  [ "$(cat "/sys/class/net/${brName}/address")" = "00:11:22:33:44:55" ]
 
   # Create profile for new containers.
   lxc profile copy default "${ctPrefix}"
