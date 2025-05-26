@@ -90,54 +90,54 @@ test_container_devices_nic_bridged() {
   lxc start "${ctName}"
 
   # Check profile routes are applied on boot.
-  if ! ip -4 r list dev "${brName}" | grep "192.0.2.1${ipRand}" ; then
+  if ! ip -4 r list dev "${brName}" | grep -F "192.0.2.1${ipRand}" ; then
     echo "ipv4.routes invalid"
     false
   fi
-  if ! ip -6 r list dev "${brName}" | grep "2001:db8::1${ipRand}" ; then
+  if ! ip -6 r list dev "${brName}" | grep -F "2001:db8::1${ipRand}" ; then
     echo "ipv6.routes invalid"
     false
   fi
 
   # Check profile limits are applied on boot.
-  if ! tc class show dev "${vethHostName}" | grep "1Mbit" ; then
+  if ! tc class show dev "${vethHostName}" | grep -F "1Mbit" ; then
     echo "limits.ingress invalid"
     false
   fi
-  if ! tc filter show dev "${vethHostName}" egress | grep "2Mbit" ; then
+  if ! tc filter show dev "${vethHostName}" egress | grep -F "2Mbit" ; then
     echo "limits.egress invalid"
     false
   fi
 
   # Check that limits.priority was correctly configured in the firewall.
   if [ "$firewallDriver" = "xtables" ]; then
-    iptables -t mangle -S | grep -c "${ctName} (${vethHostName}) netprio" | grep 1
-    iptables -t mangle -S | grep "${ctName} (${vethHostName}) netprio" | grep "0000:0005"
+    [ "$(iptables -t mangle -S | grep -cF "${ctName} (${vethHostName}) netprio")" = "1" ]
+    iptables -t mangle -S | grep -F "${ctName} (${vethHostName}) netprio" | grep -F "0000:0005"
   else
-    nft -nn list chain netdev lxd "egress.netprio.${ctName}.${vethHostName}" | grep -c "meta priority set" | grep 1
-    nft -nn list chain netdev lxd "egress.netprio.${ctName}.${vethHostName}" | grep "meta priority set 0:5"
+    [ "$(nft -nn list chain netdev lxd "egress.netprio.${ctName}.${vethHostName}" | grep -cF "meta priority set")" = "1" ]
+    nft -nn list chain netdev lxd "egress.netprio.${ctName}.${vethHostName}" | grep -F "meta priority set 0:5"
   fi
 
   # Check profile custom MTU is applied in container on boot.
-  if ! lxc exec "${ctName}" -- grep "1400" /sys/class/net/eth0/mtu ; then
+  if ! lxc exec "${ctName}" -- grep -xF "1400" /sys/class/net/eth0/mtu ; then
     echo "container veth mtu invalid"
     false
   fi
 
   # Check profile custom MTU doesn't affect the host.
-  if ! grep "1500" /sys/class/net/"${vethHostName}"/mtu ; then
+  if ! grep -xF "1500" /sys/class/net/"${vethHostName}"/mtu ; then
     echo "host veth mtu invalid"
     false
   fi
 
   # Check profile custom txqueuelen is applied in container on boot.
-  if ! lxc exec "${ctName}" -- grep "1200" /sys/class/net/eth0/tx_queue_len ; then
+  if ! lxc exec "${ctName}" -- grep -xF "1200" /sys/class/net/eth0/tx_queue_len ; then
     echo "container veth txqueuelen invalid"
     false
   fi
 
   # Check profile custom txqueuelen is applied on host side of veth.
-  if ! grep "1200" /sys/class/net/"${vethHostName}"/tx_queue_len ; then
+  if ! grep -xF "1200" /sys/class/net/"${vethHostName}"/tx_queue_len ; then
     echo "host veth txqueuelen invalid"
     false
   fi
@@ -174,52 +174,52 @@ test_container_devices_nic_bridged() {
   ! lxc config device add "${ctName}" eth1 nic nictype=bridged name=eth1 parent="${brName}" || false
 
   # Check profile routes are removed on hot-plug.
-  if ip -4 r list dev "${brName}" | grep "192.0.2.1${ipRand}" ; then
+  if ip -4 r list dev "${brName}" | grep -F "192.0.2.1${ipRand}" ; then
     echo "ipv4.routes remain"
     false
   fi
-  if ip -6 r list dev "${brName}" | grep "2001:db8::1${ipRand}" ; then
+  if ip -6 r list dev "${brName}" | grep -F "2001:db8::1${ipRand}" ; then
     echo "ipv6.routes remain"
     false
   fi
 
   # Check routes are applied on hot-plug.
-  if ! ip -4 r list dev "${brName}" | grep "192.0.2.2${ipRand}" ; then
+  if ! ip -4 r list dev "${brName}" | grep -F "192.0.2.2${ipRand}" ; then
     echo "ipv4.routes invalid"
     false
   fi
-  if ! ip -6 r list dev "${brName}" | grep "2001:db8::2${ipRand}" ; then
+  if ! ip -6 r list dev "${brName}" | grep -F "2001:db8::2${ipRand}" ; then
     echo "ipv6.routes invalid"
     false
   fi
 
   # Check limits are applied on hot-plug.
-  if ! tc class show dev "${vethHostName}" | grep "3Mbit" ; then
+  if ! tc class show dev "${vethHostName}" | grep -F "3Mbit" ; then
     echo "limits.ingress invalid"
     false
   fi
-  if ! tc filter show dev "${vethHostName}" egress | grep "4Mbit" ; then
+  if ! tc filter show dev "${vethHostName}" egress | grep -F "4Mbit" ; then
     echo "limits.egress invalid"
     false
   fi
 
   # Check that limits.priority was correctly configured in the firewall.
   if [ "$firewallDriver" = "xtables" ]; then
-    iptables -t mangle -S | grep -c "${ctName} (${vethHostName}) netprio" | grep 1
-    iptables -t mangle -S | grep "${ctName} (${vethHostName}) netprio" | grep "0000:0006"
+    [ "$(iptables -t mangle -S | grep -cF "${ctName} (${vethHostName}) netprio")" = "1" ]
+    iptables -t mangle -S | grep -F "${ctName} (${vethHostName}) netprio" | grep -F "0000:0006"
   else
-    nft -nn list chain netdev lxd "egress.netprio.${ctName}.${vethHostName}" | grep -c "meta priority set" | grep 1
-    nft -nn list chain netdev lxd "egress.netprio.${ctName}.${vethHostName}" | grep "meta priority set 0:6"
+    [ "$(nft -nn list chain netdev lxd "egress.netprio.${ctName}.${vethHostName}" | grep -cF "meta priority set")" = "1" ]
+    nft -nn list chain netdev lxd "egress.netprio.${ctName}.${vethHostName}" | grep -F "meta priority set 0:6"
   fi
 
   # Check custom MTU is applied on hot-plug.
-  if ! lxc exec "${ctName}" -- grep "1401" /sys/class/net/eth0/mtu ; then
+  if ! lxc exec "${ctName}" -- grep -xF "1401" /sys/class/net/eth0/mtu ; then
     echo "container veth mtu invalid"
     false
   fi
 
   # Check custom MTU doesn't affect the host.
-  if ! grep "1500" /sys/class/net/"${vethHostName}"/mtu ; then
+  if ! grep -xF "1500" /sys/class/net/"${vethHostName}"/mtu ; then
     echo "host veth mtu invalid"
     false
   fi
@@ -234,52 +234,52 @@ test_container_devices_nic_bridged() {
   lxc config device remove "${ctName}" eth0
 
   # Check routes are removed on hot-plug.
-  if ip -4 r list dev "${brName}" | grep "192.0.2.2${ipRand}" ; then
+  if ip -4 r list dev "${brName}" | grep -F "192.0.2.2${ipRand}" ; then
     echo "ipv4.routes remain"
     false
   fi
-  if ip -6 r list dev "${brName}" | grep "2001:db8::2${ipRand}" ; then
+  if ip -6 r list dev "${brName}" | grep -F "2001:db8::2${ipRand}" ; then
     echo "ipv6.routes remain"
     false
   fi
 
   # Check profile routes are applied on hot-removal.
-  if ! ip -4 r list dev "${brName}" | grep "192.0.2.1${ipRand}" ; then
+  if ! ip -4 r list dev "${brName}" | grep -F "192.0.2.1${ipRand}" ; then
     echo "ipv4.routes invalid"
     false
   fi
-  if ! ip -6 r list dev "${brName}" | grep "2001:db8::1${ipRand}" ; then
+  if ! ip -6 r list dev "${brName}" | grep -F "2001:db8::1${ipRand}" ; then
     echo "ipv6.routes invalid"
     false
   fi
 
   # Check profile limits are applie on hot-removal.
-  if ! tc class show dev "${vethHostName}" | grep "1Mbit" ; then
+  if ! tc class show dev "${vethHostName}" | grep -F "1Mbit" ; then
     echo "limits.ingress invalid"
     false
   fi
-  if ! tc filter show dev "${vethHostName}" egress | grep "2Mbit" ; then
+  if ! tc filter show dev "${vethHostName}" egress | grep -F "2Mbit" ; then
     echo "limits.egress invalid"
     false
   fi
 
   # Check that limits.priority was correctly configured in the firewall.
   if [ "$firewallDriver" = "xtables" ]; then
-    iptables -t mangle -S | grep -c "${ctName} (${vethHostName}) netprio" | grep 1
-    iptables -t mangle -S | grep "${ctName} (${vethHostName}) netprio" | grep "0000:0005"
+    [ "$(iptables -t mangle -S | grep -cF "${ctName} (${vethHostName}) netprio")" = "1" ]
+    iptables -t mangle -S | grep -F "${ctName} (${vethHostName}) netprio" | grep -F "0000:0005"
   else
-    nft -nn list chain netdev lxd "egress.netprio.${ctName}.${vethHostName}" | grep -c "meta priority set" | grep 1
-    nft -nn list chain netdev lxd "egress.netprio.${ctName}.${vethHostName}" | grep "meta priority set 0:5"
+    [ "$(nft -nn list chain netdev lxd "egress.netprio.${ctName}.${vethHostName}" | grep -cF "meta priority set")" = "1" ]
+    nft -nn list chain netdev lxd "egress.netprio.${ctName}.${vethHostName}" | grep -F "meta priority set 0:5"
   fi
 
   # Check profile custom MTU is applied on hot-removal.
-  if ! lxc exec "${ctName}" -- grep "1400" /sys/class/net/eth0/mtu ; then
+  if ! lxc exec "${ctName}" -- grep -xF "1400" /sys/class/net/eth0/mtu ; then
     echo "container veth mtu invalid"
     false
   fi
 
   # Check custom MTU doesn't affect the host.
-  if ! grep "1500" /sys/class/net/"${vethHostName}"/mtu ; then
+  if ! grep -xF "1500" /sys/class/net/"${vethHostName}"/mtu ; then
     echo "host veth mtu invalid"
     false
   fi
@@ -326,46 +326,46 @@ test_container_devices_nic_bridged() {
   lxc config device set "${ctName}" eth0 hwaddr "${ctMAC}"
 
   # Check original routes are removed on hot-plug.
-  if ip -4 r list dev "${brName}" | grep "192.0.2.1${ipRand}" ; then
+  if ip -4 r list dev "${brName}" | grep -F "192.0.2.1${ipRand}" ; then
     echo "ipv4.routes remain"
     false
   fi
-  if ip -6 r list dev "${brName}" | grep "2001:db8::1${ipRand}" ; then
+  if ip -6 r list dev "${brName}" | grep -F "2001:db8::1${ipRand}" ; then
     echo "ipv6.routes remain"
     false
   fi
 
   # Check routes are applied on update.
-  if ! ip -4 r list dev "${brName}" | grep "192.0.2.2${ipRand}" ; then
+  if ! ip -4 r list dev "${brName}" | grep -F "192.0.2.2${ipRand}" ; then
     echo "ipv4.routes invalid"
     false
   fi
-  if ! ip -6 r list dev "${brName}" | grep "2001:db8::2${ipRand}" ; then
+  if ! ip -6 r list dev "${brName}" | grep -F "2001:db8::2${ipRand}" ; then
     echo "ipv6.routes invalid"
     false
   fi
 
   # Check limits are applied on update.
-  if ! tc class show dev "${vethHostName}" | grep "3Mbit" ; then
+  if ! tc class show dev "${vethHostName}" | grep -F "3Mbit" ; then
     echo "limits.ingress invalid"
     false
   fi
-  if ! tc filter show dev "${vethHostName}" egress | grep "4Mbit" ; then
+  if ! tc filter show dev "${vethHostName}" egress | grep -F "4Mbit" ; then
     echo "limits.egress invalid"
     false
   fi
 
   # Check that limits.priority was correctly configured in the firewall.
   if [ "$firewallDriver" = "xtables" ]; then
-    iptables -t mangle -S | grep -c "${ctName} (${vethHostName}) netprio" | grep 1
-    iptables -t mangle -S | grep "${ctName} (${vethHostName}) netprio" | grep "0000:0006"
+    [ "$(iptables -t mangle -S | grep -cF "${ctName} (${vethHostName}) netprio")" = "1" ]
+    iptables -t mangle -S | grep -F "${ctName} (${vethHostName}) netprio" | grep -F "0000:0006"
   else
-    nft -nn list chain netdev lxd "egress.netprio.${ctName}.${vethHostName}" | grep -c "meta priority set" | grep 1
-    nft -nn list chain netdev lxd "egress.netprio.${ctName}.${vethHostName}" | grep "meta priority set 0:6"
+    [ "$(nft -nn list chain netdev lxd "egress.netprio.${ctName}.${vethHostName}" | grep -cF "meta priority set")" = "1" ]
+    nft -nn list chain netdev lxd "egress.netprio.${ctName}.${vethHostName}" | grep -F "meta priority set 0:6"
   fi
 
   # Check custom MTU is applied update.
-  if ! lxc exec "${ctName}" -- grep "1402" /sys/class/net/eth0/mtu ; then
+  if ! lxc exec "${ctName}" -- grep -xF "1402" /sys/class/net/eth0/mtu ; then
     echo "mtu invalid"
     false
   fi
@@ -381,7 +381,7 @@ test_container_devices_nic_bridged() {
   lxc config device unset "${ctName}" eth0 mtu
   lxc network set "${brName}" bridge.mtu "1405"
   lxc start "${ctName}"
-  if ! lxc exec "${ctName}" -- grep "1405" /sys/class/net/eth0/mtu ; then
+  if ! lxc exec "${ctName}" -- grep -xF "1405" /sys/class/net/eth0/mtu ; then
     echo "mtu not inherited from parent"
     false
   fi
@@ -397,26 +397,26 @@ test_container_devices_nic_bridged() {
   lxc network set "${brName}" ipv4.nat false
 
   # Check external routes are applied on update.
-  if ! ip -4 r list dev "${brName}" | grep "192.0.2${ipRand}.0/24 via 192.0.2.1${ipRand}" ; then
+  if ! ip -4 r list dev "${brName}" | grep -F "192.0.2${ipRand}.0/24 via 192.0.2.1${ipRand}" ; then
     echo "external ipv4 routes invalid after network update"
     false
   fi
 
   # Check container routes are applied on update.
-  if ! ip -4 r list dev "${brName}" | grep "192.0.2.2${ipRand}" ; then
+  if ! ip -4 r list dev "${brName}" | grep -F "192.0.2.2${ipRand}" ; then
     echo "container ipv4 routes invalid after network update"
     false
   fi
 
   # Check network routes are applied on update.
-  if ! ip -4 r list dev "${brName}" | grep "192.0.3.0/24" ; then
+  if ! ip -4 r list dev "${brName}" | grep -F "192.0.3.0/24" ; then
     echo "network ipv4 routes invalid after network update"
     false
   fi
 
   # Check volatile cleanup on stop.
   lxc stop -f "${ctName}"
-  if lxc config show "${ctName}" | grep volatile.eth0 ; then
+  if lxc config show "${ctName}" | grep -F volatile.eth0 ; then
     echo "unexpected volatile key remains"
     false
   fi
@@ -442,7 +442,7 @@ test_container_devices_nic_bridged() {
 
   # Request DHCPv6 lease (if udhcpc6 is in busybox image).
   busyboxUdhcpc6=1
-  if ! lxc exec "${ctName}" -- busybox --list | grep udhcpc6 ; then
+  if ! lxc exec "${ctName}" -- busybox --list | grep -wF udhcpc6 ; then
     busyboxUdhcpc6=0
   fi
 
@@ -556,24 +556,24 @@ test_container_devices_nic_bridged() {
 
   ls -lR "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/"
 
-  if ! grep "192.0.2.200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0" ; then
+  if ! grep -F "192.0.2.200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0" ; then
     echo "dnsmasq host config not updated with IPv4 address"
     false
   fi
 
-  if ! grep "2001:db8::200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0" ; then
+  if ! grep -F "2001:db8::200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0" ; then
     echo "dnsmasq host config not updated with IPv6 address"
     false
   fi
 
   lxc config device remove "${ctName}" eth0
 
-  if grep "192.0.2.200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0" ; then
+  if grep -F "192.0.2.200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0" ; then
     echo "dnsmasq host config still has old IPv4 address"
     false
   fi
 
-  if grep "2001:db8::200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0" ; then
+  if grep -F "2001:db8::200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0" ; then
     echo "dnsmasq host config still has old IPv6 address"
     false
   fi
@@ -655,17 +655,17 @@ test_container_devices_nic_bridged() {
   lxc network set "${brName}" bridge.mtu 1400
   lxc config device remove "${ctName}" eth0
   lxc start "${ctName}"
-  if ! lxc exec "${ctName}" -- grep "1400" /sys/class/net/eth0/mtu ; then
+  if ! lxc exec "${ctName}" -- grep -xF "1400" /sys/class/net/eth0/mtu ; then
     echo "container mtu has not been inherited from network"
     false
   fi
 
   # Check profile routes are applied on boot (as these use derived nictype).
-  if ! ip -4 r list dev "${brName}" | grep "192.0.2.1${ipRand}" ; then
+  if ! ip -4 r list dev "${brName}" | grep -F "192.0.2.1${ipRand}" ; then
     echo "ipv4.routes invalid"
     false
   fi
-  if ! ip -6 r list dev "${brName}" | grep "2001:db8::1${ipRand}" ; then
+  if ! ip -6 r list dev "${brName}" | grep -F "2001:db8::1${ipRand}" ; then
     echo "ipv6.routes invalid"
     false
   fi
@@ -694,10 +694,10 @@ test_container_devices_nic_bridged() {
   lxc config device set "${ctName}" eth0 ipv6.address="2001:db8::2"
 
   # Test port isolation.
-  if bridge link set help 2>&1 | grep isolated ; then
+  if bridge link set help 2>&1 | grep -wF isolated ; then
     lxc config device set "${ctName}" eth0 security.port_isolation true
     lxc start "${ctName}"
-    bridge -d link show dev "${vethHostName}" | grep "isolated on"
+    bridge -d link show dev "${vethHostName}" | grep -F "isolated on"
     lxc stop -f "${ctName}"
   else
     echo "bridge command doesn't support port isolation, skipping port isolation checks"
