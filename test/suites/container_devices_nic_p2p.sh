@@ -11,16 +11,16 @@ test_container_devices_nic_p2p() {
   startNicCount=$(find /sys/class/net | wc -l)
 
   # Test pre-launch profile config is applied at launch.
-  lxc profile copy default ${ctName}
-  lxc profile device set ${ctName} eth0 ipv4.routes "192.0.2.1${ipRand}/32"
-  lxc profile device set ${ctName} eth0 ipv6.routes "2001:db8::1${ipRand}/128"
-  lxc profile device set ${ctName} eth0 limits.ingress 1Mbit
-  lxc profile device set ${ctName} eth0 limits.egress 2Mbit
-  lxc profile device set ${ctName} eth0 host_name "${vethHostName}"
-  lxc profile device set ${ctName} eth0 mtu "1400"
-  lxc profile device set ${ctName} eth0 hwaddr "${ctMAC}"
-  lxc profile device set ${ctName} eth0 nictype "p2p"
-  lxc launch testimage "${ctName}" -p ${ctName}
+  lxc profile copy default "${ctName}"
+  lxc profile device set "${ctName}" eth0 ipv4.routes "192.0.2.1${ipRand}/32"
+  lxc profile device set "${ctName}" eth0 ipv6.routes "2001:db8::1${ipRand}/128"
+  lxc profile device set "${ctName}" eth0 limits.ingress 1Mbit
+  lxc profile device set "${ctName}" eth0 limits.egress 2Mbit
+  lxc profile device set "${ctName}" eth0 host_name "${vethHostName}"
+  lxc profile device set "${ctName}" eth0 mtu "1400"
+  lxc profile device set "${ctName}" eth0 hwaddr "${ctMAC}"
+  lxc profile device set "${ctName}" eth0 nictype "p2p"
+  lxc launch testimage "${ctName}" -p "${ctName}"
 
   # Check profile routes are applied on boot.
   if ! ip -4 r list dev "${vethHostName}" | grep "192.0.2.1${ipRand}" ; then
