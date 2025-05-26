@@ -264,7 +264,7 @@ test_container_devices_nic_p2p() {
 
   # Check volatile cleanup on stop.
   lxc stop -f "${ctName}"
-  if lxc config show "${ctName}" | grep volatile.eth0 | grep -v volatile.eth0.hwaddr ; then
+  if [ "$(lxc config show "${ctName}" | grep -F volatile.eth0 | grep -vF volatile.eth0.hwaddr)" != "" ]; then
     echo "unexpected volatile key remains"
     false
   fi
