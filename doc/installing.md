@@ -205,8 +205,10 @@ To download a specific build:
 Follow these instructions if you want to build and install LXD from the source code.
 
 We recommend having the latest versions of `liblxc` (see {ref}`LXC requirements <requirements-lxc>`)
-available for LXD development. Additionally, LXD requires a modern Golang (see {ref}`requirements-go`)
-version to work. On Ubuntu, you can get those with:
+available for LXD development. For convenience, `make deps` will pull the
+appropriate versions of `liblxc` and `dqlite` from their corresponding upstream
+Git repository. Additionally, LXD requires a modern Golang (see
+{ref}`requirements-go`) version to work. On Ubuntu, you can get those with:
 
 ```bash
 sudo apt update
