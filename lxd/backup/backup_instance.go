@@ -2,6 +2,7 @@ package backup
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -76,6 +77,16 @@ func (b *InstanceBackup) Rename(newName string) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	// Defend against path traversal attacks.
+	baseDir := shared.VarPath("backups", "instances")
+	if !shared.IsPathWithinBaseDir(baseDir, oldBackupPath) {
+		return fmt.Errorf("Invalid old backup path %q", oldBackupPath)
+	}
+
+	if !shared.IsPathWithinBaseDir(baseDir, newBackupPath) {
+		return fmt.Errorf("Invalid new backup path %q", newBackupPath)
 	}
 
 	// Rename the backup directory.
