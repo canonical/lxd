@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/canonical/lxd/client"
@@ -51,18 +52,37 @@ type Response interface {
 type devLXDResponse struct {
 	content     any
 	code        int
+	etag        string
 	contentType string
 	err         error
 }
 
 // Render renders a response for requests against the /dev/lxd socket.
 func (r *devLXDResponse) Render(w http.ResponseWriter, req *http.Request) (err error) {
+	etag := r.etag
+
+	// Strip quotes from ETag if present, as the Etag may be quoted if received
+	// from the LXD server.
+	//
+	// Only unquote ETag if it appears quoted. This avoids failing on unquoted
+	// strings. Malformed quotes will still cause Unquote to fail, as intended.
+	if strings.Contains(r.etag, `"`) || strings.Contains(r.etag, `'`) {
+		etag, err = strconv.Unquote(r.etag)
+		if err != nil {
+			return fmt.Errorf("Failed to unquote ETag %q: %w", r.etag, err)
+		}
+	}
+
 	// Handle response when interacting over vsock (LXD Agent running in a VM).
 	// In such case, the response must be returned in api.Response format.
 	isDevLXDOverVsock, _ := req.Context().Value(request.CtxDevLXDOverVsock).(bool)
 	if isDevLXDOverVsock {
 		if r.code != http.StatusOK {
 			return SmartError(r.err).Render(w, req)
+		}
+
+		if etag != "" {
+			w.Header().Set("ETag", `"`+etag+`"`)
 		}
 
 		return SyncResponse(true, r.content).Render(w, req)
@@ -72,6 +92,10 @@ func (r *devLXDResponse) Render(w http.ResponseWriter, req *http.Request) (err e
 	if r.code != http.StatusOK {
 		http.Error(w, r.err.Error(), r.code)
 		return nil
+	}
+
+	if etag != "" {
+		w.Header().Set("ETag", `"`+etag+`"`)
 	}
 
 	if r.contentType == "json" {
@@ -87,7 +111,6 @@ func (r *devLXDResponse) Render(w http.ResponseWriter, req *http.Request) (err e
 
 	if r.contentType != "websocket" {
 		w.Header().Set("Content-Type", "application/octet-stream")
-
 		_, err = fmt.Fprint(w, r.content.(string))
 		return err
 	}
@@ -123,6 +146,17 @@ func DevLXDResponse(code int, content any, contentType string) Response {
 		code:        code,
 		content:     content,
 		contentType: contentType,
+	}
+}
+
+// DevLXDResponseETag returns a devLXDResponse with the provided ETag configured.
+// If ETag is not empty, it will be set in the response headers.
+func DevLXDResponseETag(code int, content any, contentType string, etag string) Response {
+	return &devLXDResponse{
+		code:        code,
+		content:     content,
+		contentType: contentType,
+		etag:        etag,
 	}
 }
 
