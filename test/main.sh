@@ -1,6 +1,14 @@
 #!/bin/bash
 set -eu
 set -o pipefail
+
+# wait for cloud-init to be done setting up the local env
+if command -v cloud-init > /dev/null; then
+    echo "Waiting for cloud-init"
+    cloud-init status --wait --long
+    echo "Done"
+fi
+
 if [ -z "${GOPATH:-}" ] && command -v go >/dev/null; then
     GOPATH="$(go env GOPATH)"
 fi
