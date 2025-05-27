@@ -62,7 +62,7 @@ test_container_devices_nic_routed() {
   ! lxc config device add "${ctName}" eth0 nic name=eth0 nictype=routed vlan=1234 || false
 
   # Check VLAN parent interface creation and teardown.
-  lxc config device add "${ctName}" eth0 nic name=eth0 nictype=routed parent=${ctName} vlan=1235
+  lxc config device add "${ctName}" eth0 nic name=eth0 nictype=routed parent="${ctName}" vlan=1235
   lxc start "${ctName}"
   stat "/sys/class/net/${ctName}.1235"
   lxc stop -f "${ctName}"
@@ -70,7 +70,7 @@ test_container_devices_nic_routed() {
   lxc config device remove "${ctName}" eth0
 
   # Add routed NIC to instance.
-  lxc config device add "${ctName}" eth0 nic name=eth0 nictype=routed parent=${ctName}
+  lxc config device add "${ctName}" eth0 nic name=eth0 nictype=routed parent="${ctName}"
 
   # Check starting routed NIC with IPs in use on parent network is prevented.
   lxc config device set "${ctName}" eth0 ipv4.address="192.0.2.254"
@@ -144,7 +144,7 @@ test_container_devices_nic_routed() {
   lxc config device add "${ctName}2" eth0 nic \
     name=eth0 \
     nictype=routed \
-    parent=${ctName} \
+    parent="${ctName}" \
     ipv4.address="192.0.2.2${ipRand}, 192.0.2.3${ipRand}"
   lxc start "${ctName}2"
   lxc exec "${ctName}2" -- ip -4 r | grep -F "169.254.0.1"
@@ -210,7 +210,7 @@ test_container_devices_nic_routed() {
   fi
 
   # Check parent device is still up.
-  if [ "$(cat /sys/class/net/${ctName}/carrier)" != "1" ]; then
+  if [ "$(cat "/sys/class/net/${ctName}/carrier")" != "1" ]; then
     echo "parent is down"
     false
   fi
