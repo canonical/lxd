@@ -51,6 +51,7 @@ type Response interface {
 type devLXDResponse struct {
 	content     any
 	code        int
+	etag        string
 	contentType string
 	err         error
 }
@@ -65,6 +66,11 @@ func (r *devLXDResponse) Render(w http.ResponseWriter, req *http.Request) (err e
 			return SmartError(r.err).Render(w, req)
 		}
 
+		// Set ETag header if ETag is provided.
+		if r.etag != "" {
+			w.Header().Set("ETag", r.etag)
+		}
+
 		return SyncResponse(true, r.content).Render(w, req)
 	}
 
@@ -72,6 +78,11 @@ func (r *devLXDResponse) Render(w http.ResponseWriter, req *http.Request) (err e
 	if r.code != http.StatusOK {
 		http.Error(w, r.err.Error(), r.code)
 		return nil
+	}
+
+	// Set ETag header if ETag is provided.
+	if r.etag != "" {
+		w.Header().Set("ETag", r.etag)
 	}
 
 	if r.contentType == "json" {
@@ -127,6 +138,17 @@ func DevLXDResponse(code int, content any, contentType string) Response {
 		code:        code,
 		content:     content,
 		contentType: contentType,
+	}
+}
+
+// DevLXDResponseETag returns a devLXDResponse with the provided ETag configured.
+// If ETag is not empty, it will be set in the response headers.
+func DevLXDResponseETag(code int, content any, contentType string, etag string) Response {
+	return &devLXDResponse{
+		code:        code,
+		content:     content,
+		contentType: contentType,
+		etag:        etag,
 	}
 }
 
