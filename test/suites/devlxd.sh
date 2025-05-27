@@ -130,7 +130,7 @@ EOF
 
   lxc info devlxd | grep -xF 'Status: RUNNING'
 
-  kill -9 ${monitorDevlxdPID} || true
+  kill -9 "${monitorDevlxdPID}" || true
 
   shutdown_lxd "${LXD_DIR}"
   respawn_lxd "${LXD_DIR}" true
@@ -160,7 +160,7 @@ EOF
   [ "$(lxc exec devlxd -- devlxd-client devices | jq -r .eth0.hwaddr)" = "${hwaddr}" ]
 
   lxc delete devlxd --force
-  kill -9 ${monitorDevlxdPID} || true
+  kill -9 "${monitorDevlxdPID}" || true
 
   [ "${MATCH}" = "1" ]
 }

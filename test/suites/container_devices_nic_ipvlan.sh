@@ -23,7 +23,7 @@ test_container_devices_nic_ipvlan() {
   lxc init testimage "${ctName}"
   lxc config device add "${ctName}" eth0 nic \
     nictype=ipvlan \
-    parent=${ctName} \
+    parent="${ctName}" \
     ipv4.address="192.0.2.1${ipRand}" \
     ipv6.address="2001:db8::1${ipRand}" \
     ipv4.gateway=auto \
@@ -32,7 +32,7 @@ test_container_devices_nic_ipvlan() {
   lxc start "${ctName}"
 
   # Check custom MTU is applied.
-  if ! lxc exec "${ctName}" -- ip link show eth0 | grep "mtu 1400" ; then
+  if ! lxc exec "${ctName}" -- ip link show eth0 | grep -F "mtu 1400" ; then
     echo "mtu invalid"
     false
   fi
@@ -43,7 +43,7 @@ test_container_devices_nic_ipvlan() {
   ip link set "${ctName}" mtu 1405
   lxc config device unset "${ctName}" eth0 mtu
   lxc start "${ctName}"
-  if ! lxc exec "${ctName}" -- grep "1405" /sys/class/net/eth0/mtu ; then
+  if ! lxc exec "${ctName}" -- grep -xF "1405" /sys/class/net/eth0/mtu ; then
     echo "mtu not inherited from parent"
     false
   fi
@@ -52,7 +52,7 @@ test_container_devices_nic_ipvlan() {
   lxc init testimage "${ctName}2"
   lxc config device add "${ctName}2" eth0 nic \
     nictype=ipvlan \
-    parent=${ctName} \
+    parent="${ctName}" \
     ipv4.address="192.0.2.2${ipRand}, 192.0.2.3${ipRand}" \
     ipv6.address="2001:db8::2${ipRand}, 2001:db8::3${ipRand}"
   lxc start "${ctName}2"
@@ -79,24 +79,24 @@ test_container_devices_nic_ipvlan() {
   lxc start "${ctName}"
 
   # Check VLAN interface created
-  if ! grep "1" "/sys/class/net/${ctName}.1234/carrier" ; then
+  if ! grep -xF "1" "/sys/class/net/${ctName}.1234/carrier" ; then
     echo "vlan interface not created"
     false
   fi
 
   # Check static routes added to custom routing table
-  ip -4 route show table 100 | grep "192.0.2.1${ipRand}"
-  ip -6 route show table 101 | grep "2001:db8::1${ipRand}"
+  ip -4 route show table 100 | grep -F "192.0.2.1${ipRand}"
+  ip -6 route show table 101 | grep -F "2001:db8::1${ipRand}"
 
   # Check volatile cleanup on stop.
   lxc stop -f "${ctName}"
-  if lxc config show "${ctName}" | grep volatile.eth0 | grep -v volatile.eth0.hwaddr | grep -v volatile.eth0.name ; then
+  if [ "$(lxc config show "${ctName}" | grep -F volatile.eth0 | grep -vF volatile.eth0.hwaddr | grep -vF volatile.eth0.name)" != "" ]; then
     echo "unexpected volatile key remains"
     false
   fi
 
   # Check parent device is still up.
-  if ! grep "1" "/sys/class/net/${ctName}/carrier" ; then
+  if ! grep -xF "1" "/sys/class/net/${ctName}/carrier" ; then
     echo "parent is down"
     false
   fi
@@ -110,7 +110,7 @@ test_container_devices_nic_ipvlan() {
   lxc config device add "${ctName}" eth0 nic \
     nictype=ipvlan \
     mode=l2 \
-    parent=${ctName} \
+    parent="${ctName}" \
     ipv4.address="192.0.2.1${ipRand},192.0.2.2${ipRand}/32" \
     ipv6.address="2001:db8::1${ipRand},2001:db8::2${ipRand}/128" \
     ipv4.gateway=192.0.2.254 \
@@ -121,7 +121,7 @@ test_container_devices_nic_ipvlan() {
   lxc config device remove "${ctName}2" eth0
   lxc config device add "${ctName}2" eth0 nic \
     nictype=ipvlan \
-    parent=${ctName} \
+    parent="${ctName}" \
     ipv4.address="192.0.2.3${ipRand}" \
     ipv6.address="2001:db8::3${ipRand}" \
     mtu=1400

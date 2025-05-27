@@ -1,26 +1,21 @@
 btrfs_setup() {
-  local LXD_DIR
-
-  LXD_DIR=$1
+  local LXD_DIR="${1}"
 
   echo "==> Setting up btrfs backend in ${LXD_DIR}"
 }
 
 btrfs_configure() {
-  local LXD_DIR
+  local LXD_DIR="${1}"
+  local POOL_NAME="lxdtest-${LXD_DIR##*/}" # Use the last part of the LXD_DIR as pool name
 
-  LXD_DIR=$1
-
-  lxc storage create "lxdtest-$(basename "${LXD_DIR}")" btrfs size=1GiB
-  lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")"
+  lxc storage create "${POOL_NAME}" btrfs size=1GiB
+  lxc profile device add default root disk path="/" pool="${POOL_NAME}"
 
   echo "==> Configuring btrfs backend in ${LXD_DIR}"
 }
 
 btrfs_teardown() {
-  local LXD_DIR
-
-  LXD_DIR=$1
+  local LXD_DIR="${1}"
 
   echo "==> Tearing down btrfs backend in ${LXD_DIR}"
 }

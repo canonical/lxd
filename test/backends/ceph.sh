@@ -1,15 +1,11 @@
 ceph_setup() {
-  local LXD_DIR
-
-  LXD_DIR=$1
+  local LXD_DIR="${1}"
 
   echo "==> Setting up CEPH backend in ${LXD_DIR}"
 }
 
 ceph_configure() {
-  local LXD_DIR
-
-  LXD_DIR=$1
+  local LXD_DIR="${1}"
 
   echo "==> Configuring CEPH backend in ${LXD_DIR}"
 
@@ -18,9 +14,7 @@ ceph_configure() {
 }
 
 ceph_teardown() {
-  local LXD_DIR
-
-  LXD_DIR=$1
+  local LXD_DIR="${1}"
 
   echo "==> Tearing down CEPH backend in ${LXD_DIR}"
 }

@@ -50,7 +50,7 @@ test_container_local_cross_pool_handling() {
         fi
 
         if [ -n "${pool_opts}" ]; then
-          # shellcheck disable=SC2086
+          # shellcheck disable=SC2086,SC2248
           lxc storage create "lxdtest-$(basename "${LXD_DIR}")-${driver}1" "${driver}" $pool_opts
         else
           lxc storage create "lxdtest-$(basename "${LXD_DIR}")-${driver}1" "${driver}"
@@ -63,23 +63,23 @@ test_container_local_cross_pool_handling() {
         originalPool=$(lxc profile device get default root pool)
 
         # Check volatile.apply_template is initialised during create.
-        lxc config get c1 volatile.apply_template | grep create
+        [ "$(lxc config get c1 volatile.apply_template)" = "create" ]
         lxc copy c1 c2 -s "lxdtest-$(basename "${LXD_DIR}")-${driver}1"
 
         # Check volatile.apply_template is altered during copy.
-        lxc config get c2 volatile.apply_template | grep copy
+        [ "$(lxc config get c2 volatile.apply_template)" = "copy" ]
         lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" container/c2
         lxc delete -f c2
         lxc move c1 c2 -s "lxdtest-$(basename "${LXD_DIR}")-${driver}1"
 
         # Check volatile.apply_template is not altered during move and rename.
-        lxc config get c2 volatile.apply_template | grep create
+        [ "$(lxc config get c2 volatile.apply_template)" = "create" ]
         ! lxc info c1 || false
         lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" container/c2
 
         # Test moving back to original pool without renaming.
         lxc move c2 -s "${originalPool}"
-        lxc config get c2 volatile.apply_template | grep create
+        [ "$(lxc config get c2 volatile.apply_template)" = "create" ]
         lxc storage volume show "${originalPool}" container/c2
         lxc delete -f c2
 
