@@ -173,6 +173,11 @@ env:
 .PHONY: deps
 deps: dqlite liblxc env
 
+.PHONY: tics
+tics: deps
+	go build -a -x -v ./...
+	CC="cc" CGO_LDFLAGS_ALLOW="(-Wl,-wrap,pthread_create)|(-Wl,-z,now)" go install -v -tags "libsqlite3" -trimpath -a -x -v ./...
+
 .PHONY: update-gomod
 update-gomod:
 ifneq "$(LXD_OFFLINE)" ""
