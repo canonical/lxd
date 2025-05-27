@@ -66,7 +66,7 @@ For example:
 ```
 ````
 
-In this configuration, `my-parent-network` is your parent network, and the IPv4 and IPv6 addresses are within the subnet of the parent.
+In this configuration, `my-parent` is your parent network, and the IPv4 and IPv6 addresses are within the subnet of the parent.
 
 Next we will add some `netplan` configuration to the instance using the `cloud-init.network-config` configuration key:
 
