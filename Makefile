@@ -28,6 +28,12 @@ DQLITE_PATH=$(DEPS_PATH)/dqlite
 LIBLXC_PATH=$(DEPS_PATH)/liblxc
 LIBLXC_ROOTFS_MOUNT_PATH=$(GOPATH)/bin/liblxc/rootfs
 
+export CGO_CFLAGS ?= -I$(DQLITE_PATH)/include/ -I$(LIBLXC_PATH)/include/
+export CGO_LDFLAGS ?= -L$(DQLITE_PATH)/.libs/ -L$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/
+export LD_LIBRARY_PATH ?= $(DQLITE_PATH)/.libs/:$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/
+export PKG_CONFIG_PATH ?= $(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/pkgconfig
+export CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
+
 .PHONY: default
 default: all
 
@@ -158,11 +164,11 @@ endif
 env:
 	@echo ""
 	@echo "# Please set the following in your environment (possibly ~/.bashrc)"
-	@echo "export CGO_CFLAGS=\"-I$(DQLITE_PATH)/include/ -I$(LIBLXC_PATH)/include/\""
-	@echo "export CGO_LDFLAGS=\"-L$(DQLITE_PATH)/.libs/ -L$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/\""
-	@echo "export LD_LIBRARY_PATH=\"$(DQLITE_PATH)/.libs/:$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/\""
-	@echo "export PKG_CONFIG_PATH=\"$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/pkgconfig\""
-	@echo "export CGO_LDFLAGS_ALLOW=\"(-Wl,-wrap,pthread_create)|(-Wl,-z,now)\""
+	@echo "export CGO_CFLAGS=\"$(CGO_CFLAGS)\""
+	@echo "export CGO_LDFLAGS=\"$(CGO_LDFLAGS)\""
+	@echo "export LD_LIBRARY_PATH=\"$(LD_LIBRARY_PATH)\""
+	@echo "export PKG_CONFIG_PATH=\"$(PKG_CONFIG_PATH)\""
+	@echo "export CGO_LDFLAGS_ALLOW=\"$(CGO_LDFLAGS_ALLOW)\""
 
 .PHONY: deps
 deps: dqlite liblxc env
