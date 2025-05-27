@@ -11,20 +11,20 @@ runs:
         sudo apt-get update
 
         sudo apt-get install --no-install-recommends -y \
-          curl \
-          git \
-          make \
           acl \
           attr \
           bind9-dnsutils \
           btrfs-progs \
           busybox-static \
+          curl \
           dnsmasq-base \
           easy-rsa \
-          gettext \
+          git \
           jq \
           lvm2 \
+          make \
           nftables \
+          openvswitch-switch \
           quota \
           rsync \
           s3cmd \
@@ -38,8 +38,7 @@ runs:
           uuid-runtime \
           xfsprogs \
           xz-utils \
-          zfsutils-linux \
-          openvswitch-switch
+          zfsutils-linux
 
         if ! command -v yq >/dev/null; then
           # Releases before 24.04 don't have a yq deb so use the snap instead.
