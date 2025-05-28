@@ -513,7 +513,7 @@ type internalSQLQuery struct {
 }
 
 type internalSQLBatch struct {
-	Results []internalSQLResult
+	Results []internalSQLResult `json:"Results" yaml:"results"`
 }
 
 type internalSQLResult struct {
