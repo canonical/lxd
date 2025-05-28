@@ -3608,8 +3608,8 @@ test_clustering_edit_configuration() {
     backupFilename=$(find "${dir}" -name "db_backup.*.tar.gz")
     files=$(tar --list -f "${backupFilename}")
     # Check for dqlite segment files
-    echo "${files}" | grep -E '[0-9]{16}-[0-9]{16}' || echo "${files}" | grep -E 'open-[0-9]'
-    echo "${files}" | grep local.db
+    echo "${files}" | grep -xE -e "database/global/open-[0-9]" -e "database/global/[0-9]{16}-[0-9]{16}"
+    echo "${files}" | grep -xF "database/local.db"
 
     # Recovery tarballs shouldn't be included in backups
     ! echo "${files}" | grep -F lxd_recovery_db.tar.gz || false
