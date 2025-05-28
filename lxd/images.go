@@ -2179,7 +2179,6 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 			}
 		}
 
-		createArgs := &lxd.ImageCreateArgs{}
 		imageMetaPath := shared.VarPath("images", newImage.Fingerprint)
 		imageRootfsPath := shared.VarPath("images", newImage.Fingerprint+".rootfs")
 
@@ -2192,9 +2191,11 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 			_ = metaFile.Close()
 		})
 
-		createArgs.MetaFile = metaFile
-		createArgs.MetaName = filepath.Base(imageMetaPath)
-		createArgs.Type = newImage.Type
+		createArgs := &lxd.ImageCreateArgs{
+			MetaFile: metaFile,
+			MetaName: filepath.Base(metaFile.Name()),
+			Type:     newImage.Type,
+		}
 
 		var rootfsFile *os.File
 		if shared.PathExists(imageRootfsPath) {
@@ -2208,11 +2209,12 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 			})
 
 			createArgs.RootfsFile = rootfsFile
-			createArgs.RootfsName = filepath.Base(imageRootfsPath)
+			createArgs.RootfsName = filepath.Base(rootfsFile.Name())
 		}
 
-		image := api.ImagesPost{}
-		image.Filename = createArgs.MetaName
+		image := api.ImagesPost{
+			Filename: createArgs.MetaName,
+		}
 
 		op, err := client.CreateImage(image, createArgs)
 		if err != nil {
