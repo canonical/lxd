@@ -294,7 +294,7 @@ func SRIOVSwitchdevEnabled(deviceName string) bool {
 	}
 
 	dev := map[string]map[string]struct {
-		Mode string
+		Mode string `json:"Mode"`
 	}{}
 
 	err = json.NewDecoder(&buf).Decode(&dev)
