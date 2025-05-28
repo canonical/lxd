@@ -165,12 +165,12 @@ func (c *Config) RootVolume() (*Volume, error) {
 // Unlike RootVolume, CustomVolume always returns the first and only volume in the list.
 func (c *Config) CustomVolume() (*Volume, error) {
 	if c.Instance != nil {
-		return nil, errors.New("Instance config cannot be set for custom volumes")
+		return nil, errors.New("Invalid custom volume config")
 	}
 
 	volume, err := c.primaryVolume()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get custom volume: %w", err)
+		return nil, fmt.Errorf("Failed to get primary volume: %w", err)
 	}
 
 	return volume, nil
