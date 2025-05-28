@@ -6,7 +6,7 @@ package api
 //
 // API extension: network.
 type NetworksPost struct {
-	NetworkPut `yaml:",inline"`
+	NetworkPut `yaml:",inline"` //nolint:musttag
 
 	// The name of the new network
 	// Example: lxdbr1
