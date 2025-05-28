@@ -21,7 +21,7 @@ Long term support (LTS) releases
     Updates to this release happen approximately every six months, but this schedule should be seen as a rough estimation that can change based on priorities and discovered bugs.
     Currently in full support phase.
   - LXD 5.0 is supported until June 2027.
-    Currently in maintenance support phase.
+    Currently in extended support phase.
 
 Feature releases
 : The current feature series is LXD 6.x (starting with 6.1).
