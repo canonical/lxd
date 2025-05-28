@@ -7586,6 +7586,16 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	}
 }
 
+// PostMigrateSend performs any required cleanup steps after an instance has been migrated to another member.
+func (d *qemu) PostMigrateSend() error {
+	err := d.postMigrateSendCommon(d)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // ConversionReceive establishes the filesystem connection, transfers the filesystem / block volume,
 // and creates an instance from it.
 func (d *qemu) ConversionReceive(args instance.ConversionReceiveArgs) error {

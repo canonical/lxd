@@ -6391,6 +6391,16 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	}
 }
 
+// PostMigrateSend performs any required cleanup steps after an instance has been migrated to another member.
+func (d *lxc) PostMigrateSend() error {
+	err := d.postMigrateSendCommon(d)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // ConversionReceive establishes the filesystem connection, transfers the filesystem / block volume,
 // and creates an instance from it.
 func (d *lxc) ConversionReceive(args instance.ConversionReceiveArgs) error {
