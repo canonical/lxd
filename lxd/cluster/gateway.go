@@ -745,9 +745,6 @@ func (g *Gateway) init(bootstrap bool) error {
 	}
 
 	dir := g.db.DqliteDir()
-	if shared.PathExists(filepath.Join(dir, "logs.db")) {
-		return errors.New("Unsupported upgrade path, please first upgrade to LXD 4.0")
-	}
 
 	// If the resulting raft instance is not nil, it means that this node
 	// should serve as database node, so create a dqlite driver possibly
