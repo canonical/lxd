@@ -33,6 +33,7 @@ updates:
     labels: []
     schedule:
       interval: "weekly"
+    security-updates: true
     target-branch: "stable-5.0"
 
   - package-ecosystem: "github-actions"
