@@ -218,6 +218,7 @@ var devLXDStoragePoolVolumeTypeEndpoint = APIEndpoint{
 	Path:   "storage-pools/{poolName}/volumes/{type}/{volumeName}",
 	Get:    APIEndpointAction{Handler: devLXDStoragePoolVolumeGetHandler, AccessHandler: allowDevLXDAuthenticated},
 	Put:    APIEndpointAction{Handler: devLXDStoragePoolVolumePutHandler, AccessHandler: allowDevLXDAuthenticated},
+	Patch:  APIEndpointAction{Handler: devLXDStoragePoolVolumePutHandler, AccessHandler: allowDevLXDAuthenticated},
 	Delete: APIEndpointAction{Handler: devLXDStoragePoolVolumeDeleteHandler, AccessHandler: allowDevLXDAuthenticated},
 }
 
@@ -366,7 +367,13 @@ func devLXDStoragePoolVolumePutHandler(d *Daemon, r *http.Request) response.Resp
 		return response.DevLXDErrorResponse(err)
 	}
 
-	resp := storagePoolVolumePut(d, req)
+	var resp response.Response
+	if r.Method == http.MethodPatch {
+		resp = storagePoolVolumePatch(d, req)
+	} else {
+		resp = storagePoolVolumePut(d, req)
+	}
+
 	err = Render(req, resp)
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
