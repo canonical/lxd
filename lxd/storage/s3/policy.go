@@ -12,15 +12,15 @@ const roleReadOnly = "read-only"
 
 // Policy defines the S3 policy.
 type Policy struct {
-	Version   string
-	Statement []PolicyStatement
+	Version   string            `json:"Version"`
+	Statement []PolicyStatement `json:"Statement"`
 }
 
 // PolicyStatement defines the S3 policy statement.
 type PolicyStatement struct {
-	Effect   string
-	Action   []string
-	Resource []string
+	Effect   string   `json:"Effect"`
+	Action   []string `json:"Action"`
+	Resource []string `json:"Resource"`
 }
 
 // BucketPolicy generates an S3 bucket policy for role.
