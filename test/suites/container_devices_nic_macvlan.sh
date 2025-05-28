@@ -104,8 +104,13 @@ test_container_devices_nic_macvlan() {
 
   echo "==> Test using macvlan network."
 
-  echo "==> Create macvlan network and add NIC device using that network."
+  echo "==> Create macvlan network."
   lxc network create "${ctName}net" --type=macvlan parent="${ctName}"
+
+  echo "==> Check that lxc network info succeeds for macvlan network."
+  lxc network info "${ctName}net"
+
+  echo "==> Add NIC device using macvlan network."
   lxc config device add "${ctName}" eth0 nic \
     network="${ctName}net" \
     name=eth0
