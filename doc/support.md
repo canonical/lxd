@@ -6,7 +6,7 @@
 LXD maintains different release branches in parallel.
 
 Long term support (LTS) releases
-: The current LTS releases are LXD 5.21.x (snap channel `5.21/stable` - this is the default channel), LXD 5.0.x (snap channel `5.0/stable`) and LXD 4.0.x (snap channel `4.0/stable`).
+: The current LTS releases are LXD 5.21.x (snap channel `5.21/stable` - this is the default channel) and LXD 5.0.x (snap channel `5.0/stable`).
 
   An LTS release starts its life with full support, then moves to maintenance support, and finally to extended support. OS vendors might provide additional support[^1].
 
@@ -21,8 +21,6 @@ Long term support (LTS) releases
     Updates to this release happen approximately every six months, but this schedule should be seen as a rough estimation that can change based on priorities and discovered bugs.
     Currently in full support phase.
   - LXD 5.0 is supported until June 2027.
-    Currently in maintenance support phase.
-  - LXD 4.0 is supported until June 2025.
     Currently in extended support phase.
 
 Feature releases
