@@ -3158,19 +3158,19 @@ test_clustering_image_refresh() {
   done
 
   # Modify public testimage
-  old_fingerprint="$(LXD_DIR="${LXD_REMOTE_DIR}" lxc image ls testimage -c f --format csv)"
+  old_fingerprint="$(LXD_DIR="${LXD_REMOTE_DIR}" lxc image info testimage | awk '/^Fingerprint:/ {print $2}')"
   dd if=/dev/urandom count=32 | LXD_DIR="${LXD_REMOTE_DIR}" lxc file push - c1/foo
   LXD_DIR="${LXD_REMOTE_DIR}" lxc publish c1 --alias testimage --reuse --public
-  new_fingerprint="$(LXD_DIR="${LXD_REMOTE_DIR}" lxc image ls testimage -c f --format csv)"
+  new_fingerprint="$(LXD_DIR="${LXD_REMOTE_DIR}" lxc image info testimage | awk '/^Fingerprint:/ {print $2}')"
 
   pids=""
 
   if [ "${poolDriver}" != "dir" ]; then
     # Check image storage volume records exist.
     if [ "${poolDriver}" = "ceph" ]; then
-      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name LIKE '${old_fingerprint}%'")" = 1 ]
+      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 1 ]
     else
-      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name LIKE '${old_fingerprint}%'")" = 3 ]
+      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 3 ]
     fi
   fi
 
@@ -3189,11 +3189,11 @@ test_clustering_image_refresh() {
   if [ "${poolDriver}" != "dir" ]; then
     # Check image storage volume records actually removed from relevant members and replaced with new fingerprint.
     if [ "${poolDriver}" = "ceph" ]; then
-      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name LIKE '${old_fingerprint}%'")" = 0 ]
-      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name LIKE '${new_fingerprint}%'")" = 1 ]
+      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 0 ]
+      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name = '${new_fingerprint}'")" = 1 ]
     else
-      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name LIKE '${old_fingerprint}%'")" = 1 ]
-      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name LIKE '${new_fingerprint}%'")" = 2 ]
+      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 1 ]
+      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name = '${new_fingerprint}'")" = 2 ]
     fi
   fi
 
@@ -3201,12 +3201,12 @@ test_clustering_image_refresh() {
   # while project foo should still have the old image.
   # Also, it should only show 1 entry for the old image and 2 entries
   # for the new one.
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="foo"' | cut -c1-12)" = "${old_fingerprint}" ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint LIKE '${old_fingerprint}%'")" = 1 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="foo"')" = "${old_fingerprint}" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint = '${old_fingerprint}'")" = 1 ]
 
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="default"' | cut -c1-12)" = "${new_fingerprint}" ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="bar"' | cut -c1-12)" = "${new_fingerprint}" ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint LIKE '${new_fingerprint}%'")" = 2 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="default"')" = "${new_fingerprint}" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="bar"')" = "${new_fingerprint}" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint = '${new_fingerprint}'")" = 2 ]
 
   pids=""
 
@@ -3223,17 +3223,17 @@ test_clustering_image_refresh() {
     wait "${pid}" || true
   done
 
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="foo"' | cut -c1-12)" = "${old_fingerprint}" ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint LIKE '${old_fingerprint}%'")" = 1 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="foo"')" = "${old_fingerprint}" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint = '${old_fingerprint}'")" = 1 ]
 
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="default"' | cut -c1-12)" = "${new_fingerprint}" ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="bar"' | cut -c1-12)" = "${new_fingerprint}" ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint LIKE '${new_fingerprint}%'")" = 2 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="default"')" = "${new_fingerprint}" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="bar"')" = "${new_fingerprint}" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint = '${new_fingerprint}'")" = 2 ]
 
   # Modify public testimage
   dd if=/dev/urandom count=32 | LXD_DIR="${LXD_REMOTE_DIR}" lxc file push - c1/foo
   LXD_DIR="${LXD_REMOTE_DIR}" lxc publish c1 --alias testimage --reuse --public
-  new_fingerprint="$(LXD_DIR="${LXD_REMOTE_DIR}" lxc image ls testimage -c f --format csv)"
+  new_fingerprint="$(LXD_DIR="${LXD_REMOTE_DIR}" lxc image info testimage | awk '/^Fingerprint:/ {print $2}')"
 
   pids=""
 
@@ -3251,12 +3251,12 @@ test_clustering_image_refresh() {
 
   pids=""
 
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="foo"' | cut -c1-12)" = "${old_fingerprint}" ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint LIKE '${old_fingerprint}%'")" = 1 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="foo"')" = "${old_fingerprint}" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint = '${old_fingerprint}'")" = 1 ]
 
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="default"' | cut -c1-12)" = "${new_fingerprint}" ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="bar"' | cut -c1-12)" = "${new_fingerprint}" ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint LIKE '${new_fingerprint}%'")" = 2 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="default"')" = "${new_fingerprint}" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="bar"')" = "${new_fingerprint}" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint = '${new_fingerprint}'")" = 2 ]
 
   # Clean up everything
   for project in default foo bar; do
