@@ -172,7 +172,7 @@ func (c *Config) CustomVolume() (*Volume, error) {
 
 	volume, err := c.primaryVolume()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get custom volume: %w", err)
+		return nil, fmt.Errorf("Failed to get primary volume: %w", err)
 	}
 
 	return volume, nil
