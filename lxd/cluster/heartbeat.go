@@ -33,21 +33,21 @@ const (
 
 // APIHeartbeatMember contains specific cluster node info.
 type APIHeartbeatMember struct {
-	ID            int64            // ID field value in nodes table.
-	Address       string           // Host and Port of node.
-	Name          string           // Name of cluster member.
-	RaftID        uint64           // ID field value in raft_nodes table, zero if non-raft node.
-	RaftRole      int              // Node role in the raft cluster, from the raft_nodes table
-	LastHeartbeat time.Time        // Last time we received a successful response from node.
-	Online        bool             // Calculated from offline threshold and LastHeatbeat time.
-	Roles         []db.ClusterRole // Supplementary non-database roles the member has.
+	ID            int64            `json:"ID"`            // ID field value in nodes table.
+	Address       string           `json:"Address"`       // Host and Port of node.
+	Name          string           `json:"Name"`          // Name of cluster member.
+	RaftID        uint64           `json:"RaftID"`        // ID field value in raft_nodes table, zero if non-raft node.
+	RaftRole      int              `json:"RaftRole"`      // Node role in the raft cluster, from the raft_nodes table
+	LastHeartbeat time.Time        `json:"LastHeartbeat"` // Last time we received a successful response from node.
+	Online        bool             `json:"Online"`        // Calculated from offline threshold and LastHeatbeat time.
+	Roles         []db.ClusterRole `json:"Roles"`         // Supplementary non-database roles the member has.
 	updated       bool             // Has node been updated during this heartbeat run. Not sent to nodes.
 }
 
 // APIHeartbeatVersion contains max versions for all nodes in cluster.
 type APIHeartbeatVersion struct {
-	Schema        int
-	APIExtensions int
+	Schema        int `json:"Schema"`
+	APIExtensions int `json:"APIExtensions"`
 }
 
 // NewAPIHearbeat returns initialised APIHeartbeat.
@@ -61,14 +61,14 @@ func NewAPIHearbeat(cluster *db.Cluster) *APIHeartbeat {
 type APIHeartbeat struct {
 	sync.Mutex // Used to control access to Members maps.
 	cluster    *db.Cluster
-	Members    map[int64]APIHeartbeatMember
-	Version    APIHeartbeatVersion
-	Time       time.Time
+	Members    map[int64]APIHeartbeatMember `json:"Members"`
+	Version    APIHeartbeatVersion          `json:"Version"`
+	Time       time.Time                    `json:"Time"`
 
 	// Indicates if heartbeat contains a fresh set of node states.
 	// This can be used to indicate to the receiving node that the state is fresh enough to
 	// trigger node refresh activies (such as forkdns).
-	FullStateList bool
+	FullStateList bool `json:"FullStateList"`
 }
 
 // Update updates an existing APIHeartbeat struct with the raft and all node states supplied.
