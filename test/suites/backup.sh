@@ -1108,7 +1108,7 @@ test_backup_metadata() {
   # Export the instance without setting an export version.
   # The server should implicitly pick its latest supported version.
   lxc export c1 "${tmpDir}/c1.tar.gz"
-  tar -xzf "${tmpDir}/c1.tar.gz" -C "${tmpDir}" backup/index.yaml
+  tar -xzf "${tmpDir}/c1.tar.gz" -C "${tmpDir}" --occurrence=1 backup/index.yaml
 
   cat "${tmpDir}/backup/index.yaml"
   [ "$(yq '.snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
@@ -1120,7 +1120,7 @@ test_backup_metadata() {
   # Export the instance using the specified lowest export version.
   # The server should used the provided version instead of its default.
   lxc export c1 "${tmpDir}/c1.tar.gz" --export-version "${lowest_version}"
-  tar -xzf "${tmpDir}/c1.tar.gz" -C "${tmpDir}" backup/index.yaml
+  tar -xzf "${tmpDir}/c1.tar.gz" -C "${tmpDir}" --occurrence=1 backup/index.yaml
 
   cat "${tmpDir}/backup/index.yaml"
   [ "$(yq .config.version < "${tmpDir}/backup/index.yaml")" = "null" ]
@@ -1141,7 +1141,7 @@ test_backup_metadata() {
   # Export the custom storage volume without setting an export version.
   # The server should implicitly pick its latest supported version.
   lxc storage volume export "${poolName}" vol1 "${tmpDir}/vol1.tar.gz"
-  tar -xzf "${tmpDir}/vol1.tar.gz" -C "${tmpDir}" backup/index.yaml
+  tar -xzf "${tmpDir}/vol1.tar.gz" -C "${tmpDir}" --occurrence=1 backup/index.yaml
 
   cat "${tmpDir}/backup/index.yaml"
   [ "$(yq '.snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
@@ -1154,7 +1154,7 @@ test_backup_metadata() {
   # Export the custom storage volume using the specified lowest export version.
   # The server should used the provided version instead of its default.
   lxc storage volume export "${poolName}" vol1 "${tmpDir}/vol1.tar.gz" --export-version "${lowest_version}"
-  tar -xzf "${tmpDir}/vol1.tar.gz" -C "${tmpDir}" backup/index.yaml
+  tar -xzf "${tmpDir}/vol1.tar.gz" -C "${tmpDir}" --occurrence=1 backup/index.yaml
 
   cat "${tmpDir}/backup/index.yaml"
   [ "$(yq '.snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
