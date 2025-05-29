@@ -7548,7 +7548,7 @@ func (d *lxc) processesState(pid int) (int64, error) {
 	pids := []int64{int64(pid)}
 
 	// Go through the pid list, adding new pids at the end so we go through them all
-	for i := 0; i < len(pids); i++ {
+	for i := range pids {
 		fname := fmt.Sprintf("/proc/%d/task/%d/children", pids[i], pids[i])
 		fcont, err := os.ReadFile(fname)
 		if err != nil {
@@ -7557,7 +7557,7 @@ func (d *lxc) processesState(pid int) (int64, error) {
 		}
 
 		content := strings.Split(string(fcont), " ")
-		for j := 0; j < len(content); j++ {
+		for j := range content {
 			pid, err := strconv.ParseInt(content[j], 10, 64)
 			if err == nil {
 				pids = append(pids, pid)
