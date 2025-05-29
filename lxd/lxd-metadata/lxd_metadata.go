@@ -77,7 +77,7 @@ func getSortedKeysFromMap[K string, V IterableAny](m map[K]V) []K {
 		keys = append(keys, k)
 	}
 
-	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+	slices.Sort(keys)
 	return keys
 }
 
