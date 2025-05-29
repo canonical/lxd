@@ -594,7 +594,7 @@ func internalSQLPost(d *Daemon, r *http.Request) response.Response {
 		return response.SyncResponse(true, batch)
 	}
 
-	for _, query := range strings.Split(req.Query, ";") {
+	for query := range strings.SplitSeq(req.Query, ";") {
 		query = strings.TrimLeft(query, " ")
 
 		if query == "" {
