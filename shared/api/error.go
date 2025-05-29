@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 )
 
 // NewGenericStatusError returns a new StatusError with the given status code.
@@ -77,10 +78,8 @@ func StatusErrorMatch(err error, matchStatusCodes ...int) (int, bool) {
 			return statusCode, true
 		}
 
-		for _, s := range matchStatusCodes {
-			if statusCode == s {
-				return statusCode, true
-			}
+		if slices.Contains(matchStatusCodes, statusCode) {
+			return statusCode, true
 		}
 	}
 
