@@ -16,7 +16,11 @@ import (
 func stringToTimeHookFunc(layout string) mapstructure.DecodeHookFuncType {
 	return func(from reflect.Type, to reflect.Type, data any) (any, error) {
 		if from.Kind() == reflect.String && to == reflect.TypeOf(time.Time{}) {
-			strValue := data.(string)
+			strValue, ok := data.(string)
+			if !ok {
+				return nil, fmt.Errorf("Expected string, got %T", data)
+			}
+
 			t, err := time.Parse(layout, strValue)
 			if err != nil {
 				return nil, err
@@ -36,7 +40,11 @@ func stringToBoolHookFunc() mapstructure.DecodeHookFunc {
 			return data, nil
 		}
 
-		str := data.(string)
+		str, ok := data.(string)
+		if !ok {
+			return data, fmt.Errorf("Expected string, got %T", data)
+		}
+
 		str = strings.ToLower(str)
 		switch str {
 		case "1", "t", "true":
@@ -56,7 +64,11 @@ func stringToIntHookFunc() mapstructure.DecodeHookFunc {
 			return data, nil
 		}
 
-		str := data.(string)
+		str, ok := data.(string)
+		if !ok {
+			return data, fmt.Errorf("Expected string, got %T", data)
+		}
+
 		value, err := strconv.Atoi(str)
 		if err != nil {
 			return data, err
@@ -73,7 +85,11 @@ func stringToFloatHookFunc() mapstructure.DecodeHookFunc {
 			return data, nil
 		}
 
-		str := data.(string)
+		str, ok := data.(string)
+		if !ok {
+			return data, fmt.Errorf("Expected string, got %T", data)
+		}
+
 		value, err := strconv.ParseFloat(str, 64)
 		if err != nil {
 			return data, err
