@@ -336,7 +336,7 @@ func writeDocFile(inputJSONPath, outputTxtPath string) error {
 	countMaxBackTicks := func(s string) int {
 		count, currCount := 0, 0
 		n := len(s)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			if s[i] == '`' {
 				currCount++
 				continue
