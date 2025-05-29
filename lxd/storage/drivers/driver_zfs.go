@@ -733,7 +733,7 @@ func (d *zfs) patchDropBlockVolumeFilesystemExtension() error {
 		return fmt.Errorf("Failed listing images: %w", err)
 	}
 
-	for _, volume := range strings.Split(out, "\n") {
+	for volume := range strings.SplitSeq(out, "\n") {
 		fields := strings.SplitN(volume, poolName+"/images/", 2)
 
 		if len(fields) != 2 || fields[1] == "" {
