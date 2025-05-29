@@ -285,7 +285,7 @@ func (c *cmdList) listInstances(d lxd.InstanceServer, instances []api.Instance, 
 		cInfoQueue := make(chan string, threads)
 		cInfoWg := sync.WaitGroup{}
 
-		for i := 0; i < threads; i++ {
+		for range threads {
 			cInfoWg.Add(1)
 			go func() {
 				for {
@@ -328,7 +328,7 @@ func (c *cmdList) listInstances(d lxd.InstanceServer, instances []api.Instance, 
 	cSnapshotsQueue := make(chan string, threads)
 	cSnapshotsWg := sync.WaitGroup{}
 
-	for i := 0; i < threads; i++ {
+	for range threads {
 		cStatesWg.Add(1)
 		go func() {
 			for {
