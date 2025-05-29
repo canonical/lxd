@@ -762,7 +762,7 @@ func (c *ClusterTx) GetNetworkWithInterface(ctx context.Context, devName string)
 			return err
 		}
 
-		for _, entry := range strings.Split(value, ",") {
+		for entry := range strings.SplitSeq(value, ",") {
 			entry = strings.TrimSpace(entry)
 			if entry == devName {
 				id = networkID
