@@ -34,7 +34,7 @@ func ValueOf(obj any, field string) any {
 		return nil
 	}
 
-	for i := 0; i < value.NumField(); i++ {
+	for i := range value.NumField() {
 		fieldValue := value.Field(i)
 		fieldType := typ.Field(i)
 		yaml := fieldType.Tag.Get("yaml")
