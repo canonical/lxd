@@ -484,7 +484,7 @@ func (o *OVS) VLANFilteringEnabled(ctx context.Context, bridgeName string) (bool
 	}
 
 	lines := strings.SplitSeq(strings.TrimSpace(output), "\n")
-	for _, line := range lines {
+	for line := range lines {
 		// when no value is defined "[]" is returned
 		if line != "[]" {
 			return true, nil
