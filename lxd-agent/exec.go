@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"io/fs"
+	"maps"
 	"net/http"
 	"os"
 	"os/exec"
@@ -58,9 +59,7 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 	env := map[string]string{}
 
 	if post.Environment != nil {
-		for k, v := range post.Environment {
-			env[k] = v
-		}
+		maps.Copy(env, post.Environment)
 	}
 
 	// Set default value for PATH
