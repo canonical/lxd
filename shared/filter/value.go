@@ -19,7 +19,11 @@ func ValueOf(obj any, field string) any {
 	if value.Kind() == reflect.Map {
 		switch reflect.TypeOf(obj).Elem().Kind() {
 		case reflect.String:
-			m := value.Interface().(map[string]string)
+			m, ok := value.Interface().(map[string]string)
+			if !ok {
+				return nil
+			}
+
 			return m[field]
 		case reflect.Map:
 			for _, entry := range value.MapKeys() {
