@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -25,12 +26,7 @@ import (
 
 // stringInSlice checks whether the supplied string is present in the supplied slice.
 func stringInSlice(key string, list []string) bool {
-	for _, entry := range list {
-		if entry == key {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(list, key)
 }
 
 // Required returns function that runs one or more validators, all must pass without error.
@@ -581,10 +577,8 @@ func IsCron(aliases []string) func(value string) error {
 	return func(value string) error {
 		isValid := func(value string) error {
 			// Accept valid aliases.
-			for _, alias := range aliases {
-				if alias == value {
-					return nil
-				}
+			if slices.Contains(aliases, value) {
+				return nil
 			}
 
 			if len(strings.Split(value, " ")) != 5 {
