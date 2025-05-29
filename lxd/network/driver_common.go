@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"os"
 	"slices"
@@ -129,9 +130,7 @@ func (n *common) validate(config map[string]string, driverRules map[string]func(
 	rules := n.validationRules()
 
 	// Merge driver specific rules into common rules.
-	for field, validator := range driverRules {
-		rules[field] = validator
-	}
+	maps.Copy(rules, driverRules)
 
 	// Run the validator against each field.
 	for k, validator := range rules {
