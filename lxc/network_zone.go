@@ -6,6 +6,7 @@ import (
 	"io"
 	"maps"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -1545,7 +1546,7 @@ func (c *cmdNetworkZoneRecordEntry) runRemove(cmd *cobra.Command, args []string)
 		}
 
 		found = true
-		netRecord.Entries = append(netRecord.Entries[:i], netRecord.Entries[i+1:]...)
+		netRecord.Entries = slices.Delete(netRecord.Entries, i, i+1)
 	}
 
 	if !found {
