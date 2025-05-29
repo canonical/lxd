@@ -890,10 +890,8 @@ func (n *bridge) Validate(config map[string]string) error {
 		}
 
 		for _, ovnRange := range ovnRanges {
-			for _, dhcpRange := range dhcpRanges {
-				if ovnRange.Overlaps(dhcpRange) {
-					return fmt.Errorf(`The range specified in "ipv4.ovn.ranges" (%q) cannot overlap with "ipv4.dhcp.ranges"`, ovnRange)
-				}
+			if slices.ContainsFunc(dhcpRanges, ovnRange.Overlaps) {
+				return fmt.Errorf(`The range specified in "ipv4.ovn.ranges" (%q) cannot overlap with "ipv4.dhcp.ranges"`, ovnRange)
 			}
 		}
 	}
@@ -925,10 +923,8 @@ func (n *bridge) Validate(config map[string]string) error {
 			}
 
 			for _, ovnRange := range ovnRanges {
-				for _, dhcpRange := range dhcpRanges {
-					if ovnRange.Overlaps(dhcpRange) {
-						return fmt.Errorf(`The range specified in "ipv6.ovn.ranges" (%q) cannot overlap with "ipv6.dhcp.ranges"`, ovnRange)
-					}
+				if slices.ContainsFunc(dhcpRanges, ovnRange.Overlaps) {
+					return fmt.Errorf(`The range specified in "ipv6.ovn.ranges" (%q) cannot overlap with "ipv6.dhcp.ranges"`, ovnRange)
 				}
 			}
 		}
