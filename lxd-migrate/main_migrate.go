@@ -986,7 +986,7 @@ func (c *cmdMigrate) askProfiles(server lxd.InstanceServer, config *cmdMigrateDa
 			return nil
 		}
 
-		profiles := strings.Split(s, " ")
+		profiles := strings.SplitSeq(s, " ")
 
 		for _, profile := range profiles {
 			if !slices.Contains(profileNames, profile) {
@@ -1013,7 +1013,7 @@ func (c *cmdMigrate) askConfig(config *cmdMigrateData) error {
 			return nil
 		}
 
-		for _, entry := range strings.Split(s, " ") {
+		for entry := range strings.SplitSeq(s, " ") {
 			if !strings.Contains(entry, "=") {
 				return fmt.Errorf("Bad key=value configuration: %v", entry)
 			}
@@ -1025,7 +1025,7 @@ func (c *cmdMigrate) askConfig(config *cmdMigrateData) error {
 		return err
 	}
 
-	for _, entry := range strings.Split(configs, " ") {
+	for entry := range strings.SplitSeq(configs, " ") {
 		key, value, _ := strings.Cut(entry, "=")
 		config.InstanceArgs.Config[key] = value
 	}
