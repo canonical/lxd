@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -1491,9 +1492,7 @@ func ApplyDeviceOverrides(localDevices map[string]map[string]string, profileDevi
 		_, isLocalDevice := localDevices[deviceName]
 		if isLocalDevice {
 			// Apply overrides to local device.
-			for k, v := range deviceOverrides[deviceName] {
-				localDevices[deviceName][k] = v
-			}
+			maps.Copy(localDevices[deviceName], deviceOverrides[deviceName])
 		} else {
 			// Check device exists in expanded profile devices.
 			profileDeviceConfig, found := profileDevices[deviceName]
@@ -1501,9 +1500,7 @@ func ApplyDeviceOverrides(localDevices map[string]map[string]string, profileDevi
 				return nil, fmt.Errorf("Cannot override config for device %q: Device not found in profile devices", deviceName)
 			}
 
-			for k, v := range deviceOverrides[deviceName] {
-				profileDeviceConfig[k] = v
-			}
+			maps.Copy(profileDeviceConfig, deviceOverrides[deviceName])
 
 			localDevices[deviceName] = profileDeviceConfig
 		}
