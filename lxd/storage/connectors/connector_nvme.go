@@ -208,7 +208,7 @@ func (c *connectorNVMe) findSession(targetQN string) (*session, error) {
 		// each in format "traddr=<ip>,trsvcid=<port>,...".
 		for line := range strings.SplitSeq(string(fileBytes), "\n") {
 			parts := strings.SplitSeq(strings.TrimSpace(line), ",")
-			for _, part := range parts {
+			for part := range parts {
 				addr, ok := strings.CutPrefix(part, "traddr=")
 				if ok {
 					session.addresses = append(session.addresses, addr)
