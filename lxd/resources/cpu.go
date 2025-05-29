@@ -49,7 +49,7 @@ func GetCPUIsolated() []int64 {
 func parseRangedListToInt64Slice(input string) ([]int64, error) {
 	res := []int64{}
 	chunks := strings.SplitSeq(input, ",")
-	for _, chunk := range chunks {
+	for chunk := range chunks {
 		if strings.Contains(chunk, "-") {
 			// Range
 			before, after, _ := strings.Cut(chunk, "-")
