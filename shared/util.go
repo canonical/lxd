@@ -1127,7 +1127,7 @@ func TryRunCommand(name string, arg ...string) (string, error) {
 	var err error
 	var output string
 
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		output, err = RunCommand(name, arg...)
 		if err == nil {
 			break
