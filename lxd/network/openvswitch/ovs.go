@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -260,10 +261,8 @@ func (o *OVS) OVNBridgeMappingAdd(bridgeName string, providerName string) error 
 	}
 
 	newMapping := fmt.Sprintf("%s:%s", providerName, bridgeName)
-	for _, mapping := range mappings {
-		if mapping == newMapping {
-			return nil // Mapping is already present, nothing to do.
-		}
+	if slices.Contains(mappings, newMapping) {
+		return nil // Mapping is already present, nothing to do.
 	}
 
 	mappings = append(mappings, newMapping)
