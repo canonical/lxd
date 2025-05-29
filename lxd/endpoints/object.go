@@ -75,7 +75,7 @@ func (e *Endpoints) StorageBucketsUpdateAddress(address string, cert *shared.Cer
 		var err error
 		var listener net.Listener
 
-		for i := 0; i < 10; i++ { // Ten retries over a second seems reasonable.
+		for range 10 { // Ten retries over a second seems reasonable.
 			listener, err = storageBucketsCreateListener(address, cert)
 			if err == nil {
 				break
