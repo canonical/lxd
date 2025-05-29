@@ -4260,10 +4260,7 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]any, bootIndex
 	// Returns the number of queues to use with NIC.
 	configureQueues := func(cpuCount int) int {
 		// Number of queues is the same as number of vCPUs. Run with a minimum of two queues.
-		queueCount := cpuCount
-		if queueCount < 2 {
-			queueCount = 2
-		}
+		queueCount := max(cpuCount, 2)
 
 		// Number of vectors is number of vCPUs * 2 (RX/TX) + 2 (config/control MSI-X).
 		vectors := 2*queueCount + 2
@@ -7191,10 +7188,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 	// Respond with our maximum supported header version if the requested version is higher than ours.
 	// Otherwise just return the requested header version to the source.
-	indexHeaderVersion := offerHeader.GetIndexHeaderVersion()
-	if indexHeaderVersion > migration.IndexHeaderVersion {
-		indexHeaderVersion = migration.IndexHeaderVersion
-	}
+	indexHeaderVersion := min(offerHeader.GetIndexHeaderVersion(), migration.IndexHeaderVersion)
 
 	respHeader.IndexHeaderVersion = &indexHeaderVersion
 	respHeader.SnapshotNames = offerHeader.SnapshotNames
