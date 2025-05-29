@@ -998,7 +998,7 @@ func GetLeaseAddresses(networkName string, hwaddr string) ([]net.IP, error) {
 
 	addresses := []net.IP{}
 
-	for _, lease := range strings.Split(string(content), "\n") {
+	for lease := range strings.SplitSeq(string(content), "\n") {
 		fields := strings.Fields(lease)
 		if len(fields) < 5 {
 			continue
