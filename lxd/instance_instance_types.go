@@ -102,8 +102,8 @@ func instanceRefreshTypesTask(stateFunc func() *state.State) (task.Func, task.Sc
 
 func instanceRefreshTypes(ctx context.Context, s *state.State) error {
 	// Attempt to download the new definitions
-	downloadParse := func(filename string, target any) error {
-		url := "https://images.lxd.canonical.com/meta/instance-types/" + filename
+	downloadParse := func(target any) error {
+		url := "https://images.lxd.canonical.com/meta/instance-types/all.yaml"
 
 		httpClient, err := util.HTTPClient("", s.Proxy)
 		if err != nil {
@@ -156,7 +156,7 @@ func instanceRefreshTypes(ctx context.Context, s *state.State) error {
 	}
 
 	// Parse the "all.yaml" file and update the global map
-	err := downloadParse("all.yaml", &instanceTypes)
+	err := downloadParse(&instanceTypes)
 	if err != nil {
 		logger.Warn("Failed updating instance types", logger.Ctx{"err": err})
 		return err
