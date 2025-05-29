@@ -869,14 +869,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 					}
 
 					/* choose 5 GiB < x < 30GiB, where x is 20% of the disk size */
-					defaultSize := uint64(st.Frsize) * st.Blocks / (1024 * 1024 * 1024) / 5
-					if defaultSize > 30 {
-						defaultSize = 30
-					}
-
-					if defaultSize < 5 {
-						defaultSize = 5
-					}
+					defaultSize := max(min(uint64(st.Frsize)*st.Blocks/(1024*1024*1024)/5, 30), 5)
 
 					pool.Config["size"], err = c.global.asker.AskString(
 						fmt.Sprintf("Size in GiB of the new loop device (1GiB minimum) [default=%dGiB]: ", defaultSize),
