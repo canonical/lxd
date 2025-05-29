@@ -199,13 +199,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.In
 		return nil, nil, err
 	}
 
-	storagePoolSupported := false
-	for _, supportedType := range d.storagePool.Driver().Info().VolumeTypes {
-		if supportedType == volType {
-			storagePoolSupported = true
-			break
-		}
-	}
+	storagePoolSupported := slices.Contains(d.storagePool.Driver().Info().VolumeTypes, volType)
 
 	if !storagePoolSupported {
 		return nil, nil, errors.New("Storage pool does not support instance type")
@@ -6712,13 +6706,7 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 			var w *os.File
 
 			// Check if the template should be applied now
-			found := false
-			for _, tplTrigger := range tpl.When {
-				if tplTrigger == string(trigger) {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(tpl.When, string(trigger))
 
 			if !found {
 				return nil
