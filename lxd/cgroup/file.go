@@ -22,7 +22,7 @@ func NewFileReadWriter(pid int, unifiedCapable bool) (*CGroup, error) {
 		return nil, err
 	}
 
-	for _, line := range strings.Split(string(controllers), "\n") {
+	for line := range strings.SplitSeq(string(controllers), "\n") {
 		// Skip empty lines.
 		line = strings.TrimSpace(line)
 		if line == "" {
@@ -48,7 +48,7 @@ func NewFileReadWriter(pid int, unifiedCapable bool) (*CGroup, error) {
 		}
 
 		// Add the controllers individually.
-		for _, ctrl := range strings.Split(fields[1], ",") {
+		for ctrl := range strings.SplitSeq(fields[1], ",") {
 			rw.paths[ctrl] = path
 		}
 	}
