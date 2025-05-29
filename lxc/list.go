@@ -640,7 +640,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 			colType := configColumnType
 			if (cc[0] == configColumnType || cc[0] == deviceColumnType) && len(cc) > 1 {
 				colType = cc[0]
-				cc = append(cc[:0], cc[1:]...)
+				cc = slices.Delete(cc, 0, 1)
 			}
 
 			if len(cc) > 3 {
