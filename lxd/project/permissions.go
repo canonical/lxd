@@ -25,7 +25,7 @@ func CheckRestrictedDevicesDiskPaths(projectConfig map[string]string, sourcePath
 
 	// Clean, then add trailing slash, to ensure we are prefix matching on whole path.
 	sourcePath = filepath.Clean(shared.HostPath(sourcePath)) + "/"
-	for _, parentSourcePath := range strings.Split(projectConfig["restricted.devices.disk.paths"], ",") {
+	for parentSourcePath := range strings.SplitSeq(projectConfig["restricted.devices.disk.paths"], ",") {
 		// Clean, then add trailing slash, to ensure we are prefix matching on whole path.
 		parentSourcePathTrailing := filepath.Clean(shared.HostPath(parentSourcePath)) + "/"
 		if strings.HasPrefix(sourcePath, parentSourcePathTrailing) {
