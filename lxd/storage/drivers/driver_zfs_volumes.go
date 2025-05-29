@@ -1140,13 +1140,7 @@ func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCl
 		// Check if snapshot data set matches one of the requested snapshots in volTargetArgs.Snapshots.
 		// If so, then keep it, otherwise request it be removed.
 		entrySnapName := strings.TrimPrefix(dataSetName, dataSetSnapshotPrefix)
-		for _, snapName := range volTargetArgs.Snapshots {
-			if entrySnapName == snapName {
-				return true // Keep snapshot data set if present in the requested snapshots list.
-			}
-		}
-
-		return false // Delete any other snapshot data sets that have been transferred.
+		return slices.Contains(volTargetArgs.Snapshots, entrySnapName) // Delete any other snapshot data sets that have been transferred.
 	}
 
 	if volTargetArgs.Refresh {
