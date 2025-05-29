@@ -2492,7 +2492,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 		}
 
 		header := true
-		for _, line := range strings.Split(output, "\n") {
+		for line := range strings.SplitSeq(output, "\n") {
 			fields := strings.Fields(line)
 			if len(fields) < 5 {
 				continue
@@ -2549,7 +2549,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 			devices = append(devices, fmt.Sprint(major, ":", minor))
 		}
 
-		for _, line := range strings.Split(output, "\n") {
+		for line := range strings.SplitSeq(output, "\n") {
 			fields := strings.Fields(line)
 			if len(fields) == 0 || fields[0] != "devid" {
 				continue
