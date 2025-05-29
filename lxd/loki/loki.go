@@ -201,7 +201,7 @@ func (c *Client) sendBatch(batch *batch) {
 
 	var status int
 
-	for i := 0; i < 30; i++ {
+	for range 30 {
 		ctx, cancel := context.WithTimeout(context.Background(), c.cfg.timeout)
 		status, err = c.send(ctx, buf)
 		cancel()
