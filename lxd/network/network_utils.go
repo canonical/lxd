@@ -605,7 +605,7 @@ func ForkdnsServersList(networkName string) ([]string, error) {
 }
 
 func randomSubnetV4() (string, error) {
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		cidr := fmt.Sprintf("10.%d.%d.1/24", rand.Intn(255), rand.Intn(255))
 		_, subnet, err := net.ParseCIDR(cidr)
 		if err != nil {
@@ -627,7 +627,7 @@ func randomSubnetV4() (string, error) {
 }
 
 func randomSubnetV6() (string, error) {
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		cidr := fmt.Sprintf("fd42:%x:%x:%x::1/64", rand.Intn(65535), rand.Intn(65535), rand.Intn(65535))
 		_, subnet, err := net.ParseCIDR(cidr)
 		if err != nil {
