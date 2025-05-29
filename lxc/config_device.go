@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -769,9 +770,7 @@ func (c *cmdConfigDeviceSet) run(cmd *cobra.Command, args []string) error {
 			return errors.New(i18n.G("Device doesn't exist"))
 		}
 
-		for k, v := range keys {
-			dev[k] = v
-		}
+		maps.Copy(dev, keys)
 
 		profile.Devices[devname] = dev
 
@@ -795,9 +794,7 @@ func (c *cmdConfigDeviceSet) run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("Device %q from profile(s) %q cannot be modified for individual instance %q: %w", devname, inst.Profiles, inst.Name, errors.New(i18n.G("Override device or modify profile instead")))
 		}
 
-		for k, v := range keys {
-			dev[k] = v
-		}
+		maps.Copy(dev, keys)
 
 		inst.Devices[devname] = dev
 
