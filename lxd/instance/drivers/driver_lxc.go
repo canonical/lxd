@@ -6983,7 +6983,7 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 
 		// Write PID file.
 		pidFile := filepath.Join(d.LogPath(), "forkfile.pid")
-		err = os.WriteFile(pidFile, []byte(fmt.Sprint(forkfile.Process.Pid, "\n")), 0600)
+		err = os.WriteFile(pidFile, fmt.Append(nil, forkfile.Process.Pid, "\n"), 0600)
 		if err != nil {
 			chReady <- fmt.Errorf("Failed to write forkfile PID: %w", err)
 			return
