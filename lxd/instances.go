@@ -572,7 +572,7 @@ func instancesShutdown(ctx context.Context, instances []instance.Instance) {
 		}()
 	}
 
-	for i := 0; i < maxConcurrent; i++ {
+	for range maxConcurrent {
 		go func(instShutdownCh <-chan instance.Instance) {
 			for inst := range instShutdownCh {
 				l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
