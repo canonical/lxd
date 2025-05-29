@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/url"
 	"os"
 	"path"
@@ -2237,9 +2238,7 @@ func (c *cmdStorageVolumeSet) run(cmd *cobra.Command, args []string) error {
 		}
 	} else {
 		// Update the volume config keys.
-		for k, v := range keys {
-			writable.Config[k] = v
-		}
+		maps.Copy(writable.Config, keys)
 	}
 
 	err = client.UpdateStoragePoolVolume(resource.name, vol.Type, vol.Name, writable, etag)
