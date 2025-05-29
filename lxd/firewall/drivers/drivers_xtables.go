@@ -881,7 +881,7 @@ func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName stri
 
 	errs := []error{}
 	// Iterate through each active rule on the host and try and match it to one the LXD rules.
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		line = strings.TrimSpace(line)
 		fields := strings.Fields(line)
 		fieldsLen := len(fields)
@@ -1327,7 +1327,7 @@ func (d Xtables) iptablesClear(ipVersion uint, comments []string, fromTables ...
 			return fmt.Errorf("Failed to list IPv%d rules (table %s)", ipVersion, fromTable)
 		}
 
-		for _, line := range strings.Split(output, "\n") {
+		for line := range strings.SplitSeq(output, "\n") {
 			for _, comment := range comments {
 				if !strings.Contains(line, iptablesCommentPrefix+" "+comment) {
 					continue
