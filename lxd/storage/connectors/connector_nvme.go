@@ -206,8 +206,8 @@ func (c *connectorNVMe) findSession(targetQN string) (*session, error) {
 		// Extract the addresses from the file.
 		// The "address" file contains one line per connection,
 		// each in format "traddr=<ip>,trsvcid=<port>,...".
-		for _, line := range strings.Split(string(fileBytes), "\n") {
-			parts := strings.Split(strings.TrimSpace(line), ",")
+		for line := range strings.SplitSeq(string(fileBytes), "\n") {
+			parts := strings.SplitSeq(strings.TrimSpace(line), ",")
 			for _, part := range parts {
 				addr, ok := strings.CutPrefix(part, "traddr=")
 				if ok {
