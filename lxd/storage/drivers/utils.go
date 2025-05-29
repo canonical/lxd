@@ -169,7 +169,7 @@ func TryMount(src string, dst string, fs string, flags uintptr, options string) 
 	var err error
 
 	// Attempt 20 mounts over 10s
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		err = unix.Mount(src, dst, fs, flags, options)
 		if err == nil {
 			break
@@ -189,7 +189,7 @@ func TryMount(src string, dst string, fs string, flags uintptr, options string) 
 func TryUnmount(path string, flags int) error {
 	var err error
 
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		err = unix.Unmount(path, flags)
 		if err == nil {
 			break
