@@ -119,7 +119,7 @@ func (m *Method) GenerateSignature(buf *file.Buffer) error {
 	buf.L("type %sGenerated interface {", lex.Camel(m.entity))
 	defer m.end(buf)
 	if m.config["references"] != "" {
-		refFields := strings.Split(m.config["references"], ",")
+		refFields := strings.SplitSeq(m.config["references"], ",")
 		for _, fieldName := range refFields {
 			m.ref = fieldName
 			err := m.signature(buf, true)
@@ -147,7 +147,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 	}
 
 	if m.config["references"] != "" {
-		refFields := strings.Split(m.config["references"], ",")
+		refFields := strings.SplitSeq(m.config["references"], ",")
 		for _, fieldName := range refFields {
 			refMapping, err := Parse(m.pkg, fieldName, m.kind)
 			if err != nil {
@@ -674,7 +674,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 	}
 
 	if m.config["references"] != "" {
-		refFields := strings.Split(m.config["references"], ",")
+		refFields := strings.SplitSeq(m.config["references"], ",")
 		for _, fieldName := range refFields {
 			refMapping, err := Parse(m.pkg, fieldName, m.kind)
 			if err != nil {
@@ -960,7 +960,7 @@ func (m *Method) update(buf *file.Buffer) error {
 	}
 
 	if m.config["references"] != "" {
-		refFields := strings.Split(m.config["references"], ",")
+		refFields := strings.SplitSeq(m.config["references"], ",")
 		for _, fieldName := range refFields {
 			refMapping, err := Parse(m.pkg, fieldName, m.kind)
 			if err != nil {
