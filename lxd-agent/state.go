@@ -224,7 +224,7 @@ func processesState() int64 {
 	pids := []int64{1}
 
 	// Go through the pid list, adding new pids at the end so we go through them all
-	for i := 0; i < len(pids); i++ {
+	for i := range pids {
 		pid := strconv.FormatInt(pids[i], 10)
 		fname := "/proc/" + pid + "/task/" + pid + "/children"
 		fcont, err := os.ReadFile(fname)
@@ -234,7 +234,7 @@ func processesState() int64 {
 		}
 
 		content := strings.Split(string(fcont), " ")
-		for j := 0; j < len(content); j++ {
+		for j := range content {
 			pid, err := strconv.ParseInt(content[j], 10, 64)
 			if err == nil {
 				pids = append(pids, pid)
