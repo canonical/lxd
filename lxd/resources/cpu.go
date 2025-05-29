@@ -48,7 +48,7 @@ func GetCPUIsolated() []int64 {
 // The elements in the output slice are meant to represent hardware entity identifiers (e.g, either CPU or NUMA node IDs).
 func parseRangedListToInt64Slice(input string) ([]int64, error) {
 	res := []int64{}
-	chunks := strings.Split(input, ",")
+	chunks := strings.SplitSeq(input, ",")
 	for _, chunk := range chunks {
 		if strings.Contains(chunk, "-") {
 			// Range
