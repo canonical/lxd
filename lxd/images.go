@@ -2158,11 +2158,8 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 			// skip distributing the image to this cluster member.
 			// If the option is unset, distribute the image.
 			if vol != "" {
-				for _, imageVolume := range imageVolumes {
-					if imageVolume == vol {
-						skipDistribution = true
-						break
-					}
+				if slices.Contains(imageVolumes, vol) {
+					skipDistribution = true
 				}
 
 				if skipDistribution {
