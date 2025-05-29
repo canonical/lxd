@@ -120,7 +120,7 @@ func (m *Method) GenerateSignature(buf *file.Buffer) error {
 	defer m.end(buf)
 	if m.config["references"] != "" {
 		refFields := strings.SplitSeq(m.config["references"], ",")
-		for _, fieldName := range refFields {
+		for fieldName := range refFields {
 			m.ref = fieldName
 			err := m.signature(buf, true)
 			if err != nil {
@@ -148,7 +148,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 
 	if m.config["references"] != "" {
 		refFields := strings.SplitSeq(m.config["references"], ",")
-		for _, fieldName := range refFields {
+		for fieldName := range refFields {
 			refMapping, err := Parse(m.pkg, fieldName, m.kind)
 			if err != nil {
 				return fmt.Errorf("Parse entity struct: %w", err)
@@ -675,7 +675,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 
 	if m.config["references"] != "" {
 		refFields := strings.SplitSeq(m.config["references"], ",")
-		for _, fieldName := range refFields {
+		for fieldName := range refFields {
 			refMapping, err := Parse(m.pkg, fieldName, m.kind)
 			if err != nil {
 				return fmt.Errorf("Parse entity struct: %w", err)
@@ -961,7 +961,7 @@ func (m *Method) update(buf *file.Buffer) error {
 
 	if m.config["references"] != "" {
 		refFields := strings.SplitSeq(m.config["references"], ",")
-		for _, fieldName := range refFields {
+		for fieldName := range refFields {
 			refMapping, err := Parse(m.pkg, fieldName, m.kind)
 			if err != nil {
 				return fmt.Errorf("Parse entity struct: %w", err)
