@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -415,9 +416,7 @@ func (c *cmdMove) moveInstance(conf *config.Config, sourceResource string, destR
 			continue
 		}
 
-		for key, value := range m {
-			inst.Devices[k][key] = value
-		}
+		maps.Copy(inst.Devices[k], m)
 	}
 
 	// Pass the new pool to the migration API.
