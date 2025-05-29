@@ -4899,7 +4899,7 @@ func imageSyncBetweenNodes(ctx context.Context, s *state.State, r *http.Request,
 	}
 
 	// Replicate on as many nodes as needed.
-	for i := 0; i < int(nodeCount); i++ {
+	for range int(nodeCount) {
 		var addresses []string
 
 		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
