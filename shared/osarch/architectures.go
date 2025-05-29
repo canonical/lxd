@@ -2,6 +2,7 @@ package osarch
 
 import (
 	"fmt"
+	"slices"
 )
 
 const (
@@ -113,10 +114,8 @@ func ArchitectureId(arch string) (int, error) {
 	}
 
 	for arch_id, arch_aliases := range architectureAliases {
-		for _, arch_name := range arch_aliases {
-			if arch_name == arch {
-				return arch_id, nil
-			}
+		if slices.Contains(arch_aliases, arch) {
+			return arch_id, nil
 		}
 	}
 
