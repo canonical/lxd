@@ -223,7 +223,7 @@ func TestReaderToChannel(t *testing.T) {
 	for {
 		data, ok := <-ch
 		if len(data) > 0 {
-			for i := 0; i < len(data); i++ {
+			for i := range data {
 				if buf[offset+i] != data[i] {
 					t.Errorf("byte %d didn't match", offset+i)
 					return
