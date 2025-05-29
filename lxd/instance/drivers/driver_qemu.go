@@ -3581,7 +3581,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 	}
 
 	// Allocate 4 PCI slots for hotplug devices.
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		bus.allocate(busFunctionGroupNone)
 	}
 
@@ -3650,9 +3650,9 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection, cpuInfo *cpuTopology) error
 		vcpuCore := map[uint64]uint64{}
 		vcpuThread := map[uint64]uint64{}
 		vcpu := uint64(0)
-		for i := 0; i < cpuInfo.sockets; i++ {
-			for j := 0; j < cpuInfo.cores; j++ {
-				for k := 0; k < cpuInfo.threads; k++ {
+		for i := range cpuInfo.sockets {
+			for j := range cpuInfo.cores {
+				for k := range cpuInfo.threads {
 					vcpuSocket[vcpu] = uint64(i)
 					vcpuCore[vcpu] = uint64(j)
 					vcpuThread[vcpu] = uint64(k)
@@ -4295,7 +4295,7 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]any, bootIndex
 			// Open the device once for each queue and pass to QEMU.
 			fds := make([]string, 0, queueCount)
 			vhostfds := make([]string, 0, queueCount)
-			for i := 0; i < queueCount; i++ {
+			for i := range queueCount {
 				devFile, err := deviceFile()
 				if err != nil {
 					return fmt.Errorf("Error opening netdev file for queue %d: %w", i, err)
@@ -5999,7 +5999,7 @@ func (d *qemu) updateMemoryLimit(newLimit string) error {
 
 	// Changing the memory balloon can take time, so poll the effectice size to check it has shrunk within 1%
 	// of the target size, which we then take as success (it may still continue to shrink closer to target).
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		curSizeBytes, err = monitor.GetMemoryBalloonSizeBytes()
 		if err != nil {
 			return err
@@ -9153,7 +9153,7 @@ func (d *qemu) setCPUs(count int) error {
 		}
 
 		// Only allocate the difference in CPUs.
-		for i := 0; i < count-totalReservedCPUs; i++ {
+		for i := range count - totalReservedCPUs {
 			cpu := availableCPUs[i]
 
 			devID := fmt.Sprintf("cpu%d%d%d", cpu.Props.SocketID, cpu.Props.CoreID, cpu.Props.ThreadID)
@@ -9187,7 +9187,7 @@ func (d *qemu) setCPUs(count int) error {
 		}
 
 		// Less CPUs requested.
-		for i := 0; i < totalReservedCPUs-count; i++ {
+		for i := range totalReservedCPUs - count {
 			cpu := hotpluggedCPUs[i]
 
 			fields := strings.Split(cpu.QOMPath, "/")
@@ -9213,7 +9213,7 @@ func (d *qemu) setCPUs(count int) error {
 
 	var pids []int
 	cpusWereSeen := false
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		// Get the list of PIDs from the VM.
 		pids, err = monitor.GetCPUs()
 		if err != nil {
