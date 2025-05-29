@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -313,9 +314,7 @@ func (c *Client) HandleEvent(event api.Event) {
 		context["action"] = lifecycleEvent.Action
 		context["source"] = lifecycleEvent.Source
 
-		for k, v := range buildNestedContext("context", lifecycleEvent.Context) {
-			context[k] = v
-		}
+		maps.Copy(context, buildNestedContext("context", lifecycleEvent.Context))
 
 		if lifecycleEvent.Requestor != nil {
 			context["requester-address"] = lifecycleEvent.Requestor.Address
@@ -371,9 +370,7 @@ func (c *Client) HandleEvent(event api.Event) {
 		// log message itself.
 		context["level"] = logEvent.Level
 
-		for k, v := range buildNestedContext("context", tmpContext) {
-			context[k] = v
-		}
+		maps.Copy(context, buildNestedContext("context", tmpContext))
 
 		// Add key-value pairs as labels but don't override any labels.
 		for k, v := range context {
