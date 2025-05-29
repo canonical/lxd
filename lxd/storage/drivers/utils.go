@@ -365,10 +365,8 @@ func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64, allowUnsafe
 			// Reject if would try and resize a volume type that is not supported.
 			// This needs to come before the ErrCannotBeShrunk check below so that any resize attempt
 			// is blocked with ErrNotSupported error.
-			for _, unsupportedType := range unsupportedResizeTypes {
-				if unsupportedType == vol.volType {
-					return false, ErrNotSupported
-				}
+			if slices.Contains(unsupportedResizeTypes, vol.volType) {
+				return false, ErrNotSupported
 			}
 
 			if sizeBytes < oldSizeBytes {
