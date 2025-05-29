@@ -413,10 +413,7 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 				}})
 			}
 		} else {
-			threads := 4
-			if len(instances) < threads {
-				threads = len(instances)
-			}
+			threads := min(len(instances), 4)
 
 			hostInterfaces, _ := net.Interfaces()
 
