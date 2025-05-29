@@ -1122,7 +1122,7 @@ func internalImportRootDevicePopulate(instancePoolName string, localDevices map[
 		// If there is already a device called "root" in the instance's config, but it does not qualify as
 		// a root disk, then try to find a free name for the new root disk device.
 		rootDevName := "root"
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 			if localDevices[rootDevName] == nil {
 				break
 			}
