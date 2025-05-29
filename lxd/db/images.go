@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -384,10 +385,8 @@ WHERE images.fingerprint = ?
 		return "", errors.New("Image not available on any online member")
 	}
 
-	for _, address := range addresses {
-		if address == localAddress {
-			return "", nil
-		}
+	if slices.Contains(addresses, localAddress) {
+		return "", nil
 	}
 
 	return addresses[0], nil
