@@ -210,16 +210,10 @@ func (c *cmdFileCreate) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Determine the target uid
-	uid := 0
-	if c.file.flagUID > 0 {
-		uid = c.file.flagUID
-	}
+	uid := max(c.file.flagUID, 0)
 
 	// Determine the target gid
-	gid := 0
-	if c.file.flagGID > 0 {
-		gid = c.file.flagGID
-	}
+	gid := max(c.file.flagGID, 0)
 
 	var mode os.FileMode
 
@@ -819,18 +813,12 @@ func (c *cmdFilePush) run(cmd *cobra.Command, args []string) error {
 	modifyExistingUID := c.file.flagUID != -1
 
 	// Determine the target uid
-	uid := 0
-	if c.file.flagUID >= 0 {
-		uid = c.file.flagUID
-	}
+	uid := max(c.file.flagUID, 0)
 
 	modifyExistingGID := c.file.flagGID != -1
 
 	// Determine the target gid
-	gid := 0
-	if c.file.flagGID >= 0 {
-		gid = c.file.flagGID
-	}
+	gid := max(c.file.flagGID, 0)
 
 	if (len(sourcefilenames) > 1) && !targetIsDir {
 		return errors.New(i18n.G("Missing target directory"))
