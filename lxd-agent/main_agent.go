@@ -124,7 +124,7 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		// Wait for vsock device to appear.
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			if !shared.PathExists("/dev/vsock") {
 				time.Sleep(1 * time.Second)
 			}
