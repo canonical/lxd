@@ -432,7 +432,7 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 
 			queue := make(chan db.Instance, threads)
 
-			for i := 0; i < threads; i++ {
+			for range threads {
 				wg.Add(1)
 
 				go func() {
