@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 
@@ -15,9 +16,7 @@ type Device map[string]string
 func (device Device) Clone() Device {
 	cpy := make(map[string]string, len(device))
 
-	for k, v := range device {
-		cpy[k] = v
-	}
+	maps.Copy(cpy, device)
 
 	return cpy
 }
@@ -87,9 +86,7 @@ func NewDevices(nativeSet map[string]map[string]string) Devices {
 
 	for devName, devConfig := range nativeSet {
 		newDev := Device{}
-		for k, v := range devConfig {
-			newDev[k] = v
-		}
+		maps.Copy(newDev, devConfig)
 
 		newDevices[devName] = newDev
 	}
