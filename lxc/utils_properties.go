@@ -105,7 +105,7 @@ func getFieldByJsonTag(obj any, tag string) (any, error) {
 
 // getFromStruct scans a struct for a field with the given JSON tag, including fields of inline structs.
 func getFromStruct(v reflect.Value, tag string) (bool, any) {
-	for i := 0; i < v.NumField(); i++ {
+	for i := range v.NumField() {
 		field := v.Field(i)
 		jsonTag := v.Type().Field(i).Tag.Get("json")
 
@@ -141,7 +141,7 @@ func setFieldByJsonTag(obj any, tag string, value any) {
 	v := reflect.ValueOf(obj).Elem()
 	var fieldName string
 
-	for i := 0; i < v.NumField(); i++ {
+	for i := range v.NumField() {
 		jsonTag := v.Type().Field(i).Tag.Get("json")
 		commaIdx := strings.Index(jsonTag, ",")
 		if commaIdx > 0 {
