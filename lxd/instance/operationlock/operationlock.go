@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 
 	"github.com/canonical/lxd/lxd/project"
@@ -161,13 +162,7 @@ func (op *InstanceOperation) Action() Action {
 
 // ActionMatch returns true if operation's action matches one of the matchActions.
 func (op *InstanceOperation) ActionMatch(matchActions ...Action) bool {
-	for _, matchAction := range matchActions {
-		if op.action == matchAction {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(matchActions, op.action)
 }
 
 // Wait waits for an operation to finish.
