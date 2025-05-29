@@ -95,8 +95,10 @@ var architectureSupportedPersonalities = map[int][]int{
 	ARCH_64BIT_LOONGARCH:             {},
 }
 
+// ArchitectureDefault represents the default architecture.
 const ArchitectureDefault = "x86_64"
 
+// ArchitectureName returns the local hardware architecture name.
 func ArchitectureName(arch int) (string, error) {
 	arch_name, exists := architectureNames[arch]
 	if exists {
@@ -106,6 +108,7 @@ func ArchitectureName(arch int) (string, error) {
 	return "unknown", fmt.Errorf("Architecture isn't supported: %d", arch)
 }
 
+// ArchitectureId returns the architecture ID for a given architecture name or alias.
 func ArchitectureId(arch string) (int, error) {
 	for arch_id, arch_name := range architectureNames {
 		if arch_name == arch {
@@ -122,6 +125,7 @@ func ArchitectureId(arch string) (int, error) {
 	return ARCH_UNKNOWN, fmt.Errorf("Architecture isn't supported: %s", arch)
 }
 
+// ArchitecturePersonality returns the personality for a given architecture ID.
 func ArchitecturePersonality(arch int) (string, error) {
 	arch_personality, exists := architecturePersonalities[arch]
 	if exists {
@@ -131,6 +135,7 @@ func ArchitecturePersonality(arch int) (string, error) {
 	return "", fmt.Errorf("Architecture isn't supported: %d", arch)
 }
 
+// ArchitecturePersonalities returns the list of supported personalities for a given architecture ID.
 func ArchitecturePersonalities(arch int) ([]int, error) {
 	personalities, exists := architectureSupportedPersonalities[arch]
 	if exists {
