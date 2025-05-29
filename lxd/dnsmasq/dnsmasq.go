@@ -133,7 +133,7 @@ func DHCPStaticAllocation(network string, deviceStaticFileName string) (mac net.
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		fields := strings.SplitSeq(scanner.Text(), ",")
-		for _, field := range fields {
+		for field := range fields {
 			// Check if field is IPv4 or IPv6 address.
 			if strings.Count(field, ".") == 3 {
 				IP := net.ParseIP(field)
