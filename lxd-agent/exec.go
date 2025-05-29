@@ -272,7 +272,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 	} else {
 		ttys = make([]*os.File, 3)
 		ptys = make([]*os.File, 3)
-		for i := 0; i < len(ttys); i++ {
+		for i := range ttys {
 			ptys[i], ttys[i], err = os.Pipe()
 			if err != nil {
 				return err
@@ -475,7 +475,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 		}()
 	} else {
 		wgEOF.Add(len(ttys) - 1)
-		for i := 0; i < len(ttys); i++ {
+		for i := range ttys {
 			go func(i int) {
 				l.Debug("Exec mirror websocket started", logger.Ctx{"number": i})
 				defer l.Debug("Exec mirror websocket finished", logger.Ctx{"number": i})
