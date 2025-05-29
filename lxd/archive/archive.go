@@ -231,7 +231,7 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 
 			// Confirm that all errors are related to character or block devices.
 			found := false
-			for _, line := range strings.Split(stdErr, "\n") {
+			for line := range strings.SplitSeq(stdErr, "\n") {
 				line = strings.TrimSpace(line)
 				if line == "" {
 					continue
