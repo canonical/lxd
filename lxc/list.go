@@ -264,10 +264,7 @@ func (c *cmdList) evaluateShorthandFilter(key string, value string, inst *api.In
 }
 
 func (c *cmdList) listInstances(d lxd.InstanceServer, instances []api.Instance, filters []string, columns []column) error {
-	threads := 10
-	if len(instances) < threads {
-		threads = len(instances)
-	}
+	threads := min(len(instances), 10)
 
 	// Shortcut when needing state and snapshot info.
 	hasSnapshots := false
