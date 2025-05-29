@@ -66,6 +66,7 @@ type fileReadWriter struct {
 	paths map[string]string
 }
 
+// Get returns the value of a cgroup key for a specific controller.
 func (rw *fileReadWriter) Get(version Backend, controller string, key string) (string, error) {
 	path := filepath.Join(rw.paths[controller], key)
 	if cgLayout == CgroupsUnified {
@@ -80,6 +81,7 @@ func (rw *fileReadWriter) Get(version Backend, controller string, key string) (s
 	return strings.TrimSpace(string(value)), nil
 }
 
+// Set applies the given value to a cgroup key for a specific controller.
 func (rw *fileReadWriter) Set(version Backend, controller string, key string, value string) error {
 	path := filepath.Join(rw.paths[controller], key)
 	if cgLayout == CgroupsUnified {
