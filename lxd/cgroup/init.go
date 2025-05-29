@@ -2,6 +2,7 @@ package cgroup
 
 import (
 	"bufio"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -417,9 +418,7 @@ func Init() {
 				hasV2Root = true
 				break
 			} else {
-				for k, v := range unifiedControllers {
-					cgControllers[k] = v
-				}
+				maps.Copy(cgControllers, unifiedControllers)
 			}
 		}
 
