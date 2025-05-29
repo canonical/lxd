@@ -853,7 +853,7 @@ func (d *lvm) deactivateVolume(vol Volume) (bool, error) {
 	if shared.PathExists(volDevPath) {
 		// Keep trying to deactivate a few times in case the device is still being flushed.
 		var err error
-		for i := 0; i < 20; i++ {
+		for i := range 20 {
 			_, err = shared.RunCommandContext(context.TODO(), "lvchange", "--activate", "n", "--ignoreactivationskip", volDevPath)
 			if err == nil {
 				break
