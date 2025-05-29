@@ -470,13 +470,7 @@ func unixDeviceRemove(devicesPath string, typePrefix string, deviceName string, 
 		ourEncRelDestFile := ourDev[idx+1:]
 
 		// Look for devices for other LXD devices that match the same path.
-		dupe := false
-		for _, encRelDevFile := range encRelDevFiles {
-			if encRelDevFile == ourEncRelDestFile {
-				dupe = true
-				break
-			}
-		}
+		dupe := slices.Contains(encRelDevFiles, ourEncRelDestFile)
 
 		// If a device has been found that points to the same device inside the instance
 		// then we cannot request it be umounted inside the instance as it's still in use.
