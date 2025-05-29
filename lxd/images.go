@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"math/rand"
 	"mime"
@@ -561,9 +562,7 @@ func imgPostRemoteInfo(s *state.State, r *http.Request, req api.ImagesPost, op *
 		}
 
 		// Allow overriding or adding properties
-		for k, v := range req.Properties {
-			info.Properties[k] = v
-		}
+		maps.Copy(info.Properties, req.Properties)
 
 		// Get profile IDs
 		if req.Profiles == nil {
@@ -671,9 +670,7 @@ func imgPostURLInfo(s *state.State, r *http.Request, req api.ImagesPost, op *ope
 		}
 
 		// Allow overriding or adding properties
-		for k, v := range req.Properties {
-			info.Properties[k] = v
-		}
+		maps.Copy(info.Properties, req.Properties)
 
 		if req.Public || req.AutoUpdate || req.Filename != "" || len(req.Properties) > 0 {
 			err := tx.UpdateImage(ctx, id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, "", nil)
@@ -4955,9 +4952,7 @@ func createTokenResponse(s *state.State, r *http.Request, projectName string, fi
 
 	meta := shared.Jmap{}
 
-	for k, v := range metadata {
-		meta[k] = v
-	}
+	maps.Copy(meta, metadata)
 
 	meta["secret"] = secret
 
