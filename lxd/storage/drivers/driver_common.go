@@ -115,13 +115,7 @@ func (d *common) fillVolumeConfig(vol *Volume, excludedKeys ...string) error {
 
 		volKey := strings.TrimPrefix(k, "volume.")
 
-		isExcluded := false
-		for _, excludedKey := range excludedKeys {
-			if excludedKey == volKey {
-				isExcluded = true
-				break
-			}
-		}
+		isExcluded := slices.Contains(excludedKeys, volKey)
 
 		if isExcluded {
 			continue
