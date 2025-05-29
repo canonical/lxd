@@ -832,8 +832,8 @@ jobs:
     name: Documentation link check
     runs-on: ubuntu-24.04
     needs: documentation
-    # Run link checker during scheduled CI runs only
-    if: ${{ github.event_name == 'schedule' }}
+    # Run link checker during manual or scheduled CI runs only
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
