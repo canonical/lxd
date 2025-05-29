@@ -186,7 +186,7 @@ func IsAny(value string) error {
 // IsListOf returns a validator for a comma separated list of values.
 func IsListOf(validator func(value string) error) func(value string) error {
 	return func(value string) error {
-		for _, v := range strings.Split(value, ",") {
+		for v := range strings.SplitSeq(value, ",") {
 			v = strings.TrimSpace(v)
 
 			err := validator(v)
@@ -601,7 +601,7 @@ func IsCron(aliases []string) func(value string) error {
 
 		// Can be comma+space separated (just commas are valid cron pattern).
 		value = strings.ToLower(value)
-		triggers := strings.Split(value, ", ")
+		triggers := strings.SplitSeq(value, ", ")
 		for _, trigger := range triggers {
 			err := isValid(trigger)
 			if err != nil {
@@ -846,7 +846,7 @@ func IsValidCPUSet(value string) error {
 	}
 
 	cpus := make(map[int64]int)
-	chunks := strings.Split(value, ",")
+	chunks := strings.SplitSeq(value, ",")
 
 	for _, chunk := range chunks {
 		if strings.Contains(chunk, "-") {
