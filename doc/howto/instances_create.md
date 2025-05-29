@@ -266,7 +266,7 @@ To create a virtual machine on the cluster member `micro2`, enter the following 
 LXD supports simple instance types for clouds.
 Those are represented as a string that can be passed at instance creation time.
 
-The list of supported clouds and instance types can be found at [`images.lxd.canonical.com/meta/instance-types/`](https://images.lxd.canonical.com/meta/instance-types/).
+The list of supported clouds and instance types can be found at [`images.lxd.canonical.com/meta/instance-types/all.yaml`](https://images.lxd.canonical.com/meta/instance-types/all.yaml).
 
 The syntax allows the three following forms:
 
