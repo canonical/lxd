@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"sort"
 	"strconv"
@@ -479,9 +480,7 @@ func (c *cmdNetworkZoneSet) run(cmd *cobra.Command, args []string) error {
 			}
 		}
 	} else {
-		for k, v := range keys {
-			writable.Config[k] = v
-		}
+		maps.Copy(writable.Config, keys)
 	}
 
 	return resource.server.UpdateNetworkZone(resource.name, writable, etag)
@@ -1167,9 +1166,7 @@ func (c *cmdNetworkZoneRecordSet) run(cmd *cobra.Command, args []string) error {
 			}
 		}
 	} else {
-		for k, v := range keys {
-			writable.Config[k] = v
-		}
+		maps.Copy(writable.Config, keys)
 	}
 
 	return resource.server.UpdateNetworkZoneRecord(resource.name, args[1], writable, etag)
