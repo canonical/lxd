@@ -368,7 +368,7 @@ func Init() {
 
 		// Deal with the V1 controllers.
 		if fields[1] != "" {
-			controllers := strings.Split(fields[1], ",")
+			controllers := strings.SplitSeq(fields[1], ",")
 			for _, controller := range controllers {
 				cgControllers[controller] = V1
 			}
@@ -406,7 +406,7 @@ func Init() {
 			scanControllers := bufio.NewScanner(controllers)
 			for scanControllers.Scan() {
 				line := strings.TrimSpace(scanControllers.Text())
-				for _, entry := range strings.Split(line, " ") {
+				for entry := range strings.SplitSeq(line, " ") {
 					unifiedControllers[entry] = V2
 				}
 			}
