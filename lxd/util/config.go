@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"sort"
 	"strings"
@@ -53,9 +54,7 @@ func CompareConfigs(config1, config2 map[string]string, exclude []string) error 
 // CopyConfig creates a new map with a copy of the given config.
 func CopyConfig(config map[string]string) map[string]string {
 	newConfig := make(map[string]string, len(config))
-	for key, value := range config {
-		newConfig[key] = value
-	}
+	maps.Copy(newConfig, config)
 
 	return newConfig
 }
