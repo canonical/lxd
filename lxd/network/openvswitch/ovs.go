@@ -148,7 +148,7 @@ func (o *OVS) InterfaceAssociateOVNSwitchPort(interfaceName string, ovnSwitchPor
 
 	existingPorts = strings.TrimSpace(existingPorts)
 	if existingPorts != "" {
-		for _, port := range strings.Split(existingPorts, "\n") {
+		for port := range strings.SplitSeq(existingPorts, "\n") {
 			_, err = shared.RunCommandContext(context.TODO(), "ovs-vsctl", "del-port", port)
 			if err != nil {
 				return err
@@ -329,7 +329,7 @@ func (o *OVS) BridgePortList(bridgeName string) ([]string, error) {
 
 	portString = strings.TrimSpace(portString)
 	if portString != "" {
-		for _, port := range strings.Split(portString, "\n") {
+		for port := range strings.SplitSeq(portString, "\n") {
 			ports = append(ports, strings.TrimSpace(port))
 		}
 	}
@@ -483,7 +483,7 @@ func (o *OVS) VLANFilteringEnabled(ctx context.Context, bridgeName string) (bool
 		return false, err
 	}
 
-	lines := strings.Split(strings.TrimSpace(output), "\n")
+	lines := strings.SplitSeq(strings.TrimSpace(output), "\n")
 	for _, line := range lines {
 		// when no value is defined "[]" is returned
 		if line != "[]" {
