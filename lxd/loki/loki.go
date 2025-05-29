@@ -121,11 +121,7 @@ func (c *Client) run() {
 	batch := newBatch()
 
 	minWaitCheckFrequency := 10 * time.Millisecond
-	maxWaitCheckFrequency := c.cfg.batchWait / 10
-
-	if maxWaitCheckFrequency < minWaitCheckFrequency {
-		maxWaitCheckFrequency = minWaitCheckFrequency
-	}
+	maxWaitCheckFrequency := max(c.cfg.batchWait/10, minWaitCheckFrequency)
 
 	maxWaitCheck := time.NewTicker(maxWaitCheckFrequency)
 
