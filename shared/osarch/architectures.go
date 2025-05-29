@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	ARCH_UNKNOWN                     = 0
+	ARCH_UNKNOWN                     = 0 //nolint:revive
 	ARCH_32BIT_INTEL_X86             = 1
 	ARCH_64BIT_INTEL_X86             = 2
 	ARCH_32BIT_ARMV7_LITTLE_ENDIAN   = 3
