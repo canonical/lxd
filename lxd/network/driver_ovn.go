@@ -1702,7 +1702,7 @@ func (n *ovn) pingOVNRouter() {
 			var err error
 
 			// Try several attempts as it can take a few seconds for the network to come up.
-			for i := 0; i < 5; i++ {
+			for range 5 {
 				err = pingIP(context.TODO(), ip)
 				if err == nil {
 					n.logger.Debug("OVN router external IP address reachable", logger.Ctx{"ip": ip.String()})
@@ -3861,7 +3861,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		var dynamicIPs []net.IP
 
 		// Retry a few times in case port has not yet allocated dynamic IPs.
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			dynamicIPs, err = client.LogicalSwitchPortDynamicIPs(instancePortName)
 			if err != nil {
 				return "", err
