@@ -358,7 +358,7 @@ func ParseLXDFileHeaders(headers http.Header) (*LXDFileHeaders, error) {
 
 	modifyPermFields := []string{"uid", "gid", "mode"}
 	if modifyPermHeader != "" {
-		for _, perm := range strings.Split(modifyPermHeader, ",") {
+		for perm := range strings.SplitSeq(modifyPermHeader, ",") {
 			UIDModifyExisting = UIDModifyExisting || perm == "uid"
 			GIDModifyExisting = GIDModifyExisting || perm == "gid"
 			modeModifyExisting = modeModifyExisting || perm == "mode"
