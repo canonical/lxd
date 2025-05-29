@@ -43,6 +43,9 @@ For the `lvm` driver, snapshot creation is quick, but restoring snapshots is eff
 
 ### Create a snapshot of a custom storage volume
 
+`````{tabs}
+````{group-tab} CLI
+
 Use the following command to create a snapshot for a custom storage volume:
 
     lxc storage volume snapshot <pool_name> <volume_name> [<snapshot_name>]
@@ -57,8 +60,17 @@ By default, snapshots are kept forever, unless the `snapshots.expiry` configurat
 To retain a specific snapshot even if a general expiry time is set, use the `--no-expiry` flag.
 <!-- Include end create snapshot options -->
 
+````
+```` {group-tab} UI
+test
+````
+`````
+
 (storage-edit-snapshots)=
 ### View, edit or delete snapshots
+
+`````{tabs}
+````{group-tab} CLI
 
 Use the following command to display the snapshots for a storage volume:
 
@@ -78,7 +90,17 @@ To delete a snapshot, use the following command:
 
     lxc storage volume delete <pool_name> <volume_name>/<snapshot_name>
 
+````
+```` {group-tab} UI
+test
+````
+`````
+
+
 ### Schedule snapshots of a custom storage volume
+
+`````{tabs}
+````{group-tab} CLI
 
 You can configure a custom storage volume to automatically create snapshots at specific times.
 To do so, set the `snapshots.schedule` configuration option for the storage volume (see {ref}`storage-configure-volume`).
@@ -94,7 +116,16 @@ To configure taking a snapshot every day at 6 am, use the following command:
 When scheduling regular snapshots, consider setting an automatic expiry (`snapshots.expiry`) and a naming pattern for snapshots (`snapshots.pattern`).
 See the {ref}`storage-drivers` documentation for more information about those configuration options.
 
+````
+```` {group-tab} UI
+test
+````
+`````
+
 ### Restore a snapshot of a custom storage volume
+
+`````{tabs}
+````{group-tab} CLI
 
 You can restore a custom storage volume to the state of any of its snapshots.
 
@@ -108,6 +139,12 @@ To do so, use the following command:
 
     lxc storage volume copy <source_pool_name>/<source_volume_name>/<source_snapshot_name> <target_pool_name>/<target_volume_name>
 
+````
+```` {group-tab} UI
+test
+````
+`````
+
 (storage-backup-export)=
 ## Use export files for volume backup
 
@@ -115,6 +152,9 @@ You can export the full content of your custom storage volume to a standalone fi
 For highest reliability, store the backup file on a different file system to ensure that it does not get lost or corrupted.
 
 ### Export a custom storage volume
+
+`````{tabs}
+````{group-tab} CLI
 
 Use the following command to export a custom storage volume to a compressed file (for example, `/path/to/my-backup.tgz`):
 
@@ -150,7 +190,16 @@ If the flag is not specified and the server has support for the `backup_metadata
 : By default, the export file contains all snapshots of the storage volume.
   Add this flag to export the volume without its snapshots.
 
+````
+```` {group-tab} UI
+test
+````
+`````
+
 ### Restore a custom storage volume from an export file
+
+`````{tabs}
+````{group-tab} CLI
 
 You can import an export file (for example, `/path/to/my-backup.tgz`) as a new custom storage volume.
 To do so, use the following command:
@@ -160,3 +209,9 @@ To do so, use the following command:
 If you do not specify a volume name, the original name of the exported storage volume is used for the new volume.
 If a volume with that name already (or still) exists in the specified storage pool, the command returns an error.
 In that case, either delete the existing volume before importing the backup or specify a different volume name for the import.
+
+````
+```` {group-tab} UI
+test
+````
+`````
