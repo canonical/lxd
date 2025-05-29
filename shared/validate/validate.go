@@ -612,7 +612,7 @@ func IsCron(aliases []string) func(value string) error {
 		// Can be comma+space separated (just commas are valid cron pattern).
 		value = strings.ToLower(value)
 		triggers := strings.SplitSeq(value, ", ")
-		for _, trigger := range triggers {
+		for trigger := range triggers {
 			err := isValid(trigger)
 			if err != nil {
 				return err
@@ -858,7 +858,7 @@ func IsValidCPUSet(value string) error {
 	cpus := make(map[int64]int)
 	chunks := strings.SplitSeq(value, ",")
 
-	for _, chunk := range chunks {
+	for chunk := range chunks {
 		if strings.Contains(chunk, "-") {
 			// Range
 			fields := strings.SplitN(chunk, "-", 2)
