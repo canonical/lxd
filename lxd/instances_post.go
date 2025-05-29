@@ -937,7 +937,7 @@ func setupInstanceArgs(s *state.State, instType instancetype.Type, projectName s
 		// Make sure that we do not overwrite a device the user is currently using
 		// under the name "root".
 		rootDevName := "root"
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 			if args.Devices[rootDevName] == nil {
 				break
 			}
