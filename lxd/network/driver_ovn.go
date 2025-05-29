@@ -1460,11 +1460,8 @@ func (n *ovn) uplinkAllocateIP(ipRanges []*shared.IPRange, allAllocated []net.IP
 
 			// Check IP is not already allocated.
 			freeIP := true
-			for _, allocatedIP := range allAllocated {
-				if ip.Equal(allocatedIP) {
-					freeIP = false
-					break
-				}
+			if slices.ContainsFunc(allAllocated, ip.Equal) {
+				freeIP = false
 			}
 
 			if !freeIP {
@@ -3050,13 +3047,7 @@ func (n *ovn) chassisEnabled(ctx context.Context, tx *db.ClusterTx) (bool, error
 	enableChassis := -1
 
 	for _, member := range members {
-		hasRole := false
-		for _, role := range member.Roles {
-			if role == db.ClusterRoleOVNChassis {
-				hasRole = true
-				break
-			}
-		}
+		hasRole := slices.Contains(member.Roles, db.ClusterRoleOVNChassis)
 
 		if hasRole {
 			if member.ID == memberID {
