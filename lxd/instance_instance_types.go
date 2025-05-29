@@ -205,7 +205,7 @@ func instanceParseType(value string) (map[string]string, error) {
 		// Check if it's maybe just a resource limit
 		if sourceName == "" && value != "" {
 			newLimits := instanceType{}
-			fields := strings.Split(value, "-")
+			fields := strings.SplitSeq(value, "-")
 			for _, field := range fields {
 				if len(field) < 2 || (field[0] != 'c' && field[0] != 'm') {
 					return nil, fmt.Errorf("Provided instance type doesn't exist: %s", value)
