@@ -206,7 +206,7 @@ func instanceParseType(value string) (map[string]string, error) {
 		if sourceName == "" && value != "" {
 			newLimits := instanceType{}
 			fields := strings.SplitSeq(value, "-")
-			for _, field := range fields {
+			for field := range fields {
 				if len(field) < 2 || (field[0] != 'c' && field[0] != 'm') {
 					return nil, fmt.Errorf("Provided instance type doesn't exist: %s", value)
 				}
