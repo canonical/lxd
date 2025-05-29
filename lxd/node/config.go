@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
@@ -137,9 +138,7 @@ func (c *Config) Replace(values map[string]any) (map[string]string, error) {
 // Patch changes only the configuration keys in the given map.
 func (c *Config) Patch(patch map[string]any) (map[string]string, error) {
 	values := c.Dump() // Use current values as defaults
-	for name, value := range patch {
-		values[name] = value
-	}
+	maps.Copy(values, patch)
 
 	return c.update(values)
 }
