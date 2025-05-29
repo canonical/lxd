@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"strconv"
 	"sync"
@@ -110,9 +111,7 @@ func (s *Server) start(address string, asn uint32, routerID net.IP) error {
 
 	// Copy the path list
 	oldPaths := map[string]path{}
-	for pathUUID, path := range s.paths {
-		oldPaths[pathUUID] = path
-	}
+	maps.Copy(oldPaths, s.paths)
 
 	// Add existing paths.
 	s.paths = map[string]path{}
@@ -125,9 +124,7 @@ func (s *Server) start(address string, asn uint32, routerID net.IP) error {
 
 	// Copy the peer list.
 	oldPeers := map[string]peer{}
-	for peerUUID, peer := range s.peers {
-		oldPeers[peerUUID] = peer
-	}
+	maps.Copy(oldPeers, s.peers)
 
 	// Add existing peers.
 	s.peers = map[string]peer{}
@@ -155,9 +152,7 @@ func (s *Server) stop() error {
 
 	// Save the peer list.
 	oldPeers := map[string]peer{}
-	for peerUUID, peer := range s.peers {
-		oldPeers[peerUUID] = peer
-	}
+	maps.Copy(oldPeers, s.peers)
 
 	// Remove all the peers.
 	for _, peer := range s.peers {
@@ -320,9 +315,7 @@ func (s *Server) RemovePrefixByOwner(owner string) error {
 
 	// Make a copy of the paths dict to safely iterate (path removal mutates it).
 	paths := map[string]path{}
-	for pathUUID, path := range s.paths {
-		paths[pathUUID] = path
-	}
+	maps.Copy(paths, s.paths)
 
 	// Iterate through the paths and remove them from the server.
 	for pathUUID, path := range paths {
