@@ -92,6 +92,12 @@ type State struct {
 	// Whether we are the leader and the leader address if not.
 	LeaderInfo func() (*LeaderInfo, error)
 
+	// Storage path used by this daemon
+	ImagesStoragePath func() string
+
+	// Storage path used by this daemon
+	BackupsStoragePath func() string
+
 	// Local server UUID.
 	ServerUUID string
 
