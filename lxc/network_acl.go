@@ -903,7 +903,7 @@ func networkACLRuleJSONStructFieldMap() map[string]int {
 	ruleType := reflect.TypeOf(api.NetworkACLRule{})
 	allowedKeys := make(map[string]int, ruleType.NumField())
 
-	for i := 0; i < ruleType.NumField(); i++ {
+	for i := range ruleType.NumField() {
 		field := ruleType.Field(i)
 		if field.PkgPath != "" {
 			continue // Skip unexported fields. It is empty for upper case (exported) field names.
