@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"slices"
@@ -521,9 +522,7 @@ func storagePoolsPostCluster(s *state.State, pool *api.StoragePool, req api.Stor
 	nodeReq := req
 
 	// Merge node specific config items into global config.
-	for key, value := range configs[s.ServerName] {
-		nodeReq.Config[key] = value
-	}
+	maps.Copy(nodeReq.Config, configs[s.ServerName])
 
 	updatedConfig, err := storagePoolCreateLocal(s, poolID, req, clientType)
 	if err != nil {
@@ -545,14 +544,10 @@ func storagePoolsPostCluster(s *state.State, pool *api.StoragePool, req api.Stor
 		// Clone fresh node config so we don't modify req.Config with this node's specific config which
 		// could result in it being sent to other nodes later.
 		nodeReq.Config = make(map[string]string, len(req.Config))
-		for k, v := range req.Config {
-			nodeReq.Config[k] = v
-		}
+		maps.Copy(nodeReq.Config, req.Config)
 
 		// Merge node specific config items into global config.
-		for key, value := range configs[member.Name] {
-			nodeReq.Config[key] = value
-		}
+		maps.Copy(nodeReq.Config, configs[member.Name])
 
 		err = client.CreateStoragePool(nodeReq)
 		if err != nil {
