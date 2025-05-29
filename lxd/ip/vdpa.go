@@ -66,7 +66,7 @@ const (
 	vdpaVhostDevDir = "/dev"
 )
 
-// VhostVdpa is the vhost-vdpa device information.
+// VhostVDPA is the vhost-vdpa device information.
 type VhostVDPA struct {
 	Name string
 	Path string
