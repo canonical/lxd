@@ -988,7 +988,7 @@ func (c *cmdMigrate) askProfiles(server lxd.InstanceServer, config *cmdMigrateDa
 
 		profiles := strings.SplitSeq(s, " ")
 
-		for _, profile := range profiles {
+		for profile := range profiles {
 			if !slices.Contains(profileNames, profile) {
 				return fmt.Errorf("Unknown profile %q", profile)
 			}
