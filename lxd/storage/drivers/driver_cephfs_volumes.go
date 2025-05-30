@@ -379,6 +379,11 @@ func (d *cephfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Ope
 
 // RenameVolume renames the volume and all related filesystem entries.
 func (d *cephfs) RenameVolume(vol Volume, newVolName string, op *operations.Operation) error {
+	// Defend against path traversal attacks.
+	if !shared.IsFileName(newVolName) {
+		return fmt.Errorf("Invalid volume name %q", newVolName)
+	}
+
 	// Create the parent directory.
 	err := createParentSnapshotDirIfMissing(d.name, vol.volType, newVolName)
 	if err != nil {

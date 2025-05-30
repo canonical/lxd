@@ -518,7 +518,26 @@ func (b *lxdBackend) ensureInstanceSymlink(instanceType instancetype.Type, proje
 		return errors.New("Instance must not be snapshot")
 	}
 
+	// Defend against path traversal attacks.
+	if !shared.IsFileName(instanceName) {
+		return fmt.Errorf("Invalid instance name %q", instanceName)
+	}
+
+	if !shared.IsFileName(projectName) {
+		return fmt.Errorf("Invalid project name %q", projectName)
+	}
+
 	symlinkPath := InstancePath(instanceType, projectName, instanceName, false)
+
+	// Defend against path traversal attacks.
+	baseDir := shared.VarPath(instanceType.String())
+	if !shared.IsPathWithinBaseDir(baseDir, symlinkPath) {
+		return fmt.Errorf("Invalid symlink path %q", symlinkPath)
+	}
+
+	if !shared.IsPathWithinBaseDir(baseDir, mountPath) {
+		return fmt.Errorf("Invalid mount path %q", mountPath)
+	}
 
 	// Remove any old symlinks left over by previous bugs that may point to a different pool.
 	if shared.PathExists(symlinkPath) {

@@ -63,6 +63,11 @@ func genericVFSGetResources(d Driver) (*api.ResourcesStoragePool, error) {
 
 // genericVFSRenameVolume is a generic RenameVolume implementation for VFS-only drivers.
 func genericVFSRenameVolume(d Driver, vol Volume, newVolName string, op *operations.Operation) error {
+	// Defend against path traversal attacks.
+	if !shared.IsFileName(newVolName) {
+		return fmt.Errorf("Invalid volume name %q", newVolName)
+	}
+
 	if vol.IsSnapshot() {
 		return errors.New("Volume must not be a snapshot")
 	}
