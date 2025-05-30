@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -77,7 +76,7 @@ func instanceImageTransfer(s *state.State, r *http.Request, projectName string, 
 
 	client = client.UseProject(projectName)
 
-	err = imageImportFromNode(filepath.Join(s.OS.VarDir, "images"), client, hash)
+	err = imageImportFromNode(s.ImagesStoragePath(), client, hash)
 	if err != nil {
 		return err
 	}
