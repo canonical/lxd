@@ -109,7 +109,7 @@ func ArchitectureName(arch int) (string, error) {
 }
 
 // ArchitectureId returns the architecture ID for a given architecture name or alias.
-func ArchitectureId(arch string) (int, error) {
+func ArchitectureId(arch string) (int, error) { //nolint:revive
 	for id, name := range architectureNames {
 		if name == arch {
 			return id, nil
