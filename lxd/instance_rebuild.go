@@ -78,7 +78,7 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(s, r, targetProjectName, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, targetProjectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -142,7 +142,7 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if req.Source.Server != "" {
-			sourceImage, err = ensureDownloadedImageFitWithinBudget(s, r, op, *targetProject, sourceImageRef, req.Source, inst.Type().String())
+			sourceImage, err = ensureDownloadedImageFitWithinBudget(r.Context(), s, op, *targetProject, sourceImageRef, req.Source, inst.Type().String())
 			if err != nil {
 				return err
 			}
@@ -152,7 +152,7 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 			return errors.New("Image not provided for instance rebuild")
 		}
 
-		return instanceRebuildFromImage(s, r, inst, sourceImage, op)
+		return instanceRebuildFromImage(r.Context(), s, inst, sourceImage, op)
 	}
 
 	resources := map[string][]api.URL{}
@@ -162,7 +162,7 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(s, targetProject.Name, operations.OperationClassTask, operationtype.InstanceRebuild, resources, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(r.Context(), s, targetProject.Name, operations.OperationClassTask, operationtype.InstanceRebuild, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
