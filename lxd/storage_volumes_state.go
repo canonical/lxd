@@ -76,6 +76,11 @@ var storagePoolVolumeTypeStateCmd = APIEndpoint{
 func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
+	resp := forwardedResponseIfTargetIsRemote(s, r)
+	if resp != nil {
+		return resp
+	}
+
 	// Get the name of the pool the storage volume is supposed to be attached to.
 	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
 	if err != nil {
