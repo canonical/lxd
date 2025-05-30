@@ -1274,7 +1274,7 @@ func updateIdentity(authenticationMethod string) func(d *Daemon, r *http.Request
 			return response.BadRequest(fmt.Errorf("Failed to unmarshal request body: %w", err))
 		}
 
-		if id.Type != api.IdentityTypeCertificateClient && identityPut.TLSCertificate != "" {
+		if id.Type != api.IdentityTypeCertificateClient && id.Type != api.IdentityTypeCertificateClusterLink && identityPut.TLSCertificate != "" {
 			return response.BadRequest(fmt.Errorf("Cannot update certificate for identities of type %q", id.Type))
 		}
 
@@ -1512,7 +1512,7 @@ func patchIdentity(authenticationMethod string) func(d *Daemon, r *http.Request)
 			return response.BadRequest(fmt.Errorf("Failed to unmarshal request body: %w", err))
 		}
 
-		if id.Type != api.IdentityTypeCertificateClient && identityPut.TLSCertificate != "" {
+		if id.Type != api.IdentityTypeCertificateClient && id.Type != api.IdentityTypeCertificateClusterLink && identityPut.TLSCertificate != "" {
 			return response.BadRequest(fmt.Errorf("Cannot update certificate for identities of type %q", id.Type))
 		}
 
@@ -1528,8 +1528,8 @@ func patchIdentity(authenticationMethod string) func(d *Daemon, r *http.Request)
 			return response.SmartError(err)
 		}
 
-		// Only identities of type api.IdentityTypeCertificateClient may update their own certificate
-		if id.Type != api.IdentityTypeCertificateClient {
+		// Only identities of type api.IdentityTypeCertificateClient and api.IdentityTypeCertificateClusterLink may update their own certificate
+		if id.Type != api.IdentityTypeCertificateClient && id.Type != api.IdentityTypeCertificateClusterLink {
 			return response.Forbidden(nil)
 		}
 
