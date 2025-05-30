@@ -362,6 +362,46 @@ func ConnectDevLXDWithContext(ctx context.Context, socketPath string, args *Conn
 	}, nil
 }
 
+// ConnectDevLXDHTTPWithContext lets you connect to devLXD over a VM socket.
+func ConnectDevLXDHTTPWithContext(ctx context.Context, args *ConnectionArgs, client *http.Client) (DevLXDServer, error) {
+	logger.Debug("Connecting to a devLXD over a VM socket")
+
+	// Use empty args if not specified.
+	if args == nil {
+		args = &ConnectionArgs{}
+	}
+
+	httpBaseURL, err := url.Parse("https://custom.socket")
+	if err != nil {
+		return nil, err
+	}
+
+	ctxConnected, ctxConnectedCancel := context.WithCancel(context.Background())
+
+	// Initialize the client.
+	server := ProtocolDevLXD{
+		ctx:                  ctx,
+		httpBaseURL:          *httpBaseURL,
+		httpUserAgent:        args.UserAgent,
+		ctxConnected:         ctxConnected,
+		ctxConnectedCancel:   ctxConnectedCancel,
+		eventListenerManager: newEventListenerManager(ctx),
+	}
+
+	// Setup the HTTP client.
+	server.http = client
+
+	// Test the connection.
+	if !args.SkipGetServer {
+		_, err := server.GetState()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &server, nil
+}
+
 // Internal function called by ConnectLXD and ConnectPublicLXD.
 func httpsLXD(ctx context.Context, requestURL string, args *ConnectionArgs) (InstanceServer, error) {
 	// Use empty args if not specified
