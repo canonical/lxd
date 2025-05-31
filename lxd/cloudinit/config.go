@@ -1,6 +1,7 @@
 package cloudinit
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"slices"
@@ -127,14 +128,28 @@ func parseCloudConfig(rawCloudConfig string) (cloudConfig, error) {
 	// A YAML cloud config without #cloud-config is invalid.
 	// The "#cloud-config" tag can be either on the first or second lines.
 	if rawCloudConfig != "" && !slices.Contains(shared.SplitNTrimSpace(rawCloudConfig, "\n", 3, false), "#cloud-config") {
-		return nil, errors.New(`Parsing configuration is not supported as it is not "#cloud-config"`)
+		return cloudConfig{"", nil}, errors.New(`Parsing configuration is not supported as it is not "#cloud-config"`)
 	}
 
 	// Parse YAML cloud-config into map.
-	cloudConfigMap := make(map[any]any)
-	err := yaml.Unmarshal([]byte(rawCloudConfig), cloudConfigMap)
+	cloudConfigMap := cloudConfig{
+		comments: "",
+		keys:     make(map[any]any),
+	}
+
+	// Parse the initial comments in the cloud config file.
+	scanner := bufio.NewScanner(strings.NewReader(rawCloudConfig))
+	for scanner.Scan() {
+		if !strings.HasPrefix(scanner.Text(), "#") {
+			break
+		}
+
+		cloudConfigMap.comments += scanner.Text() + "\n"
+	}
+
+	err := yaml.Unmarshal([]byte(rawCloudConfig), cloudConfigMap.keys)
 	if err != nil {
-		return nil, fmt.Errorf("Could not unmarshall cloud-config: %w", err)
+		return cloudConfig{"", nil}, fmt.Errorf("Could not unmarshall cloud-config: %w", err)
 	}
 
 	return cloudConfigMap, nil
@@ -184,24 +199,27 @@ func extractAdditionalSSHKeys(instanceConfig map[string]string) map[string]*user
 }
 
 // cloudConfig represents a cloud-config parsed into a map.
-type cloudConfig map[any]any
+type cloudConfig struct {
+	comments string
+	keys     map[any]any
+}
 
 // string marshals a cloud-config map into a YAML string.
 func (config cloudConfig) string() (string, error) {
-	resultingConfigBytes, err := yaml.Marshal(config)
+	resultingConfigBytes, err := yaml.Marshal(config.keys)
 	if err != nil {
 		return "", err
 	}
 
 	// Add cloud-config tag and space before comments, as doing the latter
 	// while parsing would result in the comment to be included in the value on the same line.
-	resultingConfig := "#cloud-config\n" + strings.ReplaceAll(string(resultingConfigBytes), sshKeyExtendedConfigTag, " "+sshKeyExtendedConfigTag)
+	resultingConfig := config.comments + strings.ReplaceAll(string(resultingConfigBytes), sshKeyExtendedConfigTag, " "+sshKeyExtendedConfigTag)
 	return resultingConfig, nil
 }
 
 // string marshals a cloud-config map into a YAML string.
 func (config cloudConfig) hasUsers() bool {
-	value, ok := config["users"]
+	value, ok := config.keys["users"]
 	return ok && value != ""
 }
 
@@ -215,7 +233,7 @@ func (config cloudConfig) mergeSSHKeyCloudConfig(userKeys map[string]*userSSHKey
 	}
 
 	// Get previously defined users list in provided config, if present.
-	userList, err := findOrCreateListInMap(config, "users")
+	userList, err := findOrCreateListInMap(config.keys, "users")
 	if err != nil {
 		return "", err
 	}
@@ -275,7 +293,7 @@ func (config cloudConfig) mergeSSHKeyCloudConfig(userKeys map[string]*userSSHKey
 	}
 
 	// Only modify the original config map if everything went well.
-	config["users"] = userList
+	config.keys["users"] = userList
 	return config.string()
 }
 
