@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"sort"
 	"strings"
@@ -29,13 +30,7 @@ func CompareConfigs(config1, config2 map[string]string, exclude []string) error 
 		}
 
 		if config1[key] != value {
-			present := false
-			for i := range delta {
-				if delta[i] == key {
-					present = true
-					break
-				}
-			}
+			present := slices.Contains(delta, key)
 			if !present {
 				delta = append(delta, key)
 			}
@@ -53,9 +48,7 @@ func CompareConfigs(config1, config2 map[string]string, exclude []string) error 
 // CopyConfig creates a new map with a copy of the given config.
 func CopyConfig(config map[string]string) map[string]string {
 	newConfig := make(map[string]string, len(config))
-	for key, value := range config {
-		newConfig[key] = value
-	}
+	maps.Copy(newConfig, config)
 
 	return newConfig
 }

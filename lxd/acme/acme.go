@@ -134,7 +134,7 @@ func UpdateCertificate(s *state.State, provider HTTP01Provider, clustered bool, 
 	var reg *registration.Resource
 
 	// Registration might fail randomly (as seen in manual tests), so retry in that case.
-	for i := 0; i < retries; i++ {
+	for range retries {
 		reg, err = client.Registration.Register(registration.RegisterOptions{TermsOfServiceAgreed: true})
 		if err == nil {
 			break
@@ -168,7 +168,7 @@ func UpdateCertificate(s *state.State, provider HTTP01Provider, clustered bool, 
 
 	// Get new certificate.
 	// This might fail randomly (as seen in manual tests), so retry in that case.
-	for i := 0; i < retries; i++ {
+	for range retries {
 		certificates, err = client.Certificate.Obtain(request)
 		if err == nil {
 			break

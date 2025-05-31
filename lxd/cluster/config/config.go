@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -268,9 +269,7 @@ func (c *Config) Replace(values map[string]any) (map[string]string, error) {
 // Return what has actually changed.
 func (c *Config) Patch(patch map[string]any) (map[string]string, error) {
 	values := c.Dump() // Use current values as defaults
-	for name, value := range patch {
-		values[name] = value
-	}
+	maps.Copy(values, patch)
 
 	return c.update(values)
 }

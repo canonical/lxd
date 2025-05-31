@@ -30,6 +30,7 @@ type envOnce struct {
 	val   string
 }
 
+// Get retrieves the value of the first non-empty environment variable.
 func (e *envOnce) Get() string {
 	e.once.Do(e.init)
 	return e.val
@@ -44,13 +45,17 @@ func (e *envOnce) init() {
 	}
 }
 
-// This is basically the same as golang's ProxyFromEnvironment, except it
+// ProxyFromEnvironment minic's golang's ProxyFromEnvironment, except it
 // doesn't fall back to http_proxy when https_proxy isn't around, which is
 // incorrect behavior. It still respects HTTP_PROXY, HTTPS_PROXY, and NO_PROXY.
 func ProxyFromEnvironment(req *http.Request) (*url.URL, error) {
 	return ProxyFromConfig("", "", "")(req)
 }
 
+// ProxyFromConfig returns the URL with which the request should be
+// proxied, based on the provided httpsProxy, httpProxy, and noProxy
+// values. If httpsProxy or httpProxy is empty, it will fall back to the
+// environment variables HTTPS_PROXY, HTTP_PROXY, and NO_PROXY respectively.
 func ProxyFromConfig(httpsProxy string, httpProxy string, noProxy string) func(req *http.Request) (*url.URL, error) {
 	return func(req *http.Request) (*url.URL, error) {
 		var proxy, port string
@@ -149,7 +154,7 @@ func useProxy(addr string, noProxy string) (bool, error) {
 		addr = addr[:strings.LastIndex(addr, ":")]
 	}
 
-	for _, p := range strings.Split(noProxy, ",") {
+	for p := range strings.SplitSeq(noProxy, ",") {
 		p = strings.ToLower(strings.TrimSpace(p))
 		if len(p) == 0 {
 			continue

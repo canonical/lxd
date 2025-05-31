@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 
 	"github.com/canonical/lxd/lxd/locking"
@@ -579,15 +580,11 @@ func (v *Volume) GetParent() Volume {
 func (v Volume) Clone() Volume {
 	// Copy the config map to avoid internal modifications affecting external state.
 	newConfig := make(map[string]string, len(v.config))
-	for k, v := range v.config {
-		newConfig[k] = v
-	}
+	maps.Copy(newConfig, v.config)
 
 	// Copy the pool config map to avoid internal modifications affecting external state.
 	newPoolConfig := make(map[string]string, len(v.poolConfig))
-	for k, v := range v.poolConfig {
-		newPoolConfig[k] = v
-	}
+	maps.Copy(newPoolConfig, v.poolConfig)
 
 	return NewVolume(v.driver, v.pool, v.volType, v.contentType, v.name, newConfig, newPoolConfig)
 }

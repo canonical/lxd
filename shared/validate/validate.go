@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -25,12 +26,7 @@ import (
 
 // stringInSlice checks whether the supplied string is present in the supplied slice.
 func stringInSlice(key string, list []string) bool {
-	for _, entry := range list {
-		if entry == key {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(list, key)
 }
 
 // Required returns function that runs one or more validators, all must pass without error.
@@ -186,7 +182,7 @@ func IsAny(value string) error {
 // IsListOf returns a validator for a comma separated list of values.
 func IsListOf(validator func(value string) error) func(value string) error {
 	return func(value string) error {
-		for _, v := range strings.Split(value, ",") {
+		for v := range strings.SplitSeq(value, ",") {
 			v = strings.TrimSpace(v)
 
 			err := validator(v)
@@ -581,10 +577,8 @@ func IsCron(aliases []string) func(value string) error {
 	return func(value string) error {
 		isValid := func(value string) error {
 			// Accept valid aliases.
-			for _, alias := range aliases {
-				if alias == value {
-					return nil
-				}
+			if slices.Contains(aliases, value) {
+				return nil
 			}
 
 			if len(strings.Split(value, " ")) != 5 {
@@ -601,8 +595,8 @@ func IsCron(aliases []string) func(value string) error {
 
 		// Can be comma+space separated (just commas are valid cron pattern).
 		value = strings.ToLower(value)
-		triggers := strings.Split(value, ", ")
-		for _, trigger := range triggers {
+		triggers := strings.SplitSeq(value, ", ")
+		for trigger := range triggers {
 			err := isValid(trigger)
 			if err != nil {
 				return err
@@ -846,9 +840,9 @@ func IsValidCPUSet(value string) error {
 	}
 
 	cpus := make(map[int64]int)
-	chunks := strings.Split(value, ",")
+	chunks := strings.SplitSeq(value, ",")
 
-	for _, chunk := range chunks {
+	for chunk := range chunks {
 		if strings.Contains(chunk, "-") {
 			// Range
 			fields := strings.SplitN(chunk, "-", 2)

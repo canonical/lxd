@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"maps"
 	"net/http"
 	"slices"
 
@@ -72,9 +73,7 @@ func GetPermissionEntityURLs(ctx context.Context, tx *sql.Tx, permissions []Perm
 			return nil, nil, err
 		}
 
-		for k, v := range entityURLsAll {
-			entityURLs[k] = v
-		}
+		maps.Copy(entityURLs, entityURLsAll)
 	}
 
 	// Iterate over the input permissions and check which ones are present in the entityURLs map.

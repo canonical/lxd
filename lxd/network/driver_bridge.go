@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/http"
 	"os"
@@ -267,7 +268,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  shortdesc: Unconfigured network interfaces to include in the bridge
 		//  scope: local
 		"bridge.external_interfaces": validate.Optional(func(value string) error {
-			for _, entry := range strings.Split(value, ",") {
+			for entry := range strings.SplitSeq(value, ",") {
 				entry = strings.TrimSpace(entry)
 				err := validate.IsInterfaceName(entry)
 				if err != nil {
@@ -781,9 +782,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		return err
 	}
 
-	for k, v := range bgpRules {
-		rules[k] = v
-	}
+	maps.Copy(rules, bgpRules)
 
 	// Validate the configuration.
 	err = n.validate(config, rules)
@@ -891,10 +890,8 @@ func (n *bridge) Validate(config map[string]string) error {
 		}
 
 		for _, ovnRange := range ovnRanges {
-			for _, dhcpRange := range dhcpRanges {
-				if ovnRange.Overlaps(dhcpRange) {
-					return fmt.Errorf(`The range specified in "ipv4.ovn.ranges" (%q) cannot overlap with "ipv4.dhcp.ranges"`, ovnRange)
-				}
+			if slices.ContainsFunc(dhcpRanges, ovnRange.Overlaps) {
+				return fmt.Errorf(`The range specified in "ipv4.ovn.ranges" (%q) cannot overlap with "ipv4.dhcp.ranges"`, ovnRange)
 			}
 		}
 	}
@@ -926,10 +923,8 @@ func (n *bridge) Validate(config map[string]string) error {
 			}
 
 			for _, ovnRange := range ovnRanges {
-				for _, dhcpRange := range dhcpRanges {
-					if ovnRange.Overlaps(dhcpRange) {
-						return fmt.Errorf(`The range specified in "ipv6.ovn.ranges" (%q) cannot overlap with "ipv6.dhcp.ranges"`, ovnRange)
-					}
+				if slices.ContainsFunc(dhcpRanges, ovnRange.Overlaps) {
+					return fmt.Errorf(`The range specified in "ipv6.ovn.ranges" (%q) cannot overlap with "ipv6.dhcp.ranges"`, ovnRange)
 				}
 			}
 		}
@@ -1276,7 +1271,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	// Add any listed existing external interface.
 	if n.config["bridge.external_interfaces"] != "" {
-		for _, entry := range strings.Split(n.config["bridge.external_interfaces"], ",") {
+		for entry := range strings.SplitSeq(n.config["bridge.external_interfaces"], ",") {
 			entry = strings.TrimSpace(entry)
 			iface, err := net.InterfaceByName(entry)
 			if err != nil {
@@ -1462,7 +1457,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			}
 
 			if n.config["ipv4.dhcp.ranges"] != "" {
-				for _, dhcpRange := range strings.Split(n.config["ipv4.dhcp.ranges"], ",") {
+				for dhcpRange := range strings.SplitSeq(n.config["ipv4.dhcp.ranges"], ",") {
 					dhcpRange = strings.TrimSpace(dhcpRange)
 					dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%s", strings.ReplaceAll(dhcpRange, "-", ","), expiry)}...)
 				}
@@ -1503,7 +1498,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 		// Add additional routes.
 		if n.config["ipv4.routes"] != "" {
-			for _, route := range strings.Split(n.config["ipv4.routes"], ",") {
+			for route := range strings.SplitSeq(n.config["ipv4.routes"], ",") {
 				route = strings.TrimSpace(route)
 				r := &ip.Route{
 					DevName: n.name,
@@ -1607,7 +1602,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 			if shared.IsTrue(n.config["ipv6.dhcp.stateful"]) {
 				if n.config["ipv6.dhcp.ranges"] != "" {
-					for _, dhcpRange := range strings.Split(n.config["ipv6.dhcp.ranges"], ",") {
+					for dhcpRange := range strings.SplitSeq(n.config["ipv6.dhcp.ranges"], ",") {
 						dhcpRange = strings.TrimSpace(dhcpRange)
 						dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%d,%s", strings.ReplaceAll(dhcpRange, "-", ","), subnetSize, expiry)}...)
 					}
@@ -1695,7 +1690,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 		// Add additional routes.
 		if n.config["ipv6.routes"] != "" {
-			for _, route := range strings.Split(n.config["ipv6.routes"], ",") {
+			for route := range strings.SplitSeq(n.config["ipv6.routes"], ",") {
 				route = strings.TrimSpace(route)
 				r := &ip.Route{
 					DevName: n.name,
@@ -2368,12 +2363,12 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 		// Detach any external interfaces should no longer be attached.
 		if slices.Contains(changedKeys, "bridge.external_interfaces") && n.isRunning() {
 			devices := []string{}
-			for _, dev := range strings.Split(newNetwork.Config["bridge.external_interfaces"], ",") {
+			for dev := range strings.SplitSeq(newNetwork.Config["bridge.external_interfaces"], ",") {
 				dev = strings.TrimSpace(dev)
 				devices = append(devices, dev)
 			}
 
-			for _, dev := range strings.Split(oldNetwork.Config["bridge.external_interfaces"], ",") {
+			for dev := range strings.SplitSeq(oldNetwork.Config["bridge.external_interfaces"], ",") {
 				dev = strings.TrimSpace(dev)
 				if dev == "" {
 					continue
@@ -3658,7 +3653,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 		return nil, err
 	}
 
-	for _, lease := range strings.Split(string(content), "\n") {
+	for lease := range strings.SplitSeq(string(content), "\n") {
 		fields := strings.Fields(lease)
 		if len(fields) >= 5 {
 			// Parse the MAC.
