@@ -238,13 +238,11 @@ func Connect(path string, serialCharDev string, eventHandler func(name string, d
 		return nil, err
 	}
 
-	qmpConn := &qemuMachineProtocol{
-		c: c,
-	}
+	var qmpConn qemuMachineProtocol
 
 	qmpConn.uc, ok = c.(*net.UnixConn)
 	if !ok {
-		return nil, errors.New("RunWithFile only works with unix monitor sockets")
+		return nil, errors.New("QMP connection must be unix socket")
 	}
 
 	chError := make(chan error, 1)
@@ -267,7 +265,7 @@ func Connect(path string, serialCharDev string, eventHandler func(name string, d
 	// Setup the monitor struct.
 	monitor = &Monitor{}
 	monitor.path = path
-	monitor.qmp = qmpConn
+	monitor.qmp = &qmpConn
 	monitor.chDisconnect = make(chan struct{}, 1)
 	monitor.eventHandler = eventHandler
 	monitor.serialCharDev = serialCharDev
