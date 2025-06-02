@@ -91,7 +91,7 @@ func (e *Endpoints) NetworkUpdateAddress(address string) error {
 		var err error
 		var listener net.Listener
 
-		for i := 0; i < 10; i++ { // Ten retries over a second seems reasonable.
+		for range 10 { // Ten retries over a second seems reasonable.
 			listener, err = net.Listen("tcp", address)
 			if err == nil {
 				break
@@ -148,7 +148,7 @@ func (e *Endpoints) NetworkUpdateCert(cert *shared.CertInfo) {
 
 // NetworkUpdateTrustedProxy updates the https trusted proxy used by the network endpoint.
 func (e *Endpoints) NetworkUpdateTrustedProxy(trustedProxy string) {
-	var proxies []net.IP
+	var proxies []net.IP //nolint:prealloc
 	for _, p := range shared.SplitNTrimSpace(trustedProxy, ",", -1, true) {
 		proxyIP := net.ParseIP(p)
 		if proxyIP == nil {

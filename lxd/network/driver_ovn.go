@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"math/big"
 	"math/rand"
@@ -1459,11 +1460,8 @@ func (n *ovn) uplinkAllocateIP(ipRanges []*shared.IPRange, allAllocated []net.IP
 
 			// Check IP is not already allocated.
 			freeIP := true
-			for _, allocatedIP := range allAllocated {
-				if ip.Equal(allocatedIP) {
-					freeIP = false
-					break
-				}
+			if slices.ContainsFunc(allAllocated, ip.Equal) {
+				freeIP = false
 			}
 
 			if !freeIP {
@@ -1701,7 +1699,7 @@ func (n *ovn) pingOVNRouter() {
 			var err error
 
 			// Try several attempts as it can take a few seconds for the network to come up.
-			for i := 0; i < 5; i++ {
+			for range 5 {
 				err = pingIP(context.TODO(), ip)
 				if err == nil {
 					n.logger.Debug("OVN router external IP address reachable", logger.Ctx{"ip": ip.String()})
@@ -2204,9 +2202,7 @@ func (n *ovn) setup(update bool) error {
 
 	// Apply any config dynamically generated to the current config and store back to DB in single transaction.
 	if len(updatedConfig) > 0 {
-		for k, v := range updatedConfig {
-			n.config[k] = v
-		}
+		maps.Copy(n.config, updatedConfig)
 
 		err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			err = tx.UpdateNetwork(ctx, n.project, n.name, n.description, n.config)
@@ -3051,13 +3047,7 @@ func (n *ovn) chassisEnabled(ctx context.Context, tx *db.ClusterTx) (bool, error
 	enableChassis := -1
 
 	for _, member := range members {
-		hasRole := false
-		for _, role := range member.Roles {
-			if role == db.ClusterRoleOVNChassis {
-				hasRole = true
-				break
-			}
-		}
+		hasRole := slices.Contains(member.Roles, db.ClusterRoleOVNChassis)
 
 		if hasRole {
 			if member.ID == memberID {
@@ -3862,7 +3852,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		var dynamicIPs []net.IP
 
 		// Retry a few times in case port has not yet allocated dynamic IPs.
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			dynamicIPs, err = client.LogicalSwitchPortDynamicIPs(instancePortName)
 			if err != nil {
 				return "", err

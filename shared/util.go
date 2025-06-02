@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -358,7 +359,7 @@ func ParseLXDFileHeaders(headers http.Header) (*LXDFileHeaders, error) {
 
 	modifyPermFields := []string{"uid", "gid", "mode"}
 	if modifyPermHeader != "" {
-		for _, perm := range strings.Split(modifyPermHeader, ",") {
+		for perm := range strings.SplitSeq(modifyPermHeader, ",") {
 			UIDModifyExisting = UIDModifyExisting || perm == "uid"
 			GIDModifyExisting = GIDModifyExisting || perm == "gid"
 			modeModifyExisting = modeModifyExisting || perm == "mode"
@@ -743,13 +744,13 @@ func RemoveElementsFromSlice[T comparable](list []T, elements ...T) []T {
 		for j := len(list) - 1; j >= 0; j-- {
 			if element == list[j] {
 				match = true
-				list = append(list[:j], list[j+1:]...)
+				list = slices.Delete(list, j, j+1)
 				break
 			}
 		}
 
 		if match {
-			elements = append(elements[:i], elements[i+1:]...)
+			elements = slices.Delete(elements, i, i+1)
 		}
 	}
 
@@ -1126,7 +1127,7 @@ func TryRunCommand(name string, arg ...string) (string, error) {
 	var err error
 	var output string
 
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		output, err = RunCommand(name, arg...)
 		if err == nil {
 			break
@@ -1491,9 +1492,7 @@ func ApplyDeviceOverrides(localDevices map[string]map[string]string, profileDevi
 		_, isLocalDevice := localDevices[deviceName]
 		if isLocalDevice {
 			// Apply overrides to local device.
-			for k, v := range deviceOverrides[deviceName] {
-				localDevices[deviceName][k] = v
-			}
+			maps.Copy(localDevices[deviceName], deviceOverrides[deviceName])
 		} else {
 			// Check device exists in expanded profile devices.
 			profileDeviceConfig, found := profileDevices[deviceName]
@@ -1501,9 +1500,7 @@ func ApplyDeviceOverrides(localDevices map[string]map[string]string, profileDevi
 				return nil, fmt.Errorf("Cannot override config for device %q: Device not found in profile devices", deviceName)
 			}
 
-			for k, v := range deviceOverrides[deviceName] {
-				profileDeviceConfig[k] = v
-			}
+			maps.Copy(profileDeviceConfig, deviceOverrides[deviceName])
 
 			localDevices[deviceName] = profileDeviceConfig
 		}

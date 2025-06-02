@@ -248,7 +248,7 @@ func (c *cmdList) evaluateShorthandFilter(key string, value string, inst *api.In
 	if isShorthandFilter {
 		if strings.Contains(value, shorthandValueDelimiter) {
 			matched := false
-			for _, curValue := range strings.Split(value, shorthandValueDelimiter) {
+			for curValue := range strings.SplitSeq(value, shorthandValueDelimiter) {
 				if shorthandFilterFunction(inst, state, curValue) {
 					matched = true
 				}
@@ -264,10 +264,7 @@ func (c *cmdList) evaluateShorthandFilter(key string, value string, inst *api.In
 }
 
 func (c *cmdList) listInstances(d lxd.InstanceServer, instances []api.Instance, filters []string, columns []column) error {
-	threads := 10
-	if len(instances) < threads {
-		threads = len(instances)
-	}
+	threads := min(len(instances), 10)
 
 	// Shortcut when needing state and snapshot info.
 	hasSnapshots := false
@@ -288,7 +285,7 @@ func (c *cmdList) listInstances(d lxd.InstanceServer, instances []api.Instance, 
 		cInfoQueue := make(chan string, threads)
 		cInfoWg := sync.WaitGroup{}
 
-		for i := 0; i < threads; i++ {
+		for range threads {
 			cInfoWg.Add(1)
 			go func() {
 				for {
@@ -331,7 +328,7 @@ func (c *cmdList) listInstances(d lxd.InstanceServer, instances []api.Instance, 
 	cSnapshotsQueue := make(chan string, threads)
 	cSnapshotsWg := sync.WaitGroup{}
 
-	for i := 0; i < threads; i++ {
+	for range threads {
 		cStatesWg.Add(1)
 		go func() {
 			for {
@@ -643,7 +640,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 			colType := configColumnType
 			if (cc[0] == configColumnType || cc[0] == deviceColumnType) && len(cc) > 1 {
 				colType = cc[0]
-				cc = append(cc[:0], cc[1:]...)
+				cc = slices.Delete(cc, 0, 1)
 			}
 
 			if len(cc) > 3 {

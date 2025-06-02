@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -120,11 +121,7 @@ func (c *Client) run() {
 	batch := newBatch()
 
 	minWaitCheckFrequency := 10 * time.Millisecond
-	maxWaitCheckFrequency := c.cfg.batchWait / 10
-
-	if maxWaitCheckFrequency < minWaitCheckFrequency {
-		maxWaitCheckFrequency = minWaitCheckFrequency
-	}
+	maxWaitCheckFrequency := max(c.cfg.batchWait/10, minWaitCheckFrequency)
 
 	maxWaitCheck := time.NewTicker(maxWaitCheckFrequency)
 
@@ -204,7 +201,7 @@ func (c *Client) sendBatch(batch *batch) {
 
 	var status int
 
-	for i := 0; i < 30; i++ {
+	for range 30 {
 		ctx, cancel := context.WithTimeout(context.Background(), c.cfg.timeout)
 		status, err = c.send(ctx, buf)
 		cancel()
@@ -313,9 +310,7 @@ func (c *Client) HandleEvent(event api.Event) {
 		context["action"] = lifecycleEvent.Action
 		context["source"] = lifecycleEvent.Source
 
-		for k, v := range buildNestedContext("context", lifecycleEvent.Context) {
-			context[k] = v
-		}
+		maps.Copy(context, buildNestedContext("context", lifecycleEvent.Context))
 
 		if lifecycleEvent.Requestor != nil {
 			context["requester-address"] = lifecycleEvent.Requestor.Address
@@ -371,9 +366,7 @@ func (c *Client) HandleEvent(event api.Event) {
 		// log message itself.
 		context["level"] = logEvent.Level
 
-		for k, v := range buildNestedContext("context", tmpContext) {
-			context[k] = v
-		}
+		maps.Copy(context, buildNestedContext("context", tmpContext))
 
 		// Add key-value pairs as labels but don't override any labels.
 		for k, v := range context {

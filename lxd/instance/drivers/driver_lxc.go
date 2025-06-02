@@ -199,13 +199,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.In
 		return nil, nil, err
 	}
 
-	storagePoolSupported := false
-	for _, supportedType := range d.storagePool.Driver().Info().VolumeTypes {
-		if supportedType == volType {
-			storagePoolSupported = true
-			break
-		}
-	}
+	storagePoolSupported := slices.Contains(d.storagePool.Driver().Info().VolumeTypes, volType)
 
 	if !storagePoolSupported {
 		return nil, nil, errors.New("Storage pool does not support instance type")
@@ -1918,7 +1912,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	kernelModules := d.expandedConfig["linux.kernel_modules"]
 	kernelModulesLoadPolicy := d.expandedConfig["linux.kernel_modules.load"]
 	if kernelModulesLoadPolicy != "ondemand" && kernelModules != "" {
-		for _, module := range strings.Split(kernelModules, ",") {
+		for module := range strings.SplitSeq(kernelModules, ",") {
 			module = strings.TrimPrefix(module, " ")
 			err := util.LoadModule(module)
 			if err != nil {
@@ -2436,7 +2430,7 @@ func (d *lxc) Start(stateful bool) error {
 		if shared.PathExists(logPath) {
 			logContent, err := os.ReadFile(logPath)
 			if err == nil {
-				for _, line := range strings.Split(string(logContent), "\n") {
+				for line := range strings.SplitSeq(string(logContent), "\n") {
 					fields := strings.Fields(line)
 					if len(fields) < 4 {
 						continue
@@ -4563,7 +4557,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 					continue
 				}
 
-				for _, module := range strings.Split(value, ",") {
+				for module := range strings.SplitSeq(value, ",") {
 					module = strings.TrimPrefix(module, " ")
 					err := util.LoadModule(module)
 					if err != nil {
@@ -5937,10 +5931,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 	// Respond with our maximum supported header version if the requested version is higher than ours.
 	// Otherwise just return the requested header version to the source.
-	indexHeaderVersion := offerHeader.GetIndexHeaderVersion()
-	if indexHeaderVersion > migration.IndexHeaderVersion {
-		indexHeaderVersion = migration.IndexHeaderVersion
-	}
+	indexHeaderVersion := min(offerHeader.GetIndexHeaderVersion(), migration.IndexHeaderVersion)
 
 	respHeader.IndexHeaderVersion = &indexHeaderVersion
 	respHeader.SnapshotNames = offerHeader.SnapshotNames
@@ -6715,13 +6706,7 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 			var w *os.File
 
 			// Check if the template should be applied now
-			found := false
-			for _, tplTrigger := range tpl.When {
-				if tplTrigger == string(trigger) {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(tpl.When, string(trigger))
 
 			if !found {
 				return nil
@@ -6998,7 +6983,7 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 
 		// Write PID file.
 		pidFile := filepath.Join(d.LogPath(), "forkfile.pid")
-		err = os.WriteFile(pidFile, []byte(fmt.Sprint(forkfile.Process.Pid, "\n")), 0600)
+		err = os.WriteFile(pidFile, fmt.Append(nil, forkfile.Process.Pid, "\n"), 0600)
 		if err != nil {
 			chReady <- fmt.Errorf("Failed to write forkfile PID: %w", err)
 			return
@@ -7551,7 +7536,7 @@ func (d *lxc) processesState(pid int) (int64, error) {
 	pids := []int64{int64(pid)}
 
 	// Go through the pid list, adding new pids at the end so we go through them all
-	for i := 0; i < len(pids); i++ {
+	for i := range pids {
 		fname := fmt.Sprintf("/proc/%d/task/%d/children", pids[i], pids[i])
 		fcont, err := os.ReadFile(fname)
 		if err != nil {
@@ -7560,7 +7545,7 @@ func (d *lxc) processesState(pid int) (int64, error) {
 		}
 
 		content := strings.Split(string(fcont), " ")
-		for j := 0; j < len(content); j++ {
+		for j := range content {
 			pid, err := strconv.ParseInt(content[j], 10, 64)
 			if err == nil {
 				pids = append(pids, pid)

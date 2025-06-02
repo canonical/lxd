@@ -119,8 +119,8 @@ func (m *Method) GenerateSignature(buf *file.Buffer) error {
 	buf.L("type %sGenerated interface {", lex.Camel(m.entity))
 	defer m.end(buf)
 	if m.config["references"] != "" {
-		refFields := strings.Split(m.config["references"], ",")
-		for _, fieldName := range refFields {
+		refFields := strings.SplitSeq(m.config["references"], ",")
+		for fieldName := range refFields {
 			m.ref = fieldName
 			err := m.signature(buf, true)
 			if err != nil {
@@ -147,8 +147,8 @@ func (m *Method) getMany(buf *file.Buffer) error {
 	}
 
 	if m.config["references"] != "" {
-		refFields := strings.Split(m.config["references"], ",")
-		for _, fieldName := range refFields {
+		refFields := strings.SplitSeq(m.config["references"], ",")
+		for fieldName := range refFields {
 			refMapping, err := Parse(m.pkg, fieldName, m.kind)
 			if err != nil {
 				return fmt.Errorf("Parse entity struct: %w", err)
@@ -674,8 +674,8 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 	}
 
 	if m.config["references"] != "" {
-		refFields := strings.Split(m.config["references"], ",")
-		for _, fieldName := range refFields {
+		refFields := strings.SplitSeq(m.config["references"], ",")
+		for fieldName := range refFields {
 			refMapping, err := Parse(m.pkg, fieldName, m.kind)
 			if err != nil {
 				return fmt.Errorf("Parse entity struct: %w", err)
@@ -960,8 +960,8 @@ func (m *Method) update(buf *file.Buffer) error {
 	}
 
 	if m.config["references"] != "" {
-		refFields := strings.Split(m.config["references"], ",")
-		for _, fieldName := range refFields {
+		refFields := strings.SplitSeq(m.config["references"], ",")
+		for fieldName := range refFields {
 			refMapping, err := Parse(m.pkg, fieldName, m.kind)
 			if err != nil {
 				return fmt.Errorf("Parse entity struct: %w", err)

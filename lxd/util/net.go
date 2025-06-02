@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net"
 	"os"
+	"slices"
 	"strconv"
 
 	"github.com/canonical/lxd/shared"
@@ -227,10 +228,8 @@ func IsAddressCovered(address1, address2 string) bool {
 	}
 
 	for _, a1 := range addresses1 {
-		for _, a2 := range addresses2 {
-			if a1.Equal(a2) {
-				return true
-			}
+		if slices.ContainsFunc(addresses2, a1.Equal) {
+			return true
 		}
 	}
 
