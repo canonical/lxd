@@ -1466,7 +1466,7 @@ func patchOIDCGroupsClaimScope(_ string, d *Daemon) error {
 		}
 
 		// Get the groups claim and scopes (these will just be the default values at the time of the patch)
-		_, _, scopes, _, groupsClaim := globalConfig.OIDCServer()
+		_, _, _, scopes, _, groupsClaim := globalConfig.OIDCServer()
 
 		// If the groups claim is not set, or this patch was already run on another member and the groups claim is
 		// already present in the list of scopes, then there is nothing to do.
