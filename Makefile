@@ -219,6 +219,18 @@ endif
 	go build -C lxd/db/generate -v -trimpath -o $(GOPATH)/bin/lxd-generate -tags "$(TAG_SQLITE3)" $(DEBUG)
 	go generate ./...
 	@echo "Code generation completed"
+	changed_path=$$(git diff --name-only -- ./lxd/db/); \
+	if [ -t 0 ] && [ -n "$$changed_path" ]; then \
+		read -rp "Would you like to commit schema changes (Y/n)? " answer; \
+		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
+			if echo "$$changed_path" | grep -q "^lxd/db/cluster/"; then \
+				commit_message="lxd/db/cluster: Update schema"; \
+			elif echo "$$changed_path" | grep -q "^lxd/db/node/"; then \
+				commit_message="lxd/db/node: Update schema"; \
+			fi; \
+			git commit -S -sm "$$commit_message" -- ./lxd/db/; \
+		fi; \
+	fi
 
 .PHONY: update-api
 update-api:
