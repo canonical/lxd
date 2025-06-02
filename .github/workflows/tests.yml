@@ -69,7 +69,7 @@ jobs:
       #      useful feedback in the PR through github-code-scanning bot
       - id: ShellCheck
         name: Differential ShellCheck
-        uses: redhat-plumbers-in-action/differential-shellcheck@dd551ce780d8af741f8cd8bab6982667b906b457 # v5.5.3
+        uses: redhat-plumbers-in-action/differential-shellcheck@929381c602ed76daa9b523e001ee29b82bd6d8e9 # v5.5.4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           strict-check-on-push: true
