@@ -4945,6 +4945,13 @@ This value is required by some providers.
 
 ```
 
+```{config:option} oidc.client.secret server-oidc
+:scope: "global"
+:shortdesc: "OpenID Connect client secret"
+:type: "string"
+
+```
+
 ```{config:option} oidc.groups.claim server-oidc
 :scope: "global"
 :shortdesc: "A claim used for mapping identity provider groups to LXD groups."

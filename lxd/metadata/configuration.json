@@ -5547,6 +5547,14 @@
 						}
 					},
 					{
+						"oidc.client.secret": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "OpenID Connect client secret",
+							"type": "string"
+						}
+					},
+					{
 						"oidc.groups.claim": {
 							"longdesc": "Specify a custom token claim to denote groups defined at the identity provider.\nThe contents of this claim can be mapped to LXD groups for managing access control.\nThe value of the claim is expected to be a JSON string array.",
 							"scope": "global",
