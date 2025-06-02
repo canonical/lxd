@@ -47,7 +47,7 @@ func IsReverse(name string) int {
 }
 
 func reverse(slice []string) string {
-	for i := 0; i < len(slice)/2; i++ {
+	for i := range len(slice) / 2 {
 		j := len(slice) - i - 1
 		slice[i], slice[j] = slice[j], slice[i]
 	}
@@ -64,13 +64,13 @@ func reverse(slice []string) string {
 // b.a.9.8.7.6.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2
 // is reversed to 2001:db8::567:89ab.
 func reverse6(slice []string) string {
-	for i := 0; i < len(slice)/2; i++ {
+	for i := range len(slice) / 2 {
 		j := len(slice) - i - 1
 		slice[i], slice[j] = slice[j], slice[i]
 	}
 
 	slice6 := []string{}
-	for i := 0; i < len(slice)/4; i++ {
+	for i := range len(slice) / 4 {
 		slice6 = append(slice6, strings.Join(slice[i*4:i*4+4], ""))
 	}
 

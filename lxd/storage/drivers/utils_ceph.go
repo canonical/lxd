@@ -99,10 +99,10 @@ func CephMonitors(cluster string) ([]string, error) {
 			// doesn't take the version indication, trailing bits or supports those
 			// tuples, all of those effectively get stripped away to get a clean
 			// address list (with ports).
-			entries := strings.Split(fields[1], " ")
-			for _, entry := range entries {
-				servers := strings.Split(entry, ",")
-				for _, server := range servers {
+			entries := strings.SplitSeq(fields[1], " ")
+			for entry := range entries {
+				servers := strings.SplitSeq(entry, ",")
+				for server := range servers {
 					// Trim leading/trailing spaces.
 					server = strings.TrimSpace(server)
 

@@ -95,7 +95,7 @@ func (s *utilsPropertiesTestSuite) TestSetFieldByJsonTagSettable() {
 		Age:  30,
 	}
 
-	setFieldByJsonTag(&ts, "name", "Jane Doe")
+	setFieldByJSONTag(&ts, "name", "Jane Doe")
 	s.Equal("Jane Doe", ts.Name)
 }
 
@@ -105,7 +105,7 @@ func (s *utilsPropertiesTestSuite) TestSetFieldByJsonTagNonSettable() {
 		Age:  30,
 	}
 
-	setFieldByJsonTag(&ts, "invalid name", "Jane Doe")
+	setFieldByJSONTag(&ts, "invalid name", "Jane Doe")
 	s.NotEqual("Jane Doe", ts.Name)
 }
 
@@ -115,7 +115,7 @@ func (s *utilsPropertiesTestSuite) TestUnsetFieldByJsonTagValid() {
 		Age:  30,
 	}
 
-	err := unsetFieldByJsonTag(&ts, "name")
+	err := unsetFieldByJSONTag(&ts, "name")
 	s.NoError(err)
 	s.Empty(ts.Name)
 }
@@ -126,7 +126,7 @@ func (s *utilsPropertiesTestSuite) TestUnsetFieldByJsonTagInvalid() {
 		Age:  30,
 	}
 
-	err := unsetFieldByJsonTag(&ts, "invalid")
+	err := unsetFieldByJSONTag(&ts, "invalid")
 	s.Error(err, "Expected an error but got nil")
 }
 

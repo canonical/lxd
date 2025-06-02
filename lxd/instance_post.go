@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 
@@ -479,14 +480,10 @@ func instancePostMigration(s *state.State, inst instance.Instance, req api.Insta
 
 	// Copy config from instance to avoid modifying it.
 	localConfig := make(map[string]string)
-	for k, v := range inst.LocalConfig() {
-		localConfig[k] = v
-	}
+	maps.Copy(localConfig, inst.LocalConfig())
 
 	// Set user defined configuration entries.
-	for k, v := range req.Config {
-		localConfig[k] = v
-	}
+	maps.Copy(localConfig, req.Config)
 
 	// Get instance local devices and then set user defined devices.
 	localDevices := inst.LocalDevices().Clone()

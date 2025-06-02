@@ -955,7 +955,7 @@ func (o *OVN) LogicalSwitchDHCPOptionsGet(switchName OVNSwitch) ([]OVNDHCPOptsSe
 	dhcpOpts := []OVNDHCPOptsSet{}
 	output = strings.TrimSpace(output)
 	if output != "" {
-		for _, row := range strings.Split(output, "\n") {
+		for row := range strings.SplitSeq(output, "\n") {
 			rowParts := strings.SplitN(row, ",", colCount)
 			if len(rowParts) < colCount {
 				return nil, errors.New("Too few columns in output")

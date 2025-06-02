@@ -1,5 +1,9 @@
 package config
 
+import (
+	"maps"
+)
+
 // LocalRemote is the default local remote (over the LXD unix socket).
 var LocalRemote = Remote{
 	Addr:   "unix://",
@@ -71,9 +75,7 @@ var DefaultRemotes = map[string]Remote{
 func DefaultConfig() *Config {
 	// Duplicate remotes from DefaultRemotes.
 	defaultRoutes := make(map[string]Remote, len(DefaultRemotes))
-	for k, v := range DefaultRemotes {
-		defaultRoutes[k] = v
-	}
+	maps.Copy(defaultRoutes, DefaultRemotes)
 
 	return &Config{
 		Remotes:       defaultRoutes,

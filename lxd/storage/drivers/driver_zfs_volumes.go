@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1139,13 +1140,7 @@ func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCl
 		// Check if snapshot data set matches one of the requested snapshots in volTargetArgs.Snapshots.
 		// If so, then keep it, otherwise request it be removed.
 		entrySnapName := strings.TrimPrefix(dataSetName, dataSetSnapshotPrefix)
-		for _, snapName := range volTargetArgs.Snapshots {
-			if entrySnapName == snapName {
-				return true // Keep snapshot data set if present in the requested snapshots list.
-			}
-		}
-
-		return false // Delete any other snapshot data sets that have been transferred.
+		return slices.Contains(volTargetArgs.Snapshots, entrySnapName) // Delete any other snapshot data sets that have been transferred.
 	}
 
 	if volTargetArgs.Refresh {
@@ -1691,9 +1686,7 @@ func (d *zfs) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 	}
 
 	defer func() {
-		for k, v := range old {
-			vol.config[k] = v
-		}
+		maps.Copy(vol.config, old)
 	}()
 
 	// If any of the relevant keys changed, re-apply the quota.

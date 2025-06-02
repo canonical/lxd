@@ -163,7 +163,7 @@ func (d *zfs) getClones(dataset string) ([]string, error) {
 	}
 
 	clones := []string{}
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		line = strings.TrimSpace(line)
 		if line == dataset || line == "" || line == "-" {
 			continue
@@ -183,7 +183,7 @@ func (d *zfs) getDatasets(dataset string, types string) ([]string, error) {
 	}
 
 	children := []string{}
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		line = strings.TrimSpace(line)
 		if line == dataset || line == "" {
 			continue
@@ -292,7 +292,7 @@ func (d *zfs) getDatasetProperties(dataset string, keys ...string) (map[string]s
 
 	props := make(map[string]string, len(keys))
 
-	for _, row := range strings.Split(output, "\n") {
+	for row := range strings.SplitSeq(output, "\n") {
 		prop := strings.Split(row, "\t")
 
 		if len(prop) < 2 {

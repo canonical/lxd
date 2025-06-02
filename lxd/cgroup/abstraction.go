@@ -408,8 +408,8 @@ func (cg *CGroup) GetEffectiveCPUs() (int, error) {
 func parseCPUSet(set string) (int, error) {
 	var out int
 
-	fields := strings.Split(strings.TrimSpace(set), ",")
-	for _, value := range fields {
+	fields := strings.SplitSeq(strings.TrimSpace(set), ",")
+	for value := range fields {
 		// Parse non-range values.
 		if !strings.Contains(value, "-") {
 			_, err := strconv.Atoi(value)
@@ -825,7 +825,7 @@ func (cg *CGroup) GetMemoryStats() (map[string]uint64, error) {
 		return nil, err
 	}
 
-	for _, stat := range strings.Split(stats, "\n") {
+	for stat := range strings.SplitSeq(stats, "\n") {
 		key, value, found := strings.Cut(stat, " ")
 		if !found {
 			continue
@@ -886,7 +886,7 @@ func (cg *CGroup) GetOOMKills() (uint64, error) {
 		return 0, err
 	}
 
-	for _, stat := range strings.Split(stats, "\n") {
+	for stat := range strings.SplitSeq(stats, "\n") {
 		// Skip unrelated lines.
 		value, found := strings.CutPrefix(stat, "oom_kill ")
 		if !found {
@@ -1027,7 +1027,7 @@ func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 			ioStats := &IOStats{}
 
 			// An io.stat line looks like this: "major:minor rbytes=[0-9]+ wbytes=[0-9]+ rios=[0-9]+ wios=[0-9]+ dbytes=[0-9]+ dios=[0-9]+".
-			for _, statPart := range strings.Split(scanner.Text(), " ") {
+			for statPart := range strings.SplitSeq(scanner.Text(), " ") {
 				// If the stat part is empty, skip it.
 				if statPart == "" {
 					continue

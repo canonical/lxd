@@ -2,10 +2,11 @@ package osarch
 
 import (
 	"fmt"
+	"slices"
 )
 
 const (
-	ARCH_UNKNOWN                     = 0
+	ARCH_UNKNOWN                     = 0 //nolint:revive
 	ARCH_32BIT_INTEL_X86             = 1
 	ARCH_64BIT_INTEL_X86             = 2
 	ARCH_32BIT_ARMV7_LITTLE_ENDIAN   = 3
@@ -94,44 +95,47 @@ var architectureSupportedPersonalities = map[int][]int{
 	ARCH_64BIT_LOONGARCH:             {},
 }
 
+// ArchitectureDefault represents the default architecture.
 const ArchitectureDefault = "x86_64"
 
+// ArchitectureName returns the local hardware architecture name.
 func ArchitectureName(arch int) (string, error) {
-	arch_name, exists := architectureNames[arch]
+	name, exists := architectureNames[arch]
 	if exists {
-		return arch_name, nil
+		return name, nil
 	}
 
 	return "unknown", fmt.Errorf("Architecture isn't supported: %d", arch)
 }
 
-func ArchitectureId(arch string) (int, error) {
-	for arch_id, arch_name := range architectureNames {
-		if arch_name == arch {
-			return arch_id, nil
+// ArchitectureId returns the architecture ID for a given architecture name or alias.
+func ArchitectureId(arch string) (int, error) { //nolint:revive
+	for id, name := range architectureNames {
+		if name == arch {
+			return id, nil
 		}
 	}
 
-	for arch_id, arch_aliases := range architectureAliases {
-		for _, arch_name := range arch_aliases {
-			if arch_name == arch {
-				return arch_id, nil
-			}
+	for id, aliases := range architectureAliases {
+		if slices.Contains(aliases, arch) {
+			return id, nil
 		}
 	}
 
 	return ARCH_UNKNOWN, fmt.Errorf("Architecture isn't supported: %s", arch)
 }
 
+// ArchitecturePersonality returns the personality for a given architecture ID.
 func ArchitecturePersonality(arch int) (string, error) {
-	arch_personality, exists := architecturePersonalities[arch]
+	personality, exists := architecturePersonalities[arch]
 	if exists {
-		return arch_personality, nil
+		return personality, nil
 	}
 
 	return "", fmt.Errorf("Architecture isn't supported: %d", arch)
 }
 
+// ArchitecturePersonalities returns the list of supported personalities for a given architecture ID.
 func ArchitecturePersonalities(arch int) ([]int, error) {
 	personalities, exists := architectureSupportedPersonalities[arch]
 	if exists {

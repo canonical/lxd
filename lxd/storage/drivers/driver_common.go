@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/url"
 	"os/exec"
 	"regexp"
@@ -67,9 +68,7 @@ func (d *common) validatePool(config map[string]string, driverRules map[string]f
 	rules := d.commonRules.PoolRules()
 
 	// Merge driver specific rules into common rules.
-	for field, validator := range driverRules {
-		rules[field] = validator
-	}
+	maps.Copy(rules, driverRules)
 
 	// Add to pool volume configuration options as volume.* options.
 	// These will be used as default configuration options for volume.
@@ -116,13 +115,7 @@ func (d *common) fillVolumeConfig(vol *Volume, excludedKeys ...string) error {
 
 		volKey := strings.TrimPrefix(k, "volume.")
 
-		isExcluded := false
-		for _, excludedKey := range excludedKeys {
-			if excludedKey == volKey {
-				isExcluded = true
-				break
-			}
-		}
+		isExcluded := slices.Contains(excludedKeys, volKey)
 
 		if isExcluded {
 			continue
@@ -167,9 +160,7 @@ func (d *common) validateVolume(vol Volume, driverRules map[string]func(value st
 	rules := d.commonRules.VolumeRules(vol)
 
 	// Merge driver specific rules into common rules.
-	for field, validator := range driverRules {
-		rules[field] = validator
-	}
+	maps.Copy(rules, driverRules)
 
 	// Run the validator against each field.
 	for k, validator := range rules {
@@ -253,9 +244,7 @@ func (d *common) Logger() logger.Logger {
 // Config returns the storage pool config (as a copy, so not modifiable).
 func (d *common) Config() map[string]string {
 	confCopy := make(map[string]string, len(d.config))
-	for k, v := range d.config {
-		confCopy[k] = v
-	}
+	maps.Copy(confCopy, d.config)
 
 	return confCopy
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"slices"
 
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
@@ -81,15 +82,12 @@ func networkUpdateOVNChassis(s *state.State, heartbeatData *cluster.APIHeartbeat
 	hasOVNChassis := false
 	localOVNChassis := false
 	for _, n := range heartbeatData.Members {
-		for _, role := range n.Roles {
-			if role == db.ClusterRoleOVNChassis {
-				if n.Address == localAddress {
-					localOVNChassis = true
-				}
-
-				hasOVNChassis = true
-				break
+		if slices.Contains(n.Roles, db.ClusterRoleOVNChassis) {
+			if n.Address == localAddress {
+				localOVNChassis = true
 			}
+
+			hasOVNChassis = true
 		}
 	}
 

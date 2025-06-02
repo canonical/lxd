@@ -389,13 +389,13 @@ func (suite *containerTestSuite) TestContainer_findIdmap_isolated() {
 
 	host := suite.d.os.IdmapSet.Idmap[0]
 
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		suite.Req.Equal(host.Hostid+65536, map1.Idmap[i].Hostid, "hostids don't match %d", i)
 		suite.Req.Equal(int64(0), map1.Idmap[i].Nsid, "nsid nonzero")
 		suite.Req.Equal(int64(65536), map1.Idmap[i].Maprange, "incorrect maprange")
 	}
 
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		suite.Req.Equal(host.Hostid+65536*2, map2.Idmap[i].Hostid, "hostids don't match")
 		suite.Req.Equal(int64(0), map2.Idmap[i].Nsid, "nsid nonzero")
 		suite.Req.Equal(int64(65536), map2.Idmap[i].Maprange, "incorrect maprange")
@@ -432,13 +432,13 @@ func (suite *containerTestSuite) TestContainer_findIdmap_mixed() {
 
 	host := suite.d.os.IdmapSet.Idmap[0]
 
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		suite.Req.Equal(host.Hostid, map1.Idmap[i].Hostid, "hostids don't match %d", i)
 		suite.Req.Equal(int64(0), map1.Idmap[i].Nsid, "nsid nonzero")
 		suite.Req.Equal(host.Maprange, map1.Idmap[i].Maprange, "incorrect maprange")
 	}
 
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		suite.Req.Equal(host.Hostid+65536, map2.Idmap[i].Hostid, "hostids don't match")
 		suite.Req.Equal(int64(0), map2.Idmap[i].Nsid, "nsid nonzero")
 		suite.Req.Equal(int64(65536), map2.Idmap[i].Maprange, "incorrect maprange")
@@ -486,7 +486,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_maxed() {
 	maps := []*idmap.IdmapSet{}
 
 	instances := make([]instance.Instance, 0, 7)
-	for i := 0; i < 7; i++ {
+	for i := range 7 {
 		c, op, _, err := instance.CreateInternal(suite.d.State(), db.InstanceArgs{
 			Type: instancetype.Container,
 			Name: fmt.Sprintf("isol-%d", i),

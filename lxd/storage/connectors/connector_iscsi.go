@@ -83,8 +83,8 @@ func (c *connectorISCSI) QualifiedName() (string, error) {
 	}
 
 	// Find the IQN line in the file.
-	lines := strings.Split(string(content), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(string(content), "\n")
+	for line := range lines {
 		iqn, ok := strings.CutPrefix(line, "InitiatorName=")
 		if ok {
 			c.iqn = iqn
