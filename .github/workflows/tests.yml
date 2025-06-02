@@ -343,7 +343,8 @@ jobs:
           ls -lR /home/runner/go/bin/
           chmod uog+x /home/runner/go/bin/*
 
-      - name: Setup MicroCeph
+      - name: Purge LXD snap
+        # TODO: drop this when moving away from `ubuntu-22.04` runners to `ubuntu-24.04`
         if: ${{ matrix.backend == 'ceph' }}
         run: |
           set -eux
