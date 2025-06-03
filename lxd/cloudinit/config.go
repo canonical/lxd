@@ -94,7 +94,7 @@ func GetEffectiveConfig(instanceConfig map[string]string, requestedKey string, i
 	// user-data's fields overwrite vendor-data's fields, so merging SSH keys can result in adding a "users" field
 	// that did not exist before, having the side effect of overwriting vendor-data's "users" field.
 	// So only merge into "user-data" when safe to do.
-	canMergeUserData := userCloudConfig.hasUsers() || !vendorCloudConfig.hasUsers()
+	canMergeUserData := (userErr == nil && userCloudConfig.hasUsers()) || (vendorErr == nil && !vendorCloudConfig.hasUsers())
 
 	// Merge additional SSH keys into parsed config.
 	// If merging is not possible return the raw value for the target key.
@@ -205,7 +205,7 @@ type cloudConfig struct {
 }
 
 // string marshals a cloud-config map into a YAML string.
-func (config cloudConfig) string() (string, error) {
+func (config *cloudConfig) string() (string, error) {
 	resultingConfigBytes, err := yaml.Marshal(config.keys)
 	if err != nil {
 		return "", err
@@ -218,7 +218,7 @@ func (config cloudConfig) string() (string, error) {
 }
 
 // string marshals a cloud-config map into a YAML string.
-func (config cloudConfig) hasUsers() bool {
+func (config *cloudConfig) hasUsers() bool {
 	value, ok := config.keys["users"]
 	return ok && value != ""
 }
@@ -226,7 +226,7 @@ func (config cloudConfig) hasUsers() bool {
 // mergeSSHKeyCloudConfig merges keys present in a map of userSSHKeys into a CloudConfig.
 // The provided map can be obtained by extracting user keys from an instance config with extractAdditionalSSHKeys.
 // This also returns the resulting YAML string after the merging is done.
-func (config cloudConfig) mergeSSHKeyCloudConfig(userKeys map[string]*userSSHKeys) (string, error) {
+func (config *cloudConfig) mergeSSHKeyCloudConfig(userKeys map[string]*userSSHKeys) (string, error) {
 	// If no keys are defined, return the original config passed in.
 	if len(userKeys) == 0 {
 		return config.string()
