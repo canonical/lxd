@@ -2800,26 +2800,27 @@ func (c *cmdStorageVolumeExport) run(cmd *cobra.Command, args []string) error {
 
 	defer func() { _ = target.Close() }()
 
-	// Prepare the download request
-	progress = cli.ProgressRenderer{
+	// Prepare the download request.
+	// Assign the renderer to a new variable to not interfer with the old one.
+	exportProgress := cli.ProgressRenderer{
 		Format: i18n.G("Exporting the backup: %s"),
 		Quiet:  c.global.flagQuiet,
 	}
 
 	backupFileRequest := lxd.BackupFileRequest{
 		BackupFile:      io.WriteSeeker(target),
-		ProgressHandler: progress.UpdateProgress,
+		ProgressHandler: exportProgress.UpdateProgress,
 	}
 
 	// Export tarball
 	_, err = d.GetStoragePoolVolumeBackupFile(name, volName, backupName, &backupFileRequest)
 	if err != nil {
 		_ = os.Remove(targetName)
-		progress.Done("")
+		exportProgress.Done("")
 		return fmt.Errorf("Failed to fetch storage volume backup file: %w", err)
 	}
 
-	progress.Done(i18n.G("Backup exported successfully!"))
+	exportProgress.Done(i18n.G("Backup exported successfully!"))
 	return nil
 }
 
