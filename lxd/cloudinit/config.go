@@ -94,7 +94,7 @@ func GetEffectiveConfig(instanceConfig map[string]string, requestedKey string, i
 	// user-data's fields overwrite vendor-data's fields, so merging SSH keys can result in adding a "users" field
 	// that did not exist before, having the side effect of overwriting vendor-data's "users" field.
 	// So only merge into "user-data" when safe to do.
-	canMergeUserData := (userErr == nil && userCloudConfig.hasUsers()) || (vendorErr == nil && !vendorCloudConfig.hasUsers())
+	canMergeUserData := (userErr == nil && userCloudConfig.hasUsers()) || vendorErr != nil || !vendorCloudConfig.hasUsers()
 
 	// Merge additional SSH keys into parsed config.
 	// If merging is not possible return the raw value for the target key.
@@ -209,6 +209,11 @@ func (config *cloudConfig) string() (string, error) {
 	resultingConfigBytes, err := yaml.Marshal(config.keys)
 	if err != nil {
 		return "", err
+	}
+
+	// If there was no config provided, generate one.
+	if config.comments == "" {
+		config.comments = "#cloud-config\n"
 	}
 
 	// Add cloud-config tag and space before comments, as doing the latter
