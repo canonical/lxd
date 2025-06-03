@@ -2037,6 +2037,8 @@ func autoUpdateImages(ctx context.Context, s *state.State) error {
 }
 
 func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFingerprint string, newImage *api.Image) error {
+	logger.Info("Distributing image to members", logger.Ctx{"fingerprint": newImage.Fingerprint, "member": s.ServerName, "targets": nodes})
+
 	// Get config of all nodes (incl. own) and check for storage.images_volume.
 	// If the setting is missing, distribute the image to the node.
 	// If the option is set, only distribute the image once to nodes with this
@@ -2202,6 +2204,7 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 				Filename: createArgs.MetaName,
 			}
 
+			logger.Info("Distributing image to member", logger.Ctx{"member": s.ServerName, "target": nodeInfo.Name, "fingerprint": newImage.Fingerprint})
 			op, err := client.CreateImage(image, createArgs)
 			if err != nil {
 				return err
