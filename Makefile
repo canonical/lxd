@@ -279,9 +279,9 @@ check: default check-unit
 .PHONY: check-unit
 check-unit:
 ifeq "$(GOCOVERDIR)" ""
-	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
+	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -mod=readonly -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 else
-	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./... -cover -test.gocoverdir="$(GOCOVERDIR)"
+	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -mod=readonly -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./... -cover -test.gocoverdir="$(GOCOVERDIR)"
 endif
 
 .PHONY: dist
