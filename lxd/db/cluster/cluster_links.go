@@ -54,6 +54,23 @@ type ClusterLinkFilter struct {
 	Name *string
 }
 
+// ToAPI converts the database [ClusterLink] struct to API type [api.ClusterLink].
+func (r *ClusterLink) ToAPI(ctx context.Context, tx *sql.Tx) (*api.ClusterLink, error) {
+	clusterLink := &api.ClusterLink{
+		Name:        r.Name,
+		Addresses:   r.Addresses,
+		Description: r.Description,
+		Type:        string(r.Type),
+	}
+
+	err := getClusterLinkConfig(ctx, tx, int64(r.ID), clusterLink)
+	if err != nil {
+		return nil, err
+	}
+
+	return clusterLink, nil
+}
+
 // Addresses represents a slice of addresses stored as a comma-separated string in the database.
 //
 // This type implements the sql.Scanner and driver.Valuer interfaces to automatically handle
