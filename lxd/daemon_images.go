@@ -62,9 +62,9 @@ func imageOperationLock(fingerprint string) (locking.UnlockFunc, error) {
 
 // ImageDownload resolves the image fingerprint and if not in the database, downloads it.
 func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, args *ImageDownloadArgs) (*api.Image, error) {
-	var err error
-	var ctxMap logger.Ctx
+	l := logger.AddContext(logger.Ctx{"image": args.Alias, "member": s.ServerName, "project": args.ProjectName, "pool": args.StoragePool, "source": args.Server})
 
+	var err error
 	var remote lxd.ImageServer
 	var info *api.Image
 
@@ -253,8 +253,8 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 
 	if imgInfo != nil {
 		info = imgInfo
-		ctxMap = logger.Ctx{"fingerprint": info.Fingerprint}
-		logger.Debug("Image already exists in the DB", ctxMap)
+		l = l.AddContext(logger.Ctx{"fingerprint": info.Fingerprint, "autoUpdate": info.AutoUpdate, "imgProject": info.Project})
+		l.Debug("Image already exists in the DB")
 
 		var poolID int64
 		var poolIDs []int64
@@ -270,8 +270,6 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 			}
 
 			if args.StoragePool != "" {
-				ctxMap["pool"] = args.StoragePool
-
 				// Get the ID of the target storage pool.
 				poolID, err = tx.GetStoragePoolID(ctx, args.StoragePool)
 				if err != nil {
@@ -296,32 +294,29 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 		}
 
 		if slices.Contains(poolIDs, poolID) {
-			logger.Debug("Image already exists on storage pool", ctxMap)
+			l.Debug("Image already exists on storage pool")
 			return info, nil
 		}
 
 		// Import the image in the pool.
-		logger.Debug("Image does not exist on storage pool", ctxMap)
+		l.Debug("Image does not exist on storage pool")
 
 		err = imageCreateInPool(s, info, args.StoragePool)
 		if err != nil {
-			ctxMap["err"] = err
-			logger.Debug("Failed to create image on storage pool", ctxMap)
+			l.Debug("Failed to create image on storage pool", logger.Ctx{"err": err})
 			return nil, fmt.Errorf("Failed to create image %q on storage pool %q: %w", info.Fingerprint, args.StoragePool, err)
 		}
 
-		logger.Debug("Created image on storage pool", ctxMap)
+		l.Debug("Created image on storage pool")
 		return info, nil
 	}
 
 	// Begin downloading
-	if op == nil {
-		ctxMap = logger.Ctx{"alias": alias, "server": args.Server}
-	} else {
-		ctxMap = logger.Ctx{"trigger": op.URL(), "fingerprint": fp, "operation": op.ID(), "alias": alias, "server": args.Server}
+	if op != nil {
+		l = l.AddContext(logger.Ctx{"trigger": op.URL(), "operation": op.ID()})
 	}
 
-	logger.Info("Downloading image", ctxMap)
+	l.Info("Downloading image")
 
 	// Cleanup any leftover from a past attempt
 	destDir := shared.VarPath("images")
@@ -625,7 +620,7 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 		}
 	}
 
-	logger.Info("Image downloaded", ctxMap)
+	l.Info("Image downloaded")
 
 	var requestor *api.EventLifecycleRequestor
 	if op != nil {
