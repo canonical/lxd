@@ -57,7 +57,6 @@ import (
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
-	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -2038,6 +2037,8 @@ func autoUpdateImages(ctx context.Context, s *state.State) error {
 }
 
 func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFingerprint string, newImage *api.Image) error {
+	logger.Info("Distributing image to members", logger.Ctx{"fingerprint": newImage.Fingerprint, "member": s.ServerName, "targets": nodes})
+
 	// Get config of all nodes (incl. own) and check for storage.images_volume.
 	// If the setting is missing, distribute the image to the node.
 	// If the option is set, only distribute the image once to nodes with this
@@ -2112,8 +2113,6 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 		return err
 	}
 
-	reverter := revert.New()
-	defer reverter.Fail()
 	for _, nodeAddress := range nodes {
 		if nodeAddress == localClusterAddress {
 			continue
@@ -2121,7 +2120,6 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 
 		var nodeInfo db.NodeInfo
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			var err error
 			nodeInfo, err = tx.GetNodeByAddress(ctx, nodeAddress)
 			return err
 		})
@@ -2129,143 +2127,127 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 			return fmt.Errorf("Failed to retrieve information about cluster member with address %q: %w", nodeAddress, err)
 		}
 
-		client, err := cluster.Connect(nodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), nil, true)
-		if err != nil {
-			return fmt.Errorf("Failed to connect to %q for image synchronization: %w", nodeAddress, err)
-		}
-
-		client = client.UseTarget(nodeInfo.Name)
-
-		resp, _, err := client.GetServer()
-		if err != nil {
-			logger.Error("Failed to retrieve information about cluster member", logger.Ctx{"err": err, "remote": nodeAddress})
-		} else {
-			vol := ""
-
-			val := resp.Config["storage.images_volume"]
-			if val != nil {
-				var ok bool
-				vol, ok = val.(string)
-				if !ok {
-					return errors.New("Invalid type for field \"storage.images_volume\"")
-				}
+		err = func() error {
+			client, err := cluster.Connect(nodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), nil, true)
+			if err != nil {
+				return fmt.Errorf("Failed to connect to %q for image synchronization: %w", nodeAddress, err)
 			}
 
-			skipDistribution := false
+			client = client.UseTarget(nodeInfo.Name)
 
-			// If storage.images_volume is set on the cluster member, check if
-			// the image has already been downloaded to this volume. If so,
-			// skip distributing the image to this cluster member.
-			// If the option is unset, distribute the image.
-			if vol != "" {
-				if slices.Contains(imageVolumes, vol) {
-					skipDistribution = true
+			resp, _, err := client.GetServer()
+			if err != nil {
+				logger.Error("Failed to retrieve information about cluster member", logger.Ctx{"err": err, "remote": nodeAddress})
+			} else {
+				vol := ""
+
+				val := resp.Config["storage.images_volume"]
+				if val != nil {
+					var ok bool
+					vol, ok = val.(string)
+					if !ok {
+						return errors.New("Invalid type for field \"storage.images_volume\"")
+					}
 				}
 
-				if skipDistribution {
-					continue
-				}
+				// If storage.images_volume is set on the cluster member, check if
+				// the image has already been downloaded to this volume. If so,
+				// skip distributing the image to this cluster member.
+				// If the option is unset, distribute the image.
+				if vol != "" {
+					if slices.Contains(imageVolumes, vol) {
+						return nil
+					}
 
-				fields := strings.Split(vol, "/")
+					fields := strings.Split(vol, "/")
 
-				pool, _, err := client.GetStoragePool(fields[0])
-				if err != nil {
-					logger.Error("Failed to get storage pool info", logger.Ctx{"err": err, "pool": fields[0]})
-				} else {
-					if slices.Contains(db.StorageRemoteDriverNames(), pool.Driver) {
-						imageVolumes = append(imageVolumes, vol)
+					pool, _, err := client.GetStoragePool(fields[0])
+					if err != nil {
+						logger.Error("Failed to get storage pool info", logger.Ctx{"err": err, "pool": fields[0]})
+					} else {
+						if slices.Contains(db.StorageRemoteDriverNames(), pool.Driver) {
+							imageVolumes = append(imageVolumes, vol)
+						}
 					}
 				}
 			}
-		}
 
-		createArgs := &lxd.ImageCreateArgs{}
-		imageMetaPath := shared.VarPath("images", newImage.Fingerprint)
-		imageRootfsPath := shared.VarPath("images", newImage.Fingerprint+".rootfs")
+			imageMetaPath := shared.VarPath("images", newImage.Fingerprint)
+			imageRootfsPath := shared.VarPath("images", newImage.Fingerprint+".rootfs")
 
-		metaFile, err := os.Open(imageMetaPath)
-		if err != nil {
-			return err
-		}
-
-		reverter.Add(func() {
-			_ = metaFile.Close()
-		})
-
-		createArgs.MetaFile = metaFile
-		createArgs.MetaName = filepath.Base(imageMetaPath)
-		createArgs.Type = newImage.Type
-
-		var rootfsFile *os.File
-		if shared.PathExists(imageRootfsPath) {
-			rootfsFile, err = os.Open(imageRootfsPath)
+			metaFile, err := os.Open(imageMetaPath)
 			if err != nil {
 				return err
 			}
 
-			reverter.Add(func() {
-				_ = rootfsFile.Close()
-			})
+			defer func() { _ = metaFile.Close() }()
 
-			createArgs.RootfsFile = rootfsFile
-			createArgs.RootfsName = filepath.Base(imageRootfsPath)
-		}
-
-		image := api.ImagesPost{}
-		image.Filename = createArgs.MetaName
-
-		op, err := client.CreateImage(image, createArgs)
-		if err != nil {
-			return err
-		}
-
-		select {
-		case <-ctx.Done():
-			_ = op.Cancel()
-			return ctx.Err()
-		default:
-		}
-
-		err = op.Wait()
-		if err != nil {
-			return err
-		}
-
-		for _, poolName := range poolNames {
-			if poolName == "" {
-				continue
+			createArgs := &lxd.ImageCreateArgs{
+				MetaFile: metaFile,
+				MetaName: filepath.Base(metaFile.Name()),
+				Type:     newImage.Type,
 			}
 
-			req := internalImageOptimizePost{
-				Image: *newImage,
-				Pool:  poolName,
+			if shared.PathExists(imageRootfsPath) {
+				rootfsFile, err := os.Open(imageRootfsPath)
+				if err != nil {
+					return err
+				}
+
+				defer func() { _ = rootfsFile.Close() }()
+
+				createArgs.RootfsFile = rootfsFile
+				createArgs.RootfsName = filepath.Base(rootfsFile.Name())
 			}
 
-			_, _, err = client.RawQuery(http.MethodPost, "/internal/image-optimize", req, "")
-			if err != nil {
-				logger.Error("Failed creating new image in storage pool", logger.Ctx{"err": err, "remote": nodeAddress, "pool": poolName, "fingerprint": newImage.Fingerprint})
+			image := api.ImagesPost{
+				Filename: createArgs.MetaName,
 			}
 
-			err = client.DeleteStoragePoolVolume(poolName, "image", oldFingerprint)
-			if err != nil {
-				logger.Error("Failed deleting old image from storage pool", logger.Ctx{"err": err, "remote": nodeAddress, "pool": poolName, "fingerprint": oldFingerprint})
-			}
-		}
-
-		err = metaFile.Close()
-		if err != nil {
-			return err
-		}
-
-		if rootfsFile != nil {
-			err = rootfsFile.Close()
+			logger.Info("Distributing image to member", logger.Ctx{"member": s.ServerName, "target": nodeInfo.Name, "fingerprint": newImage.Fingerprint})
+			op, err := client.CreateImage(image, createArgs)
 			if err != nil {
 				return err
 			}
+
+			err = ctx.Err()
+			if err != nil {
+				_ = op.Cancel()
+				return err
+			}
+
+			err = op.Wait()
+			if err != nil {
+				return err
+			}
+
+			for _, poolName := range poolNames {
+				if poolName == "" {
+					continue
+				}
+
+				req := internalImageOptimizePost{
+					Image: *newImage,
+					Pool:  poolName,
+				}
+
+				_, _, err = client.RawQuery(http.MethodPost, "/internal/image-optimize", req, "")
+				if err != nil {
+					logger.Error("Failed creating new image in storage pool", logger.Ctx{"err": err, "remote": nodeAddress, "pool": poolName, "fingerprint": newImage.Fingerprint})
+				}
+
+				err = client.DeleteStoragePoolVolume(poolName, "image", oldFingerprint)
+				if err != nil {
+					logger.Error("Failed deleting old image from storage pool", logger.Ctx{"err": err, "remote": nodeAddress, "pool": poolName, "fingerprint": oldFingerprint})
+				}
+			}
+
+			return nil
+		}()
+		if err != nil {
+			return fmt.Errorf("Failed distributing image %q to %q: %w", newImage.Fingerprint, nodeInfo.Name, err)
 		}
 	}
-
-	reverter.Success()
 
 	return nil
 }
@@ -2350,7 +2332,7 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 		poolNames = append(poolNames, "")
 	}
 
-	logger.Debug("Processing image", logger.Ctx{"fingerprint": fingerprint, "server": source.Server, "protocol": source.Protocol, "alias": source.Alias})
+	logger.Info("Checking image update", logger.Ctx{"member": s.ServerName, "poolNames": poolNames, "project": projectName, "fingerprint": fingerprint, "source": source.Server, "protocol": source.Protocol, "alias": source.Alias})
 
 	// Set operation metadata to indicate whether a refresh happened
 	setRefreshResult := func(result bool) {
