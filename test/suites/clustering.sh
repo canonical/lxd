@@ -3157,8 +3157,14 @@ test_clustering_image_refresh() {
     LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c1 --project "${project}"
   done
 
-  # Modify public testimage
   old_fingerprint="$(LXD_DIR="${LXD_REMOTE_DIR}" lxc image info testimage | awk '/^Fingerprint:/ {print $2}')"
+
+  # Check the image file was distributed initially to all members (because it was needed when creating an instance on each member).
+  for lxd_dir in "${LXD_ONE_DIR}" "${LXD_TWO_DIR}" "${LXD_THREE_DIR}"; do
+    stat --terse "${lxd_dir}/images/${old_fingerprint}"
+  done
+
+  # Modify public testimage
   dd if=/dev/urandom count=32 | LXD_DIR="${LXD_REMOTE_DIR}" lxc file push - c1/foo
   LXD_DIR="${LXD_REMOTE_DIR}" lxc publish c1 --alias testimage --reuse --public
   new_fingerprint="$(LXD_DIR="${LXD_REMOTE_DIR}" lxc image info testimage | awk '/^Fingerprint:/ {print $2}')"
@@ -3185,6 +3191,17 @@ test_clustering_image_refresh() {
     # Don't fail if PID isn't available as the process could be done already.
     wait "${pid}" || true
   done
+
+  # Check the image files were updated correctly.
+  # Node 1 should have both old and new images because:
+  # - It originally had the old image in a project with auto update disabled
+  # - It also has an instance in a project with auto update enabled.
+  # Node 2 should have only the old image because it only has an instance in a project with auto update disabled.
+  # Node 3 should have only the new image because it only has an instance in a project with auto update enabled.
+  stat --terse "${LXD_ONE_DIR}/images/${old_fingerprint}"
+  stat --terse "${LXD_ONE_DIR}/images/${new_fingerprint}"
+  stat --terse "${LXD_TWO_DIR}/images/${old_fingerprint}"
+  stat --terse "${LXD_THREE_DIR}/images/${new_fingerprint}"
 
   if [ "${poolDriver}" != "dir" ]; then
     # Check image storage volume records actually removed from relevant members and replaced with new fingerprint.
