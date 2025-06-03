@@ -479,6 +479,9 @@ type InstanceServer interface {
 type DevLXDServer interface {
 	Server
 
+	// Client configuration.
+	UseTarget(name string) (client DevLXDServer)
+
 	// DevLXD info/state.
 	GetState() (state *api.DevLXDGet, err error)
 	UpdateState(state api.DevLXDPut) error
