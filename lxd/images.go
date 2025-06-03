@@ -2207,11 +2207,10 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 				return err
 			}
 
-			select {
-			case <-ctx.Done():
+			err = ctx.Err()
+			if err != nil {
 				_ = op.Cancel()
-				return ctx.Err()
-			default:
+				return err
 			}
 
 			err = op.Wait()
