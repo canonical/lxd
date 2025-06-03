@@ -1,12 +1,15 @@
 package cluster
 
 import (
+	"context"
+	"database/sql"
 	"database/sql/driver"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -169,6 +172,105 @@ func ActivateClusterLink(ctx context.Context, tx *sql.Tx, name string, addresses
 		return api.StatusErrorf(http.StatusNotFound, "No pending cluster link found with name %q", name)
 	} else if n > 1 {
 		return fmt.Errorf("Unknown error occurred when activating a cluster link: %w", err)
+	}
+
+	return nil
+}
+
+// CreateClusterLinkConfig creates config for a new cluster link with the given name.
+func CreateClusterLinkConfig(ctx context.Context, tx *sql.Tx, name string, config map[string]string) error {
+	id, err := GetClusterLinkID(ctx, tx, name)
+	if err != nil {
+		return err
+	}
+
+	err = clusterLinkConfigAdd(tx, id, config)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// UpdateClusterLinkConfig updates the cluster link with the given name, setting its config.
+func UpdateClusterLinkConfig(ctx context.Context, tx *sql.Tx, name string, config map[string]string) error {
+	id, err := GetClusterLinkID(ctx, tx, name)
+	if err != nil {
+		return err
+	}
+
+	err = clearClusterLinkConfig(tx, id)
+	if err != nil {
+		return err
+	}
+
+	err = clusterLinkConfigAdd(tx, id, config)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// getClusterLinkConfig populates the config map of the [api.ClusterLink] with the given ID.
+func getClusterLinkConfig(ctx context.Context, tx *sql.Tx, clusterLinkID int64, clusterLink *api.ClusterLink) error {
+	q := `
+        SELECT key, value
+        FROM cluster_links_config
+		WHERE cluster_link_id=?
+	`
+
+	clusterLink.Config = map[string]string{}
+
+	return query.Scan(ctx, tx, q, func(scan func(dest ...any) error) error {
+		var key, value string
+
+		err := scan(&key, &value)
+		if err != nil {
+			return err
+		}
+
+		_, found := clusterLink.Config[key]
+		if found {
+			return fmt.Errorf("Duplicate config row found for key %q for cluster link ID %d", key, clusterLinkID)
+		}
+
+		clusterLink.Config[key] = value
+
+		return nil
+	}, clusterLinkID)
+}
+
+// Add config to the cluster link with the given ID.
+func clusterLinkConfigAdd(tx *sql.Tx, clusterLinkID int64, config map[string]string) error {
+	str := "INSERT INTO cluster_links_config (cluster_link_id, key, value) VALUES(?, ?, ?)"
+	stmt, err := tx.Prepare(str)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = stmt.Close() }()
+
+	for k, v := range config {
+		if v == "" {
+			continue
+		}
+
+		_, err = stmt.Exec(clusterLinkID, k, v)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Remove any config from the cluster link with the given ID.
+func clearClusterLinkConfig(tx *sql.Tx, clusterLinkID int64) error {
+	_, err := tx.Exec(
+		"DELETE FROM cluster_links_config WHERE cluster_link_id=?", clusterLinkID)
+	if err != nil {
+		return err
 	}
 
 	return nil
