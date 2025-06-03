@@ -2,9 +2,13 @@ package network
 
 import (
 	"fmt"
+	"math"
+	"net/http"
+	"strconv"
 
 	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
@@ -19,6 +23,53 @@ type macvlan struct {
 // DBType returns the network type DB ID.
 func (n *macvlan) DBType() db.NetworkType {
 	return db.NetworkTypeMacvlan
+}
+
+// State returns the network state.
+func (n *macvlan) State() (*api.NetworkState, error) {
+	parentState, err := resources.GetNetworkState(GetHostDevice(n.config["parent"], n.config["vlan"]))
+	if err != nil {
+		// If the parent is not found, return a response indicating the network is unavailable.
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return &api.NetworkState{
+				State: "unavailable",
+				Type:  "unknown",
+			}, nil
+		}
+
+		// In all other cases, return the original error.
+		return nil, err
+	}
+
+	var mtu int
+
+	configMTU := n.config["mtu"]
+	if configMTU != "" {
+		uintMTU, err := strconv.ParseUint(configMTU, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid MTU specified %q: %w", configMTU, err)
+		}
+
+		// Bound check the MTU value before converting to int.
+		if uintMTU > math.MaxInt32 {
+			mtu = math.MaxInt32
+		} else if uintMTU > 0 {
+			mtu = int(uintMTU)
+		} else {
+			mtu = 1500
+		}
+	} else {
+		mtu = parentState.Mtu
+	}
+
+	return &api.NetworkState{
+		Addresses: []api.NetworkStateAddress{},
+		Counters:  api.NetworkStateCounters{},
+		Hwaddr:    parentState.Hwaddr,
+		Mtu:       mtu,
+		State:     parentState.State,
+		Type:      "broadcast",
+	}, nil
 }
 
 // Validate network config.
