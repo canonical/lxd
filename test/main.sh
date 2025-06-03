@@ -175,8 +175,9 @@ import_subdir_files suites
 TEST_DIR="$(mktemp -d -t lxd-test.tmp.XXXX)"
 chmod +x "${TEST_DIR}"
 
-# Verify the dir chain is accessible for other users
-INACCESSIBLE_DIRS="$(namei -m "${TEST_DIR}" | awk '/^ d/ {print $1}' | grep -v 'x$' || true)"
+# Verify the dir chain is accessible for other users (other's execute bit has to be `x` or `t` (sticky))
+# This is to catch if `sudo chmod +x ~` was not run and the TEST_DIR is under `~`
+INACCESSIBLE_DIRS="$(namei -m "${TEST_DIR}" | awk '/^ d/ {print $1}' | grep -v '[xt]$' || true)"
 if [ -n "${INACCESSIBLE_DIRS:-}" ]; then
     echo "Some directories are not accessible by other users" >&2
     namei -m "${TEST_DIR}"
