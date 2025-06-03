@@ -248,7 +248,7 @@ jobs:
           make static-analysis
 
       - name: Unit tests (all)
-        if: ${{ github.event_name != 'workflow_dispatch' && inputs.unit-tests == 'true' }}
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.unit-tests == 'true' }}
         run: |
           set -eux
           chmod +x ~
