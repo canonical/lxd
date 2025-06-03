@@ -2148,18 +2148,12 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 					}
 				}
 
-				skipDistribution := false
-
 				// If storage.images_volume is set on the cluster member, check if
 				// the image has already been downloaded to this volume. If so,
 				// skip distributing the image to this cluster member.
 				// If the option is unset, distribute the image.
 				if vol != "" {
 					if slices.Contains(imageVolumes, vol) {
-						skipDistribution = true
-					}
-
-					if skipDistribution {
 						return nil
 					}
 
