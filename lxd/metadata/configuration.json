@@ -7213,6 +7213,23 @@
 				}
 			]
 		},
+		"cluster_link": {
+			"project_specific": false,
+			"entitlements": [
+				{
+					"name": "can_view",
+					"description": "Grants permission to view the cluster link."
+				},
+				{
+					"name": "can_edit",
+					"description": "Grants permission to edit the cluster link."
+				},
+				{
+					"name": "can_delete",
+					"description": "Grants permission to delete the cluster link."
+				}
+			]
+		},
 		"group": {
 			"project_specific": false,
 			"entitlements": [
@@ -7653,7 +7670,7 @@
 				},
 				{
 					"name": "can_edit",
-					"description": "Grants permission to edit server configuration, to edit cluster member configuration, to update the state of a cluster member, to create, edit, and delete cluster groups, to update cluster member certificates, and to edit or delete warnings."
+					"description": "Grants permission to edit server configuration, to edit cluster member configuration, to update the state of a cluster member, to create, edit, and delete cluster groups, to create, edit, and delete cluster links, to update cluster member certificates, and to edit or delete warnings."
 				},
 				{
 					"name": "permission_manager",
@@ -7770,6 +7787,22 @@
 				{
 					"name": "can_view_unmanaged_networks",
 					"description": "Grants permission to view unmanaged networks on the LXD host machines."
+				},
+				{
+					"name": "can_create_cluster_links",
+					"description": "Grants permission to create cluster links."
+				},
+				{
+					"name": "can_view_cluster_links",
+					"description": "Grants permission to view cluster links."
+				},
+				{
+					"name": "can_edit_cluster_links",
+					"description": "Grants permission to edit cluster links."
+				},
+				{
+					"name": "can_delete_cluster_links",
+					"description": "Grants permission to delete cluster links."
 				}
 			]
 		},
