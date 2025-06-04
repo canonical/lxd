@@ -72,7 +72,7 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Instan
 		}
 
 		// Daemon config
-		err = c.askDaemon(&config, d, server)
+		err = c.askDaemon(&config, server)
 		if err != nil {
 			return nil, err
 		}
@@ -878,7 +878,7 @@ and make sure that your user can see and run the "thin_check" command before run
 	return nil
 }
 
-func (c *cmdInit) askDaemon(config *api.InitPreseed, d lxd.InstanceServer, server *api.Server) error {
+func (c *cmdInit) askDaemon(config *api.InitPreseed, server *api.Server) error {
 	// Detect lack of uid/gid
 	idmapset, err := idmap.DefaultIdmapSet("", "")
 	if (err != nil || len(idmapset.Idmap) == 0 || idmapset.Usable() != nil) && shared.RunningInUserNS() {
