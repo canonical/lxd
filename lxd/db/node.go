@@ -407,7 +407,7 @@ func (c *ClusterTx) SetDescription(id int64, description string) error {
 	return nil
 }
 
-// Nodes returns all LXD nodes part of the cluster.
+// nodes returns all LXD nodes part of the cluster.
 func (c *ClusterTx) nodes(ctx context.Context, pending bool, where string, args ...any) ([]NodeInfo, error) {
 	// Get node roles
 	sql := "SELECT node_id, role FROM nodes_roles"
