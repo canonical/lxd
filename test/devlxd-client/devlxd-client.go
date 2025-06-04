@@ -113,6 +113,31 @@ func run(args []string) error {
 		}
 
 		return nil
+	case "cloud-init":
+		if len(args) != 3 {
+			return fmt.Errorf("Usage: %s cloud-init <user-data|vendor-data|network-config>", args[0])
+		}
+
+		var config string
+		var err error
+		switch args[2] {
+		case "user-data":
+			config, err = client.GetConfigByKey("cloud-init.user-data")
+		case "vendor-data":
+			config, err = client.GetConfigByKey("cloud-init.vendor-data")
+		case "network-config":
+			config, err = client.GetConfigByKey("cloud-init.network-config")
+		default:
+			return fmt.Errorf("Usage: %s cloud-init <user-data|vendor-data|network-config>", args[0])
+		}
+
+		if err != nil {
+			return err
+		}
+
+		fmt.Println(config)
+
+		return nil
 	default:
 		key, err := client.GetConfigByKey(os.Args[1])
 		if err != nil {
