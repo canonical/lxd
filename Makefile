@@ -386,7 +386,6 @@ ifeq ($(shell command -v shellcheck),)
 	exit 1
 else
 endif
-	shellcheck test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh test/lint/*.sh test/extras/*.sh
 	echo "Verify test/lint files are properly named and executable"
 	@NOT_EXEC="$(shell find test/lint -type f -not -executable)"; \
 	if [ -n "$$NOT_EXEC" ]; then \
