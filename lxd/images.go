@@ -1909,60 +1909,47 @@ func autoUpdateImages(ctx context.Context, s *state.State) error {
 	}
 
 	for fingerprint, images := range imageMap {
-		skipFingerprint := false
-
-		var nodes []string
+		var nodes []db.NodeInfo
 
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			nodes, err = tx.GetNodesWithImageAndAutoUpdate(ctx, fingerprint, true)
+			nodeAddresses, err := tx.GetNodesWithImageAndAutoUpdate(ctx, fingerprint, true)
+			if err != nil {
+				return fmt.Errorf("Failed getting cluster members with auto-update images: %w", err)
+			}
+
+			for _, nodeAddress := range nodeAddresses {
+				nodeInfo, err := tx.GetNodeByAddress(ctx, nodeAddress)
+				if err != nil {
+					return fmt.Errorf("Failed retrieving cluster member information for %q: %w", nodeAddress, err)
+				}
+
+				nodes = append(nodes, nodeInfo)
+			}
 
 			return err
 		})
 		if err != nil {
-			logger.Error("Error getting cluster members for image auto-update", logger.Ctx{"fingerprint": fingerprint, "err": err})
+			logger.Warn("Failed getting image auto-update info", logger.Ctx{"member": s.ServerName, "fingerprint": fingerprint, "err": err})
 			continue
 		}
 
 		if len(nodes) > 1 {
-			var nodeIDs []int64
-
+			nodeIDs := make([]int64, 0, len(nodes))
 			for _, node := range nodes {
-				err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-					var err error
-
-					nodeInfo, err := tx.GetNodeByAddress(ctx, node)
-					if err != nil {
-						return err
-					}
-
-					nodeIDs = append(nodeIDs, nodeInfo.ID)
-
-					return nil
-				})
-				if err != nil {
-					logger.Error("Unable to retrieve cluster member information for image update", logger.Ctx{"err": err})
-					skipFingerprint = true
-					break
-				}
-			}
-
-			if skipFingerprint {
-				continue
+				nodeIDs = append(nodeIDs, node.ID)
 			}
 
 			// If multiple nodes have the image, select one to deal with it.
-			if len(nodeIDs) > 1 {
-				selectedNode, err := util.GetStableRandomInt64FromList(int64(len(images)), nodeIDs)
-				if err != nil {
-					logger.Error("Failed to select cluster member for image update", logger.Ctx{"err": err})
-					continue
-				}
+			selectedNode, err := util.GetStableRandomInt64FromList(int64(len(images)), nodeIDs)
+			if err != nil {
+				logger.Error("Failed to select cluster member for image update", logger.Ctx{"err": err})
+				continue
+			}
 
-				// Skip image update if we're not the chosen cluster member.
-				// That way, an image is only updated by a single cluster member.
-				if s.DB.Cluster.GetNodeID() != selectedNode {
-					continue
-				}
+			// Skip image update if we're not the chosen cluster member.
+			// That way, an image is only updated by a single cluster member.
+			if s.DB.Cluster.GetNodeID() != selectedNode {
+				continue
 			}
 		}
 
