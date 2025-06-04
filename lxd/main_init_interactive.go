@@ -60,7 +60,7 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Instan
 		}
 
 		// MAAS
-		err = c.askMAAS(&config, d)
+		err = c.askMAAS(&config)
 		if err != nil {
 			return nil, err
 		}
@@ -369,7 +369,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, server *api.Server) err
 	return nil
 }
 
-func (c *cmdInit) askMAAS(config *api.InitPreseed, d lxd.InstanceServer) error {
+func (c *cmdInit) askMAAS(config *api.InitPreseed) error {
 	maas, err := c.global.asker.AskBool("Would you like to connect to a MAAS server? (yes/no) [default=no]: ", "no")
 	if err != nil {
 		return err
