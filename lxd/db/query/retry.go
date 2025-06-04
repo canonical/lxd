@@ -75,7 +75,7 @@ func IsRetriableError(err error) bool {
 		return true
 	}
 
-	if errors.Is(err, sqlite3.ErrLocked) || errors.Is(err, sqlite3.ErrBusy) {
+	if errors.Is(err, sqlite3.ErrLocked) || errors.Is(err, sqlite3.ErrBusy) || errors.Is(err, sqlite3.ErrBusyRecovery) || errors.Is(err, sqlite3.ErrBusySnapshot) {
 		return true
 	}
 
