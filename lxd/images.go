@@ -4646,12 +4646,24 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 
 	// Begin background operation
 	run := func(op *operations.Operation) error {
-		var nodes []string
+		var nodes []db.NodeInfo
 
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			nodes, err = tx.GetNodesWithImageAndAutoUpdate(ctx, details.imageFingerprintPrefix, true)
+			nodeAddresses, err := tx.GetNodesWithImageAndAutoUpdate(ctx, details.imageFingerprintPrefix, true)
+			if err != nil {
+				return fmt.Errorf("Failed getting cluster members with auto-update images: %w", err)
+			}
 
-			return err
+			for _, nodeAddress := range nodeAddresses {
+				nodeInfo, err := tx.GetNodeByAddress(ctx, nodeAddress)
+				if err != nil {
+					return fmt.Errorf("Failed retrieving cluster member information for %q: %w", nodeAddress, err)
+				}
+
+				nodes = append(nodes, nodeInfo)
+			}
+
+			return nil
 		})
 		if err != nil {
 			return fmt.Errorf("Error getting cluster members for refreshing image %q in project %q: %w", details.imageFingerprintPrefix, projectName, err)
