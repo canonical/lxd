@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -154,7 +155,7 @@ func (d *dir) Mount() (bool, error) {
 	}
 
 	// Setup the bind-mount.
-	err := TryMount(sourcePath, path, "none", unix.MS_BIND, "")
+	err := TryMount(context.TODO(), sourcePath, path, "none", unix.MS_BIND, "")
 	if err != nil {
 		return false, err
 	}
