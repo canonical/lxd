@@ -6519,6 +6519,18 @@ using the `zfs` command in the container.
 
 
 <!-- entity group certificate end -->
+<!-- entity group cluster_link start -->
+`can_view`
+: Grants permission to view the cluster link.
+
+`can_edit`
+: Grants permission to edit the cluster link.
+
+`can_delete`
+: Grants permission to delete the cluster link.
+
+
+<!-- entity group cluster_link end -->
 <!-- entity group group start -->
 `can_view`
 : Grants permission to view the group. Identities can always view groups that they are a member of.
@@ -6839,7 +6851,7 @@ using the `zfs` command in the container.
 : Grants access to view all resources in the LXD server.
 
 `can_edit`
-: Grants permission to edit server configuration, to edit cluster member configuration, to update the state of a cluster member, to create, edit, and delete cluster groups, to update cluster member certificates, and to edit or delete warnings.
+: Grants permission to edit server configuration, to edit cluster member configuration, to update the state of a cluster member, to create, edit, and delete cluster groups, to create, edit, and delete cluster links, to update cluster member certificates, and to edit or delete warnings.
 
 `permission_manager`
 : Grants permission to view permissions, to create, edit, and delete identities, to view, create, edit, and delete authorization groups, and to view, create, edit, and delete identity provider groups. Note that clients with this permission are able to elevate their own privileges.
@@ -6927,6 +6939,18 @@ using the `zfs` command in the container.
 
 `can_view_unmanaged_networks`
 : Grants permission to view unmanaged networks on the LXD host machines.
+
+`can_create_cluster_links`
+: Grants permission to create cluster links.
+
+`can_view_cluster_links`
+: Grants permission to view cluster links.
+
+`can_edit_cluster_links`
+: Grants permission to edit cluster links.
+
+`can_delete_cluster_links`
+: Grants permission to delete cluster links.
 
 
 <!-- entity group server end -->
