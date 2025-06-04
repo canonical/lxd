@@ -74,7 +74,7 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 
 	switch r.Method {
 	case "GET":
-		return instanceFileGet(s, inst, path, r)
+		return instanceFileGet(s, inst, path)
 	case "HEAD":
 		return instanceFileHead(inst, path)
 	case "POST":
@@ -154,7 +154,7 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func instanceFileGet(s *state.State, inst instance.Instance, path string, r *http.Request) response.Response {
+func instanceFileGet(s *state.State, inst instance.Instance, path string) response.Response {
 	revert := revert.New()
 	defer revert.Fail()
 
