@@ -1889,7 +1889,7 @@ func autoUpdateImagesTask(stateFunc func() *state.State) (task.Func, task.Schedu
 func autoUpdateImages(ctx context.Context, s *state.State) error {
 	imageMap := make(map[string][]dbCluster.Image)
 
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		autoUpdate := true
