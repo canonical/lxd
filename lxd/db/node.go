@@ -205,8 +205,8 @@ func (c *ClusterTx) GetNodeByAddress(ctx context.Context, address string) (NodeI
 	}
 }
 
-// GetNodeWithID returns the node with the given ID.
-func (c *ClusterTx) GetNodeWithID(ctx context.Context, nodeID int64) (NodeInfo, error) {
+// getNodeByID returns the node with the given ID.
+func (c *ClusterTx) getNodeByID(ctx context.Context, nodeID int64) (NodeInfo, error) {
 	null := NodeInfo{}
 	nodes, err := c.nodes(ctx, false /* not pending */, "id=?", nodeID)
 	if err != nil {
@@ -652,7 +652,7 @@ func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
 
 // UpdateNodeClusterGroups changes the list of cluster groups the member belongs to.
 func (c *ClusterTx) UpdateNodeClusterGroups(ctx context.Context, id int64, groups []string) error {
-	nodeInfo, err := c.GetNodeWithID(ctx, id)
+	nodeInfo, err := c.getNodeByID(ctx, id)
 	if err != nil {
 		return err
 	}
