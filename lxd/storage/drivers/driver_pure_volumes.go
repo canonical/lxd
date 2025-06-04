@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -981,7 +982,7 @@ func (d *pure) MountVolume(vol Volume, op *operations.Operation) error {
 			}
 
 			mountFlags, mountOptions := filesystem.ResolveMountOptions(strings.Split(vol.ConfigBlockMountOptions(), ","))
-			err = TryMount(volDevPath, mountPath, fsType, mountFlags, mountOptions)
+			err = TryMount(context.TODO(), volDevPath, mountPath, fsType, mountFlags, mountOptions)
 			if err != nil {
 				return err
 			}
