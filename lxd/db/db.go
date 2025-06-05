@@ -38,6 +38,9 @@ type Node struct {
 	dir string  // Reference to the directory where the database file lives.
 }
 
+// Transactor is used to run transactions against the cluster database.
+type Transactor func(ctx context.Context, f func(context.Context, *ClusterTx) error) error
+
 // OpenNode creates a new Node object.
 //
 // The fresh hook parameter is used by the daemon to mark all known patch names
@@ -335,32 +338,39 @@ func (c *Cluster) Transaction(ctx context.Context, f func(context.Context, *Clus
 	return c.transaction(ctx, f)
 }
 
-// EnterExclusive acquires a lock on the cluster db, so any successive call to
-// Transaction will block until ExitExclusive has been called.
-func (c *Cluster) EnterExclusive() error {
-	logger.Debug("Acquiring exclusive lock on cluster db")
+// RunExclusive acquires a lock on the cluster db and calls f.
+// Any successive call to Transaction() will block until f has returned.
+// f is passed a Transactor that can be used to run transactions against the locked database.
+func (c *Cluster) RunExclusive(f func(t Transactor) error) error {
+	logger.Info("Acquiring exclusive lock on cluster database")
+
+	unlock := func() {
+		logger.Info("Releasing exclusive lock on cluster database")
+		c.mu.Unlock()
+	}
 
 	ch := make(chan struct{})
 	go func() {
 		c.mu.Lock()
-		ch <- struct{}{}
+
+		select {
+		case ch <- struct{}{}: // Send lock acquired message to outer function.
+		default:
+			// Release lock if outer function has timed out and is not able to receive lock acquired
+			// message. This avoids leaving the lock acquired permanently in the case of timeout.
+			unlock()
+		}
 	}()
 
 	timeout := 20 * time.Second
 	select {
 	case <-ch:
-		return nil
+		err := f(c.transaction)
+		unlock()
+		return err
 	case <-time.After(timeout):
-		return fmt.Errorf("timeout (%s)", timeout)
+		return fmt.Errorf("Timed out exclusively locking cluster database (%s)", timeout)
 	}
-}
-
-// ExitExclusive runs the given transaction and then releases the lock acquired
-// with EnterExclusive.
-func (c *Cluster) ExitExclusive(ctx context.Context, f func(context.Context, *ClusterTx) error) error {
-	logger.Debug("Releasing exclusive lock on cluster db")
-	defer c.mu.Unlock()
-	return c.transaction(ctx, f)
 }
 
 func (c *Cluster) transaction(ctx context.Context, f func(context.Context, *ClusterTx) error) error {
