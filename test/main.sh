@@ -82,6 +82,9 @@ echo "==> Using storage backend ${LXD_BACKEND}"
 import_storage_backends
 
 cleanup() {
+  # Avoid reentry by removing the traps
+  trap - EXIT HUP INT TERM
+
   # Before setting +e, run the panic checker for any running LXD daemons.
   panic_checker "${TEST_DIR}"
 
