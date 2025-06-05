@@ -102,8 +102,8 @@ func (r *devLXDResponse) String() string {
 	return "failure"
 }
 
-// DevLXDErrorResponse returns an error response. If rawResponse is true, a api.ResponseRaw will be sent instead of a minimal devLXDResponse.
-func DevLXDErrorResponse(err error, rawResponse bool) Response {
+// DevLXDErrorResponse returns an error response.
+func DevLXDErrorResponse(err error) Response {
 	code, ok := api.StatusErrorMatch(err)
 	if !ok {
 		code = http.StatusInternalServerError
@@ -116,8 +116,8 @@ func DevLXDErrorResponse(err error, rawResponse bool) Response {
 	}
 }
 
-// DevLXDResponse represents a devLXDResponse. If rawResponse is true, a api.ResponseRaw will be sent instead of a minimal devLXDResponse.
-func DevLXDResponse(code int, content any, contentType string, rawResponse bool) Response {
+// DevLXDResponse represents a devLXDResponse.
+func DevLXDResponse(code int, content any, contentType string) Response {
 	return &devLXDResponse{
 		code:        code,
 		content:     content,
