@@ -207,11 +207,10 @@ func createFromNone(ctx context.Context, s *state.State, projectName string, pro
 	return operations.OperationResponse(op)
 }
 
-func createFromMigration(s *state.State, r *http.Request, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
-	// The request can be nil (see `clusterCopyContainerInternal`).
-	if r != nil {
-		// If it isn't nil, get the protocol.
-		protocol, err := request.GetCtxValue[string](r.Context(), request.CtxProtocol)
+func createFromMigration(ctx context.Context, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost, isClusterNotification bool) response.Response {
+	if request.IsRequestContext(ctx) {
+		// Get the protocol if request context is provided,.
+		protocol, err := request.GetCtxValue[string](ctx, request.CtxProtocol)
 		if err != nil {
 			return response.SmartError(fmt.Errorf("Failed to check request origin: %w", err))
 		}
@@ -248,7 +247,7 @@ func createFromMigration(s *state.State, r *http.Request, projectName string, pr
 
 	// Decide if this is an internal cluster move request.
 	var clusterMoveSourceName string
-	if r != nil && isClusterNotification(r) {
+	if isClusterNotification {
 		if req.Source.Source == "" {
 			return response.BadRequest(errors.New("Source instance name must be provided for cluster member move"))
 		}
@@ -364,12 +363,12 @@ func createFromMigration(s *state.State, r *http.Request, projectName string, pr
 
 	var op *operations.Operation
 	if push {
-		op, err = operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassWebsocket, operationtype.InstanceCreate, resources, sink.Metadata(), run, nil, sink.Connect)
+		op, err = operations.OperationCreate(ctx, s, projectName, operations.OperationClassWebsocket, operationtype.InstanceCreate, resources, sink.Metadata(), run, nil, sink.Connect)
 		if err != nil {
 			return response.InternalError(err)
 		}
 	} else {
-		op, err = operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil)
+		op, err = operations.OperationCreate(ctx, s, projectName, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -1363,7 +1362,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	case api.SourceTypeNone:
 		return createFromNone(r.Context(), s, targetProjectName, profiles, &req)
 	case api.SourceTypeMigration:
-		return createFromMigration(s, r, targetProjectName, profiles, &req)
+		return createFromMigration(r.Context(), s, targetProjectName, profiles, &req, clusterNotification)
 	case api.SourceTypeConversion:
 		return createFromConversion(s, r, targetProjectName, profiles, &req)
 	case api.SourceTypeCopy:
@@ -1536,7 +1535,7 @@ func clusterCopyContainerInternal(s *state.State, r *http.Request, source instan
 	req.Source.Project = ""
 
 	// Run the migration
-	return createFromMigration(s, nil, projectName, profiles, req)
+	return createFromMigration(context.Background(), s, projectName, profiles, req, false)
 }
 
 // instanceCreateFinish finalizes the creation process of an instance by starting it based on
