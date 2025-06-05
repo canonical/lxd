@@ -215,8 +215,8 @@ func (op *Operation) SetEventServer(events *events.Server) {
 }
 
 // SetRequestor sets a requestor for this operation from an http.Request.
-func (op *Operation) SetRequestor(r *http.Request) {
-	op.requestor = request.CreateRequestor(r.Context())
+func (op *Operation) SetRequestor(ctx context.Context) {
+	op.requestor = request.CreateRequestor(ctx)
 }
 
 // SetOnDone sets the operation onDone function that is called after the operation completes.
