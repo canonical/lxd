@@ -50,7 +50,7 @@ git push -u myfork <name_of_your_new_branch>
 ### Important notes for new LXD contributors
 
 - Persistent data is stored in the `LXD_DIR` directory, which is created by running `lxd init`.
-   - By default, `LXD_DIR` is located at `/var/lib/lxd` (for non-snap installations) or `/var/snap/lxd/common/lxd` (f or snap users).
+   - By default, `LXD_DIR` is located at `/var/lib/lxd` (for non-snap installations) or `/var/snap/lxd/common/lxd` (for snap users).
    - To prevent version conflicts, consider setting a separate `LXD_DIR` for your development fork.
 - Binaries compiled from your source are placed in `$(go env GOPATH)/bin` by default.
    - When testing, explicitly invoke these binaries instead of the global `lxd` you might have installed.
