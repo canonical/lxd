@@ -152,7 +152,7 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 			return errors.New("Image not provided for instance rebuild")
 		}
 
-		return instanceRebuildFromImage(s, r, inst, sourceImage, op)
+		return instanceRebuildFromImage(r.Context(), s, inst, sourceImage, op)
 	}
 
 	resources := map[string][]api.URL{}
