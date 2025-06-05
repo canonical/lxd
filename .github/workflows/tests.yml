@@ -244,8 +244,6 @@ jobs:
 
       - name: Run static analysis
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.static-analysis == 'true' }}
-        env:
-          GITHUB_BEFORE: ${{ github.event.before }}
         run: |
           set -eux
           sudo chmod o+w ./lxd/metadata/configuration.json
