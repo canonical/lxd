@@ -396,242 +396,236 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 		return err
 	}
 
-	reverter := revert.New()
-	defer reverter.Fail()
-
 	// Lock regular access to the cluster database since we don't want any
 	// other database code to run while we're reconfiguring raft.
-	err = state.DB.Cluster.EnterExclusive()
-	if err != nil {
-		return fmt.Errorf("Failed to acquire cluster database lock: %w", err)
-	}
+	err = state.DB.Cluster.RunExclusive(func(t db.Transactor) error {
+		reverter := revert.New()
+		defer reverter.Fail()
 
-	reverter.Add(func() {
-		err := state.DB.Cluster.ExitExclusive(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			return nil
-		})
-		if err != nil {
-			logger.Error("Failed to unlock global database after cluster join error", logger.Ctx{"err": err})
-		}
-	})
-
-	// Shutdown the gateway and wipe any raft data. This will trash any
-	// gRPC SQL connection against our in-memory dqlite driver and shutdown
-	// the associated raft instance.
-	err = gateway.Shutdown()
-	if err != nil {
-		return fmt.Errorf("Failed to shutdown gRPC SQL gateway: %w", err)
-	}
-
-	err = os.RemoveAll(state.OS.GlobalDatabaseDir())
-	if err != nil {
-		return fmt.Errorf("Failed to remove existing raft data: %w", err)
-	}
-
-	// Re-initialize the gateway. This will create a new raft factory an
-	// dqlite driver instance, which will be exposed over gRPC by the
-	// gateway handlers.
-	oldCert := gateway.networkCert
-	gateway.networkCert = networkCert
-	err = gateway.init(false)
-	if err != nil {
-		return fmt.Errorf("Failed to re-initialize gRPC SQL gateway: %w", err)
-	}
-
-	reverter.Add(func() {
-		err = state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-			return tx.ReplaceRaftNodes([]db.RaftNode{})
-		})
-		if err != nil {
-			logger.Error("Failed to clear local raft node records after cluster join error", logger.Ctx{"err": err})
-			return
-		}
-
+		// Shutdown the gateway and wipe any raft data. This will trash any
+		// gRPC SQL connection against our in-memory dqlite driver and shutdown
+		// the associated raft instance.
 		err = gateway.Shutdown()
 		if err != nil {
-			logger.Error("Failed to shutdown gateway after cluster join error", logger.Ctx{"err": err})
-			return
+			return fmt.Errorf("Failed to shutdown gRPC SQL gateway: %w", err)
 		}
 
 		err = os.RemoveAll(state.OS.GlobalDatabaseDir())
 		if err != nil {
-			logger.Error("Failed to remove raft data after cluster join error", logger.Ctx{"err": err})
-			return
+			return fmt.Errorf("Failed to remove existing raft data: %w", err)
 		}
 
-		gateway.networkCert = oldCert
+		// Re-initialize the gateway. This will create a new raft factory an
+		// dqlite driver instance, which will be exposed over gRPC by the
+		// gateway handlers.
+		oldCert := gateway.networkCert
+		gateway.networkCert = networkCert
 		err = gateway.init(false)
 		if err != nil {
-			logger.Error("Failed to re-initialize gateway after cluster join error", logger.Ctx{"err": err})
-			return
+			return fmt.Errorf("Failed to re-initialize gRPC SQL gateway: %w", err)
 		}
 
-		err = cluster.EnsureSchema(state.DB.Cluster.DB(), localClusterAddress, state.OS.GlobalDatabaseDir())
+		reverter.Add(func() {
+			err = state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+				return tx.ReplaceRaftNodes([]db.RaftNode{})
+			})
+			if err != nil {
+				logger.Error("Failed to clear local raft node records after cluster join error", logger.Ctx{"err": err})
+				return
+			}
+
+			err = gateway.Shutdown()
+			if err != nil {
+				logger.Error("Failed to shutdown gateway after cluster join error", logger.Ctx{"err": err})
+				return
+			}
+
+			err = os.RemoveAll(state.OS.GlobalDatabaseDir())
+			if err != nil {
+				logger.Error("Failed to remove raft data after cluster join error", logger.Ctx{"err": err})
+				return
+			}
+
+			gateway.networkCert = oldCert
+			err = gateway.init(false)
+			if err != nil {
+				logger.Error("Failed to re-initialize gateway after cluster join error", logger.Ctx{"err": err})
+				return
+			}
+
+			err = cluster.EnsureSchema(state.DB.Cluster.DB(), localClusterAddress, state.OS.GlobalDatabaseDir())
+			if err != nil {
+				logger.Error("Failed to reload schema after cluster join error", logger.Ctx{"err": err})
+				return
+			}
+		})
+
+		// If we are listed among the database nodes, join the raft cluster.
+		var info db.RaftNode
+		for _, node := range raftNodes {
+			if node.Address == localClusterAddress {
+				info = node
+			}
+		}
+
+		if (db.RaftNode{}) == info {
+			return errors.New("Joining member not found")
+		}
+
+		logger.Info("Joining dqlite raft cluster", logger.Ctx{"id": info.ID, "local": info.Address, "role": info.Role})
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+		client, err := client.FindLeader(
+			ctx, gateway.NodeStore(),
+			client.WithDialFunc(gateway.raftDial()),
+			client.WithLogFunc(DqliteLog),
+		)
 		if err != nil {
-			logger.Error("Failed to reload schema after cluster join error", logger.Ctx{"err": err})
-			return
-		}
-	})
-
-	// If we are listed among the database nodes, join the raft cluster.
-	var info db.RaftNode
-	for _, node := range raftNodes {
-		if node.Address == localClusterAddress {
-			info = node
-		}
-	}
-
-	if (db.RaftNode{}) == info {
-		return errors.New("Joining member not found")
-	}
-
-	logger.Info("Joining dqlite raft cluster", logger.Ctx{"id": info.ID, "local": info.Address, "role": info.Role})
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
-	client, err := client.FindLeader(
-		ctx, gateway.NodeStore(),
-		client.WithDialFunc(gateway.raftDial()),
-		client.WithLogFunc(DqliteLog),
-	)
-	if err != nil {
-		return fmt.Errorf("Failed to connect to cluster leader: %w", err)
-	}
-
-	defer func() { _ = client.Close() }()
-
-	logger.Info("Adding node to cluster", logger.Ctx{"id": info.ID, "local": info.Address, "role": info.Role})
-	ctx, cancel = context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
-
-	// Repeatedly try to join in case the cluster is busy with a role-change.
-	joined := false
-	for !joined {
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("Failed to join cluster: %w", ctx.Err())
-		default:
-			err = client.Add(ctx, info.NodeInfo)
-			if err != nil && err.Error() == errClusterBusy.Error() {
-				// If the cluster is busy with a role change, sleep a second and then keep trying to join.
-				time.Sleep(1 * time.Second)
-				continue
-			}
-
-			if err != nil {
-				return fmt.Errorf("Failed to join cluster: %w", err)
-			}
-
-			joined = true
-		}
-	}
-
-	// Make sure we can actually connect to the cluster database through
-	// the network endpoint. This also releases the previously acquired
-	// lock and makes the Go SQL pooling system invalidate the old
-	// connection, so new queries will be executed over the new gRPC
-	// network connection. Also, update the storage_pools and networks
-	// tables with our local configuration.
-	logger.Info("Migrate local data to cluster database")
-	err = state.DB.Cluster.ExitExclusive(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		node, err := tx.GetPendingNodeByAddress(ctx, localClusterAddress)
-		if err != nil {
-			return fmt.Errorf("Failed to get ID of joining node: %w", err)
+			return fmt.Errorf("Failed to connect to cluster leader: %w", err)
 		}
 
-		state.DB.Cluster.NodeID(node.ID)
-		tx.NodeID(node.ID)
+		defer func() { _ = client.Close() }()
 
-		// Storage pools.
-		ids, err := tx.GetNonPendingStoragePoolsNamesToIDs(ctx)
-		if err != nil {
-			return fmt.Errorf("Failed to get cluster storage pool IDs: %w", err)
-		}
+		logger.Info("Adding node to cluster", logger.Ctx{"id": info.ID, "local": info.Address, "role": info.Role})
+		ctx, cancel = context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
 
-		for name, id := range ids {
-			err := tx.UpdateStoragePoolAfterNodeJoin(id, node.ID)
-			if err != nil {
-				return fmt.Errorf("Failed to add joining node's to the pool: %w", err)
-			}
-
-			driver, err := tx.GetStoragePoolDriver(ctx, id)
-			if err != nil {
-				return fmt.Errorf("Failed to get storage pool driver: %w", err)
-			}
-
-			// For all pools we add the config provided by the joining node.
-			config, ok := pools[name]
-			if !ok {
-				return fmt.Errorf("Joining member has no config for pool %s", name)
-			}
-
-			err = tx.CreateStoragePoolConfig(id, node.ID, config)
-			if err != nil {
-				return fmt.Errorf("Failed to add joining node's pool config: %w", err)
-			}
-
-			if slices.Contains([]string{"ceph", "cephfs"}, driver) {
-				// For ceph pools we have to create volume
-				// entries for the joining node.
-				err := tx.UpdateCephStoragePoolAfterNodeJoin(ctx, id, node.ID)
-				if err != nil {
-					return fmt.Errorf("Failed to create ceph volumes for joining node: %w", err)
+		// Repeatedly try to join in case the cluster is busy with a role-change.
+		joined := false
+		for !joined {
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("Failed to join cluster: %w", ctx.Err())
+			default:
+				err = client.Add(ctx, info.NodeInfo)
+				if err != nil && err.Error() == errClusterBusy.Error() {
+					// If the cluster is busy with a role change, sleep a second and then keep trying to join.
+					time.Sleep(1 * time.Second)
+					continue
 				}
+
+				if err != nil {
+					return fmt.Errorf("Failed to join cluster: %w", err)
+				}
+
+				joined = true
 			}
 		}
 
-		// Networks.
-		netids, err := tx.GetNonPendingNetworkIDs(ctx)
-		if err != nil {
-			return fmt.Errorf("Failed to get cluster network IDs: %w", err)
-		}
+		// Make sure we can actually connect to the cluster database through
+		// the network endpoint. This also releases the previously acquired
+		// lock and makes the Go SQL pooling system invalidate the old
+		// connection, so new queries will be executed over the new gRPC
+		// network connection. Also, update the storage_pools and networks
+		// tables with our local configuration.
+		logger.Info("Migrate local data to cluster database")
+		err = t(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			node, err := tx.GetPendingNodeByAddress(ctx, localClusterAddress)
+			if err != nil {
+				return fmt.Errorf("Failed to get ID of joining node: %w", err)
+			}
 
-		for _, network := range netids {
-			for name, id := range network {
-				config, ok := networks[name]
+			state.DB.Cluster.NodeID(node.ID)
+			tx.NodeID(node.ID)
+
+			// Storage pools.
+			ids, err := tx.GetNonPendingStoragePoolsNamesToIDs(ctx)
+			if err != nil {
+				return fmt.Errorf("Failed to get cluster storage pool IDs: %w", err)
+			}
+
+			for name, id := range ids {
+				err := tx.UpdateStoragePoolAfterNodeJoin(id, node.ID)
+				if err != nil {
+					return fmt.Errorf("Failed to add joining node's to the pool: %w", err)
+				}
+
+				driver, err := tx.GetStoragePoolDriver(ctx, id)
+				if err != nil {
+					return fmt.Errorf("Failed to get storage pool driver: %w", err)
+				}
+
+				// For all pools we add the config provided by the joining node.
+				config, ok := pools[name]
 				if !ok {
-					return fmt.Errorf("Joining member has no config for network %s", name)
+					return fmt.Errorf("Joining member has no config for pool %s", name)
 				}
 
-				err := tx.NetworkNodeJoin(id, node.ID)
+				err = tx.CreateStoragePoolConfig(id, node.ID, config)
 				if err != nil {
-					return fmt.Errorf("Failed to add joining node's to the network: %w", err)
+					return fmt.Errorf("Failed to add joining node's pool config: %w", err)
 				}
 
-				err = tx.CreateNetworkConfig(id, node.ID, config)
-				if err != nil {
-					return fmt.Errorf("Failed to add joining node's network config: %w", err)
+				if slices.Contains([]string{"ceph", "cephfs"}, driver) {
+					// For ceph pools we have to create volume
+					// entries for the joining node.
+					err := tx.UpdateCephStoragePoolAfterNodeJoin(ctx, id, node.ID)
+					if err != nil {
+						return fmt.Errorf("Failed to create ceph volumes for joining node: %w", err)
+					}
 				}
 			}
-		}
 
-		// Migrate outstanding operations.
-		for _, operation := range operations {
-			op := cluster.Operation{
-				UUID:   operation.UUID,
-				Type:   operation.Type,
-				NodeID: tx.GetNodeID(),
-			}
-
-			_, err := cluster.CreateOrReplaceOperation(ctx, tx.Tx(), op)
+			// Networks.
+			netids, err := tx.GetNonPendingNetworkIDs(ctx)
 			if err != nil {
-				return fmt.Errorf("Failed to migrate operation %s: %w", operation.UUID, err)
+				return fmt.Errorf("Failed to get cluster network IDs: %w", err)
 			}
-		}
 
-		// Remove the pending flag for ourselves
-		// notifications.
-		err = tx.SetNodePendingFlag(node.ID, false)
+			for _, network := range netids {
+				for name, id := range network {
+					config, ok := networks[name]
+					if !ok {
+						return fmt.Errorf("Joining member has no config for network %s", name)
+					}
+
+					err := tx.NetworkNodeJoin(id, node.ID)
+					if err != nil {
+						return fmt.Errorf("Failed to add joining node's to the network: %w", err)
+					}
+
+					err = tx.CreateNetworkConfig(id, node.ID, config)
+					if err != nil {
+						return fmt.Errorf("Failed to add joining node's network config: %w", err)
+					}
+				}
+			}
+
+			// Migrate outstanding operations.
+			for _, operation := range operations {
+				op := cluster.Operation{
+					UUID:   operation.UUID,
+					Type:   operation.Type,
+					NodeID: tx.GetNodeID(),
+				}
+
+				_, err := cluster.CreateOrReplaceOperation(ctx, tx.Tx(), op)
+				if err != nil {
+					return fmt.Errorf("Failed to migrate operation %s: %w", operation.UUID, err)
+				}
+			}
+
+			// Remove the pending flag for ourselves
+			// notifications.
+			err = tx.SetNodePendingFlag(node.ID, false)
+			if err != nil {
+				return fmt.Errorf("Failed to unmark the node as pending: %w", err)
+			}
+
+			// Set last heartbeat time to now, as member is clearly online as it just successfully joined,
+			// that way when we send the notification to all members below it will consider this member online.
+			err = tx.SetNodeHeartbeat(node.Address, time.Now().UTC())
+			if err != nil {
+				return fmt.Errorf("Failed setting last heartbeat time for member: %w", err)
+			}
+
+			return nil
+		})
 		if err != nil {
-			return fmt.Errorf("Failed to unmark the node as pending: %w", err)
+			return err
 		}
 
-		// Set last heartbeat time to now, as member is clearly online as it just successfully joined,
-		// that way when we send the notification to all members below it will consider this member online.
-		err = tx.SetNodeHeartbeat(node.Address, time.Now().UTC())
-		if err != nil {
-			return fmt.Errorf("Failed setting last heartbeat time for member: %w", err)
-		}
-
+		reverter.Success()
 		return nil
 	})
 	if err != nil {
@@ -642,8 +636,6 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 	if state.Endpoints != nil {
 		NotifyHeartbeat(state, gateway)
 	}
-
-	reverter.Success()
 
 	return nil
 }
