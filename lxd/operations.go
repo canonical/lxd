@@ -710,7 +710,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 }
 
 // operationsGetByType gets all operations for a project and type.
-func operationsGetByType(s *state.State, r *http.Request, projectName string, opType operationtype.Type) ([]*api.Operation, error) {
+func operationsGetByType(ctx context.Context, s *state.State, projectName string, opType operationtype.Type) ([]*api.Operation, error) {
 	ops := make([]*api.Operation, 0)
 
 	// Get local operations for project.
@@ -794,7 +794,7 @@ func operationsGetByType(s *state.State, r *http.Request, projectName string, op
 		}
 
 		// Connect to the remote server. Use notify=true to only get local operations on remote member.
-		client, err := cluster.Connect(r.Context(), memberAddress, networkCert, serverCert, true)
+		client, err := cluster.Connect(ctx, memberAddress, networkCert, serverCert, true)
 		if err != nil {
 			return nil, fmt.Errorf("Failed connecting to member %q: %w", memberAddress, err)
 		}
