@@ -521,7 +521,7 @@ func createFromCopy(s *state.State, r *http.Request, projectName string, profile
 
 			if sourcePoolName != destPoolName {
 				// Redirect to migration
-				return clusterCopyContainerInternal(s, r, source, projectName, profiles, req)
+				return clusterCopyContainerInternal(r.Context(), s, source, projectName, profiles, req)
 			}
 
 			var pool *api.StoragePool
@@ -538,7 +538,7 @@ func createFromCopy(s *state.State, r *http.Request, projectName string, profile
 
 			if pool.Driver != "ceph" {
 				// Redirect to migration
-				return clusterCopyContainerInternal(s, r, source, projectName, profiles, req)
+				return clusterCopyContainerInternal(r.Context(), s, source, projectName, profiles, req)
 			}
 		}
 	}
@@ -1447,12 +1447,12 @@ func instanceFindStoragePool(s *state.State, projectName string, req *api.Instan
 	return storagePool, storagePoolProfile, localRootDiskDeviceKey, localRootDiskDevice, nil
 }
 
-func clusterCopyContainerInternal(s *state.State, r *http.Request, source instance.Instance, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
+func clusterCopyContainerInternal(ctx context.Context, s *state.State, source instance.Instance, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	name := req.Source.Source
 
 	// Locate the source of the container
 	var nodeAddress string
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		// Load source node.
@@ -1472,7 +1472,7 @@ func clusterCopyContainerInternal(s *state.State, r *http.Request, source instan
 	}
 
 	// Connect to the container source
-	client, err := cluster.Connect(r.Context(), nodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), false)
+	client, err := cluster.Connect(ctx, nodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
 		return response.SmartError(err)
 	}
