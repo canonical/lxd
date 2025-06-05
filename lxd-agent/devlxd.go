@@ -200,11 +200,11 @@ var devLXDMetadataEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDMetadataGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	var client lxd.InstanceServer
+	var client lxd.DevLXDServer
 	var err error
 
 	for range 10 {
-		client, err = getVsockClient(d)
+		client, err = getDevLXDVsockClient(d)
 		if err == nil {
 			break
 		}
@@ -213,21 +213,14 @@ func devLXDMetadataGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
 	}
 
 	if err != nil {
-		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
+		return smartResponse(fmt.Errorf("Failed connecting to devLXD over vsock: %w", err))
 	}
 
 	defer client.Disconnect()
 
-	resp, _, err := client.RawQuery(http.MethodGet, "/1.0/meta-data", nil, "")
+	metaData, err := client.GetMetadata()
 	if err != nil {
 		return smartResponse(err)
-	}
-
-	var metaData string
-
-	err = resp.MetadataAsStruct(&metaData)
-	if err != nil {
-		return smartResponse(fmt.Errorf("Failed parsing response from LXD: %w", err))
 	}
 
 	return okResponse(metaData, "raw")
