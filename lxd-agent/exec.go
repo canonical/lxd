@@ -134,7 +134,7 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 
 	resources := map[string][]api.URL{}
 
-	op, err := operations.OperationCreate(nil, "", operations.OperationClassWebsocket, operationtype.CommandExec, resources, ws.Metadata(), ws.Do, nil, ws.Connect, r)
+	op, err := operations.OperationCreate(r.Context(), nil, "", operations.OperationClassWebsocket, operationtype.CommandExec, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 	if err != nil {
 		return response.InternalError(err)
 	}

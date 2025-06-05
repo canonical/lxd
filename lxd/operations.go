@@ -198,12 +198,12 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	client, err := cluster.Connect(address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
+	client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	return response.ForwardedResponse(client, r)
+	return response.ForwardedResponse(client)
 }
 
 // swagger:operation DELETE /1.0/operations/{id} operations operation_delete
@@ -287,7 +287,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(err)
 		}
 
-		s.Events.SendLifecycle(projectName, lifecycle.OperationCancelled.Event(op, request.CreateRequestor(r), nil))
+		s.Events.SendLifecycle(projectName, lifecycle.OperationCancelled.Event(op, request.CreateRequestor(r.Context()), nil))
 
 		return response.EmptySyncResponse
 	}
@@ -318,16 +318,16 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	client, err := cluster.Connect(address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
+	client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	return response.ForwardedResponse(client, r)
+	return response.ForwardedResponse(client)
 }
 
 // operationCancel cancels an operation that exists on any member.
-func operationCancel(s *state.State, r *http.Request, projectName string, op *api.Operation) error {
+func operationCancel(ctx context.Context, s *state.State, projectName string, op *api.Operation) error {
 	// Check if operation is local and if so, cancel it.
 	localOp, _ := operations.OperationGetInternal(op.ID)
 	if localOp != nil {
@@ -338,7 +338,7 @@ func operationCancel(s *state.State, r *http.Request, projectName string, op *ap
 			}
 		}
 
-		s.Events.SendLifecycle(projectName, lifecycle.OperationCancelled.Event(localOp, request.CreateRequestor(r), nil))
+		s.Events.SendLifecycle(projectName, lifecycle.OperationCancelled.Event(localOp, request.CreateRequestor(ctx), nil))
 
 		return nil
 	}
@@ -370,7 +370,7 @@ func operationCancel(s *state.State, r *http.Request, projectName string, op *ap
 		return err
 	}
 
-	client, err := cluster.Connect(memberAddress, s.Endpoints.NetworkCert(), s.ServerCert(), r, true)
+	client, err := cluster.Connect(ctx, memberAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 	if err != nil {
 		return fmt.Errorf("Failed to connect to %q: %w", memberAddress, err)
 	}
@@ -666,7 +666,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Connect to the remote server. Use notify=true to only get local operations on remote member.
-		client, err := cluster.Connect(memberAddress, networkCert, s.ServerCert(), r, true)
+		client, err := cluster.Connect(r.Context(), memberAddress, networkCert, s.ServerCert(), true)
 		if err != nil {
 			return response.SmartError(fmt.Errorf("Failed connecting to member %q: %w", memberAddress, err))
 		}
@@ -710,7 +710,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 }
 
 // operationsGetByType gets all operations for a project and type.
-func operationsGetByType(s *state.State, r *http.Request, projectName string, opType operationtype.Type) ([]*api.Operation, error) {
+func operationsGetByType(ctx context.Context, s *state.State, projectName string, opType operationtype.Type) ([]*api.Operation, error) {
 	ops := make([]*api.Operation, 0)
 
 	// Get local operations for project.
@@ -794,7 +794,7 @@ func operationsGetByType(s *state.State, r *http.Request, projectName string, op
 		}
 
 		// Connect to the remote server. Use notify=true to only get local operations on remote member.
-		client, err := cluster.Connect(memberAddress, networkCert, serverCert, r, true)
+		client, err := cluster.Connect(ctx, memberAddress, networkCert, serverCert, true)
 		if err != nil {
 			return nil, fmt.Errorf("Failed connecting to member %q: %w", memberAddress, err)
 		}
@@ -1009,12 +1009,12 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	client, err := cluster.Connect(address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
+	client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	return response.ForwardedResponse(client, r)
+	return response.ForwardedResponse(client)
 }
 
 // swagger:operation GET /1.0/operations/{id}/websocket?public operations operation_websocket_get_untrusted
@@ -1116,7 +1116,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	client, err := cluster.Connect(address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
+	client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1152,7 +1152,7 @@ func autoRemoveOrphanedOperationsTask(stateFunc func() *state.State) (task.Func,
 			return autoRemoveOrphanedOperations(ctx, s)
 		}
 
-		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.RemoveOrphanedOperations, nil, nil, opRun, nil, nil, nil)
+		op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.RemoveOrphanedOperations, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed creating remove orphaned operations operation", logger.Ctx{"err": err})
 			return
@@ -1273,7 +1273,7 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	op, err := operations.OperationCreate(d.State(), "", req.OpClass, req.OpType, resources, nil, run, nil, onConnect, r)
+	op, err := operations.OperationCreate(r.Context(), d.State(), "", req.OpClass, req.OpType, resources, nil, run, nil, onConnect)
 	if err != nil {
 		return response.InternalError(err)
 	}
