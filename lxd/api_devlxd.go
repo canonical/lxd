@@ -42,19 +42,19 @@ func hoistReqContainer(d *Daemon, r *http.Request, handler devLXDAPIHandlerFunc)
 
 	unixConn, ok := conn.(*net.UnixConn)
 	if !ok {
-		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusInternalServerError, "Not a unix connection"), false)
+		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusInternalServerError, "Not a unix connection"))
 	}
 
 	cred := pidMapper.GetConnUcred(unixConn)
 	if cred == nil {
-		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusInternalServerError, errPIDNotInContainer.Error()), false)
+		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusInternalServerError, errPIDNotInContainer.Error()))
 	}
 
 	s := d.State()
 
 	c, err := findContainerForPID(cred.Pid, s)
 	if err != nil {
-		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusInternalServerError, err.Error()), false)
+		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusInternalServerError, err.Error()))
 	}
 
 	// Access control
@@ -67,7 +67,7 @@ func hoistReqContainer(d *Daemon, r *http.Request, handler devLXDAPIHandlerFunc)
 	}
 
 	if rootUID != cred.Uid {
-		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusUnauthorized, "Access denied for non-root user"), false)
+		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusUnauthorized, "Access denied for non-root user"))
 	}
 
 	request.SetCtxValue(r, request.CtxDevLXDInstance, c)
