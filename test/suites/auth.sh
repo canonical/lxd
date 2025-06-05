@@ -1184,11 +1184,8 @@ entities_enrichment_with_entitlements() {
   LXD_CONF=. gen_cert_and_key test2
   lxc config trust add test1.crt
   lxc config trust add test2.crt
-  test1Fingerprint=""
-  test2Fingerprint=""
-  all_certs=$(lxc config trust list --format json)
-  test1Fingerprint=$(echo "$all_certs" | jq -r '.[] | select(.name == "test1.crt") | .fingerprint')
-  test2Fingerprint=$(echo "$all_certs" | jq -r '.[] | select(.name == "test2.crt") | .fingerprint')
+  test1Fingerprint="$(cert_fingerprint test1.crt)"
+  test2Fingerprint="$(cert_fingerprint test2.crt)"
 
   lxc auth group permission add test-group certificate "${test1Fingerprint}" can_view
   lxc auth group permission add test-group certificate "${test2Fingerprint}" can_view
