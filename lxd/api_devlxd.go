@@ -26,10 +26,10 @@ import (
 // devLXDServer creates an http.Server capable of handling requests against the
 // /dev/lxd Unix socket endpoint created inside containers.
 func devLXDServer(d *Daemon) *http.Server {
-	rawResponse := false
+	isVsock := false
 
 	return &http.Server{
-		Handler:     devLXDAPI(d, hoistReqContainer, rawResponse),
+		Handler:     devLXDAPI(d, hoistReqContainer, isVsock),
 		ConnState:   pidMapper.ConnStateHandler,
 		ConnContext: request.SaveConnectionInContext,
 	}
