@@ -11,13 +11,11 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
-	"github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
@@ -248,23 +246,16 @@ var devLXDDevicesEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDDevicesGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	client, err := getVsockClient(d)
+	client, err := getDevLXDVsockClient(d)
 	if err != nil {
-		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
+		return smartResponse(fmt.Errorf("Failed connecting to devLXD over vsock: %w", err))
 	}
 
 	defer client.Disconnect()
 
-	resp, _, err := client.RawQuery(http.MethodGet, "/1.0/devices", nil, "")
+	devices, err := client.GetDevices()
 	if err != nil {
 		return smartResponse(err)
-	}
-
-	var devices config.Devices
-
-	err = resp.MetadataAsStruct(&devices)
-	if err != nil {
-		return smartResponse(fmt.Errorf("Failed parsing response from LXD: %w", err))
 	}
 
 	return okResponse(devices, "json")
