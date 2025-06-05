@@ -175,6 +175,13 @@ deps: dqlite liblxc
 	@echo "# Please set the following in your environment (possibly ~/.bashrc)"
 	@make -s env
 
+# Spawns an interactive test shell for quick interactions with LXD and the test
+# suite.
+.PHONY: test-shell
+test-shell:
+	@eval $(make -s env)
+	cd test && ./main.sh test-shell
+
 .PHONY: tics
 tics: deps
 	go build -a -x -v ./...
