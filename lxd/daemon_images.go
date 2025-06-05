@@ -182,7 +182,7 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 
 		if nodeAddress != "" {
 			// The image is available from another node, let's try to import it.
-			err = instanceImageTransfer(s, r, args.ProjectName, imgInfo.Fingerprint, nodeAddress)
+			err = instanceImageTransfer(r.Context(), s, args.ProjectName, imgInfo.Fingerprint, nodeAddress)
 			if err != nil {
 				return nil, fmt.Errorf("Failed transferring image %q from %q: %w", imgInfo.Fingerprint, nodeAddress, err)
 			}
@@ -243,7 +243,7 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 			// Transfer image if needed (after database record has been created above).
 			if nodeAddress != "" {
 				// The image is available from another node, let's try to import it.
-				err = instanceImageTransfer(s, r, args.ProjectName, info.Fingerprint, nodeAddress)
+				err = instanceImageTransfer(r.Context(), s, args.ProjectName, info.Fingerprint, nodeAddress)
 				if err != nil {
 					return nil, fmt.Errorf("Failed transferring image: %w", err)
 				}
