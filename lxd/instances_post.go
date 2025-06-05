@@ -150,7 +150,7 @@ func createFromImage(ctx context.Context, s *state.State, p api.Project, profile
 	return operations.OperationResponse(op)
 }
 
-func createFromNone(s *state.State, r *http.Request, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
+func createFromNone(ctx context.Context, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(errors.New("Cluster member is evacuated"))
 	}
@@ -199,7 +199,7 @@ func createFromNone(s *state.State, r *http.Request, projectName string, profile
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(ctx, s, projectName, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -1361,7 +1361,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	case api.SourceTypeImage:
 		return createFromImage(r.Context(), s, *targetProject, profiles, sourceImage, sourceImageRef, &req)
 	case api.SourceTypeNone:
-		return createFromNone(s, r, targetProjectName, profiles, &req)
+		return createFromNone(r.Context(), s, targetProjectName, profiles, &req)
 	case api.SourceTypeMigration:
 		return createFromMigration(s, r, targetProjectName, profiles, &req)
 	case api.SourceTypeConversion:
