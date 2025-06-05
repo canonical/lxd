@@ -126,14 +126,20 @@ func devLXDAPIGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
 }
 
 func devLXDAPIPatchHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	client, err := getVsockClient(d)
+	client, err := getDevLXDVsockClient(d)
 	if err != nil {
-		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
+		return smartResponse(fmt.Errorf("Failed connecting to devLXD over vsock: %w", err))
 	}
 
 	defer client.Disconnect()
 
-	_, _, err = client.RawQuery(r.Method, "/1.0", r.Body, "")
+	var state api.DevLXDPut
+	err = json.NewDecoder(r.Body).Decode(&state)
+	if err != nil {
+		return smartResponse(err)
+	}
+
+	err = client.UpdateState(state)
 	if err != nil {
 		return smartResponse(err)
 	}
