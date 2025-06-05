@@ -132,6 +132,22 @@ func (r *ProtocolDevLXD) rawQuery(method string, url string, data any, ETag stri
 
 	defer resp.Body.Close()
 
+	// If the http.Transport has a TLSClientConfig, it indicates that the connection is using vsock.
+	// In such case, the response is expected to be in LXD format (api.Response).
+	transport, ok := r.http.Transport.(*http.Transport)
+	if ok && transport != nil && transport.TLSClientConfig != nil {
+		resp, etag, err := lxdParseResponse(resp)
+		if err != nil {
+			return nil, "", err
+		}
+
+		return &api.DevLXDResponse{
+			Content:    resp.Metadata,
+			StatusCode: resp.StatusCode,
+		}, etag, nil
+	}
+
+	// Otherwise, parse the response as a devLXD response.
 	return devLXDParseResponse(resp)
 }
 
