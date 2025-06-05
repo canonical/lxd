@@ -109,63 +109,65 @@ func Bootstrap(state *state.State, gateway *Gateway, serverName string) error {
 	// to be used when validating endpoint connections. This will allow Dqlite to connect to ourselves.
 	state.UpdateIdentityCache()
 
-	// Shutdown the gateway. This will trash any dqlite connection against
-	// our in-memory dqlite driver and shutdown the associated raft
-	// instance. We also lock regular access to the cluster database since
-	// we don't want any other database code to run while we're
-	// reconfiguring raft.
-	err = state.DB.Cluster.EnterExclusive()
-	if err != nil {
-		return fmt.Errorf("Failed to acquire cluster database lock: %w", err)
-	}
-
-	err = gateway.Shutdown()
-	if err != nil {
-		return fmt.Errorf("Failed to shutdown gRPC SQL gateway: %w", err)
-	}
-
-	// The cluster CA certificate is a symlink against the regular server CA certificate.
-	if shared.PathExists(filepath.Join(state.OS.VarDir, "server.ca")) {
-		err := os.Symlink("server.ca", filepath.Join(state.OS.VarDir, "cluster.ca"))
+	err = state.DB.Cluster.RunExclusive(func(t db.Transactor) error {
+		// Shutdown the gateway. This will trash any dqlite connection against
+		// our in-memory dqlite driver and shutdown the associated raft
+		// instance. We also lock regular access to the cluster database since
+		// we don't want any other database code to run while we're
+		// reconfiguring raft.
+		err = gateway.Shutdown()
 		if err != nil {
-			return fmt.Errorf("Failed to symlink server CA cert to cluster CA cert: %w", err)
+			return fmt.Errorf("Failed to shutdown gRPC SQL gateway: %w", err)
 		}
-	}
 
-	// Generate a new cluster certificate.
-	clusterCert, err := util.LoadClusterCert(state.OS.VarDir)
-	if err != nil {
-		return fmt.Errorf("Failed to create cluster cert: %w", err)
-	}
+		// The cluster CA certificate is a symlink against the regular server CA certificate.
+		if shared.PathExists(filepath.Join(state.OS.VarDir, "server.ca")) {
+			err := os.Symlink("server.ca", filepath.Join(state.OS.VarDir, "cluster.ca"))
+			if err != nil {
+				return fmt.Errorf("Failed to symlink server CA cert to cluster CA cert: %w", err)
+			}
+		}
 
-	// If endpoint listeners are active, apply new cluster certificate.
-	if state.Endpoints != nil {
-		gateway.networkCert = clusterCert
-		state.Endpoints.NetworkUpdateCert(clusterCert)
-	}
-
-	// Re-initialize the gateway. This will create a new raft factory an
-	// dqlite driver instance, which will be exposed over gRPC by the
-	// gateway handlers.
-	err = gateway.init(true)
-	if err != nil {
-		return fmt.Errorf("Failed to re-initialize gRPC SQL gateway: %w", err)
-	}
-
-	err = gateway.WaitLeadership()
-	if err != nil {
-		return err
-	}
-
-	// Make sure we can actually connect to the cluster database through
-	// the network endpoint. This also releases the previously acquired
-	// lock and makes the Go SQL pooling system invalidate the old
-	// connection, so new queries will be executed over the new network
-	// connection.
-	err = state.DB.Cluster.ExitExclusive(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		_, err := tx.GetNodes(ctx)
+		// Generate a new cluster certificate.
+		clusterCert, err := util.LoadClusterCert(state.OS.VarDir)
 		if err != nil {
-			return fmt.Errorf("Failed getting cluster members: %w", err)
+			return fmt.Errorf("Failed to create cluster cert: %w", err)
+		}
+
+		// If endpoint listeners are active, apply new cluster certificate.
+		if state.Endpoints != nil {
+			gateway.networkCert = clusterCert
+			state.Endpoints.NetworkUpdateCert(clusterCert)
+		}
+
+		// Re-initialize the gateway. This will create a new raft factory an
+		// dqlite driver instance, which will be exposed over gRPC by the
+		// gateway handlers.
+		err = gateway.init(true)
+		if err != nil {
+			return fmt.Errorf("Failed to re-initialize gRPC SQL gateway: %w", err)
+		}
+
+		err = gateway.WaitLeadership()
+		if err != nil {
+			return err
+		}
+
+		// Make sure we can actually connect to the cluster database through
+		// the network endpoint. This also releases the previously acquired
+		// lock and makes the Go SQL pooling system invalidate the old
+		// connection, so new queries will be executed over the new network
+		// connection.
+		err = t(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			_, err = tx.GetNodes(ctx)
+			if err != nil {
+				return fmt.Errorf("Failed getting cluster members: %w", err)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
 		}
 
 		return nil
