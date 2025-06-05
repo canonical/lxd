@@ -2122,7 +2122,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 			if nodes[i].Address != leaderInfo.Address && nodes[i].Role != db.RaftVoter {
 				// Promote the remaining node.
 				nodes[i].Role = db.RaftVoter
-				err := changeMemberRole(s, r, nodes[i].Address, nodes)
+				err := changeMemberRole(r.Context(), s, nodes[i].Address, nodes)
 				if err != nil {
 					return response.SmartError(fmt.Errorf("Unable to promote remaining cluster member to leader: %w", err))
 				}
@@ -2625,7 +2625,7 @@ again:
 
 	// Tell the node to promote itself.
 	logger.Info("Promoting member during rebalance", logger.Ctx{"candidateAddress": address})
-	err = changeMemberRole(s, r, address, nodes)
+	err = changeMemberRole(r.Context(), s, address, nodes)
 	if err != nil {
 		return err
 	}
@@ -2823,7 +2823,7 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 	}
 
 	logger.Info("Promoting member during handover", logger.Ctx{"address": localClusterAddress, "losingAddress": req.Address, "candidateAddress": target})
-	err = changeMemberRole(s, r, target, nodes)
+	err = changeMemberRole(r.Context(), s, target, nodes)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2836,7 +2836,7 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 	}
 
 	logger.Info("Demoting member during handover", logger.Ctx{"address": localClusterAddress, "losingAddress": req.Address})
-	err = changeMemberRole(s, r, req.Address, nodes)
+	err = changeMemberRole(r.Context(), s, req.Address, nodes)
 	if err != nil {
 		return response.SmartError(err)
 	}
