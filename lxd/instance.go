@@ -84,7 +84,7 @@ func instanceImageTransfer(ctx context.Context, s *state.State, projectName stri
 	return nil
 }
 
-func ensureImageIsLocallyAvailable(s *state.State, r *http.Request, img *api.Image, projectName string) error {
+func ensureImageIsLocallyAvailable(ctx context.Context, s *state.State, img *api.Image, projectName string) error {
 	// Check if the image is available locally or it's on another member.
 	// Ensure we are the only ones operating on this image. Otherwise another instance created at the same
 	// time may also arrive at the conclusion that the image doesn't exist on this cluster member and then
@@ -110,7 +110,7 @@ func ensureImageIsLocallyAvailable(s *state.State, r *http.Request, img *api.Ima
 
 	if memberAddress != "" {
 		// The image is available from another node, let's try to import it.
-		err = instanceImageTransfer(r.Context(), s, projectName, img.Fingerprint, memberAddress)
+		err = instanceImageTransfer(ctx, s, projectName, img.Fingerprint, memberAddress)
 		if err != nil {
 			return fmt.Errorf("Failed transferring image %q from %q: %w", img.Fingerprint, memberAddress, err)
 		}
@@ -214,7 +214,7 @@ func instanceRebuildFromImage(s *state.State, r *http.Request, inst instance.Ins
 		return fmt.Errorf("Requested image's type %q doesn't match instance type %q", imgType, inst.Type())
 	}
 
-	err = ensureImageIsLocallyAvailable(s, r, img, inst.Project().Name)
+	err = ensureImageIsLocallyAvailable(r.Context(), s, img, inst.Project().Name)
 	if err != nil {
 		return err
 	}
