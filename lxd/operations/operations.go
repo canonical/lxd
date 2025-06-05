@@ -215,8 +215,8 @@ func (op *Operation) SetEventServer(events *events.Server) {
 }
 
 // SetRequestor sets a requestor for this operation from an http.Request.
-func (op *Operation) SetRequestor(r *http.Request) {
-	op.requestor = request.CreateRequestor(r.Context())
+func (op *Operation) SetRequestor(ctx context.Context) {
+	op.requestor = request.CreateRequestor(ctx)
 }
 
 // CheckRequestor checks that the requestor of a given HTTP request is equal to the requestor of the operation.
