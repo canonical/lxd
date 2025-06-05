@@ -1569,10 +1569,10 @@ func projectHasRestriction(project *api.Project, restrictionKey string, blockVal
 }
 
 // CheckClusterTargetRestriction check if user is allowed to use cluster member targeting.
-func CheckClusterTargetRestriction(authorizer auth.Authorizer, r *http.Request, project *api.Project, targetFlag string) error {
+func CheckClusterTargetRestriction(ctx context.Context, authorizer auth.Authorizer, project *api.Project, targetFlag string) error {
 	if projectHasRestriction(project, "restricted.cluster.target", "block") && targetFlag != "" {
 		// Allow server administrators to move instances around even when restricted (node evacuation, ...)
-		err := authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanOverrideClusterTargetRestriction)
+		err := authorizer.CheckPermission(ctx, entity.ServerURL(), auth.EntitlementCanOverrideClusterTargetRestriction)
 		if err != nil && auth.IsDeniedError(err) {
 			return api.StatusErrorf(http.StatusForbidden, "This project doesn't allow cluster member targeting")
 		} else if err != nil {
@@ -1697,11 +1697,11 @@ func CheckTargetGroup(ctx context.Context, tx *db.ClusterTx, p *api.Project, gro
 // If target is a cluster member and is found in allMembers it returns the resolved node information object.
 // If target is a cluster group it returns the cluster group name.
 // In case of error, neither node information nor cluster group name gets returned.
-func CheckTarget(ctx context.Context, authorizer auth.Authorizer, r *http.Request, tx *db.ClusterTx, p *api.Project, target string, allMembers []db.NodeInfo) (*db.NodeInfo, string, error) {
+func CheckTarget(ctx context.Context, authorizer auth.Authorizer, tx *db.ClusterTx, p *api.Project, target string, allMembers []db.NodeInfo) (*db.NodeInfo, string, error) {
 	targetMemberName, targetGroupName := shared.TargetDetect(target)
 
 	// Check manual cluster member targeting restrictions.
-	err := CheckClusterTargetRestriction(authorizer, r, p, target)
+	err := CheckClusterTargetRestriction(ctx, authorizer, p, target)
 	if err != nil {
 		return nil, "", err
 	}
