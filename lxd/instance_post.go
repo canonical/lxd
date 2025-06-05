@@ -652,7 +652,7 @@ func instancePostMigration(s *state.State, inst instance.Instance, req api.Insta
 }
 
 // Move a non-ceph instance to another cluster node. Source and target members must be online.
-func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, srcMember db.NodeInfo, newMember db.NodeInfo, stateful bool, allowInconsistent bool) (func(op *operations.Operation) error, error) {
+func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, srcMember db.NodeInfo, newMember db.NodeInfo, stateful bool, allowInconsistent bool) (func(op *operations.Operation) error, error) {
 	srcMemberOffline := srcMember.IsOffline(s.GlobalConfig.OfflineThreshold())
 
 	// Make sure that the source member is online if we end up being called from another member after a
@@ -689,7 +689,7 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 		// Connect to the destination member, i.e. the member to migrate the instance to.
 		// Use the notify argument to indicate to the destination that we are moving an instance between
 		// cluster members.
-		dest, err := cluster.Connect(r.Context(), newMember.Address, networkCert, s.ServerCert(), true)
+		dest, err := cluster.Connect(ctx, newMember.Address, networkCert, s.ServerCert(), true)
 		if err != nil {
 			return fmt.Errorf("Failed to connect to destination server %q: %w", newMember.Address, err)
 		}
@@ -758,7 +758,7 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 			return nil
 		}
 
-		srcOp, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassWebsocket, operationtype.InstanceMigrate, resources, srcMigration.Metadata(), run, cancel, srcMigration.Connect)
+		srcOp, err := operations.OperationCreate(ctx, s, projectName, operations.OperationClassWebsocket, operationtype.InstanceMigrate, resources, srcMigration.Metadata(), run, cancel, srcMigration.Connect)
 		if err != nil {
 			return err
 		}
@@ -1005,7 +1005,7 @@ func migrateInstance(s *state.State, r *http.Request, inst instance.Instance, ta
 		return f(op)
 	}
 
-	f, err := instancePostClusteringMigrate(s, r, srcPool, inst, req.Name, srcMember, newMember, req.Live, req.AllowInconsistent)
+	f, err := instancePostClusteringMigrate(r.Context(), s, srcPool, inst, req.Name, srcMember, newMember, req.Live, req.AllowInconsistent)
 	if err != nil {
 		return err
 	}
