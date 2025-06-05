@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -203,7 +202,7 @@ func instanceCreateFromImage(s *state.State, img *api.Image, args db.InstanceArg
 	return nil
 }
 
-func instanceRebuildFromImage(s *state.State, r *http.Request, inst instance.Instance, img *api.Image, op *operations.Operation) error {
+func instanceRebuildFromImage(ctx context.Context, s *state.State, inst instance.Instance, img *api.Image, op *operations.Operation) error {
 	// Validate the type of the image matches the type of the instance.
 	imgType, err := instancetype.New(img.Type)
 	if err != nil {
@@ -214,7 +213,7 @@ func instanceRebuildFromImage(s *state.State, r *http.Request, inst instance.Ins
 		return fmt.Errorf("Requested image's type %q doesn't match instance type %q", imgType, inst.Type())
 	}
 
-	err = ensureImageIsLocallyAvailable(r.Context(), s, img, inst.Project().Name)
+	err = ensureImageIsLocallyAvailable(ctx, s, img, inst.Project().Name)
 	if err != nil {
 		return err
 	}
