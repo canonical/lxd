@@ -365,7 +365,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			run := func(op *operations.Operation) error {
-				return migrateInstance(s, r, inst, targetMemberInfo.Name, req, op)
+				return migrateInstance(r.Context(), s, inst, targetMemberInfo.Name, req, op)
 			}
 
 			resources := map[string][]api.URL{}
@@ -961,7 +961,7 @@ func instancePostClusteringMigrateWithRemoteStorage(s *state.State, srcPool stor
 	return run, nil
 }
 
-func migrateInstance(s *state.State, r *http.Request, inst instance.Instance, targetNode string, req api.InstancePost, op *operations.Operation) error {
+func migrateInstance(ctx context.Context, s *state.State, inst instance.Instance, targetNode string, req api.InstancePost, op *operations.Operation) error {
 	// If target isn't the same as the instance's location.
 	if targetNode == inst.Location() {
 		return errors.New("Target must be different than instance's current location")
@@ -1005,7 +1005,7 @@ func migrateInstance(s *state.State, r *http.Request, inst instance.Instance, ta
 		return f(op)
 	}
 
-	f, err := instancePostClusteringMigrate(r.Context(), s, srcPool, inst, req.Name, srcMember, newMember, req.Live, req.AllowInconsistent)
+	f, err := instancePostClusteringMigrate(ctx, s, srcPool, inst, req.Name, srcMember, newMember, req.Live, req.AllowInconsistent)
 	if err != nil {
 		return err
 	}
