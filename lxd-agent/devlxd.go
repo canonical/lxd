@@ -70,21 +70,6 @@ func devLXDServer(d *Daemon) *http.Server {
 	}
 }
 
-func getVsockClient(d *Daemon) (lxd.InstanceServer, error) {
-	// Try connecting to LXD server.
-	client, err := getClient(d.serverCID, int(d.serverPort), d.serverCertificate)
-	if err != nil {
-		return nil, err
-	}
-
-	server, err := lxd.ConnectLXDHTTP(nil, client)
-	if err != nil {
-		return nil, err
-	}
-
-	return server, nil
-}
-
 // getDevLXDVsockClient connects to the devLXD over vsock.
 func getDevLXDVsockClient(d *Daemon) (lxd.DevLXDServer, error) {
 	// Try connecting to LXD server.
