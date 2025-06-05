@@ -62,7 +62,7 @@ func ensureDownloadedImageFitWithinBudget(s *state.State, r *http.Request, op *o
 		return nil, err
 	}
 
-	imgDownloaded, err := ImageDownload(r, s, op, &ImageDownloadArgs{
+	imgDownloaded, err := ImageDownload(r.Context(), s, op, &ImageDownloadArgs{
 		Server:       source.Server,
 		Protocol:     source.Protocol,
 		Certificate:  source.Certificate,
