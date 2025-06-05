@@ -484,7 +484,7 @@ func createFromConversion(ctx context.Context, s *state.State, projectName strin
 	return operations.OperationResponse(op)
 }
 
-func createFromCopy(s *state.State, r *http.Request, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
+func createFromCopy(ctx context.Context, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(errors.New("Cluster member is evacuated"))
 	}
@@ -521,12 +521,12 @@ func createFromCopy(s *state.State, r *http.Request, projectName string, profile
 
 			if sourcePoolName != destPoolName {
 				// Redirect to migration
-				return clusterCopyContainerInternal(r.Context(), s, source, projectName, profiles, req)
+				return clusterCopyContainerInternal(ctx, s, source, projectName, profiles, req)
 			}
 
 			var pool *api.StoragePool
 
-			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 				_, pool, _, err = tx.GetStoragePoolInAnyState(ctx, sourcePoolName)
 
 				return err
@@ -538,7 +538,7 @@ func createFromCopy(s *state.State, r *http.Request, projectName string, profile
 
 			if pool.Driver != "ceph" {
 				// Redirect to migration
-				return clusterCopyContainerInternal(r.Context(), s, source, projectName, profiles, req)
+				return clusterCopyContainerInternal(ctx, s, source, projectName, profiles, req)
 			}
 		}
 	}
@@ -647,7 +647,7 @@ func createFromCopy(s *state.State, r *http.Request, projectName string, profile
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, targetProject, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(ctx, s, targetProject, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -1366,7 +1366,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	case api.SourceTypeConversion:
 		return createFromConversion(r.Context(), s, targetProjectName, profiles, &req)
 	case api.SourceTypeCopy:
-		return createFromCopy(s, r, targetProjectName, profiles, &req)
+		return createFromCopy(r.Context(), s, targetProjectName, profiles, &req)
 	default:
 		return response.BadRequest(fmt.Errorf("Unknown source type %s", req.Source.Type))
 	}
