@@ -598,7 +598,7 @@ func imgPostRemoteInfo(s *state.State, r *http.Request, req api.ImagesPost, op *
 	return info, nil
 }
 
-func imgPostURLInfo(s *state.State, r *http.Request, req api.ImagesPost, op *operations.Operation, project string, budget int64) (*api.Image, error) {
+func imgPostURLInfo(ctx context.Context, s *state.State, req api.ImagesPost, op *operations.Operation, project string, budget int64) (*api.Image, error) {
 	var err error
 
 	if req.Source.URL == "" {
@@ -646,7 +646,7 @@ func imgPostURLInfo(s *state.State, r *http.Request, req api.ImagesPost, op *ope
 	}
 
 	// Import the image
-	info, err := ImageDownload(r.Context(), s, op, &ImageDownloadArgs{
+	info, err := ImageDownload(ctx, s, op, &ImageDownloadArgs{
 		Server:        url,
 		Protocol:      "direct",
 		Alias:         hash,
@@ -1241,7 +1241,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 				info, err = imgPostRemoteInfo(s, r, req, op, projectName, budget)
 			case "url":
 				/* Processing image copy from URL */
-				info, err = imgPostURLInfo(s, r, req, op, projectName, budget)
+				info, err = imgPostURLInfo(r.Context(), s, req, op, projectName, budget)
 			default:
 				/* Processing image creation from container */
 				imagePublishLock.Lock()
