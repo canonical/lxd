@@ -110,7 +110,7 @@ func ensureImageIsLocallyAvailable(s *state.State, r *http.Request, img *api.Ima
 
 	if memberAddress != "" {
 		// The image is available from another node, let's try to import it.
-		err = instanceImageTransfer(s, r, projectName, img.Fingerprint, memberAddress)
+		err = instanceImageTransfer(r.Context(), s, projectName, img.Fingerprint, memberAddress)
 		if err != nil {
 			return fmt.Errorf("Failed transferring image %q from %q: %w", img.Fingerprint, memberAddress, err)
 		}
