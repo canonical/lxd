@@ -380,7 +380,7 @@ func createFromMigration(ctx context.Context, s *state.State, projectName string
 
 // createFromConversion receives the root disk (container FS or VM block volume) from the client and creates an
 // instance from it. Conversion options also allow the uploaded image to be converted into a raw format.
-func createFromConversion(s *state.State, r *http.Request, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
+func createFromConversion(ctx context.Context, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(errors.New("Cluster member is evacuated"))
 	}
@@ -475,7 +475,7 @@ func createFromConversion(s *state.State, r *http.Request, projectName string, p
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassWebsocket, operationtype.InstanceCreate, resources, sink.Metadata(), run, nil, sink.Connect)
+	op, err := operations.OperationCreate(ctx, s, projectName, operations.OperationClassWebsocket, operationtype.InstanceCreate, resources, sink.Metadata(), run, nil, sink.Connect)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -1364,7 +1364,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	case api.SourceTypeMigration:
 		return createFromMigration(r.Context(), s, targetProjectName, profiles, &req, clusterNotification)
 	case api.SourceTypeConversion:
-		return createFromConversion(s, r, targetProjectName, profiles, &req)
+		return createFromConversion(r.Context(), s, targetProjectName, profiles, &req)
 	case api.SourceTypeCopy:
 		return createFromCopy(s, r, targetProjectName, profiles, &req)
 	default:
