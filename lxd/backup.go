@@ -12,6 +12,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/canonical/lxd/lxd/backup"
+	backupConfig "github.com/canonical/lxd/lxd/backup/config"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
@@ -237,7 +238,7 @@ func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, opti
 	}
 
 	backupType := backup.InstanceTypeToBackupType(api.InstanceType(sourceInst.Type().String()))
-	if backupType == backup.TypeUnknown {
+	if backupType == backupConfig.TypeUnknown {
 		return errors.New("Unrecognised instance type for backup type conversion")
 	}
 
@@ -251,7 +252,13 @@ func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, opti
 		return os.ErrNotExist
 	}
 
-	config, err := pool.GenerateInstanceBackupConfig(sourceInst, snapshots, nil)
+	// Provide an empty list (non-nil) to not include any custom storage volumes in the backup config.
+	volConfig := &backupConfig.Config{
+		Volumes: []*backupConfig.Volume{},
+		Pools:   []*api.StoragePool{},
+	}
+
+	config, err := pool.GenerateInstanceBackupConfig(sourceInst, snapshots, volConfig, nil)
 	if err != nil {
 		return fmt.Errorf("Failed generating instance backup config: %w", err)
 	}
@@ -567,7 +574,7 @@ func volumeBackupWriteIndex(s *state.State, projectName string, volumeName strin
 		Backend:          pool.Driver().Info().Name,
 		OptimizedStorage: &optimized,
 		OptimizedHeader:  &poolDriverOptimizedHeader,
-		Type:             backup.TypeCustom,
+		Type:             backupConfig.TypeCustom,
 		Config:           config,
 	}
 

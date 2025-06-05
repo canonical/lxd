@@ -1649,7 +1649,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	// Update the backup.yaml file just before starting the instance process, but after all devices have been
 	// setup, so that the backup file contains the volatile keys used for this instance start, so that they can
 	// be used for instance cleanup.
-	err = d.UpdateBackupFile()
+	err = d.UpdateBackupFile(nil)
 	if err != nil {
 		err = fmt.Errorf("Failed updating backup file: %w", err)
 		op.Done(err)
@@ -5349,7 +5349,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 	}
 
 	// Update the backup file.
-	err = d.UpdateBackupFile()
+	err = d.UpdateBackupFile(nil)
 	if err != nil {
 		return err
 	}
@@ -5883,7 +5883,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		return fmt.Errorf("Failed to update database: %w", err)
 	}
 
-	err = d.UpdateBackupFile()
+	err = d.UpdateBackupFile(nil)
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("Failed to write backup file: %w", err)
 	}
@@ -6113,7 +6113,7 @@ func (d *qemu) Delete(force bool) error {
 		}
 
 		// Update the backup file.
-		err = parent.UpdateBackupFile()
+		err = parent.UpdateBackupFile(nil)
 		if err != nil {
 			return err
 		}
@@ -6562,7 +6562,7 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 	d.logger.Debug("Set migration offer volume size", logger.Ctx{"blockSize": blockSize})
 	offerHeader.VolumeSize = &blockSize
 
-	srcConfig, err := pool.GenerateInstanceBackupConfig(d, args.Snapshots, d.op)
+	srcConfig, err := pool.GenerateInstanceBackupConfig(d, args.Snapshots, nil, d.op)
 	if err != nil {
 		return fmt.Errorf("Failed generating instance migration config: %w", err)
 	}
@@ -8454,14 +8454,14 @@ func (d *qemu) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConf
 }
 
 // UpdateBackupFile writes the instance's backup.yaml file to storage.
-func (d *qemu) UpdateBackupFile() error {
+func (d *qemu) UpdateBackupFile(volBackupConf *config.Config) error {
 	pool, err := d.getStoragePool()
 	if err != nil {
 		return err
 	}
 
 	// Use the global metadata version.
-	return pool.UpdateInstanceBackupFile(d, true, config.DefaultMetadataVersion, nil)
+	return pool.UpdateInstanceBackupFile(d, true, volBackupConf, config.DefaultMetadataVersion, nil)
 }
 
 type cpuTopology struct {
