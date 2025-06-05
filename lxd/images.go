@@ -522,7 +522,7 @@ func imgPostInstanceInfo(s *state.State, req api.ImagesPost, op *operations.Oper
 	return &info, nil
 }
 
-func imgPostRemoteInfo(s *state.State, r *http.Request, req api.ImagesPost, op *operations.Operation, project string, budget int64) (*api.Image, error) {
+func imgPostRemoteInfo(ctx context.Context, s *state.State, req api.ImagesPost, op *operations.Operation, project string, budget int64) (*api.Image, error) {
 	var err error
 	var hash string
 
@@ -534,7 +534,7 @@ func imgPostRemoteInfo(s *state.State, r *http.Request, req api.ImagesPost, op *
 		return nil, errors.New("must specify one of alias or fingerprint for init from image")
 	}
 
-	info, err := ImageDownload(r.Context(), s, op, &ImageDownloadArgs{
+	info, err := ImageDownload(ctx, s, op, &ImageDownloadArgs{
 		Server:            req.Source.Server,
 		Protocol:          req.Source.Protocol,
 		Certificate:       req.Source.Certificate,
@@ -1238,7 +1238,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			switch req.Source.Type {
 			case api.SourceTypeImage:
 				/* Processing image copy from remote */
-				info, err = imgPostRemoteInfo(s, r, req, op, projectName, budget)
+				info, err = imgPostRemoteInfo(r.Context(), s, req, op, projectName, budget)
 			case "url":
 				/* Processing image copy from URL */
 				info, err = imgPostURLInfo(r.Context(), s, req, op, projectName, budget)
