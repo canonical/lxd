@@ -2588,7 +2588,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 
 // Check if there's a dqlite node whose role should be changed, and post a
 // change role request if so.
-func rebalanceMemberRoles(s *state.State, gateway *cluster.Gateway, r *http.Request, unavailableMembers []string) error {
+func rebalanceMemberRoles(ctx context.Context, s *state.State, gateway *cluster.Gateway, unavailableMembers []string) error {
 	if s.ShutdownCtx.Err() != nil {
 		return nil
 	}
@@ -2625,7 +2625,7 @@ again:
 
 	// Tell the node to promote itself.
 	logger.Info("Promoting member during rebalance", logger.Ctx{"candidateAddress": address})
-	err = changeMemberRole(r.Context(), s, address, nodes)
+	err = changeMemberRole(ctx, s, address, nodes)
 	if err != nil {
 		return err
 	}
