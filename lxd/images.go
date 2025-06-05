@@ -1908,6 +1908,7 @@ func autoUpdateImages(ctx context.Context, s *state.State) error {
 
 	for fingerprint, images := range imageMap {
 		var nodes []db.NodeInfo
+		var nodeIDs []int64
 
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			nodeAddresses, err := tx.GetNodesWithImageAndAutoUpdate(ctx, fingerprint, true)
@@ -1922,6 +1923,7 @@ func autoUpdateImages(ctx context.Context, s *state.State) error {
 				}
 
 				nodes = append(nodes, nodeInfo)
+				nodeIDs = append(nodeIDs, nodeInfo.ID)
 			}
 
 			return err
@@ -1931,12 +1933,7 @@ func autoUpdateImages(ctx context.Context, s *state.State) error {
 			continue
 		}
 
-		if len(nodes) > 1 {
-			nodeIDs := make([]int64, 0, len(nodes))
-			for _, node := range nodes {
-				nodeIDs = append(nodeIDs, node.ID)
-			}
-
+		if len(nodeIDs) > 1 {
 			// If multiple nodes have the image, select one to deal with it.
 			selectedNode, err := util.GetStableRandomInt64FromList(int64(len(images)), nodeIDs)
 			if err != nil {
