@@ -1,7 +1,7 @@
 package project
 
 import (
-	"net/http"
+	"context"
 	"net/url"
 	"path/filepath"
 	"strings"
@@ -37,7 +37,7 @@ func CheckRestrictedDevicesDiskPaths(projectConfig map[string]string, sourcePath
 }
 
 // FilterUsedBy filters a UsedBy list based on the entities that the requestor is able to view.
-func FilterUsedBy(authorizer auth.Authorizer, r *http.Request, entries []string) []string {
+func FilterUsedBy(ctx context.Context, authorizer auth.Authorizer, entries []string) []string {
 	// Get a map of URLs by entity type. If there are multiple entries of a particular entity type we can reduce the
 	// number of calls to the authorizer.
 	urlsByEntityType := make(map[entity.Type][]*api.URL)
@@ -63,7 +63,7 @@ func FilterUsedBy(authorizer auth.Authorizer, r *http.Request, entries []string)
 	for entityType, urls := range urlsByEntityType {
 		// If only one entry of this type, check directly.
 		if len(urls) == 1 {
-			err := authorizer.CheckPermission(r.Context(), urls[0], auth.EntitlementCanView)
+			err := authorizer.CheckPermission(ctx, urls[0], auth.EntitlementCanView)
 			if err != nil {
 				continue
 			}
@@ -73,7 +73,7 @@ func FilterUsedBy(authorizer auth.Authorizer, r *http.Request, entries []string)
 		}
 
 		// Otherwise get a permission checker for the entity type.
-		canViewEntity, err := authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entityType)
+		canViewEntity, err := authorizer.GetPermissionChecker(ctx, auth.EntitlementCanView, entityType)
 		if err != nil {
 			logger.Error("Failed to get permission checker for project used-by filtering", logger.Ctx{"entity_type": entityType, "err": err})
 			continue
