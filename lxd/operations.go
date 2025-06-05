@@ -327,7 +327,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 }
 
 // operationCancel cancels an operation that exists on any member.
-func operationCancel(s *state.State, r *http.Request, projectName string, op *api.Operation) error {
+func operationCancel(ctx context.Context, s *state.State, projectName string, op *api.Operation) error {
 	// Check if operation is local and if so, cancel it.
 	localOp, _ := operations.OperationGetInternal(op.ID)
 	if localOp != nil {
@@ -338,7 +338,7 @@ func operationCancel(s *state.State, r *http.Request, projectName string, op *ap
 			}
 		}
 
-		s.Events.SendLifecycle(projectName, lifecycle.OperationCancelled.Event(localOp, request.CreateRequestor(r.Context()), nil))
+		s.Events.SendLifecycle(projectName, lifecycle.OperationCancelled.Event(localOp, request.CreateRequestor(ctx), nil))
 
 		return nil
 	}
@@ -370,7 +370,7 @@ func operationCancel(s *state.State, r *http.Request, projectName string, op *ap
 		return err
 	}
 
-	client, err := cluster.Connect(r.Context(), memberAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+	client, err := cluster.Connect(ctx, memberAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 	if err != nil {
 		return fmt.Errorf("Failed to connect to %q: %w", memberAddress, err)
 	}
