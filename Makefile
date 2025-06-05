@@ -299,7 +299,9 @@ dist: doc
 	(cd $(TMP)/lxd-$(VERSION) ; go mod vendor)
 
 	# Download the dqlite library
-	git clone --depth=1 --branch "$(DQLITE_BRANCH)" https://github.com/canonical/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
+	git clone --branch "$(DQLITE_BRANCH)" https://github.com/canonical/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
+	# XXX: last known good version of dqlite
+	git -C $(TMP)/lxd-$(VERSION)/vendor/dqlite checkout 8fcffefa8df34628459545786602bbe7c5d839e0
 	(cd $(TMP)/lxd-$(VERSION)/vendor/dqlite ; git rev-parse HEAD | tee .gitref)
 
 	# Download the liblxc library
