@@ -274,8 +274,19 @@ if [ -n "${GITHUB_ACTIONS:-}" ]; then
 fi
 
 # allow for running a specific set of tests
-if [ "$#" -gt 0 ] && [ "$1" != "all" ] && [ "$1" != "cluster" ] && [ "$1" != "standalone" ]; then
+if [ "$#" -gt 0 ] && [ "$1" != "all" ] && [ "$1" != "cluster" ] && [ "$1" != "standalone" ] && [ "$1" != "test-shell" ]; then
   run_test "test_${1}"
+  # shellcheck disable=SC2034
+  TEST_RESULT=success
+  exit
+fi
+
+# Spawn an interactive test shell when invoked as `./main.sh test-shell`.
+# This is useful for quick interactions with LXD and its test suite.
+if [ "${1:-"all"}" = "test-shell" ]; then
+  # yellow
+  export PS1="\[\033[0;33mLXD-TEST\033[0m ${PS1:-\u@\h:\w\$ }\]"
+  bash --norc
   # shellcheck disable=SC2034
   TEST_RESULT=success
   exit
