@@ -804,8 +804,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 		return errors.New("This member is not included in the given list of database nodes")
 	}
 
-	// Replace our local list of raft nodes with the given one (which
-	// includes ourselves).
+	// Replace our local list of raft nodes with the given one (which includes ourselves).
 	err = state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		err = tx.ReplaceRaftNodes(nodes)
 		if err != nil {
@@ -818,138 +817,133 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 		return err
 	}
 
-	var transactor func(context.Context, func(ctx context.Context, tx *db.ClusterTx) error) error
+	assign := func() error {
+		logger.Info("Changing local dqlite raft role", logger.Ctx{"id": info.ID, "local": info.Address, "role": info.Role})
 
-	// If we are already running a dqlite node, it means we have cleanly
-	// joined the cluster before, using the roles support API. In that case
-	// there's no need to restart the gateway and we can just change our
-	// dqlite role.
-	if gateway.IsDqliteNode() {
-		transactor = state.DB.Cluster.Transaction
-		goto assign
-	}
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
 
-	// If we get here it means that we are an upgraded node from cluster
-	// without roles support, or we didn't cleanly join the cluster. Either
-	// way, we don't have a dqlite node running, so we need to restart the
-	// gateway.
-
-	// Lock regular access to the cluster database since we don't want any
-	// other database code to run while we're reconfiguring raft.
-	err = state.DB.Cluster.EnterExclusive()
-	if err != nil {
-		return fmt.Errorf("Failed to acquire cluster database lock: %w", err)
-	}
-
-	transactor = state.DB.Cluster.ExitExclusive
-
-	// Wipe all existing raft data, for good measure (perhaps they were
-	// somehow leftover).
-	err = os.RemoveAll(state.OS.GlobalDatabaseDir())
-	if err != nil {
-		return fmt.Errorf("Failed to remove existing raft data: %w", err)
-	}
-
-	// Re-initialize the gateway. This will create a new raft factory an
-	// dqlite driver instance, which will be exposed over gRPC by the
-	// gateway handlers.
-	err = gateway.init(false)
-	if err != nil {
-		return fmt.Errorf("Failed to re-initialize gRPC SQL gateway: %w", err)
-	}
-
-assign:
-	logger.Info("Changing local dqlite raft role", logger.Ctx{"id": info.ID, "local": info.Address, "role": info.Role})
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
-
-	client, err := client.FindLeader(ctx, gateway.NodeStore(), client.WithDialFunc(gateway.raftDial()))
-	if err != nil {
-		return fmt.Errorf("Connect to cluster leader: %w", err)
-	}
-
-	defer func() { _ = client.Close() }()
-
-	// Figure out our current role.
-	role := db.RaftRole(-1)
-	cluster, err := client.Cluster(ctx)
-	if err != nil {
-		return fmt.Errorf("Fetch current cluster configuration: %w", err)
-	}
-
-	for _, server := range cluster {
-		if server.ID == info.ID {
-			role = server.Role
-			break
-		}
-	}
-	if role == -1 {
-		return fmt.Errorf("Node %s does not belong to the current raft configuration", address)
-	}
-
-	// If we're stepping back from voter to spare, let's first transition
-	// to stand-by first and wait for the configuration change to be
-	// notified to us. This prevent us from thinking we're still voters and
-	// potentially disrupt the cluster.
-	if role == db.RaftVoter && info.Role == db.RaftSpare {
-		err = client.Assign(ctx, info.ID, db.RaftStandBy)
+		client, err := client.FindLeader(ctx, gateway.NodeStore(), client.WithDialFunc(gateway.raftDial()))
 		if err != nil {
-			return fmt.Errorf("Failed to step back to stand-by: %w", err)
+			return fmt.Errorf("Connect to cluster leader: %w", err)
 		}
 
-		local, err := gateway.getClient()
+		defer func() { _ = client.Close() }()
+
+		// Figure out our current role.
+		role := db.RaftRole(-1)
+		cluster, err := client.Cluster(ctx)
 		if err != nil {
-			return fmt.Errorf("Failed to get local dqlite client: %w", err)
+			return fmt.Errorf("Fetch current cluster configuration: %w", err)
 		}
 
-		notified := false
-		for range 10 {
-			time.Sleep(500 * time.Millisecond)
-			servers, err := local.Cluster(context.Background())
-			if err != nil {
-				return fmt.Errorf("Failed to get current cluster: %w", err)
-			}
-
-			for _, server := range servers {
-				if server.ID != info.ID {
-					continue
-				}
-
-				if server.Role == db.RaftStandBy {
-					notified = true
-					break
-				}
-			}
-			if notified {
+		for _, server := range cluster {
+			if server.ID == info.ID {
+				role = server.Role
 				break
 			}
 		}
-		if !notified {
-			return errors.New("Timeout waiting for configuration change notification")
+		if role == -1 {
+			return fmt.Errorf("Node %s does not belong to the current raft configuration", address)
 		}
-	}
 
-	// Give the Assign operation a bit more budget in case we're promoting
-	// to voter, since that might require a snapshot transfer.
-	if info.Role == db.RaftVoter {
-		ctx, cancel = context.WithTimeout(context.Background(), 20*time.Second)
-		defer cancel()
-	}
+		// If we're stepping back from voter to spare, let's first transition
+		// to stand-by first and wait for the configuration change to be
+		// notified to us. This prevent us from thinking we're still voters and
+		// potentially disrupt the cluster.
+		if role == db.RaftVoter && info.Role == db.RaftSpare {
+			err = client.Assign(ctx, info.ID, db.RaftStandBy)
+			if err != nil {
+				return fmt.Errorf("Failed to step back to stand-by: %w", err)
+			}
 
-	err = client.Assign(ctx, info.ID, info.Role)
-	if err != nil {
-		return fmt.Errorf("Failed to assign role: %w", err)
-	}
+			local, err := gateway.getClient()
+			if err != nil {
+				return fmt.Errorf("Failed to get local dqlite client: %w", err)
+			}
 
-	gateway.info = info
+			notified := false
+			for range 10 {
+				time.Sleep(500 * time.Millisecond)
+				servers, err := local.Cluster(context.Background())
+				if err != nil {
+					return fmt.Errorf("Failed to get current cluster: %w", err)
+				}
 
-	// Unlock regular access to our cluster database.
-	err = transactor(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				for _, server := range servers {
+					if server.ID != info.ID {
+						continue
+					}
+
+					if server.Role == db.RaftStandBy {
+						notified = true
+						break
+					}
+				}
+				if notified {
+					break
+				}
+			}
+			if !notified {
+				return errors.New("Timeout waiting for configuration change notification")
+			}
+		}
+
+		// Give the Assign operation a bit more budget in case we're promoting
+		// to voter, since that might require a snapshot transfer.
+		if info.Role == db.RaftVoter {
+			ctx, cancel = context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
+		}
+
+		err = client.Assign(ctx, info.ID, info.Role)
+		if err != nil {
+			return fmt.Errorf("Failed to assign role: %w", err)
+		}
+
+		gateway.info = info
+
 		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("Cluster database initialization failed: %w", err)
+	}
+
+	if gateway.IsDqliteNode() {
+		// If we are already running a dqlite node, it means we have cleanly
+		// joined the cluster before, using the roles support API. In that case
+		// there's no need to restart the gateway and we can just change our
+		// dqlite role.
+		err = assign()
+		if err != nil {
+			return err
+		}
+	} else {
+		// If we get here it means that we are an upgraded node from cluster
+		// without roles support, or we didn't cleanly join the cluster. Either
+		// way, we don't have a dqlite node running, so we need to restart the
+		// gateway.
+
+		// Lock regular access to the cluster database since we don't want any
+		// other database code to run while we're reconfiguring raft.
+		err = state.DB.Cluster.RunExclusive(func(t db.Transactor) error {
+			// Wipe all existing raft data, for good measure (perhaps they were
+			// somehow leftover).
+			err = os.RemoveAll(state.OS.GlobalDatabaseDir())
+			if err != nil {
+				return fmt.Errorf("Failed to remove existing raft data: %w", err)
+			}
+
+			// Re-initialize the gateway. This will create a new raft factory an
+			// dqlite driver instance, which will be exposed over gRPC by the
+			// gateway handlers.
+			err = gateway.init(false)
+			if err != nil {
+				return fmt.Errorf("Failed to re-initialize gRPC SQL gateway: %w", err)
+			}
+
+			return assign()
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	// Generate partial heartbeat request containing just a raft node list.
