@@ -432,18 +432,18 @@ func devLXDUbuntuProTokenPostHandler(d *Daemon, r *http.Request) response.Respon
 	return response.DevLXDResponse(http.StatusOK, tokenJSON, "json", inst.Type() == instancetype.VM)
 }
 
-func devLXDAPI(d *Daemon, f hoistFunc, rawResponse bool) http.Handler {
+func devLXDAPI(d *Daemon, f hoistFunc, isVsock bool) http.Handler {
 	m := mux.NewRouter()
 	m.UseEncodedPath() // Allow encoded values in path segments.
 
 	for _, handler := range apiDevLXD {
-		registerDevLXDEndpoint(d, m, "1.0", handler, f, rawResponse)
+		registerDevLXDEndpoint(d, m, "1.0", handler, f, isVsock)
 	}
 
 	return m
 }
 
-func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string, ep devLXDAPIEndpoint, f hoistFunc, rawResponse bool) {
+func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string, ep devLXDAPIEndpoint, f hoistFunc, isVsock bool) {
 	uri := ep.Path
 	if uri != "/" {
 		uri = path.Join("/", apiVersion, ep.Path)
@@ -454,19 +454,24 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 		// Set devLXD auth method to identify this request as coming from the /dev/lxd socket.
 		request.SetCtxValue(r, request.CtxProtocol, auth.AuthenticationMethodDevLXD)
 
+		// Indicate whether the devLXD is being accessed over vsock. This allowes the handler
+		// to determine the correct response type. The responses over vsock are always
+		// in api.Response format, while the responses over Unix socket are in devLXDResponse format.
+		request.SetCtxValue(r, request.CtxDevLXDOverVsock, isVsock)
+
 		handleRequest := func(action devLXDAPIEndpointAction) (resp response.Response) {
 			// Handle panic in the handler.
 			defer func() {
 				err := recover()
 				if err != nil {
 					logger.Error("Panic in devLXD API handler", logger.Ctx{"err": err})
-					resp = response.DevLXDErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "%v", err), rawResponse)
+					resp = response.DevLXDErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "%v", err), isVsock)
 				}
 			}()
 
 			// Verify handler.
 			if action.Handler == nil {
-				return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusNotImplemented), rawResponse)
+				return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusNotImplemented), isVsock)
 			}
 
 			return f(d, r, action.Handler)
@@ -488,13 +493,13 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 		case http.MethodDelete:
 			resp = handleRequest(ep.Delete)
 		default:
-			resp = response.DevLXDErrorResponse(api.StatusErrorf(http.StatusNotFound, "Method %q not found", r.Method), rawResponse)
+			resp = response.DevLXDErrorResponse(api.StatusErrorf(http.StatusNotFound, "Method %q not found", r.Method), isVsock)
 		}
 
 		// Write response and handle errors.
 		err := resp.Render(w, r)
 		if err != nil {
-			writeErr := response.DevLXDErrorResponse(err, rawResponse).Render(w, r)
+			writeErr := response.DevLXDErrorResponse(err, isVsock).Render(w, r)
 			if writeErr != nil {
 				logger.Warn("Failed writing error for HTTP response", logger.Ctx{"url": uri, "err": err, "writeErr": writeErr})
 			}
