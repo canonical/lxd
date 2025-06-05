@@ -2659,7 +2659,7 @@ func upgradeNodesWithoutRaftRole(s *state.State, gateway *cluster.Gateway) error
 
 // Post a change role request to the member with the given address. The nodes
 // slice contains details about all members, including the one being changed.
-func changeMemberRole(s *state.State, r *http.Request, address string, nodes []db.RaftNode) error {
+func changeMemberRole(ctx context.Context, s *state.State, address string, nodes []db.RaftNode) error {
 	post := &internalClusterPostAssignRequest{}
 	for _, node := range nodes {
 		post.RaftNodes = append(post.RaftNodes, internalRaftNode{
@@ -2670,7 +2670,7 @@ func changeMemberRole(s *state.State, r *http.Request, address string, nodes []d
 		})
 	}
 
-	client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+	client, err := cluster.Connect(ctx, address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 	if err != nil {
 		return err
 	}
