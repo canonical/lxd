@@ -61,7 +61,7 @@ func imageOperationLock(fingerprint string) (locking.UnlockFunc, error) {
 }
 
 // ImageDownload resolves the image fingerprint and if not in the database, downloads it.
-func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, args *ImageDownloadArgs) (*api.Image, error) {
+func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation, args *ImageDownloadArgs) (*api.Image, error) {
 	l := logger.AddContext(logger.Ctx{"image": args.Alias, "member": s.ServerName, "project": args.ProjectName, "pool": args.StoragePool, "source": args.Server})
 
 	var err error
@@ -182,7 +182,7 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 
 		if nodeAddress != "" {
 			// The image is available from another node, let's try to import it.
-			err = instanceImageTransfer(r.Context(), s, args.ProjectName, imgInfo.Fingerprint, nodeAddress)
+			err = instanceImageTransfer(ctx, s, args.ProjectName, imgInfo.Fingerprint, nodeAddress)
 			if err != nil {
 				return nil, fmt.Errorf("Failed transferring image %q from %q: %w", imgInfo.Fingerprint, nodeAddress, err)
 			}
@@ -243,7 +243,7 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 			// Transfer image if needed (after database record has been created above).
 			if nodeAddress != "" {
 				// The image is available from another node, let's try to import it.
-				err = instanceImageTransfer(r.Context(), s, args.ProjectName, info.Fingerprint, nodeAddress)
+				err = instanceImageTransfer(ctx, s, args.ProjectName, info.Fingerprint, nodeAddress)
 				if err != nil {
 					return nil, fmt.Errorf("Failed transferring image: %w", err)
 				}
@@ -625,8 +625,8 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 	var requestor *api.EventLifecycleRequestor
 	if op != nil {
 		requestor = op.Requestor()
-	} else if r != nil {
-		requestor = request.CreateRequestor(r.Context())
+	} else if request.IsRequestContext(ctx) {
+		requestor = request.CreateRequestor(ctx)
 	}
 
 	s.Events.SendLifecycle(args.ProjectName, lifecycle.ImageCreated.Event(info.Fingerprint, args.ProjectName, requestor, logger.Ctx{"type": info.Type}))
