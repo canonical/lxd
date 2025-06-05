@@ -104,7 +104,8 @@ dqlite:
 	# dqlite (+raft)
 	@if [ ! -e "$(DQLITE_PATH)" ]; then \
 		echo "Retrieving dqlite from ${DQLITE_BRANCH} branch"; \
-		git clone --depth=1 --branch "${DQLITE_BRANCH}" "https://github.com/canonical/dqlite" "$(DQLITE_PATH)"; \
+		git clone --branch "${DQLITE_BRANCH}" "https://github.com/canonical/dqlite" "$(DQLITE_PATH)"; \
+		git -C "$(DQLITE_PATH)" checkout 8fcffefa8df34628459545786602bbe7c5d839e0 ; \
 	elif [ -e "$(DQLITE_PATH)/.git" ]; then \
 		echo "Updating existing dqlite branch"; \
 		git -C "$(DQLITE_PATH)" pull; \
@@ -299,7 +300,8 @@ dist: doc
 	(cd $(TMP)/lxd-$(VERSION) ; go mod vendor)
 
 	# Download the dqlite library
-	git clone --depth=1 --branch "$(DQLITE_BRANCH)" https://github.com/canonical/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
+	git clone --branch "$(DQLITE_BRANCH)" https://github.com/canonical/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
+	git -C "$(TMP)/lxd-$(VERSION)/vendor/dqlite" checkout 8fcffefa8df34628459545786602bbe7c5d839e0
 	(cd $(TMP)/lxd-$(VERSION)/vendor/dqlite ; git rev-parse HEAD | tee .gitref)
 
 	# Download the liblxc library
