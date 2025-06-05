@@ -3,14 +3,12 @@ package request
 import (
 	"context"
 	"net"
-	"net/http"
 
 	"github.com/canonical/lxd/shared/api"
 )
 
-// CreateRequestor extracts the lifecycle event requestor data from an http.Request context.
-func CreateRequestor(r *http.Request) *api.EventLifecycleRequestor {
-	ctx := r.Context()
+// CreateRequestor extracts the lifecycle event requestor data from the provided context.
+func CreateRequestor(ctx context.Context) *api.EventLifecycleRequestor {
 	requestor := &api.EventLifecycleRequestor{}
 
 	// Normal requestor.
@@ -24,7 +22,7 @@ func CreateRequestor(r *http.Request) *api.EventLifecycleRequestor {
 		requestor.Protocol = val
 	}
 
-	requestor.Address = r.RemoteAddr
+	requestor.Address, _ = ctx.Value(CtxRequestSourceAddress).(string)
 
 	// Forwarded requestor override.
 	val, ok = ctx.Value(CtxForwardedUsername).(string)
