@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"math/rand"
 	"net"
+	"net/netip"
 	"os"
 	"slices"
 	"strconv"
@@ -1503,4 +1504,68 @@ func AllowedUplinkNetworks(ctx context.Context, tx *db.ClusterTx, projectConfig 
 	}
 
 	return allowedUplinkNetworkNames, nil
+}
+
+// complementRangesIP4 returns the complement of the provided IPv4 network ranges.
+// It calculates the IPv4 ranges that are *not* covered by the input slice.
+func complementRangesIP4(ranges []*shared.IPRange, netAddr *net.IPNet) ([]shared.IPRange, error) {
+	var complement []shared.IPRange
+
+	ipv4NetPrefix, err := netip.ParsePrefix(netAddr.String())
+	if err != nil {
+		return nil, err
+	}
+
+	previousEnd := ipv4NetPrefix.Addr()
+
+	for _, r := range ranges {
+		startAddr, err := netip.ParseAddr(r.Start.String())
+		if err != nil {
+			return nil, err
+		}
+
+		endAddr, err := netip.ParseAddr(r.End.String())
+		if err != nil {
+			return nil, err
+		}
+
+		if startAddr.Compare(previousEnd.Next()) == 1 {
+			newStart := previousEnd.Next()
+			newEnd := startAddr.Prev()
+
+			if newStart.Compare(newEnd) == 0 {
+				complement = append(complement, shared.IPRange{Start: net.ParseIP(newStart.String())})
+			} else {
+				complement = append(complement, shared.IPRange{Start: net.ParseIP(newStart.String()), End: net.ParseIP(newEnd.String())})
+			}
+		}
+
+		if endAddr.Compare(previousEnd) == 1 {
+			previousEnd = endAddr
+		}
+	}
+
+	endAddr, err := netip.ParseAddr(dhcpalloc.GetIP(netAddr, -1).String()) // Returns broadcast address.
+	if err != nil {
+		return nil, err
+	}
+
+	if previousEnd.Compare(endAddr) == -1 {
+		complement = append(complement, shared.IPRange{Start: net.ParseIP(previousEnd.Next().String()), End: net.ParseIP(endAddr.String())})
+	}
+
+	return complement, nil
+}
+
+// ipInRanges checks whether the given IP address is contained within any of the
+// provided IP network ranges.
+func ipInRanges(ipAddr net.IP, ipRanges []shared.IPRange) bool {
+	for _, r := range ipRanges {
+		containsIP := r.ContainsIP(ipAddr)
+		if containsIP {
+			return true
+		}
+	}
+
+	return false
 }
