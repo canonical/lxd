@@ -83,7 +83,7 @@ func ensureDownloadedImageFitWithinBudget(ctx context.Context, s *state.State, o
 	return imgDownloaded, nil
 }
 
-func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []api.Profile, img *api.Image, imgAlias string, req *api.InstancesPost) response.Response {
+func createFromImage(ctx context.Context, s *state.State, p api.Project, profiles []api.Profile, img *api.Image, imgAlias string, req *api.InstancesPost) response.Response {
 	if s.DB.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(errors.New("Cluster member is evacuated"))
 	}
@@ -108,12 +108,12 @@ func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []
 		}
 
 		if req.Source.Server != "" {
-			img, err = ensureDownloadedImageFitWithinBudget(r.Context(), s, op, p, imgAlias, req.Source, string(req.Type))
+			img, err = ensureDownloadedImageFitWithinBudget(ctx, s, op, p, imgAlias, req.Source, string(req.Type))
 			if err != nil {
 				return err
 			}
 		} else if img != nil {
-			err := ensureImageIsLocallyAvailable(r.Context(), s, img, args.Project)
+			err := ensureImageIsLocallyAvailable(ctx, s, img, args.Project)
 			if err != nil {
 				return err
 			}
@@ -142,7 +142,7 @@ func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, p.Name, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(ctx, s, p.Name, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -1359,7 +1359,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 	switch req.Source.Type {
 	case api.SourceTypeImage:
-		return createFromImage(s, r, *targetProject, profiles, sourceImage, sourceImageRef, &req)
+		return createFromImage(r.Context(), s, *targetProject, profiles, sourceImage, sourceImageRef, &req)
 	case api.SourceTypeNone:
 		return createFromNone(s, r, targetProjectName, profiles, &req)
 	case api.SourceTypeMigration:
