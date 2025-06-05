@@ -24,10 +24,14 @@ import (
 // Connect is a convenience around lxd.ConnectLXD that configures the client
 // with the correct parameters for node-to-node communication.
 //
+// If a request context is passed (as defined by request.IsRequestContext) then the
+// identity info from the context is sent in the request, as well as respective proxy
+// environment variables.
+//
 // If 'notify' switch is true, then the user agent will be set to the special
 // to the UserAgentNotifier value, which can be used in some cases to distinguish
 // between a regular client request and an internal cluster request.
-func Connect(address string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, r *http.Request, notify bool) (lxd.InstanceServer, error) {
+func Connect(ctx context.Context, address string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, notify bool) (lxd.InstanceServer, error) {
 	// Wait for a connection to the events API first for non-notify connections.
 	if !notify {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(10)*time.Second)
@@ -50,10 +54,8 @@ func Connect(address string, networkCert *shared.CertInfo, serverCert *shared.Ce
 		args.UserAgent = clusterRequest.UserAgentNotifier
 	}
 
-	if r != nil {
+	if request.IsRequestContext(ctx) {
 		proxy := func(req *http.Request) (*url.URL, error) {
-			ctx := r.Context()
-
 			val, ok := ctx.Value(request.CtxUsername).(string)
 			if ok {
 				req.Header.Add(request.HeaderForwardedUsername, val)
@@ -64,7 +66,8 @@ func Connect(address string, networkCert *shared.CertInfo, serverCert *shared.Ce
 				req.Header.Add(request.HeaderForwardedProtocol, val)
 			}
 
-			req.Header.Add(request.HeaderForwardedAddress, r.RemoteAddr)
+			reqSourceAddress, _ := ctx.Value(request.CtxRequestSourceAddress).(string)
+			req.Header.Add(request.HeaderForwardedAddress, reqSourceAddress)
 
 			identityProviderGroupsAny := ctx.Value(request.CtxIdentityProviderGroups)
 			if ok {
