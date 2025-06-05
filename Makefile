@@ -163,8 +163,6 @@ endif
 
 .PHONY: env
 env:
-	@echo ""
-	@echo "# Please set the following in your environment (possibly ~/.bashrc)"
 	@echo "export CGO_CFLAGS=\"$(CGO_CFLAGS)\""
 	@echo "export CGO_LDFLAGS=\"$(CGO_LDFLAGS)\""
 	@echo "export LD_LIBRARY_PATH=\"$(LD_LIBRARY_PATH)\""
@@ -172,7 +170,10 @@ env:
 	@echo "export CGO_LDFLAGS_ALLOW=\"$(CGO_LDFLAGS_ALLOW)\""
 
 .PHONY: deps
-deps: dqlite liblxc env
+deps: dqlite liblxc
+	@echo ""
+	@echo "# Please set the following in your environment (possibly ~/.bashrc)"
+	@make -s env
 
 .PHONY: tics
 tics: deps
