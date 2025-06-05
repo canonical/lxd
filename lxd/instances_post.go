@@ -113,7 +113,7 @@ func createFromImage(s *state.State, r *http.Request, p api.Project, profiles []
 				return err
 			}
 		} else if img != nil {
-			err := ensureImageIsLocallyAvailable(s, r, img, args.Project)
+			err := ensureImageIsLocallyAvailable(r.Context(), s, img, args.Project)
 			if err != nil {
 				return err
 			}
