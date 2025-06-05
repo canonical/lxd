@@ -136,6 +136,21 @@ func (r *ProtocolDevLXD) rawQuery(method string, url string, data any, ETag stri
 
 	defer resp.Body.Close()
 
+	if r.isDevLXDOverVsock {
+		// When communicating with devLXD over vsock, the response is
+		// expected to be in devLXD format.
+		resp, etag, err := lxdParseResponse(resp)
+		if err != nil {
+			return nil, "", err
+		}
+
+		// Wrap into devLXD response.
+		return &api.DevLXDResponse{
+			Content:    resp.Metadata,
+			StatusCode: resp.StatusCode,
+		}, etag, nil
+	}
+
 	return devLXDParseResponse(resp)
 }
 
