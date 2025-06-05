@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Skip if already ran via differential-shellcheck GH action
-if [ -n "${GITHUB_ACTIONS:-}" ]; then
-    echo "GitHub Action runner detected, skipping shellcheck script (already done)"
+# differential-shellcheck runs on PR
+if [ "${GITHUB_EVENT_NAME:-}" = "pull_request" ]; then
+    echo "Skipping shellcheck script during PR tests (already done by differential-shellcheck action)"
     exit 0
 fi
 
