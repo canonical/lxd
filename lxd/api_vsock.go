@@ -29,11 +29,11 @@ func vSockServer(d *Daemon) *http.Server {
 func hoistReqVM(d *Daemon, r *http.Request, handler devLXDAPIHandlerFunc) response.Response {
 	trusted, inst, err := authenticateAgentCert(d.State(), r)
 	if err != nil {
-		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusInternalServerError, err.Error()), true)
+		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusInternalServerError, err.Error()))
 	}
 
 	if !trusted {
-		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusUnauthorized), true)
+		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusUnauthorized))
 	}
 
 	request.SetCtxValue(r, request.CtxDevLXDInstance, inst)
