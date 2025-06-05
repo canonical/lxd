@@ -1180,17 +1180,12 @@ entities_enrichment_with_entitlements() {
   lxc auth group delete test-group3
 
   # Certificate
-  openssl req -x509 -newkey rsa:4096 -keyout test1.key -out test1.crt -days 365 -nodes -subj "/CN=lxd-client-test1"
-  openssl req -x509 -newkey rsa:4096 -keyout test2.key -out test2.crt -days 365 -nodes -subj "/CN=lxd-client-test2"
-  chmod 400 test1.key
-  chmod 400 test2.key
+  LXD_CONF=. gen_cert_and_key test1
+  LXD_CONF=. gen_cert_and_key test2
   lxc config trust add test1.crt
   lxc config trust add test2.crt
-  test1Fingerprint=""
-  test2Fingerprint=""
-  all_certs=$(lxc config trust list --format json)
-  test1Fingerprint=$(echo "$all_certs" | jq -r '.[] | select(.name == "test1.crt") | .fingerprint')
-  test2Fingerprint=$(echo "$all_certs" | jq -r '.[] | select(.name == "test2.crt") | .fingerprint')
+  test1Fingerprint="$(cert_fingerprint test1.crt)"
+  test2Fingerprint="$(cert_fingerprint test2.crt)"
 
   lxc auth group permission add test-group certificate "${test1Fingerprint}" can_view
   lxc auth group permission add test-group certificate "${test2Fingerprint}" can_view
