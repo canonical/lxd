@@ -17,10 +17,10 @@ import (
 )
 
 func vSockServer(d *Daemon) *http.Server {
-	rawResponse := true
+	isVsock := true
 
 	return &http.Server{
-		Handler: devLXDAPI(d, hoistReqVM, rawResponse),
+		Handler: devLXDAPI(d, hoistReqVM, isVsock),
 	}
 }
 
