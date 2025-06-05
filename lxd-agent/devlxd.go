@@ -179,27 +179,16 @@ func devLXDConfigKeyGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
 		return errorResponse(http.StatusBadRequest, "bad request")
 	}
 
-	if !strings.HasPrefix(key, "user.") && !strings.HasPrefix(key, "cloud-init.") {
-		return errorResponse(http.StatusForbidden, "not authorized")
-	}
-
-	client, err := getVsockClient(d)
+	client, err := getDevLXDVsockClient(d)
 	if err != nil {
-		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
+		return smartResponse(fmt.Errorf("Failed connecting to devLXD over vsock: %w", err))
 	}
 
 	defer client.Disconnect()
 
-	resp, _, err := client.RawQuery(http.MethodGet, "/1.0/config/"+key, nil, "")
+	value, err := client.GetConfigByKey(key)
 	if err != nil {
 		return smartResponse(err)
-	}
-
-	var value string
-
-	err = resp.MetadataAsStruct(&value)
-	if err != nil {
-		return smartResponse(fmt.Errorf("Failed parsing response from LXD: %w", err))
 	}
 
 	return okResponse(value, "raw")
