@@ -153,26 +153,19 @@ var devLXDConfigEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDConfigGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	client, err := getVsockClient(d)
+	client, err := getDevLXDVsockClient(d)
 	if err != nil {
-		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
+		return smartResponse(fmt.Errorf("Failed connecting to devLXD over vsock: %w", err))
 	}
 
 	defer client.Disconnect()
 
-	resp, _, err := client.RawQuery(http.MethodGet, "/1.0/config", nil, "")
+	urls, err := client.GetConfigURLs()
 	if err != nil {
 		return smartResponse(err)
 	}
 
-	var config []string
-
-	err = resp.MetadataAsStruct(&config)
-	if err != nil {
-		return smartResponse(fmt.Errorf("Failed parsing response from LXD: %w", err))
-	}
-
-	return okResponse(config, "json")
+	return okResponse(urls, "json")
 }
 
 var devLXDConfigKeyEndpoint = devLXDAPIEndpoint{
