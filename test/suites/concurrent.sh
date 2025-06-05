@@ -13,9 +13,8 @@ test_concurrent() {
 
     lxc launch testimage "${name}"
     lxc info "${name}" | grep -wF RUNNING
-    echo abc | lxc exec "${name}" -- cat | grep -xF abc
-    lxc stop "${name}" --force
-    lxc delete "${name}"
+    [ "$(echo abc | lxc exec "${name}" -- cat)" = "abc" ]
+    lxc delete --force "${name}"
   }
 
   PIDS=""
