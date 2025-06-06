@@ -342,6 +342,15 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	//  shortdesc: Controls the availability of the `/1.0/images` API over `devlxd`
 	"security.devlxd.images": validate.Optional(validate.IsBool),
 
+	// lxdmeta:generate(entities=instance; group=security; key=security.devlxd.management.volumes)
+	//
+	// ---
+	//  type: bool
+	//  defaultdesc: `false`
+	//  liveupdate: yes
+	//  shortdesc: Controls the availability of the volume management API over `devlxd`
+	"security.devlxd.management.volumes": validate.Optional(validate.IsBool),
+
 	// lxdmeta:generate(entities=instance; group=security; key=security.protection.delete)
 	//
 	// ---
