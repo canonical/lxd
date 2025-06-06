@@ -154,7 +154,7 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
 	// Handle the non-optimized tarballs through the generic unpacker.
 	if !*srcBackup.OptimizedStorage {
-		return genericVFSBackupUnpack(d, d.state.OS, vol, srcBackup.Snapshots, srcData, op)
+		return genericVFSBackupUnpack(d, d.state, vol, srcBackup.Snapshots, srcData, op)
 	}
 
 	volExists, err := d.HasVolume(vol.Volume)
@@ -238,7 +238,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, sr
 
 	// unpackSubVolume unpacks a subvolume file from a backup tarball file.
 	unpackSubVolume := func(r io.ReadSeeker, unpacker []string, srcFile string, targetPath string) (string, error) {
-		tr, cancelFunc, err := archive.CompressedTarReader(context.Background(), r, unpacker, d.state.OS, targetPath)
+		tr, cancelFunc, err := archive.CompressedTarReader(d.state, context.Background(), r, unpacker, targetPath)
 		if err != nil {
 			return "", err
 		}
@@ -1483,8 +1483,7 @@ func (d *btrfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceT
 		args = append(args, path)
 
 		// Create temporary file to store output of btrfs send.
-		backupsPath := shared.VarPath("backups")
-		tmpFile, err := os.CreateTemp(backupsPath, backup.WorkingDirPrefix+"_btrfs")
+		tmpFile, err := os.CreateTemp(d.state.BackupsStoragePath(), backup.WorkingDirPrefix+"_btrfs")
 		if err != nil {
 			return fmt.Errorf("Failed to open temporary file for BTRFS backup: %w", err)
 		}
