@@ -48,11 +48,11 @@ func readStoragePoolDriversCache() ([]api.ServerStorageDriverInfo, map[string]st
 
 func storageStartup(s *state.State) error {
 	// Update the storage drivers supported and used cache in api_1.0.go.
-	storagePoolDriversCacheUpdate(s)
+	storagePoolDriversCacheUpdate(s.ShutdownCtx, s)
 
 	var poolNames []string
 
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		poolNames, err = tx.GetCreatedStoragePoolNames(ctx)
@@ -90,7 +90,7 @@ func storageStartup(s *state.State) error {
 		_, err = pool.Mount()
 		if err != nil {
 			logger.Error("Failed mounting storage pool", logger.Ctx{"pool": poolName, "err": err})
-			_ = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			_ = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 				return tx.UpsertWarningLocalNode(ctx, "", entity.TypeStoragePool, int(pool.ID()), warningtype.StoragePoolUnvailable, err.Error())
 			})
 
@@ -207,7 +207,7 @@ func storageStop(s *state.State) {
 	}
 }
 
-func storagePoolDriversCacheUpdate(s *state.State) {
+func storagePoolDriversCacheUpdate(ctx context.Context, s *state.State) {
 	// Get a list of all storage drivers currently in use
 	// on this LXD instance. Only do this when we do not already have done
 	// this once to avoid unnecessarily querying the db. All subsequent
@@ -220,7 +220,7 @@ func storagePoolDriversCacheUpdate(s *state.State) {
 
 	var drivers []string
 
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		drivers, err = tx.GetStorageDrivers(ctx)
