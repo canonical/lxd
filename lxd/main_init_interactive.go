@@ -46,7 +46,7 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Instan
 	}
 
 	// Clustering
-	err := c.askClustering(&config, d, server)
+	err := c.askClustering(&config, server)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Instan
 		}
 
 		// MAAS
-		err = c.askMAAS(&config, d)
+		err = c.askMAAS(&config)
 		if err != nil {
 			return nil, err
 		}
@@ -72,7 +72,7 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Instan
 		}
 
 		// Daemon config
-		err = c.askDaemon(&config, d, server)
+		err = c.askDaemon(&config, server)
 		if err != nil {
 			return nil, err
 		}
@@ -108,7 +108,7 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Instan
 	return &config, nil
 }
 
-func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, server *api.Server) error {
+func (c *cmdInit) askClustering(config *api.InitPreseed, server *api.Server) error {
 	clustering, err := c.global.asker.AskBool("Would you like to use LXD clustering? (yes/no) [default=no]: ", "no")
 	if err != nil {
 		return err
@@ -293,7 +293,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 	return nil
 }
 
-func (c *cmdInit) askMAAS(config *api.InitPreseed, d lxd.InstanceServer) error {
+func (c *cmdInit) askMAAS(config *api.InitPreseed) error {
 	maas, err := c.global.asker.AskBool("Would you like to connect to a MAAS server? (yes/no) [default=no]: ", "no")
 	if err != nil {
 		return err
@@ -878,7 +878,7 @@ and make sure that your user can see and run the "thin_check" command before run
 	return nil
 }
 
-func (c *cmdInit) askDaemon(config *api.InitPreseed, d lxd.InstanceServer, server *api.Server) error {
+func (c *cmdInit) askDaemon(config *api.InitPreseed, server *api.Server) error {
 	// Detect lack of uid/gid
 	idmapset, err := idmap.DefaultIdmapSet("", "")
 	if (err != nil || len(idmapset.Idmap) == 0 || idmapset.Usable() != nil) && shared.RunningInUserNS() {

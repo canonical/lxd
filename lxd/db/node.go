@@ -205,8 +205,8 @@ func (c *ClusterTx) GetNodeByAddress(ctx context.Context, address string) (NodeI
 	}
 }
 
-// GetNodeWithID returns the node with the given ID.
-func (c *ClusterTx) GetNodeWithID(ctx context.Context, nodeID int) (NodeInfo, error) {
+// getNodeByID returns the node with the given ID.
+func (c *ClusterTx) getNodeByID(ctx context.Context, nodeID int64) (NodeInfo, error) {
 	null := NodeInfo{}
 	nodes, err := c.nodes(ctx, false /* not pending */, "id=?", nodeID)
 	if err != nil {
@@ -407,7 +407,7 @@ func (c *ClusterTx) SetDescription(id int64, description string) error {
 	return nil
 }
 
-// Nodes returns all LXD nodes part of the cluster.
+// nodes returns all LXD nodes part of the cluster.
 func (c *ClusterTx) nodes(ctx context.Context, pending bool, where string, args ...any) ([]NodeInfo, error) {
 	// Get node roles
 	sql := "SELECT node_id, role FROM nodes_roles"
@@ -652,7 +652,7 @@ func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
 
 // UpdateNodeClusterGroups changes the list of cluster groups the member belongs to.
 func (c *ClusterTx) UpdateNodeClusterGroups(ctx context.Context, id int64, groups []string) error {
-	nodeInfo, err := c.GetNodeWithID(ctx, int(id))
+	nodeInfo, err := c.getNodeByID(ctx, id)
 	if err != nil {
 		return err
 	}
