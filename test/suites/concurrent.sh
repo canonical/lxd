@@ -19,7 +19,9 @@ test_concurrent() {
 
   PIDS=""
 
-  for id in $(seq $(($(find /sys/bus/cpu/devices/ -type l | wc -l)*8))); do
+  # spawn x times number of available CPUs
+  COUNT="$(($(nproc)*8))"
+  for id in $(seq "${COUNT}"); do
     spawn_container "${id}" 2>&1 | tee "${LXD_DIR}/lxc-${id}.out" &
     PIDS="${PIDS} $!"
   done
