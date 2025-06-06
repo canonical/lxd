@@ -40,11 +40,6 @@ test_exec() {
 }
 
 test_concurrent_exec() {
-  if [ -z "${LXD_CONCURRENT:-}" ]; then
-    echo "==> SKIP: LXD_CONCURRENT isn't set"
-    return
-  fi
-
   ensure_import_testimage
 
   lxc launch testimage x1
