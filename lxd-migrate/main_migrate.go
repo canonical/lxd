@@ -19,7 +19,7 @@ import (
 	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v2"
 
-	"github.com/canonical/lxd/client"
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/shared"
@@ -411,11 +411,16 @@ func (c *cmdMigrate) newMigrateData(server lxd.InstanceServer) (*cmdMigrateData,
 			return nil, err
 		}
 
-		if slices.Contains(instanceNames, c.flagInstanceName) {
-			return nil, fmt.Errorf("Instance %q already exists", c.flagInstanceName)
+		validatedInstanceName, err := instancetype.ValidName(c.flagInstanceName, false)
+		if err != nil {
+			return nil, err
 		}
 
-		config.InstanceArgs.Name = c.flagInstanceName
+		if slices.Contains(instanceNames, validatedInstanceName) {
+			return nil, fmt.Errorf("Instance %q already exists", validatedInstanceName)
+		}
+
+		config.InstanceArgs.Name = validatedInstanceName
 	}
 
 	// Parse source path from a flag.
@@ -588,19 +593,19 @@ func (c *cmdMigrate) runInteractive(config *cmdMigrateData, server lxd.InstanceS
 			}
 
 			// Validate instance name.
-			err = instancetype.ValidName(instanceName, false)
+			validatedInstanceName, err := instancetype.ValidName(instanceName, false)
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
 
 			// Ensure instance name is not already used.
-			if slices.Contains(instanceNames, instanceName) {
-				fmt.Printf("Instance %q already exists\n", instanceName)
+			if slices.Contains(instanceNames, validatedInstanceName) {
+				fmt.Printf("Instance %q already exists\n", validatedInstanceName)
 				continue
 			}
 
-			config.InstanceArgs.Name = instanceName
+			config.InstanceArgs.Name = validatedInstanceName
 			break
 		}
 	}
@@ -743,7 +748,7 @@ func (c *cmdMigrate) run(cmd *cobra.Command, args []string) error {
 
 	// Check instance name.
 	if c.flagInstanceName != "" {
-		err := instancetype.ValidName(c.flagInstanceName, false)
+		_, err := instancetype.ValidName(c.flagInstanceName, false)
 		if err != nil {
 			return err
 		}

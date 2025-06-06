@@ -759,7 +759,12 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 
 	// Override instance name.
 	if instanceName != "" {
-		bInfo.Name = instanceName
+		validatedInstanceName, err := instancetype.ValidName(instanceName, false)
+		if err != nil {
+			return response.BadRequest(err)
+		}
+
+		bInfo.Name = validatedInstanceName
 	}
 
 	rootVol, err := bInfo.Config.RootVolume()
@@ -1292,7 +1297,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = instancetype.ValidName(req.Name, false)
+	_, err = instancetype.ValidName(req.Name, false)
 	if err != nil {
 		return response.BadRequest(err)
 	}

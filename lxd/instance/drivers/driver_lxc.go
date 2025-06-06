@@ -3925,7 +3925,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 	d.logger.Info("Renaming instance", ctxMap)
 
 	// Quick checks.
-	err = instancetype.ValidName(newName, d.IsSnapshot())
+	_, err = instancetype.ValidName(newName, d.IsSnapshot())
 	if err != nil {
 		return err
 	}

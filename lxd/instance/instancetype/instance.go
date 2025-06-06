@@ -36,26 +36,27 @@ var ConfigKeyPrefixesContainer = []string{"linux.sysctl.", "limits.kernel."}
 
 // ValidName validates an instance name. There are different validation rules for instance snapshot names
 // so it takes an argument indicating whether the name is to be used for a snapshot or not.
-func ValidName(instanceName string, isSnapshot bool) error {
+// It returns a validdated instance name or an error if the name is invalid.
+func ValidName(instanceName string, isSnapshot bool) (string, error) {
 	if isSnapshot {
 		parentName, snapshotName, _ := api.GetParentAndSnapshotName(instanceName)
 		err := validate.IsHostname(parentName)
 		if err != nil {
-			return fmt.Errorf("Invalid instance name %q: %w", parentName, err)
+			return "", fmt.Errorf("Invalid instance name %q: %w", parentName, err)
 		}
 
 		err = ValidSnapName(snapshotName)
 		if err != nil {
-			return fmt.Errorf("Invalid instance snapshot name %q: %w", snapshotName, err)
+			return "", fmt.Errorf("Invalid instance snapshot name %q: %w", snapshotName, err)
 		}
 	} else {
 		err := validate.IsHostname(instanceName)
 		if err != nil {
-			return fmt.Errorf("Invalid instance name %q: %w", instanceName, err)
+			return "", fmt.Errorf("Invalid instance name %q: %w", instanceName, err)
 		}
 	}
 
-	return nil
+	return instanceName, nil
 }
 
 // ValidSnapName validates a snnapshot instance name which must not include the instance prefix.

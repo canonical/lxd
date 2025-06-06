@@ -37,7 +37,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"gopkg.in/yaml.v2"
 
-	"github.com/canonical/lxd/client"
+	lxd "github.com/canonical/lxd/client"
 	agentAPI "github.com/canonical/lxd/lxd-agent/api"
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/backup/config"
@@ -5199,7 +5199,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 	d.logger.Info("Renaming instance", ctxMap)
 
 	// Quick checks.
-	err = instancetype.ValidName(newName, d.IsSnapshot())
+	_, err = instancetype.ValidName(newName, d.IsSnapshot())
 	if err != nil {
 		return err
 	}

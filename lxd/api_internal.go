@@ -368,15 +368,15 @@ func internalContainerHookLoadFromReference(s *state.State, r *http.Request) (in
 			}
 
 			// Defend against path traversal attacks.
-			err = instancetype.ValidName(instanceRef, false)
+			validatedInstanceName, err := instancetype.ValidName(instanceRef, false)
 			if err != nil {
-				return nil, fmt.Errorf("Invalid instance name %q: %w", instanceRef, err)
+				return nil, fmt.Errorf("Invalid instance name %q: %w", validatedInstanceName, err)
 			}
 
 			// If DB not available, try loading from backup file.
-			logger.Warn("Failed loading instance from database, trying backup file", logger.Ctx{"project": projectName, "instance": instanceRef, "err": err})
+			logger.Warn("Failed loading instance from database, trying backup file", logger.Ctx{"project": projectName, "instance": validatedInstanceName, "err": err})
 
-			instancePath := filepath.Join(shared.VarPath("containers"), project.Instance(projectName, instanceRef))
+			instancePath := filepath.Join(shared.VarPath("containers"), project.Instance(projectName, validatedInstanceName))
 			inst, err = instance.LoadFromBackup(s, projectName, instancePath)
 			if err != nil {
 				return nil, fmt.Errorf("Failed loading instance from backup file: %w", err)

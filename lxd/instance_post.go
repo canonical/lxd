@@ -315,7 +315,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check the new instance name is valid.
-	err = instancetype.ValidName(req.Name, false)
+	validatedInstanceName, err := instancetype.ValidName(req.Name, false)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -428,16 +428,16 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Check that the name isn't already in use.
-		id, _ = tx.GetInstanceID(ctx, projectName, req.Name)
+		id, _ = tx.GetInstanceID(ctx, projectName, validatedInstanceName)
 
 		return nil
 	})
 	if id > 0 {
-		return response.Conflict(fmt.Errorf("Name %q already in use", req.Name))
+		return response.Conflict(fmt.Errorf("Name %q already in use", validatedInstanceName))
 	}
 
 	run := func(*operations.Operation) error {
-		return inst.Rename(req.Name, true)
+		return inst.Rename(validatedInstanceName, true)
 	}
 
 	resources := map[string][]api.URL{}

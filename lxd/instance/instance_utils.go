@@ -19,7 +19,7 @@ import (
 	"github.com/flosch/pongo2"
 	"github.com/google/uuid"
 
-	"github.com/canonical/lxd/client"
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
@@ -732,7 +732,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 		args.Architecture = s.OS.Architectures[0]
 	}
 
-	err = instancetype.ValidName(args.Name, args.Snapshot)
+	_, err = instancetype.ValidName(args.Name, args.Snapshot)
 	if err != nil {
 		return nil, nil, nil, err
 	}

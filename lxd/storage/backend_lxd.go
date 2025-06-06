@@ -728,19 +728,19 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	defer l.Debug("CreateInstanceFromBackup finished")
 
 	// Validate the names in the backup.yaml file as these could be malicious.
-	err := instancetype.ValidName(srcBackup.Name, false)
+	_, err := instancetype.ValidName(srcBackup.Name, false)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	err = instancetype.ValidName(srcBackup.Config.Instance.Name, false)
+	_, err = instancetype.ValidName(srcBackup.Config.Instance.Name, false)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	for _, snapName := range srcBackup.Snapshots {
 		snapInstName := srcBackup.Name + shared.SnapshotDelimiter + snapName
-		err = instancetype.ValidName(snapInstName, true)
+		_, err = instancetype.ValidName(snapInstName, true)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -748,7 +748,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 
 	for _, snap := range srcBackup.Config.Snapshots {
 		snapInstName := srcBackup.Name + shared.SnapshotDelimiter + snap.Name
-		err = instancetype.ValidName(snapInstName, true)
+		_, err = instancetype.ValidName(snapInstName, true)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -2738,7 +2738,7 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 	}
 
 	// Quick checks.
-	err := instancetype.ValidName(newName, false)
+	_, err := instancetype.ValidName(newName, false)
 	if err != nil {
 		return err
 	}
@@ -3723,7 +3723,7 @@ func (b *lxdBackend) RenameInstanceSnapshot(inst instance.Instance, newName stri
 	}
 
 	// Quick checks.
-	err := instancetype.ValidName(newName, false)
+	_, err := instancetype.ValidName(newName, false)
 	if err != nil {
 		return err
 	}
