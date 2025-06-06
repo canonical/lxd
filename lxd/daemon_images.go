@@ -319,7 +319,7 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 	l.Info("Downloading image")
 
 	// Cleanup any leftover from a past attempt
-	destDir := shared.VarPath("images")
+	destDir := s.ImagesStoragePath()
 	destName := filepath.Join(destDir, fp)
 
 	failure := true
@@ -407,7 +407,7 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 			ProgressHandler: progress,
 			Canceler:        canceler,
 			DeltaSourceRetriever: func(fingerprint string, file string) string {
-				path := shared.VarPath("images", fmt.Sprintf("%s.%s", fingerprint, file))
+				path := filepath.Join(destDir, fingerprint+"."+file)
 				if shared.PathExists(path) {
 					return path
 				}

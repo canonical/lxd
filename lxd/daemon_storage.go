@@ -51,7 +51,7 @@ func daemonStorageVolumesUnmount(s *state.State, ctx context.Context) error {
 			return err
 		}
 
-		// Mount volume.
+		// Unmount volume.
 		_, err = pool.UnmountCustomVolume(api.ProjectDefaultName, volumeName, nil)
 		if err != nil {
 			return fmt.Errorf("Failed to unmount storage volume %q: %w", source, err)
@@ -252,20 +252,25 @@ func daemonStorageValidate(s *state.State, target string) (validatedTarget strin
 	return pool.Name() + "/" + dbVol.Name, nil
 }
 
-func daemonStorageMove(s *state.State, storageType string, target string) error {
+func daemonStorageMove(s *state.State, storageType string, oldConfig string, newconfig string) error {
 	destPath := shared.VarPath(storageType)
-
-	// Track down the current storage.
+	var sourcePath string
 	var sourcePool string
 	var sourceVolume string
+	var err error
 
-	sourcePath, err := os.Readlink(destPath)
-	if err != nil {
+	// Track down the current storage.
+	if oldConfig == "" {
 		sourcePath = destPath
 	} else {
-		fields := strings.Split(sourcePath, "/")
-		sourcePool = fields[len(fields)-3]
-		sourceVolume = fields[len(fields)-1]
+		sourcePool, sourceVolume, err = daemonStorageSplitVolume(oldConfig)
+
+		if err != nil {
+			return err
+		}
+
+		sourceVolume = project.StorageVolume(api.ProjectDefaultName, sourceVolume)
+		sourcePath = storageDrivers.GetVolumeMountPath(sourcePool, storageDrivers.VolumeTypeCustom, sourceVolume)
 	}
 
 	moveContent := func(source string, target string) error {
@@ -292,20 +297,14 @@ func daemonStorageMove(s *state.State, storageType string, target string) error 
 	}
 
 	// Deal with unsetting.
-	if target == "" {
+	if newconfig == "" {
 		// Things already look correct.
 		if sourcePath == destPath {
 			return nil
 		}
 
-		// Remove the symlink.
-		err = os.Remove(destPath)
-		if err != nil {
-			return fmt.Errorf("Failed to delete storage symlink at %q: %w", destPath, err)
-		}
-
-		// Re-create as a directory.
-		err = os.MkdirAll(destPath, 0700)
+		// Re-create the directory.
+		err := os.MkdirAll(destPath, 0700)
 		if err != nil {
 			return fmt.Errorf("Failed to create directory %q: %w", destPath, err)
 		}
@@ -332,7 +331,7 @@ func daemonStorageMove(s *state.State, storageType string, target string) error 
 	}
 
 	// Parse the target.
-	poolName, volumeName, err := daemonStorageSplitVolume(target)
+	poolName, volumeName, err := daemonStorageSplitVolume(newconfig)
 	if err != nil {
 		return err
 	}
@@ -345,38 +344,29 @@ func daemonStorageMove(s *state.State, storageType string, target string) error 
 	// Mount volume.
 	_, err = pool.MountCustomVolume(api.ProjectDefaultName, volumeName, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to mount storage volume %q: %w", target, err)
+		return fmt.Errorf("Failed to mount storage volume %q: %w", newconfig, err)
 	}
 
 	// Set ownership & mode.
-	volStorageName := project.StorageVolume(api.ProjectDefaultName, volumeName)
-	mountpoint := storageDrivers.GetVolumeMountPath(poolName, storageDrivers.VolumeTypeCustom, volStorageName)
-	destPath = mountpoint
-
-	err = os.Chmod(mountpoint, 0700)
-	if err != nil {
-		return fmt.Errorf("Failed to set permissions on %q: %w", mountpoint, err)
+	switch storageType {
+	case "images":
+		destPath = s.ImagesStoragePath()
+	case "backups":
+		destPath = s.BackupsStoragePath()
 	}
 
-	err = os.Chown(mountpoint, 0, 0)
+	err = os.Chmod(destPath, 0700)
 	if err != nil {
-		return fmt.Errorf("Failed to set ownership on %q: %w", mountpoint, err)
+		return fmt.Errorf("Failed to set permissions on %q: %w", destPath, err)
+	}
+
+	err = os.Chown(destPath, 0, 0)
+	if err != nil {
+		return fmt.Errorf("Failed to set ownership on %q: %w", destPath, err)
 	}
 
 	// Handle changes.
 	if sourcePath != shared.VarPath(storageType) {
-		// Remove the symlink.
-		err := os.Remove(shared.VarPath(storageType))
-		if err != nil {
-			return fmt.Errorf("Failed to remove the new symlink at %q: %w", shared.VarPath(storageType), err)
-		}
-
-		// Create the new symlink.
-		err = os.Symlink(destPath, shared.VarPath(storageType))
-		if err != nil {
-			return fmt.Errorf("Failed to create the new symlink at %q: %w", shared.VarPath(storageType), err)
-		}
-
 		// Move the data across.
 		err = moveContent(sourcePath, destPath)
 		if err != nil {
@@ -396,20 +386,6 @@ func daemonStorageMove(s *state.State, storageType string, target string) error 
 		}
 
 		return nil
-	}
-
-	sourcePath = shared.VarPath(storageType) + ".temp"
-
-	// Rename the existing storage.
-	err = os.Rename(shared.VarPath(storageType), sourcePath)
-	if err != nil {
-		return fmt.Errorf("Failed to rename existing storage %q: %w", shared.VarPath(storageType), err)
-	}
-
-	// Create the new symlink.
-	err = os.Symlink(destPath, shared.VarPath(storageType))
-	if err != nil {
-		return fmt.Errorf("Failed to create the new symlink at %q: %w", shared.VarPath(storageType), err)
 	}
 
 	// Move the data across.

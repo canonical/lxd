@@ -3,9 +3,13 @@
 package sys
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/canonical/lxd/lxd/node"
 )
 
 // LocalDatabasePath returns the path of the local database file.
@@ -31,7 +35,6 @@ func (s *OS) initDirs() error {
 		mode os.FileMode
 	}{
 		{s.VarDir, 0711},
-		{filepath.Join(s.VarDir, "backups"), 0700},
 		{s.CacheDir, 0700},
 		// containers is 0711 because liblxc needs to traverse dir to get to each container.
 		{filepath.Join(s.VarDir, "containers"), 0711},
@@ -40,7 +43,6 @@ func (s *OS) initDirs() error {
 		{filepath.Join(s.VarDir, "devices"), 0711},
 		{filepath.Join(s.VarDir, "devlxd"), 0755},
 		{filepath.Join(s.VarDir, "disks"), 0700},
-		{filepath.Join(s.VarDir, "images"), 0700},
 		{s.LogDir, 0700},
 		{filepath.Join(s.VarDir, "networks"), 0711},
 		{filepath.Join(s.VarDir, "security"), 0700},
@@ -73,26 +75,55 @@ func (s *OS) initDirs() error {
 }
 
 // initStorageDirs make sure all our directories are on the storage layer (after storage is mounted).
-func (s *OS) initStorageDirs() error {
-	dirs := []struct {
+func (s *OS) initStorageDirs(config *node.Config) error {
+	createDirs := func(dirs []struct {
 		path string
 		mode os.FileMode
-	}{
-		{filepath.Join(s.VarDir, "backups", "custom"), 0700},
-		{filepath.Join(s.VarDir, "backups", "instances"), 0700},
+	}) error {
+		for _, dir := range dirs {
+			err := os.Mkdir(dir.path, dir.mode)
+			if err != nil {
+				if !errors.Is(err, fs.ErrExist) {
+					return fmt.Errorf("Failed to init storage dir %q: %w", dir.path, err)
+				}
+
+				err = os.Chmod(dir.path, dir.mode)
+				if err != nil && !errors.Is(err, fs.ErrNotExist) {
+					return fmt.Errorf("Failed to chmod storage dir %q: %w", dir.path, err)
+				}
+			}
+		}
+
+		return nil
 	}
 
-	for _, dir := range dirs {
-		err := os.Mkdir(dir.path, dir.mode)
-		if err != nil {
-			if !os.IsExist(err) {
-				return fmt.Errorf("Failed to init storage dir %q: %w", dir.path, err)
-			}
+	if config.StorageBackupsVolume() == "" {
+		dirs := []struct {
+			path string
+			mode os.FileMode
+		}{
+			{filepath.Join(s.VarDir, "backups"), 0700},
+			{filepath.Join(s.VarDir, "backups", "custom"), 0700},
+			{filepath.Join(s.VarDir, "backups", "instances"), 0700},
+		}
 
-			err = os.Chmod(dir.path, dir.mode)
-			if err != nil && !os.IsNotExist(err) {
-				return fmt.Errorf("Failed to chmod storage dir %q: %w", dir.path, err)
-			}
+		err := createDirs(dirs)
+		if err != nil {
+			return err
+		}
+	}
+
+	if config.StorageImagesVolume() == "" {
+		dirs := []struct {
+			path string
+			mode os.FileMode
+		}{
+			{filepath.Join(s.VarDir, "images"), 0700},
+		}
+
+		err := createDirs(dirs)
+		if err != nil {
+			return err
 		}
 	}
 
