@@ -233,29 +233,29 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 	// Start handling migrations.
 	if inst.IsSnapshot() {
-		return response.BadRequest(fmt.Errorf("Instance snapshots cannot be moved on their own"))
+		return response.BadRequest(errors.New("Instance snapshots cannot be moved on their own"))
 	}
 
 	// Checks for running instances.
 	if inst.IsRunning() && (req.Pool != "" || req.Project != "" || target != "") {
 		// Stateless migrations need the instance stopped.
 		if !req.Live {
-			return response.BadRequest(fmt.Errorf("Instance must be stopped to be moved statelessly"))
+			return response.BadRequest(errors.New("Instance must be stopped to be moved statelessly"))
 		}
 
 		// Storage pool changes require a stopped instance.
 		if req.Pool != "" {
-			return response.BadRequest(fmt.Errorf("Instance must be stopped to be moved across storage pools"))
+			return response.BadRequest(errors.New("Instance must be stopped to be moved across storage pools"))
 		}
 
 		// Project changes require a stopped instance.
 		if req.Project != "" {
-			return response.BadRequest(fmt.Errorf("Instance must be stopped to be moved across projects"))
+			return response.BadRequest(errors.New("Instance must be stopped to be moved across projects"))
 		}
 
 		// Name changes require a stopped instance.
 		if req.Name != "" {
-			return response.BadRequest(fmt.Errorf("Instance must be stopped to change their names"))
+			return response.BadRequest(errors.New("Instance must be stopped to change their names"))
 		}
 	} else {
 		// Clear Live flag if instance isn't running.
@@ -264,7 +264,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 	// Check for offline sources.
 	if sourceMemberInfo != nil && sourceMemberInfo.IsOffline(s.GlobalConfig.OfflineThreshold()) && (req.Pool != "" || req.Project != "" || req.Name != "") {
-		return response.BadRequest(fmt.Errorf("Instance server is currently offline"))
+		return response.BadRequest(errors.New("Instance server is currently offline"))
 	}
 
 	// When in a cluster, default to keeping current location.
@@ -378,7 +378,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 	// Check that we're not requested to move to the same location we're currently on.
 	if target != "" && targetMemberInfo.Name == inst.Location() {
-		return response.BadRequest(fmt.Errorf("Requested target server is the same as current server"))
+		return response.BadRequest(errors.New("Requested target server is the same as current server"))
 	}
 
 	// If the instance needs to move, make sure it doesn't have backups.
@@ -395,7 +395,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if len(backups) > 0 {
-			return response.BadRequest(fmt.Errorf("Instances with backups cannot be moved"))
+			return response.BadRequest(errors.New("Instances with backups cannot be moved"))
 		}
 	}
 
