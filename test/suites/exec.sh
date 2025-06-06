@@ -1,16 +1,16 @@
+exec_container_noninteractive() {
+    [ "$(echo "abc${1}" | lxc exec x1 --force-noninteractive -- cat)" = "abc${1}" ]
+}
+
+exec_container_interactive() {
+    [ "$(echo "abc${1}" | lxc exec x1 -- cat)" = "abc${1}" ]
+}
+
 test_exec() {
   ensure_import_testimage
 
   lxc launch testimage x1
   lxc list x1 | grep -wF RUNNING
-
-  exec_container_noninteractive() {
-    echo "abc${1}" | lxc exec x1 --force-noninteractive -- cat | grep abc
-  }
-
-  exec_container_interactive() {
-    echo "abc${1}" | lxc exec x1 -- cat | grep abc
-  }
 
   for i in $(seq 1 25); do
     exec_container_interactive "${i}" > "${LXD_DIR}/exec-${i}.out" 2>&1
@@ -40,23 +40,10 @@ test_exec() {
 }
 
 test_concurrent_exec() {
-  if [ -z "${LXD_CONCURRENT:-}" ]; then
-    echo "==> SKIP: LXD_CONCURRENT isn't set"
-    return
-  fi
-
   ensure_import_testimage
 
   lxc launch testimage x1
   lxc list x1 | grep -wF RUNNING
-
-  exec_container_noninteractive() {
-    echo "abc${1}" | lxc exec x1 --force-noninteractive -- cat | grep abc
-  }
-
-  exec_container_interactive() {
-    echo "abc${1}" | lxc exec x1 -- cat | grep abc
-  }
 
   PIDS=""
   for i in $(seq 1 25); do
