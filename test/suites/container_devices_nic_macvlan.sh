@@ -110,6 +110,43 @@ test_container_devices_nic_macvlan() {
   echo "==> Check that lxc network info succeeds for macvlan network."
   lxc network info "${ctName}net"
 
+  echo "==> Check that macvlan network info shows parent's MTU by default."
+  parentMTU=$(</sys/class/net/"${ctName}"/mtu)
+  if ! lxc network info "${ctName}net" | grep -xF "MTU: ${parentMTU}" ; then
+    echo "default mtu not inherited from parent"
+    false
+  fi
+
+  echo "==> Set a valid MTU config value for macvlan network."
+  customMTU=1492
+  lxc network set "${ctName}net" mtu="${customMTU}"
+
+  echo "==> Check that network info shows correct MTU value for macvlan network."
+  if ! lxc network info "${ctName}net" | grep -xF "MTU: ${customMTU}" ; then
+    echo "config mtu ignored"
+    false
+  fi
+
+  echo "==> Check that setting MTU config value out of range (1280-16384) is not allowed."
+  ! lxc network set "${ctName}net" mtu=0 || false
+  ! lxc network set "${ctName}net" mtu=1000 || false
+  ! lxc network set "${ctName}net" mtu=1279 || false
+  ! lxc network set "${ctName}net" mtu=16385 || false
+  ! lxc network set "${ctName}net" mtu=50000 || false
+
+  echo "==> Check that setting MTU config value to the boundaries of range (1280-16384) is allowed."
+  lxc network set "${ctName}net" mtu=1280
+  lxc network set "${ctName}net" mtu=16384
+
+  echo "==> Unset MTU config value for macvlan network."
+  lxc network unset "${ctName}net" mtu
+
+  echo "==> Check that macvlan network info falls back to using parent's MTU value."
+  if ! lxc network info "${ctName}net" | grep -xF "MTU: ${parentMTU}" ; then
+    echo "default mtu not inherited from parent"
+    false
+  fi
+
   echo "==> Add NIC device using macvlan network."
   lxc config device add "${ctName}" eth0 nic \
     network="${ctName}net" \
