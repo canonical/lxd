@@ -43,6 +43,10 @@ const (
 
 	// The security.devlxd.images key is used to enable devLXD image export.
 	devLXDSecurityImagesKey DevLXDSecurityKey = "security.devlxd.images"
+
+	// The security.devlxd.management.volumes key is used to allow volume
+	// management through devLXD.
+	devLXDSecurityMgmtVolumesKey DevLXDSecurityKey = "security.devlxd.management.volumes"
 )
 
 // devLXDAPIHandlerFunc is a function that handles requests to the DevLXD API.
