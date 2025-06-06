@@ -39,6 +39,10 @@ const (
 
 	// The security.devlxd.images key is used to enable devLXD image export.
 	devLXDSecurityImagesKey DevLXDSecurityKey = "security.devlxd.images"
+
+	// The security.devlxd.management.volumes key is used to allow volume
+	// management through devLXD.
+	devLXDSecurityManagementVolumesKey DevLXDSecurityKey = "security.devlxd.management.volumes"
 )
 
 // devLXDAPIAuthenticator is an interface that abstracts the authentication mechanism used to
