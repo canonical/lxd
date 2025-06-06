@@ -19,6 +19,7 @@ How to create and manage instances:
 :diataxis:Manage instances </howto/instances_manage.md>
 :diataxis:Use profiles </profiles.md>
 :diataxis:Troubleshoot errors </howto/instances_troubleshoot.md>
+:diataxis:Auto attach Ubuntu Pro </howto/ubuntu_pro_guest_attach.md>
 ```
 
 ```{only} diataxis
