@@ -2264,7 +2264,7 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
 			mountFlags, mountOptions := filesystem.ResolveMountOptions(volOptions)
 
 			// Mount the dataset.
-			err = TryMount(dataset, mountPath, "zfs", mountFlags, mountOptions)
+			err = TryMount(context.TODO(), dataset, mountPath, "zfs", mountFlags, mountOptions)
 			if err != nil {
 				return err
 			}
@@ -2295,7 +2295,7 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
 
 			mountFlags, mountOptions := filesystem.ResolveMountOptions(strings.Split(vol.ConfigBlockMountOptions(), ","))
 
-			err = TryMount(volPath, mountPath, vol.ConfigBlockFilesystem(), mountFlags, mountOptions)
+			err = TryMount(context.TODO(), volPath, mountPath, vol.ConfigBlockFilesystem(), mountFlags, mountOptions)
 			if err != nil {
 				return err
 			}
@@ -3061,7 +3061,7 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 			}
 
 			// Mount the snapshot directly (not possible through tools).
-			err = TryMount(snapshotDataset, mountPath, "zfs", unix.MS_RDONLY, "")
+			err = TryMount(context.TODO(), snapshotDataset, mountPath, "zfs", unix.MS_RDONLY, "")
 			if err != nil {
 				return nil, err
 			}
@@ -3202,7 +3202,7 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 				}
 			}
 
-			err = TryMount(volPath, mountPath, mountVol.ConfigBlockFilesystem(), mountFlags|unix.MS_RDONLY, mountOptions)
+			err = TryMount(context.TODO(), volPath, mountPath, mountVol.ConfigBlockFilesystem(), mountFlags|unix.MS_RDONLY, mountOptions)
 			if err != nil {
 				return nil, fmt.Errorf("Failed mounting volume snapshot: %w", err)
 			}

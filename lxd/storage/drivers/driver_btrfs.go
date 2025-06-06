@@ -371,7 +371,7 @@ func (d *btrfs) Update(changedConfig map[string]string) error {
 		mntFlags, mntOptions := filesystem.ResolveMountOptions(strings.Split(d.getMountOptions(), ","))
 		mntFlags |= unix.MS_REMOUNT
 
-		err := TryMount("", GetPoolMountPath(d.name), "none", mntFlags, mntOptions)
+		err := TryMount(context.TODO(), "", GetPoolMountPath(d.name), "none", mntFlags, mntOptions)
 		if err != nil {
 			return err
 		}
@@ -466,7 +466,7 @@ func (d *btrfs) Mount() (bool, error) {
 	// Handle bind-mounts first.
 	if mntFilesystem == "none" {
 		// Setup the bind-mount itself.
-		err := TryMount(mntSrc, mntDst, mntFilesystem, unix.MS_BIND, "")
+		err := TryMount(context.TODO(), mntSrc, mntDst, mntFilesystem, unix.MS_BIND, "")
 		if err != nil {
 			return false, err
 		}
@@ -478,7 +478,7 @@ func (d *btrfs) Mount() (bool, error) {
 
 		// Now apply the custom options.
 		mntFlags |= unix.MS_REMOUNT
-		err = TryMount("", mntDst, mntFilesystem, mntFlags, mntOptions)
+		err = TryMount(context.TODO(), "", mntDst, mntFilesystem, mntFlags, mntOptions)
 		if err != nil {
 			return false, err
 		}
@@ -487,7 +487,7 @@ func (d *btrfs) Mount() (bool, error) {
 	}
 
 	// Handle traditional mounts.
-	err = TryMount(mntSrc, mntDst, mntFilesystem, mntFlags, mntOptions)
+	err = TryMount(context.TODO(), mntSrc, mntDst, mntFilesystem, mntFlags, mntOptions)
 	if err != nil {
 		return false, err
 	}

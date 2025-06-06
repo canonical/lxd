@@ -106,13 +106,13 @@ func mountReadOnly(srcPath string, dstPath string) (bool, error) {
 	}
 
 	// Create a mount entry.
-	err := TryMount(srcPath, dstPath, "none", unix.MS_BIND, "")
+	err := TryMount(context.TODO(), srcPath, dstPath, "none", unix.MS_BIND, "")
 	if err != nil {
 		return false, err
 	}
 
 	// Make it read-only.
-	err = TryMount("", dstPath, "none", unix.MS_BIND|unix.MS_RDONLY|unix.MS_REMOUNT, "")
+	err = TryMount(context.TODO(), "", dstPath, "none", unix.MS_BIND|unix.MS_RDONLY|unix.MS_REMOUNT, "")
 	if err != nil {
 		_, _ = forceUnmount(dstPath)
 		return false, err
@@ -165,21 +165,34 @@ func sameMount(srcPath string, dstPath string) bool {
 }
 
 // TryMount tries mounting a filesystem multiple times. This is useful for unreliable backends.
-func TryMount(src string, dst string, fs string, flags uintptr, options string) error {
-	var err error
+// By default the mount operation will be retried until the context expires.
+// If no deadline is configured, a default timeout of 10 seconds is used.
+// In case the mount operation doesn't return within the defined deadline,
+// TryMount waits and doesn't return in case the context expired before that.
+func TryMount(ctx context.Context, src string, dst string, fs string, flags uintptr, options string) error {
+	var cancel context.CancelFunc
 
-	// Attempt 20 mounts over 10s
-	for range 20 {
-		err = unix.Mount(src, dst, fs, flags, options)
-		if err == nil {
-			break
+	// Set a default timeout in case it's not set by the caller.
+	// Attempt 20 mounts over 10s.
+	_, ok := ctx.Deadline()
+	if !ok {
+		ctx, cancel = context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+	}
+
+mountLoop:
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("Failed to mount %q on %q using %q: %w", src, dst, fs, ctx.Err())
+		default:
+			err := unix.Mount(src, dst, fs, flags, options)
+			if err == nil {
+				break mountLoop
+			}
 		}
 
 		time.Sleep(500 * time.Millisecond)
-	}
-
-	if err != nil {
-		return fmt.Errorf("Failed to mount %q on %q using %q: %w", src, dst, fs, err)
 	}
 
 	return nil
