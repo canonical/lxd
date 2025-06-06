@@ -294,7 +294,6 @@ jobs:
       LXD_OVN_NB_CLIENT_CRT_FILE: "/var/snap/microovn/common/data/pki/client-cert.pem"
       LXD_OVN_NB_CLIENT_KEY_FILE: "/var/snap/microovn/common/data/pki/client-privkey.pem"
       LXD_OVN_NB_CA_CRT_FILE: "/var/snap/microovn/common/data/pki/cacert.pem"
-      LXD_CONCURRENT: "1"
       LXD_VERBOSE: "1"
       LXD_OFFLINE: "1"
       LXD_TMPFS: "1"
