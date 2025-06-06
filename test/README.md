@@ -16,7 +16,6 @@ Name                           | Default                   | Description
 `LXD_CEPH_CLUSTER`             | ceph                      | The name of the ceph cluster to create osd pools in
 `LXD_CEPH_CEPHFS`              | ""                        | Enables the CephFS tests using the specified cephfs filesystem for `cephfs` pools
 `LXD_CEPH_CEPHOBJECT_RADOSGW`  | ""                        | Enables the Ceph Object tests using the specified radosgw HTTP endpoint for `cephobject` pools
-`LXD_CONCURRENT`               | 0                         | Run concurrency tests, very CPU intensive
 `LXD_VERBOSE`                  | ""                        | Run lxd, lxc and the shell in verbose mode (used in CI; less verbose than `LXD_DEBUG`)
 `LXD_DEBUG`                    | ""                        | Run lxd, lxc and the shell in debug mode (very verbose)
 `LXD_INSPECT`                  | 0                         | Don't teardown the test environment on failure
