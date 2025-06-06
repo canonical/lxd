@@ -65,7 +65,7 @@ func (d *cephfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.O
 
 // CreateVolumeFromBackup re-creates a volume from its exported state.
 func (d *cephfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
-	return genericVFSBackupUnpack(d, d.state.OS, vol, srcBackup.Snapshots, srcData, op)
+	return genericVFSBackupUnpack(d, d.state, vol, srcBackup.Snapshots, srcData, op)
 }
 
 // CreateVolumeFromCopy copies an existing storage volume (with or without snapshots) into a new volume.

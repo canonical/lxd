@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -814,7 +815,7 @@ func storagePoolVolumeTypeCustomBackupExportGet(d *Daemon, r *http.Request) resp
 	}
 
 	ent := response.FileResponseEntry{
-		Path: shared.VarPath("backups", "custom", details.pool.Name(), project.StorageVolume(effectiveProjectName, fullName)),
+		Path: filepath.Join(s.BackupsStoragePath(), "custom", details.pool.Name(), project.StorageVolume(effectiveProjectName, fullName)),
 	}
 
 	s.Events.SendLifecycle(effectiveProjectName, lifecycle.StorageVolumeBackupRetrieved.Event(details.pool.Name(), details.volumeTypeName, fullName, effectiveProjectName, request.CreateRequestor(r), nil))

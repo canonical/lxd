@@ -155,7 +155,7 @@ func (d *powerflex) CreateVolume(vol Volume, filler *VolumeFiller, op *operation
 
 // CreateVolumeFromBackup re-creates a volume from its exported state.
 func (d *powerflex) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
-	return genericVFSBackupUnpack(d, d.state.OS, vol, srcBackup.Snapshots, srcData, op)
+	return genericVFSBackupUnpack(d, d.state, vol, srcBackup.Snapshots, srcData, op)
 }
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.

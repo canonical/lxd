@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -99,6 +100,7 @@ var patches = []patch{
 	{name: "entity_type_identity_certificate_split", stage: patchPreLoadClusterConfig, run: patchSplitIdentityCertificateEntityTypes},
 	{name: "storage_unset_powerflex_sdt_setting", stage: patchPostDaemonStorage, run: patchUnsetPowerFlexSDTSetting},
 	{name: "oidc_groups_claim_scope", stage: patchPreLoadClusterConfig, run: patchOIDCGroupsClaimScope},
+	{name: "remove_backupsimages_symlinks", stage: patchPostDaemonStorage, run: patchRemoveBackupsImagesSymlinks},
 }
 
 type patch struct {
@@ -740,20 +742,21 @@ func patchNetworkOVNEnableNAT(name string, d *Daemon) error {
 
 // Moves backups from shared.VarPath("backups") to shared.VarPath("backups", "instances").
 func patchMoveBackupsInstances(name string, d *Daemon) error {
-	if !shared.PathExists(shared.VarPath("backups")) {
+	backupsPathBase := d.State().BackupsStoragePath()
+	if !shared.PathExists(backupsPathBase) {
 		return nil // Nothing to do, no backups directory.
 	}
 
-	backupsPath := shared.VarPath("backups", "instances")
+	backupsPath := filepath.Join(backupsPathBase, "instances")
 
 	err := os.MkdirAll(backupsPath, 0700)
 	if err != nil {
 		return fmt.Errorf("Failed creating instances backup directory %q: %w", backupsPath, err)
 	}
 
-	backups, err := os.ReadDir(shared.VarPath("backups"))
+	backups, err := os.ReadDir(backupsPathBase)
 	if err != nil {
-		return fmt.Errorf("Failed listing existing backup directory %q: %w", shared.VarPath("backups"), err)
+		return fmt.Errorf("Failed listing existing backup directory %q: %w", backupsPathBase, err)
 	}
 
 	for _, backupDir := range backups {
@@ -761,7 +764,7 @@ func patchMoveBackupsInstances(name string, d *Daemon) error {
 			continue // Don't try and move our new instances directory or temporary directories.
 		}
 
-		oldPath := shared.VarPath("backups", backupDir.Name())
+		oldPath := filepath.Join(backupsPathBase, backupDir.Name())
 		newPath := filepath.Join(backupsPath, backupDir.Name())
 		logger.Debugf("Moving backup from %q to %q", oldPath, newPath)
 		err = os.Rename(oldPath, newPath)
@@ -1481,6 +1484,35 @@ func patchOIDCGroupsClaimScope(_ string, d *Daemon) error {
 	})
 	if err != nil {
 		return fmt.Errorf("Failed to configure oidc.groups.claim as an OIDC scope: %w", err)
+	}
+
+	return nil
+}
+
+// Remove shared.VarPath("backups") and shared.VarPath("images") symlinks.
+func patchRemoveBackupsImagesSymlinks(_ string, d *Daemon) error {
+	dirs := []string{
+		shared.VarPath("backups"),
+		shared.VarPath("images"),
+	}
+
+	for _, dir := range dirs {
+		info, err := os.Lstat(dir)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				continue // Nothing to do, symlink doesn't exist
+			}
+
+			return fmt.Errorf("Failed to call Lstat() on %q: %w", dir, err)
+		}
+
+		if info.Mode()&os.ModeSymlink != 0 {
+			// Remove the symlink.
+			err = os.Remove(dir)
+			if err != nil {
+				return fmt.Errorf("Failed to delete storage symlink at %q: %w", dir, err)
+			}
+		}
 	}
 
 	return nil

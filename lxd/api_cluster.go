@@ -846,7 +846,14 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			changes[k], _ = v.(string)
 		}
 
-		err = doAPI10UpdateTriggers(d, nil, changes, nodeConfig, currentClusterConfig)
+		// Copy the old config so that the update triggers have access to it.
+		// In this case it will not be used as we are not changing any node values.
+		oldNodeConfig := make(map[string]any)
+		for k, v := range s.LocalConfig.Dump() {
+			oldNodeConfig[k] = v
+		}
+
+		err = doAPI10UpdateTriggers(d, nil, changes, oldNodeConfig, nodeConfig, currentClusterConfig)
 		if err != nil {
 			return err
 		}

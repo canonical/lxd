@@ -8,12 +8,12 @@ import (
 	"strings"
 
 	"github.com/canonical/lxd/lxd/archive"
-	"github.com/canonical/lxd/lxd/sys"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 )
 
 // TarReader rewinds backup file handle r and returns new tar reader and process cleanup function.
-func TarReader(r io.ReadSeeker, sysOS *sys.OS, outputPath string) (*tar.Reader, context.CancelFunc, error) {
+func TarReader(s *state.State, r io.ReadSeeker, outputPath string) (*tar.Reader, context.CancelFunc, error) {
 	_, err := r.Seek(0, io.SeekStart)
 	if err != nil {
 		return nil, nil, err
@@ -28,7 +28,7 @@ func TarReader(r io.ReadSeeker, sysOS *sys.OS, outputPath string) (*tar.Reader, 
 		return nil, nil, errors.New("Unsupported backup compression")
 	}
 
-	tr, cancelFunc, err := archive.CompressedTarReader(context.Background(), r, unpacker, sysOS, outputPath)
+	tr, cancelFunc, err := archive.CompressedTarReader(s, context.Background(), r, unpacker, outputPath)
 	if err != nil {
 		return nil, nil, err
 	}
