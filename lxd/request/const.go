@@ -8,6 +8,9 @@ const (
 	// CtxDevLXDInstance is the instance that made a request over the devLXD API.
 	CtxDevLXDInstance CtxKey = "devlxd_instance"
 
+	// CtxDevLXDOverVsock indicates whether the devLXD is being interacted with over vsock.
+	CtxDevLXDOverVsock CtxKey = "devlxd_over_vsock"
+
 	// CtxAccess is the access field in request context.
 	CtxAccess CtxKey = "access"
 
