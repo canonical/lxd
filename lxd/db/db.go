@@ -349,20 +349,24 @@ func (c *Cluster) RunExclusive(f func(t Transactor) error) error {
 		c.mu.Unlock()
 	}
 
+	timeout := 20 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
 	ch := make(chan struct{})
 	go func() {
 		c.mu.Lock()
 
-		select {
-		case ch <- struct{}{}: // Send lock acquired message to outer function.
-		default:
-			// Release lock if outer function has timed out and is not able to receive lock acquired
-			// message. This avoids leaving the lock acquired permanently in the case of timeout.
+		if ctx.Err() == nil {
+			// Close channel to indicate lock acquired. Safe even if outer function has returned.
+			close(ch)
+		} else {
+			// Release lock if outer function has timed out and returned.
+			// This avoids leaving the lock acquired permanently in the case of timeout.
 			unlock()
 		}
 	}()
 
-	timeout := 20 * time.Second
 	select {
 	case <-ch:
 		err := f(c.transaction)
