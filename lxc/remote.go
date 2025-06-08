@@ -532,7 +532,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 
 				// Continue with adding the remote if digest matches, or the user
 				// confirmed a fingerprint.
-				if string(line) == digest || strings.ToLower(string(line[0])) == i18n.G("y") {
+				if string(line) == digest || (len(line) > 0 && strings.ToLower(string(line[0])) == i18n.G("y")) {
 					break
 				}
 
@@ -544,7 +544,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 				}
 
 				// Error out if the user didn't confirm the fingerprint.
-				if len(line) < 1 || strings.ToLower(string(line[0])) == i18n.G("n") {
+				if len(line) < 1 || (len(line) > 0 && strings.ToLower(string(line[0])) == i18n.G("n")) {
 					return errors.New(i18n.G("Server certificate NACKed by user"))
 				}
 
