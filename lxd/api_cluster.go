@@ -59,7 +59,7 @@ import (
 )
 
 type evacuateStopFunc func(inst instance.Instance) error
-type evacuateMigrateFunc func(ctx context.Context, s *state.State, r *http.Request, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, metadata map[string]any, op *operations.Operation) error
+type evacuateMigrateFunc func(ctx context.Context, s *state.State, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, metadata map[string]any, op *operations.Operation) error
 
 type evacuateOpts struct {
 	s               *state.State
@@ -3108,7 +3108,7 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 			return nil
 		}
 
-		migrateFunc := func(ctx context.Context, s *state.State, r *http.Request, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, metadata map[string]any, op *operations.Operation) error {
+		migrateFunc := func(ctx context.Context, s *state.State, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, metadata map[string]any, op *operations.Operation) error {
 			// Migrate the instance.
 			req := api.InstancePost{
 				Name: inst.Name(),
@@ -3159,7 +3159,7 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 }
 
 func internalClusterHeal(d *Daemon, r *http.Request) response.Response {
-	migrateFunc := func(ctx context.Context, s *state.State, _ *http.Request, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, metadata map[string]any, op *operations.Operation) error {
+	migrateFunc := func(ctx context.Context, s *state.State, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, metadata map[string]any, op *operations.Operation) error {
 		// This returns an error if the instance's storage pool is local.
 		// Since we only care about remote backed instances, this can be ignored and return nil instead.
 		poolName, err := inst.StoragePool()
@@ -3428,7 +3428,7 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 		}
 
 		start := isRunning || instanceShouldAutoStart(inst)
-		err = opts.migrateInstance(ctx, opts.s, opts.r, inst, targetMemberInfo, live, start, metadata, opts.op)
+		err = opts.migrateInstance(ctx, opts.s, inst, targetMemberInfo, live, start, metadata, opts.op)
 		if err != nil {
 			return err
 		}
