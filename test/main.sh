@@ -289,7 +289,7 @@ fi
 if [ "${1:-"all"}" = "test-shell" ]; then
   # yellow
   export PS1="\[\033[0;33mLXD-TEST\033[0m ${PS1:-\u@\h:\w\$ }\]"
-  bash --norc
+  bash --norc || true
   # shellcheck disable=SC2034
   TEST_RESULT=success
   exit
