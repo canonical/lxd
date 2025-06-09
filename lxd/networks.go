@@ -250,7 +250,8 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	// If a target was specified, forward the request to the relevant node.
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -611,7 +612,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 				return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 			}
 
-			requestor := request.CreateRequestor(r)
+			requestor := request.CreateRequestor(r.Context())
 			s.Events.SendLifecycle(projectName, lifecycle.NetworkCreated.Event(n, requestor, nil))
 		}
 
@@ -665,7 +666,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestor := request.CreateRequestor(r)
+	requestor := request.CreateRequestor(r.Context())
 	s.Events.SendLifecycle(projectName, lifecycle.NetworkCreated.Event(n, requestor, nil))
 
 	revert.Success()
@@ -939,7 +940,8 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	// If a target was specified, forward the request to the relevant node.
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -1069,7 +1071,7 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, requestProject
 			return api.Network{}, err
 		}
 
-		apiNet.UsedBy = project.FilterUsedBy(s.Authorizer, r, usedBy)
+		apiNet.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, usedBy)
 	}
 
 	if n != nil {
@@ -1186,7 +1188,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestor := request.CreateRequestor(r)
+	requestor := request.CreateRequestor(r.Context())
 	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkDeleted.Event(n, requestor, nil))
 
 	return response.EmptySyncResponse
@@ -1313,7 +1315,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestor := request.CreateRequestor(r)
+	requestor := request.CreateRequestor(r.Context())
 	lc := lifecycle.NetworkRenamed.Event(n, requestor, map[string]any{"old_name": details.networkName})
 	s.Events.SendLifecycle(effectiveProjectName, lc)
 
@@ -1363,7 +1365,8 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	// If a target was specified, forward the request to the relevant node.
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -1447,7 +1450,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 
 	response := doNetworkUpdate(n, req, targetNode, clientType, r.Method, s.ServerClustered)
 
-	requestor := request.CreateRequestor(r)
+	requestor := request.CreateRequestor(r.Context())
 	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkUpdated.Event(n, requestor, nil))
 
 	return response
@@ -1993,7 +1996,8 @@ func networkStateGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	// If a target was specified, forward the request to the relevant node.
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}

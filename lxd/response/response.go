@@ -553,7 +553,7 @@ type forwardedResponse struct {
 
 // ForwardedResponse takes a request directed to a node and forwards it to
 // another node, writing back the response it gegs.
-func ForwardedResponse(client lxd.InstanceServer, request *http.Request) Response {
+func ForwardedResponse(client lxd.InstanceServer) Response {
 	return &forwardedResponse{
 		client: client,
 	}

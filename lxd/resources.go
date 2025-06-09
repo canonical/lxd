@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/lxd/response"
 	storagePools "github.com/canonical/lxd/lxd/storage"
@@ -72,7 +73,8 @@ func api10ResourcesGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	// If a target was specified, forward the request to the relevant node.
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -130,7 +132,8 @@ func storagePoolResourcesGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	// If a target was specified, forward the request to the relevant node.
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}

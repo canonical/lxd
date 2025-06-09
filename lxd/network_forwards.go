@@ -238,7 +238,8 @@ func networkForwardsGet(d *Daemon, r *http.Request) response.Response {
 func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -283,7 +284,7 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed creating forward: %w", err))
 	}
 
-	lc := lifecycle.NetworkForwardCreated.Event(n, listenAddress.String(), request.CreateRequestor(r), nil)
+	lc := lifecycle.NetworkForwardCreated.Event(n, listenAddress.String(), request.CreateRequestor(r.Context()), nil)
 	s.Events.SendLifecycle(effectiveProjectName, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
@@ -316,7 +317,8 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -357,7 +359,7 @@ func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed deleting forward: %w", err))
 	}
 
-	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkForwardDeleted.Event(n, listenAddress, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkForwardDeleted.Event(n, listenAddress, request.CreateRequestor(r.Context()), nil))
 
 	return response.EmptySyncResponse
 }
@@ -405,7 +407,8 @@ func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -528,7 +531,8 @@ func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 func networkForwardPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -609,7 +613,7 @@ func networkForwardPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed updating forward: %w", err))
 	}
 
-	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkForwardUpdated.Event(n, listenAddress, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkForwardUpdated.Event(n, listenAddress, request.CreateRequestor(r.Context()), nil))
 
 	return response.EmptySyncResponse
 }

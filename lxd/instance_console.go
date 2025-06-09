@@ -453,7 +453,7 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Forward the request if the container is remote.
-	client, err := cluster.ConnectIfInstanceIsRemote(s, projectName, name, r, instanceType)
+	client, err := cluster.ConnectIfInstanceIsRemote(r.Context(), s, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -526,7 +526,7 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(s, projectName, operations.OperationClassWebsocket, operationtype.ConsoleShow, resources, ws.Metadata(), ws.Do, nil, ws.Connect, r)
+	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassWebsocket, operationtype.ConsoleShow, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -584,7 +584,7 @@ func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Forward the request if the container is remote.
-	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}

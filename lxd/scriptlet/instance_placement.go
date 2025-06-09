@@ -108,7 +108,7 @@ func InstancePlacementRun(ctx context.Context, l logger.Logger, s *state.State, 
 				return starlark.String("Invalid member name"), nil
 			}
 
-			client, err := cluster.Connect(targetMember.Address, s.Endpoints.NetworkCert(), s.ServerCert(), nil, true)
+			client, err := cluster.Connect(context.Background(), targetMember.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 			if err != nil {
 				return nil, err
 			}
@@ -157,7 +157,7 @@ func InstancePlacementRun(ctx context.Context, l logger.Logger, s *state.State, 
 				return starlark.String("Invalid member name"), nil
 			}
 
-			client, err := cluster.Connect(targetMember.Address, s.Endpoints.NetworkCert(), s.ServerCert(), nil, true)
+			client, err := cluster.Connect(context.Background(), targetMember.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 			if err != nil {
 				return nil, err
 			}

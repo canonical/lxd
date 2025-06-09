@@ -324,7 +324,7 @@ func pruneExpiredBackupsTask(stateFunc func() *state.State) (task.Func, task.Sch
 			return nil
 		}
 
-		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.BackupsExpire, nil, nil, opRun, nil, nil, nil)
+		op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.BackupsExpire, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed creating expired backups operation", logger.Ctx{"err": err})
 			return

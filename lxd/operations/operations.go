@@ -129,7 +129,7 @@ type Operation struct {
 
 // OperationCreate creates a new operation and returns it. If it cannot be
 // created, it returns an error.
-func OperationCreate(s *state.State, projectName string, opClass OperationClass, opType operationtype.Type, opResources map[string][]api.URL, opMetadata any, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error, r *http.Request) (*Operation, error) {
+func OperationCreate(ctx context.Context, s *state.State, projectName string, opClass OperationClass, opType operationtype.Type, opResources map[string][]api.URL, opMetadata any, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error) (*Operation, error) {
 	// Don't allow new operations when LXD is shutting down.
 	if s != nil && s.ShutdownCtx.Err() == context.Canceled {
 		return nil, errors.New("LXD is shutting down")
@@ -185,9 +185,9 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 		return nil, errors.New("Token operations can't have a Cancel hook")
 	}
 
-	// Set requestor if request was provided.
-	if r != nil {
-		op.SetRequestor(r)
+	// Set requestor if the request context is provided.
+	if request.IsRequestContext(ctx) {
+		op.SetRequestor(ctx)
 	}
 
 	operationsLock.Lock()
@@ -215,8 +215,8 @@ func (op *Operation) SetEventServer(events *events.Server) {
 }
 
 // SetRequestor sets a requestor for this operation from an http.Request.
-func (op *Operation) SetRequestor(r *http.Request) {
-	op.requestor = request.CreateRequestor(r)
+func (op *Operation) SetRequestor(ctx context.Context) {
+	op.requestor = request.CreateRequestor(ctx)
 }
 
 // SetOnDone sets the operation onDone function that is called after the operation completes.

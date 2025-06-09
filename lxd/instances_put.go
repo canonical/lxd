@@ -237,7 +237,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 				}
 
 				// Connect to the remote server.
-				client, err := cluster.Connect(member.Address, networkCert, s.ServerCert(), r, true)
+				client, err := cluster.Connect(r.Context(), member.Address, networkCert, s.ServerCert(), true)
 				if err != nil {
 					failuresLock.Lock()
 					failures[member.Name] = err
@@ -275,7 +275,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 		resources["instances"] = append(resources["instances"], *api.NewURL().Path(version.APIVersion, "instances", instName))
 	}
 
-	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, opType, resources, nil, do, nil, nil, r)
+	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, opType, resources, nil, do, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}

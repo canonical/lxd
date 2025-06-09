@@ -5528,6 +5528,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 			}
 
 			actionScriptOp, err := operations.OperationCreate(
+				context.Background(),
 				d.state,
 				d.Project().Name,
 				operations.OperationClassWebsocket,
@@ -5563,7 +5564,6 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 					closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
 					return c.WriteMessage(websocket.CloseMessage, closeMsg)
 				},
-				nil,
 			)
 			if err != nil {
 				_ = os.RemoveAll(checkpointDir)
