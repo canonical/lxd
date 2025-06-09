@@ -2575,8 +2575,8 @@ test_clustering_fan() {
   LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node2 testimage c2 -d "${SMALL_ROOT_DISK}" -n "${fanbridge}"
 
   echo "Get DHCP leases"
-  IP_C1="$(LXD_DIR="${LXD_ONE_DIR}" lxc exec c1 -- udhcpc -f -i eth0 -n -q -t5 2>&1 | awk '/obtained,/ {print $4}')"
-  IP_C2="$(LXD_DIR="${LXD_ONE_DIR}" lxc exec c2 -- udhcpc -f -i eth0 -n -q -t5 2>&1 | awk '/obtained,/ {print $4}')"
+  IP_C1="$(LXD_DIR="${LXD_ONE_DIR}" lxc exec c1 -- udhcpc -f -i eth0 -n -q -t5 2>&1 | awk '/obtained/ {print $4}')"
+  IP_C2="$(LXD_DIR="${LXD_ONE_DIR}" lxc exec c2 -- udhcpc -f -i eth0 -n -q -t5 2>&1 | awk '/obtained/ {print $4}')"
 
   echo "Configure IP addresses"
   LXD_DIR="${LXD_ONE_DIR}" lxc exec c1 -- ip addr add "${IP_C1}"/8 dev eth0
