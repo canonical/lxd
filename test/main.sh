@@ -82,6 +82,9 @@ echo "==> Using storage backend ${LXD_BACKEND}"
 import_storage_backends
 
 cleanup() {
+  # Avoid reentry by removing the traps
+  trap - EXIT HUP INT TERM
+
   # Before setting +e, run the panic checker for any running LXD daemons.
   panic_checker "${TEST_DIR}"
 
@@ -172,11 +175,12 @@ trap cleanup EXIT HUP INT TERM
 import_subdir_files suites
 
 # Setup test directory
-TEST_DIR=$(mktemp -d -p "$(pwd)" tmp.XXX)
+TEST_DIR="$(mktemp -d -t lxd-test.tmp.XXXX)"
 chmod +x "${TEST_DIR}"
 
-# Verify the dir chain is accessible for other users
-INACCESSIBLE_DIRS="$(namei -m "${TEST_DIR}" | awk '/^ d/ {print $1}' | grep -v 'x$' || true)"
+# Verify the dir chain is accessible for other users (other's execute bit has to be `x` or `t` (sticky))
+# This is to catch if `sudo chmod +x ~` was not run and the TEST_DIR is under `~`
+INACCESSIBLE_DIRS="$(namei -m "${TEST_DIR}" | awk '/^ d/ {print $1}' | grep -v '[xt]$' || true)"
 if [ -n "${INACCESSIBLE_DIRS:-}" ]; then
     echo "Some directories are not accessible by other users" >&2
     namei -m "${TEST_DIR}"
@@ -273,8 +277,19 @@ if [ -n "${GITHUB_ACTIONS:-}" ]; then
 fi
 
 # allow for running a specific set of tests
-if [ "$#" -gt 0 ] && [ "$1" != "all" ] && [ "$1" != "cluster" ] && [ "$1" != "standalone" ]; then
+if [ "$#" -gt 0 ] && [ "$1" != "all" ] && [ "$1" != "cluster" ] && [ "$1" != "standalone" ] && [ "$1" != "test-shell" ]; then
   run_test "test_${1}"
+  # shellcheck disable=SC2034
+  TEST_RESULT=success
+  exit
+fi
+
+# Spawn an interactive test shell when invoked as `./main.sh test-shell`.
+# This is useful for quick interactions with LXD and its test suite.
+if [ "${1:-"all"}" = "test-shell" ]; then
+  # yellow
+  export PS1="\[\033[0;33mLXD-TEST\033[0m ${PS1:-\u@\h:\w\$ }\]"
+  bash --norc
   # shellcheck disable=SC2034
   TEST_RESULT=success
   exit
