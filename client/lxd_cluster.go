@@ -466,3 +466,20 @@ func (r *ProtocolLXD) DeleteClusterLink(name string) error {
 
 	return nil
 }
+
+// GetClusterLinkState gets state information about a cluster link.
+func (r *ProtocolLXD) GetClusterLinkState(name string) (*api.ClusterLinkState, string, error) {
+	err := r.CheckExtension("cluster_links")
+	if err != nil {
+		return nil, "", err
+	}
+
+	state := api.ClusterLinkState{}
+	u := api.NewURL().Path("cluster", "links", name, "state")
+	etag, err := r.queryStruct(http.MethodGet, u.String(), nil, "", &state)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &state, etag, err
+}
