@@ -178,6 +178,19 @@ make deps && make
 
 # get an interactive test shell session with all the needed environment variables to use and test LXD
 make test-shell
+
+# run the `exec` and `query` tests
+./main.sh exec
+./main.sh query
+
+# or manually interact with LXD, for example:
+lxc launch ubuntu:24.04 u1
+lxc exec u1 -- hostname
+lxc delete --force u1
+
+# for a barebones test instance with just busybox (note: no IP automatically configured)
+./deps/import-busybox --alias testimage
+lxc launch testimage c1
 ```
 
 At this point you might want to learn more on {doc}`debugging`.
