@@ -204,7 +204,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	for _, apiProject := range apiProjects {
-		apiProject.UsedBy = projecthelpers.FilterUsedBy(s.Authorizer, r, apiProject.UsedBy)
+		apiProject.UsedBy = projecthelpers.FilterUsedBy(r.Context(), s.Authorizer, apiProject.UsedBy)
 	}
 
 	if len(withEntitlements) > 0 {
@@ -351,7 +351,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed creating project %q: %w", project.Name, err))
 	}
 
-	requestor := request.CreateRequestor(r)
+	requestor := request.CreateRequestor(r.Context())
 	lc := lifecycle.ProjectCreated.Event(project.Name, requestor, nil)
 	s.Events.SendLifecycle(project.Name, lc)
 
@@ -486,7 +486,7 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 		project.Config,
 	}
 
-	project.UsedBy = projecthelpers.FilterUsedBy(s.Authorizer, r, project.UsedBy)
+	project.UsedBy = projecthelpers.FilterUsedBy(r.Context(), s.Authorizer, project.UsedBy)
 
 	return response.SyncResponseETag(true, project, etag)
 }
@@ -571,7 +571,7 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	requestor := request.CreateRequestor(r)
+	requestor := request.CreateRequestor(r.Context())
 	s.Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, requestor, nil))
 
 	return projectChange(s, project, req)
@@ -687,7 +687,7 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	requestor := request.CreateRequestor(r)
+	requestor := request.CreateRequestor(r.Context())
 	s.Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, requestor, nil))
 
 	return projectChange(s, project, req)
@@ -881,13 +881,13 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		requestor := request.CreateRequestor(r)
+		requestor := request.CreateRequestor(r.Context())
 		s.Events.SendLifecycle(req.Name, lifecycle.ProjectRenamed.Event(req.Name, requestor, logger.Ctx{"old_name": name}))
 
 		return nil
 	}
 
-	op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ProjectRename, nil, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(r.Context(), s, "", operations.OperationClassTask, operationtype.ProjectRename, nil, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -948,7 +948,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestor := request.CreateRequestor(r)
+	requestor := request.CreateRequestor(r.Context())
 	s.Events.SendLifecycle(name, lifecycle.ProjectDeleted.Event(name, requestor, nil))
 
 	return response.EmptySyncResponse

@@ -176,7 +176,7 @@ func networkPeersGet(d *Daemon, r *http.Request) response.Response {
 		peers := make([]*api.NetworkPeer, 0, len(records))
 		for _, record := range records {
 			record.UsedBy, _ = n.PeerUsedBy(record.Name)
-			record.UsedBy = project.FilterUsedBy(s.Authorizer, r, record.UsedBy)
+			record.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, record.UsedBy)
 			peers = append(peers, record)
 		}
 
@@ -239,7 +239,8 @@ func networkPeersGet(d *Daemon, r *http.Request) response.Response {
 func networkPeersPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -280,7 +281,7 @@ func networkPeersPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed creating peer: %w", err))
 	}
 
-	lc := lifecycle.NetworkPeerCreated.Event(n, req.Name, request.CreateRequestor(r), nil)
+	lc := lifecycle.NetworkPeerCreated.Event(n, req.Name, request.CreateRequestor(r.Context()), nil)
 	s.Events.SendLifecycle(effectiveProjectName, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
@@ -313,7 +314,8 @@ func networkPeersPost(d *Daemon, r *http.Request) response.Response {
 func networkPeerDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -352,7 +354,7 @@ func networkPeerDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed deleting peer: %w", err))
 	}
 
-	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkPeerDeleted.Event(n, peerName, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkPeerDeleted.Event(n, peerName, request.CreateRequestor(r.Context()), nil))
 
 	return response.EmptySyncResponse
 }
@@ -400,7 +402,8 @@ func networkPeerDelete(d *Daemon, r *http.Request) response.Response {
 func networkPeerGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -446,7 +449,7 @@ func networkPeerGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	peer.UsedBy, _ = n.PeerUsedBy(peer.Name)
-	peer.UsedBy = project.FilterUsedBy(s.Authorizer, r, peer.UsedBy)
+	peer.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, peer.UsedBy)
 
 	return response.SyncResponseETag(true, peer, peer.Etag())
 }
@@ -523,7 +526,8 @@ func networkPeerGet(d *Daemon, r *http.Request) response.Response {
 func networkPeerPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
@@ -569,7 +573,7 @@ func networkPeerPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed updating peer: %w", err))
 	}
 
-	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkPeerUpdated.Event(n, peerName, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkPeerUpdated.Event(n, peerName, request.CreateRequestor(r.Context()), nil))
 
 	return response.EmptySyncResponse
 }

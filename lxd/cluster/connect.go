@@ -24,10 +24,14 @@ import (
 // Connect is a convenience around lxd.ConnectLXD that configures the client
 // with the correct parameters for node-to-node communication.
 //
+// If a request context is passed (as defined by request.IsRequestContext) then the
+// identity info from the context is sent in the request, as well as respective proxy
+// environment variables.
+//
 // If 'notify' switch is true, then the user agent will be set to the special
 // to the UserAgentNotifier value, which can be used in some cases to distinguish
 // between a regular client request and an internal cluster request.
-func Connect(address string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, r *http.Request, notify bool) (lxd.InstanceServer, error) {
+func Connect(ctx context.Context, address string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, notify bool) (lxd.InstanceServer, error) {
 	// Wait for a connection to the events API first for non-notify connections.
 	if !notify {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(10)*time.Second)
@@ -50,10 +54,8 @@ func Connect(address string, networkCert *shared.CertInfo, serverCert *shared.Ce
 		args.UserAgent = clusterRequest.UserAgentNotifier
 	}
 
-	if r != nil {
+	if request.IsRequestContext(ctx) {
 		proxy := func(req *http.Request) (*url.URL, error) {
-			ctx := r.Context()
-
 			val, ok := ctx.Value(request.CtxUsername).(string)
 			if ok {
 				req.Header.Add(request.HeaderForwardedUsername, val)
@@ -64,7 +66,8 @@ func Connect(address string, networkCert *shared.CertInfo, serverCert *shared.Ce
 				req.Header.Add(request.HeaderForwardedProtocol, val)
 			}
 
-			req.Header.Add(request.HeaderForwardedAddress, r.RemoteAddr)
+			reqSourceAddress, _ := ctx.Value(request.CtxRequestSourceAddress).(string)
+			req.Header.Add(request.HeaderForwardedAddress, reqSourceAddress)
 
 			identityProviderGroupsAny := ctx.Value(request.CtxIdentityProviderGroups)
 			if ok {
@@ -90,14 +93,14 @@ func Connect(address string, networkCert *shared.CertInfo, serverCert *shared.Ce
 // ConnectIfInstanceIsRemote figures out the address of the cluster member which is running the instance with the
 // given name in the specified project. If it's not the local member will connect to it and return the connected
 // client (configured with the specified project), otherwise it will just return nil.
-func ConnectIfInstanceIsRemote(s *state.State, projectName string, instName string, r *http.Request, instanceType instancetype.Type) (lxd.InstanceServer, error) {
+func ConnectIfInstanceIsRemote(ctx context.Context, s *state.State, projectName string, instName string, instanceType instancetype.Type) (lxd.InstanceServer, error) {
 	// No need to connect if not clustered.
 	if !s.ServerClustered {
 		return nil, nil
 	}
 
 	var address string // Cluster member address.
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		address, err = tx.GetNodeAddressOfInstance(ctx, projectName, instName, instanceType)
 		return err
@@ -110,7 +113,7 @@ func ConnectIfInstanceIsRemote(s *state.State, projectName string, instName stri
 		return nil, nil // The instance is running on this local member, no need to connect.
 	}
 
-	client, err := Connect(address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
+	client, err := Connect(ctx, address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
 		return nil, err
 	}

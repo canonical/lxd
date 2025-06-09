@@ -86,7 +86,7 @@ func instanceState(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -160,7 +160,7 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -205,7 +205,7 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 
 	resources := map[string][]api.URL{}
 	resources["instances"] = []api.URL{*api.NewURL().Path(version.APIVersion, "instances", name)}
-	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, opType, resources, nil, do, nil, nil, r)
+	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, opType, resources, nil, do, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}

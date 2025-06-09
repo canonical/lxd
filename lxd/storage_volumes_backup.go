@@ -182,13 +182,14 @@ func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName))
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
 
 	// Handle requests targeted to a volume on a different node
-	resp = forwardedResponseIfVolumeIsRemote(s, r)
+	resp = forwardedResponseIfVolumeIsRemote(r.Context(), s)
 	if resp != nil {
 		return resp
 	}
@@ -302,12 +303,13 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 		return response.SmartError(err)
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r)
+	resp = forwardedResponseIfVolumeIsRemote(r.Context(), s)
 	if resp != nil {
 		return resp
 	}
@@ -436,7 +438,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 	resources["storage_volumes"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName)}
 	resources["backups"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", backupName)}
 
-	op, err := operations.OperationCreate(s, requestProjectName, operations.OperationClassTask, operationtype.CustomVolumeBackupCreate, resources, nil, backup, nil, nil, r)
+	op, err := operations.OperationCreate(r.Context(), s, requestProjectName, operations.OperationClassTask, operationtype.CustomVolumeBackupCreate, resources, nil, backup, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -513,12 +515,13 @@ func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.R
 		return response.SmartError(err)
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r)
+	resp = forwardedResponseIfVolumeIsRemote(r.Context(), s)
 	if resp != nil {
 		return resp
 	}
@@ -595,12 +598,13 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 		return response.SmartError(err)
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r)
+	resp = forwardedResponseIfVolumeIsRemote(r.Context(), s)
 	if resp != nil {
 		return resp
 	}
@@ -641,7 +645,7 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 	resources["storage_volumes"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName)}
 	resources["backups"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", oldName)}
 
-	op, err := operations.OperationCreate(s, requestProjectName, operations.OperationClassTask, operationtype.CustomVolumeBackupRename, resources, nil, rename, nil, nil, r)
+	op, err := operations.OperationCreate(r.Context(), s, requestProjectName, operations.OperationClassTask, operationtype.CustomVolumeBackupRename, resources, nil, rename, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -705,12 +709,13 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 		return response.SmartError(err)
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r)
+	resp = forwardedResponseIfVolumeIsRemote(r.Context(), s)
 	if resp != nil {
 		return resp
 	}
@@ -737,7 +742,7 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 	resources["storage_volumes"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName)}
 	resources["backups"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", backupName)}
 
-	op, err := operations.OperationCreate(s, requestProjectName, operations.OperationClassTask, operationtype.CustomVolumeBackupRemove, resources, nil, remove, nil, nil, r)
+	op, err := operations.OperationCreate(r.Context(), s, requestProjectName, operations.OperationClassTask, operationtype.CustomVolumeBackupRemove, resources, nil, remove, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -796,12 +801,13 @@ func storagePoolVolumeTypeCustomBackupExportGet(d *Daemon, r *http.Request) resp
 		return response.SmartError(err)
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(s, r)
+	resp = forwardedResponseIfVolumeIsRemote(r.Context(), s)
 	if resp != nil {
 		return resp
 	}
@@ -818,7 +824,7 @@ func storagePoolVolumeTypeCustomBackupExportGet(d *Daemon, r *http.Request) resp
 		Path: filepath.Join(s.BackupsStoragePath(), "custom", details.pool.Name(), project.StorageVolume(effectiveProjectName, fullName)),
 	}
 
-	s.Events.SendLifecycle(effectiveProjectName, lifecycle.StorageVolumeBackupRetrieved.Event(details.pool.Name(), details.volumeTypeName, fullName, effectiveProjectName, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.StorageVolumeBackupRetrieved.Event(details.pool.Name(), details.volumeTypeName, fullName, effectiveProjectName, request.CreateRequestor(r.Context()), nil))
 
 	return response.FileResponse([]response.FileResponseEntry{ent}, nil)
 }

@@ -99,7 +99,8 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	compress := strings.Contains(r.Header.Get("Accept-Encoding"), "gzip")
 
 	// Forward if requested.
-	resp := forwardedResponseIfTargetIsRemote(s, r)
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
 	}
