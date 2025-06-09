@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,13 +11,11 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
-	"github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
@@ -71,14 +70,15 @@ func devLXDServer(d *Daemon) *http.Server {
 	}
 }
 
-func getVsockClient(d *Daemon) (lxd.InstanceServer, error) {
+// getDevLXDVsockClient connects to the devLXD over vsock.
+func getDevLXDVsockClient(d *Daemon) (lxd.DevLXDServer, error) {
 	// Try connecting to LXD server.
 	client, err := getClient(d.serverCID, int(d.serverPort), d.serverCertificate)
 	if err != nil {
 		return nil, err
 	}
 
-	server, err := lxd.ConnectLXDHTTP(nil, client)
+	server, err := lxd.ConnectDevLXDHTTPWithContext(context.Background(), nil, client)
 	if err != nil {
 		return nil, err
 	}
@@ -93,37 +93,36 @@ var devLXD10Endpoint = devLXDAPIEndpoint{
 }
 
 func devLXDAPIGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	client, err := getVsockClient(d)
+	client, err := getDevLXDVsockClient(d)
 	if err != nil {
-		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
+		return smartResponse(fmt.Errorf("Failed connecting to devLXD over vsock: %w", err))
 	}
 
 	defer client.Disconnect()
 
-	resp, _, err := client.RawQuery(r.Method, "/1.0", nil, "")
+	state, err := client.GetState()
 	if err != nil {
 		return smartResponse(err)
 	}
 
-	var instanceData api.DevLXDGet
-
-	err = resp.MetadataAsStruct(&instanceData)
-	if err != nil {
-		return smartResponse(fmt.Errorf("Failed parsing response from LXD: %w", err))
-	}
-
-	return okResponse(instanceData, "json")
+	return okResponse(state, "json")
 }
 
 func devLXDAPIPatchHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	client, err := getVsockClient(d)
+	client, err := getDevLXDVsockClient(d)
 	if err != nil {
-		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
+		return smartResponse(fmt.Errorf("Failed connecting to devLXD over vsock: %w", err))
 	}
 
 	defer client.Disconnect()
 
-	_, _, err = client.RawQuery(r.Method, "/1.0", r.Body, "")
+	var state api.DevLXDPut
+	err = json.NewDecoder(r.Body).Decode(&state)
+	if err != nil {
+		return smartResponse(err)
+	}
+
+	err = client.UpdateState(state)
 	if err != nil {
 		return smartResponse(err)
 	}
@@ -137,26 +136,19 @@ var devLXDConfigEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDConfigGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	client, err := getVsockClient(d)
+	client, err := getDevLXDVsockClient(d)
 	if err != nil {
-		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
+		return smartResponse(fmt.Errorf("Failed connecting to devLXD over vsock: %w", err))
 	}
 
 	defer client.Disconnect()
 
-	resp, _, err := client.RawQuery(http.MethodGet, "/1.0/config", nil, "")
+	urls, err := client.GetConfigURLs()
 	if err != nil {
 		return smartResponse(err)
 	}
 
-	var config []string
-
-	err = resp.MetadataAsStruct(&config)
-	if err != nil {
-		return smartResponse(fmt.Errorf("Failed parsing response from LXD: %w", err))
-	}
-
-	return okResponse(config, "json")
+	return okResponse(urls, "json")
 }
 
 var devLXDConfigKeyEndpoint = devLXDAPIEndpoint{
@@ -170,27 +162,16 @@ func devLXDConfigKeyGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
 		return errorResponse(http.StatusBadRequest, "bad request")
 	}
 
-	if !strings.HasPrefix(key, "user.") && !strings.HasPrefix(key, "cloud-init.") {
-		return errorResponse(http.StatusForbidden, "not authorized")
-	}
-
-	client, err := getVsockClient(d)
+	client, err := getDevLXDVsockClient(d)
 	if err != nil {
-		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
+		return smartResponse(fmt.Errorf("Failed connecting to devLXD over vsock: %w", err))
 	}
 
 	defer client.Disconnect()
 
-	resp, _, err := client.RawQuery(http.MethodGet, "/1.0/config/"+key, nil, "")
+	value, err := client.GetConfigByKey(key)
 	if err != nil {
 		return smartResponse(err)
-	}
-
-	var value string
-
-	err = resp.MetadataAsStruct(&value)
-	if err != nil {
-		return smartResponse(fmt.Errorf("Failed parsing response from LXD: %w", err))
 	}
 
 	return okResponse(value, "raw")
@@ -202,11 +183,11 @@ var devLXDMetadataEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDMetadataGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	var client lxd.InstanceServer
+	var client lxd.DevLXDServer
 	var err error
 
 	for range 10 {
-		client, err = getVsockClient(d)
+		client, err = getDevLXDVsockClient(d)
 		if err == nil {
 			break
 		}
@@ -215,21 +196,14 @@ func devLXDMetadataGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
 	}
 
 	if err != nil {
-		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
+		return smartResponse(fmt.Errorf("Failed connecting to devLXD over vsock: %w", err))
 	}
 
 	defer client.Disconnect()
 
-	resp, _, err := client.RawQuery(http.MethodGet, "/1.0/meta-data", nil, "")
+	metaData, err := client.GetMetadata()
 	if err != nil {
 		return smartResponse(err)
-	}
-
-	var metaData string
-
-	err = resp.MetadataAsStruct(&metaData)
-	if err != nil {
-		return smartResponse(fmt.Errorf("Failed parsing response from LXD: %w", err))
 	}
 
 	return okResponse(metaData, "raw")
@@ -257,23 +231,16 @@ var devLXDDevicesEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDDevicesGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	client, err := getVsockClient(d)
+	client, err := getDevLXDVsockClient(d)
 	if err != nil {
-		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
+		return smartResponse(fmt.Errorf("Failed connecting to devLXD over vsock: %w", err))
 	}
 
 	defer client.Disconnect()
 
-	resp, _, err := client.RawQuery(http.MethodGet, "/1.0/devices", nil, "")
+	devices, err := client.GetDevices()
 	if err != nil {
 		return smartResponse(err)
-	}
-
-	var devices config.Devices
-
-	err = resp.MetadataAsStruct(&devices)
-	if err != nil {
-		return smartResponse(fmt.Errorf("Failed parsing response from LXD: %w", err))
 	}
 
 	return okResponse(devices, "json")
@@ -334,37 +301,19 @@ var devLXDUbuntuProEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDUbuntuProGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	// Get a http.Client.
-	client, err := getClient(d.serverCID, int(d.serverPort), d.serverCertificate)
+	client, err := getDevLXDVsockClient(d)
 	if err != nil {
-		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
+		return smartResponse(fmt.Errorf("Failed connecting to devLXD over vsock: %w", err))
 	}
 
-	// Remove the request URI, this cannot be set on requests.
-	r.RequestURI = ""
+	defer client.Disconnect()
 
-	// Set up the request URL with the correct host.
-	r.URL = &api.NewURL().Scheme("https").Host("custom.socket").Path(version.APIVersion, "ubuntu-pro").URL
-
-	// Proxy the request.
-	resp, err := client.Do(r)
-	if err != nil {
-		return errorResponse(http.StatusInternalServerError, err.Error())
-	}
-
-	var apiResponse api.Response
-	err = json.NewDecoder(resp.Body).Decode(&apiResponse)
+	settings, err := client.GetUbuntuPro()
 	if err != nil {
 		return smartResponse(err)
 	}
 
-	var settingsResponse api.UbuntuProSettings
-	err = json.Unmarshal(apiResponse.Metadata, &settingsResponse)
-	if err != nil {
-		return errorResponse(http.StatusInternalServerError, fmt.Sprintf("Invalid Ubuntu Token settings response received from host: %v", err))
-	}
-
-	return okResponse(settingsResponse, "json")
+	return okResponse(settings, "json")
 }
 
 var devLXDUbuntuProTokenEndpoint = devLXDAPIEndpoint{
@@ -373,41 +322,19 @@ var devLXDUbuntuProTokenEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDUbuntuProTokenPostHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	// Get a http.Client.
-	client, err := getClient(d.serverCID, int(d.serverPort), d.serverCertificate)
+	client, err := getDevLXDVsockClient(d)
 	if err != nil {
-		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
+		return smartResponse(fmt.Errorf("Failed connecting to devLXD over vsock: %w", err))
 	}
 
-	// Remove the request URI, this cannot be set on requests.
-	r.RequestURI = ""
+	defer client.Disconnect()
 
-	// Set up the request URL with the correct host.
-	r.URL = &api.NewURL().Scheme("https").Host("custom.socket").Path(version.APIVersion, "ubuntu-pro", "token").URL
-
-	// Proxy the request.
-	resp, err := client.Do(r)
-	if err != nil {
-		return errorResponse(http.StatusInternalServerError, err.Error())
-	}
-
-	var apiResponse api.Response
-	err = json.NewDecoder(resp.Body).Decode(&apiResponse)
+	token, err := client.CreateUbuntuProToken()
 	if err != nil {
 		return smartResponse(err)
 	}
 
-	if apiResponse.StatusCode != http.StatusOK {
-		return errorResponse(apiResponse.Code, apiResponse.Error)
-	}
-
-	var tokenResponse api.UbuntuProGuestTokenResponse
-	err = json.Unmarshal(apiResponse.Metadata, &tokenResponse)
-	if err != nil {
-		return errorResponse(http.StatusInternalServerError, fmt.Sprintf("Invalid Ubuntu Token response received from host: %v", err))
-	}
-
-	return okResponse(tokenResponse, "json")
+	return okResponse(token, "json")
 }
 
 func devLXDAPI(d *Daemon) http.Handler {

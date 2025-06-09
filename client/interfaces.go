@@ -481,7 +481,8 @@ type DevLXDServer interface {
 	UpdateState(state api.DevLXDPut) error
 
 	// DevLXD config.
-	GetConfig() (map[string]string, error)
+	GetConfig() (config map[string]string, err error)
+	GetConfigURLs() (keyPaths []string, err error)
 	GetConfigByKey(key string) (string, error)
 
 	// DevLXD metadata.
