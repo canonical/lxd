@@ -529,23 +529,25 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 				if err != nil {
 					return err
 				}
+				if len(line) > 0 {
 
-				// Continue with adding the remote if digest matches, or the user
-				// confirmed a fingerprint.
-				if string(line) == digest || (len(line) > 0 && strings.ToLower(string(line[0])) == i18n.G("y")) {
-					break
-				}
+					// Continue with adding the remote if digest matches, or the user
+					// confirmed a fingerprint.
+					if string(line) == digest || strings.ToLower(string(line[0])) == i18n.G("y") {
+						break
+					}
 
-				// If the input length matches the certificate fingerprint length
-				// but the fingerprints do not match, return an error. This ensures
-				// the scripts do not hang if incorrect fingerprint is provided.
-				if len(line) == len(digest) {
-					return errors.New(i18n.G("The provided fingerprint does not match the server certificate fingerprint"))
-				}
+					// If the input length matches the certificate fingerprint length
+					// but the fingerprints do not match, return an error. This ensures
+					// the scripts do not hang if incorrect fingerprint is provided.
+					if len(line) == len(digest) {
+						return errors.New(i18n.G("The provided fingerprint does not match the server certificate fingerprint"))
+					}
 
-				// Error out if the user didn't confirm the fingerprint.
-				if len(line) < 1 || (len(line) > 0 && strings.ToLower(string(line[0])) == i18n.G("n")) {
-					return errors.New(i18n.G("Server certificate NACKed by user"))
+					// Error out if the user didn't confirm the fingerprint.
+					if len(line) < 1 || strings.ToLower(string(line[0])) == i18n.G("n") {
+						return errors.New(i18n.G("Server certificate NACKed by user"))
+					}
 				}
 
 				// Ask again for any other invalid input.
