@@ -43,6 +43,7 @@ config:
     package_upgrade: true
     packages:
     # dev comfort
+    - bash-completion
     - vim
     # build deps
     - autoconf
