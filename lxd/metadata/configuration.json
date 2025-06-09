@@ -2150,7 +2150,7 @@
 					{
 						"ubuntu_pro.guest_attach": {
 							"liveupdate": "no",
-							"longdesc": "Indicate whether the guest should auto-attach Ubuntu Pro at start up.\nThe allowed values are `off`, `on`, and `available`.\nIf set to `off`, it will not be possible for the Ubuntu Pro client in the guest to obtain guest token via `devlxd`.\nIf set to `available`, attachment via guest token is possible but will not be performed automatically by the Ubuntu Pro client in the guest at startup.\nIf set to `on`, attachment will be performed automatically by the Ubuntu Pro client in the guest at startup.\nTo allow guest attachment, the host must be an Ubuntu machine that is Pro attached, and guest attachment must be enabled via the Pro client.\nTo do this, run `pro config set lxd_guest_attach=on`.",
+							"longdesc": "Indicate whether the guest should auto-attach Ubuntu Pro at start up.\n\nSee {ref}`ubuntu-pro-guest-attach` for more information.",
 							"shortdesc": "Whether to auto-attach Ubuntu Pro.",
 							"type": "string"
 						}
