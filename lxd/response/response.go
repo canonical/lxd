@@ -15,6 +15,7 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/metrics"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/ucred"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
@@ -50,13 +51,29 @@ type devLXDResponse struct {
 	content     any
 	code        int
 	contentType string
+	err         error
 }
 
 // Render renders a response for requests against the /dev/lxd socket.
 func (r *devLXDResponse) Render(w http.ResponseWriter, req *http.Request) (err error) {
+	// Handle response when interacting over vsock (LXD Agent running in a VM).
+	// In such case, the response must be returned in api.Response format.
+	isDevLXDOverVsock, _ := req.Context().Value(request.CtxDevLXDOverVsock).(bool)
+	if isDevLXDOverVsock {
+		if r.code != http.StatusOK {
+			return SmartError(r.err).Render(w, req)
+		}
+
+		return SyncResponse(true, r.content).Render(w, req)
+	}
+
+	// From this point on, we are responding to a request over unix socket.
 	if r.code != http.StatusOK {
-		http.Error(w, fmt.Sprint(r.content), r.code)
-	} else if r.contentType == "json" {
+		http.Error(w, r.err.Error(), r.code)
+		return nil
+	}
+
+	if r.contentType == "json" {
 		w.Header().Set("Content-Type", "application/json")
 
 		var debugLogger logger.Logger
@@ -64,14 +81,17 @@ func (r *devLXDResponse) Render(w http.ResponseWriter, req *http.Request) (err e
 			debugLogger = logger.Logger(logger.Log)
 		}
 
-		err = util.WriteJSON(w, r.content, debugLogger)
-	} else if r.contentType != "websocket" {
+		return util.WriteJSON(w, r.content, debugLogger)
+	}
+
+	if r.contentType != "websocket" {
 		w.Header().Set("Content-Type", "application/octet-stream")
 
 		_, err = fmt.Fprint(w, r.content.(string))
+		return err
 	}
 
-	return err
+	return nil
 }
 
 func (r *devLXDResponse) String() string {
@@ -82,27 +102,27 @@ func (r *devLXDResponse) String() string {
 	return "failure"
 }
 
-// DevLXDErrorResponse returns an error response. If rawResponse is true, a api.ResponseRaw will be sent instead of a minimal devLXDResponse.
-func DevLXDErrorResponse(err error, rawResponse bool) Response {
-	if rawResponse {
-		return SmartError(err)
-	}
-
+// DevLXDErrorResponse returns an error response.
+func DevLXDErrorResponse(err error) Response {
 	code, ok := api.StatusErrorMatch(err)
-	if ok {
-		return &devLXDResponse{content: err.Error(), code: code, contentType: "raw"}
+	if !ok {
+		code = http.StatusInternalServerError
 	}
 
-	return &devLXDResponse{content: err.Error(), code: http.StatusInternalServerError, contentType: "raw"}
+	return &devLXDResponse{
+		code:        code,
+		contentType: "raw",
+		err:         err,
+	}
 }
 
-// DevLXDResponse represents a devLXDResponse. If rawResponse is true, a api.ResponseRaw will be sent instead of a minimal devLXDResponse.
-func DevLXDResponse(code int, content any, contentType string, rawResponse bool) Response {
-	if rawResponse {
-		return SyncResponse(true, content)
+// DevLXDResponse represents a devLXDResponse.
+func DevLXDResponse(code int, content any, contentType string) Response {
+	return &devLXDResponse{
+		code:        code,
+		content:     content,
+		contentType: contentType,
 	}
-
-	return &devLXDResponse{content: content, code: code, contentType: contentType}
 }
 
 // Sync response.
