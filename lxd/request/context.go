@@ -8,7 +8,10 @@ import (
 
 // Info represents the request information that are stored in the request
 // context, which is passed around.
-type Info struct{}
+type Info struct {
+	// SourceAddress is the request's source address.
+	SourceAddress string
+}
 
 // SetupContextInfo ensures an Info is set on the request context.
 // If already present, it returns the existing Info. Otherwise, it sets and returns a new one.
