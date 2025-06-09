@@ -104,6 +104,13 @@ var clusterLinkCmd = APIEndpoint{
 	Delete: APIEndpointAction{Handler: clusterLinkDelete, AccessHandler: allowPermission(entity.TypeClusterLink, auth.EntitlementCanDelete, "name")},
 }
 
+var clusterLinkStateCmd = APIEndpoint{
+	Path:        "cluster/links/{name}/state",
+	MetricsType: entity.TypeClusterLink,
+
+	Get: APIEndpointAction{Handler: clusterLinkStateGet, AccessHandler: allowPermission(entity.TypeClusterLink, auth.EntitlementCanView, "name")},
+}
+
 var clusterNodesCmd = APIEndpoint{
 	Path:        "cluster/members",
 	MetricsType: entity.TypeClusterMember,
@@ -5641,4 +5648,70 @@ func clusterLinkValidateConfig(config map[string]string) error {
 	}
 
 	return nil
+}
+
+// swagger:operation GET /1.0/cluster/links/{name}/state cluster-links cluster_link_state_get
+//
+//	Get the cluster link state
+//
+//	Get the state of a cluster link.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: Cluster link state
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/ClusterLinkState"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func clusterLinkStateGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	client, err := lxd.ConnectLXDUnix("", nil)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to connect to local LXD: %w", err))
+	}
+
+	clusterLink, _, err := client.GetClusterLink(name)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to fetch cluster link %q: %w", name, err))
+	}
+
+	targetClient, err := cluster.ConnectClusterLink(r.Context(), s, *clusterLink)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to connect to cluster link %q: %w", name, err))
+	}
+
+	clusterLinkState := api.ClusterLinkState{}
+	clusterLinkState.ClusterLinkMembers, err = targetClient.GetClusterMembers()
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to fetch cluster members: %w", err))
+	}
+
+	return response.SyncResponse(true, clusterLinkState)
 }
