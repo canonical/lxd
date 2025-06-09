@@ -112,11 +112,11 @@ cleanup() {
     bash --norc
   fi
 
-  echo ""
-  echo "df -h output:"
-  df -h
-
   if [ "${TEST_RESULT}" != "success" ]; then
+    echo ""
+    echo "df -h output:"
+    df -h
+
     if command -v ceph >/dev/null; then
       echo "::group::ceph status"
       ceph status --connect-timeout 5 || true
