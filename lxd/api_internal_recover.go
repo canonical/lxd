@@ -54,11 +54,11 @@ type internalRecoverValidatePost struct {
 
 // internalRecoverValidateVolume provides info about a missing volume that the recovery validation scan found.
 type internalRecoverValidateVolume struct {
-	Name          string `json:"name" yaml:"name"`                   // Name of volume.
-	Type          string `json:"type" yaml:"type"`                   // Same as Type from StorageVolumesPost (container, custom or virtual-machine).
+	Name          string `json:"name"          yaml:"name"`          // Name of volume.
+	Type          string `json:"type"          yaml:"type"`          // Same as Type from StorageVolumesPost (container, custom or virtual-machine).
 	SnapshotCount int    `json:"snapshotCount" yaml:"snapshotCount"` // Count of snapshots found for volume.
-	Project       string `json:"project" yaml:"project"`             // Project the volume belongs to.
-	Pool          string `json:"pool" yaml:"pool"`                   // Pool the volume belongs to.
+	Project       string `json:"project"       yaml:"project"`       // Project the volume belongs to.
+	Pool          string `json:"pool"          yaml:"pool"`          // Pool the volume belongs to.
 }
 
 // internalRecoverValidateResult returns the result of the validation scan.
