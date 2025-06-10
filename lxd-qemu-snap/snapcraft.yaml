@@ -117,9 +117,9 @@ parts:
       - --localstatedir=/var/
     build-environment:
       - ACLOCAL_PATH: /usr/share/aclocal
-      - PKG_CONFIG_PATH: $CRAFT_STAGE/external/qemu/lib/$CRAFT_ARCH_TRIPLET/pkgconfig:$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig:/usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
+      - PKG_CONFIG_PATH: $CRAFT_STAGE/external/qemu/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig:$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig:/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
       - PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/snapcraft/current/bin/scriptlet-bin:$PATH
-      - LD_LIBRARY_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET:/usr/lib/$CRAFT_ARCH_TRIPLET${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+      - LD_LIBRARY_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR:/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     override-pull: |
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
 
