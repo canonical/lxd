@@ -50,13 +50,13 @@ type Bucket struct {
 type Config struct {
 	// The JSON representation of the fields does not use lowercase (and omitempty) to stay backwards compatible
 	// across all versions of LXD as the Config struct is also used throughout the migration.
-	Version   uint32                  `json:"Version" yaml:"version,omitempty"`
-	Instance  *api.Instance           `json:"Instance" yaml:"instance,omitempty"`
+	Version   uint32                  `json:"Version"   yaml:"version,omitempty"`
+	Instance  *api.Instance           `json:"Instance"  yaml:"instance,omitempty"`
 	Snapshots []*api.InstanceSnapshot `json:"Snapshots" yaml:"snapshots,omitempty"`
-	Pools     []*api.StoragePool      `json:"Pools" yaml:"pools,omitempty"`
-	Profiles  []*api.Profile          `json:"Profiles" yaml:"profiles,omitempty"`
-	Volumes   []*Volume               `json:"Volumes" yaml:"volumes,omitempty"`
-	Bucket    *Bucket                 `json:"Bucket" yaml:"bucket,omitempty"`
+	Pools     []*api.StoragePool      `json:"Pools"     yaml:"pools,omitempty"`
+	Profiles  []*api.Profile          `json:"Profiles"  yaml:"profiles,omitempty"`
+	Volumes   []*Volume               `json:"Volumes"   yaml:"volumes,omitempty"`
+	Bucket    *Bucket                 `json:"Bucket"    yaml:"bucket,omitempty"`
 	// Deprecated: Use Instance instead.
 	Container *api.Instance `json:"Container" yaml:"container,omitempty"`
 	// Deprecated: Use Pools instead.
