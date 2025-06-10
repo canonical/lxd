@@ -1213,9 +1213,9 @@ func autoRemoveOrphanedOperations(ctx context.Context, s *state.State) error {
 
 // operationWaitPost represents the fields of a request to register a dummy operation.
 type operationWaitPost struct {
-	Duration  string                    `json:"duration" yaml:"duration"`
-	OpClass   operations.OperationClass `json:"op_class" yaml:"op_class"`
-	OpType    operationtype.Type        `json:"op_type" yaml:"op_type"`
+	Duration  string                    `json:"duration"  yaml:"duration"`
+	OpClass   operations.OperationClass `json:"op_class"  yaml:"op_class"`
+	OpType    operationtype.Type        `json:"op_type"   yaml:"op_type"`
 	Resources map[string][]string       `json:"resources" yaml:"resources"`
 }
 
