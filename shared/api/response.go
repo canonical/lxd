@@ -9,7 +9,7 @@ type ResponseRaw struct {
 	Type ResponseType `json:"type" yaml:"type"`
 
 	// Valid only for Sync responses
-	Status     string `json:"status" yaml:"status"`
+	Status     string `json:"status"      yaml:"status"`
 	StatusCode int    `json:"status_code" yaml:"status_code"`
 
 	// Valid only for Async responses
@@ -17,7 +17,7 @@ type ResponseRaw struct {
 
 	// Valid only for Error responses
 	Code  int    `json:"error_code" yaml:"error_code"`
-	Error string `json:"error" yaml:"error"`
+	Error string `json:"error"      yaml:"error"`
 
 	Metadata any `json:"metadata" yaml:"metadata"`
 }
@@ -27,7 +27,7 @@ type Response struct {
 	Type ResponseType `json:"type" yaml:"type"`
 
 	// Valid only for Sync responses
-	Status     string `json:"status" yaml:"status"`
+	Status     string `json:"status"      yaml:"status"`
 	StatusCode int    `json:"status_code" yaml:"status_code"`
 
 	// Valid only for Async responses
@@ -35,7 +35,7 @@ type Response struct {
 
 	// Valid only for Error responses
 	Code  int    `json:"error_code" yaml:"error_code"`
-	Error string `json:"error" yaml:"error"`
+	Error string `json:"error"      yaml:"error"`
 
 	// Valid for Sync and Error responses
 	Metadata json.RawMessage `json:"metadata" yaml:"metadata"`
