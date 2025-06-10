@@ -53,6 +53,10 @@ import_subdir_files() {
     done
 }
 
+# `main.sh` needs to be executed from inside the `test/` directory
+if [ "${PWD}" != "$(dirname "${0}")" ]; then
+    cd "$(dirname "${0}")"
+fi
 import_subdir_files includes
 
 echo "==> Checking for dependencies"
