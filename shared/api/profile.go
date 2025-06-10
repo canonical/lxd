@@ -8,7 +8,7 @@ type ProfilesPost struct {
 
 	// The name of the new profile
 	// Example: foo
-	Name string `json:"name" yaml:"name" db:"primary=yes"`
+	Name string `db:"primary=yes" json:"name" yaml:"name"`
 }
 
 // ProfilePost represents the fields required to rename a LXD profile
@@ -46,7 +46,7 @@ type Profile struct {
 	// The profile name
 	// Read only: true
 	// Example: foo
-	Name string `json:"name" yaml:"name" db:"primary=yes"`
+	Name string `db:"primary=yes" json:"name" yaml:"name"`
 
 	// Description of the profile
 	// Example: Medium size instances
