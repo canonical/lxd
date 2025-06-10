@@ -1,7 +1,6 @@
 package drivers
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/base64"
@@ -183,18 +182,6 @@ func newPowerFlexClient(driver *powerflex) *powerFlexClient {
 	}
 }
 
-// createBodyReader creates a reader for the given request body contents.
-func (p *powerFlexClient) createBodyReader(contents map[string]any) (io.Reader, error) {
-	body := &bytes.Buffer{}
-	encoder := json.NewEncoder(body)
-	err := encoder.Encode(contents)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to write request body: %w", err)
-	}
-
-	return body, nil
-}
-
 // request issues a HTTP request against the PowerFlex gateway.
 func (p *powerFlexClient) request(method string, path string, body io.Reader, response any) error {
 	url := p.driver.config["powerflex.gateway"] + path
@@ -270,7 +257,7 @@ func (p *powerFlexClient) requestAuthenticated(method string, path string, body 
 		// The reader provided for the request's body will be read after the first request.
 		var bodyReader io.Reader
 		if body != nil {
-			bodyReader, err = p.createBodyReader(body)
+			bodyReader, err = createBodyReader(body)
 			if err != nil {
 				return fmt.Errorf("Failed to create reader from request's body: %w", err)
 			}
@@ -300,7 +287,7 @@ func (p *powerFlexClient) login() error {
 		return nil
 	}
 
-	body, err := p.createBodyReader(map[string]any{
+	body, err := createBodyReader(map[string]any{
 		"username": p.driver.config["powerflex.user.name"],
 		"password": p.driver.config["powerflex.user.password"],
 	})
