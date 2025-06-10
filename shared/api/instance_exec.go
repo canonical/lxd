@@ -5,8 +5,8 @@ package api
 // API extension: instances.
 type InstanceExecControl struct {
 	Command string            `json:"command" yaml:"command"`
-	Args    map[string]string `json:"args" yaml:"args"`
-	Signal  int               `json:"signal" yaml:"signal"`
+	Args    map[string]string `json:"args"    yaml:"args"`
+	Signal  int               `json:"signal"  yaml:"signal"`
 }
 
 // InstanceExecPost represents a LXD instance exec request.
