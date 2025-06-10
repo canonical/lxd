@@ -5,7 +5,7 @@ package api
 // API extension: instances.
 type InstanceConsoleControl struct {
 	Command string            `json:"command" yaml:"command"`
-	Args    map[string]string `json:"args" yaml:"args"`
+	Args    map[string]string `json:"args"    yaml:"args"`
 }
 
 // InstanceConsolePost represents a LXD instance console request.
