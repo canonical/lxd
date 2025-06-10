@@ -509,6 +509,16 @@ definitions:
         title: ClusterLinkPut represents the modifiable fields of a cluster link.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
+    ClusterLinkState:
+        properties:
+            cluster_link_members:
+                items:
+                    $ref: '#/definitions/ClusterMember'
+                type: array
+                x-go-name: ClusterLinkMembers
+        title: ClusterLinkState represents the state of a cluster link.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
     ClusterMember:
         properties:
             architecture:
@@ -9328,6 +9338,40 @@ paths:
                 "500":
                     $ref: '#/responses/InternalServerError'
             summary: Update cluster link
+            tags:
+                - cluster-links
+    /1.0/cluster/links/{name}/state:
+        get:
+            description: Get the state of a cluster link.
+            operationId: cluster_link_state_get
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Cluster link state
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/ClusterLinkState'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the cluster link state
             tags:
                 - cluster-links
     /1.0/cluster/links?recursion=1:
