@@ -8,7 +8,7 @@ import (
 type ContainersPost struct {
 	ContainerPut `yaml:",inline"`
 
-	Name   string          `json:"name" yaml:"name"`
+	Name   string          `json:"name"   yaml:"name"`
 	Source ContainerSource `json:"source" yaml:"source"`
 
 	InstanceType string `json:"instance_type" yaml:"instance_type"`
@@ -36,22 +36,22 @@ type ContainerPost struct {
 //
 // API extension: container_push_target.
 type ContainerPostTarget struct {
-	Certificate string            `json:"certificate" yaml:"certificate"`
+	Certificate string            `json:"certificate"         yaml:"certificate"`
 	Operation   string            `json:"operation,omitempty" yaml:"operation,omitempty"`
-	Websockets  map[string]string `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+	Websockets  map[string]string `json:"secrets,omitempty"   yaml:"secrets,omitempty"`
 }
 
 // ContainerPut represents the modifiable fields of a LXD container.
 type ContainerPut struct {
 	Architecture string                       `json:"architecture" yaml:"architecture"`
-	Config       map[string]string            `json:"config" yaml:"config"`
-	Devices      map[string]map[string]string `json:"devices" yaml:"devices"`
-	Ephemeral    bool                         `json:"ephemeral" yaml:"ephemeral"`
-	Profiles     []string                     `json:"profiles" yaml:"profiles"`
+	Config       map[string]string            `json:"config"       yaml:"config"`
+	Devices      map[string]map[string]string `json:"devices"      yaml:"devices"`
+	Ephemeral    bool                         `json:"ephemeral"    yaml:"ephemeral"`
+	Profiles     []string                     `json:"profiles"     yaml:"profiles"`
 
 	// For snapshot restore
 	Restore  string `json:"restore,omitempty" yaml:"restore,omitempty"`
-	Stateful bool   `json:"stateful" yaml:"stateful"`
+	Stateful bool   `json:"stateful"          yaml:"stateful"`
 
 	// API extension: entity_description
 	Description string `json:"description" yaml:"description"`
@@ -60,10 +60,10 @@ type ContainerPut struct {
 // Container represents a LXD container.
 type Container struct {
 	Architecture string                       `json:"architecture" yaml:"architecture"`
-	Config       map[string]string            `json:"config" yaml:"config"`
-	Devices      map[string]map[string]string `json:"devices" yaml:"devices"`
-	Ephemeral    bool                         `json:"ephemeral" yaml:"ephemeral"`
-	Profiles     []string                     `json:"profiles" yaml:"profiles"`
+	Config       map[string]string            `json:"config"       yaml:"config"`
+	Devices      map[string]map[string]string `json:"devices"      yaml:"devices"`
+	Ephemeral    bool                         `json:"ephemeral"    yaml:"ephemeral"`
+	Profiles     []string                     `json:"profiles"     yaml:"profiles"`
 
 	// For snapshot restore
 	Stateful bool `json:"stateful" yaml:"stateful"`
@@ -71,12 +71,12 @@ type Container struct {
 	// API extension: entity_description
 	Description string `json:"description" yaml:"description"`
 
-	CreatedAt       time.Time                    `json:"created_at" yaml:"created_at"`
-	ExpandedConfig  map[string]string            `json:"expanded_config" yaml:"expanded_config"`
+	CreatedAt       time.Time                    `json:"created_at"       yaml:"created_at"`
+	ExpandedConfig  map[string]string            `json:"expanded_config"  yaml:"expanded_config"`
 	ExpandedDevices map[string]map[string]string `json:"expanded_devices" yaml:"expanded_devices"`
-	Name            string                       `json:"name" yaml:"name"`
-	Status          string                       `json:"status" yaml:"status"`
-	StatusCode      StatusCode                   `json:"status_code" yaml:"status_code"`
+	Name            string                       `json:"name"             yaml:"name"`
+	Status          string                       `json:"status"           yaml:"status"`
+	StatusCode      StatusCode                   `json:"status_code"      yaml:"status_code"`
 
 	// API extension: container_last_used_at
 	LastUsedAt time.Time `json:"last_used_at" yaml:"last_used_at"`
@@ -91,8 +91,8 @@ type Container struct {
 type ContainerFull struct {
 	Container `yaml:",inline"`
 
-	Backups   []ContainerBackup   `json:"backups" yaml:"backups"`
-	State     *ContainerState     `json:"state" yaml:"state"`
+	Backups   []ContainerBackup   `json:"backups"   yaml:"backups"`
+	State     *ContainerState     `json:"state"     yaml:"state"`
 	Snapshots []ContainerSnapshot `json:"snapshots" yaml:"snapshots"`
 }
 
@@ -134,24 +134,24 @@ func (c Container) IsActive() bool {
 
 // ContainerSource represents the creation source for a new container.
 type ContainerSource struct {
-	Type        string `json:"type" yaml:"type"`
+	Type        string `json:"type"        yaml:"type"`
 	Certificate string `json:"certificate" yaml:"certificate"`
 
 	// For "image" type
-	Alias       string            `json:"alias,omitempty" yaml:"alias,omitempty"`
+	Alias       string            `json:"alias,omitempty"       yaml:"alias,omitempty"`
 	Fingerprint string            `json:"fingerprint,omitempty" yaml:"fingerprint,omitempty"`
-	Properties  map[string]string `json:"properties,omitempty" yaml:"properties,omitempty"`
-	Server      string            `json:"server,omitempty" yaml:"server,omitempty"`
-	Secret      string            `json:"secret,omitempty" yaml:"secret,omitempty"`
-	Protocol    string            `json:"protocol,omitempty" yaml:"protocol,omitempty"`
+	Properties  map[string]string `json:"properties,omitempty"  yaml:"properties,omitempty"`
+	Server      string            `json:"server,omitempty"      yaml:"server,omitempty"`
+	Secret      string            `json:"secret,omitempty"      yaml:"secret,omitempty"`
+	Protocol    string            `json:"protocol,omitempty"    yaml:"protocol,omitempty"`
 
 	// For "migration" and "copy" types
 	BaseImage string `json:"base-image,omitempty" yaml:"base-image,omitempty"`
 
 	// For "migration" type
-	Mode       string            `json:"mode,omitempty" yaml:"mode,omitempty"`
+	Mode       string            `json:"mode,omitempty"      yaml:"mode,omitempty"`
 	Operation  string            `json:"operation,omitempty" yaml:"operation,omitempty"`
-	Websockets map[string]string `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+	Websockets map[string]string `json:"secrets,omitempty"   yaml:"secrets,omitempty"`
 
 	// For "copy" type
 	Source string `json:"source,omitempty" yaml:"source,omitempty"`
