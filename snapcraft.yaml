@@ -788,8 +788,7 @@ parts:
         - meson
         - ninja-build
     stage-packages:
-      - to armhf:
-        - acl      # placeholder pkg (actually used by lxd part) to avoid installing stage-packages on unsupported arches
+      - to armhf: []
       - else:
         - libjpeg-turbo8
         - libpixman-1-0
