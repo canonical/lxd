@@ -1009,7 +1009,7 @@ func getIdentities(authenticationMethod string) func(d *Daemon, r *http.Request)
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func getIdentity(d *Daemon, r *http.Request) response.Response {
-	id, err := request.GetCtxValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
+	id, err := request.GetContextValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1688,7 +1688,7 @@ func patchSelfIdentityUnprivileged(s *state.State, r *http.Request, id dbCluster
 //	  "501":
 //	    $ref: "#/responses/NotImplemented"
 func deleteIdentity(d *Daemon, r *http.Request) response.Response {
-	id, err := request.GetCtxValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
+	id, err := request.GetContextValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
 	if err != nil {
 		return response.SmartError(err)
 	}

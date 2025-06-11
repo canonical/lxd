@@ -125,7 +125,7 @@ func networkAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.
 			return response.SmartError(err)
 		}
 
-		details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
+		details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -954,7 +954,7 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1124,7 +1124,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1251,7 +1251,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1383,7 +1383,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}

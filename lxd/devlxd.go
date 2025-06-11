@@ -514,7 +514,7 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 
 // getInstanceFromContextAndCheckSecurityFlags checks if the instance has the provided devLXD security features enabled.
 func getInstanceFromContextAndCheckSecurityFlags(ctx context.Context, keys ...DevLXDSecurityKey) (instance.Instance, error) {
-	inst, err := request.GetCtxValue[instance.Instance](ctx, request.CtxDevLXDInstance)
+	inst, err := request.GetContextValue[instance.Instance](ctx, request.CtxDevLXDInstance)
 	if err != nil {
 		return nil, err
 	}

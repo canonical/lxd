@@ -99,7 +99,7 @@ func profileAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.
 			return response.SmartError(err)
 		}
 
-		details, err := request.GetCtxValue[profileDetails](r.Context(), ctxProfileDetails)
+		details, err := request.GetContextValue[profileDetails](r.Context(), ctxProfileDetails)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -505,7 +505,7 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 func profileGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[profileDetails](r.Context(), ctxProfileDetails)
+	details, err := request.GetContextValue[profileDetails](r.Context(), ctxProfileDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -599,7 +599,7 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 func profilePut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[profileDetails](r.Context(), ctxProfileDetails)
+	details, err := request.GetContextValue[profileDetails](r.Context(), ctxProfileDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -712,7 +712,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 func profilePatch(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[profileDetails](r.Context(), ctxProfileDetails)
+	details, err := request.GetContextValue[profileDetails](r.Context(), ctxProfileDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -837,7 +837,7 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 func profilePost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[profileDetails](r.Context(), ctxProfileDetails)
+	details, err := request.GetContextValue[profileDetails](r.Context(), ctxProfileDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -912,7 +912,7 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 func profileDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[profileDetails](r.Context(), ctxProfileDetails)
+	details, err := request.GetContextValue[profileDetails](r.Context(), ctxProfileDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}

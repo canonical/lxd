@@ -178,7 +178,7 @@ func imageAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Re
 			return response.SmartError(err)
 		}
 
-		details, err := request.GetCtxValue[imageDetails](r.Context(), ctxImageDetails)
+		details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -2793,7 +2793,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 
 	projectName := request.ProjectParam(r)
 
-	details, err := request.GetCtxValue[imageDetails](r.Context(), ctxImageDetails)
+	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3255,7 +3255,7 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 
 	// Get current value
 	projectName := request.ProjectParam(r)
-	details, err := request.GetCtxValue[imageDetails](r.Context(), ctxImageDetails)
+	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3352,7 +3352,7 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 
 	// Get current value
 	projectName := request.ProjectParam(r)
-	details, err := request.GetCtxValue[imageDetails](r.Context(), ctxImageDetails)
+	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -4405,7 +4405,7 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	projectName := request.ProjectParam(r)
-	details, err := request.GetCtxValue[imageDetails](r.Context(), ctxImageDetails)
+	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -4544,7 +4544,7 @@ func imageSecret(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	projectName := request.ProjectParam(r)
-	details, err := request.GetCtxValue[imageDetails](r.Context(), ctxImageDetails)
+	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -4652,7 +4652,7 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	projectName := request.ProjectParam(r)
-	details, err := request.GetCtxValue[imageDetails](r.Context(), ctxImageDetails)
+	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}

@@ -143,7 +143,7 @@ func networkPeersGet(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -252,7 +252,7 @@ func networkPeersPost(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -328,7 +328,7 @@ func networkPeerDelete(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -417,7 +417,7 @@ func networkPeerGet(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -542,7 +542,7 @@ func networkPeerPut(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}

@@ -144,7 +144,7 @@ func networkForwardsGet(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -251,7 +251,7 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -331,7 +331,7 @@ func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -422,7 +422,7 @@ func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -547,7 +547,7 @@ func networkForwardPut(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
