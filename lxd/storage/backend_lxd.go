@@ -8131,3 +8131,14 @@ func (b *lxdBackend) getParentVolumeUUID(vol drivers.Volume, projectName string)
 
 	return parentUUID, nil
 }
+
+func (b *lxdBackend) newBackupConfigCache(state *state.State) *backupConfigCache {
+	return &backupConfigCache{
+		pools: map[string]Pool{
+			// Initialize the cache with the already existing backend's pool.
+			b.name: b,
+		},
+		volumes: map[string]map[string]*backupConfig.Volume{},
+		state:   state,
+	}
+}
