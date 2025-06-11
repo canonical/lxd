@@ -1209,7 +1209,7 @@ type storageBucketDetails struct {
 func addStorageBucketDetailsToContext(d *Daemon, r *http.Request) error {
 	var details storageBucketDetails
 	defer func() {
-		request.SetCtxValue(r, ctxStorageBucketDetails, details)
+		request.SetContextValue(r, ctxStorageBucketDetails, details)
 	}()
 
 	s := d.State()

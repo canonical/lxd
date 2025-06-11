@@ -454,7 +454,7 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 		// Indicate whether the devLXD is being accessed over vsock. This allowes the handler
 		// to determine the correct response type. The responses over vsock are always
 		// in api.Response format, while the responses over Unix socket are in devLXDResponse format.
-		request.SetCtxValue(r, request.CtxDevLXDOverVsock, isVsock)
+		request.SetContextValue(r, request.CtxDevLXDOverVsock, isVsock)
 
 		handleRequest := func(action devLXDAPIEndpointAction) (resp response.Response) {
 			// Handle panic in the handler.

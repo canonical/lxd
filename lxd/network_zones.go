@@ -71,7 +71,7 @@ func addNetworkZoneDetailsToRequestContext(s *state.State, r *http.Request) erro
 	reqInfo := request.SetupContextInfo(r)
 	reqInfo.EffectiveProjectName = effectiveProjectName
 
-	request.SetCtxValue(r, ctxNetworkZoneDetails, networkZoneDetails{
+	request.SetContextValue(r, ctxNetworkZoneDetails, networkZoneDetails{
 		zoneName:       zoneName,
 		requestProject: *requestProject,
 	})

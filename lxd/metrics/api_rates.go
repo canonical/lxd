@@ -86,7 +86,7 @@ func TrackStartedRequest(r *http.Request, endpointType entity.Type) {
 		})
 	}
 
-	request.SetCtxValue(r, request.CtxMetricsCallbackFunc, callbackFunc)
+	request.SetContextValue(r, request.CtxMetricsCallbackFunc, callbackFunc)
 
 	countStartedRequest(endpointType)
 }
