@@ -92,7 +92,7 @@ var storagePoolVolumeSnapshotTypeCmd = APIEndpoint{
 func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -341,7 +341,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 		return response.SmartError(err)
 	}
 
-	details, err := request.GetCtxValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -475,7 +475,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -600,7 +600,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -705,7 +705,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -815,7 +815,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -892,7 +892,7 @@ func doStoragePoolVolumeSnapshotUpdate(s *state.State, r *http.Request, projectN
 		expiry = *req.ExpiresAt
 	}
 
-	details, err := request.GetCtxValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -956,7 +956,7 @@ func doStoragePoolVolumeSnapshotUpdate(s *state.State, r *http.Request, projectN
 func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}

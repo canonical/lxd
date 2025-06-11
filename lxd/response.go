@@ -57,7 +57,7 @@ func forwardedResponseIfInstanceIsRemote(ctx context.Context, s *state.State, pr
 // If it is present, the db.NodeInfo value for this key is used to set up a client for the indicated member and forward the request.
 // Otherwise, a nil response is returned to indicate that the request was not forwarded, and should continue within this member.
 func forwardedResponseIfVolumeIsRemote(ctx context.Context, s *state.State) response.Response {
-	storageVolumeDetails, err := request.GetCtxValue[storageVolumeDetails](ctx, ctxStorageVolumeDetails)
+	storageVolumeDetails, err := request.GetContextValue[storageVolumeDetails](ctx, ctxStorageVolumeDetails)
 	if err != nil {
 		return nil
 	} else if storageVolumeDetails.forwardingNodeInfo == nil {

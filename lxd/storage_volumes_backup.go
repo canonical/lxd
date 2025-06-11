@@ -172,7 +172,7 @@ func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.
 		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -287,7 +287,7 @@ func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.
 func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -496,7 +496,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -579,7 +579,7 @@ func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.R
 func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -692,7 +692,7 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -787,7 +787,7 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 func storagePoolVolumeTypeCustomBackupExportGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}

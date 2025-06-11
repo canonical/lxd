@@ -347,7 +347,7 @@ func (o *openfgaStore) ReadUsersetTuples(ctx context.Context, store string, filt
 	}
 
 	// Get cache from context. If it is not present, we'll fall back to calling the database directly.
-	cache, err := request.GetCtxValue[*RequestCache](ctx, request.CtxOpenFGARequestCache)
+	cache, err := request.GetContextValue[*RequestCache](ctx, request.CtxOpenFGARequestCache)
 	if err != nil {
 		groups, err := o.getGroupsWithEntitlementOnEntityWithURL(ctx, auth.Entitlement(filter.Relation), entityType, u)
 		if err != nil {
@@ -654,7 +654,7 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 	entitlement := auth.Entitlement(filter.Relation)
 
 	// Get cache from context. If it is not present, we'll fall back to calling the database directly.
-	cache, err := request.GetCtxValue[*RequestCache](ctx, request.CtxOpenFGARequestCache)
+	cache, err := request.GetContextValue[*RequestCache](ctx, request.CtxOpenFGARequestCache)
 	if err != nil {
 		entityURLs, err := o.getEntitiesOfTypeWhereGroupHasEntitlement(ctx, entityType, groupName, entitlement)
 		if err != nil {

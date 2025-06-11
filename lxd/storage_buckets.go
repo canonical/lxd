@@ -73,7 +73,7 @@ func storageBucketAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r 
 			return response.SmartError(err)
 		}
 
-		details, err := request.GetCtxValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
+		details, err := request.GetContextValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
 		if err != nil {
 			return nil
 		}
@@ -382,7 +382,7 @@ func storagePoolBucketGet(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
+	details, err := request.GetContextValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -612,7 +612,7 @@ func storagePoolBucketPut(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
+	details, err := request.GetContextValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -708,7 +708,7 @@ func storagePoolBucketDelete(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
+	details, err := request.GetContextValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -832,7 +832,7 @@ func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
+	details, err := request.GetContextValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -929,7 +929,7 @@ func storagePoolBucketKeysPost(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
+	details, err := request.GetContextValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -996,7 +996,7 @@ func storagePoolBucketKeyDelete(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
+	details, err := request.GetContextValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1071,7 +1071,7 @@ func storagePoolBucketKeyGet(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
+	details, err := request.GetContextValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1163,7 +1163,7 @@ func storagePoolBucketKeyPut(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
+	details, err := request.GetContextValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}

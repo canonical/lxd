@@ -97,7 +97,7 @@ func storagePoolVolumeTypeAccessHandler(entityType entity.Type, entitlement auth
 			return response.SmartError(err)
 		}
 
-		details, err := request.GetCtxValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
+		details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -1391,7 +1391,7 @@ func doVolumeMigration(s *state.State, r *http.Request, requestProjectName strin
 func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2018,7 +2018,7 @@ func storagePoolVolumeTypePostMove(s *state.State, r *http.Request, poolName str
 func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2131,7 +2131,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2277,7 +2277,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2388,7 +2388,7 @@ func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
+	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
