@@ -10,6 +10,7 @@ runs:
         set -eux
         sudo apt-get update
 
+        # XXX: storage driver tools (lvm2, zfsutils-linux, etc) are installed on-demand by `test/main.sh`.
         sudo apt-get install --no-install-recommends -y \
           acl \
           attr \
@@ -21,7 +22,6 @@ runs:
           easy-rsa \
           git \
           jq \
-          lvm2 \
           make \
           nftables \
           openvswitch-switch \
@@ -37,8 +37,7 @@ runs:
           thin-provisioning-tools \
           uuid-runtime \
           xfsprogs \
-          xz-utils \
-          zfsutils-linux
+          xz-utils
 
         if ! command -v yq >/dev/null; then
           # Releases before 24.04 don't have a yq deb so use the snap instead.
