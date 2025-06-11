@@ -158,7 +158,7 @@ func addImageDetailsToRequestContext(s *state.State, r *http.Request) error {
 		return fmt.Errorf("Failed to check project %q image feature: %w", requestProjectName, err)
 	}
 
-	request.SetCtxValue(r, ctxImageDetails, imageDetails{
+	request.SetContextValue(r, ctxImageDetails, imageDetails{
 		imageFingerprintPrefix: imageFingerprintPrefix,
 		imageID:                imageID,
 		image:                  *image,

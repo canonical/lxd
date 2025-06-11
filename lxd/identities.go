@@ -167,7 +167,7 @@ func addIdentityDetailsToContext(s *state.State, r *http.Request, authentication
 		return nil, err
 	}
 
-	request.SetCtxValue(r, ctxClusterDBIdentity, id)
+	request.SetContextValue(r, ctxClusterDBIdentity, id)
 	return id, nil
 }
 

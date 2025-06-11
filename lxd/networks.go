@@ -107,7 +107,7 @@ func addNetworkDetailsToRequestContext(s *state.State, r *http.Request) error {
 	info := request.SetupContextInfo(r)
 	info.EffectiveProjectName = effectiveProjectName
 
-	request.SetCtxValue(r, ctxNetworkDetails, networkDetails{
+	request.SetContextValue(r, ctxNetworkDetails, networkDetails{
 		networkName:    networkName,
 		requestProject: *requestProject,
 	})
