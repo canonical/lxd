@@ -82,6 +82,7 @@ runs:
 
             # Force the detection of the new partitions
             sudo partx --update "${ephemeral_disk}"
+            sleep 30  # Allow (more) time for the kernel to pick up the new partitions
 
             for i in $(seq 1 "${{ inputs.osd-count }}"); do
               # MicroCeph does not accept partitions directly.
