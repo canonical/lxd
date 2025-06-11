@@ -94,7 +94,7 @@ func TrackStartedRequest(r *http.Request, endpointType entity.Type) {
 // UseMetricsCallback retrieves a callback function from the request context and calls it.
 // The callback function is used to mark the request as completed for the API metrics.
 func UseMetricsCallback(req *http.Request, result RequestResult) {
-	callback, err := request.GetCtxValue[func(RequestResult)](req.Context(), request.CtxMetricsCallbackFunc)
+	callback, err := request.GetContextValue[func(RequestResult)](req.Context(), request.CtxMetricsCallbackFunc)
 
 	if err == nil && callback != nil {
 		callback(result)
