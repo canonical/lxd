@@ -310,7 +310,7 @@ jobs:
       LXD_TMPFS: "1"
       GOTRACEBACK: "crash"
     name: System
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: code-tests
     strategy:
       fail-fast: false
