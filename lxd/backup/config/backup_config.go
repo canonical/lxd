@@ -16,6 +16,21 @@ const DefaultMetadataVersion = api.BackupMetadataVersion2
 // MaxMetadataVersion represents the latest supported metadata version.
 const MaxMetadataVersion = api.BackupMetadataVersion2
 
+// Type indicates the type of backup.
+type Type string
+
+// TypeUnknown defines the backup type value for unknown backups.
+const TypeUnknown = Type("")
+
+// TypeContainer defines the backup type value for a container.
+const TypeContainer = Type("container")
+
+// TypeVM defines the backup type value for a virtual-machine.
+const TypeVM = Type("virtual-machine")
+
+// TypeCustom defines the backup type value for a custom volume.
+const TypeCustom = Type("custom")
+
 // Volume represents the config of a volume including its snapshots.
 type Volume struct {
 	// Make sure to have the embedded structs fields inline to avoid nesting.
@@ -147,7 +162,10 @@ func (c *Config) RootVolume() (*Volume, error) {
 			continue
 		}
 
-		if volume.Name == c.Instance.Name {
+		// An instance's root volume uses the same name as its parent instance.
+		// In the list of volumes there might be a custom storage volume with an identical name.
+		// Only return the volume if its type is either virtual-machine or container.
+		if volume.Name == c.Instance.Name && Type(volume.Type) != TypeCustom {
 			return volume, nil
 		}
 	}
