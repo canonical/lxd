@@ -276,6 +276,7 @@ sudo apt install \
     busybox-static \
     curl \
     dnsmasq-base \
+    dosfstools \
     iptables \
     jq \
     shellcheck \
