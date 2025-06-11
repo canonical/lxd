@@ -294,8 +294,7 @@ parts:
     source-type: git
     plugin: nil
     build-packages:
-      - to armhf:
-        - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
+      - to armhf: []
       - else:
         - asciidoc
         - libcap-dev
