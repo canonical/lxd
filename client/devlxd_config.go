@@ -1,6 +1,7 @@
 package lxd
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -54,6 +55,18 @@ func (r *ProtocolDevLXD) GetConfigByKey(key string) (string, error) {
 	resp, _, err := r.query(http.MethodGet, url.String(), nil, "")
 	if err != nil {
 		return "", err
+	}
+
+	if r.isDevLXDOverVsock {
+		var value string
+
+		// The returned string value is JSON encoded.
+		err = json.Unmarshal(resp.Content, &value)
+		if err != nil {
+			return "", err
+		}
+
+		return value, nil
 	}
 
 	return string(resp.Content), nil
