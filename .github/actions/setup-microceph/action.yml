@@ -83,6 +83,14 @@ runs:
             # Force the detection of the new partitions
             sudo partx --update "${ephemeral_disk}"
 
+            # Allow (more) time for the kernel to pick up the new partitions
+            disk_name="$(basename "${ephemeral_disk}")"
+            for _ in 1 2 3; do
+              parts="$(grep -cwE "${disk_name}[0-9]+$" /proc/partitions)"
+              [ "${parts}" -ge "${{ inputs.osd-count }}" ] && break
+              sleep 1
+            done
+
             for i in $(seq 1 "${{ inputs.osd-count }}"); do
               # MicroCeph does not accept partitions directly.
               # See: https://github.com/canonical/microceph/issues/251
