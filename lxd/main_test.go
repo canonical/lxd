@@ -73,7 +73,7 @@ func (suite *lxdTestSuite) SetupTest() {
 
 	// Create the database entry for the storage pool.
 	poolDescription := lxdTestSuiteDefaultStoragePool + " storage pool"
-	_, err = dbStoragePoolCreateAndUpdateCache(suite.d.State(), lxdTestSuiteDefaultStoragePool, poolDescription, "mock", poolConfig)
+	_, err = dbStoragePoolCreateAndUpdateCache(context.Background(), suite.d.State(), lxdTestSuiteDefaultStoragePool, poolDescription, "mock", poolConfig)
 	if err != nil {
 		suite.T().Errorf("failed to create default storage pool: %v", err)
 	}
