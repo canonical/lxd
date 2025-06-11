@@ -389,7 +389,16 @@ func ConnectDevLXDHTTPWithContext(ctx context.Context, args *ConnectionArgs, cli
 	}
 
 	// Setup the HTTP client.
-	server.http = client
+	if client != nil {
+		// If the http.Transport has a TLSClientConfig, it indicates that the
+		// connection is using vsock.
+		transport, ok := client.Transport.(*http.Transport)
+		if ok && transport != nil && transport.TLSClientConfig != nil {
+			server.isDevLXDOverVsock = true
+		}
+
+		server.http = client
+	}
 
 	// Test the connection.
 	if !args.SkipGetServer {
