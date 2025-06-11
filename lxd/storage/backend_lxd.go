@@ -7041,13 +7041,14 @@ func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapsh
 		return nil, err
 	}
 
-	volumeConfig := &backupConfig.Volume{
+	rootVolumeConfig := &backupConfig.Volume{
 		StorageVolume: volume.StorageVolume,
 	}
 
 	config := &backupConfig.Config{
 		Version: api.BackupMetadataVersion2,
 		Pools:   []*api.StoragePool{&b.db},
+		Volumes: []*backupConfig.Volume{rootVolumeConfig},
 	}
 
 	// Add profiles from instance.
@@ -7090,7 +7091,7 @@ func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapsh
 				return nil, errors.New("Instance snapshot record count doesn't match instance snapshot volume record count")
 			}
 
-			volumeConfig.Snapshots = make([]*api.StorageVolumeSnapshot, 0, len(dbVolSnaps))
+			rootVolumeConfig.Snapshots = make([]*api.StorageVolumeSnapshot, 0, len(dbVolSnaps))
 			for i := range dbVolSnaps {
 				foundInstanceSnapshot := false
 				for _, snap := range snapshots {
@@ -7106,7 +7107,7 @@ func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapsh
 
 				_, snapName, _ := api.GetParentAndSnapshotName(dbVolSnaps[i].Name)
 
-				volumeConfig.Snapshots = append(volumeConfig.Snapshots, &api.StorageVolumeSnapshot{
+				rootVolumeConfig.Snapshots = append(rootVolumeConfig.Snapshots, &api.StorageVolumeSnapshot{
 					Name:        snapName,
 					Description: dbVolSnaps[i].Description,
 					ExpiresAt:   &dbVolSnaps[i].ExpiryDate,
@@ -7118,7 +7119,6 @@ func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapsh
 		}
 	}
 
-	config.Volumes = []*backupConfig.Volume{volumeConfig}
 	return config, nil
 }
 
