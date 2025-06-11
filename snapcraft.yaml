@@ -919,8 +919,7 @@ parts:
         - quilt
         - librbd-dev
     stage-packages:
-      - to armhf:
-        - acl      # placeholder pkg (actually used by lxd part) to avoid installing stage-packages on unsupported arches
+      - to armhf: []
       - else:
         - genisoimage
         - ipxe-qemu # This is needed due to --disable-install-blobs.
