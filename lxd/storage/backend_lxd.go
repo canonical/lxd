@@ -35,6 +35,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instancewriter"
@@ -8119,4 +8120,58 @@ func (b *lxdBackend) getParentVolumeUUID(vol drivers.Volume, projectName string)
 	}
 
 	return parentUUID, nil
+}
+
+// GenerateInstanceCustomVolumeBackupConfig returns the backup config entry for this instance's custom volumes.
+func (b *lxdBackend) GenerateInstanceCustomVolumeBackupConfig(inst instance.Instance, cache *backupConfigCache, snapshots bool, op *operations.Operation) (*backupConfig.Config, error) {
+	// Setup a cache if not provided.
+	// This will allow caching pool and volume backup configs for the given instance.
+	if cache == nil {
+		cache = newBackupConfigCache(b)
+	}
+
+	// Get the right project name for the disk device.
+	instanceProject := inst.Project()
+	projectName := project.StorageVolumeProjectFromRecord(&instanceProject, cluster.StoragePoolVolumeTypeCustom)
+
+	var instanceBackupConf = &backupConfig.Config{}
+
+	// Skip non-disk devices, host filesystem shares without a pool and the instance's root disk itself.
+	for _, device := range inst.ExpandedDevices().Filter(filters.IsCustomVolumeDisk) {
+		vol, err := cache.getVolume(projectName, device["pool"], device["source"], snapshots, op)
+		if err != nil {
+			// When restoring an instance snapshot, the old instance's list of attached custom volumes
+			// might contain references to volumes which don't anymore exist.
+			// In such cases we don't anymore have the information about the custom volume and
+			// cannot include it in the instance's backup config.
+			// The instance cannot be started in any case until the non-existing disk device gets removed.
+			if api.StatusErrorCheck(err, http.StatusNotFound) {
+				continue
+			}
+
+			return nil, err
+		}
+
+		instanceBackupConf.Volumes = append(instanceBackupConf.Volumes, vol)
+
+		volPool, err := cache.getPool(device["pool"])
+		if err != nil {
+			return nil, err
+		}
+
+		poolFound := false
+		for _, pool := range instanceBackupConf.Pools {
+			if pool.Name == volPool.Name() {
+				poolFound = true
+			}
+		}
+
+		// Append vol pool to the backup config if it doesn't yet exist.
+		if !poolFound {
+			apiPool := volPool.ToAPI()
+			instanceBackupConf.Pools = append(instanceBackupConf.Pools, &apiPool)
+		}
+	}
+
+	return instanceBackupConf, nil
 }
