@@ -56,8 +56,28 @@ fi
 import_subdir_files includes
 
 # Default to dir backend if none is specified
+# If the requested backend is specified but the needed tooling is missing, try to install it.
 if [ -z "${LXD_BACKEND:-}" ]; then
     LXD_BACKEND="dir"
+elif ! available_storage_backends | grep -qwF "${LXD_BACKEND}"; then
+    pkg=""
+    case "${LXD_BACKEND}" in
+      ceph)
+        pkg="ceph-common";;
+      lvm)
+        pkg="lvm2";;
+      zfs)
+        pkg="zfsutils-linux";;
+      *)
+        ;;
+    esac
+
+    if [ -n "${pkg}" ] && command -v apt-get >/dev/null; then
+        apt-get install --no-install-recommends -y "${pkg}"
+
+        # Verify that the newly installed tools made the storage backend available
+        available_storage_backends | grep -qwF "${LXD_BACKEND}"
+    fi
 fi
 
 echo "==> Checking for dependencies"
