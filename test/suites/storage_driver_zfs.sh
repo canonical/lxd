@@ -110,11 +110,6 @@ do_zfs_cross_pool_copy() {
 do_storage_driver_zfs() {
   filesystem="$1"
 
-  if ! command -v "mkfs.${filesystem}" >/dev/null 2>&1; then
-    echo "==> SKIP: Skipping block mode test on ${filesystem} due to missing tools."
-    return
-  fi
-
   local LXD_STORAGE_DIR lxd_backend
 
   lxd_backend=$(storage_backend "$LXD_DIR")
