@@ -272,6 +272,7 @@ sudo apt update
 sudo apt install \
     acl \
     bind9-dnsutils \
+    btrfs-progs \
     busybox-static \
     curl \
     dnsmasq-base \
