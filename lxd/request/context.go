@@ -61,7 +61,7 @@ func SetupContextInfo(r *http.Request) *Info {
 	}
 
 	info = &Info{}
-	SetCtxValue(r, CtxRequestInfo, info)
+	SetContextValue(r, CtxRequestInfo, info)
 	return info
 }
 
@@ -101,8 +101,8 @@ func GetContextValue[T any](ctx context.Context, key CtxKey) (T, error) {
 	return value, nil
 }
 
-// SetCtxValue sets the given value in the request context with the given key.
-func SetCtxValue(r *http.Request, key CtxKey, value any) {
+// SetContextValue sets the given value in the request context with the given key.
+func SetContextValue(r *http.Request, key CtxKey, value any) {
 	rWithCtx := r.WithContext(context.WithValue(r.Context(), key, value))
 	*r = *rWithCtx
 }
