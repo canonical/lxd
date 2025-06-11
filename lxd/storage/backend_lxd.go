@@ -6274,6 +6274,9 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 		delete(newConfig, "volatile.idmap.next")
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Update the database if something changed.
 	if len(changedConfig) != 0 || newDesc != curVol.Description {
 		err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -6282,10 +6285,18 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 		if err != nil {
 			return err
 		}
+
+		revert.Add(func() {
+			// Update the custom volume with its old config.
+			_ = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				return tx.UpdateStoragePoolVolume(ctx, projectName, volName, cluster.StoragePoolVolumeTypeCustom, b.ID(), curVol.Description, curVol.Config)
+			})
+		})
 	}
 
 	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeUpdated.Event(newVol, string(newVol.Type()), projectName, op, nil))
 
+	revert.Success()
 	return nil
 }
 
