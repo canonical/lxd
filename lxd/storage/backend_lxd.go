@@ -6335,6 +6335,9 @@ func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName stri
 		}
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Update the database if description changed. Use current config.
 	if newDesc != curVol.Description || newExpiryDate != curExpiryDate {
 		err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -6343,11 +6346,18 @@ func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName stri
 		if err != nil {
 			return err
 		}
+
+		revert.Add(func() {
+			_ = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				return tx.UpdateStorageVolumeSnapshot(ctx, projectName, volName, cluster.StoragePoolVolumeTypeCustom, b.ID(), curVol.Description, curVol.Config, curExpiryDate)
+			})
+		})
 	}
 
 	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(curVol.ContentType), curVol.Name, curVol.Config)
 	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeSnapshotUpdated.Event(vol, string(vol.Type()), projectName, op, nil))
 
+	revert.Success()
 	return nil
 }
 
