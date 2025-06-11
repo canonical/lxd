@@ -277,6 +277,7 @@ sudo apt install \
     curl \
     dnsmasq-base \
     dosfstools \
+    e2fsprogs \
     iptables \
     jq \
     shellcheck \
