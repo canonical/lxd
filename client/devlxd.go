@@ -34,6 +34,9 @@ type ProtocolDevLXD struct {
 	httpUserAgent string
 
 	eventListenerManager *eventListenerManager
+
+	// isDevLXDOverVsock indicates whether the devLXD connection is over vsock.
+	isDevLXDOverVsock bool
 }
 
 // GetConnectionInfo returns the basic connection information used to interact with the server.
