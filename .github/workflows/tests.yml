@@ -47,7 +47,7 @@ jobs:
       LD_RUN_PATH: "/home/runner/go/bin/dqlite/libs/"
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
     name: Code
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -299,7 +299,7 @@ jobs:
       LXD_TMPFS: "1"
       GOTRACEBACK: "crash"
     name: System
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     needs: code-tests
     strategy:
       fail-fast: false
@@ -347,6 +347,15 @@ jobs:
           set -eux
           ls -lR /home/runner/go/bin/
           chmod uog+x /home/runner/go/bin/*
+
+      - name: Purge LXD snap
+        # TODO: drop this when moving away from `ubuntu-22.04` runners to `ubuntu-24.04`
+        if: ${{ matrix.backend == 'ceph' }}
+        run: |
+          set -eux
+          # LXD snap holds on to the swap that prevents the clearing of the ephemeral disk for microceph
+          # https://github.com/canonical/lxd/issues/14768
+          sudo snap remove --purge lxd
 
       - name: Setup MicroCeph
         if: ${{ matrix.backend == 'ceph' }}
