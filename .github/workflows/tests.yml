@@ -311,7 +311,7 @@ jobs:
       GOTRACEBACK: "crash"
     if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
     name: System
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: code-tests
     strategy:
       fail-fast: false
