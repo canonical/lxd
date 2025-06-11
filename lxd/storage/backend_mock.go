@@ -182,6 +182,11 @@ func (b *mockBackend) GenerateInstanceBackupConfig(inst instance.Instance, snaps
 	return nil, nil
 }
 
+// GenerateInstanceCustomVolumeBackupConfig ...
+func (b *mockBackend) GenerateInstanceCustomVolumeBackupConfig(inst instance.Instance, cache *backupConfigCache, snapshots bool, op *operations.Operation) (*backupConfig.Config, error) {
+	return nil, nil
+}
+
 // UpdateInstanceBackupFile ...
 func (b *mockBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshot bool, volBackupConf *backupConfig.Config, version uint32, op *operations.Operation) error {
 	return nil
