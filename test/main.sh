@@ -37,10 +37,6 @@ if [ -n "${DEBUG:-}" ]; then
   set -x
 fi
 
-if [ -z "${LXD_BACKEND:-}" ]; then
-    LXD_BACKEND="dir"
-fi
-
 # shellcheck disable=SC2034
 LXD_NETNS=""
 
@@ -58,6 +54,11 @@ if [ "${PWD}" != "$(dirname "${0}")" ]; then
     cd "$(dirname "${0}")"
 fi
 import_subdir_files includes
+
+# Default to dir backend if none is specified
+if [ -z "${LXD_BACKEND:-}" ]; then
+    LXD_BACKEND="dir"
+fi
 
 echo "==> Checking for dependencies"
 check_dependencies lxd lxc curl /bin/busybox dnsmasq iptables jq yq git sqlite3 rsync shuf setfacl setfattr socat swtpm dig xz
