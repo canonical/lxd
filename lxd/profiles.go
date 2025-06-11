@@ -81,7 +81,7 @@ func addProfileDetailsToRequestContext(s *state.State, r *http.Request) error {
 	reqInfo := request.SetupContextInfo(r)
 	reqInfo.EffectiveProjectName = effectiveProject.Name
 
-	request.SetCtxValue(r, ctxProfileDetails, profileDetails{
+	request.SetContextValue(r, ctxProfileDetails, profileDetails{
 		profileName:      profileName,
 		effectiveProject: *effectiveProject,
 	})

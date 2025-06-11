@@ -886,7 +886,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		// Set OpenFGA cache in request context.
-		request.SetCtxValue(r, request.CtxOpenFGARequestCache, &openfga.RequestCache{})
+		request.SetContextValue(r, request.CtxOpenFGARequestCache, &openfga.RequestCache{})
 
 		// Dump full request JSON when in debug mode
 		if daemon.Debug && r.Method != "GET" && util.IsJSONRequest(r) {

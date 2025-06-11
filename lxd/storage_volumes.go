@@ -2750,7 +2750,7 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 			details.location = location
 		}
 
-		request.SetCtxValue(r, ctxStorageVolumeDetails, details)
+		request.SetContextValue(r, ctxStorageVolumeDetails, details)
 	}()
 
 	volumeName, err := url.PathUnescape(mux.Vars(r)["volumeName"])
