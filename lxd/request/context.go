@@ -85,8 +85,8 @@ func IsRequestContext(ctx context.Context) bool {
 	return GetContextInfo(ctx) != nil
 }
 
-// GetCtxValue gets a value of type T from the context using the given key.
-func GetCtxValue[T any](ctx context.Context, key CtxKey) (T, error) {
+// GetContextValue gets a value of type T from the context using the given key.
+func GetContextValue[T any](ctx context.Context, key CtxKey) (T, error) {
 	var empty T
 	valueAny := ctx.Value(key)
 	if valueAny == nil {
