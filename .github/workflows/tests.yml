@@ -828,7 +828,6 @@ jobs:
           make doc-lint
 
       - name: Build docs (Sphinx)
-        shell: 'script -q -e -c "export TERM=xterm-256color; bash {0}"'
         run: |
           set -eux
           make doc
