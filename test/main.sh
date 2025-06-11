@@ -53,6 +53,10 @@ import_subdir_files() {
     done
 }
 
+# `main.sh` needs to be executed from inside the `test/` directory
+if [ "${PWD}" != "$(dirname "${0}")" ]; then
+    cd "$(dirname "${0}")"
+fi
 import_subdir_files includes
 
 echo "==> Checking for dependencies"
@@ -112,11 +116,11 @@ cleanup() {
     bash --norc
   fi
 
-  echo ""
-  echo "df -h output:"
-  df -h
-
   if [ "${TEST_RESULT}" != "success" ]; then
+    echo ""
+    echo "df -h output:"
+    df -h
+
     if command -v ceph >/dev/null; then
       echo "::group::ceph status"
       ceph status --connect-timeout 5 || true
@@ -219,7 +223,7 @@ run_test() {
   TEST_CURRENT=${1}
   TEST_CURRENT_DESCRIPTION=${2:-${1#test_}}
   TEST_UNMET_REQUIREMENT=""
-  cwd="$(pwd)"
+  cwd="${PWD}"
 
   echo "==> TEST BEGIN: ${TEST_CURRENT_DESCRIPTION}"
   START_TIME=$(date +%s)
@@ -289,7 +293,7 @@ fi
 if [ "${1:-"all"}" = "test-shell" ]; then
   # yellow
   export PS1="\[\033[0;33mLXD-TEST\033[0m ${PS1:-\u@\h:\w\$ }\]"
-  bash --norc
+  bash --rcfile test-shell.bashrc || true
   # shellcheck disable=SC2034
   TEST_RESULT=success
   exit
