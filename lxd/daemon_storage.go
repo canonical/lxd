@@ -85,7 +85,7 @@ func daemonStorageVolumesUnmount(s *state.State, ctx context.Context) error {
 func daemonStorageMount(s *state.State) error {
 	var storageBackups string
 	var storageImages string
-	err := s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+	err := s.DB.Node.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
 		nodeConfig, err := node.ConfigLoad(ctx, tx)
 		if err != nil {
 			return err
