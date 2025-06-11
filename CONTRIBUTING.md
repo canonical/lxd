@@ -114,6 +114,12 @@ Some changes require regenerating certain files using Makefile commands.
 
 After you run any of the commands below, you'll be prompted whether to commit the changes. If you respond `Y`, only the re-generated files are committed—any other staged files are ignored.
 
+#### Formatting
+
+If you modify any Go source files, format them:
+
+	make update-fmt
+
 #### CLI tool string updates
 
 If you modify CLI strings in `lxc/`, regenerate and commit translation files:
