@@ -1213,8 +1213,7 @@ parts:
       - --prefix=/
       - --with-config=user
     build-packages:
-      - to armhf:
-        - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
+      - to armhf: []
       - else:
         - libblkid-dev
         - libssl-dev
