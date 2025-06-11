@@ -35,6 +35,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instancewriter"
@@ -8129,4 +8130,77 @@ func (b *lxdBackend) getParentVolumeUUID(vol drivers.Volume, projectName string)
 	}
 
 	return parentUUID, nil
+}
+
+// GenerateInstanceCustomVolumeBackupConfig returns the backup config entry for this instance's custom volumes.
+// To not require looking up all the entities from the DB for every instance, the custom volume's backup config
+// can be created independently from the actual instance's main backup config by specifying an optional cache.
+// The caller can decide to use this cache across multiple instances.
+// That is helpful in situations where a custom volume gets updated which causes the backup config files of all
+// instances using this volume to be updated.
+func (b *lxdBackend) GenerateInstanceCustomVolumeBackupConfig(inst instance.Instance, cache *backupConfigCache, snapshots bool, op *operations.Operation) (*backupConfig.Config, error) {
+	// Setup a cache if not provided.
+	// This will allow caching pool and volume backup configs for the given instance.
+	if cache == nil {
+		cache = newBackupConfigCache(b)
+	}
+
+	// Get the right project name for the disk device.
+	instanceProject := inst.Project()
+	projectName := project.StorageVolumeProjectFromRecord(&instanceProject, cluster.StoragePoolVolumeTypeCustom)
+
+	var instanceBackupConf = &backupConfig.Config{}
+
+	// Skip non-disk devices, host filesystem shares without a pool and the instance's root disk itself.
+	for _, device := range inst.ExpandedDevices().Filter(filters.IsCustomVolumeDisk) {
+		vol, err := cache.getVolume(projectName, device["pool"], device["source"], snapshots, op)
+		if err != nil {
+			// When restoring an instance from snapshot, some of the custom vols which were attached
+			// whilst taking the snapshot might not exist anymore.
+			// To not cause failures during restore, skip those volumes because we cannot include them in the instance's backup config.
+			// These volumes are still listed in the list of instance devices and will cause an error when
+			// trying to start the instance.
+			// The instance cannot be started in any case until the non-existing disk device gets removed.
+			if api.StatusErrorCheck(err, http.StatusNotFound) {
+				logger.Warn("Missing custom volume to include in instance's backup config", logger.Ctx{"project": projectName, "pool": device["pool"], "volume": device["source"], "instance": inst.Name()})
+
+				continue
+			}
+
+			return nil, err
+		}
+
+		volPool, err := cache.getPool(device["pool"])
+		if err != nil {
+			return nil, err
+		}
+
+		volFound := false
+		for _, existingVol := range instanceBackupConf.Volumes {
+			// A volume can be considered identical if both it's name and pool is matching.
+			if existingVol.Name == vol.Name && existingVol.Pool == volPool.Name() {
+				volFound = true
+			}
+		}
+
+		// Append vol to the backup config if it doesn't yet exist.
+		if !volFound {
+			instanceBackupConf.Volumes = append(instanceBackupConf.Volumes, vol)
+		}
+
+		poolFound := false
+		for _, existingPool := range instanceBackupConf.Pools {
+			if existingPool.Name == volPool.Name() {
+				poolFound = true
+			}
+		}
+
+		// Append vol pool to the backup config if it doesn't yet exist.
+		if !poolFound {
+			apiPool := volPool.ToAPI()
+			instanceBackupConf.Pools = append(instanceBackupConf.Pools, &apiPool)
+		}
+	}
+
+	return instanceBackupConf, nil
 }
