@@ -418,3 +418,7 @@ update-auth:
 			git commit -S -sm "lxd/auth: Update auth" -- ./lxd/auth/;\
 		fi;\
 	fi
+
+.PHONY: update-fmt
+update-fmt:
+	gofmt -w -s ./
