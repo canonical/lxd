@@ -135,8 +135,8 @@ test_authorization() {
 
   # Check users have been added to the group.
   tls_identity_fingerprint="$(cert_fingerprint "${LXD_CONF2}/client.crt")"
-  lxc auth identity list --format csv | grep -Fq 'oidc,OIDC client," ",test-user@example.com,test-group'
-  lxc auth identity list --format csv | grep -Fq "tls,Client certificate,test-user,${tls_identity_fingerprint},test-group"
+  lxc auth identity list --format csv | grep -F 'oidc,OIDC client," ",test-user@example.com,test-group'
+  lxc auth identity list --format csv | grep -F "tls,Client certificate,test-user,${tls_identity_fingerprint},test-group"
 
   # Test `lxc auth identity info`
   expectedOIDCInfo='authentication_method: oidc
@@ -235,23 +235,23 @@ fine_grained: true"
 
   # The OIDC identity should be able to delete themselves without any permissions.
   lxc auth identity group remove oidc/test-user@example.com test-group
-  lxc_remote auth identity info oidc: | grep -Fq 'effective_permissions: []'
+  lxc_remote auth identity info oidc: | grep -F 'effective_permissions: []'
   lxc_remote auth identity delete oidc:oidc/test-user@example.com
-  ! lxc auth identity list --format csv | grep -Fq 'test-user@example.com' || false
+  ! lxc auth identity list --format csv | grep -F 'test-user@example.com' || false
 
   # When the OIDC identity re-authenticates they should reappear in the database
   [ "$(lxc_remote query oidc:/1.0 | jq -r '.auth')" = "trusted" ]
-  lxc auth identity list --format csv | grep -Fq 'test-user@example.com'
-  lxc_remote auth identity info oidc: | grep -Fq 'effective_permissions: []'
+  lxc auth identity list --format csv | grep -F 'test-user@example.com'
+  lxc_remote auth identity info oidc: | grep -F 'effective_permissions: []'
 
   # The OIDC identity cannot see or delete the TLS identity.
   ! lxc_remote auth identity show "oidc:tls/${tls_identity_fingerprint}" || false
   ! lxc_remote auth identity delete "oidc:tls/${tls_identity_fingerprint}" || false
 
   # But the TLS identity can see and delete itself
-  LXD_CONF="${LXD_CONF2}" lxc_remote auth identity list tls: --format csv | grep -Fq "${tls_identity_fingerprint}"
+  LXD_CONF="${LXD_CONF2}" lxc_remote auth identity list tls: --format csv | grep -wF "${tls_identity_fingerprint}"
   LXD_CONF="${LXD_CONF2}" lxc_remote auth identity delete "tls:tls/${tls_identity_fingerprint}"
-  ! lxc auth identity list --format csv | grep -Fq "${tls_identity_fingerprint}" || false
+  ! lxc auth identity list --format csv | grep -F "${tls_identity_fingerprint}" || false
 
   # The TLS identity is not trusted after deletion.
   [ "$(LXD_CONF="${LXD_CONF2}" lxc_remote query tls:/1.0 | jq -r '.auth')" = "untrusted" ]
@@ -518,7 +518,7 @@ user_is_not_server_admin() {
   lxc_remote info "${remote}:" > /dev/null
 
   # Cannot see any config.
-  ! lxc_remote info "${remote}:" | grep -Fq 'core.https_address' || false
+  ! lxc_remote info "${remote}:" | grep -F 'core.https_address' || false
 
   # Cannot set any config.
   ! lxc_remote config set "${remote}:" core.proxy_https=https://example.com || false
@@ -527,7 +527,7 @@ user_is_not_server_admin() {
   [ "$(lxc_remote storage list "${remote}:" -f csv | wc -l)" = 1 ]
   lxc_remote storage create test-pool dir
   ! lxc_remote storage set "${remote}:test-pool" rsync.compression=true || false
-  ! lxc_remote storage show "${remote}:test-pool" | grep -Fq 'source:' || false
+  ! lxc_remote storage show "${remote}:test-pool" | grep -F 'source:' || false
   ! lxc_remote storage delete "${remote}:test-pool" || false
   lxc_remote storage delete test-pool
 
@@ -553,7 +553,7 @@ user_is_server_admin() {
   remote="${1}"
 
   # Should be able to see server config.
-  lxc_remote info "${remote}:" | grep -Fq 'core.https_address'
+  lxc_remote info "${remote}:" | grep -F 'core.https_address'
 
   ## Should be able to add/remove certificates.
   # Create a temporary lxc config directory with some certs to test with.
@@ -574,7 +574,7 @@ user_is_server_admin() {
   ## Should be able to create/edit/delete a storage pool.
   lxc_remote storage create "${remote}:test-pool" dir
   lxc_remote storage set "${remote}:test-pool" rsync.compression=true
-  lxc_remote storage show "${remote}:test-pool" | grep -Fq 'rsync.compression:'
+  lxc_remote storage show "${remote}:test-pool" | grep -F 'rsync.compression:'
   lxc_remote storage delete "${remote}:test-pool"
 
   # Should be able to view all managed and unmanaged networks
@@ -587,7 +587,7 @@ user_is_server_operator() {
   remote="${1}"
 
   # Should be able to see projects.
-  lxc_remote project list "${remote}:" -f csv | grep -Fq 'default'
+  lxc_remote project list "${remote}:" -f csv | grep -wF "default"
 
   # Should be able to create/edit/delete a project.
   lxc_remote project create "${remote}:test-project"
@@ -705,7 +705,7 @@ user_is_not_project_operator() {
 
   # Should be able to list public images.
   lxc_remote image show testimage | sed -e "s/public: false/public: true/" | lxc_remote image edit testimage
-  lxc_remote image list "${remote}:" -f csv | grep -Fq "${test_image_fingerprint_short}"
+  lxc_remote image list "${remote}:" -f csv | grep -wF "${test_image_fingerprint_short}"
   lxc_remote image show testimage | sed -e "s/public: true/public: false/" | lxc_remote image edit testimage
 }
 
