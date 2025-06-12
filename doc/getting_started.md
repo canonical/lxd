@@ -16,28 +16,17 @@ How to install and initialize LXD:
 
 :diataxis:Install LXD </installing>
 :diataxis:Initialize LXD </howto/initialize>
-:diataxis:Manage the snap </howto/snap>
 ```
 
 ```{only} diataxis
-How to enable access to the UI and the documentation:
+How to access the UI and the local, offline copy of the documentation:
 ```
 
 ```{filtered-toctree}
 :maxdepth: 1
 
 :diataxis:Access the UI </howto/access_ui>
-:diataxis:Access documentation </howto/access_documentation>
-```
-
-```{only} diataxis
-How to get support:
-```
-
-```{filtered-toctree}
-:maxdepth: 1
-
-:diataxis:Get support </support>
+:diataxis:Access documentation locally </howto/access_documentation>
 ```
 
 In addition, the following clip gives a quick and easy introduction for standard use cases:
@@ -52,25 +41,8 @@ You can also find a series of demos and tutorials on YouTube:
 
 ## Related topics
 
-```{only} diataxis
 {{getting_started_tut}}
 
 {{getting_started_exp}}
 
 {{getting_started_ref}}
-```
-
-```{filtered-toctree}
-:maxdepth: 1
-
-:topical:/tutorial/first_steps
-:topical:/explanation/instances
-:topical:/requirements
-:topical:Install LXD </installing>
-:topical:Initialize LXD </howto/initialize>
-:topical:Manage the snap </howto/snap>
-:topical:Access the UI </howto/access_ui>
-:topical:Access the documentation </howto/access_documentation>
-:topical:Frequently asked </faq>
-:topical:Get support </support>
-```
