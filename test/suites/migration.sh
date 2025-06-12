@@ -190,8 +190,8 @@ migration() {
   lxc storage volume set "${pool}" container/cccp user.foo=postsnap1
 
   # Check storage volume creation times are set.
-  lxc query /1.0/storage-pools/"${pool}"/volumes/container/cccp | jq .created_at | grep -Fv '0001-01-01T00:00:00Z'
-  lxc query /1.0/storage-pools/"${pool}"/volumes/container/cccp/snapshots/snap0 | jq .created_at | grep -Fv '0001-01-01T00:00:00Z'
+  [ "$(lxc query /1.0/storage-pools/"${pool}"/volumes/container/cccp | jq -r .created_at)" != "0001-01-01T00:00:00Z" ]
+  [ "$(lxc query /1.0/storage-pools/"${pool}"/volumes/container/cccp/snapshots/snap0 | jq -r .created_at)" != "0001-01-01T00:00:00Z" ]
 
   # Local container only copy.
   lxc copy cccp udssr --instance-only
