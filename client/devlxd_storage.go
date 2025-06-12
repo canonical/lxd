@@ -48,3 +48,16 @@ func (r *ProtocolDevLXD) GetStoragePoolVolume(poolName string, volType string, v
 
 	return &vol, etag, nil
 }
+
+// CreateStoragePoolVolume creates a new storage volume in a given storage pool.
+func (r *ProtocolDevLXD) CreateStoragePoolVolume(poolName string, vol api.DevLXDStorageVolumesPost) error {
+	url := api.NewURL().Path("storage-pools", poolName, "volumes", vol.Type).URL
+	r.setURLQueryAttributes(&url)
+
+	_, _, err := r.query(http.MethodPost, url.String(), vol, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
