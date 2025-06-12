@@ -401,8 +401,14 @@ func devLXDUbuntuProGetHandler(d *Daemon, r *http.Request) response.Response {
 
 	settings := d.State().UbuntuPro.GuestAttachSettings(inst.ExpandedConfig()["ubuntu_pro.guest_attach"])
 
+	// Map to devLXD specific type.
+	//nolint:staticcheck // Ignore suggestion for direct type conversion as explicit field mapping is intentional.
+	settingsResp := api.DevLXDUbuntuProSettings{
+		GuestAttach: settings.GuestAttach,
+	}
+
 	// Otherwise, return the value from the instance configuration.
-	return response.DevLXDResponse(http.StatusOK, settings, "json")
+	return response.DevLXDResponse(http.StatusOK, settingsResp, "json")
 }
 
 var devLXDUbuntuProTokenEndpoint = devLXDAPIEndpoint{
@@ -417,13 +423,20 @@ func devLXDUbuntuProTokenPostHandler(d *Daemon, r *http.Request) response.Respon
 	}
 
 	// Return http.StatusForbidden if the host does not have guest attachment enabled.
-	tokenJSON, err := d.State().UbuntuPro.GetGuestToken(r.Context(), inst.ExpandedConfig()["ubuntu_pro.guest_attach"])
+	token, err := d.State().UbuntuPro.GetGuestToken(r.Context(), inst.ExpandedConfig()["ubuntu_pro.guest_attach"])
 	if err != nil {
 		return response.DevLXDErrorResponse(fmt.Errorf("Failed to get an Ubuntu Pro guest token: %w", err))
 	}
 
+	// Map to devLXD specific type.
+	tokenResp := api.DevLXDUbuntuProGuestTokenResponse{
+		ID:         token.ID,
+		Expires:    token.Expires,
+		GuestToken: token.GuestToken,
+	}
+
 	// Pass it back to the guest.
-	return response.DevLXDResponse(http.StatusOK, tokenJSON, "json")
+	return response.DevLXDResponse(http.StatusOK, tokenResp, "json")
 }
 
 func devLXDAPI(d *Daemon, f hoistFunc, isVsock bool) http.Handler {
