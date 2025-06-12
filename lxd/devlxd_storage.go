@@ -337,7 +337,8 @@ func devLXDStoragePoolVolumePutHandler(d *Daemon, r *http.Request) response.Resp
 	}
 
 	// Ensure the volume owner cannot be changed.
-	if !isDevLXDVolumeOwner(vol.Config, identity.Identifier) {
+	owner, ok := vol.Config["volatile.devlxd.owner"]
+	if ok && owner != identity.Identifier {
 		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusBadRequest, "Volume owner cannot be changed"))
 	}
 
