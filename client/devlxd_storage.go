@@ -33,3 +33,18 @@ func (r *ProtocolDevLXD) GetStoragePoolVolumes(poolName string) ([]api.DevLXDSto
 
 	return vols, nil
 }
+
+// GetStoragePoolVolume retrieves the storage volume with a given name.
+func (r *ProtocolDevLXD) GetStoragePoolVolume(poolName string, volType string, volName string) (*api.DevLXDStorageVolume, string, error) {
+	var vol api.DevLXDStorageVolume
+
+	url := api.NewURL().Path("storage-pools", poolName, "volumes", volType, volName).URL
+	r.setURLQueryAttributes(&url)
+
+	etag, err := r.queryStruct(http.MethodGet, url.String(), nil, "", &vol)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &vol, etag, nil
+}
