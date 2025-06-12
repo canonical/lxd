@@ -549,7 +549,7 @@ test_container_devices_nic_bridged_filtering() {
   fi
 
   # Check volatile cleanup on stop.
-  if lxc config show "${ctPrefix}A" | grep volatile.eth0 | grep -v volatile.eth0.hwaddr ; then
+  if [ "$(lxc config show "${ctPrefix}A" | grep -F volatile.eth0 | grep -vF volatile.eth0.hwaddr)" != "" ]; then
     echo "unexpected volatile key remains"
     false
   fi
