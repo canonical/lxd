@@ -219,8 +219,7 @@ parts:
     plugin: nil
     stage-packages:
       # XXX: explicitly depend on libsnappy1v5 due to https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/2072656
-      - to armhf:
-        - acl      # placeholder pkg (actually used by lxd part) to avoid installing stage-packages on unsupported arches
+      - to armhf: []
       - else:
         - ceph-common
         - libsnappy1v5
@@ -295,8 +294,7 @@ parts:
     source-type: git
     plugin: nil
     build-packages:
-      - to armhf:
-        - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
+      - to armhf: []
       - else:
         - asciidoc
         - libcap-dev
@@ -703,8 +701,7 @@ parts:
   openvswitch:
     plugin: nil
     stage-packages:
-      - to armhf:
-        - acl      # placeholder pkg (actually used by lxd part) to avoid installing stage-packages on unsupported arches
+      - to armhf: []
       - else:
         - openvswitch-common
         - openvswitch-switch
@@ -739,8 +736,7 @@ parts:
       - openvswitch
     plugin: nil
     stage-packages:
-      - to armhf:
-        - acl      # placeholder pkg (actually used by lxd part) to avoid installing stage-packages on unsupported arches
+      - to armhf: []
       - else:
         - ovn-common
     override-stage: |-
@@ -783,8 +779,7 @@ parts:
       - -Dsmartcard=disabled
       - -Dtests=false
     build-packages:
-      - to armhf:
-        - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
+      - to armhf: []
       - else:
         - libspice-protocol-dev
         - libjpeg-turbo8-dev
@@ -793,8 +788,7 @@ parts:
         - meson
         - ninja-build
     stage-packages:
-      - to armhf:
-        - acl      # placeholder pkg (actually used by lxd part) to avoid installing stage-packages on unsupported arches
+      - to armhf: []
       - else:
         - libjpeg-turbo8
         - libpixman-1-0
@@ -906,8 +900,7 @@ parts:
       - --localstatedir=/var/
       - --disable-install-blobs # Ubuntu sources don't have the ROM blobs in them.
     build-packages:
-      - to armhf:
-        - cmake      # placeholder pkg (actually used by lxd part) to avoid installing stage-packages on unsupported arches
+      - to armhf: []
       - else:
         - bison
         - bzip2
@@ -926,8 +919,7 @@ parts:
         - quilt
         - librbd-dev
     stage-packages:
-      - to armhf:
-        - acl      # placeholder pkg (actually used by lxd part) to avoid installing stage-packages on unsupported arches
+      - to armhf: []
       - else:
         - genisoimage
         - ipxe-qemu # This is needed due to --disable-install-blobs.
@@ -1087,8 +1079,7 @@ parts:
   virtiofsd:
     plugin: nil
     stage-packages:
-      - to armhf:
-        - acl      # placeholder pkg (actually used by lxd part) to avoid installing stage-packages on unsupported arches
+      - to armhf: []
       - else:
         - virtiofsd
     organize:
@@ -1173,8 +1164,7 @@ parts:
       - --prefix=/
       - --with-config=user
     build-packages:
-      - to armhf:
-        - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
+      - to armhf: []
       - else:
         - libblkid-dev
         - libssl-dev
@@ -1223,8 +1213,7 @@ parts:
       - --prefix=/
       - --with-config=user
     build-packages:
-      - to armhf:
-        - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
+      - to armhf: []
       - else:
         - libblkid-dev
         - libssl-dev
@@ -1273,8 +1262,7 @@ parts:
       - --prefix=/
       - --with-config=user
     build-packages:
-      - to armhf:
-        - cmake      # placeholder pkg (actually used by lxd part) to avoid installing build-packages on unsupported arches
+      - to armhf: []
       - else:
         - libblkid-dev
         - libssl-dev
