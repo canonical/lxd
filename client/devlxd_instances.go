@@ -18,3 +18,14 @@ func (r *ProtocolDevLXD) GetInstance(instName string) (instance *api.DevLXDInsta
 
 	return &inst, etag, nil
 }
+
+// UpdateInstance updates an existing instance with the given name.
+func (r *ProtocolDevLXD) UpdateInstance(instName string, inst api.DevLXDInstancePut, ETag string) error {
+	url := api.NewURL().Path("instances", instName)
+	_, _, err := r.query(http.MethodPatch, url.String(), inst, ETag)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
