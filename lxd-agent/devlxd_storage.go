@@ -32,3 +32,35 @@ func devLXDStoragePoolGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
 
 	return okResponseETag(pool, "json", etag)
 }
+
+var devLXDStoragePoolVolumesTypeEndpoint = devLXDAPIEndpoint{
+	Path: "storage-pools/{pool}/volumes/{type}",
+	Get:  devLXDAPIEndpointAction{Handler: devLXDStoragePoolVolumesGetHandler},
+}
+
+func devLXDStoragePoolVolumesGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
+	// Non-recursive requests are currently not supported.
+	if !util.IsRecursionRequest(r) {
+		return errorResponse(http.StatusNotImplemented, "Only recursive requests are currently supported")
+	}
+
+	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	if err != nil {
+		return errorResponse(http.StatusBadRequest, err.Error())
+	}
+
+	client, err := getDevLXDVsockClient(d, r)
+	if err != nil {
+		return smartResponse(err)
+	}
+
+	client = client.UseTarget(r.URL.Query().Get("target"))
+	defer client.Disconnect()
+
+	vols, err := client.GetStoragePoolVolumes(poolName)
+	if err != nil {
+		return smartResponse(err)
+	}
+
+	return okResponse(vols, "json")
+}
