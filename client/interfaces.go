@@ -506,6 +506,9 @@ type DevLXDServer interface {
 	// DevLXD Operations.
 	GetOperationWait(uuid string, timeout int) (op *api.DevLXDOperation, ETag string, err error)
 
+	// DevLXD storage pools.
+	GetStoragePool(poolName string) (pool *api.DevLXDStoragePool, ETag string, err error)
+
 	// DevLXD Ubuntu Pro.
 	GetUbuntuPro() (*api.DevLXDUbuntuProSettings, error)
 	CreateUbuntuProToken() (*api.DevLXDUbuntuProGuestTokenResponse, error)
