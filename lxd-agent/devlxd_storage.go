@@ -115,8 +115,9 @@ func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) *devLXDResp
 }
 
 var devLXDStoragePoolVolumeTypeEndpoint = devLXDAPIEndpoint{
-	Path: "storage-pools/{pool}/volumes/{type}/{volume}",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDStoragePoolVolumeGetHandler},
+	Path:   "storage-pools/{pool}/volumes/{type}/{volume}",
+	Get:    devLXDAPIEndpointAction{Handler: devLXDStoragePoolVolumeGetHandler},
+	Delete: devLXDAPIEndpointAction{Handler: devLXDStoragePoolVolumeDeleteHandler},
 }
 
 func devLXDStoragePoolVolumeGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
@@ -149,4 +150,36 @@ func devLXDStoragePoolVolumeGetHandler(d *Daemon, r *http.Request) *devLXDRespon
 	}
 
 	return okResponseETag(vol, "json", etag)
+}
+
+func devLXDStoragePoolVolumeDeleteHandler(d *Daemon, r *http.Request) *devLXDResponse {
+	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	if err != nil {
+		return errorResponse(http.StatusBadRequest, err.Error())
+	}
+
+	volType, err := url.PathUnescape(mux.Vars(r)["type"])
+	if err != nil {
+		return errorResponse(http.StatusBadRequest, err.Error())
+	}
+
+	volName, err := url.PathUnescape(mux.Vars(r)["volume"])
+	if err != nil {
+		return errorResponse(http.StatusBadRequest, err.Error())
+	}
+
+	client, err := getDevLXDVsockClient(d, r)
+	if err != nil {
+		return smartResponse(err)
+	}
+
+	client = client.UseTarget(r.URL.Query().Get("target"))
+	defer client.Disconnect()
+
+	err = client.DeleteStoragePoolVolume(poolName, volType, volName)
+	if err != nil {
+		return smartResponse(err)
+	}
+
+	return okResponse("", "raw")
 }
