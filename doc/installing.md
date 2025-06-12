@@ -1,5 +1,5 @@
 ---
-discourse: "[Building&#32;custom&#32;LXD&#32;binaries&#32;for&#32;side&#32;loading&#32;into&#32;an&#32;existing&#32;snap&#32;installation](37327)"
+discourse: "[Discourse&#x3a&#32;Building&#32;custom&#32;LXD&#32;binaries&#32;for&#32;side&#32;loading&#32;into&#32;an&#32;existing&#32;snap&#32;installation](37327)"
 ---
 
 (installing)=
@@ -12,185 +12,175 @@ The MicroCloud setup process installs LXD on cluster members. Thus, you do not n
 ```
 ````
 
-The easiest way to install LXD is to {ref}`install one of the available packages <installing-from-package>`, but you can also {ref}`install LXD from the sources <installing-from-source>`.
-
-After installing LXD, make sure you have a `lxd` group on your system.
-Users in this group can interact with LXD.
-See {ref}`installing-manage-access` for instructions.
-
-(installing-release)=
-## Choose your release
-
-% Include content from [support.md](support.md)
-```{include} support.md
-    :start-after: <!-- Include start release -->
-    :end-before: <!-- Include end release -->
-```
-
-LTS releases are recommended for production environments, because they benefit from regular bugfix and security updates.
-However, not all new features added to an LTS release, nor any kind of behavioral change.
-
-To get all the latest features and monthly updates to LXD, use the feature release branch instead.
-
-(installing-from-package)=
-## Install LXD from a package
-
-The LXD daemon only works on Linux.
-The client tool ([`lxc`](lxc.md)) is available on most platforms.
-
-### Linux
-
-The easiest way to install LXD on Linux is to install the {ref}`installing-snap-package`, which is available for different Linux distributions.
-
-If this option does not work for you, see the {ref}`installing-other`.
+There are multiple approaches to installing LXD, depending on your Linux distribution, operating system, and use case.
 
 (installing-snap-package)=
-#### Snap package
+## Install the LXD snap package
 
-LXD publishes and tests [snap packages](https://snapcraft.io/lxd) that work for a number of Linux distributions (for example, Ubuntu, Arch Linux, Debian, Fedora, and OpenSUSE).
+The recommended way to install LXD is its [snap package](https://snapcraft.io/lxd), available for many Linux distributions. For alternative methods, see: {ref}`installing-other`, {ref}`installing-other-os`, or {ref}`installing-from-source`.
 
-Complete the following steps to install the snap:
+### Requirements
 
-1. Check the [LXD snap page on Snapcraft](https://snapcraft.io/lxd) to see if a snap is available for your Linux distribution.
-   If it is not, use one of the {ref}`installing-other`.
+- The LXD snap must be [available for your Linux distribution](https://snapcraft.io/lxd#distros).
+- The [`snapd` daemon](https://snapcraft.io/docs/installing-snapd) must be installed.
 
-1. Install `snapd`.
-   See the [installation instructions](https://snapcraft.io/docs/installing-snapd) in the Snapcraft documentation.
+### Install
 
-1. Install the snap package.
+Use this command to install LXD from the recommended {ref}`default snap track <ref-snap-tracks-default>` (currently {{current_lts_track}}):
 
-   For the current LTS release (**recommended** option), use:
-
-    ```bash
-    snap install lxd
-    ```
-
-   For the LXD 5.21 LTS release, use:
-
-    ```bash
-    sudo snap install lxd --channel=5.21/stable
-    ```
-
-   For the LXD 5.0 LTS release, use:
-
-    ```bash
-    sudo snap install lxd --channel=5.0/stable
-    ```
-
-```{note}
-LXD cluster members all need to use the exact same version of LXD and this requires special consideration due to how snaps are deployed as explained in {ref}`Keep cluster members in sync<howto-snap-cohort>`. To ensure all the cluster members are offered the same snap revision, it is possible to specify a cohort parameter which will bypass the progressive deployment:
-
-    snap install lxd --cohort="+"
-
-This can also be specified during refreshes (not required if done at install time):
-
-    snap refresh lxd --cohort="+"
-
-If for some reason, the cohort mechanism did not work as expected, it is also possible to install a specific snap revision that matches that used on all the cluster members:
-
-    snap install lxd --revision=<revision_number>
+```bash
+sudo snap install lxd
 ```
 
-For more information about LXD snap packages (regarding more versions, update management etc.), see [Managing the LXD snap](https://discourse.ubuntu.com/t/managing-the-lxd-snap-package/37214).
+If you are installing LXD on a {ref}`cluster member <exp-clusters>`, add the `--cohort="+"` flag to {ref}`keep cluster members synchronized <howto-snap-updates-sync>` to the same snap version:
 
-```{note}
-On Ubuntu 18.04 LTS, if you previously had the LXD deb package installed, you can migrate all your existing data over by installing the 5.0 snap and running the following commands:
-
-    sudo snap install lxd --channel=5.0/stable
-    sudo lxd.migrate
-
-After successfully running the `lxd.migrate` command, you can then switch to a newer snap channel if desired, like the 5.21 one:
-
-    sudo snap refresh lxd --channel=5.21/stable
+```bash
+sudo snap install lxd --cohort="+"
 ```
 
-If you want the current user to be able to interact with the LXD daemon, add it to the `lxd` group as the installation process does not add it for you:
+Next, follow the {ref}`installing-snap-post` steps below.
+
+(installing-snap-channel)=
+#### Optionally specify a channel
+
+Channels correspond to different {ref}`LXD releases <ref-releases>`. When unspecified, the LXD snap defaults to the most recent `stable` LTS, which is recommended for most use cases.
+
+To specify a different channel, add the `--channel` flag at installation:
+
+```bash
+sudo snap install lxd --channel=<target channel> [--cohort="+"]
+```
+
+For example, to use the `6/stable` channel, run:
+
+```bash
+sudo snap install lxd --channel=6/stable
+```
+
+For details about LXD snap channels, see: {ref}`ref-snap-channels`.
+
+(installing-snap-post)=
+### Post-installation
+
+Follow these steps after installing the LXD snap.
+
+(installing-snap-user)=
+#### Add the current user
+
+To allow the current user to interact with the LXD daemon, update the `lxd` group:
 
 ```bash
 getent group lxd | grep -qwF "$USER" || sudo usermod -aG lxd "$USER"
 ```
 
-```{note}
-{{must_start_new_session}}
+<!-- Include start newgrp -->
+Afterward, apply the change to your current shell session by running:
+
+```bash
+newgrp lxd
 ```
+
+<!-- Include end newgrp -->
+
+For more information, see the {ref}`installing-manage-access` section below.
+
+(installing-snap-hold-updates)=
+#### Hold or schedule updates
+
+When a new release is published to a snap channel, installed snaps following that channel update automatically by default.
+
+For {ref}`LXD clusters <exp-clusters>`, or on any machine where you want control over updates, you should override this default behavior by either holding or scheduling updates. See: {ref}`howto-snap-updates`.
 
 (installing-other)=
-#### Other installation options
+## Other Linux installation options
 
-Some Linux distributions provide installation options other than the snap package.
+Some Linux installations can use package managers other than Snap to install LXD. These managers all install the latest {ref}`feature release <ref-releases-feature>`.
 
-````{tabs}
+`````{tabs}
 
-```{group-tab} Alpine Linux
+````{group-tab} Alpine Linux
 
-To install the feature branch of LXD on Alpine Linux, run:
+Run:
 
-    apk add lxd
-```
-
-```{group-tab} Arch Linux
-
-To install the feature branch of LXD on Arch Linux, run:
-
-    pacman -S lxd
-```
-
-```{group-tab} Fedora
-
-Fedora RPM packages for LXC/LXD are available in the [COPR repository](https://copr.fedorainfracloud.org/coprs/ganto/lxc4/).
-
-To install the LXD package for the feature branch, run:
-
-    dnf copr enable ganto/lxc4
-    dnf install lxd
-
-See the [Installation Guide](https://github.com/ganto/copr-lxc4/wiki) for more detailed installation instructions.
-```
-
-```{group-tab} Gentoo
-
-To install the feature branch of LXD on Gentoo, run:
-
-    emerge --ask lxd
+```bash
+apk add lxd
 ```
 
 ````
 
-### Other operating systems
+````{group-tab} Arch Linux
 
-```{important}
-The builds for other operating systems include only the client, not the server.
-```
+Run:
 
-````{tabs}
-
-```{group-tab} macOS
-
-LXD publishes builds of the LXD client for macOS through [Homebrew](https://brew.sh/).
-
-To install the feature branch of LXD, run:
-
-    brew install lxc
-```
-
-```{group-tab} Windows
-
-The LXD client on Windows is provided as a [Chocolatey](https://community.chocolatey.org/packages/lxc) package.
-To install it:
-
-1. Install Chocolatey by following the [installation instructions](https://docs.chocolatey.org/en-us/choco/setup).
-1. Install the LXD client:
-
-        choco install lxc
+```bash
+pacman -S lxd
 ```
 
 ````
 
-You can also find native builds of the LXD client on [GitHub](https://github.com/canonical/lxd/actions):
+````{group-tab} Fedora
 
-- LXD client for Linux: [`bin.linux.lxc.aarch64`](https://github.com/canonical/lxd/releases/latest/download/bin.linux.lxc.aarch64), [`bin.linux.lxc.x86_64`](https://github.com/canonical/lxd/releases/latest/download/bin.linux.lxc.x86_64)
-- LXD client for Windows: [`bin.windows.lxc.aarch64.exe`](https://github.com/canonical/lxd/releases/latest/download/bin.windows.lxc.aarch64.exe), [`bin.windows.lxc.x86_64.exe`](https://github.com/canonical/lxd/releases/latest/download/bin.windows.lxc.x86_64.exe)
-- LXD client for macOS: [`bin.macos.lxc.aarch64`](https://github.com/canonical/lxd/releases/latest/download/bin.macos.lxc.aarch64), [`bin.macos.lxc.x86_64`](https://github.com/canonical/lxd/releases/latest/download/bin.macos.lxc.x86_64)
+Fedora RPM packages for LXC/LXD are available in the [COPR repository](https://copr.fedorainfracloud.org/coprs/ganto/lxc4/). These are unofficial and minimally tested; use at your own risk.
+
+View the [installation guide](https://github.com/ganto/copr-lxc4/wiki) for details.
+
+````
+
+````{group-tab} Gentoo
+
+Run:
+
+```bash
+emerge --ask lxd
+```
+
+````
+
+`````
+
+Following installation, make sure to {ref}`manage access to LXD <installing-manage-access>`.
+
+(installing-other-os)=
+## Other operating systems
+
+Builds of the [`lxc`](lxc.md) client are available for non-Linux operating systems to enable interaction with remote LXD servers. For more information, see: [About `lxd` and `lxc`](lxd-lxc).
+
+`````{tabs}
+
+````{group-tab} macOS
+
+The [Homebrew](https://brew.sh) package manager must be installed on your system.
+
+To install the client from the latest {ref}`feature release <ref-releases-feature>` of LXD, run:
+
+```bash
+brew install lxc
+```
+
+````
+
+````{group-tab} Windows
+
+The [Chocolatey](https://chocolatey.org) package manager must be installed on your system.
+
+To install the client from the latest {ref}`feature release <ref-releases-feature>` of LXD, run:
+
+```bash
+choco install lxc
+```
+
+````
+
+`````
+
+(installing-native)=
+## Native builds of the client
+
+You can find native builds of the [`lxc`](lxc.md) client on [GitHub](https://github.com/canonical/lxd):
+
+- Linux: [`bin.linux.lxc.aarch64`](https://github.com/canonical/lxd/releases/latest/download/bin.linux.lxc.aarch64), [`bin.linux.lxc.x86_64`](https://github.com/canonical/lxd/releases/latest/download/bin.linux.lxc.x86_64)
+- Windows: [`bin.windows.lxc.aarch64.exe`](https://github.com/canonical/lxd/releases/latest/download/bin.windows.lxc.aarch64.exe), [`bin.windows.lxc.x86_64.exe`](https://github.com/canonical/lxd/releases/latest/download/bin.windows.lxc.x86_64.exe)
+- macOS: [`bin.macos.lxc.aarch64`](https://github.com/canonical/lxd/releases/latest/download/bin.macos.lxc.aarch64), [`bin.macos.lxc.x86_64`](https://github.com/canonical/lxd/releases/latest/download/bin.macos.lxc.x86_64)
 
 To download a specific build:
 
@@ -198,17 +188,19 @@ To download a specific build:
 1. Filter for the branch or tag that you are interested in (for example, the latest release tag or `main`).
 1. Select the latest build and download the suitable artifact.
 
+These builds are for the [`lxc`](lxc.md) client only, not the LXD daemon. For an explanation of the differences, see: [About `lxd` and `lxc`](lxd-lxc).
+
 (installing-from-source)=
 (installing_from_source)=
 ## Install LXD from source
 
-Follow these instructions if you want to build and install LXD from the source code.
+These instructions for building and installing from source are suitable for developers who want to build the latest version of LXD, or to build a specific release of LXD which may not be offered by their Linux distribution. Source builds for integration into Linux distributions are not covered.
 
 We recommend having the latest versions of `liblxc` (see {ref}`LXC requirements <requirements-lxc>`)
 available for LXD development. For convenience, `make deps` will pull the
 appropriate versions of `liblxc` and `dqlite` from their corresponding upstream
 Git repository. Additionally, LXD requires a modern Golang (see
-{ref}`requirements-go`) version to work. On Ubuntu, you can get those with:
+{ref}`requirements-go`) version to work. On Ubuntu, you can install these with:
 
 ```bash
 sudo apt update
@@ -238,14 +230,12 @@ sudo snap install --classic go
 
 ```{note}
 If you use the `liblxc-dev` package and get compile time errors when building the `go-lxc` module,
-ensure that the value for `LXC_DEVEL` is `0` for your `liblxc` build. To check that, look at `/usr/include/lxc/version.h`.
+ensure that the value for `LXC_DEVEL` is `0` for your `liblxc` build. To check this, look at `/usr/include/lxc/version.h`.
 If the `LXC_DEVEL` value is `1`, replace it with `0` to work around the problem. It's a packaging bug that is now fixed,
 see [LP: #2039873](https://bugs.launchpad.net/ubuntu/+source/lxc/+bug/2039873).
 ```
 
-There are a few storage drivers for LXD besides the default `dir` driver.
-Installing these tools adds a bit to initramfs and may slow down your
-host boot, but are needed if you'd like to use a particular driver:
+There are a few storage drivers for LXD besides the default `dir` driver. Installing these tools adds a bit to `initramfs` and may slow down your host boot, but are needed if you'd like to use a particular driver:
 
 ```bash
 sudo apt install lvm2 thin-provisioning-tools
@@ -357,15 +347,16 @@ You'll need sub{u,g}ids for root, so that LXD can create the unprivileged contai
 echo "root:1000000:1000000000" | sudo tee -a /etc/subuid /etc/subgid
 ```
 
-By default, only users added to the `lxd` group can interact with the LXD daemon. Installing from source doesn't guarantee that the `lxd` group exists in the system. If you want the current user (or any other user) to be able to interact with the LXD daemon, add it to the `lxd` group:
+By default, only users added to the `lxd` group can interact with the LXD daemon. Installing from source doesn't guarantee that the `lxd` group exists in the system. If you want the current user (or any other user) to be able to interact with the LXD daemon, create the group and add the user to it:
 
 ```bash
 getent group lxd >/dev/null || sudo groupadd --system lxd # create the group if needed
 getent group lxd | grep -qwF "$USER" || sudo usermod -aG lxd "$USER"
 ```
 
-```{note}
-{{must_start_new_session}}
+```{include} installing.md
+    :start-after: <!-- Include start newgrp -->
+    :end-before: <!-- Include end newgrp -->
 ```
 
 Now you can run the daemon (the `--group sudo` bit allows everyone in the `sudo`
@@ -391,36 +382,41 @@ lxc completion bash > /etc/bash_completion.d/lxc # generating completions for ba
 (installing-manage-access)=
 ## Manage access to LXD
 
-Access control for LXD is based on group membership.
-The root user and all members of the `lxd` group can interact with the local daemon.
-See {ref}`security-daemon-access` for more information.
+Access control for LXD is based on group membership. The root user and all members of the `lxd` group can interact with the local daemon.
 
-On Ubuntu images, the `lxd` group already exists and the main user is automatically added to it. The group is also created during installation if you {ref}`installed LXD from the snap<installing-from-package>`. If the `lxd` group is missing on your system (as might be the case if you {ref}`installed LXD from the sources <installing-from-source>`), create it and restart the LXD daemon:
+On Ubuntu images, the `lxd` group already exists and the root user is automatically added to it. The group is also created during installation if you {ref}`installed LXD from the snap <installing-snap-package>`.
+
+To check if the `lxd` group exists, run:
+
+```bash
+getent group lxd
+```
+
+If this command returns no result, the `lxd` group is missing from your system. This might be the case if you {ref}`installed LXD from source <installing-from-source>`. To create the group and restart the LXD daemon, run:
 
 ```bash
 getent group lxd >/dev/null || sudo groupadd --system lxd
 ```
 
-No users are added to the group on installation. You must add trusted users to the group so they can use LXD:
+Afterward, add trusted users to the group so they can use LXD. The following command adds the current user:
 
 ```bash
-getent group lxd | grep -qwF "$USER" || sudo usermod -aG lxd "$USER" # adding current user as an example
+getent group lxd | grep -qwF "$USER" || sudo usermod -aG lxd "$USER"
 ```
 
-```{note}
-{{must_start_new_session}}
+```{include} installing.md
+    :start-after: <!-- Include start newgrp -->
+    :end-before: <!-- Include end newgrp -->
 ```
 
-Anyone added to this group will have full control over LXD. See {ref}`Access to the LXD daemon<security-daemon-access>` to better understand access control for LXD.
-
-Because group membership is normally only applied at login, you might need to either re-open your user session or use the `newgrp lxd` command in the shell you're using to talk to LXD.
-
-````{important}
+````{admonition} Important security notice
+:class: important
 % Include content from [../README.md](../README.md)
 ```{include} ../README.md
     :start-after: <!-- Include start security note -->
     :end-before: <!-- Include end security note -->
 ```
+For more information, see {ref}`security-daemon-access`.
 ````
 
 (installing-upgrade)=

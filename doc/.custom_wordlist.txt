@@ -119,7 +119,6 @@ incrementing
 intra
 InfiniBand
 init
-initramfs
 IOPS
 IOV
 IPAM
