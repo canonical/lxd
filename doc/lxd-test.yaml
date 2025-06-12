@@ -34,8 +34,7 @@ config:
     # Disable lxd-installer
     - chmod -x /usr/sbin/lxc /usr/sbin/lxd
     # Remove sources of noise
-    - systemctl stop unattended-upgrades.service
-    - apt-get autopurge -y cron lxd-installer needrestart networkd-dispatcher unattended-upgrades
+    - systemctl disable --now unattended-upgrades.service
     - cd /etc/systemd/system/timers.target.wants/ && systemctl disable --now *.timer
     # Prepare LXD build
     - printf '[safe]\n    directory = *\n' >> /root/.gitconfig
