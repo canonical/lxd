@@ -19,6 +19,7 @@ runs:
           busybox-static \
           curl \
           dnsmasq-base \
+          dosfstools \
           e2fsprogs \
           easy-rsa \
           git \
