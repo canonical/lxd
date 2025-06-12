@@ -498,8 +498,8 @@ type DevLXDServer interface {
 	GetImageFile(fingerprint string, req ImageFileRequest) (resp *ImageFileResponse, err error)
 
 	// DevLXD Ubuntu Pro.
-	GetUbuntuPro() (*api.UbuntuProSettings, error)
-	CreateUbuntuProToken() (*api.UbuntuProGuestTokenResponse, error)
+	GetUbuntuPro() (*api.DevLXDUbuntuProSettings, error)
+	CreateUbuntuProToken() (*api.DevLXDUbuntuProGuestTokenResponse, error)
 
 	// Internal functions (for internal use)
 	RawQuery(method string, path string, data any, queryETag string) (resp *api.DevLXDResponse, ETag string, err error)
