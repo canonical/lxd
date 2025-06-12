@@ -3,7 +3,6 @@ block_filesystem: "File system of the storage volume: `btrfs`, `ext4` or `xfs` (
 create_image_button: "<svg width='16' height='16' xmlns='http://www.w3.org/2000/svg'><path d='M2.5 6v7.5h11V6H15v7.5a1.5 1.5 0 01-1.5 1.5h-11A1.5 1.5 0 011 13.5V6h1.5zM8 .22l3.309 3.308-.884.884-1.676-1.677.001 6.258h-1.5V2.735L5.574 4.412l-.884-.884L8 .219z' fill='%23000'  fill-rule='evenodd'/></svg>"
 delete_button: "<svg width='16' height='16' xmlns='http://www.w3.org/2000/svg'><path d='M4.5 6v6a1.5 1.5 0 001.356 1.493L6 13.5h4a1.5 1.5 0 001.493-1.356L11.5 12V6H13v6a3 3 0 01-3 3H6a3 3 0 01-3-3V6h1.5zm3 0v5.994H6V6h1.5zm2.498 0v5.994h-1.5V6h1.5zM8.5 0A2.5 2.5 0 0111 2.5V3h3v1.5H2V3h3v-.5A2.5 2.5 0 017.5 0h1zm0 1.5h-1a1 1 0 00-.993.883L6.5 2.5V3h3v-.5a1 1 0 00-.883-.993L8.5 1.5z' fill='%23000' fill-rule='evenodd'/></svg>"
 enable_ID_shifting: "Enable ID shifting overlay (allows attach by multiple isolated instances)"
-must_start_new_session: "If your user was not already a member of the `lxd` group, you need to log out and back in or use `newgrp lxd` for the change to take effect."
 note_ip_addresses_CIDR: "LXD uses the [CIDR notation](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing) where network subnet information is required, for example, `192.0.2.0/24` or `2001:db8::/32`. This does not apply to cases where a single address is required, for example, local/remote addresses of tunnels, NAT addresses or specific addresses to apply to an instance."
 restore_button: "<svg width='16' height='16' xmlns='http://www.w3.org/2000/svg'><path d='M5.948 9.012v1.5l-2.458.001A5.163 5.163 0 0012.76 10h1.596a6.665 6.665 0 01-11.839 1.785v2.158h-1.5v-4.93h4.93zM8 1.338a6.655 6.655 0 015.516 2.925V2.11h1.5v4.93h-4.93v-1.5h2.453A5.163 5.163 0 003.24 6H1.643A6.665 6.665 0 018 1.338z' fill='%23000'  fill-rule='evenodd'/></svg>"
 restart_button: "<svg width='16' height='16' xmlns='http://www.w3.org/2000/svg'><path d='M6.197 1.15v4.931h-1.5l-.001-2.478a5.5 5.5 0 106.302-.215l.75-1.3a7 7 0 11-8.263.562H1.268v-1.5h4.93z' fill='%23000'  fill-rule='evenodd'/></svg>"
@@ -12,3 +11,7 @@ snapshot_pattern_detail: "The `snapshots.pattern` option takes a Pongo2 template
 snapshot_pattern_format: "Pongo2 template string that represents the snapshot name (used for scheduled snapshots and unnamed snapshots)"
 snapshot_schedule_format: "Cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or empty to disable automatic snapshots (the default)"
 volume_configuration: "```{tip}\nIn addition to these configurations, you can also set default values for the storage volume configurations. See {ref}`storage-configure-vol-default`.\n```"
+
+# Maintain the substitutions below as the single sources of truth for current LTS and feature tracks:
+current_lts_track: "5.21"
+current_feature_track: "6"
