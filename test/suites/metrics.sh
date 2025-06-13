@@ -132,7 +132,7 @@ test_metrics() {
 
   # Test lxd_api_requests_completed_total increment with different results.
   previous="$(curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep 'lxd_api_requests_completed_total{entity_type="instance",result="succeeded"}' | awk '{print $2}')"
-  lxc ls # Uses /1.0/instances
+  lxc list -c n # Uses /1.0/instances
   [ "$(curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep 'lxd_api_requests_completed_total{entity_type="instance",result="succeeded"}' | awk '{print $2}')" -eq $((previous+1)) ]
 
   previous="$(curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep 'lxd_api_requests_completed_total{entity_type="server",result="error_client"}' | awk '{print $2}')"
