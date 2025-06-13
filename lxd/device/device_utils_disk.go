@@ -449,6 +449,7 @@ func DiskVMVirtiofsdStart(kernelVersion version.DottedVersion, inst instance.Ins
 	args := []string{
 		"--fd=3",
 		"--shared-dir", sharePath,
+		"--cache", "auto", // "never" and "metadata" modes do not allow execution at this time.
 		"--xattr",
 	}
 
