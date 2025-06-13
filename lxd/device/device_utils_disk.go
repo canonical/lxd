@@ -449,9 +449,9 @@ func DiskVMVirtiofsdStart(kernelVersion version.DottedVersion, inst instance.Ins
 	// Start the virtiofsd process in non-daemon mode.
 	args := []string{
 		"--fd=3",
+		"--shared-dir", sharePath,
 		// use -o flags for support in wider versions of virtiofsd.
 		"-o", "xattr",
-		"-o", "source=" + sharePath,
 	}
 
 	// Virtiofsd defaults to namespace sandbox mode which requires pidfd_open support.
