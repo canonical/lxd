@@ -10,7 +10,7 @@ test_exec() {
   ensure_import_testimage
 
   lxc launch testimage x1
-  lxc list x1 | grep -wF RUNNING
+  [ "$(lxc list -f csv -c s x1)" = "RUNNING" ]
 
   for i in $(seq 1 25); do
     exec_container_interactive "${i}" > "${LXD_DIR}/exec-${i}.out" 2>&1
@@ -43,7 +43,7 @@ test_concurrent_exec() {
   ensure_import_testimage
 
   lxc launch testimage x1
-  lxc list x1 | grep -wF RUNNING
+  [ "$(lxc list -f csv -c s x1)" = "RUNNING" ]
 
   PIDS=""
   for i in $(seq 1 25); do
