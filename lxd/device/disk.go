@@ -404,6 +404,15 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		//  condition: virtual machine
 		//  shortdesc: Bus for the device
 		"io.bus": validate.Optional(validate.IsOneOf("nvme", "virtio-blk", "virtio-scsi")),
+		// lxdmeta:generate(entities=device-disk; group=device-conf; key=io.threads)
+		// This option controls the `virtiofsd` thread pool size. Only applies to virtiofs filesystem shares.
+		// ---
+		//  type: integer
+		//  defaultdesc: `0`
+		//  required: no
+		//  condition: virtual machine
+		//  shortdesc: Thread pool for virtiofs filesystem shares
+		"io.threads": validate.Optional(validate.IsUint16),
 	}
 
 	err := d.config.Validate(rules)
@@ -1267,6 +1276,17 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					rawIDMaps = diskAddRootUserNSEntry(rawIDMaps, 65534)
 				}
 
+				// Parse the io.threads setting.
+				var virtiofsdThreadPoolSize uint16
+				if d.config["io.threads"] != "" {
+					virtiofsdThreadPoolSizeRaw, err := strconv.ParseUint(d.config["io.threads"], 10, 16)
+					if err != nil {
+						return nil, fmt.Errorf("Failed parsing io.threads %q: %w", d.config["io.threads"], err)
+					}
+
+					virtiofsdThreadPoolSize = uint16(virtiofsdThreadPoolSizeRaw)
+				}
+
 				// Start virtiofsd for virtio-fs share. The lxd-agent prefers to use this over the
 				// virtfs-proxy-helper 9p share. The 9p share will only be used as a fallback.
 				err = func() error {
@@ -1274,7 +1294,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					logPath := filepath.Join(d.inst.LogPath(), "disk."+filesystem.PathNameEncode(d.name)+".log")
 					_ = os.Remove(logPath) // Remove old log if needed.
 
-					revertFunc, unixListener, err := DiskVMVirtiofsdStart(d.state.OS.KernelVersion, d.inst, sockPath, pidPath, logPath, mountedPath, rawIDMaps)
+					revertFunc, unixListener, err := DiskVMVirtiofsdStart(d.state.OS.KernelVersion, d.inst, sockPath, pidPath, logPath, mountedPath, rawIDMaps, virtiofsdThreadPoolSize)
 					if err != nil {
 						var errUnsupported UnsupportedError
 						if errors.As(err, &errUnsupported) {
