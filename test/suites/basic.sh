@@ -652,7 +652,7 @@ test_basic_usage() {
     false
   fi
 
-  lxc rm -f c1
+  lxc delete -f c1
 
   # Should fail to override root device storage pool when the new pool does not exist.
   ! lxc init testimage c1 -d root,pool=bla || false
@@ -673,7 +673,7 @@ test_basic_usage() {
     false
   fi
 
-  lxc rm -f c1
+  lxc delete -f c1
   lxc storage volume delete bla vol1
   lxc storage volume delete bla vol2
   lxc storage delete bla
