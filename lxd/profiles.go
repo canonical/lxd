@@ -78,8 +78,10 @@ func addProfileDetailsToRequestContext(s *state.State, r *http.Request) error {
 		return fmt.Errorf("Failed to check project %q profile feature: %w", requestProjectName, err)
 	}
 
-	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProject.Name)
-	request.SetCtxValue(r, ctxProfileDetails, profileDetails{
+	reqInfo := request.SetupContextInfo(r)
+	reqInfo.EffectiveProjectName = effectiveProject.Name
+
+	request.SetContextValue(r, ctxProfileDetails, profileDetails{
 		profileName:      profileName,
 		effectiveProject: *effectiveProject,
 	})
@@ -97,7 +99,7 @@ func profileAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.
 			return response.SmartError(err)
 		}
 
-		details, err := request.GetCtxValue[profileDetails](r.Context(), ctxProfileDetails)
+		details, err := request.GetContextValue[profileDetails](r.Context(), ctxProfileDetails)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -235,7 +237,9 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	request.SetCtxValue(r, request.CtxEffectiveProjectName, p.Name)
+	reqInfo := request.SetupContextInfo(r)
+	reqInfo.EffectiveProjectName = p.Name
+
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeProfile)
 	if err != nil {
 		return response.InternalError(err)
@@ -501,7 +505,7 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 func profileGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[profileDetails](r.Context(), ctxProfileDetails)
+	details, err := request.GetContextValue[profileDetails](r.Context(), ctxProfileDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -595,7 +599,7 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 func profilePut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[profileDetails](r.Context(), ctxProfileDetails)
+	details, err := request.GetContextValue[profileDetails](r.Context(), ctxProfileDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -708,7 +712,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 func profilePatch(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[profileDetails](r.Context(), ctxProfileDetails)
+	details, err := request.GetContextValue[profileDetails](r.Context(), ctxProfileDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -833,7 +837,7 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 func profilePost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[profileDetails](r.Context(), ctxProfileDetails)
+	details, err := request.GetContextValue[profileDetails](r.Context(), ctxProfileDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -908,7 +912,7 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 func profileDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	details, err := request.GetCtxValue[profileDetails](r.Context(), ctxProfileDetails)
+	details, err := request.GetContextValue[profileDetails](r.Context(), ctxProfileDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}

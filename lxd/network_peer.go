@@ -137,12 +137,13 @@ var networkPeerCmd = APIEndpoint{
 func networkPeersGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
-	if err != nil {
-		return response.SmartError(err)
+	var effectiveProjectName string
+	reqInfo := request.GetContextInfo(r.Context())
+	if reqInfo != nil {
+		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -245,12 +246,13 @@ func networkPeersPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
-	if err != nil {
-		return response.SmartError(err)
+	var effectiveProjectName string
+	reqInfo := request.GetContextInfo(r.Context())
+	if reqInfo != nil {
+		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -320,12 +322,13 @@ func networkPeerDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
-	if err != nil {
-		return response.SmartError(err)
+	var effectiveProjectName string
+	reqInfo := request.GetContextInfo(r.Context())
+	if reqInfo != nil {
+		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -408,12 +411,13 @@ func networkPeerGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
-	if err != nil {
-		return response.SmartError(err)
+	var effectiveProjectName string
+	reqInfo := request.GetContextInfo(r.Context())
+	if reqInfo != nil {
+		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -532,12 +536,13 @@ func networkPeerPut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
-	if err != nil {
-		return response.SmartError(err)
+	var effectiveProjectName string
+	reqInfo := request.GetContextInfo(r.Context())
+	if reqInfo != nil {
+		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[networkDetails](r.Context(), ctxNetworkDetails)
+	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}

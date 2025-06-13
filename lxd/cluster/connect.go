@@ -54,29 +54,17 @@ func Connect(ctx context.Context, address string, networkCert *shared.CertInfo, 
 		args.UserAgent = clusterRequest.UserAgentNotifier
 	}
 
-	if request.IsRequestContext(ctx) {
+	reqInfo := request.GetContextInfo(ctx)
+	if reqInfo != nil {
 		proxy := func(req *http.Request) (*url.URL, error) {
-			val, ok := ctx.Value(request.CtxUsername).(string)
-			if ok {
-				req.Header.Add(request.HeaderForwardedUsername, val)
-			}
+			req.Header.Add(request.HeaderForwardedAddress, reqInfo.SourceAddress)
+			req.Header.Add(request.HeaderForwardedUsername, reqInfo.Username)
+			req.Header.Add(request.HeaderForwardedProtocol, reqInfo.Protocol)
 
-			val, ok = ctx.Value(request.CtxProtocol).(string)
-			if ok {
-				req.Header.Add(request.HeaderForwardedProtocol, val)
-			}
-
-			reqSourceAddress, _ := ctx.Value(request.CtxRequestSourceAddress).(string)
-			req.Header.Add(request.HeaderForwardedAddress, reqSourceAddress)
-
-			identityProviderGroupsAny := ctx.Value(request.CtxIdentityProviderGroups)
-			if ok {
-				identityProviderGroups, ok := identityProviderGroupsAny.([]string)
-				if ok {
-					b, err := json.Marshal(identityProviderGroups)
-					if err == nil {
-						req.Header.Add(request.HeaderForwardedIdentityProviderGroups, string(b))
-					}
+			if reqInfo.IdentityProviderGroups != nil {
+				b, err := json.Marshal(reqInfo.IdentityProviderGroups)
+				if err == nil {
+					req.Header.Add(request.HeaderForwardedIdentityProviderGroups, string(b))
 				}
 			}
 

@@ -167,7 +167,7 @@ func addIdentityDetailsToContext(s *state.State, r *http.Request, authentication
 		return nil, err
 	}
 
-	request.SetCtxValue(r, ctxClusterDBIdentity, id)
+	request.SetContextValue(r, ctxClusterDBIdentity, id)
 	return id, nil
 }
 
@@ -1009,7 +1009,7 @@ func getIdentities(authenticationMethod string) func(d *Daemon, r *http.Request)
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func getIdentity(d *Daemon, r *http.Request) response.Response {
-	id, err := request.GetCtxValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
+	id, err := request.GetContextValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1084,31 +1084,31 @@ func getIdentity(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
-	identifier, err := request.GetCtxValue[string](r.Context(), request.CtxUsername)
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed to get identity identifier: %w", err))
+	reqInfo := request.GetContextInfo(r.Context())
+	if reqInfo == nil {
+		return response.SmartError(errors.New("Failed to get request info from the request"))
 	}
 
-	protocol, err := request.GetCtxValue[string](r.Context(), request.CtxProtocol)
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed to get authentication method: %w", err))
+	if reqInfo.Username == "" {
+		return response.SmartError(errors.New("Failed to get identity identifier from request info"))
+	}
+
+	if reqInfo.Protocol == "" {
+		return response.SmartError(errors.New("Failed to get authentication method from request info"))
 	}
 
 	// Must be a remote API request.
-	err = identity.ValidateAuthenticationMethod(protocol)
+	err := identity.ValidateAuthenticationMethod(reqInfo.Protocol)
 	if err != nil {
 		return response.BadRequest(errors.New("Current identity information must be requested via the HTTPS API"))
 	}
-
-	// Identity provider groups may not be present.
-	identityProviderGroupNames, _ := request.GetCtxValue[[]string](r.Context(), request.CtxIdentityProviderGroups)
 
 	s := d.State()
 	var apiIdentity *api.Identity
 	var effectiveGroups []string
 	var effectivePermissions []api.Permission
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		id, err := dbCluster.GetIdentity(ctx, tx.Tx(), dbCluster.AuthMethod(protocol), identifier)
+		id, err := dbCluster.GetIdentity(ctx, tx.Tx(), dbCluster.AuthMethod(reqInfo.Protocol), reqInfo.Username)
 		if err != nil {
 			return fmt.Errorf("Failed to get current identity from database: %w", err)
 		}
@@ -1121,7 +1121,7 @@ func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
 		}
 
 		effectiveGroups = apiIdentity.Groups
-		mappedGroups, err := dbCluster.GetDistinctAuthGroupNamesFromIDPGroupNames(ctx, tx.Tx(), identityProviderGroupNames)
+		mappedGroups, err := dbCluster.GetDistinctAuthGroupNamesFromIDPGroupNames(ctx, tx.Tx(), reqInfo.IdentityProviderGroups)
 		if err != nil {
 			return fmt.Errorf("Failed to get effective groups: %w", err)
 		}
@@ -1688,7 +1688,7 @@ func patchSelfIdentityUnprivileged(s *state.State, r *http.Request, id dbCluster
 //	  "501":
 //	    $ref: "#/responses/NotImplemented"
 func deleteIdentity(d *Daemon, r *http.Request) response.Response {
-	id, err := request.GetCtxValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
+	id, err := request.GetContextValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
 	if err != nil {
 		return response.SmartError(err)
 	}

@@ -190,9 +190,9 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 	// The project in the given URL may be for a project that does not have a feature enabled, in this case the auth check
 	// will fail because the resource doesn't actually exist in that project. To correct this, we use the effective project from
 	// the request context if present.
-	effectiveProject, _ := request.GetCtxValue[string](ctx, request.CtxEffectiveProjectName)
-	if effectiveProject != "" {
-		projectName = effectiveProject
+	reqInfo := request.GetContextInfo(ctx)
+	if reqInfo.EffectiveProjectName != "" {
+		projectName = reqInfo.EffectiveProjectName
 	}
 
 	// Construct the URL in a standardised form (adding the project parameter if it was not present).
@@ -461,9 +461,9 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement 
 		// The project in the given URL may be for a project that does not have a feature enabled, in this case the auth check
 		// will fail because the resource doesn't actually exist in that project. To correct this, we use the effective project from
 		// the request context if present.
-		effectiveProject, _ := request.GetCtxValue[string](ctx, request.CtxEffectiveProjectName)
-		if effectiveProject != "" {
-			projectName = effectiveProject
+		reqInfo := request.GetContextInfo(ctx)
+		if reqInfo.EffectiveProjectName != "" {
+			projectName = reqInfo.EffectiveProjectName
 		}
 
 		standardisedEntityURL, err := entityType.URL(projectName, location, pathArguments...)

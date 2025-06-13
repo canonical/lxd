@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -10,12 +11,10 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
-// IsTrusted returns true if the value for `request.CtxTrusted` is set and is true.
+// IsTrusted returns true if the value for Trusted in request Info is set to true.
 func IsTrusted(ctx context.Context) bool {
-	// The zero-value of a bool is false, so even if it isn't present in the context we'll return false.
-	// This will only return true when the value is present and is true.
-	trusted, _ := request.GetCtxValue[bool](ctx, request.CtxTrusted)
-	return trusted
+	reqInfo := request.GetContextInfo(ctx)
+	return reqInfo != nil && reqInfo.Trusted
 }
 
 // IsServerAdmin inspects the context and returns true if the request was made over the unix socket, initiated by
@@ -75,62 +74,68 @@ func GetIdentityFromCtx(ctx context.Context, identityCache *identity.Cache) (*id
 // If the request was forwarded by another cluster member, we return the value for `request.CtxForwardedUsername`.
 // Otherwise, we return the value for `request.CtxUsername`.
 func GetUsernameFromCtx(ctx context.Context) (string, error) {
+	reqInfo := request.GetContextInfo(ctx)
+	if reqInfo == nil {
+		return "", errors.New("Failed to get request info from context")
+	}
+
 	// Request protocol cannot be empty.
-	protocol, err := request.GetCtxValue[string](ctx, request.CtxProtocol)
-	if err != nil {
-		return "", api.StatusErrorf(http.StatusInternalServerError, "Failed getting protocol: %w", err)
+	if reqInfo.Protocol == "" {
+		return "", api.NewStatusError(http.StatusInternalServerError, "Failed to get protocol from the request context")
 	}
 
 	// Username cannot be empty.
-	username, err := request.GetCtxValue[string](ctx, request.CtxUsername)
-	if err != nil {
-		return "", api.StatusErrorf(http.StatusInternalServerError, "Failed getting username: %w", err)
+	if reqInfo.Username == "" {
+		return "", api.StatusErrorf(http.StatusInternalServerError, "Failed to get username from the request context")
 	}
 
 	// Forwarded username can be empty.
-	forwardedUsername, _ := request.GetCtxValue[string](ctx, request.CtxForwardedUsername)
-
-	if protocol == AuthenticationMethodCluster && forwardedUsername != "" {
-		return forwardedUsername, nil
+	if reqInfo.Protocol == AuthenticationMethodCluster && reqInfo.ForwardedUsername != "" {
+		return reqInfo.ForwardedUsername, nil
 	}
 
-	return username, nil
+	return reqInfo.Username, nil
 }
 
 // GetAuthenticationMethodFromCtx gets the authentication method from the request context.
 // If the request was forwarded by another cluster member, the value for `request.CtxForwardedProtocol` is returned.
 // Otherwise, `request.CtxProtocol` is returned.
 func GetAuthenticationMethodFromCtx(ctx context.Context) (string, error) {
+	reqInfo := request.GetContextInfo(ctx)
+	if reqInfo == nil {
+		return "", errors.New("Failed to get request info from context")
+	}
+
 	// Request protocol cannot be empty.
-	protocol, err := request.GetCtxValue[string](ctx, request.CtxProtocol)
-	if err != nil {
-		return "", api.StatusErrorf(http.StatusInternalServerError, "Failed getting protocol: %w", err)
+	if reqInfo.Protocol == "" {
+		return "", api.NewStatusError(http.StatusInternalServerError, "Failed to get protocol from the request context")
 	}
 
 	// Forwarded protocol can be empty.
-	forwardedProtocol, _ := request.GetCtxValue[string](ctx, request.CtxForwardedProtocol)
-	if protocol == AuthenticationMethodCluster && forwardedProtocol != "" {
-		return forwardedProtocol, nil
+	if reqInfo.Protocol == AuthenticationMethodCluster && reqInfo.ForwardedProtocol != "" {
+		return reqInfo.ForwardedProtocol, nil
 	}
 
-	return protocol, nil
+	return reqInfo.Protocol, nil
 }
 
 // GetIdentityProviderGroupsFromCtx gets the identity provider groups from the request context if present.
 // If the request was forwarded by another cluster member, the value for `request.CtxForwardedIdentityProviderGroups` is
 // returned. Otherwise, the value for `request.CtxIdentityProviderGroups` is returned.
 func GetIdentityProviderGroupsFromCtx(ctx context.Context) ([]string, error) {
+	reqInfo := request.GetContextInfo(ctx)
+	if reqInfo == nil {
+		return nil, errors.New("Failed to get request info from context")
+	}
+
 	// Request protocol cannot be empty.
-	protocol, err := request.GetCtxValue[string](ctx, request.CtxProtocol)
-	if err != nil {
-		return nil, api.StatusErrorf(http.StatusInternalServerError, "Failed getting protocol: %w", err)
+	if reqInfo.Protocol == "" {
+		return nil, api.NewStatusError(http.StatusInternalServerError, "Failed to get protocol from the request context")
 	}
 
-	idpGroups, _ := request.GetCtxValue[[]string](ctx, request.CtxIdentityProviderGroups)
-	forwardedIDPGroups, _ := request.GetCtxValue[[]string](ctx, request.CtxForwardedIdentityProviderGroups)
-	if protocol == AuthenticationMethodCluster && forwardedIDPGroups != nil {
-		return forwardedIDPGroups, nil
+	if reqInfo.Protocol == AuthenticationMethodCluster && reqInfo.ForwardedIdentityProviderGroups != nil {
+		return reqInfo.ForwardedIdentityProviderGroups, nil
 	}
 
-	return idpGroups, nil
+	return reqInfo.IdentityProviderGroups, nil
 }

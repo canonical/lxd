@@ -445,13 +445,16 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 
 	// Function that handles the request by calling the appropriate handler.
 	handleFunc := func(w http.ResponseWriter, r *http.Request) {
+		// Ensure request context info is set.
+		reqInfo := request.SetupContextInfo(r)
+
 		// Set devLXD auth method to identify this request as coming from the /dev/lxd socket.
-		request.SetCtxValue(r, request.CtxProtocol, auth.AuthenticationMethodDevLXD)
+		reqInfo.Protocol = auth.AuthenticationMethodDevLXD
 
 		// Indicate whether the devLXD is being accessed over vsock. This allowes the handler
 		// to determine the correct response type. The responses over vsock are always
 		// in api.Response format, while the responses over Unix socket are in devLXDResponse format.
-		request.SetCtxValue(r, request.CtxDevLXDOverVsock, isVsock)
+		request.SetContextValue(r, request.CtxDevLXDOverVsock, isVsock)
 
 		handleRequest := func(action devLXDAPIEndpointAction) (resp response.Response) {
 			// Handle panic in the handler.
@@ -511,7 +514,7 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 
 // getInstanceFromContextAndCheckSecurityFlags checks if the instance has the provided devLXD security features enabled.
 func getInstanceFromContextAndCheckSecurityFlags(ctx context.Context, keys ...DevLXDSecurityKey) (instance.Instance, error) {
-	inst, err := request.GetCtxValue[instance.Instance](ctx, request.CtxDevLXDInstance)
+	inst, err := request.GetContextValue[instance.Instance](ctx, request.CtxDevLXDInstance)
 	if err != nil {
 		return nil, err
 	}

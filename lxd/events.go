@@ -125,11 +125,9 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 	// the number of DB access to just one per connection.
 	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		if isClusterNotification(r) {
-			ctx := r.Context()
-
-			// Try and match cluster member certificate fingerprint to member name.
-			fingerprint, found := ctx.Value(request.CtxUsername).(string)
-			if found {
+			reqInfo := request.GetContextInfo(r.Context())
+			if reqInfo != nil && reqInfo.Username != "" {
+				fingerprint := reqInfo.Username
 				cert, err := cluster.GetCertificateByFingerprintPrefix(context.Background(), tx.Tx(), fingerprint)
 				if err != nil {
 					return fmt.Errorf("Failed matching client certificate to cluster member: %w", err)
