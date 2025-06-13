@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"slices"
 	"strings"
 
@@ -257,6 +258,33 @@ func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *cluster.Proje
 	return usedBy, nil
 }
 
+func projectStorageSetup(s *state.State, config string, storageType string) error {
+	err := mountCustomVolume(s, config)
+	if err != nil {
+		return fmt.Errorf("Failed to setup project %s storage: %w", storageType, err)
+	}
+
+	// Ensure the destination directory structure exists within the target volume.
+	path := daemonStoragePath(config, storageType)
+	err = os.MkdirAll(path, 0700)
+	if err != nil {
+		return fmt.Errorf("Failed to create directory %q: %w", path, err)
+	}
+
+	// Set ownership & mode.
+	err = os.Chmod(path, 0700)
+	if err != nil {
+		return fmt.Errorf("Failed to set permissions on %q: %w", path, err)
+	}
+
+	err = os.Chown(path, 0, 0)
+	if err != nil {
+		return fmt.Errorf("Failed to set ownership on %q: %w", path, err)
+	}
+
+	return nil
+}
+
 // swagger:operation POST /1.0/projects projects projects_post
 //
 //	Add a project
@@ -317,6 +345,20 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	err = projectValidateConfig(s, project.Config, project.Network)
 	if err != nil {
 		return response.BadRequest(err)
+	}
+
+	if project.Config["storage.images_volume"] != "" {
+		err = projectStorageSetup(s, project.Config["storage.images_volume"], "images")
+		if err != nil {
+			return response.BadRequest(err)
+		}
+	}
+
+	if project.Config["storage.backups_volume"] != "" {
+		err = projectStorageSetup(s, project.Config["storage.backups_volume"], "backups")
+		if err != nil {
+			return response.BadRequest(err)
+		}
 	}
 
 	var id int64
@@ -937,6 +979,8 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(errors.New("The 'default' project cannot be deleted"))
 	}
 
+	var imagesVolume string
+	var backupsVolume string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		project, err := cluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
@@ -952,11 +996,33 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 			return errors.New("Only empty projects can be removed")
 		}
 
+		api, err := project.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		imagesVolume = api.Config["storage.images_volume"]
+		backupsVolume = api.Config["storage.backups_volume"]
+
 		return cluster.DeleteProject(ctx, tx.Tx(), name)
 	})
 
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if imagesVolume != "" {
+		err := unmountCustomVolume(s, imagesVolume)
+		if err != nil {
+			return response.BadRequest(fmt.Errorf("Failed to mount images storage: %w", err))
+		}
+	}
+
+	if backupsVolume != "" {
+		err := unmountCustomVolume(s, backupsVolume)
+		if err != nil {
+			return response.BadRequest(fmt.Errorf("Failed to mount backups storage: %w", err))
+		}
 	}
 
 	requestor := request.CreateRequestor(r.Context())
