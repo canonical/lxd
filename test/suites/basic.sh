@@ -115,7 +115,7 @@ test_basic_usage() {
   ! lxc list --columns=nsp --fast || false
 
   # Check volatile.apply_template is correct.
-  lxc config get foo volatile.apply_template | grep create
+  [ "$(lxc config get foo volatile.apply_template)" = "create" ]
 
   # Start the instance to clear apply_template.
   lxc start foo
