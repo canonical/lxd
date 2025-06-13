@@ -330,7 +330,7 @@ snap_restore() {
     restore_and_compare_fs snap0
 
     # check container is running after restore
-    lxc list | grep bar | grep RUNNING
+    lxc list --fast | grep -wF bar | grep -wF RUNNING
   fi
 
   lxc stop --force bar
