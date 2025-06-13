@@ -97,7 +97,7 @@ test_projects_containers() {
   lxc init testimage c1
 
   # The container is listed when using this project
-  lxc list | grep -wF c1
+  lxc list -c n | grep -wF c1
   lxc info c1 | grep -xF "Name: c1"
 
   # The container's volume is listed too.
@@ -112,12 +112,12 @@ test_projects_containers() {
 
   # Start the container
   lxc start c1
-  lxc list | grep -wF c1 | grep -wF RUNNING
-  echo "abc" | lxc exec c1 cat | grep -xF abc
+  [ "$(lxc list -f csv -c ns c1)" = "c1,RUNNING" ]
+  [ "$(echo "abc" | lxc exec c1 cat)" = "abc" ]
 
   # The container can't be managed when using the default project
   lxc project switch default
-  ! lxc list | grep -wF c1 || false
+  ! lxc list -c n | grep -wF c1 || false
   ! lxc info c1 || false
   ! lxc delete c1 || false
   ! lxc storage volume list "${pool}" | grep -wF container | grep -wF c1 || false
@@ -134,14 +134,13 @@ test_projects_containers() {
   ensure_import_testimage
   lxc init testimage c1
   lxc start c1
-  lxc list | grep -wF c1 | grep -wF RUNNING
+  [ "$(lxc list -f csv -c ns c1)" = "c1,RUNNING" ]
   lxc stop --force c1
 
   # Delete the container
   lxc project switch foo
 
-  lxc stop --force c1
-  lxc delete c1
+  lxc delete --force c1
   lxc image delete testimage
 
   # Delete the project
@@ -149,9 +148,8 @@ test_projects_containers() {
 
   # The container in the default project can still be used
   lxc start c1
-  lxc list | grep -wF c1 | grep -wF RUNNING
-  lxc stop --force c1
-  lxc delete c1
+  [ "$(lxc list -f csv -c ns c1)" = "c1,RUNNING" ]
+  lxc delete --force c1
 }
 
 # Copy/move between projects
