@@ -80,6 +80,16 @@
 						}
 					},
 					{
+						"io.threads": {
+							"condition": "virtual machine",
+							"defaultdesc": "`0`",
+							"longdesc": "This option controls the `virtiofsd` thread pool size. Only applies to virtiofs filesystem shares.",
+							"required": "no",
+							"shortdesc": "Thread pool for virtiofs filesystem shares",
+							"type": "integer"
+						}
+					},
+					{
 						"limits.max": {
 							"longdesc": "This option is the same as setting both {config:option}`device-disk-device-conf:limits.read` and {config:option}`device-disk-device-conf:limits.write`.\n\nYou can specify a value in byte/s (various suffixes supported, see {ref}`instances-limit-units`) or in IOPS (must be suffixed with `iops`).\nSee also {ref}`storage-configure-io`.\n",
 							"required": "no",
