@@ -26,5 +26,6 @@ test_concurrent() {
     wait "${pid}" || [ "$?" -eq 127 ]
   done
 
-  ! lxc list | grep -F concurrent || false
+  # Verify no `concurrent-` instances was left behind
+  [ "$(lxc list -f csv -c n concurrent-)" = "" ]
 }
