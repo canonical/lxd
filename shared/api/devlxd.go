@@ -39,11 +39,11 @@ type DevLXDGet struct {
 	Location string `json:"location" yaml:"location"`
 }
 
-// UbuntuProGuestTokenResponse contains the expected fields of proAPIGetGuestTokenV1 that must be passed back to
+// DevLXDUbuntuProGuestTokenResponse contains the expected fields of proAPIGetGuestTokenV1 that must be passed back to
 // the guest for pro attachment to succeed.
 //
 // API extension: ubuntu_pro_guest_attach.
-type UbuntuProGuestTokenResponse struct {
+type DevLXDUbuntuProGuestTokenResponse struct {
 	// Expires denotes the time at which the token will expire.
 	//
 	// Example: 2025-03-23T20:00:00-04:00
@@ -60,10 +60,10 @@ type UbuntuProGuestTokenResponse struct {
 	ID string `json:"id"`
 }
 
-// UbuntuProSettings contains Ubuntu Pro settings relevant to LXD.
+// DevLXDUbuntuProSettings contains Ubuntu Pro settings relevant to LXD.
 //
 // API extension: ubuntu_pro_guest_attach.
-type UbuntuProSettings struct {
+type DevLXDUbuntuProSettings struct {
 	// GuestAttach indicates the availability of ubuntu pro guest attachment.
 	//
 	// Example: on
