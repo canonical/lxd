@@ -20,44 +20,44 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
+func unmountDaemonStorageVolume(s *state.State, daemonStorageVolume string) error {
+	// Parse the source.
+	poolName, volumeName, err := daemonStorageSplitVolume(daemonStorageVolume)
+	if err != nil {
+		return err
+	}
+
+	pool, err := storagePools.LoadByName(s, poolName)
+	if err != nil {
+		return err
+	}
+
+	// Unmount volume.
+	_, err = pool.UnmountCustomVolume(api.ProjectDefaultName, volumeName, nil)
+	if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
+		return fmt.Errorf("Failed to unmount storage volume %q: %w", daemonStorageVolume, err)
+	}
+
+	return nil
+}
+
 func daemonStorageVolumesUnmount(s *state.State, ctx context.Context) error {
 	storageBackups := s.LocalConfig.StorageBackupsVolume()
 	storageImages := s.LocalConfig.StorageImagesVolume()
-
-	unmount := func(source string) error {
-		// Parse the source.
-		poolName, volumeName, err := daemonStorageSplitVolume(source)
-		if err != nil {
-			return err
-		}
-
-		pool, err := storagePools.LoadByName(s, poolName)
-		if err != nil {
-			return err
-		}
-
-		// Unmount volume.
-		_, err = pool.UnmountCustomVolume(api.ProjectDefaultName, volumeName, nil)
-		if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
-			return fmt.Errorf("Failed to unmount storage volume %q: %w", source, err)
-		}
-
-		return nil
-	}
 
 	select {
 	case <-ctx.Done():
 		return errors.New("Timed out waiting for image and backup volume")
 	default:
 		if storageBackups != "" {
-			err := unmount(storageBackups)
+			err := unmountDaemonStorageVolume(s, storageBackups)
 			if err != nil {
 				return fmt.Errorf("Failed to unmount backups storage: %w", err)
 			}
 		}
 
 		if storageImages != "" {
-			err := unmount(storageImages)
+			err := unmountDaemonStorageVolume(s, storageImages)
 			if err != nil {
 				return fmt.Errorf("Failed to unmount images storage: %w", err)
 			}
@@ -67,40 +67,40 @@ func daemonStorageVolumesUnmount(s *state.State, ctx context.Context) error {
 	return nil
 }
 
+func mountDaemonStorageVolume(s *state.State, daemonStorageVolume string) error {
+	// Parse the source.
+	poolName, volumeName, err := daemonStorageSplitVolume(daemonStorageVolume)
+	if err != nil {
+		return err
+	}
+
+	pool, err := storagePools.LoadByName(s, poolName)
+	if err != nil {
+		return err
+	}
+
+	// Mount volume.
+	_, err = pool.MountCustomVolume(api.ProjectDefaultName, volumeName, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to mount storage volume %q: %w", daemonStorageVolume, err)
+	}
+
+	return nil
+}
+
 func daemonStorageMount(s *state.State) error {
 	storageBackups := s.LocalConfig.StorageBackupsVolume()
 	storageImages := s.LocalConfig.StorageImagesVolume()
 
-	mount := func(source string) error {
-		// Parse the source.
-		poolName, volumeName, err := daemonStorageSplitVolume(source)
-		if err != nil {
-			return err
-		}
-
-		pool, err := storagePools.LoadByName(s, poolName)
-		if err != nil {
-			return err
-		}
-
-		// Mount volume.
-		_, err = pool.MountCustomVolume(api.ProjectDefaultName, volumeName, nil)
-		if err != nil {
-			return fmt.Errorf("Failed to mount storage volume %q: %w", source, err)
-		}
-
-		return nil
-	}
-
 	if storageBackups != "" {
-		err := mount(storageBackups)
+		err := mountDaemonStorageVolume(s, storageBackups)
 		if err != nil {
 			return fmt.Errorf("Failed to mount backups storage: %w", err)
 		}
 	}
 
 	if storageImages != "" {
-		err := mount(storageImages)
+		err := mountDaemonStorageVolume(s, storageImages)
 		if err != nil {
 			return fmt.Errorf("Failed to mount images storage: %w", err)
 		}
