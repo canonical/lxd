@@ -269,7 +269,7 @@ test_basic_usage() {
   echo "  cp: list" >> "${LXD_CONF}/config.yml"
   [ "$(lxc ls)" = "$(lxc cp)" ]
   #   7. User-defined aliases override commands and don't recurse
-  lxc init testimage foo
+  lxc init --empty foo
   LXC_CONFIG_SHOW=$(lxc config show foo --expanded)
   echo "  config show: config show --expanded" >> "${LXD_CONF}/config.yml"
   [ "$(lxc config show foo)" = "$LXC_CONFIG_SHOW" ]
@@ -645,7 +645,7 @@ test_basic_usage() {
   ! lxc profile rename default foobar || false
   ! lxc profile delete default || false
 
-  lxc init testimage c1
+  lxc init --empty c1
   result="$(! lxc config device override c1 root pool=bla 2>&1)"
   if ! echo "${result}" | grep "Error: Cannot update root disk device pool name"; then
     echo "Should fail device override because root disk device storage pool cannot be changed."
@@ -659,7 +659,7 @@ test_basic_usage() {
 
   # Should succeed in overriding root device storage pool when the pool does exist and the override occurs at create time.
   lxc storage create bla dir
-  lxc init testimage c1 -d root,pool=bla
+  lxc init --empty c1 -d root,pool=bla
   lxc config show c1 --expanded | grep -Pz '  root:\n    path: /\n    pool: bla\n    type: disk\n'
 
   lxc storage volume create bla vol1
