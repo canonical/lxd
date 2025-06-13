@@ -7465,6 +7465,10 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			// Create a volume from the migration.
 			err = diskPool.Driver().CreateVolumeFromMigration(volCopy, nil, extraTargetArgs, nil, nil)
 			if err != nil {
+				if errors.Is(err, storageDrivers.ErrNotSupported) && vol.Type() == storageDrivers.VolumeTypeCustom {
+					return errors.New("Migrating instances with attached local volumes is not supported")
+				}
+
 				return fmt.Errorf("Failed to prepare device %q for migration: %w", dev.Name, err)
 			}
 		}
