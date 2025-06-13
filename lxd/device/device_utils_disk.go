@@ -450,8 +450,7 @@ func DiskVMVirtiofsdStart(kernelVersion version.DottedVersion, inst instance.Ins
 	args := []string{
 		"--fd=3",
 		"--shared-dir", sharePath,
-		// use -o flags for support in wider versions of virtiofsd.
-		"-o", "xattr",
+		"--xattr",
 	}
 
 	// Virtiofsd defaults to namespace sandbox mode which requires pidfd_open support.
