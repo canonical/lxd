@@ -6193,9 +6193,13 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			}
 		}
 
-		err = pool.CreateInstanceFromMigration(d, filesystemConn, volTargetArgs, d.op)
+		revertInstance, err := pool.CreateInstanceFromMigration(d, filesystemConn, volTargetArgs, d.op)
 		if err != nil {
 			return fmt.Errorf("Failed creating instance on target: %w", err)
+		}
+
+		if revertInstance != nil {
+			revert.Add(revertInstance)
 		}
 
 		isRemoteClusterMove := args.ClusterMoveSourceName != "" && pool.Driver().Info().Remote
