@@ -664,6 +664,8 @@ jobs:
 
       - name: Install runtime dependencies
         uses: ./.github/actions/install-lxd-runtimedeps
+        with:
+          optional: true
 
       - name: Download system test dependencies
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
