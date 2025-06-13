@@ -651,7 +651,8 @@ func instancePostMigration(s *state.State, inst instance.Instance, req api.Insta
 	return nil
 }
 
-// Move a non-ceph instance to another cluster node. Source and target members must be online.
+// Migrate an instance to another cluster node (supports both local and remote storage).
+// Source and target members must be online.
 func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, srcMember db.NodeInfo, newMember db.NodeInfo, stateful bool, allowInconsistent bool) (func(op *operations.Operation) error, error) {
 	srcMemberOffline := srcMember.IsOffline(s.GlobalConfig.OfflineThreshold())
 
@@ -726,11 +727,6 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 			}
 
 			srcInstName = srcInst.Name()
-		}
-
-		snapshots, err := srcInst.Snapshots()
-		if err != nil {
-			return fmt.Errorf("Failed getting source instance snapshots: %w", err)
 		}
 
 		// Setup migration source.
@@ -844,33 +840,6 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 		})
 		if err != nil {
 			return err
-		}
-
-		// Cleanup instance paths on source member if using remote shared storage.
-		if srcPool.Driver().Info().Remote {
-			err = srcPool.CleanupInstancePaths(srcInst, nil)
-			if err != nil {
-				return fmt.Errorf("Failed cleaning up instance paths on source member: %w", err)
-			}
-		} else {
-			// Delete the instance on source member if pool isn't remote shared storage.
-			// We cannot use the normal delete process, as that would remove the instance DB record.
-			// So instead we need to delete just the local storage volume(s) for the instance.
-			snapshotCount := len(snapshots)
-			for k := range snapshots {
-				// Delete the snapshots in reverse order.
-				k = snapshotCount - 1 - k
-
-				err = srcPool.DeleteInstanceSnapshot(snapshots[k], nil)
-				if err != nil {
-					return fmt.Errorf("Failed delete instance snapshot %q on source member: %w", snapshots[k].Name(), err)
-				}
-			}
-
-			err = srcPool.DeleteInstance(srcInst, nil)
-			if err != nil {
-				return fmt.Errorf("Failed deleting instance on source member: %w", err)
-			}
 		}
 
 		if !stateful && srcInstRunning {
