@@ -100,13 +100,13 @@ func archiveProfile(s *state.State, outputPath string, allowedCommandPaths []str
 		outputPathFull = outputPath // Use requested path if cannot resolve it.
 	}
 
-	backupsPath := s.BackupsStoragePath()
+	backupsPath := s.BackupsStoragePath("")
 	backupsPathFull, err := filepath.EvalSymlinks(backupsPath)
 	if err == nil {
 		backupsPath = backupsPathFull
 	}
 
-	imagesPath := s.ImagesStoragePath()
+	imagesPath := s.ImagesStoragePath("")
 	imagesPathFull, err := filepath.EvalSymlinks(imagesPath)
 	if err == nil {
 		imagesPath = imagesPathFull

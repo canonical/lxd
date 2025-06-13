@@ -75,7 +75,7 @@ func instanceImageTransfer(ctx context.Context, s *state.State, projectName stri
 
 	client = client.UseProject(projectName)
 
-	err = imageImportFromNode(s.ImagesStoragePath(), client, hash)
+	err = imageImportFromNode(s.ImagesStoragePath(""), client, hash)
 	if err != nil {
 		return err
 	}

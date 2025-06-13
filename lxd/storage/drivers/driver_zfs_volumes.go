@@ -2831,7 +2831,7 @@ func (d *zfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceTar
 		args = append(args, path)
 
 		// Create temporary file to store output of ZFS send.
-		tmpFile, err := os.CreateTemp(d.state.BackupsStoragePath(), backup.WorkingDirPrefix+"_zfs")
+		tmpFile, err := os.CreateTemp(d.state.BackupsStoragePath(""), backup.WorkingDirPrefix+"_zfs")
 		if err != nil {
 			return fmt.Errorf("Failed to open temporary file for ZFS backup: %w", err)
 		}
