@@ -57,9 +57,17 @@ func Connect(ctx context.Context, address string, networkCert *shared.CertInfo, 
 	reqInfo := request.GetContextInfo(ctx)
 	if reqInfo != nil {
 		proxy := func(req *http.Request) (*url.URL, error) {
-			req.Header.Add(request.HeaderForwardedAddress, reqInfo.SourceAddress)
-			req.Header.Add(request.HeaderForwardedUsername, reqInfo.Username)
-			req.Header.Add(request.HeaderForwardedProtocol, reqInfo.Protocol)
+			if reqInfo.SourceAddress != "" {
+				req.Header.Add(request.HeaderForwardedAddress, reqInfo.SourceAddress)
+			}
+
+			if reqInfo.Username != "" {
+				req.Header.Add(request.HeaderForwardedUsername, reqInfo.Username)
+			}
+
+			if reqInfo.Protocol != "" {
+				req.Header.Add(request.HeaderForwardedProtocol, reqInfo.Protocol)
+			}
 
 			if reqInfo.IdentityProviderGroups != nil {
 				b, err := json.Marshal(reqInfo.IdentityProviderGroups)
