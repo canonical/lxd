@@ -45,6 +45,39 @@ func daemonStorageVolumesUnmount(s *state.State, ctx context.Context) error {
 	storageBackups := s.LocalConfig.StorageBackupsVolume()
 	storageImages := s.LocalConfig.StorageImagesVolume()
 
+	projectStorages := make([]string, 0)
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		projects, err := cluster.GetProjects(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		for _, project := range projects {
+			imagesVolume, err := cluster.ProjectConfig(ctx, tx.Tx(), project.Name, "storage.images_volume")
+			if err != nil {
+				return err
+			}
+
+			if imagesVolume != "" {
+				projectStorages = append(projectStorages, imagesVolume)
+			}
+
+			backupsVolume, err := cluster.ProjectConfig(ctx, tx.Tx(), project.Name, "storage.backups_volume")
+			if err != nil {
+				return err
+			}
+
+			if backupsVolume != "" {
+				projectStorages = append(projectStorages, backupsVolume)
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
 	select {
 	case <-ctx.Done():
 		return errors.New("Timed out waiting for image and backup volume")
@@ -60,6 +93,13 @@ func daemonStorageVolumesUnmount(s *state.State, ctx context.Context) error {
 			err := unmountDaemonStorageVolume(s, storageImages)
 			if err != nil {
 				return fmt.Errorf("Failed to unmount images storage: %w", err)
+			}
+		}
+
+		for _, storage := range projectStorages {
+			err := unmountDaemonStorageVolume(s, storage)
+			if err != nil {
+				return fmt.Errorf("Failed to unmount project storage: %w", err)
 			}
 		}
 	}
@@ -92,6 +132,39 @@ func daemonStorageMount(s *state.State) error {
 	storageBackups := s.LocalConfig.StorageBackupsVolume()
 	storageImages := s.LocalConfig.StorageImagesVolume()
 
+	projectStorages := make([]string, 0)
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		projects, err := cluster.GetProjects(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		for _, project := range projects {
+			imagesVolume, err := cluster.ProjectConfig(ctx, tx.Tx(), project.Name, "storage.images_volume")
+			if err != nil {
+				return err
+			}
+
+			if imagesVolume != "" {
+				projectStorages = append(projectStorages, imagesVolume)
+			}
+
+			backupsVolume, err := cluster.ProjectConfig(ctx, tx.Tx(), project.Name, "storage.backups_volume")
+			if err != nil {
+				return err
+			}
+
+			if backupsVolume != "" {
+				projectStorages = append(projectStorages, backupsVolume)
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
 	if storageBackups != "" {
 		err := mountDaemonStorageVolume(s, storageBackups)
 		if err != nil {
@@ -103,6 +176,13 @@ func daemonStorageMount(s *state.State) error {
 		err := mountDaemonStorageVolume(s, storageImages)
 		if err != nil {
 			return fmt.Errorf("Failed to mount images storage: %w", err)
+		}
+	}
+
+	for _, storage := range projectStorages {
+		err := mountDaemonStorageVolume(s, storage)
+		if err != nil {
+			return fmt.Errorf("Failed to mount project storage: %w", err)
 		}
 	}
 
