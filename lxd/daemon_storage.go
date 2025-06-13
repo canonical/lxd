@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/db"
@@ -53,7 +54,7 @@ func daemonStorageVolumesUnmount(s *state.State, ctx context.Context) error {
 
 		// Unmount volume.
 		_, err = pool.UnmountCustomVolume(api.ProjectDefaultName, volumeName, nil)
-		if err != nil {
+		if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
 			return fmt.Errorf("Failed to unmount storage volume %q: %w", source, err)
 		}
 
@@ -233,16 +234,18 @@ func daemonStorageValidate(s *state.State, target string) (validatedTarget strin
 		return "", fmt.Errorf("Failed to list %q: %w", mountpoint, err)
 	}
 
+	allowedEntries := []string{
+		"lost+found", // Clean ext4 volumes.
+		".zfs",       // Systems with snapdir=visible
+		"images",
+		"backups", // Allow re-use of volume for multiple images and backups stores.
+	}
+
 	for _, entry := range entries {
 		entryName := entry.Name()
 
-		// Don't fail on clean ext4 volumes.
-		if entryName == "lost+found" {
-			continue
-		}
-
-		// Don't fail on systems with snapdir=visible.
-		if entryName == ".zfs" {
+		// Don't fail on entries known to be possibly present.
+		if slices.Contains(allowedEntries, entryName) {
 			continue
 		}
 
@@ -271,6 +274,7 @@ func daemonStorageMove(s *state.State, storageType string, oldConfig string, new
 
 		sourceVolume = project.StorageVolume(api.ProjectDefaultName, sourceVolume)
 		sourcePath = storageDrivers.GetVolumeMountPath(sourcePool, storageDrivers.VolumeTypeCustom, sourceVolume)
+		sourcePath = filepath.Join(sourcePath, storageType)
 	}
 
 	moveContent := func(source string, target string) error {
@@ -280,20 +284,7 @@ func daemonStorageMove(s *state.State, storageType string, oldConfig string, new
 			return err
 		}
 
-		// Remove the source content.
-		entries, err := os.ReadDir(source)
-		if err != nil {
-			return err
-		}
-
-		for _, entry := range entries {
-			err := os.RemoveAll(filepath.Join(source, entry.Name()))
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
+		return os.RemoveAll(source)
 	}
 
 	// Deal with unsetting.
@@ -320,10 +311,10 @@ func daemonStorageMove(s *state.State, storageType string, oldConfig string, new
 			return err
 		}
 
-		// Unmount old volume.
+		// Unmount old volume if noone else is using it.
 		projectName, sourceVolumeName := project.StorageVolumeParts(sourceVolume)
 		_, err = pool.UnmountCustomVolume(projectName, sourceVolumeName, nil)
-		if err != nil {
+		if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
 			return fmt.Errorf(`Failed to umount storage volume "%s/%s": %w`, sourcePool, sourceVolumeName, err)
 		}
 
@@ -355,6 +346,12 @@ func daemonStorageMove(s *state.State, storageType string, oldConfig string, new
 		destPath = s.BackupsStoragePath()
 	}
 
+	// Ensure the destination directory structure exists within the target volume.
+	err = os.MkdirAll(destPath, 0700)
+	if err != nil {
+		return fmt.Errorf("Failed to create directory %q: %w", destPath, err)
+	}
+
 	err = os.Chmod(destPath, 0700)
 	if err != nil {
 		return fmt.Errorf("Failed to set permissions on %q: %w", destPath, err)
@@ -381,7 +378,7 @@ func daemonStorageMove(s *state.State, storageType string, oldConfig string, new
 		// Unmount old volume.
 		projectName, sourceVolumeName := project.StorageVolumeParts(sourceVolume)
 		_, err = pool.UnmountCustomVolume(projectName, sourceVolumeName, nil)
-		if err != nil {
+		if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
 			return fmt.Errorf(`Failed to umount storage volume "%s/%s": %w`, sourcePool, sourceVolumeName, err)
 		}
 
@@ -392,12 +389,6 @@ func daemonStorageMove(s *state.State, storageType string, oldConfig string, new
 	err = moveContent(sourcePath, destPath)
 	if err != nil {
 		return fmt.Errorf("Failed to move data over to directory %q: %w", destPath, err)
-	}
-
-	// Remove the old data.
-	err = os.RemoveAll(sourcePath)
-	if err != nil {
-		return fmt.Errorf("Failed to cleanup old directory %q: %w", sourcePath, err)
 	}
 
 	return nil
