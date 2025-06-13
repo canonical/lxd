@@ -96,6 +96,27 @@ func (p *Project) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Project, error) {
 	return apiProject, nil
 }
 
+// ProjectConfig is a helper to return value of an config option of a project.
+func ProjectConfig(ctx context.Context, tx *sql.Tx, project string, config string) (string, error) {
+	stmt := `
+SELECT projects_config.value
+  FROM projects_config
+  JOIN projects ON projects.id=projects_config.project_id
+ WHERE ( projects.name=? AND projects_config.key=? )
+`
+
+	values, err := query.SelectStrings(ctx, tx, stmt, project, config)
+	if err != nil {
+		return "", fmt.Errorf("Fetch project configs: %w", err)
+	}
+
+	if len(values) == 0 {
+		return "", nil
+	}
+
+	return values[0], nil
+}
+
 // ProjectHasProfiles is a helper to check if a project has the profiles
 // feature enabled.
 func ProjectHasProfiles(ctx context.Context, tx *sql.Tx, name string) (bool, error) {
