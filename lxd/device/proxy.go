@@ -686,8 +686,9 @@ func (d *proxy) killProxyProc(pidPath string) error {
 	}
 
 	// Remove socket file if needed.
-	if listenAddr.ConnType == "unix" && !listenAddr.Abstract {
-		err = os.Remove(listenAddr.Address)
+	// Unix non-abstract sockets are addressed to the host filesystem, not scoped inside the LXD snap.
+	if listenAddr.ConnType == "unix" && !listenAddr.Abstract && d.config["bind"] == "host" {
+		err = os.Remove(shared.HostPath(listenAddr.Address))
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("Failed to remove socket file: %w", err)
 		}
