@@ -127,12 +127,12 @@ test_basic_usage() {
   # Check volatile.apply_template is altered during rename.
   [ "$(lxc config get bar volatile.apply_template)" = "rename" ]
 
-  [ "$(lxc list | grep -F foo)" = "" ]
-  [ "$(lxc list | grep -F bar)" != "" ]
+  [ "$(lxc list -c n | grep -F foo)" = "" ]
+  [ "$(lxc list -c n | grep -F bar)" != "" ]
 
   lxc rename bar foo
-  [ "$(lxc list | grep -F bar)" = "" ]
-  [ "$(lxc list | grep -F foo)" != "" ]
+  [ "$(lxc list -c n | grep -F bar)" = "" ]
+  [ "$(lxc list -c n | grep -F foo)" != "" ]
   lxc rename foo bar
 
   # Test container copy
@@ -244,7 +244,7 @@ test_basic_usage() {
   lxc snapshot bar
   lxc publish bar/snap0 --alias foo
   lxc init foo bar2
-  lxc list | grep bar2
+  lxc list -c n | grep bar2
   lxc delete bar2
   lxc image delete foo
 
