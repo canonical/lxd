@@ -125,7 +125,7 @@ test_basic_usage() {
   lxc move foo bar
 
   # Check volatile.apply_template is altered during rename.
-  lxc config get bar volatile.apply_template | grep rename
+  [ "$(lxc config get bar volatile.apply_template)" = "rename" ]
 
   [ "$(lxc list | grep -F foo)" = "" ]
   [ "$(lxc list | grep -F bar)" != "" ]
