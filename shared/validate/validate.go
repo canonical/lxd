@@ -78,6 +78,16 @@ func IsUint8(value string) error {
 	return nil
 }
 
+// IsUint16 validates whether the string can be converted to an uint16.
+func IsUint16(value string) error {
+	_, err := strconv.ParseUint(value, 10, 16)
+	if err != nil {
+		return fmt.Errorf("Invalid value for uint16 %q: %w", value, err)
+	}
+
+	return nil
+}
+
 // IsUint32 validates whether the string can be converted to an uint32.
 func IsUint32(value string) error {
 	_, err := strconv.ParseUint(value, 10, 32)
