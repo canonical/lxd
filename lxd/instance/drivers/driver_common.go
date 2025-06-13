@@ -533,6 +533,46 @@ func (d *common) postMigrateSendCommon(inst instance.Instance) error {
 		}
 	}
 
+	snapshots, err := inst.Snapshots()
+	if err != nil {
+		return fmt.Errorf("Failed getting source instance snapshots: %w", err)
+	}
+
+	s := d.state
+
+	// Retrieve storage pool of the source instance.
+	srcPool, err := storagePools.LoadByInstance(s, inst)
+	if err != nil {
+		return fmt.Errorf("Failed loading instance storage pool: %w", err)
+	}
+
+	// Cleanup instance paths on source member if using remote shared storage.
+	if srcPool.Driver().Info().Remote {
+		err := srcPool.CleanupInstancePaths(inst, nil)
+		if err != nil {
+			return fmt.Errorf("Failed cleaning up instance paths on source member: %w", err)
+		}
+	} else {
+		// Delete the instance on source member if pool isn't remote shared storage.
+		// We cannot use the normal delete process, as that would remove the instance DB record.
+		// So instead we need to delete just the local storage volume(s) for the instance.
+		snapshotCount := len(snapshots)
+		for k := range snapshots {
+			// Delete the snapshots in reverse order.
+			k = snapshotCount - 1 - k
+
+			err = srcPool.DeleteInstanceSnapshot(snapshots[k], nil)
+			if err != nil {
+				return fmt.Errorf("Failed delete instance snapshot %q on source member: %w", snapshots[k].Name(), err)
+			}
+		}
+
+		err = srcPool.DeleteInstance(inst, nil)
+		if err != nil {
+			return fmt.Errorf("Failed deleting instance on source member: %w", err)
+		}
+	}
+
 	return nil
 }
 
