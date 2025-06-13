@@ -65,8 +65,8 @@ _server_config_storage() {
   [ ! -e "${LXD_DIR}/images" ]
 
   # Record after
-  BACKUPS_AFTER=$(cd "${LXD_DIR}/storage-pools/${pool}/custom/default_backups/" && find . | sort)
-  IMAGES_AFTER=$(cd "${LXD_DIR}/storage-pools/${pool}/custom/default_images/" && find . | sort)
+  BACKUPS_AFTER=$(cd "${LXD_DIR}/storage-pools/${pool}/custom/default_backups/backups" && find . | sort)
+  IMAGES_AFTER=$(cd "${LXD_DIR}/storage-pools/${pool}/custom/default_images/images" && find . | sort)
 
   # Validate content
   if [ "${BACKUPS_BEFORE}" != "${BACKUPS_AFTER}" ]; then
@@ -98,11 +98,19 @@ _server_config_storage() {
   lxc delete -f foo2
   lxc image delete fooimage
 
+  # Put both storages on the same shared volume
+  lxc storage volume create "${pool}" shared
+  lxc config unset storage.backups_volume
+  lxc config unset storage.images_volume
+  lxc config set storage.backups_volume "${pool}/shared"
+  lxc config set storage.images_volume "${pool}/shared"
+
   # Unset the config and remove the volumes
   lxc config unset storage.backups_volume
   lxc config unset storage.images_volume
   lxc storage volume delete "${pool}" backups
   lxc storage volume delete "${pool}" images
+  lxc storage volume delete "${pool}" shared
 
   # Record again after unsetting
   BACKUPS_AFTER=$(cd "${LXD_DIR}/backups/" && find . | sort)
