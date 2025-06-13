@@ -68,7 +68,7 @@ type Pool interface {
 	CreateInstanceFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(instance.Instance) error, revert.Hook, error)
 	CreateInstanceFromCopy(inst instance.Instance, src instance.Instance, snapshots bool, allowInconsistent bool, op *operations.Operation) error
 	CreateInstanceFromImage(inst instance.Instance, fingerprint string, op *operations.Operation) error
-	CreateInstanceFromMigration(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error
+	CreateInstanceFromMigration(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) (revert.Hook, error)
 	CreateInstanceFromConversion(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error
 	RenameInstance(inst instance.Instance, newName string, op *operations.Operation) error
 	DeleteInstance(inst instance.Instance, op *operations.Operation) error
