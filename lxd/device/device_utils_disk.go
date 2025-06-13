@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -368,7 +369,7 @@ func DiskVMVirtfsProxyStop(pidPath string) error {
 // Returns UnsupportedError error if the host system or instance does not support virtiosfd, returns normal error
 // type if process cannot be started for other reasons.
 // Returns revert function and listener file handle on success.
-func DiskVMVirtiofsdStart(kernelVersion version.DottedVersion, inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string, idmaps []idmap.IdmapEntry) (func(), net.Listener, error) {
+func DiskVMVirtiofsdStart(kernelVersion version.DottedVersion, inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string, idmaps []idmap.IdmapEntry, threadPoolSize uint16) (func(), net.Listener, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -451,6 +452,7 @@ func DiskVMVirtiofsdStart(kernelVersion version.DottedVersion, inst instance.Ins
 		"--shared-dir", sharePath,
 		"--cache", "auto", // "never" and "metadata" modes do not allow execution at this time.
 		"--allow-direct-io",
+		"--thread-pool-size", strconv.FormatUint(uint64(threadPoolSize), 10),
 		"--xattr",
 	}
 
