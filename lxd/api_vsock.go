@@ -36,7 +36,7 @@ func hoistReqVM(d *Daemon, r *http.Request, handler devLXDAPIHandlerFunc) respon
 		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusUnauthorized))
 	}
 
-	request.SetCtxValue(r, request.CtxDevLXDInstance, inst)
+	request.SetContextValue(r, request.CtxDevLXDInstance, inst)
 	return handler(d, r)
 }
 

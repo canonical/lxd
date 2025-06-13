@@ -68,8 +68,10 @@ func addNetworkZoneDetailsToRequestContext(s *state.State, r *http.Request) erro
 		return fmt.Errorf("Failed to check project %q network feature: %w", requestProjectName, err)
 	}
 
-	request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
-	request.SetCtxValue(r, ctxNetworkZoneDetails, networkZoneDetails{
+	reqInfo := request.SetupContextInfo(r)
+	reqInfo.EffectiveProjectName = effectiveProjectName
+
+	request.SetContextValue(r, ctxNetworkZoneDetails, networkZoneDetails{
 		zoneName:       zoneName,
 		requestProject: *requestProject,
 	})
@@ -87,7 +89,7 @@ func networkZoneAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *h
 			return response.SmartError(err)
 		}
 
-		details, err := request.GetCtxValue[networkZoneDetails](r.Context(), ctxNetworkZoneDetails)
+		details, err := request.GetContextValue[networkZoneDetails](r.Context(), ctxNetworkZoneDetails)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -230,7 +232,8 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// If the request is project specific, then set effective project name in the request context so that the authorizer can generate the correct URL.
-		request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
+		reqInfo := request.SetupContextInfo(r)
+		reqInfo.EffectiveProjectName = effectiveProjectName
 	}
 
 	recursion := util.IsRecursionRequest(r)
@@ -412,12 +415,13 @@ func networkZonesPost(d *Daemon, r *http.Request) response.Response {
 func networkZoneDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
-	if err != nil {
-		return response.SmartError(err)
+	var effectiveProjectName string
+	reqInfo := request.GetContextInfo(r.Context())
+	if reqInfo != nil {
+		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[networkZoneDetails](r.Context(), ctxNetworkZoneDetails)
+	details, err := request.GetContextValue[networkZoneDetails](r.Context(), ctxNetworkZoneDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -480,12 +484,13 @@ func networkZoneDelete(d *Daemon, r *http.Request) response.Response {
 func networkZoneGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
-	if err != nil {
-		return response.SmartError(err)
+	var effectiveProjectName string
+	reqInfo := request.GetContextInfo(r.Context())
+	if reqInfo != nil {
+		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[networkZoneDetails](r.Context(), ctxNetworkZoneDetails)
+	details, err := request.GetContextValue[networkZoneDetails](r.Context(), ctxNetworkZoneDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -590,12 +595,13 @@ func networkZoneGet(d *Daemon, r *http.Request) response.Response {
 func networkZonePut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	effectiveProjectName, err := request.GetCtxValue[string](r.Context(), request.CtxEffectiveProjectName)
-	if err != nil {
-		return response.SmartError(err)
+	var effectiveProjectName string
+	reqInfo := request.GetContextInfo(r.Context())
+	if reqInfo != nil {
+		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
-	details, err := request.GetCtxValue[networkZoneDetails](r.Context(), ctxNetworkZoneDetails)
+	details, err := request.GetContextValue[networkZoneDetails](r.Context(), ctxNetworkZoneDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
