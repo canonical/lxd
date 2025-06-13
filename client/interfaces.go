@@ -430,6 +430,14 @@ type InstanceServer interface {
 	DeleteClusterGroup(name string) error
 	UpdateClusterGroup(name string, group api.ClusterGroupPut, ETag string) error
 	GetClusterGroup(name string) (*api.ClusterGroup, string, error)
+	GetClusterLink(name string) (clusterLink *api.ClusterLink, ETag string, err error)
+	GetClusterLinkNames() (clusterLinkNames []string, err error)
+	GetClusterLinks() (clusterLinks []api.ClusterLink, err error)
+	GetClusterLinkState(name string) (*api.ClusterLinkState, string, error)
+	CreateClusterLink(clusterLink api.ClusterLinkPost) error
+	CreateIdentityClusterLinkToken(clusterLink api.ClusterLinkPost) (*api.CertificateAddToken, error)
+	UpdateClusterLink(name string, clusterLink api.ClusterLinkPut, ETag string) error
+	DeleteClusterLink(name string) error
 
 	// Warning functions
 	GetWarningUUIDs() (uuids []string, err error)
