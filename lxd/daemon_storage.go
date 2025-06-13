@@ -255,6 +255,20 @@ func daemonStorageValidate(s *state.State, target string) (validatedTarget strin
 	return pool.Name() + "/" + dbVol.Name, nil
 }
 
+// daemonStoragePath returns the full path for a daemon storage located on the specific volume.
+// The `storageType` is either `images`, or `backups`.
+// The `daemonStorageVolume` is the specific volume in the form of "pool/volume".
+func daemonStoragePath(daemonStorageVolume string, storageType string) string {
+	if daemonStorageVolume == "" {
+		return shared.VarPath(storageType)
+	}
+
+	poolName, volumeName, _ := daemonStorageSplitVolume(daemonStorageVolume)
+	volStorageName := project.StorageVolume(api.ProjectDefaultName, volumeName)
+	volMountPath := storageDrivers.GetVolumeMountPath(poolName, storageDrivers.VolumeTypeCustom, volStorageName)
+	return filepath.Join(volMountPath, storageType)
+}
+
 func daemonStorageMove(s *state.State, storageType string, oldConfig string, newconfig string) error {
 	destPath := shared.VarPath(storageType)
 	var sourcePath string
@@ -338,20 +352,14 @@ func daemonStorageMove(s *state.State, storageType string, oldConfig string, new
 		return fmt.Errorf("Failed to mount storage volume %q: %w", newconfig, err)
 	}
 
-	// Set ownership & mode.
-	switch storageType {
-	case "images":
-		destPath = s.ImagesStoragePath()
-	case "backups":
-		destPath = s.BackupsStoragePath()
-	}
-
 	// Ensure the destination directory structure exists within the target volume.
+	destPath = daemonStoragePath(newconfig, storageType)
 	err = os.MkdirAll(destPath, 0700)
 	if err != nil {
 		return fmt.Errorf("Failed to create directory %q: %w", destPath, err)
 	}
 
+	// Set ownership & mode.
 	err = os.Chmod(destPath, 0700)
 	if err != nil {
 		return fmt.Errorf("Failed to set permissions on %q: %w", destPath, err)
