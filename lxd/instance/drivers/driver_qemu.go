@@ -7415,9 +7415,13 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			}
 		}
 
-		err = pool.CreateInstanceFromMigration(d, filesystemConn, volTargetArgs, d.op)
+		revertInstance, err := pool.CreateInstanceFromMigration(d, filesystemConn, volTargetArgs, d.op)
 		if err != nil {
 			return fmt.Errorf("Failed creating instance on target: %w", err)
+		}
+
+		if revertInstance != nil {
+			revert.Add(revertInstance)
 		}
 
 		// Derive the effective storage project name from the instance config's project.
