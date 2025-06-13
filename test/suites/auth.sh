@@ -135,8 +135,8 @@ test_authorization() {
 
   # Check users have been added to the group.
   tls_identity_fingerprint="$(cert_fingerprint "${LXD_CONF2}/client.crt")"
-  lxc auth identity list --format csv | grep -Fq 'oidc,OIDC client," ",test-user@example.com,test-group'
-  lxc auth identity list --format csv | grep -Fq "tls,Client certificate,test-user,${tls_identity_fingerprint},test-group"
+  lxc auth identity list --format csv | grep -F 'oidc,OIDC client," ",test-user@example.com,test-group'
+  lxc auth identity list --format csv | grep -F "tls,Client certificate,test-user,${tls_identity_fingerprint},test-group"
 
   # Test `lxc auth identity info`
   expectedOIDCInfo='authentication_method: oidc
@@ -235,23 +235,23 @@ fine_grained: true"
 
   # The OIDC identity should be able to delete themselves without any permissions.
   lxc auth identity group remove oidc/test-user@example.com test-group
-  lxc_remote auth identity info oidc: | grep -Fq 'effective_permissions: []'
+  lxc_remote auth identity info oidc: | grep -F 'effective_permissions: []'
   lxc_remote auth identity delete oidc:oidc/test-user@example.com
-  ! lxc auth identity list --format csv | grep -Fq 'test-user@example.com' || false
+  ! lxc auth identity list --format csv | grep -F 'test-user@example.com' || false
 
   # When the OIDC identity re-authenticates they should reappear in the database
   [ "$(lxc_remote query oidc:/1.0 | jq -r '.auth')" = "trusted" ]
-  lxc auth identity list --format csv | grep -Fq 'test-user@example.com'
-  lxc_remote auth identity info oidc: | grep -Fq 'effective_permissions: []'
+  lxc auth identity list --format csv | grep -F 'test-user@example.com'
+  lxc_remote auth identity info oidc: | grep -F 'effective_permissions: []'
 
   # The OIDC identity cannot see or delete the TLS identity.
   ! lxc_remote auth identity show "oidc:tls/${tls_identity_fingerprint}" || false
   ! lxc_remote auth identity delete "oidc:tls/${tls_identity_fingerprint}" || false
 
   # But the TLS identity can see and delete itself
-  LXD_CONF="${LXD_CONF2}" lxc_remote auth identity list tls: --format csv | grep -Fq "${tls_identity_fingerprint}"
+  LXD_CONF="${LXD_CONF2}" lxc_remote auth identity list tls: --format csv | grep -wF "${tls_identity_fingerprint}"
   LXD_CONF="${LXD_CONF2}" lxc_remote auth identity delete "tls:tls/${tls_identity_fingerprint}"
-  ! lxc auth identity list --format csv | grep -Fq "${tls_identity_fingerprint}" || false
+  ! lxc auth identity list --format csv | grep -F "${tls_identity_fingerprint}" || false
 
   # The TLS identity is not trusted after deletion.
   [ "$(LXD_CONF="${LXD_CONF2}" lxc_remote query tls:/1.0 | jq -r '.auth')" = "untrusted" ]
@@ -509,7 +509,7 @@ user_is_not_server_admin() {
   lxc_remote info "${remote}:" > /dev/null
 
   # Cannot see any config.
-  ! lxc_remote info "${remote}:" | grep -Fq 'core.https_address' || false
+  ! lxc_remote info "${remote}:" | grep -F 'core.https_address' || false
 
   # Cannot set any config.
   ! lxc_remote config set "${remote}:" core.proxy_https=https://example.com || false
@@ -518,7 +518,7 @@ user_is_not_server_admin() {
   [ "$(lxc_remote storage list "${remote}:" -f csv | wc -l)" = 1 ]
   lxc_remote storage create test-pool dir
   ! lxc_remote storage set "${remote}:test-pool" rsync.compression=true || false
-  ! lxc_remote storage show "${remote}:test-pool" | grep -Fq 'source:' || false
+  ! lxc_remote storage show "${remote}:test-pool" | grep -F 'source:' || false
   ! lxc_remote storage delete "${remote}:test-pool" || false
   lxc_remote storage delete test-pool
 
@@ -526,7 +526,7 @@ user_is_not_server_admin() {
   ! lxc_remote storage create "${remote}:test" dir || false
 
   # Should not be able to see certificates
-  [ "$(lxc_remote config trust list "${remote}:" -f csv | wc -l)" = 0 ]
+  [ "$(lxc_remote config trust list "${remote}:" -f csv)" = "" ]
 
   # Cannot edit certificates.
   fingerprint="$(lxc config trust list -f csv | cut -d, -f4)"
@@ -544,7 +544,7 @@ user_is_server_admin() {
   remote="${1}"
 
   # Should be able to see server config.
-  lxc_remote info "${remote}:" | grep -Fq 'core.https_address'
+  lxc_remote info "${remote}:" | grep -F 'core.https_address'
 
   ## Should be able to add/remove certificates.
   # Create a temporary lxc config directory with some certs to test with.
@@ -565,7 +565,7 @@ user_is_server_admin() {
   ## Should be able to create/edit/delete a storage pool.
   lxc_remote storage create "${remote}:test-pool" dir
   lxc_remote storage set "${remote}:test-pool" rsync.compression=true
-  lxc_remote storage show "${remote}:test-pool" | grep -Fq 'rsync.compression:'
+  lxc_remote storage show "${remote}:test-pool" | grep -F 'rsync.compression:'
   lxc_remote storage delete "${remote}:test-pool"
 
   # Should be able to view all managed and unmanaged networks
@@ -578,7 +578,7 @@ user_is_server_operator() {
   remote="${1}"
 
   # Should be able to see projects.
-  lxc_remote project list "${remote}:" -f csv | grep -Fq 'default'
+  lxc_remote project list "${remote}:" -f csv | grep -wF "default"
 
   # Should be able to create/edit/delete a project.
   lxc_remote project create "${remote}:test-project"
@@ -628,22 +628,22 @@ user_is_not_project_operator() {
   remote="${1}"
 
   # Project list will not fail but there will be no output.
-  [ "$(lxc project list "${remote}:" -f csv | wc -l)" = 0 ]
+  [ "$(lxc project list "${remote}:" -f csv)" = "" ]
   ! lxc project show "${remote}:default" || false
 
   # Should not be able to see or create any instances.
   lxc_remote init testimage c1
-  [ "$(lxc_remote list "${remote}:" -f csv | wc -l)" = 0 ]
-  [ "$(lxc_remote list "${remote}:" -f csv --all-projects | wc -l)" = 0 ]
+  [ "$(lxc_remote list "${remote}:" -f csv)" = "" ]
+  [ "$(lxc_remote list "${remote}:" -f csv --all-projects)" = "" ]
   ! lxc_remote init testimage "${remote}:test-instance" || false
   lxc_remote delete c1 -f
 
   # Should not be able to see network allocations.
-  [ "$(lxc_remote network list-allocations "${remote}:" -f csv | wc -l)" = 0 ]
-  [ "$(lxc_remote network list-allocations "${remote}:" --all-projects -f csv | wc -l)" = 0 ]
+  [ "$(lxc_remote network list-allocations "${remote}:" -f csv)" = "" ]
+  [ "$(lxc_remote network list-allocations "${remote}:" --all-projects -f csv)" = "" ]
 
   # Should not be able to see or create networks.
-  [ "$(lxc_remote network list "${remote}:" -f csv | wc -l)" = 0 ]
+  [ "$(lxc_remote network list "${remote}:" -f csv)" = "" ]
   ! lxc_remote network create "${remote}:test-network" || false
 
   # Should not be able to see or create network ACLs.
@@ -661,32 +661,32 @@ user_is_not_project_operator() {
   lxc_remote network zone delete zone1
 
   # Should not be able to see or create profiles.
-  [ "$(lxc_remote profile list "${remote}:" -f csv | wc -l)" = 0 ]
+  [ "$(lxc_remote profile list "${remote}:" -f csv)" = "" ]
   [ "$(lxc_remote profile list "${remote}:" -f csv --all-projects)" = "" ]
   ! lxc_remote profile create "${remote}:test-profile" || false
 
   # Should not be able to see or create image aliases
   test_image_fingerprint="$(lxc_remote image info testimage | awk '/^Fingerprint/ {print $2}')"
-  [ "$(lxc_remote image alias list "${remote}:" -f csv | wc -l)" = 0 ]
+  [ "$(lxc_remote image alias list "${remote}:" -f csv)" = "" ]
   ! lxc_remote image alias create "${remote}:testimage2" "${test_image_fingerprint}" || false
 
   # Should not be able to see or create storage pool volumes.
   pool_name="$(lxc_remote storage list "${remote}:" -f csv | cut -d, -f1)"
   lxc_remote storage volume create "${pool_name}" vol1
-  [ "$(lxc_remote storage volume list "${remote}:${pool_name}" -f csv | wc -l)" = 0 ]
-  [ "$(lxc_remote storage volume list "${remote}:${pool_name}" --all-projects -f csv | wc -l)" = 0 ]
-  [ "$(lxc_remote storage volume list "${remote}:" -f csv | wc -l)" = 0 ]
-  [ "$(lxc_remote storage volume list "${remote}:" --all-projects -f csv | wc -l)" = 0 ]
+  [ "$(lxc_remote storage volume list "${remote}:${pool_name}" -f csv)" = "" ]
+  [ "$(lxc_remote storage volume list "${remote}:${pool_name}" --all-projects -f csv)" = "" ]
+  [ "$(lxc_remote storage volume list "${remote}:" -f csv)" = "" ]
+  [ "$(lxc_remote storage volume list "${remote}:" --all-projects -f csv)" = "" ]
   ! lxc_remote storage volume create "${remote}:${pool_name}" test-volume || false
   lxc_remote storage volume delete "${pool_name}" vol1
 
   # Should not be able to see any operations.
-  [ "$(lxc_remote operation list "${remote}:" -f csv | wc -l)" = 0 ]
-  [ "$(lxc_remote operation list "${remote}:" --all-projects -f csv | wc -l)" = 0 ]
+  [ "$(lxc_remote operation list "${remote}:" -f csv)" = "" ]
+  [ "$(lxc_remote operation list "${remote}:" --all-projects -f csv)" = "" ]
 
   # Image list will still work but none will be shown because none are public.
-  [ "$(lxc_remote image list "${remote}:" -f csv | wc -l)" = 0 ]
-  [ "$(lxc_remote image list "${remote}:" -f csv --all-projects | wc -l)" = 0 ]
+  [ "$(lxc_remote image list "${remote}:" -f csv)" = "" ]
+  [ "$(lxc_remote image list "${remote}:" -f csv --all-projects)" = "" ]
 
   # Image edit will fail. Note that this fails with "not found" because we fail to resolve the alias (image is not public
   # so it is not returned from the DB).
@@ -696,7 +696,7 @@ user_is_not_project_operator() {
 
   # Should be able to list public images.
   lxc_remote image show testimage | sed -e "s/public: false/public: true/" | lxc_remote image edit testimage
-  lxc_remote image list "${remote}:" -f csv | grep -Fq "${test_image_fingerprint_short}"
+  lxc_remote image list "${remote}:" -f csv | grep -wF "${test_image_fingerprint_short}"
   lxc_remote image show testimage | sed -e "s/public: true/public: false/" | lxc_remote image edit testimage
 }
 
@@ -725,7 +725,7 @@ auth_project_features() {
   lxc project create blah
 
   # Validate view with no permissions
-  [ "$(lxc_remote project list "${remote}:" --format csv | wc -l)" -eq 0 ]
+  [ "$(lxc_remote project list "${remote}:" --format csv)" = "" ]
 
   # Allow operator permissions on project blah
   lxc auth group permission add test-group project blah operator
@@ -866,7 +866,7 @@ auth_project_features() {
   # The network we created in the default project is not visible in project blah.
   ! lxc_remote network show "${remote}:${networkName}" --project blah || false
   ! lxc_remote network list "${remote}:" --project blah | grep -F "${networkName}" || false
-  [ "$(lxc_remote network list "${remote}:" --all-projects -f csv | wc -l)" = 0 ]
+  [ "$(lxc_remote network list "${remote}:" --all-projects -f csv)" = "" ]
 
   # Make networks in the default project viewable to members of test-group
   lxc auth group permission add test-group project default can_view_networks
@@ -1062,7 +1062,7 @@ auth_project_features() {
   # The storage bucket we created in the default project is not visible in project blah.
   ! lxc_remote storage bucket show "${remote}:s3" "${bucketName}" --project blah || false
   ! lxc_remote storage bucket list "${remote}:s3" --project blah | grep -F "${bucketName}" || false
-  [ "$(lxc_remote storage bucket list "${remote}:s3" --all-projects -f csv | wc -l)" = 0 ]
+  [ "$(lxc_remote storage bucket list "${remote}:s3" --all-projects -f csv)" = "" ]
 
   # Grant view permission on storage buckets in project default to members of test-group
   lxc auth group permission add test-group project default can_view_storage_buckets
