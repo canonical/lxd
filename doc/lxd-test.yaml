@@ -86,6 +86,7 @@ config:
     - iptables
     - iputils-ping
     - jq
+    - netcat-openbsd
     - shellcheck
     - socat
     - sqlite3
