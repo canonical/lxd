@@ -115,7 +115,7 @@ test_basic_usage() {
   ! lxc list --columns=nsp --fast || false
 
   # Check volatile.apply_template is correct.
-  lxc config get foo volatile.apply_template | grep create
+  [ "$(lxc config get foo volatile.apply_template)" = "create" ]
 
   # Start the instance to clear apply_template.
   lxc start foo
@@ -125,14 +125,14 @@ test_basic_usage() {
   lxc move foo bar
 
   # Check volatile.apply_template is altered during rename.
-  lxc config get bar volatile.apply_template | grep rename
+  [ "$(lxc config get bar volatile.apply_template)" = "rename" ]
 
-  [ "$(lxc list | grep -F foo)" = "" ]
-  [ "$(lxc list | grep -F bar)" != "" ]
+  [ "$(lxc list -c n | grep -F foo)" = "" ]
+  [ "$(lxc list -c n | grep -F bar)" != "" ]
 
   lxc rename bar foo
-  [ "$(lxc list | grep -F bar)" = "" ]
-  [ "$(lxc list | grep -F foo)" != "" ]
+  [ "$(lxc list -c n | grep -F bar)" = "" ]
+  [ "$(lxc list -c n | grep -F foo)" != "" ]
   lxc rename foo bar
 
   # Test container copy
@@ -244,7 +244,7 @@ test_basic_usage() {
   lxc snapshot bar
   lxc publish bar/snap0 --alias foo
   lxc init foo bar2
-  lxc list | grep bar2
+  lxc list -c n | grep bar2
   lxc delete bar2
   lxc image delete foo
 
@@ -269,7 +269,7 @@ test_basic_usage() {
   echo "  cp: list" >> "${LXD_CONF}/config.yml"
   [ "$(lxc ls)" = "$(lxc cp)" ]
   #   7. User-defined aliases override commands and don't recurse
-  lxc init testimage foo
+  lxc init --empty foo
   LXC_CONFIG_SHOW=$(lxc config show foo --expanded)
   echo "  config show: config show --expanded" >> "${LXD_CONF}/config.yml"
   [ "$(lxc config show foo)" = "$LXC_CONFIG_SHOW" ]
@@ -645,21 +645,21 @@ test_basic_usage() {
   ! lxc profile rename default foobar || false
   ! lxc profile delete default || false
 
-  lxc init testimage c1
+  lxc init --empty c1
   result="$(! lxc config device override c1 root pool=bla 2>&1)"
   if ! echo "${result}" | grep "Error: Cannot update root disk device pool name"; then
     echo "Should fail device override because root disk device storage pool cannot be changed."
     false
   fi
 
-  lxc rm -f c1
+  lxc delete -f c1
 
   # Should fail to override root device storage pool when the new pool does not exist.
   ! lxc init testimage c1 -d root,pool=bla || false
 
   # Should succeed in overriding root device storage pool when the pool does exist and the override occurs at create time.
   lxc storage create bla dir
-  lxc init testimage c1 -d root,pool=bla
+  lxc init --empty c1 -d root,pool=bla
   lxc config show c1 --expanded | grep -Pz '  root:\n    path: /\n    pool: bla\n    type: disk\n'
 
   lxc storage volume create bla vol1
@@ -673,7 +673,7 @@ test_basic_usage() {
     false
   fi
 
-  lxc rm -f c1
+  lxc delete -f c1
   lxc storage volume delete bla vol1
   lxc storage volume delete bla vol2
   lxc storage delete bla
