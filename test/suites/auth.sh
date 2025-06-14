@@ -1249,9 +1249,9 @@ entities_enrichment_with_entitlements() {
   lxc auth identity-provider-group delete test-idp-group3
 
   # Image
-  lxc init images:alpine/3.21 c1
+  lxc init images:busybox/1.36.1 c1
   lxc delete c1
-  imgFingerprint=$(lxc image list --format json | jq -r '.[] | select(.update_source.alias == "alpine/3.21") | .fingerprint')
+  imgFingerprint=$(lxc image list --format json | jq -r '.[] | select(.update_source.alias == "busybox/1.36.1") | .fingerprint')
   lxc auth group permission add test-group image "${imgFingerprint}" can_view project=default
   lxc auth group permission add test-group image "${imgFingerprint}" can_edit project=default
   lxc auth group permission add test-group image "${imgFingerprint}" can_delete project=default
