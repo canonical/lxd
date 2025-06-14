@@ -281,7 +281,6 @@ sudo apt install \
     dnsmasq-base \
     dosfstools \
     e2fsprogs \
-    iptables \
     jq \
     shellcheck \
     socat \
