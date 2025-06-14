@@ -224,7 +224,7 @@ if [ -n "${INACCESSIBLE_DIRS:-}" ]; then
     exit 1
 fi
 
-if [ -n "${LXD_TMPFS:-}" ]; then
+if [ "${LXD_TMPFS:-0}" = "1" ]; then
   mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=6G
 fi
 
