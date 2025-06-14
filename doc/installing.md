@@ -283,6 +283,7 @@ sudo apt install \
     e2fsprogs \
     iputils-ping \
     jq \
+    netcat-openbsd \
     shellcheck \
     socat \
     sqlite3 \
