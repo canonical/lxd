@@ -84,6 +84,7 @@ config:
     - dosfstools
     - e2fsprogs
     - iptables
+    - iputils-ping
     - jq
     - shellcheck
     - socat
