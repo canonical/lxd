@@ -289,16 +289,6 @@ user.foo: {{ config_get("user.foo", "_unset_") }}
 
 
 if __name__ == "__main__":
-    if "LXD_DIR" in os.environ:
-        lxd_socket = os.path.join(os.environ["LXD_DIR"], "unix.socket")
-    elif os.path.exists("/var/snap/lxd/common/lxd/unix.socket"):
-        lxd_socket = "/var/snap/lxd/common/lxd/unix.socket"
-    else:
-        lxd_socket = "/var/lib/lxd/unix.socket"
-
-    if not os.path.exists(lxd_socket):
-        print("LXD isn't running.")
-        sys.exit(1)
 
     def setup_alias(aliases, fingerprint):
         if not aliases:
@@ -320,6 +310,11 @@ if __name__ == "__main__":
                 split=True, template=args.template.split(",")
             )
 
+            if args.save_image:
+                shutil.copy(meta_path, "busybox.meta.tar.xz")
+                shutil.copy(rootfs_path, "busybox.rootfs.tar.xz")
+                return
+
             with open(meta_path, "rb") as meta_fd:
                 with open(rootfs_path, "rb") as rootfs_fd:
                     fingerprint = hashlib.sha256(
@@ -338,6 +333,10 @@ if __name__ == "__main__":
             print("Image imported as: %s" % r["fingerprint"])
         else:
             path = busybox.create_tarball(template=args.template.split(","))
+
+            if args.save_image:
+                shutil.copy(path, "busybox.tar.xz")
+                return
 
             with open(path, "rb") as fd:
                 fingerprint = hashlib.sha256(fd.read()).hexdigest()
@@ -373,12 +372,28 @@ if __name__ == "__main__":
         "--template", type=str, default="", help="Trigger test template"
     )
     parser.add_argument("--project", type=str, default="default", help="Project to use")
+
+    parser.add_argument(
+        "--save-image", action="store_true", default=False, help="Save the image tarball"
+    )
     parser.set_defaults(func=import_busybox)
 
     # Call the function
     args = parser.parse_args()
 
-    lxd = LXD(lxd_socket, project=args.project)
+    if not args.save_image:
+        if "LXD_DIR" in os.environ:
+            lxd_socket = os.path.join(os.environ["LXD_DIR"], "unix.socket")
+        elif os.path.exists("/var/snap/lxd/common/lxd/unix.socket"):
+            lxd_socket = "/var/snap/lxd/common/lxd/unix.socket"
+        else:
+            lxd_socket = "/var/lib/lxd/unix.socket"
+
+        if not os.path.exists(lxd_socket):
+            print("LXD isn't running.")
+            sys.exit(1)
+
+        lxd = LXD(lxd_socket, project=args.project)
 
     try:
         args.func(parser, args)
