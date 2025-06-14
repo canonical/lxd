@@ -22,23 +22,6 @@ class FriendlyParser(argparse.ArgumentParser):
         sys.exit(2)
 
 
-def find_on_path(command):
-    """Is command on the executable search path?"""
-
-    if "PATH" not in os.environ:
-        return False
-
-    path = os.environ["PATH"]
-    for element in path.split(os.pathsep):
-        if not element:
-            continue
-        filename = os.path.join(element, command)
-        if os.path.isfile(filename) and os.access(filename, os.X_OK):
-            return True
-
-    return False
-
-
 class UnixHTTPConnection(http.client.HTTPConnection):
     def __init__(self, path):
         http.client.HTTPConnection.__init__(self, "localhost")
@@ -179,7 +162,7 @@ class BusyBox:
             shutil.rmtree(self.workdir)
 
     def create_tarball(self, split=False, template=[]):
-        xz = "pxz" if find_on_path("pxz") else "xz"
+        xz = "pxz" if shutil.which("pxz") else "xz"
 
         destination_tar = os.path.join(self.workdir, "busybox.tar")
         target_tarball = tarfile.open(destination_tar, "w:")
