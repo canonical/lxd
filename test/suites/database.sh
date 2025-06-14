@@ -63,8 +63,7 @@ test_database_no_disk_space() {
     # shellcheck disable=SC2034,SC2030
     LXD_DIR="${LXD_NOSPACE_DIR}"
 
-    ensure_import_testimage
-    lxc init testimage c
+    lxc init --empty c
 
     # Set a custom user property with a big value, so we eventually eat up all
     # available disk space in the database directory.
