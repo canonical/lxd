@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -97,6 +98,21 @@ func (d *zfs) createVolume(dataset string, size int64, options ...string) error 
 	_, err := shared.RunCommandContext(context.TODO(), "zfs", args...)
 	if err != nil {
 		return err
+	}
+
+	// Wait for /dev/zvol/path to be created.
+	zvolPath := "/dev/zvol/" + d.config["zfs.pool_name"] + dataset
+	for i := range 30 {
+		if shared.PathExists(zvolPath) {
+			break
+		}
+
+		if i == 29 {
+			return fmt.Errorf("Time out waiting for %q zvol device path to appear at %q", dataset, zvolPath)
+		}
+
+		// Sleep for a short while before retrying.
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	return nil
