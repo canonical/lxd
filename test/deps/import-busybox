@@ -166,10 +166,12 @@ class LXD:
 
 class BusyBox:
     workdir = None
+    binary_path = None
 
     def __init__(self):
         # Create our workdir
         self.workdir = tempfile.mkdtemp()
+        self.binary_path = shutil.which("busybox")
         atexit.register(self.cleanup)
 
     def cleanup(self):
@@ -188,7 +190,7 @@ class BusyBox:
 
         metadata = {
             "architecture": os.uname()[4],
-            "creation_date": int(os.stat("/bin/busybox").st_ctime),
+            "creation_date": int(os.stat(self.binary_path).st_ctime),
             "properties": {
                 "os": "BusyBox",
                 "architecture": os.uname()[4],
@@ -198,9 +200,9 @@ class BusyBox:
         }
 
         # Add busybox
-        with open("/bin/busybox", "rb") as fd:
+        with open(self.binary_path, "rb") as fd:
             busybox_file = tarfile.TarInfo()
-            busybox_file.size = os.stat("/bin/busybox").st_size
+            busybox_file.size = os.stat(self.binary_path).st_size
             busybox_file.mode = 0o755
             if split:
                 busybox_file.name = "bin/busybox"
@@ -211,7 +213,7 @@ class BusyBox:
 
         # Add symlinks
         busybox = subprocess.Popen(
-            ["/bin/busybox", "--list-full"],
+            [self.binary_path, "--list-full"],
             stdout=subprocess.PIPE,
             universal_newlines=True,
         )
