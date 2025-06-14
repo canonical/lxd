@@ -29,14 +29,13 @@ test_clustering_enable() {
 
     # The container is still there and now shows up as
     # running on node 1.
-    lxc list | grep -wF c1 | grep -wF node1
+    [ "$(lxc list -f csv -c nL c1)" = "c1,node1" ]
 
     # Clustering can't be enabled on an already clustered instance.
     ! lxc cluster enable node2 || false
 
     # Delete the container
-    lxc stop c1 --force
-    lxc delete c1
+    lxc delete --force c1
   )
 
   kill_lxd "${LXD_INIT_DIR}"
@@ -3293,13 +3292,13 @@ test_clustering_image_refresh() {
     # shellcheck disable=SC2046
     LXD_DIR="${LXD_ONE_DIR}" lxc image rm --project "${project}" $(LXD_DIR="${LXD_ONE_DIR}" lxc image ls --format csv --project "${project}" | cut -d, -f2)
     # shellcheck disable=SC2046
-    LXD_DIR="${LXD_ONE_DIR}" lxc rm --project "${project}" $(LXD_DIR="${LXD_ONE_DIR}" lxc ls --format csv --project "${project}" | cut -d, -f1)
+    LXD_DIR="${LXD_ONE_DIR}" lxc rm --project "${project}" $(LXD_DIR="${LXD_ONE_DIR}" lxc list --format csv --columns n --project "${project}")
   done
 
   # shellcheck disable=SC2046
   LXD_DIR="${LXD_REMOTE_DIR}" lxc image rm $(LXD_DIR="${LXD_REMOTE_DIR}" lxc image ls --format csv | cut -d, -f2)
   # shellcheck disable=SC2046
-  LXD_DIR="${LXD_REMOTE_DIR}" lxc rm $(LXD_DIR="${LXD_REMOTE_DIR}" lxc ls --format csv | cut -d, -f1)
+  LXD_DIR="${LXD_REMOTE_DIR}" lxc rm $(LXD_DIR="${LXD_REMOTE_DIR}" lxc list --format csv --columns n)
 
   LXD_DIR="${LXD_ONE_DIR}" lxc project delete foo
   LXD_DIR="${LXD_ONE_DIR}" lxc project delete bar
@@ -3814,20 +3813,19 @@ test_clustering_autotarget() {
   ns2="${prefix}2"
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
 
- # Use node1 for all cluster actions.
- LXD_DIR="${LXD_ONE_DIR}"
+  # Use node1 for all cluster actions.
+  LXD_DIR="${LXD_ONE_DIR}"
 
- # Spawn c1 on node2 from node1
- ensure_import_testimage
-  lxc init --target node2 testimage c1
- lxc ls | grep -wF c1 | grep -wF node2
+  # Spawn c1 on node2 from node1
+  lxc init --empty --target node2 c1
+  [ "$(lxc list -f csv -c nL c1)" = "c1,node2" ]
 
- # Set node1 config to disable autotarget
- lxc cluster set node1 scheduler.instance manual
+  # Set node1 config to disable autotarget
+  lxc cluster set node1 scheduler.instance manual
 
- # Spawn another node, autotargeting node2 although it has more instances.
- lxc init testimage c2
- lxc ls | grep -wF c2 | grep -wF node2
+  # Spawn another node, autotargeting node2 although it has more instances.
+  lxc init --empty c2
+  [ "$(lxc list -f csv -c nL c2)" = "c2,node2" ]
 
   shutdown_lxd "${LXD_ONE_DIR}"
   shutdown_lxd "${LXD_TWO_DIR}"
