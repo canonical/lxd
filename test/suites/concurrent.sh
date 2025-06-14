@@ -22,7 +22,8 @@ test_concurrent() {
   done
 
   for pid in ${PIDS}; do
-    wait "${pid}"
+    # ignore PIDs that vanished (wait returns 127 for those)
+    wait "${pid}" || [ "$?" -eq 127 ]
   done
 
   ! lxc list | grep -F concurrent || false
