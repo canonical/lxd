@@ -1239,7 +1239,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		})
 
 		g.Go(func() error {
-			return b.CreateInstanceFromMigration(inst, bEnd, migration.VolumeTargetArgs{
+			_, err := b.CreateInstanceFromMigration(inst, bEnd, migration.VolumeTargetArgs{
 				IndexHeaderVersion: migration.IndexHeaderVersion,
 				Name:               inst.Name(),
 				Snapshots:          snapshotNames,
@@ -1248,6 +1248,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 				TrackProgress:      false,         // Do not use a progress tracker on receiver.
 				VolumeOnly:         !snapshots,
 			}, op)
+			return err
 		})
 
 		err = g.Wait()
@@ -1778,7 +1779,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		})
 
 		g.Go(func() error {
-			return b.CreateInstanceFromMigration(inst, bEnd, migration.VolumeTargetArgs{
+			_, err := b.CreateInstanceFromMigration(inst, bEnd, migration.VolumeTargetArgs{
 				IndexHeaderVersion: migration.IndexHeaderVersion,
 				Name:               inst.Name(),
 				Snapshots:          snapshotNames,
@@ -1787,6 +1788,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 				TrackProgress:      false, // Do not use a progress tracker on receiver.
 				VolumeOnly:         !snapshots,
 			}, op)
+			return err
 		})
 
 		err = g.Wait()
@@ -2155,23 +2157,24 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 
 // CreateInstanceFromMigration receives an instance being migrated.
 // The args.Name and args.Config fields are ignored and, instance properties are used instead.
-func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
+// Returns a revert hook that can be used to undo this function if a subsequent step fails.
+func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) (revert.Hook, error) {
 	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "args": fmt.Sprintf("%+v", args)})
 	l.Debug("CreateInstanceFromMigration started")
 	defer l.Debug("CreateInstanceFromMigration finished")
 
 	err := b.isStatusReady()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if args.Config != nil {
-		return errors.New("Migration VolumeTargetArgs.Config cannot be set for instances")
+		return nil, errors.New("Migration VolumeTargetArgs.Config cannot be set for instances")
 	}
 
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	contentType := InstanceContentType(inst)
@@ -2181,19 +2184,19 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	// caller if the instance DB record already exists).
 	srcInfo, err := b.migrationIndexHeaderReceive(l, args.IndexHeaderVersion, conn, args.Refresh)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Now that we got the source details, validate against the instance limits.
 	_, rootDiskConf, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if rootDiskConf["size"] != "" {
 		rootDiskConfBytes, err := units.ParseByteSizeString(rootDiskConf["size"])
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// Compare volume size with configured root size.
@@ -2202,7 +2205,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 			// Convert to IEC format for nicer error.
 			rootDiskSize := units.GetByteSizeStringIEC(rootDiskConfBytes, 2)
 			migrationSourceSize := units.GetByteSizeStringIEC(args.VolumeSize, 2)
-			return fmt.Errorf("Volume size (%s + 4MiB overhead) is less than source disk size (%s)", rootDiskSize, migrationSourceSize)
+			return nil, fmt.Errorf("Volume size (%s + 4MiB overhead) is less than source disk size (%s)", rootDiskSize, migrationSourceSize)
 		}
 	}
 
@@ -2212,14 +2215,14 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	// Check if the volume exists in database
 	dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
 	if err != nil && !response.IsNotFoundError(err) {
-		return err
+		return nil, err
 	}
 
 	var rootVol *backupConfig.Volume
 	if srcInfo != nil && srcInfo.Config != nil {
 		rootVol, err = srcInfo.Config.RootVolume()
 		if err != nil {
-			return fmt.Errorf("Failed getting the root volume: %w", err)
+			return nil, fmt.Errorf("Failed getting the root volume: %w", err)
 		}
 	}
 
@@ -2256,30 +2259,30 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 
 		err = b.driver.FillVolumeConfig(vol)
 		if err != nil {
-			return fmt.Errorf("Failed filling volume config: %w", err)
+			return nil, fmt.Errorf("Failed filling volume config: %w", err)
 		}
 	}
 
 	// Check if the volume exists on storage.
 	volExists, err := b.driver.HasVolume(vol)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Check for inconsistencies between database and storage before continuing.
 	if dbVol == nil && volExists {
-		return errors.New("Volume already exists on storage but not in database")
+		return nil, errors.New("Volume already exists on storage but not in database")
 	}
 
 	if dbVol != nil && !volExists {
-		return errors.New("Volume exists in database but not on storage")
+		return nil, errors.New("Volume exists in database but not on storage")
 	}
 
 	// Consistency check for refresh mode.
 	// We expect that the args.Refresh setting will have already been set to false by the caller as part of
 	// detecting if the instance DB record exists or not. If we get here then something has gone wrong.
 	if args.Refresh && !volExists {
-		return errors.New("Cannot refresh volume, doesn't exist on migration target storage")
+		return nil, errors.New("Cannot refresh volume, doesn't exist on migration target storage")
 	}
 
 	revert := revert.New()
@@ -2288,14 +2291,14 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	if !args.Refresh {
 		if volExists {
 			if !isRemoteClusterMove {
-				return errors.New("Cannot create volume, already exists on migration target storage")
+				return nil, errors.New("Cannot create volume, already exists on migration target storage")
 			}
 		} else {
 			// Validate config and create database entry for new storage volume if not refreshing.
 			// Strip unsupported config keys (in case the export was made from a different type of storage pool).
 			err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), volumeDescription, volType, false, vol.Config(), inst.CreationDate(), time.Time{}, contentType, true, true)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			revert.Add(func() { _ = VolumeDBDelete(b, inst.Project().Name, inst.Name(), volType) })
@@ -2340,7 +2343,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 			// Strip unsupported config keys (in case the export was made from a different type of storage pool).
 			err = VolumeDBCreate(b, inst.Project().Name, newSnapshotName, snapDescription, volType, true, snapVol.Config(), snapCreationDate, snapExpiryDate, contentType, true, true)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			revert.Add(func() { _ = VolumeDBDelete(b, inst.Project().Name, newSnapshotName, volType) })
@@ -2350,7 +2353,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	// Generate the effective root device volume for instance.
 	err = b.applyInstanceRootDiskOverrides(inst, &vol)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Override args.Name and args.Config to ensure volume is created based on instance.
@@ -2388,7 +2391,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 					return err
 				})
 				if err != nil && !response.IsNotFoundError(err) {
-					return err
+					return nil, err
 				}
 
 				// Make sure that the image is available locally too (not guaranteed in clusters).
@@ -2411,7 +2414,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 				// optimized storage, then it gets created first.
 				err = b.EnsureImage(preFiller.Fingerprint, op)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 		}
@@ -2421,14 +2424,14 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	// Afterwards load the volume from the snapshot to ensure the right ordering.
 	instSnapshots, err := inst.Snapshots()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	targetSnapshots := make([]drivers.Volume, 0, len(instSnapshots))
 	for _, instSnapshot := range instSnapshots {
 		snap, err := VolumeDBGet(b, inst.Project().Name, instSnapshot.Name(), volType)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		snapshotStorageName := project.Instance(inst.Project().Name, instSnapshot.Name())
@@ -2439,7 +2442,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	if b.driver.Info().PopulateParentVolumeUUID {
 		parentUUID, err := b.getParentVolumeUUID(vol, projectName)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		vol.SetParentUUID(parentUUID)
@@ -2449,7 +2452,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 
 	err = b.driver.CreateVolumeFromMigration(volCopy, conn, args, &preFiller, op)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if !isRemoteClusterMove {
@@ -2458,18 +2461,19 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 
 	err = b.ensureInstanceSymlink(inst.Type(), inst.Project().Name, inst.Name(), vol.MountPath())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if len(args.Snapshots) > 0 {
 		err = b.ensureInstanceSnapshotSymlink(inst.Type(), inst.Project().Name, inst.Name())
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
+	cleanup := revert.Clone().Fail
 	revert.Success()
-	return nil
+	return cleanup, nil
 }
 
 // CreateInstanceFromConversion receives a disk or filesystem and creates and instance from it.

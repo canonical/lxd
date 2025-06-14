@@ -148,8 +148,8 @@ func (b *mockBackend) CreateInstanceFromImage(inst instance.Instance, fingerprin
 }
 
 // CreateInstanceFromMigration ...
-func (b *mockBackend) CreateInstanceFromMigration(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
-	return nil
+func (b *mockBackend) CreateInstanceFromMigration(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) (revert.Hook, error) {
+	return nil, nil
 }
 
 // CreateInstanceFromConversion ...
