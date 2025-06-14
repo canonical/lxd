@@ -259,10 +259,13 @@ sudo apt update
 sudo apt install \
     attr \
     iproute2 \
+    nftables \
     rsync \
     squashfs-tools \
     tar \
     xz-utils
+
+# `nftables` can be replaced by `iptables` on older systems
 ```
 
 To run the test suite or test related `make` targets, you'll also need:
