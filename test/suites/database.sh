@@ -27,8 +27,8 @@ EOF
   rm -f "${LXD_RESTORE_DIR}/database/patch.global.sql"
 
   # Restore the backup
-  rm -rf "${LXD_RESTORE_DIR}/database/global"
-  cp -a "${LXD_RESTORE_DIR}/database/global.bak" "${LXD_RESTORE_DIR}/database/global"
+  mv "${LXD_RESTORE_DIR}/database/global" "${LXD_RESTORE_DIR}/database/global.old"
+  mv "${LXD_RESTORE_DIR}/database/global.bak" "${LXD_RESTORE_DIR}/database/global"
 
   # Restart the daemon and check that our previous settings are still there
   respawn_lxd "${LXD_RESTORE_DIR}" true
@@ -53,8 +53,8 @@ test_database_no_disk_space() {
   GLOBAL_DB_DIR="${LXD_NOSPACE_DIR}/database/global"
   BIG_FILE="${GLOBAL_DB_DIR}/bigfile"
   mkdir -p "${GLOBAL_DB_DIR}"
-  mount -t tmpfs -o size=67108864 tmpfs "${GLOBAL_DB_DIR}"
-  dd bs=1024 count=51200 if=/dev/zero of="${BIG_FILE}"
+  mount -t tmpfs -o size=16M tmpfs "${GLOBAL_DB_DIR}"
+  fallocate -l 2M "${BIG_FILE}"
 
   spawn_lxd "${LXD_NOSPACE_DIR}" true
 
@@ -63,8 +63,7 @@ test_database_no_disk_space() {
     # shellcheck disable=SC2034,SC2030
     LXD_DIR="${LXD_NOSPACE_DIR}"
 
-    ensure_import_testimage
-    lxc init testimage c
+    lxc init --empty c
 
     # Set a custom user property with a big value, so we eventually eat up all
     # available disk space in the database directory.

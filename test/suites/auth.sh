@@ -43,7 +43,7 @@ test_authorization() {
 
   # Instance permissions.
   ! lxc auth group permission add test-group instance c1 can_exec project=default || false # Not found
-  lxc init testimage c1
+  lxc init --empty c1
   ! lxc auth group permission add test-group instance c1 can_exec || false # No project
   lxc auth group permission add test-group instance c1 can_exec project=default # Valid
   lxc auth group permission remove test-group instance c1 can_exec project=default # Valid
@@ -118,7 +118,7 @@ test_authorization() {
   # Check a token cannot be used when expired
   lxc config set core.remote_token_expiry=1S
   tls_identity_token2="$(lxc auth identity create tls/test-user2 --quiet)"
-  sleep 2
+  sleep 1.1
   LXD_CONF3=$(mktemp -d -p "${TEST_DIR}" XXX)
   LXD_CONF="${LXD_CONF3}" gen_cert_and_key "client"
   ! LXD_CONF="${LXD_CONF3}" lxc remote add tls "${tls_identity_token2}" || false
@@ -129,7 +129,7 @@ test_authorization() {
   # Check token prune task works
   lxc auth identity create tls/test-user2 --quiet
   [ "$(lxc auth identity list --format csv | grep -cF 'pending')" = 1 ]
-  sleep 2 # Wait for token to expire (expiry is still set to 1 second)
+  sleep 1.1 # Wait for token to expire (expiry is still set to 1 second)
   lxc query --request POST /internal/testing/prune-tokens
   [ "$(lxc auth identity list --format csv | grep -cF 'pending')" = 0 ]
 
@@ -334,7 +334,7 @@ storage_pool_used_by() {
   [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 0 ]
 
   # Launch instance. Should appear in pool used-by list. Members of test-group still can't see anything.
-  lxc launch testimage c1
+  lxc init --empty c1
   [ "$(lxc query "/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq $((start_length+1)) ]
   [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 0 ]
 
@@ -632,11 +632,11 @@ user_is_not_project_operator() {
   ! lxc project show "${remote}:default" || false
 
   # Should not be able to see or create any instances.
-  lxc_remote init testimage c1
+  lxc_remote init --empty c1
   [ "$(lxc_remote list "${remote}:" -f csv)" = "" ]
   [ "$(lxc_remote list "${remote}:" -f csv --all-projects)" = "" ]
-  ! lxc_remote init testimage "${remote}:test-instance" || false
-  lxc_remote delete c1 -f
+  ! lxc_remote init --empty "${remote}:test-instance" || false
+  lxc_remote delete c1
 
   # Should not be able to see network allocations.
   [ "$(lxc_remote network list-allocations "${remote}:" -f csv)" = "" ]
@@ -1104,8 +1104,6 @@ auth_project_features() {
 }
 
 entities_enrichment_with_entitlements() {
-  ensure_import_testimage
-
   # Create a new test project, add some entitlements on it and check that these are reflected in the 'access_entitlements' field returned from the API.
   lxc project create test-project
   lxc auth group permission add test-group project test-project can_view
@@ -1118,13 +1116,12 @@ entities_enrichment_with_entitlements() {
 
   # Repeat the same test for other entity types.
   # Instance
-  ensure_import_testimage
-  lxc init testimage test-foo
+  lxc init --empty test-foo
   lxc auth group permission add test-group instance test-foo can_view project=default
   lxc auth group permission add test-group instance test-foo can_edit project=default
   lxc auth group permission add test-group instance test-foo can_delete project=default
   [ "$(lxc_remote query "oidc:/1.0/instances/test-foo?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete,can_exec" | jq -r '.access_entitlements | sort | @csv')" = '"can_delete","can_edit","can_view"' ]
-  lxc delete test-foo -f
+  lxc delete test-foo
 
   # Storage pool
   lxc auth group permission add test-group storage_pool "${pool_name}" can_edit
@@ -1243,9 +1240,9 @@ entities_enrichment_with_entitlements() {
   lxc auth identity-provider-group delete test-idp-group3
 
   # Image
-  lxc init images:alpine/3.21 c1
-  lxc delete c1 -f
-  imgFingerprint=$(lxc image list --format json | jq -r '.[] | select(.update_source.alias == "alpine/3.21") | .fingerprint')
+  lxc init images:busybox/1.36.1 c1
+  lxc delete c1
+  imgFingerprint=$(lxc image list --format json | jq -r '.[] | select(.update_source.alias == "busybox/1.36.1") | .fingerprint')
   lxc auth group permission add test-group image "${imgFingerprint}" can_view project=default
   lxc auth group permission add test-group image "${imgFingerprint}" can_edit project=default
   lxc auth group permission add test-group image "${imgFingerprint}" can_delete project=default

@@ -91,7 +91,7 @@ elif ! is_backend_available "${LXD_BACKEND}"; then
 fi
 
 echo "==> Checking for dependencies"
-check_dependencies lxd lxc curl /bin/busybox dnsmasq iptables jq yq git sqlite3 rsync shuf setfacl setfattr socat swtpm dig xz
+check_dependencies lxd lxc curl busybox dnsmasq iptables jq nc ping yq git sqlite3 rsync shuf setfacl setfattr socat swtpm dig xz
 
 if [ "${USER:-'root'}" != "root" ]; then
   echo "The testsuite must be run as root." >&2
@@ -117,14 +117,17 @@ echo "==> Using storage backend ${LXD_BACKEND}"
 import_storage_backends
 
 cleanup() {
+  # Stop tracing everything
+  { set +x; } 2>/dev/null
+
   # Avoid reentry by removing the traps
   trap - EXIT HUP INT TERM
 
   # Before setting +e, run the panic checker for any running LXD daemons.
   panic_checker "${TEST_DIR}"
 
-  # Allow for failures and stop tracing everything
-  set +ex
+  # Allow for failures
+  set +e
   DEBUG=
 
   # Allow for inspection
@@ -182,6 +185,8 @@ cleanup() {
   else
     echo "==> Cleaning up"
 
+    [ -e "${LXD_TEST_IMAGE:-}" ] && rm "${LXD_TEST_IMAGE}"
+
     kill_oidc
     mountpoint -q "${TEST_DIR}/dev" && umount -l "${TEST_DIR}/dev"
     cleanup_lxds "$TEST_DIR"
@@ -222,7 +227,7 @@ if [ -n "${INACCESSIBLE_DIRS:-}" ]; then
     exit 1
 fi
 
-if [ -n "${LXD_TMPFS:-}" ]; then
+if [ "${LXD_TMPFS:-0}" = "1" ]; then
   mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=6G
 fi
 
@@ -339,6 +344,14 @@ if [ "${1:-"all"}" = "test-shell" ]; then
   # shellcheck disable=SC2034
   TEST_RESULT=success
   exit
+else
+  # Since we are executing more than one test, cache the busybox testimage for reuse
+  deps/import-busybox --save-image
+
+  # Avoid `.tar.xz` extension that may conflict with some tests
+  mv busybox.tar.xz busybox.tar.xz.cache
+  export LXD_TEST_IMAGE="busybox.tar.xz.cache"
+  echo "==> Saving testimage for reuse (${LXD_TEST_IMAGE})"
 fi
 
 if [ "${1:-"all"}" != "cluster" ]; then
