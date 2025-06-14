@@ -53,8 +53,8 @@ test_database_no_disk_space() {
   GLOBAL_DB_DIR="${LXD_NOSPACE_DIR}/database/global"
   BIG_FILE="${GLOBAL_DB_DIR}/bigfile"
   mkdir -p "${GLOBAL_DB_DIR}"
-  mount -t tmpfs -o size=67108864 tmpfs "${GLOBAL_DB_DIR}"
-  dd bs=1024 count=51200 if=/dev/zero of="${BIG_FILE}"
+  mount -t tmpfs -o size=16M tmpfs "${GLOBAL_DB_DIR}"
+  fallocate -l 2M "${BIG_FILE}"
 
   spawn_lxd "${LXD_NOSPACE_DIR}" true
 
