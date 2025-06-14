@@ -91,7 +91,7 @@ elif ! is_backend_available "${LXD_BACKEND}"; then
 fi
 
 echo "==> Checking for dependencies"
-check_dependencies lxd lxc curl /bin/busybox dnsmasq iptables jq yq git sqlite3 rsync shuf setfacl setfattr socat swtpm dig xz
+check_dependencies lxd lxc curl /bin/busybox dnsmasq iptables jq nc ping yq git sqlite3 rsync shuf setfacl setfattr socat swtpm dig xz
 
 if [ "${USER:-'root'}" != "root" ]; then
   echo "The testsuite must be run as root." >&2
