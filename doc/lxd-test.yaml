@@ -69,6 +69,7 @@ config:
     # run deps
     - attr
     - iproute2
+    - nftables
     - rsync
     - squashfs-tools
     - tar
