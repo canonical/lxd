@@ -27,8 +27,8 @@ EOF
   rm -f "${LXD_RESTORE_DIR}/database/patch.global.sql"
 
   # Restore the backup
-  rm -rf "${LXD_RESTORE_DIR}/database/global"
-  cp -a "${LXD_RESTORE_DIR}/database/global.bak" "${LXD_RESTORE_DIR}/database/global"
+  mv "${LXD_RESTORE_DIR}/database/global" "${LXD_RESTORE_DIR}/database/global.old"
+  mv "${LXD_RESTORE_DIR}/database/global.bak" "${LXD_RESTORE_DIR}/database/global"
 
   # Restart the daemon and check that our previous settings are still there
   respawn_lxd "${LXD_RESTORE_DIR}" true
