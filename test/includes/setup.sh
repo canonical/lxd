@@ -14,6 +14,7 @@ ensure_import_testimage() {
     fi
 
     if [ -e "${LXD_TEST_IMAGE:-}" ]; then
+        echo "Importing ${LXD_TEST_IMAGE} test image from disk"
         lxc image import "${LXD_TEST_IMAGE}" --alias testimage
     else
         BUSYBOX="$(command -v busybox)"
