@@ -182,6 +182,8 @@ cleanup() {
   else
     echo "==> Cleaning up"
 
+    [ -e "${LXD_TEST_IMAGE:-}" ] && rm "${LXD_TEST_IMAGE}"
+
     kill_oidc
     mountpoint -q "${TEST_DIR}/dev" && umount -l "${TEST_DIR}/dev"
     cleanup_lxds "$TEST_DIR"
@@ -339,6 +341,14 @@ if [ "${1:-"all"}" = "test-shell" ]; then
   # shellcheck disable=SC2034
   TEST_RESULT=success
   exit
+else
+  # Since we are executing more than one test, cache the busybox testimage for reuse
+  deps/import-busybox --save-image
+
+  # Avoid `.tar.xz` extension that may conflict with some tests
+  mv busybox.tar.xz busybox.tar.xz.cache
+  export LXD_TEST_IMAGE="busybox.tar.xz.cache"
+  echo "==> Saving testimage for reuse (${LXD_TEST_IMAGE})"
 fi
 
 if [ "${1:-"all"}" != "cluster" ]; then
