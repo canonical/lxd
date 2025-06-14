@@ -118,7 +118,7 @@ test_authorization() {
   # Check a token cannot be used when expired
   lxc config set core.remote_token_expiry=1S
   tls_identity_token2="$(lxc auth identity create tls/test-user2 --quiet)"
-  sleep 2
+  sleep 1.1
   LXD_CONF3=$(mktemp -d -p "${TEST_DIR}" XXX)
   LXD_CONF="${LXD_CONF3}" gen_cert_and_key "client"
   ! LXD_CONF="${LXD_CONF3}" lxc remote add tls "${tls_identity_token2}" || false
@@ -129,7 +129,7 @@ test_authorization() {
   # Check token prune task works
   lxc auth identity create tls/test-user2 --quiet
   [ "$(lxc auth identity list --format csv | grep -cF 'pending')" = 1 ]
-  sleep 2 # Wait for token to expire (expiry is still set to 1 second)
+  sleep 1.1 # Wait for token to expire (expiry is still set to 1 second)
   lxc query --request POST /internal/testing/prune-tokens
   [ "$(lxc auth identity list --format csv | grep -cF 'pending')" = 0 ]
 
