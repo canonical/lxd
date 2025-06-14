@@ -17,6 +17,10 @@ on:
         required: true
         type: boolean
         default: true
+      tmate-debug:
+        description: Use tmate debugging session on integration test failure.
+        type: boolean
+        default: false
   schedule:
     - cron: '0 0 * * *'  # Test TICS daily
 
@@ -384,6 +388,11 @@ jobs:
           cd test
           export PATH="$PATH:/snap/microovn/current/commands"
           sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OVN_NB_CONNECTION,LXD_OVN_NB_CLIENT_CRT_FILE,LXD_OVN_NB_CLIENT_KEY_FILE,LXD_OVN_NB_CA_CRT_FILE,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,GOTRACEBACK, LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
+
+      - name: Tmate debugging session
+        if: ${{ failure() && inputs.tmate-debug }}
+        uses: mxschmitt/action-tmate@7b6a61a73bbb9793cb80ad69b8dd8ac19261834c # v3.22
+        timeout-minutes: 60
 
       - name: Upload crash dumps
         if: always()
