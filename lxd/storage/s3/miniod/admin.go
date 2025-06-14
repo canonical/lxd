@@ -32,10 +32,10 @@ type AccountInfo struct {
 
 // Credentials holds access and secret keys.
 type Credentials struct {
-	AccessKey    string    `xml:"AccessKeyId"     json:"accessKey"`
-	SecretKey    string    `xml:"SecretAccessKey" json:"secretKey"`
-	SessionToken string    `xml:"SessionToken"    json:"sessionToken"`
-	Expiration   time.Time `xml:"Expiration"      json:"expiration"`
+	AccessKey    string    `json:"accessKey"    xml:"AccessKeyId"`
+	SecretKey    string    `json:"secretKey"    xml:"SecretAccessKey"`
+	SessionToken string    `json:"sessionToken" xml:"SessionToken"`
+	Expiration   time.Time `json:"expiration"   xml:"Expiration"`
 }
 
 // ServiceAccountArgs is the request options for adding or modifying a service account.

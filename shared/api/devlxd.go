@@ -6,7 +6,7 @@ import (
 
 // DevLXDResponse represents the response from the devLXD API.
 type DevLXDResponse struct {
-	Content    []byte `json:"content" yaml:"content"`
+	Content    []byte `json:"content"     yaml:"content"`
 	StatusCode int    `json:"status_code" yaml:"status_code"`
 }
 

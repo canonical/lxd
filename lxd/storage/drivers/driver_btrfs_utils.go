@@ -414,10 +414,10 @@ func (d *btrfs) setSubvolumeReadonlyProperty(path string, readonly bool) error {
 // BTRFSSubVolume is the structure used to store information about a subvolume.
 // Note: This is used by both migration and backup subsystems so do not modify without considering both!
 type BTRFSSubVolume struct {
-	Path     string `json:"path" yaml:"path"`         // Path inside the volume where the subvolume belongs (so / is the top of the volume tree).
+	Path     string `json:"path"     yaml:"path"`     // Path inside the volume where the subvolume belongs (so / is the top of the volume tree).
 	Snapshot string `json:"snapshot" yaml:"snapshot"` // Snapshot name the subvolume belongs to.
 	Readonly bool   `json:"readonly" yaml:"readonly"` // Is the sub volume read only or not.
-	UUID     string `json:"uuid" yaml:"uuid"`         // The subvolume UUID.
+	UUID     string `json:"uuid"     yaml:"uuid"`     // The subvolume UUID.
 }
 
 // getSubvolumesMetaData retrieves subvolume meta data with paths relative to the root volume.

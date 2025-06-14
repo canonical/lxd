@@ -24,9 +24,9 @@ func TestTableSuite(t *testing.T) {
 
 func (s *tableSuite) TestRenderSlice() {
 	type TestDataType struct {
-		SomeString  string   `json:"some_string" yaml:"some_string"`
+		SomeString  string   `json:"some_string"  yaml:"some_string"`
 		SomeInteger int      `json:"some_integer" yaml:"some_integer"`
-		SomeURL     *api.URL `json:"some_url" yaml:"some_url"`
+		SomeURL     *api.URL `json:"some_url"     yaml:"some_url"`
 	}
 
 	testDataTypeColumnMap := map[rune]Column{

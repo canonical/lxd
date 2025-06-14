@@ -21,7 +21,7 @@ const (
 // SymlinkEntry represents a symlink entry.
 type SymlinkEntry struct {
 	Target string `json:"target" yaml:"target"`
-	Link   string `json:"link" yaml:"link"`
+	Link   string `json:"link"   yaml:"link"`
 }
 
 // Hooks represents all the hook instructions that can be executed by
