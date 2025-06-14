@@ -301,6 +301,9 @@ if __name__ == "__main__":
         sys.exit(1)
 
     def setup_alias(aliases, fingerprint):
+        if not aliases:
+            return
+
         existing = lxd.aliases_list()
 
         for alias in aliases:
