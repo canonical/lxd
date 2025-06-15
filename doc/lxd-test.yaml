@@ -69,6 +69,7 @@ config:
     # run deps
     - attr
     - iproute2
+    - nftables
     - rsync
     - squashfs-tools
     - tar
@@ -83,7 +84,9 @@ config:
     - dosfstools
     - e2fsprogs
     - iptables
+    - iputils-ping
     - jq
+    - netcat-openbsd
     - shellcheck
     - socat
     - sqlite3

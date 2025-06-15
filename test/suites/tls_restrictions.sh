@@ -34,7 +34,7 @@ test_tls_restrictions() {
   lxc config unset user.foo
 
   # Confirm no project visible when none listed
-  [ "$(lxc_remote project list localhost: --format csv | wc -l)" = 0 ]
+  [ "$(lxc_remote project list localhost: --format csv)" = "" ]
 
   # Confirm we can still view storage pools
   [ "$(lxc_remote storage list localhost: --format csv | wc -l)" = 1 ]
