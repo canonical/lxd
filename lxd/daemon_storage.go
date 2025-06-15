@@ -53,22 +53,17 @@ func daemonStorageVolumesUnmount(s *state.State, ctx context.Context) error {
 		}
 
 		for _, project := range projects {
-			imagesVolume, err := cluster.ProjectConfig(ctx, tx.Tx(), project.Name, "storage.images_volume")
+			config, err := cluster.GetProjectConfig(ctx, tx.Tx(), project.Name)
 			if err != nil {
 				return err
 			}
 
-			if imagesVolume != "" {
-				projectStorages = append(projectStorages, imagesVolume)
+			if config["storage.images_volume"] != "" {
+				projectStorages = append(projectStorages, config["storage.images_volume"])
 			}
 
-			backupsVolume, err := cluster.ProjectConfig(ctx, tx.Tx(), project.Name, "storage.backups_volume")
-			if err != nil {
-				return err
-			}
-
-			if backupsVolume != "" {
-				projectStorages = append(projectStorages, backupsVolume)
+			if config["storage.backups_volume"] != "" {
+				projectStorages = append(projectStorages, config["storage.backups_volume"])
 			}
 		}
 
@@ -140,22 +135,17 @@ func daemonStorageMount(s *state.State) error {
 		}
 
 		for _, project := range projects {
-			imagesVolume, err := cluster.ProjectConfig(ctx, tx.Tx(), project.Name, "storage.images_volume")
+			config, err := cluster.GetProjectConfig(ctx, tx.Tx(), project.Name)
 			if err != nil {
 				return err
 			}
 
-			if imagesVolume != "" {
-				projectStorages = append(projectStorages, imagesVolume)
+			if config["storage.images_volume"] != "" {
+				projectStorages = append(projectStorages, config["storage.images_volume"])
 			}
 
-			backupsVolume, err := cluster.ProjectConfig(ctx, tx.Tx(), project.Name, "storage.backups_volume")
-			if err != nil {
-				return err
-			}
-
-			if backupsVolume != "" {
-				projectStorages = append(projectStorages, backupsVolume)
+			if config["storage.backups_volume"] != "" {
+				projectStorages = append(projectStorages, config["storage.backups_volume"])
 			}
 		}
 

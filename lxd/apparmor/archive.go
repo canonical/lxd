@@ -1,11 +1,15 @@
 package apparmor
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
 
+	"github.com/canonical/lxd/lxd/db"
+	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/shared"
@@ -20,10 +24,16 @@ profile "{{.name}}" {
   {{$element}} mixr,
 {{- end }}
 
+{{range $index, $element := .imagesPaths}}
+  {{$element}}/** r,
+{{- end }}
+
+{{range $index, $element := .backupsPaths}}
+  {{$element}}/** rw,
+{{- end }}
+
   {{ .outputPath }}/ rw,
   {{ .outputPath }}/** rwl,
-  {{ .backupsPath }}/** rw,
-  {{ .imagesPath }}/** r,
 
   signal (receive) set=("term"),
 
@@ -100,16 +110,40 @@ func archiveProfile(s *state.State, outputPath string, allowedCommandPaths []str
 		outputPathFull = outputPath // Use requested path if cannot resolve it.
 	}
 
-	backupsPath := s.BackupsStoragePath("")
-	backupsPathFull, err := filepath.EvalSymlinks(backupsPath)
-	if err == nil {
-		backupsPath = backupsPathFull
+	projectImagesVolumes := make(map[string]bool)
+	projectBackupsVolumes := make(map[string]bool)
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		projects, err := dbCluster.GetProjects(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		for _, project := range projects {
+			config, err := dbCluster.GetProjectConfig(ctx, tx.Tx(), project.Name)
+			if err != nil {
+				return fmt.Errorf("Failed to fetch project config: %w", err)
+			}
+
+			projectImagesVolumes[config["storage.images_volume"]] = true
+			projectBackupsVolumes[config["storage.backups_volume"]] = true
+		}
+
+		return nil
+	})
+	if err != nil {
+		return "", err
 	}
 
-	imagesPath := s.ImagesStoragePath("")
-	imagesPathFull, err := filepath.EvalSymlinks(imagesPath)
-	if err == nil {
-		imagesPath = imagesPathFull
+	projectImagesVolumes[s.LocalConfig.StorageImagesVolume()] = true
+	imagesPaths := make([]string, 0, len(projectImagesVolumes)+1)
+	for projectImageVolume := range projectImagesVolumes {
+		imagesPaths = append(imagesPaths, s.ImagesStoragePath(projectImageVolume))
+	}
+
+	projectBackupsVolumes[s.LocalConfig.StorageBackupsVolume()] = true
+	backupsPaths := make([]string, 0, len(projectBackupsVolumes)+1)
+	for projectBackupsVolume := range projectBackupsVolumes {
+		backupsPaths = append(backupsPaths, s.BackupsStoragePath(projectBackupsVolume))
 	}
 
 	derefCommandPaths := make([]string, len(allowedCommandPaths))
@@ -128,8 +162,8 @@ func archiveProfile(s *state.State, outputPath string, allowedCommandPaths []str
 		"name":                ArchiveProfileName(outputPath), // Use non-deferenced outputPath for name.
 		"outputPath":          outputPathFull,                 // Use deferenced path in AppArmor profile.
 		"rootPath":            rootPath,
-		"backupsPath":         backupsPath,
-		"imagesPath":          imagesPath,
+		"backupsPaths":        backupsPaths,
+		"imagesPaths":         imagesPaths,
 		"allowedCommandPaths": derefCommandPaths,
 		"snap":                shared.InSnap(),
 	})

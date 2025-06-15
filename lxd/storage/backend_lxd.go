@@ -1822,7 +1822,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 // imageFiller returns a function that can be used as a filler function with CreateVolume().
 // The function returned will unpack the specified image archive into the specified mount path
 // provided, and for VM images, a raw root block path is required to unpack the qcow2 image into.
-func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (int64, error) {
+func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation, projectImagesVolume string) func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (int64, error) {
 	return func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (int64, error) {
 		var tracker *ioprogress.ProgressTracker
 		if op != nil { // Not passed when being done as part of pre-migration setup.
@@ -1834,8 +1834,8 @@ func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) f
 				}}
 		}
 
-		imageFile := filepath.Join(b.state.ImagesStoragePath(""), fingerprint)
-		return ImageUnpack(b.state, imageFile, vol, rootBlockPath, allowUnsafeResize, tracker)
+		imageFile := filepath.Join(b.state.ImagesStoragePath(projectImagesVolume), fingerprint)
+		return ImageUnpack(b.state, imageFile, projectImagesVolume, vol, rootBlockPath, allowUnsafeResize, tracker)
 	}
 }
 
@@ -2084,7 +2084,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 	if !useOptimizedImage {
 		volFiller := drivers.VolumeFiller{
 			Fingerprint: fingerprint,
-			Fill:        b.imageFiller(fingerprint, op),
+			Fill:        b.imageFiller(fingerprint, op, inst.Project().Config["storage.images_volume"]),
 		}
 
 		err = b.driver.CreateVolume(vol, &volFiller, op)
@@ -2095,7 +2095,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 		// If the driver supports optimized images then ensure the optimized image volume has been created
 		// for the images's fingerprint and that it matches the pool's current volume settings, and if not
 		// recreating using the pool's current volume settings.
-		err = b.EnsureImage(fingerprint, op)
+		err = b.EnsureImage(fingerprint, op, inst.Project().Config["storage.images_volume"])
 		if err != nil {
 			return err
 		}
@@ -2137,7 +2137,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 
 			volFiller := drivers.VolumeFiller{
 				Fingerprint: fingerprint,
-				Fill:        b.imageFiller(fingerprint, op),
+				Fill:        b.imageFiller(fingerprint, op, inst.Project().Config["storage.images_volume"]),
 			}
 
 			err = b.driver.CreateVolume(vol, &volFiller, op)
@@ -2402,7 +2402,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 				}
 
 				// Make sure that the image is available locally too (not guaranteed in clusters).
-				imagePath := filepath.Join(b.state.ImagesStoragePath(""), fingerprint)
+				imagePath := filepath.Join(b.state.ImagesStoragePath(inst.Project().Config["storage.images_volume"]), fingerprint)
 				imageExists = err == nil && shared.PathExists(imagePath)
 			}
 
@@ -2414,12 +2414,12 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 				// volume with the contents of the image.
 				preFiller = drivers.VolumeFiller{
 					Fingerprint: fingerprint,
-					Fill:        b.imageFiller(fingerprint, op),
+					Fill:        b.imageFiller(fingerprint, op, inst.Project().Config["storage.images_volume"]),
 				}
 
 				// Ensure if the image doesn't yet exist on a driver which supports
 				// optimized storage, then it gets created first.
-				err = b.EnsureImage(preFiller.Fingerprint, op)
+				err = b.EnsureImage(preFiller.Fingerprint, op, inst.Project().Config["storage.images_volume"])
 				if err != nil {
 					return err
 				}
@@ -4146,7 +4146,7 @@ func (b *lxdBackend) UnmountInstanceSnapshot(inst instance.Instance, op *operati
 // doesn't already exist. If the volume already exists then it is checked to ensure it matches the pools current
 // volume settings ("volume.size" and "block.filesystem" if applicable). If not the optimized volume is removed
 // and regenerated to apply the pool's current volume settings.
-func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) error {
+func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation, projectImagesVolume string) error {
 	l := b.logger.AddContext(logger.Ctx{"fingerprint": fingerprint})
 	l.Debug("EnsureImage started")
 	defer l.Debug("EnsureImage finished")
@@ -4304,7 +4304,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 
 	volFiller := drivers.VolumeFiller{
 		Fingerprint: image.Fingerprint,
-		Fill:        b.imageFiller(image.Fingerprint, op),
+		Fill:        b.imageFiller(image.Fingerprint, op, projectImagesVolume),
 	}
 
 	revert := revert.New()

@@ -164,12 +164,10 @@ func (c *ClusterTx) ImageExists(ctx context.Context, project string, fingerprint
 	return count > 0, nil
 }
 
-// ImageIsReferencedByOtherProjects returns true if the image with the given
-// fingerprint is referenced by projects other than the given one.
-func (c *ClusterTx) ImageIsReferencedByOtherProjects(ctx context.Context, project string, fingerprint string) (bool, error) {
-	table := "images JOIN projects ON projects.id = images.project_id"
-	where := "projects.name != ? AND fingerprint=?"
-
+// ImageHasStorageSharedWithOtherProjects returns true if the image with the given
+// fingerprint is referenced by projects other than the given project
+// which use the same specific storage for images.
+func (c *ClusterTx) ImageHasStorageSharedWithOtherProjects(ctx context.Context, project string, storageVolume string, fingerprint string) (bool, error) {
 	enabled, err := cluster.ProjectHasImages(ctx, c.tx, project)
 	if err != nil {
 		return false, fmt.Errorf("Check if project has images: %w", err)
@@ -179,12 +177,53 @@ func (c *ClusterTx) ImageIsReferencedByOtherProjects(ctx context.Context, projec
 		project = "default"
 	}
 
-	count, err := query.Count(ctx, c.tx, table, where, project, fingerprint)
+	if storageVolume != "" {
+		// How many projects using the image have the same storage configured?
+		table := `
+			images
+			JOIN projects ON projects.id = images.project_id
+			JOIN projects_config ON projects.id = projects_config.project_id
+	  `
+		where := `
+			projects.name != ?
+			AND fingerprint=?
+			AND projects_config.key=?
+			AND projects_config.value=?
+	 `
+		count, err := query.Count(ctx, c.tx, table, where, project, fingerprint, "storage.images_volume", storageVolume)
+		if err != nil {
+			return false, err
+		}
+
+		return count > 0, nil
+	}
+
+	// How many projects use the image at all?
+	table := "images JOIN projects ON projects.id = images.project_id"
+	where := "projects.name != ? AND fingerprint=?"
+
+	countTotal, err := query.Count(ctx, c.tx, table, where, project, fingerprint)
 	if err != nil {
 		return false, err
 	}
 
-	return count > 0, nil
+	// How many projects which use the image have other storage configured?
+	table = `
+			images
+			JOIN projects ON projects.id = images.project_id
+			JOIN projects_config ON projects.id = projects_config.project_id
+	  `
+	where = `
+			projects.name != ?
+			AND fingerprint=?
+			AND projects_config.key=?
+	 `
+	countOtherStorage, err := query.Count(ctx, c.tx, table, where, project, fingerprint, "storage.images_volume")
+	if err != nil {
+		return false, err
+	}
+
+	return countTotal != countOtherStorage, nil
 }
 
 // GetImage gets an Image object from the database.
