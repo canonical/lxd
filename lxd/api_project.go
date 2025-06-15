@@ -761,7 +761,6 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 			featuresChanged = append(featuresChanged, configKeyChanged)
 		}
 
-		fmt.Println("checking config ", configKeyChanged)
 		if configKeyChanged == "storage.images_volume" || configKeyChanged == "storage.backups_volume" {
 			storageConfig = configKeyChanged
 		}

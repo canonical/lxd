@@ -96,8 +96,8 @@ func (p *Project) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Project, error) {
 	return apiProject, nil
 }
 
-// ProjectConfig is a helper to return value of an config option of a project.
-func ProjectConfig(ctx context.Context, tx *sql.Tx, project string, config string) (string, error) {
+// GetProjectConfigValue is a helper to return value of an config option of a project.
+func GetProjectConfigValue(ctx context.Context, tx *sql.Tx, project string, config string) (string, error) {
 	stmt := `
 SELECT projects_config.value
   FROM projects_config
@@ -107,7 +107,7 @@ SELECT projects_config.value
 
 	values, err := query.SelectStrings(ctx, tx, stmt, project, config)
 	if err != nil {
-		return "", fmt.Errorf("Fetch project configs: %w", err)
+		return "", fmt.Errorf("Fetch project config: %w", err)
 	}
 
 	if len(values) == 0 {
