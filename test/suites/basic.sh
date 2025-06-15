@@ -745,6 +745,14 @@ EOF
   [ -z "${remaining_instances}" ]
 }
 
+test_basic_version() {
+  # XXX: add `fuidshift` to the list
+  for bin in lxc lxd lxd-agent lxd-benchmark lxd-migrate lxd-user; do
+    "${bin}" --version
+    "${bin}" --help
+  done
+}
+
 test_server_info() {
   # Ensure server always reports support for containers.
   lxc query /1.0 | jq -e '.environment.instance_types | contains(["container"])'
