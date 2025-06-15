@@ -611,7 +611,7 @@ test_basic_usage() {
   lxc delete --force c1 c2
 
   # Ephemeral
-  lxc launch testimage foo -e
+  lxc launch testimage foo --ephemeral
   OLD_INIT=$(lxc info foo | awk '/^PID:/ {print $2}')
 
   REBOOTED="false"
