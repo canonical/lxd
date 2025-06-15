@@ -741,8 +741,7 @@ EOF
   fingerprint="$(lxc config trust ls --format csv | cut -d, -f4)"
   lxc config trust remove "${fingerprint}"
   lxc delete -f c1 c2 c3
-  remaining_instances="$(lxc list --format csv)"
-  [ -z "${remaining_instances}" ]
+  [ "$(lxc list -c n)" = "" ]
 }
 
 test_basic_version() {
