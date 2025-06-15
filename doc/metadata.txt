@@ -68,6 +68,15 @@ Possible values are `virtio-scsi`, `virtio-blk` or `nvme`.
 Possible values are `none`, `writeback`, or `unsafe`.
 ```
 
+```{config:option} io.threads device-disk-device-conf
+:condition: "virtual machine"
+:defaultdesc: "`0`"
+:required: "no"
+:shortdesc: "Thread pool for virtiofs filesystem shares"
+:type: "integer"
+This option controls the `virtiofsd` thread pool size. Only applies to virtiofs filesystem shares.
+```
+
 ```{config:option} limits.max device-disk-device-conf
 :required: "no"
 :shortdesc: "I/O limit in byte/s or IOPS for both read and write"
