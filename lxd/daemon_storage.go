@@ -69,7 +69,7 @@ func daemonStorageVolumesUnmount(s *state.State, ctx context.Context) error {
 		}
 
 		for _, project := range projects {
-			imagesVolume, err := cluster.ProjectConfig(ctx, tx.Tx(), project.Name, "storage.images_volume")
+			imagesVolume, err := cluster.GetProjectConfigValue(ctx, tx.Tx(), project.Name, "storage.images_volume")
 			if err != nil {
 				return err
 			}
@@ -78,7 +78,7 @@ func daemonStorageVolumesUnmount(s *state.State, ctx context.Context) error {
 				projectStorages = append(projectStorages, imagesVolume)
 			}
 
-			backupsVolume, err := cluster.ProjectConfig(ctx, tx.Tx(), project.Name, "storage.backups_volume")
+			backupsVolume, err := cluster.GetProjectConfigValue(ctx, tx.Tx(), project.Name, "storage.backups_volume")
 			if err != nil {
 				return err
 			}
@@ -170,7 +170,7 @@ func daemonStorageMount(s *state.State) error {
 		}
 
 		for _, project := range projects {
-			imagesVolume, err := cluster.ProjectConfig(ctx, tx.Tx(), project.Name, "storage.images_volume")
+			imagesVolume, err := cluster.GetProjectConfigValue(ctx, tx.Tx(), project.Name, "storage.images_volume")
 			if err != nil {
 				return err
 			}
@@ -179,7 +179,7 @@ func daemonStorageMount(s *state.State) error {
 				projectStorages = append(projectStorages, imagesVolume)
 			}
 
-			backupsVolume, err := cluster.ProjectConfig(ctx, tx.Tx(), project.Name, "storage.backups_volume")
+			backupsVolume, err := cluster.GetProjectConfigValue(ctx, tx.Tx(), project.Name, "storage.backups_volume")
 			if err != nil {
 				return err
 			}
