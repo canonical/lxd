@@ -738,10 +738,12 @@ EOF
   lxc launch testimage c2 --ephemeral
   lxc launch testimage c3 --ephemeral
 
-  fingerprint="$(lxc config trust ls --format csv | cut -d, -f4)"
-  lxc config trust remove "${fingerprint}"
   lxc stop -f c1 c2 c3
   [ "$(lxc list -f csv -c n)" = "" ]
+
+  # Cleanup
+  fingerprint="$(lxc config trust ls --format csv | cut -d, -f4)"
+  lxc config trust remove "${fingerprint}"
 }
 
 test_basic_version() {
