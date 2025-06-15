@@ -1967,10 +1967,6 @@ func (d *zfs) getVolumeDiskPathFromDataset(dataset string) (string, error) {
 			continue
 		}
 
-		if strings.Contains(entryName, "p") {
-			continue
-		}
-
 		// Resolve the dataset path.
 		entryPath := filepath.Join("/dev", entryName)
 		output, err := shared.RunCommandContext(context.TODO(), zvolid, entryPath)
