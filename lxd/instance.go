@@ -66,7 +66,7 @@ func instanceCreateAsEmpty(s *state.State, args db.InstanceArgs) (instance.Insta
 }
 
 // instanceImageTransfer transfers an image from another cluster node.
-func instanceImageTransfer(ctx context.Context, s *state.State, projectName string, hash string, nodeAddress string) error {
+func instanceImageTransfer(ctx context.Context, s *state.State, projectName string, storagedir string, hash string, nodeAddress string) error {
 	logger.Debugf("Transferring image %q from node %q", hash, nodeAddress)
 	client, err := cluster.Connect(ctx, nodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
@@ -75,7 +75,7 @@ func instanceImageTransfer(ctx context.Context, s *state.State, projectName stri
 
 	client = client.UseProject(projectName)
 
-	err = imageImportFromNode(s.ImagesStoragePath(""), client, hash)
+	err = imageImportFromNode(storagedir, client, hash)
 	if err != nil {
 		return err
 	}
@@ -97,10 +97,15 @@ func ensureImageIsLocallyAvailable(ctx context.Context, s *state.State, img *api
 	defer unlock()
 
 	var memberAddress string
+	var projectImagesVolume string
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		memberAddress, err = tx.LocateImage(ctx, img.Fingerprint)
+		projectImagesVolume, err = dbCluster.GetProjectConfigValue(ctx, tx.Tx(), projectName, "storage.images_volume")
+		if err != nil {
+			return fmt.Errorf("Failed to fetch project config: %w", err)
+		}
 
+		memberAddress, err = tx.LocateImage(ctx, img.Fingerprint)
 		return err
 	})
 	if err != nil {
@@ -109,7 +114,7 @@ func ensureImageIsLocallyAvailable(ctx context.Context, s *state.State, img *api
 
 	if memberAddress != "" {
 		// The image is available from another node, let's try to import it.
-		err = instanceImageTransfer(ctx, s, projectName, img.Fingerprint, memberAddress)
+		err = instanceImageTransfer(ctx, s, projectName, projectImagesVolume, img.Fingerprint, memberAddress)
 		if err != nil {
 			return fmt.Errorf("Failed transferring image %q from %q: %w", img.Fingerprint, memberAddress, err)
 		}

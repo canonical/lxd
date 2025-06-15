@@ -64,8 +64,7 @@ func rsync(args ...string) (string, error) {
 	return stdout.String(), nil
 }
 
-// LocalCopy copies a directory using rsync (with the --devices option).
-func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArgs ...string) (string, error) {
+func runRsync(source string, dest string, sourceIsDirectory bool, bwlimit string, xattrs bool, rsyncArgs ...string) (string, error) {
 	err := os.MkdirAll(dest, 0755)
 	if err != nil {
 		return "", err
@@ -102,9 +101,13 @@ func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArg
 		args = append(args, rsyncArgs...)
 	}
 
+	if sourceIsDirectory {
+		source = shared.AddSlash(source)
+	}
+
 	args = append(args,
 		rsyncVerbosity,
-		shared.AddSlash(source),
+		source,
 		dest)
 
 	msg, err := rsync(args...)
@@ -123,6 +126,16 @@ func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArg
 	}
 
 	return msg, nil
+}
+
+// LocalCopy copies a directory using rsync (with the --devices option).
+func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArgs ...string) (string, error) {
+	return runRsync(source, dest, true, bwlimit, xattrs, rsyncArgs...)
+}
+
+// CopyFile copies a single file using rsync (with the --devices option).
+func CopyFile(source string, dest string, bwlimit string, xattrs bool, rsyncArgs ...string) (string, error) {
+	return runRsync(source, dest, false, bwlimit, xattrs, rsyncArgs...)
 }
 
 // Send sets up the sending half of an rsync, to recursively send the
