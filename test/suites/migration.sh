@@ -642,7 +642,20 @@ migration() {
 
   # migrate ISO custom volumes
   truncate -s 8MiB foo.iso
-  lxc storage volume import l1:"${pool}" ./foo.iso iso1
+  if ! lxc storage volume import l1:"${pool}" ./foo.iso iso1; then
+      echo "SDEZIEL - DEBUG"
+      zfs get all -r "${pool}" || true
+
+      for mode in default full dev none; do
+        zfs create -s -V 8M -o volmode="${mode}" "${pool}/iso-${mode}"
+        find /dev/zvol/ -exec ls -l {} + || true
+      done
+      sleep 10
+      find /dev/zvol/ -exec ls -l {} + || true
+      zfs get all -r "${pool}" || true
+
+      false
+  fi
   lxc storage volume copy l1:"${pool}"/iso1 l2:"${remote_pool}"/iso1
 
   lxc storage volume show l2:"${remote_pool}" iso1 | grep -xF 'content_type: iso'
