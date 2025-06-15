@@ -7415,9 +7415,13 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			}
 		}
 
-		err = pool.CreateInstanceFromMigration(d, filesystemConn, volTargetArgs, d.op)
+		revertInstance, err := pool.CreateInstanceFromMigration(d, filesystemConn, volTargetArgs, d.op)
 		if err != nil {
 			return fmt.Errorf("Failed creating instance on target: %w", err)
+		}
+
+		if revertInstance != nil {
+			revert.Add(revertInstance)
 		}
 
 		// Derive the effective storage project name from the instance config's project.
@@ -7461,6 +7465,10 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			// Create a volume from the migration.
 			err = diskPool.Driver().CreateVolumeFromMigration(volCopy, nil, extraTargetArgs, nil, nil)
 			if err != nil {
+				if errors.Is(err, storageDrivers.ErrNotSupported) && vol.Type() == storageDrivers.VolumeTypeCustom {
+					return errors.New("Migrating instances with attached local volumes is not supported")
+				}
+
 				return fmt.Errorf("Failed to prepare device %q for migration: %w", dev.Name, err)
 			}
 		}
