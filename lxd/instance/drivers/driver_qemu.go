@@ -42,6 +42,7 @@ import (
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/backup/config"
 	"github.com/canonical/lxd/lxd/cgroup"
+	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/warningtype"
@@ -370,6 +371,90 @@ func (d *qemu) getAgentClient() (*http.Client, error) {
 	}
 
 	return agent, nil
+}
+
+// getClusterCPUFlags identifies CPU flags that are consistently present across all
+// CPU cores in the cluster.
+//
+// 1. Retrieving all nodes in the cluster and their CPU information.
+// 2. Counting which flags are present on every core across all nodes.
+// 3. Building a set of flags common to all cores.
+//
+// This is useful in a migration scenario where we need to find a minimum common denominator
+// of CPU flags to properly start a VM on a different node in a cluster.
+func (d *qemu) getClusterCPUFlags() ([]string, error) {
+	// Get architecture name.
+	arch, err := osarch.ArchitectureName(d.architecture)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get all the CPU flags for the architecture.
+	flagMembers := map[string]int{}
+	coreCount := 0
+
+	membersResources, skippedMembers, err := cluster.ClusterMembersResources(d.state)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(skippedMembers) > 0 {
+		d.logger.Warn("CPU flags are unknown for some cluster members. Stateful migration may fail", logger.Ctx{"skippedMembers": skippedMembers})
+	}
+
+	for _, res := range membersResources {
+		// Skip if not the correct architecture.
+		if res.CPU.Architecture != arch {
+			continue
+		}
+
+		// Add the CPU flags to the map.
+		for _, socket := range res.CPU.Sockets {
+			for _, core := range socket.Cores {
+				coreCount += 1
+				for _, flag := range core.Flags {
+					flagMembers[flag] += 1
+				}
+			}
+		}
+	}
+
+	// Get the host flags.
+	info := DriverStatuses()[instancetype.VM].Info
+	baseCPUFlags, ok := info.Features["flags"].(map[string]bool)
+	if !ok {
+		// No CPU flags found.
+		return nil, nil
+	}
+
+	// Build a set of flags common to all cores.
+	flags := []string{}
+	unsupportedFlags := []string{}
+
+	for k, v := range flagMembers {
+		if v != coreCount {
+			continue
+		}
+
+		hostVal, ok := baseCPUFlags[k]
+		if !ok {
+			unsupportedFlags = append(unsupportedFlags, k)
+			continue
+		}
+
+		// Flag is already set in a base CPU model
+		if hostVal {
+			continue
+		}
+
+		flags = append(flags, k)
+	}
+
+	if len(unsupportedFlags) > 0 {
+		d.logger.Debug("Not all common CPU flags are supported by QEMU.", logger.Ctx{"unsupportedFlags": unsupportedFlags})
+	}
+
+	return flags, nil
 }
 
 func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) {
@@ -1475,6 +1560,19 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}
 
 	cpuType := "host"
+
+	// Get CPU flags if clustered and migration is enabled (x86_64 only for now).
+	if d.architecture == osarch.ARCH_64BIT_INTEL_X86 && d.state.ServerClustered && shared.IsTrue(d.expandedConfig["migration.stateful"]) {
+		cpuFlags, err := d.getClusterCPUFlags()
+		if err != nil {
+			op.Done(err)
+			return err
+		}
+
+		cpuType = "kvm64"
+		cpuExtensions = append(cpuExtensions, cpuFlags...)
+	}
+
 	if len(cpuExtensions) > 0 {
 		cpuType += "," + strings.Join(cpuExtensions, ",")
 	}
@@ -8929,6 +9027,26 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 	// Check if vhost-net accelerator (for NIC CPU offloading) is available.
 	if shared.PathExists("/dev/vhost-net") {
 		features["vhost_net"] = struct{}{}
+	}
+
+	// Get the host CPU model (x86_64 only for now).
+	if hostArch == osarch.ARCH_64BIT_INTEL_X86 {
+		model, err := monitor.QueryCPUModel("kvm64")
+		if err != nil {
+			return nil, err
+		}
+
+		cpuFlags := map[string]bool{}
+		for k, v := range model.Flags {
+			value, ok := v.(bool)
+			if !ok {
+				continue
+			}
+
+			cpuFlags[k] = value
+		}
+
+		features["flags"] = cpuFlags
 	}
 
 	return features, nil

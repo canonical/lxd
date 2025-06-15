@@ -2672,3 +2672,7 @@ This adds support for listing networks across all projects using the `all-projec
 ## `clustering_restore_skip_mode`
 
 Adds a `skip` mode to the restore request. This mode restores a cluster member's status to `ONLINE` without restarting any of its stopped local instances or migrating back instances that were evacuated to other cluster members.
+
+## `resources_cpu_flags`
+
+Adds CPU flags to resources API.

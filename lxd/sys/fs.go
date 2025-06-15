@@ -39,6 +39,7 @@ func (s *OS) initDirs() error {
 		// containers is 0711 because liblxc needs to traverse dir to get to each container.
 		{filepath.Join(s.VarDir, "containers"), 0711},
 		{filepath.Join(s.VarDir, "virtual-machines"), 0711},
+		{filepath.Join(s.CacheDir, "resources"), 0700},
 		{filepath.Join(s.VarDir, "database"), 0700},
 		{filepath.Join(s.VarDir, "devices"), 0711},
 		{filepath.Join(s.VarDir, "devlxd"), 0755},
