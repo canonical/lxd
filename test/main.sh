@@ -54,8 +54,14 @@ import_subdir_files includes
 # Install needed storage driver tools
 install_storage_driver_tools
 
+# Install needed instance drivers
+install_instance_drivers
+
 echo "==> Checking for dependencies"
 check_dependencies lxd lxc curl busybox dnsmasq iptables jq nc ping yq git sqlite3 rsync shuf setfacl setfattr socat swtpm dig xz
+if [ "${LXD_VM_TESTS:-0}" = "1" ]; then
+  check_dependencies qemu-img "qemu-system-$(uname -m)" sgdisk
+fi
 
 if [ "${USER:-'root'}" != "root" ]; then
   echo "The testsuite must be run as root." >&2
