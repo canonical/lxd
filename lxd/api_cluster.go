@@ -2524,27 +2524,27 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 
 // A request for the /internal/cluster/accept endpoint.
 type internalClusterPostAcceptRequest struct {
-	Name         string                        `json:"name" yaml:"name"`
-	Address      string                        `json:"address" yaml:"address"`
-	Schema       int                           `json:"schema" yaml:"schema"`
-	API          int                           `json:"api" yaml:"api"`
+	Name         string                        `json:"name"          yaml:"name"`
+	Address      string                        `json:"address"       yaml:"address"`
+	Schema       int                           `json:"schema"        yaml:"schema"`
+	API          int                           `json:"api"           yaml:"api"`
 	StoragePools []api.StoragePool             `json:"storage_pools" yaml:"storage_pools"`
-	Networks     []api.InitNetworksProjectPost `json:"networks" yaml:"networks"`
-	Architecture int                           `json:"architecture" yaml:"architecture"`
+	Networks     []api.InitNetworksProjectPost `json:"networks"      yaml:"networks"`
+	Architecture int                           `json:"architecture"  yaml:"architecture"`
 }
 
 // A Response for the /internal/cluster/accept endpoint.
 type internalClusterPostAcceptResponse struct {
-	RaftNodes  []internalRaftNode `json:"raft_nodes" yaml:"raft_nodes"`
+	RaftNodes  []internalRaftNode `json:"raft_nodes"  yaml:"raft_nodes"`
 	PrivateKey []byte             `json:"private_key" yaml:"private_key"`
 }
 
 // Represent a LXD node that is part of the dqlite raft cluster.
 type internalRaftNode struct {
-	ID      uint64 `json:"id" yaml:"id"`
+	ID      uint64 `json:"id"      yaml:"id"`
 	Address string `json:"address" yaml:"address"`
-	Role    int    `json:"role" yaml:"role"`
-	Name    string `json:"name" yaml:"name"`
+	Role    int    `json:"role"    yaml:"role"`
+	Name    string `json:"name"    yaml:"name"`
 }
 
 // Used to update the cluster after a database node has been removed, and

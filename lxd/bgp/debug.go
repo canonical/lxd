@@ -2,32 +2,32 @@ package bgp
 
 // DebugInfo represents the internal debug state of the BGP server.
 type DebugInfo struct {
-	Server   DebugInfoServer   `json:"server" yaml:"server"`
+	Server   DebugInfoServer   `json:"server"   yaml:"server"`
 	Prefixes []DebugInfoPrefix `json:"prefixes" yaml:"prefixes"`
-	Peers    []DebugInfoPeer   `json:"peers" yaml:"peers"`
+	Peers    []DebugInfoPeer   `json:"peers"    yaml:"peers"`
 }
 
 // DebugInfoServer exposes the shared listener configuration.
 type DebugInfoServer struct {
-	Address  string `json:"address" yaml:"address"`
-	ASN      uint32 `json:"asn" yaml:"asn"`
+	Address  string `json:"address"   yaml:"address"`
+	ASN      uint32 `json:"asn"       yaml:"asn"`
 	RouterID string `json:"router_id" yaml:"router_id"`
-	Running  bool   `json:"running" yaml:"running"`
+	Running  bool   `json:"running"   yaml:"running"`
 }
 
 // DebugInfoPrefix exposes details on a single BGP prefix.
 type DebugInfoPrefix struct {
-	Owner   string `json:"owner" yaml:"owner"`
-	Prefix  string `json:"prefix" yaml:"prefix"`
+	Owner   string `json:"owner"   yaml:"owner"`
+	Prefix  string `json:"prefix"  yaml:"prefix"`
 	Nexthop string `json:"nexthop" yaml:"nexthop"`
 }
 
 // DebugInfoPeer exposes details on a single BGP peer.
 type DebugInfoPeer struct {
-	Address  string `json:"address" yaml:"address"`
-	ASN      uint32 `json:"asn" yaml:"asn"`
+	Address  string `json:"address"  yaml:"address"`
+	ASN      uint32 `json:"asn"      yaml:"asn"`
 	Password string `json:"password" yaml:"password"`
-	Count    int    `json:"count" yaml:"count"`
+	Count    int    `json:"count"    yaml:"count"`
 	HoldTime uint64 `json:"holdtime" yaml:"holdtime"`
 }
 

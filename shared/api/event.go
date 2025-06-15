@@ -20,27 +20,27 @@ const (
 type Event struct {
 	// Event type (one of operation, logging or lifecycle)
 	// Example: lifecycle
-	Type string `yaml:"type" json:"type"`
+	Type string `json:"type" yaml:"type"`
 
 	// Time at which the event was sent
 	// Example: 2021-02-24T19:00:45.452649098-05:00
-	Timestamp time.Time `yaml:"timestamp" json:"timestamp"`
+	Timestamp time.Time `json:"timestamp" yaml:"timestamp"`
 
 	// JSON encoded metadata (see EventLogging, EventLifecycle or Operation)
 	// Example: {"action": "instance-started", "source": "/1.0/instances/c1", "context": {}}
-	Metadata json.RawMessage `yaml:"metadata" json:"metadata"`
+	Metadata json.RawMessage `json:"metadata" yaml:"metadata"`
 
 	// Originating cluster member
 	// Example: lxd01
 	//
 	// API extension: event_location
-	Location string `yaml:"location,omitempty" json:"location,omitempty"`
+	Location string `json:"location,omitempty" yaml:"location,omitempty"`
 
 	// Project the event belongs to.
 	// Example: default
 	//
 	// API extension: event_project
-	Project string `yaml:"project,omitempty" json:"project,omitempty"`
+	Project string `json:"project,omitempty" yaml:"project,omitempty"`
 }
 
 // ToLogging creates log record for the event.
@@ -134,37 +134,37 @@ type EventLogRecord struct {
 
 // EventLogging represents a logging type event entry (admin only).
 type EventLogging struct {
-	Message string            `yaml:"message" json:"message"`
-	Level   string            `yaml:"level" json:"level"`
-	Context map[string]string `yaml:"context" json:"context"`
+	Message string            `json:"message" yaml:"message"`
+	Level   string            `json:"level"   yaml:"level"`
+	Context map[string]string `json:"context" yaml:"context"`
 }
 
 // EventLifecycle represets a lifecycle type event entry
 //
 // API extension: event_lifecycle.
 type EventLifecycle struct {
-	Action  string         `yaml:"action" json:"action"`
-	Source  string         `yaml:"source" json:"source"`
-	Context map[string]any `yaml:"context,omitempty" json:"context,omitempty"`
+	Action  string         `json:"action"            yaml:"action"`
+	Source  string         `json:"source"            yaml:"source"`
+	Context map[string]any `json:"context,omitempty" yaml:"context,omitempty"`
 
 	// API extension: event_lifecycle_requestor
-	Requestor *EventLifecycleRequestor `yaml:"requestor,omitempty" json:"requestor,omitempty"`
+	Requestor *EventLifecycleRequestor `json:"requestor,omitempty" yaml:"requestor,omitempty"`
 
 	// API extension: event_lifecycle_name_and_project
-	Name    string `yaml:"name,omitempty" json:"name,omitempty"`
-	Project string `yaml:"project,omitempty" json:"project,omitempty"`
+	Name    string `json:"name,omitempty"    yaml:"name,omitempty"`
+	Project string `json:"project,omitempty" yaml:"project,omitempty"`
 }
 
 // EventLifecycleRequestor represents the initial requestor for an event
 //
 // API extension: event_lifecycle_requestor.
 type EventLifecycleRequestor struct {
-	Username string `yaml:"username" json:"username"`
-	Protocol string `yaml:"protocol" json:"protocol"`
+	Username string `json:"username" yaml:"username"`
+	Protocol string `json:"protocol" yaml:"protocol"`
 
 	// Requestor address
 	// Example: 10.0.2.15
 	//
 	// API extension: event_lifecycle_requestor_address
-	Address string `yaml:"address" json:"address"`
+	Address string `json:"address" yaml:"address"`
 }
