@@ -866,7 +866,7 @@ EOF
 
     # BTRFS quota isn't accessible with the df tool.
     if [ "$lxd_backend" != "btrfs" ]; then
-    rootSizeKiB=$(lxc exec quota1 -- df -P / | tail -n1 | awk '{print $2}')
+      rootSizeKiB=$(lxc exec quota1 -- df -P / | tail -n1 | awk '{print $2}')
       if [ "$rootSizeKiB" -gt "$rootMaxKiB1" ] || [ "$rootSizeKiB" -lt "$rootMinKiB1" ] ; then
         echo "root size not within quota range"
         false
@@ -963,7 +963,7 @@ EOF
     [ "${usage}" -gt 0 ]
 
     # Clean up everything.
-    lxc rm -f c1
+    lxc delete -f c1
     lxc storage delete "${pool_name}"
   fi
 
