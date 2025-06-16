@@ -326,7 +326,7 @@ test_property() {
   storage_pool="lxdtest-$(basename "${LXD_DIR}")"
   storage_volume="${storage_pool}-vol"
 
-  lxc storage volume create "${storage_pool}" "${storage_volume}"
+  lxc storage volume create "${storage_pool}" "${storage_volume}" size=1MiB
   lxc launch testimage c1 -s "${storage_pool}"
 
   # This will create a snapshot named 'snap0'
