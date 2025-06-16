@@ -327,12 +327,11 @@ jobs:
       - name: Reclaim some memory
         uses: ./.github/actions/reclaim-memory
 
-      - name: Reclaim disk space
-        uses: ./.github/actions/reclaim-disk-space
-        # cluster tests do not consume much space and tests on ceph use the
-        # ephemeral disk those `rm -rf` can sometimes take ~2 minutes on slow
-        # runners so skip them where possible.
-        if: ${{ matrix.suite != 'cluster' && matrix.backend != 'ceph' }}
+      - name: Purge LXD snap
+        # TODO: drop this when moving away from `ubuntu-22.04` runners to `ubuntu-24.04`
+        run: |
+          set -eux
+          sudo snap remove --purge lxd || true
 
       - name: Remove docker
         uses: ./.github/actions/disable-docker
@@ -392,7 +391,7 @@ jobs:
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
           cd test
           export PATH="$PATH:/snap/microovn/current/commands"
-          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OVN_NB_CONNECTION,LXD_OVN_NB_CLIENT_CRT_FILE,LXD_OVN_NB_CLIENT_KEY_FILE,LXD_OVN_NB_CA_CRT_FILE,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,GOTRACEBACK, LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
+          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OVN_NB_CONNECTION,LXD_OVN_NB_CLIENT_CRT_FILE,LXD_OVN_NB_CLIENT_KEY_FILE,LXD_OVN_NB_CA_CRT_FILE,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,GOTRACEBACK,LXD_TMPFS LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
 
       - name: Upload crash dumps
         if: always()
@@ -433,8 +432,11 @@ jobs:
       - name: Reclaim some memory
         uses: ./.github/actions/reclaim-memory
 
-      - name: Reclaim disk space
-        uses: ./.github/actions/reclaim-disk-space
+      - name: Purge LXD snap
+        # TODO: drop this when moving away from `ubuntu-22.04` runners to `ubuntu-24.04`
+        run: |
+          set -eux
+          sudo snap remove --purge lxd || true
 
       - name: Remove docker
         uses: ./.github/actions/disable-docker
