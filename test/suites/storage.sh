@@ -17,7 +17,7 @@ test_storage() {
   lxc storage set "$storage_pool" -p description="baz"
   [ "$(lxc storage get "$storage_pool" -p description)" = "baz" ]
 
-  lxc storage volume create "$storage_pool" "$storage_volume"
+  lxc storage volume create "$storage_pool" "$storage_volume" size=1MiB
 
   # Test setting description on a storage volume
   lxc storage volume show "$storage_pool" "$storage_volume" | sed 's/^description:.*/description: bar/' | lxc storage volume edit "$storage_pool" "$storage_volume"
@@ -77,7 +77,7 @@ EOF
 
   # Test copying pool volume.* key to the volume with prefix stripped at volume creation time
   lxc storage set "$storage_pool" volume.snapshots.expiry 3d
-  lxc storage volume create "$storage_pool" "$storage_volume"
+  lxc storage volume create "$storage_pool" "$storage_volume" size=1MiB
   [ "$(lxc storage volume get "$storage_pool" "$storage_volume" snapshots.expiry)" = "3d" ]
   lxc storage volume delete "$storage_pool" "$storage_volume"
 
@@ -332,7 +332,7 @@ EOF
       lxc launch testimage c4pool2 -s "lxdtest-$(basename "${LXD_DIR}")-pool2"
       lxc list -c b c4pool2 | grep "lxdtest-$(basename "${LXD_DIR}")-pool2"
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 size=1MiB
       lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 zfs.use_refquota true
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 c1pool1 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 c1pool1 testDevice2 /opt || false
@@ -343,7 +343,7 @@ EOF
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool1" custom/c1pool1 c1pool1 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool1" custom/c1pool1 c1pool1
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool1" c2pool2
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool1" c2pool2 size=1MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool1" c2pool2 c2pool2 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool1" c2pool2 c2pool2 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool1" c2pool2 c2pool2
@@ -351,7 +351,7 @@ EOF
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool1" custom/c2pool2 c2pool2 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool1" c2pool2 c2pool2
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool2" c3pool1
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool2" c3pool1 size=1MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool2" c3pool1 c3pool1 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool2" c3pool1 c3pool1 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool2" c3pool1 c3pool1
@@ -359,7 +359,7 @@ EOF
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool2" c3pool1 c3pool1 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool2" c3pool1 c3pool1
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool2" c4pool2
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool2" c4pool2 size=1MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool2" c4pool2 c4pool2 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool2" c4pool2 c4pool2 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool2" c4pool2 c4pool2
@@ -381,7 +381,7 @@ EOF
       lxc launch testimage c8pool4 -s "lxdtest-$(basename "${LXD_DIR}")-pool4"
       lxc list -c b c8pool4 | grep "lxdtest-$(basename "${LXD_DIR}")-pool4"
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool3" c5pool3
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool3" c5pool3 size=1MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool3" c5pool3 c5pool3 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool3" c5pool3 c5pool3 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool3" c5pool3 c5pool3 testDevice
@@ -389,7 +389,7 @@ EOF
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool3" custom/c5pool3 c5pool3 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool3" c5pool3 c5pool3 testDevice
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool4" c6pool4
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool4" c6pool4 size=1MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool4" c6pool4 c5pool3 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool4" c6pool4 c5pool3 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool4" c6pool4 c5pool3 testDevice
@@ -397,7 +397,7 @@ EOF
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool4" custom/c6pool4 c5pool3 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool4" c6pool4 c5pool3 testDevice
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool3" c7pool3
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool3" c7pool3 size=1MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool3" c7pool3 c7pool3 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool3" c7pool3 c7pool3 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool3" c7pool3 c7pool3 testDevice
@@ -405,7 +405,7 @@ EOF
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool3" custom/c7pool3 c7pool3 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool3" c7pool3 c7pool3 testDevice
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool4" c8pool4
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool4" c8pool4 size=1MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool4" c8pool4 c8pool4 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool4" c8pool4 c8pool4 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool4" c8pool4 c8pool4 testDevice
@@ -422,7 +422,7 @@ EOF
     lxc launch testimage c11pool5 -s "lxdtest-$(basename "${LXD_DIR}")-pool5"
     lxc list -c b c11pool5 | grep "lxdtest-$(basename "${LXD_DIR}")-pool5"
 
-    lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool5" c9pool5
+    lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool5" c9pool5 size=1MiB
     lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool5" c9pool5 c9pool5 testDevice /opt
     ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool5" c9pool5 c9pool5 testDevice2 /opt || false
     lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool5" c9pool5 c9pool5 testDevice
@@ -430,7 +430,7 @@ EOF
     ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool5" custom/c9pool5 c9pool5 testDevice2 /opt || false
     lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool5" c9pool5 c9pool5 testDevice
 
-    lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool5" c11pool5
+    lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool5" c11pool5 size=1MiB
     lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool5" c11pool5 c11pool5 testDevice /opt
     ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool5" c11pool5 c11pool5 testDevice2 /opt || false
     lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool5" c11pool5 c11pool5 testDevice
@@ -440,7 +440,7 @@ EOF
     lxc storage volume rename "lxdtest-$(basename "${LXD_DIR}")-pool5" c11pool5 c11pool5-renamed
     lxc storage volume rename "lxdtest-$(basename "${LXD_DIR}")-pool5" c11pool5-renamed c11pool5
 
-    lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool5" c12pool5
+    lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool5" c12pool5 size=1MiB
     # should create snap0
     lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-pool5" c12pool5
     # should create snap1
@@ -508,7 +508,7 @@ EOF
       lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool6" volume.size 120MiB
       lxc init testimage c2pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6 size=120MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6 c10pool6 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6 c10pool6 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6 c10pool6 testDevice
@@ -516,7 +516,7 @@ EOF
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool6" custom/c10pool6 c10pool6 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6 c10pool6 testDevice
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool6" c12pool6
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool6" c12pool6 size=120MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool6" c12pool6 c12pool6 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool6" c12pool6 c12pool6 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool6" c12pool6 c12pool6 testDevice
@@ -524,7 +524,7 @@ EOF
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool6" custom/c12pool6 c12pool6 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool6" c12pool6 c12pool6 testDevice
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool11" c10pool11
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool11" c10pool11 size=1MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool11" c10pool11 c10pool11 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool11" c10pool11 c10pool11 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool11" c10pool11 c10pool11 testDevice
@@ -532,7 +532,7 @@ EOF
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool11" custom/c10pool11 c10pool11 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool11" c10pool11 c10pool11 testDevice
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool11" c12pool11
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool11" c12pool11 size=1MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool11" c12pool11 c10pool11 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool11" c12pool11 c10pool11 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool11" c12pool11 c10pool11 testDevice
@@ -540,7 +540,7 @@ EOF
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool11" custom/c12pool11 c10pool11 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool11" c12pool11 c10pool11 testDevice
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool12" c10pool12
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool12" c10pool12 size=1MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool12" c10pool12 c10pool12 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool12" c10pool12 c10pool12 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool12" c10pool12 c10pool12 testDevice
@@ -548,7 +548,7 @@ EOF
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool12" custom/c10pool12 c10pool12 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool12" c10pool12 c10pool12 testDevice
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool12" c12pool12
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool12" c12pool12 size=1MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool12" c12pool12 c12pool12 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool12" c12pool12 c12pool12 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool12" c12pool12 c12pool12 testDevice
@@ -556,7 +556,7 @@ EOF
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool12" custom/c12pool12 c12pool12 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool12" c12pool12 c12pool12 testDevice
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool13" c10pool13
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool13" c10pool13 size=1MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool13" c10pool13 c10pool13 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool13" c10pool13 c10pool13 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool13" c10pool13 c10pool13 testDevice
@@ -564,7 +564,7 @@ EOF
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool13" custom/c10pool13 c10pool13 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool13" c10pool13 c10pool13 testDevice
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool13" c12pool13
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool13" c12pool13 size=1MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool13" c12pool13 c12pool13 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool13" c12pool13 c12pool13 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool13" c12pool13 c12pool13 testDevice
@@ -572,7 +572,7 @@ EOF
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool13" custom/c12pool13 c12pool13 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool13" c12pool13 c12pool13 testDevice
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool14" c10pool14
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool14" c10pool14 size=1MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool14" c10pool14 c10pool14 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool14" c10pool14 c10pool14 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool14" c10pool14 c10pool14 testDevice
@@ -580,7 +580,7 @@ EOF
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool14" custom/c10pool14 c10pool14 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool14" c10pool14 c10pool14 testDevice
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool14" c12pool14
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool14" c12pool14 size=1MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool14" c12pool14 c12pool14 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool14" c12pool14 c12pool14 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool14" c12pool14 c12pool14 testDevice
@@ -588,7 +588,7 @@ EOF
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool14" custom/c12pool14 c12pool14 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool14" c12pool14 c12pool14 testDevice
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c10pool15
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c10pool15 size=1MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c10pool15 c10pool15 testDevice /opt
       ! test -b "/dev/lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15/custom_default_c10pool15" || false
       lxc start c10pool15
@@ -603,7 +603,7 @@ EOF
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" custom/c10pool15 c10pool15 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c10pool15 c10pool15 testDevice
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c12pool15
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c12pool15 size=1MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c12pool15 c12pool15 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c12pool15 c12pool15 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c12pool15 c12pool15 testDevice
@@ -622,7 +622,7 @@ EOF
       lxc launch testimage c17pool9 -s "lxdtest-$(basename "${LXD_DIR}")-pool9"
       lxc launch testimage c18pool9 -s "lxdtest-$(basename "${LXD_DIR}")-pool9"
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool7" c13pool7
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool7" c13pool7 size=1MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool7" c13pool7 c13pool7 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool7" c13pool7 c13pool7 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool7" c13pool7 c13pool7 testDevice
@@ -630,7 +630,7 @@ EOF
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool7" custom/c13pool7 c13pool7 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool7" c13pool7 c13pool7 testDevice
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool7" c14pool7
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool7" c14pool7 size=1MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool7" c14pool7 c14pool7 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool7" c14pool7 c14pool7 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool7" c14pool7 c14pool7 testDevice
@@ -638,7 +638,7 @@ EOF
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool7" custom/c14pool7 c14pool7 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool7" c14pool7 c14pool7 testDevice
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool8" c15pool8
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool8" c15pool8 size=1MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool8" c15pool8 c15pool8 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool8" c15pool8 c15pool8 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool8" c15pool8 c15pool8 testDevice
@@ -646,7 +646,7 @@ EOF
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool8" custom/c15pool8 c15pool8 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool8" c15pool8 c15pool8 testDevice
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool8" c16pool8
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool8" c16pool8 size=1MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool8" c16pool8 c16pool8 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool8" c16pool8 c16pool8 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool8" c16pool8 c16pool8 testDevice
@@ -654,7 +654,7 @@ EOF
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool8" custom/c16pool8 c16pool8 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool8" c16pool8 c16pool8 testDevice
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool9" c17pool9
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool9" c17pool9 size=1MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool9" c17pool9 c17pool9 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool9" c17pool9 c17pool9 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool9" c17pool9 c17pool9 testDevice
@@ -662,7 +662,7 @@ EOF
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool9" custom/c17pool9 c17pool9 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool9" c17pool9 c17pool9 testDevice
 
-      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool9" c18pool9
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool9" c18pool9 size=1MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool9" c18pool9 c18pool9 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool9" c18pool9 c18pool9 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool9" c18pool9 c18pool9 testDevice
@@ -942,7 +942,7 @@ EOF
 
     # Launch container.
     lxc launch -s "${pool_name}" testimage c1
-    lxc storage volume create "${pool_name}" fsvol
+    lxc storage volume create "${pool_name}" fsvol size=1MiB
 
     # Disable quotas. The usage should be 0.
     # shellcheck disable=SC2031
