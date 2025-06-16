@@ -447,7 +447,7 @@ EOF
     lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-pool5" c12pool5
 
     if [ "$lxd_backend" = "lvm" ]; then
-      lxc init --empty c10pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
+      lxc init --empty c10pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6" -d "${SMALL_ROOT_DISK}"
       [ "$(lxc list -f csv -c b c10pool6)" = "lxdtest-$(basename "${LXD_DIR}")-pool6" ]
 
       # Test if volume group renaming works by setting lvm.vg_name.
@@ -455,7 +455,7 @@ EOF
 
       lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool6" lvm.thinpool_name "lxdtest-$(basename "${LXD_DIR}")-pool6-newThinpoolName"
 
-      lxc launch testimage c12pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
+      lxc launch testimage c12pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6" -d "${SMALL_ROOT_DISK}"
       [ "$(lxc list -f csv -c b c12pool6)" = "lxdtest-$(basename "${LXD_DIR}")-pool6" ]
       # grow lv
       lxc config device set c12pool6 root size 30MiB
@@ -464,34 +464,34 @@ EOF
       lxc config device set c12pool6 root size 25MiB
       lxc restart c12pool6 --force
 
-      lxc init --empty c10pool11 -s "lxdtest-$(basename "${LXD_DIR}")-pool11"
+      lxc init --empty c10pool11 -s "lxdtest-$(basename "${LXD_DIR}")-pool11" -d "${SMALL_ROOT_DISK}"
       [ "$(lxc list -f csv -c b c10pool11)" = "lxdtest-$(basename "${LXD_DIR}")-pool11" ]
 
-      lxc launch testimage c12pool11 -s "lxdtest-$(basename "${LXD_DIR}")-pool11"
+      lxc launch testimage c12pool11 -s "lxdtest-$(basename "${LXD_DIR}")-pool11" -d "${SMALL_ROOT_DISK}"
       [ "$(lxc list -f csv -c b c12pool11)" = "lxdtest-$(basename "${LXD_DIR}")-pool11" ]
 
-      lxc init --empty c10pool12 -s "lxdtest-$(basename "${LXD_DIR}")-pool12"
+      lxc init --empty c10pool12 -s "lxdtest-$(basename "${LXD_DIR}")-pool12" -d "${SMALL_ROOT_DISK}"
       [ "$(lxc list -f csv -c b c10pool12)" = "lxdtest-$(basename "${LXD_DIR}")-pool12" ]
 
-      lxc launch testimage c12pool12 -s "lxdtest-$(basename "${LXD_DIR}")-pool12"
+      lxc launch testimage c12pool12 -s "lxdtest-$(basename "${LXD_DIR}")-pool12" -d "${SMALL_ROOT_DISK}"
       [ "$(lxc list -f csv -c b c12pool12)" = "lxdtest-$(basename "${LXD_DIR}")-pool12" ]
 
-      lxc init --empty c10pool13 -s "lxdtest-$(basename "${LXD_DIR}")-pool13"
+      lxc init --empty c10pool13 -s "lxdtest-$(basename "${LXD_DIR}")-pool13" -d "${SMALL_ROOT_DISK}"
       [ "$(lxc list -f csv -c b c10pool13)" = "lxdtest-$(basename "${LXD_DIR}")-pool13" ]
 
-      lxc launch testimage c12pool13 -s "lxdtest-$(basename "${LXD_DIR}")-pool13"
+      lxc launch testimage c12pool13 -s "lxdtest-$(basename "${LXD_DIR}")-pool13" -d "${SMALL_ROOT_DISK}"
       [ "$(lxc list -f csv -c b c12pool13)" = "lxdtest-$(basename "${LXD_DIR}")-pool13" ]
 
-      lxc init --empty c10pool14 -s "lxdtest-$(basename "${LXD_DIR}")-pool14"
+      lxc init --empty c10pool14 -s "lxdtest-$(basename "${LXD_DIR}")-pool14" -d "${SMALL_ROOT_DISK}"
       [ "$(lxc list -f csv -c b c10pool14)" = "lxdtest-$(basename "${LXD_DIR}")-pool14" ]
 
-      lxc launch testimage c12pool14 -s "lxdtest-$(basename "${LXD_DIR}")-pool14"
+      lxc launch testimage c12pool14 -s "lxdtest-$(basename "${LXD_DIR}")-pool14" -d "${SMALL_ROOT_DISK}"
       [ "$(lxc list -f csv -c b c12pool14)" = "lxdtest-$(basename "${LXD_DIR}")-pool14" ]
 
-      lxc init testimage c10pool15 -s "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15"
+      lxc init testimage c10pool15 -s "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" -d "${SMALL_ROOT_DISK}"
       [ "$(lxc list -f csv -c b c10pool15)" = "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" ]
 
-      lxc launch testimage c12pool15 -s "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15"
+      lxc launch testimage c12pool15 -s "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" -d "${SMALL_ROOT_DISK}"
       [ "$(lxc list -f csv -c b c12pool15)" = "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" ]
       lxc snapshot c12pool15
       test -b "/dev/lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15/containers_c12pool15"
@@ -727,7 +727,7 @@ EOF
       lxc delete -f c10pool15
       lxc delete -f c12pool15
 
-      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool6"  c10pool6
       lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool6"  c12pool6
       lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool11" c10pool11
       lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool11" c12pool11
