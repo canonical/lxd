@@ -346,8 +346,8 @@ github.com/minio/crc64nvme v1.0.2 h1:6uO1UxGAD+kwqWWp7mBFsi5gAse66C4NXO8cmcVculg
 github.com/minio/crc64nvme v1.0.2/go.mod h1:eVfm2fAzLlxMdUGc0EEBGSMmPwmXD5XiNRpnu9J3bvg=
 github.com/minio/md5-simd v1.1.2 h1:Gdi1DZK69+ZVMoNHRXJyNcxrMA4dSxoYHZSQbirFg34=
 github.com/minio/md5-simd v1.1.2/go.mod h1:MzdKDxYpY2BT9XQFocsiZf/NKVtR7nkE4RoEpN+20RM=
-github.com/minio/minio-go/v7 v7.0.92 h1:jpBFWyRS3p8P/9tsRc+NuvqoFi7qAmTCFPoRFmobbVw=
-github.com/minio/minio-go/v7 v7.0.92/go.mod h1:vTIc8DNcnAZIhyFsk8EB90AbPjj3j68aWIEQCiPj7d0=
+github.com/minio/minio-go/v7 v7.0.93 h1:lAB4QJp8Nq3vDMOU0eKgMuyBiEGMNlXQ5Glc8qAxqSU=
+github.com/minio/minio-go/v7 v7.0.93/go.mod h1:71t2CqDt3ThzESgZUlU1rBN54mksGGlkLcFgguDnnAc=
 github.com/mitchellh/go-homedir v1.1.0 h1:lukF9ziXFxDFPkA1vsr5zpc1XuPDn/wFntq5mG+4E0Y=
 github.com/mitchellh/go-homedir v1.1.0/go.mod h1:SfyaCUpYCn1Vlf4IUYiD9fPX4A5wJrkLzIz1N1q0pr0=
 github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyuac5Z2hdY=
