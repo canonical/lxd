@@ -51,6 +51,7 @@ LXD (<a href="#" title="Listen" onclick="document.getElementById('player').play(
 **Technical information**
 - {ref}`reference-general`
 - {ref}`reference-config`
+- {ref}`ref-releases-snap`
 - {ref}`reference-production`
 - {ref}`reference-api`
 - {ref}`reference-manpages`

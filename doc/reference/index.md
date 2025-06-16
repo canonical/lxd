@@ -7,7 +7,7 @@ The reference material in this section provides technical descriptions of LXD.
 ## General information
 
 Before you start using LXD, you should check the system requirements.
-You should also be aware of the supported architectures, the available image servers, the format for images, and the environment used for containers.
+You should also be aware of the supported architectures, its release types and snap information, the available image servers, the format for images, and the environment used for containers.
 
 ```{toctree}
 :titlesonly:
@@ -15,6 +15,7 @@ You should also be aware of the supported architectures, the available image ser
 
 /requirements
 /architectures
+/reference/releases-snap
 /reference/remote_image_servers
 /reference/image_format
 /guest-os-compatibility

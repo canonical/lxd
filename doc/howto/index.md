@@ -32,7 +32,6 @@ You'll also need to set up and configure other entities.
 /projects
 /storage
 /networks
-/howto/troubleshoot
 ```
 
 (howtos-production)=
@@ -49,14 +48,14 @@ You should also monitor your server or servers and configure them for the expect
 /production-setup
 ```
 
-(howtos-contribute)=
-## Contribute to LXD
-
-Learn how to contribute to the code or documentation for LXD.
+(howtos-misc)=
+## Miscellaneous
 
 ```{toctree}
 :titlesonly:
 :maxdepth: 1
-
+Manage the snap </howto/snap>
+/howto/troubleshoot
+Get support </support>
 Contribute to LXD </contributing>
 ```
