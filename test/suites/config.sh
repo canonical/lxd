@@ -274,7 +274,7 @@ test_config_edit() {
     lxc init --empty foo
     lxc config set foo --property description="hello"
     lxc config show foo | sed 's/^description:.*/description: bar/' | lxc config edit foo
-    lxc config show foo | grep -xF 'description: bar'
+    [ "$(lxc config get foo --property description)" = "bar" ]
 
     # Check instance name is included in edit screen.
     cmd=$(unset -f lxc; command -v lxc)
@@ -295,22 +295,22 @@ test_property() {
   # Set a property of an instance
   lxc config set foo description="a new description" --property
   # Check that the property is set
-  lxc config show foo | grep -xF "description: a new description"
+  [ "$(lxc config get foo description --property)" = "a new description" ]
 
   # Unset a property of an instance
   lxc config unset foo description --property
   # Check that the property is unset
-  ! lxc config show foo | grep -xF "description: a new description" || false
+  [ "$(lxc config get foo description --property)" = "" ]
 
   # Set a property of an instance (bool)
   lxc config set foo ephemeral=true --property
   # Check that the property is set
-  lxc config show foo | grep -xF "ephemeral: true"
+  [ "$(lxc config get foo ephemeral --property)" = "true" ]
 
   # Unset a property of an instance (bool)
   lxc config unset foo ephemeral --property
   # Check that the property is unset (i.e false)
-  lxc config show foo | grep -xF "ephemeral: false"
+  [ "$(lxc config get foo ephemeral --property)" = "false" ]
 
   # Create a snap of the instance to set its expiration timestamp
   lxc snapshot foo s1
