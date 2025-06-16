@@ -1418,7 +1418,7 @@ send/receive on top of that.
 
 ## `gpu_mdev`
 
-This adds support for virtual GPUs. It introduces the {config:option}`device-gpu-mdev-device-conf:mdev` configuration key for GPU devices which takes
+This adds support for virtual GPUs (vGPUs). It introduces the {config:option}`device-gpu-mdev-device-conf:mdev` configuration key for GPU devices which takes
 a supported `mdev` type, e.g. `i915-GVTg_V5_4`.
 
 ## `resources_pci_iommu`
