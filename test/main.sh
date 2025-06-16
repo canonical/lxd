@@ -245,7 +245,7 @@ LXD_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
 export LXD_DIR
 chmod +x "${LXD_DIR}"
 spawn_lxd "${LXD_DIR}" true
-LXD_ADDR=$(cat "${LXD_DIR}/lxd.addr")
+LXD_ADDR=$(< "${LXD_DIR}/lxd.addr")
 export LXD_ADDR
 
 LXD_SKIP_TESTS="${LXD_SKIP_TESTS:-}"
