@@ -935,14 +935,14 @@ EOF
     pool_name="lxdtest-$(basename "${LXD_DIR}")-quota"
 
     # shellcheck disable=SC1009
-    lxc storage create "${pool_name}" btrfs
+    lxc storage create "${pool_name}" btrfs size=256MiB
 
     # Import image into default storage pool.
     ensure_import_testimage
 
     # Launch container.
     lxc launch -s "${pool_name}" testimage c1
-    lxc storage volume create "${pool_name}" fsvol size=1MiB
+    lxc storage volume create "${pool_name}" fsvol
 
     # Disable quotas. The usage should be 0.
     # shellcheck disable=SC2031
