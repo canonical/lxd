@@ -214,23 +214,19 @@ test_config_profiles() {
   lxc stop foo --force
 
   lxc config set foo user.prop value
-  lxc list user.prop=value | grep foo
+  [ "$(lxc list -f csv -c n user.prop=value)" = "foo" ]
   lxc config unset foo user.prop
 
   # Test for invalid raw.lxc
   ! lxc config set foo raw.lxc a || false
   ! lxc profile set default raw.lxc a || false
 
-  bad=0
-  lxc list user.prop=value | grep foo && bad=1
-  if [ "${bad}" -eq 1 ]; then
+  if [ "$(lxc list -f csv -c n user.prop=value)" != "" ]; then
     echo "property unset failed"
     false
   fi
 
-  bad=0
-  lxc config set foo user.prop 2>/dev/null && bad=1
-  if [ "${bad}" -eq 1 ]; then
+  if lxc config set foo user.prop 2>/dev/null; then
     echo "property set succeeded when it shouldn't have"
     false
   fi
