@@ -146,11 +146,39 @@ func devLXDAPIGetHandler(d *Daemon, r *http.Request) response.Response {
 		clientAuth = "trusted"
 	}
 
+	var supportedDrivers []api.DevLXDServerStorageDriverInfo
+
+	// Include supported storage drivers if the instance has the devLXD volume
+	// management security flag enabled.
+	if inst.ExpandedConfig()[string(devLXDSecurityMgmtVolumesKey)] == "true" {
+		url := api.NewURL().Path("1.0").URL
+		req, err := NewRequestWithContext(r.Context(), http.MethodGet, url.String(), nil, "")
+		if err != nil {
+			return response.DevLXDErrorResponse(err)
+		}
+
+		info := &api.Server{}
+
+		resp := api10Get(d, req)
+		_, err = RenderToStruct(req, resp, &info)
+		if err != nil {
+			return response.DevLXDErrorResponse(err)
+		}
+
+		for _, driver := range info.Environment.StorageSupportedDrivers {
+			supportedDrivers = append(supportedDrivers, api.DevLXDServerStorageDriverInfo{
+				Name:   driver.Name,
+				Remote: driver.Remote,
+			})
+		}
+	}
+
 	resp := api.DevLXDGet{
-		APIVersion:   version.APIVersion,
-		Location:     location,
-		InstanceType: inst.Type().String(),
-		Auth:         clientAuth,
+		APIVersion:              version.APIVersion,
+		Location:                location,
+		InstanceType:            inst.Type().String(),
+		Auth:                    clientAuth,
+		SupportedStorageDrivers: supportedDrivers,
 		DevLXDPut: api.DevLXDPut{
 			State: state.String(),
 		},
