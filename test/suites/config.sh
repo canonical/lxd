@@ -1,7 +1,5 @@
 _ensure_removed() {
-  bad=0
-  lxc exec foo -- stat /dev/ttyS0 && bad=1
-  if [ "${bad}" -eq 1 ]; then
+  if lxc exec foo -- stat /dev/ttyS0; then
     echo "device should have been removed; $*"
     false
   fi
