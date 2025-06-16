@@ -407,9 +407,8 @@ test_clustering_containers() {
   LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 testimage foo
 
   # The container is visible through both nodes
-  LXD_DIR="${LXD_ONE_DIR}" lxc list | grep -wF foo | grep -wF STOPPED
-  LXD_DIR="${LXD_ONE_DIR}" lxc list | grep -wF foo | grep -wF node2
-  LXD_DIR="${LXD_TWO_DIR}" lxc list | grep -wF foo | grep -wF STOPPED
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c nsL)" = "foo,STOPPED,node2" ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c nsL)" = "foo,STOPPED,node2" ]
 
   # A Location: field indicates on which node the container is running
   LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -xF "Location: node2"
@@ -417,7 +416,7 @@ test_clustering_containers() {
   # Start the container via node1
   LXD_DIR="${LXD_ONE_DIR}" lxc start foo
   LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -xF "Status: RUNNING"
-  LXD_DIR="${LXD_ONE_DIR}" lxc list | grep -wF foo | grep -wF RUNNING
+  LXD_DIR="${LXD_ONE_DIR}" lxc list --fast | grep -wF foo | grep -wF RUNNING
 
   # Trying to delete a node which has container results in an error
   ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node2 || false
@@ -446,7 +445,7 @@ test_clustering_containers() {
 
   # Rename the container via node1
   LXD_DIR="${LXD_ONE_DIR}" lxc rename foo foo2
-  LXD_DIR="${LXD_TWO_DIR}" lxc list | grep -wF foo2
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c n)" = "foo2" ]
   LXD_DIR="${LXD_ONE_DIR}" lxc rename foo2 foo
 
   # Show lxc.log via node1
@@ -468,7 +467,7 @@ test_clustering_containers() {
   LXD_DIR="${LXD_TWO_DIR}" lxc launch --target node1 testimage bar
   LXD_DIR="${LXD_TWO_DIR}" lxc stop bar --force
   LXD_DIR="${LXD_ONE_DIR}" lxc delete bar
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc list | grep -wF bar || false
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc list -c n | grep -wF bar || false
 
   # Create a container on node1 using a snapshot from node2.
   LXD_DIR="${LXD_ONE_DIR}" lxc snapshot foo foo-bak
@@ -526,7 +525,7 @@ test_clustering_containers() {
   LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 11
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   sleep 12
-  LXD_DIR="${LXD_ONE_DIR}" lxc list | grep -wF foo | grep -wF ERROR
+  LXD_DIR="${LXD_ONE_DIR}" lxc list --fast | grep -wF foo | grep -wF ERROR
 
   # For an instance on an offline member, we can get its config but not use recursion nor get instance state.
   LXD_DIR="${LXD_ONE_DIR}" lxc config show foo
@@ -2105,8 +2104,8 @@ test_clustering_projects() {
   LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 testimage c1
 
   # The container is visible through both nodes
-  LXD_DIR="${LXD_ONE_DIR}" lxc list | grep -wF c1
-  LXD_DIR="${LXD_TWO_DIR}" lxc list | grep -wF c1
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c n)" = "c1" ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c n)" = "c1" ]
 
   LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1
 
