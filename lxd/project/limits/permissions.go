@@ -557,6 +557,16 @@ func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profi
 				allowVMLowLevel = true
 			}
 
+			// Add check for valid usage of io.threads setting.
+			devicesChecks["disk"] = append(devicesChecks["disk"], func(device map[string]string) error {
+				_, ioThreadsUsed := device["io.threads"]
+				if ioThreadsUsed && !allowVMLowLevel {
+					return errors.New(`Use of low-level "io.threads" disk option forbidden`)
+				}
+
+				return nil
+			})
+
 		case "restricted.devices.unix-char":
 			devicesChecks["unix-char"] = append(devicesChecks["unix-char"], func(device map[string]string) error {
 				if restrictionValue != "allow" {
