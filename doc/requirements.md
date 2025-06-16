@@ -42,8 +42,8 @@ should also be installed.
 
 ## QEMU
 
-For virtual machines, QEMU 6.2 or higher is required. Some features like
-Confidential Guest support require a more recent QEMU and kernel version.
+For virtual machines, QEMU 6.2 or higher and `virtiofsd` 1.10.0 or higher are required.
+Some features like Confidential Guest support require a more recent QEMU and kernel version.
 
 Hardware-assisted virtualization (Intel VT-x, AMD-V, etc) is required for
 running virtual machines. Additional hardware support (Intel VT-d, AMD-Vi) may
