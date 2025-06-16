@@ -15,7 +15,7 @@ The following types of GPUs can be added using the `gputype` device option:
 
 - [`physical`](gpu-physical) (container and VM): Passes an entire GPU through into the instance.
   This value is the default if `gputype` is unspecified.
-- [`mdev`](gpu-mdev) (VM only): Creates and passes a virtual GPU through into the instance.
+- [`mdev`](gpu-mdev) (VM only): Creates and passes a virtual GPU (vGPU) through into the instance.
 - [`mig`](gpu-mig) (container only): Creates and passes a MIG (Multi-Instance GPU) through into the instance.
 - [`sriov`](gpu-sriov) (VM only): Passes a virtual function of an SR-IOV-enabled GPU into the instance.
 
@@ -81,7 +81,7 @@ The `mdev` GPU type is supported only for VMs.
 It does not support hotplugging.
 ```
 
-An `mdev` GPU device creates and passes a virtual GPU through into the instance.
+An `mdev` GPU device creates and passes a virtual GPU (vGPU) through into the instance.
 You can check the list of available `mdev` profiles by running [`lxc info --resources`](lxc_info.md).
 
 ### Device options
