@@ -228,7 +228,7 @@ if [ -n "${INACCESSIBLE_DIRS:-}" ]; then
 fi
 
 if [ "${LXD_TMPFS:-0}" = "1" ]; then
-  mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=6G
+  mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=7G
 fi
 
 mkdir -p "${TEST_DIR}/dev"
