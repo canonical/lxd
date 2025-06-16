@@ -228,11 +228,11 @@ if [ -n "${INACCESSIBLE_DIRS:-}" ]; then
 fi
 
 if [ "${LXD_TMPFS:-0}" = "1" ]; then
-  mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=7G
+  mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751,noatime -o size=7G
 fi
 
 mkdir -p "${TEST_DIR}/dev"
-mount -t tmpfs none "${TEST_DIR}"/dev
+mount -t tmpfs none -o noatime "${TEST_DIR}"/dev
 export LXD_DEVMONITOR_DIR="${TEST_DIR}/dev"
 
 LXD_CONF=$(mktemp -d -p "${TEST_DIR}" XXX)
