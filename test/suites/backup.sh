@@ -629,12 +629,12 @@ _backup_export_with_project() {
   rm -rf "${LXD_DIR}/optimized" "${LXD_DIR}/non-optimized"
 
   # Check if hyphens cause issues when creating backups
-  lxc launch testimage c1-foo -d "${SMALL_ROOT_DISK}"
+  lxc init --empty c1-foo -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1-foo
 
   lxc export c1-foo "${LXD_DIR}/c1-foo.tar.gz"
 
-  lxc delete --force c1-foo
+  lxc delete c1-foo
 
   # Cleanup exported tarballs
   rm -f "${LXD_DIR}"/c*.tar.gz
