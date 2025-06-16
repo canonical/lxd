@@ -115,6 +115,9 @@ import_storage_backends
 cleanup() {
   # Stop tracing everything
   { set +x; } 2>/dev/null
+  if [ -z "${DEBUG:-}" ]; then
+    echo "cleanup"
+  fi
 
   # Avoid reentry by removing the traps
   trap - EXIT HUP INT TERM
