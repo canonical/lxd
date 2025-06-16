@@ -780,7 +780,7 @@ _backup_volume_export_with_project() {
   ls -l "${LXD_DIR}/non-optimized/backup/"
   [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
   [ -d "${LXD_DIR}/non-optimized/backup/volume" ]
-  [ "$(cat "${LXD_DIR}/non-optimized/backup/volume/test")" = "bar" ]
+  [ "$(< "${LXD_DIR}/non-optimized/backup/volume/test")" = "bar" ]
   [ ! -d "${LXD_DIR}/non-optimized/backup/volume-snapshots" ]
 
   ! grep -F -- '- test-snap0' "${LXD_DIR}/non-optimized/backup/index.yaml" || false
@@ -815,9 +815,9 @@ _backup_volume_export_with_project() {
   ls -l "${LXD_DIR}/non-optimized/backup/"
   [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
   [ -d "${LXD_DIR}/non-optimized/backup/volume" ]
-  [ "$(cat "${LXD_DIR}/non-optimized/backup/volume/test")" = "bar" ]
+  [ "$(< "${LXD_DIR}/non-optimized/backup/volume/test")" = "bar" ]
   [ -d "${LXD_DIR}/non-optimized/backup/volume-snapshots/test-snap0" ]
-  [  "$(cat "${LXD_DIR}/non-optimized/backup/volume-snapshots/test-snap0/test")" = "foo" ]
+  [  "$(< "${LXD_DIR}/non-optimized/backup/volume-snapshots/test-snap0/test")" = "foo" ]
 
   grep -F -- '- test-snap0' "${LXD_DIR}/non-optimized/backup/index.yaml"
 
