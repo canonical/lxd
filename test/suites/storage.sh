@@ -320,10 +320,10 @@ EOF
 
     # Muck around with some containers on various pools.
     if [ "$lxd_backend" = "zfs" ]; then
-      lxc init testimage c1pool1 -s "lxdtest-$(basename "${LXD_DIR}")-pool1"
+      lxc init --empty c1pool1 -s "lxdtest-$(basename "${LXD_DIR}")-pool1"
       [ "$(lxc list -f csv -c b c1pool1)" = "lxdtest-$(basename "${LXD_DIR}")-pool1" ]
 
-      lxc init testimage c2pool2 -s "lxdtest-$(basename "${LXD_DIR}")-pool2"
+      lxc init --empty c2pool2 -s "lxdtest-$(basename "${LXD_DIR}")-pool2"
       [ "$(lxc list -f csv -c b c2pool2)" = "lxdtest-$(basename "${LXD_DIR}")-pool2" ]
 
       lxc launch testimage c3pool1 -s "lxdtest-$(basename "${LXD_DIR}")-pool1"
@@ -371,9 +371,9 @@ EOF
     fi
 
     if [ "$lxd_backend" = "btrfs" ]; then
-      lxc init testimage c5pool3 -s "lxdtest-$(basename "${LXD_DIR}")-pool3"
+      lxc init --empty c5pool3 -s "lxdtest-$(basename "${LXD_DIR}")-pool3"
       [ "$(lxc list -f csv -c b c5pool3)" = "lxdtest-$(basename "${LXD_DIR}")-pool3" ]
-      lxc init testimage c6pool4 -s "lxdtest-$(basename "${LXD_DIR}")-pool4"
+      lxc init --empty c6pool4 -s "lxdtest-$(basename "${LXD_DIR}")-pool4"
       [ "$(lxc list -f csv -c b c6pool4)" = "lxdtest-$(basename "${LXD_DIR}")-pool4" ]
 
       lxc launch testimage c7pool3 -s "lxdtest-$(basename "${LXD_DIR}")-pool3"
@@ -416,7 +416,7 @@ EOF
       lxc storage volume rename "lxdtest-$(basename "${LXD_DIR}")-pool4" c8pool4-renamed c8pool4
     fi
 
-    lxc init testimage c9pool5 -s "lxdtest-$(basename "${LXD_DIR}")-pool5"
+    lxc init --empty c9pool5 -s "lxdtest-$(basename "${LXD_DIR}")-pool5"
     [ "$(lxc list -f csv -c b c9pool5)" = "lxdtest-$(basename "${LXD_DIR}")-pool5" ]
 
     lxc launch testimage c11pool5 -s "lxdtest-$(basename "${LXD_DIR}")-pool5"
@@ -447,7 +447,7 @@ EOF
     lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-pool5" c12pool5
 
     if [ "$lxd_backend" = "lvm" ]; then
-      lxc init testimage c10pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
+      lxc init --empty c10pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
       [ "$(lxc list -f csv -c b c10pool6)" = "lxdtest-$(basename "${LXD_DIR}")-pool6" ]
 
       # Test if volume group renaming works by setting lvm.vg_name.
@@ -464,25 +464,25 @@ EOF
       lxc config device set c12pool6 root size 25MiB
       lxc restart c12pool6 --force
 
-      lxc init testimage c10pool11 -s "lxdtest-$(basename "${LXD_DIR}")-pool11"
+      lxc init --empty c10pool11 -s "lxdtest-$(basename "${LXD_DIR}")-pool11"
       [ "$(lxc list -f csv -c b c10pool11)" = "lxdtest-$(basename "${LXD_DIR}")-pool11" ]
 
       lxc launch testimage c12pool11 -s "lxdtest-$(basename "${LXD_DIR}")-pool11"
       [ "$(lxc list -f csv -c b c12pool11)" = "lxdtest-$(basename "${LXD_DIR}")-pool11" ]
 
-      lxc init testimage c10pool12 -s "lxdtest-$(basename "${LXD_DIR}")-pool12"
+      lxc init --empty c10pool12 -s "lxdtest-$(basename "${LXD_DIR}")-pool12"
       [ "$(lxc list -f csv -c b c10pool12)" = "lxdtest-$(basename "${LXD_DIR}")-pool12" ]
 
       lxc launch testimage c12pool12 -s "lxdtest-$(basename "${LXD_DIR}")-pool12"
       [ "$(lxc list -f csv -c b c12pool12)" = "lxdtest-$(basename "${LXD_DIR}")-pool12" ]
 
-      lxc init testimage c10pool13 -s "lxdtest-$(basename "${LXD_DIR}")-pool13"
+      lxc init --empty c10pool13 -s "lxdtest-$(basename "${LXD_DIR}")-pool13"
       [ "$(lxc list -f csv -c b c10pool13)" = "lxdtest-$(basename "${LXD_DIR}")-pool13" ]
 
       lxc launch testimage c12pool13 -s "lxdtest-$(basename "${LXD_DIR}")-pool13"
       [ "$(lxc list -f csv -c b c12pool13)" = "lxdtest-$(basename "${LXD_DIR}")-pool13" ]
 
-      lxc init testimage c10pool14 -s "lxdtest-$(basename "${LXD_DIR}")-pool14"
+      lxc init --empty c10pool14 -s "lxdtest-$(basename "${LXD_DIR}")-pool14"
       [ "$(lxc list -f csv -c b c10pool14)" = "lxdtest-$(basename "${LXD_DIR}")-pool14" ]
 
       lxc launch testimage c12pool14 -s "lxdtest-$(basename "${LXD_DIR}")-pool14"
@@ -503,10 +503,10 @@ EOF
       # Test that changing block filesystem works
       lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool6" volume.block.filesystem xfs
       lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool6" volume.size 300MiB # modern xfs requires 300MiB or more
-      lxc init testimage c1pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
+      lxc init --empty c1pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
       lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool6" volume.block.filesystem btrfs
       lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool6" volume.size 120MiB
-      lxc init testimage c2pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
+      lxc init --empty c2pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
 
       lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6 size=120MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6 c10pool6 testDevice /opt
@@ -972,7 +972,7 @@ EOF
   LXD_DIR="${LXD_DIR}"
   storage_pool="lxdtest-$(basename "${LXD_DIR}")-pool26"
   lxc storage create "$storage_pool" "$lxd_backend"
-  lxc init -s "${storage_pool}" testimage c1
+  lxc init --empty c1 -s "${storage_pool}"
   # The storage pool will not be removed since it has c1 attached to it
   ! lxc storage delete "${storage_pool}" || false
   lxc delete c1
