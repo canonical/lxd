@@ -163,7 +163,7 @@ test_clustering_enable() {
     # shellcheck disable=SC2034,SC2030
     LXD_DIR=${LXD_INIT_DIR}
     lxc config set cluster.https_address 127.0.0.1:8443
-    kill -9 "$(cat "${LXD_DIR}/lxd.pid")"
+    kill -9 "$(< "${LXD_DIR}/lxd.pid")"
     respawn_lxd "${LXD_DIR}" true
     # Enable clustering.
     lxc cluster enable node1
@@ -206,8 +206,8 @@ test_clustering_membership() {
   LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -F 'cluster.offline_threshold: "11"'
 
   # The preseeded network bridge exists on all nodes.
-  ns1_pid="$(cat "${TEST_DIR}/ns/${ns1}/PID")"
-  ns2_pid="$(cat "${TEST_DIR}/ns/${ns2}/PID")"
+  ns1_pid="$(< "${TEST_DIR}/ns/${ns1}/PID")"
+  ns2_pid="$(< "${TEST_DIR}/ns/${ns2}/PID")"
   nsenter -m -n -t "${ns1_pid}" -- ip link show "${bridge}" > /dev/null
   nsenter -m -n -t "${ns2_pid}" -- ip link show "${bridge}" > /dev/null
 
@@ -424,12 +424,12 @@ test_clustering_containers() {
   echo "hello world" > "${TEST_DIR}/hello-world/text"
   LXD_DIR="${LXD_ONE_DIR}" lxc file push "${TEST_DIR}/hello-world/text" foo/hello-world-text
   LXD_DIR="${LXD_ONE_DIR}" lxc file pull foo/hello-world-text "${TEST_DIR}/hello-world-text"
-  [ "$(cat "${TEST_DIR}/hello-world-text")" = "hello world" ]
+  [ "$(< "${TEST_DIR}/hello-world-text")" = "hello world" ]
   rm "${TEST_DIR}/hello-world-text"
   LXD_DIR="${LXD_ONE_DIR}" lxc file push --recursive "${TEST_DIR}/hello-world" foo/
   rm -r "${TEST_DIR}/hello-world"
   LXD_DIR="${LXD_ONE_DIR}" lxc file pull --recursive foo/hello-world "${TEST_DIR}"
-  [ "$(cat "${TEST_DIR}/hello-world/text")" = "hello world" ]
+  [ "$(< "${TEST_DIR}/hello-world/text")" = "hello world" ]
   rm -r "${TEST_DIR}/hello-world"
   LXD_DIR="${LXD_ONE_DIR}" lxc file delete foo/hello-world/text
   ! LXD_DIR="${LXD_ONE_DIR}" lxc file pull foo/hello-world/text "${TEST_DIR}/hello-world-text" || false
@@ -2827,7 +2827,7 @@ test_clustering_rebalance() {
 
   # Kill the second node.
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 11
-  kill -9 "$(cat "${LXD_TWO_DIR}/lxd.pid")"
+  kill -9 "$(< "${LXD_TWO_DIR}/lxd.pid")"
 
   # Wait for the second node to be considered offline and be replaced by the
   # fourth node.
@@ -2896,8 +2896,8 @@ test_clustering_remove_raft_node() {
   LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -F 'cluster.offline_threshold: "11"'
 
   # The preseeded network bridge exists on all nodes.
-  ns1_pid="$(cat "${TEST_DIR}/ns/${ns1}/PID")"
-  ns2_pid="$(cat "${TEST_DIR}/ns/${ns2}/PID")"
+  ns1_pid="$(< "${TEST_DIR}/ns/${ns1}/PID")"
+  ns2_pid="$(< "${TEST_DIR}/ns/${ns2}/PID")"
   nsenter -m -n -t "${ns1_pid}" -- ip link show "${bridge}" > /dev/null
   nsenter -m -n -t "${ns2_pid}" -- ip link show "${bridge}" > /dev/null
 
@@ -2922,7 +2922,7 @@ test_clustering_remove_raft_node() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
 
   # Kill the second node, to prevent it from transferring its database role at shutdown.
-  kill -9 "$(cat "${LXD_TWO_DIR}/lxd.pid")"
+  kill -9 "$(< "${LXD_TWO_DIR}/lxd.pid")"
 
   # Remove the second node from the database but not from the raft configuration.
   retries=10
@@ -3569,9 +3569,9 @@ test_clustering_edit_configuration() {
   shutdown_lxd "${LXD_FOUR_DIR}"
 
   # Force-kill the last two to prevent leadership loss.
-  daemon_pid=$(cat "${LXD_FIVE_DIR}/lxd.pid")
+  daemon_pid=$(< "${LXD_FIVE_DIR}/lxd.pid")
   kill -9 "${daemon_pid}" 2>/dev/null || true
-  daemon_pid=$(cat "${LXD_SIX_DIR}/lxd.pid")
+  daemon_pid=$(< "${LXD_SIX_DIR}/lxd.pid")
   kill -9 "${daemon_pid}" 2>/dev/null || true
 
   config=$(mktemp -p "${TEST_DIR}" XXX)
@@ -3634,9 +3634,9 @@ test_clustering_edit_configuration() {
   shutdown_lxd "${LXD_FOUR_DIR}"
 
   # Force-kill the last two to prevent leadership loss.
-  daemon_pid=$(cat "${LXD_FIVE_DIR}/lxd.pid")
+  daemon_pid=$(< "${LXD_FIVE_DIR}/lxd.pid")
   kill -9 "${daemon_pid}" 2>/dev/null || true
-  daemon_pid=$(cat "${LXD_SIX_DIR}/lxd.pid")
+  daemon_pid=$(< "${LXD_SIX_DIR}/lxd.pid")
   kill -9 "${daemon_pid}" 2>/dev/null || true
 
   rm -f "${LXD_ONE_DIR}/unix.socket"
