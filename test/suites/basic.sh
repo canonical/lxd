@@ -611,7 +611,7 @@ test_basic_usage() {
   lxc delete --force c1 c2
 
   # Ephemeral
-  lxc launch testimage foo -e
+  lxc launch testimage foo --ephemeral
   OLD_INIT=$(lxc info foo | awk '/^PID:/ {print $2}')
 
   REBOOTED="false"
@@ -734,15 +734,24 @@ EOF
   lxc profile delete foo
 
   # Multiple ephemeral instances delete
-  lxc launch testimage c1
-  lxc launch testimage c2
-  lxc launch testimage c3
+  lxc launch testimage c1 --ephemeral
+  lxc launch testimage c2 --ephemeral
+  lxc launch testimage c3 --ephemeral
 
+  lxc stop -f c1 c2 c3
+  [ "$(lxc list -f csv -c n)" = "" ]
+
+  # Cleanup
   fingerprint="$(lxc config trust ls --format csv | cut -d, -f4)"
   lxc config trust remove "${fingerprint}"
-  lxc delete -f c1 c2 c3
-  remaining_instances="$(lxc list --format csv)"
-  [ -z "${remaining_instances}" ]
+}
+
+test_basic_version() {
+  # XXX: add `fuidshift` to the list
+  for bin in lxc lxd lxd-agent lxd-benchmark lxd-migrate lxd-user; do
+    "${bin}" --version
+    "${bin}" --help
+  done
 }
 
 test_server_info() {
