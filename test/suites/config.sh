@@ -299,7 +299,7 @@ test_config_edit() {
 test_property() {
   ensure_import_testimage
 
-  lxc init testimage foo -s "lxdtest-$(basename "${LXD_DIR}")"
+  lxc init --empty foo
 
   # Set a property of an instance
   lxc config set foo description="a new description" --property
