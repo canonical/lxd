@@ -271,9 +271,8 @@ test_config_edit() {
         return
     fi
 
-    ensure_import_testimage
-
-    lxc init testimage foo -s "lxdtest-$(basename "${LXD_DIR}")"
+    lxc init --empty foo
+    lxc config set foo --property description="hello"
     lxc config show foo | sed 's/^description:.*/description: bar/' | lxc config edit foo
     lxc config show foo | grep -xF 'description: bar'
 
