@@ -523,7 +523,7 @@ test_clustering_containers() {
 
   # For an instance on an offline member, we can get its config but not use recursion nor get instance state.
   LXD_DIR="${LXD_ONE_DIR}" lxc config show foo
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/foo" | jq '.status == "Error"')" = "true" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/foo" | jq -r '.status')" = "Error" ]
   ! LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/foo?recursion=1" || false
   ! LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/foo/state" || false
 
