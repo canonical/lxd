@@ -331,7 +331,7 @@ func getMemoryMetrics() (metrics.MemoryMetrics, error) {
 			value *= 1024
 		}
 
-		// FIXME: Missing RSS
+		// Parse fields for metrics collection
 		switch fields[0] {
 		case "Active":
 			out.ActiveBytes = value
@@ -339,6 +339,8 @@ func getMemoryMetrics() (metrics.MemoryMetrics, error) {
 			out.ActiveAnonBytes = value
 		case "Active(file)":
 			out.ActiveFileBytes = value
+		case "Buffers":
+			// No dedicated field in MemoryMetrics for Buffers
 		case "Cached":
 			out.CachedBytes = value
 		case "Dirty":
@@ -370,6 +372,13 @@ func getMemoryMetrics() (metrics.MemoryMetrics, error) {
 		case "Writeback":
 			out.WritebackBytes = value
 		}
+	}
+
+	// Calculate RSS using the simpler and more modern approach
+	if out.MemTotalBytes > out.MemAvailableBytes {
+		// Formula: RSS = MemTotal - MemAvailable
+		// This is how modern tools like 'free' calculate used memory
+		out.RSSBytes = out.MemTotalBytes - out.MemAvailableBytes
 	}
 
 	return out, nil
