@@ -183,8 +183,8 @@ delete_object_storage_pool() {
   fi
 
   if [ "$lxd_backend" = "dir" ]; then
-    loop_file="$(cat "${TEST_DIR}/s3/${poolName}/file")"
-    loop_device="$(cat "${TEST_DIR}/s3/${poolName}/dev")"
+    loop_file="$(< "${TEST_DIR}/s3/${poolName}/file")"
+    loop_device="$(< "${TEST_DIR}/s3/${poolName}/dev")"
     umount "${TEST_DIR}/s3/${poolName}"
     rmdir "${TEST_DIR}/s3/${poolName}"
 
