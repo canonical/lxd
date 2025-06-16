@@ -67,7 +67,7 @@ EOF
 
   veth1="v${ns}1"
   veth2="v${ns}2"
-  nspid=$(cat "${TEST_DIR}/ns/${ns}/PID")
+  nspid=$(< "${TEST_DIR}/ns/${ns}/PID")
 
   ip link add "${veth1}" type veth peer name "${veth2}"
   ip link set "${veth2}" netns "${nspid}"
@@ -101,7 +101,7 @@ teardown_clustering_netns() {
         ip link del "${veth1}"
       fi
 
-      pid="$(cat "${TEST_DIR}/ns/${ns}/PID")"
+      pid="$(< "${TEST_DIR}/ns/${ns}/PID")"
       kill -9 "${pid}" 2>/dev/null || true
 
       umount -l "${TEST_DIR}/ns/${ns}/net" >/dev/null 2>&1 || true
