@@ -975,13 +975,13 @@ test_backup_instance_uuid() {
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   echo "==> Checking instance UUIDs during backup operation"
-  lxc launch testimage c1 -d "${SMALL_ROOT_DISK}"
+  lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
   initialUUID=$(lxc config get c1 volatile.uuid)
   initialGenerationID=$(lxc config get c1 volatile.uuid.generation)
 
   # export and import should preserve the UUID and generation UUID
   lxc export c1 "${LXD_DIR}/c1.tar.gz"
-  lxc delete -f c1
+  lxc delete c1
   lxc import "${LXD_DIR}/c1.tar.gz"
 
   newUUID=$(lxc config get c1 volatile.uuid)
@@ -992,7 +992,7 @@ test_backup_instance_uuid() {
     false
   fi
 
-  lxc delete -f c1
+  lxc delete c1
 
   # Cleanup exported tarballs
   rm -f "${LXD_DIR}"/c*.tar.gz
