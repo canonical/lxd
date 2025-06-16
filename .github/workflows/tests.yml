@@ -327,13 +327,6 @@ jobs:
       - name: Reclaim some memory
         uses: ./.github/actions/reclaim-memory
 
-      - name: Reclaim disk space
-        uses: ./.github/actions/reclaim-disk-space
-        # cluster tests do not consume much space and tests on ceph use the
-        # ephemeral disk those `rm -rf` can sometimes take ~2 minutes on slow
-        # runners so skip them where possible.
-        if: ${{ matrix.suite != 'cluster' && matrix.backend != 'ceph' }}
-
       - name: Remove docker
         uses: ./.github/actions/disable-docker
 
