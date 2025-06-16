@@ -2672,3 +2672,7 @@ This adds support for listing networks across all projects using the `all-projec
 ## `clustering_restore_skip_mode`
 
 Adds a `skip` mode to the restore request. This mode restores a cluster member's status to `ONLINE` without restarting any of its stopped local instances or migrating back instances that were evacuated to other cluster members.
+
+## `disk_io_threads_virtiofsd`
+
+Adds the {config:option}`device-disk-device-conf:io.threads` option on `disk` devices which is used to control the `virtiofsd` thread pool size when sharing file systems into VMs. This can help improve I/O performance.

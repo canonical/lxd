@@ -492,7 +492,7 @@ func parseHostIDMapRange(isUID bool, isGID bool, listValue string) ([]idmap.Idma
 // instances and profiles.
 func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profiles []api.Profile) error {
 	containerConfigChecks := map[string]func(value string) error{}
-	devicesChecks := map[string]func(value map[string]string) error{}
+	devicesChecks := map[string][]func(value map[string]string) error{}
 
 	allowContainerLowLevel := false
 	allowVMLowLevel := false
@@ -557,80 +557,90 @@ func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profi
 				allowVMLowLevel = true
 			}
 
+			// Add check for valid usage of io.threads setting.
+			devicesChecks["disk"] = append(devicesChecks["disk"], func(device map[string]string) error {
+				_, ioThreadsUsed := device["io.threads"]
+				if ioThreadsUsed && !allowVMLowLevel {
+					return errors.New(`Use of low-level "io.threads" disk option forbidden`)
+				}
+
+				return nil
+			})
+
 		case "restricted.devices.unix-char":
-			devicesChecks["unix-char"] = func(device map[string]string) error {
+			devicesChecks["unix-char"] = append(devicesChecks["unix-char"], func(device map[string]string) error {
 				if restrictionValue != "allow" {
 					return errors.New("Unix character devices are forbidden")
 				}
 
 				return nil
-			}
+			})
 
 		case "restricted.devices.unix-block":
-			devicesChecks["unix-block"] = func(device map[string]string) error {
+			devicesChecks["unix-block"] = append(devicesChecks["unix-block"], func(device map[string]string) error {
 				if restrictionValue != "allow" {
 					return errors.New("Unix block devices are forbidden")
 				}
 
 				return nil
-			}
+			})
 
 		case "restricted.devices.unix-hotplug":
-			devicesChecks["unix-hotplug"] = func(device map[string]string) error {
+			devicesChecks["unix-hotplug"] = append(devicesChecks["unix-hotplug"], func(device map[string]string) error {
 				if restrictionValue != "allow" {
 					return errors.New("Unix hotplug devices are forbidden")
 				}
 
 				return nil
-			}
+			})
 
 		case "restricted.devices.infiniband":
-			devicesChecks["infiniband"] = func(device map[string]string) error {
+			devicesChecks["infiniband"] = append(devicesChecks["infiniband"], func(device map[string]string) error {
 				if restrictionValue != "allow" {
 					return errors.New("Infiniband devices are forbidden")
 				}
 
 				return nil
-			}
+			})
 
 		case "restricted.devices.gpu":
-			devicesChecks["gpu"] = func(device map[string]string) error {
+			devicesChecks["gpu"] = append(devicesChecks["gpu"], func(device map[string]string) error {
 				if restrictionValue != "allow" {
 					return errors.New("GPU devices are forbidden")
 				}
 
 				return nil
-			}
+			})
 
 		case "restricted.devices.usb":
-			devicesChecks["usb"] = func(device map[string]string) error {
+			devicesChecks["usb"] = append(devicesChecks["usb"], func(device map[string]string) error {
 				if restrictionValue != "allow" {
 					return errors.New("USB devices are forbidden")
 				}
 
 				return nil
-			}
+			})
 
 		case "restricted.devices.pci":
-			devicesChecks["pci"] = func(device map[string]string) error {
+			devicesChecks["pci"] = append(devicesChecks["pci"], func(device map[string]string) error {
 				if restrictionValue != "allow" {
 					return errors.New("PCI devices are forbidden")
 				}
 
 				return nil
-			}
+			})
 
 		case "restricted.devices.proxy":
-			devicesChecks["proxy"] = func(device map[string]string) error {
+			devicesChecks["proxy"] = append(devicesChecks["proxy"], func(device map[string]string) error {
 				if restrictionValue != "allow" {
 					return errors.New("Proxy devices are forbidden")
 				}
 
 				return nil
-			}
+			})
 
 		case "restricted.devices.nic":
-			devicesChecks["nic"] = func(device map[string]string) error {
+			devicesChecks["nic"] = append(devicesChecks["nic"], func(device map[string]string) error {
 				// Check if the NICs are allowed at all.
 				switch restrictionValue {
 				case "block":
@@ -654,10 +664,10 @@ func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profi
 				}
 
 				return nil
-			}
+			})
 
 		case "restricted.devices.disk":
-			devicesChecks["disk"] = func(device map[string]string) error {
+			devicesChecks["disk"] = append(devicesChecks["disk"], func(device map[string]string) error {
 				// The root device is always allowed.
 				if device["path"] == "/" && device["pool"] != "" {
 					return nil
@@ -686,7 +696,7 @@ func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profi
 				}
 
 				return nil
-			}
+			})
 
 		case "restricted.idmap.uid":
 			var err error
@@ -767,16 +777,19 @@ func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profi
 		}
 
 		for name, device := range devices {
-			check, ok := devicesChecks[device["type"]]
+			checks, ok := devicesChecks[device["type"]]
 			if !ok {
 				continue
 			}
 
-			err := check(device)
-			if err != nil {
-				return fmt.Errorf("Invalid device %q on %s %q of project %q: %w", name, entityTypeLabel, entityName, proj.Name, err)
+			for _, check := range checks {
+				err := check(device)
+				if err != nil {
+					return fmt.Errorf("Invalid device %q on %s %q of project %q: %w", name, entityTypeLabel, entityName, proj.Name, err)
+				}
 			}
 		}
+
 		return nil
 	}
 
