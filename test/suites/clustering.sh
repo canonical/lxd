@@ -2130,7 +2130,7 @@ test_clustering_metrics() {
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
 
   # Create one running container in each node and a stopped one on the leader.
-  LXD_DIR="${LXD_ONE_DIR}" deps/import-busybox --project default --alias testimage
+  LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
   LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node1 -d "${SMALL_ROOT_DISK}" testimage c1
   LXD_DIR="${LXD_ONE_DIR}" lxc init --target node1 --empty -d "${SMALL_ROOT_DISK}" stopped
   LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node2 -d "${SMALL_ROOT_DISK}" testimage c2
