@@ -314,9 +314,9 @@ test_property() {
 
   # Create a snap of the instance to set its expiration timestamp
   lxc snapshot foo s1
-  lxc config set foo/s1 expires_at="2024-03-23T17:38:37.753398689-04:00" --property
-  lxc config get foo/s1 expires_at --property | grep -F "2024-03-23 17:38:37.753398689 -0400 -0400"
-  lxc config show foo/s1 | grep -F "expires_at: 2024-03-23T17:38:37.753398689-04:00"
+  lxc config set foo/s1 expires_at="2038-03-23T17:38:37.753398689-04:00" --property
+  [ "$(lxc config get foo/s1 expires_at --property)" = "2038-03-23 17:38:37.753398689 -0400 -0400" ]
+  lxc config show foo/s1 | grep -F "expires_at: 2038-03-23T17:38:37.753398689-04:00"
   lxc config unset foo/s1 expires_at --property
   lxc config show foo/s1 | grep -F "expires_at: 0001-01-01T00:00:00Z"
   lxc delete -f foo
@@ -332,8 +332,8 @@ test_property() {
   # This will create a snapshot named 'snap0'
   lxc storage volume snapshot "${storage_pool}" "${storage_volume}"
 
-  lxc storage volume set "${storage_pool}" "${storage_volume}"/snap0 expires_at="2024-03-23T17:38:37.753398689-04:00" --property
-  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep 'expires_at: 2024-03-23T17:38:37.753398689-04:00'
+  lxc storage volume set "${storage_pool}" "${storage_volume}"/snap0 expires_at="2038-03-23T17:38:37.753398689-04:00" --property
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep 'expires_at: 2038-03-23T17:38:37.753398689-04:00'
   lxc storage volume unset "${storage_pool}" "${storage_volume}"/snap0 expires_at --property
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep 'expires_at: 0001-01-01T00:00:00Z'
 
