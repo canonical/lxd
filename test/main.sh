@@ -33,10 +33,6 @@ if [ -n "${LXD_DEBUG:-}" ]; then
   DEBUG="--debug"
 fi
 
-if [ -n "${DEBUG:-}" ]; then
-  set -x
-fi
-
 # shellcheck disable=SC2034
 LXD_NETNS=""
 
@@ -202,6 +198,10 @@ cleanup() {
   fi
   echo "==> Test result: ${TEST_RESULT}"
 }
+
+if [ -n "${DEBUG:-}" ]; then
+  set -x
+fi
 
 # Must be set before cleanup()
 TEST_CURRENT=setup
