@@ -321,16 +321,16 @@ EOF
     # Muck around with some containers on various pools.
     if [ "$lxd_backend" = "zfs" ]; then
       lxc init testimage c1pool1 -s "lxdtest-$(basename "${LXD_DIR}")-pool1"
-      lxc list -c b c1pool1 | grep "lxdtest-$(basename "${LXD_DIR}")-pool1"
+      [ "$(lxc list -f csv -c b c1pool1)" = "lxdtest-$(basename "${LXD_DIR}")-pool1" ]
 
       lxc init testimage c2pool2 -s "lxdtest-$(basename "${LXD_DIR}")-pool2"
-      lxc list -c b c2pool2 | grep "lxdtest-$(basename "${LXD_DIR}")-pool2"
+      [ "$(lxc list -f csv -c b c2pool2)" = "lxdtest-$(basename "${LXD_DIR}")-pool2" ]
 
       lxc launch testimage c3pool1 -s "lxdtest-$(basename "${LXD_DIR}")-pool1"
-      lxc list -c b c3pool1 | grep "lxdtest-$(basename "${LXD_DIR}")-pool1"
+      [ "$(lxc list -f csv -c b c3pool1)" = "lxdtest-$(basename "${LXD_DIR}")-pool1" ]
 
       lxc launch testimage c4pool2 -s "lxdtest-$(basename "${LXD_DIR}")-pool2"
-      lxc list -c b c4pool2 | grep "lxdtest-$(basename "${LXD_DIR}")-pool2"
+      [ "$(lxc list -f csv -c b c4pool2)" = "lxdtest-$(basename "${LXD_DIR}")-pool2" ]
 
       lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 size=1MiB
       lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 zfs.use_refquota true
@@ -372,14 +372,14 @@ EOF
 
     if [ "$lxd_backend" = "btrfs" ]; then
       lxc init testimage c5pool3 -s "lxdtest-$(basename "${LXD_DIR}")-pool3"
-      lxc list -c b c5pool3 | grep "lxdtest-$(basename "${LXD_DIR}")-pool3"
+      [ "$(lxc list -f csv -c b c5pool3)" = "lxdtest-$(basename "${LXD_DIR}")-pool3" ]
       lxc init testimage c6pool4 -s "lxdtest-$(basename "${LXD_DIR}")-pool4"
-      lxc list -c b c6pool4 | grep "lxdtest-$(basename "${LXD_DIR}")-pool4"
+      [ "$(lxc list -f csv -c b c6pool4)" = "lxdtest-$(basename "${LXD_DIR}")-pool4" ]
 
       lxc launch testimage c7pool3 -s "lxdtest-$(basename "${LXD_DIR}")-pool3"
-      lxc list -c b c7pool3 | grep "lxdtest-$(basename "${LXD_DIR}")-pool3"
+      [ "$(lxc list -f csv -c b c7pool3)" = "lxdtest-$(basename "${LXD_DIR}")-pool3" ]
       lxc launch testimage c8pool4 -s "lxdtest-$(basename "${LXD_DIR}")-pool4"
-      lxc list -c b c8pool4 | grep "lxdtest-$(basename "${LXD_DIR}")-pool4"
+      [ "$(lxc list -f csv -c b c8pool4)" = "lxdtest-$(basename "${LXD_DIR}")-pool4" ]
 
       lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool3" c5pool3 size=1MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool3" c5pool3 c5pool3 testDevice /opt
@@ -417,10 +417,10 @@ EOF
     fi
 
     lxc init testimage c9pool5 -s "lxdtest-$(basename "${LXD_DIR}")-pool5"
-    lxc list -c b c9pool5 | grep "lxdtest-$(basename "${LXD_DIR}")-pool5"
+    [ "$(lxc list -f csv -c b c9pool5)" = "lxdtest-$(basename "${LXD_DIR}")-pool5" ]
 
     lxc launch testimage c11pool5 -s "lxdtest-$(basename "${LXD_DIR}")-pool5"
-    lxc list -c b c11pool5 | grep "lxdtest-$(basename "${LXD_DIR}")-pool5"
+    [ "$(lxc list -f csv -c b c11pool5)" = "lxdtest-$(basename "${LXD_DIR}")-pool5" ]
 
     lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool5" c9pool5 size=1MiB
     lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool5" c9pool5 c9pool5 testDevice /opt
@@ -448,7 +448,7 @@ EOF
 
     if [ "$lxd_backend" = "lvm" ]; then
       lxc init testimage c10pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
-      lxc list -c b c10pool6 | grep "lxdtest-$(basename "${LXD_DIR}")-pool6"
+      [ "$(lxc list -f csv -c b c10pool6)" = "lxdtest-$(basename "${LXD_DIR}")-pool6" ]
 
       # Test if volume group renaming works by setting lvm.vg_name.
       lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool6" lvm.vg_name "lxdtest-$(basename "${LXD_DIR}")-pool6-newName"
@@ -456,7 +456,7 @@ EOF
       lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool6" lvm.thinpool_name "lxdtest-$(basename "${LXD_DIR}")-pool6-newThinpoolName"
 
       lxc launch testimage c12pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
-      lxc list -c b c12pool6 | grep "lxdtest-$(basename "${LXD_DIR}")-pool6"
+      [ "$(lxc list -f csv -c b c12pool6)" = "lxdtest-$(basename "${LXD_DIR}")-pool6" ]
       # grow lv
       lxc config device set c12pool6 root size 30MiB
       lxc restart c12pool6 --force
@@ -465,34 +465,34 @@ EOF
       lxc restart c12pool6 --force
 
       lxc init testimage c10pool11 -s "lxdtest-$(basename "${LXD_DIR}")-pool11"
-      lxc list -c b c10pool11 | grep "lxdtest-$(basename "${LXD_DIR}")-pool11"
+      [ "$(lxc list -f csv -c b c10pool11)" = "lxdtest-$(basename "${LXD_DIR}")-pool11" ]
 
       lxc launch testimage c12pool11 -s "lxdtest-$(basename "${LXD_DIR}")-pool11"
-      lxc list -c b c12pool11 | grep "lxdtest-$(basename "${LXD_DIR}")-pool11"
+      [ "$(lxc list -f csv -c b c12pool11)" = "lxdtest-$(basename "${LXD_DIR}")-pool11" ]
 
       lxc init testimage c10pool12 -s "lxdtest-$(basename "${LXD_DIR}")-pool12"
-      lxc list -c b c10pool12 | grep "lxdtest-$(basename "${LXD_DIR}")-pool12"
+      [ "$(lxc list -f csv -c b c10pool12)" = "lxdtest-$(basename "${LXD_DIR}")-pool12" ]
 
       lxc launch testimage c12pool12 -s "lxdtest-$(basename "${LXD_DIR}")-pool12"
-      lxc list -c b c12pool12 | grep "lxdtest-$(basename "${LXD_DIR}")-pool12"
+      [ "$(lxc list -f csv -c b c12pool12)" = "lxdtest-$(basename "${LXD_DIR}")-pool12" ]
 
       lxc init testimage c10pool13 -s "lxdtest-$(basename "${LXD_DIR}")-pool13"
-      lxc list -c b c10pool13 | grep "lxdtest-$(basename "${LXD_DIR}")-pool13"
+      [ "$(lxc list -f csv -c b c10pool13)" = "lxdtest-$(basename "${LXD_DIR}")-pool13" ]
 
       lxc launch testimage c12pool13 -s "lxdtest-$(basename "${LXD_DIR}")-pool13"
-      lxc list -c b c12pool13 | grep "lxdtest-$(basename "${LXD_DIR}")-pool13"
+      [ "$(lxc list -f csv -c b c12pool13)" = "lxdtest-$(basename "${LXD_DIR}")-pool13" ]
 
       lxc init testimage c10pool14 -s "lxdtest-$(basename "${LXD_DIR}")-pool14"
-      lxc list -c b c10pool14 | grep "lxdtest-$(basename "${LXD_DIR}")-pool14"
+      [ "$(lxc list -f csv -c b c10pool14)" = "lxdtest-$(basename "${LXD_DIR}")-pool14" ]
 
       lxc launch testimage c12pool14 -s "lxdtest-$(basename "${LXD_DIR}")-pool14"
-      lxc list -c b c12pool14 | grep "lxdtest-$(basename "${LXD_DIR}")-pool14"
+      [ "$(lxc list -f csv -c b c12pool14)" = "lxdtest-$(basename "${LXD_DIR}")-pool14" ]
 
       lxc init testimage c10pool15 -s "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15"
-      lxc list -c b c10pool15 | grep "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15"
+      [ "$(lxc list -f csv -c b c10pool15)" = "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" ]
 
       lxc launch testimage c12pool15 -s "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15"
-      lxc list -c b c12pool15 | grep "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15"
+      [ "$(lxc list -f csv -c b c12pool15)" = "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" ]
       lxc snapshot c12pool15
       test -b "/dev/lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15/containers_c12pool15"
       test -b "/dev/lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15/containers_c12pool15-snap0"
