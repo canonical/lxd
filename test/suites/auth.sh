@@ -93,7 +93,7 @@ test_authorization() {
   ! lxc auth identity group add "tls/${tls_user_fingerprint}" test-group || false # TLS identities cannot be added to groups (yet).
 
   spawn_oidc
-  lxc config set "oidc.issuer=http://127.0.0.1:$(cat "${TEST_DIR}/oidc.port")/"
+  lxc config set "oidc.issuer=http://127.0.0.1:$(< "${TEST_DIR}/oidc.port")/"
   lxc config set "oidc.client.id=device"
 
   set_oidc test-user test-user@example.com
