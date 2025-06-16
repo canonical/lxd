@@ -328,7 +328,7 @@ test_property() {
   lxc config show foo/s1 | grep -F "expires_at: 2024-03-23T17:38:37.753398689-04:00"
   lxc config unset foo/s1 expires_at --property
   lxc config show foo/s1 | grep -F "expires_at: 0001-01-01T00:00:00Z"
-
+  lxc delete -f foo
 
   # Create a storage volume, create a volume snapshot and set its expiration timestamp
   local storage_pool
@@ -348,7 +348,6 @@ test_property() {
 
   lxc delete -f c1
   lxc storage volume delete "${storage_pool}" "${storage_volume}"
-  lxc delete -f foo
 }
 
 test_config_edit_container_snapshot_pool_config() {
