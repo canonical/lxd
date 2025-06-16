@@ -127,8 +127,8 @@ EOF
 
       lxc image delete testimage
       lxc storage delete "$btrfs_storage_pool"
+      ensure_import_testimage
   fi
-  ensure_import_testimage
 
   (
     set -e
