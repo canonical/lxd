@@ -337,7 +337,12 @@ test_property() {
   lxc storage volume unset "${storage_pool}" "${storage_volume}"/snap0 expires_at --property
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep 'expires_at: 0001-01-01T00:00:00Z'
 
-  lxc delete -f c1
+  # Toggle the ephemeral flag on a running instance and check that it is deleted on stop
+  lxc config set c1 ephemeral=true --property
+  [ "$(lxc config get c1 ephemeral --property)" = "true" ]
+  lxc stop -f c1
+  [ "$(lxc list -f csv -c n)" = "" ]
+
   lxc storage volume delete "${storage_pool}" "${storage_volume}"
 }
 
