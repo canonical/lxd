@@ -527,19 +527,19 @@ test_clustering_containers() {
   ! LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/foo?recursion=1" || false
   ! LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/foo/state" || false
 
-  # Start a container without specifying any target. It will be placed
+  # Init a container without specifying any target. It will be placed
   # on node1 since node2 is offline and both node1 and node3 have zero
   # containers, but node1 has a lower node ID.
-  LXD_DIR="${LXD_THREE_DIR}" lxc launch testimage bar
+  LXD_DIR="${LXD_THREE_DIR}" lxc init --empty bar
   LXD_DIR="${LXD_THREE_DIR}" lxc info bar | grep -xF "Location: node1"
 
-  # Start a container without specifying any target. It will be placed
+  # Init a container without specifying any target. It will be placed
   # on node3 since node2 is offline and node1 already has a container.
-  LXD_DIR="${LXD_THREE_DIR}" lxc launch testimage egg
+  LXD_DIR="${LXD_THREE_DIR}" lxc init --empty egg
   LXD_DIR="${LXD_THREE_DIR}" lxc info egg | grep -xF "Location: node3"
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc stop egg --force
-  LXD_DIR="${LXD_ONE_DIR}" lxc stop bar --force
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete egg
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete bar
 
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
@@ -2077,25 +2077,21 @@ test_clustering_projects() {
   LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool="data"
 
   # Create a container in the project.
-  LXD_DIR="${LXD_ONE_DIR}" deps/import-busybox --project p1 --alias testimage
-  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 testimage c1
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 --empty c1
 
   # The container is visible through both nodes
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c n)" = "c1" ]
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c n)" = "c1" ]
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1
 
   # Remove the image file and DB record from node1.
-  rm "${LXD_ONE_DIR}"/images/*
   LXD_DIR="${LXD_TWO_DIR}" lxd sql global 'delete from images_nodes where node_id = 1'
 
   # Check image import from node2 by creating container on node1 in other project.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
-  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node1 testimage c2 --project p1
-  LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c2 --project p1
-
-  LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node1 --empty c2 --project p1
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c2 --project p1
 
   LXD_DIR="${LXD_ONE_DIR}" lxc project switch default
 
