@@ -132,9 +132,9 @@ kill_lxd() {
 
     if [ -e "${daemon_dir}/unix.socket" ]; then
         # Delete all containers
-        echo "==> Deleting all containers"
-        for container in $(timeout -k 2 2 lxc list --force-local --format csv --columns n); do
-            timeout -k 10 10 lxc delete "${container}" --force-local -f || true
+        echo "==> Deleting all instances"
+        for instance in $(timeout -k 2 2 lxc list --force-local --format csv --columns n); do
+            timeout -k 10 10 lxc delete "${instance}" --force-local -f || true
         done
 
         # Delete all images
