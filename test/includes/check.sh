@@ -12,7 +12,7 @@ check_dependencies() {
 
     if [ -n "$missing" ]; then
        echo "Missing dependencies: $missing" >&2
-       exit 1
+       return 1
     fi
 }
 
