@@ -51,30 +51,8 @@ if [ "${PWD}" != "$(dirname "${0}")" ]; then
 fi
 import_subdir_files includes
 
-# Default to dir backend if none is specified
-# If the requested backend is specified but the needed tooling is missing, try to install it.
-if [ -z "${LXD_BACKEND:-}" ]; then
-    LXD_BACKEND="dir"
-elif ! is_backend_available "${LXD_BACKEND}"; then
-    pkg=""
-    case "${LXD_BACKEND}" in
-      ceph)
-        pkg="ceph-common";;
-      lvm)
-        pkg="lvm2";;
-      zfs)
-        pkg="zfsutils-linux";;
-      *)
-        ;;
-    esac
-
-    if [ -n "${pkg}" ] && command -v apt-get >/dev/null; then
-        apt-get install --no-install-recommends -y "${pkg}"
-
-        # Verify that the newly installed tools made the storage backend available
-        is_backend_available "${LXD_BACKEND}"
-    fi
-fi
+# Install needed storage driver tools
+install_storage_driver_tools
 
 echo "==> Checking for dependencies"
 check_dependencies lxd lxc curl busybox dnsmasq iptables jq nc ping yq git sqlite3 rsync shuf setfacl setfattr socat swtpm dig xz

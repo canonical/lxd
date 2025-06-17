@@ -32,3 +32,30 @@ ensure_import_testimage() {
         deps/import-busybox --alias testimage --project "$project"
     fi
 }
+
+install_storage_driver_tools() {
+    # Default to dir backend if none is specified
+    # If the requested backend is specified but the needed tooling is missing, try to install it.
+    if [ -z "${LXD_BACKEND:-}" ]; then
+        LXD_BACKEND="dir"
+    elif ! is_backend_available "${LXD_BACKEND}"; then
+        pkg=""
+        case "${LXD_BACKEND}" in
+          ceph)
+            pkg="ceph-common";;
+          lvm)
+            pkg="lvm2";;
+          zfs)
+            pkg="zfsutils-linux";;
+          *)
+            ;;
+        esac
+
+        if [ -n "${pkg}" ] && command -v apt-get >/dev/null; then
+            apt-get install --no-install-recommends -y "${pkg}"
+
+            # Verify that the newly installed tools made the storage backend available
+            is_backend_available "${LXD_BACKEND}"
+        fi
+    fi
+}
