@@ -61,7 +61,7 @@ type Client struct {
 
 // pro is an internal interface that is used for mocking calls to the pro CLI.
 type pro interface {
-	getGuestToken(ctx context.Context) (*api.UbuntuProGuestTokenResponse, error)
+	getGuestToken(ctx context.Context) (*api.DevLXDUbuntuProGuestTokenResponse, error)
 }
 
 // proCLI calls the actual Ubuntu Pro CLI to implement the interface.
@@ -72,7 +72,7 @@ type proCLI struct{}
 type proAPIGetGuestTokenV1 struct {
 	Result string `json:"result"`
 	Data   struct {
-		Attributes api.UbuntuProGuestTokenResponse `json:"attributes"`
+		Attributes api.DevLXDUbuntuProGuestTokenResponse `json:"attributes"`
 	} `json:"data"`
 	Errors []struct {
 		Title string `json:"title"`
@@ -80,7 +80,7 @@ type proAPIGetGuestTokenV1 struct {
 }
 
 // getTokenJSON runs `pro api u.pro.attach.guest.get_guest_token.v1` and returns the result.
-func (proCLI) getGuestToken(ctx context.Context) (*api.UbuntuProGuestTokenResponse, error) {
+func (proCLI) getGuestToken(ctx context.Context) (*api.DevLXDUbuntuProGuestTokenResponse, error) {
 	// Run pro guest attach command.
 	response, err := shared.RunCommandContext(ctx, "pro", "api", "u.pro.attach.guest.get_guest_token.v1")
 	if err != nil {
@@ -143,13 +143,13 @@ func (s *Client) getGuestAttachSetting(instanceSetting string) string {
 }
 
 // GuestAttachSettings returns UbuntuProSettings based on the instance configuration and the GuestAttachSetting of the host.
-func (s *Client) GuestAttachSettings(instanceSetting string) api.UbuntuProSettings {
-	return api.UbuntuProSettings{GuestAttach: s.getGuestAttachSetting(instanceSetting)}
+func (s *Client) GuestAttachSettings(instanceSetting string) api.DevLXDUbuntuProSettings {
+	return api.DevLXDUbuntuProSettings{GuestAttach: s.getGuestAttachSetting(instanceSetting)}
 }
 
 // GetGuestToken returns a 403 Forbidden error if the host or the instance has guestAttachSettingOff, otherwise
 // it calls the pro shim to get a token.
-func (s *Client) GetGuestToken(ctx context.Context, instanceSetting string) (*api.UbuntuProGuestTokenResponse, error) {
+func (s *Client) GetGuestToken(ctx context.Context, instanceSetting string) (*api.DevLXDUbuntuProGuestTokenResponse, error) {
 	if s.getGuestAttachSetting(instanceSetting) == guestAttachSettingOff {
 		return nil, api.NewStatusError(http.StatusForbidden, "Guest attachment not allowed")
 	}
@@ -244,7 +244,7 @@ func (s *Client) parseConfigFile(lxdConfigFile string) error {
 
 	defer f.Close()
 
-	var settings api.UbuntuProSettings
+	var settings api.DevLXDUbuntuProSettings
 	err = json.NewDecoder(f).Decode(&settings)
 	if err != nil {
 		return fmt.Errorf("Failed to read Ubuntu Pro configuration file: %w", err)
