@@ -1,5 +1,15 @@
 # Helper functions related to storage backends.
 
+# is_backend_available checks if a given backend is available by matching it against the list of available storage backends.
+# Surrounding spaces in the pattern (" $(available_storage_backends) ") are used to ensure exact matches,
+# avoiding partial matches (e.g., "dir" matching "directory").
+is_backend_available() {
+    case " $(available_storage_backends) " in
+        *" $1 "*) return 0;;
+        *) return 1;;
+    esac
+}
+
 # Whether a storage backend is available
 storage_backend_available() {
     local backends
