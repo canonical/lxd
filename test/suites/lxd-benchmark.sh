@@ -5,6 +5,10 @@ test_lxd_benchmark_basic(){
 
   ensure_import_testimage
 
+  # Initial smoke test.
+  lxd-benchmark launch --count 1 --report-file "${report_file}" testimage
+  lxd-benchmark delete --report-file "${report_file}"
+
   lxd-benchmark init --count "${count}" --report-file "${report_file}" testimage
   [ "$(lxc list -f csv -c n STATUS=stopped | grep -cwF benchmark)" = "${count}" ]
   lxd-benchmark start --report-file "${report_file}"
@@ -18,7 +22,7 @@ test_lxd_benchmark_basic(){
 
   # Check the number of lines matches the number of commands + the header line
   cat "${report_file}"
-  [ "$(wc -l < "${report_file}")" = "5" ]
+  [ "$(wc -l < "${report_file}")" = "7" ]
 
   # cleanup
   rm "${report_file}"
