@@ -59,3 +59,37 @@ install_storage_driver_tools() {
         fi
     fi
 }
+
+install_instance_drivers() {
+    # ATM, only VMs require some extra tooling
+    if [ "${LXD_VM_TESTS:-0}" = "0" ]; then
+        return
+    fi
+
+    local UNAME
+    local QEMU_SYSTEM
+
+    UNAME="$(uname -m)"
+    if [ "${UNAME}" = "x86_64" ]; then
+        QEMU_SYSTEM="qemu-system-x86"
+    elif [ "${UNAME}" = "aarch64" ]; then
+        QEMU_SYSTEM="qemu-system-arm"
+    else
+        echo "Unable to find the right QEMU system package for: ${UNAME}"
+        exit 1
+    fi
+
+    if ! check_dependencies qemu-img "qemu-system-${UNAME}" sgdisk && command -v apt-get >/dev/null; then
+        # On 22.04, QEMU comes with spice modules and virtiofsd
+        if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
+            apt-get install --no-install-recommends -y gdisk ovmf qemu-block-extra "${QEMU_SYSTEM}" qemu-utils
+        else
+            apt-get install --no-install-recommends -y gdisk ovmf qemu-block-extra "${QEMU_SYSTEM}" qemu-utils qemu-system-modules-spice virtiofsd
+
+            check_dependencies virtiofsd
+        fi
+
+        # Verify that the newly installed tools provided the needed binaries
+        check_dependencies qemu-img "qemu-system-${UNAME}" sgdisk
+    fi
+}
