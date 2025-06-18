@@ -545,7 +545,7 @@ migration() {
   ! lxc_remote storage volume show "l1:${remote_pool1}" container/c1/snap0 | grep '^created_at: 0001-01-01T00:00:00Z' || false
   lxc_remote copy l1:c1 l2:c1
   ! lxc_remote storage volume show "l2:${remote_pool2}" container/c1 | grep '^created_at: 0001-01-01T00:00:00Z' || false
-  [ "$(lxc_remote storage volume show "l1:${remote_pool1}" container/c1/snap0 | awk /created_at:/)" = "$(lxc_remote storage volume show "l2:${remote_pool2}" container/c1/snap0 | awk /created_at:/)" ]
+  [ "$(lxc_remote storage volume get --property "l1:${remote_pool1}" container/c1/snap0 created_at)" = "$(lxc_remote storage volume get --property "l2:${remote_pool2}" container/c1/snap0 created_at)" ]
   lxc_remote delete l1:c1 -f
   lxc_remote delete l2:c1 -f
 
