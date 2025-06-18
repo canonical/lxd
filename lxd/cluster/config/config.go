@@ -226,6 +226,16 @@ func (c *Config) RemoteTokenExpiry() string {
 	return c.m.GetString("core.remote_token_expiry")
 }
 
+// SecretLifetime returns the number of milliseconds that a secret is considered valid for.
+func (c *Config) SecretLifetime() (int64, error) {
+	exp, err := shared.GetExpiry(time.Unix(0, 0), c.m.GetString("core.secret_lifetime"))
+	if err != nil {
+		return -1, err
+	}
+
+	return exp.UnixMilli(), nil
+}
+
 // OIDCServer returns all the OpenID Connect settings needed to connect to a server.
 func (c *Config) OIDCServer() (issuer string, clientID string, scopes []string, audience string, groupsClaim string) {
 	return c.m.GetString("oidc.issuer"), c.m.GetString("oidc.client.id"), strings.Fields(c.m.GetString("oidc.scopes")), c.m.GetString("oidc.audience"), c.m.GetString("oidc.groups.claim")
@@ -500,6 +510,23 @@ var ConfigSchema = config.Schema{
 	//  defaultdesc: `false`
 	//  shortdesc: Whether to automatically trust clients signed by the CA
 	"core.trust_ca_certificates": {Type: config.Bool, Default: "false"},
+
+	// lxdmeta:generate(entities=server; group=core; key=core.secret_lifetime)
+	// The cluster secret is used for various cryptographic purposes, such as cookie encryption.
+	// When a given secret is older than the configured lifetime, a new secret is generated.
+	// The secret should be rotated regularly.
+	//
+	// This configuration option accepts multiple space separated values of the form `[0-9]+(S|M|H|d|w|m|y)`,
+	// where `S` is seconds, `M` is minutes, `H` is hours, `d` is days, `w` is weeks, `m` is months, and `y` is years.
+	// For example, `1d 3H` is 1 day and 3 hours.
+	//
+	// The default value is `1w` (1 week).
+	// ---
+	//  type: bool
+	//  scope: global
+	//  defaultdesc: `false`
+	//  shortdesc: How long to use a given cluster secret.
+	"core.secret_lifetime": {Default: "7d", Validator: expiryValidator},
 
 	// lxdmeta:generate(entities=server; group=images; key=images.auto_update_cached)
 	//
