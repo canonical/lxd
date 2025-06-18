@@ -8,8 +8,10 @@ test_migration() {
   spawn_lxd "${LXD2_DIR}" true
   LXD2_ADDR=$(cat "${LXD2_DIR}/lxd.addr")
 
-  # workaround for kernel/criu
-  umount /sys/kernel/debug >/dev/null 2>&1 || true
+  if command -v criu >/dev/null; then
+    # workaround for kernel/criu
+    umount /sys/kernel/debug >/dev/null 2>&1 || true
+  fi
 
   token="$(lxc config trust add --name foo -q)"
   # shellcheck disable=2153
