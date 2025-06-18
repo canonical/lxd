@@ -2546,8 +2546,19 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 	revert := revert.New()
 	defer revert.Fail()
 
+	// Get the project backups volume.
+	var projectBackupsVolume string
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		projectBackupsVolume, err = cluster.GetProjectConfigValue(ctx, tx.Tx(), projectName, "storage.backups_volume")
+		return err
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Create temporary file to store uploaded backup data.
-	backupFile, err := os.CreateTemp(s.BackupsStoragePath(""), backup.WorkingDirPrefix+"_")
+	backupFile, err := os.CreateTemp(s.BackupsStoragePath(projectBackupsVolume), backup.WorkingDirPrefix+"_")
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -2577,7 +2588,7 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 		decomArgs := append(decomArgs, backupFile.Name())
 
 		// Create temporary file to store the decompressed tarball in.
-		tarFile, err := os.CreateTemp(s.BackupsStoragePath(""), backup.WorkingDirPrefix+"_decompress_")
+		tarFile, err := os.CreateTemp(s.BackupsStoragePath(projectBackupsVolume), backup.WorkingDirPrefix+"_decompress_")
 		if err != nil {
 			return response.InternalError(err)
 		}
