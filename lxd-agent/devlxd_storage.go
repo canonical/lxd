@@ -182,6 +182,33 @@ func devLXDStoragePoolVolumeDeleteHandler(d *Daemon, r *http.Request) *devLXDRes
 	return okResponse(op.Get(), "json")
 }
 
+var devLXDStoragePoolVolumeSnapshotsEndpoint = devLXDAPIEndpoint{
+	Path: "storage-pools/{pool}/volumes/{type}/{volume}/snapshots",
+	Get:  devLXDAPIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotsGetHandler},
+}
+
+func devLXDStoragePoolVolumeSnapshotsGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
+	poolName, volType, volName, err := extractVolumeParams(r)
+	if err != nil {
+		return errorResponse(http.StatusBadRequest, err.Error())
+	}
+
+	client, err := getDevLXDVsockClient(d, r)
+	if err != nil {
+		return smartResponse(err)
+	}
+
+	client = client.UseTarget(r.URL.Query().Get("target"))
+	defer client.Disconnect()
+
+	snapshots, err := client.GetStoragePoolVolumeSnapshots(poolName, volType, volName)
+	if err != nil {
+		return smartResponse(err)
+	}
+
+	return okResponse(snapshots, "json")
+}
+
 // extractVolumeParams extracts the pool name, volume type and volume name from the request URL.
 func extractVolumeParams(r *http.Request) (poolName string, volType string, volName string, err error) {
 	poolName, err = url.PathUnescape(r.PathValue("pool"))
