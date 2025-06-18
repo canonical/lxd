@@ -50,8 +50,9 @@ var devLXDStoragePoolVolumeSnapshotsEndpoint = APIEndpoint{
 }
 
 var devLXDStoragePoolVolumeSnapshotEndpoint = APIEndpoint{
-	Path: "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots/{snapshotName}",
-	Get:  APIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotGetHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolumeSnapshot, auth.EntitlementCanView)},
+	Path:   "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots/{snapshotName}",
+	Get:    APIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotGetHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolumeSnapshot, auth.EntitlementCanView)},
+	Delete: APIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotDeleteHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(entity.TypeStorageVolumeSnapshot, auth.EntitlementCanDelete)},
 }
 
 // devLXDStoragePoolGetHandler retrieves information about the specified storage pool.
@@ -706,6 +707,58 @@ func devLXDStoragePoolVolumeSnapshotGetHandler(d *Daemon, r *http.Request) respo
 	}
 
 	return response.DevLXDResponseETag(http.StatusOK, respSnapshot, "json", etag)
+}
+
+// devLXDStoragePoolVolumeSnapshotDeleteHandler deletes the specified storage volume snapshot.
+// If the snapshot is not found or the parent volume is not owned by the caller, a generic not found error is returned.
+func devLXDStoragePoolVolumeSnapshotDeleteHandler(d *Daemon, r *http.Request) response.Response {
+	inst, err := getInstanceFromContextAndCheckSecurityFlags(r.Context(), devLXDSecurityKey, devLXDSecurityManagementVolumesKey)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	poolName, volType, volName, err := extractVolumeParams(r)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	snapName, err := url.PathUnescape(mux.Vars(r)["snapshotName"])
+	if err != nil {
+		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
+	}
+
+	projectName := inst.Project().Name
+	target := r.URL.Query().Get("target")
+
+	// Restrict access to custom volumes.
+	if volType != "custom" {
+		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusBadRequest, "Only snapshot from custom storage volume can be retrieved"))
+	}
+
+	// Retrieve the parent volume first to ensure the caller owns it.
+	_, _, err = devLXDStoragePoolVolumeGet(r.Context(), d, target, projectName, poolName, volName, volType)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	// Delete storage volume snapshot.
+	url := api.NewURL().Path("1.0", "storage-pools", poolName, "volumes", volType, volName, "snapshots", snapName).Project(projectName)
+	if target != "" {
+		url = url.WithQuery("target", target)
+	}
+
+	req, err := lxd.NewRequestWithContext(r.Context(), http.MethodDelete, url.String(), nil, "")
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	resp := storagePoolVolumeSnapshotTypeDelete(d, req)
+	op, err := response.NewResponseCapture(req).RenderToOperation(resp)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	return response.DevLXDOperationResponse(*op)
 }
 
 // isDevLXDVolumeOwner checks whether the given storage volume is owned by the specified identity ID.
