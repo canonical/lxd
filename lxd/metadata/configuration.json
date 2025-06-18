@@ -4994,6 +4994,20 @@
 						}
 					},
 					{
+						"storage.backups_volume": {
+							"longdesc": "Specify the volume using the syntax `POOL/VOLUME`.",
+							"shortdesc": "Volume to use to store backup tarballs",
+							"type": "string"
+						}
+					},
+					{
+						"storage.images_volume": {
+							"longdesc": "Specify the volume using the syntax `POOL/VOLUME`.",
+							"shortdesc": "Volume to use to store the image tarballs",
+							"type": "string"
+						}
+					},
+					{
 						"user.*": {
 							"longdesc": "",
 							"shortdesc": "User-provided free-form key/value pairs",

@@ -4458,6 +4458,18 @@ Possible values are `bzip2`, `gzip`, `lzma`, `xz`, or `none`.
 Specify the number of days after which the unused cached image expires.
 ```
 
+```{config:option} storage.backups_volume project-specific
+:shortdesc: "Volume to use to store backup tarballs"
+:type: "string"
+Specify the volume using the syntax `POOL/VOLUME`.
+```
+
+```{config:option} storage.images_volume project-specific
+:shortdesc: "Volume to use to store the image tarballs"
+:type: "string"
+Specify the volume using the syntax `POOL/VOLUME`.
+```
+
 ```{config:option} user.* project-specific
 :shortdesc: "User-provided free-form key/value pairs"
 :type: "string"
