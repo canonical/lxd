@@ -51,8 +51,8 @@ test_migration() {
     for fs in "ext4" "btrfs" "xfs"; do
       local storage_pool1 storage_pool2
       # shellcheck disable=2153
-      storage_pool1="lxdtest-$(basename "${LXD_DIR}")-block-mode"
-      storage_pool2="lxdtest-$(basename "${LXD2_DIR}")-block-mode"
+      storage_pool1="lxdtest-$(basename "${LXD_DIR}")-block-mode-${fs}"
+      storage_pool2="lxdtest-$(basename "${LXD2_DIR}")-block-mode-${fs}"
       lxc_remote storage create l1:"$storage_pool1" zfs size=1GiB volume.zfs.block_mode=true volume.block.filesystem="${fs}"
       lxc_remote profile device set l1:default root pool "$storage_pool1"
 
