@@ -1980,7 +1980,8 @@ func (d *zfs) getVolumeDiskPathFromDataset(dataset string) (string, error) {
 			continue
 		}
 
-		if strings.TrimSpace(output) == dataset {
+		// Require the udev link to be present as well before returning the path.
+		if strings.TrimSpace(output) == dataset && shared.PathExists(zvolUdevLink) {
 			return entryPath, nil
 		}
 	}
