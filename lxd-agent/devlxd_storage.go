@@ -239,8 +239,9 @@ func devLXDStoragePoolVolumeSnapshotsPostHandler(d *Daemon, r *http.Request) *de
 }
 
 var devLXDStoragePoolVolumeSnapshotEndpoint = devLXDAPIEndpoint{
-	Path: "storage-pools/{pool}/volumes/{type}/{volume}/snapshots/{snapshot}",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotGetHandler},
+	Path:   "storage-pools/{pool}/volumes/{type}/{volume}/snapshots/{snapshot}",
+	Get:    devLXDAPIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotGetHandler},
+	Delete: devLXDAPIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotDeleteHandler},
 }
 
 func devLXDStoragePoolVolumeSnapshotGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
@@ -268,6 +269,33 @@ func devLXDStoragePoolVolumeSnapshotGetHandler(d *Daemon, r *http.Request) *devL
 	}
 
 	return okResponseETag(snapshot, "json", etag)
+}
+
+func devLXDStoragePoolVolumeSnapshotDeleteHandler(d *Daemon, r *http.Request) *devLXDResponse {
+	poolName, volType, volName, err := extractVolumeParams(r)
+	if err != nil {
+		return errorResponse(http.StatusBadRequest, err.Error())
+	}
+
+	snapshotName, err := url.PathUnescape(r.PathValue("snapshot"))
+	if err != nil {
+		return errorResponse(http.StatusBadRequest, err.Error())
+	}
+
+	client, err := getDevLXDVsockClient(d, r)
+	if err != nil {
+		return smartResponse(err)
+	}
+
+	client = client.UseTarget(r.URL.Query().Get("target"))
+	defer client.Disconnect()
+
+	op, err := client.DeleteStoragePoolVolumeSnapshot(poolName, volType, volName, snapshotName)
+	if err != nil {
+		return smartResponse(err)
+	}
+
+	return okResponse(op.Get(), "json")
 }
 
 // extractVolumeParams extracts the pool name, volume type and volume name from the request URL.
