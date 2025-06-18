@@ -130,3 +130,16 @@ func (r *ProtocolDevLXD) CreateStoragePoolVolumeSnapshot(poolName string, volTyp
 
 	return op, nil
 }
+
+// DeleteStoragePoolVolumeSnapshot deletes a storage volume snapshot for the given storage volume.
+func (r *ProtocolDevLXD) DeleteStoragePoolVolumeSnapshot(poolName string, volType string, volName string, snapshotName string) (DevLXDOperation, error) {
+	url := api.NewURL().Path("storage-pools", poolName, "volumes", volType, volName, "snapshots", snapshotName).URL
+	r.setURLQueryAttributes(&url)
+
+	op, _, err := r.queryOperation(http.MethodDelete, url.String(), nil, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}

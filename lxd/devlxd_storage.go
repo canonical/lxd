@@ -732,7 +732,7 @@ func devLXDStoragePoolVolumeSnapshotDeleteHandler(d *Daemon, r *http.Request) re
 
 	// Restrict access to custom volumes.
 	if volType != "custom" {
-		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusBadRequest, "Only snapshot from custom storage volume can be retrieved"))
+		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusBadRequest, "Only snapshots from custom storage volumes can be deleted"))
 	}
 
 	// Retrieve the parent volume first to ensure the caller owns it.
