@@ -117,3 +117,15 @@ type DevLXDStorageVolumeSnapshot struct {
 	// Example: {"zfs.remove_snapshots": "true", "size": "50GiB"}
 	Config map[string]string `json:"config" yaml:"config"`
 }
+
+// DevLXDStorageVolumeSnapshotsPost represents the fields available for
+// a new LXD storage volume snapshot.
+type DevLXDStorageVolumeSnapshotsPost struct {
+	// Snapshot name
+	// Example: snap0
+	Name string `json:"name" yaml:"name"`
+
+	// Description of the storage volume snapshot
+	// Example: My custom snapshot
+	Description string `json:"description" yaml:"description"`
+}
