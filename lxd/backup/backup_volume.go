@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
@@ -55,7 +56,18 @@ func (b *VolumeBackup) OptimizedStorage() bool {
 
 // Rename renames a volume backup.
 func (b *VolumeBackup) Rename(newName string) error {
-	backupsPath := b.state.BackupsStoragePath("")
+	// Get the project backups volume.
+	var projectBackupsVolume string
+	err := b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		config, err := cluster.GetProjectConfig(ctx, tx.Tx(), b.projectName)
+		projectBackupsVolume = config["storage.backups_volume"]
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	backupsPath := b.state.BackupsStoragePath(projectBackupsVolume)
 	oldBackupPath := filepath.Join(backupsPath, "custom", b.poolName, project.StorageVolume(b.projectName, b.name))
 	newBackupPath := filepath.Join(backupsPath, "custom", b.poolName, project.StorageVolume(b.projectName, newName))
 
@@ -79,7 +91,7 @@ func (b *VolumeBackup) Rename(newName string) error {
 	}
 
 	// Rename the backup directory.
-	err := os.Rename(oldBackupPath, newBackupPath)
+	err = os.Rename(oldBackupPath, newBackupPath)
 	if err != nil {
 		return err
 	}
@@ -109,7 +121,18 @@ func (b *VolumeBackup) Rename(newName string) error {
 
 // Delete removes a volume backup.
 func (b *VolumeBackup) Delete() error {
-	backupsPathBase := b.state.BackupsStoragePath("")
+	// Get the project backups volume.
+	var projectBackupsVolume string
+	err := b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		config, err := cluster.GetProjectConfig(ctx, tx.Tx(), b.projectName)
+		projectBackupsVolume = config["storage.backups_volume"]
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	backupsPathBase := b.state.BackupsStoragePath(projectBackupsVolume)
 	backupPath := filepath.Join(backupsPathBase, "custom", b.poolName, project.StorageVolume(b.projectName, b.name))
 	// Delete the on-disk data.
 	if shared.PathExists(backupPath) {
@@ -130,7 +153,7 @@ func (b *VolumeBackup) Delete() error {
 	}
 
 	// Remove the database record.
-	err := b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.DeleteStoragePoolVolumeBackup(ctx, b.name)
 	})
 	if err != nil {

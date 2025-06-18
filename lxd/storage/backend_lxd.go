@@ -2586,7 +2586,7 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 		// The conversion cannot be done in-place, therefore the image has to be
 		// saved in an intermediate location.
 		conversionID := "conversion_" + inst.Project().Name + "_" + inst.Name()
-		imgPath := filepath.Join(b.state.BackupsStoragePath(""), conversionID)
+		imgPath := filepath.Join(b.state.BackupsStoragePath(inst.Project().Config["storage.backups_volume"]), conversionID)
 
 		// Create new file in backups directory.
 		to, err := os.OpenFile(imgPath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0600)
@@ -6493,8 +6493,19 @@ func (b *lxdBackend) DeleteCustomVolume(projectName string, volName string, op *
 		}
 	}
 
+	// Get the project backups volume.
+	var projectBackupsVolume string
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		config, err := cluster.GetProjectConfig(ctx, tx.Tx(), projectName)
+		projectBackupsVolume = config["storage.backups_volume"]
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
 	// Remove backups directory for volume.
-	backupsPath := filepath.Join(b.state.BackupsStoragePath(""), "custom", b.name, project.StorageVolume(projectName, volName))
+	backupsPath := filepath.Join(b.state.BackupsStoragePath(projectBackupsVolume), "custom", b.name, project.StorageVolume(projectName, volName))
 	if shared.PathExists(backupsPath) {
 		err := os.RemoveAll(backupsPath)
 		if err != nil {

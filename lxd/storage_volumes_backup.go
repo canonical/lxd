@@ -829,8 +829,19 @@ func storagePoolVolumeTypeCustomBackupExportGet(d *Daemon, r *http.Request) resp
 		return response.SmartError(err)
 	}
 
+	// Get the project backups volume.
+	var projectBackupsVolume string
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		config, err := cluster.GetProjectConfig(ctx, tx.Tx(), effectiveProjectName)
+		projectBackupsVolume = config["storage.backups_volume"]
+		return err
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	ent := response.FileResponseEntry{
-		Path: filepath.Join(s.BackupsStoragePath(""), "custom", details.pool.Name(), project.StorageVolume(effectiveProjectName, fullName)),
+		Path: filepath.Join(s.BackupsStoragePath(projectBackupsVolume), "custom", details.pool.Name(), project.StorageVolume(effectiveProjectName, fullName)),
 	}
 
 	s.Events.SendLifecycle(effectiveProjectName, lifecycle.StorageVolumeBackupRetrieved.Event(details.pool.Name(), details.volumeTypeName, fullName, effectiveProjectName, request.CreateRequestor(r.Context()), nil))

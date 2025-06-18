@@ -658,7 +658,18 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	revert := revert.New()
 	defer revert.Fail()
 
-	backupsPath := s.BackupsStoragePath("")
+	// Get the project backups volume.
+	var projectBackupsVolume string
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		config, err := dbCluster.GetProjectConfig(ctx, tx.Tx(), projectName)
+		projectBackupsVolume = config["storage.backups_volume"]
+		return err
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	backupsPath := s.BackupsStoragePath(projectBackupsVolume)
 
 	// Create temporary file to store uploaded backup data.
 	backupFile, err := os.CreateTemp(backupsPath, backup.WorkingDirPrefix+"_")
