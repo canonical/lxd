@@ -87,3 +87,18 @@ func (r *ProtocolDevLXD) DeleteStoragePoolVolume(poolName string, volType string
 
 	return op, nil
 }
+
+// GetStoragePoolVolumeSnapshots retrieves the storage volume snapshots for the given volume.
+func (r *ProtocolDevLXD) GetStoragePoolVolumeSnapshots(poolName string, volType string, volName string) ([]api.DevLXDStorageVolumeSnapshot, error) {
+	var snapshots []api.DevLXDStorageVolumeSnapshot
+
+	url := api.NewURL().Path("storage-pools", poolName, "volumes", volType, volName, "snapshots").WithQuery("recursion", "1").URL
+	r.setURLQueryAttributes(&url)
+
+	_, err := r.queryStruct(http.MethodGet, url.String(), nil, "", &snapshots)
+	if err != nil {
+		return nil, err
+	}
+
+	return snapshots, nil
+}
