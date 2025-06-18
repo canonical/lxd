@@ -547,6 +547,7 @@ type DevLXDServer interface {
 	// DevLXD storage volume snapshots.
 	GetStoragePoolVolumeSnapshots(poolName string, volType string, volName string) (snapshots []api.DevLXDStorageVolumeSnapshot, err error)
 	GetStoragePoolVolumeSnapshot(poolName string, volType string, volName string, snapshotName string) (snapshot *api.DevLXDStorageVolumeSnapshot, ETag string, err error)
+	CreateStoragePoolVolumeSnapshot(poolName string, volType string, volName string, snapshot api.DevLXDStorageVolumeSnapshotsPost) (op DevLXDOperation, err error)
 
 	// DevLXD operations.
 	GetOperationWait(uuid string, timeout int) (*api.DevLXDOperation, string, error)

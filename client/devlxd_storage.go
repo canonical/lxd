@@ -117,3 +117,16 @@ func (r *ProtocolDevLXD) GetStoragePoolVolumeSnapshot(poolName string, volType s
 
 	return &snap, etag, nil
 }
+
+// CreateStoragePoolVolumeSnapshot creates a new storage volume snapshot for the given storage volume.
+func (r *ProtocolDevLXD) CreateStoragePoolVolumeSnapshot(poolName string, volType string, volName string, snapshot api.DevLXDStorageVolumeSnapshotsPost) (DevLXDOperation, error) {
+	url := api.NewURL().Path("storage-pools", poolName, "volumes", volType, volName, "snapshots").URL
+	r.setURLQueryAttributes(&url)
+
+	op, _, err := r.queryOperation(http.MethodPost, url.String(), snapshot, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
