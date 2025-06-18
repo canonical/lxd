@@ -6927,8 +6927,9 @@ func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName str
 			diskPools[poolName] = diskPool
 		}
 
-		// Check that we're on shared storage.
-		if !diskPool.Driver().Info().Remote {
+		// Check that we're on shared storage and doing a cluster move.
+		isRemoteClusterMove := clusterMoveSourceName != "" && diskPool.Driver().Info().Remote
+		if !isRemoteClusterMove {
 			continue
 		}
 
@@ -7455,8 +7456,9 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 				diskPools[poolName] = diskPool
 			}
 
-			// Check that we're on shared storage.
-			if !diskPool.Driver().Info().Remote {
+			// Check that we're on shared storage and doing a cluster move.
+			isRemoteClusterMove := args.ClusterMoveSourceName != "" && diskPool.Driver().Info().Remote
+			if !isRemoteClusterMove {
 				continue
 			}
 
@@ -7468,7 +7470,8 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			vol := diskPool.GetVolume(storageDrivers.VolumeTypeCustom, storageDrivers.ContentTypeBlock, project.StorageVolume(storageProjectName, dev.Config["source"]), nil)
 			volCopy := storageDrivers.NewVolumeCopy(vol)
 
-			// Create a volume from the migration.
+			// Notify shared storage driver to setup volume on cluster member.
+			// This is needed to ensure that mount path exists and the volume is mounted.
 			err = diskPool.Driver().CreateVolumeFromMigration(volCopy, nil, extraTargetArgs, nil, nil)
 			if err != nil {
 				return fmt.Errorf("Failed to prepare device %q for migration: %w", dev.Name, err)
