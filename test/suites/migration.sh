@@ -8,8 +8,10 @@ test_migration() {
   spawn_lxd "${LXD2_DIR}" true
   LXD2_ADDR=$(cat "${LXD2_DIR}/lxd.addr")
 
-  # workaround for kernel/criu
-  umount /sys/kernel/debug >/dev/null 2>&1 || true
+  if command -v criu >/dev/null; then
+    # workaround for kernel/criu
+    umount /sys/kernel/debug >/dev/null 2>&1 || true
+  fi
 
   # shellcheck disable=2153
   lxc_remote remote add l1 "${LXD_ADDR}" --accept-certificate --password foo
