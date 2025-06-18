@@ -538,6 +538,9 @@ type DevLXDServer interface {
 	UpdateStoragePoolVolume(poolName string, volType string, volName string, vol api.DevLXDStorageVolumePut, ETag string) error
 	DeleteStoragePoolVolume(poolName string, volType string, volName string) error
 
+	// DevLXD storage volume snapshots.
+	GetStoragePoolVolumeSnapshots(poolName string, volType string, volName string) (snapshots []api.DevLXDStorageVolumeSnapshot, err error)
+
 	// DevLXD operations.
 	GetOperationWait(uuid string, timeout int) (*api.DevLXDOperation, string, error)
 	DeleteOperation(uuid string) error
