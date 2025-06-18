@@ -238,6 +238,38 @@ func devLXDStoragePoolVolumeSnapshotsPostHandler(d *Daemon, r *http.Request) *de
 	return okResponse(op.Get(), "json")
 }
 
+var devLXDStoragePoolVolumeSnapshotEndpoint = devLXDAPIEndpoint{
+	Path: "storage-pools/{pool}/volumes/{type}/{volume}/snapshots/{snapshot}",
+	Get:  devLXDAPIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotGetHandler},
+}
+
+func devLXDStoragePoolVolumeSnapshotGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
+	poolName, volType, volName, err := extractVolumeParams(r)
+	if err != nil {
+		return errorResponse(http.StatusBadRequest, err.Error())
+	}
+
+	snapshotName, err := url.PathUnescape(r.PathValue("snapshot"))
+	if err != nil {
+		return errorResponse(http.StatusBadRequest, err.Error())
+	}
+
+	client, err := getDevLXDVsockClient(d, r)
+	if err != nil {
+		return smartResponse(err)
+	}
+
+	client = client.UseTarget(r.URL.Query().Get("target"))
+	defer client.Disconnect()
+
+	snapshot, etag, err := client.GetStoragePoolVolumeSnapshot(poolName, volType, volName, snapshotName)
+	if err != nil {
+		return smartResponse(err)
+	}
+
+	return okResponseETag(snapshot, "json", etag)
+}
+
 // extractVolumeParams extracts the pool name, volume type and volume name from the request URL.
 func extractVolumeParams(r *http.Request) (poolName string, volType string, volName string, err error) {
 	poolName, err = url.PathUnescape(r.PathValue("pool"))
