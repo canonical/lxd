@@ -1940,7 +1940,7 @@ func (d *zfs) getVolumeDiskPathFromDataset(dataset string) (string, error) {
 	zvolUdevLink := filepath.Join("/dev/zvol", dataset)
 
 	// Shortcut for udev.
-	if shared.PathExists(zvolUdevLink) {
+	if shared.PathExists(zvolUdevLink) && shared.IsBlockdevPath(zvolUdevLink) {
 		return zvolUdevLink, nil
 	}
 
@@ -1980,7 +1980,7 @@ func (d *zfs) getVolumeDiskPathFromDataset(dataset string) (string, error) {
 			continue
 		}
 
-		if strings.TrimSpace(output) == dataset {
+		if strings.TrimSpace(output) == dataset && shared.IsBlockdevPath(entryPath) {
 			return entryPath, nil
 		}
 	}
