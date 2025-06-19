@@ -1,4 +1,9 @@
 test_container_devices_nic_p2p() {
+  if uname -r | grep -- -kvm$; then
+    echo "==> SKIP: the -kvm kernel flavor is missing CONFIG_NET_SCH_HTB which is required for 'tc qdisc htb'"
+    return
+  fi
+
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
