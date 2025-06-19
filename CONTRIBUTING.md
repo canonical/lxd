@@ -147,10 +147,9 @@ Once LXD is installed and {ref}`initialized <initialize>`, a special profile (`l
 ```sh
 # this needs to be run from inside the git repostory
 GIT_ROOT="$(git rev-parse --show-toplevel)"
-# delete any old copy of the profile
-lxc profile list | grep -qwF lxd-test && lxc profile delete lxd-test
-# create the profile based on the provided template
-sed "s|@@PATH_TO_LXD_GIT@@|${GIT_ROOT}|" "${GIT_ROOT}/doc/lxd-test.yaml" | lxc profile create lxd-test
+# create or edit the profile based on the provided template
+lxc profile list | grep -qwF lxd-test || lxc profile create lxd-test
+sed "s|@@PATH_TO_LXD_GIT@@|${GIT_ROOT}|" "${GIT_ROOT}/doc/lxd-test.yaml" | lxc profile edit lxd-test
 ```
 
 The `lxd-test` profile assigns CPU and memory limits similar to those available in free GitHub Action runners. Those can be adapted to the specifications of a more modest physical machine:
