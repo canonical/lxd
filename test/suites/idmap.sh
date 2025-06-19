@@ -36,11 +36,6 @@ test_idmap() {
     done
   fi
 
-  if [ "${UIDs}" -lt 500000 ] || [ "${GIDs}" -lt 500000 ]; then
-    echo "==> SKIP: The idmap test requires at least 500000 uids and gids"
-    return
-  fi
-
   # Setup daemon
   ensure_import_testimage
 
