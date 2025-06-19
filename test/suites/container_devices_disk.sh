@@ -56,8 +56,7 @@ _container_devices_disk_shift() {
   lxc config device add foo idmapped_mount disk source="${TEST_DIR}/shift-source" path=/mnt shift=true
   [ "$(lxc exec foo -- stat /mnt/a -c '%u:%g')" = "123:456" ]
 
-  lxc stop foo -f
-  lxc start foo
+  lxc restart foo -f
   [ "$(lxc exec foo -- stat /mnt/a -c '%u:%g')" = "123:456" ]
   lxc config device remove foo idmapped_mount
   lxc stop foo -f
