@@ -4,6 +4,11 @@ test_vm_empty() {
     return
   fi
 
+  if [ "${LXD_TMPFS:-0}" = "1" ] && ! runsMinimumKernel 6.6; then
+    echo "==> SKIP: QEMU requires direct-io support which requires a kernel >= 6.6 for tmpfs support (LXD_TMPFS=${LXD_TMPFS})"
+    return
+  fi
+
   if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
     echo "Using migration.stateful to force 9p config drive thus avoiding the old/incompatible virtiofsd"
     lxc profile set default migration.stateful=true
