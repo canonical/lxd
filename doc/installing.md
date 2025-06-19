@@ -274,6 +274,7 @@ sudo apt install \
     iputils-ping \
     jq \
     netcat-openbsd \
+    s3cmd \
     shellcheck \
     socat \
     sqlite3 \
