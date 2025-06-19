@@ -125,7 +125,7 @@ kill_lxd() {
       return
     fi
 
-    daemon_pid=$(cat "${daemon_dir}/lxd.pid")
+    daemon_pid=$(< "${daemon_dir}/lxd.pid")
     check_leftovers="false"
     lxd_backend=$(storage_backend "$daemon_dir")
     echo "==> Killing LXD at ${daemon_dir} (${daemon_pid})"
@@ -268,7 +268,7 @@ shutdown_lxd() {
     daemon_dir=${1}
     # shellcheck disable=2034
     LXD_DIR=${daemon_dir}
-    daemon_pid=$(cat "${daemon_dir}/lxd.pid")
+    daemon_pid=$(< "${daemon_dir}/lxd.pid")
     echo "==> Shutting down LXD at ${daemon_dir} (${daemon_pid})"
 
     # Shutting down the daemon
@@ -356,7 +356,7 @@ lxd_shutdown_restart() {
     scenario=${1}
     LXD_DIR=${2}
 
-    daemon_pid=$(cat "${LXD_DIR}/lxd.pid")
+    daemon_pid=$(< "${LXD_DIR}/lxd.pid")
     echo "==> Shutting down LXD at ${LXD_DIR} (${daemon_pid})"
 
     local logfile="${scenario}.log"

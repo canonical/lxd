@@ -19,7 +19,7 @@ test_storage_volume_snapshots() {
   else
     lxc storage create "$storage_pool" "$lxd_backend"
   fi
-  lxc storage volume create "${storage_pool}" "${storage_volume}"
+  lxc storage volume create "${storage_pool}" "${storage_volume}" size=1MiB
   lxc launch testimage c1 -s "${storage_pool}"
   lxc storage volume attach "${storage_pool}" "${storage_volume}" c1 /mnt
   # Create file on volume
@@ -151,8 +151,8 @@ EOF
   lxc storage volume delete "${storage_pool}" "${storage_volume}"
 
   # Check snapshots naming conflicts.
-  lxc storage volume create "${storage_pool}" "vol1"
-  lxc storage volume create "${storage_pool}" "vol1-snap0"
+  lxc storage volume create "${storage_pool}" "vol1" size=1MiB
+  lxc storage volume create "${storage_pool}" "vol1-snap0" size=1MiB
   lxc storage volume snapshot "${storage_pool}" "vol1" "snap0"
   lxc storage volume delete "${storage_pool}" "vol1"
   lxc storage volume delete "${storage_pool}" "vol1-snap0"
@@ -168,7 +168,7 @@ EOF
   ! lxc storage volume create "${storage_pool}" "vol1" --type block block.mount_options=xyz || false
 
   # Check snapshot creation dates.
-  lxc storage volume create "${storage_pool}" "vol1"
+  lxc storage volume create "${storage_pool}" "vol1" size=1MiB
   lxc storage volume snapshot "${storage_pool}" "vol1" "snap0"
   ! lxc storage volume show "${storage_pool}" "vol1" | grep '^created_at: 0001-01-01T00:00:00Z' || false
   ! lxc storage volume show "${storage_pool}" "vol1/snap0" | grep '^created_at: 0001-01-01T00:00:00Z' || false
@@ -180,7 +180,7 @@ EOF
 
   # Check snapshot copy (mode pull).
   lxc launch testimage "c1"
-  lxc storage volume create "${storage_pool}" "vol1"
+  lxc storage volume create "${storage_pool}" "vol1" size=1MiB
   lxc storage volume attach "${storage_pool}" "vol1" "c1" /mnt
   lxc exec "c1" -- touch /mnt/foo
   lxc delete -f "c1"
@@ -293,7 +293,7 @@ EOF
   lxc storage volume delete "${storage_pool}" "vol1"
 
   # Check snapshot creation dates (remote).
-  lxc storage volume create "${storage_pool}" "vol1"
+  lxc storage volume create "${storage_pool}" "vol1" size=1MiB
   lxc storage volume snapshot "${storage_pool}" "vol1" "snap0"
   ! lxc storage volume show "${storage_pool}" "vol1" | grep '^created_at: 0001-01-01T00:00:00Z' || false
   ! lxc storage volume show "${storage_pool}" "vol1/snap0" | grep '^created_at: 0001-01-01T00:00:00Z' || false

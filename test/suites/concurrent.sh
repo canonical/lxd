@@ -7,7 +7,8 @@ test_concurrent() {
     name=concurrent-${1}
 
     lxc launch testimage "${name}"
-    lxc info "${name}" | grep -wF RUNNING
+    # XXX: `[ "$(lxc list -f csv -c s "${name}")" = "RUNNING" ]` is too fast and leads to races with exec/delete
+    lxc list --fast "${name}" | grep -wF RUNNING
     [ "$(echo abc | lxc exec "${name}" -- cat)" = "abc" ]
     lxc delete --force "${name}"
   }
