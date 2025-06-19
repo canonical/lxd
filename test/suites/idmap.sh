@@ -1,4 +1,9 @@
 test_idmap() {
+  if [ "$(stat --file-system -L -c "%T" .)" = "fuseblk" ]; then
+    echo "==> SKIP: this test cannot be run from a virtiofs directory"
+    return
+  fi
+
   # Check that we have a big enough range for this test
   if [ ! -e /etc/subuid ] && [ ! -e /etc/subgid ]; then
     UIDs=1000000000
