@@ -14,6 +14,7 @@ lxd-agent/lxd-agent
 lxd-benchmark/lxd-benchmark
 lxd-migrate/lxd-migrate
 lxd-user/lxd-user
+test/busybox.tar.xz.cache
 test/devlxd-client/devlxd-client
 test/syscall/sysinfo/sysinfo
 test/mini-oidc/mini-oidc
