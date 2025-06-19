@@ -1532,3 +1532,25 @@ func IsMicroOVNUsed() bool {
 
 	return false
 }
+
+// EqualSets checks if two slices contain the same elements, regardless of order.
+// Assumes no duplicates in the slices.
+func EqualSets[T comparable](a, b []T) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	m := make(map[T]struct{}, len(a))
+	for _, v := range a {
+		m[v] = struct{}{}
+	}
+
+	for _, v := range b {
+		_, ok := m[v]
+		if !ok {
+			return false
+		}
+	}
+
+	return true
+}
