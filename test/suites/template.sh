@@ -16,7 +16,7 @@ test_template() {
 
   echo "Validate that the template is applied"
   lxc start template
-  lxc file pull template/template - | grep "^name: template$"
+  lxc file pull template/template - | grep -xF "name: template"
 
   if [ "$lxd_backend" = "lvm" ] || [ "$lxd_backend" = "ceph" ]; then
     lxc stop template --force
@@ -24,7 +24,7 @@ test_template() {
 
   echo "Confirm it's not applied on copies"
   lxc copy template template1
-  lxc file pull template1/template - | grep "^name: template$"
+  lxc file pull template1/template - | grep -xF "name: template"
 
   # Cleanup
   lxc image delete template-test
@@ -49,7 +49,7 @@ test_template() {
 
   echo "Validate that the template is applied"
   lxc start template1
-  lxc file pull template1/template - | grep "^name: template1$"
+  lxc file pull template1/template - | grep -xF "name: template1"
 
   # Cleanup
   lxc image delete template-test
@@ -61,13 +61,13 @@ test_template() {
   lxc launch template-test template
 
   echo "Validate that the template is applied"
-  lxc file pull template/template - | grep "^name: template$"
-  lxc file pull template/template - | grep "^user.foo: _unset_$"
+  lxc file pull template/template - | grep -xF "name: template"
+  lxc file pull template/template - | grep -xF "user.foo: _unset_"
 
   echo "Confirm it's re-run at every start"
   lxc config set template user.foo bar
   lxc restart template --force
-  lxc file pull template/template - | grep "^user.foo: bar$"
+  lxc file pull template/template - | grep -xF "user.foo: bar"
 
   # Cleanup
   lxc image delete template-test
@@ -83,18 +83,18 @@ test_template() {
 
   echo "Validate that the template is applied"
   lxc start template
-  lxc file pull template/template - | grep "^name: template$"
+  lxc file pull template/template - | grep -xF "name: template"
 
   echo "Confirm it's also applied on copies"
   lxc copy template template1
   lxc start template1
-  lxc file pull template1/template - | grep "^name: template1$"
-  lxc file pull template1/template - | grep "^user.foo: _unset_$"
+  lxc file pull template1/template - | grep -xF "name: template1"
+  lxc file pull template1/template - | grep -xF "user.foo: _unset_"
 
   echo "But doesn't change on restart"
   lxc config set template1 user.foo bar
   lxc restart template1 --force
-  lxc file pull template1/template - | grep "^user.foo: _unset_$"
+  lxc file pull template1/template - | grep -xF "user.foo: _unset_"
 
   # Cleanup
   lxc image delete template-test
