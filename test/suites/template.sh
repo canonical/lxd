@@ -2,6 +2,11 @@ test_template() {
   local lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
 
+  if [ "${lxd_backend}" = "dir" ] && uname -r | grep -- -kvm$; then
+    echo "==> SKIP: the -kvm kernel flavor is does not work for this test on ${lxd_backend}"
+    return
+  fi
+
   # Import a template which only triggers on create
   deps/import-busybox --alias template-test --template create
   lxc init template-test template
