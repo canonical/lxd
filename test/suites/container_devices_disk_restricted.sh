@@ -17,7 +17,7 @@ test_container_devices_disk_restricted() {
   mkdir "${testRoot}/not-allowed1"
   ln -s "${testRoot}/not-allowed1" "${testRoot}/allowed1/not-allowed1"
   ln -s "${testRoot}/allowed2" "${testRoot}/allowed1/not-allowed2"
-  (cd "${testRoot}/allowed1" || false; ln -s foo1 foolink)
+  { cd "${testRoot}/allowed1" && ln -s foo1 foolink; }
 
   # Create project with restricted disk source path.
   lxc project create restricted \
@@ -85,7 +85,7 @@ test_container_devices_disk_restricted() {
 
   # Check single entry raw.idmap has taken effect on disk share.
   lxc config device set c1 d1 source="${testRoot}/allowed1" path=/mnt
-  lxc start c1 || (lxc info --show-log c1 ; false)
+  lxc start c1 || { lxc info --show-log c1; false; }
   [ "$(lxc exec c1 --project restricted -- stat /mnt/foo1 -c '%u:%g')" = "1000:1000" ]
   [ "$(lxc exec c1 --project restricted -- stat /mnt/foo2 -c '%u:%g')" = "65534:65534" ]
 
