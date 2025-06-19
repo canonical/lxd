@@ -397,7 +397,13 @@ p code.literal {
 }
 
 /* Headings and section links in the configuration option index */
-
 .domainindex-table .cap, .domainindex-jumpbox {
     text-transform: uppercase;
+}
+
+/* Hide RTD flyout when printing */
+@media print {
+    readthedocs-flyout {
+        display: none;
+    }
 }
