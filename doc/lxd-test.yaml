@@ -1,5 +1,5 @@
 name: lxd-test
-description: "Profile to build and test LXD in ephemeral VM"
+description: "Profile to build and test LXD in VM"
 config:
   cloud-init.user-data: |-
     #cloud-config
