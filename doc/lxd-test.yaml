@@ -35,6 +35,8 @@ config:
     - echo "LXD_VM_TESTS=1" >> /etc/environment
     # Disable lxd-installer
     - chmod -x /usr/sbin/lxc /usr/sbin/lxd
+    # Disable needrestart
+    - rm -f /etc/apt/apt.conf.d/99needrestart /etc/dpkg/dpkg.cfg.d/needrestart
     # Remove sources of noise
     - systemctl disable --now networkd-dispatcher.service unattended-upgrades.service
     - cd /etc/systemd/system/timers.target.wants/ && systemctl disable --now *.timer
