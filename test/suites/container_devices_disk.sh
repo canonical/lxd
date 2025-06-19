@@ -11,7 +11,7 @@ test_container_devices_disk() {
   _container_devices_disk_socket
   _container_devices_disk_char
 
-  lxc delete -f foo
+  lxc delete foo
 }
 
 _container_devices_disk_shift() {
