@@ -137,7 +137,7 @@ This allows adding further configuration for the device.
 See {ref}`disk device <devices-disk>` for all available device options.
 
 (storage-configure-IO)=
-#### Configure I/O limits
+#### Configure I/O options
 
 When you attach a storage volume to an instance as a {ref}`disk device <devices-disk>`, you can configure I/O limits for it.
 To do so, set the {config:option}`device-disk-device-conf:limits.read`, {config:option}`device-disk-device-conf:limits.write` or {config:option}`device-disk-device-conf:limits.max` options to the corresponding limits.
@@ -156,6 +156,10 @@ Because the limits apply to a whole physical disk rather than a partition or pat
 All I/O limits only apply to actual block device access.
 Therefore, consider the file system's own overhead when setting limits.
 Access to cached data is not affected by the limit.
+
+For VMs the way the disk is exposed to the guest and its behavior can be configured.
+To do so, set the {config:option}`device-disk-device-conf:io.bus`, {config:option}`device-disk-device-conf:io.cache` or {config:option}`device-disk-device-conf:io.threads` options.
+See the {ref}`devices-disk` reference for more information.
 
 ````
 
