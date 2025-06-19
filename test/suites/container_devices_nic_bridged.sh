@@ -441,12 +441,7 @@ test_container_devices_nic_bridged() {
   fi
 
   # Request DHCPv6 lease (if udhcpc6 is in busybox image).
-  busyboxUdhcpc6=1
-  if ! lxc exec "${ctName}" -- busybox --list | grep -wF udhcpc6 ; then
-    busyboxUdhcpc6=0
-  fi
-
-  if [ "$busyboxUdhcpc6" = "1" ]; then
+  if lxc exec "${ctName}" -- busybox --list | grep udhcpc6 ; then
         lxc exec "${ctName}" -- udhcpc6 -f -i eth0 -n -q -t5 2>&1 | grep 'IPv6 obtained'
   fi
 
