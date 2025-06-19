@@ -43,6 +43,7 @@ config:
     # Prepare LXD build
     - printf '[safe]\n    directory = *\n' >> /root/.gitconfig
     - chmod o+x /root
+    - echo "root:1000000:1000000000" | tee /etc/subuid /etc/subgid
 
     package_update: true
     package_upgrade: true
