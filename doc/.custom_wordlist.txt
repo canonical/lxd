@@ -52,6 +52,7 @@ CPUs
 CRIU
 CRL
 cron
+cryptographic
 cryptographically
 CSM
 CSV
