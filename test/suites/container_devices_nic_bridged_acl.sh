@@ -106,8 +106,7 @@ test_container_devices_nic_bridged_acl() {
   # Create profile for new containers by atomically modifying nictype and parent to ensure validation passes.
   lxc profile show default | sed  "s/nictype: p2p/network: ${brName}/" | lxc profile create "${ctPrefix}"
 
-  lxc init testimage "${ctPrefix}A" -p "${ctPrefix}"
-  lxc start "${ctPrefix}A"
+  lxc launch testimage "${ctPrefix}A" -p "${ctPrefix}"
 
   # Check DHCP works for baseline rules.
   lxc exec "${ctPrefix}A" -- udhcpc -f -i eth0 -n -q -t5 2>&1 | grep 'obtained'
