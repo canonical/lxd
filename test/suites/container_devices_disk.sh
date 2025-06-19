@@ -18,6 +18,12 @@ _container_devices_disk_shift() {
   local lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
 
+  # `tmpfs` does not support idmapped mounts on kernels older than 6.3
+  if [ "${LXD_TMPFS:-0}" = "1" ] && ! runsMinimumKernel 6.3; then
+    echo "==> SKIP: tmpfs (LXD_TMPFS=${LXD_TMPFS}) idmapped mount requires a kernel >= 6.3"
+    return
+  fi
+
   if [ -n "${LXD_IDMAPPED_MOUNTS_DISABLE:-}" ]; then
     return
   fi
