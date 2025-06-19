@@ -28,11 +28,8 @@ test_container_devices_nic_bridged_vlan() {
     echo 0 > "/sys/class/net/${prefix}/bridge/vlan_filtering"
   fi
 
-  # Create profile for new containers.
-  lxc profile copy default "${prefix}"
-
-  # Modify profile nictype and parent in atomic operation to ensure validation passes.
-  lxc profile show "${prefix}" | sed  "s/nictype: p2p/nictype: bridged\\n    parent: ${prefix}/" | lxc profile edit "${prefix}"
+  # Create profile for new containers by atomically modifying nictype and parent to ensure validation passes.
+  lxc profile show default | sed  "s/nictype: p2p/nictype: bridged\\n    parent: ${prefix}/" | lxc profile create "${prefix}"
 
   # Test tagged VLAN traffic is allowed when VLAN filtering and IP filtering are disabled.
   lxc launch testimage "${prefix}-ctA" -p "${prefix}"
