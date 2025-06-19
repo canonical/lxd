@@ -103,11 +103,8 @@ test_container_devices_nic_bridged_acl() {
       nft -nn list chain inet lxd "acl.${brName}" | grep -c "reject" | grep 2
   fi
 
-  # Create profile for new containers.
-  lxc profile copy default "${ctPrefix}"
-
-  # Modify profile nictype and parent in atomic operation to ensure validation passes.
-  lxc profile show "${ctPrefix}" | sed  "s/nictype: p2p/network: ${brName}/" | lxc profile edit "${ctPrefix}"
+  # Create profile for new containers by atomically modifying nictype and parent to ensure validation passes.
+  lxc profile show default | sed  "s/nictype: p2p/network: ${brName}/" | lxc profile create "${ctPrefix}"
 
   lxc init testimage "${ctPrefix}A" -p "${ctPrefix}"
   lxc start "${ctPrefix}A"
