@@ -2676,3 +2676,9 @@ Adds a `skip` mode to the restore request. This mode restores a cluster member's
 ## `disk_io_threads_virtiofsd`
 
 Adds the {config:option}`device-disk-device-conf:io.threads` option on `disk` devices which is used to control the `virtiofsd` thread pool size when sharing file systems into VMs. This can help improve I/O performance.
+
+## `oidc_client_secret`
+
+This adds support for the {config:option}`server-oidc:oidc.client.secret` configuration key.
+If set, the LXD server will use this value in the OpenID Connect (OIDC) authorization code flow, which is used by LXD UI.
+This configuration value is not shared with other LXD clients (such as the LXD CLI).
