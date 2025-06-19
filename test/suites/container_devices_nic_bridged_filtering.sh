@@ -39,11 +39,8 @@ test_container_devices_nic_bridged_filtering() {
   lxc network set "${brName}" ipv6.address 2001:db8:1::1/64
   [ "$(cat "/sys/class/net/${brName}/address")" = "00:11:22:33:44:55" ]
 
-  # Create profile for new containers.
-  lxc profile copy default "${ctPrefix}"
-
-  # Modify profile nictype and parent in atomic operation to ensure validation passes.
-  lxc profile show "${ctPrefix}" | sed  "s/nictype: p2p/nictype: bridged\\n    parent: ${brName}/" | lxc profile edit "${ctPrefix}"
+  # Create profile for new containers by atomically modifying nictype and parent to ensure validation passes.
+  lxc profile show default | sed  "s/nictype: p2p/nictype: bridged\\n    parent: ${brName}/" | lxc profile create "${ctPrefix}"
 
   # Launch first container.
   lxc init testimage "${ctPrefix}A" -p "${ctPrefix}"
