@@ -17,11 +17,11 @@ import (
 )
 
 type proCLIMock struct {
-	mockResponse *api.UbuntuProGuestTokenResponse
+	mockResponse *api.DevLXDUbuntuProGuestTokenResponse
 	mockErr      error
 }
 
-func (p proCLIMock) getGuestToken(_ context.Context) (*api.UbuntuProGuestTokenResponse, error) {
+func (p proCLIMock) getGuestToken(_ context.Context) (*api.DevLXDUbuntuProGuestTokenResponse, error) {
 	return p.mockResponse, p.mockErr
 }
 
@@ -36,7 +36,7 @@ func TestClient(t *testing.T) {
 		if raw != "" {
 			d = []byte(raw)
 		} else {
-			d, err = json.Marshal(api.UbuntuProSettings{GuestAttach: setting})
+			d, err = json.Marshal(api.DevLXDUbuntuProSettings{GuestAttach: setting})
 			require.NoError(t, err)
 		}
 
@@ -45,7 +45,7 @@ func TestClient(t *testing.T) {
 		sleep()
 	}
 
-	mockTokenResponse := api.UbuntuProGuestTokenResponse{
+	mockTokenResponse := api.DevLXDUbuntuProGuestTokenResponse{
 		Expires:    time.Now().String(),
 		GuestToken: "token",
 		ID:         uuid.New().String(),
@@ -60,7 +60,7 @@ func TestClient(t *testing.T) {
 		instanceSetting   string
 		expectedSetting   string
 		expectErr         bool
-		expectedToken     *api.UbuntuProGuestTokenResponse
+		expectedToken     *api.DevLXDUbuntuProGuestTokenResponse
 		expectedErrorCode int
 	}
 
@@ -152,7 +152,7 @@ func TestClient(t *testing.T) {
 
 	runAssertions := func(assertions []assertion) {
 		for _, a := range assertions {
-			assert.Equal(t, api.UbuntuProSettings{GuestAttach: a.expectedSetting}, s.GuestAttachSettings(a.instanceSetting))
+			assert.Equal(t, api.DevLXDUbuntuProSettings{GuestAttach: a.expectedSetting}, s.GuestAttachSettings(a.instanceSetting))
 			token, err := s.GetGuestToken(ctx, a.instanceSetting)
 			assert.Equal(t, a.expectedToken, token)
 			if a.expectErr {
