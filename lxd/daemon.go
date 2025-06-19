@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/x509"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -174,6 +175,9 @@ type Daemon struct {
 
 	// Ubuntu Pro settings
 	ubuntuPro *ubuntupro.Client
+
+	// internalSecrets holds the current in-memory value of the secrets
+	internalSecrets dbCluster.Secrets
 }
 
 // DaemonConfig holds configuration values for Daemon.
@@ -659,6 +663,57 @@ func (d *Daemon) handleOIDCAuthenticationResult(r *http.Request, result *oidc.Au
 	}
 
 	return nil
+}
+
+// getSecrets checks the in-memory secrets, if they are valid they are returned.
+// If they are not valid, getSecrets checks the database. If the database secrets are valid, the in-memory value is
+// updated and returned. Otherwise, the database secrets are rotated, written to the database, and then returned.
+func (d *Daemon) getSecrets(ctx context.Context) (dbCluster.Secrets, error) {
+	lifetime, err := d.globalConfig.SecretLifetime()
+	if err != nil {
+		return nil, err
+	}
+
+	if d.internalSecrets.IsValid(lifetime) {
+		return d.internalSecrets, nil
+	}
+
+	err = d.db.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		row := tx.Tx().QueryRowContext(ctx, `SELECT value FROM config WHERE key = 'volatile.secrets'`)
+		var secrets dbCluster.Secrets
+		err := row.Scan(&secrets)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+
+		if secrets.IsValid(lifetime) {
+			d.internalSecrets = secrets
+			return nil
+		}
+
+		secrets.Rotate()
+		res, err := tx.Tx().ExecContext(ctx, `INSERT OR REPLACE INTO config (key, value) VALUES ('volatile.secrets', ?)`, secrets)
+		if err != nil {
+			return err
+		}
+
+		rowsAffected, err := res.RowsAffected()
+		if err != nil {
+			return err
+		}
+
+		if rowsAffected != 1 {
+			return errors.New("Failed to write new secret value")
+		}
+
+		d.internalSecrets = secrets
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return d.internalSecrets, nil
 }
 
 // State creates a new State instance linked to our internal db and os.
