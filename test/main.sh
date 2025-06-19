@@ -279,7 +279,8 @@ run_test() {
   DURATION=$((END_TIME-START_TIME))
   cd "${cwd}"
 
-  echo "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION} (${DURATION}s)"
+  # output duration in blue
+  echo -e "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION} (\033[0;34m${DURATION}s\033[0m)"
 
   if [ -n "${GITHUB_ACTIONS:-}" ]; then
       # strip the "test_" prefix to save the shorten test name along with its duration
