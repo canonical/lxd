@@ -577,9 +577,6 @@ test_container_devices_nic_bridged_filtering() {
     false
   fi
 
-  lxc stop -f "${ctPrefix}A"
-  lxc stop -f "${ctPrefix}B"
-
   lxc delete -f "${ctPrefix}A"
   lxc delete -f "${ctPrefix}B"
 
