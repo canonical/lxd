@@ -51,11 +51,10 @@ test_container_devices_nic_bridged() {
   lxc delete "${ctName}" -f
   lxc profile delete "${ctName}"
 
-  # Test pre-launch profile config is applied at launch
-  lxc profile copy default "${ctName}"
+  echo "Test pre-launch profile config is applied at launch"
 
-  # Modify profile nictype and parent in atomic operation to ensure validation passes.
-  lxc profile show "${ctName}" | sed  "s/nictype: p2p/nictype: bridged\\n    parent: ${brName}/" | lxc profile edit "${ctName}"
+  # Create profile for new containers by atomically modifying nictype and parent to ensure validation passes.
+  lxc profile show default | sed  "s/nictype: p2p/nictype: bridged\\n    parent: ${brName}/" | lxc profile create "${ctName}"
 
   lxc profile device set "${ctName}" eth0 ipv4.routes "192.0.2.1${ipRand}/32"
   lxc profile device set "${ctName}" eth0 ipv6.routes "2001:db8::1${ipRand}/128"
