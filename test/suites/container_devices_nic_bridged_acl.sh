@@ -112,12 +112,7 @@ test_container_devices_nic_bridged_acl() {
   lxc exec "${ctPrefix}A" -- udhcpc -f -i eth0 -n -q -t5 2>&1 | grep 'obtained'
 
   # Request DHCPv6 lease (if udhcpc6 is in busybox image).
-  busyboxUdhcpc6=1
-  if ! lxc exec "${ctPrefix}A" -- busybox --list | grep udhcpc6 ; then
-    busyboxUdhcpc6=0
-  fi
-
-  if [ "$busyboxUdhcpc6" = "1" ]; then
+  if lxc exec "${ctPrefix}A" -- busybox --list | grep udhcpc6 ; then
     lxc exec "${ctPrefix}A" -- udhcpc6 -f -i eth0 -n -q -t5 2>&1 | grep 'IPv6 obtained'
   fi
 
