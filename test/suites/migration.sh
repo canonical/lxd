@@ -8,8 +8,10 @@ test_migration() {
   spawn_lxd "${LXD2_DIR}" true
   LXD2_ADDR=$(cat "${LXD2_DIR}/lxd.addr")
 
-  # workaround for kernel/criu
-  umount /sys/kernel/debug >/dev/null 2>&1 || true
+  if command -v criu >/dev/null; then
+    # workaround for kernel/criu
+    umount /sys/kernel/debug >/dev/null 2>&1 || true
+  fi
 
   token="$(lxc config trust add --name foo -q)"
   # shellcheck disable=2153
@@ -51,8 +53,8 @@ test_migration() {
     for fs in "ext4" "btrfs" "xfs"; do
       local storage_pool1 storage_pool2
       # shellcheck disable=2153
-      storage_pool1="lxdtest-$(basename "${LXD_DIR}")-block-mode"
-      storage_pool2="lxdtest-$(basename "${LXD2_DIR}")-block-mode"
+      storage_pool1="lxdtest-$(basename "${LXD_DIR}")-block-mode-${fs}"
+      storage_pool2="lxdtest-$(basename "${LXD2_DIR}")-block-mode-${fs}"
       lxc_remote storage create l1:"$storage_pool1" zfs size=1GiB volume.zfs.block_mode=true volume.block.filesystem="${fs}"
       lxc_remote profile device set l1:default root pool "$storage_pool1"
 
@@ -543,7 +545,7 @@ migration() {
   ! lxc_remote storage volume show "l1:${remote_pool1}" container/c1/snap0 | grep '^created_at: 0001-01-01T00:00:00Z' || false
   lxc_remote copy l1:c1 l2:c1
   ! lxc_remote storage volume show "l2:${remote_pool2}" container/c1 | grep '^created_at: 0001-01-01T00:00:00Z' || false
-  [ "$(lxc_remote storage volume show "l1:${remote_pool1}" container/c1/snap0 | awk /created_at:/)" = "$(lxc_remote storage volume show "l2:${remote_pool2}" container/c1/snap0 | awk /created_at:/)" ]
+  [ "$(lxc_remote storage volume get --property "l1:${remote_pool1}" container/c1/snap0 created_at)" = "$(lxc_remote storage volume get --property "l2:${remote_pool2}" container/c1/snap0 created_at)" ]
   lxc_remote delete l1:c1 -f
   lxc_remote delete l2:c1 -f
 
