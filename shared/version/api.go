@@ -451,6 +451,7 @@ var APIExtensions = []string{
 	"networks_all_projects",
 	"clustering_restore_skip_mode",
 	"disk_io_threads_virtiofsd",
+	"oidc_client_secret",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
