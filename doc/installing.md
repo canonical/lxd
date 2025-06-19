@@ -274,6 +274,7 @@ sudo apt install \
     iputils-ping \
     jq \
     netcat-openbsd \
+    openvswitch-switch \
     s3cmd \
     shellcheck \
     socat \
