@@ -1,7 +1,5 @@
 _ensure_removed() {
-  bad=0
-  lxc exec foo -- stat /dev/ttyS0 && bad=1
-  if [ "${bad}" -eq 1 ]; then
+  if lxc exec foo -- stat /dev/ttyS0; then
     echo "device should have been removed; $*"
     false
   fi
@@ -43,9 +41,7 @@ _unix_devs() {
 }
 
 _ensure_fs_unmounted() {
-  bad=0
-  lxc exec foo -- stat /mnt/hello && bad=1
-  if [ "${bad}" -eq 1 ]; then
+  if lxc exec foo -- stat /mnt/hello; then
     echo "device should have been removed; $*"
     false
   fi
@@ -218,23 +214,19 @@ test_config_profiles() {
   lxc stop foo --force
 
   lxc config set foo user.prop value
-  lxc list user.prop=value | grep foo
+  [ "$(lxc list -f csv -c n user.prop=value)" = "foo" ]
   lxc config unset foo user.prop
 
   # Test for invalid raw.lxc
   ! lxc config set foo raw.lxc a || false
   ! lxc profile set default raw.lxc a || false
 
-  bad=0
-  lxc list user.prop=value | grep foo && bad=1
-  if [ "${bad}" -eq 1 ]; then
+  if [ "$(lxc list -f csv -c n user.prop=value)" != "" ]; then
     echo "property unset failed"
     false
   fi
 
-  bad=0
-  lxc config set foo user.prop 2>/dev/null && bad=1
-  if [ "${bad}" -eq 1 ]; then
+  if lxc config set foo user.prop 2>/dev/null; then
     echo "property set succeeded when it shouldn't have"
     false
   fi
@@ -279,11 +271,10 @@ test_config_edit() {
         return
     fi
 
-    ensure_import_testimage
-
-    lxc init testimage foo -s "lxdtest-$(basename "${LXD_DIR}")"
+    lxc init --empty foo
+    lxc config set foo --property description="hello"
     lxc config show foo | sed 's/^description:.*/description: bar/' | lxc config edit foo
-    lxc config show foo | grep -xF 'description: bar'
+    [ "$(lxc config get foo --property description)" = "bar" ]
 
     # Check instance name is included in edit screen.
     cmd=$(unset -f lxc; command -v lxc)
@@ -299,56 +290,60 @@ test_config_edit() {
 test_property() {
   ensure_import_testimage
 
-  lxc init testimage foo -s "lxdtest-$(basename "${LXD_DIR}")"
+  lxc init --empty foo
 
   # Set a property of an instance
   lxc config set foo description="a new description" --property
   # Check that the property is set
-  lxc config show foo | grep -xF "description: a new description"
+  [ "$(lxc config get foo description --property)" = "a new description" ]
 
   # Unset a property of an instance
   lxc config unset foo description --property
   # Check that the property is unset
-  ! lxc config show foo | grep -xF "description: a new description" || false
+  [ "$(lxc config get foo description --property)" = "" ]
 
   # Set a property of an instance (bool)
   lxc config set foo ephemeral=true --property
   # Check that the property is set
-  lxc config show foo | grep -xF "ephemeral: true"
+  [ "$(lxc config get foo ephemeral --property)" = "true" ]
 
   # Unset a property of an instance (bool)
   lxc config unset foo ephemeral --property
   # Check that the property is unset (i.e false)
-  lxc config show foo | grep -xF "ephemeral: false"
+  [ "$(lxc config get foo ephemeral --property)" = "false" ]
 
   # Create a snap of the instance to set its expiration timestamp
   lxc snapshot foo s1
-  lxc config set foo/s1 expires_at="2024-03-23T17:38:37.753398689-04:00" --property
-  lxc config get foo/s1 expires_at --property | grep -F "2024-03-23 17:38:37.753398689 -0400 -0400"
-  lxc config show foo/s1 | grep -F "expires_at: 2024-03-23T17:38:37.753398689-04:00"
+  lxc config set foo/s1 expires_at="2038-03-23T17:38:37.753398689-04:00" --property
+  [ "$(lxc config get foo/s1 expires_at --property)" = "2038-03-23 17:38:37.753398689 -0400 -0400" ]
+  lxc config show foo/s1 | grep -F "expires_at: 2038-03-23T17:38:37.753398689-04:00"
   lxc config unset foo/s1 expires_at --property
   lxc config show foo/s1 | grep -F "expires_at: 0001-01-01T00:00:00Z"
-
+  lxc delete -f foo
 
   # Create a storage volume, create a volume snapshot and set its expiration timestamp
   local storage_pool
   storage_pool="lxdtest-$(basename "${LXD_DIR}")"
   storage_volume="${storage_pool}-vol"
 
-  lxc storage volume create "${storage_pool}" "${storage_volume}"
+  lxc storage volume create "${storage_pool}" "${storage_volume}" size=1MiB
   lxc launch testimage c1 -s "${storage_pool}"
 
   # This will create a snapshot named 'snap0'
   lxc storage volume snapshot "${storage_pool}" "${storage_volume}"
 
-  lxc storage volume set "${storage_pool}" "${storage_volume}"/snap0 expires_at="2024-03-23T17:38:37.753398689-04:00" --property
-  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep 'expires_at: 2024-03-23T17:38:37.753398689-04:00'
+  lxc storage volume set "${storage_pool}" "${storage_volume}"/snap0 expires_at="2038-03-23T17:38:37.753398689-04:00" --property
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep 'expires_at: 2038-03-23T17:38:37.753398689-04:00'
   lxc storage volume unset "${storage_pool}" "${storage_volume}"/snap0 expires_at --property
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep 'expires_at: 0001-01-01T00:00:00Z'
 
-  lxc delete -f c1
+  # Toggle the ephemeral flag on a running instance and check that it is deleted on stop
+  lxc config set c1 ephemeral=true --property
+  [ "$(lxc config get c1 ephemeral --property)" = "true" ]
+  lxc stop -f c1
+  [ "$(lxc list -f csv -c n)" = "" ]
+
   lxc storage volume delete "${storage_pool}" "${storage_volume}"
-  lxc delete -f foo
 }
 
 test_config_edit_container_snapshot_pool_config() {

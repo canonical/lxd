@@ -629,12 +629,12 @@ _backup_export_with_project() {
   rm -rf "${LXD_DIR}/optimized" "${LXD_DIR}/non-optimized"
 
   # Check if hyphens cause issues when creating backups
-  lxc launch testimage c1-foo -d "${SMALL_ROOT_DISK}"
+  lxc init --empty c1-foo -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1-foo
 
   lxc export c1-foo "${LXD_DIR}/c1-foo.tar.gz"
 
-  lxc delete --force c1-foo
+  lxc delete c1-foo
 
   # Cleanup exported tarballs
   rm -f "${LXD_DIR}"/c*.tar.gz
@@ -780,7 +780,7 @@ _backup_volume_export_with_project() {
   ls -l "${LXD_DIR}/non-optimized/backup/"
   [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
   [ -d "${LXD_DIR}/non-optimized/backup/volume" ]
-  [ "$(cat "${LXD_DIR}/non-optimized/backup/volume/test")" = "bar" ]
+  [ "$(< "${LXD_DIR}/non-optimized/backup/volume/test")" = "bar" ]
   [ ! -d "${LXD_DIR}/non-optimized/backup/volume-snapshots" ]
 
   ! grep -F -- '- test-snap0' "${LXD_DIR}/non-optimized/backup/index.yaml" || false
@@ -815,9 +815,9 @@ _backup_volume_export_with_project() {
   ls -l "${LXD_DIR}/non-optimized/backup/"
   [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
   [ -d "${LXD_DIR}/non-optimized/backup/volume" ]
-  [ "$(cat "${LXD_DIR}/non-optimized/backup/volume/test")" = "bar" ]
+  [ "$(< "${LXD_DIR}/non-optimized/backup/volume/test")" = "bar" ]
   [ -d "${LXD_DIR}/non-optimized/backup/volume-snapshots/test-snap0" ]
-  [  "$(cat "${LXD_DIR}/non-optimized/backup/volume-snapshots/test-snap0/test")" = "foo" ]
+  [  "$(< "${LXD_DIR}/non-optimized/backup/volume-snapshots/test-snap0/test")" = "foo" ]
 
   grep -F -- '- test-snap0' "${LXD_DIR}/non-optimized/backup/index.yaml"
 
@@ -975,13 +975,13 @@ test_backup_instance_uuid() {
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   echo "==> Checking instance UUIDs during backup operation"
-  lxc launch testimage c1 -d "${SMALL_ROOT_DISK}"
+  lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
   initialUUID=$(lxc config get c1 volatile.uuid)
   initialGenerationID=$(lxc config get c1 volatile.uuid.generation)
 
   # export and import should preserve the UUID and generation UUID
   lxc export c1 "${LXD_DIR}/c1.tar.gz"
-  lxc delete -f c1
+  lxc delete c1
   lxc import "${LXD_DIR}/c1.tar.gz"
 
   newUUID=$(lxc config get c1 volatile.uuid)
@@ -992,7 +992,7 @@ test_backup_instance_uuid() {
     false
   fi
 
-  lxc delete -f c1
+  lxc delete c1
 
   # Cleanup exported tarballs
   rm -f "${LXD_DIR}"/c*.tar.gz

@@ -78,20 +78,20 @@ test_exec_exit_code() {
 
   # Signaling the process spawned by lxc exec and checking its exit code.
   # Simulates what can happen if the container stops in the middle of lxc exec.
-  (sleep 5 && lxc exec x1 -- killall -s SIGTERM sleep) &
+  (sleep 1 && lxc exec x1 -- killall -s SIGTERM sleep) &
   lxc exec x1 -- sleep 60 || exitCode=$?
   [ "${exitCode:-0}" -eq 143 ] # 128 + 15(SIGTERM)
 
-  (sleep 5 && lxc exec x1 -- killall -s SIGHUP sleep) &
+  (sleep 1 && lxc exec x1 -- killall -s SIGHUP sleep) &
   lxc exec x1 -- sleep 60 || exitCode=$?
   [ "${exitCode:-0}" -eq 129 ] # 128 + 1(SIGHUP)
 
-  (sleep 5 && lxc exec x1 -- killall -s SIGKILL sleep) &
+  (sleep 1 && lxc exec x1 -- killall -s SIGKILL sleep) &
   lxc exec x1 -- sleep 60 || exitCode=$?
   [ "${exitCode:-0}" -eq 137 ] # 128 + 9(SIGKILL)
 
   # Try disconnecting a container stopping forcefully.
-  (sleep 5 && lxc stop -f x1) &
+  (sleep 1 && lxc stop -f x1) &
   lxc exec x1 -- sleep 60 || exitCode=$?
   [ "${exitCode:-0}" -eq 137 ]
   wait $!

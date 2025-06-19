@@ -21,7 +21,7 @@ spawn_oidc() {
 kill_oidc() {
   [ ! -e "${TEST_DIR}/oidc.pid" ] && return
 
-  kill -9 "$(cat "${TEST_DIR}/oidc.pid")"
+  kill -9 "$(< "${TEST_DIR}/oidc.pid")"
   rm -f "${TEST_DIR}/oidc.pid"
   rm -f "${TEST_DIR}/oidc.port"
   rm -f "${TEST_DIR}/oidc.user"

@@ -503,8 +503,7 @@ test_basic_usage() {
 
   # FIXME: make this backend agnostic
   if [ "$lxd_backend" = "dir" ]; then
-    content=$(cat "${LXD_DIR}/containers/foo/rootfs/tmp/foo")
-    [ "${content}" = "foo" ]
+    [ "$(< "${LXD_DIR}/containers/foo/rootfs/tmp/foo")" = "foo" ]
   fi
 
   lxc launch testimage deleterunning

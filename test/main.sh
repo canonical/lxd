@@ -33,10 +33,6 @@ if [ -n "${LXD_DEBUG:-}" ]; then
   DEBUG="--debug"
 fi
 
-if [ -n "${DEBUG:-}" ]; then
-  set -x
-fi
-
 # shellcheck disable=SC2034
 LXD_NETNS=""
 
@@ -119,6 +115,9 @@ import_storage_backends
 cleanup() {
   # Stop tracing everything
   { set +x; } 2>/dev/null
+  if [ -z "${DEBUG:-}" ]; then
+    echo "cleanup"
+  fi
 
   # Avoid reentry by removing the traps
   trap - EXIT HUP INT TERM
@@ -203,6 +202,10 @@ cleanup() {
   echo "==> Test result: ${TEST_RESULT}"
 }
 
+if [ -n "${DEBUG:-}" ]; then
+  set -x
+fi
+
 # Must be set before cleanup()
 TEST_CURRENT=setup
 TEST_CURRENT_DESCRIPTION=setup
@@ -228,11 +231,11 @@ if [ -n "${INACCESSIBLE_DIRS:-}" ]; then
 fi
 
 if [ "${LXD_TMPFS:-0}" = "1" ]; then
-  mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=7G
+  mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751,noatime -o size=7G
 fi
 
 mkdir -p "${TEST_DIR}/dev"
-mount -t tmpfs none "${TEST_DIR}"/dev
+mount -t tmpfs none -o noatime "${TEST_DIR}"/dev
 export LXD_DEVMONITOR_DIR="${TEST_DIR}/dev"
 
 LXD_CONF=$(mktemp -d -p "${TEST_DIR}" XXX)
@@ -242,7 +245,7 @@ LXD_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
 export LXD_DIR
 chmod +x "${LXD_DIR}"
 spawn_lxd "${LXD_DIR}" true
-LXD_ADDR=$(cat "${LXD_DIR}/lxd.addr")
+LXD_ADDR=$(< "${LXD_DIR}/lxd.addr")
 export LXD_ADDR
 
 LXD_SKIP_TESTS="${LXD_SKIP_TESTS:-}"
