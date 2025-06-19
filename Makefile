@@ -12,7 +12,7 @@ CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 SPHINXENV=doc/.sphinx/venv/bin/activate
 SPHINXPIPPATH=doc/.sphinx/venv/bin/pip
 GOMIN=1.24.2
-GOTOOLCHAIN=local
+GOTOOLCHAIN=go$(GOMIN)
 export GOTOOLCHAIN
 GOCOVERDIR ?= $(shell go env GOCOVERDIR)
 ARCH ?= $(shell uname -m)
