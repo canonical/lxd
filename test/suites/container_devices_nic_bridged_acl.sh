@@ -24,13 +24,13 @@ test_container_devices_nic_bridged_acl() {
 
   # Check ACL jump rules, and chain with default reject rules created.
   if [ "$firewallDriver" = "xtables" ]; then
-      iptables -S | grep -c "\-j lxd_acl_${brName}" | grep 4
-      iptables -S "lxd_acl_${brName}" | grep -c "\-j REJECT" | grep 2
+      [ "$(iptables -S | grep -cF "\-j lxd_acl_${brName}")" = "4" ]
+      [ "$(iptables -S "lxd_acl_${brName}" | grep -cF "\-j REJECT")" = "2" ]
   else
-      nft -nn list chain inet lxd "aclin.${brName}" | grep -c "jump acl.${brName}" | grep 1
-      nft -nn list chain inet lxd "aclout.${brName}" | grep -c "jump acl.${brName}" | grep 1
-      nft -nn list chain inet lxd "aclfwd.${brName}" | grep -c "jump acl.${brName}" | grep 2
-      nft -nn list chain inet lxd "acl.${brName}" | grep -c "reject" | grep 2
+      [ "$(nft -nn list chain inet lxd "aclin.${brName}" | grep -cF "jump acl.${brName}")" = "1" ]
+      [ "$(nft -nn list chain inet lxd "aclout.${brName}" | grep -cF "jump acl.${brName}")" = "1" ]
+      [ "$(nft -nn list chain inet lxd "aclfwd.${brName}" | grep -cF "jump acl.${brName}")" = "2" ]
+      [ "$(nft -nn list chain inet lxd "acl.${brName}" | grep -cF "reject")" = "2" ]
   fi
 
   # Unset ACLs and check the firewall config is cleaned up.
@@ -50,13 +50,13 @@ test_container_devices_nic_bridged_acl() {
 
   # Check ACL jump rules, and chain with default reject rules created.
   if [ "$firewallDriver" = "xtables" ]; then
-      iptables -S | grep -c "\-j lxd_acl_${brName}" | grep 4
-      iptables -S "lxd_acl_${brName}" | grep -c "\-j REJECT" | grep 2
+      [ "$(iptables -S | grep -cF "\-j lxd_acl_${brName}")" = "4" ]
+      [ "$(iptables -S "lxd_acl_${brName}" | grep -cF "\-j REJECT")" = "2" ]
   else
-      nft -nn list chain inet lxd "aclin.${brName}" | grep -c "jump acl.${brName}" | grep 1
-      nft -nn list chain inet lxd "aclout.${brName}" | grep -c "jump acl.${brName}" | grep 1
-      nft -nn list chain inet lxd "aclfwd.${brName}" | grep -c "jump acl.${brName}" | grep 2
-      nft -nn list chain inet lxd "acl.${brName}" | grep -c "reject" | grep 2
+      [ "$(nft -nn list chain inet lxd "aclin.${brName}" | grep -cF "jump acl.${brName}")" = "1" ]
+      [ "$(nft -nn list chain inet lxd "aclout.${brName}" | grep -cF "jump acl.${brName}")" = "1" ]
+      [ "$(nft -nn list chain inet lxd "aclfwd.${brName}" | grep -cF "jump acl.${brName}")" = "2" ]
+      [ "$(nft -nn list chain inet lxd "acl.${brName}" | grep -cF "reject")" = "2" ]
   fi
 
   # Delete network and check the firewall config is cleaned up.
@@ -86,9 +86,9 @@ test_container_devices_nic_bridged_acl() {
 
   # Check default reject rules changed to drop.
   if [ "$firewallDriver" = "xtables" ]; then
-      iptables -S "lxd_acl_${brName}" | grep -c "\-j DROP" | grep 2
+      [ "$(iptables -S "lxd_acl_${brName}" | grep -cF "\-j DROP")" = "2" ]
   else
-      nft -nn list chain inet lxd "acl.${brName}" | grep -c "drop" | grep 2
+      [ "$(nft -nn list chain inet lxd "acl.${brName}" | grep -cF "drop")" = "2" ]
   fi
 
   # Change default actions to reject.
@@ -98,9 +98,9 @@ test_container_devices_nic_bridged_acl() {
 
   # Check default reject rules changed to reject.
   if [ "$firewallDriver" = "xtables" ]; then
-      iptables -S "lxd_acl_${brName}" | grep -c "\-j REJECT" | grep 2
+      [ "$(iptables -S "lxd_acl_${brName}" | grep -cF "\-j REJECT")" = "2" ]
   else
-      nft -nn list chain inet lxd "acl.${brName}" | grep -c "reject" | grep 2
+      [ "$(nft -nn list chain inet lxd "acl.${brName}" | grep -cF "reject")" = "2" ]
   fi
 
   # Create profile for new containers by atomically modifying nictype and parent to ensure validation passes.
