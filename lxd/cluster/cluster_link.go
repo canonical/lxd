@@ -142,6 +142,38 @@ func ConnectClusterLink(ctx context.Context, s *state.State, clusterLink api.Clu
 		return nil, fmt.Errorf("Failed to connect to any of the provided addresses: %w", lastErr)
 	}
 
+	// Update "volatile.addresses".
+	targetClusterMembers, err := targetClient.GetClusterMembers()
+	if err != nil {
+		return nil, err
+	}
+
+	newAddresses := make([]string, 0, len(targetClusterMembers))
+	for _, clusterMember := range targetClusterMembers {
+		newAddress, err := validateAddress(clusterMember.URL)
+		if err != nil {
+			return nil, err
+		}
+
+		newAddresses = append(newAddresses, newAddress)
+	}
+
+	changed := !shared.EqualSets(addresses, newAddresses)
+	if changed {
+		newConfig := clusterLink.Config
+		newConfig["volatile.addresses"] = strings.Join(newAddresses, ",")
+		client, err := lxd.ConnectLXDUnix("", nil)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to connect to local LXD: %w", err)
+		}
+
+		// Update cluster link configuration with new addresses.
+		err = client.UpdateClusterLink(clusterLink.Name, api.ClusterLinkPut{Config: newConfig}, "")
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return targetClient, nil
 }
 
