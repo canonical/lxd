@@ -13,10 +13,10 @@ test_container_devices_nic_macvlan() {
   startNicCount=$(find /sys/class/net | wc -l)
 
   echo "==> Test pre-launch profile config is applied at launch."
-  lxc profile copy default "${ctName}"
 
-  echo "==> Modify profile nictype and parent in atomic operation to ensure validation passes."
-  lxc profile show "${ctName}" | sed  "s/nictype: p2p/nictype: macvlan\\n    parent: ${ctName}/" | lxc profile edit "${ctName}"
+  # Create profile for new containers by atomically modifying nictype and parent to ensure validation passes.
+  lxc profile show default | sed  "s/nictype: p2p/nictype: macvlan\\n    parent: ${ctName}/" | lxc profile create "${ctName}"
+
   lxc profile device set "${ctName}" eth0 mtu "1400"
 
   lxc launch testimage "${ctName}" -p "${ctName}"
