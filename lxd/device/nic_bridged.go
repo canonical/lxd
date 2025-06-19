@@ -876,6 +876,20 @@ func (d *nicBridged) postStop() error {
 	return nil
 }
 
+// PostMigrateSend is run after an instance is migrated to another cluster member.
+func (d *nicBridged) PostMigrateSend() error {
+	// Populate device config with volatile fields (hwaddr) if needed.
+	networkVethFillFromVolatile(d.config, d.volatileGet())
+
+	// Remove device (removing dnsmasq lease and config). This is required to reset leases post-migration.
+	err := d.Remove()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Remove is run when the device is removed from the instance or the instance is deleted.
 func (d *nicBridged) Remove() error {
 	// Handle the case where validation fails but the device still must be removed.
