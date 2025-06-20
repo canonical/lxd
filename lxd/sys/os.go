@@ -249,3 +249,13 @@ func (s *OS) InUbuntuCore() bool {
 
 	return false
 }
+
+// GetUnixSocket returns the full path to the unix.socket file that this daemon is listening on. Used by tests.
+func (s *OS) GetUnixSocket() string {
+	path := os.Getenv("LXD_SOCKET")
+	if path != "" {
+		return path
+	}
+
+	return filepath.Join(s.VarDir, "unix.socket")
+}
