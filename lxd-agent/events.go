@@ -179,7 +179,7 @@ func eventsProcess(event api.Event) {
 
 	args = append(args, "-t", "virtiofs", mntSource, e.Config["path"])
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		_, err = shared.RunCommandContext(context.Background(), "mount", args...)
 		if err == nil {
 			l.Info("Mounted hotplug")

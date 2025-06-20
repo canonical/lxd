@@ -61,8 +61,8 @@ test_storage_local_volume_handling() {
     if [ "$driver" = "pure" ]; then
       configure_pure_pool "${pool}1" "${pool_opts}"
     elif [ -n "${pool_opts}" ]; then
-      # shellcheck disable=SC2086
-      lxc storage create "${pool}1" "${driver}" $pool_opts
+      # shellcheck disable=SC2086,SC2248
+      lxc storage create "${pool}1" "${driver}" ${pool_opts}
     else
       lxc storage create "${pool}1" "${driver}"
     fi
@@ -230,32 +230,32 @@ test_storage_local_volume_handling() {
           # create custom block volume without snapshots
           lxc storage volume create "${source_pool}" vol1 --type=block size=4194304
           lxc storage volume copy "${source_pool}/vol1" "${target_pool}/vol1"
-          lxc storage volume show "${target_pool}" vol1 | grep -q 'content_type: block'
+          lxc storage volume show "${target_pool}" vol1 | grep -xF 'content_type: block'
 
           # create custom block volume with a snapshot
           lxc storage volume create "${source_pool}" vol2 --type=block size=4194304
           lxc storage volume snapshot "${source_pool}" vol2
-          lxc storage volume show "${source_pool}" vol2/snap0 | grep -q 'content_type: block'
+          lxc storage volume show "${source_pool}" vol2/snap0 | grep -xF 'content_type: block'
 
           # restore snapshot
           lxc storage volume restore "${source_pool}" vol2 snap0
-          lxc storage volume show "${source_pool}" vol2 | grep -q 'content_type: block'
+          lxc storage volume show "${source_pool}" vol2 | grep -xF 'content_type: block'
 
           # copy with snapshots
           lxc storage volume copy "${source_pool}/vol2" "${target_pool}/vol2"
-          lxc storage volume show "${target_pool}" vol2 | grep -q 'content_type: block'
-          lxc storage volume show "${target_pool}" vol2/snap0 | grep -q 'content_type: block'
+          lxc storage volume show "${target_pool}" vol2 | grep -xF 'content_type: block'
+          lxc storage volume show "${target_pool}" vol2/snap0 | grep -xF 'content_type: block'
 
           # copy without snapshots
           lxc storage volume copy "${source_pool}/vol2" "${target_pool}/vol3" --volume-only
-          lxc storage volume show "${target_pool}" vol3 | grep -q 'content_type: block'
-          ! lxc storage volume show "${target_pool}" vol3/snap0 | grep -q 'content_type: block' || false
+          lxc storage volume show "${target_pool}" vol3 | grep -xF 'content_type: block'
+          ! lxc storage volume show "${target_pool}" vol3/snap0 | grep -F 'content_type: block' || false
 
           # move images
           lxc storage volume move "${source_pool}/vol2" "${target_pool}/vol4"
-          ! lxc storage volume show "${source_pool}" vol2 | grep -q 'content_type: block' || false
-          lxc storage volume show "${target_pool}" vol4 | grep -q 'content_type: block'
-          lxc storage volume show "${target_pool}" vol4/snap0 | grep -q 'content_type: block'
+          ! lxc storage volume show "${source_pool}" vol2 | grep -F 'content_type: block' || false
+          lxc storage volume show "${target_pool}" vol4 | grep -xF 'content_type: block'
+          lxc storage volume show "${target_pool}" vol4/snap0 | grep -xF 'content_type: block'
 
           # check refreshing volumes
 
@@ -311,9 +311,9 @@ test_storage_local_volume_handling() {
           # copy ISO custom volumes
           lxc storage volume import "${source_pool}" ./foo.iso iso1
           lxc storage volume copy "${source_pool}/iso1" "${target_pool}/iso1"
-          lxc storage volume show "${target_pool}" iso1 | grep -q 'content_type: iso'
+          lxc storage volume show "${target_pool}" iso1 | grep -xF 'content_type: iso'
           lxc storage volume move "${source_pool}/iso1" "${target_pool}/iso2"
-          lxc storage volume show "${target_pool}" iso2 | grep -q 'content_type: iso'
+          lxc storage volume show "${target_pool}" iso2 | grep -xF 'content_type: iso'
           ! lxc storage volume show "${source_pool}" iso1 || false
 
           # clean up

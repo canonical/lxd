@@ -40,7 +40,7 @@ type StorageBucketPut struct {
 //
 // API extension: storage_buckets.
 type StorageBucket struct {
-	WithEntitlements `yaml:",inline"`
+	WithEntitlements `yaml:",inline"` //nolint:musttag
 
 	// Bucket name
 	// Example: foo

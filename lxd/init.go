@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared"
@@ -98,9 +100,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			}
 
 			// Config overrides.
-			for k, v := range storagePool.Config {
-				newStoragePool.Config[k] = v
-			}
+			maps.Copy(newStoragePool.Config, storagePool.Config)
 
 			// Apply it.
 			err = d.UpdateStoragePool(currentStoragePool.Name, newStoragePool, etag)
@@ -113,7 +113,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 
 		for _, storagePool := range config.StoragePools {
 			// New storagePool.
-			if !shared.ValueInSlice(storagePool.Name, storagePoolNames) {
+			if !slices.Contains(storagePoolNames, storagePool.Name) {
 				err := createStoragePool(storagePool)
 				if err != nil {
 					return nil, err
@@ -156,9 +156,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			}
 
 			// Config overrides.
-			for k, v := range network.Config {
-				newNetwork.Config[k] = v
-			}
+			maps.Copy(newNetwork.Config, network.Config)
 
 			// Apply it.
 			err = d.UseProject(network.Project).UpdateNetwork(currentNetwork.Name, newNetwork, etag)
@@ -239,9 +237,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			}
 
 			// Config overrides.
-			for k, v := range project.Config {
-				newProject.Config[k] = v
-			}
+			maps.Copy(newProject.Config, project.Config)
 
 			// Apply it.
 			err = d.UpdateProject(currentProject.Name, newProject, etag)
@@ -254,7 +250,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 
 		for _, project := range config.Projects {
 			// New project.
-			if !shared.ValueInSlice(project.Name, projectNames) {
+			if !slices.Contains(projectNames, project.Name) {
 				err := createProject(project)
 				if err != nil {
 					return nil, err
@@ -323,9 +319,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			}
 
 			// Config overrides.
-			for k, v := range storageVolume.Config {
-				newStorageVolume.Config[k] = v
-			}
+			maps.Copy(newStorageVolume.Config, storageVolume.Config)
 
 			// Apply it.
 			err = d.UseProject(storageVolume.Project).UpdateStoragePoolVolume(storageVolume.Pool, storageVolume.Type, currentStorageVolume.Name, newStorageVolume, etag)
@@ -399,9 +393,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			}
 
 			// Config overrides.
-			for k, v := range profile.Config {
-				newProfile.Config[k] = v
-			}
+			maps.Copy(newProfile.Config, profile.Config)
 
 			// Device overrides.
 			for k, v := range profile.Devices {
@@ -413,9 +405,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 				}
 
 				// Existing device.
-				for configKey, configValue := range v {
-					newProfile.Devices[k][configKey] = configValue
-				}
+				maps.Copy(newProfile.Devices[k], v)
 			}
 
 			// Apply it.
@@ -429,7 +419,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 
 		for _, profile := range config.Profiles {
 			// New profile.
-			if !shared.ValueInSlice(profile.Name, profileNames) {
+			if !slices.Contains(profileNames, profile.Name) {
 				err := createProfile(profile)
 				if err != nil {
 					return nil, err

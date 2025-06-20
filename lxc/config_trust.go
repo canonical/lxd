@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -115,7 +116,7 @@ func (c *cmdConfigTrustAdd) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Validate flags.
-	if !shared.ValueInSlice(c.flagType, []string{"client", "metrics"}) {
+	if !slices.Contains([]string{"client", "metrics"}, c.flagType) {
 		return fmt.Errorf(i18n.G("Unknown certificate type %q"), c.flagType)
 	}
 

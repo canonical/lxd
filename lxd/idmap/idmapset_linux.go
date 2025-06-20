@@ -12,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -347,21 +348,11 @@ func (m IdmapSet) Less(i, j int) bool {
 }
 
 func (m IdmapSet) Intersects(i IdmapEntry) bool {
-	for _, e := range m.Idmap {
-		if i.Intersects(e) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(m.Idmap, i.Intersects)
 }
 
 func (m IdmapSet) HostidsIntersect(i IdmapEntry) bool {
-	for _, e := range m.Idmap {
-		if i.HostidsIntersect(e) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(m.Idmap, i.HostidsIntersect)
 }
 
 func (m IdmapSet) Usable() error {
@@ -504,7 +495,7 @@ func (m IdmapSet) ToLxcString() []string {
 	var lines []string
 	for _, e := range m.Idmap {
 		for _, l := range e.ToLxcString() {
-			if !shared.ValueInSlice(l, lines) {
+			if !slices.Contains(lines, l) {
 				lines = append(lines, l)
 			}
 		}
@@ -644,11 +635,8 @@ func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how stri
 		}
 
 		if nlink >= 2 {
-			for _, linkInode := range hardLinks {
-				// File was already shifted through hardlink
-				if linkInode == inode {
-					return nil
-				}
+			if slices.Contains(hardLinks, inode) {
+				return nil
 			}
 
 			hardLinks = append(hardLinks, inode)

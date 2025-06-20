@@ -102,7 +102,7 @@ type StorageVolumePostTarget struct {
 //
 // API extension: storage.
 type StorageVolume struct {
-	WithEntitlements `yaml:",inline"`
+	WithEntitlements `yaml:",inline"` //nolint:musttag
 
 	// Volume name
 	// Example: foo

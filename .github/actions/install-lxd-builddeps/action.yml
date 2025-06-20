@@ -11,23 +11,25 @@ runs:
         sudo apt-get update
 
         sudo apt-get install --no-install-recommends -y \
+          autoconf \
+          automake \
           build-essential \
-          curl \
           gettext \
           git \
           libacl1-dev \
           libapparmor-dev \
           libcap-dev \
+          liblz4-dev \
           libseccomp-dev \
           libsqlite3-dev \
-          meson \
-          ninja-build \
-          python3-venv \
           libtool \
           libudev-dev \
           libuv1-dev \
           make \
+          meson \
+          ninja-build \
           pkg-config \
+          python3-venv \
           shellcheck
 
         # reclaim some space

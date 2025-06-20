@@ -12,22 +12,22 @@ const roleReadOnly = "read-only"
 
 // Policy defines the S3 policy.
 type Policy struct {
-	Version   string
-	Statement []PolicyStatement
+	Version   string            `json:"Version"`
+	Statement []PolicyStatement `json:"Statement"`
 }
 
 // PolicyStatement defines the S3 policy statement.
 type PolicyStatement struct {
-	Effect   string
-	Action   []string
-	Resource []string
+	Effect   string   `json:"Effect"`
+	Action   []string `json:"Action"`
+	Resource []string `json:"Resource"`
 }
 
 // BucketPolicy generates an S3 bucket policy for role.
 func BucketPolicy(bucketName string, roleName string) (json.RawMessage, error) {
 	switch roleName {
 	case roleAdmin:
-		return []byte(fmt.Sprintf(`{
+		return fmt.Appendf(nil, `{
 			"Version": "2012-10-17",
 			"Statement": [{
 				"Effect": "Allow",
@@ -38,9 +38,9 @@ func BucketPolicy(bucketName string, roleName string) (json.RawMessage, error) {
 					"arn:aws:s3:::%s/*"
 				]
 			}]
-		}`, bucketName)), nil
+		}`, bucketName), nil
 	case roleReadOnly:
-		return []byte(fmt.Sprintf(`{
+		return fmt.Appendf(nil, `{
 			"Version": "2012-10-17",
 			"Statement": [{
 				"Effect": "Allow",
@@ -54,7 +54,7 @@ func BucketPolicy(bucketName string, roleName string) (json.RawMessage, error) {
 					"arn:aws:s3:::%s/*"
 				]
 			}]
-		}`, bucketName)), nil
+		}`, bucketName), nil
 	}
 
 	return nil, errors.New("Invalid key role")

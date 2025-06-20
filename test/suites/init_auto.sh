@@ -15,7 +15,7 @@ test_init_auto() {
     # shellcheck disable=SC2154
     zpool create -m none -O compression=on "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool" "${loop_device_1}"
     LXD_DIR=${LXD_INIT_DIR} lxd init --auto --storage-backend zfs --storage-pool "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool"
-    LXD_DIR=${LXD_INIT_DIR} lxc profile show default | grep -q "pool: default"
+    [ "$(LXD_DIR=${LXD_INIT_DIR} lxc profile device get default root pool)" = "default" ]
 
     kill_lxd "${LXD_INIT_DIR}"
     sed -i "\\|^${loop_device_1}|d" "${TEST_DIR}/loops"

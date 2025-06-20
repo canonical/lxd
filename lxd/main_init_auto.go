@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/spf13/cobra"
 
@@ -16,11 +17,11 @@ import (
 // RunAuto initializes LXD in automatic (non-interactive) mode.
 func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServer, server *api.Server) (*api.InitPreseed, error) {
 	// Quick checks.
-	if c.flagStorageBackend != "" && !shared.ValueInSlice(c.flagStorageBackend, storageDrivers.AllDriverNames()) {
+	if c.flagStorageBackend != "" && !slices.Contains(storageDrivers.AllDriverNames(), c.flagStorageBackend) {
 		return nil, fmt.Errorf("The requested backend '%s' isn't supported by lxd init", c.flagStorageBackend)
 	}
 
-	if c.flagStorageBackend != "" && !shared.ValueInSlice(c.flagStorageBackend, util.AvailableStorageDrivers(server.Environment.StorageSupportedDrivers, util.PoolTypeAny)) {
+	if c.flagStorageBackend != "" && !slices.Contains(util.AvailableStorageDrivers(server.Environment.StorageSupportedDrivers, util.PoolTypeAny), c.flagStorageBackend) {
 		return nil, fmt.Errorf("The requested backend '%s' isn't available on your system (missing tools)", c.flagStorageBackend)
 	}
 

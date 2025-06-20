@@ -1,8 +1,7 @@
 # In case a cached image matching the desired alias is present, that
 # one is preferred, even if the its remote has a more recent one.
 test_image_prefer_cached() {
-
-  if lxc image alias list | grep -q "^| testimage\\s*|.*$"; then
+  if lxc image alias list testimage | grep -wF "testimage"; then
       lxc image delete testimage
   fi
 

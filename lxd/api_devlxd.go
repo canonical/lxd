@@ -219,7 +219,7 @@ func findContainerForPID(pid int32, s *state.State) (instance.Container, error) 
 			return nil, err
 		}
 
-		for _, line := range strings.Split(string(status), "\n") {
+		for line := range strings.SplitSeq(string(status), "\n") {
 			ppidStr, found := strings.CutPrefix(line, "PPid:")
 			if !found {
 				continue

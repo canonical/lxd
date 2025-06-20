@@ -38,7 +38,7 @@ type StoragePoolsPost struct {
 //
 // API extension: storage.
 type StoragePool struct {
-	WithEntitlements `yaml:",inline"`
+	WithEntitlements `yaml:",inline"` //nolint:musttag
 
 	// Storage pool name
 	// Example: local

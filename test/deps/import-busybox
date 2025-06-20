@@ -22,23 +22,6 @@ class FriendlyParser(argparse.ArgumentParser):
         sys.exit(2)
 
 
-def find_on_path(command):
-    """Is command on the executable search path?"""
-
-    if "PATH" not in os.environ:
-        return False
-
-    path = os.environ["PATH"]
-    for element in path.split(os.pathsep):
-        if not element:
-            continue
-        filename = os.path.join(element, command)
-        if os.path.isfile(filename) and os.access(filename, os.X_OK):
-            return True
-
-    return False
-
-
 class UnixHTTPConnection(http.client.HTTPConnection):
     def __init__(self, path):
         http.client.HTTPConnection.__init__(self, "localhost")
@@ -166,10 +149,12 @@ class LXD:
 
 class BusyBox:
     workdir = None
+    binary_path = None
 
     def __init__(self):
         # Create our workdir
         self.workdir = tempfile.mkdtemp()
+        self.binary_path = shutil.which("busybox")
         atexit.register(self.cleanup)
 
     def cleanup(self):
@@ -177,7 +162,7 @@ class BusyBox:
             shutil.rmtree(self.workdir)
 
     def create_tarball(self, split=False, template=[]):
-        xz = "pxz" if find_on_path("pxz") else "xz"
+        xz = "pxz" if shutil.which("pxz") else "xz"
 
         destination_tar = os.path.join(self.workdir, "busybox.tar")
         target_tarball = tarfile.open(destination_tar, "w:")
@@ -188,7 +173,7 @@ class BusyBox:
 
         metadata = {
             "architecture": os.uname()[4],
-            "creation_date": int(os.stat("/bin/busybox").st_ctime),
+            "creation_date": int(os.stat(self.binary_path).st_ctime),
             "properties": {
                 "os": "BusyBox",
                 "architecture": os.uname()[4],
@@ -198,9 +183,9 @@ class BusyBox:
         }
 
         # Add busybox
-        with open("/bin/busybox", "rb") as fd:
+        with open(self.binary_path, "rb") as fd:
             busybox_file = tarfile.TarInfo()
-            busybox_file.size = os.stat("/bin/busybox").st_size
+            busybox_file.size = os.stat(self.binary_path).st_size
             busybox_file.mode = 0o755
             if split:
                 busybox_file.name = "bin/busybox"
@@ -211,7 +196,7 @@ class BusyBox:
 
         # Add symlinks
         busybox = subprocess.Popen(
-            ["/bin/busybox", "--list-full"],
+            [self.binary_path, "--list-full"],
             stdout=subprocess.PIPE,
             universal_newlines=True,
         )
@@ -285,16 +270,6 @@ user.foo: {{ config_get("user.foo", "_unset_") }}
         metadata_file.name = "metadata.yaml"
         target_tarball.addfile(metadata_file, io.BytesIO(metadata_yaml))
 
-        # Add an /etc/inittab; this is to work around:
-        # http://lists.busybox.net/pipermail/busybox/2015-November/083618.html
-        # Basically, since there are some hardcoded defaults that misbehave, we
-        # just pass an empty inittab so those aren't applied, and then busybox
-        # doesn't spin forever.
-        inittab = tarfile.TarInfo()
-        inittab.size = 1
-        inittab.name = "/rootfs/etc/inittab"
-        target_tarball.addfile(inittab, io.BytesIO(b"\n"))
-
         target_tarball.close()
         if split:
             target_tarball_rootfs.close()
@@ -314,16 +289,11 @@ user.foo: {{ config_get("user.foo", "_unset_") }}
 
 
 if __name__ == "__main__":
-    if "LXD_DIR" in os.environ:
-        lxd_socket = os.path.join(os.environ["LXD_DIR"], "unix.socket")
-    else:
-        lxd_socket = "/var/lib/lxd/unix.socket"
-
-    if not os.path.exists(lxd_socket):
-        print("LXD isn't running.")
-        sys.exit(1)
 
     def setup_alias(aliases, fingerprint):
+        if not aliases:
+            return
+
         existing = lxd.aliases_list()
 
         for alias in aliases:
@@ -339,6 +309,11 @@ if __name__ == "__main__":
             meta_path, rootfs_path = busybox.create_tarball(
                 split=True, template=args.template.split(",")
             )
+
+            if args.save_image:
+                shutil.copy(meta_path, "busybox.meta.tar.xz")
+                shutil.copy(rootfs_path, "busybox.rootfs.tar.xz")
+                return
 
             with open(meta_path, "rb") as meta_fd:
                 with open(rootfs_path, "rb") as rootfs_fd:
@@ -358,6 +333,10 @@ if __name__ == "__main__":
             print("Image imported as: %s" % r["fingerprint"])
         else:
             path = busybox.create_tarball(template=args.template.split(","))
+
+            if args.save_image:
+                shutil.copy(path, "busybox.tar.xz")
+                return
 
             with open(path, "rb") as fd:
                 fingerprint = hashlib.sha256(fd.read()).hexdigest()
@@ -393,12 +372,28 @@ if __name__ == "__main__":
         "--template", type=str, default="", help="Trigger test template"
     )
     parser.add_argument("--project", type=str, default="default", help="Project to use")
+
+    parser.add_argument(
+        "--save-image", action="store_true", default=False, help="Save the image tarball"
+    )
     parser.set_defaults(func=import_busybox)
 
     # Call the function
     args = parser.parse_args()
 
-    lxd = LXD(lxd_socket, project=args.project)
+    if not args.save_image:
+        if "LXD_DIR" in os.environ:
+            lxd_socket = os.path.join(os.environ["LXD_DIR"], "unix.socket")
+        elif os.path.exists("/var/snap/lxd/common/lxd/unix.socket"):
+            lxd_socket = "/var/snap/lxd/common/lxd/unix.socket"
+        else:
+            lxd_socket = "/var/lib/lxd/unix.socket"
+
+        if not os.path.exists(lxd_socket):
+            print("LXD isn't running.")
+            sys.exit(1)
+
+        lxd = LXD(lxd_socket, project=args.project)
 
     try:
         args.func(parser, args)

@@ -58,7 +58,7 @@ test_filemanip() {
   echo "foo" > "${TEST_DIR}/source/file with spaces"
 
   lxc file push -p -r "${TEST_DIR}"/source filemanip/tmp/ptest
-  lxc exec filemanip --project=test -- find /tmp/ptest/source | grep -q "file with spaces"
+  lxc exec filemanip --project=test -- find /tmp/ptest/source | grep -F "file with spaces"
   rm -rf "${TEST_DIR}/source/file with spaces"
 
   lxc file pull -p -r filemanip/tmp/ptest "${TEST_DIR}/dest"
@@ -165,7 +165,7 @@ test_filemanip() {
   sleep 1
 
   output=$(curl -s -S --insecure sftp://127.0.0.1:2022/foo || true)
-  kill -9 ${mountPID}
+  kill -9 "${mountPID}"
   lxc delete filemanip -f
   [ "$output" = "foo" ]
 

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -1324,13 +1325,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 		return fmt.Errorf("Volume of content type %q cannot be refreshed", contentType)
 	}
 
-	storagePoolSupported := false
-	for _, supportedType := range b.Driver().Info().VolumeTypes {
-		if supportedType == drivers.VolumeTypeCustom {
-			storagePoolSupported = true
-			break
-		}
-	}
+	storagePoolSupported := slices.Contains(b.Driver().Info().VolumeTypes, drivers.VolumeTypeCustom)
 
 	if !storagePoolSupported {
 		return errors.New("Storage pool does not support custom volume type")
@@ -1861,7 +1856,7 @@ func (b *lxdBackend) imageConversionFiller(imgPath string, imgFormat string, op 
 
 		// Ensure conversion supports the uploaded image format.
 		supportedImageFormats := []string{"qcow", "qcow2", "raw", "vdi", "vhdx", "vmdk"}
-		if !shared.ValueInSlice(imgFormat, supportedImageFormats) {
+		if !slices.Contains(supportedImageFormats, imgFormat) {
 			return -1, fmt.Errorf("Unsupported image format %q, allowed formats are [%s]", imgFormat, strings.Join(supportedImageFormats, ", "))
 		}
 
@@ -3986,7 +3981,7 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 			// Go through all the snapshots.
 			for _, snap := range snaps {
 				_, snapName, _ := api.GetParentAndSnapshotName(snap.Name())
-				if !shared.ValueInSlice(snapName, snapErr.Snapshots) {
+				if !slices.Contains(snapErr.Snapshots, snapName) {
 					continue
 				}
 
@@ -4778,9 +4773,7 @@ func (b *lxdBackend) ImportBucket(projectName string, poolVol *backupConfig.Conf
 
 	// Copy bucket config from backup file if present (so BucketDBCreate can safely modify the copy if needed).
 	bucketConfig := make(map[string]string, len(poolVol.Bucket.Config))
-	for k, v := range poolVol.Bucket.Config {
-		bucketConfig[k] = v
-	}
+	maps.Copy(bucketConfig, poolVol.Bucket.Config)
 
 	bucket := &api.StorageBucketsPost{
 		Name:             poolVol.Bucket.Name,
@@ -5278,6 +5271,18 @@ func (b *lxdBackend) DeleteBucketKey(projectName string, bucketName string, keyN
 
 // ActivateBucket mounts the local bucket volume and returns the MinIO S3 process for it.
 func (b *lxdBackend) ActivateBucket(projectName string, bucketName string, _ *operations.Operation) (*miniod.Process, error) {
+	var bucket *db.StorageBucket
+	var err error
+
+	// Get the bucket config.
+	err = b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		bucket, err = tx.GetStoragePoolBucket(ctx, b.id, projectName, true, bucketName)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	if !b.Driver().Info().Buckets {
 		return nil, errors.New("Storage pool does not support buckets")
 	}
@@ -5287,7 +5292,7 @@ func (b *lxdBackend) ActivateBucket(projectName string, bucketName string, _ *op
 	}
 
 	bucketVolName := project.StorageVolume(projectName, bucketName)
-	bucketVol := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketVolName, nil)
+	bucketVol := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketVolName, bucket.Config)
 
 	return miniod.EnsureRunning(b.state, bucketVol)
 }
@@ -5336,13 +5341,7 @@ func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc
 	volStorageName := project.StorageVolume(projectName, volName)
 	vol := b.GetNewVolume(drivers.VolumeTypeCustom, contentType, volStorageName, config)
 
-	storagePoolSupported := false
-	for _, supportedType := range b.Driver().Info().VolumeTypes {
-		if supportedType == drivers.VolumeTypeCustom {
-			storagePoolSupported = true
-			break
-		}
-	}
+	storagePoolSupported := slices.Contains(b.Driver().Info().VolumeTypes, drivers.VolumeTypeCustom)
 
 	if !storagePoolSupported {
 		return errors.New("Storage pool does not support custom volume type")
@@ -5433,13 +5432,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	// Get the source volume's content type.
 	contentType := VolumeDBContentTypeToContentType(contentDBType)
 
-	storagePoolSupported := false
-	for _, supportedType := range b.Driver().Info().VolumeTypes {
-		if supportedType == drivers.VolumeTypeCustom {
-			storagePoolSupported = true
-			break
-		}
-	}
+	storagePoolSupported := slices.Contains(b.Driver().Info().VolumeTypes, drivers.VolumeTypeCustom)
 
 	if !storagePoolSupported {
 		return errors.New("Storage pool does not support custom volume type")
@@ -5836,13 +5829,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 		return err
 	}
 
-	storagePoolSupported := false
-	for _, supportedType := range b.Driver().Info().VolumeTypes {
-		if supportedType == drivers.VolumeTypeCustom {
-			storagePoolSupported = true
-			break
-		}
-	}
+	storagePoolSupported := slices.Contains(b.Driver().Info().VolumeTypes, drivers.VolumeTypeCustom)
 
 	if !storagePoolSupported {
 		return errors.New("Storage pool does not support custom volume type")
@@ -6017,6 +6004,12 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volName": volName, "newVolName": newVolName})
 	l.Debug("RenameCustomVolume started")
 	defer l.Debug("RenameCustomVolume finished")
+
+	// Silence the static analysis tool
+	err := ValidVolumeName(newVolName)
+	if err != nil {
+		return err
+	}
 
 	if shared.IsSnapshot(volName) {
 		return errors.New("Volume name cannot be a snapshot")
@@ -6985,7 +6978,7 @@ func (b *lxdBackend) GenerateCustomVolumeBackupConfig(projectName string, volNam
 }
 
 // GenerateInstanceBackupConfig returns the backup config entry for this instance.
-// The Container field is only populated for non-snapshot instances.
+// The Instance field is only populated for non-snapshot instances.
 func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, _ *operations.Operation) (*backupConfig.Config, error) {
 	// Generate the YAML.
 	ci, _, err := inst.Render()
@@ -7411,7 +7404,7 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 		fullSnapshotName := drivers.GetSnapshotVolumeName(instName, snapshot.Name)
 
 		// Check if an entry for the instance already exists in the DB.
-		if shared.ValueInSlice(fullSnapshotName, instSnapshots) {
+		if slices.Contains(instSnapshots, fullSnapshotName) {
 			return fmt.Errorf("Instance %q snapshot %q in project %q already has instance DB record", instName, snapshot.Name, projectName)
 		}
 

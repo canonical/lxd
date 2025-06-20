@@ -64,6 +64,11 @@ static int seccomp_notify_get_sizes(struct seccomp_notif_sizes *sizes)
 	return 0;
 }
 
+static bool is_whiteout(dev_t dev, mode_t mode)
+{
+	return ((mode & S_IFMT) == S_IFCHR) && (dev == makedev(0, 0));
+}
+
 static int device_allowed(dev_t dev, mode_t mode)
 {
 	switch (mode & S_IFMT) {
@@ -1359,7 +1364,7 @@ func (s *Server) doDeviceSyscall(c Instance, args *MknodArgs, siov *Iovec) int {
 		return int(-C.EPERM)
 	}
 
-	if !hasCapability {
+	if !hasCapability && !bool(C.is_whiteout(args.cDev, args.cMode)) {
 		l.Error("Requestor process creds lacks CAP_MKNOD")
 		return int(-C.EPERM)
 	}

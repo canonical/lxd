@@ -11,7 +11,7 @@ GOPATH ?= $(shell go env GOPATH)
 CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 SPHINXENV=doc/.sphinx/venv/bin/activate
 SPHINXPIPPATH=doc/.sphinx/venv/bin/pip
-GOMIN=1.24.2
+GOMIN=1.24.4
 GOTOOLCHAIN=local
 export GOTOOLCHAIN
 GOCOVERDIR ?= $(shell go env GOCOVERDIR)
@@ -27,6 +27,12 @@ endif
 DQLITE_PATH=$(DEPS_PATH)/dqlite
 LIBLXC_PATH=$(DEPS_PATH)/liblxc
 LIBLXC_ROOTFS_MOUNT_PATH=$(GOPATH)/bin/liblxc/rootfs
+
+export CGO_CFLAGS ?= -I$(DQLITE_PATH)/include/ -I$(LIBLXC_PATH)/include/
+export CGO_LDFLAGS ?= -L$(DQLITE_PATH)/.libs/ -L$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/
+export LD_LIBRARY_PATH ?= $(DQLITE_PATH)/.libs/:$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/
+export PKG_CONFIG_PATH ?= $(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/pkgconfig
+export CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 
 .PHONY: default
 default: all
@@ -113,7 +119,7 @@ dqlite:
 liblxc:
 	# lxc/liblxc
 	@if [ ! -e "$(LIBLXC_PATH)" ]; then \
-		echo "Retrieving lxc/liblxc from ${LIBLXC_BRANCH} branch"; \
+		echo "Retrieving lxc/liblxc from $(LIBLXC_BRANCH) branch"; \
 		git clone --depth=1 --branch "${LIBLXC_BRANCH}" "https://github.com/lxc/lxc" "$(LIBLXC_PATH)"; \
 	elif [ -e "$(LIBLXC_PATH)/.git" ]; then \
 		echo "Updating existing lxc/liblxc branch"; \
@@ -156,16 +162,29 @@ endif
 
 .PHONY: env
 env:
-	@echo ""
-	@echo "# Please set the following in your environment (possibly ~/.bashrc)"
-	@echo "export CGO_CFLAGS=\"-I$(DQLITE_PATH)/include/ -I$(LIBLXC_PATH)/include/\""
-	@echo "export CGO_LDFLAGS=\"-L$(DQLITE_PATH)/.libs/ -L$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/\""
-	@echo "export LD_LIBRARY_PATH=\"$(DQLITE_PATH)/.libs/:$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/\""
-	@echo "export PKG_CONFIG_PATH=\"$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/pkgconfig\""
-	@echo "export CGO_LDFLAGS_ALLOW=\"(-Wl,-wrap,pthread_create)|(-Wl,-z,now)\""
+	@echo "export CGO_CFLAGS=\"$(CGO_CFLAGS)\""
+	@echo "export CGO_LDFLAGS=\"$(CGO_LDFLAGS)\""
+	@echo "export LD_LIBRARY_PATH=\"$(LD_LIBRARY_PATH)\""
+	@echo "export PKG_CONFIG_PATH=\"$(PKG_CONFIG_PATH)\""
+	@echo "export CGO_LDFLAGS_ALLOW=\"$(CGO_LDFLAGS_ALLOW)\""
 
 .PHONY: deps
-deps: dqlite liblxc env
+deps: dqlite liblxc
+	@echo ""
+	@echo "# Please set the following in your environment (possibly ~/.bashrc)"
+	@make -s env
+
+# Spawns an interactive test shell for quick interactions with LXD and the test
+# suite.
+.PHONY: test-shell
+test-shell:
+	@eval $(make -s env)
+	cd test && ./main.sh test-shell
+
+.PHONY: tics
+tics: deps
+	go build -a -x -v ./...
+	CC="cc" CGO_LDFLAGS_ALLOW="(-Wl,-wrap,pthread_create)|(-Wl,-z,now)" go install -v -tags "libsqlite3" -trimpath -a -x -v ./...
 
 .PHONY: update-gomod
 update-gomod:
@@ -268,33 +287,54 @@ check: default check-unit
 .PHONY: check-unit
 check-unit:
 ifeq "$(GOCOVERDIR)" ""
-	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
+	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -mod=readonly -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 else
-	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./... -cover -test.gocoverdir="${GOCOVERDIR}"
+	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -mod=readonly -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./... -cover -test.gocoverdir="$(GOCOVERDIR)"
 endif
 
 .PHONY: dist
 dist: doc
 	# Cleanup
-	rm -Rf $(ARCHIVE).gz
+	rm -f $(ARCHIVE).gz
 
 	# Create build dir
 	$(eval TMP := $(shell mktemp -d))
-	git archive --prefix=lxd-$(VERSION)/ HEAD | tar -x -C $(TMP)
-	git show-ref HEAD | cut -d' ' -f1 > $(TMP)/lxd-$(VERSION)/.gitref
+	$(eval COMMIT_HASH := $(shell git rev-parse HEAD))
+	git archive --prefix=lxd-$(VERSION)/ $(COMMIT_HASH) | tar -x -C $(TMP)
+	echo $(COMMIT_HASH) > $(TMP)/lxd-$(VERSION)/.gitref
 
 	# Download dependencies
 	(cd $(TMP)/lxd-$(VERSION) ; go mod vendor)
 
 	# Download the dqlite library
-	git clone --depth=1 --branch "${DQLITE_BRANCH}" https://github.com/canonical/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
-	(cd $(TMP)/lxd-$(VERSION)/vendor/dqlite ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
+	git clone --depth=1 --branch "$(DQLITE_BRANCH)" https://github.com/canonical/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
+	(cd $(TMP)/lxd-$(VERSION)/vendor/dqlite ; git rev-parse HEAD | tee .gitref)
+
+	# Download the liblxc library
+	git clone --depth=1 --branch "$(LIBLXC_BRANCH)" https://github.com/lxc/lxc $(TMP)/lxd-$(VERSION)/vendor/liblxc
+	(cd $(TMP)/lxd-$(VERSION)/vendor/liblxc ; git rev-parse HEAD | tee .gitref)
 
 	# Copy doc output
-	cp -r doc/_build $(TMP)/lxd-$(VERSION)/doc/html/
+	cp -r --preserve=mode doc/_build $(TMP)/lxd-$(VERSION)/doc/html/
 
-	# Assemble tarball
-	tar --exclude-vcs -C $(TMP) -zcf $(ARCHIVE).gz lxd-$(VERSION)/
+	# Assemble a reproducible tarball
+	# The reproducibility comes from:
+	# * predictable file sorting (`--sort=name`)
+	# * clamping mtime to that of the HEAD commit timestamp
+	# * omit irrelevant information about file access or status change time
+	# * omit irrelevant information about user and group names
+	# * omit irrelevant information about file ownership and group
+	# * tell `gzip` to not embed the file name when compressing
+	# For more details: https://www.gnu.org/software/tar/manual/html_node/Reproducibility.html
+	$(eval SOURCE_EPOCH := $(shell TZ=UTC0 git log -1 --format=tformat:%cd --date=format:%Y-%m-%dT%H:%M:%SZ $(COMMIT_HASH)))
+	LC_ALL=C tar --sort=name --format=posix \
+		--pax-option=exthdr.name=%d/PaxHeaders/%f \
+		--pax-option=delete=atime,delete=ctime \
+		--clamp-mtime --mtime=$(SOURCE_EPOCH) \
+		--numeric-owner --owner=0 --group=0 \
+		--mode=go+u,go-w \
+		--use-compress-program="gzip --no-name" \
+		--exclude-vcs -C $(TMP) -cf $(ARCHIVE).gz lxd-$(VERSION)/
 
 	# Cleanup
 	rm -Rf $(TMP)
@@ -344,7 +384,7 @@ ifeq ($(shell command -v go-licenses),)
 	(cd / ; go install github.com/google/go-licenses@latest)
 endif
 ifeq ($(shell command -v golangci-lint),)
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v2.1.5
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin latest
 endif
 ifneq ($(shell command -v yamllint),)
 	yamllint .github/workflows/*.yml
@@ -354,7 +394,6 @@ ifeq ($(shell command -v shellcheck),)
 	exit 1
 else
 endif
-	shellcheck test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh test/lint/*.sh test/extras/*.sh
 	echo "Verify test/lint files are properly named and executable"
 	@NOT_EXEC="$(shell find test/lint -type f -not -executable)"; \
 	if [ -n "$$NOT_EXEC" ]; then \
@@ -377,3 +416,7 @@ update-auth:
 			git commit -S -sm "lxd/auth: Update auth" -- ./lxd/auth/;\
 		fi;\
 	fi
+
+.PHONY: update-fmt
+update-fmt:
+	gofmt -w -s ./

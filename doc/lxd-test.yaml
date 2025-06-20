@@ -1,0 +1,117 @@
+name: lxd-test
+description: "Profile to build and test LXD in ephemeral VM"
+config:
+  cloud-init.user-data: |-
+    #cloud-config
+    apt:
+      # Speed things up by not pulling from backports/security and avoid restricted/multiverse pockets.
+      # In general, backported packages or those from restricted/multiverse shouldn't be relied on because
+      # they don't come with the same level of support as those from main for example.
+      # The security repo is not necessary when packages are coming from the primary archive (maintained by Canonical).
+      disable_suites:
+      - backports
+      - security
+      conf: |
+        # Faster downloads
+        Acquire::Languages "none";
+        APT::Get::Show-Versions "true";
+        # Install just what's in the packages list below
+        APT::Install-Recommends "false";
+
+    write_files:
+    # Faster dpkg installs
+    - content: "force-unsafe-io\n"
+      path: /etc/dpkg/dpkg.cfg
+      append: true
+    # wait for cloud-init to be done
+    - content: "#!/bin/sh\nexec cloud-init status --wait --long\n"
+      path: /usr/local/bin/ci-wait
+      permissions: "0755"
+
+    runcmd:
+    # Speeds up testing and avoid problem with virtiofs
+    - echo "LXD_TMPFS=1" >> /etc/environment
+    # Disable lxd-installer
+    - chmod -x /usr/sbin/lxc /usr/sbin/lxd
+    # Remove sources of noise
+    - systemctl disable --now unattended-upgrades.service
+    - cd /etc/systemd/system/timers.target.wants/ && systemctl disable --now *.timer
+    # Prepare LXD build
+    - printf '[safe]\n    directory = *\n' >> /root/.gitconfig
+    - chmod o+x /root
+
+    package_update: true
+    package_upgrade: true
+    packages:
+    # dev comfort
+    - bash-completion
+    - vim
+    # build deps
+    - autoconf
+    - automake
+    - build-essential
+    - gettext
+    - git
+    - libacl1-dev
+    - libapparmor-dev
+    - libcap-dev
+    - libseccomp-dev
+    - libsqlite3-dev
+    - libtool
+    - libudev-dev
+    - libuv1-dev
+    - make
+    - meson
+    - ninja-build
+    - pkg-config
+    - python3-venv
+    - shellcheck
+    # run deps
+    - attr
+    - iproute2
+    - nftables
+    - rsync
+    - squashfs-tools
+    - tar
+    - xz-utils
+    # test deps
+    - acl
+    - bind9-dnsutils
+    - btrfs-progs
+    - busybox-static
+    - curl
+    - dnsmasq-base
+    - dosfstools
+    - e2fsprogs
+    - iptables
+    - iputils-ping
+    - jq
+    - netcat-openbsd
+    - shellcheck
+    - socat
+    - sqlite3
+    - swtpm
+    - xfsprogs
+    - yq
+    snap:
+      commands:
+      - snap install go --classic
+  limits.cpu: "4"
+  limits.memory: 16GiB
+  security.devlxd.images: "true"
+devices:
+  eth0:
+    name: eth0
+    network: lxdbr0
+    type: nic
+  lxd-git:
+    path: /root/lxd
+    source: @@PATH_TO_LXD_GIT@@
+    type: disk
+  root:
+    path: /
+    pool: default
+    size: 12GiB
+    type: disk
+used_by: []
+project: default

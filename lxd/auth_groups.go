@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -21,7 +22,6 @@ import (
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/util"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 )
@@ -655,7 +655,7 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 
 		newPermissions := make([]api.Permission, 0, len(groupPut.Permissions))
 		for _, permission := range groupPut.Permissions {
-			if !shared.ValueInSlice(permission, apiGroup.Permissions) {
+			if !slices.Contains(apiGroup.Permissions, permission) {
 				newPermissions = append(newPermissions, permission)
 			}
 		}

@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -45,7 +46,7 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Instan
 	}
 
 	// Clustering
-	err := c.askClustering(&config, d, server)
+	err := c.askClustering(&config, server)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +60,7 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Instan
 		}
 
 		// MAAS
-		err = c.askMAAS(&config, d)
+		err = c.askMAAS(&config)
 		if err != nil {
 			return nil, err
 		}
@@ -71,7 +72,7 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Instan
 		}
 
 		// Daemon config
-		err = c.askDaemon(&config, d, server)
+		err = c.askDaemon(&config, server)
 		if err != nil {
 			return nil, err
 		}
@@ -107,7 +108,7 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Instan
 	return &config, nil
 }
 
-func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, server *api.Server) error {
+func (c *cmdInit) askClustering(config *api.InitPreseed, server *api.Server) error {
 	clustering, err := c.global.asker.AskBool("Would you like to use LXD clustering? (yes/no) [default=no]: ", "no")
 	if err != nil {
 		return err
@@ -132,7 +133,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 			address := util.CanonicalNetworkAddress(value, shared.HTTPSDefaultPort)
 
 			host, _, _ := net.SplitHostPort(address)
-			if shared.ValueInSlice(host, []string{"", "[::]", "0.0.0.0"}) {
+			if slices.Contains([]string{"", "[::]", "0.0.0.0"}, host) {
 				return errors.New("Invalid IP address or DNS name")
 			}
 
@@ -187,9 +188,9 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 			}
 
 			validInput := func(input string) error {
-				if shared.ValueInSlice(strings.ToLower(input), []string{"yes", "y"}) {
+				if slices.Contains([]string{"yes", "y"}, strings.ToLower(input)) {
 					return nil
-				} else if shared.ValueInSlice(strings.ToLower(input), []string{"no", "n"}) {
+				} else if slices.Contains([]string{"no", "n"}, strings.ToLower(input)) {
 					return nil
 				} else if validJoinToken(input) != nil {
 					return errors.New("Not yes/no, or invalid join token")
@@ -203,8 +204,8 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 				return err
 			}
 
-			if !shared.ValueInSlice(strings.ToLower(clusterJoinToken), []string{"no", "n"}) {
-				if shared.ValueInSlice(strings.ToLower(clusterJoinToken), []string{"yes", "y"}) {
+			if !slices.Contains([]string{"no", "n"}, strings.ToLower(clusterJoinToken)) {
+				if slices.Contains([]string{"yes", "y"}, strings.ToLower(clusterJoinToken)) {
 					clusterJoinToken, err = c.global.asker.AskString("Please provide join token: ", "", validJoinToken)
 					if err != nil {
 						return err
@@ -272,9 +273,9 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 					validator := func(input string) error {
 						if input == certDigest {
 							return nil
-						} else if shared.ValueInSlice(strings.ToLower(input), []string{"yes", "y"}) {
+						} else if slices.Contains([]string{"yes", "y"}, strings.ToLower(input)) {
 							return nil
-						} else if shared.ValueInSlice(strings.ToLower(input), []string{"no", "n"}) {
+						} else if slices.Contains([]string{"no", "n"}, strings.ToLower(input)) {
 							return nil
 						}
 
@@ -286,7 +287,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 						return err
 					}
 
-					if shared.ValueInSlice(strings.ToLower(fingerprintCorrect), []string{"no", "n"}) {
+					if slices.Contains([]string{"no", "n"}, strings.ToLower(fingerprintCorrect)) {
 						return errors.New("User aborted configuration")
 					}
 
@@ -368,7 +369,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 	return nil
 }
 
-func (c *cmdInit) askMAAS(config *api.InitPreseed, d lxd.InstanceServer) error {
+func (c *cmdInit) askMAAS(config *api.InitPreseed) error {
 	maas, err := c.global.asker.AskBool("Would you like to connect to a MAAS server? (yes/no) [default=no]: ", "no")
 	if err != nil {
 		return err
@@ -600,7 +601,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 
 		// IPv4
 		net.Config["ipv4.address"], err = c.global.asker.AskString("What IPv4 address should be used? (CIDR subnet notation, “auto” or “none”) [default=auto]: ", "auto", func(value string) error {
-			if shared.ValueInSlice(value, []string{"auto", "none"}) {
+			if slices.Contains([]string{"auto", "none"}, value) {
 				return nil
 			}
 
@@ -610,7 +611,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 			return err
 		}
 
-		if !shared.ValueInSlice(net.Config["ipv4.address"], []string{"auto", "none"}) {
+		if !slices.Contains([]string{"auto", "none"}, net.Config["ipv4.address"]) {
 			netIPv4UseNAT, err := c.global.asker.AskBool("Would you like LXD to NAT IPv4 traffic on your bridge? [default=yes]: ", "yes")
 			if err != nil {
 				return err
@@ -621,7 +622,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 
 		// IPv6
 		net.Config["ipv6.address"], err = c.global.asker.AskString("What IPv6 address should be used? (CIDR subnet notation, “auto” or “none”) [default=auto]: ", "auto", func(value string) error {
-			if shared.ValueInSlice(value, []string{"auto", "none"}) {
+			if slices.Contains([]string{"auto", "none"}, value) {
 				return nil
 			}
 
@@ -631,7 +632,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 			return err
 		}
 
-		if !shared.ValueInSlice(net.Config["ipv6.address"], []string{"auto", "none"}) {
+		if !slices.Contains([]string{"auto", "none"}, net.Config["ipv6.address"]) {
 			netIPv6UseNAT, err := c.global.asker.AskBool("Would you like LXD to NAT IPv6 traffic on your bridge? [default=yes]: ", "yes")
 			if err != nil {
 				return err
@@ -707,11 +708,11 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 	}
 
 	defaultStorage := "dir"
-	if backingFs == "btrfs" && shared.ValueInSlice("btrfs", availableBackends) {
+	if backingFs == "btrfs" && slices.Contains(availableBackends, "btrfs") {
 		defaultStorage = "btrfs"
-	} else if shared.ValueInSlice("zfs", availableBackends) {
+	} else if slices.Contains(availableBackends, "zfs") {
 		defaultStorage = "zfs"
-	} else if shared.ValueInSlice("btrfs", availableBackends) {
+	} else if slices.Contains(availableBackends, "btrfs") {
 		defaultStorage = "btrfs"
 	}
 
@@ -752,7 +753,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 		if len(availableBackends) > 1 {
 			defaultBackend := defaultStorage
 			if poolType == util.PoolTypeRemote {
-				if shared.ValueInSlice("ceph", availableBackends) {
+				if slices.Contains(availableBackends, "ceph") {
 					defaultBackend = "ceph"
 				} else {
 					defaultBackend = availableBackends[0] // Default to first remote driver.
@@ -868,14 +869,7 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 					}
 
 					/* choose 5 GiB < x < 30GiB, where x is 20% of the disk size */
-					defaultSize := uint64(st.Frsize) * st.Blocks / (1024 * 1024 * 1024) / 5
-					if defaultSize > 30 {
-						defaultSize = 30
-					}
-
-					if defaultSize < 5 {
-						defaultSize = 5
-					}
+					defaultSize := max(min(uint64(st.Frsize)*st.Blocks/(1024*1024*1024)/5, 30), 5)
 
 					pool.Config["size"], err = c.global.asker.AskString(
 						fmt.Sprintf("Size in GiB of the new loop device (1GiB minimum) [default=%dGiB]: ", defaultSize),
@@ -960,7 +954,7 @@ and make sure that your user can see and run the "thin_check" command before run
 	return nil
 }
 
-func (c *cmdInit) askDaemon(config *api.InitPreseed, d lxd.InstanceServer, server *api.Server) error {
+func (c *cmdInit) askDaemon(config *api.InitPreseed, server *api.Server) error {
 	// Detect lack of uid/gid
 	idmapset, err := idmap.DefaultIdmapSet("", "")
 	if (err != nil || len(idmapset.Idmap) == 0 || idmapset.Usable() != nil) && shared.RunningInUserNS() {

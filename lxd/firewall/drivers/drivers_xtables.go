@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -124,13 +125,7 @@ func (d Xtables) iptablesInUse(iptablesCmd string) bool {
 		return false
 	}
 
-	for _, table := range []string{"filter", "nat", "mangle", "raw"} {
-		if tableIsUse(table) {
-			return true
-		}
-	}
-
-	return false
+	return slices.ContainsFunc([]string{"filter", "nat", "mangle", "raw"}, tableIsUse)
 }
 
 // ebtablesInUse returns whether the ebtables backend command has any rules defined.
@@ -638,7 +633,7 @@ func (d Xtables) aclRuleCriteriaToArgs(networkName string, ipVersion uint, rule 
 	}
 
 	// Add protocol filters.
-	if shared.ValueInSlice(rule.Protocol, []string{"tcp", "udp"}) {
+	if slices.Contains([]string{"tcp", "udp"}, rule.Protocol) {
 		args = append(args, "-p", rule.Protocol)
 
 		if rule.SourcePort != "" {
@@ -648,7 +643,7 @@ func (d Xtables) aclRuleCriteriaToArgs(networkName string, ipVersion uint, rule 
 		if rule.DestinationPort != "" {
 			args = append(args, d.aclRulePortToACLMatch("dports", shared.SplitNTrimSpace(rule.DestinationPort, ",", -1, false)...)...)
 		}
-	} else if shared.ValueInSlice(rule.Protocol, []string{"icmp4", "icmp6"}) {
+	} else if slices.Contains([]string{"icmp4", "icmp6"}, rule.Protocol) {
 		var icmpIPVersion uint
 		var protoName string
 		var extName string
@@ -880,7 +875,7 @@ func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName stri
 
 	errs := []error{}
 	// Iterate through each active rule on the host and try and match it to one the LXD rules.
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		line = strings.TrimSpace(line)
 		fields := strings.Fields(line)
 		fieldsLen := len(fields)
@@ -1311,7 +1306,7 @@ func (d Xtables) iptablesClear(ipVersion uint, comments []string, fromTables ...
 	}
 
 	for _, fromTable := range fromTables {
-		if tables != nil && !shared.ValueInSlice(fromTable, tables) {
+		if tables != nil && !slices.Contains(tables, fromTable) {
 			// If we successfully opened the tables file, and the requested table is not present,
 			// then skip trying to get a list of rules from that table.
 			continue
@@ -1326,7 +1321,7 @@ func (d Xtables) iptablesClear(ipVersion uint, comments []string, fromTables ...
 			return fmt.Errorf("Failed to list IPv%d rules (table %s)", ipVersion, fromTable)
 		}
 
-		for _, line := range strings.Split(output, "\n") {
+		for line := range strings.SplitSeq(output, "\n") {
 			for _, comment := range comments {
 				if !strings.Contains(line, iptablesCommentPrefix+" "+comment) {
 					continue

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"os"
 	"reflect"
@@ -62,9 +63,7 @@ func getProfileDevices(destRemote lxd.InstanceServer, serverSideProfiles []strin
 			return nil, fmt.Errorf(i18n.G("Failed loading profile %q: %w"), profileName, err)
 		}
 
-		for deviceName, device := range profile.Devices {
-			profileDevices[deviceName] = device
-		}
+		maps.Copy(profileDevices, profile.Devices)
 	}
 
 	return profileDevices, nil
@@ -306,7 +305,7 @@ func instancesExist(resources []remoteResource) error {
 func structHasField(typ reflect.Type, field string) bool {
 	var parent reflect.Type
 
-	for i := 0; i < typ.NumField(); i++ {
+	for i := range typ.NumField() {
 		fieldType := typ.Field(i)
 		yaml := fieldType.Tag.Get("yaml")
 

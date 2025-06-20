@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/canonical/lxd/lxd/auth"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/entity"
@@ -158,13 +158,7 @@ func (s *Server) Inject(event api.Event, eventSource EventSource) {
 
 func (s *Server) broadcast(event api.Event, eventSource EventSource) error {
 	sourceInSlice := func(source EventSource, sources []EventSource) bool {
-		for _, i := range sources {
-			if source == i {
-				return true
-			}
-		}
-
-		return false
+		return slices.Contains(sources, source)
 	}
 
 	s.lock.Lock()
@@ -197,12 +191,12 @@ func (s *Server) broadcast(event api.Event, eventSource EventSource) error {
 			continue
 		}
 
-		if !shared.ValueInSlice(event.Type, listener.messageTypes) {
+		if !slices.Contains(listener.messageTypes, event.Type) {
 			continue
 		}
 
 		// If the event doesn't come from this member and has been excluded by listener, don't deliver it.
-		if eventSource != EventSourceLocal && shared.ValueInSlice(event.Location, listener.excludeLocations) {
+		if eventSource != EventSourceLocal && slices.Contains(listener.excludeLocations, event.Location) {
 			continue
 		}
 

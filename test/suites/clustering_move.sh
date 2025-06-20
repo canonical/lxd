@@ -59,7 +59,7 @@ test_clustering_move() {
   # with the least number of instances when targeting a cluster group.
   lxc move cluster:c1 --target node2
   lxc move cluster:c1 --target @foobar1
-  lxc info cluster:c1 | grep -q "Location: node1"
+  lxc info cluster:c1 | grep -xF "Location: node1"
 
   # c1 can be moved within the same cluster group if it has multiple members
   current_location="$(lxc query cluster:/1.0/instances/c1 | jq -r '.location')"
@@ -71,7 +71,7 @@ test_clustering_move() {
 
   # c1 cannot be moved within the same cluster group if it has a single member
   lxc move cluster:c1 --target=@foobar3
-  lxc info cluster:c1 | grep -q "Location: node3"
+  lxc info cluster:c1 | grep -xF "Location: node3"
   ! lxc move cluster:c1 --target=@foobar3 || false
 
   # Perform standard move tests using the `scheduler.instance` cluster member setting.
@@ -88,13 +88,13 @@ test_clustering_move() {
 
   # c1 can be moved to node2 by group targeting.
   lxc move cluster:c1 --target=@foobar2
-  lxc info cluster:c1 | grep -q "Location: node2"
+  lxc info cluster:c1 | grep -xF "Location: node2"
 
   # c2 can be moved to node1 by manual targeting.
   LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers instance c2 can_edit project=default
   LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers instance c2 can_view project=default
   lxc move cluster:c2 --target=node1
-  lxc info cluster:c2 | grep -q "Location: node1"
+  lxc info cluster:c2 | grep -xF "Location: node1"
 
   # c1 cannot be moved to node3 by group targeting.
   ! lxc move cluster:c1 --target=@foobar3 || false
@@ -106,11 +106,11 @@ test_clustering_move() {
   LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers instance c3 can_edit project=default
   LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers instance c3 can_view project=default
   lxc move cluster:c3 --target=node1
-  lxc info cluster:c3 | grep -q "Location: node1"
+  lxc info cluster:c3 | grep -xF "Location: node1"
 
   # c3 can be moved back to node by by manual targeting.
   lxc move cluster:c3 --target=node3
-  lxc info cluster:c3 | grep -q "Location: node3"
+  lxc info cluster:c3 | grep -xF "Location: node3"
 
   # Clean up
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster unset node2 scheduler.instance
@@ -131,9 +131,9 @@ def instance_placement(request, candidate_members):
 EOF
 
   lxc move cluster:c1 --target @foobar3
-  lxc info cluster:c1 | grep -q "Location: node3"
+  lxc info cluster:c1 | grep -xF "Location: node3"
   lxc move cluster:c2 --target @foobar3
-  lxc info cluster:c2 | grep -q "Location: node3"
+  lxc info cluster:c2 | grep -xF "Location: node3"
 
   # Ensure that setting an invalid target won't interrupt the move and fall back to the built in behavior.
   # Equally distribute the instances beforehand so that node1 will get selected.
@@ -149,7 +149,7 @@ def instance_placement(request, candidate_members):
 EOF
 
   lxc move cluster:c1 --target @foobar1
-  lxc info cluster:c1 | grep -q "Location: node1"
+  lxc info cluster:c1 | grep -xF "Location: node1"
 
   # If the scriptlet produces a runtime error, the move fails.
   cat << EOF | LXD_DIR="${LXD_ONE_DIR}" lxc config set instances.placement.scriptlet=-
@@ -184,7 +184,7 @@ EOF
   # - c2 is deployed on node2
   # - c3 is deployed on node3
   # - default project restricted to cluster groups foobar1,foobar2
-  LXD_DIR="${LXD_ONE_DIR}" lxc project set default restricted=true restricted.networks.uplinks=${bridge}
+  LXD_DIR="${LXD_ONE_DIR}" lxc project set default restricted=true restricted.networks.uplinks="${bridge}"
   LXD_DIR="${LXD_ONE_DIR}" lxc project set default restricted.cluster.groups=foobar1,foobar2
 
   # Moving to an unlisted group fails.

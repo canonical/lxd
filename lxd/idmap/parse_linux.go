@@ -37,7 +37,7 @@ func ParseRawIdmap(value string) ([]IdmapEntry, error) {
 
 	ret := IdmapSet{}
 
-	for _, line := range strings.Split(value, "\n") {
+	for line := range strings.SplitSeq(value, "\n") {
 		if line == "" {
 			continue
 		}

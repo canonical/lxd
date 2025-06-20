@@ -4,11 +4,11 @@ package drivers
 
 import (
 	"context"
-	// embed is used to read the OpenFGA authorization model from openfga_model.openfga.
-	_ "embed"
+	_ "embed" // embed is used to read the OpenFGA authorization model from openfga_model.openfga.
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/oklog/ulid/v2"
@@ -22,7 +22,6 @@ import (
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/request"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
@@ -182,7 +181,7 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 		}
 
 		for _, lxdGroup := range lxdGroups {
-			if !shared.ValueInSlice(lxdGroup, groups) {
+			if !slices.Contains(groups, lxdGroup) {
 				groups = append(groups, lxdGroup)
 			}
 		}
@@ -389,7 +388,7 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement 
 		}
 
 		for _, lxdGroup := range lxdGroups {
-			if !shared.ValueInSlice(lxdGroup, groups) {
+			if !slices.Contains(groups, lxdGroup) {
 				groups = append(groups, lxdGroup)
 			}
 		}
@@ -474,7 +473,7 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement 
 		}
 
 		object := fmt.Sprintf("%s:%s", entityType, standardisedEntityURL.String())
-		return shared.ValueInSlice(object, objects)
+		return slices.Contains(objects, object)
 	}, nil
 }
 

@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -396,7 +397,7 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(errors.New("Profile names may not contain slashes"))
 	}
 
-	if shared.ValueInSlice(req.Name, []string{".", ".."}) {
+	if slices.Contains([]string{".", ".."}, req.Name) {
 		return response.BadRequest(fmt.Errorf("Invalid profile name %q", req.Name))
 	}
 
@@ -856,7 +857,7 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(errors.New("Profile names may not contain slashes"))
 	}
 
-	if shared.ValueInSlice(req.Name, []string{".", ".."}) {
+	if slices.Contains([]string{".", ".."}, req.Name) {
 		return response.BadRequest(fmt.Errorf("Invalid profile name %q", req.Name))
 	}
 

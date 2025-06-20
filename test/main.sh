@@ -1,7 +1,14 @@
 #!/bin/bash
 set -eu
+set -o pipefail
 if [ -z "${GOPATH:-}" ] && command -v go >/dev/null; then
     GOPATH="$(go env GOPATH)"
+fi
+
+# Avoid accidental re-execution
+if [ -n "${LXD_INSPECT_INPROGRESS:-}" ]; then
+    echo "Refusing to run tests from inside a LXD_INSPECT session" >&2
+    exit 1
 fi
 
 [ -n "${GOPATH:-}" ] && export "PATH=${GOPATH}/bin:${PATH}"
@@ -30,10 +37,6 @@ if [ -n "${DEBUG:-}" ]; then
   set -x
 fi
 
-if [ -z "${LXD_BACKEND:-}" ]; then
-    LXD_BACKEND="dir"
-fi
-
 # shellcheck disable=SC2034
 LXD_NETNS=""
 
@@ -46,10 +49,49 @@ import_subdir_files() {
     done
 }
 
+# `main.sh` needs to be executed from inside the `test/` directory
+if [ "${PWD}" != "$(dirname "${0}")" ]; then
+    cd "$(dirname "${0}")"
+fi
 import_subdir_files includes
 
+# is_backend_available checks if a given backend is available by matching it against the list of available storage backends.
+# Surrounding spaces in the pattern (" $(available_storage_backends) ") are used to ensure exact matches,
+# avoiding partial matches (e.g., "dir" matching "directory").
+is_backend_available() {
+    case " $(available_storage_backends) " in
+        *" $1 "*) return 0;;
+        *) return 1;;
+    esac
+}
+
+# Default to dir backend if none is specified
+# If the requested backend is specified but the needed tooling is missing, try to install it.
+if [ -z "${LXD_BACKEND:-}" ]; then
+    LXD_BACKEND="dir"
+elif ! is_backend_available "${LXD_BACKEND}"; then
+    pkg=""
+    case "${LXD_BACKEND}" in
+      ceph)
+        pkg="ceph-common";;
+      lvm)
+        pkg="lvm2";;
+      zfs)
+        pkg="zfsutils-linux";;
+      *)
+        ;;
+    esac
+
+    if [ -n "${pkg}" ] && command -v apt-get >/dev/null; then
+        apt-get install --no-install-recommends -y "${pkg}"
+
+        # Verify that the newly installed tools made the storage backend available
+        is_backend_available "${LXD_BACKEND}"
+    fi
+fi
+
 echo "==> Checking for dependencies"
-check_dependencies lxd lxc curl /bin/busybox dnsmasq iptables jq yq git sqlite3 msgmerge msgfmt rsync shuf setfacl setfattr socat swtpm dig
+check_dependencies lxd lxc curl busybox dnsmasq iptables jq nc ping yq git sqlite3 rsync shuf setfacl setfattr socat swtpm dig xz
 
 if [ "${USER:-'root'}" != "root" ]; then
   echo "The testsuite must be run as root." >&2
@@ -75,34 +117,47 @@ echo "==> Using storage backend ${LXD_BACKEND}"
 import_storage_backends
 
 cleanup() {
+  # Stop tracing everything
+  { set +x; } 2>/dev/null
+
+  # Avoid reentry by removing the traps
+  trap - EXIT HUP INT TERM
+
   # Before setting +e, run the panic checker for any running LXD daemons.
   panic_checker "${TEST_DIR}"
 
-  # Allow for failures and stop tracing everything
-  set +ex
+  # Allow for failures
+  set +e
   DEBUG=
 
   # Allow for inspection
   if [ -n "${LXD_INSPECT:-}" ]; then
     if [ "${TEST_RESULT}" != "success" ]; then
       echo "==> FAILED TEST: ${TEST_CURRENT#test_} (${TEST_CURRENT_DESCRIPTION})"
+      # red
+      PS1_PREFIX="\033[0;31mLXD-TEST\033[0m"
+    else
+      # green
+      PS1_PREFIX="\033[0;32mLXD-TEST\033[0m"
     fi
     echo "==> Test result: ${TEST_RESULT}"
 
-    echo "Tests Completed (${TEST_RESULT})"
-    echo "Dropping to a shell for inspection"
-    echo "Once done, exit (Ctrl-D) to continue"
-    bash
+    # Re-execution prevention
+    export LXD_INSPECT_INPROGRESS=true
+
+    echo -e "\033[0;33mDropping to a shell for inspection.\nOnce done, exit (Ctrl-D) to continue\033[0m"
+    export PS1="${PS1_PREFIX} ${PS1:-\u@\h:\w\$ }"
+    bash --norc
   fi
 
-  echo ""
-  echo "df -h output:"
-  df -h
-
   if [ "${TEST_RESULT}" != "success" ]; then
+    echo ""
+    echo "df -h output:"
+    df -h
+
     if command -v ceph >/dev/null; then
       echo "::group::ceph status"
-      ceph status || true
+      ceph status --connect-timeout 5 || true
       echo "::endgroup::"
     fi
 
@@ -129,6 +184,8 @@ cleanup() {
     echo "==> Skipping cleanup (GitHub Action runner detected)"
   else
     echo "==> Cleaning up"
+
+    [ -e "${LXD_TEST_IMAGE:-}" ] && rm "${LXD_TEST_IMAGE}"
 
     kill_oidc
     mountpoint -q "${TEST_DIR}/dev" && umount -l "${TEST_DIR}/dev"
@@ -158,18 +215,19 @@ trap cleanup EXIT HUP INT TERM
 import_subdir_files suites
 
 # Setup test directory
-TEST_DIR=$(mktemp -d -p "$(pwd)" tmp.XXX)
+TEST_DIR="$(mktemp -d -t lxd-test.tmp.XXXX)"
 chmod +x "${TEST_DIR}"
 
-# Verify the dir chain is accessible for other users
-INACCESSIBLE_DIRS="$(namei -m "${TEST_DIR}" | awk '/^ d/ {print $1}' | grep -v 'x$' || true)"
+# Verify the dir chain is accessible for other users (other's execute bit has to be `x` or `t` (sticky))
+# This is to catch if `sudo chmod +x ~` was not run and the TEST_DIR is under `~`
+INACCESSIBLE_DIRS="$(namei -m "${TEST_DIR}" | awk '/^ d/ {print $1}' | grep -v '[xt]$' || true)"
 if [ -n "${INACCESSIBLE_DIRS:-}" ]; then
     echo "Some directories are not accessible by other users" >&2
     namei -m "${TEST_DIR}"
     exit 1
 fi
 
-if [ -n "${LXD_TMPFS:-}" ]; then
+if [ "${LXD_TMPFS:-0}" = "1" ]; then
   mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=6G
 fi
 
@@ -201,7 +259,7 @@ run_test() {
   TEST_CURRENT=${1}
   TEST_CURRENT_DESCRIPTION=${2:-${1#test_}}
   TEST_UNMET_REQUIREMENT=""
-  cwd="$(pwd)"
+  cwd="${PWD}"
 
   echo "==> TEST BEGIN: ${TEST_CURRENT_DESCRIPTION}"
   START_TIME=$(date +%s)
@@ -259,11 +317,41 @@ if [ -n "${GITHUB_ACTIONS:-}" ]; then
 fi
 
 # allow for running a specific set of tests
-if [ "$#" -gt 0 ] && [ "$1" != "all" ] && [ "$1" != "cluster" ] && [ "$1" != "standalone" ]; then
+if [ "$#" -gt 0 ] && [ "$1" != "all" ] && [ "$1" != "cluster" ] && [ "$1" != "standalone" ] && [ "$1" != "test-shell" ]; then
   run_test "test_${1}"
   # shellcheck disable=SC2034
   TEST_RESULT=success
   exit
+fi
+
+# Spawn an interactive test shell when invoked as `./main.sh test-shell`.
+# This is useful for quick interactions with LXD and its test suite.
+if [ "${1:-"all"}" = "test-shell" ]; then
+  # yellow
+  export PS1="\[\033[0;33mLXD-TEST\033[0m ${PS1:-\u@\h:\w\$ }\]"
+
+  # The `cleanup` handler must run when exiting a `test-shell` session but if the
+  # last command returned non-0 (like `false`), we don't want to output the debug
+  # information accompanying normal failures.
+  #
+  # If a test script runs into an error, the `cleanup` handler will already have
+  # reported the relevant debug info so there is no need to repeat it when exiting
+  # the `test-shell` environment.
+  #
+  # To do so, swallow any error code returned from the interactive \`test-shell\`.
+  bash --rcfile test-shell.bashrc || true
+
+  # shellcheck disable=SC2034
+  TEST_RESULT=success
+  exit
+else
+  # Since we are executing more than one test, cache the busybox testimage for reuse
+  deps/import-busybox --save-image
+
+  # Avoid `.tar.xz` extension that may conflict with some tests
+  mv busybox.tar.xz busybox.tar.xz.cache
+  export LXD_TEST_IMAGE="busybox.tar.xz.cache"
+  echo "==> Saving testimage for reuse (${LXD_TEST_IMAGE})"
 fi
 
 if [ "${1:-"all"}" != "cluster" ]; then
@@ -381,6 +469,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_exec_exit_code "exec exit code"
     run_test test_concurrent_exec "concurrent exec"
     run_test test_concurrent "concurrent startup"
+    run_test test_lxd_benchmark_basic "lxd-benchmark basic init/start/stop/delete"
     run_test test_shutdown "lxd shutdown sequence"
     run_test test_snapshots "container snapshots"
     run_test test_snap_restore "snapshot restores"

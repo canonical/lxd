@@ -18,34 +18,37 @@ const MaxMetadataVersion = api.BackupMetadataVersion2
 // Volume represents the config of a volume including its snapshots.
 type Volume struct {
 	// Make sure to have the embedded structs fields inline to avoid nesting.
-	api.StorageVolume `yaml:",inline"`
+	api.StorageVolume `yaml:",inline"` //nolint:musttag
 
-	Snapshots []*api.StorageVolumeSnapshot `yaml:"snapshots,omitempty"`
+	// Use the uppercase representation of the field to follow the same format as the root Config struct.
+	Snapshots []*api.StorageVolumeSnapshot `json:"Snapshots" yaml:"snapshots,omitempty"`
 }
 
 // Bucket represents the config of a bucket including its snapshots.
 type Bucket struct {
 	// Make sure to have the embedded structs fields inline to avoid nesting.
-	*api.StorageBucket `yaml:",inline"`
+	*api.StorageBucket `yaml:",inline"` //nolint:musttag
 }
 
 // Config represents the config of a backup that can be stored in a backup.yaml file (or embedded in index.yaml).
 type Config struct {
-	Version   uint32                  `yaml:"version,omitempty"`
-	Instance  *api.Instance           `yaml:"instance,omitempty"`
-	Snapshots []*api.InstanceSnapshot `yaml:"snapshots,omitempty"`
-	Pools     []*api.StoragePool      `yaml:"pools,omitempty"`
-	Profiles  []*api.Profile          `yaml:"profiles,omitempty"`
-	Volumes   []*Volume               `yaml:"volumes,omitempty"`
-	Bucket    *Bucket                 `yaml:"bucket,omitempty"`
+	// The JSON representation of the fields does not use lowercase (and omitempty) to stay backwards compatible
+	// across all versions of LXD as the Config struct is also used throughout the migration.
+	Version   uint32                  `json:"Version" yaml:"version,omitempty"`
+	Instance  *api.Instance           `json:"Instance" yaml:"instance,omitempty"`
+	Snapshots []*api.InstanceSnapshot `json:"Snapshots" yaml:"snapshots,omitempty"`
+	Pools     []*api.StoragePool      `json:"Pools" yaml:"pools,omitempty"`
+	Profiles  []*api.Profile          `json:"Profiles" yaml:"profiles,omitempty"`
+	Volumes   []*Volume               `json:"Volumes" yaml:"volumes,omitempty"`
+	Bucket    *Bucket                 `json:"Bucket" yaml:"bucket,omitempty"`
 	// Deprecated: Use Instance instead.
-	Container *api.Instance `yaml:"container,omitempty"`
+	Container *api.Instance `json:"Container" yaml:"container,omitempty"`
 	// Deprecated: Use Pools instead.
-	Pool *api.StoragePool `yaml:"pool,omitempty"`
+	Pool *api.StoragePool `json:"Pool" yaml:"pool,omitempty"`
 	// Deprecated: Use Volumes instead.
-	Volume *api.StorageVolume `yaml:"volume,omitempty"`
+	Volume *api.StorageVolume `json:"Volume" yaml:"volume,omitempty"`
 	// Deprecated: Use the list of Snapshots under Volumes.
-	VolumeSnapshots []*api.StorageVolumeSnapshot `yaml:"volume_snapshots,omitempty"`
+	VolumeSnapshots []*api.StorageVolumeSnapshot `json:"VolumeSnapshots" yaml:"volume_snapshots,omitempty"`
 }
 
 // rootVolPoolName returns the pool name of an instance's root volume.
@@ -169,7 +172,7 @@ func (c *Config) CustomVolume() (*Volume, error) {
 
 	volume, err := c.primaryVolume()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get custom volume: %w", err)
+		return nil, fmt.Errorf("Failed to get primary volume: %w", err)
 	}
 
 	return volume, nil

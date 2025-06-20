@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -13,7 +14,6 @@ import (
 	"github.com/digitalocean/go-smbios/smbios"
 	"golang.org/x/sys/unix"
 
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -48,8 +48,8 @@ func GetCPUIsolated() []int64 {
 // The elements in the output slice are meant to represent hardware entity identifiers (e.g, either CPU or NUMA node IDs).
 func parseRangedListToInt64Slice(input string) ([]int64, error) {
 	res := []int64{}
-	chunks := strings.Split(input, ",")
-	for _, chunk := range chunks {
+	chunks := strings.SplitSeq(input, ",")
+	for chunk := range chunks {
 		if strings.Contains(chunk, "-") {
 			// Range
 			before, after, _ := strings.Cut(chunk, "-")
@@ -469,7 +469,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			}
 		}
 		thread.ID = threadNumber
-		thread.Isolated = shared.ValueInSlice(threadNumber, isolated)
+		thread.Isolated = slices.Contains(isolated, threadNumber)
 		thread.Thread = uint64(len(resCore.Threads))
 
 		// NUMA node

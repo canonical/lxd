@@ -38,8 +38,8 @@ test_waitready() {
   lxd waitready
 
   # The CLI reports the network and storage pool to be unavailable.
-  lxc network show "${br_name}" | grep -q "status: Unavailable"
-  lxc storage show "${storage_pool}" | grep -q "status: Unavailable"
+  lxc network show "${br_name}" | grep -xF "status: Unavailable"
+  lxc storage show "${storage_pool}" | grep -xF "status: Unavailable"
 
   echo "==> Restore the network by unsetting the external interface"
   lxd sql global 'DELETE FROM networks_config WHERE key="bridge.external_interfaces"'
@@ -57,8 +57,8 @@ test_waitready() {
   lxd waitready
 
   # The CLI reports only the storage pool to be unavailable.
-  lxc network show "${br_name}" | grep -q "status: Created"
-  lxc storage show "${storage_pool}" | grep -q "status: Unavailable"
+  lxc network show "${br_name}" | grep -xF "status: Created"
+  lxc storage show "${storage_pool}" | grep -xF "status: Unavailable"
 
   echo "==> Restore the storage pool directory"
   rm "${LXD_DIR}/storage-pools/${storage_pool}"
@@ -73,8 +73,8 @@ test_waitready() {
   lxd waitready
 
   # The CLI reports both network and storage pool to be created.
-  lxc network show "${br_name}" | grep -q "status: Created"
-  lxc storage show "${storage_pool}" | grep -q "status: Created"
+  lxc network show "${br_name}" | grep -xF "status: Created"
+  lxc storage show "${storage_pool}" | grep -xF "status: Created"
 
   # Cleanup.
   lxc storage delete "${storage_pool}"

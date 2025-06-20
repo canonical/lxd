@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"net"
 	"net/http"
@@ -377,7 +378,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 
 		// Add supported instance types.
 		instType := driver.Info.Type.String()
-		if !shared.ValueInSlice(instType, env.InstanceTypes) {
+		if !slices.Contains(env.InstanceTypes, instType) {
 			env.InstanceTypes = append(env.InstanceTypes, instType)
 		}
 	}
@@ -628,9 +629,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		}
 
 		// Keep old config around in case something goes wrong. In that case the config will be reverted.
-		for k, v := range newNodeConfig.Dump() {
-			oldNodeConfig[k] = v
-		}
+		maps.Copy(oldNodeConfig, newNodeConfig.Dump())
 
 		// We currently don't allow changing the cluster.https_address once it's set.
 		if s.ServerClustered {

@@ -15,7 +15,7 @@ do_zfs_delegate() {
     return
   fi
 
-  if ! zfs --help | grep -q '^\s\+zone\b'; then
+  if ! zfs --help | grep -wF "zone" >/dev/null; then
     echo "==> SKIP: Skipping ZFS delegation tests due as installed version doesn't support it"
     return
   fi
@@ -31,7 +31,7 @@ do_zfs_delegate() {
   lxc start c1
 
   PID=$(lxc info c1 | awk '/^PID:/ {print $2}')
-  nsenter -t "${PID}" -U -- zfs list | grep -q containers/c1
+  nsenter -t "${PID}" -U -- zfs list | grep -wF containers/c1
 
   # Confirm that ZFS dataset is empty when off.
   lxc stop -f c1
@@ -39,7 +39,7 @@ do_zfs_delegate() {
   lxc start c1
 
   PID=$(lxc info c1 | awk '/^PID:/ {print $2}')
-  ! nsenter -t "${PID}" -U -- zfs list | grep -q containers/c1
+  ! nsenter -t "${PID}" -U -- zfs list | grep -wF containers/c1
 
   lxc delete -f c1
 }
@@ -109,11 +109,6 @@ do_zfs_cross_pool_copy() {
 
 do_storage_driver_zfs() {
   filesystem="$1"
-
-  if ! command -v "mkfs.${filesystem}" >/dev/null 2>&1; then
-    echo "==> SKIP: Skipping block mode test on ${filesystem} due to missing tools."
-    return
-  fi
 
   local LXD_STORAGE_DIR lxd_backend
 

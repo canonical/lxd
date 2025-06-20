@@ -153,7 +153,7 @@ func DeviceDriverOverride(pciDev Device, driverOverride string) error {
 func deviceProbeWait(pciDev Device) error {
 	driverPath := fmt.Sprintf("/sys/bus/pci/drivers/%s/%s", pciDev.Driver, pciDev.SlotName)
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		if shared.PathExists(driverPath) {
 			return nil
 		}

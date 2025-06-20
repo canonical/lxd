@@ -2,11 +2,10 @@ package metrics
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/canonical/lxd/shared"
 )
 
 // NewMetricSet returns a new MetricSet.
@@ -40,7 +39,7 @@ func (m *MetricSet) FilterSamples(permissionCheck func(labels map[string]string)
 
 // AddSamples adds samples of the type metricType to the MetricSet.
 func (m *MetricSet) AddSamples(metricType MetricType, samples ...Sample) {
-	for i := 0; i < len(samples); i++ {
+	for i := range samples {
 		// Add global labels to samples
 		for labelName, labelValue := range m.labels {
 			// Ensure we always have a valid Labels map
@@ -101,7 +100,7 @@ func (m *MetricSet) String() string {
 	for _, metricType := range metricTypes {
 		// ProcsTotal is a gauge according to the OpenMetrics spec as its value can decrease.
 		metricTypeNameSuffix := " counter\n"
-		if shared.ValueInSlice(metricType, gaugeMetrics) || strings.HasSuffix(MetricNames[metricType], "_bytes") {
+		if slices.Contains(gaugeMetrics, metricType) || strings.HasSuffix(MetricNames[metricType], "_bytes") {
 			metricTypeNameSuffix = " gauge\n"
 		}
 

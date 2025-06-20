@@ -7,10 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/identity"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
@@ -89,7 +89,7 @@ func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitleme
 	}
 
 	// Check project level permissions against the certificates project list.
-	if !shared.ValueInSlice(projectName, id.Projects) {
+	if !slices.Contains(id.Projects, projectName) {
 		return api.StatusErrorf(http.StatusForbidden, "User does not have permission for project %q", projectName)
 	}
 
@@ -156,7 +156,7 @@ func (t *tls) GetPermissionChecker(ctx context.Context, entitlement auth.Entitle
 		}
 
 		// Otherwise, check if the project is in the list of allowed projects for the entity.
-		return shared.ValueInSlice(project, id.Projects)
+		return slices.Contains(id.Projects, project)
 	}, nil
 }
 
@@ -164,7 +164,7 @@ func (t *tls) allowProjectUnspecificEntityType(entitlement auth.Entitlement, ent
 	switch entityType {
 	case entity.TypeServer:
 		// Restricted TLS certificates have the following entitlements on server.
-		return shared.ValueInSlice(entitlement, []auth.Entitlement{auth.EntitlementCanViewResources, auth.EntitlementCanViewMetrics, auth.EntitlementCanViewUnmanagedNetworks})
+		return slices.Contains([]auth.Entitlement{auth.EntitlementCanViewResources, auth.EntitlementCanViewMetrics, auth.EntitlementCanViewUnmanagedNetworks}, entitlement)
 	case entity.TypeIdentity:
 		// If the entity URL refers to the identity that made the request, then the second path argument of the URL is
 		// the identifier of the identity. This line allows the caller to view their own identity and no one else's.
@@ -176,21 +176,8 @@ func (t *tls) allowProjectUnspecificEntityType(entitlement auth.Entitlement, ent
 	case entity.TypeProject:
 		// If the project is in the list of projects that the identity is restricted to, then they have the following
 		// entitlements.
-		return shared.ValueInSlice(projectName, id.Projects) && shared.ValueInSlice(entitlement, []auth.Entitlement{
-			auth.EntitlementCanView,
-			auth.EntitlementCanCreateImages,
-			auth.EntitlementCanCreateImageAliases,
-			auth.EntitlementCanCreateInstances,
-			auth.EntitlementCanCreateNetworks,
-			auth.EntitlementCanCreateNetworkACLs,
-			auth.EntitlementCanCreateNetworkZones,
-			auth.EntitlementCanCreateProfiles,
-			auth.EntitlementCanCreateStorageVolumes,
-			auth.EntitlementCanCreateStorageBuckets,
-			auth.EntitlementCanViewEvents,
-			auth.EntitlementCanViewOperations,
-			auth.EntitlementCanViewMetrics,
-		})
+		return slices.Contains(id.Projects, projectName) && slices.Contains([]auth.Entitlement{auth.EntitlementCanView, auth.EntitlementCanCreateImages, auth.EntitlementCanCreateImageAliases, auth.EntitlementCanCreateInstances, auth.EntitlementCanCreateNetworks, auth.EntitlementCanCreateNetworkACLs, auth.EntitlementCanCreateNetworkZones, auth.EntitlementCanCreateProfiles, auth.EntitlementCanCreateStorageVolumes, auth.EntitlementCanCreateStorageBuckets, auth.EntitlementCanViewEvents, auth.EntitlementCanViewOperations, auth.EntitlementCanViewMetrics}, entitlement)
+
 	default:
 		return false
 	}

@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 
 	backupConfig "github.com/canonical/lxd/lxd/backup/config"
 	"github.com/canonical/lxd/lxd/operations"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/units"
@@ -23,9 +23,10 @@ type Info struct {
 // But in the future the itention is to use it allow the target to send back additional information to the source
 // about which frames (such as snapshots) it needs for the migration after having inspected the Info index header.
 type InfoResponse struct {
-	StatusCode int
-	Error      string
-	Refresh    *bool // This is used to let the source know whether to actually refresh a volume.
+	// To not break the migration API, the struct tags cannot use the lowercase representation of the struct's fields.
+	StatusCode int    `json:"StatusCode"`
+	Error      string `json:"Error"`
+	Refresh    *bool  `json:"Refresh"` // This is used to let the source know whether to actually refresh a volume.
 }
 
 // Err returns the error of the response.
@@ -139,8 +140,9 @@ func TypesToHeader(types ...Type) *MigrationHeader {
 	}
 
 	// Check all the types for an Rsync method, if found add its features to the header's RsyncFeatures list.
+	migrationFSTypes := []MigrationFSType{MigrationFSType_RSYNC, MigrationFSType_BLOCK_AND_RSYNC, MigrationFSType_RBD_AND_RSYNC}
 	for _, t := range types {
-		if !shared.ValueInSlice(t.FSType, []MigrationFSType{MigrationFSType_RSYNC, MigrationFSType_BLOCK_AND_RSYNC, MigrationFSType_RBD_AND_RSYNC}) {
+		if !slices.Contains(migrationFSTypes, t.FSType) {
 			continue
 		}
 
@@ -197,7 +199,7 @@ func MatchTypes(offer *MigrationHeader, fallbackType MigrationFSType, ourTypes [
 				offeredFeatures = offer.GetZfsFeaturesSlice()
 			} else if offerFSType == MigrationFSType_BTRFS {
 				offeredFeatures = offer.GetBtrfsFeaturesSlice()
-			} else if shared.ValueInSlice(offerFSType, []MigrationFSType{MigrationFSType_RSYNC, MigrationFSType_RBD_AND_RSYNC}) {
+			} else if slices.Contains([]MigrationFSType{MigrationFSType_RSYNC, MigrationFSType_RBD_AND_RSYNC}, offerFSType) {
 				// There are other migration types using rsync like MigrationFSType_BLOCK_AND_RSYNC
 				// for which we cannot set the offered features as an older LXD might ignore those
 				// if the migration type is not MigrationFSType_RSYNC.
@@ -210,19 +212,19 @@ func MatchTypes(offer *MigrationHeader, fallbackType MigrationFSType, ourTypes [
 			// Find common features in both our type and offered type.
 			commonFeatures := []string{}
 			for _, ourFeature := range ourType.Features {
-				if shared.ValueInSlice(ourFeature, offeredFeatures) {
+				if slices.Contains(offeredFeatures, ourFeature) {
 					commonFeatures = append(commonFeatures, ourFeature)
 				}
 			}
 
 			if offer.GetRefresh() {
 				// Optimized refresh with zfs only works if ZfsFeatureMigrationHeader is available.
-				if ourType.FSType == MigrationFSType_ZFS && !shared.ValueInSlice(ZFSFeatureMigrationHeader, commonFeatures) {
+				if ourType.FSType == MigrationFSType_ZFS && !slices.Contains(commonFeatures, ZFSFeatureMigrationHeader) {
 					continue
 				}
 
 				// Optimized refresh with btrfs only works if BtrfsFeatureSubvolumeUUIDs is available.
-				if ourType.FSType == MigrationFSType_BTRFS && !shared.ValueInSlice(BTRFSFeatureSubvolumeUUIDs, commonFeatures) {
+				if ourType.FSType == MigrationFSType_BTRFS && !slices.Contains(commonFeatures, BTRFSFeatureSubvolumeUUIDs) {
 					continue
 				}
 			}

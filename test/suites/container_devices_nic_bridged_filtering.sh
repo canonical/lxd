@@ -10,7 +10,7 @@ test_container_devices_nic_bridged_filtering() {
   fi
 
   if [ "$firewallDriver" = "xtables" ]; then
-    if readlink -f "$(command -v ebtables)" | grep -q nft; then
+    if readlink -f "$(command -v ebtables)" | grep -wF nft >/dev/null; then
       echo "==> SKIP: ebtables must be legacy version (try update-alternatives --set ebtables /usr/sbin/ebtables-legacy)"
       return
     fi
@@ -37,7 +37,7 @@ test_container_devices_nic_bridged_filtering() {
   lxc network set "${brName}" bridge.hwaddr 00:11:22:33:44:55
   lxc network set "${brName}" ipv4.address 192.0.2.1/24
   lxc network set "${brName}" ipv6.address 2001:db8:1::1/64
-  [ "$(cat /sys/class/net/${brName}/address)" = "00:11:22:33:44:55" ]
+  [ "$(cat "/sys/class/net/${brName}/address")" = "00:11:22:33:44:55" ]
 
   # Create profile for new containers.
   lxc profile copy default "${ctPrefix}"
@@ -68,7 +68,7 @@ test_container_devices_nic_bridged_filtering() {
   # Check MAC filter is present in firewall.
   ctAHost=$(lxc config get "${ctPrefix}A" volatile.eth0.host_name)
   if [ "$firewallDriver" = "xtables" ]; then
-    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
+    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -F -- "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
       echo "MAC filter not applied as part of mac_filtering in ebtables"
       false
     fi
@@ -82,11 +82,11 @@ test_container_devices_nic_bridged_filtering() {
     do
       rules=$(nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0")
 
-      if ! echo "${rules}" | grep -e "iifname \"${ctAHost}\" ether saddr != ${ctAMAC} drop"; then
+      if ! echo "${rules}" | grep -F "iifname \"${ctAHost}\" ether saddr != ${ctAMAC} drop"; then
         echo "MAC filter not applied as part of mac_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
-      if ! echo "${rules}" | grep -e "iifname \"${ctAHost}\" arp saddr ether != ${ctAMAC} drop"; then
+      if ! echo "${rules}" | grep -F "iifname \"${ctAHost}\" arp saddr ether != ${ctAMAC} drop"; then
         echo "MAC ARP filter not applied as part of mac_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
@@ -122,14 +122,14 @@ test_container_devices_nic_bridged_filtering() {
   # Stop CT A and check filters are cleaned up.
   lxc stop -f "${ctPrefix}A"
   if [ "$firewallDriver" = "xtables" ]; then
-    if ebtables --concurrent -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
+    if ebtables --concurrent -L --Lmac2 --Lx | grep -F -- "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
         echo "MAC filter still applied as part of mac_filtering in ebtables"
         false
     fi
   else
     for table in "in" "fwd"
     do
-      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "${ctAHost}"; then
+      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "${ctAHost}"; then
         echo "MAC filter still applied as part of mac_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
@@ -153,54 +153,54 @@ test_container_devices_nic_bridged_filtering() {
   # Check MAC and IPv4 filter is present in firewall.
   ctAHost=$(lxc config get "${ctPrefix}A" volatile.eth0.host_name)
   if [ "$firewallDriver" = "xtables" ]; then
-    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
+    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -F -- "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
       echo "MAC filter not applied as part of ipv4_filtering in ebtables"
       false
     fi
-    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "192.0.2.2" ; then
+    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -F "192.0.2.2" ; then
         echo "IPv4 filter not applied as part of ipv4_filtering in ebtables"
         false
     fi
-    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "198.51.100.0/24" ; then
+    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -F "198.51.100.0/24" ; then
         echo "IPv4 filter for ipv4.routes not applied as part of ipv4_filtering in ebtables"
         false
     fi
-    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "203.0.113.0/24" ; then
+    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -F "203.0.113.0/24" ; then
         echo "IPv4 filter for ipv4.routes.external not applied as part of ipv4_filtering in ebtables"
         false
     fi
   else
     for table in "in" "fwd"
     do
-      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" ether saddr != ${ctAMAC} drop"; then
+      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "iifname \"${ctAHost}\" ether saddr != ${ctAMAC} drop"; then
         echo "MAC filter not applied as part of ipv4_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
-      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" arp saddr ether != ${ctAMAC} drop"; then
+      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "iifname \"${ctAHost}\" arp saddr ether != ${ctAMAC} drop"; then
         echo "MAC ARP filter not applied as part of ipv4_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
-      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" ip saddr 192.0.2.2 accept"; then
+      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "iifname \"${ctAHost}\" ip saddr 192.0.2.2 accept"; then
         echo "IPv4 filter not applied as part of ipv4_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
-      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" arp saddr ip 192.0.2.2 accept"; then
+      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "iifname \"${ctAHost}\" arp saddr ip 192.0.2.2 accept"; then
         echo "IPv4 ARP filter not applied as part of ipv4_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
-      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" ip saddr 198.51.100.0/24 accept"; then
+      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "iifname \"${ctAHost}\" ip saddr 198.51.100.0/24 accept"; then
         echo "IPv4 filter not applied as part of ipv4_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
-      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" arp saddr ip 198.51.100.0/24 accept"; then
+      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "iifname \"${ctAHost}\" arp saddr ip 198.51.100.0/24 accept"; then
         echo "IPv4 ARP filter not applied as part of ipv4_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
-      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" ip saddr 203.0.113.0/24 accept"; then
+      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "iifname \"${ctAHost}\" ip saddr 203.0.113.0/24 accept"; then
         echo "IPv4 filter not applied as part of ipv4_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
-      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" arp saddr ip 203.0.113.0/24 accept"; then
+      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "iifname \"${ctAHost}\" arp saddr ip 203.0.113.0/24 accept"; then
         echo "IPv4 ARP filter not applied as part of ipv4_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
@@ -272,14 +272,14 @@ test_container_devices_nic_bridged_filtering() {
   # Stop CT A and check filters are cleaned up in firewall.
   lxc stop -f "${ctPrefix}A"
   if [ "$firewallDriver" = "xtables" ]; then
-    if ebtables --concurrent -L --Lmac2 --Lx | grep -e "${ctAHost}" ; then
+    if ebtables --concurrent -L --Lmac2 --Lx | grep -F "${ctAHost}" ; then
         echo "IPv4 filter still applied as part of ipv4_filtering in ebtables"
         false
     fi
   else
     for table in "in" "fwd"
     do
-      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "${ctAHost}"; then
+      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "${ctAHost}"; then
         echo "IPv4 filter still applied as part of ipv4_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
@@ -360,43 +360,43 @@ test_container_devices_nic_bridged_filtering() {
   macHex=$(echo "${ctAMAC}" |sed "s/://g")
 
   if [ "$firewallDriver" = "xtables" ]; then
-    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
+    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -F -- "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
         echo "MAC filter not applied as part of ipv6_filtering in ebtables"
         false
     fi
 
     # Check NDP MAC filter is present in ip6tables.
-    if ! ip6tables -S -w -t filter | grep -e "${macHex}" ; then
+    if ! ip6tables -S -w -t filter | grep -F "${macHex}" ; then
         echo "MAC NDP filter not applied as part of ipv6_filtering in ip6tables"
         false
     fi
 
     # Check NDP IPv6 filter is present in ip6tables.
-    if ! ip6tables -S -w -t filter | grep -e "20010db8000100000000000000000002" ; then
+    if ! ip6tables -S -w -t filter | grep -F "20010db8000100000000000000000002" ; then
         echo "IPv6 NDP filter not applied as part of ipv6_filtering in ip6tables"
         false
     fi
 
     # Check NDP IPv6 filter for ipv6.routes is present in ip6tables.
-    if ! ip6tables -S -w -t filter | grep -e "20010db800020000" ; then
+    if ! ip6tables -S -w -t filter | grep -F "20010db800020000" ; then
         echo "IPv6 NDP filter for ipv6.routes not applied as part of ipv6_filtering in ip6tables"
         false
     fi
 
     # Check NDP IPv6 filter for ipv6.routes.external is present in ip6tables.
-    if ! ip6tables -S -w -t filter | grep -e "20010db800030000" ; then
+    if ! ip6tables -S -w -t filter | grep -F "20010db800030000" ; then
         echo "IPv6 NDP filter for ipv6.routes.external not applied as part of ipv6_filtering in ip6tables"
         false
     fi
 
     # Check IPv6 filter is present in ebtables.
-    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "2001:db8:1::2" ; then
+    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -F "2001:db8:1::2" ; then
         echo "IPv6 filter not applied as part of ipv6_filtering in ebtables"
         false
     fi
 
     # Check IPv6 RA filter is present in ebtables.
-    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "-i ${ctAHost} --ip6-proto ipv6-icmp --ip6-icmp-type router-advertisement -j DROP" ; then
+    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -F -- "-i ${ctAHost} --ip6-proto ipv6-icmp --ip6-icmp-type router-advertisement -j DROP" ; then
         echo "IPv6 RA filter not applied as part of ipv6_filtering in ebtables"
         false
     fi
@@ -450,7 +450,7 @@ test_container_devices_nic_bridged_filtering() {
         echo "IPv6 filter not applied as part of ipv6_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
-      if ! echo "${rules}" | grep -e "iifname \"${ctAHost}\" icmpv6 type 134 drop"; then
+      if ! echo "${rules}" | grep -F "iifname \"${ctAHost}\" icmpv6 type 134 drop"; then
         echo "IPv6 RA filter not applied as part of ipv6_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
@@ -534,14 +534,14 @@ test_container_devices_nic_bridged_filtering() {
   # Stop CT A and check filters are cleaned up.
   lxc stop -f "${ctPrefix}A"
   if [ "$firewallDriver" = "xtables" ]; then
-    if ebtables --concurrent -L --Lmac2 --Lx | grep -e "${ctAHost}" ; then
+    if ebtables --concurrent -L --Lmac2 --Lx | grep -F "${ctAHost}" ; then
         echo "IPv6 filter still applied as part of ipv6_filtering in ebtables"
         false
     fi
   else
     for table in "in" "fwd"
     do
-      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "${ctAHost}"; then
+      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "${ctAHost}"; then
         echo "IPv6 filter still applied as part of ipv4_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
@@ -549,7 +549,7 @@ test_container_devices_nic_bridged_filtering() {
   fi
 
   # Check volatile cleanup on stop.
-  if lxc config show "${ctPrefix}A" | grep volatile.eth0 | grep -v volatile.eth0.hwaddr ; then
+  if [ "$(lxc config show "${ctPrefix}A" | grep -F volatile.eth0 | grep -vF volatile.eth0.hwaddr)" != "" ]; then
     echo "unexpected volatile key remains"
     false
   fi
@@ -603,18 +603,18 @@ test_container_devices_nic_bridged_filtering() {
 
   # When IPv{n} addresses are "none", every packet should be dropped.
   if [ "$firewallDriver" = "xtables" ]; then
-    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A INPUT -p ARP -i ${ctAHost} -j DROP"
-    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A FORWARD -p ARP -i ${ctAHost} -j DROP"
-    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A INPUT -p IPv4 -i ${ctAHost} -j DROP"
-    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A FORWARD -p IPv4 -i ${ctAHost} -j DROP"
-    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A INPUT -p IPv6 -i ${ctAHost} -j DROP"
-    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A FORWARD -p IPv6 -i ${ctAHost} -j DROP"
+    ebtables --concurrent -L --Lmac2 --Lx | grep -F -- "-A INPUT -p ARP -i ${ctAHost} -j DROP"
+    ebtables --concurrent -L --Lmac2 --Lx | grep -F -- "-A FORWARD -p ARP -i ${ctAHost} -j DROP"
+    ebtables --concurrent -L --Lmac2 --Lx | grep -F -- "-A INPUT -p IPv4 -i ${ctAHost} -j DROP"
+    ebtables --concurrent -L --Lmac2 --Lx | grep -F -- "-A FORWARD -p IPv4 -i ${ctAHost} -j DROP"
+    ebtables --concurrent -L --Lmac2 --Lx | grep -F -- "-A INPUT -p IPv6 -i ${ctAHost} -j DROP"
+    ebtables --concurrent -L --Lmac2 --Lx | grep -F -- "-A FORWARD -p IPv6 -i ${ctAHost} -j DROP"
   else
     for table in "in" "fwd"
     do
-      nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" ether type 0x0806 drop" # ARP
-      nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" ether type 0x0800 drop" # IPv4
-      nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" ether type 0x86dd drop" # IPv6
+      nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "iifname \"${ctAHost}\" ether type 0x0806 drop" # ARP
+      nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "iifname \"${ctAHost}\" ether type 0x0800 drop" # IPv4
+      nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "iifname \"${ctAHost}\" ether type 0x86dd drop" # IPv6
     done
   fi
 
@@ -648,31 +648,31 @@ test_container_devices_nic_bridged_filtering() {
 
   if [ "$firewallDriver" = "xtables" ]; then
     # Check MAC filter is present in ebtables.
-    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
+    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -F -- "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
         echo "MAC filter not applied as part of ipv4_filtering in ebtables"
         false
     fi
 
     # Check MAC NDP filter is present in ip6tables.
-    if ! ip6tables -S -w -t filter | grep -e "${macHex}" ; then
+    if ! ip6tables -S -w -t filter | grep -F "${macHex}" ; then
         echo "MAC NDP ip6tables filter not applied as part of ipv6_filtering in ip6tables"
         false
     fi
 
     # Check IPv4 filter is present in ebtables.
-    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "192.0.2.2" ; then
+    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -F "192.0.2.2" ; then
         echo "IPv4 filter not applied as part of ipv4_filtering in ebtables"
         false
     fi
 
     # Check IPv6 filter is present in ebtables.
-    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "2001:db8::2" ; then
+    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -F "2001:db8::2" ; then
         echo "IPv6 filter not applied as part of ipv6_filtering in ebtables"
         false
     fi
 
     # Check IPv6 filter is present in ip6tables.
-    if ! ip6tables -S -w -t filter | grep -e "20010db8000000000000000000000002" ; then
+    if ! ip6tables -S -w -t filter | grep -F "20010db8000000000000000000000002" ; then
         echo "IPv6 filter not applied as part of ipv6_filtering in ip6tables"
         false
     fi
@@ -723,14 +723,14 @@ test_container_devices_nic_bridged_filtering() {
   # Delete container and check filters are cleaned up.
   lxc delete -f "${ctPrefix}A"
   if [ "$firewallDriver" = "xtables" ]; then
-    if ebtables --concurrent -L --Lmac2 --Lx | grep -e "${ctAHost}" ; then
+    if ebtables --concurrent -L --Lmac2 --Lx | grep -F "${ctAHost}" ; then
         echo "ebtables filter still applied after delete"
         false
     fi
   else
     for table in "in" "fwd"
     do
-      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "${ctAHost}"; then
+      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "${ctAHost}"; then
         echo "nftables filter still applied after delete (${table}.${ctPrefix}A.eth0)"
         false
       fi
@@ -757,7 +757,7 @@ test_container_devices_nic_bridged_filtering() {
   ctAMAC=$(lxc config get "${ctPrefix}A" volatile.eth0.hwaddr)
 
   if [ "$firewallDriver" = "xtables" ]; then
-    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
+    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -F -- "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
         echo "MAC ebtables filter not applied as part of mac_filtering in ebtables"
         false
     fi
@@ -790,14 +790,14 @@ test_container_devices_nic_bridged_filtering() {
   # Stop container and check filters are cleaned up.
   lxc stop -f "${ctPrefix}A"
   if [ "$firewallDriver" = "xtables" ]; then
-    if ebtables --concurrent -L --Lmac2 --Lx | grep -e "${ctAHost}" ; then
+    if ebtables --concurrent -L --Lmac2 --Lx | grep -F "${ctAHost}" ; then
         echo "MAC filter still applied as part of mac_filtering in ebtables"
         false
     fi
   else
     for table in "in" "fwd"
     do
-      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "${ctAHost}"; then
+      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "${ctAHost}"; then
         echo "MAC filter still applied as part of mac_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
@@ -863,32 +863,32 @@ test_container_devices_nic_bridged_filtering() {
   ctAHost=$(lxc config get "${ctPrefix}A" volatile.eth0.host_name)
 
   if [ "$firewallDriver" = "xtables" ]; then
-    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A INPUT -p ARP -i ${ctAHost} -j DROP"
-    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A FORWARD -p ARP -i ${ctAHost} -j DROP"
-    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A INPUT -p IPv4 -i ${ctAHost} -j DROP"
-    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A FORWARD -p IPv4 -i ${ctAHost} -j DROP"
-    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A INPUT -p IPv6 -i ${ctAHost} -j DROP"
-    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A FORWARD -p IPv6 -i ${ctAHost} -j DROP"
+    ebtables --concurrent -L --Lmac2 --Lx | grep -F -- "-A INPUT -p ARP -i ${ctAHost} -j DROP"
+    ebtables --concurrent -L --Lmac2 --Lx | grep -F -- "-A FORWARD -p ARP -i ${ctAHost} -j DROP"
+    ebtables --concurrent -L --Lmac2 --Lx | grep -F -- "-A INPUT -p IPv4 -i ${ctAHost} -j DROP"
+    ebtables --concurrent -L --Lmac2 --Lx | grep -F -- "-A FORWARD -p IPv4 -i ${ctAHost} -j DROP"
+    ebtables --concurrent -L --Lmac2 --Lx | grep -F -- "-A INPUT -p IPv6 -i ${ctAHost} -j DROP"
+    ebtables --concurrent -L --Lmac2 --Lx | grep -F -- "-A FORWARD -p IPv6 -i ${ctAHost} -j DROP"
   else
     for table in "in" "fwd"
     do
-      nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" ether type 0x0806 drop" # ARP
-      nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" ether type 0x0800 drop" # IPv4
-      nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" ether type 0x86dd drop" # IPv6
+      nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "iifname \"${ctAHost}\" ether type 0x0806 drop" # ARP
+      nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "iifname \"${ctAHost}\" ether type 0x0800 drop" # IPv4
+      nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "iifname \"${ctAHost}\" ether type 0x86dd drop" # IPv6
     done
   fi
 
   # Delete container and check filters are cleaned up.
   lxc delete -f "${ctPrefix}A"
   if [ "$firewallDriver" = "xtables" ]; then
-    if ebtables --concurrent -L --Lmac2 --Lx | grep -e "${ctAHost}" ; then
+    if ebtables --concurrent -L --Lmac2 --Lx | grep -F "${ctAHost}" ; then
         echo "Filters still applied as part of IP filter in ebtables"
         false
     fi
   else
     for table in "in" "fwd"
     do
-      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "${ctAHost}"; then
+      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "${ctAHost}"; then
         echo "Filters still applied as part of IP filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi

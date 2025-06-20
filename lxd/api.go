@@ -7,6 +7,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -184,7 +185,7 @@ func restServer(d *Daemon) *http.Server {
 
 	for _, c := range api10 {
 		// Every 1.0 endpoint should have a type for the API metrics.
-		if !shared.ValueInSlice(c.MetricsType, entity.APIMetricsEntityTypes()) {
+		if !slices.Contains(entity.APIMetricsEntityTypes(), c.MetricsType) {
 			panic(`Endpoint "/1.0/` + c.Path + `" has invalid MetricsType: ` + string(c.MetricsType))
 		}
 

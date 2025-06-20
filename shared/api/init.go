@@ -45,11 +45,11 @@ type InitLocalPreseed struct {
 //
 // API extension: preseed.
 type InitNetworksProjectPost struct {
-	NetworksPost `yaml:",inline"`
+	NetworksPost `yaml:",inline"` //nolint:musttag
 
 	// Project in which the network will reside
 	// Example: "default"
-	Project string
+	Project string `json:"Project" yaml:"project"`
 }
 
 // InitStorageVolumesProjectPost represents the fields of a new LXD storage volume along with its associated pool.

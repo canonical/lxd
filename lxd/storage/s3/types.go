@@ -27,9 +27,9 @@ var errorHTTPStatusCodes = map[string]int{
 
 // Error S3 error response.
 type Error struct {
-	Code       string
-	Message    string
-	Resource   string
+	Code       string `xml:"Code"`
+	Message    string `xml:"Message"`
+	Resource   string `xml:"Resource"`
 	RequestID  string `xml:"RequestId"`
 	BucketName string `xml:"BucketName,omitempty"`
 	HostID     string `xml:"HostId"`
@@ -59,19 +59,19 @@ func (r *Error) Response(w http.ResponseWriter) {
 
 // Owner S3 owner.
 type Owner struct {
-	ID          string
-	DisplayName string
+	ID          string `xml:"ID"`
+	DisplayName string `xml:"DisplayName"`
 }
 
 // Bucket S3 bucket.
 type Bucket struct {
-	CreationDate time.Time
-	Name         string
+	CreationDate time.Time `xml:"CreationDate"`
+	Name         string    `xml:"Name"`
 }
 
 // ListAllMyBucketsResult S3 list my buckets.
 type ListAllMyBucketsResult struct {
-	Owner   Owner
+	Owner   Owner    `xml:"Owner"`
 	Buckets []Bucket `xml:"Buckets>Bucket"`
 }
 

@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -22,6 +23,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -333,7 +335,7 @@ func ParseLXDFileHeaders(headers http.Header) (*LXDFileHeaders, error) {
 		filetype = "file"
 	}
 
-	if !ValueInSlice(filetype, []string{"file", "symlink", "directory"}) {
+	if !slices.Contains([]string{"file", "symlink", "directory"}, filetype) {
 		return nil, fmt.Errorf("Invalid file type: %q", filetype)
 	}
 
@@ -345,7 +347,7 @@ func ParseLXDFileHeaders(headers http.Header) (*LXDFileHeaders, error) {
 		write = "overwrite"
 	}
 
-	if !ValueInSlice(write, []string{"overwrite", "append"}) {
+	if !slices.Contains([]string{"overwrite", "append"}, write) {
 		return nil, fmt.Errorf("Invalid file write mode: %q", write)
 	}
 
@@ -355,13 +357,14 @@ func ParseLXDFileHeaders(headers http.Header) (*LXDFileHeaders, error) {
 
 	modifyPermHeader := headers.Get("X-LXD-modify-perm")
 
+	modifyPermFields := []string{"uid", "gid", "mode"}
 	if modifyPermHeader != "" {
-		for _, perm := range strings.Split(modifyPermHeader, ",") {
+		for perm := range strings.SplitSeq(modifyPermHeader, ",") {
 			UIDModifyExisting = UIDModifyExisting || perm == "uid"
 			GIDModifyExisting = GIDModifyExisting || perm == "gid"
 			modeModifyExisting = modeModifyExisting || perm == "mode"
 
-			if !ValueInSlice(perm, []string{"uid", "gid", "mode"}) {
+			if !slices.Contains(modifyPermFields, perm) {
 				return nil, fmt.Errorf("Invalid modify-perm field: %q", perm)
 			}
 		}
@@ -721,17 +724,6 @@ func HasKey[K comparable, V any](key K, m map[K]V) bool {
 	return found
 }
 
-// ValueInSlice returns true if key is in list.
-func ValueInSlice[T comparable](key T, list []T) bool {
-	for _, entry := range list {
-		if entry == key {
-			return true
-		}
-	}
-
-	return false
-}
-
 // StringPrefixInSlice returns true if any element in the list has the given prefix.
 func StringPrefixInSlice(key string, list []string) bool {
 	for _, entry := range list {
@@ -752,13 +744,13 @@ func RemoveElementsFromSlice[T comparable](list []T, elements ...T) []T {
 		for j := len(list) - 1; j >= 0; j-- {
 			if element == list[j] {
 				match = true
-				list = append(list[:j], list[j+1:]...)
+				list = slices.Delete(list, j, j+1)
 				break
 			}
 		}
 
 		if match {
-			elements = append(elements[:i], elements[i+1:]...)
+			elements = slices.Delete(elements, i, i+1)
 		}
 	}
 
@@ -781,7 +773,7 @@ func IsTrue(value string) bool {
 		return true
 	}
 
-	return ValueInSlice(strings.ToLower(value), []string{"true", "yes", "on"})
+	return slices.Contains([]string{"true", "yes", "on"}, strings.ToLower(value))
 }
 
 // IsTrueOrEmpty returns true if value is empty or if IsTrue() returns true.
@@ -795,7 +787,7 @@ func IsFalse(value string) bool {
 		return true
 	}
 
-	return ValueInSlice(strings.ToLower(value), []string{"false", "no", "off"})
+	return slices.Contains([]string{"false", "no", "off"}, strings.ToLower(value))
 }
 
 // IsFalseOrEmpty returns true if value is empty or if IsFalse() returns true.
@@ -1135,7 +1127,7 @@ func TryRunCommand(name string, arg ...string) (string, error) {
 	var err error
 	var output string
 
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		output, err = RunCommand(name, arg...)
 		if err == nil {
 			break
@@ -1500,9 +1492,7 @@ func ApplyDeviceOverrides(localDevices map[string]map[string]string, profileDevi
 		_, isLocalDevice := localDevices[deviceName]
 		if isLocalDevice {
 			// Apply overrides to local device.
-			for k, v := range deviceOverrides[deviceName] {
-				localDevices[deviceName][k] = v
-			}
+			maps.Copy(localDevices[deviceName], deviceOverrides[deviceName])
 		} else {
 			// Check device exists in expanded profile devices.
 			profileDeviceConfig, found := profileDevices[deviceName]
@@ -1510,9 +1500,7 @@ func ApplyDeviceOverrides(localDevices map[string]map[string]string, profileDevi
 				return nil, fmt.Errorf("Cannot override config for device %q: Device not found in profile devices", deviceName)
 			}
 
-			for k, v := range deviceOverrides[deviceName] {
-				profileDeviceConfig[k] = v
-			}
+			maps.Copy(profileDeviceConfig, deviceOverrides[deviceName])
 
 			localDevices[deviceName] = profileDeviceConfig
 		}

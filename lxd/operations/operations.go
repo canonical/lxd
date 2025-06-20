@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"sync"
 	"time"
@@ -70,9 +71,7 @@ func Clone() map[string]*Operation {
 	defer operationsLock.Unlock()
 
 	localOperations := make(map[string]*Operation, len(operations))
-	for k, v := range operations {
-		localOperations[k] = v
-	}
+	maps.Copy(localOperations, operations)
 
 	return localOperations
 }
@@ -628,9 +627,7 @@ func (op *Operation) ExtendMetadata(metadata any) error {
 	if op.metadata == nil {
 		newMetadata = extraMetadata
 	} else {
-		for k, v := range extraMetadata {
-			newMetadata[k] = v
-		}
+		maps.Copy(newMetadata, extraMetadata)
 	}
 
 	// Update the operation.

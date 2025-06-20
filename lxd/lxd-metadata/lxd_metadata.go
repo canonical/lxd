@@ -12,13 +12,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -77,7 +77,7 @@ func getSortedKeysFromMap[K string, V IterableAny](m map[K]V) []K {
 		keys = append(keys, k)
 	}
 
-	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+	slices.Sort(keys)
 	return keys
 }
 
@@ -150,7 +150,7 @@ func parse(path string, outputJSONPath string, excludedPaths []string, substitut
 		}
 
 		// Skip excluded paths
-		if shared.ValueInSlice(path, excludedPaths) {
+		if slices.Contains(excludedPaths, path) {
 			if info.IsDir() {
 				log.Printf("Skipping excluded directory: %v", path)
 				return filepath.SkipDir
@@ -203,7 +203,7 @@ func parse(path string, outputJSONPath string, excludedPaths []string, substitut
 					mdKey := mdKVMatch[1]
 					mdValue := mdKVMatch[2]
 					// check that the metadata key is among the expected ones
-					if !shared.ValueInSlice(mdKey, mdKeys) {
+					if !slices.Contains(mdKeys, mdKey) {
 						continue
 					}
 
@@ -336,7 +336,7 @@ func writeDocFile(inputJSONPath, outputTxtPath string) error {
 	countMaxBackTicks := func(s string) int {
 		count, currCount := 0, 0
 		n := len(s)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			if s[i] == '`' {
 				currCount++
 				continue
@@ -404,7 +404,7 @@ func writeDocFile(inputJSONPath, outputTxtPath string) error {
 
 						configContentValueStr, ok := configContentValue.(string)
 						if ok {
-							if (strings.HasSuffix(configContentValueStr, "`") && strings.HasPrefix(configContentValueStr, "`")) || shared.ValueInSlice(configContentValueStr, specialChars) {
+							if (strings.HasSuffix(configContentValueStr, "`") && strings.HasPrefix(configContentValueStr, "`")) || slices.Contains(specialChars, configContentValueStr) {
 								configContentValueStr = fmt.Sprintf("\"%s\"", configContentValueStr)
 							}
 						} else {
