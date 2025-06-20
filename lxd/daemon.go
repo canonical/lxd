@@ -752,9 +752,9 @@ func (d *Daemon) State() *state.State {
 	return s
 }
 
-// UnixSocket returns the full path to the unix.socket file that this daemon is
+// GetUnixSocket returns the full path to the unix.socket file that this daemon is
 // listening on. Used by tests.
-func (d *Daemon) UnixSocket() string {
+func (d *Daemon) GetUnixSocket() string {
 	path := os.Getenv("LXD_SOCKET")
 	if path != "" {
 		return path
@@ -1106,7 +1106,7 @@ func (d *Daemon) init() error {
 	d.internalListener = events.NewInternalListener(d.shutdownCtx, d.events)
 
 	// Lets check if there's an existing LXD running
-	err = endpoints.CheckAlreadyRunning(d.UnixSocket())
+	err = endpoints.CheckAlreadyRunning(d.GetUnixSocket())
 	if err != nil {
 		return err
 	}
@@ -1448,7 +1448,7 @@ func (d *Daemon) init() error {
 	/* Setup the web server */
 	config := &endpoints.Config{
 		Dir:                  d.os.VarDir,
-		UnixSocket:           d.UnixSocket(),
+		UnixSocket:           d.GetUnixSocket(),
 		Cert:                 networkCert,
 		RestServer:           restServer(d),
 		DevLxdServer:         devLXDServer(d),
