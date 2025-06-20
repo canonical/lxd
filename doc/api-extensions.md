@@ -2676,3 +2676,7 @@ Adds a `skip` mode to the restore request. This mode restores a cluster member's
 ## `disk_io_threads_virtiofsd`
 
 Adds the {config:option}`device-disk-device-conf:io.threads` option on `disk` devices which is used to control the `virtiofsd` thread pool size when sharing file systems into VMs. This can help improve I/O performance.
+
+## `oidc_client_secret`
+
+This adds support for the new configuration key {config:option}`server-oidc:oidc.client.secret`. This client secret can be used for OpenID Connect authorization code flow.

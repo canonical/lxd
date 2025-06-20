@@ -54,6 +54,11 @@ The following server options configure external user authentication through {ref
     :end-before: <!-- config group server-oidc end -->
 ```
 
+```{important}
+Setting `oidc.client.secret` key will prevent CLI clients from authenticating, only LXD UI clients will be able to authenticate.
+We recommended setting this key only if required by the Identity Provider.
+```
+
 (server-options-cluster)=
 ## Cluster configuration
 

@@ -136,6 +136,11 @@ The LXD client then retrieves and stores an access token, which it provides to L
 The identity provider might also provide a refresh token.
 In this case, the LXD client uses this refresh token to attempt to retrieve another access token when the current access token has expired.
 
+```{warning}
+The `oidc.client.secret` key should only be set if required by the Identity Provider. Setting this key will prevent CLI clients from authenticating.
+Only LXD UI clients will be able to authenticate if this key is set.
+```
+
 When an OIDC client initially authenticates with LXD, it does not have access to the majority of the LXD API.
 OIDC clients must be granted access by an administrator, see {ref}`fine-grained-authorization`.
 
