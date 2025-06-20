@@ -188,9 +188,9 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, server *api.Server) err
 			}
 
 			validInput := func(input string) error {
-				if shared.ValueInSlice(strings.ToLower(input), []string{"yes", "y"}) {
+				if slices.Contains([]string{"yes", "y"}, strings.ToLower(input)) {
 					return nil
-				} else if shared.ValueInSlice(strings.ToLower(input), []string{"no", "n"}) {
+				} else if slices.Contains([]string{"no", "n"}, strings.ToLower(input)) {
 					return nil
 				} else if validJoinToken(input) != nil {
 					return errors.New("Not yes/no, or invalid join token")
@@ -204,8 +204,8 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, server *api.Server) err
 				return err
 			}
 
-			if !shared.ValueInSlice(strings.ToLower(clusterJoinToken), []string{"no", "n"}) {
-				if shared.ValueInSlice(strings.ToLower(clusterJoinToken), []string{"yes", "y"}) {
+			if !slices.Contains([]string{"no", "n"}, strings.ToLower(clusterJoinToken)) {
+				if slices.Contains([]string{"yes", "y"}, strings.ToLower(clusterJoinToken)) {
 					clusterJoinToken, err = c.global.asker.AskString("Please provide join token: ", "", validJoinToken)
 					if err != nil {
 						return err
@@ -273,9 +273,9 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, server *api.Server) err
 					validator := func(input string) error {
 						if input == certDigest {
 							return nil
-						} else if shared.ValueInSlice(strings.ToLower(input), []string{"yes", "y"}) {
+						} else if slices.Contains([]string{"yes", "y"}, strings.ToLower(input)) {
 							return nil
-						} else if shared.ValueInSlice(strings.ToLower(input), []string{"no", "n"}) {
+						} else if slices.Contains([]string{"no", "n"}, strings.ToLower(input)) {
 							return nil
 						}
 
@@ -287,7 +287,7 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, server *api.Server) err
 						return err
 					}
 
-					if shared.ValueInSlice(strings.ToLower(fingerprintCorrect), []string{"no", "n"}) {
+					if slices.Contains([]string{"no", "n"}, strings.ToLower(fingerprintCorrect)) {
 						return errors.New("User aborted configuration")
 					}
 
