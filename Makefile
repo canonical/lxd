@@ -172,13 +172,13 @@ env:
 deps: dqlite liblxc
 	@echo ""
 	@echo "# Please set the following in your environment (possibly ~/.bashrc)"
-	@make -s env
+	@$(MAKE) -s env
 
 # Spawns an interactive test shell for quick interactions with LXD and the test
 # suite.
 .PHONY: test-shell
 test-shell:
-	@eval $(make -s env)
+	@eval "$(MAKE) -s env"
 	cd test && ./main.sh test-shell
 
 .PHONY: tics
@@ -293,7 +293,7 @@ else
 endif
 
 .PHONY: dist
-dist: doc
+dist:
 	# Cleanup
 	rm -f $(ARCHIVE).gz
 
@@ -314,8 +314,13 @@ dist: doc
 	git clone --depth=1 --branch "$(LIBLXC_BRANCH)" https://github.com/lxc/lxc $(TMP)/lxd-$(VERSION)/vendor/liblxc
 	(cd $(TMP)/lxd-$(VERSION)/vendor/liblxc ; git rev-parse HEAD | tee .gitref)
 
-	# Copy doc output
-	cp -r --preserve=mode doc/_build $(TMP)/lxd-$(VERSION)/doc/html/
+	# Do not build doc on `make dist` on GH PRs
+	if [ "$(GITHUB_EVENT_NAME)" = "pull_request" ]; then \
+		echo "Skipping doc generation for 'make dist' on pull_request event"; \
+	else \
+		$(MAKE) doc; \
+		cp -r --preserve=mode doc/_build $(TMP)/lxd-$(VERSION)/doc/html/; \
+	fi
 
 	# Assemble a reproducible tarball
 	# The reproducibility comes from:
