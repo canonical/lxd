@@ -1941,6 +1941,9 @@ func (d *zfs) getVolumeDiskPathFromDataset(dataset string) (string, error) {
 
 	// Shortcut for udev.
 	if shared.PathExists(zvolUdevLink) {
+		// Debug logging.
+		d.logger.Debug("SDEZIEL", logger.Ctx{"shortcut": true, "udev_link": zvolUdevLink})
+
 		return zvolUdevLink, nil
 	}
 
@@ -1980,9 +1983,17 @@ func (d *zfs) getVolumeDiskPathFromDataset(dataset string) (string, error) {
 			continue
 		}
 
+		// Skip unrelated datasets.
+		if strings.TrimSpace(output) != dataset {
+			continue
+		}
+
+		// Debug logging.
+		d.logger.Debug("SDEZIEL", logger.Ctx{"dataset": dataset, "dev": entryPath, "udev_link": zvolUdevLink})
+
 		// Require the udev link to be present as well before returning the path.
-		if strings.TrimSpace(output) == dataset && shared.PathExists(zvolUdevLink) {
-			return entryPath, nil
+		if shared.PathExists(zvolUdevLink) {
+			return zvolUdevLink, nil
 		}
 	}
 
