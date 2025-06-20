@@ -12,7 +12,7 @@ check_dependencies() {
 
     if [ -n "$missing" ]; then
        echo "Missing dependencies: $missing" >&2
-       exit 1
+       return 1
     fi
 }
 
@@ -188,3 +188,20 @@ check_log_order() {
     return 1
   fi
 }
+
+# runsMinimumKernel: check if the running kernel is at least the minimum version.
+runsMinimumKernel() (
+    min_version="${1}"
+    min_major="$(echo "${min_version}" | cut -d. -f1)"
+    min_minor="$(echo "${min_version}" | cut -d. -f2)"
+    running_version="$(uname -r | cut -d. -f 1,2)"
+    running_major="$(echo "${running_version}" | cut -d. -f1)"
+    running_minor="$(echo "${running_version}" | cut -d. -f2)"
+
+    if [ "${running_major}" -lt "${min_major}" ]; then
+        return 1
+    elif [ "${running_major}" -eq "${min_major}" ] && [ "${running_minor}" -lt "${min_minor}" ]; then
+        return 1
+    fi
+    return 0
+)

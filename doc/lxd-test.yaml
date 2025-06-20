@@ -1,5 +1,5 @@
 name: lxd-test
-description: "Profile to build and test LXD in ephemeral VM"
+description: "Profile to build and test LXD in VM"
 config:
   cloud-init.user-data: |-
     #cloud-config
@@ -31,14 +31,19 @@ config:
     runcmd:
     # Speeds up testing and avoid problem with virtiofs
     - echo "LXD_TMPFS=1" >> /etc/environment
+    # Enable (nested) VM tests
+    - echo "LXD_VM_TESTS=1" >> /etc/environment
     # Disable lxd-installer
     - chmod -x /usr/sbin/lxc /usr/sbin/lxd
+    # Disable needrestart
+    - rm -f /etc/apt/apt.conf.d/99needrestart /etc/dpkg/dpkg.cfg.d/needrestart
     # Remove sources of noise
-    - systemctl disable --now unattended-upgrades.service
+    - systemctl disable --now networkd-dispatcher.service unattended-upgrades.service
     - cd /etc/systemd/system/timers.target.wants/ && systemctl disable --now *.timer
     # Prepare LXD build
     - printf '[safe]\n    directory = *\n' >> /root/.gitconfig
     - chmod o+x /root
+    - echo "root:1000000:1000000000" | tee /etc/subuid /etc/subgid
 
     package_update: true
     package_upgrade: true
@@ -87,6 +92,8 @@ config:
     - iputils-ping
     - jq
     - netcat-openbsd
+    - openvswitch-switch
+    - s3cmd
     - shellcheck
     - socat
     - sqlite3

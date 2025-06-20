@@ -51,43 +51,17 @@ if [ "${PWD}" != "$(dirname "${0}")" ]; then
 fi
 import_subdir_files includes
 
-# is_backend_available checks if a given backend is available by matching it against the list of available storage backends.
-# Surrounding spaces in the pattern (" $(available_storage_backends) ") are used to ensure exact matches,
-# avoiding partial matches (e.g., "dir" matching "directory").
-is_backend_available() {
-    case " $(available_storage_backends) " in
-        *" $1 "*) return 0;;
-        *) return 1;;
-    esac
-}
+# Install needed storage driver tools
+install_storage_driver_tools
 
-# Default to dir backend if none is specified
-# If the requested backend is specified but the needed tooling is missing, try to install it.
-if [ -z "${LXD_BACKEND:-}" ]; then
-    LXD_BACKEND="dir"
-elif ! is_backend_available "${LXD_BACKEND}"; then
-    pkg=""
-    case "${LXD_BACKEND}" in
-      ceph)
-        pkg="ceph-common";;
-      lvm)
-        pkg="lvm2";;
-      zfs)
-        pkg="zfsutils-linux";;
-      *)
-        ;;
-    esac
-
-    if [ -n "${pkg}" ] && command -v apt-get >/dev/null; then
-        apt-get install --no-install-recommends -y "${pkg}"
-
-        # Verify that the newly installed tools made the storage backend available
-        is_backend_available "${LXD_BACKEND}"
-    fi
-fi
+# Install needed instance drivers
+install_instance_drivers
 
 echo "==> Checking for dependencies"
-check_dependencies lxd lxc curl busybox dnsmasq iptables jq nc ping yq git sqlite3 rsync shuf setfacl setfattr socat swtpm dig xz
+check_dependencies lxd lxc curl busybox dnsmasq iptables jq nc ping yq git s3cmd sqlite3 rsync shuf setfacl setfattr socat swtpm dig xz
+if [ "${LXD_VM_TESTS:-0}" = "1" ]; then
+  check_dependencies qemu-img "qemu-system-$(uname -m)" sgdisk
+fi
 
 if [ "${USER:-'root'}" != "root" ]; then
   echo "The testsuite must be run as root." >&2
@@ -231,11 +205,11 @@ if [ -n "${INACCESSIBLE_DIRS:-}" ]; then
 fi
 
 if [ "${LXD_TMPFS:-0}" = "1" ]; then
-  mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751,noatime -o size=7G
+  mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=7G
 fi
 
 mkdir -p "${TEST_DIR}/dev"
-mount -t tmpfs none -o noatime "${TEST_DIR}"/dev
+mount -t tmpfs none "${TEST_DIR}"/dev
 export LXD_DEVMONITOR_DIR="${TEST_DIR}/dev"
 
 LXD_CONF=$(mktemp -d -p "${TEST_DIR}" XXX)
@@ -305,7 +279,8 @@ run_test() {
   DURATION=$((END_TIME-START_TIME))
   cd "${cwd}"
 
-  echo "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION} (${DURATION}s)"
+  # output duration in blue
+  echo -e "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION} (\033[0;34m${DURATION}s\033[0m)"
 
   if [ -n "${GITHUB_ACTIONS:-}" ]; then
       # strip the "test_" prefix to save the shorten test name along with its duration
@@ -375,6 +350,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_remote_url_with_token "remote token handling"
     run_test test_remote_admin "remote administration"
     run_test test_remote_usage "remote usage"
+    run_test test_vm_empty "Empty VM"
 fi
 
 if [ "${1:-"all"}" != "standalone" ]; then

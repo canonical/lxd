@@ -1,4 +1,9 @@
 test_idmap() {
+  if [ "$(stat --file-system -L -c "%T" .)" = "fuseblk" ]; then
+    echo "==> SKIP: this test cannot be run from a virtiofs directory"
+    return
+  fi
+
   # Check that we have a big enough range for this test
   if [ ! -e /etc/subuid ] && [ ! -e /etc/subgid ]; then
     UIDs=1000000000
@@ -34,11 +39,6 @@ test_idmap() {
         GID_BASE=$(echo "${entry}" | cut -d: -f2)
       fi
     done
-  fi
-
-  if [ "${UIDs}" -lt 500000 ] || [ "${GIDs}" -lt 500000 ]; then
-    echo "==> SKIP: The idmap test requires at least 500000 uids and gids"
-    return
   fi
 
   # Setup daemon
