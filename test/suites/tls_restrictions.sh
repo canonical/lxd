@@ -454,7 +454,9 @@ test_tls_version() {
 
   echo "TLS 1.2 is refused with a protocol version error"
   ! my_curl --tls-max 1.2 -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" || false
-  my_curl --tls-max 1.2 -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" | grep -F "alert protocol version"
+  # rc=35: SSL connect error. The SSL handshaking failed.
+  CURL_ERR="$(my_curl --tls-max 1.2 -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" || [ "${?}" = 35 ])"
+  echo "${CURL_ERR}" | grep -F "alert protocol version"
 
   echo "Enable TLS 1.2 with LXD_INSECURE_TLS=true"
   shutdown_lxd "${LXD_DIR}"
@@ -478,14 +480,16 @@ test_tls_version() {
   for cipher in ECDHE-RSA-AES128-GCM-SHA256 ECDHE-RSA-AES256-GCM-SHA384; do
     echo "Testing TLS 1.2: ${cipher}"
     ! my_curl --tls-max 1.2 --ciphers "${cipher}" -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" || false
-    my_curl --tls-max 1.2 --ciphers "${cipher}" -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" | grep -F "alert handshake failure"
+    CURL_ERR="$(my_curl --tls-max 1.2 --ciphers "${cipher}" -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" || [ "${?}" = 35 ])"
+    echo "${CURL_ERR}" | grep -F "alert handshake failure"
   done
 
   echo "TLS 1.2 with ciphers known to be refused with a handshake failure"
   for cipher in ECDHE-ECDSA-AES128-SHA256 ECDHE-ECDSA-AES256-SHA384; do
     echo "Testing TLS 1.2: ${cipher}"
     ! my_curl --tls-max 1.2 --ciphers "${cipher}" -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" || false
-    my_curl --tls-max 1.2 --ciphers "${cipher}" -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" | grep -F "alert handshake failure"
+    CURL_ERR="$(my_curl --tls-max 1.2 --ciphers "${cipher}" -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" || [ "${?}" = 35 ])"
+    echo "${CURL_ERR}" | grep -F "alert handshake failure"
   done
 
   echo "TLS 1.2 with ciphers known to be cause broken pipe errors or empty replies or connection resets"
@@ -496,7 +500,8 @@ test_tls_version() {
 
   echo "TLS 1.1 is not working"
   ! my_curl --tls-max 1.1 -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" || false
-  my_curl --tls-max 1.1 -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" | grep -F "no protocols available"
+  CURL_ERR="$(my_curl --tls-max 1.1 -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" || [ "${?}" = 35 ])"
+  echo "${CURL_ERR}" | grep -F "no protocols available"
 
   echo "Disable TLS 1.2"
   shutdown_lxd "${LXD_DIR}"
@@ -505,5 +510,6 @@ test_tls_version() {
 
   echo "TLS 1.2 is refused with a protocol version error"
   ! my_curl --tls-max 1.2 -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" || false
-  my_curl --tls-max 1.2 -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" | grep -F "alert protocol version"
+  CURL_ERR="$(my_curl --tls-max 1.2 -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" || [ "${?}" = 35 ])"
+  echo "${CURL_ERR}" | grep -F "alert protocol version"
 }

@@ -167,15 +167,20 @@ test_remote_url_with_token() {
 }
 
 test_remote_admin() {
+  echo "Make sure that bad password fail"
   ! lxc_remote remote add badpass "${LXD_ADDR}" --accept-certificate --password bad || false
   ! lxc_remote list badpass: || false
 
-  lxc_remote remote add badtoken "${LXD_ADDR}" --token badtoken 2>&1 | grep -F "Error: Failed to decode trust token:"
+  echo "Verify error due to bad token and inspect error message"
+  OUTPUT="$(! lxc_remote remote add badtoken "${LXD_ADDR}" --token badtoken 2>&1 || false)"
+  echo "${OUTPUT}" | grep -F "Error: Failed to decode trust token:"
+
+  echo "Verify that a bad token does not succeed in adding remote"
   ! lxc_remote remote add badtoken "${LXD_ADDR}" --token badtoken || false
   ! lxc_remote remote list | grep -wF badtoken || false
 
   lxc_remote remote add foo "${LXD_ADDR}" --accept-certificate --password foo
-  lxc_remote remote list | grep 'foo'
+  lxc_remote remote list | grep -wF 'foo'
 
   lxc_remote remote set-default foo
   [ "$(lxc_remote remote get-default)" = "foo" ]
@@ -372,8 +377,8 @@ test_remote_usage() {
 
   lxc_remote image copy localhost:testimage lxd2: --alias bar
   # Get the `cached` and `aliases` fields for the image `bar` in lxd2
-  cached=$(lxc_remote image info lxd2:bar | awk '/Cached/ { print $2 }')
-  alias=$(lxc_remote image info lxd2:bar | grep -A 1 "Aliases:" | tail -n1 | awk '{print $2}')
+  cached=$(lxc_remote image info lxd2:bar | awk '/^Cached/ { print $2 }')
+  alias=$(lxc_remote image info lxd2:bar | grep -xF -A 1 "Aliases:" | tail -n1 | awk '{print $2}')
 
   # Check that image is not cached
   [ "${cached}" = "no" ]
@@ -382,10 +387,10 @@ test_remote_usage() {
 
   # Now, lets delete the image and observe that when its downloaded implicitly as part of an instance create,
   # the image becomes `cached` and has no alias.
-  fingerprint=$(lxc_remote image info lxd2:bar | awk '/Fingerprint/ { print $2 }')
+  fingerprint=$(lxc_remote image info lxd2:bar | awk '/^Fingerprint/ { print $2 }')
   lxc_remote image delete lxd2:bar
   lxc_remote init localhost:testimage lxd2:c1
-  cached=$(lxc_remote image info "lxd2:${fingerprint}" | awk '/Cached/ { print $2 }')
+  cached=$(lxc_remote image info "lxd2:${fingerprint}" | awk '/^Cached/ { print $2 }')
   # The `cached` field should be set to `yes` since the image was implicitly downloaded by the instance create operation
   [ "${cached}" = "yes" ]
   # There should be no alias for the image
@@ -393,8 +398,8 @@ test_remote_usage() {
 
   # Finally, lets copy the remote image explicitly to the local server with an alias like we did before
   lxc_remote image copy localhost:testimage lxd2: --alias bar
-  cached=$(lxc_remote image info lxd2:bar | awk '/Cached/ { print $2 }')
-  alias=$(lxc_remote image info lxd2:bar | grep -A 1 "Aliases:" | tail -n1 | awk '{print $2}')
+  cached=$(lxc_remote image info lxd2:bar | awk '/^Cached/ { print $2 }')
+  alias=$(lxc_remote image info lxd2:bar | grep -xF -A 1 "Aliases:" | tail -n1 | awk '{print $2}')
   # The `cached` field should be set to `no` since the image was explicitly copied.
   [ "${cached}" = "no" ]
   # The alias should be set to `bar`.
