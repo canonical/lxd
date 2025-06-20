@@ -757,6 +757,11 @@ test_server_info() {
   # Ensure server always reports support for containers.
   lxc query /1.0 | jq -e '.environment.instance_types | contains(["container"])'
 
+  # Ensure server reports support for VMs if it should test them.
+  if [ "${LXD_VM_TESTS:-0}" = "1" ]; then
+    lxc query /1.0 | jq -e '.environment.instance_types | contains(["virtual-machine"])'
+  fi
+
   # Ensure the version number has the format (X.Y.Z for LTSes and X.Y otherwise)
   if lxc query /1.0 | jq -e '.environment.server_lts == true'; then
     lxc query /1.0 | jq -re '.environment.server_version' | grep -E '[0-9]+\.[0-9]+\.[0-9]+'

@@ -24,13 +24,13 @@ test_container_devices_nic_bridged_acl() {
 
   # Check ACL jump rules, and chain with default reject rules created.
   if [ "$firewallDriver" = "xtables" ]; then
-      iptables -S | grep -c "\-j lxd_acl_${brName}" | grep 4
-      iptables -S "lxd_acl_${brName}" | grep -c "\-j REJECT" | grep 2
+      [ "$(iptables -S | grep -cF "\-j lxd_acl_${brName}")" = "4" ]
+      [ "$(iptables -S "lxd_acl_${brName}" | grep -cF "\-j REJECT")" = "2" ]
   else
-      nft -nn list chain inet lxd "aclin.${brName}" | grep -c "jump acl.${brName}" | grep 1
-      nft -nn list chain inet lxd "aclout.${brName}" | grep -c "jump acl.${brName}" | grep 1
-      nft -nn list chain inet lxd "aclfwd.${brName}" | grep -c "jump acl.${brName}" | grep 2
-      nft -nn list chain inet lxd "acl.${brName}" | grep -c "reject" | grep 2
+      [ "$(nft -nn list chain inet lxd "aclin.${brName}" | grep -cF "jump acl.${brName}")" = "1" ]
+      [ "$(nft -nn list chain inet lxd "aclout.${brName}" | grep -cF "jump acl.${brName}")" = "1" ]
+      [ "$(nft -nn list chain inet lxd "aclfwd.${brName}" | grep -cF "jump acl.${brName}")" = "2" ]
+      [ "$(nft -nn list chain inet lxd "acl.${brName}" | grep -cF "reject")" = "2" ]
   fi
 
   # Unset ACLs and check the firewall config is cleaned up.
@@ -50,13 +50,13 @@ test_container_devices_nic_bridged_acl() {
 
   # Check ACL jump rules, and chain with default reject rules created.
   if [ "$firewallDriver" = "xtables" ]; then
-      iptables -S | grep -c "\-j lxd_acl_${brName}" | grep 4
-      iptables -S "lxd_acl_${brName}" | grep -c "\-j REJECT" | grep 2
+      [ "$(iptables -S | grep -cF "\-j lxd_acl_${brName}")" = "4" ]
+      [ "$(iptables -S "lxd_acl_${brName}" | grep -cF "\-j REJECT")" = "2" ]
   else
-      nft -nn list chain inet lxd "aclin.${brName}" | grep -c "jump acl.${brName}" | grep 1
-      nft -nn list chain inet lxd "aclout.${brName}" | grep -c "jump acl.${brName}" | grep 1
-      nft -nn list chain inet lxd "aclfwd.${brName}" | grep -c "jump acl.${brName}" | grep 2
-      nft -nn list chain inet lxd "acl.${brName}" | grep -c "reject" | grep 2
+      [ "$(nft -nn list chain inet lxd "aclin.${brName}" | grep -cF "jump acl.${brName}")" = "1" ]
+      [ "$(nft -nn list chain inet lxd "aclout.${brName}" | grep -cF "jump acl.${brName}")" = "1" ]
+      [ "$(nft -nn list chain inet lxd "aclfwd.${brName}" | grep -cF "jump acl.${brName}")" = "2" ]
+      [ "$(nft -nn list chain inet lxd "acl.${brName}" | grep -cF "reject")" = "2" ]
   fi
 
   # Delete network and check the firewall config is cleaned up.
@@ -86,9 +86,9 @@ test_container_devices_nic_bridged_acl() {
 
   # Check default reject rules changed to drop.
   if [ "$firewallDriver" = "xtables" ]; then
-      iptables -S "lxd_acl_${brName}" | grep -c "\-j DROP" | grep 2
+      [ "$(iptables -S "lxd_acl_${brName}" | grep -cF "\-j DROP")" = "2" ]
   else
-      nft -nn list chain inet lxd "acl.${brName}" | grep -c "drop" | grep 2
+      [ "$(nft -nn list chain inet lxd "acl.${brName}" | grep -cF "drop")" = "2" ]
   fi
 
   # Change default actions to reject.
@@ -98,30 +98,21 @@ test_container_devices_nic_bridged_acl() {
 
   # Check default reject rules changed to reject.
   if [ "$firewallDriver" = "xtables" ]; then
-      iptables -S "lxd_acl_${brName}" | grep -c "\-j REJECT" | grep 2
+      [ "$(iptables -S "lxd_acl_${brName}" | grep -cF "\-j REJECT")" = "2" ]
   else
-      nft -nn list chain inet lxd "acl.${brName}" | grep -c "reject" | grep 2
+      [ "$(nft -nn list chain inet lxd "acl.${brName}" | grep -cF "reject")" = "2" ]
   fi
 
-  # Create profile for new containers.
-  lxc profile copy default "${ctPrefix}"
+  # Create profile for new containers by atomically modifying nictype and parent to ensure validation passes.
+  lxc profile show default | sed  "s/nictype: p2p/network: ${brName}/" | lxc profile create "${ctPrefix}"
 
-  # Modify profile nictype and parent in atomic operation to ensure validation passes.
-  lxc profile show "${ctPrefix}" | sed  "s/nictype: p2p/network: ${brName}/" | lxc profile edit "${ctPrefix}"
-
-  lxc init testimage "${ctPrefix}A" -p "${ctPrefix}"
-  lxc start "${ctPrefix}A"
+  lxc launch testimage "${ctPrefix}A" -p "${ctPrefix}"
 
   # Check DHCP works for baseline rules.
   lxc exec "${ctPrefix}A" -- udhcpc -f -i eth0 -n -q -t5 2>&1 | grep 'obtained'
 
   # Request DHCPv6 lease (if udhcpc6 is in busybox image).
-  busyboxUdhcpc6=1
-  if ! lxc exec "${ctPrefix}A" -- busybox --list | grep udhcpc6 ; then
-    busyboxUdhcpc6=0
-  fi
-
-  if [ "$busyboxUdhcpc6" = "1" ]; then
+  if lxc exec "${ctPrefix}A" -- busybox --list | grep udhcpc6 ; then
     lxc exec "${ctPrefix}A" -- udhcpc6 -f -i eth0 -n -q -t5 2>&1 | grep 'IPv6 obtained'
   fi
 

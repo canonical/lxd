@@ -1,4 +1,9 @@
 test_container_devices_nic_bridged() {
+  if uname -r | grep -- -kvm$; then
+    echo "==> SKIP: the -kvm kernel flavor is missing CONFIG_NET_SCH_HTB which is required for 'tc qdisc htb'"
+    return
+  fi
+
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
@@ -51,11 +56,10 @@ test_container_devices_nic_bridged() {
   lxc delete "${ctName}" -f
   lxc profile delete "${ctName}"
 
-  # Test pre-launch profile config is applied at launch
-  lxc profile copy default "${ctName}"
+  echo "Test pre-launch profile config is applied at launch"
 
-  # Modify profile nictype and parent in atomic operation to ensure validation passes.
-  lxc profile show "${ctName}" | sed  "s/nictype: p2p/nictype: bridged\\n    parent: ${brName}/" | lxc profile edit "${ctName}"
+  # Create profile for new containers by atomically modifying nictype and parent to ensure validation passes.
+  lxc profile show default | sed  "s/nictype: p2p/nictype: bridged\\n    parent: ${brName}/" | lxc profile create "${ctName}"
 
   lxc profile device set "${ctName}" eth0 ipv4.routes "192.0.2.1${ipRand}/32"
   lxc profile device set "${ctName}" eth0 ipv6.routes "2001:db8::1${ipRand}/128"
@@ -441,12 +445,7 @@ test_container_devices_nic_bridged() {
   fi
 
   # Request DHCPv6 lease (if udhcpc6 is in busybox image).
-  busyboxUdhcpc6=1
-  if ! lxc exec "${ctName}" -- busybox --list | grep -wF udhcpc6 ; then
-    busyboxUdhcpc6=0
-  fi
-
-  if [ "$busyboxUdhcpc6" = "1" ]; then
+  if lxc exec "${ctName}" -- busybox --list | grep udhcpc6 ; then
         lxc exec "${ctName}" -- udhcpc6 -f -i eth0 -n -q -t5 2>&1 | grep 'IPv6 obtained'
   fi
 

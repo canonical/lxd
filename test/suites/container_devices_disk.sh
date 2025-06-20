@@ -11,12 +11,18 @@ test_container_devices_disk() {
   _container_devices_disk_socket
   _container_devices_disk_char
 
-  lxc delete -f foo
+  lxc delete foo
 }
 
 _container_devices_disk_shift() {
   local lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
+
+  # `tmpfs` does not support idmapped mounts on kernels older than 6.3
+  if [ "${LXD_TMPFS:-0}" = "1" ] && ! runsMinimumKernel 6.3; then
+    echo "==> SKIP: tmpfs (LXD_TMPFS=${LXD_TMPFS}) idmapped mount requires a kernel >= 6.3"
+    return
+  fi
 
   if [ -n "${LXD_IDMAPPED_MOUNTS_DISABLE:-}" ]; then
     return
@@ -50,8 +56,7 @@ _container_devices_disk_shift() {
   lxc config device add foo idmapped_mount disk source="${TEST_DIR}/shift-source" path=/mnt shift=true
   [ "$(lxc exec foo -- stat /mnt/a -c '%u:%g')" = "123:456" ]
 
-  lxc stop foo -f
-  lxc start foo
+  lxc restart foo -f
   [ "$(lxc exec foo -- stat /mnt/a -c '%u:%g')" = "123:456" ]
   lxc config device remove foo idmapped_mount
   lxc stop foo -f

@@ -39,11 +39,8 @@ test_container_devices_nic_bridged_filtering() {
   lxc network set "${brName}" ipv6.address 2001:db8:1::1/64
   [ "$(cat "/sys/class/net/${brName}/address")" = "00:11:22:33:44:55" ]
 
-  # Create profile for new containers.
-  lxc profile copy default "${ctPrefix}"
-
-  # Modify profile nictype and parent in atomic operation to ensure validation passes.
-  lxc profile show "${ctPrefix}" | sed  "s/nictype: p2p/nictype: bridged\\n    parent: ${brName}/" | lxc profile edit "${ctPrefix}"
+  # Create profile for new containers by atomically modifying nictype and parent to ensure validation passes.
+  lxc profile show default | sed  "s/nictype: p2p/nictype: bridged\\n    parent: ${brName}/" | lxc profile create "${ctPrefix}"
 
   # Launch first container.
   lxc init testimage "${ctPrefix}A" -p "${ctPrefix}"
@@ -457,15 +454,10 @@ test_container_devices_nic_bridged_filtering() {
     done
   fi
 
-  # Check DHCPv6 allocation still works (if udhcpc6 is in busybox image).
   lxc exec "${ctPrefix}A" -- ip link set dev eth0 address "${ctAMAC}" up
 
-  busyboxUdhcpc6=1
-  if ! lxc exec "${ctPrefix}A" -- busybox --list | grep udhcpc6 ; then
-    busyboxUdhcpc6=0
-  fi
-
-  if [ "$busyboxUdhcpc6" = "1" ]; then
+  # Check DHCPv6 allocation still works (if udhcpc6 is in busybox image).
+  if lxc exec "${ctPrefix}A" -- busybox --list | grep udhcpc6 ; then
       lxc exec "${ctPrefix}A" -- udhcpc6 -f -i eth0 -n -q -t5 2>&1 | grep 'IPv6 obtained'
   fi
 
@@ -581,9 +573,6 @@ test_container_devices_nic_bridged_filtering() {
     echo "dnsmasq host config doesnt contain sequentially allocated static IPv6 config"
     false
   fi
-
-  lxc stop -f "${ctPrefix}A"
-  lxc stop -f "${ctPrefix}B"
 
   lxc delete -f "${ctPrefix}A"
   lxc delete -f "${ctPrefix}B"

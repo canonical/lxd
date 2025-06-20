@@ -4,6 +4,11 @@ test_migration() {
   # shellcheck disable=2153
   lxd_backend=$(storage_backend "$LXD_DIR")
 
+  if [ "${lxd_backend}" = "dir" ] && uname -r | grep -- -kvm$; then
+    echo "==> SKIP: the -kvm kernel flavor is does not work for this test on ${lxd_backend}"
+    return
+  fi
+
   LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   spawn_lxd "${LXD2_DIR}" true
   LXD2_ADDR=$(cat "${LXD2_DIR}/lxd.addr")
