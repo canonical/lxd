@@ -2676,3 +2676,16 @@ Adds a `skip` mode to the restore request. This mode restores a cluster member's
 ## `disk_io_threads_virtiofsd`
 
 Adds the {config:option}`device-disk-device-conf:io.threads` option on `disk` devices which is used to control the `virtiofsd` thread pool size when sharing file systems into VMs. This can help improve I/O performance.
+
+## `cluster_links`
+
+This introduces the cluster links API and identity type.
+
+This includes the following new endpoints (see [RESTful API](rest-api.md) for details):
+
+* `GET /1.0/cluster/links/<name>` - returns information about a specific cluster link.
+* `GET /1.0/cluster/links` - returns a combined view of cluster links (if any).
+* `PUT /1.0/cluster/links/<name>` - allows for modification of a specific cluster link.
+* `POST /1.0/cluster/links` - adds a cluster link.
+* `POST /1.0/cluster/links/<name>` - renames a specific cluster link.
+* `DELETE /1.0/cluster/links/<name>` - deletes a specific cluster link.
