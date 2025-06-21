@@ -4683,6 +4683,22 @@ If this option is not specified, LXD falls back to the `NO_PROXY` environment va
 
 ```
 
+```{config:option} core.secret_lifetime server-core
+:defaultdesc: "`false`"
+:scope: "global"
+:shortdesc: "How long to use a given cluster secret."
+:type: "bool"
+The cluster secret is used for various cryptographic purposes, such as cookie encryption.
+When a given secret is older than the configured lifetime, a new secret is generated.
+The secret should be rotated regularly.
+
+This configuration option accepts multiple space separated values of the form `[0-9]+(S|M|H|d|w|m|y)`,
+where `S` is seconds, `M` is minutes, `H` is hours, `d` is days, `w` is weeks, `m` is months, and `y` is years.
+For example, `1d 3H` is 1 day and 3 hours.
+
+The default value is `1w` (1 week).
+```
+
 ```{config:option} core.shutdown_timeout server-core
 :defaultdesc: "`5`"
 :scope: "global"
