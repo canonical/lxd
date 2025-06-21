@@ -782,7 +782,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 	defer func() { _ = pool.UnmountInstance(inst, d.op) }()
 
 	// Attempt to update backup.yaml for instance.
-	err = inst.UpdateBackupFile()
+	err = inst.UpdateBackupFile(nil)
 	if err != nil {
 		return err
 	}

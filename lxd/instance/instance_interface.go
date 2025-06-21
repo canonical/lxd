@@ -13,6 +13,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/canonical/lxd/lxd/backup"
+	backupConfig "github.com/canonical/lxd/lxd/backup/config"
 	"github.com/canonical/lxd/lxd/cgroup"
 	"github.com/canonical/lxd/lxd/db"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
@@ -96,7 +97,7 @@ type Instance interface {
 	Snapshot(name string, expiry *time.Time, stateful bool) error
 	Snapshots() ([]Instance, error)
 	Backups() ([]backup.InstanceBackup, error)
-	UpdateBackupFile() error
+	UpdateBackupFile(volBackupConf *backupConfig.Config) error
 
 	// Config handling.
 	Rename(newName string, applyTemplateTrigger bool) error

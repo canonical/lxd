@@ -941,7 +941,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 
 		// Save any changes that have occurred to the instance's config to the on-disk backup.yaml file.
 		// Use the global metadata version.
-		err = b.UpdateInstanceBackupFile(inst, false, backupConfig.DefaultMetadataVersion, op)
+		err = b.UpdateInstanceBackupFile(inst, false, nil, backupConfig.DefaultMetadataVersion, op)
 		if err != nil {
 			return fmt.Errorf("Failed updating backup file: %w", err)
 		}
@@ -1058,8 +1058,13 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		return errors.New("Source pool is not a lxdBackend")
 	}
 
+	volSrcConfig, err := srcPool.GenerateInstanceCustomVolumeBackupConfig(src, nil, true, op)
+	if err != nil {
+		return fmt.Errorf("Failed generating instance custom volume copy config: %w", err)
+	}
+
 	// Check source volume exists, and get its config including all of the snapshots.
-	srcConfig, err := srcPool.GenerateInstanceBackupConfig(src, true, op)
+	srcConfig, err := srcPool.GenerateInstanceBackupConfig(src, true, volSrcConfig, op)
 	if err != nil {
 		return fmt.Errorf("Failed generating instance copy config: %w", err)
 	}
@@ -1616,8 +1621,13 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		return errors.New("Source pool is not a lxdBackend")
 	}
 
+	volSrcConfig, err := srcPool.GenerateInstanceCustomVolumeBackupConfig(src, nil, true, op)
+	if err != nil {
+		return fmt.Errorf("Failed generating instance custom volume refresh config: %w", err)
+	}
+
 	// Check source volume exists, and get its config including all of the snapshots.
-	srcConfig, err := srcPool.GenerateInstanceBackupConfig(src, true, op)
+	srcConfig, err := srcPool.GenerateInstanceBackupConfig(src, true, volSrcConfig, op)
 	if err != nil {
 		return fmt.Errorf("Failed generating instance refresh config: %w", err)
 	}
@@ -3303,7 +3313,7 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, tarWriter *instancew
 
 	// Ensure the backup file reflects current config.
 	// Use the version requested by the caller to write the correct backup file format.
-	err = b.UpdateInstanceBackupFile(inst, snapshots, version, op)
+	err = b.UpdateInstanceBackupFile(inst, snapshots, nil, version, op)
 	if err != nil {
 		return err
 	}
@@ -3787,7 +3797,7 @@ func (b *lxdBackend) RenameInstanceSnapshot(inst instance.Instance, newName stri
 
 	// Ensure the backup file reflects current config.
 	// Use the global metadata version.
-	err = b.UpdateInstanceBackupFile(inst, true, backupConfig.DefaultMetadataVersion, op)
+	err = b.UpdateInstanceBackupFile(inst, true, nil, backupConfig.DefaultMetadataVersion, op)
 	if err != nil {
 		return err
 	}
@@ -6231,26 +6241,6 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 			return errors.New(`Custom volume "volatile.uuid" property cannot be changed`)
 		}
 
-		// Check for config changing that is not allowed when running instances are using it.
-		if changedConfig["security.shifted"] != "" {
-			err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &curVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, _ []string) error {
-				inst, err := instance.Load(b.state, dbInst, project)
-				if err != nil {
-					return err
-				}
-
-				// Confirm that no running instances are using it when changing shifted state.
-				if inst.IsRunning() && changedConfig["security.shifted"] != "" {
-					return errors.New("Cannot modify shifting with running instances using the volume")
-				}
-
-				return nil
-			})
-			if err != nil {
-				return err
-			}
-		}
-
 		sharedVolume, ok := changedConfig["security.shared"]
 		if ok && shared.IsFalseOrEmpty(sharedVolume) && curVol.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock {
 			err = allowRemoveSecurityShared(b.state, projectName, &curVol.StorageVolume)
@@ -6274,8 +6264,36 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 		delete(newConfig, "volatile.idmap.next")
 	}
 
+	var instances []instance.Instance
+	err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &curVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, _ []string) error {
+		inst, err := instance.Load(b.state, dbInst, project)
+		if err != nil {
+			return err
+		}
+
+		if changedConfig["security.shifted"] != "" {
+			// Confirm that no running instances are using it when changing shifted state.
+			if inst.IsRunning() && changedConfig["security.shifted"] != "" {
+				return errors.New("Cannot modify shifting with running instances using the volume")
+			}
+		}
+
+		instances = append(instances, inst)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
 	revert := revert.New()
 	defer revert.Fail()
+
+	// Add the backup file revert before changing the DB record.
+	// This ensures the updated DB entry is reverted before trying to reset the file.
+	revert.Add(func() {
+		// Reset the instance backup file if the custom volume update didn't succeed.
+		_ = b.UpdateCustomVolumeBackupFile(projectName, volName, true, instances, op)
+	})
 
 	// Update the database if something changed.
 	if len(changedConfig) != 0 || newDesc != curVol.Description {
@@ -6294,6 +6312,12 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 		})
 	}
 
+	// Update the instance's backup files.
+	err = b.UpdateCustomVolumeBackupFile(projectName, volName, true, instances, op)
+	if err != nil {
+		return err
+	}
+
 	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeUpdated.Event(newVol, string(newVol.Type()), projectName, op, nil))
 
 	revert.Success()
@@ -6307,7 +6331,8 @@ func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName stri
 	l.Debug("UpdateCustomVolumeSnapshot started")
 	defer l.Debug("UpdateCustomVolumeSnapshot finished")
 
-	if !shared.IsSnapshot(volName) {
+	parentName, _, isSnap := api.GetParentAndSnapshotName(volName)
+	if !isSnap {
 		return errors.New("Volume must be a snapshot")
 	}
 
@@ -6338,6 +6363,12 @@ func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName stri
 	revert := revert.New()
 	defer revert.Fail()
 
+	// Add the instance's backup file revert before adding the DB record reverter.
+	// This ensures the renamed DB entry is reverted before trying to reset the file.
+	revert.Add(func() {
+		_ = b.UpdateCustomVolumeBackupFile(projectName, parentName, true, nil, op)
+	})
+
 	// Update the database if description changed. Use current config.
 	if newDesc != curVol.Description || newExpiryDate != curExpiryDate {
 		err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -6352,6 +6383,12 @@ func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName stri
 				return tx.UpdateStorageVolumeSnapshot(ctx, projectName, volName, cluster.StoragePoolVolumeTypeCustom, b.ID(), curVol.Description, curVol.Config, curExpiryDate)
 			})
 		})
+	}
+
+	// Update the instance's backup files.
+	err = b.UpdateCustomVolumeBackupFile(projectName, parentName, true, nil, op)
+	if err != nil {
+		return err
 	}
 
 	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(curVol.ContentType), curVol.Name, curVol.Config)
@@ -6717,6 +6754,12 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 		newExpiryDate = &expiry
 	}
 
+	// Add the instance's backup file revert before adding the DB record reverter.
+	// This ensures the added DB entry is reverted before trying to reset the file.
+	revert.Add(func() {
+		_ = b.UpdateCustomVolumeBackupFile(projectName, volName, true, nil, op)
+	})
+
 	// Validate config and create database entry for new storage volume.
 	// Copy volume config from parent.
 	err = VolumeDBCreate(b, projectName, fullSnapshotName, description, drivers.VolumeTypeCustom, true, vol.Config(), snapshotCreationDate, *newExpiryDate, drivers.ContentType(parentVol.ContentType), false, true)
@@ -6733,6 +6776,12 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	}
 
 	revert.Add(func() { _ = b.driver.DeleteVolumeSnapshot(vol, op) })
+
+	// Update the backup config file of the corresponding instances.
+	err = b.UpdateCustomVolumeBackupFile(projectName, volName, true, nil, op)
+	if err != nil {
+		return err
+	}
 
 	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeSnapshotCreated.Event(vol, string(vol.Type()), projectName, op, logger.Ctx{"type": vol.Type()}))
 
@@ -6786,6 +6835,12 @@ func (b *lxdBackend) RenameCustomVolumeSnapshot(projectName, volName string, new
 		_ = b.driver.RenameVolumeSnapshot(newVol, oldSnapshotName, op)
 	})
 
+	// Add the instance's backup file revert before adding the DB record reverter.
+	// This ensures the renamed DB entry is reverted before trying to reset the file.
+	revert.Add(func() {
+		_ = b.UpdateCustomVolumeBackupFile(projectName, parentName, true, nil, op)
+	})
+
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.RenameStoragePoolVolume(ctx, projectName, volName, newVolName, cluster.StoragePoolVolumeTypeCustom, b.ID())
 	})
@@ -6799,6 +6854,12 @@ func (b *lxdBackend) RenameCustomVolumeSnapshot(projectName, volName string, new
 		})
 	})
 
+	// Update the backup config file of the corresponding instances.
+	err = b.UpdateCustomVolumeBackupFile(projectName, parentName, true, nil, op)
+	if err != nil {
+		return err
+	}
+
 	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeSnapshotRenamed.Event(vol, string(vol.Type()), projectName, op, logger.Ctx{"old_name": oldSnapshotName}))
 
 	revert.Success()
@@ -6811,9 +6872,8 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(projectName, volName string, op 
 	l.Debug("DeleteCustomVolumeSnapshot started")
 	defer l.Debug("DeleteCustomVolumeSnapshot finished")
 
-	isSnap := shared.IsSnapshot(volName)
-
-	if !isSnap {
+	parentVolName, _, isSnapshot := api.GetParentAndSnapshotName(volName)
+	if !isSnapshot {
 		return errors.New("Volume name must be a snapshot")
 	}
 
@@ -6862,6 +6922,12 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(projectName, volName string, op 
 
 	// Remove the snapshot volume record from the database.
 	err = VolumeDBDelete(b, projectName, volName, vol.Type())
+	if err != nil {
+		return err
+	}
+
+	// Update the backup config file of the corresponding instances.
+	err = b.UpdateCustomVolumeBackupFile(projectName, parentVolName, true, nil, op)
 	if err != nil {
 		return err
 	}
@@ -6971,6 +7037,59 @@ func (b *lxdBackend) createStorageStructure(path string) error {
 	return nil
 }
 
+// UpdateCustomVolumeBackupFile writes the custom volume's config to the backup.yaml file of the corresponding instances.
+// A list of instances can be provided to not require looking them up.
+func (b *lxdBackend) UpdateCustomVolumeBackupFile(projectName string, volName string, snapshots bool, instances []instance.Instance, op *operations.Operation) error {
+	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volume": volName, "snapshots": snapshots})
+	l.Debug("UpdateCustomVolumeBackupFile started")
+	defer l.Debug("UpdateCustomVolumeBackupFile finished")
+
+	vol, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
+	if err != nil {
+		return err
+	}
+
+	// Fetch all instances which are currently using the custom volume in one of their devices if not provided already.
+	if instances == nil {
+		err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &vol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, _ []string) error {
+			inst, err := instance.Load(b.state, dbInst, project)
+			if err != nil {
+				return err
+			}
+
+			instances = append(instances, inst)
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	backupVolConfCache := b.newBackupConfigCache(b.state)
+
+	// Update the backup config file of all instances.
+	// Try updating all of the instance's backup files using a best effort strategy.
+	// In case a custom volume is used by many instances, it might happen that an instance gets deleted
+	// whilst this function tries to propagate an update of a custom volume.
+	// A lock isn't acquired in this case for all the instances as this might cause too much interruption
+	// as every update of an instance's backup file requires mounting the corresponding volume.
+	for _, inst := range instances {
+		instanceBackupConf, err := b.GenerateInstanceCustomVolumeBackupConfig(inst, backupVolConfCache, snapshots, op)
+		if err != nil {
+			return err
+		}
+
+		// Don't invoke the the update of the instance's backup file directly on *lxdBackend.
+		// The instance's root vol might be located on a different storage pool which gets loaded when calling the instance's UpdateBackupFile.
+		err = inst.UpdateBackupFile(instanceBackupConf)
+		if err != nil {
+			logger.Error("Failed updating backup file", logger.Ctx{"instance": inst.Name(), "err": err})
+		}
+	}
+
+	return nil
+}
+
 // GenerateCustomVolumeBackupConfig returns the backup config entry for this volume.
 func (b *lxdBackend) GenerateCustomVolumeBackupConfig(projectName string, volName string, snapshots bool, _ *operations.Operation) (*backupConfig.Config, error) {
 	vol, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
@@ -7012,12 +7131,13 @@ func (b *lxdBackend) GenerateCustomVolumeBackupConfig(projectName string, volNam
 	return &backupConfig.Config{
 		Version: api.BackupMetadataVersion2,
 		Volumes: []*backupConfig.Volume{volConfig},
+		Pools:   []*api.StoragePool{&b.db},
 	}, nil
 }
 
 // GenerateInstanceBackupConfig returns the backup config entry for this instance.
 // The Instance field is only populated for non-snapshot instances.
-func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, _ *operations.Operation) (*backupConfig.Config, error) {
+func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, volBackupConf *backupConfig.Config, op *operations.Operation) (*backupConfig.Config, error) {
 	// Generate the YAML.
 	ci, _, err := inst.Render()
 	if err != nil {
@@ -7034,13 +7154,14 @@ func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapsh
 		return nil, err
 	}
 
-	volumeConfig := &backupConfig.Volume{
+	rootVolumeConfig := &backupConfig.Volume{
 		StorageVolume: volume.StorageVolume,
 	}
 
 	config := &backupConfig.Config{
 		Version: api.BackupMetadataVersion2,
 		Pools:   []*api.StoragePool{&b.db},
+		Volumes: []*backupConfig.Volume{rootVolumeConfig},
 	}
 
 	// Add profiles from instance.
@@ -7083,7 +7204,7 @@ func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapsh
 				return nil, errors.New("Instance snapshot record count doesn't match instance snapshot volume record count")
 			}
 
-			volumeConfig.Snapshots = make([]*api.StorageVolumeSnapshot, 0, len(dbVolSnaps))
+			rootVolumeConfig.Snapshots = make([]*api.StorageVolumeSnapshot, 0, len(dbVolSnaps))
 			for i := range dbVolSnaps {
 				foundInstanceSnapshot := false
 				for _, snap := range snapshots {
@@ -7099,7 +7220,7 @@ func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapsh
 
 				_, snapName, _ := api.GetParentAndSnapshotName(dbVolSnaps[i].Name)
 
-				volumeConfig.Snapshots = append(volumeConfig.Snapshots, &api.StorageVolumeSnapshot{
+				rootVolumeConfig.Snapshots = append(rootVolumeConfig.Snapshots, &api.StorageVolumeSnapshot{
 					Name:        snapName,
 					Description: dbVolSnaps[i].Description,
 					ExpiresAt:   &dbVolSnaps[i].ExpiryDate,
@@ -7109,14 +7230,33 @@ func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapsh
 				})
 			}
 		}
+
+		if volBackupConf != nil {
+			// Append all custom volumes to the list containing the instance's root volume.
+			config.Volumes = append(config.Volumes, volBackupConf.Volumes...)
+
+			for _, volPool := range volBackupConf.Pools {
+				existing := false
+				for _, existingPool := range config.Pools {
+					// Skip already existing pools in case the custom volume shares the same
+					// pool with the instance volume or any other custom volume.
+					if volPool.Name == existingPool.Name {
+						existing = true
+					}
+				}
+
+				if !existing {
+					config.Pools = append(config.Pools, volPool)
+				}
+			}
+		}
 	}
 
-	config.Volumes = []*backupConfig.Volume{volumeConfig}
 	return config, nil
 }
 
 // UpdateInstanceBackupFile writes the instance's config to the backup.yaml file on the storage device.
-func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots bool, version uint32, op *operations.Operation) error {
+func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots bool, volBackupConf *backupConfig.Config, version uint32, op *operations.Operation) error {
 	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 	l.Debug("UpdateInstanceBackupFile started")
 	defer l.Debug("UpdateInstanceBackupFile finished")
@@ -7126,9 +7266,20 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots 
 		return nil
 	}
 
-	config, err := b.GenerateInstanceBackupConfig(inst, snapshots, op)
+	// When updating the instance backup file and no extra custom volume config is provided,
+	// generate the corresponding config for the custom volumes.
+	if volBackupConf == nil {
+		var err error
+
+		volBackupConf, err = b.GenerateInstanceCustomVolumeBackupConfig(inst, nil, snapshots, op)
+		if err != nil {
+			return fmt.Errorf("Failed generating instance custom volume config: %w", err)
+		}
+	}
+
+	config, err := b.GenerateInstanceBackupConfig(inst, snapshots, volBackupConf, op)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed generating instance config: %w", err)
 	}
 
 	// Get the volume name on storage.
@@ -8098,4 +8249,73 @@ func (b *lxdBackend) getParentVolumeUUID(vol drivers.Volume, projectName string)
 	}
 
 	return parentUUID, nil
+}
+
+// GenerateInstanceCustomVolumeBackupConfig returns the backup config entry for this instance's custom volumes.
+func (b *lxdBackend) GenerateInstanceCustomVolumeBackupConfig(inst instance.Instance, cache *backupConfigCache, snapshots bool, op *operations.Operation) (*backupConfig.Config, error) {
+	// Get the right project name for the device.
+	instanceProject := inst.Project()
+	projectName := project.StorageVolumeProjectFromRecord(&instanceProject, cluster.StoragePoolVolumeTypeCustom)
+
+	// Setup a cache if not provided.
+	// This will allow caching pool and volume backup configs for the given instance.
+	if cache == nil {
+		cache = b.newBackupConfigCache(b.state)
+	}
+
+	var instanceBackupConf = &backupConfig.Config{}
+
+	for _, device := range inst.ExpandedDevices() {
+		// Skip non-disk devices, directory shares without a pool and the instance's root disk itself.
+		if device["type"] != "disk" || device["pool"] == "" || instancetype.IsRootDiskDevice(device) {
+			continue
+		}
+
+		vol, err := cache.getVolume(projectName, device["pool"], device["source"], snapshots, op)
+		if err != nil {
+			// When restoring an instance snapshot, the old instance's list of attached custom volumes
+			// might contain references to volumes which don't anymore exist.
+			// In such cases we don't anymore have the information about the custom volume and
+			// cannot include it in the instance's backup config.
+			// The instance cannot be started in any case until the non-existing device gets removed.
+			if api.StatusErrorCheck(err, http.StatusNotFound) {
+				continue
+			}
+
+			return nil, err
+		}
+
+		instanceBackupConf.Volumes = append(instanceBackupConf.Volumes, vol)
+
+		volPool, err := cache.getPool(device["pool"])
+		if err != nil {
+			return nil, err
+		}
+
+		poolFound := false
+		for _, pool := range instanceBackupConf.Pools {
+			if pool.Name == volPool.Name() {
+				poolFound = true
+			}
+		}
+
+		// Append vol pool to the backup config if it doesn't yet exist.
+		if !poolFound {
+			apiPool := volPool.ToAPI()
+			instanceBackupConf.Pools = append(instanceBackupConf.Pools, &apiPool)
+		}
+	}
+
+	return instanceBackupConf, nil
+}
+
+func (b *lxdBackend) newBackupConfigCache(state *state.State) *backupConfigCache {
+	return &backupConfigCache{
+		pools: map[string]Pool{
+			// Initialize the cache with the already existing backend's pool.
+			b.name: b,
+		},
+		volumes: map[string]map[string]*backupConfig.Volume{},
+		state:   state,
+	}
 }
