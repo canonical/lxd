@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -347,7 +348,7 @@ type PendingTLSMetadata struct {
 // PendingTLSMetadata returns the pending TLS identity metadata.
 func (i Identity) PendingTLSMetadata() (*PendingTLSMetadata, error) {
 	if i.Type != api.IdentityTypeCertificateClientPending {
-		return nil, api.NewStatusError(http.StatusBadRequest, "Cannot extract pending TLS identity secret: Identity is not pending")
+		return nil, api.StatusErrorf(http.StatusBadRequest, "Cannot extract pending %q TLS identity secret: Identity is not pending", i.Type)
 	}
 
 	var metadata PendingTLSMetadata
@@ -394,8 +395,8 @@ func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.Perm
 }
 
 // ActivateTLSIdentity updates a TLS identity to make it valid by adding the fingerprint, PEM encoded certificate, and setting
-// the type to api.IdentityTypeCertificateClient.
-func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, cert *x509.Certificate) error {
+// the type.
+func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, cert *x509.Certificate, identityType IdentityType) error {
 	fingerprint := shared.CertFingerprint(cert)
 	_, err := GetIdentityID(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
 	if err == nil {
@@ -409,36 +410,52 @@ func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, 
 	}
 
 	stmt := `UPDATE identities SET type = ?, identifier = ?, metadata = ? WHERE identifier = ? AND auth_method = ?`
-	res, err := tx.ExecContext(ctx, stmt, identityTypeCertificateClient, fingerprint, string(b), identifier.String(), authMethodTLS)
+	res, err := tx.ExecContext(ctx, stmt, identityType, fingerprint, string(b), identifier.String(), authMethodTLS)
 	if err != nil {
-		return fmt.Errorf("Failed to activate TLS identity: %w", err)
+		return fmt.Errorf("Failed to activate %q TLS identity: %w", identityType, err)
 	}
 
 	n, err := res.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("Failed to check for activated TLS identity: %w", err)
+		return fmt.Errorf("Failed to check for activated %q TLS identity: %w", identityType, err)
 	}
 
 	if n == 0 {
-		return api.StatusErrorf(http.StatusNotFound, "No pending TLS identity found with identifier %q", identifier)
+		return api.StatusErrorf(http.StatusNotFound, "No pending %q TLS identity found with identifier %q", identityType, identifier)
 	} else if n > 1 {
-		return fmt.Errorf("Unknown error occurred when activating a TLS identity: %w", err)
+		return fmt.Errorf("Unknown error occurred when activating %q TLS identity: %w", identityType, err)
 	}
 
 	return nil
 }
 
-var getPendingTLSIdentityByTokenSecretStmt = fmt.Sprintf(`
+var getPendingTLSIdentityByTokenSecretStmt = `
 SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
 	FROM identities
-	WHERE identities.type = %d
+	WHERE identities.type IN (%s)
 	AND json_extract(identities.metadata, '$.secret') = ?
-`, identityTypeCertificateClientPending)
+`
 
-// GetPendingTLSIdentityByTokenSecret gets a single identity of type identityTypeCertificateClientPending with the given
+// GetPendingTLSIdentityByTokenSecret gets a single identity matching the specified identity types with the given
 // secret in its metadata. If no pending identity is found, an api.StatusError is returned with http.StatusNotFound.
-func GetPendingTLSIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret string) (*Identity, error) {
-	identities, err := getIdentitysRaw(ctx, tx, getPendingTLSIdentityByTokenSecretStmt, secret)
+func GetPendingTLSIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret string, identityTypes ...int64) (*Identity, error) {
+	if len(identityTypes) == 0 {
+		identityTypes = []int64{
+			identityTypeCertificateClientPending,
+		}
+	}
+
+	// Convert identity types to strings for the IN clause.
+	typeStrings := make([]string, len(identityTypes))
+	for i, idType := range identityTypes {
+		typeStrings[i] = strconv.FormatInt(idType, 10)
+	}
+
+	// Construct statement with identity types.
+	stmt := fmt.Sprintf(getPendingTLSIdentityByTokenSecretStmt, strings.Join(typeStrings, ","))
+
+	// Get identities using secret.
+	identities, err := getIdentitysRaw(ctx, tx, stmt, secret)
 	if err != nil {
 		return nil, err
 	}
