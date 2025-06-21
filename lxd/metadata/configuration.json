@@ -4734,6 +4734,26 @@
 					}
 				]
 			},
+			"miscellaneous": {
+				"keys": [
+					{
+						"storage.backups_volume": {
+							"defaultdesc": "`block`",
+							"longdesc": "Specify the volume using the syntax `POOL/VOLUME`.",
+							"shortdesc": "Volume to use to store backup tarballs",
+							"type": "string"
+						}
+					},
+					{
+						"storage.images_volume": {
+							"defaultdesc": "`block`",
+							"longdesc": "Specify the volume using the syntax `POOL/VOLUME`.",
+							"shortdesc": "Volume to use to store the image tarballs",
+							"type": "string"
+						}
+					}
+				]
+			},
 			"restricted": {
 				"keys": [
 					{

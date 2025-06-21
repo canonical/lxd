@@ -61,7 +61,6 @@ import (
 	networkZone "github.com/canonical/lxd/lxd/network/zone"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/operations"
-	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/rsync"
@@ -730,23 +729,20 @@ func (d *Daemon) State() *state.State {
 		}, nil
 	}
 
-	storagePath := func(config string, target string) string {
+	s.ImagesStoragePath = func(config string) string {
 		if config == "" {
-			return shared.VarPath(target)
+			config = s.LocalConfig.StorageImagesVolume()
 		}
 
-		poolName, volumeName, _ := daemonStorageSplitVolume(config)
-		volStorageName := project.StorageVolume(api.ProjectDefaultName, volumeName)
-		volMountPath := storageDrivers.GetVolumeMountPath(poolName, storageDrivers.VolumeTypeCustom, volStorageName)
-		return filepath.Join(volMountPath, target)
+		return daemonStoragePath(config, "images")
 	}
 
-	s.ImagesStoragePath = func() string {
-		return storagePath(s.LocalConfig.StorageImagesVolume(), "images")
-	}
+	s.BackupsStoragePath = func(config string) string {
+		if config == "" {
+			config = s.LocalConfig.StorageBackupsVolume()
+		}
 
-	s.BackupsStoragePath = func() string {
-		return storagePath(s.LocalConfig.StorageBackupsVolume(), "backups")
+		return daemonStoragePath(config, "backups")
 	}
 
 	return s

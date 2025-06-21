@@ -4197,6 +4197,22 @@ This value is the maximum value for the sum of the individual {config:option}`in
 ```
 
 <!-- config group project-limits end -->
+<!-- config group project-miscellaneous start -->
+```{config:option} storage.backups_volume project-miscellaneous
+:defaultdesc: "`block`"
+:shortdesc: "Volume to use to store backup tarballs"
+:type: "string"
+Specify the volume using the syntax `POOL/VOLUME`.
+```
+
+```{config:option} storage.images_volume project-miscellaneous
+:defaultdesc: "`block`"
+:shortdesc: "Volume to use to store the image tarballs"
+:type: "string"
+Specify the volume using the syntax `POOL/VOLUME`.
+```
+
+<!-- config group project-miscellaneous end -->
 <!-- config group project-restricted start -->
 ```{config:option} restricted project-restricted
 :defaultdesc: "`false`"
