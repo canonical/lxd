@@ -34,6 +34,7 @@ author = 'LXD contributors'
 # To not display any title, set this option to an empty string.
 html_title = ''
 
+# Set global version variable used in objects.inv to numeric version defined in flex.go
 with open("../shared/version/flex.go") as fd:
     version = fd.readlines()[3].split()[-1].strip("\"")
 
@@ -141,15 +142,13 @@ slug = "lxd"
 
 html_baseurl = 'https://documentation.ubuntu.com/lxd/'
 
-# URL scheme. Add language and version scheme elements.
-# When configured with RTD variables, check for RTD environment so manual runs succeed:
-
+# Configures URL scheme for sphinx-sitemap to generate correct URLs
+# based on the version if built in RTD
 if 'READTHEDOCS_VERSION' in os.environ:
-    version = os.environ["READTHEDOCS_VERSION"]
-    sitemap_url_scheme = '{version}{link}'
+    rtd_version = os.environ["READTHEDOCS_VERSION"]
+    sitemap_url_scheme = f'{rtd_version}/{{link}}'
 else:
     sitemap_url_scheme = '{link}'
-
 
 ############################################################
 ### Redirects
