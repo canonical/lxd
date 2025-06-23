@@ -212,7 +212,7 @@ func (c *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 	var certificate *x509.Certificate
 	if err != nil {
 		// Failed to connect using the system CA, so retrieve the remote certificate
-		certificate, err = shared.GetRemoteCertificate(url, args.UserAgent)
+		certificate, err = shared.GetRemoteCertificate(context.Background(), url, args.UserAgent)
 		if err != nil {
 			return nil, "", err
 		}
