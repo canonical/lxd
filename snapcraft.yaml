@@ -306,8 +306,7 @@ parts:
         - protobuf-compiler
         - xmlto
     stage-packages:
-      - to riscv64:
-        - acl      # placeholder pkg (actually used by lxd part) to avoid installing stage-packages on unsupported arches
+      - to armhf: []
       - else:
         - libnet1
         - libprotobuf-c1
