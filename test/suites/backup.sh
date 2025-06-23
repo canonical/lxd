@@ -1102,7 +1102,7 @@ test_backup_metadata() {
   [ "$lowest_version" = "1" ]
   [ "$highest_version" = "2" ]
 
-  tmpDir=$(mktemp -d)
+  tmpDir=$(mktemp -d -p "${TEST_DIR}" metadata-XXX)
 
   # Create an instance with one snapshot.
   lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
