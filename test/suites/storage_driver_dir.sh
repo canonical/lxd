@@ -12,9 +12,9 @@ do_dir_on_empty_fs() {
     return
   fi
 
-  # Create and mount 32MiB ext4 filesystem.
+  # Create and mount a small ext4 filesystem.
   tmp_file="$(mktemp -p "${TEST_DIR}" disk.XXX)"
-  dd if=/dev/zero of="${tmp_file}" bs=1M count=64
+  fallocate -l 64MiB "${tmp_file}"
   mkfs.ext4 "${tmp_file}"
 
   mount_point="$(mktemp -d -p "${TEST_DIR}" mountpoint.XXX)"
