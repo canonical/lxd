@@ -18,7 +18,7 @@ _server_config_password() {
   echo "${config}" | grep -q -v "123456"
 
   lxc config unset core.trust_password
-  lxc config show | grep -q -v "trust_password"
+  lxc config show | grep -Fv "trust_password"
 }
 
 _server_config_access() {
