@@ -11,21 +11,24 @@ runs:
 
         free -mt
 
-        # turn off .timer, .socket and .service that are not relevant on a CI runner
-        sudo systemctl stop dpkg-db-backup.timer e2scrub_all.timer fstrim.timer logrotate.timer man-db.timer motd-news.timer update-notifier-download.timer update-notifier-motd.timer || true
-        sudo systemctl stop iscsid.socket multipathd.socket || true
-        sudo systemctl stop cron.service irqbalance.service multipathd.service networkd-dispatcher.service || true
+        # turn off all .timer
+        (
+          set -eux
+          cd /etc/systemd/system/timers.target.wants/
+          sudo systemctl disable --now *.timer || true
+        )
 
-        # CI runners are ephemeral, don't bother with cleaning up
-        sudo systemctl stop systemd-tmpfiles-clean.timer || true
-        sudo systemctl stop phpsessionclean.timer || true
+        # turn off .socket and .service that are not relevant on a CI runner
+        for u in iscsid multipathd; do
+          sudo systemctl stop "${u}.socket" || true
+        done
+
+        for u in cron irqbalance mono-xsp4 multipathd networkd-dispatcher php8.1-fpm php8.3-fpm; do
+          sudo systemctl stop "${u}.service" || true
+        done
 
         # the mono service doesn't cleanly stop so use pkill
-        sudo systemctl stop mono-xsp4.service || true
         sudo pkill -x mono || true
-
-        # php8.1 (Jammy), php8.3 (Noble)
-        sudo systemctl stop php8.1-fpm.service php8.3-fpm.service || true
 
         # the podman `systemctl --user` service doesn't cleanly stop so use pkill
         sudo pkill podman -u runner || true
