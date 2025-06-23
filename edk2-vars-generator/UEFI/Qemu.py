@@ -37,7 +37,7 @@ class QemuEfiVariant(enum.Enum):
 
 
 class QemuEfiFlashSize(enum.Enum):
-    DEFAULT = enum.auto
+    DEFAULT = enum.auto()
     SIZE_2MB = enum.auto()
     SIZE_4MB = enum.auto()
 
