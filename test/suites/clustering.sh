@@ -1988,7 +1988,7 @@ test_clustering_join_api() {
   op=$(curl --unix-socket "${LXD_THREE_DIR}/unix.socket" -X PUT "lxd/1.0/cluster" -d "{\"server_name\":\"node3\",\"enabled\":true,\"member_config\":[{\"entity\": \"storage-pool\",\"name\":\"data\",\"key\":\"source\",\"value\":\"\"}],\"server_address\":\"100.64.1.103:8443\",\"cluster_address\":\"100.64.1.101:8443\",\"cluster_certificate\":\"${cert}\",\"cluster_password\":\"sekret\"}" | jq -r .operation)
   curl --unix-socket "${LXD_THREE_DIR}/unix.socket" "lxd${op}/wait"
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -q "message: Fully operational"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -F "message: Fully operational"
 
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
