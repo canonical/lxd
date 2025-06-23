@@ -406,7 +406,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		"io.bus": validate.Optional(validate.IsOneOf("nvme", "virtio-blk", "virtio-scsi")),
 		// lxdmeta:generate(entities=device-disk; group=device-conf; key=io.threads)
 		// This option controls the `virtiofsd` thread pool size, which can help improve I/O performance. Only applies to virtiofs file system shares.
-		// Can only be used in a {config:option}`project-restricted:restricted` project when {config:option}`project-restricted:restricted.virtual-machines.lowlevel` is set to `allow`.
+		// In {config:option}`project-restricted:restricted` projects, it can only be used when {config:option}`project-restricted:restricted.virtual-machines.lowlevel` is set to `allow`.
 		// ---
 		//  type: integer
 		//  defaultdesc: `0`
