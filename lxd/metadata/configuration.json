@@ -83,7 +83,7 @@
 						"io.threads": {
 							"condition": "virtual machine",
 							"defaultdesc": "`0`",
-							"longdesc": "This option controls the `virtiofsd` thread pool size, which can help improve I/O performance. Only applies to virtiofs file system shares.\nCan only be used in a {config:option}`project-restricted:restricted` project when {config:option}`project-restricted:restricted.virtual-machines.lowlevel` is set to `allow`.",
+							"longdesc": "This option controls the `virtiofsd` thread pool size, which can help improve I/O performance. Only applies to virtiofs file system shares.\nIn {config:option}`project-restricted:restricted` projects, it can only be used when {config:option}`project-restricted:restricted.virtual-machines.lowlevel` is set to `allow`.",
 							"required": "no",
 							"shortdesc": "Thread pool for virtiofs file system shares",
 							"type": "integer"
