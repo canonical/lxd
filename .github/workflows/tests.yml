@@ -81,7 +81,7 @@ jobs:
           name: Differential ShellCheck SARIF
           path: ${{ steps.ShellCheck.outputs.sarif }}
           retention-days: 1
-        if: github.event_name == 'pull_request'
+        if: ${{ github.event_name == 'pull_request' && runner.debug == '1' && !cancelled() }}
 
       - name: Install Go
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
