@@ -63,6 +63,10 @@ test_clustering_move() {
   # with the least number of instances when targeting a cluster group.
   lxc move cluster:c1 --target node2
 
+  # c1 can me moved to a new target project.
+  lxc move cluster:c1 --target-project test-project
+  lxc move cluster:c1 --target-project default --project test-project
+
   # c1 can be moved to a new target project and location.
   lxc move cluster:c1 --target node3 --target-project test-project
 
