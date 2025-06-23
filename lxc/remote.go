@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
@@ -223,7 +224,7 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 
 	_, err = conf.GetInstanceServer(server)
 	if err != nil {
-		certificate, err = shared.GetRemoteCertificate(addr, c.global.conf.UserAgent)
+		certificate, err = shared.GetRemoteCertificate(context.Background(), addr, c.global.conf.UserAgent)
 		if err != nil {
 			return api.StatusErrorf(http.StatusServiceUnavailable, "%s: %w", i18n.G("Unavailable remote server"), err)
 		}
@@ -509,7 +510,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 	var certificate *x509.Certificate
 	if err != nil {
 		// Failed to connect using the system CA, so retrieve the remote certificate
-		certificate, err = shared.GetRemoteCertificate(addr, c.global.conf.UserAgent)
+		certificate, err = shared.GetRemoteCertificate(context.Background(), addr, c.global.conf.UserAgent)
 		if err != nil {
 			return err
 		}
