@@ -143,7 +143,7 @@ EOF
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" zfs
 
       # Check that we can't create a loop file in a non-LXD owned location.
-      INVALID_LOOP_FILE="$(mktemp -p "${LXD_DIR}" XXXXXXXXX)-invalid-loop-file"
+      INVALID_LOOP_FILE="$(mktemp -p "${TEST_DIR}" invalid-loop-file.XXX)"
       ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-loop-file" zfs source="${INVALID_LOOP_FILE}" || false
 
       # Let LXD use an already existing dataset.
