@@ -27,6 +27,7 @@ test_storage() {
 
   # Test creating a storage pool from yaml
   storage_pool_yaml="lxdtest-$(basename "${LXD_DIR}")-pool-yaml"
+  tempdir=""
   if [ "${lxd_backend}" = "btrfs" ] || [ "${lxd_backend}" = "zfs" ] || [ "${lxd_backend}" = "lvm" ]; then
     lxc storage create "$storage_pool_yaml" "$lxd_backend" <<EOF
 description: foo
@@ -59,6 +60,7 @@ EOF
 
   # Delete storage pool
   lxc storage delete "$storage_pool_yaml"
+  [ -d "${tempdir}" ] && rmdir "${tempdir}"
 
   # Validate get/set
   lxc storage set "$storage_pool" user.abc def
