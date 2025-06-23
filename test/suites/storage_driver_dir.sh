@@ -13,11 +13,11 @@ do_dir_on_empty_fs() {
   fi
 
   # Create and mount 32MiB ext4 filesystem.
-  tmp_file=$(mktemp "${TEST_DIR}/disk.XXXXXX")
+  tmp_file="$(mktemp -p "${TEST_DIR}" disk.XXX)"
   dd if=/dev/zero of="${tmp_file}" bs=1M count=64
   mkfs.ext4 "${tmp_file}"
 
-  mount_point=$(mktemp -d "${TEST_DIR}/mountpoint.XXXXXX")
+  mount_point="$(mktemp -d -p "${TEST_DIR}" mountpoint.XXX)"
   mount -o loop "${tmp_file}" "${mount_point}"
 
   if [ ! -d "${mount_point}/lost+found" ]; then
