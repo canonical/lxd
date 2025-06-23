@@ -393,8 +393,8 @@ github.com/openfga/api/proto v0.0.0-20250127102726-f9709139a369 h1:wEsCZ4oBuu8Lf
 github.com/openfga/api/proto v0.0.0-20250127102726-f9709139a369/go.mod h1:m74TNgnAAIJ03gfHcx+xaRWnr+IbQy3y/AVNwwCFrC0=
 github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20250428093642-7aeebe78bbfe h1:X1g0rBUMvvzMudsak/jmoEZ1NhSsp6yR0VGxWHnGMzs=
 github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20250428093642-7aeebe78bbfe/go.mod h1:5Z0pbTT7Jz/oQFLfadb+C5t5NwHrduAO7j7L07Ec1GM=
-github.com/openfga/openfga v1.8.15 h1:4pb5IZAZ37kqJEHCDg/6m2LVNKY6FBNI7huoVNXI1qw=
-github.com/openfga/openfga v1.8.15/go.mod h1:lQUsB5QbVFT1POT51VIg30PmCfrHW7aV2dZdRUcH5vU=
+github.com/openfga/openfga v1.8.16 h1:ewxPPlNIwNk9HxSek1s71VvfEg5slzsUT4HJdFt4alE=
+github.com/openfga/openfga v1.8.16/go.mod h1:lQUsB5QbVFT1POT51VIg30PmCfrHW7aV2dZdRUcH5vU=
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
 github.com/osrg/gobgp/v3 v3.37.0 h1:+ObuOdvj7G7nxrT0fKFta+EAupdWf/q1WzbXydr8IOY=
 github.com/osrg/gobgp/v3 v3.37.0/go.mod h1:kVHVFy1/fyZHJ8P32+ctvPeJogn9qKwa1YCeMRXXrP0=
