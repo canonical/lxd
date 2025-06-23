@@ -1479,7 +1479,7 @@ parts:
 
   lxd:
     source: https://github.com/canonical/lxd
-    source-depth: 1
+    source-depth: 0
     source-type: git
     after:
       - lxc
