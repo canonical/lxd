@@ -40,7 +40,7 @@ The first part of the version string corresponds to the LXD release (in this sam
 (howto-snap-updates)=
 ## Manage updates
 
-When LXD is {ref}`installed as a snap <installing-snap-package>`, it tracking the specified snap channel, or the most recent stable LTS track if not specified. Whenever a new version is published to that channel, the LXD version on your system automatically updates.
+When LXD is {ref}`installed as a snap <installing-snap-package>`, it begins tracking the specified snap channel, or the most recent stable LTS track if not specified. Whenever a new version is published to that channel, the LXD version on your system automatically updates.
 
 For control over the update schedule, use either of the following approaches:
 
@@ -221,13 +221,13 @@ Installing LXD as a snap creates the LXD daemon as a [snap service](https://snap
 To view the status of the daemon, run:
 
 ```bash
-snap services lxd.daemon
+snap services lxd
 ```
 
 To stop the daemon, run:
 
 ```bash
-sudo snap stop lxd.daemon
+sudo snap stop lxd
 ```
 
 Stopping the daemon also stops all running LXD instances.
@@ -235,7 +235,7 @@ Stopping the daemon also stops all running LXD instances.
 To start the LXD daemon, run:
 
 ```bash
-sudo snap start lxd.daemon
+sudo snap start lxd
 ```
 
 Starting the daemon also starts all previously running LXD instances.
@@ -243,13 +243,13 @@ Starting the daemon also starts all previously running LXD instances.
 To restart the daemon, run:
 
 ```bash
-sudo snap restart lxd.daemon
+sudo snap restart lxd
 ```
 
 This also stops and starts all running LXD instances. To keep the instances running as you restart the daemon, use the `--reload` flag:
 
 ```bash
-sudo snap restart --reload lxd.daemon
+sudo snap restart --reload lxd
 ```
 
 For more information about managing snap services, visit [Service management](https://snapcraft.io/docs/service-management) in the Snap documentation.
