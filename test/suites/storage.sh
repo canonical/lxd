@@ -37,7 +37,7 @@ EOF
     [ "$(lxc storage get "$storage_pool_yaml" size)" = "2GiB" ]
     [ "$(lxc storage get "$storage_pool_yaml" -p description)" = "foo" ]
   elif [ "${lxd_backend}" = "dir" ]; then
-    tempdir=$(mktemp -d)
+    tempdir=$(mktemp -d -p "${TEST_DIR}" dir.XXX)
     lxc storage create "$storage_pool_yaml" "$lxd_backend" <<EOF
 description: foo
 config:
