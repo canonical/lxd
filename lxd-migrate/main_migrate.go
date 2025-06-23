@@ -214,7 +214,7 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 		InsecureSkipVerify: true,
 	}
 
-	certificate, err := shared.GetRemoteCertificate(serverURL, args.UserAgent)
+	certificate, err := shared.GetRemoteCertificate(context.Background(), serverURL, args.UserAgent)
 	if err != nil {
 		return nil, "", fmt.Errorf("Failed to get remote certificate: %w", err)
 	}
