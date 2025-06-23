@@ -38,7 +38,8 @@ config:
     # Disable needrestart
     - rm -f /etc/apt/apt.conf.d/99needrestart /etc/dpkg/dpkg.cfg.d/needrestart
     # Remove sources of noise
-    - systemctl disable --now networkd-dispatcher.service unattended-upgrades.service
+    - systemctl disable --now networkd-dispatcher.service
+    - systemctl disable --now unattended-upgrades.service
     - cd /etc/systemd/system/timers.target.wants/ && systemctl disable --now *.timer
     # Prepare LXD build
     - printf '[safe]\n    directory = *\n' >> /root/.gitconfig
