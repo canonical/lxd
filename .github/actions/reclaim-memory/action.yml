@@ -28,9 +28,9 @@ runs:
         done
 
         # the mono service doesn't cleanly stop so use pkill
-        sudo pkill -x mono || true
+        sudo pkill --echo -x mono || true
 
         # the podman `systemctl --user` service doesn't cleanly stop so use pkill
-        sudo pkill podman -u runner || true
+        sudo pkill --echo podman -u runner || true
 
         free -mt
