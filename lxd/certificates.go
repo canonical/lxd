@@ -615,27 +615,9 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(fmt.Errorf("Invalid certificate material: %w", err))
 		}
 	} else if req.Token {
-		// Get all addresses the server is listening on. This is encoded in the certificate token,
-		// so that the client will not have to specify a server address. The client will iterate
-		// through all these addresses until it can connect to one of them.
-		addresses, err := util.ListenAddresses(localHTTPSAddress)
+		token, err := createCertificateAddToken(s, req.Name, "")
 		if err != nil {
-			return response.InternalError(err)
-		}
-
-		// Generate join secret for new client. This will be stored inside the join token operation and will be
-		// supplied by the joining client (encoded inside the join token) which will allow us to lookup the correct
-		// operation in order to validate the requested joining client name is correct and authorised.
-		joinSecret, err := shared.RandomCryptoString()
-		if err != nil {
-			return response.InternalError(err)
-		}
-
-		// Generate fingerprint of network certificate so joining member can automatically trust the correct
-		// certificate when it is presented during the join process.
-		fingerprint, err := shared.CertFingerprintStr(string(s.Endpoints.NetworkPublicKey()))
-		if err != nil {
-			return response.InternalError(err)
+			return response.SmartError(fmt.Errorf("Failed to create certificate add token: %w", err))
 		}
 
 		if req.Projects == nil {
@@ -643,9 +625,9 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		meta := map[string]any{
-			"secret":      joinSecret,
-			"fingerprint": fingerprint,
-			"addresses":   addresses,
+			"secret":      token.Secret,
+			"fingerprint": token.Fingerprint,
+			"addresses":   token.Addresses,
 			"request":     req,
 		}
 
