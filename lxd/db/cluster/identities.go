@@ -193,6 +193,16 @@ func (i IdentityType) Value() (driver.Value, error) {
 	return nil, fmt.Errorf("Invalid identity type %q", i)
 }
 
+// ActiveType returns the active version of the identity type.
+func (i IdentityType) ActiveType() (IdentityType, error) {
+	switch i {
+	case api.IdentityTypeCertificateClientPending:
+		return api.IdentityTypeCertificateClient, nil
+	default:
+		return "", fmt.Errorf("Identities of type %q cannot be activated", i)
+	}
+}
+
 // toCertificateAPIType returns the API equivalent type.
 func (i IdentityType) toCertificateType() (certificate.Type, error) {
 	switch i {
