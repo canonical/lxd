@@ -2682,3 +2682,9 @@ Adds the {config:option}`device-disk-device-conf:io.threads` option on `disk` de
 This adds support for the {config:option}`server-oidc:oidc.client.secret` configuration key.
 If set, the LXD server will use this value in the OpenID Connect (OIDC) authorization code flow, which is used by LXD UI.
 This configuration value is not shared with other LXD clients (such as the LXD CLI).
+
+## `daemon_storage_per_project`
+
+This introduces two new configuration keys {config:option}`server-miscellaneous:storage.project_*.images_volume` and
+{config:option}`server-miscellaneous:storage.project_*.backups_volume` per each project to allow for a storage volume on an existing
+pool be used for storing the project-specific images and backups artifacts.
