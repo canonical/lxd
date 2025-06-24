@@ -2690,3 +2690,9 @@ This adds PCI device hotplugging for VMs.
 
 ## `device_patch_removal`
 The `PATCH /1.0/instances/{name}` endpoint allows removing an instance device by setting its value to `null` in the devices map.
+
+## `daemon_storage_per_project`
+
+This introduces two new configuration keys {config:option}`server-miscellaneous:storage.project.{name}.images_volume` and
+{config:option}`server-miscellaneous:storage.project.{name}.backups_volume` per each project to allow for a storage volume on an existing
+pool be used for storing the project-specific images and backups artifacts.
