@@ -242,3 +242,28 @@ func (list Devices) Reversed() DevicesSortable {
 	sort.Sort(sort.Reverse(sortable))
 	return sortable
 }
+
+// Filter returns the devices matching the provided filters.
+// The list of filters is applied using the AND operator.
+// Combining filters using the OR operator can be done using the filters.Or function.
+func (list Devices) Filter(filters ...func(map[string]string) bool) Devices {
+	filteredDevices := Devices{}
+
+	for deviceName, device := range list {
+		allFiltersPassed := true
+
+		for _, filter := range filters {
+			if !filter(device) {
+				// The first filter returned false which means the remaining ones can be skipped.
+				allFiltersPassed = false
+				break
+			}
+		}
+
+		if allFiltersPassed {
+			filteredDevices[deviceName] = device
+		}
+	}
+
+	return filteredDevices
+}
