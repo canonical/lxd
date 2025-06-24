@@ -21,6 +21,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -1582,11 +1583,7 @@ func (d *disk) applyQuota(remount bool) error {
 func (d *disk) generateLimits(runConf *deviceConfig.RunConfig) error {
 	// Disk throttle limits.
 	hasDiskLimits := false
-	for _, dev := range d.inst.ExpandedDevices() {
-		if dev["type"] != "disk" {
-			continue
-		}
-
+	for _, dev := range d.inst.ExpandedDevices().Filter(filters.IsDisk) {
 		if dev["limits.read"] != "" || dev["limits.write"] != "" || dev["limits.max"] != "" {
 			hasDiskLimits = true
 		}
@@ -2264,11 +2261,7 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 
 	// Process all the limits
 	blockLimits := map[string][]diskBlockLimit{}
-	for devName, dev := range d.inst.ExpandedDevices() {
-		if dev["type"] != "disk" {
-			continue
-		}
-
+	for devName, dev := range d.inst.ExpandedDevices().Filter(filters.IsDisk) {
 		// Parse the user input
 		readBps, readIops, writeBps, writeIops, err := d.parseLimit(dev)
 		if err != nil {
