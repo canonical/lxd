@@ -96,6 +96,41 @@ func (p *Project) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Project, error) {
 	return apiProject, nil
 }
 
+// GetProjectsNameAndConfigValue is a helper to return names of all projects keyed by the config value.
+func GetProjectsNameAndConfigValue(ctx context.Context, tx *sql.Tx, config string) (map[string]string, error) {
+	stmt := `
+SELECT projects.name, projects_config.value
+  FROM projects_config
+  JOIN projects ON projects.id=projects_config.project_id
+ WHERE projects_config.key=?
+`
+	rows, err := tx.QueryContext(ctx, stmt, config)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = rows.Close() }()
+
+	result := make(map[string]string)
+	for rows.Next() {
+		var name, configValue string
+
+		err := rows.Scan(&name, &configValue)
+		if err != nil {
+			return nil, err
+		}
+
+		result[name] = configValue
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 // ProjectHasProfiles is a helper to check if a project has the profiles
 // feature enabled.
 func ProjectHasProfiles(ctx context.Context, tx *sql.Tx, name string) (bool, error) {
