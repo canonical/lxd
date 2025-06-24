@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -99,7 +100,7 @@ func ApplyDeviceInitialValues(devices Devices, profiles []api.Profile) Devices {
 	for _, p := range profiles {
 		for devName, devConfig := range p.Devices {
 			// Apply only root disk device from profile devices to instance devices.
-			if devConfig["type"] != "disk" || devConfig["path"] != "/" || devConfig["source"] != "" {
+			if !filters.IsRootDisk(devConfig) {
 				continue
 			}
 
