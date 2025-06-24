@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   commits:
-    name: Branch target and CLA
+    name: Branch target
     runs-on: ubuntu-latest
     steps:
       - name: Check branch target
@@ -31,6 +31,3 @@ jobs:
 
           echo "Invalid branch target: ${TARGET} != ${TARGET_FROM_PR_TITLE}"
           exit 1
-
-      - name: Check if CLA signed
-        uses: canonical/has-signed-canonical-cla@5d1443b94417bd150ad234a82fe21f7340a25e4d # 2
