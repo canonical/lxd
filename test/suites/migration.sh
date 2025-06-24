@@ -511,6 +511,42 @@ migration() {
   lxc_remote storage volume delete l2:"$remote_pool2" bar
   lxc_remote storage unset l1:"$remote_pool1" rsync.compression
 
+  echo "==> Test container migration with attached local volumes."
+
+  echo "==> Create a local storage with the same name."
+  lxc_remote storage create l1:dir dir
+  lxc_remote storage create l2:dir dir
+
+  echo "==> Create a volume to attach to container."
+  lxc_remote storage volume create l1:dir vol1 size=4MiB
+
+  echo "==> Create a container to test migration with attached local volume."
+  lxc_remote init --empty l1:c1
+  lxc_remote storage volume attach l1:dir vol1 c1 /files
+
+  echo "==> Check that copying a container with attached local volume fails, if the destination does not have a volume with the same name."
+  ! lxc_remote copy l1:c1 l2: || false
+
+  echo "==> Check that moving a container with attached local volume fails, if the destination does not have a volume with the same name."
+  ! lxc_remote move l1:c1 l2: || false
+
+  echo "==> Copy the volume."
+  lxc_remote storage volume copy l1:dir/vol1 l2:dir/vol1
+
+  echo "==> Check that copying a container with attached local volume succeeds, if the destination has a volume with the same name."
+  lxc_remote copy l1:c1 l2:
+
+  echo "==> Check that moving a container with attached local volume succeeds, if the destination has a volume with the same name."
+  lxc_remote move l2:c1 l1:c2
+
+  echo "==> Clean up the containers and storage."
+  lxc_remote delete -f l1:c1
+  lxc_remote delete -f l1:c2
+  lxc_remote storage volume delete l1:dir vol1
+  lxc_remote storage volume delete l2:dir vol1
+  lxc_remote storage delete l1:dir
+  lxc_remote storage delete l2:dir
+
   # Test some migration between projects
   lxc_remote project create l1:proj -c features.images=false -c features.profiles=false
   lxc_remote project switch l1:proj
