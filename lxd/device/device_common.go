@@ -76,7 +76,7 @@ func (d *deviceCommon) CanMigrate() bool {
 }
 
 // PostMigrateSend returns nil error as majority of devices don't need to do any post-migration cleanup.
-func (d *deviceCommon) PostMigrateSend() error {
+func (d *deviceCommon) PostMigrateSend(clusterMoveSourceName string) error {
 	return nil
 }
 
