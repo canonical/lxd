@@ -67,7 +67,7 @@ type Device interface {
 	Remove() error
 
 	// PostMigrateSend performs any device cleanup required after an instance has been migrated to another cluster member.
-	PostMigrateSend() error
+	PostMigrateSend(clusterMoveSourceName string) error
 }
 
 // device represents a sealed interface that implements Device, but also contains some internal
