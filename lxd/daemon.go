@@ -733,12 +733,20 @@ func (d *Daemon) State() *state.State {
 		}, nil
 	}
 
-	s.ImagesStoragePath = func() string {
-		return daemonStoragePath(s.LocalConfig.StorageImagesVolume(), "images")
+	s.ImagesStoragePath = func(daemonStorageVolume string) string {
+		if daemonStorageVolume == "" {
+			daemonStorageVolume = s.LocalConfig.StorageImagesVolume()
+		}
+
+		return daemonStoragePath(daemonStorageVolume, "images")
 	}
 
-	s.BackupsStoragePath = func() string {
-		return daemonStoragePath(s.LocalConfig.StorageBackupsVolume(), "backups")
+	s.BackupsStoragePath = func(daemonStorageVolume string) string {
+		if daemonStorageVolume == "" {
+			daemonStorageVolume = s.LocalConfig.StorageBackupsVolume()
+		}
+
+		return daemonStoragePath(daemonStorageVolume, "backups")
 	}
 
 	return s
