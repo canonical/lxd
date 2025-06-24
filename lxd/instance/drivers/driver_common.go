@@ -510,6 +510,26 @@ func (d *common) deviceVolatileSetFunc(devName string) func(save map[string]stri
 	}
 }
 
+// postMigrateSendCommon handles common instance post-migration steps.
+func (d *common) postMigrateSendCommon(inst instance.Instance, clusterMoveSourceName string) error {
+	// Perform post-migration device cleanup.
+	for devName, devConfig := range d.ExpandedDevices() {
+		dev, err := d.deviceLoad(inst, devName, devConfig)
+		if err != nil {
+			logger.Error("Failed to load device %q during post-migration steps on source: %v", logger.Ctx{"devName": devName, "err": err})
+		}
+
+		if dev != nil {
+			err = dev.PostMigrateSend(clusterMoveSourceName)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 // expandConfig applies the config of each profile in order, followed by the local config.
 func (d *common) expandConfig() error {
 	var globalConfigDump map[string]any
