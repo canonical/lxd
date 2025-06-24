@@ -15,6 +15,10 @@ func IsFilesystemDisk(device map[string]string) bool {
 }
 
 // IsRootDisk evaluates whether or not the given device is a root volume.
+// Root disk devices also need a non-empty "pool" property, but we can't check that here
+// because this function is used with clients talking to older servers where there was no
+// concept of a storage pool, and also it is used for migrating from old to new servers.
+// The validation of the non-empty "pool" property is done inside the disk device itself.
 func IsRootDisk(device map[string]string) bool {
 	return IsDisk(device) && device["path"] == "/" && device["source"] == ""
 }
