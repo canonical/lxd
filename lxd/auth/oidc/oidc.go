@@ -55,6 +55,7 @@ type Verifier struct {
 	identityCache       *identity.Cache
 
 	clientID       string
+	clientSecret   string
 	issuer         string
 	scopes         []string
 	audience       string
@@ -471,7 +472,7 @@ func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
 		rp.WithHTTPClient(httpClient),
 	}
 
-	relyingParty, err := rp.NewRelyingPartyOIDC(ctx, o.issuer, o.clientID, "", "https://"+host+"/oidc/callback", o.scopes, options...)
+	relyingParty, err := rp.NewRelyingPartyOIDC(ctx, o.issuer, o.clientID, o.clientSecret, "https://"+host+"/oidc/callback", o.scopes, options...)
 	if err != nil {
 		return fmt.Errorf("Failed to get OIDC relying party: %w", err)
 	}
@@ -662,7 +663,7 @@ type Opts struct {
 }
 
 // NewVerifier returns a Verifier.
-func NewVerifier(issuer string, clientID string, scopes []string, audience string, clusterCert func() *shared.CertInfo, identityCache *identity.Cache, httpClientFunc func() (*http.Client, error), options *Opts) (*Verifier, error) {
+func NewVerifier(issuer string, clientID string, clientSecret string, scopes []string, audience string, clusterCert func() *shared.CertInfo, identityCache *identity.Cache, httpClientFunc func() (*http.Client, error), options *Opts) (*Verifier, error) {
 	opts := &Opts{}
 
 	if options != nil && options.GroupsClaim != "" {
@@ -672,6 +673,7 @@ func NewVerifier(issuer string, clientID string, scopes []string, audience strin
 	verifier := &Verifier{
 		issuer:               issuer,
 		clientID:             clientID,
+		clientSecret:         clientSecret,
 		scopes:               scopes,
 		audience:             audience,
 		identityCache:        identityCache,

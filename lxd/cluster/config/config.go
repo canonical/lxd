@@ -227,8 +227,8 @@ func (c *Config) RemoteTokenExpiry() string {
 }
 
 // OIDCServer returns all the OpenID Connect settings needed to connect to a server.
-func (c *Config) OIDCServer() (issuer string, clientID string, scopes []string, audience string, groupsClaim string) {
-	return c.m.GetString("oidc.issuer"), c.m.GetString("oidc.client.id"), strings.Fields(c.m.GetString("oidc.scopes")), c.m.GetString("oidc.audience"), c.m.GetString("oidc.groups.claim")
+func (c *Config) OIDCServer() (issuer string, clientID string, clientSecret string, scopes []string, audience string, groupsClaim string) {
+	return c.m.GetString("oidc.issuer"), c.m.GetString("oidc.client.id"), c.m.GetString("oidc.client.secret"), strings.Fields(c.m.GetString("oidc.scopes")), c.m.GetString("oidc.audience"), c.m.GetString("oidc.groups.claim")
 }
 
 // ClusterHealingThreshold returns the configured healing threshold, i.e. the
@@ -664,6 +664,14 @@ var ConfigSchema = config.Schema{
 	//  scope: global
 	//  shortdesc: OpenID Connect client ID
 	"oidc.client.id": {},
+
+	// lxdmeta:generate(entities=server; group=oidc; key=oidc.client.secret)
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: OpenID Connect client secret
+	"oidc.client.secret": {},
 
 	// lxdmeta:generate(entities=server; group=oidc; key=oidc.issuer)
 	//

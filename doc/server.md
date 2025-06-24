@@ -54,6 +54,11 @@ The following server options configure external user authentication through {ref
     :end-before: <!-- config group server-oidc end -->
 ```
 
+```{important}
+Setting `oidc.client.secret` may prevent CLI clients from authenticating depending on the Identity Provider policies.
+Set this key only if required by the Identity Provider.
+```
+
 (server-options-cluster)=
 ## Cluster configuration
 
