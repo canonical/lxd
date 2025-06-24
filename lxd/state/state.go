@@ -93,10 +93,10 @@ type State struct {
 	LeaderInfo func() (*LeaderInfo, error)
 
 	// Storage path used by this daemon
-	ImagesStoragePath func() string
+	ImagesStoragePath func(string) string
 
 	// Storage path used by this daemon
-	BackupsStoragePath func() string
+	BackupsStoragePath func(string) string
 
 	// Local server UUID.
 	ServerUUID string
