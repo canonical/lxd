@@ -622,6 +622,7 @@ jobs:
       LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
       LXD_DIR: "/var/lib/lxd"
       LXD_OIDC_CLIENT_ID: ${{ secrets.LXD_UI_OIDC_TEST_CLIENT_ID }}
+      LXD_OIDC_CLIENT_SECRET: ${{ secrets.LXD_UI_OIDC_TEST_CLIENT_SECRET }}
       LXD_OIDC_ISSUER: ${{ secrets.LXD_UI_OIDC_TEST_ISSUER }}
       LXD_OIDC_AUDIENCE: ${{ secrets.LXD_UI_OIDC_TEST_AUDIENCE }}
       LXD_OIDC_USER: ${{ secrets.LXD_UI_OIDC_TEST_USER }}
