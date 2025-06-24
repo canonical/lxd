@@ -1483,7 +1483,7 @@ func (d *btrfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceT
 		args = append(args, path)
 
 		// Create temporary file to store output of btrfs send.
-		tmpFile, err := os.CreateTemp(d.state.BackupsStoragePath(), backup.WorkingDirPrefix+"_btrfs")
+		tmpFile, err := os.CreateTemp(d.state.BackupsStoragePath(""), backup.WorkingDirPrefix+"_btrfs")
 		if err != nil {
 			return fmt.Errorf("Failed to open temporary file for BTRFS backup: %w", err)
 		}

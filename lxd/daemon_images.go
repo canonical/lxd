@@ -319,7 +319,7 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 	l.Info("Downloading image")
 
 	// Cleanup any leftover from a past attempt
-	destDir := s.ImagesStoragePath()
+	destDir := s.ImagesStoragePath("")
 	destName := filepath.Join(destDir, fp)
 
 	failure := true
