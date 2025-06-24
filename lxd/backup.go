@@ -104,7 +104,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	}
 
 	// Create the target path if needed.
-	backupsPathBase := s.BackupsStoragePath()
+	backupsPathBase := s.BackupsStoragePath("")
 
 	backupsPath := filepath.Join(backupsPathBase, "instances", project.Instance(sourceInst.Project().Name, sourceInst.Name()))
 	if !shared.PathExists(backupsPath) {
@@ -449,7 +449,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 	}
 
 	// Create the target path if needed.
-	backupsPathBase := s.BackupsStoragePath()
+	backupsPathBase := s.BackupsStoragePath("")
 
 	backupsPath := filepath.Join(backupsPathBase, "custom", pool.Name(), project.StorageVolume(projectName, volumeName))
 	if !shared.PathExists(backupsPath) {

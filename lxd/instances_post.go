@@ -658,7 +658,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	revert := revert.New()
 	defer revert.Fail()
 
-	backupsPath := s.BackupsStoragePath()
+	backupsPath := s.BackupsStoragePath("")
 
 	// Create temporary file to store uploaded backup data.
 	backupFile, err := os.CreateTemp(backupsPath, backup.WorkingDirPrefix+"_")

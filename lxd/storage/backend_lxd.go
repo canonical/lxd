@@ -1834,7 +1834,7 @@ func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) f
 				}}
 		}
 
-		imageFile := filepath.Join(b.state.ImagesStoragePath(), fingerprint)
+		imageFile := filepath.Join(b.state.ImagesStoragePath(""), fingerprint)
 		return ImageUnpack(b.state, imageFile, vol, rootBlockPath, allowUnsafeResize, tracker)
 	}
 }
@@ -2402,7 +2402,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 				}
 
 				// Make sure that the image is available locally too (not guaranteed in clusters).
-				imagePath := filepath.Join(b.state.ImagesStoragePath(), fingerprint)
+				imagePath := filepath.Join(b.state.ImagesStoragePath(""), fingerprint)
 				imageExists = err == nil && shared.PathExists(imagePath)
 			}
 
@@ -2586,7 +2586,7 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 		// The conversion cannot be done in-place, therefore the image has to be
 		// saved in an intermediate location.
 		conversionID := "conversion_" + inst.Project().Name + "_" + inst.Name()
-		imgPath := filepath.Join(b.state.BackupsStoragePath(), conversionID)
+		imgPath := filepath.Join(b.state.BackupsStoragePath(""), conversionID)
 
 		// Create new file in backups directory.
 		to, err := os.OpenFile(imgPath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0600)
@@ -6494,7 +6494,7 @@ func (b *lxdBackend) DeleteCustomVolume(projectName string, volName string, op *
 	}
 
 	// Remove backups directory for volume.
-	backupsPath := filepath.Join(b.state.BackupsStoragePath(), "custom", b.name, project.StorageVolume(projectName, volName))
+	backupsPath := filepath.Join(b.state.BackupsStoragePath(""), "custom", b.name, project.StorageVolume(projectName, volName))
 	if shared.PathExists(backupsPath) {
 		err := os.RemoveAll(backupsPath)
 		if err != nil {
