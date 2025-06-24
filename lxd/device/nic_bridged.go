@@ -877,14 +877,17 @@ func (d *nicBridged) postStop() error {
 }
 
 // PostMigrateSend is run after an instance is migrated to another cluster member.
-func (d *nicBridged) PostMigrateSend() error {
-	// Populate device config with volatile fields (hwaddr) if needed.
-	networkVethFillFromVolatile(d.config, d.volatileGet())
+func (d *nicBridged) PostMigrateSend(clusterMoveSourceName string) error {
+	// Only reset leases post-migration if the device was moved from another cluster member.
+	if clusterMoveSourceName != "" {
+		// Populate device config with volatile fields (hwaddr) if needed.
+		networkVethFillFromVolatile(d.config, d.volatileGet())
 
-	// Remove device (removing dnsmasq lease and config). This is required to reset leases post-migration.
-	err := d.Remove()
-	if err != nil {
-		return err
+		// Remove device (removing dnsmasq lease and config). This is required to reset leases post-migration.
+		err := d.Remove()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
