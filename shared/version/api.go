@@ -455,6 +455,7 @@ var APIExtensions = []string{
 	"pci_hotplug",
 	"device_patch_removal",
 	"auth_secrets",
+	"daemon_storage_per_project",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
