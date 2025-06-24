@@ -5250,6 +5250,15 @@
 						}
 					},
 					{
+						"core.secret_lifetime": {
+							"defaultdesc": "`false`",
+							"longdesc": "The cluster secret is used for various cryptographic purposes, such as cookie encryption.\nWhen a given secret is older than the configured lifetime, a new secret is generated.\nThe secret should be rotated regularly.\n\nThis configuration option accepts multiple space separated values of the form `[0-9]+(S|M|H|d|w|m|y)`,\nwhere `S` is seconds, `M` is minutes, `H` is hours, `d` is days, `w` is weeks, `m` is months, and `y` is years.\nFor example, `1d 3H` is 1 day and 3 hours.\n\nThe default value is `1w` (1 week).",
+							"scope": "global",
+							"shortdesc": "How long to use a given cluster secret.",
+							"type": "bool"
+						}
+					},
+					{
 						"core.shutdown_timeout": {
 							"defaultdesc": "`5`",
 							"longdesc": "Specify the number of minutes to wait for running operations to complete before the LXD server shuts down.",

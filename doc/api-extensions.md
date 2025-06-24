@@ -2676,3 +2676,7 @@ Adds a `skip` mode to the restore request. This mode restores a cluster member's
 ## `disk_io_threads_virtiofsd`
 
 Adds the {config:option}`device-disk-device-conf:io.threads` option on `disk` devices which is used to control the `virtiofsd` thread pool size when sharing file systems into VMs. This can help improve I/O performance.
+
+## `cluster_secret`
+
+Adds the {config:option}`server-core:core.secret_lifetime` option to configure how long a given secret should be used for.
