@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"os"
 
@@ -70,22 +71,22 @@ func (c *cmdInit) Command() *cobra.Command {
 func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if c.flagAuto && c.flagPreseed {
-		return fmt.Errorf("Can't use --auto and --preseed together")
+		return errors.New("Can't use --auto and --preseed together")
 	}
 
 	if c.flagMinimal && c.flagPreseed {
-		return fmt.Errorf("Can't use --minimal and --preseed together")
+		return errors.New("Can't use --minimal and --preseed together")
 	}
 
 	if c.flagMinimal && c.flagAuto {
-		return fmt.Errorf("Can't use --minimal and --auto together")
+		return errors.New("Can't use --minimal and --auto together")
 	}
 
 	if !c.flagAuto && (c.flagNetworkAddress != "" || c.flagNetworkPort != -1 ||
 		c.flagStorageBackend != "" || c.flagStorageDevice != "" ||
 		c.flagStorageLoopSize != -1 || c.flagStoragePool != "" ||
 		c.flagTrustPassword != "") {
-		return fmt.Errorf("Configuration flags require --auto")
+		return errors.New("Configuration flags require --auto")
 	}
 
 	if c.flagDump && (c.flagAuto || c.flagMinimal ||
@@ -93,7 +94,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 		c.flagNetworkPort != -1 || c.flagStorageBackend != "" ||
 		c.flagStorageDevice != "" || c.flagStorageLoopSize != -1 ||
 		c.flagStoragePool != "" || c.flagTrustPassword != "") {
-		return fmt.Errorf("Can't use --dump with other flags")
+		return errors.New("Can't use --dump with other flags")
 	}
 
 	// Connect to LXD
@@ -193,7 +194,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		if config.Cluster.ClusterCertificate == "" {
-			return fmt.Errorf("Unable to connect to any of the cluster members specified in join token")
+			return errors.New("Unable to connect to any of the cluster members specified in join token")
 		}
 
 		// Raw join token used as cluster password so it can be validated.
