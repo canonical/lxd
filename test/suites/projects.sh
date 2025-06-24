@@ -1025,7 +1025,7 @@ test_projects_restrictions() {
 
   restrictedDir="/opt/projects_restricted"
   mkdir "${restrictedDir}"
-  tmpDir=$(mktemp -d)
+  tmpDir=$(mktemp -d -p "${TEST_DIR}" XXX)
   optDir=$(mktemp -d --tmpdir="${restrictedDir}")
 
   # Block unmanaged disk devices

@@ -27,6 +27,7 @@ test_storage() {
 
   # Test creating a storage pool from yaml
   storage_pool_yaml="lxdtest-$(basename "${LXD_DIR}")-pool-yaml"
+  tempdir=""
   if [ "${lxd_backend}" = "btrfs" ] || [ "${lxd_backend}" = "zfs" ] || [ "${lxd_backend}" = "lvm" ]; then
     lxc storage create "$storage_pool_yaml" "$lxd_backend" <<EOF
 description: foo
@@ -37,7 +38,7 @@ EOF
     [ "$(lxc storage get "$storage_pool_yaml" size)" = "2GiB" ]
     [ "$(lxc storage get "$storage_pool_yaml" -p description)" = "foo" ]
   elif [ "${lxd_backend}" = "dir" ]; then
-    tempdir=$(mktemp -d)
+    tempdir=$(mktemp -d -p "${TEST_DIR}" dir.XXX)
     lxc storage create "$storage_pool_yaml" "$lxd_backend" <<EOF
 description: foo
 config:
@@ -59,6 +60,7 @@ EOF
 
   # Delete storage pool
   lxc storage delete "$storage_pool_yaml"
+  [ -d "${tempdir}" ] && rmdir "${tempdir}"
 
   # Validate get/set
   lxc storage set "$storage_pool" user.abc def
@@ -141,8 +143,9 @@ EOF
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" zfs
 
       # Check that we can't create a loop file in a non-LXD owned location.
-      INVALID_LOOP_FILE="$(mktemp -p "${LXD_DIR}" XXXXXXXXX)-invalid-loop-file"
-      ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" zfs source="${INVALID_LOOP_FILE}" || false
+      INVALID_LOOP_FILE="$(mktemp -p "${TEST_DIR}" invalid-loop-file.XXX)"
+      ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-loop-file" zfs source="${INVALID_LOOP_FILE}" || false
+      rm "${INVALID_LOOP_FILE}"
 
       # Let LXD use an already existing dataset.
       zfs create -p -o mountpoint=none "lxdtest-$(basename "${LXD_DIR}")-pool1/existing-dataset-as-pool"

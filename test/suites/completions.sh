@@ -74,9 +74,7 @@ test_completions() {
 
     (
       import_wd=$(mktemp -d -p "${TEST_DIR}" XXX)
-      # shellcheck disable=SC2164
-      # (tests are run with set -e)
-      cd "${import_wd}"
+      cd "${import_wd}" || return 1
       mkdir foo
       touch bar.txt fizz.tar buzz.tar.gz bazz.tar.xz
       [ "$(complete import '')" = 'bazz.tar.xz,buzz.tar.gz,foo/,localhost:' ] # Correct file extensions, directories, and non-default remotes
@@ -135,9 +133,7 @@ test_completions() {
     [ "$(complete file pull '')" = 'c1/,c2/,localhost:' ]
     (
       file_wd=$(mktemp -d -p "${TEST_DIR}" XXX)
-      # shellcheck disable=SC2164
-      # (tests are run with set -e)
-      cd "${file_wd}"
+      cd "${file_wd}" || return 1
       mkdir foo
       touch bar.txt
       [ "$(complete file pull c1/foo '')" = 'bar.txt,c1/,c2/,foo/,localhost:' ]
