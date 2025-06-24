@@ -49,13 +49,13 @@ yes
 EOF
 
   # Ensure custom storage volume has been recovered.
-  lxc storage volume show "${poolName}" vol1 | grep -q 'content_type: block'
-  lxc storage volume show "${poolName}" vol2 | grep -q 'content_type: iso'
+  lxc storage volume show "${poolName}" vol1 | grep -xF 'content_type: block'
+  lxc storage volume show "${poolName}" vol2 | grep -xF 'content_type: iso'
 
   if [ "$poolDriver" = "zfs" ]; then
     # Ensure custom storage volumes have been recovered.
-    lxc storage volume show "${poolName}" vol3 | grep -q 'content_type: filesystem'
-    lxc storage volume show "${poolName}" vol4 | grep -q 'content_type: filesystem'
+    lxc storage volume show "${poolName}" vol3 | grep -xF 'content_type: filesystem'
+    lxc storage volume show "${poolName}" vol4 | grep -xF 'content_type: filesystem'
 
     # Cleanup
     lxc storage volume delete "${poolName}" vol3
@@ -247,6 +247,9 @@ EOF
 ceph.osd.pool_name=$(lxc storage get "${poolName}" ceph.osd.pool_name)
 ceph.user.name=$(lxc storage get "${poolName}" ceph.user.name)
 "
+      ;;
+      *)
+        # nothing extra config needed
       ;;
     esac
 
@@ -647,14 +650,16 @@ test_backup_rename() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  if ! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 | grep -q "Error: Instance backup not found" ; then
+  OUTPUT="$(! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 || false)"
+  if ! echo "${OUTPUT}" | grep -F "Error: Instance backup not found" ; then
     echo "invalid rename response for missing container"
     false
   fi
 
   lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
 
-  if ! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 | grep -q "Error: Instance backup not found" ; then
+  OUTPUT="$(! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 || false)"
+  if ! echo "${OUTPUT}" | grep -F "Error: Instance backup not found" ; then
     echo "invalid rename response for missing backup"
     false
   fi
@@ -778,7 +783,7 @@ _backup_volume_export_with_project() {
   [ "$(cat "${LXD_DIR}/non-optimized/backup/volume/test")" = "bar" ]
   [ ! -d "${LXD_DIR}/non-optimized/backup/volume-snapshots" ]
 
-  ! grep -q -- '- test-snap0' "${LXD_DIR}/non-optimized/backup/index.yaml" || false
+  ! grep -F -- '- test-snap0' "${LXD_DIR}/non-optimized/backup/index.yaml" || false
 
   rm -rf "${LXD_DIR}/non-optimized/"*
   rm "${LXD_DIR}/testvol.tar.gz"
@@ -814,7 +819,7 @@ _backup_volume_export_with_project() {
   [ -d "${LXD_DIR}/non-optimized/backup/volume-snapshots/test-snap0" ]
   [  "$(cat "${LXD_DIR}/non-optimized/backup/volume-snapshots/test-snap0/test")" = "foo" ]
 
-  grep -q -- '- test-snap0' "${LXD_DIR}/non-optimized/backup/index.yaml"
+  grep -F -- '- test-snap0' "${LXD_DIR}/non-optimized/backup/index.yaml"
 
   rm -rf "${LXD_DIR}/non-optimized/"*
 
@@ -913,7 +918,8 @@ test_backup_volume_rename_delete() {
   # Create test volume.
   lxc storage volume create "${pool}" vol1 size=32MiB
 
-  if ! lxc query -X POST /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 | grep -q "Error: Storage volume backup not found" ; then
+  OUTPUT="$(! lxc query -X POST /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 || false)"
+  if ! echo "${OUTPUT}" | grep -F "Error: Storage volume backup not found" ; then
     echo "invalid rename response for missing storage volume"
     false
   fi
@@ -1105,7 +1111,7 @@ test_backup_metadata() {
   # Export the instance without setting an export version.
   # The server should implicitly pick its latest supported version.
   lxc export c1 "${tmpDir}/c1.tar.gz"
-  tar -xzf "${tmpDir}/c1.tar.gz" -C "${tmpDir}" backup/index.yaml
+  tar -xzf "${tmpDir}/c1.tar.gz" -C "${tmpDir}" --occurrence=1 backup/index.yaml
 
   cat "${tmpDir}/backup/index.yaml"
   [ "$(yq '.snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
@@ -1117,7 +1123,7 @@ test_backup_metadata() {
   # Export the instance using the specified lowest export version.
   # The server should used the provided version instead of its default.
   lxc export c1 "${tmpDir}/c1.tar.gz" --export-version "${lowest_version}"
-  tar -xzf "${tmpDir}/c1.tar.gz" -C "${tmpDir}" backup/index.yaml
+  tar -xzf "${tmpDir}/c1.tar.gz" -C "${tmpDir}" --occurrence=1 backup/index.yaml
 
   cat "${tmpDir}/backup/index.yaml"
   [ "$(yq .config.version < "${tmpDir}/backup/index.yaml")" = "null" ]
@@ -1138,7 +1144,7 @@ test_backup_metadata() {
   # Export the custom storage volume without setting an export version.
   # The server should implicitly pick its latest supported version.
   lxc storage volume export "${poolName}" vol1 "${tmpDir}/vol1.tar.gz"
-  tar -xzf "${tmpDir}/vol1.tar.gz" -C "${tmpDir}" backup/index.yaml
+  tar -xzf "${tmpDir}/vol1.tar.gz" -C "${tmpDir}" --occurrence=1 backup/index.yaml
 
   cat "${tmpDir}/backup/index.yaml"
   [ "$(yq '.snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
@@ -1151,7 +1157,7 @@ test_backup_metadata() {
   # Export the custom storage volume using the specified lowest export version.
   # The server should used the provided version instead of its default.
   lxc storage volume export "${poolName}" vol1 "${tmpDir}/vol1.tar.gz" --export-version "${lowest_version}"
-  tar -xzf "${tmpDir}/vol1.tar.gz" -C "${tmpDir}" backup/index.yaml
+  tar -xzf "${tmpDir}/vol1.tar.gz" -C "${tmpDir}" --occurrence=1 backup/index.yaml
 
   cat "${tmpDir}/backup/index.yaml"
   [ "$(yq '.snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]

@@ -291,6 +291,8 @@ type ClusterMemberStatePost struct {
 	Action string `json:"action" yaml:"action"`
 
 	// Override the configured evacuation mode.
+	// Valid modes for the "evacuate" action are "stop", "migrate", and "live-migrate".
+	// Valid modes for the "restore" action are "skip".
 	// Example: stop
 	//
 	// API extension: clustering_evacuation_mode

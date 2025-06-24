@@ -10,7 +10,7 @@ test_clustering_enable() {
     # shellcheck disable=SC2034,SC2030
     LXD_DIR=${LXD_INIT_DIR}
 
-    lxc config show | grep "core.https_address" | grep -qE "127.0.0.1:[0-9]{4,5}$"
+    lxc config show | grep -xE "^\s+core\.https_address: 127\.0\.0\.1:[0-9]{4,5}"
     # Launch a container.
     ensure_import_testimage
     lxc storage create default dir
@@ -21,7 +21,7 @@ test_clustering_enable() {
     lxc cluster enable node1
 
     # Test the non-recursive mode to list cluster members.
-    lxc query /1.0/cluster/members | jq '.[0]' | grep -q node1
+    [ "$(lxc query /1.0/cluster/members | jq -r '.[0]')" = "/1.0/cluster/members/node1" ]
 
     # Test the recursive mode to list cluster members.
     # The command implicitly sets the recursive=1 query paramter.
@@ -29,14 +29,13 @@ test_clustering_enable() {
 
     # The container is still there and now shows up as
     # running on node 1.
-    lxc list | grep -wF c1 | grep -wF node1
+    [ "$(lxc list -f csv -c nL c1)" = "c1,node1" ]
 
     # Clustering can't be enabled on an already clustered instance.
     ! lxc cluster enable node2 || false
 
     # Delete the container
-    lxc stop c1 --force
-    lxc delete c1
+    lxc delete --force c1
   )
 
   kill_lxd "${LXD_INIT_DIR}"
@@ -954,7 +953,7 @@ test_clustering_storage() {
     LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node1 data web | grep -F "location: node1"
     LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node2 data web | grep -F "location: node2"
 
-    # rename updates the disk devices that refer to the disk
+    # Rename updates the disk devices that refer to the disk.
     LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename --target node1 data web webbaz
 
     [ "$(LXD_DIR=${LXD_TWO_DIR} lxc config device get c1 web source)" = "webbaz" ]
@@ -967,24 +966,23 @@ test_clustering_storage() {
 
     LXD_DIR="${LXD_TWO_DIR}" lxc config device remove c1 web
 
-    # renaming a local storage volume when attached via profile fails
+    # Renaming a local storage volume when attached via profile succeeds.
     LXD_DIR="${LXD_TWO_DIR}" lxc profile create stovol-webbaz
     LXD_DIR="${LXD_TWO_DIR}" lxc profile device add stovol-webbaz webbaz disk pool=data source=webbaz path=/mnt/web
 
     LXD_DIR="${LXD_TWO_DIR}" lxc profile add c3 stovol-webbaz # c2 and c3 both have webbaz attached
 
-    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename --target node2 data webbaz webbaz2 || false
-
-    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc profile device get stovol-webbaz webbaz source)" = "webbaz" ]
-    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc config device get c2 web source)" = "webbaz" ]
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename --target node2 data webbaz webbaz2
+    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc profile device get stovol-webbaz webbaz source)" = "webbaz2" ]
+    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc config device get c2 web source)" = "webbaz2" ]
 
     LXD_DIR="${LXD_TWO_DIR}" lxc profile remove c3 stovol-webbaz
     LXD_DIR="${LXD_TWO_DIR}" lxc profile delete stovol-webbaz
 
-    # clean up
+    # Clean up.
     LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 c2 c3
 
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete --target node2 data webbaz
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete --target node2 data webbaz2
 
     # Since now there's only one volume in the pool left named webbaz,
     # it's possible to delete it without specifying --target.
@@ -1271,6 +1269,52 @@ test_clustering_network() {
   ! nsenter -n -t "${LXD_PID2}" -- ip link show "${net}" || false # Check bridge is removed.
 
   LXD_DIR="${LXD_ONE_DIR}" lxc project delete foo
+
+  echo "Test creating physical networks."
+  net1="${prefix}network1"
+  net2="${prefix}network2"
+
+  echo "Create two dummy interfaces (i1 and i2) on both nodes."
+  nsenter -n -t "${LXD_PID1}" -- ip link add i1 type dummy
+  nsenter -n -t "${LXD_PID1}" -- ip link add i2 type dummy
+  nsenter -n -t "${LXD_PID2}" -- ip link add i1 type dummy
+  nsenter -n -t "${LXD_PID2}" -- ip link add i2 type dummy
+
+  echo "Create a physical network net1."
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net1}" --type=physical parent=i1 --target=node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net1}" --type=physical parent=i1 --target=node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net1}" --type=physical
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net1}" | grep -xF 'status: Created'
+
+  echo "Check that parent interface i1 on node1 cannot be used for another physical network net2."
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i1 --target=node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i2 --target=node2
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep -xF 'status: Errored'
+  LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net2}"
+
+  echo "Check that parent interface i1 on node2 cannot be used for another physical network net2."
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i2 --target=node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i1 --target=node2
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep -xF 'status: Errored'
+  LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net2}"
+
+  echo "Create a physical network net2."
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i2 --target=node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i2 --target=node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep -xF 'status: Created'
+
+  echo "Clean up physical networks."
+  LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net2}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net1}"
+
+  echo "Delete dummy interfaces."
+  nsenter -n -t "${LXD_PID1}" -- ip link delete i2
+  nsenter -n -t "${LXD_PID1}" -- ip link delete i1
+  nsenter -n -t "${LXD_PID2}" -- ip link delete i2
+  nsenter -n -t "${LXD_PID2}" -- ip link delete i1
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
@@ -1944,7 +1988,7 @@ test_clustering_join_api() {
   op=$(curl --unix-socket "${LXD_THREE_DIR}/unix.socket" -X PUT "lxd/1.0/cluster" -d "{\"server_name\":\"node3\",\"enabled\":true,\"member_config\":[{\"entity\": \"storage-pool\",\"name\":\"data\",\"key\":\"source\",\"value\":\"\"}],\"server_address\":\"100.64.1.103:8443\",\"cluster_address\":\"100.64.1.101:8443\",\"cluster_certificate\":\"${cert}\",\"cluster_password\":\"sekret\"}" | jq -r .operation)
   curl --unix-socket "${LXD_THREE_DIR}/unix.socket" "lxd${op}/wait"
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -q "message: Fully operational"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -F "message: Fully operational"
 
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
@@ -2513,7 +2557,7 @@ test_clustering_fan() {
   # Import the test image on node1
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
 
-  fanbridge="${prefix}fan"
+  fanbridge="${prefix}f"
 
   echo "Create a fan bridge"
   LXD_DIR="${LXD_ONE_DIR}" lxc network create --target node1 "${fanbridge}"
@@ -2530,8 +2574,8 @@ test_clustering_fan() {
   LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node2 testimage c2 -d "${SMALL_ROOT_DISK}" -n "${fanbridge}"
 
   echo "Get DHCP leases"
-  IP_C1="$(LXD_DIR="${LXD_ONE_DIR}" lxc exec c1 -- udhcpc -f -i eth0 -n -q -t5 2>&1 | awk '/obtained,/ {print $4}')"
-  IP_C2="$(LXD_DIR="${LXD_ONE_DIR}" lxc exec c2 -- udhcpc -f -i eth0 -n -q -t5 2>&1 | awk '/obtained,/ {print $4}')"
+  IP_C1="$(LXD_DIR="${LXD_ONE_DIR}" lxc exec c1 -- udhcpc -f -i eth0 -n -q -t5 2>&1 | awk '/obtained/ {print $4}')"
+  IP_C2="$(LXD_DIR="${LXD_ONE_DIR}" lxc exec c2 -- udhcpc -f -i eth0 -n -q -t5 2>&1 | awk '/obtained/ {print $4}')"
 
   echo "Configure IP addresses"
   LXD_DIR="${LXD_ONE_DIR}" lxc exec c1 -- ip addr add "${IP_C1}"/8 dev eth0
@@ -3239,13 +3283,13 @@ test_clustering_image_refresh() {
     # shellcheck disable=SC2046
     LXD_DIR="${LXD_ONE_DIR}" lxc image rm --project "${project}" $(LXD_DIR="${LXD_ONE_DIR}" lxc image ls --format csv --project "${project}" | cut -d, -f2)
     # shellcheck disable=SC2046
-    LXD_DIR="${LXD_ONE_DIR}" lxc rm --project "${project}" $(LXD_DIR="${LXD_ONE_DIR}" lxc ls --format csv --project "${project}" | cut -d, -f1)
+    LXD_DIR="${LXD_ONE_DIR}" lxc rm --project "${project}" $(LXD_DIR="${LXD_ONE_DIR}" lxc list --format csv --columns n --project "${project}")
   done
 
   # shellcheck disable=SC2046
   LXD_DIR="${LXD_REMOTE_DIR}" lxc image rm $(LXD_DIR="${LXD_REMOTE_DIR}" lxc image ls --format csv | cut -d, -f2)
   # shellcheck disable=SC2046
-  LXD_DIR="${LXD_REMOTE_DIR}" lxc rm $(LXD_DIR="${LXD_REMOTE_DIR}" lxc ls --format csv | cut -d, -f1)
+  LXD_DIR="${LXD_REMOTE_DIR}" lxc rm $(LXD_DIR="${LXD_REMOTE_DIR}" lxc list --format csv --columns n)
 
   LXD_DIR="${LXD_ONE_DIR}" lxc project delete foo
   LXD_DIR="${LXD_ONE_DIR}" lxc project delete bar
@@ -3563,8 +3607,8 @@ test_clustering_edit_configuration() {
     backupFilename=$(find "${dir}" -name "db_backup.*.tar.gz")
     files=$(tar --list -f "${backupFilename}")
     # Check for dqlite segment files
-    echo "${files}" | grep -E '[0-9]{16}-[0-9]{16}' || echo "${files}" | grep -E 'open-[0-9]'
-    echo "${files}" | grep local.db
+    echo "${files}" | grep -xE -e "database/global/open-[0-9]" -e "database/global/[0-9]{16}-[0-9]{16}"
+    echo "${files}" | grep -xF "database/local.db"
 
     # Recovery tarballs shouldn't be included in backups
     ! echo "${files}" | grep -F lxd_recovery_db.tar.gz || false
@@ -3760,20 +3804,19 @@ test_clustering_autotarget() {
   ns2="${prefix}2"
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
 
- # Use node1 for all cluster actions.
- LXD_DIR="${LXD_ONE_DIR}"
+  # Use node1 for all cluster actions.
+  LXD_DIR="${LXD_ONE_DIR}"
 
- # Spawn c1 on node2 from node1
- ensure_import_testimage
-  lxc init --target node2 testimage c1
- lxc ls | grep -wF c1 | grep -wF node2
+  # Spawn c1 on node2 from node1
+  lxc init --empty --target node2 c1
+  [ "$(lxc list -f csv -c nL c1)" = "c1,node2" ]
 
- # Set node1 config to disable autotarget
- lxc cluster set node1 scheduler.instance manual
+  # Set node1 config to disable autotarget
+  lxc cluster set node1 scheduler.instance manual
 
- # Spawn another node, autotargeting node2 although it has more instances.
- lxc init testimage c2
- lxc ls | grep -wF c2 | grep -wF node2
+  # Spawn another node, autotargeting node2 although it has more instances.
+  lxc init --empty c2
+  [ "$(lxc list -f csv -c nL c2)" = "c2,node2" ]
 
   shutdown_lxd "${LXD_ONE_DIR}"
   shutdown_lxd "${LXD_TWO_DIR}"
@@ -4201,9 +4244,9 @@ test_clustering_events() {
   done
 
   # Kill monitors.
-  kill -9 ${monitorNode1PID} || true
-  kill -9 ${monitorNode2PID} || true
-  kill -9 ${monitorNode3PID} || true
+  kill -9 "${monitorNode1PID}" || true
+  kill -9 "${monitorNode2PID}" || true
+  kill -9 "${monitorNode3PID}" || true
 
   # Cleanup.
   LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1

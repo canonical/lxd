@@ -132,19 +132,19 @@ type InstancePost struct {
 	// Example: {"security.nesting": "true"}
 	//
 	// API extension: instance_move_config
-	Config map[string]string
+	Config map[string]string `json:"Config" yaml:"config"`
 
 	// Instance devices.
 	// Example: {"root": {"type": "disk", "pool": "default", "path": "/"}}
 	//
 	// API extension: instance_move_config
-	Devices map[string]map[string]string
+	Devices map[string]map[string]string `json:"Devices" yaml:"devices"`
 
 	// List of profiles applied to the instance.
 	// Example: ["default"]
 	//
 	// API extension: instance_move_config
-	Profiles []string
+	Profiles []string `json:"Profiles" yaml:"profiles"`
 
 	// Whether the instances's snapshot should receive target instances profile on copy
 	// Example: true
@@ -227,7 +227,7 @@ type InstanceRebuildPost struct {
 //
 // API extension: instances.
 type Instance struct {
-	WithEntitlements `yaml:",inline"`
+	WithEntitlements `yaml:",inline"` //nolint:musttag
 
 	// Instance name
 	// Example: foo

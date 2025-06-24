@@ -90,7 +90,7 @@ test_container_devices_infiniband_sriov() {
   fi
 
   # Check volatile cleanup on stop.
-  if lxc config show "${ctName}" | grep volatile.eth0 | grep -v volatile.eth0.name ; then
+  if [ "$(lxc config show "${ctName}" | grep -F volatile.eth0 | grep -vF volatile.eth0.name)" != "" ]; then
     echo "unexpected volatile key remains"
     false
   fi

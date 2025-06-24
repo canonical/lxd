@@ -1,11 +1,11 @@
 package storage
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 	"github.com/zitadel/oidc/v3/pkg/op"
-	"golang.org/x/exp/slog"
 	"golang.org/x/text/language"
 )
 

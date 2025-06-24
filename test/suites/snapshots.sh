@@ -98,8 +98,8 @@ EOF
   lxc snapshot foo snap2
   lxc snapshot foo snap3
   lxc delete foo/snap2 foo/snap3
-  ! lxc info foo | grep -q snap2 || false
-  ! lxc info foo | grep -q snap3 || false
+  ! lxc info foo | grep -wF snap2 || false
+  ! lxc info foo | grep -wF snap3 || false
 
   # no CLI for this, so we use the API directly (rename a snapshot)
   wait_for "${LXD_ADDR}" my_curl -X POST "https://${LXD_ADDR}/1.0/containers/foo/snapshots/tester" -d "{\"name\":\"tester2\"}"
@@ -330,7 +330,7 @@ snap_restore() {
     restore_and_compare_fs snap0
 
     # check container is running after restore
-    lxc list | grep bar | grep RUNNING
+    lxc list --fast | grep -wF bar | grep -wF RUNNING
   fi
 
   lxc stop --force bar
@@ -348,10 +348,10 @@ snap_restore() {
   # Check snapshot creation dates.
   lxc init testimage c1
   lxc snapshot c1
-  ! lxc storage volume show "${pool}" container/c1 | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
-  ! lxc storage volume show "${pool}" container/c1/snap0 | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
+  ! lxc storage volume show "${pool}" container/c1 | grep '^created_at: 0001-01-01T00:00:00Z' || false
+  ! lxc storage volume show "${pool}" container/c1/snap0 | grep '^created_at: 0001-01-01T00:00:00Z' || false
   lxc copy c1 c2
-  ! lxc storage volume show "${pool}" container/c2 | grep -q '^created_at: 0001-01-01T00:00:00Z' || false
+  ! lxc storage volume show "${pool}" container/c2 | grep '^created_at: 0001-01-01T00:00:00Z' || false
   [ "$(lxc storage volume show "${pool}" container/c1/snap0 | awk /created_at:/)" = "$(lxc storage volume show "${pool}" container/c2/snap0 | awk /created_at:/)" ]
   lxc delete -f c1 c2
 }
@@ -378,7 +378,7 @@ test_snap_expiry() {
 
   lxc launch testimage c1
   lxc snapshot c1
-  lxc config show c1/snap0 | grep -q 'expires_at: 0001-01-01T00:00:00Z'
+  lxc config show c1/snap0 | grep -F 'expires_at: 0001-01-01T00:00:00Z'
   [ "$(lxc config get --property c1/snap0 expires_at)" = "0001-01-01 00:00:00 +0000 UTC" ]
 
   # Check the API returns the zero time representation when listing all snapshots in recursive mode.
@@ -396,11 +396,11 @@ test_snap_expiry() {
   [ "$(date -d "${created_at} today + 1days")" = "$(date -d "${expires_at}")" ]
 
   lxc copy c1 c2
-  ! lxc config show c2/snap1 | grep -q 'expires_at: 0001-01-01T00:00:00Z' || false
+  ! lxc config show c2/snap1 | grep -F 'expires_at: 0001-01-01T00:00:00Z' || false
   [ "$(lxc config get --property c2/snap1 expires_at)" != "0001-01-01 00:00:00 +0000 UTC" ]
 
   lxc snapshot c1 --no-expiry
-  lxc config show c1/snap2 | grep -q 'expires_at: 0001-01-01T00:00:00Z'
+  lxc config show c1/snap2 | grep -F 'expires_at: 0001-01-01T00:00:00Z'
   [ "$(lxc config get --property c1/snap2 expires_at)" = "0001-01-01 00:00:00 +0000 UTC" ]
 
   lxc rm -f c1
@@ -420,15 +420,15 @@ test_snap_schedule() {
   lxc launch testimage c3 -c snapshots.schedule='@startup, 10 5,6 * * *'
   lxc launch testimage c4 -c snapshots.schedule='@startup, 10 5-8 * * *'
   lxc launch testimage c5 -c snapshots.schedule='@startup, 10 2,5-8/2 * * *'
-  lxc info c1 | grep -q snap0
-  lxc info c2 | grep -q snap0
-  lxc info c3 | grep -q snap0
-  lxc info c4 | grep -q snap0
-  lxc info c5 | grep -q snap0
+  lxc info c1 | grep -wF snap0
+  lxc info c2 | grep -wF snap0
+  lxc info c3 | grep -wF snap0
+  lxc info c4 | grep -wF snap0
+  lxc info c5 | grep -wF snap0
 
   # Check we get a new snapshot on restart
   lxc restart c1 -f
-  lxc info c1 | grep -q snap1
+  lxc info c1 | grep -wF snap1
 
   lxc rm -f c1 c2 c3 c4 c5
 }
@@ -462,18 +462,24 @@ test_snap_fail() {
   local lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
 
+  if [ "${lxd_backend}" != "zfs" ]; then
+    echo "==> SKIP: test_snap_fail only supports 'zfs', not ${lxd_backend}"
+    return
+  fi
+
   ensure_import_testimage
 
-  if [ "${lxd_backend}" = "zfs" ]; then
-    # Containers should fail to snapshot when root is full (can't write to backup.yaml)
-    lxc launch testimage c1 --device root,size=2MiB
-    lxc exec c1 -- dd if=/dev/urandom of=/root/big.bin count=100 bs=100K || true
-
-    ! lxc snapshot c1 || false
-
-    # Make sure that the snapshot creation failed (c1 has 0 snapshots)
-    [ "$(lxc ls --columns nS --format csv | awk --field-separator , '/c1/{print $2}')" -eq 0 ]
-
-    lxc delete --force c1
+  # Containers should fail to snapshot when root is full (can't write to backup.yaml)
+  lxc launch testimage c1 --device root,size=2MiB
+  if lxc exec c1 -- dd if=/dev/urandom of=/root/big.bin count=100 bs=100K; then
+    echo "Writting more data than the root size should have failed"
+    false
   fi
+
+  ! lxc snapshot c1 || false
+
+  # Make sure that the snapshot creation failed (c1 has 0 snapshots)
+  [ "$(lxc list --columns nS --format csv c1)" = "c1,0" ]
+
+  lxc delete --force c1
 }

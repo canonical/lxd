@@ -9,6 +9,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -566,7 +567,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 				return fmt.Errorf("Failed to add joining node's pool config: %w", err)
 			}
 
-			if shared.ValueInSlice(driver, []string{"ceph", "cephfs"}) {
+			if slices.Contains([]string{"ceph", "cephfs"}, driver) {
 				// For ceph pools we have to create volume
 				// entries for the joining node.
 				err := tx.UpdateCephStoragePoolAfterNodeJoin(ctx, id, node.ID)
@@ -909,7 +910,7 @@ assign:
 		}
 
 		notified := false
-		for i := 0; i < 10; i++ {
+		for range 10 {
 			time.Sleep(500 * time.Millisecond)
 			servers, err := local.Cluster(context.Background())
 			if err != nil {
@@ -1110,7 +1111,7 @@ func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode, 
 	cluster := map[client.NodeInfo]*client.NodeMetadata{}
 
 	for _, node := range nodes {
-		if !shared.ValueInSlice(node.Address, unavailableMembers) && HasConnectivity(gateway.networkCert, gateway.state().ServerCert(), node.Address) {
+		if !slices.Contains(unavailableMembers, node.Address) && HasConnectivity(gateway.networkCert, gateway.state().ServerCert(), node.Address) {
 			cluster[node.NodeInfo] = &client.NodeMetadata{
 				FailureDomain: domains[node.Address],
 			}

@@ -14,8 +14,8 @@ test_storage_volume_import() {
   # import ISO as storage volume
   lxc storage volume import "lxdtest-$(basename "${LXD_DIR}")" ./foo.iso foo
   lxc storage volume import "lxdtest-$(basename "${LXD_DIR}")" ./foo.img --type=iso foobar
-  lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")" foo | grep -q 'content_type: iso'
-  lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")" foobar | grep -q 'content_type: iso'
+  lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")" foo | grep -xF 'content_type: iso'
+  lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")" foobar | grep -xF 'content_type: iso'
 
   # check if storage volumes have an UUID.
   [ -n "$(lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")" foo volatile.uuid)" ]
@@ -27,8 +27,8 @@ test_storage_volume_import() {
 
   lxc storage volume import "lxdtest-$(basename "${LXD_DIR}")" ./foo.iso foo
   lxc storage volume import "lxdtest-$(basename "${LXD_DIR}")" ./foo.img --type=iso foobar
-  lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")" foo | grep -q 'content_type: iso'
-  lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")" foobar | grep -q 'content_type: iso'
+  lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")" foo | grep -xF 'content_type: iso'
+  lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")" foobar | grep -xF 'content_type: iso'
 
   # snapshots are disabled for ISO storage volumes
   ! lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")" foo || false
@@ -45,14 +45,14 @@ test_storage_volume_import() {
 
   # copy volume
   lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")"/foo "lxdtest-$(basename "${LXD_DIR}")"/bar
-  lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")" bar | grep -q 'content_type: iso'
+  lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")" bar | grep -xF 'content_type: iso'
 
   # cannot refresh copy
   ! lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")"/foo "lxdtest-$(basename "${LXD_DIR}")"/bar --refresh || false
 
   # can change description
   lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")" foo | sed 's/^description:.*/description: foo/' | lxc storage volume edit "lxdtest-$(basename "${LXD_DIR}")" foo
-  lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")" foo | grep -q 'description: foo'
+  lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")" foo | grep -xF 'description: foo'
 
   # cleanup
   lxc delete -f c1

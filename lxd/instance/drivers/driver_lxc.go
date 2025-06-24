@@ -17,6 +17,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -198,13 +199,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.In
 		return nil, nil, err
 	}
 
-	storagePoolSupported := false
-	for _, supportedType := range d.storagePool.Driver().Info().VolumeTypes {
-		if supportedType == volType {
-			storagePoolSupported = true
-			break
-		}
-	}
+	storagePoolSupported := slices.Contains(d.storagePool.Driver().Info().VolumeTypes, volType)
 
 	if !storagePoolSupported {
 		return nil, nil, errors.New("Storage pool does not support instance type")
@@ -1621,7 +1616,7 @@ func (d *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig
 		}
 
 		// If interface doesn't exist inside container, cannot proceed.
-		if !shared.ValueInSlice(configCopy["name"], ifaces) {
+		if !slices.Contains(ifaces, configCopy["name"]) {
 			return nil
 		}
 
@@ -1917,7 +1912,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	kernelModules := d.expandedConfig["linux.kernel_modules"]
 	kernelModulesLoadPolicy := d.expandedConfig["linux.kernel_modules.load"]
 	if kernelModulesLoadPolicy != "ondemand" && kernelModules != "" {
-		for _, module := range strings.Split(kernelModules, ",") {
+		for module := range strings.SplitSeq(kernelModules, ",") {
 			module = strings.TrimPrefix(module, " ")
 			err := util.LoadModule(module)
 			if err != nil {
@@ -2435,7 +2430,7 @@ func (d *lxc) Start(stateful bool) error {
 		if shared.PathExists(logPath) {
 			logContent, err := os.ReadFile(logPath)
 			if err == nil {
-				for _, line := range strings.Split(string(logContent), "\n") {
+				for line := range strings.SplitSeq(string(logContent), "\n") {
 					fields := strings.Fields(line)
 					if len(fields) < 4 {
 						continue
@@ -2963,7 +2958,7 @@ func (d *lxc) onStopNS(args map[string]string) error {
 	netns := args["netns"]
 
 	// Validate target.
-	if !shared.ValueInSlice(target, []string{"stop", "reboot"}) {
+	if !slices.Contains([]string{"stop", "reboot"}, target) {
 		d.logger.Error("Container sent invalid target to OnStopNS", logger.Ctx{"target": target})
 		return fmt.Errorf("Invalid stop target %q", target)
 	}
@@ -2986,7 +2981,7 @@ func (d *lxc) onStop(args map[string]string) error {
 	target := args["target"]
 
 	// Validate target
-	if !shared.ValueInSlice(target, []string{"stop", "reboot"}) {
+	if !slices.Contains([]string{"stop", "reboot"}, target) {
 		d.logger.Error("Container sent invalid target to OnStop", logger.Ctx{"target": target})
 		return fmt.Errorf("Invalid stop target: %s", target)
 	}
@@ -4191,11 +4186,11 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	checkedProfiles := []string{}
 	for _, profile := range args.Profiles {
-		if !shared.ValueInSlice(profile.Name, profiles) {
+		if !slices.Contains(profiles, profile.Name) {
 			return fmt.Errorf("Requested profile '%s' doesn't exist", profile.Name)
 		}
 
-		if shared.ValueInSlice(profile.Name, checkedProfiles) {
+		if slices.Contains(checkedProfiles, profile.Name) {
 			return errors.New("Duplicate profile found in request")
 		}
 
@@ -4297,7 +4292,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	changedConfig := []string{}
 	for key := range oldExpandedConfig {
 		if oldExpandedConfig[key] != d.expandedConfig[key] {
-			if !shared.ValueInSlice(key, changedConfig) {
+			if !slices.Contains(changedConfig, key) {
 				changedConfig = append(changedConfig, key)
 			}
 		}
@@ -4305,7 +4300,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	for key := range d.expandedConfig {
 		if oldExpandedConfig[key] != d.expandedConfig[key] {
-			if !shared.ValueInSlice(key, changedConfig) {
+			if !slices.Contains(changedConfig, key) {
 				changedConfig = append(changedConfig, key)
 			}
 		}
@@ -4367,7 +4362,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		for _, k := range changedConfig {
-			if !shared.ValueInSlice(k, protectedKeys) {
+			if !slices.Contains(protectedKeys, k) {
 				continue
 			}
 
@@ -4413,7 +4408,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// If raw.lxc changed, re-validate the config.
-	if shared.ValueInSlice("raw.lxc", changedConfig) && d.expandedConfig["raw.lxc"] != "" {
+	if slices.Contains(changedConfig, "raw.lxc") && d.expandedConfig["raw.lxc"] != "" {
 		// Get a new liblxc instance.
 		cname := project.Instance(d.Project().Name, d.Name())
 		cc, err := liblxc.NewContainer(cname, d.state.OS.LxcPath)
@@ -4433,14 +4428,14 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// If apparmor changed, re-validate the apparmor profile (even if not running).
-	if shared.ValueInSlice("raw.apparmor", changedConfig) || shared.ValueInSlice("security.nesting", changedConfig) {
+	if slices.Contains(changedConfig, "raw.apparmor") || slices.Contains(changedConfig, "security.nesting") {
 		err = apparmor.InstanceValidate(d.state.OS, d)
 		if err != nil {
 			return fmt.Errorf("Parse AppArmor profile: %w", err)
 		}
 	}
 
-	if shared.ValueInSlice("security.idmap.isolated", changedConfig) || shared.ValueInSlice("security.idmap.base", changedConfig) || shared.ValueInSlice("security.idmap.size", changedConfig) || shared.ValueInSlice("raw.idmap", changedConfig) || shared.ValueInSlice("security.privileged", changedConfig) {
+	if slices.Contains(changedConfig, "security.idmap.isolated") || slices.Contains(changedConfig, "security.idmap.base") || slices.Contains(changedConfig, "security.idmap.size") || slices.Contains(changedConfig, "raw.idmap") || slices.Contains(changedConfig, "security.privileged") {
 		var idmap *idmap.IdmapSet
 		base := int64(0)
 		if !d.IsPrivileged() {
@@ -4488,7 +4483,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	// Update MAAS (must run after the MAC addresses have been generated).
 	updateMAAS := false
 	for _, key := range []string{"maas.subnet.ipv4", "maas.subnet.ipv6", "ipv4.address", "ipv6.address"} {
-		if shared.ValueInSlice(key, allUpdatedKeys) {
+		if slices.Contains(allUpdatedKeys, key) {
 			updateMAAS = true
 			break
 		}
@@ -4562,7 +4557,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 					continue
 				}
 
-				for _, module := range strings.Split(value, ",") {
+				for module := range strings.SplitSeq(value, ",") {
 					module = strings.TrimPrefix(module, " ")
 					err := util.LoadModule(module)
 					if err != nil {
@@ -5420,7 +5415,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 		// Ensure that only the requested snapshots are included in the migration index header.
 		rootVol.Snapshots = make([]*api.StorageVolumeSnapshot, 0, len(volSourceArgs.Snapshots))
 		for i := range allSnapshots {
-			if shared.ValueInSlice(allSnapshots[i].Name, volSourceArgs.Snapshots) {
+			if slices.Contains(volSourceArgs.Snapshots, allSnapshots[i].Name) {
 				rootVol.Snapshots = append(rootVol.Snapshots, allSnapshots[i])
 			}
 		}
@@ -5430,7 +5425,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 	// is running, and if we are doing a non-optimized transfer (i.e using rsync or raw block transfer) then we
 	// should do a two stage transfer to minimize downtime.
 	instanceRunning := args.Live || (respHeader.Criu != nil && *respHeader.Criu == migration.CRIUType_NONE)
-	nonOptimizedMigration := volSourceArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || shared.ValueInSlice(volSourceArgs.MigrationType.FSType, []migration.MigrationFSType{migration.MigrationFSType_BLOCK_AND_RSYNC, migration.MigrationFSType_RBD_AND_RSYNC})
+	nonOptimizedMigration := volSourceArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || slices.Contains([]migration.MigrationFSType{migration.MigrationFSType_BLOCK_AND_RSYNC, migration.MigrationFSType_RBD_AND_RSYNC}, volSourceArgs.MigrationType.FSType)
 	if instanceRunning && nonOptimizedMigration {
 		// Indicate this info to the storage driver so that it can alter its behaviour if needed.
 		volSourceArgs.MultiSync = true
@@ -5936,10 +5931,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 	// Respond with our maximum supported header version if the requested version is higher than ours.
 	// Otherwise just return the requested header version to the source.
-	indexHeaderVersion := offerHeader.GetIndexHeaderVersion()
-	if indexHeaderVersion > migration.IndexHeaderVersion {
-		indexHeaderVersion = migration.IndexHeaderVersion
-	}
+	indexHeaderVersion := min(offerHeader.GetIndexHeaderVersion(), migration.IndexHeaderVersion)
 
 	respHeader.IndexHeaderVersion = &indexHeaderVersion
 	respHeader.SnapshotNames = offerHeader.SnapshotNames
@@ -6714,13 +6706,7 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 			var w *os.File
 
 			// Check if the template should be applied now
-			found := false
-			for _, tplTrigger := range tpl.When {
-				if tplTrigger == string(trigger) {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(tpl.When, string(trigger))
 
 			if !found {
 				return nil
@@ -6997,7 +6983,7 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 
 		// Write PID file.
 		pidFile := filepath.Join(d.LogPath(), "forkfile.pid")
-		err = os.WriteFile(pidFile, []byte(fmt.Sprint(forkfile.Process.Pid, "\n")), 0600)
+		err = os.WriteFile(pidFile, fmt.Append(nil, forkfile.Process.Pid, "\n"), 0600)
 		if err != nil {
 			chReady <- fmt.Errorf("Failed to write forkfile PID: %w", err)
 			return
@@ -7550,7 +7536,7 @@ func (d *lxc) processesState(pid int) (int64, error) {
 	pids := []int64{int64(pid)}
 
 	// Go through the pid list, adding new pids at the end so we go through them all
-	for i := 0; i < len(pids); i++ {
+	for i := range pids {
 		fname := fmt.Sprintf("/proc/%d/task/%d/children", pids[i], pids[i])
 		fcont, err := os.ReadFile(fname)
 		if err != nil {
@@ -7559,7 +7545,7 @@ func (d *lxc) processesState(pid int) (int64, error) {
 		}
 
 		content := strings.Split(string(fcont), " ")
-		for j := 0; j < len(content); j++ {
+		for j := range content {
 			pid, err := strconv.ParseInt(content[j], 10, 64)
 			if err == nil {
 				pids = append(pids, pid)
@@ -7935,7 +7921,7 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 
 		// Include all static interface names
 		for _, dev := range d.expandedDevices.Sorted() {
-			if dev.Config["name"] != "" && !shared.ValueInSlice(dev.Config["name"], devNames) {
+			if dev.Config["name"] != "" && !slices.Contains(devNames, dev.Config["name"]) {
 				devNames = append(devNames, dev.Config["name"])
 			}
 		}
@@ -7951,7 +7937,7 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 				continue
 			}
 
-			if fields[2] != "name" || shared.ValueInSlice(v, devNames) {
+			if fields[2] != "name" || slices.Contains(devNames, v) {
 				continue
 			}
 
@@ -7967,7 +7953,7 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 			interfaces, err := cc.Interfaces()
 			if err == nil {
 				for _, name := range interfaces {
-					if shared.ValueInSlice(name, devNames) {
+					if slices.Contains(devNames, name) {
 						continue
 					}
 
@@ -7986,7 +7972,7 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 			}
 
 			// Find a free device name
-			if !shared.ValueInSlice(name, devNames) {
+			if !slices.Contains(devNames, name) {
 				return name, nil
 			}
 
@@ -8000,7 +7986,7 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 	}
 
 	// Fill in the MAC address.
-	if !shared.ValueInSlice(nicType, []string{"physical", "ipvlan", "sriov"}) && m["hwaddr"] == "" {
+	if !slices.Contains([]string{"physical", "ipvlan", "sriov"}, nicType) && m["hwaddr"] == "" {
 		configKey := "volatile." + name + ".hwaddr"
 		volatileHwaddr := d.localConfig[configKey]
 		if volatileHwaddr == "" {

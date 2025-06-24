@@ -21,12 +21,12 @@ test_network() {
   ip link add dummy0 type dummy
   ovs-vsctl add-br ovs-br0
   ovs-vsctl add-port ovs-br0 dummy0 tag=9
-  lxc network info ovs-br0 | grep -qF "Bridge:"
+  lxc network info ovs-br0 | grep -xF "Bridge:"
 
   # Check that we are able to return linux bridge information if ovs service is disabled
   systemctl stop openvswitch-switch
   ip link add native-br0 type bridge
-  lxc network info native-br0 | grep -qF "Bridge:"
+  lxc network info native-br0 | grep -xF "Bridge:"
 
   # Cleanup
   systemctl start openvswitch-switch
@@ -69,13 +69,13 @@ test_network() {
   # edit network description
   lxc network create lxdt$$
   lxc network show lxdt$$ | sed 's/^description:.*/description: foo/' | lxc network edit lxdt$$
-  lxc network show lxdt$$ | grep -q 'description: foo'
+  lxc network show lxdt$$ | grep -xF 'description: foo'
   lxc network delete lxdt$$
 
   # rename network
   lxc network create lxdt$$
   lxc network rename lxdt$$ newnet$$
-  lxc network list | grep -qv lxdt$$  # the old name is gone
+  ! lxc network list | grep -wF "lxdt$$" || false # the old name is gone
   lxc network delete newnet$$
 
   # Unconfigured bridge
@@ -88,13 +88,13 @@ test_network() {
 
   expected_state=$(lxc network info dummy0 | grep -F "State:")
   expected_type=$(lxc network info dummy0 | grep -F "Type:")
-  lxc network info lxdt$$ | grep -qF "${expected_state}"
-  lxc network info lxdt$$ | grep -qF "${expected_type}"
+  lxc network info lxdt$$ | grep -xF "${expected_state}"
+  lxc network info lxdt$$ | grep -xF "${expected_type}"
 
   # Delete physical network and check for expected response
   ip link delete dummy0
-  lxc network info lxdt$$ | grep -qF "State: unavailable"
-  lxc network info lxdt$$ | grep -qF "Type: unknown"
+  lxc network info lxdt$$ | grep -xF "State: unavailable"
+  lxc network info lxdt$$ | grep -xF "Type: unknown"
 
   lxc network delete lxdt$$
 
@@ -117,10 +117,10 @@ test_network() {
   lxc config device set outsider eth0 ipv4.address "${v4_addr_foo}" --project foo
   lxc config device set outsider eth0 ipv6.address "${v6_addr_foo}" --project foo
 
-  lxc network list-leases lxdt$$ | grep STATIC | grep -q "${v4_addr}"
-  lxc network list-leases lxdt$$ | grep STATIC | grep -q "${v6_addr}"
-  lxc network list-leases lxdt$$ --project foo | grep STATIC | grep -q "${v4_addr_foo}"
-  lxc network list-leases lxdt$$ --project foo | grep STATIC | grep -q "${v6_addr_foo}"
+  lxc network list-leases lxdt$$ | grep -wF STATIC | grep -F "${v4_addr}"
+  lxc network list-leases lxdt$$ | grep -wF STATIC | grep -F "${v6_addr}"
+  lxc network list-leases lxdt$$ --project foo | grep -wF STATIC | grep -F "${v4_addr_foo}"
+  lxc network list-leases lxdt$$ --project foo | grep -wF STATIC | grep -F "${v6_addr_foo}"
 
   # Request DHCPv6 lease (if udhcpc6 is in busybox image).
   busyboxUdhcpc6=1
@@ -142,8 +142,8 @@ test_network() {
   lxc network list-allocations localhost: | grep -e "${net_ipv4}" -e "${net_ipv6}"
   lxc network list-allocations localhost: | grep -e "/1.0/networks/lxdt$$" -e "/1.0/instances/nettest"
   lxc network list-allocations localhost: | grep -e "${v4_addr}" -e "${v6_addr}"
-  lxc network list-allocations --format csv | grep -q "/1.0/instances/outsider?project=foo,${v4_addr_foo}"
-  lxc network list-allocations --format csv | grep -q "/1.0/instances/outsider?project=foo,${v6_addr_foo}"
+  lxc network list-allocations --format csv | grep -F "/1.0/instances/outsider?project=foo,${v4_addr_foo}"
+  lxc network list-allocations --format csv | grep -F "/1.0/instances/outsider?project=foo,${v6_addr_foo}"
 
   lxc delete -f outsider --project foo
   lxc project delete foo

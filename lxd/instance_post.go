@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 
@@ -479,14 +480,10 @@ func instancePostMigration(s *state.State, inst instance.Instance, req api.Insta
 
 	// Copy config from instance to avoid modifying it.
 	localConfig := make(map[string]string)
-	for k, v := range inst.LocalConfig() {
-		localConfig[k] = v
-	}
+	maps.Copy(localConfig, inst.LocalConfig())
 
 	// Set user defined configuration entries.
-	for k, v := range req.Config {
-		localConfig[k] = v
-	}
+	maps.Copy(localConfig, req.Config)
 
 	// Get instance local devices and then set user defined devices.
 	localDevices := inst.LocalDevices().Clone()
@@ -899,7 +896,7 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 
 // instancePostClusteringMigrateWithRemoteStorage handles moving a remote shared storage instance from a source member that is offline.
 // This function must be run on the target cluster member to move the instance to.
-func instancePostClusteringMigrateWithRemoteStorage(s *state.State, r *http.Request, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, newMember db.NodeInfo, stateful bool) (func(op *operations.Operation) error, error) {
+func instancePostClusteringMigrateWithRemoteStorage(s *state.State, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, newMember db.NodeInfo) (func(op *operations.Operation) error, error) {
 	// Sense checks to avoid unexpected behaviour.
 	if !srcPool.Driver().Info().Remote {
 		return nil, errors.New("Source instance's storage pool is not remote shared storage")
@@ -999,7 +996,7 @@ func migrateInstance(s *state.State, r *http.Request, inst instance.Instance, ta
 
 	// Only use instancePostClusteringMigrateWithRemoteStorage when source member is offline and storage location is remote.
 	if srcMember.IsOffline(s.GlobalConfig.OfflineThreshold()) && srcPool.Driver().Info().Remote {
-		f, err := instancePostClusteringMigrateWithRemoteStorage(s, r, srcPool, inst, req.Name, newMember, req.Live)
+		f, err := instancePostClusteringMigrateWithRemoteStorage(s, srcPool, inst, req.Name, newMember)
 		if err != nil {
 			return err
 		}

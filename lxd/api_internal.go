@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	runtimeDebug "runtime/debug"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -512,7 +513,7 @@ type internalSQLQuery struct {
 }
 
 type internalSQLBatch struct {
-	Results []internalSQLResult
+	Results []internalSQLResult `json:"Results" yaml:"results"`
 }
 
 type internalSQLResult struct {
@@ -528,7 +529,7 @@ func internalSQLGet(d *Daemon, r *http.Request) response.Response {
 
 	database := r.FormValue("database")
 
-	if !shared.ValueInSlice(database, []string{"local", "global"}) {
+	if !slices.Contains([]string{"local", "global"}, database) {
 		return response.BadRequest(errors.New("Invalid database"))
 	}
 
@@ -571,7 +572,7 @@ func internalSQLPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	if !shared.ValueInSlice(req.Database, []string{"local", "global"}) {
+	if !slices.Contains([]string{"local", "global"}, req.Database) {
 		return response.BadRequest(errors.New("Invalid database"))
 	}
 
@@ -593,7 +594,7 @@ func internalSQLPost(d *Daemon, r *http.Request) response.Response {
 		return response.SyncResponse(true, batch)
 	}
 
-	for _, query := range strings.Split(req.Query, ";") {
+	for query := range strings.SplitSeq(req.Query, ";") {
 		query = strings.TrimLeft(query, " ")
 
 		if query == "" {
@@ -1121,7 +1122,7 @@ func internalImportRootDevicePopulate(instancePoolName string, localDevices map[
 		// If there is already a device called "root" in the instance's config, but it does not qualify as
 		// a root disk, then try to find a free name for the new root disk device.
 		rootDevName := "root"
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 			if localDevices[rootDevName] == nil {
 				break
 			}

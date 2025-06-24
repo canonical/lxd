@@ -1,30 +1,47 @@
 name: Install LXD runtime dependencies
 description: Installs LXD runtime dependencies
 
+inputs:
+  optional:
+    description: Whether to install optional dependencies
+    default: false
+    type: boolean
+
 runs:
   using: composite
   steps:
     - name: Installs LXD runtime dependencies
       shell: bash
+      env:
+        OPTIONAL: ${{ inputs.optional }}
       run: |
         set -eux
         sudo apt-get update
 
+        if [ "${OPTIONAL}" != "false" ]; then
+          echo "Installing optional runtime dependencies"
+          sudo apt-get install --no-install-recommends -y \
+            lvm2 \
+            zfsutils-linux
+        fi
+
+        # XXX: storage driver tools (lvm2, zfsutils-linux, etc) are installed on-demand by `test/main.sh`.
         sudo apt-get install --no-install-recommends -y \
-          curl \
-          git \
-          make \
           acl \
           attr \
           bind9-dnsutils \
           btrfs-progs \
           busybox-static \
+          curl \
           dnsmasq-base \
+          dosfstools \
+          e2fsprogs \
           easy-rsa \
-          gettext \
+          git \
           jq \
-          lvm2 \
+          make \
           nftables \
+          openvswitch-switch \
           quota \
           rsync \
           s3cmd \
@@ -37,9 +54,7 @@ runs:
           thin-provisioning-tools \
           uuid-runtime \
           xfsprogs \
-          xz-utils \
-          zfsutils-linux \
-          openvswitch-switch
+          xz-utils
 
         if ! command -v yq >/dev/null; then
           # Releases before 24.04 don't have a yq deb so use the snap instead.

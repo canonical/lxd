@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -195,9 +196,9 @@ func devLXDConfigGetHandler(d *Daemon, r *http.Request) response.Response {
 			continue
 		}
 
-		if shared.ValueInSlice(k, cloudinit.VendorDataKeys) {
+		if slices.Contains(cloudinit.VendorDataKeys, k) {
 			hasVendorData = true
-		} else if shared.ValueInSlice(k, cloudinit.UserDataKeys) {
+		} else if slices.Contains(cloudinit.UserDataKeys, k) {
 			hasUserData = true
 		}
 
@@ -241,8 +242,8 @@ func devLXDConfigKeyGetHandler(d *Daemon, r *http.Request) response.Response {
 
 	var value string
 
-	isVendorDataKey := shared.ValueInSlice(key, cloudinit.VendorDataKeys)
-	isUserDataKey := shared.ValueInSlice(key, cloudinit.UserDataKeys)
+	isVendorDataKey := slices.Contains(cloudinit.VendorDataKeys, key)
+	isUserDataKey := slices.Contains(cloudinit.UserDataKeys, key)
 
 	// For values containing cloud-init seed data, try to merge into them additional SSH keys present on the instance config.
 	// If parsing the config is not possible, abstain from merging the additional keys.

@@ -1032,7 +1032,7 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 			return response.Forbidden(errors.New("Only the certificate can be changed"))
 		}
 
-		for i := 0; i < len(dbInfo.Projects); i++ {
+		for i := range dbInfo.Projects {
 			if dbInfo.Projects[i] != req.Projects[i] {
 				return response.Forbidden(errors.New("Only the certificate can be changed"))
 			}

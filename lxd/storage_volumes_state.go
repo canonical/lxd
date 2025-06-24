@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 
 	"github.com/gorilla/mux"
 
@@ -16,7 +17,6 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 )
@@ -76,6 +76,11 @@ var storagePoolVolumeTypeStateCmd = APIEndpoint{
 func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
+	resp := forwardedResponseIfTargetIsRemote(s, r)
+	if resp != nil {
+		return resp
+	}
+
 	// Get the name of the pool the storage volume is supposed to be attached to.
 	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
 	if err != nil {
@@ -101,7 +106,7 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 	}
 
 	// Check that the storage volume type is valid.
-	if !shared.ValueInSlice(volumeType, []cluster.StoragePoolVolumeType{cluster.StoragePoolVolumeTypeCustom, cluster.StoragePoolVolumeTypeContainer, cluster.StoragePoolVolumeTypeVM}) {
+	if !slices.Contains([]cluster.StoragePoolVolumeType{cluster.StoragePoolVolumeTypeCustom, cluster.StoragePoolVolumeTypeContainer, cluster.StoragePoolVolumeTypeVM}, volumeType) {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 

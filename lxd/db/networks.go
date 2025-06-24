@@ -8,11 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -39,6 +39,59 @@ func (c *ClusterTx) GetNetworksLocalConfig(ctx context.Context) (map[string]map[
 	}
 
 	return networks, nil
+}
+
+// GetNetworksNodeParent returns a map associating each node ID in a cluster to networks and their
+// node-specific parent value. If network has no parent, it is omitted.
+func (c *ClusterTx) GetNetworksNodeParent(ctx context.Context) (map[int64]map[string]string, error) {
+	query := `
+   SELECT networks_config.node_id, networks.name, networks_config.value
+   FROM networks_config
+   JOIN networks ON networks.id=networks_config.network_id
+   WHERE (
+      networks_config.key="parent" AND
+      networks_config.node_id IS NOT NULL
+   )`
+
+	rows, err := c.tx.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = rows.Close() }()
+
+	nodesNetworksParent := make(map[int64]map[string]string)
+
+	for rows.Next() {
+		var (
+			nodeID      int64
+			networkName string
+			value       string
+		)
+
+		err = rows.Scan(&nodeID, &networkName, &value)
+		if err != nil {
+			return nil, err
+		}
+
+		if nodeID == 0 || networkName == "" || value == "" {
+			continue
+		}
+
+		_, nodeInMap := nodesNetworksParent[nodeID]
+		if !nodeInMap {
+			nodesNetworksParent[nodeID] = map[string]string{}
+		}
+
+		nodesNetworksParent[nodeID][networkName] = value
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return nodesNetworksParent, nil
 }
 
 // GetNonPendingNetworkIDs returns a map associating each network name to its ID.
@@ -266,7 +319,7 @@ WHERE networks.id = ? AND networks.state = ?
 	// Figure which nodes are missing
 	missing := []string{}
 	for _, node := range nodes {
-		if !shared.ValueInSlice(node.Name, defined) {
+		if !slices.Contains(defined, node.Name) {
 			missing = append(missing, node.Name)
 		}
 	}
@@ -709,7 +762,7 @@ func (c *ClusterTx) GetNetworkWithInterface(ctx context.Context, devName string)
 			return err
 		}
 
-		for _, entry := range strings.Split(value, ",") {
+		for entry := range strings.SplitSeq(value, ",") {
 			entry = strings.TrimSpace(entry)
 			if entry == devName {
 				id = networkID
@@ -849,7 +902,7 @@ func networkConfigAdd(tx *sql.Tx, networkID, nodeID int64, config map[string]str
 		}
 
 		var nodeIDValue any
-		if !shared.ValueInSlice(k, NodeSpecificNetworkConfig) {
+		if !slices.Contains(NodeSpecificNetworkConfig, k) {
 			nodeIDValue = nil
 		} else {
 			nodeIDValue = nodeID

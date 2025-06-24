@@ -8,9 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -800,7 +802,7 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 				// Check if expected snapshot.
 				if strings.Contains(entry, "@snapshot-") {
 					name := strings.Split(entry, "@snapshot-")[1]
-					if shared.ValueInSlice(name, snapshots) {
+					if slices.Contains(snapshots, name) {
 						continue
 					}
 				}
@@ -910,7 +912,7 @@ func (d *zfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser,
 	// 2) Snapshots shouldn't be copied (--instance-only flag)
 	volumeOnly := len(volTargetArgs.Snapshots) == 0
 
-	if shared.ValueInSlice(migration.ZFSFeatureMigrationHeader, volTargetArgs.MigrationType.Features) {
+	if slices.Contains(volTargetArgs.MigrationType.Features, migration.ZFSFeatureMigrationHeader) {
 		// The source will send all of its snapshots with their respective GUID.
 		buf, err := io.ReadAll(conn)
 		if err != nil {
@@ -924,7 +926,7 @@ func (d *zfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser,
 	}
 
 	// If we're refreshing, send back all snapshots of the target.
-	if volTargetArgs.Refresh && shared.ValueInSlice(migration.ZFSFeatureMigrationHeader, volTargetArgs.MigrationType.Features) {
+	if volTargetArgs.Refresh && slices.Contains(volTargetArgs.MigrationType.Features, migration.ZFSFeatureMigrationHeader) {
 		snapshots, err := vol.Volume.Snapshots(op)
 		if err != nil {
 			return fmt.Errorf("Failed getting volume snapshots: %w", err)
@@ -1138,13 +1140,7 @@ func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCl
 		// Check if snapshot data set matches one of the requested snapshots in volTargetArgs.Snapshots.
 		// If so, then keep it, otherwise request it be removed.
 		entrySnapName := strings.TrimPrefix(dataSetName, dataSetSnapshotPrefix)
-		for _, snapName := range volTargetArgs.Snapshots {
-			if entrySnapName == snapName {
-				return true // Keep snapshot data set if present in the requested snapshots list.
-			}
-		}
-
-		return false // Delete any other snapshot data sets that have been transferred.
+		return slices.Contains(volTargetArgs.Snapshots, entrySnapName) // Delete any other snapshot data sets that have been transferred.
 	}
 
 	if volTargetArgs.Refresh {
@@ -1657,7 +1653,7 @@ func (d *zfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 		delete(commonRules, "zfs.block_mode")
 		delete(commonRules, "block.filesystem")
 		delete(commonRules, "block.mount_options")
-	} else if vol.volType == VolumeTypeCustom && !vol.IsBlockBacked() {
+	} else if !vol.IsBlockBacked() && slices.Contains([]VolumeType{VolumeTypeCustom, VolumeTypeBucket}, vol.volType) {
 		delete(commonRules, "block.filesystem")
 		delete(commonRules, "block.mount_options")
 	}
@@ -1690,9 +1686,7 @@ func (d *zfs) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 	}
 
 	defer func() {
-		for k, v := range old {
-			vol.config[k] = v
-		}
+		maps.Copy(vol.config, old)
 	}()
 
 	// If any of the relevant keys changed, re-apply the quota.
@@ -2270,7 +2264,7 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
 			mountFlags, mountOptions := filesystem.ResolveMountOptions(volOptions)
 
 			// Mount the dataset.
-			err = TryMount(dataset, mountPath, "zfs", mountFlags, mountOptions)
+			err = TryMount(context.TODO(), dataset, mountPath, "zfs", mountFlags, mountOptions)
 			if err != nil {
 				return err
 			}
@@ -2301,7 +2295,7 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
 
 			mountFlags, mountOptions := filesystem.ResolveMountOptions(strings.Split(vol.ConfigBlockMountOptions(), ","))
 
-			err = TryMount(volPath, mountPath, vol.ConfigBlockFilesystem(), mountFlags, mountOptions)
+			err = TryMount(context.TODO(), volPath, mountPath, vol.ConfigBlockFilesystem(), mountFlags, mountOptions)
 			if err != nil {
 				return err
 			}
@@ -2543,7 +2537,7 @@ func (d *zfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs 
 	var srcMigrationHeader *ZFSMetaDataHeader
 
 	// The target will validate the GUIDs and if successful proceed with the refresh.
-	if shared.ValueInSlice(migration.ZFSFeatureMigrationHeader, volSrcArgs.MigrationType.Features) {
+	if slices.Contains(volSrcArgs.MigrationType.Features, migration.ZFSFeatureMigrationHeader) {
 		snapshots, err := d.VolumeSnapshots(vol.Volume, op)
 		if err != nil {
 			return err
@@ -2573,14 +2567,14 @@ func (d *zfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs 
 	}
 
 	// If we haven't negotiated zvol support, ensure volume is not a zvol.
-	if !shared.ValueInSlice(migration.ZFSFeatureZvolFilesystems, volSrcArgs.MigrationType.Features) && d.isBlockBacked(vol.Volume) {
+	if !slices.Contains(volSrcArgs.MigrationType.Features, migration.ZFSFeatureZvolFilesystems) && d.isBlockBacked(vol.Volume) {
 		return errors.New("Filesystem zvol detected in source but target does not support receiving zvols")
 	}
 
 	incrementalStream := true
 	var migrationHeader ZFSMetaDataHeader
 
-	if volSrcArgs.Refresh && shared.ValueInSlice(migration.ZFSFeatureMigrationHeader, volSrcArgs.MigrationType.Features) {
+	if volSrcArgs.Refresh && slices.Contains(volSrcArgs.MigrationType.Features, migration.ZFSFeatureMigrationHeader) {
 		buf, err := io.ReadAll(conn)
 		if err != nil {
 			return fmt.Errorf("Failed reading ZFS migration header: %w", err)
@@ -3067,7 +3061,7 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 			}
 
 			// Mount the snapshot directly (not possible through tools).
-			err = TryMount(snapshotDataset, mountPath, "zfs", unix.MS_RDONLY, "")
+			err = TryMount(context.TODO(), snapshotDataset, mountPath, "zfs", unix.MS_RDONLY, "")
 			if err != nil {
 				return nil, err
 			}
@@ -3208,7 +3202,7 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 				}
 			}
 
-			err = TryMount(volPath, mountPath, mountVol.ConfigBlockFilesystem(), mountFlags|unix.MS_RDONLY, mountOptions)
+			err = TryMount(context.TODO(), volPath, mountPath, mountVol.ConfigBlockFilesystem(), mountFlags|unix.MS_RDONLY, mountOptions)
 			if err != nil {
 				return nil, fmt.Errorf("Failed mounting volume snapshot: %w", err)
 			}

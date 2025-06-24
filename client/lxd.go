@@ -9,12 +9,12 @@ import (
 	"io"
 	"net/http"
 	neturl "net/url"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
 
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/tcp"
@@ -82,7 +82,7 @@ func (r *ProtocolLXD) GetConnectionInfo() (*ConnectionInfo, error) {
 			}
 
 			url := "https://" + addr
-			if !shared.ValueInSlice(url, urls) {
+			if !slices.Contains(urls, url) {
 				urls = append(urls, url)
 			}
 		}

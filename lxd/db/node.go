@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -16,7 +17,6 @@ import (
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/util"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/version"
@@ -205,8 +205,8 @@ func (c *ClusterTx) GetNodeByAddress(ctx context.Context, address string) (NodeI
 	}
 }
 
-// GetNodeWithID returns the node with the given ID.
-func (c *ClusterTx) GetNodeWithID(ctx context.Context, nodeID int) (NodeInfo, error) {
+// getNodeByID returns the node with the given ID.
+func (c *ClusterTx) getNodeByID(ctx context.Context, nodeID int64) (NodeInfo, error) {
 	null := NodeInfo{}
 	nodes, err := c.nodes(ctx, false /* not pending */, "id=?", nodeID)
 	if err != nil {
@@ -407,7 +407,7 @@ func (c *ClusterTx) SetDescription(id int64, description string) error {
 	return nil
 }
 
-// Nodes returns all LXD nodes part of the cluster.
+// nodes returns all LXD nodes part of the cluster.
 func (c *ClusterTx) nodes(ctx context.Context, pending bool, where string, args ...any) ([]NodeInfo, error) {
 	// Get node roles
 	sql := "SELECT node_id, role FROM nodes_roles"
@@ -652,7 +652,7 @@ func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
 
 // UpdateNodeClusterGroups changes the list of cluster groups the member belongs to.
 func (c *ClusterTx) UpdateNodeClusterGroups(ctx context.Context, id int64, groups []string) error {
-	nodeInfo, err := c.GetNodeWithID(ctx, int(id))
+	nodeInfo, err := c.getNodeByID(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -666,7 +666,7 @@ func (c *ClusterTx) UpdateNodeClusterGroups(ctx context.Context, id int64, group
 
 	// Check if node already belongs to the given groups.
 	for _, newGroup := range groups {
-		if shared.ValueInSlice(newGroup, oldGroups) {
+		if slices.Contains(oldGroups, newGroup) {
 			// Node already belongs to this group.
 			skipGroups = append(skipGroups, newGroup)
 			continue
@@ -680,7 +680,7 @@ func (c *ClusterTx) UpdateNodeClusterGroups(ctx context.Context, id int64, group
 	}
 
 	for _, oldGroup := range oldGroups {
-		if shared.ValueInSlice(oldGroup, skipGroups) {
+		if slices.Contains(skipGroups, oldGroup) {
 			continue
 		}
 
@@ -1047,12 +1047,12 @@ func (c *ClusterTx) GetCandidateMembers(ctx context.Context, allMembers []NodeIn
 		}
 
 		// Skip group-only members if targeted cluster group doesn't match.
-		if member.Config["scheduler.instance"] == "group" && !shared.ValueInSlice(targetClusterGroup, member.Groups) {
+		if member.Config["scheduler.instance"] == "group" && !slices.Contains(member.Groups, targetClusterGroup) {
 			continue
 		}
 
 		// Skip if a group is requested and member isn't part of it.
-		if targetClusterGroup != "" && !shared.ValueInSlice(targetClusterGroup, member.Groups) {
+		if targetClusterGroup != "" && !slices.Contains(member.Groups, targetClusterGroup) {
 			continue
 		}
 
@@ -1060,7 +1060,7 @@ func (c *ClusterTx) GetCandidateMembers(ctx context.Context, allMembers []NodeIn
 		if allowedClusterGroups != nil {
 			found := false
 			for _, allowedClusterGroup := range allowedClusterGroups {
-				if shared.ValueInSlice(allowedClusterGroup, member.Groups) {
+				if slices.Contains(member.Groups, allowedClusterGroup) {
 					found = true
 					break
 				}
@@ -1081,7 +1081,7 @@ func (c *ClusterTx) GetCandidateMembers(ctx context.Context, allMembers []NodeIn
 
 			supportedArchitectures := append([]int{member.Architecture}, personalities...)
 			for _, supportedArchitecture := range supportedArchitectures {
-				if shared.ValueInSlice(supportedArchitecture, targetArchitectures) {
+				if slices.Contains(targetArchitectures, supportedArchitecture) {
 					candidateMembers = append(candidateMembers, member)
 					break
 				}

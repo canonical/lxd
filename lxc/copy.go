@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -224,9 +225,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		}
 
 		// Allow setting additional config keys.
-		for key, value := range configMap {
-			entry.Config[key] = value
-		}
+		maps.Copy(entry.Config, configMap)
 
 		// Allow overriding the ephemeral status
 		switch ephemeral {
@@ -338,9 +337,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		}
 
 		// Allow setting additional config keys.
-		for key, value := range configMap {
-			entry.Config[key] = value
-		}
+		maps.Copy(entry.Config, configMap)
 
 		// Allow overriding the ephemeral status
 		switch ephemeral {

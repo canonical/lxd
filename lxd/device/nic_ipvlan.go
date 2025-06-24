@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -57,7 +58,7 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 		}
 
 		if d.config["mode"] == ipvlanModeL2 {
-			for _, v := range strings.Split(value, ",") {
+			for v := range strings.SplitSeq(value, ",") {
 				v = strings.TrimSpace(v)
 
 				// If valid non-CIDR address specified, append a /24 subnet.
@@ -87,7 +88,7 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 		}
 
 		if d.config["mode"] == ipvlanModeL2 {
-			for _, v := range strings.Split(value, ",") {
+			for v := range strings.SplitSeq(value, ",") {
 				v = strings.TrimSpace(v)
 
 				// If valid non-CIDR address specified, append a /64 subnet.
@@ -117,7 +118,7 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 		}
 
 		validModes := []string{ipvlanModeL3S, ipvlanModeL2}
-		if !shared.ValueInSlice(value, validModes) {
+		if !slices.Contains(validModes, value) {
 			return fmt.Errorf("Must be one of: %v", strings.Join(validModes, ", "))
 		}
 

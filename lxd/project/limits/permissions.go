@@ -101,7 +101,7 @@ func AllowInstanceCreation(ctx context.Context, globalConfig *clusterConfig.Conf
 	info.Instances = append(info.Instances, instance)
 
 	// Allow stripping volatile keys if dealing with a copy or migration.
-	strip := shared.ValueInSlice(req.Source.Type, []string{api.SourceTypeCopy, api.SourceTypeMigration})
+	strip := slices.Contains([]string{api.SourceTypeCopy, api.SourceTypeMigration}, req.Source.Type)
 
 	// Special case restriction checks on volatile.* keys.
 	err = checkRestrictionsOnVolatileConfig(
@@ -210,7 +210,7 @@ func checkRestrictionsOnVolatileConfig(project api.Project, instanceType instanc
 
 	// Checker for safe volatile keys.
 	isSafeKey := func(key string) bool {
-		if shared.ValueInSlice(key, []string{"volatile.apply_template", "volatile.base_image", "volatile.last_state.power"}) {
+		if slices.Contains([]string{"volatile.apply_template", "volatile.base_image", "volatile.last_state.power"}, key) {
 			return true
 		}
 
@@ -872,7 +872,7 @@ var allowableIntercept = []string{
 
 // Return true if a low-level container option is forbidden.
 func isContainerLowLevelOptionForbidden(key string) bool {
-	if strings.HasPrefix(key, "security.syscalls.intercept") && !shared.ValueInSlice(key, allowableIntercept) {
+	if strings.HasPrefix(key, "security.syscalls.intercept") && !slices.Contains(allowableIntercept, key) {
 		return true
 	}
 
@@ -880,18 +880,7 @@ func isContainerLowLevelOptionForbidden(key string) bool {
 		return true
 	}
 
-	if shared.ValueInSlice(key, []string{
-		"boot.host_shutdown_timeout",
-		"linux.kernel_modules",
-		"linux.kernel_modules.load",
-		"raw.apparmor",
-		"raw.idmap",
-		"raw.lxc",
-		"raw.seccomp",
-		"security.devlxd.images",
-		"security.idmap.base",
-		"security.idmap.size",
-	}) {
+	if slices.Contains([]string{"boot.host_shutdown_timeout", "linux.kernel_modules", "linux.kernel_modules.load", "raw.apparmor", "raw.idmap", "raw.lxc", "raw.seccomp", "security.devlxd.images", "security.idmap.base", "security.idmap.size"}, key) {
 		return true
 	}
 
@@ -900,12 +889,7 @@ func isContainerLowLevelOptionForbidden(key string) bool {
 
 // Return true if a low-level VM option is forbidden.
 func isVMLowLevelOptionForbidden(key string) bool {
-	return shared.ValueInSlice(key, []string{
-		"boot.host_shutdown_timeout",
-		"limits.memory.hugepages",
-		"raw.idmap",
-		"raw.qemu",
-	})
+	return slices.Contains([]string{"boot.host_shutdown_timeout", "limits.memory.hugepages", "raw.idmap", "raw.qemu"}, key)
 }
 
 // AllowInstanceUpdate returns an error if any project-specific limit or
@@ -1082,7 +1066,7 @@ func checkUplinkUse(ctx context.Context, tx *db.ClusterTx, projectName string, c
 	allowedNets := shared.SplitNTrimSpace(config["restricted.networks.uplinks"], ",", -1, false)
 
 	for network := range uplinksInUseSet {
-		if !shared.ValueInSlice(network, allowedNets) {
+		if !slices.Contains(allowedNets, network) {
 			return fmt.Errorf("Restrictions cannot be enforced as project is already using %q as uplink", network)
 		}
 	}
@@ -1654,7 +1638,7 @@ func AllowClusterMember(p *api.Project, member *db.NodeInfo) error {
 
 	if shared.IsTrue(p.Config["restricted"]) && len(clusterGroupsAllowed) > 0 {
 		for _, memberGroupName := range member.Groups {
-			if shared.ValueInSlice(memberGroupName, clusterGroupsAllowed) {
+			if slices.Contains(clusterGroupsAllowed, memberGroupName) {
 				return nil
 			}
 		}
@@ -1674,7 +1658,7 @@ func AllowClusterGroup(p *api.Project, groupName string) error {
 		return nil
 	}
 
-	if len(clusterGroupsAllowed) > 0 && !shared.ValueInSlice(groupName, clusterGroupsAllowed) {
+	if len(clusterGroupsAllowed) > 0 && !slices.Contains(clusterGroupsAllowed, groupName) {
 		return fmt.Errorf("Project isn't allowed to use this cluster group: %q", groupName)
 	}
 

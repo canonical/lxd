@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strconv"
 	"testing"
 	"time"
@@ -70,7 +71,7 @@ func TestNewNotifier(t *testing.T) {
 	}
 	require.NoError(t, err)
 	for i := range addresses {
-		assert.True(t, shared.ValueInSlice(f.Address(i+1), addresses))
+		assert.True(t, slices.Contains(addresses, f.Address(i+1)))
 	}
 }
 
@@ -202,13 +203,13 @@ func (h *notifyFixtures) Nodes(cert *shared.CertInfo, n int) func() {
 	}
 
 	servers := make([]*httptest.Server, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		servers[i] = newRestServer(strconv.Itoa(i), cert)
 	}
 
 	// Insert new entries in the nodes table of the cluster database.
 	err := h.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		for i := 0; i < n; i++ {
+		for i := range n {
 			name := strconv.Itoa(i)
 			address := servers[i].Listener.Addr().String()
 			var err error

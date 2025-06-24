@@ -22,7 +22,7 @@ func NewFileReadWriter(pid int, unifiedCapable bool) (*CGroup, error) {
 		return nil, err
 	}
 
-	for _, line := range strings.Split(string(controllers), "\n") {
+	for line := range strings.SplitSeq(string(controllers), "\n") {
 		// Skip empty lines.
 		line = strings.TrimSpace(line)
 		if line == "" {
@@ -48,7 +48,7 @@ func NewFileReadWriter(pid int, unifiedCapable bool) (*CGroup, error) {
 		}
 
 		// Add the controllers individually.
-		for _, ctrl := range strings.Split(fields[1], ",") {
+		for ctrl := range strings.SplitSeq(fields[1], ",") {
 			rw.paths[ctrl] = path
 		}
 	}
@@ -66,6 +66,7 @@ type fileReadWriter struct {
 	paths map[string]string
 }
 
+// Get returns the value of a cgroup key for a specific controller.
 func (rw *fileReadWriter) Get(version Backend, controller string, key string) (string, error) {
 	path := filepath.Join(rw.paths[controller], key)
 	if cgLayout == CgroupsUnified {
@@ -80,6 +81,7 @@ func (rw *fileReadWriter) Get(version Backend, controller string, key string) (s
 	return strings.TrimSpace(string(value)), nil
 }
 
+// Set applies the given value to a cgroup key for a specific controller.
 func (rw *fileReadWriter) Set(version Backend, controller string, key string, value string) error {
 	path := filepath.Join(rw.paths[controller], key)
 	if cgLayout == CgroupsUnified {

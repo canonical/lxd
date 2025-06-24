@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -23,7 +24,6 @@ import (
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
@@ -247,7 +247,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Start metrics builder routines.
-	for i := 0; i < maxConcurrent; i++ {
+	for range maxConcurrent {
 		go func(instMetricsCh <-chan instance.Instance) {
 			for inst := range instMetricsCh {
 				projectName := inst.Project().Name
@@ -334,7 +334,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	for _, project := range projectsToFetch {
-		if shared.ValueInSlice(*project.Project, updatedProjects) {
+		if slices.Contains(updatedProjects, *project.Project) {
 			continue
 		}
 

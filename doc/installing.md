@@ -205,12 +205,33 @@ To download a specific build:
 Follow these instructions if you want to build and install LXD from the source code.
 
 We recommend having the latest versions of `liblxc` (see {ref}`LXC requirements <requirements-lxc>`)
-available for LXD development. Additionally, LXD requires a modern Golang (see {ref}`requirements-go`)
-version to work. On Ubuntu, you can get those with:
+available for LXD development. For convenience, `make deps` will pull the
+appropriate versions of `liblxc` and `dqlite` from their corresponding upstream
+Git repository. Additionally, LXD requires a modern Golang (see
+{ref}`requirements-go`) version to work. On Ubuntu, you can get those with:
 
 ```bash
 sudo apt update
-sudo apt install acl attr autoconf automake dnsmasq-base git libacl1-dev libapparmor-dev libcap-dev libsqlite3-dev libtool libudev-dev liblz4-dev libuv1-dev make meson ninja-build pkg-config python3-venv rsync squashfs-tools tar tcl xz-utils ebtables
+sudo apt install \
+    autoconf \
+    automake \
+    build-essential \
+    gettext \
+    git \
+    libacl1-dev \
+    libapparmor-dev \
+    libcap-dev \
+    liblz4-dev \
+    libseccomp-dev \
+    libsqlite3-dev \
+    libtool \
+    libudev-dev \
+    libuv1-dev \
+    make \
+    meson \
+    ninja-build \
+    pkg-config \
+    python3-venv
 command -v snap >/dev/null || sudo apt-get install snapd
 sudo snap install --classic go
 ```
@@ -231,10 +252,44 @@ sudo apt install lvm2 thin-provisioning-tools
 sudo apt install btrfs-progs
 ```
 
-To run the test suite, you'll also need:
+At runtime, LXD might need the following packages to be installed on the host system:
 
 ```bash
-sudo apt install busybox-static curl gettext jq sqlite3 socat swtpm bind9-dnsutils
+sudo apt update
+sudo apt install \
+    attr \
+    iproute2 \
+    nftables \
+    rsync \
+    squashfs-tools \
+    tar \
+    xz-utils
+
+# `nftables` can be replaced by `iptables` on older systems
+```
+
+To run the test suite or test related `make` targets, you'll also need:
+
+```bash
+sudo apt update
+sudo apt install \
+    acl \
+    bind9-dnsutils \
+    btrfs-progs \
+    busybox-static \
+    curl \
+    dnsmasq-base \
+    dosfstools \
+    e2fsprogs \
+    iputils-ping \
+    jq \
+    netcat-openbsd \
+    shellcheck \
+    socat \
+    sqlite3 \
+    swtpm \
+    xfsprogs \
+    yq
 ```
 
 ### From source: Build the latest version

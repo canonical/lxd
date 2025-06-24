@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -84,7 +86,7 @@ func (c *cmdNetworkZoneList) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]"))
 	cmd.Aliases = []string{"ls"}
-	cmd.Short = i18n.G("List available network zoneS")
+	cmd.Short = i18n.G("List available network zones")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("List available network zone"))
 
 	cmd.RunE = c.run
@@ -290,7 +292,7 @@ func (c *cmdNetworkZoneGet) run(cmd *cobra.Command, args []string) error {
 
 	if c.flagIsProperty {
 		w := resp.Writable()
-		res, err := getFieldByJsonTag(&w, args[1])
+		res, err := getFieldByJSONTag(&w, args[1])
 		if err != nil {
 			return fmt.Errorf(i18n.G("The property %q does not exist on the network zone %q: %v"), args[1], resource.name, err)
 		}
@@ -467,7 +469,7 @@ func (c *cmdNetworkZoneSet) run(cmd *cobra.Command, args []string) error {
 	if c.flagIsProperty {
 		if cmd.Name() == "unset" {
 			for k := range keys {
-				err := unsetFieldByJsonTag(&writable, k)
+				err := unsetFieldByJSONTag(&writable, k)
 				if err != nil {
 					return fmt.Errorf(i18n.G("Error unsetting property: %v"), err)
 				}
@@ -479,9 +481,7 @@ func (c *cmdNetworkZoneSet) run(cmd *cobra.Command, args []string) error {
 			}
 		}
 	} else {
-		for k, v := range keys {
-			writable.Config[k] = v
-		}
+		maps.Copy(writable.Config, keys)
 	}
 
 	return resource.server.UpdateNetworkZone(resource.name, writable, etag)
@@ -974,7 +974,7 @@ func (c *cmdNetworkZoneRecordGet) run(cmd *cobra.Command, args []string) error {
 
 	if c.flagIsProperty {
 		w := resp.Writable()
-		res, err := getFieldByJsonTag(&w, args[2])
+		res, err := getFieldByJSONTag(&w, args[2])
 		if err != nil {
 			return fmt.Errorf(i18n.G("The property %q does not exist on the network zone record %q: %v"), args[2], resource.name, err)
 		}
@@ -1155,7 +1155,7 @@ func (c *cmdNetworkZoneRecordSet) run(cmd *cobra.Command, args []string) error {
 	if c.flagIsProperty {
 		if cmd.Name() == "unset" {
 			for k := range keys {
-				err := unsetFieldByJsonTag(&writable, k)
+				err := unsetFieldByJSONTag(&writable, k)
 				if err != nil {
 					return fmt.Errorf(i18n.G("Error unsetting property: %v"), err)
 				}
@@ -1167,9 +1167,7 @@ func (c *cmdNetworkZoneRecordSet) run(cmd *cobra.Command, args []string) error {
 			}
 		}
 	} else {
-		for k, v := range keys {
-			writable.Config[k] = v
-		}
+		maps.Copy(writable.Config, keys)
 	}
 
 	return resource.server.UpdateNetworkZoneRecord(resource.name, args[1], writable, etag)
@@ -1548,7 +1546,7 @@ func (c *cmdNetworkZoneRecordEntry) runRemove(cmd *cobra.Command, args []string)
 		}
 
 		found = true
-		netRecord.Entries = append(netRecord.Entries[:i], netRecord.Entries[i+1:]...)
+		netRecord.Entries = slices.Delete(netRecord.Entries, i, i+1)
 	}
 
 	if !found {

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -15,7 +16,6 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/network/openvswitch"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -363,7 +363,7 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 				card.PCIAddress = pciAddr
 
 				// Skip devices we already know about
-				if shared.ValueInSlice(card.PCIAddress, pciKnown) {
+				if slices.Contains(pciKnown, card.PCIAddress) {
 					continue
 				}
 
@@ -411,7 +411,7 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 			devicePath := filepath.Join(sysBusPci, entryName)
 
 			// Skip devices we already know about
-			if shared.ValueInSlice(entryName, pciKnown) {
+			if slices.Contains(pciKnown, entryName) {
 				continue
 			}
 
@@ -735,7 +735,7 @@ func GetNetworkState(name string) (*api.NetworkState, error) {
 			return nil, err
 		}
 
-		for _, line := range strings.Split(string(entries), "\n") {
+		for line := range strings.SplitSeq(string(entries), "\n") {
 			fields := strings.Split(line, "|")
 			if len(fields) != 3 {
 				continue
@@ -790,7 +790,7 @@ func GetNetworkCounters(name string) (*api.NetworkStateCounters, error) {
 		return nil, err
 	}
 
-	for _, line := range strings.Split(string(content), "\n") {
+	for line := range strings.SplitSeq(string(content), "\n") {
 		fields := strings.Fields(line)
 
 		if len(fields) != 17 {

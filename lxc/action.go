@@ -4,12 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/canonical/lxd/lxc/config"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/i18n"
@@ -144,12 +144,12 @@ func (c *cmdAction) Command(action string) *cobra.Command {
 		cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, i18n.G("Ignore the instance state"))
 	}
 
-	if shared.ValueInSlice(action, []string{"start", "restart", "stop"}) {
+	if slices.Contains([]string{"start", "restart", "stop"}, action) {
 		cmd.Flags().StringVar(&c.flagConsole, "console", "", i18n.G("Immediately attach to the console")+"``")
 		cmd.Flags().Lookup("console").NoOptDefVal = "console"
 	}
 
-	if shared.ValueInSlice(action, []string{"restart", "stop"}) {
+	if slices.Contains([]string{"restart", "stop"}, action) {
 		cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Force the instance to stop"))
 		cmd.Flags().IntVar(&c.flagTimeout, "timeout", -1, i18n.G("Time to wait for the instance to shutdown cleanly")+"``")
 	}
@@ -406,7 +406,7 @@ func (c *cmdAction) run(cmd *cobra.Command, args []string) error {
 
 		success = false
 		msg := fmt.Sprintf(i18n.G("error: %v"), result.err)
-		for _, line := range strings.Split(msg, "\n") {
+		for line := range strings.SplitSeq(msg, "\n") {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", result.name, line)
 		}
 	}

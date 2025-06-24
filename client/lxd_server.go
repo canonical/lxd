@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -62,7 +63,7 @@ func (r *ProtocolLXD) HasExtension(extension string) bool {
 		return true
 	}
 
-	return shared.ValueInSlice(extension, r.server.APIExtensions)
+	return slices.Contains(r.server.APIExtensions, extension)
 }
 
 // CheckExtension checks if the server has the specified extension.

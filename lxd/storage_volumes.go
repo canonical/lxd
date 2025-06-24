@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -879,7 +880,7 @@ func filterVolumes(volumes []*db.StorageVolume, clauses *filter.ClauseSet, allPr
 	filtered := []*db.StorageVolume{}
 	for _, volume := range volumes {
 		// Filter out image volumes that are not used by this project.
-		if volume.Type == cluster.StoragePoolVolumeTypeNameImage && !allProjects && !shared.ValueInSlice(volume.Name, filterProjectImages) {
+		if volume.Type == cluster.StoragePoolVolumeTypeNameImage && !allProjects && !slices.Contains(filterProjectImages, volume.Name) {
 			continue
 		}
 
@@ -1886,14 +1887,6 @@ func storagePoolVolumeTypePostRename(s *state.State, r *http.Request, poolName s
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Update devices using the volume in instances and profiles.
-	cleanup, err := storagePoolVolumeUpdateUsers(s, projectName, pool.Name(), vol, pool.Name(), &newVol)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	revert.Add(cleanup)
-
 	// Use an empty operation for this sync response to pass the requestor
 	op := &operations.Operation{}
 	op.SetRequestor(r)
@@ -1903,10 +1896,23 @@ func storagePoolVolumeTypePostRename(s *state.State, r *http.Request, poolName s
 		return response.SmartError(err)
 	}
 
-	revert.Success()
+	revert.Add(func() {
+		_ = pool.RenameCustomVolume(projectName, req.Name, vol.Name, op)
+	})
+
+	// Update devices using the volume in instances and profiles.
+	// Perform this operation after the actual rename of the volume.
+	// This ensures the database entries are up to date.
+	cleanup, err := storagePoolVolumeUpdateUsers(s, projectName, pool.Name(), vol, pool.Name(), &newVol)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	revert.Add(cleanup)
 
 	u := api.NewURL().Path(version.APIVersion, "storage-pools", pool.Name(), "volumes", cluster.StoragePoolVolumeTypeNameCustom, req.Name).Project(projectName)
 
+	revert.Success()
 	return response.SyncResponseLocation(true, nil, u.String())
 }
 
@@ -2015,7 +2021,7 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check that the storage volume type is valid.
-	if !shared.ValueInSlice(details.volumeType, supportedVolumeTypes) {
+	if !slices.Contains(supportedVolumeTypes, details.volumeType) {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName))
 	}
 
@@ -2124,7 +2130,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check that the storage volume type is valid.
-	if !shared.ValueInSlice(details.volumeType, supportedVolumeTypes) {
+	if !slices.Contains(supportedVolumeTypes, details.volumeType) {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName))
 	}
 
@@ -2382,7 +2388,7 @@ func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check that the storage volume type is valid.
-	if !shared.ValueInSlice(details.volumeType, supportedVolumeTypes) {
+	if !slices.Contains(supportedVolumeTypes, details.volumeType) {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", details.volumeTypeName))
 	}
 

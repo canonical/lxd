@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"math/rand"
 	"mime"
@@ -20,6 +21,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -560,9 +562,7 @@ func imgPostRemoteInfo(s *state.State, r *http.Request, req api.ImagesPost, op *
 		}
 
 		// Allow overriding or adding properties
-		for k, v := range req.Properties {
-			info.Properties[k] = v
-		}
+		maps.Copy(info.Properties, req.Properties)
 
 		// Get profile IDs
 		if req.Profiles == nil {
@@ -670,9 +670,7 @@ func imgPostURLInfo(s *state.State, r *http.Request, req api.ImagesPost, op *ope
 		}
 
 		// Allow overriding or adding properties
-		for k, v := range req.Properties {
-			info.Properties[k] = v
-		}
+		maps.Copy(info.Properties, req.Properties)
 
 		if req.Public || req.AutoUpdate || req.Filename != "" || len(req.Properties) > 0 {
 			err := tx.UpdateImage(ctx, id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, "", nil)
@@ -1198,13 +1196,13 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		return createTokenResponse(s, r, projectName, req.Source.Fingerprint, metadata)
 	}
 
-	if !imageUpload && !shared.ValueInSlice(req.Source.Type, []string{"container", "instance", "virtual-machine", "snapshot", "image", "url"}) {
+	if !imageUpload && !slices.Contains([]string{"container", "instance", "virtual-machine", "snapshot", "image", "url"}, req.Source.Type) {
 		cleanup(builddir, post)
 		return response.InternalError(errors.New("Invalid images JSON"))
 	}
 
 	// Forward requests for containers on other nodes.
-	if !imageUpload && shared.ValueInSlice(req.Source.Type, []string{"container", "instance", "virtual-machine", "snapshot"}) {
+	if !imageUpload && slices.Contains([]string{"container", "instance", "virtual-machine", "snapshot"}, req.Source.Type) {
 		name := req.Source.Name
 		if name != "" {
 			_, err = post.Seek(0, io.SeekStart)
@@ -2073,7 +2071,7 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 
 			// Add the volume to the list if the pool is backed by remote
 			// storage as only then the volumes are shared.
-			if shared.ValueInSlice(pool.Driver, db.StorageRemoteDriverNames()) {
+			if slices.Contains(db.StorageRemoteDriverNames(), pool.Driver) {
 				imageVolumes = append(imageVolumes, vol)
 			}
 		}
@@ -2160,11 +2158,8 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 			// skip distributing the image to this cluster member.
 			// If the option is unset, distribute the image.
 			if vol != "" {
-				for _, imageVolume := range imageVolumes {
-					if imageVolume == vol {
-						skipDistribution = true
-						break
-					}
+				if slices.Contains(imageVolumes, vol) {
+					skipDistribution = true
 				}
 
 				if skipDistribution {
@@ -2177,7 +2172,7 @@ func distributeImage(ctx context.Context, s *state.State, nodes []string, oldFin
 				if err != nil {
 					logger.Error("Failed to get storage pool info", logger.Ctx{"err": err, "pool": fields[0]})
 				} else {
-					if shared.ValueInSlice(pool.Driver, db.StorageRemoteDriverNames()) {
+					if slices.Contains(db.StorageRemoteDriverNames(), pool.Driver) {
 						imageVolumes = append(imageVolumes, vol)
 					}
 				}
@@ -2613,7 +2608,7 @@ func pruneLeftoverImages(s *state.State) {
 		// Check and delete leftovers
 		for _, entry := range entries {
 			fp := strings.Split(entry.Name(), ".")[0]
-			if !shared.ValueInSlice(fp, images) {
+			if !slices.Contains(images, fp) {
 				err = os.RemoveAll(shared.VarPath("images", entry.Name()))
 				if err != nil {
 					return fmt.Errorf("Unable to remove leftover image: %v: %w", entry.Name(), err)
@@ -4901,7 +4896,7 @@ func imageSyncBetweenNodes(ctx context.Context, s *state.State, r *http.Request,
 	}
 
 	// Replicate on as many nodes as needed.
-	for i := 0; i < int(nodeCount); i++ {
+	for range int(nodeCount) {
 		var addresses []string
 
 		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
@@ -4954,9 +4949,7 @@ func createTokenResponse(s *state.State, r *http.Request, projectName string, fi
 
 	meta := shared.Jmap{}
 
-	for k, v := range metadata {
-		meta[k] = v
-	}
+	maps.Copy(meta, metadata)
 
 	meta["secret"] = secret
 

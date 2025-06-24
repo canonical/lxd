@@ -21,8 +21,8 @@ test_tls_restrictions() {
   lxc_remote project create localhost:blah
 
   # Validate normal view with no restrictions
-  lxc_remote project list localhost: | grep -q default
-  lxc_remote project list localhost: | grep -q blah
+  lxc_remote project list localhost: | grep -wF default
+  lxc_remote project list localhost: | grep -wF blah
 
   # Apply restrictions
   lxc config trust show "${FINGERPRINT}" | sed -e "s/restricted: false/restricted: true/" | lxc config trust edit "${FINGERPRINT}"
@@ -34,7 +34,7 @@ test_tls_restrictions() {
   lxc config unset user.foo
 
   # Confirm no project visible when none listed
-  [ "$(lxc_remote project list localhost: --format csv | wc -l)" = 0 ]
+  [ "$(lxc_remote project list localhost: --format csv)" = "" ]
 
   # Confirm we can still view storage pools
   [ "$(lxc_remote storage list localhost: --format csv | wc -l)" = 1 ]
@@ -47,8 +47,8 @@ test_tls_restrictions() {
   lxc config trust show "${FINGERPRINT}" | sed -e "s/projects: \[\]/projects: ['blah']/" -e "s/restricted: false/restricted: true/" | lxc config trust edit "${FINGERPRINT}"
 
   # Validate restricted view
-  ! lxc_remote project list localhost: | grep -q default || false
-  lxc_remote project list localhost: | grep -q blah
+  ! lxc_remote project list localhost: | grep -wF default || false
+  lxc_remote project list localhost: | grep -wF blah
 
   # Validate that the restricted caller cannot edit or delete the project.
   ! lxc_remote project set localhost:blah user.foo=bar || false
@@ -150,7 +150,7 @@ test_tls_restrictions() {
   lxc_remote network list localhost: --project blah | grep -F "${networkName}"
 
   # The reported project is blah when listing networks with request project set to blah.
-  [ "$(lxc_remote query -X GET "/1.0/networks?project=blah&recursion=1" | jq -r '.[] | select(.name == "'${networkName}'") | .project' | grep -cF "blah")" = "1" ]
+  [ "$(lxc_remote query -X GET "/1.0/networks?project=blah&recursion=1" | jq -r '.[] | select(.name == "'"${networkName}"'") | .project' | grep -cF "blah")" = "1" ]
 
   # The restricted client can't view it via project default.
   ! lxc_remote network show "localhost:${networkName}" --project default || false
@@ -187,7 +187,7 @@ test_tls_restrictions() {
   [ "$(lxc_remote network acl list localhost: --project blah | grep -cF "${networkACLName}")" = "1" ]
 
   # The reported project is blah when listing network ACLs with request project set to blah.
-  [ "$(lxc_remote query -X GET "/1.0/network-acls?project=blah&recursion=1" | jq -r '.[] | select(.name == "'${networkACLName}'") | .project' | grep -cF "blah")" = "1" ]
+  [ "$(lxc_remote query -X GET "/1.0/network-acls?project=blah&recursion=1" | jq -r '.[] | select(.name == "'"${networkACLName}"'") | .project' | grep -cF "blah")" = "1" ]
 
   # The restricted client can't view it via project default.
   ! lxc_remote network acl show "localhost:${networkACLName}" --project default || false

@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"runtime"
+	"slices"
 	"strings"
 
 	"github.com/zitadel/oidc/v3/pkg/oidc"
@@ -210,7 +211,7 @@ func (c *Config) connectRemote(remote Remote, args *lxd.ConnectionArgs) (lxd.Ins
 	}
 
 	// HTTPS
-	if !shared.ValueInSlice(remote.AuthType, []string{api.AuthenticationMethodOIDC}) && (args.TLSClientCert == "" || args.TLSClientKey == "") {
+	if !slices.Contains([]string{api.AuthenticationMethodOIDC}, remote.AuthType) && (args.TLSClientCert == "" || args.TLSClientKey == "") {
 		return nil, errors.New("Missing TLS client certificate and key")
 	}
 
@@ -355,7 +356,7 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 	}
 
 	// Stop here if no client certificate involved
-	if remote.Protocol == "simplestreams" || shared.ValueInSlice(remote.AuthType, []string{api.AuthenticationMethodOIDC}) {
+	if remote.Protocol == "simplestreams" || slices.Contains([]string{api.AuthenticationMethodOIDC}, remote.AuthType) {
 		return &args, nil
 	}
 

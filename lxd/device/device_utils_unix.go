@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -120,9 +121,10 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 	d := UnixDevice{}
 
 	// Extra checks for nesting.
+	deviceProperties := []string{"major", "minor", "mode", "uid", "gid"}
 	if s.OS.RunningInUserNS {
 		for key, value := range m {
-			if shared.ValueInSlice(key, []string{"major", "minor", "mode", "uid", "gid"}) && value != "" {
+			if value != "" && slices.Contains(deviceProperties, key) {
 				return nil, fmt.Errorf("The %q property may not be set when adding a device to a nested container", key)
 			}
 		}
@@ -468,13 +470,7 @@ func unixDeviceRemove(devicesPath string, typePrefix string, deviceName string, 
 		ourEncRelDestFile := ourDev[idx+1:]
 
 		// Look for devices for other LXD devices that match the same path.
-		dupe := false
-		for _, encRelDevFile := range encRelDevFiles {
-			if encRelDevFile == ourEncRelDestFile {
-				dupe = true
-				break
-			}
-		}
+		dupe := slices.Contains(encRelDevFiles, ourEncRelDestFile)
 
 		// If a device has been found that points to the same device inside the instance
 		// then we cannot request it be umounted inside the instance as it's still in use.

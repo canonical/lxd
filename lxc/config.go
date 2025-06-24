@@ -489,7 +489,7 @@ func (c *cmdConfigGet) run(cmd *cobra.Command, args []string) error {
 			}
 
 			if c.flagIsProperty {
-				res, err := getFieldByJsonTag(inst, args[len(args)-1])
+				res, err := getFieldByJSONTag(inst, args[len(args)-1])
 				if err != nil {
 					return fmt.Errorf(i18n.G("The property %q does not exist on the instance snapshot %s/%s: %v"), args[len(args)-1], fields[0], fields[1], err)
 				}
@@ -513,7 +513,7 @@ func (c *cmdConfigGet) run(cmd *cobra.Command, args []string) error {
 
 		if c.flagIsProperty {
 			w := resp.Writable()
-			res, err := getFieldByJsonTag(&w, args[len(args)-1])
+			res, err := getFieldByJSONTag(&w, args[len(args)-1])
 			if err != nil {
 				return fmt.Errorf(i18n.G("The property %q does not exist on the instance %q: %v"), args[len(args)-1], resource.name, err)
 			}
@@ -675,7 +675,7 @@ func (c *cmdConfigSet) run(cmd *cobra.Command, args []string) error {
 			if c.flagIsProperty {
 				if cmd.Name() == "unset" {
 					for k := range keys {
-						err := unsetFieldByJsonTag(&writable, k)
+						err := unsetFieldByJSONTag(&writable, k)
 						if err != nil {
 							return fmt.Errorf(i18n.G("Error unsetting properties: %v"), err)
 						}
@@ -707,7 +707,7 @@ func (c *cmdConfigSet) run(cmd *cobra.Command, args []string) error {
 		if c.flagIsProperty {
 			if cmd.Name() == "unset" {
 				for k := range keys {
-					err := unsetFieldByJsonTag(&writable, k)
+					err := unsetFieldByJSONTag(&writable, k)
 					if err != nil {
 						return fmt.Errorf(i18n.G("Error unsetting properties: %v"), err)
 					}

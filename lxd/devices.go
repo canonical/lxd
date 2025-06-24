@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -100,7 +101,7 @@ func deviceNetlinkListener() (chCPU chan []string, chNetwork chan []string, chUS
 			ueventParts := strings.Split(string(ueventBuf), "\x00")
 			for i, part := range ueventParts {
 				if strings.HasPrefix(part, "SEQNUM=") {
-					ueventParts = append(ueventParts[:i], ueventParts[i+1:]...)
+					ueventParts = slices.Delete(ueventParts, i, i+1)
 					break
 				}
 			}
@@ -322,7 +323,7 @@ func fillFixedInstances(fixedInstances map[int64][]instance.Instance, inst insta
 	// If the `targetCPUPool` has been manually specified (explicit CPU IDs/ranges specified with `limits.cpu`)
 	if len(targetCPUPool) == targetCPUNum && !loadBalancing {
 		for _, nr := range targetCPUPool {
-			if !shared.ValueInSlice(nr, usableCpus) {
+			if !slices.Contains(usableCpus, nr) {
 				logger.Warn("Instance using unavailable cpu", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "cpu": nr})
 				continue
 			}
@@ -411,7 +412,7 @@ func getCPULists() (cpus []int64, isolCPUs []int64, err error) {
 	isolCPUs = resources.GetCPUIsolated()
 	effectiveCPUsSlice := []string{}
 	for _, id := range effectiveCPUsInt {
-		if shared.ValueInSlice(id, isolCPUs) {
+		if slices.Contains(isolCPUs, id) {
 			continue
 		}
 

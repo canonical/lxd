@@ -1,12 +1,14 @@
 package drivers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"math"
 	"net/http"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -727,7 +729,7 @@ func (d *powerflex) MountVolume(vol Volume, op *operations.Operation) error {
 			}
 
 			mountFlags, mountOptions := filesystem.ResolveMountOptions(strings.Split(vol.ConfigBlockMountOptions(), ","))
-			err = TryMount(volDevPath, mountPath, fsType, mountFlags, mountOptions)
+			err = TryMount(context.TODO(), volDevPath, mountPath, fsType, mountFlags, mountOptions)
 			if err != nil {
 				return err
 			}
@@ -1043,14 +1045,14 @@ func (d *powerflex) CheckVolumeSnapshots(vol Volume, snapVols []Volume, op *oper
 
 	// Check if the provided list of volume snapshots matches the ones from storage.
 	for _, wantedSnapshotName := range wantedSnapshotNames {
-		if !shared.ValueInSlice(wantedSnapshotName, storageSnapshotNames) {
+		if !slices.Contains(storageSnapshotNames, wantedSnapshotName) {
 			return fmt.Errorf("Snapshot %q expected but not in storage", wantedSnapshotName)
 		}
 	}
 
 	// Check if the snapshots in storage match the ones from the provided list.
 	for _, storageSnapshotName := range storageSnapshotNames {
-		if !shared.ValueInSlice(storageSnapshotName, wantedSnapshotNames) {
+		if !slices.Contains(wantedSnapshotNames, storageSnapshotName) {
 			return fmt.Errorf("Snapshot %q in storage but not expected", storageSnapshotName)
 		}
 	}

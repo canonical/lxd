@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -148,7 +149,7 @@ func (o *OVS) InterfaceAssociateOVNSwitchPort(interfaceName string, ovnSwitchPor
 
 	existingPorts = strings.TrimSpace(existingPorts)
 	if existingPorts != "" {
-		for _, port := range strings.Split(existingPorts, "\n") {
+		for port := range strings.SplitSeq(existingPorts, "\n") {
 			_, err = shared.RunCommandContext(context.TODO(), "ovs-vsctl", "del-port", port)
 			if err != nil {
 				return err
@@ -260,10 +261,8 @@ func (o *OVS) OVNBridgeMappingAdd(bridgeName string, providerName string) error 
 	}
 
 	newMapping := fmt.Sprintf("%s:%s", providerName, bridgeName)
-	for _, mapping := range mappings {
-		if mapping == newMapping {
-			return nil // Mapping is already present, nothing to do.
-		}
+	if slices.Contains(mappings, newMapping) {
+		return nil // Mapping is already present, nothing to do.
 	}
 
 	mappings = append(mappings, newMapping)
@@ -329,7 +328,7 @@ func (o *OVS) BridgePortList(bridgeName string) ([]string, error) {
 
 	portString = strings.TrimSpace(portString)
 	if portString != "" {
-		for _, port := range strings.Split(portString, "\n") {
+		for port := range strings.SplitSeq(portString, "\n") {
 			ports = append(ports, strings.TrimSpace(port))
 		}
 	}
@@ -483,8 +482,8 @@ func (o *OVS) VLANFilteringEnabled(ctx context.Context, bridgeName string) (bool
 		return false, err
 	}
 
-	lines := strings.Split(strings.TrimSpace(output), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(strings.TrimSpace(output), "\n")
+	for line := range lines {
 		// when no value is defined "[]" is returned
 		if line != "[]" {
 			return true, nil

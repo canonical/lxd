@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"context"
+	"slices"
 	"sync"
 	"time"
 
@@ -128,13 +129,7 @@ func ServerEventMode() EventMode {
 
 // RoleInSlice returns whether or not the rule is within the roles list.
 func RoleInSlice(role db.ClusterRole, roles []db.ClusterRole) bool {
-	for _, r := range roles {
-		if r == role {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(roles, role)
 }
 
 // EventListenerWait waits for there to be listener connected to the specified address, or one of the event hubs
@@ -323,7 +318,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 
 			// Indicate to any notifiers waiting for this member's address that it is connected.
 			for connected, notifyAddresses := range listenersNotify {
-				if shared.ValueInSlice(m.Address, notifyAddresses) {
+				if slices.Contains(notifyAddresses, m.Address) {
 					close(connected)
 					delete(listenersNotify, connected)
 				}
