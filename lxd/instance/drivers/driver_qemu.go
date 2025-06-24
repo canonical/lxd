@@ -6513,7 +6513,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 }
 
 // MigrateSend controls the sending side of a migration.
-func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
+func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	d.logger.Info("Migration send starting")
 	defer d.logger.Info("Migration send stopped")
 
@@ -6741,6 +6741,12 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 	{
 		err := g.Wait()
 		if err != nil {
+			return err
+		}
+
+		err = d.postMigrateSendCommon(d, args.ClusterMoveSourceName)
+		if err != nil {
+			d.logger.Error("Post-migration steps failed on source", logger.Ctx{"err": err})
 			return err
 		}
 
