@@ -20,6 +20,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/migration"
@@ -928,7 +929,7 @@ func volumeIsUsedByDevice(vol api.StorageVolume, instanceType instancetype.Type,
 		return false, nil
 	}
 
-	if instanceType != instancetype.Any && instancetype.IsRootDiskDevice(dev) {
+	if instanceType != instancetype.Any && filters.IsRootDisk(dev) {
 		rootVolumeType, err := InstanceTypeToVolumeType(instanceType)
 		if err != nil {
 			return false, err
