@@ -3,6 +3,7 @@ package util
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,7 +17,7 @@ import (
 func PasswordCheck(secret string, password string) error {
 	// No password set
 	if secret == "" {
-		return fmt.Errorf("No password is set")
+		return errors.New("No password is set")
 	}
 
 	// Compare the password
@@ -32,7 +33,7 @@ func PasswordCheck(secret string, password string) error {
 	}
 
 	if !bytes.Equal(hash, buff[32:]) {
-		return fmt.Errorf("Bad password provided")
+		return errors.New("Bad password provided")
 	}
 
 	return nil
