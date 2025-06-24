@@ -520,14 +520,14 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		var storageProjectName string
 
 		// Check if validating an instance or a custom storage volume attached to a profile.
-		if (d.inst != nil && !d.inst.IsSnapshot()) || (d.inst == nil && instConf.Type() == instancetype.Any && !instancetype.IsRootDiskDevice(d.config)) {
+		if (d.inst != nil && !d.inst.IsSnapshot()) || (d.inst == nil && instConf.Type() == instancetype.Any && !filters.IsRootDisk(d.config)) {
 			d.pool, err = storagePools.LoadByName(d.state, d.config["pool"])
 			if err != nil {
 				return fmt.Errorf("Failed to get storage pool %q: %w", d.config["pool"], err)
 			}
 
 			// Non-root volume validation.
-			if !instancetype.IsRootDiskDevice(d.config) {
+			if !filters.IsRootDisk(d.config) {
 				volumeName, volumeType, dbVolumeType, err := d.sourceVolumeFields()
 				if err != nil {
 					return err
@@ -616,7 +616,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 			}
 
 			if len(initialConfig) > 0 {
-				if !instancetype.IsRootDiskDevice(d.config) {
+				if !filters.IsRootDisk(d.config) {
 					return errors.New("Non-root disk device cannot contain initial.* configuration")
 				}
 
@@ -865,7 +865,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 	defer revert.Fail()
 
 	// Deal with a rootfs.
-	if instancetype.IsRootDiskDevice(d.config) {
+	if filters.IsRootDisk(d.config) {
 		// Set the rootfs path.
 		rootfs := deviceConfig.RootFSEntryItem{
 			Path: d.inst.RootfsPath(),
@@ -1075,7 +1075,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 		}
 	}
 
-	if instancetype.IsRootDiskDevice(d.config) {
+	if filters.IsRootDisk(d.config) {
 		// Handle previous requests for setting new quotas.
 		err := d.applyDeferredQuota()
 		if err != nil {
@@ -1414,7 +1414,7 @@ func (d *disk) postStart() error {
 
 // Update applies configuration changes to a started device.
 func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
-	if instancetype.IsRootDiskDevice(d.config) {
+	if filters.IsRootDisk(d.config) {
 		// Make sure we have a valid root disk device (and only one).
 		expandedDevices := d.inst.ExpandedDevices()
 		newRootDiskDeviceKey, _, err := instancetype.GetRootDiskDevice(expandedDevices.CloneNative())
@@ -1425,7 +1425,7 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 		// Retrieve the first old root disk device key, even if there are duplicates.
 		oldRootDiskDeviceKey := ""
 		for k, v := range oldDevices {
-			if instancetype.IsRootDiskDevice(v) {
+			if filters.IsRootDisk(v) {
 				oldRootDiskDeviceKey = k
 				break
 			}
