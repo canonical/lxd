@@ -739,11 +739,11 @@ func (d *Daemon) State() *state.State {
 		}, nil
 	}
 
-	s.ImagesStoragePath = func() string {
+	s.ImagesStoragePath = func(project string) string {
 		return daemonStoragePath(s.LocalConfig.StorageImagesVolume(), "images")
 	}
 
-	s.BackupsStoragePath = func() string {
+	s.BackupsStoragePath = func(project string) string {
 		return daemonStoragePath(s.LocalConfig.StorageBackupsVolume(), "backups")
 	}
 

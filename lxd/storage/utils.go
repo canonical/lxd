@@ -838,7 +838,7 @@ func ImageUnpack(s *state.State, imageFile string, vol drivers.Volume, destBlock
 		}
 	} else {
 		// Dealing with unified tarballs require an initial unpack to a temporary directory.
-		tempDir, err := os.MkdirTemp(s.ImagesStoragePath(), "lxd_image_unpack_")
+		tempDir, err := os.MkdirTemp(s.ImagesStoragePath(""), "lxd_image_unpack_")
 		if err != nil {
 			return -1, err
 		}
