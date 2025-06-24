@@ -1,5 +1,5 @@
 name: Disable Docker
-description: Removes docker and resets the firewall
+description: Disable Docker and resets the firewall
 
 runs:
   using: composite
@@ -8,6 +8,17 @@ runs:
       shell: bash
       run: |
         set -eux
-        sudo apt-get autopurge -y containerd.io moby-containerd docker docker-ce podman uidmap
+        # disable commands provided by `uidmap` package
+        for c in getsubids newgidmap newuidmap; do
+          cmd="$(command -v "${c}" || true)"
+          [ -n "${cmd}" ] || continue
+          [ -x "${cmd}" ] || continue
+          sudo chmod -x "${cmd}"
+        done
+
+        # disable related units
+        for u in containerd.service docker.socket docker.service; do
+          sudo systemctl stop "${u}" || true
+        done
         sudo ip link delete docker0
         sudo nft flush ruleset || sudo iptables -I DOCKER-USER -j ACCEPT
