@@ -47,6 +47,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/device"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/device/nictype"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/drivers/edk2"
@@ -3123,11 +3124,7 @@ func (d *qemu) deviceBootPriorities(base int) (map[string]int, error) {
 
 	devices := []devicePrios{}
 
-	for _, dev := range d.expandedDevices.Sorted() {
-		if dev.Config["type"] != "disk" && dev.Config["type"] != "nic" {
-			continue
-		}
-
+	for _, dev := range d.expandedDevices.Filter(filters.Or(filters.IsDisk, filters.IsNIC)).Sorted() {
 		bootPrio := uint32(0) // Default to lowest priority.
 		if dev.Config["boot.priority"] != "" {
 			prio, err := strconv.ParseInt(dev.Config["boot.priority"], 10, 32)
@@ -6905,16 +6902,8 @@ func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName str
 
 	// Notify the shared disks that they're going to be accessed from another system.
 	diskPools := make(map[string]storagePools.Pool, len(d.expandedDevices))
-	for _, dev := range d.expandedDevices.Sorted() {
-		if dev.Config["type"] != "disk" || dev.Config["path"] == "/" {
-			continue
-		}
-
+	for _, dev := range d.expandedDevices.Filter(filters.IsCustomVolumeDisk).Sorted() {
 		poolName := dev.Config["pool"]
-		if poolName == "" {
-			continue
-		}
-
 		diskPool, ok := diskPools[poolName]
 		if !ok {
 			// Load the pool for the disk.
@@ -7434,16 +7423,8 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 		// Notify the shared disks that they're going to be accessed from another system.
 		diskPools := make(map[string]storagePools.Pool, len(d.expandedDevices))
-		for _, dev := range d.expandedDevices.Sorted() {
-			if dev.Config["type"] != "disk" || dev.Config["path"] == "/" {
-				continue
-			}
-
+		for _, dev := range d.expandedDevices.Filter(filters.IsCustomVolumeDisk).Sorted() {
 			poolName := dev.Config["pool"]
-			if poolName == "" {
-				continue
-			}
-
 			diskPool, ok := diskPools[poolName]
 			if !ok {
 				// Load the pool for the disk.
