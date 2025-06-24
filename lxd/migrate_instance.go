@@ -156,12 +156,10 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		return fmt.Errorf("Failed migration on source: %w", err)
 	}
 
-	if !shared.IsSnapshot(s.instance.Name()) {
-		err = s.instance.PostMigrateSend()
-		if err != nil {
-			l.Error("Failed post-migration steps on source", logger.Ctx{"err": err})
-			return fmt.Errorf("Failed post-migration steps on source: %w", err)
-		}
+	err = s.instance.PostMigrateSend()
+	if err != nil {
+		l.Error("Failed post-migration steps on source", logger.Ctx{"err": err})
+		return fmt.Errorf("Failed post-migration steps on source: %w", err)
 	}
 
 	return nil
