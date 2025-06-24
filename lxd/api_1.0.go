@@ -21,6 +21,7 @@ import (
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
+	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -631,7 +632,32 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	var newNodeConfig *node.Config
 	oldNodeConfig := make(map[string]any)
 
-	err := s.DB.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
+	var projectsImagesStorage map[string]string
+	var projectsBackupsStorage map[string]string
+	err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		if nodeValues["storage.backups_volume"] != nil {
+			projectsBackupsStorage, err = dbCluster.GetProjectsNameAndConfigValue(ctx, tx.Tx(), "storage.backups_volume")
+		}
+
+		if err != nil {
+			return err
+		}
+
+		if nodeValues["storage.images_volume"] != nil {
+			projectsImagesStorage, err = dbCluster.GetProjectsNameAndConfigValue(ctx, tx.Tx(), "storage.images_volume")
+			return err
+		}
+
+		return err
+	})
+
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = s.DB.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
 		newNodeConfig, err = node.ConfigLoad(ctx, tx)
 		if err != nil {
@@ -663,28 +689,42 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 
 		// Validate the storage volumes
 		if nodeValues["storage.backups_volume"] != nil && nodeValues["storage.backups_volume"] != newNodeConfig.StorageBackupsVolume() {
-			backupsPoolVolume, ok := nodeValues["storage.backups_volume"].(string)
+			config := "storage.backups_volume"
+			backupsPoolVolume, ok := nodeValues[config].(string)
 			if !ok {
-				return fmt.Errorf(`Unexpected type for "storage.backups_volume": %T`, nodeValues["storage.backups_volume"])
+				return fmt.Errorf(`Unexpected type for %q: %T`, config, nodeValues[config])
 			}
 
 			// Store validated name back into nodeValues to ensure its not classifed as raw user input.
-			nodeValues["storage.backups_volume"], err = daemonStorageValidate(s, backupsPoolVolume)
+			nodeValues[config], err = daemonStorageValidate(s, backupsPoolVolume)
 			if err != nil {
-				return fmt.Errorf("Failed validation of %q: %w", "storage.backups_volume", err)
+				return fmt.Errorf("Failed validation of %q: %w", config, err)
+			}
+
+			for project, volume := range projectsBackupsStorage {
+				if volume == backupsPoolVolume {
+					return fmt.Errorf(`Failed validation of %q: storage volume already configured as %q of project %q`, config, config, project)
+				}
 			}
 		}
 
 		if nodeValues["storage.images_volume"] != nil && nodeValues["storage.images_volume"] != newNodeConfig.StorageImagesVolume() {
-			imagesPoolVolume, ok := nodeValues["storage.images_volume"].(string)
+			config := "storage.images_volume"
+			imagesPoolVolume, ok := nodeValues[config].(string)
 			if !ok {
-				return fmt.Errorf(`Unexpected type for "storage.images_volume": %T`, nodeValues["storage.images_volume"])
+				return fmt.Errorf(`Unexpected type for %q: %T`, config, nodeValues[config])
 			}
 
 			// Store validated name back into nodeValues to ensure its not classifed as raw user input.
-			nodeValues["storage.images_volume"], err = daemonStorageValidate(s, imagesPoolVolume)
+			nodeValues[config], err = daemonStorageValidate(s, imagesPoolVolume)
 			if err != nil {
-				return fmt.Errorf("Failed validation of %q: %w", "storage.images_volume", err)
+				return fmt.Errorf("Failed validation of %q: %w", config, err)
+			}
+
+			for project, volume := range projectsImagesStorage {
+				if volume == imagesPoolVolume {
+					return fmt.Errorf(`Failed validation of %q: storage volume already configured as %q of project %q`, config, config, project)
+				}
 			}
 		}
 
