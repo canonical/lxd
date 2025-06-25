@@ -228,29 +228,29 @@ test_remote_usage() {
 
   lxc_remote image delete "lxd2:${sum}" || true
 
-  lxc_remote image copy localhost:testimage lxd2: --copy-aliases --public
+  lxc_remote image copy --quiet localhost:testimage lxd2: --copy-aliases --public
   lxc_remote image delete "localhost:${sum}"
-  lxc_remote image copy "lxd2:${sum}" local: --copy-aliases --public
+  lxc_remote image copy --quiet "lxd2:${sum}" local: --copy-aliases --public
   lxc_remote image info localhost:testimage
   lxc_remote image delete "lxd2:${sum}"
 
-  lxc_remote image copy "localhost:${sum}" lxd2:
+  lxc_remote image copy --quiet "localhost:${sum}" lxd2:
   lxc_remote image delete "lxd2:${sum}"
 
-  lxc_remote image copy "localhost:$(echo "${sum}" | cut -c 1-2)" lxd2:
+  lxc_remote image copy --quiet "localhost:$(echo "${sum}" | cut -c 1-2)" lxd2:
   lxc_remote image delete "lxd2:${sum}"
 
   # test a private image
-  lxc_remote image copy "localhost:${sum}" lxd2:
+  lxc_remote image copy --quiet "localhost:${sum}" lxd2:
   lxc_remote image delete "localhost:${sum}"
-  lxc_remote init "lxd2:${sum}" localhost:c1
+  lxc_remote init --quiet "lxd2:${sum}" localhost:c1
   lxc_remote delete localhost:c1
 
   lxc_remote image alias create localhost:testimage "${sum}"
 
   # test remote publish
-  lxc_remote init testimage pub
-  lxc_remote publish pub lxd2: --alias bar --public a=b
+  lxc_remote init --quiet testimage pub
+  lxc_remote publish --quiet pub lxd2: --alias bar --public a=b
   lxc_remote image show lxd2:bar | grep -F "a: b"
   lxc_remote image show lxd2:bar | grep -xF "public: true"
   ! lxc_remote image show bar || false
@@ -258,15 +258,15 @@ test_remote_usage() {
 
   # test spawn from public server
   lxc_remote remote add lxd2-public "${LXD2_ADDR}" --public --accept-certificate
-  lxc_remote init lxd2-public:bar pub
+  lxc_remote init --quiet lxd2-public:bar pub
   lxc_remote image delete lxd2:bar
   lxc_remote delete pub
 
   # Double launch to test if the image downloads only once.
-  lxc_remote init localhost:testimage lxd2:c1 &
+  lxc_remote init --quiet localhost:testimage lxd2:c1 &
   C1PID=$!
 
-  lxc_remote init localhost:testimage lxd2:c2
+  lxc_remote init --quiet localhost:testimage lxd2:c2
   lxc_remote delete lxd2:c2
 
   wait "${C1PID}"
@@ -303,37 +303,37 @@ test_remote_usage() {
 
   lxc_remote image alias create localhost:foo "${sum}"
 
-  lxc_remote image copy "localhost:${sum}" lxd2: --mode=push
+  lxc_remote image copy --quiet "localhost:${sum}" lxd2: --mode=push
   lxc_remote image show lxd2:"${sum}"
   lxc_remote image show lxd2:"${sum}" | grep -xF 'public: false'
   ! lxc_remote image show lxd2:foo || false
   lxc_remote image delete "lxd2:${sum}"
 
-  lxc_remote image copy "localhost:${sum}" lxd2: --mode=push --copy-aliases --public
+  lxc_remote image copy --quiet "localhost:${sum}" lxd2: --mode=push --copy-aliases --public
   lxc_remote image show lxd2:"${sum}"
   lxc_remote image show lxd2:"${sum}" | grep -xF 'public: true'
   lxc_remote image show lxd2:foo
   lxc_remote image delete "lxd2:${sum}"
 
-  lxc_remote image copy "localhost:${sum}" lxd2: --mode=push --copy-aliases --alias=bar
+  lxc_remote image copy --quiet "localhost:${sum}" lxd2: --mode=push --copy-aliases --alias=bar
   lxc_remote image show lxd2:"${sum}"
   lxc_remote image show lxd2:foo
   lxc_remote image show lxd2:bar
   lxc_remote image delete "lxd2:${sum}"
 
-  lxc_remote image copy "localhost:${sum}" lxd2: --mode=relay
+  lxc_remote image copy --quiet "localhost:${sum}" lxd2: --mode=relay
   lxc_remote image show lxd2:"${sum}"
   lxc_remote image show lxd2:"${sum}" | grep -xF 'public: false'
   ! lxc_remote image show lxd2:foo || false
   lxc_remote image delete "lxd2:${sum}"
 
-  lxc_remote image copy "localhost:${sum}" lxd2: --mode=relay --copy-aliases --public
+  lxc_remote image copy --quiet "localhost:${sum}" lxd2: --mode=relay --copy-aliases --public
   lxc_remote image show lxd2:"${sum}"
   lxc_remote image show lxd2:"${sum}" | grep -xF 'public: true'
   lxc_remote image show lxd2:foo
   lxc_remote image delete "lxd2:${sum}"
 
-  lxc_remote image copy "localhost:${sum}" lxd2: --mode=relay --copy-aliases --alias=bar
+  lxc_remote image copy --quiet "localhost:${sum}" lxd2: --mode=relay --copy-aliases --alias=bar
   lxc_remote image show lxd2:"${sum}"
   lxc_remote image show lxd2:foo
   lxc_remote image show lxd2:bar
@@ -341,33 +341,33 @@ test_remote_usage() {
 
   # Test image copy between projects
   lxc_remote project create lxd2:foo
-  lxc_remote image copy "localhost:${sum}" lxd2: --target-project foo
+  lxc_remote image copy --quiet "localhost:${sum}" lxd2: --target-project foo
   lxc_remote image show lxd2:"${sum}" --project foo
   lxc_remote image delete "lxd2:${sum}" --project foo
-  lxc_remote image copy "localhost:${sum}" lxd2: --target-project foo --mode=push
+  lxc_remote image copy --quiet "localhost:${sum}" lxd2: --target-project foo --mode=push
   lxc_remote image show lxd2:"${sum}" --project foo
   lxc_remote image delete "lxd2:${sum}" --project foo
-  lxc_remote image copy "localhost:${sum}" lxd2: --target-project foo --mode=relay
+  lxc_remote image copy --quiet "localhost:${sum}" lxd2: --target-project foo --mode=relay
   lxc_remote image show lxd2:"${sum}" --project foo
   lxc_remote image delete "lxd2:${sum}" --project foo
   lxc_remote project delete lxd2:foo
 
   # Test image copy with --profile option
   lxc_remote profile create lxd2:foo
-  lxc_remote image copy "localhost:${sum}" lxd2: --profile foo
+  lxc_remote image copy --quiet "localhost:${sum}" lxd2: --profile foo
   lxc_remote image show lxd2:"${sum}" | grep -xF -- '- foo'
   lxc_remote image delete "lxd2:${sum}"
 
-  lxc_remote image copy "localhost:${sum}" lxd2: --profile foo --mode=push
+  lxc_remote image copy --quiet "localhost:${sum}" lxd2: --profile foo --mode=push
   lxc_remote image show lxd2:"${sum}" | grep -xF -- '- foo'
   lxc_remote image delete "lxd2:${sum}"
 
-  lxc_remote image copy "localhost:${sum}" lxd2: --profile foo --mode=relay
+  lxc_remote image copy --quiet "localhost:${sum}" lxd2: --profile foo --mode=relay
   lxc_remote image show lxd2:"${sum}" | grep -xF -- '- foo'
   lxc_remote image delete "lxd2:${sum}"
   lxc_remote profile delete lxd2:foo
 
-  lxc_remote image copy localhost:testimage lxd2: --alias bar
+  lxc_remote image copy --quiet localhost:testimage lxd2: --alias bar
   # Get the `cached` and `aliases` fields for the image `bar` in lxd2
   cached=$(lxc_remote image info lxd2:bar | awk '/^Cached/ { print $2 }')
   alias=$(lxc_remote image info lxd2:bar | grep -xF -A 1 "Aliases:" | tail -n1 | awk '{print $2}')
@@ -381,7 +381,7 @@ test_remote_usage() {
   # the image becomes `cached` and has no alias.
   fingerprint=$(lxc_remote image info lxd2:bar | awk '/^Fingerprint/ { print $2 }')
   lxc_remote image delete lxd2:bar
-  lxc_remote init localhost:testimage lxd2:c1
+  lxc_remote init --quiet localhost:testimage lxd2:c1
   cached=$(lxc_remote image info "lxd2:${fingerprint}" | awk '/^Cached/ { print $2 }')
   # The `cached` field should be set to `yes` since the image was implicitly downloaded by the instance create operation
   [ "${cached}" = "yes" ]
@@ -389,7 +389,7 @@ test_remote_usage() {
   ! lxc_remote image info "lxd2:${fingerprint}" | grep -F "Aliases:"
 
   # Finally, lets copy the remote image explicitly to the local server with an alias like we did before
-  lxc_remote image copy localhost:testimage lxd2: --alias bar
+  lxc_remote image copy --quiet localhost:testimage lxd2: --alias bar
   cached=$(lxc_remote image info lxd2:bar | awk '/^Cached/ { print $2 }')
   alias=$(lxc_remote image info lxd2:bar | grep -xF -A 1 "Aliases:" | tail -n1 | awk '{print $2}')
   # The `cached` field should be set to `no` since the image was explicitly copied.
