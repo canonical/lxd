@@ -83,12 +83,12 @@ EOF
   lxc project create test-project
 
   lxc copy foo foo --no-profiles -s "${pool}" --project default --target-project test-project
-  [ "$(lxc info --project test-project foo | grep -c snap)" -eq 2 ]
+  [ "$(lxc list -f csv -c S --project test-project foo)" = "3" ]
   lxc delete --project=test-project foo
 
   lxc profile create target-profile --project=test-project
   lxc copy foo foo --profile=target-profile -s "${pool}" --target-project=test-project
-  [ "$(lxc info --project test-project foo | grep -c snap)" -eq 2 ]
+  [ "$(lxc list -f csv -c S --project test-project foo)" = "3" ]
   lxc delete --project test-project foo
 
   lxc profile delete target-profile --project=test-project
