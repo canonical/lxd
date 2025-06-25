@@ -205,13 +205,13 @@ migration() {
 
   # Local container only copy.
   lxc copy cccp udssr --instance-only
-  [ "$(lxc info udssr | grep -c snap)" -eq 0 ]
+  [ "$(lxc list -f csv -c S udssr)" = "0" ]
   [ "$(lxc file pull udssr/blah -)" = "after" ]
   lxc delete udssr
 
   # Local container with snapshots copy.
   lxc copy cccp udssr
-  [ "$(lxc info udssr | grep -c snap)" -eq 2 ]
+  [ "$(lxc list -f csv -c S udssr)" = "2" ]
   [ "$(lxc file pull udssr/blah -)" = "after" ]
   lxc storage volume show "${pool}" container/udssr
   [ "$(lxc storage volume get "${pool}" container/udssr user.foo)" = "postsnap1" ]
@@ -221,13 +221,13 @@ migration() {
 
   # Remote container only copy.
   lxc_remote copy l1:cccp l2:udssr --instance-only
-  [ "$(lxc_remote info l2:udssr | grep -c snap)" -eq 0 ]
+  [ "$(lxc_remote list -f csv -c S l2:udssr)" = "0" ]
   [ "$(lxc_remote file pull l2:udssr/blah -)" = "after" ]
   lxc_remote delete l2:udssr
 
   # Remote container with snapshots copy.
   lxc_remote copy l1:cccp l2:udssr
-  [ "$(lxc_remote info l2:udssr | grep -c snap)" -eq 2 ]
+  [ "$(lxc_remote list -f csv -c S l2:udssr)" = "2" ]
   [ "$(lxc_remote file pull l2:udssr/blah -)" = "after" ]
   lxc_remote storage volume show l2:"${remote_pool}" container/udssr
   [ "$(lxc_remote storage volume get l2:"${remote_pool}" container/udssr user.foo)" = "postsnap1" ]
@@ -238,7 +238,7 @@ migration() {
   # Remote container only move.
   lxc_remote move l1:cccp l2:udssr --instance-only --mode=relay
   ! lxc_remote info l1:cccp || false
-  [ "$(lxc_remote info l2:udssr | grep -c snap)" -eq 0 ]
+  [ "$(lxc_remote list -f csv -c S l2:udssr)" = "0" ]
   lxc_remote delete l2:udssr
 
   lxc_remote init testimage l1:cccp
@@ -248,7 +248,7 @@ migration() {
   # Remote container with snapshots move.
   lxc_remote move l1:cccp l2:udssr --mode=push
   ! lxc_remote info l1:cccp || false
-  [ "$(lxc_remote info l2:udssr | grep -c snap)" -eq 2 ]
+  [ "$(lxc_remote list -f csv -c S l2:udssr)" = "2" ]
   lxc_remote delete l2:udssr
 
   # Test container only copies
@@ -259,7 +259,7 @@ migration() {
   # Local container with snapshots move.
   lxc move cccp udssr --mode=pull
   ! lxc info cccp || false
-  [ "$(lxc info udssr | grep -c snap)" -eq 2 ]
+  [ "$(lxc list -f csv -c S udssr)" = "2" ]
   lxc delete udssr
 
   if [ "$lxd_backend" = "zfs" ]; then
@@ -271,12 +271,12 @@ migration() {
 
     # Test container only copies when zfs.clone_copy is set to false.
     lxc copy cccp udssr --instance-only
-    [ "$(lxc info udssr | grep -c snap)" -eq 0 ]
+    [ "$(lxc list -f csv -c S udssr)" = "0" ]
     lxc delete udssr
 
     # Test container with snapshots copy when zfs.clone_copy is set to false.
     lxc copy cccp udssr
-    [ "$(lxc info udssr | grep -c snap)" -eq 2 ]
+    [ "$(lxc list -f csv -c S udssr)" = "2" ]
     lxc delete cccp
     lxc delete udssr
 
