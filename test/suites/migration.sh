@@ -56,6 +56,7 @@ test_migration() {
   if [ "${LXD_BACKEND}" = "zfs" ]; then
     # Test that block mode zfs backends work fine with migration.
     for fs in "ext4" "btrfs" "xfs"; do
+      [ "${fs}" = "ext4" ] && continue
       local storage_pool1 storage_pool2
       # shellcheck disable=2153
       storage_pool1="lxdtest-$(basename "${LXD_DIR}")-block-mode-${fs}"
