@@ -79,17 +79,15 @@ install_instance_drivers() {
         exit 1
     fi
 
-    if ! check_dependencies qemu-img "qemu-system-${UNAME}" sgdisk && command -v apt-get >/dev/null; then
+    if ! check_dependencies qemu-img "qemu-system-${UNAME}" sgdisk /usr/lib/qemu/virtiofsd && command -v apt-get >/dev/null; then
         # On 22.04, QEMU comes with spice modules and virtiofsd
         if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
             apt-get install --no-install-recommends -y gdisk ovmf qemu-block-extra "${QEMU_SYSTEM}" qemu-utils
         else
             apt-get install --no-install-recommends -y gdisk ovmf qemu-block-extra "${QEMU_SYSTEM}" qemu-utils qemu-system-modules-spice virtiofsd
-
-            check_dependencies virtiofsd
         fi
 
         # Verify that the newly installed tools provided the needed binaries
-        check_dependencies qemu-img "qemu-system-${UNAME}" sgdisk
+        check_dependencies qemu-img "qemu-system-${UNAME}" sgdisk /usr/lib/qemu/virtiofsd
     fi
 }
