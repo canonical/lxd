@@ -253,6 +253,7 @@ test_remote_usage() {
   lxc_remote publish pub lxd2: --alias bar --public a=b
   lxc_remote image show lxd2:bar | grep -F "a: b"
   lxc_remote image show lxd2:bar | grep -xF "public: true"
+  fingerprint="$(lxc image list -f csv -c F lxd2:bar)"
   ! lxc_remote image show bar || false
   lxc_remote delete pub
 
@@ -261,6 +262,7 @@ test_remote_usage() {
   lxc_remote init lxd2-public:bar pub
   lxc_remote image delete lxd2:bar
   lxc_remote delete pub
+  lxc_remote image delete "${fingerprint}"
 
   # Double launch to test if the image downloads only once.
   lxc_remote init localhost:testimage lxd2:c1 &
@@ -399,6 +401,7 @@ test_remote_usage() {
 
   lxc_remote image alias delete localhost:foo
 
+  lxc_remote image delete localhost:testimage
   lxc_remote remote remove lxd2
   lxc_remote remote remove lxd2-public
 
