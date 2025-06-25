@@ -438,6 +438,8 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_projects_yaml "projects with yaml initialization"
     run_test test_projects_before_init "project operations before init"
     run_test test_projects_restrictions "projects restrictions"
+    run_test test_projects_images_volume "projects images volume"
+    run_test test_projects_backups_volume "projects backups volume"
     run_test test_container_devices_disk "container devices - disk"
     run_test test_container_devices_disk_restricted "container devices - disk - restricted"
     run_test test_container_devices_nic_p2p "container devices - nic - p2p"
