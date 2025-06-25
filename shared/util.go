@@ -1344,12 +1344,12 @@ func RenderTemplate(template string, ctx pongo2.Context) (string, error) {
 	// Get rendered template
 	ret, err := tpl.Execute(ctx)
 	if err != nil {
-		return ret, err
-	}
+		// Looks like we're nesting templates so run pongo again
+		if strings.Contains(ret, "{{") || strings.Contains(ret, "{%") {
+			return RenderTemplate(ret, ctx)
+		}
 
-	// Looks like we're nesting templates so run pongo again
-	if strings.Contains(ret, "{{") || strings.Contains(ret, "{%") {
-		return RenderTemplate(ret, ctx)
+		return "", err
 	}
 
 	return ret, err
