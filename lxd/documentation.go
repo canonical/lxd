@@ -24,7 +24,7 @@ var generatedDoc embed.FS
 //
 //	Get the metadata configuration
 //
-//	Returns the generated LXD metadata configuration in YAML format.
+//	Returns the generated LXD metadata configuration in JSON format.
 //
 //	---
 //	produces:
