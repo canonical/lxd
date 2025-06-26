@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -115,4 +116,55 @@ func ConnectClusterLink(ctx context.Context, s *state.State, clusterLink api.Clu
 
 	logger.Error("Failed to connect to any cluster link address", logger.Ctx{"clusterLink": clusterLink.Name})
 	return nil, errors.New("Failed to connect to any cluster link address")
+}
+
+// UpdateClusterLinkVolatileAddresses updates the volatile addresses of a cluster link. If the addresses have changed, [CheckClusterLinkCertificate] is called to ensure the cluster certificate remains valid.
+func UpdateClusterLinkVolatileAddresses(ctx context.Context, s *state.State, clusterLink api.ClusterLink) error {
+	targetClient, err := ConnectClusterLink(ctx, s, clusterLink)
+	if err != nil {
+		return fmt.Errorf("Failed to connect to target cluster link: %w", err)
+	}
+
+	addresses := shared.SplitNTrimSpace(clusterLink.Config["volatile.addresses"], ",", -1, false)
+
+	// Update "volatile.addresses".
+	targetClusterMembers, err := targetClient.GetClusterMembers()
+	if err != nil {
+		return fmt.Errorf("Failed to get cluster members from target cluster: %w", err)
+	}
+
+	newAddresses := make([]string, 0, len(targetClusterMembers))
+	for _, clusterMember := range targetClusterMembers {
+		newAddress := strings.TrimPrefix(clusterMember.URL, "https://")
+		newAddresses = append(newAddresses, newAddress)
+	}
+
+	changed := !shared.EqualSets(addresses, newAddresses)
+	if changed {
+		newConfig := clusterLink.Config
+		newConfig["volatile.addresses"] = strings.Join(newAddresses, ",")
+		client, err := lxd.ConnectLXDUnix("", nil)
+		if err != nil {
+			return fmt.Errorf("Failed to connect to local LXD: %w", err)
+		}
+
+		identity, _, err := client.GetIdentity(api.AuthenticationMethodTLS, clusterLink.Name)
+		if err != nil {
+			return fmt.Errorf("Failed to get cluster link identity: %w", err)
+		}
+
+		// Validate the cluster link certificate against the new addresses.
+		_, _, err = CheckClusterLinkCertificate(ctx, newAddresses, identity.Identifier, version.UserAgent)
+		if err != nil {
+			return fmt.Errorf("Failed to validate cluster link certificate: %w", err)
+		}
+
+		// Update cluster link configuration with new addresses.
+		err = client.UpdateClusterLink(clusterLink.Name, api.ClusterLinkPut{Config: newConfig}, "")
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
