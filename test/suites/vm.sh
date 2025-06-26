@@ -14,7 +14,7 @@ test_vm_empty() {
     lxc profile set default migration.stateful=true
   fi
 
-  # Tiny VMs
+  echo "Tiny VMs"
   lxc init --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
   lxc start v1
   lxc delete --force v1
@@ -22,7 +22,7 @@ test_vm_empty() {
   lxc launch --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
   lxc delete --force v1
 
-  # Ephemeral cleanup
+  echo "Ephemeral cleanup"
   lxc launch --vm --empty --ephemeral v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
   lxc stop -f v1
   [ "$(lxc list -f csv -c n)" = "" ]
