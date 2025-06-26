@@ -14,6 +14,13 @@ test_vm_empty() {
     lxc profile set default migration.stateful=true
   fi
 
+  echo "Invalid VM names"
+  ! lxc init --vm --empty ".." -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" || false
+  # Escaping `\` multiple times due to `lxc` wrapper script munging the first layer
+  ! lxc init --vm --empty "\\\\" -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" || false
+  ! lxc init --vm --empty "/" -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" || false
+  ! lxc init --vm --empty ";" -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" || false
+
   echo "Too small VMs"
   ! lxc launch --vm --empty v1 -c limits.memory=0 -d "${SMALL_ROOT_DISK}" || false
   ! lxc launch --vm --empty v1 -c limits.memory=0% -d "${SMALL_ROOT_DISK}" || false
@@ -24,6 +31,11 @@ test_vm_empty() {
   echo "Tiny VMs with snapshots"
   lxc init --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
   lxc snapshot v1
+  # Invalid snapshot names
+  ! lxc snapshot v1 ".." || false
+  # Escaping `\` multiple times due to `lxc` wrapper script munging the first layer
+  ! lxc snapshot v1 "\\\\" || false
+  ! lxc snapshot v1 "/" || false
   [ "$(lxc list -f csv -c S)" = "1" ]
   lxc start v1
   lxc snapshot v1
