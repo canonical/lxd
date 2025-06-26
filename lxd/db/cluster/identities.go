@@ -463,9 +463,9 @@ func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, 
 var getPendingTLSIdentityByTokenSecretStmt = fmt.Sprintf(`
 SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
 	FROM identities
-	WHERE identities.type = %d
+	WHERE identities.type IN (%d,%d)
 	AND json_extract(identities.metadata, '$.secret') = ?
-`, identityTypeCertificateClientPending)
+`, identityTypeCertificateClientPending, identityTypeCertificateClusterLinkPending)
 
 // GetPendingTLSIdentityByTokenSecret gets a single identity of type identityTypeCertificateClientPending with the given
 // secret in its metadata. If no pending identity is found, an api.StatusError is returned with http.StatusNotFound.
