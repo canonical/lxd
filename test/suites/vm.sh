@@ -14,6 +14,13 @@ test_vm_empty() {
     lxc profile set default migration.stateful=true
   fi
 
+  echo "Too small VMs"
+  ! lxc launch --vm --empty v1 -c limits.memory=0 -d "${SMALL_ROOT_DISK}" || false
+  ! lxc launch --vm --empty v1 -c limits.memory=0% -d "${SMALL_ROOT_DISK}" || false
+  # VMs don't support limits.memory in % but it's only detect at start time so needs cleanup
+  ! lxc launch --vm --empty v1 -c limits.memory=10% -d "${SMALL_ROOT_DISK}" || false
+  lxc delete v1
+
   echo "Tiny VMs"
   lxc init --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
   lxc start v1
