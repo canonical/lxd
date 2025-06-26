@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -99,7 +100,7 @@ func ApplyDeviceInitialValues(devices Devices, profiles []api.Profile) Devices {
 	for _, p := range profiles {
 		for devName, devConfig := range p.Devices {
 			// Apply only root disk device from profile devices to instance devices.
-			if devConfig["type"] != "disk" || devConfig["path"] != "/" || devConfig["source"] != "" {
+			if !filters.IsRootDisk(devConfig) {
 				continue
 			}
 
@@ -241,4 +242,29 @@ func (list Devices) Reversed() DevicesSortable {
 
 	sort.Sort(sort.Reverse(sortable))
 	return sortable
+}
+
+// Filter returns the devices matching the provided filters.
+// The list of filters is applied using the AND operator.
+// Combining filters using the OR operator can be done using the filters.Or function.
+func (list Devices) Filter(filters ...func(map[string]string) bool) Devices {
+	filteredDevices := Devices{}
+
+	for deviceName, device := range list {
+		allFiltersPassed := true
+
+		for _, filter := range filters {
+			if !filter(device) {
+				// The first filter returned false which means the remaining ones can be skipped.
+				allFiltersPassed = false
+				break
+			}
+		}
+
+		if allFiltersPassed {
+			filteredDevices[deviceName] = device
+		}
+	}
+
+	return filteredDevices
 }
