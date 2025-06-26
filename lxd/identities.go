@@ -408,12 +408,12 @@ func createIdentityTLSTrusted(ctx context.Context, s *state.State, networkCert *
 	return response.SyncResponseLocation(true, nil, lc.Source)
 }
 
-func createIdentityTLSPending(ctx context.Context, s *state.State, req api.IdentitiesTLSPost, notify identityNotificationFunc) response.Response {
+func createCertificateAddToken(s *state.State, clientName string, identityType string) (*api.CertificateAddToken, error) {
 	localHTTPSAddress := s.LocalConfig.HTTPSAddress()
 
 	// Tokens are useless if the server isn't listening (how will the untrusted client contact the server?)
 	if localHTTPSAddress == "" {
-		return response.BadRequest(errors.New("Can't issue token when server isn't listening on network"))
+		return nil, api.NewStatusError(http.StatusBadRequest, "Can't issue token when server isn't listening on network")
 	}
 
 	// Get all addresses the server is listening on. This is encoded in the certificate token,
@@ -421,7 +421,7 @@ func createIdentityTLSPending(ctx context.Context, s *state.State, req api.Ident
 	// through all these addresses until it can connect to one of them.
 	addresses, err := util.ListenAddresses(localHTTPSAddress)
 	if err != nil {
-		return response.InternalError(err)
+		return nil, err
 	}
 
 	// Generate join secret for new client. This will be stored inside the join token operation and will be
@@ -429,14 +429,14 @@ func createIdentityTLSPending(ctx context.Context, s *state.State, req api.Ident
 	// operation in order to validate the requested joining client name is correct and authorised.
 	joinSecret, err := shared.RandomCryptoString()
 	if err != nil {
-		return response.InternalError(err)
+		return nil, err
 	}
 
 	// Generate fingerprint of network certificate so joining member can automatically trust the correct
 	// certificate when it is presented during the join process.
 	fingerprint, err := shared.CertFingerprintStr(string(s.Endpoints.NetworkPublicKey()))
 	if err != nil {
-		return response.InternalError(err)
+		return nil, err
 	}
 
 	// Calculate an expiry for the pending TLS identity.
@@ -445,15 +445,37 @@ func createIdentityTLSPending(ctx context.Context, s *state.State, req api.Ident
 	if expiry != "" {
 		expiresAt, err = shared.GetExpiry(time.Now(), expiry)
 		if err != nil {
-			return response.InternalError(err)
+			return nil, err
 		}
+	}
+
+	// Return the CertificateAddToken.
+	token := api.CertificateAddToken{
+		ClientName:  clientName,
+		Fingerprint: fingerprint,
+		Addresses:   addresses,
+		Secret:      joinSecret,
+		ExpiresAt:   expiresAt,
+		// Set the Type field so that the client can differentiate
+		// between tokens meant for the certificates API and the auth API.
+		Type: identityType,
+	}
+
+	return &token, nil
+}
+
+func createIdentityTLSPending(ctx context.Context, s *state.State, req api.IdentitiesTLSPost, notify identityNotificationFunc) response.Response {
+	// Create CertificateAddToken token.
+	token, err := createCertificateAddToken(s, req.Name, api.IdentityTypeCertificateClient)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to create certificate add token: %w", err))
 	}
 
 	// Generate an identifier for the identity and calculate its metadata.
 	identifier := uuid.New()
 	metadata := dbCluster.PendingTLSMetadata{
-		Secret: joinSecret,
-		Expiry: expiresAt,
+		Secret: token.Secret,
+		Expiry: token.ExpiresAt,
 	}
 
 	metadataJSON, err := json.Marshal(metadata)
@@ -482,18 +504,6 @@ func createIdentityTLSPending(ctx context.Context, s *state.State, req api.Ident
 	})
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed to create pending TLS identity: %w", err))
-	}
-
-	// Return the CertificateAddToken.
-	token := api.CertificateAddToken{
-		ClientName:  req.Name,
-		Fingerprint: fingerprint,
-		Addresses:   addresses,
-		Secret:      joinSecret,
-		ExpiresAt:   expiresAt,
-		// Set the Type field so that the client can differentiate
-		// between tokens meant for the certificates API and the auth API.
-		Type: api.IdentityTypeCertificateClient,
 	}
 
 	// Notify other members, update the cache, and send a lifecycle event.

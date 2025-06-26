@@ -193,6 +193,16 @@ func (i IdentityType) Value() (driver.Value, error) {
 	return nil, fmt.Errorf("Invalid identity type %q", i)
 }
 
+// ActiveType returns the active version of the identity type.
+func (i IdentityType) ActiveType() (IdentityType, error) {
+	switch i {
+	case api.IdentityTypeCertificateClientPending:
+		return api.IdentityTypeCertificateClient, nil
+	default:
+		return "", fmt.Errorf("Identities of type %q cannot be activated", i)
+	}
+}
+
 // toCertificateAPIType returns the API equivalent type.
 func (i IdentityType) toCertificateType() (certificate.Type, error) {
 	switch i {
@@ -347,7 +357,7 @@ type PendingTLSMetadata struct {
 // PendingTLSMetadata returns the pending TLS identity metadata.
 func (i Identity) PendingTLSMetadata() (*PendingTLSMetadata, error) {
 	if i.Type != api.IdentityTypeCertificateClientPending {
-		return nil, api.NewStatusError(http.StatusBadRequest, "Cannot extract pending TLS identity secret: Identity is not pending")
+		return nil, api.StatusErrorf(http.StatusBadRequest, "Cannot extract pending %q TLS identity secret: Identity is not pending", i.Type)
 	}
 
 	var metadata PendingTLSMetadata
@@ -394,12 +404,17 @@ func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.Perm
 }
 
 // ActivateTLSIdentity updates a TLS identity to make it valid by adding the fingerprint, PEM encoded certificate, and setting
-// the type to api.IdentityTypeCertificateClient.
+// the type.
 func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, cert *x509.Certificate) error {
 	fingerprint := shared.CertFingerprint(cert)
 	_, err := GetIdentityID(ctx, tx, api.AuthenticationMethodTLS, fingerprint)
 	if err == nil {
 		return api.StatusErrorf(http.StatusConflict, "Identity already exists")
+	}
+
+	identity, err := GetIdentity(ctx, tx, api.AuthenticationMethodTLS, identifier.String())
+	if err != nil {
+		return fmt.Errorf("Failed to get pending %q TLS identity: %w", identity.Type, err)
 	}
 
 	metadata := CertificateMetadata{Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))}
@@ -408,21 +423,26 @@ func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, 
 		return fmt.Errorf("Failed to encode certificate metadata: %w", err)
 	}
 
-	stmt := `UPDATE identities SET type = ?, identifier = ?, metadata = ? WHERE identifier = ? AND auth_method = ?`
-	res, err := tx.ExecContext(ctx, stmt, identityTypeCertificateClient, fingerprint, string(b), identifier.String(), authMethodTLS)
+	identityTypeActive, err := identity.Type.ActiveType()
 	if err != nil {
-		return fmt.Errorf("Failed to activate TLS identity: %w", err)
+		return err
+	}
+
+	stmt := `UPDATE identities SET type = ?, identifier = ?, metadata = ? WHERE identifier = ? AND auth_method = ?`
+	res, err := tx.ExecContext(ctx, stmt, identityTypeActive, fingerprint, string(b), identifier.String(), authMethodTLS)
+	if err != nil {
+		return fmt.Errorf("Failed to activate %q TLS identity: %w", identity.Type, err)
 	}
 
 	n, err := res.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("Failed to check for activated TLS identity: %w", err)
+		return fmt.Errorf("Failed to check for activated %q TLS identity: %w", identity.Type, err)
 	}
 
 	if n == 0 {
-		return api.StatusErrorf(http.StatusNotFound, "No pending TLS identity found with identifier %q", identifier)
+		return api.StatusErrorf(http.StatusNotFound, "No pending %q TLS identity found with identifier %q", identity.Type, identifier)
 	} else if n > 1 {
-		return fmt.Errorf("Unknown error occurred when activating a TLS identity: %w", err)
+		return fmt.Errorf("Unknown error occurred when activating %q TLS identity: %w", identity.Type, err)
 	}
 
 	return nil
