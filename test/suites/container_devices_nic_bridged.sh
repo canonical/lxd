@@ -822,11 +822,16 @@ test_container_devices_nic_bridged() {
   lxc import foo.tar.gz foo2
   rm foo.tar.gz
   lxc profile assign foo2 "${ctName}"
+  lxc snapshot foo snap0
 
   # Test container start will fail due to volatile MAC conflict.
   [ "$(lxc config get foo volatile.eth0.hwaddr)" = "$(lxc config get foo2 volatile.eth0.hwaddr)" ]
   ! lxc start foo2 || false
-  lxc delete -f foo foo2
+  lxc delete -f foo2
+
+  # Test snapshot can be copied to remote.
+  lxc copy foo/snap0 localhost:foo3
+  lxc delete -f foo foo3
 
   # Check we haven't left any NICS lying around.
   endNicCount=$(find /sys/class/net | wc -l)
