@@ -63,6 +63,11 @@ if [ "${LXD_VM_TESTS:-0}" = "1" ]; then
   check_dependencies qemu-img "qemu-system-$(uname -m)" sgdisk
 fi
 
+# find the path to lxc binary, not the shell wrapper function
+_LXC="$(unset -f lxc; command -v lxc)"
+readonly _LXC
+export _LXC
+
 if [ "${USER:-'root'}" != "root" ]; then
   echo "The testsuite must be run as root." >&2
   exit 1
