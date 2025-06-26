@@ -174,6 +174,7 @@ func restServer(d *Daemon) *http.Server {
 			http.Redirect(w, r, "/ui/", http.StatusMovedPermanently)
 			return
 		}
+
 		// Normal client handling.
 		_ = response.SyncResponse(true, []string{"/1.0"}).Render(w, r)
 	})
