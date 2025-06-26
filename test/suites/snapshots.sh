@@ -26,6 +26,20 @@ snapshots() {
 
   lxc init testimage foo
 
+  echo "Verify that / is not permitted in snapshots.pattern"
+  lxc config set foo snapshots.pattern="/"
+  SNAP_ERR="$(! lxc snapshot foo 2>&1)"
+  echo "${SNAP_ERR}" | grep -xF 'Error: Invalid snapshot name: Cannot contain "/"'
+  [ "$(lxc list -f csv -c S foo)" = "0" ]
+
+  echo "Test pongo2 template restrictions"
+  # XXX: using wordcount filter to avoid `\n` or other unexpected char.
+  lxc config set foo snapshots.pattern='{% filter wordcount %}{% include \"/etc/hosts\" %}{% endfilter %}'
+  SNAP_ERR="$(! lxc snapshot foo 2>&1)"
+  echo "${SNAP_ERR}" | grep -F "Usage of tag 'include' is not allowed (sandbox restriction active)"
+  [ "$(lxc list -f csv -c S foo)" = "0" ]
+  lxc config unset foo snapshots.pattern
+
   lxc snapshot foo
   # FIXME: make this backend agnostic
   if [ "$lxd_backend" = "dir" ]; then
