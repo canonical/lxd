@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -129,4 +130,95 @@ func ConnectClusterLink(ctx context.Context, s *state.State, clusterLink api.Clu
 
 	logger.Error("Failed to connect to any cluster link address", logger.Ctx{"clusterLink": clusterLink.Name})
 	return nil, errors.New("Failed to connect to any cluster link address")
+}
+
+// RefreshClusterLinkVolatileAddresses refreshes the volatile addresses of a cluster link.
+// It connects to the linked cluster and retrieves its current cluster members. If the addresses
+// have changed, [CheckClusterLinkCertificate] is called to ensure the cluster certificate remains valid.
+func RefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State, clusterLink api.ClusterLink) error {
+	targetClient, err := ConnectClusterLink(ctx, s, clusterLink)
+	if err != nil {
+		return fmt.Errorf("Failed to connect to target cluster link: %w", err)
+	}
+
+	addresses := shared.SplitNTrimSpace(clusterLink.Config["volatile.addresses"], ",", -1, false)
+
+	// Update "volatile.addresses".
+	targetClusterMembers, err := targetClient.GetClusterMembers()
+	if err != nil {
+		return fmt.Errorf("Failed to get cluster members from target cluster: %w", err)
+	}
+
+	newAddresses := make([]string, 0, len(targetClusterMembers))
+	for _, clusterMember := range targetClusterMembers {
+		newAddress := strings.TrimPrefix(clusterMember.URL, "https://")
+		newAddresses = append(newAddresses, newAddress)
+	}
+
+	// Check if addresses have changed using set comparison.
+	currentAddressSet := make(map[string]bool)
+	for _, addr := range addresses {
+		currentAddressSet[addr] = true
+	}
+
+	newAddressSet := make(map[string]bool)
+	for _, addr := range newAddresses {
+		newAddressSet[addr] = true
+	}
+
+	// Quick check.
+	changed := len(currentAddressSet) != len(newAddressSet)
+
+	// Check if all addresses are present in both sets.
+	if !changed {
+		for addr := range currentAddressSet {
+			if !newAddressSet[addr] {
+				changed = true
+				break
+			}
+		}
+	}
+
+	if changed {
+		// Preserve order: keep existing addresses that are still valid, append new ones, and remove invalid ones.
+		var finalAddresses []string
+
+		// Add existing addresses that are still valid (preserves order).
+		for _, addr := range addresses {
+			if newAddressSet[addr] {
+				finalAddresses = append(finalAddresses, addr)
+				delete(newAddressSet, addr) // Remove from set so we don't add it again.
+			}
+		}
+
+		// Add any new addresses that weren't in the original slice.
+		for _, addr := range newAddresses {
+			if newAddressSet[addr] { // This will only be true for addresses we haven't added yet.
+				finalAddresses = append(finalAddresses, addr)
+			}
+		}
+
+		var identity *dbCluster.Identity
+		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			identity, err = dbCluster.GetIdentityByNameOrIdentifier(ctx, tx.Tx(), api.AuthenticationMethodTLS, clusterLink.Name)
+			if err != nil {
+				return fmt.Errorf("Failed to fetch identity: %w", err)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		// Validate the cluster link certificate against the new addresses.
+		_, _, err = CheckClusterLinkCertificate(ctx, finalAddresses, identity.Identifier, version.UserAgent)
+		if err != nil {
+			return fmt.Errorf("Failed to validate cluster link certificate: %w", err)
+		}
+
+		clusterLink.Config["volatile.addresses"] = strings.Join(finalAddresses, ",")
+	}
+
+	return nil
 }
