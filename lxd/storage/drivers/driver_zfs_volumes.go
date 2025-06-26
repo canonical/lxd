@@ -1852,10 +1852,6 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 				if sizeBytes < oldVolSizeBytes {
 					return fmt.Errorf("Block volumes cannot be shrunk: %w", ErrCannotBeShrunk)
 				}
-
-				if inUse {
-					return ErrInUse // We don't allow online resizing of block volumes.
-				}
 			}
 
 			err = d.setDatasetProperties(d.dataset(vol, false), fmt.Sprintf("volsize=%d", sizeBytes))
@@ -1937,9 +1933,11 @@ func (d *zfs) tryGetVolumeDiskPathFromDataset(ctx context.Context, dataset strin
 }
 
 func (d *zfs) getVolumeDiskPathFromDataset(dataset string) (string, error) {
+	zvolUdevLink := filepath.Join("/dev/zvol", dataset)
+
 	// Shortcut for udev.
-	if shared.PathExists(filepath.Join("/dev/zvol", dataset)) {
-		return filepath.Join("/dev/zvol", dataset), nil
+	if shared.PathExists(zvolUdevLink) && shared.IsBlockdevPath(zvolUdevLink) {
+		return zvolUdevLink, nil
 	}
 
 	// Locate zvol_id.
@@ -1978,7 +1976,7 @@ func (d *zfs) getVolumeDiskPathFromDataset(dataset string) (string, error) {
 			continue
 		}
 
-		if strings.TrimSpace(output) == dataset {
+		if strings.TrimSpace(output) == dataset && shared.IsBlockdevPath(entryPath) {
 			return entryPath, nil
 		}
 	}
@@ -2108,7 +2106,7 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 		return nil, fmt.Errorf("Failed getting volume list: %v: %w", strings.TrimSpace(string(errMsg)), err)
 	}
 
-	volList := make([]Volume, len(vols))
+	volList := make([]Volume, 0, len(vols))
 	for _, v := range vols {
 		volList = append(volList, v)
 	}
