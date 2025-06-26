@@ -539,11 +539,50 @@ migration() {
   echo "==> Check that moving a container with attached local volume succeeds, if the destination has a volume with the same name."
   lxc_remote move l2:c1 l1:c2
 
-  echo "==> Clean up the containers and storage."
+  echo "==> Clean up the containers and local volumes."
   lxc_remote delete -f l1:c1
   lxc_remote delete -f l1:c2
   lxc_remote storage volume delete l1:dir vol1
   lxc_remote storage volume delete l2:dir vol1
+
+  # Test VM Migration.
+  if [ "${LXD_VM_TESTS:-0}" = "0" ]; then
+    echo "==> SKIP: VM tests are disabled"
+  elif [ "${LXD_TMPFS:-0}" = "1" ] && ! runsMinimumKernel 6.6; then
+    echo "==> SKIP: QEMU requires direct-io support which requires a kernel >= 6.6 for tmpfs support (LXD_TMPFS=${LXD_TMPFS})"
+  else
+    echo "==> Test VM migration with attached local volumes."
+
+    echo "==> Create a volume to attach to VM."
+    lxc_remote storage volume create l1:dir vol1 size=4MiB
+
+    echo "==> Create a VM to test migration with attached local volume."
+    lxc_remote init --vm --empty l1:v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
+    lxc_remote storage volume attach l1:dir vol1 v1 /files
+
+    echo "==> Check that copying a VM with attached local volume fails, if the destination does not have a volume with the same name."
+    ! lxc_remote copy l1:v1 l2: || false
+
+    echo "==> Check that moving a VM with attached local volume fails, if the destination does not have a volume with the same name."
+    ! lxc_remote move l1:v1 l2: || false
+
+    echo "==> Copy the volume."
+    lxc_remote storage volume copy l1:dir/vol1 l2:dir/vol1
+
+    echo "==> Check that copying a VM with attached local volume succeeds, if the destination has a volume with the same name."
+    lxc_remote copy l1:v1 l2:
+
+    echo "==> Check that moving a VM with attached local volume succeeds, if the destination has a volume with the same name."
+    lxc_remote move l2:v1 l1:v2
+
+    echo "==> Clean up the VMs and local volumes."
+    lxc_remote delete -f l1:v1
+    lxc_remote delete -f l1:v2
+    lxc_remote storage volume delete l1:dir vol1
+    lxc_remote storage volume delete l2:dir vol1
+  fi
+
+  echo "==> Clean up the storage pool."
   lxc_remote storage delete l1:dir
   lxc_remote storage delete l2:dir
 
