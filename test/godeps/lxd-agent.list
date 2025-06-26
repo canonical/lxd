@@ -4,6 +4,7 @@ github.com/canonical/lxd/lxd-agent/api
 github.com/canonical/lxd/lxd/auth
 github.com/canonical/lxd/lxd/db/operationtype
 github.com/canonical/lxd/lxd/device/config
+github.com/canonical/lxd/lxd/device/filters
 github.com/canonical/lxd/lxd/endpoints/listeners
 github.com/canonical/lxd/lxd/events
 github.com/canonical/lxd/lxd/identity

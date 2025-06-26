@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/response"
@@ -137,7 +138,7 @@ func eventsProcess(event api.Event) {
 	}
 
 	// We only handle disk hotplug.
-	if e.Config["type"] != "disk" {
+	if !filters.IsDisk(e.Config) {
 		return
 	}
 

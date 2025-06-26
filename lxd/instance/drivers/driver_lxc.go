@@ -46,6 +46,7 @@ import (
 	"github.com/canonical/lxd/lxd/device"
 	"github.com/canonical/lxd/lxd/device/cdi"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/device/nictype"
 	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/instance"
@@ -7333,11 +7334,7 @@ func (d *lxc) cpuState() api.InstanceStateCPU {
 func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 	disk := map[string]api.InstanceStateDisk{}
 
-	for _, dev := range d.expandedDevices.Sorted() {
-		if dev.Config["type"] != "disk" {
-			continue
-		}
-
+	for _, dev := range d.expandedDevices.Filter(filters.IsDisk).Sorted() {
 		var usage *storagePools.VolumeUsage
 
 		if dev.Config["path"] == "/" {
@@ -8536,11 +8533,7 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 	}
 
 	// Get disk devices
-	for _, dev := range d.expandedDevices {
-		if dev["type"] != "disk" || dev["path"] == "" {
-			continue
-		}
-
+	for _, dev := range d.expandedDevices.Filter(filters.IsFilesystemDisk) {
 		var statfs *unix.Statfs_t
 		labels := make(map[string]string)
 		realDev := ""
