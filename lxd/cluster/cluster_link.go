@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -127,4 +128,134 @@ func ConnectCluster(ctx context.Context, clusterLink api.ClusterLink, args *lxd.
 	}
 
 	return nil, fmt.Errorf("Failed connecting to any address of cluster link %q: %w", clusterLink.Name, errors.Join(errs...))
+}
+
+// RefreshClusterLinkVolatileAddresses refreshes the volatile addresses of a cluster link.
+// It connects to the linked cluster and retrieves its current cluster members. If the addresses
+// have changed, [CheckClusterLinkCertificate] is called to ensure the cluster certificate remains valid.
+func RefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State, name string) error {
+	// Fetch the cluster link and identity cert in a single transaction so we have everything needed
+	// for connecting and cert validation without any further DB queries.
+	var clusterLink *api.ClusterLink
+	var clusterLinkID int64
+	var targetCert *x509.Certificate
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		dbLink, err := dbCluster.GetClusterLink(ctx, tx.Tx(), name)
+		if err != nil {
+			return fmt.Errorf("Failed loading cluster link: %w", err)
+		}
+
+		clusterLinkID = dbLink.ID
+
+		config, err := dbCluster.GetClusterLinkConfig(ctx, tx.Tx(), &dbLink.ID)
+		if err != nil {
+			return fmt.Errorf("Failed loading cluster link config: %w", err)
+		}
+
+		clusterLink = dbLink.ToAPI(config)
+
+		identity, err := dbCluster.GetIdentityByID(ctx, tx.Tx(), dbLink.IdentityID)
+		if err != nil {
+			return fmt.Errorf("Failed loading cluster link identity: %w", err)
+		}
+
+		certs, err := dbCluster.GetIdentitiesPEMCertificates(ctx, tx.Tx(), &identity.ID)
+		if err != nil {
+			return fmt.Errorf("Failed loading cluster link certificate: %w", err)
+		}
+
+		if len(certs[identity.ID]) == 0 {
+			return fmt.Errorf("No certificate found for cluster link identity %q", identity.Name)
+		}
+
+		certBlock, _ := pem.Decode([]byte(certs[identity.ID][0]))
+		if certBlock == nil {
+			return fmt.Errorf("Failed decoding certificate for cluster link identity %q", identity.Name)
+		}
+
+		targetCert, err = x509.ParseCertificate(certBlock.Bytes)
+		if err != nil {
+			return fmt.Errorf("Failed extracting certificate from cluster link identity: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	addresses := shared.SplitNTrimSpace(clusterLink.Config["volatile.addresses"], ",", -1, true)
+	if len(addresses) == 0 {
+		// Pending or otherwise incomplete cluster links do not have bootstrap addresses yet,
+		// so there is nothing to refresh and we should avoid logging connection failures.
+		return nil
+	}
+
+	clusterCert, err := util.LoadClusterCert(s.OS.VarDir)
+	if err != nil {
+		return err
+	}
+
+	targetClient, err := ConnectCluster(ctx, *clusterLink, GetClusterLinkConnectionArgs(clusterCert, targetCert))
+	if err != nil {
+		return fmt.Errorf("Failed connecting to target cluster link: %w", err)
+	}
+
+	// Get cluster members from the target cluster.
+	targetClusterMembers, err := targetClient.GetClusterMembers()
+	if err != nil {
+		return fmt.Errorf("Failed getting cluster members from target cluster: %w", err)
+	}
+
+	newAddresses := make([]string, 0, len(targetClusterMembers))
+	for _, clusterMember := range targetClusterMembers {
+		if clusterMember.URL == "" {
+			continue
+		}
+
+		newAddresses = append(newAddresses, strings.TrimPrefix(clusterMember.URL, "https://"))
+	}
+
+	if !addressSetChanged(addresses, newAddresses) {
+		return nil
+	}
+
+	// Validate the cluster link certificate against the new addresses using the cert we already hold.
+	_, _, err = CheckClusterLinkCertificate(ctx, newAddresses, shared.CertFingerprint(targetCert), version.UserAgent)
+	if err != nil {
+		return fmt.Errorf("Failed validating cluster link certificate: %w", err)
+	}
+
+	clusterLink.Config["volatile.addresses"] = strings.Join(newAddresses, ",")
+
+	// Update the cluster link config in the database.
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		return dbCluster.UpdateClusterLinkConfig(ctx, tx.Tx(), clusterLinkID, clusterLink.Config)
+	})
+	if err != nil {
+		return fmt.Errorf("Failed updating cluster link config: %w", err)
+	}
+
+	return nil
+}
+
+// addressSetChanged returns true if the two address slices differ in their set of values, regardless of order.
+func addressSetChanged(current []string, updated []string) bool {
+	if len(current) != len(updated) {
+		return true
+	}
+
+	currentSet := make(map[string]struct{}, len(current))
+	for _, addr := range current {
+		currentSet[addr] = struct{}{}
+	}
+
+	for _, addr := range updated {
+		_, ok := currentSet[addr]
+		if !ok {
+			return true
+		}
+	}
+
+	return false
 }
