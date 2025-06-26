@@ -21,9 +21,13 @@ test_vm_empty() {
   ! lxc launch --vm --empty v1 -c limits.memory=10% -d "${SMALL_ROOT_DISK}" || false
   lxc delete v1
 
-  echo "Tiny VMs"
+  echo "Tiny VMs with snapshots"
   lxc init --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
+  lxc snapshot v1
+  [ "$(lxc list -f csv -c S)" = "1" ]
   lxc start v1
+  lxc snapshot v1
+  [ "$(lxc list -f csv -c S)" = "2" ]
   lxc delete --force v1
 
   lxc launch --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
