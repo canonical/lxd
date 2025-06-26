@@ -1027,7 +1027,7 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 
 // getMappedDevPath returns the local device path for the given volume.
 // Indicate with mapVolume if the volume should get mapped to the system if it isn't present.
-func (d *powerflex) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook, error) {
+func (d *powerflex) getMappedDevPath(vol Volume, mapVolume bool) (devicePath string, deactivate func() error, err error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -1062,7 +1062,6 @@ func (d *powerflex) getMappedDevPath(vol Volume, mapVolume bool) (string, revert
 		return strings.Contains(path, powerFlexVolumeID)
 	}
 
-	var devicePath string
 	if mapVolume {
 		// Wait for the device path to appear as the volume has been just mapped to the host.
 		devicePath, err = block.WaitDiskDevicePath(d.state.ShutdownCtx, prefix, devicePathFilter)
@@ -1075,9 +1074,20 @@ func (d *powerflex) getMappedDevPath(vol Volume, mapVolume bool) (string, revert
 		return "", nil, fmt.Errorf("Failed to locate device for volume %q: %w", vol.name, err)
 	}
 
-	cleanup := revert.Clone().Fail
+	// At this point, we know that device is mapped and device path was found.
+	// We want to return a deactivation function to a caller so it can
+	// unmap the volume if needed.
+	deactivate = func() error {
+		err := d.unmapVolume(vol)
+		if err != nil {
+			d.Logger().Warn("Failed to unmap volume", logger.Ctx{"volName": vol.name, "err": err})
+		}
+
+		return err
+	}
+
 	revert.Success()
-	return devicePath, cleanup, nil
+	return devicePath, deactivate, nil
 }
 
 // unmapVolume unmaps the given volume from this host.
