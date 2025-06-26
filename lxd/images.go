@@ -65,7 +65,7 @@ var imagesCmd = APIEndpoint{
 	MetricsType: entity.TypeImage,
 
 	Get:  APIEndpointAction{Handler: imagesGet, AllowUntrusted: true},
-	Post: APIEndpointAction{Handler: imagesPost, AllowUntrusted: true},
+	Post: APIEndpointAction{Handler: imagesPost, AllowUntrusted: true, ContentTypes: []string{"application/json", "application/octet-stream", "multipart/form-data"}},
 }
 
 var imageCmd = APIEndpoint{
