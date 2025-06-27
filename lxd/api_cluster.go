@@ -5684,3 +5684,85 @@ func clusterLinkValidateConfig(config map[string]string) error {
 
 	return nil
 }
+
+// autoRefreshClusterLinkVolatileAddressesTask returns a task function and schedule for refreshing cluster link volatile addresses.
+// Volatile addresses are refreshed daily and the task only runs on the cluster leader.
+func autoRefreshClusterLinkVolatileAddressesTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
+	f := func(ctx context.Context) {
+		s := stateFunc()
+
+		leaderInfo, err := s.LeaderInfo()
+		if err != nil {
+			logger.Error("Failed to get leader cluster member address", logger.Ctx{"err": err})
+			return
+		}
+
+		if !leaderInfo.Clustered {
+			return
+		}
+
+		if !leaderInfo.Leader {
+			logger.Debug("Skipping refresh cluster link address task since we're not leader")
+			return
+		}
+
+		opRun := func(op *operations.Operation) error {
+			return autoRefreshClusterLinkVolatileAddresses(ctx, s)
+		}
+
+		op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.RefreshClusterLinkVolatileAddresses, nil, nil, opRun, nil, nil)
+		if err != nil {
+			logger.Error("Failed creating refresh cluster link addresses operation", logger.Ctx{"err": err})
+			return
+		}
+
+		err = op.Start()
+		if err != nil {
+			logger.Error("Failed starting refresh cluster link addresses operation", logger.Ctx{"err": err})
+			return
+		}
+
+		err = op.Wait(ctx)
+		if err != nil {
+			logger.Error("Failed refreshing cluster link addresses", logger.Ctx{"err": err})
+			return
+		}
+	}
+
+	return f, task.Daily()
+}
+
+// autoRefreshClusterLinkVolatileAddresses refreshes the volatile addresses of all cluster links.
+func autoRefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State) error {
+	var clusterLinks []*api.ClusterLink
+
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		// Get all cluster links.
+		dbClusterLinks, err := dbCluster.GetClusterLinks(ctx, tx.Tx())
+
+		for _, dbClusterLink := range dbClusterLinks {
+			clusterLink, err := dbClusterLink.ToAPI(ctx, tx.Tx())
+			if err != nil {
+				return err
+			}
+
+			clusterLinks = append(clusterLinks, clusterLink)
+		}
+
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to fetch cluster links: %w", err)
+	}
+
+	for _, clusterLink := range clusterLinks {
+		err := cluster.RefreshClusterLinkVolatileAddresses(ctx, s, *clusterLink)
+		if err != nil {
+			logger.Warn("Failed to refresh cluster link addresses", logger.Ctx{"err": err, "clusterLinkName": clusterLink.Name})
+		}
+	}
+
+	return nil
+}
