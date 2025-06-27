@@ -885,11 +885,7 @@ func (d *powerflex) CreateVolumeSnapshot(snapVol Volume, op *operations.Operatio
 		return err
 	}
 
-	parentVolConfig := map[string]string{
-		"volatile.uuid": snapVol.parentUUID,
-	}
-
-	parentVol := NewVolume(d, d.name, snapVol.volType, snapVol.contentType, parentName, parentVolConfig, nil)
+	parentVol := snapVol.GetParent()
 	parentVolName, err := d.getVolumeName(parentVol)
 	if err != nil {
 		return err
