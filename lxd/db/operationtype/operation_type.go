@@ -104,6 +104,7 @@ const (
 	VolumeSnapshotTransfer
 	ProjectDelete
 	Wait
+	RefreshClusterLinkVolatileAddresses
 
 	// upperBound is used only to enforce consistency in the package on init.
 	// Make sure it's always the last item in this list.
@@ -273,6 +274,8 @@ func (t Type) Description() string {
 	// Wait is just a testing operation spawned by the testing/operation-wait API endpoint
 	case Wait:
 		return "Just chilling"
+	case RefreshClusterLinkVolatileAddresses:
+		return "Refreshing cluster link volatile addresses"
 
 	// It should never be possible to reach the default clause.
 	// See the init function.
@@ -289,7 +292,7 @@ func (t Type) EntityType() entity.Type {
 		ImagesSynchronize, RemoveExpiredOIDCSessions, RemoveExpiredTokens, RemoveOrphanedOperations,
 		WarningsPruneResolved, ClusterMemberEvacuate, ClusterMemberRestore, LogsExpire, InstanceTypesUpdate,
 		BackupsExpire, SnapshotsExpire, ClusterJoinToken, CertificateAddToken, RenewServerCertificate,
-		ClusterHeal, ImagesUpdate, VolumeSnapshotsCreateScheduled:
+		ClusterHeal, ImagesUpdate, VolumeSnapshotsCreateScheduled, RefreshClusterLinkVolatileAddresses:
 		return entity.TypeServer
 
 	// Project level operations.
