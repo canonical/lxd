@@ -24,9 +24,6 @@ test_vm_empty() {
   echo "Too small VMs"
   ! lxc launch --vm --empty v1 -c limits.memory=0 -d "${SMALL_ROOT_DISK}" || false
   ! lxc launch --vm --empty v1 -c limits.memory=0% -d "${SMALL_ROOT_DISK}" || false
-  # VMs don't support limits.memory in % but it's only detect at start time so needs cleanup
-  ! lxc launch --vm --empty v1 -c limits.memory=10% -d "${SMALL_ROOT_DISK}" || false
-  lxc delete v1
 
   echo "Tiny VMs with snapshots"
   lxc init --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
@@ -42,7 +39,7 @@ test_vm_empty() {
   [ "$(lxc list -f csv -c S)" = "2" ]
   lxc delete --force v1
 
-  lxc launch --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
+  lxc launch --vm --empty v1 -c limits.memory=1% -d "${SMALL_ROOT_DISK}"
   lxc delete --force v1
 
   echo "Ephemeral cleanup"
