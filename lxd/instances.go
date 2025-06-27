@@ -36,7 +36,7 @@ var instancesCmd = APIEndpoint{
 	},
 
 	Get:  APIEndpointAction{Handler: instancesGet, AccessHandler: allowProjectResourceList},
-	Post: APIEndpointAction{Handler: instancesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateInstances)},
+	Post: APIEndpointAction{Handler: instancesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateInstances), ContentTypes: []string{"application/json", "application/octet-stream"}},
 	Put:  APIEndpointAction{Handler: instancesPut, AccessHandler: allowProjectResourceList},
 }
 
