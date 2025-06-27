@@ -74,7 +74,7 @@ var storagePoolVolumesTypeCmd = APIEndpoint{
 	MetricsType: entity.TypeStoragePool,
 
 	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowProjectResourceList},
-	Post: APIEndpointAction{Handler: storagePoolVolumesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateStorageVolumes)},
+	Post: APIEndpointAction{Handler: storagePoolVolumesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateStorageVolumes), ContentTypes: []string{"application/json", "application/octet-stream"}},
 }
 
 var storagePoolVolumeTypeCmd = APIEndpoint{
@@ -957,6 +957,7 @@ func filterVolumes(volumes []*db.StorageVolume, clauses *filter.ClauseSet, allPr
 //	---
 //	consumes:
 //	  - application/json
+//	  - application/octet-stream
 //	produces:
 //	  - application/json
 //	parameters:
