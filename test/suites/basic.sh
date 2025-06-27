@@ -315,12 +315,12 @@ test_basic_usage() {
   lxc delete -f "${RDNAME}"
 
   # Test "nonetype" container creation
-  wait_for "${LXD_ADDR}" my_curl -X POST "https://${LXD_ADDR}/1.0/containers" \
+  wait_for "${LXD_ADDR}" my_curl -X POST --fail-with-body -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/containers" \
         -d "{\"name\":\"nonetype\",\"source\":{\"type\":\"none\"}}"
   lxc delete nonetype
 
   # Test "nonetype" container creation with an LXC config
-  wait_for "${LXD_ADDR}" my_curl -X POST "https://${LXD_ADDR}/1.0/containers" \
+  wait_for "${LXD_ADDR}" my_curl -X POST --fail-with-body -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/containers" \
         -d "{\"name\":\"configtest\",\"config\":{\"raw.lxc\":\"lxc.hook.clone=/bin/true\"},\"source\":{\"type\":\"none\"}}"
   # shellcheck disable=SC2102
   [ "$(my_curl "https://${LXD_ADDR}/1.0/containers/configtest" | jq -r .metadata.config[\"raw.lxc\"])" = "lxc.hook.clone=/bin/true" ]
@@ -492,7 +492,7 @@ test_basic_usage() {
   lxc profile delete clash
 
   # check that we can get the return code for a non- wait-for-websocket exec
-  op=$(my_curl -X POST "https://${LXD_ADDR}/1.0/containers/foo/exec" -d '{"command": ["echo", "test"], "environment": {}, "wait-for-websocket": false, "interactive": false}' | jq -r .operation)
+  op=$(my_curl -X POST --fail-with-body -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/containers/foo/exec" -d '{"command": ["echo", "test"], "environment": {}, "wait-for-websocket": false, "interactive": false}' | jq -r .operation)
   [ "$(my_curl "https://${LXD_ADDR}${op}/wait" | jq -r .metadata.metadata.return)" != "null" ]
 
   # test file transfer
