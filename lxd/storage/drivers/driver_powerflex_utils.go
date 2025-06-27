@@ -922,7 +922,7 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 
 	switch d.config["powerflex.mode"] {
 	case connectors.TypeNVME:
-		unlock, err := remoteVolumeMapLock(connector.Type(), "powerflex")
+		unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
 		if err != nil {
 			return nil, err
 		}
@@ -1116,7 +1116,7 @@ func (d *powerflex) unmapVolume(vol Volume) error {
 			return err
 		}
 
-		unlock, err := remoteVolumeMapLock(connector.Type(), "powerflex")
+		unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
 		if err != nil {
 			return err
 		}
