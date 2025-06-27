@@ -103,7 +103,7 @@ test_remote_url_with_token() {
   [ "$(CERTNAME="token-client" my_curl "https://${LXD_ADDR}/1.0/instances" | jq '.error_code')" -eq 403 ]
 
   # Add valid token
-  CERTNAME="token-client" my_curl -X POST -d "{\"password\": ${token}}" "https://${LXD_ADDR}/1.0/certificates"
+  CERTNAME="token-client" my_curl -X POST --fail-with-body -H 'Content-Type: application/json' -d "{\"password\": ${token}}" "https://${LXD_ADDR}/1.0/certificates"
 
   # Check if we can see instances
   [ "$(CERTNAME="token-client" my_curl "https://${LXD_ADDR}/1.0/instances" | jq '.status_code')" -eq 200 ]
@@ -117,7 +117,7 @@ test_remote_url_with_token() {
   token="$(lxc config trust list-tokens -f json | jq '.[].Token')"
 
   # Add valid token but override projects
-  CERTNAME="token-client" my_curl -X POST -d "{\"password\":${token},\"projects\":[\"default\",\"foo\"],\"restricted\":false}" "https://${LXD_ADDR}/1.0/certificates"
+  CERTNAME="token-client" my_curl -X POST --fail-with-body -H 'Content-Type: application/json' -d "{\"password\":${token},\"projects\":[\"default\",\"foo\"],\"restricted\":false}" "https://${LXD_ADDR}/1.0/certificates"
 
   # Check if we can see instances in the foo project
   [ "$(CERTNAME="token-client" my_curl "https://${LXD_ADDR}/1.0/instances?project=foo" | jq '.status_code')" -eq 200 ]
