@@ -1419,6 +1419,16 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 	}
 
+	// --dhcp-ignore-clid option is only supported on >2.81.
+	// We want this to avoid duplicate IPs assigned to VM copies.
+	// The issue is that, while LXD updates the UUID on VM copy, cloud-init doesn't update machine-id in the new instance,
+	// and the same machine-id with the same link name in VM leads to the same client-id.
+	// So we ask dnsmasq to use MAC instead.
+	minVer, _ = version.NewDottedVersion("2.81")
+	if dnsmasqVersion.Compare(minVer) > 0 {
+		dnsmasqCmd = append(dnsmasqCmd, "--dhcp-ignore-clid")
+	}
+
 	var ipv4Address net.IP
 
 	// Configure IPv4.
