@@ -506,7 +506,7 @@ func (d *nicOVN) validateEnvironment() error {
 
 	integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
 
-	if !shared.PathExists("/sys/class/net/" + integrationBridge) && d.config["required"] == "true" {
+	if !shared.PathExists("/sys/class/net/"+integrationBridge) && d.config["required"] == "true" {
 		return fmt.Errorf("OVS integration bridge device %q doesn't exist", integrationBridge)
 	}
 
