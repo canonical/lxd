@@ -6744,7 +6744,6 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 		err = d.postMigrateSendCommon(d, args.ClusterMoveSourceName)
 		if err != nil {
 			d.logger.Error("Post-migration steps failed on source", logger.Ctx{"err": err})
-			return err
 		}
 
 		return nil

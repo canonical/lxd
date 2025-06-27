@@ -5705,7 +5705,6 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 			postMigrateSendErr := d.postMigrateSendCommon(d, args.ClusterMoveSourceName)
 			if postMigrateSendErr != nil {
 				d.logger.Error("Post-migration steps failed on source", logger.Ctx{"err": postMigrateSendErr})
-				return postMigrateSendErr
 			}
 		}
 
