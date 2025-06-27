@@ -1213,7 +1213,7 @@ func (d *pure) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 		return nil, err
 	}
 
-	unlock, err := remoteVolumeMapLock(connector.Type(), "pure")
+	unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
 	if err != nil {
 		return nil, err
 	}
@@ -1283,7 +1283,7 @@ func (d *pure) unmapVolume(vol Volume) error {
 		return err
 	}
 
-	unlock, err := remoteVolumeMapLock(connector.Type(), "pure")
+	unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
 	if err != nil {
 		return err
 	}
