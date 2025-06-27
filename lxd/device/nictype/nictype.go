@@ -35,6 +35,9 @@ func NICType(s *state.State, deviceProjectName string, d deviceConfig.Device) (s
 				return err
 			})
 			if err != nil {
+				if d["required"] == "false" {
+					return "bridged", nil
+				}
 				return "", fmt.Errorf("Failed to load network %q for project %q: %w", d["network"], networkProjectName, err)
 			}
 

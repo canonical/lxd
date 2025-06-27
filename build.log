@@ -1,0 +1,122 @@
+go install -v -trimpath  ./lxc
+LXD client built successfully
+CGO_ENABLED=0 go install -v -trimpath -tags lxd-metadata ./lxd/lxd-metadata
+LXD metadata built successfully
+CC="cc" CGO_LDFLAGS_ALLOW="(-Wl,-wrap,pthread_create)|(-Wl,-z,now)" go install -v -tags "libsqlite3" -trimpath  ./lxd
+github.com/canonical/lxd/lxd/idmap
+github.com/canonical/lxd/lxd/sys
+github.com/canonical/lxd/lxd/instancewriter
+github.com/canonical/lxd/lxd/subprocess
+github.com/canonical/lxd/lxd/dnsmasq
+github.com/canonical/lxd/lxd/state
+github.com/canonical/lxd/lxd/dnsmasq/dhcpalloc
+github.com/canonical/lxd/lxd/acme
+github.com/canonical/lxd/lxd/device/nictype
+github.com/canonical/lxd/lxd/operations
+github.com/canonical/lxd/lxd/apparmor
+github.com/canonical/lxd/lxd/seccomp
+github.com/canonical/lxd/lxd/migration
+github.com/canonical/lxd/lxd/lifecycle
+github.com/canonical/lxd/lxd/archive
+github.com/canonical/lxd/lxd/instance/drivers/uefi
+github.com/canonical/lxd/lxd/backup
+github.com/canonical/lxd/lxd/storage/drivers
+github.com/canonical/lxd/lxd/instance
+github.com/canonical/lxd/lxd/device/cdi
+github.com/canonical/lxd/lxd/storage/s3/miniod
+github.com/canonical/lxd/lxd/project/limits
+github.com/canonical/lxd/lxd/storage
+github.com/canonical/lxd/lxd/cluster
+github.com/canonical/lxd/lxd/network/acl
+github.com/canonical/lxd/lxd/network
+github.com/canonical/lxd/lxd/network/zone
+github.com/canonical/lxd/lxd/device
+github.com/canonical/lxd/lxd/instance/drivers
+github.com/canonical/lxd/lxd/scriptlet
+github.com/canonical/lxd/lxd
+CGO_ENABLED=0 go install -v -tags netgo -trimpath  ./lxd-user ./lxd-benchmark
+net
+os/user
+vendor/golang.org/x/net/http/httpproxy
+log/syslog
+github.com/armon/go-proxyproto
+net/textproto
+golang.org/x/net/internal/socks
+github.com/google/uuid
+crypto/x509
+github.com/spf13/pflag
+github.com/sirupsen/logrus/hooks/syslog
+golang.org/x/net/proxy
+github.com/canonical/lxd/shared/logger
+vendor/golang.org/x/net/http/httpguts
+github.com/canonical/lxd/lxd/storage/filesystem
+github.com/go-jose/go-jose/v4
+golang.org/x/crypto/ssh
+crypto/tls
+github.com/zitadel/oidc/v3/pkg/crypto
+github.com/pkg/sftp
+net/http/httptrace
+github.com/canonical/lxd/shared/tcp
+net/http
+github.com/canonical/lxd/shared/cancel
+golang.org/x/oauth2/internal
+github.com/zitadel/logging
+go.opentelemetry.io/otel/propagation
+github.com/gorilla/websocket
+github.com/canonical/lxd/shared/api
+golang.org/x/oauth2
+go.opentelemetry.io/otel/internal/global
+golang.org/x/oauth2/clientcredentials
+github.com/zitadel/oidc/v3/pkg/oidc
+github.com/canonical/lxd/lxd/request
+github.com/canonical/lxd/shared
+github.com/canonical/lxd/shared/ws
+go.opentelemetry.io/otel
+github.com/zitadel/oidc/v3/pkg/http
+github.com/zitadel/oidc/v3/pkg/client
+github.com/zitadel/oidc/v3/pkg/client/rp
+github.com/canonical/lxd/shared/simplestreams
+github.com/canonical/lxd/shared/version
+github.com/canonical/lxd/lxd/util
+github.com/canonical/lxd/client
+github.com/canonical/lxd/lxd/endpoints/listeners
+github.com/canonical/lxd/lxd/ucred
+github.com/canonical/lxd/lxd-user/callhook
+github.com/canonical/lxd/lxc/config
+github.com/canonical/lxd/lxd-user
+github.com/canonical/lxd/lxd-benchmark/benchmark
+github.com/canonical/lxd/lxd-benchmark
+LXD built successfully
+CGO_ENABLED=0 go install -v -trimpath -tags agent,netgo ./lxd-agent
+github.com/vishvananda/netlink/nl
+github.com/canonical/lxd/shared/validate
+github.com/mdlayher/vsock
+github.com/gorilla/mux
+github.com/canonical/lxd/lxd/identity
+github.com/canonical/lxd/lxd/device/config
+github.com/canonical/lxd/shared/entity
+github.com/canonical/lxd/lxd/vsock
+github.com/canonical/lxd/lxd/instance/instancetype
+github.com/canonical/lxd/lxd/metrics
+github.com/canonical/lxd/lxd/auth
+github.com/canonical/lxd/lxd/events
+github.com/canonical/lxd/lxd/db/operationtype
+github.com/vishvananda/netlink
+github.com/canonical/lxd/lxd/response
+github.com/canonical/lxd/lxd/state
+github.com/canonical/lxd/lxd/operations
+github.com/canonical/lxd/lxd/ip
+github.com/canonical/lxd/lxd-agent
+LXD agent built successfully
+CGO_ENABLED=0 go install -v -trimpath -tags netgo ./lxd-migrate
+github.com/canonical/lxd/shared/i18n
+archive/tar
+github.com/canonical/lxd/lxd/linux
+github.com/canonical/lxd/lxd/backup/config
+github.com/canonical/lxd/lxd/storage/block
+github.com/canonical/lxd/shared/cmd
+github.com/canonical/lxd/shared/eagain
+github.com/canonical/lxd/lxd/rsync
+github.com/canonical/lxd/lxd/migration
+github.com/canonical/lxd/lxd-migrate
+LXD-MIGRATE built successfully

@@ -92,6 +92,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		"maas.subnet.ipv6",
 		"boot.priority",
 		"vlan",
+		"required",
 	}
 
 	// checkWithManagedNetwork validates the device's settings against the managed network.
@@ -214,6 +215,9 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		var err error
 		d.network, err = network.LoadByName(d.state, api.ProjectDefaultName, d.config["network"])
 		if err != nil {
+			if d.config["required"] == "false" {
+				return nil
+			}
 			return fmt.Errorf("Error loading network config for %q: %w", d.config["network"], err)
 		}
 
@@ -486,6 +490,11 @@ func (d *nicBridged) PreStartCheck() error {
 		return nil
 	}
 
+	//skip status check and start container if not required
+	if shared.IsFalse(d.config["required"]) {
+		return nil
+	}
+
 	// If managed network is not available, don't try and start instance.
 	if d.network.LocalStatus() == api.NetworkStatusUnavailable {
 		return api.StatusErrorf(http.StatusServiceUnavailable, "Network %q unavailable on this server", d.network.Name())
@@ -501,6 +510,9 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
+	if (d.network == nil || d.network.LocalStatus() == api.NetworkStatusUnavailable) && d.config["required"] == "false" {
+        	return &deviceConfig.RunConfig{}, nil
+	}
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -1796,6 +1808,9 @@ func (d *nicBridged) getHostMTU() (int, error) {
 
 // Register sets up anything needed on LXD startup.
 func (d *nicBridged) Register() error {
+	if d.network == nil && d.config["required"] == "false" {
+		return nil
+	}
 	err := bgpAddPrefix(&d.deviceCommon, d.network, d.config)
 	if err != nil {
 		return err
