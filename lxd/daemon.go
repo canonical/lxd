@@ -2070,6 +2070,9 @@ func (d *Daemon) startClusterTasks() {
 	// Perform automatic evacuation for offline cluster members
 	d.clusterTasks.Add(autoHealClusterTask(d.State))
 
+	// Update cluster link volatile addresses (daily).
+	d.clusterTasks.Add(autoUpdateClusterLinkVolatileAddressesTask(d.State))
+
 	// Start all background tasks
 	d.clusterTasks.Start(d.shutdownCtx)
 }
