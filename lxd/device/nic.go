@@ -60,12 +60,12 @@ func nicValidationRules(requiredFields []string, optionalFields []string, instCo
 		//  shortdesc: Name of the host device to join the instance to
 		"parent": validate.IsAny,
 		// lxdmeta:generate(entities=device-nic-{bridged+macvlan+ovn} group=device-conf; key=required)
-		// Container will start regardless of this networks availability
+		// 
 		// ---
 		//  type: bool
 		//  defaultdesc: `true`
 		//  required: no
-		//  shortdesc: This network is required
+		//  shortdesc: Whether this network is required to start the instance 
 		"required": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=device-nic-{bridged+macvlan+sriov+physical}; group=device-conf; key=network)
 		// You can specify this option instead of specifying the `nictype` directly.
