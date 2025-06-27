@@ -116,6 +116,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 		if d.config["required"] == "false" {
 			return nil
 		}
+		
 		return fmt.Errorf("Error loading network config for %q: %w", d.config["network"], err)
 	}
 
@@ -485,7 +486,7 @@ func (d *nicOVN) PreStartCheck() error {
 		return nil
 	}
 
-	//skip status check and start container if not requireu
+	// Skip status check and start container.
 	if shared.IsFalse(d.config["required"]) {
 		return nil
 	}
@@ -529,6 +530,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	if d.network == nil && d.config["required"] == "false" {
 		return nil, nil
 	}
+	
 	// Load uplink network config.
 	uplinkNetworkName := d.network.Config()["network"]
 

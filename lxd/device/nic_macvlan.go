@@ -75,6 +75,7 @@ func (d *nicMACVLAN) validateConfig(instConf instance.ConfigReader) error {
 			if d.config["required"] == "false" {
 				return nil
 			}
+			
 			return fmt.Errorf("Error loading network config for %q: %w", d.config["network"], err)
 		}
 

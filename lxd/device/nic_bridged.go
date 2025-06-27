@@ -218,6 +218,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 			if d.config["required"] == "false" {
 				return nil
 			}
+			
 			return fmt.Errorf("Error loading network config for %q: %w", d.config["network"], err)
 		}
 
@@ -490,7 +491,7 @@ func (d *nicBridged) PreStartCheck() error {
 		return nil
 	}
 
-	//skip status check and start container if not required
+	// Skip status check and start container.
 	if shared.IsFalse(d.config["required"]) {
 		return nil
 	}
@@ -513,6 +514,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	if (d.network == nil || d.network.LocalStatus() == api.NetworkStatusUnavailable) && d.config["required"] == "false" {
 		return nil, nil
 	}
+	
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -1811,6 +1813,7 @@ func (d *nicBridged) Register() error {
 	if d.network == nil && d.config["required"] == "false" {
 		return nil
 	}
+	
 	err := bgpAddPrefix(&d.deviceCommon, d.network, d.config)
 	if err != nil {
 		return err
