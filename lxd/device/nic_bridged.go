@@ -511,7 +511,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	if (d.network == nil || d.network.LocalStatus() == api.NetworkStatusUnavailable) && d.config["required"] == "false" {
-        	return &deviceConfig.RunConfig{}, nil
+        	return nil, nil
 	}
 	revert := revert.New()
 	defer revert.Fail()

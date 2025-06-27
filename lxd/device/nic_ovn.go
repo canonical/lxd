@@ -527,7 +527,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	saveData["host_name"] = d.config["host_name"]
 
 	if d.network == nil && d.config["required"] == "false" {
-		return &deviceConfig.RunConfig{}, nil
+		return nil, nil
 	}
 	// Load uplink network config.
 	uplinkNetworkName := d.network.Config()["network"]
