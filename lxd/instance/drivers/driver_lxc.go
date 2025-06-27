@@ -5274,7 +5274,7 @@ fi
 }
 
 // MigrateSend controls the sending side of a migration.
-func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
+func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	d.logger.Info("Migration send starting")
 	defer d.logger.Info("Migration send stopped")
 
@@ -5698,6 +5698,14 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 				if err != nil {
 					d.logger.Error("Dump failed after successful restore", logger.Ctx{"err": err})
 				}
+			}
+		}
+
+		if err == nil {
+			postMigrateSendErr := d.postMigrateSendCommon(d, args.ClusterMoveSourceName)
+			if postMigrateSendErr != nil {
+				d.logger.Error("Post-migration steps failed on source", logger.Ctx{"err": postMigrateSendErr})
+				return postMigrateSendErr
 			}
 		}
 
@@ -6381,11 +6389,6 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		revert.Success()
 		return nil
 	}
-}
-
-// PostMigrateSend performs any required cleanup steps after an instance has been migrated to another member.
-func (d *lxc) PostMigrateSend() error {
-	return d.postMigrateSendCommon(d)
 }
 
 // ConversionReceive establishes the filesystem connection, transfers the filesystem / block volume,

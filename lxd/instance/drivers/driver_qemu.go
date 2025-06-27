@@ -6510,7 +6510,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 }
 
 // MigrateSend controls the sending side of a migration.
-func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
+func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	d.logger.Info("Migration send starting")
 	defer d.logger.Info("Migration send stopped")
 
@@ -6738,6 +6738,12 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 	{
 		err := g.Wait()
 		if err != nil {
+			return err
+		}
+
+		err = d.postMigrateSendCommon(d, args.ClusterMoveSourceName)
+		if err != nil {
+			d.logger.Error("Post-migration steps failed on source", logger.Ctx{"err": err})
 			return err
 		}
 
@@ -7560,11 +7566,6 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		revert.Success()
 		return nil
 	}
-}
-
-// PostMigrateSend performs any required cleanup steps after an instance has been migrated to another member.
-func (d *qemu) PostMigrateSend() error {
-	return d.postMigrateSendCommon(d)
 }
 
 // ConversionReceive establishes the filesystem connection, transfers the filesystem / block volume,
