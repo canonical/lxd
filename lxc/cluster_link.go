@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/url"
 	"os"
 	"sort"
@@ -57,6 +58,18 @@ func (c *cmdClusterLink) command() *cobra.Command {
 	// Info
 	clusterLinkInfoCmd := cmdClusterLinkInfo{global: c.global, cluster: c.cluster}
 	cmd.AddCommand(clusterLinkInfoCmd.command())
+
+	// Get
+	clusterLinkGetCmd := cmdClusterLinkGet{global: c.global, cluster: c.cluster}
+	cmd.AddCommand(clusterLinkGetCmd.command())
+
+	// Set
+	clusterLinkSetCmd := cmdClusterLinkSet{global: c.global, cluster: c.cluster}
+	cmd.AddCommand(clusterLinkSetCmd.command())
+
+	// Unset
+	clusterLinkUnsetCmd := cmdClusterLinkUnset{global: c.global, cluster: c.cluster, clusterLinkSet: &clusterLinkSetCmd}
+	cmd.AddCommand(clusterLinkUnsetCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -650,4 +663,214 @@ func (c *cmdClusterLinkInfo) run(cmd *cobra.Command, args []string) error {
 	}
 
 	return cli.RenderTable(cli.TableFormatTable, header, data, clusterLinkState.ClusterLinkMembersState)
+}
+
+// Get.
+type cmdClusterLinkGet struct {
+	global  *cmdGlobal
+	cluster *cmdCluster
+
+	flagIsProperty bool
+}
+
+func (c *cmdClusterLinkGet) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("get", "[<remote>:]<link> <key>")
+	cmd.Short = "Get values for cluster link configuration keys"
+	cmd.Long = cli.FormatSection("Description", `Get values for cluster link configuration keys`)
+
+	cmd.RunE = c.run
+
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, "Get the key as a cluster link property")
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("cluster_link", toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpClusterLinkConfig(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdClusterLinkGet) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing cluster link name")
+	}
+
+	// Get the configuration key
+	clusterLink, _, err := resource.server.GetClusterLink(resource.name)
+	if err != nil {
+		return err
+	}
+
+	if c.flagIsProperty {
+		w := clusterLink.Writable()
+		res, err := getFieldByJSONTag(&w, args[1])
+		if err != nil {
+			return fmt.Errorf("The property %q does not exist on the cluster link %q: %v", args[1], resource.name, err)
+		}
+
+		fmt.Printf("%v\n", res)
+	} else {
+		fmt.Printf("%s\n", clusterLink.Config[args[1]])
+	}
+
+	return nil
+}
+
+// Set.
+type cmdClusterLinkSet struct {
+	global  *cmdGlobal
+	cluster *cmdCluster
+
+	flagIsProperty bool
+}
+
+func (c *cmdClusterLinkSet) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("set", "[<remote>:]<link> <key>=<value>...")
+	cmd.Short = "Set cluster link configuration keys"
+	cmd.Long = cli.FormatSection("Description", `Set cluster link configuration keys
+
+For backward compatibility, a single configuration key may still be set with
+lxc cluster link set [<remote>:]<link> <key> <value>`)
+
+	cmd.RunE = c.run
+
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, "Set the key as a cluster link property")
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("cluster_link", toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpClusterLinkConfig(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdClusterLinkSet) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing cluster link name")
+	}
+
+	// Get the cluster link
+	clusterLink, etag, err := resource.server.GetClusterLink(resource.name)
+	if err != nil {
+		return err
+	}
+
+	// Set the configuration key
+	keys, err := getConfig(args[1:]...)
+	if err != nil {
+		return err
+	}
+
+	writable := clusterLink.Writable()
+	if c.flagIsProperty {
+		if cmd.Name() == "unset" {
+			for k := range keys {
+				err := unsetFieldByJSONTag(&writable, k)
+				if err != nil {
+					return fmt.Errorf("Error unsetting property: %v", err)
+				}
+			}
+		} else {
+			err := unpackKVToWritable(&writable, keys)
+			if err != nil {
+				return fmt.Errorf("Error setting properties: %v", err)
+			}
+		}
+	} else {
+		maps.Copy(writable.Config, keys)
+	}
+
+	return resource.server.UpdateClusterLink(resource.name, writable, etag)
+}
+
+// Unset.
+type cmdClusterLinkUnset struct {
+	global         *cmdGlobal
+	cluster        *cmdCluster
+	clusterLinkSet *cmdClusterLinkSet
+
+	flagIsProperty bool
+}
+
+func (c *cmdClusterLinkUnset) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("unset", "[<remote>:]<link> <key>")
+	cmd.Short = "Unset cluster link configuration keys"
+	cmd.Long = cli.FormatSection("Description", `Unset cluster link configuration keys`)
+
+	cmd.RunE = c.run
+
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, "Unset the key as a cluster link property")
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("cluster_link", toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpClusterLinkConfig(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdClusterLinkUnset) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	c.clusterLinkSet.flagIsProperty = c.flagIsProperty
+
+	// Get the current cluster link.
+	args = append(args, "")
+	return c.clusterLinkSet.run(cmd, args)
 }
