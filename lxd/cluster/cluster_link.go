@@ -6,6 +6,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"maps"
 	"net/url"
 	"strings"
 	"sync"
@@ -143,7 +144,7 @@ func RefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State, cl
 
 	addresses := shared.SplitNTrimSpace(clusterLink.Config["volatile.addresses"], ",", -1, false)
 
-	// Update "volatile.addresses".
+	// Get cluster members from the target cluster.
 	targetClusterMembers, err := targetClient.GetClusterMembers()
 	if err != nil {
 		return fmt.Errorf("Failed to get cluster members from target cluster: %w", err)
@@ -198,6 +199,7 @@ func RefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State, cl
 			}
 		}
 
+		// Get the cluster link identity to pass to [CheckClusterLinkCertificate].
 		var identity *dbCluster.Identity
 		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			identity, err = dbCluster.GetIdentityByNameOrIdentifier(ctx, tx.Tx(), api.AuthenticationMethodTLS, clusterLink.Name)
@@ -217,7 +219,19 @@ func RefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State, cl
 			return fmt.Errorf("Failed to validate cluster link certificate: %w", err)
 		}
 
-		clusterLink.Config["volatile.addresses"] = strings.Join(finalAddresses, ",")
+		// Create a copy of the config and update volatile.addresses.
+		updatedConfig := make(map[string]string)
+		maps.Copy(updatedConfig, clusterLink.Config)
+
+		updatedConfig["volatile.addresses"] = strings.Join(finalAddresses, ",")
+
+		// Update the cluster link config in the database.
+		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			return dbCluster.UpdateClusterLinkConfig(ctx, tx.Tx(), clusterLink.Name, updatedConfig)
+		})
+		if err != nil {
+			return fmt.Errorf("Failed to update cluster link config: %w", err)
+		}
 	}
 
 	return nil
