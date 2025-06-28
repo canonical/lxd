@@ -1111,24 +1111,9 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 
 		// Configure the memory limits
 		if memory != "" {
-			var valueInt int64
-			if strings.HasSuffix(memory, "%") {
-				percent, err := strconv.ParseInt(strings.TrimSuffix(memory, "%"), 10, 64)
-				if err != nil {
-					return nil, err
-				}
-
-				memoryTotal, err := shared.DeviceTotalMemory()
-				if err != nil {
-					return nil, err
-				}
-
-				valueInt = int64((memoryTotal / 100) * percent)
-			} else {
-				valueInt, err = units.ParseByteSizeString(memory)
-				if err != nil {
-					return nil, err
-				}
+			valueInt, err := parseMemoryStr(memory)
+			if err != nil {
+				return nil, err
 			}
 
 			if memoryEnforce == "soft" {
@@ -4604,20 +4589,8 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 				// Parse memory
 				if memory == "" {
 					memoryInt = -1
-				} else if strings.HasSuffix(memory, "%") {
-					percent, err := strconv.ParseInt(strings.TrimSuffix(memory, "%"), 10, 64)
-					if err != nil {
-						return err
-					}
-
-					memoryTotal, err := shared.DeviceTotalMemory()
-					if err != nil {
-						return err
-					}
-
-					memoryInt = int64((memoryTotal / 100) * percent)
 				} else {
-					memoryInt, err = units.ParseByteSizeString(memory)
+					memoryInt, err = parseMemoryStr(memory)
 					if err != nil {
 						return err
 					}
