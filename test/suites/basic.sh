@@ -108,6 +108,10 @@ test_basic_usage() {
   lxc list | grep foo | grep STOPPED
   lxc list fo | grep foo | grep STOPPED
 
+  echo "Too small containers"
+  ! lxc init --empty c1 -c limits.memory=0 || false
+  ! lxc init --empty c1 -c limits.memory=0% || false
+
   # Test list json format
   lxc list --format json | jq '.[]|select(.name="foo")' | grep '"name": "foo"'
 
