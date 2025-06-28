@@ -8716,9 +8716,12 @@ func (d *qemu) Info() instance.Info {
 		return data
 	}
 
-	out, err := exec.Command(qemuPath, "--version").Output()
+	cmd := exec.Command(qemuPath, "--version")
+	cmd.Stderr = new(bytes.Buffer)
+	out, err := cmd.Output()
 	if err != nil {
-		logger.Errorf("Failed getting version during QEMU initialization: %v", err)
+		logger.Errorf("Failed getting version during QEMU initialization: %s",
+			cmd.Stderr.(*bytes.Buffer).String())
 		data.Error = errors.New("Failed getting QEMU version")
 		return data
 	}
