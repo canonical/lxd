@@ -336,7 +336,7 @@ test_projects_profiles() {
   lxc profile set --project default default user.x z
   lxc profile copy --project default --target-project foo default bar
   # copy to an existing profile without --refresh should fail
-  ! lxc profile copy --project default --target-project foo default bar
+  ! lxc profile copy --project default --target-project foo default bar || false
   lxc profile copy --project default --target-project foo default bar --refresh
   [ "$(lxc profile get --project foo bar user.x)" = "z" ]
   lxc profile copy --project default --target-project foo default bar-non-existent --refresh
@@ -512,14 +512,14 @@ test_projects_storage() {
   lxc project set foo features.storage.volumes=true
   lxc storage volume create "${pool}" vol
   lxc project switch foo
-  ! lxc storage volume list "${pool}" | grep -wF custom | grep -wF vol
+  ! lxc storage volume list "${pool}" | grep -wF custom | grep -wF vol || false
 
   lxc storage volume create "${pool}" vol
   lxc storage volume delete "${pool}" vol
 
   lxc storage volume create "${pool}" vol2
   lxc project switch default
-  ! lxc storage volume list "${pool}" | grep -wF custom | grep -wF vol2
+  ! lxc storage volume list "${pool}" | grep -wF custom | grep -wF vol2 || false
 
   lxc project switch foo
   lxc storage volume delete "${pool}" vol2
