@@ -99,14 +99,14 @@ test_metrics() {
   CERTNAME=metrics-restricted my_curl -X GET "https://${LXD_ADDR}/1.0/metrics?project=foo" | grep "name=\"c3\""
 
   # c3 metrics cannot be viewed via the generic metrics endpoint if the certificate is restricted
-  ! CERTNAME=metrics-restricted my_curl -X GET "https://${LXD_ADDR}/1.0/metrics"
+  ! CERTNAME=metrics-restricted my_curl -X GET "https://${LXD_ADDR}/1.0/metrics" || false
 
   # other projects metrics aren't visible as they aren't allowed for the restricted certificate
-  ! CERTNAME=metrics-restricted my_curl -X GET "https://${LXD_ADDR}/1.0/metrics?project=default"
+  ! CERTNAME=metrics-restricted my_curl -X GET "https://${LXD_ADDR}/1.0/metrics?project=default" || false
 
   # c1 and c2 metrics are not visible as they are in another project
-  ! CERTNAME=metrics-restricted my_curl -X GET "https://${metrics_addr}/1.0/metrics?project=foo" | grep "name=\"c1\""
-  ! CERTNAME=metrics-restricted my_curl -X GET "https://${metrics_addr}/1.0/metrics?project=foo" | grep "name=\"c2\""
+  ! CERTNAME=metrics-restricted my_curl -X GET "https://${metrics_addr}/1.0/metrics?project=foo" | grep "name=\"c1\"" || false
+  ! CERTNAME=metrics-restricted my_curl -X GET "https://${metrics_addr}/1.0/metrics?project=foo" | grep "name=\"c2\"" || false
 
   # Check that we can get the count of existing containers. There should be two in the default project: c1 (RUNNING) and c2 (STOPPED).
   CERTNAME=metrics my_curl -X GET "https://${metrics_addr}/1.0/metrics" | grep -xF 'lxd_instances{project="default",type="container"} 2'
