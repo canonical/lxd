@@ -147,7 +147,7 @@ _container_devices_unix() {
 
   # Cleanup.
   rm -rvf "${testDev}"
-  sleep 1
+  sleep 30
   ! lxc exec "${ctName}" -- mount | grep -F "/tmp/testdev" || false
   ! lxc exec "${ctName}" -- test -e /tmp/testdev || false
   ! test -e "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev || false
