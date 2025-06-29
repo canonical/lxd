@@ -37,7 +37,9 @@ test_image_expiry() {
 
   for _ in $(seq 20); do
     sleep 1
-    ! lxc_remote image list l2: | grep -wF "${fpbrief}" && break
+    if lxc_remote image list l2: | grep -wF "${fpbrief}"; then
+      break
+    fi
   done
 
   ! lxc_remote image list l2: | grep -wF "${fpbrief}" || false
@@ -59,7 +61,9 @@ test_image_expiry() {
 
   for _ in $(seq 20); do
     sleep 1
-    ! lxc_remote image list l2: --project p1 | grep -wF "${fpbrief}" && break
+    if lxc_remote image list l2: --project p1 | grep -wF "${fpbrief}"; then
+      break
+    fi
   done
 
   ! lxc_remote image list l2: --project p1 | grep -wF "${fpbrief}" || false
