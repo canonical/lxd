@@ -212,8 +212,8 @@ container_devices_proxy_tcp() {
   if [ "$firewallDriver" = "xtables" ]; then
     [ "$(iptables -w -t nat -S | grep -cF "generated for LXD container nattest (validNAT)")" = "0" ]
   else
-    ! nft -nn list chain inet lxd prert.nattest.validNAT
-    ! nft -nn list chain inet lxd out.nattest.validNAT
+    ! nft -nn list chain inet lxd prert.nattest.validNAT || false
+    ! nft -nn list chain inet lxd out.nattest.validNAT || false
   fi
 
   lxc config device add nattest validNAT proxy listen="tcp:127.0.0.1:1234-1235" connect="tcp:${v4_addr}:1234" bind=host nat=true
