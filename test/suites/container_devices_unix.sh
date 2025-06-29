@@ -48,15 +48,15 @@ _container_devices_unix() {
   mknod "${testDev}" "${deviceTypeCode}" 0 0
 
   # Check adding a device without source or path fails.
-  ! lxc config device add "${ctName}" test-dev-invalid "${deviceType}"
-  ! lxc config device add "${ctName}" test-dev-invalid "${deviceType}" required=false
+  ! lxc config device add "${ctName}" test-dev-invalid "${deviceType}" || false
+  ! lxc config device add "${ctName}" test-dev-invalid "${deviceType}" required=false || false
 
   # Check adding a device with missing source and no major/minor numbers fails.
-  ! lxc config device add "${ctName}" test-dev-invalid "${deviceType}" path=/tmp/testdevmissing
+  ! lxc config device add "${ctName}" test-dev-invalid "${deviceType}" path=/tmp/testdevmissing || false
 
   # Check adding a required (default) missing device fails.
-  ! lxc config device add "${ctName}" test-dev-invalid "${deviceType}" path=/tmp/testdevmissing
-  ! lxc config device add "${ctName}" test-dev-invalid "${deviceType}" path=/tmp/testdevmissing required=true
+  ! lxc config device add "${ctName}" test-dev-invalid "${deviceType}" path=/tmp/testdevmissing || false
+  ! lxc config device add "${ctName}" test-dev-invalid "${deviceType}" path=/tmp/testdevmissing required=true || false
 
   # Add device based on existing device, check its host-side name, default mode, major/minor inherited, and mounted in container.
   lxc config device add "${ctName}" test-dev1 "${deviceType}" source="${testDev}" path=/tmp/testdev
@@ -106,7 +106,7 @@ _container_devices_unix() {
   # Add a device that is missing, but not required, start instance and then add it.
   lxc config device add "${ctName}" test-dev-dynamic "${deviceType}" required=false source="${testDev}" path=/tmp/testdev
   lxc start "${ctName}"
-  ! test -e "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev
+  ! test -e "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev || false
   mknod "${testDev}" "${deviceTypeCode}" 0 0
   sleep 2
   lxc exec "${ctName}" -- mount | grep "/tmp/testdev"
@@ -116,9 +116,9 @@ _container_devices_unix() {
   # Remove host side device and check it is dynamically removed from instance.
   rm "${testDev}"
   sleep 1
-  ! lxc exec "${ctName}" -- mount | grep "/tmp/testdev"
-  ! lxc exec "${ctName}" -- test -e /tmp/testdev
-  ! test -e "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev
+  ! lxc exec "${ctName}" -- mount | grep -F "/tmp/testdev" || false
+  ! lxc exec "${ctName}" -- test -e /tmp/testdev || false
+  ! test -e "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev || false
 
   # Leave instance running, restart LXD, then add device back to check LXD start time inotify works.
   shutdown_lxd "${LXD_DIR}"
@@ -134,9 +134,9 @@ _container_devices_unix() {
   testDevSubDir="${testDev}"/subdev
   ls -la "${TEST_DIR}"
   lxc config device set "${ctName}" test-dev-dynamic source="${testDevSubDir}"
-  ! lxc exec "${ctName}" -- mount | grep "/tmp/testdev"
-  ! lxc exec "${ctName}" -- test -e /tmp/testdev
-  ! test -e "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev
+  ! lxc exec "${ctName}" -- mount | grep -F "/tmp/testdev" || false
+  ! lxc exec "${ctName}" -- test -e /tmp/testdev || false
+  ! test -e "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev || false
 
   mkdir "${testDev}"
   mknod "${testDevSubDir}" "${deviceTypeCode}" 0 0
@@ -148,9 +148,9 @@ _container_devices_unix() {
   # Cleanup.
   rm -rvf "${testDev}"
   sleep 1
-  ! lxc exec "${ctName}" -- mount | grep "/tmp/testdev"
-  ! lxc exec "${ctName}" -- test -e /tmp/testdev
-  ! test -e "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev
+  ! lxc exec "${ctName}" -- mount | grep -F "/tmp/testdev" || false
+  ! lxc exec "${ctName}" -- test -e /tmp/testdev || false
+  ! test -e "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev || false
   lxc delete -f "${ctName}"
 
   # Check multiple instances sharing same watcher.
@@ -172,9 +172,9 @@ _container_devices_unix() {
   lxc stop -f "${ctName}1"
   rm "${testDev}"
   sleep 1
-  ! lxc exec "${ctName}2" -- mount | grep "/tmp/testdev2"
-  ! lxc exec "${ctName}2" -- test -e /tmp/testdev2
-  ! test -e "${LXD_DIR}"/devices/"${ctName}"2/unix.test--dev--dynamic.tmp-testdev2
+  ! lxc exec "${ctName}2" -- mount | grep -F "/tmp/testdev2" || false
+  ! lxc exec "${ctName}2" -- test -e /tmp/testdev2 || false
+  ! test -e "${LXD_DIR}"/devices/"${ctName}"2/unix.test--dev--dynamic.tmp-testdev2 || false
   lxc delete -f "${ctName}1"
   lxc delete -f "${ctName}2"
 }
