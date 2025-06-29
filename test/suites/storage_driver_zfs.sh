@@ -39,7 +39,7 @@ do_zfs_delegate() {
   lxc start c1
 
   PID=$(lxc info c1 | awk '/^PID:/ {print $2}')
-  ! nsenter -t "${PID}" -U -- zfs list | grep -wF containers/c1
+  ! nsenter -t "${PID}" -U -- zfs list | grep -wF containers/c1 || false
 
   lxc delete -f c1
 }
