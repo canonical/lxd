@@ -108,6 +108,31 @@ test_basic_usage() {
   lxc list | grep foo | grep STOPPED
   lxc list fo | grep foo | grep STOPPED
 
+  echo "Invalid container names"
+  ! lxc init --empty ".." || false
+  # Escaping `\` multiple times due to `lxc` wrapper script munging the first layer
+  ! lxc init --empty "\\\\" || false
+  ! lxc init --empty "/" || false
+  ! lxc init --empty ";" || false
+
+  echo "Too small containers"
+  ! lxc init --empty c1 -c limits.memory=0 || false
+  ! lxc init --empty c1 -c limits.memory=0% || false
+
+  echo "Containers with snapshots"
+  lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
+  lxc snapshot c1
+  # Invalid snapshot names
+  ! lxc snapshot c1 ".." || false
+  # Escaping `\` multiple times due to `lxc` wrapper script munging the first layer
+  ! lxc snapshot c1 "\\\\" || false
+  ! lxc snapshot c1 "/" || false
+  [ "$(lxc list -f csv -c S c1)" = "1" ]
+  lxc start c1
+  lxc snapshot c1
+  [ "$(lxc list -f csv -c S c1)" = "2" ]
+  lxc delete --force c1
+
   # Test list json format
   lxc list --format json | jq '.[]|select(.name="foo")' | grep '"name": "foo"'
 

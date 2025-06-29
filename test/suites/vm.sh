@@ -33,10 +33,10 @@ test_vm_empty() {
   # Escaping `\` multiple times due to `lxc` wrapper script munging the first layer
   ! lxc snapshot v1 "\\\\" || false
   ! lxc snapshot v1 "/" || false
-  [ "$(lxc list -f csv -c S)" = "1" ]
+  [ "$(lxc list -f csv -c S v1)" = "1" ]
   lxc start v1
   lxc snapshot v1
-  [ "$(lxc list -f csv -c S)" = "2" ]
+  [ "$(lxc list -f csv -c S v1)" = "2" ]
   lxc delete --force v1
 
   lxc launch --vm --empty v1 -c limits.memory=1% -d "${SMALL_ROOT_DISK}"
