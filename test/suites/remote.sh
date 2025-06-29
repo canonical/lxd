@@ -386,7 +386,7 @@ test_remote_usage() {
   # The `cached` field should be set to `yes` since the image was implicitly downloaded by the instance create operation
   [ "${cached}" = "yes" ]
   # There should be no alias for the image
-  ! lxc_remote image info "lxd2:${fingerprint}" | grep -F "Aliases:"
+  [ "$(lxc_remote image list "lxd2:${fingerprint}" -f csv -c l)" = "" ]
 
   # Finally, lets copy the remote image explicitly to the local server with an alias like we did before
   lxc_remote image copy localhost:testimage lxd2: --alias bar
