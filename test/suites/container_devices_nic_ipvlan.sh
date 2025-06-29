@@ -73,8 +73,8 @@ test_container_devices_nic_ipvlan() {
   lxc config device set "${ctName}" eth0 ipv6.host_table=101
 
   # Check gateway settings don't accept IPs in default l3s mode.
-  ! lxc config device set "${ctName}" eth0 ipv4.gateway=192.0.2.254
-  ! lxc config device set "${ctName}" eth0 ipv6.gateway=2001:db8::FFFF
+  ! lxc config device set "${ctName}" eth0 ipv4.gateway=192.0.2.254 || false
+  ! lxc config device set "${ctName}" eth0 ipv6.gateway=2001:db8::FFFF || false
 
   lxc start "${ctName}"
 
@@ -102,8 +102,8 @@ test_container_devices_nic_ipvlan() {
   fi
 
   # Check static routes are removed from custom routing table
-  ! ip -4 route show table 100 | grep "192.0.2.1${ipRand}"
-  ! ip -6 route show table 101 | grep "2001:db8::1${ipRand}"
+  ! ip -4 route show table 100 | grep -F "192.0.2.1${ipRand}" || false
+  ! ip -6 route show table 101 | grep -F "2001:db8::1${ipRand}" || false
 
   # Check ipvlan l2 mode with mixture of singular and CIDR IPs, and gateway IPs.
   lxc config device remove "${ctName}" eth0

@@ -41,7 +41,7 @@ test_container_devices_gpu() {
   fi
 
   # Check adding non-existent card fails.
-  ! lxc config device add "${ctName}" gpu-missing gpu id=9999
+  ! lxc config device add "${ctName}" gpu-missing gpu id=9999 || false
 
   # Check default create mode is 0660.
   lxc config device add "${ctName}" gpu-default gpu
