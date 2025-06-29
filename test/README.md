@@ -19,7 +19,7 @@ Name                           | Default                   | Description
 `LXD_VERBOSE`                  | ""                        | Run lxd, lxc and the shell in verbose mode (used in CI; less verbose than `LXD_DEBUG`)
 `LXD_DEBUG`                    | ""                        | Run lxd, lxc and the shell in debug mode (very verbose)
 `LXD_INSPECT`                  | 0                         | Don't teardown the test environment on failure
-`LXD_LOGS `                    | ""                        | Path to a directory to copy all the LXD logs to
+`LXD_LOGS`                     | ""                        | Path to a directory to copy all the LXD logs to
 `LXD_OFFLINE`                  | 0                         | Skip anything that requires network access
 `LXD_SKIP_TESTS`               | ""                        | Space-delimited list of test names to skip
 `LXD_TEST_IMAGE`               | "" (busybox test image)   | Path to an image tarball to use instead of the default busybox image
