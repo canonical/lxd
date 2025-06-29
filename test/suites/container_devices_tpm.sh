@@ -15,7 +15,7 @@ test_container_devices_tpm() {
   lxc launch testimage "${ctName}"
 
   # Check adding a device with no path
-  ! lxc config device add "${ctName}" test-dev-invalid tpm
+  ! lxc config device add "${ctName}" test-dev-invalid tpm || false
 
   # Add device
   lxc config device add "${ctName}" test-dev1 tpm path=/dev/tpm0 pathrm=/dev/tpmrm0
@@ -24,8 +24,8 @@ test_container_devices_tpm() {
 
   # Remove device
   lxc config device rm "${ctName}" test-dev1
-  ! lxc exec "${ctName}" -- stat /dev/tpm0
-  ! lxc exec "${ctName}" -- stat /dev/tpmrm0
+  ! lxc exec "${ctName}" -- stat /dev/tpm0 || false
+  ! lxc exec "${ctName}" -- stat /dev/tpmrm0 || false
 
   # Clean up
   lxc delete -f "${ctName}"
