@@ -75,17 +75,17 @@ test_container_devices_nic_bridged_vlan() {
   lxc config device override "${prefix}-ctA" eth0 vlan=2 # Test valid untagged VLAN ID.
   lxc config device set "${prefix}-ctA" eth0 vlan.tagged="3, 4,5" # Test valid tagged VLAN ID list.
   lxc config device set "${prefix}-ctA" eth0 vlan.tagged="3,4-6" # Test valid tagged VLAN ID list with range.
-  ! lxc config device set "${prefix}-ctA" eth0 vlan.tagged=3,2,4 # Test same tagged VLAN ID as untagged VLAN ID.
-  ! lxc config device set "${prefix}-ctA" eth0 security.ipv4_filtering = true # Can't use IP filtering with VLANs.
-  ! lxc config device set "${prefix}-ctA" eth0 security.ipv6_filtering = true # Can't use IP filtering with VLANs.
-  ! lxc config device set "${prefix}-ctA" eth0 vlan = invalid # Check invalid VLAN ID.
-  ! lxc config device set "${prefix}-ctA" eth0 vlan = 4096 # Check out of range VLAN ID.
-  ! lxc config device set "${prefix}-ctA" eth0 vlan = 0 # Check out of range VLAN ID.
-  ! lxc config device set "${prefix}-ctA" eth0 vlan.tagged = 5,invalid, 6 # Check invalid VLAN ID list.
-  ! lxc config device set "${prefix}-ctA" eth0 vlan.tagged=-1 # Check out of range VLAN ID list.
-  ! lxc config device set "${prefix}-ctA" eth0 vlan.tagged=4096 # Check out of range VLAN ID list.
-  ! lxc config device set "${prefix}-ctA" eth0 vlan.tagged=1,2,-3-4 # Check invalid VLAN ID range input
-  ! lxc config device set "${prefix}-ctA" eth0 vlan.tagged=1,2,4-3 # Check invalid VLAN ID range boundary (declining range)
+  ! lxc config device set "${prefix}-ctA" eth0 vlan.tagged=3,2,4 || false # Test same tagged VLAN ID as untagged VLAN ID.
+  ! lxc config device set "${prefix}-ctA" eth0 security.ipv4_filtering=true || false # Can't use IP filtering with VLANs.
+  ! lxc config device set "${prefix}-ctA" eth0 security.ipv6_filtering=true || false # Can't use IP filtering with VLANs.
+  ! lxc config device set "${prefix}-ctA" eth0 vlan=invalid || false # Check invalid VLAN ID.
+  ! lxc config device set "${prefix}-ctA" eth0 vlan=4096 || false # Check out of range VLAN ID.
+  ! lxc config device set "${prefix}-ctA" eth0 vlan=0 || false # Check out of range VLAN ID.
+  ! lxc config device set "${prefix}-ctA" eth0 vlan.tagged="5,invalid, 6" || false # Check invalid VLAN ID list.
+  ! lxc config device set "${prefix}-ctA" eth0 vlan.tagged=-1 || false # Check out of range VLAN ID list.
+  ! lxc config device set "${prefix}-ctA" eth0 vlan.tagged=4096 || false # Check out of range VLAN ID list.
+  ! lxc config device set "${prefix}-ctA" eth0 vlan.tagged=1,2,-3-4 || false # Check invalid VLAN ID range input
+  ! lxc config device set "${prefix}-ctA" eth0 vlan.tagged=1,2,4-3 || false # Check invalid VLAN ID range boundary (declining range)
   lxc config device remove "${prefix}-ctA" eth0
 
   # Test untagged VLANs (and that tagged VLANs are filtered).
@@ -152,7 +152,7 @@ test_container_devices_nic_bridged_vlan() {
     echo 0 > "/sys/class/net/${prefix}B/bridge/vlan_filtering"
     echo 2 > "/sys/class/net/${prefix}B/bridge/default_pvid"
     lxc config device override "${prefix}-ctA" eth0 parent="${prefix}B" vlan.tagged=3
-    ! lxc start "${prefix}-ctA" # Check it fails to start with vlan_filtering disabled.
+    ! lxc start "${prefix}-ctA" || false # Check it fails to start with vlan_filtering disabled.
     echo 1 > "/sys/class/net/${prefix}B/bridge/vlan_filtering"
     lxc start "${prefix}-ctA"
     lxc exec "${prefix}-ctA" -- ip link set eth0 up
