@@ -32,8 +32,8 @@ _server_config_storage() {
   lxd_backend=$(storage_backend "$LXD_DIR")
   if [ "$lxd_backend" = "ceph" ]; then
     # The volume doesn't have to be present as the check errors after testing for the remote storage pool.
-    ! lxc config set storage.backups_volume "${pool}/foo" | grep -F "Error: Failed validation of \"storage.backups_volume\": Remote storage pool \"${pool}\" cannot be used"
-    ! lxc config set storage.images_volume "${pool}/foo" | grep -F "Error: Failed validation of \"storage.images_volume\": Remote storage pool \"${pool}\" cannot be used"
+    ! lxc config set storage.backups_volume "${pool}/foo" | grep -F "Error: Failed validation of \"storage.backups_volume\": Remote storage pool \"${pool}\" cannot be used" || false
+    ! lxc config set storage.images_volume "${pool}/foo" | grep -F "Error: Failed validation of \"storage.images_volume\": Remote storage pool \"${pool}\" cannot be used" || false
 
     return
   fi
@@ -52,15 +52,15 @@ _server_config_storage() {
   lxc storage volume create "${pool}" images
 
   # Validate errors
-  ! lxc config set storage.backups_volume foo/bar
-  ! lxc config set storage.images_volume foo/bar
-  ! lxc config set storage.backups_volume "${pool}/bar"
-  ! lxc config set storage.images_volume "${pool}/bar"
+  ! lxc config set storage.backups_volume foo/bar || false
+  ! lxc config set storage.images_volume foo/bar || false
+  ! lxc config set storage.backups_volume "${pool}/bar" || false
+  ! lxc config set storage.images_volume "${pool}/bar" || false
 
   lxc storage volume snapshot "${pool}" backups
   lxc storage volume snapshot "${pool}" images
-  ! lxc config set storage.backups_volume "${pool}/backups"
-  ! lxc config set storage.images_volume "${pool}/images"
+  ! lxc config set storage.backups_volume "${pool}/backups" || false
+  ! lxc config set storage.images_volume "${pool}/images" || false
 
   lxc storage volume delete "${pool}" backups/snap0
   lxc storage volume delete "${pool}" images/snap0
@@ -89,12 +89,12 @@ _server_config_storage() {
   fi
 
   # Validate more errors
-  ! lxc storage volume delete "${pool}" backups
-  ! lxc storage volume delete "${pool}" images
-  ! lxc storage volume rename "${pool}" backups backups1
-  ! lxc storage volume rename "${pool}" images images1
-  ! lxc storage volume snapshot "${pool}" backups
-  ! lxc storage volume snapshot "${pool}" images
+  ! lxc storage volume delete "${pool}" backups || false
+  ! lxc storage volume delete "${pool}" images || false
+  ! lxc storage volume rename "${pool}" backups backups1 || false
+  ! lxc storage volume rename "${pool}" images images1 || false
+  ! lxc storage volume snapshot "${pool}" backups || false
+  ! lxc storage volume snapshot "${pool}" images || false
 
   # Modify container and publish to image on custom volume.
   lxc start foo
