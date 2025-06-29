@@ -50,7 +50,7 @@ test_container_move() {
 
   # Move to different project with non-existing profile.
   lxc init "${image}" c4
-  ! lxc move c4 --target-project "${project}" --profile invalid # Err: Profile not found in target project
+  ! lxc move c4 --target-project "${project}" --profile invalid || false # Err: Profile not found in target project
   lxc delete -f c4
 
   # Move to different storage pool.
