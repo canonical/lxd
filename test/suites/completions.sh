@@ -46,7 +46,7 @@ test_completions() {
     lxc remote switch local
 
     # top level (instance) commands
-    lxc init testimage c1
+    lxc init --empty c1
     lxc launch testimage c2
     lxc snapshot c1
     [ "$(complete console '')" = 'c1,c2,localhost:' ] # Console should show only instance server remotes and not the default
