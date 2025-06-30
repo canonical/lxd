@@ -330,7 +330,7 @@ Add the `--storage` flag to specify which storage pool to use, or the `--device`
 ```{group-tab} API
 To import an export file, post it to the `/1.0/instances` endpoint:
 
-    curl -X POST -H "Content-Type: application/octet-stream" -T <file_path> \
+    curl -X POST -H "Content-Type: application/octet-stream" --data-binary @<file_path> \
     --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd/1.0/instances
 
 If an instance with that name already (or still) exists in the specified storage pool, the command returns an error.
