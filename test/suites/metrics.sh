@@ -5,7 +5,7 @@ test_metrics() {
   lxc config set core.https_address "${LXD_ADDR}"
 
   lxc launch testimage c1
-  lxc init testimage c2
+  lxc init --empty c2
 
   # create another container in the non default project
   lxc project create foo -c features.images=false -c features.profiles=false
@@ -13,7 +13,7 @@ test_metrics() {
 
   # create but dont start a container in separate non default project to check for stopped instance accounting.
   lxc project create foo2 -c features.images=false -c features.profiles=false
-  lxc init testimage c4 --project foo2
+  lxc init --empty c4 --project foo2
 
   echo "==> c1 metrics should show as the container is running"
   lxc query "/1.0/metrics" | grep "name=\"c1\""
