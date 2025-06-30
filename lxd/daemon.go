@@ -253,6 +253,7 @@ type APIEndpointAction struct {
 	Handler        func(d *Daemon, r *http.Request) response.Response
 	AccessHandler  func(d *Daemon, r *http.Request) response.Response
 	AllowUntrusted bool
+	ContentTypes   []string // Client content types to allow.
 }
 
 // allowAuthenticated is an AccessHandler which allows only authenticated requests. This should be used in conjunction
@@ -927,6 +928,19 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		handleRequest := func(action APIEndpointAction) response.Response {
 			if action.Handler == nil {
 				return response.NotImplemented(nil)
+			}
+
+			if len(action.ContentTypes) == 0 {
+				// Require application/json if not specified by handler.
+				action.ContentTypes = []string{"application/json"}
+			}
+
+			// Validate Content-Type if supplied, or if non-zero Content-Length supplied.
+			contentTypeParts := shared.SplitNTrimSpace(r.Header.Get("Content-Type"), ";", 2, false) // Ignore multi-part boundary part.
+			contentLength := r.Header.Get("Content-Length")
+			hasContentLength := contentLength != "" && contentLength != "0"
+			if (hasContentLength || contentTypeParts[0] != "") && !slices.Contains(action.ContentTypes, contentTypeParts[0]) {
+				return response.ErrorResponse(http.StatusUnsupportedMediaType, "Unsupported Content-Type for this request")
 			}
 
 			// All APIEndpointActions should have an access handler or should allow untrusted requests.

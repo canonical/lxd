@@ -966,6 +966,7 @@ func setupInstanceArgs(s *state.State, instType instancetype.Type, projectName s
 //	---
 //	consumes:
 //	  - application/json
+//	  - application/octet-stream
 //	produces:
 //	  - application/json
 //	parameters:

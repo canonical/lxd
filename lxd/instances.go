@@ -36,7 +36,7 @@ var instancesCmd = APIEndpoint{
 	},
 
 	Get:  APIEndpointAction{Handler: instancesGet, AccessHandler: allowProjectResourceList},
-	Post: APIEndpointAction{Handler: instancesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateInstances)},
+	Post: APIEndpointAction{Handler: instancesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateInstances), ContentTypes: []string{"application/json", "application/octet-stream"}},
 	Put:  APIEndpointAction{Handler: instancesPut, AccessHandler: allowProjectResourceList},
 }
 
@@ -199,7 +199,7 @@ var instanceMetadataTemplatesCmd = APIEndpoint{
 	},
 
 	Get:    APIEndpointAction{Handler: instanceMetadataTemplatesGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
-	Post:   APIEndpointAction{Handler: instanceMetadataTemplatesPost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
+	Post:   APIEndpointAction{Handler: instanceMetadataTemplatesPost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name"), ContentTypes: []string{"application/octet-stream"}},
 	Delete: APIEndpointAction{Handler: instanceMetadataTemplatesDelete, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
 }
 

@@ -293,7 +293,7 @@ To export a virtual machine image to a set of files, add the `--vm` flag:
 Send a query to the `export` endpoint of the image to retrieve it:
 
     curl -X GET --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd/1.0/images/<fingerprint>/export \
-    -H "Content-Type: multipart/form-data" -o <output-file>
+    --output <output-file>
 
 If the image is a {ref}`split image <image-format-split>`, the output file contains two separate tarballs in multipart format.
 
