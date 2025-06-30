@@ -219,6 +219,21 @@ func (op *Operation) SetRequestor(r *http.Request) {
 	op.requestor = request.CreateRequestor(r)
 }
 
+// CheckRequestor checks that the requestor of a given HTTP request is equal to the requestor of the operation.
+func (op *Operation) CheckRequestor(r *http.Request) error {
+	opRequestor := op.Requestor()
+	if opRequestor == nil {
+		return errors.New("Operation does not contain a requestor")
+	}
+
+	requestor := request.CreateRequestor(r)
+	if requestor.Username != opRequestor.Username || requestor.Protocol != opRequestor.Protocol {
+		return api.StatusErrorf(http.StatusForbidden, "Operation requestor mismatch")
+	}
+
+	return nil
+}
+
 // SetOnDone sets the operation onDone function that is called after the operation completes.
 func (op *Operation) SetOnDone(f func(*Operation)) {
 	op.onDone = f
