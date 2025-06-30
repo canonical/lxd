@@ -98,9 +98,11 @@ func (c *cmdQuery) run(cmd *cobra.Command, args []string) error {
 
 	// Guess the encoding of the input
 	var data any
-	err = json.Unmarshal([]byte(c.flagData), &data)
-	if err != nil {
-		data = c.flagData
+	if c.flagData != "" {
+		err = json.Unmarshal([]byte(c.flagData), &data)
+		if err != nil {
+			data = c.flagData
+		}
 	}
 
 	// Perform the query
@@ -136,7 +138,9 @@ func (c *cmdQuery) run(cmd *cobra.Command, args []string) error {
 		}
 
 		// Set the encoding accordingly
-		req.Header.Set("Content-Type", "plain/text")
+		if c.flagData != "" {
+			req.Header.Set("Content-Type", "plain/text")
+		}
 
 		resp, err := d.DoHTTP(req)
 		if err != nil {
