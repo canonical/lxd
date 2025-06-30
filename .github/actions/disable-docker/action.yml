@@ -22,3 +22,6 @@ runs:
         done
         sudo ip link delete docker0
         sudo nft flush ruleset || sudo iptables -I DOCKER-USER -j ACCEPT
+
+        # Remove passt.
+        sudo apt-get remove passt
