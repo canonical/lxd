@@ -104,7 +104,8 @@ test_metrics() {
   CERTNAME=metrics-restricted my_curl -X GET "https://${LXD_ADDR}/1.0/metrics" | grep "name=\"c3\""
 
   echo "==> other projects metrics aren't visible as they aren't allowed for the restricted certificate"
-  ! CERTNAME=metrics-restricted my_curl -X GET "https://${LXD_ADDR}/1.0/metrics?project=default" || false
+  [ "$(CERTNAME=metrics-restricted my_curl -X GET "https://${LXD_ADDR}/1.0/metrics?project=default" -w "%{http_code}" -o /dev/null)" = "403" ]
+  [ "$(CERTNAME=metrics-restricted my_curl -X GET "https://${LXD_ADDR}/1.0/metrics?project=foo2" -w "%{http_code}" -o /dev/null)" = "403" ]
 
   echo "==> c1 and c2 metrics are not visible as they are in another project"
   ! CERTNAME=metrics-restricted my_curl -X GET "https://${metrics_addr}/1.0/metrics?project=foo" | grep "name=\"c1\"" || false
