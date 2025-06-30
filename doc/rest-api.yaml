@@ -9365,6 +9365,8 @@ paths:
         post:
             consumes:
                 - application/json
+                - application/octet-stream
+                - multipart/form-data
             description: Adds a new image to the image store.
             operationId: images_post
             parameters:
@@ -10317,6 +10319,7 @@ paths:
         post:
             consumes:
                 - application/json
+                - application/octet-stream
             description: |-
                 Creates a new instance on LXD.
                 Depending on the source, this can create an instance from an existing
@@ -16085,6 +16088,7 @@ paths:
         post:
             consumes:
                 - application/json
+                - application/octet-stream
             description: |-
                 Creates a new storage volume (type specific endpoint).
                 Will return an empty sync response on simple volume creation but an operation on copy or migration.
