@@ -369,3 +369,89 @@ func (c *ClusterGroup) SetWritable(put ClusterGroupPut) {
 	c.Description = put.Description
 	c.Members = put.Members
 }
+
+const (
+	// ClusterLinkTypeUser represents cluster links that are user created.
+	ClusterLinkTypeUser = "USER"
+
+	// ClusterLinkTypeDelegated represents cluster links that are delegated.
+	ClusterLinkTypeDelegated = "DELEGATED"
+)
+
+// ClusterLink represents high-level information about a cluster link.
+//
+// swagger:model
+//
+// API extension: cluster_links.
+type ClusterLink struct {
+	WithEntitlements `yaml:",inline"`
+
+	// The name of the cluster
+	// Example: lxd02
+	Name string `json:"name" yaml:"name"`
+
+	// Description of the cluster
+	// Example: Backup LXD cluster
+	Description string `json:"description" yaml:"description"`
+
+	// The type of cluster link
+	// Example: delegated
+	Type string `json:"type" yaml:"type"`
+
+	// Cluster link configuration map (refer to doc/clustering.md)
+	// Example: {"user.*": ""}
+	Config map[string]string `json:"config" yaml:"config"`
+}
+
+// ClusterLinkPut represents the modifiable fields of a cluster link.
+//
+// swagger:model
+//
+// API extension: cluster_links.
+type ClusterLinkPut struct {
+	// Cluster link configuration map (refer to doc/clustering.md)
+	// Example: {"user.*": ""}
+	Config map[string]string `json:"config" yaml:"config"`
+
+	// Description of the cluster
+	// Example: Backup LXD cluster
+	Description string `json:"description" yaml:"description"`
+}
+
+// ClusterLinkPost represents the fields available for a new cluster link.
+//
+// swagger:model
+//
+// API extension: cluster_links.
+type ClusterLinkPost struct {
+	ClusterLinkPut `yaml:",inline"`
+
+	// The name of the cluster
+	// Example: lxd02
+	Name string `json:"name" yaml:"name"`
+
+	// API extension: explicit_trust_token
+	TrustToken string `json:"trust_token" yaml:"trust_token"`
+
+	// List of auth groups this cluster link belongs to
+	// Example: ["foo", "bar"]
+	AuthGroups []string `json:"auth_groups" yaml:"auth_groups"`
+
+	// The certificate (X509 PEM encoded) for the cluster
+	// Example: X509 PEM certificate
+	ClusterCertificate string `json:"cluster_certificate" yaml:"cluster_certificate"`
+}
+
+// Writable converts a full ClusterLink struct into a [ClusterLinkPut] struct (filters read-only fields).
+func (clusterLink *ClusterLink) Writable() ClusterLinkPut {
+	return ClusterLinkPut{
+		Description: clusterLink.Description,
+		Config:      clusterLink.Config,
+	}
+}
+
+// SetWritable sets applicable values from [ClusterLinkPut] struct to [ClusterLink] struct.
+func (clusterLink *ClusterLink) SetWritable(put ClusterLinkPut) {
+	clusterLink.Description = put.Description
+	clusterLink.Config = put.Config
+}
