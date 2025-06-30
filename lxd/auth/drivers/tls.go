@@ -164,6 +164,10 @@ func (t *tls) allowProjectUnspecificEntityType(entitlement auth.Entitlement, ent
 	switch entityType {
 	case entity.TypeServer:
 		// Restricted TLS certificates have the following entitlements on server.
+		//
+		// Note: We have to keep EntitlementCanViewMetrics here for backwards compatibility with older versions of LXD.
+		// Historically when viewing the metrics endpoint for a specific project with a restricted certificate also the
+		// internal server metrics get returned.
 		return slices.Contains([]auth.Entitlement{auth.EntitlementCanViewResources, auth.EntitlementCanViewMetrics, auth.EntitlementCanViewUnmanagedNetworks}, entitlement)
 	case entity.TypeIdentity:
 		// If the entity URL refers to the identity that made the request, then the second path argument of the URL is
