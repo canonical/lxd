@@ -470,15 +470,10 @@ test_container_devices_nic_bridged() {
   ip netns exec testdns ip link set veth_right name eth0
   ip netns exec testdns ip link set dev eth0 up
   ip netns exec testdns ip addr add 192.0.2.20/24 dev eth0
-  ip netns exec testdns ip addr add 2001:db8::20/64 dev eth0
+  ip netns exec testdns ip addr add 2001:db8::20/64 dev eth0 nodad
 
   ip addr
   ip netns exec testdns ip addr
-
-  # Give eth0 a chance to finish duplicate addr detection (ipv6)
-  while ip netns exec testdns ip a | grep "tentative"; do
-    sleep 0.5
-  done
 
   ip netns exec testdns dig -4 +retry=0 +notcp @192.0.2.1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
   ip netns exec testdns dig -6 +retry=0 +notcp @2001:db8::1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
