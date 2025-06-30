@@ -98,8 +98,10 @@ test_metrics() {
   echo "==> c3 metrics should be showned"
   CERTNAME=metrics-restricted my_curl -X GET "https://${LXD_ADDR}/1.0/metrics?project=foo" | grep "name=\"c3\""
 
-  echo "==> c3 metrics cannot be viewed via the generic metrics endpoint if the certificate is restricted"
-  ! CERTNAME=metrics-restricted my_curl -X GET "https://${LXD_ADDR}/1.0/metrics" || false
+  echo "==> c3 metrics are shown even without specifying the project"
+  # If no project is specified, all metrics accessible by the restricted certificate are returned.
+  # This way, a certificate covering multiple projects can be used to scrape all the metrics in one scoop.
+  CERTNAME=metrics-restricted my_curl -X GET "https://${LXD_ADDR}/1.0/metrics" | grep "name=\"c3\""
 
   echo "==> other projects metrics aren't visible as they aren't allowed for the restricted certificate"
   ! CERTNAME=metrics-restricted my_curl -X GET "https://${LXD_ADDR}/1.0/metrics?project=default" || false
