@@ -38,8 +38,8 @@ test_container_devices_nic_routed() {
   # Wait for IPv6 DAD to complete.
   wait_for_dad "${ctName}neigh" eth0
 
-  ping -c2 -W5 192.0.2.254
-  ping6 -c2 -W5 "2001:db8::FFFF"
+  ping -nc2 -i0.1 -W1 192.0.2.254
+  ping -6 -nc2 -i0.1 -W1 "2001:db8::FFFF"
 
   # Create dummy vlan parent.
   # Use slash notation when setting sysctls on vlan interface (that has period in interface name).
@@ -168,20 +168,20 @@ test_container_devices_nic_routed() {
   wait_for_dad "${ctName}2" eth0
 
   # Check comms between containers.
-  lxc exec "${ctName}" -- ping -c2 -W5 "192.0.2.1"
-  lxc exec "${ctName}" -- ping6 -c2 -W5 "2001:db8::1"
+  lxc exec "${ctName}" -- ping -nc2 -i0.1 -W1 "192.0.2.1"
+  lxc exec "${ctName}" -- ping -6 -nc2 -i0.1 -W1 "2001:db8::1"
 
-  lxc exec "${ctName}2" -- ping -c2 -W5 "192.0.2.1"
-  lxc exec "${ctName}2" -- ping6 -c2 -W5 "2001:db8::1"
+  lxc exec "${ctName}2" -- ping -nc2 -i0.1 -W1 "192.0.2.1"
+  lxc exec "${ctName}2" -- ping -6 -nc2 -i0.1 -W1 "2001:db8::1"
 
-  lxc exec "${ctName}" -- ping -c2 -W5 "192.0.2.2${ipRand}"
-  lxc exec "${ctName}" -- ping -c2 -W5 "192.0.2.3${ipRand}"
+  lxc exec "${ctName}" -- ping -nc2 -i0.1 -W1 "192.0.2.2${ipRand}"
+  lxc exec "${ctName}" -- ping -nc2 -i0.1 -W1 "192.0.2.3${ipRand}"
 
-  lxc exec "${ctName}" -- ping6 -c3 -W5 "2001:db8::3${ipRand}"
-  lxc exec "${ctName}" -- ping6 -c2 -W5 "2001:db8::2${ipRand}"
+  lxc exec "${ctName}" -- ping -6 -nc2 -i0.1 -w1 "2001:db8::3${ipRand}"
+  lxc exec "${ctName}" -- ping -6 -nc2 -i0.1 -W1 "2001:db8::2${ipRand}"
 
-  lxc exec "${ctName}2" -- ping -c2 -W5 "192.0.2.1${ipRand}"
-  lxc exec "${ctName}2" -- ping6 -c2 -W5 "2001:db8::1${ipRand}"
+  lxc exec "${ctName}2" -- ping -nc2 -i0.1 -W1 "192.0.2.1${ipRand}"
+  lxc exec "${ctName}2" -- ping -6 -nc2 -i0.1 -W1 "2001:db8::1${ipRand}"
 
   lxc stop -f "${ctName}2"
   lxc stop -f "${ctName}"
