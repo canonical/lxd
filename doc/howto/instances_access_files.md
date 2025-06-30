@@ -124,7 +124,7 @@ See [`POST /1.0/instances/{name}/files`](swagger:/instances/instance_files_post)
 To push content directly from a file, you must use a tool that can send raw data from a file, which [`lxc query`](lxc_query.md) does not support.
 For example, with curl:
 
-    curl -X POST -H "Content-Type: application/octet-stream" --data @<local_file_path> \
+    curl -X POST -H "Content-Type: application/octet-stream" --data-binary @<local_file_path> \
     --unix-socket /var/snap/lxd/common/lxd/unix.socket \
     lxd/1.0/instances/<instance_name>/files?path=<path_to_file>
 ```
