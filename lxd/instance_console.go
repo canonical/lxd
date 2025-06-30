@@ -80,7 +80,12 @@ func (s *consoleWs) Metadata() any {
 }
 
 // Connect connects to the websocket.
-func (s *consoleWs) Connect(_ *operations.Operation, r *http.Request, w http.ResponseWriter) error {
+func (s *consoleWs) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
+	err := op.CheckRequestor(r)
+	if err != nil {
+		return err
+	}
+
 	switch s.protocol {
 	case instance.ConsoleTypeConsole:
 		return s.connectConsole(r, w)
