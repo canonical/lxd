@@ -105,6 +105,13 @@ var clusterLinkCmd = APIEndpoint{
 	Delete: APIEndpointAction{Handler: clusterLinkDelete, AccessHandler: allowPermission(entity.TypeClusterLink, auth.EntitlementCanDelete, "name")},
 }
 
+var clusterLinkStateCmd = APIEndpoint{
+	Path:        "cluster/links/{name}/state",
+	MetricsType: entity.TypeClusterLink,
+
+	Get: APIEndpointAction{Handler: clusterLinkStateGet, AccessHandler: allowPermission(entity.TypeClusterLink, auth.EntitlementCanView, "name")},
+}
+
 var clusterNodesCmd = APIEndpoint{
 	Path:        "cluster/members",
 	MetricsType: entity.TypeClusterMember,
@@ -5740,4 +5747,128 @@ func autoUpdateClusterLinkVolatileAddresses(ctx context.Context, s *state.State)
 	}
 
 	return nil
+}
+
+// swagger:operation GET /1.0/cluster/links/{name}/state cluster-links cluster_link_state_get
+//
+//	Get the cluster link state
+//
+//	Get a specific cluster link state.
+//
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: target
+//	    description: Cluster member name
+//	    type: string
+//	    example: lxd01
+//	responses:
+//	  "200":
+//	    description: Cluster link state
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/ClusterLinkState"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func clusterLinkStateGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	target := request.QueryParam(r, "target")
+	resp := forwardedResponseToNode(r.Context(), s, target)
+	if resp != nil {
+		return resp
+	}
+
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	client, err := lxd.ConnectLXDUnix("", nil)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to connect to local LXD: %w", err))
+	}
+
+	clusterLink, _, err := client.GetClusterLink(name)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to fetch cluster link %q: %w", name, err))
+	}
+
+	clusterCert, err := util.LoadClusterCert(s.OS.VarDir)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Determine cluster link member status by establishing a connection to each member's address.
+	// Before establishing a connection, we assume the member is unreachable. Once a connection is established, we update the member's status to unauthenticated. If the returned response data contains an 'auth' field with the value 'trusted', we update the member's status to active.
+	clusterLinkState := api.ClusterLinkState{}
+	for _, address := range shared.SplitNTrimSpace(clusterLink.Config["volatile.addresses"], ",", -1, false) {
+		clusterLinkMember := api.ClusterLinkMember{
+			Address:    address,
+			Status:     api.ClusterLinkMemberStatusUnreachable,
+			ServerName: "UNKNOWN",
+		}
+
+		targetCert, err := shared.GetRemoteCertificate(r.Context(), "https://"+address, version.UserAgent)
+		if err != nil {
+			logger.Error("Failed to get remote certificate for cluster link member", logger.Ctx{"address": address, "err": err})
+		} else {
+			targetCertStr := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: targetCert.Raw}))
+
+			// Get client for target cluster link member.
+			targetClient, err := lxd.ConnectLXD("https://"+address, &lxd.ConnectionArgs{
+				TLSClientCert: string(clusterCert.PublicKey()),
+				TLSClientKey:  string(clusterCert.PrivateKey()),
+				TLSServerCert: targetCertStr,
+				UserAgent:     version.UserAgent,
+			})
+			if err != nil {
+				logger.Error("Failed to connect to cluster link member", logger.Ctx{"address": address, "err": err})
+			}
+
+			var respData map[string]any
+			resp, _, _ := targetClient.RawQuery(http.MethodGet, "/1.0", nil, "")
+			_ = json.Unmarshal(resp.Metadata, &respData)
+
+			if resp.StatusCode == http.StatusOK {
+				clusterLinkMember.Status = api.ClusterLinkMemberStatusUnauthenticated
+			}
+
+			// Set [api.ClusterLinkMember.Status] based on the 'auth' field.
+			authVal, ok := respData["auth"].(string)
+			if ok && authVal == "trusted" {
+				clusterLinkMember.Status = api.ClusterLinkMemberStatusActive
+			}
+
+			// Set [api.ClusterLinkMember.ServerName].
+			serverEnvironment := respData["environment"]
+			serverName, ok := serverEnvironment.(map[string]any)["server_name"].(string)
+			if ok {
+				clusterLinkMember.ServerName = serverName
+			}
+		}
+
+		clusterLinkState.ClusterLinkMembers = append(clusterLinkState.ClusterLinkMembers, clusterLinkMember)
+	}
+
+	return response.SyncResponse(true, clusterLinkState)
 }
