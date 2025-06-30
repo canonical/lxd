@@ -2569,8 +2569,8 @@ test_clustering_fan() {
   LXD_DIR="${LXD_ONE_DIR}" lxc list
 
   echo "Check that the containers are reachable from each other using IPs"
-  LXD_DIR="${LXD_ONE_DIR}" lxc exec c1 -- ping -c2 -W5 "${IP_C2}"
-  LXD_DIR="${LXD_ONE_DIR}" lxc exec c2 -- ping -c2 -W5 "${IP_C1}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc exec c1 -- ping -nc2 -i0.1 -W1 "${IP_C2}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc exec c2 -- ping -nc2 -i0.1 -W1 "${IP_C1}"
 
   echo "Check that the DHCP leases are cleaned up post-migration"
   grep -qF " c1 " "${LXD_ONE_DIR}/networks/${fanbridge}/dnsmasq.leases"
