@@ -113,8 +113,8 @@ test_metrics() {
 
   echo "==> Check that we can get the count of existing containers. There should be two in the default project: c1 (RUNNING) and c2 (STOPPED)"
   CERTNAME=metrics my_curl -X GET "https://${metrics_addr}/1.0/metrics" | grep -xF 'lxd_instances{project="default",type="container"} 2'
-  sleep 10
-  echo "==> Try again after the metric cache has expired. We should still see two containers"
+  sleep 9
+  echo "==> Try again after the metric cache has expired (TTL=8s). We should still see two containers"
   CERTNAME=metrics my_curl -X GET "https://${metrics_addr}/1.0/metrics" | grep -xF 'lxd_instances{project="default",type="container"} 2'
 
   echo "==> test unauthenticated connections"
@@ -150,8 +150,8 @@ test_metrics() {
 
   echo "==> Test lxd_api_requests_ongoing increment and decrement"
   previous="$(curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep 'lxd_api_requests_ongoing{entity_type="instance"}' | awk '{print $2}')"
-  lxc exec c1 -- sleep 2 &
-  sleep 1
+  lxc exec c1 -- sleep 0.5 &
+  sleep 0.1
   [ "$(curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep 'lxd_api_requests_ongoing{entity_type="instance"}' | awk '{print $2}')" -eq $((previous+1)) ]
   wait $!
   [ "$(curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep 'lxd_api_requests_ongoing{entity_type="instance"}' | awk '{print $2}')" -eq "$previous" ]
