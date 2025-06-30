@@ -77,13 +77,18 @@ To import an image from the local file system, send a POST request to the `/1.0/
 
 For example, to import a unified image from one file:
 
-    curl -X POST --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd/1.0/images \
+    curl -X POST -H 'Content-Type: application/octet-stream' --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd/1.0/images \
     --data-binary @<image_file_path>
 
-To import a split image from a metadata file and a rootfs file:
+To import a split image from a metadata file and a container `rootfs` file:
 
-    curl -X POST --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd/1.0/images \
-    --form metadata=@<metadata_tarball_path> --form rootfs.img=<rootfs_tarball_path>
+    curl -X POST -H 'Content-Type: multipart/form-data' --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd/1.0/images \
+    --form metadata=@<metadata_tarball_path> --form rootfs=@<rootfs_tarball_path>
+
+To import a split image from a metadata file and a VM `rootfs.img` file:
+
+    curl -X POST -H 'Content-Type: multipart/form-data' --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd/1.0/images \
+    --form metadata=@<metadata_tarball_path> --form rootfs.img=@<rootfs_tarball_path>
 
 ```{note}
 For a split image, you must send the metadata tarball first and the rootfs image after.
