@@ -930,6 +930,12 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 				return response.NotImplemented(nil)
 			}
 
+			// Protect against CSRF when using LXD-UI with browser that supports Fetch metadata.
+			// Deny Sec-Fetch-Site when set to cross-origin or same-site.
+			if slices.Contains([]string{"cross-origin", "same-site"}, r.Header.Get("Sec-Fetch-Site")) {
+				return response.ErrorResponse(http.StatusForbidden, "Forbidden Sec-Fetch-Site header value")
+			}
+
 			if len(action.ContentTypes) == 0 {
 				// Require application/json if not specified by handler.
 				action.ContentTypes = []string{"application/json"}
