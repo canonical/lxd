@@ -123,31 +123,31 @@ test_container_devices_nic_bridged() {
   fi
 
   # Check profile custom MTU is applied in container on boot.
-  if ! lxc exec "${ctName}" -- grep -xF "1400" /sys/class/net/eth0/mtu ; then
+  if [ "$(lxc exec "${ctName}" -- cat /sys/class/net/eth0/mtu)" != "1400" ]; then
     echo "container veth mtu invalid"
     false
   fi
 
   # Check profile custom MTU doesn't affect the host.
-  if ! grep -xF "1500" /sys/class/net/"${vethHostName}"/mtu ; then
+  if [ "$(cat /sys/class/net/"${vethHostName}"/mtu)" != "1500" ]; then
     echo "host veth mtu invalid"
     false
   fi
 
   # Check profile custom txqueuelen is applied in container on boot.
-  if ! lxc exec "${ctName}" -- grep -xF "1200" /sys/class/net/eth0/tx_queue_len ; then
+  if [ "$(lxc exec "${ctName}" -- cat /sys/class/net/eth0/tx_queue_len)" != "1200" ]; then
     echo "container veth txqueuelen invalid"
     false
   fi
 
   # Check profile custom txqueuelen is applied on host side of veth.
-  if ! grep -xF "1200" /sys/class/net/"${vethHostName}"/tx_queue_len ; then
+  if [ "$(cat /sys/class/net/"${vethHostName}"/tx_queue_len)" != "1200" ]; then
     echo "host veth txqueuelen invalid"
     false
   fi
 
   # Check profile custom MAC is applied in container on boot.
-  if ! lxc exec "${ctName}" -- grep -Fix "${ctMAC}" /sys/class/net/eth0/address ; then
+  if [ "$(lxc exec "${ctName}" -- cat /sys/class/net/eth0/address)" != "${ctMAC}" ]; then
     echo "mac invalid"
     false
   fi
@@ -217,19 +217,19 @@ test_container_devices_nic_bridged() {
   fi
 
   # Check custom MTU is applied on hot-plug.
-  if ! lxc exec "${ctName}" -- grep -xF "1401" /sys/class/net/eth0/mtu ; then
+  if [ "$(lxc exec "${ctName}" -- cat /sys/class/net/eth0/mtu)" != "1401" ]; then
     echo "container veth mtu invalid"
     false
   fi
 
   # Check custom MTU doesn't affect the host.
-  if ! grep -xF "1500" /sys/class/net/"${vethHostName}"/mtu ; then
+  if [ "$(cat /sys/class/net/"${vethHostName}"/mtu)" != "1500" ]; then
     echo "host veth mtu invalid"
     false
   fi
 
   # Check custom MAC is applied on hot-plug.
-  if ! lxc exec "${ctName}" -- grep -Fix "${ctMAC}" /sys/class/net/eth0/address ; then
+  if [ "$(lxc exec "${ctName}" -- cat /sys/class/net/eth0/address)" != "${ctMAC}" ]; then
     echo "mac invalid"
     false
   fi
@@ -277,13 +277,13 @@ test_container_devices_nic_bridged() {
   fi
 
   # Check profile custom MTU is applied on hot-removal.
-  if ! lxc exec "${ctName}" -- grep -xF "1400" /sys/class/net/eth0/mtu ; then
+  if [ "$(lxc exec "${ctName}" -- cat /sys/class/net/eth0/mtu)" != "1400" ]; then
     echo "container veth mtu invalid"
     false
   fi
 
   # Check custom MTU doesn't affect the host.
-  if ! grep -xF "1500" /sys/class/net/"${vethHostName}"/mtu ; then
+  if [ "$(cat /sys/class/net/"${vethHostName}"/mtu)" != "1500" ]; then
     echo "host veth mtu invalid"
     false
   fi
@@ -369,13 +369,13 @@ test_container_devices_nic_bridged() {
   fi
 
   # Check custom MTU is applied update.
-  if ! lxc exec "${ctName}" -- grep -xF "1402" /sys/class/net/eth0/mtu ; then
+  if [ "$(lxc exec "${ctName}" -- cat /sys/class/net/eth0/mtu)" != "1402" ]; then
     echo "mtu invalid"
     false
   fi
 
   # Check custom MAC is applied update.
-  if ! lxc exec "${ctName}" -- grep -Fix "${ctMAC}" /sys/class/net/eth0/address ; then
+  if [ "$(lxc exec "${ctName}" -- cat /sys/class/net/eth0/address)" != "${ctMAC}" ]; then
     echo "mac invalid"
     false
   fi
@@ -385,7 +385,7 @@ test_container_devices_nic_bridged() {
   lxc config device unset "${ctName}" eth0 mtu
   lxc network set "${brName}" bridge.mtu "1405"
   lxc start "${ctName}"
-  if ! lxc exec "${ctName}" -- grep -xF "1405" /sys/class/net/eth0/mtu ; then
+  if [ "$(lxc exec "${ctName}" -- cat /sys/class/net/eth0/mtu)" != "1405" ]; then
     echo "mtu not inherited from parent"
     false
   fi
@@ -654,7 +654,7 @@ test_container_devices_nic_bridged() {
   lxc network set "${brName}" bridge.mtu 1400
   lxc config device remove "${ctName}" eth0
   lxc start "${ctName}"
-  if ! lxc exec "${ctName}" -- grep -xF "1400" /sys/class/net/eth0/mtu ; then
+  if [ "$(lxc exec "${ctName}" -- cat /sys/class/net/eth0/mtu)" != "1400" ]; then
     echo "container mtu has not been inherited from network"
     false
   fi
