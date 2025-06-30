@@ -78,8 +78,7 @@ func pendingInstanceOperations() (map[string]*operations.Operation, error) {
 
 		// If the current operations has a hold on some resources, we keep track of them in the `resourceMap`.
 		// This is used to mark instances and storage volumes as busy to avoid shutting them down / unmounting them prematurely.
-		// This allows the waitForOperations to be called in a goroutine alongside the instance shutdown goroutine and the custom volume unmounting goroutine (for backups and images)
-		// and to avoid the situation where a single very long running operation can block the shutdown of unrelated instances and the unmount of unrelated storage volumes.
+		// This avoids the situation where a single very long running operation can block the shutdown of unrelated instances and the unmount of unrelated storage volumes.
 		for resourceName, resourceEntries := range opAPI.Resources {
 			if resourceName != "instances" {
 				continue

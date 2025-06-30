@@ -66,8 +66,10 @@ class LXD:
 
     def aliases_create(self, name, target):
         data = json.dumps({"target": target, "name": name})
+        headers = {}
+        headers["Content-Type"] = "application/json"
 
-        status, data = self.rest_call("/1.0/images/aliases", data, "POST")
+        status, data = self.rest_call("/1.0/images/aliases", data, "POST", headers)
 
         if status not in (200, 201):
             raise Exception("Failed to create alias: %s" % name)

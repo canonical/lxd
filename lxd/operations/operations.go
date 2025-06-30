@@ -255,7 +255,7 @@ func (op *Operation) done() {
 
 		select {
 		case <-shutdownCtx.Done():
-			return // Expect all operation records to be removed by waitForOperations in one query.
+			return // Expect all operation records to be removed by daemon.Stop in one query.
 		case <-time.After(time.Second * 5): // Wait 5s before removing from internal map and database.
 		}
 
