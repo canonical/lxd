@@ -16,6 +16,23 @@ User keys can be used in search.
 ```
 
 <!-- config group cluster-cluster end -->
+<!-- config group cluster-link-conf start -->
+```{config:option} user.* cluster-link-conf
+:shortdesc: "Free form user key/value storage"
+:type: "string"
+User keys can be used in search.
+```
+
+<!-- config group cluster-link-conf end -->
+<!-- config group cluster-link-volatile-conf start -->
+```{config:option} volatile.addresses cluster-link-volatile-conf
+:scope: "global"
+:shortdesc: "Cluster link member addresses."
+:type: "string"
+A comma-separated list of cluster link member addresses.
+```
+
+<!-- config group cluster-link-volatile-conf end -->
 <!-- config group device-disk-device-conf start -->
 ```{config:option} boot.priority device-disk-device-conf
 :condition: "virtual machine"
