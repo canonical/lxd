@@ -96,6 +96,63 @@ func (p *Project) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Project, error) {
 	return apiProject, nil
 }
 
+// GetProjectConfigValue is a helper to return value of an config option of a project.
+func GetProjectConfigValue(ctx context.Context, tx *sql.Tx, project string, config string) (string, error) {
+	stmt := `
+SELECT projects_config.value
+  FROM projects_config
+  JOIN projects ON projects.id=projects_config.project_id
+ WHERE ( projects.name=? AND projects_config.key=? )
+`
+
+	values, err := query.SelectStrings(ctx, tx, stmt, project, config)
+	if err != nil {
+		return "", fmt.Errorf("Fetch project config: %w", err)
+	}
+
+	if len(values) == 0 {
+		return "", nil
+	}
+
+	return values[0], nil
+}
+
+// GetProjectsNameAndConfigValue is a helper to return names of all projects keyd by the config value.
+func GetProjectsNameAndConfigValue(ctx context.Context, tx *sql.Tx, config string) (map[string]string, error) {
+	stmt := `
+SELECT projects.name, projects_config.value
+  FROM projects_config
+  JOIN projects ON projects.id=projects_config.project_id
+ WHERE projects_config.key=?
+`
+	rows, err := tx.QueryContext(ctx, stmt, config)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = rows.Close() }()
+
+	result := make(map[string]string)
+	for i := 0; rows.Next(); i++ {
+		var name string
+		var configValue string
+
+		err := rows.Scan(&name, &configValue)
+		if err != nil {
+			return nil, err
+		}
+
+		result[name] = configValue
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 // ProjectHasProfiles is a helper to check if a project has the profiles
 // feature enabled.
 func ProjectHasProfiles(ctx context.Context, tx *sql.Tx, name string) (bool, error) {
