@@ -80,6 +80,11 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 		return errors.New("missing secret")
 	}
 
+	err := op.CheckRequestor(r)
+	if err != nil {
+		return err
+	}
+
 	for fd, fdSecret := range s.fds {
 		if secret == fdSecret {
 			conn, err := ws.Upgrader.Upgrade(w, r, nil)
