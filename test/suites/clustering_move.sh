@@ -52,13 +52,25 @@ test_clustering_move() {
   LXD_DIR=${LXD_ONE_DIR} lxc auth identity group add tls/test instance-movers
   LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers project default can_create_instances # Required, since a move constitutes an initial copy.
   LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers project default can_view_events # Required for the CLI to watch the operation.
+  LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers server can_create_projects # Required for testing moving an instance to a new project and location.
+  LXD_DIR=${LXD_ONE_DIR} lxc project create cluster:test-project
+  LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers project test-project can_create_instances # Required, since a move constitutes an initial copy.
+  LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers project test-project can_view_events # Required for the CLI to watch the operation.
   LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers instance c1 can_edit project=default
   LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers instance c1 can_view project=default
 
   # Perform default move tests falling back to the built in logic of choosing the node
   # with the least number of instances when targeting a cluster group.
   lxc move cluster:c1 --target node2
-  lxc move cluster:c1 --target @foobar1
+
+  # c1 can me moved to a new target project.
+  lxc move cluster:c1 --target-project test-project
+  lxc move cluster:c1 --target-project default --project test-project
+
+  # c1 can be moved to a new target project and location.
+  lxc move cluster:c1 --target node3 --target-project test-project
+
+  lxc move cluster:c1 --target @foobar1 --project test-project --target-project default
   lxc info cluster:c1 | grep -xF "Location: node1"
 
   # c1 can be moved within the same cluster group if it has multiple members
