@@ -15,6 +15,11 @@ _server_config_access() {
 
   # test authentication type, only tls is enabled by default
   [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0" | jq -r '.metadata.auth_methods | .[]')" = "tls" ]
+
+  # test fetch metadata validation.
+  [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -w "%{http_code}" -o /dev/null -H 'Sec-Fetch-Site: same-origin' "lxd/1.0")" = "200" ]
+  [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -w "%{http_code}" -o /dev/null -H 'Sec-Fetch-Site: cross-origin' "lxd/1.0")" = "403" ]
+  [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -w "%{http_code}" -o /dev/null -H 'Sec-Fetch-Site: same-site' "lxd/1.0")" = "403" ]
 }
 
 _server_config_storage() {
