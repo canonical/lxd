@@ -118,7 +118,7 @@ test_container_devices_nic_routed() {
 
   # Check MAC address is applied.
   ctMAC=$(lxc config get "${ctName}" volatile.eth0.hwaddr)
-  if ! lxc exec "${ctName}" -- grep -Fix "${ctMAC}" /sys/class/net/eth0/address ; then
+  if [ "$(lxc exec "${ctName}" -- cat /sys/class/net/eth0/address)" != "${ctMAC}" ]; then
     echo "mac invalid"
     false
   fi
@@ -134,7 +134,7 @@ test_container_devices_nic_routed() {
   lxc config device unset "${ctName}" eth0 mtu
   lxc start "${ctName}"
 
-  if ! lxc exec "${ctName}" -- grep "1605" /sys/class/net/eth0/mtu ; then
+  if [ "$(lxc exec "${ctName}" -- cat /sys/class/net/eth0/mtu)" != "1605" ]; then
     echo "mtu not inherited from parent"
     false
   fi
@@ -193,7 +193,7 @@ test_container_devices_nic_routed() {
   lxc start "${ctName}"
 
   # Check VLAN interface created
-  if ! grep "1" "/sys/class/net/${ctName}.1234/carrier" ; then
+  if [ "$(cat "/sys/class/net/${ctName}.1234/carrier")" != "1" ]; then
     echo "vlan interface not created"
     false
   fi
