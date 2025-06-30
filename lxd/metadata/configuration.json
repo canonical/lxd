@@ -19,6 +19,29 @@
 						}
 					}
 				]
+			},
+			"link-conf": {
+				"keys": [
+					{
+						"user.*": {
+							"longdesc": "User keys can be used in search.",
+							"shortdesc": "Free form user key/value storage",
+							"type": "string"
+						}
+					}
+				]
+			},
+			"link-volatile-conf": {
+				"keys": [
+					{
+						"volatile.addresses": {
+							"longdesc": "A comma-separated list of cluster link member addresses.",
+							"scope": "global",
+							"shortdesc": "Cluster link member addresses.",
+							"type": "string"
+						}
+					}
+				]
 			}
 		},
 		"device-disk": {
