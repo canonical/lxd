@@ -516,10 +516,10 @@ test_container_devices_nic_bridged() {
   ip addr
   ip netns exec testdns ip addr
 
-  ! ip netns exec testdns dig -4 +retry=0 +notcp @192.0.2.1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
-  ! ip netns exec testdns dig -6 +retry=0 +notcp @2001:db8::1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
-  ! ip netns exec testdns dig -4 +retry=0 +tcp @192.0.2.1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
-  ! ip netns exec testdns dig -6 +retry=0 +tcp @2001:db8::1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
+  ! ip netns exec testdns dig -4 +retry=0 +notcp @192.0.2.1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2." || false
+  ! ip netns exec testdns dig -6 +retry=0 +notcp @2001:db8::1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2." || false
+  ! ip netns exec testdns dig -4 +retry=0 +tcp @192.0.2.1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2." || false
+  ! ip netns exec testdns dig -6 +retry=0 +tcp @2001:db8::1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2." || false
 
   ip netns exec testdns ip link delete eth0
   ip netns delete testdns
@@ -632,23 +632,23 @@ test_container_devices_nic_bridged() {
 
   # Linked network tests.
   # Can't use network property when parent is set.
-  ! lxc profile device set "${ctName}" eth0 network="${brName}"
+  ! lxc profile device set "${ctName}" eth0 network="${brName}" || false
 
   # Remove mtu, nictype and parent settings and assign network in one command.
   lxc profile device set "${ctName}" eth0 mtu="" parent="" nictype="" network="${brName}"
 
   # Can't remove network if parent not specified.
-  ! lxc profile device unset "${ctName}" eth0 network
+  ! lxc profile device unset "${ctName}" eth0 network || false
 
   # Can't use some settings when network is set.
-  ! lxc profile device set "${ctName}" eth0 nictype="bridged"
-  ! lxc profile device set "${ctName}" eth0 mtu="1400"
-  ! lxc profile device set "${ctName}" eth0 maas.subnet.ipv4="test"
-  ! lxc profile device set "${ctName}" eth0 maas.subnet.ipv6="test"
+  ! lxc profile device set "${ctName}" eth0 nictype="bridged" || false
+  ! lxc profile device set "${ctName}" eth0 mtu="1400" || false
+  ! lxc profile device set "${ctName}" eth0 maas.subnet.ipv4="test" || false
+  ! lxc profile device set "${ctName}" eth0 maas.subnet.ipv6="test" || false
 
   # Can't set static IP that isn't part of network's subnet.
-  ! lxc profile device set "${ctName}" eth0 ipv4.address="192.0.4.2"
-  ! lxc profile device set "${ctName}" eth0 ipv6.address="2001:db8:2::2"
+  ! lxc profile device set "${ctName}" eth0 ipv4.address="192.0.4.2" || false
+  ! lxc profile device set "${ctName}" eth0 ipv6.address="2001:db8:2::2" || false
 
   # Test bridge MTU is inherited.
   lxc network set "${brName}" bridge.mtu 1400
@@ -673,21 +673,21 @@ test_container_devices_nic_bridged() {
   lxc network unset "${brName}" bridge.mtu
 
   # Test stateful DHCP static IP checks.
-  ! lxc config device override "${ctName}" eth0 ipv4.address="192.0.4.2"
+  ! lxc config device override "${ctName}" eth0 ipv4.address="192.0.4.2" || false
 
   lxc network set "${brName}" ipv4.dhcp false
-  ! lxc config device override "${ctName}" eth0 ipv4.address="192.0.2.2"
+  ! lxc config device override "${ctName}" eth0 ipv4.address="192.0.2.2" || false
   lxc network unset "${brName}" ipv4.dhcp
   lxc config device override "${ctName}" eth0 ipv4.address="192.0.2.2"
 
-  ! lxc config device set "${ctName}" eth0 ipv6.address="2001:db8:2::2"
+  ! lxc config device set "${ctName}" eth0 ipv6.address="2001:db8:2::2" || false
 
   lxc network set "${brName}" ipv6.dhcp=false ipv6.dhcp.stateful=false
-  ! lxc config device set "${ctName}" eth0 ipv6.address="2001:db8::2"
+  ! lxc config device set "${ctName}" eth0 ipv6.address="2001:db8::2" || false
   lxc network set "${brName}" ipv6.dhcp=true ipv6.dhcp.stateful=false
-  ! lxc config device set "${ctName}" eth0 ipv6.address="2001:db8::2"
+  ! lxc config device set "${ctName}" eth0 ipv6.address="2001:db8::2" || false
   lxc network set "${brName}" ipv6.dhcp=false ipv6.dhcp.stateful=true
-  ! lxc config device set "${ctName}" eth0 ipv6.address="2001:db8::2"
+  ! lxc config device set "${ctName}" eth0 ipv6.address="2001:db8::2" || false
 
   lxc network unset "${brName}" ipv6.dhcp
   lxc config device set "${ctName}" eth0 ipv6.address="2001:db8::2"
