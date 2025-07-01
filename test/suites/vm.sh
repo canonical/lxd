@@ -14,18 +14,18 @@ test_vm_empty() {
     lxc profile set default migration.stateful=true
   fi
 
-  echo "Invalid VM names"
+  echo "==> Invalid VM names"
   ! lxc init --vm --empty ".." -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" || false
   # Escaping `\` multiple times due to `lxc` wrapper script munging the first layer
   ! lxc init --vm --empty "\\\\" -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" || false
   ! lxc init --vm --empty "/" -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" || false
   ! lxc init --vm --empty ";" -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" || false
 
-  echo "Too small VMs"
+  echo "==> Too small VMs"
   ! lxc launch --vm --empty v1 -c limits.memory=0 -d "${SMALL_ROOT_DISK}" || false
   ! lxc launch --vm --empty v1 -c limits.memory=0% -d "${SMALL_ROOT_DISK}" || false
 
-  echo "Tiny VMs with snapshots"
+  echo "==> Tiny VMs with snapshots"
   lxc init --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
   lxc snapshot v1
   # Invalid snapshot names
@@ -42,7 +42,7 @@ test_vm_empty() {
   lxc launch --vm --empty v1 -c limits.memory=1% -d "${SMALL_ROOT_DISK}"
   lxc delete --force v1
 
-  echo "Ephemeral cleanup"
+  echo "==> Ephemeral cleanup"
   lxc launch --vm --empty --ephemeral v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
   lxc stop -f v1
   [ "$(lxc list -f csv -c n)" = "" ]
