@@ -40,7 +40,7 @@ test_container_devices_nic_sriov() {
 
   # Check spoof checking has been disabled (the default).
   vfID=$(lxc config get "${ctName}" volatile.eth0.last_state.vf.id)
-  if ip link show "${parent}" | grep "vf ${vfID}" | grep "spoof checking on"; then
+  if ip link show "${parent}" | grep -F "vf ${vfID}" | grep -F "spoof checking on"; then
     echo "spoof checking is still enabled"
     false
   fi
@@ -49,7 +49,7 @@ test_container_devices_nic_sriov() {
 
   # Check custom vlan has been enabled.
   vfID=$(lxc config get "${ctName}" volatile.eth0.last_state.vf.id)
-  if ! ip link show "${parent}" | grep "vf ${vfID}" | grep "vlan 1234"; then
+  if ! ip link show "${parent}" | grep -F "vf ${vfID}" | grep -F "vlan 1234"; then
     echo "vlan not set"
     false
   fi
@@ -58,7 +58,7 @@ test_container_devices_nic_sriov() {
 
   # Check spoof checking has been enabled
   vfID=$(lxc config get "${ctName}" volatile.eth0.last_state.vf.id)
-  if ! ip link show "${parent}" | grep "vf ${vfID}" | grep "spoof checking on"; then
+  if ! ip link show "${parent}" | grep -F "vf ${vfID}" | grep -F "spoof checking on"; then
     echo "spoof checking is still disabled"
     false
   fi
@@ -67,9 +67,9 @@ test_container_devices_nic_sriov() {
 
   # Check custom vlan has been disabled.
   vfID=$(lxc config get "${ctName}" volatile.eth0.last_state.vf.id)
-  if ip link show "${parent}" | grep "vf ${vfID}" | grep "vlan"; then
+  if ip link show "${parent}" | grep -F "vf ${vfID}" | grep -F "vlan"; then
     # Mellanox cards display vlan 0 as vlan 4095!
-    if ! ip link show "${parent}" | grep "vf ${vfID}" | grep "vlan 4095"; then
+    if ! ip link show "${parent}" | grep -F "vf ${vfID}" | grep -F "vlan 4095"; then
       echo "vlan still set"
       false
     fi
@@ -91,7 +91,7 @@ test_container_devices_nic_sriov() {
 
   # Check custom MAC is applied.
   vfID=$(lxc config get "${ctName}" volatile.eth0.last_state.vf.id)
-  if ! ip link show "${parent}" | grep "vf ${vfID}" | grep "${ctMAC1}"; then
+  if ! ip link show "${parent}" | grep -F "vf ${vfID}" | grep -F "${ctMAC1}"; then
     echo "eth0 MAC not set"
     false
   fi
@@ -104,7 +104,7 @@ test_container_devices_nic_sriov() {
 
   # Check spoof checking has been disabled (the default).
   vfID=$(lxc config get "${ctName}" volatile.eth0.last_state.vf.id)
-  if ! ip link show "${parent}" | grep "vf ${vfID}" | grep "spoof checking off"; then
+  if ! ip link show "${parent}" | grep -F "vf ${vfID}" | grep -F "spoof checking off"; then
     echo "spoof checking is still enabled"
     false
   fi
@@ -117,7 +117,7 @@ test_container_devices_nic_sriov() {
 
   # Check spoof checking has been enabled.
   vfID=$(lxc config get "${ctName}" volatile.eth1.last_state.vf.id)
-  if ! ip link show "${parent}" | grep "vf ${vfID}" | grep "spoof checking on"; then
+  if ! ip link show "${parent}" | grep -F "vf ${vfID}" | grep -F "spoof checking on"; then
     echo "spoof checking is still disabled"
     false
   fi
@@ -130,7 +130,7 @@ test_container_devices_nic_sriov() {
 
   # Check custom MAC is applied.
   vfID=$(lxc config get "${ctName}" volatile.eth1.last_state.vf.id)
-  if ! ip link show "${parent}" | grep "vf ${vfID}" | grep "${ctMAC2}"; then
+  if ! ip link show "${parent}" | grep -F "vf ${vfID}" | grep -F "${ctMAC2}"; then
     echo "eth1 MAC not set"
     false
   fi
@@ -149,7 +149,7 @@ test_container_devices_nic_sriov() {
 
   # Check custom MAC is applied.
   vfID=$(lxc config get "${ctName}" volatile.eth0.last_state.vf.id)
-  if ! ip link show "${parent}" | grep "vf ${vfID}" | grep "${ctMAC1}"; then
+  if ! ip link show "${parent}" | grep -F "vf ${vfID}" | grep -F "${ctMAC1}"; then
     echo "eth0 MAC not set"
     false
   fi
