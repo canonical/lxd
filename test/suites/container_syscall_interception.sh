@@ -2,11 +2,6 @@ test_container_syscall_interception() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  if [ "$(awk '/^Seccomp:/ {print $2}' "/proc/self/status")" -eq "0" ]; then
-    echo "==> SKIP: syscall interception (seccomp filtering is externally enabled)"
-    return
-  fi
-
   (
     cd syscall/sysinfo || return
     # Use -buildvcs=false here to prevent git complaining about untrusted directory when tests are run as root.
