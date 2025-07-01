@@ -13,9 +13,7 @@ test_container_syscall_interception() {
     go build -v -buildvcs=false ./...
   )
 
-  lxc init testimage c1
-  lxc config set c1 limits.memory=123MiB
-  lxc start c1
+  lxc launch testimage c1 -c limits.memory=123MiB
   lxc file push syscall/sysinfo/sysinfo c1/root/sysinfo
   lxc exec c1 -- /root/sysinfo
   ! lxc exec c1 -- /root/sysinfo | grep "Totalram:128974848 " || false
