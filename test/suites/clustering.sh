@@ -328,9 +328,9 @@ test_clustering_membership() {
   unset LXD_SECRET
 
   # This will cause the token to expire
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.join_token_expiry=5S
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.join_token_expiry=2S
   token_expired="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add --quiet node9)"
-  sleep 6
+  sleep 2
 
   # Spawn a ninth node, using join token.
   setup_clustering_netns 9
