@@ -53,6 +53,7 @@ func (d *nicMACVLAN) validateConfig(instConf instance.ConfigReader) error {
 		"maas.subnet.ipv6",
 		"boot.priority",
 		"gvrp",
+		"required",
 	}
 
 	// Check that if network proeperty is set that conflicting keys are not present.
@@ -71,6 +72,10 @@ func (d *nicMACVLAN) validateConfig(instConf instance.ConfigReader) error {
 		var err error
 		d.network, err = network.LoadByName(d.state, api.ProjectDefaultName, d.config["network"])
 		if err != nil {
+			if d.config["required"] == "false" {
+				return nil
+			}
+
 			return fmt.Errorf("Error loading network config for %q: %w", d.config["network"], err)
 		}
 
@@ -112,6 +117,10 @@ func (d *nicMACVLAN) validateConfig(instConf instance.ConfigReader) error {
 func (d *nicMACVLAN) PreStartCheck() error {
 	// Non-managed network NICs are not relevant for checking managed network availability.
 	if d.network == nil {
+		return nil
+	}
+
+	if shared.IsFalse(d.config["required"]) {
 		return nil
 	}
 
