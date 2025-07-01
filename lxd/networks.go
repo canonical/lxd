@@ -258,26 +258,20 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	allProjects := shared.IsTrue(request.QueryParam(r, "all-projects"))
-	requestProjectName := request.QueryParam(r, "project")
-
-	// requestProjectName is only valid for project specific requests.
-	if allProjects && requestProjectName != "" {
-		return response.BadRequest(errors.New("Cannot specify a project when requesting all projects"))
-	}
-
-	if requestProjectName == "" {
-		requestProjectName = api.ProjectDefaultName
-	}
-
-	// Project specific requests require an effective project, when "features.networks" is enabled this is the requested project, otherwise it is the default project.
-	effectiveProjectName, reqProject, err := project.NetworkProject(s.DB.Cluster, requestProjectName)
+	requestProjectName, allProjects, err := request.ProjectParams(r)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	reqInfo := request.SetupContextInfo(r)
-	reqInfo.EffectiveProjectName = effectiveProjectName
+	var reqProject *api.Project
+	if !allProjects {
+		// Project specific requests require an effective project, when "features.networks" is enabled this is the requested project, otherwise it is the default project.
+		reqInfo.EffectiveProjectName, reqProject, err = project.NetworkProject(s.DB.Cluster, requestProjectName)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
 
 	recursion := util.IsRecursionRequest(r)
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeNetwork, true)
@@ -305,7 +299,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 			}
 		} else {
 			// Get list of managed networks (that may or may not have network interfaces on the host).
-			networkNames, err := tx.GetNetworks(ctx, effectiveProjectName)
+			networkNames, err := tx.GetNetworks(ctx, reqInfo.EffectiveProjectName)
 			if err != nil {
 				return err
 			}
@@ -321,7 +315,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 
 	// Get list of actual network interfaces on the host if the effective project is default and the caller has permission.
 	var getUnmanagedNetworks bool
-	if effectiveProjectName == api.ProjectDefaultName {
+	if reqInfo.EffectiveProjectName == api.ProjectDefaultName {
 		err := s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanViewUnmanagedNetworks)
 		if err == nil {
 			getUnmanagedNetworks = true
