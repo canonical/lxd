@@ -153,10 +153,10 @@ test_container_devices_nic_bridged() {
   fi
 
   # Add IP alias to container and check routes actually work.
+  lxc exec "${ctName}" -- ip -6 addr add "2001:db8::1${ipRand}/128" dev eth0
   lxc exec "${ctName}" -- ip -4 addr add "192.0.2.1${ipRand}/32" dev eth0
   lxc exec "${ctName}" -- ip -4 route add default dev eth0
   ping -nc2 -i0.1 -W1 "192.0.2.1${ipRand}"
-  lxc exec "${ctName}" -- ip -6 addr add "2001:db8::1${ipRand}/128" dev eth0
   wait_for_dad "${ctName}" eth0
   ping -6 -nc2 -i0.1 -W1 "2001:db8::1${ipRand}"
 
