@@ -164,6 +164,11 @@ linkcheck_ignore = [
     'https://www.schlachter.tech/solutions/pongo2-template-engine/'
 ]
 
+# Ignore anchors for these URLs in linkcheck, but still check the URLs themselves
+linkcheck_anchors_ignore_for_url = [
+    'https://maas.io/docs/how-to-manage-machines',
+]
+
 # Setup redirects (https://documatt.gitlab.io/sphinx-reredirects/usage.html)
 redirects = {
     "production-setup/index": "../explanation/performance_tuning/index.html",
