@@ -330,12 +330,11 @@ jobs:
       - name: Reclaim some memory
         uses: ./.github/actions/reclaim-memory
 
-      - name: Reclaim disk space
-        uses: ./.github/actions/reclaim-disk-space
-        # cluster tests do not consume much space and tests on ceph use the
-        # ephemeral disk those `rm -rf` can sometimes take ~2 minutes on slow
-        # runners so skip them where possible.
-        if: ${{ matrix.suite != 'cluster' && matrix.backend != 'ceph' }}
+      - name: Purge LXD snap
+        # TODO: drop this when moving away from `ubuntu-22.04` runners to `ubuntu-24.04`
+        run: |
+          set -eux
+          sudo snap remove --purge lxd || true
 
       - name: Remove docker
         uses: ./.github/actions/disable-docker
@@ -437,8 +436,11 @@ jobs:
       - name: Reclaim some memory
         uses: ./.github/actions/reclaim-memory
 
-      - name: Reclaim disk space
-        uses: ./.github/actions/reclaim-disk-space
+      - name: Purge LXD snap
+        # TODO: drop this when moving away from `ubuntu-22.04` runners to `ubuntu-24.04`
+        run: |
+          set -eux
+          sudo snap remove --purge lxd || true
 
       - name: Remove docker
         uses: ./.github/actions/disable-docker

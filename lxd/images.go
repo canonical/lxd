@@ -1971,11 +1971,11 @@ func autoUpdateImages(ctx context.Context, s *state.State) error {
 		var newImage *api.Image
 
 		for _, image := range images {
-			imgProject := image.Project
-			filter := dbCluster.ImageFilter{Project: &imgProject}
+			l := logger.AddContext(logger.Ctx{"member": s.ServerName, "project": image.Project, "fingerprint": image.Fingerprint})
+
+			filter := dbCluster.ImageFilter{Project: &image.Project}
 			if image.Public {
-				imgPublic := image.Public
-				filter.Public = &imgPublic
+				filter.Public = &image.Public
 			}
 
 			var imageInfo *api.Image
@@ -1986,13 +1986,13 @@ func autoUpdateImages(ctx context.Context, s *state.State) error {
 				return err
 			})
 			if err != nil {
-				logger.Error("Failed to get image", logger.Ctx{"err": err, "project": image.Project, "fingerprint": image.Fingerprint})
+				l.Error("Failed to get image", logger.Ctx{"err": err})
 				continue
 			}
 
 			newInfo, err := autoUpdateImage(ctx, s, nil, image.ID, imageInfo, image.Project, false)
 			if err != nil {
-				logger.Error("Failed to update image", logger.Ctx{"err": err, "project": image.Project, "fingerprint": image.Fingerprint})
+				l.Error("Failed to update image", logger.Ctx{"err": err})
 
 				if err == context.Canceled {
 					return nil
@@ -2012,7 +2012,7 @@ func autoUpdateImages(ctx context.Context, s *state.State) error {
 			if len(nodes) > 1 {
 				err := distributeImage(ctx, s, nodes, fingerprint, newImage)
 				if err != nil {
-					logger.Error("Failed to distribute new image", logger.Ctx{"err": err, "fingerprint": newImage.Fingerprint})
+					logger.Error("Failed to distribute new image", logger.Ctx{"member": s.ServerName, "fingerprint": newImage.Fingerprint, "err": err})
 
 					if err == context.Canceled {
 						return nil
@@ -2020,17 +2020,20 @@ func autoUpdateImages(ctx context.Context, s *state.State) error {
 				}
 			}
 
-			_ = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				for _, ID := range deleteIDs {
 					// Remove the database entry for the image after distributing to cluster members.
 					err := tx.DeleteImage(ctx, ID)
 					if err != nil {
-						logger.Error("Error deleting old image from database", logger.Ctx{"err": err, "fingerprint": fingerprint, "ID": ID})
+						return fmt.Errorf(`Failed deleting image record with ID "%d": %w`, ID, err)
 					}
 				}
 
 				return nil
 			})
+			if err != nil {
+				logger.Error("Error deleting old image(s) records", logger.Ctx{"member": s.ServerName, "fingerprint": fingerprint, "err": err})
+			}
 		}
 	}
 
@@ -2350,7 +2353,7 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 		poolNames = append(poolNames, "")
 	}
 
-	logger.Debug("Processing image", logger.Ctx{"fingerprint": fingerprint, "server": source.Server, "protocol": source.Protocol, "alias": source.Alias})
+	logger.Info("Checking image update", logger.Ctx{"member": s.ServerName, "poolNames": poolNames, "project": projectName, "fingerprint": fingerprint, "source": source.Server, "protocol": source.Protocol, "alias": source.Alias})
 
 	// Set operation metadata to indicate whether a refresh happened
 	setRefreshResult := func(result bool) {
