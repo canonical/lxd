@@ -1,4 +1,12 @@
 test_storage_driver_zfs() {
+  local lxd_backend
+
+  lxd_backend=$(storage_backend "$LXD_DIR")
+  if [ "$lxd_backend" != "zfs" ]; then
+    echo "==> SKIP: test_storage_driver_zfs only supports 'zfs', not ${lxd_backend}"
+    return
+  fi
+
   do_storage_driver_zfs ext4
   do_storage_driver_zfs xfs
   do_storage_driver_zfs btrfs
@@ -8,13 +16,6 @@ test_storage_driver_zfs() {
 }
 
 do_zfs_delegate() {
-  local lxd_backend
-
-  lxd_backend=$(storage_backend "$LXD_DIR")
-  if [ "$lxd_backend" != "zfs" ]; then
-    return
-  fi
-
   if ! zfs --help | grep -wF "zone" >/dev/null; then
     echo "==> SKIP: Skipping ZFS delegation tests due as installed version doesn't support it"
     return
@@ -45,12 +46,7 @@ do_zfs_delegate() {
 }
 
 do_zfs_cross_pool_copy() {
-  local LXD_STORAGE_DIR lxd_backend
-
-  lxd_backend=$(storage_backend "$LXD_DIR")
-  if [ "$lxd_backend" != "zfs" ]; then
-    return
-  fi
+  local LXD_STORAGE_DIR
 
   LXD_STORAGE_DIR=$(mktemp -d -p "${TEST_DIR}" XXXXXXXXX)
   spawn_lxd "${LXD_STORAGE_DIR}" false
@@ -110,12 +106,7 @@ do_zfs_cross_pool_copy() {
 do_storage_driver_zfs() {
   filesystem="$1"
 
-  local LXD_STORAGE_DIR lxd_backend
-
-  lxd_backend=$(storage_backend "$LXD_DIR")
-  if [ "$lxd_backend" != "zfs" ]; then
-    return
-  fi
+  local LXD_STORAGE_DIR
 
   LXD_STORAGE_DIR=$(mktemp -d -p "${TEST_DIR}" XXXXXXXXX)
   spawn_lxd "${LXD_STORAGE_DIR}" false
