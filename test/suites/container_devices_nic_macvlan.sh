@@ -35,6 +35,8 @@ test_container_devices_nic_macvlan() {
   lxc launch testimage "${ctName}2" -p "${ctName}"
   lxc exec "${ctName}2" -- ip addr add "192.0.2.2${ipRand}/24" dev eth0
   lxc exec "${ctName}2" -- ip addr add "2001:db8::2${ipRand}/64" dev eth0
+
+  wait_for_dad "${ctName}" eth0
   wait_for_dad "${ctName}2" eth0
 
   echo "==> Check comms between containers."
