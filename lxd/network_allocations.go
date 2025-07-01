@@ -80,7 +80,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	requestProjectName := request.ProjectParam(r)
-	effectiveProjectName, _, err := project.NetworkProject(d.State().DB.Cluster, requestProjectName)
+	effectiveProjectName, _, err := project.NetworkProject(s.DB.Cluster, requestProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -91,7 +91,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 	allProjects := shared.IsTrue(request.QueryParam(r, "all-projects"))
 
 	var projectNames []string
-	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Figure out the projects to retrieve.
 		if !allProjects {
 			projectNames = []string{effectiveProjectName}
@@ -156,7 +156,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 
 		var networkNames []string
 
-		err := d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 
 			networkNames, err = tx.GetNetworks(ctx, projectName)
@@ -173,7 +173,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
-			n, err := network.LoadByName(d.State(), projectName, networkName)
+			n, err := network.LoadByName(s, projectName, networkName)
 			if err != nil {
 				return response.SmartError(fmt.Errorf("Failed loading network %q in project %q: %w", networkName, projectName, err))
 			}
@@ -241,7 +241,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 
 			var forwards map[int64]*api.NetworkForward
 
-			err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 				forwards, err = tx.GetNetworkForwards(ctx, n.ID(), false)
 
 				return err
@@ -271,7 +271,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 
 			var loadBalancers map[int64]*api.NetworkLoadBalancer
 
-			err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 				loadBalancers, err = tx.GetNetworkLoadBalancers(ctx, n.ID(), false)
 
 				return err
