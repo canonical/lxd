@@ -24,11 +24,9 @@ test_container_devices_nic_macvlan() {
   lxc exec "${ctName}" -- ip addr add "2001:db8::1${ipRand}/64" dev eth0
 
   echo "==> Check custom MTU is applied if feature available in LXD."
-  if lxc info | grep 'network_phys_macvlan_mtu: "true"' ; then
-    if ! lxc exec "${ctName}" -- ip link show eth0 | grep "mtu 1400" ; then
-      echo "mtu invalid"
-      false
-    fi
+  if ! lxc exec "${ctName}" -- ip link show eth0 | grep "mtu 1400" ; then
+    echo "mtu invalid"
+    false
   fi
 
   echo "==> Spin up another container with multiple IPs."
