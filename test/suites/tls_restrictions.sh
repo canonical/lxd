@@ -57,6 +57,9 @@ test_tls_restrictions() {
   # Validate restricted caller cannot create projects.
   ! lxc_remote project create localhost:blah1 || false
 
+  # Validate restricted caller cannot create instances in projects they don't have access to
+  ! lxc_remote init testimage localhost: --project default || false
+
   # Validate restricted caller cannot list resources in projects they do not have access to
   ! lxc_remote list localhost: --project default || false
   ! lxc_remote profile list localhost: --project default || false
@@ -251,6 +254,34 @@ test_tls_restrictions() {
   # The restricted client can delete the network zone.
   lxc_remote network zone delete localhost:blah-zone --project blah
 
+  ### Network allocations
+
+  # Create a network in the default project.
+  networkName="net$$"
+  lxc network create "${networkName}" --project default
+
+  # Create instances in the default project and in the blah project that use the network
+  ensure_import_testimage
+  lxc image copy testimage local: --project default --target-project blah
+  lxc init testimage foo --network "${networkName}"
+  lxc_remote init testimage localhost:bar --network "${networkName}" --project blah
+
+  # The restricted client can't view allocations in the default project
+  ! lxc network list-allocations localhost: --project default || false
+
+  # The restricted client can't view allocations for all projects
+  ! lxc network list-allocations localhost: --all-projects || false
+
+  # The restricted client can view allocations for the blah project. Since blah doesn't have networks enabled, the client
+  # should see allocations for the default project, but they can't see the foo instance
+  [ "$(lxc network list-allocations localhost: --project blah --format csv | wc -l)" = 3 ]
+  ! lxc network list-allocations localhost: --project blah --format csv | grep 'instances/foo' || false
+
+  # Clean up
+  lxc delete foo
+  lxc delete bar --project blah
+  lxc image delete testimage --project blah
+  lxc network delete "${networkName}"
 
   ### PROFILES (initial value is true for new projects)
 
