@@ -18,22 +18,18 @@ test_container_devices_nic_routed() {
   sysctl net.ipv6.conf."${ctName}".forwarding=1
   sysctl net.ipv4.conf."${ctName}".forwarding=1
 
-  # Wait for IPv6 DAD to complete.
-  wait_for_dad "${ctName}"
-
   # Create container connected to bridge (which will be used for neighbor probe testing).
   lxc init testimage "${ctName}neigh"
   lxc config device add "${ctName}neigh" eth0 nic network="${ctName}"
   lxc start "${ctName}neigh"
-  lxc exec "${ctName}neigh" -- ip -4 addr add 192.0.2.254/24 dev eth0
-  lxc exec "${ctName}neigh" -- ip -4 route replace default via 192.0.2.1 dev eth0
   lxc exec "${ctName}neigh" -- ip -6 addr add 2001:db8::FFFF/64 dev eth0
   lxc exec "${ctName}neigh" -- ip -6 route replace default via 2001:db8::1 dev eth0
-
-  # Wait for IPv6 DAD to complete.
-  wait_for_dad "${ctName}neigh" eth0
+  lxc exec "${ctName}neigh" -- ip -4 addr add 192.0.2.254/24 dev eth0
+  lxc exec "${ctName}neigh" -- ip -4 route replace default via 192.0.2.1 dev eth0
 
   ping -nc2 -i0.1 -W1 192.0.2.254
+  wait_for_dad "${ctName}" # waiting for DAD on the host device
+  wait_for_dad "${ctName}neigh" eth0
   ping -6 -nc2 -i0.1 -W1 "2001:db8::FFFF"
 
   # Create dummy vlan parent.
