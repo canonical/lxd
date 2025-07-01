@@ -14,7 +14,7 @@ test_container_syscall_interception() {
   )
 
   lxc launch testimage c1 -c limits.memory=123MiB
-  lxc file push syscall/sysinfo/sysinfo c1/root/sysinfo
+  lxc file push --quiet syscall/sysinfo/sysinfo c1/root/sysinfo
   lxc exec c1 -- /root/sysinfo
   ! lxc exec c1 -- /root/sysinfo | grep "Totalram:128974848 " || false
   lxc stop -f c1
