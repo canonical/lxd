@@ -67,21 +67,15 @@ You can also use the [refresh.hold](https://snapcraft.io/docs/managing-updates#p
 (howto-snap-updates-hold)=
 ### Hold updates
 
-You can hold snap updates for the LXD snap, either indefinitely or for a specific duration. If you want to fully control updates to your LXD snap, you should set up an indefinite hold until you decide to update.
+You can hold snap updates for the LXD snap, either indefinitely or for a specific duration. If you want to fully control updates to your LXD snap, you should set up an indefinite hold.
 
-To indefinitely hold all updates, run:
+To indefinitely hold updates, run:
 
 ```bash
 sudo snap refresh --hold lxd
 ```
 
-When you want to update, remove the hold:
-
-```bash
-sudo snap refresh --unhold lxd
-```
-
-Then after performing a {ref}`manual update <howto-snap-updates-manual>`, reinstate the hold.
+Then you can perform {ref}`manual updates <howto-snap-updates-manual>` on a schedule that you control.
 
 For detailed information about holds, including how to hold snaps for a specific duration rather than indefinitely, see: [Pause or stop automatic updates](https://snapcraft.io/docs/managing-updates#p-32248-pause-or-stop-automatic-updates) in the Snap documentation.
 
