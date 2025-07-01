@@ -65,13 +65,6 @@ EOF
   lxc config set c1 security.privileged false
   [ "$(stat -c %u:%g "${PATH_TO_CHECK}")" = "0:0" ]
 
-  if [ "${UIDs}" -lt 500000 ] || [ "${GIDs}" -lt 500000 ]; then
-    echo "==> SKIP: The storage volume attach test requires at least 500000 uids and gids"
-    lxc rm -f c1 c2
-    lxc storage volume delete "${pool}" testvolume
-    return
-  fi
-
   # restart
   lxc restart --force c1
   [ "$(stat -c %u:%g "${PATH_TO_CHECK}")" = "${UID_BASE}:${GID_BASE}" ]
