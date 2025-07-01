@@ -235,14 +235,18 @@ scrape_configs:
   # to the `/var/snap/lxd/common/lxd/cluster.crt` file found on every member of
   # the LXD cluster.
   #
-  # Note: the `project` param is are provided when not using the `default` project
-  #       or when multiple projects are used.
+  # Note: When using a certificate restricted to multiple projects, the
+  #       `project` param is only needed if a single project should be scraped at the
+  #       time.
+  #       Otherwise, omitting it will return the metrics for all the accessible
+  #       projects in one scrape.
   #
   # Note: each member of the cluster only provide metrics for instances it runs locally
   #       this is why the `lxd-hdc` cluster lists 3 targets
   - job_name: "lxd-hdc"
     metrics_path: '/1.0/metrics'
     params:
+      # By default, metrics for all accessible projects are returned.
       project: ['jdoe']
     scheme: 'https'
     static_configs:
