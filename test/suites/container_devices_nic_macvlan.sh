@@ -35,12 +35,13 @@ test_container_devices_nic_macvlan() {
   lxc launch testimage "${ctName}2" -p "${ctName}"
   lxc exec "${ctName}2" -- ip addr add "192.0.2.2${ipRand}/24" dev eth0
   lxc exec "${ctName}2" -- ip addr add "2001:db8::2${ipRand}/64" dev eth0
+  wait_for_dad "${ctName}2" eth0
 
   echo "==> Check comms between containers."
-  lxc exec "${ctName}" -- ping -c2 -W5 "192.0.2.2${ipRand}"
-  lxc exec "${ctName}" -- ping6 -c2 -W5 "2001:db8::2${ipRand}"
-  lxc exec "${ctName}2" -- ping -c2 -W5 "192.0.2.1${ipRand}"
-  lxc exec "${ctName}2" -- ping6 -c2 -W5 "2001:db8::1${ipRand}"
+  lxc exec "${ctName}" -- ping -nc2 -i0.1 -W1 "192.0.2.2${ipRand}"
+  lxc exec "${ctName}" -- ping -6 -nc2 -i0.1 -W1 "2001:db8::2${ipRand}"
+  lxc exec "${ctName}2" -- ping -nc2 -i0.1 -W1 "192.0.2.1${ipRand}"
+  lxc exec "${ctName}2" -- ping -6 -nc2 -i0.1 -W1 "2001:db8::1${ipRand}"
 
   echo "==> Test hot plugging a container nic with different settings to profile with the same name."
   lxc config device add "${ctName}" eth0 nic \
@@ -154,8 +155,9 @@ test_container_devices_nic_macvlan() {
   lxc exec "${ctName}" -- ip addr add "192.0.2.1${ipRand}/24" dev eth0
   lxc exec "${ctName}" -- ip addr add "2001:db8::1${ipRand}/64" dev eth0
   lxc exec "${ctName}" -- ip link set eth0 up
-  lxc exec "${ctName}" -- ping -c2 -W5 "192.0.2.2${ipRand}"
-  lxc exec "${ctName}" -- ping6 -c2 -W5 "2001:db8::2${ipRand}"
+  wait_for_dad "${ctName}" eth0
+  lxc exec "${ctName}" -- ping -nc2 -i0.1 -W1 "192.0.2.2${ipRand}"
+  lxc exec "${ctName}" -- ping -6 -nc2 -i0.1 -W1 "2001:db8::2${ipRand}"
   lxc config device remove "${ctName}" eth0
   lxc network delete "${ctName}net"
 

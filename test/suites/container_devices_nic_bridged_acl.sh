@@ -121,14 +121,14 @@ test_container_devices_nic_bridged_acl() {
   lxc exec "${ctPrefix}A" -- ip a add 2001:db8::2/64 dev eth0
 
   # Check ICMP to bridge is blocked.
-  ! lxc exec "${ctPrefix}A" -- ping -c2 -4 -W5 192.0.2.1 || false
-  ! lxc exec "${ctPrefix}A" -- ping -c2 -6 -W5 2001:db8::1 || false
+  ! lxc exec "${ctPrefix}A" -- ping -4 -nc2 -i0.1 -W1 192.0.2.1 || false
+  ! lxc exec "${ctPrefix}A" -- ping -6 -nc2 -i0.1 -W1 2001:db8::1 || false
 
   # Allow ICMP to bridge host.
   lxc network acl rule add "${brName}A" egress action=allow destination=192.0.2.1/32 protocol=icmp4 icmp_type=8
   lxc network acl rule add "${brName}A" egress action=allow destination=2001:db8::1/128 protocol=icmp6 icmp_type=128
-  lxc exec "${ctPrefix}A" -- ping -c2 -4 -W5 192.0.2.1
-  lxc exec "${ctPrefix}A" -- ping -c2 -6 -W5 2001:db8::1
+  lxc exec "${ctPrefix}A" -- ping -4 -nc2 -i0.1 -W1 192.0.2.1
+  lxc exec "${ctPrefix}A" -- ping -6 -nc2 -i0.1 -W1 2001:db8::1
 
   # Check DNS resolution (and connection tracking in the process).
   lxc exec "${ctPrefix}A" -- nslookup -type=a testhost.test 192.0.2.1
@@ -144,18 +144,18 @@ test_container_devices_nic_bridged_acl() {
   lxc network set "${brName}" security.acls="${brName}A,${brName}B"
 
   # Check egress ICMP ping to bridge is blocked.
-  ! lxc exec "${ctPrefix}A" -- ping -c2 -4 -W5 192.0.2.1 || false
-  ! lxc exec "${ctPrefix}A" -- ping -c2 -6 -W5 2001:db8::1 || false
+  ! lxc exec "${ctPrefix}A" -- ping -4 -nc2 -i0.1 -W1 192.0.2.1 || false
+  ! lxc exec "${ctPrefix}A" -- ping -6 -nc2 -i0.1 -W1 2001:db8::1 || false
 
   # Check ingress ICMPv4 ping is blocked.
-  ! ping -c1 -4 192.0.2.2 || false
+  ! ping -4 -nc2 -i0.1 -W1 192.0.2.2 || false
 
   # Allow ingress ICMPv4 ping.
   lxc network acl rule add "${brName}A" ingress action=allow destination=192.0.2.2/32 protocol=icmp4 icmp_type=8
-  ping -c1 -4 192.0.2.2
+  ping -4 -nc2 -i0.1 -W1 192.0.2.2
 
   # Check egress ICMPv6 ping from host to bridge is allowed by default (for dnsmasq probing).
-  ping -c1 -6 2001:db8::2
+  ping -6 -nc2 -i0.1 -W1 2001:db8::2
 
   # Check egress TCP.
   lxc exec "${ctPrefix}A" --disable-stdin -- nc -w2 192.0.2.1 53
