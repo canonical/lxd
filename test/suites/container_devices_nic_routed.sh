@@ -99,14 +99,14 @@ test_container_devices_nic_routed() {
   fi
 
   # Check IP is assigned and doesn't have a broadcast address set.
-  lxc exec "${ctName}" -- ip a | grep "inet 192.0.2.1${ipRand}/32 scope global eth0"
+  lxc exec "${ctName}" -- ip -4 a | grep -F "inet 192.0.2.1${ipRand}/32 scope global eth0"
 
   # Check neighbour proxy entries added to parent interface.
   ip neigh show proxy dev "${ctName}" | grep -F "192.0.2.1${ipRand}"
   ip neigh show proxy dev "${ctName}" | grep -F "2001:db8::1${ipRand}"
 
   # Check custom MTU is applied.
-  if ! lxc exec "${ctName}" -- ip link show eth0 | grep "mtu 1600" ; then
+  if ! lxc exec "${ctName}" -- ip link show eth0 | grep -F "mtu 1600" ; then
     echo "mtu invalid"
     false
   fi
