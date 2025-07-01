@@ -38,7 +38,7 @@ test_container_devices_nic_ipvlan() {
   ip link set "${ctName}" mtu 1405
   lxc config device unset "${ctName}" eth0 mtu
   lxc start "${ctName}"
-  if ! lxc exec "${ctName}" -- grep -xF "1405" /sys/class/net/eth0/mtu ; then
+  if [ "$(lxc exec "${ctName}" -- cat /sys/class/net/eth0/mtu)" != "1405" ]; then
     echo "mtu not inherited from parent"
     false
   fi
@@ -75,7 +75,7 @@ test_container_devices_nic_ipvlan() {
   lxc start "${ctName}"
 
   # Check VLAN interface created
-  if ! grep -xF "1" "/sys/class/net/${ctName}.1234/carrier" ; then
+  if [ "$(cat "/sys/class/net/${ctName}.1234/carrier")" != "1" ]; then
     echo "vlan interface not created"
     false
   fi
@@ -92,7 +92,7 @@ test_container_devices_nic_ipvlan() {
   fi
 
   # Check parent device is still up.
-  if ! grep -xF "1" "/sys/class/net/${ctName}/carrier" ; then
+  if [ "$(cat "/sys/class/net/${ctName}/carrier")" != "1" ]; then
     echo "parent is down"
     false
   fi
