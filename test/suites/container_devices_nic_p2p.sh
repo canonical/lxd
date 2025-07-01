@@ -48,7 +48,7 @@ test_container_devices_nic_p2p() {
   fi
 
   # Check profile custom MTU is applied in container on boot.
-  if ! lxc exec "${ctName}" -- grep -xF "1400" /sys/class/net/eth0/mtu ; then
+  if [ "$(lxc exec "${ctName}" -- cat /sys/class/net/eth0/mtu)" != "1400" ]; then
     echo "container veth mtu invalid"
     false
   fi
@@ -60,7 +60,7 @@ test_container_devices_nic_p2p() {
   fi
 
   # Check profile custom MAC is applied in container on boot.
-  if ! lxc exec "${ctName}" -- grep -Fix "${ctMAC}" /sys/class/net/eth0/address ; then
+  if [ "$(lxc exec "${ctName}" -- cat /sys/class/net/eth0/address)" != "${ctMAC}" ]; then
     echo "mac invalid"
     false
   fi
@@ -110,19 +110,19 @@ test_container_devices_nic_p2p() {
   fi
 
   # Check custom MTU is applied on hot-plug.
-  if ! lxc exec "${ctName}" -- grep -xF "1401" /sys/class/net/eth0/mtu ; then
+  if [ "$(lxc exec "${ctName}" -- cat /sys/class/net/eth0/mtu)" != "1401" ]; then
     echo "container veth mtu invalid"
     false
   fi
 
   # Check custom MTU is applied on host-side on hot-plug.
-  if !  grep -xF "1401" /sys/class/net/"${vethHostName}p2p"/mtu ; then
+  if [ "$(cat /sys/class/net/"${vethHostName}p2p"/mtu)" != "1401" ]; then
     echo "host veth mtu invalid"
     false
   fi
 
   # Check custom MAC is applied on hot-plug.
-  if ! lxc exec "${ctName}" -- grep -Fix "${ctMAC}" /sys/class/net/eth0/address ; then
+  if [ "$(lxc exec "${ctName}" -- cat /sys/class/net/eth0/address)" != "${ctMAC}" ]; then
     echo "mac invalid"
     false
   fi
@@ -151,7 +151,7 @@ test_container_devices_nic_p2p() {
   fi
 
   # Check profile custom MTU is applied on hot-removal.
-  if ! lxc exec "${ctName}" -- grep -xF "1400" /sys/class/net/eth0/mtu ; then
+  if [ "$(lxc exec "${ctName}" -- cat /sys/class/net/eth0/mtu)" != "1400" ]; then
     echo "container veth mtu invalid"
     false
   fi
@@ -196,13 +196,13 @@ test_container_devices_nic_p2p() {
   fi
 
   # Check custom MTU is applied update.
-  if ! lxc exec "${ctName}" -- grep -xF "1402" /sys/class/net/eth0/mtu ; then
+  if [ "$(lxc exec "${ctName}" -- cat /sys/class/net/eth0/mtu)" != "1402" ]; then
     echo "mtu invalid"
     false
   fi
 
   # Check custom MAC is applied update.
-  if ! lxc exec "${ctName}" -- grep -Fix "${ctMAC}" /sys/class/net/eth0/address ; then
+  if [ "$(lxc exec "${ctName}" -- cat /sys/class/net/eth0/address)" != "${ctMAC}" ]; then
     echo "mac invalid"
     false
   fi
