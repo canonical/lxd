@@ -40,8 +40,8 @@ test_container_devices_nic_bridged_vlan() {
   lxc exec "${prefix}-ctB" -- ip link add link eth0 name eth0.2 type vlan id 2
   lxc exec "${prefix}-ctB" -- ip link set eth0.2 up
   lxc exec "${prefix}-ctB" -- ip a add 192.0.2.2/24 dev eth0.2
-  lxc exec "${prefix}-ctA" -- ping -c2 -W5 192.0.2.2
-  lxc exec "${prefix}-ctB" -- ping -c2 -W5 192.0.2.1
+  lxc exec "${prefix}-ctA" -- ping -nc2 -i0.1 -W1 192.0.2.2
+  lxc exec "${prefix}-ctB" -- ping -nc2 -i0.1 -W1 192.0.2.1
   lxc stop -f "${prefix}-ctA"
 
   # Test tagged VLAN traffic is filtered when IP filtering is enabled.
@@ -51,8 +51,8 @@ test_container_devices_nic_bridged_vlan() {
     lxc exec "${prefix}-ctA" -- ip link add link eth0 name eth0.2 type vlan id 2
     lxc exec "${prefix}-ctA" -- ip link set eth0.2 up
     lxc exec "${prefix}-ctA" -- ip a add 192.0.2.1/24 dev eth0.2
-    ! lxc exec "${prefix}-ctA" -- ping -c2 -W5 192.0.2.2 || false
-    ! lxc exec "${prefix}-ctB" -- ping -c2 -W5 192.0.2.1 || false
+    ! lxc exec "${prefix}-ctA" -- ping -nc2 -i0.1 -W1 192.0.2.2 || false
+    ! lxc exec "${prefix}-ctB" -- ping -nc2 -i0.1 -W1 192.0.2.1 || false
     lxc stop -f "${prefix}-ctA"
     lxc config device remove "${prefix}-ctA" eth0
   fi
@@ -65,8 +65,8 @@ test_container_devices_nic_bridged_vlan() {
     lxc exec "${prefix}-ctA" -- ip link set eth0.2 up
     lxc exec "${prefix}-ctA" -- ip a add 192.0.2.1/24 dev eth0.2
     lxc exec "${prefix}-ctA" -- ip link set eth0.2 address 00:16:3e:92:f3:c1
-    ! lxc exec "${prefix}-ctA" -- ping -c2 -W5 192.0.2.2 || false
-    ! lxc exec "${prefix}-ctB" -- ping -c2 -W5 192.0.2.1 || false
+    ! lxc exec "${prefix}-ctA" -- ping -nc2 -i0.1 -W1 192.0.2.2 || false
+    ! lxc exec "${prefix}-ctB" -- ping -nc2 -i0.1 -W1 192.0.2.1 || false
     lxc stop -f "${prefix}-ctA"
     lxc config device remove "${prefix}-ctA" eth0
   fi
@@ -108,10 +108,10 @@ test_container_devices_nic_bridged_vlan() {
   lxc exec "${prefix}-ctB" -- ip link add link eth0 name eth0.3 type vlan id 3
   lxc exec "${prefix}-ctB" -- ip link set eth0.3 up
   lxc exec "${prefix}-ctB" -- ip a add 192.0.3.2/24 dev eth0.3
-  lxc exec "${prefix}-ctA" -- ping -c2 -W5 192.0.2.2
-  lxc exec "${prefix}-ctB" -- ping -c2 -W5 192.0.2.1
-  ! lxc exec "${prefix}-ctA" -- ping -c2 -W5 192.0.3.2 || false
-  ! lxc exec "${prefix}-ctB" -- ping -c2 -W5 192.0.3.1 || false
+  lxc exec "${prefix}-ctA" -- ping -nc2 -i0.1 -W1 192.0.2.2
+  lxc exec "${prefix}-ctB" -- ping -nc2 -i0.1 -W1 192.0.2.1
+  ! lxc exec "${prefix}-ctA" -- ping -nc2 -i0.1 -W1 192.0.3.2 || false
+  ! lxc exec "${prefix}-ctB" -- ping -nc2 -i0.1 -W1 192.0.3.1 || false
   lxc stop -f "${prefix}-ctA"
   lxc config device remove "${prefix}-ctA" eth0
   lxc stop -f "${prefix}-ctB"
@@ -136,10 +136,10 @@ test_container_devices_nic_bridged_vlan() {
   lxc exec "${prefix}-ctB" -- ip link add link eth0 name eth0.2 type vlan id 2
   lxc exec "${prefix}-ctB" -- ip link set eth0.2 up
   lxc exec "${prefix}-ctB" -- ip a add 192.0.2.2/24 dev eth0.2
-  lxc exec "${prefix}-ctA" -- ping -c2 -W5 192.0.2.2
-  lxc exec "${prefix}-ctB" -- ping -c2 -W5 192.0.2.1
-  ! lxc exec "${prefix}-ctA" -- ping -c2 -W5 192.0.3.2 || false
-  ! lxc exec "${prefix}-ctB" -- ping -c2 -W5 192.0.3.1 || false
+  lxc exec "${prefix}-ctA" -- ping -nc2 -i0.1 -W1 192.0.2.2
+  lxc exec "${prefix}-ctB" -- ping -nc2 -i0.1 -W1 192.0.2.1
+  ! lxc exec "${prefix}-ctA" -- ping -nc2 -i0.1 -W1 192.0.3.2 || false
+  ! lxc exec "${prefix}-ctB" -- ping -nc2 -i0.1 -W1 192.0.3.1 || false
   lxc stop -f "${prefix}-ctA"
   lxc config device remove "${prefix}-ctA" eth0
   lxc stop -f "${prefix}-ctB"
@@ -161,8 +161,8 @@ test_container_devices_nic_bridged_vlan() {
     lxc start "${prefix}-ctB"
     lxc exec "${prefix}-ctB" -- ip link set eth0 up
     lxc exec "${prefix}-ctB" -- ip a add 192.0.2.2/24 dev eth0
-    lxc exec "${prefix}-ctA" -- ping -c2 -W5 192.0.2.2
-    lxc exec "${prefix}-ctB" -- ping -c2 -W5 192.0.2.1
+    lxc exec "${prefix}-ctA" -- ping -nc2 -i0.1 -W1 192.0.2.2
+    lxc exec "${prefix}-ctB" -- ping -nc2 -i0.1 -W1 192.0.2.1
     lxc stop -f "${prefix}-ctA"
     lxc config device remove "${prefix}-ctA" eth0
     lxc stop -f "${prefix}-ctB"
