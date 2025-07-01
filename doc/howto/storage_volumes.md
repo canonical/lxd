@@ -106,6 +106,7 @@ The following restrictions apply:
   Attaching a `block` volume to more than one instance at a time risks data corruption.
 - Storage volumes of {ref}`content type <storage-content-types>` `iso` are always read-only, and can therefore be attached to more than one virtual machine at a time without corrupting data.
 - Storage volumes of {ref}`content type <storage-content-types>` `filesystem` can't be attached to virtual machines while they're running.
+- You cannot attach a storage volume from a local storage pool (a pool that uses the {ref}`Directory <storage-dir>`, {ref}`Btrfs <storage-btrfs>`, {ref}`ZFS <storage-zfs>`, or {ref}`LVM <storage-lvm>` driver) to an instance that has {config:option}`instance-migration:migration.stateful` set to `true`. You must set {config:option}`instance-migration:migration.stateful` to `false` on the instance. Note that doing so makes the instance ineligible for {ref}`live migration <live-migration-vms>`.
 
 `````{tabs}
 ````{group-tab} CLI
