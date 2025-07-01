@@ -1,9 +1,4 @@
 test_container_devices_tpm() {
-  if ! command -v swtpm >/dev/null 2>&1; then
-    echo "==> SKIP: No swtpm binary could be found"
-    return
-  fi
-
   if ! modprobe tpm_vtpm_proxy; then
     echo "==> SKIP: Required tpm_vtpm_proxy.ko is missing"
     return
