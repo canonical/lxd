@@ -954,6 +954,48 @@ auth_project_features() {
   lxc network zone delete blah-zone --project blah
   lxc auth group permission remove test-group project default can_view_network_zones
 
+  ### Network allocations
+
+  # Create a network in the default project.
+  networkName="net$$"
+  lxc network create "${networkName}" --project default
+
+  # Create instances in the default project and in the blah project that use the network.
+  ensure_import_testimage
+  lxc image copy testimage local: --project default --target-project blah
+  lxc init testimage foo --network "${networkName}"
+
+  # To create the instance in the blah project we need to temporarily grant view access on the network.
+  lxc auth group permission add test-group network "${networkName}" can_view project=default
+  lxc_remote init testimage "${remote}:bar" --network "${networkName}" --project blah
+  lxc auth group permission remove test-group network "${networkName}" can_view project=default
+
+  # Members of test-group can't view allocations in the default project (this should return an empty list).
+  [ "$(lxc network list-allocations "${remote}:" --project default --format csv)" = "" ]
+
+  # Members of test-group *can* view allocations for all projects, but results are filtered. Since they can't view networks
+  # in the default project, they won't see anything yet.
+  [ "$(lxc network list-allocations "${remote}:" --all-projects --format csv)" = "" ]
+
+  # Allow the test-group to view networks in the default project.
+  lxc auth group permission add test-group project default can_view_networks
+
+  # Members of test-group can view allocations for the blah project. Since blah doesn't have networks enabled, members
+  # of test-group should see allocations for the default project, but they can't see the foo instance.
+  [ "$(lxc network list-allocations "${remote}:" --project blah --format csv | wc -l)" = 3 ]
+  ! lxc network list-allocations "${remote}:" --project blah --format csv | grep 'instances/foo' || false
+
+  # All projects requests should now show the same results
+  [ "$(lxc network list-allocations "${remote}:" --all-projects --format csv | wc -l)" = 3 ]
+  ! lxc network list-allocations "${remote}:" --all-projects --format csv | grep 'instances/foo' || false
+
+  # Clean up
+  lxc delete foo
+  lxc delete bar --project blah
+  lxc image delete testimage --project blah
+  lxc network delete "${networkName}"
+  lxc auth group permission remove test-group project default can_view_networks
+
   ### PROFILES (initial value is true for new projects)
 
   # Unset the profiles feature (the default is false).
