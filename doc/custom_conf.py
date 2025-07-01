@@ -173,8 +173,9 @@ linkcheck_ignore = [
 
 custom_linkcheck_anchors_ignore_for_url = [
     r'https://snapcraft\.io/docs/.*',
-    'https://docs.docker.com/network/packet-filtering-firewalls/'
-    ]
+    'https://docs.docker.com/network/packet-filtering-firewalls/',
+    'https://maas.io/docs/how-to-manage-machines'
+]
 
 linkcheck_exclude_documents = [r'.*/manpages/.*']
 
