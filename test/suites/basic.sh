@@ -357,7 +357,7 @@ test_basic_usage() {
     ! lxd activateifneeded --debug 2>&1 | grep -F "activating..." || false
 
     lxc start autostart --force-local
-    PID=$(lxc info autostart --force-local | awk '/^PID:/ {print $2}')
+    PID="$(lxc list --force-local -f csv -c p autostart)"
     shutdown_lxd "${LXD_DIR}"
 
     # Stopping LXD should also stop the instances
@@ -570,12 +570,12 @@ test_basic_usage() {
 
   if [ "$(awk '/^Seccomp:/ {print $2}' "/proc/self/status")" -eq "0" ]; then
     lxc launch testimage lxd-seccomp-test
-    init=$(lxc info lxd-seccomp-test | awk '/^PID:/ {print $2}')
+    init="$(lxc list -f csv -c p lxd-seccomp-test)"
     [ "$(awk '/^Seccomp:/ {print $2}' "/proc/${init}/status")" -eq "2" ]
     lxc stop --force lxd-seccomp-test
     lxc config set lxd-seccomp-test security.syscalls.deny_default false
     lxc start lxd-seccomp-test
-    init=$(lxc info lxd-seccomp-test | awk '/^PID:/ {print $2}')
+    init="$(lxc list -f csv -c p lxd-seccomp-test)"
     [ "$(awk '/^Seccomp:/ {print $2}' "/proc/${init}/status")" -eq "0" ]
     lxc delete --force lxd-seccomp-test
   else
@@ -638,12 +638,12 @@ test_basic_usage() {
 
   # Ephemeral
   lxc launch testimage foo --ephemeral
-  OLD_INIT=$(lxc info foo | awk '/^PID:/ {print $2}')
+  OLD_INIT="$(lxc list -f csv -c p foo)"
 
   REBOOTED="false"
 
   for _ in $(seq 60); do
-    NEW_INIT=$(lxc info foo | awk '/^PID:/ {print $2}' || true)
+    NEW_INIT="$(lxc list -f csv -c p foo)"
 
     # If init process is running, check if is old or new process.
     if [ -n "${NEW_INIT}" ]; then
