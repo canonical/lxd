@@ -303,7 +303,7 @@ test_clustering_membership() {
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep node7 | grep "${token}"
 
   # Revoke the token
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster revoke-token node7 | tail -n 1
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster revoke-token node7
 
   # Check token has been deleted
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens
