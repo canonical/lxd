@@ -30,7 +30,7 @@ do_zfs_delegate() {
   lxc storage volume set "${storage_pool}" container/c1 zfs.delegate=true
   lxc start c1
 
-  PID=$(lxc info c1 | awk '/^PID:/ {print $2}')
+  PID="$(lxc list -f csv -c p c1)"
   nsenter -t "${PID}" -U -- zfs list | grep -wF containers/c1
 
   # Confirm that ZFS dataset is empty when off.
@@ -38,7 +38,7 @@ do_zfs_delegate() {
   lxc storage volume unset "${storage_pool}" container/c1 zfs.delegate
   lxc start c1
 
-  PID=$(lxc info c1 | awk '/^PID:/ {print $2}')
+  PID="$(lxc list -f csv -c p c1)"
   ! nsenter -t "${PID}" -U -- zfs list | grep -wF containers/c1 || false
 
   lxc delete -f c1
