@@ -449,7 +449,7 @@ func networkNICRouteAdd(routeDev string, routes ...string) error {
 // Logs any errors and continues to next route to remove.
 func networkNICRouteDelete(routeDev string, routes ...string) {
 	if routeDev == "" {
-		logger.Errorf("Failed removing static route, empty route device specified")
+		logger.Error("Failed removing static route, empty route device specified")
 		return
 	}
 
