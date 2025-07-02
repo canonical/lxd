@@ -2372,6 +2372,10 @@ func (o *OVN) GetLogicalRouterPortActiveChassisHostname(ovnRouterPort OVNRouterP
 		return "", err
 	}
 
+	if chassisID == "" {
+		return "", errors.New("No chassis found")
+	}
+
 	hostname, err := o.sbctl("get", "Chassis", strings.TrimSpace(chassisID), "hostname")
 	if err != nil {
 		return "", err
