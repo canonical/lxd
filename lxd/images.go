@@ -73,7 +73,7 @@ var imageCmd = APIEndpoint{
 	MetricsType: entity.TypeImage,
 
 	Delete: APIEndpointAction{Handler: imageDelete, AccessHandler: imageAccessHandler(auth.EntitlementCanDelete)},
-	Get:    APIEndpointAction{Handler: imageGet, AllowUntrusted: true},
+	Get:    APIEndpointAction{Handler: imageGet, AccessHandler: imageGetOrExportAccessHandler, AllowUntrusted: true},
 	Patch:  APIEndpointAction{Handler: imagePatch, AccessHandler: imageAccessHandler(auth.EntitlementCanEdit)},
 	Put:    APIEndpointAction{Handler: imagePut, AccessHandler: imageAccessHandler(auth.EntitlementCanEdit)},
 }
@@ -82,7 +82,7 @@ var imageExportCmd = APIEndpoint{
 	Path:        "images/{fingerprint}/export",
 	MetricsType: entity.TypeImage,
 
-	Get:  APIEndpointAction{Handler: imageExport, AllowUntrusted: true},
+	Get:  APIEndpointAction{Handler: imageExport, AccessHandler: imageGetOrExportAccessHandler, AllowUntrusted: true},
 	Post: APIEndpointAction{Handler: imageExportPost, AccessHandler: imageAccessHandler(auth.EntitlementCanEdit)},
 }
 
@@ -3201,9 +3201,7 @@ func imageValidSecret(s *state.State, r *http.Request, projectName string, finge
 //	    $ref: "#/responses/InternalServerError"
 func imageGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
-
-	projectName := request.ProjectParam(r)
-	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3213,79 +3211,9 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	trusted := auth.IsTrusted(r.Context())
-	secret := r.FormValue("secret")
-
-	// Unauthenticated clients that do not provide a secret may only view public images.
-	publicOnly := !trusted && secret == ""
-
-	// Get the image. We need to do this before the permission check because the URL in the permission check will not
-	// work with partial fingerprints.
-	var info *api.Image
-	effectiveProjectName := projectName
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
-		if err != nil {
-			return err
-		}
-
-		info, err = doImageGet(ctx, tx, projectName, fingerprint, publicOnly)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil && api.StatusErrorCheck(err, http.StatusNotFound) {
-		// Return a generic not found. This is so that the caller cannot determine the existence of an image by the
-		// contents of the error message.
-		return response.NotFound(nil)
-	} else if err != nil {
-		return response.SmartError(err)
-	}
-
-	// Access check.
-	var userCanViewImage bool
-	if secret != "" {
-		// If a secret was provided, validate it regardless of whether the image is public or the caller has sufficient
-		// privilege. This is to ensure the image token operation is cancelled.
-		op, err := imageValidSecret(s, r, projectName, info.Fingerprint, secret)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		// If an operation was found the caller has access, otherwise continue to other access checks.
-		if op != nil {
-			userCanViewImage = true
-		}
-	}
-
-	// No operation found for the secret. Perform other access checks.
-	if !userCanViewImage {
-		if info.Public {
-			// If the image is public any client can view it.
-			userCanViewImage = true
-		} else {
-			// Otherwise perform an access check with the full image fingerprint.
-			reqInfo := request.SetupContextInfo(r)
-			reqInfo.EffectiveProjectName = effectiveProjectName
-
-			err = s.Authorizer.CheckPermission(r.Context(), entity.ImageURL(projectName, info.Fingerprint), auth.EntitlementCanView)
-			if err != nil && !auth.IsDeniedError(err) {
-				return response.SmartError(err)
-			} else if err == nil {
-				userCanViewImage = true
-			}
-		}
-	}
-
-	// If the client still cannot view the image, return a generic not found error.
-	if !userCanViewImage {
-		return response.NotFound(nil)
-	}
-
+	info := &details.image
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeImage, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ImageURL(projectName, fingerprint): info})
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeImage, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ImageURL(details.requestProjectName, info.Fingerprint): info})
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -4278,87 +4206,12 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func imageExport(d *Daemon, r *http.Request) response.Response {
-	s := d.State()
-
-	projectName := request.ProjectParam(r)
-	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	secret := r.FormValue("secret")
-	trusted := auth.IsTrusted(r.Context())
-
-	// Unauthenticated remote clients that do not provide a secret may only view public images.
-	// For devlxd, we allow querying for private images. We'll subsequently perform additional access checks.
-	publicOnly := !trusted && secret == ""
-
-	// Get the image. We need to do this before the permission check because the URL in the permission check will not
-	// work with partial fingerprints.
-	var imgInfo *api.Image
-	effectiveProjectName := projectName
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
-		if err != nil {
-			return err
-		}
-
-		filter := dbCluster.ImageFilter{Project: &projectName}
-		if publicOnly {
-			filter.Public = &publicOnly
-		}
-
-		_, imgInfo, err = tx.GetImage(ctx, fingerprint, filter)
-		return err
-	})
-	if err != nil && api.StatusErrorCheck(err, http.StatusNotFound) {
-		// Return a generic not found. This is so that the caller cannot determine the existence of an image by the
-		// contents of the error message.
-		return response.NotFound(nil)
-	} else if err != nil {
-		return response.SmartError(err)
-	}
-
-	// Access control.
-	var userCanViewImage bool
-	if secret != "" {
-		// If a secret was provided, validate it regardless of whether the image is public or the caller has sufficient
-		// privilege. This is to ensure the image token operation is cancelled.
-		op, err := imageValidSecret(s, r, projectName, imgInfo.Fingerprint, secret)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		// If an operation was found the caller has access, otherwise continue to other access checks.
-		if op != nil {
-			userCanViewImage = true
-		}
-	}
-
-	if !userCanViewImage {
-		if imgInfo.Public {
-			// If the image is public any client can view it.
-			userCanViewImage = true
-		} else {
-			// Otherwise perform an access check with the full image fingerprint.
-			reqInfo := request.SetupContextInfo(r)
-			reqInfo.EffectiveProjectName = effectiveProjectName
-
-			err = s.Authorizer.CheckPermission(r.Context(), entity.ImageURL(projectName, imgInfo.Fingerprint), auth.EntitlementCanView)
-			if err != nil && !auth.IsDeniedError(err) {
-				return response.SmartError(err)
-			} else if err == nil {
-				userCanViewImage = true
-			}
-		}
-	}
-
-	// If the client still cannot view the image, return a generic not found error.
-	if !userCanViewImage {
-		return response.NotFound(nil)
-	}
-
-	return imageExportFiles(r.Context(), s, imgInfo)
+	return imageExportFiles(r.Context(), d.State(), &details.image)
 }
 
 func imageExportFiles(ctx context.Context, s *state.State, imgInfo *api.Image) response.Response {
