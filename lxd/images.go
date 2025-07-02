@@ -244,6 +244,69 @@ func imageAliasAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *ht
 	}
 }
 
+// imageGetOrExportAccessHandler is used for GET /1.0/images/{fingerprint} and GET /1.0/images/{fingerprint}/export
+// which both have the same access controls. In this access handler, the caller can be untrusted.
+// - If they are untrusted and do not have a secret, they can only get public images.
+// - If they are untrusted but have a secret, the secret must be validated for the requested fingerprint.
+// - For both untrusted cases, requests can only be made to the default project.
+// - If the requested image is private and the caller is trusted, then a standard access check is performed with the authorizer.
+func imageGetOrExportAccessHandler(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	// Some checks should be performed before hitting the database, because here the caller can be untrusted.
+	// In which case the caller may only query images in the default project.
+	trusted := auth.IsTrusted(r.Context())
+	projectName := request.ProjectParam(r)
+	secret := r.FormValue("secret")
+
+	// If not trusted and project is not default. Exporting or viewing images is only allowed with a secret.
+	if !trusted && projectName != api.ProjectDefaultName && secret == "" {
+		return response.NotFound(nil)
+	}
+
+	details, err := addImageDetailsToRequestContext(s, r)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Public images in the default project can be viewed by anyone.
+	if details.image.Public && projectName == api.ProjectDefaultName {
+		return response.EmptySyncResponse
+	}
+
+	// If the caller sends a secret, then that secret must be valid, regardless of other privileges.
+	if secret != "" {
+		// If authenticating with a secret, the caller must have the full fingerprint.
+		if details.imageFingerprintPrefix != details.image.Fingerprint {
+			return response.NotFound(nil)
+		}
+
+		op, err := imageValidSecret(s, r, projectName, details.image.Fingerprint, secret)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		if op == nil {
+			return response.NotFound(nil)
+		}
+
+		return response.EmptySyncResponse
+	}
+
+	// At this point if they are not trusted they don't have access.
+	if !trusted {
+		return response.NotFound(nil)
+	}
+
+	// Do a final auth check using standard mechanism.
+	err = s.Authorizer.CheckPermission(r.Context(), entity.ImageURL(projectName, details.image.Fingerprint), auth.EntitlementCanView)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.EmptySyncResponse
+}
+
 /*
 We only want a single publish running at any one time.
 
