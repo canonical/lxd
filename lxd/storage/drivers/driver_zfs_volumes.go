@@ -1885,11 +1885,9 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 	}
 
 	// Clear the existing quota.
-	for _, property := range []string{"quota", "refquota", "reservation", "refreservation"} {
-		err = d.setDatasetProperties(d.dataset(vol, false), property+"=none")
-		if err != nil {
-			return err
-		}
+	err = d.setDatasetProperties(d.dataset(vol, false), "quota=none", "refquota=none", "reservation=none", "refreservation=none")
+	if err != nil {
+		return err
 	}
 
 	value := strconv.FormatInt(sizeBytes, 10)
