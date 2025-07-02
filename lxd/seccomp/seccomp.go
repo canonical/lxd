@@ -1005,7 +1005,7 @@ func (siov *Iovec) ReceiveSeccompIovec(fd int) (uint64, error) {
 // IsValidSeccompIovec checks whether a seccomp iovec is valid.
 func (siov *Iovec) IsValidSeccompIovec(size uint64) bool {
 	if size < uint64(C.SECCOMP_MSG_SIZE_MIN) {
-		logger.Warnf("Disconnected from seccomp socket after incomplete receive")
+		logger.Warn("Disconnected from seccomp socket after incomplete receive")
 		return false
 	}
 
@@ -1047,7 +1047,7 @@ retry:
 	bytes, err := C.sendmsg(C.int(fd), &msghdr, C.MSG_NOSIGNAL)
 	if bytes < 0 {
 		if err == unix.EINTR {
-			logger.Debugf("Caught EINTR, retrying...")
+			logger.Debug("Caught EINTR, retrying...")
 			goto retry
 		}
 
@@ -1116,7 +1116,7 @@ func NewSeccompServer(s *state.State, path string, findPID func(pid int32, state
 
 				unixFile, err := c.(*net.UnixConn).File()
 				if err != nil {
-					logger.Debugf("Failed to turn unix socket client into file")
+					logger.Debug("Failed to turn unix socket client into file")
 					return
 				}
 
