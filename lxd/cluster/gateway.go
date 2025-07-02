@@ -736,7 +736,7 @@ func (g *Gateway) NetworkUpdateCert(cert *shared.CertInfo) {
 // @bootstrap should only be true when turning a non-clustered LXD instance into
 // the first (and leader) node of a new LXD cluster.
 func (g *Gateway) init(bootstrap bool) error {
-	logger.Debugf("Initializing database gateway")
+	logger.Debug("Initializing database gateway")
 	g.stopCh = make(chan struct{})
 
 	info, err := loadInfo(g.db)
