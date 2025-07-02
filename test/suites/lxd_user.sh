@@ -1,7 +1,4 @@
 test_lxd_user() {
-  ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
-
   mkdir "${TEST_DIR}/lxd-user"
   cd "${TEST_DIR}/lxd-user" || return
 
