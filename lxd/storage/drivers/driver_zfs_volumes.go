@@ -849,9 +849,13 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 		}
 
 		if d.isBlockBacked(srcVol.Volume) && renegerateFilesystemUUIDNeeded(vol.ConfigBlockFilesystem()) {
-			_, volPath, err := d.activateVolume(vol.Volume)
+			activated, volPath, err := d.activateVolume(vol.Volume)
 			if err != nil {
 				return err
+			}
+
+			if activated {
+				defer func() { _, _ = d.deactivateVolume(vol.Volume) }()
 			}
 
 			d.logger.Debug("Regenerating filesystem UUID", logger.Ctx{"dev": volPath, "fs": vol.ConfigBlockFilesystem()})
@@ -3359,12 +3363,14 @@ func (d *zfs) restoreVolume(vol Volume, snapVol Volume, migration bool, op *oper
 	}
 
 	if vol.contentType == ContentTypeFS && d.isBlockBacked(vol) && renegerateFilesystemUUIDNeeded(vol.ConfigBlockFilesystem()) {
-		_, volPath, err := d.activateVolume(vol)
+		activated, volPath, err := d.activateVolume(vol)
 		if err != nil {
 			return err
 		}
 
-		defer func() { _, _ = d.deactivateVolume(vol) }()
+		if activated {
+			defer func() { _, _ = d.deactivateVolume(vol) }()
+		}
 
 		d.logger.Debug("Regenerating filesystem UUID", logger.Ctx{"dev": volPath, "fs": vol.ConfigBlockFilesystem()})
 		err = regenerateFilesystemUUID(vol.ConfigBlockFilesystem(), volPath)
