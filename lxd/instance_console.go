@@ -235,7 +235,7 @@ func (s *consoleWs) doConsole() error {
 
 	// Wait for control socket to connect and then read messages from the remote side in a loop.
 	go func() {
-		defer logger.Debugf("Console control websocket finished")
+		defer logger.Debug("Console control websocket finished")
 		res := <-s.controlConnected
 		if !res {
 			return
@@ -356,7 +356,7 @@ func (s *consoleWs) doVGA() error {
 
 	// The control socket is used to terminate the operation.
 	go func() {
-		defer logger.Debugf("VGA control websocket finished")
+		defer logger.Debug("VGA control websocket finished")
 		res := <-s.controlConnected
 		if !res {
 			return
