@@ -49,6 +49,8 @@ import_subdir_files() {
 if [ "${PWD}" != "$(dirname "${0}")" ]; then
     cd "$(dirname "${0}")"
 fi
+MAIN_DIR="${PWD}"
+export MAIN_DIR
 import_subdir_files includes
 
 # Install needed storage driver tools
