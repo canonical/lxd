@@ -1935,50 +1935,8 @@ func (d *zfs) getVolumeDiskPathFromDataset(dataset string) (string, error) {
 
 	// Shortcut for udev.
 	if shared.PathExists(zvolUdevLink) && shared.IsBlockdevPath(zvolUdevLink) {
-		d.logger.Info("SDEZIEL getVolumeDiskPathFromDataset", logger.Ctx{"dataset": dataset, "zvolUdevLink": zvolUdevLink, "entryPath": "n/a"})
+		d.logger.Info("SDEZIEL getVolumeDiskPathFromDataset", logger.Ctx{"dataset": dataset, "zvolUdevLink": zvolUdevLink})
 		return zvolUdevLink, nil
-	}
-
-	// Locate zvol_id.
-	zvolid := "/lib/udev/zvol_id"
-	if !shared.PathExists(zvolid) {
-		var err error
-
-		zvolid, err = exec.LookPath("zvol_id")
-		if err != nil {
-			return "", err
-		}
-	}
-
-	// List all the device nodes.
-	entries, err := os.ReadDir("/dev")
-	if err != nil {
-		return "", fmt.Errorf("Failed to read /dev: %w", err)
-	}
-
-	for _, entry := range entries {
-		entryName := entry.Name()
-
-		// Ignore non-zvol devices.
-		if !strings.HasPrefix(entryName, "zd") {
-			continue
-		}
-
-		if strings.Contains(entryName, "p") {
-			continue
-		}
-
-		// Resolve the dataset path.
-		entryPath := filepath.Join("/dev", entryName)
-		output, err := shared.RunCommandContext(context.TODO(), zvolid, entryPath)
-		if err != nil {
-			continue
-		}
-
-		if strings.TrimSpace(output) == dataset && shared.IsBlockdevPath(entryPath) {
-			d.logger.Info("SDEZIEL getVolumeDiskPathFromDataset", logger.Ctx{"dataset": dataset, "zvolUdevLink": zvolUdevLink, "entryPath": entryPath})
-			return entryPath, nil
-		}
 	}
 
 	return "", fmt.Errorf("Could not locate a zvol for %s", dataset)
