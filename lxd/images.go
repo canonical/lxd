@@ -119,6 +119,22 @@ var imageAliasCmd = APIEndpoint{
 	Put:    APIEndpointAction{Handler: imageAliasPut, AccessHandler: imageAliasAccessHandler(auth.EntitlementCanEdit)},
 }
 
+// validateImageFingerprintPrefix validates that the given string is at least 12 characters long contains only lowercase
+// hex characters.
+func validateImageFingerprintPrefix(prefix string) error {
+	if len(prefix) < 12 {
+		return api.NewStatusError(http.StatusBadRequest, "Image fingerprint prefix must contain 12 characters or more")
+	}
+
+	for _, b := range []byte(prefix) {
+		if (b < '0' || b > '9') && (b < 'a' || b > 'f') {
+			return api.NewStatusError(http.StatusBadRequest, "Image fingerprint prefix must contain only lowercase hexadecimal characters")
+		}
+	}
+
+	return nil
+}
+
 const ctxImageDetails request.CtxKey = "image-details"
 
 // imageDetails contains fields that are determined prior to the access check. This is set in the request context when
