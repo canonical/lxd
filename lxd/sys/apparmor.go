@@ -24,19 +24,19 @@ func (s *OS) initAppArmor() []cluster.Warning {
 	/* Detect AppArmor availability */
 	_, err := exec.LookPath("apparmor_parser")
 	if shared.IsFalse(os.Getenv("LXD_SECURITY_APPARMOR")) {
-		logger.Warnf("AppArmor support has been manually disabled")
+		logger.Warn("AppArmor support has been manually disabled")
 		dbWarnings = append(dbWarnings, cluster.Warning{
 			TypeCode:    warningtype.AppArmorNotAvailable,
 			LastMessage: "Manually disabled",
 		})
 	} else if !shared.IsDir("/sys/kernel/security/apparmor") {
-		logger.Warnf("AppArmor support has been disabled because of lack of kernel support")
+		logger.Warn("AppArmor support has been disabled because of lack of kernel support")
 		dbWarnings = append(dbWarnings, cluster.Warning{
 			TypeCode:    warningtype.AppArmorNotAvailable,
 			LastMessage: "Disabled because of lack of kernel support",
 		})
 	} else if err != nil {
-		logger.Warnf("AppArmor support has been disabled because 'apparmor_parser' couldn't be found")
+		logger.Warn("AppArmor support has been disabled because 'apparmor_parser' couldn't be found")
 		dbWarnings = append(dbWarnings, cluster.Warning{
 			TypeCode:    warningtype.AppArmorNotAvailable,
 			LastMessage: "Disabled because 'apparmor_parser' couldn't be found",
@@ -59,11 +59,11 @@ func (s *OS) initAppArmor() []cluster.Warning {
 	/* Detect AppArmor admin support */
 	if !haveMacAdmin() {
 		if s.AppArmorAvailable {
-			logger.Warnf("Per-container AppArmor profiles are disabled because the mac_admin capability is missing")
+			logger.Warn("Per-container AppArmor profiles are disabled because the mac_admin capability is missing")
 		}
 	} else if s.RunningInUserNS && !s.AppArmorStacked {
 		if s.AppArmorAvailable {
-			logger.Warnf("Per-container AppArmor profiles are disabled because LXD is running in an unprivileged container without stacking")
+			logger.Warn("Per-container AppArmor profiles are disabled because LXD is running in an unprivileged container without stacking")
 		}
 	} else {
 		s.AppArmorAdmin = true
