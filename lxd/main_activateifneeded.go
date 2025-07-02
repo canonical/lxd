@@ -74,16 +74,15 @@ func (c *cmdActivateifneeded) run(cmd *cobra.Command, args []string) error {
 	d.db.Node = db.DirectAccess(sqldb)
 
 	// Load the configured address from the database
-	var localConfig *node.Config
 	err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		localConfig, err = node.ConfigLoad(ctx, tx)
+		d.localConfig, err = node.ConfigLoad(ctx, tx)
 		return err
 	})
 	if err != nil {
 		return err
 	}
 
-	localHTTPAddress := localConfig.HTTPSAddress()
+	localHTTPAddress := d.localConfig.HTTPSAddress()
 
 	startLXD := func() error {
 		d, err := lxd.ConnectLXDUnix("", &lxd.ConnectionArgs{
