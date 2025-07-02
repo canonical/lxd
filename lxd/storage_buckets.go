@@ -1205,7 +1205,7 @@ type storageBucketDetails struct {
 
 // addStorageBucketDetailsToContext extracts storageBucketDetails from the http.Request and adds it to the
 // request context with the ctxStorageBucketDetails request.CtxKey. Additionally, the effective project of the storage
-// bucket is added to the request context under request.CtxEffectiveProjectName.
+// bucket is added to the request.Info.
 func addStorageBucketDetailsToContext(d *Daemon, r *http.Request) error {
 	var details storageBucketDetails
 	defer func() {

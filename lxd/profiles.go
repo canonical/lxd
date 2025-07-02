@@ -64,7 +64,7 @@ type profileDetails struct {
 	effectiveProject api.Project
 }
 
-// addProfileDetailsToRequestContext sets request.CtxEffectiveProjectName (string) and ctxProfileDetails (profileDetails)
+// addProfileDetailsToRequestContext sets the effective project in the request.Info and sets ctxProfileDetails (profileDetails)
 // in the request context.
 func addProfileDetailsToRequestContext(s *state.State, r *http.Request) error {
 	profileName, err := url.PathUnescape(mux.Vars(r)["name"])

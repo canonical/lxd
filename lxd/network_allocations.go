@@ -80,7 +80,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	requestProjectName := request.ProjectParam(r)
-	effectiveProjectName, _, err := project.NetworkProject(d.State().DB.Cluster, requestProjectName)
+	effectiveProjectName, _, err := project.NetworkProject(s.DB.Cluster, requestProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -91,7 +91,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 	allProjects := shared.IsTrue(request.QueryParam(r, "all-projects"))
 
 	var projectNames []string
-	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Figure out the projects to retrieve.
 		if !allProjects {
 			projectNames = []string{effectiveProjectName}
@@ -126,7 +126,21 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 
 	result := make([]api.NetworkAllocations, 0)
 
-	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeNetwork)
+	canViewNetwork, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeNetwork)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// If project "foo" is provided but "foo" has `features.networks=false`, then we'll be returning IP allocations
+	// from the default project. In this case, "default" is set as the effective project on the request.Info in the
+	// context of the auth check. This tells the fine-grained auth driver to overwrite "foo" in the URL with "default"
+	// so it can find the actual entity.
+	//
+	// When performing auth checks for instances, the network feature has no relevance, so we need the authorizer to
+	// ignore the effective project. If we didn't do this, URLs would have the project parameter rewritten to "default"
+	// and the authorizer would either not be able to find an entity with that URL, or perform an auth check against an
+	// incorrect entity.
+	canViewInstanceIgnoringEffectiveProject, err := s.Authorizer.GetPermissionCheckerWithoutEffectiveProject(r.Context(), auth.EntitlementCanView, entity.TypeInstance)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -142,7 +156,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 
 		var networkNames []string
 
-		err := d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 
 			networkNames, err = tx.GetNetworks(ctx, projectName)
@@ -155,11 +169,11 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 
 		// Get all the networks, their attached instances, their network forwards and their network load balancers.
 		for _, networkName := range networkNames {
-			if !userHasPermission(entity.NetworkURL(authCheckProjectName, networkName)) {
+			if !canViewNetwork(entity.NetworkURL(authCheckProjectName, networkName)) {
 				continue
 			}
 
-			n, err := network.LoadByName(d.State(), projectName, networkName)
+			n, err := network.LoadByName(s, projectName, networkName)
 			if err != nil {
 				return response.SmartError(fmt.Errorf("Failed loading network %q in project %q: %w", networkName, projectName, err))
 			}
@@ -198,10 +212,20 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 					if lease.Type == "uplink" {
 						allocationType = "uplink"
 						networkName := strings.TrimSuffix(strings.TrimPrefix(lease.Hostname, lease.Project+"-"), ".uplink")
-						usedBy = api.NewURL().Path(version.APIVersion, "networks", networkName).Project(lease.Project).String()
+						usedByURL := api.NewURL().Path(version.APIVersion, "networks", networkName).Project(lease.Project)
+						if !canViewNetwork(usedByURL) {
+							continue
+						}
+
+						usedBy = usedByURL.String()
 					} else {
 						allocationType = "instance"
-						usedBy = api.NewURL().Path(version.APIVersion, "instances", lease.Hostname).Project(lease.Project).String()
+						usedByURL := api.NewURL().Path(version.APIVersion, "instances", lease.Hostname).Project(lease.Project)
+						if !canViewInstanceIgnoringEffectiveProject(usedByURL) {
+							continue
+						}
+
+						usedBy = usedByURL.String()
 					}
 
 					result = append(result, api.NetworkAllocations{
@@ -217,7 +241,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 
 			var forwards map[int64]*api.NetworkForward
 
-			err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 				forwards, err = tx.GetNetworkForwards(ctx, n.ID(), false)
 
 				return err
@@ -236,6 +260,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 					result,
 					api.NetworkAllocations{
 						Address: cidrAddr,
+						// No auth check here, the caller can view the network forward because they can view the network.
 						UsedBy:  api.NewURL().Path(version.APIVersion, "networks", networkName, "forwards", forward.ListenAddress).Project(projectName).String(),
 						Type:    "network-forward",
 						NAT:     false, // Network forwards are ingress and so aren't affected by SNAT.
@@ -246,7 +271,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 
 			var loadBalancers map[int64]*api.NetworkLoadBalancer
 
-			err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 				loadBalancers, err = tx.GetNetworkLoadBalancers(ctx, n.ID(), false)
 
 				return err
@@ -265,6 +290,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 					result,
 					api.NetworkAllocations{
 						Address: cidrAddr,
+						// No auth check here, the caller can view the load balancer because they can view the network.
 						UsedBy:  api.NewURL().Path(version.APIVersion, "networks", networkName, "load-balancers", loadBalancer.ListenAddress).Project(projectName).String(),
 						Type:    "network-load-balancer",
 						NAT:     false, // Network load-balancers are ingress and so aren't affected by SNAT.

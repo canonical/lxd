@@ -54,7 +54,7 @@ type networkZoneDetails struct {
 	requestProject api.Project
 }
 
-// addNetworkZoneDetailsToRequestContext sets request.CtxEffectiveProjectName (string) and ctxNetworkZoneDetails (networkZoneDetails)
+// addNetworkZoneDetailsToRequestContext sets the effective project in the request.Info and sets ctxNetworkZoneDetails (networkZoneDetails)
 // in the request context.
 func addNetworkZoneDetailsToRequestContext(s *state.State, r *http.Request) error {
 	zoneName, err := url.PathUnescape(mux.Vars(r)["zone"])

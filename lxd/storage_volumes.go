@@ -2728,7 +2728,7 @@ type storageVolumeDetails struct {
 
 // addStoragePoolVolumeDetailsToRequestContext extracts storageVolumeDetails from the http.Request and adds it to the
 // request context with the ctxStorageVolumeDetails request.CtxKey. Additionally, the effective project of the storage
-// bucket is added to the request context under request.CtxEffectiveProjectName.
+// volume is added to the request.Info.
 func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request) error {
 	var details storageVolumeDetails
 	var location string

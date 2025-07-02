@@ -96,6 +96,12 @@ func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitleme
 	return nil
 }
 
+// CheckPermissionWithoutEffectiveProject calls CheckPermission. This is because the TLS auth driver does not need to consider
+// the effective project at all.
+func (t *tls) CheckPermissionWithoutEffectiveProject(ctx context.Context, entityURL *api.URL, entitlement auth.Entitlement) error {
+	return t.CheckPermission(ctx, entityURL, entitlement)
+}
+
 // GetPermissionChecker returns a function that can be used to check whether a user has the required entitlement on an authorization object.
 func (t *tls) GetPermissionChecker(ctx context.Context, entitlement auth.Entitlement, entityType entity.Type) (auth.PermissionChecker, error) {
 	err := auth.ValidateEntitlement(entityType, entitlement)
@@ -158,6 +164,12 @@ func (t *tls) GetPermissionChecker(ctx context.Context, entitlement auth.Entitle
 		// Otherwise, check if the project is in the list of allowed projects for the entity.
 		return slices.Contains(id.Projects, project)
 	}, nil
+}
+
+// GetPermissionCheckerWithoutEffectiveProject calls GetPermissionChecker. This is because the TLS auth driver does not need to consider
+// the effective project at all.
+func (t *tls) GetPermissionCheckerWithoutEffectiveProject(ctx context.Context, entitlement auth.Entitlement, entityType entity.Type) (auth.PermissionChecker, error) {
+	return t.GetPermissionChecker(ctx, entitlement, entityType)
 }
 
 func (t *tls) allowProjectUnspecificEntityType(entitlement auth.Entitlement, entityType entity.Type, id *identity.CacheEntry, projectName string, pathArguments []string) bool {
