@@ -287,6 +287,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 		unmanaged
 	)
 
+	projectConfigs := make(map[string]map[string]string)
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		networks[managed] = map[string][]string{}
 		networks[unmanaged] = map[string][]string{}
@@ -294,6 +295,11 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 		if allProjects {
 			// Get list of managed networks from all projects.
 			networks[managed], err = tx.GetNetworksAllProjects(ctx)
+			if err != nil {
+				return err
+			}
+
+			projectConfigs, err = dbCluster.GetAllProjectsConfig(ctx, tx.Tx())
 			if err != nil {
 				return err
 			}
@@ -363,7 +369,14 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 				if !recursion {
 					resultString = append(resultString, api.NewURL().Path(version.APIVersion, "networks", networkName).String())
 				} else {
-					net, err := doNetworkGet(s, r, s.ServerClustered, projectName, reqProject.Config, networkName)
+					var projectConfig map[string]string
+					if allProjects {
+						projectConfig = projectConfigs[projectName]
+					} else {
+						projectConfig = reqProject.Config
+					}
+
+					net, err := doNetworkGet(s, r, s.ServerClustered, projectName, projectConfig, networkName)
 					if err != nil {
 						continue
 					}
