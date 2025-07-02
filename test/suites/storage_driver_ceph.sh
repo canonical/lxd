@@ -1,10 +1,13 @@
 test_storage_driver_ceph() {
-  local LXD_STORAGE_DIR lxd_backend
+  local lxd_backend
 
-  lxd_backend=$(storage_backend "$LXD_DIR")
-  if [ "$lxd_backend" != "ceph" ]; then
+  lxd_backend=$(storage_backend "${LXD_DIR}")
+  if [ "${lxd_backend}" != "ceph" ]; then
+    echo "==> SKIP: test_storage_driver_ceph only supports 'ceph', not ${lxd_backend}"
     return
   fi
+
+  local LXD_STORAGE_DIR
 
   LXD_STORAGE_DIR=$(mktemp -d -p "${TEST_DIR}" XXXXXXXXX)
   spawn_lxd "${LXD_STORAGE_DIR}" false

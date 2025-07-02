@@ -279,7 +279,7 @@ test_clustering_membership() {
 
   # Generate a join token for the sixth node.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
-  token=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add node6 | tail -n 1)
+  token="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add --quiet node6)"
 
   # Check token is associated to correct name.
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep node6 | grep "${token}"
@@ -297,13 +297,13 @@ test_clustering_membership() {
   ! LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep node6 || false
 
   # Generate a join token for a seventh node
-  token=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add node7 | tail -n 1)
+  token="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add --quiet node7)"
 
   # Check token is associated to correct name
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep node7 | grep "${token}"
 
   # Revoke the token
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster revoke-token node7 | tail -n 1
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster revoke-token node7
 
   # Check token has been deleted
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens
@@ -313,7 +313,7 @@ test_clustering_membership() {
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.join_token_expiry=30S
 
   # Generate a join token for an eigth and ninth node
-  token_valid=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add node8 | tail -n 1)
+  token_valid="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add --quiet node8)"
 
   # Spawn an eigth node, using join token.
   setup_clustering_netns 8
@@ -324,9 +324,9 @@ test_clustering_membership() {
   spawn_lxd_and_join_cluster "${ns8}" "${bridge}" "${cert}" 8 2 "${LXD_EIGHT_DIR}" "${token_valid}"
 
   # This will cause the token to expire
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.join_token_expiry=5S
-  token_expired=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add node9 | tail -n 1)
-  sleep 6
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.join_token_expiry=2S
+  token_expired="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add --quiet node9)"
+  sleep 2
 
   # Spawn a ninth node, using join token.
   setup_clustering_netns 9
@@ -2014,7 +2014,7 @@ test_clustering_shutdown_nodes() {
   LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node1 testimage foo
 
   # Get container PID
-  instance_pid=$(LXD_DIR="${LXD_ONE_DIR}" lxc info foo | awk '/^PID:/ {print $2}')
+  instance_pid="$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c p foo)"
 
   # Get server PIDs
   daemon_pid1=$(LXD_DIR="${LXD_ONE_DIR}" lxc info | awk '/server_pid/{print $2}')

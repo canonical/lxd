@@ -2,11 +2,6 @@ test_container_devices_nic_routed() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  if ! lxc info | grep 'network_veth_router: "true"' ; then
-    echo "==> SKIP: No veth router support"
-    return
-  fi
-
   ctName="nt$$"
   ipRand=$(shuf -i 0-9 -n 1)
 
@@ -23,22 +18,18 @@ test_container_devices_nic_routed() {
   sysctl net.ipv6.conf."${ctName}".forwarding=1
   sysctl net.ipv4.conf."${ctName}".forwarding=1
 
-  # Wait for IPv6 DAD to complete.
-  wait_for_dad "${ctName}"
-
   # Create container connected to bridge (which will be used for neighbor probe testing).
   lxc init testimage "${ctName}neigh"
   lxc config device add "${ctName}neigh" eth0 nic network="${ctName}"
   lxc start "${ctName}neigh"
-  lxc exec "${ctName}neigh" -- ip -4 addr add 192.0.2.254/24 dev eth0
-  lxc exec "${ctName}neigh" -- ip -4 route replace default via 192.0.2.1 dev eth0
   lxc exec "${ctName}neigh" -- ip -6 addr add 2001:db8::FFFF/64 dev eth0
   lxc exec "${ctName}neigh" -- ip -6 route replace default via 2001:db8::1 dev eth0
-
-  # Wait for IPv6 DAD to complete.
-  wait_for_dad "${ctName}neigh" eth0
+  lxc exec "${ctName}neigh" -- ip -4 addr add 192.0.2.254/24 dev eth0
+  lxc exec "${ctName}neigh" -- ip -4 route replace default via 192.0.2.1 dev eth0
 
   ping -nc2 -i0.1 -W1 192.0.2.254
+  wait_for_dad "${ctName}" # waiting for DAD on the host device
+  wait_for_dad "${ctName}neigh" eth0
   ping -6 -nc2 -i0.1 -W1 "2001:db8::FFFF"
 
   # Create dummy vlan parent.
@@ -104,21 +95,21 @@ test_container_devices_nic_routed() {
   fi
 
   # Check IP is assigned and doesn't have a broadcast address set.
-  lxc exec "${ctName}" -- ip a | grep "inet 192.0.2.1${ipRand}/32 scope global eth0"
+  lxc exec "${ctName}" -- ip -4 a | grep -F "inet 192.0.2.1${ipRand}/32 scope global eth0"
 
   # Check neighbour proxy entries added to parent interface.
   ip neigh show proxy dev "${ctName}" | grep -F "192.0.2.1${ipRand}"
   ip neigh show proxy dev "${ctName}" | grep -F "2001:db8::1${ipRand}"
 
   # Check custom MTU is applied.
-  if ! lxc exec "${ctName}" -- ip link show eth0 | grep "mtu 1600" ; then
+  if ! lxc exec "${ctName}" -- ip link show eth0 | grep -F "mtu 1600" ; then
     echo "mtu invalid"
     false
   fi
 
   # Check MAC address is applied.
   ctMAC=$(lxc config get "${ctName}" volatile.eth0.hwaddr)
-  if ! lxc exec "${ctName}" -- grep -Fix "${ctMAC}" /sys/class/net/eth0/address ; then
+  if [ "$(lxc exec "${ctName}" -- cat /sys/class/net/eth0/address)" != "${ctMAC}" ]; then
     echo "mac invalid"
     false
   fi
@@ -134,7 +125,7 @@ test_container_devices_nic_routed() {
   lxc config device unset "${ctName}" eth0 mtu
   lxc start "${ctName}"
 
-  if ! lxc exec "${ctName}" -- grep "1605" /sys/class/net/eth0/mtu ; then
+  if [ "$(lxc exec "${ctName}" -- cat /sys/class/net/eth0/mtu)" != "1605" ]; then
     echo "mtu not inherited from parent"
     false
   fi
@@ -193,7 +184,7 @@ test_container_devices_nic_routed() {
   lxc start "${ctName}"
 
   # Check VLAN interface created
-  if ! grep "1" "/sys/class/net/${ctName}.1234/carrier" ; then
+  if [ "$(cat "/sys/class/net/${ctName}.1234/carrier")" != "1" ]; then
     echo "vlan interface not created"
     false
   fi
