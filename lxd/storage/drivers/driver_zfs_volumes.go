@@ -803,11 +803,9 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 
 			for _, entry := range children {
 				// Check if expected snapshot.
-				if strings.Contains(entry, "@snapshot-") {
-					name := strings.Split(entry, "@snapshot-")[1]
-					if slices.Contains(snapshots, name) {
-						continue
-					}
+				_, name, found := strings.Cut(entry, "@snapshot-")
+				if found && slices.Contains(snapshots, name) {
+					continue
 				}
 
 				// Delete the rest.
