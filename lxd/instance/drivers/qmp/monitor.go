@@ -128,7 +128,7 @@ func (m *Monitor) start() error {
 				}
 
 				if e.Event == "" {
-					logger.Warnf("Unexpected empty event received from qmp event channel")
+					logger.Warn("Unexpected empty event received from qmp event channel")
 					time.Sleep(time.Second) // Don't spin if we receive a lot of these.
 					continue
 				}
