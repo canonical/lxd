@@ -3140,18 +3140,13 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 				dataset = parentDataset + "_" + snapshotOnlyName + tmpVolSuffix
 
 				// Clone snapshot.
-				_, err = shared.RunCommandContext(context.TODO(), "zfs", "clone", snapshotDataset, dataset)
+				_, err = shared.RunCommandContext(context.TODO(), "zfs", "clone", "-o", "volmode=dev", snapshotDataset, dataset)
 				if err != nil {
 					return nil, err
 				}
 
 				// Delete on revert.
 				revert.Add(func() { _ = d.deleteDatasetRecursive(dataset) })
-
-				err := d.setDatasetProperties(dataset, "volmode=dev")
-				if err != nil {
-					return nil, err
-				}
 
 				defer func() {
 					_ = d.setDatasetProperties(dataset, "volmode=none")
