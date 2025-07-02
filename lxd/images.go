@@ -154,6 +154,11 @@ func addImageDetailsToRequestContext(s *state.State, r *http.Request) (*imageDet
 		return nil, err
 	}
 
+	err = validateImageFingerprintPrefix(imageFingerprintPrefix)
+	if err != nil {
+		return nil, err
+	}
+
 	requestProjectName := request.ProjectParam(r)
 	effectiveProjectName := requestProjectName
 	var imageID int
