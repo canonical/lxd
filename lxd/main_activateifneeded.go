@@ -17,6 +17,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/node"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
 )
@@ -128,7 +129,18 @@ func (c *cmdActivateifneeded) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	instances, err := instance.LoadNodeAll(d.State(), instancetype.Any)
+	// Don't call d.State() as that will run instance driver feature checks (amongst other unnecessary things).
+	// We just need access to the DBs.
+	s := &state.State{
+		DB:          d.db,
+		LocalConfig: d.localConfig,
+	}
+
+	// Because we've not loaded the cluster member name from the global DB, this function will load all
+	// instances in the database and not filter by local member name. However as we only do this when
+	// core.https_address is unset (as there is an early check above) this is not inefficient because we will
+	// only get to this part for standalone servers.
+	instances, err := instance.LoadNodeAll(s, instancetype.Any)
 	if err != nil {
 		return err
 	}
@@ -154,7 +166,7 @@ func (c *cmdActivateifneeded) run(cmd *cobra.Command, args []string) error {
 
 	// Check for scheduled volume snapshots
 	var volumes []db.StorageVolumeArgs
-	err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		volumes, err = tx.GetStoragePoolVolumesWithType(ctx, cluster.StoragePoolVolumeTypeCustom, false)
 		if err != nil {
 			return err
