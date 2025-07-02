@@ -124,6 +124,7 @@ const ctxImageDetails request.CtxKey = "image-details"
 // imageDetails contains fields that are determined prior to the access check. This is set in the request context when
 // addImageDetailsToRequestContext is called.
 type imageDetails struct {
+	requestProjectName     string
 	imageFingerprintPrefix string
 	imageID                int
 	image                  api.Image
@@ -159,6 +160,7 @@ func addImageDetailsToRequestContext(s *state.State, r *http.Request) (*imageDet
 	}
 
 	details := imageDetails{
+		requestProjectName:     requestProjectName,
 		imageFingerprintPrefix: imageFingerprintPrefix,
 		imageID:                imageID,
 		image:                  *image,
@@ -2786,8 +2788,6 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 func imageDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName := request.ProjectParam(r)
-
 	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
@@ -2808,7 +2808,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Check image still exists and another request hasn't removed it since we resolved the image
 			// fingerprint above.
-			exist, err = tx.ImageExists(ctx, projectName, details.image.Fingerprint)
+			exist, err = tx.ImageExists(ctx, details.requestProjectName, details.image.Fingerprint)
 
 			return err
 		})
@@ -2828,7 +2828,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 				// referenced by other projects. In that case we don't want to
 				// physically delete it just yet, but just to remove the
 				// relevant database entry.
-				referenced, err = tx.ImageIsReferencedByOtherProjects(ctx, projectName, details.image.Fingerprint)
+				referenced, err = tx.ImageIsReferencedByOtherProjects(ctx, details.requestProjectName, details.image.Fingerprint)
 				if err != nil {
 					return err
 				}
@@ -2857,7 +2857,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 			}
 
 			err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-				op, err := client.UseProject(projectName).DeleteImage(details.image.Fingerprint)
+				op, err := client.UseProject(details.requestProjectName).DeleteImage(details.image.Fingerprint)
 				if err != nil {
 					return fmt.Errorf("Failed to request to delete image from peer node: %w", err)
 				}
@@ -2926,7 +2926,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		s.Events.SendLifecycle(projectName, lifecycle.ImageDeleted.Event(details.image.Fingerprint, projectName, op.Requestor(), nil))
+		s.Events.SendLifecycle(details.requestProjectName, lifecycle.ImageDeleted.Event(details.image.Fingerprint, details.requestProjectName, op.Requestor(), nil))
 
 		return nil
 	}
@@ -2934,7 +2934,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]api.URL{}
 	resources["images"] = []api.URL{*api.NewURL().Path(version.APIVersion, "images", details.image.Fingerprint)}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.ImageDelete, resources, nil, do, nil, nil)
+	op, err := operations.OperationCreate(r.Context(), s, details.requestProjectName, operations.OperationClassTask, operationtype.ImageDelete, resources, nil, do, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -3249,7 +3249,6 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	// Get current value
-	projectName := request.ProjectParam(r)
 	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
@@ -3282,7 +3281,7 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		for i, profile := range req.Profiles {
-			profileID, _, err := tx.GetProfile(ctx, projectName, profile)
+			profileID, _, err := tx.GetProfile(ctx, details.requestProjectName, profile)
 			if response.IsNotFoundError(err) {
 				return fmt.Errorf("Profile '%s' doesn't exist", profile)
 			} else if err != nil {
@@ -3292,7 +3291,7 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 			profileIDs[i] = profileID
 		}
 
-		return tx.UpdateImage(ctx, details.imageID, details.image.Filename, details.image.Size, req.Public, req.AutoUpdate, details.image.Architecture, details.image.CreatedAt, details.image.ExpiresAt, req.Properties, projectName, profileIDs)
+		return tx.UpdateImage(ctx, details.imageID, details.image.Filename, details.image.Size, req.Public, req.AutoUpdate, details.image.Architecture, details.image.CreatedAt, details.image.ExpiresAt, req.Properties, details.requestProjectName, profileIDs)
 	})
 	if err != nil {
 		if response.IsNotFoundError(err) {
@@ -3303,7 +3302,7 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(projectName, lifecycle.ImageUpdated.Event(details.image.Fingerprint, projectName, requestor, nil))
+	s.Events.SendLifecycle(details.requestProjectName, lifecycle.ImageUpdated.Event(details.image.Fingerprint, details.requestProjectName, requestor, nil))
 
 	return response.EmptySyncResponse
 }
@@ -3346,7 +3345,6 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	// Get current value
-	projectName := request.ProjectParam(r)
 	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
@@ -3413,7 +3411,7 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(projectName, lifecycle.ImageUpdated.Event(details.image.Fingerprint, projectName, requestor, nil))
+	s.Events.SendLifecycle(details.requestProjectName, lifecycle.ImageUpdated.Event(details.image.Fingerprint, details.requestProjectName, requestor, nil))
 
 	return response.EmptySyncResponse
 }
@@ -4384,7 +4382,6 @@ func imageExportFiles(ctx context.Context, s *state.State, imgInfo *api.Image) r
 func imageExportPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName := request.ProjectParam(r)
 	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
@@ -4483,12 +4480,12 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed operation %q: %q", opWaitAPI.Status, opWaitAPI.Err)
 		}
 
-		s.Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(details.imageFingerprintPrefix, projectName, op.Requestor(), logger.Ctx{"target": req.Target}))
+		s.Events.SendLifecycle(details.requestProjectName, lifecycle.ImageRetrieved.Event(details.imageFingerprintPrefix, details.requestProjectName, op.Requestor(), logger.Ctx{"target": req.Target}))
 
 		return nil
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.ImageDownload, nil, nil, run, nil, nil)
+	op, err := operations.OperationCreate(r.Context(), s, details.requestProjectName, operations.OperationClassTask, operationtype.ImageDownload, nil, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -4523,13 +4520,12 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 func imageSecret(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName := request.ProjectParam(r)
 	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	return createTokenResponse(s, r, projectName, details.image.Fingerprint, nil)
+	return createTokenResponse(s, r, details.requestProjectName, details.image.Fingerprint, nil)
 }
 
 func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprint string) error {
@@ -4631,7 +4627,6 @@ func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprin
 func imageRefresh(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName := request.ProjectParam(r)
 	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
@@ -4659,12 +4654,12 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 			return nil
 		})
 		if err != nil {
-			return fmt.Errorf("Error getting cluster members for refreshing image %q in project %q: %w", details.imageFingerprintPrefix, projectName, err)
+			return fmt.Errorf("Error getting cluster members for refreshing image %q in project %q: %w", details.imageFingerprintPrefix, details.requestProjectName, err)
 		}
 
-		newImage, err := autoUpdateImage(s.ShutdownCtx, s, op, details.imageID, &details.image, projectName, true)
+		newImage, err := autoUpdateImage(s.ShutdownCtx, s, op, details.imageID, &details.image, details.requestProjectName, true)
 		if err != nil {
-			return fmt.Errorf("Failed to update image %q in project %q: %w", details.imageFingerprintPrefix, projectName, err)
+			return fmt.Errorf("Failed to update image %q in project %q: %w", details.imageFingerprintPrefix, details.requestProjectName, err)
 		}
 
 		if newImage != nil {
@@ -4687,7 +4682,7 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 		return err
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.ImageRefresh, nil, nil, run, nil, nil)
+	op, err := operations.OperationCreate(r.Context(), s, details.requestProjectName, operations.OperationClassTask, operationtype.ImageRefresh, nil, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
