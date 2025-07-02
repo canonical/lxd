@@ -53,6 +53,8 @@ import_subdir_files() {
 if [ "${PWD}" != "$(dirname "${0}")" ]; then
     cd "$(dirname "${0}")"
 fi
+MAIN_DIR="${PWD}"
+export MAIN_DIR
 import_subdir_files includes
 
 # is_backend_available checks if a given backend is available by matching it against the list of available storage backends.
