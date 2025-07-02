@@ -3154,7 +3154,10 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 				revert.Add(func() { _ = d.deleteDatasetRecursive(dataset) })
 
 				defer func() {
-					_ = d.setDatasetProperties(dataset, "volmode=none")
+					err = d.setDatasetProperties(dataset, "volmode=none")
+					if err != nil {
+						d.logger.Warn("Failed setting volmode=none on ZFS volume snapshot", logger.Ctx{"dev": dataset, "err": err})
+					}
 				}()
 
 				// Wait half a second to give udev a chance to kick in.
