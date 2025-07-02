@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net/http"
 	"os"
 
 	sqlite3 "github.com/mattn/go-sqlite3"
@@ -84,11 +85,23 @@ func (c *cmdActivateifneeded) run(cmd *cobra.Command, args []string) error {
 
 	localHTTPAddress := localConfig.HTTPSAddress()
 
+	startLXD := func() error {
+		d, err := lxd.ConnectLXDUnix("", &lxd.ConnectionArgs{
+			SkipGetServer: true, // Don't hit the /1.0 endpoint to avoid unnecessary work on server.
+		})
+		if err != nil {
+			return err
+		}
+
+		// Request / endpoint to make a minimum request sufficient to start LXD.
+		_, _, err = d.RawQuery(http.MethodGet, "/", nil, "")
+		return err
+	}
+
 	// Look for network socket
 	if localHTTPAddress != "" {
 		logger.Debugf("Daemon has core.https_address set, activating...")
-		_, err := lxd.ConnectLXDUnix("", nil)
-		return err
+		return startLXD()
 	}
 
 	// Load the idmap for unprivileged instances
@@ -124,22 +137,19 @@ func (c *cmdActivateifneeded) run(cmd *cobra.Command, args []string) error {
 	for _, inst := range instances {
 		if instanceShouldAutoStart(inst) {
 			logger.Debugf("Daemon has auto-started instances, activating...")
-			_, err := lxd.ConnectLXDUnix("", nil)
-			return err
+			return startLXD()
 		}
 
 		if inst.IsRunning() {
 			logger.Debugf("Daemon has running instances, activating...")
-			_, err := lxd.ConnectLXDUnix("", nil)
-			return err
+			return startLXD()
 		}
 
 		// Check for scheduled instance snapshots
 		config := inst.ExpandedConfig()
 		if config["snapshots.schedule"] != "" {
 			logger.Debugf("Daemon has scheduled instance snapshots, activating...")
-			_, err := lxd.ConnectLXDUnix("", nil)
-			return err
+			return startLXD()
 		}
 	}
 
@@ -160,8 +170,7 @@ func (c *cmdActivateifneeded) run(cmd *cobra.Command, args []string) error {
 	for _, vol := range volumes {
 		if vol.Config["snapshots.schedule"] != "" {
 			logger.Debugf("Daemon has scheduled volume snapshots, activating...")
-			_, err := lxd.ConnectLXDUnix("", nil)
-			return err
+			return startLXD()
 		}
 	}
 
