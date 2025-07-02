@@ -61,7 +61,7 @@ func (c *cmdActivateifneeded) run(cmd *cobra.Command, args []string) error {
 	// Check if either the local database files exists.
 	path := d.os.LocalDatabasePath()
 	if !shared.PathExists(d.os.LocalDatabasePath()) {
-		logger.Debugf("No local database, so no need to start the daemon now")
+		logger.Debug("No local database, so no need to start the daemon now")
 		return nil
 	}
 
@@ -100,7 +100,7 @@ func (c *cmdActivateifneeded) run(cmd *cobra.Command, args []string) error {
 
 	// Look for network socket
 	if localHTTPAddress != "" {
-		logger.Debugf("Daemon has core.https_address set, activating...")
+		logger.Debug("Daemon has core.https_address set, activating...")
 		return startLXD()
 	}
 
@@ -113,7 +113,7 @@ func (c *cmdActivateifneeded) run(cmd *cobra.Command, args []string) error {
 	// Look for auto-started or previously started instances
 	path = d.os.GlobalDatabasePath()
 	if !shared.PathExists(path) {
-		logger.Debugf("No global database, so no need to start the daemon now")
+		logger.Debug("No global database, so no need to start the daemon now")
 		return nil
 	}
 
@@ -147,20 +147,20 @@ func (c *cmdActivateifneeded) run(cmd *cobra.Command, args []string) error {
 
 	for _, inst := range instances {
 		if instanceShouldAutoStart(inst) {
-			logger.Debugf("Daemon has auto-started instances, activating...")
+			logger.Debug("Daemon has auto-started instances, activating...")
 			return startLXD()
 		}
 
 		config := inst.ExpandedConfig()
 
 		if config["volatile.last_state.power"] == instance.PowerStateRunning {
-			logger.Debugf("Daemon has running instances, activating...")
+			logger.Debug("Daemon has running instances, activating...")
 			return startLXD()
 		}
 
 		// Check for scheduled instance snapshots
 		if config["snapshots.schedule"] != "" {
-			logger.Debugf("Daemon has scheduled instance snapshots, activating...")
+			logger.Debug("Daemon has scheduled instance snapshots, activating...")
 			return startLXD()
 		}
 	}
@@ -181,12 +181,12 @@ func (c *cmdActivateifneeded) run(cmd *cobra.Command, args []string) error {
 
 	for _, vol := range volumes {
 		if vol.Config["snapshots.schedule"] != "" {
-			logger.Debugf("Daemon has scheduled volume snapshots, activating...")
+			logger.Debug("Daemon has scheduled volume snapshots, activating...")
 			return startLXD()
 		}
 	}
 
-	logger.Debugf("No need to start the daemon now")
+	logger.Debug("No need to start the daemon now")
 	return nil
 }
 
