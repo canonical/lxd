@@ -849,12 +849,7 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 		}
 
 		if d.isBlockBacked(srcVol.Volume) && renegerateFilesystemUUIDNeeded(vol.ConfigBlockFilesystem()) {
-			_, err := d.activateVolume(vol.Volume)
-			if err != nil {
-				return err
-			}
-
-			volPath, err := d.GetVolumeDiskPath(vol.Volume)
+			_, volPath, err := d.activateVolume(vol.Volume)
 			if err != nil {
 				return err
 			}
@@ -1199,18 +1194,13 @@ func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCl
 
 		if d.isBlockBacked(vol) && renegerateFilesystemUUIDNeeded(vol.ConfigBlockFilesystem()) {
 			// Activate volume if needed.
-			activated, err := d.activateVolume(vol)
+			activated, volPath, err := d.activateVolume(vol)
 			if err != nil {
 				return err
 			}
 
 			if activated {
 				defer func() { _, _ = d.deactivateVolume(vol) }()
-			}
-
-			volPath, err := d.GetVolumeDiskPath(vol)
-			if err != nil {
-				return err
 			}
 
 			d.logger.Debug("Regenerating filesystem UUID", logger.Ctx{"dev": volPath, "fs": vol.ConfigBlockFilesystem()})
@@ -1779,7 +1769,7 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 
 		if vol.contentType == ContentTypeFS {
 			// Activate volume if needed.
-			activated, err := d.activateVolume(vol)
+			activated, volDevPath, err := d.activateVolume(vol)
 			if err != nil {
 				return err
 			}
@@ -1793,11 +1783,6 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 			}
 
 			fsType := vol.ConfigBlockFilesystem()
-
-			volDevPath, err := d.GetVolumeDiskPath(vol)
-			if err != nil {
-				return err
-			}
 
 			l := d.logger.AddContext(logger.Ctx{"dev": volDevPath, "size": fmt.Sprintf("%db", sizeBytes)})
 
@@ -2117,44 +2102,39 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 	return volList, nil
 }
 
-// activateVolume activates a ZFS volume if not already active. Returns true if activated, false if not.
-func (d *zfs) activateVolume(vol Volume) (bool, error) {
+// activateVolume activates a ZFS volume if not already active. Returns whether it was activated along with the path to the zvol or an error.
+func (d *zfs) activateVolume(vol Volume) (bool, string, error) {
 	if !IsContentBlock(vol.contentType) && !vol.IsBlockBacked() {
-		return false, nil // Nothing to do for non-block or non-block backed volumes.
+		return false, "", nil // Nothing to do for non-block or non-block backed volumes.
 	}
-
-	revert := revert.New()
-	defer revert.Fail()
 
 	dataset := d.dataset(vol, false)
 
 	// Check if already active.
 	current, err := d.getDatasetProperty(dataset, "volmode")
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
+
+	activated := false
 
 	if current != "dev" {
 		// For block backed volumes, we make their associated device appear.
 		err = d.setDatasetProperties(dataset, "volmode=dev")
 		if err != nil {
-			return false, err
+			return false, "", err
 		}
 
-		revert.Add(func() { _ = d.setDatasetProperties(dataset, "volmode="+current) })
-
-		_, err := d.GetVolumeDiskPath(vol)
-		if err != nil {
-			return false, fmt.Errorf("Failed to activate volume: %v", err)
-		}
-
+		activated = true
 		d.logger.Debug("Activated ZFS volume", logger.Ctx{"volName": vol.Name(), "dev": dataset})
-
-		revert.Success()
-		return true, nil
 	}
 
-	return false, nil
+	volumeDiskPath, err := d.GetVolumeDiskPath(vol)
+	if err != nil {
+		return false, "", fmt.Errorf("Failed to get volume disk path: %v", err)
+	}
+
+	return activated, volumeDiskPath, nil
 }
 
 // deactivateVolume deactivates a ZFS volume if activate. Returns true if deactivated, false if not.
@@ -2274,7 +2254,7 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
 		}
 	} else {
 		// For block devices, we make them appear.
-		activated, err := d.activateVolume(vol)
+		activated, volPath, err := d.activateVolume(vol)
 		if err != nil {
 			return err
 		}
@@ -2284,12 +2264,7 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
 		}
 
 		if !IsContentBlock(vol.contentType) && d.isBlockBacked(vol) && !filesystem.IsMountPoint(mountPath) {
-			volPath, err := d.GetVolumeDiskPath(vol)
-			if err != nil {
-				return err
-			}
-
-			err = vol.EnsureMountPath()
+			err := vol.EnsureMountPath()
 			if err != nil {
 				return err
 			}
@@ -3418,17 +3393,12 @@ func (d *zfs) restoreVolume(vol Volume, snapVol Volume, migration bool, op *oper
 	}
 
 	if vol.contentType == ContentTypeFS && d.isBlockBacked(vol) && renegerateFilesystemUUIDNeeded(vol.ConfigBlockFilesystem()) {
-		_, err = d.activateVolume(vol)
+		_, volPath, err := d.activateVolume(vol)
 		if err != nil {
 			return err
 		}
 
 		defer func() { _, _ = d.deactivateVolume(vol) }()
-
-		volPath, err := d.GetVolumeDiskPath(vol)
-		if err != nil {
-			return err
-		}
 
 		d.logger.Debug("Regenerating filesystem UUID", logger.Ctx{"dev": volPath, "fs": vol.ConfigBlockFilesystem()})
 		err = regenerateFilesystemUUID(vol.ConfigBlockFilesystem(), volPath)
