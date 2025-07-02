@@ -90,7 +90,7 @@ type networkDetails struct {
 	requestProject api.Project
 }
 
-// addNetworkDetailsToRequestContext sets request.CtxEffectiveProjectName (string) and ctxNetworkDetails (networkDetails)
+// addNetworkDetailsToRequestContext sets the effective project on the request.Info and sets ctxNetworkDetails (networkDetails)
 // in the request context.
 func addNetworkDetailsToRequestContext(s *state.State, r *http.Request) error {
 	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])

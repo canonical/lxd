@@ -129,7 +129,7 @@ type imageDetails struct {
 	image                  api.Image
 }
 
-// addImageDetailsToRequestContext sets request.CtxEffectiveProjectName (string) and ctxImageDetails (imageDetails)
+// addImageDetailsToRequestContext sets the effective project in the request.Info and sets ctxImageDetails (imageDetails)
 // in the request context.
 func addImageDetailsToRequestContext(s *state.State, r *http.Request) error {
 	imageFingerprintPrefix, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
