@@ -16,6 +16,8 @@ import (
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cloudinit"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -265,6 +267,11 @@ var devLXDImageExportEndpoint = devLXDAPIEndpoint{
 	Get:  devLXDAPIEndpointAction{Handler: devLXDImageExportHandler},
 }
 
+// devLXDImageExportHandler returns a file response containing the image files. The requested fingerprint must match
+// exactly, and the project must be "default". Images are only made available over DevLXD if they are public or cached.
+//
+// Note: This endpoint used to call into the image export handler directly, it therefore returns full API responses
+// rather than DevLXDErrorResponses for compatibility.
 func devLXDImageExportHandler(d *Daemon, r *http.Request) response.Response {
 	_, err := getInstanceFromContextAndCheckSecurityFlags(r.Context(), devLXDSecurityKey, devLXDSecurityImagesKey)
 	if err != nil {
@@ -278,7 +285,45 @@ func devLXDImageExportHandler(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(err)
 	}
 
-	return imageExport(d, r)
+	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	projectName := request.ProjectParam(r)
+	if projectName != api.ProjectDefaultName {
+		// Disallow requests made to non-default projects.
+		return response.NotFound(nil)
+	}
+
+	s := d.State()
+
+	var imgInfo *api.Image
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Perform exact match on image fingerprint and project.
+		dbImage, err := cluster.GetImage(ctx, tx.Tx(), api.ProjectDefaultName, fingerprint)
+		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return err
+		}
+
+		// Access check now to avoid further db calls if not allowed.
+		if dbImage == nil || (!dbImage.Cached && !dbImage.Public) {
+			return api.NewGenericStatusError(http.StatusNotFound)
+		}
+
+		// Expand image for call to imageExportFiles.
+		imgInfo, err = dbImage.ToAPI(ctx, tx.Tx(), api.ProjectDefaultName)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return imageExportFiles(r.Context(), s, imgInfo, projectName)
 }
 
 var devLXDMetadataEndpoint = devLXDAPIEndpoint{
