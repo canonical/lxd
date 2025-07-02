@@ -50,14 +50,14 @@ type Authorizer interface {
 	// CheckPermission checks if the caller has the given entitlement on the entity found at the given URL.
 	//
 	// Note: When a project does not have a feature enabled, the given URL should contain the request project, and the
-	// effective project for the entity should be set in the given context as request.CtxEffectiveProjectName.
+	// effective project for the entity should be set on the request.Info in the given context.
 	CheckPermission(ctx context.Context, entityURL *api.URL, entitlement Entitlement) error
 
 	// GetPermissionChecker returns a PermissionChecker for a particular entity.Type.
 	//
 	// Note: As with CheckPermission, arguments to the returned PermissionChecker should contain the request project for
-	// the entity. The effective project for the entity must be set in the request context as request.CtxEffectiveProjectName
-	// *before* the call to GetPermissionChecker.
+	// the entity. The effective project for the entity must be set on the request.Info in the given context before
+	// calling the PermissionChecker.
 	GetPermissionChecker(ctx context.Context, entitlement Entitlement, entityType entity.Type) (PermissionChecker, error)
 
 	// CheckPermissionWithoutEffectiveProject checks a permission, but does not replace the project in the entity URL
