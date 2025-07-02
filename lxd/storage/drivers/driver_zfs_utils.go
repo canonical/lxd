@@ -125,7 +125,7 @@ func (d *zfs) deleteDatasetRecursive(dataset string) error {
 	if origin != "" && origin != "-" {
 		if strings.HasPrefix(origin, d.config["zfs.pool_name"]+"/deleted") {
 			// Strip the snapshot name when dealing with a deleted volume.
-			dataset = strings.SplitN(origin, "@", 2)[0]
+			dataset, _, _ = strings.Cut(origin, "@")
 		} else if strings.Contains(origin, "@deleted-") || strings.Contains(origin, "@copy-") {
 			// Handle deleted snapshots.
 			dataset = origin
@@ -342,7 +342,7 @@ func (d *zfs) initialDatasets() []string {
 
 func (d *zfs) needsRecursion(dataset string) bool {
 	// Ignore snapshots for the test.
-	dataset = strings.Split(dataset, "@")[0]
+	dataset, _, _ = strings.Cut(dataset, "@")
 
 	entries, err := d.getDatasets(dataset, "filesystem,volume")
 	if err != nil {
