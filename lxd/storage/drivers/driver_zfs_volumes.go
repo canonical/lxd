@@ -661,7 +661,10 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 
 	// If zfs.clone_copy is disabled or source volume has snapshots, then use full copy mode.
 	if shared.IsFalse(d.config["zfs.clone_copy"]) || len(snapshots) > 0 {
-		snapName := strings.SplitN(srcSnapshot, "@", 2)[1]
+		_, snapName, found := strings.Cut(srcSnapshot, "@")
+		if !found {
+			return fmt.Errorf("Failed to parse snapshot name from %q", srcSnapshot)
+		}
 
 		// Send/receive the snapshot.
 		var sender *exec.Cmd
