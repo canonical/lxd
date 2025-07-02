@@ -8716,16 +8716,16 @@ func (d *qemu) Info() instance.Info {
 		return data
 	}
 
-	out, err := exec.Command(qemuPath, "--version").Output()
+	stdout, stderr, err := shared.RunCommandSplit(context.TODO(), nil, nil, qemuPath, "--version")
 	if err != nil {
-		logger.Errorf("Failed getting version during QEMU initialization: %v", err)
+		logger.Errorf("Failed getting version during QEMU initialization: %v (%s)", err, stderr)
 		data.Error = errors.New("Failed getting QEMU version")
 		return data
 	}
 
-	qemuOutput := strings.Fields(string(out))
+	qemuOutput := strings.Fields(stdout)
 	if len(qemuOutput) >= 4 {
-		qemuVersion := strings.Fields(string(out))[3]
+		qemuVersion := qemuOutput[3]
 		data.Version = qemuVersion
 	} else {
 		data.Version = "unknown" // Not necessarily an error that should prevent us using driver.
