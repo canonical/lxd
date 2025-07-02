@@ -129,12 +129,12 @@ type imageDetails struct {
 	image                  api.Image
 }
 
-// addImageDetailsToRequestContext sets the effective project in the request.Info and sets ctxImageDetails (imageDetails)
-// in the request context.
-func addImageDetailsToRequestContext(s *state.State, r *http.Request) error {
+// addImageDetailsToRequestContext sets request.CtxEffectiveProjectName (string) and ctxImageDetails (imageDetails)
+// in the request context for accessibility between the access and API handlers. It is also returned for convenience.
+func addImageDetailsToRequestContext(s *state.State, r *http.Request) (*imageDetails, error) {
 	imageFingerprintPrefix, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	requestProjectName := request.ProjectParam(r)
@@ -155,30 +155,27 @@ func addImageDetailsToRequestContext(s *state.State, r *http.Request) error {
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to check project %q image feature: %w", requestProjectName, err)
+		return nil, fmt.Errorf("Failed to check project %q image feature: %w", requestProjectName, err)
 	}
 
-	request.SetContextValue(r, ctxImageDetails, imageDetails{
+	details := imageDetails{
 		imageFingerprintPrefix: imageFingerprintPrefix,
 		imageID:                imageID,
 		image:                  *image,
-	})
+	}
+
+	request.SetContextValue(r, ctxImageDetails, details)
 
 	reqInfo := request.SetupContextInfo(r)
 	reqInfo.EffectiveProjectName = effectiveProjectName
 
-	return nil
+	return &details, nil
 }
 
 func imageAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
 		s := d.State()
-		err := addImageDetailsToRequestContext(s, r)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
+		details, err := addImageDetailsToRequestContext(s, r)
 		if err != nil {
 			return response.SmartError(err)
 		}
