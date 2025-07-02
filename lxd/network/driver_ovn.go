@@ -146,9 +146,17 @@ func (n *ovn) State() (*api.NetworkState, error) {
 		}
 	}
 
-	chassis, err := client.GetLogicalRouterPortActiveChassisHostname(n.getRouterExtPortName())
-	if err != nil {
-		return nil, err
+	var chassis string
+
+	// The logical router's port active chassis is only available in case the network
+	// has an IP on the uplink network assigned.
+	if n.config[ovnVolatileUplinkIPv4] != "" || n.config[ovnVolatileUplinkIPv6] != "" {
+		routerExtPortName := n.getRouterExtPortName()
+
+		chassis, err = client.GetLogicalRouterPortActiveChassisHostname(routerExtPortName)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get active chassis for logical router port %q: %w", routerExtPortName, err)
+		}
 	}
 
 	// Bound check the MTU value before converting to int.
