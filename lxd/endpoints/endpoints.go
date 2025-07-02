@@ -228,7 +228,7 @@ func (e *Endpoints) up(config *Config) error {
 	if config.NetworkAddress != "" {
 		listener, ok := e.listeners[network]
 		if ok {
-			logger.Infof("Replacing inherited TCP socket with configured one")
+			logger.Info("Replacing inherited TCP socket with configured one")
 			_ = listener.Close()
 			e.inherited[network] = false
 		}
