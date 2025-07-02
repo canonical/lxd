@@ -2138,7 +2138,12 @@ func (d *zfs) activateVolume(vol Volume) (bool, error) {
 			return false, err
 		}
 
-		revert.Add(func() { _ = d.setDatasetProperties(dataset, "volmode="+current) })
+		revert.Add(func() {
+			err = d.setDatasetProperties(dataset, "volmode="+current)
+			if err != nil {
+				d.logger.Warn("Failed to revert ZFS volmode", logger.Ctx{"volName": vol.Name(), "dev": dataset, "err": err})
+			}
+		})
 
 		_, err := d.GetVolumeDiskPath(vol)
 		if err != nil {
