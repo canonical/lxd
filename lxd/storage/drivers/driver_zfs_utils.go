@@ -307,15 +307,8 @@ func (d *zfs) getDatasetProperties(dataset string, keys ...string) (map[string]s
 	return props, nil
 }
 
-// version returns the ZFS version based on package or kernel module version.
+// version returns the ZFS version based on kernel module version on package.
 func (d *zfs) version() (string, error) {
-	// This function is only really ever relevant on Ubuntu as the only
-	// distro that ships out of sync tools and kernel modules
-	out, err := shared.RunCommandContext(context.TODO(), "dpkg-query", "--showformat=${Version}", "--show", "zfsutils-linux")
-	if out != "" && err == nil {
-		return strings.TrimSpace(string(out)), nil
-	}
-
 	// Loaded kernel module version
 	if shared.PathExists("/sys/module/zfs/version") {
 		out, err := os.ReadFile("/sys/module/zfs/version")
@@ -325,8 +318,15 @@ func (d *zfs) version() (string, error) {
 	}
 
 	// Module information version
-	out, err = shared.RunCommandContext(context.TODO(), "modinfo", "-F", "version", "zfs")
+	out, err := shared.RunCommandContext(context.TODO(), "modinfo", "-F", "version", "zfs")
 	if err == nil {
+		return strings.TrimSpace(string(out)), nil
+	}
+
+	// This function is only really ever relevant on Ubuntu as the only
+	// distro that ships out of sync tools and kernel modules
+	out, err = shared.RunCommandContext(context.TODO(), "dpkg-query", "--showformat=${Version}", "--show", "zfsutils-linux")
+	if out != "" && err == nil {
 		return strings.TrimSpace(string(out)), nil
 	}
 
