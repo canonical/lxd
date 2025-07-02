@@ -236,3 +236,29 @@ func InitProjectWithoutImages(ctx context.Context, tx *sql.Tx, project string) e
 	_, err = tx.Exec(stmt, defaultProfileID)
 	return err
 }
+
+// GetAllProjectsConfig returns a map of project name to config map.
+func GetAllProjectsConfig(ctx context.Context, tx *sql.Tx) (map[string]map[string]string, error) {
+	projectConfigs := make(map[string]map[string]string)
+	err := query.Scan(ctx, tx, "SELECT projects.name, projects_config.key, projects_config.value FROM projects JOIN projects_config ON projects.id = projects_config.project_id", func(scan func(dest ...any) error) error {
+		var projectName, key, value string
+		err := scan(&projectName, &key, &value)
+		if err != nil {
+			return err
+		}
+
+		projectConfig, ok := projectConfigs[projectName]
+		if !ok {
+			projectConfigs[projectName] = map[string]string{key: value}
+			return nil
+		}
+
+		projectConfig[key] = value
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return projectConfigs, nil
+}
