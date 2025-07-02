@@ -1802,10 +1802,6 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 			l := d.logger.AddContext(logger.Ctx{"dev": volDevPath, "size": fmt.Sprintf("%db", sizeBytes)})
 
 			if sizeBytes < oldVolSizeBytes {
-				if !filesystemTypeCanBeShrunk(fsType) {
-					return fmt.Errorf("Filesystem %q cannot be shrunk: %w", fsType, ErrCannotBeShrunk)
-				}
-
 				if inUse {
 					return ErrInUse // We don't allow online shrinking of filesystem block volumes.
 				}
