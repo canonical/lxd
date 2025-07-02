@@ -1136,7 +1136,7 @@ func internalImportRootDevicePopulate(instancePoolName string, localDevices map[
 }
 
 func internalGC(_ *Daemon, _ *http.Request) response.Response {
-	logger.Infof("Started forced garbage collection run")
+	logger.Info("Started forced garbage collection run")
 	runtime.GC()
 	runtimeDebug.FreeOSMemory()
 
@@ -1147,7 +1147,7 @@ func internalGC(_ *Daemon, _ *http.Request) response.Response {
 	logger.Infof("Requested from system: %s", units.GetByteSizeStringIEC(int64(m.Sys), 2))
 	logger.Infof("Releasable to OS: %s", units.GetByteSizeStringIEC(int64(m.HeapIdle-m.HeapReleased), 2))
 
-	logger.Infof("Completed forced garbage collection run")
+	logger.Info("Completed forced garbage collection run")
 
 	return response.EmptySyncResponse
 }
