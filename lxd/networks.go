@@ -1944,7 +1944,7 @@ func networkStop(s *state.State, evacuateOnly bool) {
 
 // networkRestartOVN is used to trigger a restart of all OVN networks.
 func networkRestartOVN(s *state.State) error {
-	logger.Infof("Restarting OVN networks")
+	logger.Info("Restarting OVN networks")
 
 	// Get a list of projects.
 	var projectNames []string
