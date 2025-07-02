@@ -151,13 +151,14 @@ func (c *cmdActivateifneeded) run(cmd *cobra.Command, args []string) error {
 			return startLXD()
 		}
 
-		if inst.IsRunning() {
+		config := inst.ExpandedConfig()
+
+		if config["volatile.last_state.power"] == instance.PowerStateRunning {
 			logger.Debugf("Daemon has running instances, activating...")
 			return startLXD()
 		}
 
 		// Check for scheduled instance snapshots
-		config := inst.ExpandedConfig()
 		if config["snapshots.schedule"] != "" {
 			logger.Debugf("Daemon has scheduled instance snapshots, activating...")
 			return startLXD()
