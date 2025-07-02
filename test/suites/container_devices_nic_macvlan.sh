@@ -24,17 +24,17 @@ test_container_devices_nic_macvlan() {
   lxc exec "${ctName}" -- ip addr add "2001:db8::1${ipRand}/64" dev eth0
 
   echo "==> Check custom MTU is applied if feature available in LXD."
-  if lxc info | grep 'network_phys_macvlan_mtu: "true"' ; then
-    if ! lxc exec "${ctName}" -- ip link show eth0 | grep "mtu 1400" ; then
-      echo "mtu invalid"
-      false
-    fi
+  if ! lxc exec "${ctName}" -- ip link show eth0 | grep "mtu 1400" ; then
+    echo "mtu invalid"
+    false
   fi
 
   echo "==> Spin up another container with multiple IPs."
   lxc launch testimage "${ctName}2" -p "${ctName}"
   lxc exec "${ctName}2" -- ip addr add "192.0.2.2${ipRand}/24" dev eth0
   lxc exec "${ctName}2" -- ip addr add "2001:db8::2${ipRand}/64" dev eth0
+
+  wait_for_dad "${ctName}" eth0
   wait_for_dad "${ctName}2" eth0
 
   echo "==> Check comms between containers."
@@ -59,7 +59,7 @@ test_container_devices_nic_macvlan() {
   echo "==> Check that MTU is inherited from parent device when not specified on device."
   ip link set "${ctName}" mtu 1405
   lxc config device unset "${ctName}" eth0 mtu
-  if ! lxc exec "${ctName}" -- grep "1405" /sys/class/net/eth0/mtu ; then
+  if [ "$(lxc exec "${ctName}" -- cat /sys/class/net/eth0/mtu)" != "1405" ]; then
     echo "mtu not inherited from parent"
     false
   fi
@@ -89,7 +89,7 @@ test_container_devices_nic_macvlan() {
   fi
 
   echo "==> Check VLAN interface created."
-  if ! grep "1" "/sys/class/net/${ctName}.10/carrier" ; then
+  if [ "$(cat "/sys/class/net/${ctName}.10/carrier")" != "1" ]; then
     echo "vlan interface not created"
     false
   fi
@@ -98,7 +98,7 @@ test_container_devices_nic_macvlan() {
   lxc config device remove "${ctName}" eth0
 
   echo "==> Check parent device is still up."
-  if ! grep "1" "/sys/class/net/${ctName}/carrier" ; then
+  if [ "$(cat "/sys/class/net/${ctName}/carrier")" != "1" ]; then
     echo "parent is down"
     false
   fi

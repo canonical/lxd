@@ -1,7 +1,4 @@
 test_container_devices_nic_bridged_filtering() {
-  ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
-
   firewallDriver=$(lxc info | awk -F ":" '/firewall:/{gsub(/ /, "", $0); print $2}')
 
   if [ "$firewallDriver" != "xtables" ] && [ "$firewallDriver" != "nftables" ]; then
@@ -15,6 +12,9 @@ test_container_devices_nic_bridged_filtering() {
       return
     fi
   fi
+
+  ensure_import_testimage
+  ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Record how many nics we started with.
   startNicCount=$(find /sys/class/net | wc -l)
@@ -287,7 +287,7 @@ test_container_devices_nic_bridged_filtering() {
   rm "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0"
   lxc config device unset "${ctPrefix}A" eth0 ipv4.address
   lxc start "${ctPrefix}A"
-  if ! grep "192.0.2.2" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
+  if ! grep -F "192.0.2.2" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
     echo "dnsmasq host config doesnt contain previous lease as static IPv4 config"
     false
   fi
@@ -304,7 +304,7 @@ test_container_devices_nic_bridged_filtering() {
   lxc config device set "${ctPrefix}A" eth0 security.ipv4_filtering true
   lxc start "${ctPrefix}A"
 
-  if ! grep "192.0.2.3" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
+  if ! grep -F "192.0.2.3" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
     echo "dnsmasq host config doesnt contain sequentially allocated static IPv4 config"
     false
   fi
@@ -314,7 +314,7 @@ test_container_devices_nic_bridged_filtering() {
   lxc network set "${brName}" ipv4.dhcp.ranges "192.0.2.100-192.0.2.110"
   lxc start "${ctPrefix}A"
 
-  if ! grep "192.0.2.100" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
+  if ! grep -F "192.0.2.100" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
     echo "dnsmasq host config doesnt contain sequentially range allocated static IPv4 config"
     false
   fi
@@ -553,7 +553,7 @@ test_container_devices_nic_bridged_filtering() {
   rm "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0"
   lxc config device set "${ctPrefix}A" eth0 security.ipv6_filtering true
   lxc start "${ctPrefix}A"
-  if ! grep "\\[2001:db8:1:0:216:3eff:fe92:f3c1\\]" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
+  if ! grep -F "[2001:db8:1:0:216:3eff:fe92:f3c1]" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
     echo "dnsmasq host config doesnt contain dynamically allocated static IPv6 config"
     false
   fi
@@ -569,7 +569,7 @@ test_container_devices_nic_bridged_filtering() {
   respawn_lxd "${LXD_DIR}" true
   lxc config device set "${ctPrefix}A" eth0 security.ipv6_filtering true
   lxc start "${ctPrefix}A"
-  if ! grep "\\[2001:db8:1::2\\]" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
+  if ! grep -F "[2001:db8:1::2]" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
     echo "dnsmasq host config doesnt contain sequentially allocated static IPv6 config"
     false
   fi

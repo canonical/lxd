@@ -2,11 +2,6 @@ test_container_devices_nic_ipvlan() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  if ! lxc info | grep 'network_ipvlan: "true"' ; then
-    echo "==> SKIP: No IPVLAN support"
-    return
-  fi
-
   ctName="nt$$"
   ipRand=$(shuf -i 0-9 -n 1)
 
@@ -43,7 +38,7 @@ test_container_devices_nic_ipvlan() {
   ip link set "${ctName}" mtu 1405
   lxc config device unset "${ctName}" eth0 mtu
   lxc start "${ctName}"
-  if ! lxc exec "${ctName}" -- grep -xF "1405" /sys/class/net/eth0/mtu ; then
+  if [ "$(lxc exec "${ctName}" -- cat /sys/class/net/eth0/mtu)" != "1405" ]; then
     echo "mtu not inherited from parent"
     false
   fi
@@ -56,6 +51,8 @@ test_container_devices_nic_ipvlan() {
     ipv4.address="192.0.2.2${ipRand}, 192.0.2.3${ipRand}" \
     ipv6.address="2001:db8::2${ipRand}, 2001:db8::3${ipRand}"
   lxc start "${ctName}2"
+
+  wait_for_dad "${ctName}" eth0
   wait_for_dad "${ctName}2" eth0
 
   # Check comms between containers.
@@ -80,7 +77,7 @@ test_container_devices_nic_ipvlan() {
   lxc start "${ctName}"
 
   # Check VLAN interface created
-  if ! grep -xF "1" "/sys/class/net/${ctName}.1234/carrier" ; then
+  if [ "$(cat "/sys/class/net/${ctName}.1234/carrier")" != "1" ]; then
     echo "vlan interface not created"
     false
   fi
@@ -97,7 +94,7 @@ test_container_devices_nic_ipvlan() {
   fi
 
   # Check parent device is still up.
-  if ! grep -xF "1" "/sys/class/net/${ctName}/carrier" ; then
+  if [ "$(cat "/sys/class/net/${ctName}/carrier")" != "1" ]; then
     echo "parent is down"
     false
   fi
@@ -131,6 +128,8 @@ test_container_devices_nic_ipvlan() {
   # Add an internally configured address (only possible in l2 mode).
   lxc exec "${ctName}2" -- ip -4 addr add "192.0.2.4${ipRand}/32" dev eth0
   lxc exec "${ctName}2" -- ip -6 addr add "2001:db8::4${ipRand}/128" dev eth0
+
+  wait_for_dad "${ctName}" eth0
   wait_for_dad "${ctName}2" eth0
 
   # Check comms between containers.
