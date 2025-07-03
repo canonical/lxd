@@ -21,7 +21,7 @@ INSERT INTO broken(n) VALUES(1);
 EOF
 
   # Starting LXD fails.
-  ! LXD_DIR="${LXD_RESTORE_DIR}" lxd --logfile "${LXD_RESTORE_DIR}/lxd.log" "${DEBUG-}" 2>&1 || false
+  ! LXD_DIR="${LXD_RESTORE_DIR}" lxd --logfile "${LXD_RESTORE_DIR}/lxd.log" "${SERVER_DEBUG-}" 2>&1 || false
 
   # Remove the broken patch
   rm -f "${LXD_RESTORE_DIR}/database/patch.global.sql"

@@ -1906,9 +1906,9 @@ test_clustering_update_cert_token() {
   # Verify the token with the wrong cert fingerprint is not usable due to the fingerprint mismatch
   url="https://100.64.1.101:8443"
   ! lxc remote add cluster "${token}" || false
-  [ "$(DEBUG="" lxc remote add cluster "${token}" 2>&1)" = "Error: Certificate fingerprint mismatch between certificate token and server \"${url}\"" ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc remote add cluster "${token}" 2>&1)" = "Error: Certificate fingerprint mismatch between certificate token and server \"${url}\"" ]
   ! lxc remote add cluster --token "${token}" "${url}" || false
-  [ "$(DEBUG="" lxc remote add cluster --token "${token}" "${url}" 2>&1)" = "Error: Certificate fingerprint mismatch between certificate token and server \"${url}\"" ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc remote add cluster --token "${token}" "${url}" 2>&1)" = "Error: Certificate fingerprint mismatch between certificate token and server \"${url}\"" ]
 
   # Get a fresh token embedding the new cluster cert fingerprint
   token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
