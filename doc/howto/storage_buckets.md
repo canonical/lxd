@@ -7,7 +7,37 @@ relatedlinks: "[LXD's&#32;S3&#32;API&#32;-&#32;YouTube](https://youtube.com/watc
 
 See the following sections for instructions on how to create, configure, view and resize {ref}`storage-buckets` and how to manage storage bucket keys.
 
-## Install requirements for local storage buckets
+(howto-storage-buckets-view)=
+## View storage buckets
+
+You can display a list of all available storage buckets in a storage pool and check their configuration.
+
+To list all available storage buckets in a storage pool, use the following command:
+
+    lxc storage bucket list <pool_name>
+
+To show detailed information about a specific bucket, use the following command:
+
+    lxc storage bucket show <pool_name> <bucket_name>
+
+(howto-storage-buckets-create)=
+## Create a storage bucket
+
+(howto-storage-buckets-create-requirements)=
+### Requirements
+
+(howto-storage-buckets-create-requirements-distributed)=
+#### Distributed storage buckets
+
+(howto-storage-buckets-create-requirements-local)=
+#### Local storage buckets
+
+Unlike custom storage volumes, storage buckets are not added to an instance, but applications can instead access them directly via their URL.
+
+See {ref}`storage-buckets` for detailed information.
+
+(howto-storage-buckets-create-requirements-local-minio)=
+##### MinIO
 
 LXD uses [MinIO](https://min.io) to set up local storage buckets. To use this feature with LXD, you must install both the server and client binaries.
 
@@ -39,7 +69,10 @@ Note that the path to the directory containing the binaries must not be under th
 
 If LXD is installed from another source, both binaries must be included in the `$PATH` that LXD was started with.
 
-## Configure the S3 address
+(howto-storage-buckets-create-requirements-local-s3)=
+##### Configure the S3 address
+
+Storage buckets provide access to object storage exposed using the S3 protocol.
 
 If you want to use storage buckets on local storage (thus in a `dir`, `btrfs`, `lvm`, or `zfs` pool), you must configure the S3 address for your LXD server.
 This is the address that you can then use to access the buckets through the S3 protocol.
@@ -49,21 +82,17 @@ For example:
 
     lxc config set core.storage_buckets_address :8555
 
-## Manage storage buckets
-
-Storage buckets provide access to object storage exposed using the S3 protocol.
-
-Unlike custom storage volumes, storage buckets are not added to an instance, but applications can instead access them directly via their URL.
-
-See {ref}`storage-buckets` for detailed information.
-
-### Create a storage bucket
+(howto-storage-buckets-create-single)=
+### Create a bucket on a single, non-clustered LXD server
 
 Use the following command to create a storage bucket in a storage pool:
 
     lxc storage bucket create <pool_name> <bucket_name> [configuration_options...]
 
 See the {ref}`storage-drivers` documentation for a list of available storage bucket configuration options for each driver that supports object storage.
+
+(howto-storage-buckets-create-cluster)=
+### Create a bucket on a cluster member
 
 To add a storage bucket on a cluster member, add the `--target` flag:
 
@@ -74,7 +103,8 @@ For most storage drivers, storage buckets are not replicated across the cluster 
 This behavior is different for `cephobject` storage pools, where buckets are available from any cluster member.
 ```
 
-### Configure storage bucket settings
+(howto-storage-buckets-configure)=
+## Configure storage bucket settings
 
 See the {ref}`storage-drivers` documentation for the available configuration options for each storage driver that supports object storage.
 
@@ -94,19 +124,8 @@ Use the following command to delete a storage bucket and its keys:
 
     lxc storage bucket delete <pool_name> <bucket_name>
 
-### View storage buckets
-
-You can display a list of all available storage buckets in a storage pool and check their configuration.
-
-To list all available storage buckets in a storage pool, use the following command:
-
-    lxc storage bucket list <pool_name>
-
-To show detailed information about a specific bucket, use the following command:
-
-    lxc storage bucket show <pool_name> <bucket_name>
-
-### Resize a storage bucket
+(howto-storage-buckets-resize)=
+## Resize a storage bucket
 
 By default, storage buckets do not have a quota applied.
 
@@ -120,6 +139,7 @@ To set or change a quota for a storage bucket, set its size configuration:
 
 ```
 
+(howto-storage-buckets-keys)=
 ## Manage storage bucket keys
 
 To access a storage bucket, applications must use a set of S3 credentials made up of an *access key* and a *secret key*.
@@ -137,7 +157,19 @@ The roles available are:
 
 If the role is not specified when creating a bucket key, the role used is `read-only`.
 
-### Create storage bucket keys
+(howto-storage-buckets-keys-view)=
+### View storage bucket keys
+
+Use the following command to see the keys defined for an existing bucket:
+
+    lxc storage bucket key list <pool_name> <bucket_name>
+
+Use the following command to see a specific bucket key:
+
+    lxc storage bucket key show <pool_name> <bucket_name> <key_name>
+
+(howto-storage-buckets-keys-create)=
+### Create keys
 
 Use the following command to create a set of credentials for a storage bucket:
 
@@ -149,6 +181,7 @@ Use the following command to create a set of credentials for a storage bucket wi
 
 These commands will generate and display a random set of credential keys.
 
+(howto-storage-buckets-keys-edit)=
 ### Edit or delete storage bucket keys
 
 Use the following command to edit an existing bucket key:
@@ -159,12 +192,3 @@ Use the following command to delete an existing bucket key:
 
     lxc storage bucket key delete <pool_name> <bucket_name> <key_name>
 
-### View storage bucket keys
-
-Use the following command to see the keys defined for an existing bucket:
-
-    lxc storage bucket key list <pool_name> <bucket_name>
-
-Use the following command to see a specific bucket key:
-
-    lxc storage bucket key show <pool_name> <bucket_name> <key_name>
