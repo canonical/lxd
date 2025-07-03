@@ -944,8 +944,8 @@ run_projects_restrictions() {
   # Check with restricted unset and restricted.devices.nic unset that managed & unmanaged networks are accessible.
   lxc network list | grep -F "${netManaged}"
   lxc network list | grep -F "${netUnmanaged}"
-  lxc network show ${netManaged}
-  lxc network show ${netUnmanaged}
+  lxc network show "${netManaged}"
+  lxc network show "${netUnmanaged}"
   if [ "${remote}" = "local" ] || [ "${remote}" = "localhost" ] || [ "${remote}" = "fine-grained" ]; then
     lxc network list --all-projects | grep -F "${netManaged}"
     lxc network list --all-projects | grep -F "${netUnmanaged}"
@@ -957,8 +957,8 @@ run_projects_restrictions() {
   lxc project set local:p1 restricted.devices.nic=block
   lxc network list | grep -F "${netManaged}"
   lxc network list | grep -F "${netUnmanaged}"
-  lxc network show ${netManaged}
-  lxc network show ${netUnmanaged}
+  lxc network show "${netManaged}"
+  lxc network show "${netUnmanaged}"
   if [ "${remote}" = "local" ] || [ "${remote}" = "localhost" ] || [ "${remote}" = "fine-grained" ]; then
     lxc network list --all-projects | grep -F "${netManaged}"
     lxc network list --all-projects | grep -F "${netUnmanaged}"
@@ -969,9 +969,9 @@ run_projects_restrictions() {
   # Check with restricted=true and restricted.devices.nic=block that managed & unmanaged networks are inaccessible.
   lxc project set local:p1 restricted=true
   ! lxc network list | grep -F "${netManaged}"|| false
-  ! lxc network show ${netManaged} || false
+  ! lxc network show "${netManaged}" || false
   ! lxc network list | grep -F "${netUnmanaged}"|| false
-  ! lxc network show ${netUnmanaged} || false
+  ! lxc network show "${netUnmanaged}" || false
   if [ "${remote}" = "local" ] || [ "${remote}" = "localhost" ] || [ "${remote}" = "fine-grained" ]; then
     # Can view when performing an --all-projects request because the network is actually defined in the default project,
     # and the default project is not restricted.
@@ -985,7 +985,7 @@ run_projects_restrictions() {
   # unmanaged networks are inaccessible.
   lxc project set local:p1 restricted.devices.nic=managed
   lxc network list | grep -F "${netManaged}"
-  lxc network show ${netManaged}
+  lxc network show "${netManaged}"
   ! lxc network list | grep -F "${netUnmanaged}"|| false
   if [ "${remote}" = "local" ] || [ "${remote}" = "localhost" ] || [ "${remote}" = "fine-grained" ]; then
     # Can view when performing an --all-projects request because the network is actually defined in the default project,
@@ -1001,8 +1001,8 @@ run_projects_restrictions() {
   lxc project set local:p1 restricted.devices.nic=allow
   lxc project set local:p1 restricted.networks.access=foo
   ! lxc network list | grep -F "${netManaged}"|| false
-  ! lxc network show ${netManaged} || false
-  ! lxc network info ${netManaged}|| false
+  ! lxc network show "${netManaged}" || false
+  ! lxc network info "${netManaged}" || false
   if [ "${remote}" = "local" ] || [ "${remote}" = "localhost" ] || [ "${remote}" = "fine-grained" ]; then
     # Can view when performing an --all-projects request because the network is actually defined in the default project,
     # and the default project is not restricted.
@@ -1012,8 +1012,8 @@ run_projects_restrictions() {
   fi
 
   ! lxc network list | grep -F "${netUnmanaged}"|| false
-  ! lxc network show ${netUnmanaged} || false
-  ! lxc network info ${netUnmanaged}|| false
+  ! lxc network show "${netUnmanaged}" || false
+  ! lxc network info "${netUnmanaged}" || false
   if [ "${remote}" = "local" ] || [ "${remote}" = "localhost" ] || [ "${remote}" = "fine-grained" ]; then
     # Can view when performing an --all-projects request because the network is actually defined in the default project,
     # and the default project is not restricted.
@@ -1022,10 +1022,10 @@ run_projects_restrictions() {
     ! lxc network list --all-projects || false
   fi
 
-  ! lxc network set ${netManaged} user.foo=bah || false
-  ! lxc network get ${netManaged} ipv4.address || false
-  ! lxc network info ${netManaged}|| false
-  ! lxc network delete ${netManaged} || false
+  ! lxc network set "${netManaged}" user.foo=bah || false
+  ! lxc network get "${netManaged}" ipv4.address || false
+  ! lxc network info "${netManaged}" || false
+  ! lxc network delete "${netManaged}" || false
 
   ! lxc profile device add default eth0 nic nictype=bridge parent=netManaged || false
   ! lxc profile device add default eth0 nic nictype=bridge parent=netUnmanaged || false
