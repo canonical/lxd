@@ -3,22 +3,29 @@ relatedlinks: "[LXD's&#32;S3&#32;API&#32;-&#32;YouTube](https://youtube.com/watc
 ---
 
 (howto-storage-buckets)=
-# How to manage storage buckets and keys
+# How to manage storage buckets
 
-See the following sections for instructions on how to create, configure, view and resize {ref}`storage-buckets` and how to manage storage bucket keys.
+{ref}`storage-buckets` let you store and manage object-based data using either local or distributed storage.
+
+Unlike custom storage volumes, storage buckets cannot be attached to instances. Instead, applications access them directly via a URL using the S3 protocol.
+
+- For local buckets, the LXD server provides the S3-compatible URL via its {ref}`S3 address setting <howto-storage-buckets-create-requirements-local-s3>`.
+- For distributed buckets, a {ref}`Ceph RADOS Gateway endpoint <howto-storage-pools-ceph-requirements-radosgw-endpoint>` provides the S3-compatible URL.
 
 (howto-storage-buckets-view)=
 ## View storage buckets
 
-You can display a list of all available storage buckets in a storage pool and check their configuration.
+To list all available storage buckets in a storage pool, run:
 
-To list all available storage buckets in a storage pool, use the following command:
+```bash
+lxc storage bucket list <pool-name>
+```
 
-    lxc storage bucket list <pool_name>
+To show detailed information about a specific bucket, run:
 
-To show detailed information about a specific bucket, use the following command:
-
-    lxc storage bucket show <pool_name> <bucket_name>
+```bash
+lxc storage bucket show <pool-name> <bucket-name>
+```
 
 (howto-storage-buckets-create)=
 ## Create a storage bucket
@@ -31,10 +38,6 @@ To show detailed information about a specific bucket, use the following command:
 
 (howto-storage-buckets-create-requirements-local)=
 #### Local storage buckets
-
-Unlike custom storage volumes, storage buckets are not added to an instance, but applications can instead access them directly via their URL.
-
-See {ref}`storage-buckets` for detailed information.
 
 (howto-storage-buckets-create-requirements-local-minio)=
 ##### MinIO
