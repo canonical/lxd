@@ -219,19 +219,16 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		}
 
 		if vol.contentType == ContentTypeFS {
-			devPath, err := d.GetVolumeDiskPath(vol)
+			activated, volPath, err := d.activateVolume(vol)
 			if err != nil {
 				return err
 			}
 
-			zfsFilesystem := vol.ConfigBlockFilesystem()
-
-			_, err = makeFSType(devPath, zfsFilesystem, nil)
-			if err != nil {
-				return err
+			if activated {
+				defer func() { _, _ = d.deactivateVolume(vol) }()
 			}
 
-			err = d.setDatasetProperties(d.dataset(vol, false), "volmode=none")
+			_, err = makeFSType(volPath, vol.ConfigBlockFilesystem(), nil)
 			if err != nil {
 				return err
 			}
