@@ -368,6 +368,19 @@ snap_restore() {
   ! lxc storage volume show "${pool}" container/c2 | grep '^created_at: 0001-01-01T00:00:00Z' || false
   [ "$(lxc storage volume show "${pool}" container/c1/snap0 | awk /created_at:/)" = "$(lxc storage volume show "${pool}" container/c2/snap0 | awk /created_at:/)" ]
   lxc delete -f c1 c2
+
+  # Check the restore isn't blocked by not anymore existing custom volumes.
+  lxc init testimage c1
+  lxc storage volume create "${pool}" foo
+  lxc storage volume attach "${pool}" foo c1 path=/mnt
+  lxc snapshot c1
+  lxc storage volume detach "${pool}" foo c1
+  lxc storage volume delete "${pool}" foo
+  lxc restore c1 snap0
+  ! lxc start c1 || false # Fails because custom vol foo in "${pool}" doesn't exist anymore.
+  lxc config device remove c1 foo
+  lxc start c1
+  lxc delete -f c1
 }
 
 restore_and_compare_fs() {
