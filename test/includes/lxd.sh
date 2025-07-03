@@ -197,7 +197,7 @@ kill_lxd() {
 
     # If DEBUG is set, check for panics in the daemon logs
     if [ -n "${DEBUG:-}" ]; then
-      deps/panic-checker "${daemon_dir}/lxd.log"
+      "${MAIN_DIR}/deps/panic-checker" "${daemon_dir}/lxd.log"
     fi
 
     if [ -n "${LXD_LOGS:-}" ]; then
@@ -316,7 +316,7 @@ panic_checker() {
   [ -e "${test_dir}/daemons" ] || return
 
   while read -r daemon_dir; do
-    deps/panic-checker "${daemon_dir}/lxd.log"
+    "${MAIN_DIR}/deps/panic-checker" "${daemon_dir}/lxd.log"
   done < "${test_dir}/daemons"
 }
 
