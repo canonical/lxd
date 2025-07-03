@@ -68,7 +68,7 @@ func socketUnixRemoveStale(path string) error {
 		return nil
 	}
 
-	logger.Debugf("Detected stale unix socket, deleting")
+	logger.Debug("Detected stale unix socket, deleting")
 	err := os.Remove(path)
 	if err != nil {
 		return fmt.Errorf("could not delete stale local socket: %w", err)

@@ -346,7 +346,7 @@ func Init() {
 	selfCg, err := os.Open("/proc/self/cgroup")
 	if err != nil {
 		if os.IsNotExist(err) {
-			logger.Warnf("System doesn't appear to support CGroups")
+			logger.Warn("System doesn't appear to support CGroups")
 		} else {
 			logger.Errorf("Unable to load list of cgroups: %v", err)
 		}
@@ -386,14 +386,14 @@ func Init() {
 		controllers, err := os.Open(hybridPath)
 		if err != nil {
 			if !os.IsNotExist(err) {
-				logger.Errorf("Unable to load cgroup.controllers")
+				logger.Error("Unable to load cgroup.controllers")
 				return
 			}
 
 			dedicatedPath = filepath.Join(cgPath, path, "cgroup.controllers")
 			controllers, err = os.Open(dedicatedPath)
 			if err != nil && !os.IsNotExist(err) {
-				logger.Errorf("Unable to load cgroup.controllers")
+				logger.Error("Unable to load cgroup.controllers")
 				return
 			}
 		}

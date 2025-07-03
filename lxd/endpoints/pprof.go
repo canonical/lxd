@@ -53,7 +53,7 @@ func (e *Endpoints) PprofUpdateAddress(address string) error {
 		return nil
 	}
 
-	logger.Infof("Update pprof address")
+	logger.Info("Update pprof address")
 
 	e.mu.Lock()
 	defer e.mu.Unlock()

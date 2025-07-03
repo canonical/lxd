@@ -56,7 +56,7 @@ func (e *Endpoints) MetricsUpdateAddress(address string, cert *shared.CertInfo) 
 		return nil
 	}
 
-	logger.Infof("Update metrics address")
+	logger.Info("Update metrics address")
 
 	e.mu.Lock()
 	defer e.mu.Unlock()
