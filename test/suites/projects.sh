@@ -458,13 +458,11 @@ test_projects_images_default() {
   ensure_import_testimage
 
   # Create a new project, without the features.images config.
-  lxc project create foo
+  lxc project create foo --config features.images=false
   lxc project switch foo
-  lxc project set foo "features.images" "false"
 
   # Create another project, without the features.images config.
-  lxc project create bar
-  lxc project set bar "features.images" "false"
+  lxc project create bar --config features.images=false
 
   # The project can see images from the default project
   lxc image list | grep -wF testimage
@@ -1167,8 +1165,8 @@ test_projects_before_init() {
   spawn_lxd "${LXD_INIT_DIR}" false
 
   # Check if projects can be created and modified without any pre-existing storage pools.
-  LXD_DIR=${LXD_INIT_DIR} lxc project create foo
-  LXD_DIR=${LXD_INIT_DIR} lxc project set foo user.foo test
+  LXD_DIR=${LXD_INIT_DIR} lxc project create foo --config user.foo=bar
+  [ "$(LXD_DIR=${LXD_INIT_DIR} lxc project get foo user.foo)" = "bar" ]
 
   shutdown_lxd "${LXD_INIT_DIR}"
 }
