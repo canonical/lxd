@@ -231,8 +231,10 @@ fine_grained: true"
 
   # Perform access check compatibility with project feature flags
   auth_project_features "oidc"
-  entities_enrichment_with_entitlements
   LXD_CONF="${LXD_CONF2}" auth_project_features "tls"
+
+  # Entitlement enrichment
+  entities_enrichment_with_entitlements
 
   # The OIDC identity should be able to delete themselves without any permissions.
   lxc auth identity group remove oidc/test-user@example.com test-group
