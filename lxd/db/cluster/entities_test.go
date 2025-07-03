@@ -10,7 +10,7 @@ import (
 
 func TestEntityStatementValidity(t *testing.T) {
 	schema := Schema()
-	db, err := schema.ExerciseUpdate(71, nil)
+	db, err := schema.ExerciseUpdate(74, nil)
 	require.NoError(t, err)
 
 	for entityType, info := range entityTypes {
