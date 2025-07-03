@@ -2611,7 +2611,7 @@ func pruneLeftoverImages(s *state.State) {
 		return
 	}
 
-	logger.Infof("Done cleaning up leftover image files")
+	logger.Info("Done cleaning up leftover image files")
 }
 
 func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Operation) error {

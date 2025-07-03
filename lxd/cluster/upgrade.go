@@ -94,7 +94,7 @@ func MaybeUpdate(state *state.State) error {
 	}
 
 	if !shouldUpdate {
-		logger.Debugf("Cluster member is up-to-date")
+		logger.Debug("Cluster member is up-to-date")
 		return nil
 	}
 

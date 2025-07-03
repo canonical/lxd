@@ -57,7 +57,7 @@ func (e *Endpoints) StorageBucketsUpdateAddress(address string, cert *shared.Cer
 		return nil
 	}
 
-	logger.Infof("Update storage buckets address")
+	logger.Info("Update storage buckets address")
 
 	e.mu.Lock()
 	defer e.mu.Unlock()

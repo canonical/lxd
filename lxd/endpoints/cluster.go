@@ -39,7 +39,7 @@ func (e *Endpoints) ClusterUpdateAddress(address string) error {
 		return nil
 	}
 
-	logger.Infof("Update cluster address")
+	logger.Info("Update cluster address")
 
 	e.mu.Lock()
 	defer e.mu.Unlock()

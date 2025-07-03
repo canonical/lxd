@@ -636,13 +636,13 @@ func UnshiftACL(value string, set *IdmapSet) (string, error) {
 			}
 
 		case C.ACL_USER_OBJ:
-			logger.Debugf("Ignoring ACL type ACL_USER_OBJ")
+			logger.Debug("Ignoring ACL type ACL_USER_OBJ")
 		case C.ACL_GROUP_OBJ:
-			logger.Debugf("Ignoring ACL type ACL_GROUP_OBJ")
+			logger.Debug("Ignoring ACL type ACL_GROUP_OBJ")
 		case C.ACL_MASK:
-			logger.Debugf("Ignoring ACL type ACL_MASK")
+			logger.Debug("Ignoring ACL type ACL_MASK")
 		case C.ACL_OTHER:
-			logger.Debugf("Ignoring ACL type ACL_OTHER")
+			logger.Debug("Ignoring ACL type ACL_OTHER")
 		default:
 			logger.Debugf("Ignoring unknown ACL type %d", C.le16_to_native(entry.e_tag))
 		}

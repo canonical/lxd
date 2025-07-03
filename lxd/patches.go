@@ -324,7 +324,7 @@ func patchClusteringServerCertTrust(name string, d *Daemon) error {
 			continue
 		}
 
-		logger.Infof("Trusted server certificates found in trust store for all cluster members")
+		logger.Info("Trusted server certificates found in trust store for all cluster members")
 		break
 	}
 
