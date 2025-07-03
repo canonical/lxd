@@ -221,6 +221,7 @@ fine_grained: true"
   lxc auth group permission remove test-group server viewer
   lxc auth group permission remove test-group server project_manager
 
+  # Check storage pool used-by URLs
   storage_pool_used_by "oidc"
   LXD_CONF="${LXD_CONF2}" storage_pool_used_by "tls"
 
