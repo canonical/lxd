@@ -35,7 +35,6 @@ description: |-
    - apparmor.unprivileged-restrictions-disable: Whether to disable restrictions on unprivileged user namespaces [default=true]
    - ceph.builtin: Use snap-specific Ceph configuration [default=false]
    - ceph.external: Use the system's ceph tools (ignores ceph.builtin) [default=false]
-   - criu.enable: Enable experimental live-migration support [default=false]
    - daemon.debug: Increase logging to debug level [default=false]
    - daemon.group: Set group of users that have full control over LXD [default=lxd]
    - daemon.user.group: Set group of users that have restricted LXD access [default=lxd]
@@ -286,59 +285,6 @@ parts:
       - lib/*/libssh.so*
       - lib/*/libtcmalloc.so*
       - lib/*/libunwind.so*
-
-  criu:
-    source: https://github.com/checkpoint-restore/criu
-    source-commit: b6059ff193a9b0dff98e997134d662c3ccfd1600 # v4.1
-    source-depth: 1
-    source-type: git
-    plugin: nil
-    build-packages:
-      - to armhf: []
-      - else:
-        - asciidoc
-        - libcap-dev
-        - libnet1-dev
-        - libnl-3-dev
-        - libprotobuf-c-dev
-        - libprotobuf-dev
-        - protobuf-c-compiler
-        - protobuf-compiler
-        - xmlto
-    stage-packages:
-      - to armhf: []
-      - else:
-        - libnet1
-        - libprotobuf-c1
-    override-stage: |-
-      [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
-      craftctl default
-    override-prime: |-
-      [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
-      craftctl default
-    override-pull: |-
-      [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
-      craftctl default
-    override-build: |-
-      [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
-      set -ex
-
-      git config user.email "noreply@lists.canonical.com"
-      git config user.name "LXD snap builder"
-
-      make criu
-      mkdir -p "${CRAFT_PART_INSTALL}/criu/"
-      cp criu/criu "${CRAFT_PART_INSTALL}/criu/"
-    organize:
-      usr/lib/: lib/
-    prime:
-      - criu/*
-      - lib/*/libnet*
-      - lib/*/libproto*
 
   dqlite:
     source: https://github.com/canonical/dqlite
@@ -1693,7 +1639,6 @@ parts:
       - zstd
       - lxc
       - lxcfs
-      - criu
       - lxd
       - shmounts
       - nvidia-container-toolkit
@@ -1729,11 +1674,6 @@ parts:
       strip --strip-all "${CRAFT_PRIME}/sbin/lxd"
 
       # Strip binaries not under bin/ due to being dynamically
-      # added to the path with `snap set lxd`, like `criu.enable=true`
-      for binary in "${CRAFT_PRIME}/criu/criu"; do
-        [ -e "${binary}" ] || continue
-        strip -s "${binary}"
-      done
 
       # Strip all versions of zfs utils
       for v in "${CRAFT_PRIME}"/zfs-*; do

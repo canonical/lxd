@@ -511,12 +511,6 @@ if [ "$(stat -c '%u' /proc)" = 0 ]; then
     fi
 fi
 
-# Setup CRIU
-if [ "${criu_enable:-"false"}" = "true" ]; then
-    echo "==> Enabling CRIU"
-    export PATH="${SNAP_CURRENT}/criu:${PATH}"
-fi
-
 # Setup UI
 if [ "${ui_enable:-"false"}" = "true" ]; then
     echo "==> Enabling LXD UI"
