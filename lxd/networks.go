@@ -989,9 +989,10 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 // If the network being requested is a managed network and allNodes is true then node specific config is removed.
 // Otherwise if allNodes is false then the network's local status is returned.
 func doNetworkGet(s *state.State, r *http.Request, allNodes bool, requestProjectName string, reqProjectConfig map[string]string, networkName string) (api.Network, error) {
-	var effectiveProjectName string
+	// Effective project may not be set if getting networks for all projects.
+	effectiveProjectName := requestProjectName
 	reqInfo := request.GetContextInfo(r.Context())
-	if reqInfo != nil {
+	if reqInfo != nil && reqInfo.EffectiveProjectName != "" {
 		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
