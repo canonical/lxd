@@ -236,6 +236,10 @@ fine_grained: true"
   # Entitlement enrichment
   entities_enrichment_with_entitlements
 
+  # Access checks with project specific networks.
+  auth_ovn "oidc"
+  LXD_CONF="${LXD_CONF2}" auth_ovn "tls"
+
   # The OIDC identity should be able to delete themselves without any permissions.
   lxc auth identity group remove oidc/test-user@example.com test-group
   lxc_remote auth identity info oidc: | grep -F 'effective_permissions: []'
@@ -1146,6 +1150,52 @@ auth_project_features() {
 
   # General clean up
   lxc project delete blah
+}
+
+auth_ovn() {
+  remote="${1}"
+
+  if ! ovn_enabled; then
+    echo "==> SKIP: OVN not configured. Skipping project specific network authorization tests..."
+    return
+  fi
+
+  setup_ovn
+
+  uplink_network="uplink$$"
+
+  echo "Create a dummy physical network for use as an uplink."
+  ip link add dummy0 type dummy
+  lxc network create "${uplink_network}" --type=physical parent=dummy0
+
+  echo "Set OVN ranges."
+  lxc network set "${uplink_network}" ipv4.ovn.ranges=192.0.2.100-192.0.2.254
+  lxc network set "${uplink_network}" ipv6.ovn.ranges=2001:db8:1:2::100-2001:db8:1:2::254
+
+  echo "Set IP routes that include OVN ranges."
+  lxc network set "${uplink_network}" ipv4.routes=192.0.2.0/24
+  lxc network set "${uplink_network}" ipv6.routes=2001:db8:1:2::/64
+
+  echo "Create a project and grant the fine-grained identity operator access."
+  lxc project create foo -c features.networks=true
+  lxc auth group permission add test-group project foo operator
+  lxc auth group permission add test-group network "${uplink_network}" can_view project=default
+
+  echo "Create an OVN network as the fine-grained identity and check access."
+  lxc network create "${remote}:my-network" --type ovn --project foo network="${uplink_network}"
+  [ "$(lxc network list -f csv "${remote}:" --project foo | wc -l)" = 1 ]
+  [ "$(lxc network list -f csv "${remote}:" --all-projects | wc -l)" = 2 ] # ovn network + uplink
+
+  echo "Delete the OVN network as the fine-grained identity and check access."
+  lxc network delete "${remote}:my-network" --project foo
+  [ "$(lxc network list -f csv "${remote}:" --project foo)" = "" ]
+  [ "$(lxc network list -f csv "${remote}:" --all-projects | wc -l)" = 1 ] # uplink only
+
+  # Clean up
+  lxc network delete "${uplink_network}"
+  ip link delete dummy0
+  lxc project delete foo
+  unset_ovn_configuration
 }
 
 entities_enrichment_with_entitlements() {
