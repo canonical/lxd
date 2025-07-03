@@ -321,7 +321,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 
 	// Get list of actual network interfaces on the host if the effective project is default and the caller has permission.
 	var getUnmanagedNetworks bool
-	if reqInfo.EffectiveProjectName == api.ProjectDefaultName {
+	if reqInfo.EffectiveProjectName == api.ProjectDefaultName || allProjects {
 		err := s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanViewUnmanagedNetworks)
 		if err == nil {
 			getUnmanagedNetworks = true
@@ -342,9 +342,14 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
+			unmanagedNetworkProject := requestProjectName
+			if allProjects {
+				unmanagedNetworkProject = api.ProjectDefaultName
+			}
+
 			// Append to the list of networks if a managed network of same name doesn't exist.
-			if !slices.Contains(networks[managed][requestProjectName], iface.Name) {
-				networks[unmanaged][requestProjectName] = append(networks[unmanaged][requestProjectName], iface.Name)
+			if !slices.Contains(networks[managed][unmanagedNetworkProject], iface.Name) {
+				networks[unmanaged][unmanagedNetworkProject] = append(networks[unmanaged][unmanagedNetworkProject], iface.Name)
 			}
 		}
 	}
