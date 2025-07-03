@@ -205,10 +205,6 @@ cleanup() {
   echo "==> Test result: ${TEST_RESULT}"
 }
 
-if [ -n "${SHELL_TRACING:-}" ]; then
-  set -x
-fi
-
 # Must be set before cleanup()
 TEST_CURRENT=setup
 TEST_CURRENT_DESCRIPTION=setup
@@ -219,6 +215,10 @@ trap cleanup EXIT HUP INT TERM
 
 # Import all the testsuites
 import_subdir_files suites
+
+if [ -n "${SHELL_TRACING:-}" ]; then
+  set -x
+fi
 
 # Setup test directory
 TEST_DIR="$(mktemp -d -t lxd-test.tmp.XXXX)"
