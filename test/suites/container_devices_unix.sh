@@ -1,13 +1,11 @@
 test_container_devices_unix() {
   lxdFSMonitorDriver=${LXD_FSMONITOR_DRIVER:-}
 
-  # XXX fanotify testing is broken, skip test until
-  # https://github.com/canonical/lxd/issues/15894 is addressed
-  #shutdown_lxd "${LXD_DIR}"
-  #export LXD_FSMONITOR_DRIVER="fanotify"
-  #respawn_lxd "${LXD_DIR}" true
-  #_container_devices_unix "unix-block"
-  #_container_devices_unix "unix-char"
+  shutdown_lxd "${LXD_DIR}"
+  export LXD_FSMONITOR_DRIVER="fanotify"
+  respawn_lxd "${LXD_DIR}" true
+  _container_devices_unix "unix-block"
+  _container_devices_unix "unix-char"
 
   shutdown_lxd "${LXD_DIR}"
   export LXD_FSMONITOR_DRIVER="inotify"
@@ -149,10 +147,16 @@ _container_devices_unix() {
 
   # Cleanup.
   rm -rvf "${testDev}"
-  sleep 1
-  ! lxc exec "${ctName}" -- mount | grep -F "/tmp/testdev" || false
-  ! lxc exec "${ctName}" -- test -e /tmp/testdev || false
-  ! test -e "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev || false
+
+  # XXX with fanotify removing the testDev directory does not reflect in the instance
+  # so skip it until https://github.com/canonical/lxd/issues/15894 is addressed
+  if [ "${LXD_FSMONITOR_DRIVER}" != "fanotify" ]; then
+    sleep 1
+    ! lxc exec "${ctName}" -- mount | grep -F "/tmp/testdev" || false
+    ! lxc exec "${ctName}" -- test -e /tmp/testdev || false
+    ! test -e "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev || false
+  fi
+
   lxc delete -f "${ctName}"
 
   # Check multiple instances sharing same watcher.
