@@ -1114,6 +1114,7 @@ test_backup_metadata() {
   lxc storage volume create "${custom_vol_pool}" foo
   lxc storage volume snapshot "${custom_vol_pool}" foo
   lxc storage volume attach "${custom_vol_pool}" foo c1 path=/mnt
+  [ "$(lxc query "/1.0/instances/c1" | jq '.expanded_devices | map(select(.type=="disk")) | length')" = "2" ]
 
   lxc start c1
   backup_yaml_path="${LXD_DIR}/containers/c1/backup.yaml"
@@ -1126,6 +1127,15 @@ test_backup_metadata() {
   [ "$(yq -r '.volumes.[0].snapshots | length' < "${backup_yaml_path}")" = "1" ]
   [ "$(yq -r '.volumes.[1].snapshots | length' < "${backup_yaml_path}")" = "1" ]
   [ "$(yq -r '.pools | length' < "${backup_yaml_path}")" = "2" ]
+
+  # Test attaching the same vol a second time doesn't increase it's appearance in the backup config.
+  lxc storage volume attach "${custom_vol_pool}" foo c1 foo2 /mnt2
+  [ "$(lxc query "/1.0/instances/c1" | jq '.expanded_devices | map(select(.type=="disk")) | length')" = "3" ]
+  [ "$(yq -r '.volumes | length' < "${backup_yaml_path}")" = "2" ]
+  [ "$(yq -r '.volumes.[0].snapshots | length' < "${backup_yaml_path}")" = "1" ]
+  [ "$(yq -r '.volumes.[1].snapshots | length' < "${backup_yaml_path}")" = "1" ]
+  [ "$(yq -r '.pools | length' < "${backup_yaml_path}")" = "2" ]
+  lxc storage volume detach "${custom_vol_pool}" foo c1 foo2
 
   # Test custom volume changes are reflected in the config file.
   lxc storage volume set "${custom_vol_pool}" foo user.foo bar # test volume config update
