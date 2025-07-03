@@ -33,8 +33,22 @@ lxc storage bucket show <pool-name> <bucket-name>
 (howto-storage-buckets-create-requirements)=
 ### Requirements
 
+Storage buckets can only be created in storage pools that use a driver capable of **object storage**. View the {ref}`storage-buckets` reference guide's {ref}`storage-drivers-features` table to see which drivers support object storage.
+
+Other requirements must be met before you can create a storage bucket, depending on whether you want to create a distributed or local storage bucket.
+
 (howto-storage-buckets-create-requirements-distributed)=
 #### Distributed storage buckets
+
+To create a distributed storage bucket, your LXD server must have access to a {ref}`Ceph Object <storage-cephobject>` storage pool. To view available storage pools, run:
+
+```bash
+lxc storage list
+```
+
+If you see a storage pool in the output with the `cephobject` driver, you're all set. Continue on to the instructions below to {ref}`create a storage bucket <howto-storage-buckets-create-single>`.
+
+If you don't see a pool that uses a `cephobject` storage driver, you must create one before you can continue. This requires a [Ceph](https://ceph.io) cluster with a RADOS Gateway (`radosgw`) enabled. See our how-to guide for storage pools: {ref}`howto-storage-pools-ceph-requirements`.
 
 (howto-storage-buckets-create-requirements-local)=
 #### Local storage buckets
