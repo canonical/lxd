@@ -145,7 +145,9 @@ kill_lxd() {
 
         # Delete all profiles
         echo "==> Deleting all profiles"
-        for profile in $(timeout -k 2 2 lxc profile list --force-local --format csv | cut -d, -f1); do
+        for profile in $(timeout -k 2 2 lxc profile list --force-local --format csv --columns n); do
+            # default cannot be deleted.
+            [ "${profile}" = "default" ] && continue
             timeout -k 10 10 lxc profile delete "${profile}" --force-local || true
         done
 
