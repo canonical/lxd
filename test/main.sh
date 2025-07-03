@@ -205,6 +205,10 @@ cleanup() {
   echo "==> Test result: ${TEST_RESULT}"
 }
 
+if [ -n "${SHELL_TRACING:-}" ]; then
+  set -x
+fi
+
 # Must be set before cleanup()
 TEST_CURRENT=setup
 TEST_CURRENT_DESCRIPTION=setup
