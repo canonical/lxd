@@ -877,63 +877,155 @@ test_projects_limits() {
   fi
 }
 
-# Set restrictions on projects.
 test_projects_restrictions() {
+  run_projects_restrictions local # Unix socket
+
+  ensure_has_localhost_remote "${LXD_ADDR}" # Unrestricted TLS client
+  run_projects_restrictions localhost
+
+  LXD_CONF1=$(mktemp -d -p "${TEST_DIR}" XXX)
+  LXD_CONF="${LXD_CONF1}" gen_cert_and_key "client"
+  trust_token="$(lxc config trust add --name test-user1 --quiet --restricted)"
+  LXD_CONF="${LXD_CONF1}" lxc remote add restricted "${trust_token}"
+  LXD_CONF="${LXD_CONF1}" run_projects_restrictions restricted # Restricted TLS client
+
+  LXD_CONF2=$(mktemp -d -p "${TEST_DIR}" XXX)
+  LXD_CONF="${LXD_CONF2}" gen_cert_and_key "client"
+  lxc auth group create test-group
+  pending_identity_token="$(lxc auth identity create tls/test-user2 --quiet --group test-group)"
+  LXD_CONF="${LXD_CONF2}" lxc remote add fine-grained "${pending_identity_token}"
+  LXD_CONF="${LXD_CONF2}" run_projects_restrictions fine-grained # Fine-grained TLS client
+
+  lxc config trust remove "$(cert_fingerprint "${LXD_CONF1}/client.crt")"
+  lxc auth identity delete tls/test-user2
+  rm -rf "${LXD_CONF1}" "${LXD_CONF2}"
+}
+
+# Set restrictions on projects.
+run_projects_restrictions() {
+  # Switch to the given remote. The remote name tells us what kind of access we have. We'll use the local: remote when
+  # we need to perform privileged actions to set up test assertions.
+  remote="${1}"
+  lxc remote switch "${remote}"
+
   # Add a managed network.
   netManaged="lxd$$"
-  lxc network create "${netManaged}"
+  lxc network create "local:${netManaged}"
 
   netUnmanaged="${netManaged}-unm"
   ip link add "${netUnmanaged}" type bridge
 
-  # Create a project and switch to it
-  lxc project create p1 -c features.storage.volumes=false
+  # Create a project
+  lxc project create local:p1 -c features.storage.volumes=false
+
+  # Grant access to the project.
+  if [ "${remote}" = "restricted" ]; then
+    # For the restricted client we need to grant access to the project first.
+    # shellcheck disable=SC2153
+    fingerprint="$(cert_fingerprint "${LXD_CONF}/client.crt")"
+    lxc config trust show "${fingerprint}" | sed -e 's/projects: \[\]/projects: ["p1"]/' | lxc config trust edit "local:${fingerprint}"
+  elif [ "${remote}" = "fine-grained" ]; then
+    # For the fine grained client we'll grant (almost) equivalent access to the restricted certificate, with the exception
+    # that networks in the default project can never be modified by this user via the "punching through" that the feature flags allow
+    # with restricted certs.
+    lxc auth group permission add local:test-group project p1 operator
+    lxc auth group permission add local:test-group project default can_view_networks
+    lxc auth group permission add local:test-group server can_view_unmanaged_networks
+  fi
+
+  # Switch to the project. Also switch the local remote if not already set.
   lxc project switch p1
+  if [ "${remote}" != "local" ]; then
+    lxc remote switch local
+    lxc project switch p1
+    lxc remote switch "${remote}"
+  fi
 
   # Check with restricted unset and restricted.devices.nic unset that managed & unmanaged networks are accessible.
   lxc network list | grep -F "${netManaged}"
   lxc network list | grep -F "${netUnmanaged}"
-  lxc network show "${netManaged}"
-  lxc network show "${netUnmanaged}"
+  lxc network show ${netManaged}
+  lxc network show ${netUnmanaged}
+  if [ "${remote}" = "local" ] || [ "${remote}" = "localhost" ] || [ "${remote}" = "fine-grained" ]; then
+    lxc network list --all-projects | grep -F "${netManaged}"
+    lxc network list --all-projects | grep -F "${netUnmanaged}"
+  else
+    ! lxc network list --all-projects || false
+  fi
 
   # Check with restricted unset and restricted.devices.nic=block that managed & unmanaged networks are accessible.
-  lxc project set p1 restricted.devices.nic=block
+  lxc project set local:p1 restricted.devices.nic=block
   lxc network list | grep -F "${netManaged}"
   lxc network list | grep -F "${netUnmanaged}"
-  lxc network show "${netManaged}"
-  lxc network show "${netUnmanaged}"
+  lxc network show ${netManaged}
+  lxc network show ${netUnmanaged}
+  if [ "${remote}" = "local" ] || [ "${remote}" = "localhost" ] || [ "${remote}" = "fine-grained" ]; then
+    lxc network list --all-projects | grep -F "${netManaged}"
+    lxc network list --all-projects | grep -F "${netUnmanaged}"
+  else
+    ! lxc network list --all-projects || false
+  fi
 
   # Check with restricted=true and restricted.devices.nic=block that managed & unmanaged networks are inaccessible.
-  lxc project set p1 restricted=true
+  lxc project set local:p1 restricted=true
   ! lxc network list | grep -F "${netManaged}"|| false
-  ! lxc network show "${netManaged}" || false
+  ! lxc network show ${netManaged} || false
   ! lxc network list | grep -F "${netUnmanaged}"|| false
-  ! lxc network show "${netUnmanaged}" || false
+  ! lxc network show ${netUnmanaged} || false
+  if [ "${remote}" = "local" ] || [ "${remote}" = "localhost" ] || [ "${remote}" = "fine-grained" ]; then
+    # Can view when performing an --all-projects request because the network is actually defined in the default project,
+    # and the default project is not restricted.
+    lxc network list --all-projects | grep -F "${netManaged}"
+    lxc network list --all-projects | grep -F "${netUnmanaged}"
+  else
+    ! lxc network list --all-projects || false
+  fi
 
   # Check with restricted=true and restricted.devices.nic=managed that managed networks are accessible and that
   # unmanaged networks are inaccessible.
-  lxc project set p1 restricted.devices.nic=managed
+  lxc project set local:p1 restricted.devices.nic=managed
   lxc network list | grep -F "${netManaged}"
-  lxc network show "${netManaged}"
+  lxc network show ${netManaged}
   ! lxc network list | grep -F "${netUnmanaged}"|| false
-  ! lxc network show "${netUnmanaged}" || false
+  if [ "${remote}" = "local" ] || [ "${remote}" = "localhost" ] || [ "${remote}" = "fine-grained" ]; then
+    # Can view when performing an --all-projects request because the network is actually defined in the default project,
+    # and the default project is not restricted.
+    lxc network list --all-projects | grep -F "${netManaged}"
+    lxc network list --all-projects | grep -F "${netUnmanaged}"
+  else
+    ! lxc network list --all-projects || false
+  fi
 
   # Check with restricted.devices.nic=allow and restricted.networks.access set to a network other than the existing
   # managed and unmanaged ones that they are inaccessible.
-  lxc project set p1 restricted.devices.nic=allow
-  lxc project set p1 restricted.networks.access=foo
+  lxc project set local:p1 restricted.devices.nic=allow
+  lxc project set local:p1 restricted.networks.access=foo
   ! lxc network list | grep -F "${netManaged}"|| false
-  ! lxc network show "${netManaged}" || false
-  ! lxc network info "${netManaged}"|| false
+  ! lxc network show ${netManaged} || false
+  ! lxc network info ${netManaged}|| false
+  if [ "${remote}" = "local" ] || [ "${remote}" = "localhost" ] || [ "${remote}" = "fine-grained" ]; then
+    # Can view when performing an --all-projects request because the network is actually defined in the default project,
+    # and the default project is not restricted.
+    lxc network list --all-projects | grep -F "${netManaged}"
+  else
+    ! lxc network list --all-projects || false
+  fi
 
   ! lxc network list | grep -F "${netUnmanaged}"|| false
-  ! lxc network show "${netUnmanaged}" || false
-  ! lxc network info "${netUnmanaged}"|| false
+  ! lxc network show ${netUnmanaged} || false
+  ! lxc network info ${netUnmanaged}|| false
+  if [ "${remote}" = "local" ] || [ "${remote}" = "localhost" ] || [ "${remote}" = "fine-grained" ]; then
+    # Can view when performing an --all-projects request because the network is actually defined in the default project,
+    # and the default project is not restricted.
+    lxc network list --all-projects | grep -F "${netUnmanaged}"
+  else
+    ! lxc network list --all-projects || false
+  fi
 
-  ! lxc network set "${netManaged}" user.foo=bah || false
-  ! lxc network get "${netManaged}" ipv4.address || false
-  ! lxc network info "${netManaged}"|| false
-  ! lxc network delete "${netManaged}" || false
+  ! lxc network set ${netManaged} user.foo=bah || false
+  ! lxc network get ${netManaged} ipv4.address || false
+  ! lxc network info ${netManaged}|| false
+  ! lxc network delete ${netManaged} || false
 
   ! lxc profile device add default eth0 nic nictype=bridge parent=netManaged || false
   ! lxc profile device add default eth0 nic nictype=bridge parent=netUnmanaged || false
@@ -941,22 +1033,22 @@ test_projects_restrictions() {
   ip link delete "${netUnmanaged}"
 
   # Disable restrictions to allow devices to be added to profile.
-  lxc project unset p1 restricted.networks.access
-  lxc project set p1 restricted.devices.nic=managed
-  lxc project set p1 restricted=false
+  lxc project unset local:p1 restricted.networks.access
+  lxc project set local:p1 restricted.devices.nic=managed
+  lxc project set local:p1 restricted=false
 
   # Add a root device to the default profile of the project and import an image.
   pool="lxdtest-$(basename "${LXD_DIR}")"
-  lxc profile device add default root disk path="/" pool="${pool}"
+  lxc profile device add local:default root disk path="/" pool="${pool}"
 
   deps/import-busybox --project p1 --alias testimage
   fingerprint="$(lxc image list -c f --format json | jq -r .[0].fingerprint)"
 
   # Add a volume.
-  lxc storage volume create "${pool}" "v-proj$$"
+  lxc storage volume create "local:${pool}" "v-proj$$"
 
   # Enable all restrictions.
-  lxc project set p1 restricted=true
+  lxc project set local:p1 restricted=true
 
   # It's not possible to create nested containers.
   ! lxc profile set default security.nesting=true || false
@@ -997,46 +1089,46 @@ test_projects_restrictions() {
 
   # It's not possible to set restricted.containers.nic to 'block' because
   # there's an instance using the managed network.
-  ! lxc project set p1 restricted.devices.nic=block || false
+  ! lxc project set local:p1 restricted.devices.nic=block || false
 
   # Relaxing restricted.containers.nic to 'allow' makes it possible to attach
   # raw network devices.
-  lxc project set p1 restricted.devices.nic=allow
+  lxc project set local:p1 restricted.devices.nic=allow
   lxc config device add c1 eth1 nic nictype=p2p
 
   # Relaxing restricted.containers.disk to 'allow' makes it possible to attach
   # non-managed disks.
-  lxc project set p1 restricted.devices.disk=allow
+  lxc project set local:p1 restricted.devices.disk=allow
   lxc config device add c1 testdir disk source="${TEST_DIR}" path=/foo
 
   # Relaxing restricted.containers.lowlevel to 'allow' makes it possible set
   # low-level keys.
-  lxc project set p1 restricted.containers.lowlevel=allow
+  lxc project set local:p1 restricted.containers.lowlevel=allow
   lxc config set c1 "raw.idmap=both 0 0"
 
   lxc delete c1
 
   # Setting restricted.containers.disk to 'block' allows only the root disk
   # device.
-  lxc project set p1 restricted.devices.disk=block
+  lxc project set local:p1 restricted.devices.disk=block
   ! lxc profile device add default data disk pool="${pool}" path=/mnt source="v-proj$$" || false
 
-  restrictedDir="/opt/projects_restricted"
+  restrictedDir="${TEST_DIR}/projects_restricted"
   mkdir "${restrictedDir}"
   tmpDir=$(mktemp -d -p "${TEST_DIR}" XXX)
   optDir=$(mktemp -d --tmpdir="${restrictedDir}")
 
   # Block unmanaged disk devices
-  lxc project set p1 restricted.devices.disk=managed
+  lxc project set local:p1 restricted.devices.disk=managed
   ! lxc profile device add default data disk path=/mnt source="${tmpDir}" || false
 
   # Allow unmanaged disk devices
-  lxc project set p1 restricted.devices.disk=allow
+  lxc project set local:p1 restricted.devices.disk=allow
   lxc profile device add default data disk path=/mnt source="${tmpDir}"
   lxc profile device remove default data
 
   # Path restrictions
-  lxc project set p1 restricted.devices.disk.paths="${restrictedDir}"
+  lxc project set local:p1 restricted.devices.disk.paths="${restrictedDir}"
   ! lxc profile device add default data disk path=/mnt source="${tmpDir}" || false
   lxc profile device add default data disk path=/mnt source="${optDir}"
   lxc profile device remove default data
@@ -1045,54 +1137,58 @@ test_projects_restrictions() {
 
   # Setting restricted.containers.nesting to 'allow' makes it possible to create
   # nested containers.
-  lxc project set p1 restricted.containers.nesting=allow
+  lxc project set local:p1 restricted.containers.nesting=allow
   lxc init testimage c1 -c security.nesting=true
 
   # It's not possible to set restricted.containers.nesting back to 'block',
   # because there's an instance with security.nesting=true.
-  ! lxc project set p1 restricted.containers.nesting=block || false
+  ! lxc project set local:p1 restricted.containers.nesting=block || false
 
   lxc delete c1
 
   # Setting restricted.containers.lowlevel to 'allow' makes it possible to set
   # low-level options.
-  lxc project set p1 restricted.containers.lowlevel=allow
+  lxc project set local:p1 restricted.containers.lowlevel=allow
   lxc init testimage c1 -c "raw.idmap=both 0 0"
 
   # It's not possible to set restricted.containers.lowlevel back to 'block',
   # because there's an instance with raw.idmap set.
-  ! lxc project set p1 restricted.containers.lowlevel=block || false
+  ! lxc project set local:p1 restricted.containers.lowlevel=block || false
 
   lxc delete c1
 
   # Setting restricted.containers.privilege to 'allow' makes it possible to create
   # privileged containers.
-  lxc project set p1 restricted.containers.privilege=allow
+  lxc project set local:p1 restricted.containers.privilege=allow
   lxc init testimage c1 -c security.privileged=true
 
   # It's not possible to set restricted.containers.privilege back to
   # 'unprivileged', because there's an instance with security.privileged=true.
-  ! lxc project set p1 restricted.containers.privilege=unprivileged || false
+  ! lxc project set local:p1 restricted.containers.privilege=unprivileged || false
 
   # Test expected syscall interception behavior.
-  ! lxc config set c1 security.syscalls.intercept.mknod=true || false
-  lxc config set c1 security.syscalls.intercept.mknod=false
-  lxc project set p1 restricted.containers.interception=block
-  ! lxc config set c1 security.syscalls.intercept.mknod=true || false
-  lxc project set p1 restricted.containers.interception=allow
-  lxc config set c1 security.syscalls.intercept.mknod=true
-  lxc config set c1 security.syscalls.intercept.mount=true
-  ! lxc config set c1 security.syscalls.intercept.mount.allow=ext4 || false
+  ! lxc config set local:c1 security.syscalls.intercept.mknod=true || false
+  lxc config set local:c1 security.syscalls.intercept.mknod=false
+  lxc project set local:p1 restricted.containers.interception=block
+  ! lxc config set local:c1 security.syscalls.intercept.mknod=true || false
+  lxc project set local:p1 restricted.containers.interception=allow
+  lxc config set local:c1 security.syscalls.intercept.mknod=true
+  lxc config set local:c1 security.syscalls.intercept.mount=true
+  ! lxc config set local:c1 security.syscalls.intercept.mount.allow=ext4 || false
 
   lxc delete c1
 
   lxc image delete testimage
 
+  lxc profile device remove local:default root
+  lxc project switch default || true
+  lxc remote switch local
   lxc project switch default
   lxc project delete p1
 
   lxc network delete "${netManaged}"
   lxc storage volume delete "${pool}" "v-proj$$"
+  rm -rf "${restrictedDir}"
 }
 
 # Test project state api
