@@ -527,7 +527,7 @@ func (d *lvm) Validate(config map[string]string) error {
 		//  defaultdesc: `LXDThinPool`
 		//  shortdesc: Thin pool where volumes are created
 		//  scope: local
-		"lvm.thinpool_name": validate.IsAny,
+		"lvm.thinpool_name": validate.Optional(func(value string) error { return ValidVolumeName(value) }),
 		// lxdmeta:generate(entities=storage-lvm; group=pool-conf; key=lvm.thinpool_metadata_size)
 		// By default, LVM calculates an appropriate size.
 		// ---
