@@ -20,7 +20,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unicode"
 
 	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
@@ -102,14 +101,9 @@ func (b *lxdBackend) Description() string {
 
 // ValidateName validates the provided name, and returns an error if it's not a valid storage name.
 func (b *lxdBackend) ValidateName(value string) error {
-	if strings.Contains(value, "/") {
-		return errors.New(`Storage name cannot contain "/"`)
-	}
-
-	for _, r := range value {
-		if unicode.IsSpace(r) {
-			return errors.New(`Storage name cannot contain white space`)
-		}
+	err := drivers.ValidPoolName(value)
+	if err != nil {
+		return fmt.Errorf("Invalid pool name %q: %w", value, err)
 	}
 
 	return nil
