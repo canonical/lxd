@@ -102,22 +102,31 @@ For example:
 (howto-storage-buckets-create-single)=
 ### Create a bucket on a single, non-clustered LXD server
 
-Use the following command to create a storage bucket in a storage pool:
+To create a local or distributed storage bucket on a non-clustered LXD server, run:
 
-    lxc storage bucket create <pool-name> <bucket-name> [configuration_options...]
+```bash
+lxc storage bucket create <pool-name> <bucket-name> [configuration_options...]
+```
 
 See the {ref}`storage-drivers` documentation for a list of available storage bucket configuration options for each driver that supports object storage.
 
 (howto-storage-buckets-create-cluster)=
 ### Create a bucket on a cluster member
 
-To add a storage bucket on a cluster member, add the `--target` flag:
+#### Distributed storage buckets
 
-    lxc storage bucket create <pool-name> <bucket-name> --target=<cluster-member> [configuration_options...]
+Storage buckets created in `cephobject` storage pools are available from any LXD cluster member. Thus, to create this bucket, the command remains the same as for a non-clustered LXD server:
 
-```{note}
-For most storage drivers, storage buckets are not replicated across the cluster and exist only on the member for which they were created.
-This behavior is different for `cephobject` storage pools, where buckets are available from any cluster member.
+```bash
+lxc storage bucket create <pool-name> <bucket-name> [configuration_options...]
+```
+
+#### Local storage buckets
+
+For local storage drivers, storage buckets are not replicated across the cluster and exist only on the member for which they were created. To create a storage bucket on a cluster member, add the `--target` flag:
+
+```bash
+lxc storage bucket create <pool-name> <bucket-name> --target=<cluster-member> [configuration_options...]
 ```
 
 (howto-storage-buckets-configure)=
