@@ -903,6 +903,10 @@ func ValidPoolName(poolName string) error {
 		return errors.New("Cannot be empty")
 	}
 
+	if strings.HasPrefix(poolName, "-") {
+		return errors.New("Cannot start with a hyphen")
+	}
+
 	if strings.Contains(poolName, shared.SnapshotDelimiter) {
 		return errors.New("Cannot contain slashes")
 	}
