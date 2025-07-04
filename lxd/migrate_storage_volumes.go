@@ -100,7 +100,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 
 	srcConfig, err := pool.GenerateCustomVolumeBackupConfig(projectName, volName, !s.volumeOnly, migrateOp)
 	if err != nil {
-		return fmt.Errorf("Failed generating volume migration config: %w", err)
+		return fmt.Errorf("Failed generating migration config of volume %q in pool %q and project %q: %w", volName, poolName, projectName, err)
 	}
 
 	customVol, err := srcConfig.CustomVolume()
