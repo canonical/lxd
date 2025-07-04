@@ -146,14 +146,14 @@ func daemonStorageSplitVolume(volume string) (poolName string, volumeName string
 
 	poolName, volumeName, _ = strings.Cut(volume, "/")
 
-	// Validate pool name.
-	if strings.Contains(poolName, "\\") || strings.Contains(poolName, "..") {
-		return "", "", fmt.Errorf("Invalid pool name: %q", poolName)
+	err = storageDrivers.ValidPoolName(poolName)
+	if err != nil {
+		return "", "", fmt.Errorf("Invalid pool name %q: %w", poolName, err)
 	}
 
-	// Validate volume name.
-	if strings.Contains(volumeName, "\\") || strings.Contains(volumeName, "..") {
-		return "", "", fmt.Errorf("Invalid volume name: %q", volumeName)
+	err = storageDrivers.ValidVolumeName(volumeName)
+	if err != nil {
+		return "", "", fmt.Errorf("Invalid volume name %q: %w", volumeName, err)
 	}
 
 	return poolName, volumeName, nil
