@@ -15,7 +15,6 @@ import (
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
@@ -53,14 +52,9 @@ func (r *eventsServe) String() string {
 }
 
 func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error {
-	// Detect project mode.
-	projectName := request.QueryParam(r, "project")
-	allProjects := shared.IsTrue(request.QueryParam(r, "all-projects"))
-
-	if allProjects && projectName != "" {
-		return api.StatusErrorf(http.StatusBadRequest, "Cannot specify a project when requesting all projects")
-	} else if !allProjects && projectName == "" {
-		projectName = api.ProjectDefaultName
+	projectName, allProjects, err := request.ProjectParams(r)
+	if err != nil {
+		return err
 	}
 
 	if !allProjects && projectName != api.ProjectDefaultName {
@@ -123,7 +117,7 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 	// Get the current local serverName and store it for the events.
 	// We do that now to avoid issues with changes to the name and to limit
 	// the number of DB access to just one per connection.
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		if isClusterNotification(r) {
 			reqInfo := request.GetContextInfo(r.Context())
 			if reqInfo != nil && reqInfo.Username != "" {

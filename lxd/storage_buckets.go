@@ -19,7 +19,6 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/lxd/util"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/revert"
@@ -202,30 +201,19 @@ func storageBucketAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r 
 func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	allProjects := shared.IsTrue(request.QueryParam(r, "all-projects"))
-	requestProjectName := request.QueryParam(r, "project")
-
-	// requestProjectName is only valid for project specific requests.
-	if allProjects && requestProjectName != "" {
-		return response.BadRequest(errors.New("Cannot specify a project when requesting all projects"))
+	requestProjectName, allProjects, err := request.ProjectParams(r)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
-	var effectiveProjectName string
-	var err error
+	reqInfo := request.SetupContextInfo(r)
 	if !allProjects {
-		if requestProjectName == "" {
-			requestProjectName = api.ProjectDefaultName
-		}
-
 		// Project specific requests require an effective project, when "features.storage.buckets" is enabled this is the requested project, otherwise it is the default project.
-		effectiveProjectName, err = project.StorageBucketProject(r.Context(), s.DB.Cluster, requestProjectName)
+		// If the request is project specific, then set effective project name in the request info so that the authorizer can generate the correct URL.
+		reqInfo.EffectiveProjectName, err = project.StorageBucketProject(r.Context(), s.DB.Cluster, requestProjectName)
 		if err != nil {
 			return response.SmartError(err)
 		}
-
-		// If the request is project specific, then set effective project name in the request context so that the authorizer can generate the correct URL.
-		reqInfo := request.SetupContextInfo(r)
-		reqInfo.EffectiveProjectName = effectiveProjectName
 	}
 
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeStorageBucket, true)
@@ -259,7 +247,7 @@ func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if !allProjects {
-			filter.Project = &effectiveProjectName
+			filter.Project = &reqInfo.EffectiveProjectName
 		}
 
 		dbBuckets, err = tx.GetStoragePoolBuckets(ctx, memberSpecific, filter)
