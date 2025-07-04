@@ -2682,3 +2682,16 @@ Adds the {config:option}`device-disk-device-conf:io.threads` option on `disk` de
 This adds support for the {config:option}`server-oidc:oidc.client.secret` configuration key.
 If set, the LXD server will use this value in the OpenID Connect (OIDC) authorization code flow, which is used by LXD UI.
 This configuration value is not shared with other LXD clients (such as the LXD CLI).
+
+## `cluster_links`
+
+This introduces the cluster links API and identity type.
+
+This includes the following new endpoints (see [RESTful API](rest-api.md) for details):
+
+* `GET /1.0/cluster/links/<name>` - returns information about a specific cluster link.
+* `GET /1.0/cluster/links` - returns a combined view of cluster links (if any).
+* `PUT /1.0/cluster/links/<name>` - allows for modification of a specific cluster link.
+* `POST /1.0/cluster/links` - adds a cluster link.
+* `POST /1.0/cluster/links/<name>` - renames a specific cluster link.
+* `DELETE /1.0/cluster/links/<name>` - deletes a specific cluster link.
