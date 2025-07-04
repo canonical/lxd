@@ -297,6 +297,17 @@ Storage pool my-ceph-pool pending on member vm03
 :input: lxc storage create my-ceph-pool ceph ceph.osd.pool_name=my-osd
 Storage pool my-ceph-pool created
 ```
+
+Create a storage pool named `my-cephobject-pool` using the {ref}`Ceph Object driver <storage-cephobject>` and a preconfigured {ref}`RADOS Gateway endpoint <howto-storage-pools-ceph-requirements-radosgw>` (the endpoint shown below is only an example):
+```{terminal}
+:input: lxc storage create my-cephobject-pool cephobject --target=vm01
+Storage pool my-cephobject-pool pending on member vm01
+:input: lxc storage create my-cephobject-pool cephobject --target=vm02
+Storage pool my-cephobject-pool pending on member vm02
+:input: lxc storage create my-cephobject-pool cephobject --target=vm03
+Storage pool my-cephobject-pool pending on member vm03
+:input: lxc storage create my-cephobject-pool cephobject cephobject.radosgw.endpoint=http://192.0.2.10:8080
+Storage pool my-cephobject-pool created
 ```
 
 Create a storage pool named `my-powerflex-pool` using the {ref}`Dell PowerFlex driver <storage-powerflex>` in SDC mode and the pool `sp1` in protection domain `pd1`:
