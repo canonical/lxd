@@ -32,7 +32,7 @@ test_waitready() {
   [ "$(lxd waitready --network --storage --timeout 1 2>&1)" = "Error: Networks not ready yet after 1s timeout" ]
 
   # Not setting a timeout should have the same effect and return instantly.
-  [ "$(DEBUG="" lxc query "/internal/ready?network=1&storage=1" 2>&1)" = "Error: Networks not ready yet" ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc query "/internal/ready?network=1&storage=1" 2>&1)" = "Error: Networks not ready yet" ]
 
   # The standard waitready without extra flags should still return with success.
   lxd waitready
@@ -51,7 +51,7 @@ test_waitready() {
   [ "$(lxd waitready --network --storage --timeout 80 2>&1)" = "Error: Storage pools not ready yet after 80s timeout" ]
 
   # Not setting a timeout should have the same effect and return instantly.
-  [ "$(DEBUG="" lxc query "/internal/ready?network=1&storage=1" 2>&1)" = "Error: Storage pools not ready yet" ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc query "/internal/ready?network=1&storage=1" 2>&1)" = "Error: Storage pools not ready yet" ]
 
   # The standard waitready without extra flags should still return with success.
   lxd waitready

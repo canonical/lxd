@@ -24,13 +24,33 @@ if [ -z "${NO_PROXY:-}" ]; then
   export NO_PROXY="127.0.0.1"
 fi
 
-export DEBUG=""
-if [ -n "${LXD_VERBOSE:-}" ]; then
-  DEBUG="--verbose"
+export CLIENT_DEBUG=""
+export SERVER_DEBUG=""
+export SHELL_TRACING=""
+if [ "${LXD_VERBOSE:-0}" != "0" ]; then
+  if [ "${LXD_VERBOSE}" = "client" ]; then
+      CLIENT_DEBUG="--verbose"
+  elif [ "${LXD_VERBOSE}" = "server" ]; then
+      SERVER_DEBUG="--verbose"
+  else
+      CLIENT_DEBUG="--verbose"
+      SERVER_DEBUG="--verbose"
+  fi
+
+  SHELL_TRACING=1
 fi
 
-if [ -n "${LXD_DEBUG:-}" ]; then
-  DEBUG="--debug"
+if [ "${LXD_DEBUG:-0}" != "0" ]; then
+  if [ "${LXD_DEBUG}" = "client" ]; then
+      CLIENT_DEBUG="--debug"
+  elif [ "${LXD_DEBUG}" = "server" ]; then
+      SERVER_DEBUG="--debug"
+  else
+      CLIENT_DEBUG="--debug"
+      SERVER_DEBUG="--debug"
+  fi
+
+  SHELL_TRACING=1
 fi
 
 # shellcheck disable=SC2034
@@ -96,7 +116,7 @@ import_storage_backends
 cleanup() {
   # Stop tracing everything
   { set +x; } 2>/dev/null
-  if [ -z "${DEBUG:-}" ]; then
+  if [ -z "${SHELL_TRACING:-}" ]; then
     echo "cleanup"
   fi
 
@@ -108,7 +128,9 @@ cleanup() {
 
   # Allow for failures
   set +e
-  DEBUG=
+  unset CLIENT_DEBUG
+  unset SERVER_DEBUG
+  unset SHELL_TRACING
 
   # Allow for inspection
   if [ -n "${LXD_INSPECT:-}" ]; then
@@ -183,10 +205,6 @@ cleanup() {
   echo "==> Test result: ${TEST_RESULT}"
 }
 
-if [ -n "${DEBUG:-}" ]; then
-  set -x
-fi
-
 # Must be set before cleanup()
 TEST_CURRENT=setup
 TEST_CURRENT_DESCRIPTION=setup
@@ -197,6 +215,10 @@ trap cleanup EXIT HUP INT TERM
 
 # Import all the testsuites
 import_subdir_files suites
+
+if [ -n "${SHELL_TRACING:-}" ]; then
+  set -x
+fi
 
 # Setup test directory
 TEST_DIR="$(mktemp -d -t lxd-test.tmp.XXXX)"
@@ -229,15 +251,12 @@ spawn_lxd "${LXD_DIR}" true
 LXD_ADDR=$(< "${LXD_DIR}/lxd.addr")
 export LXD_ADDR
 
-LXD_SKIP_TESTS="${LXD_SKIP_TESTS:-}"
-export LXD_SKIP_TESTS
+export LXD_SKIP_TESTS="${LXD_SKIP_TESTS:-}"
 
-LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
-export LXD_REQUIRED_TESTS
+export LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
 
 # This must be enough to accomodate the busybox testimage
-SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
-export SMALL_ROOT_DISK
+export SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
 
 run_test() {
   TEST_CURRENT=${1}
