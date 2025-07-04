@@ -554,7 +554,7 @@ func volumeBackupWriteIndex(projectName string, volumeName string, pool storageP
 
 	config, err := pool.GenerateCustomVolumeBackupConfig(projectName, volumeName, snapshots, nil)
 	if err != nil {
-		return fmt.Errorf("Failed generating volume backup config: %w", err)
+		return fmt.Errorf("Failed generating backup config of volume %q in pool %q and project %q: %w", volumeName, pool.Name(), projectName, err)
 	}
 
 	customVol, err := config.CustomVolume()
