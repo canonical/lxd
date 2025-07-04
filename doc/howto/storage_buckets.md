@@ -104,7 +104,7 @@ For example:
 
 Use the following command to create a storage bucket in a storage pool:
 
-    lxc storage bucket create <pool_name> <bucket_name> [configuration_options...]
+    lxc storage bucket create <pool-name> <bucket-name> [configuration_options...]
 
 See the {ref}`storage-drivers` documentation for a list of available storage bucket configuration options for each driver that supports object storage.
 
@@ -113,7 +113,7 @@ See the {ref}`storage-drivers` documentation for a list of available storage buc
 
 To add a storage bucket on a cluster member, add the `--target` flag:
 
-    lxc storage bucket create <pool_name> <bucket_name> --target=<cluster_member> [configuration_options...]
+    lxc storage bucket create <pool-name> <bucket-name> --target=<cluster-member> [configuration_options...]
 
 ```{note}
 For most storage drivers, storage buckets are not replicated across the cluster and exist only on the member for which they were created.
@@ -127,7 +127,7 @@ See the {ref}`storage-drivers` documentation for the available configuration opt
 
 Use the following command to set configuration options for a storage bucket:
 
-    lxc storage bucket set <pool_name> <bucket_name> <key> <value>
+    lxc storage bucket set <pool-name> <bucket-name> <key> <value>
 
 For example, to set the size (quota) of a bucket, use the following command:
 
@@ -135,11 +135,11 @@ For example, to set the size (quota) of a bucket, use the following command:
 
 You can also edit the storage bucket configuration by using the following command:
 
-    lxc storage bucket edit <pool_name> <bucket_name>
+    lxc storage bucket edit <pool-name> <bucket-name>
 
 Use the following command to delete a storage bucket and its keys:
 
-    lxc storage bucket delete <pool_name> <bucket_name>
+    lxc storage bucket delete <pool-name> <bucket-name>
 
 (howto-storage-buckets-resize)=
 ## Resize a storage bucket
@@ -148,7 +148,7 @@ By default, storage buckets do not have a quota applied.
 
 To set or change a quota for a storage bucket, set its size configuration:
 
-    lxc storage bucket set <pool_name> <bucket_name> size <new_size>
+    lxc storage bucket set <pool-name> <bucket-name> size <new-size>
 
 ```{important}
 - Growing a storage bucket usually works (if the storage pool has sufficient storage).
@@ -179,22 +179,22 @@ If the role is not specified when creating a bucket key, the role used is `read-
 
 Use the following command to see the keys defined for an existing bucket:
 
-    lxc storage bucket key list <pool_name> <bucket_name>
+    lxc storage bucket key list <pool-name> <bucket-name>
 
 Use the following command to see a specific bucket key:
 
-    lxc storage bucket key show <pool_name> <bucket_name> <key_name>
+    lxc storage bucket key show <pool-name> <bucket-name> <key-name>
 
 (howto-storage-buckets-keys-create)=
 ### Create keys
 
 Use the following command to create a set of credentials for a storage bucket:
 
-    lxc storage bucket key create <pool_name> <bucket_name> <key_name> [configuration_options...]
+    lxc storage bucket key create <pool-name> <bucket-name> <key-name> [configuration_options...]
 
 Use the following command to create a set of credentials for a storage bucket with a specific role:
 
-    lxc storage bucket key create <pool_name> <bucket_name> <key_name> --role=admin [configuration_options...]
+    lxc storage bucket key create <pool-name> <bucket-name> <key-name> --role=admin [configuration_options...]
 
 These commands will generate and display a random set of credential keys.
 
@@ -203,9 +203,9 @@ These commands will generate and display a random set of credential keys.
 
 Use the following command to edit an existing bucket key:
 
-    lxc storage bucket key edit <pool_name> <bucket_name> <key_name>
+    lxc storage bucket key edit <pool-name> <bucket-name> <key-name>
 
 Use the following command to delete an existing bucket key:
 
-    lxc storage bucket key delete <pool_name> <bucket_name> <key_name>
+    lxc storage bucket key delete <pool-name> <bucket-name> <key-name>
 
