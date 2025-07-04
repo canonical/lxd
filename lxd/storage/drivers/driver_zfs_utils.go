@@ -70,8 +70,7 @@ func (d *zfs) dataset(vol Volume, deleted bool) string {
 func (d *zfs) createDataset(dataset string, options ...string) error {
 	args := []string{"create"}
 	for _, option := range options {
-		args = append(args, "-o")
-		args = append(args, option)
+		args = append(args, "-o", option)
 	}
 
 	args = append(args, dataset)
@@ -87,8 +86,7 @@ func (d *zfs) createDataset(dataset string, options ...string) error {
 func (d *zfs) createVolume(dataset string, size int64, options ...string) error {
 	args := []string{"create", "-s", "-V", strconv.FormatInt(size, 10)}
 	for _, option := range options {
-		args = append(args, "-o")
-		args = append(args, option)
+		args = append(args, "-o", option)
 	}
 
 	args = append(args, dataset)
@@ -168,8 +166,7 @@ func (d *zfs) getClones(dataset string) ([]string, error) {
 			continue
 		}
 
-		line = strings.TrimPrefix(line, dataset+"/")
-		clones = append(clones, line)
+		clones = append(clones, strings.TrimPrefix(line, dataset+"/"))
 	}
 
 	return clones, nil
@@ -188,8 +185,7 @@ func (d *zfs) getDatasets(dataset string, types string) ([]string, error) {
 			continue
 		}
 
-		line = strings.TrimPrefix(line, dataset)
-		children = append(children, line)
+		children = append(children, strings.TrimPrefix(line, dataset))
 	}
 
 	return children, nil
@@ -338,8 +334,7 @@ func (d *zfs) initialDatasets() []string {
 
 	// Iterate over the listed supported volume types.
 	for _, volType := range d.Info().VolumeTypes {
-		entries = append(entries, BaseDirectories[volType][0])
-		entries = append(entries, "deleted/"+BaseDirectories[volType][0])
+		entries = append(entries, BaseDirectories[volType][0], "deleted/"+BaseDirectories[volType][0])
 	}
 
 	return entries
@@ -378,8 +373,7 @@ func (d *zfs) sendDataset(dataset string, parent string, volSrcArgs *migration.V
 	}
 
 	if slices.Contains(volSrcArgs.MigrationType.Features, "compress") {
-		args = append(args, "-c")
-		args = append(args, "-L")
+		args = append(args, "-c", "-L")
 	}
 
 	if parent != "" {
