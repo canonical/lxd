@@ -10,8 +10,9 @@ See the following sections for instructions on how to create, configure, view an
 (storage-create-pool)=
 ## Create a storage pool
 
-LXD creates a storage pool during initialization.
-You can add more storage pools later, using the same driver or different drivers.
+LXD creates a storage pool during initialization. You can add more storage pools later, using the same driver or different drivers.
+
+For Ceph-based storage pools, first see the {ref}`howto-storage-pools-ceph-requirements` section.
 
 `````{tabs}
 ````{group-tab} CLI
@@ -125,7 +126,11 @@ Create a pool named `pool7` on `/dev/sdX` with the ZFS zpool name `my-tank`:
 
     lxc storage create pool7 zfs source=/dev/sdX zfs.pool_name=my-tank
 
-#### Create a Ceph RBD pool
+#### Ceph-based storage pools
+
+For Ceph-based storage pools, first see the {ref}`howto-storage-pools-ceph-requirements`.
+
+##### Create a Ceph RBD pool
 
 Create an OSD storage pool named `pool1` in the default Ceph cluster (named `ceph`):
 
@@ -147,7 +152,7 @@ Use the existing OSD erasure-coded pool `ecpool` and the OSD replicated pool `rp
 
     lxc storage create pool5 ceph source=rpl-pool ceph.osd.data_pool_name=ecpool
 
-#### Create a CephFS pool
+##### Create a CephFS pool
 
 ```{note}
 Each CephFS file system consists of two OSD storage pools, one for the actual data and one for the file metadata.
@@ -165,15 +170,17 @@ Create a CephFS file system `my-filesystem` with a data pool called `my-data` an
 
     lxc storage create pool3 cephfs source=my-filesystem cephfs.create_missing=true cephfs.data_pool=my-data cephfs.meta_pool=my-metadata
 
-#### Create a Ceph Object pool
+##### Create a Ceph Object pool
 
-```{note}
-When using the Ceph Object driver, you must have a running Ceph Object Gateway [`radosgw`](https://docs.ceph.com/en/latest/radosgw/) URL available beforehand.
+A RADOS Gateway endpoint is required for a {ref}`Ceph Object <storage-cephobject>` storage pool. See: {ref}`howto-storage-pools-ceph-requirements-radosgw`.
+
+For a non-clustered LXD server, create `pool1` by passing in a Ceph Object Gateway endpoint (the endpoint shown below is only an example; you must use your own):
+
+```bash
+lxc storage create pool1 cephobject cephobject.radosgw.endpoint=http://192.0.2.10:8080
 ```
 
-Use the existing Ceph Object Gateway `https://www.example.com/radosgw` to create `pool1`:
-
-    lxc storage create pool1 cephobject cephobject.radosgw.endpoint=https://www.example.com/radosgw
+If your LXD server is clustered, such as in a [MicroCloud](https://microcloud.is) deployment, see: {ref}`storage-pools-cluster`.
 
 #### Create a Dell PowerFlex pool
 
@@ -430,3 +437,88 @@ In clustered environments, the {guilabel}`Size` field appears as a per-member se
 
 ````
 `````
+
+(howto-storage-pools-ceph-requirements)=
+## Requirements for Ceph-based storage pools
+
+For Ceph-based storage pools, the requirements below must be met before you can {ref}`storage-create-pool` or {ref}`storage-pools-cluster`.
+
+(howto-storage-pools-ceph-requirements-cluster)=
+### Ceph cluster
+
+Before you can create a storage pool that uses the {ref}`Ceph RBD <storage-ceph>`, {ref}`CephFS <storage-cephfs>`, or {ref}`Ceph Object <storage-cephobject>` driver, you must have access to a [Ceph](https://ceph.io) cluster.
+
+To deploy a Ceph cluster, we recommend using [MicroCloud](https://snapcraft.io/microcloud). If you have completed the default MicroCloud setup, you already have a Ceph cluster deployed through MicroCeph, so this requirement is met. MicroCeph is a lightweight way of deploying and managing a Ceph cluster.
+
+If you do not use MicroCloud, set up a standalone deployment of [MicroCeph](https://snapcraft.io/microceph) before you continue.
+
+(howto-storage-pools-ceph-requirements-radosgw)=
+### Ceph Object and `radosgw`
+
+Storage pools that use the {ref}`Ceph Object driver <storage-cephobject>` require a Ceph cluster with the RADOS Gateway (also known as RGW or `radosgw`) enabled.
+
+(howto-storage-pools-ceph-requirements-radosgw-check)=
+#### Check if `radosgw` is already enabled
+
+To check if the RADOS Gateway is already enabled in MicroCeph, run this command from one of its cluster members:
+
+```bash
+microceph status
+```
+
+In the output, look for a cluster member with `rgw` in its `Services` list.
+
+Example:
+
+```{terminal}
+:input: microceph status
+:user: root
+:host: micro1
+
+MicroCeph deployment summary:
+- micro1 (192.0.2.10)
+  Services: mds, mgr, mon, rgw, osd
+  Disks: 1
+- micro2 (192.0.2.20)
+  Services: mds, mgr, mon, osd
+  Disks: 1
+```
+
+In the output above, notice `rgw` in the list of `Services` for `micro1`. This means that this cluster member is running the RADOS Gateway.
+
+Look for `rgw` in your output. If you do not see it, you must {ref}`howto-storage-pools-ceph-requirements-radosgw-enable`.
+
+If you do see it, you'll need the corresponding port number. On the cluster member with the `rgw` service, run:
+
+```bash
+sudo ss -ltnp | grep radosgw
+```
+
+Example:
+
+```{terminal}
+:input: sudo ss -ltnp | grep radosgw
+:user: root
+:host: micro1
+
+LISTEN 0      4096         0.0.0.0:8080      0.0.0.0:*    users:(("radosgw",pid=11345,fd=60))
+LISTEN 0      4096            [::]:8080         [::]:*    users:(("radosgw",pid=11345,fd=61))
+```
+
+The output above shows that the `radosgw` port number is `8080`.
+
+(howto-storage-pools-ceph-requirements-radosgw-enable)=
+#### Enable `radosgw`
+
+If you did not find `rgw` in the `Services` list for any of your cluster members in the output from `microceph status`, then you must enable the RADOS Gateway. On one of the Ceph cluster members, run:
+
+```bash
+sudo microceph enable rgw --port 8080
+```
+
+We include the `--port 8080` flag because if unspecified, the default port is `80`. This default is a commonly used port number that can often cause conflicts with other services. You are not required to use `8080` — if needed, use a different port number.
+
+(howto-storage-pools-ceph-requirements-radosgw-endpoint)=
+#### The RADOS Gateway endpoint
+
+The full RADOS Gateway endpoint includes the HTTP protocol, the IP address of the Ceph cluster member where the `rgw` service is enabled, and the port number specified. Example: `http://192.0.2.10:8080`.
