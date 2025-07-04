@@ -25,6 +25,7 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
+	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/task"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
@@ -521,9 +522,9 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 	}
 
 	// Check new volume name is valid.
-	err = storagePools.ValidVolumeName(req.Name)
+	err = storageDrivers.ValidVolumeName(req.Name)
 	if err != nil {
-		return response.BadRequest(err)
+		return response.BadRequest(fmt.Errorf("Invalid volume snapshot name %q: %w", req.Name, err))
 	}
 
 	// This is a migration request so send back requested secrets.
