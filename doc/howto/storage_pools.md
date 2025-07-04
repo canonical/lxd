@@ -282,46 +282,47 @@ Storage pool my-pool pending on member vm03
 Storage pool my-pool created
 ```
 
-#### Create a remote storage pool
+#### Create a remote or distributed storage pool
 
-Create a storage pool named `my-remote-pool` using the Ceph RBD driver and the on-disk name `my-osd` on three cluster members.
+Create a storage pool named `my-ceph-pool` using the {ref}`Ceph RBD driver <storage-ceph>` and the on-disk name `my-osd` on three cluster members.
 Because the {config:option}`storage-ceph-pool-conf:ceph.osd.pool_name` configuration setting isn't member-specific, it must be set when creating the actual storage pool:
 
 ```{terminal}
-:input: lxc storage create my-remote-pool ceph --target=vm01
-Storage pool my-remote-pool pending on member vm01
-:input: lxc storage create my-remote-pool ceph --target=vm02
-Storage pool my-remote-pool pending on member vm02
-:input: lxc storage create my-remote-pool ceph --target=vm03
-Storage pool my-remote-pool pending on member vm03
-:input: lxc storage create my-remote-pool ceph ceph.osd.pool_name=my-osd
-Storage pool my-remote-pool created
+:input: lxc storage create my-ceph-pool ceph --target=vm01
+Storage pool my-ceph-pool pending on member vm01
+:input: lxc storage create my-ceph-pool ceph --target=vm02
+Storage pool my-ceph-pool pending on member vm02
+:input: lxc storage create my-ceph-pool ceph --target=vm03
+Storage pool my-ceph-pool pending on member vm03
+:input: lxc storage create my-ceph-pool ceph ceph.osd.pool_name=my-osd
+Storage pool my-ceph-pool created
+```
 ```
 
-Create a second storage pool named `my-remote-pool2` using the Dell PowerFlex driver in SDC mode and the pool `sp1` in protection domain `pd1`:
+Create a storage pool named `my-powerflex-pool` using the {ref}`Dell PowerFlex driver <storage-powerflex>` in SDC mode and the pool `sp1` in protection domain `pd1`:
 
 ```{terminal}
-:input: lxc storage create my-remote-pool2 powerflex --target=vm01
-Storage pool my-remote-pool2 pending on member vm01
-:input: lxc storage create my-remote-pool2 powerflex --target=vm02
-Storage pool my-remote-pool2 pending on member vm02
-:input: lxc storage create my-remote-pool2 powerflex --target=vm03
-Storage pool my-remote-pool2 pending on member vm03
-:input: lxc storage create my-remote-pool2 powerflex powerflex.mode=sdc powerflex.pool=sp1 powerflex.domain=pd1 powerflex.gateway=https://powerflex powerflex.user.name=lxd powerflex.user.password=foo
-Storage pool my-remote-pool2 created
+:input: lxc storage create my-powerflex-pool powerflex --target=vm01
+Storage pool my-powerflex-pool pending on member vm01
+:input: lxc storage create my-powerflex-pool powerflex --target=vm02
+Storage pool my-powerflex-pool pending on member vm02
+:input: lxc storage create my-powerflex-pool powerflex --target=vm03
+Storage pool my-powerflex-pool pending on member vm03
+:input: lxc storage create my-powerflex-pool powerflex powerflex.mode=sdc powerflex.pool=sp1 powerflex.domain=pd1 powerflex.gateway=https://powerflex powerflex.user.name=lxd powerflex.user.password=foo
+Storage pool my-powerflex-pool created
 ```
 
-Create a third storage pool named `my-remote-pool3` using the Pure Storage driver:
+Create a storage pool named `my-purestorage-pool` using the {ref}`Pure Storage driver <storage-pure>`:
 
 ```{terminal}
-:input: lxc storage create my-remote-pool3 pure --target=vm01
-Storage pool my-remote-pool3 pending on member vm01
-:input: lxc storage create my-remote-pool3 pure --target=vm02
-Storage pool my-remote-pool3 pending on member vm02
-:input: lxc storage create my-remote-pool3 pure --target=vm03
-Storage pool my-remote-pool3 pending on member vm03
-:input: lxc storage create my-remote-pool3 pure pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token>
-Storage pool my-remote-pool3 created
+:input: lxc storage create my-purestorage-pool pure --target=vm01
+Storage pool my-purestorage-pool pending on member vm01
+:input: lxc storage create my-purestorage-pool pure --target=vm02
+Storage pool my-purestorage-pool pending on member vm02
+:input: lxc storage create purestorage-pool pure --target=vm03
+Storage pool purestorage-pool pending on member vm03
+:input: lxc storage purestorage-pool pure pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token>
+Storage pool purestorage-pool created
 ```
 
 ````
