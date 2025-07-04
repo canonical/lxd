@@ -83,7 +83,7 @@ func (b *backupConfigCache) getVolume(projectName string, poolName string, volNa
 
 		volConfig, err := pool.GenerateCustomVolumeBackupConfig(projectName, volName, snapshots, op)
 		if err != nil {
-			return nil, fmt.Errorf("Failed generating backup config for volume %q in project %q: %w", volName, projectName, err)
+			return nil, fmt.Errorf("Failed generating backup config of volume %q in pool %q and project %q: %w", volName, poolName, projectName, err)
 		}
 
 		vol, err := volConfig.CustomVolume()

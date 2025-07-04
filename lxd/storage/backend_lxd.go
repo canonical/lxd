@@ -1316,7 +1316,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 	// Check source volume exists and is custom type, and get its config including all of the snapshots.
 	srcConfig, err := srcPool.GenerateCustomVolumeBackupConfig(srcProjectName, srcVolName, true, op)
 	if err != nil {
-		return fmt.Errorf("Failed generating volume refresh config: %w", err)
+		return fmt.Errorf("Failed generating refresh config of volume %q in pool %q and project %q: %w", srcVolName, srcPoolName, srcProjectName, err)
 	}
 
 	customVol, err := srcConfig.CustomVolume()
@@ -5433,7 +5433,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	// Check source volume exists and is custom type, and get its config including all of the snapshots.
 	srcConfig, err := srcPool.GenerateCustomVolumeBackupConfig(srcProjectName, srcVolName, true, op)
 	if err != nil {
-		return fmt.Errorf("Failed generating volume copy config: %w", err)
+		return fmt.Errorf("Failed generating copy config of volume %q in pool %q and project %q: %w", srcVolName, srcPoolName, srcProjectName, err)
 	}
 
 	customVol, err := srcConfig.CustomVolume()
