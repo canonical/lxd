@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"golang.org/x/sys/unix"
 
@@ -894,4 +895,58 @@ func remoteVolumeMapLock(connectorName string, driverName string) (locking.Unloc
 	defer l.Debug("Lock acquired for remote volume map")
 
 	return locking.Lock(context.TODO(), fmt.Sprintf("RemoteVolumeMap_%s_%s", connectorName, driverName))
+}
+
+// ValidPoolName validates a pool name.
+func ValidPoolName(poolName string) error {
+	if poolName == "" {
+		return errors.New("Cannot be empty")
+	}
+
+	if poolName == ".." {
+		return errors.New(`Cannot be ".."`)
+	}
+
+	if strings.HasPrefix(poolName, "-") {
+		return errors.New("Cannot start with a hyphen")
+	}
+
+	if strings.Contains(poolName, shared.SnapshotDelimiter) {
+		return errors.New("Cannot contain slashes")
+	}
+
+	for _, r := range poolName {
+		if unicode.IsSpace(r) {
+			return errors.New("Cannot contain white space")
+		}
+	}
+
+	return nil
+}
+
+// ValidVolumeName validates a volume name.
+func ValidVolumeName(volumeName string) error {
+	if volumeName == "" {
+		return errors.New("Cannot be empty")
+	}
+
+	if volumeName == ".." {
+		return errors.New(`Cannot be ".."`)
+	}
+
+	if strings.Contains(volumeName, "\\") {
+		return errors.New("Cannot contain backslashes")
+	}
+
+	if strings.Contains(volumeName, shared.SnapshotDelimiter) {
+		return errors.New("Cannot contain slashes")
+	}
+
+	for _, r := range volumeName {
+		if unicode.IsSpace(r) {
+			return errors.New("Cannot contain white space")
+		}
+	}
+
+	return nil
 }

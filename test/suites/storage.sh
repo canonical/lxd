@@ -7,10 +7,18 @@ test_storage() {
   LXD_STORAGE_DIR=$(mktemp -d -p "${TEST_DIR}" XXXXXXXXX)
   spawn_lxd "${LXD_STORAGE_DIR}" false
 
-  # edit storage and pool description
   local storage_pool storage_volume
   storage_pool="lxdtest-$(basename "${LXD_DIR}")-pool"
   storage_volume="${storage_pool}-vol"
+
+  # Check for pool name validation
+  ! lxc query -X POST --wait /1.0/storage-pools --data '{\"driver\":\"'"${lxd_backend}"'\"}' || false
+  ! lxc query -X POST --wait /1.0/storage-pools --data '{\"name\":\"-'"${storage_pool}"'\", \"driver\":\"'"${lxd_backend}"'\"}' || false
+  ! lxc storage create "${storage_pool}/" "${lxd_backend}" || false
+  ! lxc storage create "${storage_pool} " "${lxd_backend}" || false
+  ! lxc storage create ".." "${lxd_backend}" || false
+
+  # edit storage and pool description
   lxc storage create "$storage_pool" "$lxd_backend"
   lxc storage show "$storage_pool" | sed 's/^description:.*/description: foo/' | lxc storage edit "$storage_pool"
   [ "$(lxc storage get "$storage_pool" -p description)" = "foo" ]

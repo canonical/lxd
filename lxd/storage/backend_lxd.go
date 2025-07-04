@@ -20,7 +20,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unicode"
 
 	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
@@ -102,14 +101,9 @@ func (b *lxdBackend) Description() string {
 
 // ValidateName validates the provided name, and returns an error if it's not a valid storage name.
 func (b *lxdBackend) ValidateName(value string) error {
-	if strings.Contains(value, "/") {
-		return errors.New(`Storage name cannot contain "/"`)
-	}
-
-	for _, r := range value {
-		if unicode.IsSpace(r) {
-			return errors.New(`Storage name cannot contain white space`)
-		}
+	err := drivers.ValidPoolName(value)
+	if err != nil {
+		return fmt.Errorf("Invalid pool name %q: %w", value, err)
 	}
 
 	return nil
@@ -789,9 +783,9 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		return nil, nil, fmt.Errorf("Failed getting the root volume: %w", err)
 	}
 
-	err = ValidVolumeName(rootVol.Name)
+	err = drivers.ValidVolumeName(rootVol.Name)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("Invalid volume name %q: %w", rootVol.Name, err)
 	}
 
 	volumeConfig = rootVol.Config
@@ -801,9 +795,9 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 
 	sourceSnapshots := make([]drivers.Volume, 0, len(rootVol.Snapshots))
 	for _, volSnap := range rootVol.Snapshots {
-		err = ValidVolumeName(volSnap.Name)
+		err = drivers.ValidVolumeName(volSnap.Name)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("Invalid volume snapshot name %q: %w", volSnap.Name, err)
 		}
 
 		snapshotName := drivers.GetSnapshotVolumeName(srcBackup.Name, volSnap.Name)
@@ -6032,18 +6026,18 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 	l.Debug("RenameCustomVolume started")
 	defer l.Debug("RenameCustomVolume finished")
 
-	// Silence the static analysis tool
-	err := ValidVolumeName(newVolName)
-	if err != nil {
-		return err
-	}
-
 	if shared.IsSnapshot(volName) {
 		return errors.New("Volume name cannot be a snapshot")
 	}
 
 	if shared.IsSnapshot(newVolName) {
 		return errors.New("New volume name cannot be a snapshot")
+	}
+
+	// Silence the static analysis tool
+	err := drivers.ValidVolumeName(newVolName)
+	if err != nil {
+		return fmt.Errorf("Invalid volume name %q: %w", newVolName, err)
 	}
 
 	revert := revert.New()
@@ -8193,27 +8187,27 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 	}
 
 	// Validate the names in the index.yaml file as these could be malicious.
-	err = ValidVolumeName(srcBackup.Name)
+	err = drivers.ValidVolumeName(srcBackup.Name)
 	if err != nil {
-		return err
+		return fmt.Errorf("Invalid backup name %q: %w", srcBackup.Name, err)
 	}
 
-	err = ValidVolumeName(customVol.Name)
+	err = drivers.ValidVolumeName(customVol.Name)
 	if err != nil {
-		return err
+		return fmt.Errorf("Invalid volume name %q: %w", customVol.Name, err)
 	}
 
 	for _, snapName := range srcBackup.Snapshots {
-		err = ValidVolumeName(snapName)
+		err = drivers.ValidVolumeName(snapName)
 		if err != nil {
-			return err
+			return fmt.Errorf("Invalid backup snapshot name %q: %w", snapName, err)
 		}
 	}
 
 	for _, snap := range customVol.Snapshots {
-		err = ValidVolumeName(snap.Name)
+		err = drivers.ValidVolumeName(snap.Name)
 		if err != nil {
-			return err
+			return fmt.Errorf("Invalid volume snapshot name %q: %w", snap.Name, err)
 		}
 	}
 
