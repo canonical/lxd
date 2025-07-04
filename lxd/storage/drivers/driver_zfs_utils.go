@@ -71,8 +71,7 @@ func (d *zfs) dataset(vol Volume, deleted bool) string {
 func (d *zfs) createDataset(dataset string, options ...string) error {
 	args := []string{"create"}
 	for _, option := range options {
-		args = append(args, "-o")
-		args = append(args, option)
+		args = append(args, "-o", option)
 	}
 
 	args = append(args, dataset)
@@ -88,8 +87,7 @@ func (d *zfs) createDataset(dataset string, options ...string) error {
 func (d *zfs) createVolume(dataset string, size int64, options ...string) error {
 	args := []string{"create", "-s", "-V", strconv.FormatInt(size, 10)}
 	for _, option := range options {
-		args = append(args, "-o")
-		args = append(args, option)
+		args = append(args, "-o", option)
 	}
 
 	args = append(args, dataset)
@@ -128,7 +126,7 @@ func (d *zfs) deleteDatasetRecursive(dataset string) error {
 	if origin != "" && origin != "-" {
 		if strings.HasPrefix(origin, filepath.Join(d.config["zfs.pool_name"], "deleted")) {
 			// Strip the snapshot name when dealing with a deleted volume.
-			dataset = strings.SplitN(origin, "@", 2)[0]
+			dataset, _, _ = strings.Cut(origin, "@")
 		} else if strings.Contains(origin, "@deleted-") || strings.Contains(origin, "@copy-") {
 			// Handle deleted snapshots.
 			dataset = origin
@@ -169,8 +167,7 @@ func (d *zfs) getClones(dataset string) ([]string, error) {
 			continue
 		}
 
-		line = strings.TrimPrefix(line, dataset+"/")
-		clones = append(clones, line)
+		clones = append(clones, strings.TrimPrefix(line, dataset+"/"))
 	}
 
 	return clones, nil
@@ -189,8 +186,7 @@ func (d *zfs) getDatasets(dataset string, types string) ([]string, error) {
 			continue
 		}
 
-		line = strings.TrimPrefix(line, dataset)
-		children = append(children, line)
+		children = append(children, strings.TrimPrefix(line, dataset))
 	}
 
 	return children, nil
@@ -307,15 +303,8 @@ func (d *zfs) getDatasetProperties(dataset string, keys ...string) (map[string]s
 	return props, nil
 }
 
-// version returns the ZFS version based on package or kernel module version.
+// version returns the ZFS version based on kernel module version on package.
 func (d *zfs) version() (string, error) {
-	// This function is only really ever relevant on Ubuntu as the only
-	// distro that ships out of sync tools and kernel modules
-	out, err := shared.RunCommandContext(context.TODO(), "dpkg-query", "--showformat=${Version}", "--show", "zfsutils-linux")
-	if out != "" && err == nil {
-		return strings.TrimSpace(string(out)), nil
-	}
-
 	// Loaded kernel module version
 	if shared.PathExists("/sys/module/zfs/version") {
 		out, err := os.ReadFile("/sys/module/zfs/version")
@@ -325,9 +314,16 @@ func (d *zfs) version() (string, error) {
 	}
 
 	// Module information version
-	out, err = shared.RunCommandContext(context.TODO(), "modinfo", "-F", "version", "zfs")
+	out, err := shared.RunCommandContext(context.TODO(), "modinfo", "-F", "version", "zfs")
 	if err == nil {
 		return strings.TrimSpace(string(out)), nil
+	}
+
+	// This function is only really ever relevant on Ubuntu as the only
+	// distro that ships out of sync tools and kernel modules
+	out, err = shared.RunCommandContext(context.TODO(), "dpkg-query", "--showformat=${Version}", "--show", "zfsutils-linux")
+	if out != "" && err == nil {
+		return string(out), nil
 	}
 
 	return "", errors.New("Could not determine ZFS module version")
@@ -339,8 +335,7 @@ func (d *zfs) initialDatasets() []string {
 
 	// Iterate over the listed supported volume types.
 	for _, volType := range d.Info().VolumeTypes {
-		entries = append(entries, BaseDirectories[volType][0])
-		entries = append(entries, filepath.Join("deleted", BaseDirectories[volType][0]))
+		entries = append(entries, BaseDirectories[volType][0], filepath.Join("deleted", BaseDirectories[volType][0]))
 	}
 
 	return entries
@@ -348,7 +343,7 @@ func (d *zfs) initialDatasets() []string {
 
 func (d *zfs) needsRecursion(dataset string) bool {
 	// Ignore snapshots for the test.
-	dataset = strings.Split(dataset, "@")[0]
+	dataset, _, _ = strings.Cut(dataset, "@")
 
 	entries, err := d.getDatasets(dataset, "filesystem,volume")
 	if err != nil {
@@ -379,8 +374,7 @@ func (d *zfs) sendDataset(dataset string, parent string, volSrcArgs *migration.V
 	}
 
 	if slices.Contains(volSrcArgs.MigrationType.Features, "compress") {
-		args = append(args, "-c")
-		args = append(args, "-L")
+		args = append(args, "-c", "-L")
 	}
 
 	if parent != "" {

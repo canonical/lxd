@@ -1520,7 +1520,7 @@ func (d *ceph) ListVolumes() ([]Volume, error) {
 		return nil, fmt.Errorf("Failed getting volume list: %v: %w", strings.TrimSpace(string(errMsg)), err)
 	}
 
-	volList := make([]Volume, len(vols))
+	volList := make([]Volume, 0, len(vols))
 	for _, v := range vols {
 		volList = append(volList, v)
 	}
@@ -2042,17 +2042,15 @@ func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 		RBDFilesystem := snapVol.ConfigBlockFilesystem()
 		mountFlags, mountOptions := filesystem.ResolveMountOptions(strings.Split(snapVol.ConfigBlockMountOptions(), ","))
 
-		if renegerateFilesystemUUIDNeeded(RBDFilesystem) {
-			if RBDFilesystem == "xfs" {
-				idx := strings.Index(mountOptions, "nouuid")
-				if idx < 0 {
-					mountOptions += ",nouuid"
-				}
-			} else {
-				err = d.generateUUID(RBDFilesystem, rbdDevPath)
-				if err != nil {
-					return err
-				}
+		if RBDFilesystem == "xfs" {
+			idx := strings.Index(mountOptions, "nouuid")
+			if idx < 0 {
+				mountOptions += ",nouuid"
+			}
+		} else {
+			err = d.generateUUID(RBDFilesystem, rbdDevPath)
+			if err != nil {
+				return err
 			}
 		}
 
