@@ -519,7 +519,7 @@ func (d *lvm) Validate(config map[string]string) error {
 		//  defaultdesc: name of the pool
 		//  shortdesc: Name of the volume group to create
 		//  scope: local
-		"lvm.vg_name": validate.IsAny,
+		"lvm.vg_name": validate.Optional(func(value string) error { return ValidPoolName(value) }),
 		// lxdmeta:generate(entities=storage-lvm; group=pool-conf; key=lvm.thinpool_name)
 		//
 		// ---
