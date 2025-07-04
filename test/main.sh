@@ -137,10 +137,10 @@ cleanup() {
     if [ "${TEST_RESULT}" != "success" ]; then
       echo "==> FAILED TEST: ${TEST_CURRENT#test_} (${TEST_CURRENT_DESCRIPTION})"
       # red
-      PS1_PREFIX="\033[0;31mLXD-TEST\033[0m"
+      PS1_PREFIX="\[\033[0;31m\]LXD-TEST\[\033[0m\]"
     else
       # green
-      PS1_PREFIX="\033[0;32mLXD-TEST\033[0m"
+      PS1_PREFIX="\[\033[0;32m\]LXD-TEST\[\033[0m\]"
     fi
     echo "==> Test result: ${TEST_RESULT}"
 
