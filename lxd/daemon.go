@@ -68,6 +68,9 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
+// secFetchSiteForbidden defines client Sec-Fetch-Site header values that will be forbidden access.
+var secFetchSiteForbidden = []string{"cross-site", "same-site"}
+
 // A Daemon can respond to requests from a shared client.
 type Daemon struct {
 	clientCerts *certificate.Cache
@@ -654,7 +657,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 
 			// Protect against CSRF when using LXD-UI with browser that supports Fetch metadata.
 			// Deny Sec-Fetch-Site when set to cross-site or same-site.
-			if shared.StringInSlice(r.Header.Get("Sec-Fetch-Site"), []string{"cross-site", "same-site"}) {
+			if shared.StringInSlice(r.Header.Get("Sec-Fetch-Site"), secFetchSiteForbidden) {
 				return response.ErrorResponse(http.StatusForbidden, "Forbidden Sec-Fetch-Site header value")
 			}
 
