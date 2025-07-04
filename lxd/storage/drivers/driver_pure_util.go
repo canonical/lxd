@@ -1,7 +1,6 @@
 package drivers
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -225,18 +224,6 @@ func newPureClient(driver *pure) *pureClient {
 	}
 }
 
-// createBodyReader creates a reader for the given request body contents.
-func (p *pureClient) createBodyReader(contents map[string]any) (io.Reader, error) {
-	body := &bytes.Buffer{}
-
-	err := json.NewEncoder(body).Encode(contents)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to write request body: %w", err)
-	}
-
-	return body, nil
-}
-
 // request issues a HTTP request against the Pure Storage gateway.
 func (p *pureClient) request(method string, url url.URL, reqBody map[string]any, reqHeaders map[string]string, respBody any, respHeaders map[string]string) error {
 	// Extract scheme and host from the gateway URL.
@@ -278,7 +265,7 @@ func (p *pureClient) request(method string, url url.URL, reqBody map[string]any,
 	var reqBodyReader io.Reader
 
 	if reqBody != nil {
-		reqBodyReader, err = p.createBodyReader(reqBody)
+		reqBodyReader, err = createBodyReader(reqBody)
 		if err != nil {
 			return err
 		}
@@ -1226,7 +1213,7 @@ func (d *pure) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 		return nil, err
 	}
 
-	unlock, err := remoteVolumeMapLock(connector.Type(), "pure")
+	unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
 	if err != nil {
 		return nil, err
 	}
@@ -1296,7 +1283,7 @@ func (d *pure) unmapVolume(vol Volume) error {
 		return err
 	}
 
-	unlock, err := remoteVolumeMapLock(connector.Type(), "pure")
+	unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
 	if err != nil {
 		return err
 	}
