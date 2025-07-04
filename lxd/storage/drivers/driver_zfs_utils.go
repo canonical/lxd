@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -62,10 +61,10 @@ func (d *zfs) dataset(vol Volume, deleted bool) string {
 			name = uuid.New().String()
 		}
 
-		return filepath.Join(d.config["zfs.pool_name"], "deleted", string(vol.volType), name)
+		return d.config["zfs.pool_name"] + "/deleted/" + string(vol.volType) + "/" + name
 	}
 
-	return filepath.Join(d.config["zfs.pool_name"], string(vol.volType), name)
+	return d.config["zfs.pool_name"] + "/" + string(vol.volType) + "/" + name
 }
 
 func (d *zfs) createDataset(dataset string, options ...string) error {
@@ -126,7 +125,7 @@ func (d *zfs) deleteDatasetRecursive(dataset string) error {
 
 	// Check if the origin can now be deleted.
 	if origin != "" && origin != "-" {
-		if strings.HasPrefix(origin, filepath.Join(d.config["zfs.pool_name"], "deleted")) {
+		if strings.HasPrefix(origin, d.config["zfs.pool_name"]+"/deleted") {
 			// Strip the snapshot name when dealing with a deleted volume.
 			dataset = strings.SplitN(origin, "@", 2)[0]
 		} else if strings.Contains(origin, "@deleted-") || strings.Contains(origin, "@copy-") {
@@ -340,7 +339,7 @@ func (d *zfs) initialDatasets() []string {
 	// Iterate over the listed supported volume types.
 	for _, volType := range d.Info().VolumeTypes {
 		entries = append(entries, BaseDirectories[volType][0])
-		entries = append(entries, filepath.Join("deleted", BaseDirectories[volType][0]))
+		entries = append(entries, "deleted/"+BaseDirectories[volType][0])
 	}
 
 	return entries
