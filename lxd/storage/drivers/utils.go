@@ -903,6 +903,10 @@ func ValidPoolName(poolName string) error {
 		return errors.New("Cannot be empty")
 	}
 
+	if poolName == ".." {
+		return errors.New(`Cannot be ".."`)
+	}
+
 	if strings.HasPrefix(poolName, "-") {
 		return errors.New("Cannot start with a hyphen")
 	}
@@ -924,6 +928,10 @@ func ValidPoolName(poolName string) error {
 func ValidVolumeName(volumeName string) error {
 	if volumeName == "" {
 		return errors.New("Cannot be empty")
+	}
+
+	if volumeName == ".." {
+		return errors.New(`Cannot be ".."`)
 	}
 
 	if strings.Contains(volumeName, "\\") {
