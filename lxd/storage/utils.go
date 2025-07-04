@@ -1347,23 +1347,6 @@ func CompareSnapshots(sourceSnapshots []ComparableSnapshot, targetSnapshots []Co
 	return syncFromSource, deleteFromTarget
 }
 
-// ValidVolumeName validates a volume name.
-func ValidVolumeName(volumeName string) error {
-	if volumeName == "" {
-		return errors.New("Invalid volume name: Cannot be empty")
-	}
-
-	if strings.Contains(volumeName, "\\") {
-		return fmt.Errorf("Invalid volume name %q: Cannot contain backslashes", volumeName)
-	}
-
-	if strings.Contains(volumeName, shared.SnapshotDelimiter) {
-		return fmt.Errorf("Invalid volume name %q: Cannot contain slashes", volumeName)
-	}
-
-	return nil
-}
-
 // GetPoolDefaultBlockSize returns the default block size for the specified storage pool according to its driver.
 func GetPoolDefaultBlockSize(s *state.State, poolName string) (string, error) {
 	pool, err := LoadByName(s, poolName)
