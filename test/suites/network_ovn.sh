@@ -1,6 +1,6 @@
 test_network_ovn() {
-  if [ -z "${LXD_OVN_NB_CONNECTION:-}" ]; then
-    echo "OVN northbound connection not set. Skipping OVN tests..."
+  if ! ovn_enabled; then
+    echo "==> SKIP: OVN not configured. Skipping OVN tests..."
     return
   fi
 
@@ -56,15 +56,7 @@ test_network_ovn() {
   reset_row_count
   assert_row_count
 
-  lxc config set network.ovn.northbound_connection "${LXD_OVN_NB_CONNECTION}"
-
-  # If the connection uses SSL we have more required environment variables.
-  # Set the client cert, key, and CA cert.
-  if [[ "${LXD_OVN_NB_CONNECTION}" =~ ^ssl: ]]; then
-    lxc config set network.ovn.client_cert="$(< "${LXD_OVN_NB_CLIENT_CRT_FILE}")"
-    lxc config set network.ovn.client_key="$(< "${LXD_OVN_NB_CLIENT_KEY_FILE}")"
-    lxc config set network.ovn.ca_cert="$(< "${LXD_OVN_NB_CA_CRT_FILE}")"
-  fi
+  setup_ovn
 
   uplink_network="uplink$$"
   ovn_network="ovn$$"
@@ -285,7 +277,7 @@ test_network_ovn() {
   [ "$(ovn-nbctl get address_set "${address_set_ipv6_name}" addresses | jq -er '.[0]')" = "fd42:bd85:5f89:5293::/64" ]
 
   # Check internal switch DHCP options (excluding server_mac address which is random).
-  ovn-nbctl --data=bare --no-headings --columns=options find dhcp_options cidr=10.24.140.0/24 | grep -F 'dns_server={10.10.10.1} domain_name="lxd" lease_time=3600 mtu=1442 router=10.24.140.1 server_id=10.24.140.1'
+  ovn-nbctl --data=bare --no-headings --columns=options find dhcp_options cidr=10.24.140.0/24 | grep -F 'dns_server={10.10.10.1} domain_name="lxd" lease_time=3600 mtu='"${mtu}"' router=10.24.140.1 server_id=10.24.140.1'
   ovn-nbctl --data=bare --no-headings --columns=options find dhcp_options cidr="fd42\:bd85\:5f89\:5293\:\:/64" | grep -F 'dns_server={fd42:4242:4242:1010::1} domain_search="lxd"'
 
   # Check that uplink volatile address keys cannot be removed when associated network address is set.
@@ -570,11 +562,5 @@ test_network_ovn() {
   reset_row_count
   assert_row_count
 
-  # More clean up.
-  lxc config unset network.ovn.northbound_connection
-  if [[ "${LXD_OVN_NB_CONNECTION}" =~ ^ssl: ]]; then
-    lxc config unset network.ovn.client_cert
-    lxc config unset network.ovn.client_key
-    lxc config unset network.ovn.ca_cert
-  fi
+  unset_ovn_configuration
 }
