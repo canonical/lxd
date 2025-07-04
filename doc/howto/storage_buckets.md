@@ -81,8 +81,10 @@ LXD uses [MinIO](https://min.io) to set up local storage buckets. To use this fe
 If LXD is installed from a Snap, you must configure the snap environment to detect the binaries, and restart LXD.
 Note that the path to the directory containing the binaries must not be under the home directory of any user.
 
-    snap set lxd minio.path=/path/to/directory/containing/both/binaries
-    snap restart lxd
+```bash
+snap set lxd minio.path=/path/to/directory/containing/both/binaries
+snap restart lxd
+```
 
 If LXD is installed from another source, both binaries must be included in the `$PATH` that LXD was started with.
 
@@ -97,7 +99,9 @@ This is the address that you can then use to access the buckets through the S3 p
 To configure the S3 address, set the {config:option}`server-core:core.storage_buckets_address` server configuration option.
 For example:
 
-    lxc config set core.storage_buckets_address :8555
+```bash
+lxc config set core.storage_buckets_address :8555
+```
 
 (howto-storage-buckets-create-single)=
 ### Create a bucket on a single, non-clustered LXD server
@@ -136,19 +140,27 @@ See the {ref}`storage-drivers` documentation for the available configuration opt
 
 Use the following command to set configuration options for a storage bucket:
 
-    lxc storage bucket set <pool-name> <bucket-name> <key> <value>
+```bash
+lxc storage bucket set <pool-name> <bucket-name> <key> <value>
+```
 
 For example, to set the size (quota) of a bucket, use the following command:
 
-    lxc storage bucket set my-pool my-bucket size 1MiB
+```bash
+lxc storage bucket set my-pool my-bucket size 1MiB
+```
 
 You can also edit the storage bucket configuration by using the following command:
 
-    lxc storage bucket edit <pool-name> <bucket-name>
+```bash
+lxc storage bucket edit <pool-name> <bucket-name>
+```
 
 Use the following command to delete a storage bucket and its keys:
 
-    lxc storage bucket delete <pool-name> <bucket-name>
+```bash
+lxc storage bucket delete <pool-name> <bucket-name>
+```
 
 (howto-storage-buckets-resize)=
 ## Resize a storage bucket
@@ -157,7 +169,9 @@ By default, storage buckets do not have a quota applied.
 
 To set or change a quota for a storage bucket, set its size configuration:
 
-    lxc storage bucket set <pool-name> <bucket-name> size <new-size>
+```bash
+lxc storage bucket set <pool-name> <bucket-name> size <new-size>
+```
 
 ```{important}
 - Growing a storage bucket usually works (if the storage pool has sufficient storage).
@@ -188,22 +202,30 @@ If the role is not specified when creating a bucket key, the role used is `read-
 
 Use the following command to see the keys defined for an existing bucket:
 
-    lxc storage bucket key list <pool-name> <bucket-name>
+```
+lxc storage bucket key list <pool-name> <bucket-name>
+```
 
 Use the following command to see a specific bucket key:
 
-    lxc storage bucket key show <pool-name> <bucket-name> <key-name>
+```
+lxc storage bucket key show <pool-name> <bucket-name> <key-name>
+```
 
 (howto-storage-buckets-keys-create)=
 ### Create keys
 
 Use the following command to create a set of credentials for a storage bucket:
 
-    lxc storage bucket key create <pool-name> <bucket-name> <key-name> [configuration_options...]
+```bash
+lxc storage bucket key create <pool-name> <bucket-name> <key-name> [configuration_options...]
+```
 
 Use the following command to create a set of credentials for a storage bucket with a specific role:
 
-    lxc storage bucket key create <pool-name> <bucket-name> <key-name> --role=admin [configuration_options...]
+```bash
+lxc storage bucket key create <pool-name> <bucket-name> <key-name> --role=admin [configuration_options...]
+```
 
 These commands will generate and display a random set of credential keys.
 
@@ -212,9 +234,12 @@ These commands will generate and display a random set of credential keys.
 
 Use the following command to edit an existing bucket key:
 
-    lxc storage bucket key edit <pool-name> <bucket-name> <key-name>
+```bash
+lxc storage bucket key edit <pool-name> <bucket-name> <key-name>
+```
 
 Use the following command to delete an existing bucket key:
 
-    lxc storage bucket key delete <pool-name> <bucket-name> <key-name>
-
+```bash
+lxc storage bucket key delete <pool-name> <bucket-name> <key-name>
+```
