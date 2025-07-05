@@ -302,7 +302,8 @@ func (o *OVN) xbctl(southbound bool, extraArgs ...string) (string, error) {
 		cmd = "ovn-sbctl"
 	}
 
-	if after, ok := strings.CutPrefix(dbAddr, "unix:"); ok {
+	after, ok := strings.CutPrefix(dbAddr, "unix:")
+	if ok {
 		dbAddr = "unix:" + shared.HostPathFollow(after)
 	}
 
