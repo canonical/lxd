@@ -1372,7 +1372,7 @@ func (o *OVN) LogicalSwitchPortGetDNS(portName OVNSwitchPort) (OVNDNSUUID, []net
 	// 2. <IP>
 	// 3. <reverse IP>.in-addr.arpa=<name>
 	// We are only interested in getting the IPs in field formats 1 and 2.
-	for _, recordField := range strings.Fields(recordFields) {
+	for recordField := range strings.FieldsSeq(recordFields) {
 		a, b, found := strings.Cut(recordField, "=")
 		if found {
 			a = b // Get IP part of <name>=<IP> type fields.
