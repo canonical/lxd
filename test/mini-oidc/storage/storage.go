@@ -698,8 +698,8 @@ func (s *Storage) ValidateTokenExchangeRequest(ctx context.Context, request op.T
 			continue
 		}
 
-		if strings.HasPrefix(scope, CustomScopeImpersonatePrefix) {
-			subject := strings.TrimPrefix(scope, CustomScopeImpersonatePrefix)
+		subject, found := strings.CutPrefix(scope, CustomScopeImpersonatePrefix)
+		if found {
 			request.SetSubject(subject)
 		}
 
