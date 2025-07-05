@@ -179,8 +179,9 @@ func (c *Config) getPublicRemoteByName(name string) (*Remote, error) {
 // connectRemote returns a lxd.InstanceServer for the given Remote and configures it with the given lxd.ConnectionArgs.
 func (c *Config) connectRemote(remote Remote, args *lxd.ConnectionArgs) (lxd.InstanceServer, error) {
 	// Unix socket
-	if strings.HasPrefix(remote.Addr, "unix:") {
-		d, err := lxd.ConnectLXDUnix(strings.TrimPrefix(strings.TrimPrefix(remote.Addr, "unix:"), "//"), args)
+	after, ok := strings.CutPrefix(remote.Addr, "unix:")
+	if ok {
+		d, err := lxd.ConnectLXDUnix(strings.TrimPrefix(after, "//"), args)
 		if err != nil {
 			var netErr *net.OpError
 
@@ -245,8 +246,9 @@ func (c *Config) GetImageServer(name string) (lxd.ImageServer, error) {
 	}
 
 	// Unix socket
-	if strings.HasPrefix(remote.Addr, "unix:") {
-		d, err := lxd.ConnectLXDUnix(strings.TrimPrefix(strings.TrimPrefix(remote.Addr, "unix:"), "//"), args)
+	after, ok := strings.CutPrefix(remote.Addr, "unix:")
+	if ok {
+		d, err := lxd.ConnectLXDUnix(strings.TrimPrefix(after, "//"), args)
 		if err != nil {
 			return nil, err
 		}
