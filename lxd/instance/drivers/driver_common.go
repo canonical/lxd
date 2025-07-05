@@ -489,7 +489,8 @@ func (d *common) deviceVolatileGetFunc(devName string) func() map[string]string 
 		volatile := make(map[string]string)
 		prefix := fmt.Sprintf("volatile.%s.", devName)
 		for k, v := range d.localConfig {
-			if after, ok := strings.CutPrefix(k, prefix); ok {
+			after, ok := strings.CutPrefix(k, prefix)
+			if ok {
 				volatile[after] = v
 			}
 		}
