@@ -791,6 +791,7 @@ func (d *lvm) mountCommon(vol Volume, op *operations.Operation) error {
 			volDevPath = d.lvmDevPath(d.config["lvm.vg_name"], mountVol.volType, mountVol.contentType, mountVol.name)
 
 			tmpVolFsType := mountVol.ConfigBlockFilesystem()
+			mountOptions = addNoRecoveryMountOption(mountOptions, tmpVolFsType)
 
 			// When mounting XFS filesystems temporarily we can use the nouuid option rather than fully
 			// regenerating the filesystem UUID.

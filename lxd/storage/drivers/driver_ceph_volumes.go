@@ -2041,8 +2041,11 @@ func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 
 		RBDFilesystem := snapVol.ConfigBlockFilesystem()
 		mountFlags, mountOptions := filesystem.ResolveMountOptions(strings.Split(snapVol.ConfigBlockMountOptions(), ","))
+		mountOptions = addNoRecoveryMountOption(mountOptions, RBDFilesystem)
 
 		if renegerateFilesystemUUIDNeeded(RBDFilesystem) {
+			// When mounting XFS filesystems temporarily we can use the nouuid option rather than fully
+			// regenerating the filesystem UUID.
 			if RBDFilesystem == "xfs" {
 				idx := strings.Index(mountOptions, "nouuid")
 				if idx < 0 {
