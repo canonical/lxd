@@ -35,3 +35,31 @@ func TestGetVolumeMountPath(t *testing.T) {
 	expected = GetPoolMountPath(poolName) + "/virtual-machines/testvol"
 	assert.Equal(t, expected, path)
 }
+
+// Test addNoRecoveryMountOption.
+func TestAddNoRecoveryMountOption(t *testing.T) {
+	// Test unsupported FS.
+	options := "ro"
+	result := addNoRecoveryMountOption(options, "vfat")
+	assert.Equal(t, "ro", result)
+
+	// Test without options.
+	options = ""
+	result = addNoRecoveryMountOption(options, "ext4")
+	assert.Equal(t, "norecovery", result)
+
+	// Test noload being a synonym for norecovery.
+	options = "ro,noatime,noload"
+	result = addNoRecoveryMountOption(options, "ext4")
+	assert.Equal(t, "ro,noatime,norecovery", result)
+
+	// Test with existing options.
+	options = "ro,noatime"
+	result = addNoRecoveryMountOption(options, "btrfs")
+	assert.Equal(t, "ro,noatime,norecovery", result)
+
+	// Test with existing norecovery option.
+	options = "norecovery"
+	result = addNoRecoveryMountOption(options, "xfs")
+	assert.Equal(t, "norecovery", result)
+}
