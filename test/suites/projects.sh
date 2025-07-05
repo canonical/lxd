@@ -9,6 +9,7 @@ test_projects_default() {
   lxc project show default | grep -xF -- "- /1.0/profiles/default"
   lxc project show default | grep -F -- "- /1.0/images/"
   lxc delete c1
+  lxc image delete testimage
 }
 
 # CRUD operations on project.
@@ -1170,3 +1171,119 @@ test_projects_before_init() {
 
   shutdown_lxd "${LXD_INIT_DIR}"
 }
+
+test_projects_images_volume() {
+  if [ "${LXD_BACKEND}" = "ceph" ]; then
+    # This won't work on ceph because it's not a multi-node storage
+    ! lxc project create foo -c storage.images_volume="${pool}/vol" || false
+    return
+  fi
+
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+
+  lxc storage volume create "${pool}" vol
+
+  # Check that projects without images can't have dedicated images storage
+  ! lxc project create foo -c features.images=false -c storage.images_volume="${pool}/vol" || false
+  lxc project create foo -c storage.images_volume="${pool}/vol"
+
+  # It should be possible to change the setting on empty projects
+  lxc project unset foo storage.images_volume
+  lxc project set foo storage.images_volume="${pool}/vol"
+
+  # Import an image into the project and grab its fingerprint
+  deps/import-busybox --project foo --alias testimage
+  fingerprint="$(lxc image list --project foo -f csv -c F testimage)"
+
+  # The image should not exist in the default storage, only in the project images volume
+  [ ! -e "${LXD_DIR}/images/${fingerprint}" ]
+  [ -z "$(ls -A "${LXD_DIR}/images")" ]
+  [ -f "${LXD_DIR}/storage-pools/${pool}/custom/default_vol/images/${fingerprint}" ]
+
+  # It should not be possible to change the setting on empty projects
+  ! lxc project unset foo storage.images_volume || false
+
+  # It should be possible to share the volume among multiple projects
+  lxc project create foo2 -c storage.images_volume="${pool}/vol"
+  deps/import-busybox --project foo2 --alias testimage
+  lxc image delete --project foo2 testimage
+  lxc project delete foo2
+
+  # Import the image in the default project and storage, and ensure it's gone after removal
+  deps/import-busybox --alias testimage
+  [ -e "${LXD_DIR}/images/${fingerprint}" ]
+  lxc image delete testimage
+  [ ! -e "${LXD_DIR}/images/${fingerprint}" ]
+  [ -z "$(ls -A "${LXD_DIR}/images")" ]
+
+  # It should not be possible to move daemon storage to the same volume
+  ! lxc config set storage.images_volume="${pool}/vol" || false
+
+  # Create a container in the project
+  lxc init --project foo --storage "${pool}" testimage c1
+
+  # Delete the container
+  lxc delete --project foo c1
+
+  # Delete the image
+  lxc image delete --project foo testimage
+  [ -z "$(ls -A "${LXD_DIR}/storage-pools/${pool}/custom/default_vol/images")" ]
+  [ ! -e "${LXD_DIR}/storage-pools/${pool}/custom/default_vol/images/${fingerprint}" ]
+
+  # Clean up
+  lxc project delete foo
+  lxc storage volume delete "${pool}" vol
+}
+
+test_projects_backups_volume() {
+  if [ "${LXD_BACKEND}" = "ceph" ]; then
+    # This won't work on ceph because it's not a multi-node storage
+    ! lxc project create foo -c storage.backups_volume="${pool}/vol" || false
+    return
+  fi
+
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+
+  lxc storage volume create "${pool}" vol
+
+  # Create test project sharing the storage for images and backups
+  lxc project create foo -c storage.images_volume="${pool}/vol" -c storage.backups_volume="${pool}/vol"
+
+  # It should be possible to change the setting on empty projects
+  lxc project unset foo storage.backups_volume
+  lxc project set foo storage.backups_volume="${pool}/vol"
+
+  # It should not be possible to move daemon storage to the same volume
+  ! lxc config set storage.backups_volume="${pool}/vol" || false
+
+  # Import an image into the project
+  deps/import-busybox --project foo --alias testimage
+
+  # Create a container in the project
+  lxc init --project foo --storage "${pool}" testimage c1
+
+  # Take the backup
+  lxc query -X POST --wait -d '{\"name\":\"bak\"}' "/1.0/instances/c1/backups?project=foo"
+
+  # Make sure the backup does not exist in the default storage
+  [ -d "${LXD_DIR}/backups/instances" ]
+  [ -z "$(ls -A "${LXD_DIR}/backups/instances")" ]
+
+  # Make sure the backup does exist in the dedicated pool
+  [ -d "${LXD_DIR}/storage-pools/${pool}/custom/default_vol/backups/instances" ]
+  [ -d "${LXD_DIR}/storage-pools/${pool}/custom/default_vol/backups/instances/foo_c1" ]
+  [ -f "${LXD_DIR}/storage-pools/${pool}/custom/default_vol/backups/instances/foo_c1/bak" ]
+
+  # Delete the container
+  lxc delete --project foo c1
+
+  # Ensure the backup is gone
+  [ -d "${LXD_DIR}/storage-pools/${pool}/custom/default_vol/backups/instances" ]
+  [ -z "$(ls -A "${LXD_DIR}/storage-pools/${pool}/custom/default_vol/backups/instances")" ]
+
+  # Clean up
+  lxc image delete --project foo testimage
+  lxc project delete foo
+  lxc storage volume delete "${pool}" vol
+}
+

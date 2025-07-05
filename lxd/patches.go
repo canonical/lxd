@@ -743,7 +743,7 @@ func patchNetworkOVNEnableNAT(name string, d *Daemon) error {
 
 // Moves backups from shared.VarPath("backups") to shared.VarPath("backups", "instances").
 func patchMoveBackupsInstances(name string, d *Daemon) error {
-	backupsPathBase := d.State().BackupsStoragePath()
+	backupsPathBase := d.State().BackupsStoragePath("")
 	if !shared.PathExists(backupsPathBase) {
 		return nil // Nothing to do, no backups directory.
 	}
@@ -1552,14 +1552,14 @@ func patchMoveBackupsImagesStorage(name string, d *Daemon) error {
 	}
 
 	if d.localConfig.StorageImagesVolume() != "" {
-		err := moveStorage(d.State().ImagesStoragePath())
+		err := moveStorage(d.State().ImagesStoragePath(""))
 		if err != nil {
 			return err
 		}
 	}
 
 	if d.localConfig.StorageBackupsVolume() != "" {
-		err := moveStorage(d.State().BackupsStoragePath())
+		err := moveStorage(d.State().BackupsStoragePath(""))
 		if err != nil {
 			return err
 		}

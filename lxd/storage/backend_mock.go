@@ -293,7 +293,7 @@ func (b *mockBackend) UpdateInstanceSnapshot(inst instance.Instance, newDesc str
 }
 
 // EnsureImage ...
-func (b *mockBackend) EnsureImage(fingerprint string, op *operations.Operation) error {
+func (b *mockBackend) EnsureImage(fingerprint string, op *operations.Operation, projectImagesVolume string) error {
 	return nil
 }
 

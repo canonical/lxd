@@ -100,7 +100,7 @@ type Pool interface {
 	UpdateInstanceSnapshot(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error
 
 	// Images.
-	EnsureImage(fingerprint string, op *operations.Operation) error
+	EnsureImage(fingerprint string, op *operations.Operation, projectImagesVolume string) error
 	DeleteImage(fingerprint string, op *operations.Operation) error
 	UpdateImage(fingerprint string, newDesc string, newConfig map[string]string, op *operations.Operation) error
 
