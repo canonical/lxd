@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -286,83 +287,67 @@ func (r *syncResponse) String() string {
 
 // Error response.
 type errorResponse struct {
-	code int    // Code to return in both the HTTP header and Code field of the response body.
-	msg  string // Message to return in the Error field of the response body.
+	code int   // Code to return in both the HTTP header and Code field of the response body.
+	err  error // Error whose string representation will be returned in the Error field of the response body.
 }
 
 // ErrorResponse returns an error response with the given code and msg.
 func ErrorResponse(code int, msg string) Response {
-	return &errorResponse{code, msg}
+	return &errorResponse{code, errors.New(msg)}
 }
 
 // BadRequest returns a bad request response (400) with the given error.
 func BadRequest(err error) Response {
-	return &errorResponse{http.StatusBadRequest, err.Error()}
+	return &errorResponse{code: http.StatusBadRequest, err: err}
 }
 
 // Conflict returns a conflict response (409) with the given error.
 func Conflict(err error) Response {
-	message := "already exists"
-	if err != nil {
-		message = err.Error()
-	}
-
-	return &errorResponse{http.StatusConflict, message}
+	return &errorResponse{code: http.StatusConflict, err: err}
 }
 
 // Forbidden returns a forbidden response (403) with the given error.
 func Forbidden(err error) Response {
-	message := "not authorized"
-	if err != nil {
-		message = err.Error()
-	}
-
-	return &errorResponse{http.StatusForbidden, message}
+	return &errorResponse{code: http.StatusForbidden, err: err}
 }
 
 // InternalError returns an internal error response (500) with the given error.
 func InternalError(err error) Response {
-	return &errorResponse{http.StatusInternalServerError, err.Error()}
+	return &errorResponse{code: http.StatusInternalServerError, err: err}
 }
 
 // NotFound returns a not found response (404) with the given error.
 func NotFound(err error) Response {
-	message := "not found"
-	if err != nil {
-		message = err.Error()
-	}
-
-	return &errorResponse{http.StatusNotFound, message}
+	return &errorResponse{code: http.StatusNotFound, err: err}
 }
 
 // NotImplemented returns a not implemented response (501) with the given error.
 func NotImplemented(err error) Response {
-	message := "not implemented"
-	if err != nil {
-		message = err.Error()
-	}
-
-	return &errorResponse{http.StatusNotImplemented, message}
+	return &errorResponse{code: http.StatusNotImplemented, err: err}
 }
 
 // PreconditionFailed returns a precondition failed response (412) with the
 // given error.
 func PreconditionFailed(err error) Response {
-	return &errorResponse{http.StatusPreconditionFailed, err.Error()}
+	return &errorResponse{code: http.StatusPreconditionFailed, err: err}
 }
 
 // Unavailable return an unavailable response (503) with the given error.
 func Unavailable(err error) Response {
-	message := "unavailable"
-	if err != nil {
-		message = err.Error()
-	}
+	return &errorResponse{code: http.StatusServiceUnavailable, err: err}
+}
 
-	return &errorResponse{http.StatusServiceUnavailable, message}
+// Unauthorized return an unauthorized response (401) with the given error.
+func Unauthorized(err error) Response {
+	return &errorResponse{code: http.StatusUnauthorized, err: err}
 }
 
 func (r *errorResponse) String() string {
-	return r.msg
+	if r.err != nil {
+		return r.err.Error()
+	}
+
+	return http.StatusText(r.code)
 }
 
 // Render renders a response that indicates an error on the request handling.
@@ -379,7 +364,7 @@ func (r *errorResponse) Render(w http.ResponseWriter, req *http.Request) error {
 
 	resp := api.ResponseRaw{
 		Type:  api.ErrorResponse,
-		Error: r.msg,
+		Error: r.String(),
 		Code:  r.code, // Set the error code in the Code field of the response body.
 	}
 
@@ -645,14 +630,4 @@ func (r *manualResponse) Render(w http.ResponseWriter, req *http.Request) error 
 
 func (r *manualResponse) String() string {
 	return "unknown"
-}
-
-// Unauthorized return an unauthorized response (401) with the given error.
-func Unauthorized(err error) Response {
-	message := "unauthorized"
-	if err != nil {
-		message = err.Error()
-	}
-
-	return &errorResponse{http.StatusUnauthorized, message}
 }
