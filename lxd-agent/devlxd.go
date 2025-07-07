@@ -13,8 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -175,7 +173,7 @@ var devLXDConfigKeyEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDConfigKeyGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	key, err := url.PathUnescape(mux.Vars(r)["key"])
+	key, err := url.PathUnescape(r.PathValue("key"))
 	if err != nil {
 		return errorResponse(http.StatusBadRequest, "bad request")
 	}
@@ -271,7 +269,7 @@ var devLXDImageExportEndpoint = devLXDAPIEndpoint{
 
 func devLXDImageExportHandler(d *Daemon, r *http.Request) *devLXDResponse {
 	// Extract the fingerprint.
-	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	fingerprint, err := url.PathUnescape(r.PathValue("fingerprint"))
 	if err != nil {
 		return smartResponse(err)
 	}
@@ -356,8 +354,7 @@ func devLXDUbuntuProTokenPostHandler(d *Daemon, r *http.Request) *devLXDResponse
 }
 
 func devLXDAPI(d *Daemon) http.Handler {
-	router := mux.NewRouter()
-	router.UseEncodedPath() // Allow encoded values in path segments.
+	router := http.NewServeMux()
 
 	for _, ep := range devLXDEndpoints {
 		registerDevLXDEndpoint(d, router, "1.0", ep)
@@ -366,7 +363,7 @@ func devLXDAPI(d *Daemon) http.Handler {
 	return router
 }
 
-func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string, ep devLXDAPIEndpoint) {
+func registerDevLXDEndpoint(d *Daemon, apiRouter *http.ServeMux, apiVersion string, ep devLXDAPIEndpoint) {
 	uri := ep.Path
 	if uri != "/" {
 		uri = path.Join("/", apiVersion, ep.Path)
@@ -426,13 +423,7 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 		}
 	}
 
-	route := apiRouter.HandleFunc(uri, handleFunc)
-
-	// If the endpoint has a canonical name then record it so it can be used to build URLS
-	// and accessed in the context of the request by the handler function.
-	if ep.Name != "" {
-		route.Name(ep.Name)
-	}
+	apiRouter.HandleFunc(uri, handleFunc)
 }
 
 // Create a new net.Listener bound to the unix socket of the devLXD endpoint.
