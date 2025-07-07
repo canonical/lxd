@@ -11,7 +11,6 @@ import (
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
-	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/rsync"
 	"github.com/canonical/lxd/lxd/state"
@@ -22,23 +21,8 @@ import (
 )
 
 func daemonStorageVolumesUnmount(s *state.State, ctx context.Context) error {
-	var storageBackups string
-	var storageImages string
-
-	err := s.DB.Node.Transaction(ctx, func(ctx context.Context, tx *db.NodeTx) error {
-		nodeConfig, err := node.ConfigLoad(ctx, tx)
-		if err != nil {
-			return err
-		}
-
-		storageBackups = nodeConfig.StorageBackupsVolume()
-		storageImages = nodeConfig.StorageImagesVolume()
-
-		return nil
-	})
-	if err != nil {
-		return err
-	}
+	storageBackups := s.LocalConfig.StorageBackupsVolume()
+	storageImages := s.LocalConfig.StorageImagesVolume()
 
 	unmount := func(source string) error {
 		// Parse the source.
@@ -84,22 +68,8 @@ func daemonStorageVolumesUnmount(s *state.State, ctx context.Context) error {
 }
 
 func daemonStorageMount(s *state.State) error {
-	var storageBackups string
-	var storageImages string
-	err := s.DB.Node.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
-		nodeConfig, err := node.ConfigLoad(ctx, tx)
-		if err != nil {
-			return err
-		}
-
-		storageBackups = nodeConfig.StorageBackupsVolume()
-		storageImages = nodeConfig.StorageImagesVolume()
-
-		return nil
-	})
-	if err != nil {
-		return err
-	}
+	storageBackups := s.LocalConfig.StorageBackupsVolume()
+	storageImages := s.LocalConfig.StorageImagesVolume()
 
 	mount := func(source string) error {
 		// Parse the source.
