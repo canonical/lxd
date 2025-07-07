@@ -1449,7 +1449,7 @@ func ProxyParseAddr(data string) (*deviceConfig.ProxyAddress, error) {
 			return nil, err
 		}
 
-		for i := int64(0); i < portRange; i++ {
+		for i := range portRange {
 			newProxyAddr.Ports = append(newProxyAddr.Ports, uint64(portFirst+i))
 		}
 	}

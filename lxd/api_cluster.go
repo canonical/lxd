@@ -6,6 +6,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -849,9 +850,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		// Copy the old config so that the update triggers have access to it.
 		// In this case it will not be used as we are not changing any node values.
 		oldNodeConfig := make(map[string]any)
-		for k, v := range s.LocalConfig.Dump() {
-			oldNodeConfig[k] = v
-		}
+		maps.Copy(oldNodeConfig, s.LocalConfig.Dump())
 
 		err = doAPI10UpdateTriggers(d, nil, changes, oldNodeConfig, nodeConfig, currentClusterConfig)
 		if err != nil {
