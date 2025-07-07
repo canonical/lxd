@@ -79,22 +79,24 @@ var networkAllocationsCmd = APIEndpoint{
 func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	requestProjectName := request.ProjectParam(r)
-	effectiveProjectName, _, err := project.NetworkProject(s.DB.Cluster, requestProjectName)
+	requestProjectName, allProjects, err := request.ProjectParams(r)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	reqInfo := request.SetupContextInfo(r)
-	reqInfo.EffectiveProjectName = effectiveProjectName
-
-	allProjects := shared.IsTrue(request.QueryParam(r, "all-projects"))
+	if !allProjects {
+		reqInfo.EffectiveProjectName, _, err = project.NetworkProject(s.DB.Cluster, requestProjectName)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
 
 	var projectNames []string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Figure out the projects to retrieve.
 		if !allProjects {
-			projectNames = []string{effectiveProjectName}
+			projectNames = []string{reqInfo.EffectiveProjectName}
 		} else {
 			// Get all project names if no specific project requested.
 			projectNames, err = dbCluster.GetProjectNames(ctx, tx.Tx())

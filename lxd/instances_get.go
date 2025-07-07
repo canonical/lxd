@@ -247,20 +247,15 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 
 	mustLoadObjects := recursion > 0 || (recursion == 0 && clauses != nil && len(clauses.Clauses) > 0)
 
-	// Detect project mode.
-	projectName := request.QueryParam(r, "project")
-	allProjects := shared.IsTrue(r.FormValue("all-projects"))
+	projectName, allProjects, err := request.ProjectParams(r)
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Detect if we want to also return entitlements for each instance.
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeInstance, true)
 	if err != nil {
 		return response.SmartError(err)
-	}
-
-	if allProjects && projectName != "" {
-		return response.BadRequest(errors.New("Cannot specify a project when requesting all projects"))
-	} else if !allProjects && projectName == "" {
-		projectName = api.ProjectDefaultName
 	}
 
 	// Get the list and location of all instances.

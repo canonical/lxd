@@ -352,13 +352,18 @@ func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(nil)
 	}
 
+	requestProjectName, allProjects, err := request.ProjectParams(r)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// all-projects requests are not allowed
-	if shared.IsTrue(request.QueryParam(r, "all-projects")) {
+	if allProjects {
 		return response.Forbidden(errors.New("Certificate is restricted"))
 	}
 
 	// Disallow listing resources in projects the caller does not have access to.
-	if !slices.Contains(id.Projects, request.ProjectParam(r)) {
+	if !slices.Contains(id.Projects, requestProjectName) {
 		return response.Forbidden(errors.New("Certificate is restricted"))
 	}
 

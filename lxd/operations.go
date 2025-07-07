@@ -488,16 +488,9 @@ func operationCancel(ctx context.Context, s *state.State, projectName string, op
 func operationsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName := request.QueryParam(r, "project")
-	allProjects := shared.IsTrue(request.QueryParam(r, "all-projects"))
-	recursion := util.IsRecursionRequest(r)
-
-	if allProjects && projectName != "" {
-		return response.SmartError(
-			api.StatusErrorf(http.StatusBadRequest, "Cannot specify a project when requesting all projects"),
-		)
-	} else if !allProjects && projectName == "" {
-		projectName = api.ProjectDefaultName
+	projectName, allProjects, err := request.ProjectParams(r)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanViewOperations, entity.TypeProject)
@@ -565,6 +558,8 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 
 		return body, nil
 	}
+
+	recursion := util.IsRecursionRequest(r)
 
 	// Check if called from a cluster node.
 	if isClusterNotification(r) {
