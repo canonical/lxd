@@ -63,3 +63,47 @@ func TestAddNoRecoveryMountOption(t *testing.T) {
 	result = addNoRecoveryMountOption(options, "xfs")
 	assert.Equal(t, "norecovery", result)
 }
+
+// Test ValidPoolName.
+func TestValidPoolName(t *testing.T) {
+	// Test valid pool name.
+	assert.NoError(t, ValidPoolName("valid-pool"))
+
+	// Test valid pool name with special characters.
+	assert.NoError(t, ValidPoolName("valid@pool"))
+	assert.NoError(t, ValidPoolName("valid#pool"))
+	assert.NoError(t, ValidPoolName("valid;pool"))
+	assert.NoError(t, ValidPoolName("valid&pool"))
+	assert.NoError(t, ValidPoolName("valid,pool"))
+	assert.NoError(t, ValidPoolName("valid..pool"))
+	assert.NoError(t, ValidPoolName("valid_pool"))
+
+	// Test invalid pool names.
+	assert.Error(t, ValidPoolName(""))
+	assert.Error(t, ValidPoolName("-invalid-pool"))
+	assert.Error(t, ValidPoolName(".."))
+	assert.Error(t, ValidPoolName("invalid pool"))
+	assert.Error(t, ValidPoolName("invalid/pool"))
+}
+
+// Test ValidVolumeName.
+func TestValidVolumeName(t *testing.T) {
+	// Test valid volume name.
+	assert.NoError(t, ValidVolumeName("validvolume"))
+
+	// Test valid volume name with special characters.
+	assert.NoError(t, ValidVolumeName("valid@volume"))
+	assert.NoError(t, ValidVolumeName("valid#volume"))
+	assert.NoError(t, ValidVolumeName("valid;volume"))
+	assert.NoError(t, ValidVolumeName("valid&volume"))
+	assert.NoError(t, ValidVolumeName("valid,volume"))
+	assert.NoError(t, ValidVolumeName("valid..volume"))
+	assert.NoError(t, ValidVolumeName("valid_volume"))
+	assert.NoError(t, ValidVolumeName("-valid-volume"))
+
+	// Test invalid volume names.
+	assert.Error(t, ValidVolumeName(""))
+	assert.Error(t, ValidVolumeName(".."))
+	assert.Error(t, ValidVolumeName("invalid volume"))
+	assert.Error(t, ValidVolumeName("invalid/volume"))
+}
