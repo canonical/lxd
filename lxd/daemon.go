@@ -1539,7 +1539,10 @@ func (d *Daemon) init() error {
 
 			_ = hbGroup.Stop(time.Second)
 			_ = d.gateway.Cluster.Close()
+
+			d.gateway.HeartbeatLock.Lock()
 			d.gateway.Cluster = nil
+			d.gateway.HeartbeatLock.Unlock()
 
 			continue
 		}
