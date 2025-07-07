@@ -22,8 +22,9 @@ _server_config_access() {
   [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -w "%{http_code}" -o /dev/null -H 'Sec-Fetch-Site: same-site' "lxd/1.0")" = "403" ]
 
   # test content type validation.
-  [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -w "%{http_code}" -o /dev/null -H "Content-Type: application/json" "lxd/1.0")" = "200" ]
-  [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -w "%{http_code}" -o /dev/null -H "Content-Type: foo" "lxd/1.0")" = "415" ]
+  [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -w "%{http_code}" -o /dev/null -H "User-Agent: Mozilla/5.0" -H "Content-Type: application/json" "lxd/1.0")" = "200" ]
+  [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -w "%{http_code}" -o /dev/null -H "User-Agent: Mozilla/5.0" -H "Content-Type: foo" "lxd/1.0")" = "415" ]
+  [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -w "%{http_code}" -o /dev/null -H "User-Agent: LXD" -H "Content-Type: foo" "lxd/1.0")" = "200" ]
 }
 
 _server_config_storage() {
