@@ -50,7 +50,7 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
 	github.com/vishvananda/netlink v1.3.1
-	github.com/zitadel/oidc/v3 v3.39.0
+	github.com/zitadel/oidc/v3 v3.39.1
 	go.starlark.net v0.0.0-20250603171236-27fdb1d4744d
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.39.0
