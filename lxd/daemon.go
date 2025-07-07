@@ -949,12 +949,14 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 				action.ContentTypes = []string{"application/json"}
 			}
 
-			// Validate Content-Type if supplied, or if non-zero Content-Length supplied.
-			contentTypeParts := shared.SplitNTrimSpace(r.Header.Get("Content-Type"), ";", 2, false) // Ignore multi-part boundary part.
-			contentLength := r.Header.Get("Content-Length")
-			hasContentLength := contentLength != "" && contentLength != "0"
-			if (hasContentLength || contentTypeParts[0] != "") && !slices.Contains(action.ContentTypes, contentTypeParts[0]) {
-				return response.ErrorResponse(http.StatusUnsupportedMediaType, "Unsupported Content-Type for this request")
+			// Validate browser Content-Type if supplied, or if non-zero Content-Length supplied.
+			if isBrowserClient(r) {
+				contentTypeParts := shared.SplitNTrimSpace(r.Header.Get("Content-Type"), ";", 2, false) // Ignore multi-part boundary part.
+				contentLength := r.Header.Get("Content-Length")
+				hasContentLength := contentLength != "" && contentLength != "0"
+				if (hasContentLength || contentTypeParts[0] != "") && !slices.Contains(action.ContentTypes, contentTypeParts[0]) {
+					return response.ErrorResponse(http.StatusUnsupportedMediaType, "Unsupported Content-Type for this request")
+				}
 			}
 
 			// All APIEndpointActions should have an access handler or should allow untrusted requests.
