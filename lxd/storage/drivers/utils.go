@@ -929,7 +929,7 @@ func remoteVolumeMapLock(connectorName string, driverName string) (locking.Unloc
 	l.Debug("Acquiring lock for remote volume map")
 	defer l.Debug("Lock acquired for remote volume map")
 
-	return locking.Lock(context.TODO(), fmt.Sprintf("RemoteVolumeMap_%s_%s", connectorName, driverName))
+	return locking.Lock(context.TODO(), "RemoteVolumeMap_"+connectorName+"_"+driverName)
 }
 
 // ValidPoolName validates a pool name.
