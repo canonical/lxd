@@ -458,6 +458,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # A non-shallow clone is needed for the sitemap generation
+          fetch-depth: 0
 
       - name: Install Go
         uses: actions/setup-go@v5
