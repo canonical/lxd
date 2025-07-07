@@ -199,3 +199,184 @@ test_image_refresh() {
   lxc remote rm l2
   kill_lxd "${LXD2_DIR}"
 }
+
+test_images_public() {
+  echo "==> Check public image handling for untrusted callers"
+  run_images_public
+
+  echo "==> Check public image handling for restricted TLS clients with no permissions"
+  token="$(lxc config trust add --name tmp --restricted --quiet)"
+
+  # Generate certificates.
+  tmpdir="$(mktemp -d -p "${TEST_DIR}" XXX)"
+  LXD_CONF="${tmpdir}" gen_cert_and_key client
+
+  # Gain trust.
+  LXD_CONF="${tmpdir}" lxc remote add tmp "${token}"
+
+  # Rename certificates, this tells "run_images_public" which assertions to run.
+  mv "${tmpdir}/client.crt" "${tmpdir}/restricted.crt"
+  mv "${tmpdir}/client.key" "${tmpdir}/restricted.key"
+
+  # Run test.
+  CERT_DIR="${tmpdir}" CERT_NAME="restricted" run_images_public
+
+  # Clean up.
+  lxc config trust remove "$(cert_fingerprint "${tmpdir}/restricted.crt")"
+  rm -rf "${tmpdir}"
+
+  echo "==> Check public image handling for fine-grained TLS clients with no groups"
+  token="$(lxc auth identity create tls/tmp --quiet)"
+
+  # Generate certificates.
+  tmpdir="$(mktemp -d -p "${TEST_DIR}" XXX)"
+  LXD_CONF="${tmpdir}" gen_cert_and_key client
+
+  # Gain trust.
+  LXD_CONF="${tmpdir}" lxc remote add tmp "${token}"
+
+  # Rename certificates, this tells "run_images_public" which assertions to run.
+  mv "${tmpdir}/client.crt" "${tmpdir}/fine-grained.crt"
+  mv "${tmpdir}/client.key" "${tmpdir}/fine-grained.key"
+
+  # Run test.
+  CERT_DIR="${tmpdir}" CERT_NAME="fine-grained" run_images_public
+
+  # Clean up.
+  lxc auth identity delete tls/tmp
+  rm -rf "${tmpdir}"
+}
+
+run_images_public() {
+  query() {
+    # Function to use for querying. (Cant use my_curl for untrusted requests).
+    # SC2068 is disabled because we do want arguments to be re-split.
+    url="${1}"
+    shift
+    if [ -n "${CERT_DIR:-}" ]; then
+      # shellcheck disable=2153,2068
+      curl -s --cacert "${LXD_DIR}/server.crt" --cert "${CERT_DIR}/${CERT_NAME}.crt" --key "${CERT_DIR}/${CERT_NAME}.key" "https://${LXD_ADDR}${url}" ${@}
+    else
+      # shellcheck disable=2153,2068
+      curl -s --cacert "${LXD_DIR}/server.crt" "https://${LXD_ADDR}${url}" ${@}
+    fi
+  }
+
+  # Add a private image to the default project.
+  deps/import-busybox --alias default-img
+
+  # Create a project and import an image.
+  lxc project create foo
+  deps/import-busybox --project foo --alias foo-img
+
+  # All callers see an empty list of images in the default project.
+  query /1.0/images | jq -e '(.metadata | length) == 0 and .status_code == 200'
+  query /1.0/images?project=default | jq -e '(.metadata | length) == 0 and .status_code == 200'
+  query /1.0/images?recursion=1 | jq -e '(.metadata | length) == 0 and .status_code == 200'
+  query /1.0/images?recursion=1\&project=default | jq -e '(.metadata | length) == 0 and .status_code == 200'
+
+  if [ -z "${CERT_NAME:-}" ]; then
+    # Untrusted callers see a generic 404 for project foo, or a 403 if using "all-projects".
+    query /1.0/images?project=foo | jq -e '.error == "Not Found" and .error_code == 404'
+    query /1.0/images?recursion=1\&project=foo | jq -e '.error == "Not Found" and .error_code == 404'
+    query /1.0/images?project=bar | jq -e '.error == "Not Found" and .error_code == 404'
+    query /1.0/images?recursion=1\&project=bar | jq -e '.error == "Not Found" and .error_code == 404'
+    query /1.0/images?all-projects=true | jq -e '.error == "Untrusted callers may only access public images in the default project" and .error_code == 403'
+    query /1.0/images?recursion=1\&all-projects=true | jq -e '.error == "Untrusted callers may only access public images in the default project" and .error_code == 403'
+  else
+    # Restricted and fine-grained TLS clients see an empty list.
+    query /1.0/images?project=foo | jq -e '(.metadata | length) == 0 and .status_code == 200'
+    query /1.0/images?recursion=1\&project=foo  | jq -e '(.metadata | length) == 0 and .status_code == 200'
+    query /1.0/images?project=bar | jq -e '(.metadata | length) == 0 and .status_code == 200'
+    query /1.0/images?recursion=1\&project=bar  | jq -e '(.metadata | length) == 0 and .status_code == 200'
+    query /1.0/images?all-projects=true  | jq -e '(.metadata | length) == 0 and .status_code == 200'
+    query /1.0/images?recursion=1\&all-projects=true  | jq -e '(.metadata | length) == 0 and .status_code == 200'
+  fi
+
+  # All users see a not found error for the aliases.
+  query /1.0/images/aliases/default-img | jq -e '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/aliases/foo-img?project=foo | jq -e '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/aliases/foo-img?project=bar | jq -e '.error == "Not Found" and .error_code == 404'
+
+  # Get the image fingerprint.
+  fingerprint="$(lxc query /1.0/images/aliases/foo-img?project=foo | jq -r '.target')"
+
+  # All users see a not found error when getting or exporting the image.
+  query "/1.0/images/${fingerprint}?project=foo" | jq -e '.error == "Not Found" and .error_code == 404'
+  query "/1.0/images/${fingerprint}/export?project=foo" | jq -e '.error == "Not Found" and .error_code == 404'
+  query "/1.0/images/${fingerprint}?project=bar" | jq -e '.error == "Not Found" and .error_code == 404'
+  query "/1.0/images/${fingerprint}/export?project=bar" | jq -e '.error == "Not Found" and .error_code == 404'
+
+  # No callers can use an invalid secret.
+  query /1.0/images/"${fingerprint}"?project=foo\&secret=bar | jq -e '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/"${fingerprint}"/export?project=foo\&secret=bar | jq -e '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/"${fingerprint}"?project=bar\&secret=bar | jq -e '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/"${fingerprint}"/export?project=bar\&secret=bar | jq -e '.error == "Not Found" and .error_code == 404'
+
+  # Get a secret for "default-img" (in the default project).
+  secret="$(lxc -X POST query "/1.0/images/${fingerprint}/secret" | jq -r '.metadata.secret')"
+
+  # All callers can view the image with a valid secret.
+  query /1.0/images/"${fingerprint}"?secret="${secret}" | jq -e '.status_code == 200'
+
+  # All callers can export the image with a valid secret.
+  query /1.0/images/"${fingerprint}"/export?secret="${secret}" -o "${TEST_DIR}/private.img"
+  [ -f "${TEST_DIR}/private.img" ]
+  rm "${TEST_DIR}/private.img"
+
+  # Get a secret for "foo-img" (in the foo project).
+  secret="$(lxc -X POST query "/1.0/images/${fingerprint}/secret?project=foo" | jq -r '.metadata.secret')"
+
+  # All callers can view the image with a valid secret.
+  query /1.0/images/"${fingerprint}"?project=foo\&secret="${secret}" | jq -e '.status_code == 200'
+
+  # All callers can export the image with a valid secret.
+  query /1.0/images/"${fingerprint}"/export?project=foo\&secret="${secret}" -o "${TEST_DIR}/private.img"
+  [ -f "${TEST_DIR}/private.img" ]
+  rm "${TEST_DIR}/private.img"
+
+  # The secrets do not work 5 seconds after being used.
+  sleep 5
+  query /1.0/images/"${fingerprint}"?secret="${secret}" | jq -e '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/"${fingerprint}"/export?secret="${secret}" | jq -e '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/"${fingerprint}"?project=foo\&secret="${secret}" | jq -e '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/"${fingerprint}"/export?project=foo\&secret="${secret}" | jq -e '.error == "Not Found" and .error_code == 404'
+
+  # Set the image in the default project to public.
+  lxc image show "${fingerprint}" | sed -e "s/public: false/public: true/" | lxc image edit "${fingerprint}"
+
+  # All callers can see the public image when listing.
+  query /1.0/images | jq -e '(.metadata | length) == 1 and .status_code == 200'
+  query /1.0/images?project=default | jq -e '(.metadata | length) == 1 and .status_code == 200'
+  query /1.0/images?recursion=1 | jq -e '(.metadata | length) == 1 and .status_code == 200'
+  query /1.0/images?recursion=1\&project=default | jq -e '(.metadata | length) == 1 and .status_code == 200'
+
+  # All callers can view aliases of public images in the default project.
+  query /1.0/images/aliases/default-img | jq -e '.status_code == 200'
+  query /1.0/images/aliases/default-img?project=default | jq -e '.status_code == 200'
+
+  # All callers can get the image with a prefix of 12 characters or more.
+  query "/1.0/images/${fingerprint:0:11}" | jq -r '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
+  query /1.0/images/%25 | jq -r '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
+  query "/1.0/images/%25${fingerprint:0:11}" | jq -r '.error == "Image fingerprint prefix must contain only lowercase hexadecimal characters" and .error_code == 400'
+  query "/1.0/images/${fingerprint:0:12}" | jq -r '.status_code == 200'
+  query "/1.0/images/${fingerprint}" | jq -r '.status_code == 200'
+  query "/1.0/images/${fingerprint}?project=default" | jq -r '.status_code == 200'
+
+  # All callers can export the public image if using a valid prefix.
+  query /1.0/images/%25/export | jq -r '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
+  query "/1.0/images/${fingerprint:0:11}/export" | jq -r '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
+  query "/1.0/images/%25${fingerprint:0:11}/export" | jq -r '.error == "Image fingerprint prefix must contain only lowercase hexadecimal characters" and .error_code == 400'
+  query "/1.0/images/${fingerprint}/export" -o "${TEST_DIR}/public1.img"
+  query "/1.0/images/${fingerprint}/export?project=default" -o "${TEST_DIR}/public2.img"
+  query "/1.0/images/${fingerprint:0:12}/export?project=default" -o "${TEST_DIR}/public3.img"
+  [ -f "${TEST_DIR}/public1.img" ]
+  [ -f "${TEST_DIR}/public2.img" ]
+  [ -f "${TEST_DIR}/public3.img" ]
+  rm "${TEST_DIR}"/public{1,2,3}.img
+
+  # Clean up.
+  lxc image delete "${fingerprint}" --project foo
+  lxc project delete foo
+  lxc image delete "${fingerprint}"
+}
