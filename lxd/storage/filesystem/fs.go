@@ -240,6 +240,8 @@ func GetMountinfo(path string) ([]string, error) {
 
 	defer func() { _ = f.Close() }()
 
+	statMountID := strconv.FormatUint(stat.Mnt_id, 10)
+
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -249,7 +251,7 @@ func GetMountinfo(path string) ([]string, error) {
 			continue
 		}
 
-		if tokens[0] == strconv.FormatUint(stat.Mnt_id, 10) {
+		if tokens[0] == statMountID {
 			return tokens, nil
 		}
 	}
