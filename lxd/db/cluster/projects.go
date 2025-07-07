@@ -26,7 +26,7 @@ import (
 //go:generate mapper stmt -e project update struct=Project
 //go:generate mapper stmt -e project delete-by-Name
 //
-//go:generate mapper method -i -e project GetMany references=Config
+//go:generate mapper method -i -e project GetMany
 //go:generate mapper method -i -e project GetOne struct=Project
 //go:generate mapper method -i -e project Exists struct=Project
 //go:generate mapper method -i -e project Create references=Config
@@ -88,7 +88,7 @@ func (p *Project) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Project, error) {
 	}
 
 	var err error
-	apiProject.Config, err = GetProjectConfig(ctx, tx, p.ID)
+	apiProject.Config, err = GetProjectConfig(ctx, tx, p.Name)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading project config: %w", err)
 	}
@@ -115,6 +115,41 @@ SELECT projects_config.value
 	}
 
 	return shared.IsTrue(values[0]), nil
+}
+
+// GetProjectConfig is a helper to return a config of a project.
+func GetProjectConfig(ctx context.Context, tx *sql.Tx, project string) (map[string]string, error) {
+	stmt := `
+	SELECT projects_config.key, projects_config.value
+	  FROM projects_config
+	  JOIN projects ON projects.id=projects_config.project_id
+	 WHERE projects.name=?
+	`
+	rows, err := tx.QueryContext(ctx, stmt, project)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = rows.Close() }()
+
+	result := make(map[string]string)
+	for rows.Next() {
+		var key, value string
+
+		err := rows.Scan(&key, &value)
+		if err != nil {
+			return nil, err
+		}
+
+		result[key] = value
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 // GetProjectNames returns the names of all availablprojects.
@@ -165,12 +200,7 @@ func GetProjectIDsToNames(ctx context.Context, tx *sql.Tx) (map[int64]string, er
 // ProjectHasImages is a helper to check if a project has the images
 // feature enabled.
 func ProjectHasImages(ctx context.Context, tx *sql.Tx, name string) (bool, error) {
-	project, err := GetProject(ctx, tx, name)
-	if err != nil {
-		return false, fmt.Errorf("fetch project: %w", err)
-	}
-
-	config, err := GetProjectConfig(ctx, tx, project.ID)
+	config, err := GetProjectConfig(ctx, tx, name)
 	if err != nil {
 		return false, err
 	}
