@@ -162,7 +162,9 @@ ogp_image = "https://documentation.ubuntu.com/lxd/en/stable-5.0/_static/tag.png"
 linkcheck_ignore = [
     'https://127.0.0.1:8443/1.0',
     'https://web.libera.chat/#lxd',
-    'https://www.schlachter.tech/solutions/pongo2-template-engine/'
+    'https://www.schlachter.tech/solutions/pongo2-template-engine/',
+    # Cloudflare protection on SourceForge domains might block linkcheck
+    r"https://.*\.sourceforge\.net/.*",
 ]
 
 # Setup redirects (https://documatt.gitlab.io/sphinx-reredirects/usage.html)
