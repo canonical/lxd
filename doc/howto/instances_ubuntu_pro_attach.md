@@ -1,4 +1,4 @@
-(ubuntu-pro-guest-attach)=
+(instances-ubuntu-pro-attach)=
 # How to configure Ubuntu Pro guest attachment
 
 If Ubuntu Pro is enabled on a LXD host, guest instances can be automatically attached to the Pro subscription.
