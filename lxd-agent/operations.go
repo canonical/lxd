@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/util"
@@ -43,7 +41,7 @@ var operationWait = APIEndpoint{
 }
 
 func operationDelete(d *Daemon, r *http.Request) response.Response {
-	id, err := url.PathUnescape(mux.Vars(r)["id"])
+	id, err := url.PathUnescape(r.PathValue("id"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -63,7 +61,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 }
 
 func operationGet(d *Daemon, r *http.Request) response.Response {
-	id, err := url.PathUnescape(mux.Vars(r)["id"])
+	id, err := url.PathUnescape(r.PathValue("id"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -152,7 +150,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 }
 
 func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
-	id, err := url.PathUnescape(mux.Vars(r)["id"])
+	id, err := url.PathUnescape(r.PathValue("id"))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -167,7 +165,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 }
 
 func operationWaitGet(d *Daemon, r *http.Request) response.Response {
-	id, err := url.PathUnescape(mux.Vars(r)["id"])
+	id, err := url.PathUnescape(r.PathValue("id"))
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed to extract operation ID from URL: %w", err))
 	}
