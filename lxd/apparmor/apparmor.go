@@ -154,14 +154,16 @@ func deleteProfile(sysOS *sys.OS, fullName string, name string) error {
 		return err
 	}
 
-	err = os.Remove(filepath.Join(cacheDir, name))
+	cachePath := filepath.Join(cacheDir, name)
+	err = os.Remove(cachePath)
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("Failed to remove %s: %w", filepath.Join(cacheDir, name), err)
+		return fmt.Errorf("Failed to remove %s: %w", cachePath, err)
 	}
 
-	err = os.Remove(filepath.Join(aaPath, "profiles", name))
+	profilePath := filepath.Join(aaPath, "profiles", name)
+	err = os.Remove(profilePath)
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("Failed to remove %s: %w", filepath.Join(aaPath, "profiles", name), err)
+		return fmt.Errorf("Failed to remove %s: %w", profilePath, err)
 	}
 
 	return nil
