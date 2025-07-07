@@ -7343,7 +7343,6 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			}
 
 			for _, name := range offerHeader.SnapshotNames {
-				name := name // Local var.
 				base := instance.SnapshotToProtobuf(apiInstSnap)
 				baseName := name
 				base.Name = &baseName
