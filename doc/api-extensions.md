@@ -2618,6 +2618,8 @@ Adds flags --network and --storage. The --network flag adds a network device con
 Adds a new {config:option}`instance-miscellaneous:ubuntu_pro.guest_attach` configuration option for instances.
 When set to `on`, if the host has guest attachment enabled, the guest can request a guest token for Ubuntu Pro via `devlxd`.
 
+For more information, see: {ref}`instances-ubuntu-pro-attach`.
+
 ## `images_all_projects`
 
 This adds support for listing images across all projects using the `all-projects` parameter in `GET /1.0/images` requests.
