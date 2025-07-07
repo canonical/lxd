@@ -794,12 +794,12 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 
 // ReadPage is not implemented. It is not required for the functionality we need.
 func (*openfgaStore) ReadPage(ctx context.Context, store string, tk *openfgav1.TupleKey, opts storage.ReadPageOptions) ([]*openfgav1.Tuple, string, error) {
-	return nil, "", api.StatusErrorf(http.StatusNotImplemented, "not implemented")
+	return nil, "", api.NewGenericStatusError(http.StatusNotImplemented)
 }
 
 // Write is not implemented, we should never be performing writes because we are reading directly from the cluster DB.
 func (*openfgaStore) Write(ctx context.Context, store string, d storage.Deletes, w storage.Writes) error {
-	return api.StatusErrorf(http.StatusNotImplemented, "not implemented")
+	return api.NewGenericStatusError(http.StatusNotImplemented)
 }
 
 // WriteAuthorizationModel sets the model.
@@ -848,37 +848,37 @@ func (*openfgaStore) MaxTypesPerAuthorizationModel() int {
 
 // CreateStore returns a not implemented error, because there is only one store.
 func (*openfgaStore) CreateStore(ctx context.Context, store *openfgav1.Store) (*openfgav1.Store, error) {
-	return nil, api.StatusErrorf(http.StatusNotImplemented, "not implemented")
+	return nil, api.NewGenericStatusError(http.StatusNotImplemented)
 }
 
 // DeleteStore returns a not implemented error, because there is only one store.
 func (*openfgaStore) DeleteStore(ctx context.Context, id string) error {
-	return api.StatusErrorf(http.StatusNotImplemented, "not implemented")
+	return api.NewGenericStatusError(http.StatusNotImplemented)
 }
 
 // GetStore returns a not implemented error, because there is only one store.
 func (*openfgaStore) GetStore(ctx context.Context, id string) (*openfgav1.Store, error) {
-	return nil, api.StatusErrorf(http.StatusNotImplemented, "not implemented")
+	return nil, api.NewGenericStatusError(http.StatusNotImplemented)
 }
 
 // ListStores returns a not implemented error, because there is only one store.
 func (*openfgaStore) ListStores(ctx context.Context, paginationOptions storage.ListStoresOptions) ([]*openfgav1.Store, string, error) {
-	return nil, "", api.StatusErrorf(http.StatusNotImplemented, "not implemented")
+	return nil, "", api.NewGenericStatusError(http.StatusNotImplemented)
 }
 
 // WriteAssertions returns a not implemented error, because we do not need to use the assertions API.
 func (*openfgaStore) WriteAssertions(ctx context.Context, store, modelID string, assertions []*openfgav1.Assertion) error {
-	return api.StatusErrorf(http.StatusNotImplemented, "not implemented")
+	return api.NewGenericStatusError(http.StatusNotImplemented)
 }
 
 // ReadAssertions returns a not implemented error, because we do not need to use the assertions API.
 func (*openfgaStore) ReadAssertions(ctx context.Context, store, modelID string) ([]*openfgav1.Assertion, error) {
-	return nil, api.StatusErrorf(http.StatusNotImplemented, "not implemented")
+	return nil, api.NewGenericStatusError(http.StatusNotImplemented)
 }
 
 // ReadChanges returns a not implemented error, because we do not need to use the read changes API.
 func (*openfgaStore) ReadChanges(ctx context.Context, store string, filter storage.ReadChangesFilter, options storage.ReadChangesOptions) ([]*openfgav1.TupleChange, string, error) {
-	return nil, "", api.StatusErrorf(http.StatusNotImplemented, "not implemented")
+	return nil, "", api.NewGenericStatusError(http.StatusNotImplemented)
 }
 
 // IsReady returns true.
