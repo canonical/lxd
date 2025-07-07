@@ -670,13 +670,9 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Detect project mode.
-	requestProjectName := request.QueryParam(r, "project")
-	allProjects := shared.IsTrue(request.QueryParam(r, "all-projects"))
-
-	if allProjects && requestProjectName != "" {
-		return response.SmartError(api.StatusErrorf(http.StatusBadRequest, "Cannot specify a project when requesting all projects"))
-	} else if !allProjects && requestProjectName == "" {
-		requestProjectName = api.ProjectDefaultName
+	requestProjectName, allProjects, err := request.ProjectParams(r)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	var dbVolumes []*db.StorageVolume

@@ -258,26 +258,20 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	allProjects := shared.IsTrue(request.QueryParam(r, "all-projects"))
-	requestProjectName := request.QueryParam(r, "project")
-
-	// requestProjectName is only valid for project specific requests.
-	if allProjects && requestProjectName != "" {
-		return response.BadRequest(errors.New("Cannot specify a project when requesting all projects"))
-	}
-
-	if requestProjectName == "" {
-		requestProjectName = api.ProjectDefaultName
-	}
-
-	// Project specific requests require an effective project, when "features.networks" is enabled this is the requested project, otherwise it is the default project.
-	effectiveProjectName, reqProject, err := project.NetworkProject(s.DB.Cluster, requestProjectName)
+	requestProjectName, allProjects, err := request.ProjectParams(r)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	reqInfo := request.SetupContextInfo(r)
-	reqInfo.EffectiveProjectName = effectiveProjectName
+	var reqProject *api.Project
+	if !allProjects {
+		// Project specific requests require an effective project, when "features.networks" is enabled this is the requested project, otherwise it is the default project.
+		reqInfo.EffectiveProjectName, reqProject, err = project.NetworkProject(s.DB.Cluster, requestProjectName)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
 
 	recursion := util.IsRecursionRequest(r)
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeNetwork, true)
@@ -293,6 +287,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 		unmanaged
 	)
 
+	projectConfigs := make(map[string]map[string]string)
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		networks[managed] = map[string][]string{}
 		networks[unmanaged] = map[string][]string{}
@@ -303,9 +298,14 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return err
 			}
+
+			projectConfigs, err = dbCluster.GetAllProjectsConfig(ctx, tx.Tx())
+			if err != nil {
+				return err
+			}
 		} else {
 			// Get list of managed networks (that may or may not have network interfaces on the host).
-			networkNames, err := tx.GetNetworks(ctx, effectiveProjectName)
+			networkNames, err := tx.GetNetworks(ctx, reqInfo.EffectiveProjectName)
 			if err != nil {
 				return err
 			}
@@ -321,7 +321,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 
 	// Get list of actual network interfaces on the host if the effective project is default and the caller has permission.
 	var getUnmanagedNetworks bool
-	if effectiveProjectName == api.ProjectDefaultName {
+	if reqInfo.EffectiveProjectName == api.ProjectDefaultName || allProjects {
 		err := s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanViewUnmanagedNetworks)
 		if err == nil {
 			getUnmanagedNetworks = true
@@ -342,9 +342,14 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
+			unmanagedNetworkProject := requestProjectName
+			if allProjects {
+				unmanagedNetworkProject = api.ProjectDefaultName
+			}
+
 			// Append to the list of networks if a managed network of same name doesn't exist.
-			if !slices.Contains(networks[managed][requestProjectName], iface.Name) {
-				networks[unmanaged][requestProjectName] = append(networks[unmanaged][requestProjectName], iface.Name)
+			if !slices.Contains(networks[managed][unmanagedNetworkProject], iface.Name) {
+				networks[unmanaged][unmanagedNetworkProject] = append(networks[unmanaged][unmanagedNetworkProject], iface.Name)
 			}
 		}
 	}
@@ -369,7 +374,14 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 				if !recursion {
 					resultString = append(resultString, api.NewURL().Path(version.APIVersion, "networks", networkName).String())
 				} else {
-					net, err := doNetworkGet(s, r, s.ServerClustered, projectName, reqProject.Config, networkName)
+					var projectConfig map[string]string
+					if allProjects {
+						projectConfig = projectConfigs[projectName]
+					} else {
+						projectConfig = reqProject.Config
+					}
+
+					net, err := doNetworkGet(s, r, s.ServerClustered, projectName, projectConfig, networkName)
 					if err != nil {
 						continue
 					}
@@ -982,9 +994,10 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 // If the network being requested is a managed network and allNodes is true then node specific config is removed.
 // Otherwise if allNodes is false then the network's local status is returned.
 func doNetworkGet(s *state.State, r *http.Request, allNodes bool, requestProjectName string, reqProjectConfig map[string]string, networkName string) (api.Network, error) {
-	var effectiveProjectName string
+	// Effective project may not be set if getting networks for all projects.
+	effectiveProjectName := requestProjectName
 	reqInfo := request.GetContextInfo(r.Context())
-	if reqInfo != nil {
+	if reqInfo != nil && reqInfo.EffectiveProjectName != "" {
 		effectiveProjectName = reqInfo.EffectiveProjectName
 	}
 
