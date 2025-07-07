@@ -404,7 +404,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	// lxdmeta:generate(entities=instance; group=miscellaneous; key=ubuntu_pro.guest_attach)
 	// Indicate whether the guest should auto-attach Ubuntu Pro at start up.
 	//
-	// See {ref}`ubuntu-pro-guest-attach` for more information.
+	// See {ref}`instances-ubuntu-pro-attach` for more information.
 	// ---
 	// type: string
 	// liveupdate: no
