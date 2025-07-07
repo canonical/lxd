@@ -5,7 +5,8 @@ If Ubuntu Pro is enabled on a LXD host, guest instances can be automatically att
 
 First, the Pro client on the host machine must be configured to allow guest attachment:
 
-    pro config set lxd_guest_attach=on
+    sudo pro config set lxd_guest_attach=on
+
 
 The allowed values are `on`, `off`, and `available`.
 If unset, this defaults to `off`.
