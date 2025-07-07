@@ -98,9 +98,6 @@ linters:
       - linters:
           - staticcheck
         text: "ST1005:" # ST1005: error strings should not be capitalized (5585 occurences as of 2023-10-20)
-      - path: lxd/util/
-        linters:
-          - var-naming
 formatters:
   enable:
     - gci
