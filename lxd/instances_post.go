@@ -1177,7 +1177,6 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		if len(req.Profiles) > 0 {
 			profileFilters := make([]dbCluster.ProfileFilter, 0, len(req.Profiles))
 			for _, profileName := range req.Profiles {
-				profileName := profileName
 				profileFilters = append(profileFilters, dbCluster.ProfileFilter{
 					Project: &profileProject,
 					Name:    &profileName,
