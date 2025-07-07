@@ -379,7 +379,6 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 					}
 
 					for _, apiInst := range apiInsts {
-						apiInst := apiInst // Local variable for append.
 						resultFullListAppend(&api.InstanceFull{Instance: apiInst})
 					}
 
@@ -396,7 +395,6 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 				}
 
 				for _, c := range cs {
-					c := c // Local variable for append.
 					resultFullListAppend(&c)
 				}
 			}(memberAddress, instances)
