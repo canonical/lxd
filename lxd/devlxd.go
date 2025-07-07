@@ -227,11 +227,11 @@ func devLXDConfigKeyGetHandler(d *Daemon, r *http.Request) response.Response {
 
 	key, err := url.PathUnescape(mux.Vars(r)["key"])
 	if err != nil {
-		return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusBadRequest, "bad request"))
+		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
 	}
 
 	if !strings.HasPrefix(key, "user.") && !strings.HasPrefix(key, "cloud-init.") {
-		return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"))
+		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusForbidden))
 	}
 
 	var value string
@@ -254,7 +254,7 @@ func devLXDConfigKeyGetHandler(d *Daemon, r *http.Request) response.Response {
 
 	// If the resulting value is empty, return Not Found.
 	if value == "" {
-		return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusNotFound, "not found"))
+		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusNotFound))
 	}
 
 	return response.DevLXDResponse(http.StatusOK, value, "raw")
@@ -526,7 +526,7 @@ func getInstanceFromContextAndCheckSecurityFlags(ctx context.Context, keys ...De
 		// The devLXD is enabled by default, therefore we only prevent access if the feature
 		// is explicitly disabled (set to "false"). All other features must be explicitly enabled.
 		if shared.IsFalse(value) || (value == "" && key != devLXDSecurityKey) {
-			return nil, api.StatusErrorf(http.StatusForbidden, "not authorized")
+			return nil, api.NewGenericStatusError(http.StatusForbidden)
 		}
 	}
 
