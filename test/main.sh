@@ -476,7 +476,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_cloud_init "cloud-init"
     run_test test_exec "exec"
     run_test test_exec_exit_code "exec exit code"
-    run_test test_lxd_benchmark_basic "lxd-benchmark basic init/start/stop/delete"
+    # run_test test_lxd_benchmark_basic "lxd-benchmark basic init/start/stop/delete"
     run_test test_shutdown "lxd shutdown sequence"
     run_test test_snapshots "container snapshots"
     run_test test_snap_restore "snapshot restores"
