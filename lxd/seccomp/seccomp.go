@@ -1453,7 +1453,6 @@ func (s *Server) HandleMknodatSyscall(c Instance, siov *Iovec) int {
 	// built on 64bit userspace correctly.
 	if int32(siov.req.data.args[0]) != int32(C.AT_FDCWD) {
 		ctx["err"] = "Non AT_FDCWD mknodat calls are not allowed"
-		logger.Debug("bla", ctx)
 		if s.s.OS.SeccompListenerContinue {
 			ctx["syscall_continue"] = "true"
 			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
