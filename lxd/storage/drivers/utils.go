@@ -941,8 +941,8 @@ func ValidPoolName(poolName string) error {
 		return errors.New("Cannot be empty")
 	}
 
-	if poolName == ".." {
-		return errors.New(`Cannot be ".."`)
+	if strings.HasPrefix(poolName, ".") {
+		return errors.New("Cannot start with a dot")
 	}
 
 	if strings.HasPrefix(poolName, "-") {
