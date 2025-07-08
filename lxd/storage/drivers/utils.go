@@ -592,7 +592,10 @@ func regenerateFilesystemBTRFSUUID(devPath string) error {
 		return err
 	}
 
-	_, err = shared.RunCommandContext(context.TODO(), "btrfstune", "-f", "-u", devPath)
+	// `-m` modifies the metadata_uuid which is much faster than `-u` that rewrites all metadata blocks.
+	// The resulting filesystem needs kernel 5.0+ to be mounted or running `btrfstune -u` to regain compat
+	// with older kernels.
+	_, err = shared.RunCommandContext(context.TODO(), "btrfstune", "-f", "-m", devPath)
 	if err != nil {
 		return err
 	}
