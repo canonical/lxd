@@ -40,7 +40,8 @@ extensions = [
     "sphinx.ext.intersphinx",
     "terminal-output",
     "config-options",
-    "notfound.extension"
+    "notfound.extension",
+    'sphinx_sitemap',
 ]
 
 myst_enable_extensions = [
@@ -161,7 +162,9 @@ ogp_image = "https://documentation.ubuntu.com/lxd/en/stable-5.0/_static/tag.png"
 linkcheck_ignore = [
     'https://127.0.0.1:8443/1.0',
     'https://web.libera.chat/#lxd',
-    'https://www.schlachter.tech/solutions/pongo2-template-engine/'
+    'https://www.schlachter.tech/solutions/pongo2-template-engine/',
+    # Cloudflare protection on SourceForge domains might block linkcheck
+    r"https://.*\.sourceforge\.net/.*",
 ]
 
 # Ignore anchors for these URLs in linkcheck, but still check the URLs themselves
@@ -173,3 +176,19 @@ linkcheck_anchors_ignore_for_url = [
 redirects = {
     "production-setup/index": "../explanation/performance_tuning/index.html",
 }
+
+#######################
+# Sitemap configuration: https://sphinx-sitemap.readthedocs.io/
+#######################
+
+# Base URL of RTD hosted project
+
+html_baseurl = 'https://documentation.ubuntu.com/lxd/'
+
+# Configures URL scheme for sphinx-sitemap to generate correct URLs
+# based on the version if built in RTD
+if 'READTHEDOCS_VERSION' in os.environ:
+    rtd_version = os.environ["READTHEDOCS_VERSION"]
+    sitemap_url_scheme = f'{rtd_version}/{{link}}'
+else:
+    sitemap_url_scheme = '{link}'
