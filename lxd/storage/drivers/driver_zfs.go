@@ -174,7 +174,7 @@ func (d zfs) ensureInitialDatasets(warnOnExistingPolicyApplyError bool) error {
 			properties = append(properties, "volmode=none")
 		}
 
-		datasetPath := filepath.Join(d.config["zfs.pool_name"], dataset)
+		datasetPath := d.config["zfs.pool_name"] + "/" + dataset
 		exists, err := d.datasetExists(datasetPath)
 		if err != nil {
 			return err
