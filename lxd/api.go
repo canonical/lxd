@@ -108,7 +108,9 @@ func restServer(d *Daemon) *http.Server {
 			w.Header().Set("Content-Type", "text/html")
 			w.WriteHeader(http.StatusServiceUnavailable)
 			_, err := fmt.Fprint(w, errorMessage)
-			logger.Warn("Failed sending error message to client", logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr, "err": err})
+			if err != nil {
+				logger.Warn("Failed sending error message to client", logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr, "err": err})
+			}
 		})
 		mux.PathPrefix("/ui").Handler(uiHandlerErrorUINotEnabled)
 	}
@@ -169,8 +171,7 @@ func restServer(d *Daemon) *http.Server {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
-		ua := r.Header.Get("User-Agent")
-		if strings.Contains(ua, "Gecko") {
+		if isBrowserClient(r) {
 			http.Redirect(w, r, "/ui/", http.StatusMovedPermanently)
 			return
 		}
@@ -224,6 +225,12 @@ func restServer(d *Daemon) *http.Server {
 		Handler:     &lxdHTTPServer{r: mux, d: d},
 		ConnContext: lxdRequest.SaveConnectionInContext,
 	}
+}
+
+// isBrowserClient checks if the request is coming from a browser client.
+func isBrowserClient(r *http.Request) bool {
+	// Check if the User-Agent starts with "Mozilla" which is common for browsers.
+	return strings.HasPrefix(r.Header.Get("User-Agent"), "Mozilla")
 }
 
 func metricsServer(d *Daemon) *http.Server {
