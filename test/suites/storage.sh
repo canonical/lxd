@@ -17,6 +17,7 @@ test_storage() {
   ! lxc storage create "${storage_pool}/" "${lxd_backend}" || false
   ! lxc storage create "${storage_pool} " "${lxd_backend}" || false
   ! lxc storage create ".." "${lxd_backend}" || false
+  ! lxc storage create ".invalid" "${lxd_backend}" || false
 
   # edit storage and pool description
   lxc storage create "$storage_pool" "$lxd_backend"
