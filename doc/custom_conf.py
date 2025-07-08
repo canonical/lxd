@@ -183,6 +183,8 @@ linkcheck_ignore = [
     'https://www.gnu.org/licenses/agpl-3.0.en.html',
     # 403 from GH runners
     'https://www.schlachter.tech/solutions/pongo2-template-engine/',
+    # Cloudflare protection on SourceForge domains might block linkcheck
+    r"https://.*\.sourceforge\.net/.*",
     ]
 
 # Pages on which to ignore anchors
