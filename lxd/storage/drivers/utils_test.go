@@ -81,6 +81,8 @@ func TestValidPoolName(t *testing.T) {
 	// Test invalid pool names.
 	assert.Error(t, ValidPoolName(""))
 	assert.Error(t, ValidPoolName("-invalid-pool"))
+	assert.Error(t, ValidPoolName(".invalid-pool"))
+	assert.Error(t, ValidPoolName("."))
 	assert.Error(t, ValidPoolName(".."))
 	assert.Error(t, ValidPoolName("invalid pool"))
 	assert.Error(t, ValidPoolName("invalid/pool"))
