@@ -34,6 +34,7 @@ author = 'LXD contributors'
 # To not display any title, set this option to an empty string.
 html_title = ''
 
+# Set global version variable used in objects.inv to numeric version defined in flex.go
 with open("../shared/version/flex.go") as fd:
     version = fd.readlines()[3].split()[-1].strip("\"")
 
@@ -133,6 +134,22 @@ html_context = {
 # slug (for example, "lxd") here.
 slug = "lxd"
 
+#######################
+# Sitemap configuration: https://sphinx-sitemap.readthedocs.io/
+#######################
+
+# Base URL of RTD hosted project
+
+html_baseurl = 'https://documentation.ubuntu.com/lxd/'
+
+# Configures URL scheme for sphinx-sitemap to generate correct URLs
+# based on the version if built in RTD
+if 'READTHEDOCS_VERSION' in os.environ:
+    rtd_version = os.environ["READTHEDOCS_VERSION"]
+    sitemap_url_scheme = f'{rtd_version}/{{link}}'
+else:
+    sitemap_url_scheme = '{link}'
+
 ############################################################
 ### Redirects
 ############################################################
@@ -166,6 +183,8 @@ linkcheck_ignore = [
     'https://www.gnu.org/licenses/agpl-3.0.en.html',
     # 403 from GH runners
     'https://www.schlachter.tech/solutions/pongo2-template-engine/',
+    # Cloudflare protection on SourceForge domains might block linkcheck
+    r"https://.*\.sourceforge\.net/.*",
     ]
 
 # Pages on which to ignore anchors
@@ -214,6 +233,7 @@ custom_extensions = [
     'sphinx_remove_toctrees',
     'canonical.filtered-toc',
     'sphinxcontrib.cairosvgconverter',
+    'sphinx_sitemap',
 ]
 
 # Add custom required Python modules that must be added to the
@@ -227,7 +247,8 @@ custom_required_modules = [
     'gitpython',
     'pyyaml',
     'sphinx-remove-toctrees',
-    'sphinxcontrib-svg2pdfconverter[CairoSVG]'
+    'sphinxcontrib-svg2pdfconverter[CairoSVG]',
+    'sphinx-sitemap',
 ]
 
 # Add files or directories that should be excluded from processing.
