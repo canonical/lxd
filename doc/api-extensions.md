@@ -2718,3 +2718,7 @@ Adds the field `used_by` to potential storage disk returned by the resources end
 
 This introduces support for the {config:option}`network-ovn-network-conf:ipv4.dhcp.ranges` configuration key for `ovn` networks. This key allows specifying a list of IPv4 ranges
 reserved for dynamic allocation using DHCP.
+
+## `operation_requestor`
+
+This adds a new `requestor` field to operations, which contains information about the caller that initiated the operation.
