@@ -67,6 +67,7 @@ var apiInternal = []APIEndpoint{
 	internalIdentityCacheRefreshCmd,
 	internalPruneTokenCmd,
 	internalOperationWaitCmd,
+	internalProjectVolumeChange,
 }
 
 var internalShutdownCmd = APIEndpoint{

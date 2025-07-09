@@ -64,6 +64,13 @@ var projectStateCmd = APIEndpoint{
 	Get: APIEndpointAction{Handler: projectStateGet, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanView, "name")},
 }
 
+var internalProjectVolumeChange = APIEndpoint{
+	Path:        "project/volume-change",
+	MetricsType: entity.TypeProject,
+
+	Post: APIEndpointAction{Handler: internalProjectPostVolumeChange, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+}
+
 // swagger:operation GET /1.0/projects projects projects_get
 //
 //  Get the projects
@@ -753,6 +760,45 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 	s.Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, requestor, nil))
 
 	return projectChange(r.Context(), s, project, req)
+}
+
+// A request for the /internal/project/volume-change endpoint.
+type internalProjectPostVolumeChangeRequest struct {
+	OldConfig   string `json:"oldconfig" yaml:"oldconfig"`
+	NewConfig   string `json:"newconfig" yaml:"newconfig"`
+	StorageType string `json:"storagetype" yaml:"storagetype"`
+}
+
+// Used to revert project mounted volumes in case some of the nodes in the clutser failed to mount these.
+func internalProjectPostVolumeChange(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	req := internalProjectPostVolumeChangeRequest{}
+
+	// Parse the request
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	if req.OldConfig != "" {
+		err := unmountDaemonStorageVolume(s, req.OldConfig)
+		if err != nil {
+			return response.SmartError(fmt.Errorf("Failed to unmount images storage: %w", err))
+		}
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+	if req.NewConfig != "" {
+		err := projectStorageSetup(s, req.NewConfig, req.StorageType, revert)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
+	revert.Success()
+	return response.SyncResponse(true, nil)
 }
 
 // storageVolumeChange handles changes of one of the storage.images_volume or storage.backups.volume configs.
