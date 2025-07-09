@@ -496,11 +496,6 @@ fine_grained_authorization() {
   # Change permission to "user" for instance "user-foo"
   lxc auth group permission add test-group instance user-foo user project=default
 
-  # To exec into an instance, Members of test-group will also need `can_view_events` for the project.
-  # This is because the client uses the events API to figure out when the operation is finished.
-  # Ideally we would use operations for this instead or allow more fine-grained filtering on events.
-  lxc auth group permission add test-group project default can_view_events
-
   echo "==> Checking permissions for member of group with user entitlement on instance user-foo in default project..."
   user_is_instance_user "${remote}" user-foo # Pass instance name into test as we don't have permission to create one.
   lxc delete user-foo --force # Must clean this up now as subsequent tests assume a clean project.
@@ -508,8 +503,6 @@ fine_grained_authorization() {
   user_is_not_server_operator "${remote}"
   user_is_not_project_manager "${remote}"
   user_is_not_project_operator "${remote}"
-
-  lxc auth group permission remove test-group project default can_view_events
 
   echo "==> Checking 'can_view_warnings' entitlement..."
   # Delete previous warnings
