@@ -544,6 +544,9 @@ type DevLXDServer interface {
 	UpdateStoragePoolVolume(poolName string, volType string, volName string, vol api.DevLXDStorageVolumePut, ETag string) error
 	DeleteStoragePoolVolume(poolName string, volType string, volName string) error
 
+	// DevLXD operations.
+	GetOperationWait(uuid string, timeout int) (*api.DevLXDOperation, string, error)
+
 	// DevLXD Ubuntu Pro.
 	GetUbuntuPro() (*api.DevLXDUbuntuProSettings, error)
 	CreateUbuntuProToken() (*api.DevLXDUbuntuProGuestTokenResponse, error)
