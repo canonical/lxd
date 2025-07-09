@@ -207,22 +207,6 @@ func GetProjects(ctx context.Context, tx *sql.Tx, filters ...ProjectFilter) ([]P
 	return objects, nil
 }
 
-// GetProjectConfig returns all available Project Config
-// generator: project GetMany
-func GetProjectConfig(ctx context.Context, tx *sql.Tx, projectID int, filters ...ConfigFilter) (map[string]string, error) {
-	projectConfig, err := GetConfig(ctx, tx, "project", filters...)
-	if err != nil {
-		return nil, err
-	}
-
-	config, ok := projectConfig[projectID]
-	if !ok {
-		config = map[string]string{}
-	}
-
-	return config, nil
-}
-
 // GetProject returns the project with the given key.
 // generator: project GetOne
 func GetProject(ctx context.Context, tx *sql.Tx, name string) (*Project, error) {
