@@ -2687,3 +2687,7 @@ This configuration value is not shared with other LXD clients (such as the LXD C
 
 ## `pci_hotplug`
 This adds PCI device hotplugging for VMs.
+
+## `operation_requestor`
+
+This adds a new `requestor` field to operations, which contains information about the caller that initiated the operation.
