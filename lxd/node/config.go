@@ -277,4 +277,18 @@ var ConfigSchema = config.Schema{
 	//  scope: local
 	//  shortdesc: Volume to use to store the image tarballs
 	"storage.images_volume": {},
+
+	// lxdmeta:generate(entities=server; group=miscellaneous; key=storage.project.{name}.backups_volume)
+	// Specify the volume using the syntax `POOL/VOLUME`.
+	// ---
+	//  type: string
+	//  scope: local
+	//  shortdesc: Volume to use to store project-specific backup tarballs
+
+	// lxdmeta:generate(entities=server; group=miscellaneous; key=storage.project.{name}.images_volume)
+	// Specify the volume using the syntax `POOL/VOLUME`.
+	// ---
+	//  type: string
+	//  scope: local
+	//  shortdesc: Volume to use to store project-specific image tarballs
 }
