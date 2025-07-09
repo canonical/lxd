@@ -2715,6 +2715,7 @@ Changes to existing endpoints:
 
 * `GET /1.0` — Adds a `supported_storage_drivers` field to the response, which is populated when `security.devlxd.management.volumes` is enabled.
 
+<<<<<<< HEAD
 ## `storage_driver_alletra`
 
 Adds a new `alletra` storage driver for the consumption of storage volumes from an HPE Alletra storage array.
@@ -2732,3 +2733,7 @@ The following pool-level configuration keys have been added:
 ## `resources_disk_used_by`
 
 Adds the field `used_by` to potential storage disk returned by the resources end point to indicate its use by any virtual parent device, e.g. bcache.
+
+## `operation_requestor`
+
+This adds a new `requestor` field to operations, which contains information about the caller that initiated the operation.
