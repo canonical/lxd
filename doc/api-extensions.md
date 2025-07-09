@@ -2714,3 +2714,7 @@ See {ref}`DevLXD bearer tokens <devlxd-authentication-bearer>`.
 Changes to existing endpoints:
 
 * `GET /1.0` — Adds a `supported_storage_drivers` field to the response, which is populated when `security.devlxd.management.volumes` is enabled.
+
+## `operation_requestor`
+
+This adds a new `requestor` field to operations, which contains information about the caller that initiated the operation.

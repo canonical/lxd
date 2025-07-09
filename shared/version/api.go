@@ -458,6 +458,7 @@ var APIExtensions = []string{
 	"ovn_internal_load_balancer",
 	"auth_bearer_devlxd",
 	"devlxd_volume_management",
+	"operation_requestor",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
