@@ -242,7 +242,7 @@ func (s *dbTestSuite) Test_ImageExists_false() {
 
 func (s *dbTestSuite) Test_GetImageAlias_alias_exists() {
 	_ = s.db.Transaction(context.Background(), func(ctx context.Context, tx *ClusterTx) error {
-		_, alias, err := tx.GetImageAlias(ctx, "default", "somealias", true)
+		_, _, alias, err := tx.GetImageAlias(ctx, "default", "somealias", true)
 		s.NoError(err)
 		s.Equal("fingerprint", alias.Target)
 
@@ -252,7 +252,7 @@ func (s *dbTestSuite) Test_GetImageAlias_alias_exists() {
 
 func (s *dbTestSuite) Test_GetImageAlias_alias_does_not_exists() {
 	_ = s.db.Transaction(context.Background(), func(ctx context.Context, tx *ClusterTx) error {
-		_, _, err := tx.GetImageAlias(ctx, "default", "whatever", true)
+		_, _, _, err := tx.GetImageAlias(ctx, "default", "whatever", true)
 		s.True(api.StatusErrorCheck(err, http.StatusNotFound))
 
 		return nil
@@ -264,7 +264,7 @@ func (s *dbTestSuite) Test_CreateImageAlias() {
 		err := tx.CreateImageAlias(ctx, "default", "Chaosphere", 1, "Someone will like the name")
 		s.NoError(err)
 
-		_, alias, err := tx.GetImageAlias(ctx, "default", "Chaosphere", true)
+		_, _, alias, err := tx.GetImageAlias(ctx, "default", "Chaosphere", true)
 		s.NoError(err)
 		s.Equal("fingerprint", alias.Target)
 

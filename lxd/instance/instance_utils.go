@@ -505,7 +505,7 @@ func ResolveImage(ctx context.Context, tx *db.ClusterTx, projectName string, sou
 			return source.Alias, nil
 		}
 
-		_, alias, err := tx.GetImageAlias(ctx, projectName, source.Alias, true)
+		_, _, alias, err := tx.GetImageAlias(ctx, projectName, source.Alias, true)
 		if err != nil {
 			return "", err
 		}
