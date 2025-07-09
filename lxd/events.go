@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"slices"
@@ -51,6 +52,11 @@ func (r *eventsServe) String() string {
 	return "event handler"
 }
 
+// requestorMetadata contains only the requestor field which is common to both lifecycle and operation events.
+type requestorMetadata struct {
+	Requestor *api.EventLifecycleRequestor `json:"requestor,omitempty" yaml:"requestor,omitempty"`
+}
+
 func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error {
 	projectName, allProjects, err := request.ProjectParams(r)
 	if err != nil {
@@ -72,18 +78,9 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 	//   in project "default". In order to get all related events, TLS users must be granted access to the default project,
 	//   fine-grained users can be granted `can_view_events` on the default project. Both must call the events API with
 	//   `all-projects=true`.
-	var projectPermissionFunc auth.PermissionChecker
-	if projectName != "" {
-		err := s.Authorizer.CheckPermission(r.Context(), entity.ProjectURL(projectName), auth.EntitlementCanViewEvents)
-		if err != nil {
-			return err
-		}
-	} else if allProjects {
-		var err error
-		projectPermissionFunc, err = s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanViewEvents, entity.TypeProject)
-		if err != nil {
-			return err
-		}
+	hasCanViewEventsForProject, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanViewEvents, entity.TypeProject)
+	if err != nil {
+		return err
 	}
 
 	canViewPrivilegedEvents := s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanViewPrivilegedEvents) == nil
@@ -165,7 +162,35 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 	defer func() { _ = conn.Close() }() // Ensure listener below ends when this function ends.
 
 	listenerConnection := events.NewWebsocketListenerConnection(conn)
-	listener, err := s.Events.AddListener(projectName, allProjects, projectPermissionFunc, listenerConnection, types, excludeSources, recvFunc, excludeLocations)
+	requestor := request.CreateRequestor(r.Context())
+	filter := func(event api.Event) bool {
+		// Admins that can view privileged events can view all events.
+		if canViewPrivilegedEvents {
+			return true
+		}
+
+		// If caller can view events for the project - they can view all lifecycle events.
+		if hasCanViewEventsForProject(entity.ProjectURL(event.Project)) && event.Type == api.EventTypeLifecycle {
+			return true
+		}
+
+		switch event.Type {
+		case api.EventTypeLifecycle, api.EventTypeOperation:
+			var m requestorMetadata
+			err := json.Unmarshal(event.Metadata, &m)
+			if err != nil {
+				return false
+			}
+
+			if m.Requestor != nil && m.Requestor.Username == requestor.Username && m.Requestor.Protocol == requestor.Protocol {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	listener, err := s.Events.AddListener(projectName, allProjects, filter, listenerConnection, types, excludeSources, recvFunc, excludeLocations)
 	if err != nil {
 		l.Warn("Failed to add event listener", logger.Ctx{"err": err})
 		return nil
