@@ -483,7 +483,7 @@ type storage_volume_backup
     define can_view: can_view from storage_volume
     define can_edit: can_manage_backups from storage_volume
     define can_delete: can_manage_backups from storage_volume
-        
+
 type storage_bucket
   relations
     define project: [project]
