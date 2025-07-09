@@ -53,6 +53,12 @@ lxc query --request GET /1.0/network-acls?recursion=1
 ````
 % End of group-tab API
 
+````{group-tab} UI
+
+View ACL information from the {guilabel}`Networking` section of the main navigation.
+````
+% End of group-tab UI
+
 `````
 
 (network-acls-show)=
@@ -92,6 +98,18 @@ lxc query --request GET /1.0/network-acls/my-acl
 
 ````
 % End of group-tab API
+
+````{group-tab} UI
+
+To show the detail page of an ACL, select the desired ACL from the {guilabel}`ACLs` page.
+
+```{figure} /images/networks/network_ACLs.png
+:width: 80%
+:alt: A Network ACL in LXD
+```
+
+````
+% End of group-tab UI
 
 `````
 
@@ -219,6 +237,18 @@ lxc query --request POST /1.0/network-acls --data '{
 ````
 % End of group-tab API
 
+````{group-tab} UI
+
+To create an ACL, navigate to {guilabel}`ACLs` from the {guilabel}`Networking` tab in the main navigation, then click the {guilabel}`Create ACL` button in the upper-right corner.
+
+```{figure} /images/networks/network_ACL_create.png
+:width: 80%
+:alt: Create an ACL in LXD
+```
+
+````
+% End of group-tab UI
+
 `````
 
 (network-acls-properties)=
@@ -323,6 +353,22 @@ There is no specific endpoint for adding a rule. Instead, you must {ref}`edit th
 ````
 % End of group-tab API
 
+````{group-tab} UI
+
+To add an ingress or egress rule to an ACL, go to its {ref}`detail page <network-acls-show>`.
+
+Click {guilabel}`Add rule`, then configure your ingress or egress settings.
+
+```{figure} /images/networks/network_ACL_addrule.png
+:width: 80%
+:alt: Add a rule to an ACL in LXD
+```
+
+Note that the {guilabel}`Save changes` button displays the number of changes you have made. Save your changes.
+
+````
+% End of group-tab UI
+
 `````
 
 ### Remove a rule
@@ -347,6 +393,20 @@ There is no specific endpoint for removing a rule. Instead, you must {ref}`edit 
 
 ````
 % End of group-tab API
+
+````{group-tab} UI
+
+To remove a rule from an ACL, go to the ACL's {ref}`detail page <network-acls-show>`. From the row of the rule to remove, click the {guilabel}`Delete` button.
+
+```{figure} /images/networks/network_ACL_remove_edit.png
+:width: 80%
+:alt: Add a rule to an ACL in LXD
+```
+
+Note that the {guilabel}`Save changes` button displays the number of changes you have made. Save your changes.
+
+````
+% End of group-tab UI
 
 `````
 
@@ -466,6 +526,12 @@ lxc query --request GET /1.0/network-acls/my-acl/log
 ````
 % End of group-tab API
 
+````{group-tab} UI
+
+Download a `.log` file of your ACL's logs from its {ref}`detail page <network-acls-show>` by clicking the {guilabel}`Download logs` button in the upper-right corner.
+````
+% End of group-tab UI
+
 `````
 
 ```{note}
@@ -521,6 +587,12 @@ lxc query --request POST /1.0/network-acls/web-traffic --data '{
 
 ````
 % End of group-tab API
+
+````{group-tab} UI
+
+To rename an ACL, go to its {ref}`detail page <network-acls-show>` and select its name in the header.
+````
+% End of group-tab UI
 
 `````
 
@@ -643,6 +715,14 @@ lxc query --request PUT /1.0/network-acls/my-acl --data '{
 ````
 % End of group-tab API
 
+````{group-tab} UI
+
+To edit an ACL, navigate to its {ref}`detail page <network-acls-show>`. From here, you can add or remove ingress or egress rules, as well as configure other settings.
+
+
+````
+% End of group-tab UI
+
 `````
 
 (network-acls-edit-custom-api)=
@@ -731,6 +811,12 @@ lxc query --request DELETE /1.0/network-acls/{ACL-name}
 ````
 % End of group-tab API
 
+````{group-tab} UI
+
+To delete an ACL, ensure that it is not assigned to an NIC or network. You can then delete it from its {ref}`detail page <network-acls-show>`.
+````
+% End of group-tab UI
+
 `````
 
 (network-acls-assign)=
@@ -798,6 +884,18 @@ lxc query --request PATCH /1.0/networks/my-network --data '{
 
 ````
 % End of group-tab API
+
+````{group-tab} UI
+
+You can assign an ACL to a bridge or OVN network when {ref}`creating <network-create>` or {ref}`editing <network-configure>` the network. In either case, select your pre-configured ACL from the {guilabel}`ACLs` dropdown.
+
+```{figure} /images/networks/network_create.png
+:width: 80%
+:alt: Create a network in LXD
+```
+
+````
+% End of group-tab UI
 
 `````
 
