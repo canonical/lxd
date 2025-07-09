@@ -237,7 +237,7 @@ test_remote_usage() {
   lxc_remote image copy --quiet "localhost:${sum}" lxd2:
   lxc_remote image delete "lxd2:${sum}"
 
-  lxc_remote image copy --quiet "localhost:$(echo "${sum}" | cut -c 1-2)" lxd2:
+  lxc_remote image copy --quiet "localhost:$(echo "${sum}" | cut -c 1-12)" lxd2:
   lxc_remote image delete "lxd2:${sum}"
 
   # test a private image
