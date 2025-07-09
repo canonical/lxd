@@ -5534,6 +5534,22 @@
 							"shortdesc": "Volume to use to store the image tarballs",
 							"type": "string"
 						}
+					},
+					{
+						"storage.project.{name}.backups_volume": {
+							"longdesc": "Specify the volume using the syntax `POOL/VOLUME`.",
+							"scope": "local",
+							"shortdesc": "Volume to use to store project-specific backup tarballs",
+							"type": "string"
+						}
+					},
+					{
+						"storage.project.{name}.images_volume": {
+							"longdesc": "Specify the volume using the syntax `POOL/VOLUME`.",
+							"scope": "local",
+							"shortdesc": "Volume to use to store project-specific image tarballs",
+							"type": "string"
+						}
 					}
 				]
 			},
