@@ -380,7 +380,7 @@ func LoadByProjectAndName(s *state.State, projectName string, instanceName strin
 
 	inst, err := Load(s, args, *p)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to load instance: %w", err)
+		return nil, fmt.Errorf("Failed loading instance: %w", err)
 	}
 
 	return inst, nil
