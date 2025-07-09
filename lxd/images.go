@@ -65,7 +65,7 @@ var imagesCmd = APIEndpoint{
 	Path:        "images",
 	MetricsType: entity.TypeImage,
 
-	Get:  APIEndpointAction{Handler: imagesGet, AllowUntrusted: true},
+	Get:  APIEndpointAction{Handler: imagesGet, AccessHandler: imagesGetAccessHandler, AllowUntrusted: true},
 	Post: APIEndpointAction{Handler: imagesPost, AllowUntrusted: true, ContentTypes: []string{"application/json", "application/octet-stream", "multipart/form-data"}},
 }
 
@@ -398,6 +398,133 @@ func imageGetOrExportAccessHandler(d *Daemon, r *http.Request) response.Response
 	}
 
 	return response.EmptySyncResponse
+}
+
+const ctxImagesGetDetails request.CtxKey = "images-get-details"
+
+type imagesGetDetails struct {
+	loadPrivateImages  bool
+	requestProjectName string
+	allProjects        bool
+	canView            func(fingerprint string, project string, public bool) bool
+}
+
+// imagesGetAccessHandler inspects the request and the caller to determine whether the handler should load private
+// images, and sets a custom `canView` access checker for various caller types.
+func imagesGetAccessHandler(d *Daemon, r *http.Request) response.Response {
+	projectName, allProjects, err := request.ProjectParams(r)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	details := imagesGetDetails{
+		requestProjectName: projectName,
+		allProjects:        allProjects,
+	}
+
+	defer func() {
+		request.SetContextValue(r, ctxImagesGetDetails, details)
+	}()
+
+	// Untrusted callers may only list public images in the default project.
+	if !auth.IsTrusted(r.Context()) {
+		if allProjects {
+			return response.Forbidden(errors.New("You must be authenticated"))
+		}
+
+		if projectName != api.ProjectDefaultName {
+			return response.NotFound(nil)
+		}
+
+		details.canView = func(_ string, project string, public bool) bool {
+			return public && project == api.ProjectDefaultName
+		}
+
+		return response.EmptySyncResponse
+	}
+
+	// Set the effective project only if it's not an all-projects request.
+	s := d.State()
+	if !allProjects {
+		info := request.SetupContextInfo(r)
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			info.EffectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
+			return err
+		})
+		if err != nil && api.StatusErrorCheck(err, http.StatusNotFound) {
+			return response.NotFound(nil)
+		} else if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
+	isAdmin, err := auth.IsServerAdmin(r.Context(), s.IdentityCache)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if isAdmin {
+		// Admins can view all images, public and private.
+		details.loadPrivateImages = true
+		details.canView = func(_, _ string, _ bool) bool {
+			return true
+		}
+
+		return response.EmptySyncResponse
+	}
+
+	id, err := auth.GetIdentityFromCtx(r.Context(), s.IdentityCache)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Get a permission checker for use with private images.
+	canViewPrivateImage, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeImage)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if identity.IsFineGrainedIdentityType(id.IdentityType) {
+		// Fine-grained identities should load private images to perform individual access checks.
+		details.loadPrivateImages = true
+		details.canView = func(fingerprint, project string, public bool) bool {
+			return (public && project == api.ProjectDefaultName) || canViewPrivateImage(entity.ImageURL(project, fingerprint))
+		}
+
+		return response.EmptySyncResponse
+	}
+
+	if id.IdentityType != api.IdentityTypeCertificateClientRestricted {
+		return response.Forbidden(nil)
+	}
+
+	// all-projects requests are not allowed for restricted TLS clients
+	if allProjects {
+		return response.Forbidden(errors.New("Certificate is restricted"))
+	}
+
+	// If restricted TLS client has access to the project, load private images.
+	if slices.Contains(id.Projects, projectName) {
+		details.loadPrivateImages = true
+		details.canView = func(fingerprint, project string, public bool) bool {
+			return (public && project == api.ProjectDefaultName) || canViewPrivateImage(entity.ImageURL(project, fingerprint))
+		}
+
+		return response.EmptySyncResponse
+	}
+
+	// If request is for default project but restricted TLS client does not have access to it. Allow request but only
+	// get public images.
+	if projectName == api.ProjectDefaultName {
+		details.canView = func(_ string, project string, public bool) bool {
+			return public && project == api.ProjectDefaultName
+		}
+
+		return response.EmptySyncResponse
+	}
+
+	// Disallow listing resources in projects the caller does not have access to.
+	return response.Forbidden(errors.New("Certificate is restricted"))
 }
 
 /*
@@ -1641,7 +1768,7 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 	return &result, imageType, nil
 }
 
-func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectName string, public bool, clauses *filter.ClauseSet, hasPermission auth.PermissionChecker, allProjects bool) (any, error) {
+func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectName string, public bool, clauses *filter.ClauseSet, canView func(fingerprint string, projectName string, public bool) bool, allProjects bool) (any, error) {
 	mustLoadObjects := recursion || (clauses != nil && len(clauses.Clauses) > 0)
 
 	imagesProjectsMap := map[string][]string{}
@@ -1681,7 +1808,7 @@ func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectN
 		}
 
 		for _, project := range projects {
-			if image.Public || hasPermission(entity.ImageURL(project, fingerprint)) {
+			if canView(image.Fingerprint, project, image.Public) {
 				hasAccess = true
 				break
 			}
@@ -1943,6 +2070,11 @@ func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectN
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func imagesGet(d *Daemon, r *http.Request) response.Response {
+	details, err := request.GetContextValue[imagesGetDetails](r.Context(), ctxImagesGetDetails)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	filterStr := r.FormValue("filter")
 
 	recursion := util.IsRecursionRequest(r)
@@ -1951,40 +2083,7 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	projectName, allProjects, err := request.ProjectParams(r)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	s := d.State()
-	if !allProjects {
-		reqInfo := request.SetupContextInfo(r)
-		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			reqInfo.EffectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
-			return err
-		})
-		if err != nil {
-			return response.SmartError(err)
-		}
-	}
-
-	// If the caller is not trusted, we only want to list public images in the default project.
-	trusted := auth.IsTrusted(r.Context())
-	publicOnly := !trusted
-
-	// Untrusted callers can't request images from all projects or projects other than default.
-	if !trusted && (allProjects || projectName != api.ProjectDefaultName) {
-		return response.Forbidden(errors.New("Untrusted callers may only access public images in the default project"))
-	}
-
-	// Get a permission checker. If the caller is not authenticated, the permission checker will deny all.
-	// However, the permission checker is only called when an image is private. Both trusted and untrusted clients will
-	// still see public images.
-	canViewImage, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeImage)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	clauses, err := filter.Parse(filterStr, filter.QueryOperatorSet())
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Invalid filter: %w", err))
@@ -1992,7 +2091,7 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 
 	var result any
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		result, err = doImagesGet(ctx, tx, recursion, projectName, publicOnly, clauses, canViewImage, allProjects)
+		result, err = doImagesGet(ctx, tx, recursion, details.requestProjectName, !details.loadPrivateImages, clauses, details.canView, details.allProjects)
 		if err != nil {
 			return err
 		}
