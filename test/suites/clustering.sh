@@ -3159,9 +3159,9 @@ test_clustering_image_refresh() {
 
   for project in default foo bar; do
     # Copy the public image to each project
-    LXD_DIR="${LXD_ONE_DIR}" lxc image copy public:testimage local: --alias testimage --project "${project}"
+    LXD_DIR="${LXD_ONE_DIR}" lxc image copy public:testimage local: --alias testimage --target-project "${project}"
 
-    # Diable autoupdate for testimage in project foo
+    # Disable autoupdate for testimage in project foo
     if [ "${project}" = "foo" ]; then
       auto_update=false
     else
