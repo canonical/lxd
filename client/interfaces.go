@@ -503,6 +503,9 @@ type DevLXDServer interface {
 	// DevLXD images.
 	GetImageFile(fingerprint string, req ImageFileRequest) (resp *ImageFileResponse, err error)
 
+	// DevLXD Operations.
+	GetOperationWait(uuid string, timeout int) (op *api.DevLXDOperation, ETag string, err error)
+
 	// DevLXD Ubuntu Pro.
 	GetUbuntuPro() (*api.DevLXDUbuntuProSettings, error)
 	CreateUbuntuProToken() (*api.DevLXDUbuntuProGuestTokenResponse, error)
