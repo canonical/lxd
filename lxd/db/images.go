@@ -447,10 +447,10 @@ SELECT images_aliases.name
 }
 
 // GetImageAlias returns the alias with the given name in the given project.
-func (c *ClusterTx) GetImageAlias(ctx context.Context, projectName string, imageName string, isTrustedClient bool) (int, api.ImageAliasesEntry, error) {
+func (c *ClusterTx) GetImageAlias(ctx context.Context, projectName string, imageName string, isTrustedClient bool) (int, bool, api.ImageAliasesEntry, error) {
 	id := -1
 	entry := api.ImageAliasesEntry{}
-	q := `SELECT images_aliases.id, images.fingerprint, images.type, images_aliases.description
+	q := `SELECT images_aliases.id, images.public, images.fingerprint, images.type, images_aliases.description
 			 FROM images_aliases
 			 INNER JOIN images
 			 ON images_aliases.image_id=images.id
@@ -463,7 +463,7 @@ func (c *ClusterTx) GetImageAlias(ctx context.Context, projectName string, image
 
 	enabled, err := cluster.ProjectHasImages(ctx, c.tx, projectName)
 	if err != nil {
-		return -1, api.ImageAliasesEntry{}, fmt.Errorf("Check if project has images: %w", err)
+		return -1, false, api.ImageAliasesEntry{}, fmt.Errorf("Check if project has images: %w", err)
 	}
 
 	if !enabled {
@@ -472,16 +472,17 @@ func (c *ClusterTx) GetImageAlias(ctx context.Context, projectName string, image
 
 	var fingerprint, description string
 	var imageType int
+	var public bool
 
 	arg1 := []any{projectName, imageName}
-	arg2 := []any{&id, &fingerprint, &imageType, &description}
+	arg2 := []any{&id, &public, &fingerprint, &imageType, &description}
 	err = c.tx.QueryRowContext(ctx, q, arg1...).Scan(arg2...)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return -1, api.ImageAliasesEntry{}, api.StatusErrorf(http.StatusNotFound, "Image alias not found")
+			return -1, false, api.ImageAliasesEntry{}, api.StatusErrorf(http.StatusNotFound, "Image alias not found")
 		}
 
-		return 0, entry, err
+		return 0, false, entry, err
 	}
 
 	entry.Name = imageName
@@ -489,7 +490,7 @@ func (c *ClusterTx) GetImageAlias(ctx context.Context, projectName string, image
 	entry.Description = description
 	entry.Type = instancetype.Type(imageType).String()
 
-	return id, entry, nil
+	return id, public, entry, nil
 }
 
 // RenameImageAlias renames the alias with the given ID.
