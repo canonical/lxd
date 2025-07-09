@@ -23,7 +23,7 @@ func SmartError(err error) Response {
 
 	statusCode, found := api.StatusErrorMatch(err)
 	if found {
-		return &errorResponse{statusCode, err.Error()}
+		return &errorResponse{statusCode, err}
 	}
 
 	for httpStatusCode, checkErrs := range httpResponseErrors {
@@ -31,17 +31,16 @@ func SmartError(err error) Response {
 			if errors.Is(err, checkErr) {
 				if err != checkErr {
 					// If the error has been wrapped return the top-level error message.
-					return &errorResponse{httpStatusCode, err.Error()}
+					return &errorResponse{httpStatusCode, err}
 				}
 
-				// If the error hasn't been wrapped, replace the error message with the generic
-				// HTTP status text.
-				return &errorResponse{httpStatusCode, http.StatusText(httpStatusCode)}
+				// If the error hasn't been wrapped, use a generic error.
+				return &errorResponse{httpStatusCode, nil}
 			}
 		}
 	}
 
-	return &errorResponse{http.StatusInternalServerError, err.Error()}
+	return &errorResponse{http.StatusInternalServerError, err}
 }
 
 // IsNotFoundError returns true if the error is considered a Not Found error.

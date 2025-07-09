@@ -60,7 +60,7 @@ users:
   VENDOR_DATA="$(lxc exec devlxd -- devlxd-client cloud-init vendor-data)"
   grep "gh:user1" <<< "${VENDOR_DATA}"
   grep "gh:user2" <<< "${VENDOR_DATA}"
-  [ "$(lxc exec devlxd -- devlxd-client cloud-init user-data)" = "not found" ]
+  [ "$(lxc exec devlxd -- devlxd-client cloud-init user-data)" = "Not Found" ]
   lxc config unset devlxd cloud-init.ssh-keys.mykey
   lxc config unset devlxd cloud-init.vendor-data
 
