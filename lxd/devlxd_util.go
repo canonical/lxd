@@ -166,3 +166,25 @@ func RenderToStruct(req *http.Request, resp response.Response, target any) (etag
 
 	return etag, nil
 }
+
+// RenderToOperation renders the response into an operation and returns the ETag.
+func RenderToOperation(req *http.Request, resp response.Response) (operation *api.Operation, err error) {
+	rc := NewResponseCapture(req)
+	err = resp.Render(rc, req)
+	if err != nil {
+		return nil, err
+	}
+
+	apiResp, _, err := rc.ToAPIResponse()
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the operation from metadata.
+	op, err := apiResp.MetadataAsOperation()
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
