@@ -290,7 +290,6 @@ parts:
     source: https://github.com/canonical/dqlite
     source-depth: 1
     source-type: git
-    source-commit: 8fcffefa8df34628459545786602bbe7c5d839e0 # Last known good version
     plugin: autotools
     autotools-configure-parameters:
       - --prefix=
@@ -537,12 +536,12 @@ parts:
 
   nvidia-container:
     source: https://github.com/NVIDIA/libnvidia-container
-    source-commit: a198166e1c1166f4847598438115ea97dacc7a92 # v1.17.6
+    source-commit: 6eda4d76c8c5f8fc174e4abca83e513fb4dd63b0 # v1.17.8
     source-depth: 1
     source-type: git
     plugin: make
     build-environment:
-      - GIT_TAG: "1.17.6" # Enables source-depth: 1, should match git tag without "v" prefix.
+      - GIT_TAG: "1.17.8" # Enables source-depth: 1, should match git tag without "v" prefix.
     build-packages:
       - to amd64:
         - bmake
@@ -599,7 +598,7 @@ parts:
   nvidia-container-toolkit:
     source: https://github.com/NVIDIA/nvidia-container-toolkit
     source-depth: 1
-    source-commit: bae3e7842ebe26812d8bd6a9be6a14a83dc91d8f # v1.17.7
+    source-commit: f202b80a9b9d0db00d9b1d73c0128c8962c55f4d # v1.17.8
     source-type: git
     build-snaps:
       - go/1.24/stable
@@ -785,7 +784,7 @@ parts:
       - libatomic
       - spice-server
     source: https://git.launchpad.net/ubuntu/+source/qemu
-    source-commit: ed8ba3428bff0004d8b4961a85225a6ceb443d52 # import/1%8.2.2+ds-0ubuntu1.7
+    source-commit: e63cad5bb3e377aacfc808c2cf075e0613072b88 # import/1%8.2.2+ds-0ubuntu1.8
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -1150,7 +1149,7 @@ parts:
 
   zfs-2-2:
     source: https://github.com/openzfs/zfs
-    source-commit: e269af1b3c7b1b1c000d05f147a2f75e5e72e0ca # zfs-2.2.7
+    source-commit: 3e4a3e161c00273303cd9fa9e0dc09ead3499a8a # zfs-2.2.8
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -1199,7 +1198,7 @@ parts:
 
   zfs-2-3:
     source: https://github.com/openzfs/zfs
-    source-commit: 92f430b00f42964b63aee373fbf6598a20f6c0cc # zfs-2.3.2
+    source-commit: 1af41fd203639818aa28cc624f144ef604a166d8 # zfs-2.3.3
     source-depth: 1
     source-type: git
     plugin: autotools
