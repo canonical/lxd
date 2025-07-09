@@ -13,10 +13,14 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/cluster"
+	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
@@ -643,7 +647,8 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 	requestor := request.CreateRequestor(r.Context())
 	s.Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, requestor, nil))
 
-	return projectChange(r.Context(), s, project, req)
+	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	return projectChange(r.Context(), s, project, req, clientType)
 }
 
 // swagger:operation PATCH /1.0/projects/{name} projects project_patch
@@ -759,7 +764,8 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 	requestor := request.CreateRequestor(r.Context())
 	s.Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, requestor, nil))
 
-	return projectChange(r.Context(), s, project, req)
+	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	return projectChange(r.Context(), s, project, req, clientType)
 }
 
 // A request for the /internal/project/volume-change endpoint.
@@ -804,8 +810,51 @@ func internalProjectPostVolumeChange(d *Daemon, r *http.Request) response.Respon
 // storageVolumeChange handles changes of one of the storage.images_volume or storage.backups.volume configs.
 // As these configs can be changed only on empty projects, we don't move any images around. Instead we only
 // mount the volumes as needed.
-func storageVolumeChange(s *state.State, oldConfig string, newConfig string, storageType string, revert *revert.Reverter) error {
-	var err error
+func storageVolumeChange(s *state.State, projectName string, project api.ProjectPut, oldConfig string, newConfig string, storageType string, clientType clusterRequest.ClientType, revert *revert.Reverter) error {
+	// Ask other cluster members to verify and mount the volume.
+	if clientType == clusterRequest.ClientTypeNormal {
+		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAll)
+		if err != nil {
+			return err
+		}
+
+		var lock sync.Mutex
+		updatedMembers := make([]db.NodeInfo, 0)
+		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
+			err := client.UpdateProject(projectName, project, "")
+			// Build the list of updated members. If any of them fails, we'll need to revert those which suceeded.
+			if err == nil {
+				lock.Lock()
+				updatedMembers = append(updatedMembers, member)
+				lock.Unlock()
+			}
+
+			return err
+		})
+
+		// If any of the nodes failed to configure the storage, revert those which succeeded.
+		if err != nil {
+			notifier, innererr := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAll, updatedMembers...)
+			if innererr != nil {
+				return innererr
+			}
+
+			req := internalProjectPostVolumeChangeRequest{
+				OldConfig:   newConfig,
+				NewConfig:   oldConfig,
+				StorageType: storageType,
+			}
+			innererr = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
+				_, _, err := client.RawQuery(http.MethodPost, "/internal/project/volume-change", req, "")
+				return err
+			})
+		}
+
+		if err != nil {
+			return err
+		}
+	}
+
 	if oldConfig != "" {
 		err := unmountDaemonStorageVolume(s, oldConfig)
 		if err != nil {
@@ -814,7 +863,7 @@ func storageVolumeChange(s *state.State, oldConfig string, newConfig string, sto
 	}
 
 	if newConfig != "" {
-		err = projectStorageSetup(s, newConfig, storageType, revert)
+		err := projectStorageSetup(s, newConfig, storageType, revert)
 		if err != nil {
 			return err
 		}
@@ -824,7 +873,7 @@ func storageVolumeChange(s *state.State, oldConfig string, newConfig string, sto
 }
 
 // Common logic between PUT and PATCH.
-func projectChange(ctx context.Context, s *state.State, project *api.Project, req api.ProjectPut) response.Response {
+func projectChange(ctx context.Context, s *state.State, project *api.Project, req api.ProjectPut, clientType clusterRequest.ClientType) response.Response {
 	// Make a list of config keys that have changed.
 	configChanged := []string{}
 	for key := range project.Config {
@@ -895,17 +944,23 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 	revert := revert.New()
 	defer revert.Fail()
 	if slices.Contains(configChanged, "storage.images_volume") {
-		err = storageVolumeChange(s, project.Config["storage.images_volume"], req.Config["storage.images_volume"], "images", revert)
+		err = storageVolumeChange(s, project.Name, req, project.Config["storage.images_volume"], req.Config["storage.images_volume"], "images", clientType, revert)
 		if err != nil {
 			return response.SmartError(err)
 		}
 	}
 
 	if slices.Contains(configChanged, "storage.backups_volume") {
-		err = storageVolumeChange(s, project.Config["storage.backups_volume"], req.Config["storage.backups_volume"], "backups", revert)
+		err = storageVolumeChange(s, project.Name, req, project.Config["storage.backups_volume"], req.Config["storage.backups_volume"], "backups", clientType, revert)
 		if err != nil {
 			return response.SmartError(err)
 		}
+	}
+
+	// Don't update the DB on cluster notifications.
+	if clientType != clusterRequest.ClientTypeNormal {
+		revert.Success()
+		return response.EmptySyncResponse
 	}
 
 	// Update the database entry.
