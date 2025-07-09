@@ -37,6 +37,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -113,7 +114,7 @@ var imageAliasCmd = APIEndpoint{
 	MetricsType: entity.TypeImage,
 
 	Delete: APIEndpointAction{Handler: imageAliasDelete, AccessHandler: imageAliasAccessHandler(auth.EntitlementCanDelete)},
-	Get:    APIEndpointAction{Handler: imageAliasGet, AllowUntrusted: true},
+	Get:    APIEndpointAction{Handler: imageAliasGet, AccessHandler: imageAliasGetAccessHandler, AllowUntrusted: true},
 	Patch:  APIEndpointAction{Handler: imageAliasPatch, AccessHandler: imageAliasAccessHandler(auth.EntitlementCanEdit)},
 	Post:   APIEndpointAction{Handler: imageAliasPost, AccessHandler: imageAliasAccessHandler(auth.EntitlementCanEdit)},
 	Put:    APIEndpointAction{Handler: imageAliasPut, AccessHandler: imageAliasAccessHandler(auth.EntitlementCanEdit)},
@@ -210,6 +211,98 @@ func imageAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Re
 
 		return response.EmptySyncResponse
 	}
+}
+
+const ctxImageAliasGetDetails request.CtxKey = "image-alias-details"
+
+type imageAliasGetDetails struct {
+	getPrivateAliases bool
+}
+
+// imageAliasGetAccessHandler sets imageAliasGetDetails in the request context, which indicates to the handler if it
+// should restrict the database query to return only aliases of public images. If the image is private, the handler must
+// still perform an access check.
+func imageAliasGetAccessHandler(d *Daemon, r *http.Request) response.Response {
+	requestProjectName := request.ProjectParam(r)
+	details := imageAliasGetDetails{}
+	defer func() {
+		request.SetContextValue(r, ctxImageAliasGetDetails, details)
+	}()
+
+	imageAliasName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// If the caller is not trusted, only allow requests to the default project and restrict to aliases of public images.
+	trusted := auth.IsTrusted(r.Context())
+	if !trusted {
+		if requestProjectName != api.ProjectDefaultName {
+			return response.NotFound(nil)
+		}
+
+		return response.EmptySyncResponse
+	}
+
+	// Any request that is not to the default project can be handled via standard auth, since these aliases are private
+	// regardless of the image target.
+	s := d.State()
+	if requestProjectName != api.ProjectDefaultName {
+		info := request.SetupContextInfo(r)
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			info.EffectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), requestProjectName)
+			return err
+		})
+		if err != nil && api.StatusErrorCheck(err, http.StatusNotFound) {
+			return response.NotFound(nil)
+		} else if err != nil {
+			return response.SmartError(err)
+		}
+
+		err := s.Authorizer.CheckPermission(r.Context(), entity.ImageAliasURL(requestProjectName, imageAliasName), auth.EntitlementCanView)
+		if err != nil && auth.IsDeniedError(err) {
+			return response.SmartError(err)
+		}
+
+		details.getPrivateAliases = true
+		return response.EmptySyncResponse
+	}
+
+	isAdmin, err := auth.IsServerAdmin(r.Context(), s.IdentityCache)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Admins can view aliases of private images in the default project.
+	if isAdmin {
+		details.getPrivateAliases = true
+		return response.EmptySyncResponse
+	}
+
+	id, err := auth.GetIdentityFromCtx(r.Context(), s.IdentityCache)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Fine-grained identity types need to load the alias and perform an access check if it is private.
+	if identity.IsFineGrainedIdentityType(id.IdentityType) {
+		details.getPrivateAliases = true
+		return response.EmptySyncResponse
+	}
+
+	if id.IdentityType != api.IdentityTypeCertificateClientRestricted {
+		return response.Forbidden(nil)
+	}
+
+	// If restricted TLS client has access to the default project, load private aliases.
+	if slices.Contains(id.Projects, requestProjectName) {
+		details.getPrivateAliases = true
+		return response.EmptySyncResponse
+	}
+
+	// Request is for default project but restricted TLS client does not have access to it. Allow request but only
+	// get public aliases.
+	return response.EmptySyncResponse
 }
 
 func imageAliasAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
@@ -3765,6 +3858,11 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func imageAliasGet(d *Daemon, r *http.Request) response.Response {
+	details, err := request.GetContextValue[imageAliasGetDetails](r.Context(), ctxImageAliasGetDetails)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	projectName := request.ProjectParam(r)
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
@@ -3778,30 +3876,12 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var effectiveProjectName string
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
-		return err
-	})
-
-	// Set `userCanViewImageAlias` to true only when the caller is authenticated and can view the alias.
-	// We don't abort the request if this is false because the image alias may be for a public image.
-	var userCanViewImageAlias bool
-
-	reqInfo := request.SetupContextInfo(r)
-	reqInfo.EffectiveProjectName = effectiveProjectName
-
-	err = s.Authorizer.CheckPermission(r.Context(), entity.ImageAliasURL(projectName, name), auth.EntitlementCanView)
-	if err != nil && !auth.IsDeniedError(err) {
-		return response.SmartError(err)
-	} else if err == nil {
-		userCanViewImageAlias = true
-	}
-
 	var alias api.ImageAliasesEntry
+	var isPublic bool
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		// If `userCanViewImageAlias` is false, the query will be restricted to public images only.
-		_, _, alias, err = tx.GetImageAlias(ctx, projectName, name, details.getPrivateAliases)
+		// If details.getPrivateAliases is false, the query will be restricted to public images only.
+		// This value is set in the access handler based on caller information and the requested project.
+		_, isPublic, alias, err = tx.GetImageAlias(ctx, projectName, name, details.getPrivateAliases)
 		return err
 	})
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
@@ -3809,6 +3889,16 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	} else if err != nil {
 		// Return a generic not found error.
 		return response.NotFound(nil)
+	}
+
+	// If the alias points to a private image, perform an access check.
+	if !isPublic {
+		err := s.Authorizer.CheckPermission(r.Context(), entity.ImageAliasURL(projectName, name), auth.EntitlementCanView)
+		if err != nil && auth.IsDeniedError(err) {
+			return response.NotFound(nil)
+		} else if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	if len(withEntitlements) > 0 {
