@@ -1892,7 +1892,16 @@ func (d *Daemon) init() error {
 		// Setup seccomp handler
 		if d.os.SeccompListener {
 			seccompServer, err := seccomp.NewSeccompServer(d.State(), shared.VarPath("seccomp.socket"), func(pid int32, state *state.State) (seccomp.Instance, error) {
-				return findContainerForPID(pid, state)
+				// We trust the pid from the seccomp listener is the correct LXC monitor PID, as
+				// we cannot call c.InitPID() inside the seccomp handler to check the PID NS as it
+				// would deadlock.
+				c, err := loadContainerFromLXCMonitorPID(state, pid)
+				if err != nil {
+					logger.Warn("Could not match PID to container for seccomp", logger.Ctx{"pid": pid, "err": err})
+					return nil, errPIDNotInContainer
+				}
+
+				return c, nil
 			})
 			if err != nil {
 				return err
