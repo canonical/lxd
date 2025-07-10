@@ -7632,7 +7632,7 @@
 				},
 				{
 					"name": "can_view_events",
-					"description": "Grants permission to view events relating to the project."
+					"description": "Grants permission to view life cycle events relating to the project."
 				},
 				{
 					"name": "can_view_metrics",
@@ -7753,7 +7753,7 @@
 				},
 				{
 					"name": "can_view_privileged_events",
-					"description": "Grants permission to view privileged event types, such as logging events."
+					"description": "Grants permission to view all events, this includes logging events, and all operation and life cycle events that were not initiated by the caller."
 				},
 				{
 					"name": "can_view_resources",

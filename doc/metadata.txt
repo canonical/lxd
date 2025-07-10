@@ -6824,7 +6824,7 @@ using the `zfs` command in the container.
 : Grants permission to view operations relating to the project.
 
 `can_view_events`
-: Grants permission to view events relating to the project.
+: Grants permission to view life cycle events relating to the project.
 
 `can_view_metrics`
 : Grants permission to view project level metrics.
@@ -6914,7 +6914,7 @@ using the `zfs` command in the container.
 : If a project is configured with `restricted.cluster.target`, clients with this permission can override the restriction.
 
 `can_view_privileged_events`
-: Grants permission to view privileged event types, such as logging events.
+: Grants permission to view all events, this includes logging events, and all operation and life cycle events that were not initiated by the caller.
 
 `can_view_resources`
 : Grants permission to view server and storage pool resource usage information.
