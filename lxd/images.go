@@ -369,6 +369,10 @@ func imageGetOrExportAccessHandler(d *Daemon, r *http.Request) response.Response
 
 	// If the caller sends a secret, then that secret must be valid, regardless of other privileges.
 	if secret != "" {
+		if projectName != api.ProjectDefaultName {
+			return response.Forbidden(errors.New("Image secrets may only be used to access private images in the default project"))
+		}
+
 		// If authenticating with a secret, the caller must have the full fingerprint.
 		if details.imageFingerprintPrefix != details.image.Fingerprint {
 			return response.NotFound(nil)
