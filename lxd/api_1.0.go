@@ -612,6 +612,23 @@ func api10Patch(d *Daemon, r *http.Request) response.Response {
 	return doAPI10Update(d, r, req, true)
 }
 
+func getProjectNameFromStorageConfig(config string) (string, error) {
+	projectName, found := strings.CutPrefix(config, "storage.project_")
+	if !found {
+		return "", fmt.Errorf("Invalid config key: %q", config)
+	}
+
+	projectName, found = strings.CutSuffix(projectName, ".images_volume")
+	if !found {
+		projectName, found = strings.CutSuffix(projectName, ".backups_volume")
+		if !found {
+			return "", fmt.Errorf("Invalid config key: %q", config)
+		}
+	}
+
+	return projectName, nil
+}
+
 func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) response.Response {
 	s := d.State()
 
@@ -677,6 +694,8 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		}
 
 		// Validate the storage volumes.
+		projectsImagesStorage := make(map[string]string)
+		projectsBackupsStorage := make(map[string]string)
 		for key, value := range nodeValues {
 			if !strings.HasPrefix(key, "storage.") {
 				continue
@@ -684,17 +703,9 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 
 			// Validate project storage settings.
 			if strings.HasPrefix(key, "storage.project_") {
-				projectName, found := strings.CutPrefix(key, "storage.project_")
-				if !found {
-					return fmt.Errorf("Invalid config key: %q", key)
-				}
-
-				projectName, found = strings.CutSuffix(projectName, ".images_volume")
-				if !found {
-					projectName, found = strings.CutSuffix(projectName, ".backups_volume")
-					if !found {
-						return fmt.Errorf("Invalid config key: %q", key)
-					}
+				projectName, err := getProjectNameFromStorageConfig(key)
+				if err != nil {
+					return err
 				}
 
 				project, _, err := client.GetProject(projectName)
@@ -705,13 +716,35 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 				// Disallow setting external storage on non-empty projects.
 				usedByLen := len(project.UsedBy)
 				projectInUse := usedByLen > 1 || (usedByLen == 1 && !strings.Contains(project.UsedBy[0], "/profiles/default"))
-				if projectInUse {
+				if nodeValues[key] != oldNodeConfig[key] && projectInUse {
 					return fmt.Errorf("Project config %q cannot be changed on non-empty projects", key)
 				}
 
 				// Disallow setting external storage for images on projects without images.
 				if strings.HasSuffix(key, ".images_volume") && shared.IsFalse(project.Config["features.images"]) {
 					return fmt.Errorf("Project %q doesn't have `features.images` set, so it cannot have images storage configured", project)
+				}
+
+				// Don't allow setting the project storage the same as as the daemon-level storage volume.
+				volume, ok := value.(string)
+				if !ok {
+					return fmt.Errorf(`Unexpected type for %q: %T`, key, value)
+				}
+
+				if strings.HasSuffix(key, ".images_volume") && volume != "" {
+					if volume != "" && volume == newNodeConfig.StorageImagesVolume() {
+						return fmt.Errorf(`Failed validation of %q: storage volume already configured as the daemon images storage`, key)
+					}
+
+					projectsImagesStorage[volume] = projectName
+				}
+
+				if strings.HasSuffix(key, ".backups_volume") && volume != "" {
+					if volume == newNodeConfig.StorageBackupsVolume() {
+						return fmt.Errorf(`Failed validation of %q: storage volume already configured as the daemon backups storage`, key)
+					}
+
+					projectsBackupsStorage[volume] = projectName
 				}
 			}
 
@@ -728,6 +761,21 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 				if err != nil {
 					return fmt.Errorf("Failed validation of %q: %w", key, err)
 				}
+			}
+		}
+
+		// Don't allow the daemon-level storage to be set the same as any of the project settings.
+		if nodeValues["storage.backups_volume"] != nil && nodeValues["storage.backups_volume"] != newNodeConfig.StorageBackupsVolume() {
+			volume, _ := nodeValues["storage.backups_volume"].(string)
+			if projectsBackupsStorage[volume] != "" {
+				return fmt.Errorf(`Failed validation of %q: storage volume already configured as backups storage of project %q`, "storage.backups_volume", projectsBackupsStorage[nodeValues["storage.backups_volume"].(string)])
+			}
+		}
+
+		if nodeValues["storage.images_volume"] != nil && nodeValues["storage.images_volume"] != newNodeConfig.StorageImagesVolume() {
+			volume, _ := nodeValues["storage.images_volume"].(string)
+			if projectsImagesStorage[volume] != "" {
+				return fmt.Errorf(`Failed validation of %q: storage volume already configured as images storage of project %q`, "storage.images_volume", projectsImagesStorage[nodeValues["storage.images_volume"].(string)])
 			}
 		}
 
