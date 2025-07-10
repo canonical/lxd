@@ -12,6 +12,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
@@ -21,6 +22,7 @@ import (
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
+	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -611,6 +613,25 @@ func api10Patch(d *Daemon, r *http.Request) response.Response {
 	return doAPI10Update(d, r, req, true)
 }
 
+func getProjectNameFromStorageConfig(config string) string {
+	projectName, found := strings.CutPrefix(config, "storage.project.")
+	if !found {
+		return ""
+	}
+
+	projectName, found = strings.CutSuffix(projectName, ".images_volume")
+	if found {
+		return projectName
+	}
+
+	projectName, found = strings.CutSuffix(projectName, ".backups_volume")
+	if found {
+		return projectName
+	}
+
+	return ""
+}
+
 func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) response.Response {
 	s := d.State()
 
@@ -622,6 +643,17 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		if ok {
 			nodeValues[key] = value
 			delete(req.Config, key)
+		}
+	}
+
+	// The config load validation has to allow loading of arbitrary per-project `storage.project.{name}` keys,
+	// as the list of projects is stored in the cluster database which is not available at the time when node
+	// config is loaded from the local database.
+	// In order not to allow setting any of these arbitrary values, we disallow that for those which were not
+	// explicitly added to the ConfigSchema above here.
+	for key := range req.Config {
+		if shared.IsProjectStorageConfig(key) {
+			return response.BadRequest(fmt.Errorf("Cannot set %q: Unknown key", key))
 		}
 	}
 
@@ -659,30 +691,61 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 			}
 		}
 
-		// Validate the storage volumes
-		if nodeValues["storage.backups_volume"] != nil && nodeValues["storage.backups_volume"] != newNodeConfig.StorageBackupsVolume() {
-			backupsPoolVolume, ok := nodeValues["storage.backups_volume"].(string)
-			if !ok {
-				return fmt.Errorf(`Unexpected type for "storage.backups_volume": %T`, nodeValues["storage.backups_volume"])
+		// Validate the storage volumes.
+		for key, value := range nodeValues {
+			if !strings.HasPrefix(key, "storage.") {
+				continue
 			}
 
-			// Store validated name back into nodeValues to ensure its not classifed as raw user input.
-			nodeValues["storage.backups_volume"], err = daemonStorageValidate(s, backupsPoolVolume)
+			// Validate the storage volume.
+			if nodeValues[key] != oldNodeConfig[key] {
+				volume, ok := nodeValues[key].(string)
+				if !ok {
+					return fmt.Errorf(`Unexpected type for %q: %T`, key, value)
+				}
+
+				// Store validated name back into nodeValues to ensure its not classifed as raw user input.
+				nodeValues[key], err = daemonStorageValidate(s, volume)
+				if err != nil {
+					return fmt.Errorf("Failed validation of %q: %w", key, err)
+				}
+			}
+
+			// Validate project storage settings.
+			projectName := getProjectNameFromStorageConfig(key)
+			if projectName == "" {
+				continue
+			}
+
+			var project *api.Project
+			err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+				dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
+				if err != nil {
+					return err
+				}
+
+				project, err = dbProject.ToAPI(ctx, tx.Tx())
+				if err != nil {
+					return err
+				}
+
+				project.UsedBy, err = projectUsedBy(ctx, tx, dbProject)
+				return err
+			})
 			if err != nil {
-				return fmt.Errorf("Failed validation of %q: %w", "storage.backups_volume", err)
-			}
-		}
-
-		if nodeValues["storage.images_volume"] != nil && nodeValues["storage.images_volume"] != newNodeConfig.StorageImagesVolume() {
-			imagesPoolVolume, ok := nodeValues["storage.images_volume"].(string)
-			if !ok {
-				return fmt.Errorf(`Unexpected type for "storage.images_volume": %T`, nodeValues["storage.images_volume"])
+				return fmt.Errorf("Failed to load project %q: %w", projectName, err)
 			}
 
-			// Store validated name back into nodeValues to ensure its not classifed as raw user input.
-			nodeValues["storage.images_volume"], err = daemonStorageValidate(s, imagesPoolVolume)
-			if err != nil {
-				return fmt.Errorf("Failed validation of %q: %w", "storage.images_volume", err)
+			// Disallow setting external storage on non-empty projects.
+			usedByLen := len(project.UsedBy)
+			projectInUse := usedByLen > 1 || (usedByLen == 1 && !strings.Contains(project.UsedBy[0], "/profiles/default"))
+			if projectInUse {
+				return fmt.Errorf("Project config %q cannot be changed on non-empty projects", key)
+			}
+
+			// Disallow setting external storage for images on projects without images.
+			if strings.HasSuffix(key, ".images_volume") && shared.IsFalse(project.Config["features.images"]) {
+				return fmt.Errorf("Project %q doesn't have `features.images` set, so it cannot have images storage configured", project)
 			}
 		}
 
