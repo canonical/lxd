@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/url"
 
@@ -19,8 +20,9 @@ import (
 type devLXDDeviceAccessValidator func(device map[string]string) bool
 
 var devLXDInstanceEndpoint = APIEndpoint{
-	Path: "instances/{name}",
-	Get:  APIEndpointAction{Handler: devLXDInstanceGetHandler, AccessHandler: allowDevLXDPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
+	Path:  "instances/{name}",
+	Get:   APIEndpointAction{Handler: devLXDInstanceGetHandler, AccessHandler: allowDevLXDPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
+	Patch: APIEndpointAction{Handler: devLXDInstancePatchHandler, AccessHandler: allowDevLXDPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
 }
 
 // devLXDInstanceGetHandler retrieves instance information for the specified instance name.
@@ -80,6 +82,88 @@ func devLXDInstanceGetHandler(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.DevLXDResponseETag(http.StatusOK, respInst, "json", etag)
+}
+
+// devLXDInstancePatchHandler updates the devices of the specified instance.
+// Only devices that are accessible to devLXD and are owned by the devLXD identity
+// making the request can be modified.
+// Devices added through this endpoint are automatically owned by the caller's devLXD identity.
+func devLXDInstancePatchHandler(d *Daemon, r *http.Request) response.Response {
+	inst, err := getInstanceFromContextAndCheckSecurityFlags(r.Context(), devLXDSecurityKey, devLXDSecurityManagementVolumesKey)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	// Use the project where current instance is running.
+	// This is also enforced by the access handler.
+	projectName := inst.Project().Name
+
+	targetInstName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
+	}
+
+	// Get identity from the request context.
+	identity, err := request.GetCallerIdentityFromContext(r.Context())
+	if identity == nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	var reqInst api.DevLXDInstancePut
+
+	err = json.NewDecoder(r.Body).Decode(&reqInst)
+	if err != nil {
+		return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "Failed decoding request body: %w", err))
+	}
+
+	// Fetch instance.
+	targetInst := api.Instance{}
+
+	url := api.NewURL().Path("1.0", "instances", targetInstName).Project(projectName).WithQuery("recursion", "1")
+	req, err := lxd.NewRequestWithContext(r.Context(), http.MethodGet, url.String(), nil, "")
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	resp := instanceGet(d, req)
+	etag, err := response.NewResponseCapture(req).RenderToStruct(resp, &targetInst)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	// Use etag from the request, if provided. Otherwise, use the etag
+	// returned when fetching the existing instance.
+	reqETag := r.Header.Get("If-Match")
+	if reqETag != "" {
+		etag = reqETag
+	}
+
+	// Evaluate instance device changes and derive instance configuration with appropriate device ownership.
+	deviceChecker := newDevLXDDeviceAccessValidator(inst)
+	devices, config, err := generateDevLXDInstanceDevices(targetInst, reqInst, identity.Identifier, deviceChecker)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	// Update instance.
+	reqBody := api.InstancePut{
+		Config:  config,  // Update device ownership.
+		Devices: devices, // Update devices.
+	}
+
+	url = api.NewURL().Path("1.0", "instances", targetInstName).Project(projectName)
+	req, err = lxd.NewRequestWithContext(r.Context(), http.MethodPatch, url.String(), reqBody, etag)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	resp = instancePatch(d, req)
+	err = response.NewResponseCapture(req).Render(resp)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	return response.DevLXDResponse(http.StatusOK, "", "raw")
 }
 
 // generateDevLXDInstanceDevices compares the existing LXD instance (api.Instance) against the incoming
