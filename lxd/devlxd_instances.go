@@ -3,9 +3,23 @@ package main
 import (
 	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/shared/api"
 )
 
 type devLXDDeviceAccessValidator func(device map[string]string) bool
+
+// getDevLXDOwnedDevices extracts instance devices that are owned by the provided identity.
+func getDevLXDOwnedDevices(inst api.Instance, identityID string) map[string]map[string]string {
+	ownedDevices := make(map[string]map[string]string)
+
+	for name, device := range inst.Devices {
+		if inst.Config["volatile."+name+".devlxd.owner"] == identityID {
+			ownedDevices[name] = device
+		}
+	}
+
+	return ownedDevices
+}
 
 // newDevLXDDeviceAccessValidator returns a device validator function that
 // checks if the given device is accessible by the devLXD.
