@@ -496,7 +496,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanDeleteStorageBuckets,
 		// Grants permission to view operations relating to the project.
 		EntitlementCanViewOperations,
-		// Grants permission to view events relating to the project.
+		// Grants permission to view life cycle events relating to the project.
 		EntitlementCanViewEvents,
 		// Grants permission to view project level metrics.
 		EntitlementCanViewMetrics,
@@ -556,7 +556,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanDeleteProjects,
 		// If a project is configured with `restricted.cluster.target`, clients with this permission can override the restriction.
 		EntitlementCanOverrideClusterTargetRestriction,
-		// Grants permission to view privileged event types, such as logging events.
+		// Grants permission to view all events, this includes logging events, and all operation and life cycle events that were not initiated by the caller.
 		EntitlementCanViewPrivilegedEvents,
 		// Grants permission to view server and storage pool resource usage information.
 		EntitlementCanViewResources,
