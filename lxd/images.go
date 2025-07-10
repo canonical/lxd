@@ -4650,6 +4650,14 @@ func imageSecret(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	if details.image.Public {
+		return response.BadRequest(errors.New("Can't create an image secret for public images"))
+	}
+
+	if details.requestProjectName != api.ProjectDefaultName {
+		return response.BadRequest(errors.New("Can't create an image secret for images that are not in the default project"))
+	}
+
 	return createTokenResponse(s, r, details.requestProjectName, details.image.Fingerprint, nil)
 }
 
