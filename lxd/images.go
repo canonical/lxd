@@ -1495,6 +1495,20 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		imageUpload = true
 	}
 
+	// Disallow public image creation in non-default projects.
+	if projectName != api.ProjectDefaultName {
+		var public bool
+		if imageUpload {
+			public = shared.IsTrue(r.Header.Get("X-LXD-public"))
+		} else {
+			public = req.Public
+		}
+
+		if public {
+			return response.BadRequest(errors.New("Images can only be made public in the default project"))
+		}
+	}
+
 	if !imageUpload && req.Source.Mode == "push" {
 		cleanup(builddir, post)
 
@@ -3475,6 +3489,10 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	if req.Public && details.requestProjectName != api.ProjectDefaultName {
+		return response.BadRequest(errors.New("Images can only be made public in the default project"))
+	}
+
 	// Get ExpiresAt
 	if !req.ExpiresAt.IsZero() {
 		details.image.ExpiresAt = req.ExpiresAt
@@ -3594,6 +3612,10 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 	// Get Public
 	public, err := reqRaw.GetBool("public")
 	if err == nil {
+		if public && details.requestProjectName != api.ProjectDefaultName {
+			return response.BadRequest(errors.New("Images can only be made public in the default project"))
+		}
+
 		details.image.Public = public
 	}
 
