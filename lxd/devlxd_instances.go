@@ -3,12 +3,77 @@ package main
 import (
 	"net/http"
 
+	"github.com/gorilla/mux"
+
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 )
 
 type devLXDDeviceAccessValidator func(device map[string]string) bool
+
+var devLXDInstanceEndpoint = APIEndpoint{
+	Path: "instances/{name}",
+	Get:  APIEndpointAction{Handler: devLXDInstanceGetHandler, AccessHandler: allowDevLXDPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
+}
+
+// devLXDInstanceGetHandler retrieves instance information for the specified instance name.
+// The returned instance information includes only the devices that are accessible to devLXD
+// and are owned by the devLXD identity making the request.
+func devLXDInstanceGetHandler(d *Daemon, r *http.Request) response.Response {
+	inst, err := getInstanceFromContextAndCheckSecurityFlags(r.Context(), devLXDSecurityKey, devLXDSecurityManagementVolumesKey)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	// Allow access only to the projectName where current instance is running.
+	projectName := inst.Project().Name
+	targetInstName := mux.Vars(r)["name"]
+
+	// Get identity from the request context.
+	identity, err := request.GetCallerIdentityFromContext(r.Context())
+	if identity == nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	// Fetch instance.
+	targetInst := api.Instance{}
+
+	url := api.NewURL().Path("1.0", "instances", targetInstName).Project(projectName).WithQuery("recursion", "1").URL
+	req, err := request.NewRequestWithContext(r.Context(), http.MethodGet, url.String(), nil, "")
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	resp := instanceGet(d, req)
+	etag, err := RenderToStruct(req, resp, &targetInst)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	// Get owned devices.
+	ownedDevices := getDevLXDOwnedDevices(targetInst, identity.Identifier)
+
+	// Filter devices that are not accessible to devLXD.
+	deviceAccessChecker := newDevLXDDeviceAccessValidator(inst)
+	for name, device := range ownedDevices {
+		if !deviceAccessChecker(device) {
+			delete(ownedDevices, name)
+		}
+	}
+
+	// Convert to devLXD type.
+	respInst := api.DevLXDInstance{
+		Name:    targetInst.Name,
+		Devices: ownedDevices,
+	}
+
+	return response.DevLXDResponseETag(http.StatusOK, respInst, "json", etag)
+}
 
 // patchDevLXDInstanceDevices updates an existing instance (api.Instance) with devices from the
 // request instance (api.DevLXDInstancePut), and adjusts the device ownership configuration
