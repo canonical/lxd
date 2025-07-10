@@ -102,6 +102,7 @@ var patches = []patch{
 	{name: "oidc_groups_claim_scope", stage: patchPreLoadClusterConfig, run: patchOIDCGroupsClaimScope},
 	{name: "remove_backupsimages_symlinks", stage: patchPostDaemonStorage, run: patchRemoveBackupsImagesSymlinks},
 	{name: "move_images_storage", stage: patchPostDaemonStorage, run: patchMoveBackupsImagesStorage},
+	{name: "public_non_default_project_images", stage: patchPreLoadClusterConfig, run: patchPublicImagesInNonDefaultProjects},
 }
 
 type patch struct {
@@ -1563,6 +1564,35 @@ func patchMoveBackupsImagesStorage(name string, d *Daemon) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// patchPublicImagesInNonDefaultProjects sets all images that are not in the default project to private. This is because
+// images that are not in the default project can never be exported or viewed by untrusted callers.
+func patchPublicImagesInNonDefaultProjects(name string, d *Daemon) error {
+	err := d.State().DB.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		q := `UPDATE images SET public = 0 WHERE project_id = (SELECT id FROM projects WHERE name = ?)`
+		res, err := tx.Tx().Exec(q, api.ProjectDefaultName)
+		if err != nil {
+			return err
+		}
+
+		rowsAffected, err := res.RowsAffected()
+		if err != nil {
+			return err
+		}
+
+		if rowsAffected > 0 {
+			// Log warning if any images were updated.
+			logger.Warn("Public images in non-default projects have been reverted to private")
+		}
+
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to set public images in non-default projects to private: %w", err)
 	}
 
 	return nil
