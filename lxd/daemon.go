@@ -38,6 +38,7 @@ import (
 	"github.com/canonical/lxd/lxd/bgp"
 	"github.com/canonical/lxd/lxd/cluster"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
+	lxdConfig "github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/daemon"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -1601,6 +1602,17 @@ func (d *Daemon) init() error {
 		d.serverName = serverName
 		d.globalConfig = config
 		d.globalConfigMu.Unlock()
+
+		// Add the per-project config options to the daemon config schema.
+		projects, err := dbCluster.GetProjectNames(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		for _, project := range projects {
+			node.ConfigSchema["storage.project_"+project+".images_volume"] = lxdConfig.Key{}
+			node.ConfigSchema["storage.project_"+project+".backups_volume"] = lxdConfig.Key{}
+		}
 
 		return nil
 	})

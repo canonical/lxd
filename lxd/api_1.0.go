@@ -12,6 +12,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
@@ -625,11 +626,27 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		}
 	}
 
+	// The config load validation has to allow loading of arbitrary per-project `storage.project_*` keys,
+	// as the list of projects is stored in the cluster database which is not available at the time when node
+	// config is loaded from the local database.
+	// In order not to allow setting any of these arbitrary values, we disallow that for those which were not
+	// explicitly added to the ConfigSchema above here.
+	for key := range req.Config {
+		if strings.HasPrefix(key, "storage.project_") {
+			return response.BadRequest(fmt.Errorf("Cannot set %q: Unknown key", key))
+		}
+	}
+
 	nodeChanged := map[string]string{}
 	var newNodeConfig *node.Config
 	oldNodeConfig := make(map[string]any)
 
-	err := s.DB.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
+	client, err := lxd.ConnectLXDUnix("", nil)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to connect to LXD daemon: %w", err))
+	}
+
+	err = s.DB.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
 		newNodeConfig, err = node.ConfigLoad(ctx, tx)
 		if err != nil {
@@ -659,30 +676,58 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 			}
 		}
 
-		// Validate the storage volumes
-		if nodeValues["storage.backups_volume"] != nil && nodeValues["storage.backups_volume"] != newNodeConfig.StorageBackupsVolume() {
-			backupsPoolVolume, ok := nodeValues["storage.backups_volume"].(string)
-			if !ok {
-				return fmt.Errorf(`Unexpected type for "storage.backups_volume": %T`, nodeValues["storage.backups_volume"])
+		// Validate the storage volumes.
+		for key, value := range nodeValues {
+			if !strings.HasPrefix(key, "storage.") {
+				continue
 			}
 
-			// Store validated name back into nodeValues to ensure its not classifed as raw user input.
-			nodeValues["storage.backups_volume"], err = daemonStorageValidate(s, backupsPoolVolume)
-			if err != nil {
-				return fmt.Errorf("Failed validation of %q: %w", "storage.backups_volume", err)
-			}
-		}
+			// Validate project storage settings.
+			if strings.HasPrefix(key, "storage.project_") {
+				projectName, found := strings.CutPrefix(key, "storage.project_")
+				if !found {
+					return fmt.Errorf("Invalid config key: %q", key)
+				}
 
-		if nodeValues["storage.images_volume"] != nil && nodeValues["storage.images_volume"] != newNodeConfig.StorageImagesVolume() {
-			imagesPoolVolume, ok := nodeValues["storage.images_volume"].(string)
-			if !ok {
-				return fmt.Errorf(`Unexpected type for "storage.images_volume": %T`, nodeValues["storage.images_volume"])
+				projectName, found = strings.CutSuffix(projectName, ".images_volume")
+				if !found {
+					projectName, found = strings.CutSuffix(projectName, ".backups_volume")
+					if !found {
+						return fmt.Errorf("Invalid config key: %q", key)
+					}
+				}
+
+				project, _, err := client.GetProject(projectName)
+				if err != nil {
+					return err
+				}
+
+				// Disallow setting external storage on non-empty projects.
+				usedByLen := len(project.UsedBy)
+				projectInUse := usedByLen > 1 || (usedByLen == 1 && !strings.Contains(project.UsedBy[0], "/profiles/default"))
+				if projectInUse {
+					return fmt.Errorf("Project config %q cannot be changed on non-empty projects", key)
+				}
+
+				// Disallow setting external storage for images on projects without images.
+				if strings.HasSuffix(key, ".images_volume") && shared.IsFalse(project.Config["features.images"]) {
+					return fmt.Errorf("Project %q doesn't have `features.images` set, so it cannot have images storage configured", project)
+				}
 			}
 
-			// Store validated name back into nodeValues to ensure its not classifed as raw user input.
-			nodeValues["storage.images_volume"], err = daemonStorageValidate(s, imagesPoolVolume)
-			if err != nil {
-				return fmt.Errorf("Failed validation of %q: %w", "storage.images_volume", err)
+			// Validate the storage volume.
+			if nodeValues[key] != oldNodeConfig[key] {
+				volume, ok := nodeValues[key].(string)
+				if !ok {
+					return fmt.Errorf(`Unexpected type for %q: %T`, key, value)
+				}
+
+				// Store validated name back into nodeValues to ensure its not classifed as raw user input.
+				var err error
+				nodeValues[key], err = daemonStorageValidate(s, volume)
+				if err != nil {
+					return fmt.Errorf("Failed validation of %q: %w", key, err)
+				}
 			}
 		}
 
