@@ -1003,6 +1003,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		}
 	}
 
+	projectVolumeConfigs := make([]string, 0)
 	for key := range nodeChanged {
 		switch key {
 		case "maas.machine":
@@ -1015,6 +1016,10 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			dnsChanged = true
 		case "core.syslog_socket":
 			syslogSocketChanged = true
+		}
+
+		if strings.HasPrefix(key, "storage.project_") {
+			projectVolumeConfigs = append(projectVolumeConfigs, key)
 		}
 	}
 
@@ -1082,6 +1087,23 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		err := daemonStorageMove(s, "images", oldValue, value)
 		if err != nil {
 			return err
+		}
+	}
+
+	for _, projectVolumeConfig := range projectVolumeConfigs {
+		oldValue, _ := oldNodeConfig[projectVolumeConfig].(string)
+		if strings.HasSuffix(projectVolumeConfig, ".images_volume") {
+			err := projectStorageVolumeChange(s, oldValue, nodeChanged[projectVolumeConfig], "images")
+			if err != nil {
+				return err
+			}
+		}
+
+		if strings.HasSuffix(projectVolumeConfig, ".backups_volume") {
+			err := projectStorageVolumeChange(s, oldValue, nodeChanged[projectVolumeConfig], "backups")
+			if err != nil {
+				return err
+			}
 		}
 	}
 
