@@ -68,6 +68,11 @@ type Operation struct {
 	//
 	// API extension: operation_location
 	Location string `json:"location" yaml:"location"`
+
+	// Requestor is a record of the original operation requestor.
+	//
+	// API extension: operation_requestor
+	Requestor *EventLifecycleRequestor `json:"requestor,omitempty" yaml:"requestor,omitempty"`
 }
 
 // ToCertificateAddToken creates a certificate add token from the operation metadata.

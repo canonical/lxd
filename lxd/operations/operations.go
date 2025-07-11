@@ -525,6 +525,7 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 		Resources:   renderedResources,
 		Metadata:    op.metadata,
 		MayCancel:   op.mayCancel(),
+		Requestor:   op.Requestor(),
 	}
 
 	if op.state != nil {

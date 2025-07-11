@@ -747,6 +747,23 @@ definitions:
                 x-go-name: Type
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
+    EventLifecycleRequestor:
+        description: 'API extension: event_lifecycle_requestor.'
+        properties:
+            address:
+                description: Requestor address
+                example: 10.0.2.15
+                type: string
+                x-go-name: Address
+            protocol:
+                type: string
+                x-go-name: Protocol
+            username:
+                type: string
+                x-go-name: Username
+        title: EventLifecycleRequestor represents the initial requestor for an event
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
     IdentitiesTLSPost:
         properties:
             certificate:
@@ -4307,6 +4324,8 @@ definitions:
                     interactive: true
                 type: object
                 x-go-name: Metadata
+            requestor:
+                $ref: '#/definitions/EventLifecycleRequestor'
             resources:
                 additionalProperties:
                     items:
