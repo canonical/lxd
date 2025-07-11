@@ -426,8 +426,7 @@ func rsyncFeatureArgs(features []string) []string {
 	}
 
 	if slices.Contains(features, "compress") {
-		args = append(args, "--compress")
-		args = append(args, "--compress-level=2")
+		args = append(args, "--compress", "--compress-level=2")
 	}
 
 	return args
