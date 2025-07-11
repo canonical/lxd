@@ -780,7 +780,7 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 
 	// Ensure that projects with external images storage have their own images enabled. Otherwise flipping
 	// the feature would require to tranfer the images to the default project storage.
-	if s.LocalConfig.StorageImagesVolume("") != "" && shared.IsFalseOrEmpty(req.Config["features.images"]) {
+	if s.LocalConfig.StorageImagesVolume(project.Name) != "" && shared.IsFalseOrEmpty(req.Config["features.images"]) {
 		return response.BadRequest(fmt.Errorf("Project feature %q cannot be disabled on projects with storage.project.%s.images_volume configured", "features.images", project.Name))
 	}
 
@@ -857,8 +857,8 @@ func projectNodeConfigRename(d *Daemon, ctx context.Context, oldName string, new
 		}
 
 		_, err = localConfig.Patch(map[string]string{
-			newImagesVolumeConfig:  localConfig.StorageImagesVolume(""),
-			newBackupsVolumeConfig: localConfig.StorageBackupsVolume(""),
+			newImagesVolumeConfig:  localConfig.StorageImagesVolume(oldName),
+			newBackupsVolumeConfig: localConfig.StorageBackupsVolume(oldName),
 			oldImagesVolumeConfig:  "",
 			oldBackupsVolumeConfig: "",
 		})
