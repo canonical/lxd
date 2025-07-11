@@ -675,7 +675,7 @@ func validateStorageVolumes(s *state.State, ctx context.Context, nodeValues map[
 
 		// Don't allow setting the project storage the same as as the daemon-level storage volume.
 		if value != "" && strings.HasSuffix(key, ".images_volume") {
-			if value == newNodeConfig.StorageImagesVolume() {
+			if value == newNodeConfig.StorageImagesVolume("") {
 				return fmt.Errorf(`Failed validation of %q: storage volume already configured as the daemon images storage`, key)
 			}
 
@@ -683,7 +683,7 @@ func validateStorageVolumes(s *state.State, ctx context.Context, nodeValues map[
 		}
 
 		if value != "" && strings.HasSuffix(key, ".backups_volume") {
-			if value == newNodeConfig.StorageBackupsVolume() {
+			if value == newNodeConfig.StorageBackupsVolume("") {
 				return fmt.Errorf(`Failed validation of %q: storage volume already configured as the daemon backups storage`, key)
 			}
 
@@ -692,14 +692,14 @@ func validateStorageVolumes(s *state.State, ctx context.Context, nodeValues map[
 	}
 
 	// Don't allow the daemon-level storage to be set the same as any of the project settings.
-	if nodeValues["storage.backups_volume"] != "" && nodeValues["storage.backups_volume"] != newNodeConfig.StorageBackupsVolume() {
+	if nodeValues["storage.backups_volume"] != "" && nodeValues["storage.backups_volume"] != newNodeConfig.StorageBackupsVolume("") {
 		volume := nodeValues["storage.backups_volume"]
 		if projectsBackupsStorage[volume] != "" {
 			return fmt.Errorf(`Failed validation of %q: storage volume already configured as backups storage of project %q`, "storage.backups_volume", projectsBackupsStorage[nodeValues["storage.backups_volume"]])
 		}
 	}
 
-	if nodeValues["storage.images_volume"] != "" && nodeValues["storage.images_volume"] != newNodeConfig.StorageImagesVolume() {
+	if nodeValues["storage.images_volume"] != "" && nodeValues["storage.images_volume"] != newNodeConfig.StorageImagesVolume("") {
 		volume := nodeValues["storage.images_volume"]
 		if projectsImagesStorage[volume] != "" {
 			return fmt.Errorf(`Failed validation of %q: storage volume already configured as images storage of project %q`, "storage.images_volume", projectsImagesStorage[nodeValues["storage.images_volume"]])

@@ -1551,14 +1551,14 @@ func patchMoveBackupsImagesStorage(name string, d *Daemon) error {
 		return nil
 	}
 
-	if d.localConfig.StorageImagesVolume() != "" {
+	if d.localConfig.StorageImagesVolume("") != "" {
 		err := moveStorage(d.State().ImagesStoragePath(""))
 		if err != nil {
 			return err
 		}
 	}
 
-	if d.localConfig.StorageBackupsVolume() != "" {
+	if d.localConfig.StorageBackupsVolume("") != "" {
 		err := moveStorage(d.State().BackupsStoragePath(""))
 		if err != nil {
 			return err
