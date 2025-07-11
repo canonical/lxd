@@ -91,7 +91,7 @@ if __name__ == "__main__":
     requirements.extend(custom_required_modules)
 
     if IsAnyCanonicalSphinxExtensionUsed():
-        requirements.append("canonical-sphinx-extensions")
+        requirements.append("canonical-sphinx-extensions==0.0.27")
 
     if IsNotFoundExtensionUsed():
         requirements.append("sphinx-notfound-page")
