@@ -77,6 +77,8 @@ type OS struct {
 	AppArmorStacked   bool
 	AppArmorStacking  bool
 	AppArmorFeatures  AppArmorFeaturesInfo
+	AppArmorCacheLoc  string
+	AppArmorCacheDir  string // Based on AppArmorCacheLoc, but may also point to a subdirectory influenced by features.
 
 	// Cgroup features
 	CGInfo cgroup.Info
