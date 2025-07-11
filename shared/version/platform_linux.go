@@ -36,8 +36,7 @@ func getPlatformVersionStrings() []string {
 	if len(versions) == 1 && shared.PathExists("/run/cros_milestone") {
 		content, err := os.ReadFile("/run/cros_milestone")
 		if err == nil {
-			versions = append(versions, "Chrome OS")
-			versions = append(versions, strings.TrimSpace(string(content)))
+			versions = append(versions, "Chrome OS", strings.TrimSpace(string(content)))
 		}
 	}
 
