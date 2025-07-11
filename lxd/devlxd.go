@@ -16,6 +16,8 @@ import (
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cloudinit"
+	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -278,7 +280,39 @@ func devLXDImageExportHandler(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(err)
 	}
 
-	return imageExport(d, r)
+	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	projectName := request.ProjectParam(r)
+	if projectName != api.ProjectDefaultName {
+		return response.NotFound(nil)
+	}
+
+	s := d.State()
+
+	var imgInfo *api.Image
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbImage, err := cluster.GetImage(ctx, tx.Tx(), api.ProjectDefaultName, fingerprint)
+		if err != nil {
+			return err
+		}
+
+		imgInfo, err = dbImage.ToAPI(ctx, tx.Tx(), api.ProjectDefaultName)
+		return err
+	})
+	if err != nil && api.StatusErrorCheck(err, http.StatusNotFound) {
+		return response.NotFound(nil)
+	} else if err != nil {
+		return response.SmartError(err)
+	}
+
+	if !imgInfo.Public && !imgInfo.Cached {
+		return response.NotFound(nil)
+	}
+
+	return imageExportFiles(r.Context(), s, imgInfo)
 }
 
 var devLXDMetadataEndpoint = devLXDAPIEndpoint{

@@ -393,6 +393,15 @@ func getImgInfo(d lxd.InstanceServer, conf *config.Config, imgRemote string, ins
 		if err != nil {
 			return nil, nil, err
 		}
+
+		// If the image server is a private LXD server, conf.GetImageServer will set the project of the image server to
+		// the value of `--project`. This means for `lxc init A:img B:inst --project foo` the client will try to get
+		// "img" from project "foo" and not the default project. Since there is no way to specify the project on the image
+		// remote we reset it to the default project.
+		privateServer, ok := imgRemoteServer.(*lxd.ProtocolLXD)
+		if ok {
+			imgRemoteServer = privateServer.UseProject(api.ProjectDefaultName)
+		}
 	}
 
 	// Optimisation for simplestreams

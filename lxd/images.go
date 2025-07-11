@@ -37,6 +37,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -64,7 +65,7 @@ var imagesCmd = APIEndpoint{
 	Path:        "images",
 	MetricsType: entity.TypeImage,
 
-	Get:  APIEndpointAction{Handler: imagesGet, AllowUntrusted: true},
+	Get:  APIEndpointAction{Handler: imagesGet, AccessHandler: imagesGetAccessHandler, AllowUntrusted: true},
 	Post: APIEndpointAction{Handler: imagesPost, AllowUntrusted: true, ContentTypes: []string{"application/json", "application/octet-stream", "multipart/form-data"}},
 }
 
@@ -73,7 +74,7 @@ var imageCmd = APIEndpoint{
 	MetricsType: entity.TypeImage,
 
 	Delete: APIEndpointAction{Handler: imageDelete, AccessHandler: imageAccessHandler(auth.EntitlementCanDelete)},
-	Get:    APIEndpointAction{Handler: imageGet, AllowUntrusted: true},
+	Get:    APIEndpointAction{Handler: imageGet, AccessHandler: imageGetOrExportAccessHandler, AllowUntrusted: true},
 	Patch:  APIEndpointAction{Handler: imagePatch, AccessHandler: imageAccessHandler(auth.EntitlementCanEdit)},
 	Put:    APIEndpointAction{Handler: imagePut, AccessHandler: imageAccessHandler(auth.EntitlementCanEdit)},
 }
@@ -82,7 +83,7 @@ var imageExportCmd = APIEndpoint{
 	Path:        "images/{fingerprint}/export",
 	MetricsType: entity.TypeImage,
 
-	Get:  APIEndpointAction{Handler: imageExport, AllowUntrusted: true},
+	Get:  APIEndpointAction{Handler: imageExport, AccessHandler: imageGetOrExportAccessHandler, AllowUntrusted: true},
 	Post: APIEndpointAction{Handler: imageExportPost, AccessHandler: imageAccessHandler(auth.EntitlementCanEdit)},
 }
 
@@ -113,10 +114,26 @@ var imageAliasCmd = APIEndpoint{
 	MetricsType: entity.TypeImage,
 
 	Delete: APIEndpointAction{Handler: imageAliasDelete, AccessHandler: imageAliasAccessHandler(auth.EntitlementCanDelete)},
-	Get:    APIEndpointAction{Handler: imageAliasGet, AllowUntrusted: true},
+	Get:    APIEndpointAction{Handler: imageAliasGet, AccessHandler: imageAliasGetAccessHandler, AllowUntrusted: true},
 	Patch:  APIEndpointAction{Handler: imageAliasPatch, AccessHandler: imageAliasAccessHandler(auth.EntitlementCanEdit)},
 	Post:   APIEndpointAction{Handler: imageAliasPost, AccessHandler: imageAliasAccessHandler(auth.EntitlementCanEdit)},
 	Put:    APIEndpointAction{Handler: imageAliasPut, AccessHandler: imageAliasAccessHandler(auth.EntitlementCanEdit)},
+}
+
+// validateImageFingerprintPrefix validates that the given string is at least 12 characters long contains only lowercase
+// hex characters.
+func validateImageFingerprintPrefix(prefix string) error {
+	if len(prefix) < 12 {
+		return api.NewStatusError(http.StatusBadRequest, "Image fingerprint prefix must contain 12 characters or more")
+	}
+
+	for _, b := range []byte(prefix) {
+		if (b < '0' || b > '9') && (b < 'a' || b > 'f') {
+			return api.NewStatusError(http.StatusBadRequest, "Image fingerprint prefix must contain only lowercase hexadecimal characters")
+		}
+	}
+
+	return nil
 }
 
 const ctxImageDetails request.CtxKey = "image-details"
@@ -124,17 +141,23 @@ const ctxImageDetails request.CtxKey = "image-details"
 // imageDetails contains fields that are determined prior to the access check. This is set in the request context when
 // addImageDetailsToRequestContext is called.
 type imageDetails struct {
+	requestProjectName     string
 	imageFingerprintPrefix string
 	imageID                int
 	image                  api.Image
 }
 
-// addImageDetailsToRequestContext sets the effective project in the request.Info and sets ctxImageDetails (imageDetails)
-// in the request context.
-func addImageDetailsToRequestContext(s *state.State, r *http.Request) error {
+// addImageDetailsToRequestContext sets request.CtxEffectiveProjectName (string) and ctxImageDetails (imageDetails)
+// in the request context for accessibility between the access and API handlers. It is also returned for convenience.
+func addImageDetailsToRequestContext(s *state.State, r *http.Request) (*imageDetails, error) {
 	imageFingerprintPrefix, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
 	if err != nil {
-		return err
+		return nil, err
+	}
+
+	err = validateImageFingerprintPrefix(imageFingerprintPrefix)
+	if err != nil {
+		return nil, err
 	}
 
 	requestProjectName := request.ProjectParam(r)
@@ -155,30 +178,28 @@ func addImageDetailsToRequestContext(s *state.State, r *http.Request) error {
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to check project %q image feature: %w", requestProjectName, err)
+		return nil, fmt.Errorf("Failed to check project %q image feature: %w", requestProjectName, err)
 	}
 
-	request.SetContextValue(r, ctxImageDetails, imageDetails{
+	details := imageDetails{
+		requestProjectName:     requestProjectName,
 		imageFingerprintPrefix: imageFingerprintPrefix,
 		imageID:                imageID,
 		image:                  *image,
-	})
+	}
+
+	request.SetContextValue(r, ctxImageDetails, details)
 
 	reqInfo := request.SetupContextInfo(r)
 	reqInfo.EffectiveProjectName = effectiveProjectName
 
-	return nil
+	return &details, nil
 }
 
 func imageAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
 		s := d.State()
-		err := addImageDetailsToRequestContext(s, r)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
+		details, err := addImageDetailsToRequestContext(s, r)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -190,6 +211,98 @@ func imageAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Re
 
 		return response.EmptySyncResponse
 	}
+}
+
+const ctxImageAliasGetDetails request.CtxKey = "image-alias-details"
+
+type imageAliasGetDetails struct {
+	getPrivateAliases bool
+}
+
+// imageAliasGetAccessHandler sets imageAliasGetDetails in the request context, which indicates to the handler if it
+// should restrict the database query to return only aliases of public images. If the image is private, the handler must
+// still perform an access check.
+func imageAliasGetAccessHandler(d *Daemon, r *http.Request) response.Response {
+	requestProjectName := request.ProjectParam(r)
+	details := imageAliasGetDetails{}
+	defer func() {
+		request.SetContextValue(r, ctxImageAliasGetDetails, details)
+	}()
+
+	imageAliasName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// If the caller is not trusted, only allow requests to the default project and restrict to aliases of public images.
+	trusted := auth.IsTrusted(r.Context())
+	if !trusted {
+		if requestProjectName != api.ProjectDefaultName {
+			return response.NotFound(nil)
+		}
+
+		return response.EmptySyncResponse
+	}
+
+	// Any request that is not to the default project can be handled via standard auth, since these aliases are private
+	// regardless of the image target.
+	s := d.State()
+	if requestProjectName != api.ProjectDefaultName {
+		info := request.SetupContextInfo(r)
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			info.EffectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), requestProjectName)
+			return err
+		})
+		if err != nil && api.StatusErrorCheck(err, http.StatusNotFound) {
+			return response.NotFound(nil)
+		} else if err != nil {
+			return response.SmartError(err)
+		}
+
+		err := s.Authorizer.CheckPermission(r.Context(), entity.ImageAliasURL(requestProjectName, imageAliasName), auth.EntitlementCanView)
+		if err != nil && auth.IsDeniedError(err) {
+			return response.SmartError(err)
+		}
+
+		details.getPrivateAliases = true
+		return response.EmptySyncResponse
+	}
+
+	isAdmin, err := auth.IsServerAdmin(r.Context(), s.IdentityCache)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Admins can view aliases of private images in the default project.
+	if isAdmin {
+		details.getPrivateAliases = true
+		return response.EmptySyncResponse
+	}
+
+	id, err := auth.GetIdentityFromCtx(r.Context(), s.IdentityCache)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Fine-grained identity types need to load the alias and perform an access check if it is private.
+	if identity.IsFineGrainedIdentityType(id.IdentityType) {
+		details.getPrivateAliases = true
+		return response.EmptySyncResponse
+	}
+
+	if id.IdentityType != api.IdentityTypeCertificateClientRestricted {
+		return response.Forbidden(nil)
+	}
+
+	// If restricted TLS client has access to the default project, load private aliases.
+	if slices.Contains(id.Projects, requestProjectName) {
+		details.getPrivateAliases = true
+		return response.EmptySyncResponse
+	}
+
+	// Request is for default project but restricted TLS client does not have access to it. Allow request but only
+	// get public aliases.
+	return response.EmptySyncResponse
 }
 
 func imageAliasAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
@@ -222,6 +335,200 @@ func imageAliasAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *ht
 
 		return response.EmptySyncResponse
 	}
+}
+
+// imageGetOrExportAccessHandler is used for GET /1.0/images/{fingerprint} and GET /1.0/images/{fingerprint}/export
+// which both have the same access controls. In this access handler, the caller can be untrusted.
+// - If they are untrusted and do not have a secret, they can only get public images.
+// - If they are untrusted but have a secret, the secret must be validated for the requested fingerprint.
+// - For both untrusted cases, requests can only be made to the default project.
+// - If the requested image is private and the caller is trusted, then a standard access check is performed with the authorizer.
+func imageGetOrExportAccessHandler(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	// Some checks should be performed before hitting the database, because here the caller can be untrusted.
+	// In which case the caller may only query images in the default project.
+	trusted := auth.IsTrusted(r.Context())
+	projectName := request.ProjectParam(r)
+	secret := r.FormValue("secret")
+
+	// If not trusted and project is not default. Exporting or viewing images is only allowed with a secret.
+	if !trusted && projectName != api.ProjectDefaultName && secret == "" {
+		return response.NotFound(nil)
+	}
+
+	details, err := addImageDetailsToRequestContext(s, r)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Public images in the default project can be viewed by anyone.
+	if details.image.Public && projectName == api.ProjectDefaultName {
+		return response.EmptySyncResponse
+	}
+
+	// If the caller sends a secret, then that secret must be valid, regardless of other privileges.
+	if secret != "" {
+		if projectName != api.ProjectDefaultName {
+			return response.Forbidden(errors.New("Image secrets may only be used to access private images in the default project"))
+		}
+
+		// If authenticating with a secret, the caller must have the full fingerprint.
+		if details.imageFingerprintPrefix != details.image.Fingerprint {
+			return response.NotFound(nil)
+		}
+
+		op, err := imageValidSecret(s, r, projectName, details.image.Fingerprint, secret)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		if op == nil {
+			return response.NotFound(nil)
+		}
+
+		return response.EmptySyncResponse
+	}
+
+	// At this point if they are not trusted they don't have access.
+	if !trusted {
+		return response.NotFound(nil)
+	}
+
+	// Do a final auth check using standard mechanism.
+	err = s.Authorizer.CheckPermission(r.Context(), entity.ImageURL(projectName, details.image.Fingerprint), auth.EntitlementCanView)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.EmptySyncResponse
+}
+
+const ctxImagesGetDetails request.CtxKey = "images-get-details"
+
+type imagesGetDetails struct {
+	loadPrivateImages  bool
+	requestProjectName string
+	allProjects        bool
+	canView            func(fingerprint string, project string, public bool) bool
+}
+
+// imagesGetAccessHandler inspects the request and the caller to determine whether the handler should load private
+// images, and sets a custom `canView` access checker for various caller types.
+func imagesGetAccessHandler(d *Daemon, r *http.Request) response.Response {
+	projectName, allProjects, err := request.ProjectParams(r)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	details := imagesGetDetails{
+		requestProjectName: projectName,
+		allProjects:        allProjects,
+	}
+
+	defer func() {
+		request.SetContextValue(r, ctxImagesGetDetails, details)
+	}()
+
+	// Untrusted callers may only list public images in the default project.
+	if !auth.IsTrusted(r.Context()) {
+		if allProjects {
+			return response.Forbidden(errors.New("You must be authenticated"))
+		}
+
+		if projectName != api.ProjectDefaultName {
+			return response.NotFound(nil)
+		}
+
+		details.canView = func(_ string, project string, public bool) bool {
+			return public && project == api.ProjectDefaultName
+		}
+
+		return response.EmptySyncResponse
+	}
+
+	// Set the effective project only if it's not an all-projects request.
+	s := d.State()
+	if !allProjects {
+		info := request.SetupContextInfo(r)
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			info.EffectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
+			return err
+		})
+		if err != nil && api.StatusErrorCheck(err, http.StatusNotFound) {
+			return response.NotFound(nil)
+		} else if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
+	isAdmin, err := auth.IsServerAdmin(r.Context(), s.IdentityCache)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if isAdmin {
+		// Admins can view all images, public and private.
+		details.loadPrivateImages = true
+		details.canView = func(_, _ string, _ bool) bool {
+			return true
+		}
+
+		return response.EmptySyncResponse
+	}
+
+	id, err := auth.GetIdentityFromCtx(r.Context(), s.IdentityCache)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Get a permission checker for use with private images.
+	canViewPrivateImage, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeImage)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if identity.IsFineGrainedIdentityType(id.IdentityType) {
+		// Fine-grained identities should load private images to perform individual access checks.
+		details.loadPrivateImages = true
+		details.canView = func(fingerprint, project string, public bool) bool {
+			return (public && project == api.ProjectDefaultName) || canViewPrivateImage(entity.ImageURL(project, fingerprint))
+		}
+
+		return response.EmptySyncResponse
+	}
+
+	if id.IdentityType != api.IdentityTypeCertificateClientRestricted {
+		return response.Forbidden(nil)
+	}
+
+	// all-projects requests are not allowed for restricted TLS clients
+	if allProjects {
+		return response.Forbidden(errors.New("Certificate is restricted"))
+	}
+
+	// If restricted TLS client has access to the project, load private images.
+	if slices.Contains(id.Projects, projectName) {
+		details.loadPrivateImages = true
+		details.canView = func(fingerprint, project string, public bool) bool {
+			return (public && project == api.ProjectDefaultName) || canViewPrivateImage(entity.ImageURL(project, fingerprint))
+		}
+
+		return response.EmptySyncResponse
+	}
+
+	// If request is for default project but restricted TLS client does not have access to it. Allow request but only
+	// get public images.
+	if projectName == api.ProjectDefaultName {
+		details.canView = func(_ string, project string, public bool) bool {
+			return public && project == api.ProjectDefaultName
+		}
+
+		return response.EmptySyncResponse
+	}
+
+	// Disallow listing resources in projects the caller does not have access to.
+	return response.Forbidden(errors.New("Certificate is restricted"))
 }
 
 /*
@@ -1188,6 +1495,20 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		imageUpload = true
 	}
 
+	// Disallow public image creation in non-default projects.
+	if projectName != api.ProjectDefaultName {
+		var public bool
+		if imageUpload {
+			public = shared.IsTrue(r.Header.Get("X-LXD-public"))
+		} else {
+			public = req.Public
+		}
+
+		if public {
+			return response.BadRequest(errors.New("Images can only be made public in the default project"))
+		}
+	}
+
 	if !imageUpload && req.Source.Mode == "push" {
 		cleanup(builddir, post)
 
@@ -1299,7 +1620,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			for _, alias := range req.Aliases {
-				_, _, err := tx.GetImageAlias(ctx, projectName, alias.Name, true)
+				_, _, _, err := tx.GetImageAlias(ctx, projectName, alias.Name, true)
 				if !response.IsNotFoundError(err) {
 					if err != nil {
 						return fmt.Errorf("Fetch image alias %q: %w", alias.Name, err)
@@ -1465,7 +1786,7 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 	return &result, imageType, nil
 }
 
-func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectName string, public bool, clauses *filter.ClauseSet, hasPermission auth.PermissionChecker, allProjects bool) (any, error) {
+func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectName string, public bool, clauses *filter.ClauseSet, canView func(fingerprint string, projectName string, public bool) bool, allProjects bool) (any, error) {
 	mustLoadObjects := recursion || (clauses != nil && len(clauses.Clauses) > 0)
 
 	imagesProjectsMap := map[string][]string{}
@@ -1505,7 +1826,7 @@ func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectN
 		}
 
 		for _, project := range projects {
-			if image.Public || hasPermission(entity.ImageURL(project, fingerprint)) {
+			if canView(image.Fingerprint, project, image.Public) {
 				hasAccess = true
 				break
 			}
@@ -1767,6 +2088,11 @@ func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectN
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func imagesGet(d *Daemon, r *http.Request) response.Response {
+	details, err := request.GetContextValue[imagesGetDetails](r.Context(), ctxImagesGetDetails)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	filterStr := r.FormValue("filter")
 
 	recursion := util.IsRecursionRequest(r)
@@ -1775,40 +2101,7 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	projectName, allProjects, err := request.ProjectParams(r)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	s := d.State()
-	if !allProjects {
-		reqInfo := request.SetupContextInfo(r)
-		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			reqInfo.EffectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
-			return err
-		})
-		if err != nil {
-			return response.SmartError(err)
-		}
-	}
-
-	// If the caller is not trusted, we only want to list public images in the default project.
-	trusted := auth.IsTrusted(r.Context())
-	publicOnly := !trusted
-
-	// Untrusted callers can't request images from all projects or projects other than default.
-	if !trusted && (allProjects || projectName != api.ProjectDefaultName) {
-		return response.Forbidden(errors.New("Untrusted callers may only access public images in the default project"))
-	}
-
-	// Get a permission checker. If the caller is not authenticated, the permission checker will deny all.
-	// However, the permission checker is only called when an image is private. Both trusted and untrusted clients will
-	// still see public images.
-	canViewImage, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeImage)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	clauses, err := filter.Parse(filterStr, filter.QueryOperatorSet())
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Invalid filter: %w", err))
@@ -1816,7 +2109,7 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 
 	var result any
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		result, err = doImagesGet(ctx, tx, recursion, projectName, publicOnly, clauses, canViewImage, allProjects)
+		result, err = doImagesGet(ctx, tx, recursion, details.requestProjectName, !details.loadPrivateImages, clauses, details.canView, details.allProjects)
 		if err != nil {
 			return err
 		}
@@ -2789,8 +3082,6 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 func imageDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName := request.ProjectParam(r)
-
 	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
@@ -2811,7 +3102,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Check image still exists and another request hasn't removed it since we resolved the image
 			// fingerprint above.
-			exist, err = tx.ImageExists(ctx, projectName, details.image.Fingerprint)
+			exist, err = tx.ImageExists(ctx, details.requestProjectName, details.image.Fingerprint)
 
 			return err
 		})
@@ -2831,7 +3122,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 				// referenced by other projects. In that case we don't want to
 				// physically delete it just yet, but just to remove the
 				// relevant database entry.
-				referenced, err = tx.ImageIsReferencedByOtherProjects(ctx, projectName, details.image.Fingerprint)
+				referenced, err = tx.ImageIsReferencedByOtherProjects(ctx, details.requestProjectName, details.image.Fingerprint)
 				if err != nil {
 					return err
 				}
@@ -2860,7 +3151,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 			}
 
 			err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-				op, err := client.UseProject(projectName).DeleteImage(details.image.Fingerprint)
+				op, err := client.UseProject(details.requestProjectName).DeleteImage(details.image.Fingerprint)
 				if err != nil {
 					return fmt.Errorf("Failed to request to delete image from peer node: %w", err)
 				}
@@ -2929,7 +3220,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		s.Events.SendLifecycle(projectName, lifecycle.ImageDeleted.Event(details.image.Fingerprint, projectName, op.Requestor(), nil))
+		s.Events.SendLifecycle(details.requestProjectName, lifecycle.ImageDeleted.Event(details.image.Fingerprint, details.requestProjectName, op.Requestor(), nil))
 
 		return nil
 	}
@@ -2937,7 +3228,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]api.URL{}
 	resources["images"] = []api.URL{*api.NewURL().Path(version.APIVersion, "images", details.image.Fingerprint)}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.ImageDelete, resources, nil, do, nil, nil)
+	op, err := operations.OperationCreate(r.Context(), s, details.requestProjectName, operations.OperationClassTask, operationtype.ImageDelete, resources, nil, do, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -3120,9 +3411,7 @@ func imageValidSecret(s *state.State, r *http.Request, projectName string, finge
 //	    $ref: "#/responses/InternalServerError"
 func imageGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
-
-	projectName := request.ProjectParam(r)
-	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3132,79 +3421,9 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	trusted := auth.IsTrusted(r.Context())
-	secret := r.FormValue("secret")
-
-	// Unauthenticated clients that do not provide a secret may only view public images.
-	publicOnly := !trusted && secret == ""
-
-	// Get the image. We need to do this before the permission check because the URL in the permission check will not
-	// work with partial fingerprints.
-	var info *api.Image
-	effectiveProjectName := projectName
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
-		if err != nil {
-			return err
-		}
-
-		info, err = doImageGet(ctx, tx, projectName, fingerprint, publicOnly)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil && api.StatusErrorCheck(err, http.StatusNotFound) {
-		// Return a generic not found. This is so that the caller cannot determine the existence of an image by the
-		// contents of the error message.
-		return response.NotFound(nil)
-	} else if err != nil {
-		return response.SmartError(err)
-	}
-
-	// Access check.
-	var userCanViewImage bool
-	if secret != "" {
-		// If a secret was provided, validate it regardless of whether the image is public or the caller has sufficient
-		// privilege. This is to ensure the image token operation is cancelled.
-		op, err := imageValidSecret(s, r, projectName, info.Fingerprint, secret)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		// If an operation was found the caller has access, otherwise continue to other access checks.
-		if op != nil {
-			userCanViewImage = true
-		}
-	}
-
-	// No operation found for the secret. Perform other access checks.
-	if !userCanViewImage {
-		if info.Public {
-			// If the image is public any client can view it.
-			userCanViewImage = true
-		} else {
-			// Otherwise perform an access check with the full image fingerprint.
-			reqInfo := request.SetupContextInfo(r)
-			reqInfo.EffectiveProjectName = effectiveProjectName
-
-			err = s.Authorizer.CheckPermission(r.Context(), entity.ImageURL(projectName, info.Fingerprint), auth.EntitlementCanView)
-			if err != nil && !auth.IsDeniedError(err) {
-				return response.SmartError(err)
-			} else if err == nil {
-				userCanViewImage = true
-			}
-		}
-	}
-
-	// If the client still cannot view the image, return a generic not found error.
-	if !userCanViewImage {
-		return response.NotFound(nil)
-	}
-
+	info := &details.image
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeImage, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ImageURL(projectName, fingerprint): info})
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeImage, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ImageURL(details.requestProjectName, info.Fingerprint): info})
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -3252,7 +3471,6 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	// Get current value
-	projectName := request.ProjectParam(r)
 	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
@@ -3271,6 +3489,10 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	if req.Public && details.requestProjectName != api.ProjectDefaultName {
+		return response.BadRequest(errors.New("Images can only be made public in the default project"))
+	}
+
 	// Get ExpiresAt
 	if !req.ExpiresAt.IsZero() {
 		details.image.ExpiresAt = req.ExpiresAt
@@ -3285,7 +3507,7 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		for i, profile := range req.Profiles {
-			profileID, _, err := tx.GetProfile(ctx, projectName, profile)
+			profileID, _, err := tx.GetProfile(ctx, details.requestProjectName, profile)
 			if response.IsNotFoundError(err) {
 				return fmt.Errorf("Profile '%s' doesn't exist", profile)
 			} else if err != nil {
@@ -3295,7 +3517,7 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 			profileIDs[i] = profileID
 		}
 
-		return tx.UpdateImage(ctx, details.imageID, details.image.Filename, details.image.Size, req.Public, req.AutoUpdate, details.image.Architecture, details.image.CreatedAt, details.image.ExpiresAt, req.Properties, projectName, profileIDs)
+		return tx.UpdateImage(ctx, details.imageID, details.image.Filename, details.image.Size, req.Public, req.AutoUpdate, details.image.Architecture, details.image.CreatedAt, details.image.ExpiresAt, req.Properties, details.requestProjectName, profileIDs)
 	})
 	if err != nil {
 		if response.IsNotFoundError(err) {
@@ -3306,7 +3528,7 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(projectName, lifecycle.ImageUpdated.Event(details.image.Fingerprint, projectName, requestor, nil))
+	s.Events.SendLifecycle(details.requestProjectName, lifecycle.ImageUpdated.Event(details.image.Fingerprint, details.requestProjectName, requestor, nil))
 
 	return response.EmptySyncResponse
 }
@@ -3349,7 +3571,6 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	// Get current value
-	projectName := request.ProjectParam(r)
 	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
@@ -3391,6 +3612,10 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 	// Get Public
 	public, err := reqRaw.GetBool("public")
 	if err == nil {
+		if public && details.requestProjectName != api.ProjectDefaultName {
+			return response.BadRequest(errors.New("Images can only be made public in the default project"))
+		}
+
 		details.image.Public = public
 	}
 
@@ -3416,7 +3641,7 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(projectName, lifecycle.ImageUpdated.Event(details.image.Fingerprint, projectName, requestor, nil))
+	s.Events.SendLifecycle(details.requestProjectName, lifecycle.ImageUpdated.Event(details.image.Fingerprint, details.requestProjectName, requestor, nil))
 
 	return response.EmptySyncResponse
 }
@@ -3469,7 +3694,7 @@ func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// This is just to see if the alias name already exists.
-		_, _, err = tx.GetImageAlias(ctx, projectName, req.Name, true)
+		_, _, _, err = tx.GetImageAlias(ctx, projectName, req.Name, true)
 		if !response.IsNotFoundError(err) {
 			if err != nil {
 				return err
@@ -3645,7 +3870,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 			if !recursion {
 				responseStr = append(responseStr, api.NewURL().Path(version.APIVersion, "images", "aliases", name).String())
 			} else {
-				_, alias, err := tx.GetImageAlias(ctx, projectName, name, true)
+				_, _, alias, err := tx.GetImageAlias(ctx, projectName, name, true)
 				if err != nil {
 					continue
 				}
@@ -3758,6 +3983,11 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func imageAliasGet(d *Daemon, r *http.Request) response.Response {
+	details, err := request.GetContextValue[imageAliasGetDetails](r.Context(), ctxImageAliasGetDetails)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	projectName := request.ProjectParam(r)
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
@@ -3771,31 +4001,12 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var effectiveProjectName string
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
-		return err
-	})
-
-	// Set `userCanViewImageAlias` to true only when the caller is authenticated and can view the alias.
-	// We don't abort the request if this is false because the image alias may be for a public image.
-	var userCanViewImageAlias bool
-
-	reqInfo := request.SetupContextInfo(r)
-	reqInfo.EffectiveProjectName = effectiveProjectName
-
-	err = s.Authorizer.CheckPermission(r.Context(), entity.ImageAliasURL(projectName, name), auth.EntitlementCanView)
-	if err != nil && !auth.IsDeniedError(err) {
-		return response.SmartError(err)
-	} else if err == nil {
-		userCanViewImageAlias = true
-	}
-
 	var alias api.ImageAliasesEntry
+	var isPublic bool
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		// If `userCanViewImageAlias` is false, the query will be restricted to public images only.
-		_, alias, err = tx.GetImageAlias(ctx, projectName, name, userCanViewImageAlias)
-
+		// If details.getPrivateAliases is false, the query will be restricted to public images only.
+		// This value is set in the access handler based on caller information and the requested project.
+		_, isPublic, alias, err = tx.GetImageAlias(ctx, projectName, name, details.getPrivateAliases)
 		return err
 	})
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
@@ -3803,6 +4014,16 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	} else if err != nil {
 		// Return a generic not found error.
 		return response.NotFound(nil)
+	}
+
+	// If the alias points to a private image, perform an access check.
+	if !isPublic {
+		err := s.Authorizer.CheckPermission(r.Context(), entity.ImageAliasURL(projectName, name), auth.EntitlementCanView)
+		if err != nil && auth.IsDeniedError(err) {
+			return response.NotFound(nil)
+		} else if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	if len(withEntitlements) > 0 {
@@ -3849,7 +4070,7 @@ func imageAliasDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		_, _, err = tx.GetImageAlias(ctx, projectName, name, true)
+		_, _, _, err = tx.GetImageAlias(ctx, projectName, name, true)
 		if err != nil {
 			return err
 		}
@@ -3929,7 +4150,7 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var imgAliasID int
 
-		imgAliasID, imgAlias, err = tx.GetImageAlias(ctx, projectName, name, true)
+		imgAliasID, _, imgAlias, err = tx.GetImageAlias(ctx, projectName, name, true)
 		if err != nil {
 			return err
 		}
@@ -4015,7 +4236,7 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 	var imgAlias api.ImageAliasesEntry
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var imgAliasID int
-		imgAliasID, imgAlias, err = tx.GetImageAlias(ctx, projectName, name, true)
+		imgAliasID, _, imgAlias, err = tx.GetImageAlias(ctx, projectName, name, true)
 		if err != nil {
 			return err
 		}
@@ -4117,7 +4338,7 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// This is just to see if the alias name already exists.
-		_, _, err := tx.GetImageAlias(ctx, projectName, req.Name, true)
+		_, _, _, err := tx.GetImageAlias(ctx, projectName, req.Name, true)
 		if !response.IsNotFoundError(err) {
 			if err != nil {
 				return err
@@ -4126,7 +4347,7 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 			return api.StatusErrorf(http.StatusConflict, "Alias %q already exists", req.Name)
 		}
 
-		imgAliasID, _, err := tx.GetImageAlias(ctx, projectName, name, true)
+		imgAliasID, _, _, err := tx.GetImageAlias(ctx, projectName, name, true)
 		if err != nil {
 			return err
 		}
@@ -4199,110 +4420,20 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func imageExport(d *Daemon, r *http.Request) response.Response {
-	s := d.State()
-
-	projectName := request.ProjectParam(r)
-	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	// Verify the auth method in the request context to determine if the request comes from the /dev/lxd socket.
-	authMethod, _ := auth.GetAuthenticationMethodFromCtx(r.Context())
-	isDevLXDQuery := authMethod == auth.AuthenticationMethodDevLXD
+	return imageExportFiles(r.Context(), d.State(), &details.image)
+}
 
-	secret := r.FormValue("secret")
-	trusted := auth.IsTrusted(r.Context())
-
-	// Unauthenticated remote clients that do not provide a secret may only view public images.
-	// For devlxd, we allow querying for private images. We'll subsequently perform additional access checks.
-	publicOnly := !trusted && secret == "" && !isDevLXDQuery
-
-	// Get the image. We need to do this before the permission check because the URL in the permission check will not
-	// work with partial fingerprints.
-	var imgInfo *api.Image
-	effectiveProjectName := projectName
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
-		if err != nil {
-			return err
-		}
-
-		filter := dbCluster.ImageFilter{Project: &projectName}
-		if publicOnly {
-			filter.Public = &publicOnly
-		}
-
-		_, imgInfo, err = tx.GetImage(ctx, fingerprint, filter)
-		return err
-	})
-	if err != nil && api.StatusErrorCheck(err, http.StatusNotFound) {
-		// Return a generic not found. This is so that the caller cannot determine the existence of an image by the
-		// contents of the error message.
-		return response.NotFound(nil)
-	} else if err != nil {
-		return response.SmartError(err)
-	}
-
-	// Access control.
-	var userCanViewImage bool
-	if secret != "" {
-		// If a secret was provided, validate it regardless of whether the image is public or the caller has sufficient
-		// privilege. This is to ensure the image token operation is cancelled.
-		op, err := imageValidSecret(s, r, projectName, imgInfo.Fingerprint, secret)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		// If an operation was found the caller has access, otherwise continue to other access checks.
-		if op != nil {
-			userCanViewImage = true
-		}
-	}
-
-	if isDevLXDQuery {
-		// A devlxd query must contain the full fingerprint of the image (no partials).
-		if fingerprint != imgInfo.Fingerprint {
-			return response.NotFound(nil)
-		}
-
-		// A devlxd query must be for a public or cached image.
-		if !imgInfo.Public && !imgInfo.Cached {
-			return response.NotFound(nil)
-		}
-
-		userCanViewImage = true
-	}
-
-	if !userCanViewImage {
-		if imgInfo.Public {
-			// If the image is public any client can view it.
-			userCanViewImage = true
-		} else {
-			// Otherwise perform an access check with the full image fingerprint.
-			reqInfo := request.SetupContextInfo(r)
-			reqInfo.EffectiveProjectName = effectiveProjectName
-
-			err = s.Authorizer.CheckPermission(r.Context(), entity.ImageURL(projectName, imgInfo.Fingerprint), auth.EntitlementCanView)
-			if err != nil && !auth.IsDeniedError(err) {
-				return response.SmartError(err)
-			} else if err == nil {
-				userCanViewImage = true
-			}
-		}
-	}
-
-	// If the client still cannot view the image, return a generic not found error.
-	if !userCanViewImage {
-		return response.NotFound(nil)
-	}
-
+func imageExportFiles(ctx context.Context, s *state.State, imgInfo *api.Image) response.Response {
 	var address string
-
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Check if the image is only available on another node.
+		var err error
 		address, err = tx.LocateImage(ctx, imgInfo.Fingerprint)
-
 		return err
 	})
 	if err != nil {
@@ -4311,7 +4442,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 
 	if address != "" {
 		// Forward the request to the other node
-		client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
+		client, err := cluster.Connect(ctx, address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -4354,8 +4485,8 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		files[1].Path = rootfsPath
 		files[1].Filename = filename
 
-		requestor := request.CreateRequestor(r.Context())
-		s.Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(imgInfo.Fingerprint, projectName, requestor, nil))
+		requestor := request.CreateRequestor(ctx)
+		s.Events.SendLifecycle(imgInfo.Project, lifecycle.ImageRetrieved.Event(imgInfo.Fingerprint, imgInfo.Project, requestor, nil))
 
 		return response.FileResponse(files, nil)
 	}
@@ -4365,8 +4496,8 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	files[0].Path = imagePath
 	files[0].Filename = filename
 
-	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(imgInfo.Fingerprint, projectName, requestor, nil))
+	requestor := request.CreateRequestor(ctx)
+	s.Events.SendLifecycle(imgInfo.Project, lifecycle.ImageRetrieved.Event(imgInfo.Fingerprint, imgInfo.Project, requestor, nil))
 
 	return response.FileResponse(files, nil)
 }
@@ -4402,7 +4533,6 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 func imageExportPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName := request.ProjectParam(r)
 	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
@@ -4501,12 +4631,12 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed operation %q: %q", opWaitAPI.Status, opWaitAPI.Err)
 		}
 
-		s.Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(details.imageFingerprintPrefix, projectName, op.Requestor(), logger.Ctx{"target": req.Target}))
+		s.Events.SendLifecycle(details.requestProjectName, lifecycle.ImageRetrieved.Event(details.imageFingerprintPrefix, details.requestProjectName, op.Requestor(), logger.Ctx{"target": req.Target}))
 
 		return nil
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.ImageDownload, nil, nil, run, nil, nil)
+	op, err := operations.OperationCreate(r.Context(), s, details.requestProjectName, operations.OperationClassTask, operationtype.ImageDownload, nil, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -4541,13 +4671,20 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 func imageSecret(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName := request.ProjectParam(r)
 	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	return createTokenResponse(s, r, projectName, details.image.Fingerprint, nil)
+	if details.image.Public {
+		return response.BadRequest(errors.New("Can't create an image secret for public images"))
+	}
+
+	if details.requestProjectName != api.ProjectDefaultName {
+		return response.BadRequest(errors.New("Can't create an image secret for images that are not in the default project"))
+	}
+
+	return createTokenResponse(s, r, details.requestProjectName, details.image.Fingerprint, nil)
 }
 
 func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprint string) error {
@@ -4649,7 +4786,6 @@ func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprin
 func imageRefresh(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName := request.ProjectParam(r)
 	details, err := request.GetContextValue[imageDetails](r.Context(), ctxImageDetails)
 	if err != nil {
 		return response.SmartError(err)
@@ -4677,12 +4813,12 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 			return nil
 		})
 		if err != nil {
-			return fmt.Errorf("Error getting cluster members for refreshing image %q in project %q: %w", details.imageFingerprintPrefix, projectName, err)
+			return fmt.Errorf("Error getting cluster members for refreshing image %q in project %q: %w", details.imageFingerprintPrefix, details.requestProjectName, err)
 		}
 
-		newImage, err := autoUpdateImage(s.ShutdownCtx, s, op, details.imageID, &details.image, projectName, true)
+		newImage, err := autoUpdateImage(s.ShutdownCtx, s, op, details.imageID, &details.image, details.requestProjectName, true)
 		if err != nil {
-			return fmt.Errorf("Failed to update image %q in project %q: %w", details.imageFingerprintPrefix, projectName, err)
+			return fmt.Errorf("Failed to update image %q in project %q: %w", details.imageFingerprintPrefix, details.requestProjectName, err)
 		}
 
 		if newImage != nil {
@@ -4705,7 +4841,7 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 		return err
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.ImageRefresh, nil, nil, run, nil, nil)
+	op, err := operations.OperationCreate(r.Context(), s, details.requestProjectName, operations.OperationClassTask, operationtype.ImageRefresh, nil, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
