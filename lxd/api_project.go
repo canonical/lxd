@@ -15,12 +15,15 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network"
+	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/operations"
 	projecthelpers "github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/project/limits"
@@ -350,6 +353,10 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed creating project %q: %w", project.Name, err))
 	}
+
+	// Create the new per-project daemon configs.
+	node.ConfigSchema["storage.project_"+project.Name+".images_volume"] = config.Key{}
+	node.ConfigSchema["storage.project_"+project.Name+".backups_volume"] = config.Key{}
 
 	requestor := request.CreateRequestor(r.Context())
 	lc := lifecycle.ProjectCreated.Event(project.Name, requestor, nil)
@@ -947,6 +954,27 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	// Remove the per-project daemon configs.
+	client, err := lxd.ConnectLXDUnix("", nil)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to connect to LXD daemon: %w", err))
+	}
+
+	server, _, err := client.GetServer()
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to connect to get LXD server info: %w", err))
+	}
+
+	delete(server.Config, "storage.project_"+name+".images_volume")
+	delete(server.Config, "storage.project_"+name+".backups_volume")
+	err = client.UpdateServer(server.ServerPut, "")
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to connect to get LXD server info: %w", err))
+	}
+
+	delete(node.ConfigSchema, "storage.project_"+name+".images_volume")
+	delete(node.ConfigSchema, "storage.project_"+name+".backups_volume")
 
 	requestor := request.CreateRequestor(r.Context())
 	s.Events.SendLifecycle(name, lifecycle.ProjectDeleted.Event(name, requestor, nil))
