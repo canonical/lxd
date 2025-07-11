@@ -61,6 +61,15 @@ func (s *OS) initAppArmor() []cluster.Warning {
 	/* Detect AppArmor stacking support */
 	s.AppArmorStacking = appArmorCanStack()
 
+	// Detect AppArmor cache directories.
+	s.AppArmorCacheLoc = shared.VarPath("security", "apparmor", "cache")
+	s.AppArmorCacheDir, err = appArmorGetCacheDir(s.AppArmorVersion, s.AppArmorCacheLoc)
+	if err != nil {
+		logger.Warn("AppArmor feature cache directory detection failed", logger.Ctx{"err": err})
+	} else {
+		logger.Debug("AppArmor feature cache directory detected", logger.Ctx{"cache_dir": s.AppArmorCacheDir})
+	}
+
 	/* Detect existing AppArmor stack */
 	if shared.PathExists("/sys/kernel/security/apparmor/.ns_stacked") {
 		contentBytes, err := os.ReadFile("/sys/kernel/security/apparmor/.ns_stacked")
@@ -127,6 +136,29 @@ func appArmorGetVersion() (*version.DottedVersion, error) {
 
 	fields := strings.Fields(strings.SplitN(out, "\n", 2)[0])
 	return version.Parse(fields[len(fields)-1])
+}
+
+// appArmorGetCacheDir returns the AppArmor cache directory based on the cache location.
+// If appArmor version is less than 2.13, it returns the base cache location directory.
+func appArmorGetCacheDir(ver *version.DottedVersion, cacheLoc string) (string, error) {
+	// Multiple policy cache directories were only added in v2.13.
+	minVer, err := version.NewDottedVersion("2.13")
+	if err != nil {
+		return cacheLoc, err
+	}
+
+	if ver.Compare(minVer) < 0 {
+		return cacheLoc, nil
+	}
+
+	// `--print-cache-dir` returns a subdirectory under `--cache-loc`.
+	// The subdirectory used will be influenced by the features available and enabled.
+	out, err := shared.RunCommandContext(context.TODO(), "apparmor_parser", "--cache-loc", cacheLoc, "--print-cache-dir")
+	if err != nil {
+		return cacheLoc, err
+	}
+
+	return strings.TrimSpace(out), nil
 }
 
 // Returns true if AppArmor stacking support is available.
