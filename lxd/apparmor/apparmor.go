@@ -106,10 +106,6 @@ func hasProfile(name string) (bool, error) {
 
 // parseProfile parses the profile without loading it into the kernel.
 func parseProfile(sysOS *sys.OS, name string) error {
-	if !sysOS.AppArmorAvailable {
-		return nil
-	}
-
 	return runApparmor(sysOS, cmdParse, name)
 }
 
