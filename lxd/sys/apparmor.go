@@ -3,6 +3,7 @@
 package sys
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"strconv"
@@ -15,6 +16,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/version"
 )
 
 // Initialize AppArmor-specific attributes.
@@ -42,7 +44,18 @@ func (s *OS) initAppArmor() []cluster.Warning {
 			LastMessage: "Disabled because 'apparmor_parser' couldn't be found",
 		})
 	} else {
-		s.AppArmorAvailable = true
+		/* Detect AppArmor version */
+		s.AppArmorVersion, err = appArmorGetVersion()
+		if err != nil {
+			logger.Warn("AppArmor support has been disabled because the version couldn't be determined", logger.Ctx{"err": err})
+			dbWarnings = append(dbWarnings, cluster.Warning{
+				TypeCode:    warningtype.AppArmorNotAvailable,
+				LastMessage: "Disabled because the version couldn't be determined",
+			})
+		} else {
+			logger.Info("AppArmor support is enabled", logger.Ctx{"version": s.AppArmorVersion})
+			s.AppArmorAvailable = true
+		}
 	}
 
 	/* Detect AppArmor stacking support */
@@ -103,6 +116,17 @@ func haveMacAdmin() bool {
 	}
 
 	return c.Get(capability.EFFECTIVE, capability.CAP_MAC_ADMIN)
+}
+
+// getVersion reads and parses the AppArmor version.
+func appArmorGetVersion() (*version.DottedVersion, error) {
+	out, err := shared.RunCommandContext(context.TODO(), "apparmor_parser", "--version")
+	if err != nil {
+		return nil, err
+	}
+
+	fields := strings.Fields(strings.SplitN(out, "\n", 2)[0])
+	return version.Parse(fields[len(fields)-1])
 }
 
 // Returns true if AppArmor stacking support is available.
