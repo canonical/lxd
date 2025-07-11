@@ -102,10 +102,13 @@ type OS struct {
 	LXCFeatures map[string]bool
 
 	// OS info
-	ReleaseInfo   map[string]string
-	KernelVersion version.DottedVersion
-	Uname         *shared.Utsname
-	BootTime      time.Time
+	ReleaseInfo map[string]string
+	Uname       *shared.Utsname
+	BootTime    time.Time
+
+	// Version info
+	KernelVersion   version.DottedVersion
+	AppArmorVersion *version.DottedVersion
 }
 
 // DefaultOS returns a fresh uninitialized OS instance with default values.
