@@ -492,6 +492,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_container_snapshot_config "container snapshot configuration"
     run_test test_server_config "server configuration"
     run_test test_filemanip "file manipulations"
+    run_test test_filemanip_req_content_type "request content-type header verification during file push"
     run_test test_network "network management"
     run_test test_network_acl "network ACL management"
     run_test test_network_forward "network address forwards"
