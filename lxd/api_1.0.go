@@ -1008,6 +1008,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		}
 	}
 
+	projectVolumeConfigKeys := make([]string, 0)
 	for key := range nodeChanged {
 		switch key {
 		case "maas.machine":
@@ -1020,6 +1021,10 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			dnsChanged = true
 		case "core.syslog_socket":
 			syslogSocketChanged = true
+		default:
+			if strings.HasPrefix(key, "storage.project.") {
+				projectVolumeConfigKeys = append(projectVolumeConfigKeys, key)
+			}
 		}
 	}
 
@@ -1087,6 +1092,21 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		err := daemonStorageMove(s, "images", oldValue, value)
 		if err != nil {
 			return err
+		}
+	}
+
+	for _, projectVolumeConfigKey := range projectVolumeConfigKeys {
+		oldValue := oldNodeConfig[projectVolumeConfigKey]
+		for _, storageType := range []string{"images", "backups"} {
+			keySuffix := "." + storageType + "_volume"
+			if !strings.HasSuffix(projectVolumeConfigKey, keySuffix) {
+				continue
+			}
+
+			err := projectStorageVolumeChange(s, oldValue, nodeChanged[projectVolumeConfigKey], storageType)
+			if err != nil {
+				return fmt.Errorf("Failed setting node config %q: %w", projectVolumeConfigKey, err)
+			}
 		}
 	}
 
