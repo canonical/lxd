@@ -190,6 +190,12 @@ func (d *dir) DeleteVolume(vol Volume, op *operations.Operation) error {
 		return nil
 	}
 
+	// Remove the volume from the storage device.
+	err = forceRemoveAll(volPath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("Failed to remove '%s': %w", volPath, err)
+	}
+
 	// Get the volume ID for the volume, which is used to remove project quota.
 	if vol.Type() != VolumeTypeBucket {
 		volID, err := d.getVolID(vol.volType, vol.name)
@@ -202,12 +208,6 @@ func (d *dir) DeleteVolume(vol Volume, op *operations.Operation) error {
 		if err != nil {
 			return err
 		}
-	}
-
-	// Remove the volume from the storage device.
-	err = forceRemoveAll(volPath)
-	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("Failed to remove '%s': %w", volPath, err)
 	}
 
 	// Although the volume snapshot directory should already be removed, lets remove it here
