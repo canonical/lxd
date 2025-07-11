@@ -728,7 +728,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 				// Make sure that the daemon-level storage volume is not set the same as storage of any of the projects
 				volume := value.(string)
 				if strings.HasSuffix(key, ".images_volume") && volume != "" {
-					if volume != "" && volume == newNodeConfig.StorageImagesVolume() {
+					if volume != "" && volume == newNodeConfig.StorageImagesVolume("") {
 						return fmt.Errorf(`Failed validation of %q: storage volume already configured as the daemon images storage`, key)
 					}
 
@@ -736,7 +736,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 				}
 
 				if strings.HasSuffix(key, ".backups_volume") && volume != "" {
-					if volume == newNodeConfig.StorageBackupsVolume() {
+					if volume == newNodeConfig.StorageBackupsVolume("") {
 						return fmt.Errorf(`Failed validation of %q: storage volume already configured as the daemon backups storage`, key)
 					}
 

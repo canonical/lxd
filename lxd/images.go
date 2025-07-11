@@ -2043,7 +2043,7 @@ func distributeImage(ctx context.Context, s *state.State, nodes []db.NodeInfo, o
 			return err
 		}
 
-		vol := config.StorageImagesVolume()
+		vol := config.StorageImagesVolume("")
 		if vol != "" {
 			fields := strings.Split(vol, "/")
 
@@ -2519,7 +2519,7 @@ func pruneLeftoverImages(s *state.State) {
 				return err
 			}
 
-			storageImages = nodeConfig.StorageImagesVolume()
+			storageImages = nodeConfig.StorageImagesVolume("")
 
 			return nil
 		})
