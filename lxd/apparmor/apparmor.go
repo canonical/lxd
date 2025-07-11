@@ -177,18 +177,13 @@ func parserSupports(sysOS *sys.OS, feature string) (bool, error) {
 		return false, nil
 	}
 
-	ver, err := getVersion(sysOS)
-	if err != nil {
-		return false, err
-	}
-
 	if feature == "unix" {
 		minVer, err := version.NewDottedVersion("2.10.95")
 		if err != nil {
 			return false, err
 		}
 
-		return ver.Compare(minVer) >= 0, nil
+		return sysOS.AppArmorVersion.Compare(minVer) >= 0, nil
 	}
 
 	if feature == "mount_nosymfollow" || feature == "userns_rule" {
@@ -196,7 +191,7 @@ func parserSupports(sysOS *sys.OS, feature string) (bool, error) {
 		defer sysOS.AppArmorFeatures.Unlock()
 		supported, ok := sysOS.AppArmorFeatures.Map[feature]
 		if !ok {
-			supported, err = FeatureCheck(sysOS, feature)
+			supported, err := FeatureCheck(sysOS, feature)
 			if err != nil {
 				return false, nil
 			}
@@ -208,21 +203,6 @@ func parserSupports(sysOS *sys.OS, feature string) (bool, error) {
 	}
 
 	return false, nil
-}
-
-// getVersion reads and parses the AppArmor version.
-func getVersion(sysOS *sys.OS) (*version.DottedVersion, error) {
-	if !sysOS.AppArmorAvailable {
-		return version.NewDottedVersion("0.0")
-	}
-
-	out, err := shared.RunCommandContext(context.TODO(), "apparmor_parser", "--version")
-	if err != nil {
-		return nil, err
-	}
-
-	fields := strings.Fields(strings.Split(out, "\n")[0])
-	return version.Parse(fields[len(fields)-1])
 }
 
 // getCacheDir returns the applicable AppArmor cache directory.
