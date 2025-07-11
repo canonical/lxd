@@ -109,14 +109,33 @@ func (c *Config) StorageBucketsAddress() string {
 	return objectAddress
 }
 
+// daemonStorageVolume returns the volume configured as images or backups storage for target project.
+// If project is not specified, or if project has no specifid storage volume configured, the daemon
+// storage volume is returned.
+func (c *Config) daemonStorageVolume(projectName string, storageType string) string {
+	// If project is not specified, return daemon storage.
+	if projectName == "" {
+		return c.m.GetString("storage." + storageType + "_volume")
+	}
+
+	// If project has dedicated storage set, use it.
+	result := c.m.GetString("storage.project." + projectName + "." + storageType + "_volume")
+	if result != "" {
+		return result
+	}
+
+	// Otherwise fall back again to default daemon storage.
+	return c.m.GetString("storage." + storageType + "_volume")
+}
+
 // StorageBackupsVolume returns the name of the pool/volume to use for storing backup tarballs.
 func (c *Config) StorageBackupsVolume(projectName string) string {
-	return c.m.GetString("storage.backups_volume")
+	return c.daemonStorageVolume(projectName, "backups")
 }
 
 // StorageImagesVolume returns the name of the pool/volume to use for storing image tarballs.
 func (c *Config) StorageImagesVolume(projectName string) string {
-	return c.m.GetString("storage.images_volume")
+	return c.daemonStorageVolume(projectName, "images")
 }
 
 // SyslogSocket returns true if the syslog socket is enabled, otherwise false.
