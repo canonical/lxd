@@ -42,8 +42,8 @@ func unmountDaemonStorageVolume(s *state.State, daemonStorageVolume string) erro
 }
 
 func daemonStorageVolumesUnmount(s *state.State, ctx context.Context) error {
-	storageBackups := s.LocalConfig.StorageBackupsVolume()
-	storageImages := s.LocalConfig.StorageImagesVolume()
+	storageBackups := s.LocalConfig.StorageBackupsVolume("")
+	storageImages := s.LocalConfig.StorageImagesVolume("")
 
 	select {
 	case <-ctx.Done():
@@ -89,8 +89,8 @@ func mountDaemonStorageVolume(s *state.State, daemonStorageVolume string) error 
 }
 
 func daemonStorageMount(s *state.State) error {
-	storageBackups := s.LocalConfig.StorageBackupsVolume()
-	storageImages := s.LocalConfig.StorageImagesVolume()
+	storageBackups := s.LocalConfig.StorageBackupsVolume("")
+	storageImages := s.LocalConfig.StorageImagesVolume("")
 
 	if storageBackups != "" {
 		err := mountDaemonStorageVolume(s, storageBackups)

@@ -110,12 +110,12 @@ func (c *Config) StorageBucketsAddress() string {
 }
 
 // StorageBackupsVolume returns the name of the pool/volume to use for storing backup tarballs.
-func (c *Config) StorageBackupsVolume() string {
+func (c *Config) StorageBackupsVolume(projectName string) string {
 	return c.m.GetString("storage.backups_volume")
 }
 
 // StorageImagesVolume returns the name of the pool/volume to use for storing image tarballs.
-func (c *Config) StorageImagesVolume() string {
+func (c *Config) StorageImagesVolume(projectName string) string {
 	return c.m.GetString("storage.images_volume")
 }
 
