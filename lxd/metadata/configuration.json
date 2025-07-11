@@ -2160,7 +2160,7 @@
 					{
 						"ubuntu_pro.guest_attach": {
 							"liveupdate": "no",
-							"longdesc": "Indicate whether the guest should auto-attach Ubuntu Pro at start up.\n\nSee {ref}`ubuntu-pro-guest-attach` for more information.",
+							"longdesc": "Indicate whether the guest should auto-attach Ubuntu Pro at start up.\n\nSee {ref}`instances-ubuntu-pro-attach` for more information.",
 							"shortdesc": "Whether to auto-attach Ubuntu Pro.",
 							"type": "string"
 						}

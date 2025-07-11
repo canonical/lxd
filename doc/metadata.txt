@@ -1890,7 +1890,7 @@ Possible values are `boot` (load the modules when booting the container) and `on
 :type: "string"
 Indicate whether the guest should auto-attach Ubuntu Pro at start up.
 
-See {ref}`ubuntu-pro-guest-attach` for more information.
+See {ref}`instances-ubuntu-pro-attach` for more information.
 ```
 
 ```{config:option} user.* instance-miscellaneous
