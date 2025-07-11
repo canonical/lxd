@@ -146,17 +146,12 @@ func deleteProfile(sysOS *sys.OS, fullName string, name string) error {
 		return nil
 	}
 
-	cacheDir, err := getCacheDir(sysOS)
+	err := unloadProfile(sysOS, fullName, name)
 	if err != nil {
 		return err
 	}
 
-	err = unloadProfile(sysOS, fullName, name)
-	if err != nil {
-		return err
-	}
-
-	cachePath := filepath.Join(cacheDir, name)
+	cachePath := filepath.Join(sysOS.AppArmorCacheDir, name)
 	err = os.Remove(cachePath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("Failed to remove %s: %w", cachePath, err)
@@ -203,37 +198,6 @@ func parserSupports(sysOS *sys.OS, feature string) (bool, error) {
 	}
 
 	return false, nil
-}
-
-// getCacheDir returns the applicable AppArmor cache directory.
-func getCacheDir(sysOS *sys.OS) (string, error) {
-	basePath := filepath.Join(aaPath, "cache")
-
-	if !sysOS.AppArmorAvailable {
-		return basePath, nil
-	}
-
-	ver, err := getVersion(sysOS)
-	if err != nil {
-		return "", err
-	}
-
-	// Multiple policy cache directories were only added in v2.13.
-	minVer, err := version.NewDottedVersion("2.13")
-	if err != nil {
-		return "", err
-	}
-
-	if ver.Compare(minVer) < 0 {
-		return basePath, nil
-	}
-
-	output, err := shared.RunCommandContext(context.TODO(), "apparmor_parser", "-L", basePath, "--print-cache-dir")
-	if err != nil {
-		return "", err
-	}
-
-	return strings.TrimSpace(output), nil
 }
 
 // profileName handles generating valid profile names.
