@@ -1549,7 +1549,15 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 
 	// Attempt to drop privileges (doesn't work when restoring state).
 	if !stateful && d.state.OS.UnprivUser != "" {
-		qemuCmd = append(qemuCmd, "-runas", d.state.OS.UnprivUser)
+		qemuVer, _ := d.version()
+		qemuVer91, _ := version.NewDottedVersion("9.1.0")
+
+		// Since QEMU 9.1 the parameter `runas` has been marked as deprecated.
+		if qemuVer != nil && qemuVer.Compare(qemuVer91) >= 0 {
+			qemuCmd = append(qemuCmd, "-run-with", "user="+d.state.OS.UnprivUser)
+		} else {
+			qemuCmd = append(qemuCmd, "-runas", d.state.OS.UnprivUser)
+		}
 
 		nvRAMPath := d.nvramPath()
 		if d.architectureSupportsUEFI(d.architecture) && shared.PathExists(nvRAMPath) {
