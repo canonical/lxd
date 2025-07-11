@@ -1021,6 +1021,21 @@ func projectNodeConfigDelete(d *Daemon, name string) error {
 			return fmt.Errorf("Failed to load local node config: %w", err)
 		}
 
+		// Unmount the project-specific storage volumes.
+		if config.StorageImagesVolume(name) != "" {
+			err = unmountDaemonStorageVolume(d.State(), config.StorageImagesVolume(name))
+			if err != nil {
+				return err
+			}
+		}
+
+		if config.StorageBackupsVolume(name) != "" {
+			err = unmountDaemonStorageVolume(d.State(), config.StorageBackupsVolume(name))
+			if err != nil {
+				return err
+			}
+		}
+
 		_, err = config.Patch(map[string]any{
 			"storage.project." + name + ".images_volume":  nil,
 			"storage.project." + name + ".backups_volume": nil,

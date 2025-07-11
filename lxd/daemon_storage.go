@@ -18,6 +18,7 @@ import (
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/revert"
 )
 
 func unmountDaemonStorageVolume(s *state.State, daemonStorageVolume string) error {
@@ -62,6 +63,17 @@ func daemonStorageVolumesUnmount(s *state.State, ctx context.Context) error {
 				return fmt.Errorf("Failed to unmount images storage: %w", err)
 			}
 		}
+
+		for key, value := range s.LocalConfig.Dump() {
+			if !strings.HasPrefix(key, "storage.project.") {
+				continue
+			}
+
+			err := unmountDaemonStorageVolume(s, value.(string))
+			if err != nil {
+				return fmt.Errorf("Failed to unmount project storage: %w", err)
+			}
+		}
 	}
 
 	return nil
@@ -103,6 +115,83 @@ func daemonStorageMount(s *state.State) error {
 		err := mountDaemonStorageVolume(s, storageImages)
 		if err != nil {
 			return fmt.Errorf("Failed to mount images storage: %w", err)
+		}
+	}
+
+	for key, value := range s.LocalConfig.Dump() {
+		if !strings.HasPrefix(key, "storage.project.") {
+			continue
+		}
+
+		err := mountDaemonStorageVolume(s, value.(string))
+		if err != nil {
+			return fmt.Errorf("Failed to mount project storage: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// Mount the volume specified by `daemonStorageVolume` (in the form of pool/volume)
+// and create the necessary directory structure to use it as a `storageType` (either `images` or `backups`) storage.
+func projectStorageVolumeSetup(s *state.State, daemonStorageVolume string, storageType string) error {
+	err := mountDaemonStorageVolume(s, daemonStorageVolume)
+	if err != nil {
+		return fmt.Errorf("Failed to setup project %s storage: %w", storageType, err)
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+	revert.Add(func() { _ = unmountDaemonStorageVolume(s, daemonStorageVolume) })
+
+	// Ensure the destination directory structure exists within the target volume.
+	path := daemonStoragePath(daemonStorageVolume, storageType)
+	fileinfo, err := os.Stat(path)
+	if err == nil {
+		if !fileinfo.IsDir() {
+			return fmt.Errorf("Cannot create directory, file already exists: %q", path)
+		}
+	} else if errors.Is(err, os.ErrNotExist) {
+		err = os.MkdirAll(path, 0700)
+		if err != nil {
+			return fmt.Errorf("Failed to create directory %q: %w", path, err)
+		}
+
+		revert.Add(func() { os.Remove(path) })
+	} else {
+		return fmt.Errorf("Failed to stat() file %q: %w", path, err)
+	}
+
+	// Set ownership & mode.
+	err = os.Chmod(path, 0700)
+	if err != nil {
+		return fmt.Errorf("Failed to set permissions on %q: %w", path, err)
+	}
+
+	err = os.Chown(path, 0, 0)
+	if err != nil {
+		return fmt.Errorf("Failed to set ownership on %q: %w", path, err)
+	}
+
+	revert.Success()
+	return nil
+}
+
+// projectStorageVolumeChange handles changes of one of the storage.images_volume or storage.backups.volume configs.
+// As these configs can be changed only on empty projects, we don't move any images around. Instead we only
+// mount the volumes as needed.
+func projectStorageVolumeChange(s *state.State, oldConfig string, newConfig string, storageType string) error {
+	if oldConfig != "" {
+		err := unmountDaemonStorageVolume(s, oldConfig)
+		if err != nil {
+			return fmt.Errorf("Failed to unmount images storage: %w", err)
+		}
+	}
+
+	if newConfig != "" {
+		err := projectStorageVolumeSetup(s, newConfig, storageType)
+		if err != nil {
+			return err
 		}
 	}
 
