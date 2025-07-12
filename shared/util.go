@@ -1344,15 +1344,15 @@ func RenderTemplate(template string, ctx pongo2.Context) (string, error) {
 	// Get rendered template
 	ret, err := tpl.Execute(ctx)
 	if err != nil {
-		// Looks like we're nesting templates so run pongo again
-		if strings.Contains(ret, "{{") || strings.Contains(ret, "{%") {
-			return RenderTemplate(ret, ctx)
-		}
-
 		return "", err
 	}
 
-	return ret, err
+	// Looks like we're nesting templates so run pongo again
+	if strings.Contains(ret, "{{") || strings.Contains(ret, "{%") {
+		return "", errors.New("Template contains nested template tags, which is not allowed")
+	}
+
+	return ret, nil
 }
 
 // GetExpiry returns the expiry date based on the reference date and a length of time.
