@@ -1344,7 +1344,7 @@ func RenderTemplate(template string, ctx pongo2.Context) (string, error) {
 	// Get rendered template
 	ret, err := tpl.Execute(ctx)
 	if err != nil {
-		return ret, err
+		return "", err
 	}
 
 	// Looks like we're nesting templates so run pongo again
