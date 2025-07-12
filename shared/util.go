@@ -1323,7 +1323,11 @@ func (r *ReadSeeker) Seek(offset int64, whence int) (int64, error) {
 }
 
 // RenderTemplate renders a pongo2 template.
-func RenderTemplate(template string, ctx pongo2.Context) (string, error) {
+func RenderTemplate(template string, ctx pongo2.Context, recursionLimit int) (string, error) {
+	if recursionLimit <= 0 {
+		return "", errors.New("Recursion limit reached while rendering template")
+	}
+
 	// Create custom TemplateSet
 	set := pongo2.NewSet("restricted", pongo2.DefaultLoader)
 
@@ -1349,7 +1353,7 @@ func RenderTemplate(template string, ctx pongo2.Context) (string, error) {
 
 	// Looks like we're nesting templates so run pongo again
 	if strings.Contains(ret, "{{") || strings.Contains(ret, "{%") {
-		return RenderTemplate(ret, ctx)
+		return RenderTemplate(ret, ctx, recursionLimit-1)
 	}
 
 	return ret, nil
