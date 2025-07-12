@@ -214,6 +214,7 @@ PNG
 Pongo
 POSIX
 PowerFlex
+preconfigured
 prepended
 preseed
 proxied
@@ -227,6 +228,7 @@ QMP
 qgroup
 qgroups
 RADOS
+radosgw
 RBAC
 RBD
 RDP
@@ -234,6 +236,7 @@ README
 reconfiguring
 requestor
 RESTful
+RGW
 RHEL
 rollout
 rootfs
