@@ -14,6 +14,7 @@ var drivers = map[string]func() driver{
 	"lvm":        func() driver { return &lvm{} },
 	"powerflex":  func() driver { return &powerflex{} },
 	"pure":       func() driver { return &pure{} },
+	"hpeAlletra": func() driver { return &hpeAlletra{} },
 	"zfs":        func() driver { return &zfs{} },
 }
 
