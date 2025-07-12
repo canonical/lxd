@@ -1352,7 +1352,7 @@ func RenderTemplate(template string, ctx pongo2.Context) (string, error) {
 		return RenderTemplate(ret, ctx)
 	}
 
-	return ret, err
+	return ret, nil
 }
 
 // GetExpiry returns the expiry date based on the reference date and a length of time.
