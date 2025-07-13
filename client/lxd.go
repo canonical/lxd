@@ -499,6 +499,12 @@ func (r *ProtocolLXD) getSourceImageConnectionInfo(source ImageServer, image api
 		return nil, nil
 	}
 
+	// If the image source is a private LXD server, set the project of the client as the project for the instance source.
+	instanceServer, ok := source.(*ProtocolLXD)
+	if ok && instanceServer.project != "" {
+		instSrc.Project = instanceServer.project
+	}
+
 	// Minimal source fields for remote image
 	instSrc.Mode = "pull"
 
