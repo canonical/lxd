@@ -252,6 +252,48 @@ func TestReaderToChannel(t *testing.T) {
 	}
 }
 
+func TestRenderTemplate(t *testing.T) {
+	// Reject invalid templates.
+	out, err := RenderTemplate(`{% include "/etc/hosts" %}`, nil, 1)
+	assert.Error(t, err)
+	assert.Empty(t, out)
+
+	out, err = RenderTemplate(`{{ "{"|escape }}{{ "%"|escape }} include "/etc/hosts" {{ "%"|escape }}{{ "}"|escape }}`, nil, 2)
+	assert.Error(t, err)
+	assert.Empty(t, out)
+
+	// Recursion limit hit.
+	out, err = RenderTemplate(`a{{ "{"|first}}{{ "{"|first}} "{{ "b"|capfirst }}" {{ "}"|first}}{{ "}"|first}}`, nil, 1)
+	assert.Error(t, err)
+	assert.Empty(t, out)
+
+	// Render proper templates.
+	out, err = RenderTemplate(`Hello, world!`, nil, 1)
+	assert.NoError(t, err)
+	assert.Equal(t, `Hello, world!`, out)
+
+	out, err = RenderTemplate(`{{ "Hello, world!" }}`, nil, 1)
+	assert.NoError(t, err)
+	assert.Equal(t, `Hello, world!`, out)
+
+	out, err = RenderTemplate(`mysnap%d`, nil, 1)
+	assert.NoError(t, err)
+	assert.Equal(t, `mysnap%d`, out)
+
+	out, err = RenderTemplate(`mysnap%`, nil, 1)
+	assert.NoError(t, err)
+	assert.Equal(t, `mysnap%`, out)
+
+	out, err = RenderTemplate(`{{ "h"|capfirst }}`, nil, 1)
+	assert.NoError(t, err)
+	assert.Equal(t, `H`, out)
+
+	// Recursion limit not hit.
+	out, err = RenderTemplate(`a{{ "{"|first}}{{ "{"|first}} "{{ "b"|capfirst }}" {{ "}"|first}}{{ "}"|first}}`, nil, 2)
+	assert.NoError(t, err)
+	assert.Equal(t, "aB", out)
+}
+
 func TestGetExpiry(t *testing.T) {
 	refDate := time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
 	expiryDate, err := GetExpiry(refDate, "1M 2H 3d 4w 5m 6y")
@@ -271,6 +313,10 @@ func TestGetExpiry(t *testing.T) {
 
 	expiryDate, err = GetExpiry(refDate, "")
 	require.NoError(t, err)
+	require.Equal(t, time.Time{}, expiryDate)
+
+	expiryDate, err = GetExpiry(refDate, "1M 1M")
+	require.Error(t, err)
 	require.Equal(t, time.Time{}, expiryDate)
 
 	expiryDate, err = GetExpiry(refDate, "1z")
