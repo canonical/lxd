@@ -397,7 +397,38 @@ test_remote_usage() {
   # The alias should be set to `bar`.
   [ "${alias}" = "bar" ]
 
+  # Clean up
+  lxc_remote delete lxd2:c1 -f
+  lxc_remote image delete lxd2:bar
   lxc_remote image alias delete localhost:foo
+  lxc image list -f csv -c f | xargs -I{} lxc image delete {} # Delete all images (there are none in any other projects)
+
+  # Test instance init where image is in non-default project.
+  lxc_remote project create lxd2:foo
+  LXD_DIR="${LXD2_DIR}" deps/import-busybox --project foo --alias foo-img
+  ! lxc init lxd2:foo-img foo-container || false
+  lxc_remote project switch lxd2:foo
+  lxc init lxd2:foo-img foo-container
+
+  # Revert changes
+  lxc delete foo-container
+  lxc image delete "$(lxc image list -f csv -c f)"
+  lxc_remote project switch lxd2:default
+
+  # Test instance init where image is in non-default project and the target project is also non-default
+  lxc project create foo2
+  lxc profile show default | lxc profile edit default --project foo2
+  ! lxc init lxd2:foo-img foo-container --project foo2 || false
+  lxc_remote project switch lxd2:foo
+  lxc init lxd2:foo-img foo-container --project foo2
+  lxc_remote project switch lxd2:default
+
+  # Final clean up
+  lxc_remote image delete lxd2:foo-img --project foo
+  lxc_remote project delete lxd2:foo
+  lxc delete foo-container --project foo2
+  lxc image delete --project foo2 "$(lxc image list -f csv -c f --project foo2)"
+  lxc project delete foo2
 
   lxc_remote remote remove lxd2
   lxc_remote remote remove lxd2-public
