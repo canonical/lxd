@@ -16,6 +16,7 @@ lxd-migrate/lxd-migrate
 lxd-user/lxd-user
 test/busybox.tar.xz.cache
 test/devlxd-client/devlxd-client
+test/lxd-client/lxd-client
 test/syscall/sysinfo/sysinfo
 test/mini-oidc/mini-oidc
 test/mini-oidc/user.data
