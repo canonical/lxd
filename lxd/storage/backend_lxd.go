@@ -1835,7 +1835,7 @@ func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation, p
 		}
 
 		imageFile := filepath.Join(b.state.ImagesStoragePath(projectName), fingerprint)
-		return ImageUnpack(b.state, imageFile, vol, rootBlockPath, allowUnsafeResize, tracker)
+		return ImageUnpack(b.state, projectName, imageFile, vol, rootBlockPath, allowUnsafeResize, tracker)
 	}
 }
 
@@ -2402,7 +2402,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 				}
 
 				// Make sure that the image is available locally too (not guaranteed in clusters).
-				imagePath := filepath.Join(b.state.ImagesStoragePath(""), fingerprint)
+				imagePath := filepath.Join(b.state.ImagesStoragePath(inst.Project().Name), fingerprint)
 				imageExists = err == nil && shared.PathExists(imagePath)
 			}
 
