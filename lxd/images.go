@@ -2743,13 +2743,21 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 		default:
 		}
 
-		dbImagesDeleted := 0
+		deleteAtStorage := make(map[string]bool)
 		for _, dbImage := range dbImages {
+			projectImagesStorageVolume := s.LocalConfig.StorageImagesVolume(dbImage.Project)
+			_, imageSeenInThisStoragePreviously := deleteAtStorage[projectImagesStorageVolume]
+			if !imageSeenInThisStoragePreviously {
+				// First record of image in this project, candidate for deletion.
+				deleteAtStorage[projectImagesStorageVolume] = true
+			}
+
 			// Get expiry days for image's project.
 			expiryDays := projectsImageRemoteCacheExpiryDays[dbImage.Project]
 
 			// Skip if no project expiry time set.
 			if expiryDays <= 0 {
+				deleteAtStorage[projectImagesStorageVolume] = false
 				continue
 			}
 
@@ -2763,6 +2771,7 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 
 			// Skip if image is not expired.
 			if imageExpiry.After(time.Now()) {
+				deleteAtStorage[projectImagesStorageVolume] = false
 				continue
 			}
 
@@ -2774,16 +2783,29 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 				return fmt.Errorf("Error deleting image %q in project %q from database: %w", fingerprint, dbImage.Project, err)
 			}
 
-			dbImagesDeleted++
-
 			logger.Info("Deleted expired cached image record", logger.Ctx{"fingerprint": fingerprint, "project": dbImage.Project, "expiry": imageExpiry})
 
 			s.Events.SendLifecycle(dbImage.Project, lifecycle.ImageDeleted.Event(fingerprint, dbImage.Project, op.Requestor(), nil))
 		}
 
+		// Remove main image files from projects which don't have any images referenced.
+		deleteStorageVolumes := true
+		for projectImagesVolume, deleteImageFileInProject := range deleteAtStorage {
+			if !deleteImageFileInProject {
+				// Other projects are still using the image at this location.
+				deleteStorageVolumes = false
+				continue
+			}
+
+			err := imageDeleteFromDisk(projectImagesVolume, fingerprint)
+			if err != nil {
+				return err
+			}
+		}
+
 		// Skip deleting the image files and image storage volumes on disk if image is not expired in all
 		// of its projects.
-		if dbImagesDeleted < len(dbImages) {
+		if !deleteStorageVolumes {
 			continue
 		}
 
@@ -2819,12 +2841,6 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 			if err != nil {
 				return fmt.Errorf("Error deleting image volume %q from storage pool %q: %w", fingerprint, pool.Name(), err)
 			}
-		}
-
-		// Remove main image file.
-		err := imageDeleteFromDisk(s, fingerprint)
-		if err != nil {
-			return err
 		}
 
 		logger.Info("Deleted expired cached image files and volumes", logger.Ctx{"fingerprint": fingerprint})
@@ -2998,7 +3014,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Remove main image file from disk.
-		err = imageDeleteFromDisk(s, details.image.Fingerprint)
+		err = imageDeleteFromDisk(s.LocalConfig.StorageImagesVolume(projectName), details.image.Fingerprint)
 		if err != nil {
 			return err
 		}
@@ -3030,9 +3046,9 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 }
 
 // imageDeleteFromDisk removes the main image file and rootfs file of an image.
-func imageDeleteFromDisk(s *state.State, fingerprint string) error {
+func imageDeleteFromDisk(daemonStorageVolume string, fingerprint string) error {
 	// Remove main image file.
-	fname := filepath.Join(s.ImagesStoragePath(""), fingerprint)
+	fname := filepath.Join(daemonStoragePath(daemonStorageVolume, "images"), fingerprint)
 	if shared.PathExists(fname) {
 		err := os.Remove(fname)
 		if err != nil && !os.IsNotExist(err) {
