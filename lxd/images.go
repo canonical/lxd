@@ -1780,26 +1780,39 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	trusted := auth.IsTrusted(r.Context())
+
+	// Untrusted callers can't request images from all projects or projects other than default.
+	if !trusted {
+		if allProjects {
+			return response.Forbidden(errors.New("Untrusted callers may only access public images in the default project"))
+		}
+
+		if projectName != api.ProjectDefaultName {
+			return response.NotFound(nil)
+		}
+	}
+
 	s := d.State()
-	if !allProjects {
+	if !allProjects && trusted {
 		reqInfo := request.SetupContextInfo(r)
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			reqInfo.EffectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
 			return err
 		})
 		if err != nil {
+			if api.StatusErrorCheck(err, http.StatusNotFound) {
+				// Return a generic not found so that the caller cannot determine the existence of a project by the
+				// contents of the error message.
+				return response.NotFound(nil)
+			}
+
 			return response.SmartError(err)
 		}
 	}
 
 	// If the caller is not trusted, we only want to list public images in the default project.
-	trusted := auth.IsTrusted(r.Context())
 	publicOnly := !trusted
-
-	// Untrusted callers can't request images from all projects or projects other than default.
-	if !trusted && (allProjects || projectName != api.ProjectDefaultName) {
-		return response.Forbidden(errors.New("Untrusted callers may only access public images in the default project"))
-	}
 
 	// Get a permission checker. If the caller is not authenticated, the permission checker will deny all.
 	// However, the permission checker is only called when an image is private. Both trusted and untrusted clients will
