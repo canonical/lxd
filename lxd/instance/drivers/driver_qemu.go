@@ -6505,7 +6505,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 	}
 
 	// Convert from raw to qcow2 and add to tarball.
-	tmpPath, err := os.MkdirTemp(d.state.ImagesStoragePath(""), "lxd_export_")
+	tmpPath, err := os.MkdirTemp(d.state.ImagesStoragePath(d.project.Name), "lxd_export_")
 	if err != nil {
 		return meta, err
 	}
