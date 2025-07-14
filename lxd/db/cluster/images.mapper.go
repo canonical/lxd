@@ -41,6 +41,14 @@ SELECT images.id, projects.name AS project, images.fingerprint, images.type, ima
   ORDER BY projects.id, images.fingerprint
 `)
 
+var imageObjectsByProjectAndFingerprint = RegisterStmt(`
+SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
+  FROM images
+  JOIN projects ON images.project_id = projects.id
+  WHERE ( project = ? AND images.fingerprint = ? )
+  ORDER BY projects.id, images.fingerprint
+`)
+
 var imageObjectsByProjectAndCached = RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images
@@ -168,6 +176,30 @@ func GetImages(ctx context.Context, tx *sql.Tx, filters ...ImageFilter) ([]Image
 			}
 
 			query, err := StmtString(imageObjectsByProjectAndPublic)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"imageObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Project != nil && filter.Fingerprint != nil && filter.ID == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
+			args = append(args, []any{filter.Project, filter.Fingerprint}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, imageObjectsByProjectAndFingerprint)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"imageObjectsByProjectAndFingerprint\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(imageObjectsByProjectAndFingerprint)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to get \"imageObjects\" prepared statement: %w", err)
 			}
