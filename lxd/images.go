@@ -2872,9 +2872,22 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 				// referenced by other projects. In that case we don't want to
 				// physically delete it just yet, but just to remove the
 				// relevant database entry.
-				referenced, err = tx.ImageIsReferencedByOtherProjects(ctx, projectName, details.image.Fingerprint)
+				projects, err := tx.ProjectsWithImage(ctx, details.image.Fingerprint)
 				if err != nil {
 					return err
+				}
+
+				// See if any other project with this image has the same storage volume
+				projectImagesVolume := s.LocalConfig.StorageImagesVolume(projectName)
+				for _, project := range projects {
+					if project == projectName {
+						continue
+					}
+
+					if s.LocalConfig.StorageImagesVolume(project) == projectImagesVolume {
+						referenced = true
+						break
+					}
 				}
 
 				if referenced {
