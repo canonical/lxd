@@ -985,7 +985,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 // the image. No entry in the images database will be created. This implies that
 // imageCreateinPool() should only be called when an image already exists in the
 // database and hence has already a storage volume in at least one storage pool.
-func imageCreateInPool(s *state.State, info *api.Image, storagePool string) error {
+func imageCreateInPool(s *state.State, info *api.Image, storagePool string, projectName string) error {
 	if storagePool == "" {
 		return errors.New("No storage pool specified")
 	}
@@ -995,7 +995,7 @@ func imageCreateInPool(s *state.State, info *api.Image, storagePool string) erro
 		return err
 	}
 
-	err = pool.EnsureImage(info.Fingerprint, nil)
+	err = pool.EnsureImage(info.Fingerprint, nil, projectName)
 	if err != nil {
 		return err
 	}

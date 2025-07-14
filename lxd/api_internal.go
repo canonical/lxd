@@ -216,7 +216,7 @@ func internalOptimizeImage(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	err = imageCreateInPool(s, &req.Image, req.Pool)
+	err = imageCreateInPool(s, &req.Image, req.Pool, req.Project)
 	if err != nil {
 		return response.SmartError(err)
 	}
