@@ -2246,8 +2246,9 @@ func distributeImage(ctx context.Context, s *state.State, nodes []db.NodeInfo, o
 				}
 
 				req := internalImageOptimizePost{
-					Image: *newImage,
-					Pool:  poolName,
+					Image:   *newImage,
+					Pool:    poolName,
+					Project: newImage.Project,
 				}
 
 				_, _, err = client.RawQuery(http.MethodPost, "/internal/image-optimize", req, "")

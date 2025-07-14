@@ -165,8 +165,9 @@ var internalIdentityCacheRefreshCmd = APIEndpoint{
 }
 
 type internalImageOptimizePost struct {
-	Image api.Image `json:"image" yaml:"image"`
-	Pool  string    `json:"pool"  yaml:"pool"`
+	Image   api.Image `json:"image"    yaml:"image"`
+	Pool    string    `json:"pool"     yaml:"pool"`
+	Project string    `json:"project"  yaml:"project"`
 }
 
 type internalWarningCreatePost struct {
