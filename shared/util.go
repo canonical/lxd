@@ -52,6 +52,11 @@ const HTTPSMetricsDefaultPort = 9100
 // HTTPSStorageBucketsDefaultPort is the default port for the storage buckets listener.
 const HTTPSStorageBucketsDefaultPort = 9000
 
+// RenderTemplateRecursionLimit is the suggested maximum recursion depth for rendering templates.
+// Prevent unbounded recursion while rendering templates. Normal use should not
+// require more than 1 or 2 levels of recursion.
+const RenderTemplateRecursionLimit = 5
+
 // URLEncode encodes a path and query parameters to a URL.
 func URLEncode(path string, query map[string]string) (string, error) {
 	u, err := url.Parse(path)
