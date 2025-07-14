@@ -533,7 +533,7 @@ func imgPostInstanceInfo(s *state.State, req api.ImagesPost, op *operations.Oper
 	}
 
 	/* rename the file to the expected name so our caller can use it */
-	finalName := filepath.Join(s.ImagesStoragePath(""), info.Fingerprint)
+	finalName := filepath.Join(s.ImagesStoragePath(projectName), info.Fingerprint)
 	err = shared.FileMove(imageFile.Name(), finalName)
 	if err != nil {
 		return nil, err
@@ -857,7 +857,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 		info.Type = imageType
 	}
 
-	imgfname := filepath.Join(s.ImagesStoragePath(""), info.Fingerprint)
+	imgfname := filepath.Join(s.ImagesStoragePath(project), info.Fingerprint)
 	err = shared.FileMove(imageTmpFilename, imgfname)
 	if err != nil {
 		l.Error("Failed to move the image tarfile", logger.Ctx{
@@ -1154,7 +1154,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// create a directory under which we keep everything while building
-	builddir, err := os.MkdirTemp(s.ImagesStoragePath(""), "lxd_build_")
+	builddir, err := os.MkdirTemp(s.ImagesStoragePath(projectName), "lxd_build_")
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -2072,10 +2072,11 @@ func distributeImage(ctx context.Context, s *state.State, nodes []db.NodeInfo, o
 	// If the option is set, only distribute the image once to nodes with this
 	// specific pool/volume.
 
-	// imageVolumes is a list containing of all image volumes specified by
-	// storage.images_volume. Since this option is node specific, the values
+	// volumesWhichAlreadyHaveImage is a list of all image volumes specified by
+	// storage.images_volume which are remote, and thus the image was already distributed
+	// there by the main node. Since this option is node specific, the values
 	// may be different for each cluster member.
-	var imageVolumes []string
+	var volumesWhichAlreadyHaveImage []string
 
 	err := s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		config, err := node.ConfigLoad(ctx, tx)
@@ -2083,7 +2084,7 @@ func distributeImage(ctx context.Context, s *state.State, nodes []db.NodeInfo, o
 			return err
 		}
 
-		vol := config.StorageImagesVolume("")
+		vol := config.StorageImagesVolume(newImage.Project)
 		if vol != "" {
 			fields := strings.Split(vol, "/")
 
@@ -2101,7 +2102,7 @@ func distributeImage(ctx context.Context, s *state.State, nodes []db.NodeInfo, o
 			// Add the volume to the list if the pool is backed by remote
 			// storage as only then the volumes are shared.
 			if slices.Contains(db.StorageRemoteDriverNames(), pool.Driver) {
-				imageVolumes = append(imageVolumes, vol)
+				volumesWhichAlreadyHaveImage = append(volumesWhichAlreadyHaveImage, vol)
 			}
 		}
 
@@ -2160,7 +2161,11 @@ func distributeImage(ctx context.Context, s *state.State, nodes []db.NodeInfo, o
 			} else {
 				vol := ""
 
-				val := resp.Config["storage.images_volume"]
+				val := resp.Config["storage.project."+newImage.Project+".images_volume"]
+				if val == nil {
+					val = resp.Config["storage.images_volume"]
+				}
+
 				if val != nil {
 					var ok bool
 					vol, ok = val.(string)
@@ -2174,7 +2179,7 @@ func distributeImage(ctx context.Context, s *state.State, nodes []db.NodeInfo, o
 				// skip distributing the image to this cluster member.
 				// If the option is unset, distribute the image.
 				if vol != "" {
-					if slices.Contains(imageVolumes, vol) {
+					if slices.Contains(volumesWhichAlreadyHaveImage, vol) {
 						return nil
 					}
 
@@ -2185,13 +2190,13 @@ func distributeImage(ctx context.Context, s *state.State, nodes []db.NodeInfo, o
 						logger.Error("Failed to get storage pool info", logger.Ctx{"err": err, "pool": fields[0]})
 					} else {
 						if slices.Contains(db.StorageRemoteDriverNames(), pool.Driver) {
-							imageVolumes = append(imageVolumes, vol)
+							volumesWhichAlreadyHaveImage = append(volumesWhichAlreadyHaveImage, vol)
 						}
 					}
 				}
 			}
 
-			imageMetaPath := filepath.Join(s.ImagesStoragePath(""), newImage.Fingerprint)
+			imageMetaPath := filepath.Join(s.ImagesStoragePath(newImage.Project), newImage.Fingerprint)
 			imageRootfsPath := imageMetaPath + ".rootfs"
 
 			metaFile, err := os.Open(imageMetaPath)
@@ -2476,7 +2481,7 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 	}
 
 	// Remove main image file.
-	fname := filepath.Join(s.ImagesStoragePath(""), fingerprint)
+	fname := filepath.Join(s.ImagesStoragePath(projectName), fingerprint)
 	if shared.PathExists(fname) {
 		err = os.Remove(fname)
 		if err != nil {
