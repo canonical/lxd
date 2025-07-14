@@ -3167,6 +3167,11 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	err = validateImageFingerprintPrefix(fingerprint)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeImage, false)
 	if err != nil {
 		return response.SmartError(err)
@@ -4243,6 +4248,11 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 
 	projectName := request.ProjectParam(r)
 	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = validateImageFingerprintPrefix(fingerprint)
 	if err != nil {
 		return response.SmartError(err)
 	}
