@@ -1369,7 +1369,7 @@ func VolumeDetermineNextSnapshotName(ctx context.Context, s *state.State, pool s
 
 	pattern, err = shared.RenderTemplate(pattern, pongo2.Context{
 		"creation_date": time.Now(),
-	}, 5)
+	}, shared.RenderTemplateRecursionLimit)
 	if err != nil {
 		return "", err
 	}
