@@ -120,7 +120,7 @@ You can find additional resources on the [LXD website](https://canonical.com/lxd
 
 ## Commercial support
 
-LTS releases of LXD receive standard support for five years, which means they receive continuous updates. Commercial support for LXD is provided as part of [Ubuntu Pro](https://ubuntu.com/pro) (both Infra-only and full Ubuntu Pro), including for [attached LXD instances running Ubuntu](https://documentation.ubuntu.com/lxd/latest/howto/ubuntu_pro_guest_attach/). See the [full service description](https://ubuntu.com/legal/ubuntu-pro-description) for details.
+LTS releases of LXD receive standard support for five years, which means they receive continuous updates. Commercial support for LXD is provided as part of [Ubuntu Pro](https://ubuntu.com/pro) (both Infra-only and full Ubuntu Pro), including for [attached LXD instances running Ubuntu](https://documentation.ubuntu.com/lxd/latest/howto/instances_ubuntu_pro_attach/). See the [full service description](https://ubuntu.com/legal/ubuntu-pro-description) for details.
 
 Managed solutions and firefighting support are also available for LXD deployments. See: [Managed services](https://ubuntu.com/managed).
 
