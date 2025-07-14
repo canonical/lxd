@@ -2556,73 +2556,98 @@ func pruneExpiredImagesTask(stateFunc func() *state.State) (task.Func, task.Sche
 }
 
 func pruneLeftoverImages(s *state.State) {
-	opRun := func(op *operations.Operation) error {
-		// Check if dealing with shared image storage.
-		var storageImages string
-		err := s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-			nodeConfig, err := node.ConfigLoad(ctx, tx)
-			if err != nil {
-				return err
-			}
+	isMultiNodeVolume := func(volume string) (bool, error) {
+		if volume == "" {
+			return false, nil
+		}
 
-			storageImages = nodeConfig.StorageImagesVolume("")
-
-			return nil
-		})
+		// Parse the source.
+		poolName, _, err := daemonStorageSplitVolume(volume)
 		if err != nil {
-			return err
+			return false, err
 		}
 
-		if storageImages != "" {
-			// Parse the source.
-			poolName, _, err := daemonStorageSplitVolume(storageImages)
-			if err != nil {
-				return err
-			}
-
-			// Load the pool.
-			pool, err := storagePools.LoadByName(s, poolName)
-			if err != nil {
-				return err
-			}
-
-			// Skip cleanup if image volume may be multi-node.
-			// When such a volume is used, we may have images that are
-			// tied to other servers in the shared images folder and don't want to
-			// delete those.
-			if pool.Driver().Info().VolumeMultiNode {
-				return nil
-			}
+		// Load the pool.
+		pool, err := storagePools.LoadByName(s, poolName)
+		if err != nil {
+			return false, err
 		}
 
-		// Get all images
-		var images []string
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return pool.Driver().Info().VolumeMultiNode, nil
+	}
+
+	opRun := func(op *operations.Operation) error {
+		// Get all projects and images
+		var imagesOnNode map[string][]string
+		var projects []string
+		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
-			images, err = tx.GetLocalImagesFingerprints(ctx)
+			imagesOnNode, err = tx.GetImagesOnLocalNode(ctx)
+			if err != nil {
+				return err
+			}
+
+			projects, err = dbCluster.GetProjectNames(ctx, tx.Tx())
 			return err
 		})
 		if err != nil {
 			return fmt.Errorf("Unable to retrieve the list of images: %w", err)
 		}
 
-		// Look at what's in the images directory
-		imagesDir := s.ImagesStoragePath("")
-		entries, err := os.ReadDir(imagesDir)
-		if err != nil {
-			return fmt.Errorf("Unable to list the images directory: %w", err)
+		// First get list of storage volumes we'll be pruning images from.
+		imagesInStorageVolumes := make(map[string][]string)
+		// Make sure to include default daemon storage
+		imagesInStorageVolumes[s.LocalConfig.StorageImagesVolume("")] = make([]string, 0)
+		// And include all of the possibly configured project images storages too
+		for _, project := range projects {
+			storageVolume := s.LocalConfig.StorageImagesVolume(project)
+			_, ok := imagesInStorageVolumes[storageVolume]
+			if !ok {
+				imagesInStorageVolumes[storageVolume] = make([]string, 0)
+			}
 		}
 
-		// Check and delete leftovers
-		for _, entry := range entries {
-			fp := strings.Split(entry.Name(), ".")[0]
-			if !slices.Contains(images, fp) {
-				err = os.RemoveAll(filepath.Join(imagesDir, entry.Name()))
-				if err != nil {
-					return fmt.Errorf("Unable to remove leftover image: %v: %w", entry.Name(), err)
-				}
+		// Get a list of image storage volumes, with a list of images per each storage volume.
+		for image, projects := range imagesOnNode {
+			for _, project := range projects {
+				storageVolume := s.LocalConfig.StorageImagesVolume(project)
+				imagesInStorageVolumes[storageVolume] = append(imagesInStorageVolumes[storageVolume], image)
+			}
+		}
 
-				logger.Debugf("Removed leftover image file: %s", entry.Name())
+		// Now walk all these image volumes and make sure these only contain the images they should.
+		for volume, images := range imagesInStorageVolumes {
+			isShared, err := isMultiNodeVolume(volume)
+			if err != nil {
+				return err
+			}
+
+			// Check if dealing with shared image storage.
+			// Skip cleanup if image volume may be multi-node. When such a volume is used,
+			// we may have images that are tied to other servers in the shared images folder
+			// and don't want to delete those.
+			if isShared {
+				continue
+			}
+
+			// Look at what's in the images directory
+			imagesDir := daemonStoragePath(volume, "images")
+			entries, err := os.ReadDir(imagesDir)
+			if err != nil {
+				return fmt.Errorf("Unable to list the images directory: %w", err)
+			}
+
+			// Check and delete leftovers
+			for _, entry := range entries {
+				fp := strings.Split(entry.Name(), ".")[0]
+				if !slices.Contains(images, fp) {
+					err = os.Remove(filepath.Join(imagesDir, entry.Name()))
+					if err != nil {
+						return fmt.Errorf("Unable to remove leftover image: %v: %w", entry.Name(), err)
+					}
+
+					logger.Debugf("Removed leftover image file: %s", entry.Name())
+				}
 			}
 		}
 

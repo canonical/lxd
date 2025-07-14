@@ -19,17 +19,6 @@ import (
 	"github.com/canonical/lxd/shared/osarch"
 )
 
-// GetLocalImagesFingerprints returns the fingerprints of all local images.
-func (c *ClusterTx) GetLocalImagesFingerprints(ctx context.Context) ([]string, error) {
-	q := `
-SELECT images.fingerprint
-  FROM images_nodes
-  JOIN images ON images.id = images_nodes.image_id
- WHERE node_id = ?
-`
-	return query.SelectStrings(ctx, c.tx, q, c.nodeID)
-}
-
 // GetImagesFingerprints returns the names of all images (optionally only the public ones).
 func (c *ClusterTx) GetImagesFingerprints(ctx context.Context, projectName string, publicOnly bool) ([]string, error) {
 	q := `
