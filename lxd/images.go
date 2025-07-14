@@ -4420,7 +4420,7 @@ func imageExportFiles(ctx context.Context, s *state.State, imgInfo *api.Image, r
 		return response.ForwardedResponse(client)
 	}
 
-	imagePath := filepath.Join(s.ImagesStoragePath(""), imgInfo.Fingerprint)
+	imagePath := filepath.Join(s.ImagesStoragePath(requestProjectName), imgInfo.Fingerprint)
 	rootfsPath := imagePath + ".rootfs"
 
 	_, ext, _, err := shared.DetectCompression(imagePath)
@@ -4535,7 +4535,7 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 
 	run := func(op *operations.Operation) error {
 		createArgs := &lxd.ImageCreateArgs{}
-		imageMetaPath := filepath.Join(s.ImagesStoragePath(""), details.imageFingerprintPrefix)
+		imageMetaPath := filepath.Join(s.ImagesStoragePath(projectName), details.imageFingerprintPrefix)
 		imageRootfsPath := imageMetaPath + ".rootfs"
 
 		metaFile, err := os.Open(imageMetaPath)
