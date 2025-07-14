@@ -119,6 +119,28 @@ var imageAliasCmd = APIEndpoint{
 	Put:    APIEndpointAction{Handler: imageAliasPut, AccessHandler: imageAliasAccessHandler(auth.EntitlementCanEdit)},
 }
 
+// validateImageFingerprintPrefix validates that the given string is at least 12 characters long contains only lowercase
+// hex characters.
+func validateImageFingerprintPrefix(prefix string) error {
+	// 12 characters is chosen because this is the length of the fingerprint as displayed in the CLI when listing images.
+	if len(prefix) < 12 {
+		return api.NewStatusError(http.StatusBadRequest, "Image fingerprint prefix must contain 12 characters or more")
+	}
+
+	if len(prefix) > 64 {
+		return api.NewStatusError(http.StatusBadRequest, "Image fingerprint cannot be longer than 64 characters")
+	}
+
+	// Prefixes containing non-hex or uppercase characters can never match an image.
+	for _, b := range []byte(prefix) {
+		if (b < '0' || b > '9') && (b < 'a' || b > 'f') {
+			return api.NewStatusError(http.StatusBadRequest, "Image fingerprint prefix must contain only lowercase hexadecimal characters")
+		}
+	}
+
+	return nil
+}
+
 const ctxImageDetails request.CtxKey = "image-details"
 
 // imageDetails contains fields that are determined prior to the access check. This is set in the request context when
@@ -133,6 +155,11 @@ type imageDetails struct {
 // in the request context.
 func addImageDetailsToRequestContext(s *state.State, r *http.Request) error {
 	imageFingerprintPrefix, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	if err != nil {
+		return err
+	}
+
+	err = validateImageFingerprintPrefix(imageFingerprintPrefix)
 	if err != nil {
 		return err
 	}
@@ -3140,6 +3167,11 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	err = validateImageFingerprintPrefix(fingerprint)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeImage, false)
 	if err != nil {
 		return response.SmartError(err)
@@ -4216,6 +4248,11 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 
 	projectName := request.ProjectParam(r)
 	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = validateImageFingerprintPrefix(fingerprint)
 	if err != nil {
 		return response.SmartError(err)
 	}
