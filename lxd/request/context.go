@@ -52,15 +52,9 @@ type Info struct {
 	Conn net.Conn
 }
 
-// SetupContextInfo ensures an Info is set on the request context.
-// If already present, it returns the existing Info. Otherwise, it sets and returns a new one.
-func SetupContextInfo(r *http.Request) *Info {
-	info := GetContextInfo(r.Context())
-	if info != nil {
-		return info
-	}
-
-	info = &Info{}
+// InitContextInfo sets an empty Info in the request context.
+func InitContextInfo(r *http.Request) *Info {
+	info := &Info{}
 	SetContextValue(r, CtxRequestInfo, info)
 	return info
 }
