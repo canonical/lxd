@@ -17,6 +17,8 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/cluster"
+	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -322,6 +324,29 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	// Create the new per-project daemon configs.
+	node.ConfigSchema["storage.project_"+project.Name+".images_volume"] = config.Key{}
+	node.ConfigSchema["storage.project_"+project.Name+".backups_volume"] = config.Key{}
+
+	// On other cluster nodes, we're done.
+	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	if clientType != clusterRequest.ClientTypeNormal {
+		return response.SyncResponse(true, nil)
+	}
+
+	// Send notification to other cluster members to extend the node schema.
+	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
+		return client.CreateProject(project)
+	})
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to notify other cluster members: %w", err))
+	}
+
 	var id int64
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		id, err = dbCluster.CreateProject(ctx, tx.Tx(), dbCluster.Project{Description: project.Description, Name: project.Name})
@@ -353,10 +378,6 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed creating project %q: %w", project.Name, err))
 	}
-
-	// Create the new per-project daemon configs.
-	node.ConfigSchema["storage.project_"+project.Name+".images_volume"] = config.Key{}
-	node.ConfigSchema["storage.project_"+project.Name+".backups_volume"] = config.Key{}
 
 	requestor := request.CreateRequestor(r.Context())
 	lc := lifecycle.ProjectCreated.Event(project.Name, requestor, nil)
@@ -908,6 +929,31 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
+func projectNodeConfigDelete(name string) error {
+	// Remove the per-project daemon configs.
+	client, err := lxd.ConnectLXDUnix("", nil)
+	if err != nil {
+		return fmt.Errorf("Failed to connect to LXD daemon: %w", err)
+	}
+
+	server, _, err := client.GetServer()
+	if err != nil {
+		return fmt.Errorf("Failed to connect to get LXD server info: %w", err)
+	}
+
+	delete(server.Config, "storage.project_"+name+".images_volume")
+	delete(server.Config, "storage.project_"+name+".backups_volume")
+	err = client.UpdateServer(server.ServerPut, "")
+	if err != nil {
+		return fmt.Errorf("Failed to update the LXD server config: %w", err)
+	}
+
+	delete(node.ConfigSchema, "storage.project_"+name+".images_volume")
+	delete(node.ConfigSchema, "storage.project_"+name+".backups_volume")
+
+	return nil
+}
+
 // swagger:operation DELETE /1.0/projects/{name} projects project_delete
 //
 //	Delete the project
@@ -939,6 +985,18 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(errors.New("The 'default' project cannot be deleted"))
 	}
 
+	// On cluster notification, just clear the node config values and we're done.
+	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	if clientType != clusterRequest.ClientTypeNormal {
+		err = projectNodeConfigDelete(name)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.EmptySyncResponse
+	}
+
+	// Verify the project is empty.
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		project, err := dbCluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
@@ -954,33 +1012,37 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 			return errors.New("Only empty projects can be removed")
 		}
 
-		return dbCluster.DeleteProject(ctx, tx.Tx(), name)
+		return nil
 	})
-
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	// Remove the per-project daemon configs.
-	client, err := lxd.ConnectLXDUnix("", nil)
+	// Clear the node config values.
+	err = projectNodeConfigDelete(name)
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed to connect to LXD daemon: %w", err))
+		return response.SmartError(err)
 	}
 
-	server, _, err := client.GetServer()
+	// Send notification to other cluster members to update the node schema.
+	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed to connect to get LXD server info: %w", err))
+		return response.SmartError(err)
 	}
 
-	delete(server.Config, "storage.project_"+name+".images_volume")
-	delete(server.Config, "storage.project_"+name+".backups_volume")
-	err = client.UpdateServer(server.ServerPut, "")
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
+		return client.DeleteProject(name)
+	})
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed to connect to get LXD server info: %w", err))
+		return response.SmartError(fmt.Errorf("Failed to notify other cluster members: %w", err))
 	}
 
-	delete(node.ConfigSchema, "storage.project_"+name+".images_volume")
-	delete(node.ConfigSchema, "storage.project_"+name+".backups_volume")
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return dbCluster.DeleteProject(ctx, tx.Tx(), name)
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	requestor := request.CreateRequestor(r.Context())
 	s.Events.SendLifecycle(name, lifecycle.ProjectDeleted.Event(name, requestor, nil))
