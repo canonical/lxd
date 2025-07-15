@@ -3142,9 +3142,11 @@ func (n *ovn) Start() error {
 	}
 
 	// Setup BGP.
-	err = n.bgpSetup(nil)
-	if err != nil {
-		return err
+	if !nodeEvacuated {
+		err = n.bgpSetup(nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	revert.Success()
