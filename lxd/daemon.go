@@ -1757,13 +1757,11 @@ func (d *Daemon) init() error {
 	})
 
 	// Setup the networks.
-	if !d.db.Cluster.LocalNodeIsEvacuated() {
-		logger.Info("Initializing networks")
+	logger.Info("Initializing networks")
 
-		err = networkStartup(d.State)
-		if err != nil {
-			return err
-		}
+	err = networkStartup(d.State, false)
+	if err != nil {
+		return err
 	}
 
 	// Setup tertiary listeners that may use managed network addresses and must be started after networks.
