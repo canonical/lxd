@@ -1822,11 +1822,59 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStarted.Event(d, nil))
 	}
 
+	// Wait for PCIe devices to be ready before proceeding.
+	// Otherwise a device may be added straight after the VM has started and detect a used slot as being free.
+	if qemuBus == "pcie" {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		err = d.waitPCIeDevicesReady(ctx, monitor)
+		if err != nil {
+			return fmt.Errorf("Failed waiting for PCIe devices to be ready: %w", err)
+		}
+	}
+
 	// The VM started cleanly so now enable the unexpected disconnection event to ensure the onStop hook is
 	// run if QMP unexpectedly disconnects.
 	monitor.SetOnDisconnectEvent(true)
 	op.Done(nil)
 	return nil
+}
+
+// waitPCIeDevicesReady waits for QEMU to report that the PCIe devices added at startup are ready to use.
+func (d *qemu) waitPCIeDevicesReady(ctx context.Context, monitor *qmp.Monitor) error {
+	checkDevices := func(monitor *qmp.Monitor) error {
+		devices, err := monitor.QueryPCI()
+		if err != nil {
+			return fmt.Errorf("Failed to query PCI devices: %w", err)
+		}
+
+		for _, dev := range devices {
+			if len(dev.Bridge.Devices) > 0 {
+				// Found a used bridge, so stop checking,
+				// as this indicates that the PCIe devices are ready.
+				return nil
+			}
+		}
+
+		return errors.New("No used PCIe bridges found")
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(500 * time.Millisecond):
+		}
+
+		err := checkDevices(monitor)
+		if err != nil {
+			d.logger.Debug("Waiting for PCIe devices to be ready", logger.Ctx{"err": err})
+			continue
+		}
+
+		return nil
+	}
 }
 
 // FirmwarePath returns the path to firmware, set at start time.
