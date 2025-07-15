@@ -1644,7 +1644,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, leases)
 }
 
-func networkStartup(stateFunc func() *state.State) error {
+func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 	var err error
 
 	// Build a list of networks to initialise, keyed by project and network name.
@@ -1686,7 +1686,7 @@ func networkStartup(stateFunc func() *state.State) error {
 		return nil
 	}
 
-	loadAndInitNetwork := func(s *state.State, pn network.ProjectNetwork, priority int, firstPass bool) error {
+	loadAndInitNetwork := func(s *state.State, pn network.ProjectNetwork, priority int, firstPass bool, restoreOnly bool) error {
 		var err error
 		var n network.Network
 
@@ -1784,7 +1784,7 @@ func networkStartup(stateFunc func() *state.State) error {
 		// Try initializing networks in priority order.
 		for priority := range initNetworks {
 			for pn := range initNetworks[priority] {
-				err := loadAndInitNetwork(s, pn, priority, true)
+				err := loadAndInitNetwork(s, pn, priority, true, restoreOnly)
 				if err != nil {
 					logger.Error("Failed initializing network", logger.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
 
@@ -1816,7 +1816,7 @@ func networkStartup(stateFunc func() *state.State) error {
 					// Try initializing networks in priority order.
 					for priority := range initNetworks {
 						for pn := range initNetworks[priority] {
-							err := loadAndInitNetwork(s, pn, priority, false)
+							err := loadAndInitNetwork(s, pn, priority, false, restoreOnly)
 							if err != nil {
 								logger.Error("Failed initializing network", logger.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
 
