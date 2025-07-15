@@ -3327,7 +3327,7 @@ func evacuateClusterMember(s *state.State, gateway *cluster.Gateway, r *http.Req
 		}
 
 		// Stop networks after evacuation.
-		networkingStop(s)
+		networkStop(s)
 
 		revert.Success()
 		return nil
