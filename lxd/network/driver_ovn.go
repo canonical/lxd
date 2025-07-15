@@ -3185,6 +3185,46 @@ func (n *ovn) Stop() error {
 	return nil
 }
 
+// Evacuate the network by removing the chassis and clearing BGP.
+func (n *ovn) Evacuate() error {
+	n.logger.Debug("Evacuate")
+
+	// Delete local OVS chassis ID from logical OVN HA chassis group.
+	err := n.deleteChassisGroupEntry()
+	if err != nil {
+		return err
+	}
+
+	// Clear BGP.
+	return n.bgpClear(n.config)
+}
+
+// Restore the network by setting up the chassis and BGP.
+func (n *ovn) Restore() error {
+	n.logger.Debug("Restore")
+
+	var err error
+	var chassisEnabled bool
+
+	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Check if we should enable the chassis.
+		chassisEnabled, err = n.chassisEnabled(ctx, tx)
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed getting details about network %q: %w", n.name, err)
+	}
+
+	// Handle chassis groups.
+	err = n.setupChassis(chassisEnabled, false)
+	if err != nil {
+		return err
+	}
+
+	// Setup BGP.
+	return n.bgpSetup(nil)
+}
+
 // instanceNICGetRoutes returns list of routes defined in nicConfig.
 func (n *ovn) instanceNICGetRoutes(nicConfig map[string]string) []net.IPNet {
 	var routes []net.IPNet
