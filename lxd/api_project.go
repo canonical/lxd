@@ -15,12 +15,17 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/cluster"
+	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
+	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network"
+	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/operations"
 	projecthelpers "github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/project/limits"
@@ -317,6 +322,29 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	err = projectValidateConfig(s, project.Config, project.Network)
 	if err != nil {
 		return response.BadRequest(err)
+	}
+
+	// Create the new per-project daemon configs.
+	node.ConfigSchema["storage.project."+project.Name+".images_volume"] = config.Key{}
+	node.ConfigSchema["storage.project."+project.Name+".backups_volume"] = config.Key{}
+
+	// On other cluster nodes, we're done.
+	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	if clientType != clusterRequest.ClientTypeNormal {
+		return response.SyncResponse(true, nil)
+	}
+
+	// Send notification to other cluster members to extend the node schema.
+	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
+		return client.CreateProject(project)
+	})
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to notify other cluster members: %w", err))
 	}
 
 	var id int64
@@ -901,6 +929,40 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
+func projectNodeConfigDelete(d *Daemon, name string) error {
+	var config *node.Config
+
+	// Clear the project-specific config keys from the local node config.
+	err := d.State().DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+		var err error
+
+		config, err = node.ConfigLoad(ctx, tx)
+		if err != nil {
+			return fmt.Errorf("Failed to load local node config: %w", err)
+		}
+
+		_, err = config.Patch(map[string]any{
+			"storage.project." + name + ".images_volume":  nil,
+			"storage.project." + name + ".backups_volume": nil,
+		})
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to clear project-specific config keys from the local node config: %w", err)
+	}
+
+	// Update local config cache.
+	d.globalConfigMu.Lock()
+	d.localConfig = config
+	d.globalConfigMu.Unlock()
+
+	// Remove the project-specific config keys from the node config schema.
+	delete(node.ConfigSchema, "storage.project."+name+".images_volume")
+	delete(node.ConfigSchema, "storage.project."+name+".backups_volume")
+
+	return nil
+}
+
 // swagger:operation DELETE /1.0/projects/{name} projects project_delete
 //
 //	Delete the project
@@ -932,6 +994,18 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(errors.New("The 'default' project cannot be deleted"))
 	}
 
+	// On cluster notification, just clear the node config values and we're done.
+	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	if clientType != clusterRequest.ClientTypeNormal {
+		err = projectNodeConfigDelete(d, name)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.EmptySyncResponse
+	}
+
+	// Verify the project is empty.
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		project, err := dbCluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
@@ -947,9 +1021,34 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 			return errors.New("Only empty projects can be removed")
 		}
 
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Clear the project-specific config keys from the local node config.
+	err = projectNodeConfigDelete(d, name)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Send notification to other cluster members to update the node schema.
+	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
+		return client.DeleteProject(name)
+	})
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to notify other cluster members: %w", err))
+	}
+
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return dbCluster.DeleteProject(ctx, tx.Tx(), name)
 	})
-
 	if err != nil {
 		return response.SmartError(err)
 	}
