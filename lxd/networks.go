@@ -1869,7 +1869,7 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 	return nil
 }
 
-func networkingStop(s *state.State) {
+func networkStop(s *state.State) {
 	if s.DB.Cluster == nil {
 		logger.Warn("Skipping networks stop due to global database not being available")
 		return
