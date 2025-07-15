@@ -104,7 +104,7 @@ func addNetworkDetailsToRequestContext(s *state.State, r *http.Request) error {
 		return fmt.Errorf("Failed to check project %q network feature: %w", requestProjectName, err)
 	}
 
-	info := request.SetupContextInfo(r)
+	info := request.GetContextInfo(r.Context())
 	info.EffectiveProjectName = effectiveProjectName
 
 	request.SetContextValue(r, ctxNetworkDetails, networkDetails{
@@ -263,7 +263,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	reqInfo := request.SetupContextInfo(r)
+	reqInfo := request.GetContextInfo(r.Context())
 	var reqProject *api.Project
 	if !allProjects {
 		// Project specific requests require an effective project, when "features.networks" is enabled this is the requested project, otherwise it is the default project.

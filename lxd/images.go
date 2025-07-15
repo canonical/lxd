@@ -191,7 +191,7 @@ func addImageDetailsToRequestContext(s *state.State, r *http.Request) error {
 		image:                  *image,
 	})
 
-	reqInfo := request.SetupContextInfo(r)
+	reqInfo := request.GetContextInfo(r.Context())
 	reqInfo.EffectiveProjectName = effectiveProjectName
 
 	return nil
@@ -239,7 +239,7 @@ func imageAliasAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *ht
 			return response.SmartError(err)
 		}
 
-		reqInfo := request.SetupContextInfo(r)
+		reqInfo := request.GetContextInfo(r.Context())
 		reqInfo.EffectiveProjectName = effectiveProjectName
 
 		err = s.Authorizer.CheckPermission(r.Context(), entity.ImageAliasURL(requestProjectName, imageAliasName), entitlement)
@@ -1822,7 +1822,7 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 
 	s := d.State()
 	if !allProjects && trusted {
-		reqInfo := request.SetupContextInfo(r)
+		reqInfo := request.GetContextInfo(r.Context())
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			reqInfo.EffectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
 			return err
@@ -3231,7 +3231,7 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 			userCanViewImage = true
 		} else {
 			// Otherwise perform an access check with the full image fingerprint.
-			reqInfo := request.SetupContextInfo(r)
+			reqInfo := request.GetContextInfo(r.Context())
 			reqInfo.EffectiveProjectName = effectiveProjectName
 
 			err = s.Authorizer.CheckPermission(r.Context(), entity.ImageURL(projectName, info.Fingerprint), auth.EntitlementCanView)
@@ -3659,7 +3659,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	reqInfo := request.SetupContextInfo(r)
+	reqInfo := request.GetContextInfo(r.Context())
 	reqInfo.EffectiveProjectName = effectiveProjectName
 
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeImageAlias)
@@ -3826,7 +3826,7 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	// We don't abort the request if this is false because the image alias may be for a public image.
 	var userCanViewImageAlias bool
 
-	reqInfo := request.SetupContextInfo(r)
+	reqInfo := request.GetContextInfo(r.Context())
 	reqInfo.EffectiveProjectName = effectiveProjectName
 
 	err = s.Authorizer.CheckPermission(r.Context(), entity.ImageAliasURL(projectName, name), auth.EntitlementCanView)
@@ -4330,7 +4330,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 			userCanViewImage = true
 		} else {
 			// Otherwise perform an access check with the full image fingerprint.
-			reqInfo := request.SetupContextInfo(r)
+			reqInfo := request.GetContextInfo(r.Context())
 			reqInfo.EffectiveProjectName = effectiveProjectName
 
 			err = s.Authorizer.CheckPermission(r.Context(), entity.ImageURL(projectName, imgInfo.Fingerprint), auth.EntitlementCanView)

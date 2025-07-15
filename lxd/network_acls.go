@@ -173,7 +173,7 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// If the request is project specific, then set effective project name in the request context so that the authorizer can generate the correct URL.
-		reqInfo := request.SetupContextInfo(r)
+		reqInfo := request.GetContextInfo(r.Context())
 		reqInfo.EffectiveProjectName = effectiveProjectName
 	}
 
