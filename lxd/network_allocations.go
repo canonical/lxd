@@ -84,7 +84,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	reqInfo := request.SetupContextInfo(r)
+	reqInfo := request.GetContextInfo(r.Context())
 	if !allProjects {
 		reqInfo.EffectiveProjectName, _, err = project.NetworkProject(s.DB.Cluster, requestProjectName)
 		if err != nil {

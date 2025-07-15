@@ -184,7 +184,7 @@ func TestCheckClusterTargetRestriction_RestrictedTrue(t *testing.T) {
 
 	req := &http.Request{URL: &url.URL{}}
 
-	reqInfo := request.SetupContextInfo(req)
+	reqInfo := request.InitContextInfo(req)
 	reqInfo.Username = testCertFingerprint
 	reqInfo.Protocol = api.AuthenticationMethodTLS
 	reqInfo.Trusted = true
@@ -231,7 +231,7 @@ func TestCheckClusterTargetRestriction_RestrictedTrueWithOverride(t *testing.T) 
 		URL: &api.NewURL().Path("1.0", "instances").WithQuery("target", "node01").URL,
 	}
 
-	reqInfo := request.SetupContextInfo(req)
+	reqInfo := request.InitContextInfo(req)
 	reqInfo.Protocol = api.AuthenticationMethodTLS
 	reqInfo.Username = "my-certificate-fingerprint"
 	reqInfo.Trusted = true
