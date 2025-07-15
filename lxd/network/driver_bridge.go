@@ -2278,10 +2278,14 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		return err
 	}
 
+	nodeEvacuated := n.state.DB.Cluster.LocalNodeIsEvacuated()
+
 	// Setup BGP.
-	err = n.bgpSetup(oldConfig)
-	if err != nil {
-		return err
+	if !nodeEvacuated {
+		err = n.bgpSetup(oldConfig)
+		if err != nil {
+			return err
+		}
 	}
 
 	revert.Success()
