@@ -1869,7 +1869,7 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 	return nil
 }
 
-func networkStop(s *state.State) {
+func networkStop(s *state.State, evacuateOnly bool) {
 	if s.DB.Cluster == nil {
 		logger.Warn("Skipping networks stop due to global database not being available")
 		return
@@ -1913,9 +1913,19 @@ func networkStop(s *state.State) {
 				continue
 			}
 
-			err = n.Stop()
+			if evacuateOnly {
+				if n.LocalStatus() != api.NetworkStatusCreated {
+					logger.Error("Failed evacuating network, not in created state", logger.Ctx{"network": name, "project": projectName})
+					continue
+				}
+
+				err = n.Evacuate()
+			} else {
+				err = n.Stop()
+			}
+
 			if err != nil {
-				logger.Error("Failed to bring down network", logger.Ctx{"err": err, "project": projectName, "name": name})
+				logger.Error("Failed to bring down network", logger.Ctx{"err": err, "project": projectName, "name": name, "evacuate": evacuateOnly})
 			}
 		}
 	}
