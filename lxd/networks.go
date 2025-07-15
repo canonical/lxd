@@ -1707,7 +1707,7 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 		return nil
 	}
 
-	loadAndInitNetwork := func(s *state.State, pn network.ProjectNetwork, priority int, firstPass bool, restoreOnly bool) error {
+	loadAndStartupNetwork := func(s *state.State, pn network.ProjectNetwork, priority int, firstPass bool, restoreOnly bool) error {
 		var err error
 		var n network.Network
 
@@ -1806,7 +1806,7 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 		// Try initializing networks in priority order.
 		for priority := range initNetworks {
 			for pn := range initNetworks[priority] {
-				err := loadAndInitNetwork(s, pn, priority, true, restoreOnly)
+				err := loadAndStartupNetwork(s, pn, priority, true, restoreOnly)
 				if err != nil {
 					// When restoring a network the operation is not allowed to fail.
 					// The network is already started at this stage which might have taken multiple retries.
@@ -1844,7 +1844,7 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 					// Try initializing networks in priority order.
 					for priority := range initNetworks {
 						for pn := range initNetworks[priority] {
-							err := loadAndInitNetwork(s, pn, priority, false, restoreOnly)
+							err := loadAndStartupNetwork(s, pn, priority, false, restoreOnly)
 							if err != nil {
 								logger.Error("Failed initializing network", logger.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
 
