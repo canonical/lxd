@@ -411,10 +411,14 @@ func (n *physical) setup(oldConfig map[string]string) error {
 		}
 	}
 
+	nodeEvacuated := n.state.DB.Cluster.LocalNodeIsEvacuated()
+
 	// Setup BGP.
-	err = n.bgpSetup(oldConfig)
-	if err != nil {
-		return err
+	if !nodeEvacuated {
+		err = n.bgpSetup(oldConfig)
+		if err != nil {
+			return err
+		}
 	}
 
 	revert.Success()
