@@ -67,7 +67,7 @@ func addNetworkZoneDetailsToRequestContext(s *state.State, r *http.Request) erro
 		return fmt.Errorf("Failed to check project %q network feature: %w", requestProjectName, err)
 	}
 
-	reqInfo := request.SetupContextInfo(r)
+	reqInfo := request.GetContextInfo(r.Context())
 	reqInfo.EffectiveProjectName = effectiveProjectName
 
 	request.SetContextValue(r, ctxNetworkZoneDetails, networkZoneDetails{
@@ -214,7 +214,7 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	reqInfo := request.SetupContextInfo(r)
+	reqInfo := request.GetContextInfo(r.Context())
 	if !allProjects {
 		// Project specific requests require an effective project, when "features.networks.zones" is enabled this is the requested project, otherwise it is the default project.
 		effectiveProjectName, _, err := project.NetworkZoneProject(s.DB.Cluster, requestProjectName)
