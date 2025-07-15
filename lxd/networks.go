@@ -1647,11 +1647,11 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 	var err error
 
-	// Build a list of networks to initialise, keyed by project and network name.
+	// Build a list of networks to start, keyed by project and network name.
 	const networkPriorityStandalone = 0 // Start networks not dependent on any other network first.
 	const networkPriorityPhysical = 1   // Start networks dependent on physical interfaces second.
 	const networkPriorityLogical = 2    // Start networks dependent logical networks third.
-	initNetworks := []map[network.ProjectNetwork]struct{}{
+	startNetworks := []map[network.ProjectNetwork]struct{}{
 		networkPriorityStandalone: make(map[network.ProjectNetwork]struct{}),
 		networkPriorityPhysical:   make(map[network.ProjectNetwork]struct{}),
 		networkPriorityLogical:    make(map[network.ProjectNetwork]struct{}),
@@ -1679,7 +1679,7 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 			NetworkName: n.Name(),
 		}
 
-		delete(initNetworks[priority], pn)
+		delete(startNetworks[priority], pn)
 
 		_ = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(s.DB.Cluster, n.Project(), warningtype.NetworkUnvailable, entity.TypeNetwork, int(n.ID()))
 
@@ -1703,7 +1703,7 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 			NetworkName: n.Name(),
 		}
 
-		delete(initNetworks[priority], pn)
+		delete(startNetworks[priority], pn)
 		return nil
 	}
 
@@ -1720,7 +1720,7 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 				if api.StatusErrorCheck(err, http.StatusNotFound) {
 					// Network has been deleted since we began trying to start it so delete
 					// entry.
-					delete(initNetworks[priority], pn)
+					delete(startNetworks[priority], pn)
 
 					return nil
 				}
@@ -1739,15 +1739,15 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 		if netConfig["parent"] != "" && priority != networkPriorityPhysical {
 			// Start networks that depend on physical interfaces existing after
 			// non-dependent networks.
-			delete(initNetworks[priority], pn)
-			initNetworks[networkPriorityPhysical][pn] = struct{}{}
+			delete(startNetworks[priority], pn)
+			startNetworks[networkPriorityPhysical][pn] = struct{}{}
 
 			return nil
 		} else if (netConfig["network"] != "" || netConfig["bridge.external_interfaces"] != "") && priority != networkPriorityLogical {
 			// Start networks that depend on other logical networks after
 			// non-dependent networks and networks that depend on physical interfaces.
-			delete(initNetworks[priority], pn)
-			initNetworks[networkPriorityLogical][pn] = struct{}{}
+			delete(startNetworks[priority], pn)
+			startNetworks[networkPriorityLogical][pn] = struct{}{}
 
 			return nil
 		}
@@ -1763,7 +1763,7 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 
 	remainingNetworksCount := func() int {
 		remainingNetworks := 0
-		for _, projectNetworks := range initNetworks {
+		for _, projectNetworks := range startNetworks {
 			remainingNetworks += len(projectNetworks)
 		}
 
@@ -1793,7 +1793,7 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 					}
 
 					// Assume all networks are networkPriorityStandalone initially.
-					initNetworks[networkPriorityStandalone][pn] = struct{}{}
+					startNetworks[networkPriorityStandalone][pn] = struct{}{}
 				}
 			}
 
@@ -1804,8 +1804,8 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 		}
 
 		// Try initializing networks in priority order.
-		for priority := range initNetworks {
-			for pn := range initNetworks[priority] {
+		for priority := range startNetworks {
+			for pn := range startNetworks[priority] {
 				err := loadAndStartupNetwork(s, pn, priority, true, restoreOnly)
 				if err != nil {
 					// When restoring a network the operation is not allowed to fail.
@@ -1842,8 +1842,8 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 					tryInstancesStart := false
 
 					// Try initializing networks in priority order.
-					for priority := range initNetworks {
-						for pn := range initNetworks[priority] {
+					for priority := range startNetworks {
+						for pn := range startNetworks[priority] {
 							err := loadAndStartupNetwork(s, pn, priority, false, restoreOnly)
 							if err != nil {
 								logger.Error("Failed initializing network", logger.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
