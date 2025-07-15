@@ -3074,6 +3074,21 @@ func (n *ovn) chassisEnabled(ctx context.Context, tx *db.ClusterTx) (bool, error
 	return enableChassis != 0, nil
 }
 
+// setupChassis ensures the chassis setup matches the given constraints.
+// In case the chassis is enabled for the host, add a new entry.
+// But only perform this action if the node is not evacuated.
+// Otherwise ensure there isn't any group entry setup.
+func (n *ovn) setupChassis(chassisEnabled bool, nodeEvacuated bool) error {
+	// Handle chassis groups.
+	if chassisEnabled && !nodeEvacuated {
+		// Add local member's OVS chassis ID to logical chassis group.
+		return n.addChassisGroupEntry()
+	}
+
+	// Make sure we don't have a group entry.
+	return n.deleteChassisGroupEntry()
+}
+
 // Start starts adds the local OVS chassis ID to the OVN chass group and starts the local OVS uplink port.
 func (n *ovn) Start() error {
 	n.logger.Debug("Start")
@@ -3117,19 +3132,12 @@ func (n *ovn) Start() error {
 		return err
 	}
 
+	nodeEvacuated := n.state.DB.Cluster.LocalNodeIsEvacuated()
+
 	// Handle chassis groups.
-	if chassisEnabled {
-		// Add local member's OVS chassis ID to logical chassis group.
-		err = n.addChassisGroupEntry()
-		if err != nil {
-			return err
-		}
-	} else {
-		// Make sure we don't have a group entry.
-		err = n.deleteChassisGroupEntry()
-		if err != nil {
-			return err
-		}
+	err = n.setupChassis(chassisEnabled, nodeEvacuated)
+	if err != nil {
+		return err
 	}
 
 	err = n.startUplinkPort()
