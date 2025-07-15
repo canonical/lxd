@@ -457,6 +457,16 @@ func (n *common) DHCPv6Ranges() []shared.IPRange {
 	return dhcpRanges
 }
 
+// Evacuate is invoked on a network in case its parent cluster member gets evacuated.
+func (n *common) Evacuate() error {
+	return nil
+}
+
+// Restore is invoked on a network in case its parent cluster member gets restored.
+func (n *common) Restore() error {
+	return nil
+}
+
 // update the internal config variables, and if not cluster notification, notifies all nodes and updates database.
 func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error {
 	// Update internal config before database has been updated (so that if update is a notification we apply
