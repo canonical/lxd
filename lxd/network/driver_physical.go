@@ -463,6 +463,22 @@ func (n *physical) Stop() error {
 	return nil
 }
 
+// Evacuate the network by clearing BGP.
+func (n *physical) Evacuate() error {
+	n.logger.Debug("Evacuate")
+
+	// Clear BGP.
+	return n.bgpClear(n.config)
+}
+
+// Restore the network by setting up BGP.
+func (n *physical) Restore() error {
+	n.logger.Debug("Restore")
+
+	// Setup BGP.
+	return n.bgpSetup(nil)
+}
+
 // Update updates the network. Accepts notification boolean indicating if this update request is coming from a
 // cluster notification, in which case do not update the database, just apply local changes needed.
 func (n *physical) Update(newNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error {
