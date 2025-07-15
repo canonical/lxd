@@ -65,7 +65,11 @@ test_clustering_move() {
 
   # c1 can be moved to a new target project.
   lxc move cluster:c1 --target-project test-project
-  lxc move cluster:c1 --target-project default --project test-project
+
+  # c1 can be moved to a new target project and location.
+  lxc move cluster:c1 --target node3 --target-project default --project test-project
+  lxc info cluster:c1 | grep -xF "Location: node3"
+  lxc query cluster:/1.0/instances/c1 | jq -re '.project == "default"'
 
   lxc move cluster:c1 --target @foobar1
   lxc info cluster:c1 | grep -xF "Location: node1"
