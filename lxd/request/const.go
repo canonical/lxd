@@ -14,6 +14,9 @@ const (
 	// CtxDevLXDOverVsock indicates whether the devLXD is being interacted with over vsock.
 	CtxDevLXDOverVsock CtxKey = "devlxd_over_vsock"
 
+	// CtxConn is the connection field in the request context.
+	CtxConn CtxKey = "conn"
+
 	// CtxMetricsCallbackFunc is a callback function that can be called to mark the request as completed for the API metrics.
 	CtxMetricsCallbackFunc CtxKey = "metrics_callback_function"
 
