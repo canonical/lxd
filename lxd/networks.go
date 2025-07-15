@@ -1686,6 +1686,27 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 		return nil
 	}
 
+	restoreNetwork := func(n network.Network, priority int) error {
+		if n.LocalStatus() != api.NetworkStatusCreated {
+			return fmt.Errorf("Cannot restore network %q when not in created state", n.Name())
+		}
+
+		err = n.Restore()
+		if err != nil {
+			return fmt.Errorf("Failed restoring network: %w", err)
+		}
+
+		// Network restored successfully so remove it from the list.
+		// Otherwise the network startup might enter a retry loop which is not desired when restoring a network.
+		pn := network.ProjectNetwork{
+			ProjectName: n.Project(),
+			NetworkName: n.Name(),
+		}
+
+		delete(initNetworks[priority], pn)
+		return nil
+	}
+
 	loadAndInitNetwork := func(s *state.State, pn network.ProjectNetwork, priority int, firstPass bool, restoreOnly bool) error {
 		var err error
 		var n network.Network
@@ -1731,12 +1752,13 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 			return nil
 		}
 
-		err = initNetwork(s, n, priority)
-		if err != nil {
-			return err
+		// When restoring a network don't enter the initNetwork function and simply run the network's Restore.
+		// The init takes care of e.g. clearing warnings related to the overall start of the network.
+		if restoreOnly {
+			return restoreNetwork(n, priority)
 		}
 
-		return nil
+		return initNetwork(s, n, priority)
 	}
 
 	remainingNetworksCount := func() int {
@@ -1786,6 +1808,12 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 			for pn := range initNetworks[priority] {
 				err := loadAndInitNetwork(s, pn, priority, true, restoreOnly)
 				if err != nil {
+					// When restoring a network the operation is not allowed to fail.
+					// The network is already started at this stage which might have taken multiple retries.
+					if restoreOnly {
+						return err
+					}
+
 					logger.Error("Failed initializing network", logger.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
 
 					continue
