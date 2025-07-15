@@ -1,5 +1,6 @@
 test_image_expiry() {
   local LXD2_DIR LXD2_ADDR
+  # shellcheck disable=2153
   LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   spawn_lxd "${LXD2_DIR}" true
   LXD2_ADDR=$(cat "${LXD2_DIR}/lxd.addr")
