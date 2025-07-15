@@ -236,7 +236,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeStorageVolume, withEntitlements, urlToPool)
+		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeStoragePool, withEntitlements, urlToPool)
 		if err != nil {
 			return response.SmartError(err)
 		}
