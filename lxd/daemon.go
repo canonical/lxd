@@ -817,8 +817,8 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			return
 		}
 
-		// Ensure request context info is set.
-		reqInfo := request.SetupContextInfo(r)
+		// Initialise the request info.
+		reqInfo := request.InitContextInfo(r)
 
 		// Set the "trusted" value in the request context.
 		reqInfo.Trusted = trusted
