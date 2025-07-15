@@ -3123,7 +3123,7 @@ func (n *ovn) Start() error {
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed getting project ID for project %q: %w", n.project, err)
+		return fmt.Errorf("Failed getting details about network %q: %w", n.name, err)
 	}
 
 	// Ensure network level port group exists.
