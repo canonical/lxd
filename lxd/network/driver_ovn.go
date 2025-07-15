@@ -3116,11 +3116,7 @@ func (n *ovn) Start() error {
 
 		// Check if we should enable the chassis.
 		chassisEnabled, err = n.chassisEnabled(ctx, tx)
-		if err != nil {
-			return err
-		}
-
-		return nil
+		return err
 	})
 	if err != nil {
 		return fmt.Errorf("Failed getting details about network %q: %w", n.name, err)
