@@ -2181,7 +2181,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 			}
 
 			// Stop networks.
-			networkStop(s)
+			networkStop(s, false)
 
 			// Unmount daemon image and backup volumes if set.
 			logger.Info("Stopping daemon storage volumes")
