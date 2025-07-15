@@ -799,7 +799,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 
 	// If we're requesting for just one project, set the effective project name of volumes in this project.
 	if !allProjects {
-		reqInfo := request.SetupContextInfo(r)
+		reqInfo := request.GetContextInfo(r.Context())
 		reqInfo.EffectiveProjectName = customVolProjectName
 	}
 
@@ -2799,7 +2799,7 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 		return fmt.Errorf("Failed to get effective project name: %w", err)
 	}
 
-	reqInfo := request.SetupContextInfo(r)
+	reqInfo := request.GetContextInfo(r.Context())
 	reqInfo.EffectiveProjectName = effectiveProjectName
 
 	// If the target is set, the location of the volume is user specified, so we don't need to perform further logic.

@@ -206,7 +206,7 @@ func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	reqInfo := request.SetupContextInfo(r)
+	reqInfo := request.GetContextInfo(r.Context())
 	if !allProjects {
 		// Project specific requests require an effective project, when "features.storage.buckets" is enabled this is the requested project, otherwise it is the default project.
 		// If the request is project specific, then set effective project name in the request info so that the authorizer can generate the correct URL.
@@ -1209,7 +1209,7 @@ func addStorageBucketDetailsToContext(d *Daemon, r *http.Request) error {
 		return err
 	}
 
-	reqInfo := request.SetupContextInfo(r)
+	reqInfo := request.GetContextInfo(r.Context())
 	reqInfo.EffectiveProjectName = effectiveProjectName
 
 	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])

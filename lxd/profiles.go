@@ -78,7 +78,7 @@ func addProfileDetailsToRequestContext(s *state.State, r *http.Request) error {
 		return fmt.Errorf("Failed to check project %q profile feature: %w", requestProjectName, err)
 	}
 
-	reqInfo := request.SetupContextInfo(r)
+	reqInfo := request.GetContextInfo(r.Context())
 	reqInfo.EffectiveProjectName = effectiveProject.Name
 
 	request.SetContextValue(r, ctxProfileDetails, profileDetails{
@@ -223,7 +223,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	reqInfo := request.SetupContextInfo(r)
+	reqInfo := request.GetContextInfo(r.Context())
 	if !allProjects {
 		p, err := project.ProfileProject(s.DB.Cluster, requestProjectName)
 		if err != nil {
