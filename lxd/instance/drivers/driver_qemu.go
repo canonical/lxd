@@ -3306,7 +3306,9 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 		// Determine expected firmware.
 		var firmwares []edk2.FirmwarePair
-		if shared.IsTrue(d.expandedConfig["security.csm"]) {
+		if shared.IsTrue(d.expandedConfig["boot.noefi"]) {
+			firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.NOEFI)
+		} else if shared.IsTrue(d.expandedConfig["security.csm"]) {
 			firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.CSM)
 		} else if shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
 			firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.SECUREBOOT)
@@ -3316,6 +3318,8 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 		var efiCode string
 		for _, firmware := range firmwares {
+			d.logger.Warn("Checking path ",
+				logger.Ctx{"filepath": filepath.Join(d.Path(), filepath.Base(firmware.Vars))})
 			if shared.PathExists(filepath.Join(d.Path(), filepath.Base(firmware.Vars))) {
 				efiCode = firmware.Code
 				break

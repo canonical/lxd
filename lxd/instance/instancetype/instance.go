@@ -1189,6 +1189,16 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	//  type: bool
 	//  shortdesc: Enable debug version of the `edk2`
 	"boot.debug_edk2": validate.Optional(validate.IsBool),
+
+	// lxdmeta:generate(entities=instance; group=boot; key=boot.noefi)
+	// The VM boots with `non-EFI` firmware (U-Boot).
+	// ---
+	//  type: bool
+	//  defaultdesc: "no"
+	//  liveupdate: "no"
+	//  condition: "virtual machine"
+	//  shortdesc: Enabling booting with `non-EFI` firmware (U-Boot).
+	"boot.noefi": validate.Optional(validate.IsBool),
 }
 
 // ConfigKeyChecker returns a function that will check whether or not

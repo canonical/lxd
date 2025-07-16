@@ -1718,6 +1718,15 @@ A log file can be found in `$LXD_DIR/logs/<instance_name>/edk2.log`.
 Number of seconds to wait for the instance to shut down before it is force-stopped.
 ```
 
+```{config:option} boot.noefi instance-boot
+:condition: "virtual machine"
+:defaultdesc: "no"
+:liveupdate: "no"
+:shortdesc: "Enabling booting with `non-EFI` firmware (U-Boot)."
+:type: "bool"
+The VM boots with `non-EFI` firmware (U-Boot).
+```
+
 ```{config:option} boot.stop.priority instance-boot
 :defaultdesc: "`0`"
 :liveupdate: "no"
