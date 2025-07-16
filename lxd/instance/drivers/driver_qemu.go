@@ -3639,38 +3639,12 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 			for _, drive := range runConf.Mounts {
 				var monHook monitorHook
 
-				// Check if the user has overridden the bus.
-				busName := "virtio-scsi"
-				for _, opt := range drive.Opts {
-					if !strings.HasPrefix(opt, "bus=") {
-						continue
-					}
-
-					busName = strings.TrimPrefix(opt, "bus=")
-					break
-				}
-
-				qemuDev := make(map[string]any)
-				if slices.Contains([]string{"nvme", "virtio-blk"}, busName) {
-					// Allocate a PCI(e) port and write it to the config file so QMP can "hotplug" the
-					// drive into it later.
-					devBus, devAddr, multi := bus.allocate(busFunctionGroupNone)
-
-					// Populate the qemu device with port info.
-					qemuDev["bus"] = devBus
-					qemuDev["addr"] = devAddr
-
-					if multi {
-						qemuDev["multifunction"] = true
-					}
-				}
-
 				if drive.TargetPath == "/" {
-					monHook, err = d.addRootDriveConfig(qemuDev, mountInfo, bootIndexes, drive)
+					monHook, err = d.addRootDriveConfig(bus, mountInfo, bootIndexes, drive)
 				} else if drive.FSType == "9p" {
 					err = d.addDriveDirConfig(&cfg, bus, fdFiles, &agentMounts, drive)
 				} else {
-					monHook, err = d.addDriveConfig(qemuDev, bootIndexes, drive)
+					monHook, err = d.addDriveConfig(bus, bootIndexes, drive)
 				}
 
 				if err != nil {
@@ -3897,7 +3871,7 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection, cpuInfo *cpuTopology) error
 }
 
 // addRootDriveConfig adds the qemu config required for adding the root drive.
-func (d *qemu) addRootDriveConfig(qemuDev map[string]any, mountInfo *storagePools.MountInfo, bootIndexes map[string]int, rootDriveConf deviceConfig.MountEntryItem) (monitorHook, error) {
+func (d *qemu) addRootDriveConfig(bus *qemuBus, mountInfo *storagePools.MountInfo, bootIndexes map[string]int, rootDriveConf deviceConfig.MountEntryItem) (monitorHook, error) {
 	if rootDriveConf.TargetPath != "/" {
 		return nil, errors.New("Non-root drive config supplied")
 	}
@@ -3949,7 +3923,7 @@ func (d *qemu) addRootDriveConfig(qemuDev map[string]any, mountInfo *storagePool
 		}
 	}
 
-	return d.addDriveConfig(qemuDev, bootIndexes, driveConf)
+	return d.addDriveConfig(bus, bootIndexes, driveConf)
 }
 
 // addDriveDirConfig adds the qemu config required for adding a supplementary drive directory share.
@@ -4046,7 +4020,33 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 }
 
 // addDriveConfig adds the qemu config required for adding a supplementary drive.
-func (d *qemu) addDriveConfig(qemuDev map[string]any, bootIndexes map[string]int, driveConf deviceConfig.MountEntryItem) (monitorHook, error) {
+func (d *qemu) addDriveConfig(bus *qemuBus, bootIndexes map[string]int, driveConf deviceConfig.MountEntryItem) (monitorHook, error) {
+	// Check if the user has overridden the bus.
+	busName := "virtio-scsi"
+	for _, opt := range driveConf.Opts {
+		if !strings.HasPrefix(opt, "bus=") {
+			continue
+		}
+
+		busName = strings.TrimPrefix(opt, "bus=")
+		break
+	}
+
+	qemuDev := make(map[string]any)
+	if slices.Contains([]string{"nvme", "virtio-blk"}, busName) {
+		// Allocate a PCI(e) port and write it to the config file so QMP can "hotplug" the
+		// drive into it later.
+		devBus, devAddr, multi := bus.allocate(busFunctionGroupNone)
+
+		// Populate the qemu device with port info.
+		qemuDev["bus"] = devBus
+		qemuDev["addr"] = devAddr
+
+		if multi {
+			qemuDev["multifunction"] = true
+		}
+	}
+
 	aioMode := "native" // Use native kernel async IO and O_DIRECT by default.
 	cacheMode := "none" // Bypass host cache, use O_DIRECT semantics by default.
 	media := "disk"
@@ -4130,17 +4130,6 @@ func (d *qemu) addDriveConfig(qemuDev map[string]any, bootIndexes map[string]int
 	// Special case ISO images as cdroms.
 	if driveConf.FSType == "iso9660" {
 		media = "cdrom"
-	}
-
-	// Check if the user has overridden the bus.
-	bus := "virtio-scsi"
-	for _, opt := range driveConf.Opts {
-		if !strings.HasPrefix(opt, "bus=") {
-			continue
-		}
-
-		bus = strings.TrimPrefix(opt, "bus=")
-		break
 	}
 
 	// Check if the user has overridden the cache mode.
@@ -4243,10 +4232,6 @@ func (d *qemu) addDriveConfig(qemuDev map[string]any, bootIndexes map[string]int
 		blockDev["locking"] = "off"
 	}
 
-	if qemuDev == nil {
-		qemuDev = map[string]any{}
-	}
-
 	escapedDeviceName := filesystem.PathNameEncode(driveConf.DevName)
 
 	qemuDev["id"] = qemuDeviceIDPrefix + escapedDeviceName
@@ -4267,7 +4252,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]any, bootIndexes map[string]int
 		qemuDev["serial"] = qemuDeviceSerial[:36]
 	}
 
-	if bus == "virtio-scsi" {
+	if busName == "virtio-scsi" {
 		qemuDev["device_id"] = qemuDeviceSerial
 
 		// Maintain existing /dev/disk/by-id naming behaviour in guest.
@@ -4286,7 +4271,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]any, bootIndexes map[string]int
 		case "cdrom":
 			qemuDev["driver"] = "scsi-cd"
 		}
-	} else if slices.Contains([]string{"nvme", "virtio-blk"}, bus) {
+	} else if slices.Contains([]string{"nvme", "virtio-blk"}, busName) {
 		qemuDevBus, ok := qemuDev["bus"].(string)
 		if !ok || qemuDevBus == "" {
 			// Try to get a PCI address for hotplugging.
@@ -4300,7 +4285,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]any, bootIndexes map[string]int
 			qemuDev["addr"] = "00.0"
 		}
 
-		qemuDev["driver"] = bus
+		qemuDev["driver"] = busName
 	}
 
 	if bootIndexes != nil {
