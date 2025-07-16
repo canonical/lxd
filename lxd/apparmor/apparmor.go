@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -54,7 +55,7 @@ func createNamespace(sysOS *sys.OS, name string) error {
 
 	p := filepath.Join("/sys/kernel/security/apparmor/policy/namespaces", name)
 	err := os.Mkdir(p, 0755)
-	if err != nil && !os.IsExist(err) {
+	if err != nil && !errors.Is(err, os.ErrExist) {
 		return err
 	}
 
@@ -73,7 +74,7 @@ func deleteNamespace(sysOS *sys.OS, name string) error {
 
 	p := filepath.Join("/sys/kernel/security/apparmor/policy/namespaces", name)
 	err := os.Remove(p)
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 
@@ -156,13 +157,13 @@ func deleteProfile(sysOS *sys.OS, fullName string, name string) error {
 
 	cachePath := filepath.Join(cacheDir, name)
 	err = os.Remove(cachePath)
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("Failed to remove %s: %w", cachePath, err)
 	}
 
 	profilePath := filepath.Join(aaPath, "profiles", name)
 	err = os.Remove(profilePath)
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("Failed to remove %s: %w", profilePath, err)
 	}
 
