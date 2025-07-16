@@ -94,9 +94,6 @@ const QEMUDefaultMemSize = "1GiB"
 // qemuSerialChardevName is used to communicate state via qmp between Qemu and LXD.
 const qemuSerialChardevName = "qemu_serial-chardev"
 
-// qemuPCIDeviceIDStart is the first PCI slot used for user configurable devices.
-const qemuPCIDeviceIDStart = 4
-
 // qemuDeviceIDPrefix used as part of the name given QEMU devices generated from user added devices.
 const qemuDeviceIDPrefix = "dev-lxd_"
 
@@ -1825,11 +1822,59 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStarted.Event(d, nil))
 	}
 
+	// Wait for PCIe devices to be ready before proceeding.
+	// Otherwise a device may be added straight after the VM has started and detect a used slot as being free.
+	if qemuBus == "pcie" {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		err = d.waitPCIeDevicesReady(ctx, monitor)
+		if err != nil {
+			return fmt.Errorf("Failed waiting for PCIe devices to be ready: %w", err)
+		}
+	}
+
 	// The VM started cleanly so now enable the unexpected disconnection event to ensure the onStop hook is
 	// run if QMP unexpectedly disconnects.
 	monitor.SetOnDisconnectEvent(true)
 	op.Done(nil)
 	return nil
+}
+
+// waitPCIeDevicesReady waits for QEMU to report that the PCIe devices added at startup are ready to use.
+func (d *qemu) waitPCIeDevicesReady(ctx context.Context, monitor *qmp.Monitor) error {
+	checkDevices := func(monitor *qmp.Monitor) error {
+		devices, err := monitor.QueryPCI()
+		if err != nil {
+			return fmt.Errorf("Failed to query PCI devices: %w", err)
+		}
+
+		for _, dev := range devices {
+			if len(dev.Bridge.Devices) > 0 {
+				// Found a used bridge, so stop checking,
+				// as this indicates that the PCIe devices are ready.
+				return nil
+			}
+		}
+
+		return errors.New("No used PCIe bridges found")
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(500 * time.Millisecond):
+		}
+
+		err := checkDevices(monitor)
+		if err != nil {
+			d.logger.Debug("Waiting for PCIe devices to be ready", logger.Ctx{"err": err})
+			continue
+		}
+
+		return nil
+	}
 }
 
 // FirmwarePath returns the path to firmware, set at start time.
@@ -2157,7 +2202,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 	if runConf != nil {
 		// If instance is running and then live attach device.
 		if instanceRunning {
-			// Attach network interface if requested.
+			// Attach NIC to running instance.
 			if len(runConf.NetworkInterface) > 0 {
 				err = d.deviceAttachNIC(dev.Name(), runConf.NetworkInterface)
 				if err != nil {
@@ -2165,6 +2210,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 				}
 			}
 
+			// Attach disk to running instance.
 			for i, mount := range runConf.Mounts {
 				if mount.FSType == "9p" {
 					mountTag, err := d.deviceAttachPath(dev.Name())
@@ -2181,6 +2227,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 				}
 			}
 
+			// Attach USB to running instance.
 			for _, usbDev := range runConf.USBDevice {
 				err = d.deviceAttachUSB(usbDev)
 				if err != nil {
@@ -2188,7 +2235,15 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 				}
 			}
 
-			// If running, run post start hooks now (if not running LXD will run them
+			// Attach PCI to running instance.
+			if len(runConf.PCIDevice) > 0 {
+				err = d.deviceAttachPCI(dev.Name(), runConf.PCIDevice)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			// If running, run post start hooks now (if not, they will be run
 			// once the instance is started).
 			err = d.runHooks(runConf.PostHooks)
 			if err != nil {
@@ -2273,21 +2328,12 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 
 	reverter.Add(func() { _ = monitor.RemoveCharDevice(deviceID) })
 
-	// Figure out a hotplug slot.
-	pciDevID := qemuPCIDeviceIDStart
-
-	// Iterate through all the instance devices in the same sorted order as is used when allocating the
-	// boot time devices in order to find the PCI bus slot device we would have used at boot time.
-	// Then attempt to use that same device, assuming it is available.
-	for _, dev := range d.expandedDevices.Sorted() {
-		if dev.Name == deviceName {
-			break // Found our device.
-		}
-
-		pciDevID++
+	// Try to get a PCI address for hotplugging.
+	pciDeviceName, err := d.getPCIHotplug()
+	if err != nil {
+		return "", err
 	}
 
-	pciDeviceName := fmt.Sprintf("%s%d", busDevicePortPrefix, pciDevID)
 	d.logger.Debug("Using PCI bus device to hotplug virtiofs into", logger.Ctx{"device": deviceName, "port": pciDeviceName})
 
 	qemuDev := map[string]any{
@@ -2433,20 +2479,12 @@ func (d *qemu) deviceAttachNIC(deviceName string, netIF []deviceConfig.RunConfig
 
 	// PCIe and PCI require a port device name to hotplug the NIC into.
 	if slices.Contains([]string{"pcie", "pci"}, qemuBus) {
-		pciDevID := qemuPCIDeviceIDStart
-
-		// Iterate through all the instance devices in the same sorted order as is used when allocating the
-		// boot time devices in order to find the PCI bus slot device we would have used at boot time.
-		// Then attempt to use that same device, assuming it is available.
-		for _, dev := range d.expandedDevices.Sorted() {
-			if dev.Name == deviceName {
-				break // Found our device.
-			}
-
-			pciDevID++
+		// Try to get a PCI address for hotplugging.
+		pciDeviceName, err := d.getPCIHotplug()
+		if err != nil {
+			return err
 		}
 
-		pciDeviceName := fmt.Sprintf("%s%d", busDevicePortPrefix, pciDevID)
 		d.logger.Debug("Using PCI bus device to hotplug NIC into", logger.Ctx{"device": deviceName, "port": pciDeviceName})
 		qemuDev["bus"] = pciDeviceName
 		qemuDev["addr"] = "00.0"
@@ -2460,6 +2498,108 @@ func (d *qemu) deviceAttachNIC(deviceName string, netIF []deviceConfig.RunConfig
 	err = monHook(monitor)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// getPCIHotplug returns an available PCI device ID that can be used for hotplugging.
+func (d *qemu) getPCIHotplug() (string, error) {
+	// Check if the agent is running.
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return "", err
+	}
+
+	// Get the current PCI devices.
+	devices, err := monitor.QueryPCI()
+	if err != nil {
+		return "", err
+	}
+
+	for _, dev := range devices {
+		// Skip built-in devices.
+		if dev.DevID == "" {
+			continue
+		}
+
+		// Skip used bridges.
+		if len(dev.Bridge.Devices) > 0 {
+			continue
+		}
+
+		// Found an empty slot.
+		return dev.DevID, nil
+	}
+
+	return "", errors.New("No available PCI hotplug slots could be found")
+}
+
+// deviceAttachPCI live attaches a generic PCI device to the instance.
+func (d *qemu) deviceAttachPCI(deviceName string, pciConfig []deviceConfig.RunConfigItem) error {
+	// Check if the agent is running.
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return err
+	}
+
+	// Get the device config.
+	var devName, pciSlotName, pciIOMMUGroup string
+	for _, pciItem := range pciConfig {
+		switch pciItem.Key {
+		case "devName":
+			devName = pciItem.Value
+		case "pciSlotName":
+			pciSlotName = pciItem.Value
+		case "pciIOMMUGroup":
+			pciIOMMUGroup = pciItem.Value
+		default:
+			return errors.New("Unexpected PCI configuration key: " + pciItem.Key)
+		}
+	}
+
+	// PCIe and PCI require a port device name to hotplug the device into.
+	_, qemuBus, err := d.qemuArchConfig(d.architecture)
+	if err != nil {
+		return err
+	}
+
+	if !slices.Contains([]string{"pcie", "pci"}, qemuBus) {
+		return errors.New("Attempting PCI passthrough on a non-PCI system")
+	}
+
+	// Try to get a PCI address for hotplugging.
+	pciDeviceName, err := d.getPCIHotplug()
+	if err != nil {
+		return err
+	}
+
+	qemuDev := make(map[string]any)
+	escapedDeviceName := filesystem.PathNameEncode(devName)
+
+	d.logger.Debug("Using PCI bus device to hotplug device into", logger.Ctx{"device": deviceName, "port": pciDeviceName})
+
+	qemuDev["bus"] = pciDeviceName
+	qemuDev["addr"] = "00.0"
+	qemuDev["driver"] = "vfio-pci"
+	qemuDev["id"] = fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
+	qemuDev["host"] = pciSlotName
+
+	if d.state.OS.UnprivUser != "" {
+		if pciIOMMUGroup == "" {
+			return errors.New("No PCI IOMMU group supplied")
+		}
+
+		vfioGroupFile := "/dev/vfio/" + pciIOMMUGroup
+		err := os.Chown(vfioGroupFile, int(d.state.OS.UnprivUID), -1)
+		if err != nil {
+			return fmt.Errorf("Failed to chown vfio group device %q: %w", vfioGroupFile, err)
+		}
+	}
+
+	err = monitor.AddDevice(qemuDev)
+	if err != nil {
+		return fmt.Errorf("Failed setting up device %q: %w", devName, err)
 	}
 
 	return nil
@@ -2520,6 +2660,14 @@ func (d *qemu) deviceStop(dev device.Device, instanceRunning bool, _ string) err
 				}
 			}
 		}
+
+		// Detach generic PCI device from running instance.
+		if configCopy["type"] == "pci" {
+			err = d.deviceDetachPCI(dev.Name())
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	if runConf != nil {
@@ -2539,24 +2687,6 @@ func (d *qemu) deviceDetachNIC(deviceName string) error {
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
 		return err
-	}
-
-	// pciDeviceExists checks if the deviceID exists as a bridged PCI device.
-	pciDeviceExists := func(deviceID string) (bool, error) {
-		pciDevs, err := monitor.QueryPCI()
-		if err != nil {
-			return false, err
-		}
-
-		for _, pciDev := range pciDevs {
-			for _, bridgeDev := range pciDev.Bridge.Devices {
-				if bridgeDev.DevID == deviceID {
-					return true, nil
-				}
-			}
-		}
-
-		return false, nil
 	}
 
 	escapedDeviceName := filesystem.PathNameEncode(deviceName)
@@ -2584,7 +2714,7 @@ func (d *qemu) deviceDetachNIC(deviceName string) error {
 		waitDuration := time.Duration(time.Second * time.Duration(10))
 		waitUntil := time.Now().Add(waitDuration)
 		for {
-			devExists, err := pciDeviceExists(deviceID)
+			devExists, err := monitor.CheckPCIDevice(deviceID)
 			if err != nil {
 				return fmt.Errorf("Failed getting PCI devices to check for NIC detach: %w", err)
 			}
@@ -2598,6 +2728,54 @@ func (d *qemu) deviceDetachNIC(deviceName string) error {
 			}
 
 			d.logger.Debug("Waiting for NIC device to be detached", logger.Ctx{"device": deviceName})
+			time.Sleep(time.Second * time.Duration(2))
+		}
+	}
+
+	return nil
+}
+
+// deviceDetachPCI detaches a generic PCI device from a running instance.
+func (d *qemu) deviceDetachPCI(deviceName string) error {
+	// Check if the agent is running.
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return err
+	}
+
+	escapedDeviceName := filesystem.PathNameEncode(deviceName)
+	deviceID := qemuDeviceIDPrefix + escapedDeviceName
+
+	// Request removal of device.
+	err = monitor.RemoveDevice(deviceID)
+	if err != nil {
+		return fmt.Errorf("Failed removing PCI device: %w", err)
+	}
+
+	_, qemuBus, err := d.qemuArchConfig(d.architecture)
+	if err != nil {
+		return err
+	}
+
+	if slices.Contains([]string{"pcie", "pci"}, qemuBus) {
+		// Wait until the device is actually removed (or we timeout waiting).
+		waitDuration := time.Duration(time.Second * time.Duration(10))
+		waitUntil := time.Now().Add(waitDuration)
+		for {
+			devExists, err := monitor.CheckPCIDevice(deviceID)
+			if err != nil {
+				return fmt.Errorf("Failed getting PCI devices to check for detach: %w", err)
+			}
+
+			if !devExists {
+				break
+			}
+
+			if time.Now().After(waitUntil) {
+				return fmt.Errorf("Failed to detach PCI device after %v", waitDuration)
+			}
+
+			d.logger.Debug("Waiting for PCI device to be detached", logger.Ctx{"device": deviceName})
 			time.Sleep(time.Second * time.Duration(2))
 		}
 	}
@@ -3248,7 +3426,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 	// on PCIe (which we need to maintain compatibility with network configuration in our existing VM images).
 	// It's also meant to group all low-bandwidth internal devices onto a single address. PCIe bus allows a
 	// total of 256 devices, but this assumes 32 chassis * 8 function. By using VFs for the internal fixed
-	// devices we avoid consuming a chassis for each one. See also the qemuPCIDeviceIDStart constant.
+	// devices we avoid consuming a chassis for each one.
 	devBus, devAddr, multi := bus.allocate(busFunctionGroupGeneric)
 	balloonOpts := qemuDevOpts{
 		busName:       bus.name,
@@ -3573,8 +3751,8 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		}
 	}
 
-	// Allocate 4 PCI slots for hotplug devices.
-	for range 4 {
+	// Allocate 8 PCI slots for hotplug devices.
+	for range 8 {
 		bus.allocate(busFunctionGroupNone)
 	}
 
@@ -4104,21 +4282,12 @@ func (d *qemu) addDriveConfig(qemuDev map[string]any, bootIndexes map[string]int
 	} else if slices.Contains([]string{"nvme", "virtio-blk"}, bus) {
 		qemuDevBus, ok := qemuDev["bus"].(string)
 		if !ok || qemuDevBus == "" {
-			// Figure out a hotplug slot.
-			pciDevID := qemuPCIDeviceIDStart
-
-			// Iterate through all the instance devices in the same sorted order as is used when allocating the
-			// boot time devices in order to find the PCI bus slot device we would have used at boot time.
-			// Then attempt to use that same device, assuming it is available.
-			for _, dev := range d.expandedDevices.Sorted() {
-				if dev.Name == driveConf.DevName {
-					break // Found our device.
-				}
-
-				pciDevID++
+			// Try to get a PCI address for hotplugging.
+			pciDeviceName, err := d.getPCIHotplug()
+			if err != nil {
+				return nil, err
 			}
 
-			pciDeviceName := fmt.Sprintf("%s%d", busDevicePortPrefix, pciDevID)
 			d.logger.Debug("Using PCI bus device to hotplug drive into", logger.Ctx{"device": driveConf.DevName, "port": pciDeviceName})
 			qemuDev["bus"] = pciDeviceName
 			qemuDev["addr"] = "00.0"
