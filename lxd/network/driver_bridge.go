@@ -1236,8 +1236,9 @@ func (n *bridge) startDnsmasq(dnsmasqCmd []string, dnsClustered bool, dnsCluster
 	}
 
 	// Create DHCP hosts directory.
-	if !shared.PathExists(shared.VarPath("networks", n.name, "dnsmasq.hosts")) {
-		err = os.MkdirAll(shared.VarPath("networks", n.name, "dnsmasq.hosts"), 0755)
+	dnsmasqHostDir := shared.VarPath("networks", n.name, "dnsmasq.hosts")
+	if !shared.PathExists(dnsmasqHostDir) {
+		err = os.MkdirAll(dnsmasqHostDir, 0755)
 		if err != nil {
 			return err
 		}
