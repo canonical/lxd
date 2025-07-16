@@ -2212,15 +2212,16 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		// Spawn DNS forwarder if needed (backgrounded to avoid deadlocks during cluster boot).
 		if dnsClustered {
 			// Create forkdns servers directory.
-			if !shared.PathExists(shared.VarPath("networks", n.name, ForkdnsServersListPath)) {
-				err = os.MkdirAll(shared.VarPath("networks", n.name, ForkdnsServersListPath), 0755)
+			forkdnsPath := shared.VarPath("networks", n.name, ForkdnsServersListPath)
+			if !shared.PathExists(forkdnsPath) {
+				err = os.MkdirAll(forkdnsPath, 0755)
 				if err != nil {
 					return err
 				}
 			}
 
 			// Create forkdns servers.conf file if doesn't exist.
-			f, err := os.OpenFile(shared.VarPath("networks", n.name, ForkdnsServersListPath+"/"+ForkdnsServersListFile), os.O_RDONLY|os.O_CREATE, 0666)
+			f, err := os.OpenFile(forkdnsPath+"/"+ForkdnsServersListFile, os.O_RDONLY|os.O_CREATE, 0666)
 			if err != nil {
 				return err
 			}
