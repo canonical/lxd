@@ -1527,11 +1527,7 @@ entities_enrichment_with_entitlements() {
 
   # Server
   lxc auth group permission add test-group server admin
-  lxc auth group permission add test-group server viewer
-  lxc auth group permission add test-group server project_manager
   lxc_remote query "oidc:/1.0?with-access-entitlements=admin,viewer,project_manager" | jq -e '.access_entitlements | sort | @csv == "admin","project_manager","viewer"'
 
   lxc auth group permission remove test-group server admin
-  lxc auth group permission remove test-group server viewer
-  lxc auth group permission remove test-group server project_manager
 }
