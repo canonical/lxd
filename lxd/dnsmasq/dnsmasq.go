@@ -111,8 +111,12 @@ func GetVersion() (*version.DottedVersion, error) {
 		return nil, fmt.Errorf("Failed to check dnsmasq version: %w", err)
 	}
 
-	lines := strings.Split(string(output), " ")
-	return version.Parse(lines[2])
+	fields := strings.SplitN(string(output), " ", 4)
+	if len(fields) < 3 {
+		return nil, fmt.Errorf("Unexpected dnsmasq version output: %q", output)
+	}
+
+	return version.Parse(fields[2])
 }
 
 // DHCPStaticAllocationPath returns the path to the DHCP static allocation file.
