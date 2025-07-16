@@ -1217,14 +1217,29 @@ entities_enrichment_with_entitlements() {
   # Sometimes an --arg is passed into jq. This is to make bash variables referenceable within jq.
 
   # Create a new test project, add some entitlements on it and check that these are reflected in the 'access_entitlements' field returned from the API.
-  lxc project create test-project
-  lxc auth group permission add test-group project test-project can_view
-  lxc auth group permission add test-group project test-project can_edit
-  lxc auth group permission add test-group project test-project can_delete
+  lxc project create test-project1
+  lxc auth group permission add test-group project test-project1 can_view
+  lxc auth group permission add test-group project test-project1 can_edit
+  lxc auth group permission add test-group project test-project1 can_delete
+  lxc project create test-project2
+  lxc auth group permission add test-group project test-project2 operator
 
-  # Check the created project entitlements given a list of candidate entitlements (some are wrong: `can_create_instances` and `can_create_networks`. These should not be returned).
-  lxc_remote query "oidc:/1.0/projects/test-project?recursion=1&with-access-entitlements=can_view,can_edit,can_delete,can_create_instances,can_create_networks" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
-  lxc project delete test-project
+  # Check the created project entitlements given a list of candidate entitlements (some should not be returned, this depends on the privilege of the caller).
+  lxc_remote query "oidc:/1.0/projects/test-project1?with-access-entitlements=can_view,can_edit,can_delete,can_create_instances,can_create_networks" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
+  lxc_remote query "oidc:/1.0/projects/test-project2?with-access-entitlements=can_view,can_edit,can_delete,can_create_instances,can_create_networks" | jq -e '.access_entitlements | sort | @csv == "can_create_instances","can_create_networks","can_view"'
+  lxc_remote query "oidc:/1.0/projects?recursion=1&with-access-entitlements=can_view,can_edit,can_delete,can_create_instances,can_create_networks" | jq -e '
+    all(
+      if .name == "test-project1" then
+        .access_entitlements | sort | @csv == "\"can_delete\",\"can_edit\",\"can_view\""
+      elif .name == "test-project2" then
+        .access_entitlements | sort | @csv == "\"can_create_instances\",\"can_create_networks\",\"can_view\""
+      else
+        false
+      end
+    )
+  '
+  lxc project delete test-project1
+  lxc project delete test-project2
 
   # Repeat the same test for other entity types.
   # Instance
