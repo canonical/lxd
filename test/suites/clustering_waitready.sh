@@ -111,6 +111,10 @@ test_clustering_waitready() {
   # The standard waitready without extra flags should still return with success.
   LXD_DIR="${LXD_ONE_DIR}" lxd waitready
 
+  # The first cluster member cannot be restored as the network and storage pool aren't ready yet.
+  # As the network is checked first, it is returned first.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster restore node1 --force 2>&1)" = "Error: Failed to update cluster member state: Cannot restore \"node1\" because some networks aren't started yet" ]
+
   echo "==> Restore the network by unsetting the external interface"
   LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'DELETE FROM networks_config WHERE key="bridge.external_interfaces"'
   nsenter -m -n -t "${ns1_pid}" -- ip link del foo
@@ -125,6 +129,9 @@ test_clustering_waitready() {
 
   # The standard waitready without extra flags should still return with success.
   LXD_DIR="${LXD_ONE_DIR}" lxd waitready
+
+  # The first cluster member cannot be restored as the storage pool isn't ready yet.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster restore node1 --force 2>&1)" = "Error: Failed to update cluster member state: Cannot restore \"node1\" because some storage pools aren't started yet" ]
 
   echo "==> Restore the storage pool directory"
   rm "${LXD_ONE_DIR}/storage-pools/pool1"
