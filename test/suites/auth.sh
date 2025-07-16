@@ -1236,19 +1236,30 @@ entities_enrichment_with_entitlements() {
   lxc delete test-foo
 
   # Storage pool
+  lxc storage create foo dir
+  lxc storage create bar dir
   lxc auth group permission add test-group storage_pool "${pool_name}" can_edit
   lxc auth group permission add test-group storage_pool "${pool_name}" can_delete
+  lxc auth group permission add test-group storage_pool bar can_edit
   lxc_remote query "oidc:/1.0/storage-pools/${pool_name}?with-access-entitlements=can_edit,can_delete" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit"'
   lxc_remote query "oidc:/1.0/storage-pools?recursion=1&with-access-entitlements=can_edit,can_delete" | jq -e --arg pool_name "${pool_name}" '
     all(
       if .name == $pool_name then
         .access_entitlements | sort | @csv == "\"can_delete\",\"can_edit\""
+      elif .name == "foo" then
+        # No entitlements were granted for storage pool foo, but all authenticated callers can view storage pools.
+        # Expect access_entitlements to be null, as it has an omitempty JSON tag.
+        .access_entitlements == null
+      elif .name == "bar" then
+        .access_entitlements | sort | @csv == "\"can_edit\""
       else
         false
       end
     )
   '
 
+  lxc storage delete foo
+  lxc storage delete bar
   lxc auth group permission remove test-group storage_pool "${pool_name}" can_edit
   lxc auth group permission remove test-group storage_pool "${pool_name}" can_delete
 
