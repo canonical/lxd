@@ -1356,12 +1356,12 @@ entities_enrichment_with_entitlements() {
   lxc auth group delete test-group3
 
   # Certificate
-  LXD_CONF=. gen_cert_and_key test1
-  LXD_CONF=. gen_cert_and_key test2
-  lxc config trust add test1.crt
-  lxc config trust add test2.crt
-  test1Fingerprint="$(cert_fingerprint test1.crt)"
-  test2Fingerprint="$(cert_fingerprint test2.crt)"
+  LXD_CONF="${TEST_DIR}" gen_cert_and_key test1
+  LXD_CONF="${TEST_DIR}" gen_cert_and_key test2
+  lxc config trust add "${TEST_DIR}/test1.crt"
+  lxc config trust add "${TEST_DIR}/test2.crt"
+  test1Fingerprint="$(cert_fingerprint "${TEST_DIR}/test1.crt")"
+  test2Fingerprint="$(cert_fingerprint "${TEST_DIR}/test2.crt")"
 
   lxc auth group permission add test-group certificate "${test1Fingerprint}" can_view
   lxc auth group permission add test-group certificate "${test2Fingerprint}" can_view
@@ -1380,7 +1380,7 @@ entities_enrichment_with_entitlements() {
     )
   '
 
-  rm test1.crt test1.key test2.crt test2.key
+  rm "${TEST_DIR}"/test{1,2}.{crt,key}
   lxc config trust remove "${test1Fingerprint}"
   lxc config trust remove "${test2Fingerprint}"
 
