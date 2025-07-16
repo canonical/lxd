@@ -1073,7 +1073,7 @@ func (n *bridge) getDnsmasqArgs(bridge *ip.Bridge) ([]string, error) {
 		minVer, _ := version.NewDottedVersion("2.67")
 
 		if dnsmasqVersion.Compare(minVer) > 0 {
-			dnsmasqCmd = append(dnsmasqCmd, []string{"--quiet-dhcp", "--quiet-dhcp6", "--quiet-ra"}...)
+			dnsmasqCmd = append(dnsmasqCmd, "--quiet-dhcp", "--quiet-dhcp6", "--quiet-ra")
 		}
 	}
 
@@ -1101,7 +1101,7 @@ func (n *bridge) getDnsmasqArgs(bridge *ip.Bridge) ([]string, error) {
 		dnsmasqCmd = append(dnsmasqCmd, "--listen-address="+ipv4Address.String())
 		if n.DHCPv4Subnet() != nil {
 			if !slices.Contains(dnsmasqCmd, "--dhcp-no-override") {
-				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-no-override", "--dhcp-authoritative", "--dhcp-leasefile=" + shared.VarPath("networks", n.name, "dnsmasq.leases"), "--dhcp-hostsfile=" + shared.VarPath("networks", n.name, "dnsmasq.hosts")}...)
+				dnsmasqCmd = append(dnsmasqCmd, "--dhcp-no-override", "--dhcp-authoritative", "--dhcp-leasefile="+shared.VarPath("networks", n.name, "dnsmasq.leases"), "--dhcp-hostsfile="+shared.VarPath("networks", n.name, "dnsmasq.hosts"))
 			}
 
 			if n.config["ipv4.dhcp.gateway"] != "" {
@@ -1125,10 +1125,10 @@ func (n *bridge) getDnsmasqArgs(bridge *ip.Bridge) ([]string, error) {
 			if n.config["ipv4.dhcp.ranges"] != "" {
 				for dhcpRange := range strings.SplitSeq(n.config["ipv4.dhcp.ranges"], ",") {
 					dhcpRange = strings.TrimSpace(dhcpRange)
-					dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%s", strings.ReplaceAll(dhcpRange, "-", ","), expiry)}...)
+					dnsmasqCmd = append(dnsmasqCmd, "--dhcp-range", fmt.Sprintf("%s,%s", strings.ReplaceAll(dhcpRange, "-", ","), expiry))
 				}
 			} else {
-				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%s,%s", dhcpalloc.GetIP(subnet, 2).String(), dhcpalloc.GetIP(subnet, -2).String(), expiry)}...)
+				dnsmasqCmd = append(dnsmasqCmd, "--dhcp-range", fmt.Sprintf("%s,%s,%s", dhcpalloc.GetIP(subnet, 2).String(), dhcpalloc.GetIP(subnet, -2).String(), expiry))
 			}
 		}
 	}
@@ -1144,11 +1144,11 @@ func (n *bridge) getDnsmasqArgs(bridge *ip.Bridge) ([]string, error) {
 		subnetSize, _ := subnet.Mask.Size()
 
 		// Update the dnsmasq config.
-		dnsmasqCmd = append(dnsmasqCmd, []string{"--listen-address=" + ipv6Address.String(), "--enable-ra"}...)
+		dnsmasqCmd = append(dnsmasqCmd, "--listen-address="+ipv6Address.String(), "--enable-ra")
 		if n.DHCPv6Subnet() != nil {
 			// Build DHCP configuration.
 			if !slices.Contains(dnsmasqCmd, "--dhcp-no-override") {
-				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-no-override", "--dhcp-authoritative", "--dhcp-leasefile=" + shared.VarPath("networks", n.name, "dnsmasq.leases"), "--dhcp-hostsfile=" + shared.VarPath("networks", n.name, "dnsmasq.hosts")}...)
+				dnsmasqCmd = append(dnsmasqCmd, "--dhcp-no-override", "--dhcp-authoritative", "--dhcp-leasefile="+shared.VarPath("networks", n.name, "dnsmasq.leases"), "--dhcp-hostsfile="+shared.VarPath("networks", n.name, "dnsmasq.hosts"))
 			}
 
 			expiry := "1h"
@@ -1160,16 +1160,16 @@ func (n *bridge) getDnsmasqArgs(bridge *ip.Bridge) ([]string, error) {
 				if n.config["ipv6.dhcp.ranges"] != "" {
 					for dhcpRange := range strings.SplitSeq(n.config["ipv6.dhcp.ranges"], ",") {
 						dhcpRange = strings.TrimSpace(dhcpRange)
-						dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%d,%s", strings.ReplaceAll(dhcpRange, "-", ","), subnetSize, expiry)}...)
+						dnsmasqCmd = append(dnsmasqCmd, "--dhcp-range", fmt.Sprintf("%s,%d,%s", strings.ReplaceAll(dhcpRange, "-", ","), subnetSize, expiry))
 					}
 				} else {
-					dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%s,%d,%s", dhcpalloc.GetIP(subnet, 2), dhcpalloc.GetIP(subnet, -1), subnetSize, expiry)}...)
+					dnsmasqCmd = append(dnsmasqCmd, "--dhcp-range", fmt.Sprintf("%s,%s,%d,%s", dhcpalloc.GetIP(subnet, 2), dhcpalloc.GetIP(subnet, -1), subnetSize, expiry))
 				}
 			} else {
-				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("::,constructor:%s,ra-stateless,ra-names", n.name)}...)
+				dnsmasqCmd = append(dnsmasqCmd, "--dhcp-range", fmt.Sprintf("::,constructor:%s,ra-stateless,ra-names", n.name))
 			}
 		} else {
-			dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("::,constructor:%s,ra-only", n.name)}...)
+			dnsmasqCmd = append(dnsmasqCmd, "--dhcp-range", fmt.Sprintf("::,constructor:%s,ra-only", n.name))
 		}
 	}
 
@@ -1188,13 +1188,13 @@ func (n *bridge) addDnsmasqFanArgs(args []string, address string, fanMTU uint32)
 		expiry = n.config["ipv4.dhcp.expiry"]
 	}
 
-	args = append(args, []string{
-		"--listen-address=" + address,
+	args = append(args,
+		"--listen-address="+address,
 		"--dhcp-no-override", "--dhcp-authoritative",
 		fmt.Sprintf("--dhcp-option-force=26,%d", fanMTU),
-		"--dhcp-leasefile=" + shared.VarPath("networks", n.name, "dnsmasq.leases"),
-		"--dhcp-hostsfile=" + shared.VarPath("networks", n.name, "dnsmasq.hosts"),
-		"--dhcp-range", fmt.Sprintf("%s,%s,%s", dhcpalloc.GetIP(hostSubnet, 2).String(), dhcpalloc.GetIP(hostSubnet, -2).String(), expiry)}...)
+		"--dhcp-leasefile="+shared.VarPath("networks", n.name, "dnsmasq.leases"),
+		"--dhcp-hostsfile="+shared.VarPath("networks", n.name, "dnsmasq.hosts"),
+		"--dhcp-range", fmt.Sprintf("%s,%s,%s", dhcpalloc.GetIP(hostSubnet, 2).String(), dhcpalloc.GetIP(hostSubnet, -2).String(), expiry))
 
 	return args, nil
 }
@@ -1228,11 +1228,11 @@ func (n *bridge) startDnsmasq(dnsmasqCmd []string, dnsClustered bool, dnsCluster
 
 	// Attempt to drop privileges.
 	if n.state.OS.UnprivUser != "" {
-		dnsmasqCmd = append(dnsmasqCmd, []string{"-u", n.state.OS.UnprivUser}...)
+		dnsmasqCmd = append(dnsmasqCmd, "-u", n.state.OS.UnprivUser)
 	}
 
 	if n.state.OS.UnprivGroup != "" {
-		dnsmasqCmd = append(dnsmasqCmd, []string{"-g", n.state.OS.UnprivGroup}...)
+		dnsmasqCmd = append(dnsmasqCmd, "-g", n.state.OS.UnprivGroup)
 	}
 
 	// Create DHCP hosts directory.
