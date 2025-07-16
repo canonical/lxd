@@ -620,9 +620,11 @@ func api10Patch(d *Daemon, r *http.Request) response.Response {
 	return doAPI10Update(d, r, req, true)
 }
 
-func validateStorageVolumes(s *state.State, ctx context.Context, nodeValues map[string]string, oldNodeConfig map[string]string) error {
+func validateStorageVolumes(s *state.State, ctx context.Context, nodeValues map[string]string, oldNodeConfig map[string]string, newNodeConfig *node.Config) error {
 	var err error
-	for key := range nodeValues {
+	projectsImagesStorage := make(map[string]string)
+	projectsBackupsStorage := make(map[string]string)
+	for key, value := range nodeValues {
 		if !strings.HasPrefix(key, "storage.") {
 			continue
 		}
@@ -669,6 +671,38 @@ func validateStorageVolumes(s *state.State, ctx context.Context, nodeValues map[
 		// Disallow setting external storage for images on projects without images.
 		if strings.HasSuffix(key, ".images_volume") && shared.IsFalseOrEmpty(project.Config["features.images"]) {
 			return fmt.Errorf("Project %q doesn't have `features.images` set, so it cannot have images storage configured", project)
+		}
+
+		// Don't allow setting the project storage the same as as the daemon-level storage volume.
+		if value != "" && strings.HasSuffix(key, ".images_volume") {
+			if value == newNodeConfig.StorageImagesVolume() {
+				return fmt.Errorf(`Failed validation of %q: storage volume already configured as the daemon images storage`, key)
+			}
+
+			projectsImagesStorage[value] = projectName
+		}
+
+		if value != "" && strings.HasSuffix(key, ".backups_volume") {
+			if value == newNodeConfig.StorageBackupsVolume() {
+				return fmt.Errorf(`Failed validation of %q: storage volume already configured as the daemon backups storage`, key)
+			}
+
+			projectsBackupsStorage[value] = projectName
+		}
+	}
+
+	// Don't allow the daemon-level storage to be set the same as any of the project settings.
+	if nodeValues["storage.backups_volume"] != "" && nodeValues["storage.backups_volume"] != newNodeConfig.StorageBackupsVolume() {
+		volume := nodeValues["storage.backups_volume"]
+		if projectsBackupsStorage[volume] != "" {
+			return fmt.Errorf(`Failed validation of %q: storage volume already configured as backups storage of project %q`, "storage.backups_volume", projectsBackupsStorage[nodeValues["storage.backups_volume"]])
+		}
+	}
+
+	if nodeValues["storage.images_volume"] != "" && nodeValues["storage.images_volume"] != newNodeConfig.StorageImagesVolume() {
+		volume := nodeValues["storage.images_volume"]
+		if projectsImagesStorage[volume] != "" {
+			return fmt.Errorf(`Failed validation of %q: storage volume already configured as images storage of project %q`, "storage.images_volume", projectsImagesStorage[nodeValues["storage.images_volume"]])
 		}
 	}
 
@@ -745,7 +779,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		}
 
 		// Validate the storage volumes.
-		err = validateStorageVolumes(s, r.Context(), nodeValues, oldNodeConfig)
+		err = validateStorageVolumes(s, r.Context(), nodeValues, oldNodeConfig, newNodeConfig)
 		if err != nil {
 			return fmt.Errorf("Failed validating storage volumes: %w", err)
 		}
