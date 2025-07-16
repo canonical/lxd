@@ -3350,7 +3350,7 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, tarWriter *instancew
 
 	volCopy := drivers.NewVolumeCopy(vol, sourceSnapshots...)
 
-	err = b.driver.BackupVolume(volCopy, tarWriter, optimized, snapNames, op)
+	err = b.driver.BackupVolume(volCopy, inst.Project().Name, tarWriter, optimized, snapNames, op)
 	if err != nil {
 		return err
 	}
@@ -8085,7 +8085,7 @@ func (b *lxdBackend) BackupCustomVolume(projectName string, volName string, tarW
 
 	volCopy := drivers.NewVolumeCopy(vol, sourceSnapshots...)
 
-	err = b.driver.BackupVolume(volCopy, tarWriter, optimized, snapNames, op)
+	err = b.driver.BackupVolume(volCopy, projectName, tarWriter, optimized, snapNames, op)
 	if err != nil {
 		return err
 	}
