@@ -85,11 +85,7 @@ func (d Xtables) xtablesIsNftables(cmd string) bool {
 		return false
 	}
 
-	if strings.Contains(output, "nf_tables") {
-		return true
-	}
-
-	return false
+	return strings.Contains(output, "nf_tables")
 }
 
 // iptablesInUse returns whether the specified iptables backend command has any rules defined.
