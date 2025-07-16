@@ -1328,8 +1328,9 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	defer revert.Fail()
 
 	// Create directory.
-	if !shared.PathExists(shared.VarPath("networks", n.name)) {
-		err := os.MkdirAll(shared.VarPath("networks", n.name), 0711)
+	networkDir := shared.VarPath("networks", n.name)
+	if !shared.PathExists(networkDir) {
+		err := os.MkdirAll(networkDir, 0711)
 		if err != nil {
 			return err
 		}
