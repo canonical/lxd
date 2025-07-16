@@ -751,6 +751,12 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 		}
 	}
 
+	// Ensure that projects with external images storage have their own images enabled. Otherwise flipping
+	// the feature would require to tranfer the images to the default project storage.
+	if s.LocalConfig.StorageImagesVolume() != "" && shared.IsFalseOrEmpty(req.Config["features.images"]) {
+		return response.BadRequest(fmt.Errorf("Project feature %q cannot be disabled on projects with storage.project.%s.images_volume configured", "features.images", project.Name))
+	}
+
 	// Validate the configuration.
 	err := projectValidateConfig(s, req.Config, "")
 	if err != nil {
