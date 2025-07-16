@@ -32,7 +32,7 @@ func runApparmor(sysOS *sys.OS, command string, name string) error {
 
 	_, err := shared.RunCommandContext(context.TODO(), "apparmor_parser", []string{
 		command,
-		"--write-cache", "--cache-loc", filepath.Join(aaPath, "cache"),
+		"--write-cache", "--cache-loc", sysOS.AppArmorCacheLoc,
 		filepath.Join(aaPath, "profiles", name),
 	}...)
 
