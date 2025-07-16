@@ -4258,15 +4258,12 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Verify the auth method in the request context to determine if the request comes from the /dev/lxd socket.
-	authMethod, _ := auth.GetAuthenticationMethodFromCtx(r.Context())
-	isDevLXDQuery := authMethod == auth.AuthenticationMethodDevLXD
-
 	secret := r.FormValue("secret")
 	trusted := auth.IsTrusted(r.Context())
 
 	// Unauthenticated remote clients that do not provide a secret may only view public images.
 	// For devlxd, we allow querying for private images. We'll subsequently perform additional access checks.
-	publicOnly := !trusted && secret == "" && !isDevLXDQuery
+	publicOnly := !trusted && secret == ""
 
 	// Get the image. We need to do this before the permission check because the URL in the permission check will not
 	// work with partial fingerprints.
@@ -4310,20 +4307,6 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	if isDevLXDQuery {
-		// A devlxd query must contain the full fingerprint of the image (no partials).
-		if fingerprint != imgInfo.Fingerprint {
-			return response.NotFound(nil)
-		}
-
-		// A devlxd query must be for a public or cached image.
-		if !imgInfo.Public && !imgInfo.Cached {
-			return response.NotFound(nil)
-		}
-
-		userCanViewImage = true
-	}
-
 	if !userCanViewImage {
 		if imgInfo.Public {
 			// If the image is public any client can view it.
@@ -4347,12 +4330,16 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		return response.NotFound(nil)
 	}
 
+	return imageExportFiles(r.Context(), s, imgInfo, projectName)
+}
+
+// imageExportFiles returns the [response.FileResponse] for the specified image files, the image can be local or remote.
+func imageExportFiles(ctx context.Context, s *state.State, imgInfo *api.Image, requestProjectName string) response.Response {
 	var address string
-
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Check if the image is only available on another node.
+		var err error
 		address, err = tx.LocateImage(ctx, imgInfo.Fingerprint)
-
 		return err
 	})
 	if err != nil {
@@ -4361,7 +4348,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 
 	if address != "" {
 		// Forward the request to the other node
-		client, err := cluster.Connect(r.Context(), address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
+		client, err := cluster.Connect(ctx, address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -4404,8 +4391,8 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		files[1].Path = rootfsPath
 		files[1].Filename = filename
 
-		requestor := request.CreateRequestor(r.Context())
-		s.Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(imgInfo.Fingerprint, projectName, requestor, nil))
+		requestor := request.CreateRequestor(ctx)
+		s.Events.SendLifecycle(requestProjectName, lifecycle.ImageRetrieved.Event(imgInfo.Fingerprint, requestProjectName, requestor, nil))
 
 		return response.FileResponse(files, nil)
 	}
@@ -4415,8 +4402,8 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	files[0].Path = imagePath
 	files[0].Filename = filename
 
-	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(imgInfo.Fingerprint, projectName, requestor, nil))
+	requestor := request.CreateRequestor(ctx)
+	s.Events.SendLifecycle(requestProjectName, lifecycle.ImageRetrieved.Event(imgInfo.Fingerprint, requestProjectName, requestor, nil))
 
 	return response.FileResponse(files, nil)
 }
