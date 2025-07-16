@@ -175,10 +175,19 @@ func instancePatch(d *Daemon, r *http.Request) response.Response {
 	if req.Devices == nil {
 		req.Devices = c.LocalDevices().CloneNative()
 	} else {
+		// Retain devices that are not present in the request.
 		for k, v := range c.LocalDevices() {
 			_, ok := req.Devices[k]
 			if !ok {
 				req.Devices[k] = v
+			}
+		}
+
+		// Once the devices are merged, remove devices whose
+		// value is nil.
+		for k, v := range req.Devices {
+			if v == nil {
+				delete(req.Devices, k)
 			}
 		}
 	}
