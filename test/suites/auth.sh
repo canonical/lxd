@@ -1206,7 +1206,7 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission add test-group project test-project can_delete
 
   # Check the created project entitlements given a list of candidate entitlements (some are wrong: `can_create_instances` and `can_create_networks`. These should not be returned).
-  [ "$(lxc_remote query "oidc:/1.0/projects/test-project?recursion=1&with-access-entitlements=can_view,can_edit,can_delete,can_create_instances,can_create_networks" | jq -r '.access_entitlements | sort | @csv')" = '"can_delete","can_edit","can_view"' ]
+  lxc_remote query "oidc:/1.0/projects/test-project?recursion=1&with-access-entitlements=can_view,can_edit,can_delete,can_create_instances,can_create_networks" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
   lxc project delete test-project
 
   # Repeat the same test for other entity types.
@@ -1215,13 +1215,13 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission add test-group instance test-foo can_view project=default
   lxc auth group permission add test-group instance test-foo can_edit project=default
   lxc auth group permission add test-group instance test-foo can_delete project=default
-  [ "$(lxc_remote query "oidc:/1.0/instances/test-foo?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete,can_exec" | jq -r '.access_entitlements | sort | @csv')" = '"can_delete","can_edit","can_view"' ]
+  lxc_remote query "oidc:/1.0/instances/test-foo?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete,can_exec" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
   lxc delete test-foo
 
   # Storage pool
   lxc auth group permission add test-group storage_pool "${pool_name}" can_edit
   lxc auth group permission add test-group storage_pool "${pool_name}" can_delete
-  [ "$(lxc_remote query "oidc:/1.0/storage-pools/${pool_name}?with-access-entitlements=can_edit,can_delete" | jq -r '.access_entitlements | sort | @csv')" = '"can_delete","can_edit"' ]
+  lxc_remote query "oidc:/1.0/storage-pools/${pool_name}?with-access-entitlements=can_edit,can_delete" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit"'
   all_storage_pools=$(lxc_remote query "oidc:/1.0/storage-pools?recursion=1&with-access-entitlements=can_edit,can_delete")
   if ! jq -e -r --arg pool_name "$pool_name" '.[] | select(.name == $pool_name) | .access_entitlements | sort | @csv == "\"can_delete\",\"can_edit\""' <<< "$all_storage_pools";  then
     echo "Second check failed (or pool not found)!" >&2
@@ -1237,7 +1237,7 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission add test-group storage_volume test-volume can_view project=default pool="${pool_name}" type=custom
   lxc auth group permission add test-group storage_volume test-volume can_edit project=default pool="${pool_name}" type=custom
   lxc auth group permission add test-group storage_volume test-volume can_delete project=default pool="${pool_name}" type=custom
-  [ "$(lxc_remote query "oidc:/1.0/storage-pools/${pool_name}/volumes/custom/test-volume?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete,can_manage_backups,can_manage_snapshots" | jq -r '.access_entitlements | sort | @csv')" = '"can_delete","can_edit","can_view"' ]
+  lxc_remote query "oidc:/1.0/storage-pools/${pool_name}/volumes/custom/test-volume?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete,can_manage_backups,can_manage_snapshots" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
 
   lxc storage volume delete "${pool_name}" test-volume
 
@@ -1247,8 +1247,8 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission add test-group group test-group2 can_view
   lxc auth group permission add test-group group test-group3 can_view
   lxc auth group permission add test-group group test-group3 can_edit
-  [ "$(lxc_remote query "oidc:/1.0/auth/groups/test-group2?with-access-entitlements=can_view,can_edit" | jq -r '.access_entitlements | sort | @csv')" = '"can_view"' ]
-  [ "$(lxc_remote query "oidc:/1.0/auth/groups/test-group3?with-access-entitlements=can_view,can_edit" | jq -r '.access_entitlements | sort | @csv')" = '"can_edit","can_view"' ]
+  lxc_remote query "oidc:/1.0/auth/groups/test-group2?with-access-entitlements=can_view,can_edit" | jq -e '.access_entitlements | sort | @csv == "\"can_view\""'
+  lxc_remote query "oidc:/1.0/auth/groups/test-group3?with-access-entitlements=can_view,can_edit" | jq -e '.access_entitlements | sort | @csv == "can_edit","can_view"'
   all_groups=$(lxc_remote query "oidc:/1.0/auth/groups?recursion=1&with-access-entitlements=can_view,can_edit")
   if ! echo "$all_groups" | jq -e -r '
     all(
@@ -1282,8 +1282,8 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission add test-group certificate "${test1Fingerprint}" can_view
   lxc auth group permission add test-group certificate "${test2Fingerprint}" can_view
   lxc auth group permission add test-group certificate "${test2Fingerprint}" can_edit
-  [ "$(lxc_remote query "oidc:/1.0/certificates/${test1Fingerprint}?with-access-entitlements=can_view,can_edit" | jq -r '.access_entitlements | sort | @csv')" = '"can_view"' ]
-  [ "$(lxc_remote query "oidc:/1.0/certificates/${test2Fingerprint}?with-access-entitlements=can_view,can_edit" | jq -r '.access_entitlements | sort | @csv')" = '"can_edit","can_view"' ]
+  lxc_remote query "oidc:/1.0/certificates/${test1Fingerprint}?with-access-entitlements=can_view,can_edit" | jq -e '.access_entitlements | sort | @csv == "\"can_view\""'
+  lxc_remote query "oidc:/1.0/certificates/${test2Fingerprint}?with-access-entitlements=can_view,can_edit" | jq -e '.access_entitlements | sort | @csv == "can_edit","can_view"'
   all_certs=$(lxc_remote query "oidc:/1.0/certificates?recursion=1&with-access-entitlements=can_view,can_edit")
   if ! echo "$all_certs" | jq -e -r --arg f1 "$test1Fingerprint" --arg f2 "$test2Fingerprint" '
     all(
@@ -1312,8 +1312,8 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission add test-group identity_provider_group test-idp-group3 can_view
   lxc auth group permission add test-group identity_provider_group test-idp-group3 can_edit
   lxc auth group permission add test-group identity_provider_group test-idp-group3 can_delete
-  [ "$(lxc_remote query "oidc:/1.0/auth/identity-provider-groups/test-idp-group2?with-access-entitlements=can_view,can_edit,can_delete" | jq -r '.access_entitlements | sort | @csv')" = '"can_view"' ]
-  [ "$(lxc_remote query "oidc:/1.0/auth/identity-provider-groups/test-idp-group3?with-access-entitlements=can_view,can_edit,can_delete" | jq -r '.access_entitlements | sort | @csv')" = '"can_delete","can_edit","can_view"' ]
+  lxc_remote query "oidc:/1.0/auth/identity-provider-groups/test-idp-group2?with-access-entitlements=can_view,can_edit,can_delete" | jq -e '.access_entitlements | sort | @csv == "\"can_view\""'
+  lxc_remote query "oidc:/1.0/auth/identity-provider-groups/test-idp-group3?with-access-entitlements=can_view,can_edit,can_delete" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
   all_idp_groups=$(lxc_remote query "oidc:/1.0/auth/identity-provider-groups?recursion=1&with-access-entitlements=can_view,can_edit,can_delete")
   if ! echo "$all_idp_groups" | jq -e -r '
     all(
@@ -1340,7 +1340,7 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission add test-group image "${imgFingerprint}" can_view project=default
   lxc auth group permission add test-group image "${imgFingerprint}" can_edit project=default
   lxc auth group permission add test-group image "${imgFingerprint}" can_delete project=default
-  [ "$(lxc_remote query "oidc:/1.0/images/${imgFingerprint}?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -r '.access_entitlements | sort | @csv')" = '"can_delete","can_edit","can_view"' ]
+  lxc_remote query "oidc:/1.0/images/${imgFingerprint}?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
   all_imgs=$(lxc_remote query "oidc:/1.0/images?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete")
   selected_image=$(jq -r --arg fingerprint "$imgFingerprint" '.[] | select(.fingerprint == $fingerprint and (.access_entitlements | sort | @csv == "\"can_delete\",\"can_edit\",\"can_view\""))' <<< "$all_imgs")
   if [ -z "$selected_image" ]; then
@@ -1357,8 +1357,8 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission add test-group profile test-profile2 can_view project=default
   lxc auth group permission add test-group profile test-profile2 can_edit project=default
   lxc auth group permission add test-group profile test-profile2 can_delete project=default
-  [ "$(lxc_remote query "oidc:/1.0/profiles/test-profile1?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -r '.access_entitlements | sort | @csv')" = '"can_view"' ]
-  [ "$(lxc_remote query "oidc:/1.0/profiles/test-profile2?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -r '.access_entitlements | sort | @csv')" = '"can_delete","can_edit","can_view"' ]
+  lxc_remote query "oidc:/1.0/profiles/test-profile1?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -e '.access_entitlements | sort | @csv == "\"can_view\""'
+  lxc_remote query "oidc:/1.0/profiles/test-profile2?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
   all_profiles=$(lxc_remote query "oidc:/1.0/profiles?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete")
   if ! jq -e -r '
     all(
@@ -1386,8 +1386,8 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission add test-group network test-network2 can_view project=default
   lxc auth group permission add test-group network test-network2 can_edit project=default
   lxc auth group permission add test-group network test-network2 can_delete project=default
-  [ "$(lxc_remote query "oidc:/1.0/networks/test-network1?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -r '.access_entitlements | sort | @csv')" = '"can_view"' ]
-  [ "$(lxc_remote query "oidc:/1.0/networks/test-network2?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -r '.access_entitlements | sort | @csv')" = '"can_delete","can_edit","can_view"' ]
+  lxc_remote query "oidc:/1.0/networks/test-network1?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -e '.access_entitlements | sort | @csv == "\"can_view\""'
+  lxc_remote query "oidc:/1.0/networks/test-network2?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
   all_networks=$(lxc_remote query "oidc:/1.0/networks?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete")
   if ! jq -e -r '
     all(
@@ -1415,8 +1415,8 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission add test-group network_acl acl2 can_view project=default
   lxc auth group permission add test-group network_acl acl2 can_edit project=default
   lxc auth group permission add test-group network_acl acl2 can_delete project=default
-  [ "$(lxc_remote query "oidc:/1.0/network-acls/acl1?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -r '.access_entitlements | sort | @csv')" = '"can_view"' ]
-  [ "$(lxc_remote query "oidc:/1.0/network-acls/acl2?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -r '.access_entitlements | sort | @csv')" = '"can_delete","can_edit","can_view"' ]
+  lxc_remote query "oidc:/1.0/network-acls/acl1?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -e '.access_entitlements | sort | @csv == "\"can_view\""'
+  lxc_remote query "oidc:/1.0/network-acls/acl2?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
   all_network_acls=$(lxc_remote query "oidc:/1.0/network-acls?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete")
   if ! jq -e -r '
     all(
@@ -1446,8 +1446,8 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission add test-group network_zone zone2 can_view project=default
   lxc auth group permission add test-group network_zone zone2 can_edit project=default
   lxc auth group permission add test-group network_zone zone2 can_delete project=default
-  [ "$(lxc_remote query "oidc:/1.0/network-zones/zone1?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -r '.access_entitlements | sort | @csv')" = '"can_view"' ]
-  [ "$(lxc_remote query "oidc:/1.0/network-zones/zone2?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -r '.access_entitlements | sort | @csv')" = '"can_delete","can_edit","can_view"' ]
+  lxc_remote query "oidc:/1.0/network-zones/zone1?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -e '.access_entitlements | sort | @csv == "\"can_view\""'
+  lxc_remote query "oidc:/1.0/network-zones/zone2?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
   all_network_zones=$(lxc_remote query "oidc:/1.0/network-zones?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete")
   if ! jq -e -r '
     all(
@@ -1472,7 +1472,7 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission add test-group server admin
   lxc auth group permission add test-group server viewer
   lxc auth group permission add test-group server project_manager
-  [ "$(lxc_remote query "oidc:/1.0?with-access-entitlements=admin,viewer,project_manager" | jq -r '.access_entitlements | sort | @csv')" = '"admin","project_manager","viewer"' ]
+  lxc_remote query "oidc:/1.0?with-access-entitlements=admin,viewer,project_manager" | jq -e '.access_entitlements | sort | @csv == "admin","project_manager","viewer"'
 
   lxc auth group permission remove test-group server admin
   lxc auth group permission remove test-group server viewer
