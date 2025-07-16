@@ -1244,11 +1244,39 @@ entities_enrichment_with_entitlements() {
   # Repeat the same test for other entity types.
   # Instance
   lxc init --empty test-foo
+  lxc init --empty test-bar
   lxc auth group permission add test-group instance test-foo can_view project=default
   lxc auth group permission add test-group instance test-foo can_edit project=default
   lxc auth group permission add test-group instance test-foo can_delete project=default
+  lxc auth group permission add test-group instance test-bar operator project=default
+
+  # Test instances with multiple levels of recursion to ensure entitlements are reported on instance and expanded instance responses.
   lxc_remote query "oidc:/1.0/instances/test-foo?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete,can_exec" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
+  lxc_remote query "oidc:/1.0/instances/test-bar?project=default&with-access-entitlements=can_view,can_edit,can_delete,can_exec" | jq -e '.access_entitlements | sort | @csv == "can_exec","can_view"'
+  lxc_remote query "oidc:/1.0/instances?recursion=1&with-access-entitlements=can_view,can_edit,can_delete,can_exec" | jq -e '
+    all(
+      if .name == "test-foo" then
+        .access_entitlements | sort | @csv == "\"can_delete\",\"can_edit\",\"can_view\""
+      elif .name == "test-bar" then
+        .access_entitlements | sort | @csv == "\"can_exec\",\"can_view\""
+      else
+        false
+      end
+    )
+  '
+  lxc_remote query "oidc:/1.0/instances?recursion=2&with-access-entitlements=can_view,can_edit,can_delete,can_exec" | jq -e '
+    all(
+      if .name == "test-foo" then
+        .access_entitlements | sort | @csv == "\"can_delete\",\"can_edit\",\"can_view\""
+      elif .name == "test-bar" then
+        .access_entitlements | sort | @csv == "\"can_exec\",\"can_view\""
+      else
+        false
+      end
+    )
+  '
   lxc delete test-foo
+  lxc delete test-bar
 
   # Storage pool
   lxc storage create foo dir
