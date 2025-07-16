@@ -1307,14 +1307,28 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission remove test-group storage_pool "${pool_name}" can_delete
 
   # Storage volume
-  pool_name="$(lxc storage list -f csv | cut -d, -f1)"
-  lxc storage volume create "${pool_name}" test-volume
-  lxc auth group permission add test-group storage_volume test-volume can_view project=default pool="${pool_name}" type=custom
-  lxc auth group permission add test-group storage_volume test-volume can_edit project=default pool="${pool_name}" type=custom
-  lxc auth group permission add test-group storage_volume test-volume can_delete project=default pool="${pool_name}" type=custom
-  lxc_remote query "oidc:/1.0/storage-pools/${pool_name}/volumes/custom/test-volume?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete,can_manage_backups,can_manage_snapshots" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
+  lxc storage volume create "${pool_name}" test-volume1
+  lxc storage volume create "${pool_name}" test-volume2
+  lxc auth group permission add test-group storage_volume test-volume1 can_view project=default pool="${pool_name}" type=custom
+  lxc auth group permission add test-group storage_volume test-volume1 can_edit project=default pool="${pool_name}" type=custom
+  lxc auth group permission add test-group storage_volume test-volume1 can_delete project=default pool="${pool_name}" type=custom
+  lxc auth group permission add test-group storage_volume test-volume2 can_view project=default pool="${pool_name}" type=custom
+  lxc_remote query "oidc:/1.0/storage-pools/${pool_name}/volumes/custom/test-volume1?project=default&with-access-entitlements=can_view,can_edit,can_delete,can_manage_backups,can_manage_snapshots" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
+  lxc_remote query "oidc:/1.0/storage-pools/${pool_name}/volumes/custom/test-volume2?project=default&with-access-entitlements=can_view,can_edit,can_delete,can_manage_backups,can_manage_snapshots" | jq -e '.access_entitlements | sort | @csv == "\"can_view\""'
+  lxc_remote query "oidc:/1.0/storage-pools/${pool_name}/volumes/custom?recursion=1&with-access-entitlements=can_view,can_edit,can_delete,can_manage_backups,can_manage_snapshots" | jq -e '
+    all(
+      if .name == "test-volume1" then
+        .access_entitlements | sort | @csv == "\"can_delete\",\"can_edit\",\"can_view\""
+      elif .name == "test-volume2" then
+        .access_entitlements | sort | @csv == "\"can_view\""
+      else
+        false
+      end
+    )
+  '
 
-  lxc storage volume delete "${pool_name}" test-volume
+  lxc storage volume delete "${pool_name}" test-volume1
+  lxc storage volume delete "${pool_name}" test-volume2
 
   # Auth group
   lxc auth group create test-group2
