@@ -834,6 +834,52 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 	return response.EmptySyncResponse
 }
 
+func projectNodeConfigRename(d *Daemon, ctx context.Context, oldName string, newName string) error {
+	var localConfig *node.Config
+
+	oldImagesVolumeConfig := "storage.project." + oldName + ".images_volume"
+	newImagesVolumeConfig := "storage.project." + newName + ".images_volume"
+	oldBackupsVolumeConfig := "storage.project." + oldName + ".backups_volume"
+	newBackupsVolumeConfig := "storage.project." + newName + ".backups_volume"
+
+	// Extend the node config schema with the new project name config keys.
+	// Otherwise the node config schema validation will not allow setting of these keys.
+	node.ConfigSchema[newImagesVolumeConfig] = config.Key{}
+	node.ConfigSchema[newBackupsVolumeConfig] = config.Key{}
+
+	// Clear the project-specific config keys from the local node config.
+	err := d.State().DB.Node.Transaction(ctx, func(ctx context.Context, tx *db.NodeTx) error {
+		var err error
+
+		localConfig, err = node.ConfigLoad(ctx, tx)
+		if err != nil {
+			return fmt.Errorf("Failed to load local node config: %w", err)
+		}
+
+		_, err = localConfig.Patch(map[string]string{
+			newImagesVolumeConfig:  localConfig.StorageImagesVolume(),
+			newBackupsVolumeConfig: localConfig.StorageBackupsVolume(),
+			oldImagesVolumeConfig:  "",
+			oldBackupsVolumeConfig: "",
+		})
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to update project-specific config keys in the local node config: %w", err)
+	}
+
+	// Update local config cache.
+	d.globalConfigMu.Lock()
+	d.localConfig = localConfig
+	d.globalConfigMu.Unlock()
+
+	// Delete the old configs from schema.
+	delete(node.ConfigSchema, oldImagesVolumeConfig)
+	delete(node.ConfigSchema, oldBackupsVolumeConfig)
+
+	return nil
+}
+
 // swagger:operation POST /1.0/projects/{name} projects project_post
 //
 //	Rename the project
@@ -882,6 +928,16 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(errors.New("The 'default' project cannot be renamed"))
 	}
 
+	// On cluster notification, just update the node config values and we're done.
+	if isClusterNotification(r) {
+		err = projectNodeConfigRename(d, r.Context(), name, req.Name)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.EmptySyncResponse
+	}
+
 	// Perform the rename.
 	run := func(op *operations.Operation) error {
 		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -913,7 +969,31 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
-			return dbCluster.RenameProject(ctx, tx.Tx(), name, req.Name)
+			err = dbCluster.RenameProject(ctx, tx.Tx(), name, req.Name)
+			if err != nil {
+				return err
+			}
+
+			// Update the node config values.
+			return projectNodeConfigRename(d, ctx, name, req.Name)
+		})
+		if err != nil {
+			return err
+		}
+
+		// Send notification to other cluster members to update the node schema.
+		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+		if err != nil {
+			return err
+		}
+
+		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
+			op, err := client.RenameProject(name, req)
+			if err != nil {
+				return err
+			}
+
+			return op.Wait()
 		})
 		if err != nil {
 			return err
