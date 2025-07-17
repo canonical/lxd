@@ -42,10 +42,6 @@ const (
 	cookieNameSessionID = "session_id"
 )
 
-const (
-	defaultConfigExpiryInterval = 5 * time.Minute
-)
-
 var (
 	// cookieEncryptionHashFunc is used to derive secure keys from the cluster private key using HKDF.
 	cookieEncryptionHashFunc = sha512.New
@@ -71,10 +67,9 @@ type Verifier struct {
 	// We don't want to perform this on every request, so we only do it when the request host changes.
 	host string
 
-	// configExpiry is the next time at which the relying party and access token verifier will be considered out of date
-	// and will be refreshed. This refreshes the cookie encryption keys that the relying party uses.
-	configExpiry         time.Time
-	configExpiryInterval time.Duration
+	// expireConfig is used to expiry the relying party configuration before it is next used. This is so that proxy
+	// configurations (core.https_proxy) can be applied to the HTTP client used to call the IdP.
+	expireConfig bool
 }
 
 // AuthenticationResult represents an authenticated OIDC client.
@@ -444,21 +439,21 @@ func (*Verifier) IsRequest(r *http.Request) bool {
 // ExpireConfig sets the expiry time of the current configuration to zero. This forces the verifier to reconfigure the
 // relying party the next time a user authenticates.
 func (o *Verifier) ExpireConfig() {
-	o.configExpiry = time.Now()
+	o.expireConfig = true
 }
 
 // ensureConfig ensures that the relyingParty and accessTokenVerifier fields of the Verifier are non-nil. Additionally,
 // if the given host is different from the Verifier host we reset the relyingParty to ensure the callback URL is set
 // correctly.
 func (o *Verifier) ensureConfig(ctx context.Context, host string) error {
-	if o.relyingParty == nil || host != o.host || time.Now().After(o.configExpiry) {
+	if o.relyingParty == nil || host != o.host || o.expireConfig {
 		err := o.setRelyingParty(ctx, host)
 		if err != nil {
 			return err
 		}
 
 		o.host = host
-		o.configExpiry = time.Now().Add(o.configExpiryInterval)
+		o.expireConfig = false
 	}
 
 	if o.accessTokenVerifier == nil {
@@ -706,16 +701,15 @@ func NewVerifier(issuer string, clientID string, clientSecret string, scopes []s
 	}
 
 	verifier := &Verifier{
-		issuer:               issuer,
-		clientID:             clientID,
-		clientSecret:         clientSecret,
-		scopes:               scopes,
-		audience:             audience,
-		identityCache:        identityCache,
-		groupsClaim:          opts.GroupsClaim,
-		clusterCert:          clusterCert,
-		configExpiryInterval: defaultConfigExpiryInterval,
-		httpClientFunc:       httpClientFunc,
+		issuer:         issuer,
+		clientID:       clientID,
+		clientSecret:   clientSecret,
+		scopes:         scopes,
+		audience:       audience,
+		identityCache:  identityCache,
+		groupsClaim:    opts.GroupsClaim,
+		clusterCert:    clusterCert,
+		httpClientFunc: httpClientFunc,
 	}
 
 	return verifier, nil
