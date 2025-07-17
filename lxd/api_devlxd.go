@@ -161,40 +161,91 @@ func (m *ConnPidMapper) GetConnUcred(conn *net.UnixConn) *unix.Ucred {
 	return pidMapper.m[conn]
 }
 
-// loadContainerFromLXCMonitorPID loads a container instance based on the name of its LXC monitor process PID.
-// This function trusts that the lxcMonitorPID is the PID of the LXC monitor process for the container.
-// It does not check the PID namespace, so it should only be used when the caller is sure that the PID is correct.
-func loadContainerFromLXCMonitorPID(s *state.State, lxcMonitorPID int32) (instance.Container, error) {
-	procPID := "/proc/" + strconv.Itoa(int(lxcMonitorPID))
-	cmdLine, err := os.ReadFile(procPID + "/cmdline")
-	if err != nil {
-		return nil, err
+// getLXCMonitorContainer returns the container instance for the candidateMonitorPID, but only if:
+// 1. The process is a LXC monitor process (identified by the command line starting with "[lxc monitor]").
+// 2. The process does not have a PID in another PID namespace (checked via the NSpid in /proc/<pid>/status).
+// 3. The process name contains the container's name (extracted from /proc/<pid>/cmdline).
+// If the process is not a LXC monitor process or has a PID in another PID namespace, it returns nil and the parent PID.
+func getLXCMonitorContainer(s *state.State, candidateMonitorPID int32) (c instance.Container, parentPID int32, err error) {
+	candidateMonitorPIDStr := strconv.FormatInt(int64(candidateMonitorPID), 10)
+
+	// Extract the parent process ID and whether the NSpid matches the PID.
+	{
+		statusBytes, err := os.ReadFile("/proc/" + candidateMonitorPIDStr + "/status")
+		if err != nil {
+			return nil, -1, fmt.Errorf("Failed to read status for PID %d: %w", candidateMonitorPID, err)
+		}
+
+		// Parse status file to find the parent PID and check if the NSpid matches the PID.
+		nsPIDMatchesPID := false
+		for line := range strings.SplitSeq(string(statusBytes), "\n") {
+			ppidStr, found := strings.CutPrefix(line, "PPid:")
+			if found {
+				// ParseUint to avoid scanning for `-` sign.
+				ppid, err := strconv.ParseUint(strings.TrimSpace(ppidStr), 10, 32)
+				if err != nil {
+					return nil, -1, fmt.Errorf("Failed to parse parent PID from status for PID %d: %w", candidateMonitorPID, err)
+				}
+
+				if ppid > math.MaxInt32 {
+					return nil, -1, fmt.Errorf("PPid value too large for PID %d: Upper bound exceeded", candidateMonitorPID)
+				}
+
+				parentPID = int32(ppid)
+			}
+
+			nspidStr, found := strings.CutPrefix(line, "NSpid:")
+			if found {
+				nsPIDMatchesPID = strings.TrimSpace(nspidStr) == candidateMonitorPIDStr
+			}
+		}
+
+		if !nsPIDMatchesPID {
+			// Process is not monitor as has a PID in another PID namespace.
+			return nil, parentPID, nil
+		}
 	}
 
-	// Container names can't have spaces.
-	parts := strings.Split(string(cmdLine), " ")
-	name := strings.TrimSuffix(parts[len(parts)-1], "\x00")
+	// Read command line of the monitor process, extract the container name and load the container instance.
+	{
+		cmdLineBytes, err := os.ReadFile("/proc/" + candidateMonitorPIDStr + "/cmdline")
+		if err != nil {
+			return nil, -1, fmt.Errorf("Failed to read command line for PID %d: %w", candidateMonitorPID, err)
+		}
 
-	projectName := api.ProjectDefaultName
-	if strings.Contains(name, "_") {
-		projectName, name, _ = strings.Cut(name, "_")
+		cmdLine := strings.TrimSuffix(string(cmdLineBytes), "\x00")
+
+		// Check if command line starts with "[lxc monitor]".
+		if !strings.HasPrefix(cmdLine, "[lxc monitor]") {
+			return nil, parentPID, nil
+		}
+
+		// Extract the container name from the command line.
+		parts := strings.Split(cmdLine, " ") // Container names can't have spaces.
+		name := parts[len(parts)-1]
+
+		projectName := api.ProjectDefaultName
+		if strings.Contains(name, "_") {
+			projectName, name, _ = strings.Cut(name, "_")
+		}
+
+		// Load the container instance by project and name.
+		inst, err := instance.LoadByProjectAndName(s, projectName, name)
+		if err != nil {
+			return nil, -1, fmt.Errorf("Failed to load instance %q in project %q: %w", name, projectName, err)
+		}
+
+		if inst.Type() != instancetype.Container {
+			return nil, -1, api.StatusErrorf(http.StatusNotFound, "Instance %q in project %q is not a container", inst.Name(), inst.Project().Name)
+		}
+
+		c, ok := inst.(instance.Container)
+		if !ok {
+			return nil, -1, fmt.Errorf("Invalid container type %T for %q in project %q", inst, inst.Name(), inst.Project().Name)
+		}
+
+		return c, parentPID, nil // Successfully loaded the container instance.
 	}
-
-	inst, err := instance.LoadByProjectAndName(s, projectName, name)
-	if err != nil {
-		return nil, err
-	}
-
-	if inst.Type() != instancetype.Container {
-		return nil, api.StatusErrorf(http.StatusNotFound, "Instance %q in project %q is not a container", inst.Name(), inst.Project().Name)
-	}
-
-	c, ok := inst.(instance.Container)
-	if !ok {
-		return nil, fmt.Errorf("Invalid container type %T for %q in project %q", inst, inst.Name(), inst.Project().Name)
-	}
-
-	return c, nil
 }
 
 var errPIDNotInContainer = errors.New("Process ID not found in container")
@@ -203,6 +254,60 @@ var errPIDNotInContainer = errors.New("Process ID not found in container")
 // The originPID does not need to be the LXC monitor process, but it should be in the same PID namespace as the
 // container (this is enforced by the function).
 func devlxdFindContainerForPID(s *state.State, originPID int32) (instance.Container, error) {
+	/*
+	 * Try and figure out which container a pid is in. There is probably a
+	 * better way to do this. Based on rharper's initial performance
+	 * metrics, looping over every container and calling newLxdContainer is
+	 * expensive, so I wanted to avoid that if possible, so this happens in
+	 * a two step process:
+	 *
+	 * 1. Walk up the process tree until you see something that looks like
+	 *    an lxc monitor process and extract its name from there.
+	 *    This approach is used when a process is started within the container.
+	 *
+	 * 2. If this fails, it may be that someone did an `lxc exec foo -- bash`,
+	 *    so the process isn't actually a descendant of the container's
+	 *    init. In this case we just look through all the containers until
+	 *    we find an init with a matching pid namespace. This is probably
+	 *    uncommon, so hopefully the slowness won't hurt us.
+	 */
+	pid := originPID
+	for pid > 1 {
+		c, ppid, err := getLXCMonitorContainer(s, pid)
+		if err != nil {
+			logger.Warn("Failed matching PID to container for devlxd", logger.Ctx{"pid": pid, "err": err})
+			return nil, errPIDNotInContainer // Don't return error to avoid leaking details about the process.
+		}
+
+		if c != nil {
+			return c, nil // Matched to a container, stop the search.
+		}
+
+		// Continue walking up the process tree looking for LXC monitor processes.
+		pid = ppid
+	}
+
+	// Get origin PID namespace.
+	// This is used to check if the origin is in the same PID namespace as the container we are trying to find.
+	originPIDNamespace, err := os.Readlink(fmt.Sprintf("/proc/%d/ns/pid", originPID))
+	if err != nil {
+		logger.Warn("Failed to read devlxd origin PID namespace", logger.Ctx{"pid": originPID, "err": err})
+
+		// Don't return error to avoid leaking details about the process.
+		return nil, errPIDNotInContainer
+	}
+
+	// Fallback to loading all containers and checking their PID namespaces.
+	// This is the approach used when the process isn't actually a descendant of the container's init process,
+	// such as when using `lxc exec`.
+	instances, err := instance.LoadNodeAll(s, instancetype.Container)
+	if err != nil {
+		logger.Warn("Failed loading instances for devlxd", logger.Ctx{"pid": originPID, "err": err})
+
+		// Don't return error to avoid leaking details about the process.
+		return nil, errPIDNotInContainer
+	}
+
 	// Check if the container's PID namespace matches the originPIDNamespace.
 	// Doesn't return an error to avoid leaking details about the process.
 	checkPIDNamespace := func(c instance.Container, originPIDNamespace string) bool {
@@ -223,84 +328,6 @@ func devlxdFindContainerForPID(s *state.State, originPID int32) (instance.Contai
 		}
 
 		return true
-	}
-
-	// Record origin PID and its PID namespace.
-	// This is used to check if the origin is in the same PID namespace as the container we are trying to find.
-	originPIDNamespace, err := os.Readlink(fmt.Sprintf("/proc/%d/ns/pid", originPID))
-	if err != nil {
-		logger.Warn("Failed to read devlxd origin PID namespace", logger.Ctx{"pid": originPID, "err": err})
-
-		// Don't return error to avoid leaking details about the process.
-		return nil, errPIDNotInContainer
-	}
-
-	/*
-	 * Try and figure out which container a pid is in. There is probably a
-	 * better way to do this. Based on rharper's initial performance
-	 * metrics, looping over every container and calling newLxdContainer is
-	 * expensive, so I wanted to avoid that if possible, so this happens in
-	 * a two step process:
-	 *
-	 * 1. Walk up the process tree until you see something that looks like
-	 *    an lxc monitor process and extract its name from there.
-	 *
-	 * 2. If this fails, it may be that someone did an `lxc exec foo -- bash`,
-	 *    so the process isn't actually a descendant of the container's
-	 *    init. In this case we just look through all the containers until
-	 *    we find an init with a matching pid namespace. This is probably
-	 *    uncommon, so hopefully the slowness won't hurt us.
-	 */
-	pid := originPID
-	for pid > 1 {
-		c, err := loadContainerFromLXCMonitorPID(s, pid)
-		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
-			logger.Warn("Failed matching PID to container for devlxd", logger.Ctx{"pid": pid, "err": err})
-			return nil, errPIDNotInContainer // Don't return error to avoid leaking details about the process.
-		} else if c != nil {
-			// Found a candidate LXC monitor process and container from the pid, but we need to check
-			// if it is in the same PID namespace as the originPIDNamespace to ensure we have the right
-			// container.
-			if checkPIDNamespace(c, originPIDNamespace) {
-				return c, nil // Matched to a container in the same PID namespace, stop the search.
-			}
-		}
-
-		// Continue walking up the process tree looking for LXC monitor processes.
-		procPID := "/proc/" + strconv.Itoa(int(pid))
-		status, err := os.ReadFile(procPID + "/status")
-		if err != nil {
-			return nil, err
-		}
-
-		for line := range strings.SplitSeq(string(status), "\n") {
-			ppidStr, found := strings.CutPrefix(line, "PPid:")
-			if !found {
-				continue
-			}
-
-			// ParseUint avoid scanning for `-` sign.
-			ppid, err := strconv.ParseUint(strings.TrimSpace(ppidStr), 10, 32)
-			if err != nil {
-				return nil, err
-			}
-
-			if ppid > math.MaxInt32 {
-				return nil, errors.New("PPid value too large: Upper bound exceeded")
-			}
-
-			pid = int32(ppid)
-			break
-		}
-	}
-
-	// Fallback to loading all containers and checking their PID namespaces.
-	instances, err := instance.LoadNodeAll(s, instancetype.Container)
-	if err != nil {
-		logger.Warn("Failed loading instances for devlxd", logger.Ctx{"pid": originPID, "err": err})
-
-		// Don't return error to avoid leaking details about the process.
-		return nil, errPIDNotInContainer
 	}
 
 	for _, inst := range instances {
