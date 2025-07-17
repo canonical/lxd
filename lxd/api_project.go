@@ -830,6 +830,48 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 	return response.EmptySyncResponse
 }
 
+func projectNodeConfigRename(oldName string, newName string) error {
+	// Remove the per-project daemon configs.
+	client, err := lxd.ConnectLXDUnix("", nil)
+	if err != nil {
+		return fmt.Errorf("Failed to connect to LXD daemon: %w", err)
+	}
+
+	server, _, err := client.GetServer()
+	if err != nil {
+		return fmt.Errorf("Failed to connect to get LXD server info: %w", err)
+	}
+
+	// First extend the daemon config schema.
+	node.ConfigSchema["storage.project_"+newName+".images_volume"] = config.Key{}
+	node.ConfigSchema["storage.project_"+newName+".backups_volume"] = config.Key{}
+
+	// Transfer the config values if any.
+	value, ok := server.Config["storage.project_"+oldName+".images_volume"].(string)
+	if ok {
+		server.Config["storage.project_"+newName+".images_volume"] = value
+	}
+
+	value, ok = server.Config["storage.project_"+oldName+".backups_volume"].(string)
+	if ok {
+		server.Config["storage.project_"+newName+".backups_volume"] = value
+	}
+
+	delete(server.Config, "storage.project_"+oldName+".images_volume")
+	delete(server.Config, "storage.project_"+oldName+".backups_volume")
+
+	err = client.UpdateServer(server.ServerPut, "")
+	if err != nil {
+		return fmt.Errorf("Failed to update the LXD server config: %w", err)
+	}
+
+	// Delete the old configs from schema.
+	delete(node.ConfigSchema, "storage.project_"+oldName+".images_volume")
+	delete(node.ConfigSchema, "storage.project_"+oldName+".backups_volume")
+
+	return nil
+}
+
 // swagger:operation POST /1.0/projects/{name} projects project_post
 //
 //	Rename the project
@@ -878,6 +920,17 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(errors.New("The 'default' project cannot be renamed"))
 	}
 
+	// On cluster notification, just update the node config values and we're done.
+	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	if clientType != clusterRequest.ClientTypeNormal {
+		err = projectNodeConfigRename(name, req.Name)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.EmptySyncResponse
+	}
+
 	// Perform the rename.
 	run := func(op *operations.Operation) error {
 		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -910,6 +963,30 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			return dbCluster.RenameProject(ctx, tx.Tx(), name, req.Name)
+		})
+		if err != nil {
+			return err
+		}
+
+		// Update the node config values.
+		err = projectNodeConfigRename(name, req.Name)
+		if err != nil {
+			return err
+		}
+
+		// Send notification to other cluster members to update the node schema.
+		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+		if err != nil {
+			return err
+		}
+
+		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
+			op, err := client.RenameProject(name, req)
+			if err != nil {
+				return err
+			}
+
+			return op.Wait()
 		})
 		if err != nil {
 			return err
