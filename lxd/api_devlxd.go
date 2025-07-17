@@ -248,42 +248,6 @@ func getLXCMonitorContainer(s *state.State, candidateMonitorPID int32) (c instan
 	}
 }
 
-// loadContainerFromLXCMonitorPID loads a container instance based on the name of its LXC monitor process PID.
-// This function trusts that the lxcMonitorPID is the PID of the LXC monitor process for the container.
-// It does not check the PID namespace, so it should only be used when the caller is sure that the PID is correct.
-func loadContainerFromLXCMonitorPID(s *state.State, lxcMonitorPID int32) (instance.Container, error) {
-	procPID := "/proc/" + strconv.Itoa(int(lxcMonitorPID))
-	cmdLine, err := os.ReadFile(procPID + "/cmdline")
-	if err != nil {
-		return nil, err
-	}
-
-	// Container names can't have spaces.
-	parts := strings.Split(string(cmdLine), " ")
-	name := strings.TrimSuffix(parts[len(parts)-1], "\x00")
-
-	projectName := api.ProjectDefaultName
-	if strings.Contains(name, "_") {
-		projectName, name, _ = strings.Cut(name, "_")
-	}
-
-	inst, err := instance.LoadByProjectAndName(s, projectName, name)
-	if err != nil {
-		return nil, err
-	}
-
-	if inst.Type() != instancetype.Container {
-		return nil, api.StatusErrorf(http.StatusNotFound, "Instance %q in project %q is not a container", inst.Name(), inst.Project().Name)
-	}
-
-	c, ok := inst.(instance.Container)
-	if !ok {
-		return nil, fmt.Errorf("Invalid container type %T for %q in project %q", inst, inst.Name(), inst.Project().Name)
-	}
-
-	return c, nil
-}
-
 var errPIDNotInContainer = errors.New("Process ID not found in container")
 
 // devlxdFindContainerForPID finds the container for a given devlxd origin process ID (originPID).
