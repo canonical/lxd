@@ -101,6 +101,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 		"acceleration",
 		"nested",
 		"vlan",
+		"required",
 	}
 
 	// The NIC's network may be a non-default project, so lookup project and get network's project name.
@@ -112,6 +113,10 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 	// Lookup network settings and apply them to the device's config.
 	n, err := network.LoadByName(d.state, networkProjectName, d.config["network"])
 	if err != nil {
+		if d.config["required"] == "false" {
+			return nil
+		}
+
 		return fmt.Errorf("Error loading network config for %q: %w", d.config["network"], err)
 	}
 
@@ -435,6 +440,9 @@ func (d *nicOVN) checkAddressConflict() error {
 // Add is run when a device is added to a non-snapshot instance whether or not the instance is running.
 func (d *nicOVN) Add() error {
 	networkVethFillFromVolatile(d.config, d.volatileGet())
+	if d.network == nil && d.config["required"] == "false" {
+		return nil
+	}
 
 	// Load uplink network config.
 	uplinkNetworkName := d.network.Config()["network"]
@@ -478,6 +486,11 @@ func (d *nicOVN) PreStartCheck() error {
 		return nil
 	}
 
+	// Skip status check and start container.
+	if shared.IsFalse(d.config["required"]) {
+		return nil
+	}
+
 	// If managed network is not available, don't try and start instance.
 	if d.network.LocalStatus() == api.NetworkStatusUnavailable {
 		return api.StatusErrorf(http.StatusServiceUnavailable, "Network %q unavailable on this server", d.network.Name())
@@ -494,7 +507,7 @@ func (d *nicOVN) validateEnvironment() error {
 
 	integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
 
-	if !shared.PathExists("/sys/class/net/" + integrationBridge) {
+	if !shared.PathExists("/sys/class/net/"+integrationBridge) && d.config["required"] == "true" {
 		return fmt.Errorf("OVS integration bridge device %q doesn't exist", integrationBridge)
 	}
 
@@ -513,6 +526,10 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 
 	saveData := make(map[string]string)
 	saveData["host_name"] = d.config["host_name"]
+
+	if d.network == nil && d.config["required"] == "false" {
+		return nil, nil
+	}
 
 	// Load uplink network config.
 	uplinkNetworkName := d.network.Config()["network"]
