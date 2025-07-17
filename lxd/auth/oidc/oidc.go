@@ -29,6 +29,9 @@ import (
 )
 
 const (
+	// cookieNameLoginID is used to identify a single login flow.
+	cookieNameLoginID = "login_id"
+
 	// cookieNameIDToken is the identifier used to set and retrieve the identity token.
 	cookieNameIDToken = "oidc_identity"
 
@@ -37,10 +40,6 @@ const (
 
 	// cookieNameSessionID is used to identify the session. It does not need to be encrypted.
 	cookieNameSessionID = "session_id"
-)
-
-const (
-	defaultConfigExpiryInterval = 5 * time.Minute
 )
 
 var (
@@ -68,10 +67,9 @@ type Verifier struct {
 	// We don't want to perform this on every request, so we only do it when the request host changes.
 	host string
 
-	// configExpiry is the next time at which the relying party and access token verifier will be considered out of date
-	// and will be refreshed. This refreshes the cookie encryption keys that the relying party uses.
-	configExpiry         time.Time
-	configExpiryInterval time.Duration
+	// expireConfig is used to expiry the relying party configuration before it is next used. This is so that proxy
+	// configurations (core.https_proxy) can be applied to the HTTP client used to call the IdP.
+	expireConfig bool
 }
 
 // AuthenticationResult represents an authenticated OIDC client.
@@ -319,6 +317,26 @@ func (o *Verifier) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Create a login ID cookie. This will be deleted after the login flow is completed in /oidc/callback.
+	loginIDCookie := &http.Cookie{
+		Name:     cookieNameLoginID,
+		Path:     "/",
+		Value:    uuid.NewString(),
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+	}
+
+	// Set the login cookie on the request. This is required so that the AuthURLHandler below is able to use it to derive
+	// cookie encryption keys that are unique to this login flow and can be recreated on any cluster member (see
+	// [Verifier.setRelyingParty] and https://github.com/canonical/lxd/issues/13644).
+	r.AddCookie(loginIDCookie)
+
+	// Set the login cookie on the response. This stores the salt for cookie encryption key derivation on the client,
+	// for use in /oidc/callback (see [Verifier.setRelyingParty] and https://github.com/canonical/lxd/issues/13644). We
+	// must set this on the response now, because the AuthURLHandler below will send a HTTP redirect.
+	http.SetCookie(w, loginIDCookie)
+
 	handler := rp.AuthURLHandler(func() string { return uuid.New().String() }, o.relyingParty, rp.WithURLParam("audience", o.audience))
 	handler(w, r)
 }
@@ -355,6 +373,16 @@ func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
 			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to set login information: %w", err).Error()).Render(w, r)
 			return
 		}
+
+		// The login flow has completed successfully, so we can delete the login_id cookie.
+		http.SetCookie(w, &http.Cookie{
+			Name:     cookieNameLoginID,
+			Path:     "/",
+			Secure:   true,
+			HttpOnly: true,
+			SameSite: http.SameSiteStrictMode,
+			Expires:  time.Unix(0, 0),
+		})
 
 		// Send to the UI.
 		// NOTE: Once the UI does the redirection on its own, we may be able to use the referer here instead.
@@ -411,21 +439,21 @@ func (*Verifier) IsRequest(r *http.Request) bool {
 // ExpireConfig sets the expiry time of the current configuration to zero. This forces the verifier to reconfigure the
 // relying party the next time a user authenticates.
 func (o *Verifier) ExpireConfig() {
-	o.configExpiry = time.Now()
+	o.expireConfig = true
 }
 
 // ensureConfig ensures that the relyingParty and accessTokenVerifier fields of the Verifier are non-nil. Additionally,
 // if the given host is different from the Verifier host we reset the relyingParty to ensure the callback URL is set
 // correctly.
 func (o *Verifier) ensureConfig(ctx context.Context, host string) error {
-	if o.relyingParty == nil || host != o.host || time.Now().After(o.configExpiry) {
+	if o.relyingParty == nil || host != o.host || o.expireConfig {
 		err := o.setRelyingParty(ctx, host)
 		if err != nil {
 			return err
 		}
 
 		o.host = host
-		o.configExpiry = time.Now().Add(o.configExpiryInterval)
+		o.expireConfig = false
 	}
 
 	if o.accessTokenVerifier == nil {
@@ -443,28 +471,30 @@ func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
 	// The relying party sets cookies for the following values:
 	// - "state": Used to prevent CSRF attacks (https://datatracker.ietf.org/doc/html/rfc6749#section-10.12).
 	// - "pkce": Used to prevent authorization code interception attacks (https://datatracker.ietf.org/doc/html/rfc7636).
-	// Both should be stored securely. However, these cookies do not need to be decrypted by other cluster members, so
-	// it is ok to use the secure key generation that is built in to the securecookie library. This also reduces the
-	// exposure of our private key.
+	//
+	// If LXD is deployed behind a load balancer, it's possible that the IdP will redirect the caller to a different
+	// cluster member than the member that initiated the flow. To handle this, we set a "login_id" cookie at the start
+	// of the flow, then derive cookie encryption keys from that login ID from the cluster private key using HKDF (the
+	// same way that we do for OIDC tokens). See https://github.com/canonical/lxd/issues/13644.
+	cookieHandler := httphelper.NewRequestAwareCookieHandler(func(r *http.Request) (*securecookie.SecureCookie, error) {
+		loginID, err := r.Cookie(cookieNameLoginID)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get login ID cookie: %w", err)
+		}
 
-	// The hash key should be 64 bytes (https://github.com/gorilla/securecookie).
-	cookieHashKey := securecookie.GenerateRandomKey(64)
-	if cookieHashKey == nil {
-		return errors.New("Failed to generate a secure cookie hash key")
-	}
+		loginUUID, err := uuid.Parse(loginID.Value)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse login ID cookie: %w", err)
+		}
 
-	// The block key should 32 bytes for AES-256 encryption.
-	cookieBlockKey := securecookie.GenerateRandomKey(32)
-	if cookieBlockKey == nil {
-		return errors.New("Failed to generate a secure cookie hash key")
-	}
+		return o.secureCookieFromSession(loginUUID)
+	})
 
 	httpClient, err := o.httpClientFunc()
 	if err != nil {
 		return fmt.Errorf("Failed to get a HTTP client: %w", err)
 	}
 
-	cookieHandler := httphelper.NewCookieHandler(cookieHashKey, cookieBlockKey)
 	options := []rp.Option{
 		rp.WithCookieHandler(cookieHandler),
 		rp.WithVerifierOpts(rp.WithIssuedAtOffset(5 * time.Second)),
@@ -671,16 +701,15 @@ func NewVerifier(issuer string, clientID string, clientSecret string, scopes []s
 	}
 
 	verifier := &Verifier{
-		issuer:               issuer,
-		clientID:             clientID,
-		clientSecret:         clientSecret,
-		scopes:               scopes,
-		audience:             audience,
-		identityCache:        identityCache,
-		groupsClaim:          opts.GroupsClaim,
-		clusterCert:          clusterCert,
-		configExpiryInterval: defaultConfigExpiryInterval,
-		httpClientFunc:       httpClientFunc,
+		issuer:         issuer,
+		clientID:       clientID,
+		clientSecret:   clientSecret,
+		scopes:         scopes,
+		audience:       audience,
+		identityCache:  identityCache,
+		groupsClaim:    opts.GroupsClaim,
+		clusterCert:    clusterCert,
+		httpClientFunc: httpClientFunc,
 	}
 
 	return verifier, nil
