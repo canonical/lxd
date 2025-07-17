@@ -2687,3 +2687,6 @@ This configuration value is not shared with other LXD clients (such as the LXD C
 
 ## `pci_hotplug`
 This adds PCI device hotplugging for VMs.
+
+## `device_patch_removal`
+The `PATCH /1.0/instances/{name}` endpoint allows removing an instance device by setting its value to `null` in the devices map.
