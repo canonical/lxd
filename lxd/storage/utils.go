@@ -1173,26 +1173,27 @@ func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName s
 
 // VolumeUsedByDaemon indicates whether the volume is used by daemon storage.
 func VolumeUsedByDaemon(s *state.State, poolName string, volumeName string) (bool, error) {
-	var storageBackups string
-	var storageImages string
-	err := s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		nodeConfig, err := node.ConfigLoad(ctx, tx)
-		if err != nil {
-			return err
-		}
-
-		storageBackups = nodeConfig.StorageBackupsVolume()
-		storageImages = nodeConfig.StorageImagesVolume()
-
-		return nil
+	var nodeConfig *node.Config
+	var err error
+	err = s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+		nodeConfig, err = node.ConfigLoad(ctx, tx)
+		return err
 	})
 	if err != nil {
 		return false, err
 	}
 
+	// Check if volume is referenced in project level storage settings.
 	fullName := poolName + "/" + volumeName
-	if storageBackups == fullName || storageImages == fullName {
-		return true, nil
+	for config, value := range nodeConfig.Dump() {
+		// Skip any keys that are not storage volumes related.
+		if !strings.HasPrefix(config, "storage.") || (!strings.HasSuffix(config, ".images_volume") && !strings.HasSuffix(config, ".backups_volume")) {
+			continue
+		}
+
+		if value == fullName {
+			return true, nil
+		}
 	}
 
 	return false, nil
