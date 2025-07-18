@@ -83,20 +83,21 @@ func deleteNamespace(sysOS *sys.OS, name string) error {
 
 // hasProfile checks if the profile is already loaded.
 func hasProfile(name string) (bool, error) {
-	mangled := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(name, "/", "."), "<", ""), ">", "")
-
 	profilesPath := "/sys/kernel/security/apparmor/policy/profiles"
-	if shared.PathExists(profilesPath) {
-		entries, err := os.ReadDir(profilesPath)
-		if err != nil {
-			return false, err
-		}
+	if !shared.PathExists(profilesPath) {
+		return false, os.ErrNotExist
+	}
 
-		for _, entry := range entries {
-			fields := strings.Split(entry.Name(), ".")
-			if mangled == strings.Join(fields[0:len(fields)-1], ".") {
-				return true, nil
-			}
+	entries, err := os.ReadDir(profilesPath)
+	if err != nil {
+		return false, err
+	}
+
+	mangled := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(name, "/", "."), "<", ""), ">", "")
+	for _, entry := range entries {
+		fields := strings.Split(entry.Name(), ".")
+		if mangled == strings.Join(fields[0:len(fields)-1], ".") {
+			return true, nil
 		}
 	}
 
