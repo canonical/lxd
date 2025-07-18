@@ -2281,17 +2281,17 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 	reverter.Add(func() { _ = monitor.RemoveCharDevice(deviceID) })
 
 	// Try to get a PCI address for hotplugging.
-	pciDeviceName, err := d.getPCIHotplug()
+	busName, busAddr, _, err := d.getPCIHotplug()
 	if err != nil {
 		return "", err
 	}
 
-	d.logger.Debug("Using PCI bus device to hotplug virtiofs into", logger.Ctx{"device": deviceName, "port": pciDeviceName})
+	d.logger.Debug("Using PCI bus device to hotplug virtiofs into", logger.Ctx{"device": deviceName, "port": busName})
 
 	qemuDev := map[string]any{
 		"driver":  "vhost-user-fs-pci",
-		"bus":     pciDeviceName,
-		"addr":    "00.0",
+		"bus":     busName,
+		"addr":    busAddr,
 		"tag":     mountTag,
 		"chardev": deviceID,
 		"id":      deviceID,
@@ -2299,7 +2299,7 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 
 	err = monitor.AddDevice(qemuDev)
 	if err != nil {
-		return "", fmt.Errorf("Failed to add the virtiofs device: %w", err)
+		return "", fmt.Errorf("Failed to add the virtiofs device to port %q: %w", busName, err)
 	}
 
 	reverter.Success()
@@ -2432,14 +2432,12 @@ func (d *qemu) deviceAttachNIC(deviceName string, netIF []deviceConfig.RunConfig
 	// PCIe and PCI require a port device name to hotplug the NIC into.
 	if slices.Contains([]string{"pcie", "pci"}, qemuBus) {
 		// Try to get a PCI address for hotplugging.
-		pciDeviceName, err := d.getPCIHotplug()
+		qemuDev["bus"], qemuDev["addr"], _, err = d.getPCIHotplug()
 		if err != nil {
 			return err
 		}
 
-		d.logger.Debug("Using PCI bus device to hotplug NIC into", logger.Ctx{"device": deviceName, "port": pciDeviceName})
-		qemuDev["bus"] = pciDeviceName
-		qemuDev["addr"] = "00.0"
+		d.logger.Debug("Using PCI bus device to hotplug NIC into", logger.Ctx{"device": deviceName, "port": qemuDev["bus"]})
 	}
 
 	monHook, err := d.addNetDevConfig(qemuBus, qemuDev, nil, netIF)
@@ -2551,21 +2549,22 @@ func (d *qemu) deviceAttachPCI(deviceName string, pciConfig []deviceConfig.RunCo
 	}
 
 	// Try to get a PCI address for hotplugging.
-	pciDeviceName, err := d.getPCIHotplug()
+	busName, busAddr, _, err := d.getPCIHotplug()
 	if err != nil {
 		return err
 	}
 
-	qemuDev := make(map[string]any)
+	d.logger.Debug("Using PCI bus device to hotplug device into", logger.Ctx{"device": deviceName, "port": busName})
+
 	escapedDeviceName := filesystem.PathNameEncode(devName)
 
-	d.logger.Debug("Using PCI bus device to hotplug device into", logger.Ctx{"device": deviceName, "port": pciDeviceName})
-
-	qemuDev["bus"] = pciDeviceName
-	qemuDev["addr"] = "00.0"
-	qemuDev["driver"] = "vfio-pci"
-	qemuDev["id"] = fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
-	qemuDev["host"] = pciSlotName
+	qemuDev := map[string]any{
+		"driver": "vfio-pci",
+		"bus":    busName,
+		"addr":   busAddr,
+		"id":     qemuDeviceIDPrefix + escapedDeviceName,
+		"host":   pciSlotName,
+	}
 
 	if d.state.OS.UnprivUser != "" {
 		if pciIOMMUGroup == "" {
