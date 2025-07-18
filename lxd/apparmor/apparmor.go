@@ -142,6 +142,11 @@ func deleteProfile(sysOS *sys.OS, fullName string, name string) error {
 		return nil
 	}
 
+	// Defend against path traversal attacks.
+	if !shared.IsFileName(name) {
+		return fmt.Errorf("Invalid profile name %q", name)
+	}
+
 	err := unloadProfile(sysOS, fullName, name)
 	if err != nil {
 		return err
