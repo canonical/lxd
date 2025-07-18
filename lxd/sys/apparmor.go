@@ -123,9 +123,8 @@ func appArmorCanStack() bool {
 
 	content := string(contentBytes)
 
-	parts := strings.Split(strings.TrimSpace(content), ".")
-
-	if len(parts) == 0 {
+	parts := strings.SplitN(strings.TrimSpace(content), ".", 3)
+	if len(parts) < 2 {
 		logger.Warn("Unknown apparmor domain version", logger.Ctx{"version": content})
 		return false
 	}
@@ -136,13 +135,10 @@ func appArmorCanStack() bool {
 		return false
 	}
 
-	minor := 0
-	if len(parts) == 2 {
-		minor, err = strconv.Atoi(parts[1])
-		if err != nil {
-			logger.Warn("Unknown apparmor domain version", logger.Ctx{"version": content})
-			return false
-		}
+	minor, err := strconv.Atoi(parts[1])
+	if err != nil {
+		logger.Warn("Unknown apparmor domain version", logger.Ctx{"version": content})
+		return false
 	}
 
 	return major >= 1 && minor >= 2
