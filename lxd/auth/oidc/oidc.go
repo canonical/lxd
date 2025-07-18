@@ -324,7 +324,10 @@ func (o *Verifier) Login(w http.ResponseWriter, r *http.Request) {
 		Value:    uuid.NewString(),
 		Secure:   true,
 		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
+		// Lax mode is required because the auth flow ends in a redirect to /oidc/callback. In Strict mode, even though
+		// we're being redirected to the same URL, the browser doesn't send this cookie to the callback because of the
+		// redirect (making it cross-origin).
+		SameSite: http.SameSiteLaxMode,
 	}
 
 	// Set the login cookie on the request. This is required so that the AuthURLHandler below is able to use it to derive
