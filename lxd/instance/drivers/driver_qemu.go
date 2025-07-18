@@ -4005,26 +4005,10 @@ func (d *qemu) addDriveConfig(bus *qemuBus, bootIndexes map[string]int, driveCon
 	// Check if the user has overridden the bus.
 	busName := "virtio-scsi"
 	for _, opt := range driveConf.Opts {
-		if !strings.HasPrefix(opt, "bus=") {
-			continue
-		}
-
-		busName = strings.TrimPrefix(opt, "bus=")
-		break
-	}
-
-	qemuDev := make(map[string]any)
-	if slices.Contains([]string{"nvme", "virtio-blk"}, busName) {
-		// Allocate a PCI(e) port and write it to the config file so QMP can "hotplug" the
-		// drive into it later.
-		devBus, devAddr, multi := bus.allocate(busFunctionGroupNone)
-
-		// Populate the qemu device with port info.
-		qemuDev["bus"] = devBus
-		qemuDev["addr"] = devAddr
-
-		if multi {
-			qemuDev["multifunction"] = true
+		name, found := strings.CutPrefix(opt, "bus=")
+		if found {
+			busName = name
+			break
 		}
 	}
 
@@ -4215,6 +4199,7 @@ func (d *qemu) addDriveConfig(bus *qemuBus, bootIndexes map[string]int, driveCon
 
 	escapedDeviceName := filesystem.PathNameEncode(driveConf.DevName)
 
+	qemuDev := make(map[string]any)
 	qemuDev["id"] = qemuDeviceIDPrefix + escapedDeviceName
 	qemuDevDrive, ok := blockDev["node-name"].(string)
 	if !ok {
@@ -4222,7 +4207,6 @@ func (d *qemu) addDriveConfig(bus *qemuBus, bootIndexes map[string]int, driveCon
 	}
 
 	qemuDev["drive"] = qemuDevDrive
-
 	qemuDeviceSerial := qemuDeviceNamePrefix + escapedDeviceName
 	qemuDev["serial"] = qemuDeviceSerial
 
@@ -4246,6 +4230,7 @@ func (d *qemu) addDriveConfig(bus *qemuBus, bootIndexes map[string]int, driveCon
 			qemuDev["driver"] = "scsi-cd"
 		}
 	} else if slices.Contains([]string{"nvme", "virtio-blk"}, busName) {
+		qemuDev["driver"] = busName
 		qemuDevBus, ok := qemuDev["bus"].(string)
 		if !ok || qemuDevBus == "" {
 			// Try to get a PCI address for hotplugging.
@@ -4258,8 +4243,6 @@ func (d *qemu) addDriveConfig(bus *qemuBus, bootIndexes map[string]int, driveCon
 			qemuDev["bus"] = pciDeviceName
 			qemuDev["addr"] = "00.0"
 		}
-
-		qemuDev["driver"] = busName
 	}
 
 	if bootIndexes != nil {
