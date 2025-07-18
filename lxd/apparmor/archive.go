@@ -45,7 +45,9 @@ profile "{{.name}}" {
 
 // ArchiveLoad ensures that the archive's policy is loaded into the kernel.
 func ArchiveLoad(s *state.State, outputPath string, allowedCommandPaths []string) error {
-	profile := filepath.Join(aaPath, "profiles", ArchiveProfileFilename(outputPath))
+	profileFileName := ArchiveProfileFilename(outputPath)
+
+	profile := filepath.Join(aaPath, "profiles", profileFileName)
 	content, err := os.ReadFile(profile)
 	if err != nil && !os.IsNotExist(err) {
 		return err
@@ -63,7 +65,7 @@ func ArchiveLoad(s *state.State, outputPath string, allowedCommandPaths []string
 		}
 	}
 
-	err = loadProfile(s.OS, ArchiveProfileFilename(outputPath))
+	err = loadProfile(s.OS, profileFileName)
 	if err != nil {
 		return err
 	}
