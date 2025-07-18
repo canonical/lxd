@@ -3852,7 +3852,7 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection, cpuInfo *cpuTopology) error
 }
 
 // addRootDriveConfig adds the qemu config required for adding the root drive.
-func (d *qemu) addRootDriveConfig(bus *qemuBus, mountInfo *storagePools.MountInfo, bootIndexes map[string]int, rootDriveConf deviceConfig.MountEntryItem) (monitorHook, error) {
+func (d *qemu) addRootDriveConfig(busAllocate busAllocator, mountInfo *storagePools.MountInfo, bootIndexes map[string]int, rootDriveConf deviceConfig.MountEntryItem) (monitorHook, error) {
 	if rootDriveConf.TargetPath != "/" {
 		return nil, errors.New("Non-root drive config supplied")
 	}
@@ -3904,7 +3904,7 @@ func (d *qemu) addRootDriveConfig(bus *qemuBus, mountInfo *storagePools.MountInf
 		}
 	}
 
-	return d.addDriveConfig(bus, bootIndexes, driveConf)
+	return d.addDriveConfig(busAllocate, bootIndexes, driveConf)
 }
 
 // addDriveDirConfig adds the qemu config required for adding a supplementary drive directory share.
@@ -4001,7 +4001,7 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 }
 
 // addDriveConfig adds the qemu config required for adding a supplementary drive.
-func (d *qemu) addDriveConfig(bus *qemuBus, bootIndexes map[string]int, driveConf deviceConfig.MountEntryItem) (monitorHook, error) {
+func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]int, driveConf deviceConfig.MountEntryItem) (monitorHook, error) {
 	// Check if the user has overridden the bus.
 	busName := "virtio-scsi"
 	for _, opt := range driveConf.Opts {
@@ -4238,17 +4238,21 @@ func (d *qemu) addDriveConfig(bus *qemuBus, bootIndexes map[string]int, driveCon
 		}
 	} else if slices.Contains([]string{"nvme", "virtio-blk"}, busName) {
 		qemuDev["driver"] = busName
-		qemuDevBus, ok := qemuDev["bus"].(string)
-		if !ok || qemuDevBus == "" {
-			// Try to get a PCI address for hotplugging.
-			pciDeviceName, err := d.getPCIHotplug()
-			if err != nil {
-				return nil, err
-			}
 
-			d.logger.Debug("Using PCI bus device to hotplug drive into", logger.Ctx{"device": driveConf.DevName, "port": pciDeviceName})
-			qemuDev["bus"] = pciDeviceName
-			qemuDev["addr"] = "00.0"
+		// Allocate a device port.
+		devBus, devAddr, multi, err := busAllocate()
+		if err != nil {
+			return nil, fmt.Errorf("Failed allocating bus for disk device %q: %w", driveConf.DevName, err)
+		}
+
+		d.logger.Debug("Using device port to plug drive into", logger.Ctx{"device": driveConf.DevName, "port": devBus})
+
+		// Populate the qemu device with port info.
+		qemuDev["bus"] = devBus
+		qemuDev["addr"] = devAddr
+
+		if multi {
+			qemuDev["multifunction"] = true
 		}
 	}
 
