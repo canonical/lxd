@@ -204,13 +204,11 @@ func devLXDConfigGetHandler(d *Daemon, r *http.Request) response.Response {
 	// If [vendor|user]-data are not defined, cloud-init should still request for them if there are SSH keys defined via
 	// "cloud-init.ssh.keys". Use both user.* and cloud-init.* for compatibitily with older cloud-init.
 	if hasSSHKeys && !hasVendorData {
-		filtered = append(filtered, "/1.0/config/cloud-init.vendor-data")
-		filtered = append(filtered, "/1.0/config/user.vendor-data")
+		filtered = append(filtered, "/1.0/config/cloud-init.vendor-data", "/1.0/config/user.vendor-data")
 	}
 
 	if hasSSHKeys && !hasUserData {
-		filtered = append(filtered, "/1.0/config/cloud-init.user-data")
-		filtered = append(filtered, "/1.0/config/user.user-data")
+		filtered = append(filtered, "/1.0/config/cloud-init.user-data", "/1.0/config/user.user-data")
 	}
 
 	return response.DevLXDResponse(http.StatusOK, filtered, "json")
