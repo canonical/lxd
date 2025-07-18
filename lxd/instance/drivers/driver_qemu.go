@@ -2313,7 +2313,7 @@ func (d *qemu) deviceAttachBlockDevice(mount deviceConfig.MountEntryItem) error 
 		return fmt.Errorf("Failed to connect to QMP monitor: %w", err)
 	}
 
-	monHook, err := d.addDriveConfig(nil, nil, mount)
+	monHook, err := d.addDriveConfig(d.getPCIHotplug, nil, mount)
 	if err != nil {
 		return fmt.Errorf("Failed to add drive config: %w", err)
 	}
@@ -3610,6 +3610,12 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 	// Record the mounts we are going to do inside the VM using the agent.
 	agentMounts := []instancetype.VMAgentMount{}
 
+	// Setup a bus allocator for use with generating QEMU pre-boot config file.
+	busAllocate := func() (busName string, busAddress string, multi bool, err error) {
+		busName, busAddr, multi := bus.allocate(busFunctionGroupNone)
+		return busName, busAddr, multi, nil
+	}
+
 	// These devices are sorted so that NICs are added first to ensure that the first NIC can use the 5th
 	// PCIe bus port and will be consistently named enp5s0 for compatibility with network configuration in our
 	// existing VM images. Even on non-PCIe busses having NICs first means that their names won't change when
@@ -3621,11 +3627,11 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 				var monHook monitorHook
 
 				if drive.TargetPath == "/" {
-					monHook, err = d.addRootDriveConfig(bus, mountInfo, bootIndexes, drive)
+					monHook, err = d.addRootDriveConfig(busAllocate, mountInfo, bootIndexes, drive)
 				} else if drive.FSType == "9p" {
 					err = d.addDriveDirConfig(&cfg, bus, fdFiles, &agentMounts, drive)
 				} else {
-					monHook, err = d.addDriveConfig(bus, bootIndexes, drive)
+					monHook, err = d.addDriveConfig(busAllocate, bootIndexes, drive)
 				}
 
 				if err != nil {
