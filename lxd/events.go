@@ -22,7 +22,7 @@ import (
 )
 
 var eventTypes = []string{api.EventTypeLogging, api.EventTypeOperation, api.EventTypeLifecycle, api.EventTypeOVN}
-var privilegedEventTypes = []string{api.EventTypeLogging}
+var privilegedEventTypes = []string{api.EventTypeLogging, api.EventTypeOVN}
 
 var eventsCmd = APIEndpoint{
 	Path:        "events",
