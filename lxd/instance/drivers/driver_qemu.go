@@ -3949,13 +3949,23 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 		}
 	}
 
+	// Setup a bus allocator for use with generating QEMU pre-boot config file.
+	busAllocate := func() (busName string, busAddress string, multi bool, err error) {
+		// Use per-LXD device multi-function group so that both virtiofs and 9p devices use same bus slot.
+		busName, busAddr, multi := bus.allocate("lxd_" + driveConf.DevName)
+		return busName, busAddr, multi, nil
+	}
+
 	// If there is a virtiofsd socket path setup the virtio-fs share.
 	if virtiofsdSockPath != "" {
 		if !shared.PathExists(virtiofsdSockPath) {
 			return fmt.Errorf("virtiofsd socket path %q doesn't exist", virtiofsdSockPath)
 		}
 
-		devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
+		devBus, devAddr, multi, err := busAllocate()
+		if err != nil {
+			return err
+		}
 
 		shortPath, err := d.shortenedFilePath(virtiofsdSockPath, fdFiles)
 		if err != nil {
@@ -3979,7 +3989,10 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 	}
 
 	// Add 9p share config.
-	devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
+	devBus, devAddr, multi, err := busAllocate()
+	if err != nil {
+		return err
+	}
 
 	fdSource, ok := driveConf.DevSource.(deviceConfig.DevSourceFD)
 	if !ok {
