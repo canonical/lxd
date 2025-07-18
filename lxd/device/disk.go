@@ -2152,6 +2152,7 @@ func (d *disk) Stop() (*deviceConfig.RunConfig, error) {
 
 	// Request an unmount of the device inside the instance.
 	runConf.Mounts = append(runConf.Mounts, deviceConfig.MountEntryItem{
+		DevName:    d.Name(),
 		TargetPath: relativeDestPath,
 	})
 
