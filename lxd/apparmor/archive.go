@@ -1,6 +1,7 @@
 package apparmor
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -46,6 +47,11 @@ profile "{{.name}}" {
 // ArchiveLoad ensures that the archive's policy is loaded into the kernel.
 func ArchiveLoad(s *state.State, outputPath string, allowedCommandPaths []string) error {
 	profileFileName := ArchiveProfileFilename(outputPath)
+
+	// Defend against path traversal attacks.
+	if !shared.IsFileName(profileFileName) {
+		return fmt.Errorf("Invalid profile name %q", profileFileName)
+	}
 
 	profile := filepath.Join(aaPath, "profiles", profileFileName)
 	content, err := os.ReadFile(profile)
