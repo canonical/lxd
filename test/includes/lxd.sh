@@ -214,7 +214,7 @@ kill_lxd() {
         rm -f "${daemon_dir}/containers/lxc-monitord.log"
 
         # Support AppArmor policy cache directory
-        apparmor_cache_dir="$(apparmor_parser -L "${daemon_dir}"/security/apparmor/cache --print-cache-dir)"
+        apparmor_cache_dir="$(apparmor_parser --cache-loc "${daemon_dir}"/security/apparmor/cache --print-cache-dir)"
         rm -f "${apparmor_cache_dir}/.features"
         check_empty "${daemon_dir}/containers/"
         check_empty "${daemon_dir}/devices/"
