@@ -997,7 +997,7 @@ func NextSnapshotName(s *state.State, inst Instance, defaultPattern string) (str
 
 	pattern, err = shared.RenderTemplate(pattern, pongo2.Context{
 		"creation_date": time.Now(),
-	}, shared.RenderTemplateRecursionLimit)
+	})
 	if err != nil {
 		return "", err
 	}
