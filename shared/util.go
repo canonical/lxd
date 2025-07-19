@@ -52,11 +52,6 @@ const HTTPSMetricsDefaultPort = 9100
 // HTTPSStorageBucketsDefaultPort is the default port for the storage buckets listener.
 const HTTPSStorageBucketsDefaultPort = 9000
 
-// RenderTemplateRecursionLimit is the suggested maximum recursion depth for rendering templates.
-// Prevent unbounded recursion while rendering templates. Normal use should not
-// require more than 1 or 2 levels of recursion.
-const RenderTemplateRecursionLimit = 5
-
 // URLEncode encodes a path and query parameters to a URL.
 func URLEncode(path string, query map[string]string) (string, error) {
 	u, err := url.Parse(path)
@@ -1328,11 +1323,7 @@ func (r *ReadSeeker) Seek(offset int64, whence int) (int64, error) {
 }
 
 // RenderTemplate renders a pongo2 template.
-func RenderTemplate(template string, ctx pongo2.Context, recursionLimit int) (string, error) {
-	if recursionLimit <= 0 {
-		return "", errors.New("Recursion limit reached while rendering template")
-	}
-
+func RenderTemplate(template string, ctx pongo2.Context) (string, error) {
 	// Create custom TemplateSet
 	set := pongo2.NewSet("restricted", pongo2.DefaultLoader)
 
@@ -1344,24 +1335,31 @@ func RenderTemplate(template string, ctx pongo2.Context, recursionLimit int) (st
 		}
 	}
 
-	// Load template from string
-	tpl, err := set.FromString("{% autoescape off %}" + template + "{% endautoescape %}")
-	if err != nil {
-		return "", err
+	// Prevent unbounded recursion while rendering templates. Normal use should not
+	// require more than 1 or 2 levels of recursion.
+	for range 3 {
+		// Load template from string
+		tpl, err := set.FromString("{% autoescape off %}" + template + "{% endautoescape %}")
+		if err != nil {
+			return "", err
+		}
+
+		// Get rendered template
+		ret, err := tpl.Execute(ctx)
+		if err != nil {
+			return "", err
+		}
+
+		// Check if another pass is needed.
+		if !strings.Contains(ret, "{{") && !strings.Contains(ret, "{%") {
+			return ret, nil
+		}
+
+		// Prepare for another pass.
+		template = ret
 	}
 
-	// Get rendered template
-	ret, err := tpl.Execute(ctx)
-	if err != nil {
-		return "", err
-	}
-
-	// Looks like we're nesting templates so run pongo again
-	if strings.Contains(ret, "{{") || strings.Contains(ret, "{%") {
-		return RenderTemplate(ret, ctx, recursionLimit-1)
-	}
-
-	return ret, nil
+	return "", errors.New("Recursion limit reached while rendering template")
 }
 
 // GetExpiry returns the expiry date based on the reference date and a length of time.
