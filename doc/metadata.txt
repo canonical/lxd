@@ -4929,6 +4929,20 @@ Specify the volume using the syntax `POOL/VOLUME`.
 Specify the volume using the syntax `POOL/VOLUME`.
 ```
 
+```{config:option} storage.project_*.backups_volume server-miscellaneous
+:scope: "local"
+:shortdesc: "Volume to use to store project-specific backup tarballs"
+:type: "string"
+Specify the volume using the syntax `POOL/VOLUME`.
+```
+
+```{config:option} storage.project_*.images_volume server-miscellaneous
+:scope: "local"
+:shortdesc: "Volume to use to store project-specific image tarballs"
+:type: "string"
+Specify the volume using the syntax `POOL/VOLUME`.
+```
+
 <!-- config group server-miscellaneous end -->
 <!-- config group server-oidc start -->
 ```{config:option} oidc.audience server-oidc

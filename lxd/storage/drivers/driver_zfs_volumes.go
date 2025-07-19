@@ -2746,7 +2746,7 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, revert.Hook, error) {
 }
 
 // BackupVolume creates an exported version of a volume.
-func (d *zfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
+func (d *zfs) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
 	// Handle the non-optimized tarballs through the generic packer.
 	if !optimized {
 		// Because the generic backup method will not take a consistent backup if files are being modified
@@ -2781,7 +2781,7 @@ func (d *zfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceTar
 	// Backup VM config volumes first.
 	if vol.IsVMBlock() {
 		fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume())
-		err := d.BackupVolume(fsVol, tarWriter, optimized, snapshots, op)
+		err := d.BackupVolume(fsVol, projectName, tarWriter, optimized, snapshots, op)
 		if err != nil {
 			return err
 		}
@@ -2808,7 +2808,7 @@ func (d *zfs) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceTar
 		args = append(args, path)
 
 		// Create temporary file to store output of ZFS send.
-		tmpFile, err := os.CreateTemp(d.state.BackupsStoragePath(), backup.WorkingDirPrefix+"_zfs")
+		tmpFile, err := os.CreateTemp(d.state.BackupsStoragePath(projectName), backup.WorkingDirPrefix+"_zfs")
 		if err != nil {
 			return fmt.Errorf("Failed to open temporary file for ZFS backup: %w", err)
 		}

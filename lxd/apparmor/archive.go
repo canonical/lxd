@@ -20,10 +20,16 @@ profile "{{.name}}" {
   {{$element}} mixr,
 {{- end }}
 
+{{range $index, $element := .imagesPaths}}
+  {{$element}}/** r,
+{{- end }}
+
+{{range $index, $element := .backupsPaths}}
+  {{$element}}/** rw,
+{{- end }}
+
   {{ .outputPath }}/ rw,
   {{ .outputPath }}/** rwl,
-  {{ .backupsPath }}/** rw,
-  {{ .imagesPath }}/** r,
 
   signal (receive) set=("term"),
 
@@ -100,16 +106,43 @@ func archiveProfile(s *state.State, outputPath string, allowedCommandPaths []str
 		outputPathFull = outputPath // Use requested path if cannot resolve it.
 	}
 
-	backupsPath := s.BackupsStoragePath()
-	backupsPathFull, err := filepath.EvalSymlinks(backupsPath)
-	if err == nil {
-		backupsPath = backupsPathFull
+	// Add all paths configured as daemon storage or project storage.
+	projectImagesVolumes := make(map[string]string)
+	projectBackupsVolumes := make(map[string]string)
+
+	// First add the daemon storage which can't be used by any of the projects.
+	projectImagesVolumes[s.LocalConfig.StorageImagesVolume("")] = ""
+	projectBackupsVolumes[s.LocalConfig.StorageBackupsVolume("")] = ""
+
+	// Add all the project storages, keyed by the project volume.
+	// As multiple projects can share the volume, we care only about one of such projects,
+	// which we'll add to the apparmor profile.
+	for key, value := range s.LocalConfig.Dump() {
+		if !strings.HasPrefix(key, "storage.project_") {
+			continue
+		}
+
+		projectName, _ := strings.CutPrefix(key, "storage.project_")
+		storageVolume, _ := value.(string)
+		if strings.HasSuffix(key, ".images_volume") {
+			projectName, _ = strings.CutSuffix(projectName, ".images_volume")
+			projectImagesVolumes[storageVolume] = projectName
+		}
+
+		if strings.HasSuffix(key, ".backups_volume") {
+			projectName, _ = strings.CutSuffix(projectName, ".backups_volume")
+			projectBackupsVolumes[storageVolume] = projectName
+		}
 	}
 
-	imagesPath := s.ImagesStoragePath()
-	imagesPathFull, err := filepath.EvalSymlinks(imagesPath)
-	if err == nil {
-		imagesPath = imagesPathFull
+	imagesPaths := make([]string, 0, len(projectImagesVolumes))
+	for _, project := range projectImagesVolumes {
+		imagesPaths = append(imagesPaths, s.ImagesStoragePath(project))
+	}
+
+	backupsPaths := make([]string, 0, len(projectBackupsVolumes)+1)
+	for _, project := range projectBackupsVolumes {
+		backupsPaths = append(backupsPaths, s.BackupsStoragePath(project))
 	}
 
 	derefCommandPaths := make([]string, len(allowedCommandPaths))
@@ -128,8 +161,8 @@ func archiveProfile(s *state.State, outputPath string, allowedCommandPaths []str
 		"name":                ArchiveProfileName(outputPath), // Use non-deferenced outputPath for name.
 		"outputPath":          outputPathFull,                 // Use deferenced path in AppArmor profile.
 		"rootPath":            rootPath,
-		"backupsPath":         backupsPath,
-		"imagesPath":          imagesPath,
+		"backupsPaths":        backupsPaths,
+		"imagesPaths":         imagesPaths,
 		"allowedCommandPaths": derefCommandPaths,
 		"snap":                shared.InSnap(),
 	})

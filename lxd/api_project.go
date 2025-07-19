@@ -15,12 +15,17 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/cluster"
+	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
+	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
-	"github.com/canonical/lxd/lxd/db/cluster"
+	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network"
+	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/operations"
 	projecthelpers "github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/project/limits"
@@ -159,12 +164,12 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 	var apiProjects []*api.Project
 	var projectURLs []string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		allProjects, err := cluster.GetProjects(ctx, tx.Tx())
+		allProjects, err := dbCluster.GetProjects(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}
 
-		projects := make([]cluster.Project, 0, len(allProjects))
+		projects := make([]dbCluster.Project, 0, len(allProjects))
 		for _, project := range allProjects {
 			if userHasPermission(entity.ProjectURL(project.Name)) {
 				projects = append(projects, project)
@@ -225,7 +230,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 
 // projectUsedBy returns a list of URLs for all instances, images, profiles,
 // storage volumes, networks, and acls that use this project.
-func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *cluster.Project) ([]string, error) {
+func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *dbCluster.Project) ([]string, error) {
 	reportedEntityTypes := []entity.Type{
 		entity.TypeInstance,
 		entity.TypeProfile,
@@ -235,7 +240,7 @@ func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *cluster.Proje
 		entity.TypeNetworkACL,
 	}
 
-	entityURLs, err := cluster.GetEntityURLs(ctx, tx.Tx(), project.Name, reportedEntityTypes...)
+	entityURLs, err := dbCluster.GetEntityURLs(ctx, tx.Tx(), project.Name, reportedEntityTypes...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get project used-by URLs: %w", err)
 	}
@@ -295,7 +300,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		project.Config = map[string]string{}
 	}
 
-	for featureName, featureInfo := range cluster.ProjectFeatures {
+	for featureName, featureInfo := range dbCluster.ProjectFeatures {
 		_, ok := project.Config[featureName]
 		if !ok && featureInfo.DefaultEnabled {
 			project.Config[featureName] = "true"
@@ -319,14 +324,37 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	// Create the new per-project daemon configs.
+	node.ConfigSchema["storage.project_"+project.Name+".images_volume"] = config.Key{}
+	node.ConfigSchema["storage.project_"+project.Name+".backups_volume"] = config.Key{}
+
+	// On other cluster nodes, we're done.
+	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	if clientType != clusterRequest.ClientTypeNormal {
+		return response.SyncResponse(true, nil)
+	}
+
+	// Send notification to other cluster members to extend the node schema.
+	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
+		return client.CreateProject(project)
+	})
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to notify other cluster members: %w", err))
+	}
+
 	var id int64
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		id, err = cluster.CreateProject(ctx, tx.Tx(), cluster.Project{Description: project.Description, Name: project.Name})
+		id, err = dbCluster.CreateProject(ctx, tx.Tx(), dbCluster.Project{Description: project.Description, Name: project.Name})
 		if err != nil {
 			return fmt.Errorf("Failed adding database record: %w", err)
 		}
 
-		err = cluster.CreateProjectConfig(ctx, tx.Tx(), id, project.Config)
+		err = dbCluster.CreateProjectConfig(ctx, tx.Tx(), id, project.Config)
 		if err != nil {
 			return fmt.Errorf("Unable to create project config for project %q: %w", project.Name, err)
 		}
@@ -338,7 +366,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			if project.Config["features.images"] == "false" {
-				err = cluster.InitProjectWithoutImages(ctx, tx.Tx(), project.Name)
+				err = dbCluster.InitProjectWithoutImages(ctx, tx.Tx(), project.Name)
 				if err != nil {
 					return err
 				}
@@ -361,24 +389,24 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 // Create the default profile of a project.
 func projectCreateDefaultProfile(ctx context.Context, tx *db.ClusterTx, project string, storagePool string, network string) error {
 	// Create a default profile
-	profile := cluster.Profile{}
+	profile := dbCluster.Profile{}
 	profile.Project = project
 	profile.Name = api.ProjectDefaultName
 	profile.Description = "Default LXD profile for project " + project
 
-	profileID, err := cluster.CreateProfile(ctx, tx.Tx(), profile)
+	profileID, err := dbCluster.CreateProfile(ctx, tx.Tx(), profile)
 	if err != nil {
 		return fmt.Errorf("Add default profile to database: %w", err)
 	}
 
-	devices := map[string]cluster.Device{}
+	devices := map[string]dbCluster.Device{}
 	if storagePool != "" {
 		rootDev := map[string]string{}
 		rootDev["path"] = "/"
 		rootDev["pool"] = storagePool
-		device := cluster.Device{
+		device := dbCluster.Device{
 			Name:   "root",
-			Type:   cluster.TypeDisk,
+			Type:   dbCluster.TypeDisk,
 			Config: rootDev,
 		}
 
@@ -388,9 +416,9 @@ func projectCreateDefaultProfile(ctx context.Context, tx *db.ClusterTx, project 
 	if network != "" {
 		networkDev := map[string]string{}
 		networkDev["network"] = network
-		device := cluster.Device{
+		device := dbCluster.Device{
 			Name:   "eth0",
-			Type:   cluster.TypeNIC,
+			Type:   dbCluster.TypeNIC,
 			Config: networkDev,
 		}
 
@@ -398,7 +426,7 @@ func projectCreateDefaultProfile(ctx context.Context, tx *db.ClusterTx, project 
 	}
 
 	if len(devices) > 0 {
-		err = cluster.CreateProfileDevices(context.TODO(), tx.Tx(), profileID, devices)
+		err = dbCluster.CreateProfileDevices(context.TODO(), tx.Tx(), profileID, devices)
 		if err != nil {
 			return fmt.Errorf("Add root device to default profile of new project: %w", err)
 		}
@@ -457,7 +485,7 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 	// Get the database entry
 	var project *api.Project
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbProject, err := cluster.GetProject(ctx, tx.Tx(), name)
+		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
 			return err
 		}
@@ -531,7 +559,7 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 	// Get the current data
 	var project *api.Project
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbProject, err := cluster.GetProject(ctx, tx.Tx(), name)
+		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
 			return err
 		}
@@ -617,7 +645,7 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 	// Get the current data
 	var project *api.Project
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbProject, err := cluster.GetProject(ctx, tx.Tx(), name)
+		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
 			return err
 		}
@@ -713,7 +741,7 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 	// Record which features have been changed.
 	var featuresChanged []string
 	for _, configKeyChanged := range configChanged {
-		_, isFeature := cluster.ProjectFeatures[configKeyChanged]
+		_, isFeature := dbCluster.ProjectFeatures[configKeyChanged]
 		if isFeature {
 			featuresChanged = append(featuresChanged, configKeyChanged)
 		}
@@ -739,11 +767,17 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 
 				// If feature is currently disabled, and it is being changed in the request, it
 				// must be being enabled. So check if feature can be enabled on non-empty projects.
-				if shared.IsFalse(project.Config[featureChanged]) && !cluster.ProjectFeatures[featureChanged].CanEnableNonEmpty {
+				if shared.IsFalse(project.Config[featureChanged]) && !dbCluster.ProjectFeatures[featureChanged].CanEnableNonEmpty {
 					return response.BadRequest(fmt.Errorf("Project feature %q cannot be enabled on non-empty projects", featureChanged))
 				}
 			}
 		}
+	}
+
+	// Ensure that projects with external images storage have their own images enabled. Otherwise flipping
+	// the feature would require to tranfer the images to the default project storage.
+	if s.LocalConfig.StorageImagesVolume(project.Name) != "" && (req.Config["features.images"] == "" || shared.IsFalse(req.Config["features.images"])) {
+		return response.BadRequest(fmt.Errorf("Project feature %q cannot be disabled on projects with storage.project_%s.images_volume configured", "features.images", project.Name))
 	}
 
 	// Validate the configuration.
@@ -759,7 +793,7 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 			return err
 		}
 
-		err = cluster.UpdateProject(ctx, tx.Tx(), project.Name, req)
+		err = dbCluster.UpdateProject(ctx, tx.Tx(), project.Name, req)
 		if err != nil {
 			return fmt.Errorf("Persist profile changes: %w", err)
 		}
@@ -772,7 +806,7 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 				}
 			} else {
 				// Delete the project-specific default profile.
-				err = cluster.DeleteProfile(ctx, tx.Tx(), project.Name, api.ProjectDefaultName)
+				err = dbCluster.DeleteProfile(ctx, tx.Tx(), project.Name, api.ProjectDefaultName)
 				if err != nil {
 					return fmt.Errorf("Delete project default profile: %w", err)
 				}
@@ -780,7 +814,7 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 		}
 
 		if slices.Contains(configChanged, "features.images") && shared.IsFalse(req.Config["features.images"]) && shared.IsTrue(req.Config["features.profiles"]) {
-			err = cluster.InitProjectWithoutImages(ctx, tx.Tx(), project.Name)
+			err = dbCluster.InitProjectWithoutImages(ctx, tx.Tx(), project.Name)
 			if err != nil {
 				return err
 			}
@@ -794,6 +828,48 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 	}
 
 	return response.EmptySyncResponse
+}
+
+func projectNodeConfigRename(oldName string, newName string) error {
+	// Remove the per-project daemon configs.
+	client, err := lxd.ConnectLXDUnix("", nil)
+	if err != nil {
+		return fmt.Errorf("Failed to connect to LXD daemon: %w", err)
+	}
+
+	server, _, err := client.GetServer()
+	if err != nil {
+		return fmt.Errorf("Failed to connect to get LXD server info: %w", err)
+	}
+
+	// First extend the daemon config schema.
+	node.ConfigSchema["storage.project_"+newName+".images_volume"] = config.Key{}
+	node.ConfigSchema["storage.project_"+newName+".backups_volume"] = config.Key{}
+
+	// Transfer the config values if any.
+	value, ok := server.Config["storage.project_"+oldName+".images_volume"].(string)
+	if ok {
+		server.Config["storage.project_"+newName+".images_volume"] = value
+	}
+
+	value, ok = server.Config["storage.project_"+oldName+".backups_volume"].(string)
+	if ok {
+		server.Config["storage.project_"+newName+".backups_volume"] = value
+	}
+
+	delete(server.Config, "storage.project_"+oldName+".images_volume")
+	delete(server.Config, "storage.project_"+oldName+".backups_volume")
+
+	err = client.UpdateServer(server.ServerPut, "")
+	if err != nil {
+		return fmt.Errorf("Failed to update the LXD server config: %w", err)
+	}
+
+	// Delete the old configs from schema.
+	delete(node.ConfigSchema, "storage.project_"+oldName+".images_volume")
+	delete(node.ConfigSchema, "storage.project_"+oldName+".backups_volume")
+
+	return nil
 }
 
 // swagger:operation POST /1.0/projects/{name} projects project_post
@@ -844,10 +920,21 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(errors.New("The 'default' project cannot be renamed"))
 	}
 
+	// On cluster notification, just update the node config values and we're done.
+	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	if clientType != clusterRequest.ClientTypeNormal {
+		err = projectNodeConfigRename(name, req.Name)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.EmptySyncResponse
+	}
+
 	// Perform the rename.
 	run := func(op *operations.Operation) error {
 		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			project, err := cluster.GetProject(ctx, tx.Tx(), req.Name)
+			project, err := dbCluster.GetProject(ctx, tx.Tx(), req.Name)
 			if err != nil && !response.IsNotFoundError(err) {
 				return fmt.Errorf("Failed checking if project %q exists: %w", req.Name, err)
 			}
@@ -856,7 +943,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("A project named %q already exists", req.Name)
 			}
 
-			project, err = cluster.GetProject(ctx, tx.Tx(), name)
+			project, err = dbCluster.GetProject(ctx, tx.Tx(), name)
 			if err != nil {
 				return fmt.Errorf("Failed loading project %q: %w", name, err)
 			}
@@ -875,7 +962,31 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
-			return cluster.RenameProject(ctx, tx.Tx(), name, req.Name)
+			return dbCluster.RenameProject(ctx, tx.Tx(), name, req.Name)
+		})
+		if err != nil {
+			return err
+		}
+
+		// Update the node config values.
+		err = projectNodeConfigRename(name, req.Name)
+		if err != nil {
+			return err
+		}
+
+		// Send notification to other cluster members to update the node schema.
+		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+		if err != nil {
+			return err
+		}
+
+		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
+			op, err := client.RenameProject(name, req)
+			if err != nil {
+				return err
+			}
+
+			return op.Wait()
 		})
 		if err != nil {
 			return err
@@ -893,6 +1004,31 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return operations.OperationResponse(op)
+}
+
+func projectNodeConfigDelete(name string) error {
+	// Remove the per-project daemon configs.
+	client, err := lxd.ConnectLXDUnix("", nil)
+	if err != nil {
+		return fmt.Errorf("Failed to connect to LXD daemon: %w", err)
+	}
+
+	server, _, err := client.GetServer()
+	if err != nil {
+		return fmt.Errorf("Failed to connect to get LXD server info: %w", err)
+	}
+
+	delete(server.Config, "storage.project_"+name+".images_volume")
+	delete(server.Config, "storage.project_"+name+".backups_volume")
+	err = client.UpdateServer(server.ServerPut, "")
+	if err != nil {
+		return fmt.Errorf("Failed to update the LXD server config: %w", err)
+	}
+
+	delete(node.ConfigSchema, "storage.project_"+name+".images_volume")
+	delete(node.ConfigSchema, "storage.project_"+name+".backups_volume")
+
+	return nil
 }
 
 // swagger:operation DELETE /1.0/projects/{name} projects project_delete
@@ -926,8 +1062,20 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(errors.New("The 'default' project cannot be deleted"))
 	}
 
+	// On cluster notification, just clear the node config values and we're done.
+	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	if clientType != clusterRequest.ClientTypeNormal {
+		err = projectNodeConfigDelete(name)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.EmptySyncResponse
+	}
+
+	// Verify the project is empty.
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		project, err := cluster.GetProject(ctx, tx.Tx(), name)
+		project, err := dbCluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
 			return fmt.Errorf("Fetch project %q: %w", name, err)
 		}
@@ -941,9 +1089,34 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 			return errors.New("Only empty projects can be removed")
 		}
 
-		return cluster.DeleteProject(ctx, tx.Tx(), name)
+		return nil
 	})
+	if err != nil {
+		return response.SmartError(err)
+	}
 
+	// Clear the node config values.
+	err = projectNodeConfigDelete(name)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Send notification to other cluster members to update the node schema.
+	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
+		return client.DeleteProject(name)
+	})
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to notify other cluster members: %w", err))
+	}
+
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return dbCluster.DeleteProject(ctx, tx.Tx(), name)
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1018,8 +1191,8 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 }
 
 // Check if a project is empty.
-func projectIsEmpty(ctx context.Context, project *cluster.Project, tx *db.ClusterTx) (bool, error) {
-	instances, err := cluster.GetInstances(ctx, tx.Tx(), cluster.InstanceFilter{Project: &project.Name})
+func projectIsEmpty(ctx context.Context, project *dbCluster.Project, tx *db.ClusterTx) (bool, error) {
+	instances, err := dbCluster.GetInstances(ctx, tx.Tx(), dbCluster.InstanceFilter{Project: &project.Name})
 	if err != nil {
 		return false, err
 	}
@@ -1028,7 +1201,7 @@ func projectIsEmpty(ctx context.Context, project *cluster.Project, tx *db.Cluste
 		return false, nil
 	}
 
-	images, err := cluster.GetImages(ctx, tx.Tx(), cluster.ImageFilter{Project: &project.Name})
+	images, err := dbCluster.GetImages(ctx, tx.Tx(), dbCluster.ImageFilter{Project: &project.Name})
 	if err != nil {
 		return false, err
 	}
@@ -1037,7 +1210,7 @@ func projectIsEmpty(ctx context.Context, project *cluster.Project, tx *db.Cluste
 		return false, nil
 	}
 
-	profiles, err := cluster.GetProfiles(ctx, tx.Tx(), cluster.ProfileFilter{Project: &project.Name})
+	profiles, err := dbCluster.GetProfiles(ctx, tx.Tx(), dbCluster.ProfileFilter{Project: &project.Name})
 	if err != nil {
 		return false, err
 	}
@@ -1252,7 +1425,7 @@ func projectValidateConfig(s *state.State, config map[string]string, defaultNetw
 
 			groupNames := shared.SplitNTrimSpace(value, ",", -1, true)
 			return s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-				groups, err := cluster.GetClusterGroups(ctx, tx.Tx())
+				groups, err := dbCluster.GetClusterGroups(ctx, tx.Tx())
 				if err != nil {
 					return fmt.Errorf("Failed to validate restricted cluster group configuration: %w", err)
 				}
