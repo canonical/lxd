@@ -254,44 +254,44 @@ func TestReaderToChannel(t *testing.T) {
 
 func TestRenderTemplate(t *testing.T) {
 	// Reject invalid templates.
-	out, err := RenderTemplate(`{% include "/etc/hosts" %}`, nil, 1)
+	out, err := RenderTemplate(`{% include "/etc/hosts" %}`, nil)
 	assert.Error(t, err)
 	assert.Empty(t, out)
 
-	out, err = RenderTemplate(`{{ "{"|escape }}{{ "%"|escape }} include "/etc/hosts" {{ "%"|escape }}{{ "}"|escape }}`, nil, 2)
+	out, err = RenderTemplate(`{{ "{"|escape }}{{ "%"|escape }} include "/etc/hosts" {{ "%"|escape }}{{ "}"|escape }}`, nil)
 	assert.Error(t, err)
 	assert.Empty(t, out)
 
 	// Recursion limit hit.
-	out, err = RenderTemplate(`a{{ "{"|first}}{{ "{"|first}} "{{ "b"|capfirst }}" {{ "}"|first}}{{ "}"|first}}`, nil, 1)
-	assert.Error(t, err)
+	out, err = RenderTemplate(`{{ "{{ '{{ \"{{ 1 }}' }}" }}" }}`, nil)
+	assert.ErrorContains(t, err, "Recursion limit")
 	assert.Empty(t, out)
 
 	// Render proper templates.
-	out, err = RenderTemplate(`Hello, world!`, nil, 1)
+	out, err = RenderTemplate(`Hello, world!`, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, `Hello, world!`, out)
 
-	out, err = RenderTemplate(`{{ "Hello, world!" }}`, nil, 1)
+	out, err = RenderTemplate(`{{ "Hello, world!" }}`, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, `Hello, world!`, out)
 
-	out, err = RenderTemplate(`mysnap%d`, nil, 1)
+	out, err = RenderTemplate(`mysnap%d`, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, `mysnap%d`, out)
 
-	out, err = RenderTemplate(`mysnap%`, nil, 1)
+	out, err = RenderTemplate(`mysnap%`, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, `mysnap%`, out)
 
-	out, err = RenderTemplate(`{{ "h"|capfirst }}`, nil, 1)
+	out, err = RenderTemplate(`{{ "h"|capfirst }}`, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, `H`, out)
 
 	// Recursion limit not hit.
-	out, err = RenderTemplate(`a{{ "{"|first}}{{ "{"|first}} "{{ "b"|capfirst }}" {{ "}"|first}}{{ "}"|first}}`, nil, 2)
+	out, err = RenderTemplate(`{{ "{{ '{{ \"1\" }}' }}" }}`, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, "aB", out)
+	assert.Equal(t, `1`, out)
 }
 
 func TestGetExpiry(t *testing.T) {
