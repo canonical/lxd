@@ -393,6 +393,16 @@ func getImgInfo(d lxd.InstanceServer, conf *config.Config, imgRemote string, ins
 		if err != nil {
 			return nil, nil, err
 		}
+
+		// Check if the image server is actually a private LXD server. If it is, tell it to use the project that is
+		// configured for that remote. This is because "GetImageServer" will overwrite the configured project with the
+		// --project flag, but for init, launch, and rebuild we don't want to apply the project override to the image
+		// remote. Contextually, the --project flag in this case is for the private LXD server where the instance is
+		// being created, not the image source.
+		instanceServer, ok := imgRemoteServer.(lxd.InstanceServer)
+		if ok {
+			imgRemoteServer = instanceServer.UseProject(conf.Remotes[imgRemote].Project)
+		}
 	}
 
 	// Optimisation for simplestreams
