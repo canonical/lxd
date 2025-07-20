@@ -3,6 +3,7 @@
 package sys
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"strconv"
@@ -15,6 +16,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/version"
 )
 
 // Initialize AppArmor-specific attributes.
@@ -42,11 +44,31 @@ func (s *OS) initAppArmor() []cluster.Warning {
 			LastMessage: "Disabled because 'apparmor_parser' couldn't be found",
 		})
 	} else {
-		s.AppArmorAvailable = true
+		/* Detect AppArmor version */
+		s.AppArmorVersion, err = appArmorGetVersion()
+		if err != nil {
+			logger.Warn("AppArmor support has been disabled because the version couldn't be determined", logger.Ctx{"err": err})
+			dbWarnings = append(dbWarnings, cluster.Warning{
+				TypeCode:    warningtype.AppArmorNotAvailable,
+				LastMessage: "Disabled because the version couldn't be determined",
+			})
+		} else {
+			logger.Info("AppArmor support is enabled", logger.Ctx{"version": s.AppArmorVersion})
+			s.AppArmorAvailable = true
+		}
 	}
 
 	/* Detect AppArmor stacking support */
 	s.AppArmorStacking = appArmorCanStack()
+
+	// Detect AppArmor cache directories.
+	s.AppArmorCacheLoc = shared.VarPath("security", "apparmor", "cache")
+	s.AppArmorCacheDir, err = appArmorGetCacheDir(s.AppArmorVersion, s.AppArmorCacheLoc)
+	if err != nil {
+		logger.Warn("AppArmor feature cache directory detection failed", logger.Ctx{"err": err})
+	} else {
+		logger.Debug("AppArmor feature cache directory detected", logger.Ctx{"cache_dir": s.AppArmorCacheDir})
+	}
 
 	/* Detect existing AppArmor stack */
 	if shared.PathExists("/sys/kernel/security/apparmor/.ns_stacked") {
@@ -105,6 +127,40 @@ func haveMacAdmin() bool {
 	return c.Get(capability.EFFECTIVE, capability.CAP_MAC_ADMIN)
 }
 
+// getVersion reads and parses the AppArmor version.
+func appArmorGetVersion() (*version.DottedVersion, error) {
+	out, err := shared.RunCommandContext(context.TODO(), "apparmor_parser", "--version")
+	if err != nil {
+		return nil, err
+	}
+
+	fields := strings.Fields(strings.SplitN(out, "\n", 2)[0])
+	return version.Parse(fields[len(fields)-1])
+}
+
+// appArmorGetCacheDir returns the AppArmor cache directory based on the cache location.
+// If appArmor version is less than 2.13, it returns the base cache location directory.
+func appArmorGetCacheDir(ver *version.DottedVersion, cacheLoc string) (string, error) {
+	// Multiple policy cache directories were only added in v2.13.
+	minVer, err := version.NewDottedVersion("2.13")
+	if err != nil {
+		return cacheLoc, err
+	}
+
+	if ver.Compare(minVer) < 0 {
+		return cacheLoc, nil
+	}
+
+	// `--print-cache-dir` returns a subdirectory under `--cache-loc`.
+	// The subdirectory used will be influenced by the features available and enabled.
+	out, err := shared.RunCommandContext(context.TODO(), "apparmor_parser", "--cache-loc", cacheLoc, "--print-cache-dir")
+	if err != nil {
+		return cacheLoc, err
+	}
+
+	return strings.TrimSpace(out), nil
+}
+
 // Returns true if AppArmor stacking support is available.
 func appArmorCanStack() bool {
 	contentBytes, err := os.ReadFile("/sys/kernel/security/apparmor/features/domain/stack")
@@ -123,9 +179,8 @@ func appArmorCanStack() bool {
 
 	content := string(contentBytes)
 
-	parts := strings.Split(strings.TrimSpace(content), ".")
-
-	if len(parts) == 0 {
+	parts := strings.SplitN(strings.TrimSpace(content), ".", 3)
+	if len(parts) < 2 {
 		logger.Warn("Unknown apparmor domain version", logger.Ctx{"version": content})
 		return false
 	}
@@ -136,13 +191,10 @@ func appArmorCanStack() bool {
 		return false
 	}
 
-	minor := 0
-	if len(parts) == 2 {
-		minor, err = strconv.Atoi(parts[1])
-		if err != nil {
-			logger.Warn("Unknown apparmor domain version", logger.Ctx{"version": content})
-			return false
-		}
+	minor, err := strconv.Atoi(parts[1])
+	if err != nil {
+		logger.Warn("Unknown apparmor domain version", logger.Ctx{"version": content})
+		return false
 	}
 
 	return major >= 1 && minor >= 2
