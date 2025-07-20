@@ -92,10 +92,8 @@ func rsyncSendSetup(ctx context.Context, path string, rsyncArgs string, instance
 	}
 
 	if rsync.AtLeast("3.1.3") {
-		args = append(args, "--filter=-x security.selinux")
-	}
-
-	if rsync.AtLeast("3.1.0") {
+		args = append(args, "--ignore-missing-args", "--filter=-x security.selinux")
+	} else if rsync.AtLeast("3.1.0") {
 		args = append(args, "--ignore-missing-args")
 	}
 

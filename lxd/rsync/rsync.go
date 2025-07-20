@@ -426,8 +426,7 @@ func rsyncFeatureArgs(features []string) []string {
 	}
 
 	if slices.Contains(features, "compress") {
-		args = append(args, "--compress")
-		args = append(args, "--compress-level=2")
+		args = append(args, "--compress", "--compress-level=2")
 	}
 
 	return args
@@ -441,7 +440,7 @@ func AtLeast(minimum string) bool {
 		return false
 	}
 
-	fields := strings.Split(strings.Split(out, "\n")[0], "  ")
+	fields := strings.Split(strings.SplitN(out, "\n", 2)[0], "  ")
 	if len(fields) < 3 {
 		return false
 	}
