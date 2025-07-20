@@ -193,8 +193,12 @@ func (d Nftables) hostVersion() (*version.DottedVersion, error) {
 		return nil, fmt.Errorf("Failed to check nftables version: %w", err)
 	}
 
-	lines := strings.Split(string(output), " ")
-	return version.Parse(strings.TrimPrefix(lines[1], "v"))
+	fields := strings.SplitN(string(output), " ", 3)
+	if len(fields) < 2 {
+		return nil, fmt.Errorf("Unexpected nft version output: %q", output)
+	}
+
+	return version.Parse(strings.TrimPrefix(fields[1], "v"))
 }
 
 // networkSetupForwardingPolicy allows forwarding dependent on boolean argument.

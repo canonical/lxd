@@ -1521,8 +1521,7 @@ func (c *cmdStorageVolumeInfo) run(cmd *cobra.Command, args []string) error {
 			var row []string
 
 			fields := strings.Split(snap.Name, shared.SnapshotDelimiter)
-			row = append(row, fields[len(fields)-1])
-			row = append(row, snap.Description)
+			row = append(row, fields[len(fields)-1], snap.Description)
 
 			if snap.ExpiresAt != nil {
 				row = append(row, snap.ExpiresAt.Local().Format(layout))
