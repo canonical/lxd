@@ -112,7 +112,9 @@ var HugePageSizeSuffix = [...]string{"64KB", "1MB", "2MB", "1GB"}
 // InstanceConfigKeysAny is a map of config key to validator. (keys applying to containers AND virtual machines).
 var InstanceConfigKeysAny = map[string]func(value string) error{
 	// lxdmeta:generate(entities=instance; group=boot; key=boot.autostart)
-	// If set to `false`, restore the last state.
+	// If set to `true`, the instance will always be auto-started, unless `security.protection.start` is also enabled.
+	// If set to `false`, the instance will not be started on LXD start up.
+	// If this option is not set, the instance will be restored to its last known state.
 	// ---
 	//  type: bool
 	//  liveupdate: no
