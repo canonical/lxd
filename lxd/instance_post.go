@@ -506,6 +506,51 @@ func migrateFromOfflineNode(s *state.State, inst instance.Instance, req api.Inst
 	return nil
 }
 
+// prepareMigration prepares the target instance configuration for migration.
+func prepareMigration(inst instance.Instance, req api.InstancePost) (*api.Instance, string, error) {
+	// Save the original value of the "volatile.apply_template" config key,
+	// since we'll want to preserve it in the copied container.
+	instVolatileApplyTemplate := inst.LocalConfig()["volatile.apply_template"]
+
+	// Get the current instance info.
+	instInfoRaw, _, err := inst.Render()
+	if err != nil {
+		return nil, "", fmt.Errorf("Failed getting source instance info: %w", err)
+	}
+
+	targetInstInfo, ok := instInfoRaw.(*api.Instance)
+	if !ok {
+		return nil, "", fmt.Errorf("Unexpected result from source instance render: %w", err)
+	}
+
+	// Apply the config overrides.
+	maps.Copy(targetInstInfo.Config, req.Config)
+
+	// Apply the device overrides.
+	maps.Copy(targetInstInfo.Devices, req.Devices)
+
+	// Apply the profile overrides.
+	if req.Profiles != nil {
+		targetInstInfo.Profiles = req.Profiles
+	}
+
+	// Handle storage pool override.
+	if req.Pool != "" {
+		rootDevKey, rootDev, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+		if err != nil {
+			return nil, "", err
+		}
+
+		// Apply the override.
+		rootDev["pool"] = req.Pool
+
+		// Add the device to local config.
+		targetInstInfo.Devices[rootDevKey] = rootDev
+	}
+
+	return targetInstInfo, instVolatileApplyTemplate, nil
+}
+
 // Perform the server-side migration.
 func migrateInstance(ctx context.Context, s *state.State, inst instance.Instance, req api.InstancePost, sourceMemberInfo *db.NodeInfo, targetMemberInfo *db.NodeInfo, op *operations.Operation) error {
 	// Load the instance storage pool.
@@ -530,44 +575,10 @@ func migrateInstance(ctx context.Context, s *state.State, inst instance.Instance
 		return migrateFromOfflineNode(s, inst, req, targetMemberInfo, sourcePool, volDBType)
 	}
 
-	// Save the original value of the "volatile.apply_template" config key,
-	// since we'll want to preserve it in the copied container.
-	instVolatileApplyTemplate := inst.LocalConfig()["volatile.apply_template"]
-
-	// Get the current instance info.
-	instInfoRaw, _, err := inst.Render()
+	// Prepare the migration.
+	targetInstInfo, instVolatileApplyTemplate, err := prepareMigration(inst, req)
 	if err != nil {
-		return fmt.Errorf("Failed getting source instance info: %w", err)
-	}
-
-	targetInstInfo, ok := instInfoRaw.(*api.Instance)
-	if !ok {
-		return fmt.Errorf("Unexpected result from source instance render: %w", err)
-	}
-
-	// Apply the config overrides.
-	maps.Copy(targetInstInfo.Config, req.Config)
-
-	// Apply the device overrides.
-	maps.Copy(targetInstInfo.Devices, req.Devices)
-
-	// Apply the profile overrides.
-	if req.Profiles != nil {
-		targetInstInfo.Profiles = req.Profiles
-	}
-
-	// Handle storage pool override.
-	if req.Pool != "" {
-		rootDevKey, rootDev, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
-		if err != nil {
-			return err
-		}
-
-		// Apply the override.
-		rootDev["pool"] = req.Pool
-
-		// Add the device to local config.
-		targetInstInfo.Devices[rootDevKey] = rootDev
+		return err
 	}
 
 	// Handle local changes (name, project, storage).
