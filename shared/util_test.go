@@ -292,6 +292,10 @@ func TestRenderTemplate(t *testing.T) {
 	out, err = RenderTemplate(`{{ "{{ '{{ \"1\" }}' }}" }}`, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, `1`, out)
+
+	// Check pongo2 panics are handled.
+	_, err = RenderTemplate(`{{ badsnap%d }}`, nil)
+	assert.Error(t, err)
 }
 
 func TestGetExpiry(t *testing.T) {
