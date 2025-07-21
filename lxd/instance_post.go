@@ -474,6 +474,38 @@ func migrateHandleRename(s *state.State, inst instance.Instance, req *api.Instan
 	return reloadedInst, nil
 }
 
+// migrateFromOfflineNode handles migration of an instance away from an offline server (on shared storage).
+func migrateFromOfflineNode(s *state.State, inst instance.Instance, req api.InstancePost, targetMemberInfo *db.NodeInfo, sourcePool storagePools.Pool, volDBType dbCluster.StoragePoolVolumeType) error {
+	// Update the database records.
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := tx.UpdateInstanceNode(ctx, inst.Project().Name, inst.Name(), inst.Name(), targetMemberInfo.Name, sourcePool.ID(), volDBType)
+		if err != nil {
+			return fmt.Errorf("Failed updating cluster member to %q for instance %q: %w", targetMemberInfo.Name, inst.Name(), err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to relink instance database data: %w", err)
+	}
+
+	// Import the instance into the storage.
+	_, err = sourcePool.ImportInstance(inst, nil, nil)
+	if err != nil {
+		return fmt.Errorf("Failed creating mount point of instance on target node: %w", err)
+	}
+
+	// Perform any remaining instance rename.
+	if req.Name != "" {
+		err = inst.Rename(req.Name, true)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Perform the server-side migration.
 func migrateInstance(ctx context.Context, s *state.State, inst instance.Instance, req api.InstancePost, sourceMemberInfo *db.NodeInfo, targetMemberInfo *db.NodeInfo, op *operations.Operation) error {
 	// Load the instance storage pool.
@@ -495,34 +527,7 @@ func migrateInstance(ctx context.Context, s *state.State, inst instance.Instance
 
 	// Handle migration of an instance away from an offline server (on shared storage).
 	if targetMemberInfo != nil && sourceMemberInfo != nil && sourceMemberInfo.IsOffline(s.GlobalConfig.OfflineThreshold()) && sourcePool.Driver().Info().Remote {
-		// Update the database records.
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			err := tx.UpdateInstanceNode(ctx, inst.Project().Name, inst.Name(), inst.Name(), targetMemberInfo.Name, sourcePool.ID(), volDBType)
-			if err != nil {
-				return fmt.Errorf("Failed updating cluster member to %q for instance %q: %w", targetMemberInfo.Name, inst.Name(), err)
-			}
-
-			return nil
-		})
-		if err != nil {
-			return fmt.Errorf("Failed to relink instance database data: %w", err)
-		}
-
-		// Import the instance into the storage.
-		_, err = sourcePool.ImportInstance(inst, nil, nil)
-		if err != nil {
-			return fmt.Errorf("Failed creating mount point of instance on target node: %w", err)
-		}
-
-		// Perform any remaining instance rename.
-		if req.Name != "" {
-			err = inst.Rename(req.Name, true)
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
+		return migrateFromOfflineNode(s, inst, req, targetMemberInfo, sourcePool, volDBType)
 	}
 
 	// Save the original value of the "volatile.apply_template" config key,
