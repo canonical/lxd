@@ -1941,7 +1941,7 @@
 					{
 						"boot.autostart": {
 							"liveupdate": "no",
-							"longdesc": "If set to `false`, restore the last state.",
+							"longdesc": "If set to `true`, the instance will always be auto-started, unless `security.protection.start` is also enabled.\nIf set to `false`, the instance will not be started on LXD start up.\nIf this option is not set, the instance will be restored to its last known state.",
 							"shortdesc": "Whether to always start the instance when LXD starts",
 							"type": "bool"
 						}
