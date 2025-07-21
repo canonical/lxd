@@ -117,7 +117,6 @@ test_clustering_waitready() {
 
   echo "==> Restore the network by unsetting the external interface"
   LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'DELETE FROM networks_config WHERE key="bridge.external_interfaces"'
-  nsenter -m -n -t "${ns1_pid}" -- ip link del foo
 
   # LXD retries starting the networks every 60s.
   # Wait for 80s to ensure the network is now ready but the storage pool isn't.
@@ -148,7 +147,46 @@ test_clustering_waitready() {
   # The first cluster member can now be restored.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster restore node1 --force
 
+  echo "==> Corrupt the network again by setting an invalid external interface"
+  LXD_DIR="${LXD_ONE_DIR}" lxd sql global "INSERT INTO networks_config (network_id, node_id, key, value) VALUES (${network_id}, 1, 'bridge.external_interfaces', 'foo')"
+
+  echo "==> Corrupt the storage pool directory again on the first cluster member to cause errors when LXD starts trying to start the pool"
+  # Perform this after stopping the daemon to make sure all mounts of the storage pool directory are given up.
+  rm -rf "${LXD_ONE_DIR}/storage-pools/pool1"
+  touch "${LXD_ONE_DIR}/storage-pools/pool1"
+
+  # Restart the first cluster member.
+  shutdown_lxd "${LXD_ONE_DIR}"
+  LXD_NETNS="${ns1}" respawn_lxd "${LXD_ONE_DIR}" true
+
+  # The cluster member cannot be evacuated as long as it's networks and storage pools aren't started.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate "node1" --force 2>&1)" = "Error: Failed to update cluster member state: Cannot evacuate \"node1\" because some networks aren't started yet" ]
+
+  echo "==> Restore the network by unsetting the external interface"
+  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'DELETE FROM networks_config WHERE key="bridge.external_interfaces"'
+
+  # Restart the first cluster member.
+  # To speed up the test we don't wait for LXD until it tries starting the network again.
+  # That was already tested above.
+  shutdown_lxd "${LXD_ONE_DIR}"
+  LXD_NETNS="${ns1}" respawn_lxd "${LXD_ONE_DIR}" true
+
+  # The cluster member cannot be evacuated as long as it's storage pools aren't started.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate "node1" --force 2>&1)" = "Error: Failed to update cluster member state: Cannot evacuate \"node1\" because some storage pools aren't started yet" ]
+
+  echo "==> Restore the storage pool directory"
+  rm "${LXD_ONE_DIR}/storage-pools/pool1"
+
+  # Restart the first cluster member.
+  shutdown_lxd "${LXD_ONE_DIR}"
+  LXD_NETNS="${ns1}" respawn_lxd "${LXD_ONE_DIR}" true
+
+  # The cluster member can now be evacuated.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate "node1" --force
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster restore "node1" --force
+
   # Cleanup.
+  nsenter -m -n -t "${ns1_pid}" -- ip link del foo
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
