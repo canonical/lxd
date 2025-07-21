@@ -1323,7 +1323,16 @@ func (r *ReadSeeker) Seek(offset int64, whence int) (int64, error) {
 }
 
 // RenderTemplate renders a pongo2 template.
-func RenderTemplate(template string, ctx pongo2.Context) (string, error) {
+func RenderTemplate(template string, ctx pongo2.Context) (output string, err error) {
+	defer func() {
+		// Capture panics in the pongo2 template rendering.
+		// This is to prevent the server from crashing due to a template error.
+		r := recover()
+		if r != nil {
+			err = fmt.Errorf("Panic while rendering template: %v", r)
+		}
+	}()
+
 	// Create custom TemplateSet
 	set := pongo2.NewSet("restricted", pongo2.DefaultLoader)
 
