@@ -1680,7 +1680,9 @@ The default is `false`, which means that all devices can be hotplugged.
 :liveupdate: "no"
 :shortdesc: "Whether to always start the instance when LXD starts"
 :type: "bool"
-If set to `false`, restore the last state.
+If set to `true`, the instance will always be auto-started, unless `security.protection.start` is also enabled.
+If set to `false`, the instance will not be started on LXD start up.
+If this option is not set, the instance will be restored to its last known state.
 ```
 
 ```{config:option} boot.autostart.delay instance-boot
