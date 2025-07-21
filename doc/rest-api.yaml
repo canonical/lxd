@@ -412,12 +412,12 @@ definitions:
                 type: object
                 x-go-name: Config
             description:
-                description: Description of the cluster
+                description: Description of the cluster link
                 example: Backup LXD cluster
                 type: string
                 x-go-name: Description
             name:
-                description: The name of the cluster
+                description: The name of the cluster link
                 example: lxd02
                 type: string
                 x-go-name: Name
@@ -474,7 +474,7 @@ definitions:
                 type: object
                 x-go-name: Config
             description:
-                description: Description of the cluster
+                description: Description of the cluster link
                 example: Backup LXD cluster
                 type: string
                 x-go-name: Description
@@ -501,7 +501,7 @@ definitions:
                 type: object
                 x-go-name: Config
             description:
-                description: Description of the cluster
+                description: Description of the cluster link
                 example: Backup LXD cluster
                 type: string
                 x-go-name: Description
