@@ -551,6 +551,182 @@ func prepareMigration(inst instance.Instance, req api.InstancePost) (*api.Instan
 	return targetInstInfo, instVolatileApplyTemplate, nil
 }
 
+// migrateLocal handles local moves (project or storage pool changes).
+func migrateLocal(ctx context.Context, s *state.State, inst instance.Instance, req *api.InstancePost, targetInstInfo *api.Instance, targetMemberInfo *db.NodeInfo, op *operations.Operation) (instance.Instance, error) {
+	// Get a local client.
+	target, err := lxd.ConnectLXDUnix(s.OS.GetUnixSocket(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if targetMemberInfo != nil {
+		target = target.UseTarget(targetMemberInfo.Name)
+	} else if s.ServerClustered {
+		target = target.UseTarget(inst.Location())
+	}
+
+	targetProject := inst.Project().Name
+	if req.Project != "" {
+		target = target.UseProject(req.Project)
+		targetProject = req.Project
+	}
+
+	// Check if we have a root disk in local config.
+	_, _, err = instancetype.GetRootDiskDevice(targetInstInfo.Devices)
+	if err != nil && req.Project != "" {
+		// If not and we're dealing with project copy, let's get one.
+		var newRootDev map[string]string
+
+		// Get current root disk.
+		currentRootDevKey, currentRootDev, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+		if err != nil {
+			return nil, err
+		}
+
+		// Load the profiles.
+		profiles := []api.Profile{}
+
+		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			rawProfiles, err := dbCluster.GetProfilesIfEnabled(ctx, tx.Tx(), targetProject, targetInstInfo.Profiles)
+			if err != nil {
+				return err
+			}
+
+			profileConfigs, err := dbCluster.GetConfig(ctx, tx.Tx(), "profile")
+			if err != nil {
+				return err
+			}
+
+			profileDevices, err := dbCluster.GetDevices(ctx, tx.Tx(), "profile")
+			if err != nil {
+				return err
+			}
+
+			for _, profile := range rawProfiles {
+				apiProfile, err := profile.ToAPI(ctx, tx.Tx(), profileConfigs, profileDevices)
+				if err != nil {
+					return err
+				}
+
+				profiles = append(profiles, *apiProfile)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		// Go through expected profiles and look for a root disk.
+		for _, profile := range profiles {
+			_, dev, err := instancetype.GetRootDiskDevice(profile.Devices)
+			if err != nil {
+				continue
+			}
+
+			newRootDev = dev
+			break
+		}
+
+		// Check if root disk coming from profiles is suitable, if not, copy the current one.
+		if newRootDev == nil ||
+			newRootDev["pool"] != currentRootDev["pool"] ||
+			newRootDev["size"] != currentRootDev["size"] ||
+			newRootDev["size.state"] != currentRootDev["size.state"] {
+			targetInstInfo.Devices[currentRootDevKey] = currentRootDev
+		}
+	}
+
+	// Use a temporary instance name if needed.
+	targetInstName := inst.Name()
+	if req.Project == "" {
+		targetInstName, err = instance.MoveTemporaryName(inst)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Create the target instance.
+	destOp, err := target.CreateInstance(api.InstancesPost{
+		Name:        targetInstName,
+		InstancePut: targetInstInfo.Writable(),
+		Type:        api.InstanceType(targetInstInfo.Type),
+		Source: api.InstanceSource{
+			Type:                     "copy",
+			Source:                   inst.Name(),
+			Project:                  inst.Project().Name,
+			InstanceOnly:             req.InstanceOnly,
+			OverrideSnapshotProfiles: req.OverrideSnapshotProfiles,
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Failed requesting instance create on destination: %w", err)
+	}
+
+	// Setup a progress handler.
+	handler := func(newOp api.Operation) {
+		_ = op.UpdateMetadata(newOp.Metadata)
+	}
+
+	_, err = destOp.AddHandler(handler)
+	if err != nil {
+		return nil, err
+	}
+
+	// Wait for the migration to complete.
+	err = destOp.Wait()
+	if err != nil {
+		return nil, fmt.Errorf("Instance move to destination failed: %w", err)
+	}
+
+	// Update any permissions relating to the old instance to point to the new instance before it is deleted.
+	// Warnings relating to the old instance will be deleted.
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		q := `UPDATE auth_groups_permissions SET entity_id = ? WHERE entity_type = ? AND entity_id = ?`
+		targetInstID, err := dbCluster.GetInstanceID(ctx, tx.Tx(), targetProject, inst.Name())
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.Tx().ExecContext(ctx, q, targetInstID, dbCluster.EntityType(entity.TypeInstance), inst.ID())
+		return err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Failed to copy instance permissions: %w", err)
+	}
+
+	// Delete the source instance.
+	err = inst.Delete(true)
+	if err != nil {
+		return nil, err
+	}
+
+	// If using a temporary name, rename it.
+	if targetInstName != inst.Name() {
+		op, err := target.RenameInstance(targetInstName, api.InstancePost{Name: inst.Name()})
+		if err != nil {
+			return nil, err
+		}
+
+		err = op.Wait()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Reload the instance.
+	reloadedInst, err := instance.LoadByProjectAndName(s, targetProject, inst.Name())
+	if err != nil {
+		return nil, err
+	}
+
+	// Clear the pool and project part of the request.
+	req.Pool = ""
+	req.Project = ""
+
+	return reloadedInst, nil
+}
+
 // Perform the server-side migration.
 func migrateInstance(ctx context.Context, s *state.State, inst instance.Instance, req api.InstancePost, sourceMemberInfo *db.NodeInfo, targetMemberInfo *db.NodeInfo, op *operations.Operation) error {
 	// Load the instance storage pool.
@@ -591,176 +767,10 @@ func migrateInstance(ctx context.Context, s *state.State, inst instance.Instance
 
 	// Handle pool and project moves.
 	if req.Project != "" || req.Pool != "" {
-		// Get a local client.
-		target, err := lxd.ConnectLXDUnix(s.OS.GetUnixSocket(), nil)
+		inst, err = migrateLocal(ctx, s, inst, &req, targetInstInfo, targetMemberInfo, op)
 		if err != nil {
 			return err
 		}
-
-		if targetMemberInfo != nil {
-			target = target.UseTarget(targetMemberInfo.Name)
-		} else if s.ServerClustered {
-			target = target.UseTarget(inst.Location())
-		}
-
-		targetProject := inst.Project().Name
-		if req.Project != "" {
-			target = target.UseProject(req.Project)
-			targetProject = req.Project
-		}
-
-		// Check if we have a root disk in local config.
-		_, _, err = instancetype.GetRootDiskDevice(targetInstInfo.Devices)
-		if err != nil && req.Project != "" {
-			// If not and we're dealing with project copy, let's get one.
-			var newRootDev map[string]string
-
-			// Get current root disk.
-			currentRootDevKey, currentRootDev, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
-			if err != nil {
-				return err
-			}
-
-			// Load the profiles.
-			profiles := []api.Profile{}
-
-			err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-				rawProfiles, err := dbCluster.GetProfilesIfEnabled(ctx, tx.Tx(), targetProject, targetInstInfo.Profiles)
-				if err != nil {
-					return err
-				}
-
-				profileConfigs, err := dbCluster.GetConfig(ctx, tx.Tx(), "profile")
-				if err != nil {
-					return err
-				}
-
-				profileDevices, err := dbCluster.GetDevices(ctx, tx.Tx(), "profile")
-				if err != nil {
-					return err
-				}
-
-				for _, profile := range rawProfiles {
-					apiProfile, err := profile.ToAPI(ctx, tx.Tx(), profileConfigs, profileDevices)
-					if err != nil {
-						return err
-					}
-
-					profiles = append(profiles, *apiProfile)
-				}
-
-				return nil
-			})
-			if err != nil {
-				return err
-			}
-
-			// Go through expected profiles and look for a root disk.
-			for _, profile := range profiles {
-				_, dev, err := instancetype.GetRootDiskDevice(profile.Devices)
-				if err != nil {
-					continue
-				}
-
-				newRootDev = dev
-				break
-			}
-
-			// Check if root disk coming from profiles is suitable, if not, copy the current one.
-			if newRootDev == nil ||
-				newRootDev["pool"] != currentRootDev["pool"] ||
-				newRootDev["size"] != currentRootDev["size"] ||
-				newRootDev["size.state"] != currentRootDev["size.state"] {
-				targetInstInfo.Devices[currentRootDevKey] = currentRootDev
-			}
-		}
-
-		// Use a temporary instance name if needed.
-		targetInstName := inst.Name()
-		if req.Project == "" {
-			targetInstName, err = instance.MoveTemporaryName(inst)
-			if err != nil {
-				return err
-			}
-		}
-
-		// Create the target instance.
-		destOp, err := target.CreateInstance(api.InstancesPost{
-			Name:        targetInstName,
-			InstancePut: targetInstInfo.Writable(),
-			Type:        api.InstanceType(targetInstInfo.Type),
-			Source: api.InstanceSource{
-				Type:                     "copy",
-				Source:                   inst.Name(),
-				Project:                  inst.Project().Name,
-				InstanceOnly:             req.InstanceOnly,
-				OverrideSnapshotProfiles: req.OverrideSnapshotProfiles,
-			},
-		})
-		if err != nil {
-			return fmt.Errorf("Failed requesting instance create on destination: %w", err)
-		}
-
-		// Setup a progress handler.
-		handler := func(newOp api.Operation) {
-			_ = op.UpdateMetadata(newOp.Metadata)
-		}
-
-		_, err = destOp.AddHandler(handler)
-		if err != nil {
-			return err
-		}
-
-		// Wait for the migration to complete.
-		err = destOp.Wait()
-		if err != nil {
-			return fmt.Errorf("Instance move to destination failed: %w", err)
-		}
-
-		// Update any permissions relating to the old instance to point to the new instance before it is deleted.
-		// Warnings relating to the old instance will be deleted.
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			q := `UPDATE auth_groups_permissions SET entity_id = ? WHERE entity_type = ? AND entity_id = ?`
-			targetInstID, err := dbCluster.GetInstanceID(ctx, tx.Tx(), targetProject, inst.Name())
-			if err != nil {
-				return err
-			}
-
-			_, err = tx.Tx().ExecContext(ctx, q, targetInstID, dbCluster.EntityType(entity.TypeInstance), inst.ID())
-			return err
-		})
-		if err != nil {
-			return fmt.Errorf("Failed to copy instance permissions: %w", err)
-		}
-
-		// Delete the source instance.
-		err = inst.Delete(true)
-		if err != nil {
-			return err
-		}
-
-		// If using a temporary name, rename it.
-		if targetInstName != inst.Name() {
-			op, err := target.RenameInstance(targetInstName, api.InstancePost{Name: inst.Name()})
-			if err != nil {
-				return err
-			}
-
-			err = op.Wait()
-			if err != nil {
-				return err
-			}
-		}
-
-		// Reload the instance.
-		inst, err = instance.LoadByProjectAndName(s, targetProject, inst.Name())
-		if err != nil {
-			return err
-		}
-
-		// Clear the pool and project part of the request.
-		req.Pool = ""
-		req.Project = ""
 	}
 
 	// Handle remote migrations (location changes).
