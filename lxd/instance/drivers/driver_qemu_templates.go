@@ -79,6 +79,8 @@ func qemuMachineType(architecture int) string {
 		machineType = "virt"
 	case osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN:
 		machineType = "pseries"
+	case osarch.ARCH_64BIT_RISCV_LITTLE_ENDIAN:
+		machineType = "virt"
 	case osarch.ARCH_64BIT_S390_BIG_ENDIAN:
 		machineType = "s390-ccw-virtio"
 	}
@@ -92,6 +94,7 @@ type qemuBaseOpts struct {
 
 func qemuBase(opts *qemuBaseOpts) []cfgSection {
 	machineType := qemuMachineType(opts.architecture)
+	acpi := ""
 	gicVersion := ""
 	capLargeDecr := ""
 
@@ -100,6 +103,8 @@ func qemuBase(opts *qemuBaseOpts) []cfgSection {
 		gicVersion = "max"
 	case osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN:
 		capLargeDecr = "off"
+	case osarch.ARCH_64BIT_RISCV_LITTLE_ENDIAN:
+		acpi = "off"
 	}
 
 	sections := []cfgSection{{
@@ -108,6 +113,7 @@ func qemuBase(opts *qemuBaseOpts) []cfgSection {
 		entries: []cfgEntry{
 			{key: "graphics", value: "off"},
 			{key: "type", value: machineType},
+			{key: "acpi", value: acpi},
 			{key: "gic-version", value: gicVersion},
 			{key: "cap-large-decr", value: capLargeDecr},
 			{key: "accel", value: "kvm"},
