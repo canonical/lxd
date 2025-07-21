@@ -1644,14 +1644,14 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, leases)
 }
 
-func networkStartup(stateFunc func() *state.State) error {
+func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 	var err error
 
-	// Build a list of networks to initialise, keyed by project and network name.
+	// Build a list of networks to start, keyed by project and network name.
 	const networkPriorityStandalone = 0 // Start networks not dependent on any other network first.
 	const networkPriorityPhysical = 1   // Start networks dependent on physical interfaces second.
 	const networkPriorityLogical = 2    // Start networks dependent logical networks third.
-	initNetworks := []map[network.ProjectNetwork]struct{}{
+	startNetworks := []map[network.ProjectNetwork]struct{}{
 		networkPriorityStandalone: make(map[network.ProjectNetwork]struct{}),
 		networkPriorityPhysical:   make(map[network.ProjectNetwork]struct{}),
 		networkPriorityLogical:    make(map[network.ProjectNetwork]struct{}),
@@ -1679,14 +1679,35 @@ func networkStartup(stateFunc func() *state.State) error {
 			NetworkName: n.Name(),
 		}
 
-		delete(initNetworks[priority], pn)
+		delete(startNetworks[priority], pn)
 
 		_ = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(s.DB.Cluster, n.Project(), warningtype.NetworkUnvailable, entity.TypeNetwork, int(n.ID()))
 
 		return nil
 	}
 
-	loadAndInitNetwork := func(s *state.State, pn network.ProjectNetwork, priority int, firstPass bool) error {
+	restoreNetwork := func(n network.Network, priority int) error {
+		if n.LocalStatus() != api.NetworkStatusCreated {
+			return fmt.Errorf("Cannot restore network %q when not in created state", n.Name())
+		}
+
+		err = n.Restore()
+		if err != nil {
+			return fmt.Errorf("Failed restoring network: %w", err)
+		}
+
+		// Network restored successfully so remove it from the list.
+		// Otherwise the network startup might enter a retry loop which is not desired when restoring a network.
+		pn := network.ProjectNetwork{
+			ProjectName: n.Project(),
+			NetworkName: n.Name(),
+		}
+
+		delete(startNetworks[priority], pn)
+		return nil
+	}
+
+	loadAndStartupNetwork := func(s *state.State, pn network.ProjectNetwork, priority int, firstPass bool, restoreOnly bool) error {
 		var err error
 		var n network.Network
 
@@ -1699,7 +1720,7 @@ func networkStartup(stateFunc func() *state.State) error {
 				if api.StatusErrorCheck(err, http.StatusNotFound) {
 					// Network has been deleted since we began trying to start it so delete
 					// entry.
-					delete(initNetworks[priority], pn)
+					delete(startNetworks[priority], pn)
 
 					return nil
 				}
@@ -1718,30 +1739,31 @@ func networkStartup(stateFunc func() *state.State) error {
 		if netConfig["parent"] != "" && priority != networkPriorityPhysical {
 			// Start networks that depend on physical interfaces existing after
 			// non-dependent networks.
-			delete(initNetworks[priority], pn)
-			initNetworks[networkPriorityPhysical][pn] = struct{}{}
+			delete(startNetworks[priority], pn)
+			startNetworks[networkPriorityPhysical][pn] = struct{}{}
 
 			return nil
 		} else if (netConfig["network"] != "" || netConfig["bridge.external_interfaces"] != "") && priority != networkPriorityLogical {
 			// Start networks that depend on other logical networks after
 			// non-dependent networks and networks that depend on physical interfaces.
-			delete(initNetworks[priority], pn)
-			initNetworks[networkPriorityLogical][pn] = struct{}{}
+			delete(startNetworks[priority], pn)
+			startNetworks[networkPriorityLogical][pn] = struct{}{}
 
 			return nil
 		}
 
-		err = initNetwork(s, n, priority)
-		if err != nil {
-			return err
+		// When restoring a network don't enter the initNetwork function and simply run the network's Restore.
+		// The init takes care of e.g. clearing warnings related to the overall start of the network.
+		if restoreOnly {
+			return restoreNetwork(n, priority)
 		}
 
-		return nil
+		return initNetwork(s, n, priority)
 	}
 
 	remainingNetworksCount := func() int {
 		remainingNetworks := 0
-		for _, projectNetworks := range initNetworks {
+		for _, projectNetworks := range startNetworks {
 			remainingNetworks += len(projectNetworks)
 		}
 
@@ -1771,7 +1793,7 @@ func networkStartup(stateFunc func() *state.State) error {
 					}
 
 					// Assume all networks are networkPriorityStandalone initially.
-					initNetworks[networkPriorityStandalone][pn] = struct{}{}
+					startNetworks[networkPriorityStandalone][pn] = struct{}{}
 				}
 			}
 
@@ -1782,10 +1804,16 @@ func networkStartup(stateFunc func() *state.State) error {
 		}
 
 		// Try initializing networks in priority order.
-		for priority := range initNetworks {
-			for pn := range initNetworks[priority] {
-				err := loadAndInitNetwork(s, pn, priority, true)
+		for priority := range startNetworks {
+			for pn := range startNetworks[priority] {
+				err := loadAndStartupNetwork(s, pn, priority, true, restoreOnly)
 				if err != nil {
+					// When restoring a network the operation is not allowed to fail.
+					// The network is already started at this stage which might have taken multiple retries.
+					if restoreOnly {
+						return err
+					}
+
 					logger.Error("Failed initializing network", logger.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
 
 					continue
@@ -1814,9 +1842,9 @@ func networkStartup(stateFunc func() *state.State) error {
 					tryInstancesStart := false
 
 					// Try initializing networks in priority order.
-					for priority := range initNetworks {
-						for pn := range initNetworks[priority] {
-							err := loadAndInitNetwork(s, pn, priority, false)
+					for priority := range startNetworks {
+						for pn := range startNetworks[priority] {
+							err := loadAndStartupNetwork(s, pn, priority, false, restoreOnly)
 							if err != nil {
 								logger.Error("Failed initializing network", logger.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
 
@@ -1858,13 +1886,13 @@ func networkStartup(stateFunc func() *state.State) error {
 		// This unblocks any waitready caller using the --network flag.
 		stateFunc().NetworkReady.Cancel()
 
-		logger.Info("All networks initialized")
+		logger.Info("All networks started")
 	}
 
 	return nil
 }
 
-func networkingStop(s *state.State) {
+func networkStop(s *state.State, evacuateOnly bool) {
 	if s.DB.Cluster == nil {
 		logger.Warn("Skipping networks stop due to global database not being available")
 		return
@@ -1908,9 +1936,19 @@ func networkingStop(s *state.State) {
 				continue
 			}
 
-			err = n.Stop()
+			if evacuateOnly {
+				if n.LocalStatus() != api.NetworkStatusCreated {
+					logger.Error("Failed evacuating network, not in created state", logger.Ctx{"network": name, "project": projectName})
+					continue
+				}
+
+				err = n.Evacuate()
+			} else {
+				err = n.Stop()
+			}
+
 			if err != nil {
-				logger.Error("Failed to bring down network", logger.Ctx{"err": err, "project": projectName, "name": name})
+				logger.Error("Failed to bring down network", logger.Ctx{"err": err, "project": projectName, "name": name, "evacuate": evacuateOnly})
 			}
 		}
 	}
