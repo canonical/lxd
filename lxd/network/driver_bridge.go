@@ -1000,8 +1000,8 @@ func (n *bridge) Rename(newName string) error {
 	}
 
 	// Rename forkdns log file.
-	forkDNSLogPath := "forkdns." + n.name + ".log"
-	if shared.PathExists(shared.LogPath(forkDNSLogPath)) {
+	forkDNSLogPath := shared.LogPath("forkdns." + n.name + ".log")
+	if shared.PathExists(forkDNSLogPath) {
 		err := os.Rename(forkDNSLogPath, shared.LogPath("forkdns."+newName+".log"))
 		if err != nil {
 			return err
