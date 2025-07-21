@@ -48,6 +48,8 @@ type Network interface {
 	Create(clientType request.ClientType) error
 	Start() error
 	Stop() error
+	Evacuate() error
+	Restore() error
 	Rename(name string) error
 	Update(newNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error
 	HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error

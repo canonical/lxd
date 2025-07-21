@@ -427,7 +427,7 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 		}
 
 		// Restart the networks (to pickup forkdns and the like).
-		err = networkStartup(d.State)
+		err = networkStartup(d.State, false)
 		if err != nil {
 			return err
 		}
@@ -862,7 +862,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 		// Start up networks so any post-join changes can be applied now that we have a Node ID.
 		logger.Debug("Starting networks after cluster join")
-		err = networkStartup(d.State)
+		err = networkStartup(d.State, false)
 		if err != nil {
 			logger.Errorf("Failed starting networks: %v", err)
 		}
@@ -3326,8 +3326,8 @@ func evacuateClusterMember(s *state.State, gateway *cluster.Gateway, r *http.Req
 			return err
 		}
 
-		// Stop networks after evacuation.
-		networkingStop(s)
+		// Evacuate networks too.
+		networkStop(s, true)
 
 		revert.Success()
 		return nil
@@ -3515,8 +3515,8 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 
 		metadata := make(map[string]any)
 
-		// Restart the networks.
-		err = networkStartup(d.State)
+		// Restore the networks.
+		err = networkStartup(d.State, true)
 		if err != nil {
 			return err
 		}
