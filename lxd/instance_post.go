@@ -453,6 +453,27 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
+// migrateHandleRename handles the rename part of a migration.
+func migrateHandleRename(s *state.State, inst instance.Instance, req *api.InstancePost) (instance.Instance, error) {
+	if req.Name == "" {
+		return inst, nil
+	}
+
+	err := inst.Rename(req.Name, true)
+	if err != nil {
+		return nil, err
+	}
+
+	reloadedInst, err := instance.LoadByProjectAndName(s, inst.Project().Name, req.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	// Clear the rename part of the request.
+	req.Name = ""
+	return reloadedInst, nil
+}
+
 // Perform the server-side migration.
 func migrateInstance(ctx context.Context, s *state.State, inst instance.Instance, req api.InstancePost, sourceMemberInfo *db.NodeInfo, targetMemberInfo *db.NodeInfo, op *operations.Operation) error {
 	// Load the instance storage pool.
@@ -547,19 +568,9 @@ func migrateInstance(ctx context.Context, s *state.State, inst instance.Instance
 	// Handle local changes (name, project, storage).
 
 	// Handle the renames first.
-	if req.Name != "" {
-		err := inst.Rename(req.Name, true)
-		if err != nil {
-			return err
-		}
-
-		inst, err = instance.LoadByProjectAndName(s, inst.Project().Name, req.Name)
-		if err != nil {
-			return err
-		}
-
-		// Clear the rename part of the request.
-		req.Name = ""
+	inst, err = migrateHandleRename(s, inst, &req)
+	if err != nil {
+		return err
 	}
 
 	// Handle pool and project moves.
