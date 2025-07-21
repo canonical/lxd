@@ -566,14 +566,17 @@ func (n *common) configChanged(newNetwork api.NetworkPut) (bool, []string, api.N
 
 // rename the network directory, update database record and update internal variables.
 func (n *common) rename(newName string) error {
+	oldNamePath := shared.VarPath("networks", n.name)
+	newNamePath := shared.VarPath("networks", newName)
+
 	// Clear new directory if exists.
-	if shared.PathExists(shared.VarPath("networks", newName)) {
-		_ = os.RemoveAll(shared.VarPath("networks", newName))
+	if shared.PathExists(newNamePath) {
+		_ = os.RemoveAll(newNamePath)
 	}
 
 	// Rename directory to new name.
-	if shared.PathExists(shared.VarPath("networks", n.name)) {
-		err := os.Rename(shared.VarPath("networks", n.name), shared.VarPath("networks", newName))
+	if shared.PathExists(oldNamePath) {
+		err := os.Rename(oldNamePath, newNamePath)
 		if err != nil {
 			return err
 		}
