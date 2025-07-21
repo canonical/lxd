@@ -9410,3 +9410,55 @@ func (d *qemu) shortenedFilePath(originalSockPath string, fdFiles *[]*os.File) (
 
 	return fmt.Sprintf("/dev/fd/%d", d.addFileDescriptor(fdFiles, socketFile)), nil
 }
+
+// generateAgentMountsFile generates the agent mounts file for the QEMU instance (if disk config has changed).
+// This file is used by the agent to mount custom volumes and host filesystem shares into the VM.
+func (d *qemu) generateAgentMountsFile() error {
+	drives := d.expandedDevices.Filter(filters.Or(filters.IsCustomVolumeFilesystemDisk, filters.IsHostFilesystemShareDisk)).Sorted()
+	agentMounts := make([]instancetype.VMAgentMount, 0, len(drives))
+
+	for _, drive := range drives {
+		agentMount := instancetype.VMAgentMount{
+			Source: qemuDeviceNameOrID(qemuDeviceNamePrefix, drive.Name, "", qemuDeviceNameMaxLength),
+			Target: drive.Config["path"],
+
+			// Used by the agent to determine the type of mount (but it tries mounting virtiofs first).
+			FSType: "9p",
+
+			// Ask agent to use the 9p virtio transport for 9p mounts to support more VM guest OSes.
+			// Also set the msize to 32MB to allow for reasonably fast 9p access.
+			Options: []string{"trans=virtio,msize=33554432"},
+		}
+
+		// Indicate to agent to mount this readonly. Note: This is purely to indicate to VM guest that this
+		// is readonly, it should *not* be used as a security measure, as the VM guest could remount it R/W.
+		// However this same option is used when adding the device to the VM to enforce readonly access.
+		if shared.IsTrue(drive.Config["readonly"]) {
+			agentMount.Options = append(agentMount.Options, "ro")
+		}
+
+		agentMounts = append(agentMounts, agentMount)
+	}
+
+	newAgentMountJSON, err := json.Marshal(agentMounts)
+	if err != nil {
+		return fmt.Errorf("Failed marshalling agent mounts to JSON: %w", err)
+	}
+
+	agentMountFile := filepath.Join(d.Path(), "config", "agent-mounts.json")
+
+	// Check if agent mounts file already exists and if it matches the new one.
+	curAgentMountJSON, _ := os.ReadFile(agentMountFile)
+	if bytes.Equal(curAgentMountJSON, newAgentMountJSON) {
+		return nil // No change, nothing to do.
+	}
+
+	// Write the agent mount config.
+	d.logger.Debug("Writing agent mounts config", logger.Ctx{"file": agentMountFile})
+	err = os.WriteFile(agentMountFile, newAgentMountJSON, 0400)
+	if err != nil {
+		return fmt.Errorf("Failed writing agent mounts file: %w", err)
+	}
+
+	return nil
+}
