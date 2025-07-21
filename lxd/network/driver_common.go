@@ -319,6 +319,11 @@ func (n *common) ValidateName(name string) error {
 		return fmt.Errorf("Cannot contain %q", ":")
 	}
 
+	// Defend against path traversal attacks.
+	if !shared.IsFileName(name) {
+		return fmt.Errorf("Invalid name %q, may not contain slashes or consecutive dots", name)
+	}
+
 	return nil
 }
 
