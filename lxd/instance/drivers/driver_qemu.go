@@ -1822,59 +1822,11 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStarted.Event(d, nil))
 	}
 
-	// Wait for PCIe devices to be ready before proceeding.
-	// Otherwise a device may be added straight after the VM has started and detect a used slot as being free.
-	if qemuBus == "pcie" {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		err = d.waitPCIeDevicesReady(ctx, monitor)
-		if err != nil {
-			return fmt.Errorf("Failed waiting for PCIe devices to be ready: %w", err)
-		}
-	}
-
 	// The VM started cleanly so now enable the unexpected disconnection event to ensure the onStop hook is
 	// run if QMP unexpectedly disconnects.
 	monitor.SetOnDisconnectEvent(true)
 	op.Done(nil)
 	return nil
-}
-
-// waitPCIeDevicesReady waits for QEMU to report that the PCIe devices added at startup are ready to use.
-func (d *qemu) waitPCIeDevicesReady(ctx context.Context, monitor *qmp.Monitor) error {
-	checkDevices := func(monitor *qmp.Monitor) error {
-		devices, err := monitor.QueryPCI()
-		if err != nil {
-			return fmt.Errorf("Failed to query PCI devices: %w", err)
-		}
-
-		for _, dev := range devices {
-			if len(dev.Bridge.Devices) > 0 {
-				// Found a used bridge, so stop checking,
-				// as this indicates that the PCIe devices are ready.
-				return nil
-			}
-		}
-
-		return errors.New("No used PCIe bridges found")
-	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(500 * time.Millisecond):
-		}
-
-		err := checkDevices(monitor)
-		if err != nil {
-			d.logger.Debug("Waiting for PCIe devices to be ready", logger.Ctx{"err": err})
-			continue
-		}
-
-		return nil
-	}
 }
 
 // FirmwarePath returns the path to firmware, set at start time.
@@ -2329,17 +2281,17 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 	reverter.Add(func() { _ = monitor.RemoveCharDevice(deviceID) })
 
 	// Try to get a PCI address for hotplugging.
-	pciDeviceName, err := d.getPCIHotplug()
+	busName, busAddr, _, err := d.getPCIHotplug()
 	if err != nil {
 		return "", err
 	}
 
-	d.logger.Debug("Using PCI bus device to hotplug virtiofs into", logger.Ctx{"device": deviceName, "port": pciDeviceName})
+	d.logger.Debug("Using PCI bus device to hotplug virtiofs into", logger.Ctx{"device": deviceName, "port": busName})
 
 	qemuDev := map[string]any{
 		"driver":  "vhost-user-fs-pci",
-		"bus":     pciDeviceName,
-		"addr":    "00.0",
+		"bus":     busName,
+		"addr":    busAddr,
 		"tag":     mountTag,
 		"chardev": deviceID,
 		"id":      deviceID,
@@ -2347,7 +2299,7 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 
 	err = monitor.AddDevice(qemuDev)
 	if err != nil {
-		return "", fmt.Errorf("Failed to add the virtiofs device: %w", err)
+		return "", fmt.Errorf("Failed to add the virtiofs device to port %q: %w", busName, err)
 	}
 
 	reverter.Success()
@@ -2361,7 +2313,7 @@ func (d *qemu) deviceAttachBlockDevice(mount deviceConfig.MountEntryItem) error 
 		return fmt.Errorf("Failed to connect to QMP monitor: %w", err)
 	}
 
-	monHook, err := d.addDriveConfig(nil, nil, mount)
+	monHook, err := d.addDriveConfig(d.getPCIHotplug, nil, mount)
 	if err != nil {
 		return fmt.Errorf("Failed to add drive config: %w", err)
 	}
@@ -2480,14 +2432,12 @@ func (d *qemu) deviceAttachNIC(deviceName string, netIF []deviceConfig.RunConfig
 	// PCIe and PCI require a port device name to hotplug the NIC into.
 	if slices.Contains([]string{"pcie", "pci"}, qemuBus) {
 		// Try to get a PCI address for hotplugging.
-		pciDeviceName, err := d.getPCIHotplug()
+		qemuDev["bus"], qemuDev["addr"], _, err = d.getPCIHotplug()
 		if err != nil {
 			return err
 		}
 
-		d.logger.Debug("Using PCI bus device to hotplug NIC into", logger.Ctx{"device": deviceName, "port": pciDeviceName})
-		qemuDev["bus"] = pciDeviceName
-		qemuDev["addr"] = "00.0"
+		d.logger.Debug("Using PCI bus device to hotplug NIC into", logger.Ctx{"device": deviceName, "port": qemuDev["bus"]})
 	}
 
 	monHook, err := d.addNetDevConfig(qemuBus, qemuDev, nil, netIF)
@@ -2503,36 +2453,66 @@ func (d *qemu) deviceAttachNIC(deviceName string, netIF []deviceConfig.RunConfig
 	return nil
 }
 
-// getPCIHotplug returns an available PCI device ID that can be used for hotplugging.
-func (d *qemu) getPCIHotplug() (string, error) {
+// getPCIHotplug returns an available PCI device bus name and address that can be used for hotplugging.
+// multi will always be false but is included for compatibility with busAllocator interface.
+func (d *qemu) getPCIHotplug() (busName string, busAddress string, multi bool, err error) {
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
-		return "", err
+		return "", "", false, err
 	}
 
-	// Get the current PCI devices.
-	devices, err := monitor.QueryPCI()
-	if err != nil {
-		return "", err
+	hasUsedBridges := func(devices []qmp.PCIDevice) bool {
+		for _, dev := range devices {
+			if len(dev.Bridge.Devices) > 0 {
+				return true
+			}
+		}
+
+		return false
 	}
 
-	for _, dev := range devices {
-		// Skip built-in devices.
-		if dev.DevID == "" {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	for {
+		// Get the current PCI devices.
+		devices, err := monitor.QueryPCI()
+		if err != nil {
+			return "", "", false, fmt.Errorf("Failed to query PCI devices: %w", err)
+		}
+
+		if !hasUsedBridges(devices) {
+			// Wait for PCI bridges to be created (with the internal devices LXD adds) to ensure QEMU
+			// has had time to initialise the QMP query-pci output.
+			// Otherwise we'll end up trying to hotplug into a used PCI slot.
+			d.logger.Debug("Waiting for PCI to initialize")
+
+			select {
+			case <-ctx.Done():
+				return "", "", false, fmt.Errorf("Timed out waiting for PCI to initialize: %w", ctx.Err())
+			case <-time.After(500 * time.Millisecond):
+			}
+
 			continue
 		}
 
-		// Skip used bridges.
-		if len(dev.Bridge.Devices) > 0 {
-			continue
+		for _, dev := range devices {
+			// Skip built-in devices.
+			if dev.DevID == "" {
+				continue
+			}
+
+			// Skip used bridges.
+			if len(dev.Bridge.Devices) > 0 {
+				continue
+			}
+
+			// Found an empty slot.
+			return dev.DevID, "00.0", false, nil
 		}
 
-		// Found an empty slot.
-		return dev.DevID, nil
+		return "", "", false, errors.New("No available PCI hotplug slots could be found")
 	}
-
-	return "", errors.New("No available PCI hotplug slots could be found")
 }
 
 // deviceAttachPCI live attaches a generic PCI device to the instance.
@@ -2569,21 +2549,22 @@ func (d *qemu) deviceAttachPCI(deviceName string, pciConfig []deviceConfig.RunCo
 	}
 
 	// Try to get a PCI address for hotplugging.
-	pciDeviceName, err := d.getPCIHotplug()
+	busName, busAddr, _, err := d.getPCIHotplug()
 	if err != nil {
 		return err
 	}
 
-	qemuDev := make(map[string]any)
+	d.logger.Debug("Using PCI bus device to hotplug device into", logger.Ctx{"device": deviceName, "port": busName})
+
 	escapedDeviceName := filesystem.PathNameEncode(devName)
 
-	d.logger.Debug("Using PCI bus device to hotplug device into", logger.Ctx{"device": deviceName, "port": pciDeviceName})
-
-	qemuDev["bus"] = pciDeviceName
-	qemuDev["addr"] = "00.0"
-	qemuDev["driver"] = "vfio-pci"
-	qemuDev["id"] = fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
-	qemuDev["host"] = pciSlotName
+	qemuDev := map[string]any{
+		"driver": "vfio-pci",
+		"bus":    busName,
+		"addr":   busAddr,
+		"id":     qemuDeviceIDPrefix + escapedDeviceName,
+		"host":   pciSlotName,
+	}
 
 	if d.state.OS.UnprivUser != "" {
 		if pciIOMMUGroup == "" {
@@ -3629,6 +3610,12 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 	// Record the mounts we are going to do inside the VM using the agent.
 	agentMounts := []instancetype.VMAgentMount{}
 
+	// Setup a bus allocator for use with generating QEMU pre-boot config file.
+	busAllocate := func() (busName string, busAddress string, multi bool, err error) {
+		busName, busAddr, multi := bus.allocate(busFunctionGroupNone)
+		return busName, busAddr, multi, nil
+	}
+
 	// These devices are sorted so that NICs are added first to ensure that the first NIC can use the 5th
 	// PCIe bus port and will be consistently named enp5s0 for compatibility with network configuration in our
 	// existing VM images. Even on non-PCIe busses having NICs first means that their names won't change when
@@ -3639,38 +3626,12 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 			for _, drive := range runConf.Mounts {
 				var monHook monitorHook
 
-				// Check if the user has overridden the bus.
-				busName := "virtio-scsi"
-				for _, opt := range drive.Opts {
-					if !strings.HasPrefix(opt, "bus=") {
-						continue
-					}
-
-					busName = strings.TrimPrefix(opt, "bus=")
-					break
-				}
-
-				qemuDev := make(map[string]any)
-				if slices.Contains([]string{"nvme", "virtio-blk"}, busName) {
-					// Allocate a PCI(e) port and write it to the config file so QMP can "hotplug" the
-					// drive into it later.
-					devBus, devAddr, multi := bus.allocate(busFunctionGroupNone)
-
-					// Populate the qemu device with port info.
-					qemuDev["bus"] = devBus
-					qemuDev["addr"] = devAddr
-
-					if multi {
-						qemuDev["multifunction"] = true
-					}
-				}
-
 				if drive.TargetPath == "/" {
-					monHook, err = d.addRootDriveConfig(qemuDev, mountInfo, bootIndexes, drive)
+					monHook, err = d.addRootDriveConfig(busAllocate, mountInfo, bootIndexes, drive)
 				} else if drive.FSType == "9p" {
 					err = d.addDriveDirConfig(&cfg, bus, fdFiles, &agentMounts, drive)
 				} else {
-					monHook, err = d.addDriveConfig(qemuDev, bootIndexes, drive)
+					monHook, err = d.addDriveConfig(busAllocate, bootIndexes, drive)
 				}
 
 				if err != nil {
@@ -3897,7 +3858,7 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection, cpuInfo *cpuTopology) error
 }
 
 // addRootDriveConfig adds the qemu config required for adding the root drive.
-func (d *qemu) addRootDriveConfig(qemuDev map[string]any, mountInfo *storagePools.MountInfo, bootIndexes map[string]int, rootDriveConf deviceConfig.MountEntryItem) (monitorHook, error) {
+func (d *qemu) addRootDriveConfig(busAllocate busAllocator, mountInfo *storagePools.MountInfo, bootIndexes map[string]int, rootDriveConf deviceConfig.MountEntryItem) (monitorHook, error) {
 	if rootDriveConf.TargetPath != "/" {
 		return nil, errors.New("Non-root drive config supplied")
 	}
@@ -3949,7 +3910,7 @@ func (d *qemu) addRootDriveConfig(qemuDev map[string]any, mountInfo *storagePool
 		}
 	}
 
-	return d.addDriveConfig(qemuDev, bootIndexes, driveConf)
+	return d.addDriveConfig(busAllocate, bootIndexes, driveConf)
 }
 
 // addDriveDirConfig adds the qemu config required for adding a supplementary drive directory share.
@@ -3988,13 +3949,23 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 		}
 	}
 
+	// Setup a bus allocator for use with generating QEMU pre-boot config file.
+	busAllocate := func() (busName string, busAddress string, multi bool, err error) {
+		// Use per-LXD device multi-function group so that both virtiofs and 9p devices use same bus slot.
+		busName, busAddr, multi := bus.allocate("lxd_" + driveConf.DevName)
+		return busName, busAddr, multi, nil
+	}
+
 	// If there is a virtiofsd socket path setup the virtio-fs share.
 	if virtiofsdSockPath != "" {
 		if !shared.PathExists(virtiofsdSockPath) {
 			return fmt.Errorf("virtiofsd socket path %q doesn't exist", virtiofsdSockPath)
 		}
 
-		devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
+		devBus, devAddr, multi, err := busAllocate()
+		if err != nil {
+			return err
+		}
 
 		shortPath, err := d.shortenedFilePath(virtiofsdSockPath, fdFiles)
 		if err != nil {
@@ -4018,7 +3989,10 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 	}
 
 	// Add 9p share config.
-	devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
+	devBus, devAddr, multi, err := busAllocate()
+	if err != nil {
+		return err
+	}
 
 	fdSource, ok := driveConf.DevSource.(deviceConfig.DevSourceFD)
 	if !ok {
@@ -4046,7 +4020,17 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 }
 
 // addDriveConfig adds the qemu config required for adding a supplementary drive.
-func (d *qemu) addDriveConfig(qemuDev map[string]any, bootIndexes map[string]int, driveConf deviceConfig.MountEntryItem) (monitorHook, error) {
+func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]int, driveConf deviceConfig.MountEntryItem) (monitorHook, error) {
+	// Check if the user has overridden the bus.
+	busName := "virtio-scsi"
+	for _, opt := range driveConf.Opts {
+		name, found := strings.CutPrefix(opt, "bus=")
+		if found {
+			busName = name
+			break
+		}
+	}
+
 	aioMode := "native" // Use native kernel async IO and O_DIRECT by default.
 	cacheMode := "none" // Bypass host cache, use O_DIRECT semantics by default.
 	media := "disk"
@@ -4130,17 +4114,6 @@ func (d *qemu) addDriveConfig(qemuDev map[string]any, bootIndexes map[string]int
 	// Special case ISO images as cdroms.
 	if driveConf.FSType == "iso9660" {
 		media = "cdrom"
-	}
-
-	// Check if the user has overridden the bus.
-	bus := "virtio-scsi"
-	for _, opt := range driveConf.Opts {
-		if !strings.HasPrefix(opt, "bus=") {
-			continue
-		}
-
-		bus = strings.TrimPrefix(opt, "bus=")
-		break
 	}
 
 	// Check if the user has overridden the cache mode.
@@ -4243,12 +4216,9 @@ func (d *qemu) addDriveConfig(qemuDev map[string]any, bootIndexes map[string]int
 		blockDev["locking"] = "off"
 	}
 
-	if qemuDev == nil {
-		qemuDev = map[string]any{}
-	}
-
 	escapedDeviceName := filesystem.PathNameEncode(driveConf.DevName)
 
+	qemuDev := make(map[string]any)
 	qemuDev["id"] = qemuDeviceIDPrefix + escapedDeviceName
 	qemuDevDrive, ok := blockDev["node-name"].(string)
 	if !ok {
@@ -4256,7 +4226,6 @@ func (d *qemu) addDriveConfig(qemuDev map[string]any, bootIndexes map[string]int
 	}
 
 	qemuDev["drive"] = qemuDevDrive
-
 	qemuDeviceSerial := qemuDeviceNamePrefix + escapedDeviceName
 	qemuDev["serial"] = qemuDeviceSerial
 
@@ -4267,7 +4236,7 @@ func (d *qemu) addDriveConfig(qemuDev map[string]any, bootIndexes map[string]int
 		qemuDev["serial"] = qemuDeviceSerial[:36]
 	}
 
-	if bus == "virtio-scsi" {
+	if busName == "virtio-scsi" {
 		qemuDev["device_id"] = qemuDeviceSerial
 		qemuDev["channel"] = 0
 		qemuDev["lun"] = 1
@@ -4279,21 +4248,24 @@ func (d *qemu) addDriveConfig(qemuDev map[string]any, bootIndexes map[string]int
 		case "cdrom":
 			qemuDev["driver"] = "scsi-cd"
 		}
-	} else if slices.Contains([]string{"nvme", "virtio-blk"}, bus) {
-		qemuDevBus, ok := qemuDev["bus"].(string)
-		if !ok || qemuDevBus == "" {
-			// Try to get a PCI address for hotplugging.
-			pciDeviceName, err := d.getPCIHotplug()
-			if err != nil {
-				return nil, err
-			}
+	} else if slices.Contains([]string{"nvme", "virtio-blk"}, busName) {
+		qemuDev["driver"] = busName
 
-			d.logger.Debug("Using PCI bus device to hotplug drive into", logger.Ctx{"device": driveConf.DevName, "port": pciDeviceName})
-			qemuDev["bus"] = pciDeviceName
-			qemuDev["addr"] = "00.0"
+		// Allocate a device port.
+		devBus, devAddr, multi, err := busAllocate()
+		if err != nil {
+			return nil, fmt.Errorf("Failed allocating bus for disk device %q: %w", driveConf.DevName, err)
 		}
 
-		qemuDev["driver"] = bus
+		d.logger.Debug("Using device port to plug drive into", logger.Ctx{"device": driveConf.DevName, "port": devBus})
+
+		// Populate the qemu device with port info.
+		qemuDev["bus"] = devBus
+		qemuDev["addr"] = devAddr
+
+		if multi {
+			qemuDev["multifunction"] = true
+		}
 	}
 
 	if bootIndexes != nil {
