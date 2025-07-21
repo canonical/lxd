@@ -3607,9 +3607,6 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		return "", nil, fmt.Errorf("Error calculating boot indexes: %w", err)
 	}
 
-	// Record the mounts we are going to do inside the VM using the agent.
-	agentMounts := []instancetype.VMAgentMount{}
-
 	// Setup a bus allocator for use with generating QEMU pre-boot config file.
 	busAllocate := func() (busName string, busAddress string, multi bool, err error) {
 		busName, busAddr, multi := bus.allocate(busFunctionGroupNone)
@@ -3629,7 +3626,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 				if drive.TargetPath == "/" {
 					monHook, err = d.addRootDriveConfig(busAllocate, mountInfo, bootIndexes, drive)
 				} else if drive.FSType == "9p" {
-					err = d.addDriveDirConfig(&cfg, bus, fdFiles, &agentMounts, drive)
+					err = d.addDriveDirConfig(&cfg, bus, fdFiles, drive)
 				} else {
 					monHook, err = d.addDriveConfig(busAllocate, bootIndexes, drive)
 				}
@@ -3704,6 +3701,11 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		}
 	}
 
+	err = d.generateAgentMountsFile()
+	if err != nil {
+		return "", nil, fmt.Errorf("Failed generating agent mounts file: %w", err)
+	}
+
 	// VM generation ID is only available on x86.
 	if d.architecture == osarch.ARCH_64BIT_INTEL_X86 {
 		err = d.addVmgenDeviceConfig(&cfg, d.localConfig["volatile.uuid.generation"])
@@ -3715,18 +3717,6 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 	// Allocate 8 PCI slots for hotplug devices.
 	for range 8 {
 		bus.allocate(busFunctionGroupNone)
-	}
-
-	// Write the agent mount config.
-	agentMountJSON, err := json.Marshal(agentMounts)
-	if err != nil {
-		return "", nil, fmt.Errorf("Failed marshalling agent mounts to JSON: %w", err)
-	}
-
-	agentMountFile := filepath.Join(d.Path(), "config", "agent-mounts.json")
-	err = os.WriteFile(agentMountFile, agentMountJSON, 0400)
-	if err != nil {
-		return "", nil, fmt.Errorf("Failed writing agent mounts file: %w", err)
 	}
 
 	// process any user-specified overrides
@@ -3914,31 +3904,9 @@ func (d *qemu) addRootDriveConfig(busAllocate busAllocator, mountInfo *storagePo
 }
 
 // addDriveDirConfig adds the qemu config required for adding a supplementary drive directory share.
-func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os.File, agentMounts *[]instancetype.VMAgentMount, driveConf deviceConfig.MountEntryItem) error {
+func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os.File, driveConf deviceConfig.MountEntryItem) error {
 	mountTag := qemuDeviceNameOrID(qemuDeviceNamePrefix, driveConf.DevName, "", qemuDeviceNameMaxLength)
-
-	agentMount := instancetype.VMAgentMount{
-		Source: mountTag,
-		Target: driveConf.TargetPath,
-		FSType: driveConf.FSType,
-	}
-
-	// If mount type is 9p, we need to specify to use the virtio transport to support more VM guest OSes.
-	// Also set the msize to 32MB to allow for reasonably fast 9p access.
-	if agentMount.FSType == "9p" {
-		agentMount.Options = append(agentMount.Options, "trans=virtio,msize=33554432")
-	}
-
 	readonly := slices.Contains(driveConf.Opts, "ro")
-
-	// Indicate to agent to mount this readonly. Note: This is purely to indicate to VM guest that this is
-	// readonly, it should *not* be used as a security measure, as the VM guest could remount it R/W.
-	if readonly {
-		agentMount.Options = append(agentMount.Options, "ro")
-	}
-
-	// Record the 9p mount for the agent.
-	*agentMounts = append(*agentMounts, agentMount)
 
 	// Check if the disk device has provided a virtiofsd socket path.
 	var virtiofsdSockPath string
