@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -9,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"golang.org/x/sys/unix"
 
 	agentAPI "github.com/canonical/lxd/lxd-agent/api"
 	"github.com/canonical/lxd/lxd/device/filters"
@@ -196,6 +199,43 @@ func eventsProcess(event api.Event) {
 
 		l.Info("Failed to mount hotplug", logger.Ctx{"err": err})
 	case agentAPI.DeviceRemoved:
-		// Handle disk removal.
+		mountInfoFile, err := os.Open("/proc/self/mountinfo")
+		if err != nil {
+			l.Error("Error opening /proc/self/mountinfo", logger.Ctx{"err": err})
+			return
+		}
+
+		defer mountInfoFile.Close()
+
+		var mountPoint string
+		scanner := bufio.NewScanner(mountInfoFile)
+		trimmedPath := strings.TrimSuffix(targetPath, "/")
+
+		for scanner.Scan() {
+			fields := strings.Fields(scanner.Text())
+
+			// Check that the mount point that matches the target path exists.
+			if len(fields) >= 10 && fields[4] == trimmedPath {
+				mountPoint = fields[4]
+				break
+			}
+		}
+
+		err = scanner.Err()
+		if err != nil {
+			l.Error("Error reading /proc/self/mountinfo", logger.Ctx{"err": err})
+			return
+		}
+
+		if mountPoint == "" {
+			l.Error("Mount point not found")
+			return
+		}
+
+		err = unix.Unmount(mountPoint, unix.MNT_DETACH)
+		if err != nil {
+			l.Error("Failed to unmount", logger.Ctx{"err": err, "mountPoint": mountPoint})
+			return
+		}
 	}
 }
