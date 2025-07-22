@@ -192,7 +192,7 @@ For the channel, you must include at least the track, such as {{current_lts_trac
 sudo snap refresh lxd --channel=5.21
 ```
 
-When you upgrade LXD, if the database schema has changed, a backup of the database is stored in case of a need to downgrade. For more information, see {ref}`installing-upgrade`.
+If an upgrade of LXD includes a change to its database schema, LXD stores a backup of the database in case of a need to downgrade. For more information, see {ref}`installing-upgrade`.
 
 (howto-snap-configure)=
 ## Configure the snap
