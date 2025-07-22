@@ -37,6 +37,13 @@ lxd   5.21.3-c5ae129  33110  5.21/stable  canonical✓  -
 
 The first part of the version string corresponds to the LXD release (in this sample, `5.21.3`).
 
+(howto-snap-updates-vs-upgrades)=
+## Updates versus upgrades
+
+Updating the LXD snap means to refresh it to the release most recently published to its tracked channel. These updates are always within the same major version; they can be automatically or manually performed.
+
+Upgrading the LXD snap means {ref}`to change the tracked snap channel <howto-snap-change>` to a higher major version. Snap upgrades must be manually performed.
+
 (howto-snap-updates)=
 ## Manage updates
 
