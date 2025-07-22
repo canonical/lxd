@@ -171,6 +171,21 @@ Example:
 sudo enterprise-store override lxd stable=25846
 ```
 
+(howto-snap-change)=
+## Change the snap channel
+
+While it is possible to change the channel used at installation, proceed with caution.
+
+You can upgrade (move to a newer {ref}`track <ref-snap-tracks>`, such as from {{current_lts_track}} to {{current_feature_track}}), as well as move to different {ref}`risk level <ref-snap-risk>` with the same track. However, downgrading (moving to a channel with an older track, such as from {{current_feature_track}} to {{current_lts_track}}) is neither recommended nor supported, as breaking changes can exist between major versions.
+
+To change the channel, run:
+
+```bash
+sudo snap refresh lxd --channel=<target channel>
+```
+
+This command immediately updates the installed snap version.
+
 (howto-snap-configure)=
 ## Configure the snap
 
@@ -198,21 +213,6 @@ sudo snap get lxd
 ```
 
 For more information about snap configuration options, visit [Configure snaps](https://snapcraft.io/docs/configuration-in-snaps) in the Snap documentation.
-
-(howto-snap-change)=
-## Change the snap channel
-
-While it is possible to change the channel used at installation, proceed with caution.
-
-You can upgrade (move to a newer {ref}`track <ref-snap-tracks>`, such as from {{current_lts_track}} to {{current_feature_track}}), as well as move to different {ref}`risk level <ref-snap-risk>` with the same track. However, downgrading (moving to a channel with an older track, such as from {{current_feature_track}} to {{current_lts_track}}) is neither recommended nor supported, as breaking changes can exist between major versions.
-
-To change the channel, run:
-
-```bash
-sudo snap refresh lxd --channel=<target channel>
-```
-
-This command immediately updates the installed snap version.
 
 (howto-snap-daemon)=
 ## Manage the LXD daemon
