@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	agentAPI "github.com/canonical/lxd/lxd-agent/api"
 	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -120,10 +121,10 @@ func eventsProcess(event api.Event) {
 	}
 
 	type deviceEvent struct {
-		Action string                    `json:"action"`
-		Config map[string]string         `json:"config"`
-		Name   string                    `json:"name"`
-		Mount  instancetype.VMAgentMount `json:"mount"`
+		Action agentAPI.DeviceEventAction `json:"action"`
+		Config map[string]string          `json:"config"`
+		Name   string                     `json:"name"`
+		Mount  instancetype.VMAgentMount  `json:"mount"`
 	}
 
 	e := deviceEvent{}
@@ -132,31 +133,31 @@ func eventsProcess(event api.Event) {
 		return
 	}
 
-	// Only care about device additions, we don't try to handle remove.
-	if e.Action != "added" {
+	// Only handle device additions and removals.
+	if e.Action != agentAPI.DeviceAdded && e.Action != agentAPI.DeviceRemoved {
 		return
 	}
 
-	// We only handle disk hotplug.
+	// We only handle disk hotplug/removal.
 	if !filters.IsDisk(e.Config) {
 		return
 	}
 
 	// And only for path based devices.
-	if e.Config["path"] == "" {
+	targetPath := e.Config["path"]
+	if targetPath == "" {
 		return
 	}
 
-	// Attempt to perform the mount.
 	mntSource := "lxd_" + e.Name
 	if e.Mount.Source != "" {
 		mntSource = e.Mount.Source
 	}
 
-	l := logger.AddContext(logger.Ctx{"type": "virtiofs", "source": mntSource, "path": e.Config["path"]})
+	l := logger.AddContext(logger.Ctx{"type": "virtiofs", "source": mntSource, "path": targetPath})
 
 	// Reject path containing "..".
-	if strings.Contains(e.Config["path"], "..") {
+	if strings.Contains(targetPath, "..") {
 		l.Error("Invalid path containing '..'")
 		return
 	}
@@ -164,31 +165,37 @@ func eventsProcess(event api.Event) {
 	// If the path is not absolute, the mount will be created relative to the current directory.
 	// (since the mount command executed below originates from the `lxd-agent` binary that is in the `/run/lxd_agent` directory).
 	// This is not ideal and not consistent with the way mounts are handled with containers. For consistency make the path absolute.
-	e.Config["path"], err = filepath.Abs(e.Config["path"])
-	if err != nil || !strings.HasPrefix(e.Config["path"], "/") {
+	targetPath, err = filepath.Abs(targetPath)
+	if err != nil || !strings.HasPrefix(targetPath, "/") {
 		l.Error("Failed to make path absolute")
 		return
 	}
 
-	_ = os.MkdirAll(e.Config["path"], 0755)
+	switch e.Action {
+	case agentAPI.DeviceAdded:
+		_ = os.MkdirAll(targetPath, 0755)
 
-	// Parse mount options, if provided.
-	var args []string
-	if len(e.Mount.Options) > 0 {
-		args = append(args, "-o", strings.Join(e.Mount.Options, ","))
-	}
-
-	args = append(args, "-t", "virtiofs", mntSource, e.Config["path"])
-
-	for range 5 {
-		_, err = shared.RunCommandContext(context.Background(), "mount", args...)
-		if err == nil {
-			l.Info("Mounted hotplug")
-			return
+		// Parse mount options, if provided.
+		var args []string
+		if len(e.Mount.Options) > 0 {
+			args = append(args, "-o", strings.Join(e.Mount.Options, ","))
 		}
 
-		time.Sleep(500 * time.Millisecond)
-	}
+		args = append(args, "-t", "virtiofs", mntSource, targetPath)
 
-	l.Info("Failed to mount hotplug", logger.Ctx{"err": err})
+		// Attempt to perform the mount.
+		for range 5 {
+			_, err = shared.RunCommandContext(context.Background(), "mount", args...)
+			if err == nil {
+				l.Info("Mounted hotplug")
+				return
+			}
+
+			time.Sleep(500 * time.Millisecond)
+		}
+
+		l.Info("Failed to mount hotplug", logger.Ctx{"err": err})
+	case agentAPI.DeviceRemoved:
+		// Handle disk removal.
+	}
 }
