@@ -1884,6 +1884,7 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 	} else {
 		// All networks are ready.
 		// This unblocks any waitready caller using the --network flag.
+		// In case there aren't any networks, this just cancels the canceller.
 		stateFunc().NetworkReady.Cancel()
 
 		logger.Info("All networks started")
