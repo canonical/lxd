@@ -221,6 +221,8 @@ fine_grained: true"
   lxc auth group permission remove test-group server viewer
   lxc auth group permission remove test-group server project_manager
 
+  LXD_CONF="${LXD_CONF2}" events_filtering
+
   # Check storage pool used-by URLs
   storage_pool_used_by "oidc"
   LXD_CONF="${LXD_CONF2}" storage_pool_used_by "tls"
@@ -322,6 +324,65 @@ fine_grained: true"
   lxc config unset core.remote_token_expiry
   lxc config unset oidc.issuer
   lxc config unset oidc.client.id
+}
+
+events_filtering() {
+  monfile="${TEST_DIR}/monitor-out.jsonl"
+
+  # Monitor as fine-grained identity with no permissions.
+  lxc remote switch tls
+  lxc monitor --all-projects --format json > "${monfile}" &
+  monitor_pid=$!
+  sleep 0.1
+  lxc remote switch local
+
+  # Create an image via unix socket, then kill the monitor process.
+  lxc init testimage c1
+  kill -9 "${monitor_pid}" || true
+
+  # The file should be empty.
+  [ "$(cat "${monfile}")" = "" ]
+  lxc rm c1
+  rm "${monfile}"
+
+  # Monitor as fine-grained identity with can_view_events in the default project.
+  lxc auth group permission add test-group project default can_view_events
+  lxc remote switch tls
+  lxc monitor --all-projects --format json > "${monfile}" &
+  monitor_pid=$!
+  sleep 0.1
+  lxc remote switch local
+
+  # Create an image via unix socket, then kill the monitor process.
+  lxc init testimage c1
+  kill -9 "${monitor_pid}" || true
+
+  # The file should contain a single "instance-created" lifecycle event.
+  jq -s -e 'length == 1 and .[0].type == "lifecycle" and .[0].metadata.action == "instance-created"' "${monfile}"
+  lxc rm c1
+  rm "${monfile}"
+  lxc auth group permission remove test-group project default can_view_events
+
+  # Monitor as fine-grained identity that creates the instance with minimal permissions.
+  lxc auth group permission add test-group project default can_create_instances
+  lxc auth group permission add test-group image_alias testimage can_view project=default
+  lxc auth group permission add test-group image "$(lxc query /1.0/images/aliases/testimage | jq -r '.target')" can_view project=default
+  lxc remote switch tls
+  lxc monitor --all-projects --format json > "${monfile}" &
+  monitor_pid=$!
+  sleep 0.1
+  lxc remote switch local
+
+  lxc init testimage tls:c1
+  kill -9 "${monitor_pid}" || true
+  jq -s -e 'any(.type == "lifecycle" and .metadata.action == "instance-created")' "${monfile}"
+  jq -s -e 'any(.type == "operation" and .metadata.status == "Success")' "${monfile}"
+  jq -s -e 'all(.type == "lifecycle" or .type == "operation")' "${monfile}"
+  lxc rm c1
+  rm "${monfile}"
+  lxc auth group permission remove test-group project default can_create_instances
+  lxc auth group permission remove test-group image_alias testimage can_view project=default
+  lxc auth group permission remove test-group image "$(lxc query /1.0/images/aliases/testimage | jq -r '.target')" can_view project=default
 }
 
 storage_pool_used_by() {
@@ -706,7 +767,7 @@ user_is_instance_user() {
 
   # Check we can still interact with the instance.
   touch "${TEST_DIR}/tmp"
-  lxc_remote file push "${TEST_DIR}/tmp" "${remote}:${instance_name}/root/tmpfile.txt"
+  lxc_remote monfile push "${TEST_DIR}/tmp" "${remote}:${instance_name}/root/tmpfile.txt"
   LXC_LOCAL='' lxc_remote exec "${remote}:${instance_name}" -- rm /root/tmpfile.txt
   rm "${TEST_DIR}/tmp"
 
