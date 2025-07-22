@@ -5808,6 +5808,15 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	cpuLimitWasChanged := false
 
 	if isRunning {
+		// Re-generate the agent mounts file so that it reflects the current devices set.
+		// This way if a directory disk is added immediately after VM start but before the lxd-agent has
+		// started in the guest (such that it misses the devlxd notification event), the agent will still
+		// be able to see the mount config for the new disk when it starts.
+		err = d.generateAgentMountsFile()
+		if err != nil {
+			return fmt.Errorf("Failed generating agent mounts file: %w", err)
+		}
+
 		// Only certain keys can be changed on a running VM.
 		liveUpdateKeys := []string{
 			"cluster.evacuate",
