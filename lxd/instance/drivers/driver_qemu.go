@@ -2490,7 +2490,7 @@ func (d *qemu) getPCIHotplug() (busName string, busAddress string, multi bool, e
 			select {
 			case <-ctx.Done():
 				return "", "", false, fmt.Errorf("Timed out waiting for PCI to initialize: %w", ctx.Err())
-			case <-time.After(500 * time.Millisecond):
+			case <-time.After(250 * time.Millisecond):
 			}
 
 			continue
