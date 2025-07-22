@@ -445,3 +445,5 @@ In that case, if you need to downgrade, restore the database backup before start
 ```
 
 For information on upgrading LXD through its snap, see: {ref}`howto-snap-change`.
+
+When upgrading LXD across a cluster, see: {ref}`howto-cluster-manage-update-upgrade`.

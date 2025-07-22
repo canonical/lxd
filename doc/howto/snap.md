@@ -194,6 +194,8 @@ sudo snap refresh lxd --channel=5.21
 
 If an upgrade of LXD includes a change to its database schema, LXD stores a backup of the database in case of a need to downgrade. For more information, see {ref}`installing-upgrade`.
 
+If you upgrade LXD on cluster members, all members must be upgraded to the same version. For details, see: {ref}`howto-cluster-manage-update-upgrade`.
+
 (howto-snap-configure)=
 ## Configure the snap
 
