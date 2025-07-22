@@ -4229,10 +4229,7 @@ func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]i
 		// Populate the qemu device with port info.
 		qemuDev["bus"] = devBus
 		qemuDev["addr"] = devAddr
-
-		if multi {
-			qemuDev["multifunction"] = true
-		}
+		qemuDev["multifunction"] = multi
 	}
 
 	if bootIndexes != nil {
