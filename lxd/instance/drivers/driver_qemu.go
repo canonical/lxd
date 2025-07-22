@@ -4086,12 +4086,11 @@ func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]i
 
 	// Check if the user has overridden the cache mode.
 	for _, opt := range driveConf.Opts {
-		if !strings.HasPrefix(opt, "cache=") {
-			continue
+		mode, found := strings.CutPrefix(opt, "cache=")
+		if found {
+			cacheMode = mode
+			break
 		}
-
-		cacheMode = strings.TrimPrefix(opt, "cache=")
-		break
 	}
 
 	// QMP uses two separate values for the cache.
