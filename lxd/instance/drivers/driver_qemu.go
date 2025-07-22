@@ -2490,7 +2490,7 @@ func (d *qemu) getPCIHotplug() (busName string, busAddress string, multi bool, e
 			select {
 			case <-ctx.Done():
 				return "", "", false, fmt.Errorf("Timed out waiting for PCI to initialize: %w", ctx.Err())
-			case <-time.After(500 * time.Millisecond):
+			case <-time.After(250 * time.Millisecond):
 			}
 
 			continue
@@ -2507,7 +2507,7 @@ func (d *qemu) getPCIHotplug() (busName string, busAddress string, multi bool, e
 				continue
 			}
 
-			// Found an empty slot.
+			// Found an empty slot, return address of first function in that slot.
 			return dev.DevID, "00.0", false, nil
 		}
 
@@ -3607,9 +3607,6 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		return "", nil, fmt.Errorf("Error calculating boot indexes: %w", err)
 	}
 
-	// Record the mounts we are going to do inside the VM using the agent.
-	agentMounts := []instancetype.VMAgentMount{}
-
 	// Setup a bus allocator for use with generating QEMU pre-boot config file.
 	busAllocate := func() (busName string, busAddress string, multi bool, err error) {
 		busName, busAddr, multi := bus.allocate(busFunctionGroupNone)
@@ -3629,7 +3626,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 				if drive.TargetPath == "/" {
 					monHook, err = d.addRootDriveConfig(busAllocate, mountInfo, bootIndexes, drive)
 				} else if drive.FSType == "9p" {
-					err = d.addDriveDirConfig(&cfg, bus, fdFiles, &agentMounts, drive)
+					err = d.addDriveDirConfig(&cfg, bus, fdFiles, drive)
 				} else {
 					monHook, err = d.addDriveConfig(busAllocate, bootIndexes, drive)
 				}
@@ -3704,6 +3701,11 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		}
 	}
 
+	err = d.generateAgentMountsFile()
+	if err != nil {
+		return "", nil, fmt.Errorf("Failed generating agent mounts file: %w", err)
+	}
+
 	// VM generation ID is only available on x86.
 	if d.architecture == osarch.ARCH_64BIT_INTEL_X86 {
 		err = d.addVmgenDeviceConfig(&cfg, d.localConfig["volatile.uuid.generation"])
@@ -3715,18 +3717,6 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 	// Allocate 8 PCI slots for hotplug devices.
 	for range 8 {
 		bus.allocate(busFunctionGroupNone)
-	}
-
-	// Write the agent mount config.
-	agentMountJSON, err := json.Marshal(agentMounts)
-	if err != nil {
-		return "", nil, fmt.Errorf("Failed marshalling agent mounts to JSON: %w", err)
-	}
-
-	agentMountFile := filepath.Join(d.Path(), "config", "agent-mounts.json")
-	err = os.WriteFile(agentMountFile, agentMountJSON, 0400)
-	if err != nil {
-		return "", nil, fmt.Errorf("Failed writing agent mounts file: %w", err)
 	}
 
 	// process any user-specified overrides
@@ -3914,31 +3904,9 @@ func (d *qemu) addRootDriveConfig(busAllocate busAllocator, mountInfo *storagePo
 }
 
 // addDriveDirConfig adds the qemu config required for adding a supplementary drive directory share.
-func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os.File, agentMounts *[]instancetype.VMAgentMount, driveConf deviceConfig.MountEntryItem) error {
+func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os.File, driveConf deviceConfig.MountEntryItem) error {
 	mountTag := qemuDeviceNameOrID(qemuDeviceNamePrefix, driveConf.DevName, "", qemuDeviceNameMaxLength)
-
-	agentMount := instancetype.VMAgentMount{
-		Source: mountTag,
-		Target: driveConf.TargetPath,
-		FSType: driveConf.FSType,
-	}
-
-	// If mount type is 9p, we need to specify to use the virtio transport to support more VM guest OSes.
-	// Also set the msize to 32MB to allow for reasonably fast 9p access.
-	if agentMount.FSType == "9p" {
-		agentMount.Options = append(agentMount.Options, "trans=virtio,msize=33554432")
-	}
-
 	readonly := slices.Contains(driveConf.Opts, "ro")
-
-	// Indicate to agent to mount this readonly. Note: This is purely to indicate to VM guest that this is
-	// readonly, it should *not* be used as a security measure, as the VM guest could remount it R/W.
-	if readonly {
-		agentMount.Options = append(agentMount.Options, "ro")
-	}
-
-	// Record the 9p mount for the agent.
-	*agentMounts = append(*agentMounts, agentMount)
 
 	// Check if the disk device has provided a virtiofsd socket path.
 	var virtiofsdSockPath string
@@ -4118,12 +4086,11 @@ func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]i
 
 	// Check if the user has overridden the cache mode.
 	for _, opt := range driveConf.Opts {
-		if !strings.HasPrefix(opt, "cache=") {
-			continue
+		mode, found := strings.CutPrefix(opt, "cache=")
+		if found {
+			cacheMode = mode
+			break
 		}
-
-		cacheMode = strings.TrimPrefix(opt, "cache=")
-		break
 	}
 
 	// QMP uses two separate values for the cache.
@@ -4262,10 +4229,7 @@ func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]i
 		// Populate the qemu device with port info.
 		qemuDev["bus"] = devBus
 		qemuDev["addr"] = devAddr
-
-		if multi {
-			qemuDev["multifunction"] = true
-		}
+		qemuDev["multifunction"] = multi
 	}
 
 	if bootIndexes != nil {
@@ -5833,6 +5797,15 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	cpuLimitWasChanged := false
 
 	if isRunning {
+		// Re-generate the agent mounts file so that it reflects the current devices set.
+		// This way if a directory disk is added immediately after VM start but before the lxd-agent has
+		// started in the guest (such that it misses the devlxd notification event), the agent will still
+		// be able to see the mount config for the new disk when it starts.
+		err = d.generateAgentMountsFile()
+		if err != nil {
+			return fmt.Errorf("Failed generating agent mounts file: %w", err)
+		}
+
 		// Only certain keys can be changed on a running VM.
 		liveUpdateKeys := []string{
 			"cluster.evacuate",
@@ -9409,4 +9382,56 @@ func (d *qemu) shortenedFilePath(originalSockPath string, fdFiles *[]*os.File) (
 	}
 
 	return fmt.Sprintf("/dev/fd/%d", d.addFileDescriptor(fdFiles, socketFile)), nil
+}
+
+// generateAgentMountsFile generates the agent mounts file for the QEMU instance (if disk config has changed).
+// This file is used by the agent to mount custom volumes and host filesystem shares into the VM.
+func (d *qemu) generateAgentMountsFile() error {
+	drives := d.expandedDevices.Filter(filters.Or(filters.IsCustomVolumeFilesystemDisk, filters.IsHostFilesystemShareDisk)).Sorted()
+	agentMounts := make([]instancetype.VMAgentMount, 0, len(drives))
+
+	for _, drive := range drives {
+		agentMount := instancetype.VMAgentMount{
+			Source: qemuDeviceNameOrID(qemuDeviceNamePrefix, drive.Name, "", qemuDeviceNameMaxLength),
+			Target: drive.Config["path"],
+
+			// Used by the agent to determine the type of mount (but it tries mounting virtiofs first).
+			FSType: "9p",
+
+			// Ask agent to use the 9p virtio transport for 9p mounts to support more VM guest OSes.
+			// Also set the msize to 32MB to allow for reasonably fast 9p access.
+			Options: []string{"trans=virtio,msize=33554432"},
+		}
+
+		// Indicate to agent to mount this readonly. Note: This is purely to indicate to VM guest that this
+		// is readonly, it should *not* be used as a security measure, as the VM guest could remount it R/W.
+		// However this same option is used when adding the device to the VM to enforce readonly access.
+		if shared.IsTrue(drive.Config["readonly"]) {
+			agentMount.Options = append(agentMount.Options, "ro")
+		}
+
+		agentMounts = append(agentMounts, agentMount)
+	}
+
+	newAgentMountJSON, err := json.Marshal(agentMounts)
+	if err != nil {
+		return fmt.Errorf("Failed marshalling agent mounts to JSON: %w", err)
+	}
+
+	agentMountFile := filepath.Join(d.Path(), "config", "agent-mounts.json")
+
+	// Check if agent mounts file already exists and if it matches the new one.
+	curAgentMountJSON, _ := os.ReadFile(agentMountFile)
+	if bytes.Equal(curAgentMountJSON, newAgentMountJSON) {
+		return nil // No change, nothing to do.
+	}
+
+	// Write the agent mount config.
+	d.logger.Debug("Writing agent mounts config", logger.Ctx{"file": agentMountFile})
+	err = os.WriteFile(agentMountFile, newAgentMountJSON, 0400)
+	if err != nil {
+		return fmt.Errorf("Failed writing agent mounts file: %w", err)
+	}
+
+	return nil
 }
