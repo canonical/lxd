@@ -2507,7 +2507,7 @@ func (d *qemu) getPCIHotplug() (busName string, busAddress string, multi bool, e
 				continue
 			}
 
-			// Found an empty slot.
+			// Found an empty slot, return address of first function in that slot.
 			return dev.DevID, "00.0", false, nil
 		}
 
