@@ -184,7 +184,15 @@ To change the channel, run:
 sudo snap refresh lxd --channel=<target channel>
 ```
 
-This command immediately updates the installed snap version.
+This also updates the installed snap version to the most recent release in the target channel.
+
+For the channel, you must include at least the track, such as {{current_lts_track}}. You can optionally include the risk-level; when omitted, the default is `stable`. For example, this command changes the snap channel to `5.21/stable`:
+
+```bash
+sudo snap refresh lxd --channel=5.21
+```
+
+When you upgrade LXD, if the database schema has changed, a backup of the database is stored in case of a need to downgrade. For more information, see {ref}`installing-upgrade`.
 
 (howto-snap-configure)=
 ## Configure the snap
