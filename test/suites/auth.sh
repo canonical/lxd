@@ -227,6 +227,8 @@ fine_grained: true"
   lxc auth group permission remove test-group server viewer
   lxc auth group permission remove test-group server project_manager
 
+  LXD_CONF="${LXD_CONF2}" events_filtering
+
   # Check storage pool used-by URLs
   storage_pool_used_by "oidc"
   LXD_CONF="${LXD_CONF2}" storage_pool_used_by "tls"
@@ -337,6 +339,64 @@ fine_grained: true"
   lxc config unset core.remote_token_expiry
   lxc config unset oidc.issuer
   lxc config unset oidc.client.id
+}
+
+events_filtering() {
+  monfile="${TEST_DIR}/monitor-out.jsonl"
+
+  # Monitor as fine-grained identity with no permissions.
+  lxc remote switch tls
+  lxc monitor --all-projects --format json > "${monfile}" &
+  monitor_pid=$!
+  sleep 0.1
+  lxc remote switch local
+
+  # Create an image via unix socket, then kill the monitor process.
+  lxc profile create p1
+  kill -9 "${monitor_pid}" || true
+
+  # The file should be empty.
+  [ "$(cat "${monfile}")" = "" ]
+  rm "${monfile}"
+  lxc profile delete p1
+
+  # Monitor as fine-grained identity with can_view_events in the default project.
+  lxc auth group permission add test-group project default can_view_events
+  lxc remote switch tls
+  lxc monitor --all-projects --format json > "${monfile}" &
+  monitor_pid=$!
+  sleep 0.1
+  lxc remote switch local
+
+  # Create a profile via unix socket, then kill the monitor process.
+  lxc profile create p1
+  kill -9 "${monitor_pid}" || true
+
+  # The file should contain a single "profile-created" lifecycle event because the identity that is monitoring
+  # has can_view_events, but is not the same caller that started the operation.
+  jq -s -e 'length == 1 and .[0].type == "lifecycle" and .[0].metadata.action == "profile-created"' "${monfile}"
+  lxc profile delete p1
+  rm "${monfile}"
+  lxc auth group permission remove test-group project default can_view_events
+
+  # Monitor as fine-grained identity that creates the profile with minimal permissions.
+  lxc auth group permission add test-group project default can_create_profiles
+  lxc remote switch tls
+  lxc monitor --all-projects --format json > "${monfile}" &
+  monitor_pid=$!
+  sleep 0.1
+  lxc remote switch local
+
+  # Create a profile via the fine-grained identity, without view permissions.
+  lxc profile create tls:p1
+  kill -9 "${monitor_pid}" || true
+
+  # The file should contain the lifecycle event, because the identity that is monitoring is the same identity that
+  # created the profile.
+  jq -s -e 'any(.type == "lifecycle" and .metadata.action == "profile-created")' "${monfile}"
+  lxc profile delete p1
+  rm "${monfile}"
+  lxc auth group permission remove test-group project default can_create_profiles
 }
 
 storage_pool_used_by() {
