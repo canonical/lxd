@@ -62,6 +62,11 @@ func storageStartup(s *state.State) error {
 	if err != nil {
 		if response.IsNotFoundError(err) {
 			logger.Debug("No existing storage pools detected")
+
+			// There aren't any storage pools.
+			// Unblock all the waitready callers using the --storage flag.
+			s.StorageReady.Cancel()
+
 			return nil
 		}
 
