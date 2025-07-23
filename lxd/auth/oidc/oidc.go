@@ -195,16 +195,9 @@ func (o *Verifier) authenticateIDToken(w http.ResponseWriter, r *http.Request) (
 		return nil, AuthError{Err: fmt.Errorf("Failed to verify refreshed ID token: %w", err)}
 	}
 
-	sessionID := uuid.New()
-	secureCookie, err := o.secureCookieFromSession(sessionID)
+	err = o.startSession(w, idToken, tokens.RefreshToken)
 	if err != nil {
 		return nil, AuthError{Err: fmt.Errorf("Failed to create new session with refreshed token: %w", err)}
-	}
-
-	// Update the cookies.
-	err = o.setCookies(w, secureCookie, sessionID, idToken, tokens.RefreshToken, false)
-	if err != nil {
-		return nil, AuthError{fmt.Errorf("Failed to update login cookies: %w", err)}
 	}
 
 	return o.getResultFromClaims(claims, claims.Claims)
@@ -349,16 +342,9 @@ func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	handler := rp.CodeExchangeHandler(func(w http.ResponseWriter, r *http.Request, tokens *oidc.Tokens[*oidc.IDTokenClaims], state string, rp rp.RelyingParty) {
-		sessionID := uuid.New()
-		secureCookie, err := o.secureCookieFromSession(sessionID)
+		err := o.startSession(w, tokens.IDToken, tokens.RefreshToken)
 		if err != nil {
 			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to start a new session: %w", err).Error()).Render(w, r)
-			return
-		}
-
-		err = o.setCookies(w, secureCookie, sessionID, tokens.IDToken, tokens.RefreshToken, false)
-		if err != nil {
-			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to set login information: %w", err).Error()).Render(w, r)
 			return
 		}
 
@@ -520,6 +506,23 @@ func (o *Verifier) setAccessTokenVerifier(ctx context.Context) error {
 	}
 
 	o.accessTokenVerifier = op.NewAccessTokenVerifier(o.issuer, keySet)
+	return nil
+}
+
+// startSession creates a session ID, then derives encryption keys with it. The ID and refresh token are encrypted
+// with the derived key, and then the session ID and encrypted ID and refresh tokens are all saved as cookies.
+func (o *Verifier) startSession(w http.ResponseWriter, idToken string, refreshToken string) error {
+	sessionID := uuid.New()
+	secureCookie, err := o.secureCookieFromSession(sessionID)
+	if err != nil {
+		return err
+	}
+
+	err = o.setCookies(w, secureCookie, sessionID, idToken, refreshToken, false)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
