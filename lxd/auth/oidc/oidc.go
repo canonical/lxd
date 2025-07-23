@@ -153,7 +153,7 @@ func (o *Verifier) authenticateAccessToken(ctx context.Context, accessToken stri
 // authenticateIDToken gets the ID token from the request cookies and validates it. If it is not present or not valid, it
 // attempts to refresh the ID token (with a refresh token also taken from the request cookies).
 func (o *Verifier) authenticateIDToken(w http.ResponseWriter, r *http.Request) (*AuthenticationResult, error) {
-	_, idToken, refreshToken, err := o.getCookies(r)
+	idToken, refreshToken, startNewSession, err := o.getCookies(r)
 	if err != nil {
 		// Cookies are present but we failed to decrypt them. They may have been tampered with, so delete them to force
 		// the user to log in again.
@@ -169,6 +169,13 @@ func (o *Verifier) authenticateIDToken(w http.ResponseWriter, r *http.Request) (
 		// Try to verify the ID token.
 		claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](r.Context(), idToken, o.relyingParty.IDTokenVerifier())
 		if err == nil {
+			if startNewSession {
+				err = o.startSession(r.Context(), w, idToken, refreshToken)
+				if err != nil {
+					return nil, AuthError{Err: fmt.Errorf("Failed to refresh session: %w", err)}
+				}
+			}
+
 			return o.getResultFromClaims(claims, claims.Claims)
 		}
 	}
@@ -471,7 +478,14 @@ func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
 			return nil, fmt.Errorf("Failed to parse login ID cookie: %w", err)
 		}
 
-		return o.secureCookieFromSession(r.Context(), loginUUID)
+		// For the auth code flow, ignore the boolean which tells us to start a new session. We only care that
+		// we are able to decrypt cookies when the flow is complete. These cookies don't need to persist.
+		secureCookie, _, err := o.secureCookieFromSession(r.Context(), loginUUID)
+		if err != nil {
+			return nil, err
+		}
+
+		return secureCookie, nil
 	})
 
 	httpClient, err := o.httpClientFunc()
@@ -529,7 +543,7 @@ func (o *Verifier) startSession(ctx context.Context, w http.ResponseWriter, idTo
 		return err
 	}
 
-	secureCookie, err := o.secureCookieFromSession(ctx, sessionID)
+	secureCookie, _, err := o.secureCookieFromSession(ctx, sessionID)
 	if err != nil {
 		return err
 	}
@@ -542,50 +556,52 @@ func (o *Verifier) startSession(ctx context.Context, w http.ResponseWriter, idTo
 	return nil
 }
 
-// getCookies gets the sessionID, identity and refresh tokens from the request cookies and decrypts them.
-func (o *Verifier) getCookies(r *http.Request) (sessionIDPtr *uuid.UUID, idToken string, refreshToken string, err error) {
+// getCookies gets the sessionID, identity and refresh tokens from the request cookies and decrypts them. The
+// startNewSession boolean indicates that the cookes were encrypted with keys derived from an old secret that has since
+// been rotated out of use. A new session should be started so that the user is not logged out.
+func (o *Verifier) getCookies(r *http.Request) (idToken string, refreshToken string, startNewSession bool, err error) {
 	sessionIDCookie, err := r.Cookie(cookieNameSessionID)
 	if err != nil && !errors.Is(err, http.ErrNoCookie) {
-		return nil, "", "", fmt.Errorf("Failed to get session ID cookie from request: %w", err)
+		return "", "", false, fmt.Errorf("Failed to get session ID cookie from request: %w", err)
 	} else if sessionIDCookie == nil {
-		return nil, "", "", nil
+		return "", "", false, nil
 	}
 
 	sessionID, err := uuid.Parse(sessionIDCookie.Value)
 	if err != nil {
-		return nil, "", "", fmt.Errorf("Invalid session ID cookie: %w", err)
+		return "", "", false, fmt.Errorf("Invalid session ID cookie: %w", err)
 	}
 
-	secureCookie, err := o.secureCookieFromSession(r.Context(), sessionID)
+	secureCookie, startNewSession, err := o.secureCookieFromSession(r.Context(), sessionID)
 	if err != nil {
-		return nil, "", "", fmt.Errorf("Failed to decrypt cookies: %w", err)
+		return "", "", false, fmt.Errorf("Failed to decrypt cookies: %w", err)
 	}
 
 	idTokenCookie, err := r.Cookie(cookieNameIDToken)
 	if err != nil && !errors.Is(err, http.ErrNoCookie) {
-		return nil, "", "", fmt.Errorf("Failed to get ID token cookie from request: %w", err)
+		return "", "", false, fmt.Errorf("Failed to get ID token cookie from request: %w", err)
 	}
 
 	if idTokenCookie != nil {
 		err = secureCookie.Decode(cookieNameIDToken, idTokenCookie.Value, &idToken)
 		if err != nil {
-			return nil, "", "", fmt.Errorf("Failed to decrypt ID token cookie: %w", err)
+			return "", "", false, fmt.Errorf("Failed to decrypt ID token cookie: %w", err)
 		}
 	}
 
 	refreshTokenCookie, err := r.Cookie(cookieNameRefreshToken)
 	if err != nil && !errors.Is(err, http.ErrNoCookie) {
-		return nil, "", "", fmt.Errorf("Failed to get refresh token cookie from request: %w", err)
+		return "", "", false, fmt.Errorf("Failed to get refresh token cookie from request: %w", err)
 	}
 
 	if refreshTokenCookie != nil {
 		err = secureCookie.Decode(cookieNameRefreshToken, refreshTokenCookie.Value, &refreshToken)
 		if err != nil {
-			return nil, "", "", fmt.Errorf("Failed to decrypt refresh token cookie: %w", err)
+			return "", "", false, fmt.Errorf("Failed to decrypt refresh token cookie: %w", err)
 		}
 	}
 
-	return &sessionID, idToken, refreshToken, nil
+	return idToken, refreshToken, startNewSession, nil
 }
 
 // setCookies encrypts the session, ID, and refresh tokens and sets them in the HTTP response. Cookies are only set if they are
@@ -647,50 +663,64 @@ func (*Verifier) setCookies(w http.ResponseWriter, secureCookie *securecookie.Se
 }
 
 // secureCookieFromSession returns a *securecookie.SecureCookie that is secure, unique to each client, and possible to
-// decrypt on all cluster members.
+// decrypt on all cluster members. To do this we use the cluster secret as an input seed to HMAC and use the given
+// sessionID [uuid.UUID] as a salt. The session ID can then be stored as a plaintext cookie so that we can regenerate
+// the keys upon the next request.
 //
-// To do this we use the cluster secret as an input seed to HMAC and use the given sessionID uuid.UUID as a salt. The
-// session ID can then be stored as a plaintext cookie so that we can regenerate the keys upon the next request.
+// A boolean value is returned that indicates if a new session should be started. This is calculated by comparing the
+// session start time (extracted from the v7 UUID) against the most recent core auth secret. If the session was started
+// before the most recent secret was created, then the cookies are encrypted with keys derived from an out of date
+// secret. We need to start a new session so that the user is not logged out when that secret is eventually deleted.
 //
 // Warning: Changes to this function might cause all existing OIDC users to be logged out of LXD (but not logged out of
 // the IdP).
-func (o *Verifier) secureCookieFromSession(ctx context.Context, sessionID uuid.UUID) (*securecookie.SecureCookie, error) {
+func (o *Verifier) secureCookieFromSession(ctx context.Context, sessionID uuid.UUID) (*securecookie.SecureCookie, bool, error) {
 	// Get the sessionID as a binary so that we can use it as a salt.
 	salt, err := sessionID.MarshalBinary()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to marshal session ID as binary: %w", err)
+		return nil, false, fmt.Errorf("Failed to marshal session ID as binary: %w", err)
 	}
 
 	// Get the secret used when the session was created
 	sessionStartedAtSeconds, _ := sessionID.Time().UnixTime()
 	secrets, err := o.secretsFunc(ctx)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	var secret cluster.AuthSecret
+	var startNewSession bool
 	for i := 0; i < len(secrets); i++ {
 		// If the secret was created after the session started, skip.
 		if secrets[i].CreationDate.Unix() > sessionStartedAtSeconds {
 			continue
 		}
+
+		// Take the first secret that was created before the session started.
+		secret = secrets[i]
+		if i > 0 {
+			// If this isn't the most recent secret, indicate that a new session should be started.
+			startNewSession = true
+		}
+
+		break
 	}
 
 	// Derive a hash key. The hash key is used to verify the integrity of decrypted values using HMAC.
 	// Use a key length of 64. This instructs the securecookie library to use HMAC-SHA512.
 	cookieHashKey, err := o.deriveKey(secret.Value, salt, "INTEGRITY", 64)
 	if err != nil {
-		return nil, fmt.Errorf("Failed creating secure cookie hash key: %w", err)
+		return nil, false, fmt.Errorf("Failed creating secure cookie hash key: %w", err)
 	}
 
 	// Derive a block key. The block key is used to perform AES encryption on the cookie contents.
 	// Use a key length of 32. This instructs the securecookie library to use AES-256.
 	cookieBlockKey, err := o.deriveKey(secret.Value, salt, "ENCRYPTION", 32)
 	if err != nil {
-		return nil, fmt.Errorf("Failed creating secure cookie block key: %w", err)
+		return nil, false, fmt.Errorf("Failed creating secure cookie block key: %w", err)
 	}
 
-	return securecookie.New(cookieHashKey, cookieBlockKey), nil
+	return securecookie.New(cookieHashKey, cookieBlockKey), startNewSession, nil
 }
 
 // deriveKey uses HMAC to derive a key from a secret, a salt, and a separator. We can use HMAC directly because our
