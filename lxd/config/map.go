@@ -216,6 +216,8 @@ func (m *Map) set(name string, value string, initial bool) (bool, error) {
 		}
 
 		return true, nil
+	} else if strings.HasPrefix(name, "hidden.") {
+		return false, nil
 	}
 
 	key, ok := m.schema[name]
