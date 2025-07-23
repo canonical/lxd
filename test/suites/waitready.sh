@@ -9,7 +9,7 @@ test_waitready() {
   lxc network create "${br_name}"
 
   echo "==> Corrupt the network by setting an invalid external interface"
-  ip link add foo type bridge
+  ip link add foo type dummy
   ip addr add dev foo 10.1.123.10/24
   # Inject the config setting manually to prevent validation by LXD.
   network_id="$(lxd sql global "select id from networks where name='${br_name}'" -f csv)"
