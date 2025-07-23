@@ -97,9 +97,9 @@ func (e AuthError) Unwrap() error {
 	return e.Err
 }
 
-// Auth extracts OIDC tokens from the request, verifies them, and returns the subject.
-func (o *Verifier) Auth(ctx context.Context, w http.ResponseWriter, r *http.Request) (*AuthenticationResult, error) {
-	err := o.ensureConfig(ctx, r.Host)
+// Auth extracts OIDC tokens from the request, verifies them, and returns an AuthenticationResult or an error.
+func (o *Verifier) Auth(w http.ResponseWriter, r *http.Request) (*AuthenticationResult, error) {
+	err := o.ensureConfig(r.Context(), r.Host)
 	if err != nil {
 		return nil, fmt.Errorf("Authorization failed: %w", err)
 	}
