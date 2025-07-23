@@ -295,11 +295,19 @@ func (o *Verifier) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Use a v7 UUID for the login ID. Encoding the current unix epoch into the ID allows us to determine if an
+	// outdated secret was used for encryption key generation.
+	loginID, err := uuid.NewV7()
+	if err != nil {
+		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Login failed: Failed to create a login identifier: %w", err).Error()).Render(w, r)
+		return
+	}
+
 	// Create a login ID cookie. This will be deleted after the login flow is completed in /oidc/callback.
 	loginIDCookie := &http.Cookie{
 		Name:     cookieNameLoginID,
 		Path:     "/",
-		Value:    uuid.NewString(),
+		Value:    loginID.String(),
 		Secure:   true,
 		HttpOnly: true,
 		// Lax mode is required because the auth flow ends in a redirect to /oidc/callback. In Strict mode, even though
@@ -514,7 +522,13 @@ func (o *Verifier) setAccessTokenVerifier(ctx context.Context) error {
 // startSession creates a session ID, then derives encryption keys with it. The ID and refresh token are encrypted
 // with the derived key, and then the session ID and encrypted ID and refresh tokens are all saved as cookies.
 func (o *Verifier) startSession(w http.ResponseWriter, idToken string, refreshToken string) error {
-	sessionID := uuid.New()
+	// Use a v7 UUID for the session ID. Encoding the current unix epoch into the ID allows us to determine if an
+	// outdated secret was used for encryption key generation.
+	sessionID, err := uuid.NewV7()
+	if err != nil {
+		return err
+	}
+
 	secureCookie, err := o.secureCookieFromSession(sessionID)
 	if err != nil {
 		return err
