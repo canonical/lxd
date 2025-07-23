@@ -426,7 +426,7 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 		}
 
 		// Restart the networks (to pickup forkdns and the like).
-		err = networkStartup(d.State)
+		err = networkStartup(d.State, false)
 		if err != nil {
 			return err
 		}
@@ -856,7 +856,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 		// Start up networks so any post-join changes can be applied now that we have a Node ID.
 		logger.Debug("Starting networks after cluster join")
-		err = networkStartup(d.State)
+		err = networkStartup(d.State, false)
 		if err != nil {
 			logger.Errorf("Failed starting networks: %v", err)
 		}
@@ -3068,6 +3068,14 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	// Run some pre-checks before evacuating or restoring the cluster member.
+	// It's important that those checks runs on the to be restored cluster member.
+	if s.NetworkReady.Err() == nil {
+		return response.BadRequest(fmt.Errorf("Cannot %s %q because some networks aren't started yet", req.Action, d.serverName))
+	} else if s.StorageReady.Err() == nil {
+		return response.BadRequest(fmt.Errorf("Cannot %s %q because some storage pools aren't started yet", req.Action, d.serverName))
+	}
+
 	switch req.Action {
 	case "evacuate":
 		stopFunc := func(inst instance.Instance) error {
@@ -3322,8 +3330,8 @@ func evacuateClusterMember(s *state.State, gateway *cluster.Gateway, r *http.Req
 			return err
 		}
 
-		// Stop networks after evacuation.
-		networkingStop(s)
+		// Evacuate networks too.
+		networkStop(s, true)
 
 		revert.Success()
 		return nil
@@ -3511,8 +3519,8 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 
 		metadata := make(map[string]any)
 
-		// Restart the networks.
-		err = networkStartup(d.State)
+		// Restore the networks.
+		err = networkStartup(d.State, true)
 		if err != nil {
 			return err
 		}

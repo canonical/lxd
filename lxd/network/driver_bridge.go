@@ -2217,10 +2217,14 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		return err
 	}
 
+	nodeEvacuated := n.state.DB.Cluster.LocalNodeIsEvacuated()
+
 	// Setup BGP.
-	err = n.bgpSetup(oldConfig)
-	if err != nil {
-		return err
+	if !nodeEvacuated {
+		err = n.bgpSetup(oldConfig)
+		if err != nil {
+			return err
+		}
 	}
 
 	revert.Success()
@@ -2310,6 +2314,22 @@ func (n *bridge) Stop() error {
 	}
 
 	return nil
+}
+
+// Evacuate the network by clearing BGP.
+func (n *bridge) Evacuate() error {
+	n.logger.Debug("Evacuate")
+
+	// Clear BGP.
+	return n.bgpClear(n.config)
+}
+
+// Restore the network by setting up BGP.
+func (n *bridge) Restore() error {
+	n.logger.Debug("Restore")
+
+	// Setup BGP.
+	return n.bgpSetup(nil)
 }
 
 // Update updates the network. Accepts notification boolean indicating if this update request is coming from a

@@ -36,11 +36,11 @@ spawn_lxd() {
     ulimit -c unlimited
 
     if [ "${LXD_NETNS}" = "" ]; then
-        LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+        LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${SERVER_DEBUG-}" "$@" 2>&1 &
     else
         # shellcheck disable=SC2153
         read -r pid < "${TEST_DIR}/ns/${LXD_NETNS}/PID"
-        LXD_DIR="${lxddir}" nsenter -n -m -t "${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+        LXD_DIR="${lxddir}" nsenter -n -m -t "${pid}" lxd --logfile "${lxddir}/lxd.log" "${SERVER_DEBUG-}" "$@" 2>&1 &
     fi
     LXD_PID=$!
     echo "${LXD_PID}" > "${lxddir}/lxd.pid"
@@ -64,7 +64,7 @@ spawn_lxd() {
 
     echo "==> Setting trust password"
     LXD_DIR="${lxddir}" lxc config set core.trust_password foo
-    if [ -n "${DEBUG:-}" ]; then
+    if [ -n "${SHELL_TRACING:-}" ]; then
         set -x
     fi
 
@@ -94,10 +94,10 @@ respawn_lxd() {
 
     echo "==> Spawning lxd in ${lxddir}"
     if [ "${LXD_NETNS}" = "" ]; then
-        LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+        LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${SERVER_DEBUG-}" "$@" 2>&1 &
     else
         read -r pid < "${TEST_DIR}/ns/${LXD_NETNS}/PID"
-        LXD_DIR="${lxddir}" nsenter -n -m -t "${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+        LXD_DIR="${lxddir}" nsenter -n -m -t "${pid}" lxd --logfile "${lxddir}/lxd.log" "${SERVER_DEBUG-}" "$@" 2>&1 &
     fi
     LXD_PID=$!
     echo "${LXD_PID}" > "${lxddir}/lxd.pid"
@@ -108,7 +108,7 @@ respawn_lxd() {
         LXD_DIR="${lxddir}" lxd waitready --timeout=300 || (echo "Killing PID ${LXD_PID}" ; kill -9 "${LXD_PID}" ; false)
     fi
 
-    if [ -n "${DEBUG:-}" ]; then
+    if [ -n "${SHELL_TRACING:-}" ]; then
         set -x
     fi
 }
@@ -147,7 +147,9 @@ kill_lxd() {
 
         # Delete all profiles
         echo "==> Deleting all profiles"
-        for profile in $(timeout -k 2 2 lxc profile list --force-local --format csv | cut -d, -f1); do
+        for profile in $(timeout -k 2 2 lxc profile list --force-local --format csv --columns n); do
+            # default cannot be deleted.
+            [ "${profile}" = "default" ] && continue
             timeout -k 10 10 lxc profile delete "${profile}" --force-local || true
         done
 
@@ -197,9 +199,9 @@ kill_lxd() {
         check_leftovers="true"
     fi
 
-    # If DEBUG is set, check for panics in the daemon logs
-    if [ -n "${DEBUG:-}" ]; then
-      deps/panic-checker "${daemon_dir}/lxd.log"
+    # If SERVER_DEBUG is set, check for panics in the daemon logs
+    if [ -n "${SERVER_DEBUG:-}" ]; then
+      "${MAIN_DIR}/deps/panic-checker" "${daemon_dir}/lxd.log"
     fi
 
     if [ -n "${LXD_LOGS:-}" ]; then
@@ -306,9 +308,9 @@ wipe() {
 }
 
 panic_checker() {
-  # Only run if DEBUG is set (e.g. LXD_VERBOSE or LXD_DEBUG is set)
+  # Only run if SERVER_DEBUG is set (e.g. LXD_VERBOSE or LXD_DEBUG is set)
   # Panics are logged at info level, which won't be outputted unless this is set.
-  if [ -z "${DEBUG:-}" ]; then
+  if [ -z "${SERVER_DEBUG:-}" ]; then
     return 0
   fi
 
@@ -318,7 +320,7 @@ panic_checker() {
   [ -e "${test_dir}/daemons" ] || return
 
   while read -r daemon_dir; do
-    deps/panic-checker "${daemon_dir}/lxd.log"
+    "${MAIN_DIR}/deps/panic-checker" "${daemon_dir}/lxd.log"
   done < "${test_dir}/daemons"
 }
 

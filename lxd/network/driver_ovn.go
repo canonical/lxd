@@ -3066,6 +3066,21 @@ func (n *ovn) chassisEnabled(ctx context.Context, tx *db.ClusterTx) (bool, error
 	return enableChassis != 0, nil
 }
 
+// setupChassis ensures the chassis setup matches the given constraints.
+// In case the chassis is enabled for the host, add a new entry.
+// But only perform this action if the node is not evacuated.
+// Otherwise ensure there isn't any group entry setup.
+func (n *ovn) setupChassis(chassisEnabled bool, nodeEvacuated bool) error {
+	// Handle chassis groups.
+	if chassisEnabled && !nodeEvacuated {
+		// Add local member's OVS chassis ID to logical chassis group.
+		return n.addChassisGroupEntry()
+	}
+
+	// Make sure we don't have a group entry.
+	return n.deleteChassisGroupEntry()
+}
+
 // Start starts adds the local OVS chassis ID to the OVN chass group and starts the local OVS uplink port.
 func (n *ovn) Start() error {
 	n.logger.Debug("Start")
@@ -3093,14 +3108,10 @@ func (n *ovn) Start() error {
 
 		// Check if we should enable the chassis.
 		chassisEnabled, err = n.chassisEnabled(ctx, tx)
-		if err != nil {
-			return err
-		}
-
-		return nil
+		return err
 	})
 	if err != nil {
-		return fmt.Errorf("Failed getting project ID for project %q: %w", n.project, err)
+		return fmt.Errorf("Failed getting details about network %q: %w", n.name, err)
 	}
 
 	// Ensure network level port group exists.
@@ -3109,19 +3120,12 @@ func (n *ovn) Start() error {
 		return err
 	}
 
+	nodeEvacuated := n.state.DB.Cluster.LocalNodeIsEvacuated()
+
 	// Handle chassis groups.
-	if chassisEnabled {
-		// Add local member's OVS chassis ID to logical chassis group.
-		err = n.addChassisGroupEntry()
-		if err != nil {
-			return err
-		}
-	} else {
-		// Make sure we don't have a group entry.
-		err = n.deleteChassisGroupEntry()
-		if err != nil {
-			return err
-		}
+	err = n.setupChassis(chassisEnabled, nodeEvacuated)
+	if err != nil {
+		return err
 	}
 
 	err = n.startUplinkPort()
@@ -3130,9 +3134,11 @@ func (n *ovn) Start() error {
 	}
 
 	// Setup BGP.
-	err = n.bgpSetup(nil)
-	if err != nil {
-		return err
+	if !nodeEvacuated {
+		err = n.bgpSetup(nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	revert.Success()
@@ -3167,6 +3173,46 @@ func (n *ovn) Stop() error {
 	}
 
 	return nil
+}
+
+// Evacuate the network by removing the chassis and clearing BGP.
+func (n *ovn) Evacuate() error {
+	n.logger.Debug("Evacuate")
+
+	// Delete local OVS chassis ID from logical OVN HA chassis group.
+	err := n.deleteChassisGroupEntry()
+	if err != nil {
+		return err
+	}
+
+	// Clear BGP.
+	return n.bgpClear(n.config)
+}
+
+// Restore the network by setting up the chassis and BGP.
+func (n *ovn) Restore() error {
+	n.logger.Debug("Restore")
+
+	var err error
+	var chassisEnabled bool
+
+	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Check if we should enable the chassis.
+		chassisEnabled, err = n.chassisEnabled(ctx, tx)
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed getting details about network %q: %w", n.name, err)
+	}
+
+	// Handle chassis groups.
+	err = n.setupChassis(chassisEnabled, false)
+	if err != nil {
+		return err
+	}
+
+	// Setup BGP.
+	return n.bgpSetup(nil)
 }
 
 // instanceNICGetRoutes returns list of routes defined in nicConfig.

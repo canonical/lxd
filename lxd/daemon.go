@@ -1163,7 +1163,7 @@ func (d *Daemon) init() error {
 	}
 
 	// Look for kernel features
-	logger.Infof("Kernel features:")
+	logger.Info("Kernel features:")
 
 	d.os.CloseRange = canUseCloseRange()
 	if d.os.CloseRange {
@@ -1264,10 +1264,10 @@ func (d *Daemon) init() error {
 	d.os.VFS3Fscaps = idmap.SupportsVFS3Fscaps("")
 	if d.os.VFS3Fscaps {
 		idmap.VFS3Fscaps = idmap.VFS3FscapsSupported
-		logger.Infof(" - unprivileged file capabilities: yes")
+		logger.Info(" - unprivileged file capabilities: yes")
 	} else {
 		idmap.VFS3Fscaps = idmap.VFS3FscapsUnsupported
-		logger.Infof(" - unprivileged file capabilities: no")
+		logger.Info(" - unprivileged file capabilities: no")
 	}
 
 	dbWarnings = append(dbWarnings, d.os.CGInfo.Warnings()...)
@@ -1608,7 +1608,7 @@ func (d *Daemon) init() error {
 	d.serverUUID = serverUUID
 
 	// Mount the storage pools.
-	logger.Infof("Initializing storage pools")
+	logger.Info("Initializing storage pools")
 	err = storageStartup(d.State())
 	if err != nil {
 		return err
@@ -1621,7 +1621,7 @@ func (d *Daemon) init() error {
 	}
 
 	// Mount any daemon storage volumes.
-	logger.Infof("Initializing daemon storage mounts")
+	logger.Info("Initializing daemon storage mounts")
 	err = daemonStorageMount(d.State())
 	if err != nil {
 		return err
@@ -1757,13 +1757,11 @@ func (d *Daemon) init() error {
 	})
 
 	// Setup the networks.
-	if !d.db.Cluster.LocalNodeIsEvacuated() {
-		logger.Infof("Initializing networks")
+	logger.Info("Initializing networks")
 
-		err = networkStartup(d.State)
-		if err != nil {
-			return err
-		}
+	err = networkStartup(d.State, false)
+	if err != nil {
+		return err
 	}
 
 	// Setup tertiary listeners that may use managed network addresses and must be started after networks.
@@ -2136,7 +2134,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 			}
 
 			// Stop networks.
-			networkingStop(s)
+			networkStop(s, false)
 
 			// Unmount daemon image and backup volumes if set.
 			logger.Info("Stopping daemon storage volumes")
