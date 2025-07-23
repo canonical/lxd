@@ -335,6 +335,18 @@ func (o *Verifier) Logout(w http.ResponseWriter, r *http.Request) {
 
 // Callback is a http.HandlerFunc which implements the code exchange required on the /oidc/callback endpoint.
 func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
+	// Always delete the login_id cookie on callback. If the callback fails and this is not deleted, the same login ID is
+	// resent. The login handler then sets an additional login_id cookie, and it isn't clear to the callback which one
+	// to use. So it uses the first one, and fails to decrypt the state and PKCE cookies.
+	http.SetCookie(w, &http.Cookie{
+		Name:     cookieNameLoginID,
+		Path:     "/",
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Expires:  time.Unix(0, 0),
+	})
+
 	err := o.ensureConfig(r.Context(), r.Host)
 	if err != nil {
 		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("OIDC callback failed: %w", err).Error()).Render(w, r)
@@ -347,16 +359,6 @@ func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
 			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to start a new session: %w", err).Error()).Render(w, r)
 			return
 		}
-
-		// The login flow has completed successfully, so we can delete the login_id cookie.
-		http.SetCookie(w, &http.Cookie{
-			Name:     cookieNameLoginID,
-			Path:     "/",
-			Secure:   true,
-			HttpOnly: true,
-			SameSite: http.SameSiteStrictMode,
-			Expires:  time.Unix(0, 0),
-		})
 
 		// Send to the UI.
 		// NOTE: Once the UI does the redirection on its own, we may be able to use the referer here instead.
