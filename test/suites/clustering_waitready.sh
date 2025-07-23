@@ -81,7 +81,7 @@ test_clustering_waitready() {
 
   echo "==> Corrupt the network by setting an invalid external interface"
   ns1_pid="$(< "${TEST_DIR}/ns/${ns1}/PID")"
-  nsenter -m -n -t "${ns1_pid}" -- ip link add foo type bridge
+  nsenter -m -n -t "${ns1_pid}" -- ip link add foo type dummy
   # This will cause LXD's network startup to fail with "Failed starting: Only unconfigured network interfaces can be bridged"
   nsenter -m -n -t "${ns1_pid}" -- ip addr add dev foo 10.1.123.10/24
   # Inject the config setting manually to prevent validation by LXD.
