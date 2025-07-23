@@ -104,39 +104,14 @@ func (o *Verifier) Auth(w http.ResponseWriter, r *http.Request) (*Authentication
 		return nil, fmt.Errorf("Authorization failed: %w", err)
 	}
 
-	authorizationHeader := r.Header.Get("Authorization")
-
-	_, idToken, refreshToken, err := o.getCookies(r)
-	if err != nil {
-		// Cookies are present but we failed to decrypt them. They may have been tampered with, so delete them to force
-		// the user to log in again.
-		_ = o.setCookies(w, nil, uuid.UUID{}, "", "", true)
-		return nil, fmt.Errorf("Failed to retrieve login information: %w", err)
+	// If a bearer token is provided, it must be valid.
+	bearerToken, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if ok {
+		return o.authenticateAccessToken(r.Context(), bearerToken)
 	}
 
-	var result *AuthenticationResult
-	if authorizationHeader != "" {
-		// When a command line client wants to authenticate, it needs to set the Authorization HTTP header like this:
-		//    Authorization Bearer <access_token>
-		parts := strings.Split(authorizationHeader, "Bearer ")
-		if len(parts) != 2 {
-			return nil, AuthError{errors.New("Bad authorization token, expected a Bearer token")}
-		}
-
-		// Bearer tokens should always be access tokens.
-		result, err = o.authenticateAccessToken(ctx, parts[1])
-		if err != nil {
-			return nil, err
-		}
-	} else if idToken != "" || refreshToken != "" {
-		// When authenticating via the UI, we expect that there will be ID and refresh tokens present in the request cookies.
-		result, err = o.authenticateIDToken(ctx, w, idToken, refreshToken)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return result, nil
+	// Otherwise, it must be a browser.
+	return o.authenticateIDToken(w, r)
 }
 
 // authenticateAccessToken verifies the access token and checks that the configured audience is present the in access
@@ -175,21 +150,31 @@ func (o *Verifier) authenticateAccessToken(ctx context.Context, accessToken stri
 	return o.getResultFromClaims(userInfo, userInfo.Claims)
 }
 
-// authenticateIDToken verifies the identity token and returns the ID token subject. If no identity token is given (or
-// verification fails) it will attempt to refresh the ID token.
-func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWriter, idToken string, refreshToken string) (*AuthenticationResult, error) {
+// authenticateIDToken gets the ID token from the request cookies and validates it. If it is not present or not valid, it
+// attempts to refresh the ID token (with a refresh token also taken from the request cookies).
+func (o *Verifier) authenticateIDToken(w http.ResponseWriter, r *http.Request) (*AuthenticationResult, error) {
+	_, idToken, refreshToken, err := o.getCookies(r)
+	if err != nil {
+		// Cookies are present but we failed to decrypt them. They may have been tampered with, so delete them to force
+		// the user to log in again.
+		_ = o.setCookies(w, nil, uuid.UUID{}, "", "", true)
+		return nil, fmt.Errorf("Failed to retrieve login information: %w", err)
+	} else if idToken == "" && refreshToken == "" {
+		// The IsRequest function gates calls to the OIDC verifier. We should not reach this block.
+		return nil, AuthError{Err: errors.New("No credentials found")}
+	}
+
 	var claims *oidc.IDTokenClaims
-	var err error
 	if idToken != "" {
 		// Try to verify the ID token.
-		claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](ctx, idToken, o.relyingParty.IDTokenVerifier())
+		claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](r.Context(), idToken, o.relyingParty.IDTokenVerifier())
 		if err == nil {
 			return o.getResultFromClaims(claims, claims.Claims)
 		}
 	}
 
 	// If ID token verification failed (or it wasn't provided, try refreshing the token).
-	tokens, err := rp.RefreshTokens[*oidc.IDTokenClaims](ctx, o.relyingParty, refreshToken, "", "")
+	tokens, err := rp.RefreshTokens[*oidc.IDTokenClaims](r.Context(), o.relyingParty, refreshToken, "", "")
 	if err != nil {
 		return nil, AuthError{Err: fmt.Errorf("Failed to refresh ID tokens: %w", err)}
 	}
@@ -205,7 +190,7 @@ func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWrite
 	}
 
 	// Verify the refreshed ID token.
-	claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](ctx, idToken, o.relyingParty.IDTokenVerifier())
+	claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](r.Context(), idToken, o.relyingParty.IDTokenVerifier())
 	if err != nil {
 		return nil, AuthError{Err: fmt.Errorf("Failed to verify refreshed ID token: %w", err)}
 	}
