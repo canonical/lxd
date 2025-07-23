@@ -81,13 +81,11 @@ test_clustering_waitready() {
 
   echo "==> Corrupt the network by setting an invalid external interface"
   ns1_pid="$(< "${TEST_DIR}/ns/${ns1}/PID")"
-  nsenter -m -n -t "${ns1_pid}" -- ip link add foo type bridge
+  nsenter -m -n -t "${ns1_pid}" -- ip link add foo type dummy
+  LXD_DIR="${LXD_ONE_DIR}" lxc network set br1 bridge.external_interfaces=foo --target "node1"
   # This will cause LXD's network startup to fail with "Failed starting: Only unconfigured network interfaces can be bridged"
+  # Set the address after adding the interface to the bridge as LXD's validation would catch this.
   nsenter -m -n -t "${ns1_pid}" -- ip addr add dev foo 10.1.123.10/24
-  # Inject the config setting manually to prevent validation by LXD.
-  network_id="$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global "select id from networks where name='br1'" -f csv)"
-  # 1 is the node_id of the first cluster member.
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global "INSERT INTO networks_config (network_id, node_id, key, value) VALUES (${network_id}, 1, 'bridge.external_interfaces', 'foo')"
 
   # Stop the first cluster member.
   shutdown_lxd "${LXD_ONE_DIR}"
@@ -116,7 +114,7 @@ test_clustering_waitready() {
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster restore node1 --force 2>&1)" = "Error: Failed to update cluster member state: Cannot restore \"node1\" because some networks aren't started yet" ]
 
   echo "==> Restore the network by unsetting the external interface"
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'DELETE FROM networks_config WHERE key="bridge.external_interfaces"'
+  LXD_DIR="${LXD_ONE_DIR}" lxc network unset br1 bridge.external_interfaces --target "node1"
 
   # LXD retries starting the networks every 60s.
   # Wait for 80s to ensure the network is now ready but the storage pool isn't.
@@ -148,7 +146,10 @@ test_clustering_waitready() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster restore node1 --force
 
   echo "==> Corrupt the network again by setting an invalid external interface"
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global "INSERT INTO networks_config (network_id, node_id, key, value) VALUES (${network_id}, 1, 'bridge.external_interfaces', 'foo')"
+  # Reset the IP again before to not get caught by LXD's validation.
+  nsenter -m -n -t "${ns1_pid}" -- ip addr del dev foo 10.1.123.10/24
+  LXD_DIR="${LXD_ONE_DIR}" lxc network set br1 bridge.external_interfaces=foo --target "node1"
+  nsenter -m -n -t "${ns1_pid}" -- ip addr add dev foo 10.1.123.10/24
 
   echo "==> Corrupt the storage pool directory again on the first cluster member to cause errors when LXD starts trying to start the pool"
   # Perform this after stopping the daemon to make sure all mounts of the storage pool directory are given up.
@@ -163,7 +164,7 @@ test_clustering_waitready() {
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate "node1" --force 2>&1)" = "Error: Failed to update cluster member state: Cannot evacuate \"node1\" because some networks aren't started yet" ]
 
   echo "==> Restore the network by unsetting the external interface"
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'DELETE FROM networks_config WHERE key="bridge.external_interfaces"'
+  LXD_DIR="${LXD_ONE_DIR}" lxc network unset br1 bridge.external_interfaces --target "node1"
 
   # Restart the first cluster member.
   # To speed up the test we don't wait for LXD until it tries starting the network again.
