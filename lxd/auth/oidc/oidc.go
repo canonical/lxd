@@ -97,46 +97,21 @@ func (e AuthError) Unwrap() error {
 	return e.Err
 }
 
-// Auth extracts OIDC tokens from the request, verifies them, and returns the subject.
-func (o *Verifier) Auth(ctx context.Context, w http.ResponseWriter, r *http.Request) (*AuthenticationResult, error) {
-	err := o.ensureConfig(ctx, r.Host)
+// Auth extracts OIDC tokens from the request, verifies them, and returns an AuthenticationResult or an error.
+func (o *Verifier) Auth(w http.ResponseWriter, r *http.Request) (*AuthenticationResult, error) {
+	err := o.ensureConfig(r.Context(), r.Host)
 	if err != nil {
 		return nil, fmt.Errorf("Authorization failed: %w", err)
 	}
 
-	authorizationHeader := r.Header.Get("Authorization")
-
-	_, idToken, refreshToken, err := o.getCookies(r)
-	if err != nil {
-		// Cookies are present but we failed to decrypt them. They may have been tampered with, so delete them to force
-		// the user to log in again.
-		_ = o.setCookies(w, nil, uuid.UUID{}, "", "", true)
-		return nil, fmt.Errorf("Failed to retrieve login information: %w", err)
+	// If a bearer token is provided, it must be valid.
+	bearerToken, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if ok {
+		return o.authenticateAccessToken(r.Context(), bearerToken)
 	}
 
-	var result *AuthenticationResult
-	if authorizationHeader != "" {
-		// When a command line client wants to authenticate, it needs to set the Authorization HTTP header like this:
-		//    Authorization Bearer <access_token>
-		parts := strings.Split(authorizationHeader, "Bearer ")
-		if len(parts) != 2 {
-			return nil, AuthError{errors.New("Bad authorization token, expected a Bearer token")}
-		}
-
-		// Bearer tokens should always be access tokens.
-		result, err = o.authenticateAccessToken(ctx, parts[1])
-		if err != nil {
-			return nil, err
-		}
-	} else if idToken != "" || refreshToken != "" {
-		// When authenticating via the UI, we expect that there will be ID and refresh tokens present in the request cookies.
-		result, err = o.authenticateIDToken(ctx, w, idToken, refreshToken)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return result, nil
+	// Otherwise, it must be a browser.
+	return o.authenticateIDToken(w, r)
 }
 
 // authenticateAccessToken verifies the access token and checks that the configured audience is present the in access
@@ -175,21 +150,31 @@ func (o *Verifier) authenticateAccessToken(ctx context.Context, accessToken stri
 	return o.getResultFromClaims(userInfo, userInfo.Claims)
 }
 
-// authenticateIDToken verifies the identity token and returns the ID token subject. If no identity token is given (or
-// verification fails) it will attempt to refresh the ID token.
-func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWriter, idToken string, refreshToken string) (*AuthenticationResult, error) {
+// authenticateIDToken gets the ID token from the request cookies and validates it. If it is not present or not valid, it
+// attempts to refresh the ID token (with a refresh token also taken from the request cookies).
+func (o *Verifier) authenticateIDToken(w http.ResponseWriter, r *http.Request) (*AuthenticationResult, error) {
+	_, idToken, refreshToken, err := o.getCookies(r)
+	if err != nil {
+		// Cookies are present but we failed to decrypt them. They may have been tampered with, so delete them to force
+		// the user to log in again.
+		_ = o.setCookies(w, nil, uuid.UUID{}, "", "", true)
+		return nil, fmt.Errorf("Failed to retrieve login information: %w", err)
+	} else if idToken == "" && refreshToken == "" {
+		// The IsRequest function gates calls to the OIDC verifier. We should not reach this block.
+		return nil, AuthError{Err: errors.New("No credentials found")}
+	}
+
 	var claims *oidc.IDTokenClaims
-	var err error
 	if idToken != "" {
 		// Try to verify the ID token.
-		claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](ctx, idToken, o.relyingParty.IDTokenVerifier())
+		claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](r.Context(), idToken, o.relyingParty.IDTokenVerifier())
 		if err == nil {
 			return o.getResultFromClaims(claims, claims.Claims)
 		}
 	}
 
 	// If ID token verification failed (or it wasn't provided, try refreshing the token).
-	tokens, err := rp.RefreshTokens[*oidc.IDTokenClaims](ctx, o.relyingParty, refreshToken, "", "")
+	tokens, err := rp.RefreshTokens[*oidc.IDTokenClaims](r.Context(), o.relyingParty, refreshToken, "", "")
 	if err != nil {
 		return nil, AuthError{Err: fmt.Errorf("Failed to refresh ID tokens: %w", err)}
 	}
@@ -205,21 +190,14 @@ func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWrite
 	}
 
 	// Verify the refreshed ID token.
-	claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](ctx, idToken, o.relyingParty.IDTokenVerifier())
+	claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](r.Context(), idToken, o.relyingParty.IDTokenVerifier())
 	if err != nil {
 		return nil, AuthError{Err: fmt.Errorf("Failed to verify refreshed ID token: %w", err)}
 	}
 
-	sessionID := uuid.New()
-	secureCookie, err := o.secureCookieFromSession(sessionID)
+	err = o.startSession(w, idToken, tokens.RefreshToken)
 	if err != nil {
 		return nil, AuthError{Err: fmt.Errorf("Failed to create new session with refreshed token: %w", err)}
-	}
-
-	// Update the cookies.
-	err = o.setCookies(w, secureCookie, sessionID, idToken, tokens.RefreshToken, false)
-	if err != nil {
-		return nil, AuthError{fmt.Errorf("Failed to update login cookies: %w", err)}
 	}
 
 	return o.getResultFromClaims(claims, claims.Claims)
@@ -357,6 +335,18 @@ func (o *Verifier) Logout(w http.ResponseWriter, r *http.Request) {
 
 // Callback is a http.HandlerFunc which implements the code exchange required on the /oidc/callback endpoint.
 func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
+	// Always delete the login_id cookie on callback. If the callback fails and this is not deleted, the same login ID is
+	// resent. The login handler then sets an additional login_id cookie, and it isn't clear to the callback which one
+	// to use. So it uses the first one, and fails to decrypt the state and PKCE cookies.
+	http.SetCookie(w, &http.Cookie{
+		Name:     cookieNameLoginID,
+		Path:     "/",
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Expires:  time.Unix(0, 0),
+	})
+
 	err := o.ensureConfig(r.Context(), r.Host)
 	if err != nil {
 		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("OIDC callback failed: %w", err).Error()).Render(w, r)
@@ -364,28 +354,11 @@ func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	handler := rp.CodeExchangeHandler(func(w http.ResponseWriter, r *http.Request, tokens *oidc.Tokens[*oidc.IDTokenClaims], state string, rp rp.RelyingParty) {
-		sessionID := uuid.New()
-		secureCookie, err := o.secureCookieFromSession(sessionID)
+		err := o.startSession(w, tokens.IDToken, tokens.RefreshToken)
 		if err != nil {
 			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to start a new session: %w", err).Error()).Render(w, r)
 			return
 		}
-
-		err = o.setCookies(w, secureCookie, sessionID, tokens.IDToken, tokens.RefreshToken, false)
-		if err != nil {
-			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to set login information: %w", err).Error()).Render(w, r)
-			return
-		}
-
-		// The login flow has completed successfully, so we can delete the login_id cookie.
-		http.SetCookie(w, &http.Cookie{
-			Name:     cookieNameLoginID,
-			Path:     "/",
-			Secure:   true,
-			HttpOnly: true,
-			SameSite: http.SameSiteStrictMode,
-			Expires:  time.Unix(0, 0),
-		})
 
 		// Send to the UI.
 		// NOTE: Once the UI does the redirection on its own, we may be able to use the referer here instead.
@@ -535,6 +508,23 @@ func (o *Verifier) setAccessTokenVerifier(ctx context.Context) error {
 	}
 
 	o.accessTokenVerifier = op.NewAccessTokenVerifier(o.issuer, keySet)
+	return nil
+}
+
+// startSession creates a session ID, then derives encryption keys with it. The ID and refresh token are encrypted
+// with the derived key, and then the session ID and encrypted ID and refresh tokens are all saved as cookies.
+func (o *Verifier) startSession(w http.ResponseWriter, idToken string, refreshToken string) error {
+	sessionID := uuid.New()
+	secureCookie, err := o.secureCookieFromSession(sessionID)
+	if err != nil {
+		return err
+	}
+
+	err = o.setCookies(w, secureCookie, sessionID, idToken, refreshToken, false)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
