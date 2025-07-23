@@ -512,7 +512,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 	}
 
 	if d.oidcVerifier != nil && d.oidcVerifier.IsRequest(r) {
-		result, err := d.oidcVerifier.Auth(d.shutdownCtx, w, r)
+		result, err := d.oidcVerifier.Auth(w, r)
 		if err != nil {
 			return false, "", "", nil, fmt.Errorf("Failed OIDC Authentication: %w", err)
 		}
