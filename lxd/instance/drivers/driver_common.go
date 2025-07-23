@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/sys/unix"
 
+	agentAPI "github.com/canonical/lxd/lxd-agent/api"
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -1544,7 +1545,7 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 				}
 
 				devlxdEvents = append(devlxdEvents, map[string]any{
-					"action": "removed",
+					"action": agentAPI.DeviceRemoved,
 					"name":   entry.Name,
 					"config": entry.Config,
 				})
@@ -1612,7 +1613,7 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 			revert.Add(func() { _ = dm.deviceStop(dev, instanceRunning, "") })
 
 			event := map[string]any{
-				"action": "added",
+				"action": agentAPI.DeviceAdded,
 				"name":   entry.Name,
 				"config": entry.Config,
 			}
@@ -1676,7 +1677,7 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 					}
 
 					devlxdEvents = append(devlxdEvents, map[string]any{
-						"action": "updated",
+						"action": agentAPI.DeviceUpdated,
 						"name":   entry.Name,
 						"config": entry.Config,
 					})
