@@ -60,7 +60,7 @@ func (b *InstanceBackup) Instance() Instance {
 
 // Rename renames an instance backup.
 func (b *InstanceBackup) Rename(newName string) error {
-	backupsPath := b.state.BackupsStoragePath()
+	backupsPath := b.state.BackupsStoragePath(b.instance.Project().Name)
 	oldBackupPath := filepath.Join(backupsPath, "instances", project.Instance(b.instance.Project().Name, b.name))
 	newBackupPath := filepath.Join(backupsPath, "instances", project.Instance(b.instance.Project().Name, newName))
 
@@ -111,7 +111,7 @@ func (b *InstanceBackup) Rename(newName string) error {
 
 // Delete removes an instance backup.
 func (b *InstanceBackup) Delete() error {
-	backupsPathBase := b.state.BackupsStoragePath()
+	backupsPathBase := b.state.BackupsStoragePath(b.instance.Project().Name)
 	backupPath := filepath.Join(backupsPathBase, "instances", project.Instance(b.instance.Project().Name, b.name))
 
 	// Delete the on-disk data.

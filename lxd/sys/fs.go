@@ -97,7 +97,7 @@ func (s *OS) initStorageDirs(config *node.Config) error {
 		return nil
 	}
 
-	if config.StorageBackupsVolume() == "" {
+	if config.StorageBackupsVolume("") == "" {
 		dirs := []struct {
 			path string
 			mode os.FileMode
@@ -113,7 +113,7 @@ func (s *OS) initStorageDirs(config *node.Config) error {
 		}
 	}
 
-	if config.StorageImagesVolume() == "" {
+	if config.StorageImagesVolume("") == "" {
 		dirs := []struct {
 			path string
 			mode os.FileMode

@@ -113,8 +113,8 @@ func (m *Map) Dump() map[string]any {
 // GetRaw returns the value of the given key, which must be of type String.
 func (m *Map) GetRaw(name string) string {
 	value, ok := m.values[name]
-	// User key?
-	if shared.IsUserConfig(name) {
+	// User or dynamic storage key?
+	if shared.IsUserConfig(name) || shared.IsProjectStorageConfig(name) {
 		return value
 	}
 	// Schema key
@@ -219,7 +219,8 @@ func (m *Map) set(name string, value string, initial bool) (bool, error) {
 	}
 
 	key, ok := m.schema[name]
-	if !ok {
+	// Allow free setting of dynamic storage.project_ configs
+	if !ok && !shared.IsProjectStorageConfig(name) {
 		return false, errors.New("Unknown key")
 	}
 

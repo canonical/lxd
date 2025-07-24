@@ -684,7 +684,7 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 // VM Format A: Separate metadata tarball and root qcow2 file.
 //   - Unpack metadata tarball into mountPath.
 //   - Check rootBlockPath is a file and convert qcow2 file into raw format in rootBlockPath.
-func ImageUnpack(s *state.State, imageFile string, vol drivers.Volume, destBlockFile string, allowUnsafeResize bool, tracker *ioprogress.ProgressTracker) (int64, error) {
+func ImageUnpack(s *state.State, project string, imageFile string, vol drivers.Volume, destBlockFile string, allowUnsafeResize bool, tracker *ioprogress.ProgressTracker) (int64, error) {
 	l := logger.Log.AddContext(logger.Ctx{"imageFile": imageFile, "volName": vol.Name()})
 	l.Info("Image unpack started")
 	defer l.Info("Image unpack stopped")
@@ -838,7 +838,7 @@ func ImageUnpack(s *state.State, imageFile string, vol drivers.Volume, destBlock
 		}
 	} else {
 		// Dealing with unified tarballs require an initial unpack to a temporary directory.
-		tempDir, err := os.MkdirTemp(s.ImagesStoragePath(), "lxd_image_unpack_")
+		tempDir, err := os.MkdirTemp(s.ImagesStoragePath(project), "lxd_image_unpack_")
 		if err != nil {
 			return -1, err
 		}
@@ -1173,16 +1173,25 @@ func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName s
 
 // VolumeUsedByDaemon indicates whether the volume is used by daemon storage.
 func VolumeUsedByDaemon(s *state.State, poolName string, volumeName string) (bool, error) {
-	var storageBackups string
-	var storageImages string
+	inUse := false
 	err := s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		nodeConfig, err := node.ConfigLoad(ctx, tx)
 		if err != nil {
 			return err
 		}
 
-		storageBackups = nodeConfig.StorageBackupsVolume()
-		storageImages = nodeConfig.StorageImagesVolume()
+		fullName := poolName + "/" + volumeName
+		for config, value := range nodeConfig.Dump() {
+			if !strings.HasPrefix(config, "storage.") || (!strings.HasSuffix(config, ".images_volume") && !strings.HasSuffix(config, ".backups_volume")) {
+				continue
+			}
+
+			volume, _ := value.(string)
+			if volume == fullName {
+				inUse = true
+				return nil
+			}
+		}
 
 		return nil
 	})
@@ -1190,12 +1199,7 @@ func VolumeUsedByDaemon(s *state.State, poolName string, volumeName string) (boo
 		return false, err
 	}
 
-	fullName := poolName + "/" + volumeName
-	if storageBackups == fullName || storageImages == fullName {
-		return true, nil
-	}
-
-	return false, nil
+	return inUse, nil
 }
 
 // FallbackMigrationType returns the fallback migration transport to use based on volume content type.
