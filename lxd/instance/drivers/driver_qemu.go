@@ -2427,20 +2427,7 @@ func (d *qemu) deviceAttachNIC(deviceName string, netIF []deviceConfig.RunConfig
 		return err
 	}
 
-	qemuDev := make(map[string]any)
-
-	// PCIe and PCI require a port device name to hotplug the NIC into.
-	if slices.Contains([]string{"pcie", "pci"}, qemuBus) {
-		// Try to get a PCI address for hotplugging.
-		qemuDev["bus"], qemuDev["addr"], _, err = d.getPCIHotplug()
-		if err != nil {
-			return err
-		}
-
-		d.logger.Debug("Using PCI bus device to hotplug NIC into", logger.Ctx{"device": deviceName, "port": qemuDev["bus"]})
-	}
-
-	monHook, err := d.addNetDevConfig(qemuBus, qemuDev, nil, netIF)
+	monHook, err := d.addNetDevConfig(qemuBus, d.getPCIHotplug, nil, netIF)
 	if err != nil {
 		return err
 	}
@@ -3495,14 +3482,11 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		cfg = append(cfg, qemuUSB(&usbOpts)...)
 	}
 
+	// Allocate a regular entry to keep things aligned normally (avoid NICs getting a different name).
+	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
 	if shared.IsTrue(d.expandedConfig["security.csm"]) {
-		// Allocate a regular entry to keep things aligned normally (avoid NICs getting a different name).
-		_, _, _ = bus.allocate(busFunctionGroupNone)
-
 		// Allocate a direct entry so the SCSI controller can be seen by seabios.
 		devBus, devAddr, multi = bus.allocateDirect()
-	} else {
-		devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
 	}
 
 	scsiOpts := qemuDevOpts{
@@ -3516,7 +3500,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 	// Always export the config directory as a 9p config drive, in case the host or VM guest doesn't support
 	// virtio-fs.
-	devBus, devAddr, multi = bus.allocate(busFunctionGroup9p)
+	devBus, devAddr, multi = bus.allocate(busFunctionGroupConfig)
 	driveConfig9pOpts := qemuDriveConfigOpts{
 		dev: qemuDevOpts{
 			busName:       bus.name,
@@ -3529,6 +3513,50 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 	}
 
 	cfg = append(cfg, qemuDriveConfig(&driveConfig9pOpts)...)
+
+	// If virtiofsd is running for the config directory then export the config drive via virtio-fs.
+	// This is used by the lxd-agent in preference to 9p (due to its improved performance) and in scenarios
+	// where 9p isn't available in the VM guest OS.
+	configSockPath, _ := d.configVirtiofsdPaths()
+	if shared.PathExists(configSockPath) {
+		shortPath, err := d.shortenedFilePath(configSockPath, fdFiles)
+		if err != nil {
+			return "", nil, err
+		}
+
+		devBus, devAddr, multi = bus.allocate(busFunctionGroupConfig)
+		driveConfigVirtioOpts := qemuDriveConfigOpts{
+			dev: qemuDevOpts{
+				busName:       bus.name,
+				devBus:        devBus,
+				devAddr:       devAddr,
+				multifunction: multi,
+			},
+			protocol: "virtio-fs",
+			path:     shortPath,
+		}
+
+		cfg = append(cfg, qemuDriveConfig(&driveConfigVirtioOpts)...)
+	}
+
+	// Allocate a regular entry to keep things aligned normally (avoid NICs getting a different name).
+	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
+	if shared.IsTrue(d.expandedConfig["security.csm"]) {
+		// Allocate a direct entry so the GPU can be seen by seabios.
+		devBus, devAddr, multi = bus.allocateDirect()
+	}
+
+	gpuOpts := qemuGpuOpts{
+		dev: qemuDevOpts{
+			busName:       bus.name,
+			devBus:        devBus,
+			devAddr:       devAddr,
+			multifunction: multi,
+		},
+		architecture: d.Architecture(),
+	}
+
+	cfg = append(cfg, qemuGPU(&gpuOpts)...)
 
 	// If user has requested AMD SEV, check if supported and add to QEMU config.
 	if shared.IsTrue(d.expandedConfig["security.sev"]) {
@@ -3548,53 +3576,6 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 			cfg = append(cfg, qemuSEV(sevOpts)...)
 		}
 	}
-
-	// If virtiofsd is running for the config directory then export the config drive via virtio-fs.
-	// This is used by the lxd-agent in preference to 9p (due to its improved performance) and in scenarios
-	// where 9p isn't available in the VM guest OS.
-	configSockPath, _ := d.configVirtiofsdPaths()
-	if shared.PathExists(configSockPath) {
-		shortPath, err := d.shortenedFilePath(configSockPath, fdFiles)
-		if err != nil {
-			return "", nil, err
-		}
-
-		devBus, devAddr, multi = bus.allocate(busFunctionGroup9p)
-		driveConfigVirtioOpts := qemuDriveConfigOpts{
-			dev: qemuDevOpts{
-				busName:       bus.name,
-				devBus:        devBus,
-				devAddr:       devAddr,
-				multifunction: multi,
-			},
-			protocol: "virtio-fs",
-			path:     shortPath,
-		}
-
-		cfg = append(cfg, qemuDriveConfig(&driveConfigVirtioOpts)...)
-	}
-
-	if shared.IsTrue(d.expandedConfig["security.csm"]) {
-		// Allocate a regular entry to keep things aligned normally (avoid NICs getting a different name).
-		_, _, _ = bus.allocate(busFunctionGroupNone)
-
-		// Allocate a direct entry so the GPU can be seen by seabios.
-		devBus, devAddr, multi = bus.allocateDirect()
-	} else {
-		devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
-	}
-
-	gpuOpts := qemuGpuOpts{
-		dev: qemuDevOpts{
-			busName:       bus.name,
-			devBus:        devBus,
-			devAddr:       devAddr,
-			multifunction: multi,
-		},
-		architecture: d.Architecture(),
-	}
-
-	cfg = append(cfg, qemuGPU(&gpuOpts)...)
 
 	// Dynamic devices.
 	base := 0
@@ -3643,22 +3624,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 		// Add network device.
 		if len(runConf.NetworkInterface) > 0 {
-			qemuDev := make(map[string]any)
-			if slices.Contains([]string{"pcie", "pci"}, bus.name) {
-				// Allocate a PCI(e) port and write it to the config file so QMP can "hotplug" the
-				// NIC into it later.
-				devBus, devAddr, multi := bus.allocate(busFunctionGroupNone)
-
-				// Populate the qemu device with port info.
-				qemuDev["bus"] = devBus
-				qemuDev["addr"] = devAddr
-
-				if multi {
-					qemuDev["multifunction"] = true
-				}
-			}
-
-			monHook, err := d.addNetDevConfig(bus.name, qemuDev, bootIndexes, runConf.NetworkInterface)
+			monHook, err := d.addNetDevConfig(bus.name, busAllocate, bootIndexes, runConf.NetworkInterface)
 			if err != nil {
 				return "", nil, err
 			}
@@ -4305,7 +4271,7 @@ func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]i
 
 // addNetDevConfig adds the qemu config required for adding a network device.
 // The qemuDev map is expected to be preconfigured with the settings for an existing port to use for the device.
-func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]any, bootIndexes map[string]int, nicConfig []deviceConfig.RunConfigItem) (monitorHook, error) {
+func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootIndexes map[string]int, nicConfig []deviceConfig.RunConfigItem) (monitorHook, error) {
 	reverter := revert.New()
 	defer reverter.Fail()
 
@@ -4340,6 +4306,24 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]any, bootIndex
 		if err != nil {
 			return nil, fmt.Errorf("Failed writing NIC config for device %q: %w", devName, err)
 		}
+	}
+
+	qemuDev := make(map[string]any)
+
+	// PCIe and PCI require a port device name to hotplug the NIC into.
+	if slices.Contains([]string{"pcie", "pci"}, busName) {
+		// Allocate a device port.
+		devBus, devAddr, multi, err := busAllocate()
+		if err != nil {
+			return nil, fmt.Errorf("Failed allocating bus for NIC device %q: %w", devName, err)
+		}
+
+		d.logger.Debug("Using PCI bus device to hotplug NIC into", logger.Ctx{"device": devName, "port": devBus})
+
+		// Populate the qemu device with port info.
+		qemuDev["bus"] = devBus
+		qemuDev["addr"] = devAddr
+		qemuDev["multifunction"] = multi
 	}
 
 	escapedDeviceName := filesystem.PathNameEncode(devName)
