@@ -3516,7 +3516,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 	// Always export the config directory as a 9p config drive, in case the host or VM guest doesn't support
 	// virtio-fs.
-	devBus, devAddr, multi = bus.allocate(busFunctionGroup9p)
+	devBus, devAddr, multi = bus.allocate(busFunctionGroupConfig)
 	driveConfig9pOpts := qemuDriveConfigOpts{
 		dev: qemuDevOpts{
 			busName:       bus.name,
@@ -3540,7 +3540,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 			return "", nil, err
 		}
 
-		devBus, devAddr, multi = bus.allocate(busFunctionGroup9p)
+		devBus, devAddr, multi = bus.allocate(busFunctionGroupConfig)
 		driveConfigVirtioOpts := qemuDriveConfigOpts{
 			dev: qemuDevOpts{
 				busName:       bus.name,
