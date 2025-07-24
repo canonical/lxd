@@ -3530,25 +3530,6 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 	cfg = append(cfg, qemuDriveConfig(&driveConfig9pOpts)...)
 
-	// If user has requested AMD SEV, check if supported and add to QEMU config.
-	if shared.IsTrue(d.expandedConfig["security.sev"]) {
-		sevOpts, err := d.setupSEV(fdFiles)
-		if err != nil {
-			return "", nil, err
-		}
-
-		if sevOpts != nil {
-			for i := range cfg {
-				if cfg[i].name == "machine" {
-					cfg[i].entries = append(cfg[i].entries, cfgEntry{"memory-encryption", "sev0"})
-					break
-				}
-			}
-
-			cfg = append(cfg, qemuSEV(sevOpts)...)
-		}
-	}
-
 	// If virtiofsd is running for the config directory then export the config drive via virtio-fs.
 	// This is used by the lxd-agent in preference to 9p (due to its improved performance) and in scenarios
 	// where 9p isn't available in the VM guest OS.
@@ -3595,6 +3576,25 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 	}
 
 	cfg = append(cfg, qemuGPU(&gpuOpts)...)
+
+	// If user has requested AMD SEV, check if supported and add to QEMU config.
+	if shared.IsTrue(d.expandedConfig["security.sev"]) {
+		sevOpts, err := d.setupSEV(fdFiles)
+		if err != nil {
+			return "", nil, err
+		}
+
+		if sevOpts != nil {
+			for i := range cfg {
+				if cfg[i].name == "machine" {
+					cfg[i].entries = append(cfg[i].entries, cfgEntry{"memory-encryption", "sev0"})
+					break
+				}
+			}
+
+			cfg = append(cfg, qemuSEV(sevOpts)...)
+		}
+	}
 
 	// Dynamic devices.
 	base := 0
