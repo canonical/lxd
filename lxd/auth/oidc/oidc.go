@@ -2,7 +2,7 @@ package oidc
 
 import (
 	"context"
-	"crypto/hkdf"
+	"crypto/hmac"
 	"crypto/sha512"
 	"encoding/json"
 	"errors"
@@ -43,7 +43,7 @@ const (
 )
 
 var (
-	// cookieEncryptionHashFunc is used to derive secure keys from the cluster secret using HKDF.
+	// cookieEncryptionHashFunc is used to derive secure keys from the cluster secret using HMAC.
 	cookieEncryptionHashFunc = sha512.New
 )
 
@@ -458,7 +458,7 @@ func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
 	//
 	// If LXD is deployed behind a load balancer, it's possible that the IdP will redirect the caller to a different
 	// cluster member than the member that initiated the flow. To handle this, we set a "login_id" cookie at the start
-	// of the flow, then derive cookie encryption keys from that login ID from the cluster secret using HKDF (the
+	// of the flow, then derive cookie encryption keys from that login ID from the cluster secret using HMAC (the
 	// same way that we do for OIDC tokens). See https://github.com/canonical/lxd/issues/13644.
 	cookieHandler := httphelper.NewRequestAwareCookieHandler(func(r *http.Request) (*securecookie.SecureCookie, error) {
 		loginID, err := r.Cookie(cookieNameLoginID)
@@ -649,9 +649,8 @@ func (*Verifier) setCookies(w http.ResponseWriter, secureCookie *securecookie.Se
 // secureCookieFromSession returns a *securecookie.SecureCookie that is secure, unique to each client, and possible to
 // decrypt on all cluster members.
 //
-// To do this we use the cluster secret as an input seed to HKDF (https://datatracker.ietf.org/doc/html/rfc5869) and
-// use the given sessionID uuid.UUID as a salt. The session ID can then be stored as a plaintext cookie so that we can
-// regenerate the keys upon the next request.
+// To do this we use the cluster secret as an input seed to HMAC and use the given sessionID uuid.UUID as a salt. The
+// session ID can then be stored as a plaintext cookie so that we can regenerate the keys upon the next request.
 //
 // Warning: Changes to this function might cause all existing OIDC users to be logged out of LXD (but not logged out of
 // the IdP).
@@ -677,33 +676,49 @@ func (o *Verifier) secureCookieFromSession(ctx context.Context, sessionID uuid.U
 		}
 	}
 
-	// Extract a pseudo-random key from the cluster secret.
-	prk, err := hkdf.Extract(cookieEncryptionHashFunc, secret.Value, salt)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to extract secure session key: %w", err)
-	}
-
-	// Get a secure key. We will use this key as the hash key for the cookie.
-	// The hash key is used to verify the integrity of decrypted values using HMAC. The HKDF "info" is set to "INTEGRITY"
-	// to indicate the intended usage of the key and prevent decryption in other contexts
-	// (see https://datatracker.ietf.org/doc/html/rfc5869#section-3.2).
-	// Use a key length of 64. The securecookie library recommends 64 bytes for the hash key (https://github.com/gorilla/securecookie).
-	cookieHashKey, err := hkdf.Expand(cookieEncryptionHashFunc, prk, "INTEGRITY", 64)
+	// Derive a hash key. The hash key is used to verify the integrity of decrypted values using HMAC.
+	// Use a key length of 64. This instructs the securecookie library to use HMAC-SHA512.
+	cookieHashKey, err := o.deriveKey(secret.Value, salt, "INTEGRITY", 64)
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating secure cookie hash key: %w", err)
 	}
 
-	// Get a secure key. We will use this key as the block key for the cookie.
-	// The block key is used by securecookie to perform AES encryption. The HKDF "info" is set to "ENCRYPTION"
-	// to indicate the intended usage of the key and prevent decryption in other contexts
-	// (see https://datatracker.ietf.org/doc/html/rfc5869#section-3.2).
-	// Use a key length of 32. Given 32 bytes for the block key the securecookie library will use AES-256 for encryption.
-	cookieBlockKey, err := hkdf.Expand(cookieEncryptionHashFunc, prk, "ENCRYPTION", 32)
+	// Derive a block key. The block key is used to perform AES encryption on the cookie contents.
+	// Use a key length of 32. This instructs the securecookie library to use AES-256.
+	cookieBlockKey, err := o.deriveKey(secret.Value, salt, "ENCRYPTION", 32)
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating secure cookie block key: %w", err)
 	}
 
 	return securecookie.New(cookieHashKey, cookieBlockKey), nil
+}
+
+// deriveKey uses HMAC to derive a key from a secret, a salt, and a separator. We can use HMAC directly because our
+// initial key material is uniformly random and of sufficient length.
+func (o *Verifier) deriveKey(secret []byte, salt []byte, usageSeparator string, length uint) ([]byte, error) {
+	maxSize := cookieEncryptionHashFunc().Size()
+	if int(length) > maxSize {
+		return nil, fmt.Errorf("Cannot derive keys larger than %d", maxSize)
+	}
+
+	// Extract a pseudo-random key from the secret value.
+	h := hmac.New(cookieEncryptionHashFunc, secret)
+
+	// Write salt.
+	_, err := h.Write(salt)
+	if err != nil {
+		return nil, fmt.Errorf("Failed creating secure key: %w", err)
+	}
+
+	// Write separator.
+	_, err = h.Write([]byte(usageSeparator))
+	if err != nil {
+		return nil, fmt.Errorf("Failed creating secure key: %w", err)
+	}
+
+	// Get the key.
+	key := h.Sum(nil)[:int(length)]
+	return key, nil
 }
 
 // Opts contains optional configurable fields for the Verifier.
