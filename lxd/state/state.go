@@ -12,6 +12,7 @@ import (
 	"github.com/canonical/lxd/lxd/bgp"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/dns"
 	"github.com/canonical/lxd/lxd/endpoints"
 	"github.com/canonical/lxd/lxd/events"
@@ -115,6 +116,9 @@ type State struct {
 
 	// StorageReady can be used to track whether all storage pools are successfully started.
 	StorageReady cancel.Canceller
+
+	// Secrets returns the current secrets.
+	Secrets func(ctx context.Context) (cluster.AuthSecrets, error)
 }
 
 // LeaderInfo represents information regarding cluster member leadership.
