@@ -784,6 +784,9 @@ func (d *Daemon) State() *state.State {
 		UbuntuPro:           d.ubuntuPro,
 		NetworkReady:        d.waitNetworkReady,
 		StorageReady:        d.waitStorageReady,
+		Secrets: func(ctx context.Context) (dbCluster.Secrets, error) {
+			return d.getSecrets(ctx)
+		},
 	}
 
 	s.LeaderInfo = func() (*state.LeaderInfo, error) {
