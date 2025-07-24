@@ -95,7 +95,7 @@ const QEMUDefaultMemSize = "1GiB"
 const qemuSerialChardevName = "qemu_serial-chardev"
 
 // qemuPCIDeviceIDStart is the first PCI slot used for user configurable devices.
-const qemuPCIDeviceIDStart = 4
+const qemuPCIDeviceIDStart uint16 = 4
 
 // qemuDeviceIDPrefix used as part of the name given QEMU devices generated from user added devices.
 const qemuDeviceIDPrefix = "dev-lxd_"
@@ -337,6 +337,67 @@ type qemu struct {
 
 	// Stateful migration streams.
 	migrationReceiveStateful map[string]io.ReadWriteCloser
+}
+
+// busAllocatePCIeHotplug provides a busAllocator implementation for hotplugging PCIe devices.
+func (d *qemu) busAllocatePCIeHotplug(deviceName string, _ bool) (busName string, busAddress string, multifunction bool, err error) {
+	// Get current PCI slot count from QEMU.
+	pciSlotCount, err := d.getPCISlotCount()
+	if err != nil {
+		return "", "", false, fmt.Errorf("Failed to get PCI slot count: %w", err)
+	}
+
+	if pciSlotCount == 0 {
+		return "", "", false, errors.New("No PCIe slots available for hotplugging")
+	}
+
+	deviceVolatileKey := "volatile." + deviceName + busDeviceVolatileSuffix
+	firstFunctionAddress := "00.0" // The address of the first function on the port.
+
+	// Identify used PCIe slots based on device volatile keys.
+	usedSlots := make(map[uint16]struct{})
+	for k, v := range d.localConfig {
+		if !strings.HasPrefix(k, "volatile.") || !strings.HasSuffix(k, busDeviceVolatileSuffix) {
+			continue
+		}
+
+		// Re-use existing PCIe port if its currently assigned to the device.
+		// This occurs when an existing device's settings are changed and the device is hotplugged again.
+		if k == deviceVolatileKey {
+			busName := busDevicePortPrefix + v
+			d.logger.Debug("Re-using PCIe bus to hotplug device into", logger.Ctx{"device": deviceName, "bus": busName})
+
+			return busName, firstFunctionAddress, false, nil
+		}
+
+		busNum, err := strconv.ParseUint(v, 10, 16)
+		if err != nil {
+			return "", "", false, fmt.Errorf("Failed parsing volatile key %q: %w", k, err)
+		}
+
+		// Record that this port is referenced by an existing device volatile key.
+		usedSlots[uint16(busNum)] = struct{}{}
+	}
+
+	// Find an unused PCIe slot by iterating through the available slots and checking against the used slots.
+	for i := qemuPCIDeviceIDStart; i < pciSlotCount; i++ {
+		_, used := usedSlots[i]
+		if used {
+			continue
+		}
+
+		err = d.VolatileSet(map[string]string{deviceVolatileKey: strconv.FormatUint(uint64(i), 10)})
+		if err != nil {
+			return "", "", false, fmt.Errorf("Failed setting volatile keys: %w", err)
+		}
+
+		busName := busDevicePortPrefix + strconv.FormatUint(uint64(i), 10)
+		d.logger.Debug("Using PCIe bus to hotplug device into", logger.Ctx{"device": deviceName, "bus": busName})
+
+		return busName, firstFunctionAddress, false, nil
+	}
+
+	return "", "", false, errors.New("No unused PCIe ports available for hotplugging")
 }
 
 // getAgentClient returns the current agent client handle.
@@ -2284,12 +2345,10 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 	reverter.Add(func() { _ = monitor.RemoveCharDevice(deviceID) })
 
 	// Try to get a PCI address for hotplugging.
-	busName, busAddr, _, err := d.getPCIHotplug()
+	busName, busAddr, _, err := d.busAllocatePCIeHotplug(deviceName, false)
 	if err != nil {
 		return "", err
 	}
-
-	d.logger.Debug("Using PCI bus device to hotplug virtiofs into", logger.Ctx{"device": deviceName, "port": busName})
 
 	qemuDev := map[string]any{
 		"driver":  "vhost-user-fs-pci",
@@ -2316,7 +2375,7 @@ func (d *qemu) deviceAttachBlockDevice(mount deviceConfig.MountEntryItem) error 
 		return fmt.Errorf("Failed to connect to QMP monitor: %w", err)
 	}
 
-	monHook, err := d.addDriveConfig(d.getPCIHotplug, nil, mount)
+	monHook, err := d.addDriveConfig(d.busAllocatePCIeHotplug, nil, mount)
 	if err != nil {
 		return fmt.Errorf("Failed to add drive config: %w", err)
 	}
@@ -2430,7 +2489,7 @@ func (d *qemu) deviceAttachNIC(deviceName string, netIF []deviceConfig.RunConfig
 		return err
 	}
 
-	monHook, err := d.addNetDevConfig(qemuBus, d.getPCIHotplug, nil, netIF)
+	monHook, err := d.addNetDevConfig(qemuBus, d.busAllocatePCIeHotplug, nil, netIF)
 	if err != nil {
 		return err
 	}
@@ -2443,66 +2502,27 @@ func (d *qemu) deviceAttachNIC(deviceName string, netIF []deviceConfig.RunConfig
 	return nil
 }
 
-// getPCIHotplug returns an available PCI device bus name and address that can be used for hotplugging.
-// multi will always be false but is included for compatibility with busAllocator interface.
-func (d *qemu) getPCIHotplug() (busName string, busAddress string, multi bool, err error) {
+// getPCISlotCount returns the number of PCI slots currently provisioned in the instance.
+func (d *qemu) getPCISlotCount() (pciSlots uint16, err error) {
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
-		return "", "", false, err
+		return 0, err
 	}
 
-	hasUsedBridges := func(devices []qmp.PCIDevice) bool {
-		for _, dev := range devices {
-			if len(dev.Bridge.Devices) > 0 {
-				return true
-			}
-		}
-
-		return false
+	// Get the current PCI devices.
+	devices, err := monitor.QueryPCI()
+	if err != nil {
+		return 0, fmt.Errorf("Failed to query PCI devices: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	for {
-		// Get the current PCI devices.
-		devices, err := monitor.QueryPCI()
-		if err != nil {
-			return "", "", false, fmt.Errorf("Failed to query PCI devices: %w", err)
+	for _, dev := range devices {
+		if strings.HasPrefix(dev.DevID, busDevicePortPrefix) {
+			pciSlots++
 		}
-
-		if !hasUsedBridges(devices) {
-			// Wait for PCI bridges to be created (with the internal devices LXD adds) to ensure QEMU
-			// has had time to initialise the QMP query-pci output.
-			// Otherwise we'll end up trying to hotplug into a used PCI slot.
-			d.logger.Debug("Waiting for PCI to initialize")
-
-			select {
-			case <-ctx.Done():
-				return "", "", false, fmt.Errorf("Timed out waiting for PCI to initialize: %w", ctx.Err())
-			case <-time.After(250 * time.Millisecond):
-			}
-
-			continue
-		}
-
-		for _, dev := range devices {
-			// Skip built-in devices.
-			if dev.DevID == "" {
-				continue
-			}
-
-			// Skip used bridges.
-			if len(dev.Bridge.Devices) > 0 {
-				continue
-			}
-
-			// Found an empty slot, return address of first function in that slot.
-			return dev.DevID, "00.0", false, nil
-		}
-
-		return "", "", false, errors.New("No available PCI hotplug slots could be found")
 	}
+
+	return pciSlots, nil
 }
 
 // deviceAttachPCI live attaches a generic PCI device to the instance.
@@ -2539,12 +2559,10 @@ func (d *qemu) deviceAttachPCI(deviceName string, pciConfig []deviceConfig.RunCo
 	}
 
 	// Try to get a PCI address for hotplugging.
-	busName, busAddr, _, err := d.getPCIHotplug()
+	busName, busAddr, _, err := d.busAllocatePCIeHotplug(deviceName, false)
 	if err != nil {
 		return err
 	}
-
-	d.logger.Debug("Using PCI bus device to hotplug device into", logger.Ctx{"device": deviceName, "port": busName})
 
 	escapedDeviceName := filesystem.PathNameEncode(devName)
 
@@ -3591,16 +3609,28 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		return "", nil, fmt.Errorf("Error calculating boot indexes: %w", err)
 	}
 
-	// Setup a bus allocator for use with generating QEMU pre-boot config file.
-	busAllocate := func() (busName string, busAddress string, multi bool, err error) {
-		busName, busAddr, multi := bus.allocate(busFunctionGroupNone)
-		return busName, busAddr, multi, nil
-	}
-
 	// These devices are sorted so that NICs are added first to ensure that the first NIC can use the 5th
 	// PCIe bus port and will be consistently named enp5s0 for compatibility with network configuration in our
 	// existing VM images. Even on non-PCIe busses having NICs first means that their names won't change when
 	// other devices are added.
+	volatileSet := make(map[string]string, 0)
+	busAllocate := func(deviceName string, enableMultifunction bool) (busName string, busAddress string, multifunction bool, err error) {
+		multifunctionGroup := busFunctionGroupNone
+		if enableMultifunction {
+			multifunctionGroup = "lxd_" + deviceName
+		}
+
+		busName, busAddress, multifunction = bus.allocate(multifunctionGroup)
+
+		if bus.name == "pcie" {
+			// Only PCIe supports hotplugging and needs to store the bus name in volatile.
+			d.logger.Debug("Using PCIe bus to plug device into", logger.Ctx{"device": deviceName, "bus": busName})
+			volatileSet["volatile."+deviceName+busDeviceVolatileSuffix] = strings.TrimPrefix(busName, busDevicePortPrefix)
+		}
+
+		return busName, busAddress, multifunction, nil
+	}
+
 	for _, runConf := range devConfs {
 		// Add drive devices.
 		if len(runConf.Mounts) > 0 {
@@ -3610,7 +3640,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 				if drive.TargetPath == "/" {
 					monHook, err = d.addRootDriveConfig(busAllocate, mountInfo, bootIndexes, drive)
 				} else if drive.FSType == "9p" {
-					err = d.addDriveDirConfig(&cfg, bus, fdFiles, drive)
+					err = d.addDriveDirConfig(&cfg, bus.name, busAllocate, fdFiles, drive)
 				} else {
 					monHook, err = d.addDriveConfig(busAllocate, bootIndexes, drive)
 				}
@@ -3637,7 +3667,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 		// Add GPU device.
 		if len(runConf.GPUDevice) > 0 {
-			err = d.addGPUDevConfig(&cfg, bus, runConf.GPUDevice)
+			err = d.addGPUDevConfig(&cfg, bus.name, busAllocate, runConf.GPUDevice)
 			if err != nil {
 				return "", nil, err
 			}
@@ -3645,7 +3675,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 		// Add PCI device.
 		if len(runConf.PCIDevice) > 0 {
-			err = d.addPCIDevConfig(&cfg, bus, runConf.PCIDevice)
+			err = d.addPCIDevConfig(&cfg, bus.name, busAllocate, runConf.PCIDevice)
 			if err != nil {
 				return "", nil, err
 			}
@@ -3668,6 +3698,12 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 				return "", nil, err
 			}
 		}
+	}
+
+	// Apply any volatile changes that need to be made.
+	err = d.VolatileSet(volatileSet)
+	if err != nil {
+		return "", nil, fmt.Errorf("Failed setting device volatile keys: %w", err)
 	}
 
 	err = d.generateAgentMountsFile()
@@ -3873,7 +3909,7 @@ func (d *qemu) addRootDriveConfig(busAllocate busAllocator, mountInfo *storagePo
 }
 
 // addDriveDirConfig adds the qemu config required for adding a supplementary drive directory share.
-func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os.File, driveConf deviceConfig.MountEntryItem) error {
+func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, busName string, busAllocate busAllocator, fdFiles *[]*os.File, driveConf deviceConfig.MountEntryItem) error {
 	mountTag := qemuDeviceNameOrID(qemuDeviceNamePrefix, driveConf.DevName, "", qemuDeviceNameMaxLength)
 	readonly := slices.Contains(driveConf.Opts, "ro")
 
@@ -3886,22 +3922,15 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 		}
 	}
 
-	// Setup a bus allocator for use with generating QEMU pre-boot config file.
-	busAllocate := func() (busName string, busAddress string, multi bool, err error) {
-		// Use per-LXD device multi-function group so that both virtiofs and 9p devices use same bus slot.
-		busName, busAddr, multi := bus.allocate("lxd_" + driveConf.DevName)
-		return busName, busAddr, multi, nil
-	}
-
 	// If there is a virtiofsd socket path setup the virtio-fs share.
 	if virtiofsdSockPath != "" {
 		if !shared.PathExists(virtiofsdSockPath) {
 			return fmt.Errorf("virtiofsd socket path %q doesn't exist", virtiofsdSockPath)
 		}
 
-		devBus, devAddr, multi, err := busAllocate()
+		devBus, devAddr, multi, err := busAllocate(driveConf.DevName, true)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed allocating bus for virtiofs disk device %q: %w", driveConf.DevName, err)
 		}
 
 		shortPath, err := d.shortenedFilePath(virtiofsdSockPath, fdFiles)
@@ -3912,7 +3941,7 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 		// Add virtio-fs device as this will be preferred over 9p.
 		driveDirVirtioOpts := qemuDriveDirOpts{
 			dev: qemuDevOpts{
-				busName:       bus.name,
+				busName:       busName,
 				devBus:        devBus,
 				devAddr:       devAddr,
 				multifunction: multi,
@@ -3926,9 +3955,9 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 	}
 
 	// Add 9p share config.
-	devBus, devAddr, multi, err := busAllocate()
+	devBus, devAddr, multi, err := busAllocate(driveConf.DevName, true)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed allocating bus for 9p disk device %q: %w", driveConf.DevName, err)
 	}
 
 	fdSource, ok := driveConf.DevSource.(deviceConfig.DevSourceFD)
@@ -3940,7 +3969,7 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 
 	driveDir9pOpts := qemuDriveDirOpts{
 		dev: qemuDevOpts{
-			busName:       bus.name,
+			busName:       busName,
 			devBus:        devBus,
 			devAddr:       devAddr,
 			multifunction: multi,
@@ -4188,12 +4217,10 @@ func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]i
 		qemuDev["driver"] = busName
 
 		// Allocate a device port.
-		devBus, devAddr, multi, err := busAllocate()
+		devBus, devAddr, multi, err := busAllocate(driveConf.DevName, false)
 		if err != nil {
 			return nil, fmt.Errorf("Failed allocating bus for disk device %q: %w", driveConf.DevName, err)
 		}
-
-		d.logger.Debug("Using device port to plug drive into", logger.Ctx{"device": driveConf.DevName, "port": devBus})
 
 		// Populate the qemu device with port info.
 		qemuDev["bus"] = devBus
@@ -4315,13 +4342,11 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 
 	// PCIe and PCI require a port device name to hotplug the NIC into.
 	if slices.Contains([]string{"pcie", "pci"}, busName) {
-		// Allocate a device port.
-		devBus, devAddr, multi, err := busAllocate()
+		// Allocate PCI(e) port and write it to the config file so QMP can "hotplug" the NIC into it later.
+		devBus, devAddr, multi, err := busAllocate(devName, false)
 		if err != nil {
 			return nil, fmt.Errorf("Failed allocating bus for NIC device %q: %w", devName, err)
 		}
-
-		d.logger.Debug("Using PCI bus device to hotplug NIC into", logger.Ctx{"device": devName, "port": devBus})
 
 		// Populate the qemu device with port info.
 		qemuDev["bus"] = devBus
@@ -4653,7 +4678,7 @@ func (d *qemu) writeNICDevConfig(mtuStr string, devName string, nicName string, 
 }
 
 // addPCIDevConfig adds the qemu config required for adding a raw PCI device.
-func (d *qemu) addPCIDevConfig(cfg *[]cfgSection, bus *qemuBus, pciConfig []deviceConfig.RunConfigItem) error {
+func (d *qemu) addPCIDevConfig(cfg *[]cfgSection, busName string, busAllocate busAllocator, pciConfig []deviceConfig.RunConfigItem) error {
 	var devName, pciSlotName string
 	for _, pciItem := range pciConfig {
 		switch pciItem.Key {
@@ -4664,10 +4689,14 @@ func (d *qemu) addPCIDevConfig(cfg *[]cfgSection, bus *qemuBus, pciConfig []devi
 		}
 	}
 
-	devBus, devAddr, multi := bus.allocate("lxd_" + devName)
+	devBus, devAddr, multi, err := busAllocate(devName, false)
+	if err != nil {
+		return fmt.Errorf("Failed allocating bus for PCI device %q: %w", devName, err)
+	}
+
 	pciPhysicalOpts := qemuPCIPhysicalOpts{
 		dev: qemuDevOpts{
-			busName:       bus.name,
+			busName:       busName,
 			devBus:        devBus,
 			devAddr:       devAddr,
 			multifunction: multi,
@@ -4681,7 +4710,7 @@ func (d *qemu) addPCIDevConfig(cfg *[]cfgSection, bus *qemuBus, pciConfig []devi
 }
 
 // addGPUDevConfig adds the qemu config required for adding a GPU device.
-func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, bus *qemuBus, gpuConfig []deviceConfig.RunConfigItem) error {
+func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, busName string, busAllocate busAllocator, gpuConfig []deviceConfig.RunConfigItem) error {
 	var devName, pciSlotName, vgpu string
 	for _, gpuItem := range gpuConfig {
 		switch gpuItem.Key {
@@ -4718,10 +4747,14 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, bus *qemuBus, gpuConfig []devi
 		return true
 	}()
 
-	devBus, devAddr, multi := bus.allocate("lxd_" + devName)
+	devBus, devAddr, multi, err := busAllocate(devName, true)
+	if err != nil {
+		return fmt.Errorf("Failed allocating bus for GPU device %q: %w", devName, err)
+	}
+
 	gpuDevPhysicalOpts := qemuGPUDevPhysicalOpts{
 		dev: qemuDevOpts{
-			busName:       bus.name,
+			busName:       busName,
 			devBus:        devBus,
 			devAddr:       devAddr,
 			multifunction: multi,
@@ -4760,10 +4793,14 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, bus *qemuBus, gpuConfig []devi
 			// Match any VFs that are related to the GPU device (but not the GPU device itself).
 			if strings.HasPrefix(iommuSlotName, prefix) && iommuSlotName != pciSlotName {
 				// Add VF device without VGA mode to qemu config.
-				devBus, devAddr, multi := bus.allocate("lxd_" + devName)
+				devBus, devAddr, multi, err := busAllocate(devName, true)
+				if err != nil {
+					return fmt.Errorf("Failed allocating bus for GPU VF device %q: %w", devName, err)
+				}
+
 				gpuDevPhysicalOpts := qemuGPUDevPhysicalOpts{
 					dev: qemuDevOpts{
-						busName:       bus.name,
+						busName:       busName,
 						devBus:        devBus,
 						devAddr:       devAddr,
 						multifunction: multi,
