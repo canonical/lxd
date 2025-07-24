@@ -2427,20 +2427,7 @@ func (d *qemu) deviceAttachNIC(deviceName string, netIF []deviceConfig.RunConfig
 		return err
 	}
 
-	qemuDev := make(map[string]any)
-
-	// PCIe and PCI require a port device name to hotplug the NIC into.
-	if slices.Contains([]string{"pcie", "pci"}, qemuBus) {
-		// Try to get a PCI address for hotplugging.
-		qemuDev["bus"], qemuDev["addr"], _, err = d.getPCIHotplug()
-		if err != nil {
-			return err
-		}
-
-		d.logger.Debug("Using PCI bus device to hotplug NIC into", logger.Ctx{"device": deviceName, "port": qemuDev["bus"]})
-	}
-
-	monHook, err := d.addNetDevConfig(qemuBus, qemuDev, nil, netIF)
+	monHook, err := d.addNetDevConfig(qemuBus, d.getPCIHotplug, nil, netIF)
 	if err != nil {
 		return err
 	}
@@ -3643,22 +3630,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 		// Add network device.
 		if len(runConf.NetworkInterface) > 0 {
-			qemuDev := make(map[string]any)
-			if slices.Contains([]string{"pcie", "pci"}, bus.name) {
-				// Allocate a PCI(e) port and write it to the config file so QMP can "hotplug" the
-				// NIC into it later.
-				devBus, devAddr, multi := bus.allocate(busFunctionGroupNone)
-
-				// Populate the qemu device with port info.
-				qemuDev["bus"] = devBus
-				qemuDev["addr"] = devAddr
-
-				if multi {
-					qemuDev["multifunction"] = true
-				}
-			}
-
-			monHook, err := d.addNetDevConfig(bus.name, qemuDev, bootIndexes, runConf.NetworkInterface)
+			monHook, err := d.addNetDevConfig(bus.name, busAllocate, bootIndexes, runConf.NetworkInterface)
 			if err != nil {
 				return "", nil, err
 			}
@@ -4312,7 +4284,7 @@ func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]i
 
 // addNetDevConfig adds the qemu config required for adding a network device.
 // The qemuDev map is expected to be preconfigured with the settings for an existing port to use for the device.
-func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]any, bootIndexes map[string]int, nicConfig []deviceConfig.RunConfigItem) (monitorHook, error) {
+func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootIndexes map[string]int, nicConfig []deviceConfig.RunConfigItem) (monitorHook, error) {
 	reverter := revert.New()
 	defer reverter.Fail()
 
@@ -4347,6 +4319,24 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]any, bootIndex
 		if err != nil {
 			return nil, fmt.Errorf("Failed writing NIC config for device %q: %w", devName, err)
 		}
+	}
+
+	qemuDev := make(map[string]any)
+
+	// PCIe and PCI require a port device name to hotplug the NIC into.
+	if slices.Contains([]string{"pcie", "pci"}, busName) {
+		// Allocate a device port.
+		devBus, devAddr, multi, err := busAllocate()
+		if err != nil {
+			return nil, fmt.Errorf("Failed allocating bus for NIC device %q: %w", devName, err)
+		}
+
+		d.logger.Debug("Using PCI bus device to hotplug NIC into", logger.Ctx{"device": devName, "port": devBus})
+
+		// Populate the qemu device with port info.
+		qemuDev["bus"] = devBus
+		qemuDev["addr"] = devAddr
+		qemuDev["multifunction"] = multi
 	}
 
 	escapedDeviceName := filesystem.PathNameEncode(devName)
