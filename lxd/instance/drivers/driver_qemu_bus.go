@@ -6,7 +6,7 @@ import (
 
 const busFunctionGroupNone = ""           // Add a non multi-function port.
 const busFunctionGroupGeneric = "generic" // Add multi-function port to generic group (used for internal devices).
-const busFunctionGroup9p = "9p"           // Add multi-function port to 9p group (used for 9p shares).
+const busFunctionGroupConfig = "config"   // Add multi-function port to config group (used for config shares).
 const busDevicePortPrefix = "qemu_pcie"   // Prefix used for name of PCIe ports.
 
 // busAllocator is a function signature used for allocating PCI(e) slots in QEMU.
