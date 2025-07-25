@@ -1351,6 +1351,18 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 			return err
 		}
 
+		// Extract the previous bus number from volatile config if set.
+		// Used in generateQemuConfigFile() to ensure that the bus number is consistent across restarts.
+		deviceVolatileKey := "volatile." + dev.Name() + busDeviceVolatileSuffix
+		if d.localConfig[deviceVolatileKey] != "" {
+			busNum, err := strconv.ParseUint(d.localConfig[deviceVolatileKey], 10, 8)
+			if err != nil {
+				return fmt.Errorf("Failed parsing volatile key %q: %w", deviceVolatileKey, err)
+			}
+
+			runConf.BusNum = uint8(busNum)
+		}
+
 		revert.Add(func() {
 			err := d.deviceStop(dev, false, "")
 			if err != nil {
