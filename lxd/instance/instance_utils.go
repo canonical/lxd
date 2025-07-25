@@ -251,23 +251,6 @@ func lxcValidConfig(rawLxc string) error {
 				`"limits.kernel.[limit name]" and not ` +
 				`directly via "lxc.prlimit.[limit name]"`)
 		}
-
-		networkKeyPrefix := "lxc.net."
-		if strings.HasPrefix(key, networkKeyPrefix) {
-			fields := strings.Split(key, ".")
-
-			// lxc.net.X.ipv4.address or lxc.net.X.ipv6.address
-			if len(fields) == 5 && slices.Contains([]string{"ipv4", "ipv6"}, fields[3]) && fields[4] == "address" {
-				continue
-			}
-
-			// lxc.net.X.ipv4.gateway or lxc.net.X.ipv6.gateway
-			if len(fields) == 5 && slices.Contains([]string{"ipv4", "ipv6"}, fields[3]) && fields[4] == "gateway" {
-				continue
-			}
-
-			return fmt.Errorf("Only interface-specific ipv4/ipv6 %s keys are allowed", networkKeyPrefix)
-		}
 	}
 
 	return nil
