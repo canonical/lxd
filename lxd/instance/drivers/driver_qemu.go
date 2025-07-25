@@ -2365,6 +2365,9 @@ func (d *qemu) deviceDetachPath(deviceName string) error {
 }
 
 func (d *qemu) deviceDetachBlockDevice(deviceName string) error {
+	d.logger.Debug("Detaching block device", logger.Ctx{"device": deviceName})
+	defer d.logger.Debug("Finished detaching block device", logger.Ctx{"device": deviceName})
+
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
@@ -2392,13 +2395,13 @@ func (d *qemu) deviceDetachBlockDevice(deviceName string) error {
 			break
 		}
 
+		if time.Now().After(waitUntil) {
+			return fmt.Errorf("Failed to detach block device after %v: %w", waitDuration, err)
+		}
+
 		if api.StatusErrorCheck(err, http.StatusLocked) {
 			time.Sleep(time.Second * time.Duration(2))
 			continue
-		}
-
-		if time.Now().After(waitUntil) {
-			return fmt.Errorf("Failed to detach block device after %v", waitDuration)
 		}
 	}
 
