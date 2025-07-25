@@ -1,6 +1,7 @@
 package instance
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -129,4 +130,28 @@ lxc.log.file = "/dev/null"`,
 			assert.NoError(t, err, "Did not expect error for test case: %s", test.name)
 		}
 	}
+}
+
+func Test_DeviceNextInterfaceHWAddr(t *testing.T) {
+	mac1, err := DeviceNextInterfaceHWAddr()
+	if err != nil {
+		t.Fatalf("Failed to get next interface HW address: %v", err)
+	}
+
+	assert.Len(t, mac1, 17, "Expected MAC address to be 17 characters long")
+	if !strings.HasPrefix(mac1, "00:16:3e:") {
+		t.Fatalf("Expected MAC address to start with '00:16:3e:', got %s", mac1)
+	}
+
+	mac2, err := DeviceNextInterfaceHWAddr()
+	if err != nil {
+		t.Fatalf("Failed to get next interface HW address: %v", err)
+	}
+
+	assert.Len(t, mac2, 17, "Expected MAC address to be 17 characters long")
+	if !strings.HasPrefix(mac2, "00:16:3e:") {
+		t.Fatalf("Expected MAC address to start with '00:16:3e:', got %s", mac2)
+	}
+
+	assert.NotEqual(t, mac1, mac2, "Expected different MAC addresses for subsequent calls")
 }
