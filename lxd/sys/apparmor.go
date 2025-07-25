@@ -63,11 +63,16 @@ func (s *OS) initAppArmor() []cluster.Warning {
 
 	// Detect AppArmor cache directories.
 	s.AppArmorCacheLoc = shared.VarPath("security", "apparmor", "cache")
-	s.AppArmorCacheDir, err = appArmorGetCacheDir(s.AppArmorVersion, s.AppArmorCacheLoc)
-	if err != nil {
-		logger.Warn("AppArmor feature cache directory detection failed", logger.Ctx{"err": err})
+	if s.AppArmorAvailable {
+		s.AppArmorCacheDir, err = appArmorGetCacheDir(s.AppArmorVersion, s.AppArmorCacheLoc)
+		if err != nil {
+			logger.Warn("AppArmor feature cache directory detection failed", logger.Ctx{"err": err})
+		} else {
+			logger.Debug("AppArmor feature cache directory detected", logger.Ctx{"cache_dir": s.AppArmorCacheDir})
+		}
 	} else {
-		logger.Debug("AppArmor feature cache directory detected", logger.Ctx{"cache_dir": s.AppArmorCacheDir})
+		// If AppArmor is not available, use the base cache location that doesn't need apparmor_parser to determine.
+		s.AppArmorCacheDir = s.AppArmorCacheLoc
 	}
 
 	/* Detect existing AppArmor stack */
