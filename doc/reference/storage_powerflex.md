@@ -102,6 +102,10 @@ Sharing the PowerFlex storage pool between installations
 Recovering PowerFlex storage pools
 : Recovery of PowerFlex storage pools using `lxd recover` is not supported.
 
+Incompatible instance images
+: The Ubuntu Noble Numbat image cannot be used together with the {config:option}`storage-powerflex-pool-conf:powerflex.mode` set to `sdc`.
+  This is due to a limitation of SDC not being able to manage volumes with more than 15 partitions.
+
 ## Configuration options
 
 The following configuration options are available for storage pools that use the `powerflex` driver and for storage volumes in these pools.
