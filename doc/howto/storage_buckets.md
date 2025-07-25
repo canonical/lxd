@@ -15,6 +15,9 @@ Unlike custom storage volumes, storage buckets cannot be attached to instances. 
 (howto-storage-buckets-view)=
 ## View storage buckets
 
+`````{tabs}
+````{group-tab} CLI
+
 To list all available storage buckets in a storage pool, run:
 
 ```bash
@@ -26,6 +29,18 @@ To show detailed information about a specific bucket, run:
 ```bash
 lxc storage bucket show <pool-name> <bucket-name>
 ```
+
+````
+````{group-tab} UI
+
+To view storage buckets in the UI, select {guilabel}`Buckets` from the {guilabel}`Storage` section of the main navigation.
+
+```{figure} /images/storage/storage_buckets/storage_bucket_list.png
+:width: 80%
+:alt: List Storage Buckets in LXD UI
+```
+````
+`````
 
 (howto-storage-buckets-create)=
 ## Create a storage bucket
@@ -40,7 +55,11 @@ Other requirements must be met before you can create a storage bucket, depending
 (howto-storage-buckets-create-requirements-distributed)=
 #### Distributed storage buckets
 
-To create a distributed storage bucket, your LXD server must have access to a {ref}`Ceph Object <storage-cephobject>` storage pool. To view available storage pools, run:
+To create a distributed storage bucket, your LXD server must have access to a {ref}`Ceph Object <storage-cephobject>` storage pool.
+
+`````{tabs}
+````{group-tab} CLI
+To view available storage pools, run:
 
 ```bash
 lxc storage list
@@ -49,6 +68,24 @@ lxc storage list
 If you see a storage pool in the output with the `cephobject` driver, you're all set. Continue on to the instructions below to {ref}`create a storage bucket <howto-storage-buckets-create-single>`.
 
 If you don't see a pool that uses a `cephobject` storage driver, you must create one before you can continue. This requires a [Ceph](https://ceph.io) cluster with a RADOS Gateway (`radosgw`) enabled. See our how-to guide for storage pools: {ref}`howto-storage-pools-ceph-requirements`.
+
+````
+````{group-tab} UI
+To create a storage bucket, select {guilabel}`Buckets` from the {guilabel}`Storage` section of the main navigation.
+
+On the resulting screen, click {guilabel}`Create bucket` in the upper right corner.
+
+From the side panel, you can configure the name, size and description of your storage bucket.
+You can select a storage pool from the {guilabel}`Storage pool` dropdown.
+
+Click {guilabel}`Create bucket` to create the storage bucket.
+
+```{figure} /images/storage/storage_buckets/storage_bucket_create.png
+:width: 60%
+:alt: Create Storage Buckets in LXD UI
+```
+````
+`````
 
 (howto-storage-buckets-create-requirements-local)=
 #### Local storage buckets
@@ -138,6 +175,8 @@ lxc storage bucket create <pool-name> <bucket-name> --target=<cluster-member> [c
 
 See the {ref}`storage-drivers` documentation for the available configuration options for each storage driver that supports object storage.
 
+`````{tabs}
+````{group-tab} CLI
 Use the following command to set configuration options for a storage bucket:
 
 ```bash
@@ -162,11 +201,24 @@ Use the following command to delete a storage bucket and its keys:
 lxc storage bucket delete <pool-name> <bucket-name>
 ```
 
+````
+````{group-tab} UI
+
+To configure a storage bucket, select {guilabel}`Buckets` from the {guilabel}`Storage` section of the Main navigation.
+
+The resulting screen shows a list of existing storage buckets. Click the {guilabel}`Edit` icon on the row of the desired bucket to access its details.
+
+After making changes, click the {guilabel}`Save changes` button. This button also displays the number of changes you have made.
+````
+`````
+
 (howto-storage-buckets-resize)=
 ## Resize a storage bucket
 
 By default, storage buckets do not have a quota applied.
 
+`````{tabs}
+````{group-tab} CLI
 To set or change a quota for a storage bucket, set its size configuration:
 
 ```bash
@@ -178,6 +230,17 @@ lxc storage bucket set <pool-name> <bucket-name> size <new-size>
 - You cannot shrink a storage bucket below its current used size.
 
 ```
+
+````
+````{group-tab} UI
+
+To configure a storage bucket, select {guilabel}`Buckets` from the {guilabel}`Storage` section of the Main navigation.
+
+The resulting screen shows a list of existing storage buckets. Change the quota of the bucket by changing the values in the {guilabel}`Size` fields.
+
+After making changes, click the {guilabel}`Save changes` button. This button also displays the number of changes you have made.
+````
+`````
 
 (howto-storage-buckets-keys)=
 ## Manage storage bucket keys
@@ -200,6 +263,8 @@ If the role is not specified when creating a bucket key, the role used is `read-
 (howto-storage-buckets-keys-view)=
 ### View storage bucket keys
 
+`````{tabs}
+````{group-tab} CLI
 Use the following command to see the keys defined for an existing bucket:
 
 ```
@@ -212,9 +277,25 @@ Use the following command to see a specific bucket key:
 lxc storage bucket key show <pool-name> <bucket-name> <key-name>
 ```
 
+````
+````{group-tab} UI
+
+To view storage bucket keys in the UI, select {guilabel}`Buckets` from the {guilabel}`Storage` section of the main navigation.
+
+Click the name of a storage bucket to display it's keys.
+
+```{figure} /images/storage/storage_buckets/storage_bucket_key_list.png
+:width: 80%
+:alt: List Storage Bucket keys in LXD UI
+```
+````
+`````
+
 (howto-storage-buckets-keys-create)=
 ### Create keys
 
+`````{tabs}
+````{group-tab} CLI
 Use the following command to create a set of credentials for a storage bucket:
 
 ```bash
@@ -229,9 +310,29 @@ lxc storage bucket key create <pool-name> <bucket-name> <key-name> --role=admin 
 
 These commands will generate and display a random set of credential keys.
 
+````
+````{group-tab} UI
+
+To create a storage bucket key, navigate to the Key management page of the desired bucket.
+
+On the resulting screen, click {guilabel}`Create key` in the upper right corner.
+
+From the side panel, you can configure the name, role, and description of your storage bucket. Leaving the {guilabel}`Access` and/or {guilabel}`Secret Key` fields blank will generate random values upon creation.
+
+Click {guilabel}`Create key` to create the storage key.
+
+```{figure} /images/storage/storage_buckets/storage_bucket_create_key.png
+:width: 60%
+:alt: Create Storage Bucket keys in LXD UI
+```
+````
+`````
+
 (howto-storage-buckets-keys-edit)=
 ### Edit or delete storage bucket keys
 
+`````{tabs}
+````{group-tab} CLI
 Use the following command to edit an existing bucket key:
 
 ```bash
@@ -243,3 +344,12 @@ Use the following command to delete an existing bucket key:
 ```bash
 lxc storage bucket key delete <pool-name> <bucket-name> <key-name>
 ```
+
+````
+````{group-tab} UI
+
+To edit or delete storage bucket keys in the UI, navigate to the Key management page of the desired bucket.
+
+You can edit or delete a key by clicking the respective icon within the key's row.
+````
+`````
