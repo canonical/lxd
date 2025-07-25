@@ -104,7 +104,7 @@ func Test_lxcValidConfig(t *testing.T) {
 		{
 			name:      "Global network config",
 			config:    `lxc.net.ipv4.address=192.0.2.2`,
-			expectErr: true,
+			expectErr: false,
 		},
 		{
 			name:      "Interface specific network config",
