@@ -2690,3 +2690,7 @@ This adds PCI device hotplugging for VMs.
 
 ## `device_patch_removal`
 The `PATCH /1.0/instances/{name}` endpoint allows removing an instance device by setting its value to `null` in the devices map.
+
+## `auth_secrets`
+
+Adds the {config:option}`server-core:core.auth_secret_expiry` option to configure how long a given secret can be used for before it expires.

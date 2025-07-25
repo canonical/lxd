@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/x509"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -177,6 +178,10 @@ type Daemon struct {
 
 	// Ubuntu Pro settings
 	ubuntuPro *ubuntupro.Client
+
+	// internalSecrets holds the current in-memory value of the secrets
+	internalSecrets   dbCluster.Secrets
+	internalSecretsMu sync.Mutex
 }
 
 // DaemonConfig holds configuration values for Daemon.
@@ -670,6 +675,70 @@ func (d *Daemon) handleOIDCAuthenticationResult(r *http.Request, result *oidc.Au
 	return nil
 }
 
+// getSecrets gets a copy of the current, cluster-wide secrets.
+func (d *Daemon) getSecrets(ctx context.Context) (dbCluster.Secrets, error) {
+	// Obtain a lock.
+	d.internalSecretsMu.Lock()
+	defer d.internalSecretsMu.Unlock()
+
+	// Get the expiry.
+	expiry, err := d.globalConfig.AuthSecretExpiry()
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if the current in-memory secrets are valid.
+	if d.internalSecrets.IsValid(expiry) {
+		// If valid, return a copy.
+		return slices.Clone(d.internalSecrets), nil
+	}
+
+	// Otherwise, start a transaction.
+	err = d.db.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// Get the secrets from the database.
+		row := tx.Tx().QueryRowContext(ctx, `SELECT value FROM config WHERE key = 'hidden.auth_secrets'`)
+		var secrets dbCluster.Secrets
+		err := row.Scan(&secrets)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+
+		// Check if the secrets are valid (if no secrets were found, then they are not valid).
+		if secrets.IsValid(expiry) {
+			// If valid, set internal secrets to the value defined in the database and exit transaction.
+			d.internalSecrets = secrets
+			return nil
+		}
+
+		// Rotate the secrets. If there were none, this will populate the array.
+		rotatedSecrets := secrets.Rotate()
+		res, err := tx.Tx().ExecContext(ctx, `INSERT OR REPLACE INTO config (key, value) VALUES ('hidden.auth_secrets', ?)`, rotatedSecrets)
+		if err != nil {
+			return err
+		}
+
+		// Enforce that we added the secrets successfully.
+		rowsAffected, err := res.RowsAffected()
+		if err != nil {
+			return err
+		}
+
+		if rowsAffected != 1 {
+			return errors.New("Failed to write new secret value")
+		}
+
+		// Set internal secrets to the new value and exit transaction.
+		d.internalSecrets = rotatedSecrets
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Above transaction set the internal secrets to a new valid value. Return a copy.
+	return slices.Clone(d.internalSecrets), nil
+}
+
 // State creates a new State instance linked to our internal db and os.
 func (d *Daemon) State() *state.State {
 	// If the daemon is shutting down, the context will be cancelled.
@@ -715,6 +784,9 @@ func (d *Daemon) State() *state.State {
 		UbuntuPro:           d.ubuntuPro,
 		NetworkReady:        d.waitNetworkReady,
 		StorageReady:        d.waitStorageReady,
+		Secrets: func(ctx context.Context) (dbCluster.Secrets, error) {
+			return d.getSecrets(ctx)
+		},
 	}
 
 	s.LeaderInfo = func() (*state.LeaderInfo, error) {
@@ -1748,7 +1820,7 @@ func (d *Daemon) init() error {
 			return util.HTTPClient("", d.proxy)
 		}
 
-		d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, d.serverCert, d.identityCache, httpClientFunc, &oidc.Opts{GroupsClaim: oidcGroupsClaim})
+		d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, d.getSecrets, d.identityCache, httpClientFunc, &oidc.Opts{GroupsClaim: oidcGroupsClaim})
 		if err != nil {
 			return err
 		}
