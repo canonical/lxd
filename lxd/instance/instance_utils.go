@@ -205,13 +205,13 @@ func lxcParseRawLXC(line string) (key string, val string, err error) {
 	}
 
 	// Ensure the format is valid
-	membs := strings.SplitN(line, "=", 2)
-	if len(membs) != 2 {
+	key, val, ok := strings.Cut(line, "=")
+	if !ok {
 		return "", "", fmt.Errorf("Invalid raw.lxc line: %s", line)
 	}
 
-	key = strings.ToLower(strings.Trim(membs[0], " \t"))
-	val = strings.Trim(membs[1], " \t")
+	key = strings.ToLower(strings.Trim(key, " \t"))
+	val = strings.Trim(val, " \t")
 	return key, val, nil
 }
 
