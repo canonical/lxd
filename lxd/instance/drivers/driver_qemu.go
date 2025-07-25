@@ -3,6 +3,7 @@ package drivers
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"compress/gzip"
 	"context"
 	"crypto/tls"
@@ -95,7 +96,7 @@ const QEMUDefaultMemSize = "1GiB"
 const qemuSerialChardevName = "qemu_serial-chardev"
 
 // qemuPCIDeviceIDStart is the first PCI slot used for user configurable devices.
-const qemuPCIDeviceIDStart uint16 = 4
+const qemuPCIDeviceIDStart uint8 = 4
 
 // qemuDeviceIDPrefix used as part of the name given QEMU devices generated from user added devices.
 const qemuDeviceIDPrefix = "dev-lxd_"
@@ -355,7 +356,7 @@ func (d *qemu) busAllocatePCIeHotplug(deviceName string, _ bool) (busName string
 	firstFunctionAddress := "00.0" // The address of the first function on the port.
 
 	// Identify used PCIe slots based on device volatile keys.
-	usedSlots := make(map[uint16]struct{})
+	usedSlots := make(map[uint8]struct{})
 	for k, v := range d.localConfig {
 		if !strings.HasPrefix(k, "volatile.") || !strings.HasSuffix(k, busDeviceVolatileSuffix) {
 			continue
@@ -370,13 +371,15 @@ func (d *qemu) busAllocatePCIeHotplug(deviceName string, _ bool) (busName string
 			return busName, firstFunctionAddress, false, nil
 		}
 
-		busNum, err := strconv.ParseUint(v, 10, 16)
+		busNum, err := strconv.ParseUint(v, 10, 8)
 		if err != nil {
 			return "", "", false, fmt.Errorf("Failed parsing volatile key %q: %w", k, err)
 		}
 
-		// Record that this port is referenced by an existing device volatile key.
-		usedSlots[uint16(busNum)] = struct{}{}
+		if busNum > 0 {
+			// Record that this port is referenced by an existing device volatile key.
+			usedSlots[uint8(busNum)] = struct{}{}
+		}
 	}
 
 	// Find an unused PCIe slot by iterating through the available slots and checking against the used slots.
@@ -1408,12 +1411,12 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		// Used in generateQemuConfigFile() to ensure that the bus number is consistent across restarts.
 		deviceVolatileKey := "volatile." + dev.Name() + busDeviceVolatileSuffix
 		if d.localConfig[deviceVolatileKey] != "" {
-			busNum, err := strconv.ParseUint(d.localConfig[deviceVolatileKey], 10, 16)
+			busNum, err := strconv.ParseUint(d.localConfig[deviceVolatileKey], 10, 8)
 			if err != nil {
 				return fmt.Errorf("Failed parsing volatile key %q: %w", deviceVolatileKey, err)
 			}
 
-			runConf.BusNum = uint16(busNum)
+			runConf.BusNum = uint8(busNum)
 		}
 
 		revert.Add(func() {
@@ -2515,7 +2518,7 @@ func (d *qemu) deviceAttachNIC(deviceName string, netIF []deviceConfig.RunConfig
 }
 
 // getPCISlotCount returns the number of PCI slots currently provisioned in the instance.
-func (d *qemu) getPCISlotCount() (pciSlots uint16, err error) {
+func (d *qemu) getPCISlotCount() (pciSlots uint8, err error) {
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
@@ -3626,6 +3629,8 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 	// existing VM images. Even on non-PCIe busses having NICs first means that their names won't change when
 	// other devices are added.
 	volatileSet := make(map[string]string, 0)
+	lastBusName := ""                      // Use to detect when the main bus name changes from bus.allocate().
+	lastBusNum := qemuPCIDeviceIDStart - 1 // Initialise to last built-in device bus number.
 	busAllocate := func(deviceName string, enableMultifunction bool) (busName string, busAddress string, multifunction bool, err error) {
 		multifunctionGroup := busFunctionGroupNone
 		if enableMultifunction {
@@ -3635,6 +3640,11 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		busName, busAddress, multifunction = bus.allocate(multifunctionGroup)
 
 		if bus.name == "pcie" {
+			if lastBusName != busName {
+				lastBusName = busName
+				lastBusNum++ // Increment bus number when bus name changes.
+			}
+
 			// Only PCIe supports hotplugging and needs to store the bus name in volatile.
 			d.logger.Debug("Using PCIe bus to plug device into", logger.Ctx{"device": deviceName, "bus": busName})
 			volatileSet["volatile."+deviceName+busDeviceVolatileSuffix] = strings.TrimPrefix(busName, busDevicePortPrefix)
@@ -3643,7 +3653,33 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		return busName, busAddress, multifunction, nil
 	}
 
+	// Sort run configs by bus order (putting devices with no bus order after those with a bus order whilst
+	// retaining their current ordering within those devices).
+	slices.SortStableFunc(devConfs, func(a, b *deviceConfig.RunConfig) int {
+		if a.BusNum == 0 && b.BusNum > 0 {
+			return 1
+		} else if a.BusNum > 0 && b.BusNum == 0 {
+			return -1
+		}
+
+		return cmp.Compare(a.BusNum, b.BusNum)
+	})
+
+	// Number of spare hotplug ports to allocate. Could be negative if there are gaps in the bus numbers.
+	spareHotplugPorts := 8
+
 	for _, runConf := range devConfs {
+		if bus.name == "pcie" && runConf.BusNum > lastBusNum {
+			// If device has a previous bus number, then allocate spare hotplug ports to fill any gap
+			// in the bus number sequence. Count any allocated ports against the spare hotplug ports.
+			for i := lastBusNum + 1; i < runConf.BusNum; i++ {
+				busName, _, _ = bus.allocate(busFunctionGroupNone)
+				lastBusNum++        // Increment bus number when bus name changes.
+				spareHotplugPorts-- // Reduce the number of spare hotplug ports we add at end.
+				d.logger.Debug("Allocating empty bus device", logger.Ctx{"bus": busName})
+			}
+		}
+
 		// Add drive devices.
 		if len(runConf.Mounts) > 0 {
 			for _, drive := range runConf.Mounts {
@@ -3731,9 +3767,10 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		}
 	}
 
-	// Allocate 8 PCI slots for hotplug devices.
-	for range 8 {
-		bus.allocate(busFunctionGroupNone)
+	// Allocate remaining empty PCIe slots for hotplug devices.
+	for range spareHotplugPorts {
+		busName, _, _ := bus.allocate(busFunctionGroupNone)
+		d.logger.Debug("Allocating empty bus device", logger.Ctx{"bus": busName})
 	}
 
 	// process any user-specified overrides
