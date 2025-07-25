@@ -130,6 +130,13 @@ lxc.log.file = "/dev/null"`,
 			assert.NoError(t, err, "Did not expect error for test case: %s", test.name)
 		}
 	}
+
+	err := lxcValidConfig(`lxc.idmap="u 0 0 1000"`)
+	assert.NoError(t, err, "Expected no error for valid unprivileged mapping")
+
+	t.Setenv("LXD_UNPRIVILEGED_ONLY", "1")
+	err = lxcValidConfig(`lxc.idmap="u 0 0 1000"`)
+	assert.Error(t, err, "Expected error for unprivileged mapping with LXD_UNPRIVILEGED_ONLY set")
 }
 
 func Test_DeviceNextInterfaceHWAddr(t *testing.T) {
