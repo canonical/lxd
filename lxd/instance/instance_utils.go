@@ -1,7 +1,6 @@
 package instance
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"database/sql"
@@ -436,22 +435,24 @@ func LoadFromBackup(s *state.State, projectName string, instancePath string) (In
 
 // DeviceNextInterfaceHWAddr generates a random MAC address.
 func DeviceNextInterfaceHWAddr() (string, error) {
-	// Generate a new random MAC address using the usual prefix
-	ret := bytes.Buffer{}
-	for _, c := range "00:16:3e:xx:xx:xx" {
-		if c == 'x' {
-			c, err := rand.Int(rand.Reader, big.NewInt(16))
-			if err != nil {
-				return "", err
-			}
+	const prefix = "00:16:3e"
+	buf := make([]byte, 0, 17)
 
-			ret.WriteString(fmt.Sprintf("%x", c.Int64()))
-		} else {
-			ret.WriteString(string(c))
+	// Add the fixed prefix
+	buf = append(buf, prefix...)
+
+	// Append 3 random bytes
+	for range 3 {
+		rb, err := rand.Int(rand.Reader, big.NewInt(256))
+		if err != nil {
+			return "", err
 		}
+
+		buf = append(buf, ':')
+		buf = append(buf, fmt.Sprintf("%02x", rb.Int64())...)
 	}
 
-	return ret.String(), nil
+	return string(buf), nil
 }
 
 // BackupLoadByName load an instance backup from the database.
