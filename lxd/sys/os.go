@@ -110,7 +110,7 @@ type OS struct {
 
 	// Version info
 	KernelVersion   version.DottedVersion
-	AppArmorVersion *version.DottedVersion
+	AppArmorVersion *version.DottedVersion // AppArmorVersion is nil if AppArmorAvailable is false.
 }
 
 // DefaultOS returns a fresh uninitialized OS instance with default values.
