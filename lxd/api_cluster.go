@@ -4133,17 +4133,31 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
+		members, err := tx.GetClusterGroupNodes(ctx, name)
+		if err != nil {
+			return err
+		}
+
+		// ensure no member is removed that is the only member of one group
+		for _, oldMember := range members {
+			if !slices.Contains(req.Members, oldMember) {
+				groups, err := tx.GetClusterGroupsWithNode(ctx, oldMember)
+				if err != nil {
+					return err
+				}
+
+				if len(groups) == 1 {
+					return errors.New("Member " + oldMember + " cannot be removed, it must be in at least one group.")
+				}
+			}
+		}
+
 		obj := dbCluster.ClusterGroup{
 			Name:        group.Name,
 			Description: req.Description,
 		}
 
 		err = dbCluster.UpdateClusterGroup(ctx, tx.Tx(), name, obj)
-		if err != nil {
-			return err
-		}
-
-		members, err := tx.GetClusterGroupNodes(ctx, name)
 		if err != nil {
 			return err
 		}
