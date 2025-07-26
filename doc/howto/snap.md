@@ -37,6 +37,13 @@ lxd   5.21.3-c5ae129  33110  5.21/stable  canonical✓  -
 
 The first part of the version string corresponds to the LXD release (in this sample, `5.21.3`).
 
+(howto-snap-updates-vs-upgrades)=
+## Updates versus upgrades
+
+Updating the LXD snap means to refresh it to the release most recently published to its tracked channel. These updates are always within the same major version; they can be automatically or manually performed.
+
+Upgrading the LXD snap means {ref}`to change the tracked snap channel <howto-snap-change>` to a higher major version. Snap upgrades must be manually performed.
+
 (howto-snap-updates)=
 ## Manage updates
 
@@ -164,6 +171,31 @@ Example:
 sudo enterprise-store override lxd stable=25846
 ```
 
+(howto-snap-change)=
+## Change the snap channel
+
+While it is possible to change the channel used at installation, proceed with caution.
+
+You can upgrade (move to a newer {ref}`track <ref-snap-tracks>`, such as from {{current_lts_track}} to {{current_feature_track}}), as well as move to different {ref}`risk level <ref-snap-risk>` with the same track. However, downgrading (moving to a channel with an older track, such as from {{current_feature_track}} to {{current_lts_track}}) is neither recommended nor supported, as breaking changes can exist between major versions.
+
+To change the channel, run:
+
+```bash
+sudo snap refresh lxd --channel=<target channel>
+```
+
+This also updates the installed snap version to the most recent release in the target channel.
+
+For the channel, you must include at least the track, such as {{current_lts_track}}. You can optionally include the risk-level; when omitted, the default is `stable`. For example, this command changes the snap channel to `5.21/stable`:
+
+```bash
+sudo snap refresh lxd --channel=5.21
+```
+
+If an upgrade of LXD includes a change to its database schema, LXD stores a backup of the database in case of a need to downgrade. For more information, see {ref}`installing-upgrade`.
+
+If you upgrade LXD on cluster members, all members must be upgraded to the same version. For details, see: {ref}`howto-cluster-manage-update-upgrade`.
+
 (howto-snap-configure)=
 ## Configure the snap
 
@@ -191,21 +223,6 @@ sudo snap get lxd
 ```
 
 For more information about snap configuration options, visit [Configure snaps](https://snapcraft.io/docs/configuration-in-snaps) in the Snap documentation.
-
-(howto-snap-change)=
-## Change the snap channel
-
-While it is possible to change the channel used at installation, proceed with caution.
-
-You can upgrade (move to a newer {ref}`track <ref-snap-tracks>`, such as from {{current_lts_track}} to {{current_feature_track}}), as well as move to different {ref}`risk level <ref-snap-risk>` with the same track. However, downgrading (moving to a channel with an older track, such as from {{current_feature_track}} to {{current_lts_track}}) is neither recommended nor supported, as breaking changes can exist between major versions.
-
-To change the channel, run:
-
-```bash
-sudo snap refresh lxd --channel=<target channel>
-```
-
-This command immediately updates the installed snap version.
 
 (howto-snap-daemon)=
 ## Manage the LXD daemon
