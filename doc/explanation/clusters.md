@@ -133,6 +133,61 @@ By default, all cluster members belong to the `default` group.
 
 See {ref}`howto-cluster-groups` and {ref}`cluster-target-instance` for more information.
 
+(exp-cluster-links)=
+## Cluster links
+
+Cluster links enable secure, authenticated communication between separate LXD clusters by establishing a bidirectional trust relationship using mutual TLS certificates. This feature allows different LXD clusters to interact with each other for various operations while maintaining strict security controls.
+
+### How cluster links work
+
+1. **Trust establishment**: Each cluster presents its certificate to the other, establishing mutual trust.
+1. **Identity creation**: LXD automatically creates a special identity for each linked cluster with type `Cluster link certificate`.
+1. **Permission control**: The linked cluster's permissions are managed through LXD's {ref}`fine-grained-authorization` system.
+1. **Secure communication**: All communication between clusters uses TLS encryption with certificate verification.
+
+#### Connection process
+
+Creating a cluster link requires coordination between both clusters:
+
+1. **Cluster A** creates a pending cluster link and generates a trust token.
+1. **Cluster B** uses this token to establish the connection and send its certificate back.
+1. Both clusters validate certificates and activate the bidirectional link.
+1. The link becomes active and both clusters can communicate.
+
+For more information, see: {ref}`howto-cluster-links-create`.
+
+#### Types
+
+LXD supports two types of cluster links:
+
+- **User-created links** (`USER`): Manually created links between clusters.
+- **Delegated links** (`DELEGATED`): Links managed by external systems.
+
+(exp-clusters-links-identity)=
+### Identity management for cluster links
+
+When you create a cluster link, LXD automatically creates an identity for the linked cluster. This identity is of type `Cluster link certificate` and is used to authenticate that cluster. These identities are managed using {ref}`fine-grained-authorization`.
+
+The identity goes through two states:
+
+- **Pending**: When a trust token is generated but the link hasn't been activated yet.
+- **Active**: When both clusters have exchanged certificates and the link is operational.
+
+#### Security considerations
+
+- **Certificate validation**: All connections verify certificate fingerprints.
+- **Fine-grained permissions**: Linked clusters can be granted specific entitlements (e.g., only backup operations).
+- **Identity isolation**: Each cluster link gets its own identity that can be managed independently.
+- **Group membership**: Cluster link identities can be assigned to authentication groups for bulk permission management.
+
+#### Cluster link member status
+
+A cluster link member can have one of the following statuses:
+
+- `ACTIVE`: Reachable and authenticated.
+- `UNTRUSTED`: Reachable and not authenticated.
+- `UNREACHABLE`: Not reachable, possibly due to network issues or the member being offline.
+
 (clustering-instance-placement)=
 ## Automatic placement of instances
 
