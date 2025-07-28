@@ -2211,6 +2211,29 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 	return runConf, nil
 }
 
+// busAllocatePCIeHotplug provides a busAllocator implementation for hotplugging PCIe devices.
+func (d *qemu) busAllocatePCIeHotplug(deviceName string, _ bool) (busName string, busAddress string, multifunction bool, err error) {
+	pciDevID := qemuPCIDeviceIDStart
+
+	// Iterate through all the instance devices in the same sorted order as is used when allocating the
+	// boot time devices in order to find the PCI bus slot device we would have used at boot time.
+	// Then attempt to use that same device, assuming it is available.
+	for _, dev := range d.expandedDevices.Sorted() {
+		if dev.Name == deviceName {
+			break // Found our device.
+		}
+
+		pciDevID++
+	}
+
+	busName = busDevicePortPrefix + strconv.Itoa(pciDevID)
+	busAddress = "00.0" // First function on the bus.
+
+	d.logger.Debug("Using bus to hotplug device into", logger.Ctx{"device": deviceName, "busType": "pcie", "bus": busName})
+
+	return busName, busAddress, false, nil
+}
+
 func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) {
 	deviceID := qemuDeviceNameOrID(qemuDeviceIDPrefix, deviceName, "-virtio-fs", qemuDeviceIDMaxLength)
 	mountTag = qemuDeviceNameOrID(qemuDeviceNamePrefix, deviceName, "", qemuDeviceNameMaxLength)
