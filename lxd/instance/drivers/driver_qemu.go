@@ -116,6 +116,9 @@ const qemuMigrationNBDExportName = "lxd_root"
 // 4 are reserved, and the other 4 can be used for any USB device.
 const qemuSparseUSBPorts = 8
 
+// qemuBusModePersistent is the volatile.bus.mode for persistent bus allocation mode.
+const qemuBusModePersistent = "persistent"
+
 var errQemuAgentOffline = errors.New("LXD VM agent isn't currently running")
 
 type monitorHook func(m *qmp.Monitor) error
@@ -2241,6 +2244,75 @@ func (d *qemu) getPCISlotCount() (pciSlots uint8, err error) {
 
 // busAllocatePCIeHotplug provides a busAllocator implementation for hotplugging PCIe devices.
 func (d *qemu) busAllocatePCIeHotplug(deviceName string, _ bool) (busName string, busAddress string, multifunction bool, err error) {
+	if d.localConfig["volatile.bus.mode"] != qemuBusModePersistent {
+		return d.busAllocatePCIeHotplugLegacy(deviceName, false)
+	}
+
+	// Get current PCI slot count from QEMU.
+	pciSlotCount, err := d.getPCISlotCount()
+	if err != nil {
+		return "", "", false, fmt.Errorf("Failed to get PCI slot count: %w", err)
+	}
+
+	if pciSlotCount == 0 {
+		return "", "", false, errors.New("No PCIe slots available for hotplugging")
+	}
+
+	deviceVolatileKey := "volatile." + deviceName + busDeviceVolatileSuffix
+	firstFunctionAddress := "00.0" // The address of the first function on the port.
+
+	// Identify used PCIe slots based on device volatile keys.
+	usedSlots := make(map[uint8]struct{})
+	for k, v := range d.localConfig {
+		if !strings.HasPrefix(k, "volatile.") || !strings.HasSuffix(k, busDeviceVolatileSuffix) {
+			continue
+		}
+
+		// Re-use existing PCIe port if its currently assigned to the device.
+		// This occurs when an existing device's settings are changed and the device is hotplugged again.
+		if k == deviceVolatileKey {
+			busName = busDevicePortPrefix + v
+			d.logger.Debug("Hotplugging device into bus (reuse)", logger.Ctx{"device": deviceName, "busType": "pcie", "bus": busName})
+
+			return busName, firstFunctionAddress, false, nil
+		}
+
+		busNum, err := strconv.ParseUint(v, 10, 8)
+		if err != nil {
+			return "", "", false, fmt.Errorf("Failed parsing volatile key %q: %w", k, err)
+		}
+
+		if busNum > 0 {
+			// Record that this port is referenced by an existing device volatile key.
+			usedSlots[uint8(busNum)] = struct{}{}
+		}
+	}
+
+	// Find an unused PCIe slot by iterating through the available slots and checking against the used slots.
+	for i := qemuPCIDeviceIDStart; i < pciSlotCount; i++ {
+		_, used := usedSlots[i]
+		if used {
+			continue
+		}
+
+		busNum := strconv.FormatUint(uint64(i), 10)
+		err = d.VolatileSet(map[string]string{deviceVolatileKey: busNum})
+		if err != nil {
+			return "", "", false, fmt.Errorf("Failed setting volatile keys: %w", err)
+		}
+
+		busName = busDevicePortPrefix + busNum
+		d.logger.Debug("Hotplugging device into bus", logger.Ctx{"device": deviceName, "busType": "pcie", "bus": busName})
+
+		return busName, firstFunctionAddress, false, nil
+	}
+
+	return "", "", false, errors.New("No unused PCIe ports available for hotplugging")
+}
+
+// busAllocatePCIeHotplugLegacy provides a busAllocator implementation for hotplugging PCIe devices using the
+// legacy sorted device ordering method.
+func (d *qemu) busAllocatePCIeHotplugLegacy(deviceName string, _ bool) (busName string, busAddress string, multifunction bool, err error) {
 	pciDevID := qemuPCIDeviceIDStart
 
 	// Iterate through all the instance devices in the same sorted order as is used when allocating the
@@ -2254,10 +2326,10 @@ func (d *qemu) busAllocatePCIeHotplug(deviceName string, _ bool) (busName string
 		pciDevID++
 	}
 
-	busName = busDevicePortPrefix + strconv.Itoa(pciDevID)
+	busName = busDevicePortPrefix + strconv.FormatUint(uint64(pciDevID), 10)
 	busAddress = "00.0" // First function on the bus.
 
-	d.logger.Debug("Using bus to hotplug device into", logger.Ctx{"device": deviceName, "busType": "pcie", "bus": busName})
+	d.logger.Debug("Hotplugging device into bus (legacy)", logger.Ctx{"device": deviceName, "busType": "pcie", "bus": busName})
 
 	return busName, busAddress, false, nil
 }
