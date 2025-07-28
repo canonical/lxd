@@ -95,7 +95,7 @@ const QEMUDefaultMemSize = "1GiB"
 const qemuSerialChardevName = "qemu_serial-chardev"
 
 // qemuPCIDeviceIDStart is the first PCI slot used for user configurable devices.
-const qemuPCIDeviceIDStart = 4
+const qemuPCIDeviceIDStart uint8 = 4
 
 // qemuDeviceIDPrefix used as part of the name given QEMU devices generated from user added devices.
 const qemuDeviceIDPrefix = "dev-lxd_"
