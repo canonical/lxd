@@ -32,6 +32,17 @@ ensure_import_testimage() {
     fi
 }
 
+install_tools() {
+    local pkg="${1}"
+
+    if ! check_dependencies "${pkg}" && command -v apt-get >/dev/null; then
+        apt-get install --no-install-recommends -y "${pkg}"
+    fi
+
+    check_dependencies "${pkg}"
+}
+
+
 install_storage_driver_tools() {
     # Default to dir backend if none is specified
     # If the requested backend is specified but the needed tooling is missing, try to install it.
