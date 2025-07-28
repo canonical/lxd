@@ -3552,9 +3552,18 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 	}
 
 	// Setup a bus allocator for use with generating QEMU pre-boot config file.
-	busAllocate := func() (busName string, busAddress string, multi bool, err error) {
-		busName, busAddr, multi := bus.allocate(busFunctionGroupNone)
-		return busName, busAddr, multi, nil
+	busAllocate := func(deviceName string, enableMultifunction bool) (busName string, busAddress string, multifunction bool, err error) {
+		multifunctionGroup := busFunctionGroupNone
+		if enableMultifunction {
+			multifunctionGroup = "lxd_" + deviceName
+		}
+
+		busName, busAddress, multifunction = bus.allocate(multifunctionGroup)
+		if busName != "" {
+			d.logger.Debug("Using bus to plug device into", logger.Ctx{"device": deviceName, "busType": bus.name, "bus": busName})
+		}
+
+		return busName, busAddress, multifunction, nil
 	}
 
 	// These devices are sorted so that NICs are added first to ensure that the first NIC can use the 5th
@@ -3570,7 +3579,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 				if drive.TargetPath == "/" {
 					monHook, err = d.addRootDriveConfig(busAllocate, mountInfo, bootIndexes, drive)
 				} else if drive.FSType == "9p" {
-					err = d.addDriveDirConfig(&cfg, bus, fdFiles, drive)
+					err = d.addDriveDirConfig(&cfg, bus.name, busAllocate, fdFiles, drive)
 				} else {
 					monHook, err = d.addDriveConfig(busAllocate, bootIndexes, drive)
 				}
@@ -3597,7 +3606,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 		// Add GPU device.
 		if len(runConf.GPUDevice) > 0 {
-			err = d.addGPUDevConfig(&cfg, bus, runConf.GPUDevice)
+			err = d.addGPUDevConfig(&cfg, bus.name, busAllocate, runConf.GPUDevice)
 			if err != nil {
 				return "", nil, err
 			}
@@ -3605,7 +3614,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 		// Add PCI device.
 		if len(runConf.PCIDevice) > 0 {
-			err = d.addPCIDevConfig(&cfg, bus, runConf.PCIDevice)
+			err = d.addPCIDevConfig(&cfg, bus.name, busAllocate, runConf.PCIDevice)
 			if err != nil {
 				return "", nil, err
 			}
@@ -3833,7 +3842,7 @@ func (d *qemu) addRootDriveConfig(busAllocate busAllocator, mountInfo *storagePo
 }
 
 // addDriveDirConfig adds the qemu config required for adding a supplementary drive directory share.
-func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os.File, driveConf deviceConfig.MountEntryItem) error {
+func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, busName string, busAllocate busAllocator, fdFiles *[]*os.File, driveConf deviceConfig.MountEntryItem) error {
 	mountTag := qemuDeviceNameOrID(qemuDeviceNamePrefix, driveConf.DevName, "", qemuDeviceNameMaxLength)
 	readonly := slices.Contains(driveConf.Opts, "ro")
 
@@ -3846,22 +3855,15 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 		}
 	}
 
-	// Setup a bus allocator for use with generating QEMU pre-boot config file.
-	busAllocate := func() (busName string, busAddress string, multi bool, err error) {
-		// Use per-LXD device multi-function group so that both virtiofs and 9p devices use same bus slot.
-		busName, busAddr, multi := bus.allocate("lxd_" + driveConf.DevName)
-		return busName, busAddr, multi, nil
-	}
-
 	// If there is a virtiofsd socket path setup the virtio-fs share.
 	if virtiofsdSockPath != "" {
 		if !shared.PathExists(virtiofsdSockPath) {
 			return fmt.Errorf("virtiofsd socket path %q doesn't exist", virtiofsdSockPath)
 		}
 
-		devBus, devAddr, multi, err := busAllocate()
+		devBus, devAddr, multi, err := busAllocate(driveConf.DevName, true)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed allocating bus for virtiofs disk device %q: %w", driveConf.DevName, err)
 		}
 
 		shortPath, err := d.shortenedFilePath(virtiofsdSockPath, fdFiles)
@@ -3872,7 +3874,7 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 		// Add virtio-fs device as this will be preferred over 9p.
 		driveDirVirtioOpts := qemuDriveDirOpts{
 			dev: qemuDevOpts{
-				busName:       bus.name,
+				busName:       busName,
 				devBus:        devBus,
 				devAddr:       devAddr,
 				multifunction: multi,
@@ -3886,9 +3888,9 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 	}
 
 	// Add 9p share config.
-	devBus, devAddr, multi, err := busAllocate()
+	devBus, devAddr, multi, err := busAllocate(driveConf.DevName, true)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed allocating bus for 9p disk device %q: %w", driveConf.DevName, err)
 	}
 
 	fdSource, ok := driveConf.DevSource.(deviceConfig.DevSourceFD)
@@ -3900,7 +3902,7 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os
 
 	driveDir9pOpts := qemuDriveDirOpts{
 		dev: qemuDevOpts{
-			busName:       bus.name,
+			busName:       busName,
 			devBus:        devBus,
 			devAddr:       devAddr,
 			multifunction: multi,
@@ -4155,12 +4157,10 @@ func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]i
 		qemuDev["driver"] = busName
 
 		// Allocate a device port.
-		devBus, devAddr, multi, err := busAllocate()
+		devBus, devAddr, multi, err := busAllocate(driveConf.DevName, false)
 		if err != nil {
 			return nil, fmt.Errorf("Failed allocating bus for disk device %q: %w", driveConf.DevName, err)
 		}
-
-		d.logger.Debug("Using device port to plug drive into", logger.Ctx{"device": driveConf.DevName, "port": devBus})
 
 		// Populate the qemu device with port info.
 		qemuDev["bus"] = devBus
@@ -4283,12 +4283,10 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 	// PCIe and PCI require a port device name to hotplug the NIC into.
 	if slices.Contains([]string{"pcie", "pci"}, busName) {
 		// Allocate a device port.
-		devBus, devAddr, multi, err := busAllocate()
+		devBus, devAddr, multi, err := busAllocate(devName, false)
 		if err != nil {
 			return nil, fmt.Errorf("Failed allocating bus for NIC device %q: %w", devName, err)
 		}
-
-		d.logger.Debug("Using PCI bus device to hotplug NIC into", logger.Ctx{"device": devName, "port": devBus})
 
 		// Populate the qemu device with port info.
 		qemuDev["bus"] = devBus
@@ -4620,7 +4618,7 @@ func (d *qemu) writeNICDevConfig(mtuStr string, devName string, nicName string, 
 }
 
 // addPCIDevConfig adds the qemu config required for adding a raw PCI device.
-func (d *qemu) addPCIDevConfig(cfg *[]cfgSection, bus *qemuBus, pciConfig []deviceConfig.RunConfigItem) error {
+func (d *qemu) addPCIDevConfig(cfg *[]cfgSection, busName string, busAllocate busAllocator, pciConfig []deviceConfig.RunConfigItem) error {
 	var devName, pciSlotName string
 	for _, pciItem := range pciConfig {
 		switch pciItem.Key {
@@ -4631,10 +4629,14 @@ func (d *qemu) addPCIDevConfig(cfg *[]cfgSection, bus *qemuBus, pciConfig []devi
 		}
 	}
 
-	devBus, devAddr, multi := bus.allocate("lxd_" + devName)
+	devBus, devAddr, multi, err := busAllocate(devName, false)
+	if err != nil {
+		return fmt.Errorf("Failed allocating bus for PCI device %q: %w", devName, err)
+	}
+
 	pciPhysicalOpts := qemuPCIPhysicalOpts{
 		dev: qemuDevOpts{
-			busName:       bus.name,
+			busName:       busName,
 			devBus:        devBus,
 			devAddr:       devAddr,
 			multifunction: multi,
@@ -4648,7 +4650,7 @@ func (d *qemu) addPCIDevConfig(cfg *[]cfgSection, bus *qemuBus, pciConfig []devi
 }
 
 // addGPUDevConfig adds the qemu config required for adding a GPU device.
-func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, bus *qemuBus, gpuConfig []deviceConfig.RunConfigItem) error {
+func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, busName string, busAllocate busAllocator, gpuConfig []deviceConfig.RunConfigItem) error {
 	var devName, pciSlotName, vgpu string
 	for _, gpuItem := range gpuConfig {
 		switch gpuItem.Key {
@@ -4685,10 +4687,14 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, bus *qemuBus, gpuConfig []devi
 		return true
 	}()
 
-	devBus, devAddr, multi := bus.allocate("lxd_" + devName)
+	devBus, devAddr, multi, err := busAllocate(devName, true)
+	if err != nil {
+		return fmt.Errorf("Failed allocating bus for GPU device %q: %w", devName, err)
+	}
+
 	gpuDevPhysicalOpts := qemuGPUDevPhysicalOpts{
 		dev: qemuDevOpts{
-			busName:       bus.name,
+			busName:       busName,
 			devBus:        devBus,
 			devAddr:       devAddr,
 			multifunction: multi,
@@ -4727,10 +4733,14 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, bus *qemuBus, gpuConfig []devi
 			// Match any VFs that are related to the GPU device (but not the GPU device itself).
 			if strings.HasPrefix(iommuSlotName, prefix) && iommuSlotName != pciSlotName {
 				// Add VF device without VGA mode to qemu config.
-				devBus, devAddr, multi := bus.allocate("lxd_" + devName)
+				devBus, devAddr, multi, err := busAllocate(devName, true)
+				if err != nil {
+					return fmt.Errorf("Failed allocating bus for GPU VF device %q: %w", devName, err)
+				}
+
 				gpuDevPhysicalOpts := qemuGPUDevPhysicalOpts{
 					dev: qemuDevOpts{
-						busName:       bus.name,
+						busName:       busName,
 						devBus:        devBus,
 						devAddr:       devAddr,
 						multifunction: multi,
