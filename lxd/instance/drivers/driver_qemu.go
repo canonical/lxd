@@ -2467,68 +2467,6 @@ func (d *qemu) deviceAttachNIC(deviceName string, netIF []deviceConfig.RunConfig
 	return nil
 }
 
-// getPCIHotplug returns an available PCI device bus name and address that can be used for hotplugging.
-// multi will always be false but is included for compatibility with busAllocator interface.
-func (d *qemu) getPCIHotplug() (busName string, busAddress string, multi bool, err error) {
-	// Check if the agent is running.
-	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
-	if err != nil {
-		return "", "", false, err
-	}
-
-	hasUsedBridges := func(devices []qmp.PCIDevice) bool {
-		for _, dev := range devices {
-			if len(dev.Bridge.Devices) > 0 {
-				return true
-			}
-		}
-
-		return false
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	for {
-		// Get the current PCI devices.
-		devices, err := monitor.QueryPCI()
-		if err != nil {
-			return "", "", false, fmt.Errorf("Failed to query PCI devices: %w", err)
-		}
-
-		if !hasUsedBridges(devices) {
-			// Wait for PCI bridges to be created (with the internal devices LXD adds) to ensure QEMU
-			// has had time to initialise the QMP query-pci output.
-			// Otherwise we'll end up trying to hotplug into a used PCI slot.
-			d.logger.Debug("Waiting for PCI to initialize")
-
-			select {
-			case <-ctx.Done():
-				return "", "", false, fmt.Errorf("Timed out waiting for PCI to initialize: %w", ctx.Err())
-			case <-time.After(250 * time.Millisecond):
-			}
-
-			continue
-		}
-
-		for _, dev := range devices {
-			// Skip built-in devices.
-			if dev.DevID == "" {
-				continue
-			}
-
-			// Skip used bridges.
-			if len(dev.Bridge.Devices) > 0 {
-				continue
-			}
-
-			// Found an empty slot, return address of first function in that slot.
-			return dev.DevID, "00.0", false, nil
-		}
-
-		return "", "", false, errors.New("No available PCI hotplug slots could be found")
-	}
-}
-
 // deviceAttachPCI live attaches a generic PCI device to the instance.
 func (d *qemu) deviceAttachPCI(deviceName string, pciConfig []deviceConfig.RunConfigItem) error {
 	// Check if the agent is running.
