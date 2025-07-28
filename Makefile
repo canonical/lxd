@@ -16,7 +16,7 @@ GOTOOLCHAIN=local
 export GOTOOLCHAIN
 GOCOVERDIR ?= $(shell go env GOCOVERDIR)
 ARCH ?= $(shell uname -m)
-DQLITE_BRANCH=in-memory-file-shm
+DQLITE_BRANCH=multithreading-for-dqlite
 LIBLXC_BRANCH=main
 
 ifneq "$(wildcard vendor)" ""
