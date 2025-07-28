@@ -2216,6 +2216,29 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 	return runConf, nil
 }
 
+// getPCISlotCount returns the number of PCI slots currently provisioned in the instance.
+func (d *qemu) getPCISlotCount() (pciSlots uint8, err error) {
+	// Check if the agent is running.
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return 0, err
+	}
+
+	// Get the current PCI devices.
+	devices, err := monitor.QueryPCI()
+	if err != nil {
+		return 0, fmt.Errorf("Failed to query PCI devices: %w", err)
+	}
+
+	for _, dev := range devices {
+		if strings.HasPrefix(dev.DevID, busDevicePortPrefix) {
+			pciSlots++
+		}
+	}
+
+	return pciSlots, nil
+}
+
 // busAllocatePCIeHotplug provides a busAllocator implementation for hotplugging PCIe devices.
 func (d *qemu) busAllocatePCIeHotplug(deviceName string, _ bool) (busName string, busAddress string, multifunction bool, err error) {
 	pciDevID := qemuPCIDeviceIDStart
