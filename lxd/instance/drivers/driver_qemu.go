@@ -2236,25 +2236,65 @@ func (d *qemu) getPCISlotCount() (pciSlots uint8, err error) {
 
 // busAllocatePCIeHotplug provides a busAllocator implementation for hotplugging PCIe devices.
 func (d *qemu) busAllocatePCIeHotplug(deviceName string, _ bool) (busName string, busAddress string, multifunction bool, err error) {
-	pciDevID := qemuPCIDeviceIDStart
-
-	// Iterate through all the instance devices in the same sorted order as is used when allocating the
-	// boot time devices in order to find the PCI bus slot device we would have used at boot time.
-	// Then attempt to use that same device, assuming it is available.
-	for _, dev := range d.expandedDevices.Sorted() {
-		if dev.Name == deviceName {
-			break // Found our device.
-		}
-
-		pciDevID++
+	// Get current PCI slot count from QEMU.
+	pciSlotCount, err := d.getPCISlotCount()
+	if err != nil {
+		return "", "", false, fmt.Errorf("Failed to get PCI slot count: %w", err)
 	}
 
-	busName = busDevicePortPrefix + strconv.Itoa(pciDevID)
-	busAddress = "00.0" // First function on the bus.
+	if pciSlotCount == 0 {
+		return "", "", false, errors.New("No PCIe slots available for hotplugging")
+	}
 
-	d.logger.Debug("Using bus to hotplug device into", logger.Ctx{"device": deviceName, "busType": "pcie", "bus": busName})
+	deviceVolatileKey := "volatile." + deviceName + busDeviceVolatileSuffix
+	firstFunctionAddress := "00.0" // The address of the first function on the port.
 
-	return busName, busAddress, false, nil
+	// Identify used PCIe slots based on device volatile keys.
+	usedSlots := make(map[uint8]struct{})
+	for k, v := range d.localConfig {
+		if !strings.HasPrefix(k, "volatile.") || !strings.HasSuffix(k, busDeviceVolatileSuffix) {
+			continue
+		}
+
+		// Re-use existing PCIe port if its currently assigned to the device.
+		// This occurs when an existing device's settings are changed and the device is hotplugged again.
+		if k == deviceVolatileKey {
+			busName := busDevicePortPrefix + v
+			d.logger.Debug("Re-using bus to hotplug device into", logger.Ctx{"device": deviceName, "busType": "pcie", "bus": busName})
+
+			return busName, firstFunctionAddress, false, nil
+		}
+
+		busNum, err := strconv.ParseUint(v, 10, 8)
+		if err != nil {
+			return "", "", false, fmt.Errorf("Failed parsing volatile key %q: %w", k, err)
+		}
+
+		if busNum > 0 {
+			// Record that this port is referenced by an existing device volatile key.
+			usedSlots[uint8(busNum)] = struct{}{}
+		}
+	}
+
+	// Find an unused PCIe slot by iterating through the available slots and checking against the used slots.
+	for i := qemuPCIDeviceIDStart; i < pciSlotCount; i++ {
+		_, used := usedSlots[i]
+		if used {
+			continue
+		}
+
+		err = d.VolatileSet(map[string]string{deviceVolatileKey: strconv.FormatUint(uint64(i), 10)})
+		if err != nil {
+			return "", "", false, fmt.Errorf("Failed setting volatile keys: %w", err)
+		}
+
+		busName := busDevicePortPrefix + strconv.FormatUint(uint64(i), 10)
+		d.logger.Debug("Using bus to hotplug device into", logger.Ctx{"device": deviceName, "busType": "pcie", "bus": busName})
+
+		return busName, firstFunctionAddress, false, nil
+	}
+
+	return "", "", false, errors.New("No unused PCIe ports available for hotplugging")
 }
 
 func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) {
