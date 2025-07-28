@@ -3557,6 +3557,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 	}
 
 	// Setup a bus allocator for use with generating QEMU pre-boot config file.
+	volatileSet := make(map[string]string)
 	busAllocate := func(deviceName string, enableMultifunction bool) (busName string, busAddress string, multifunction bool, err error) {
 		multifunctionGroup := busFunctionGroupNone
 		if enableMultifunction {
@@ -3566,6 +3567,15 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		busName, busAddress, multifunction = bus.allocate(multifunctionGroup)
 		if busName != "" {
 			d.logger.Debug("Using bus to plug device into", logger.Ctx{"device": deviceName, "busType": bus.name, "bus": busName})
+
+			if bus.name == "pcie" {
+				// Only PCIe supports hotplugging and needs to store the bus order number in volatile.
+				volatileKey := "volatile." + deviceName + busDeviceVolatileSuffix
+				busNum := strings.TrimPrefix(busName, busDevicePortPrefix)
+				if d.localConfig[volatileKey] != busNum {
+					volatileSet[volatileKey] = busNum
+				}
+			}
 		}
 
 		return busName, busAddress, multifunction, nil
@@ -3641,6 +3651,14 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 			if err != nil {
 				return "", nil, err
 			}
+		}
+	}
+
+	// Apply any volatile changes that need to be made.
+	if len(volatileSet) > 0 {
+		err = d.VolatileSet(volatileSet)
+		if err != nil {
+			return "", nil, fmt.Errorf("Failed setting device volatile keys: %w", err)
 		}
 	}
 
