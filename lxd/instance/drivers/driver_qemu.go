@@ -2307,12 +2307,10 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 	reverter.Add(func() { _ = monitor.RemoveCharDevice(deviceID) })
 
 	// Try to get a PCI address for hotplugging.
-	busName, busAddr, _, err := d.getPCIHotplug()
+	busName, busAddr, _, err := d.busAllocatePCIeHotplug(deviceName, false)
 	if err != nil {
 		return "", err
 	}
-
-	d.logger.Debug("Using PCI bus device to hotplug virtiofs into", logger.Ctx{"device": deviceName, "port": busName})
 
 	qemuDev := map[string]any{
 		"driver":  "vhost-user-fs-pci",
@@ -2339,7 +2337,7 @@ func (d *qemu) deviceAttachBlockDevice(mount deviceConfig.MountEntryItem) error 
 		return fmt.Errorf("Failed to connect to QMP monitor: %w", err)
 	}
 
-	monHook, err := d.addDriveConfig(d.getPCIHotplug, nil, mount)
+	monHook, err := d.addDriveConfig(d.busAllocatePCIeHotplug, nil, mount)
 	if err != nil {
 		return fmt.Errorf("Failed to add drive config: %w", err)
 	}
@@ -2456,7 +2454,7 @@ func (d *qemu) deviceAttachNIC(deviceName string, netIF []deviceConfig.RunConfig
 		return err
 	}
 
-	monHook, err := d.addNetDevConfig(qemuBus, d.getPCIHotplug, nil, netIF)
+	monHook, err := d.addNetDevConfig(qemuBus, d.busAllocatePCIeHotplug, nil, netIF)
 	if err != nil {
 		return err
 	}
@@ -2565,12 +2563,10 @@ func (d *qemu) deviceAttachPCI(deviceName string, pciConfig []deviceConfig.RunCo
 	}
 
 	// Try to get a PCI address for hotplugging.
-	busName, busAddr, _, err := d.getPCIHotplug()
+	busName, busAddr, _, err := d.busAllocatePCIeHotplug(deviceName, false)
 	if err != nil {
 		return err
 	}
-
-	d.logger.Debug("Using PCI bus device to hotplug device into", logger.Ctx{"device": deviceName, "port": busName})
 
 	escapedDeviceName := filesystem.PathNameEncode(devName)
 
