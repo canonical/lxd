@@ -11,7 +11,7 @@ const busDevicePortPrefix = "qemu_pcie"   // Prefix used for name of PCIe ports.
 
 // busAllocator is a function signature used for allocating PCI(e) slots in QEMU.
 // There are different implementations for pre-start QEMU config file generation and for hotplugging of devices.
-type busAllocator func() (busName string, busAddress string, multi bool, err error)
+type busAllocator func(deviceName string, enableMultifunction bool) (busName string, busAddress string, multi bool, err error)
 
 type qemuBusEntry struct {
 	bridgeDev int // Device number on the root bridge.
