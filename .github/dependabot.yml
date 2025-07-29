@@ -2,6 +2,8 @@ version: 2
 updates:
   - package-ecosystem: "gomod"
     directory: "/"
+    ignore:
+      - dependency-name: "github.com/olekukonko/tablewriter"
     labels: []
     schedule:
       interval: "weekly"
@@ -16,6 +18,8 @@ updates:
 
   - package-ecosystem: "gomod"
     directory: "/"
+    ignore:
+      - dependency-name: "github.com/olekukonko/tablewriter"
     labels: []
     schedule:
       interval: "weekly"
@@ -30,6 +34,8 @@ updates:
 
   - package-ecosystem: "gomod"
     directory: "/"
+    ignore:
+      - dependency-name: "github.com/olekukonko/tablewriter"
     labels: []
     schedule:
       interval: "weekly"
