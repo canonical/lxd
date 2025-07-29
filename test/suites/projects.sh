@@ -9,6 +9,7 @@ test_projects_default() {
   lxc project show default | grep -xF -- "- /1.0/profiles/default"
   lxc project show default | grep -F -- "- /1.0/images/"
   lxc delete c1
+  lxc image delete testimage
 }
 
 # CRUD operations on project.
