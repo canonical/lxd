@@ -46,6 +46,7 @@ jobs:
       LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
       LD_RUN_PATH: "/home/runner/go/bin/dqlite/libs/"
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
+    if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
     name: Code
     runs-on: ubuntu-22.04
     steps:
@@ -309,6 +310,7 @@ jobs:
       LXD_OFFLINE: "1"
       LXD_TMPFS: "1"
       GOTRACEBACK: "crash"
+    if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
     name: System
     runs-on: ubuntu-22.04
     needs: code-tests
