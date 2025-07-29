@@ -31,6 +31,7 @@ concurrency:
 
 jobs:
   analyze:
+    if: ${{ github.repository == 'canonical/lxd' }}
     name: Analyze
     # Runner size impacts CodeQL analysis time. To learn more, please see:
     #   - https://gh.io/recommended-hardware-resources-for-running-codeql
