@@ -1862,7 +1862,7 @@ func (o *OVN) loadBalancerUUIDs(loadBalancerName OVNLoadBalancer) ([]string, err
 
 // LoadBalancerApply creates a new load balancer (if doesn't exist) on the specified routers and switches.
 // Providing an empty set of vips will delete the load balancer.
-func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNRouter, vips ...OVNLoadBalancerVIP) error {
+func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNRouter, switches []OVNSwitch, vips ...OVNLoadBalancerVIP) error {
 	lbTCPName := string(loadBalancerName) + "-tcp"
 	lbUDPName := string(loadBalancerName) + "-udp"
 
@@ -1947,7 +1947,7 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 		}
 	}
 
-	// If there are some VIP rules then associate the load balancer to the requested routers.
+	// If there are some VIP rules then associate the load balancer to the requested routers and switches.
 	if len(vips) > 0 {
 		args := make([]string, 0, 6*len(lbUUIDs))
 
@@ -1971,6 +1971,15 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 			_, err = o.nbctl(args...)
 			if err != nil {
 				return err
+			}
+		}
+
+		for _, lbUUID := range lbUUIDs {
+			for _, s := range switches {
+				_, err = o.nbctl("ls-lb-add", string(s), lbUUID)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
