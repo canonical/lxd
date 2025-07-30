@@ -119,24 +119,9 @@ const (
 	identityTypeCertificateClientPending       int64 = 8
 )
 
-// Scan implements sql.Scanner for IdentityType. This converts the integer value back into the correct API constant or
-// returns an error.
-func (i *IdentityType) Scan(value any) error {
-	if value == nil {
-		return errors.New("Identity type cannot be null")
-	}
-
-	intValue, err := driver.Int32.ConvertValue(value)
-	if err != nil {
-		return fmt.Errorf("Invalid identity type: %w", err)
-	}
-
-	identityTypeInt, ok := intValue.(int64)
-	if !ok {
-		return fmt.Errorf("Identity type should be an integer, got `%v` (%T)", intValue, intValue)
-	}
-
-	switch identityTypeInt {
+// ScanInteger implements [query.IntegerScanner] for IdentityType. This simplifies the Scan implementation.
+func (i *IdentityType) ScanInteger(identityTypeCode int64) error {
+	switch identityTypeCode {
 	case identityTypeCertificateClientRestricted:
 		*i = api.IdentityTypeCertificateClientRestricted
 	case identityTypeCertificateClientUnrestricted:
@@ -154,10 +139,16 @@ func (i *IdentityType) Scan(value any) error {
 	case identityTypeCertificateClientPending:
 		*i = api.IdentityTypeCertificateClientPending
 	default:
-		return fmt.Errorf("Unknown identity type `%d`", identityTypeInt)
+		return fmt.Errorf("Unknown identity type `%d`", identityTypeCode)
 	}
 
 	return nil
+}
+
+// Scan implements sql.Scanner for IdentityType. This converts the integer value back into the correct API constant or
+// returns an error.
+func (i *IdentityType) Scan(value any) error {
+	return query.ScanValue(value, i, false)
 }
 
 // Value implements driver.Valuer for IdentityType. This converts the API constant into an integer or throws an error.
