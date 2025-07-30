@@ -187,7 +187,8 @@ func parserSupports(sysOS *sys.OS, feature string) (bool, error) {
 		defer sysOS.AppArmorFeatures.Unlock()
 		supported, ok := sysOS.AppArmorFeatures.Map[feature]
 		if !ok {
-			supported, err := FeatureCheck(sysOS, feature)
+			var err error
+			supported, err = FeatureCheck(sysOS, feature)
 			if err != nil {
 				return false, nil
 			}
