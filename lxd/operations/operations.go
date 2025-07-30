@@ -226,7 +226,7 @@ func (op *Operation) CheckRequestor(r *http.Request) error {
 		return errors.New("Operation does not contain a requestor")
 	}
 
-	requestor := request.CreateRequestor(r)
+	requestor := request.CreateRequestor(r.Context())
 	if requestor.Username != opRequestor.Username || requestor.Protocol != opRequestor.Protocol {
 		return api.StatusErrorf(http.StatusForbidden, "Operation requestor mismatch")
 	}
