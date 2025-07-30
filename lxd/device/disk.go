@@ -1373,6 +1373,11 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					return nil, err
 				}
 
+				// Forbid mounting files to FS paths.
+				if d.config["path"] != "" {
+					return nil, errors.New("File mounting to filesystem paths is not supported for virtual machines")
+				}
+
 				revert.Add(func() { _ = f.Close() })
 				runConf.PostHooks = append(runConf.PostHooks, f.Close)
 				runConf.Revert = func() { _ = f.Close() } // Close file on VM start failure.
