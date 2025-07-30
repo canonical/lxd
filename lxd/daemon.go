@@ -1464,7 +1464,7 @@ func (d *Daemon) init() error {
 	}
 
 	/* Setup the web server */
-	config := &endpoints.Config{
+	endpointsConfig := &endpoints.Config{
 		Dir:                  d.os.VarDir,
 		UnixSocket:           d.os.GetUnixSocket(),
 		Cert:                 networkCert,
@@ -1483,10 +1483,10 @@ func (d *Daemon) init() error {
 	// Enable vsock server support if VM instances supported.
 	err, found := d.State().InstanceTypes[instancetype.VM]
 	if found && err == nil {
-		config.VsockSupport = true
+		endpointsConfig.VsockSupport = true
 	}
 
-	d.endpoints, err = endpoints.Up(config)
+	d.endpoints, err = endpoints.Up(endpointsConfig)
 	if err != nil {
 		return err
 	}
@@ -1597,7 +1597,7 @@ func (d *Daemon) init() error {
 
 	// Load server name and config before patches run (so they can access them from d.State()).
 	err = d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-		config, err := clusterConfig.Load(ctx, tx)
+		globalConfig, err := clusterConfig.Load(ctx, tx)
 		if err != nil {
 			return err
 		}
@@ -1610,7 +1610,7 @@ func (d *Daemon) init() error {
 
 		d.globalConfigMu.Lock()
 		d.serverName = serverName
-		d.globalConfig = config
+		d.globalConfig = globalConfig
 		d.globalConfigMu.Unlock()
 
 		return nil
