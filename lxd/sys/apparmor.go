@@ -149,7 +149,7 @@ func appArmorGetCacheDir(ver *version.DottedVersion, cacheLoc string) (string, e
 	// Multiple policy cache directories were only added in v2.13.
 	minVer, err := version.NewDottedVersion("2.13")
 	if err != nil {
-		return cacheLoc, err
+		return "", err
 	}
 
 	if ver.Compare(minVer) < 0 {
@@ -160,7 +160,7 @@ func appArmorGetCacheDir(ver *version.DottedVersion, cacheLoc string) (string, e
 	// The subdirectory used will be influenced by the features available and enabled.
 	out, err := shared.RunCommandContext(context.TODO(), "apparmor_parser", "--cache-loc", cacheLoc, "--print-cache-dir")
 	if err != nil {
-		return cacheLoc, err
+		return "", err
 	}
 
 	return strings.TrimSpace(out), nil
