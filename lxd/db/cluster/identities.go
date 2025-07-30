@@ -68,33 +68,24 @@ const (
 	authMethodOIDC int64 = 2
 )
 
-// Scan implements sql.Scanner for AuthMethod. This converts the integer value back into the correct API constant or
-// returns an error.
-func (a *AuthMethod) Scan(value any) error {
-	if value == nil {
-		return errors.New("Authentication method cannot be null")
-	}
-
-	intValue, err := driver.Int32.ConvertValue(value)
-	if err != nil {
-		return fmt.Errorf("Invalid authentication method type: %w", err)
-	}
-
-	authMethodInt, ok := intValue.(int64)
-	if !ok {
-		return fmt.Errorf("Authentication method should be an integer, got `%v` (%T)", intValue, intValue)
-	}
-
-	switch authMethodInt {
+// ScanInteger implements [query.IntegerScanner] for AuthMethod. This simplifies the Scan implementation.
+func (a *AuthMethod) ScanInteger(authMethodCode int64) error {
+	switch authMethodCode {
 	case authMethodTLS:
 		*a = api.AuthenticationMethodTLS
 	case authMethodOIDC:
 		*a = api.AuthenticationMethodOIDC
 	default:
-		return fmt.Errorf("Unknown authentication method `%d`", authMethodInt)
+		return fmt.Errorf("Unknown authentication method `%d`", authMethodCode)
 	}
 
 	return nil
+}
+
+// Scan implements sql.Scanner for AuthMethod. This converts the integer value back into the correct API constant or
+// returns an error.
+func (a *AuthMethod) Scan(value any) error {
+	return query.ScanValue(value, a, false)
 }
 
 // Value implements driver.Valuer for AuthMethod. This converts the API constant into an integer or throws an error.
