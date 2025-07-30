@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 )
@@ -138,31 +139,22 @@ func init() {
 	}
 }
 
-// Scan implements sql.Scanner for EntityType. This converts the integer value back into the correct entity.Type
-// constant or returns an error.
-func (e *EntityType) Scan(value any) error {
-	// Always expect null values to be coalesced into entityTypeNone (-1).
-	if value == nil {
-		return errors.New("Entity type cannot be null")
-	}
-
-	intValue, err := driver.Int32.ConvertValue(value)
-	if err != nil {
-		return fmt.Errorf("Invalid entity type `%v`: %w", value, err)
-	}
-
-	entityTypeInt, ok := intValue.(int64)
+// ScanInteger implements [query.IntegerScanner] for EntityType. This simplifies the Scan implementation.
+func (e *EntityType) ScanInteger(entityTypeCode int64) error {
+	entityType, ok := entityTypeByCode[entityTypeCode]
 	if !ok {
-		return fmt.Errorf("Entity should be an integer, got `%v` (%T)", intValue, intValue)
-	}
-
-	entityType, ok := entityTypeByCode[entityTypeInt]
-	if !ok {
-		return fmt.Errorf("Unknown entity type %d", entityTypeInt)
+		return fmt.Errorf("Unknown entity type %d", entityTypeCode)
 	}
 
 	*e = entityType
 	return nil
+}
+
+// Scan implements sql.Scanner for EntityType. This converts the integer value back into the correct entity.Type
+// constant or returns an error.
+func (e *EntityType) Scan(value any) error {
+	// Always expect null values to be coalesced into entityTypeNone (-1).
+	return query.ScanValue(value, e, false)
 }
 
 // Value implements driver.Valuer for EntityType. This converts the EntityType into an integer or throws an error.
