@@ -51,10 +51,10 @@ To specify a different channel, add the `--channel` flag at installation:
 sudo snap install lxd --channel=<target channel> [--cohort="+"]
 ```
 
-For example, to use the `6/stable` channel, run:
+For example, to use the `5.21/stable` channel, run:
 
 ```bash
-sudo snap install lxd --channel=6/stable
+sudo snap install lxd --channel=5.21/stable
 ```
 
 For details about LXD snap channels, see: {ref}`ref-snap-channels`.
