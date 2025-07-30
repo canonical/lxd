@@ -381,6 +381,8 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		"boot.priority": validate.Optional(validate.IsUint32),
 		// lxdmeta:generate(entities=device-disk; group=device-conf; key=path)
 		// This option specifies the path inside the container where the disk will be mounted.
+		// For containers, this option allows mounting filesystem disk devices, as well as specific paths and individual files within those devices.
+		// For VMs, this option allows mounting filesystem disk devices and paths within them. Mounting individual files is not supported.
 		// ---
 		//  type: string
 		//  required: yes
