@@ -108,7 +108,7 @@ For live discussions, visit [`#lxd`](https://web.libera.chat/#lxd) on `irc.liber
 
 ### Documentation
 
-Access the official documentation: [`https://documentation.ubuntu.com/lxd/latest/`](https://documentation.ubuntu.com/lxd/latest/)
+Access the official documentation: [`https://documentation.ubuntu.com/lxd/stable-5.21/`](https://documentation.ubuntu.com/lxd/stable-5.21/)
 
 ### Bug reports and feature requests
 
@@ -120,7 +120,7 @@ You can find additional resources on the [LXD website](https://canonical.com/lxd
 
 ## Commercial support
 
-LTS releases of LXD receive standard support for five years, which means they receive continuous updates. Commercial support for LXD is provided as part of [Ubuntu Pro](https://ubuntu.com/pro) (both Infra-only and full Ubuntu Pro), including for [attached LXD instances running Ubuntu](https://documentation.ubuntu.com/lxd/latest/howto/ubuntu_pro_guest_attach/). See the [full service description](https://ubuntu.com/legal/ubuntu-pro-description) for details.
+LTS releases of LXD receive standard support for five years, which means they receive continuous updates. Commercial support for LXD is provided as part of [Ubuntu Pro](https://ubuntu.com/pro) (both Infra-only and full Ubuntu Pro), including for [attached LXD instances running Ubuntu](https://documentation.ubuntu.com/lxd/stable-5.21/howto/ubuntu_pro_guest_attach/). See the [full service description](https://ubuntu.com/legal/ubuntu-pro-description) for details.
 
 Managed solutions and firefighting support are also available for LXD deployments. See: [Managed services](https://ubuntu.com/managed).
 

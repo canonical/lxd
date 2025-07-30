@@ -60,11 +60,11 @@ copyright = '2014-%s %s' % (datetime.date.today().year, author)
 # don't know yet)
 # NOTE: If no ogp_* variable is defined (e.g. if you remove this section) the
 # sphinxext.opengraph extension will be disabled.
-ogp_site_url = 'https://documentation.ubuntu.com/lxd/latest/'
+ogp_site_url = 'https://documentation.ubuntu.com/lxd/stable-5.21/'
 # The documentation website name (usually the same as the product name)
 ogp_site_name = 'LXD documentation'
 # The URL of an image or logo that is used in the preview
-ogp_image = 'https://documentation.ubuntu.com/lxd/latest/_static/tag.png'
+ogp_image = 'https://documentation.ubuntu.com/lxd/stable-5.21/_static/tag.png'
 
 # Update with the local path to the favicon for your product
 # (default is the circle of friends)
@@ -175,7 +175,7 @@ linkcheck_ignore = [
     'http://localhost:8000',
     'http://localhost:8080',
     'http://localhost:8080/admin',
-    r'/lxd/latest/api/.*',
+    r'/lxd/stable-5.21/api/.*',
     r'/api/.*',
     # Those links may fail from time to time
     'https://www.dell.com/',
