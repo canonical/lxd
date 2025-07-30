@@ -74,7 +74,7 @@ func newStorageMigrationSource(volumeOnly bool, pushTarget *api.StorageVolumePos
 func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, poolName string, volName string, migrateOp *operations.Operation) error {
 	l := logger.AddContext(logger.Ctx{"project": projectName, "pool": poolName, "volume": volName, "push": s.pushOperationURL != ""})
 
-	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
+	ctx, cancel := context.WithTimeout(state.ShutdownCtx, time.Second*10)
 	defer cancel()
 
 	l.Info("Waiting for migration connections on source")
@@ -138,7 +138,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	// Send offer to target.
 	err = s.send(offerHeader)
 	if err != nil {
-		logger.Errorf("Failed to send storage volume migration header")
+		logger.Error("Failed to send storage volume migration header")
 		s.sendControl(err)
 		return err
 	}
@@ -147,7 +147,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	respHeader := &migration.MigrationHeader{}
 	err = s.recv(respHeader)
 	if err != nil {
-		logger.Errorf("Failed to receive storage volume migration header")
+		logger.Error("Failed to receive storage volume migration header")
 		s.sendControl(err)
 		return err
 	}
@@ -185,7 +185,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 		}
 	}
 
-	fsConn, err := s.conns[api.SecretNameFilesystem].WebsocketIO(context.TODO())
+	fsConn, err := s.conns[api.SecretNameFilesystem].WebsocketIO(state.ShutdownCtx)
 	if err != nil {
 		return err
 	}
@@ -199,16 +199,16 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	msg := migration.MigrationControl{}
 	err = s.recv(&msg)
 	if err != nil {
-		logger.Errorf("Failed to receive storage volume migration control message")
+		logger.Error("Failed to receive storage volume migration control message")
 		return err
 	}
 
 	if !msg.GetSuccess() {
-		logger.Errorf("Failed to send storage volume")
+		logger.Error("Failed to send storage volume")
 		return errors.New(msg.GetMessage())
 	}
 
-	logger.Debugf("Migration source finished transferring storage volume")
+	logger.Debug("Migration source finished transferring storage volume")
 	return nil
 }
 
@@ -254,7 +254,7 @@ func newStorageMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 func (c *migrationSink) DoStorage(state *state.State, projectName string, poolName string, req *api.StorageVolumesPost, op *operations.Operation) error {
 	l := logger.AddContext(logger.Ctx{"project": projectName, "pool": poolName, "volume": req.Name, "push": c.push})
 
-	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
+	ctx, cancel := context.WithTimeout(state.ShutdownCtx, time.Second*10)
 	defer cancel()
 
 	l.Info("Waiting for migration connections on target")
@@ -277,7 +277,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 	offerHeader := &migration.MigrationHeader{}
 	err := c.recv(offerHeader)
 	if err != nil {
-		logger.Errorf("Failed to receive storage volume migration header")
+		logger.Error("Failed to receive storage volume migration header")
 		c.sendControl(err)
 		return err
 	}
@@ -411,7 +411,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 
 	err = c.send(respHeader)
 	if err != nil {
-		logger.Errorf("Failed to send storage volume migration header")
+		logger.Error("Failed to send storage volume migration header")
 		c.sendControl(err)
 		return err
 	}
@@ -436,7 +436,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 				refresh:       c.refresh,
 			}
 
-			fsConn, err := c.conns[api.SecretNameFilesystem].WebsocketIO(context.TODO())
+			fsConn, err := c.conns[api.SecretNameFilesystem].WebsocketIO(state.ShutdownCtx)
 			if err != nil {
 				fsTransfer <- err
 				return

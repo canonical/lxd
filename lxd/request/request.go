@@ -3,43 +3,33 @@ package request
 import (
 	"context"
 	"net"
-	"net/http"
 
 	"github.com/canonical/lxd/shared/api"
 )
 
-// CreateRequestor extracts the lifecycle event requestor data from an http.Request context.
-func CreateRequestor(r *http.Request) *api.EventLifecycleRequestor {
-	ctx := r.Context()
+// CreateRequestor extracts the lifecycle event requestor data from the provided context.
+func CreateRequestor(ctx context.Context) *api.EventLifecycleRequestor {
 	requestor := &api.EventLifecycleRequestor{}
 
-	// Normal requestor.
-	val, ok := ctx.Value(CtxUsername).(string)
-	if ok {
-		requestor.Username = val
-	}
+	reqInfo := GetContextInfo(ctx)
+	if reqInfo != nil {
+		// Normal requestor.
+		requestor.Address = reqInfo.SourceAddress
+		requestor.Username = reqInfo.Username
+		requestor.Protocol = reqInfo.Protocol
 
-	val, ok = ctx.Value(CtxProtocol).(string)
-	if ok {
-		requestor.Protocol = val
-	}
+		// Forwarded requestor override.
+		if reqInfo.ForwardedAddress != "" {
+			requestor.Address = reqInfo.ForwardedAddress
+		}
 
-	requestor.Address = r.RemoteAddr
+		if reqInfo.ForwardedUsername != "" {
+			requestor.Username = reqInfo.ForwardedUsername
+		}
 
-	// Forwarded requestor override.
-	val, ok = ctx.Value(CtxForwardedUsername).(string)
-	if ok {
-		requestor.Username = val
-	}
-
-	val, ok = ctx.Value(CtxForwardedProtocol).(string)
-	if ok {
-		requestor.Protocol = val
-	}
-
-	val, ok = ctx.Value(CtxForwardedAddress).(string)
-	if ok {
-		requestor.Address = val
+		if reqInfo.ForwardedProtocol != "" {
+			requestor.Protocol = reqInfo.ForwardedProtocol
+		}
 	}
 
 	return requestor
@@ -48,5 +38,11 @@ func CreateRequestor(r *http.Request) *api.EventLifecycleRequestor {
 // SaveConnectionInContext can be set as the ConnContext field of a http.Server to set the connection
 // in the request context for later use.
 func SaveConnectionInContext(ctx context.Context, connection net.Conn) context.Context {
-	return context.WithValue(ctx, CtxConn, connection)
+	reqInfo := GetContextInfo(ctx)
+	if reqInfo == nil {
+		reqInfo = &Info{}
+	}
+
+	reqInfo.Conn = connection
+	return context.WithValue(ctx, CtxRequestInfo, reqInfo)
 }

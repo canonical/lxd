@@ -182,7 +182,8 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// If the request is project specific, then set effective project name in the request context so that the authorizer can generate the correct URL.
-		request.SetCtxValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
+		reqInfo := request.SetupContextInfo(r)
+		reqInfo.EffectiveProjectName = effectiveProjectName
 	}
 
 	recursion := util.IsRecursionRequest(r)
@@ -192,7 +193,7 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var aclNames map[string][]string
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		if allProjects {
@@ -249,7 +250,7 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 
 				netACLInfo := netACL.Info()
 				netACLInfo.UsedBy, _ = netACL.UsedBy() // Ignore errors in UsedBy, will return nil.
-				netACLInfo.UsedBy = project.FilterUsedBy(s.Authorizer, r, netACLInfo.UsedBy)
+				netACLInfo.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, netACLInfo.UsedBy)
 				netACLInfo.Project = projectName
 
 				resultMap = append(resultMap, netACLInfo)
@@ -335,7 +336,7 @@ func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	lc := lifecycle.NetworkACLCreated.Event(netACL, request.CreateRequestor(r), nil)
+	lc := lifecycle.NetworkACLCreated.Event(netACL, request.CreateRequestor(r.Context()), nil)
 	s.Events.SendLifecycle(projectName, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
@@ -388,7 +389,7 @@ func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.NetworkACLDeleted.Event(netACL, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.NetworkACLDeleted.Event(netACL, request.CreateRequestor(r.Context()), nil))
 
 	return response.EmptySyncResponse
 }
@@ -462,7 +463,7 @@ func networkACLGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	info.UsedBy = project.FilterUsedBy(s.Authorizer, r, info.UsedBy)
+	info.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, info.UsedBy)
 	if len(withEntitlements) > 0 {
 		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeNetworkACL, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.NetworkACLURL(projectName, aclName): info})
 		if err != nil {
@@ -593,7 +594,7 @@ func networkACLPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.NetworkACLUpdated.Event(netACL, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.NetworkACLUpdated.Event(netACL, request.CreateRequestor(r.Context()), nil))
 
 	return response.EmptySyncResponse
 }
@@ -662,7 +663,7 @@ func networkACLPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	lc := lifecycle.NetworkACLRenamed.Event(netACL, request.CreateRequestor(r), logger.Ctx{"old_name": aclName})
+	lc := lifecycle.NetworkACLRenamed.Event(netACL, request.CreateRequestor(r.Context()), logger.Ctx{"old_name": aclName})
 	s.Events.SendLifecycle(projectName, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)

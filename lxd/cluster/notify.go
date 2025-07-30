@@ -108,7 +108,7 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 			logger.Debug("Notify cluster member of state changes", logger.Ctx{"name": member.Name, "address": member.Address})
 			go func(i int, member db.NodeInfo) {
 				defer wg.Done()
-				client, err := Connect(member.Address, networkCert, serverCert, nil, true)
+				client, err := Connect(context.Background(), member.Address, networkCert, serverCert, true)
 				if err != nil {
 					errs[i] = fmt.Errorf("Failed to connect to peer %s at %s: %w", member.Name, member.Address, err)
 					return

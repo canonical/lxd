@@ -81,7 +81,8 @@ cleanup() {
 trap cleanup EXIT HUP INT TERM
 
 if ! command -v lxc > /dev/null; then
-    echo "==> Couldn't find lxc" && false
+    echo "==> Couldn't find lxc"
+    false
 fi
 
 spawn_lxd() {

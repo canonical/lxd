@@ -654,7 +654,7 @@ func (d *Daemon) handleOIDCAuthenticationResult(r *http.Request, result *oidc.Au
 			return fmt.Errorf("Failed to notify cluster members of new or updated OIDC identity: %w", err)
 		}
 
-		lc := action.Event(api.AuthenticationMethodOIDC, result.Email, request.CreateRequestor(r), nil)
+		lc := action.Event(api.AuthenticationMethodOIDC, result.Email, request.CreateRequestor(r.Context()), nil)
 		s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
 		s.UpdateIdentityCache()
@@ -735,17 +735,6 @@ func (d *Daemon) State() *state.State {
 	return s
 }
 
-// UnixSocket returns the full path to the unix.socket file that this daemon is
-// listening on. Used by tests.
-func (d *Daemon) UnixSocket() string {
-	path := os.Getenv("LXD_SOCKET")
-	if path != "" {
-		return path
-	}
-
-	return filepath.Join(d.os.VarDir, "unix.socket")
-}
-
 // createCmd creates API handlers for the provided endpoint including some useful behavior,
 // such as appropriate authentication, authorization and checking server availability.
 //
@@ -802,8 +791,14 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			return
 		}
 
+		// Ensure request context info is set.
+		reqInfo := request.SetupContextInfo(r)
+
 		// Set the "trusted" value in the request context.
-		request.SetCtxValue(r, request.CtxTrusted, trusted)
+		reqInfo.Trusted = trusted
+
+		// Set request source address value in the request context.
+		reqInfo.SourceAddress = r.RemoteAddr
 
 		// Reject internal queries to remote, non-cluster, clients
 		if version == "internal" && !slices.Contains([]string{auth.AuthenticationMethodUnix, auth.AuthenticationMethodCluster}, protocol) {
@@ -827,18 +822,19 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			logger.Debug("Handling API request", logCtx)
 
 			// Add authentication/authorization context data.
-			ctx := context.WithValue(r.Context(), request.CtxUsername, username)
-			ctx = context.WithValue(ctx, request.CtxProtocol, protocol)
+			reqInfo.Username = username
+			reqInfo.Protocol = protocol
 			if len(identityProviderGroups) > 0 {
-				ctx = context.WithValue(ctx, request.CtxIdentityProviderGroups, identityProviderGroups)
+				reqInfo.IdentityProviderGroups = identityProviderGroups
 			}
 
 			// Add forwarded requestor data.
 			if protocol == auth.AuthenticationMethodCluster {
 				// Add authentication/authorization context data.
-				ctx = context.WithValue(ctx, request.CtxForwardedAddress, r.Header.Get(request.HeaderForwardedAddress))
-				ctx = context.WithValue(ctx, request.CtxForwardedUsername, r.Header.Get(request.HeaderForwardedUsername))
-				ctx = context.WithValue(ctx, request.CtxForwardedProtocol, r.Header.Get(request.HeaderForwardedProtocol))
+				reqInfo.ForwardedAddress = r.Header.Get(request.HeaderForwardedAddress)
+				reqInfo.ForwardedUsername = r.Header.Get(request.HeaderForwardedUsername)
+				reqInfo.ForwardedProtocol = r.Header.Get(request.HeaderForwardedProtocol)
+
 				forwardedIdentityProviderGroupsJSON := r.Header.Get(request.HeaderForwardedIdentityProviderGroups)
 				if forwardedIdentityProviderGroupsJSON != "" {
 					var forwardedIdentityProviderGroups []string
@@ -846,12 +842,10 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 					if err != nil {
 						logger.Error("Failed unmarshalling identity provider groups from forwarded request header", logger.Ctx{"err": err})
 					} else {
-						ctx = context.WithValue(ctx, request.CtxForwardedIdentityProviderGroups, forwardedIdentityProviderGroups)
+						reqInfo.ForwardedIdentityProviderGroups = forwardedIdentityProviderGroups
 					}
 				}
 			}
-
-			r = r.WithContext(ctx)
 		} else if untrustedOk && r.Header.Get("X-LXD-authenticated") == "" {
 			logger.Debug("Allowing untrusted "+r.Method, logger.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else {
@@ -865,7 +859,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		// Set OpenFGA cache in request context.
-		request.SetCtxValue(r, request.CtxOpenFGARequestCache, &openfga.RequestCache{})
+		request.SetContextValue(r, request.CtxOpenFGARequestCache, &openfga.RequestCache{})
 
 		// Dump full request JSON when in debug mode
 		if daemon.Debug && r.Method != "GET" && util.IsJSONRequest(r) {
@@ -1090,7 +1084,7 @@ func (d *Daemon) init() error {
 	d.internalListener = events.NewInternalListener(d.shutdownCtx, d.events)
 
 	// Lets check if there's an existing LXD running
-	err = endpoints.CheckAlreadyRunning(d.UnixSocket())
+	err = endpoints.CheckAlreadyRunning(d.os.GetUnixSocket())
 	if err != nil {
 		return err
 	}
@@ -1432,7 +1426,7 @@ func (d *Daemon) init() error {
 	/* Setup the web server */
 	config := &endpoints.Config{
 		Dir:                  d.os.VarDir,
-		UnixSocket:           d.UnixSocket(),
+		UnixSocket:           d.os.GetUnixSocket(),
 		Cert:                 networkCert,
 		RestServer:           restServer(d),
 		DevLxdServer:         devLXDServer(d),
@@ -1682,7 +1676,7 @@ func (d *Daemon) init() error {
 	maasAPIURL, maasAPIKey = d.globalConfig.MAASController()
 	d.gateway.HeartbeatOfflineThreshold = d.globalConfig.OfflineThreshold()
 	lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes := d.globalConfig.LokiServer()
-	oidcIssuer, oidcClientID, oidcScopes, oidcAudience, oidcGroupsClaim := d.globalConfig.OIDCServer()
+	oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim := d.globalConfig.OIDCServer()
 	syslogSocketEnabled := d.localConfig.SyslogSocket()
 	instancePlacementScriptlet := d.globalConfig.InstancesPlacementScriptlet()
 
@@ -1710,7 +1704,7 @@ func (d *Daemon) init() error {
 			return util.HTTPClient("", d.proxy)
 		}
 
-		d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcScopes, oidcAudience, d.serverCert, d.identityCache, httpClientFunc, &oidc.Opts{GroupsClaim: oidcGroupsClaim})
+		d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, d.serverCert, d.identityCache, httpClientFunc, &oidc.Opts{GroupsClaim: oidcGroupsClaim})
 		if err != nil {
 			return err
 		}
@@ -2549,7 +2543,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		if isDegraded || onlineVoters < maxVoters || onlineStandbys < maxStandBy {
 			d.clusterMembershipMutex.Lock()
 			logger.Debug("Rebalancing member roles in heartbeat", logger.Ctx{"local": localClusterAddress})
-			err := rebalanceMemberRoles(d.State(), d.gateway, nil, unavailableMembers)
+			err := rebalanceMemberRoles(context.Background(), d.State(), d.gateway, unavailableMembers)
 			if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
 				logger.Warn("Could not rebalance cluster member roles", logger.Ctx{"err": err, "local": localClusterAddress})
 			}

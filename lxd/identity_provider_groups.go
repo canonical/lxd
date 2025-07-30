@@ -363,7 +363,7 @@ func createIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 	s.UpdateIdentityCache()
 
 	// Send a lifecycle event for the IDP group creation.
-	lc := lifecycle.IdentityProviderGroupCreated.Event(idpGroup.Name, request.CreateRequestor(r), nil)
+	lc := lifecycle.IdentityProviderGroupCreated.Event(idpGroup.Name, request.CreateRequestor(r.Context()), nil)
 	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
 	return response.SyncResponseLocation(true, nil, entity.IdentityProviderGroupURL(idpGroup.Name).String())
@@ -430,7 +430,7 @@ func renameIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Send a lifecycle event for the IDP group rename.
-	lc := lifecycle.IdentityProviderGroupRenamed.Event(idpGroupPost.Name, request.CreateRequestor(r), map[string]any{"old_name": idpGroupName})
+	lc := lifecycle.IdentityProviderGroupRenamed.Event(idpGroupPost.Name, request.CreateRequestor(r.Context()), map[string]any{"old_name": idpGroupName})
 	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
 	s.UpdateIdentityCache()
@@ -519,7 +519,7 @@ func updateIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Send a lifecycle event for the IDP group update.
-	lc := lifecycle.IdentityProviderGroupUpdated.Event(idpGroupName, request.CreateRequestor(r), nil)
+	lc := lifecycle.IdentityProviderGroupUpdated.Event(idpGroupName, request.CreateRequestor(r.Context()), nil)
 	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
 	s.UpdateIdentityCache()
@@ -615,7 +615,7 @@ func patchIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Send a lifecycle event for the IDP group update.
-	lc := lifecycle.IdentityProviderGroupUpdated.Event(idpGroupName, request.CreateRequestor(r), nil)
+	lc := lifecycle.IdentityProviderGroupUpdated.Event(idpGroupName, request.CreateRequestor(r.Context()), nil)
 	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
 	s.UpdateIdentityCache()
@@ -670,7 +670,7 @@ func deleteIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Send a lifecycle event for the IDP group deletion.
-	lc := lifecycle.IdentityProviderGroupDeleted.Event(idpGroupName, request.CreateRequestor(r), nil)
+	lc := lifecycle.IdentityProviderGroupDeleted.Event(idpGroupName, request.CreateRequestor(r.Context()), nil)
 	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
 	s.UpdateIdentityCache()

@@ -158,7 +158,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 
 	var apiProjects []*api.Project
 	var projectURLs []string
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		allProjects, err := cluster.GetProjects(ctx, tx.Tx())
 		if err != nil {
 			return err
@@ -204,7 +204,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	for _, apiProject := range apiProjects {
-		apiProject.UsedBy = projecthelpers.FilterUsedBy(s.Authorizer, r, apiProject.UsedBy)
+		apiProject.UsedBy = projecthelpers.FilterUsedBy(r.Context(), s.Authorizer, apiProject.UsedBy)
 	}
 
 	if len(withEntitlements) > 0 {
@@ -320,7 +320,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var id int64
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		id, err = cluster.CreateProject(ctx, tx.Tx(), cluster.Project{Description: project.Description, Name: project.Name})
 		if err != nil {
 			return fmt.Errorf("Failed adding database record: %w", err)
@@ -332,7 +332,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if shared.IsTrue(project.Config["features.profiles"]) {
-			err = projectCreateDefaultProfile(tx, project.Name, project.StoragePool, project.Network)
+			err = projectCreateDefaultProfile(ctx, tx, project.Name, project.StoragePool, project.Network)
 			if err != nil {
 				return err
 			}
@@ -351,7 +351,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed creating project %q: %w", project.Name, err))
 	}
 
-	requestor := request.CreateRequestor(r)
+	requestor := request.CreateRequestor(r.Context())
 	lc := lifecycle.ProjectCreated.Event(project.Name, requestor, nil)
 	s.Events.SendLifecycle(project.Name, lc)
 
@@ -359,14 +359,14 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 }
 
 // Create the default profile of a project.
-func projectCreateDefaultProfile(tx *db.ClusterTx, project string, storagePool string, network string) error {
+func projectCreateDefaultProfile(ctx context.Context, tx *db.ClusterTx, project string, storagePool string, network string) error {
 	// Create a default profile
 	profile := cluster.Profile{}
 	profile.Project = project
 	profile.Name = api.ProjectDefaultName
 	profile.Description = "Default LXD profile for project " + project
 
-	profileID, err := cluster.CreateProfile(context.TODO(), tx.Tx(), profile)
+	profileID, err := cluster.CreateProfile(ctx, tx.Tx(), profile)
 	if err != nil {
 		return fmt.Errorf("Add default profile to database: %w", err)
 	}
@@ -456,7 +456,7 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 
 	// Get the database entry
 	var project *api.Project
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := cluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
 			return err
@@ -486,7 +486,7 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 		project.Config,
 	}
 
-	project.UsedBy = projecthelpers.FilterUsedBy(s.Authorizer, r, project.UsedBy)
+	project.UsedBy = projecthelpers.FilterUsedBy(r.Context(), s.Authorizer, project.UsedBy)
 
 	return response.SyncResponseETag(true, project, etag)
 }
@@ -530,7 +530,7 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 
 	// Get the current data
 	var project *api.Project
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := cluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
 			return err
@@ -571,10 +571,10 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	requestor := request.CreateRequestor(r)
+	requestor := request.CreateRequestor(r.Context())
 	s.Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, requestor, nil))
 
-	return projectChange(s, project, req)
+	return projectChange(r.Context(), s, project, req)
 }
 
 // swagger:operation PATCH /1.0/projects/{name} projects project_patch
@@ -616,7 +616,7 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 
 	// Get the current data
 	var project *api.Project
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := cluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
 			return err
@@ -687,14 +687,14 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	requestor := request.CreateRequestor(r)
+	requestor := request.CreateRequestor(r.Context())
 	s.Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, requestor, nil))
 
-	return projectChange(s, project, req)
+	return projectChange(r.Context(), s, project, req)
 }
 
 // Common logic between PUT and PATCH.
-func projectChange(s *state.State, project *api.Project, req api.ProjectPut) response.Response {
+func projectChange(ctx context.Context, s *state.State, project *api.Project, req api.ProjectPut) response.Response {
 	// Make a list of config keys that have changed.
 	configChanged := []string{}
 	for key := range project.Config {
@@ -766,7 +766,7 @@ func projectChange(s *state.State, project *api.Project, req api.ProjectPut) res
 
 		if slices.Contains(configChanged, "features.profiles") {
 			if shared.IsTrue(req.Config["features.profiles"]) {
-				err = projectCreateDefaultProfile(tx, project.Name, "", "")
+				err = projectCreateDefaultProfile(ctx, tx, project.Name, "", "")
 				if err != nil {
 					return err
 				}
@@ -881,13 +881,13 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		requestor := request.CreateRequestor(r)
+		requestor := request.CreateRequestor(r.Context())
 		s.Events.SendLifecycle(req.Name, lifecycle.ProjectRenamed.Event(req.Name, requestor, logger.Ctx{"old_name": name}))
 
 		return nil
 	}
 
-	op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ProjectRename, nil, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(r.Context(), s, "", operations.OperationClassTask, operationtype.ProjectRename, nil, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -926,7 +926,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(errors.New("The 'default' project cannot be deleted"))
 	}
 
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		project, err := cluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
 			return fmt.Errorf("Fetch project %q: %w", name, err)
@@ -948,7 +948,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestor := request.CreateRequestor(r)
+	requestor := request.CreateRequestor(r.Context())
 	s.Events.SendLifecycle(name, lifecycle.ProjectDeleted.Event(name, requestor, nil))
 
 	return response.EmptySyncResponse

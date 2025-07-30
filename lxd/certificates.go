@@ -157,7 +157,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 		var baseCerts []dbCluster.Certificate
 		urlToCertificate := make(map[*api.URL]auth.EntitlementReporter)
 		var err error
-		err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			baseCerts, err = dbCluster.GetCertificates(ctx, tx.Tx())
 			if err != nil {
 				return err
@@ -210,7 +210,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 // clusterMemberJoinTokenValid searches for cluster join token that matches the join token provided.
 // Returns matching operation if found and cancels the operation, otherwise returns nil.
 func clusterMemberJoinTokenValid(s *state.State, r *http.Request, projectName string, joinToken *api.ClusterMemberJoinToken) (*api.Operation, error) {
-	ops, err := operationsGetByType(s, r, projectName, operationtype.ClusterJoinToken)
+	ops, err := operationsGetByType(r.Context(), s, projectName, operationtype.ClusterJoinToken)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting cluster join token operations: %w", err)
 	}
@@ -253,7 +253,7 @@ func clusterMemberJoinTokenValid(s *state.State, r *http.Request, projectName st
 
 	if foundOp != nil {
 		// Token is single-use, so cancel it now.
-		err = operationCancel(s, r, projectName, foundOp)
+		err = operationCancel(r.Context(), s, projectName, foundOp)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to cancel operation %q: %w", foundOp.ID, err)
 		}
@@ -297,7 +297,7 @@ func clusterMemberJoinTokenValid(s *state.State, r *http.Request, projectName st
 // If an operation is found it is cancelled and the request metadata is returned. If no operation is found then a nil value
 // is returned. An error is only returned if an internal error occurs, or if a token is found but is not valid.
 func certificateTokenValid(s *state.State, r *http.Request, addToken *api.CertificateAddToken) (*api.CertificatesPost, error) {
-	ops, err := operationsGetByType(s, r, api.ProjectDefaultName, operationtype.CertificateAddToken)
+	ops, err := operationsGetByType(r.Context(), s, api.ProjectDefaultName, operationtype.CertificateAddToken)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting certificate token operations: %w", err)
 	}
@@ -340,7 +340,7 @@ func certificateTokenValid(s *state.State, r *http.Request, addToken *api.Certif
 	}
 
 	// Token is single-use, so cancel it now.
-	err = operationCancel(s, r, api.ProjectDefaultName, foundOp)
+	err = operationCancel(r.Context(), s, api.ProjectDefaultName, foundOp)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to cancel operation %q: %w", foundOp.ID, err)
 	}
@@ -529,14 +529,14 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		userCanCreateCertificates = true
 	}
 
-	trusted, err := request.GetCtxValue[bool](r.Context(), request.CtxTrusted)
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed to get authentication status: %w", err))
+	reqInfo := request.GetContextInfo(r.Context())
+	if reqInfo == nil {
+		return response.SmartError(errors.New("Failed to get authentication status: Missing request context info"))
 	}
 
 	// If caller is already trusted and the trust token is provided, we validate the token and cancel
 	// the corresponding token operation.
-	if trusted && req.TrustToken != "" {
+	if reqInfo.Trusted && req.TrustToken != "" {
 		// Decode the trust token.
 		joinToken, err := shared.CertificateTokenDecode(req.TrustToken)
 		if err != nil {
@@ -557,7 +557,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// If caller is already trusted and does not have permission to create certificates, they cannot create more certificates.
-	if trusted && !userCanCreateCertificates && req.Certificate == "" && !req.Token {
+	if reqInfo.Trusted && !userCanCreateCertificates && req.Certificate == "" && !req.Token {
 		return response.BadRequest(errors.New("Client is already trusted"))
 	}
 
@@ -641,27 +641,9 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(fmt.Errorf("Invalid certificate material: %w", err))
 		}
 	} else if req.Token {
-		// Get all addresses the server is listening on. This is encoded in the certificate token,
-		// so that the client will not have to specify a server address. The client will iterate
-		// through all these addresses until it can connect to one of them.
-		addresses, err := util.ListenAddresses(localHTTPSAddress)
+		token, err := createCertificateAddToken(s, req.Name, "")
 		if err != nil {
-			return response.InternalError(err)
-		}
-
-		// Generate join secret for new client. This will be stored inside the join token operation and will be
-		// supplied by the joining client (encoded inside the join token) which will allow us to lookup the correct
-		// operation in order to validate the requested joining client name is correct and authorised.
-		joinSecret, err := shared.RandomCryptoString()
-		if err != nil {
-			return response.InternalError(err)
-		}
-
-		// Generate fingerprint of network certificate so joining member can automatically trust the correct
-		// certificate when it is presented during the join process.
-		fingerprint, err := shared.CertFingerprintStr(string(s.Endpoints.NetworkPublicKey()))
-		if err != nil {
-			return response.InternalError(err)
+			return response.SmartError(fmt.Errorf("Failed to create certificate add token: %w", err))
 		}
 
 		if req.Projects == nil {
@@ -669,9 +651,9 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		meta := map[string]any{
-			"secret":      joinSecret,
-			"fingerprint": fingerprint,
-			"addresses":   addresses,
+			"secret":      token.Secret,
+			"fingerprint": token.Fingerprint,
+			"addresses":   token.Addresses,
 			"request":     req,
 		}
 
@@ -687,7 +669,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			meta["expiresAt"] = expiresAt
 		}
 
-		op, err := operations.OperationCreate(s, api.ProjectDefaultName, operations.OperationClassToken, operationtype.CertificateAddToken, nil, meta, nil, nil, nil, r)
+		op, err := operations.OperationCreate(r.Context(), s, api.ProjectDefaultName, operations.OperationClassToken, operationtype.CertificateAddToken, nil, meta, nil, nil, nil)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -733,7 +715,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Check if we already have the certificate.
 		existingCert, _ := dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
 		if existingCert != nil {
@@ -779,7 +761,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	// Reload the identity cache to add the new certificate.
 	s.UpdateIdentityCache()
 
-	lc := lifecycle.CertificateCreated.Event(fingerprint, request.CreateRequestor(r), nil)
+	lc := lifecycle.CertificateCreated.Event(fingerprint, request.CreateRequestor(r.Context()), nil)
 	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
@@ -832,7 +814,7 @@ func certificateGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var cert *api.Certificate
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbCertInfo, err := dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
 		if err != nil {
 			return err
@@ -897,7 +879,7 @@ func certificatePut(d *Daemon, r *http.Request) response.Response {
 
 	// Get current database record.
 	var apiEntry *api.Certificate
-	err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		oldEntry, err := dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
 		if err != nil {
 			return err
@@ -964,7 +946,7 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 
 	// Get current database record.
 	var apiEntry *api.Certificate
-	err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		oldEntry, err := dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
 		if err != nil {
 			return err
@@ -1132,7 +1114,7 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 	// Reload the identity cache.
 	s.UpdateIdentityCache()
 
-	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.CertificateUpdated.Event(dbInfo.Fingerprint, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.CertificateUpdated.Event(dbInfo.Fingerprint, request.CreateRequestor(r.Context()), nil))
 
 	return response.EmptySyncResponse
 }
@@ -1164,7 +1146,7 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var certInfo *dbCluster.Certificate
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get current database record.
 		var err error
 		certInfo, err = dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
@@ -1248,7 +1230,7 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	// Reload the cache.
 	s.UpdateIdentityCache()
 
-	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.CertificateDeleted.Event(fingerprint, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.CertificateDeleted.Event(fingerprint, request.CreateRequestor(r.Context()), nil))
 
 	return response.EmptySyncResponse
 }

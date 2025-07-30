@@ -352,7 +352,7 @@ func (r *ProtocolLXD) queryStruct(method string, path string, data any, ETag str
 	}
 
 	// Log the data
-	logger.Debugf("Got response struct from LXD")
+	logger.Debug("Got response struct from LXD")
 	logger.Debug(logger.Pretty(target))
 
 	return etag, nil
@@ -399,7 +399,7 @@ func (r *ProtocolLXD) queryOperation(method string, path string, data any, ETag 
 	}
 
 	// Log the data
-	logger.Debugf("Got operation from LXD")
+	logger.Debug("Got operation from LXD")
 	logger.Debug(logger.Pretty(op.Operation))
 
 	return &op, etag, nil

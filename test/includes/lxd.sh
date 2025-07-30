@@ -127,16 +127,16 @@ kill_lxd() {
       return
     fi
 
-    daemon_pid=$(cat "${daemon_dir}/lxd.pid")
+    daemon_pid=$(< "${daemon_dir}/lxd.pid")
     check_leftovers="false"
     lxd_backend=$(storage_backend "$daemon_dir")
     echo "==> Killing LXD at ${daemon_dir} (${daemon_pid})"
 
     if [ -e "${daemon_dir}/unix.socket" ]; then
         # Delete all containers
-        echo "==> Deleting all containers"
-        for container in $(timeout -k 2 2 lxc list --force-local --format csv --columns n); do
-            timeout -k 10 10 lxc delete "${container}" --force-local -f || true
+        echo "==> Deleting all instances"
+        for instance in $(timeout -k 2 2 lxc list --force-local --format csv --columns n); do
+            timeout -k 10 10 lxc delete "${instance}" --force-local -f || true
         done
 
         # Delete all images
@@ -230,16 +230,16 @@ kill_lxd() {
         check_empty "${daemon_dir}/snapshots/"
 
         echo "==> Checking for leftover DB entries"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "images"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "images_aliases"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "images_nodes"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "images_properties"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "images_source"
         check_empty_table "${daemon_dir}/database/global/db.bin" "instances"
         check_empty_table "${daemon_dir}/database/global/db.bin" "instances_config"
         check_empty_table "${daemon_dir}/database/global/db.bin" "instances_devices"
         check_empty_table "${daemon_dir}/database/global/db.bin" "instances_devices_config"
         check_empty_table "${daemon_dir}/database/global/db.bin" "instances_profiles"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "images"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "images_aliases"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "images_properties"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "images_source"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "images_nodes"
         check_empty_table "${daemon_dir}/database/global/db.bin" "networks"
         check_empty_table "${daemon_dir}/database/global/db.bin" "networks_config"
         check_empty_table "${daemon_dir}/database/global/db.bin" "profiles"
@@ -247,8 +247,8 @@ kill_lxd() {
         check_empty_table "${daemon_dir}/database/global/db.bin" "profiles_devices"
         check_empty_table "${daemon_dir}/database/global/db.bin" "profiles_devices_config"
         check_empty_table "${daemon_dir}/database/global/db.bin" "storage_pools"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "storage_pools_nodes"
         check_empty_table "${daemon_dir}/database/global/db.bin" "storage_pools_config"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "storage_pools_nodes"
         check_empty_table "${daemon_dir}/database/global/db.bin" "storage_volumes"
         check_empty_table "${daemon_dir}/database/global/db.bin" "storage_volumes_config"
     fi
@@ -272,7 +272,7 @@ shutdown_lxd() {
     daemon_dir=${1}
     # shellcheck disable=2034
     LXD_DIR=${daemon_dir}
-    daemon_pid=$(cat "${daemon_dir}/lxd.pid")
+    daemon_pid=$(< "${daemon_dir}/lxd.pid")
     echo "==> Shutting down LXD at ${daemon_dir} (${daemon_pid})"
 
     # Shutting down the daemon
@@ -360,7 +360,7 @@ lxd_shutdown_restart() {
     scenario=${1}
     LXD_DIR=${2}
 
-    daemon_pid=$(cat "${LXD_DIR}/lxd.pid")
+    daemon_pid=$(< "${LXD_DIR}/lxd.pid")
     echo "==> Shutting down LXD at ${LXD_DIR} (${daemon_pid})"
 
     local logfile="${scenario}.log"

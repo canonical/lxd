@@ -46,6 +46,7 @@ import (
 	"github.com/canonical/lxd/lxd/device"
 	"github.com/canonical/lxd/lxd/device/cdi"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/device/nictype"
 	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/instance"
@@ -1110,24 +1111,9 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 
 		// Configure the memory limits
 		if memory != "" {
-			var valueInt int64
-			if strings.HasSuffix(memory, "%") {
-				percent, err := strconv.ParseInt(strings.TrimSuffix(memory, "%"), 10, 64)
-				if err != nil {
-					return nil, err
-				}
-
-				memoryTotal, err := shared.DeviceTotalMemory()
-				if err != nil {
-					return nil, err
-				}
-
-				valueInt = int64((memoryTotal / 100) * percent)
-			} else {
-				valueInt, err = units.ParseByteSizeString(memory)
-				if err != nil {
-					return nil, err
-				}
+			valueInt, err := parseMemoryStr(memory)
+			if err != nil {
+				return nil, err
 			}
 
 			if memoryEnforce == "soft" {
@@ -4603,20 +4589,8 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 				// Parse memory
 				if memory == "" {
 					memoryInt = -1
-				} else if strings.HasSuffix(memory, "%") {
-					percent, err := strconv.ParseInt(strings.TrimSuffix(memory, "%"), 10, 64)
-					if err != nil {
-						return err
-					}
-
-					memoryTotal, err := shared.DeviceTotalMemory()
-					if err != nil {
-						return err
-					}
-
-					memoryInt = int64((memoryTotal / 100) * percent)
 				} else {
-					memoryInt, err = units.ParseByteSizeString(memory)
+					memoryInt, err = parseMemoryStr(memory)
 					if err != nil {
 						return err
 					}
@@ -5273,7 +5247,7 @@ fi
 }
 
 // MigrateSend controls the sending side of a migration.
-func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
+func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	d.logger.Info("Migration send starting")
 	defer d.logger.Info("Migration send stopped")
 
@@ -5528,6 +5502,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 			}
 
 			actionScriptOp, err := operations.OperationCreate(
+				context.Background(),
 				d.state,
 				d.Project().Name,
 				operations.OperationClassWebsocket,
@@ -5563,7 +5538,6 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 					closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
 					return c.WriteMessage(websocket.CloseMessage, closeMsg)
 				},
-				nil,
 			)
 			if err != nil {
 				_ = os.RemoveAll(checkpointDir)
@@ -5697,6 +5671,13 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 				if err != nil {
 					d.logger.Error("Dump failed after successful restore", logger.Ctx{"err": err})
 				}
+			}
+		}
+
+		if err == nil {
+			postMigrateSendErr := d.postMigrateSendCommon(d, args.ClusterMoveSourceName)
+			if postMigrateSendErr != nil {
+				d.logger.Error("Post-migration steps failed on source", logger.Ctx{"err": postMigrateSendErr})
 			}
 		}
 
@@ -7328,11 +7309,7 @@ func (d *lxc) cpuState() api.InstanceStateCPU {
 func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 	disk := map[string]api.InstanceStateDisk{}
 
-	for _, dev := range d.expandedDevices.Sorted() {
-		if dev.Config["type"] != "disk" {
-			continue
-		}
-
+	for _, dev := range d.expandedDevices.Filter(filters.IsDisk).Sorted() {
 		var usage *storagePools.VolumeUsage
 
 		if dev.Config["path"] == "/" {
@@ -8531,11 +8508,7 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 	}
 
 	// Get disk devices
-	for _, dev := range d.expandedDevices {
-		if dev["type"] != "disk" || dev["path"] == "" {
-			continue
-		}
-
+	for _, dev := range d.expandedDevices.Filter(filters.IsFilesystemDisk) {
 		var statfs *unix.Statfs_t
 		labels := make(map[string]string)
 		realDev := ""

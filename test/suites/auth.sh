@@ -93,14 +93,14 @@ test_authorization() {
   ! lxc auth identity group add "tls/${tls_user_fingerprint}" test-group || false # TLS identities cannot be added to groups (yet).
 
   spawn_oidc
-  lxc config set "oidc.issuer=http://127.0.0.1:$(cat "${TEST_DIR}/oidc.port")/"
+  lxc config set "oidc.issuer=http://127.0.0.1:$(< "${TEST_DIR}/oidc.port")/"
   lxc config set "oidc.client.id=device"
 
   set_oidc test-user test-user@example.com
   BROWSER=curl lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc
 
   ! lxc auth identity group add oidc/test-user@example.com not-found || false # Group not found
-  [ "$(my_curl -X PUT --data "{\"groups\":[\"test-group\",\"not-found1\",\"not-found2\"]}" "https://${LXD_ADDR}/1.0/auth/identities/oidc/test-user@example.com" | jq -er '.error')" = 'One or more groups were not found: "not-found1", "not-found2"' ] # Groups not found error (only contains the groups that were not found).
+  [ "$(my_curl -X PUT -H 'Content-Type: application/json' --data "{\"groups\":[\"test-group\",\"not-found1\",\"not-found2\"]}" "https://${LXD_ADDR}/1.0/auth/identities/oidc/test-user@example.com" | jq -er '.error')" = 'One or more groups were not found: "not-found1", "not-found2"' ] # Groups not found error (only contains the groups that were not found).
   lxc auth identity group add oidc/test-user@example.com test-group # Valid
 
   # Test fine-grained TLS identity creation
@@ -109,7 +109,7 @@ test_authorization() {
   LXD_CONF="${LXD_CONF2}" gen_cert_and_key "client"
 
   # Cannot use the token with the certificates API and the correct error is returned.
-  [ "$(LXD_CONF="${LXD_CONF2}" my_curl -X POST "https://${LXD_ADDR}/1.0/certificates" --data "{\"trust_token\": \"${tls_identity_token}\"}" | jq -er '.error')" = "Failed during search for certificate add token operation: TLS Identity token detected (you must update your client)" ]
+  [ "$(LXD_CONF="${LXD_CONF2}" my_curl -X POST -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/certificates" --data "{\"trust_token\": \"${tls_identity_token}\"}" | jq -er '.error')" = "Failed during search for certificate add token operation: TLS Identity token detected (you must update your client)" ]
 
   # Can use the token with remote add command.
   LXD_CONF="${LXD_CONF2}" lxc remote add tls "${tls_identity_token}"
@@ -272,10 +272,10 @@ fine_grained: true"
   # We could use lxc edit as it accepts stdin input, but replacing the certificate in the yaml was quite complicated.
 
   # This asserts that test-user4 cannot change their own group membership
-  [ "$(LXD_CONF="${LXD_CONF4}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PUT --data "{\"tls_certificate\":\"$(awk '{printf "%s\\n", $0}' "${LXD_CONF5}/client.crt")\"}" | jq -r '.error_code')" -eq 403 ]
+  [ "$(LXD_CONF="${LXD_CONF4}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PUT -H 'Content-Type: application/json' --data "{\"tls_certificate\":\"$(awk '{printf "%s\\n", $0}' "${LXD_CONF5}/client.crt")\"}" | jq -r '.error_code')" -eq 403 ]
 
   # This asserts that test-user4 can change their own certificate as long as the groups are unchanged
-  [ "$(LXD_CONF="${LXD_CONF4}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PUT --data "{\"tls_certificate\":\"$(awk '{printf "%s\\n", $0}' "${LXD_CONF5}/client.crt")\", \"groups\":[\"test-group\"]}" | jq -r '.status_code')" -eq 200 ]
+  [ "$(LXD_CONF="${LXD_CONF4}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PUT -H 'Content-Type: application/json' --data "{\"tls_certificate\":\"$(awk '{printf "%s\\n", $0}' "${LXD_CONF5}/client.crt")\", \"groups\":[\"test-group\"]}" | jq -r '.status_code')" -eq 200 ]
 
   # The original certificate is untrusted after the update
   [ "$(LXD_CONF="${LXD_CONF4}" lxc_remote query tls:/1.0 | jq -r '.auth')" = "untrusted" ]
@@ -285,10 +285,10 @@ fine_grained: true"
   [ "$(LXD_CONF="${LXD_CONF5}" lxc_remote query tls:/1.0 | jq -r '.auth')" = "trusted" ]
 
   # Do the same tests with patch. test-user4 cannot change their group membership
-  [ "$(LXD_CONF="${LXD_CONF5}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PATCH --data "{\"tls_certificate\":\"$(awk '{printf "%s\\n", $0}' "${LXD_CONF4}/client.crt")\", \"groups\":[\"new-group\"]}" | jq -r '.error_code')" -eq 403 ]
+  [ "$(LXD_CONF="${LXD_CONF5}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PATCH -H 'Content-Type: application/json' --data "{\"tls_certificate\":\"$(awk '{printf "%s\\n", $0}' "${LXD_CONF4}/client.crt")\", \"groups\":[\"new-group\"]}" | jq -r '.error_code')" -eq 403 ]
 
   # Change the certificate back to the original, using patch. Here no groups are in the request, only the certificate.
-  [ "$(LXD_CONF="${LXD_CONF5}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PATCH --data "{\"tls_certificate\":\"$(awk '{printf "%s\\n", $0}' "${LXD_CONF4}/client.crt")\"}" | jq -r '.status_code')" -eq 200 ]
+  [ "$(LXD_CONF="${LXD_CONF5}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PATCH -H 'Content-Type: application/json' --data "{\"tls_certificate\":\"$(awk '{printf "%s\\n", $0}' "${LXD_CONF4}/client.crt")\"}" | jq -r '.status_code')" -eq 200 ]
   [ "$(LXD_CONF="${LXD_CONF4}" lxc_remote query tls:/1.0 | jq -r '.auth')" = "trusted" ]
   [ "$(LXD_CONF="${LXD_CONF5}" lxc_remote query tls:/1.0 | jq -r '.auth')" = "untrusted" ]
 
@@ -963,6 +963,48 @@ auth_project_features() {
   lxc network zone delete blah-zone --project blah
   lxc auth group permission remove test-group project default can_view_network_zones
 
+  ### Network allocations
+
+  # Create a network in the default project.
+  networkName="net$$"
+  lxc network create "${networkName}" --project default
+
+  # Create instances in the default project and in the blah project that use the network.
+  ensure_import_testimage
+  lxc image copy testimage local: --project default --target-project blah
+  lxc init testimage foo --network "${networkName}"
+
+  # To create the instance in the blah project we need to temporarily grant view access on the network.
+  lxc auth group permission add test-group network "${networkName}" can_view project=default
+  lxc_remote init testimage "${remote}:bar" --network "${networkName}" --project blah
+  lxc auth group permission remove test-group network "${networkName}" can_view project=default
+
+  # Members of test-group can't view allocations in the default project (this should return an empty list).
+  [ "$(lxc network list-allocations "${remote}:" --project default --format csv)" = "" ]
+
+  # Members of test-group *can* view allocations for all projects, but results are filtered. Since they can't view networks
+  # in the default project, they won't see anything yet.
+  [ "$(lxc network list-allocations "${remote}:" --all-projects --format csv)" = "" ]
+
+  # Allow the test-group to view networks in the default project.
+  lxc auth group permission add test-group project default can_view_networks
+
+  # Members of test-group can view allocations for the blah project. Since blah doesn't have networks enabled, members
+  # of test-group should see allocations for the default project, but they can't see the foo instance.
+  [ "$(lxc network list-allocations "${remote}:" --project blah --format csv | wc -l)" = 3 ]
+  ! lxc network list-allocations "${remote}:" --project blah --format csv | grep 'instances/foo' || false
+
+  # All projects requests should now show the same results
+  [ "$(lxc network list-allocations "${remote}:" --all-projects --format csv | wc -l)" = 3 ]
+  ! lxc network list-allocations "${remote}:" --all-projects --format csv | grep 'instances/foo' || false
+
+  # Clean up
+  lxc delete foo
+  lxc delete bar --project blah
+  lxc image delete testimage --project blah
+  lxc network delete "${networkName}"
+  lxc auth group permission remove test-group project default can_view_networks
+
   ### PROFILES (initial value is true for new projects)
 
   # Unset the profiles feature (the default is false).
@@ -1249,9 +1291,8 @@ entities_enrichment_with_entitlements() {
   lxc auth identity-provider-group delete test-idp-group3
 
   # Image
-  lxc init images:busybox/1.36.1 c1
-  lxc delete c1
-  imgFingerprint=$(lxc image list --format json | jq -r '.[] | select(.update_source.alias == "busybox/1.36.1") | .fingerprint')
+  ensure_import_testimage
+  imgFingerprint="$(lxc query /1.0/images/aliases/testimage | jq -r .target)"
   lxc auth group permission add test-group image "${imgFingerprint}" can_view project=default
   lxc auth group permission add test-group image "${imgFingerprint}" can_edit project=default
   lxc auth group permission add test-group image "${imgFingerprint}" can_delete project=default

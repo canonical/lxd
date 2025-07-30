@@ -39,10 +39,12 @@ func GetCred(conn *net.UnixConn) (*unix.Ucred, error) {
 
 // GetConnFromContext extracts the connection from the request context on a HTTP listener.
 func GetConnFromContext(ctx context.Context) net.Conn {
-	// Type assertion check prevents panic. If the context doesn't contain a value,
-	// or if the value is not of type net.Conn, a nil is returned.
-	conn, _ := ctx.Value(request.CtxConn).(net.Conn)
-	return conn
+	reqInfo := request.GetContextInfo(ctx)
+	if reqInfo == nil {
+		return nil
+	}
+
+	return reqInfo.Conn
 }
 
 // GetCredFromContext extracts the unix credentials from the request context on a HTTP listener.

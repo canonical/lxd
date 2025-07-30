@@ -203,7 +203,7 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 	}
 
 	if dump != nil {
-		logger.Infof("Migrating data from local to global database")
+		logger.Info("Migrating data from local to global database")
 		err := query.Transaction(closingCtx, db, func(ctx context.Context, tx *sql.Tx) error {
 			return importPreClusteringData(tx, dump)
 		})

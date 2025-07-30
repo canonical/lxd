@@ -13,10 +13,10 @@ test_container_devices_nic_macvlan() {
   startNicCount=$(find /sys/class/net | wc -l)
 
   echo "==> Test pre-launch profile config is applied at launch."
-  lxc profile copy default "${ctName}"
 
-  echo "==> Modify profile nictype and parent in atomic operation to ensure validation passes."
-  lxc profile show "${ctName}" | sed  "s/nictype: p2p/nictype: macvlan\\n    parent: ${ctName}/" | lxc profile edit "${ctName}"
+  # Create profile for new containers by atomically modifying nictype and parent to ensure validation passes.
+  lxc profile show default | sed  "s/nictype: p2p/nictype: macvlan\\n    parent: ${ctName}/" | lxc profile create "${ctName}"
+
   lxc profile device set "${ctName}" eth0 mtu "1400"
 
   lxc launch testimage "${ctName}" -p "${ctName}"
@@ -24,11 +24,9 @@ test_container_devices_nic_macvlan() {
   lxc exec "${ctName}" -- ip addr add "2001:db8::1${ipRand}/64" dev eth0
 
   echo "==> Check custom MTU is applied if feature available in LXD."
-  if lxc info | grep 'network_phys_macvlan_mtu: "true"' ; then
-    if ! lxc exec "${ctName}" -- ip link show eth0 | grep "mtu 1400" ; then
-      echo "mtu invalid"
-      false
-    fi
+  if ! lxc exec "${ctName}" -- ip link show eth0 | grep "mtu 1400" ; then
+    echo "mtu invalid"
+    false
   fi
 
   echo "==> Spin up another container with multiple IPs."
@@ -36,11 +34,14 @@ test_container_devices_nic_macvlan() {
   lxc exec "${ctName}2" -- ip addr add "192.0.2.2${ipRand}/24" dev eth0
   lxc exec "${ctName}2" -- ip addr add "2001:db8::2${ipRand}/64" dev eth0
 
+  wait_for_dad "${ctName}" eth0
+  wait_for_dad "${ctName}2" eth0
+
   echo "==> Check comms between containers."
-  lxc exec "${ctName}" -- ping -c2 -W5 "192.0.2.2${ipRand}"
-  lxc exec "${ctName}" -- ping6 -c2 -W5 "2001:db8::2${ipRand}"
-  lxc exec "${ctName}2" -- ping -c2 -W5 "192.0.2.1${ipRand}"
-  lxc exec "${ctName}2" -- ping6 -c2 -W5 "2001:db8::1${ipRand}"
+  lxc exec "${ctName}" -- ping -nc2 -i0.1 -W1 "192.0.2.2${ipRand}"
+  lxc exec "${ctName}" -- ping -6 -nc2 -i0.1 -W1 "2001:db8::2${ipRand}"
+  lxc exec "${ctName}2" -- ping -nc2 -i0.1 -W1 "192.0.2.1${ipRand}"
+  lxc exec "${ctName}2" -- ping -6 -nc2 -i0.1 -W1 "2001:db8::1${ipRand}"
 
   echo "==> Test hot plugging a container nic with different settings to profile with the same name."
   lxc config device add "${ctName}" eth0 nic \
@@ -58,7 +59,7 @@ test_container_devices_nic_macvlan() {
   echo "==> Check that MTU is inherited from parent device when not specified on device."
   ip link set "${ctName}" mtu 1405
   lxc config device unset "${ctName}" eth0 mtu
-  if ! lxc exec "${ctName}" -- grep "1405" /sys/class/net/eth0/mtu ; then
+  if [ "$(lxc exec "${ctName}" -- cat /sys/class/net/eth0/mtu)" != "1405" ]; then
     echo "mtu not inherited from parent"
     false
   fi
@@ -88,7 +89,7 @@ test_container_devices_nic_macvlan() {
   fi
 
   echo "==> Check VLAN interface created."
-  if ! grep "1" "/sys/class/net/${ctName}.10/carrier" ; then
+  if [ "$(cat "/sys/class/net/${ctName}.10/carrier")" != "1" ]; then
     echo "vlan interface not created"
     false
   fi
@@ -97,7 +98,7 @@ test_container_devices_nic_macvlan() {
   lxc config device remove "${ctName}" eth0
 
   echo "==> Check parent device is still up."
-  if ! grep "1" "/sys/class/net/${ctName}/carrier" ; then
+  if [ "$(cat "/sys/class/net/${ctName}/carrier")" != "1" ]; then
     echo "parent is down"
     false
   fi
@@ -154,8 +155,9 @@ test_container_devices_nic_macvlan() {
   lxc exec "${ctName}" -- ip addr add "192.0.2.1${ipRand}/24" dev eth0
   lxc exec "${ctName}" -- ip addr add "2001:db8::1${ipRand}/64" dev eth0
   lxc exec "${ctName}" -- ip link set eth0 up
-  lxc exec "${ctName}" -- ping -c2 -W5 "192.0.2.2${ipRand}"
-  lxc exec "${ctName}" -- ping6 -c2 -W5 "2001:db8::2${ipRand}"
+  wait_for_dad "${ctName}" eth0
+  lxc exec "${ctName}" -- ping -nc2 -i0.1 -W1 "192.0.2.2${ipRand}"
+  lxc exec "${ctName}" -- ping -6 -nc2 -i0.1 -W1 "2001:db8::2${ipRand}"
   lxc config device remove "${ctName}" eth0
   lxc network delete "${ctName}net"
 

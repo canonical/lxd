@@ -6,6 +6,7 @@
 package shared
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -472,7 +473,7 @@ func CertFingerprintStr(c string) (string, error) {
 }
 
 // GetRemoteCertificate returns the unverified peer certificate found at a remote address.
-func GetRemoteCertificate(address string, useragent string) (*x509.Certificate, error) {
+func GetRemoteCertificate(ctx context.Context, address string, useragent string) (*x509.Certificate, error) {
 	// Setup a permissive TLS config
 	tlsConfig, err := GetTLSConfig(nil)
 	if err != nil {
@@ -491,7 +492,7 @@ func GetRemoteCertificate(address string, useragent string) (*x509.Certificate, 
 	}
 
 	// Connect
-	req, err := http.NewRequest(http.MethodGet, address, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, address, nil)
 	if err != nil {
 		return nil, err
 	}

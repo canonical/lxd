@@ -1,24 +1,25 @@
 #!/bin/bash
 
 test_storage_driver_dir() {
-  do_dir_on_empty_fs
-}
-
-do_dir_on_empty_fs() {
   local lxd_backend
 
   lxd_backend=$(storage_backend "${LXD_DIR}")
   if [ "${lxd_backend}" != "dir" ]; then
+    echo "==> SKIP: test_storage_driver_dir only supports 'dir', not ${lxd_backend}"
     return
   fi
 
-  # Create and mount 32MiB ext4 filesystem.
-  tmp_file=$(mktemp "${TEST_DIR}/disk.XXXXXX")
-  dd if=/dev/zero of="${tmp_file}" bs=1M count=64
+  do_dir_on_empty_fs
+}
+
+do_dir_on_empty_fs() {
+  # Create and mount a small ext4 filesystem.
+  tmp_file="$(mktemp -p "${TEST_DIR}" disk.XXX)"
+  fallocate -l 64MiB "${tmp_file}"
   mkfs.ext4 "${tmp_file}"
 
-  mount_point=$(mktemp -d "${TEST_DIR}/mountpoint.XXXXXX")
-  sudo mount -o loop "${tmp_file}" "${mount_point}"
+  mount_point="$(mktemp -d -p "${TEST_DIR}" mountpoint.XXX)"
+  mount -o loop "${tmp_file}" "${mount_point}"
 
   if [ ! -d "${mount_point}/lost+found" ]; then
     echo "Error: Expected ${mount_point}/lost+found subdirectory to exist"

@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/canonical/lxd/lxd/device/filters"
 )
 
 func TestSortableDevices(t *testing.T) {
@@ -48,4 +50,41 @@ func TestSortableDevices(t *testing.T) {
 
 	result = devices.Reversed()
 	assert.Equal(t, expectedReversed, result)
+}
+
+func TestFilterDevices(t *testing.T) {
+	devices := Devices{
+		// Root disk.
+		"disk1": Device{"type": "disk", "path": "/", "pool": "foo"},
+
+		// Custom volume disk (fs)
+		"disk2": Device{"type": "disk", "path": "/foo/bar", "pool": "foo", "source": "disk2"},
+		"disk3": Device{"type": "disk", "path": "/foo", "pool": "foo", "source": "disk3"},
+
+		// Custom volume disk (block)
+		"disk4": Device{"type": "disk", "pool": "foo", "source": "disk4"},
+
+		// Custom volume directory share
+		"disk5": Device{"type": "disk", "path": "/foo", "source": "/host/foo"},
+	}
+
+	expectedRootDiskResults := Devices{
+		"disk1": Device{"type": "disk", "path": "/", "pool": "foo"},
+	}
+
+	rootDiskResults := devices.Filter(filters.IsRootDisk)
+	assert.Equal(t, expectedRootDiskResults, rootDiskResults)
+
+	expectedCustomVolumeResults := Devices{
+		"disk2": Device{"type": "disk", "path": "/foo/bar", "pool": "foo", "source": "disk2"},
+		"disk3": Device{"type": "disk", "path": "/foo", "pool": "foo", "source": "disk3"},
+		"disk4": Device{"type": "disk", "pool": "foo", "source": "disk4"},
+	}
+
+	customVolumeResults := devices.Filter(filters.IsCustomVolumeDisk)
+	assert.Equal(t, expectedCustomVolumeResults, customVolumeResults)
+
+	expectedCombinedResults := devices
+	combinedResults := devices.Filter(filters.Or(filters.IsCustomVolumeDisk, filters.IsHostFilesystemShareDisk, filters.IsRootDisk))
+	assert.Equal(t, expectedCombinedResults, combinedResults)
 }

@@ -47,13 +47,7 @@ wait_for_dad() {
     return
   fi
 
-  while true
-  do
-    ip -6 a show
-    if ! eval "$cmd" | grep "tentative" ; then
-      break
-    fi
-
-    sleep 0.5
+  while eval "$cmd" | grep -wF "tentative" ; do
+    sleep 0.1
   done
 }

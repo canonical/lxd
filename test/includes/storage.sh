@@ -1,5 +1,15 @@
 # Helper functions related to storage backends.
 
+# is_backend_available checks if a given backend is available by matching it against the list of available storage backends.
+# Surrounding spaces in the pattern (" $(available_storage_backends) ") are used to ensure exact matches,
+# avoiding partial matches (e.g., "dir" matching "directory").
+is_backend_available() {
+    case " $(available_storage_backends) " in
+        *" $1 "*) return 0;;
+        *) return 1;;
+    esac
+}
+
 # Whether a storage backend is available
 storage_backend_available() {
     local backends
@@ -43,7 +53,13 @@ available_storage_backends() {
         backends="$backends pure"
     fi
 
-    storage_backends="btrfs lvm zfs"
+    storage_backends="btrfs zfs"
+
+    if ! uname -r | grep -- -kvm$ >/dev/null; then
+        # the -kvm kernel flavor is missing CONFIG_DM_THIN_PROVISIONING needed for lvm thin pools
+        storage_backends="${storage_backends} lvm"
+    fi
+
     if [ -n "${LXD_CEPH_CLUSTER:-}" ]; then
         storage_backends="${storage_backends} ceph"
     fi
@@ -183,8 +199,8 @@ delete_object_storage_pool() {
   fi
 
   if [ "$lxd_backend" = "dir" ]; then
-    loop_file="$(cat "${TEST_DIR}/s3/${poolName}/file")"
-    loop_device="$(cat "${TEST_DIR}/s3/${poolName}/dev")"
+    loop_file="$(< "${TEST_DIR}/s3/${poolName}/file")"
+    loop_device="$(< "${TEST_DIR}/s3/${poolName}/dev")"
     umount "${TEST_DIR}/s3/${poolName}"
     rmdir "${TEST_DIR}/s3/${poolName}"
 

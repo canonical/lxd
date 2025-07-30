@@ -81,7 +81,7 @@ jobs:
           name: Differential ShellCheck SARIF
           path: ${{ steps.ShellCheck.outputs.sarif }}
           retention-days: 1
-        if: github.event_name == 'pull_request'
+        if: ${{ github.event_name == 'pull_request' && runner.debug == '1' && !cancelled() }}
 
       - name: Install Go
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
@@ -308,6 +308,7 @@ jobs:
       LXD_OVN_NB_CLIENT_KEY_FILE: "/var/snap/microovn/common/data/pki/client-privkey.pem"
       LXD_OVN_NB_CA_CRT_FILE: "/var/snap/microovn/common/data/pki/cacert.pem"
       LXD_VERBOSE: "1"
+      LXD_VM_TESTS: "1"
       LXD_OFFLINE: "1"
       LXD_TMPFS: "1"
       GOTRACEBACK: "crash"
@@ -395,7 +396,7 @@ jobs:
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
           cd test
           export PATH="$PATH:/snap/microovn/current/commands"
-          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OVN_NB_CONNECTION,LXD_OVN_NB_CLIENT_CRT_FILE,LXD_OVN_NB_CLIENT_KEY_FILE,LXD_OVN_NB_CA_CRT_FILE,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,GOTRACEBACK, LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
+          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,LXD_VERBOSE,LXD_VM_TESTS,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OVN_NB_CONNECTION,LXD_OVN_NB_CLIENT_CRT_FILE,LXD_OVN_NB_CLIENT_KEY_FILE,LXD_OVN_NB_CA_CRT_FILE,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,GOTRACEBACK,LXD_TMPFS LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
 
       - name: Upload crash dumps
         if: always()
@@ -625,6 +626,7 @@ jobs:
       LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
       LXD_DIR: "/var/lib/lxd"
       LXD_OIDC_CLIENT_ID: ${{ secrets.LXD_UI_OIDC_TEST_CLIENT_ID }}
+      LXD_OIDC_CLIENT_SECRET: ${{ secrets.LXD_UI_OIDC_TEST_CLIENT_SECRET }}
       LXD_OIDC_ISSUER: ${{ secrets.LXD_UI_OIDC_TEST_ISSUER }}
       LXD_OIDC_AUDIENCE: ${{ secrets.LXD_UI_OIDC_TEST_AUDIENCE }}
       LXD_OIDC_USER: ${{ secrets.LXD_UI_OIDC_TEST_USER }}

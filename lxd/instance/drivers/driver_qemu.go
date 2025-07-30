@@ -47,6 +47,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/device"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/device/nictype"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/drivers/edk2"
@@ -1038,7 +1039,7 @@ func (d *qemu) validateRootDiskStatefulStop() error {
 		memoryLimitStr = d.expandedConfig["limits.memory"]
 	}
 
-	memoryLimit, err := units.ParseByteSizeString(memoryLimitStr)
+	memoryLimit, err := parseMemoryStr(memoryLimitStr)
 	if err != nil {
 		return fmt.Errorf("Failed parsing limits.memory: %w", err)
 	}
@@ -3123,11 +3124,7 @@ func (d *qemu) deviceBootPriorities(base int) (map[string]int, error) {
 
 	devices := []devicePrios{}
 
-	for _, dev := range d.expandedDevices.Sorted() {
-		if dev.Config["type"] != "disk" && dev.Config["type"] != "nic" {
-			continue
-		}
-
+	for _, dev := range d.expandedDevices.Filter(filters.Or(filters.IsDisk, filters.IsNIC)).Sorted() {
 		bootPrio := uint32(0) // Default to lowest priority.
 		if dev.Config["boot.priority"] != "" {
 			prio, err := strconv.ParseInt(dev.Config["boot.priority"], 10, 32)
@@ -3685,7 +3682,7 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection, cpuInfo *cpuTopology) error
 		memSize = QEMUDefaultMemSize // Default if no memory limit specified.
 	}
 
-	memSizeBytes, err := units.ParseByteSizeString(memSize)
+	memSizeBytes, err := parseMemoryStr(memSize)
 	if err != nil {
 		return fmt.Errorf("limits.memory invalid: %w", err)
 	}
@@ -5953,7 +5950,7 @@ func (d *qemu) updateMemoryLimit(newLimit string) error {
 	}
 
 	// Check new size string is valid and convert to bytes.
-	newSizeBytes, err := units.ParseByteSizeString(newLimit)
+	newSizeBytes, err := parseMemoryStr(newLimit)
 	if err != nil {
 		return fmt.Errorf("Invalid memory size: %w", err)
 	}
@@ -6520,7 +6517,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 }
 
 // MigrateSend controls the sending side of a migration.
-func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
+func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	d.logger.Info("Migration send starting")
 	defer d.logger.Info("Migration send stopped")
 
@@ -6751,6 +6748,11 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 			return err
 		}
 
+		err = d.postMigrateSendCommon(d, args.ClusterMoveSourceName)
+		if err != nil {
+			d.logger.Error("Post-migration steps failed on source", logger.Ctx{"err": err})
+		}
+
 		return nil
 	}
 }
@@ -6912,16 +6914,8 @@ func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName str
 
 	// Notify the shared disks that they're going to be accessed from another system.
 	diskPools := make(map[string]storagePools.Pool, len(d.expandedDevices))
-	for _, dev := range d.expandedDevices.Sorted() {
-		if dev.Config["type"] != "disk" || dev.Config["path"] == "/" {
-			continue
-		}
-
+	for _, dev := range d.expandedDevices.Filter(filters.IsCustomVolumeDisk).Sorted() {
 		poolName := dev.Config["pool"]
-		if poolName == "" {
-			continue
-		}
-
 		diskPool, ok := diskPools[poolName]
 		if !ok {
 			// Load the pool for the disk.
@@ -7441,16 +7435,8 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 		// Notify the shared disks that they're going to be accessed from another system.
 		diskPools := make(map[string]storagePools.Pool, len(d.expandedDevices))
-		for _, dev := range d.expandedDevices.Sorted() {
-			if dev.Config["type"] != "disk" || dev.Config["path"] == "/" {
-				continue
-			}
-
+		for _, dev := range d.expandedDevices.Filter(filters.IsCustomVolumeDisk).Sorted() {
 			poolName := dev.Config["pool"]
-			if poolName == "" {
-				continue
-			}
-
 			diskPool, ok := diskPools[poolName]
 			if !ok {
 				// Load the pool for the disk.
@@ -8737,16 +8723,16 @@ func (d *qemu) Info() instance.Info {
 		return data
 	}
 
-	out, err := exec.Command(qemuPath, "--version").Output()
+	stdout, stderr, err := shared.RunCommandSplit(context.TODO(), nil, nil, qemuPath, "--version")
 	if err != nil {
-		logger.Errorf("Failed getting version during QEMU initialization: %v", err)
+		logger.Errorf("Failed getting version during QEMU initialization: %v (%s)", err, stderr)
 		data.Error = errors.New("Failed getting QEMU version")
 		return data
 	}
 
-	qemuOutput := strings.Fields(string(out))
+	qemuOutput := strings.Fields(stdout)
 	if len(qemuOutput) >= 4 {
-		qemuVersion := strings.Fields(string(out))[3]
+		qemuVersion := qemuOutput[3]
 		data.Version = qemuVersion
 	} else {
 		data.Version = "unknown" // Not necessarily an error that should prevent us using driver.

@@ -6,9 +6,9 @@ fi
 
 ## Delete anything that's tied to a project
 for project in $(lxc query "/1.0/projects?recursion=1" | jq .[].name -r); do
-    echo "==> Deleting all containers for project: ${project}"
-    for container in $(lxc query "/1.0/containers?recursion=1&project=${project}" | jq .[].name -r); do
-        lxc delete --project "${project}" -f "${container}"
+    echo "==> Deleting all instances for project: ${project}"
+    for instance in $(lxc query "/1.0/containers?recursion=1&project=${project}" | jq .[].name -r); do
+        lxc delete --project "${project}" -f "${instance}"
     done
 
     echo "==> Deleting all images for project: ${project}"

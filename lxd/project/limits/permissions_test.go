@@ -183,9 +183,11 @@ func TestCheckClusterTargetRestriction_RestrictedTrue(t *testing.T) {
 	require.NoError(t, err)
 
 	req := &http.Request{URL: &url.URL{}}
-	request.SetCtxValue(req, request.CtxTrusted, true)
-	request.SetCtxValue(req, request.CtxProtocol, api.AuthenticationMethodTLS)
-	request.SetCtxValue(req, request.CtxUsername, testCertFingerprint)
+
+	reqInfo := request.SetupContextInfo(req)
+	reqInfo.Username = testCertFingerprint
+	reqInfo.Protocol = api.AuthenticationMethodTLS
+	reqInfo.Trusted = true
 
 	identityCache := &identity.Cache{}
 	err = identityCache.ReplaceAll([]identity.CacheEntry{
@@ -203,7 +205,7 @@ func TestCheckClusterTargetRestriction_RestrictedTrue(t *testing.T) {
 	authorizer, err := drivers.LoadAuthorizer(context.Background(), drivers.DriverTLS, logger.Log, identityCache)
 	require.NoError(t, err)
 
-	err = limits.CheckClusterTargetRestriction(authorizer, req, p, "n1")
+	err = limits.CheckClusterTargetRestriction(req.Context(), authorizer, p, "n1")
 	assert.EqualError(t, err, "This project doesn't allow cluster member targeting")
 }
 
@@ -229,9 +231,11 @@ func TestCheckClusterTargetRestriction_RestrictedTrueWithOverride(t *testing.T) 
 		URL: &api.NewURL().Path("1.0", "instances").WithQuery("target", "node01").URL,
 	}
 
-	req = req.WithContext(context.WithValue(req.Context(), request.CtxProtocol, api.AuthenticationMethodTLS))
-	req = req.WithContext(context.WithValue(req.Context(), request.CtxUsername, "my-certificate-fingerprint"))
-	req = req.WithContext(context.WithValue(req.Context(), request.CtxTrusted, true))
+	reqInfo := request.SetupContextInfo(req)
+	reqInfo.Protocol = api.AuthenticationMethodTLS
+	reqInfo.Username = "my-certificate-fingerprint"
+	reqInfo.Trusted = true
+
 	identityCache := &identity.Cache{}
 
 	// Unrestricted client certificates can override the cluster target restriction.
@@ -249,7 +253,7 @@ func TestCheckClusterTargetRestriction_RestrictedTrueWithOverride(t *testing.T) 
 	authorizer, err := drivers.LoadAuthorizer(context.Background(), drivers.DriverTLS, logger.Log, identityCache)
 	require.NoError(t, err)
 
-	err = limits.CheckClusterTargetRestriction(authorizer, req, p, "n1")
+	err = limits.CheckClusterTargetRestriction(req.Context(), authorizer, p, "n1")
 	assert.NoError(t, err)
 }
 
@@ -275,6 +279,6 @@ func TestCheckClusterTargetRestriction_RestrictedFalse(t *testing.T) {
 	authorizer, err := drivers.LoadAuthorizer(context.Background(), drivers.DriverTLS, logger.Log, &identity.Cache{})
 	require.NoError(t, err)
 
-	err = limits.CheckClusterTargetRestriction(authorizer, req, p, "n1")
+	err = limits.CheckClusterTargetRestriction(req.Context(), authorizer, p, "n1")
 	assert.NoError(t, err)
 }

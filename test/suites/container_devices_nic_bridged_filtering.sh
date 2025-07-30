@@ -1,7 +1,4 @@
 test_container_devices_nic_bridged_filtering() {
-  ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
-
   firewallDriver=$(lxc info | awk -F ":" '/firewall:/{gsub(/ /, "", $0); print $2}')
 
   if [ "$firewallDriver" != "xtables" ] && [ "$firewallDriver" != "nftables" ]; then
@@ -15,6 +12,9 @@ test_container_devices_nic_bridged_filtering() {
       return
     fi
   fi
+
+  ensure_import_testimage
+  ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Record how many nics we started with.
   startNicCount=$(find /sys/class/net | wc -l)
@@ -39,11 +39,8 @@ test_container_devices_nic_bridged_filtering() {
   lxc network set "${brName}" ipv6.address 2001:db8:1::1/64
   [ "$(cat "/sys/class/net/${brName}/address")" = "00:11:22:33:44:55" ]
 
-  # Create profile for new containers.
-  lxc profile copy default "${ctPrefix}"
-
-  # Modify profile nictype and parent in atomic operation to ensure validation passes.
-  lxc profile show "${ctPrefix}" | sed  "s/nictype: p2p/nictype: bridged\\n    parent: ${brName}/" | lxc profile edit "${ctPrefix}"
+  # Create profile for new containers by atomically modifying nictype and parent to ensure validation passes.
+  lxc profile show default | sed  "s/nictype: p2p/nictype: bridged\\n    parent: ${brName}/" | lxc profile create "${ctPrefix}"
 
   # Launch first container.
   lxc init testimage "${ctPrefix}A" -p "${ctPrefix}"
@@ -58,8 +55,8 @@ test_container_devices_nic_bridged_filtering() {
   lxc exec "${ctPrefix}B" -- ip a add 192.0.2.3/24 dev eth0
 
   # Check basic connectivity without any filtering.
-  lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.1
-  lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.3
+  lxc exec "${ctPrefix}A" -- ping -nc2 -i0.1 -W1 192.0.2.1
+  lxc exec "${ctPrefix}A" -- ping -nc2 -i0.1 -W1 192.0.2.3
 
   # Enable MAC filtering on CT A and test.
   lxc config device set "${ctPrefix}A" eth0 security.mac_filtering true
@@ -101,13 +98,13 @@ test_container_devices_nic_bridged_filtering() {
   lxc exec "${ctPrefix}A" -- ip link set dev eth0 address 00:11:22:33:44:56 up
 
   # Check that ping is no longer working (i.e its filtered after fake MAC setup).
-  if lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.1; then
+  if lxc exec "${ctPrefix}A" -- ping -nc2 -i0.1 -W1 192.0.2.1; then
       echo "MAC filter not working to host"
       false
   fi
 
   # Check that ping is no longer working (i.e its filtered after fake MAC setup).
-  if lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.3; then
+  if lxc exec "${ctPrefix}A" -- ping -nc2 -i0.1 -W1 192.0.2.3; then
       echo "MAC filter not working to other container"
       false
   fi
@@ -116,8 +113,8 @@ test_container_devices_nic_bridged_filtering() {
   lxc exec "${ctPrefix}A" -- ip link set dev eth0 address "${ctAMAC}" up
 
   # Check basic connectivity with MAC filtering but real MAC configured.
-  lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.1
-  lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.3
+  lxc exec "${ctPrefix}A" -- ping -nc2 -i0.1 -W1 192.0.2.1
+  lxc exec "${ctPrefix}A" -- ping -nc2 -i0.1 -W1 192.0.2.3
 
   # Stop CT A and check filters are cleaned up.
   lxc stop -f "${ctPrefix}A"
@@ -140,8 +137,8 @@ test_container_devices_nic_bridged_filtering() {
   lxc start "${ctPrefix}A"
   lxc exec "${ctPrefix}A" -- ip link set dev eth0 address "${ctAMAC}" up
   lxc exec "${ctPrefix}A" -- ip a add 192.0.2.254/24 dev eth0
-  lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.1
-  lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.3
+  lxc exec "${ctPrefix}A" -- ping -nc2 -i0.1 -W1 192.0.2.1
+  lxc exec "${ctPrefix}A" -- ping -nc2 -i0.1 -W1 192.0.2.3
 
   # Enable IPv4 filtering on CT A and test (disable security.mac_filtering to check its applied too).
   lxc config device set "${ctPrefix}A" eth0 ipv4.address 192.0.2.2
@@ -214,21 +211,21 @@ test_container_devices_nic_bridged_filtering() {
   lxc exec "${ctPrefix}A" -- ip a add 192.0.2.2/24 dev eth0
 
   # Check basic connectivity with IPv4 filtering and real IPs configured.
-  lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.1
-  lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.3
+  lxc exec "${ctPrefix}A" -- ping -nc2 -i0.1 -W1 192.0.2.1
+  lxc exec "${ctPrefix}A" -- ping -nc2 -i0.1 -W1 192.0.2.3
 
   # Add a fake IP
   lxc exec "${ctPrefix}A" -- ip a flush dev eth0
   lxc exec "${ctPrefix}A" -- ip a add 192.0.2.254/24 dev eth0
 
   # Check that ping is no longer working (i.e its filtered after fake IP setup).
-  if lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.1; then
+  if lxc exec "${ctPrefix}A" -- ping -nc2 -i0.1 -W1 192.0.2.1; then
       echo "IPv4 filter not working to host"
       false
   fi
 
   # Check that ping is no longer working (i.e its filtered after fake IP setup).
-  if lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.3; then
+  if lxc exec "${ctPrefix}A" -- ping -nc2 -i0.1 -W1 192.0.2.3; then
       echo "IPv4 filter not working to other container"
       false
   fi
@@ -240,13 +237,13 @@ test_container_devices_nic_bridged_filtering() {
   lxc exec "${ctPrefix}B" -- ip r add 198.51.100.0/24 dev eth0
 
   # Check that ping is still working (i.e the filter did not apply to the ipv4.routes subnet).
-  if ! lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.1; then
+  if ! lxc exec "${ctPrefix}A" -- ping -nc2 -i0.1 -W1 192.0.2.1; then
       echo "IPv4 filter is preventing traffic from within ipv4.routes"
       false
   fi
 
   # Check that ping is still working (i.e the filter did not apply to the ipv4.routes subnet).
-  if ! lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.3; then
+  if ! lxc exec "${ctPrefix}A" -- ping -nc2 -i0.1 -W1 192.0.2.3; then
       echo "IPv4 filter is preventing traffic from within ipv4.routes"
       false
   fi
@@ -258,13 +255,13 @@ test_container_devices_nic_bridged_filtering() {
   lxc exec "${ctPrefix}B" -- ip r add 203.0.113.0/24 dev eth0
 
   # Check that ping is still working (i.e the filter did not apply to the ipv4.routes.external subnet).
-  if ! lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.1; then
+  if ! lxc exec "${ctPrefix}A" -- ping -nc2 -i0.1 -W1 192.0.2.1; then
       echo "IPv4 filter is preventing traffic from within ipv4.routes.external"
       false
   fi
 
   # Check that ping is still working (i.e the filter did not apply to the ipv4.routes.external subnet).
-  if ! lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.3; then
+  if ! lxc exec "${ctPrefix}A" -- ping -nc2 -i0.1 -W1 192.0.2.3; then
       echo "IPv4 filter is preventing traffic from within ipv4.routes.external"
       false
   fi
@@ -290,7 +287,7 @@ test_container_devices_nic_bridged_filtering() {
   rm "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0"
   lxc config device unset "${ctPrefix}A" eth0 ipv4.address
   lxc start "${ctPrefix}A"
-  if ! grep "192.0.2.2" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
+  if ! grep -F "192.0.2.2" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
     echo "dnsmasq host config doesnt contain previous lease as static IPv4 config"
     false
   fi
@@ -307,7 +304,7 @@ test_container_devices_nic_bridged_filtering() {
   lxc config device set "${ctPrefix}A" eth0 security.ipv4_filtering true
   lxc start "${ctPrefix}A"
 
-  if ! grep "192.0.2.3" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
+  if ! grep -F "192.0.2.3" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
     echo "dnsmasq host config doesnt contain sequentially allocated static IPv4 config"
     false
   fi
@@ -317,7 +314,7 @@ test_container_devices_nic_bridged_filtering() {
   lxc network set "${brName}" ipv4.dhcp.ranges "192.0.2.100-192.0.2.110"
   lxc start "${ctPrefix}A"
 
-  if ! grep "192.0.2.100" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
+  if ! grep -F "192.0.2.100" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
     echo "dnsmasq host config doesnt contain sequentially range allocated static IPv4 config"
     false
   fi
@@ -342,8 +339,8 @@ test_container_devices_nic_bridged_filtering() {
   lxc exec "${ctPrefix}A" -- ip link set dev eth0 address "${ctAMAC}" up
   lxc exec "${ctPrefix}A" -- ip -6 a add 2001:db8:1::254 dev eth0
   wait_for_dad "${ctPrefix}A" eth0
-  lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8:1::1
-  lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8:1::3
+  lxc exec "${ctPrefix}A" -- ping -6 -nc2 -i0.1 -W1 2001:db8:1::1
+  lxc exec "${ctPrefix}A" -- ping -6 -nc2 -i0.1 -W1 2001:db8:1::3
 
   # Enable IPv6 filtering on CT A and test (disable security.mac_filtering to check its applied too).
   lxc config device set "${ctPrefix}A" eth0 ipv6.address 2001:db8:1::2
@@ -457,15 +454,10 @@ test_container_devices_nic_bridged_filtering() {
     done
   fi
 
-  # Check DHCPv6 allocation still works (if udhcpc6 is in busybox image).
   lxc exec "${ctPrefix}A" -- ip link set dev eth0 address "${ctAMAC}" up
 
-  busyboxUdhcpc6=1
-  if ! lxc exec "${ctPrefix}A" -- busybox --list | grep udhcpc6 ; then
-    busyboxUdhcpc6=0
-  fi
-
-  if [ "$busyboxUdhcpc6" = "1" ]; then
+  # Check DHCPv6 allocation still works (if udhcpc6 is in busybox image).
+  if lxc exec "${ctPrefix}A" -- busybox --list | grep udhcpc6 ; then
       lxc exec "${ctPrefix}A" -- udhcpc6 -f -i eth0 -n -q -t5 2>&1 | grep 'IPv6 obtained'
   fi
 
@@ -474,8 +466,8 @@ test_container_devices_nic_bridged_filtering() {
   wait_for_dad "${ctPrefix}A" eth0
 
   # Check basic connectivity with IPv6 filtering and real IPs configured.
-  lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8:1::1
-  lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8:1::3
+  lxc exec "${ctPrefix}A" -- ping -6 -nc2 -i0.1 -W1 2001:db8:1::1
+  lxc exec "${ctPrefix}A" -- ping -6 -nc2 -i0.1 -W1 2001:db8:1::3
 
   # Add a fake IP
   lxc exec "${ctPrefix}A" -- ip -6 a flush dev eth0
@@ -483,13 +475,13 @@ test_container_devices_nic_bridged_filtering() {
   wait_for_dad "${ctPrefix}A" eth0
 
   # Check that ping is no longer working (i.e its filtered after fake IP setup).
-  if lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8:1::1; then
+  if lxc exec "${ctPrefix}A" -- ping -6 -nc2 -i0.1 -W1 2001:db8:1::1; then
       echo "IPv6 filter not working to host"
       false
   fi
 
   # Check that ping is no longer working (i.e its filtered after fake IP setup).
-  if lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8:1::3; then
+  if lxc exec "${ctPrefix}A" -- ping -6 -nc2 -i0.1 -W1 2001:db8:1::3; then
       echo "IPv6 filter not working to other container"
       false
   fi
@@ -502,13 +494,13 @@ test_container_devices_nic_bridged_filtering() {
   wait_for_dad "${ctPrefix}A" eth0
 
   # Check that ping is still working (i.e the filter did not apply to the ipv6.routes subnet).
-  if ! lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8:1::1; then
+  if ! lxc exec "${ctPrefix}A" -- ping -6 -nc2 -i0.1 -W1 2001:db8:1::1; then
       echo "IPv6 filter is preventing traffic from from within ipv6.routes"
       false
   fi
 
   # Check that ping is still working (i.e the filter did not apply to the ipv6.routes subnet).
-  if ! lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8:1::3; then
+  if ! lxc exec "${ctPrefix}A" -- ping -6 -nc2 -i0.1 -W1 2001:db8:1::3; then
       echo "IPv6 filter is preventing traffic from within ipv6.routes"
       false
   fi
@@ -520,13 +512,13 @@ test_container_devices_nic_bridged_filtering() {
   wait_for_dad "${ctPrefix}A" eth0
 
   # Check that ping is still working (i.e the filter did not apply to the ipv6.routes.external subnet).
-  if ! lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8:1::1; then
+  if ! lxc exec "${ctPrefix}A" -- ping -6 -nc2 -i0.1 -W1 2001:db8:1::1; then
       echo "IPv6 filter is preventing traffic from within ipv6.routes.external"
       false
   fi
 
   # Check that ping is still working (i.e the filter did not apply to the ipv6.routes subnet).
-  if ! lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8:1::3; then
+  if ! lxc exec "${ctPrefix}A" -- ping -6 -nc2 -i0.1 -W1 2001:db8:1::3; then
       echo "IPv6 filter is preventing traffic from within ipv6.routes.external"
       false
   fi
@@ -561,7 +553,7 @@ test_container_devices_nic_bridged_filtering() {
   rm "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0"
   lxc config device set "${ctPrefix}A" eth0 security.ipv6_filtering true
   lxc start "${ctPrefix}A"
-  if ! grep "\\[2001:db8:1:0:216:3eff:fe92:f3c1\\]" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
+  if ! grep -F "[2001:db8:1:0:216:3eff:fe92:f3c1]" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
     echo "dnsmasq host config doesnt contain dynamically allocated static IPv6 config"
     false
   fi
@@ -577,13 +569,10 @@ test_container_devices_nic_bridged_filtering() {
   respawn_lxd "${LXD_DIR}" true
   lxc config device set "${ctPrefix}A" eth0 security.ipv6_filtering true
   lxc start "${ctPrefix}A"
-  if ! grep "\\[2001:db8:1::2\\]" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
+  if ! grep -F "[2001:db8:1::2]" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
     echo "dnsmasq host config doesnt contain sequentially allocated static IPv6 config"
     false
   fi
-
-  lxc stop -f "${ctPrefix}A"
-  lxc stop -f "${ctPrefix}B"
 
   lxc delete -f "${ctPrefix}A"
   lxc delete -f "${ctPrefix}B"
@@ -821,16 +810,16 @@ test_container_devices_nic_bridged_filtering() {
   wait_for_dad "${ctPrefix}A" eth0
 
   # Check basic connectivity without any filtering.
-  lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.1
-  lxc exec "${ctPrefix}A" -- ping -c2 -W5 2001:db8::1
+  lxc exec "${ctPrefix}A" -- ping -nc2 -i0.1 -W1 192.0.2.1
+  lxc exec "${ctPrefix}A" -- ping -nc2 -i0.1 -W1 2001:db8::1
 
   # Check fraudulent IPs are blocked.
   lxc exec "${ctPrefix}A" -- ip a flush dev eth0
   lxc exec "${ctPrefix}A" -- ip a add 192.0.2.3/24 dev eth0
   lxc exec "${ctPrefix}A" -- ip a add 2001:db8::3/64 dev eth0
 
-  ! lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.1 || false
-  ! lxc exec "${ctPrefix}A" -- ping -c2 -W5 2001:db8::1 || false
+  ! lxc exec "${ctPrefix}A" -- ping -nc2 -i0.1 -W1 192.0.2.1 || false
+  ! lxc exec "${ctPrefix}A" -- ping -nc2 -i0.1 -W1 2001:db8::1 || false
 
   # Check IP filtering can be enabled with IP assigned as none in LXD config.
   lxc config device set "${ctPrefix}A" eth0 ipv4.address=none security.ipv4_filtering=true
@@ -838,8 +827,8 @@ test_container_devices_nic_bridged_filtering() {
   lxc exec "${ctPrefix}A" -- ip a flush dev eth0
   lxc exec "${ctPrefix}A" -- ip a add 192.0.2.2/24 dev eth0
   lxc exec "${ctPrefix}A" -- ip a add 2001:db8::2/64 dev eth0
-  ! lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.1 || false
-  ! lxc exec "${ctPrefix}A" -- ping -c2 -W5 2001:db8::1 || false
+  ! lxc exec "${ctPrefix}A" -- ping -nc2 -i0.1 -W1 192.0.2.1 || false
+  ! lxc exec "${ctPrefix}A" -- ping -nc2 -i0.1 -W1 2001:db8::1 || false
 
   lxc delete -f "${ctPrefix}A"
   ip link delete "${brName}2"

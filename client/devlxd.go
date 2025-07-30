@@ -34,6 +34,9 @@ type ProtocolDevLXD struct {
 	httpUserAgent string
 
 	eventListenerManager *eventListenerManager
+
+	// isDevLXDOverVsock indicates whether the devLXD connection is over vsock.
+	isDevLXDOverVsock bool
 }
 
 // GetConnectionInfo returns the basic connection information used to interact with the server.
@@ -132,6 +135,20 @@ func (r *ProtocolDevLXD) rawQuery(method string, url string, data any, ETag stri
 
 	defer resp.Body.Close()
 
+	// If client is connected over vsock, the response is expected to be in LXD format (api.Response).
+	if r.isDevLXDOverVsock {
+		resp, etag, err := lxdParseResponse(resp)
+		if err != nil {
+			return nil, "", err
+		}
+
+		return &api.DevLXDResponse{
+			Content:    resp.Metadata,
+			StatusCode: resp.StatusCode,
+		}, etag, nil
+	}
+
+	// Otherwise, parse the response as a devLXD response.
 	return devLXDParseResponse(resp)
 }
 

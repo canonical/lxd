@@ -65,13 +65,6 @@ EOF
   lxc config set c1 security.privileged false
   [ "$(stat -c %u:%g "${PATH_TO_CHECK}")" = "0:0" ]
 
-  if [ "${UIDs}" -lt 500000 ] || [ "${GIDs}" -lt 500000 ]; then
-    echo "==> SKIP: The storage volume attach test requires at least 500000 uids and gids"
-    lxc rm -f c1 c2
-    lxc storage volume delete "${pool}" testvolume
-    return
-  fi
-
   # restart
   lxc restart --force c1
   [ "$(stat -c %u:%g "${PATH_TO_CHECK}")" = "${UID_BASE}:${GID_BASE}" ]
@@ -102,11 +95,11 @@ EOF
   lxc storage volume attach "${pool}" testvolume c2 testvolume
 
   # check that setting perms on the root of the custom volume persists after a reboot.
-  lxc exec c2 -- stat -c '%a' /testvolume | grep 711
+  [ "$(lxc exec c2 -- stat -c '%a' /testvolume)" = "711" ]
   lxc exec c2 -- chmod 0700 /testvolume
-  lxc exec c2 -- stat -c '%a' /testvolume | grep 700
+  [ "$(lxc exec c2 -- stat -c '%a' /testvolume)" = "700" ]
   lxc restart --force c2
-  lxc exec c2 -- stat -c '%a' /testvolume | grep 700
+  [ "$(lxc exec c2 -- stat -c '%a' /testvolume)" = "700" ]
 
   # delete containers
   lxc delete -f c1

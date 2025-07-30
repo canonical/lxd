@@ -4,12 +4,19 @@ test_migration() {
   # shellcheck disable=2153
   lxd_backend=$(storage_backend "$LXD_DIR")
 
+  if [ "${lxd_backend}" = "dir" ] && uname -r | grep -- -kvm$; then
+    echo "==> SKIP: the -kvm kernel flavor is does not work for this test on ${lxd_backend}"
+    return
+  fi
+
   LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   spawn_lxd "${LXD2_DIR}" true
   LXD2_ADDR=$(cat "${LXD2_DIR}/lxd.addr")
 
-  # workaround for kernel/criu
-  umount /sys/kernel/debug >/dev/null 2>&1 || true
+  if command -v criu >/dev/null; then
+    # workaround for kernel/criu
+    umount /sys/kernel/debug >/dev/null 2>&1 || true
+  fi
 
   # shellcheck disable=2153
   lxc_remote remote add l1 "${LXD_ADDR}" --accept-certificate --password foo
@@ -48,8 +55,8 @@ test_migration() {
     for fs in "ext4" "btrfs" "xfs"; do
       local storage_pool1 storage_pool2
       # shellcheck disable=2153
-      storage_pool1="lxdtest-$(basename "${LXD_DIR}")-block-mode"
-      storage_pool2="lxdtest-$(basename "${LXD2_DIR}")-block-mode"
+      storage_pool1="lxdtest-$(basename "${LXD_DIR}")-block-mode-${fs}"
+      storage_pool2="lxdtest-$(basename "${LXD2_DIR}")-block-mode-${fs}"
       lxc_remote storage create l1:"$storage_pool1" zfs size=1GiB volume.zfs.block_mode=true volume.block.filesystem="${fs}"
       lxc_remote profile device set l1:default root pool "$storage_pool1"
 
@@ -501,6 +508,81 @@ migration() {
   lxc_remote storage volume delete l2:"$remote_pool2" bar
   lxc_remote storage unset l1:"$remote_pool1" rsync.compression
 
+  echo "==> Test container migration with attached local volumes."
+
+  echo "==> Create a local storage with the same name."
+  lxc_remote storage create l1:dir dir
+  lxc_remote storage create l2:dir dir
+
+  echo "==> Create a volume to attach to container."
+  lxc_remote storage volume create l1:dir vol1 size=4MiB
+
+  echo "==> Create a container to test migration with attached local volume."
+  lxc_remote init --empty l1:c1
+  lxc_remote storage volume attach l1:dir vol1 c1 /files
+
+  echo "==> Check that copying a container with attached local volume fails, if the destination does not have a volume with the same name."
+  ! lxc_remote copy l1:c1 l2: || false
+
+  echo "==> Check that moving a container with attached local volume fails, if the destination does not have a volume with the same name."
+  ! lxc_remote move l1:c1 l2: || false
+
+  echo "==> Copy the volume."
+  lxc_remote storage volume copy l1:dir/vol1 l2:dir/vol1
+
+  echo "==> Check that copying a container with attached local volume succeeds, if the destination has a volume with the same name."
+  lxc_remote copy l1:c1 l2:
+
+  echo "==> Check that moving a container with attached local volume succeeds, if the destination has a volume with the same name."
+  lxc_remote move l2:c1 l1:c2
+
+  echo "==> Clean up the containers and local volumes."
+  lxc_remote delete -f l1:c1
+  lxc_remote delete -f l1:c2
+  lxc_remote storage volume delete l1:dir vol1
+  lxc_remote storage volume delete l2:dir vol1
+
+  # Test VM Migration.
+  if [ "${LXD_VM_TESTS:-0}" = "0" ]; then
+    echo "==> SKIP: VM tests are disabled"
+  elif [ "${LXD_TMPFS:-0}" = "1" ] && ! runsMinimumKernel 6.6; then
+    echo "==> SKIP: QEMU requires direct-io support which requires a kernel >= 6.6 for tmpfs support (LXD_TMPFS=${LXD_TMPFS})"
+  else
+    echo "==> Test VM migration with attached local volumes."
+
+    echo "==> Create a volume to attach to VM."
+    lxc_remote storage volume create l1:dir vol1 size=4MiB
+
+    echo "==> Create a VM to test migration with attached local volume."
+    lxc_remote init --vm --empty l1:v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
+    lxc_remote storage volume attach l1:dir vol1 v1 /files
+
+    echo "==> Check that copying a VM with attached local volume fails, if the destination does not have a volume with the same name."
+    ! lxc_remote copy l1:v1 l2: || false
+
+    echo "==> Check that moving a VM with attached local volume fails, if the destination does not have a volume with the same name."
+    ! lxc_remote move l1:v1 l2: || false
+
+    echo "==> Copy the volume."
+    lxc_remote storage volume copy l1:dir/vol1 l2:dir/vol1
+
+    echo "==> Check that copying a VM with attached local volume succeeds, if the destination has a volume with the same name."
+    lxc_remote copy l1:v1 l2:
+
+    echo "==> Check that moving a VM with attached local volume succeeds, if the destination has a volume with the same name."
+    lxc_remote move l2:v1 l1:v2
+
+    echo "==> Clean up the VMs and local volumes."
+    lxc_remote delete -f l1:v1
+    lxc_remote delete -f l1:v2
+    lxc_remote storage volume delete l1:dir vol1
+    lxc_remote storage volume delete l2:dir vol1
+  fi
+
+  echo "==> Clean up the storage pool."
+  lxc_remote storage delete l1:dir
+  lxc_remote storage delete l2:dir
+
   # Test some migration between projects
   lxc_remote project create l1:proj -c features.images=false -c features.profiles=false
   lxc_remote project switch l1:proj
@@ -540,7 +622,7 @@ migration() {
   ! lxc_remote storage volume show "l1:${remote_pool1}" container/c1/snap0 | grep '^created_at: 0001-01-01T00:00:00Z' || false
   lxc_remote copy l1:c1 l2:c1
   ! lxc_remote storage volume show "l2:${remote_pool2}" container/c1 | grep '^created_at: 0001-01-01T00:00:00Z' || false
-  [ "$(lxc_remote storage volume show "l1:${remote_pool1}" container/c1/snap0 | awk /created_at:/)" = "$(lxc_remote storage volume show "l2:${remote_pool2}" container/c1/snap0 | awk /created_at:/)" ]
+  [ "$(lxc_remote storage volume get --property "l1:${remote_pool1}" container/c1/snap0 created_at)" = "$(lxc_remote storage volume get --property "l2:${remote_pool2}" container/c1/snap0 created_at)" ]
   lxc_remote delete l1:c1 -f
   lxc_remote delete l2:c1 -f
 
@@ -578,7 +660,7 @@ migration() {
   lxc_remote restore l2:c1 snap0
   lxc_remote start l2:c1
   lxc_remote file pull l2:c1/tmp/foo .
-  ! lxc_remote file pull l2:c1/tmp/bar . ||  false
+  ! lxc_remote file pull l2:c1/tmp/bar . || false
   lxc_remote stop l2:c1 -f
 
   rm foo bar

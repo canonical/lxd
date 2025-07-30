@@ -108,6 +108,31 @@ test_basic_usage() {
   lxc list | grep foo | grep STOPPED
   lxc list fo | grep foo | grep STOPPED
 
+  echo "Invalid container names"
+  ! lxc init --empty ".." || false
+  # Escaping `\` multiple times due to `lxc` wrapper script munging the first layer
+  ! lxc init --empty "\\\\" || false
+  ! lxc init --empty "/" || false
+  ! lxc init --empty ";" || false
+
+  echo "Too small containers"
+  ! lxc init --empty c1 -c limits.memory=0 || false
+  ! lxc init --empty c1 -c limits.memory=0% || false
+
+  echo "Containers with snapshots"
+  lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
+  lxc snapshot c1
+  # Invalid snapshot names
+  ! lxc snapshot c1 ".." || false
+  # Escaping `\` multiple times due to `lxc` wrapper script munging the first layer
+  ! lxc snapshot c1 "\\\\" || false
+  ! lxc snapshot c1 "/" || false
+  [ "$(lxc list -f csv -c S c1)" = "1" ]
+  lxc start c1
+  lxc snapshot c1
+  [ "$(lxc list -f csv -c S c1)" = "2" ]
+  lxc delete --force c1
+
   # Test list json format
   lxc list --format json | jq '.[]|select(.name="foo")' | grep '"name": "foo"'
 
@@ -148,11 +173,11 @@ test_basic_usage() {
   # Test unprivileged container publish
   lxc publish bar --alias=foo-image prop1=val1
   lxc image show foo-image | grep val1
-  CERTNAME="client3" my_curl -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" && false
+  ! CERTNAME="client3" my_curl -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" || false
   lxc image delete foo-image
 
   # Test container publish with existing alias
-  lxc publish bar --alias=foo-image --alias=foo-image2
+  lxc publish bar --alias=foo-image --alias=bar-image2
   lxc launch testimage baz
   # change the container filesystem so the resulting image is different
   lxc exec baz -- touch /somefile
@@ -162,33 +187,33 @@ test_basic_usage() {
   # publishing another image with same alias and '--reuse' flag should success
   lxc publish baz --alias=foo-image --reuse
   fooImage=$(lxc image list -cF -fcsv foo-image)
-  fooImage2=$(lxc image list -cF -fcsv foo-image2)
+  barImage2=$(lxc image list -cF -fcsv bar-image2)
   lxc delete baz
-  lxc image delete foo-image foo-image2
+  lxc image delete foo-image bar-image2
 
-  # the first image should have foo-image2 alias and the second imgae foo-image alias
-  if [ "$fooImage" = "$fooImage2" ]; then
-    echo "foo-image and foo-image2 aliases should be assigned to two different images"
+  # the first image should have bar-image2 alias and the second imgae foo-image alias
+  if [ "$fooImage" = "$barImage2" ]; then
+    echo "foo-image and bar-image2 aliases should be assigned to two different images"
     false
   fi
 
 
   # Test container publish with existing alias
-  lxc publish bar --alias=foo-image --alias=foo-image2
+  lxc publish bar --alias=foo-image --alias=bar-image2
   lxc launch testimage baz
   # change the container filesystem so the resulting image is different
   lxc exec baz -- touch /somefile
   lxc stop baz --force
   # publishing another image with same aliases
-  lxc publish baz --alias=foo-image --alias=foo-image2 --reuse
+  lxc publish baz --alias=foo-image --alias=bar-image2 --reuse
   fooImage=$(lxc image list -cF -fcsv foo-image)
-  fooImage2=$(lxc image list -cF -fcsv foo-image2)
+  barImage2=$(lxc image list -cF -fcsv bar-image2)
   lxc delete baz
   lxc image delete foo-image
 
-  # the second image should have foo-image and foo-image2 aliases and the first one should be removed
-  if [ "$fooImage" != "$fooImage2" ]; then
-    echo "foo-image and foo-image2 aliases should be assigned to the same image"
+  # the second image should have foo-image and bar-image2 aliases and the first one should be removed
+  if [ "$fooImage" != "$barImage2" ]; then
+    echo "foo-image and bar-image2 aliases should be assigned to the same image"
     false
   fi
 
@@ -196,7 +221,7 @@ test_basic_usage() {
   # Test image compression on publish
   lxc publish bar --alias=foo-image-compressed --compression=bzip2 prop=val1
   lxc image show foo-image-compressed | grep val1
-  CERTNAME="client3" my_curl -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" && false
+  ! CERTNAME="client3" my_curl -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" || false
   lxc image delete foo-image-compressed
 
   # Test compression options
@@ -209,7 +234,7 @@ test_basic_usage() {
   lxc init testimage barpriv -p default -p priv
   lxc publish barpriv --alias=foo-image prop1=val1
   lxc image show foo-image | grep val1
-  CERTNAME="client3" my_curl -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" && false
+  ! CERTNAME="client3" my_curl -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" || false
   lxc image delete foo-image
   lxc delete barpriv
   lxc profile delete priv
@@ -228,9 +253,9 @@ test_basic_usage() {
   fi
 
   # Test public images
-  lxc publish --public bar --alias=foo-image2
+  lxc publish --public bar --alias=bar-image2
   CERTNAME="client3" my_curl -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/"
-  lxc image delete foo-image2
+  lxc image delete bar-image2
 
   # Test invalid instance names
   ! lxc init testimage -abc || false
@@ -290,12 +315,12 @@ test_basic_usage() {
   lxc delete -f "${RDNAME}"
 
   # Test "nonetype" container creation
-  wait_for "${LXD_ADDR}" my_curl -X POST "https://${LXD_ADDR}/1.0/containers" \
+  wait_for "${LXD_ADDR}" my_curl -X POST --fail-with-body -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/containers" \
         -d "{\"name\":\"nonetype\",\"source\":{\"type\":\"none\"}}"
   lxc delete nonetype
 
   # Test "nonetype" container creation with an LXC config
-  wait_for "${LXD_ADDR}" my_curl -X POST "https://${LXD_ADDR}/1.0/containers" \
+  wait_for "${LXD_ADDR}" my_curl -X POST --fail-with-body -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/containers" \
         -d "{\"name\":\"configtest\",\"config\":{\"raw.lxc\":\"lxc.hook.clone=/bin/true\"},\"source\":{\"type\":\"none\"}}"
   # shellcheck disable=SC2102
   [ "$(my_curl "https://${LXD_ADDR}/1.0/containers/configtest" | jq -r .metadata.config[\"raw.lxc\"])" = "lxc.hook.clone=/bin/true" ]
@@ -332,9 +357,11 @@ test_basic_usage() {
     ! lxd activateifneeded --debug 2>&1 | grep -F "activating..." || false
 
     lxc start autostart --force-local
-    PID=$(lxc info autostart --force-local | awk '/^PID:/ {print $2}')
+    PID="$(lxc list --force-local -f csv -c p autostart)"
     shutdown_lxd "${LXD_DIR}"
-    [ -d "/proc/${PID}" ] && false
+
+    # Stopping LXD should also stop the instances
+    ! [ -d "/proc/${PID}" ] || false
 
     # `lxd activateifneeded` will error out due to LXD being stopped and not having any Unix socket to wake it up
     # but it should also log something about the activation status
@@ -465,7 +492,7 @@ test_basic_usage() {
   lxc profile delete clash
 
   # check that we can get the return code for a non- wait-for-websocket exec
-  op=$(my_curl -X POST "https://${LXD_ADDR}/1.0/containers/foo/exec" -d '{"command": ["echo", "test"], "environment": {}, "wait-for-websocket": false, "interactive": false}' | jq -r .operation)
+  op=$(my_curl -X POST --fail-with-body -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/containers/foo/exec" -d '{"command": ["echo", "test"], "environment": {}, "wait-for-websocket": false, "interactive": false}' | jq -r .operation)
   [ "$(my_curl "https://${LXD_ADDR}${op}/wait" | jq -r .metadata.metadata.return)" != "null" ]
 
   # test file transfer
@@ -503,8 +530,7 @@ test_basic_usage() {
 
   # FIXME: make this backend agnostic
   if [ "$lxd_backend" = "dir" ]; then
-    content=$(cat "${LXD_DIR}/containers/foo/rootfs/tmp/foo")
-    [ "${content}" = "foo" ]
+    [ "$(< "${LXD_DIR}/containers/foo/rootfs/tmp/foo")" = "foo" ]
   fi
 
   lxc launch testimage deleterunning
@@ -544,12 +570,12 @@ test_basic_usage() {
 
   if [ "$(awk '/^Seccomp:/ {print $2}' "/proc/self/status")" -eq "0" ]; then
     lxc launch testimage lxd-seccomp-test
-    init=$(lxc info lxd-seccomp-test | awk '/^PID:/ {print $2}')
+    init="$(lxc list -f csv -c p lxd-seccomp-test)"
     [ "$(awk '/^Seccomp:/ {print $2}' "/proc/${init}/status")" -eq "2" ]
     lxc stop --force lxd-seccomp-test
     lxc config set lxd-seccomp-test security.syscalls.deny_default false
     lxc start lxd-seccomp-test
-    init=$(lxc info lxd-seccomp-test | awk '/^PID:/ {print $2}')
+    init="$(lxc list -f csv -c p lxd-seccomp-test)"
     [ "$(awk '/^Seccomp:/ {print $2}' "/proc/${init}/status")" -eq "0" ]
     lxc delete --force lxd-seccomp-test
   else
@@ -611,13 +637,13 @@ test_basic_usage() {
   lxc delete --force c1 c2
 
   # Ephemeral
-  lxc launch testimage foo -e
-  OLD_INIT=$(lxc info foo | awk '/^PID:/ {print $2}')
+  lxc launch testimage foo --ephemeral
+  OLD_INIT="$(lxc list -f csv -c p foo)"
 
   REBOOTED="false"
 
   for _ in $(seq 60); do
-    NEW_INIT=$(lxc info foo | awk '/^PID:/ {print $2}' || true)
+    NEW_INIT="$(lxc list -f csv -c p foo)"
 
     # If init process is running, check if is old or new process.
     if [ -n "${NEW_INIT}" ]; then
@@ -736,18 +762,33 @@ EOF
   lxc profile delete foo
 
   # Multiple ephemeral instances delete
-  lxc launch testimage c1
-  lxc launch testimage c2
-  lxc launch testimage c3
+  lxc launch testimage c1 --ephemeral
+  lxc launch testimage c2 --ephemeral
+  lxc launch testimage c3 --ephemeral
 
-  lxc delete -f c1 c2 c3
-  remaining_instances="$(lxc list --format csv)"
-  [ -z "${remaining_instances}" ]
+  lxc stop -f c1 c2 c3
+  [ "$(lxc list -f csv -c n)" = "" ]
+
+  fingerprint="$(lxc config trust ls --format csv | cut -d, -f4)"
+  lxc config trust remove "${fingerprint}"
+}
+
+test_basic_version() {
+  # XXX: add `fuidshift` to the list
+  for bin in lxc lxd lxd-agent lxd-benchmark lxd-migrate lxd-user; do
+    "${bin}" --version
+    "${bin}" --help
+  done
 }
 
 test_server_info() {
   # Ensure server always reports support for containers.
   lxc query /1.0 | jq -e '.environment.instance_types | contains(["container"])'
+
+  # Ensure server reports support for VMs if it should test them.
+  if [ "${LXD_VM_TESTS:-0}" = "1" ]; then
+    lxc query /1.0 | jq -e '.environment.instance_types | contains(["virtual-machine"])'
+  fi
 
   # Ensure the version number has the format (X.Y.Z for LTSes and X.Y otherwise)
   if lxc query /1.0 | jq -e '.environment.server_lts == true'; then
