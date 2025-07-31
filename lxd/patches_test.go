@@ -133,7 +133,7 @@ func Test_patchOIDCGroupsClaimScope(t *testing.T) {
 			conf, err := clusterConfig.Load(ctx, tx)
 			require.NoError(t, err)
 
-			_, err = conf.Patch(map[string]any{
+			_, err = conf.Patch(tx, map[string]any{
 				"oidc.groups.claim": "groups",
 			})
 			require.NoError(t, err)
@@ -176,7 +176,7 @@ func Test_patchOIDCGroupsClaimScope(t *testing.T) {
 			conf, err := clusterConfig.Load(ctx, tx)
 			require.NoError(t, err)
 
-			_, err = conf.Patch(map[string]any{
+			_, err = conf.Patch(tx, map[string]any{
 				"oidc.groups.claim": "groups",
 				"oidc.scopes":       strings.Join(append(defaultScopes, "groups"), " "),
 			})

@@ -61,7 +61,7 @@ func TestConfigLoad_OfflineThresholdValidator(t *testing.T) {
 	config, err := clusterConfig.Load(context.Background(), tx)
 	require.NoError(t, err)
 
-	_, err = config.Patch(map[string]any{"cluster.offline_threshold": "2"})
+	_, err = config.Patch(tx, map[string]any{"cluster.offline_threshold": "2"})
 	require.EqualError(t, err, `Cannot set "cluster.offline_threshold" to "2": Value must be greater than 10`)
 }
 
@@ -73,7 +73,7 @@ func TestConfigLoad_MaxVotersValidator(t *testing.T) {
 	config, err := clusterConfig.Load(context.Background(), tx)
 	require.NoError(t, err)
 
-	_, err = config.Patch(map[string]any{"cluster.max_voters": "4"})
+	_, err = config.Patch(tx, map[string]any{"cluster.max_voters": "4"})
 	require.EqualError(t, err, `Cannot set "cluster.max_voters" to "4": Value must be an odd number equal to or higher than 3`)
 }
 
@@ -86,11 +86,11 @@ func TestConfig_ReplaceDeleteValues(t *testing.T) {
 	config, err := clusterConfig.Load(context.Background(), tx)
 	require.NoError(t, err)
 
-	changed, err := config.Replace(map[string]any{"core.proxy_http": "foo.bar"})
+	changed, err := config.Replace(tx, map[string]any{"core.proxy_http": "foo.bar"})
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]string{"core.proxy_http": "foo.bar"}, changed)
 
-	_, err = config.Replace(map[string]any{})
+	_, err = config.Replace(tx, map[string]any{})
 	assert.NoError(t, err)
 
 	assert.Empty(t, config.ProxyHTTP())
@@ -109,10 +109,10 @@ func TestConfig_PatchKeepsValues(t *testing.T) {
 	config, err := clusterConfig.Load(context.Background(), tx)
 	require.NoError(t, err)
 
-	_, err = config.Replace(map[string]any{"core.proxy_http": "foo.bar"})
+	_, err = config.Replace(tx, map[string]any{"core.proxy_http": "foo.bar"})
 	assert.NoError(t, err)
 
-	_, err = config.Patch(map[string]any{})
+	_, err = config.Patch(tx, map[string]any{})
 	assert.NoError(t, err)
 
 	assert.Equal(t, "foo.bar", config.ProxyHTTP())
