@@ -26,8 +26,7 @@ import (
 
 // Config holds cluster-wide configuration values.
 type Config struct {
-	tx *db.ClusterTx // DB transaction the values in this config are bound to.
-	m  config.Map    // Low-level map holding the config values.
+	m config.Map // Low-level map holding the config values.
 }
 
 // Load loads a new Config object with the current cluster configuration
@@ -44,7 +43,7 @@ func Load(ctx context.Context, tx *db.ClusterTx) (*Config, error) {
 		return nil, fmt.Errorf("failed to load node config: %w", err)
 	}
 
-	return &Config{tx: tx, m: m}, nil
+	return &Config{m: m}, nil
 }
 
 // BackupsCompressionAlgorithm returns the compression algorithm to use for backups.
@@ -269,27 +268,27 @@ func (c *Config) Dump() map[string]any {
 // Replace the current configuration with the given values.
 //
 // Return what has actually changed.
-func (c *Config) Replace(values map[string]any) (map[string]string, error) {
-	return c.update(values)
+func (c *Config) Replace(tx *db.ClusterTx, values map[string]any) (map[string]string, error) {
+	return c.update(tx, values)
 }
 
 // Patch changes only the configuration keys in the given map.
 //
 // Return what has actually changed.
-func (c *Config) Patch(patch map[string]any) (map[string]string, error) {
+func (c *Config) Patch(tx *db.ClusterTx, patch map[string]any) (map[string]string, error) {
 	values := c.Dump() // Use current values as defaults
 	maps.Copy(values, patch)
 
-	return c.update(values)
+	return c.update(tx, values)
 }
 
-func (c *Config) update(values map[string]any) (map[string]string, error) {
+func (c *Config) update(tx *db.ClusterTx, values map[string]any) (map[string]string, error) {
 	changed, err := c.m.Change(values)
 	if err != nil {
 		return nil, err
 	}
 
-	err = c.tx.UpdateClusterConfig(changed)
+	err = tx.UpdateClusterConfig(changed)
 	if err != nil {
 		return nil, fmt.Errorf("cannot persist configuration changes: %w", err)
 	}
