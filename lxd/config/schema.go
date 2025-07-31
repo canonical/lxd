@@ -68,6 +68,11 @@ type Key struct {
 	// changed.
 	Validator func(string) error
 
+	// Optional function used to validate values when the Map is initially loaded.
+	// If this is not set, then Validator is used instead. If neither is set,
+	// validation is performed only against the defined Type.
+	ValidatorInitial func(string) error
+
 	// Optional function to manipulate a value before it's actually saved
 	// in a Map. It's called only by Map.Change(), and not by Load() since
 	// values passed to Load() are supposed to have been previously
