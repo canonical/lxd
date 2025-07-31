@@ -53,8 +53,8 @@ _server_config_storage() {
   lxc query --wait /1.0/containers/foo/backups -X POST -d '{\"expires_at\": \"2100-01-01T10:00:00-05:00\"}'
 
   # Record before
-  BACKUPS_BEFORE=$(find "${LXD_DIR}/backups/" | sort)
-  IMAGES_BEFORE=$(find "${LXD_DIR}/images/" | sort)
+  BACKUPS_BEFORE=$(cd "${LXD_DIR}/backups/" && find . | sort)
+  IMAGES_BEFORE=$(cd "${LXD_DIR}/images/" && find . | sort)
 
   lxc storage volume create "${pool}" backups
   lxc storage volume create "${pool}" images
@@ -77,9 +77,13 @@ _server_config_storage() {
   lxc config set storage.backups_volume "${pool}/backups"
   lxc config set storage.images_volume "${pool}/images"
 
+  # Validate the symlinks point to new locations
+  [ "$(realpath "${LXD_DIR}/backups")" = "${LXD_DIR}/storage-pools/${pool}/custom/default_backups" ]
+  [ "$(realpath "${LXD_DIR}/images")" = "${LXD_DIR}/storage-pools/${pool}/custom/default_images" ]
+
   # Record after
-  BACKUPS_AFTER=$(find "${LXD_DIR}/backups/" | sort)
-  IMAGES_AFTER=$(find "${LXD_DIR}/images/" | sort)
+  BACKUPS_AFTER=$(cd "${LXD_DIR}/backups/" && find . | sort)
+  IMAGES_AFTER=$(cd "${LXD_DIR}/images/" && find . | sort)
 
   # Validate content
   if [ "${BACKUPS_BEFORE}" != "${BACKUPS_AFTER}" ]; then
@@ -111,10 +115,27 @@ _server_config_storage() {
   lxc delete -f foo2
   lxc image delete fooimage
 
-  # Reset and cleanup
+  # Unset the config and remove the volumes
   lxc config unset storage.backups_volume
   lxc config unset storage.images_volume
   lxc storage volume delete "${pool}" backups
   lxc storage volume delete "${pool}" images
+
+  # Record again after unsetting
+  BACKUPS_AFTER=$(cd "${LXD_DIR}/backups/" && find . | sort)
+  IMAGES_AFTER=$(cd "${LXD_DIR}/images/" && find . | sort)
+
+  # Validate content
+  if [ "${BACKUPS_BEFORE}" != "${BACKUPS_AFTER}" ]; then
+    echo "Backups dir content mismatch"
+    false
+  fi
+
+  if [ "${IMAGES_BEFORE}" != "${IMAGES_AFTER}" ]; then
+    echo "Images dir content mismatch"
+    false
+  fi
+
+  # Cleanup
   lxc delete -f foo
 }

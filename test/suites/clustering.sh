@@ -2318,10 +2318,14 @@ test_clustering_image_replication() {
   LXD_DIR="${LXD_ONE_DIR}" lxc image list | grep -wF testimage
   LXD_DIR="${LXD_TWO_DIR}" lxc image list | grep -wF testimage
 
+  # Configure dedicated images storage on node2
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume create data images
+  LXD_DIR="${LXD_TWO_DIR}" lxc config set storage.images_volume "data/images"
+
   # The image tarball is available on both nodes
   fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info testimage | awk '/^Fingerprint/ {print $2}')
   [ -f "${LXD_ONE_DIR}/images/${fingerprint}" ]
-  [ -f "${LXD_TWO_DIR}/images/${fingerprint}" ]
+  [ -f "${LXD_TWO_DIR}/storage-pools/data/custom/default_images/${fingerprint}" ]
 
   # Spawn a third node
   setup_clustering_netns 3
@@ -2349,6 +2353,7 @@ test_clustering_image_replication() {
   LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
   [ ! -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
   [ ! -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
+  [ ! -f "${LXD_TWO_DIR}/storage-pools/data/custom/default_images/${fingerprint}" ] || false
   [ ! -f "${LXD_THREE_DIR}/images/${fingerprint}" ] || false
 
   # Import the test image on node3
@@ -2362,13 +2367,14 @@ test_clustering_image_replication() {
   # The image tarball is available on all three nodes
   fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info testimage | awk '/^Fingerprint/ {print $2}')
   [ -f "${LXD_ONE_DIR}/images/${fingerprint}" ]
-  [ -f "${LXD_TWO_DIR}/images/${fingerprint}" ]
+  [ -f "${LXD_TWO_DIR}/storage-pools/data/custom/default_images/${fingerprint}" ]
   [ -f "${LXD_THREE_DIR}/images/${fingerprint}" ]
 
   # Delete the imported image
   LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
   [ ! -f "${LXD_ONE_DIR}/images/${fingerprint}" ]
   [ ! -f "${LXD_TWO_DIR}/images/${fingerprint}" ]
+  [ ! -f "${LXD_TWO_DIR}/storage-pools/data/custom/default_images/${fingerprint}" ] || false
   [ ! -f "${LXD_THREE_DIR}/images/${fingerprint}" ]
 
   # Import the image from the container
@@ -2382,13 +2388,14 @@ test_clustering_image_replication() {
 
   fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info new-image | awk '/^Fingerprint/ {print $2}')
   [ -f "${LXD_ONE_DIR}/images/${fingerprint}" ]
-  [ -f "${LXD_TWO_DIR}/images/${fingerprint}" ]
+  [ -f "${LXD_TWO_DIR}/storage-pools/data/custom/default_images/${fingerprint}" ]
   [ -f "${LXD_THREE_DIR}/images/${fingerprint}" ]
 
   # Delete the imported image
   LXD_DIR="${LXD_TWO_DIR}" lxc image delete new-image
   [ ! -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
   [ ! -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
+  [ ! -f "${LXD_TWO_DIR}/storage-pools/data/custom/default_images/${fingerprint}" ] || false
   [ ! -f "${LXD_THREE_DIR}/images/${fingerprint}" ] || false
 
   # Delete the container
@@ -2399,6 +2406,7 @@ test_clustering_image_replication() {
   LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
   [ ! -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
   [ ! -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
+  [ ! -f "${LXD_TWO_DIR}/storage-pools/data/custom/default_images/${fingerprint}" ] || false
   [ ! -f "${LXD_THREE_DIR}/images/${fingerprint}" ] || false
 
   # Disable the image replication
@@ -2417,7 +2425,7 @@ test_clustering_image_replication() {
 
   # The image tarball is only available on node2
   fingerprint=$(LXD_DIR="${LXD_TWO_DIR}" lxc image info testimage | awk '/^Fingerprint/ {print $2}')
-  [ -f "${LXD_TWO_DIR}/images/${fingerprint}" ]
+  [ -f "${LXD_TWO_DIR}/storage-pools/data/custom/default_images/${fingerprint}" ]
   [ ! -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
   [ ! -f "${LXD_THREE_DIR}/images/${fingerprint}" ] || false
 
@@ -2425,7 +2433,12 @@ test_clustering_image_replication() {
   LXD_DIR="${LXD_TWO_DIR}" lxc image delete testimage
   [ ! -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
   [ ! -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
+  [ ! -f "${LXD_TWO_DIR}/storage-pools/data/custom/default_images/${fingerprint}" ] || false
   [ ! -f "${LXD_THREE_DIR}/images/${fingerprint}" ] || false
+
+  # Unset the dedicated image storage on node2
+  LXD_DIR="${LXD_TWO_DIR}" lxc config unset storage.images_volume
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete data images
 
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown

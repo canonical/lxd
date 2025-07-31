@@ -684,7 +684,7 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 // VM Format A: Separate metadata tarball and root qcow2 file.
 //   - Unpack metadata tarball into mountPath.
 //   - Check rootBlockPath is a file and convert qcow2 file into raw format in rootBlockPath.
-func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, sysOS *sys.OS, allowUnsafeResize bool, tracker *ioprogress.ProgressTracker) (int64, error) {
+func ImageUnpack(s *state.State, imageFile string, vol drivers.Volume, destBlockFile string, allowUnsafeResize bool, tracker *ioprogress.ProgressTracker) (int64, error) {
 	l := logger.Log.AddContext(logger.Ctx{"imageFile": imageFile, "volName": vol.Name()})
 	l.Info("Image unpack started")
 	defer l.Info("Image unpack stopped")
@@ -698,7 +698,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, sys
 		rootfsPath := filepath.Join(destPath, "rootfs")
 
 		// Unpack the main image file.
-		err := archive.Unpack(imageFile, destPath, vol.IsBlockBacked(), sysOS, tracker)
+		err := archive.Unpack(s, imageFile, destPath, vol.IsBlockBacked(), tracker)
 		if err != nil {
 			return -1, err
 		}
@@ -710,7 +710,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, sys
 				return -1, errors.New("Error creating rootfs directory")
 			}
 
-			err = archive.Unpack(imageRootfsFile, rootfsPath, vol.IsBlockBacked(), sysOS, tracker)
+			err = archive.Unpack(s, imageRootfsFile, rootfsPath, vol.IsBlockBacked(), tracker)
 			if err != nil {
 				return -1, err
 			}
@@ -741,7 +741,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, sys
 	// convertBlockImage converts the qcow2 block image file into a raw block device. If needed it will attempt
 	// to enlarge the destination volume to accommodate the unpacked qcow2 image file.
 	convertBlockImage := func(imgPath string, dstPath string, tracker *ioprogress.ProgressTracker) (int64, error) {
-		imgFormat, imgVirtualSize, err := qemuImageInfo(sysOS, imgPath, tracker)
+		imgFormat, imgVirtualSize, err := qemuImageInfo(s.OS, imgPath, tracker)
 		if err != nil {
 			return -1, err
 		}
@@ -814,7 +814,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, sys
 
 		cmd = append(cmd, imgPath, dstPath)
 
-		_, err = apparmor.QemuImg(sysOS, cmd, imgPath, dstPath, tracker)
+		_, err = apparmor.QemuImg(s.OS, cmd, imgPath, dstPath, tracker)
 		if err != nil {
 			return -1, fmt.Errorf("Failed converting image to raw at %q: %w", dstPath, err)
 		}
@@ -826,7 +826,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, sys
 
 	if shared.PathExists(imageRootfsFile) {
 		// Unpack the main image file.
-		err := archive.Unpack(imageFile, destPath, vol.IsBlockBacked(), sysOS, tracker)
+		err := archive.Unpack(s, imageFile, destPath, vol.IsBlockBacked(), tracker)
 		if err != nil {
 			return -1, err
 		}
@@ -838,7 +838,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, sys
 		}
 	} else {
 		// Dealing with unified tarballs require an initial unpack to a temporary directory.
-		tempDir, err := os.MkdirTemp(shared.VarPath("images"), "lxd_image_unpack_")
+		tempDir, err := os.MkdirTemp(s.ImagesStoragePath(), "lxd_image_unpack_")
 		if err != nil {
 			return -1, err
 		}
@@ -846,7 +846,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, sys
 		defer func() { _ = os.RemoveAll(tempDir) }()
 
 		// Unpack the whole image.
-		err = archive.Unpack(imageFile, tempDir, vol.IsBlockBacked(), sysOS, tracker)
+		err = archive.Unpack(s, imageFile, tempDir, vol.IsBlockBacked(), tracker)
 		if err != nil {
 			return -1, err
 		}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	"gopkg.in/yaml.v2"
@@ -103,7 +104,9 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	}
 
 	// Create the target path if needed.
-	backupsPath := shared.VarPath("backups", "instances", project.Instance(sourceInst.Project().Name, sourceInst.Name()))
+	backupsPathBase := s.BackupsStoragePath()
+
+	backupsPath := filepath.Join(backupsPathBase, "instances", project.Instance(sourceInst.Project().Name, sourceInst.Name()))
 	if !shared.PathExists(backupsPath) {
 		err := os.MkdirAll(backupsPath, 0700)
 		if err != nil {
@@ -113,7 +116,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 		revert.Add(func() { _ = os.Remove(backupsPath) })
 	}
 
-	target := shared.VarPath("backups", "instances", project.Instance(sourceInst.Project().Name, b.Name()))
+	target := filepath.Join(backupsPathBase, "instances", project.Instance(sourceInst.Project().Name, b.Name()))
 
 	// Setup the tarball writer.
 	l.Debug("Opening backup tarball for writing", logger.Ctx{"path": target})
@@ -445,7 +448,9 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 	}
 
 	// Create the target path if needed.
-	backupsPath := shared.VarPath("backups", "custom", pool.Name(), project.StorageVolume(projectName, volumeName))
+	backupsPathBase := s.BackupsStoragePath()
+
+	backupsPath := filepath.Join(backupsPathBase, "custom", pool.Name(), project.StorageVolume(projectName, volumeName))
 	if !shared.PathExists(backupsPath) {
 		err := os.MkdirAll(backupsPath, 0700)
 		if err != nil {
@@ -455,7 +460,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 		revert.Add(func() { _ = os.Remove(backupsPath) })
 	}
 
-	target := shared.VarPath("backups", "custom", pool.Name(), project.StorageVolume(projectName, backupRow.Name))
+	target := filepath.Join(backupsPathBase, "custom", pool.Name(), project.StorageVolume(projectName, backupRow.Name))
 
 	// Setup the tarball writer.
 	l.Debug("Opening backup tarball for writing", logger.Ctx{"path": target})

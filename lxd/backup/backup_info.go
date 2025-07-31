@@ -7,7 +7,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/canonical/lxd/lxd/backup/config"
-	"github.com/canonical/lxd/lxd/sys"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -39,7 +39,7 @@ type Info struct {
 }
 
 // GetInfo extracts backup information from a given ReadSeeker.
-func GetInfo(r io.ReadSeeker, sysOS *sys.OS, outputPath string) (*Info, error) {
+func GetInfo(s *state.State, r io.ReadSeeker, outputPath string) (*Info, error) {
 	result := Info{}
 	hasIndexFile := false
 
@@ -48,7 +48,7 @@ func GetInfo(r io.ReadSeeker, sysOS *sys.OS, outputPath string) (*Info, error) {
 	optimizedHeaderFalse := false
 
 	// Extract.
-	tr, cancelFunc, err := TarReader(r, sysOS, outputPath)
+	tr, cancelFunc, err := TarReader(s, r, outputPath)
 	if err != nil {
 		return nil, err
 	}
