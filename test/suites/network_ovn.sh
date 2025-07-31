@@ -246,6 +246,7 @@ test_network_ovn() {
   [ "$(ovn-nbctl get logical_switch "${internal_switch_name}" other_config:exclude_ips)" = '"10.24.140.1"' ]
   [ "$(ovn-nbctl get logical_switch "${internal_switch_name}" other_config:ipv6_prefix)" = '"fd42:bd85:5f89:5293::/64"' ]
   [ "$(ovn-nbctl get logical_switch "${internal_switch_name}" other_config:subnet)" = '"10.24.140.0/24"' ]
+  [ "$(ovn-nbctl get logical_switch "${internal_switch_name}" load_balancer | tr -d '[]' | awk -F, '{print NF}')" = "0" ]
 
   # Check external switch port settings (provider).
   provider_external_switch_port_name="${external_switch_name}-lsp-provider"
@@ -288,7 +289,7 @@ test_network_ovn() {
   ! lxc network set "${ovn_network}" volatile.network.ipv4.address=10.10.10.199 || false
   ! lxc network set "${ovn_network}" volatile.network.ipv6.address=fd42:4242:4242:1010::199 || false
 
-  # Launch an instance on the OVN network and assert configuration changes.
+  echo "Launch an instance on the OVN network and assert configuration changes."
   lxc launch testimage c1 --network "${ovn_network}"
 
   # Check that this created the expected number of entries.
@@ -336,14 +337,6 @@ test_network_ovn() {
   [ "$(lxc exec c1 -- nslookup "${c1_ipv6_address}" 10.10.10.1 | grep -cF c1.lxd)" = 1 ]
   [ "$(lxc exec c1 -- nslookup "${c1_ipv6_address}" fd42:4242:4242:1010::1 | grep -cF c1.lxd)" = 1 ]
 
-  # Clean up.
-  lxc delete c1 --force
-
-  # Test ha_chassis removal on shutdown
-  shutdown_lxd "${LXD_DIR}"
-  ! ovn-nbctl get ha_chassis "${chassis_id}" priority || false
-  respawn_lxd "${LXD_DIR}" true
-
   echo "Create a couple of forwards without a target address."
   lxc network forward create "${ovn_network}" 192.0.2.1
   lxc network forward create "${ovn_network}" 2001:db8:1:2::1
@@ -368,6 +361,15 @@ test_network_ovn() {
   ! lxc network unset "${uplink_network}" ipv4.routes || false
   ! lxc network unset "${uplink_network}" ipv6.routes || false
 
+  echo "Configure ports for the forwards."
+  lxc network forward port add "${ovn_network}" 192.0.2.1 tcp 80 "${c1_ipv4_address}" 80
+  lxc network forward port add "${ovn_network}" 2001:db8:1:2::1 tcp 80 "${c1_ipv6_address}" 80
+  lxc network forward port add "${ovn_network}" "${volatile_ip4}" udp 162 "${c1_ipv4_address}" 162
+  lxc network forward port add "${ovn_network}" "${volatile_ip6}" udp 162 "${c1_ipv6_address}" 162
+
+  echo "Check that forwards are associated with the internal OVN switch."
+  [ "$(ovn-nbctl get logical_switch "${internal_switch_name}" load_balancer | tr -d '[]' | awk -F, '{print NF}')" = "4" ]
+
   echo "Clean up forwards."
   lxc network forward delete "${ovn_network}" 192.0.2.1
   lxc network forward delete "${ovn_network}" 2001:db8:1:2::1
@@ -389,11 +391,29 @@ test_network_ovn() {
   ! lxc network unset "${uplink_network}" ipv4.routes || false
   ! lxc network unset "${uplink_network}" ipv6.routes || false
 
+  echo "Create a backend for each load balancer."
+  lxc network load-balancer backend add "${ovn_network}" 192.0.2.1 c1-backend "${c1_ipv4_address}" 80
+  lxc network load-balancer backend add "${ovn_network}" 2001:db8:1:2::1 c1-backend "${c1_ipv6_address}" 80
+  lxc network load-balancer backend add "${ovn_network}" "${volatile_ip4}" c1-backend "${c1_ipv4_address}" 162
+  lxc network load-balancer backend add "${ovn_network}" "${volatile_ip6}" c1-backend "${c1_ipv6_address}" 162
+
+  echo "Configure ports for the load balancers."
+  lxc network load-balancer port add "${ovn_network}" 192.0.2.1 tcp 80 c1-backend
+  lxc network load-balancer port add "${ovn_network}" 2001:db8:1:2::1 tcp 80 c1-backend
+  lxc network load-balancer port add "${ovn_network}" "${volatile_ip4}" udp 162 c1-backend
+  lxc network load-balancer port add "${ovn_network}" "${volatile_ip6}" udp 162 c1-backend
+
+  echo "Check that load balancers are associated with the internal OVN switch."
+  [ "$(ovn-nbctl get logical_switch "${internal_switch_name}" load_balancer | tr -d '[]' | awk -F, '{print NF}')" = "4" ]
+
   echo "Clean up load balancers."
   lxc network load-balancer delete "${ovn_network}" 192.0.2.1
   lxc network load-balancer delete "${ovn_network}" 2001:db8:1:2::1
   lxc network load-balancer delete "${ovn_network}" "${volatile_ip4}"
   lxc network load-balancer delete "${ovn_network}" "${volatile_ip6}"
+
+  echo "Clean up the instance."
+  lxc delete c1 --force
 
   echo "Check that instance NIC passthrough with ipv4.routes.external does not allow using volatile.network.ipv4.address."
   ! lxc launch testimage c1 -n "${ovn_network}" -d eth0,ipv4.routes.external="${volatile_ip4}/32" || false
@@ -403,6 +423,11 @@ test_network_ovn() {
 
   echo "Delete the OVN network in the default project."
   lxc network delete "${ovn_network}"
+
+  echo "Test ha_chassis removal on shutdown."
+  shutdown_lxd "${LXD_DIR}"
+  ! ovn-nbctl get ha_chassis "${chassis_id}" priority || false
+  respawn_lxd "${LXD_DIR}" true
 
   ########################################################################################################################
 
