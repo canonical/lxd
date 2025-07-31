@@ -449,11 +449,11 @@ var ConfigSchema = config.Schema{
 	"core.https_allowed_credentials": {Type: config.Bool, Default: "false"},
 
 	// lxdmeta:generate(entities=server; group=core; key=core.https_trusted_proxy)
-	// Specify a comma-separated list of IP addresses of trusted servers that provide the client's address through the proxy connection header.
+	// Specify a comma-separated list of IP addresses of trusted servers that provide the client's address through the PROXY protocol connection header.
 	// ---
 	//  type: string
 	//  scope: global
-	//  shortdesc: Trusted servers to provide the client's address
+	//  shortdesc: Trusted servers to provide the client's address via the PROXY protocol
 	"core.https_trusted_proxy": {},
 
 	// lxdmeta:generate(entities=server; group=core; key=core.proxy_http)
