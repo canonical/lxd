@@ -5193,9 +5193,9 @@
 					},
 					{
 						"core.https_trusted_proxy": {
-							"longdesc": "Specify a comma-separated list of IP addresses of trusted servers that provide the client's address through the proxy connection header.",
+							"longdesc": "Specify a comma-separated list of IP addresses of trusted servers that provide the client's address through the PROXY protocol connection header.",
 							"scope": "global",
-							"shortdesc": "Trusted servers to provide the client's address",
+							"shortdesc": "Trusted servers to provide the client's address via the PROXY protocol",
 							"type": "string"
 						}
 					},

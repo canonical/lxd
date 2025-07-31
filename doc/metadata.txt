@@ -4636,9 +4636,9 @@ If enabled, the `Access-Control-Allow-Credentials` HTTP header value is set to `
 
 ```{config:option} core.https_trusted_proxy server-core
 :scope: "global"
-:shortdesc: "Trusted servers to provide the client's address"
+:shortdesc: "Trusted servers to provide the client's address via the PROXY protocol"
 :type: "string"
-Specify a comma-separated list of IP addresses of trusted servers that provide the client's address through the proxy connection header.
+Specify a comma-separated list of IP addresses of trusted servers that provide the client's address through the PROXY protocol connection header.
 ```
 
 ```{config:option} core.metrics_address server-core
