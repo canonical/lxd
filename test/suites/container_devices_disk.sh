@@ -183,6 +183,15 @@ _container_devices_disk_char() {
   lxc restart -f foo
   [ "$(lxc exec foo -- stat /root/zero -c '%F')" = "character special file" ]
   lxc config device remove foo char
+  # Can't create mount when "path.create" is false and path does not exist in container.
+  ! lxc config device add foo char disk source=/dev/zero path=/root/test path.create=false || false
+  lxc exec foo -- touch /root/test
+  # Can create mount when "path.create" is false and path already exists in container.
+  lxc config device add foo char disk source=/dev/zero path=/root/test path.create=false
+  [ "$(lxc exec foo -- stat /root/test -c '%F')" = "character special file" ]
+  lxc config device remove foo char
+  # File is still present after removing the device when "path.create" is false.
+  [ "$(lxc exec foo -- stat /root/test -c '%N')" = "/root/test" ]
   lxc stop foo -f
 }
 
