@@ -1671,6 +1671,23 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 				}
 			}
 
+			// When "path.create" is false, we expect the target path to already exist inside the container.
+			if mount.SkipCreatePath {
+				files, err := d.FileSFTP()
+				if err != nil {
+					return err
+				}
+
+				// Check if the target path exists inside the container.
+				_, err = files.Stat(mount.TargetPath)
+				exists := err == nil
+
+				// Fail mount if the target path doesn't exist inside the container.
+				if !exists {
+					return fmt.Errorf("Path %q doesn't exist", mount.TargetPath)
+				}
+			}
+
 			// Mount it into the container.
 			err := d.insertMount(pathSource.Path, mount.TargetPath, mount.FSType, flags, idmapType)
 			if err != nil {
@@ -1694,12 +1711,18 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 					return fmt.Errorf("Error unmounting the device path inside container: %s", err)
 				}
 
-				err = files.Remove(relativeTargetPath)
-				if err != nil {
-					// Only warn here and don't fail as removing a directory
-					// mount may fail if there was already files inside
-					// directory before it was mouted over preventing delete.
-					d.logger.Warn("Could not remove the device path inside container", logger.Ctx{"err": err})
+				// Only remove the path inside the container when "path.create" is set (default behavior).
+				// When "path.create" is false, the path is expected to already exist inside the container and we don't want to remove it.
+				if mount.SkipCreatePath {
+					d.logger.Warn("Skipping removal of the device path inside container")
+				} else {
+					err = files.Remove(relativeTargetPath)
+					if err != nil {
+						// Only warn here and don't fail as removing a directory
+						// mount may fail if there was already files inside
+						// directory before it was mouted over preventing delete.
+						d.logger.Warn("Could not remove the device path inside container", logger.Ctx{"err": err})
+					}
 				}
 			}
 
