@@ -113,6 +113,15 @@ See also {ref}`storage-configure-io`.
 This option specifies the path inside the container where the disk will be mounted.
 ```
 
+```{config:option} path.create device-disk-device-conf
+:condition: "container"
+:defaultdesc: "`true`"
+:required: "no"
+:shortdesc: "Whether to create the mount path in the container."
+:type: "bool"
+If set to false, the mount path will not be created in the container. If set to false and the path does not exist in the container, the mount will fail.
+```
+
 ```{config:option} pool device-disk-device-conf
 :condition: "storage volumes managed by LXD"
 :required: "no"

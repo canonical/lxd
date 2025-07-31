@@ -123,6 +123,16 @@
 						}
 					},
 					{
+						"path.create": {
+							"condition": "container",
+							"defaultdesc": "`true`",
+							"longdesc": "If set to false, the mount path will not be created in the container. If set to false and the path does not exist in the container, the mount will fail.",
+							"required": "no",
+							"shortdesc": "Whether to create the mount path in the container.",
+							"type": "bool"
+						}
+					},
+					{
 						"pool": {
 							"condition": "storage volumes managed by LXD",
 							"longdesc": "",
