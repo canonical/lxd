@@ -434,7 +434,8 @@ For more information, see {ref}`security-daemon-access`.
 
 After upgrading LXD to a newer version, LXD might need to update its database to a new schema.
 This update happens automatically when the daemon starts up after a LXD upgrade.
-A backup of the database before the update is stored in the same location as the active database (for example, at `/var/snap/lxd/common/lxd/database` for the snap installation).
+
+A backup of the database before the update is stored in the same location as the active database. If LXD is installed through the snap, this location is `/var/snap/lxd/common/lxd/database`. If installed by other means, the location is typically `/var/lib/lxd/database/`.
 
 ```{important}
 After a schema update, older versions of LXD might regard the database as invalid.
@@ -442,3 +443,7 @@ That means that downgrading LXD might render your LXD installation unusable.
 
 In that case, if you need to downgrade, restore the database backup before starting the downgrade.
 ```
+
+For information on upgrading LXD through its snap, see: {ref}`howto-snap-change`.
+
+When upgrading LXD across a cluster, see: {ref}`howto-cluster-manage-update-upgrade`.
