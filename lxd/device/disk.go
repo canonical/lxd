@@ -387,6 +387,15 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		//  condition: container
 		//  shortdesc: Mount path
 		"path": validate.IsAny,
+		// lxdmeta:generate(entities=device-disk; group=device-conf; key=path.create)
+		// If set to false, the mount path will not be created in the container. If set to false and the path does not exist in the container, the mount will fail.
+		// ---
+		//  type: bool
+		//  defaultdesc: `true`
+		//  required: no
+		//  condition: container
+		//  shortdesc: Whether to create the mount path in the container.
+		"path.create": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=device-disk; group=device-conf; key=io.cache)
 		// Possible values are `none`, `writeback`, or `unsafe`.
 		// ---
@@ -973,6 +982,8 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 
 		revert.Add(revertFunc)
 
+		skipCreatePath := shared.IsFalse(d.config["path.create"])
+
 		if isFile {
 			options = append(options, "create=file")
 		} else {
@@ -981,12 +992,13 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 
 		// Instruct LXD to perform the mount.
 		runConf.Mounts = append(runConf.Mounts, deviceConfig.MountEntryItem{
-			DevName:    d.name,
-			DevSource:  deviceConfig.DevSourcePath{Path: sourceDevPath},
-			TargetPath: relativeDestPath,
-			FSType:     "none",
-			Opts:       options,
-			OwnerShift: ownerShift,
+			DevName:        d.name,
+			DevSource:      deviceConfig.DevSourcePath{Path: sourceDevPath},
+			TargetPath:     relativeDestPath,
+			SkipCreatePath: skipCreatePath,
+			FSType:         "none",
+			Opts:           options,
+			OwnerShift:     ownerShift,
 		})
 
 		// Unmount host-side mount once instance is started.
@@ -2150,9 +2162,12 @@ func (d *disk) Stop() (*deviceConfig.RunConfig, error) {
 		return nil, nil
 	}
 
+	skipCreatePath := shared.IsFalse(d.config["path.create"])
+
 	// Request an unmount of the device inside the instance.
 	runConf.Mounts = append(runConf.Mounts, deviceConfig.MountEntryItem{
-		TargetPath: relativeDestPath,
+		TargetPath:     relativeDestPath,
+		SkipCreatePath: skipCreatePath,
 	})
 
 	return &runConf, nil
