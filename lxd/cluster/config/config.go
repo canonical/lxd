@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 
@@ -19,6 +20,9 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/validate"
 )
+
+// The cluster UUID is static.
+var clusterUUID uuid.UUID
 
 // Config holds cluster-wide configuration values.
 type Config struct {
@@ -40,6 +44,11 @@ func Load(ctx context.Context, tx *db.ClusterTx) (*Config, error) {
 	}
 
 	return &Config{m: m}, nil
+}
+
+// ClusterUUID returns the static cluster UUID.
+func (c *Config) ClusterUUID() uuid.UUID {
+	return clusterUUID
 }
 
 // BackupsCompressionAlgorithm returns the compression algorithm to use for backups.
@@ -765,6 +774,33 @@ var ConfigSchema = config.Schema{
 	//  defaultdesc: Content of `/etc/ovn/key_host` if present
 	//  shortdesc: OVN SSL client key
 	"network.ovn.client_key": {Default: ""},
+
+	// lxdmeta:generate(entities=server; group=miscellaneous; key=volatile.uuid)
+	// This UUID is used as a stable identifier for the cluster. It cannot be changed.
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: A random v4 UUID
+	"volatile.uuid": {
+		ValidatorInitial: func(s string) error {
+			// When initially loading the config, validate the cluster UUID and set the package variable.
+			id, err := uuid.Parse(s)
+			if err != nil {
+				return err
+			}
+
+			clusterUUID = id
+			return nil
+		},
+		Validator: func(s string) error {
+			// After initial load, make sure the UUID is never changed.
+			if s != clusterUUID.String() {
+				return errors.New("Cluster UUID cannot be set after initialization")
+			}
+
+			return nil
+		},
+	},
 }
 
 func expiryValidator(value string) error {
