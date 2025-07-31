@@ -176,6 +176,10 @@ type Daemon struct {
 
 	// Ubuntu Pro settings
 	ubuntuPro *ubuntupro.Client
+
+	// internalSecrets holds the current in-memory value of the secrets
+	internalSecrets   dbCluster.AuthSecrets
+	internalSecretsMu sync.Mutex
 }
 
 // DaemonConfig holds configuration values for Daemon.
@@ -667,6 +671,57 @@ func (d *Daemon) handleOIDCAuthenticationResult(r *http.Request, result *oidc.Au
 	}
 
 	return nil
+}
+
+// getSecrets gets a copy of the current, cluster-wide secrets.
+func (d *Daemon) getSecrets(ctx context.Context) (dbCluster.AuthSecrets, error) {
+	// Obtain a lock.
+	d.internalSecretsMu.Lock()
+	defer d.internalSecretsMu.Unlock()
+
+	// Get the expiry.
+	expiry, err := d.globalConfig.AuthSecretExpiry()
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if the current in-memory secrets are valid.
+	if !d.internalSecrets.IsExpired(expiry) {
+		// If valid, return a copy.
+		return slices.Clone(d.internalSecrets), nil
+	}
+
+	// Otherwise, start a transaction.
+	err = d.db.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// Get the secrets.
+		secrets, err := dbCluster.GetCoreAuthSecrets(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		// Check if the secrets are valid (if no secrets were found, then they are not valid).
+		if !secrets.IsExpired(expiry) {
+			// If valid, set internal secrets to the value defined in the database and exit transaction.
+			d.internalSecrets = secrets
+			return nil
+		}
+
+		// Rotate the secrets. If there were none, this will add the first value.
+		rotatedSecrets, err := secrets.Rotate(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		// Set internal secrets to the new value and exit transaction.
+		d.internalSecrets = rotatedSecrets
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Above transaction set the internal secrets to a new valid value. Return a copy.
+	return slices.Clone(d.internalSecrets), nil
 }
 
 // State creates a new State instance linked to our internal db and os.
