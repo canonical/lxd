@@ -91,8 +91,12 @@ const (
 )
 
 // Tells if the given value can be assigned to this particular Value instance.
-func (v *Key) validate(value string) error {
+func (v *Key) validate(value string, isInitial bool) error {
 	validator := v.Validator
+	if isInitial && v.ValidatorInitial != nil {
+		validator = v.ValidatorInitial
+	}
+
 	if validator == nil {
 		// Dummy validator
 		validator = func(string) error { return nil }

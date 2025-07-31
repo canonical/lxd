@@ -229,7 +229,7 @@ func (m *Map) set(name string, value string, initial bool) (bool, error) {
 		value = key.Default
 	}
 
-	err := key.validate(value)
+	err := key.validate(value, initial)
 	if err != nil {
 		return false, err
 	}
