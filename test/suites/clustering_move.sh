@@ -41,6 +41,10 @@ test_clustering_move() {
   LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c3 --target node3
 
   LXD_DIR="${LXD_ONE_DIR}" lxc project create test-project --force-local # Create test project using unix socket.
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage create test-pool dir --target node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage create test-pool dir --target node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage create test-pool dir --target node3
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage create test-pool dir
 
   # Set up a fine-grained TLS identity.
   token="$(LXD_DIR=${LXD_ONE_DIR} lxc auth identity create tls/test --quiet)"
@@ -68,6 +72,13 @@ test_clustering_move() {
   lxc move cluster:c1 --target node3 --target-project default --project test-project
   lxc info cluster:c1 | grep -xF "Location: node3"
   lxc query cluster:/1.0/instances/c1 | jq -re '.project == "default"'
+
+  # c1 can be moved to a new target project, pool, and location.
+  lxc move cluster:c1 --target node2 --target-project test-project --project default --storage test-pool
+  lxc info cluster:c1 --project test-project | grep -xF "Location: node2"
+  lxc query cluster:/1.0/instances/c1?project=test-project | jq -re '.project == "test-project"'
+  lxc query cluster:/1.0/instances/c1?project=test-project | jq -re '.devices.root.pool == "test-pool"'
+  lxc move cluster:c1 --target-project default --project test-project --storage data
 
   lxc move cluster:c1 --target @foobar1
   [ "$(lxc list -f csv -c L cluster:c1)" = "node1" ]
