@@ -116,7 +116,7 @@
 					{
 						"path": {
 							"condition": "container",
-							"longdesc": "This option specifies the path inside the container where the disk will be mounted.",
+							"longdesc": "This option specifies the path inside the container where the disk will be mounted.\nFor containers, this option allows mounting filesystem disk devices, as well as specific paths and individual files within those devices.\nFor VMs, this option allows mounting filesystem disk devices and paths within them. Mounting individual files is not supported.",
 							"required": "yes",
 							"shortdesc": "Mount path",
 							"type": "string"
