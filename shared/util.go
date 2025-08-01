@@ -800,6 +800,11 @@ func IsUserConfig(key string) bool {
 	return strings.HasPrefix(key, "user.")
 }
 
+// IsProjectStorageConfig returns true if the key starts with the prefix "storage.project.".
+func IsProjectStorageConfig(key string) bool {
+	return strings.HasPrefix(key, "storage.project.")
+}
+
 // StringMapHasStringKey returns true if any of the supplied keys are present in the map.
 func StringMapHasStringKey(m map[string]string, keys ...string) bool {
 	for _, k := range keys {

@@ -419,7 +419,7 @@ func (d *common) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcAr
 }
 
 // BackupVolume creates an exported version of a volume.
-func (d *common) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
+func (d *common) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
 	return ErrNotSupported
 }
 

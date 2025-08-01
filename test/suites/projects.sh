@@ -1267,3 +1267,144 @@ test_projects_before_init() {
 
   shutdown_lxd "${LXD_INIT_DIR}"
 }
+
+test_projects_images_volume() {
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+  lxc storage volume create "${pool}" vol
+
+  # Can't be set on non-existing projects
+  ! lxc config set storage.project.foo.images_volume="${pool}/vol" || false
+
+  lxc project create foo
+
+  if [ "${LXD_BACKEND}" = "ceph" ]; then
+    # This won't work on ceph because it's not a multi-node storage
+    ! lxc config set storage.project.foo.images_volume="${pool}/vol" || false
+    # Clean up
+    lxc project delete foo
+    lxc storage volume delete "${pool}" vol
+    return
+  fi
+
+  # Check that projects without images can't have dedicated images storage
+  lxc project set foo features.images=false
+  ! lxc config set storage.project.foo.images_volume="${pool}/vol" || false
+  lxc project set foo features.images=true
+
+  lxc config set storage.project.foo.images_volume="${pool}/vol"
+
+  # It should be possible to change the setting on empty projects
+  lxc config unset storage.project.foo.images_volume
+  lxc config set storage.project.foo.images_volume="${pool}/vol"
+
+  # Import an image into the project and grab its fingerprint
+  lxc project switch foo
+  ensure_import_testimage
+  fingerprint="$(lxc image list -f csv -c F testimage)"
+  lxc project switch default
+
+  # The image should not exist in the default storage, only in the project images volume
+  [ ! -e "${LXD_DIR}/images/${fingerprint}" ]
+  [ -z "$(ls -A "${LXD_DIR}/images")" ]
+  [ -f "${LXD_DIR}/storage-pools/${pool}/custom/default_vol/images/${fingerprint}" ]
+
+  # It should not be possible to change the setting on non-empty projects
+  ! lxc config unset storage.project.foo.images_volume || false
+
+  # It should be possible to share the volume among multiple projects
+  lxc project create foo2
+  lxc config set storage.project.foo2.images_volume="${pool}/vol"
+  [ "$(lxc config get storage.project.foo2.images_volume)" = "${pool}/vol" ]
+  lxc project switch foo2
+  ensure_import_testimage
+  lxc image delete testimage
+  lxc project switch default
+  lxc project delete foo2
+
+  # Removal of the project should clear the setting too
+  [ "$(lxc config get storage.project.foo2.images_volume)" = "" ]
+
+  # Import the image in the default project and storage, and ensure it's gone after removal
+  ensure_import_testimage
+  [ -e "${LXD_DIR}/images/${fingerprint}" ]
+  lxc image delete testimage
+  [ ! -e "${LXD_DIR}/images/${fingerprint}" ]
+  [ -z "$(ls -A "${LXD_DIR}/images")" ]
+
+  # It should not be possible to move daemon storage to the same volume
+  ! lxc config set storage.images_volume="${pool}/vol" || false
+
+  # Create a container in the project
+  lxc init --project foo --storage "${pool}" testimage c1
+
+  # Delete the container
+  lxc delete --project foo c1
+
+  # Delete the image
+  lxc image delete --project foo testimage
+  [ -z "$(ls -A "${LXD_DIR}/storage-pools/${pool}/custom/default_vol/images")" ]
+
+  # Clean up
+  lxc project delete foo
+  lxc storage volume delete "${pool}" vol
+}
+
+test_projects_backups_volume() {
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+  lxc storage volume create "${pool}" vol
+
+  # Can't be set on non-existing projects
+  ! lxc config set storage.project.foo.backups_volume="${pool}/vol" || false
+
+  lxc project create foo
+
+  if [ "${LXD_BACKEND}" = "ceph" ]; then
+    # This won't work on ceph because it's not a multi-node storage
+    ! lxc config set storage.project.foo.backups_volume="${pool}/vol" || false
+    # Clean up
+    lxc project delete foo
+    lxc storage volume delete "${pool}" vol
+    return
+  fi
+
+  # Create test project sharing the storage for images and backups
+  lxc config set storage.project.foo.images_volume="${pool}/vol"
+  lxc config set storage.project.foo.backups_volume="${pool}/vol"
+
+  # It should be possible to change the setting on empty projects
+  lxc config unset storage.project.foo.backups_volume
+  lxc config set storage.project.foo.backups_volume="${pool}/vol"
+
+  # It should not be possible to move daemon storage to the same volume
+  ! lxc config set storage.backups_volume="${pool}/vol" || false
+
+  # Import an image into the project
+  lxc project switch foo
+
+  # Create a container in the project
+  lxc init --storage "${pool}" --empty c1
+
+  # Take the backup
+  lxc query -X POST --wait -d '{\"name\":\"bak\"}' "/1.0/instances/c1/backups?project=foo"
+
+  # Make sure the backup does not exist in the default storage
+  [ -d "${LXD_DIR}/backups/instances" ]
+  [ -z "$(ls -A "${LXD_DIR}/backups/instances")" ]
+
+  # Make sure the backup does exist in the dedicated pool
+  [ -d "${LXD_DIR}/storage-pools/${pool}/custom/default_vol/backups/instances" ]
+  [ -d "${LXD_DIR}/storage-pools/${pool}/custom/default_vol/backups/instances/foo_c1" ]
+  [ -f "${LXD_DIR}/storage-pools/${pool}/custom/default_vol/backups/instances/foo_c1/bak" ]
+
+  # Delete the container
+  lxc delete c1
+
+  # Ensure the backup is gone
+  [ -d "${LXD_DIR}/storage-pools/${pool}/custom/default_vol/backups/instances" ]
+  [ -z "$(ls -A "${LXD_DIR}/storage-pools/${pool}/custom/default_vol/backups/instances")" ]
+
+  # Clean up
+  lxc project switch default
+  lxc project delete foo
+  lxc storage volume delete "${pool}" vol
+}

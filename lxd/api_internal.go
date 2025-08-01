@@ -165,8 +165,9 @@ var internalIdentityCacheRefreshCmd = APIEndpoint{
 }
 
 type internalImageOptimizePost struct {
-	Image api.Image `json:"image" yaml:"image"`
-	Pool  string    `json:"pool"  yaml:"pool"`
+	Image   api.Image `json:"image"    yaml:"image"`
+	Pool    string    `json:"pool"     yaml:"pool"`
+	Project string    `json:"project"  yaml:"project"`
 }
 
 type internalWarningCreatePost struct {
@@ -215,7 +216,7 @@ func internalOptimizeImage(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	err = imageCreateInPool(s, &req.Image, req.Pool)
+	err = imageCreateInPool(s, &req.Image, req.Pool, req.Project)
 	if err != nil {
 		return response.SmartError(err)
 	}
