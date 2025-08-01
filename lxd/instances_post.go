@@ -1310,7 +1310,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				Reason:        apiScriptlet.InstancePlacementReasonNew,
 			}
 
-			var globalConfigDump map[string]any
+			var globalConfigDump map[string]string
 			if s.GlobalConfig != nil {
 				globalConfigDump = s.GlobalConfig.Dump()
 			}
