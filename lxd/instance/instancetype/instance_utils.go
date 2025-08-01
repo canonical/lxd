@@ -9,12 +9,12 @@ import (
 )
 
 // ExpandInstanceConfig expands the given instance config with the config values of the given profiles.
-func ExpandInstanceConfig(globalConfig map[string]any, config map[string]string, profiles []api.Profile) map[string]string {
+func ExpandInstanceConfig(globalConfig map[string]string, config map[string]string, profiles []api.Profile) map[string]string {
 	expandedConfig := map[string]string{}
 
 	// Apply global config overriding
 	if globalConfig != nil {
-		globalInstancesMigrationStatefulStr, ok := globalConfig["instances.migration.stateful"].(string)
+		globalInstancesMigrationStatefulStr, ok := globalConfig["instances.migration.stateful"]
 		if ok {
 			globalInstancesMigrationStateful, _ := strconv.ParseBool(globalInstancesMigrationStatefulStr)
 			if globalInstancesMigrationStateful {
