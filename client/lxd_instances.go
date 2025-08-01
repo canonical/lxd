@@ -1707,6 +1707,8 @@ func (r *ProtocolLXD) CreateInstanceFile(instanceName string, filePath string, a
 		req.Header.Set("X-LXD-modify-perm", strings.Join(modifyPerm, ","))
 	}
 
+	req.Header.Set("Content-Type", "application/octet-stream")
+
 	// Send the request
 	resp, err := r.DoHTTP(req)
 	if err != nil {

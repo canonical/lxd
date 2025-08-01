@@ -19,11 +19,11 @@ test_devlxd() {
   lxc file push --mode 0755 "devlxd-client/devlxd-client" devlxd/bin/
 
   # Try to get a host's private image from devlxd.
-  [ "$(lxc exec devlxd -- devlxd-client image-export "${fingerprint}")" = "not authorized" ]
+  [ "$(lxc exec devlxd -- devlxd-client image-export "${fingerprint}")" = "Forbidden" ]
   lxc config set devlxd security.devlxd.images true
   # Trying to get a private image should return a not found error so that the client can't infer the existence
   # of an image with the provided fingerprint.
-  [ "$(lxc exec devlxd -- devlxd-client image-export "${fingerprint}")" = "not found" ]
+  [ "$(lxc exec devlxd -- devlxd-client image-export "${fingerprint}")" = "Not Found" ]
   lxd sql global "UPDATE images SET cached=1 WHERE fingerprint=\"${fingerprint}\""
   # No output means the export succeeded.
   [ -z "$(lxc exec devlxd -- devlxd-client image-export "${fingerprint}")" ]
@@ -35,9 +35,9 @@ test_devlxd() {
   [ "$(lxc exec devlxd -- devlxd-client user.foo)" = "bar %s bar" ]
 
   # Make sure instance configuration keys are not accessible
-  [ "$(lxc exec devlxd -- devlxd-client security.nesting)" = "not authorized" ]
+  [ "$(lxc exec devlxd -- devlxd-client security.nesting)" = "Forbidden" ]
   lxc config set devlxd security.nesting true
-  [ "$(lxc exec devlxd -- devlxd-client security.nesting)" = "not authorized" ]
+  [ "$(lxc exec devlxd -- devlxd-client security.nesting)" = "Forbidden" ]
 
   cmd=$(unset -f lxc; command -v lxc)
   ${cmd} exec devlxd -- devlxd-client monitor-websocket > "${TEST_DIR}/devlxd-websocket.log" &

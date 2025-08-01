@@ -63,7 +63,7 @@ func load(s *state.State, args db.InstanceArgs, p api.Project) (instance.Instanc
 	case instancetype.VM:
 		inst, err = qemuLoad(s, args, p)
 	default:
-		return nil, fmt.Errorf("Invalid instance type for instance %s", args.Name)
+		return nil, fmt.Errorf("Invalid type for instance %q", args.Name)
 	}
 
 	if err != nil {

@@ -65,7 +65,7 @@ var imagesCmd = APIEndpoint{
 	MetricsType: entity.TypeImage,
 
 	Get:  APIEndpointAction{Handler: imagesGet, AllowUntrusted: true},
-	Post: APIEndpointAction{Handler: imagesPost, AllowUntrusted: true},
+	Post: APIEndpointAction{Handler: imagesPost, AllowUntrusted: true, ContentTypes: []string{"application/json", "application/octet-stream", "multipart/form-data"}},
 }
 
 var imageCmd = APIEndpoint{
@@ -1021,6 +1021,8 @@ func imageCreateInPool(s *state.State, info *api.Image, storagePool string) erro
 //	---
 //	consumes:
 //	  - application/json
+//	  - application/octet-stream
+//	  - multipart/form-data
 //	produces:
 //	  - application/json
 //	parameters:
@@ -1765,8 +1767,6 @@ func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectN
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func imagesGet(d *Daemon, r *http.Request) response.Response {
-	projectName := request.ProjectParam(r)
-	allProjects := shared.IsTrue(r.FormValue("all-projects"))
 	filterStr := r.FormValue("filter")
 
 	recursion := util.IsRecursionRequest(r)
@@ -1775,24 +1775,22 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// ProjectParam returns default if not set
-	if allProjects && projectName != api.ProjectDefaultName {
-		return response.BadRequest(errors.New("Cannot specify a project when requesting all projects"))
-	}
-
-	s := d.State()
-	var effectiveProjectName string
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
-		effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
-		return err
-	})
+	projectName, allProjects, err := request.ProjectParams(r)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	reqInfo := request.SetupContextInfo(r)
-	reqInfo.EffectiveProjectName = effectiveProjectName
+	s := d.State()
+	if !allProjects {
+		reqInfo := request.SetupContextInfo(r)
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			reqInfo.EffectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
+			return err
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
 
 	// If the caller is not trusted, we only want to list public images in the default project.
 	trusted := auth.IsTrusted(r.Context())

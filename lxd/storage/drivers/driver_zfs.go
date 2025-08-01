@@ -174,7 +174,7 @@ func (d zfs) ensureInitialDatasets(warnOnExistingPolicyApplyError bool) error {
 			properties = append(properties, "volmode=none")
 		}
 
-		datasetPath := filepath.Join(d.config["zfs.pool_name"], dataset)
+		datasetPath := d.config["zfs.pool_name"] + "/" + dataset
 		exists, err := d.datasetExists(datasetPath)
 		if err != nil {
 			return err
@@ -255,6 +255,9 @@ func (d *zfs) Create() error {
 	// Store the provided source as we are likely to be mangling it.
 	d.config["volatile.initial_source"] = d.config["source"]
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	err := d.FillConfig()
 	if err != nil {
 		return err
@@ -277,6 +280,8 @@ func (d *zfs) Create() error {
 		if err != nil {
 			return err
 		}
+
+		revert.Add(func() { _ = os.Remove(d.config["source"]) })
 
 		// Create the zpool.
 		_, err = shared.RunCommandContext(d.state.ShutdownCtx, "zpool", "create", "-m", "none", "-O", "compression=on", d.config["zfs.pool_name"], loopPath)
@@ -371,10 +376,6 @@ func (d *zfs) Create() error {
 			return fmt.Errorf(`Provided ZFS pool (or dataset) isn't empty, run "sudo zfs list -r %s" to see existing entries`, d.config["zfs.pool_name"])
 		}
 	}
-
-	// Setup revert in case of problems
-	revert := revert.New()
-	defer revert.Fail()
 
 	revert.Add(func() { _ = d.Delete(nil) })
 

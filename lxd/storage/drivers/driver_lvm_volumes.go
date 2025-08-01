@@ -719,7 +719,7 @@ func (d *lvm) ListVolumes() ([]Volume, error) {
 		return nil, fmt.Errorf("Failed getting volume list: %v: %w", strings.TrimSpace(string(errMsg)), err)
 	}
 
-	volList := make([]Volume, len(vols))
+	volList := make([]Volume, 0, len(vols))
 	for _, v := range vols {
 		volList = append(volList, v)
 	}
@@ -791,6 +791,7 @@ func (d *lvm) mountCommon(vol Volume, op *operations.Operation) error {
 			volDevPath = d.lvmDevPath(d.config["lvm.vg_name"], mountVol.volType, mountVol.contentType, mountVol.name)
 
 			tmpVolFsType := mountVol.ConfigBlockFilesystem()
+			mountOptions = addNoRecoveryMountOption(mountOptions, tmpVolFsType)
 
 			// When mounting XFS filesystems temporarily we can use the nouuid option rather than fully
 			// regenerating the filesystem UUID.

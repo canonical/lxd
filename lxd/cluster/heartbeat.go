@@ -284,16 +284,16 @@ func (g *Gateway) HeartbeatRestart() bool {
 }
 
 func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
-	if g.Cluster == nil || g.server == nil || g.memoryDial != nil {
-		// We're not a raft node or we're not clustered
-		return
-	}
-
 	// Avoid concurent heartbeat loops.
 	// This is possible when both the regular task and the out of band heartbeat round from a dqlite
 	// connection or notification restart both kick in at the same time.
 	g.HeartbeatLock.Lock()
 	defer g.HeartbeatLock.Unlock()
+
+	if g.Cluster == nil || g.server == nil || g.memoryDial != nil {
+		// We're not a raft node or we're not clustered
+		return
+	}
 
 	// Acquire the cancellation lock and populate it so that this heartbeat round can be cancelled if a
 	// notification cancellation request arrives during the round. Also setup a defer so that the cancellation

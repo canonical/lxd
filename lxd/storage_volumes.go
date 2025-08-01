@@ -37,6 +37,7 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
+	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -74,7 +75,7 @@ var storagePoolVolumesTypeCmd = APIEndpoint{
 	MetricsType: entity.TypeStoragePool,
 
 	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowProjectResourceList},
-	Post: APIEndpointAction{Handler: storagePoolVolumesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateStorageVolumes)},
+	Post: APIEndpointAction{Handler: storagePoolVolumesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateStorageVolumes), ContentTypes: []string{"application/json", "application/octet-stream"}},
 }
 
 var storagePoolVolumeTypeCmd = APIEndpoint{
@@ -669,13 +670,9 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Detect project mode.
-	requestProjectName := request.QueryParam(r, "project")
-	allProjects := shared.IsTrue(request.QueryParam(r, "all-projects"))
-
-	if allProjects && requestProjectName != "" {
-		return response.SmartError(api.StatusErrorf(http.StatusBadRequest, "Cannot specify a project when requesting all projects"))
-	} else if !allProjects && requestProjectName == "" {
-		requestProjectName = api.ProjectDefaultName
+	requestProjectName, allProjects, err := request.ProjectParams(r)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	var dbVolumes []*db.StorageVolume
@@ -957,6 +954,7 @@ func filterVolumes(volumes []*db.StorageVolume, clauses *filter.ClauseSet, allPr
 //	---
 //	consumes:
 //	  - application/json
+//	  - application/octet-stream
 //	produces:
 //	  - application/json
 //	parameters:
@@ -1025,9 +1023,9 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check new volume name is valid.
-	err = storagePools.ValidVolumeName(req.Name)
+	err = storageDrivers.ValidVolumeName(req.Name)
 	if err != nil {
-		return response.BadRequest(err)
+		return response.BadRequest(fmt.Errorf("Invalid volume name %q: %w", req.Name, err))
 	}
 
 	// Backward compatibility.
@@ -1409,9 +1407,9 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check new volume name is valid.
-	err = storagePools.ValidVolumeName(req.Name)
+	err = storageDrivers.ValidVolumeName(req.Name)
 	if err != nil {
-		return response.BadRequest(err)
+		return response.BadRequest(fmt.Errorf("Invalid volume name %q: %w", req.Name, err))
 	}
 
 	// We currently only allow to create storage volumes of type storagePoolVolumeTypeCustom.

@@ -137,10 +137,10 @@ cleanup() {
     if [ "${TEST_RESULT}" != "success" ]; then
       echo "==> FAILED TEST: ${TEST_CURRENT#test_} (${TEST_CURRENT_DESCRIPTION})"
       # red
-      PS1_PREFIX="\033[0;31mLXD-TEST\033[0m"
+      PS1_PREFIX="\[\033[0;31m\]LXD-TEST\[\033[0m\]"
     else
       # green
-      PS1_PREFIX="\033[0;32mLXD-TEST\033[0m"
+      PS1_PREFIX="\[\033[0;32m\]LXD-TEST\[\033[0m\]"
     fi
     echo "==> Test result: ${TEST_RESULT}"
 
@@ -190,6 +190,7 @@ cleanup() {
     [ -e "${LXD_TEST_IMAGE:-}" ] && rm "${LXD_TEST_IMAGE}"
 
     kill_oidc
+    clear_ovn_nb_db
     mountpoint -q "${TEST_DIR}/dev" && umount -l "${TEST_DIR}/dev"
     cleanup_lxds "$TEST_DIR"
 
@@ -204,6 +205,10 @@ cleanup() {
   fi
   echo "==> Test result: ${TEST_RESULT}"
 }
+
+if [ -n "${SHELL_TRACING:-}" ]; then
+  set -x
+fi
 
 # Must be set before cleanup()
 TEST_CURRENT=setup

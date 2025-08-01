@@ -256,6 +256,7 @@ type APIEndpointAction struct {
 	Handler        func(d *Daemon, r *http.Request) response.Response
 	AccessHandler  func(d *Daemon, r *http.Request) response.Response
 	AllowUntrusted bool
+	ContentTypes   []string // Client content types to allow.
 }
 
 // allowAuthenticated is an AccessHandler which allows only authenticated requests. This should be used in conjunction
@@ -351,13 +352,18 @@ func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(nil)
 	}
 
+	requestProjectName, allProjects, err := request.ProjectParams(r)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// all-projects requests are not allowed
-	if shared.IsTrue(request.QueryParam(r, "all-projects")) {
+	if allProjects {
 		return response.Forbidden(errors.New("Certificate is restricted"))
 	}
 
 	// Disallow listing resources in projects the caller does not have access to.
-	if !slices.Contains(id.Projects, request.ProjectParam(r)) {
+	if !slices.Contains(id.Projects, requestProjectName) {
 		return response.Forbidden(errors.New("Certificate is restricted"))
 	}
 
@@ -935,6 +941,21 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			// Deny Sec-Fetch-Site when set to cross-site or same-site.
 			if slices.Contains(secFetchSiteForbidden, r.Header.Get("Sec-Fetch-Site")) {
 				return response.ErrorResponse(http.StatusForbidden, "Forbidden Sec-Fetch-Site header value")
+			}
+
+			if len(action.ContentTypes) == 0 {
+				// Require application/json if not specified by handler.
+				action.ContentTypes = []string{"application/json"}
+			}
+
+			// Validate browser Content-Type if supplied, or if non-zero Content-Length supplied.
+			if isBrowserClient(r) {
+				contentTypeParts := shared.SplitNTrimSpace(r.Header.Get("Content-Type"), ";", 2, false) // Ignore multi-part boundary part.
+				contentLength := r.Header.Get("Content-Length")
+				hasContentLength := contentLength != "" && contentLength != "0"
+				if (hasContentLength || contentTypeParts[0] != "") && !slices.Contains(action.ContentTypes, contentTypeParts[0]) {
+					return response.ErrorResponse(http.StatusUnsupportedMediaType, "Unsupported Content-Type for this request")
+				}
 			}
 
 			// All APIEndpointActions should have an access handler or should allow untrusted requests.
@@ -1534,7 +1555,10 @@ func (d *Daemon) init() error {
 
 			_ = hbGroup.Stop(time.Second)
 			_ = d.gateway.Cluster.Close()
+
+			d.gateway.HeartbeatLock.Lock()
 			d.gateway.Cluster = nil
+			d.gateway.HeartbeatLock.Unlock()
 
 			continue
 		}
@@ -1865,7 +1889,16 @@ func (d *Daemon) init() error {
 		// Setup seccomp handler
 		if d.os.SeccompListener {
 			seccompServer, err := seccomp.NewSeccompServer(d.State(), shared.VarPath("seccomp.socket"), func(pid int32, state *state.State) (seccomp.Instance, error) {
-				return findContainerForPID(pid, state)
+				// We trust the pid from the seccomp listener is the correct LXC monitor PID, as
+				// we cannot call c.InitPID() inside the seccomp handler to check the PID NS as it
+				// would deadlock.
+				c, err := loadContainerFromLXCMonitorPID(state, pid)
+				if err != nil {
+					logger.Warn("Could not match PID to container for seccomp", logger.Ctx{"pid": pid, "err": err})
+					return nil, errPIDNotInContainer
+				}
+
+				return c, nil
 			})
 			if err != nil {
 				return err

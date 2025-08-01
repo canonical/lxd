@@ -218,17 +218,19 @@ func profileAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.
 func profilesGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	requestProjectName := request.ProjectParam(r)
-	allProjects := shared.IsTrue(request.QueryParam(r, "all-projects"))
-
-	// requestProjectName is only valid for project specific requests.
-	if allProjects && requestProjectName != api.ProjectDefaultName {
-		return response.BadRequest(errors.New("Cannot specify a project when requesting all projects"))
-	}
-
-	p, err := project.ProfileProject(s.DB.Cluster, requestProjectName)
+	requestProjectName, allProjects, err := request.ProjectParams(r)
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	reqInfo := request.SetupContextInfo(r)
+	if !allProjects {
+		p, err := project.ProfileProject(s.DB.Cluster, requestProjectName)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		reqInfo.EffectiveProjectName = p.Name
 	}
 
 	recursion := util.IsRecursionRequest(r)
@@ -236,9 +238,6 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
-
-	reqInfo := request.SetupContextInfo(r)
-	reqInfo.EffectiveProjectName = p.Name
 
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeProfile)
 	if err != nil {
@@ -252,7 +251,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 		var profiles []dbCluster.Profile
 		if !allProjects {
 			filter := dbCluster.ProfileFilter{
-				Project: &p.Name,
+				Project: &reqInfo.EffectiveProjectName,
 			}
 
 			profiles, err = dbCluster.GetProfiles(ctx, tx.Tx(), filter)

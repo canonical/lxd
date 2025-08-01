@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"golang.org/x/sys/unix"
 
@@ -591,7 +592,10 @@ func regenerateFilesystemBTRFSUUID(devPath string) error {
 		return err
 	}
 
-	_, err = shared.RunCommandContext(context.TODO(), "btrfstune", "-f", "-u", devPath)
+	// `-m` modifies the metadata_uuid which is much faster than `-u` that rewrites all metadata blocks.
+	// The resulting filesystem needs kernel 5.0+ to be mounted or running `btrfstune -u` to regain compat
+	// with older kernels.
+	_, err = shared.RunCommandContext(context.TODO(), "btrfstune", "-f", "-m", devPath)
 	if err != nil {
 		return err
 	}
@@ -622,6 +626,41 @@ func regenerateFilesystemXFSUUID(devPath string) error {
 	}
 
 	return nil
+}
+
+// addNoRecoveryMountOption adds the `norecovery` mount option to the provided mount options.
+// btrfs/ext4/xfs can do some form of recovery if the filesystem was not cleanly unmounted.
+// To prevent this kind of write access, we mount the filesystem with the ro,norecovery mount options.
+// For ext4, norecovery is a synonym for noload, which prevents the journal from being loaded on mounting.
+func addNoRecoveryMountOption(mountOptions string, filesystem string) string {
+	// If the filesystem is not one of the supported types, return unchanged.
+	if !slices.Contains(blockBackedAllowedFilesystems, filesystem) {
+		return mountOptions
+	}
+
+	// Add norecovery as the first mount options.
+	if mountOptions == "" {
+		return "norecovery"
+	}
+
+	// Already contains norecovery, so return unchanged.
+	options := strings.Split(mountOptions, ",")
+
+	// For ext4, noload is a synonym for norecovery.
+	if filesystem == "ext4" {
+		for i, option := range options {
+			if option == "noload" {
+				options[i] = "norecovery"
+				break
+			}
+		}
+	}
+
+	if !slices.Contains(options, "norecovery") {
+		options = append(options, "norecovery")
+	}
+
+	return strings.Join(options, ",")
 }
 
 // copyDevice copies one device path to another using dd running at low priority.
@@ -893,5 +932,59 @@ func remoteVolumeMapLock(connectorName string, driverName string) (locking.Unloc
 	l.Debug("Acquiring lock for remote volume map")
 	defer l.Debug("Lock acquired for remote volume map")
 
-	return locking.Lock(context.TODO(), fmt.Sprintf("RemoteVolumeMap_%s_%s", connectorName, driverName))
+	return locking.Lock(context.TODO(), "RemoteVolumeMap_"+connectorName+"_"+driverName)
+}
+
+// ValidPoolName validates a pool name.
+func ValidPoolName(poolName string) error {
+	if poolName == "" {
+		return errors.New("Cannot be empty")
+	}
+
+	if strings.HasPrefix(poolName, ".") {
+		return errors.New("Cannot start with a dot")
+	}
+
+	if strings.HasPrefix(poolName, "-") {
+		return errors.New("Cannot start with a hyphen")
+	}
+
+	if strings.Contains(poolName, shared.SnapshotDelimiter) {
+		return errors.New("Cannot contain slashes")
+	}
+
+	for _, r := range poolName {
+		if unicode.IsSpace(r) {
+			return errors.New("Cannot contain white space")
+		}
+	}
+
+	return nil
+}
+
+// ValidVolumeName validates a volume name.
+func ValidVolumeName(volumeName string) error {
+	if volumeName == "" {
+		return errors.New("Cannot be empty")
+	}
+
+	if volumeName == ".." {
+		return errors.New(`Cannot be ".."`)
+	}
+
+	if strings.Contains(volumeName, "\\") {
+		return errors.New("Cannot contain backslashes")
+	}
+
+	if strings.Contains(volumeName, shared.SnapshotDelimiter) {
+		return errors.New("Cannot contain slashes")
+	}
+
+	for _, r := range volumeName {
+		if unicode.IsSpace(r) {
+			return errors.New("Cannot contain white space")
+		}
+	}
+
+	return nil
 }

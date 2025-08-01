@@ -544,7 +544,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanEditStoragePools,
 		// Grants permission to delete storage pools.
 		EntitlementCanDeleteStoragePools,
-		// Grants permission to view, create, edit, and delete projects, and to create, edit, and delete any resources that are owned by those projects.
+		// Grants permission to create, view, edit, and delete projects, and to create, view, edit, and delete resources belonging to any project.
 		EntitlementProjectManager,
 		// Grants permission to create projects.
 		EntitlementCanCreateProjects,
