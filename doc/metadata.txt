@@ -565,6 +565,14 @@ You can specify this option instead of specifying the `nictype` directly.
 
 ```
 
+```{config:option} required device-nic-bridged-device-conf
+:defaultdesc: "`true`"
+:required: "no"
+:shortdesc: "Whether to fail if the parent network isn't available"
+:type: "bool"
+
+```
+
 ```{config:option} security.ipv4_filtering device-nic-bridged-device-conf
 :defaultdesc: "`false`"
 :managed: "no"
@@ -779,6 +787,14 @@ You can specify this option instead of specifying the `nictype` directly.
 
 ```
 
+```{config:option} required device-nic-macvlan-device-conf
+:defaultdesc: "`true`"
+:required: "no"
+:shortdesc: "Whether to fail if the parent network isn't available"
+:type: "bool"
+
+```
+
 ```{config:option} vlan device-nic-macvlan-device-conf
 :managed: "no"
 :shortdesc: "VLAN ID to attach to"
@@ -882,6 +898,14 @@ See also {config:option}`device-nic-ovn-device-conf:vlan`.
 :required: "yes"
 :shortdesc: "Managed network to link the device to"
 :type: "string"
+
+```
+
+```{config:option} required device-nic-ovn-device-conf
+:defaultdesc: "`true`"
+:required: "no"
+:shortdesc: "Whether to fail if the parent network isn't available"
+:type: "bool"
 
 ```
 
