@@ -5,4 +5,6 @@ redirects = {
     'explanation/clustering/index': '../clusters/',
     'migration/index': '../howto/instances_migrate',
     'howto/move_instances/index': '../instances_migrate/',
+    'tutorial/index': 'first_steps',
+    'tutorial/ui/index': '../first_steps',
 }
