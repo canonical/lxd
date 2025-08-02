@@ -229,7 +229,7 @@ To export a storage volume, navigate to the {guilabel}`Overview` tab for the tar
 
 In the resulting modal, configure the export file for the storage volume, including its compression mode and expiration.
 
-```{figure} /images/storage/storage_volumes_snapshots_export.png
+```{figure} /images/storage/storage_volumes_export.png
 :width: 60%
 :alt: LXD Storage Volumes - Snapshots tab
 ```
@@ -258,7 +258,7 @@ To restore a storage volume from an export file, select {guilabel}`Volumes` from
 
 Choose the volume file to upload, and select the storage pool for the volume to be created using the export file.
 
-```{figure} /images/storage/storage_volumes_snapshots_import.png
+```{figure} /images/storage/storage_volumes_import.png
 :width: 60%
 :alt: LXD Storage Volumes - Snapshots tab
 ```
