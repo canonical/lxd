@@ -68,6 +68,11 @@ type Key struct {
 	// changed.
 	Validator func(string) error
 
+	// Optional function used to validate values when the Map is initially loaded.
+	// If this is not set, then Validator is used instead. If neither is set,
+	// validation is performed only against the defined Type.
+	ValidatorInitial func(string) error
+
 	// Optional function to manipulate a value before it's actually saved
 	// in a Map. It's called only by Map.Change(), and not by Load() since
 	// values passed to Load() are supposed to have been previously
@@ -86,8 +91,12 @@ const (
 )
 
 // Tells if the given value can be assigned to this particular Value instance.
-func (v *Key) validate(value string) error {
+func (v *Key) validate(value string, isInitial bool) error {
 	validator := v.Validator
+	if isInitial && v.ValidatorInitial != nil {
+		validator = v.ValidatorInitial
+	}
+
 	if validator == nil {
 		// Dummy validator
 		validator = func(string) error { return nil }

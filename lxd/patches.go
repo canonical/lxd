@@ -102,6 +102,7 @@ var patches = []patch{
 	{name: "oidc_groups_claim_scope", stage: patchPreLoadClusterConfig, run: patchOIDCGroupsClaimScope},
 	{name: "remove_backupsimages_symlinks", stage: patchPostDaemonStorage, run: patchRemoveBackupsImagesSymlinks},
 	{name: "move_images_storage", stage: patchPostDaemonStorage, run: patchMoveBackupsImagesStorage},
+	{name: "cluster_config_volatile_uuid", stage: patchPreLoadClusterConfig, run: patchClusterConfigVolatileUUID},
 }
 
 type patch struct {
@@ -1566,6 +1567,31 @@ func patchMoveBackupsImagesStorage(name string, d *Daemon) error {
 	}
 
 	return nil
+}
+
+// patchClusterConfigVolatileUUID checks if the clusterUUID is defined and if not, adds a row to the `config` table with
+// a `volatile.uuid` key and a random v4 UUID value.
+func patchClusterConfigVolatileUUID(name string, d *Daemon) error {
+	return d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// Get current configuration.
+		globalConfig, err := clusterConfig.Load(ctx, tx)
+		if err != nil {
+			return err
+		}
+
+		// If the cluster UUID has been set, return.
+		if globalConfig.ClusterUUID() != (uuid.UUID{}) {
+			return nil
+		}
+
+		// Otherwise, insert a value into the database.
+		_, err = tx.Tx().Exec(`INSERT INTO config (key, value) VALUES ('volatile.uuid', ?)`, uuid.NewString())
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
 // Patches end here
