@@ -420,9 +420,15 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
 	} else if err == nil {
-		fullSrv.Config, err = daemonConfigRender(s)
+		daemonConfig, err := daemonConfigRender(s)
 		if err != nil {
 			return response.InternalError(err)
+		}
+
+		// Convert the internal map[string]string config to the API format of map[string]any.
+		fullSrv.Config = make(map[string]any, len(daemonConfig))
+		for key, value := range daemonConfig {
+			fullSrv.Config[key] = value
 		}
 	}
 
@@ -516,7 +522,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 
 		// Copy the old config so that the update triggers have access to it.
 		// In this case it will not be used as we are not changing any node values.
-		oldNodeConfig := make(map[string]any)
+		oldNodeConfig := make(map[string]string)
 		maps.Copy(oldNodeConfig, s.LocalConfig.Dump())
 
 		// Run any update triggers.
@@ -614,20 +620,30 @@ func api10Patch(d *Daemon, r *http.Request) response.Response {
 func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) response.Response {
 	s := d.State()
 
+	// Convert the request config to a map[string]string.
+	stringReqConfig := make(map[string]string, len(req.Config))
+	for key, value := range req.Config {
+		var ok bool
+		stringReqConfig[key], ok = value.(string)
+		if !ok {
+			return response.BadRequest(fmt.Errorf("Unexpected type for %q: %T", key, value))
+		}
+	}
+
 	// First deal with config specific to the local daemon
-	nodeValues := map[string]any{}
+	nodeValues := map[string]string{}
 
 	for key := range node.ConfigSchema {
-		value, ok := req.Config[key]
+		value, ok := stringReqConfig[key]
 		if ok {
 			nodeValues[key] = value
-			delete(req.Config, key)
+			delete(stringReqConfig, key)
 		}
 	}
 
 	nodeChanged := map[string]string{}
 	var newNodeConfig *node.Config
-	oldNodeConfig := make(map[string]any)
+	oldNodeConfig := make(map[string]string)
 
 	err := s.DB.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
@@ -649,7 +665,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 			newClusterHTTPSAddress := ""
 			newClusterHTTPSAddressAny, found := nodeValues["cluster.https_address"]
 			if found {
-				newClusterHTTPSAddress, _ = newClusterHTTPSAddressAny.(string)
+				newClusterHTTPSAddress = newClusterHTTPSAddressAny
 			} else if patch {
 				newClusterHTTPSAddress = curConfig["cluster.https_address"]
 			}
@@ -660,26 +676,18 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		}
 
 		// Validate the storage volumes
-		if nodeValues["storage.backups_volume"] != nil && nodeValues["storage.backups_volume"] != newNodeConfig.StorageBackupsVolume() {
-			backupsPoolVolume, ok := nodeValues["storage.backups_volume"].(string)
-			if !ok {
-				return fmt.Errorf(`Unexpected type for "storage.backups_volume": %T`, nodeValues["storage.backups_volume"])
-			}
-
+		if nodeValues["storage.backups_volume"] != "" && nodeValues["storage.backups_volume"] != newNodeConfig.StorageBackupsVolume() {
 			// Store validated name back into nodeValues to ensure its not classifed as raw user input.
+			backupsPoolVolume := nodeValues["storage.backups_volume"]
 			nodeValues["storage.backups_volume"], err = daemonStorageValidate(s, backupsPoolVolume)
 			if err != nil {
 				return fmt.Errorf("Failed validation of %q: %w", "storage.backups_volume", err)
 			}
 		}
 
-		if nodeValues["storage.images_volume"] != nil && nodeValues["storage.images_volume"] != newNodeConfig.StorageImagesVolume() {
-			imagesPoolVolume, ok := nodeValues["storage.images_volume"].(string)
-			if !ok {
-				return fmt.Errorf(`Unexpected type for "storage.images_volume": %T`, nodeValues["storage.images_volume"])
-			}
-
+		if nodeValues["storage.images_volume"] != "" && nodeValues["storage.images_volume"] != newNodeConfig.StorageImagesVolume() {
 			// Store validated name back into nodeValues to ensure its not classifed as raw user input.
+			imagesPoolVolume := nodeValues["storage.images_volume"]
 			nodeValues["storage.images_volume"], err = daemonStorageValidate(s, imagesPoolVolume)
 			if err != nil {
 				return fmt.Errorf("Failed validation of %q: %w", "storage.images_volume", err)
@@ -710,7 +718,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		for key := range nodeValues {
 			val, ok := oldNodeConfig[key]
 			if !ok {
-				nodeValues[key] = nil
+				nodeValues[key] = ""
 			} else {
 				nodeValues[key] = val
 			}
@@ -738,7 +746,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	// Then deal with cluster wide configuration
 	var clusterChanged map[string]string
 	var newClusterConfig *clusterConfig.Config
-	var oldClusterConfig map[string]any
+	var oldClusterConfig map[string]string
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
@@ -751,9 +759,9 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		oldClusterConfig = newClusterConfig.Dump()
 
 		if patch {
-			clusterChanged, err = newClusterConfig.Patch(tx, req.Config)
+			clusterChanged, err = newClusterConfig.Patch(tx, stringReqConfig)
 		} else {
-			clusterChanged, err = newClusterConfig.Replace(tx, req.Config)
+			clusterChanged, err = newClusterConfig.Replace(tx, stringReqConfig)
 		}
 
 		return err
@@ -768,12 +776,12 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	}
 
 	revert.Add(func() {
-		for key := range req.Config {
+		for key := range stringReqConfig {
 			val, ok := oldClusterConfig[key]
 			if !ok {
-				req.Config[key] = nil
+				stringReqConfig[key] = ""
 			} else {
-				req.Config[key] = val
+				stringReqConfig[key] = val
 			}
 		}
 
@@ -783,7 +791,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 				return fmt.Errorf("Failed to load cluster config: %w", err)
 			}
 
-			_, err = newClusterConfig.Replace(tx, req.Config)
+			_, err = newClusterConfig.Replace(tx, stringReqConfig)
 			if err != nil {
 				return fmt.Errorf("Failed updating cluster config: %w", err)
 			}
@@ -841,7 +849,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	return response.EmptySyncResponse
 }
 
-func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]string, oldNodeConfig map[string]any, newNodeConfig *node.Config, newClusterConfig *clusterConfig.Config) error {
+func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]string, oldNodeConfig map[string]string, newNodeConfig *node.Config, newClusterConfig *clusterConfig.Config) error {
 	s := d.State()
 
 	maasChanged := false
@@ -976,7 +984,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 
 	value, ok = nodeChanged["storage.backups_volume"]
 	if ok {
-		oldValue, _ := oldNodeConfig["storage.backups_volume"].(string)
+		oldValue := oldNodeConfig["storage.backups_volume"]
 		err := daemonStorageMove(s, "backups", oldValue, value)
 		if err != nil {
 			return err
@@ -985,7 +993,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 
 	value, ok = nodeChanged["storage.images_volume"]
 	if ok {
-		oldValue, _ := oldNodeConfig["storage.images_volume"].(string)
+		oldValue := oldNodeConfig["storage.images_volume"]
 		err := daemonStorageMove(s, "images", oldValue, value)
 		if err != nil {
 			return err

@@ -461,7 +461,7 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 			return fmt.Errorf("Cannot use wildcard core.https_address %q for cluster.https_address. Please specify a new cluster.https_address or core.https_address", localClusterAddress)
 		}
 
-		_, err = config.Patch(map[string]any{
+		_, err = config.Patch(map[string]string{
 			"cluster.https_address": localHTTPSAddress,
 		})
 		if err != nil {
@@ -532,7 +532,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 				return fmt.Errorf("Failed to load cluster config: %w", err)
 			}
 
-			_, err = config.Patch(map[string]any{
+			_, err = config.Patch(map[string]string{
 				"core.https_address":    req.ServerAddress,
 				"cluster.https_address": req.ServerAddress,
 			})
@@ -569,7 +569,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 				return fmt.Errorf("Failed to load cluster config: %w", err)
 			}
 
-			_, err = config.Patch(map[string]any{
+			_, err = config.Patch(map[string]string{
 				"cluster.https_address": localHTTPSAddress,
 			})
 			return err
@@ -844,12 +844,12 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		existingConfigDump := currentClusterConfig.Dump()
 		changes := make(map[string]string, len(existingConfigDump))
 		for k, v := range existingConfigDump {
-			changes[k], _ = v.(string)
+			changes[k] = v
 		}
 
 		// Copy the old config so that the update triggers have access to it.
 		// In this case it will not be used as we are not changing any node values.
-		oldNodeConfig := make(map[string]any)
+		oldNodeConfig := make(map[string]string)
 		maps.Copy(oldNodeConfig, s.LocalConfig.Dump())
 
 		err = doAPI10UpdateTriggers(d, nil, changes, oldNodeConfig, nodeConfig, currentClusterConfig)
