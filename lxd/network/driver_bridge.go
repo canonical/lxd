@@ -982,8 +982,9 @@ func (n *bridge) Rename(newName string) error {
 	n.logger.Debug("Rename", logger.Ctx{"newName": newName})
 
 	// Reject known bad names that might cause problem when dealing with paths.
-	if strings.Contains(newName, "/") || strings.Contains(newName, "\\") || strings.Contains(newName, "..") {
-		return fmt.Errorf("Invalid network name: %q", newName)
+	err := n.ValidateName(newName)
+	if err != nil {
+		return fmt.Errorf("Invalid network name: %q: %v", newName, err)
 	}
 
 	if InterfaceExists(newName) {
@@ -999,8 +1000,8 @@ func (n *bridge) Rename(newName string) error {
 	}
 
 	// Rename forkdns log file.
-	forkDNSLogPath := "forkdns." + n.name + ".log"
-	if shared.PathExists(shared.LogPath(forkDNSLogPath)) {
+	forkDNSLogPath := shared.LogPath("forkdns." + n.name + ".log")
+	if shared.PathExists(forkDNSLogPath) {
 		err := os.Rename(forkDNSLogPath, shared.LogPath("forkdns."+newName+".log"))
 		if err != nil {
 			return err
@@ -1008,7 +1009,7 @@ func (n *bridge) Rename(newName string) error {
 	}
 
 	// Rename common steps.
-	err := n.rename(newName)
+	err = n.rename(newName)
 	if err != nil {
 		return err
 	}
@@ -2488,8 +2489,9 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 
 func (n *bridge) spawnForkDNS(listenAddress string) error {
 	// Reject known bad names that might cause problem when dealing with paths.
-	if strings.Contains(n.Name(), "/") || strings.Contains(n.Name(), "\\") || strings.Contains(n.Name(), "..") {
-		return fmt.Errorf("Invalid network name: %q", n.Name())
+	err := n.ValidateName(n.Name())
+	if err != nil {
+		return fmt.Errorf("Invalid network name: %q: %v", n.Name(), err)
 	}
 
 	// Setup the dnsmasq domain
