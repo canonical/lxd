@@ -76,6 +76,8 @@ type OS struct {
 	AppArmorStacked   bool
 	AppArmorStacking  bool
 	AppArmorFeatures  AppArmorFeaturesInfo
+	AppArmorCacheLoc  string
+	AppArmorCacheDir  string // Based on AppArmorCacheLoc, but may also point to a subdirectory influenced by features.
 
 	// Cgroup features
 	CGInfo cgroup.Info
@@ -101,10 +103,13 @@ type OS struct {
 	LXCFeatures map[string]bool
 
 	// OS info
-	ReleaseInfo   map[string]string
-	KernelVersion version.DottedVersion
-	Uname         *shared.Utsname
-	BootTime      time.Time
+	ReleaseInfo map[string]string
+	Uname       *shared.Utsname
+	BootTime    time.Time
+
+	// Version info
+	KernelVersion   version.DottedVersion
+	AppArmorVersion *version.DottedVersion // AppArmorVersion is nil if AppArmorAvailable is false.
 }
 
 // DefaultOS returns a fresh uninitialized OS instance with default values.

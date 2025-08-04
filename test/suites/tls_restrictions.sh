@@ -267,6 +267,7 @@ test_tls_restrictions() {
   lxc_remote init testimage localhost:bar --network "${networkName}" --project blah
 
   # The restricted client can't view allocations in the default project
+  ! lxc network list-allocations localhost: || false
   ! lxc network list-allocations localhost: --project default || false
 
   # The restricted client can't view allocations for all projects
@@ -276,6 +277,15 @@ test_tls_restrictions() {
   # should see allocations for the default project, but they can't see the foo instance
   [ "$(lxc network list-allocations localhost: --project blah --format csv | wc -l)" = 3 ]
   ! lxc network list-allocations localhost: --project blah --format csv | grep 'instances/foo' || false
+
+  # Check restrictions when using blah as current project.
+  lxc project switch localhost:blah
+  [ "$(lxc network list-allocations localhost: --format csv | wc -l)" = 3 ]
+  ! lxc network list-allocations localhost: --format csv | grep 'instances/foo' || false
+
+  # Can't switch back to default while restricted to blah, so we need to modify the config file.
+  ! lxc project switch localhost:default || false
+  sed -i 's/project: blah/project: default/g' "${LXD_CONF}/config.yml"
 
   # Clean up
   lxc delete foo

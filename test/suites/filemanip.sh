@@ -174,3 +174,20 @@ test_filemanip() {
   lxc project switch default
   lxc project delete test
 }
+
+test_filemanip_req_content_type() {
+  inst="c-file-push"
+
+  lxc launch testimage "${inst}"
+
+  # This ensures strings.Reader works correctly with the content-type check.
+  # The specific here is that the net/http package will configure the
+  # content-length on the request, which in LXD triggers content-type check.
+  (
+    cd lxd-client
+    go run . file-push "${inst}" /tmp/status.txt "success"
+    [ "$(lxc exec "${inst}" -- cat /tmp/status.txt)" = "success" ]
+  )
+
+  lxc delete "${inst}" --force
+}

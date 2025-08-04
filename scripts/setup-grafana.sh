@@ -103,7 +103,7 @@ lxc config trust add /tmp/metrics.crt --type=metrics
 rm -rf /tmp/metrics.crt
 
 # configure host lxd for loki and grafana
-lxc config set user.grafana_base_url=https://"$CONTAINER_IP":3000/d/bGY-LSB7k/lxd?orgId=1
+lxc config set user.ui_grafana_base_url=https://"$CONTAINER_IP":3000/d/bGY-LSB7k/lxd?orgId=1
 lxc config set loki.api.url=http://"$CONTAINER_IP":3100 loki.instance=lxd &
 
 # restart container

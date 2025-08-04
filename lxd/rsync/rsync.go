@@ -64,8 +64,7 @@ func rsync(args ...string) (string, error) {
 	return stdout.String(), nil
 }
 
-// LocalCopy copies a directory using rsync (with the --devices option).
-func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArgs ...string) (string, error) {
+func runRsync(source string, dest string, bwlimit string, xattrs bool, rsyncArgs ...string) (string, error) {
 	err := os.MkdirAll(dest, 0755)
 	if err != nil {
 		return "", err
@@ -104,7 +103,7 @@ func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArg
 
 	args = append(args,
 		rsyncVerbosity,
-		shared.AddSlash(source),
+		source,
 		dest)
 
 	msg, err := rsync(args...)
@@ -123,6 +122,16 @@ func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArg
 	}
 
 	return msg, nil
+}
+
+// LocalCopy copies a directory using rsync (with the --devices option).
+func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArgs ...string) (string, error) {
+	return runRsync(shared.AddSlash(source), dest, bwlimit, xattrs, rsyncArgs...)
+}
+
+// CopyFile copies a single file using rsync (with the --devices option).
+func CopyFile(source string, dest string, bwlimit string, xattrs bool, rsyncArgs ...string) (string, error) {
+	return runRsync(strings.TrimSuffix(source, "/"), dest, bwlimit, xattrs, rsyncArgs...)
 }
 
 // Send sets up the sending half of an rsync, to recursively send the
@@ -426,8 +435,7 @@ func rsyncFeatureArgs(features []string) []string {
 	}
 
 	if slices.Contains(features, "compress") {
-		args = append(args, "--compress")
-		args = append(args, "--compress-level=2")
+		args = append(args, "--compress", "--compress-level=2")
 	}
 
 	return args
@@ -441,7 +449,7 @@ func AtLeast(minimum string) bool {
 		return false
 	}
 
-	fields := strings.Split(strings.Split(out, "\n")[0], "  ")
+	fields := strings.Split(strings.SplitN(out, "\n", 2)[0], "  ")
 	if len(fields) < 3 {
 		return false
 	}

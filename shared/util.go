@@ -1323,7 +1323,16 @@ func (r *ReadSeeker) Seek(offset int64, whence int) (int64, error) {
 }
 
 // RenderTemplate renders a pongo2 template.
-func RenderTemplate(template string, ctx pongo2.Context) (string, error) {
+func RenderTemplate(template string, ctx pongo2.Context) (output string, err error) {
+	defer func() {
+		// Capture panics in the pongo2 template rendering.
+		// This is to prevent the server from crashing due to a template error.
+		r := recover()
+		if r != nil {
+			err = fmt.Errorf("Panic while rendering template: %v", r)
+		}
+	}()
+
 	// Create custom TemplateSet
 	set := pongo2.NewSet("restricted", pongo2.DefaultLoader)
 
@@ -1335,24 +1344,31 @@ func RenderTemplate(template string, ctx pongo2.Context) (string, error) {
 		}
 	}
 
-	// Load template from string
-	tpl, err := set.FromString("{% autoescape off %}" + template + "{% endautoescape %}")
-	if err != nil {
-		return "", err
-	}
-
-	// Get rendered template
-	ret, err := tpl.Execute(ctx)
-	if err != nil {
-		// Looks like we're nesting templates so run pongo again
-		if strings.Contains(ret, "{{") || strings.Contains(ret, "{%") {
-			return RenderTemplate(ret, ctx)
+	// Prevent unbounded recursion while rendering templates. Normal use should not
+	// require more than 1 or 2 levels of recursion.
+	for range 3 {
+		// Load template from string
+		tpl, err := set.FromString("{% autoescape off %}" + template + "{% endautoescape %}")
+		if err != nil {
+			return "", err
 		}
 
-		return "", err
+		// Get rendered template
+		ret, err := tpl.Execute(ctx)
+		if err != nil {
+			return "", err
+		}
+
+		// Check if another pass is needed.
+		if !strings.Contains(ret, "{{") && !strings.Contains(ret, "{%") {
+			return ret, nil
+		}
+
+		// Prepare for another pass.
+		template = ret
 	}
 
-	return ret, err
+	return "", errors.New("Recursion limit reached while rendering template")
 }
 
 // GetExpiry returns the expiry date based on the reference date and a length of time.

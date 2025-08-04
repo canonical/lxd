@@ -29,6 +29,9 @@ import (
 )
 
 const (
+	// cookieNameLoginID is used to identify a single login flow.
+	cookieNameLoginID = "login_id"
+
 	// cookieNameIDToken is the identifier used to set and retrieve the identity token.
 	cookieNameIDToken = "oidc_identity"
 
@@ -37,10 +40,6 @@ const (
 
 	// cookieNameSessionID is used to identify the session. It does not need to be encrypted.
 	cookieNameSessionID = "session_id"
-)
-
-const (
-	defaultConfigExpiryInterval = 5 * time.Minute
 )
 
 var (
@@ -68,10 +67,9 @@ type Verifier struct {
 	// We don't want to perform this on every request, so we only do it when the request host changes.
 	host string
 
-	// configExpiry is the next time at which the relying party and access token verifier will be considered out of date
-	// and will be refreshed. This refreshes the cookie encryption keys that the relying party uses.
-	configExpiry         time.Time
-	configExpiryInterval time.Duration
+	// expireConfig is used to expiry the relying party configuration before it is next used. This is so that proxy
+	// configurations (core.https_proxy) can be applied to the HTTP client used to call the IdP.
+	expireConfig bool
 }
 
 // AuthenticationResult represents an authenticated OIDC client.
@@ -99,46 +97,21 @@ func (e AuthError) Unwrap() error {
 	return e.Err
 }
 
-// Auth extracts OIDC tokens from the request, verifies them, and returns the subject.
-func (o *Verifier) Auth(ctx context.Context, w http.ResponseWriter, r *http.Request) (*AuthenticationResult, error) {
-	err := o.ensureConfig(ctx, r.Host)
+// Auth extracts OIDC tokens from the request, verifies them, and returns an AuthenticationResult or an error.
+func (o *Verifier) Auth(w http.ResponseWriter, r *http.Request) (*AuthenticationResult, error) {
+	err := o.ensureConfig(r.Context(), r.Host)
 	if err != nil {
 		return nil, fmt.Errorf("Authorization failed: %w", err)
 	}
 
-	authorizationHeader := r.Header.Get("Authorization")
-
-	_, idToken, refreshToken, err := o.getCookies(r)
-	if err != nil {
-		// Cookies are present but we failed to decrypt them. They may have been tampered with, so delete them to force
-		// the user to log in again.
-		_ = o.setCookies(w, nil, uuid.UUID{}, "", "", true)
-		return nil, fmt.Errorf("Failed to retrieve login information: %w", err)
+	// If a bearer token is provided, it must be valid.
+	bearerToken, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if ok {
+		return o.authenticateAccessToken(r.Context(), bearerToken)
 	}
 
-	var result *AuthenticationResult
-	if authorizationHeader != "" {
-		// When a command line client wants to authenticate, it needs to set the Authorization HTTP header like this:
-		//    Authorization Bearer <access_token>
-		parts := strings.Split(authorizationHeader, "Bearer ")
-		if len(parts) != 2 {
-			return nil, AuthError{errors.New("Bad authorization token, expected a Bearer token")}
-		}
-
-		// Bearer tokens should always be access tokens.
-		result, err = o.authenticateAccessToken(ctx, parts[1])
-		if err != nil {
-			return nil, err
-		}
-	} else if idToken != "" || refreshToken != "" {
-		// When authenticating via the UI, we expect that there will be ID and refresh tokens present in the request cookies.
-		result, err = o.authenticateIDToken(ctx, w, idToken, refreshToken)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return result, nil
+	// Otherwise, it must be a browser.
+	return o.authenticateIDToken(w, r)
 }
 
 // authenticateAccessToken verifies the access token and checks that the configured audience is present the in access
@@ -177,21 +150,31 @@ func (o *Verifier) authenticateAccessToken(ctx context.Context, accessToken stri
 	return o.getResultFromClaims(userInfo, userInfo.Claims)
 }
 
-// authenticateIDToken verifies the identity token and returns the ID token subject. If no identity token is given (or
-// verification fails) it will attempt to refresh the ID token.
-func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWriter, idToken string, refreshToken string) (*AuthenticationResult, error) {
+// authenticateIDToken gets the ID token from the request cookies and validates it. If it is not present or not valid, it
+// attempts to refresh the ID token (with a refresh token also taken from the request cookies).
+func (o *Verifier) authenticateIDToken(w http.ResponseWriter, r *http.Request) (*AuthenticationResult, error) {
+	_, idToken, refreshToken, err := o.getCookies(r)
+	if err != nil {
+		// Cookies are present but we failed to decrypt them. They may have been tampered with, so delete them to force
+		// the user to log in again.
+		_ = o.setCookies(w, nil, uuid.UUID{}, "", "", true)
+		return nil, fmt.Errorf("Failed to retrieve login information: %w", err)
+	} else if idToken == "" && refreshToken == "" {
+		// The IsRequest function gates calls to the OIDC verifier. We should not reach this block.
+		return nil, AuthError{Err: errors.New("No credentials found")}
+	}
+
 	var claims *oidc.IDTokenClaims
-	var err error
 	if idToken != "" {
 		// Try to verify the ID token.
-		claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](ctx, idToken, o.relyingParty.IDTokenVerifier())
+		claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](r.Context(), idToken, o.relyingParty.IDTokenVerifier())
 		if err == nil {
 			return o.getResultFromClaims(claims, claims.Claims)
 		}
 	}
 
 	// If ID token verification failed (or it wasn't provided, try refreshing the token).
-	tokens, err := rp.RefreshTokens[*oidc.IDTokenClaims](ctx, o.relyingParty, refreshToken, "", "")
+	tokens, err := rp.RefreshTokens[*oidc.IDTokenClaims](r.Context(), o.relyingParty, refreshToken, "", "")
 	if err != nil {
 		return nil, AuthError{Err: fmt.Errorf("Failed to refresh ID tokens: %w", err)}
 	}
@@ -207,21 +190,14 @@ func (o *Verifier) authenticateIDToken(ctx context.Context, w http.ResponseWrite
 	}
 
 	// Verify the refreshed ID token.
-	claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](ctx, idToken, o.relyingParty.IDTokenVerifier())
+	claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](r.Context(), idToken, o.relyingParty.IDTokenVerifier())
 	if err != nil {
 		return nil, AuthError{Err: fmt.Errorf("Failed to verify refreshed ID token: %w", err)}
 	}
 
-	sessionID := uuid.New()
-	secureCookie, err := o.secureCookieFromSession(sessionID)
+	err = o.startSession(w, idToken, tokens.RefreshToken)
 	if err != nil {
 		return nil, AuthError{Err: fmt.Errorf("Failed to create new session with refreshed token: %w", err)}
-	}
-
-	// Update the cookies.
-	err = o.setCookies(w, secureCookie, sessionID, idToken, tokens.RefreshToken, false)
-	if err != nil {
-		return nil, AuthError{fmt.Errorf("Failed to update login cookies: %w", err)}
 	}
 
 	return o.getResultFromClaims(claims, claims.Claims)
@@ -319,6 +295,29 @@ func (o *Verifier) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Create a login ID cookie. This will be deleted after the login flow is completed in /oidc/callback.
+	loginIDCookie := &http.Cookie{
+		Name:     cookieNameLoginID,
+		Path:     "/",
+		Value:    uuid.NewString(),
+		Secure:   true,
+		HttpOnly: true,
+		// Lax mode is required because the auth flow ends in a redirect to /oidc/callback. In Strict mode, even though
+		// we're being redirected to the same URL, the browser doesn't send this cookie to the callback because of the
+		// redirect (making it cross-origin).
+		SameSite: http.SameSiteLaxMode,
+	}
+
+	// Set the login cookie on the request. This is required so that the AuthURLHandler below is able to use it to derive
+	// cookie encryption keys that are unique to this login flow and can be recreated on any cluster member (see
+	// [Verifier.setRelyingParty] and https://github.com/canonical/lxd/issues/13644).
+	r.AddCookie(loginIDCookie)
+
+	// Set the login cookie on the response. This stores the salt for cookie encryption key derivation on the client,
+	// for use in /oidc/callback (see [Verifier.setRelyingParty] and https://github.com/canonical/lxd/issues/13644). We
+	// must set this on the response now, because the AuthURLHandler below will send a HTTP redirect.
+	http.SetCookie(w, loginIDCookie)
+
 	handler := rp.AuthURLHandler(func() string { return uuid.New().String() }, o.relyingParty, rp.WithURLParam("audience", o.audience))
 	handler(w, r)
 }
@@ -336,6 +335,18 @@ func (o *Verifier) Logout(w http.ResponseWriter, r *http.Request) {
 
 // Callback is a http.HandlerFunc which implements the code exchange required on the /oidc/callback endpoint.
 func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
+	// Always delete the login_id cookie on callback. If the callback fails and this is not deleted, the same login ID is
+	// resent. The login handler then sets an additional login_id cookie, and it isn't clear to the callback which one
+	// to use. So it uses the first one, and fails to decrypt the state and PKCE cookies.
+	http.SetCookie(w, &http.Cookie{
+		Name:     cookieNameLoginID,
+		Path:     "/",
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Expires:  time.Unix(0, 0),
+	})
+
 	err := o.ensureConfig(r.Context(), r.Host)
 	if err != nil {
 		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("OIDC callback failed: %w", err).Error()).Render(w, r)
@@ -343,16 +354,9 @@ func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	handler := rp.CodeExchangeHandler(func(w http.ResponseWriter, r *http.Request, tokens *oidc.Tokens[*oidc.IDTokenClaims], state string, rp rp.RelyingParty) {
-		sessionID := uuid.New()
-		secureCookie, err := o.secureCookieFromSession(sessionID)
+		err := o.startSession(w, tokens.IDToken, tokens.RefreshToken)
 		if err != nil {
 			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to start a new session: %w", err).Error()).Render(w, r)
-			return
-		}
-
-		err = o.setCookies(w, secureCookie, sessionID, tokens.IDToken, tokens.RefreshToken, false)
-		if err != nil {
-			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to set login information: %w", err).Error()).Render(w, r)
 			return
 		}
 
@@ -411,21 +415,21 @@ func (*Verifier) IsRequest(r *http.Request) bool {
 // ExpireConfig sets the expiry time of the current configuration to zero. This forces the verifier to reconfigure the
 // relying party the next time a user authenticates.
 func (o *Verifier) ExpireConfig() {
-	o.configExpiry = time.Now()
+	o.expireConfig = true
 }
 
 // ensureConfig ensures that the relyingParty and accessTokenVerifier fields of the Verifier are non-nil. Additionally,
 // if the given host is different from the Verifier host we reset the relyingParty to ensure the callback URL is set
 // correctly.
 func (o *Verifier) ensureConfig(ctx context.Context, host string) error {
-	if o.relyingParty == nil || host != o.host || time.Now().After(o.configExpiry) {
+	if o.relyingParty == nil || host != o.host || o.expireConfig {
 		err := o.setRelyingParty(ctx, host)
 		if err != nil {
 			return err
 		}
 
 		o.host = host
-		o.configExpiry = time.Now().Add(o.configExpiryInterval)
+		o.expireConfig = false
 	}
 
 	if o.accessTokenVerifier == nil {
@@ -443,28 +447,30 @@ func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
 	// The relying party sets cookies for the following values:
 	// - "state": Used to prevent CSRF attacks (https://datatracker.ietf.org/doc/html/rfc6749#section-10.12).
 	// - "pkce": Used to prevent authorization code interception attacks (https://datatracker.ietf.org/doc/html/rfc7636).
-	// Both should be stored securely. However, these cookies do not need to be decrypted by other cluster members, so
-	// it is ok to use the secure key generation that is built in to the securecookie library. This also reduces the
-	// exposure of our private key.
+	//
+	// If LXD is deployed behind a load balancer, it's possible that the IdP will redirect the caller to a different
+	// cluster member than the member that initiated the flow. To handle this, we set a "login_id" cookie at the start
+	// of the flow, then derive cookie encryption keys from that login ID from the cluster private key using HKDF (the
+	// same way that we do for OIDC tokens). See https://github.com/canonical/lxd/issues/13644.
+	cookieHandler := httphelper.NewRequestAwareCookieHandler(func(r *http.Request) (*securecookie.SecureCookie, error) {
+		loginID, err := r.Cookie(cookieNameLoginID)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get login ID cookie: %w", err)
+		}
 
-	// The hash key should be 64 bytes (https://github.com/gorilla/securecookie).
-	cookieHashKey := securecookie.GenerateRandomKey(64)
-	if cookieHashKey == nil {
-		return errors.New("Failed to generate a secure cookie hash key")
-	}
+		loginUUID, err := uuid.Parse(loginID.Value)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse login ID cookie: %w", err)
+		}
 
-	// The block key should 32 bytes for AES-256 encryption.
-	cookieBlockKey := securecookie.GenerateRandomKey(32)
-	if cookieBlockKey == nil {
-		return errors.New("Failed to generate a secure cookie hash key")
-	}
+		return o.secureCookieFromSession(loginUUID)
+	})
 
 	httpClient, err := o.httpClientFunc()
 	if err != nil {
 		return fmt.Errorf("Failed to get a HTTP client: %w", err)
 	}
 
-	cookieHandler := httphelper.NewCookieHandler(cookieHashKey, cookieBlockKey)
 	options := []rp.Option{
 		rp.WithCookieHandler(cookieHandler),
 		rp.WithVerifierOpts(rp.WithIssuedAtOffset(5 * time.Second)),
@@ -502,6 +508,23 @@ func (o *Verifier) setAccessTokenVerifier(ctx context.Context) error {
 	}
 
 	o.accessTokenVerifier = op.NewAccessTokenVerifier(o.issuer, keySet)
+	return nil
+}
+
+// startSession creates a session ID, then derives encryption keys with it. The ID and refresh token are encrypted
+// with the derived key, and then the session ID and encrypted ID and refresh tokens are all saved as cookies.
+func (o *Verifier) startSession(w http.ResponseWriter, idToken string, refreshToken string) error {
+	sessionID := uuid.New()
+	secureCookie, err := o.secureCookieFromSession(sessionID)
+	if err != nil {
+		return err
+	}
+
+	err = o.setCookies(w, secureCookie, sessionID, idToken, refreshToken, false)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -671,16 +694,15 @@ func NewVerifier(issuer string, clientID string, clientSecret string, scopes []s
 	}
 
 	verifier := &Verifier{
-		issuer:               issuer,
-		clientID:             clientID,
-		clientSecret:         clientSecret,
-		scopes:               scopes,
-		audience:             audience,
-		identityCache:        identityCache,
-		groupsClaim:          opts.GroupsClaim,
-		clusterCert:          clusterCert,
-		configExpiryInterval: defaultConfigExpiryInterval,
-		httpClientFunc:       httpClientFunc,
+		issuer:         issuer,
+		clientID:       clientID,
+		clientSecret:   clientSecret,
+		scopes:         scopes,
+		audience:       audience,
+		identityCache:  identityCache,
+		groupsClaim:    opts.GroupsClaim,
+		clusterCert:    clusterCert,
+		httpClientFunc: httpClientFunc,
 	}
 
 	return verifier, nil

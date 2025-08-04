@@ -512,7 +512,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 	}
 
 	if d.oidcVerifier != nil && d.oidcVerifier.IsRequest(r) {
-		result, err := d.oidcVerifier.Auth(d.shutdownCtx, w, r)
+		result, err := d.oidcVerifier.Auth(w, r)
 		if err != nil {
 			return false, "", "", nil, fmt.Errorf("Failed OIDC Authentication: %w", err)
 		}
@@ -816,8 +816,8 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			return
 		}
 
-		// Ensure request context info is set.
-		reqInfo := request.SetupContextInfo(r)
+		// Initialise the request info.
+		reqInfo := request.InitContextInfo(r)
 
 		// Set the "trusted" value in the request context.
 		reqInfo.Trusted = trusted
@@ -1464,7 +1464,7 @@ func (d *Daemon) init() error {
 	}
 
 	/* Setup the web server */
-	config := &endpoints.Config{
+	endpointsConfig := &endpoints.Config{
 		Dir:                  d.os.VarDir,
 		UnixSocket:           d.os.GetUnixSocket(),
 		Cert:                 networkCert,
@@ -1483,10 +1483,10 @@ func (d *Daemon) init() error {
 	// Enable vsock server support if VM instances supported.
 	err, found := d.State().InstanceTypes[instancetype.VM]
 	if found && err == nil {
-		config.VsockSupport = true
+		endpointsConfig.VsockSupport = true
 	}
 
-	d.endpoints, err = endpoints.Up(config)
+	d.endpoints, err = endpoints.Up(endpointsConfig)
 	if err != nil {
 		return err
 	}
@@ -1597,7 +1597,7 @@ func (d *Daemon) init() error {
 
 	// Load server name and config before patches run (so they can access them from d.State()).
 	err = d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-		config, err := clusterConfig.Load(ctx, tx)
+		globalConfig, err := clusterConfig.Load(ctx, tx)
 		if err != nil {
 			return err
 		}
@@ -1610,7 +1610,7 @@ func (d *Daemon) init() error {
 
 		d.globalConfigMu.Lock()
 		d.serverName = serverName
-		d.globalConfig = config
+		d.globalConfig = globalConfig
 		d.globalConfigMu.Unlock()
 
 		return nil
@@ -1889,13 +1889,10 @@ func (d *Daemon) init() error {
 		// Setup seccomp handler
 		if d.os.SeccompListener {
 			seccompServer, err := seccomp.NewSeccompServer(d.State(), shared.VarPath("seccomp.socket"), func(pid int32, state *state.State) (seccomp.Instance, error) {
-				// We trust the pid from the seccomp listener is the correct LXC monitor PID, as
-				// we cannot call c.InitPID() inside the seccomp handler to check the PID NS as it
-				// would deadlock.
-				c, err := loadContainerFromLXCMonitorPID(state, pid)
-				if err != nil {
+				c, _, err := getLXCMonitorContainer(state, pid)
+				if err != nil || c == nil {
 					logger.Warn("Could not match PID to container for seccomp", logger.Ctx{"pid": pid, "err": err})
-					return nil, errPIDNotInContainer
+					return nil, errPIDNotInContainer // Don't return error to avoid leaking details about the process.
 				}
 
 				return c, nil

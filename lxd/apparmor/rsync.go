@@ -44,11 +44,13 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 
 {{- if .sourcePath }}
   {{ .sourcePath }}/** r,
+  {{ .sourcePath }} r,
   {{ .sourcePath }}/ r,
 {{- end }}
 
 {{- if .dstPath }}
   {{ .dstPath }}/** rwkl,
+  {{ .dstPath }} rwkl,
   {{ .dstPath }}/ rwkl,
 {{- end }}
 

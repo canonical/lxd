@@ -1458,7 +1458,7 @@ func patchOIDCGroupsClaimScope(_ string, d *Daemon) error {
 		// Add the groups claim as an additional scope.
 		// The groups claim still needs to be set to extract group values from the token claims or userinfo.
 		oidcScopes := append(scopes, groupsClaim)
-		_, err = globalConfig.Patch(map[string]any{
+		_, err = globalConfig.Patch(tx, map[string]any{
 			"oidc.scopes": strings.Join(oidcScopes, " "),
 		})
 

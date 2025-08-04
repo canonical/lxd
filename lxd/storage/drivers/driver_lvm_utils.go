@@ -275,7 +275,7 @@ func (d *lvm) createDefaultThinPool(lvmVersion, thinPoolName string, thinpoolSiz
 
 // lvmVersionIsAtLeast checks whether the installed version of LVM is at least the specific version.
 func (d *lvm) lvmVersionIsAtLeast(sTypeVersion string, versionString string) (bool, error) {
-	lvmVersionString := strings.Split(sTypeVersion, "/")[0]
+	lvmVersionString := strings.SplitN(sTypeVersion, "/", 2)[0]
 
 	lvmVersion, err := version.Parse(lvmVersionString)
 	if err != nil {
