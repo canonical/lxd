@@ -693,6 +693,13 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 	return projectChange(r.Context(), s, project, req)
 }
 
+// isProjectInUse checks if a project is in use by any instances, images, profiles, storage volumes, etc.
+// Only use by a default profile is allowed in an empty project.
+func isProjectInUse(projectUsedBy []string) bool {
+	usedByLen := len(projectUsedBy)
+	return usedByLen > 1 || (usedByLen == 1 && !strings.Contains(projectUsedBy[0], "/profiles/default"))
+}
+
 // Common logic between PUT and PATCH.
 func projectChange(ctx context.Context, s *state.State, project *api.Project, req api.ProjectPut) response.Response {
 	// Make a list of config keys that have changed.
@@ -726,9 +733,7 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 		}
 
 		// Consider the project empty if it is only used by the default profile.
-		usedByLen := len(project.UsedBy)
-		projectInUse := usedByLen > 1 || (usedByLen == 1 && !strings.Contains(project.UsedBy[0], "/profiles/default"))
-		if projectInUse {
+		if isProjectInUse(project.UsedBy) {
 			// Check if feature is allowed to be changed.
 			for _, featureChanged := range featuresChanged {
 				// If feature is currently enabled, and it is being changed in the request, it
