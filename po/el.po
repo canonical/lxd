@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-06-20 13:29+0100\n"
+"POT-Creation-Date: 2025-08-04 09:32+0100\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Greek <https://hosted.weblate.org/projects/linux-containers/"
@@ -512,15 +512,15 @@ msgstr ""
 msgid "<old alias> <new alias>"
 msgstr ""
 
-#: lxc/remote.go:954 lxc/remote.go:1019
+#: lxc/remote.go:956 lxc/remote.go:1021
 msgid "<remote>"
 msgstr ""
 
-#: lxc/remote.go:1068
+#: lxc/remote.go:1070
 msgid "<remote> <URL>"
 msgstr ""
 
-#: lxc/remote.go:873
+#: lxc/remote.go:875
 msgid "<remote> <new-name>"
 msgstr ""
 
@@ -537,7 +537,7 @@ msgstr ""
 msgid "<target>"
 msgstr ""
 
-#: lxc/network_allocations.go:25
+#: lxc/network_allocations.go:24
 msgid "ADDRESS"
 msgstr ""
 
@@ -553,7 +553,7 @@ msgstr ""
 msgid "ARCHITECTURE"
 msgstr ""
 
-#: lxc/remote.go:855
+#: lxc/remote.go:857
 msgid "AUTH TYPE"
 msgstr ""
 
@@ -561,7 +561,7 @@ msgstr ""
 msgid "AUTHENTICATION METHOD"
 msgstr ""
 
-#: lxc/remote.go:103
+#: lxc/remote.go:104
 msgid "Accept certificate"
 msgstr ""
 
@@ -642,11 +642,11 @@ msgstr ""
 msgid "Add new aliases"
 msgstr ""
 
-#: lxc/remote.go:92
+#: lxc/remote.go:93
 msgid "Add new remote servers"
 msgstr ""
 
-#: lxc/remote.go:93
+#: lxc/remote.go:94
 msgid ""
 "Add new remote servers\n"
 "\n"
@@ -714,7 +714,7 @@ msgstr ""
 msgid "Admin access key: %s"
 msgstr ""
 
-#: lxc/remote.go:683
+#: lxc/remote.go:685
 #, c-format
 msgid "Admin password (or token) for %s:"
 msgstr ""
@@ -751,7 +751,7 @@ msgstr ""
 msgid "All projects"
 msgstr ""
 
-#: lxc/remote.go:196
+#: lxc/remote.go:197
 msgid "All server addresses are unavailable"
 msgstr ""
 
@@ -836,7 +836,7 @@ msgid ""
 "as well as retrieve past log entries from it."
 msgstr ""
 
-#: lxc/remote.go:638
+#: lxc/remote.go:640
 #, c-format
 msgid "Authentication type '%s' not supported by server"
 msgstr ""
@@ -859,7 +859,7 @@ msgstr ""
 msgid "Auto-allocate an IPv4 or IPv6 listen address. One of 'ipv4', 'ipv6'."
 msgstr ""
 
-#: lxc/remote.go:139
+#: lxc/remote.go:140
 msgid "Available projects:"
 msgstr ""
 
@@ -1015,7 +1015,7 @@ msgstr ""
 msgid "Can't read from stdin: %w"
 msgstr ""
 
-#: lxc/remote.go:998
+#: lxc/remote.go:1000
 msgid "Can't remove the default remote"
 msgstr ""
 
@@ -1081,11 +1081,11 @@ msgstr ""
 msgid "Certificate add token for %s deleted"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/remote.go:526
+#: lxc/remote.go:527
 msgid "Certificate fingerprint"
 msgstr ""
 
-#: lxc/remote.go:233
+#: lxc/remote.go:234
 #, c-format
 msgid ""
 "Certificate fingerprint mismatch between certificate token and server %q"
@@ -1100,7 +1100,7 @@ msgstr ""
 msgid "Client %s certificate add token:"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/remote.go:724
+#: lxc/remote.go:726
 msgid "Client certificate now trusted by server:"
 msgstr ""
 
@@ -1352,12 +1352,12 @@ msgstr ""
 msgid "Cores:"
 msgstr ""
 
-#: lxc/remote.go:576
+#: lxc/remote.go:578
 #, c-format
 msgid "Could not close server cert file %q: %w"
 msgstr ""
 
-#: lxc/remote.go:239 lxc/remote.go:560
+#: lxc/remote.go:240 lxc/remote.go:562
 msgid "Could not create server cert dir"
 msgstr ""
 
@@ -1396,7 +1396,7 @@ msgstr ""
 msgid "Could not write new remote certificate for remote '%s' with error: %v"
 msgstr ""
 
-#: lxc/remote.go:571
+#: lxc/remote.go:573
 #, c-format
 msgid "Could not write server cert file %q: %w"
 msgstr ""
@@ -1743,7 +1743,7 @@ msgstr ""
 #: lxc/network_acl.go:255 lxc/network_acl.go:311 lxc/network_acl.go:384
 #: lxc/network_acl.go:481 lxc/network_acl.go:567 lxc/network_acl.go:610
 #: lxc/network_acl.go:749 lxc/network_acl.go:806 lxc/network_acl.go:863
-#: lxc/network_acl.go:878 lxc/network_acl.go:1016 lxc/network_allocations.go:53
+#: lxc/network_acl.go:878 lxc/network_acl.go:1016 lxc/network_allocations.go:52
 #: lxc/network_forward.go:36 lxc/network_forward.go:93
 #: lxc/network_forward.go:182 lxc/network_forward.go:259
 #: lxc/network_forward.go:415 lxc/network_forward.go:500
@@ -1776,9 +1776,9 @@ msgstr ""
 #: lxc/project.go:199 lxc/project.go:270 lxc/project.go:406 lxc/project.go:480
 #: lxc/project.go:600 lxc/project.go:665 lxc/project.go:751 lxc/project.go:795
 #: lxc/project.go:856 lxc/project.go:923 lxc/publish.go:34 lxc/query.go:35
-#: lxc/rebuild.go:28 lxc/remote.go:37 lxc/remote.go:93 lxc/remote.go:752
-#: lxc/remote.go:790 lxc/remote.go:876 lxc/remote.go:957 lxc/remote.go:1021
-#: lxc/remote.go:1070 lxc/rename.go:21 lxc/restore.go:22 lxc/snapshot.go:32
+#: lxc/rebuild.go:28 lxc/remote.go:38 lxc/remote.go:94 lxc/remote.go:754
+#: lxc/remote.go:792 lxc/remote.go:878 lxc/remote.go:959 lxc/remote.go:1023
+#: lxc/remote.go:1072 lxc/rename.go:21 lxc/restore.go:22 lxc/snapshot.go:32
 #: lxc/storage.go:35 lxc/storage.go:98 lxc/storage.go:204 lxc/storage.go:262
 #: lxc/storage.go:394 lxc/storage.go:476 lxc/storage.go:656 lxc/storage.go:743
 #: lxc/storage.go:845 lxc/storage.go:939 lxc/storage_bucket.go:31
@@ -2375,11 +2375,11 @@ msgstr ""
 msgid "Failed to accept incoming connection: %w"
 msgstr ""
 
-#: lxc/remote.go:205
+#: lxc/remote.go:206
 msgid "Failed to add remote"
 msgstr ""
 
-#: lxc/remote.go:256
+#: lxc/remote.go:257
 #, fuzzy, c-format
 msgid "Failed to close server cert file %q: %w"
 msgstr "  Χρήση δικτύου:"
@@ -2389,7 +2389,7 @@ msgstr "  Χρήση δικτύου:"
 msgid "Failed to connect to cluster member: %w"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/remote.go:246
+#: lxc/remote.go:247
 #, c-format
 msgid "Failed to create %q: %w"
 msgstr ""
@@ -2399,7 +2399,7 @@ msgstr ""
 msgid "Failed to create alias %s: %w"
 msgstr ""
 
-#: lxc/remote.go:503
+#: lxc/remote.go:504
 #, fuzzy, c-format
 msgid "Failed to decode trust token: %w"
 msgstr "  Χρήση δικτύου:"
@@ -2409,7 +2409,7 @@ msgstr "  Χρήση δικτύου:"
 msgid "Failed to find image %q on remote %q"
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/remote.go:309
+#: lxc/remote.go:310
 #, c-format
 msgid "Failed to find project: %w"
 msgstr ""
@@ -2434,7 +2434,7 @@ msgstr ""
 msgid "Failed to walk path for %s: %s"
 msgstr ""
 
-#: lxc/remote.go:251
+#: lxc/remote.go:252
 #, c-format
 msgid "Failed to write server cert file %q: %w"
 msgstr ""
@@ -2526,11 +2526,11 @@ msgstr ""
 #: lxc/cluster.go:128 lxc/cluster.go:984 lxc/cluster_group.go:449
 #: lxc/config_template.go:275 lxc/config_trust.go:351 lxc/config_trust.go:433
 #: lxc/image.go:1119 lxc/image_alias.go:182 lxc/list.go:134 lxc/network.go:1024
-#: lxc/network.go:1148 lxc/network_acl.go:101 lxc/network_allocations.go:59
+#: lxc/network.go:1148 lxc/network_acl.go:101 lxc/network_allocations.go:58
 #: lxc/network_forward.go:96 lxc/network_load_balancer.go:100
 #: lxc/network_peer.go:86 lxc/network_zone.go:93 lxc/network_zone.go:789
 #: lxc/operation.go:109 lxc/profile.go:740 lxc/project.go:482
-#: lxc/project.go:925 lxc/remote.go:794 lxc/storage.go:658
+#: lxc/project.go:925 lxc/remote.go:796 lxc/storage.go:658
 #: lxc/storage_bucket.go:463 lxc/storage_bucket.go:793
 #: lxc/storage_volume.go:1641 lxc/warning.go:95
 msgid "Format (csv|json|table|yaml|compact)"
@@ -2568,7 +2568,7 @@ msgstr ""
 msgid "Frequency: %vMhz (min: %vMhz, max: %vMhz)"
 msgstr ""
 
-#: lxc/remote.go:858
+#: lxc/remote.go:860
 msgid "GLOBAL"
 msgstr ""
 
@@ -2588,7 +2588,7 @@ msgstr ""
 msgid "Generate manpages for all commands"
 msgstr ""
 
-#: lxc/remote.go:167 lxc/remote.go:460
+#: lxc/remote.go:168 lxc/remote.go:461
 msgid "Generating a client certificate. This may take a minute..."
 msgstr ""
 
@@ -2761,7 +2761,7 @@ msgstr ""
 msgid "Group ID to run the command as (default 0)"
 msgstr ""
 
-#: lxc/network_allocations.go:29
+#: lxc/network_allocations.go:28
 msgid "HARDWARE ADDRESS"
 msgstr ""
 
@@ -3029,7 +3029,7 @@ msgstr ""
 msgid "Instance type"
 msgstr ""
 
-#: lxc/remote.go:412
+#: lxc/remote.go:413
 #, c-format
 msgid "Invalid URL scheme \"%s\" in \"%s\""
 msgstr ""
@@ -3120,7 +3120,7 @@ msgstr ""
 msgid "Invalid path %s"
 msgstr ""
 
-#: lxc/remote.go:401
+#: lxc/remote.go:402
 #, c-format
 msgid "Invalid protocol: %s"
 msgstr ""
@@ -3449,7 +3449,7 @@ msgid ""
 "  Defaults to -1 (unlimited). Use 0 to limit to the column header size."
 msgstr ""
 
-#: lxc/network_allocations.go:52 lxc/network_allocations.go:53
+#: lxc/network_allocations.go:51 lxc/network_allocations.go:52
 msgid "List network allocations in use"
 msgstr ""
 
@@ -3521,7 +3521,7 @@ msgid ""
 "    U - Current disk usage"
 msgstr ""
 
-#: lxc/remote.go:789 lxc/remote.go:790
+#: lxc/remote.go:791 lxc/remote.go:792
 msgid "List the available remotes"
 msgstr ""
 
@@ -3839,7 +3839,7 @@ msgid ""
 "\"custom\" (user created) volumes."
 msgstr ""
 
-#: lxc/remote.go:36 lxc/remote.go:37
+#: lxc/remote.go:37 lxc/remote.go:38
 msgid "Manage the list of remote servers"
 msgstr ""
 
@@ -4196,16 +4196,16 @@ msgstr ""
 #: lxc/config_trust.go:513 lxc/list.go:571 lxc/network.go:1117
 #: lxc/network_acl.go:172 lxc/network_peer.go:149 lxc/network_zone.go:164
 #: lxc/network_zone.go:846 lxc/profile.go:761 lxc/project.go:575
-#: lxc/remote.go:852 lxc/storage.go:716 lxc/storage_bucket.go:528
+#: lxc/remote.go:854 lxc/storage.go:716 lxc/storage_bucket.go:528
 #: lxc/storage_bucket.go:850 lxc/storage_volume.go:1764
 msgid "NAME"
 msgstr ""
 
-#: lxc/network_allocations.go:28
+#: lxc/network_allocations.go:27
 msgid "NAT"
 msgstr ""
 
-#: lxc/network_allocations.go:26
+#: lxc/network_allocations.go:25
 msgid "NETWORK"
 msgstr ""
 
@@ -4227,7 +4227,7 @@ msgstr ""
 
 #: lxc/network.go:1090 lxc/operation.go:155 lxc/project.go:533
 #: lxc/project.go:538 lxc/project.go:543 lxc/project.go:548 lxc/project.go:553
-#: lxc/project.go:558 lxc/remote.go:812 lxc/remote.go:817 lxc/remote.go:822
+#: lxc/project.go:558 lxc/remote.go:814 lxc/remote.go:819 lxc/remote.go:824
 msgid "NO"
 msgstr ""
 
@@ -4254,7 +4254,7 @@ msgstr ""
 msgid "Name"
 msgstr ""
 
-#: lxc/remote.go:144
+#: lxc/remote.go:145
 msgid "Name of the project to use for this remote:"
 msgstr ""
 
@@ -4463,7 +4463,7 @@ msgstr ""
 msgid "Only \"custom\" volumes can be snapshotted"
 msgstr ""
 
-#: lxc/remote.go:395
+#: lxc/remote.go:396
 msgid "Only https URLs are supported for simplestreams"
 msgstr ""
 
@@ -4540,11 +4540,11 @@ msgstr ""
 msgid "PROJECT"
 msgstr ""
 
-#: lxc/remote.go:854
+#: lxc/remote.go:856
 msgid "PROTOCOL"
 msgstr ""
 
-#: lxc/image.go:1146 lxc/remote.go:856
+#: lxc/image.go:1146 lxc/remote.go:858
 msgid "PUBLIC"
 msgstr ""
 
@@ -4573,7 +4573,7 @@ msgstr ""
 msgid "Perform an incremental copy"
 msgstr ""
 
-#: lxc/remote.go:197
+#: lxc/remote.go:198
 msgid "Please provide an alternate server address (empty to abort):"
 msgstr ""
 
@@ -4586,7 +4586,7 @@ msgstr ""
 msgid "Please provide cluster member name: "
 msgstr "  Χρήση δικτύου:"
 
-#: lxc/remote.go:553
+#: lxc/remote.go:555
 msgid "Please type 'y', 'n' or the fingerprint: "
 msgstr ""
 
@@ -4717,7 +4717,7 @@ msgstr ""
 msgid "Project %s renamed to %s"
 msgstr ""
 
-#: lxc/remote.go:109
+#: lxc/remote.go:110
 msgid "Project to use for the remote"
 msgstr ""
 
@@ -4815,7 +4815,7 @@ msgid ""
 "pool \"default\"."
 msgstr ""
 
-#: lxc/remote.go:108
+#: lxc/remote.go:109
 msgid "Public image server"
 msgstr ""
 
@@ -4906,45 +4906,45 @@ msgstr ""
 msgid "Refreshing the image: %s"
 msgstr ""
 
-#: lxc/remote.go:914
+#: lxc/remote.go:916
 #, c-format
 msgid "Remote %s already exists"
 msgstr ""
 
-#: lxc/project.go:890 lxc/remote.go:905 lxc/remote.go:986 lxc/remote.go:1051
-#: lxc/remote.go:1099
+#: lxc/project.go:890 lxc/remote.go:907 lxc/remote.go:988 lxc/remote.go:1053
+#: lxc/remote.go:1101
 #, c-format
 msgid "Remote %s doesn't exist"
 msgstr ""
 
-#: lxc/remote.go:362
+#: lxc/remote.go:363
 #, c-format
 msgid "Remote %s exists as <%s>"
 msgstr ""
 
-#: lxc/remote.go:994
+#: lxc/remote.go:996
 #, c-format
 msgid "Remote %s is global and cannot be removed"
 msgstr ""
 
-#: lxc/remote.go:909 lxc/remote.go:990 lxc/remote.go:1103
+#: lxc/remote.go:911 lxc/remote.go:992 lxc/remote.go:1105
 #, c-format
 msgid "Remote %s is static and cannot be modified"
 msgstr ""
 
-#: lxc/remote.go:336
+#: lxc/remote.go:337
 msgid "Remote address must not be empty"
 msgstr ""
 
-#: lxc/remote.go:104
+#: lxc/remote.go:105
 msgid "Remote admin password"
 msgstr ""
 
-#: lxc/remote.go:356
+#: lxc/remote.go:357
 msgid "Remote names may not contain colons"
 msgstr ""
 
-#: lxc/remote.go:105
+#: lxc/remote.go:106
 msgid "Remote trust token"
 msgstr ""
 
@@ -5030,7 +5030,7 @@ msgstr "  Χρήση δικτύου:"
 msgid "Remove profiles from instances"
 msgstr ""
 
-#: lxc/remote.go:956 lxc/remote.go:957
+#: lxc/remote.go:958 lxc/remote.go:959
 msgid "Remove remotes"
 msgstr ""
 
@@ -5088,7 +5088,7 @@ msgstr ""
 msgid "Rename projects"
 msgstr ""
 
-#: lxc/remote.go:875 lxc/remote.go:876
+#: lxc/remote.go:877 lxc/remote.go:878
 msgid "Rename remotes"
 msgstr ""
 
@@ -5187,15 +5187,11 @@ msgstr ""
 msgid "Role (admin or read-only)"
 msgstr ""
 
-#: lxc/network_allocations.go:60
-msgid "Run again a specific project"
-msgstr ""
-
 #: lxc/action.go:138
 msgid "Run against all instances"
 msgstr ""
 
-#: lxc/network_allocations.go:61
+#: lxc/network_allocations.go:59
 msgid "Run against all projects"
 msgstr ""
 
@@ -5234,7 +5230,7 @@ msgstr ""
 msgid "STATE"
 msgstr ""
 
-#: lxc/remote.go:857
+#: lxc/remote.go:859
 msgid "STATIC"
 msgstr ""
 
@@ -5271,19 +5267,19 @@ msgstr ""
 msgid "Send a raw query to LXD"
 msgstr ""
 
-#: lxc/remote.go:107
+#: lxc/remote.go:108
 msgid "Server authentication type (tls or oidc)"
 msgstr ""
 
-#: lxc/remote.go:549
+#: lxc/remote.go:551
 msgid "Server certificate NACKed by user"
 msgstr ""
 
-#: lxc/remote.go:302 lxc/remote.go:720
+#: lxc/remote.go:303 lxc/remote.go:722
 msgid "Server doesn't trust us after authentication"
 msgstr ""
 
-#: lxc/remote.go:106
+#: lxc/remote.go:107
 msgid "Server protocol (lxd or simplestreams)"
 msgstr ""
 
@@ -5497,7 +5493,7 @@ msgid ""
 "    lxc storage volume set [<remote>:]<pool> [<type>/]<volume> <key> <value>"
 msgstr ""
 
-#: lxc/remote.go:1069 lxc/remote.go:1070
+#: lxc/remote.go:1071 lxc/remote.go:1072
 msgid "Set the URL for the remote"
 msgstr ""
 
@@ -5756,7 +5752,7 @@ msgid ""
 "that are granted via identity provider group mappings. \n"
 msgstr ""
 
-#: lxc/remote.go:751 lxc/remote.go:752
+#: lxc/remote.go:753 lxc/remote.go:754
 msgid "Show the default remote"
 msgstr ""
 
@@ -5973,7 +5969,7 @@ msgstr ""
 msgid "Switch the current project"
 msgstr ""
 
-#: lxc/remote.go:1020 lxc/remote.go:1021
+#: lxc/remote.go:1022 lxc/remote.go:1023
 msgid "Switch the default remote"
 msgstr ""
 
@@ -6001,7 +5997,7 @@ msgstr ""
 
 #: lxc/auth.go:966 lxc/config_trust.go:407 lxc/image.go:1148
 #: lxc/image_alias.go:269 lxc/list.go:577 lxc/network.go:1118
-#: lxc/network.go:1204 lxc/network_allocations.go:27 lxc/operation.go:172
+#: lxc/network.go:1204 lxc/network_allocations.go:26 lxc/operation.go:172
 #: lxc/storage_volume.go:1763 lxc/warning.go:217
 msgid "TYPE"
 msgstr ""
@@ -6018,7 +6014,7 @@ msgstr ""
 msgid "Target path must be a directory"
 msgstr ""
 
-#: lxc/remote.go:163 lxc/remote.go:351
+#: lxc/remote.go:164 lxc/remote.go:352
 msgid ""
 "The --accept-certificate flag is not supported when adding a remote using a "
 "trust token"
@@ -6174,7 +6170,7 @@ msgid ""
 "The property %q does not exist on the storage pool volume snapshot %s/%s: %v"
 msgstr ""
 
-#: lxc/remote.go:544
+#: lxc/remote.go:546
 msgid ""
 "The provided fingerprint does not match the server certificate fingerprint"
 msgstr ""
@@ -6317,15 +6313,15 @@ msgstr ""
 msgid "Transmit policy"
 msgstr ""
 
-#: lxc/remote.go:346
+#: lxc/remote.go:347
 msgid "Trust token cannot be used for public remotes"
 msgstr ""
 
-#: lxc/remote.go:341
+#: lxc/remote.go:342
 msgid "Trust token cannot be used with OIDC authentication"
 msgstr ""
 
-#: lxc/remote.go:656
+#: lxc/remote.go:658
 #, c-format
 msgid "Trust token for %s: "
 msgstr ""
@@ -6368,7 +6364,7 @@ msgstr ""
 msgid "UPLOAD DATE"
 msgstr ""
 
-#: lxc/cluster.go:196 lxc/remote.go:853
+#: lxc/cluster.go:196 lxc/remote.go:855
 msgid "URL"
 msgstr ""
 
@@ -6376,7 +6372,7 @@ msgstr ""
 msgid "USAGE"
 msgstr ""
 
-#: lxc/network.go:1123 lxc/network_acl.go:174 lxc/network_allocations.go:24
+#: lxc/network.go:1123 lxc/network_acl.go:174 lxc/network_allocations.go:23
 #: lxc/network_zone.go:166 lxc/profile.go:764 lxc/project.go:583
 #: lxc/storage.go:725 lxc/storage_volume.go:1767
 msgid "USED BY"
@@ -6396,7 +6392,7 @@ msgstr ""
 msgid "Unable to create a temporary file: %v"
 msgstr ""
 
-#: lxc/remote.go:228 lxc/remote.go:263
+#: lxc/remote.go:229 lxc/remote.go:264
 msgid "Unavailable remote server"
 msgstr ""
 
@@ -6742,7 +6738,7 @@ msgstr ""
 
 #: lxc/network.go:1092 lxc/operation.go:157 lxc/project.go:535
 #: lxc/project.go:540 lxc/project.go:545 lxc/project.go:550 lxc/project.go:555
-#: lxc/project.go:560 lxc/remote.go:814 lxc/remote.go:819 lxc/remote.go:824
+#: lxc/project.go:560 lxc/remote.go:816 lxc/remote.go:821 lxc/remote.go:826
 msgid "YES"
 msgstr ""
 
@@ -7407,7 +7403,7 @@ msgstr ""
 msgid "[<remote>:][<warning-uuid>]"
 msgstr ""
 
-#: lxc/remote.go:91
+#: lxc/remote.go:92
 msgid "[<remote>] <IP|FQDN|URL|token>"
 msgstr ""
 
@@ -7415,7 +7411,7 @@ msgstr ""
 msgid "[[<remote>:]<member>]"
 msgstr ""
 
-#: lxc/project.go:565 lxc/remote.go:843
+#: lxc/project.go:565 lxc/remote.go:845
 msgid "current"
 msgstr ""
 
@@ -7902,7 +7898,7 @@ msgid ""
 "the configuration from \"config.yaml\"."
 msgstr ""
 
-#: lxc/remote.go:548
+#: lxc/remote.go:550
 msgid "n"
 msgstr ""
 
@@ -7914,7 +7910,7 @@ msgstr ""
 msgid "no"
 msgstr ""
 
-#: lxc/remote.go:527
+#: lxc/remote.go:528
 msgid "ok (y/n/[fingerprint])?"
 msgstr ""
 
@@ -7951,7 +7947,7 @@ msgstr ""
 msgid "used by"
 msgstr ""
 
-#: lxc/remote.go:536
+#: lxc/remote.go:538
 msgid "y"
 msgstr ""
 
