@@ -49,8 +49,6 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   /{,usr/}bin/qemu-system-*                 mrix,
   /usr/share/qemu/**                        kr,
   /usr/share/seabios/**                     kr,
-  @{PROC}/@{pid}/cpuset                     r,
-  @{PROC}/@{pid}/task/@{tid}/comm           rw,
   {{ .rootPath }}/etc/nsswitch.conf         r,
   {{ .rootPath }}/etc/passwd                r,
   {{ .rootPath }}/etc/group                 r,
