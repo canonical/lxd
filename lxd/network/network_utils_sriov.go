@@ -63,7 +63,7 @@ func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.InstanceList(ctx, func(dbInst db.InstanceArgs, p api.Project) error {
 			// Expand configs so we take into account profile devices.
-			var globalConfigDump map[string]any
+			var globalConfigDump map[string]string
 			if s.GlobalConfig != nil {
 				globalConfigDump = s.GlobalConfig.Dump()
 			}

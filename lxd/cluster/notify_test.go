@@ -231,7 +231,7 @@ func (h *notifyFixtures) Nodes(cert *shared.CertInfo, n int) func() {
 		config, err := node.ConfigLoad(ctx, tx)
 		require.NoError(h.t, err)
 		address := servers[0].Listener.Addr().String()
-		values := map[string]any{"cluster.https_address": address}
+		values := map[string]string{"cluster.https_address": address}
 		_, err = config.Patch(values)
 		require.NoError(h.t, err)
 		return nil
