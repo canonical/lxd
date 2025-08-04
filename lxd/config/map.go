@@ -82,7 +82,7 @@ func (m *Map) Dump() map[string]string {
 			if value != key.Default {
 				values[name] = value
 			}
-		} else if shared.IsUserConfig(name) {
+		} else if IsUserConfig(name) {
 			// User key, just include it as is
 			values[name] = value
 		}
@@ -95,7 +95,7 @@ func (m *Map) Dump() map[string]string {
 func (m *Map) GetRaw(name string) string {
 	value, ok := m.values[name]
 	// User key?
-	if shared.IsUserConfig(name) {
+	if IsUserConfig(name) {
 		return value
 	}
 	// Schema key
@@ -109,7 +109,7 @@ func (m *Map) GetRaw(name string) string {
 
 // GetString returns the value of the given key, which must be of type String.
 func (m *Map) GetString(name string) string {
-	if !shared.IsUserConfig(name) {
+	if !IsUserConfig(name) {
 		m.schema.assertKeyType(name, String)
 	}
 
@@ -176,7 +176,7 @@ func (m *Map) update(values map[string]string) ([]string, error) {
 // the value has changed, and error if something went wrong.
 func (m *Map) set(name string, value string, initial bool) (bool, error) {
 	// Bypass schema for user.* keys
-	if shared.IsUserConfig(name) {
+	if IsUserConfig(name) {
 		for _, r := range strings.TrimPrefix(name, "user.") {
 			// Only allow letters, digits, and punctuation characters.
 			if !unicode.In(r, unicode.Letter, unicode.Digit, unicode.Punct) {
@@ -253,4 +253,9 @@ func normalizeBool(value string) string {
 	}
 
 	return "false"
+}
+
+// IsUserConfig returns true if the key starts with the prefix "user.".
+func IsUserConfig(key string) bool {
+	return strings.HasPrefix(key, "user.")
 }
