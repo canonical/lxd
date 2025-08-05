@@ -774,7 +774,7 @@ func (d *Daemon) State() *state.State {
 		UbuntuPro:           d.ubuntuPro,
 		NetworkReady:        d.waitNetworkReady,
 		StorageReady:        d.waitStorageReady,
-		Secrets:             d.getCoreAuthSecrets,
+		CoreAuthSecrets:     d.getCoreAuthSecrets,
 	}
 
 	s.LeaderInfo = func() (*state.LeaderInfo, error) {
