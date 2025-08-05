@@ -280,32 +280,29 @@ const (
 // (e.g., "storage.project.<name>.images_volume") and daemon storage keys (e.g., "storage.images_volume").
 // If the key is not recognized, it returns an empty string and an empty DaemonStorageType.
 func ParseDaemonStorageConfigKey(config string) (projectName string, storageType DaemonStorageType) {
-	if strings.HasPrefix(config, "storage.project.") {
-		parts := strings.Split(config, ".")
-		if len(parts) != 4 {
+	_, after, found := strings.Cut(config, "storage.project.")
+	if found {
+		projectName, storageType, found := strings.Cut(after, ".")
+		if !found {
 			return "", ""
 		}
 
-		switch parts[3] {
+		switch storageType {
 		case "images_volume":
-			return parts[2], "images"
+			return projectName, "images"
 		case "backups_volume":
-			return parts[2], "backups"
+			return projectName, "backups"
 		}
 
 		return "", ""
 	}
 
-	if !strings.HasPrefix(config, "storage.") {
+	_, after, found = strings.Cut(config, "storage.")
+	if !found {
 		return "", ""
 	}
 
-	parts := strings.Split(config, ".")
-	if len(parts) != 2 {
-		return "", ""
-	}
-
-	switch parts[1] {
+	switch after {
 	case "images_volume":
 		return "", "images"
 	case "backups_volume":
