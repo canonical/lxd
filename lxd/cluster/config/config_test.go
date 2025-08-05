@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -17,9 +18,15 @@ func TestConfigLoad_Initial(t *testing.T) {
 	defer cleanup()
 
 	config, err := clusterConfig.Load(context.Background(), tx)
-
 	require.NoError(t, err)
-	assert.Equal(t, map[string]string{}, config.Dump())
+
+	clusterUUID := config.ClusterUUID()
+	uuidv7, err := uuid.Parse(clusterUUID)
+	require.NoError(t, err)
+	require.Equal(t, uuid.Version(7), uuidv7.Version())
+	assert.Equal(t, map[string]string{
+		"volatile.uuid": clusterUUID,
+	}, config.Dump())
 
 	assert.Equal(t, float64(20), config.OfflineThreshold().Seconds())
 }
@@ -38,7 +45,7 @@ func TestConfigLoad_IgnoreInvalidKeys(t *testing.T) {
 	config, err := clusterConfig.Load(context.Background(), tx)
 
 	require.NoError(t, err)
-	values := map[string]string{"core.proxy_http": "foo.bar"}
+	values := map[string]string{"core.proxy_http": "foo.bar", "volatile.uuid": config.ClusterUUID()}
 	assert.Equal(t, values, config.Dump())
 }
 
@@ -50,7 +57,9 @@ func TestConfigLoad_Triggers(t *testing.T) {
 	config, err := clusterConfig.Load(context.Background(), tx)
 
 	require.NoError(t, err)
-	assert.Equal(t, map[string]string{}, config.Dump())
+	assert.Equal(t, map[string]string{
+		"volatile.uuid": config.ClusterUUID(),
+	}, config.Dump())
 }
 
 // Offline threshold must be greater than the heartbeat interval.
@@ -88,7 +97,11 @@ func TestConfig_ReplaceDeleteValues(t *testing.T) {
 
 	changed, err := config.Replace(tx, map[string]string{"core.proxy_http": "foo.bar"})
 	assert.NoError(t, err)
-	assert.Equal(t, map[string]string{"core.proxy_http": "foo.bar"}, changed)
+	assert.Equal(t, map[string]string{
+		"core.proxy_http": "foo.bar",
+		// Validation that the volatile.uuid value cannot change happens in the PUT/PATCH /1.0 API handlers.
+		"volatile.uuid": "",
+	}, changed)
 
 	_, err = config.Replace(tx, map[string]string{})
 	assert.NoError(t, err)
