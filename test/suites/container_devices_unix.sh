@@ -117,6 +117,7 @@ _container_devices_unix() {
   rm "${testDev}"
   sleep 1
   ! lxc exec "${ctName}" -- mount | grep -F "/tmp/testdev" || false
+  lxc exec "${ctName}" -- test -e /tmp/testdev
   ! test -e "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev || false
 
   # Leave instance running, restart LXD, then add device back to check LXD start time inotify works.
@@ -134,6 +135,7 @@ _container_devices_unix() {
   ls -la "${TEST_DIR}"
   lxc config device set "${ctName}" test-dev-dynamic source="${testDevSubDir}"
   ! lxc exec "${ctName}" -- mount | grep -F "/tmp/testdev" || false
+  lxc exec "${ctName}" -- test -e /tmp/testdev
   ! test -e "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev || false
 
   mkdir "${testDev}"
@@ -151,6 +153,7 @@ _container_devices_unix() {
   if [ "${LXD_FSMONITOR_DRIVER}" != "fanotify" ]; then
     sleep 1
     ! lxc exec "${ctName}" -- mount | grep -F "/tmp/testdev" || false
+    lxc exec "${ctName}" -- test -e /tmp/testdev
     ! test -e "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev || false
   fi
 
@@ -176,6 +179,7 @@ _container_devices_unix() {
   rm "${testDev}"
   sleep 1
   ! lxc exec "${ctName}2" -- mount | grep -F "/tmp/testdev2" || false
+  lxc exec "${ctName}2" -- test -e /tmp/testdev2
   ! test -e "${LXD_DIR}"/devices/"${ctName}"2/unix.test--dev--dynamic.tmp-testdev2 || false
   lxc delete -f "${ctName}1"
   lxc delete -f "${ctName}2"
