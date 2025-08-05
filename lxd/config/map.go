@@ -289,9 +289,9 @@ func ParseDaemonStorageConfigKey(config string) (projectName string, storageType
 
 		switch storageType {
 		case "images_volume":
-			return projectName, "images"
+			return projectName, DaemonStorageTypeImages
 		case "backups_volume":
-			return projectName, "backups"
+			return projectName, DaemonStorageTypeBackups
 		}
 
 		return "", ""
@@ -304,9 +304,9 @@ func ParseDaemonStorageConfigKey(config string) (projectName string, storageType
 
 	switch after {
 	case "images_volume":
-		return "", "images"
+		return "", DaemonStorageTypeImages
 	case "backups_volume":
-		return "", "backups"
+		return "", DaemonStorageTypeBackups
 	}
 
 	return "", ""
