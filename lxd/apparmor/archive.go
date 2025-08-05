@@ -118,16 +118,16 @@ func archiveProfile(s *state.State, outputPath string, allowedCommandPaths []str
 	// Add all paths configured as daemon storage or project storage.
 	// We store the paths in a map[string]bool to ensure uniqueness.
 	daemonStorageVolumePaths := make(map[config.DaemonStorageType]map[string]bool)
-	daemonStorageVolumePaths["images"] = make(map[string]bool)
-	daemonStorageVolumePaths["backups"] = make(map[string]bool)
+	daemonStorageVolumePaths[config.DaemonStorageTypeImages] = make(map[string]bool)
+	daemonStorageVolumePaths[config.DaemonStorageTypeBackups] = make(map[string]bool)
 	projectStoragePathFuncs := map[config.DaemonStorageType]func(projectName string) string{
-		"images":  s.ImagesStoragePath,
-		"backups": s.BackupsStoragePath,
+		config.DaemonStorageTypeImages:  s.ImagesStoragePath,
+		config.DaemonStorageTypeBackups: s.BackupsStoragePath,
 	}
 
 	// Add the daemon storage which can't be used by any of the projects.
 	// The daemon storage volumes might not be configured in the node config, so we add them manually.
-	for _, storageType := range []config.DaemonStorageType{"images", "backups"} {
+	for _, storageType := range []config.DaemonStorageType{config.DaemonStorageTypeImages, config.DaemonStorageTypeBackups} {
 		volumePath := projectStoragePathFuncs[storageType]("")
 		// Attempt to dereference the symlink, if it fails, use the original path
 		volumePathFull, err := filepath.EvalSymlinks(volumePath)
@@ -158,14 +158,14 @@ func archiveProfile(s *state.State, outputPath string, allowedCommandPaths []str
 
 	// Convert the maps to slices for the template.
 	daemonStorageVolumePathsSlices := make(map[config.DaemonStorageType][]string)
-	daemonStorageVolumePathsSlices["images"] = make([]string, 0, len(daemonStorageVolumePaths["images"]))
-	daemonStorageVolumePathsSlices["backups"] = make([]string, 0, len(daemonStorageVolumePaths["backups"]))
-	for path := range daemonStorageVolumePaths["images"] {
-		daemonStorageVolumePathsSlices["images"] = append(daemonStorageVolumePathsSlices["images"], path)
+	daemonStorageVolumePathsSlices[config.DaemonStorageTypeImages] = make([]string, 0, len(daemonStorageVolumePaths[config.DaemonStorageTypeImages]))
+	daemonStorageVolumePathsSlices[config.DaemonStorageTypeBackups] = make([]string, 0, len(daemonStorageVolumePaths[config.DaemonStorageTypeBackups]))
+	for path := range daemonStorageVolumePaths[config.DaemonStorageTypeImages] {
+		daemonStorageVolumePathsSlices[config.DaemonStorageTypeImages] = append(daemonStorageVolumePathsSlices[config.DaemonStorageTypeImages], path)
 	}
 
-	for path := range daemonStorageVolumePaths["backups"] {
-		daemonStorageVolumePathsSlices["backups"] = append(daemonStorageVolumePathsSlices["backups"], path)
+	for path := range daemonStorageVolumePaths[config.DaemonStorageTypeBackups] {
+		daemonStorageVolumePathsSlices[config.DaemonStorageTypeBackups] = append(daemonStorageVolumePathsSlices[config.DaemonStorageTypeBackups], path)
 	}
 
 	derefCommandPaths := make([]string, len(allowedCommandPaths))
@@ -184,8 +184,8 @@ func archiveProfile(s *state.State, outputPath string, allowedCommandPaths []str
 		"name":                ArchiveProfileName(outputPath), // Use non-deferenced outputPath for name.
 		"outputPath":          outputPathFull,                 // Use deferenced path in AppArmor profile.
 		"rootPath":            rootPath,
-		"backupsPaths":        daemonStorageVolumePathsSlices["backups"],
-		"imagesPaths":         daemonStorageVolumePathsSlices["images"],
+		"backupsPaths":        daemonStorageVolumePathsSlices[config.DaemonStorageTypeBackups],
+		"imagesPaths":         daemonStorageVolumePathsSlices[config.DaemonStorageTypeImages],
 		"allowedCommandPaths": derefCommandPaths,
 		"snap":                shared.InSnap(),
 	})
