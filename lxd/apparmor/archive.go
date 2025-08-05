@@ -117,9 +117,9 @@ func archiveProfile(s *state.State, outputPath string, allowedCommandPaths []str
 
 	// Add all paths configured as daemon storage or project storage.
 	// We store the paths in a map[string]bool to ensure uniqueness.
-	daemonStorageVolumePaths := make(map[config.DaemonStorageType]map[string]bool)
-	daemonStorageVolumePaths[config.DaemonStorageTypeImages] = make(map[string]bool)
-	daemonStorageVolumePaths[config.DaemonStorageTypeBackups] = make(map[string]bool)
+	daemonStorageVolumePaths := make(map[config.DaemonStorageType]map[string]struct{})
+	daemonStorageVolumePaths[config.DaemonStorageTypeImages] = make(map[string]struct{})
+	daemonStorageVolumePaths[config.DaemonStorageTypeBackups] = make(map[string]struct{})
 	projectStoragePathFuncs := map[config.DaemonStorageType]func(projectName string) string{
 		config.DaemonStorageTypeImages:  s.ImagesStoragePath,
 		config.DaemonStorageTypeBackups: s.BackupsStoragePath,
@@ -135,7 +135,7 @@ func archiveProfile(s *state.State, outputPath string, allowedCommandPaths []str
 			volumePath = volumePathFull
 		}
 
-		daemonStorageVolumePaths[storageType][volumePath] = true
+		daemonStorageVolumePaths[storageType][volumePath] = struct{}{}
 	}
 
 	// Add all the project storage volumes, which are configured in the node config.
@@ -153,7 +153,7 @@ func archiveProfile(s *state.State, outputPath string, allowedCommandPaths []str
 			volumePath = volumePathFull
 		}
 
-		daemonStorageVolumePaths[storageType][volumePath] = true
+		daemonStorageVolumePaths[storageType][volumePath] = struct{}{}
 	}
 
 	// Convert the maps to slices for the template.
