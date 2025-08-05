@@ -117,8 +117,8 @@ type State struct {
 	// StorageReady can be used to track whether all storage pools are successfully started.
 	StorageReady cancel.Canceller
 
-	// Secrets returns the current secrets.
-	Secrets func(ctx context.Context) (cluster.AuthSecrets, error)
+	// CoreAuthSecrets returns the current secrets.
+	CoreAuthSecrets func(ctx context.Context) (cluster.AuthSecrets, error)
 }
 
 // LeaderInfo represents information regarding cluster member leadership.
