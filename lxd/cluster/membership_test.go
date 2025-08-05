@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/canonical/go-dqlite/v3/driver"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -307,7 +308,9 @@ func TestJoin(t *testing.T) {
 	targetStore := targetGateway.NodeStore()
 	targetDialFunc := targetGateway.DialFunc()
 
-	targetState.DB.Cluster, err = db.OpenCluster(context.Background(), "db.bin", targetStore, targetAddress, "/unused/db/dir", 10*time.Second, nil, driver.WithDialFunc(targetDialFunc))
+	server1UUID, err := uuid.NewV7()
+	require.NoError(t, err)
+	targetState.DB.Cluster, err = db.OpenCluster(context.Background(), "db.bin", targetStore, targetAddress, "/unused/db/dir", 10*time.Second, nil, server1UUID.String(), driver.WithDialFunc(targetDialFunc))
 	targetState.ServerCert = func() *shared.CertInfo { return targetCert }
 	require.NoError(t, err)
 
@@ -368,7 +371,10 @@ func TestJoin(t *testing.T) {
 	store := gateway.NodeStore()
 	dialFunc := gateway.DialFunc()
 
-	state.DB.Cluster, err = db.OpenCluster(context.Background(), "db.bin", store, address, "/unused/db/dir", 5*time.Second, nil, driver.WithDialFunc(dialFunc))
+	server2UUID, err := uuid.NewV7()
+	require.NoError(t, err)
+
+	state.DB.Cluster, err = db.OpenCluster(context.Background(), "db.bin", store, address, "/unused/db/dir", 5*time.Second, nil, server2UUID.String(), driver.WithDialFunc(dialFunc))
 	require.NoError(t, err)
 
 	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
