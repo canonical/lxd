@@ -227,7 +227,7 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 		}
 	}
 
-	err = cluster.EnsureSchema(db, address, dir)
+	err = cluster.EnsureSchema(db, address, dir, serverUUID)
 	if err != nil {
 		if api.StatusErrorCheck(err, http.StatusPreconditionFailed) {
 			cluster := &Cluster{
