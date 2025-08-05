@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -25,7 +26,11 @@ func TestEnsureSchema_NoClustered(t *testing.T) {
 	assert.NoError(t, os.Mkdir(filepath.Join(dir, "global"), 0711))
 	db := newDB(t)
 	addNode(t, db, "0.0.0.0", 1, 1)
-	err := EnsureSchema(db, "1.2.3.4:666", dir)
+
+	serverUUID, err := uuid.NewV7()
+	require.NoError(t, err)
+
+	err = EnsureSchema(db, "1.2.3.4:666", dir, serverUUID.String())
 	assert.NoError(t, err)
 }
 
@@ -91,7 +96,11 @@ func TestEnsureSchema_ClusterNotUpgradable(t *testing.T) {
 		t.Run(c.title, func(t *testing.T) {
 			db := newDB(t)
 			c.setup(t, db)
-			err := EnsureSchema(db, "1", "/unused/db/dir")
+
+			serverUUID, err := uuid.NewV7()
+			require.NoError(t, err)
+
+			err = EnsureSchema(db, "1", "/unused/db/dir", serverUUID.String())
 			if c.apiStatusErrorCode > 0 {
 				statusErrCode, isStatusErr := api.StatusErrorMatch(err)
 				assert.True(t, isStatusErr)
@@ -136,8 +145,11 @@ func TestEnsureSchema_UpdateNodeVersion(t *testing.T) {
 			// extensions number.
 			addNode(t, db, "1", schema-1, apiExtensions-1)
 
+			serverUUID, err := uuid.NewV7()
+			require.NoError(t, err)
+
 			// Ensure the schema.
-			err := EnsureSchema(db, "1", "/unused/db/dir")
+			err = EnsureSchema(db, "1", "/unused/db/dir", serverUUID.String())
 
 			statusErrCode, isStatusErr := api.StatusErrorMatch(err)
 			if c.apiStatusErrorCode > 0 {
