@@ -38,6 +38,7 @@ import (
 	"github.com/canonical/lxd/lxd/bgp"
 	"github.com/canonical/lxd/lxd/cluster"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
+	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/daemon"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -799,12 +800,12 @@ func (d *Daemon) State() *state.State {
 		}, nil
 	}
 
-	s.ImagesStoragePath = func() string {
-		return daemonStoragePath(s.LocalConfig.StorageImagesVolume(), "images")
+	s.ImagesStoragePath = func(projectName string) string {
+		return daemonStoragePath(s.LocalConfig.StorageImagesVolume(projectName), "images")
 	}
 
-	s.BackupsStoragePath = func() string {
-		return daemonStoragePath(s.LocalConfig.StorageBackupsVolume(), "backups")
+	s.BackupsStoragePath = func(projectName string) string {
+		return daemonStoragePath(s.LocalConfig.StorageBackupsVolume(projectName), "backups")
 	}
 
 	return s
@@ -1662,6 +1663,17 @@ func (d *Daemon) init() error {
 		d.serverName = serverName
 		d.globalConfig = globalConfig
 		d.globalConfigMu.Unlock()
+
+		// Add the per-project config options to the daemon config schema.
+		projects, err := dbCluster.GetProjectNames(ctx, tx.Tx())
+		if err != nil {
+			return fmt.Errorf("Failed to get project names: %w", err)
+		}
+
+		for _, project := range projects {
+			node.ConfigSchema["storage.project."+project+".images_volume"] = config.Key{}
+			node.ConfigSchema["storage.project."+project+".backups_volume"] = config.Key{}
+		}
 
 		return nil
 	})

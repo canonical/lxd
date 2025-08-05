@@ -82,7 +82,7 @@ func (m *Map) Dump() map[string]string {
 			if value != key.Default {
 				values[name] = value
 			}
-		} else if shared.IsUserConfig(name) {
+		} else if IsUserConfig(name) {
 			// User key, just include it as is
 			values[name] = value
 		}
@@ -94,8 +94,8 @@ func (m *Map) Dump() map[string]string {
 // GetRaw returns the value of the given key, which must be of type String.
 func (m *Map) GetRaw(name string) string {
 	value, ok := m.values[name]
-	// User key?
-	if shared.IsUserConfig(name) {
+	// User or dynamic storage key?
+	if IsUserConfig(name) || IsProjectStorageConfig(name) {
 		return value
 	}
 	// Schema key
@@ -109,7 +109,7 @@ func (m *Map) GetRaw(name string) string {
 
 // GetString returns the value of the given key, which must be of type String.
 func (m *Map) GetString(name string) string {
-	if !shared.IsUserConfig(name) {
+	if !IsUserConfig(name) {
 		m.schema.assertKeyType(name, String)
 	}
 
@@ -176,7 +176,7 @@ func (m *Map) update(values map[string]string) ([]string, error) {
 // the value has changed, and error if something went wrong.
 func (m *Map) set(name string, value string, initial bool) (bool, error) {
 	// Bypass schema for user.* keys
-	if shared.IsUserConfig(name) {
+	if IsUserConfig(name) {
 		for _, r := range strings.TrimPrefix(name, "user.") {
 			// Only allow letters, digits, and punctuation characters.
 			if !unicode.In(r, unicode.Letter, unicode.Digit, unicode.Punct) {
@@ -200,7 +200,8 @@ func (m *Map) set(name string, value string, initial bool) (bool, error) {
 	}
 
 	key, ok := m.schema[name]
-	if !ok {
+	// Allow free setting of dynamic storage.project.{name} configs
+	if !ok && !IsProjectStorageConfig(name) {
 		return false, errors.New("Unknown key")
 	}
 
@@ -253,4 +254,63 @@ func normalizeBool(value string) string {
 	}
 
 	return "false"
+}
+
+// IsUserConfig returns true if the key starts with the prefix "user.".
+func IsUserConfig(key string) bool {
+	return strings.HasPrefix(key, "user.")
+}
+
+// IsProjectStorageConfig returns true if the key starts with the prefix "storage.project.".
+func IsProjectStorageConfig(key string) bool {
+	return strings.HasPrefix(key, "storage.project.")
+}
+
+// DaemonStorageType represents the type of storage volume configurable in the daemon config.
+type DaemonStorageType string
+
+// Define the possible types of daemon storage.
+const (
+	DaemonStorageTypeImages  DaemonStorageType = "images"
+	DaemonStorageTypeBackups DaemonStorageType = "backups"
+)
+
+// ParseDaemonStorageConfigKey parses a daemon storage config key and returns the project name
+// and the type of storage it refers to. It supports both project-specific keys
+// (e.g., "storage.project.<name>.images_volume") and daemon storage keys (e.g., "storage.images_volume").
+// If the key is not recognized, it returns an empty string and an empty DaemonStorageType.
+func ParseDaemonStorageConfigKey(config string) (projectName string, storageType DaemonStorageType) {
+	if strings.HasPrefix(config, "storage.project.") {
+		parts := strings.Split(config, ".")
+		if len(parts) != 4 {
+			return "", ""
+		}
+
+		switch parts[3] {
+		case "images_volume":
+			return parts[2], "images"
+		case "backups_volume":
+			return parts[2], "backups"
+		}
+
+		return "", ""
+	}
+
+	if !strings.HasPrefix(config, "storage.") {
+		return "", ""
+	}
+
+	parts := strings.Split(config, ".")
+	if len(parts) != 2 {
+		return "", ""
+	}
+
+	switch parts[1] {
+	case "images_volume":
+		return "", "images"
+	case "backups_volume":
+		return "", "backups"
+	}
+
+	return "", ""
 }

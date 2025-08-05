@@ -16,6 +16,7 @@ import (
 	"github.com/canonical/lxd/lxd/bgp"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/cluster/request"
+	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/network/acl"
@@ -123,7 +124,7 @@ func (n *common) validationRules() map[string]func(string) error {
 }
 
 // validate a network config against common rules and optional driver specific rules.
-func (n *common) validate(config map[string]string, driverRules map[string]func(value string) error) error {
+func (n *common) validate(networkConfig map[string]string, driverRules map[string]func(value string) error) error {
 	checkedFields := map[string]struct{}{}
 
 	// Get rules common for all drivers.
@@ -135,21 +136,21 @@ func (n *common) validate(config map[string]string, driverRules map[string]func(
 	// Run the validator against each field.
 	for k, validator := range rules {
 		checkedFields[k] = struct{}{} // Mark field as checked.
-		err := validator(config[k])
+		err := validator(networkConfig[k])
 		if err != nil {
 			return fmt.Errorf("Invalid value for network %q option %q: %w", n.name, k, err)
 		}
 	}
 
 	// Look for any unchecked fields, as these are unknown fields and validation should fail.
-	for k := range config {
+	for k := range networkConfig {
 		_, checked := checkedFields[k]
 		if checked {
 			continue
 		}
 
 		// User keys are not validated.
-		if shared.IsUserConfig(k) {
+		if config.IsUserConfig(k) {
 			continue
 		}
 
@@ -1003,7 +1004,7 @@ func (n *common) forwardValidate(listenAddress net.IP, forward api.NetworkForwar
 		}
 
 		// User keys are not validated.
-		if shared.IsUserConfig(k) {
+		if config.IsUserConfig(k) {
 			continue
 		}
 
@@ -1315,7 +1316,7 @@ func (n *common) loadBalancerValidate(listenAddress net.IP, forward api.NetworkL
 	// Look for any unknown config fields.
 	for k := range forward.Config {
 		// User keys are not validated.
-		if shared.IsUserConfig(k) {
+		if config.IsUserConfig(k) {
 			continue
 		}
 
@@ -1569,7 +1570,7 @@ func (n *common) peerValidate(peerName string, peer *api.NetworkPeerPut) error {
 		}
 
 		// User keys are not validated.
-		if shared.IsUserConfig(k) {
+		if config.IsUserConfig(k) {
 			continue
 		}
 

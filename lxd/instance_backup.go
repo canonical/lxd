@@ -732,7 +732,7 @@ func instanceBackupExportGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	ent := response.FileResponseEntry{
-		Path: filepath.Join(d.State().BackupsStoragePath(), "instances", project.Instance(projectName, backup.Name())),
+		Path: filepath.Join(d.State().BackupsStoragePath(backup.Instance().Project().Name), "instances", project.Instance(projectName, backup.Name())),
 	}
 
 	s.Events.SendLifecycle(projectName, lifecycle.InstanceBackupRetrieved.Event(fullName, backup.Instance(), nil))

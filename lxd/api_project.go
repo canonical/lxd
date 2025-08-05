@@ -15,12 +15,16 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/cluster"
+	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network"
+	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/operations"
 	projecthelpers "github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/project/limits"
@@ -317,6 +321,29 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	err = projectValidateConfig(s, project.Config, project.Network)
 	if err != nil {
 		return response.BadRequest(err)
+	}
+
+	// Extend the node config schema with the project-specific config keys.
+	// Otherwise the node config schema validation will not allow setting of these keys.
+	node.ConfigSchema["storage.project."+project.Name+".images_volume"] = config.Key{}
+	node.ConfigSchema["storage.project."+project.Name+".backups_volume"] = config.Key{}
+
+	// On other cluster nodes, we're done.
+	if isClusterNotification(r) {
+		return response.SyncResponse(true, nil)
+	}
+
+	// Send notification to other cluster members to extend the node schema.
+	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
+		return client.CreateProject(project)
+	})
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to notify other cluster members: %w", err))
 	}
 
 	var id int64
@@ -693,6 +720,13 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 	return projectChange(r.Context(), s, project, req)
 }
 
+// isProjectInUse checks if a project is in use by any instances, images, profiles, storage volumes, etc.
+// Only use by a default profile is allowed in an empty project.
+func isProjectInUse(projectUsedBy []string) bool {
+	usedByLen := len(projectUsedBy)
+	return usedByLen > 1 || (usedByLen == 1 && !strings.Contains(projectUsedBy[0], "/profiles/default"))
+}
+
 // Common logic between PUT and PATCH.
 func projectChange(ctx context.Context, s *state.State, project *api.Project, req api.ProjectPut) response.Response {
 	// Make a list of config keys that have changed.
@@ -726,9 +760,7 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 		}
 
 		// Consider the project empty if it is only used by the default profile.
-		usedByLen := len(project.UsedBy)
-		projectInUse := usedByLen > 1 || (usedByLen == 1 && !strings.Contains(project.UsedBy[0], "/profiles/default"))
-		if projectInUse {
+		if isProjectInUse(project.UsedBy) {
 			// Check if feature is allowed to be changed.
 			for _, featureChanged := range featuresChanged {
 				// If feature is currently enabled, and it is being changed in the request, it
@@ -744,6 +776,12 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 				}
 			}
 		}
+	}
+
+	// Ensure that projects with external images storage have their own images enabled. Otherwise flipping
+	// the feature would require to tranfer the images to the default project storage.
+	if s.LocalConfig.StorageImagesVolume(project.Name) != "" && shared.IsFalseOrEmpty(req.Config["features.images"]) {
+		return response.BadRequest(fmt.Errorf("Project feature %q cannot be disabled on projects with storage.project.%s.images_volume configured", "features.images", project.Name))
 	}
 
 	// Validate the configuration.
@@ -796,6 +834,52 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 	return response.EmptySyncResponse
 }
 
+func projectNodeConfigRename(d *Daemon, ctx context.Context, oldName string, newName string) error {
+	var localConfig *node.Config
+
+	oldImagesVolumeConfig := "storage.project." + oldName + ".images_volume"
+	newImagesVolumeConfig := "storage.project." + newName + ".images_volume"
+	oldBackupsVolumeConfig := "storage.project." + oldName + ".backups_volume"
+	newBackupsVolumeConfig := "storage.project." + newName + ".backups_volume"
+
+	// Extend the node config schema with the new project name config keys.
+	// Otherwise the node config schema validation will not allow setting of these keys.
+	node.ConfigSchema[newImagesVolumeConfig] = config.Key{}
+	node.ConfigSchema[newBackupsVolumeConfig] = config.Key{}
+
+	// Clear the project-specific config keys from the local node config.
+	err := d.State().DB.Node.Transaction(ctx, func(ctx context.Context, tx *db.NodeTx) error {
+		var err error
+
+		localConfig, err = node.ConfigLoad(ctx, tx)
+		if err != nil {
+			return fmt.Errorf("Failed to load local node config: %w", err)
+		}
+
+		_, err = localConfig.Patch(map[string]string{
+			newImagesVolumeConfig:  localConfig.StorageImagesVolume(oldName),
+			newBackupsVolumeConfig: localConfig.StorageBackupsVolume(oldName),
+			oldImagesVolumeConfig:  "",
+			oldBackupsVolumeConfig: "",
+		})
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to update project-specific config keys in the local node config: %w", err)
+	}
+
+	// Update local config cache.
+	d.globalConfigMu.Lock()
+	d.localConfig = localConfig
+	d.globalConfigMu.Unlock()
+
+	// Delete the old configs from schema.
+	delete(node.ConfigSchema, oldImagesVolumeConfig)
+	delete(node.ConfigSchema, oldBackupsVolumeConfig)
+
+	return nil
+}
+
 // swagger:operation POST /1.0/projects/{name} projects project_post
 //
 //	Rename the project
@@ -844,6 +928,16 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(errors.New("The 'default' project cannot be renamed"))
 	}
 
+	// On cluster notification, just update the node config values and we're done.
+	if isClusterNotification(r) {
+		err = projectNodeConfigRename(d, r.Context(), name, req.Name)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.EmptySyncResponse
+	}
+
 	// Perform the rename.
 	run := func(op *operations.Operation) error {
 		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -875,7 +969,31 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
-			return dbCluster.RenameProject(ctx, tx.Tx(), name, req.Name)
+			err = dbCluster.RenameProject(ctx, tx.Tx(), name, req.Name)
+			if err != nil {
+				return err
+			}
+
+			// Update the node config values.
+			return projectNodeConfigRename(d, ctx, name, req.Name)
+		})
+		if err != nil {
+			return err
+		}
+
+		// Send notification to other cluster members to update the node schema.
+		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+		if err != nil {
+			return err
+		}
+
+		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
+			op, err := client.RenameProject(name, req)
+			if err != nil {
+				return err
+			}
+
+			return op.Wait()
 		})
 		if err != nil {
 			return err
@@ -893,6 +1011,54 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return operations.OperationResponse(op)
+}
+
+func projectNodeConfigDelete(d *Daemon, s *state.State, name string) error {
+	var config *node.Config
+	imagesVolumeConfig := "storage.project." + name + ".images_volume"
+	backupsVolumeConfig := "storage.project." + name + ".backups_volume"
+
+	// Clear the project-specific config keys from the local node config.
+	err := s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+		var err error
+
+		config, err = node.ConfigLoad(ctx, tx)
+		if err != nil {
+			return fmt.Errorf("Failed to load local node config: %w", err)
+		}
+
+		// Unmount the project-specific storage volumes.
+		for _, projectStorageVolume := range []string{config.StorageImagesVolume(name), config.StorageBackupsVolume(name)} {
+			if projectStorageVolume == "" {
+				continue
+			}
+
+			err = unmountDaemonStorageVolume(s, projectStorageVolume)
+			if err != nil {
+				return err
+			}
+		}
+
+		_, err = config.Patch(map[string]string{
+			imagesVolumeConfig:  "",
+			backupsVolumeConfig: "",
+		})
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to clear project-specific config keys from the local node config: %w", err)
+	}
+
+	// Update local config cache.
+	d.globalConfigMu.Lock()
+	d.localConfig = config
+	d.globalConfigMu.Unlock()
+
+	// Remove the project-specific config keys from the node config schema.
+	delete(node.ConfigSchema, imagesVolumeConfig)
+	delete(node.ConfigSchema, backupsVolumeConfig)
+
+	return nil
 }
 
 // swagger:operation DELETE /1.0/projects/{name} projects project_delete
@@ -926,6 +1092,17 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(errors.New("The 'default' project cannot be deleted"))
 	}
 
+	// On cluster notification, just clear the node config values and we're done.
+	if isClusterNotification(r) {
+		err = projectNodeConfigDelete(d, s, name)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.EmptySyncResponse
+	}
+
+	// Verify the project is empty.
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		project, err := dbCluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
@@ -941,9 +1118,34 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 			return errors.New("Only empty projects can be removed")
 		}
 
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Clear the project-specific config keys from the local node config.
+	err = projectNodeConfigDelete(d, s, name)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Send notification to other cluster members to update the node schema.
+	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
+		return client.DeleteProject(name)
+	})
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed to notify other cluster members: %w", err))
+	}
+
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return dbCluster.DeleteProject(ctx, tx.Tx(), name)
 	})
-
 	if err != nil {
 		return response.SmartError(err)
 	}

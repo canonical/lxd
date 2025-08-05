@@ -7,6 +7,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/shared"
@@ -21,10 +22,16 @@ profile "{{.name}}" {
   {{$element}} mixr,
 {{- end }}
 
+{{range $index, $element := .imagesPaths}}
+  {{$element}}/** r,
+{{- end }}
+
+{{range $index, $element := .backupsPaths}}
+  {{$element}}/** rw,
+{{- end }}
+
   {{ .outputPath }}/ rw,
   {{ .outputPath }}/** rwl,
-  {{ .backupsPath }}/** rw,
-  {{ .imagesPath }}/** r,
 
   signal (receive) set=("term"),
 
@@ -108,16 +115,57 @@ func archiveProfile(s *state.State, outputPath string, allowedCommandPaths []str
 		outputPathFull = outputPath // Use requested path if cannot resolve it.
 	}
 
-	backupsPath := s.BackupsStoragePath()
-	backupsPathFull, err := filepath.EvalSymlinks(backupsPath)
-	if err == nil {
-		backupsPath = backupsPathFull
+	// Add all paths configured as daemon storage or project storage.
+	// We store the paths in a map[string]bool to ensure uniqueness.
+	daemonStorageVolumePaths := make(map[config.DaemonStorageType]map[string]bool)
+	daemonStorageVolumePaths["images"] = make(map[string]bool)
+	daemonStorageVolumePaths["backups"] = make(map[string]bool)
+	projectStoragePathFuncs := map[config.DaemonStorageType]func(projectName string) string{
+		"images":  s.ImagesStoragePath,
+		"backups": s.BackupsStoragePath,
 	}
 
-	imagesPath := s.ImagesStoragePath()
-	imagesPathFull, err := filepath.EvalSymlinks(imagesPath)
-	if err == nil {
-		imagesPath = imagesPathFull
+	// Add the daemon storage which can't be used by any of the projects.
+	// The daemon storage volumes might not be configured in the node config, so we add them manually.
+	for _, storageType := range []config.DaemonStorageType{"images", "backups"} {
+		volumePath := projectStoragePathFuncs[storageType]("")
+		// Attempt to dereference the symlink, if it fails, use the original path
+		volumePathFull, err := filepath.EvalSymlinks(volumePath)
+		if err == nil {
+			volumePath = volumePathFull
+		}
+
+		daemonStorageVolumePaths[storageType][volumePath] = true
+	}
+
+	// Add all the project storage volumes, which are configured in the node config.
+	for key := range s.LocalConfig.Dump() {
+		// Skip over any keys other than project storage volume keys.
+		projectName, storageType := config.ParseDaemonStorageConfigKey(key)
+		if projectName == "" {
+			continue
+		}
+
+		volumePath := projectStoragePathFuncs[storageType](projectName)
+		// Attempt to dereference the symlink, if it fails, use the original path
+		volumePathFull, err := filepath.EvalSymlinks(volumePath)
+		if err == nil {
+			volumePath = volumePathFull
+		}
+
+		daemonStorageVolumePaths[storageType][volumePath] = true
+	}
+
+	// Convert the maps to slices for the template.
+	daemonStorageVolumePathsSlices := make(map[config.DaemonStorageType][]string)
+	daemonStorageVolumePathsSlices["images"] = make([]string, 0, len(daemonStorageVolumePaths["images"]))
+	daemonStorageVolumePathsSlices["backups"] = make([]string, 0, len(daemonStorageVolumePaths["backups"]))
+	for path := range daemonStorageVolumePaths["images"] {
+		daemonStorageVolumePathsSlices["images"] = append(daemonStorageVolumePathsSlices["images"], path)
+	}
+
+	for path := range daemonStorageVolumePaths["backups"] {
+		daemonStorageVolumePathsSlices["backups"] = append(daemonStorageVolumePathsSlices["backups"], path)
 	}
 
 	derefCommandPaths := make([]string, len(allowedCommandPaths))
@@ -136,8 +184,8 @@ func archiveProfile(s *state.State, outputPath string, allowedCommandPaths []str
 		"name":                ArchiveProfileName(outputPath), // Use non-deferenced outputPath for name.
 		"outputPath":          outputPathFull,                 // Use deferenced path in AppArmor profile.
 		"rootPath":            rootPath,
-		"backupsPath":         backupsPath,
-		"imagesPath":          imagesPath,
+		"backupsPaths":        daemonStorageVolumePathsSlices["backups"],
+		"imagesPaths":         daemonStorageVolumePathsSlices["images"],
 		"allowedCommandPaths": derefCommandPaths,
 		"snap":                shared.InSnap(),
 	})

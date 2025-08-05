@@ -12,6 +12,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
@@ -21,6 +22,7 @@ import (
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
+	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -28,6 +30,7 @@ import (
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	scriptletLoad "github.com/canonical/lxd/lxd/scriptlet/load"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -617,6 +620,95 @@ func api10Patch(d *Daemon, r *http.Request) response.Response {
 	return doAPI10Update(d, r, req, true)
 }
 
+func validateStorageVolumes(s *state.State, ctx context.Context, nodeValues map[string]string, oldNodeConfig map[string]string, newNodeConfig *node.Config) error {
+	var err error
+	projectsImagesStorage := make(map[string]string)
+	projectsBackupsStorage := make(map[string]string)
+	for key, value := range nodeValues {
+		if !strings.HasPrefix(key, "storage.") {
+			continue
+		}
+
+		// Validate the storage volume.
+		if nodeValues[key] != oldNodeConfig[key] {
+			// Store validated name back into nodeValues to ensure its not classifed as raw user input.
+			nodeValues[key], err = daemonStorageValidate(s, nodeValues[key])
+			if err != nil {
+				return fmt.Errorf("Failed validation of %q: %w", key, err)
+			}
+		}
+
+		// Validate project storage settings.
+		projectName, _ := config.ParseDaemonStorageConfigKey(key)
+		if projectName == "" {
+			continue
+		}
+
+		var project *api.Project
+		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
+			if err != nil {
+				return err
+			}
+
+			project, err = dbProject.ToAPI(ctx, tx.Tx())
+			if err != nil {
+				return err
+			}
+
+			project.UsedBy, err = projectUsedBy(ctx, tx, dbProject)
+			return err
+		})
+		if err != nil {
+			return fmt.Errorf("Failed to load project %q: %w", projectName, err)
+		}
+
+		// Disallow setting external storage on non-empty projects.
+		if nodeValues[key] != oldNodeConfig[key] && isProjectInUse(project.UsedBy) {
+			return fmt.Errorf("Project config %q cannot be changed on non-empty projects", key)
+		}
+
+		// Disallow setting external storage for images on projects without images.
+		if strings.HasSuffix(key, ".images_volume") && shared.IsFalseOrEmpty(project.Config["features.images"]) {
+			return fmt.Errorf("Project %q doesn't have `features.images` set, so it cannot have images storage configured", project)
+		}
+
+		// Don't allow setting the project storage the same as as the daemon-level storage volume.
+		if value != "" && strings.HasSuffix(key, ".images_volume") {
+			if value == newNodeConfig.StorageImagesVolume("") {
+				return fmt.Errorf(`Failed validation of %q: storage volume already configured as the daemon images storage`, key)
+			}
+
+			projectsImagesStorage[value] = projectName
+		}
+
+		if value != "" && strings.HasSuffix(key, ".backups_volume") {
+			if value == newNodeConfig.StorageBackupsVolume("") {
+				return fmt.Errorf(`Failed validation of %q: storage volume already configured as the daemon backups storage`, key)
+			}
+
+			projectsBackupsStorage[value] = projectName
+		}
+	}
+
+	// Don't allow the daemon-level storage to be set the same as any of the project settings.
+	if nodeValues["storage.backups_volume"] != "" && nodeValues["storage.backups_volume"] != newNodeConfig.StorageBackupsVolume("") {
+		volume := nodeValues["storage.backups_volume"]
+		if projectsBackupsStorage[volume] != "" {
+			return fmt.Errorf(`Failed validation of %q: storage volume already configured as backups storage of project %q`, "storage.backups_volume", projectsBackupsStorage[nodeValues["storage.backups_volume"]])
+		}
+	}
+
+	if nodeValues["storage.images_volume"] != "" && nodeValues["storage.images_volume"] != newNodeConfig.StorageImagesVolume("") {
+		volume := nodeValues["storage.images_volume"]
+		if projectsImagesStorage[volume] != "" {
+			return fmt.Errorf(`Failed validation of %q: storage volume already configured as images storage of project %q`, "storage.images_volume", projectsImagesStorage[nodeValues["storage.images_volume"]])
+		}
+	}
+
+	return nil
+}
+
 func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) response.Response {
 	s := d.State()
 
@@ -638,6 +730,17 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		if ok {
 			nodeValues[key] = value
 			delete(stringReqConfig, key)
+		}
+	}
+
+	// The config load validation has to allow loading of arbitrary per-project `storage.project.{name}` keys,
+	// as the list of projects is stored in the cluster database which is not available at the time when node
+	// config is loaded from the local database.
+	// In order not to allow setting any of these arbitrary values, we disallow that for those which were not
+	// explicitly added to the ConfigSchema above here.
+	for key := range stringReqConfig {
+		if config.IsProjectStorageConfig(key) {
+			return response.BadRequest(fmt.Errorf("Cannot set %q: Unknown key", key))
 		}
 	}
 
@@ -675,23 +778,10 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 			}
 		}
 
-		// Validate the storage volumes
-		if nodeValues["storage.backups_volume"] != "" && nodeValues["storage.backups_volume"] != newNodeConfig.StorageBackupsVolume() {
-			// Store validated name back into nodeValues to ensure its not classifed as raw user input.
-			backupsPoolVolume := nodeValues["storage.backups_volume"]
-			nodeValues["storage.backups_volume"], err = daemonStorageValidate(s, backupsPoolVolume)
-			if err != nil {
-				return fmt.Errorf("Failed validation of %q: %w", "storage.backups_volume", err)
-			}
-		}
-
-		if nodeValues["storage.images_volume"] != "" && nodeValues["storage.images_volume"] != newNodeConfig.StorageImagesVolume() {
-			// Store validated name back into nodeValues to ensure its not classifed as raw user input.
-			imagesPoolVolume := nodeValues["storage.images_volume"]
-			nodeValues["storage.images_volume"], err = daemonStorageValidate(s, imagesPoolVolume)
-			if err != nil {
-				return fmt.Errorf("Failed validation of %q: %w", "storage.images_volume", err)
-			}
+		// Validate the storage volumes.
+		err = validateStorageVolumes(s, r.Context(), nodeValues, oldNodeConfig, newNodeConfig)
+		if err != nil {
+			return fmt.Errorf("Failed validating storage volumes: %w", err)
 		}
 
 		if patch {
@@ -918,6 +1008,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		}
 	}
 
+	projectVolumeConfigKeys := make([]string, 0)
 	for key := range nodeChanged {
 		switch key {
 		case "maas.machine":
@@ -930,6 +1021,10 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			dnsChanged = true
 		case "core.syslog_socket":
 			syslogSocketChanged = true
+		default:
+			if strings.HasPrefix(key, "storage.project.") {
+				projectVolumeConfigKeys = append(projectVolumeConfigKeys, key)
+			}
 		}
 	}
 
@@ -997,6 +1092,21 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		err := daemonStorageMove(s, "images", oldValue, value)
 		if err != nil {
 			return err
+		}
+	}
+
+	for _, projectVolumeConfigKey := range projectVolumeConfigKeys {
+		oldValue := oldNodeConfig[projectVolumeConfigKey]
+		for _, storageType := range []string{"images", "backups"} {
+			keySuffix := "." + storageType + "_volume"
+			if !strings.HasSuffix(projectVolumeConfigKey, keySuffix) {
+				continue
+			}
+
+			err := projectStorageVolumeChange(s, oldValue, nodeChanged[projectVolumeConfigKey], storageType)
+			if err != nil {
+				return fmt.Errorf("Failed setting node config %q: %w", projectVolumeConfigKey, err)
+			}
 		}
 	}
 
