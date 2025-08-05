@@ -12,6 +12,7 @@ import (
 
 	"github.com/canonical/go-dqlite/v3/client"
 	"github.com/canonical/go-dqlite/v3/driver"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -161,11 +162,13 @@ func TestUpgradeMembersWithoutRole(t *testing.T) {
 		mux.HandleFunc(path, handler)
 	}
 
-	var err error
 	require.NoError(t, state.DB.Cluster.Close())
+
+	serverUUID, err := uuid.NewV7()
+	require.NoError(t, err)
 	store := gateway.NodeStore()
 	dial := gateway.DialFunc()
-	state.DB.Cluster, err = db.OpenCluster(context.Background(), "db.bin", store, address, "/unused/db/dir", 5*time.Second, nil, driver.WithDialFunc(dial))
+	state.DB.Cluster, err = db.OpenCluster(context.Background(), "db.bin", store, address, "/unused/db/dir", 5*time.Second, nil, serverUUID.String(), driver.WithDialFunc(dial))
 	require.NoError(t, err)
 	gateway.Cluster = state.DB.Cluster
 
