@@ -94,8 +94,8 @@ func (m *Map) Dump() map[string]string {
 // GetRaw returns the value of the given key, which must be of type String.
 func (m *Map) GetRaw(name string) string {
 	value, ok := m.values[name]
-	// User key?
-	if IsUserConfig(name) {
+	// User or dynamic storage key?
+	if IsUserConfig(name) || IsProjectStorageConfig(name) {
 		return value
 	}
 	// Schema key
@@ -200,7 +200,8 @@ func (m *Map) set(name string, value string, initial bool) (bool, error) {
 	}
 
 	key, ok := m.schema[name]
-	if !ok {
+	// Allow free setting of dynamic storage.project.{name} configs
+	if !ok && !IsProjectStorageConfig(name) {
 		return false, errors.New("Unknown key")
 	}
 
