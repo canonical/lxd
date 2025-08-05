@@ -533,7 +533,7 @@ func imgPostInstanceInfo(s *state.State, req api.ImagesPost, op *operations.Oper
 	}
 
 	/* rename the file to the expected name so our caller can use it */
-	finalName := filepath.Join(s.ImagesStoragePath(), info.Fingerprint)
+	finalName := filepath.Join(s.ImagesStoragePath(projectName), info.Fingerprint)
 	err = shared.FileMove(imageFile.Name(), finalName)
 	if err != nil {
 		return nil, err
@@ -857,7 +857,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 		info.Type = imageType
 	}
 
-	imgfname := filepath.Join(s.ImagesStoragePath(), info.Fingerprint)
+	imgfname := filepath.Join(s.ImagesStoragePath(project), info.Fingerprint)
 	err = shared.FileMove(imageTmpFilename, imgfname)
 	if err != nil {
 		l.Error("Failed to move the image tarfile", logger.Ctx{
@@ -985,7 +985,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 // the image. No entry in the images database will be created. This implies that
 // imageCreateinPool() should only be called when an image already exists in the
 // database and hence has already a storage volume in at least one storage pool.
-func imageCreateInPool(s *state.State, info *api.Image, storagePool string) error {
+func imageCreateInPool(s *state.State, info *api.Image, storagePool string, projectName string) error {
 	if storagePool == "" {
 		return errors.New("No storage pool specified")
 	}
@@ -995,7 +995,7 @@ func imageCreateInPool(s *state.State, info *api.Image, storagePool string) erro
 		return err
 	}
 
-	err = pool.EnsureImage(info.Fingerprint, nil)
+	err = pool.EnsureImage(info.Fingerprint, nil, projectName)
 	if err != nil {
 		return err
 	}
@@ -1154,7 +1154,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// create a directory under which we keep everything while building
-	builddir, err := os.MkdirTemp(s.ImagesStoragePath(), "lxd_build_")
+	builddir, err := os.MkdirTemp(s.ImagesStoragePath(projectName), "lxd_build_")
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -2072,10 +2072,11 @@ func distributeImage(ctx context.Context, s *state.State, nodes []db.NodeInfo, o
 	// If the option is set, only distribute the image once to nodes with this
 	// specific pool/volume.
 
-	// imageVolumes is a list containing of all image volumes specified by
-	// storage.images_volume. Since this option is node specific, the values
+	// volumesWhichAlreadyHaveImage is a list of all image volumes specified by
+	// storage.images_volume which are remote, and thus the image was already distributed
+	// there by the main node. Since this option is node specific, the values
 	// may be different for each cluster member.
-	var imageVolumes []string
+	var volumesWhichAlreadyHaveImage []string
 
 	err := s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		config, err := node.ConfigLoad(ctx, tx)
@@ -2083,7 +2084,7 @@ func distributeImage(ctx context.Context, s *state.State, nodes []db.NodeInfo, o
 			return err
 		}
 
-		vol := config.StorageImagesVolume()
+		vol := config.StorageImagesVolume(newImage.Project)
 		if vol != "" {
 			fields := strings.Split(vol, "/")
 
@@ -2101,7 +2102,7 @@ func distributeImage(ctx context.Context, s *state.State, nodes []db.NodeInfo, o
 			// Add the volume to the list if the pool is backed by remote
 			// storage as only then the volumes are shared.
 			if slices.Contains(db.StorageRemoteDriverNames(), pool.Driver) {
-				imageVolumes = append(imageVolumes, vol)
+				volumesWhichAlreadyHaveImage = append(volumesWhichAlreadyHaveImage, vol)
 			}
 		}
 
@@ -2160,7 +2161,11 @@ func distributeImage(ctx context.Context, s *state.State, nodes []db.NodeInfo, o
 			} else {
 				vol := ""
 
-				val := resp.Config["storage.images_volume"]
+				val := resp.Config["storage.project."+newImage.Project+".images_volume"]
+				if val == nil {
+					val = resp.Config["storage.images_volume"]
+				}
+
 				if val != nil {
 					var ok bool
 					vol, ok = val.(string)
@@ -2174,7 +2179,7 @@ func distributeImage(ctx context.Context, s *state.State, nodes []db.NodeInfo, o
 				// skip distributing the image to this cluster member.
 				// If the option is unset, distribute the image.
 				if vol != "" {
-					if slices.Contains(imageVolumes, vol) {
+					if slices.Contains(volumesWhichAlreadyHaveImage, vol) {
 						return nil
 					}
 
@@ -2185,13 +2190,13 @@ func distributeImage(ctx context.Context, s *state.State, nodes []db.NodeInfo, o
 						logger.Error("Failed to get storage pool info", logger.Ctx{"err": err, "pool": fields[0]})
 					} else {
 						if slices.Contains(db.StorageRemoteDriverNames(), pool.Driver) {
-							imageVolumes = append(imageVolumes, vol)
+							volumesWhichAlreadyHaveImage = append(volumesWhichAlreadyHaveImage, vol)
 						}
 					}
 				}
 			}
 
-			imageMetaPath := filepath.Join(s.ImagesStoragePath(), newImage.Fingerprint)
+			imageMetaPath := filepath.Join(s.ImagesStoragePath(newImage.Project), newImage.Fingerprint)
 			imageRootfsPath := imageMetaPath + ".rootfs"
 
 			metaFile, err := os.Open(imageMetaPath)
@@ -2246,8 +2251,9 @@ func distributeImage(ctx context.Context, s *state.State, nodes []db.NodeInfo, o
 				}
 
 				req := internalImageOptimizePost{
-					Image: *newImage,
-					Pool:  poolName,
+					Image:   *newImage,
+					Pool:    poolName,
+					Project: newImage.Project,
 				}
 
 				_, _, err = client.RawQuery(http.MethodPost, "/internal/image-optimize", req, "")
@@ -2475,7 +2481,7 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 	}
 
 	// Remove main image file.
-	fname := filepath.Join(s.ImagesStoragePath(), fingerprint)
+	fname := filepath.Join(s.ImagesStoragePath(projectName), fingerprint)
 	if shared.PathExists(fname) {
 		err = os.Remove(fname)
 		if err != nil {
@@ -2550,73 +2556,98 @@ func pruneExpiredImagesTask(stateFunc func() *state.State) (task.Func, task.Sche
 }
 
 func pruneLeftoverImages(s *state.State) {
-	opRun := func(op *operations.Operation) error {
-		// Check if dealing with shared image storage.
-		var storageImages string
-		err := s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-			nodeConfig, err := node.ConfigLoad(ctx, tx)
-			if err != nil {
-				return err
-			}
+	isMultiNodeVolume := func(volume string) (bool, error) {
+		if volume == "" {
+			return false, nil
+		}
 
-			storageImages = nodeConfig.StorageImagesVolume()
-
-			return nil
-		})
+		// Parse the source.
+		poolName, _, err := daemonStorageSplitVolume(volume)
 		if err != nil {
-			return err
+			return false, err
 		}
 
-		if storageImages != "" {
-			// Parse the source.
-			poolName, _, err := daemonStorageSplitVolume(storageImages)
-			if err != nil {
-				return err
-			}
-
-			// Load the pool.
-			pool, err := storagePools.LoadByName(s, poolName)
-			if err != nil {
-				return err
-			}
-
-			// Skip cleanup if image volume may be multi-node.
-			// When such a volume is used, we may have images that are
-			// tied to other servers in the shared images folder and don't want to
-			// delete those.
-			if pool.Driver().Info().VolumeMultiNode {
-				return nil
-			}
+		// Load the pool.
+		pool, err := storagePools.LoadByName(s, poolName)
+		if err != nil {
+			return false, err
 		}
 
-		// Get all images
-		var images []string
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return pool.Driver().Info().VolumeMultiNode, nil
+	}
+
+	opRun := func(op *operations.Operation) error {
+		// Get all projects and images
+		var imagesOnNode map[string][]string
+		var projects []string
+		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
-			images, err = tx.GetLocalImagesFingerprints(ctx)
+			imagesOnNode, err = tx.GetImagesOnLocalNode(ctx)
+			if err != nil {
+				return err
+			}
+
+			projects, err = dbCluster.GetProjectNames(ctx, tx.Tx())
 			return err
 		})
 		if err != nil {
 			return fmt.Errorf("Unable to retrieve the list of images: %w", err)
 		}
 
-		// Look at what's in the images directory
-		imagesDir := s.ImagesStoragePath()
-		entries, err := os.ReadDir(imagesDir)
-		if err != nil {
-			return fmt.Errorf("Unable to list the images directory: %w", err)
+		// First get list of storage volumes we'll be pruning images from.
+		imagesInStorageVolumes := make(map[string][]string)
+		// Make sure to include default daemon storage
+		imagesInStorageVolumes[s.LocalConfig.StorageImagesVolume("")] = make([]string, 0)
+		// And include all of the possibly configured project images storages too
+		for _, project := range projects {
+			storageVolume := s.LocalConfig.StorageImagesVolume(project)
+			_, ok := imagesInStorageVolumes[storageVolume]
+			if !ok {
+				imagesInStorageVolumes[storageVolume] = make([]string, 0)
+			}
 		}
 
-		// Check and delete leftovers
-		for _, entry := range entries {
-			fp := strings.Split(entry.Name(), ".")[0]
-			if !slices.Contains(images, fp) {
-				err = os.RemoveAll(filepath.Join(imagesDir, entry.Name()))
-				if err != nil {
-					return fmt.Errorf("Unable to remove leftover image: %v: %w", entry.Name(), err)
-				}
+		// Get a list of image storage volumes, with a list of images per each storage volume.
+		for image, projects := range imagesOnNode {
+			for _, project := range projects {
+				storageVolume := s.LocalConfig.StorageImagesVolume(project)
+				imagesInStorageVolumes[storageVolume] = append(imagesInStorageVolumes[storageVolume], image)
+			}
+		}
 
-				logger.Debugf("Removed leftover image file: %s", entry.Name())
+		// Now walk all these image volumes and make sure these only contain the images they should.
+		for volume, images := range imagesInStorageVolumes {
+			isShared, err := isMultiNodeVolume(volume)
+			if err != nil {
+				return err
+			}
+
+			// Check if dealing with shared image storage.
+			// Skip cleanup if image volume may be multi-node. When such a volume is used,
+			// we may have images that are tied to other servers in the shared images folder
+			// and don't want to delete those.
+			if isShared {
+				continue
+			}
+
+			// Look at what's in the images directory
+			imagesDir := daemonStoragePath(volume, "images")
+			entries, err := os.ReadDir(imagesDir)
+			if err != nil {
+				return fmt.Errorf("Unable to list the images directory: %w", err)
+			}
+
+			// Check and delete leftovers
+			for _, entry := range entries {
+				fp := strings.Split(entry.Name(), ".")[0]
+				if !slices.Contains(images, fp) {
+					err = os.Remove(filepath.Join(imagesDir, entry.Name()))
+					if err != nil {
+						return fmt.Errorf("Unable to remove leftover image: %v: %w", entry.Name(), err)
+					}
+
+					logger.Debugf("Removed leftover image file: %s", entry.Name())
+				}
 			}
 		}
 
@@ -2712,13 +2743,21 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 		default:
 		}
 
-		dbImagesDeleted := 0
+		deleteAtStorage := make(map[string]bool)
 		for _, dbImage := range dbImages {
+			projectImagesStorageVolume := s.LocalConfig.StorageImagesVolume(dbImage.Project)
+			_, imageSeenInThisStoragePreviously := deleteAtStorage[projectImagesStorageVolume]
+			if !imageSeenInThisStoragePreviously {
+				// First record of image in this project, candidate for deletion.
+				deleteAtStorage[projectImagesStorageVolume] = true
+			}
+
 			// Get expiry days for image's project.
 			expiryDays := projectsImageRemoteCacheExpiryDays[dbImage.Project]
 
 			// Skip if no project expiry time set.
 			if expiryDays <= 0 {
+				deleteAtStorage[projectImagesStorageVolume] = false
 				continue
 			}
 
@@ -2732,6 +2771,7 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 
 			// Skip if image is not expired.
 			if imageExpiry.After(time.Now()) {
+				deleteAtStorage[projectImagesStorageVolume] = false
 				continue
 			}
 
@@ -2743,16 +2783,29 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 				return fmt.Errorf("Error deleting image %q in project %q from database: %w", fingerprint, dbImage.Project, err)
 			}
 
-			dbImagesDeleted++
-
 			logger.Info("Deleted expired cached image record", logger.Ctx{"fingerprint": fingerprint, "project": dbImage.Project, "expiry": imageExpiry})
 
 			s.Events.SendLifecycle(dbImage.Project, lifecycle.ImageDeleted.Event(fingerprint, dbImage.Project, op.Requestor(), nil))
 		}
 
+		// Remove main image files from projects which don't have any images referenced.
+		deleteStorageVolumes := true
+		for projectImagesVolume, deleteImageFileInProject := range deleteAtStorage {
+			if !deleteImageFileInProject {
+				// Other projects are still using the image at this location.
+				deleteStorageVolumes = false
+				continue
+			}
+
+			err := imageDeleteFromDisk(projectImagesVolume, fingerprint)
+			if err != nil {
+				return err
+			}
+		}
+
 		// Skip deleting the image files and image storage volumes on disk if image is not expired in all
 		// of its projects.
-		if dbImagesDeleted < len(dbImages) {
+		if !deleteStorageVolumes {
 			continue
 		}
 
@@ -2788,12 +2841,6 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 			if err != nil {
 				return fmt.Errorf("Error deleting image volume %q from storage pool %q: %w", fingerprint, pool.Name(), err)
 			}
-		}
-
-		// Remove main image file.
-		err := imageDeleteFromDisk(s, fingerprint)
-		if err != nil {
-			return err
 		}
 
 		logger.Info("Deleted expired cached image files and volumes", logger.Ctx{"fingerprint": fingerprint})
@@ -2871,9 +2918,22 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 				// referenced by other projects. In that case we don't want to
 				// physically delete it just yet, but just to remove the
 				// relevant database entry.
-				referenced, err = tx.ImageIsReferencedByOtherProjects(ctx, projectName, details.image.Fingerprint)
+				projects, err := tx.ProjectsWithImage(ctx, details.image.Fingerprint)
 				if err != nil {
 					return err
+				}
+
+				// See if any other project with this image has the same storage volume
+				projectImagesVolume := s.LocalConfig.StorageImagesVolume(projectName)
+				for _, project := range projects {
+					if project == projectName {
+						continue
+					}
+
+					if s.LocalConfig.StorageImagesVolume(project) == projectImagesVolume {
+						referenced = true
+						break
+					}
 				}
 
 				if referenced {
@@ -2954,7 +3014,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Remove main image file from disk.
-		err = imageDeleteFromDisk(s, details.image.Fingerprint)
+		err = imageDeleteFromDisk(s.LocalConfig.StorageImagesVolume(projectName), details.image.Fingerprint)
 		if err != nil {
 			return err
 		}
@@ -2986,9 +3046,9 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 }
 
 // imageDeleteFromDisk removes the main image file and rootfs file of an image.
-func imageDeleteFromDisk(s *state.State, fingerprint string) error {
+func imageDeleteFromDisk(daemonStorageVolume string, fingerprint string) error {
 	// Remove main image file.
-	fname := filepath.Join(s.ImagesStoragePath(), fingerprint)
+	fname := filepath.Join(daemonStoragePath(daemonStorageVolume, "images"), fingerprint)
 	if shared.PathExists(fname) {
 		err := os.Remove(fname)
 		if err != nil && !os.IsNotExist(err) {
@@ -4356,7 +4416,7 @@ func imageExportFiles(ctx context.Context, s *state.State, imgInfo *api.Image, r
 		return response.ForwardedResponse(client)
 	}
 
-	imagePath := filepath.Join(s.ImagesStoragePath(), imgInfo.Fingerprint)
+	imagePath := filepath.Join(s.ImagesStoragePath(requestProjectName), imgInfo.Fingerprint)
 	rootfsPath := imagePath + ".rootfs"
 
 	_, ext, _, err := shared.DetectCompression(imagePath)
@@ -4471,7 +4531,7 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 
 	run := func(op *operations.Operation) error {
 		createArgs := &lxd.ImageCreateArgs{}
-		imageMetaPath := filepath.Join(s.ImagesStoragePath(), details.imageFingerprintPrefix)
+		imageMetaPath := filepath.Join(s.ImagesStoragePath(projectName), details.imageFingerprintPrefix)
 		imageRootfsPath := imageMetaPath + ".rootfs"
 
 		metaFile, err := os.Open(imageMetaPath)

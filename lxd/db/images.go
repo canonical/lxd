@@ -19,17 +19,6 @@ import (
 	"github.com/canonical/lxd/shared/osarch"
 )
 
-// GetLocalImagesFingerprints returns the fingerprints of all local images.
-func (c *ClusterTx) GetLocalImagesFingerprints(ctx context.Context) ([]string, error) {
-	q := `
-SELECT images.fingerprint
-  FROM images_nodes
-  JOIN images ON images.id = images_nodes.image_id
- WHERE node_id = ?
-`
-	return query.SelectStrings(ctx, c.tx, q, c.nodeID)
-}
-
 // GetImagesFingerprints returns the names of all images (optionally only the public ones).
 func (c *ClusterTx) GetImagesFingerprints(ctx context.Context, projectName string, publicOnly bool) ([]string, error) {
 	q := `
@@ -164,27 +153,17 @@ func (c *ClusterTx) ImageExists(ctx context.Context, project string, fingerprint
 	return count > 0, nil
 }
 
-// ImageIsReferencedByOtherProjects returns true if the image with the given
-// fingerprint is referenced by projects other than the given one.
-func (c *ClusterTx) ImageIsReferencedByOtherProjects(ctx context.Context, project string, fingerprint string) (bool, error) {
-	table := "images JOIN projects ON projects.id = images.project_id"
-	where := "projects.name != ? AND fingerprint=?"
+// ProjectsWithImage returns list of projects referencing the image with the given
+// fingerprint.
+func (c *ClusterTx) ProjectsWithImage(ctx context.Context, fingerprint string) ([]string, error) {
+	stmt := `
+SELECT projects.name
+FROM images
+JOIN projects ON projects.id = images.project_id
+WHERE fingerprint=?
+`
 
-	enabled, err := cluster.ProjectHasImages(ctx, c.tx, project)
-	if err != nil {
-		return false, fmt.Errorf("Check if project has images: %w", err)
-	}
-
-	if !enabled {
-		project = "default"
-	}
-
-	count, err := query.Count(ctx, c.tx, table, where, project, fingerprint)
-	if err != nil {
-		return false, err
-	}
-
-	return count > 0, nil
+	return query.SelectStrings(ctx, c.tx, stmt, fingerprint)
 }
 
 // GetImage gets an Image object from the database.

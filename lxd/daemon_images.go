@@ -21,6 +21,7 @@ import (
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/rsync"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -182,7 +183,7 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 
 		if nodeAddress != "" {
 			// The image is available from another node, let's try to import it.
-			err = instanceImageTransfer(ctx, s, args.ProjectName, imgInfo.Fingerprint, nodeAddress)
+			err = instanceImageTransfer(ctx, s, args.ProjectName, args.ProjectName, imgInfo.Fingerprint, nodeAddress)
 			if err != nil {
 				return nil, fmt.Errorf("Failed transferring image %q from %q: %w", imgInfo.Fingerprint, nodeAddress, err)
 			}
@@ -204,6 +205,7 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 		})
 		if err == nil {
 			var nodeAddress string
+			otherProject := imgInfo.Project
 
 			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				// Check if the image is available locally or it's on another node. Do this before creating
@@ -243,9 +245,27 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 			// Transfer image if needed (after database record has been created above).
 			if nodeAddress != "" {
 				// The image is available from another node, let's try to import it.
-				err = instanceImageTransfer(ctx, s, args.ProjectName, info.Fingerprint, nodeAddress)
+				err = instanceImageTransfer(ctx, s, args.ProjectName, otherProject, info.Fingerprint, nodeAddress)
 				if err != nil {
 					return nil, fmt.Errorf("Failed transferring image: %w", err)
+				}
+			} else {
+				// The image is available locally, copy the image files from the source project if these use different storage.
+				if s.LocalConfig.StorageImagesVolume(otherProject) != s.LocalConfig.StorageImagesVolume(args.ProjectName) {
+					sourcePath := filepath.Join(s.ImagesStoragePath(otherProject), imgInfo.Fingerprint)
+					destPath := s.ImagesStoragePath(args.ProjectName)
+
+					_, err = rsync.CopyFile(sourcePath, destPath, "", false)
+					if err != nil {
+						return nil, fmt.Errorf("Failed to copy image files from other project: %w", err)
+					}
+
+					if shared.PathExists(sourcePath + ".rootfs") {
+						_, err = rsync.CopyFile(sourcePath+".rootfs", destPath, "", false)
+						if err != nil {
+							return nil, fmt.Errorf("Failed to copy image files from other project: %w", err)
+						}
+					}
 				}
 			}
 		}
@@ -301,7 +321,7 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 		// Import the image in the pool.
 		l.Debug("Image does not exist on storage pool")
 
-		err = imageCreateInPool(s, info, args.StoragePool)
+		err = imageCreateInPool(s, info, args.StoragePool, args.ProjectName)
 		if err != nil {
 			l.Debug("Failed to create image on storage pool", logger.Ctx{"err": err})
 			return nil, fmt.Errorf("Failed to create image %q on storage pool %q: %w", info.Fingerprint, args.StoragePool, err)
@@ -319,7 +339,7 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 	l.Info("Downloading image")
 
 	// Cleanup any leftover from a past attempt
-	destDir := s.ImagesStoragePath()
+	destDir := s.ImagesStoragePath(args.ProjectName)
 	destName := filepath.Join(destDir, fp)
 
 	failure := true
@@ -604,7 +624,7 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 
 	// Import into the requested storage pool
 	if args.StoragePool != "" {
-		err = imageCreateInPool(s, info, args.StoragePool)
+		err = imageCreateInPool(s, info, args.StoragePool, args.ProjectName)
 		if err != nil {
 			return nil, err
 		}

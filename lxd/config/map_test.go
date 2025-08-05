@@ -320,3 +320,88 @@ func failingSetter(string) (string, error) {
 func upperCase(v string) (string, error) {
 	return strings.ToUpper(v), nil
 }
+
+func TestParseDaemonStorageConfigKey(t *testing.T) {
+	tests := []struct {
+		name                string
+		config              string
+		expectedProjectName string
+		expectedStorageType config.DaemonStorageType
+	}{
+		{
+			name:                "empty config",
+			config:              "",
+			expectedProjectName: "",
+			expectedStorageType: "",
+		},
+		{
+			name:                "invalid daemon config",
+			config:              "storage.with.invalid.key",
+			expectedProjectName: "",
+			expectedStorageType: "",
+		},
+		{
+			name:                "invalid daemon volume type",
+			config:              "storage.unknown_volume",
+			expectedProjectName: "",
+			expectedStorageType: "",
+		},
+		{
+			name:                "daemon images volume",
+			config:              "storage.images_volume",
+			expectedProjectName: "",
+			expectedStorageType: "images",
+		},
+		{
+			name:                "daemon backups volume",
+			config:              "storage.backups_volume",
+			expectedProjectName: "",
+			expectedStorageType: "backups",
+		},
+		{
+			name:                "invalid project storage config",
+			config:              "storage.project.foo.unknown",
+			expectedProjectName: "",
+			expectedStorageType: "",
+		},
+		{
+			name:                "invalid project storage volume type",
+			config:              "storage.project.foo.unknown_volume",
+			expectedProjectName: "",
+			expectedStorageType: "",
+		},
+		{
+			name:                "valid project images storage config",
+			config:              "storage.project.foo.images_volume",
+			expectedProjectName: "foo",
+			expectedStorageType: "images",
+		},
+		{
+			name:                "valid project backups storage config",
+			config:              "storage.project.foo.backups_volume",
+			expectedProjectName: "foo",
+			expectedStorageType: "backups",
+		},
+		{
+			name:                "missing project name",
+			config:              "storage.project..backups_volume",
+			expectedProjectName: "",
+			expectedStorageType: "backups",
+		},
+		{
+			name:                "unknown volume type",
+			config:              "storage.project.foo.notused_volume",
+			expectedProjectName: "",
+			expectedStorageType: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			projectName, storageType := config.ParseDaemonStorageConfigKey(tt.config)
+			if projectName != tt.expectedProjectName || storageType != tt.expectedStorageType {
+				t.Fatalf("expected (%q, %q), got (%q, %q)", tt.expectedProjectName, tt.expectedStorageType, projectName, storageType)
+			}
+		})
+	}
+}

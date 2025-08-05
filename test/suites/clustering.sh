@@ -648,6 +648,23 @@ test_clustering_storage() {
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume copy pool1/vol1 pool1/vol1 --target=node1 --destination-target=node2
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume copy pool1/vol1 pool1/vol1 --target=node1 --destination-target=node2 --refresh
     LXD_DIR="${LXD_ONE_DIR}" lxc project create foo
+
+    # Check project-specific node settings work.
+    LXD_DIR="${LXD_ONE_DIR}" lxc config set storage.project.foo.images_volume=pool1/vol1
+    LXD_DIR="${LXD_TWO_DIR}" lxc config set storage.project.foo.images_volume=pool1/vol1
+    LXD_DIR="${LXD_ONE_DIR}" lxc config set storage.project.foo.backups_volume=pool1/vol1
+    LXD_DIR="${LXD_TWO_DIR}" lxc config set storage.project.foo.backups_volume=pool1/vol1
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get "storage.project.foo.images_volume")" = "pool1/vol1" ]
+    [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc config get "storage.project.foo.images_volume")" = "pool1/vol1" ]
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get "storage.project.foo.backups_volume")" = "pool1/vol1" ]
+    [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc config get "storage.project.foo.backups_volume")" = "pool1/vol1" ]
+    ! LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete pool1 vol1 --target=node1 || false
+    LXD_DIR="${LXD_ONE_DIR}" lxc config unset storage.project.foo.images_volume
+    LXD_DIR="${LXD_TWO_DIR}" lxc config unset storage.project.foo.images_volume
+    LXD_DIR="${LXD_ONE_DIR}" lxc config unset storage.project.foo.backups_volume
+    LXD_DIR="${LXD_TWO_DIR}" lxc config unset storage.project.foo.backups_volume
+
+    # Check copying storage volumes works on projects.
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume copy pool1/vol1 pool1/vol1 --target=node1 --destination-target=node2 --target-project foo
     ! LXD_DIR="${LXD_ONE_DIR}" lxc project delete foo || false
 

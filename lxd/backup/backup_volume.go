@@ -55,7 +55,7 @@ func (b *VolumeBackup) OptimizedStorage() bool {
 
 // Rename renames a volume backup.
 func (b *VolumeBackup) Rename(newName string) error {
-	backupsPath := b.state.BackupsStoragePath()
+	backupsPath := b.state.BackupsStoragePath(b.projectName)
 	oldBackupPath := filepath.Join(backupsPath, "custom", b.poolName, project.StorageVolume(b.projectName, b.name))
 	newBackupPath := filepath.Join(backupsPath, "custom", b.poolName, project.StorageVolume(b.projectName, newName))
 
@@ -109,7 +109,7 @@ func (b *VolumeBackup) Rename(newName string) error {
 
 // Delete removes a volume backup.
 func (b *VolumeBackup) Delete() error {
-	backupsPathBase := b.state.BackupsStoragePath()
+	backupsPathBase := b.state.BackupsStoragePath(b.projectName)
 	backupPath := filepath.Join(backupsPathBase, "custom", b.poolName, project.StorageVolume(b.projectName, b.name))
 	// Delete the on-disk data.
 	if shared.PathExists(backupPath) {

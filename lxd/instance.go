@@ -66,16 +66,16 @@ func instanceCreateAsEmpty(s *state.State, args db.InstanceArgs) (instance.Insta
 }
 
 // instanceImageTransfer transfers an image from another cluster node.
-func instanceImageTransfer(ctx context.Context, s *state.State, projectName string, hash string, nodeAddress string) error {
+func instanceImageTransfer(ctx context.Context, s *state.State, localProjectName string, remoteProjectName string, hash string, nodeAddress string) error {
 	logger.Debugf("Transferring image %q from node %q", hash, nodeAddress)
 	client, err := cluster.Connect(ctx, nodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
 		return err
 	}
 
-	client = client.UseProject(projectName)
+	client = client.UseProject(remoteProjectName)
 
-	err = imageImportFromNode(s.ImagesStoragePath(), client, hash)
+	err = imageImportFromNode(s.ImagesStoragePath(localProjectName), client, hash)
 	if err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ func ensureImageIsLocallyAvailable(ctx context.Context, s *state.State, img *api
 
 	if memberAddress != "" {
 		// The image is available from another node, let's try to import it.
-		err = instanceImageTransfer(ctx, s, projectName, img.Fingerprint, memberAddress)
+		err = instanceImageTransfer(ctx, s, projectName, projectName, img.Fingerprint, memberAddress)
 		if err != nil {
 			return fmt.Errorf("Failed transferring image %q from %q: %w", img.Fingerprint, memberAddress, err)
 		}
