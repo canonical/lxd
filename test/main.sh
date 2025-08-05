@@ -24,6 +24,8 @@ if [ -z "${NO_PROXY:-}" ]; then
   export NO_PROXY="127.0.0.1"
 fi
 
+export LIBDQLITE_TRACE=1
+
 export CLIENT_DEBUG=""
 export SERVER_DEBUG=""
 export SHELL_TRACING=""
