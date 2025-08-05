@@ -34,6 +34,7 @@ import (
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
+	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
@@ -2631,7 +2632,7 @@ func pruneLeftoverImages(s *state.State) {
 			}
 
 			// Look at what's in the images directory
-			imagesDir := daemonStoragePath(volume, "images")
+			imagesDir := daemonStoragePath(volume, config.DaemonStorageTypeImages)
 			entries, err := os.ReadDir(imagesDir)
 			if err != nil {
 				return fmt.Errorf("Unable to list the images directory: %w", err)
@@ -3048,7 +3049,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 // imageDeleteFromDisk removes the main image file and rootfs file of an image.
 func imageDeleteFromDisk(daemonStorageVolume string, fingerprint string) error {
 	// Remove main image file.
-	fname := filepath.Join(daemonStoragePath(daemonStorageVolume, "images"), fingerprint)
+	fname := filepath.Join(daemonStoragePath(daemonStorageVolume, config.DaemonStorageTypeImages), fingerprint)
 	if shared.PathExists(fname) {
 		err := os.Remove(fname)
 		if err != nil && !os.IsNotExist(err) {

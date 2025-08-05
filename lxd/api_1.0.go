@@ -1081,7 +1081,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	value, ok = nodeChanged["storage.backups_volume"]
 	if ok {
 		oldValue := oldNodeConfig["storage.backups_volume"]
-		err := daemonStorageMove(s, "backups", oldValue, value)
+		err := daemonStorageMove(s, config.DaemonStorageTypeBackups, oldValue, value)
 		if err != nil {
 			return err
 		}
@@ -1090,7 +1090,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	value, ok = nodeChanged["storage.images_volume"]
 	if ok {
 		oldValue := oldNodeConfig["storage.images_volume"]
-		err := daemonStorageMove(s, "images", oldValue, value)
+		err := daemonStorageMove(s, config.DaemonStorageTypeImages, oldValue, value)
 		if err != nil {
 			return err
 		}
@@ -1098,8 +1098,8 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 
 	for _, projectVolumeConfigKey := range projectVolumeConfigKeys {
 		oldValue := oldNodeConfig[projectVolumeConfigKey]
-		for _, storageType := range []string{"images", "backups"} {
-			keySuffix := "." + storageType + "_volume"
+		for _, storageType := range []config.DaemonStorageType{config.DaemonStorageTypeImages, config.DaemonStorageTypeBackups} {
+			keySuffix := "." + storageType.String() + "_volume"
 			if !strings.HasSuffix(projectVolumeConfigKey, keySuffix) {
 				continue
 			}
