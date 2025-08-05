@@ -1098,16 +1098,10 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 
 	for _, projectVolumeConfigKey := range projectVolumeConfigKeys {
 		oldValue := oldNodeConfig[projectVolumeConfigKey]
-		for _, storageType := range []config.DaemonStorageType{config.DaemonStorageTypeImages, config.DaemonStorageTypeBackups} {
-			keySuffix := "." + storageType.String() + "_volume"
-			if !strings.HasSuffix(projectVolumeConfigKey, keySuffix) {
-				continue
-			}
-
-			err := projectStorageVolumeChange(s, oldValue, nodeChanged[projectVolumeConfigKey], storageType)
-			if err != nil {
-				return fmt.Errorf("Failed setting node config %q: %w", projectVolumeConfigKey, err)
-			}
+		_, storageType := config.ParseDaemonStorageConfigKey(projectVolumeConfigKey)
+		err := projectStorageVolumeChange(s, oldValue, nodeChanged[projectVolumeConfigKey], storageType)
+		if err != nil {
+			return fmt.Errorf("Failed setting node config %q: %w", projectVolumeConfigKey, err)
 		}
 	}
 
