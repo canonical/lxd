@@ -3935,6 +3935,9 @@ test_clustering_groups() {
   [ "$(lxc query cluster:/1.0/cluster/members/node2 | jq 'any(.groups[] == "default"; .)')" = "false" ]
   [ "$(lxc query cluster:/1.0/cluster/members/node2 | jq 'any(.groups[] == "foobar"; .)')" = "true" ]
 
+  # Remove node2 from "foobar" group should fail as node2 is not in any other group
+  ! lxc cluster group remove cluster:node2 foobar || false
+
   # Rename group "foobar" to "blah"
   lxc cluster group rename cluster:foobar blah
   [ "$(lxc query cluster:/1.0/cluster/members/node2 | jq 'any(.groups[] == "blah"; .)')" = "true" ]
