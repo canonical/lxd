@@ -1575,7 +1575,7 @@ func (d *Daemon) init() error {
 		// Assign cluster DB handle to d.gateway.Cluster so its immediately usable by gateway even if DB
 		// returns StatusPreconditionFailed. This way its usable for heartbeats whilst it waits for the
 		// other members to become aligned.
-		d.gateway.Cluster, err = db.OpenCluster(d.shutdownCtx, "db.bin", store, localClusterAddress, dir, d.config.DqliteSetupTimeout, nil, options...)
+		d.gateway.Cluster, err = db.OpenCluster(d.shutdownCtx, "db.bin", store, localClusterAddress, dir, d.config.DqliteSetupTimeout, nil, d.serverUUID, options...)
 		if err == nil {
 			logger.Info("Initialized global database")
 
