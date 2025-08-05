@@ -4563,6 +4563,22 @@ Specify the number of seconds after which an unresponsive member is considered o
 
 <!-- config group server-cluster end -->
 <!-- config group server-core start -->
+```{config:option} core.auth_secret_expiry server-core
+:defaultdesc: "`1m`"
+:scope: "global"
+:shortdesc: "How long to use a given cluster secret"
+:type: "string"
+The secret is used for various cryptographic purposes, such as cookie encryption.
+When a given secret is older than the configured expiry, a new secret is generated.
+
+This configuration option accepts multiple space-separated values of the form `[0-9]+(S|M|H|d|w|m|y)`,
+where `S` is seconds, `M` is minutes, `H` is hours, `d` is days, `w` is weeks, `m` is months, and `y` is years.
+For example, `1d 3H` is 1 day and 3 hours.
+
+The default value is `1m` (1 month).
+The minimum value is `1d` (1 day).
+```
+
 ```{config:option} core.bgp_address server-core
 :scope: "local"
 :shortdesc: "Address to bind the BGP server to"
