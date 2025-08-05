@@ -1022,7 +1022,8 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		case "core.syslog_socket":
 			syslogSocketChanged = true
 		default:
-			if strings.HasPrefix(key, "storage.project.") {
+			projectName, _ := config.ParseDaemonStorageConfigKey(key)
+			if projectName != "" {
 				projectVolumeConfigKeys = append(projectVolumeConfigKeys, key)
 			}
 		}
