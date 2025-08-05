@@ -42,6 +42,11 @@ func Load(ctx context.Context, tx *db.ClusterTx) (*Config, error) {
 	return &Config{m: m}, nil
 }
 
+// ClusterUUID returns the static cluster UUID.
+func (c *Config) ClusterUUID() string {
+	return c.m.GetString("volatile.uuid")
+}
+
 // BackupsCompressionAlgorithm returns the compression algorithm to use for backups.
 func (c *Config) BackupsCompressionAlgorithm() string {
 	return c.m.GetString("backups.compression_algorithm")
@@ -799,6 +804,14 @@ var ConfigSchema = config.Schema{
 	//  defaultdesc: Content of `/etc/ovn/key_host` if present
 	//  shortdesc: OVN SSL client key
 	"network.ovn.client_key": {Default: ""},
+
+	// lxdmeta:generate(entities=server; group=miscellaneous; key=volatile.uuid)
+	// This UUID is used as a stable identifier for the cluster. It cannot be changed.
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: A random v7 UUID
+	"volatile.uuid": {},
 }
 
 func expiryValidator(value string) error {
