@@ -673,14 +673,14 @@ func (d *Daemon) handleOIDCAuthenticationResult(r *http.Request, result *oidc.Au
 	return nil
 }
 
-// getSecrets gets a copy of the current, cluster-wide secrets. The approach can be summarized as follows:
+// getCoreAuthSecrets gets a copy of the current, cluster-wide secrets. The approach can be summarized as follows:
 // 1. Check if the current in-memory value is valid. If valid, return a copy.
 // 2. Check if the current in-database value is valid. If valid, replace in-memory value and return a copy.
 // 3. Rotate the in-database value within the transaction, then replace in-memory value and return a copy.
 // Steps 2 and 3 must happen within the same transaction so that database locking enforces consistency across the
 // cluster. Everything is performed with a lock on the in-memory value. Note that this approach assumes that the UTC
 // time is synchronized across all cluster members, as this is used for validity checking.
-func (d *Daemon) getSecrets(ctx context.Context) (dbCluster.AuthSecrets, error) {
+func (d *Daemon) getCoreAuthSecrets(ctx context.Context) (dbCluster.AuthSecrets, error) {
 	// Obtain a lock.
 	d.internalSecretsMu.Lock()
 	defer d.internalSecretsMu.Unlock()
@@ -774,7 +774,7 @@ func (d *Daemon) State() *state.State {
 		UbuntuPro:           d.ubuntuPro,
 		NetworkReady:        d.waitNetworkReady,
 		StorageReady:        d.waitStorageReady,
-		Secrets:             d.getSecrets,
+		Secrets:             d.getCoreAuthSecrets,
 	}
 
 	s.LeaderInfo = func() (*state.LeaderInfo, error) {
@@ -1797,7 +1797,7 @@ func (d *Daemon) init() error {
 			return util.HTTPClient("", d.proxy)
 		}
 
-		d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, d.getSecrets, d.identityCache, httpClientFunc, &oidc.Opts{GroupsClaim: oidcGroupsClaim})
+		d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, d.getCoreAuthSecrets, d.identityCache, httpClientFunc, &oidc.Opts{GroupsClaim: oidcGroupsClaim})
 		if err != nil {
 			return err
 		}
