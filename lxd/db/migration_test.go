@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/canonical/go-dqlite/v3/driver"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -58,7 +59,9 @@ func TestImportPreClusteringData(t *testing.T) {
 		return net.Dial("unix", address)
 	}
 
-	c, err := db.OpenCluster(context.Background(), "test.db", store, "1", dir, 5*time.Second, dump, driver.WithDialFunc(dial))
+	serverUUID, err := uuid.NewV7()
+	require.NoError(t, err)
+	c, err := db.OpenCluster(context.Background(), "test.db", store, "1", dir, 5*time.Second, dump, serverUUID.String(), driver.WithDialFunc(dial))
 	require.NoError(t, err)
 	defer func() { _ = c.Close() }()
 
