@@ -16,7 +16,7 @@ GOTOOLCHAIN=local
 export GOTOOLCHAIN
 GOCOVERDIR ?= $(shell go env GOCOVERDIR)
 ARCH ?= $(shell uname -m)
-DQLITE_BRANCH=better-interrupt
+DQLITE_BRANCH=retriable-apply
 LIBLXC_BRANCH=main
 
 ifneq "$(wildcard vendor)" ""
