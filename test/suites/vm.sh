@@ -51,4 +51,12 @@ test_vm_empty() {
     # Cleanup custom changes from the default profile
     lxc profile unset default migration.stateful
   fi
+
+  # This check must be run after unsetting "migration.stateful" to workaround 9p limitations; shared filesystems are incompatible.
+  echo "==> Disk mounts"
+  lxc init --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
+  lxc config device add v1 char disk source=/dev/zero path=/dev/zero
+  # Attempting to mount a single file as a disk device is not supported for VMs; this should fail at start time.
+  ! lxc start v1 || false
+  lxc delete v1
 }
