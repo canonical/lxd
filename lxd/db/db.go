@@ -143,7 +143,7 @@ type Cluster struct {
 // schema update can't be performed right now, because some nodes are still
 // behind, an Upgrading error is returned.
 // Accepts a closingCtx context argument used to indicate when the daemon is shutting down.
-func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore, address, dir string, timeout time.Duration, dump *Dump, options ...driver.Option) (*Cluster, error) {
+func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore, address, dir string, timeout time.Duration, dump *Dump, serverUUID string, options ...driver.Option) (*Cluster, error) {
 	db, err := cluster.Open(name, store, options...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to open database: %w", err)
