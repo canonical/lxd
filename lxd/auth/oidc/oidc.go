@@ -2,7 +2,7 @@ package oidc
 
 import (
 	"context"
-	"crypto/hkdf"
+	"crypto/hmac"
 	"crypto/sha512"
 	"encoding/json"
 	"errors"
@@ -21,9 +21,9 @@ import (
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 	"github.com/zitadel/oidc/v3/pkg/op"
 
+	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/response"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 )
@@ -43,7 +43,7 @@ const (
 )
 
 var (
-	// cookieEncryptionHashFunc is used to derive secure keys from the cluster private key using HKDF.
+	// cookieEncryptionHashFunc is used to derive secure keys from the cluster secret using HMAC.
 	cookieEncryptionHashFunc = sha512.New
 )
 
@@ -59,7 +59,7 @@ type Verifier struct {
 	scopes         []string
 	audience       string
 	groupsClaim    string
-	clusterCert    func() *shared.CertInfo
+	secretsFunc    func(ctx context.Context) (cluster.AuthSecrets, error)
 	httpClientFunc func() (*http.Client, error)
 
 	// host is used for setting a valid callback URL when setting the relyingParty.
@@ -153,7 +153,7 @@ func (o *Verifier) authenticateAccessToken(ctx context.Context, accessToken stri
 // authenticateIDToken gets the ID token from the request cookies and validates it. If it is not present or not valid, it
 // attempts to refresh the ID token (with a refresh token also taken from the request cookies).
 func (o *Verifier) authenticateIDToken(w http.ResponseWriter, r *http.Request) (*AuthenticationResult, error) {
-	_, idToken, refreshToken, err := o.getCookies(r)
+	idToken, refreshToken, startNewSession, err := o.getCookies(r)
 	if err != nil {
 		// Cookies are present but we failed to decrypt them. They may have been tampered with, so delete them to force
 		// the user to log in again.
@@ -169,6 +169,13 @@ func (o *Verifier) authenticateIDToken(w http.ResponseWriter, r *http.Request) (
 		// Try to verify the ID token.
 		claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](r.Context(), idToken, o.relyingParty.IDTokenVerifier())
 		if err == nil {
+			if startNewSession {
+				err = o.startSession(r.Context(), w, idToken, refreshToken)
+				if err != nil {
+					return nil, AuthError{Err: fmt.Errorf("Failed to refresh session: %w", err)}
+				}
+			}
+
 			return o.getResultFromClaims(claims, claims.Claims)
 		}
 	}
@@ -195,7 +202,7 @@ func (o *Verifier) authenticateIDToken(w http.ResponseWriter, r *http.Request) (
 		return nil, AuthError{Err: fmt.Errorf("Failed to verify refreshed ID token: %w", err)}
 	}
 
-	err = o.startSession(w, idToken, tokens.RefreshToken)
+	err = o.startSession(r.Context(), w, idToken, tokens.RefreshToken)
 	if err != nil {
 		return nil, AuthError{Err: fmt.Errorf("Failed to create new session with refreshed token: %w", err)}
 	}
@@ -295,11 +302,19 @@ func (o *Verifier) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Use a v7 UUID for the login ID. Encoding the current unix epoch into the ID allows us to determine if an
+	// outdated secret was used for encryption key generation.
+	loginID, err := uuid.NewV7()
+	if err != nil {
+		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Login failed: Failed to create a login identifier: %w", err).Error()).Render(w, r)
+		return
+	}
+
 	// Create a login ID cookie. This will be deleted after the login flow is completed in /oidc/callback.
 	loginIDCookie := &http.Cookie{
 		Name:     cookieNameLoginID,
 		Path:     "/",
-		Value:    uuid.NewString(),
+		Value:    loginID.String(),
 		Secure:   true,
 		HttpOnly: true,
 		// Lax mode is required because the auth flow ends in a redirect to /oidc/callback. In Strict mode, even though
@@ -354,7 +369,7 @@ func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	handler := rp.CodeExchangeHandler(func(w http.ResponseWriter, r *http.Request, tokens *oidc.Tokens[*oidc.IDTokenClaims], state string, rp rp.RelyingParty) {
-		err := o.startSession(w, tokens.IDToken, tokens.RefreshToken)
+		err := o.startSession(r.Context(), w, tokens.IDToken, tokens.RefreshToken)
 		if err != nil {
 			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to start a new session: %w", err).Error()).Render(w, r)
 			return
@@ -450,7 +465,7 @@ func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
 	//
 	// If LXD is deployed behind a load balancer, it's possible that the IdP will redirect the caller to a different
 	// cluster member than the member that initiated the flow. To handle this, we set a "login_id" cookie at the start
-	// of the flow, then derive cookie encryption keys from that login ID from the cluster private key using HKDF (the
+	// of the flow, then derive cookie encryption keys from that login ID from the cluster secret using HMAC (the
 	// same way that we do for OIDC tokens). See https://github.com/canonical/lxd/issues/13644.
 	cookieHandler := httphelper.NewRequestAwareCookieHandler(func(r *http.Request) (*securecookie.SecureCookie, error) {
 		loginID, err := r.Cookie(cookieNameLoginID)
@@ -463,7 +478,14 @@ func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
 			return nil, fmt.Errorf("Failed to parse login ID cookie: %w", err)
 		}
 
-		return o.secureCookieFromSession(loginUUID)
+		// For the auth code flow, ignore the boolean which tells us to start a new session. We only care that
+		// we are able to decrypt cookies when the flow is complete. These cookies don't need to persist.
+		secureCookie, _, err := o.secureCookieFromSession(r.Context(), loginUUID)
+		if err != nil {
+			return nil, err
+		}
+
+		return secureCookie, nil
 	})
 
 	httpClient, err := o.httpClientFunc()
@@ -513,9 +535,15 @@ func (o *Verifier) setAccessTokenVerifier(ctx context.Context) error {
 
 // startSession creates a session ID, then derives encryption keys with it. The ID and refresh token are encrypted
 // with the derived key, and then the session ID and encrypted ID and refresh tokens are all saved as cookies.
-func (o *Verifier) startSession(w http.ResponseWriter, idToken string, refreshToken string) error {
-	sessionID := uuid.New()
-	secureCookie, err := o.secureCookieFromSession(sessionID)
+func (o *Verifier) startSession(ctx context.Context, w http.ResponseWriter, idToken string, refreshToken string) error {
+	// Use a v7 UUID for the session ID. Encoding the current unix epoch into the ID allows us to determine if an
+	// outdated secret was used for encryption key generation.
+	sessionID, err := uuid.NewV7()
+	if err != nil {
+		return err
+	}
+
+	secureCookie, _, err := o.secureCookieFromSession(ctx, sessionID)
 	if err != nil {
 		return err
 	}
@@ -528,50 +556,52 @@ func (o *Verifier) startSession(w http.ResponseWriter, idToken string, refreshTo
 	return nil
 }
 
-// getCookies gets the sessionID, identity and refresh tokens from the request cookies and decrypts them.
-func (o *Verifier) getCookies(r *http.Request) (sessionIDPtr *uuid.UUID, idToken string, refreshToken string, err error) {
+// getCookies gets the sessionID, identity and refresh tokens from the request cookies and decrypts them. The
+// startNewSession boolean indicates that the cookes were encrypted with keys derived from an old secret that has since
+// been rotated out of use. A new session should be started so that the user is not logged out.
+func (o *Verifier) getCookies(r *http.Request) (idToken string, refreshToken string, startNewSession bool, err error) {
 	sessionIDCookie, err := r.Cookie(cookieNameSessionID)
 	if err != nil && !errors.Is(err, http.ErrNoCookie) {
-		return nil, "", "", fmt.Errorf("Failed to get session ID cookie from request: %w", err)
+		return "", "", false, fmt.Errorf("Failed to get session ID cookie from request: %w", err)
 	} else if sessionIDCookie == nil {
-		return nil, "", "", nil
+		return "", "", false, nil
 	}
 
 	sessionID, err := uuid.Parse(sessionIDCookie.Value)
 	if err != nil {
-		return nil, "", "", fmt.Errorf("Invalid session ID cookie: %w", err)
+		return "", "", false, fmt.Errorf("Invalid session ID cookie: %w", err)
 	}
 
-	secureCookie, err := o.secureCookieFromSession(sessionID)
+	secureCookie, startNewSession, err := o.secureCookieFromSession(r.Context(), sessionID)
 	if err != nil {
-		return nil, "", "", fmt.Errorf("Failed to decrypt cookies: %w", err)
+		return "", "", false, fmt.Errorf("Failed to decrypt cookies: %w", err)
 	}
 
 	idTokenCookie, err := r.Cookie(cookieNameIDToken)
 	if err != nil && !errors.Is(err, http.ErrNoCookie) {
-		return nil, "", "", fmt.Errorf("Failed to get ID token cookie from request: %w", err)
+		return "", "", false, fmt.Errorf("Failed to get ID token cookie from request: %w", err)
 	}
 
 	if idTokenCookie != nil {
 		err = secureCookie.Decode(cookieNameIDToken, idTokenCookie.Value, &idToken)
 		if err != nil {
-			return nil, "", "", fmt.Errorf("Failed to decrypt ID token cookie: %w", err)
+			return "", "", false, fmt.Errorf("Failed to decrypt ID token cookie: %w", err)
 		}
 	}
 
 	refreshTokenCookie, err := r.Cookie(cookieNameRefreshToken)
 	if err != nil && !errors.Is(err, http.ErrNoCookie) {
-		return nil, "", "", fmt.Errorf("Failed to get refresh token cookie from request: %w", err)
+		return "", "", false, fmt.Errorf("Failed to get refresh token cookie from request: %w", err)
 	}
 
 	if refreshTokenCookie != nil {
 		err = secureCookie.Decode(cookieNameRefreshToken, refreshTokenCookie.Value, &refreshToken)
 		if err != nil {
-			return nil, "", "", fmt.Errorf("Failed to decrypt refresh token cookie: %w", err)
+			return "", "", false, fmt.Errorf("Failed to decrypt refresh token cookie: %w", err)
 		}
 	}
 
-	return &sessionID, idToken, refreshToken, nil
+	return idToken, refreshToken, startNewSession, nil
 }
 
 // setCookies encrypts the session, ID, and refresh tokens and sets them in the HTTP response. Cookies are only set if they are
@@ -633,51 +663,92 @@ func (*Verifier) setCookies(w http.ResponseWriter, secureCookie *securecookie.Se
 }
 
 // secureCookieFromSession returns a *securecookie.SecureCookie that is secure, unique to each client, and possible to
-// decrypt on all cluster members.
+// decrypt on all cluster members. To do this we use the cluster secret as an input seed to HMAC and use the given
+// sessionID [uuid.UUID] as a salt. The session ID can then be stored as a plaintext cookie so that we can regenerate
+// the keys upon the next request.
 //
-// To do this we use the cluster private key as an input seed to HKDF (https://datatracker.ietf.org/doc/html/rfc5869) and
-// use the given sessionID uuid.UUID as a salt. The session ID can then be stored as a plaintext cookie so that we can
-// regenerate the keys upon the next request.
+// A boolean value is returned that indicates if a new session should be started. This is calculated by comparing the
+// session start time (extracted from the v7 UUID) against the most recent core auth secret. If the session was started
+// before the most recent secret was created, then the cookies are encrypted with keys derived from an out of date
+// secret. We need to start a new session so that the user is not logged out when that secret is eventually deleted.
 //
 // Warning: Changes to this function might cause all existing OIDC users to be logged out of LXD (but not logged out of
 // the IdP).
-func (o *Verifier) secureCookieFromSession(sessionID uuid.UUID) (*securecookie.SecureCookie, error) {
+func (o *Verifier) secureCookieFromSession(ctx context.Context, sessionID uuid.UUID) (*securecookie.SecureCookie, bool, error) {
 	// Get the sessionID as a binary so that we can use it as a salt.
 	salt, err := sessionID.MarshalBinary()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to marshal session ID as binary: %w", err)
+		return nil, false, fmt.Errorf("Failed to marshal session ID as binary: %w", err)
 	}
 
-	// Get the current cluster private key.
-	clusterPrivateKey := o.clusterCert().PrivateKey()
-
-	// Extract a pseudo-random key from the cluster private key.
-	prk, err := hkdf.Extract(cookieEncryptionHashFunc, clusterPrivateKey, salt)
+	// Get the secret used when the session was created
+	sessionStartedAtSeconds, _ := sessionID.Time().UnixTime()
+	secrets, err := o.secretsFunc(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to extract secure session key: %w", err)
+		return nil, false, err
 	}
 
-	// Get a secure key. We will use this key as the hash key for the cookie.
-	// The hash key is used to verify the integrity of decrypted values using HMAC. The HKDF "info" is set to "INTEGRITY"
-	// to indicate the intended usage of the key and prevent decryption in other contexts
-	// (see https://datatracker.ietf.org/doc/html/rfc5869#section-3.2).
-	// Use a key length of 64. The securecookie library recommends 64 bytes for the hash key (https://github.com/gorilla/securecookie).
-	cookieHashKey, err := hkdf.Expand(cookieEncryptionHashFunc, prk, "INTEGRITY", 64)
+	var secret cluster.AuthSecret
+	var startNewSession bool
+	for i := 0; i < len(secrets); i++ {
+		// If the secret was created after the session started, skip.
+		if secrets[i].CreationDate.Unix() > sessionStartedAtSeconds {
+			continue
+		}
+
+		// Take the first secret that was created before the session started.
+		secret = secrets[i]
+		if i > 0 {
+			// If this isn't the most recent secret, indicate that a new session should be started.
+			startNewSession = true
+		}
+
+		break
+	}
+
+	// Derive a hash key. The hash key is used to verify the integrity of decrypted values using HMAC.
+	// Use a key length of 64. This instructs the securecookie library to use HMAC-SHA512.
+	cookieHashKey, err := o.deriveKey(secret.Value, salt, "INTEGRITY", 64)
 	if err != nil {
-		return nil, fmt.Errorf("Failed creating secure cookie hash key: %w", err)
+		return nil, false, fmt.Errorf("Failed creating secure cookie hash key: %w", err)
 	}
 
-	// Get a secure key. We will use this key as the block key for the cookie.
-	// The block key is used by securecookie to perform AES encryption. The HKDF "info" is set to "ENCRYPTION"
-	// to indicate the intended usage of the key and prevent decryption in other contexts
-	// (see https://datatracker.ietf.org/doc/html/rfc5869#section-3.2).
-	// Use a key length of 32. Given 32 bytes for the block key the securecookie library will use AES-256 for encryption.
-	cookieBlockKey, err := hkdf.Expand(cookieEncryptionHashFunc, prk, "ENCRYPTION", 32)
+	// Derive a block key. The block key is used to perform AES encryption on the cookie contents.
+	// Use a key length of 32. This instructs the securecookie library to use AES-256.
+	cookieBlockKey, err := o.deriveKey(secret.Value, salt, "ENCRYPTION", 32)
 	if err != nil {
-		return nil, fmt.Errorf("Failed creating secure cookie block key: %w", err)
+		return nil, false, fmt.Errorf("Failed creating secure cookie block key: %w", err)
 	}
 
-	return securecookie.New(cookieHashKey, cookieBlockKey), nil
+	return securecookie.New(cookieHashKey, cookieBlockKey), startNewSession, nil
+}
+
+// deriveKey uses HMAC to derive a key from a secret, a salt, and a separator. We can use HMAC directly because our
+// initial key material is uniformly random and of sufficient length.
+func (o *Verifier) deriveKey(secret []byte, salt []byte, usageSeparator string, length uint) ([]byte, error) {
+	maxSize := cookieEncryptionHashFunc().Size()
+	if int(length) > maxSize {
+		return nil, fmt.Errorf("Cannot derive keys larger than %d", maxSize)
+	}
+
+	// Extract a pseudo-random key from the secret value.
+	h := hmac.New(cookieEncryptionHashFunc, secret)
+
+	// Write salt.
+	_, err := h.Write(salt)
+	if err != nil {
+		return nil, fmt.Errorf("Failed creating secure key: %w", err)
+	}
+
+	// Write separator.
+	_, err = h.Write([]byte(usageSeparator))
+	if err != nil {
+		return nil, fmt.Errorf("Failed creating secure key: %w", err)
+	}
+
+	// Get the key.
+	key := h.Sum(nil)[:int(length)]
+	return key, nil
 }
 
 // Opts contains optional configurable fields for the Verifier.
@@ -686,7 +757,7 @@ type Opts struct {
 }
 
 // NewVerifier returns a Verifier.
-func NewVerifier(issuer string, clientID string, clientSecret string, scopes []string, audience string, clusterCert func() *shared.CertInfo, identityCache *identity.Cache, httpClientFunc func() (*http.Client, error), options *Opts) (*Verifier, error) {
+func NewVerifier(issuer string, clientID string, clientSecret string, scopes []string, audience string, secretsFunc func(ctx context.Context) (cluster.AuthSecrets, error), identityCache *identity.Cache, httpClientFunc func() (*http.Client, error), options *Opts) (*Verifier, error) {
 	opts := &Opts{}
 
 	if options != nil && options.GroupsClaim != "" {
@@ -701,7 +772,7 @@ func NewVerifier(issuer string, clientID string, clientSecret string, scopes []s
 		audience:       audience,
 		identityCache:  identityCache,
 		groupsClaim:    opts.GroupsClaim,
-		clusterCert:    clusterCert,
+		secretsFunc:    secretsFunc,
 		httpClientFunc: httpClientFunc,
 	}
 

@@ -114,6 +114,23 @@ var updates = map[int]schema.Update{
 	71: updateFromV70,
 	72: updateFromV71,
 	73: updateFromV72,
+	74: updateFromV73,
+}
+
+func updateFromV73(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, `
+CREATE TABLE secrets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    entity_type INTEGER NOT NULL,
+    entity_id INTEGER NOT NULL,
+    type INTEGER NOT NULL,
+    value TEXT NOT NULL,
+    creation_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX secrets_entity_type_entity_id_type ON secrets (entity_type, entity_id, type);
+`)
+	return err
 }
 
 func updateFromV72(ctx context.Context, tx *sql.Tx) error {
