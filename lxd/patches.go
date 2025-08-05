@@ -102,6 +102,7 @@ var patches = []patch{
 	{name: "oidc_groups_claim_scope", stage: patchPreLoadClusterConfig, run: patchOIDCGroupsClaimScope},
 	{name: "remove_backupsimages_symlinks", stage: patchPostDaemonStorage, run: patchRemoveBackupsImagesSymlinks},
 	{name: "move_images_storage", stage: patchPostDaemonStorage, run: patchMoveBackupsImagesStorage},
+	{name: "cluster_config_volatile_uuid", stage: patchPreLoadClusterConfig, run: patchClusterConfigVolatileUUID},
 }
 
 type patch struct {
@@ -1566,6 +1567,38 @@ func patchMoveBackupsImagesStorage(name string, d *Daemon) error {
 	}
 
 	return nil
+}
+
+// patchClusterConfigVolatileUUID checks if the clusterUUID is defined and if not, generates a new v7 UUID and saves it
+// to the `config` table under `volatile.uuid`. Note that this means existing deployments will have a 'volatile.uuid'
+// that does not match the contents of `$LXD_DIR/server.uuid`, whereas new deployments will have a 'volatile.uuid' that
+// matches the contents of 'server.uuid' on the member that initially bootstrapped the cluster.
+func patchClusterConfigVolatileUUID(name string, d *Daemon) error {
+	return d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// Get current configuration.
+		globalConfig, err := clusterConfig.Load(ctx, tx)
+		if err != nil {
+			return err
+		}
+
+		// If the cluster UUID has been set, return.
+		if globalConfig.ClusterUUID() != "" {
+			return nil
+		}
+
+		clusterUUID, err := uuid.NewV7()
+		if err != nil {
+			return fmt.Errorf("Failed to generate a cluster UUID: %w", err)
+		}
+
+		// Otherwise, insert the server UUID into the database.
+		_, err = tx.Tx().Exec(`INSERT INTO config (key, value) VALUES ('volatile.uuid', ?)`, clusterUUID.String())
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
 // Patches end here
