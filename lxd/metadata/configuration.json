@@ -5550,6 +5550,14 @@
 							"shortdesc": "Volume to use to store project-specific image tarballs",
 							"type": "string"
 						}
+					},
+					{
+						"volatile.uuid": {
+							"longdesc": "This UUID is used as a stable identifier for the cluster. It cannot be changed.",
+							"scope": "global",
+							"shortdesc": "A random v7 UUID",
+							"type": "string"
+						}
 					}
 				]
 			},
