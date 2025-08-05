@@ -225,6 +225,11 @@ func (c *Config) RemoteTokenExpiry() string {
 	return c.m.GetString("core.remote_token_expiry")
 }
 
+// AuthSecretExpiry returns the time after which an core secret is invalid.
+func (c *Config) AuthSecretExpiry() string {
+	return c.m.GetString("core.auth_secret_expiry")
+}
+
 // OIDCServer returns all the OpenID Connect settings needed to connect to a server.
 func (c *Config) OIDCServer() (issuer string, clientID string, clientSecret string, scopes []string, audience string, groupsClaim string) {
 	return c.m.GetString("oidc.issuer"), c.m.GetString("oidc.client.id"), c.m.GetString("oidc.client.secret"), strings.Fields(c.m.GetString("oidc.scopes")), c.m.GetString("oidc.audience"), c.m.GetString("oidc.groups.claim")
@@ -499,6 +504,35 @@ var ConfigSchema = config.Schema{
 	//  defaultdesc: `false`
 	//  shortdesc: Whether to automatically trust clients signed by the CA
 	"core.trust_ca_certificates": {Type: config.Bool, Default: "false"},
+
+	// lxdmeta:generate(entities=server; group=core; key=core.auth_secret_expiry)
+	// The secret is used for various cryptographic purposes, such as cookie encryption.
+	// When a given secret is older than the configured expiry, a new secret is generated.
+	//
+	// This configuration option accepts multiple space-separated values of the form `[0-9]+(S|M|H|d|w|m|y)`,
+	// where `S` is seconds, `M` is minutes, `H` is hours, `d` is days, `w` is weeks, `m` is months, and `y` is years.
+	// For example, `1d 3H` is 1 day and 3 hours.
+	//
+	// The default value is `1m` (1 month).
+	// The minimum value is `1d` (1 day).
+	// ---
+	//  type: string
+	//  scope: global
+	//  defaultdesc: `1m`
+	//  shortdesc: How long to use a given cluster secret
+	"core.auth_secret_expiry": {Default: "1m", Validator: func(s string) error {
+		now := time.Now().UTC()
+		exp, err := shared.GetExpiry(now, s)
+		if err != nil {
+			return err
+		}
+
+		if exp.Sub(now) < 24*time.Hour {
+			return errors.New("Auth secret expiry cannot be set to less than one day")
+		}
+
+		return nil
+	}},
 
 	// lxdmeta:generate(entities=server; group=images; key=images.auto_update_cached)
 	//

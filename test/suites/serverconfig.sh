@@ -5,8 +5,21 @@ test_server_config() {
 
   _server_config_access
   _server_config_storage
+  _server_config_auth_secret
 
   kill_lxd "${LXD_SERVERCONFIG_DIR}"
+}
+
+_server_config_auth_secret() {
+    # Validate core.auth_secret_expiry cannot be set to less than one day
+    lxc config set core.auth_secret_expiry="1d"
+    ! lxc config set core.auth_secret_expiry='23H 59M 59S' || false
+    lxc config set core.auth_secret_expiry='23H 59M 60S'
+    ! lxc config set core.auth_secret_expiry='1439M 59S' || false
+    lxc config set core.auth_secret_expiry='1439M 60S'
+    ! lxc config set core.auth_secret_expiry='86399S' || false
+    lxc config set core.auth_secret_expiry='86400S'
+    lxc config unset core.auth_secret_expiry
 }
 
 _server_config_access() {
