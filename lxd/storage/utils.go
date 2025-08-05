@@ -17,6 +17,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/archive"
+	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
@@ -1185,9 +1186,10 @@ func VolumeUsedByDaemon(s *state.State, poolName string, volumeName string) (boo
 
 	// Check if volume is referenced in project level storage settings.
 	fullName := poolName + "/" + volumeName
-	for config, value := range nodeConfig.Dump() {
+	for configKey, value := range nodeConfig.Dump() {
 		// Skip any keys that are not storage volumes related.
-		if !strings.HasPrefix(config, "storage.") || (!strings.HasSuffix(config, ".images_volume") && !strings.HasSuffix(config, ".backups_volume")) {
+		_, storageType := config.ParseDaemonStorageConfigKey(configKey)
+		if storageType == "" {
 			continue
 		}
 
