@@ -14,6 +14,7 @@ import (
 	dqlite "github.com/canonical/go-dqlite/v3"
 	"github.com/canonical/go-dqlite/v3/client"
 	"github.com/canonical/go-dqlite/v3/driver"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -66,7 +67,10 @@ func NewTestCluster(t *testing.T) (*Cluster, func()) {
 		return net.Dial("unix", address)
 	}
 
-	cluster, err := OpenCluster(context.Background(), "test.db", store, "1", dir, 5*time.Second, nil, driver.WithLogFunc(log), driver.WithDialFunc(dial))
+	serverUUID, err := uuid.NewV7()
+	require.NoError(t, err)
+
+	cluster, err := OpenCluster(context.Background(), "test.db", store, "1", dir, 5*time.Second, nil, serverUUID.String(), driver.WithLogFunc(log), driver.WithDialFunc(dial))
 	require.NoError(t, err)
 
 	cleanup := func() {
