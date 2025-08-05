@@ -1696,7 +1696,10 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 
 				// Only remove mountpoints created in /dev.
 				if strings.HasPrefix(mount.TargetPath, "dev/") {
-					return files.Remove(relativeTargetPath)
+					err = files.Remove(relativeTargetPath)
+					if err != nil {
+						d.logger.Warn("Could not remove the device path inside container", logger.Ctx{"err": err, "path": relativeTargetPath})
+					}
 				}
 			}
 
