@@ -7834,6 +7834,8 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 
 	customVol := &backupConfig.Volume{
 		StorageVolume: api.StorageVolume{
+			Pool:        b.name,
+			Project:     projectName,
 			Name:        volName,
 			Type:        cluster.StoragePoolVolumeTypeNameCustom,
 			ContentType: apiContentType,
