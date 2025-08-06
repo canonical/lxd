@@ -7601,6 +7601,9 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 	}
 
 	// Run some consistency checks on the backup file contents.
+	// These checks are performed in all cases to ensure a proper format even
+	// when checking only for custom volumes attached to the instance.
+	// In this case the instance might already be known.
 	if backupConf.Pools != nil {
 		rootVolPool, err := backupConf.RootVolumePool()
 		if err != nil {
