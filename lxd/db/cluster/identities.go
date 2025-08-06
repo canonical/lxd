@@ -244,7 +244,7 @@ func (c CertificateMetadata) X509() (*x509.Certificate, error) {
 
 // ToCertificate converts an Identity to a Certificate.
 func (i Identity) ToCertificate() (*Certificate, error) {
-	identityType, err := i.Type.toCertificateType()
+	certificateType, err := i.Type.toCertificateType()
 	if err != nil {
 		return nil, fmt.Errorf("Failed converting identity type to certificate type: %w", err)
 	}
@@ -255,10 +255,12 @@ func (i Identity) ToCertificate() (*Certificate, error) {
 		return nil, fmt.Errorf("Failed to unmarshal certificate identity metadata: %w", err)
 	}
 
-	isRestricted, err := identity.IsRestrictedIdentityType(string(i.Type))
+	identityType, err := identity.New(string(i.Type))
 	if err != nil {
 		return nil, fmt.Errorf("Failed to check restricted status of identity: %w", err)
 	}
+
+	isRestricted := !identityType.IsAdmin()
 
 	// Metrics certificates can be both restricted and unrestricted.
 	// But an unrestricted metrics certificate has still less permissions as an unrestricted client certificate.
@@ -270,7 +272,7 @@ func (i Identity) ToCertificate() (*Certificate, error) {
 	c := &Certificate{
 		ID:          i.ID,
 		Fingerprint: i.Identifier,
-		Type:        identityType,
+		Type:        certificateType,
 		Name:        i.Name,
 		Certificate: metadata.Certificate,
 		Restricted:  isRestricted,
