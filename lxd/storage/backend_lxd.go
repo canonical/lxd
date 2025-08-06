@@ -7434,11 +7434,11 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 		return err
 	}
 
-	if instID > 0 && volume != nil {
-		return nil // Instance record and storage record already exists in DB, no recovery needed.
-	} else if instID > 0 {
+	// Check if either instance or storage volume already exist in the DB.
+	// If only one of them exists this is considered to be an error.
+	if instID > 0 && volume == nil {
 		return fmt.Errorf("Instance %q in project %q already has instance DB record", instName, projectName)
-	} else if volume != nil {
+	} else if instID <= 0 && volume != nil {
 		return fmt.Errorf("Instance %q in project %q already has storage DB record", instName, projectName)
 	}
 
