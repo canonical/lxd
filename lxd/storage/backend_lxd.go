@@ -7442,6 +7442,58 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 		return fmt.Errorf("Instance %q in project %q already has storage DB record", instName, projectName)
 	}
 
+	backupVolConfCache := newBackupConfigCache(b)
+
+	// Iterate over the custom volumes attached to the instance.
+	for _, customVol := range backupConf.Volumes {
+		// Skip the instances root volume.
+		if customVol == rootVol {
+			continue
+		}
+
+		// The custom volume might be located on a different pool.
+		// Therefore try to load the right pool.
+		customVolPool, err := backupVolConfCache.getPool(customVol.Pool)
+		if err != nil {
+			// We don't know the pool which hosts the custom volume. Skip it for now.
+			// At this point we would have to notify the user about the new pool and ask for it to be recovered too.
+			if api.StatusErrorCheck(err, http.StatusNotFound) {
+				continue
+			}
+
+			return fmt.Errorf("Failed to load pool %q for custom volume %q in project %q: %w", customVol.Pool, customVol.Name, customVol.Project, err)
+		}
+
+		// Check if any entry for the custom volume already exists in the DB.
+		// This will return no record for any temporary pool structs being used (as ID is -1).
+		volume, err := VolumeDBGet(customVolPool, customVol.Project, customVol.Name, drivers.VolumeTypeCustom)
+		if err != nil && !response.IsNotFoundError(err) {
+			return fmt.Errorf("Failed to check if custom volume %q in project %q exists on pool %q: %w", customVol.Name, customVol.Project, customVolPool.Name(), err)
+		}
+
+		if volume != nil {
+			// Storage record already exists in DB, no recovery needed.
+			continue
+		}
+
+		// Use the last modification time from the instance's backup config.
+		backupConf := backupConfig.NewConfig(backupConf.LastModified())
+		backupConf.Volumes = []*backupConfig.Volume{customVol}
+
+		// Add custom volume to unknown volumes list for the project.
+		if projectVols[customVol.Project] == nil {
+			projectVols[customVol.Project] = []*backupConfig.Config{backupConf}
+		} else {
+			projectVols[customVol.Project] = append(projectVols[customVol.Project], backupConf)
+		}
+	}
+
+	// Unset the custom volumes as we don't want them to be returned twice.
+	// Once as a custom volume backup config and another time as part of the instance's backup config.
+	backupConf.Volumes = slices.DeleteFunc(backupConf.Volumes, func(vol *backupConfig.Volume) bool {
+		return vol != rootVol
+	})
+
 	// Instance record and storage record don't exist in DB, continue recovering the instance.
 	if instID <= 0 && volume == nil {
 		// Check snapshots are consistent between storage layer and backup config file.
