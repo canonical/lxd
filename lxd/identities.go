@@ -182,7 +182,12 @@ func identityAccessHandler(authenticationMethod string, entitlement auth.Entitle
 			return response.SmartError(err)
 		}
 
-		if identity.IsFineGrainedIdentityType(string(id.Type)) {
+		identityType, err := identity.New(string(id.Type))
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		if identityType.IsFineGrained() {
 			err = s.Authorizer.CheckPermission(r.Context(), entity.IdentityURL(authenticationMethod, id.Identifier), entitlement)
 			if err != nil {
 				return response.SmartError(err)
@@ -818,7 +823,12 @@ func getIdentities(authenticationMethod string) func(d *Daemon, r *http.Request)
 		}
 
 		canView := func(id dbCluster.Identity) bool {
-			if identity.IsFineGrainedIdentityType(string(id.Type)) {
+			identityType, err := identity.New(string(id.Type))
+			if err != nil {
+				return false
+			}
+
+			if identityType.IsFineGrained() {
 				return canViewIdentity(entity.IdentityURL(string(id.AuthMethod), id.Identifier))
 			}
 
@@ -1167,11 +1177,16 @@ func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	identityType, err := identity.New(apiIdentity.Type)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	return response.SyncResponse(true, api.IdentityInfo{
 		Identity:             *apiIdentity,
 		EffectiveGroups:      effectiveGroups,
 		EffectivePermissions: effectivePermissions,
-		FineGrained:          identity.IsFineGrainedIdentityType(apiIdentity.Type),
+		FineGrained:          identityType.IsFineGrained(),
 	})
 }
 
@@ -1244,7 +1259,12 @@ func updateIdentity(authenticationMethod string) func(d *Daemon, r *http.Request
 			return response.SmartError(err)
 		}
 
-		if !identity.IsFineGrainedIdentityType(string(id.Type)) {
+		identityType, err := identity.New(string(id.Type))
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		if !identityType.IsFineGrained() {
 			return response.NotImplemented(fmt.Errorf("Identities of type %q cannot be modified via this API", id.Type))
 		}
 
@@ -1477,7 +1497,12 @@ func patchIdentity(authenticationMethod string) func(d *Daemon, r *http.Request)
 			return response.SmartError(err)
 		}
 
-		if !identity.IsFineGrainedIdentityType(string(id.Type)) {
+		identityType, err := identity.New(string(id.Type))
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		if !identityType.IsFineGrained() {
 			return response.NotImplemented(fmt.Errorf("Identities of type %q cannot be modified via this API", id.Type))
 		}
 
@@ -1703,7 +1728,12 @@ func deleteIdentity(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if !identity.IsFineGrainedIdentityType(string(id.Type)) {
+	identityType, err := identity.New(string(id.Type))
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if !identityType.IsFineGrained() {
 		return response.NotImplemented(fmt.Errorf("Identities of type %q cannot be modified via this API", id.Type))
 	}
 
