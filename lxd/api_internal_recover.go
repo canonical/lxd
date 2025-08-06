@@ -385,6 +385,9 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 					var displayType, displayName string
 					var displaySnapshotCount int
 
+					// Usually the volume's pool name is the one where it originates from.
+					displayPoolName := poolName
+
 					// Build display fields for scan results.
 					if poolVol.Instance != nil {
 						displayType = poolVol.Instance.Type
@@ -402,12 +405,14 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 							return response.SmartError(fmt.Errorf("Failed getting the custom volume: %w", err))
 						}
 
+						// In case of custom volumes those could be discovered from the instance's backup config inside another pool.
+						displayPoolName = customVol.Pool
 						displayName = customVol.Name
 						displaySnapshotCount = len(customVol.Snapshots)
 					}
 
 					res.UnknownVolumes = append(res.UnknownVolumes, internalRecoverValidateVolume{
-						Pool:          poolName,
+						Pool:          displayPoolName,
 						Project:       projectName,
 						Type:          displayType,
 						Name:          displayName,
