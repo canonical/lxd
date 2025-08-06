@@ -1022,7 +1022,8 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		case "core.syslog_socket":
 			syslogSocketChanged = true
 		default:
-			if strings.HasPrefix(key, "storage.project.") {
+			projectName, _ := config.ParseDaemonStorageConfigKey(key)
+			if projectName != "" {
 				projectVolumeConfigKeys = append(projectVolumeConfigKeys, key)
 			}
 		}
@@ -1080,7 +1081,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	value, ok = nodeChanged["storage.backups_volume"]
 	if ok {
 		oldValue := oldNodeConfig["storage.backups_volume"]
-		err := daemonStorageMove(s, "backups", oldValue, value)
+		err := daemonStorageMove(s, config.DaemonStorageTypeBackups, oldValue, value)
 		if err != nil {
 			return err
 		}
@@ -1089,7 +1090,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	value, ok = nodeChanged["storage.images_volume"]
 	if ok {
 		oldValue := oldNodeConfig["storage.images_volume"]
-		err := daemonStorageMove(s, "images", oldValue, value)
+		err := daemonStorageMove(s, config.DaemonStorageTypeImages, oldValue, value)
 		if err != nil {
 			return err
 		}
@@ -1097,16 +1098,10 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 
 	for _, projectVolumeConfigKey := range projectVolumeConfigKeys {
 		oldValue := oldNodeConfig[projectVolumeConfigKey]
-		for _, storageType := range []string{"images", "backups"} {
-			keySuffix := "." + storageType + "_volume"
-			if !strings.HasSuffix(projectVolumeConfigKey, keySuffix) {
-				continue
-			}
-
-			err := projectStorageVolumeChange(s, oldValue, nodeChanged[projectVolumeConfigKey], storageType)
-			if err != nil {
-				return fmt.Errorf("Failed setting node config %q: %w", projectVolumeConfigKey, err)
-			}
+		_, storageType := config.ParseDaemonStorageConfigKey(projectVolumeConfigKey)
+		err := projectStorageVolumeChange(s, oldValue, nodeChanged[projectVolumeConfigKey], storageType)
+		if err != nil {
+			return fmt.Errorf("Failed setting node config %q: %w", projectVolumeConfigKey, err)
 		}
 	}
 

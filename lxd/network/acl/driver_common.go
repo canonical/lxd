@@ -260,20 +260,20 @@ func (d *common) validateConfig(info *api.NetworkACLPut) error {
 }
 
 // validateConfigMap checks ACL config map against rules.
-func (d *common) validateConfigMap(infoConfig map[string]string, rules map[string]func(value string) error) error {
+func (d *common) validateConfigMap(aclConfig map[string]string, rules map[string]func(value string) error) error {
 	checkedFields := map[string]struct{}{}
 
 	// Run the validator against each field.
 	for k, validator := range rules {
 		checkedFields[k] = struct{}{} // Mark field as checked.
-		err := validator(infoConfig[k])
+		err := validator(aclConfig[k])
 		if err != nil {
 			return fmt.Errorf("Invalid value for config option %q: %w", k, err)
 		}
 	}
 
 	// Look for any unchecked fields, as these are unknown fields and validation should fail.
-	for k := range infoConfig {
+	for k := range aclConfig {
 		_, checked := checkedFields[k]
 		if checked {
 			continue

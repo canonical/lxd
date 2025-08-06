@@ -139,7 +139,7 @@ func daemonStorageMount(s *state.State) error {
 
 // Mount the volume specified by `daemonStorageVolume` (in the form of pool/volume)
 // and create the necessary directory structure to use it as a `storageType` (either `images` or `backups`) storage.
-func projectStorageVolumeSetup(s *state.State, daemonStorageVolume string, storageType string) error {
+func projectStorageVolumeSetup(s *state.State, daemonStorageVolume string, storageType config.DaemonStorageType) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -186,7 +186,7 @@ func projectStorageVolumeSetup(s *state.State, daemonStorageVolume string, stora
 // projectStorageVolumeChange handles changes of one of the storage.images_volume or storage.backups.volume configs.
 // As these configs can be changed only on empty projects, we don't move any images around. Instead we only
 // mount the volumes as needed.
-func projectStorageVolumeChange(s *state.State, oldConfig string, newConfig string, storageType string) error {
+func projectStorageVolumeChange(s *state.State, oldConfig string, newConfig string, storageType config.DaemonStorageType) error {
 	if oldConfig != "" {
 		err := unmountDaemonStorageVolume(s, oldConfig)
 		if err != nil {
@@ -323,19 +323,19 @@ func daemonStorageValidate(s *state.State, target string) (validatedTarget strin
 // daemonStoragePath returns the full path for a daemon storage located on the specific volume.
 // The `storageType` is either `images`, or `backups`.
 // The `daemonStorageVolume` is the specific volume in the form of "pool/volume".
-func daemonStoragePath(daemonStorageVolume string, storageType string) string {
+func daemonStoragePath(daemonStorageVolume string, storageType config.DaemonStorageType) string {
 	if daemonStorageVolume == "" {
-		return shared.VarPath(storageType)
+		return shared.VarPath(string(storageType))
 	}
 
 	poolName, volumeName, _ := daemonStorageSplitVolume(daemonStorageVolume)
 	volStorageName := project.StorageVolume(api.ProjectDefaultName, volumeName)
 	volMountPath := storageDrivers.GetVolumeMountPath(poolName, storageDrivers.VolumeTypeCustom, volStorageName)
-	return filepath.Join(volMountPath, storageType)
+	return filepath.Join(volMountPath, string(storageType))
 }
 
-func daemonStorageMove(s *state.State, storageType string, oldConfig string, newconfig string) error {
-	destPath := shared.VarPath(storageType)
+func daemonStorageMove(s *state.State, storageType config.DaemonStorageType, oldConfig string, newconfig string) error {
+	destPath := shared.VarPath(string(storageType))
 	var sourcePath string
 	var sourcePool string
 	var sourceVolume string
@@ -353,7 +353,7 @@ func daemonStorageMove(s *state.State, storageType string, oldConfig string, new
 
 		sourceVolume = project.StorageVolume(api.ProjectDefaultName, sourceVolume)
 		sourcePath = storageDrivers.GetVolumeMountPath(sourcePool, storageDrivers.VolumeTypeCustom, sourceVolume)
-		sourcePath = filepath.Join(sourcePath, storageType)
+		sourcePath = filepath.Join(sourcePath, string(storageType))
 	}
 
 	moveContent := func(source string, target string) error {
@@ -436,7 +436,7 @@ func daemonStorageMove(s *state.State, storageType string, oldConfig string, new
 	}
 
 	// Handle changes.
-	if sourcePath != shared.VarPath(storageType) {
+	if sourcePath != shared.VarPath(string(storageType)) {
 		// Move the data across.
 		err = moveContent(sourcePath, destPath)
 		if err != nil {
