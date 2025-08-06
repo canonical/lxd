@@ -4963,6 +4963,13 @@ Specify the volume using the syntax `POOL/VOLUME`.
 Specify the volume using the syntax `POOL/VOLUME`.
 ```
 
+```{config:option} volatile.uuid server-miscellaneous
+:scope: "global"
+:shortdesc: "A random v7 UUID"
+:type: "string"
+This UUID is used as a stable identifier for the cluster. It cannot be changed.
+```
+
 <!-- config group server-miscellaneous end -->
 <!-- config group server-oidc start -->
 ```{config:option} oidc.audience server-oidc

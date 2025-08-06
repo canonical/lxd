@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/canonical/go-dqlite/v3/driver"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -222,11 +223,13 @@ func (f *heartbeatFixture) node() (*state.State, *cluster.Gateway, string) {
 	mf := &membershipFixtures{t: f.t, state: state}
 	mf.ClusterAddress(address)
 
-	var err error
+	serverUUID, err := uuid.NewV7()
+	require.NoError(f.t, err)
+
 	require.NoError(f.t, state.DB.Cluster.Close())
 	store := gateway.NodeStore()
 	dial := gateway.DialFunc()
-	state.DB.Cluster, err = db.OpenCluster(context.Background(), "db.bin", store, address, "/unused/db/dir", 5*time.Second, nil, driver.WithDialFunc(dial))
+	state.DB.Cluster, err = db.OpenCluster(context.Background(), "db.bin", store, address, "/unused/db/dir", 5*time.Second, nil, serverUUID.String(), driver.WithDialFunc(dial))
 	require.NoError(f.t, err)
 
 	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {

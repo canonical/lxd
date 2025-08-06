@@ -722,6 +722,20 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		}
 	}
 
+	// Validate the cluster UUID has not been changed.
+	clusterUUID := s.GlobalConfig.ClusterUUID()
+	receivedClusterUUID, ok := stringReqConfig["volatile.uuid"]
+
+	// If present, it must be identical (for both PUT and PATCH requests).
+	if ok {
+		if receivedClusterUUID != clusterUUID {
+			return response.BadRequest(errors.New("The cluster UUID cannot be changed"))
+		}
+	} else if !patch {
+		// If not present, this is allowed for PATCH but not for PUT.
+		return response.BadRequest(errors.New("The cluster UUID cannot be changed"))
+	}
+
 	// First deal with config specific to the local daemon
 	nodeValues := map[string]string{}
 

@@ -44,10 +44,13 @@ profiles:
 EOF
   lxd init --dump > config.yaml
 
+cluster_uuid="$(lxc config get volatile.uuid)"
+
 cat <<EOF > expected.yaml
 config:
   core.https_address: 127.0.0.1:9999
   images.auto_update_interval: "15"
+  volatile.uuid: ${cluster_uuid}
 networks:
 - config:
     ipv4.address: none

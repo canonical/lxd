@@ -1158,7 +1158,10 @@ func (d *Daemon) init() error {
 	d.startStopLock.Lock()
 	defer d.startStopLock.Unlock()
 
-	var err error
+	err := d.initServerUUID()
+	if err != nil {
+		return err
+	}
 
 	var dbWarnings []dbCluster.Warning
 
@@ -1575,7 +1578,7 @@ func (d *Daemon) init() error {
 		// Assign cluster DB handle to d.gateway.Cluster so its immediately usable by gateway even if DB
 		// returns StatusPreconditionFailed. This way its usable for heartbeats whilst it waits for the
 		// other members to become aligned.
-		d.gateway.Cluster, err = db.OpenCluster(d.shutdownCtx, "db.bin", store, localClusterAddress, dir, d.config.DqliteSetupTimeout, nil, options...)
+		d.gateway.Cluster, err = db.OpenCluster(d.shutdownCtx, "db.bin", store, localClusterAddress, dir, d.config.DqliteSetupTimeout, nil, d.serverUUID, options...)
 		if err == nil {
 			logger.Info("Initialized global database")
 
@@ -1682,29 +1685,6 @@ func (d *Daemon) init() error {
 	}
 
 	d.events.SetLocalLocation(d.serverName)
-
-	// Setup and load the server's UUID file.
-	// Use os.VarDir to allow setting up the uuid file also in the test suite.
-	var serverUUID string
-	uuidPath := filepath.Join(d.os.VarDir, "server.uuid")
-	if !shared.PathExists(uuidPath) {
-		serverUUID = uuid.New().String()
-		err := os.WriteFile(uuidPath, []byte(serverUUID), 0600)
-		if err != nil {
-			return fmt.Errorf("Failed to create server.uuid file: %w", err)
-		}
-	}
-
-	if serverUUID == "" {
-		uuidBytes, err := os.ReadFile(uuidPath)
-		if err != nil {
-			return fmt.Errorf("Failed to read server.uuid file: %w", err)
-		}
-
-		serverUUID = string(uuidBytes)
-	}
-
-	d.serverUUID = serverUUID
 
 	// Mount the storage pools.
 	logger.Info("Initializing storage pools")
@@ -2098,6 +2078,40 @@ func (d *Daemon) init() error {
 
 	logger.Info("Daemon started")
 
+	return nil
+}
+
+// initServerUUID checks if there is a `server.uuid` file in LXD_DIR. If there is a file, the contents are read and
+// saved to the Daemon.serverUUID. If there is no file (on first load) a new UUID is generated, saved to disk, and saved
+// to the Daemon.serverUUID.
+func (d *Daemon) initServerUUID() error {
+	// Setup and load the server's UUID file.
+	// Use os.VarDir to allow setting up the uuid file also in the test suite.
+	var serverUUID string
+	uuidPath := filepath.Join(d.os.VarDir, "server.uuid")
+	if !shared.PathExists(uuidPath) {
+		newServerUUID, err := uuid.NewV7()
+		if err != nil {
+			return fmt.Errorf("Failed to generate a new server UUID: %w", err)
+		}
+
+		serverUUID = newServerUUID.String()
+		err = os.WriteFile(uuidPath, []byte(serverUUID), 0600)
+		if err != nil {
+			return fmt.Errorf("Failed to create server.uuid file: %w", err)
+		}
+	}
+
+	if serverUUID == "" {
+		uuidBytes, err := os.ReadFile(uuidPath)
+		if err != nil {
+			return fmt.Errorf("Failed to read server.uuid file: %w", err)
+		}
+
+		serverUUID = string(uuidBytes)
+	}
+
+	d.serverUUID = serverUUID
 	return nil
 }
 
