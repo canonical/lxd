@@ -332,8 +332,17 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 			return response.SmartError(fmt.Errorf("Failed checking volumes on pool %q: %w", pool.Name(), err))
 		}
 
-		// Store for consumption after validation scan to avoid needing to reprocess.
-		poolsProjectVols[p.Name] = poolProjectVols
+		// Iterate over the list of returned unknown volumes and store them for consumption after validation scan to avoid needing to reprocess.
+		// Some of the volumes might be actually located on another pool if they have been discovered from an instance on the current pool.
+		// Therefore we have to check each unknown volume separately.
+		for projectName, volConfigs := range poolProjectVols {
+			for _, volConfig := range volConfigs {
+				err = appendUnknownVolumeConfig(p.Name, projectName, volConfig, poolsProjectVols)
+				if err != nil {
+					return response.SmartError(fmt.Errorf("Failed to add unknown volume to the list: %w", err))
+				}
+			}
+		}
 
 		// Check dependencies are met for each volume.
 		for projectName, poolVols := range poolProjectVols {
