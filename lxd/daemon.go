@@ -383,7 +383,12 @@ func reportEntitlements(ctx context.Context, authorizer auth.Authorizer, identit
 		return fmt.Errorf("Failed to get caller identity: %w", err)
 	}
 
-	if !identity.IsFineGrainedIdentityType(id.IdentityType) {
+	identityType, err := identity.New(id.IdentityType)
+	if err != nil {
+		return err
+	}
+
+	if !identityType.IsFineGrained() {
 		return errors.New("Not fine grained")
 	}
 
