@@ -42,6 +42,7 @@ description: |-
    - daemon.preseed: Pass a YAML configuration to `lxd init` on initial start
    - daemon.syslog: Send LXD log events to syslog [default=false]
    - daemon.verbose: Increase logging to verbose level [default=false]
+   - db.trace: Enable dqlite trace logging (very verbose) [default=false]
    - lvm.external: Use the system's LVM tools [default=false]
    - lxcfs.pidfd: Start per-container process tracking [default=false]
    - lxcfs.loadavg: Start tracking per-container load average [default=false]
@@ -117,7 +118,7 @@ apps:
 
   lxc:
     command: commands/lxc
-    completer: etc/bash_completion.d/snap.lxd.lxc
+    completer: lxc-completer.sh
     plugs:
       - lxd-support
       - system-observe
@@ -901,7 +902,7 @@ parts:
       - spice-protocol
       - spice-server
     source: https://git.launchpad.net/ubuntu/+source/qemu
-    source-commit: 50a4fe555e21d4b633580d63ae45e807de9e2f91 # import/1%8.2.2+ds-0ubuntu1.5
+    source-commit: e63cad5bb3e377aacfc808c2cf075e0613072b88 # import/1%8.2.2+ds-0ubuntu1.8
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -1229,7 +1230,7 @@ parts:
 
   zfs-2-1:
     source: https://github.com/openzfs/zfs
-    source-commit: fb6d532066f23458f768a97ae94b158c42cbe484 # zfs-2.1.15
+    source-commit: a7186651d3306debca6b4f72797239eea61db36c # zfs-2.1.16
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -1264,7 +1265,7 @@ parts:
 
   zfs-2-2:
     source: https://github.com/openzfs/zfs
-    source-commit: baa50314567afd986a00838f0fa65fdacbd12daf # zfs-2.2.6
+    source-commit: 3e4a3e161c00273303cd9fa9e0dc09ead3499a8a # zfs-2.2.8
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -1299,7 +1300,7 @@ parts:
 
   zfs-2-3:
     source: https://github.com/openzfs/zfs
-    source-commit: f3e4043a36942e67ccbc05318479a07d242fc611 # zfs-2.3.1
+    source-commit: 1af41fd203639818aa28cc624f144ef604a166d8 # zfs-2.3.3
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -1600,7 +1601,17 @@ parts:
       CGO_ENABLED=0 go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxd-agent" -tags=agent,netgo github.com/canonical/lxd/lxd-agent
       CGO_ENABLED=0 go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxd-user" -tags netgo github.com/canonical/lxd/lxd-user
 
-      # Some python dependencies are not available for riscv64 or just require a build from source.
+      # Check which Go version was used to compile each of the lxc/lxd binaries
+      # XXX: fail if an unexpected version (like a Go toolchain) was used
+      GOVER="$(snap list go | awk '{if ($1 == "go") print $2}')"
+      UNEXPECTED_GO_VER="$(go version -v "${CRAFT_PART_INSTALL}/bin/lxc"* "${CRAFT_PART_INSTALL}/bin/lxd"* | grep -vF ": go${GOVER}" || true)"
+      if [ -n "${UNEXPECTED_GO_VER:-}" ]; then
+        echo "Some binaries were compiled with an unexpected Go version (!= ${GOVER}):"
+        echo "${UNEXPECTED_GO_VER}"
+        exit 1
+      fi
+
+      # Some python dependencies are not available for armhf/riscv64 or just require a build from source.
       # Not worth the effort for now.
       if [ "$(uname -m)" != "riscv64" ]; then
         # Build the static website
@@ -1626,9 +1637,10 @@ parts:
       # When executed by snapd, the `compopt` support detection doesn't work so fake that it is always `builtin`
       set_compopt='s|$(type -t compopt)|"builtin"|'
       # Modify requestComp variable to use lxc based on context ($SNAP/bin/lxc in Snap environment)
-      set_request_comp='s|requestComp="${words\[0\]} __complete ${args\[\*\]}"|requestComp="/snap/lxd/current/bin/lxc __complete ${args[*]}"|'
+      set_request_comp='s|requestComp="${words\[0\]} __complete ${args\[\*\]}"|requestComp="/snap/lxd/current/commands/lxc __complete ${args[*]}"|'
       # Generate completions script
-      "${CRAFT_PART_INSTALL}/bin/lxc" completion bash | sed -e "${set_cmds}" -e "${set_cols}" -e "${set_compopt}" -e "${set_request_comp}" > "${CRAFT_PART_INSTALL}/etc/bash_completion.d/snap.lxd.lxc"
+      "${CRAFT_PART_INSTALL}/bin/lxc" completion bash | sed -e "${set_cmds}" -e "${set_cols}" -e "${set_compopt}" -e "${set_request_comp}" > "${CRAFT_PART_INSTALL}/lxc-completer.sh"
+      chmod +x "${CRAFT_PART_INSTALL}/lxc-completer.sh"
     organize:
       usr/bin/: bin/
       usr/lib/: lib/
@@ -1650,7 +1662,7 @@ parts:
 
       - lib/*/libidn.so.*
 
-      - etc/bash_completion.d/snap.lxd.lxc
+      - lxc-completer.sh
 
       - share/lxd-documentation*
       - share/misc/pci.ids
@@ -1673,7 +1685,7 @@ parts:
     override-pull: |-
       [ "$(uname -m)" = "riscv64" ] && exit 0
 
-      snap install node --channel=20/stable --classic
+      snap install node --channel=22/stable --classic
       craftctl default
     override-build: |
       [ "$(uname -m)" = "riscv64" ] && exit 0
@@ -1790,6 +1802,13 @@ parts:
 
       # Fixup logrotate.conf permissions to not be group writable
       chmod g-w "${CRAFT_PRIME}/etc/logrotate.conf"
+
+      # XXX: do not keep the duplicated and often outdated CA certificates
+      # store from Python `certifi`. This file is not even used as the
+      # `python3-certifi` package providing it is patched to always use:
+      # `/etc/ssl/certs/ca-certificates.crt`
+      truncate --no-create --size=0 "${CRAFT_PRIME}/lib/python3/dist-packages/certifi/cacert.pem"
+
       exit 0
 
   wrappers:
