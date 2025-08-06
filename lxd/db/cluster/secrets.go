@@ -205,7 +205,7 @@ func (s AuthSecrets) Rotate(ctx context.Context, tx *sql.Tx) (AuthSecrets, error
 
 // GetCoreAuthSecrets returns a slice of AuthSecrets.
 func GetCoreAuthSecrets(ctx context.Context, tx *sql.Tx) (AuthSecrets, error) {
-	q := `SELECT value, creation_date FROM secrets WHERE entity_type = ? AND entity_id = ? AND type = ? ORDER BY creation_date DESC`
+	q := `SELECT id, value, creation_date FROM secrets WHERE entity_type = ? AND entity_id = ? AND type = ? ORDER BY creation_date DESC`
 
 	var secrets AuthSecrets
 	scanFunc := func(scan func(dest ...any) error) error {
