@@ -2090,8 +2090,13 @@ func (d *Daemon) initServerUUID() error {
 	var serverUUID string
 	uuidPath := filepath.Join(d.os.VarDir, "server.uuid")
 	if !shared.PathExists(uuidPath) {
-		serverUUID = uuid.New().String()
-		err := os.WriteFile(uuidPath, []byte(serverUUID), 0600)
+		newServerUUID, err := uuid.NewV7()
+		if err != nil {
+			return fmt.Errorf("Failed to generate a new server UUID: %w", err)
+		}
+
+		serverUUID = newServerUUID.String()
+		err = os.WriteFile(uuidPath, []byte(serverUUID), 0600)
 		if err != nil {
 			return fmt.Errorf("Failed to create server.uuid file: %w", err)
 		}
