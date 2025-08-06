@@ -551,6 +551,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_warnings "Warnings"
     run_test test_metrics "Metrics"
     run_test test_storage_volume_recover "Recover storage volumes"
+    run_test test_storage_volume_recover_by_container "Recover storage volumes by container"
     run_test test_syslog_socket "Syslog socket"
     run_test test_lxd_user "lxd user"
     run_test test_waitready "waitready"
