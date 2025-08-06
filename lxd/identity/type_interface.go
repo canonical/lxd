@@ -74,6 +74,12 @@ const (
 
 	// identityTypeBearerInitialUI is the code for [api.IdentityTypeBearerTokenInitialUI].
 	identityTypeBearerInitialUI int64 = 11
+
+	// identityTypeCertificateClusterLink represents cluster links that authenticate using TLS and whose permissions are managed via group membership.
+	identityTypeCertificateClusterLink int64 = 12
+
+	// identityTypeCertificateClusterLinkPending represents cluster links for which a token has been issued but who have not yet authenticated with a linked LXD cluster.
+	identityTypeCertificateClusterLinkPending int64 = 13
 )
 
 // types is a slice of all identity types that implement the [Type] interface.
@@ -81,6 +87,8 @@ var types = []Type{
 	OIDCClient{},
 	CertificateClient{},
 	CertificateClientPending{},
+	CertificateClientClusterLink{},
+	CertificateClientClusterLinkPending{},
 	CertificateClientRestricted{},
 	CertificateClientUnrestricted{},
 	CertificateMetricsRestricted{},
