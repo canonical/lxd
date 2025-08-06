@@ -1872,20 +1872,16 @@ func updateIdentityCache(d *Daemon) {
 		return
 	}
 
-	cacheableIdentityTypes := []string{
-		api.IdentityTypeCertificateClientRestricted,
-		api.IdentityTypeCertificateClientUnrestricted,
-		api.IdentityTypeCertificateClient,
-		api.IdentityTypeCertificateServer,
-		api.IdentityTypeCertificateMetricsRestricted,
-		api.IdentityTypeCertificateMetricsUnrestricted,
-		api.IdentityTypeOIDCClient,
-	}
-
 	identityCacheEntries := make([]identity.CacheEntry, 0, len(identities))
 	var localServerCerts []dbCluster.Certificate
 	for _, id := range identities {
-		if !slices.Contains(cacheableIdentityTypes, string(id.Type)) {
+		identityType, err := identity.New(string(id.Type))
+		if err != nil {
+			logger.Warn("Failed to create identity type", logger.Ctx{"type": string(id.Type), "err": err})
+			continue
+		}
+
+		if !identityType.IsCacheable() {
 			continue
 		}
 
