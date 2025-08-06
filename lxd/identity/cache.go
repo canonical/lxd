@@ -70,20 +70,23 @@ func (c *Cache) Get(authenticationMethod string, identifier string) (*CacheEntry
 }
 
 // GetByType returns a map of identifier to CacheEntry, where all entries have the given identity type.
-func (c *Cache) GetByType(identityType string) map[string]CacheEntry {
+func (c *Cache) GetByType(identityTypeStr string) map[string]CacheEntry {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	// Explicitly ignore the error here. It is expected that the caller will use the constants defined in shared/api.
-	authenticationMethod, _ := AuthenticationMethodFromIdentityType(identityType)
-	entriesByAuthMethod, ok := c.entries[authenticationMethod]
+	identityType, err := New(identityTypeStr)
+	if err != nil {
+		return nil
+	}
+
+	entriesByAuthMethod, ok := c.entries[identityType.AuthenticationMethod()]
 	if !ok {
 		return nil
 	}
 
 	entriesOfType := make(map[string]CacheEntry)
 	for _, entry := range entriesByAuthMethod {
-		if entry != nil && entry.IdentityType == identityType {
+		if entry != nil && entry.IdentityType == identityTypeStr {
 			entriesOfType[entry.Identifier] = *entry
 		}
 	}
