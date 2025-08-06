@@ -501,7 +501,7 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 			pool = newPool // Replace temporary pool handle with proper one from DB.
 		}
 
-		// Create any missing instance, storage volume, and storage bucket records.
+		// Create any missing custom storage volumes.
 		for projectName, poolVols := range poolsProjectVols[pool.Name()] {
 			projectInfo := projects[projectName]
 
@@ -510,7 +510,6 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 				return response.SmartError(fmt.Errorf("Project %q not found", projectName))
 			}
 
-			profileProjectName := project.ProfileProjectFromRecord(projectInfo)
 			customStorageProjectName := project.StorageVolumeProjectFromRecord(projectInfo, dbCluster.StoragePoolVolumeTypeCustom)
 
 			// Recover unknown custom volumes (do this first before recovering instances so that any
@@ -535,6 +534,20 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 
 				revert.Add(cleanup)
 			}
+		}
+	}
+
+	for _, pool := range pools {
+		// Create any missing instance, storage volume, and storage bucket records.
+		for projectName, poolVols := range poolsProjectVols[pool.Name()] {
+			projectInfo := projects[projectName]
+
+			if projectInfo == nil {
+				// Shouldn't happen as we validated this above, but be sure for safety.
+				return response.SmartError(fmt.Errorf("Project %q not found", projectName))
+			}
+
+			profileProjectName := project.ProfileProjectFromRecord(projectInfo)
 
 			// Recover unknown instance volumes.
 			for _, poolVol := range poolVols {
