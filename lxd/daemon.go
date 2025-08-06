@@ -1158,7 +1158,10 @@ func (d *Daemon) init() error {
 	d.startStopLock.Lock()
 	defer d.startStopLock.Unlock()
 
-	var err error
+	err := d.initServerUUID()
+	if err != nil {
+		return err
+	}
 
 	var dbWarnings []dbCluster.Warning
 
@@ -1682,11 +1685,6 @@ func (d *Daemon) init() error {
 	}
 
 	d.events.SetLocalLocation(d.serverName)
-
-	err = d.initServerUUID()
-	if err != nil {
-		return err
-	}
 
 	// Mount the storage pools.
 	logger.Info("Initializing storage pools")
