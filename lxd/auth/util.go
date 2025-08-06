@@ -41,12 +41,12 @@ func IsServerAdmin(ctx context.Context, identityCache *identity.Cache) (bool, er
 		return false, fmt.Errorf("Failed to get caller identity: %w", err)
 	}
 
-	isRestricted, err := identity.IsRestrictedIdentityType(id.IdentityType)
+	identityType, err := identity.New(id.IdentityType)
 	if err != nil {
 		return false, fmt.Errorf("Failed to check restricted status of identity: %w", err)
 	}
 
-	return !isRestricted, nil
+	return identityType.IsAdmin(), nil
 }
 
 // GetIdentityFromCtx returns the identity.CacheEntry for the current authenticated caller.
