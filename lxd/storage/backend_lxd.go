@@ -7663,28 +7663,31 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 		projectVols[projectName] = append(projectVols[projectName], backupConf)
 	}
 
-	// Check snapshots are consistent between storage layer and backup config file.
-	_, err = b.CheckInstanceBackupFileSnapshots(backupConf, projectName, nil)
-	if err != nil {
-		return fmt.Errorf("Instance %q in project %q has snapshot inconsistency: %w", instName, projectName, err)
-	}
-
-	// Check there are no existing DB records present for snapshots.
-	for _, snapshot := range backupConf.Snapshots {
-		fullSnapshotName := drivers.GetSnapshotVolumeName(instName, snapshot.Name)
-
-		// Check if an entry for the instance already exists in the DB.
-		if slices.Contains(instSnapshots, fullSnapshotName) {
-			return fmt.Errorf("Instance %q snapshot %q in project %q already has instance DB record", instName, snapshot.Name, projectName)
+	// Instance record and storage record don't exist in DB, mark the instance for recovery.
+	if instID < 0 && volume == nil {
+		// Check snapshots are consistent between storage layer and backup config file.
+		_, err = b.CheckInstanceBackupFileSnapshots(backupConf, projectName, nil)
+		if err != nil {
+			return fmt.Errorf("Instance %q in project %q has snapshot inconsistency: %w", instName, projectName, err)
 		}
 
-		// Check if any entry for the instance snapshot volume already exists in the DB.
-		// This will return no record for any temporary pool structs being used (as ID is -1).
-		volume, err := VolumeDBGet(b, projectName, fullSnapshotName, volType)
-		if err != nil && !response.IsNotFoundError(err) {
-			return err
-		} else if volume != nil {
-			return fmt.Errorf("Instance %q snapshot %q in project %q already has storage DB record", instName, snapshot.Name, projectName)
+		// Check there are no existing DB records present for snapshots.
+		for _, snapshot := range backupConf.Snapshots {
+			fullSnapshotName := drivers.GetSnapshotVolumeName(instName, snapshot.Name)
+
+			// Check if an entry for the instance already exists in the DB.
+			if slices.Contains(instSnapshots, fullSnapshotName) {
+				return fmt.Errorf("Instance %q snapshot %q in project %q already has instance DB record", instName, snapshot.Name, projectName)
+			}
+
+			// Check if any entry for the instance snapshot volume already exists in the DB.
+			// This will return no record for any temporary pool structs being used (as ID is -1).
+			volume, err := VolumeDBGet(b, projectName, fullSnapshotName, volType)
+			if err != nil && !response.IsNotFoundError(err) {
+				return err
+			} else if volume != nil {
+				return fmt.Errorf("Instance %q snapshot %q in project %q already has storage DB record", instName, snapshot.Name, projectName)
+			}
 		}
 	}
 
