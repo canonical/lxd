@@ -6572,7 +6572,15 @@ func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backupConfi
 	volStorageName := project.StorageVolume(projectName, customVol.Name)
 
 	// Copy volume config from backup file if present (so VolumeDBCreate can safely modify the copy if needed).
-	vol := b.GetNewVolume(drivers.VolumeTypeCustom, drivers.ContentType(customVol.ContentType), volStorageName, customVol.Config)
+	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(customVol.ContentType), volStorageName, customVol.Config)
+
+	// Only modify the UUID if not already set by the original volume.
+	// A custom volume can either be imported directly through its name (which loses any further information)
+	// or by checking an instances backup config (which lists all of the volumes original configuration).
+	// In the latter case we don't want to override the original UUID to allow a consistent recovery.
+	if vol.Config()["volatile.uuid"] == "" {
+		vol.Config()["volatile.uuid"] = uuid.New().String()
+	}
 
 	// Validate config and create database entry for restored storage volume.
 	err = VolumeDBCreate(b, projectName, customVol.Name, customVol.Description, drivers.VolumeTypeCustom, false, vol.Config(), customVol.CreatedAt, time.Time{}, drivers.ContentType(customVol.ContentType), false, true)
