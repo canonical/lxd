@@ -350,13 +350,13 @@ func TestParseDaemonStorageConfigKey(t *testing.T) {
 			name:                "daemon images volume",
 			config:              "storage.images_volume",
 			expectedProjectName: "",
-			expectedStorageType: "images",
+			expectedStorageType: config.DaemonStorageTypeImages,
 		},
 		{
 			name:                "daemon backups volume",
 			config:              "storage.backups_volume",
 			expectedProjectName: "",
-			expectedStorageType: "backups",
+			expectedStorageType: config.DaemonStorageTypeBackups,
 		},
 		{
 			name:                "invalid project storage config",
@@ -374,19 +374,19 @@ func TestParseDaemonStorageConfigKey(t *testing.T) {
 			name:                "valid project images storage config",
 			config:              "storage.project.foo.images_volume",
 			expectedProjectName: "foo",
-			expectedStorageType: "images",
+			expectedStorageType: config.DaemonStorageTypeImages,
 		},
 		{
 			name:                "valid project backups storage config",
 			config:              "storage.project.foo.backups_volume",
 			expectedProjectName: "foo",
-			expectedStorageType: "backups",
+			expectedStorageType: config.DaemonStorageTypeBackups,
 		},
 		{
 			name:                "missing project name",
 			config:              "storage.project..backups_volume",
 			expectedProjectName: "",
-			expectedStorageType: "backups",
+			expectedStorageType: config.DaemonStorageTypeBackups,
 		},
 		{
 			name:                "unknown volume type",

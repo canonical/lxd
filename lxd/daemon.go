@@ -801,11 +801,11 @@ func (d *Daemon) State() *state.State {
 	}
 
 	s.ImagesStoragePath = func(projectName string) string {
-		return daemonStoragePath(s.LocalConfig.StorageImagesVolume(projectName), "images")
+		return daemonStoragePath(s.LocalConfig.StorageImagesVolume(projectName), config.DaemonStorageTypeImages)
 	}
 
 	s.BackupsStoragePath = func(projectName string) string {
-		return daemonStoragePath(s.LocalConfig.StorageBackupsVolume(projectName), "backups")
+		return daemonStoragePath(s.LocalConfig.StorageBackupsVolume(projectName), config.DaemonStorageTypeBackups)
 	}
 
 	return s
