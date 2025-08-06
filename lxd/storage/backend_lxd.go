@@ -7656,13 +7656,6 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 		return fmt.Errorf("Instance %q in project %q has a different volume type in its backup file (%q)", instName, projectName, rootVol.Type)
 	}
 
-	// Add to volume to unknown volumes list for the project.
-	if projectVols[projectName] == nil {
-		projectVols[projectName] = []*backupConfig.Config{backupConf}
-	} else {
-		projectVols[projectName] = append(projectVols[projectName], backupConf)
-	}
-
 	// Instance record and storage record don't exist in DB, mark the instance for recovery.
 	if instID < 0 && volume == nil {
 		// Check snapshots are consistent between storage layer and backup config file.
@@ -7688,6 +7681,13 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 			} else if volume != nil {
 				return fmt.Errorf("Instance %q snapshot %q in project %q already has storage DB record", instName, snapshot.Name, projectName)
 			}
+		}
+
+		// Add volume to unknown volumes list for the project.
+		if projectVols[projectName] == nil {
+			projectVols[projectName] = []*backupConfig.Config{backupConf}
+		} else {
+			projectVols[projectName] = append(projectVols[projectName], backupConf)
 		}
 	}
 
