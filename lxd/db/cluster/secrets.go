@@ -189,10 +189,13 @@ func (s AuthSecrets) Rotate(ctx context.Context, tx *sql.Tx) (AuthSecrets, error
 	}
 
 	// Add the new value to the database
-	err := createCoreAuthSecret(ctx, tx, newSecret)
+	id, err := createCoreAuthSecret(ctx, tx, newSecret)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to rotate secrets: %w", err)
 	}
+
+	// Set the ID of the new value.
+	rotatedSecrets[0].ID = id
 
 	// If the secrets were truncated, delete any secrets that are not in our new slice.
 	err = deleteSecretsByID(ctx, tx, oldSecretIDs...)
@@ -228,29 +231,34 @@ func GetCoreAuthSecrets(ctx context.Context, tx *sql.Tx) (AuthSecrets, error) {
 }
 
 // createCoreAuthSecret creates an AuthSecret.
-func createCoreAuthSecret(ctx context.Context, tx *sql.Tx, secret AuthSecret) error {
+func createCoreAuthSecret(ctx context.Context, tx *sql.Tx, secret AuthSecret) (int, error) {
 	return createSecret(ctx, tx, entity.TypeServer, 0, SecretTypeCoreAuth, secret.Value, secret.CreationDate)
 }
 
 // createSecret is a general method for creating a secret.
-func createSecret(ctx context.Context, tx *sql.Tx, entityType entity.Type, entityID int, secretType SecretType, value any, createdAt time.Time) error {
+func createSecret(ctx context.Context, tx *sql.Tx, entityType entity.Type, entityID int, secretType SecretType, value any, createdAt time.Time) (int, error) {
 	// Add the new secret to the database.
 	res, err := tx.ExecContext(ctx, `INSERT INTO secrets (entity_type, entity_id, type, value, creation_date) VALUES (?, ?, ?, ?, ?)`, EntityType(entityType), entityID, secretType, value, createdAt)
 	if err != nil {
-		return err
+		return -1, err
 	}
 
 	// Enforce that we added the new secret successfully.
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		return err
+		return -1, err
 	}
 
 	if rowsAffected != 1 {
-		return fmt.Errorf("Failed to write new %q secret", secretType)
+		return -1, fmt.Errorf("Failed to write new %q secret", secretType)
 	}
 
-	return nil
+	lastInsertID, err := res.LastInsertId()
+	if err != nil {
+		return -1, fmt.Errorf("Failed to get last insert ID: %w", err)
+	}
+
+	return int(lastInsertID), nil
 }
 
 // deleteSecretsByID deletes all secrets where the ID is present in the given list. Returns an error if any secrets
