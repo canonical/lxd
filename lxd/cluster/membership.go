@@ -453,7 +453,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 				return
 			}
 
-			err = cluster.EnsureSchema(state.DB.Cluster.DB(), localClusterAddress, state.OS.GlobalDatabaseDir())
+			err = cluster.EnsureSchema(state.DB.Cluster.DB(), localClusterAddress, state.OS.GlobalDatabaseDir(), state.ServerUUID)
 			if err != nil {
 				logger.Error("Failed to reload schema after cluster join error", logger.Ctx{"err": err})
 				return
