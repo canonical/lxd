@@ -43,6 +43,11 @@ func (CertificateClientPending) IsFineGrained() bool {
 	return true
 }
 
+// IsPending indicates that this identity is pending.
+func (CertificateClientPending) IsPending() bool {
+	return true
+}
+
 // CertificateClientRestricted represents an identity that authenticates using TLS certificates
 // and is not privileged. It supports caching but does not support fine-grained permissions
 // and is not an admin.

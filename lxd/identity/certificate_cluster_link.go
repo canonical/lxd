@@ -42,3 +42,8 @@ func (CertificateClientClusterLinkPending) AuthenticationMethod() string {
 func (CertificateClientClusterLinkPending) IsFineGrained() bool {
 	return true
 }
+
+// IsPending indicates that this cluster link is pending activation.
+func (CertificateClientClusterLinkPending) IsPending() bool {
+	return true
+}
