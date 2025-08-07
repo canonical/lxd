@@ -1270,7 +1270,7 @@ func (d *powerflex) discover(ctx context.Context, targetAddresses ...string) ([]
 
 	var discoveryLog powerFlexDiscoveryLog
 	for _, targetAddr := range targetAddresses {
-		stdout, err := shared.RunCommandContext(ctx, "nvme", "discover", "--transport", "tcp", "--traddr", targetAddr, "--hostnqn", hostNQN, "--hostid", d.state.ServerUUID, "--output-format", "json")
+		stdout, err := shared.RunCommandContext(ctx, "nvme", "discover", "--transport", "tcp", "--traddr", targetAddr, "--hostnqn", hostNQN, "--hostid", d.state.OS.ServerUUID, "--output-format", "json")
 		if err != nil {
 			// Exit code 110 is returned if the target address cannot be reached.
 			logger.Warn("Failed connecting to discovery target", logger.Ctx{"target_address": targetAddr, "err": err})
