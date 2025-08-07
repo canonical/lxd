@@ -7340,7 +7340,61 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 
 	volType := vol.Type()
 
-	projectName, instName := project.InstanceParts(vol.Name())
+	if backupConf.Instance == nil {
+		return fmt.Errorf("Instance on volume %q has no instance information in its backup file", vol.Name())
+	}
+
+	instName := backupConf.Instance.Name
+	projectName := backupConf.Instance.Project
+
+	// Run some consistency checks on the backup file contents.
+	if backupConf.Pools != nil {
+		rootVolPool, err := backupConf.RootVolumePool()
+		if err != nil {
+			return fmt.Errorf("Failed getting the root volume's pool: %w", err)
+		}
+
+		if rootVolPool.Name != b.name {
+			return fmt.Errorf("Instance %q in project %q has pool name mismatch in its backup file (%q doesn't match's pool's %q)", instName, projectName, rootVolPool.Name, b.name)
+		}
+
+		if rootVolPool.Driver != b.Driver().Info().Name {
+			return fmt.Errorf("Instance %q in project %q has pool driver mismatch in its backup file (%q doesn't match's pool's %q)", instName, projectName, rootVolPool.Driver, b.Driver().Name())
+		}
+	}
+
+	if instName != backupConf.Instance.Name {
+		return fmt.Errorf("Instance %q in project %q has a different instance name in its backup file (%q)", instName, projectName, backupConf.Instance.Name)
+	}
+
+	apiInstType, err := VolumeTypeToAPIInstanceType(volType)
+	if err != nil {
+		return fmt.Errorf("Failed checking instance type for instance %q in project %q: %w", instName, projectName, err)
+	}
+
+	if apiInstType != api.InstanceType(backupConf.Instance.Type) {
+		return fmt.Errorf("Instance %q in project %q has a different instance type in its backup file (%q)", instName, projectName, backupConf.Instance.Type)
+	}
+
+	rootVol, err := backupConf.RootVolume()
+	if err != nil {
+		return fmt.Errorf("Instance %q in project %q has no volume information in its backup file: %w", instName, projectName, err)
+	}
+
+	if instName != rootVol.Name {
+		return fmt.Errorf("Instance %q in project %q has a different volume name in its backup file (%q)", instName, projectName, rootVol.Name)
+	}
+
+	instVolDBType, err := cluster.StoragePoolVolumeTypeFromName(rootVol.Type)
+	if err != nil {
+		return fmt.Errorf("Failed checking instance volume type for instance %q in project %q: %w", instName, projectName, err)
+	}
+
+	instVolType := VolumeDBTypeToType(instVolDBType)
+
+	if volType != instVolType {
+		return fmt.Errorf("Instance %q in project %q has a different volume type in its backup file (%q)", instName, projectName, rootVol.Type)
+	}
 
 	var instID int
 	var instSnapshots []string
@@ -7378,59 +7432,6 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 		return fmt.Errorf("Instance %q in project %q already has instance DB record", instName, projectName)
 	} else if volume != nil {
 		return fmt.Errorf("Instance %q in project %q already has storage DB record", instName, projectName)
-	}
-
-	// Run some consistency checks on the backup file contents.
-	if backupConf.Pools != nil {
-		rootVolPool, err := backupConf.RootVolumePool()
-		if err != nil {
-			return fmt.Errorf("Failed getting the root volume's pool: %w", err)
-		}
-
-		if rootVolPool.Name != b.name {
-			return fmt.Errorf("Instance %q in project %q has pool name mismatch in its backup file (%q doesn't match's pool's %q)", instName, projectName, rootVolPool.Name, b.name)
-		}
-
-		if rootVolPool.Driver != b.Driver().Info().Name {
-			return fmt.Errorf("Instance %q in project %q has pool driver mismatch in its backup file (%q doesn't match's pool's %q)", instName, projectName, rootVolPool.Driver, b.Driver().Name())
-		}
-	}
-
-	if backupConf.Instance == nil {
-		return fmt.Errorf("Instance %q in project %q has no instance information in its backup file", instName, projectName)
-	}
-
-	if instName != backupConf.Instance.Name {
-		return fmt.Errorf("Instance %q in project %q has a different instance name in its backup file (%q)", instName, projectName, backupConf.Instance.Name)
-	}
-
-	apiInstType, err := VolumeTypeToAPIInstanceType(volType)
-	if err != nil {
-		return fmt.Errorf("Failed checking instance type for instance %q in project %q: %w", instName, projectName, err)
-	}
-
-	if apiInstType != api.InstanceType(backupConf.Instance.Type) {
-		return fmt.Errorf("Instance %q in project %q has a different instance type in its backup file (%q)", instName, projectName, backupConf.Instance.Type)
-	}
-
-	rootVol, err := backupConf.RootVolume()
-	if err != nil {
-		return fmt.Errorf("Instance %q in project %q has no volume information in its backup file: %w", instName, projectName, err)
-	}
-
-	if instName != rootVol.Name {
-		return fmt.Errorf("Instance %q in project %q has a different volume name in its backup file (%q)", instName, projectName, rootVol.Name)
-	}
-
-	instVolDBType, err := cluster.StoragePoolVolumeTypeFromName(rootVol.Type)
-	if err != nil {
-		return fmt.Errorf("Failed checking instance volume type for instance %q in project %q: %w", instName, projectName, err)
-	}
-
-	instVolType := VolumeDBTypeToType(instVolDBType)
-
-	if volType != instVolType {
-		return fmt.Errorf("Instance %q in project %q has a different volume type in its backup file (%q)", instName, projectName, rootVol.Type)
 	}
 
 	// Add to volume to unknown volumes list for the project.
