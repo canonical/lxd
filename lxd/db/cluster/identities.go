@@ -117,6 +117,8 @@ const (
 	identityTypeCertificateMetricsUnrestricted int64 = 6
 	identityTypeCertificateClient              int64 = 7
 	identityTypeCertificateClientPending       int64 = 8
+	identityTypeCertificateClusterLink         int64 = 9
+	identityTypeCertificateClusterLinkPending  int64 = 10
 )
 
 // ScanInteger implements [query.IntegerScanner] for IdentityType. This simplifies the Scan implementation.
@@ -138,6 +140,10 @@ func (i *IdentityType) ScanInteger(identityTypeCode int64) error {
 		*i = api.IdentityTypeCertificateClient
 	case identityTypeCertificateClientPending:
 		*i = api.IdentityTypeCertificateClientPending
+	case identityTypeCertificateClusterLink:
+		*i = api.IdentityTypeCertificateClusterLink
+	case identityTypeCertificateClusterLinkPending:
+		*i = api.IdentityTypeCertificateClusterLinkPending
 	default:
 		return fmt.Errorf("Unknown identity type `%d`", identityTypeCode)
 	}
@@ -170,6 +176,10 @@ func (i IdentityType) Value() (driver.Value, error) {
 		return identityTypeCertificateClient, nil
 	case api.IdentityTypeCertificateClientPending:
 		return identityTypeCertificateClientPending, nil
+	case api.IdentityTypeCertificateClusterLink:
+		return identityTypeCertificateClusterLink, nil
+	case api.IdentityTypeCertificateClusterLinkPending:
+		return identityTypeCertificateClusterLinkPending, nil
 	}
 
 	return nil, fmt.Errorf("Invalid identity type %q", i)
@@ -180,6 +190,8 @@ func (i IdentityType) ActiveType() (IdentityType, error) {
 	switch i {
 	case api.IdentityTypeCertificateClientPending:
 		return api.IdentityTypeCertificateClient, nil
+	case api.IdentityTypeCertificateClusterLinkPending:
+		return api.IdentityTypeCertificateClusterLink, nil
 	default:
 		return "", fmt.Errorf("Identities of type %q cannot be activated", i)
 	}
@@ -289,7 +301,7 @@ func (i Identity) CertificateMetadata() (*CertificateMetadata, error) {
 		return nil, fmt.Errorf("Cannot get certificate metadata: Identity has authentication method %q (%q required)", i.AuthMethod, api.AuthenticationMethodTLS)
 	}
 
-	if i.Type == api.IdentityTypeCertificateClientPending {
+	if i.Type == api.IdentityTypeCertificateClientPending || i.Type == api.IdentityTypeCertificateClusterLinkPending {
 		return nil, errors.New("Cannot get certificate metadata: Identity is pending")
 	}
 
@@ -340,7 +352,7 @@ type PendingTLSMetadata struct {
 
 // PendingTLSMetadata returns the pending TLS identity metadata.
 func (i Identity) PendingTLSMetadata() (*PendingTLSMetadata, error) {
-	if i.Type != api.IdentityTypeCertificateClientPending {
+	if i.Type != api.IdentityTypeCertificateClientPending && i.Type != api.IdentityTypeCertificateClusterLinkPending {
 		return nil, api.StatusErrorf(http.StatusBadRequest, "Cannot extract pending %q TLS identity secret: Identity is not pending", i.Type)
 	}
 
@@ -368,7 +380,7 @@ func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.Perm
 	}
 
 	var tlsCertificate string
-	if i.AuthMethod == api.AuthenticationMethodTLS && i.Type != api.IdentityTypeCertificateClientPending {
+	if i.AuthMethod == api.AuthenticationMethodTLS && i.Type != api.IdentityTypeCertificateClientPending && i.Type != api.IdentityTypeCertificateClusterLinkPending {
 		metadata, err := i.CertificateMetadata()
 		if err != nil {
 			return nil, err
@@ -435,9 +447,9 @@ func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, 
 var getPendingTLSIdentityByTokenSecretStmt = fmt.Sprintf(`
 SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
 	FROM identities
-	WHERE identities.type = %d
+	WHERE identities.type IN (%d,%d)
 	AND json_extract(identities.metadata, '$.secret') = ?
-`, identityTypeCertificateClientPending)
+`, identityTypeCertificateClientPending, identityTypeCertificateClusterLinkPending)
 
 // GetPendingTLSIdentityByTokenSecret gets a single identity of type identityTypeCertificateClientPending with the given
 // secret in its metadata. If no pending identity is found, an api.StatusError is returned with http.StatusNotFound.
