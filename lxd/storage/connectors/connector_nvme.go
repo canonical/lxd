@@ -26,8 +26,12 @@ type connectorNVMe struct {
 
 // NVMeDiscoveryLogRecord represents an NVMe discovery entry.
 type NVMeDiscoveryLogRecord struct {
-	SubNQN string `json:"subnqn"`
+	SubType string `json:"subtype"`
+	SubNQN  string `json:"subnqn"`
 }
+
+// SubtypeNVMESubsys defines an NVMe subsystem type (from https://github.com/linux-nvme/libnvme/blob/97886cb68d238ccbbed804a275851f63e490b22f/src/nvme/fabrics.c#L99).
+const SubtypeNVMESubsys = "nvme subsystem"
 
 type nvmeDiscoveryLog struct {
 	Records []NVMeDiscoveryLogRecord `json:"records"`
