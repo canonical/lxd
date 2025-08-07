@@ -75,3 +75,8 @@ runs:
 
         # reclaim some space
         sudo apt-get clean
+
+        # Prevent lxd-installer from getting in the way
+        if [ -x /usr/sbin/lxc ]; then
+          sudo chmod -x /usr/sbin/lxc /usr/sbin/lxd || true
+        fi
