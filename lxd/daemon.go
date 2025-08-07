@@ -24,7 +24,6 @@ import (
 
 	dqliteClient "github.com/canonical/go-dqlite/v2/client"
 	"github.com/canonical/go-dqlite/v2/driver"
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	liblxc "github.com/lxc/go-lxc"
 	"golang.org/x/sys/unix"
@@ -160,9 +159,6 @@ type Daemon struct {
 	// Cluster.
 	serverName      string
 	serverClustered bool
-
-	// Server's UUID from file.
-	serverUUID string
 
 	lokiClient *loki.Client
 
@@ -753,7 +749,6 @@ func (d *Daemon) State() *state.State {
 		LocalConfig:         localConfig,
 		ServerName:          d.serverName,
 		ServerClustered:     d.serverClustered,
-		ServerUUID:          d.serverUUID,
 		StartTime:           d.startTime,
 		Authorizer:          d.authorizer,
 		UbuntuPro:           d.ubuntuPro,
@@ -1123,9 +1118,9 @@ func (d *Daemon) init() error {
 	d.startStopLock.Lock()
 	defer d.startStopLock.Unlock()
 
-	var err error
-
 	var dbWarnings []dbCluster.Warning
+
+	var err error
 
 	// Set default authorizer.
 	d.authorizer, err = authDrivers.LoadAuthorizer(d.shutdownCtx, authDrivers.DriverTLS, logger.Log, d.identityCache)
@@ -1636,29 +1631,6 @@ func (d *Daemon) init() error {
 	}
 
 	d.events.SetLocalLocation(d.serverName)
-
-	// Setup and load the server's UUID file.
-	// Use os.VarDir to allow setting up the uuid file also in the test suite.
-	var serverUUID string
-	uuidPath := filepath.Join(d.os.VarDir, "server.uuid")
-	if !shared.PathExists(uuidPath) {
-		serverUUID = uuid.New().String()
-		err := os.WriteFile(uuidPath, []byte(serverUUID), 0600)
-		if err != nil {
-			return fmt.Errorf("Failed to create server.uuid file: %w", err)
-		}
-	}
-
-	if serverUUID == "" {
-		uuidBytes, err := os.ReadFile(uuidPath)
-		if err != nil {
-			return fmt.Errorf("Failed to read server.uuid file: %w", err)
-		}
-
-		serverUUID = string(uuidBytes)
-	}
-
-	d.serverUUID = serverUUID
 
 	// Mount the storage pools.
 	logger.Info("Initializing storage pools")
