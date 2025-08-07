@@ -775,6 +775,10 @@ func (d *powerflex) getNVMeTargetQN(targetAddresses ...string) (string, error) {
 				return "", fmt.Errorf("Invalid discovery log record entry type %T is not connectors.NVMeDiscoveryLogRecord", recordAny)
 			}
 
+			if record.SubType != connectors.SubtypeNVMESubsys {
+				continue
+			}
+
 			// The targetQN is listed together with every log record of type SubtypeNVMESubsys.
 			d.nvmeTargetQN = record.SubNQN
 			break
