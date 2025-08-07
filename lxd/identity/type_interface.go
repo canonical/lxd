@@ -52,6 +52,10 @@ func New(identityType string) (Type, error) {
 		return &CertificateMetricsUnrestricted{}, nil
 	case api.IdentityTypeCertificateServer:
 		return &CertificateServer{}, nil
+	case api.IdentityTypeCertificateClusterLink:
+		return &CertificateClientClusterLink{}, nil
+	case api.IdentityTypeCertificateClusterLinkPending:
+		return &CertificateClientClusterLinkPending{}, nil
 	default:
 		return nil, api.StatusErrorf(http.StatusBadRequest, "Unrecognized identity type %q", identityType)
 	}
