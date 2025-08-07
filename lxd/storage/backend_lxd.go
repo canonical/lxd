@@ -7559,8 +7559,6 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 		}
 	}
 
-	volType := vol.Type()
-
 	if backupConf.Instance == nil {
 		return fmt.Errorf("Instance on volume %q has no instance information in its backup file", vol.Name())
 	}
@@ -7583,6 +7581,8 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 			return fmt.Errorf("Instance %q in project %q has pool driver mismatch in its backup file (%q doesn't match's pool's %q)", instName, projectName, rootVolPool.Driver, b.Driver().Name())
 		}
 	}
+
+	volType := vol.Type()
 
 	apiInstType, err := VolumeTypeToAPIInstanceType(volType)
 	if err != nil {
