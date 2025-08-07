@@ -289,12 +289,17 @@ func (i Identity) CertificateMetadata() (*CertificateMetadata, error) {
 		return nil, fmt.Errorf("Cannot get certificate metadata: Identity has authentication method %q (%q required)", i.AuthMethod, api.AuthenticationMethodTLS)
 	}
 
-	if i.Type == api.IdentityTypeCertificateClientPending {
+	identityType, err := identity.New(string(i.Type))
+	if err != nil {
+		return nil, err
+	}
+
+	if identityType.IsPending() {
 		return nil, errors.New("Cannot get certificate metadata: Identity is pending")
 	}
 
 	var metadata CertificateMetadata
-	err := json.Unmarshal([]byte(i.Metadata), &metadata)
+	err = json.Unmarshal([]byte(i.Metadata), &metadata)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to unmarshal certificate identity metadata: %w", err)
 	}
@@ -367,8 +372,13 @@ func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.Perm
 		}
 	}
 
+	identityType, err := identity.New(string(i.Type))
+	if err != nil {
+		return nil, err
+	}
+
 	var tlsCertificate string
-	if i.AuthMethod == api.AuthenticationMethodTLS && i.Type != api.IdentityTypeCertificateClientPending {
+	if i.AuthMethod == api.AuthenticationMethodTLS && !identityType.IsPending() {
 		metadata, err := i.CertificateMetadata()
 		if err != nil {
 			return nil, err
