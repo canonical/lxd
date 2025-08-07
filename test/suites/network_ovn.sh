@@ -412,6 +412,58 @@ test_network_ovn() {
   lxc network load-balancer delete "${ovn_network}" "${volatile_ip4}"
   lxc network load-balancer delete "${ovn_network}" "${volatile_ip6}"
 
+  echo "Test internal OVN network forwards and load balancers."
+
+  echo "Check that no internal forward or load balancer can be created with a listen address of OVN gateway."
+  ! lxc network forward create "${ovn_network}" 10.24.140.1 || false
+  ! lxc network forward create "${ovn_network}" fd42:bd85:5f89:5293::1 || false
+  ! lxc network load-balancer create "${ovn_network}" 10.24.140.1 || false
+  ! lxc network load-balancer create "${ovn_network}" fd42:bd85:5f89:5293::1 || false
+
+  echo "Check that no internal forward or load balancer can be created with a listen address taken by instance NIC."
+  ! lxc network forward create "${ovn_network}" "${c1_ipv4_address}" || false
+  ! lxc network forward create "${ovn_network}" "${c1_ipv6_address}" || false
+  ! lxc network load-balancer create "${ovn_network}" "${c1_ipv4_address}" || false
+  ! lxc network load-balancer create "${ovn_network}" "${c1_ipv6_address}" || false
+
+  echo "Create internal forwards with a listen address that is an internal OVN IP."
+  lxc network forward create "${ovn_network}" 10.24.140.10
+  lxc network forward create "${ovn_network}" fd42:bd85:5f89:5293::10
+
+  echo "Create internal load balancers with a listen address that is an internal OVN IP."
+  lxc network load-balancer create "${ovn_network}" 10.24.140.20
+  lxc network load-balancer create "${ovn_network}" fd42:bd85:5f89:5293::20
+
+  echo "Check that no internal forward or load balancer can be created with a listen address taken by another listener."
+  ! lxc network forward create "${ovn_network}" 10.24.140.10 || false
+  ! lxc network forward create "${ovn_network}" 10.24.140.20 || false
+  ! lxc network forward create "${ovn_network}" fd42:bd85:5f89:5293::10 || false
+  ! lxc network forward create "${ovn_network}" fd42:bd85:5f89:5293::20 || false
+  ! lxc network load-balancer create "${ovn_network}" 10.24.140.10 || false
+  ! lxc network load-balancer create "${ovn_network}" 10.24.140.20 || false
+  ! lxc network load-balancer create "${ovn_network}" fd42:bd85:5f89:5293::10 || false
+  ! lxc network load-balancer create "${ovn_network}" fd42:bd85:5f89:5293::20 || false
+
+  echo "Configure ports for internal forwards."
+  lxc network forward port add "${ovn_network}" 10.24.140.10 tcp 80 "${c1_ipv4_address}" 80
+  lxc network forward port add "${ovn_network}" fd42:bd85:5f89:5293::10 tcp 80 "${c1_ipv6_address}" 80
+
+  echo "Clean up internal forwards."
+  lxc network forward delete "${ovn_network}" 10.24.140.10
+  lxc network forward delete "${ovn_network}" fd42:bd85:5f89:5293::10
+
+  echo "Create a backend for each internal load balancer."
+  lxc network load-balancer backend add "${ovn_network}" 10.24.140.20 c1-backend "${c1_ipv4_address}" 80
+  lxc network load-balancer backend add "${ovn_network}" fd42:bd85:5f89:5293::20 c1-backend "${c1_ipv6_address}" 80
+
+  echo "Configure ports for internal load balancers."
+  lxc network load-balancer port add "${ovn_network}" 10.24.140.20 tcp 80 c1-backend
+  lxc network load-balancer port add "${ovn_network}" fd42:bd85:5f89:5293::20 tcp 80 c1-backend
+
+  echo "Clean up internal load balancers."
+  lxc network load-balancer delete "${ovn_network}" 10.24.140.20
+  lxc network load-balancer delete "${ovn_network}" fd42:bd85:5f89:5293::20
+
   echo "Clean up the instance."
   lxc delete c1 --force
 
