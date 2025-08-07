@@ -12,11 +12,11 @@ import (
 // authentication, authorization, and caching behavior.
 //
 // To add a new identity type:
-// 1. Add a new const in db/cluster/identities.go.
-// 2. Implement db functions in db/cluster/identities.go.
-// 3. Add an API type in shared/api/auth.go.
-// 4. Add a new struct that implements this interface.
-// 4. Add a case to [New] for the new identity type.
+// 1. Add a new identity type code const below.
+// 2. Add a new struct that implements this interface.
+// 3. Add new type to [types] slice.
+// 4. Add an API type in shared/api/auth.go.
+// 5. Implement db functions in db/cluster/identities.go (if needed).
 type Type interface {
 	// AuthenticationMethod returns the authentication method used by this identity type.
 	AuthenticationMethod() string
