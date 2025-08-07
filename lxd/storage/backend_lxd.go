@@ -7363,10 +7363,6 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 		}
 	}
 
-	if instName != backupConf.Instance.Name {
-		return fmt.Errorf("Instance %q in project %q has a different instance name in its backup file (%q)", instName, projectName, backupConf.Instance.Name)
-	}
-
 	apiInstType, err := VolumeTypeToAPIInstanceType(volType)
 	if err != nil {
 		return fmt.Errorf("Failed checking instance type for instance %q in project %q: %w", instName, projectName, err)
