@@ -17,3 +17,8 @@ func (typeInfoCommon) IsCacheable() bool {
 func (typeInfoCommon) IsFineGrained() bool {
 	return false
 }
+
+// IsPending returns false by default.
+func (typeInfoCommon) IsPending() bool {
+	return false
+}

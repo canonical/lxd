@@ -28,6 +28,9 @@ type Type interface {
 
 	// IsFineGrained returns true if this identity type supports fine-grained permissions (managed via group ownership).
 	IsFineGrained() bool
+
+	// IsPending returns true if this identity type is a pending variant.
+	IsPending() bool
 }
 
 // New creates a new identity type based on the provided identity type string.
