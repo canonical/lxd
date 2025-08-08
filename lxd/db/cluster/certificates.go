@@ -12,6 +12,7 @@ import (
 	"strconv"
 
 	"github.com/canonical/lxd/lxd/certificate"
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -112,13 +113,7 @@ var getCertificateIdentitiesStmt = `
 SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
 	FROM identities
 	WHERE auth_method = ` + strconv.Itoa(int(authMethodTLS)) + `
-	AND type in (` +
-	strconv.Itoa(int(identityTypeCertificateServer)) + `, ` +
-	strconv.Itoa(int(identityTypeCertificateClientUnrestricted)) + `, ` +
-	strconv.Itoa(int(identityTypeCertificateClientRestricted)) + `, ` +
-	strconv.Itoa(int(identityTypeCertificateMetricsUnrestricted)) + `, ` +
-	strconv.Itoa(int(identityTypeCertificateMetricsRestricted)) + `)
-`
+	AND type in ` + query.IntParams(certIdentityTypes()...)
 
 // GetCertificateByFingerprintPrefix gets a Certificate from the database.
 // The argument fingerprint will be queried with a LIKE query, means you can
