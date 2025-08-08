@@ -21,6 +21,8 @@ This feature can be useful if you have limited external IP addresses and want to
 - Forward traffic from different port numbers of the external address to different instances (and optionally different ports on those instances).
   This method allows to "share" your external IP address and expose more than one instance at a time.
 
+In case of the {ref}`network-ovn`, network forwards also allow an internal IP address (or specific ports on it) to be forwarded to another internal IP address (or specific ports on it).
+
 ```{tip}
 Network forwards are very similar to using a {ref}`proxy device<devices-proxy>` in NAT mode.
 
@@ -149,10 +151,12 @@ For both OVN and bridge networks, the listen addresses must not overlap with any
 
 ```{group-tab} OVN network
 
-For an OVN network, the allowed listen addresses must be defined in at least one of the following configuration options, using [CIDR notation](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing):
+For an OVN network, the allowed listen addresses that are external IPs must be defined in at least one of the following configuration options, using [CIDR notation](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing):
 
 - {config:option}`network-bridge-network-conf:ipv4.routes` or {config:option}`network-bridge-network-conf:ipv6.routes` in the OVN network's uplink network configuration
 - {config:option}`project-restricted:restricted.networks.subnets` in the OVN network's project configuration
+
+The allowed internal IPs do not need to be defined. Use any non-conflicting internal IP address available on the OVN network.
 
 ```
 
