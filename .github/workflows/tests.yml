@@ -736,22 +736,24 @@ jobs:
         run: |
           set -eux
           export PATH="/home/runner/go/bin:$PATH"
-          sudo -E lxc storage create default zfs
-          sudo -E lxc profile device add default root disk path=/ pool=default
-          sudo -E lxc network create local-network
-          sudo -E lxc profile device add default eth0 nic network=local-network
-          sudo -E lxc config set core.https_address "[::]:8443"
-          sudo -E lxc config set cluster.https_address "127.0.0.1"
-          sudo -E lxc cluster enable local
-          sudo -E lxc config set user.show_permissions=true
-          sudo -E lxc config trust add lxd-ui/keys/lxd-ui.crt
+          sudo chown $USER /var/lib/lxd/unix.socket
+          sudo ln -s /home/runner/go/bin/lxc /usr/bin/lxc
+          lxc storage create default zfs
+          lxc profile device add default root disk path=/ pool=default
+          lxc network create local-network
+          lxc profile device add default eth0 nic network=local-network
+          lxc config set core.https_address "[::]:8443"
+          lxc config set cluster.https_address "127.0.0.1"
+          lxc cluster enable local
+          lxc config set user.show_permissions=true
+          lxc config trust add lxd-ui/keys/lxd-ui.crt
 
       - name: Setup for LXD-UI tests
         shell: bash
         run: |
           set -eux
           export PATH="/home/runner/go/bin:$PATH"
-          sudo -E ./lxd-ui/tests/scripts/setup_test
+          ./lxd-ui/tests/scripts/setup_test
 
       - name: Test basic LXD functionality
         shell: bash
@@ -760,12 +762,12 @@ jobs:
           export PATH="/home/runner/go/bin:$PATH"
 
           # launch a test instance
-          sudo -E ./test/deps/import-busybox --alias testimage
-          sudo -E lxc launch testimage --quiet c1 -d root,size=32MiB || { sudo -E lxc info --show-log c1; false; }
+          ./test/deps/import-busybox --alias testimage
+          lxc launch testimage --quiet c1 -d root,size=32MiB || { lxc info --show-log c1; false; }
 
           # cleanup
-          sudo -E lxc delete -f c1
-          sudo -E lxc image delete testimage
+          lxc delete -f c1
+          lxc image delete testimage
 
       - name: Run Playwright tests
         env:
@@ -779,7 +781,6 @@ jobs:
           set -eux
           cd lxd-ui
           sudo chown $USER -R /home/runner/.config
-          sudo chown $USER /var/lib/lxd/unix.socket
           export PATH="/home/runner/go/bin:$PATH"
           export CI=true
           export DISABLE_VM_TESTS=true
