@@ -779,9 +779,6 @@ func (d *pure) GetVolumeUsage(vol Volume) (int64, error) {
 // SetVolumeQuota applies a size limit on volume.
 // Does nothing if supplied with an non-positive size.
 func (d *pure) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
-	revert := revert.New()
-	defer revert.Fail()
-
 	// Convert to bytes.
 	sizeBytes, err := units.ParseByteSizeString(size)
 	if err != nil {
@@ -835,7 +832,7 @@ func (d *pure) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, o
 				return err
 			}
 
-			revert.Add(cleanup)
+			defer cleanup()
 
 			// Shrink filesystem first.
 			err = shrinkFileSystem(fsType, devPath, vol, sizeBytes, allowUnsafeResize)
@@ -860,7 +857,7 @@ func (d *pure) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, o
 				return err
 			}
 
-			revert.Add(cleanup)
+			defer cleanup()
 
 			// Ensure the block device is resized before growing the filesystem.
 			// This should succeed immediately, but if volume was already mapped,
@@ -906,7 +903,7 @@ func (d *pure) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, o
 				return err
 			}
 
-			revert.Add(cleanup)
+			defer cleanup()
 
 			// Wait for the block device to be resized before moving GPT alt header.
 			// This ensures that the GPT alt header is not moved before the actual
@@ -924,7 +921,6 @@ func (d *pure) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, o
 		}
 	}
 
-	revert.Success()
 	return nil
 }
 
