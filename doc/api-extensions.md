@@ -2704,3 +2704,10 @@ The {config:option}`server-core:core.auth_secret_expiry` configuration option ca
 This introduces two new configuration keys {config:option}`server-miscellaneous:storage.project.{name}.images_volume` and
 {config:option}`server-miscellaneous:storage.project.{name}.backups_volume` per each project to allow for a storage volume on an existing
 pool be used for storing the project-specific images and backups artifacts.
+
+## `ovn_internal_load_balancer`
+
+This introduces support for internal OVN load balancers and network forwards. Allowing `ovn` networks to define port(s) on internal
+IP addresses that can be forwarded to one or more internal IP(s) inside their respective networks.
+This effectively removes the previous limitation of load balancers and network forwards on `ovn` networks to allow only
+external IP addresses for forwarding to internal OVN IP(s).
