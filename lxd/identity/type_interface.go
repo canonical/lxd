@@ -3,6 +3,7 @@ package identity
 import (
 	"net/http"
 
+	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -34,6 +35,10 @@ type Type interface {
 
 	// IsPending returns true if this identity type is a pending variant.
 	IsPending() bool
+
+	// LegacyCertificateType returns the legacy certificate type for this identity type.
+	// If an error is returned, it indicates that the identity type does not correspond to a legacy certificate type.
+	LegacyCertificateType() (certificate.Type, error)
 
 	// Name returns the API name of this identity type.
 	Name() string
