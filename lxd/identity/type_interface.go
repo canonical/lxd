@@ -20,6 +20,9 @@ type Type interface {
 	// AuthenticationMethod returns the authentication method used by this identity type.
 	AuthenticationMethod() string
 
+	// Code returns the identity type code for this identity type.
+	Code() int64
+
 	// IsAdmin returns true if this identity type has administrator privileges (unrestricted).
 	IsAdmin() bool
 
