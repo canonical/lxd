@@ -24,6 +24,11 @@ func (CertificateMetricsRestricted) IsCacheable() bool {
 	return true
 }
 
+// Name returns the API name of this identity type.
+func (CertificateMetricsRestricted) Name() string {
+	return api.IdentityTypeCertificateMetricsRestricted
+}
+
 // CertificateMetricsUnrestricted represents an identity that can view metrics and is privileged.
 type CertificateMetricsUnrestricted struct {
 	typeInfoCommon
@@ -42,4 +47,9 @@ func (CertificateMetricsUnrestricted) Code() int64 {
 // IsCacheable indicates that this identity can be cached.
 func (CertificateMetricsUnrestricted) IsCacheable() bool {
 	return true
+}
+
+// Name returns the API name of this identity type.
+func (CertificateMetricsUnrestricted) Name() string {
+	return api.IdentityTypeCertificateMetricsUnrestricted
 }

@@ -29,3 +29,8 @@ func (CertificateServer) IsAdmin() bool {
 func (CertificateServer) IsCacheable() bool {
 	return true
 }
+
+// Name returns the API name of this identity type.
+func (CertificateServer) Name() string {
+	return api.IdentityTypeCertificateServer
+}
