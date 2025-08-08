@@ -264,7 +264,7 @@ func (c *ClusterTx) GetNetworkLoadBalancerListenAddresses(ctx context.Context, n
 }
 
 // GetProjectNetworkLoadBalancerListenAddressesByUplink returns map of Network Load Balancer Listen Addresses
-// that belong to networks connected to the specified uplinkNetworkName.
+// that belong to networks connected to the specified uplinkNetworkName. Listen addresses that are internal OVN IPs are omitted.
 // Returns a map keyed on project name and network name containing a slice of listen addresses.
 func (c *ClusterTx) GetProjectNetworkLoadBalancerListenAddressesByUplink(ctx context.Context, uplinkNetworkName string, memberSpecific bool) (map[string]map[string][]string, error) {
 	q := strings.Builder{}
