@@ -33,6 +33,32 @@ type Type interface {
 	IsPending() bool
 }
 
+const (
+	// identityTypeCertificateClientRestricted represents identities that authenticate using TLS and are not privileged.
+	identityTypeCertificateClientRestricted int64 = 1
+
+	// identityTypeCertificateClientUnrestricted represents identities that authenticate using TLS and are privileged.
+	identityTypeCertificateClientUnrestricted int64 = 2
+
+	// identityTypeCertificateServer represents cluster member authentication.
+	identityTypeCertificateServer int64 = 3
+
+	// identityTypeCertificateMetricsRestricted represents identities that may only view metrics and are not privileged.
+	identityTypeCertificateMetricsRestricted int64 = 4
+
+	// identityTypeOIDCClient represents an identity that authenticates with OIDC.
+	identityTypeOIDCClient int64 = 5
+
+	// identityTypeCertificateMetricsUnrestricted represents identities that may only view metrics and are privileged.
+	identityTypeCertificateMetricsUnrestricted int64 = 6
+
+	// identityTypeCertificateClient represents identities that authenticate using TLS and whose permissions are managed via group membership.
+	identityTypeCertificateClient int64 = 7
+
+	// identityTypeCertificateClientPending represents identities for which a token has been issued but who have not yet authenticated with LXD.
+	identityTypeCertificateClientPending int64 = 8
+)
+
 // types is a slice of all identity types that implement the [Type] interface.
 var types = []Type{
 	OIDCClient{},
