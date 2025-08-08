@@ -436,11 +436,6 @@ jobs:
       - name: Reclaim some memory
         uses: ./.github/actions/reclaim-memory
 
-      - name: Remove lxd-installer
-        run: |
-          set -eux
-          sudo apt-get remove -y lxd-installer || true
-
       - name: Remove docker
         uses: ./.github/actions/disable-docker
 
@@ -636,11 +631,6 @@ jobs:
 
       - name: Tune disk performance
         uses: ./.github/actions/tune-disk-performance
-
-      - name: Remove lxd-installer
-        run: |
-          set -eux
-          sudo apt-get remove -y lxd-installer || true
 
       - name: Checkout LXD-UI
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
