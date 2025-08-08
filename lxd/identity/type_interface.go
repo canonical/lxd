@@ -115,6 +115,19 @@ func New(identityType string) (Type, error) {
 	}
 }
 
+// NewFromCode creates a new identity type based on the provided identity type code.
+// It validates the identity type code and returns the appropriate identity type struct that implements the [Type] interface.
+// It returns [http.StatusInternalServerError] wrapped in [api.StatusErrorf] if the identity type is not recognized.
+// Prefer [New] over this function when validating identity types from input, as [New] returns [http.StatusBadRequest] for unrecognized types. This function is used in the implementation of [query.IntegerScanner] for [IdentityType] when reading from the database.
+func NewFromCode(code int64) (Type, error) {
+	t, ok := codeToType[code]
+	if !ok {
+		return nil, api.StatusErrorf(http.StatusInternalServerError, "Unrecognized identity type code %d", code)
+	}
+
+	return t, nil
+}
+
 // Types returns a slice of all identity types that implement the [Type] interface.
 // The returned slice must not be modified by callers.
 func Types() []Type {
