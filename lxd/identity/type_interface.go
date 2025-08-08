@@ -77,6 +77,17 @@ var types = []Type{
 	CertificateServer{},
 }
 
+var nameToType = make(map[string]Type, len(types))
+var codeToType = make(map[int64]Type, len(types))
+
+// init initializes the [nameToType] and [codeToType] maps for quick lookup of identity types by name or code.
+func init() {
+	for _, t := range types {
+		nameToType[t.Name()] = t
+		codeToType[t.Code()] = t
+	}
+}
+
 // New creates a new identity type based on the provided identity type string.
 // It validates the identity type string and returns a pointer to the appropriate
 // identity type struct that implements the [Type] interface.
