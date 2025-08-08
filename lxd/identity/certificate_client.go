@@ -31,6 +31,11 @@ func (CertificateClient) IsFineGrained() bool {
 	return true
 }
 
+// Name returns the API name of this identity type.
+func (CertificateClient) Name() string {
+	return api.IdentityTypeCertificateClient
+}
+
 // CertificateClientPending represents an identity for which a token has been issued
 // but who has not yet authenticated with LXD. It supports fine-grained permissions
 // but is not cacheable and not an admin.
@@ -53,6 +58,16 @@ func (CertificateClientPending) IsFineGrained() bool {
 	return true
 }
 
+// IsPending indicates that this identity is pending.
+func (CertificateClientPending) IsPending() bool {
+	return true
+}
+
+// Name returns the API name of this identity type.
+func (CertificateClientPending) Name() string {
+	return api.IdentityTypeCertificateClientPending
+}
+
 // CertificateClientRestricted represents an identity that authenticates using TLS certificates
 // and is not privileged. It supports caching but does not support fine-grained permissions
 // and is not an admin.
@@ -73,6 +88,11 @@ func (CertificateClientRestricted) Code() int64 {
 // IsCacheable indicates that this identity can be cached.
 func (CertificateClientRestricted) IsCacheable() bool {
 	return true
+}
+
+// Name returns the API name of this identity type.
+func (CertificateClientRestricted) Name() string {
+	return api.IdentityTypeCertificateClientRestricted
 }
 
 // CertificateClientUnrestricted represents an identity that authenticates using TLS certificates
@@ -100,4 +120,9 @@ func (CertificateClientUnrestricted) IsAdmin() bool {
 // IsCacheable indicates that this identity can be cached.
 func (CertificateClientUnrestricted) IsCacheable() bool {
 	return true
+}
+
+// Name returns the API name of this identity type.
+func (CertificateClientUnrestricted) Name() string {
+	return api.IdentityTypeCertificateClientUnrestricted
 }

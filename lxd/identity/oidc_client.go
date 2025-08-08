@@ -29,3 +29,8 @@ func (OIDCClient) IsCacheable() bool {
 func (OIDCClient) IsFineGrained() bool {
 	return true
 }
+
+// Name returns the API name of this identity type.
+func (OIDCClient) Name() string {
+	return api.IdentityTypeOIDCClient
+}
