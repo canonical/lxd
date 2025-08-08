@@ -148,20 +148,17 @@ func (i IdentityType) ActiveType() (IdentityType, error) {
 
 // toCertificateAPIType returns the API equivalent type.
 func (i IdentityType) toCertificateType() (certificate.Type, error) {
-	switch i {
-	case api.IdentityTypeCertificateClientRestricted:
-		return certificate.TypeClient, nil
-	case api.IdentityTypeCertificateClientUnrestricted:
-		return certificate.TypeClient, nil
-	case api.IdentityTypeCertificateServer:
-		return certificate.TypeServer, nil
-	case api.IdentityTypeCertificateMetricsRestricted:
-		return certificate.TypeMetrics, nil
-	case api.IdentityTypeCertificateMetricsUnrestricted:
-		return certificate.TypeMetrics, nil
+	idType, err := identity.New(string(i))
+	if err != nil {
+		return -1, err
 	}
 
-	return -1, fmt.Errorf("Identity type %q is not a certificate", i)
+	certType, err := idType.LegacyCertificateType()
+	if err != nil {
+		return -1, fmt.Errorf("Identity type %q is not a certificate", i)
+	}
+
+	return certType, nil
 }
 
 // Identity is a database representation of any authenticated party.
