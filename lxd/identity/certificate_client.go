@@ -1,6 +1,7 @@
 package identity
 
 import (
+	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -90,6 +91,11 @@ func (CertificateClientRestricted) IsCacheable() bool {
 	return true
 }
 
+// LegacyCertificateType returns the legacy certificate type for this identity type.
+func (CertificateClientRestricted) LegacyCertificateType() (certificate.Type, error) {
+	return certificate.TypeClient, nil
+}
+
 // Name returns the API name of this identity type.
 func (CertificateClientRestricted) Name() string {
 	return api.IdentityTypeCertificateClientRestricted
@@ -120,6 +126,11 @@ func (CertificateClientUnrestricted) IsAdmin() bool {
 // IsCacheable indicates that this identity can be cached.
 func (CertificateClientUnrestricted) IsCacheable() bool {
 	return true
+}
+
+// LegacyCertificateType returns the legacy certificate type for this identity type.
+func (CertificateClientUnrestricted) LegacyCertificateType() (certificate.Type, error) {
+	return certificate.TypeClient, nil
 }
 
 // Name returns the API name of this identity type.
