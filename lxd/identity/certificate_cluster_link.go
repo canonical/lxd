@@ -31,6 +31,11 @@ func (CertificateClientClusterLink) IsFineGrained() bool {
 	return true
 }
 
+// Name returns the API name of this identity type.
+func (CertificateClientClusterLink) Name() string {
+	return api.IdentityTypeCertificateClusterLink
+}
+
 // CertificateClientClusterLinkPending represents a cluster link for which a token has been issued
 // but who has not yet been activated by a linked cluster. It supports fine-grained permissions
 // but is not cacheable and not an admin.
@@ -56,4 +61,9 @@ func (CertificateClientClusterLinkPending) IsFineGrained() bool {
 // IsPending indicates that this cluster link is pending activation.
 func (CertificateClientClusterLinkPending) IsPending() bool {
 	return true
+}
+
+// Name returns the API name of this identity type.
+func (CertificateClientClusterLinkPending) Name() string {
+	return api.IdentityTypeCertificateClusterLinkPending
 }
