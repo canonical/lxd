@@ -1278,6 +1278,10 @@ func updateIdentity(authenticationMethod string) func(d *Daemon, r *http.Request
 			return response.NotImplemented(fmt.Errorf("Identities of type %q cannot be modified via this API", id.Type))
 		}
 
+		if identityType.AuthenticationMethod() == api.AuthenticationMethodTLS && identityType.IsPending() {
+			return response.BadRequest(fmt.Errorf("Cannot update certificate for identities of type %q", id.Type))
+		}
+
 		var identityPut api.IdentityPut
 		err = json.NewDecoder(r.Body).Decode(&identityPut)
 		if err != nil {
@@ -1509,6 +1513,10 @@ func patchIdentity(authenticationMethod string) func(d *Daemon, r *http.Request)
 
 		if !identityType.IsFineGrained() {
 			return response.NotImplemented(fmt.Errorf("Identities of type %q cannot be modified via this API", id.Type))
+		}
+
+		if identityType.AuthenticationMethod() == api.AuthenticationMethodTLS && identityType.IsPending() {
+			return response.BadRequest(fmt.Errorf("Cannot update certificate for identities of type %q", id.Type))
 		}
 
 		var identityPut api.IdentityPut
