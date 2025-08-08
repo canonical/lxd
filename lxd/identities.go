@@ -1279,7 +1279,7 @@ func updateIdentity(authenticationMethod string) func(d *Daemon, r *http.Request
 			return response.BadRequest(fmt.Errorf("Failed to unmarshal request body: %w", err))
 		}
 
-		if id.Type != api.IdentityTypeCertificateClient && identityPut.TLSCertificate != "" {
+		if identityType.AuthenticationMethod() == api.AuthenticationMethodTLS && identityType.IsPending() && identityPut.TLSCertificate != "" {
 			return response.BadRequest(fmt.Errorf("Cannot update certificate for identities of type %q", id.Type))
 		}
 
@@ -1288,11 +1288,6 @@ func updateIdentity(authenticationMethod string) func(d *Daemon, r *http.Request
 			return updateIdentityPrivileged(s, r, *id, identityPut)
 		} else if !auth.IsDeniedError(err) {
 			return response.SmartError(err)
-		}
-
-		// Only identities of type api.IdentityTypeCertificateClient may update their own certificate
-		if id.Type != api.IdentityTypeCertificateClient {
-			return response.Forbidden(nil)
 		}
 
 		username, err := auth.GetUsernameFromCtx(r.Context())
@@ -1517,7 +1512,7 @@ func patchIdentity(authenticationMethod string) func(d *Daemon, r *http.Request)
 			return response.BadRequest(fmt.Errorf("Failed to unmarshal request body: %w", err))
 		}
 
-		if id.Type != api.IdentityTypeCertificateClient && identityPut.TLSCertificate != "" {
+		if identityType.AuthenticationMethod() == api.AuthenticationMethodTLS && identityType.IsPending() && identityPut.TLSCertificate != "" {
 			return response.BadRequest(fmt.Errorf("Cannot update certificate for identities of type %q", id.Type))
 		}
 
@@ -1531,11 +1526,6 @@ func patchIdentity(authenticationMethod string) func(d *Daemon, r *http.Request)
 			return patchIdentityPrivileged(s, r, *id, identityPut)
 		} else if !auth.IsDeniedError(err) {
 			return response.SmartError(err)
-		}
-
-		// Only identities of type api.IdentityTypeCertificateClient may update their own certificate
-		if id.Type != api.IdentityTypeCertificateClient {
-			return response.Forbidden(nil)
 		}
 
 		username, err := auth.GetUsernameFromCtx(r.Context())
