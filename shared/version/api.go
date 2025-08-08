@@ -454,6 +454,7 @@ var APIExtensions = []string{
 	"oidc_client_secret",
 	"pci_hotplug",
 	"device_patch_removal",
+	"ovn_internal_load_balancer",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
