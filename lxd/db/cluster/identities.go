@@ -408,16 +408,25 @@ func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, 
 	return nil
 }
 
-var getPendingTLSIdentityByTokenSecretStmt = fmt.Sprintf(`
-SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
-	FROM identities
-	WHERE identities.type = %d
-	AND json_extract(identities.metadata, '$.secret') = ?
-`, identityTypeCertificateClientPending)
+var pendingIdentityTypes = func() (result []int64) {
+	for _, t := range identity.Types() {
+		if t.IsPending() {
+			result = append(result, t.Code())
+		}
+	}
+
+	return result
+}
 
 // GetPendingTLSIdentityByTokenSecret gets a single identity of type [identityTypeCertificateClientPending] or [identityTypeCertificateClusterLinkPending] with the given secret in its metadata. If no pending identity is found, an [api.StatusError] is returned with [http.StatusNotFound].
 func GetPendingTLSIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret string) (*Identity, error) {
-	identities, err := getIdentitysRaw(ctx, tx, getPendingTLSIdentityByTokenSecretStmt, secret)
+	stmt := fmt.Sprintf(`
+	SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
+	FROM identities
+	WHERE identities.type IN %s
+	AND json_extract(identities.metadata, '$.secret') = ?`, query.IntParams(pendingIdentityTypes()...))
+
+	identities, err := getIdentitysRaw(ctx, tx, stmt, secret)
 	if err != nil {
 		return nil, err
 	}
