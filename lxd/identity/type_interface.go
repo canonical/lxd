@@ -34,6 +34,9 @@ type Type interface {
 
 	// IsPending returns true if this identity type is a pending variant.
 	IsPending() bool
+
+	// Name returns the API name of this identity type.
+	Name() string
 }
 
 const (
