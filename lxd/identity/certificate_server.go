@@ -15,6 +15,11 @@ func (CertificateServer) AuthenticationMethod() string {
 	return api.AuthenticationMethodTLS
 }
 
+// Code returns the identity type code for this identity type.
+func (CertificateServer) Code() int64 {
+	return identityTypeCertificateServer
+}
+
 // IsAdmin indicates that this identity type has administrator privileges (unrestricted).
 func (CertificateServer) IsAdmin() bool {
 	return true

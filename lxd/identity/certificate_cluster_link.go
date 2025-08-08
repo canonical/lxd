@@ -16,6 +16,11 @@ func (CertificateClientClusterLink) AuthenticationMethod() string {
 	return api.AuthenticationMethodTLS
 }
 
+// Code returns the identity type code for this identity type.
+func (CertificateClientClusterLink) Code() int64 {
+	return identityTypeCertificateClusterLink
+}
+
 // IsCacheable indicates that this identity can be cached.
 func (CertificateClientClusterLink) IsCacheable() bool {
 	return true
@@ -36,6 +41,11 @@ type CertificateClientClusterLinkPending struct {
 // AuthenticationMethod indicates that pending cluster links authenticate using TLS.
 func (CertificateClientClusterLinkPending) AuthenticationMethod() string {
 	return api.AuthenticationMethodTLS
+}
+
+// Code returns the identity type code for this identity type.
+func (CertificateClientClusterLinkPending) Code() int64 {
+	return identityTypeCertificateClusterLinkPending
 }
 
 // IsFineGrained indicates that this identity uses fine-grained permissions.
