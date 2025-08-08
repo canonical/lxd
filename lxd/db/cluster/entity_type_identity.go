@@ -3,11 +3,24 @@ package cluster
 import (
 	"fmt"
 
+	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/shared/api"
 )
 
 // entityTypeIdentity implements entityTypeDBInfo for an Identity.
 type entityTypeIdentity struct{}
+
+// identityTypes returns the list of identity type codes that are considered fine-grained.
+func (e entityTypeIdentity) identityTypes() (types []int64) {
+	for _, t := range identity.Types() {
+		if t.IsFineGrained() {
+			types = append(types, t.Code())
+		}
+	}
+
+	return types
+}
 
 func (e entityTypeIdentity) code() int64 {
 	return entityTypeCodeIdentity
@@ -21,20 +34,14 @@ SELECT
 	'', 
 	'', 
 	json_array(
-		CASE identities.auth_method
-			WHEN %d THEN '%s'
-			WHEN %d THEN '%s'
-		END,
+		%s,
 		identities.identifier
 	) 
 FROM identities
-WHERE type IN (%d, %d, %d, %d, %d)
-`,
+WHERE type IN %s`,
 		e.code(),
-		authMethodTLS, api.AuthenticationMethodTLS,
-		authMethodOIDC, api.AuthenticationMethodOIDC,
-		identityTypeOIDCClient, identityTypeCertificateClient, identityTypeCertificateClientPending, identityTypeCertificateClusterLink, identityTypeCertificateClusterLinkPending,
-	)
+		authMethodCaseClause(),
+		query.IntParams(e.identityTypes()...))
 }
 
 func (e entityTypeIdentity) urlsByProjectQuery() string {
@@ -51,15 +58,11 @@ SELECT ?, identities.id
 FROM identities 
 WHERE '' = ? 
 	AND '' = ? 
-	AND CASE identities.auth_method 
-		WHEN %d THEN '%s' 
-		WHEN %d THEN '%s' 
-	END = ? 
+	AND %s = ? 
 	AND identities.identifier = ?
-	AND identities.type IN (%d, %d, %d, %d, %d)
-`, authMethodTLS, api.AuthenticationMethodTLS,
-		authMethodOIDC, api.AuthenticationMethodOIDC,
-		identityTypeOIDCClient, identityTypeCertificateClient, identityTypeCertificateClientPending, identityTypeCertificateClusterLink, identityTypeCertificateClusterLinkPending,
+	AND identities.type IN %s`,
+		authMethodCaseClause(),
+		query.IntParams(e.identityTypes()...),
 	)
 }
 
@@ -78,4 +81,12 @@ CREATE TRIGGER %s
 		AND entity_id = OLD.id;
 	END
 `, name, e.code(), typeCertificate.code(), e.code(), typeCertificate.code())
+}
+
+// authMethodCaseClause returns the SQL CASE clause for auth method mapping.
+func authMethodCaseClause() string {
+	return fmt.Sprintf(`CASE identities.auth_method
+		WHEN %d THEN '%s'
+		WHEN %d THEN '%s'
+	END`, authMethodTLS, api.AuthenticationMethodTLS, authMethodOIDC, api.AuthenticationMethodOIDC)
 }
