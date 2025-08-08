@@ -33,6 +33,20 @@ type Type interface {
 	IsPending() bool
 }
 
+// types is a slice of all identity types that implement the [Type] interface.
+var types = []Type{
+	OIDCClient{},
+	CertificateClient{},
+	CertificateClientPending{},
+	CertificateClientRestricted{},
+	CertificateClientUnrestricted{},
+	CertificateMetricsRestricted{},
+	CertificateMetricsUnrestricted{},
+	CertificateServer{},
+	CertificateClientClusterLink{},
+	CertificateClientClusterLinkPending{},
+}
+
 // New creates a new identity type based on the provided identity type string.
 // It validates the identity type string and returns a pointer to the appropriate
 // identity type struct that implements the [Type] interface.
@@ -62,4 +76,10 @@ func New(identityType string) (Type, error) {
 	default:
 		return nil, api.StatusErrorf(http.StatusBadRequest, "Unrecognized identity type %q", identityType)
 	}
+}
+
+// Types returns a slice of all identity types that implement the [Type] interface.
+// The returned slice must not be modified by callers.
+func Types() []Type {
+	return types
 }
