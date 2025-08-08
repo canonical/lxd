@@ -108,39 +108,14 @@ func (a AuthMethod) Value() (driver.Value, error) {
 // database. It is not possible to read/write an invalid identity types from/to the database when using this type.
 type IdentityType string
 
-const (
-	identityTypeCertificateClientRestricted    int64 = 1
-	identityTypeCertificateClientUnrestricted  int64 = 2
-	identityTypeCertificateServer              int64 = 3
-	identityTypeCertificateMetricsRestricted   int64 = 4
-	identityTypeOIDCClient                     int64 = 5
-	identityTypeCertificateMetricsUnrestricted int64 = 6
-	identityTypeCertificateClient              int64 = 7
-	identityTypeCertificateClientPending       int64 = 8
-)
-
 // ScanInteger implements [query.IntegerScanner] for [IdentityType]. This simplifies the Scan implementation.
 func (i *IdentityType) ScanInteger(identityTypeCode int64) error {
-	switch identityTypeCode {
-	case identityTypeCertificateClientRestricted:
-		*i = api.IdentityTypeCertificateClientRestricted
-	case identityTypeCertificateClientUnrestricted:
-		*i = api.IdentityTypeCertificateClientUnrestricted
-	case identityTypeCertificateServer:
-		*i = api.IdentityTypeCertificateServer
-	case identityTypeCertificateMetricsRestricted:
-		*i = api.IdentityTypeCertificateMetricsRestricted
-	case identityTypeCertificateMetricsUnrestricted:
-		*i = api.IdentityTypeCertificateMetricsUnrestricted
-	case identityTypeOIDCClient:
-		*i = api.IdentityTypeOIDCClient
-	case identityTypeCertificateClient:
-		*i = api.IdentityTypeCertificateClient
-	case identityTypeCertificateClientPending:
-		*i = api.IdentityTypeCertificateClientPending
-	default:
-		return fmt.Errorf("Unknown identity type `%d`", identityTypeCode)
+	idType, err := identity.NewFromCode(identityTypeCode)
+	if err != nil {
+		return err
 	}
+
+	*i = IdentityType(idType.Name())
 
 	return nil
 }
@@ -153,26 +128,12 @@ func (i *IdentityType) Scan(value any) error {
 
 // Value implements [driver.Valuer] for [IdentityType]. This converts the API constant into an integer or throws an error.
 func (i IdentityType) Value() (driver.Value, error) {
-	switch i {
-	case api.IdentityTypeCertificateClientRestricted:
-		return identityTypeCertificateClientRestricted, nil
-	case api.IdentityTypeCertificateClientUnrestricted:
-		return identityTypeCertificateClientUnrestricted, nil
-	case api.IdentityTypeCertificateServer:
-		return identityTypeCertificateServer, nil
-	case api.IdentityTypeCertificateMetricsRestricted:
-		return identityTypeCertificateMetricsRestricted, nil
-	case api.IdentityTypeCertificateMetricsUnrestricted:
-		return identityTypeCertificateMetricsUnrestricted, nil
-	case api.IdentityTypeOIDCClient:
-		return identityTypeOIDCClient, nil
-	case api.IdentityTypeCertificateClient:
-		return identityTypeCertificateClient, nil
-	case api.IdentityTypeCertificateClientPending:
-		return identityTypeCertificateClientPending, nil
+	idType, err := identity.New(string(i))
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, fmt.Errorf("Invalid identity type %q", i)
+	return idType.Code(), nil
 }
 
 // ActiveType returns the active version of the identity type.
