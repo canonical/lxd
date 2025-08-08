@@ -89,30 +89,15 @@ func init() {
 }
 
 // New creates a new identity type based on the provided identity type string.
-// It validates the identity type string and returns a pointer to the appropriate
-// identity type struct that implements the [Type] interface.
-// Returns an error if the identity type is not recognized.
-func New(identityType string) (Type, error) {
-	switch identityType {
-	case api.IdentityTypeOIDCClient:
-		return &OIDCClient{}, nil
-	case api.IdentityTypeCertificateClient:
-		return &CertificateClient{}, nil
-	case api.IdentityTypeCertificateClientPending:
-		return &CertificateClientPending{}, nil
-	case api.IdentityTypeCertificateClientRestricted:
-		return &CertificateClientRestricted{}, nil
-	case api.IdentityTypeCertificateClientUnrestricted:
-		return &CertificateClientUnrestricted{}, nil
-	case api.IdentityTypeCertificateMetricsRestricted:
-		return &CertificateMetricsRestricted{}, nil
-	case api.IdentityTypeCertificateMetricsUnrestricted:
-		return &CertificateMetricsUnrestricted{}, nil
-	case api.IdentityTypeCertificateServer:
-		return &CertificateServer{}, nil
-	default:
-		return nil, api.StatusErrorf(http.StatusBadRequest, "Unrecognized identity type %q", identityType)
+// It validates the identity type string and returns the appropriate identity type struct that implements the [Type] interface.
+// It returns [http.StatusBadRequest] wrapped in [api.StatusErrorf] if the identity type is not recognized.
+func New(name string) (Type, error) {
+	t, ok := nameToType[name]
+	if !ok {
+		return nil, api.StatusErrorf(http.StatusBadRequest, "Unrecognized identity type %q", name)
 	}
+
+	return t, nil
 }
 
 // NewFromCode creates a new identity type based on the provided identity type code.
