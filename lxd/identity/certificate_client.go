@@ -16,6 +16,11 @@ func (CertificateClient) AuthenticationMethod() string {
 	return api.AuthenticationMethodTLS
 }
 
+// Code returns the identity type code for this identity type.
+func (CertificateClient) Code() int64 {
+	return identityTypeCertificateClient
+}
+
 // IsCacheable indicates that this identity can be cached.
 func (CertificateClient) IsCacheable() bool {
 	return true
@@ -38,6 +43,11 @@ func (CertificateClientPending) AuthenticationMethod() string {
 	return api.AuthenticationMethodTLS
 }
 
+// Code returns the identity type code for this identity type.
+func (CertificateClientPending) Code() int64 {
+	return identityTypeCertificateClientPending
+}
+
 // IsFineGrained indicates that this identity uses fine-grained permissions.
 func (CertificateClientPending) IsFineGrained() bool {
 	return true
@@ -55,6 +65,11 @@ func (CertificateClientRestricted) AuthenticationMethod() string {
 	return api.AuthenticationMethodTLS
 }
 
+// Code returns the identity type code for this identity type.
+func (CertificateClientRestricted) Code() int64 {
+	return identityTypeCertificateClientRestricted
+}
+
 // IsCacheable indicates that this identity can be cached.
 func (CertificateClientRestricted) IsCacheable() bool {
 	return true
@@ -70,6 +85,11 @@ type CertificateClientUnrestricted struct {
 // AuthenticationMethod indicates that unrestricted client certificates authenticate using TLS.
 func (CertificateClientUnrestricted) AuthenticationMethod() string {
 	return api.AuthenticationMethodTLS
+}
+
+// Code returns the identity type code for this identity type.
+func (CertificateClientUnrestricted) Code() int64 {
+	return identityTypeCertificateClientUnrestricted
 }
 
 // IsAdmin indicates that this identity type has administrator privileges (unrestricted).
