@@ -250,7 +250,7 @@ func (c *ClusterTx) GetNetworkForwardListenAddresses(ctx context.Context, networ
 }
 
 // GetProjectNetworkForwardListenAddressesByUplink returns map of Network Forward Listen Addresses that belong to
-// networks connected to the specified uplinkNetworkName.
+// networks connected to the specified uplinkNetworkName. Listen addresses that are internal OVN IPs are omitted.
 // Returns a map keyed on project name and network name containing a slice of listen addresses.
 func (c *ClusterTx) GetProjectNetworkForwardListenAddressesByUplink(ctx context.Context, uplinkNetworkName string, memberSpecific bool) (map[string]map[string][]string, error) {
 	q := strings.Builder{}
