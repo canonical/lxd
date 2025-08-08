@@ -15,6 +15,11 @@ func (OIDCClient) AuthenticationMethod() string {
 	return api.AuthenticationMethodOIDC
 }
 
+// Code returns the identity type code for this identity type.
+func (OIDCClient) Code() int64 {
+	return identityTypeOIDCClient
+}
+
 // IsCacheable indicates that this identity can be cached.
 func (OIDCClient) IsCacheable() bool {
 	return true
