@@ -162,14 +162,6 @@ type powerFlexVolume struct {
 	} `json:"mappedSdcInfo"`
 }
 
-type powerFlexDiscoveryLogRecord struct {
-	SubNQN string `json:"subnqn"`
-}
-
-type powerFlexDiscoveryLog struct {
-	Records []powerFlexDiscoveryLogRecord `json:"records"`
-}
-
 // powerFlexClient holds the PowerFlex HTTP client and an access token factory.
 type powerFlexClient struct {
 	driver *powerflex
@@ -766,14 +758,28 @@ func (d *powerflex) getHostGUID() (string, error) {
 // Cache the targetQN as it doesn't change throughout the lifetime of the storage pool.
 func (d *powerflex) getNVMeTargetQN(targetAddresses ...string) (string, error) {
 	if d.nvmeTargetQN == "" {
+		connector, err := d.connector()
+		if err != nil {
+			return "", err
+		}
+
 		// The discovery log from the first reachable target address is returned.
-		discoveryLogRecords, err := d.discover(d.state.ShutdownCtx, targetAddresses...)
+		discoveryLogRecords, err := connector.Discover(d.state.ShutdownCtx, targetAddresses...)
 		if err != nil {
 			return "", fmt.Errorf("Failed to discover SDT NQN: %w", err)
 		}
 
-		for _, record := range discoveryLogRecords {
-			// The targetQN is listed together with every log record.
+		for _, recordAny := range discoveryLogRecords {
+			record, ok := recordAny.(connectors.NVMeDiscoveryLogRecord)
+			if !ok {
+				return "", fmt.Errorf("Invalid discovery log record entry type %T is not connectors.NVMeDiscoveryLogRecord", recordAny)
+			}
+
+			if record.SubType != connectors.SubtypeNVMESubsys {
+				continue
+			}
+
+			// The targetQN is listed together with every log record of type SubtypeNVMESubsys.
 			d.nvmeTargetQN = record.SubNQN
 			break
 		}
@@ -917,7 +923,7 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 
 	switch d.config["powerflex.mode"] {
 	case connectors.TypeNVME:
-		unlock, err := remoteVolumeMapLock(connector.Type(), "powerflex")
+		unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
 		if err != nil {
 			return nil, err
 		}
@@ -1027,7 +1033,7 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 
 // getMappedDevPath returns the local device path for the given volume.
 // Indicate with mapVolume if the volume should get mapped to the system if it isn't present.
-func (d *powerflex) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook, error) {
+func (d *powerflex) getMappedDevPath(vol Volume, mapVolume bool) (devicePath string, deactivate func() error, err error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -1062,7 +1068,6 @@ func (d *powerflex) getMappedDevPath(vol Volume, mapVolume bool) (string, revert
 		return strings.Contains(path, powerFlexVolumeID)
 	}
 
-	var devicePath string
 	if mapVolume {
 		// Wait for the device path to appear as the volume has been just mapped to the host.
 		devicePath, err = block.WaitDiskDevicePath(d.state.ShutdownCtx, prefix, devicePathFilter)
@@ -1075,9 +1080,20 @@ func (d *powerflex) getMappedDevPath(vol Volume, mapVolume bool) (string, revert
 		return "", nil, fmt.Errorf("Failed to locate device for volume %q: %w", vol.name, err)
 	}
 
-	cleanup := revert.Clone().Fail
+	// At this point, we know that device is mapped and device path was found.
+	// We want to return a deactivation function to a caller so it can
+	// unmap the volume if needed.
+	deactivate = func() error {
+		err := d.unmapVolume(vol)
+		if err != nil {
+			d.Logger().Warn("Failed to unmap volume", logger.Ctx{"volName": vol.name, "err": err})
+		}
+
+		return err
+	}
+
 	revert.Success()
-	return devicePath, cleanup, nil
+	return devicePath, deactivate, nil
 }
 
 // unmapVolume unmaps the given volume from this host.
@@ -1111,7 +1127,7 @@ func (d *powerflex) unmapVolume(vol Volume) error {
 			return err
 		}
 
-		unlock, err := remoteVolumeMapLock(connector.Type(), "powerflex")
+		unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
 		if err != nil {
 			return err
 		}
@@ -1250,55 +1266,4 @@ func (d *powerflex) getVolumeName(vol Volume) (string, error) {
 	}
 
 	return volumeTypePrefix + volName + suffix, nil
-}
-
-// discover returns the SDTs (targets) found on the first reachable targetAddr.
-func (d *powerflex) discover(ctx context.Context, targetAddresses ...string) ([]powerFlexDiscoveryLogRecord, error) {
-	connector, err := d.connector()
-	if err != nil {
-		return nil, err
-	}
-
-	hostNQN, err := connector.QualifiedName()
-	if err != nil {
-		return nil, err
-	}
-
-	// Set a deadline for the overall discovery.
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	var discoveryLog powerFlexDiscoveryLog
-	for _, targetAddr := range targetAddresses {
-		stdout, err := shared.RunCommandContext(ctx, "nvme", "discover", "--transport", "tcp", "--traddr", targetAddr, "--hostnqn", hostNQN, "--hostid", d.state.OS.ServerUUID, "--output-format", "json")
-		if err != nil {
-			// Exit code 110 is returned if the target address cannot be reached.
-			logger.Warn("Failed connecting to discovery target", logger.Ctx{"target_address": targetAddr, "err": err})
-			continue
-		}
-
-		// In case no discovery log entries can be fetched the nvme command doesn't return JSON formatted text.
-		if strings.Trim(stdout, "\n") == "No discovery log entries to fetch." {
-			logger.Warn("Failed to find discovery log entries", logger.Ctx{"target_address": targetAddr, "err": err})
-			continue
-		}
-
-		// Try to unmarshal the returned log entries.
-		err = json.Unmarshal([]byte(stdout), &discoveryLog)
-		if err != nil {
-			// Don't just log this error.
-			// Something is clearly wrong with the returned output.
-			return nil, fmt.Errorf("Failed to unmarshal the returned discovery log entries from %q", targetAddr)
-		}
-
-		// Unmarshalling the response from the discovery succeeded, break the loop.
-		break
-	}
-
-	// In case none of the target addresses returned any log records also return an error.
-	if len(discoveryLog.Records) == 0 {
-		return nil, errors.New("Failed to fetch a discovery log record from any of the target addresses")
-	}
-
-	return discoveryLog.Records, nil
 }
