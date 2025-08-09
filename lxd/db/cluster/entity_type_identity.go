@@ -2,12 +2,25 @@ package cluster
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/shared/api"
 )
 
 // entityTypeIdentity implements entityTypeDBInfo for an Identity.
 type entityTypeIdentity struct{}
+
+var identityTypes = func() (result []int64) {
+	for _, t := range identity.Types() {
+		if t.IsFineGrained() {
+			result = append(result, t.Code())
+		}
+	}
+
+	return result
+}
 
 func (e entityTypeIdentity) code() int64 {
 	return entityTypeCodeIdentity
@@ -21,20 +34,14 @@ SELECT
 	'', 
 	'', 
 	json_array(
-		CASE identities.auth_method
-			WHEN %d THEN '%s'
-			WHEN %d THEN '%s'
-		END,
+		%s,
 		identities.identifier
 	) 
 FROM identities
-WHERE type IN (%d, %d, %d, %d, %d)
-`,
+WHERE type IN %s`,
 		e.code(),
-		authMethodTLS, api.AuthenticationMethodTLS,
-		authMethodOIDC, api.AuthenticationMethodOIDC,
-		identityTypeOIDCClient, identityTypeCertificateClient, identityTypeCertificateClientPending, identityTypeCertificateClusterLink, identityTypeCertificateClusterLinkPending,
-	)
+		authMethodCaseClause(),
+		typeInClause(identityTypes()...))
 }
 
 func (e entityTypeIdentity) urlsByProjectQuery() string {
@@ -51,15 +58,11 @@ SELECT ?, identities.id
 FROM identities 
 WHERE '' = ? 
 	AND '' = ? 
-	AND CASE identities.auth_method 
-		WHEN %d THEN '%s' 
-		WHEN %d THEN '%s' 
-	END = ? 
+	AND %s = ? 
 	AND identities.identifier = ?
-	AND identities.type IN (%d, %d, %d, %d, %d)
-`, authMethodTLS, api.AuthenticationMethodTLS,
-		authMethodOIDC, api.AuthenticationMethodOIDC,
-		identityTypeOIDCClient, identityTypeCertificateClient, identityTypeCertificateClientPending, identityTypeCertificateClusterLink, identityTypeCertificateClusterLinkPending,
+	AND identities.type IN %s`,
+		authMethodCaseClause(),
+		typeInClause(identityTypes()...),
 	)
 }
 
@@ -78,4 +81,26 @@ CREATE TRIGGER %s
 		AND entity_id = OLD.id;
 	END
 `, name, e.code(), typeCertificate.code(), e.code(), typeCertificate.code())
+}
+
+// authMethodCaseClause returns the SQL CASE clause for auth method mapping.
+func authMethodCaseClause() string {
+	return fmt.Sprintf(`CASE identities.auth_method
+		WHEN %d THEN '%s'
+		WHEN %d THEN '%s'
+	END`, authMethodTLS, api.AuthenticationMethodTLS, authMethodOIDC, api.AuthenticationMethodOIDC)
+}
+
+// typeInClause returns the SQL IN clause for the provided db type codes.
+func typeInClause(types ...int64) string {
+	if len(types) == 0 {
+		return "()"
+	}
+
+	strTypes := make([]string, len(types))
+	for i, t := range types {
+		strTypes[i] = strconv.FormatInt(t, 10)
+	}
+
+	return "(" + strings.Join(strTypes, ", ") + ")"
 }
