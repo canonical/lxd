@@ -741,18 +741,8 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		}
 
 		kind := "create"
-		if mapping.Type != AssociationTable {
-			if replace {
-				kind = "create_or_replace"
-			} else {
-				buf.L("// Check if a %s with the same key exists.", m.entity)
-				buf.L("exists, err := %sExists(ctx, tx, %s)", lex.Camel(m.entity), strings.Join(nkParams, ", "))
-				m.ifErrNotNil(buf, true, "-1", "fmt.Errorf(\"Failed to check for duplicates: %w\", err)")
-				buf.L("if exists {")
-				buf.L(`        return -1, api.StatusErrorf(http.StatusConflict, "This \"%s\" entry already exists")`, entityTable(m.entity, m.config["table"]))
-				buf.L("}")
-				buf.N()
-			}
+		if mapping.Type != AssociationTable && replace {
+			kind = "create_or_replace"
 		}
 
 		if mapping.Type == AssociationTable {
