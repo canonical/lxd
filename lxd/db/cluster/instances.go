@@ -40,7 +40,6 @@ import (
 //go:generate mapper method -i -e instance GetMany references=Config,Device
 //go:generate mapper method -i -e instance GetOne
 //go:generate mapper method -i -e instance ID
-//go:generate mapper method -i -e instance Exists
 //go:generate mapper method -i -e instance Create references=Config,Device
 //go:generate mapper method -i -e instance Rename
 //go:generate mapper method -i -e instance DeleteOne-by-Project-and-Name
