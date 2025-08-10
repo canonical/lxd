@@ -792,7 +792,12 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 			m.ifErrNotNil(buf, true, "-1", fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, kind)))
 			buf.L("// Execute the statement. ")
 			buf.L("result, err := stmt.Exec(args...)")
-			m.ifErrNotNil(buf, true, "-1", fmt.Sprintf(`fmt.Errorf("Failed to create \"%s\" entry: %%w", err)`, entityTable(m.entity, m.config["table"])))
+			buf.L("if err != nil {")
+			buf.L("if query.IsConflictErr(err) {")
+			buf.L(`return -1, api.StatusErrorf(http.StatusConflict, "This \"%s\" entry already exists")`, entityTable(m.entity, m.config["table"]))
+			buf.L("}\n")
+			buf.L(`return -1, fmt.Errorf("Failed to create \"%s\" entry: %%w", err)`, entityTable(m.entity, m.config["table"]))
+			buf.L("}\n")
 			buf.L("id, err := result.LastInsertId()")
 			m.ifErrNotNil(buf, true, "-1", fmt.Sprintf(`fmt.Errorf("Failed to fetch \"%s\" entry ID: %%w", err)`, entityTable(m.entity, m.config["table"])))
 		}
@@ -935,7 +940,12 @@ func (m *Method) rename(buf *file.Buffer) error {
 	}
 
 	buf.L("result, err := stmt.Exec(to, %s)", mapping.FieldParamsMarshal(nk))
-	m.ifErrNotNil(buf, true, fmt.Sprintf("fmt.Errorf(\"Rename %s failed: %%w\", err)", mapping.Name))
+	buf.L("if err != nil {")
+	buf.L("if query.IsConflictErr(err) {")
+	buf.L(`return api.StatusErrorf(http.StatusConflict, "A \"%s\" entry already exists with this name")`, entityTable(m.entity, m.config["table"]))
+	buf.L("}\n")
+	buf.L(`return fmt.Errorf("Rename %s failed: %%w", err)`, mapping.Name)
+	buf.L("}\n")
 	buf.L("n, err := result.RowsAffected()")
 	m.ifErrNotNil(buf, true, "fmt.Errorf(\"Fetch affected rows failed: %w\", err)")
 	buf.L("if n != 1 {")
@@ -1061,7 +1071,12 @@ func (m *Method) update(buf *file.Buffer) error {
 		}
 
 		buf.L("result, err := stmt.Exec(%s)", strings.Join(params, ", ")+", id")
-		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Update \"%s\" entry failed: %%w", err)`, entityTable(m.entity, m.config["table"])))
+		buf.L("if err != nil {")
+		buf.L("if query.IsConflictErr(err) {")
+		buf.L(`return api.StatusErrorf(http.StatusConflict, "This \"%s\" entry already exists")`, entityTable(m.entity, m.config["table"]))
+		buf.L("}\n")
+		buf.L(`return fmt.Errorf("Update \"%s\" entry failed: %%w", err)`, entityTable(m.entity, m.config["table"]))
+		buf.L("}\n")
 		buf.L("n, err := result.RowsAffected()")
 		m.ifErrNotNil(buf, true, "fmt.Errorf(\"Fetch affected rows: %w\", err)")
 		buf.L("if n != 1 {")
