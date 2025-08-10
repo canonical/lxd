@@ -56,20 +56,20 @@ func (e *IdmapEntry) ToLxcString() []string {
 	return []string{fmt.Sprintf("g %d %d %d", e.Nsid, e.Hostid, e.Maprange)}
 }
 
-func is_between(x, low, high int64) bool {
+func isBetween(x, low, high int64) bool {
 	return x >= low && x < high
 }
 
 func (e *IdmapEntry) HostidsIntersect(i IdmapEntry) bool {
 	if (e.Isuid && i.Isuid) || (e.Isgid && i.Isgid) {
 		switch {
-		case is_between(e.Hostid, i.Hostid, i.Hostid+i.Maprange):
+		case isBetween(e.Hostid, i.Hostid, i.Hostid+i.Maprange):
 			return true
-		case is_between(i.Hostid, e.Hostid, e.Hostid+e.Maprange):
+		case isBetween(i.Hostid, e.Hostid, e.Hostid+e.Maprange):
 			return true
-		case is_between(e.Hostid+e.Maprange, i.Hostid, i.Hostid+i.Maprange):
+		case isBetween(e.Hostid+e.Maprange, i.Hostid, i.Hostid+i.Maprange):
 			return true
-		case is_between(i.Hostid+i.Maprange, e.Hostid, e.Hostid+e.Maprange):
+		case isBetween(i.Hostid+i.Maprange, e.Hostid, e.Hostid+e.Maprange):
 			return true
 		}
 	}
@@ -80,21 +80,21 @@ func (e *IdmapEntry) HostidsIntersect(i IdmapEntry) bool {
 func (e *IdmapEntry) Intersects(i IdmapEntry) bool {
 	if (e.Isuid && i.Isuid) || (e.Isgid && i.Isgid) {
 		switch {
-		case is_between(e.Hostid, i.Hostid, i.Hostid+i.Maprange-1):
+		case isBetween(e.Hostid, i.Hostid, i.Hostid+i.Maprange-1):
 			return true
-		case is_between(i.Hostid, e.Hostid, e.Hostid+e.Maprange-1):
+		case isBetween(i.Hostid, e.Hostid, e.Hostid+e.Maprange-1):
 			return true
-		case is_between(e.Hostid+e.Maprange-1, i.Hostid, i.Hostid+i.Maprange-1):
+		case isBetween(e.Hostid+e.Maprange-1, i.Hostid, i.Hostid+i.Maprange-1):
 			return true
-		case is_between(i.Hostid+i.Maprange-1, e.Hostid, e.Hostid+e.Maprange-1):
+		case isBetween(i.Hostid+i.Maprange-1, e.Hostid, e.Hostid+e.Maprange-1):
 			return true
-		case is_between(e.Nsid, i.Nsid, i.Nsid+i.Maprange-1):
+		case isBetween(e.Nsid, i.Nsid, i.Nsid+i.Maprange-1):
 			return true
-		case is_between(i.Nsid, e.Nsid, e.Nsid+e.Maprange-1):
+		case isBetween(i.Nsid, e.Nsid, e.Nsid+e.Maprange-1):
 			return true
-		case is_between(e.Nsid+e.Maprange-1, i.Nsid, i.Nsid+i.Maprange-1):
+		case isBetween(e.Nsid+e.Maprange-1, i.Nsid, i.Nsid+i.Maprange-1):
 			return true
-		case is_between(i.Nsid+i.Maprange-1, e.Nsid, e.Nsid+e.Maprange-1):
+		case isBetween(i.Nsid+i.Maprange-1, e.Nsid, e.Nsid+e.Maprange-1):
 			return true
 		}
 	}
@@ -247,7 +247,7 @@ func (e *IdmapEntry) parse(s string) error {
  * Shift a uid from the host into the container
  * I.e. 0 -> 1000 -> 101000.
  */
-func (e *IdmapEntry) shift_into_ns(id int64) (int64, error) {
+func (e *IdmapEntry) shiftIntoNs(id int64) (int64, error) {
 	if id < e.Nsid || id >= e.Nsid+e.Maprange {
 		// this mapping doesn't apply
 		return 0, errors.New("ID mapping doesn't apply")
@@ -260,7 +260,7 @@ func (e *IdmapEntry) shift_into_ns(id int64) (int64, error) {
  * Shift a uid from the container back to the host
  * I.e. 101000 -> 1000.
  */
-func (e *IdmapEntry) shift_from_ns(id int64) (int64, error) {
+func (e *IdmapEntry) shiftFromNs(id int64) (int64, error) {
 	if id < e.Hostid || id >= e.Hostid+e.Maprange {
 		// this mapping doesn't apply
 		return 0, errors.New("ID mapping doesn't apply")
@@ -565,9 +565,9 @@ func (m IdmapSet) doShiftIntoNs(uid int64, gid int64, how string) (int64, int64)
 		if e.Isuid && u == -1 {
 			switch how {
 			case "in":
-				tmpu, err = e.shift_into_ns(uid)
+				tmpu, err = e.shiftIntoNs(uid)
 			case "out":
-				tmpu, err = e.shift_from_ns(uid)
+				tmpu, err = e.shiftFromNs(uid)
 			}
 
 			if err == nil {
@@ -578,9 +578,9 @@ func (m IdmapSet) doShiftIntoNs(uid int64, gid int64, how string) (int64, int64)
 		if e.Isgid && g == -1 {
 			switch how {
 			case "in":
-				tmpg, err = e.shift_into_ns(gid)
+				tmpg, err = e.shiftIntoNs(gid)
 			case "out":
-				tmpg, err = e.shift_from_ns(gid)
+				tmpg, err = e.shiftFromNs(gid)
 			}
 
 			if err == nil {
@@ -600,7 +600,7 @@ func (m IdmapSet) ShiftFromNs(uid int64, gid int64) (int64, int64) {
 	return m.doShiftIntoNs(uid, gid, "out")
 }
 
-func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how string, skipper func(dir string, absPath string, fi os.FileInfo) bool) error {
+func (set *IdmapSet) doUidShiftIntoContainer(dir string, testmode bool, how string, skipper func(dir string, absPath string, fi os.FileInfo) bool) error {
 	if how == "in" && atomic.LoadInt32(&VFS3Fscaps) == VFS3FscapsUnknown {
 		if SupportsVFS3Fscaps(dir) {
 			atomic.StoreInt32(&VFS3Fscaps, VFS3FscapsSupported)
@@ -705,20 +705,20 @@ func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how stri
 	return filepath.Walk(dir, convert)
 }
 
-func (set *IdmapSet) UidshiftIntoContainer(dir string, testmode bool) error {
-	return set.doUidshiftIntoContainer(dir, testmode, "in", nil)
+func (set *IdmapSet) UidShiftIntoContainer(dir string, testmode bool) error {
+	return set.doUidShiftIntoContainer(dir, testmode, "in", nil)
 }
 
-func (set *IdmapSet) UidshiftFromContainer(dir string, testmode bool) error {
-	return set.doUidshiftIntoContainer(dir, testmode, "out", nil)
+func (set *IdmapSet) UidShiftFromContainer(dir string, testmode bool) error {
+	return set.doUidShiftIntoContainer(dir, testmode, "out", nil)
 }
 
 func (set *IdmapSet) ShiftRootfs(p string, skipper func(dir string, absPath string, fi os.FileInfo) bool) error {
-	return set.doUidshiftIntoContainer(p, false, "in", skipper)
+	return set.doUidShiftIntoContainer(p, false, "in", skipper)
 }
 
 func (set *IdmapSet) UnshiftRootfs(p string, skipper func(dir string, absPath string, fi os.FileInfo) bool) error {
-	return set.doUidshiftIntoContainer(p, false, "out", skipper)
+	return set.doUidShiftIntoContainer(p, false, "out", skipper)
 }
 
 func (set *IdmapSet) ShiftFile(p string) error {
