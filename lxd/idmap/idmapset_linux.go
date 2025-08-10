@@ -37,10 +37,12 @@ type IdRange struct {
 	Endid   int64
 }
 
+// Contains checks if the given id is within the range defined by Startid and Endid.
 func (i *IdRange) Contains(id int64) bool {
 	return id >= i.Startid && id <= i.Endid
 }
 
+// ToLxcString returns the idmap entry in a format suitable for lxc.idmap.
 func (e *IdmapEntry) ToLxcString() []string {
 	if e.Isuid && e.Isgid {
 		return []string{
@@ -56,10 +58,12 @@ func (e *IdmapEntry) ToLxcString() []string {
 	return []string{fmt.Sprintf("g %d %d %d", e.Nsid, e.Hostid, e.Maprange)}
 }
 
+// isBetween returns true if x is in the range [low, high).
 func isBetween(x, low, high int64) bool {
 	return x >= low && x < high
 }
 
+// HostidsIntersect checks if the host IDs of two idmap entries intersect.
 func (e *IdmapEntry) HostidsIntersect(i IdmapEntry) bool {
 	if (e.Isuid && i.Isuid) || (e.Isgid && i.Isgid) {
 		switch {
@@ -77,6 +81,7 @@ func (e *IdmapEntry) HostidsIntersect(i IdmapEntry) bool {
 	return false
 }
 
+// Intersects checks if two idmap entries intersect.
 func (e *IdmapEntry) Intersects(i IdmapEntry) bool {
 	if (e.Isuid && i.Isuid) || (e.Isgid && i.Isgid) {
 		switch {
@@ -142,6 +147,7 @@ func (e *IdmapEntry) HostIDsCoveredBy(allowedHostUIDs []IdmapEntry, allowedHostG
 	return e.Isuid == isUIDAllowed && e.Isgid == isGIDAllowed
 }
 
+// Usable returns whether or not the idmap entry is usable in the current user namespace.
 func (e *IdmapEntry) Usable() error {
 	kernelIdmap, err := CurrentIdmapSet()
 	if err != nil {
@@ -243,10 +249,8 @@ func (e *IdmapEntry) parse(s string) error {
 	return nil
 }
 
-/*
- * Shift a uid from the host into the container
- * I.e. 0 -> 1000 -> 101000.
- */
+// shiftIntoNs shifts a uid from the host into the container.
+// I.e. 0 -> 1000 -> 101000.
 func (e *IdmapEntry) shiftIntoNs(id int64) (int64, error) {
 	if id < e.Nsid || id >= e.Nsid+e.Maprange {
 		// this mapping doesn't apply
@@ -256,10 +260,8 @@ func (e *IdmapEntry) shiftIntoNs(id int64) (int64, error) {
 	return id - e.Nsid + e.Hostid, nil
 }
 
-/*
- * Shift a uid from the container back to the host
- * I.e. 101000 -> 1000.
- */
+// shiftFromNs shifts a uid from the container back to the host.
+// I.e. 101000 -> 1000.
 func (e *IdmapEntry) shiftFromNs(id int64) (int64, error) {
 	if id < e.Hostid || id >= e.Hostid+e.Maprange {
 		// this mapping doesn't apply
@@ -283,7 +285,8 @@ func (s ByHostid) Less(i, j int) bool {
 	return s[i].Hostid < s[j].Hostid
 }
 
-/* taken from http://blog.golang.org/slices (which is under BSD licence). */
+// Extend appends an element to a slice, growing it if necessary.
+// taken from http://blog.golang.org/slices (which is under BSD licence).
 func Extend(slice []IdmapEntry, element IdmapEntry) []IdmapEntry {
 	n := len(slice)
 	if n == cap(slice) {
@@ -299,6 +302,7 @@ func Extend(slice []IdmapEntry, element IdmapEntry) []IdmapEntry {
 	return slice
 }
 
+// Equals returns true if the two idmap sets are equal.
 func (m *IdmapSet) Equals(other *IdmapSet) bool {
 	// Get comparable maps
 	expandSortIdmap := func(input *IdmapSet) IdmapSet {
@@ -327,14 +331,17 @@ func (m *IdmapSet) Equals(other *IdmapSet) bool {
 	return reflect.DeepEqual(expandSortIdmap(m), expandSortIdmap(other))
 }
 
+// Len returns the length of the IdmapSet.
 func (m IdmapSet) Len() int {
 	return len(m.Idmap)
 }
 
+// Swap swaps the elements with indexes i and j.
 func (m IdmapSet) Swap(i, j int) {
 	m.Idmap[i], m.Idmap[j] = m.Idmap[j], m.Idmap[i]
 }
 
+// Less compares the elements with indexes i and j.
 func (m IdmapSet) Less(i, j int) bool {
 	if m.Idmap[i].Isuid != m.Idmap[j].Isuid {
 		return m.Idmap[i].Isuid
@@ -347,14 +354,17 @@ func (m IdmapSet) Less(i, j int) bool {
 	return m.Idmap[i].Nsid < m.Idmap[j].Nsid
 }
 
+// Intersects indicates whether the IdmapSet intersects.
 func (m IdmapSet) Intersects(i IdmapEntry) bool {
 	return slices.ContainsFunc(m.Idmap, i.Intersects)
 }
 
+// HostidsIntersect indicates whether the IdmapSet host IDs intersect with the given IdmapEntry.
 func (m IdmapSet) HostidsIntersect(i IdmapEntry) bool {
 	return slices.ContainsFunc(m.Idmap, i.HostidsIntersect)
 }
 
+// Usable checks if all entries in the IdmapSet are usable in the current user namespace.
 func (m IdmapSet) Usable() error {
 	for _, e := range m.Idmap {
 		err := e.Usable()
@@ -366,6 +376,7 @@ func (m IdmapSet) Usable() error {
 	return nil
 }
 
+// ValidRanges returns a list of valid ID ranges from the IdmapSet.
 func (m IdmapSet) ValidRanges() ([]*IdRange, error) {
 	ranges := []*IdRange{}
 
@@ -409,9 +420,8 @@ func (m IdmapSet) ValidRanges() ([]*IdRange, error) {
 
 var ErrHostIdIsSubId = errors.New("Host id is in the range of subids")
 
-/* AddSafe adds an entry to the idmap set, breaking apart any ranges that the
- * new idmap intersects with in the process.
- */
+// AddSafe adds an entry to the idmap set, breaking apart any ranges that the
+// new idmap intersects with in the process.
 func (m *IdmapSet) AddSafe(i IdmapEntry) error {
 	/*
 	 * doAddSafe() can't properly handle mappings that
@@ -491,6 +501,7 @@ func (m *IdmapSet) doAddSafe(i IdmapEntry) error {
 	return nil
 }
 
+// ToLxcString returns a slice of strings representing the idmap set in a format suitable for lxc.idmap.
 func (m IdmapSet) ToLxcString() []string {
 	var lines []string
 	for _, e := range m.Idmap {
@@ -504,6 +515,8 @@ func (m IdmapSet) ToLxcString() []string {
 	return lines
 }
 
+// ToUidMappings returns the idmap set as a slice of syscall.SysProcIDMap,
+// which is suitable for use with the setuid system call.
 func (m IdmapSet) ToUidMappings() []syscall.SysProcIDMap {
 	mapping := []syscall.SysProcIDMap{}
 
@@ -522,6 +535,8 @@ func (m IdmapSet) ToUidMappings() []syscall.SysProcIDMap {
 	return mapping
 }
 
+// ToGidMappings returns the idmap set as a slice of syscall.SysProcIDMap,
+// which is suitable for use with the setgid system call.
 func (m IdmapSet) ToGidMappings() []syscall.SysProcIDMap {
 	mapping := []syscall.SysProcIDMap{}
 
@@ -540,6 +555,7 @@ func (m IdmapSet) ToGidMappings() []syscall.SysProcIDMap {
 	return mapping
 }
 
+// Append extends the IdmapSet with a new entry if it doesn't conflict with existing entries.
 func (m IdmapSet) Append(s string) (IdmapSet, error) {
 	e := IdmapEntry{}
 	err := e.parse(s)
@@ -592,10 +608,12 @@ func (m IdmapSet) doShiftIntoNs(uid int64, gid int64, how string) (int64, int64)
 	return u, g
 }
 
+// ShiftIntoNs shifts the UID and GID according to the idmap set.
 func (m IdmapSet) ShiftIntoNs(uid int64, gid int64) (int64, int64) {
 	return m.doShiftIntoNs(uid, gid, "in")
 }
 
+// ShiftFromNs shifts the UID and GID back according to the idmap set.
 func (m IdmapSet) ShiftFromNs(uid int64, gid int64) (int64, int64) {
 	return m.doShiftIntoNs(uid, gid, "out")
 }
@@ -705,29 +723,32 @@ func (set *IdmapSet) doUidShiftIntoContainer(dir string, testmode bool, how stri
 	return filepath.Walk(dir, convert)
 }
 
+// UidShiftIntoContainer shifts a root filesystem's ownership and capabilities from the host into the container according to the idmap set.
 func (set *IdmapSet) UidShiftIntoContainer(dir string, testmode bool) error {
 	return set.doUidShiftIntoContainer(dir, testmode, "in", nil)
 }
 
+// UidShiftFromContainer shifts a root filesystem's ownership and capabilities from the container back to the host according to the idmap set.
 func (set *IdmapSet) UidShiftFromContainer(dir string, testmode bool) error {
 	return set.doUidShiftIntoContainer(dir, testmode, "out", nil)
 }
 
+// ShiftRootfs shifts a root filesystem's ownership and capabilities from the host into the container according to the idmap set.
 func (set *IdmapSet) ShiftRootfs(p string, skipper func(dir string, absPath string, fi os.FileInfo) bool) error {
 	return set.doUidShiftIntoContainer(p, false, "in", skipper)
 }
 
+// UnshiftRootfs shifts a root filesystem's ownership and capabilities from the container back to the host according to the idmap set.
 func (set *IdmapSet) UnshiftRootfs(p string, skipper func(dir string, absPath string, fi os.FileInfo) bool) error {
 	return set.doUidShiftIntoContainer(p, false, "out", skipper)
 }
 
+// ShiftFile shifts a single file's ownership and capabilities from the host into the container according to the idmap set.
 func (set *IdmapSet) ShiftFile(p string) error {
 	return set.ShiftRootfs(p, nil)
 }
 
-/*
- * get a uid or gid mapping from /etc/subxid.
- */
+// getFromShadow gets a uid or gid mapping from /etc/sub{g,u}id.
 func getFromShadow(fname string, username string) ([][]int64, error) {
 	entries := [][]int64{}
 
@@ -776,9 +797,7 @@ func getFromShadow(fname string, username string) ([][]int64, error) {
 	return entries, nil
 }
 
-/*
- * get a uid or gid mapping from /proc/self/{g,u}id_map.
- */
+// getFromProc gets a uid or gid mapping from /proc/self/{g,u}id_map.
 func getFromProc(fname string) ([][]int64, error) {
 	entries := [][]int64{}
 
@@ -831,9 +850,7 @@ func getFromProc(fname string) ([][]int64, error) {
 	return entries, nil
 }
 
-/*
- * Create a new default idmap.
- */
+// DefaultIdmapSet creates a new default idmap.
 func DefaultIdmapSet(rootfs string, username string) (*IdmapSet, error) {
 	idmapset := new(IdmapSet)
 
@@ -1003,9 +1020,7 @@ func kernelDefaultMap() (*IdmapSet, error) {
 	return idmapset, nil
 }
 
-/*
- * Create an idmap of the current allocation.
- */
+// CurrentIdmapSet creates an idmap of the current allocation.
 func CurrentIdmapSet() (*IdmapSet, error) {
 	idmapset := new(IdmapSet)
 
