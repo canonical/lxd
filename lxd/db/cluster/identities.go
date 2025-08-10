@@ -47,7 +47,6 @@ import (
 //go:generate mapper method -i -e identity GetMany
 //go:generate mapper method -i -e identity GetOne
 //go:generate mapper method -i -e identity ID struct=Identity
-//go:generate mapper method -i -e identity Exists struct=Identity
 //go:generate mapper method -i -e identity Create struct=Identity
 //go:generate mapper method -i -e identity DeleteOne-by-AuthMethod-and-Identifier
 //go:generate mapper method -i -e identity DeleteMany-by-Name-and-Type
