@@ -786,12 +786,12 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		if mapping.Type == AssociationTable {
 			m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, kind)))
 			buf.L("// Execute the statement. ")
-			buf.L("_, err = stmt.Exec(args...)")
+			buf.L("_, err = stmt.ExecContext(ctx, args...)")
 			m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Failed to create \"%s\" entry: %%w", err)`, entityTable(m.entity, m.config["table"])))
 		} else {
 			m.ifErrNotNil(buf, true, "-1", fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, kind)))
 			buf.L("// Execute the statement. ")
-			buf.L("result, err := stmt.Exec(args...)")
+			buf.L("result, err := stmt.ExecContext(ctx, args...)")
 			m.ifErrNotNil(buf, true, "-1", fmt.Sprintf(`fmt.Errorf("Failed to create \"%s\" entry: %%w", err)`, entityTable(m.entity, m.config["table"])))
 			buf.L("id, err := result.LastInsertId()")
 			m.ifErrNotNil(buf, true, "-1", fmt.Sprintf(`fmt.Errorf("Failed to fetch \"%s\" entry ID: %%w", err)`, entityTable(m.entity, m.config["table"])))
@@ -934,7 +934,7 @@ func (m *Method) rename(buf *file.Buffer) error {
 		}
 	}
 
-	buf.L("result, err := stmt.Exec(to, %s)", mapping.FieldParamsMarshal(nk))
+	buf.L("result, err := stmt.ExecContext(ctx, to, %s)", mapping.FieldParamsMarshal(nk))
 	m.ifErrNotNil(buf, true, fmt.Sprintf("fmt.Errorf(\"Rename %s failed: %%w\", err)", mapping.Name))
 	buf.L("n, err := result.RowsAffected()")
 	m.ifErrNotNil(buf, true, "fmt.Errorf(\"Fetch affected rows failed: %w\", err)")
@@ -1060,7 +1060,7 @@ func (m *Method) update(buf *file.Buffer) error {
 			}
 		}
 
-		buf.L("result, err := stmt.Exec(%s)", strings.Join(params, ", ")+", id")
+		buf.L("result, err := stmt.ExecContext(ctx, %s)", strings.Join(params, ", ")+", id")
 		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Update \"%s\" entry failed: %%w", err)`, entityTable(m.entity, m.config["table"])))
 		buf.L("n, err := result.RowsAffected()")
 		m.ifErrNotNil(buf, true, "fmt.Errorf(\"Fetch affected rows: %w\", err)")
@@ -1149,7 +1149,7 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 		}
 
 		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, "delete", m.config["struct"]+"ID")))
-		buf.L("result, err := stmt.Exec(int(%sID))", lex.Minuscule(m.config["struct"]))
+		buf.L("result, err := stmt.ExecContext(ctx, int(%sID))", lex.Minuscule(m.config["struct"]))
 		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Delete \"%s\" entry failed: %%w", err)`, entityTable(m.entity, m.config["table"])))
 	case ReferenceTable, MapTable:
 		stmtVar := stmtCodeVar(m.entity, "delete")
@@ -1179,7 +1179,7 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 		}
 
 		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, "delete", FieldNames(activeFilters)...)))
-		buf.L("result, err := stmt.Exec(%s)", mapping.FieldParamsMarshal(activeFilters))
+		buf.L("result, err := stmt.ExecContext(ctx, %s)", mapping.FieldParamsMarshal(activeFilters))
 		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Delete \"%s\": %%w", err)`, entityTable(m.entity, m.config["table"])))
 	}
 
