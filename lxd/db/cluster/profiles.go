@@ -26,7 +26,6 @@ import (
 //go:generate mapper stmt -e profile delete-by-Project-and-Name
 //
 //go:generate mapper method -i -e profile ID
-//go:generate mapper method -i -e profile Exists
 //go:generate mapper method -i -e profile GetMany references=Config,Device
 //go:generate mapper method -i -e profile GetOne
 //go:generate mapper method -i -e profile Create references=Config,Device
