@@ -5,7 +5,9 @@ import (
 )
 
 // entityTypeNetworkZone implements entityTypeDBInfo for a NetworkZone.
-type entityTypeNetworkZone struct{}
+type entityTypeNetworkZone struct {
+	entityTypeCommon
+}
 
 func (e entityTypeNetworkZone) code() int64 {
 	return entityTypeCodeNetworkZone

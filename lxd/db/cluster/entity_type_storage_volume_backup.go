@@ -5,7 +5,9 @@ import (
 )
 
 // entityTypeStorageVolumeBackup implements entityTypeDBInfo for a StorageVolumeBackup.
-type entityTypeStorageVolumeBackup struct{}
+type entityTypeStorageVolumeBackup struct {
+	entityTypeCommon
+}
 
 func (e entityTypeStorageVolumeBackup) code() int64 {
 	return entityTypeCodeStorageVolumeBackup

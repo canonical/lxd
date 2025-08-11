@@ -5,7 +5,9 @@ import (
 )
 
 // entityTypeImageAlias implements entityTypeDBInfo for an ImageAlias.
-type entityTypeImageAlias struct{}
+type entityTypeImageAlias struct {
+	entityTypeCommon
+}
 
 func (e entityTypeImageAlias) code() int64 {
 	return entityTypeCodeImageAlias
