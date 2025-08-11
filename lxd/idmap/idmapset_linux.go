@@ -56,18 +56,20 @@ func (i *IdRange) Contains(id int64) bool {
 
 // ToLxcString returns the idmap entry in a format suitable for lxc.idmap.
 func (e *IdmapEntry) ToLxcString() []string {
+	digits := fmt.Sprintf("%d %d %d", e.Nsid, e.Hostid, e.Maprange)
+
 	if e.Isuid && e.Isgid {
 		return []string{
-			fmt.Sprintf("u %d %d %d", e.Nsid, e.Hostid, e.Maprange),
-			fmt.Sprintf("g %d %d %d", e.Nsid, e.Hostid, e.Maprange),
+			"u " + digits,
+			"g " + digits,
 		}
 	}
 
 	if e.Isuid {
-		return []string{fmt.Sprintf("u %d %d %d", e.Nsid, e.Hostid, e.Maprange)}
+		return []string{"u " + digits}
 	}
 
-	return []string{fmt.Sprintf("g %d %d %d", e.Nsid, e.Hostid, e.Maprange)}
+	return []string{"g " + digits}
 }
 
 // isBetween returns true if x is in the range [low, high).
