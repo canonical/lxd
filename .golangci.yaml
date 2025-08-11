@@ -93,7 +93,6 @@ linters:
       - third_party$
       - builtin$
       - examples$
-      - lxd/idmap/idmapset_linux\.go$
     rules:
       - linters:
           - staticcheck
