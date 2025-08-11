@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"os/user"
 	"path"
@@ -538,6 +539,22 @@ func (m IdmapSet) toMappings(isUID bool) []syscall.SysProcIDMap {
 		}
 
 		if !isUID && !e.Isgid {
+			continue
+		}
+
+		// Bound checking.
+		if e.Nsid > math.MaxInt || e.Nsid < math.MinInt {
+			logger.Warnf("Skipping idmap entry with Nsid %d as it exceeds the int range", e.Nsid)
+			continue
+		}
+
+		if e.Hostid > math.MaxInt || e.Hostid < math.MinInt {
+			logger.Warnf("Skipping idmap entry with Hostid %d as it exceeds the int range", e.Hostid)
+			continue
+		}
+
+		if e.Maprange > math.MaxInt || e.Maprange < math.MinInt {
+			logger.Warnf("Skipping idmap entry with Maprange %d as it exceeds the int range", e.Maprange)
 			continue
 		}
 
