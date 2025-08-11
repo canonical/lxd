@@ -191,7 +191,7 @@ func (d *powerflex) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allo
 	// If the source volume is of type image, lazy copying is enforced which prevents using optimized image storage
 	// but effectively allows to circumvent the PowerFlex limit of 126 snapshots.
 	client := d.client()
-	if len(vol.Snapshots) == 0 && shared.IsFalse(d.config["powerflex.clone_copy"]) {
+	if len(vol.Snapshots) == 0 && shared.IsTrue(d.config["powerflex.snapshot_copy"]) {
 		pool, err := d.resolvePool()
 		if err != nil {
 			return err
