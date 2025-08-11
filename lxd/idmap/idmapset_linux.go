@@ -981,7 +981,7 @@ func kernelDefaultMap() (*IdmapSet, error) {
 			continue
 		}
 
-		// Don't use the first 65536 ids
+		// Don't use the first 100000 ids
 		if entry.Startid < 100000 {
 			entry.Startid = 100000
 		}
