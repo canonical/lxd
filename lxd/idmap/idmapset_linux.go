@@ -527,13 +527,17 @@ func (m IdmapSet) ToLxcString() []string {
 	return lines
 }
 
-// ToUidMappings returns the idmap set as a slice of syscall.SysProcIDMap,
-// which is suitable for use with the setuid system call.
-func (m IdmapSet) ToUidMappings() []syscall.SysProcIDMap { //nolint:revive
+// toMappings returns the IdmapSet as a slice of syscall.SysProcIDMap,
+// suitable for use with the setuid or setgid system call.
+func (m IdmapSet) toMappings(isUID bool) []syscall.SysProcIDMap {
 	mapping := []syscall.SysProcIDMap{}
 
 	for _, e := range m.Idmap {
-		if !e.Isuid {
+		if isUID && !e.Isuid {
+			continue
+		}
+
+		if !isUID && !e.Isgid {
 			continue
 		}
 
@@ -547,24 +551,16 @@ func (m IdmapSet) ToUidMappings() []syscall.SysProcIDMap { //nolint:revive
 	return mapping
 }
 
+// ToUidMappings returns the idmap set as a slice of syscall.SysProcIDMap,
+// which is suitable for use with the setuid system call.
+func (m IdmapSet) ToUidMappings() []syscall.SysProcIDMap { //nolint:revive
+	return m.toMappings(true)
+}
+
 // ToGidMappings returns the idmap set as a slice of syscall.SysProcIDMap,
 // which is suitable for use with the setgid system call.
 func (m IdmapSet) ToGidMappings() []syscall.SysProcIDMap {
-	mapping := []syscall.SysProcIDMap{}
-
-	for _, e := range m.Idmap {
-		if !e.Isgid {
-			continue
-		}
-
-		mapping = append(mapping, syscall.SysProcIDMap{
-			ContainerID: int(e.Nsid),
-			HostID:      int(e.Hostid),
-			Size:        int(e.Maprange),
-		})
-	}
-
-	return mapping
+	return m.toMappings(false)
 }
 
 // Append extends the IdmapSet with a new entry if it doesn't conflict with existing entries.
