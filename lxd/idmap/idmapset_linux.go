@@ -822,14 +822,8 @@ func getFromProc(fname string) ([][]int64, error) {
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
-		// Skip comments
-		s := strings.Split(scanner.Text(), "#")
-		if len(s[0]) == 0 {
-			continue
-		}
-
 		// Validate format
-		s = strings.Fields(s[0])
+		s := strings.Fields(scanner.Text())
 		if len(s) < 3 {
 			return nil, fmt.Errorf("Unexpected values in %q: %q", fname, s)
 		}
