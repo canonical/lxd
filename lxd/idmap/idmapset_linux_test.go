@@ -4,10 +4,65 @@ package idmap
 
 import (
 	"fmt"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func Test_ToLxcString(t *testing.T) {
+	tests := []struct {
+		name     string
+		idmapSet IdmapSet
+		expected []string
+	}{
+		{
+			name:     "empty idmap set",
+			idmapSet: IdmapSet{},
+			expected: []string{},
+		},
+		{
+			name: "single uid entry",
+			idmapSet: IdmapSet{
+				Idmap: []IdmapEntry{
+					{Isuid: true, Hostid: 1000, Nsid: 0, Maprange: 1000},
+				},
+			},
+			expected: []string{"u 0 1000 1000"},
+		},
+		{
+			name: "single gid entry",
+			idmapSet: IdmapSet{
+				Idmap: []IdmapEntry{
+					{Isgid: true, Hostid: 1000, Nsid: 0, Maprange: 1000},
+				},
+			},
+			expected: []string{"g 0 1000 1000"},
+		},
+		{
+			name: "single both entry",
+			idmapSet: IdmapSet{
+				Idmap: []IdmapEntry{
+					{Isuid: true, Isgid: true, Hostid: 1000, Nsid: 0, Maprange: 1000},
+				},
+			},
+			expected: []string{
+				"u 0 1000 1000",
+				"g 0 1000 1000",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.idmapSet.ToLxcString()
+			if !slices.Equal(result, tt.expected) {
+				t.Errorf("ToLxcString() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
 
 func TestIdmapSetAddSafe_split(t *testing.T) {
 	orig := IdmapSet{Idmap: []IdmapEntry{{Isuid: true, Hostid: 1000, Nsid: 0, Maprange: 1000}}}
