@@ -2722,3 +2722,7 @@ reserved for dynamic allocation using DHCP.
 ## `operation_requestor`
 
 This adds a new `requestor` field to operations, which contains information about the caller that initiated the operation.
+
+## `import_custom_volume_tar`
+
+This adds new option `tar` for parameter `--type` in `POST /1.0/storage-pools/{poolName}/volumes/{type}` API call.
