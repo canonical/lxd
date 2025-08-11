@@ -8,7 +8,9 @@ import (
 )
 
 // entityTypeCertificate implements entityTypeDBInfo for a Certificate.
-type entityTypeCertificate struct{}
+type entityTypeCertificate struct {
+	entityTypeCommon
+}
 
 var certIdentityTypes = func() (types []int64) {
 	for _, t := range identity.Types() {
@@ -33,10 +35,6 @@ func (e entityTypeCertificate) allURLsQuery() string {
 		query.IntParams(certIdentityTypes()...))
 }
 
-func (e entityTypeCertificate) urlsByProjectQuery() string {
-	return ""
-}
-
 func (e entityTypeCertificate) urlByIDQuery() string {
 	return e.allURLsQuery() + " AND identities.id = ?"
 }
@@ -52,8 +50,4 @@ WHERE '' = ?
 	AND identities.type IN %s
 `, authMethodTLS,
 		query.IntParams(certIdentityTypes()...))
-}
-
-func (e entityTypeCertificate) onDeleteTriggerSQL() (name string, sql string) {
-	return "", ""
 }

@@ -5,7 +5,9 @@ import (
 )
 
 // entityTypeClusterMember implements entityTypeDBInfo for a ClusterMember.
-type entityTypeClusterMember struct{}
+type entityTypeClusterMember struct {
+	entityTypeCommon
+}
 
 func (e entityTypeClusterMember) code() int64 {
 	return entityTypeCodeClusterMember
@@ -13,10 +15,6 @@ func (e entityTypeClusterMember) code() int64 {
 
 func (e entityTypeClusterMember) allURLsQuery() string {
 	return fmt.Sprintf(`SELECT %d, nodes.id, '', '', json_array(nodes.name) FROM nodes`, e.code())
-}
-
-func (e entityTypeClusterMember) urlsByProjectQuery() string {
-	return ""
 }
 
 func (e entityTypeClusterMember) urlByIDQuery() string {

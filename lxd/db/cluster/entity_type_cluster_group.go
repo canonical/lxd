@@ -5,7 +5,9 @@ import (
 )
 
 // entityTypeClusterGroup implements entityTypeDBInfo for a ClusterGroup.
-type entityTypeClusterGroup struct{}
+type entityTypeClusterGroup struct {
+	entityTypeCommon
+}
 
 func (e entityTypeClusterGroup) code() int64 {
 	return entityTypeCodeClusterGroup
@@ -13,10 +15,6 @@ func (e entityTypeClusterGroup) code() int64 {
 
 func (e entityTypeClusterGroup) allURLsQuery() string {
 	return fmt.Sprintf(`SELECT %d, cluster_groups.id, '', '', json_array(cluster_groups.name) FROM cluster_groups`, e.code())
-}
-
-func (e entityTypeClusterGroup) urlsByProjectQuery() string {
-	return ""
 }
 
 func (e entityTypeClusterGroup) urlByIDQuery() string {

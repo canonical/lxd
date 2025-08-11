@@ -5,7 +5,9 @@ import (
 )
 
 // entityTypeInstanceSnapshot implements entityTypeDBInfo for an InstanceSnapshot.
-type entityTypeInstanceSnapshot struct{}
+type entityTypeInstanceSnapshot struct {
+	entityTypeCommon
+}
 
 func (e entityTypeInstanceSnapshot) code() int64 {
 	return entityTypeCodeInstanceSnapshot

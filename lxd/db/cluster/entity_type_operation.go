@@ -6,7 +6,9 @@ import (
 )
 
 // entityTypeOperation implements entityTypeDBInfo for an Operation.
-type entityTypeOperation struct{}
+type entityTypeOperation struct {
+	entityTypeCommon
+}
 
 func (e entityTypeOperation) code() int64 {
 	return entityTypeCodeOperation
