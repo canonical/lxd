@@ -328,8 +328,10 @@ func (m *IdmapSet) Equals(other *IdmapSet) bool {
 
 		for _, entry := range input.Idmap {
 			if entry.Isuid && entry.Isgid {
-				newEntries = append(newEntries, IdmapEntry{true, false, entry.Hostid, entry.Nsid, entry.Maprange})
-				newEntries = append(newEntries, IdmapEntry{false, true, entry.Hostid, entry.Nsid, entry.Maprange})
+				newEntries = append(newEntries,
+					IdmapEntry{true, false, entry.Hostid, entry.Nsid, entry.Maprange},
+					IdmapEntry{false, true, entry.Hostid, entry.Nsid, entry.Maprange},
+				)
 			} else {
 				newEntries = append(newEntries, entry)
 			}
