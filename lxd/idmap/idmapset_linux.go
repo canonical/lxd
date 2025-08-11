@@ -23,12 +23,24 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
-const VFS3FscapsUnsupported int32 = 0
-const VFS3FscapsSupported int32 = 1
-const VFS3FscapsUnknown int32 = -1
+const (
+	// VFS3FscapsSupported indicates that the underlying filesystem supports file capabilities.
+	VFS3FscapsSupported int32 = 1
+	// VFS3FscapsUnknown indicates that the support for file capabilities is unknown.
+	VFS3FscapsUnknown int32 = -1
+	// VFS3FscapsUnsupported indicates that the underlying filesystem does not support file capabilities.
+	VFS3FscapsUnsupported int32 = 0
+)
 
-var VFS3Fscaps int32 = VFS3FscapsUnknown
-var ErrNoUserMap = errors.New("No map found for user")
+var (
+	// VFS3Fscaps indicates whether the underlying filesystem supports file capabilities.
+	VFS3Fscaps = VFS3FscapsUnknown
+	// ErrNoUserMap is returned when no user map could be found for the specified user.
+	ErrNoUserMap = errors.New("No map found for user")
+	// ErrHostIdIsSubId is returned when an attempt is made to add an idmap entry
+	// that intersects with an existing entry's host IDs.
+	ErrHostIdIsSubId = errors.New("Host id is in the range of subids") //nolint:revive
+)
 
 type IdRange struct {
 	Isuid   bool
@@ -417,8 +429,6 @@ func (m IdmapSet) ValidRanges() ([]*IdRange, error) {
 
 	return ranges, nil
 }
-
-var ErrHostIdIsSubId = errors.New("Host id is in the range of subids")
 
 // AddSafe adds an entry to the idmap set, breaking apart any ranges that the
 // new idmap intersects with in the process.
