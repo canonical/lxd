@@ -433,13 +433,11 @@ func (m IdmapSet) ValidRanges() ([]*IdRange, error) {
 // AddSafe adds an entry to the idmap set, breaking apart any ranges that the
 // new idmap intersects with in the process.
 func (m *IdmapSet) AddSafe(i IdmapEntry) error {
-	/*
-	 * doAddSafe() can't properly handle mappings that
-	 * both UID and GID, because in this case the "i" idmapping
-	 * will be inserted twice which may result to a further bugs and issues.
-	 * Simplest solution is to split a "both" mapping into two separate ones
-	 * one for UIDs and another one for GIDs.
-	 */
+	// doAddSafe() can't properly handle mappings that
+	// both UID and GID, because in this case the "i" idmapping
+	// will be inserted twice which may result to a further bugs and issues.
+	// Simplest solution is to split a "both" mapping into two separate ones
+	// one for UIDs and another one for GIDs.
 	newUidIdmapEntry := i //nolint:revive
 	newUidIdmapEntry.Isgid = false
 	err := m.doAddSafe(newUidIdmapEntry)
