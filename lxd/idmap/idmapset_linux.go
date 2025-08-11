@@ -579,9 +579,9 @@ func (m IdmapSet) Append(s string) (IdmapSet, error) {
 	return m, nil
 }
 
-func (m IdmapSet) doShiftIntoNs(uid int64, gid int64, how string) (int64, int64) {
-	u := int64(-1)
-	g := int64(-1)
+func (m IdmapSet) doShiftIntoNs(uid int64, gid int64, how string) (u int64, g int64) {
+	u = -1
+	g = -1
 
 	for _, e := range m.Idmap {
 		var err error
@@ -617,12 +617,12 @@ func (m IdmapSet) doShiftIntoNs(uid int64, gid int64, how string) (int64, int64)
 }
 
 // ShiftIntoNs shifts the UID and GID according to the idmap set.
-func (m IdmapSet) ShiftIntoNs(uid int64, gid int64) (int64, int64) {
+func (m IdmapSet) ShiftIntoNs(uid int64, gid int64) (u int64, g int64) {
 	return m.doShiftIntoNs(uid, gid, "in")
 }
 
 // ShiftFromNs shifts the UID and GID back according to the idmap set.
-func (m IdmapSet) ShiftFromNs(uid int64, gid int64) (int64, int64) {
+func (m IdmapSet) ShiftFromNs(uid int64, gid int64) (u int64, g int64) {
 	return m.doShiftIntoNs(uid, gid, "out")
 }
 
