@@ -6627,15 +6627,6 @@
 			"pool-conf": {
 				"keys": [
 					{
-						"powerflex.clone_copy": {
-							"defaultdesc": "`true`",
-							"longdesc": "If this option is set to `true`, PowerFlex makes a non-sparse copy when creating a snapshot of an instance or custom volume.\nSee {ref}`storage-powerflex-limitations` for more information.",
-							"scope": "global",
-							"shortdesc": "Whether to use non-sparse copies for snapshots",
-							"type": "bool"
-						}
-					},
-					{
 						"powerflex.domain": {
 							"longdesc": "This option is required only if {config:option}`storage-powerflex-pool-conf:powerflex.pool` is specified using its name.",
 							"scope": "global",
@@ -6683,6 +6674,15 @@
 							"scope": "global",
 							"shortdesc": "Comma separated list of PowerFlex NVMe/TCP SDTs",
 							"type": "string"
+						}
+					},
+					{
+						"powerflex.snapshot_copy": {
+							"defaultdesc": "`false`",
+							"longdesc": "If this option is set to `true`, PowerFlex makes a sparse snapshot when copying an instance or custom volume.\nSee {ref}`storage-powerflex-limitations` for more information.",
+							"scope": "global",
+							"shortdesc": "Whether to use sparse snapshots for copies",
+							"type": "bool"
 						}
 					},
 					{
