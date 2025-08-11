@@ -27,3 +27,13 @@ func (e entityTypeCommon) idFromURLQuery() string {
 func (e entityTypeCommon) onDeleteTriggerSQL() (name string, sql string) {
 	return "", ""
 }
+
+// onInsertTriggerSQL returns empty because most entityTypeDBInfo implementations have an insert trigger.
+func (e entityTypeCommon) onInsertTriggerSQL() (name string, sql string) {
+	return "", ""
+}
+
+// onUpdateTriggerSQL returns empty because most entityTypeDBInfo implementations have an update trigger.
+func (e entityTypeCommon) onUpdateTriggerSQL() (name string, sql string) {
+	return "", ""
+}
