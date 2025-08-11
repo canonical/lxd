@@ -4,6 +4,9 @@ package idmap
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"reflect"
 	"slices"
 	"testing"
 
@@ -280,4 +283,71 @@ func TestIdmapHostIDMapRange(t *testing.T) {
 	assert.False(t, combinedEntry.HostIDsCoveredBy(allowedCombinedMaps, nil))
 	assert.False(t, combinedEntry.HostIDsCoveredBy(nil, allowedCombinedMaps))
 	assert.True(t, combinedEntry.HostIDsCoveredBy(allowedCombinedMaps, allowedCombinedMaps))
+}
+
+func Test_getFromProc(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		expected [][]int64
+		wantErr  bool
+	}{
+		{
+			name:     "valid entry",
+			content:  "         0          0 4294967295\n",
+			expected: [][]int64{{0, 0, 4294967295}},
+		},
+		{
+			name:     "valid entries",
+			content:  "0 1000 1\n1 1001 5",
+			expected: [][]int64{{0, 1000, 1}, {1, 1001, 5}},
+		},
+		{
+			name:    "empty file",
+			content: "",
+			wantErr: true,
+		},
+		{
+			name:    "invalid format",
+			content: "0 1000",
+			wantErr: true,
+		},
+		{
+			name:     "skip invalid entries",
+			content:  "invalid 1000 1\n0 1000 1",
+			expected: [][]int64{{0, 1000, 1}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create temp file with test content
+			tmpDir := t.TempDir()
+			tmpFile := filepath.Join(tmpDir, "Xid_map")
+
+			err := os.WriteFile(tmpFile, []byte(tt.content), 0644)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Test the function
+			result, err := getFromProc(tmpFile)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Error("expected error but got none")
+				}
+
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if !reflect.DeepEqual(result, tt.expected) {
+				t.Errorf("got %v, want %v", result, tt.expected)
+			}
+		})
+	}
 }
