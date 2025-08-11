@@ -409,6 +409,8 @@ type InstanceServer interface {
 
 	// Storage volume ISO import function ("custom_volume_iso" API extension)
 	CreateStoragePoolVolumeFromISO(pool string, args StoragePoolVolumeBackupArgs) (op Operation, err error)
+	// Storage volume tar import function ("import_custom_volume_tar" API extension)
+	CreateStoragePoolVolumeFromTarball(pool string, args StoragePoolVolumeBackupArgs) (op Operation, err error)
 
 	// Cluster functions ("cluster" API extensions)
 	GetCluster() (cluster *api.Cluster, ETag string, err error)
