@@ -1065,13 +1065,7 @@ func (r *ProtocolLXD) GetStoragePoolVolumeBackupFile(pool string, volName string
 	return &resp, nil
 }
 
-// CreateStoragePoolVolumeFromISO creates a custom volume from an ISO file.
-func (r *ProtocolLXD) CreateStoragePoolVolumeFromISO(pool string, args StoragePoolVolumeBackupArgs) (Operation, error) {
-	err := r.CheckExtension("custom_volume_iso")
-	if err != nil {
-		return nil, err
-	}
-
+func (r *ProtocolLXD) createStoragePoolVolumeFromFile(pool string, args StoragePoolVolumeBackupArgs, fileType string) (Operation, error) {
 	path := "/storage-pools/" + url.PathEscape(pool) + "/volumes/custom"
 
 	// Prepare the HTTP request.
@@ -1085,13 +1079,15 @@ func (r *ProtocolLXD) CreateStoragePoolVolumeFromISO(pool string, args StoragePo
 		return nil, err
 	}
 
-	if args.Name == "" {
-		return nil, errors.New("Missing volume name")
+	req.Header.Set("Content-Type", "application/octet-stream")
+
+	if args.Name != "" {
+		req.Header.Set("X-LXD-name", args.Name)
 	}
 
-	req.Header.Set("Content-Type", "application/octet-stream")
-	req.Header.Set("X-LXD-name", args.Name)
-	req.Header.Set("X-LXD-type", "iso")
+	if fileType != "" {
+		req.Header.Set("X-LXD-type", fileType)
+	}
 
 	// Send the request.
 	resp, err := r.DoHTTP(req)
@@ -1123,6 +1119,20 @@ func (r *ProtocolLXD) CreateStoragePoolVolumeFromISO(pool string, args StoragePo
 	return &op, nil
 }
 
+// CreateStoragePoolVolumeFromISO creates a custom volume from an ISO file.
+func (r *ProtocolLXD) CreateStoragePoolVolumeFromISO(pool string, args StoragePoolVolumeBackupArgs) (Operation, error) {
+	err := r.CheckExtension("custom_volume_iso")
+	if err != nil {
+		return nil, err
+	}
+
+	if args.Name == "" {
+		return nil, errors.New("Missing volume name")
+	}
+
+	return r.createStoragePoolVolumeFromFile(pool, args, "iso")
+}
+
 // CreateStoragePoolVolumeFromBackup creates a custom volume from a backup file.
 func (r *ProtocolLXD) CreateStoragePoolVolumeFromBackup(pool string, args StoragePoolVolumeBackupArgs) (Operation, error) {
 	err := r.CheckExtension("custom_volume_backup")
@@ -1137,51 +1147,5 @@ func (r *ProtocolLXD) CreateStoragePoolVolumeFromBackup(pool string, args Storag
 		}
 	}
 
-	path := "/storage-pools/" + url.PathEscape(pool) + "/volumes/custom"
-
-	// Prepare the HTTP request.
-	reqURL, err := r.setQueryAttributes(r.httpBaseURL.String() + "/1.0" + path)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodPost, reqURL, args.BackupFile)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("Content-Type", "application/octet-stream")
-
-	if args.Name != "" {
-		req.Header.Set("X-LXD-name", args.Name)
-	}
-
-	// Send the request.
-	resp, err := r.DoHTTP(req)
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() { _ = resp.Body.Close() }()
-
-	// Handle errors.
-	response, _, err := lxdParseResponse(resp)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get to the operation.
-	respOperation, err := response.MetadataAsOperation()
-	if err != nil {
-		return nil, err
-	}
-
-	// Setup an Operation wrapper.
-	op := operation{
-		Operation: *respOperation,
-		r:         r,
-		chActive:  make(chan bool),
-	}
-
-	return &op, nil
+	return r.createStoragePoolVolumeFromFile(pool, args, "")
 }
