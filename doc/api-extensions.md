@@ -2704,3 +2704,7 @@ The {config:option}`server-core:core.auth_secret_expiry` configuration option ca
 This introduces two new configuration keys {config:option}`server-miscellaneous:storage.project.{name}.images_volume` and
 {config:option}`server-miscellaneous:storage.project.{name}.backups_volume` per each project to allow for a storage volume on an existing
 pool be used for storing the project-specific images and backups artifacts.
+
+## `import_custom_volume_tar`
+
+This adds new option `tar` for parameter `--type` in `POST /1.0/storage-pools/{poolName}/volumes/{type}` API call.
