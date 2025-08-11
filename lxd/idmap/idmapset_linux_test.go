@@ -285,6 +285,84 @@ func TestIdmapHostIDMapRange(t *testing.T) {
 	assert.True(t, combinedEntry.HostIDsCoveredBy(allowedCombinedMaps, allowedCombinedMaps))
 }
 
+func Test_getFromShadow(t *testing.T) {
+	tests := []struct {
+		name     string
+		username string
+		content  string
+		expected [][]int64
+		wantErr  bool
+	}{
+		{
+			name:     "valid entry",
+			username: "root",
+			content:  "root:1000000:1000000000\n",
+			expected: [][]int64{{1000000, 1000000000}},
+		},
+		{
+			name:     "valid entries",
+			username: "foo",
+			content:  "foo:0:1000\nfoo:1001:5\n",
+			expected: [][]int64{{0, 1000}, {1001, 5}},
+		},
+		{
+			name:     "valid entry for foo",
+			username: "foo",
+			content:  "foo:0:1000\nbar:1001:5\n",
+			expected: [][]int64{{0, 1000}},
+		},
+		{
+			name:     "valid entry for bar",
+			username: "bar",
+			content:  "foo:0:1000\nbar:1001:5\n",
+			expected: [][]int64{{1001, 5}},
+		},
+		{
+			name:     "empty file",
+			username: "foo",
+			content:  "",
+			wantErr:  true,
+		},
+		{
+			name:     "invalid format",
+			username: "foo",
+			content:  "0:1000\n",
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create temp file with test content
+			tmpDir := t.TempDir()
+			tmpFile := filepath.Join(tmpDir, "subXid")
+
+			err := os.WriteFile(tmpFile, []byte(tt.content), 0644)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			result, err := getFromShadow(tmpFile, tt.username)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Error("expected error but got none")
+				}
+
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if !reflect.DeepEqual(result, tt.expected) {
+				t.Errorf("got %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
 func Test_getFromProc(t *testing.T) {
 	tests := []struct {
 		name     string
