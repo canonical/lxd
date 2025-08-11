@@ -70,6 +70,14 @@ type entityTypeDBInfo interface {
 	// triggers are in place so that warnings and group permissions do not contain stale entries. The first return value
 	// must be the name of the trigger, the second return value must be the SQL for creating the trigger.
 	onDeleteTriggerSQL() (name string, sql string)
+
+	// onUpdateTriggerSQL must return the SQL for a trigger that runs when an entity of this type is updated. If both
+	// name and sql are empty, no trigger is run.
+	onUpdateTriggerSQL() (name string, sql string)
+
+	// onInsertTriggerSQL must return the SQL for a trigger that runs when an entity of this type is inserted. If both
+	// name and sql are empty, no trigger is run.
+	onInsertTriggerSQL() (name string, sql string)
 }
 
 var entityTypes = map[entity.Type]entityTypeDBInfo{
