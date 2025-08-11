@@ -381,12 +381,6 @@ func createIdentityTLSTrusted(ctx context.Context, s *state.State, networkCert *
 	}
 
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		// Check if we already have the certificate.
-		_, err := dbCluster.GetIdentityID(ctx, tx.Tx(), api.AuthenticationMethodTLS, fingerprint)
-		if err == nil {
-			return api.StatusErrorf(http.StatusConflict, "Identity already exists")
-		}
-
 		// Create the identity.
 		id, err := dbCluster.CreateIdentity(ctx, tx.Tx(), dbCluster.Identity{
 			AuthMethod: api.AuthenticationMethodTLS,
@@ -396,7 +390,16 @@ func createIdentityTLSTrusted(ctx context.Context, s *state.State, networkCert *
 			Metadata:   metadata,
 		})
 		if err != nil {
-			return err
+			if api.StatusErrorCheck(err, http.StatusConflict) {
+				// Check if we already have the certificate.
+				_, err := dbCluster.GetIdentityID(ctx, tx.Tx(), api.AuthenticationMethodTLS, fingerprint)
+				if err == nil {
+					return api.NewStatusError(http.StatusConflict, "Identity already exists")
+				}
+
+				// If there are no identities with the same fingerprint, then there is a name conflict
+				return api.StatusErrorf(http.StatusConflict, "An identity with name %q already exists", req.Name)
+			}
 		}
 
 		if len(req.Groups) > 0 {
@@ -513,7 +516,12 @@ func createIdentityTLSPending(ctx context.Context, s *state.State, req api.Ident
 		return nil
 	})
 	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed to create pending TLS identity: %w", err))
+		if api.StatusErrorCheck(err, http.StatusConflict) {
+			// The only conflict here should be on identity name, since the identifier is a UUID.
+			return response.Conflict(fmt.Errorf("An identity with name %q already exists", req.Name))
+		}
+
+		return response.SmartError(fmt.Errorf("Failed to create pending TLS identity: %w", err))
 	}
 
 	// Notify other members, update the cache, and send a lifecycle event.
