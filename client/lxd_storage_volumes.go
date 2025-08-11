@@ -1133,6 +1133,20 @@ func (r *ProtocolLXD) CreateStoragePoolVolumeFromISO(pool string, args StoragePo
 	return r.createStoragePoolVolumeFromFile(pool, args, "iso")
 }
 
+// CreateStoragePoolVolumeFromTarball creates a custom filesystem volume from a tarball.
+func (r *ProtocolLXD) CreateStoragePoolVolumeFromTarball(pool string, args StoragePoolVolumeBackupArgs) (Operation, error) {
+	err := r.CheckExtension("import_custom_volume_tar")
+	if err != nil {
+		return nil, err
+	}
+
+	if args.Name == "" {
+		return nil, errors.New("Missing volume name")
+	}
+
+	return r.createStoragePoolVolumeFromFile(pool, args, "tar")
+}
+
 // CreateStoragePoolVolumeFromBackup creates a custom volume from a backup file.
 func (r *ProtocolLXD) CreateStoragePoolVolumeFromBackup(pool string, args StoragePoolVolumeBackupArgs) (Operation, error) {
 	err := r.CheckExtension("custom_volume_backup")
