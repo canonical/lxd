@@ -194,7 +194,7 @@ Create a storage pool named `pool2` using the ID of PowerFlex pool `sp1`:
 
 Create a storage pool named `pool3` that uses PowerFlex volume snapshots (see {ref}`storage-powerflex-limitations`) when creating volume copies:
 
-    lxc storage create pool3 powerflex powerflex.clone_copy=false powerflex.pool=<id of sp1> powerflex.gateway=https://powerflex powerflex.user.name=lxd powerflex.user.password=foo
+    lxc storage create pool3 powerflex powerflex.snapshot_copy=true powerflex.pool=<id of sp1> powerflex.gateway=https://powerflex powerflex.user.name=lxd powerflex.user.password=foo
 
 Create a storage pool named `pool4` that uses a PowerFlex gateway with a certificate that is not trusted:
 
