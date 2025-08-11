@@ -5,7 +5,9 @@ import (
 )
 
 // entityTypeIdentityProviderGroup implements entityTypeDBInfo for an IdentityProviderGroup.
-type entityTypeIdentityProviderGroup struct{}
+type entityTypeIdentityProviderGroup struct {
+	entityTypeCommon
+}
 
 func (e entityTypeIdentityProviderGroup) code() int64 {
 	return entityTypeCodeIdentityProviderGroup
@@ -13,10 +15,6 @@ func (e entityTypeIdentityProviderGroup) code() int64 {
 
 func (e entityTypeIdentityProviderGroup) allURLsQuery() string {
 	return fmt.Sprintf(`SELECT %d, identity_provider_groups.id, '', '', json_array(identity_provider_groups.name) FROM identity_provider_groups`, e.code())
-}
-
-func (e entityTypeIdentityProviderGroup) urlsByProjectQuery() string {
-	return ""
 }
 
 func (e entityTypeIdentityProviderGroup) urlByIDQuery() string {

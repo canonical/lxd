@@ -6,7 +6,9 @@ import (
 )
 
 // entityTypeWarning implements entityTypeDBInfo for a Warning.
-type entityTypeWarning struct{}
+type entityTypeWarning struct {
+	entityTypeCommon
+}
 
 func (e entityTypeWarning) code() int64 {
 	return entityTypeCodeWarning

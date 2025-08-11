@@ -9,7 +9,9 @@ import (
 )
 
 // entityTypeIdentity implements entityTypeDBInfo for an Identity.
-type entityTypeIdentity struct{}
+type entityTypeIdentity struct {
+	entityTypeCommon
+}
 
 // identityTypes returns the list of identity type codes that are considered fine-grained.
 func (e entityTypeIdentity) identityTypes() (types []int64) {
@@ -42,10 +44,6 @@ WHERE type IN %s`,
 		e.code(),
 		authMethodCaseClause(),
 		query.IntParams(e.identityTypes()...))
-}
-
-func (e entityTypeIdentity) urlsByProjectQuery() string {
-	return ""
 }
 
 func (e entityTypeIdentity) urlByIDQuery() string {
