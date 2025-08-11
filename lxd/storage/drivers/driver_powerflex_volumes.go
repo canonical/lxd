@@ -1,7 +1,6 @@
 package drivers
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -10,7 +9,6 @@ import (
 	"os"
 	"slices"
 	"strconv"
-	"strings"
 
 	"golang.org/x/sys/unix"
 
@@ -22,7 +20,6 @@ import (
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/validate"
@@ -692,135 +689,13 @@ func (d *powerflex) defaultBlockVolumeSize() string {
 
 // MountVolume mounts a volume and increments ref counter. Please call UnmountVolume() when done with the volume.
 func (d *powerflex) MountVolume(vol Volume, op *operations.Operation) error {
-	unlock, err := vol.MountLock()
-	if err != nil {
-		return err
-	}
-
-	defer unlock()
-
-	revert := revert.New()
-	defer revert.Fail()
-
-	// Activate PowerFlex volume if needed.
-	volDevPath, cleanup, err := d.getMappedDevPath(vol, true)
-	if err != nil {
-		return err
-	}
-
-	revert.Add(cleanup)
-
-	switch vol.contentType {
-	case ContentTypeFS:
-		mountPath := vol.MountPath()
-		if !filesystem.IsMountPoint(mountPath) {
-			err = vol.EnsureMountPath()
-			if err != nil {
-				return err
-			}
-
-			fsType := vol.ConfigBlockFilesystem()
-
-			if vol.mountFilesystemProbe {
-				fsType, err = fsProbe(volDevPath)
-				if err != nil {
-					return fmt.Errorf("Failed probing filesystem: %w", err)
-				}
-			}
-
-			mountFlags, mountOptions := filesystem.ResolveMountOptions(strings.Split(vol.ConfigBlockMountOptions(), ","))
-			err = TryMount(context.TODO(), volDevPath, mountPath, fsType, mountFlags, mountOptions)
-			if err != nil {
-				return err
-			}
-
-			d.logger.Debug("Mounted PowerFlex volume", logger.Ctx{"volName": vol.name, "dev": volDevPath, "path": mountPath, "options": mountOptions})
-		}
-
-	case ContentTypeBlock:
-		// For VMs, mount the filesystem volume.
-		if vol.IsVMBlock() {
-			fsVol := vol.NewVMBlockFilesystemVolume()
-			err := d.MountVolume(fsVol, op)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	vol.MountRefCountIncrement() // From here on it is up to caller to call UnmountVolume() when done.
-	revert.Success()
-	return nil
+	return mountVolume(d, vol, d.getMappedDevPath, op)
 }
 
 // UnmountVolume simulates unmounting a volume.
 // keepBlockDev indicates if backing block device should not be unmapped if volume is unmounted.
 func (d *powerflex) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
-	unlock, err := vol.MountLock()
-	if err != nil {
-		return false, err
-	}
-
-	defer unlock()
-
-	ourUnmount := false
-	mountPath := vol.MountPath()
-	refCount := vol.MountRefCountDecrement()
-
-	// Attempt to unmount the volume.
-	if vol.contentType == ContentTypeFS && filesystem.IsMountPoint(mountPath) {
-		if refCount > 0 {
-			d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
-			return false, ErrInUse
-		}
-
-		err := TryUnmount(mountPath, unix.MNT_DETACH)
-		if err != nil {
-			return false, err
-		}
-
-		d.logger.Debug("Unmounted PowerFlex volume", logger.Ctx{"volName": vol.name, "path": mountPath, "keepBlockDev": keepBlockDev})
-
-		// Attempt to unmap.
-		if !keepBlockDev {
-			err = d.unmapVolume(vol)
-			if err != nil {
-				return false, err
-			}
-		}
-
-		ourUnmount = true
-	} else if vol.contentType == ContentTypeBlock {
-		// For VMs, unmount the filesystem volume.
-		if vol.IsVMBlock() {
-			fsVol := vol.NewVMBlockFilesystemVolume()
-			ourUnmount, err = d.UnmountVolume(fsVol, false, op)
-			if err != nil {
-				return false, err
-			}
-		}
-
-		if !keepBlockDev {
-			// Check if device is currently mapped (but don't map if not).
-			devPath, _, _ := d.getMappedDevPath(vol, false)
-			if devPath != "" && shared.PathExists(devPath) {
-				if refCount > 0 {
-					d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
-					return false, ErrInUse
-				}
-
-				// Attempt to unmap.
-				err := d.unmapVolume(vol)
-				if err != nil {
-					return false, err
-				}
-
-				ourUnmount = true
-			}
-		}
-	}
-
-	return ourUnmount, nil
+	return unmountVolume(d, vol, keepBlockDev, d.getMappedDevPath, d.unmapVolume, op)
 }
 
 // RenameVolume renames a volume and its snapshots.
