@@ -42,7 +42,7 @@ var (
 	ErrHostIdIsSubId = errors.New("Host id is in the range of subids") //nolint:revive
 )
 
-type IdRange struct {
+type IdRange struct { //nolint:revive
 	Isuid   bool
 	Isgid   bool
 	Startid int64
@@ -283,7 +283,7 @@ func (e *IdmapEntry) shiftFromNs(id int64) (int64, error) {
 	return id - e.Hostid + e.Nsid, nil
 }
 
-type ByHostid []*IdmapEntry
+type ByHostid []*IdmapEntry //nolint:revive
 
 func (s ByHostid) Len() int {
 	return len(s)
@@ -440,7 +440,7 @@ func (m *IdmapSet) AddSafe(i IdmapEntry) error {
 	 * Simplest solution is to split a "both" mapping into two separate ones
 	 * one for UIDs and another one for GIDs.
 	 */
-	newUidIdmapEntry := i
+	newUidIdmapEntry := i //nolint:revive
 	newUidIdmapEntry.Isgid = false
 	err := m.doAddSafe(newUidIdmapEntry)
 	if err != nil {
@@ -527,7 +527,7 @@ func (m IdmapSet) ToLxcString() []string {
 
 // ToUidMappings returns the idmap set as a slice of syscall.SysProcIDMap,
 // which is suitable for use with the setuid system call.
-func (m IdmapSet) ToUidMappings() []syscall.SysProcIDMap {
+func (m IdmapSet) ToUidMappings() []syscall.SysProcIDMap { //nolint:revive
 	mapping := []syscall.SysProcIDMap{}
 
 	for _, e := range m.Idmap {
@@ -628,7 +628,7 @@ func (m IdmapSet) ShiftFromNs(uid int64, gid int64) (int64, int64) {
 	return m.doShiftIntoNs(uid, gid, "out")
 }
 
-func (set *IdmapSet) doUidShiftIntoContainer(dir string, testmode bool, how string, skipper func(dir string, absPath string, fi os.FileInfo) bool) error {
+func (set *IdmapSet) doUidShiftIntoContainer(dir string, testmode bool, how string, skipper func(dir string, absPath string, fi os.FileInfo) bool) error { //nolint:revive
 	if how == "in" && atomic.LoadInt32(&VFS3Fscaps) == VFS3FscapsUnknown {
 		if SupportsVFS3Fscaps(dir) {
 			atomic.StoreInt32(&VFS3Fscaps, VFS3FscapsSupported)
@@ -734,27 +734,27 @@ func (set *IdmapSet) doUidShiftIntoContainer(dir string, testmode bool, how stri
 }
 
 // UidShiftIntoContainer shifts a root filesystem's ownership and capabilities from the host into the container according to the idmap set.
-func (set *IdmapSet) UidShiftIntoContainer(dir string, testmode bool) error {
+func (set *IdmapSet) UidShiftIntoContainer(dir string, testmode bool) error { //nolint:revive
 	return set.doUidShiftIntoContainer(dir, testmode, "in", nil)
 }
 
 // UidShiftFromContainer shifts a root filesystem's ownership and capabilities from the container back to the host according to the idmap set.
-func (set *IdmapSet) UidShiftFromContainer(dir string, testmode bool) error {
+func (set *IdmapSet) UidShiftFromContainer(dir string, testmode bool) error { //nolint:revive
 	return set.doUidShiftIntoContainer(dir, testmode, "out", nil)
 }
 
 // ShiftRootfs shifts a root filesystem's ownership and capabilities from the host into the container according to the idmap set.
-func (set *IdmapSet) ShiftRootfs(p string, skipper func(dir string, absPath string, fi os.FileInfo) bool) error {
+func (set *IdmapSet) ShiftRootfs(p string, skipper func(dir string, absPath string, fi os.FileInfo) bool) error { //nolint:revive
 	return set.doUidShiftIntoContainer(p, false, "in", skipper)
 }
 
 // UnshiftRootfs shifts a root filesystem's ownership and capabilities from the container back to the host according to the idmap set.
-func (set *IdmapSet) UnshiftRootfs(p string, skipper func(dir string, absPath string, fi os.FileInfo) bool) error {
+func (set *IdmapSet) UnshiftRootfs(p string, skipper func(dir string, absPath string, fi os.FileInfo) bool) error { //nolint:revive
 	return set.doUidShiftIntoContainer(p, false, "out", skipper)
 }
 
 // ShiftFile shifts a single file's ownership and capabilities from the host into the container according to the idmap set.
-func (set *IdmapSet) ShiftFile(p string) error {
+func (set *IdmapSet) ShiftFile(p string) error { //nolint:revive
 	return set.ShiftRootfs(p, nil)
 }
 
