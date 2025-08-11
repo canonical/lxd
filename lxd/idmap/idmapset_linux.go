@@ -886,7 +886,7 @@ func DefaultIdmapSet(rootfs string, username string) (*IdmapSet, error) {
 
 		for _, entry := range entries {
 			// Check that it's big enough to be useful
-			if int(entry[1]) < 65536 {
+			if entry[1] < 65536 {
 				continue
 			}
 
@@ -910,7 +910,7 @@ func DefaultIdmapSet(rootfs string, username string) (*IdmapSet, error) {
 
 		for _, entry := range entries {
 			// Check that it's big enough to be useful
-			if int(entry[1]) < 65536 {
+			if entry[1] < 65536 {
 				continue
 			}
 
