@@ -63,6 +63,30 @@ func Test_ToLxcString(t *testing.T) {
 	}
 }
 
+func Test_IsBetween(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    int64
+		low      int64
+		high     int64
+		expected bool
+	}{
+		{"within range", 5, 1, 10, true},
+		{"range start", 1, 1, 10, true},
+		{"range end", 9, 1, 10, true},
+		{"below range", 0, 1, 10, false},
+		{"above range", 10, 1, 10, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isBetween(tt.value, tt.low, tt.high)
+			if result != tt.expected {
+				t.Errorf("isBetween(%d, %d, %d) = %v; want %v", tt.value, tt.low, tt.high, result, tt.expected)
+			}
+		})
+	}
+}
 
 func TestIdmapSetAddSafe_split(t *testing.T) {
 	orig := IdmapSet{Idmap: []IdmapEntry{{Isuid: true, Hostid: 1000, Nsid: 0, Maprange: 1000}}}
