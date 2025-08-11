@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/identity"
@@ -87,4 +88,35 @@ func authMethodCaseClause() string {
 		WHEN %d THEN '%s'
 		WHEN %d THEN '%s'
 	END`, authMethodTLS, api.AuthenticationMethodTLS, authMethodOIDC, api.AuthenticationMethodOIDC)
+}
+
+// onInsertTriggerSQL enforces that newly created identities have a unique name within the authentication method (where
+// method is not OIDC).
+func (e entityTypeIdentity) onInsertTriggerSQL() (name string, sql string) {
+	name = "on_identity_insert"
+	sql = `CREATE TRIGGER ` + name + `
+	BEFORE INSERT ON identities
+	WHEN NEW.auth_method != ` + strconv.FormatInt(authMethodOIDC, 10) + `
+		AND (SELECT COUNT(*) FROM identities WHERE name = NEW.name AND auth_method = NEW.auth_method) > 0
+	BEGIN
+		SELECT RAISE(ABORT, 'An identity with this name and authentication method already exists');
+	END`
+
+	return name, sql
+}
+
+// onUpdateTriggerSQL enforces that identities whose authentication method is not OIDC have a unique name (within
+// identities using that authentication method). This trigger only runs if the name of the identity is being changed,
+// this allows pre-existing identities with duplicated names to continue to update normally.
+func (e entityTypeIdentity) onUpdateTriggerSQL() (name string, sql string) {
+	name = "on_identity_update"
+	sql = `CREATE TRIGGER ` + name + `
+	BEFORE UPDATE ON identities
+	WHEN OLD.name != NEW.name AND NEW.auth_method != ` + strconv.FormatInt(authMethodOIDC, 10) + `
+		AND (SELECT COUNT(*) FROM identities WHERE name = NEW.name AND auth_method = NEW.auth_method) > 0
+	BEGIN
+		SELECT RAISE(ABORT, 'An identity with this name and authentication method already exists');
+	END`
+
+	return name, sql
 }
