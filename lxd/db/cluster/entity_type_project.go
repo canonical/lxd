@@ -5,7 +5,9 @@ import (
 )
 
 // entityTypeProject implements entityTypeDBInfo for a Project.
-type entityTypeProject struct{}
+type entityTypeProject struct {
+	entityTypeCommon
+}
 
 func (e entityTypeProject) code() int64 {
 	return entityTypeCodeProject

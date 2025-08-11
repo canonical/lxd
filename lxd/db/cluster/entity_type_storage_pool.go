@@ -5,7 +5,9 @@ import (
 )
 
 // entityTypeStoragePool implements entityTypeDBInfo for a StoragePool.
-type entityTypeStoragePool struct{}
+type entityTypeStoragePool struct {
+	entityTypeCommon
+}
 
 func (e entityTypeStoragePool) code() int64 {
 	return entityTypeCodeStoragePool
@@ -13,10 +15,6 @@ func (e entityTypeStoragePool) code() int64 {
 
 func (e entityTypeStoragePool) allURLsQuery() string {
 	return fmt.Sprintf(`SELECT %d, storage_pools.id, '', '', json_array(storage_pools.name) FROM storage_pools`, e.code())
-}
-
-func (e entityTypeStoragePool) urlsByProjectQuery() string {
-	return ""
 }
 
 func (e entityTypeStoragePool) urlByIDQuery() string {
