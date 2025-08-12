@@ -8099,6 +8099,12 @@ func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName strin
 	l.Debug("CreateCustomVolumeFromISO started")
 	defer l.Debug("CreateCustomVolumeFromISO finished")
 
+	// Validate the name of the volume as this could be malicious.
+	err := drivers.ValidVolumeName(volName)
+	if err != nil {
+		return fmt.Errorf("Invalid volume name %q: %w", volName, err)
+	}
+
 	// Check whether we are allowed to create volumes.
 	req := api.StorageVolumesPost{
 		Name: volName,
@@ -8109,7 +8115,7 @@ func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName strin
 		},
 	}
 
-	err := b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+	err = b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		return limits.AllowVolumeCreation(ctx, b.state.GlobalConfig, tx, projectName, b.name, req)
 	})
 	if err != nil {
