@@ -364,6 +364,10 @@ func createAuthGroup(d *Daemon, r *http.Request) response.Response {
 			Description: group.Description,
 		})
 		if err != nil {
+			if api.StatusErrorCheck(err, http.StatusConflict) {
+				return api.StatusErrorf(http.StatusConflict, "Authorization group %q already exists", group.Name)
+			}
+
 			return err
 		}
 
@@ -726,14 +730,13 @@ func renameAuthGroup(d *Daemon, r *http.Request) response.Response {
 
 	s := d.State()
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		err = dbCluster.RenameAuthGroup(ctx, tx.Tx(), groupName, groupPost.Name)
-		if err != nil {
-			return err
-		}
-
-		return nil
+		return dbCluster.RenameAuthGroup(ctx, tx.Tx(), groupName, groupPost.Name)
 	})
 	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusConflict) {
+			return response.Conflict(fmt.Errorf("Authorization group %q already exists", groupPost.Name))
+		}
+
 		return response.SmartError(err)
 	}
 
