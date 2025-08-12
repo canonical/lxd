@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -21,10 +22,11 @@ const (
 	sessionTypeRegular = 1
 	transportTypeTCP   = 2
 
-	apiErrorInvalidSessionKey = 6
-	apiErrorExistentHost      = 16
-	apiErrorExportedVLUN      = 26
-	apiErrorNonExistentVol    = 23
+	apiErrorInvalidSessionKey       = 6
+	apiErrorExistentHost            = 16
+	apiErrorExportedVLUN            = 26
+	apiErrorNonExistentVol          = 23
+	apiErrorVolumeIsAlreadyExported = 29
 
 	apiVolumeSetMemberAdd    = 1
 	apiVolumeSetMemberRemove = 2
@@ -149,6 +151,12 @@ type hpeCapacity struct {
 type hpeLink struct {
 	Href string `json:"href"`
 	Rel  string `json:"rel"`
+}
+
+type hpeVLUN struct {
+	LUN      int    `json:"lun"`
+	Hostname string `json:"hostname"`
+	Serial   string `json:"serial"`
 }
 
 type hpeRespMembers[T any] struct {
@@ -672,4 +680,95 @@ func (p *AlletraClient) DeleteVolume(poolName string, volName string) error {
 	}
 
 	return p.deleteVolume(poolName, volName)
+}
+
+// ConnectHostToVolume creates a connection between a host and volume. It returns true if the connection
+// was created, and false if it already existed.
+func (p *AlletraClient) ConnectHostToVolume(poolName string, volName string, hostName string) (bool, error) {
+	url := api.NewURL().Path("api", "v1", "vluns")
+
+	req := make(map[string]any)
+
+	req["hostname"] = hostName
+	req["volumeName"] = volName
+	req["lun"] = 0
+	req["autoLun"] = true
+
+	err := p.requestAuthenticated(http.MethodPost, url.URL, req, nil)
+	if err != nil {
+		hpeErr, ok := err.(*hpeError)
+		if ok {
+			switch hpeErr.Code {
+			case apiErrorVolumeIsAlreadyExported:
+				p.logger.Debug("New vLUN hasn't been created. Volume %q already attached to %q", logger.Ctx{"volName": volName, "hostName": hostName})
+				return false, nil
+			default:
+				return false, fmt.Errorf("Unexpected Alletra WSAPI response: Code: %d. Desc: %q", hpeErr.Code, hpeErr.Desc)
+			}
+		}
+
+		return false, fmt.Errorf("Failed to connect volume %q with host %q: %w", volName, hostName, err)
+	}
+
+	return true, nil
+}
+
+// DisconnectHostFromVolume deletes a connection (vLUN) between a host and volume.
+func (p *AlletraClient) DisconnectHostFromVolume(poolName string, volName string, hostName string) error {
+	vlun, errVLUN := p.GetVLUN(volName)
+	if errVLUN != nil {
+		return fmt.Errorf("HPE Error %w", errVLUN)
+	}
+
+	if vlun == nil {
+		p.logger.Debug("No need to disconnect host from volume as there is no vLUN", logger.Ctx{"volName": volName, "hostName": hostName})
+		return nil
+	}
+
+	customParam := volName + "," + strconv.Itoa(vlun.LUN) + "," + hostName
+	url := api.NewURL().Path("api", "v1", "vluns", customParam)
+
+	err := p.requestAuthenticated(http.MethodDelete, url.URL, nil, nil)
+	if err != nil {
+		if isHpeErrorNotFound(err) {
+			return api.StatusErrorf(http.StatusNotFound, "Connection between host %q and volume %q not found", volName, hostName)
+		}
+
+		return fmt.Errorf("Failed to disconnect volume %q from host %q: %w", volName, hostName, err)
+	}
+
+	return nil
+}
+
+// GetVLUN returns vLUNs list for a given volumeName.
+func (p *AlletraClient) GetVLUN(volumeName string) (*hpeVLUN, error) {
+	var resp hpeRespMembers[hpeVLUN]
+
+	url := api.NewURL().Path("api", "v1", "vluns").WithQuery("query", `"volumeName==`+volumeName+`"`)
+
+	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("Fail to get vLUN data for volume %q: %w", volumeName, err)
+	}
+
+	if len(resp.Members) == 0 {
+		p.logger.Debug("No VLUN found for volume: %q", logger.Ctx{"volumeName": volumeName})
+		return nil, nil
+	}
+
+	return &resp.Members[0], nil
+}
+
+// GetVLUNsForHost returns vLUNs list for a given hostName.
+func (p *AlletraClient) GetVLUNsForHost(hostName string) ([]hpeVLUN, error) {
+	var resp hpeRespMembers[hpeVLUN]
+
+	url := api.NewURL().Path("api", "v1", "vluns").WithQuery("query", `"hostname==`+hostName+`"`)
+
+	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get vLUNs list for host %q: %w", hostName, err)
+	}
+
+	return resp.Members, nil
 }
