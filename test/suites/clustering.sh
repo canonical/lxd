@@ -4052,6 +4052,14 @@ test_clustering_groups() {
   # Nodes need to belong to at least one group, removing it from the default group should therefore fail
   ! lxc cluster group remove cluster:node1 default || false
 
+  # Check duplicates cannot be created
+  lxc cluster group create cluster:foo
+  [ "$(! "${_LXC}" cluster group create cluster:foo 2>&1 1>/dev/null)" = 'Error: Cluster group "foo" already exists' ]
+  lxc cluster group create cluster:bar
+  [ "$(! "${_LXC}" cluster group rename cluster:bar foo 2>&1 1>/dev/null)" = 'Error: Name "foo" already in use' ]
+  lxc cluster group delete cluster:foo
+  lxc cluster group delete cluster:bar
+
   # Create new cluster group which should be empty
   lxc cluster group create cluster:foobar
   [ "$(lxc query cluster:/1.0/cluster/groups/foobar | jq '.members | length')" -eq 0 ]
