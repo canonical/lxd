@@ -6756,6 +6756,13 @@ func (b *lxdBackend) RenameCustomVolumeSnapshot(projectName, volName string, new
 		return errors.New("Invalid new snapshot name")
 	}
 
+	// Check if a snapshot already exists with the same name
+	_, err := VolumeDBGet(b, projectName, drivers.GetSnapshotVolumeName(parentName, newSnapshotName), drivers.VolumeTypeCustom)
+	if err == nil {
+		return api.StatusErrorf(http.StatusConflict, "Storage volume snapshot %q already exists for volume %q", newSnapshotName, parentName)
+	}
+
+	// Fetch the snapshot vol.
 	volume, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
 	if err != nil {
 		return err
