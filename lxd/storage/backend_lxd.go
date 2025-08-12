@@ -28,6 +28,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/apparmor"
+	"github.com/canonical/lxd/lxd/archive"
 	"github.com/canonical/lxd/lxd/backup"
 	backupConfig "github.com/canonical/lxd/lxd/backup/config"
 	"github.com/canonical/lxd/lxd/db"
@@ -8027,6 +8028,104 @@ func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName strin
 	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, eventCtx))
 
 	revert.Success()
+	return nil
+}
+
+// CreateCustomVolumeFromTarball creates a custom volume from the given backup info.
+func (b *lxdBackend) CreateCustomVolumeFromTarball(projectName string, volName string, srcData *os.File, op *operations.Operation) error {
+	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volume": volName})
+	l.Debug("CreateCustomVolumeFromTarball started")
+	defer l.Debug("CreateCustomVolumeFromTarball finished")
+
+	// Validate the name of the volume as this could be malicious.
+	err := drivers.ValidVolumeName(volName)
+	if err != nil {
+		return fmt.Errorf("Invalid volume name %q: %w", volName, err)
+	}
+
+	// Check whether we are allowed to create volumes.
+	req := api.StorageVolumesPost{
+		Name: volName,
+		StorageVolumePut: api.StorageVolumePut{
+			Config: map[string]string{},
+		},
+	}
+
+	err = b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		return limits.AllowVolumeCreation(ctx, b.state.GlobalConfig, tx, projectName, b.name, req)
+	})
+	if err != nil {
+		return fmt.Errorf("Failed checking volume creation allowed: %w", err)
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Get the volume name on storage.
+	volStorageName := project.StorageVolume(projectName, volName)
+
+	vol := b.GetNewVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volStorageName, req.Config)
+
+	volExists, err := b.driver.HasVolume(vol)
+	if err != nil {
+		return err
+	}
+
+	if volExists {
+		return fmt.Errorf("Cannot create volume %q, volume already exists on storage pool %q", volName, b.name)
+	}
+
+	// Validate config and create database entry for new storage volume.
+	err = VolumeDBCreate(b, projectName, volName, "", vol.Type(), false, vol.Config(), time.Now(), time.Time{}, vol.ContentType(), true, true)
+	if err != nil {
+		return fmt.Errorf("Failed creating database entry for custom volume: %w", err)
+	}
+
+	revert.Add(func() { _ = VolumeDBDelete(b, projectName, volName, vol.Type()) })
+
+	// Create new empty volume.
+	err = b.driver.CreateVolume(vol, nil, nil)
+	if err != nil {
+		return err
+	}
+
+	revert.Add(func() { _ = b.driver.DeleteVolume(vol, op) })
+
+	// Mount the volume to unpack the tarball into it.
+	err = b.driver.MountVolume(vol, op)
+	if err != nil {
+		return err
+	}
+
+	revert.Add(func() { _, _ = b.driver.UnmountVolume(vol, false, op) })
+
+	mountPath := vol.MountPath()
+	err = archive.UnpackRaw(b.state, srcData.Name(), mountPath, vol.IsBlockBacked(), nil)
+	if err != nil {
+		return err
+	}
+
+	// Run EnsureMountPath after mounting and unpacking to ensure the mounted directory has the
+	// correct permissions set.
+	err = vol.EnsureMountPath()
+	if err != nil {
+		return err
+	}
+
+	revert.Success()
+
+	_, err = b.driver.UnmountVolume(vol, false, op)
+	if err != nil {
+		return err
+	}
+
+	eventCtx := logger.Ctx{"type": vol.Type()}
+	if !b.Driver().Info().Remote {
+		eventCtx["location"] = b.state.ServerName
+	}
+
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, eventCtx))
+
 	return nil
 }
 

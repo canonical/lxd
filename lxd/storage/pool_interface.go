@@ -3,6 +3,7 @@ package storage
 import (
 	"io"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/canonical/lxd/lxd/backup"
@@ -127,6 +128,7 @@ type Pool interface {
 	RefreshCustomVolume(projectName string, srcProjectName string, volName, desc string, config map[string]string, srcPoolName, srcVolName string, snapshots bool, op *operations.Operation) error
 	GenerateCustomVolumeBackupConfig(projectName string, volName string, snapshots bool, op *operations.Operation) (*backupConfig.Config, error)
 	CreateCustomVolumeFromISO(projectName string, volName string, srcData io.ReadSeeker, size int64, op *operations.Operation) error
+	CreateCustomVolumeFromTarball(projectName string, volName string, srcData *os.File, op *operations.Operation) error
 
 	// Custom volume snapshots.
 	CreateCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, newDescription string, newExpiryDate *time.Time, op *operations.Operation) error
