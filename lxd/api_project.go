@@ -22,6 +22,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/node"
@@ -375,6 +376,10 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	})
 	if err != nil {
+		if query.IsConflictErr(err) {
+			return response.Conflict(fmt.Errorf("Project %q already exists", project.Name))
+		}
+
 		return response.SmartError(fmt.Errorf("Failed creating project %q: %w", project.Name, err))
 	}
 
