@@ -1018,11 +1018,14 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 
 	// If we're getting binary content, process separately.
 	if r.Header.Get("Content-Type") == "application/octet-stream" {
-		if r.Header.Get("X-LXD-type") == "iso" {
+		switch r.Header.Get("X-LXD-type") {
+		case "iso":
 			return createStoragePoolVolumeFromISO(s, r, requestProjectName, projectName, r.Body, poolName, r.Header.Get("X-LXD-name"))
+		case "tar":
+			return createStoragePoolVolumeFromTarball(s, r, requestProjectName, projectName, r.Body, poolName, r.Header.Get("X-LXD-name"))
+		default:
+			return createStoragePoolVolumeFromBackup(s, r, requestProjectName, projectName, r.Body, poolName, r.Header.Get("X-LXD-name"))
 		}
-
-		return createStoragePoolVolumeFromBackup(s, r, requestProjectName, projectName, r.Body, poolName, r.Header.Get("X-LXD-name"))
 	}
 
 	req := api.StorageVolumesPost{}
@@ -2541,6 +2544,57 @@ func createStoragePoolVolumeFromISO(s *state.State, r *http.Request, requestProj
 
 	resources := map[string][]api.URL{}
 	resources["storage_volumes"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", pool, "volumes", "custom", volName)}
+
+	op, err := operations.OperationCreate(r.Context(), s, requestProjectName, operations.OperationClassTask, operationtype.VolumeCreate, resources, nil, run, nil, nil)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	revert.Success()
+	return operations.OperationResponse(op)
+}
+
+func createStoragePoolVolumeFromTarball(s *state.State, r *http.Request, requestProjectName string, projectName string, data io.Reader, poolName string, volName string) response.Response {
+	revert := revert.New()
+	defer revert.Fail()
+
+	if volName == "" {
+		return response.BadRequest(errors.New("Missing volume name"))
+	}
+
+	// Create temporary file to store uploaded tar archive.
+	tarFile, err := os.CreateTemp(s.BackupsStoragePath(projectName), backup.WorkingDirPrefix+"_")
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	revert.Add(func() { _ = os.Remove(tarFile.Name()) })
+
+	// Stream uploaded backup data into temporary file.
+	_, err = io.Copy(tarFile, data)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	run := func(op *operations.Operation) error {
+		defer func() { _ = os.Remove(tarFile.Name()) }()
+
+		pool, err := storagePools.LoadByName(s, poolName)
+		if err != nil {
+			return err
+		}
+
+		// Dump tarball to storage.
+		err = pool.CreateCustomVolumeFromTarball(projectName, volName, tarFile, op)
+		if err != nil {
+			return fmt.Errorf("Failed creating custom volume from tar archive: %w", err)
+		}
+
+		return nil
+	}
+
+	resources := map[string][]api.URL{}
+	resources["storage_volumes"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "volumes", "custom", volName)}
 
 	op, err := operations.OperationCreate(r.Context(), s, requestProjectName, operations.OperationClassTask, operationtype.VolumeCreate, resources, nil, run, nil, nil)
 	if err != nil {
