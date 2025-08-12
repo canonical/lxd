@@ -12,14 +12,18 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/canonical/lxd/lxd/storage/connectors"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 )
 
 const (
 	sessionTypeRegular = 1
+	transportTypeTCP   = 2
 
 	apiErrorInvalidSessionKey = 6
+	apiErrorExistentHost      = 16
+	apiErrorExportedVLUN      = 26
 )
 
 // createBodyReader creates a reader for the given request body contents.
@@ -55,6 +59,47 @@ func NewAlletraClient(logger logger.Logger, url string, username string, passwor
 		verifyTLS: verifyTLS,
 		cpg:       cpg,
 	}
+}
+
+// hpePortPos represents the port position in HPE Storage.
+type hpePortPos struct {
+	Node     int `json:"node"`
+	Slot     int `json:"slot"`
+	CardPort int `json:"cardPort"`
+}
+
+// hpeFCPath represents a Fibre Channel Path in HPE Storage.
+type hpeFCPath struct {
+	WWN     string     `json:"wwn"`
+	PortPos hpePortPos `json:"portPos"`
+}
+
+// hpeISCSIPath represents an iSCSI Path in HPE Storage.
+type hpeISCSIPath struct {
+	Name      string `json:"name"`
+	IPAddr    string `json:"IPAddr"`
+	HostSpeed int    `json:"hostSpeed"`
+}
+
+// hpeNVMETCPPath represents a NVMe TCP Path in HPE Storage.
+type hpeNVMETCPPath struct {
+	IP      string     `json:"IP"`
+	PortPos hpePortPos `json:"portPos"`
+	NQN     string     `json:"nqn"`
+}
+
+// hpeHost represents a host in HPE Storage.
+type hpeHost struct {
+	ID           int              `json:"id"`
+	Name         string           `json:"name"`
+	FCPaths      []hpeFCPath      `json:"FCPaths"`
+	ISCSIPaths   []hpeISCSIPath   `json:"iSCSIPaths"`
+	NVMETCPPaths []hpeNVMETCPPath `json:"NVMETCPPaths"`
+}
+
+type hpeRespMembers[T any] struct {
+	Total   int `json:"total"`
+	Members []T `json:"members"`
 }
 
 // hpeError represents an error response from the HPE Storage API.
@@ -375,4 +420,113 @@ func (p *AlletraClient) modifyVolumeSet(volumeSetName string, action int, volNam
 	}
 
 	return nil
+}
+
+// getHosts retrieves an existing HPE Alletra Storage host info.
+func (p *AlletraClient) getHosts() ([]hpeHost, error) {
+	var resp hpeRespMembers[hpeHost]
+
+	url := api.NewURL().Path("api", "v1", "hosts")
+	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get hosts: %w", err)
+	}
+
+	return resp.Members, nil
+}
+
+// GetCurrentHost retrieves the HPE Alletra Storage host linked to the current LXD host.
+// The Alletra Storage host is considered a match if it includes the fully qualified
+// name of the LXD host that is determined by the configured mode.
+func (p *AlletraClient) GetCurrentHost(connectorType string, qn string) (*hpeHost, error) {
+	hosts, err := p.getHosts()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, host := range hosts {
+		if connectorType == connectors.TypeISCSI {
+			for _, iscsiPath := range host.ISCSIPaths {
+				if iscsiPath.Name == qn {
+					return &host, nil
+				}
+			}
+		}
+
+		if connectorType == connectors.TypeNVME {
+			for _, nvmePath := range host.NVMETCPPaths {
+				if nvmePath.NQN == qn {
+					return &host, nil
+				}
+			}
+		}
+	}
+
+	return nil, api.StatusErrorf(http.StatusNotFound, "Host with qualified name %q not found", qn)
+}
+
+// CreateHost creates a new host with provided initiator qualified names that can be associated
+// with specific volumes.
+func (p *AlletraClient) CreateHost(connectorType string, hostName string, qns []string) error {
+	req := map[string]any{
+		"descriptors": map[string]any{
+			"comment": "Created and managed by LXD",
+		},
+	}
+
+	req["name"] = hostName
+
+	switch connectorType {
+	case connectors.TypeISCSI:
+		req["iqns"] = qns[0]
+	case connectors.TypeNVME:
+		req["NQN"] = qns[0]
+		req["transportType"] = transportTypeTCP
+	default:
+		return fmt.Errorf("Unsupported HPE Alletra Storage mode %q", connectorType)
+	}
+
+	url := api.NewURL().Path("api", "v1", "hosts")
+	err := p.requestAuthenticated(http.MethodPost, url.URL, req, nil)
+	if err != nil {
+		hpeErr, ok := err.(*hpeError)
+		if ok {
+			switch hpeErr.Code {
+			case apiErrorExistentHost:
+				return nil
+			default:
+				return fmt.Errorf("Unexpected Alletra WSAPI response: Code: %d. Desc: %q", hpeErr.Code, hpeErr.Desc)
+			}
+		}
+
+		return fmt.Errorf("Failed to create host %q: %w", hostName, err)
+	}
+
+	return nil
+}
+
+// DeleteHost deletes an existing host.
+func (p *AlletraClient) DeleteHost(hostName string) error {
+	url := api.NewURL().Path("api", "v1", "hosts", hostName)
+	err := p.requestAuthenticated(http.MethodDelete, url.URL, nil, nil)
+	if err != nil {
+		hpeErr, ok := err.(*hpeError)
+		if ok {
+			switch hpeErr.Code {
+			case apiErrorExportedVLUN:
+				p.logger.Debug("Host won't be deleted since it has exported volumes", logger.Ctx{"hostName": hostName})
+				return nil
+			}
+		}
+
+		return fmt.Errorf("Failed to delete host %q: %w", hostName, err)
+	}
+
+	return nil
+}
+
+// UpdateHost updates an existing host. This should be never called
+// and only needed to make code sharing with Pure easier.
+func (p *AlletraClient) UpdateHost(hostName string, qns []string) error {
+	return fmt.Errorf("Failed to update host %q. Operation not supported", hostName)
 }
