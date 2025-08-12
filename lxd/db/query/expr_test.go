@@ -4,6 +4,39 @@ import (
 	"testing"
 )
 
+func TestParams(t *testing.T) {
+	tests := []struct {
+		name string
+		n    int
+		want string
+	}{
+		{
+			name: "empty",
+			n:    0,
+			want: "()",
+		},
+		{
+			name: "single param",
+			n:    1,
+			want: "(?)",
+		},
+		{
+			name: "multiple params",
+			n:    3,
+			want: "(?, ?, ?)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Params(tt.n)
+			if got != tt.want {
+				t.Errorf("Params(%v) = %q, want %q", tt.n, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestIntParams(t *testing.T) {
 	tests := []struct {
 		name string
