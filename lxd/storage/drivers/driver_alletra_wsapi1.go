@@ -79,6 +79,56 @@ type hpeHost struct {
 	NVMETCPPaths []hpeNVMETCPPath `json:"NVMETCPPaths"`
 }
 
+type hpeVolume struct {
+	ID                    int         `json:"id"`
+	Name                  string      `json:"name"`
+	ShortName             string      `json:"shortName"`
+	DeduplicationState    int         `json:"deduplicationState"`
+	CompressionState      int         `json:"compressionState"`
+	ProvisioningType      int         `json:"provisioningType"`
+	CopyType              int         `json:"copyType"`
+	BaseID                int         `json:"baseId"`
+	ReadOnly              bool        `json:"readOnly"`
+	State                 int         `json:"state"`
+	FailedStates          []string    `json:"failedStates"`
+	DegradedStates        []string    `json:"degradedStates"`
+	AdditionalStates      []string    `json:"additionalStates"`
+	TotalReservedMiB      int64       `json:"totalReservedMiB"`
+	TotalUsedMiB          int64       `json:"totalUsedMiB"`
+	SizeMiB               int64       `json:"sizeMiB"`
+	HostWriteMiB          int64       `json:"hostWriteMiB"`
+	WWN                   string      `json:"wwn"`
+	NGUID                 string      `json:"nguid"`
+	CreationTimeSec       int         `json:"creationTimeSec"`
+	CreationTime8601      string      `json:"creationTime8601"`
+	UsrSpcAllocWarningPct int         `json:"usrSpcAllocWarningPct"`
+	UsrSpcAllocLimitPct   int         `json:"usrSpcAllocLimitPct"`
+	Policies              hpePolicies `json:"policies"`
+	UserCPG               string      `json:"userCPG"`
+	UUID                  string      `json:"uuid"`
+	UDID                  int         `json:"udid"`
+	CapacityEfficiency    hpeCapacity `json:"capacityEfficiency"`
+	RcopyStatus           int         `json:"rcopyStatus"`
+	Links                 []hpeLink   `json:"links"`
+}
+
+type hpePolicies struct {
+	StaleSS    bool `json:"staleSS"`
+	OneHost    bool `json:"oneHost"`
+	ZeroDetect bool `json:"zeroDetect"`
+	System     bool `json:"system"`
+	Caching    bool `json:"caching"`
+}
+
+type hpeCapacity struct {
+	Compaction float64 `json:"compaction"`
+}
+
+type hpeLink struct {
+	Href string `json:"href"`
+	Rel  string `json:"rel"`
+}
+
 type hpeRespMembers[T any] struct {
 	Total   int `json:"total"`
 	Members []T `json:"members"`
@@ -527,4 +577,92 @@ func (p *alletraClient) deleteHost(hostName string) error {
 // and only needed to make code sharing with Pure easier.
 func (p *alletraClient) updateHost(hostName string, qns []string) error {
 	return fmt.Errorf("Failed to update host %q. Operation not supported.", hostName)
+}
+
+func (p *alletraClient) _createVolume(poolName string, volName string, sizeBytes int64) error {
+	req := map[string]any{
+		"name":    volName,
+		"cpg":     p.driver.config["alletra.wsapi.cpg"],
+		"sizeMiB": sizeBytes / 1024 / 1024,
+		"tpvv":    true, // thinly provisioned volume
+	}
+
+	url := api.NewURL().Path("api", "v1", "volumes")
+	err := p.requestAuthenticated(http.MethodPost, url.URL, req, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to create volume %q in storage pool %q: %w", volName, p.driver.name, err)
+	}
+
+	return nil
+}
+
+// createVolume creates a new volume in the given storage pool. The volume is created with
+// supplied size in bytes. Upon successful creation, volume's ID is returned.
+func (p *alletraClient) createVolume(poolName string, volName string, sizeBytes int64) error {
+	err := p._createVolume(poolName, volName, sizeBytes)
+	if err != nil {
+		return err
+	}
+
+	// Add a newly created volume to a volume set
+	err = p.modifyVolumeSet(1, volName) // 1 = memAdd
+	return err
+}
+
+// getVolume returns the volume for a given volName.
+func (p *alletraClient) getVolume(poolName string, volName string) (*hpeVolume, error) {
+	var resp hpeVolume
+
+	url := api.NewURL().Path("api", "v1", "volumes", volName)
+	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
+	if err != nil {
+		hpeErr, ok := err.(*hpeError)
+		if ok {
+			switch hpeErr.Code {
+			case 23: // NON_EXISTENT_VOL
+				return nil, api.StatusErrorf(http.StatusNotFound, "Volume/snapshot %q not found", volName)
+			default:
+				return nil, fmt.Errorf("HPE debug. hpeErr.Code: %d. hpeErr.Desc: %s", hpeErr.Code, hpeErr.Desc)
+			}
+		}
+
+		return nil, fmt.Errorf("Failed to get hpeVolume %q: %w", volName, err)
+	}
+
+	if resp.Name == "" {
+		return nil, fmt.Errorf("HPE volume %q exists but returned an empty response", volName)
+	}
+
+	return &resp, nil
+}
+
+func (p *alletraClient) _deleteVolume(poolName string, volName string) error {
+	url := api.NewURL().Path("api", "v1", "volumes", volName).WithQuery("cascade", "true")
+
+	err := p.requestAuthenticated(http.MethodDelete, url.URL, nil, nil)
+	if err != nil {
+		hpeErr, ok := err.(*hpeError)
+		if ok {
+			switch hpeErr.Code {
+			case 23: // NON_EXISTENT_VOL
+				return nil
+			default:
+				return fmt.Errorf("HPE debug. hpeErr.Code: %d. hpeErr.Desc: %s", hpeErr.Code, hpeErr.Desc)
+			}
+		}
+
+		return fmt.Errorf("Failed to delete hpeVolume %q in pool %q: %w", volName, poolName, err)
+	}
+
+	return nil
+}
+
+// deleteVolume deletes an exisiting volume in the given storage pool.
+func (p *alletraClient) deleteVolume(poolName string, volName string) error {
+	err := p.modifyVolumeSet(2, volName) // 2 = memRemove
+	if err != nil {
+		return err
+	}
+
+	return p._deleteVolume(poolName, volName)
 }
