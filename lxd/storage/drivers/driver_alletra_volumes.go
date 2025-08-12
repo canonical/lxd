@@ -1,14 +1,24 @@
 package drivers
 
 import (
+	"context"
 	"fmt"
 	"math"
+	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/storage/block"
+	"github.com/canonical/lxd/lxd/storage/connectors"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/validate"
 )
@@ -73,6 +83,286 @@ func (d *alletra) getVolumeName(vol Volume) (string, error) {
 	}
 
 	return volName, nil
+}
+
+// ensureHost returns a name of the host that is configured with a given IQN. If such host
+// does not exist, a new one is created, where host's name equals to the server name with a
+// mode included.
+func (d *alletra) ensureHost() (hostName string, cleanup revert.Hook, err error) {
+	var hostname string
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	connector, err := d.connector()
+	if err != nil {
+		return "", nil, err
+	}
+
+	// Get the qualified name of the host.
+	qn, err := connector.QualifiedName()
+	if err != nil {
+		return "", nil, err
+	}
+
+	// Fetch an existing host entry on a storage array.
+	host, err := d.client().GetCurrentHost(connector.Type(), qn)
+	if err != nil {
+		if !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return "", nil, err
+		}
+
+		// The storage host entry with a qualified name of the current LXD host does not exist.
+		// Therefore, create a new one and name it after the server name.
+		serverName, err := ResolveServerName(d.state.ServerName)
+		if err != nil {
+			return "", nil, err
+		}
+
+		// Append the mode to the server name because storage array does not allow mixing
+		// NQNs, IQNs, and WWNs for a single host.
+		hostname = serverName + "-" + connector.Type()
+
+		err = d.client().CreateHost(connector.Type(), hostname, []string{qn})
+		if err != nil {
+			if !api.StatusErrorCheck(err, http.StatusConflict) {
+				return "", nil, err
+			}
+
+			// The host with the given name already exists, update it instead.
+			err = d.client().UpdateHost(hostname, []string{qn})
+			if err != nil {
+				return "", nil, err
+			}
+		} else {
+			revert.Add(func() {
+				err := d.client().DeleteHost(hostname)
+				if err != nil {
+					d.logger.Error("DeleteHost API call failed on error path", logger.Ctx{"err": err, "hostname": hostname})
+				}
+			})
+		}
+	} else {
+		// Hostname already exists with the given IQN.
+		hostname = host.Name
+	}
+
+	cleanup = revert.Clone().Fail
+	revert.Success()
+	return hostname, cleanup, nil
+}
+
+// mapVolume maps the given volume onto this host.
+func (d *alletra) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	connector, err := d.connector()
+	if err != nil {
+		return nil, err
+	}
+
+	volName, err := d.getVolumeName(vol)
+	if err != nil {
+		return nil, err
+	}
+
+	unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
+	if err != nil {
+		return nil, err
+	}
+
+	defer unlock()
+
+	// Ensure the host exists and is configured with the correct QN.
+	hostname, cleanup, err := d.ensureHost()
+	if err != nil {
+		return nil, err
+	}
+
+	reverter.Add(cleanup)
+
+	// Ensure the volume is connected to the host.
+	connCreated, err := d.client().ConnectHostToVolume(vol.pool, volName, hostname)
+	if err != nil {
+		return nil, err
+	}
+
+	if connCreated {
+		reverter.Add(func() {
+			err := d.client().DisconnectHostFromVolume(vol.pool, volName, hostname)
+			if err != nil {
+				d.logger.Error("DisconnectHostFromVolume API call failed on error path", logger.Ctx{"err": err, "volName": volName, "hostname": hostname})
+			}
+		})
+	}
+
+	// Find the array's qualified name for the configured mode.
+	targetQN, targetAddrs, err := d.getTarget()
+	if err != nil {
+		return nil, err
+	}
+
+	// Connect to the array.
+	connReverter, err := connector.Connect(d.state.ShutdownCtx, targetQN, targetAddrs...)
+	if err != nil {
+		return nil, err
+	}
+
+	reverter.Add(connReverter)
+
+	// If connect succeeded it means we have at least one established connection.
+	// However, it's reverter does not cleanup the establised connections or a newly
+	// created session. Therefore, if we created a mapping, add unmapVolume to the
+	// returned (outer) reverter. Unmap ensures the target is disconnected only when
+	// no other device is using it.
+	outerReverter := revert.New()
+	if connCreated {
+		outerReverter.Add(func() {
+			err := d.unmapVolume(vol)
+			if err != nil {
+				d.logger.Error("unmapVolume failed on error path", logger.Ctx{"err": err})
+			}
+		})
+	}
+
+	// Add connReverter to the outer reverter, as it will immediately stop
+	// any ongoing connection attempts. Note that it must be added after
+	// unmapVolume to ensure it is called first.
+	outerReverter.Add(connReverter)
+
+	reverter.Success()
+	return outerReverter.Fail, nil
+}
+
+// unmapVolume unmaps the given volume from this host.
+func (d *alletra) unmapVolume(vol Volume) error {
+	connector, err := d.connector()
+	if err != nil {
+		return err
+	}
+
+	volName, err := d.getVolumeName(vol)
+	if err != nil {
+		return err
+	}
+
+	unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
+	if err != nil {
+		return err
+	}
+
+	defer unlock()
+
+	qn, err := connector.QualifiedName()
+	if err != nil {
+		return err
+	}
+
+	host, err := d.client().GetCurrentHost(connector.Type(), qn)
+	if err != nil {
+		return err
+	}
+
+	// Disconnect the volume from the host and ignore error if connection does not exist.
+	err = d.client().DisconnectHostFromVolume(vol.pool, volName, host.Name)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return err
+	}
+
+	volumePath, _, _ := d.getMappedDevPath(vol, false)
+	if volumePath != "" {
+		// When iSCSI volume is disconnected from the host, the device will remain on the system.
+		//
+		// To remove the device, we need to either logout from the session or remove the
+		// device manually. Logging out of the session is not desired as it would disconnect
+		// from all connected volumes. Therefore, we need to manually remove the device.
+		if connector.Type() == connectors.TypeISCSI {
+			// removeDevice removes device from the system if the device is removable.
+			removeDevice := func(devName string) error {
+				path := "/sys/block/" + devName + "/device/delete"
+				if shared.PathExists(path) {
+					// Delete device.
+					err := os.WriteFile(path, []byte("1"), 0400)
+					if err != nil {
+						return err
+					}
+				}
+
+				return nil
+			}
+
+			devName := filepath.Base(volumePath)
+			if strings.HasPrefix(devName, "dm-") {
+				// Multipath device (/dev/dm-*) itself is not removable.
+				// Therefore, we remove its slaves instead.
+				slaves, err := filepath.Glob("/sys/block/" + devName + "/slaves/*")
+				if err != nil {
+					return fmt.Errorf("Failed to unmap volume %q: Failed to list slaves for device %q: %w", vol.name, devName, err)
+				}
+
+				// Remove slave devices.
+				for _, slave := range slaves {
+					slaveDevName := filepath.Base(slave)
+
+					err := removeDevice(slaveDevName)
+					if err != nil {
+						return fmt.Errorf("Failed to unmap volume %q: Failed to remove slave device %q: %w", vol.name, slaveDevName, err)
+					}
+				}
+			} else {
+				// For non-multipath device (/dev/sd*), remove the device itself.
+				err := removeDevice(devName)
+				if err != nil {
+					return fmt.Errorf("Failed to unmap volume %q: Failed to remove device %q: %w", vol.name, devName, err)
+				}
+			}
+		}
+
+		// Wait until the volume has disappeared.
+		ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 30*time.Second)
+		defer cancel()
+
+		if !block.WaitDiskDeviceGone(ctx, volumePath) {
+			return fmt.Errorf("Timeout exceeded waiting for HPE Alletra storage volume %q to disappear on path %q", vol.name, volumePath)
+		}
+	}
+
+	mappings, err := d.client().GetVLUNsForHost(host.Name)
+	if err != nil {
+		return err
+	}
+
+	// If this was the last volume being unmapped from this system, disconnect the active session
+	// and remove the host from HPE storage.
+	if len(mappings) == 0 {
+		// Find the array's qualified name for the configured mode.
+		targetQN, _, err := d.getTarget()
+		if err != nil {
+			return err
+		}
+
+		// Disconnect from the NVMe subsystem.
+		// Do this first before removing the host from HPE Alletra.
+		err = connector.Disconnect(targetQN)
+		if err != nil {
+			return err
+		}
+
+		// Delete the host from HPE Alletra if the last volume mapping got removed.
+		// This requires the host to be already disconnected from the NVMe subsystem.
+		err = d.client().DeleteHost(host.Name)
+		if err != nil {
+			return err
+		}
+
+		// We have to invalidate a cached value of NVMe target qualified name as we've
+		// disconnected from the array and removed the host. Experiment shows, that
+		// after this, previous QN becomes invalid and we have to do NVMe discovery.
+		d.nvmeTargetQN = ""
+	}
+
+	return nil
 }
 
 // commonVolumeRules returns validation rules which are common for pool and volume.
