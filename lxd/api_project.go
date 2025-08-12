@@ -348,6 +348,10 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	})
 	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusConflict) {
+			return response.Conflict(fmt.Errorf("Project %q already exists", project.Name))
+		}
+
 		return response.SmartError(fmt.Errorf("Failed creating project %q: %w", project.Name, err))
 	}
 
