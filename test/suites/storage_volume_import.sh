@@ -38,7 +38,7 @@ test_storage_volume_import() {
 
   # cannot attach ISO storage volumes to containers
   lxc init testimage c1
-  ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")" c1 foo || false
+  ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")" foo c1 || false
 
   # cannot change storage volume config
   ! lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")" foo size=1GiB || false
