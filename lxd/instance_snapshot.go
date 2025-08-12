@@ -753,7 +753,7 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 		// Check that the name isn't already in use
 		id, _ := tx.GetInstanceSnapshotID(ctx, snapInst.Project().Name, parentName, newName)
 		if id > 0 {
-			return fmt.Errorf("Name '%s' already in use", fullName)
+			return fmt.Errorf("Name %q already in use", fullName)
 		}
 
 		return nil
