@@ -3747,6 +3747,10 @@ func clusterGroupsPost(d *Daemon, r *http.Request) response.Response {
 
 		_, err := dbCluster.CreateClusterGroup(ctx, tx.Tx(), obj)
 		if err != nil {
+			if api.StatusErrorCheck(err, http.StatusConflict) {
+				return api.StatusErrorf(http.StatusConflict, "Cluster group %q already exists", req.Name)
+			}
+
 			return err
 		}
 
