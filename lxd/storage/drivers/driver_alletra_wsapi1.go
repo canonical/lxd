@@ -319,3 +319,43 @@ func (p *alletraClient) login() error {
 	p.cacheSessionKey(respBody.Key)
 	return nil
 }
+
+func (p *alletraClient) createVolumeSet() error {
+	req := map[string]any{
+		"name":    p.driver.name,
+		"comment": "Created and managed by LXD",
+	}
+
+	url := api.NewURL().Path("api", "v1", "volumesets")
+	err := p.requestAuthenticated(http.MethodPost, url.URL, req, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to create volume set for a storage pool %q: %w", p.driver.name, err)
+	}
+
+	return nil
+}
+
+func (p *alletraClient) deleteVolumeSet() error {
+	url := api.NewURL().Path("api", "v1", "volumesets", p.driver.name)
+	err := p.requestAuthenticated(http.MethodDelete, url.URL, nil, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to delete volume set for a storage pool %q: %w", p.driver.name, err)
+	}
+
+	return nil
+}
+
+func (p *alletraClient) modifyVolumeSet(action int, volName string) error {
+	req := map[string]any{
+		"action":     action,
+		"setmembers": []string{volName},
+	}
+
+	url := api.NewURL().Path("api", "v1", "volumesets", p.driver.name)
+	err := p.requestAuthenticated(http.MethodPut, url.URL, req, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to modify volume set for a storage pool %q: %w", p.driver.name, err)
+	}
+
+	return nil
+}
