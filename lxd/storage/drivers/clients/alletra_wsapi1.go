@@ -24,6 +24,10 @@ const (
 	apiErrorInvalidSessionKey = 6
 	apiErrorExistentHost      = 16
 	apiErrorExportedVLUN      = 26
+	apiErrorNonExistentVol    = 23
+
+	apiVolumeSetMemberAdd    = 1
+	apiVolumeSetMemberRemove = 2
 )
 
 // createBodyReader creates a reader for the given request body contents.
@@ -95,6 +99,56 @@ type hpeHost struct {
 	FCPaths      []hpeFCPath      `json:"FCPaths"`
 	ISCSIPaths   []hpeISCSIPath   `json:"iSCSIPaths"`
 	NVMETCPPaths []hpeNVMETCPPath `json:"NVMETCPPaths"`
+}
+
+type hpeVolume struct {
+	ID                    int         `json:"id"`
+	Name                  string      `json:"name"`
+	ShortName             string      `json:"shortName"`
+	DeduplicationState    int         `json:"deduplicationState"`
+	CompressionState      int         `json:"compressionState"`
+	ProvisioningType      int         `json:"provisioningType"`
+	CopyType              int         `json:"copyType"`
+	BaseID                int         `json:"baseId"`
+	ReadOnly              bool        `json:"readOnly"`
+	State                 int         `json:"state"`
+	FailedStates          []string    `json:"failedStates"`
+	DegradedStates        []string    `json:"degradedStates"`
+	AdditionalStates      []string    `json:"additionalStates"`
+	TotalReservedMiB      int64       `json:"totalReservedMiB"`
+	TotalUsedMiB          int64       `json:"totalUsedMiB"`
+	SizeMiB               int64       `json:"sizeMiB"`
+	HostWriteMiB          int64       `json:"hostWriteMiB"`
+	WWN                   string      `json:"wwn"`
+	NGUID                 string      `json:"nguid"`
+	CreationTimeSec       int         `json:"creationTimeSec"`
+	CreationTime8601      string      `json:"creationTime8601"`
+	UsrSpcAllocWarningPct int         `json:"usrSpcAllocWarningPct"`
+	UsrSpcAllocLimitPct   int         `json:"usrSpcAllocLimitPct"`
+	Policies              hpePolicies `json:"policies"`
+	UserCPG               string      `json:"userCPG"`
+	UUID                  string      `json:"uuid"`
+	UDID                  int         `json:"udid"`
+	CapacityEfficiency    hpeCapacity `json:"capacityEfficiency"`
+	RcopyStatus           int         `json:"rcopyStatus"`
+	Links                 []hpeLink   `json:"links"`
+}
+
+type hpePolicies struct {
+	StaleSS    bool `json:"staleSS"`
+	OneHost    bool `json:"oneHost"`
+	ZeroDetect bool `json:"zeroDetect"`
+	System     bool `json:"system"`
+	Caching    bool `json:"caching"`
+}
+
+type hpeCapacity struct {
+	Compaction float64 `json:"compaction"`
+}
+
+type hpeLink struct {
+	Href string `json:"href"`
+	Rel  string `json:"rel"`
 }
 
 type hpeRespMembers[T any] struct {
@@ -529,4 +583,93 @@ func (p *AlletraClient) DeleteHost(hostName string) error {
 // and only needed to make code sharing with Pure easier.
 func (p *AlletraClient) UpdateHost(hostName string, qns []string) error {
 	return fmt.Errorf("Failed to update host %q. Operation not supported", hostName)
+}
+
+func (p *AlletraClient) createVolume(poolName string, volName string, sizeBytes int64) error {
+	req := map[string]any{
+		"name":    volName,
+		"cpg":     p.cpg,
+		"sizeMiB": sizeBytes / 1024 / 1024,
+		"tpvv":    true, // thinly provisioned volume
+	}
+
+	url := api.NewURL().Path("api", "v1", "volumes")
+	err := p.requestAuthenticated(http.MethodPost, url.URL, req, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to create volume %q in storage pool %q: %w", volName, poolName, err)
+	}
+
+	return nil
+}
+
+// CreateVolume creates a new volume in the given storage pool (volume set). The volume is created with
+// supplied size in bytes.
+func (p *AlletraClient) CreateVolume(poolName string, volName string, sizeBytes int64) error {
+	err := p.createVolume(poolName, volName, sizeBytes)
+	if err != nil {
+		return err
+	}
+
+	// Add a newly created volume to a volume set
+	err = p.modifyVolumeSet(poolName, apiVolumeSetMemberAdd, volName)
+	return err
+}
+
+// GetVolume returns the volume for a given volName.
+func (p *AlletraClient) GetVolume(poolName string, volName string) (*hpeVolume, error) {
+	var resp hpeVolume
+
+	url := api.NewURL().Path("api", "v1", "volumes", volName)
+	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
+	if err != nil {
+		hpeErr, ok := err.(*hpeError)
+		if ok {
+			switch hpeErr.Code {
+			case apiErrorNonExistentVol:
+				return nil, api.StatusErrorf(http.StatusNotFound, "Volume (or snapshot) %q not found", volName)
+			default:
+				return nil, fmt.Errorf("Unexpected Alletra WSAPI response: Code: %d. Desc: %q", hpeErr.Code, hpeErr.Desc)
+			}
+		}
+
+		return nil, fmt.Errorf("Failed to get hpeVolume %q: %w", volName, err)
+	}
+
+	if resp.Name == "" {
+		return nil, fmt.Errorf("Unexpected Alletra WSAPI response: volume %q exists but has empty name", volName)
+	}
+
+	return &resp, nil
+}
+
+// deleteVolume deletes a volume or snapshot. Recursively.
+func (p *AlletraClient) deleteVolume(poolName string, volName string) error {
+	url := api.NewURL().Path("api", "v1", "volumes", volName).WithQuery("cascade", "true")
+
+	err := p.requestAuthenticated(http.MethodDelete, url.URL, nil, nil)
+	if err != nil {
+		hpeErr, ok := err.(*hpeError)
+		if ok {
+			switch hpeErr.Code {
+			case apiErrorNonExistentVol:
+				return nil
+			default:
+				return fmt.Errorf("Unexpected Alletra WSAPI response: Code: %d. Desc: %q", hpeErr.Code, hpeErr.Desc)
+			}
+		}
+
+		return fmt.Errorf("Failed to delete volume (or snapshot) %q in pool %q: %w", volName, poolName, err)
+	}
+
+	return nil
+}
+
+// DeleteVolume deletes an exisiting volume in the given storage pool.
+func (p *AlletraClient) DeleteVolume(poolName string, volName string) error {
+	err := p.modifyVolumeSet(poolName, apiVolumeSetMemberRemove, volName)
+	if err != nil {
+		return err
+	}
+
+	return p.deleteVolume(poolName, volName)
 }
