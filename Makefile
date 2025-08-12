@@ -94,6 +94,7 @@ endif
 	# Static pins
 	go get github.com/gorilla/websocket@v1.5.1 # Due to riscv64 crashes in LP
 	go get github.com/olekukonko/tablewriter@v0.0.5 # Due to breaking API in later versions
+	go get github.com/juju/utils/v3@v3.2.1 # Due to requiring Go 1.24
 
 	# Enforce minimum go version
 	go mod tidy -go=$(GOMIN)
