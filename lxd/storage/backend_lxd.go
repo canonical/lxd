@@ -8130,7 +8130,7 @@ func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName strin
 	}
 
 	if volExists {
-		return errors.New("Cannot create volume, already exists on target storage")
+		return fmt.Errorf("Cannot create volume %q, volume already exists on storage pool %q", volName, b.name)
 	}
 
 	// Validate config and create database entry for new storage volume.
@@ -8233,6 +8233,15 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 	volStorageName := project.StorageVolume(srcBackup.Project, srcBackup.Name)
 
 	vol := b.GetNewVolume(drivers.VolumeTypeCustom, drivers.ContentType(customVol.ContentType), volStorageName, customVol.Config)
+
+	volExists, err := b.driver.HasVolume(vol)
+	if err != nil {
+		return err
+	}
+
+	if volExists {
+		return fmt.Errorf("Cannot create volume %q, volume already exists on storage pool %q", srcBackup.Name, b.name)
+	}
 
 	// Validate config and create database entry for new storage volume.
 	// Strip unsupported config keys (in case the export was made from a different type of storage pool).
