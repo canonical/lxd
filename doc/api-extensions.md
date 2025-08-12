@@ -2579,7 +2579,7 @@ This adds support for listing profiles across all projects using the `all-projec
 Adds a new `powerflex` storage driver which allows the consumption of storage volumes from a Dell PowerFlex storage array using NVMe/TCP and SDC.
 The following new pool level configuration keys have been added:
 
-1. {config:option}`storage-powerflex-pool-conf:powerflex.clone_copy`
+1. {config:option}`storage-powerflex-pool-conf:powerflex.snapshot_copy`
 1. {config:option}`storage-powerflex-pool-conf:powerflex.domain`
 1. {config:option}`storage-powerflex-pool-conf:powerflex.gateway`
 1. {config:option}`storage-powerflex-pool-conf:powerflex.gateway.verify`

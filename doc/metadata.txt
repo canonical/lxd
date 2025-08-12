@@ -5968,15 +5968,6 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 
 <!-- config group storage-lvm-volume-conf end -->
 <!-- config group storage-powerflex-pool-conf start -->
-```{config:option} powerflex.clone_copy storage-powerflex-pool-conf
-:defaultdesc: "`true`"
-:scope: "global"
-:shortdesc: "Whether to use non-sparse copies for snapshots"
-:type: "bool"
-If this option is set to `true`, PowerFlex makes a non-sparse copy when creating a snapshot of an instance or custom volume.
-See {ref}`storage-powerflex-limitations` for more information.
-```
-
 ```{config:option} powerflex.domain storage-powerflex-pool-conf
 :scope: "global"
 :shortdesc: "Name of the PowerFlex protection domain"
@@ -6020,6 +6011,15 @@ If you want to specify the storage pool via its name, also set {config:option}`s
 :shortdesc: "Comma separated list of PowerFlex NVMe/TCP SDTs"
 :type: "string"
 
+```
+
+```{config:option} powerflex.snapshot_copy storage-powerflex-pool-conf
+:defaultdesc: "`false`"
+:scope: "global"
+:shortdesc: "Whether to use sparse snapshots for copies"
+:type: "bool"
+If this option is set to `true`, PowerFlex makes a sparse snapshot when copying an instance or custom volume.
+See {ref}`storage-powerflex-limitations` for more information.
 ```
 
 ```{config:option} powerflex.user.name storage-powerflex-pool-conf
