@@ -365,6 +365,92 @@ func (d *alletra) unmapVolume(vol Volume) error {
 	return nil
 }
 
+// getMappedDevPath returns the local device path for the given volume.
+// Indicate with mapVolume if the volume should get mapped to the system if it isn't present.
+func (d *alletra) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
+	connector, err := d.connector()
+	if err != nil {
+		return "", nil, err
+	}
+
+	if mapVolume {
+		cleanup, err := d.mapVolume(vol)
+		if err != nil {
+			return "", nil, err
+		}
+
+		revert.Add(cleanup)
+	}
+
+	volName, err := d.getVolumeName(vol)
+	if err != nil {
+		return "", nil, err
+	}
+
+	hpeVol, err := d.client().GetVolume(vol.pool, volName)
+	if err != nil {
+		return "", nil, err
+	}
+
+	// Ensure the NGUID is exactly 32 characters long, as it uniquely
+	// identifies the device. This check should never succeed, but prevents
+	// out-of-bounds errors when slicing the string later.
+	if len(hpeVol.NGUID) != 32 {
+		return "", nil, fmt.Errorf("Failed to locate device for volume %q: Unexpected length of NGUID %q (%d)", vol.name, hpeVol.NGUID, len(hpeVol.NGUID))
+	}
+
+	var diskPrefix string
+	var diskSuffix string
+
+	switch connector.Type() {
+	case connectors.TypeISCSI:
+		diskPrefix = "scsi-"
+		diskSuffix = strings.ToLower(hpeVol.NGUID)
+	case connectors.TypeNVME:
+		diskPrefix = "nvme-eui."
+		diskSuffix = strings.ToLower(hpeVol.NGUID)
+	default:
+		return "", nil, fmt.Errorf("Unsupported Alletra Storage mode %q", connector.Type())
+	}
+
+	// Filters devices by matching the device path with the lowercase disk suffix.
+	// storage reports serial numbers in uppercase, so the suffix is converted
+	// to lowercase.
+	diskPathFilter := func(devPath string) bool {
+		return strings.HasSuffix(devPath, strings.ToLower(diskSuffix))
+	}
+
+	var devicePath string
+	if mapVolume {
+		// Wait until the disk device is mapped to the host.
+		devicePath, err = block.WaitDiskDevicePath(d.state.ShutdownCtx, diskPrefix, diskPathFilter)
+	} else {
+		// Expect device to be already mapped.
+		devicePath, err = block.GetDiskDevicePath(diskPrefix, diskPathFilter)
+	}
+
+	if err != nil {
+		return "", nil, fmt.Errorf("Failed to locate device for volume %q: %w", vol.name, err)
+	}
+
+	cleanup := revert.Clone().Fail
+	revert.Success()
+	return devicePath, cleanup, nil
+}
+
+// GetVolumeDiskPath returns the location of a root disk block device.
+func (d *alletra) GetVolumeDiskPath(vol Volume) (string, error) {
+	if vol.IsVMBlock() || (vol.volType == VolumeTypeCustom && IsContentBlock(vol.contentType)) {
+		devPath, _, err := d.getMappedDevPath(vol, false)
+		return devPath, err
+	}
+
+	return "", ErrNotSupported
+}
+
 // commonVolumeRules returns validation rules which are common for pool and volume.
 func (d *alletra) commonVolumeRules() map[string]func(value string) error {
 	return map[string]func(value string) error{
