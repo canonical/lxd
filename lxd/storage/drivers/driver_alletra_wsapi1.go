@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -127,6 +128,12 @@ type hpeCapacity struct {
 type hpeLink struct {
 	Href string `json:"href"`
 	Rel  string `json:"rel"`
+}
+
+type hpeVLUN struct {
+	LUN      int    `json:"lun"`
+	Hostname string `json:"hostname"`
+	Serial   string `json:"serial"`
 }
 
 type hpeRespMembers[T any] struct {
@@ -665,4 +672,95 @@ func (p *alletraClient) deleteVolume(poolName string, volName string) error {
 	}
 
 	return p._deleteVolume(poolName, volName)
+}
+
+// connectHostToVolume creates a connection between a host and volume. It returns true if the connection
+// was created, and false if it already existed.
+func (p *alletraClient) connectHostToVolume(poolName string, volName string, hostName string) (bool, error) {
+	url := api.NewURL().Path("api", "v1", "vluns")
+
+	req := make(map[string]any)
+
+	req["hostname"] = hostName
+	req["volumeName"] = volName
+	req["lun"] = 0
+	req["autoLun"] = true
+
+	err := p.requestAuthenticated(http.MethodPost, url.URL, req, nil)
+	if err != nil {
+		hpeErr, ok := err.(*hpeError)
+		if ok {
+			switch hpeErr.Code {
+			case 29: // Error: VVs cannot be exported to the same NVMe host twice.
+				logger.Debugf("HPE using existing settings. Volume %s already attached to %s", volName, hostName)
+				return false, nil
+			default:
+				return false, fmt.Errorf("HPE debug. hpeErr.Code: %d. hpeErr.Desc: %s", hpeErr.Code, hpeErr.Desc)
+			}
+		}
+
+		return false, fmt.Errorf("Failed to connect volume %q with host %q: %w", volName, hostName, err)
+	}
+
+	return true, nil
+}
+
+// disconnectHostFromVolume deletes a connection between a host and volume.
+func (p *alletraClient) disconnectHostFromVolume(poolName string, volName string, hostName string) error {
+	vlun, errVLUN := p.getVLUN(volName)
+	if errVLUN != nil {
+		return fmt.Errorf("HPE Error %w", errVLUN)
+	}
+
+	if vlun == nil {
+		logger.Debugf("HPE debug no need to disconnect host %s from volume %s", hostName, volName)
+		return nil
+	}
+
+	customParam := volName + "," + strconv.Itoa(vlun.LUN) + "," + hostName
+	url := api.NewURL().Path("api", "v1", "vluns", customParam)
+
+	err := p.requestAuthenticated(http.MethodDelete, url.URL, nil, nil)
+	if err != nil {
+		if isHpeErrorNotFound(err) {
+			return api.StatusErrorf(http.StatusNotFound, "Connection between host %q and volume %q not found", volName, hostName)
+		}
+
+		return fmt.Errorf("Failed to disconnect volume %q from host %q: %w", volName, hostName, err)
+	}
+
+	return nil
+}
+
+// getVLUN returns VLUN related data of given volumeName.
+func (p *alletraClient) getVLUN(volumeName string) (*hpeVLUN, error) {
+	var resp hpeRespMembers[hpeVLUN]
+
+	url := api.NewURL().Path("api", "v1", "vluns").WithQuery("query", "\"volumeName"+"=="+volumeName+"\"")
+
+	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("Fail to get vLUN data for volume %s: %w", volumeName, err)
+	}
+
+	if len(resp.Members) == 0 {
+		logger.Debugf("HPE debug no VLUN found for volume: %s", volumeName)
+		return nil, nil
+	}
+
+	return &resp.Members[0], nil
+}
+
+// getVLUNsForHost returns VLUNs list for a given hostName.
+func (p *alletraClient) getVLUNsForHost(hostName string) ([]hpeVLUN, error) {
+	var resp hpeRespMembers[hpeVLUN]
+
+	url := api.NewURL().Path("api", "v1", "vluns").WithQuery("query", "\"hostname"+"=="+hostName+"\"")
+
+	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get vLUNs list for host %s: %w", hostName, err)
+	}
+
+	return resp.Members, nil
 }
