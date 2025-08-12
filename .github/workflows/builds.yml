@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Go
         uses: actions/setup-go@v5
@@ -42,7 +42,7 @@ jobs:
       BRANCH: ${{ github.ref_name }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - uses: canonical/lxd/.github/actions/lp-snap-build@main
         with:
