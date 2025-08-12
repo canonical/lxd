@@ -58,7 +58,7 @@ require (
 	golang.org/x/sync v0.16.0
 	golang.org/x/sys v0.35.0
 	golang.org/x/term v0.34.0
-	golang.org/x/text v0.27.0
+	golang.org/x/text v0.28.0
 	golang.org/x/tools v0.35.0
 	google.golang.org/protobuf v1.36.7
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
