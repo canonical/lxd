@@ -375,6 +375,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_authorization "Authorization"
     run_test test_certificate_edit "Certificate edit"
     run_test test_basic_usage "basic usage"
+    run_test test_duplicate_detection "duplicate detection"
     run_test test_basic_version "basic version"
     run_test test_server_info "server info"
     run_test test_remote_url "remote url handling"
