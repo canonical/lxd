@@ -248,15 +248,15 @@ func (d *powerflex) Validate(config map[string]string) error {
 		//  shortdesc: Comma separated list of PowerFlex NVMe/TCP SDTs
 		//  scope: global
 		"powerflex.sdt": validate.Optional(validate.IsListOf(validate.IsNetworkAddress)),
-		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.clone_copy)
-		// If this option is set to `true`, PowerFlex makes a non-sparse copy when creating a snapshot of an instance or custom volume.
+		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.snapshot_copy)
+		// If this option is set to `true`, PowerFlex makes a sparse snapshot when copying an instance or custom volume.
 		// See {ref}`storage-powerflex-limitations` for more information.
 		// ---
 		//  type: bool
-		//  defaultdesc: `true`
-		//  shortdesc: Whether to use non-sparse copies for snapshots
+		//  defaultdesc: `false`
+		//  shortdesc: Whether to use sparse snapshots for copies
 		//  scope: global
-		"powerflex.clone_copy": validate.Optional(validate.IsBool),
+		"powerflex.snapshot_copy": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=volume.size)
 		// The size must be in multiples of 8 GiB.
 		// See {ref}`storage-powerflex-limitations` for more information.

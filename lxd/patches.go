@@ -103,6 +103,7 @@ var patches = []patch{
 	{name: "remove_backupsimages_symlinks", stage: patchPostDaemonStorage, run: patchRemoveBackupsImagesSymlinks},
 	{name: "move_images_storage", stage: patchPostDaemonStorage, run: patchMoveBackupsImagesStorage},
 	{name: "cluster_config_volatile_uuid", stage: patchPreLoadClusterConfig, run: patchClusterConfigVolatileUUID},
+	{name: "storage_update_powerflex_clone_copy_setting", stage: patchPostDaemonStorage, run: patchUpdatePowerFlexCloneCopySetting},
 }
 
 type patch struct {
@@ -1599,6 +1600,53 @@ func patchClusterConfigVolatileUUID(name string, d *Daemon) error {
 
 		return nil
 	})
+}
+
+// patchUpdatePowerFlexCloneCopySetting checks whether or not the 'powerflex.clone_copy' setting is present on any applicable storage pool.
+// If set it's getting replaced with the new 'powerflex.snapshot_copy' setting which also inverts the original value.
+func patchUpdatePowerFlexCloneCopySetting(_ string, d *Daemon) error {
+	err := d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		// Get all storage pool names.
+		pools, _, err := tx.GetStoragePools(ctx, nil)
+		if err != nil {
+			// Skip the rest of the patch if no storage pools were found.
+			if api.StatusErrorCheck(err, http.StatusNotFound) {
+				return nil
+			}
+
+			return err
+		}
+
+		for _, pool := range pools {
+			// Skip all pools which don't use the powerflex driver.
+			if pool.Driver != "powerflex" {
+				continue
+			}
+
+			if pool.Config["powerflex.clone_copy"] != "" {
+				if shared.IsFalse(pool.Config["powerflex.clone_copy"]) {
+					pool.Config["powerflex.snapshot_copy"] = "true"
+				} else if shared.IsTrue(pool.Config["powerflex.clone_copy"]) {
+					pool.Config["powerflex.snapshot_copy"] = "false"
+				}
+
+				// Delete the old config key.
+				delete(pool.Config, "powerflex.clone_copy")
+
+				// Persist the changes.
+				err = tx.UpdateStoragePool(ctx, pool.Name, pool.Description, pool.Config)
+				if err != nil {
+					return fmt.Errorf("Failed updating storage pool %q: %w", pool.Name, err)
+				}
+			}
+		}
+
+		return nil
+	})
+
+	return err
 }
 
 // Patches end here
