@@ -4,10 +4,92 @@ package idmap
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func Test_ToLxcString(t *testing.T) {
+	tests := []struct {
+		name     string
+		idmapSet IdmapSet
+		expected []string
+	}{
+		{
+			name:     "empty idmap set",
+			idmapSet: IdmapSet{},
+			expected: []string{},
+		},
+		{
+			name: "single uid entry",
+			idmapSet: IdmapSet{
+				Idmap: []IdmapEntry{
+					{Isuid: true, Hostid: 1000, Nsid: 0, Maprange: 1000},
+				},
+			},
+			expected: []string{"u 0 1000 1000"},
+		},
+		{
+			name: "single gid entry",
+			idmapSet: IdmapSet{
+				Idmap: []IdmapEntry{
+					{Isgid: true, Hostid: 1000, Nsid: 0, Maprange: 1000},
+				},
+			},
+			expected: []string{"g 0 1000 1000"},
+		},
+		{
+			name: "single both entry",
+			idmapSet: IdmapSet{
+				Idmap: []IdmapEntry{
+					{Isuid: true, Isgid: true, Hostid: 1000, Nsid: 0, Maprange: 1000},
+				},
+			},
+			expected: []string{
+				"u 0 1000 1000",
+				"g 0 1000 1000",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.idmapSet.ToLxcString()
+			if !slices.Equal(result, tt.expected) {
+				t.Errorf("ToLxcString() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func Test_IsBetween(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    int64
+		low      int64
+		high     int64
+		expected bool
+	}{
+		{"within range", 5, 1, 10, true},
+		{"range start", 1, 1, 10, true},
+		{"range end", 9, 1, 10, true},
+		{"below range", 0, 1, 10, false},
+		{"above range", 10, 1, 10, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isBetween(tt.value, tt.low, tt.high)
+			if result != tt.expected {
+				t.Errorf("isBetween(%d, %d, %d) = %v; want %v", tt.value, tt.low, tt.high, result, tt.expected)
+			}
+		})
+	}
+}
 
 func TestIdmapSetAddSafe_split(t *testing.T) {
 	orig := IdmapSet{Idmap: []IdmapEntry{{Isuid: true, Hostid: 1000, Nsid: 0, Maprange: 1000}}}
@@ -201,4 +283,154 @@ func TestIdmapHostIDMapRange(t *testing.T) {
 	assert.False(t, combinedEntry.HostIDsCoveredBy(allowedCombinedMaps, nil))
 	assert.False(t, combinedEntry.HostIDsCoveredBy(nil, allowedCombinedMaps))
 	assert.True(t, combinedEntry.HostIDsCoveredBy(allowedCombinedMaps, allowedCombinedMaps))
+}
+
+func Test_getFromShadow(t *testing.T) {
+	tests := []struct {
+		name     string
+		username string
+		content  string
+		expected [][]int64
+		wantErr  bool
+	}{
+		{
+			name:     "valid entry",
+			username: "root",
+			content:  "root:1000000:1000000000\n",
+			expected: [][]int64{{1000000, 1000000000}},
+		},
+		{
+			name:     "valid entries",
+			username: "foo",
+			content:  "foo:0:1000\nfoo:1001:5\n",
+			expected: [][]int64{{0, 1000}, {1001, 5}},
+		},
+		{
+			name:     "valid entry for foo",
+			username: "foo",
+			content:  "foo:0:1000\nbar:1001:5\n",
+			expected: [][]int64{{0, 1000}},
+		},
+		{
+			name:     "valid entry for bar",
+			username: "bar",
+			content:  "foo:0:1000\nbar:1001:5\n",
+			expected: [][]int64{{1001, 5}},
+		},
+		{
+			name:     "empty file",
+			username: "foo",
+			content:  "",
+			wantErr:  true,
+		},
+		{
+			name:     "invalid format",
+			username: "foo",
+			content:  "0:1000\n",
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create temp file with test content
+			tmpDir := t.TempDir()
+			tmpFile := filepath.Join(tmpDir, "subXid")
+
+			err := os.WriteFile(tmpFile, []byte(tt.content), 0644)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			result, err := getFromShadow(tmpFile, tt.username)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Error("expected error but got none")
+				}
+
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if !reflect.DeepEqual(result, tt.expected) {
+				t.Errorf("got %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func Test_getFromProc(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		expected [][]int64
+		wantErr  bool
+	}{
+		{
+			name:     "valid entry",
+			content:  "         0          0 4294967295\n",
+			expected: [][]int64{{0, 0, 4294967295}},
+		},
+		{
+			name:     "comments are ignored",
+			content:  "# not supposed to be here but harmless\n         0          0 4294967295\n",
+			expected: [][]int64{{0, 0, 4294967295}},
+		},
+		{
+			name:     "valid entries",
+			content:  "0 1000 1\n1 1001 5",
+			expected: [][]int64{{0, 1000, 1}, {1, 1001, 5}},
+		},
+		{
+			name:    "empty file",
+			content: "",
+			wantErr: true,
+		},
+		{
+			name:    "invalid format",
+			content: "0 1000",
+			wantErr: true,
+		},
+		{
+			name:     "skip invalid entries",
+			content:  "invalid 1000 1\n0 1000 1",
+			expected: [][]int64{{0, 1000, 1}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create temp file with test content
+			tmpDir := t.TempDir()
+			tmpFile := filepath.Join(tmpDir, "Xid_map")
+
+			err := os.WriteFile(tmpFile, []byte(tt.content), 0644)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Test the function
+			result, err := getFromProc(tmpFile)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Error("expected error but got none")
+				}
+
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if !reflect.DeepEqual(result, tt.expected) {
+				t.Errorf("got %v, want %v", result, tt.expected)
+			}
+		})
+	}
 }

@@ -74,7 +74,7 @@ func (c *cmdShift) run(cmd *cobra.Command, args []string) error {
 
 	// Reverse shifting
 	if c.flagReverse {
-		err := idmapSet.UidshiftFromContainer(directory, c.flagTestMode)
+		err := idmapSet.UidShiftFromContainer(directory, c.flagTestMode)
 		if err != nil {
 			return err
 		}
@@ -83,7 +83,7 @@ func (c *cmdShift) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Normal shifting
-	err := idmapSet.UidshiftIntoContainer(directory, c.flagTestMode)
+	err := idmapSet.UidShiftIntoContainer(directory, c.flagTestMode)
 	if err != nil {
 		return err
 	}
