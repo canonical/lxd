@@ -376,6 +376,11 @@ func Test_getFromProc(t *testing.T) {
 			expected: [][]int64{{0, 0, 4294967295}},
 		},
 		{
+			name:     "comments are ignored",
+			content:  "# not supposed to be here but harmless\n         0          0 4294967295\n",
+			expected: [][]int64{{0, 0, 4294967295}},
+		},
+		{
 			name:     "valid entries",
 			content:  "0 1000 1\n1 1001 5",
 			expected: [][]int64{{0, 1000, 1}, {1, 1001, 5}},
