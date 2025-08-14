@@ -1,0 +1,380 @@
+swagger: "2.0"
+info:
+    contact:
+        email: lxd@lists.canonical.com
+        name: LXD upstream
+        url: https://github.com/canonical/lxd
+    description: |-
+        The DevLXD API is exposed to guest instances. 
+        For virtual-machines, this requires the LXD agent to be running.
+        
+        The API is JSON over a unix+http socket and is available at `/dev/lxd/sock` within a guest instance.
+    license:
+        name: AGPL-3.0-only
+        url: https://www.gnu.org/licenses/agpl-3.0.en.html
+    title: DevLXD API
+    version: "1.0"
+paths:
+    /:
+        get:
+            operationId: api_get
+            summary: Get the supported API endpoints
+            description: |-
+                Returns a list of supported API versions (URLs).
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: List of endpoints
+                    schema:
+                        type: array
+                        items:
+                            type: string
+                        example:
+                            - /1.0
+    /1.0:
+        get:
+            operationId: state_get
+            summary: Get the instance state
+            description: Shows the instance state and API details.
+            produces:
+                - application/json
+                - text/plain
+            responses:
+                "200":
+                    $ref: '#/definitions/DevLXDGet'
+                "500":
+                    description: "Internal error"
+                    schema:
+                        type: string
+                        example: "Internal server error occurred"
+        patch:
+            operationId: state_patch
+            summary: Set instance readiness.
+            description: |-
+                Updates the instance state.
+                
+                This allows the guest to update the instance state from "Started" to "Ready".
+                This can be used to indicate that the guest has successfully started any required services e.g. via Cloud Init.
+            consumes:
+                - application/json
+            produces:
+                - text/plain
+            parameters:
+                - description: Instance state
+                  in: body
+                  name: state
+                  required: true
+                  schema:
+                    $ref: '#/definitions/DevLXDPut'
+            responses:
+                "200":
+                    description: "Updated successfully"
+                "400":
+                    description: "Bad request"
+                    schema:
+                        type: string
+                        example: "Invalid state"
+                "500":
+                    description: "Internal error"
+                    schema:
+                        type: string
+                        example: "Internal server error occurred"
+    /1.0/config:
+        get:
+            operationId: config_keys_get
+            summary: List instance configuration key API endpoints
+            description: |-
+                Produces a list of API endpoints of configuration keys.
+                
+                The configuration keys are filtered.
+                Only the `user.*` and `cloud-init.*` namespaces are returned.
+            produces:
+                - application/json
+                - text/plain
+            responses:
+                "200":
+                    description: List of endpoints
+                    schema:
+                        type: array
+                        items:
+                            type: string
+                        example:
+                            - /1.0/user.foo
+                "500":
+                    description: "Internal error"
+                    schema:
+                        type: string
+                        example: "Internal server error occurred"
+    /1.0/config/{key}:
+        get:
+            operationId: config_key_get
+            summary: Get the value corresponding to a configuration key
+            description: |-
+                Returns the value corresponding to a configuration key.
+                
+                Only configuration keys listed by `GET /1.0/config` can be queried.
+            produces:
+                - text/plain
+            responses:
+                "200":
+                    description: "Configration value"
+                    schema:
+                        type: string
+                        example: "foo"
+                "400":
+                    description: "Bad request"
+                    schema:
+                        type: string
+                        example: "Bad request"
+                "403":
+                    description: "Forbidden"
+                    schema:
+                        type: string
+                        example: "Forbidden"
+                "404":
+                    description: "Not found"
+                    schema:
+                        type: string
+                        example: "Key not found"
+                "500":
+                    description: "Internal error"
+                    schema:
+                        type: string
+                        example: "Internal server error occurred"
+    /1.0/devices:
+        get:
+            operationId: devices_get
+            summary: Get a map of instance devices
+            description: |-
+                Returns the devices that are configured on the instance.
+            produces:
+                - application/json
+                - text/plain
+            responses:
+                "200":
+                    description: The instance devices
+                    schema:
+                        type: object
+                        example: {"eth0":{"name": "eth0","network": "lxdbr0","type": "nic"},"root": {"path": "/","pool": "default","type": "disk"}}
+                "500":
+                    description: "Internal error"
+                    schema:
+                        type: string
+                        example: "Internal server error occurred"
+    /1.0/events:
+        get:
+            operationId: events_get
+            summary: Get instance events
+            description: |-                
+                Listen for events that concern the instance.
+                This includes updates to `user.*` configuration keys, and changes to devices.
+                
+                Requests are upgraded to a WebSocket, which will only close if the client disconnects.
+            parameters:
+                - description: Event type(s), comma separated (valid types are config, device)
+                  example: config,device
+                  in: query
+                  name: type
+                  type: string
+            produces:
+                - application/json
+                - text/plain
+            responses:
+                "200":
+                    description: Websocket message (JSON)
+                    schema:
+                        $ref: '#/definitions/Event'
+                "500":
+                    description: "Internal error"
+                    schema:
+                        type: string
+                        example: "Internal server error occurred"
+    /1.0/images/{fingerprint}/export:
+        get:
+            operationId: image_export_get
+            summary: Get the raw image file(s)
+            description: |-
+                Download the raw image file(s) from the host.
+                If the image is in split format, a multipart http transfer occurs.
+                
+                This is useful when running LXD in a guest instance.
+                The full image fingerprint must be provided (unlike the main API, where a fingerprint prefix can be used).
+
+                This endpoint requires `security.devlxd.images` to be set to `true` for the instance (it is `false` by default).
+                
+                Due to an historical oversight, error responses from this endpoint have the same schema as the main LXD API, which is different to those from the DevLXD API.
+            produces:
+                - application/octet-stream
+                - multipart/form-data
+            responses:
+                "200":
+                    description: Raw image data
+                "403":
+                    $ref: '#/responses/MainAPIForbidden'
+                "404":
+                    $ref: '#/responses/MainAPINotFound'
+                "500":
+                    $ref: '#/responses/MainAPIInternalServerError'
+    /1.0/ubuntu-pro:
+        get:
+            operationId: ubuntu_pro_get
+            summary: Get Ubuntu Pro guest attachment settings
+            description: |-
+                Returns settings which determine Ubuntu Pro auto attachment behavior.
+            produces:
+                - application/json
+                - text/plain
+            responses:
+                "200":
+                    description: The Pro attachment settings
+                    schema:
+                        $ref: '#/definitions/DevLXDUbuntuProSettings'
+                "500":
+                    description: "Internal error"
+                    schema:
+                        type: string
+                        example: "Internal server error occurred"
+    /1.0/ubuntu-pro/token:
+        post:
+            operationId: ubuntu_pro_token_post
+            summary: Get an Ubuntu Pro token
+            description: |-
+                Returns an Ubuntu Pro guest attachment token.
+            produces:
+                - application/json
+                - text/plain
+            responses:
+                "200":
+                    description: The Pro attachment settings
+                    schema:
+                        $ref: '#/definitions/DevLXDUbuntuProGuestTokenResponse'
+                "500":
+                    description: "Internal error"
+                    schema:
+                        type: string
+                        example: "Internal server error occurred"
+                "403":
+                    description: "Forbidden"
+                    schema:
+                        type: string
+                        example: "Forbidden"
+responses:
+    MainAPIForbidden:
+        description: Forbidden
+        schema:
+            properties:
+                error:
+                    example: not authorized
+                    type: string
+                error_code:
+                    example: 403
+                    format: int64
+                    type: integer
+                type:
+                    example: error
+                    type: string
+            type: object
+    MainAPIInternalServerError:
+        description: Internal Server Error
+        schema:
+            properties:
+                error:
+                    example: internal server error
+                    type: string
+                error_code:
+                    example: 500
+                    format: int64
+                    type: integer
+                type:
+                    example: error
+                    type: string
+            type: object
+    MainAPINotFound:
+        description: Not found
+        schema:
+            properties:
+                error:
+                    example: not found
+                    type: string
+                error_code:
+                    example: 404
+                    format: int64
+                    type: integer
+                type:
+                    example: error
+                    type: string
+            type: object
+definitions:
+    DevLXDGet:
+        title: The instance state and properties.
+        type: object
+        properties:
+            api_version:
+                description: The DevLXD API version number
+                example: "1.0"
+                type: string
+            instance_type:
+                description: The type of instance
+                example: container
+                type: string
+            location:
+                description: The cluster member where this instance is located
+                example: member01
+                type: string
+            state:
+                description: The instance state
+                example: Started
+                type: string
+    DevLXDPut:
+        title: The instance state
+        type: object
+        properties:
+            state:
+                description: The instance state
+                example: Started
+                type: string
+    Event:
+        description: Event represents an event entry (over websocket)
+        properties:
+            metadata:
+                description: JSON encoded metadata
+                example:
+                    action: added
+                    config: {"type":"unix-char","path":"/dev/kvm"}
+                    name: kvm
+                type: object
+            timestamp:
+                description: Time at which the event was sent
+                example: "2021-02-24T19:00:45.452649098-05:00"
+                format: date-time
+                type: string
+            type:
+                description: Event type (one of config, device)
+                example: device
+                type: string
+        type: object
+    DevLXDUbuntuProSettings:
+        title: Settings for Ubuntu Pro guest attachment.
+        type: object
+        properties:
+            guest_attach:
+                description: Guest attach settings for the instance ("on", "off", or "available").
+                example: "off"
+                type: string
+    DevLXDUbuntuProGuestTokenResponse:
+        title: An Ubuntu Pro guest token response
+        type: object
+        properties:
+            expires:
+                description: The expiry date of the token
+                example: "2025-03-23T20:00:00-04:00"
+                type: string
+            guest_token:
+                description: The token
+                example: "<RANDOM-STRING>"
+                type: string
+            id:
+                description: A unique identifier for the token
+                example: "340bac0d-f5b2-48d5-bcf3-100c573ea51a"
+                type: string
