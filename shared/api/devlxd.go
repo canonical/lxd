@@ -24,7 +24,7 @@ type DevLXDPut struct {
 
 // DevLXDGet represents the server data which is returned as the root of the devlxd API.
 type DevLXDGet struct {
-	DevLXDPut
+	DevLXDPut `yaml:",inline"`
 
 	// API version number
 	// Example: 1.0
