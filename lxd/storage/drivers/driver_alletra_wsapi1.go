@@ -44,6 +44,13 @@ func newAlletraClient(driver *alletra) *alletraClient {
 	}
 }
 
+// hpePort represents a port in HPE Storage.
+type hpePort struct {
+	Protocol  int    `json:"protocol"`
+	NodeWWN   string `json:"nodeWWN"`
+	LinkState int    `json:"linkState"`
+}
+
 // hpePortPos represents the port position in HPE Storage.
 type hpePortPos struct {
 	Node     int `json:"node"`
@@ -672,6 +679,81 @@ func (p *alletraClient) deleteVolume(poolName string, volName string) error {
 	}
 
 	return p._deleteVolume(poolName, volName)
+}
+
+func (p *alletraClient) getTarget() (targetQN string, targetAddrs []string, err error) {
+	// First check if target addresses are configured, otherwise, use the discovered ones.
+	var configAddrs = shared.SplitNTrimSpace(p.driver.config["alletra.target"], ",", -1, true)
+	if len(configAddrs) > 0 {
+		targetAddrs = configAddrs
+	}
+
+	connector, err := p.driver.connector()
+	if err != nil {
+		return "", nil, err
+	}
+
+	mode := connector.Type()
+
+	if len(targetAddrs) == 0 {
+		var portData hpeRespMembers[hpePort]
+		var portMembers []string
+
+		apiPorts := api.NewURL().Path("api", "v1", "ports")
+
+		err = p.requestAuthenticated(http.MethodGet, apiPorts.URL, nil, &portData)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to retrieve port list: %w", err)
+		}
+
+		if len(portData.Members) == 0 {
+			return "", nil, errors.New("HPE Alletra no port data found")
+		}
+
+		for _, member := range portData.Members {
+			if member.LinkState != 4 {
+				continue // skip down or unlinked ports
+			}
+
+			switch mode {
+			case connectors.TypeISCSI:
+				if member.Protocol != 2 {
+					continue
+				}
+
+				if member.NodeWWN != "" {
+					portMembers = append(portMembers, member.NodeWWN)
+				}
+
+			case connectors.TypeNVME:
+				if member.Protocol != 6 {
+					continue
+				}
+
+				if member.NodeWWN != "" {
+					portMembers = append(portMembers, member.NodeWWN)
+				}
+			}
+		}
+
+		targetAddrs = portMembers
+	}
+
+	if len(targetAddrs) == 0 {
+		return "", nil, fmt.Errorf("HPE no usable target found for mode %q", mode)
+	}
+
+	if mode != connectors.TypeNVME {
+		return "", nil, fmt.Errorf("Storage target QN discovery is not supported for mode %q", mode)
+	}
+
+	// Discover the targetQN from any of the addresses.
+	targetQN, err = p.driver.getNVMeTargetQN(targetAddrs...)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return targetQN, targetAddrs, nil
 }
 
 // connectHostToVolume creates a connection between a host and volume. It returns true if the connection
