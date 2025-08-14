@@ -258,17 +258,21 @@ func (b *lxdBackend) Create(clientType request.ClientType, op *operations.Operat
 
 	path := drivers.GetPoolMountPath(b.name)
 
+	recoverSource := shared.IsTrue(b.db.Config["source.recover"])
+
 	if shared.IsDir(path) {
-		return fmt.Errorf("Storage pool directory %q already exists", path)
-	}
+		if !recoverSource {
+			return fmt.Errorf("Storage pool directory %q already exists", path)
+		}
+	} else {
+		// Create the storage path.
+		err = os.MkdirAll(path, 0711)
+		if err != nil {
+			return fmt.Errorf("Failed to create storage pool directory %q: %w", path, err)
+		}
 
-	// Create the storage path.
-	err = os.MkdirAll(path, 0711)
-	if err != nil {
-		return fmt.Errorf("Failed to create storage pool directory %q: %w", path, err)
+		revert.Add(func() { _ = os.RemoveAll(path) })
 	}
-
-	revert.Add(func() { _ = os.RemoveAll(path) })
 
 	// Fill in the missing config.
 	// This is required before asking the driver for further source validation.
@@ -301,30 +305,52 @@ func (b *lxdBackend) Create(clientType request.ClientType, op *operations.Operat
 		return nil
 	}
 
-	// Create the storage pool on the storage device.
-	err = b.driver.Create()
-	if err != nil {
-		return err
+	poolExists := false
+
+	// Check if we can already mount the pool before we have created it.
+	// This is an indicator to check whether the pool already exists on storage.
+	// If it doesn't, then try to create it and perform the mount a second time.
+	if recoverSource {
+		ourMount, err := b.driver.Mount()
+		if err != nil {
+			return fmt.Errorf("Failed to recover existing source for pool %q: %w", b.name, err)
+		}
+
+		// Unmount the pool if we have mounted it as part of probing for its existence.
+		if ourMount {
+			defer func() { _, _ = b.driver.Unmount() }()
+		}
+
+		l.Info("Recovering existing source for pool", logger.Ctx{"pool": b.name})
+		poolExists = true
 	}
 
-	revert.Add(func() { _ = b.driver.Delete(op) })
+	if !poolExists {
+		// Create the storage pool on the storage device.
+		err = b.driver.Create()
+		if err != nil {
+			return err
+		}
 
-	// Mount the storage pool.
-	ourMount, err := b.driver.Mount()
-	if err != nil {
-		return err
-	}
+		revert.Add(func() { _ = b.driver.Delete(op) })
 
-	// We expect the caller of create to mount the pool if needed, so we should unmount after
-	// storage struct has been created.
-	if ourMount {
-		defer func() { _, _ = b.driver.Unmount() }()
-	}
+		// Mount the storage pool.
+		ourMount, err := b.driver.Mount()
+		if err != nil {
+			return err
+		}
 
-	// Create the directory structure.
-	err = b.createStorageStructure(path)
-	if err != nil {
-		return err
+		// We expect the caller of create to mount the pool if needed, so we should unmount after
+		// storage struct has been created.
+		if ourMount {
+			defer func() { _, _ = b.driver.Unmount() }()
+		}
+
+		// Create the directory structure.
+		err = b.createStorageStructure(path)
+		if err != nil {
+			return err
+		}
 	}
 
 	revert.Success()
