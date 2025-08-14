@@ -493,7 +493,7 @@ func (e *embeddedOpenFGA) getPermissionChecker(ctx context.Context, entitlement 
 			return false
 		}
 
-		if checkEffectiveProject {
+		if checkEffectiveProject && parsedEntityType != entity.TypeInstance {
 			// The project in the given URL may be for a project that does not have a feature enabled, in this case the auth check
 			// will fail because the resource doesn't actually exist in that project. To correct this, we use the effective project from
 			// the request context if present.
