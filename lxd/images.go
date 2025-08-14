@@ -185,14 +185,12 @@ func addImageDetailsToRequestContext(s *state.State, r *http.Request) error {
 		return fmt.Errorf("Failed to check project %q image feature: %w", requestProjectName, err)
 	}
 
+	request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	request.SetContextValue(r, ctxImageDetails, imageDetails{
 		imageFingerprintPrefix: imageFingerprintPrefix,
 		imageID:                imageID,
 		image:                  *image,
 	})
-
-	reqInfo := request.GetContextInfo(r.Context())
-	reqInfo.EffectiveProjectName = effectiveProjectName
 
 	return nil
 }
@@ -239,9 +237,7 @@ func imageAliasAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *ht
 			return response.SmartError(err)
 		}
 
-		reqInfo := request.GetContextInfo(r.Context())
-		reqInfo.EffectiveProjectName = effectiveProjectName
-
+		request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 		err = s.Authorizer.CheckPermission(r.Context(), entity.ImageAliasURL(requestProjectName, imageAliasName), entitlement)
 		if err != nil {
 			return response.SmartError(err)
@@ -1822,9 +1818,9 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 
 	s := d.State()
 	if !allProjects && trusted {
-		reqInfo := request.GetContextInfo(r.Context())
+		var effectiveProjectName string
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			reqInfo.EffectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
+			effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
 			return err
 		})
 		if err != nil {
@@ -1836,6 +1832,8 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 
 			return response.SmartError(err)
 		}
+
+		request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	}
 
 	// If the caller is not trusted, we only want to list public images in the default project.
@@ -3231,9 +3229,7 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 			userCanViewImage = true
 		} else {
 			// Otherwise perform an access check with the full image fingerprint.
-			reqInfo := request.GetContextInfo(r.Context())
-			reqInfo.EffectiveProjectName = effectiveProjectName
-
+			request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 			err = s.Authorizer.CheckPermission(r.Context(), entity.ImageURL(projectName, info.Fingerprint), auth.EntitlementCanView)
 			if err != nil && !auth.IsDeniedError(err) {
 				return response.SmartError(err)
@@ -3659,9 +3655,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	reqInfo := request.GetContextInfo(r.Context())
-	reqInfo.EffectiveProjectName = effectiveProjectName
-
+	request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeImageAlias)
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed to get a permission checker: %w", err))
@@ -3825,10 +3819,7 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	// Set `userCanViewImageAlias` to true only when the caller is authenticated and can view the alias.
 	// We don't abort the request if this is false because the image alias may be for a public image.
 	var userCanViewImageAlias bool
-
-	reqInfo := request.GetContextInfo(r.Context())
-	reqInfo.EffectiveProjectName = effectiveProjectName
-
+	request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	err = s.Authorizer.CheckPermission(r.Context(), entity.ImageAliasURL(projectName, name), auth.EntitlementCanView)
 	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
@@ -4313,9 +4304,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 			userCanViewImage = true
 		} else {
 			// Otherwise perform an access check with the full image fingerprint.
-			reqInfo := request.GetContextInfo(r.Context())
-			reqInfo.EffectiveProjectName = effectiveProjectName
-
+			request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 			err = s.Authorizer.CheckPermission(r.Context(), entity.ImageURL(projectName, imgInfo.Fingerprint), auth.EntitlementCanView)
 			if err != nil && !auth.IsDeniedError(err) {
 				return response.SmartError(err)

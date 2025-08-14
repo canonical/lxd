@@ -216,9 +216,9 @@ func (e *embeddedOpenFGA) checkPermission(ctx context.Context, entityURL *api.UR
 		// The project in the given URL may be for a project that does not have a feature enabled, in this case the auth check
 		// will fail because the resource doesn't actually exist in that project. To correct this, we use the effective project from
 		// the request context if present.
-		reqInfo := request.GetContextInfo(ctx)
-		if reqInfo.EffectiveProjectName != "" {
-			projectName = reqInfo.EffectiveProjectName
+		effectiveProject, _ := request.GetContextValue[string](ctx, request.CtxEffectiveProjectName)
+		if effectiveProject != "" {
+			projectName = effectiveProject
 		}
 	}
 
@@ -492,9 +492,9 @@ func (e *embeddedOpenFGA) getPermissionChecker(ctx context.Context, entitlement 
 			// The project in the given URL may be for a project that does not have a feature enabled, in this case the auth check
 			// will fail because the resource doesn't actually exist in that project. To correct this, we use the effective project from
 			// the request context if present.
-			reqInfo := request.GetContextInfo(ctx)
-			if reqInfo.EffectiveProjectName != "" {
-				projectName = reqInfo.EffectiveProjectName
+			effectiveProject, _ := request.GetContextValue[string](ctx, request.CtxEffectiveProjectName)
+			if effectiveProject != "" {
+				projectName = effectiveProject
 			}
 		}
 
