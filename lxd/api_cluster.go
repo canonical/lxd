@@ -273,7 +273,7 @@ func clusterGetMemberConfig(ctx context.Context, cluster *db.Cluster) ([]api.Clu
 	}
 
 	for pool, config := range pools {
-		for key := range config {
+		for key, value := range config {
 			if strings.HasPrefix(key, instancetype.ConfigVolatilePrefix) {
 				continue
 			}
@@ -283,6 +283,7 @@ func clusterGetMemberConfig(ctx context.Context, cluster *db.Cluster) ([]api.Clu
 				Name:        pool,
 				Key:         key,
 				Description: fmt.Sprintf("%q property for storage pool %q", key, pool),
+				Value:       value,
 			}
 
 			keys = append(keys, key)
@@ -290,7 +291,7 @@ func clusterGetMemberConfig(ctx context.Context, cluster *db.Cluster) ([]api.Clu
 	}
 
 	for network, config := range networks {
-		for key := range config {
+		for key, value := range config {
 			if strings.HasPrefix(key, instancetype.ConfigVolatilePrefix) {
 				continue
 			}
@@ -300,6 +301,7 @@ func clusterGetMemberConfig(ctx context.Context, cluster *db.Cluster) ([]api.Clu
 				Name:        network,
 				Key:         key,
 				Description: fmt.Sprintf("%q property for network %q", key, network),
+				Value:       value,
 			}
 
 			keys = append(keys, key)
