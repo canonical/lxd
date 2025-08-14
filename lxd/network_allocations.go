@@ -84,19 +84,21 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	reqInfo := request.GetContextInfo(r.Context())
+	var effectiveProjectName string
 	if !allProjects {
-		reqInfo.EffectiveProjectName, _, err = project.NetworkProject(s.DB.Cluster, requestProjectName)
+		effectiveProjectName, _, err = project.NetworkProject(s.DB.Cluster, requestProjectName)
 		if err != nil {
 			return response.SmartError(err)
 		}
+
+		request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	}
 
 	var projectNames []string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Figure out the projects to retrieve.
 		if !allProjects {
-			projectNames = []string{reqInfo.EffectiveProjectName}
+			projectNames = []string{effectiveProjectName}
 		} else {
 			// Get all project names if no specific project requested.
 			projectNames, err = dbCluster.GetProjectNames(ctx, tx.Tx())
