@@ -456,6 +456,17 @@ func (d *alletra) GetVolumeDiskPath(vol Volume) (string, error) {
 	return "", ErrNotSupported
 }
 
+// MountVolume mounts a volume and increments ref counter. Please call UnmountVolume() when done with the volume.
+func (d *alletra) MountVolume(vol Volume, op *operations.Operation) error {
+	return mountVolume(d, vol, d.getMappedDevPath, op)
+}
+
+// UnmountVolume simulates unmounting a volume.
+// keepBlockDev indicates if backing block device should not be unmapped if volume is unmounted.
+func (d *alletra) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
+	return unmountVolume(d, vol, keepBlockDev, d.getMappedDevPath, d.unmapVolume, op)
+}
+
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied filler function.
 func (d *alletra) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
 	client := d.client()
