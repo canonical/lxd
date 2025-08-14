@@ -61,6 +61,7 @@ dataset
 dGPU
 DCO
 dereferenced
+DevLXD
 DHCP
 DHCPv
 Diffie
@@ -348,9 +349,11 @@ virtualized
 VLAN
 VLANs
 VMs
+VM's
 VPD
 VPN
 VRAM
+Vsock
 vSwitch
 vTree
 VXLAN
