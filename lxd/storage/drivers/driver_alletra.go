@@ -277,3 +277,39 @@ func (d *alletra) Unmount() (bool, error) {
 func (d *alletra) GetResources() (*api.ResourcesStoragePool, error) {
 	return nil, nil
 }
+
+// getNVMeTargetQN discovers the targetQN used for the given addresses.
+func (d *alletra) getNVMeTargetQN(targetAddresses ...string) (string, error) {
+	// The targetQN is unqiue per HPE Alletra storage pool.
+	// Cache the targetQN as it doesn't change throughout the lifetime of the storage pool,
+	// if there are volumes mapped and NVMe session is active.
+	if d.nvmeTargetQN == "" {
+		connector, err := d.connector()
+		if err != nil {
+			return "", err
+		}
+
+		// The discovery log from the first reachable target address is returned.
+		discoveryLogRecords, err := connector.Discover(d.state.ShutdownCtx, targetAddresses...)
+		if err != nil {
+			return "", fmt.Errorf("Failed to discover SDT NQN: %w", err)
+		}
+
+		for _, recordAny := range discoveryLogRecords {
+			record, ok := recordAny.(connectors.NVMeDiscoveryLogRecord)
+			if !ok {
+				return "", fmt.Errorf("Invalid discovery log record entry type %T is not connectors.NVMeDiscoveryLogRecord", recordAny)
+			}
+
+			if record.SubType != connectors.SubtypeNVMESubsys {
+				continue
+			}
+
+			// The targetQN is listed together with every log record of type SubtypeNVMESubsys.
+			d.nvmeTargetQN = record.SubNQN
+			break
+		}
+	}
+
+	return d.nvmeTargetQN, nil
+}
