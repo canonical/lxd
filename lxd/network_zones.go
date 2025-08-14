@@ -67,9 +67,7 @@ func addNetworkZoneDetailsToRequestContext(s *state.State, r *http.Request) erro
 		return fmt.Errorf("Failed to check project %q network feature: %w", requestProjectName, err)
 	}
 
-	reqInfo := request.GetContextInfo(r.Context())
-	reqInfo.EffectiveProjectName = effectiveProjectName
-
+	request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	request.SetContextValue(r, ctxNetworkZoneDetails, networkZoneDetails{
 		zoneName:       zoneName,
 		requestProject: *requestProject,
@@ -214,16 +212,16 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	reqInfo := request.GetContextInfo(r.Context())
+	var effectiveProjectName string
 	if !allProjects {
 		// Project specific requests require an effective project, when "features.networks.zones" is enabled this is the requested project, otherwise it is the default project.
-		effectiveProjectName, _, err := project.NetworkZoneProject(s.DB.Cluster, requestProjectName)
+		effectiveProjectName, _, err = project.NetworkZoneProject(s.DB.Cluster, requestProjectName)
 		if err != nil {
 			return response.SmartError(err)
 		}
 
 		// If the request is project specific, then set effective project name in the request context so that the authorizer can generate the correct URL.
-		reqInfo.EffectiveProjectName = effectiveProjectName
+		request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	}
 
 	recursion := util.IsRecursionRequest(r)
@@ -238,7 +236,7 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 			zoneNamesMap, err = tx.GetNetworkZones(ctx)
 		} else {
 			// Get list of Network zones.
-			zoneNames, err := tx.GetNetworkZonesByProject(ctx, reqInfo.EffectiveProjectName)
+			zoneNames, err := tx.GetNetworkZonesByProject(ctx, effectiveProjectName)
 			if err != nil {
 				return err
 			}
@@ -275,7 +273,7 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 		} else {
 			var netzone zone.NetworkZone
 			if !allProjects {
-				netzone, err = zone.LoadByNameAndProject(s, reqInfo.EffectiveProjectName, zoneName)
+				netzone, err = zone.LoadByNameAndProject(s, effectiveProjectName, zoneName)
 			} else {
 				netzone, err = zone.LoadByNameAndProject(s, projectName, zoneName)
 			}
@@ -405,10 +403,9 @@ func networkZonesPost(d *Daemon, r *http.Request) response.Response {
 func networkZoneDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	var effectiveProjectName string
-	reqInfo := request.GetContextInfo(r.Context())
-	if reqInfo != nil {
-		effectiveProjectName = reqInfo.EffectiveProjectName
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	details, err := request.GetContextValue[networkZoneDetails](r.Context(), ctxNetworkZoneDetails)
@@ -474,10 +471,9 @@ func networkZoneDelete(d *Daemon, r *http.Request) response.Response {
 func networkZoneGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	var effectiveProjectName string
-	reqInfo := request.GetContextInfo(r.Context())
-	if reqInfo != nil {
-		effectiveProjectName = reqInfo.EffectiveProjectName
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	details, err := request.GetContextValue[networkZoneDetails](r.Context(), ctxNetworkZoneDetails)
@@ -585,10 +581,9 @@ func networkZoneGet(d *Daemon, r *http.Request) response.Response {
 func networkZonePut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	var effectiveProjectName string
-	reqInfo := request.GetContextInfo(r.Context())
-	if reqInfo != nil {
-		effectiveProjectName = reqInfo.EffectiveProjectName
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	details, err := request.GetContextValue[networkZoneDetails](r.Context(), ctxNetworkZoneDetails)
