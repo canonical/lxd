@@ -39,11 +39,6 @@ type Info struct {
 	// member.
 	ForwardedIdentityProviderGroups []string
 
-	// EffectiveProjectName is used to indicate that the effective project of a resource is different from the project
-	// specified in the URL. (For example, if a project has `features.networks=false`, any networks in this project actually
-	// belong to the default project).
-	EffectiveProjectName string
-
 	// Trusted indicates whether the request was authenticated or not.
 	Trusted bool
 }
