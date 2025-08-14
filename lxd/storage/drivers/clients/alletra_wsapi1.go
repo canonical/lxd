@@ -21,6 +21,9 @@ import (
 const (
 	sessionTypeRegular = 1
 	transportTypeTCP   = 2
+	linkStateReady     = 4
+	portProtocolISCSI  = 2
+	portProtocolNVME   = 6
 
 	apiErrorInvalidSessionKey       = 6
 	apiErrorExistentHost            = 16
@@ -65,6 +68,13 @@ func NewAlletraClient(logger logger.Logger, url string, username string, passwor
 		verifyTLS: verifyTLS,
 		cpg:       cpg,
 	}
+}
+
+// hpePort represents a port in HPE Storage.
+type hpePort struct {
+	Protocol  int    `json:"protocol"`
+	NodeWWN   string `json:"nodeWWN"`
+	LinkState int    `json:"linkState"`
 }
 
 // hpePortPos represents the port position in HPE Storage.
@@ -680,6 +690,50 @@ func (p *AlletraClient) DeleteVolume(poolName string, volName string) error {
 	}
 
 	return p.deleteVolume(poolName, volName)
+}
+
+// GetTargetAddrs gets an information about IP addresses of storage array targets.
+func (p *AlletraClient) GetTargetAddrs(connectorType string) (targetAddrs []string, err error) {
+	var portData hpeRespMembers[hpePort]
+
+	apiPorts := api.NewURL().Path("api", "v1", "ports")
+
+	err = p.requestAuthenticated(http.MethodGet, apiPorts.URL, nil, &portData)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to retrieve port list: %w", err)
+	}
+
+	if len(portData.Members) == 0 {
+		return nil, errors.New("Alletra no Ports information found")
+	}
+
+	for _, member := range portData.Members {
+		if member.LinkState != linkStateReady {
+			continue // skip down or unlinked ports
+		}
+
+		switch connectorType {
+		case connectors.TypeISCSI:
+			if member.Protocol != portProtocolISCSI {
+				continue
+			}
+
+			if member.NodeWWN != "" {
+				targetAddrs = append(targetAddrs, member.NodeWWN)
+			}
+
+		case connectors.TypeNVME:
+			if member.Protocol != portProtocolNVME {
+				continue
+			}
+
+			if member.NodeWWN != "" {
+				targetAddrs = append(targetAddrs, member.NodeWWN)
+			}
+		}
+	}
+
+	return targetAddrs, nil
 }
 
 // ConnectHostToVolume creates a connection between a host and volume. It returns true if the connection

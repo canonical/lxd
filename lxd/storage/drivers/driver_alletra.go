@@ -284,3 +284,78 @@ func (d *alletra) Unmount() (bool, error) {
 func (d *alletra) GetResources() (*api.ResourcesStoragePool, error) {
 	return nil, ErrNotSupported
 }
+
+// getNVMeTargetQN discovers the targetQN used for the given addresses.
+func (d *alletra) getNVMeTargetQN(targetAddresses ...string) (string, error) {
+	// The targetQN is unqiue per HPE Alletra storage pool.
+	// Cache the targetQN as it doesn't change throughout the lifetime of the storage pool,
+	// if there are volumes mapped and NVMe session is active.
+	if d.nvmeTargetQN == "" {
+		connector, err := d.connector()
+		if err != nil {
+			return "", err
+		}
+
+		// The discovery log from the first reachable target address is returned.
+		discoveryLogRecords, err := connector.Discover(d.state.ShutdownCtx, targetAddresses...)
+		if err != nil {
+			return "", fmt.Errorf("Failed to discover array NVMe subsystem NQN: %w", err)
+		}
+
+		for _, recordAny := range discoveryLogRecords {
+			record, ok := recordAny.(connectors.NVMeDiscoveryLogRecord)
+			if !ok {
+				return "", fmt.Errorf("Invalid discovery log record entry type %T is not connectors.NVMeDiscoveryLogRecord", recordAny)
+			}
+
+			if record.SubType != connectors.SubtypeNVMESubsys {
+				continue
+			}
+
+			// The targetQN is listed together with every log record of type SubtypeNVMESubsys.
+			d.nvmeTargetQN = record.SubNQN
+			break
+		}
+	}
+
+	return d.nvmeTargetQN, nil
+}
+
+// getTarget discovers the targetQN and target's IP addresses list.
+func (d *alletra) getTarget() (targetQN string, targetAddrs []string, err error) {
+	// First check if target addresses are configured, otherwise, use the discovered ones.
+	var configAddrs = shared.SplitNTrimSpace(d.config["alletra.target"], ",", -1, true)
+	if len(configAddrs) > 0 {
+		targetAddrs = configAddrs
+	}
+
+	connector, err := d.connector()
+	if err != nil {
+		return "", nil, err
+	}
+
+	mode := connector.Type()
+
+	if len(targetAddrs) == 0 {
+		targetAddrs, err = d.client().GetTargetAddrs(mode)
+		if err != nil {
+			return "", nil, err
+		}
+	}
+
+	if len(targetAddrs) == 0 {
+		return "", nil, fmt.Errorf("No usable target found for mode %q", mode)
+	}
+
+	if mode != connectors.TypeNVME {
+		return "", nil, fmt.Errorf("Storage target QN discovery is not supported for mode %q", mode)
+	}
+
+	// Discover the targetQN from any of the addresses.
+	targetQN, err = d.getNVMeTargetQN(targetAddrs...)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return targetQN, targetAddrs, nil
+}
