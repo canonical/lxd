@@ -26,15 +26,15 @@ func IsServerAdmin(ctx context.Context, identityCache *identity.Cache) (bool, er
 	}
 
 	// Unix and cluster requests have root access.
-	if method == AuthenticationMethodUnix || method == AuthenticationMethodCluster {
+	if method == request.ProtocolUnix || method == request.ProtocolCluster {
 		return true, nil
 	}
 
 	id, err := GetIdentityFromCtx(ctx, identityCache)
 	if err != nil {
-		// AuthenticationMethodPKI is only set as the value of request.CtxProtocol when `core.trust_ca_certificates` is
+		// request.ProtocolPKI is only set as the value of request.CtxProtocol when `core.trust_ca_certificates` is
 		// true. This setting grants full access to LXD for all clients with CA-signed certificates.
-		if method == AuthenticationMethodPKI && api.StatusErrorCheck(err, http.StatusNotFound) {
+		if method == request.ProtocolPKI && api.StatusErrorCheck(err, http.StatusNotFound) {
 			return true, nil
 		}
 
@@ -58,7 +58,7 @@ func GetIdentityFromCtx(ctx context.Context, identityCache *identity.Cache) (*id
 
 	// If the caller authenticated via a CA-signed certificate and `core.trust_ca_certificates` is enabled. We still
 	// want to check for any potential trust store entries corresponding to their certificate fingerprint.
-	if authenticationMethod == AuthenticationMethodPKI {
+	if authenticationMethod == request.ProtocolPKI {
 		authenticationMethod = api.AuthenticationMethodTLS
 	}
 
@@ -90,7 +90,7 @@ func GetUsernameFromCtx(ctx context.Context) (string, error) {
 	}
 
 	// Forwarded username can be empty.
-	if reqInfo.Protocol == AuthenticationMethodCluster && reqInfo.ForwardedUsername != "" {
+	if reqInfo.Protocol == request.ProtocolCluster && reqInfo.ForwardedUsername != "" {
 		return reqInfo.ForwardedUsername, nil
 	}
 
@@ -112,7 +112,7 @@ func GetAuthenticationMethodFromCtx(ctx context.Context) (string, error) {
 	}
 
 	// Forwarded protocol can be empty.
-	if reqInfo.Protocol == AuthenticationMethodCluster && reqInfo.ForwardedProtocol != "" {
+	if reqInfo.Protocol == request.ProtocolCluster && reqInfo.ForwardedProtocol != "" {
 		return reqInfo.ForwardedProtocol, nil
 	}
 
@@ -133,7 +133,7 @@ func GetIdentityProviderGroupsFromCtx(ctx context.Context) ([]string, error) {
 		return nil, api.NewStatusError(http.StatusInternalServerError, "Failed to get protocol from the request context")
 	}
 
-	if reqInfo.Protocol == AuthenticationMethodCluster && reqInfo.ForwardedIdentityProviderGroups != nil {
+	if reqInfo.Protocol == request.ProtocolCluster && reqInfo.ForwardedIdentityProviderGroups != nil {
 		return reqInfo.ForwardedIdentityProviderGroups, nil
 	}
 
