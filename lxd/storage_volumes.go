@@ -2799,10 +2799,14 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 		return nil
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return err
+	}
+
 	// If the request has already been forwarded, the other member already performed the logic to determine the volume
 	// location, so we can set the location in the volume details as ourselves.
-	reqInfo := request.GetContextInfo(r.Context())
-	if reqInfo != nil && reqInfo.ForwardedProtocol != "" {
+	if requestor.IsForwarded() {
 		location = s.ServerName
 		return nil
 	}
