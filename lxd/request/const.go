@@ -44,3 +44,26 @@ const (
 	// This will be a JSON marshalled []string.
 	HeaderForwardedIdentityProviderGroups = "X-LXD-forwarded-identity-provider-groups"
 )
+
+const (
+	// ProtocolCluster is set as the RequestorArgs.Protocol when the request is authenticated via mTLS and the peer
+	// certificate is present in the trust store as type [certificate.TypeServer].
+	ProtocolCluster string = "cluster"
+
+	// ProtocolUnix is set as the RequestorArgs.Protocol when the request is made over the unix socket.
+	ProtocolUnix string = "unix"
+
+	// ProtocolPKI is set as the RequestorArgs.Protocol when a `server.ca` file exists in LXD_DIR, the peer
+	// certificate of the request was signed by the CA file, and core.trust_ca_certificates is true.
+	//
+	// Note: If core.trust_ca_certificates is false, the peer certificate is additionally verified via mTLS and
+	// RequestorArgs.Protocol is set to [api.AuthenticationMethodTLS].
+	//
+	// Note: Regardless of whether `core.trust_ca_certificates` is enabled, if an identity corresponding to the clients
+	// peer certificate exists in the [identity.Cache], then protocol should be set to [api.AuthenticationMethodTLS] and
+	// the identity should be set as the RequestorArgs.Identity.
+	ProtocolPKI string = "pki"
+
+	// ProtocolDevLXD is the authentication method for interacting with the devlxd API.
+	ProtocolDevLXD = "devlxd"
+)
