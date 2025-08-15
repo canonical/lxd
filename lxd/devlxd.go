@@ -487,11 +487,12 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 
 	// Function that handles the request by calling the appropriate handler.
 	handleFunc := func(w http.ResponseWriter, r *http.Request) {
-		// Initialise the request context info.
-		reqInfo := request.InitContextInfo(r)
-
 		// Set devLXD auth method to identify this request as coming from the /dev/lxd socket.
-		reqInfo.Protocol = request.ProtocolDevLXD
+		err := request.SetRequestor(r, d.identityCache, request.RequestorArgs{Protocol: request.ProtocolDevLXD})
+		if err != nil {
+			_ = response.DevLXDErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "%v", err)).Render(w, r)
+			return
+		}
 
 		// Indicate whether the devLXD is being accessed over vsock. This allowes the handler
 		// to determine the correct response type. The responses over vsock are always
@@ -536,7 +537,7 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 		}
 
 		// Write response and handle errors.
-		err := resp.Render(w, r)
+		err = resp.Render(w, r)
 		if err != nil {
 			writeErr := response.DevLXDErrorResponse(err).Render(w, r)
 			if writeErr != nil {
