@@ -477,12 +477,12 @@ func extractEntitlementsFromQuery(r *http.Request, entityType entity.Type, allow
 // client that has been authenticated (cluster, unix, oidc or tls).
 func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted bool, username string, method string, identityProviderGroups []string, err error) {
 	// Perform mTLS check against server certificates. If this passes, the request was made by another cluster member
-	// and the protocol is auth.AuthenticationMethodCluster.
+	// and the protocol is [request.ProtocolCluster].
 	if r.TLS != nil {
 		for _, i := range r.TLS.PeerCertificates {
 			trusted, fingerprint := util.CheckMutualTLS(*i, d.identityCache.X509Certificates(api.IdentityTypeCertificateServer))
 			if trusted {
-				return true, fingerprint, auth.AuthenticationMethodCluster, nil, nil
+				return true, fingerprint, request.ProtocolCluster, nil, nil
 			}
 		}
 	}
@@ -497,13 +497,13 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 
 			u, err := user.LookupId(strconv.FormatUint(uint64(cred.Uid), 10))
 			if err != nil {
-				return true, fmt.Sprint("uid=", cred.Uid), auth.AuthenticationMethodUnix, nil, nil
+				return true, fmt.Sprint("uid=", cred.Uid), request.ProtocolUnix, nil, nil
 			}
 
-			return true, u.Username, auth.AuthenticationMethodUnix, nil, nil
+			return true, u.Username, request.ProtocolUnix, nil, nil
 		}
 
-		return true, "", auth.AuthenticationMethodUnix, nil, nil
+		return true, "", request.ProtocolUnix, nil, nil
 	}
 
 	// Cluster notification with wrong certificate.
@@ -560,10 +560,10 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 				return false, "", "", nil, nil
 			} else if trustCACertificates {
 				// If CA signed certificates are implicitly trusted via `core.trust_ca_certificates`, return now. Otherwise, continue to mTLS check.
-				// Returning the protocol as auth.AuthenticationMethodPKI will indicate to the auth.Authorizer that
+				// Returning the protocol as auth.ProtocolPKI will indicate to the auth.Authorizer that
 				// this certificate may not be present in the trust store. If it isn't in the trust store, the caller
 				// has full access to LXD. If it is in the trust store, standard TLS restrictions will apply.
-				return true, fingerprint, auth.AuthenticationMethodPKI, nil, nil
+				return true, fingerprint, request.ProtocolPKI, nil, nil
 			}
 
 			// We are trusted by the CA. But because `core.trust_ca_certificates` is false, we also need to check that
@@ -883,7 +883,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		reqInfo.SourceAddress = r.RemoteAddr
 
 		// Reject internal queries to remote, non-cluster, clients
-		if version == "internal" && !slices.Contains([]string{auth.AuthenticationMethodUnix, auth.AuthenticationMethodCluster}, protocol) {
+		if version == "internal" && !slices.Contains([]string{request.ProtocolUnix, request.ProtocolCluster}, protocol) {
 			// Except for the initial cluster accept request (done over trusted TLS)
 			if !trusted || c.Path != "cluster/accept" || protocol != api.AuthenticationMethodTLS {
 				logger.Warn("Rejecting remote internal API request", logger.Ctx{"ip": r.RemoteAddr})
@@ -893,7 +893,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		logCtx := logger.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr, "protocol": protocol}
-		if protocol == auth.AuthenticationMethodCluster {
+		if protocol == request.ProtocolCluster {
 			logCtx["fingerprint"] = username
 		} else {
 			logCtx["username"] = username
@@ -911,7 +911,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			}
 
 			// Add forwarded requestor data.
-			if protocol == auth.AuthenticationMethodCluster {
+			if protocol == request.ProtocolCluster {
 				// Add authentication/authorization context data.
 				reqInfo.ForwardedAddress = r.Header.Get(request.HeaderForwardedAddress)
 				reqInfo.ForwardedUsername = r.Header.Get(request.HeaderForwardedUsername)
