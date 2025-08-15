@@ -477,12 +477,12 @@ func extractEntitlementsFromQuery(r *http.Request, entityType entity.Type, allow
 // client that has been authenticated (cluster, unix, oidc or tls).
 func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted bool, username string, method string, identityProviderGroups []string, err error) {
 	// Perform mTLS check against server certificates. If this passes, the request was made by another cluster member
-	// and the protocol is auth.AuthenticationMethodCluster.
+	// and the protocol is [request.ProtocolCluster].
 	if r.TLS != nil {
 		for _, i := range r.TLS.PeerCertificates {
 			trusted, fingerprint := util.CheckMutualTLS(*i, d.identityCache.X509Certificates(api.IdentityTypeCertificateServer))
 			if trusted {
-				return true, fingerprint, auth.AuthenticationMethodCluster, nil, nil
+				return true, fingerprint, request.ProtocolCluster, nil, nil
 			}
 		}
 	}
@@ -496,10 +496,10 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 
 		u, err := user.LookupId(strconv.FormatUint(uint64(cred.Uid), 10))
 		if err != nil {
-			return true, fmt.Sprint("uid=", cred.Uid), auth.AuthenticationMethodUnix, nil, nil
+			return true, fmt.Sprint("uid=", cred.Uid), request.ProtocolUnix, nil, nil
 		}
 
-		return true, u.Username, auth.AuthenticationMethodUnix, nil, nil
+		return true, u.Username, request.ProtocolUnix, nil, nil
 	}
 
 	// Cluster notification with wrong certificate.
@@ -560,7 +560,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 				// If we have a not found error and `core.trust_ca_certificates` is true, then the identity is implicitly
 				// trusted because their certificate was signed by the CA.
 				if trustCACertificates {
-					return true, fingerprint, auth.AuthenticationMethodPKI, nil, nil
+					return true, fingerprint, request.ProtocolPKI, nil, nil
 				}
 
 				// If we don't implicitly trust CA signed certificates, then the identity is not trusted because they
@@ -832,7 +832,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		reqInfo.SourceAddress = r.RemoteAddr
 
 		// Reject internal queries to remote, non-cluster, clients
-		if version == "internal" && !slices.Contains([]string{auth.AuthenticationMethodUnix, auth.AuthenticationMethodCluster}, protocol) {
+		if version == "internal" && !slices.Contains([]string{request.ProtocolUnix, request.ProtocolCluster}, protocol) {
 			// Except for the initial cluster accept request (done over trusted TLS)
 			if !trusted || c.Path != "cluster/accept" || protocol != api.AuthenticationMethodTLS {
 				logger.Warn("Rejecting remote internal API request", logger.Ctx{"ip": r.RemoteAddr})
@@ -842,7 +842,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		logCtx := logger.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr, "protocol": protocol}
-		if protocol == auth.AuthenticationMethodCluster {
+		if protocol == request.ProtocolCluster {
 			logCtx["fingerprint"] = username
 		} else {
 			logCtx["username"] = username
@@ -860,7 +860,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			}
 
 			// Add forwarded requestor data.
-			if protocol == auth.AuthenticationMethodCluster {
+			if protocol == request.ProtocolCluster {
 				// Add authentication/authorization context data.
 				reqInfo.ForwardedAddress = r.Header.Get(request.HeaderForwardedAddress)
 				reqInfo.ForwardedUsername = r.Header.Get(request.HeaderForwardedUsername)
