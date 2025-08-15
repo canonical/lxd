@@ -405,6 +405,7 @@ if [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_dns "clustering DNS"
     run_test test_clustering_fan "clustering FAN"
     run_test test_clustering_recover "clustering recovery"
+    run_test test_clustering_ha "clustering high availability"
     run_test test_clustering_handover "clustering handover"
     run_test test_clustering_rebalance "clustering rebalance"
     run_test test_clustering_remove_raft_node "clustering remove raft node"
