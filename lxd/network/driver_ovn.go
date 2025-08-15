@@ -5938,6 +5938,10 @@ func (n *ovn) forPeers(f func(targetOVNNet *ovn) error) error {
 // checkAddressNotInUse checks that a given network subnet does not fall within
 // any existing OVN network external subnets on the same uplink.
 func (n *ovn) checkAddressNotInUse(netip *net.IPNet) (bool, error) {
+	if netip == nil {
+		return false, errors.New("Invalid network IP address")
+	}
+
 	externalSubnetsInUse, err := n.getExternalSubnetInUse(n.config["network"])
 	if err != nil {
 		return false, err
@@ -5955,6 +5959,43 @@ func (n *ovn) checkAddressNotInUse(netip *net.IPNet) (bool, error) {
 
 		if SubnetContains(&externalSubnetUser.subnet, netip) || SubnetContains(netip, &externalSubnetUser.subnet) {
 			return false, nil
+		}
+	}
+
+	var uplinkNetwork *api.Network
+
+	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		_, uplinkNetwork, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, n.config["network"])
+		return err
+	})
+	if err != nil {
+		return false, fmt.Errorf("Failed to load uplink network: %w", err)
+	}
+
+	if uplinkNetwork == nil {
+		return false, errors.New("Failed to load uplink network")
+	}
+
+	uplinkPhysicalGatewayKey := "ipv4.gateway"
+	uplinkBridgeIPAddrKey := "ipv4.address"
+	uplinkBridgeDHCPGatewayKey := "ipv4.dhcp.gateway"
+
+	if netip.IP.To4() == nil {
+		uplinkPhysicalGatewayKey = "ipv6.gateway"
+		uplinkBridgeIPAddrKey = "ipv6.address"
+	}
+
+	// Check that the listen address is not taken by the uplink's gateway.
+	for _, key := range []string{uplinkPhysicalGatewayKey, uplinkBridgeIPAddrKey, uplinkBridgeDHCPGatewayKey} {
+		if uplinkNetwork.Config[key] != "" {
+			uplinkIP, _, err := net.ParseCIDR(uplinkNetwork.Config[key])
+			if err != nil {
+				return false, fmt.Errorf("Failed to parse IP address: %w", err)
+			}
+
+			if uplinkIP.Equal(netip.IP) {
+				return false, nil
+			}
 		}
 	}
 
