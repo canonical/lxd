@@ -108,6 +108,7 @@ sudo apt install \
 - `make static-analysis` - Run linting and static analysis
 - `make check-unit` - Run unit tests only
 - `make check` - Run unit + integration tests (requires root privileges)
+- `make debug` - Build with debug symbols
 
 ### Common Build Issues and Solutions
 
@@ -305,12 +306,27 @@ The CI pipeline (`.github/workflows/tests.yml`) runs:
 - **Cryptographic signatures required:** See GitHub's commit signature verification docs
 - **Conventional commit structure:** Logical, reviewable changes
 
+**Commit message structure:**
+
+| Type                 | Affects files                                    | Commit message format               |
+|----------------------|--------------------------------------------------|-------------------------------------|
+| **API extensions**   | `doc/api-extensions.md`, `shared/version/api.go` | `api: Add XYZ extension`            |
+| **Documentation**    | Files in `doc/`                                  | `doc: Update XYZ`                   |
+| **API structure**    | Files in `shared/api/`                           | `shared/api: Add XYZ`               |
+| **Go client package**| Files in `client/`                               | `client: Add XYZ`                   |
+| **CLI changes**      | Files in `lxc/`                                  | `lxc/<command>: Change XYZ`         |
+| **LXD daemon**       | Files in `lxd/`                                  | `lxd/<package>: Add support for XYZ`|
+| **Tests**            | Files in `tests/`                                | `tests: Add test for XYZ`           |
+
 ### Code Style
 
 - Follow `golangci-lint` rules (see `.golangci.yaml`)
 - Use `gofmt` for formatting
-- Comment exported functions and types
-- Write table-driven tests where applicable
+- Comment all functions and exported types
+- Write table-driven unit tests where applicable
+- End comments with periods and use Go doc links where possible
+- Use early returns when possible to reduce nesting and improve readability
+- Use effective Go (see https://go.dev/doc/effective_go)
 
 ### Common Patterns
 
@@ -331,6 +347,9 @@ fi
 
 # BAD - bash ignores set -e for compound commands
 ! cmd_should_fail || false
+- End comments with periods and use Go doc links where possible
+- Use early returns when possible to reduce nesting and improve readability
+- Use effective Go (see https://go.dev/doc/effective_go)
 ```
 
 ### File Location Patterns
