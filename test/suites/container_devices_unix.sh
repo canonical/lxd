@@ -154,14 +154,10 @@ _container_devices_unix() {
   # Cleanup.
   rm -rvf "${testDev}"
 
-  # XXX with fanotify removing the testDev directory does not reflect in the instance
-  # so skip it until https://github.com/canonical/lxd/issues/15894 is addressed
-  if [ "${LXD_FSMONITOR_DRIVER}" != "fanotify" ]; then
-    sleep 1
-    ! lxc exec "${ctName}" -- mount | grep -F "/tmp/testdev" || false
-    lxc exec "${ctName}" -- test -e /tmp/testdev
-    ! test -e "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev || false
-  fi
+  sleep 1
+  ! lxc exec "${ctName}" -- mount | grep -F "/tmp/testdev" || false
+  lxc exec "${ctName}" -- test -e /tmp/testdev
+  ! test -e "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev || false
 
   lxc delete -f "${ctName}"
 
