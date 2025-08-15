@@ -20,6 +20,7 @@ How to create and manage instances:
 :diataxis:Use profiles </profiles.md>
 :diataxis:Troubleshoot errors </howto/instances_troubleshoot.md>
 :diataxis:Auto attach Ubuntu Pro </howto/instances_ubuntu_pro_attach.md>
+:diataxis:Boot a VM without UEFI </howto/instances_noefi.md>
 ```
 
 ```{only} diataxis
@@ -65,6 +66,12 @@ How to pass an NVIDIA GPU to a container with a Docker workload:
 :titlesonly:
 
 :diataxis:Pass NVIDIA GPUs </howto/container_gpu_passthrough_with_docker>
+```
+
+```{filtered-toctree}
+:titlesonly:
+
+:diataxis:Boot a VM without UEFI</howto/instances_noefi.md>
 ```
 
 ## Related topics
