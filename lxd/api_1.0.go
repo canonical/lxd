@@ -249,8 +249,13 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		ClientCertificate: r.TLS != nil && len(r.TLS.PeerCertificates) > 0,
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// If not authenticated, return now.
-	if !auth.IsTrusted(r.Context()) {
+	if !requestor.IsTrusted() {
 		return response.SyncResponseETag(true, srv, nil)
 	}
 
@@ -411,9 +416,8 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 
 	fullSrv := &api.Server{ServerUntrusted: srv}
 	fullSrv.Environment = env
-	requestor := request.CreateRequestor(r.Context())
-	fullSrv.AuthUserName = requestor.Username
-	fullSrv.AuthUserMethod = requestor.Protocol
+	fullSrv.AuthUserName = requestor.CallerUsername()
+	fullSrv.AuthUserMethod = requestor.CallerProtocol()
 
 	// Only allow identities that can edit configuration to view it as sensitive information may be stored there.
 	err = s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanEdit)

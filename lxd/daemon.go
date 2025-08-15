@@ -262,7 +262,12 @@ type APIEndpointAction struct {
 // allowAuthenticated is an AccessHandler which allows only authenticated requests. This should be used in conjunction
 // with further access control within the handler (e.g. to filter resources the user is able to view/edit).
 func allowAuthenticated(_ *Daemon, r *http.Request) response.Response {
-	if auth.IsTrusted(r.Context()) {
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if requestor.IsTrusted() {
 		return response.EmptySyncResponse
 	}
 
@@ -318,38 +323,40 @@ func allowPermission(entityType entity.Type, entitlement auth.Entitlement, muxVa
 // allowProjectResourceList should be used instead of allowAuthenticated when listing resources within a project.
 // This prevents a restricted TLS client from listing resources in a project that they do not have access to.
 func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
-	// The caller must be authenticated.
-	if !auth.IsTrusted(r.Context()) {
-		return response.Forbidden(nil)
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
 	}
 
-	isServerAdmin, err := auth.IsServerAdmin(r.Context(), d.identityCache)
-	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed to determine caller privilege: %w", err))
+	// The caller must be authenticated.
+	if !requestor.IsTrusted() {
+		return response.Forbidden(nil)
 	}
 
 	// A root user can list resources in any project.
-	if isServerAdmin {
+	if requestor.IsAdmin() {
 		return response.EmptySyncResponse
 	}
 
-	id, err := auth.GetIdentityFromCtx(r.Context(), d.identityCache)
-	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed to determine caller identity: %w", err))
+	id := requestor.CallerIdentity()
+	if id == nil {
+		return response.InternalError(errors.New("No identity present in request details"))
 	}
 
-	switch id.IdentityType {
-	case api.IdentityTypeOIDCClient:
-		// OIDC authenticated clients are governed by fine-grained auth. They can call the endpoint but may see an empty list.
+	idType := requestor.CallerIdentityType()
+	if id == nil {
+		return response.InternalError(errors.New("No identity type present in request details"))
+	}
+
+	if idType.IsFineGrained() {
+		// Fine-grained clients can call the endpoint but may see an empty list.
 		return response.EmptySyncResponse
-	case api.IdentityTypeCertificateClient:
-		// Fine-grained TLS identities can list resources in any project. They may see an empty list.
-		return response.EmptySyncResponse
-	case api.IdentityTypeCertificateClientRestricted:
-		// A restricted client may be able to call the endpoint, continue.
-	default:
-		// No other identity types may list resources (e.g. metrics certificates).
-		return response.Forbidden(nil)
+	}
+
+	// We should now only be left with restricted client certificates. Metrics certificates should have been disregarded
+	// already, because they cannot call any endpoint other than /1.0/metrics (which is enforced during authentication).
+	if idType.Name() != api.IdentityTypeCertificateClientRestricted {
+		return response.InternalError(fmt.Errorf("Encountered unexpected identity type %q listing resources", idType.Name()))
 	}
 
 	requestProjectName, allProjects, err := request.ProjectParams(r)
@@ -378,14 +385,14 @@ func reportEntitlements(ctx context.Context, authorizer auth.Authorizer, identit
 		return nil
 	}
 
-	id, err := auth.GetIdentityFromCtx(ctx, identityCache)
-	if err != nil {
-		return fmt.Errorf("Failed to get caller identity: %w", err)
-	}
-
-	identityType, err := identity.New(id.IdentityType)
+	requestor, err := request.GetRequestor(ctx)
 	if err != nil {
 		return err
+	}
+
+	identityType := requestor.CallerIdentityType()
+	if identityType == nil {
+		return errors.New("No identity type present in request details")
 	}
 
 	if !identityType.IsFineGrained() {

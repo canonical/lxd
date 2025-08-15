@@ -1803,7 +1803,12 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	trusted := auth.IsTrusted(r.Context())
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	trusted := requestor.IsTrusted()
 
 	// Untrusted callers can't request images from all projects or projects other than default.
 	if !trusted {
@@ -3175,7 +3180,12 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	trusted := auth.IsTrusted(r.Context())
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	trusted := requestor.IsTrusted()
 	secret := r.FormValue("secret")
 
 	// Unauthenticated clients that do not provide a secret may only view public images.
@@ -4250,7 +4260,13 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 
 	// Verify the auth method in the request context to determine if the request comes from the /dev/lxd socket.
 	secret := r.FormValue("secret")
-	trusted := auth.IsTrusted(r.Context())
+
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	trusted := requestor.IsTrusted()
 
 	// Unauthenticated remote clients that do not provide a secret may only view public images.
 	// For devlxd, we allow querying for private images. We'll subsequently perform additional access checks.
