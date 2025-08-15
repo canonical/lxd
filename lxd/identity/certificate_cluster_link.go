@@ -16,6 +16,11 @@ func (CertificateClientClusterLink) AuthenticationMethod() string {
 	return api.AuthenticationMethodTLS
 }
 
+// Code returns the identity type code for this identity type.
+func (CertificateClientClusterLink) Code() int64 {
+	return identityTypeCertificateClusterLink
+}
+
 // IsCacheable indicates that this identity can be cached.
 func (CertificateClientClusterLink) IsCacheable() bool {
 	return true
@@ -24,6 +29,11 @@ func (CertificateClientClusterLink) IsCacheable() bool {
 // IsFineGrained indicates that this identity uses fine-grained permissions.
 func (CertificateClientClusterLink) IsFineGrained() bool {
 	return true
+}
+
+// Name returns the API name of this identity type.
+func (CertificateClientClusterLink) Name() string {
+	return api.IdentityTypeCertificateClusterLink
 }
 
 // CertificateClientClusterLinkPending represents a cluster link for which a token has been issued
@@ -38,7 +48,22 @@ func (CertificateClientClusterLinkPending) AuthenticationMethod() string {
 	return api.AuthenticationMethodTLS
 }
 
+// Code returns the identity type code for this identity type.
+func (CertificateClientClusterLinkPending) Code() int64 {
+	return identityTypeCertificateClusterLinkPending
+}
+
 // IsFineGrained indicates that this identity uses fine-grained permissions.
 func (CertificateClientClusterLinkPending) IsFineGrained() bool {
 	return true
+}
+
+// IsPending indicates that this cluster link is pending activation.
+func (CertificateClientClusterLinkPending) IsPending() bool {
+	return true
+}
+
+// Name returns the API name of this identity type.
+func (CertificateClientClusterLinkPending) Name() string {
+	return api.IdentityTypeCertificateClusterLinkPending
 }

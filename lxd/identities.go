@@ -918,7 +918,12 @@ func getIdentities(authenticationMethod string) func(d *Daemon, r *http.Request)
 			urlToIdentity := make(map[*api.URL]auth.EntitlementReporter, len(identities))
 			for _, id := range identities {
 				var certificate string
-				if id.AuthMethod == api.AuthenticationMethodTLS && id.Type != api.IdentityTypeCertificateClientPending && id.Type != api.IdentityTypeCertificateClusterLinkPending {
+				identityType, err := identity.New(string(id.Type))
+				if err != nil {
+					return response.SmartError(err)
+				}
+
+				if id.AuthMethod == api.AuthenticationMethodTLS && !identityType.IsPending() {
 					metadata, err := id.CertificateMetadata()
 					if err != nil {
 						return response.SmartError(err)
@@ -1274,7 +1279,7 @@ func updateIdentity(authenticationMethod string) func(d *Daemon, r *http.Request
 			return response.BadRequest(fmt.Errorf("Failed to unmarshal request body: %w", err))
 		}
 
-		if id.Type != api.IdentityTypeCertificateClient && id.Type != api.IdentityTypeCertificateClusterLink && identityPut.TLSCertificate != "" {
+		if identityType.AuthenticationMethod() == api.AuthenticationMethodTLS && identityType.IsPending() && identityPut.TLSCertificate != "" {
 			return response.BadRequest(fmt.Errorf("Cannot update certificate for identities of type %q", id.Type))
 		}
 
@@ -1283,11 +1288,6 @@ func updateIdentity(authenticationMethod string) func(d *Daemon, r *http.Request
 			return updateIdentityPrivileged(s, r, *id, identityPut)
 		} else if !auth.IsDeniedError(err) {
 			return response.SmartError(err)
-		}
-
-		// Only identities of type api.IdentityTypeCertificateClient may update their own certificate
-		if id.Type != api.IdentityTypeCertificateClient {
-			return response.Forbidden(nil)
 		}
 
 		username, err := auth.GetUsernameFromCtx(r.Context())
@@ -1512,7 +1512,7 @@ func patchIdentity(authenticationMethod string) func(d *Daemon, r *http.Request)
 			return response.BadRequest(fmt.Errorf("Failed to unmarshal request body: %w", err))
 		}
 
-		if id.Type != api.IdentityTypeCertificateClient && id.Type != api.IdentityTypeCertificateClusterLink && identityPut.TLSCertificate != "" {
+		if identityType.AuthenticationMethod() == api.AuthenticationMethodTLS && identityType.IsPending() && identityPut.TLSCertificate != "" {
 			return response.BadRequest(fmt.Errorf("Cannot update certificate for identities of type %q", id.Type))
 		}
 
@@ -1526,11 +1526,6 @@ func patchIdentity(authenticationMethod string) func(d *Daemon, r *http.Request)
 			return patchIdentityPrivileged(s, r, *id, identityPut)
 		} else if !auth.IsDeniedError(err) {
 			return response.SmartError(err)
-		}
-
-		// Only identities of type api.IdentityTypeCertificateClient and api.IdentityTypeCertificateClusterLink may update their own certificate
-		if id.Type != api.IdentityTypeCertificateClient && id.Type != api.IdentityTypeCertificateClusterLink {
-			return response.Forbidden(nil)
 		}
 
 		username, err := auth.GetUsernameFromCtx(r.Context())
