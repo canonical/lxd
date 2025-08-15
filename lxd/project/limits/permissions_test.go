@@ -184,22 +184,26 @@ func TestCheckClusterTargetRestriction_RestrictedTrue(t *testing.T) {
 
 	req := &http.Request{URL: &url.URL{}}
 
-	reqInfo := request.InitContextInfo(req)
-	reqInfo.Username = testCertFingerprint
-	reqInfo.Protocol = api.AuthenticationMethodTLS
-	reqInfo.Trusted = true
+	cacheEntry := &identity.CacheEntry{
+		IdentityType:         api.IdentityTypeCertificateClientRestricted,
+		AuthenticationMethod: api.AuthenticationMethodTLS,
+		Identifier:           testCertFingerprint,
+		Name:                 "test certificate",
+		Certificate:          testCertX509,
+		Projects:             []string{dbProject.Name},
+	}
+
+	details := request.RequestorArgs{
+		Trusted:  true,
+		Username: testCertFingerprint,
+		Protocol: api.AuthenticationMethodTLS,
+	}
 
 	identityCache := &identity.Cache{}
-	err = identityCache.ReplaceAll([]identity.CacheEntry{
-		{
-			IdentityType:         api.IdentityTypeCertificateClientRestricted,
-			AuthenticationMethod: api.AuthenticationMethodTLS,
-			Identifier:           testCertFingerprint,
-			Name:                 "test certificate",
-			Certificate:          testCertX509,
-			Projects:             []string{dbProject.Name},
-		},
-	}, nil)
+	err = identityCache.ReplaceAll([]identity.CacheEntry{*cacheEntry}, nil)
+	require.NoError(t, err)
+
+	err = request.SetRequestor(req, identityCache, details)
 	require.NoError(t, err)
 
 	authorizer, err := drivers.LoadAuthorizer(context.Background(), drivers.DriverTLS, logger.Log, identityCache)
@@ -231,28 +235,31 @@ func TestCheckClusterTargetRestriction_RestrictedTrueWithOverride(t *testing.T) 
 		URL: &api.NewURL().Path("1.0", "instances").WithQuery("target", "node01").URL,
 	}
 
-	reqInfo := request.InitContextInfo(req)
-	reqInfo.Protocol = api.AuthenticationMethodTLS
-	reqInfo.Username = "my-certificate-fingerprint"
-	reqInfo.Trusted = true
+	cacheEntry := &identity.CacheEntry{
+		Identifier:           "my-certificate-fingerprint",
+		IdentityType:         api.IdentityTypeCertificateClientUnrestricted,
+		AuthenticationMethod: api.AuthenticationMethodTLS,
+		// Certificate has to be non-nil for TLS identities.
+		Certificate: &x509.Certificate{},
+	}
+
+	details := request.RequestorArgs{
+		Trusted:  true,
+		Username: "my-certificate-fingerprint",
+		Protocol: api.AuthenticationMethodTLS,
+	}
 
 	identityCache := &identity.Cache{}
+	err = identityCache.ReplaceAll([]identity.CacheEntry{*cacheEntry}, nil)
+	require.NoError(t, err)
 
-	// Unrestricted client certificates can override the cluster target restriction.
-	err = identityCache.ReplaceAll([]identity.CacheEntry{
-		{
-			Identifier:           "my-certificate-fingerprint",
-			IdentityType:         api.IdentityTypeCertificateClientUnrestricted,
-			AuthenticationMethod: api.AuthenticationMethodTLS,
-			// Certificate has to be non-nil for TLS identities.
-			Certificate: &x509.Certificate{},
-		},
-	}, nil)
+	err = request.SetRequestor(req, identityCache, details)
 	require.NoError(t, err)
 
 	authorizer, err := drivers.LoadAuthorizer(context.Background(), drivers.DriverTLS, logger.Log, identityCache)
 	require.NoError(t, err)
 
+	// Unrestricted client certificates can override the cluster target restriction.
 	err = limits.CheckClusterTargetRestriction(req.Context(), authorizer, p, "n1")
 	assert.NoError(t, err)
 }
