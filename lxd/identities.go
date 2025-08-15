@@ -508,7 +508,7 @@ func createIdentityTLSPending(ctx context.Context, s *state.State, req api.Ident
 		return nil
 	})
 	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed to create pending TLS identity: %w", err))
+		return response.SmartError(fmt.Errorf("Failed to create pending TLS identity: %w", err))
 	}
 
 	// Notify other members, update the cache, and send a lifecycle event.

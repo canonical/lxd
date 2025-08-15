@@ -5,7 +5,9 @@ import (
 )
 
 // entityTypeInstanceBackup implements entityTypeDBInfo for an InstanceBackup.
-type entityTypeInstanceBackup struct{}
+type entityTypeInstanceBackup struct {
+	entityTypeCommon
+}
 
 func (e entityTypeInstanceBackup) code() int64 {
 	return entityTypeCodeInstanceBackup

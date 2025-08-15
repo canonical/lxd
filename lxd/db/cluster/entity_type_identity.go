@@ -2,12 +2,15 @@ package cluster
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/canonical/lxd/shared/api"
 )
 
 // entityTypeIdentity implements entityTypeDBInfo for an Identity.
-type entityTypeIdentity struct{}
+type entityTypeIdentity struct {
+	entityTypeCommon
+}
 
 func (e entityTypeIdentity) code() int64 {
 	return entityTypeCodeIdentity
@@ -35,10 +38,6 @@ WHERE type IN (%d, %d, %d, %d, %d)
 		authMethodOIDC, api.AuthenticationMethodOIDC,
 		identityTypeOIDCClient, identityTypeCertificateClient, identityTypeCertificateClientPending, identityTypeCertificateClusterLink, identityTypeCertificateClusterLinkPending,
 	)
-}
-
-func (e entityTypeIdentity) urlsByProjectQuery() string {
-	return ""
 }
 
 func (e entityTypeIdentity) urlByIDQuery() string {
@@ -78,4 +77,30 @@ CREATE TRIGGER %s
 		AND entity_id = OLD.id;
 	END
 `, name, e.code(), typeCertificate.code(), e.code(), typeCertificate.code())
+}
+
+func (e entityTypeIdentity) onInsertTriggerSQL() (name string, sql string) {
+	name = "on_identity_insert"
+	sql = `CREATE TRIGGER ` + name + `
+	BEFORE INSERT ON identities
+	WHEN NEW.auth_method != ` + strconv.FormatInt(authMethodOIDC, 10) + `
+		AND (SELECT COUNT(*) FROM identities WHERE name = NEW.name AND auth_method = NEW.auth_method) > 0
+	BEGIN
+		SELECT RAISE(ABORT, 'An identity with this name and authentication method already exists');
+	END`
+
+	return name, sql
+}
+
+func (e entityTypeIdentity) onUpdateTriggerSQL() (name string, sql string) {
+	name = "on_identity_update"
+	sql = `CREATE TRIGGER ` + name + `
+	BEFORE UPDATE ON identities
+	WHEN OLD.name != NEW.name AND NEW.auth_method != ` + strconv.FormatInt(authMethodOIDC, 10) + `
+		AND (SELECT COUNT(*) FROM identities WHERE name = NEW.name AND auth_method = NEW.auth_method) > 0
+	BEGIN
+		SELECT RAISE(ABORT, 'An identity with this name and authentication method already exists');
+	END`
+
+	return name, sql
 }

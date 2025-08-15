@@ -5,7 +5,9 @@ import (
 )
 
 // entityTypeProfile implements entityTypeDBInfo for a Profile.
-type entityTypeProfile struct{}
+type entityTypeProfile struct {
+	entityTypeCommon
+}
 
 func (e entityTypeProfile) code() int64 {
 	return entityTypeCodeProfile

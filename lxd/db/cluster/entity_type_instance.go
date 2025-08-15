@@ -5,7 +5,9 @@ import (
 )
 
 // entityTypeInstance implements entityTypeDBInfo for an Instance.
-type entityTypeInstance struct{}
+type entityTypeInstance struct {
+	entityTypeCommon
+}
 
 func (e entityTypeInstance) code() int64 {
 	return entityTypeCodeInstance
