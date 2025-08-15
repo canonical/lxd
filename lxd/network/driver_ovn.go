@@ -232,7 +232,7 @@ func (n *ovn) projectRestrictedSubnets(p *api.Project, uplinkNetworkName string)
 	return projectRestrictedSubnets, nil
 }
 
-func (n *ovn) randomExternalAddress(ctx context.Context, ipVersion int, uplinkRoutes []*net.IPNet, projectRestrictedSubnets []*net.IPNet, validator func(*net.IPNet) (bool, error)) (net.IP, error) {
+func (n *ovn) randomExternalAddress(ctx context.Context, ipVersion int, uplinkRoutes []*net.IPNet, projectRestrictedSubnets []*net.IPNet, externalSubnetsInUse []externalSubnetUsage, validator func(*net.IPNet, []externalSubnetUsage) (bool, error)) (net.IP, error) {
 	// Ensure a sensible deadline is set.
 	_, hasDeadline := ctx.Deadline()
 	var cancel context.CancelFunc = func() {}
@@ -285,7 +285,7 @@ func (n *ovn) randomExternalAddress(ctx context.Context, ipVersion int, uplinkRo
 				return false, err
 			}
 
-			return validator(ipnet)
+			return validator(ipnet, externalSubnetsInUse)
 		})
 
 		subnetCtxCancel()
@@ -4874,6 +4874,18 @@ func (n *ovn) allocateUplinkAddress(listenIPAddress net.IP) (net.IP, error) {
 		return nil, fmt.Errorf("Project quota for uplink IPs on network %q is exhausted", uplink.Name)
 	}
 
+	externalSubnetsInUse, err := n.getExternalSubnetInUse(n.config["network"])
+	if err != nil {
+		return nil, err
+	}
+
+	gatewaysInUse, err := n.getUplinkGatewayUsage()
+	if err != nil {
+		return nil, err
+	}
+
+	externalSubnetsInUse = append(externalSubnetsInUse, gatewaysInUse...)
+
 	// We're auto-allocating the external IP address if the given listen address is unspecified.
 	if listenIPAddress.IsUnspecified() {
 		// Retrieve the raw address from listenAddressNet.
@@ -4887,7 +4899,7 @@ func (n *ovn) allocateUplinkAddress(listenIPAddress net.IP) (net.IP, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		listenIPAddress, err = n.randomExternalAddress(ctx, ipVersion, uplinkRoutes, projectRestrictedSubnets, n.checkAddressNotInUse)
+		listenIPAddress, err = n.randomExternalAddress(ctx, ipVersion, uplinkRoutes, projectRestrictedSubnets, externalSubnetsInUse, n.checkAddressNotInUse)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to allocate an IPv%d address: %w", ipVersion, err)
 		}
@@ -4917,7 +4929,7 @@ func (n *ovn) allocateUplinkAddress(listenIPAddress net.IP) (net.IP, error) {
 		return nil, err
 	}
 
-	isValid, err := n.checkAddressNotInUse(listenAddressNet)
+	isValid, err := n.checkAddressNotInUse(listenAddressNet, externalSubnetsInUse)
 	if err != nil {
 		return nil, err
 	} else if !isValid {
@@ -6009,12 +6021,7 @@ func (n *ovn) forPeers(f func(targetOVNNet *ovn) error) error {
 
 // checkAddressNotInUse checks that a given network subnet does not fall within
 // any existing OVN network external subnets on the same uplink.
-func (n *ovn) checkAddressNotInUse(netip *net.IPNet) (bool, error) {
-	externalSubnetsInUse, err := n.getExternalSubnetInUse(n.config["network"])
-	if err != nil {
-		return false, err
-	}
-
+func (n *ovn) checkAddressNotInUse(netip *net.IPNet, externalSubnetsInUse []externalSubnetUsage) (bool, error) {
 	for _, externalSubnetUser := range externalSubnetsInUse {
 		// Check if usage is from our own network.
 		if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
