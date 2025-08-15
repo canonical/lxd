@@ -55,3 +55,8 @@ func (c *connectorSDC) Disconnect(targetQN string) error {
 func (c *connectorSDC) findSession(targetQN string) (*session, error) {
 	return nil, nil
 }
+
+// Discover returns the targets found on the first reachable targetAddr.
+func (c *connectorSDC) Discover(ctx context.Context, targetAddresses ...string) ([]any, error) {
+	return nil, ErrNotSupported
+}
