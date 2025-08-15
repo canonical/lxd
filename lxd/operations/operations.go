@@ -186,7 +186,8 @@ func OperationCreate(ctx context.Context, s *state.State, projectName string, op
 	}
 
 	// Set requestor if the request context is provided.
-	if request.IsRequestContext(ctx) {
+	_, err = request.GetRequestor(ctx)
+	if err == nil {
 		op.SetRequestor(ctx)
 	}
 
