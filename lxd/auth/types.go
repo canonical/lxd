@@ -8,29 +8,6 @@ import (
 	"github.com/canonical/lxd/shared/entity"
 )
 
-const (
-	// AuthenticationMethodCluster is set in the request context as request.CtxProtocol when the request is authenticated
-	// via mTLS and the peer certificate is present in the trust store as type certificate.TypeServer.
-	AuthenticationMethodCluster string = "cluster"
-
-	// AuthenticationMethodUnix is set in the request context as request.CtxProtocol when the request is made over the
-	// unix socket.
-	AuthenticationMethodUnix string = "unix"
-
-	// AuthenticationMethodPKI is set in the request context as request.CtxProtocol when a `server.ca` file exists in
-	// LXD_DIR, the peer certificate of the request was signed by the CA file, and core.trust_ca_certificates is true.
-	//
-	// Note: If core.trust_ca_certificates is false, the peer certificate is additionally verified via mTLS and the
-	// value of request.CtxProtocol is set to api.AuthenticationMethodTLS.
-	//
-	// Note: Regardless of whether `core.trust_ca_certificates` is enabled, we still check if the client certificate
-	// fingerprint is in the identity cache. If they are found, standard TLS restrictions will apply.
-	AuthenticationMethodPKI string = "pki"
-
-	// AuthenticationMethodDevLXD is the authentication method for interacting with the devlxd API.
-	AuthenticationMethodDevLXD = "devlxd"
-)
-
 // PermissionChecker is a type alias for a function that returns whether a user has required permissions on an object.
 // It is returned by Authorizer.GetPermissionChecker.
 type PermissionChecker func(entityURL *api.URL) bool
