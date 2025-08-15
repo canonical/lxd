@@ -9,30 +9,12 @@ import (
 
 // CreateRequestor extracts the lifecycle event requestor data from the provided context.
 func CreateRequestor(ctx context.Context) *api.EventLifecycleRequestor {
-	requestor := &api.EventLifecycleRequestor{}
-
-	reqInfo := GetContextInfo(ctx)
-	if reqInfo != nil {
-		// Normal requestor.
-		requestor.Address = reqInfo.SourceAddress
-		requestor.Username = reqInfo.Username
-		requestor.Protocol = reqInfo.Protocol
-
-		// Forwarded requestor override.
-		if reqInfo.ForwardedAddress != "" {
-			requestor.Address = reqInfo.ForwardedAddress
-		}
-
-		if reqInfo.ForwardedUsername != "" {
-			requestor.Username = reqInfo.ForwardedUsername
-		}
-
-		if reqInfo.ForwardedProtocol != "" {
-			requestor.Protocol = reqInfo.ForwardedProtocol
-		}
+	requestor, err := GetRequestor(ctx)
+	if err != nil {
+		return &api.EventLifecycleRequestor{}
 	}
 
-	return requestor
+	return requestor.EventLifecycleRequestor()
 }
 
 // SaveConnectionInContext can be set as the ConnContext field of a http.Server to set the connection
