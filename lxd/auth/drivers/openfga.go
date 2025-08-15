@@ -156,24 +156,24 @@ func (e *embeddedOpenFGA) checkPermission(ctx context.Context, entityURL *api.UR
 
 	logCtx := logger.Ctx{"entity_url": entityURL.String(), "entitlement": entitlement}
 
+	requestor, err := request.GetRequestor(ctx)
+	if err != nil {
+		return err
+	}
+
 	// Untrusted requests are denied.
-	if !auth.IsTrusted(ctx) {
+	if !requestor.IsTrusted() {
 		return api.NewGenericStatusError(http.StatusForbidden)
 	}
 
-	isRoot, err := auth.IsServerAdmin(ctx, e.identityCache)
-	if err != nil {
-		return fmt.Errorf("Failed to check caller privilege: %w", err)
-	}
-
 	// Cluster or unix socket requests have admin permission.
-	if isRoot {
+	if requestor.IsAdmin() {
 		return nil
 	}
 
-	id, err := auth.GetIdentityFromCtx(ctx, e.identityCache)
-	if err != nil {
-		return fmt.Errorf("Failed to get caller identity: %w", err)
+	id := requestor.CallerIdentity()
+	if id == nil {
+		return errors.New("No identity is set in the request details")
 	}
 
 	logCtx["username"] = id.Identifier
@@ -192,12 +192,7 @@ func (e *embeddedOpenFGA) checkPermission(ctx context.Context, entityURL *api.UR
 
 	// Combine the users LXD groups with any mappings that have come from the IDP.
 	groups := id.Groups
-	idpGroups, err := auth.GetIdentityProviderGroupsFromCtx(ctx)
-	if err != nil {
-		return fmt.Errorf("Failed to get caller identity provider groups: %w", err)
-	}
-
-	for _, idpGroup := range idpGroups {
+	for _, idpGroup := range requestor.CallerIdentityProviderGroups() {
 		lxdGroups, err := e.identityCache.GetIdentityProviderGroupMapping(idpGroup)
 		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 			return fmt.Errorf("Failed to get identity provider group mapping for group %q: %w", idpGroup, err)
@@ -368,24 +363,24 @@ func (e *embeddedOpenFGA) getPermissionChecker(ctx context.Context, entitlement 
 		return nil, fmt.Errorf("Failed to get a permission checker: %w", err)
 	}
 
+	requestor, err := request.GetRequestor(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	// Untrusted requests are denied.
-	if !auth.IsTrusted(ctx) {
+	if !requestor.IsTrusted() {
 		return allowFunc(false), nil
 	}
 
-	isRoot, err := auth.IsServerAdmin(ctx, e.identityCache)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to check caller privilege: %w", err)
-	}
-
 	// Cluster or unix socket requests have admin permission.
-	if isRoot {
+	if requestor.IsAdmin() {
 		return allowFunc(true), nil
 	}
 
-	id, err := auth.GetIdentityFromCtx(ctx, e.identityCache)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get caller identity: %w", err)
+	id := requestor.CallerIdentity()
+	if id == nil {
+		return nil, errors.New("No identity is set in the request details")
 	}
 
 	logCtx["username"] = id.Identifier
@@ -404,12 +399,7 @@ func (e *embeddedOpenFGA) getPermissionChecker(ctx context.Context, entitlement 
 
 	// Combine the users LXD groups with any mappings that have come from the IDP.
 	groups := id.Groups
-	idpGroups, err := auth.GetIdentityProviderGroupsFromCtx(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get caller identity provider groups: %w", err)
-	}
-
-	for _, idpGroup := range idpGroups {
+	for _, idpGroup := range requestor.CallerIdentityProviderGroups() {
 		lxdGroups, err := e.identityCache.GetIdentityProviderGroupMapping(idpGroup)
 		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 			return nil, fmt.Errorf("Failed to get identity provider group mapping for group %q: %w", idpGroup, err)

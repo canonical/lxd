@@ -11,6 +11,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/identity"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
@@ -27,15 +28,9 @@ func init() {
 
 type tls struct {
 	commonAuthorizer
-	identities *identity.Cache
 }
 
 func (t *tls) load(ctx context.Context, identityCache *identity.Cache, opts Opts) error {
-	if identityCache == nil {
-		return errors.New("TLS authorization driver requires an identity cache")
-	}
-
-	t.identities = identityCache
 	return nil
 }
 
@@ -51,23 +46,24 @@ func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitleme
 		return fmt.Errorf("Cannot check permissions for entity type %q and entitlement %q: %w", entityType, entitlement, err)
 	}
 
+	requestor, err := request.GetRequestor(ctx)
+	if err != nil {
+		return err
+	}
+
 	// Untrusted requests are denied.
-	if !auth.IsTrusted(ctx) {
+	if !requestor.IsTrusted() {
 		return api.NewGenericStatusError(http.StatusForbidden)
 	}
 
-	isRoot, err := auth.IsServerAdmin(ctx, t.identities)
-	if err != nil {
-		return fmt.Errorf("Failed to check caller privilege: %w", err)
-	}
-
-	if isRoot {
+	// Cluster or unix socket requests have admin permission.
+	if requestor.IsAdmin() {
 		return nil
 	}
 
-	id, err := auth.GetIdentityFromCtx(ctx, t.identities)
-	if err != nil {
-		return fmt.Errorf("Failed to get caller identity: %w", err)
+	id := requestor.CallerIdentity()
+	if id == nil {
+		return errors.New("No identity is set in the request details")
 	}
 
 	if id.IdentityType == api.IdentityTypeCertificateMetricsUnrestricted && entitlement == auth.EntitlementCanViewMetrics {
@@ -115,22 +111,24 @@ func (t *tls) GetPermissionChecker(ctx context.Context, entitlement auth.Entitle
 		}
 	}
 
-	if !auth.IsTrusted(ctx) {
+	requestor, err := request.GetRequestor(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Untrusted requests are denied.
+	if !requestor.IsTrusted() {
 		return allowFunc(false), nil
 	}
 
-	isRoot, err := auth.IsServerAdmin(ctx, t.identities)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to check caller privilege: %w", err)
-	}
-
-	if isRoot {
+	// Cluster or unix socket requests have admin permission.
+	if requestor.IsAdmin() {
 		return allowFunc(true), nil
 	}
 
-	id, err := auth.GetIdentityFromCtx(ctx, t.identities)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get caller identity: %w", err)
+	id := requestor.CallerIdentity()
+	if id == nil {
+		return nil, errors.New("No identity is set in the request details")
 	}
 
 	if id.IdentityType == api.IdentityTypeCertificateMetricsUnrestricted && entitlement == auth.EntitlementCanViewMetrics {
