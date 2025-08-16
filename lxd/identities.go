@@ -2089,6 +2089,7 @@ func updateIdentityCache(d *Daemon) {
 	projects := make(map[int][]string)
 	groups := make(map[int][]string)
 	idpGroupMapping := make(map[string][]string)
+	bearerIdentitySecrets := make(map[int]dbCluster.AuthSecretValue)
 	var err error
 	err = s.DB.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		identities, err = dbCluster.GetIdentitys(ctx, tx.Tx())
@@ -2129,6 +2130,11 @@ func updateIdentityCache(d *Daemon) {
 			}
 
 			idpGroupMapping[apiIDPGroup.Name] = apiIDPGroup.Groups
+		}
+
+		bearerIdentitySecrets, err = dbCluster.GetAllBearerIdentitySigningKeys(ctx, tx.Tx())
+		if err != nil {
+			return err
 		}
 
 		return nil
@@ -2176,6 +2182,14 @@ func updateIdentityCache(d *Daemon) {
 			}
 
 			cacheEntry.Subject = subject
+		} else if cacheEntry.AuthenticationMethod == api.AuthenticationMethodBearer {
+			secret, ok := bearerIdentitySecrets[id.ID]
+			if !ok {
+				// No need to add bearer identities with no secret to the cache, they cannot authenticate.
+				continue
+			}
+
+			cacheEntry.Secret = secret
 		}
 
 		identityCacheEntries = append(identityCacheEntries, cacheEntry)
