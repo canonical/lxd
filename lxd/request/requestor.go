@@ -173,23 +173,23 @@ func (r requestor) IsForwarded() bool {
 // ForwardProxy returns a proxy function that adds the requestor details as headers to be inspected by the receiving cluster member.
 func (r requestor) ForwardProxy() func(req *http.Request) (*url.URL, error) {
 	return func(req *http.Request) (*url.URL, error) {
-		req.Header.Add(HeaderForwardedAddress, r.CallerAddress())
+		req.Header.Add(headerForwardedAddress, r.CallerAddress())
 
 		username := r.CallerUsername()
 		if username != "" {
-			req.Header.Add(HeaderForwardedUsername, username)
+			req.Header.Add(headerForwardedUsername, username)
 		}
 
 		protocol := r.CallerProtocol()
 		if protocol != "" {
-			req.Header.Add(HeaderForwardedProtocol, protocol)
+			req.Header.Add(headerForwardedProtocol, protocol)
 		}
 
 		identityProviderGroups := r.CallerIdentityProviderGroups()
 		if identityProviderGroups != nil {
 			b, err := json.Marshal(identityProviderGroups)
 			if err == nil {
-				req.Header.Add(HeaderForwardedIdentityProviderGroups, string(b))
+				req.Header.Add(headerForwardedIdentityProviderGroups, string(b))
 			}
 		}
 
@@ -210,11 +210,11 @@ func (r requestor) ForwardingMemberFingerprint() (string, error) {
 // getForwardedRequestorDetails gets requestor details from the request headers. It should only be called when the request
 // was sent from another cluster member.
 func getForwardedRequestorDetails(r *http.Request) (username string, protocol string, address string, identityProviderGroups []string, err error) {
-	address = r.Header.Get(HeaderForwardedAddress)
-	username = r.Header.Get(HeaderForwardedUsername)
-	protocol = r.Header.Get(HeaderForwardedProtocol)
+	address = r.Header.Get(headerForwardedAddress)
+	username = r.Header.Get(headerForwardedUsername)
+	protocol = r.Header.Get(headerForwardedProtocol)
 
-	forwardedIdentityProviderGroupsJSON := r.Header.Get(HeaderForwardedIdentityProviderGroups)
+	forwardedIdentityProviderGroupsJSON := r.Header.Get(headerForwardedIdentityProviderGroups)
 	if forwardedIdentityProviderGroupsJSON != "" {
 		err = json.Unmarshal([]byte(forwardedIdentityProviderGroupsJSON), &identityProviderGroups)
 		if err != nil {
@@ -237,7 +237,7 @@ func SetRequestorDetails(req *http.Request, identityCache *identity.Cache, detai
 	}
 
 	// Requests can only be forwarded from other cluster members.
-	if req.Header.Get(HeaderForwardedAddress) != "" && r.protocol != ProtocolCluster {
+	if req.Header.Get(headerForwardedAddress) != "" && r.protocol != ProtocolCluster {
 		return errors.New("Received forwarded request information from non-cluster member")
 	}
 
