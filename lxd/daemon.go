@@ -827,7 +827,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		// Authentication
-		trusted, username, protocol, identityProviderGroups, err := d.Authenticate(w, r)
+		requestor, err := d.Authenticate(w, r)
 		if err != nil {
 			var authError oidc.AuthError
 			if errors.As(err, &authError) {
@@ -847,60 +847,32 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		// Initialise the request info.
-		reqInfo := request.InitContextInfo(r)
-
-		// Set the "trusted" value in the request context.
-		reqInfo.Trusted = trusted
-
-		// Set request source address value in the request context.
-		reqInfo.SourceAddress = r.RemoteAddr
+		err = request.SetRequestor(r, d.identityCache, *requestor)
+		if err != nil {
+			_ = response.SmartError(err).Render(w, r)
+			return
+		}
 
 		// Reject internal queries to remote, non-cluster, clients
-		if version == "internal" && !slices.Contains([]string{request.ProtocolUnix, request.ProtocolCluster}, protocol) {
+		if version == "internal" && !slices.Contains([]string{request.ProtocolUnix, request.ProtocolCluster}, requestor.Protocol) {
 			// Except for the initial cluster accept request (done over trusted TLS)
-			if !trusted || c.Path != "cluster/accept" || protocol != api.AuthenticationMethodTLS {
+			if !requestor.Trusted || c.Path != "cluster/accept" || requestor.Protocol != api.AuthenticationMethodTLS {
 				logger.Warn("Rejecting remote internal API request", logger.Ctx{"ip": r.RemoteAddr})
 				_ = response.Forbidden(nil).Render(w, r)
 				return
 			}
 		}
 
-		logCtx := logger.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr, "protocol": protocol}
-		if protocol == request.ProtocolCluster {
-			logCtx["fingerprint"] = username
+		logCtx := logger.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr, "protocol": requestor.Protocol}
+		if requestor.Protocol == request.ProtocolCluster {
+			logCtx["fingerprint"] = requestor.Username
 		} else {
-			logCtx["username"] = username
+			logCtx["username"] = requestor.Username
 		}
 
 		untrustedOk := (r.Method == "GET" && c.Get.AllowUntrusted) || (r.Method == "POST" && c.Post.AllowUntrusted)
-		if trusted {
+		if requestor.Trusted {
 			logger.Debug("Handling API request", logCtx)
-
-			// Add authentication/authorization context data.
-			reqInfo.Username = username
-			reqInfo.Protocol = protocol
-			if len(identityProviderGroups) > 0 {
-				reqInfo.IdentityProviderGroups = identityProviderGroups
-			}
-
-			// Add forwarded requestor data.
-			if protocol == request.ProtocolCluster {
-				// Add authentication/authorization context data.
-				reqInfo.ForwardedAddress = r.Header.Get(request.HeaderForwardedAddress)
-				reqInfo.ForwardedUsername = r.Header.Get(request.HeaderForwardedUsername)
-				reqInfo.ForwardedProtocol = r.Header.Get(request.HeaderForwardedProtocol)
-
-				forwardedIdentityProviderGroupsJSON := r.Header.Get(request.HeaderForwardedIdentityProviderGroups)
-				if forwardedIdentityProviderGroupsJSON != "" {
-					var forwardedIdentityProviderGroups []string
-					err = json.Unmarshal([]byte(forwardedIdentityProviderGroupsJSON), &forwardedIdentityProviderGroups)
-					if err != nil {
-						logger.Error("Failed unmarshalling identity provider groups from forwarded request header", logger.Ctx{"err": err})
-					} else {
-						reqInfo.ForwardedIdentityProviderGroups = forwardedIdentityProviderGroups
-					}
-				}
-			}
 		} else if untrustedOk && r.Header.Get("X-LXD-authenticated") == "" {
 			logger.Debug("Allowing untrusted "+r.Method, logger.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else {
@@ -994,7 +966,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			}
 
 			// If the request is not trusted, only call the handler if the action allows it.
-			if !trusted && !action.AllowUntrusted {
+			if !requestor.Trusted && !action.AllowUntrusted {
 				return response.Forbidden(errors.New("You must be authenticated"))
 			}
 
