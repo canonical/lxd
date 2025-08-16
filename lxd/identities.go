@@ -2107,6 +2107,7 @@ func updateIdentityCache(d *Daemon) {
 	projects := make(map[int][]string)
 	groups := make(map[int][]string)
 	idpGroupMapping := make(map[string][]string)
+	bearerIdentitySecrets := make(map[int]dbCluster.AuthSecretValue)
 	var err error
 	err = s.DB.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		identities, err = dbCluster.GetIdentitys(ctx, tx.Tx())
@@ -2149,10 +2150,20 @@ func updateIdentityCache(d *Daemon) {
 			idpGroupMapping[apiIDPGroup.Name] = apiIDPGroup.Groups
 		}
 
+		var identityIDsWithMultipleSigningKeys []int
+		bearerIdentitySecrets, identityIDsWithMultipleSigningKeys, err = dbCluster.GetAllBearerIdentitySigningKeys(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		if len(identityIDsWithMultipleSigningKeys) > 0 {
+			logger.Warn("Found identities with multiple signing keys - these will be omitted from the identity cache", logger.Ctx{"identity_ids": identityIDsWithMultipleSigningKeys})
+		}
+
 		return nil
 	})
 	if err != nil {
-		logger.Warn("Failed reading certificates from global database", logger.Ctx{"err": err})
+		logger.Warn("Failed reading identities from global database", logger.Ctx{"err": err})
 		return
 	}
 
@@ -2194,6 +2205,14 @@ func updateIdentityCache(d *Daemon) {
 			}
 
 			cacheEntry.Subject = subject
+		} else if cacheEntry.AuthenticationMethod == api.AuthenticationMethodBearer {
+			secret, ok := bearerIdentitySecrets[id.ID]
+			if !ok {
+				// No need to add bearer identities with no secret to the cache, they cannot authenticate.
+				continue
+			}
+
+			cacheEntry.Secret = secret
 		}
 
 		identityCacheEntries = append(identityCacheEntries, cacheEntry)
