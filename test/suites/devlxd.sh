@@ -18,6 +18,53 @@ test_devlxd() {
   lxc exec devlxd -- test -S /dev/lxd/sock
   lxc file push --mode 0755 "devlxd-client/devlxd-client" devlxd/bin/
 
+  ### Test bearer token authentication
+
+  # Check that auth is untrusted by default
+  lxc exec devlxd -- devlxd-client get-state | jq -e '.auth == "untrusted"'
+
+  # Create a bearer identity and issue a token
+  lxc auth identity create devlxd/foo
+  devlxd_token1="$(lxc auth identity token issue devlxd/foo --quiet)"
+
+  # Check that the token is valid (devlxd can be called with the token and auth is trusted).
+  lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token1}" devlxd -- devlxd-client get-state | jq -e '.auth == "trusted"'
+
+  # Issue another token, the old token should be invalid (so devlxd calls fail) and the new one valid.
+  devlxd_token2="$(lxc auth identity token issue devlxd/foo --quiet)"
+  [ "$(! lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token1}" devlxd -- sh -c 'devlxd-client get-state')" = 'Failed to verify bearer token: Token is not valid: token signature is invalid: signature is invalid' ]
+  lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token2}" devlxd -- devlxd-client get-state | jq -e '.auth == "trusted"'
+
+  # Revoke the token, it should no longer be valid.
+  subject="$(lxc query /1.0/auth/identities/bearer/foo | jq -r .id)"
+  lxc auth identity token revoke devlxd/foo
+  [ "$(! lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token2}" devlxd -- sh -c 'devlxd-client get-state')" = "Failed to verify bearer token: Identity \"${subject}\" (bearer) not found" ]
+
+  # Issue a new token, it should be valid
+  devlxd_token3="$(lxc auth identity token issue devlxd/foo --quiet)"
+  lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token3}" devlxd -- devlxd-client get-state | jq -e '.auth == "trusted"'
+
+  # Delete the identity, the token should no longer be valid.
+  lxc auth identity delete devlxd/foo
+  [ "$(! lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token3}" devlxd -- sh -c 'devlxd-client get-state')" = "Failed to verify bearer token: Identity \"${subject}\" (bearer) not found" ]
+
+  # Create a token with an expiry
+  lxc auth identity create devlxd/foo
+  devlxd_token4="$(lxc auth identity token issue devlxd/foo --quiet --expiry 1S)"
+
+  # It's initially valid
+  lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token4}" devlxd -- devlxd-client get-state | jq -e '.auth == "trusted"'
+
+  # It's not valid after the expiry
+  sleep 1
+  [ "$(! lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token4}" devlxd -- sh -c 'devlxd-client get-state')" = 'Failed to verify bearer token: Token is not valid: token has invalid claims: token is expired' ]
+
+  # Clean up
+  lxc auth identity delete devlxd/foo
+
+  # No secret remains in the database after the identity was deleted
+  [ "$(lxd sql global --format csv 'SELECT COUNT(*) FROM secrets WHERE entity_id = (SELECT id FROM identities WHERE name = "foo")')" = 0 ]
+
   # Try to get a host's private image from devlxd.
   [ "$(lxc exec devlxd -- devlxd-client image-export "${fingerprint}")" = "Forbidden" ]
   lxc config set devlxd security.devlxd.images true
