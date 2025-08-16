@@ -487,8 +487,27 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 
 	// Function that handles the request by calling the appropriate handler.
 	handleFunc := func(w http.ResponseWriter, r *http.Request) {
-		// Set devLXD auth method to identify this request as coming from the /dev/lxd socket.
-		err := request.SetRequestorDetails(r, d.identityCache, request.RequestorDetails{Protocol: request.ProtocolDevLXD})
+		var requestor request.RequestorDetails
+
+		// Set [request.ProtocolDevLXD] by default identify this request as coming from the /dev/lxd socket.
+		requestor.Protocol = request.ProtocolDevLXD
+
+		// Check if the caller has a bearer token.
+		isBearerRequest, token, subject := bearer.IsRequest(r, d.globalConfig.ClusterUUID())
+		if isBearerRequest {
+			err := bearer.Authenticate(token, subject, d.identityCache)
+			if err == nil {
+				// If a bearer token is valid, overwrite protocol, include username, and set trusted to true.
+				requestor.Protocol = api.AuthenticationMethodBearer
+				requestor.Username = subject
+				requestor.Trusted = true
+			} else if !auth.IsDeniedError(err) {
+				// Log any internal errors
+				logger.Warn("Failed to authenticate DevLXD bearer token", logger.Ctx{"err": err})
+			}
+		}
+
+		err := request.SetRequestorDetails(r, d.identityCache, requestor)
 		if err != nil {
 			_ = response.DevLXDErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "%v", err)).Render(w, r)
 			return
