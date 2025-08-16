@@ -18,6 +18,36 @@ test_devlxd() {
   lxc exec devlxd -- test -S /dev/lxd/sock
   lxc file push --mode 0755 "devlxd-client/devlxd-client" devlxd/bin/
 
+  ### Test bearer token authentication
+
+  # Check that auth is untrusted by default
+  lxc exec devlxd -- devlxd-client get-state | jq -e '.auth == "untrusted"'
+
+  # Create a bearer identity and issue a token
+  lxc auth identity create devlxd/foo
+  devlxd_token1="$(lxc auth identity token issue devlxd/foo --quiet)"
+
+  # Check that the token is valid (caller is trusted)
+  lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token1}" devlxd -- devlxd-client get-state | jq -e '.auth == "trusted"'
+
+  # Issue another token, the old token should be invalid and the new one valid.
+  devlxd_token2="$(lxc auth identity token issue devlxd/foo --quiet)"
+  lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token1}" devlxd -- devlxd-client get-state | jq -e '.auth == "untrusted"'
+  lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token2}" devlxd -- devlxd-client get-state | jq -e '.auth == "trusted"'
+
+  # Revoke the token, it should no longer be valid.
+  lxc auth identity token revoke devlxd/foo
+  lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token2}" devlxd -- devlxd-client get-state | jq -e '.auth == "untrusted"'
+
+  # Issue a new token, it should be valid
+  devlxd_token3="$(lxc auth identity token issue devlxd/foo --quiet)"
+  lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token3}" devlxd -- devlxd-client get-state | jq -e '.auth == "trusted"'
+
+  # Delete the identity, the token should no longer be valid.
+  lxc auth identity delete devlxd/foo
+  lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token3}" devlxd -- devlxd-client get-state | jq -e '.auth == "untrusted"'
+
+
   # Try to get a host's private image from devlxd.
   [ "$(lxc exec devlxd -- devlxd-client image-export "${fingerprint}")" = "Forbidden" ]
   lxc config set devlxd security.devlxd.images true
