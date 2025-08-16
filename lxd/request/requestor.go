@@ -3,6 +3,7 @@ package request
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
@@ -189,6 +190,24 @@ func (r requestor) ForwardProxy() func(req *http.Request) (*url.URL, error) {
 
 		return shared.ProxyFromEnvironment(req)
 	}
+}
+
+// getForwardedRequestorDetails gets requestor details from the request headers. It should only be called when the request
+// was sent from another cluster member.
+func getForwardedRequestorDetails(r *http.Request) (username string, protocol string, address string, identityProviderGroups []string, err error) {
+	address = r.Header.Get(HeaderForwardedAddress)
+	username = r.Header.Get(HeaderForwardedUsername)
+	protocol = r.Header.Get(HeaderForwardedProtocol)
+
+	forwardedIdentityProviderGroupsJSON := r.Header.Get(HeaderForwardedIdentityProviderGroups)
+	if forwardedIdentityProviderGroupsJSON != "" {
+		err = json.Unmarshal([]byte(forwardedIdentityProviderGroupsJSON), &identityProviderGroups)
+		if err != nil {
+			return "", "", "", nil, fmt.Errorf("Failed to extract forwarded identity provider groups from request header: %w", err)
+		}
+	}
+
+	return username, protocol, address, identityProviderGroups, nil
 }
 
 // InitContextInfo sets an empty Info in the request context.
