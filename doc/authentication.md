@@ -160,7 +160,7 @@ To enable this feature, set the following server configuration:
 - {config:option}`server-acme:acme.ca_url`: The directory URL of the ACME service. By default, LXD uses "Let's Encrypt".
 
 For this feature to work, LXD must be reachable from port 80.
-This can be achieved by using a reverse proxy such as [HAProxy](http://www.haproxy.org/).
+This can be achieved by using a reverse proxy such as [HAProxy](https://www.haproxy.org/).
 
 Here's a minimal HAProxy configuration that uses `lxd.example.net` as the domain.
 After the certificate has been issued, LXD will be reachable from `https://lxd.example.net/`.
