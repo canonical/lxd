@@ -31,18 +31,18 @@ const (
 
 // Headers.
 const (
-	// HeaderForwardedAddress is the forwarded address field in request header.
-	HeaderForwardedAddress = "X-LXD-forwarded-address"
+	// headerForwardedAddress is the forwarded address field in request header.
+	headerForwardedAddress = "X-LXD-forwarded-address"
 
-	// HeaderForwardedUsername is the forwarded username field in request header.
-	HeaderForwardedUsername = "X-LXD-forwarded-username"
+	// headerForwardedUsername is the forwarded username field in request header.
+	headerForwardedUsername = "X-LXD-forwarded-username"
 
-	// HeaderForwardedProtocol is the forwarded protocol field in request header.
-	HeaderForwardedProtocol = "X-LXD-forwarded-protocol"
+	// headerForwardedProtocol is the forwarded protocol field in request header.
+	headerForwardedProtocol = "X-LXD-forwarded-protocol"
 
-	// HeaderForwardedIdentityProviderGroups is the forwarded identity provider groups field in request header.
+	// headerForwardedIdentityProviderGroups is the forwarded identity provider groups field in request header.
 	// This will be a JSON marshalled []string.
-	HeaderForwardedIdentityProviderGroups = "X-LXD-forwarded-identity-provider-groups"
+	headerForwardedIdentityProviderGroups = "X-LXD-forwarded-identity-provider-groups"
 )
 
 const (
