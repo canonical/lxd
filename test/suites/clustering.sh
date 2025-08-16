@@ -2700,6 +2700,136 @@ test_clustering_recover() {
   kill_lxd "${LXD_THREE_DIR}"
 }
 
+# Putting HAproxy in front of a cluster allows to use a single address to access
+# the cluster, filter out some bogus/spam/malicious requests without terminating
+# TLS and while preserving the original client IP addresses.
+test_clustering_ha() {
+  local LXD_DIR
+  local successes
+  local failures
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # Add a newline at the end of each line. YAML as weird rules..
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  # Spawn a second node
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
+
+  # Spawn a third node
+  setup_clustering_netns 3
+  LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns3="${prefix}3"
+  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${LXD_ONE_DIR}"
+
+  echo "Get IP:port of all cluster members"
+  LXD_ONE_ADDR="$(LXD_DIR="${LXD_ONE_DIR}" lxc config get core.https_address)"
+  LXD_TWO_ADDR="$(LXD_DIR="${LXD_TWO_DIR}" lxc config get core.https_address)"
+  LXD_THREE_ADDR="$(LXD_DIR="${LXD_THREE_DIR}" lxc config get core.https_address)"
+
+  # Extract host and port of the first member
+  LXD_ONE_HOST="$(echo "${LXD_ONE_ADDR}" | cut -d: -f1)"
+  LXD_ONE_PORT="$(echo "${LXD_ONE_ADDR}" | cut -d: -f2)"
+
+  echo "Configure HAproxy"
+  HOSTNAME="$(hostname)"
+  PROXY_PROTOCOL="true"
+  setup_haproxy
+  configure_haproxy "${HOSTNAME}" "${PROXY_PROTOCOL}" "${LXD_ONE_ADDR}" "${LXD_TWO_ADDR}" "${LXD_THREE_ADDR}" > /etc/haproxy/haproxy.cfg
+  start_haproxy
+
+  # Add a host entry for the HAproxy frontend address
+  echo "127.1.2.3 ${HOSTNAME}" >> /etc/hosts
+
+  echo "Get a remote add token"
+  token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
+
+  if [ "${PROXY_PROTOCOL}" = "true" ]; then
+    echo "Check that the communication fails due to using the PROXY protocol while LXD does not expect it"
+    ! lxc remote add ha-cluster "https://${HOSTNAME}:443" --token "${token}" || false
+
+    echo "Configure LXD to accept the PROXY protocol from HAproxy's address"
+    HAPROXY_ADDR="$(ip route get "${LXD_ONE_HOST}" | sed -n '/src/ s/.* src \([^ ]\+\) .*/\1/p')"
+    LXD_DIR="${LXD_ONE_DIR}" lxc config set core.https_trusted_proxy "${HAPROXY_ADDR}"
+  fi
+
+  echo "Add a remote going through the HAproxy"
+  lxc remote add ha-cluster "https://${HOSTNAME}:443" --token "${token}"
+
+  echo "Test connectivity through the HAproxy"
+  lxc cluster list ha-cluster:
+
+  echo "Test the HTTP listener for ACME support"
+  # Wrong vhost
+  [ "$(curl -s -o /dev/null -w "%{http_code}" "http://localhost/.well-known/acme-challenge/")" = "403" ]
+  # Wrong path
+  [ "$(curl -s -o /dev/null -w "%{http_code}" "http://${HOSTNAME}/.well-known/foo-bar")" = "403" ]
+  # Valid path
+  [ "$(curl -s -o /dev/null -w "%{http_code}" "http://${HOSTNAME}/.well-known/acme-challenge/")" = "301" ]
+  [ "$(curl -s -o /dev/null -w "%{redirect_url}" "http://${HOSTNAME}/.well-known/acme-challenge/")" = "https://${HOSTNAME}/.well-known/acme-challenge/" ]
+
+  echo "Verify direct connectivity to a member that will later be removed"
+  nc -zv "${LXD_ONE_HOST}" "${LXD_ONE_PORT}"
+
+  echo "Remove one of the cluster members"
+  lxc cluster remove ha-cluster:node1 --yes
+  sleep 0.5
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+  ! nc -zv "${LXD_ONE_HOST}" "${LXD_ONE_PORT}" || false
+
+  # Allow time for dqlite to reshuffle roles.
+  sleep 0.5
+
+  echo "Verify that remaining members are able to serve requests"
+  lxc cluster list ha-cluster:
+
+  echo "Test rate limit is enforced and some connections are rejected"
+  successes=0
+  failures=0
+  for i in $(seq 20); do
+    echo "Connection attempt (${i})"
+    if lxc query ha-cluster:/ >/dev/null; then
+      successes="$((successes+1))"
+    else
+      failures="$((failures+1))"
+    fi
+  done
+
+  echo "Successes: ${successes}, Failures: ${failures}"
+  [ "${successes}" -ge 1 ]
+  [ "${failures}" -ge 10 ]
+
+  echo "Cleanup"
+  lxc remote remove ha-cluster
+
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_THREE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_THREE_DIR}"
+
+  sed -i '/^127\.1\.2\.3/ d' /etc/hosts
+  stop_haproxy
+}
+
 # When a voter cluster member is shutdown, its role gets transferred to a spare
 # node.
 test_clustering_handover() {
@@ -2717,7 +2847,7 @@ test_clustering_handover() {
 
   echo "Launched member 1"
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
