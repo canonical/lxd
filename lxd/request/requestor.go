@@ -337,14 +337,14 @@ func SetRequestorDetails(req *http.Request, identityCache *identity.Cache, detai
 	return nil
 }
 
-// GetContextInfo gets the request information from the request context.
-func GetContextInfo(ctx context.Context) *RequestorDetails {
-	info, ok := ctx.Value(CtxRequestInfo).(*RequestorDetails)
+// GetRequestor gets a Requestor from the request context.
+func GetRequestor(ctx context.Context) (Requestor, error) {
+	info, ok := ctx.Value(ctxRequestor).(requestor)
 	if !ok {
-		return nil
+		return nil, ErrRequestorNotPresent
 	}
 
-	return info
+	return info, nil
 }
 
 // IsRequestContext checks if the given context is a request context.
