@@ -17,6 +17,7 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/auth/encryption"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -31,6 +32,12 @@ import (
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
+)
+
+const (
+	// defaultBearerTokenExpiry is used when issuing bearer tokens if no expiry is provided.
+	// The default value is 10 years (essentially no expiry).
+	defaultBearerTokenExpiry = "10y"
 )
 
 var identitiesCmd = APIEndpoint{
@@ -82,6 +89,21 @@ var oidcIdentitiesCmd = APIEndpoint{
 	},
 }
 
+var tokenIdentitiesCmd = APIEndpoint{
+	Name:        "identities",
+	Path:        "auth/identities/bearer",
+	MetricsType: entity.TypeIdentity,
+
+	Get: APIEndpointAction{
+		Handler:       getIdentities(api.AuthenticationMethodBearer),
+		AccessHandler: allowAuthenticated,
+	},
+	Post: APIEndpointAction{
+		Handler:       createIdentityToken,
+		AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanCreateIdentities),
+	},
+}
+
 var tlsIdentityCmd = APIEndpoint{
 	Name:        "identity",
 	Path:        "auth/identities/tls/{nameOrIdentifier}",
@@ -125,6 +147,43 @@ var oidcIdentityCmd = APIEndpoint{
 	Delete: APIEndpointAction{
 		Handler:       deleteIdentity,
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodOIDC, auth.EntitlementCanDelete),
+	},
+}
+
+var bearerIdentityCmd = APIEndpoint{
+	Name:        "identity",
+	Path:        "auth/identities/bearer/{nameOrIdentifier}",
+	MetricsType: entity.TypeIdentity,
+
+	Get: APIEndpointAction{
+		Handler:       getIdentity,
+		AccessHandler: identityAccessHandler(api.AuthenticationMethodBearer, auth.EntitlementCanView),
+	},
+	Put: APIEndpointAction{
+		Handler:       updateIdentity(api.AuthenticationMethodBearer),
+		AccessHandler: identityAccessHandler(api.AuthenticationMethodBearer, auth.EntitlementCanEdit),
+	},
+	Patch: APIEndpointAction{
+		Handler:       patchIdentity(api.AuthenticationMethodBearer),
+		AccessHandler: identityAccessHandler(api.AuthenticationMethodBearer, auth.EntitlementCanEdit),
+	},
+	Delete: APIEndpointAction{
+		Handler:       deleteIdentity,
+		AccessHandler: identityAccessHandler(api.AuthenticationMethodBearer, auth.EntitlementCanDelete),
+	},
+}
+
+var bearerIdentityTokenCmd = APIEndpoint{
+	Path:        "auth/identities/bearer/{nameOrIdentifier}/token",
+	MetricsType: entity.TypeIdentity,
+
+	Post: APIEndpointAction{
+		Handler:       tokenIdentityIssueToken,
+		AccessHandler: identityAccessHandler(api.AuthenticationMethodBearer, auth.EntitlementCanEdit),
+	},
+	Delete: APIEndpointAction{
+		Handler:       tokenIdentityRevokeToken,
+		AccessHandler: identityAccessHandler(api.AuthenticationMethodBearer, auth.EntitlementCanEdit),
 	},
 }
 
@@ -291,6 +350,223 @@ func createIdentityTLS(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return createIdentityTLSTrusted(r.Context(), s, networkCert, req, notify)
+}
+
+// swagger:operation POST /1.0/auth/identities/bearer identities identities_post_bearer
+//
+//	Add a bearer identity.
+//
+//	Creates a new bearer identity.
+//
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: body
+//	    name: Bearer identity
+//	    description: Bearer Identity
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/IdentitiesBearerPost"
+//	responses:
+//	  "201":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func createIdentityToken(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	req := api.IdentitiesBearerPost{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	if req.Name == "" {
+		return response.BadRequest(errors.New("Identity name must be provided"))
+	}
+
+	idType, err := identity.New(req.Type)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if idType.AuthenticationMethod() != api.AuthenticationMethodBearer {
+		return response.BadRequest(fmt.Errorf("Identities of type %q cannot be created via the bearer API", req.Type))
+	}
+
+	newIdentityID := uuid.New()
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Create the identity.
+		id, err := dbCluster.CreateIdentity(ctx, tx.Tx(), dbCluster.Identity{
+			AuthMethod: api.AuthenticationMethodBearer,
+			Type:       dbCluster.IdentityType(req.Type),
+			Identifier: newIdentityID.String(),
+			Name:       req.Name,
+		})
+		if err != nil {
+			return err
+		}
+
+		if len(req.Groups) > 0 {
+			return dbCluster.SetIdentityAuthGroups(ctx, tx.Tx(), int(id), req.Groups)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	networkCert := s.Endpoints.NetworkCert()
+	serverCert := s.ServerCert()
+	notify := newIdentityNotificationFunc(s, r, networkCert, serverCert)
+
+	// Send lifecycle event for identity creation.
+	// No need to update cache because no token has been issued for the identity yet, so they can't authenticate.
+	lc, err := notify(lifecycle.IdentityCreated, api.AuthenticationMethodBearer, newIdentityID.String(), false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.SyncResponseLocation(true, nil, lc.Source)
+}
+
+// swagger:operation POST /1.0/auth/identities/bearer/{nameOrID}/token identities identity_post_bearer_token
+//
+//	Issue a token for a bearer identity.
+//
+//	Issues a new token for the bearer identity and revokes any existing token.
+//
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: body
+//	    name: Token request
+//	    description: Parameters of token creation
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/IdentityBearerTokenPost"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/IdentityBearerToken"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "404":
+//	    $ref: "#/responses/NotFound"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func tokenIdentityIssueToken(d *Daemon, r *http.Request) response.Response {
+	var req api.IdentityBearerTokenPost
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	expiry := req.Expiry
+	if expiry == "" {
+		expiry = defaultBearerTokenExpiry
+	}
+
+	expiresAt, err := shared.GetExpiry(time.Now().UTC(), expiry)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	s := d.State()
+
+	id, err := request.GetContextValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	var secret []byte
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		secret, err = dbCluster.RotateBearerIdentitySigningKey(ctx, tx.Tx(), id.ID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	token, err := encryption.GetDevLXDBearerToken(secret, id.Identifier, s.GlobalConfig.ClusterUUID(), expiresAt)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	networkCert := s.Endpoints.NetworkCert()
+	serverCert := s.ServerCert()
+	notify := newIdentityNotificationFunc(s, r, networkCert, serverCert)
+	_, err = notify(lifecycle.IdentityUpdated, api.AuthenticationMethodBearer, id.Identifier, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.SyncResponse(true, api.IdentityBearerToken{Token: token})
+}
+
+// swagger:operation POST /1.0/auth/identities/bearer/{nameOrID}/token identities identity_delete_bearer_token
+//
+//	Revoke a bearer identity token.
+//
+//	Revokes any existing token for the identity.
+//
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	responses:
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "404":
+//	    $ref: "#/responses/NotFound"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func tokenIdentityRevokeToken(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	id, err := request.GetContextValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := dbCluster.DeleteBearerIdentitySigningKey(ctx, tx.Tx(), id.ID)
+		if err != nil {
+			return fmt.Errorf("Failed to revoke token: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	networkCert := s.Endpoints.NetworkCert()
+	serverCert := s.ServerCert()
+	notify := newIdentityNotificationFunc(s, r, networkCert, serverCert)
+	_, err = notify(lifecycle.IdentityUpdated, api.AuthenticationMethodBearer, id.Identifier, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.EmptySyncResponse
 }
 
 // createIdentityTLSUntrusted handles requests to create an identity when the caller is not trusted.
