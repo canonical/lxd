@@ -746,6 +746,8 @@ func (c *cmdIdentity) resolveIdentityArg(identityArg string) (remote string, met
 		return remoteName, api.AuthenticationMethodTLS, "", idName, nil
 	case api.AuthenticationMethodOIDC:
 		return remoteName, api.AuthenticationMethodOIDC, api.IdentityTypeOIDCClient, idName, nil
+	case "devlxd":
+		return remoteName, api.AuthenticationMethodBearer, api.IdentityTypeBearerTokenDevLXD, idName, nil
 	}
 
 	return "", "", "", "", fmt.Errorf("Unrecognized identity type shorthand %q", shorthandType)
@@ -779,6 +781,9 @@ func (c *cmdIdentity) command() *cobra.Command {
 
 	identityGroupCmd := cmdIdentityGroup{global: c.global, identity: c}
 	cmd.AddCommand(identityGroupCmd.command())
+
+	identityTokenCmd := cmdIdentityToken{global: c.global, identity: c}
+	cmd.AddCommand(identityTokenCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -827,6 +832,8 @@ func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
 		return c.createTLSIdentity(remoteName, name, certFilePath)
 	case api.AuthenticationMethodOIDC:
 		return errors.New("OIDC identities cannot be created manually")
+	case api.AuthenticationMethodBearer:
+		return c.createBearerIdentity(remoteName, name, idType)
 	}
 
 	if idType == "" {
@@ -883,7 +890,7 @@ func (c *cmdIdentityCreate) createTLSIdentity(remote string, name string, certFi
 			return err
 		}
 
-		if !c.global.flagQuiet {
+		if !c.identity.global.flagQuiet {
 			pendingIdentityURL, err := url.Parse(transporter.location)
 			if err != nil {
 				return fmt.Errorf("Received invalid location header %q: %w", transporter.location, err)
@@ -928,6 +935,48 @@ func (c *cmdIdentityCreate) createTLSIdentity(remote string, name string, certFi
 
 	if !c.global.flagQuiet {
 		fmt.Printf(i18n.G("TLS identity %q created with fingerprint %q")+"\n", name, fingerprint)
+	}
+
+	return nil
+}
+
+func (c *cmdIdentityCreate) createBearerIdentity(remoteName string, identityName string, identityType string) error {
+	var stdinData api.IdentitiesBearerPost
+
+	// If stdin isn't a terminal, read text from it
+	if !termios.IsTerminal(getStdinFd()) {
+		contents, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+
+		err = yaml.Unmarshal(contents, &stdinData)
+		if err != nil {
+			return err
+		}
+	}
+
+	client, err := c.identity.global.conf.GetInstanceServer(remoteName)
+	if err != nil {
+		return err
+	}
+
+	// Add name and groups to any stdin data
+	stdinData.Name = identityName
+	stdinData.Type = identityType
+	for _, group := range c.flagGroups {
+		if !slices.Contains(stdinData.Groups, group) {
+			stdinData.Groups = append(stdinData.Groups, group)
+		}
+	}
+
+	err = client.CreateIdentityBearer(stdinData)
+	if err != nil {
+		return err
+	}
+
+	if !c.identity.global.flagQuiet {
+		fmt.Printf("%s identity %q created", identityType, identityName)
 	}
 
 	return nil
@@ -1438,6 +1487,152 @@ func (c *cmdIdentityGroupRemove) run(cmd *cobra.Command, args []string) error {
 	identity.Groups = append(identity.Groups, args[1])
 
 	return server.UpdateIdentity(method, name, identity.Writable(), eTag)
+}
+
+type cmdIdentityToken struct {
+	identity *cmdIdentity
+	global   *cmdGlobal
+}
+
+func (c *cmdIdentityToken) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("token")
+	cmd.Short = i18n.G("Manage bearer identity tokens")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Issue and revoke tokens for bearer identities
+`))
+
+	tokenIssueCmd := cmdIdentityTokenIssue{global: c.global, identity: c.identity}
+	cmd.AddCommand(tokenIssueCmd.command())
+
+	tokenRevokeCmd := cmdIdentityTokenRevoke{global: c.global, identity: c.identity}
+	cmd.AddCommand(tokenRevokeCmd.command())
+
+	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
+	cmd.Args = cobra.NoArgs
+	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
+	return cmd
+}
+
+type cmdIdentityTokenIssue struct {
+	global     *cmdGlobal
+	identity   *cmdIdentity
+	flagExpiry string
+}
+
+func (c *cmdIdentityTokenIssue) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("issue", i18n.G("[<remote>:]<type>/<name>"))
+	cmd.Short = i18n.G("Issue a token for a bearer identity")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Issue a token for a bearer identity
+
+Note that this revokes the current token if one is issued`))
+
+	cmd.Flags().StringVar(&c.flagExpiry, "expiry", "", `Token expiration as a space separated list of durations in the form (\d)+(S|M|H|d|w|m|y)`)
+	cmd.RunE = c.run
+
+	return cmd
+}
+
+func (c *cmdIdentityTokenIssue) run(cmd *cobra.Command, args []string) error {
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	remote, method, idType, name, err := c.identity.resolveIdentityArg(args[0])
+	if err != nil {
+		return err
+	}
+
+	if method != api.AuthenticationMethodBearer {
+		return fmt.Errorf("Cannot issue tokens for identities with authentication method %q", method)
+	}
+
+	server, err := c.global.conf.GetInstanceServer(remote)
+	if err != nil {
+		return err
+	}
+
+	identity, _, err := server.GetIdentity(method, name)
+	if err != nil {
+		return err
+	}
+
+	if identity.Type != idType {
+		return fmt.Errorf("Expected identity of type %q but found identity with type %q", idType, identity.Type)
+	}
+
+	token, err := server.IssueBearerIdentityToken(name, api.IdentityBearerTokenPost{Expiry: c.flagExpiry})
+	if err != nil {
+		return err
+	}
+
+	if !c.identity.global.flagQuiet {
+		fmt.Printf(i18n.G("Issued token for identity %q")+"\n", name)
+	}
+
+	fmt.Println(token.Token)
+	return nil
+}
+
+type cmdIdentityTokenRevoke struct {
+	global   *cmdGlobal
+	identity *cmdIdentity
+}
+
+func (c *cmdIdentityTokenRevoke) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("revoke", i18n.G("[<remote>:]<authentication_method>/<name_or_identifier>"))
+	cmd.Short = i18n.G("Revoke the current token for a bearer identity")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Revoke the current token for a bearer identity`))
+
+	cmd.RunE = c.run
+
+	return cmd
+}
+
+func (c *cmdIdentityTokenRevoke) run(cmd *cobra.Command, args []string) error {
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	remote, method, idType, name, err := c.identity.resolveIdentityArg(args[0])
+	if err != nil {
+		return err
+	}
+
+	if method != api.AuthenticationMethodBearer {
+		return fmt.Errorf("Cannot issue tokens for identities with authentication method %q", method)
+	}
+
+	server, err := c.global.conf.GetInstanceServer(remote)
+	if err != nil {
+		return err
+	}
+
+	identity, _, err := server.GetIdentity(method, name)
+	if err != nil {
+		return err
+	}
+
+	if identity.Type != idType {
+		return fmt.Errorf("Expected identity of type %q but found identity with type %q", idType, identity.Type)
+	}
+
+	err = server.RevokeBearerIdentityToken(name)
+	if err != nil {
+		return err
+	}
+
+	if !c.identity.global.flagQuiet {
+		fmt.Printf(i18n.G("Revoked token for identity %q")+"\n", name)
+	}
+
+	return nil
 }
 
 type cmdPermission struct {
