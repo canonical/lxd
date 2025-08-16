@@ -70,6 +70,23 @@ type RequestorDetails struct {
 	IdentityProviderGroups []string
 }
 
+// requestor contains all fields from RequestorDetails, unexported. Plus additional fields gathered from request headers
+// set when a request is forwarded between cluster members. It also contains an [identity.CacheEntry] and an
+// [identity.Type]. It implements Requestor.
+type requestor struct {
+	trusted                         bool
+	sourceAddress                   string
+	username                        string
+	protocol                        string
+	identityProviderGroups          []string
+	forwardedSourceAddress          string
+	forwardedUsername               string
+	forwardedProtocol               string
+	forwardedIdentityProviderGroups []string
+	identity                        *identity.CacheEntry
+	identityType                    identity.Type
+}
+
 // InitContextInfo sets an empty Info in the request context.
 func InitContextInfo(r *http.Request) *RequestorDetails {
 	info := &RequestorDetails{}
