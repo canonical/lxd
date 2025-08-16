@@ -475,59 +475,71 @@ func extractEntitlementsFromQuery(r *http.Request, entityType entity.Type, allow
 // This does not perform authorization, only validates authentication.
 // Returns whether trusted or not, the username (or certificate fingerprint) of the trusted client, and the type of
 // client that has been authenticated (cluster, unix, oidc or tls).
-func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted bool, username string, method string, identityProviderGroups []string, err error) {
+func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.RequestorDetails, error) {
 	// Perform mTLS check against server certificates. If this passes, the request was made by another cluster member
 	// and the protocol is [request.ProtocolCluster].
 	if r.TLS != nil {
 		for _, i := range r.TLS.PeerCertificates {
 			trusted, fingerprint := util.CheckMutualTLS(*i, d.identityCache.X509Certificates(api.IdentityTypeCertificateServer))
 			if trusted {
-				return true, fingerprint, request.ProtocolCluster, nil, nil
+				return &request.RequestorDetails{
+					Trusted:  true,
+					Username: fingerprint,
+					Protocol: request.ProtocolCluster,
+				}, nil
 			}
 		}
 	}
 
 	// Local unix socket queries.
 	if r.RemoteAddr == "@" && r.TLS == nil {
-		if w != nil {
-			cred, err := ucred.GetCredFromContext(r.Context())
-			if err != nil {
-				return false, "", "", nil, err
-			}
-
-			u, err := user.LookupId(strconv.FormatUint(uint64(cred.Uid), 10))
-			if err != nil {
-				return true, fmt.Sprint("uid=", cred.Uid), request.ProtocolUnix, nil, nil
-			}
-
-			return true, u.Username, request.ProtocolUnix, nil, nil
+		cred, err := ucred.GetCredFromContext(r.Context())
+		if err != nil {
+			return nil, err
 		}
 
-		return true, "", request.ProtocolUnix, nil, nil
+		var username string
+		u, err := user.LookupId(strconv.FormatUint(uint64(cred.Uid), 10))
+		if err != nil {
+			username = fmt.Sprint("uid=", cred.Uid)
+		} else {
+			username = u.Username
+		}
+
+		return &request.RequestorDetails{
+			Trusted:  true,
+			Username: username,
+			Protocol: request.ProtocolUnix,
+		}, nil
 	}
 
 	// Cluster notification with wrong certificate.
 	if isClusterNotification(r) {
-		return false, "", "", nil, errors.New("Cluster notification isn't using trusted server certificate")
+		return nil, errors.New("Cluster notification isn't using trusted server certificate")
 	}
 
 	// Bad query, no TLS found.
 	if r.TLS == nil {
-		return false, "", "", nil, errors.New("Bad/missing TLS on network query")
+		return nil, errors.New("Bad/missing TLS on network query")
 	}
 
 	if d.oidcVerifier != nil && d.oidcVerifier.IsRequest(r) {
 		result, err := d.oidcVerifier.Auth(w, r)
 		if err != nil {
-			return false, "", "", nil, fmt.Errorf("Failed OIDC Authentication: %w", err)
+			return nil, fmt.Errorf("Failed OIDC Authentication: %w", err)
 		}
 
 		err = d.handleOIDCAuthenticationResult(r, result)
 		if err != nil {
-			return false, "", "", nil, fmt.Errorf("Failed to process OIDC authentication result: %w", err)
+			return nil, fmt.Errorf("Failed to process OIDC authentication result: %w", err)
 		}
 
-		return true, result.Email, api.AuthenticationMethodOIDC, result.IdentityProviderGroups, nil
+		return &request.RequestorDetails{
+			Trusted:                true,
+			Username:               result.Email,
+			Protocol:               api.AuthenticationMethodOIDC,
+			IdentityProviderGroups: result.IdentityProviderGroups,
+		}, nil
 	}
 
 	isMetricsRequest := func(u url.URL) bool {
@@ -557,26 +569,30 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 		for _, peerCertificate := range r.TLS.PeerCertificates {
 			trusted, _, fingerprint := util.CheckCASignature(*peerCertificate, d.endpoints.NetworkCert())
 			if !trusted {
-				return false, "", "", nil, nil
+				return &request.RequestorDetails{Trusted: false}, nil
 			} else if trustCACertificates {
 				// If CA signed certificates are implicitly trusted via `core.trust_ca_certificates`, return now. Otherwise, continue to mTLS check.
 				// Returning the protocol as auth.ProtocolPKI will indicate to the auth.Authorizer that
 				// this certificate may not be present in the trust store. If it isn't in the trust store, the caller
 				// has full access to LXD. If it is in the trust store, standard TLS restrictions will apply.
-				return true, fingerprint, request.ProtocolPKI, nil, nil
+				return &request.RequestorDetails{
+					Trusted:  false,
+					Username: fingerprint,
+					Protocol: request.ProtocolPKI,
+				}, nil
 			}
 
 			// We are trusted by the CA. But because `core.trust_ca_certificates` is false, we also need to check that
 			// the client certificate is in the trust store.
 			id, err := d.identityCache.Get(api.AuthenticationMethodTLS, fingerprint)
 			if err != nil {
-				return false, "", "", nil, nil
+				return &request.RequestorDetails{Trusted: false}, nil
 			}
 
 			// The identity type must be in our list of candidate types (e.g. if this certificate is a metrics certificate
 			// and we're on a non-metrics related route).
 			if !slices.Contains(candidateIdentityTypes, id.IdentityType) {
-				return false, "", "", nil, nil
+				return &request.RequestorDetails{Trusted: false}, nil
 			}
 
 			// In CA mode we only consider if this exact certificate is valid via mTLS checks below.
@@ -591,12 +607,16 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 	for _, i := range r.TLS.PeerCertificates {
 		trusted, fingerprint := util.CheckMutualTLS(*i, candidateCertificates)
 		if trusted {
-			return true, fingerprint, api.AuthenticationMethodTLS, nil, nil
+			return &request.RequestorDetails{
+				Trusted:  true,
+				Username: fingerprint,
+				Protocol: api.AuthenticationMethodTLS,
+			}, nil
 		}
 	}
 
 	// Reject unauthorized.
-	return false, "", "", nil, nil
+	return &request.RequestorDetails{Trusted: false}, nil
 }
 
 // handleOIDCAuthenticationResult checks the identity cache for the OIDC identity by their email address. If no identity
