@@ -2704,3 +2704,8 @@ The {config:option}`server-core:core.auth_secret_expiry` configuration option ca
 This introduces two new configuration keys {config:option}`server-miscellaneous:storage.project.{name}.images_volume` and
 {config:option}`server-miscellaneous:storage.project.{name}.backups_volume` per each project to allow for a storage volume on an existing
 pool be used for storing the project-specific images and backups artifacts.
+
+## `auth_bearer_devlxd`
+
+Adds a new `bearer` authentication method and enables authentication to the DevLXD API.
+See {ref}`DevLXD bearer tokens <devlxd-authentication-bearer>`. 
