@@ -3,6 +3,8 @@ package request
 import (
 	"context"
 	"net/http"
+
+	"github.com/canonical/lxd/lxd/identity"
 )
 
 // RequestorArgs contains information that is gathered when the requestor is initially authenticated.
@@ -22,6 +24,23 @@ type RequestorArgs struct {
 	// [api.AuthenticationMethodOIDC]. They are centrally defined groups that may map to LXD groups via identity
 	// provider group mappings.
 	IdentityProviderGroups []string
+}
+
+// Requestor contains all fields from RequestorArgs, unexported. Plus additional fields gathered from request headers
+// set when a request is forwarded between cluster members. It also contains an [identity.CacheEntry] and an
+// [identity.Type], which are set during SetRequestor.
+type Requestor struct {
+	trusted                         bool
+	sourceAddress                   string
+	username                        string
+	protocol                        string
+	identityProviderGroups          []string
+	forwardedSourceAddress          string
+	forwardedUsername               string
+	forwardedProtocol               string
+	forwardedIdentityProviderGroups []string
+	identity                        *identity.CacheEntry
+	identityType                    identity.Type
 }
 
 // InitContextInfo sets an empty Info in the request context.
