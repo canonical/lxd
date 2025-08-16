@@ -570,22 +570,28 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.
 			trusted, _, fingerprint := util.CheckCASignature(*peerCertificate, d.endpoints.NetworkCert())
 			if !trusted {
 				return &request.RequestorDetails{Trusted: false}, nil
-			} else if trustCACertificates {
-				// If CA signed certificates are implicitly trusted via `core.trust_ca_certificates`, return now. Otherwise, continue to mTLS check.
-				// Returning the protocol as auth.ProtocolPKI will indicate to the auth.Authorizer that
-				// this certificate may not be present in the trust store. If it isn't in the trust store, the caller
-				// has full access to LXD. If it is in the trust store, standard TLS restrictions will apply.
-				return &request.RequestorDetails{
-					Trusted:  false,
-					Username: fingerprint,
-					Protocol: request.ProtocolPKI,
-				}, nil
 			}
 
-			// We are trusted by the CA. But because `core.trust_ca_certificates` is false, we also need to check that
-			// the client certificate is in the trust store.
 			id, err := d.identityCache.Get(api.AuthenticationMethodTLS, fingerprint)
 			if err != nil {
+				if !api.StatusErrorCheck(err, http.StatusNotFound) {
+					// Unknown error
+					return nil, fmt.Errorf("Failed to check identity cache: %w", err)
+				}
+
+				// Not found error
+				if trustCACertificates {
+					// CA signed certificate is implicitly trusted via `core.trust_ca_certificates`, and is not present
+					// in the identity cache. This is the only situation where request.ProtocolPKI should be set.
+					return &request.RequestorDetails{
+						Trusted:  true,
+						Username: fingerprint,
+						Protocol: request.ProtocolPKI,
+					}, nil
+				}
+
+				// We are trusted by the CA. But because `core.trust_ca_certificates` is false, if the caller is not
+				// in the identity cache, they are not trusted.
 				return &request.RequestorDetails{Trusted: false}, nil
 			}
 
