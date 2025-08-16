@@ -3,6 +3,8 @@ package request
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
@@ -161,6 +163,38 @@ func (r *Requestor) ForwardingMemberFingerprint() (string, error) {
 	}
 
 	return r.username, nil
+}
+
+// setForwardingDetails validates and sets forwarding details from the request headers.
+func (r *Requestor) setForwardingDetails(req *http.Request) error {
+	forwardedAddress := req.Header.Get(HeaderForwardedAddress)
+	forwardedUsername := req.Header.Get(HeaderForwardedUsername)
+	forwardedProtocol := req.Header.Get(HeaderForwardedProtocol)
+	forwardedIdentityProviderGroupsJSON := req.Header.Get(HeaderForwardedIdentityProviderGroups)
+
+	// Requests can only be forwarded from other cluster members.
+	if r.protocol != ProtocolCluster {
+		// No forwarding headers may be set if the protocol is not ProtocolCluster.
+		if forwardedAddress != "" || forwardedUsername != "" || forwardedProtocol != "" || forwardedIdentityProviderGroupsJSON != "" {
+			return errors.New("Received forwarded request information from non-cluster member")
+		}
+
+		return nil
+	}
+
+	var forwardedIdentityProviderGroups []string
+	if forwardedIdentityProviderGroupsJSON != "" {
+		err := json.Unmarshal([]byte(forwardedIdentityProviderGroupsJSON), &forwardedIdentityProviderGroups)
+		if err != nil {
+			return fmt.Errorf("Failed to extract forwarded identity provider groups from request header: %w", err)
+		}
+	}
+
+	r.forwardedSourceAddress = forwardedAddress
+	r.forwardedUsername = forwardedUsername
+	r.forwardedProtocol = forwardedProtocol
+	r.forwardedIdentityProviderGroups = forwardedIdentityProviderGroups
+	return nil
 }
 
 // InitContextInfo sets an empty Info in the request context.
