@@ -78,8 +78,11 @@ CREATE TRIGGER %s
 	DELETE FROM warnings
 		WHERE entity_type_code IN (%d, %d)
 		AND entity_id = OLD.id;
+	DELETE FROM secrets
+		WHERE entity_type = %d
+		AND entity_id = OLD.id;
 	END
-`, name, e.code(), typeCertificate.code(), e.code(), typeCertificate.code())
+`, name, e.code(), typeCertificate.code(), e.code(), typeCertificate.code(), e.code())
 }
 
 // authMethodCaseClause returns the SQL CASE clause for auth method mapping.
