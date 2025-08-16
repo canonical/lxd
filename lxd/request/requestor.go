@@ -3,6 +3,7 @@ package request
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -224,11 +225,116 @@ func getForwardedRequestorDetails(r *http.Request) (username string, protocol st
 	return username, protocol, address, identityProviderGroups, nil
 }
 
-// InitContextInfo sets an empty Info in the request context.
-func InitContextInfo(r *http.Request) *RequestorDetails {
-	info := &RequestorDetails{}
-	SetContextValue(r, CtxRequestInfo, info)
-	return info
+// SetRequestorDetails validates the given RequestorDetails against the request, then populates the additional fields
+// that requestor contains and sets a requestor in the context.
+func SetRequestorDetails(req *http.Request, identityCache *identity.Cache, details RequestorDetails) error {
+	r := requestor{
+		trusted:                details.Trusted,
+		sourceAddress:          req.RemoteAddr,
+		username:               details.Username,
+		protocol:               details.Protocol,
+		identityProviderGroups: details.IdentityProviderGroups,
+	}
+
+	// Requests can only be forwarded from other cluster members.
+	if req.Header.Get(HeaderForwardedAddress) != "" && r.protocol != ProtocolCluster {
+		return errors.New("Received forwarded request information from non-cluster member")
+	}
+
+	// Get forwarding details.
+	var err error
+	if r.protocol == ProtocolCluster {
+		r.forwardedUsername, r.forwardedProtocol, r.forwardedSourceAddress, r.forwardedIdentityProviderGroups, err = getForwardedRequestorDetails(req)
+		if err != nil {
+			return fmt.Errorf("Failed to get requestor forwarding details: %w", err)
+		}
+	}
+
+	callerUsername := r.CallerUsername()
+	callerProtocol := r.CallerProtocol()
+
+	// Handle untrusted case
+	if !r.trusted {
+		// If the caller is not trusted, there should not be a username.
+		if callerUsername != "" {
+			return errors.New("Caller is not trusted but a username was set")
+		}
+
+		// The only allowed protocols for the untrusted case are ProtocolDevLXD, or empty.
+		if !slices.Contains([]string{ProtocolDevLXD, ""}, callerProtocol) {
+			return errors.New("Unsupported protocol set for untrusted request")
+		}
+
+		SetContextValue(req, ctxRequestor, r)
+		return nil
+	}
+
+	// Trusted
+
+	// DevLXD requests must always be untrusted.
+	if callerProtocol == ProtocolDevLXD {
+		return errors.New("Received trusted request over DevLXD")
+	}
+
+	// There must be a protocol.
+	if callerProtocol == "" {
+		return errors.New("Caller is trusted but no protocol was set")
+	}
+
+	// There must be a username.
+	if callerUsername == "" {
+		return errors.New("Caller is trusted but no username was set")
+	}
+
+	// No identity cache entry for ProtocolUnix
+	if callerProtocol == ProtocolUnix {
+		SetContextValue(req, ctxRequestor, r)
+		return nil
+	}
+
+	// Validate identity is not present if using PKI.
+	if callerProtocol == ProtocolPKI {
+		_, err := identityCache.Get(api.AuthenticationMethodTLS, callerUsername)
+		if err == nil {
+			// If the protocol is PKI but a matching identity is found in the cache, TLS authentication has not fulfilled
+			// its contract of only setting this protocol when `core.trust_ca_certifates` is true and the identity is not
+			// present in the cache. It is also possible that the identity was not present on another cluster member, but
+			// is present on this one.
+			return errors.New("Caller authenticated as a trusted CA certificate but an identity cache entry was found")
+		}
+
+		SetContextValue(req, ctxRequestor, r)
+		return nil
+	}
+
+	// If the protocol was cluster, the authentication method is TLS.
+	method := callerProtocol
+	if callerProtocol == ProtocolCluster {
+		method = api.AuthenticationMethodTLS
+	}
+
+	// Expect the method to a remote API method at this point.
+	err = identity.ValidateAuthenticationMethod(method)
+	if err != nil {
+		return fmt.Errorf("Received unexpected caller protocol %q: %w", callerProtocol, err)
+	}
+
+	// Get the identity.
+	id, err := identityCache.Get(method, callerUsername)
+	if err != nil {
+		return fmt.Errorf("Failed to get caller identity: %w", err)
+	}
+
+	idType, err := identity.New(id.IdentityType)
+	if err != nil {
+		return fmt.Errorf("Invalid identity type %q found in identity cache", id.IdentityType)
+	}
+
+	r.identity = id
+	r.identityType = idType
+
+	SetContextValue(req, ctxRequestor, r)
+	return nil
 }
 
 // GetContextInfo gets the request information from the request context.
