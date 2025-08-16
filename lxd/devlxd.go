@@ -14,6 +14,8 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/auth/bearer"
 	"github.com/canonical/lxd/lxd/cloudinit"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
@@ -117,10 +119,21 @@ func devLXDAPIGetHandler(d *Daemon, r *http.Request) response.Response {
 		state = api.Started
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	clientAuth := "untrusted"
+	if requestor.IsTrusted() {
+		clientAuth = "trusted"
+	}
+
 	resp := api.DevLXDGet{
 		APIVersion:   version.APIVersion,
 		Location:     location,
 		InstanceType: inst.Type().String(),
+		Auth:         clientAuth,
 		DevLXDPut: api.DevLXDPut{
 			State: state.String(),
 		},
