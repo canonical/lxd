@@ -321,13 +321,3 @@ func GetRequestor(ctx context.Context) (*Requestor, error) {
 
 	return r, nil
 }
-
-// IsRequestContext checks if the given context is a request context.
-// This is determined by checking the presence of the request information in the context.
-func IsRequestContext(ctx context.Context) bool {
-	if ctx == nil {
-		return false
-	}
-
-	return GetContextInfo(ctx) != nil
-}
