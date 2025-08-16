@@ -159,7 +159,7 @@ To enable this feature, set the following server configuration:
 - {config:option}`server-acme:acme.agree_tos`: Must be set to `true` to agree to the ACME service's terms of service.
 - {config:option}`server-acme:acme.ca_url`: The directory URL of the ACME service. By default, LXD uses "Let's Encrypt".
 
-For this feature to work, LXD must be reachable from port 80.
+LXD currently only supports the [`HTTP-01`](https://letsencrypt.org/docs/challenge-types/#http-01-challenge) challenge and this requires handling incoming HTTP requests on port 80.
 This can be achieved by using a reverse proxy such as [HAProxy](https://www.haproxy.org/).
 
 Here's a minimal HAProxy configuration that uses `lxd.example.net` as the domain.
