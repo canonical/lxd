@@ -6,6 +6,9 @@ const (
 
 	// AuthenticationMethodOIDC is the OpenID Connect authentication method.
 	AuthenticationMethodOIDC = "oidc"
+
+	// AuthenticationMethodBearer is the authentication method used when the caller sends a bearer token that was issued by LXD.
+	AuthenticationMethodBearer = "bearer"
 )
 
 const (
