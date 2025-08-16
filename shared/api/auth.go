@@ -35,6 +35,9 @@ const (
 
 	// IdentityTypeOIDCClient represents an identity that authenticates with OIDC.
 	IdentityTypeOIDCClient = "OIDC client"
+
+	// IdentityTypeBearerTokenDevLXD represents an identity that bears a LXD token that can be used to interact with the DevLXD API.
+	IdentityTypeBearerTokenDevLXD = "DevLXD token bearer"
 )
 
 // WithEntitlements is meant to be an embedded struct to API types eligible for entitlement enrichment,
