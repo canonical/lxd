@@ -22,6 +22,7 @@ import (
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/query"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -935,13 +936,13 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 		return nil
 	})
 	if err != nil {
-		if api.StatusErrorCheck(err, http.StatusConflict) {
+		if query.IsConflictErr(err) {
 			thing := "Instance"
 			if shared.IsSnapshot(args.Name) {
 				thing = "Snapshot"
 			}
 
-			return nil, nil, nil, fmt.Errorf("%s %q already exists", thing, args.Name)
+			return nil, nil, nil, api.StatusErrorf(http.StatusConflict, "%s %q already exists", thing, args.Name)
 		}
 
 		return nil, nil, nil, err

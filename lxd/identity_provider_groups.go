@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
@@ -332,6 +333,10 @@ func createIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		id, err := dbCluster.CreateIdentityProviderGroup(ctx, tx.Tx(), dbCluster.IdentityProviderGroup{Name: idpGroup.Name})
 		if err != nil {
+			if query.IsConflictErr(err) {
+				return api.StatusErrorf(http.StatusConflict, "Identity provider group %q already exists", idpGroup.Name)
+			}
+
 			return err
 		}
 
@@ -412,6 +417,10 @@ func renameIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 		return dbCluster.RenameIdentityProviderGroup(ctx, tx.Tx(), idpGroupName, idpGroupPost.Name)
 	})
 	if err != nil {
+		if query.IsConflictErr(err) {
+			return response.Conflict(fmt.Errorf("Identity provider group %q already exists", idpGroupPost.Name))
+		}
+
 		return response.SmartError(err)
 	}
 

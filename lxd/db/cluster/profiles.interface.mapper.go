@@ -13,10 +13,6 @@ type ProfileGenerated interface {
 	// generator: profile ID
 	GetProfileID(ctx context.Context, tx *sql.Tx, project string, name string) (int64, error)
 
-	// ProfileExists checks if a profile with the given key exists.
-	// generator: profile Exists
-	ProfileExists(ctx context.Context, tx *sql.Tx, project string, name string) (bool, error)
-
 	// GetProfileConfig returns all available Profile Config
 	// generator: profile GetMany
 	GetProfileConfig(ctx context.Context, tx *sql.Tx, profileID int, filters ...ConfigFilter) (map[string]string, error)

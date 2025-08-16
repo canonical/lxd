@@ -31,6 +31,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/instance"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
@@ -3753,6 +3754,10 @@ func clusterGroupsPost(d *Daemon, r *http.Request) response.Response {
 
 		_, err := dbCluster.CreateClusterGroup(ctx, tx.Tx(), obj)
 		if err != nil {
+			if query.IsConflictErr(err) {
+				return api.StatusErrorf(http.StatusConflict, "Cluster group %q already exists", req.Name)
+			}
+
 			return err
 		}
 

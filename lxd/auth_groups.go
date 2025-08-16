@@ -18,6 +18,7 @@ import (
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
@@ -364,6 +365,10 @@ func createAuthGroup(d *Daemon, r *http.Request) response.Response {
 			Description: group.Description,
 		})
 		if err != nil {
+			if query.IsConflictErr(err) {
+				return api.StatusErrorf(http.StatusConflict, "Authorization group %q already exists", group.Name)
+			}
+
 			return err
 		}
 
@@ -726,14 +731,13 @@ func renameAuthGroup(d *Daemon, r *http.Request) response.Response {
 
 	s := d.State()
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		err = dbCluster.RenameAuthGroup(ctx, tx.Tx(), groupName, groupPost.Name)
-		if err != nil {
-			return err
-		}
-
-		return nil
+		return dbCluster.RenameAuthGroup(ctx, tx.Tx(), groupName, groupPost.Name)
 	})
 	if err != nil {
+		if query.IsConflictErr(err) {
+			return response.Conflict(fmt.Errorf("Authorization group %q already exists", groupPost.Name))
+		}
+
 		return response.SmartError(err)
 	}
 

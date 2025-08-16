@@ -21,10 +21,6 @@ type IdentityGenerated interface {
 	// generator: identity ID
 	GetIdentityID(ctx context.Context, tx *sql.Tx, authMethod AuthMethod, identifier string) (int64, error)
 
-	// IdentityExists checks if a identity with the given key exists.
-	// generator: identity Exists
-	IdentityExists(ctx context.Context, tx *sql.Tx, authMethod AuthMethod, identifier string) (bool, error)
-
 	// CreateIdentity adds a new identity to the database.
 	// generator: identity Create
 	CreateIdentity(ctx context.Context, tx *sql.Tx, object Identity) (int64, error)
