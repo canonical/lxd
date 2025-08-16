@@ -44,6 +44,13 @@ func run(args []string) error {
 	command := args[1]
 
 	switch command {
+	case "get-state":
+		state, err := client.GetState()
+		if err != nil {
+			return err
+		}
+
+		return printPrettyJSON(state)
 	case "monitor-stream":
 		return devLXDMonitorStream()
 	case "monitor-websocket":
