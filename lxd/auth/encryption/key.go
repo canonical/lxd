@@ -18,6 +18,11 @@ func CookieBlockKey(secret []byte, salt []byte) ([]byte, error) {
 	return deriveKey(secret, salt, "ENCRYPTION", 32)
 }
 
+// TokenSigningKey returns a key suitable for signing JWTs with HMAC-SHA512.
+func TokenSigningKey(secret []byte, salt []byte) ([]byte, error) {
+	return deriveKey(secret, salt, "SIGNATURE", 64)
+}
+
 // deriveKey uses HMAC to derive a key from a secret, a salt, and a separator. We can use HMAC directly because our
 // initial key material is uniformly random and of sufficient length.
 func deriveKey(secret []byte, salt []byte, usageSeparator string, length uint) ([]byte, error) {
