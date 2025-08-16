@@ -736,26 +736,29 @@ func (c *cmdIdentity) command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Manage identities`))
 
-	identityCreateCmd := cmdIdentityCreate{global: c.global}
+	identityCreateCmd := cmdIdentityCreate{identity: c}
 	cmd.AddCommand(identityCreateCmd.command())
 
 	identityListCmd := cmdIdentityList{global: c.global}
 	cmd.AddCommand(identityListCmd.command())
 
-	identityShowCmd := cmdIdentityShow{global: c.global}
+	identityShowCmd := cmdIdentityShow{identity: c}
 	cmd.AddCommand(identityShowCmd.command())
 
 	identityInfoCmd := cmdIdentityInfo{global: c.global}
 	cmd.AddCommand(identityInfoCmd.command())
 
-	identityEditCmd := cmdIdentityEdit{global: c.global}
+	identityEditCmd := cmdIdentityEdit{identity: c}
 	cmd.AddCommand(identityEditCmd.command())
 
-	identityDeleteCmd := cmdIdentityDelete{global: c.global}
+	identityDeleteCmd := cmdIdentityDelete{identity: c}
 	cmd.AddCommand(identityDeleteCmd.command())
 
-	identityGroupCmd := cmdIdentityGroup{global: c.global}
+	identityGroupCmd := cmdIdentityGroup{identity: c}
 	cmd.AddCommand(identityGroupCmd.command())
+
+	identityTokenCmd := cmdIdentityToken{identity: c}
+	cmd.AddCommand(identityTokenCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -763,8 +766,23 @@ func (c *cmdIdentity) command() *cobra.Command {
 	return cmd
 }
 
+func (c *cmdIdentity) resolveIdentityTypeShorthand(inMethod string) (outMethod string, identityType string, err error) {
+	switch inMethod {
+	case api.AuthenticationMethodTLS:
+		return api.AuthenticationMethodTLS, "", nil
+	case api.AuthenticationMethodOIDC:
+		return api.AuthenticationMethodOIDC, api.IdentityTypeOIDCClient, nil
+	case api.AuthenticationMethodBearer:
+		return api.AuthenticationMethodBearer, "", nil
+	case "devlxd":
+		return api.AuthenticationMethodBearer, api.IdentityTypeBearerTokenDevLXD, nil
+	}
+
+	return "", "", fmt.Errorf("Unrecognized authentication method %q", inMethod)
+}
+
 type cmdIdentityCreate struct {
-	global     *cmdGlobal
+	identity   *cmdIdentity
 	flagGroups []string
 }
 
@@ -782,13 +800,44 @@ func (c *cmdIdentityCreate) command() *cobra.Command {
 }
 
 func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
-	var stdinData api.IdentitiesTLSPost
-
 	// Quick checks.
-	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
+	exit, err := c.identity.global.CheckArgs(cmd, args, 1, 2)
 	if exit {
 		return err
 	}
+
+	// Parse remote
+	remoteName, resourceName, err := c.identity.global.conf.ParseRemote(args[0])
+	if err != nil {
+		return err
+	}
+
+	if resourceName == "" {
+		return errors.New(i18n.G("Missing identity argument"))
+	}
+
+	authMethod, name, ok := strings.Cut(resourceName, "/")
+	if !ok {
+		return errors.New(i18n.G("Malformed argument, expected `[<remote>:]<authentication_method>/<name>`, got ") + args[0])
+	}
+
+	authMethod, identityType, err := c.identity.resolveIdentityTypeShorthand(authMethod)
+	if err != nil {
+		return err
+	}
+
+	switch authMethod {
+	case api.AuthenticationMethodTLS:
+		return c.createTLSIdentity(remoteName, name, args)
+	case api.AuthenticationMethodBearer:
+		return c.createBearerIdentity(remoteName, name, identityType, args)
+	}
+
+	return fmt.Errorf("Identity creation is not supported for authentication method %q", authMethod)
+}
+
+func (c *cmdIdentityCreate) createTLSIdentity(remoteName string, identityName string, args []string) error {
+	var stdinData api.IdentitiesTLSPost
 
 	// If stdin isn't a terminal, read text from it
 	if !termios.IsTerminal(getStdinFd()) {
@@ -803,33 +852,14 @@ func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Parse remote
-	remoteName, resourceName, err := c.global.conf.ParseRemote(args[0])
-	if err != nil {
-		return err
-	}
-
 	transporter, wrapper := newLocationHeaderTransportWrapper()
-	client, err := c.global.conf.GetInstanceServerWithConnectionArgs(remoteName, &lxd.ConnectionArgs{TransportWrapper: wrapper})
+	client, err := c.identity.global.conf.GetInstanceServerWithConnectionArgs(remoteName, &lxd.ConnectionArgs{TransportWrapper: wrapper})
 	if err != nil {
 		return err
-	}
-
-	if resourceName == "" {
-		return errors.New(i18n.G("Missing identity argument"))
-	}
-
-	authMethod, name, ok := strings.Cut(resourceName, "/")
-	if !ok {
-		return errors.New(i18n.G("Malformed argument, expected `[<remote>:]<authentication_method>/<name>`, got ") + args[0])
-	}
-
-	if authMethod != api.AuthenticationMethodTLS {
-		return errors.New(i18n.G("Identity creation only supported for TLS identities"))
 	}
 
 	// Add name and groups to any stdin data
-	stdinData.Name = name
+	stdinData.Name = identityName
 	for _, group := range c.flagGroups {
 		if !slices.Contains(stdinData.Groups, group) {
 			stdinData.Groups = append(stdinData.Groups, group)
@@ -854,14 +884,14 @@ func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		if !c.global.flagQuiet {
+		if !c.identity.global.flagQuiet {
 			pendingIdentityURL, err := url.Parse(transporter.location)
 			if err != nil {
 				return fmt.Errorf("Received invalid location header %q: %w", transporter.location, err)
 			}
 
 			var pendingIdentityUUIDStr string
-			identityURLPrefix := api.NewURL().Path(version.APIVersion, "auth", "identities", authMethod).String()
+			identityURLPrefix := api.NewURL().Path(version.APIVersion, "auth", "identities", api.AuthenticationMethodTLS).String()
 			_, err = fmt.Sscanf(pendingIdentityURL.Path, identityURLPrefix+"/%s", &pendingIdentityUUIDStr)
 			if err != nil {
 				return fmt.Errorf("Received unexpected location header %q: %w", transporter.location, err)
@@ -872,7 +902,7 @@ func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
 				return fmt.Errorf("Received invalid pending identity UUID %q: %w", pendingIdentityUUIDStr, err)
 			}
 
-			fmt.Printf(i18n.G("TLS identity %q (%s) pending identity token:")+"\n", resourceName, pendingIdentityUUID.String())
+			fmt.Printf(i18n.G("TLS identity %q (%s) pending identity token:")+"\n", api.AuthenticationMethodTLS+"/"+identityName, pendingIdentityUUID.String())
 		}
 
 		// Encode certificate add token to JSON.
@@ -897,8 +927,55 @@ func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("TLS identity %q created with fingerprint %q")+"\n", resourceName, fingerprint)
+	if !c.identity.global.flagQuiet {
+		fmt.Printf(i18n.G("TLS identity %q created with fingerprint %q")+"\n", api.AuthenticationMethodTLS+"/"+identityName, fingerprint)
+	}
+
+	return nil
+}
+
+func (c *cmdIdentityCreate) createBearerIdentity(remoteName string, identityName string, identityType string, args []string) error {
+	if len(args) > 1 {
+		return errors.New(i18n.G("Invalid number of arguments"))
+	}
+
+	var stdinData api.IdentitiesBearerPost
+
+	// If stdin isn't a terminal, read text from it
+	if !termios.IsTerminal(getStdinFd()) {
+		contents, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+
+		err = yaml.Unmarshal(contents, &stdinData)
+		if err != nil {
+			return err
+		}
+	}
+
+	client, err := c.identity.global.conf.GetInstanceServer(remoteName)
+	if err != nil {
+		return err
+	}
+
+	// Add name and groups to any stdin data
+	stdinData.Name = identityName
+	stdinData.Type = identityType
+	for _, group := range c.flagGroups {
+		if !slices.Contains(stdinData.Groups, group) {
+			stdinData.Groups = append(stdinData.Groups, group)
+		}
+	}
+
+	err = client.CreateIdentityBearer(stdinData)
+	if err != nil {
+		return err
+	}
+
+	if !c.identity.global.flagQuiet {
+		fmt.Printf("Created identity %q. You can create a token for this identity with:\n\n", args[0])
+		fmt.Printf("\tlxc auth identity token issue %s\n\n", args[0])
 	}
 
 	return nil
@@ -974,7 +1051,7 @@ func (c *cmdIdentityList) run(cmd *cobra.Command, args []string) error {
 
 // Show.
 type cmdIdentityShow struct {
-	global *cmdGlobal
+	identity *cmdIdentity
 }
 
 func (c *cmdIdentityShow) command() *cobra.Command {
@@ -997,13 +1074,13 @@ method. Use the identifier instead if this occurs.
 
 func (c *cmdIdentityShow) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
-	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	exit, err := c.identity.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
 	}
 
 	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+	resources, err := c.identity.global.ParseServers(args[0])
 	if err != nil {
 		return err
 	}
@@ -1017,6 +1094,11 @@ func (c *cmdIdentityShow) run(cmd *cobra.Command, args []string) error {
 	authenticationMethod, nameOrID, ok := strings.Cut(resource.name, "/")
 	if !ok {
 		return fmt.Errorf("Malformed argument, expected `[<remote>:]<authentication_method>/<name_or_identifier>`, got %q", args[0])
+	}
+
+	authenticationMethod, _, err = c.identity.resolveIdentityTypeShorthand(authenticationMethod)
+	if err != nil {
+		return err
 	}
 
 	// Show the identity
@@ -1098,7 +1180,7 @@ func (c *cmdIdentityInfo) run(cmd *cobra.Command, args []string) error {
 
 // Edit.
 type cmdIdentityEdit struct {
-	global *cmdGlobal
+	identity *cmdIdentity
 }
 
 func (c *cmdIdentityEdit) command() *cobra.Command {
@@ -1138,13 +1220,13 @@ func (c *cmdIdentityEdit) helpTemplate() string {
 
 func (c *cmdIdentityEdit) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
-	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	exit, err := c.identity.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
 	}
 
 	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+	resources, err := c.identity.global.ParseServers(args[0])
 	if err != nil {
 		return err
 	}
@@ -1158,6 +1240,11 @@ func (c *cmdIdentityEdit) run(cmd *cobra.Command, args []string) error {
 	authenticationMethod, nameOrID, ok := strings.Cut(resource.name, "/")
 	if !ok {
 		return fmt.Errorf("Malformed argument, expected `[<remote>:]<authentication_method>/<name_or_identifier>`, got %q", args[0])
+	}
+
+	authenticationMethod, _, err = c.identity.resolveIdentityTypeShorthand(authenticationMethod)
+	if err != nil {
+		return err
 	}
 
 	// If stdin isn't a terminal, read text from it
@@ -1226,7 +1313,7 @@ func (c *cmdIdentityEdit) run(cmd *cobra.Command, args []string) error {
 }
 
 type cmdIdentityDelete struct {
-	global *cmdGlobal
+	identity *cmdIdentity
 }
 
 func (c *cmdIdentityDelete) command() *cobra.Command {
@@ -1255,13 +1342,13 @@ lxc auth identity delete my-remote:tls/jane-doe
 
 func (c *cmdIdentityDelete) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
-	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	exit, err := c.identity.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
 	}
 
 	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+	resources, err := c.identity.global.ParseServers(args[0])
 	if err != nil {
 		return err
 	}
@@ -1277,11 +1364,16 @@ func (c *cmdIdentityDelete) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Malformed argument, expected `[<remote>:]<authentication_method>/<name_or_identifier>`, got %q", args[0])
 	}
 
+	authenticationMethod, _, err = c.identity.resolveIdentityTypeShorthand(authenticationMethod)
+	if err != nil {
+		return err
+	}
+
 	return resource.server.DeleteIdentity(authenticationMethod, nameOrID)
 }
 
 type cmdIdentityGroup struct {
-	global *cmdGlobal
+	identity *cmdIdentity
 }
 
 func (c *cmdIdentityGroup) command() *cobra.Command {
@@ -1291,10 +1383,10 @@ func (c *cmdIdentityGroup) command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Manage groups for the identity`))
 
-	identityGroupAddCmd := cmdIdentityGroupAdd{global: c.global}
+	identityGroupAddCmd := cmdIdentityGroupAdd{identity: c.identity}
 	cmd.AddCommand(identityGroupAddCmd.command())
 
-	identityGroupRemoveCmd := cmdIdentityGroupRemove{global: c.global}
+	identityGroupRemoveCmd := cmdIdentityGroupRemove{identity: c.identity}
 	cmd.AddCommand(identityGroupRemoveCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
@@ -1304,7 +1396,7 @@ func (c *cmdIdentityGroup) command() *cobra.Command {
 }
 
 type cmdIdentityGroupAdd struct {
-	global *cmdGlobal
+	identity *cmdIdentity
 }
 
 func (c *cmdIdentityGroupAdd) command() *cobra.Command {
@@ -1321,13 +1413,13 @@ func (c *cmdIdentityGroupAdd) command() *cobra.Command {
 
 func (c *cmdIdentityGroupAdd) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
-	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	exit, err := c.identity.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
 	}
 
 	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+	resources, err := c.identity.global.ParseServers(args[0])
 	if err != nil {
 		return err
 	}
@@ -1341,6 +1433,11 @@ func (c *cmdIdentityGroupAdd) run(cmd *cobra.Command, args []string) error {
 	authenticationMethod, nameOrID, ok := strings.Cut(resource.name, "/")
 	if !ok {
 		return fmt.Errorf("Malformed argument, expected `[<remote>:]<authentication_method>/<name_or_identifier>`, got %q", args[0])
+	}
+
+	authenticationMethod, _, err = c.identity.resolveIdentityTypeShorthand(authenticationMethod)
+	if err != nil {
+		return err
 	}
 
 	identity, eTag, err := resource.server.GetIdentity(authenticationMethod, nameOrID)
@@ -1362,7 +1459,7 @@ func (c *cmdIdentityGroupAdd) run(cmd *cobra.Command, args []string) error {
 }
 
 type cmdIdentityGroupRemove struct {
-	global *cmdGlobal
+	identity *cmdIdentity
 }
 
 func (c *cmdIdentityGroupRemove) command() *cobra.Command {
@@ -1379,13 +1476,13 @@ func (c *cmdIdentityGroupRemove) command() *cobra.Command {
 
 func (c *cmdIdentityGroupRemove) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
-	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	exit, err := c.identity.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
 	}
 
 	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+	resources, err := c.identity.global.ParseServers(args[0])
 	if err != nil {
 		return err
 	}
@@ -1399,6 +1496,11 @@ func (c *cmdIdentityGroupRemove) run(cmd *cobra.Command, args []string) error {
 	authenticationMethod, nameOrID, ok := strings.Cut(resource.name, "/")
 	if !ok {
 		return fmt.Errorf("Malformed argument, expected `[<remote>:]<authentication_method>/<name_or_identifier>`, got %q", args[0])
+	}
+
+	authenticationMethod, _, err = c.identity.resolveIdentityTypeShorthand(authenticationMethod)
+	if err != nil {
+		return err
 	}
 
 	identity, eTag, err := resource.server.GetIdentity(authenticationMethod, nameOrID)
@@ -1427,6 +1529,155 @@ func (c *cmdIdentityGroupRemove) run(cmd *cobra.Command, args []string) error {
 
 	identity.Groups = groups
 	return resource.server.UpdateIdentity(authenticationMethod, nameOrID, identity.Writable(), eTag)
+}
+
+type cmdIdentityToken struct {
+	identity *cmdIdentity
+}
+
+func (c *cmdIdentityToken) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("token")
+	cmd.Short = i18n.G("Manage bearer identity tokens")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Issue and revoke tokens for bearer identities
+`))
+
+	tokenIssueCmd := cmdIdentityTokenIssue{identity: c.identity}
+	cmd.AddCommand(tokenIssueCmd.command())
+
+	tokenRevokeCmd := cmdIdentityTokenRevoke{identity: c.identity}
+	cmd.AddCommand(tokenRevokeCmd.command())
+
+	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
+	cmd.Args = cobra.NoArgs
+	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
+	return cmd
+}
+
+type cmdIdentityTokenIssue struct {
+	identity   *cmdIdentity
+	flagExpiry string
+}
+
+func (c *cmdIdentityTokenIssue) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("issue", i18n.G("[<remote>:]<authentication_method>/<name_or_identifier>"))
+	cmd.Short = i18n.G("Issue a token for a bearer identity")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Issue a token for a bearer identity
+
+Note that this revokes the current token if one is issued`))
+
+	cmd.Flags().StringVar(&c.flagExpiry, "expiry", "", `Token expiration as a space separated list of durations in the form (\d)+(S|M|H|d|w|m|y)`)
+	cmd.RunE = c.run
+
+	return cmd
+}
+
+func (c *cmdIdentityTokenIssue) run(cmd *cobra.Command, args []string) error {
+	_, err := c.identity.global.CheckArgs(cmd, args, 1, 1)
+	if err != nil {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.identity.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New(i18n.G("Missing identity argument"))
+	}
+
+	authenticationMethod, nameOrID, ok := strings.Cut(resource.name, "/")
+	if !ok {
+		return fmt.Errorf("Malformed argument, expected `[<remote>:]<authentication_method>/<name_or_identifier>`, got %q", args[0])
+	}
+
+	authenticationMethod, _, err = c.identity.resolveIdentityTypeShorthand(authenticationMethod)
+	if err != nil {
+		return err
+	}
+
+	if authenticationMethod != api.AuthenticationMethodBearer {
+		return fmt.Errorf("Cannot issue tokens for identities with authentication method %q", authenticationMethod)
+	}
+
+	token, err := resource.server.IssueBearerIdentityToken(nameOrID, api.IdentityBearerTokenPost{Expiry: c.flagExpiry})
+	if err != nil {
+		return err
+	}
+
+	if !c.identity.global.flagQuiet {
+		fmt.Printf(i18n.G("Issued token for identity %q")+"\n", resource.name)
+	}
+
+	fmt.Println(token.Token)
+	return nil
+}
+
+type cmdIdentityTokenRevoke struct {
+	identity *cmdIdentity
+}
+
+func (c *cmdIdentityTokenRevoke) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("revoke", i18n.G("[<remote>:]<authentication_method>/<name_or_identifier>"))
+	cmd.Short = i18n.G("Revoke the current token for a bearer identity")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Revoke the current token for a bearer identity`))
+
+	cmd.RunE = c.run
+
+	return cmd
+}
+
+func (c *cmdIdentityTokenRevoke) run(cmd *cobra.Command, args []string) error {
+	_, err := c.identity.global.CheckArgs(cmd, args, 1, 1)
+	if err != nil {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.identity.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New(i18n.G("Missing identity argument"))
+	}
+
+	authenticationMethod, nameOrID, ok := strings.Cut(resource.name, "/")
+	if !ok {
+		return fmt.Errorf("Malformed argument, expected `[<remote>:]<authentication_method>/<name_or_identifier>`, got %q", args[0])
+	}
+
+	authenticationMethod, _, err = c.identity.resolveIdentityTypeShorthand(authenticationMethod)
+	if err != nil {
+		return err
+	}
+
+	if authenticationMethod != api.AuthenticationMethodBearer {
+		return fmt.Errorf("Cannot issue tokens for identities with authentication method %q", authenticationMethod)
+	}
+
+	err = resource.server.RevokeBearerIdentityToken(nameOrID)
+	if err != nil {
+		return err
+	}
+
+	if !c.identity.global.flagQuiet {
+		fmt.Printf(i18n.G("Revoked token for identity %q")+"\n", resource.name)
+	}
+
+	return nil
 }
 
 type cmdPermission struct {
