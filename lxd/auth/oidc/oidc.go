@@ -2,8 +2,6 @@ package oidc
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha512"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,6 +19,7 @@ import (
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 	"github.com/zitadel/oidc/v3/pkg/op"
 
+	"github.com/canonical/lxd/lxd/auth/encryption"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/response"
@@ -40,11 +39,6 @@ const (
 
 	// cookieNameSessionID is used to identify the session. It does not need to be encrypted.
 	cookieNameSessionID = "session_id"
-)
-
-var (
-	// cookieEncryptionHashFunc is used to derive secure keys from the cluster secret using HMAC.
-	cookieEncryptionHashFunc = sha512.New
 )
 
 // Verifier holds all information needed to verify an access token offline.
@@ -708,47 +702,19 @@ func (o *Verifier) secureCookieFromSession(ctx context.Context, sessionID uuid.U
 
 	// Derive a hash key. The hash key is used to verify the integrity of decrypted values using HMAC.
 	// Use a key length of 64. This instructs the securecookie library to use HMAC-SHA512.
-	cookieHashKey, err := o.deriveKey(secret.Value, salt, "INTEGRITY", 64)
+	cookieHashKey, err := encryption.CookieHashKey(secret.Value, salt)
 	if err != nil {
 		return nil, false, fmt.Errorf("Failed creating secure cookie hash key: %w", err)
 	}
 
 	// Derive a block key. The block key is used to perform AES encryption on the cookie contents.
 	// Use a key length of 32. This instructs the securecookie library to use AES-256.
-	cookieBlockKey, err := o.deriveKey(secret.Value, salt, "ENCRYPTION", 32)
+	cookieBlockKey, err := encryption.CookieBlockKey(secret.Value, salt)
 	if err != nil {
 		return nil, false, fmt.Errorf("Failed creating secure cookie block key: %w", err)
 	}
 
 	return securecookie.New(cookieHashKey, cookieBlockKey), startNewSession, nil
-}
-
-// deriveKey uses HMAC to derive a key from a secret, a salt, and a separator. We can use HMAC directly because our
-// initial key material is uniformly random and of sufficient length.
-func (o *Verifier) deriveKey(secret []byte, salt []byte, usageSeparator string, length uint) ([]byte, error) {
-	maxSize := cookieEncryptionHashFunc().Size()
-	if int(length) > maxSize {
-		return nil, fmt.Errorf("Cannot derive keys larger than %d", maxSize)
-	}
-
-	// Extract a pseudo-random key from the secret value.
-	h := hmac.New(cookieEncryptionHashFunc, secret)
-
-	// Write salt.
-	_, err := h.Write(salt)
-	if err != nil {
-		return nil, fmt.Errorf("Failed creating secure key: %w", err)
-	}
-
-	// Write separator.
-	_, err = h.Write([]byte(usageSeparator))
-	if err != nil {
-		return nil, fmt.Errorf("Failed creating secure key: %w", err)
-	}
-
-	// Get the key.
-	key := h.Sum(nil)[:int(length)]
-	return key, nil
 }
 
 // Opts contains optional configurable fields for the Verifier.
