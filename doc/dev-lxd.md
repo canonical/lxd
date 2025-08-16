@@ -4,262 +4,82 @@
 ```{youtube} https://www.youtube.com/watch?v=xZSnqqWykmo
 ```
 
-Communication between the hosted workload (instance) and its host while
-not strictly needed is a pretty useful feature.
+The DevLXD API allows for limited communication between guest instances and the host.
 
-In LXD, this feature is implemented through a `/dev/lxd/sock` node which is
-created and set up for all LXD instances.
-
-This file is a Unix socket which processes inside the instance can
-connect to. It's multi-threaded so multiple clients can be connected at the
-same time.
+The API is available as a Unix socket in each LXD guest at `/dev/lxd/sock` and is JSON over plain HTTP.
+Multiple concurrent connections are allowed.
 
 ```{note}
 {config:option}`instance-security:security.devlxd` must be set to `true` (which is the default) for an instance to allow access to the socket.
+
+Additionally, for virtual machines, the LXD agent must be present and running for the socket to be available.
 ```
 
+(dev-lxd-implementation)=
 ## Implementation details
 
-LXD on the host binds `/var/lib/lxd/devlxd/sock` and starts listening for new
-connections on it.
+(dev-lxd-implementation-containers)=
+### Containers
+LXD on the host binds `/var/lib/lxd/devlxd/sock` and listens for connections.
+This single socket is exposed into every container started by LXD at `/dev/lxd/sock`.
 
-This socket is then exposed into every single instance started by
-LXD at `/dev/lxd/sock`.
+```{note}
+The alternative to using a single socket is to create a socket for every container.
+This approach was disregarded to avoid issues with file descriptor limits for hosts with thousands of containers.
+```
 
-The single socket is required so we can exceed 4096 instances, otherwise,
-LXD would have to bind a different socket for every instance, quickly
-reaching the FD limit.
+(dev-lxd-implementation-vms)=
+### Virtual machines
 
+LXD on the host starts a HTTPS {abbr}`Virtual Socket (Vsock)` server.
+The LXD agent communicates securely with the Vsock server using a certificate mounted in the Virtual Machines' configuration drive.
+The LXD agent creates the socket at `/dev/lxd/sock` and proxies requests to the Vsock server.
+
+(devlxd-authentication)=
 ## Authentication
 
-Queries on `/dev/lxd/sock` will only return information related to the
-requesting instance. To figure out where a request comes from, LXD will
-extract the initial socket's user credentials and compare that to the list of
-instances it manages.
+Queries on `/dev/lxd/sock` will only return information related to the requesting instance.
 
-## Protocol
+For containers, LXD inspects user credentials associated with the connection and matches them with a running instance.
 
-The protocol on `/dev/lxd/sock` is plain-text HTTP with JSON messaging, so very
-similar to the local version of the LXD protocol.
+For virtual machines, LXD extracts the virtual socket ID from the remote address of the caller (the LXD agent), and matches it with a virtual machine.
 
-Unlike the main LXD API, there is no background operation and no
-authentication support in the `/dev/lxd/sock` API.
+(devlxd-authentication-bearer)=
+### Bearer tokens
 
+Processes within guest instances can now authenticate over the DevLXD socket using a bearer token.
+To do this, set an `Authorization: Bearer {token}` header on requests to the socket.
+
+Bearer tokens can be obtained by creating a `DevLXD token bearer` identity in the identities API and issuing a token for it.
+For more information, see {ref}`devlxd-authenticate`.
+
+(devlxd-api-spec)=
 ## REST-API
 
-### API structure
+<link rel="stylesheet" type="text/css" href="../_static/swagger-ui/swagger-ui.css" ></link>
+<link rel="stylesheet" type="text/css" href="../_static/swagger-override.css" ></link>
+<div id="swagger-ui"></div>
 
-* `/`
-   * `/1.0`
-      * `/1.0/config`
-         * `/1.0/config/{key}`
-      * `/1.0/devices`
-      * `/1.0/events`
-      * `/1.0/images/{fingerprint}/export`
-      * `/1.0/meta-data`
+<script src="../_static/swagger-ui/swagger-ui-bundle.js" charset="UTF-8"> </script>
+<script src="../_static/swagger-ui/swagger-ui-standalone-preset.js" charset="UTF-8"> </script>
+<script>
+window.onload = function() {
+  // Begin Swagger UI call region
+  const ui = SwaggerUIBundle({
+    url: window.location.pathname +"../_static/devlxd-api.yaml",
+    dom_id: '#swagger-ui',
+    deepLinking: true,
+    presets: [
+      SwaggerUIBundle.presets.apis,
+      SwaggerUIStandalonePreset
+    ],
+    plugins: [],
+    validatorUrl: "none",
+    defaultModelsExpandDepth: -1,
+    supportedSubmitMethods: []
+  })
+  // End Swagger UI call region
 
-### API details
-
-#### `/`
-
-##### GET
-
-* Description: List of supported APIs
-* Return: list of supported API endpoint URLs (by default `['/1.0']`)
-
-Return value:
-
-```json
-[
-    "/1.0"
-]
-```
-
-#### `/1.0`
-
-##### GET
-
-* Description: Information about the 1.0 API
-* Return: JSON object
-
-Return value:
-
-```json
-{
-    "api_version": "1.0",
-    "location": "foo.example.com",
-    "instance_type": "container",
-    "state": "Started",
+  window.ui = ui
 }
-```
-
-#### PATCH
-
-* Description: Update instance state (valid states are `Ready` and `Started`)
-* Return: none
-
- Input:
-
- ```json
- {
-    "state": "Ready"
- }
-```
-
-#### `/1.0/config`
-
-##### GET
-
-* Description: List of configuration keys
-* Return: list of configuration keys URL
-
-Note that the configuration key names match those in the instance
-configuration, however not all configuration namespaces will be exported to
-`/dev/lxd/sock`.
-Currently only the `cloud-init.*` and `user.*` keys are accessible to the instance.
-
-At this time, there also aren't any instance-writable namespace.
-
-Return value:
-
-```json
-[
-    "/1.0/config/user.a"
-]
-```
-
-#### `/1.0/config/<KEY>`
-
-##### GET
-
-* Description: Value of that key
-* Return: Plain-text value
-
-Return value:
-
-    blah
-
-#### `/1.0/devices`
-
-##### GET
-
-* Description: Map of instance devices
-* Return: JSON object
-
-Return value:
-
-```json
-{
-    "eth0": {
-        "name": "eth0",
-        "network": "lxdbr0",
-        "type": "nic"
-    },
-    "root": {
-        "path": "/",
-        "pool": "default",
-        "type": "disk"
-    }
-}
-```
-
-#### `/1.0/events`
-
-##### GET
-
-* Description: WebSocket upgrade
-* Return: none (never ending flow of events)
-
-Supported arguments are:
-
-* type: comma-separated list of notifications to subscribe to (defaults to all)
-
-The notification types are:
-
-* `config` (changes to any of the `user.*` configuration keys)
-* `device` (any device addition, change or removal)
-
-This never returns. Each notification is sent as a separate JSON object:
-
-```json
-{
-    "timestamp": "2017-12-21T18:28:26.846603815-05:00",
-    "type": "device",
-    "metadata": {
-        "name": "kvm",
-        "action": "added",
-        "config": {
-            "type": "unix-char",
-            "path": "/dev/kvm"
-        }
-    }
-}
-```
-
-```json
-{
-    "timestamp": "2017-12-21T18:28:26.846603815-05:00",
-    "type": "config",
-    "metadata": {
-        "key": "user.foo",
-        "old_value": "",
-        "value": "bar"
-    }
-}
-```
-
-#### `/1.0/images/<FINGERPRINT>/export`
-
-##### GET
-
-* Description: Download a public/cached image from the host
-* Return: raw image or error
-* Access: Requires {config:option}`instance-security:security.devlxd.images` set to `true`
-
-Return value:
-
-    See /1.0/images/<FINGERPRINT>/export in the daemon API.
-
-#### `/1.0/meta-data`
-
-##### GET
-
-* Description: Container meta-data compatible with cloud-init
-* Return: cloud-init meta-data
-
-Return value:
-
-    instance-id: af6a01c7-f847-4688-a2a4-37fddd744625
-    local-hostname: abc
-
-#### `/1.0/ubuntu-pro`
-
-##### GET
-
-* Description: Get Ubuntu Pro guest attachment setting for the instance
-* Return: JSON object
-
-Return value
-
-```json
-{
-   "guest_attach": "on"
-}
-```
-
-#### `/1.0/ubuntu-pro/token`
-
-##### POST
-
-* Description: Get an Ubuntu Pro guest attachment token
-* Return: JSON object
-
-Return value
-
-```json
-{
-   "expires": "2025-03-23T20:00:00-04:00",
-   "token": "<RANDOM-STRING>",
-   "id": "9f65c3d0-c326-491e-927f-9b062b6649a0"
-}
-```
+</script>

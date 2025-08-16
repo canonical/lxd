@@ -35,6 +35,9 @@ type CacheEntry struct {
 
 	// Subject is optional. It is only set when AuthenticationMethod is api.AuthenticationMethodOIDC.
 	Subject string
+
+	// Secret is optional. It is required for identities with AuthenticationMethod set to api.AuthenticationMethodBearer
+	Secret []byte
 }
 
 // Get returns a single CacheEntry by its authentication method and identifier.
@@ -130,6 +133,12 @@ func (c *Cache) ReplaceAll(entries []CacheEntry, idpGroups map[string][]string) 
 
 		if entry.AuthenticationMethod == api.AuthenticationMethodTLS && entry.Certificate == nil {
 			return fmt.Errorf("Identity cache entries of type %q must have a certificate", api.AuthenticationMethodTLS)
+		}
+
+		if entry.AuthenticationMethod == api.AuthenticationMethodBearer {
+			if len(entry.Secret) == 0 {
+				return fmt.Errorf("Identity cache entries of type %q must have a secret", api.AuthenticationMethodBearer)
+			}
 		}
 
 		_, ok := c.entries[entry.AuthenticationMethod]

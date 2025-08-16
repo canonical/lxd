@@ -6,8 +6,8 @@ import (
 
 // DevLXDResponse represents the response from the devLXD API.
 type DevLXDResponse struct {
-	Content    []byte `json:"content" yaml:"content"`
-	StatusCode int    `json:"status_code" yaml:"status_code"`
+	Content    json.RawMessage `json:"content" yaml:"content"`
+	StatusCode int             `json:"status_code" yaml:"status_code"`
 }
 
 // ContentAsStruct unmarshals the response content.
@@ -24,7 +24,7 @@ type DevLXDPut struct {
 
 // DevLXDGet represents the server data which is returned as the root of the devlxd API.
 type DevLXDGet struct {
-	DevLXDPut
+	DevLXDPut `yaml:",inline"`
 
 	// API version number
 	// Example: 1.0
@@ -37,6 +37,10 @@ type DevLXDGet struct {
 	// What cluster member this instance is located on
 	// Example: lxd01
 	Location string `json:"location" yaml:"location"`
+
+	// Whether the caller is trusted or untrusted
+	// Example: untrusted
+	Auth string `json:"auth" yaml:"auth"`
 }
 
 // DevLXDUbuntuProGuestTokenResponse contains the expected fields of proAPIGetGuestTokenV1 that must be passed back to

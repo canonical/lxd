@@ -456,6 +456,7 @@ var APIExtensions = []string{
 	"device_patch_removal",
 	"auth_secrets",
 	"daemon_storage_per_project",
+	"auth_bearer_devlxd",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

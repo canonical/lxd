@@ -85,11 +85,15 @@ type SecretType string
 const (
 	// SecretTypeCoreAuth is the SecretType for core auth secrets.
 	SecretTypeCoreAuth SecretType = "core_auth"
+
+	// SecretTypeBearerSigningKey is the SecretType for bearer identity signing keys.
+	SecretTypeBearerSigningKey SecretType = "bearer_signing_key"
 )
 
 const (
 	// secretTypeCodeCoreAuth is the database code for SecretTypeCoreAuth.
-	secretTypeCodeCoreAuth int64 = 1
+	secretTypeCodeCoreAuth        int64 = 1
+	secretTypeCodeBearerSigingKey int64 = 2
 )
 
 // Value implements [driver.Valuer] for SecretType.
@@ -97,6 +101,8 @@ func (s SecretType) Value() (driver.Value, error) {
 	switch s {
 	case SecretTypeCoreAuth:
 		return secretTypeCodeCoreAuth, nil
+	case SecretTypeBearerSigningKey:
+		return secretTypeCodeBearerSigingKey, nil
 	}
 
 	return nil, fmt.Errorf("Invalid secret type %q", s)
@@ -107,9 +113,13 @@ func (s *SecretType) ScanInteger(code int64) error {
 	switch code {
 	case secretTypeCodeCoreAuth:
 		*s = SecretTypeCoreAuth
+	case secretTypeCodeBearerSigingKey:
+		*s = SecretTypeBearerSigningKey
+	default:
+		return fmt.Errorf("Invalid secret type code %d", code)
 	}
 
-	return fmt.Errorf("Invalid secret type code %d", code)
+	return nil
 }
 
 // Scan implements sql.Scanner for SecretType.
@@ -290,4 +300,65 @@ func deleteSecretsByID(ctx context.Context, tx *sql.Tx, ids ...int) error {
 	}
 
 	return nil
+}
+
+// GetAllBearerIdentitySigningKeys returns a map of identity ID to token signing keys. It should only be used to refresh
+// the identity cache.
+func GetAllBearerIdentitySigningKeys(ctx context.Context, tx *sql.Tx) (map[int]AuthSecretValue, error) {
+	q := `SELECT entity_id, value FROM secrets WHERE entity_type = ? AND type = ?`
+
+	identityIDToSigningKey := make(map[int]AuthSecretValue)
+	scanFunc := func(scan func(dest ...any) error) error {
+		var identityID int
+		var value AuthSecretValue
+		err := scan(&identityID, &value)
+		if err != nil {
+			return err
+		}
+
+		identityIDToSigningKey[identityID] = value
+		return nil
+	}
+
+	err := query.Scan(ctx, tx, q, scanFunc, EntityType(entity.TypeIdentity), SecretTypeBearerSigningKey)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get auth secrets: %w", err)
+	}
+
+	return identityIDToSigningKey, nil
+}
+
+// DeleteBearerIdentitySigningKey deletes any signing keys for the identity.
+func DeleteBearerIdentitySigningKey(ctx context.Context, tx *sql.Tx, identityID int) (int64, error) {
+	q := "DELETE FROM secrets WHERE entity_type = ? AND entity_id = ? AND type = ?"
+	res, err := tx.ExecContext(ctx, q, EntityType(entity.TypeIdentity), identityID, SecretTypeBearerSigningKey)
+	if err != nil {
+		return 0, err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+
+	return rowsAffected, nil
+}
+
+// RotateBearerIdentitySigningKey deletes any existing signing keys for the identity and creates a new one.
+func RotateBearerIdentitySigningKey(ctx context.Context, tx *sql.Tx, identityID int) (AuthSecretValue, error) {
+	// Delete any existing key.
+	_, err := DeleteBearerIdentitySigningKey(ctx, tx, identityID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get new secret.
+	signingKey := newAuthSecretValue()
+
+	_, err = createSecret(ctx, tx, entity.TypeIdentity, identityID, SecretTypeBearerSigningKey, signingKey, time.Now().UTC())
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create bearer identity initial key material: %w", err)
+	}
+
+	return signingKey, nil
 }

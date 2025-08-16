@@ -15,6 +15,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/auth/bearer"
 	"github.com/canonical/lxd/lxd/cloudinit"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
@@ -118,10 +119,21 @@ func devLXDAPIGetHandler(d *Daemon, r *http.Request) response.Response {
 		state = api.Started
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	clientAuth := "untrusted"
+	if requestor.IsTrusted() {
+		clientAuth = "trusted"
+	}
+
 	resp := api.DevLXDGet{
 		APIVersion:   version.APIVersion,
 		Location:     location,
 		InstanceType: inst.Type().String(),
+		Auth:         clientAuth,
 		DevLXDPut: api.DevLXDPut{
 			State: state.String(),
 		},
@@ -488,11 +500,31 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 
 	// Function that handles the request by calling the appropriate handler.
 	handleFunc := func(w http.ResponseWriter, r *http.Request) {
-		// Initialise the request context info.
-		reqInfo := request.InitContextInfo(r)
+		var requestor request.RequestorDetails
 
-		// Set devLXD auth method to identify this request as coming from the /dev/lxd socket.
-		reqInfo.Protocol = auth.AuthenticationMethodDevLXD
+		// Set [request.ProtocolDevLXD] by default identify this request as coming from the /dev/lxd socket.
+		requestor.Protocol = request.ProtocolDevLXD
+
+		// Check if the caller has a bearer token.
+		isBearerRequest, token, subject := bearer.IsRequest(r, d.globalConfig.ClusterUUID())
+		if isBearerRequest {
+			err := bearer.Authenticate(token, subject, d.identityCache)
+			if err == nil {
+				// If a bearer token is valid, overwrite protocol, include username, and set trusted to true.
+				requestor.Protocol = api.AuthenticationMethodBearer
+				requestor.Username = subject
+				requestor.Trusted = true
+			} else if !auth.IsDeniedError(err) {
+				// Log any internal errors
+				logger.Warn("Failed to authenticate DevLXD bearer token", logger.Ctx{"err": err})
+			}
+		}
+
+		err := request.SetRequestorDetails(r, d.identityCache, requestor)
+		if err != nil {
+			_ = response.DevLXDErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "%v", err)).Render(w, r)
+			return
+		}
 
 		// Indicate whether the devLXD is being accessed over vsock. This allowes the handler
 		// to determine the correct response type. The responses over vsock are always
@@ -537,7 +569,7 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 		}
 
 		// Write response and handle errors.
-		err := resp.Render(w, r)
+		err = resp.Render(w, r)
 		if err != nil {
 			writeErr := response.DevLXDErrorResponse(err).Render(w, r)
 			if writeErr != nil {

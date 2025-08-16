@@ -17,7 +17,6 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/canonical/lxd/lxd/archive"
-	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
@@ -208,15 +207,15 @@ func createFromNone(ctx context.Context, s *state.State, projectName string, pro
 }
 
 func createFromMigration(ctx context.Context, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost, isClusterNotification bool) response.Response {
-	reqInfo := request.GetContextInfo(ctx)
-	if reqInfo != nil {
-		if reqInfo.Protocol == "" {
+	requestor, err := request.GetRequestor(ctx)
+	if err == nil {
+		if requestor.CallerProtocol() == "" {
 			return response.SmartError(errors.New("Failed to check request origin: Protocol not set in request context"))
 		}
 
-		// If the protocol is not auth.AuthenticationMethodCluster (e.g. not an internal request) and the node has been
+		// If the protocol is not [request.ProtocolCluster] (e.g. not an internal request) and the node has been
 		// evacuated, reject the request.
-		if s.DB.Cluster.LocalNodeIsEvacuated() && reqInfo.Protocol != auth.AuthenticationMethodCluster {
+		if s.DB.Cluster.LocalNodeIsEvacuated() && requestor.CallerProtocol() != request.ProtocolCluster {
 			return response.Forbidden(errors.New("Cluster member is evacuated"))
 		}
 	}

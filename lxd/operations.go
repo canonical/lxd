@@ -913,8 +913,12 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 
 	secret := r.FormValue("secret")
 
-	reqInfo := request.GetContextInfo(r.Context())
-	trusted := reqInfo != nil && reqInfo.Trusted
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	trusted := requestor.IsTrusted()
 
 	if !trusted && secret == "" {
 		return response.Forbidden(nil)

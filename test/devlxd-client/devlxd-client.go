@@ -44,6 +44,13 @@ func run(args []string) error {
 	command := args[1]
 
 	switch command {
+	case "get-state":
+		state, err := client.GetState()
+		if err != nil {
+			return err
+		}
+
+		return printPrettyJSON(state)
 	case "monitor-stream":
 		return devLXDMonitorStream()
 	case "monitor-websocket":
@@ -151,8 +158,10 @@ func run(args []string) error {
 
 // devLXDClient connects to the LXD socket and returns a devLXD client.
 func devLXDClient() (lxdClient.DevLXDServer, error) {
+	bearerToken := os.Getenv("DEVLXD_BEARER_TOKEN")
 	args := lxdClient.ConnectionArgs{
-		UserAgent: "devlxd-client",
+		UserAgent:   "devlxd-client",
+		BearerToken: bearerToken,
 	}
 
 	client, err := lxdClient.ConnectDevLXD("/dev/lxd/sock", &args)
