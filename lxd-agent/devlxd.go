@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -71,14 +72,20 @@ func devLXDServer(d *Daemon) *http.Server {
 }
 
 // getDevLXDVsockClient connects to the devLXD over vsock.
-func getDevLXDVsockClient(d *Daemon) (lxd.DevLXDServer, error) {
+func getDevLXDVsockClient(d *Daemon, r *http.Request) (lxd.DevLXDServer, error) {
 	// Try connecting to LXD server.
 	client, err := getClient(d.serverCID, int(d.serverPort), d.serverCertificate)
 	if err != nil {
 		return nil, err
 	}
 
-	server, err := lxd.ConnectDevLXDHTTPWithContext(context.Background(), nil, client)
+	args := &lxd.ConnectionArgs{}
+	token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if ok {
+		args.BearerToken = token
+	}
+
+	server, err := lxd.ConnectDevLXDHTTPWithContext(context.Background(), args, client)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +100,7 @@ var devLXD10Endpoint = devLXDAPIEndpoint{
 }
 
 func devLXDAPIGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	client, err := getDevLXDVsockClient(d)
+	client, err := getDevLXDVsockClient(d, r)
 	if err != nil {
 		return smartResponse(fmt.Errorf("Failed connecting to devLXD over vsock: %w", err))
 	}
@@ -109,7 +116,7 @@ func devLXDAPIGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
 }
 
 func devLXDAPIPatchHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	client, err := getDevLXDVsockClient(d)
+	client, err := getDevLXDVsockClient(d, r)
 	if err != nil {
 		return smartResponse(fmt.Errorf("Failed connecting to devLXD over vsock: %w", err))
 	}
@@ -136,7 +143,7 @@ var devLXDConfigEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDConfigGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	client, err := getDevLXDVsockClient(d)
+	client, err := getDevLXDVsockClient(d, r)
 	if err != nil {
 		return smartResponse(fmt.Errorf("Failed connecting to devLXD over vsock: %w", err))
 	}
@@ -162,7 +169,7 @@ func devLXDConfigKeyGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
 		return errorResponse(http.StatusBadRequest, "bad request")
 	}
 
-	client, err := getDevLXDVsockClient(d)
+	client, err := getDevLXDVsockClient(d, r)
 	if err != nil {
 		return smartResponse(fmt.Errorf("Failed connecting to devLXD over vsock: %w", err))
 	}
@@ -187,7 +194,7 @@ func devLXDMetadataGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
 	var err error
 
 	for range 10 {
-		client, err = getDevLXDVsockClient(d)
+		client, err = getDevLXDVsockClient(d, r)
 		if err == nil {
 			break
 		}
@@ -231,7 +238,7 @@ var devLXDDevicesEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDDevicesGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	client, err := getDevLXDVsockClient(d)
+	client, err := getDevLXDVsockClient(d, r)
 	if err != nil {
 		return smartResponse(fmt.Errorf("Failed connecting to devLXD over vsock: %w", err))
 	}
@@ -301,7 +308,7 @@ var devLXDUbuntuProEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDUbuntuProGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	client, err := getDevLXDVsockClient(d)
+	client, err := getDevLXDVsockClient(d, r)
 	if err != nil {
 		return smartResponse(fmt.Errorf("Failed connecting to devLXD over vsock: %w", err))
 	}
@@ -322,7 +329,7 @@ var devLXDUbuntuProTokenEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDUbuntuProTokenPostHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	client, err := getDevLXDVsockClient(d)
+	client, err := getDevLXDVsockClient(d, r)
 	if err != nil {
 		return smartResponse(fmt.Errorf("Failed connecting to devLXD over vsock: %w", err))
 	}
