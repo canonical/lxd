@@ -172,6 +172,44 @@ type IdentitiesTLSPost struct {
 	Groups []string `json:"groups" yaml:"groups"`
 }
 
+// IdentitiesBearerPost contains required information for the creation of a token identity.
+//
+// swagger:model
+//
+// API extension: auth_bearer_devlxd.
+type IdentitiesBearerPost struct {
+	// Type of identity
+	// Example: DevLXD token bearer
+	Type string `json:"type" yaml:"type"`
+
+	// Name associated with the identity
+	// Example: foo
+	Name string `json:"name" yaml:"name"`
+
+	// Groups is the list of groups for which the identity is a member.
+	// Example: ["foo", "bar"]
+	Groups []string `json:"groups" yaml:"groups"`
+}
+
+// IdentityBearerToken contains a token issued for an identity whose authentication method is
+// api.AuthenticationMethodBearer.
+//
+// swagger:model
+//
+// API extension: auth_bearer_devlxd.
+type IdentityBearerToken struct {
+	Token string `json:"token" yaml:"token"`
+}
+
+// IdentityBearerTokenPost contains parameters used when issuing a token for a bearer identity.
+//
+// swagger:model
+//
+// API extension: auth_bearer_devlxd.
+type IdentityBearerTokenPost struct {
+	Expiry string `json:"expiry" yaml:"expiry"`
+}
+
 // AuthGroup is the type for a LXD group.
 //
 // swagger:model
