@@ -117,27 +117,33 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 	// Get the current local serverName and store it for the events.
 	// We do that now to avoid issues with changes to the name and to limit
 	// the number of DB access to just one per connection.
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		if isClusterNotification(r) {
-			reqInfo := request.GetContextInfo(r.Context())
-			if reqInfo != nil && reqInfo.Username != "" {
-				fingerprint := reqInfo.Username
-				cert, err := cluster.GetCertificateByFingerprintPrefix(context.Background(), tx.Tx(), fingerprint)
-				if err != nil {
-					return fmt.Errorf("Failed matching client certificate to cluster member: %w", err)
-				}
-
-				// Add the cluster member client's name to the excluded locations so that we can avoid
-				// looping the event back to them when they send us an event via recvFunc.
-				excludeLocations = append(excludeLocations, cert.Name)
-			}
+	if isClusterNotification(r) {
+		requestor, err := request.GetRequestor(r.Context())
+		if err != nil {
+			return err
 		}
 
-		return nil
-	})
-	if err != nil {
-		l.Warn("Failed setting up event connection", logger.Ctx{"err": err})
-		return nil
+		memberFingerprint, err := requestor.ForwardingMemberFingerprint()
+		if err != nil {
+			return err
+		}
+
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			cert, err := cluster.GetCertificateByFingerprintPrefix(context.Background(), tx.Tx(), memberFingerprint)
+			if err != nil {
+				return fmt.Errorf("Failed matching client certificate to cluster member: %w", err)
+			}
+
+			// Add the cluster member client's name to the excluded locations so that we can avoid
+			// looping the event back to them when they send us an event via recvFunc.
+			excludeLocations = append(excludeLocations, cert.Name)
+
+			return nil
+		})
+		if err != nil {
+			l.Warn("Failed setting up event connection", logger.Ctx{"err": err})
+			return nil
+		}
 	}
 
 	var recvFunc events.EventHandler

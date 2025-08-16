@@ -78,9 +78,7 @@ func addProfileDetailsToRequestContext(s *state.State, r *http.Request) error {
 		return fmt.Errorf("Failed to check project %q profile feature: %w", requestProjectName, err)
 	}
 
-	reqInfo := request.GetContextInfo(r.Context())
-	reqInfo.EffectiveProjectName = effectiveProject.Name
-
+	request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProject.Name)
 	request.SetContextValue(r, ctxProfileDetails, profileDetails{
 		profileName:      profileName,
 		effectiveProject: *effectiveProject,
@@ -223,14 +221,15 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	reqInfo := request.GetContextInfo(r.Context())
+	var effectiveProjectName string
 	if !allProjects {
 		p, err := project.ProfileProject(s.DB.Cluster, requestProjectName)
 		if err != nil {
 			return response.SmartError(err)
 		}
 
-		reqInfo.EffectiveProjectName = p.Name
+		effectiveProjectName = p.Name
+		request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	}
 
 	recursion := util.IsRecursionRequest(r)
@@ -251,7 +250,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 		var profiles []dbCluster.Profile
 		if !allProjects {
 			filter := dbCluster.ProfileFilter{
-				Project: &reqInfo.EffectiveProjectName,
+				Project: &effectiveProjectName,
 			}
 
 			profiles, err = dbCluster.GetProfiles(ctx, tx.Tx(), filter)

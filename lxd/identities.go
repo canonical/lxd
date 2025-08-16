@@ -281,7 +281,12 @@ func createIdentityTLS(d *Daemon, r *http.Request) response.Response {
 	serverCert := s.ServerCert()
 	notify := newIdentityNotificationFunc(s, r, networkCert, serverCert)
 
-	if !auth.IsTrusted(r.Context()) {
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if !requestor.IsTrusted() {
 		return createIdentityTLSUntrusted(r.Context(), s, r.TLS.PeerCertificates, networkCert, req, notify)
 	}
 
@@ -918,7 +923,12 @@ func getIdentities(authenticationMethod string) func(d *Daemon, r *http.Request)
 			urlToIdentity := make(map[*api.URL]auth.EntitlementReporter, len(identities))
 			for _, id := range identities {
 				var certificate string
-				if id.AuthMethod == api.AuthenticationMethodTLS && id.Type != api.IdentityTypeCertificateClientPending && id.Type != api.IdentityTypeCertificateClusterLinkPending {
+				identityType, err := identity.New(string(id.Type))
+				if err != nil {
+					return response.SmartError(err)
+				}
+
+				if id.AuthMethod == api.AuthenticationMethodTLS && !identityType.IsPending() {
 					metadata, err := id.CertificateMetadata()
 					if err != nil {
 						return response.SmartError(err)
@@ -1104,21 +1114,21 @@ func getIdentity(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
-	reqInfo := request.GetContextInfo(r.Context())
-	if reqInfo == nil {
-		return response.SmartError(errors.New("Failed to get request info from the request"))
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
 	}
 
-	if reqInfo.Username == "" {
+	if requestor.CallerUsername() == "" {
 		return response.SmartError(errors.New("Failed to get identity identifier from request info"))
 	}
 
-	if reqInfo.Protocol == "" {
+	if requestor.CallerProtocol() == "" {
 		return response.SmartError(errors.New("Failed to get authentication method from request info"))
 	}
 
 	// Must be a remote API request.
-	err := identity.ValidateAuthenticationMethod(reqInfo.Protocol)
+	err = identity.ValidateAuthenticationMethod(requestor.CallerProtocol())
 	if err != nil {
 		return response.BadRequest(errors.New("Current identity information must be requested via the HTTPS API"))
 	}
@@ -1128,7 +1138,7 @@ func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
 	var effectiveGroups []string
 	var effectivePermissions []api.Permission
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		id, err := dbCluster.GetIdentity(ctx, tx.Tx(), dbCluster.AuthMethod(reqInfo.Protocol), reqInfo.Username)
+		id, err := dbCluster.GetIdentity(ctx, tx.Tx(), dbCluster.AuthMethod(requestor.CallerProtocol()), requestor.CallerUsername())
 		if err != nil {
 			return fmt.Errorf("Failed to get current identity from database: %w", err)
 		}
@@ -1141,7 +1151,7 @@ func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
 		}
 
 		effectiveGroups = apiIdentity.Groups
-		mappedGroups, err := dbCluster.GetDistinctAuthGroupNamesFromIDPGroupNames(ctx, tx.Tx(), reqInfo.IdentityProviderGroups)
+		mappedGroups, err := dbCluster.GetDistinctAuthGroupNamesFromIDPGroupNames(ctx, tx.Tx(), requestor.CallerIdentityProviderGroups())
 		if err != nil {
 			return fmt.Errorf("Failed to get effective groups: %w", err)
 		}
@@ -1274,7 +1284,7 @@ func updateIdentity(authenticationMethod string) func(d *Daemon, r *http.Request
 			return response.BadRequest(fmt.Errorf("Failed to unmarshal request body: %w", err))
 		}
 
-		if id.Type != api.IdentityTypeCertificateClient && id.Type != api.IdentityTypeCertificateClusterLink && identityPut.TLSCertificate != "" {
+		if identityType.AuthenticationMethod() == api.AuthenticationMethodTLS && identityType.IsPending() && identityPut.TLSCertificate != "" {
 			return response.BadRequest(fmt.Errorf("Cannot update certificate for identities of type %q", id.Type))
 		}
 
@@ -1285,18 +1295,13 @@ func updateIdentity(authenticationMethod string) func(d *Daemon, r *http.Request
 			return response.SmartError(err)
 		}
 
-		// Only identities of type api.IdentityTypeCertificateClient may update their own certificate
-		if id.Type != api.IdentityTypeCertificateClient {
-			return response.Forbidden(nil)
-		}
-
-		username, err := auth.GetUsernameFromCtx(r.Context())
+		requestor, err := request.GetRequestor(r.Context())
 		if err != nil {
 			return response.SmartError(err)
 		}
 
 		// Identities may only update their own certificate
-		if username != id.Identifier {
+		if requestor.CallerUsername() != id.Identifier {
 			return response.Forbidden(nil)
 		}
 
@@ -1512,7 +1517,7 @@ func patchIdentity(authenticationMethod string) func(d *Daemon, r *http.Request)
 			return response.BadRequest(fmt.Errorf("Failed to unmarshal request body: %w", err))
 		}
 
-		if id.Type != api.IdentityTypeCertificateClient && id.Type != api.IdentityTypeCertificateClusterLink && identityPut.TLSCertificate != "" {
+		if identityType.AuthenticationMethod() == api.AuthenticationMethodTLS && identityType.IsPending() && identityPut.TLSCertificate != "" {
 			return response.BadRequest(fmt.Errorf("Cannot update certificate for identities of type %q", id.Type))
 		}
 
@@ -1528,18 +1533,13 @@ func patchIdentity(authenticationMethod string) func(d *Daemon, r *http.Request)
 			return response.SmartError(err)
 		}
 
-		// Only identities of type api.IdentityTypeCertificateClient and api.IdentityTypeCertificateClusterLink may update their own certificate
-		if id.Type != api.IdentityTypeCertificateClient && id.Type != api.IdentityTypeCertificateClusterLink {
-			return response.Forbidden(nil)
-		}
-
-		username, err := auth.GetUsernameFromCtx(r.Context())
+		requestor, err := request.GetRequestor(r.Context())
 		if err != nil {
 			return response.SmartError(err)
 		}
 
 		// Identities may only update their own certificate
-		if username != id.Identifier {
+		if requestor.CallerUsername() != id.Identifier {
 			return response.Forbidden(nil)
 		}
 
