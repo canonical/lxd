@@ -68,6 +68,9 @@ const (
 
 	// identityTypeCertificateClientPending represents identities for which a token has been issued but who have not yet authenticated with LXD.
 	identityTypeCertificateClientPending int64 = 8
+
+	// identityTypeBearerDevLXD is the code for [api.IdentityTypeBearerTokenDevLXD].
+	identityTypeBearerDevLXD int64 = 9
 )
 
 // types is a slice of all identity types that implement the [Type] interface.
@@ -80,6 +83,7 @@ var types = []Type{
 	CertificateMetricsRestricted{},
 	CertificateMetricsUnrestricted{},
 	CertificateServer{},
+	DevLXDTokenBearer{},
 }
 
 var nameToType = make(map[string]Type, len(types))
