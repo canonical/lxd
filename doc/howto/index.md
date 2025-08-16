@@ -58,4 +58,5 @@ Manage the snap </howto/snap>
 /howto/troubleshoot
 Get support </support>
 Contribute to LXD </contributing>
+/howto/devlxd_authenticate
 ```

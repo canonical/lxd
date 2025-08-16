@@ -326,6 +326,15 @@ definitions:
                 description: The instance state
                 example: Started
                 type: string
+            auth:
+                description: |-
+                    Authentication status of the caller. 
+                    This is `trusted` or `untrusted`.
+                    Requests to DevLXD are untrusted by default.
+                    Callers can authenticate by adding a bearer token as an Authorization header.
+                    The token must be issued by LXD for a `DevLXD token bearer` identity.
+                example: untrusted
+                type: string
     DevLXDPut:
         title: The instance state
         type: object
