@@ -26,19 +26,26 @@ import (
 
 var debug bool
 
-// Init sets the debug variable to the provided value and registers any additional smart error mappings.
-func Init(d bool, smartErrors map[int][]error) {
+// Init sets the debug variable to the provided value and registers any additional error mappings for the SmartError
+// Response. Error mappings are provided as a map of sentinel errors (e.g. those that can be checked with [errors.Is]),
+// where map keys are HTTP status codes, and map values are a slice of sentinel errors that correspond to the status
+// code. Additionally, a list of functions can be provided. Each function should match an error to a status code,
+// returning any invalid status code if there is no match. If the function that matches an error returns a non-empty
+// string, that string is used as the error message in the API response, otherwise the result of `err.Error()` is used.
+func Init(d bool, sentinelErrors map[int][]error, additionalErrFuncs ...func(error) (int, string)) {
 	debug = d
 
-	for code, additionalErrors := range smartErrors {
-		existingErrs, ok := httpResponseErrors[code]
+	for code, additionalErrors := range sentinelErrors {
+		existingErrs, ok := sentinelErrors[code]
 		if ok {
-			httpResponseErrors[code] = append(existingErrs, additionalErrors...)
+			sentinelErrors[code] = append(existingErrs, additionalErrors...)
 			continue
 		}
 
-		httpResponseErrors[code] = additionalErrors
+		sentinelErrors[code] = additionalErrors
 	}
+
+	errFuncs = append(errFuncs, additionalErrFuncs...)
 }
 
 // Response represents an API response.
