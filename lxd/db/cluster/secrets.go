@@ -301,3 +301,64 @@ func deleteSecretsByID(ctx context.Context, tx *sql.Tx, ids ...int) error {
 
 	return nil
 }
+
+// GetAllBearerIdentitySigningKeys returns a map of identity ID to token signing keys. It should only be used to refresh
+// the identity cache.
+func GetAllBearerIdentitySigningKeys(ctx context.Context, tx *sql.Tx) (map[int]AuthSecretValue, error) {
+	q := `SELECT entity_id, value FROM secrets WHERE entity_type = ? AND type = ?`
+
+	identityIDToSigningKey := make(map[int]AuthSecretValue)
+	scanFunc := func(scan func(dest ...any) error) error {
+		var identityID int
+		var value AuthSecretValue
+		err := scan(&identityID, &value)
+		if err != nil {
+			return err
+		}
+
+		identityIDToSigningKey[identityID] = value
+		return nil
+	}
+
+	err := query.Scan(ctx, tx, q, scanFunc, EntityType(entity.TypeIdentity), SecretTypeBearerSigningKey)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get auth secrets: %w", err)
+	}
+
+	return identityIDToSigningKey, nil
+}
+
+// DeleteBearerIdentitySigningKey deletes any signing keys for the identity.
+func DeleteBearerIdentitySigningKey(ctx context.Context, tx *sql.Tx, identityID int) (int64, error) {
+	q := "DELETE FROM secrets WHERE entity_type = ? AND entity_id = ? AND type = ?"
+	res, err := tx.ExecContext(ctx, q, EntityType(entity.TypeIdentity), identityID, SecretTypeBearerSigningKey)
+	if err != nil {
+		return 0, err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+
+	return rowsAffected, nil
+}
+
+// RotateBearerIdentitySigningKey deletes any existing signing keys for the identity and creates a new one.
+func RotateBearerIdentitySigningKey(ctx context.Context, tx *sql.Tx, identityID int) (AuthSecretValue, error) {
+	// Delete any existing key.
+	_, err := DeleteBearerIdentitySigningKey(ctx, tx, identityID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get new secret.
+	signingKey := newAuthSecretValue()
+
+	_, err = createSecret(ctx, tx, entity.TypeIdentity, identityID, SecretTypeBearerSigningKey, signingKey, time.Now().UTC())
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create bearer identity initial key material: %w", err)
+	}
+
+	return signingKey, nil
+}
