@@ -131,23 +131,23 @@ func (r *Requestor) IsForwarded() bool {
 // ForwardProxy returns a proxy function that adds the requestor details as headers to be inspected by the receiving cluster member.
 func (r *Requestor) ForwardProxy() func(req *http.Request) (*url.URL, error) {
 	return func(req *http.Request) (*url.URL, error) {
-		req.Header.Add(HeaderForwardedAddress, r.CallerAddress())
+		req.Header.Add(headerForwardedAddress, r.CallerAddress())
 
 		username := r.CallerUsername()
 		if username != "" {
-			req.Header.Add(HeaderForwardedUsername, username)
+			req.Header.Add(headerForwardedUsername, username)
 		}
 
 		protocol := r.CallerProtocol()
 		if protocol != "" {
-			req.Header.Add(HeaderForwardedProtocol, protocol)
+			req.Header.Add(headerForwardedProtocol, protocol)
 		}
 
 		identityProviderGroups := r.CallerIdentityProviderGroups()
 		if identityProviderGroups != nil {
 			b, err := json.Marshal(identityProviderGroups)
 			if err == nil {
-				req.Header.Add(HeaderForwardedIdentityProviderGroups, string(b))
+				req.Header.Add(headerForwardedIdentityProviderGroups, string(b))
 			}
 		}
 
@@ -167,10 +167,10 @@ func (r *Requestor) ForwardingMemberFingerprint() (string, error) {
 
 // setForwardingDetails validates and sets forwarding details from the request headers.
 func (r *Requestor) setForwardingDetails(req *http.Request) error {
-	forwardedAddress := req.Header.Get(HeaderForwardedAddress)
-	forwardedUsername := req.Header.Get(HeaderForwardedUsername)
-	forwardedProtocol := req.Header.Get(HeaderForwardedProtocol)
-	forwardedIdentityProviderGroupsJSON := req.Header.Get(HeaderForwardedIdentityProviderGroups)
+	forwardedAddress := req.Header.Get(headerForwardedAddress)
+	forwardedUsername := req.Header.Get(headerForwardedUsername)
+	forwardedProtocol := req.Header.Get(headerForwardedProtocol)
+	forwardedIdentityProviderGroupsJSON := req.Header.Get(headerForwardedIdentityProviderGroups)
 
 	// Requests can only be forwarded from other cluster members.
 	if r.protocol != ProtocolCluster {
