@@ -4,7 +4,7 @@ const (
 	// AuthenticationMethodTLS is the default authentication method for interacting with LXD remotely.
 	AuthenticationMethodTLS = "tls"
 
-	// AuthenticationMethodOIDC is a token based authentication method.
+	// AuthenticationMethodOIDC is the OpenID Connect authentication method.
 	AuthenticationMethodOIDC = "oidc"
 )
 
