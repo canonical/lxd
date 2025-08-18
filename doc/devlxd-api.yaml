@@ -7,7 +7,7 @@ info:
     description: |-
         The DevLXD API is exposed to guest instances. 
         For virtual-machines, this requires the LXD agent to be running.
-        
+
         The API is JSON over a unix+http socket and is available at `/dev/lxd/sock` within a guest instance.
     license:
         name: AGPL-3.0-only
@@ -53,7 +53,7 @@ paths:
             summary: Set instance readiness.
             description: |-
                 Updates the instance state.
-                
+
                 This allows the guest to update the instance state from "Started" to "Ready".
                 This can be used to indicate that the guest has successfully started any required services e.g. via Cloud Init.
             consumes:
@@ -86,7 +86,7 @@ paths:
             summary: List instance configuration key API endpoints
             description: |-
                 Produces a list of API endpoints of configuration keys.
-                
+
                 The configuration keys are filtered.
                 Only the `user.*` and `cloud-init.*` namespaces are returned.
             produces:
@@ -112,7 +112,7 @@ paths:
             summary: Get the value corresponding to a configuration key
             description: |-
                 Returns the value corresponding to a configuration key.
-                
+
                 Only configuration keys listed by `GET /1.0/config` can be queried.
             produces:
                 - text/plain
@@ -166,10 +166,10 @@ paths:
         get:
             operationId: events_get
             summary: Get instance events
-            description: |-                
+            description: |-
                 Listen for events that concern the instance.
                 This includes updates to `user.*` configuration keys, and changes to devices.
-                
+
                 Requests are upgraded to a WebSocket, which will only close if the client disconnects.
             parameters:
                 - description: Event type(s), comma separated (valid types are config, device)
@@ -197,12 +197,12 @@ paths:
             description: |-
                 Download the raw image file(s) from the host.
                 If the image is in split format, a multipart http transfer occurs.
-                
+
                 This is useful when running LXD in a guest instance.
                 The full image fingerprint must be provided (unlike the main API, where a fingerprint prefix can be used).
 
                 This endpoint requires `security.devlxd.images` to be set to `true` for the instance (it is `false` by default).
-                
+
                 Due to an historical oversight, error responses from this endpoint have the same schema as the main LXD API, which is different to those from the DevLXD API.
             produces:
                 - application/octet-stream
