@@ -133,7 +133,7 @@ func DeleteIdentityProjects(ctx context.Context, tx *sql.Tx, identityID int) err
 		return fmt.Errorf("Failed to get \"identityProjectDeleteByIdentityID\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(int(identityID))
+	result, err := stmt.ExecContext(ctx, int(identityID))
 	if err != nil {
 		return fmt.Errorf("Delete \"identity_projects\" entry failed: %w", err)
 	}
@@ -163,7 +163,7 @@ func CreateIdentityProjects(ctx context.Context, tx *sql.Tx, objects []IdentityP
 		}
 
 		// Execute the statement.
-		_, err = stmt.Exec(args...)
+		_, err = stmt.ExecContext(ctx, args...)
 		if err != nil {
 			return fmt.Errorf("Failed to create \"identity_projects\" entry: %w", err)
 		}

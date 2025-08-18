@@ -324,34 +324,9 @@ func GetInstanceSnapshotID(ctx context.Context, tx *sql.Tx, project string, inst
 	return id, nil
 }
 
-// InstanceSnapshotExists checks if a instance_snapshot with the given key exists.
-// generator: instance_snapshot Exists
-func InstanceSnapshotExists(ctx context.Context, tx *sql.Tx, project string, instance string, name string) (bool, error) {
-	_, err := GetInstanceSnapshotID(ctx, tx, project, instance, name)
-	if err != nil {
-		if api.StatusErrorCheck(err, http.StatusNotFound) {
-			return false, nil
-		}
-
-		return false, err
-	}
-
-	return true, nil
-}
-
 // CreateInstanceSnapshot adds a new instance_snapshot to the database.
 // generator: instance_snapshot Create
 func CreateInstanceSnapshot(ctx context.Context, tx *sql.Tx, object InstanceSnapshot) (int64, error) {
-	// Check if a instance_snapshot with the same key exists.
-	exists, err := InstanceSnapshotExists(ctx, tx, object.Project, object.Instance, object.Name)
-	if err != nil {
-		return -1, fmt.Errorf("Failed to check for duplicates: %w", err)
-	}
-
-	if exists {
-		return -1, api.StatusErrorf(http.StatusConflict, "This \"instances_snapshots\" entry already exists")
-	}
-
 	args := make([]any, 7)
 
 	// Populate the statement arguments.
@@ -370,8 +345,12 @@ func CreateInstanceSnapshot(ctx context.Context, tx *sql.Tx, object InstanceSnap
 	}
 
 	// Execute the statement.
-	result, err := stmt.Exec(args...)
+	result, err := stmt.ExecContext(ctx, args...)
 	if err != nil {
+		if query.IsConflictErr(err) {
+			return -1, api.NewStatusError(http.StatusConflict, "This \"instances_snapshots\" entry already exists")
+		}
+
 		return -1, fmt.Errorf("Failed to create \"instances_snapshots\" entry: %w", err)
 	}
 
@@ -428,8 +407,12 @@ func RenameInstanceSnapshot(ctx context.Context, tx *sql.Tx, project string, ins
 		return fmt.Errorf("Failed to get \"instanceSnapshotRename\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(to, project, instance, name)
+	result, err := stmt.ExecContext(ctx, to, project, instance, name)
 	if err != nil {
+		if query.IsConflictErr(err) {
+			return api.NewStatusError(http.StatusConflict, "A \"instances_snapshots\" entry already exists with this name")
+		}
+
 		return fmt.Errorf("Rename InstanceSnapshot failed: %w", err)
 	}
 
@@ -453,7 +436,7 @@ func DeleteInstanceSnapshot(ctx context.Context, tx *sql.Tx, project string, ins
 		return fmt.Errorf("Failed to get \"instanceSnapshotDeleteByProjectAndInstanceAndName\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(project, instance, name)
+	result, err := stmt.ExecContext(ctx, project, instance, name)
 	if err != nil {
 		return fmt.Errorf("Delete \"instances_snapshots\": %w", err)
 	}
