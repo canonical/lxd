@@ -5614,6 +5614,102 @@
 				]
 			}
 		},
+		"storage-alletra": {
+			"pool-conf": {
+				"keys": [
+					{
+						"alletra.mode": {
+							"defaultdesc": "the discovered mode",
+							"longdesc": "The mode to use to map storage volumes to the local server.\nSupported values are `iscsi` and `nvme`.",
+							"shortdesc": "How volumes are mapped to the local server",
+							"type": "string"
+						}
+					},
+					{
+						"alletra.target": {
+							"defaultdesc": "the discovered mode",
+							"longdesc": "A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.",
+							"shortdesc": "List of target addresses.",
+							"type": "string"
+						}
+					},
+					{
+						"alletra.wsapi.cpg": {
+							"longdesc": "",
+							"shortdesc": "HPE Alletra CPG name",
+							"type": "string"
+						}
+					},
+					{
+						"alletra.wsapi.url": {
+							"longdesc": "",
+							"shortdesc": "Address of the HPE Alletra Storage UI/WSAPI",
+							"type": "string"
+						}
+					},
+					{
+						"alletra.wsapi.user.name": {
+							"longdesc": "",
+							"shortdesc": "HPE Alletra storage admin username",
+							"type": "string"
+						}
+					},
+					{
+						"alletra.wsapi.user.password": {
+							"longdesc": "",
+							"shortdesc": "HPE Alletra storage admin password",
+							"type": "string"
+						}
+					},
+					{
+						"alletra.wsapi.verify": {
+							"defaultdesc": "`true`",
+							"longdesc": "",
+							"shortdesc": "Whether to verify the HPE Alletra Storage UI/WSAPI certificate",
+							"type": "bool"
+						}
+					},
+					{
+						"volume.size": {
+							"defaultdesc": "`10GiB`",
+							"longdesc": "Default storage volume size rounded to 256MiB. The minimum size is 256MiB.",
+							"shortdesc": "Size/quota of the storage volume",
+							"type": "string"
+						}
+					}
+				]
+			},
+			"volume-conf": {
+				"keys": [
+					{
+						"block.filesystem": {
+							"condition": "block-based volume with content type `filesystem`",
+							"defaultdesc": "same as `volume.block.filesystem`",
+							"longdesc": "Valid options are: `btrfs`, `ext4`, `xfs`\nIf not set, `ext4` is assumed.",
+							"shortdesc": "File system of the storage volume",
+							"type": "string"
+						}
+					},
+					{
+						"block.mount_options": {
+							"condition": "block-based volume with content type `filesystem`",
+							"defaultdesc": "same as `volume.block.mount_options`",
+							"longdesc": "",
+							"shortdesc": "Mount options for block-backed file system volumes",
+							"type": "string"
+						}
+					},
+					{
+						"size": {
+							"defaultdesc": "`10GiB`",
+							"longdesc": "Default storage volume size rounded to 256MiB. The minimum size is 256MiB.",
+							"shortdesc": "Size/quota of the storage volume",
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
 		"storage-btrfs": {
 			"bucket-conf": {
 				"keys": [

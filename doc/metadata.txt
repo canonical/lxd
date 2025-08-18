@@ -5022,6 +5022,87 @@ You may add additional scopes if this is required by your identity provider, or 
 ```
 
 <!-- config group server-oidc end -->
+<!-- config group storage-alletra-pool-conf start -->
+```{config:option} alletra.mode storage-alletra-pool-conf
+:defaultdesc: "the discovered mode"
+:shortdesc: "How volumes are mapped to the local server"
+:type: "string"
+The mode to use to map storage volumes to the local server.
+Supported values are `iscsi` and `nvme`.
+```
+
+```{config:option} alletra.target storage-alletra-pool-conf
+:defaultdesc: "the discovered mode"
+:shortdesc: "List of target addresses."
+:type: "string"
+A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.
+```
+
+```{config:option} alletra.wsapi.cpg storage-alletra-pool-conf
+:shortdesc: "HPE Alletra CPG name"
+:type: "string"
+
+```
+
+```{config:option} alletra.wsapi.url storage-alletra-pool-conf
+:shortdesc: "Address of the HPE Alletra Storage UI/WSAPI"
+:type: "string"
+
+```
+
+```{config:option} alletra.wsapi.user.name storage-alletra-pool-conf
+:shortdesc: "HPE Alletra storage admin username"
+:type: "string"
+
+```
+
+```{config:option} alletra.wsapi.user.password storage-alletra-pool-conf
+:shortdesc: "HPE Alletra storage admin password"
+:type: "string"
+
+```
+
+```{config:option} alletra.wsapi.verify storage-alletra-pool-conf
+:defaultdesc: "`true`"
+:shortdesc: "Whether to verify the HPE Alletra Storage UI/WSAPI certificate"
+:type: "bool"
+
+```
+
+```{config:option} volume.size storage-alletra-pool-conf
+:defaultdesc: "`10GiB`"
+:shortdesc: "Size/quota of the storage volume"
+:type: "string"
+Default storage volume size rounded to 256MiB. The minimum size is 256MiB.
+```
+
+<!-- config group storage-alletra-pool-conf end -->
+<!-- config group storage-alletra-volume-conf start -->
+```{config:option} block.filesystem storage-alletra-volume-conf
+:condition: "block-based volume with content type `filesystem`"
+:defaultdesc: "same as `volume.block.filesystem`"
+:shortdesc: "File system of the storage volume"
+:type: "string"
+Valid options are: `btrfs`, `ext4`, `xfs`
+If not set, `ext4` is assumed.
+```
+
+```{config:option} block.mount_options storage-alletra-volume-conf
+:condition: "block-based volume with content type `filesystem`"
+:defaultdesc: "same as `volume.block.mount_options`"
+:shortdesc: "Mount options for block-backed file system volumes"
+:type: "string"
+
+```
+
+```{config:option} size storage-alletra-volume-conf
+:defaultdesc: "`10GiB`"
+:shortdesc: "Size/quota of the storage volume"
+:type: "string"
+Default storage volume size rounded to 256MiB. The minimum size is 256MiB.
+```
+
+<!-- config group storage-alletra-volume-conf end -->
 <!-- config group storage-btrfs-bucket-conf start -->
 ```{config:option} size storage-btrfs-bucket-conf
 :condition: "appropriate driver"
