@@ -214,6 +214,25 @@ func (d *gpuPhysical) startCDIDevices(configDevices cdi.ConfigDevices, runConf *
 		destPath := conf["path"]
 		relativeDestPath := strings.TrimPrefix(destPath, "/")
 
+		// Deduplicate CDI bind mounts by target path across devices.
+		// Multiple CDI GPU devices can require the same runtime files (e.g. /run/nvidia-persistenced/socket).
+		// Only create one mount entry per target path to avoid duplicate lxc.mount.entry conflicts.
+		duplicate := false
+		dents, err := os.ReadDir(d.inst.DevicesPath())
+		if err == nil {
+			for _, e := range dents {
+				decoded := filesystem.PathNameDecode(e.Name())
+				if strings.HasPrefix(decoded, cdi.CDIDiskPrefix+".") && strings.HasSuffix(decoded, "."+relativeDestPath) {
+					duplicate = true
+					break
+				}
+			}
+		}
+
+		if duplicate {
+			continue
+		}
+
 		// This time, the created path will be like:
 		// <lxd_var_path>/devices/<instance_name>/<cdi.CDIDiskPrefix>.<gpu_device_name>.<path_encoded_relative_dest_path>
 		deviceName := filesystem.PathNameEncode(deviceJoinPath(cdi.CDIDiskPrefix, d.name, relativeDestPath))
