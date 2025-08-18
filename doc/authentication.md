@@ -120,6 +120,7 @@ You must still add them to the server in one of the ways described in {ref}`auth
 To automatically trust CA-signed client certificates, set the {config:option}`server-core:core.trust_ca_certificates` server configuration to true.
 When `core.trust_ca_certificates` is enabled, any new clients with a CA-signed certificate will have full access to LXD.
 
+(authentication-revoke-certificates)=
 #### Revoking certificates
 
 To revoke certificates via the PKI, place a certificate revocation list in the server's configuration directory as `ca.crl` and restart the LXD daemon.
