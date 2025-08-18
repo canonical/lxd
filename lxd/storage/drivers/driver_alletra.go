@@ -8,6 +8,7 @@ import (
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/connectors"
 	"github.com/canonical/lxd/lxd/storage/drivers/clients"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/validate"
 )
@@ -78,7 +79,13 @@ func (d *alletra) connector() (connectors.Connector, error) {
 // client returns the drivers HPE Alletra Storage client. A new client is created only if it does not already exist.
 func (d *alletra) client() *clients.AlletraClient {
 	if d.httpClient == nil {
-		d.httpClient = clients.NewAlletraClient()
+		d.httpClient = clients.NewAlletraClient(
+			d.logger,
+			d.config["alletra.wsapi"],
+			d.config["alletra.user.name"],
+			d.config["alletra.user.password"],
+			shared.IsFalse(d.config["alletra.wsapi.verify"]),
+			d.config["alletra.cpg"])
 	}
 
 	return d.httpClient
