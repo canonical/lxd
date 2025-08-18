@@ -9,7 +9,7 @@ version: 2
 build:
   os: ubuntu-24.04
   tools:
-    golang: "1.23"
+    golang: "1.24"
     python: "3.12"
   jobs:
     pre_install:
