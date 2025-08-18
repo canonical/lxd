@@ -1,6 +1,7 @@
 package identity
 
 import (
+	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -16,6 +17,11 @@ func (CertificateClient) AuthenticationMethod() string {
 	return api.AuthenticationMethodTLS
 }
 
+// Code returns the identity type code for this identity type.
+func (CertificateClient) Code() int64 {
+	return identityTypeCertificateClient
+}
+
 // IsCacheable indicates that this identity can be cached.
 func (CertificateClient) IsCacheable() bool {
 	return true
@@ -24,6 +30,11 @@ func (CertificateClient) IsCacheable() bool {
 // IsFineGrained indicates that this identity uses fine-grained permissions.
 func (CertificateClient) IsFineGrained() bool {
 	return true
+}
+
+// Name returns the API name of this identity type.
+func (CertificateClient) Name() string {
+	return api.IdentityTypeCertificateClient
 }
 
 // CertificateClientPending represents an identity for which a token has been issued
@@ -38,9 +49,24 @@ func (CertificateClientPending) AuthenticationMethod() string {
 	return api.AuthenticationMethodTLS
 }
 
+// Code returns the identity type code for this identity type.
+func (CertificateClientPending) Code() int64 {
+	return identityTypeCertificateClientPending
+}
+
 // IsFineGrained indicates that this identity uses fine-grained permissions.
 func (CertificateClientPending) IsFineGrained() bool {
 	return true
+}
+
+// IsPending indicates that this identity is pending.
+func (CertificateClientPending) IsPending() bool {
+	return true
+}
+
+// Name returns the API name of this identity type.
+func (CertificateClientPending) Name() string {
+	return api.IdentityTypeCertificateClientPending
 }
 
 // CertificateClientRestricted represents an identity that authenticates using TLS certificates
@@ -55,9 +81,24 @@ func (CertificateClientRestricted) AuthenticationMethod() string {
 	return api.AuthenticationMethodTLS
 }
 
+// Code returns the identity type code for this identity type.
+func (CertificateClientRestricted) Code() int64 {
+	return identityTypeCertificateClientRestricted
+}
+
 // IsCacheable indicates that this identity can be cached.
 func (CertificateClientRestricted) IsCacheable() bool {
 	return true
+}
+
+// LegacyCertificateType returns the legacy certificate type for this identity type.
+func (CertificateClientRestricted) LegacyCertificateType() (certificate.Type, error) {
+	return certificate.TypeClient, nil
+}
+
+// Name returns the API name of this identity type.
+func (CertificateClientRestricted) Name() string {
+	return api.IdentityTypeCertificateClientRestricted
 }
 
 // CertificateClientUnrestricted represents an identity that authenticates using TLS certificates
@@ -72,6 +113,11 @@ func (CertificateClientUnrestricted) AuthenticationMethod() string {
 	return api.AuthenticationMethodTLS
 }
 
+// Code returns the identity type code for this identity type.
+func (CertificateClientUnrestricted) Code() int64 {
+	return identityTypeCertificateClientUnrestricted
+}
+
 // IsAdmin indicates that this identity type has administrator privileges (unrestricted).
 func (CertificateClientUnrestricted) IsAdmin() bool {
 	return true
@@ -80,4 +126,14 @@ func (CertificateClientUnrestricted) IsAdmin() bool {
 // IsCacheable indicates that this identity can be cached.
 func (CertificateClientUnrestricted) IsCacheable() bool {
 	return true
+}
+
+// LegacyCertificateType returns the legacy certificate type for this identity type.
+func (CertificateClientUnrestricted) LegacyCertificateType() (certificate.Type, error) {
+	return certificate.TypeClient, nil
+}
+
+// Name returns the API name of this identity type.
+func (CertificateClientUnrestricted) Name() string {
+	return api.IdentityTypeCertificateClientUnrestricted
 }

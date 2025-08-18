@@ -271,6 +271,11 @@ fine_grained: true"
   LXD_CONF="${LXD_CONF4}" lxc_remote remote add tls "${token}"
   lxc auth identity group add tls/test-user4 test-group
 
+  # Pending TLS identity can be added to groups.
+  lxc auth identity create tls/foobar
+  lxc auth identity group add tls/foobar test-group
+  lxc auth identity delete tls/foobar
+
   # Create another certificate to update to
   LXD_CONF5=$(mktemp -d -p "${TEST_DIR}" XXX)
   LXD_CONF="${LXD_CONF5}" gen_cert_and_key "client"
