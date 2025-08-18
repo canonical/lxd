@@ -15,7 +15,7 @@ relatedlinks: "[Linux&#32;containers&#32;security](https://linuxcontainers.org/l
     :end-before: <!-- Include end security -->
 ```
 
-See the following sections for detailed information.
+See the following sections for detailed information. Also see: {ref}`howto-security-harden`.
 
 If you discover a security issue, see the [LXD security policy](https://github.com/canonical/lxd/blob/main/SECURITY.md) for information on how to report the issue.
 
@@ -99,21 +99,12 @@ These measures are valuable when running trusted workloads, but they do not make
 Therefore, you should not use privileged containers unless required.
 If you use them, make sure to put appropriate security measures in place.
 
-### Container name leakage
-
-The default server configuration makes it easy to list all cgroups on a system and, by extension, all running containers.
-
-You can prevent this name leakage by blocking access to `/sys/kernel/slab` and `/proc/sched_debug` before you start any containers.
-To do so, run the following commands:
-
-    chmod 400 /proc/sched_debug
-    chmod 700 /sys/kernel/slab/
-
 ## Network security
 
 Make sure to configure your network interfaces to be secure.
 Which aspects you should consider depends on the networking mode you decide to use.
 
+(exp-security-bridged)=
 ### Bridged NIC security
 
 The default networking mode in LXD is to provide a "managed" private network bridge that each instance connects to.
