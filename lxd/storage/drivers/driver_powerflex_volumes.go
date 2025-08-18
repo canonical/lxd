@@ -9,6 +9,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 
 	"golang.org/x/sys/unix"
 
@@ -892,6 +893,12 @@ func (d *powerflex) VolumeSnapshots(vol Volume, op *operations.Operation) ([]str
 
 	snapshotNames := make([]string, 0, len(volumeSnapshots))
 	for _, snapshot := range volumeSnapshots {
+		// Snapshots who belong to the actual parent volume use the prefix.
+		// Snapshots created using powerflex.snapshot_copy don't count here.
+		if !strings.HasPrefix(snapshot.Name, powerFlexSnapshotPrefix) {
+			continue
+		}
+
 		snapshotNames = append(snapshotNames, snapshot.Name)
 	}
 
