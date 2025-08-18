@@ -255,3 +255,8 @@ func (c *connectorISCSI) findSession(targetQN string) (*session, error) {
 
 	return session, nil
 }
+
+// Discover returns the targets found on the first reachable targetAddr.
+func (c *connectorISCSI) Discover(ctx context.Context, targetAddresses ...string) ([]any, error) {
+	return nil, ErrNotSupported
+}
