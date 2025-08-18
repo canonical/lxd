@@ -2707,6 +2707,14 @@ test_clustering_ha() {
   local LXD_DIR
   local successes
   local failures
+  local FOUND_RADOSGW
+
+  # Workaround radosgw binding port 80
+  FOUND_RADOSGW="false"
+  if command -v microceph >/dev/null && ss --no-header -nltp 'sport inet:80' | grep -wF radosgw >/dev/null; then
+    FOUND_RADOSGW="true"
+    microceph disable rgw
+  fi
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -2828,6 +2836,11 @@ test_clustering_ha() {
 
   sed -i '/^127\.1\.2\.3/ d' /etc/hosts
   stop_haproxy
+
+  # Restore the original state of the system
+  if [ "${FOUND_RADOSGW}" = "true" ]; then
+    microceph enable rgw
+  fi
 }
 
 # When a voter cluster member is shutdown, its role gets transferred to a spare
