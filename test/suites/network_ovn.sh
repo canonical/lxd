@@ -140,6 +140,22 @@ test_network_ovn() {
   lxc network unset "${uplink_network}" ipv4.routes
   lxc network unset "${uplink_network}" ipv6.routes
 
+  echo "Set ipv4.gateway and ipv6.gateway for the uplink."
+  lxc network set "${uplink_network}" ipv4.gateway=192.0.2.1/24
+  lxc network set "${uplink_network}" ipv6.gateway=2001:db8:1:2::1/64
+
+  echo "Update the uplink's ipv4.routes and ipv6.routes to include the gateway addresses."
+  lxc network set "${uplink_network}" ipv4.routes=192.0.2.0/29
+  lxc network set "${uplink_network}" ipv6.routes=2001:db8:1:2::/125
+
+  echo "Check that automatic allocation does not allocate uplink's ipv4.gateway and ipv6.gateway for forwards."
+  auto_allocate_forwards_ip4 "192.0.2"
+  auto_allocate_forwards_ip6 "2001:db8:1:2"
+
+  echo "Check that automatic allocation does not allocate uplink's ipv4.gateway and ipv6.gateway for load balancers."
+  auto_allocate_load_balancers_ip4 "192.0.2"
+  auto_allocate_load_balancers_ip6 "2001:db8:1:2"
+
   echo "Clean up created networks."
   lxc network delete "${ovn_network}"
   lxc network delete "${uplink_network}"
@@ -473,8 +489,41 @@ test_network_ovn() {
   echo "Check that instance NIC passthrough with ipv6.routes.external does not allow using volatile.network.ipv6.address."
   ! lxc launch testimage c1 -n "${ovn_network}" -d eth0,ipv6.routes.external="${volatile_ip6}/128" || false
 
+  echo "Test automatic allocation of an allowed external IP addresses for forwards and load balancers."
+
+  echo "Update uplink's routes to include the uplink's IPv4 and IPv6 gateway addresses."
+  lxc network set "${uplink_network}" ipv4.routes=10.10.10.0/29
+  lxc network set "${uplink_network}" ipv6.routes=fd42:4242:4242:1010::/125
+
+  echo "Check that automatic allocation does not allocate uplink's ipv4.address and ipv6.address for forwards."
+  auto_allocate_forwards_ip4 "10.10.10"
+  auto_allocate_forwards_ip6 "fd42:4242:4242:1010"
+
+  echo "Check that automatic allocation does not allocate uplink's ipv4.address and ipv6.address for load balancers."
+  auto_allocate_load_balancers_ip4 "10.10.10"
+  auto_allocate_load_balancers_ip6 "fd42:4242:4242:1010"
+
+  echo "Set ipv4.dhcp.gateway for the uplink."
+  lxc network set "${uplink_network}" ipv4.dhcp.gateway=192.0.2.1
+
+  echo "Update the uplink's ipv4.routes to include the gateway address."
+  lxc network set "${uplink_network}" ipv4.routes=192.0.2.0/29
+
+  echo "Check that automatic allocation does not allocate uplink's ipv4.dhcp.gateway for forwards."
+  auto_allocate_forwards_ip4 "192.0.2"
+
+  echo "Check that automatic allocation does not allocate uplink's ipv4.dhcp.gateway for load balancers."
+  auto_allocate_load_balancers_ip4 "192.0.2"
+
   echo "Delete the OVN network in the default project."
   lxc network delete "${ovn_network}"
+
+  echo "Unset ipv4.dhcp.gateway for the uplink."
+  lxc network unset "${uplink_network}" ipv4.dhcp.gateway
+
+  echo "Reset the uplink's routes."
+  lxc network set "${uplink_network}" ipv4.routes=192.0.2.0/24
+  lxc network set "${uplink_network}" ipv6.routes=2001:db8:1:2::/64
 
   echo "Test ha_chassis removal on shutdown."
   shutdown_lxd "${LXD_DIR}"
@@ -640,4 +689,80 @@ test_network_ovn() {
   assert_row_count
 
   unset_ovn_configuration
+}
+
+auto_allocate_forwards_ip4() {
+  # Network X.X.X.0/29 has 5 usable addresses (.2, .3, .4, .5, .6), excluding the uplink's gateway (.1), broadcast address (.7), and network address (.0).
+  echo "Allocate all available IPv4 addresses for forwards."
+  for _ in $(seq 5); do
+    lxc network forward create "${ovn_network}" --allocate=ipv4
+  done
+
+  echo "Check that there is no forward with uplink's IPv4 gateway."
+  ! lxc network forward show "${ovn_network}" "${1}.1" || false
+
+  echo "Check that there is no more available IPv4 addresses left."
+  ! lxc network forward create "${ovn_network}" --allocate=ipv4 || false
+
+  echo "Clean up forwards."
+  for i in $(seq 2 6); do
+    lxc network forward delete "${ovn_network}" "${1}.${i}"
+  done
+}
+
+auto_allocate_forwards_ip6() {
+  # Network X:X:X:X::/125 has 6 usable addresses (::2, ::3, ::4, ::5, ::6, ::7), excluding the uplink's gateway (::1) and the subnet-router anycast address (::).
+  echo "Allocate all available IPv6 addresses for forwards."
+  for _ in $(seq 6); do
+    lxc network forward create "${ovn_network}" --allocate=ipv6
+  done
+
+  echo "Check that there is no forward with uplink's IPv6 gateway."
+  ! lxc network forward show "${ovn_network}" "${1}::1" || false
+
+  echo "Check that there is no more available IPv6 addresses left."
+  ! lxc network forward create "${ovn_network}" --allocate=ipv6 || false
+
+  echo "Clean up forwards."
+  for i in $(seq 2 7); do
+    lxc network forward delete "${ovn_network}" "${1}::${i}"
+  done
+}
+
+auto_allocate_load_balancers_ip4() {
+  # Network X.X.X.0/29 has 5 usable addresses (.2, .3, .4, .5, .6), excluding the uplink's gateway (.1), broadcast address (.7), and network address (.0).
+  echo "Allocate all available IPv4 addresses for load balancers."
+  for _ in $(seq 5); do
+    lxc network load-balancer create "${ovn_network}" --allocate=ipv4
+  done
+
+  echo "Check that there is no load balancer with uplink's IPv4 gateway."
+  ! lxc network load-balancer show "${ovn_network}" "${1}.1" || false
+
+  echo "Check that there is no more available IPv4 addresses left."
+  ! lxc network load-balancer create "${ovn_network}" --allocate=ipv4 || false
+
+  echo "Clean up load balancers."
+  for i in $(seq 2 6); do
+    lxc network load-balancer delete "${ovn_network}" "${1}.${i}"
+  done
+}
+
+auto_allocate_load_balancers_ip6() {
+  # Network X:X:X:X::/125 has 6 usable addresses (::2, ::3, ::4, ::5, ::6, ::7), excluding the uplink's gateway (::1) and the subnet-router anycast address (::).
+  echo "Allocate all available IPv6 addresses for load balancers."
+  for _ in $(seq 6); do
+    lxc network load-balancer create "${ovn_network}" --allocate=ipv6
+  done
+
+  echo "Check that there is no load balancer with uplink's IPv6 gateway."
+  ! lxc network load-balancer show "${ovn_network}" "${1}::1" || false
+
+  echo "Check that there is no more available IPv6 addresses left."
+  ! lxc network load-balancer create "${ovn_network}" --allocate=ipv6 || false
+
+  echo "Clean up load balancers."
+  for i in $(seq 2 7); do
+    lxc network load-balancer delete "${ovn_network}" "${1}::${i}"
+  done
 }
