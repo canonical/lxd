@@ -1,380 +1,776 @@
 (first-steps)=
+(tutorial-first-steps)=
 # First steps with LXD
+
+This tutorial guides you through your first steps with LXD. You'll begin by installing and initializing LXD. Then you'll use its CLI or graphical web UI to work with instances, including both containers and virtual machines. You'll learn how to create and configure instances, create snapshots, and more.
 
 ````{only} integrated
 
 ```{admonition} For MicroCloud users
 :class: note
-The MicroCloud setup process installs and initializes LXD. Thus, you do not need to follow the steps on this page.
+The MicroCloud setup process installs and initializes LXD. Thus, you can skip those sections on this page.
 ```
 
 ````
 
-This tutorial guides you through the first steps with LXD.
-It covers installing and initializing LXD, creating and configuring some instances, interacting with the instances, and creating snapshots.
+(tutorial-requirements)=
+## Requirements
 
-After going through these steps, you will have a general idea of how to use LXD, and you can start exploring more advanced use cases!
+- At least 20 GiB free disk space
+- A Linux distribution installed
 
-```{note}
-Ensure that you have 20 GiB free disk space before starting this tutorial.
+(tutorial-install)=
+## Install LXD using snap
+
+This section of the tutorial assumes that you have the `snap` packaging system available on your system, which is the recommended way to use LXD.
+
+If you use a Linux distribution that does not support `snap`, see {ref}`installing-other` and skip to the next section of this tutorial.
+
+**LXD snap installation requirements**
+
+- The LXD snap must be [available for your Linux distribution](https://snapcraft.io/lxd#distros).
+- The [`snapd` daemon](https://snapcraft.io/docs/installing-snapd) must be installed.
+
+The `snapd` daemon that manages snap packages comes pre-installed on many distributions by default. To confirm whether it is available on your system, run:
+
+```bash
+snap version
 ```
 
-<!-- Include start tutorial installation -->
+If you see an error message indicating that `snap` is not installed, visit the [Snap installation documentation](https://snapcraft.io/docs/installing-snapd) and follow the instructions there to install it.
 
-## Install and initialize LXD
+Once you have confirmed that `snap` is available on your system, use it to install LXD:
 
-The easiest way to install LXD is to install the snap package.
-If you prefer a different installation method, or use a Linux distribution that is not supported by the snap package, see {ref}`installing`.
+```bash
+sudo snap install lxd
+```
 
-1. Install `snapd`:
+### If the LXD snap is already installed
 
-   1. Run `snap version` to find out if snap is installed on your system:
+This tutorial is designed for LXD version {{current_lts_track}} and higher. If you see an error message that the LXD snap is already installed, run the following command to find the channel the snap is tracking:
 
-      ```{terminal}
-      :input: snap version
+```bash
+snap list lxd
+```
 
-      snap    2.63+24.04ubuntu0.1
-      snapd   2.63+24.04ubuntu0.1
-      series  16
-      ubuntu  24.04
-      kernel  5.15.0-117-generic
-      ```
+The `Tracking` column lists the installed {ref}`snap channel <ref-snap-channels>`. If the number shown is {{current_lts_track}} or higher, run the following command to update the snap to the most recent release in its channel:
 
-      If you see a table of version numbers, snap is installed and you can continue with the next step of installing LXD.
+```bash
+sudo snap refresh lxd
+```
 
-   1. If the command returns an error, run the following commands to install the latest version of ``snapd`` on Ubuntu:
+Otherwise, if the number shown is lower, an older version is installed. In this case, upgrade to the {{current_lts_track}}/stable channel by following the instructions in this guide: {ref}`howto-snap-change`.
 
-          sudo apt update
-          sudo apt install snapd
+(tutorial-adduser)=
+## Add the current user to the `lxd` group
 
-      ```{note}
-      For other Linux distributions, see the [installation instructions](https://snapcraft.io/docs/installing-snapd) in the Snapcraft documentation.
-      ```
+````{admonition} Important security notice
+:class: important
+% Include content from ../../README.md
+```{include} ../../README.md
+    :start-after: <!-- Include start security note -->
+    :end-before: <!-- Include end security note -->
+```
+For more information, see {ref}`security-daemon-access`.
+````
 
-1. Enter the following command to install LXD:
+Installing LXD through its snap should automatically create an `lxd` group on your system. The user you are logged in as must be in this group to interact with LXD.
 
-       sudo snap install lxd
+Check to see if the current user is already in that group:
 
-   If you get an error message that the LXD snap is already installed, run the following command to refresh it and ensure that you are running an up-to-date version:
+```bash
+getent group lxd | grep "$USER"
+```
 
-       sudo snap refresh lxd
+If this command returns a result, you're set up correctly and can continue with the next section.
 
-1. Check if the current user is part of the `lxd` group (the group was automatically created during the previous step):
+If there is no result, enter the following commands. The first command adds your user to the `lxd` group.
+The second command starts a new shell where the group membership takes effect immediately.
 
-       getent group lxd | grep "$USER"
+```bash
+sudo usermod -aG lxd "$USER"
+newgrp lxd
+```
 
-   If this command returns a result, you're set up correctly and can continue with the next step.
+(tutorial-initialize)=
+## Initialize LXD
 
-   If there is no result, enter the following commands to add the current user to the `lxd` group (which is needed to grant the user permission to interact with LXD):
+Next, initialize LXD using a minimal setup with default options.
 
-       sudo usermod -aG lxd "$USER"
-       newgrp lxd
+Run:
 
-1. Enter the following command to initialize LXD:
+```bash
+lxd init --minimal
+```
 
-       lxd init --minimal
+If this command results in an error, your group membership might not have taken effect. In this case, close and re-open your terminal, then try again.
 
-   This will create a minimal setup with default options.
-   If you want to tune the initialization options, see {ref}`initialize` for more information.
+The `lxd init` command can be run again later to update the options. Once you have learned more about LXD, you might want to tune the {ref}`initialization options <initialize>` according to your own preferences, or learn how to {ref}`use a preseed file <initialize-preseed>` to initialize LXD. For now, the minimal configuration is sufficient.
 
-1. LXD supports both {ref}`containers-and-vms`. For LXD virtual machines, your host system must be capable of KVM virtualization. To check this, run the following command:
+(tutorial-types)=
+## Containers and virtual machines
 
-       lxc info | grep -FA2 'instance_types'
+LXD supports two instance types: containers and virtual machines. LXD containers are faster and more lightweight than virtual machines, but share the host system's OS kernel. Virtual machines use their own kernel. For more information about these instance types, see {ref}`containers-and-vms`.
 
-   The following output indicates that your host system is capable of virtualization:
+(tutorial-virtualization)=
+### Confirm virtualization support
 
-       instance_types:
+For LXD virtual machines, your host system must be capable of KVM virtualization. To test for this, run:
+
+```bash
+lxc info | grep -FA2 'instance_types'
+```
+
+If your host system is capable of KVM virtualization, you should see `virtual-machine` in the list of `instance_types`:
+
+```{terminal}
+:input: lxc info | grep -FA2 'instance_types'
+
+instance_types:
        - container
        - virtual-machine
+```
 
-   If `virtual-machine` fails to appear in the output, this indicates that the host system is not capable of virtualization. In this case, LXD can only be used for containers. You can proceed with this tutorial to learn about using containers, but disregard the steps that refer to virtual machines.
+If `virtual-machine` fails to appear in the output, this indicates that the host system is not capable of virtualization. In this case, LXD can only be used for containers. You can proceed with this tutorial to learn about using containers, but disregard the steps that refer to virtual machines.
 
-<!-- Include end tutorial installation -->
+(tutorial-enable-ui)=
+## Optional: Enable the LXD UI
 
-## Launch and inspect instances
+While the installation and initialization steps must be performed via the command line interface, a graphical interface (the LXD UI) is available for use after these setup steps. The LXD UI is accessed through your web browser.
 
-LXD is image based and can load images from different image servers.
-In this tutorial, we will use the official [`ubuntu:`](https://cloud-images.ubuntu.com/releases/) image server.
+If you prefer to use the LXD UI, expand and follow the steps below.
 
-You can list all images (long list) that are available on this image server with:
+````{dropdown} View steps to enable the LXD UI
 
-    lxc image list ubuntu:
+1. By default, LXD is exposed through a Unix socket only and is not accessible over HTTPS. To access and manage LXD through a web browser using HTTPS, we must set the {config:option}`server-core:core.https_address` server configuration option. Run:
 
-You can list the images used in this tutorial with:
+```bash
+lxc config set core.https_address :8443
+```
 
-    lxc image list ubuntu: 24.04 architecture=$(uname -m)
+```{include} ../howto/access_ui.md
+:start-after: <!-- Include start access UI -->
+:end-before: <!-- Include end access UI -->
+```
+````
 
-See {ref}`images` for more information about the images that LXD uses.
+Most of the following sections include sets of tabs. When the `UI` tab is available, use the instructions in that tab.
 
-Now, let's start by launching a few instances.
-With *instance*, we mean either a container or a virtual machine.
-See {ref}`containers-and-vms` for information about the difference between the two instance types.
+(tutorial-create-instances)=
+## Create instances
 
-For managing instances, we use the LXD command line client `lxc`.
-See [About `lxd` and `lxc`](lxd-lxc) if you are confused about when to use the `lxc` command and when to use the `lxd` command.
+LXD uses images to create instances from either {ref}`local or remote image servers <about-images>`. We will fetch our container images from the remote [`ubuntu:`](https://cloud-images.ubuntu.com/releases/) server, which hosts official Ubuntu images.
 
-1. Launch a container called `first` using the Ubuntu 24.04 LTS image:
+(tutorial-create-containers)=
+### Create and start containers
 
-       lxc launch ubuntu:24.04 first
+`````{tabs}
+````{group-tab} CLI
 
-   ```{note}
-   Launching this container takes a few seconds, because the image must be downloaded and unpacked first.
-   ```
+For managing instances, we use the [`lxc` command instead of `lxd`](lxd-lxc).
 
-1. Launch a container called `second` using the same image:
+The `lxc launch` command creates an instance, then immediately starts it. By default, it creates a container instead of a virtual machine. Use this command to launch a container named `first`, based on the Ubuntu 24.04 LTS image:
 
-       lxc launch ubuntu:24.04 second
+```bash
+lxc launch ubuntu:24.04 first
+```
 
-   ```{note}
-   Launching this container is quicker than launching the first, because the image is already available locally.
-   ```
+This downloads and unpacks the image, then uses it to create and start a container. Since this command does not specify a remote server, the default [`ubuntu:`](https://cloud-images.ubuntu.com/releases/) server is used. Once downloaded, this image is cached temporarily in the local image server.
 
-1. Copy the first container into a container called `third`:
+We can also create an instance without starting it, using the `lxc init` command. Note that this differs from the `lxd init` command you used to initialize LXD.
 
-       lxc copy first third
+Create a container called `second` but do not start it, using the same image as the first:
 
-1. Launch a VM called `ubuntu-vm` using the Ubuntu 24.04 LTS image:
+```bash
+lxc init ubuntu:24.04 second
+```
 
-       lxc launch ubuntu:24.04 ubuntu-vm --vm
+Since the image is now cached locally, this container is created much more quickly than the first.
 
-   ```{note}
-   Even though you are using the same image name to launch the instance, LXD downloads a slightly different image that is compatible with VMs.
-   ```
+To confirm that the containers have been created, run:
 
-1. Check the list of instances that you launched:
+```bash
+lxc list
+```
 
-       lxc list
+You should see both containers you created in the output, with the `first` container in a `RUNNING` state and the `second` container in a `STOPPED` state.
 
-   You will see that all but the third container are running.
-   This is because you created the third container by copying the first, but you didn't start it.
+````
+% End group-tab CLI
 
-   You can start the third container with:
+````{group-tab} UI
 
-       lxc start third
+To create a container, select {guilabel}`Instances` from the main navigation, then click {guilabel}`Create instance`.
 
-1. Query more information about each instance with:
+In the form that opens, name this instance `first`. Click {guilabel}`Browse images` and select the `Ubuntu 24.04 LTS` image. Note that the {guilabel}`Source` for this image is `Ubuntu`, which is the remote [`ubuntu:`](https://cloud-images.ubuntu.com/releases/) server.
 
-       lxc info first
-       lxc info second
-       lxc info third
-       lxc info ubuntu-vm
+Launch the container by clicking the {guilabel}`Create and start` button.
 
-1. We don't need all of these instances for the remainder of the tutorial, so let's clean some of them up:
+This downloads and unpacks the image, then uses it to create and start a container. The image is cached temporarily in the local image server.
 
-   1. Stop the second container:
+Create another container named `second`, using the same image. This time, click {guilabel}`Create` instead of {guilabel}`Create and start`. This container will be created but not started.
 
-          lxc stop second
+Since the image is now cached locally, this container is created much more quickly than the first.
 
-   1. Delete the second container:
+````
+`````
 
-          lxc delete second
+(tutorial-create-vm)=
+## Create and start a VM
 
-   1. Delete the third container:
+Next, let's launch a VM using the Ubuntu 24.04 LTS image.
 
-          lxc delete third
+Although we will use the same image name as we used when creating a container, LXD will download a variant of the image built specifically for VMs. This image is not yet cached, and it is larger than the container VM, so it will take longer to download.
 
-      Since this container is running, you get an error message that you must stop it first.
-      Alternatively, you can force-delete it:
+`````{tabs}
+````{group-tab} CLI
 
-          lxc delete third --force
+We will use the same `lxc launch` command, this time to create an instance named `ubuntu-vm`. To create it as a VM instead of a container, we must add the `--vm` flag. Run:
+
+```bash
+lxc launch ubuntu:24.04 ubuntu-vm --vm
+```
+
+````
+% End group-tab CLI
+
+````{group-tab} UI
+
+Open the form to create an instance, and set its name to `ubuntu-vm`. Browse for an image. Do not select the the cached Ubuntu 24.04 image at the top, which has a {guilabel}`Type` set to `container`. Instead, select the Ubuntu 24.04 LTS image with the {guilabel}`Type` of `all`, which can be used for VMs.
+
+After you select this image and return to the main creation form, set the {guilabel}`Instance type` to `VM`. Create and start the VM.
+
+```{figure} /images/tutorial/create_vm.png
+:width: 100%
+:alt: Create an Ubuntu 24.04 LTS VM
+
+```
+````
+`````
+
+(tutorial-create-vm-desktop)=
+## Configure, create, and start a desktop VM
+
+A desktop Ubuntu VM is available from the remote [`images:`](https://images.lxd.canonical.com/) server. This server is provided by Canonical for unofficial images of not only Ubuntu variants but other Linux distributions, for testing and development purposes.
+
+The {config:option}`instance-resource-limits:limits.memory` option defaults to 1 GiB for VMs. For the desktop VM to run smoothly, we must allocate a higher memory limit.
+
+`````{tabs}
+````{group-tab} CLI
+
+You can configure instance options during {ref}`creation <instances-create>` or {ref}`afterward <instances-configure>`. We will configure the desktop VM during creation, using the `--config` flag to set {config:option}`instance-resource-limits:limits.memory` to `4GiB`.
+
+Run:
+
+```bash
+lxc launch images:ubuntu/24.04/desktop ubuntu-desktop --vm --config limits.memory=4GiB
+```
+
+```{tip}
+This is a large image and can take a while to download. If you like, you can open a separate terminal and continue with the next sections of the tutorial while you wait for the download to finish.
+```
+
+Once the VM has launched, confirm that its memory limit is set to `4 GiB`:
+
+```bash
+lxc config get ubuntu-desktop limits.memory
+```
+````
+
+% End group-tab CLI
+
+````{group-tab} UI
+Open the form to create a new instance. Name it `ubuntu-desktop`.
+
+Browse for its image, and filter by variant `desktop` to find the Ubuntu 24.04 LTS desktop image. Note that its {guilabel}`Source` is `LXD Images`, meaning that it uses the remote [`images:`](https://images.lxd.canonical.com/) server. Select this image.
+
+Next, go to {guilabel}`Advanced` > {guilabel}`Resource limits` and set the {guilabel}`Memory limit` to 4 GiB.
+
+Finally, click {guilabel}`Create and start` to start the VM.
+
+````
+`````
+
+(tutorial-inspect)=
+## Inspect instances
+
+`````{tabs}
+````{group-tab} CLI
+
+List all the instances that you created:
+
+```bash
+lxc list
+```
+
+The output tells you the name, state, IP addresses, instance type, and number of snapshots for each instance.
+
+You can retrieve further information about each instance with `lxc info`, including its architecture, process ID, usage data, and more. Run:
+
+```bash
+lxc info first
+```
+
+````
+% End group-tab CLI
+
+````{group-tab} UI
+
+View the list of instances that you created:
+
+```{figure} /images/tutorial/instances.png
+:width: 100%
+:alt: List of instances
+```
+
+This list tells you the name, instance type, description, IPv4 address, and status for each instance. When you hover over an instance row, icons appear to start, restart, freeze (pause), or stop the instance.
+
+Click one of the rows (but not on the instance name) to view the instance summary panel:
+
+```{figure} /images/tutorial/instance_summary.png
+:width: 100%
+:alt: Information about an instance in the instance summary
+```
+
+This panel provides more information, including the instance's architecture and process ID.
+
+In either the list of instances or the instance summary panel, click the name of the instance to view its detail page. The {guilabel}`Overview` tab displays general information about the instance, including its architecture, process ID, creation date, and usage data. You can also view the instance's network, devices, and profiles here.
+
+Click the {guilabel}`Configuration` tab. From here, you can both view and edit the instance configuration details. You can also click the {guilabel}`YAML Configuration` toggle at the bottom of this tab to view and edit the full YAML representation of the instance configuration:
+
+```{figure} /images/tutorial/yaml_configuration.png
+:width: 100%
+:alt: YAML configuration of an instance
+```
+
+The {guilabel}`Console` tab is mainly useful for viewing information from the startup process of an instance, and for viewing the graphic console of a desktop VM. Open this tab for the `ubuntu-desktop` VM to see that you can access the graphic console.
+
+You can view and download log files from the {guilabel}`Logs` tab. Running instances log only limited information by default. More log files are added if an instance ends up in an error state.
+
+We will explore the {guilabel}`Terminal` and {guilabel}`Snapshots` tabs later in this tutorial. For now, click the word {guilabel}`Instances` at the top of this page to return to the list of instances.
+
+````
+`````
+
+(tutorial-start)=
+### Start a stopped instance
+
+`````{tabs}
+````{group-tab} CLI
+
+When you ran `lxc list`, you saw that the `second` container's state is `STOPPED`, because we used `lxc init` to create the container instead of `lxc launch`.
+
+Start the `second` container:
+
+```bash
+lxc start second
+```
+
+Run `lxc list` again to confirm that it is now in a `RUNNING` state.
+
+````
+% End group-tab CLI
+
+````{group-tab} UI
+
+In the list of instances, you should see that the `second` container's state is `Stopped`, because you created the container but did not start it.
+
+Start the `second` container by clicking the {guilabel}`Start` button (▷) that appears when you hover over its row.
+
+````
+`````
 
 See {ref}`instances-create` and {ref}`instances-manage` for more information.
 
+(tutorial-configure)=
 ## Configure instances
 
-There are several limits and configuration options that you can set for your instances.
-See {ref}`instance-options` for an overview.
+Each instance created inherits a default set of configuration options. You can customize these options for each instance. See {ref}`instance-options` for a list of available options.
 
-Let's create another container with some resource limits:
+Earlier, we set the {config:option}`instance-resource-limits:limits.memory` option for the `ubuntu-desktop` VM during its creation. We can also update an instance's configuration after creation.
 
-1. Launch a container and limit it to one vCPU and 192 MiB of RAM:
+As an example, let's reduce the `second` container's resource limits. Follow the instructions below to update its {config:option}`instance-resource-limits:limits.cpu` to `1`, and its {config:option}`instance-resource-limits:limits.memory` to `192MiB`.
 
-       lxc launch ubuntu:24.04 limited --config limits.cpu=1 --config limits.memory=192MiB
+`````{tabs}
+````{group-tab} CLI
 
-1. Check the current configuration and compare it to the configuration of the first (unlimited) container:
+Run:
 
-       lxc config show limited
-       lxc config show first
+```bash
+lxc config set second limits.cpu=1 limits.memory=192MiB
+```
 
-1. Check the amount of free and used memory on the parent system and on the two containers:
+To confirm that the options have been set, use the `lxc config get` command for each option:
 
-       free -m
-       lxc exec first -- free -m
-       lxc exec limited -- free -m
+```bash
+lxc config get second limits.cpu
+lxc config get second limits.memory
+```
 
-   ```{note}
-   The total amount of memory is identical for the parent system and the first container, because by default, the container inherits the resources from its parent environment.
-   The limited container, on the other hand, has only 192 MiB available.
-   ```
+You can also use the `lxc config show` command to view values for all the options. Run:
 
-1. Check the number of CPUs available on the parent system and on the two containers:
+```bash
+lxc config show second
+```
 
-       nproc
-       lxc exec first -- nproc
-       lxc exec limited -- nproc
+````
+% End group-tab CLI
 
-   ```{note}
-   Again, the number is identical for the parent system and the first container, but reduced for the limited container.
-   ```
+````{group-tab} UI
+Go to the detail page for the `second` container, then its {guilabel}`Configuration` tab.
 
-1. You can also update the configuration while your container is running:
+From the {guilabel}`Resource limits` section, override the `Exposed CPU limit` to a `number` of `1`.
 
-   1. Configure a memory limit for your container:
+Override the `Memory limit` to an `absolute` value of 192. Change the dropdown value from `GiB` to `MiB`.
 
-          lxc config set limited limits.memory=128MiB
+Save the updated configuration, then confirm that you see the updated values reflected in the {guilabel}`Configuration` tab.
 
-   1. Check that the configuration has been applied:
+````
+`````
 
-          lxc config show limited
+(tutorial-shell)=
+## Open an interactive shell into instances
 
-   1. Check the amount of memory that is available to the container:
+Thus far, we have only acted upon instances from outside of them, from the host system. It's time to see what we can do inside an instance.
 
-          lxc exec limited -- free -m
+First, let's run a couple of standard Linux commands on your host system. The first command below displays memory information in megabytes, and the second displays the number of available CPUs.
 
-      Note that the number has changed.
+In a terminal, run:
 
-1. Depending on the instance type and the storage drivers that you use, there are more configuration options that you can specify.
-   For example, you can configure the size (quota) of the root disk device for a VM:
+```bash
+free -m
+nproc
+```
 
-   1. Check the current size of the root disk device of the Ubuntu VM:
+Take note of the outputs. We will compare them to the outputs from the same commands run within your instances.
 
-      ```{terminal}
-      :input: lxc exec ubuntu-vm -- df -h
+`````{tabs}
+````{group-tab} CLI
 
-      Filesystem      Size  Used Avail Use% Mounted on
-      /dev/root       9.6G  1.4G  8.2G  15% /
-      tmpfs           483M     0  483M   0% /dev/shm
-      tmpfs           193M  604K  193M   1% /run
-      tmpfs           5.0M     0  5.0M   0% /run/lock
-      tmpfs            50M   14M   37M  27% /run/lxd_agent
-      /dev/sda15      105M  6.1M   99M   6% /boot/efi
-      ```
+Use `lxc shell` to open an interactive shell into the `first` container:
 
-   1. Override the size of the root disk device:
+```bash
+lxc shell first
+```
 
-          lxc config device override ubuntu-vm root size=30GiB
+Notice that your command prompt has changed. You are now logged in as `root` inside the `first` instance.
 
-   1. Restart the VM:
+In this shell session, run the same commands as you did on the host:
 
-          lxc restart ubuntu-vm
+```bash
+free -m
+nproc
+```
 
-   1. Check the size of the root disk device again:
+Note that the total memory returned by `free -m` and the value returned by `nproc` are identical for the host system and the `first` container. This is because by default, containers inherit the resources from their host environment.
 
-       ```{terminal}
-       :input: lxc exec ubuntu-vm -- df -h
+Next, exit the `first` container:
 
-       Filesystem      Size  Used Avail Use% Mounted on
-       /dev/root        29G  1.4G   28G   5% /
-       tmpfs           483M     0  483M   0% /dev/shm
-       tmpfs           193M  588K  193M   1% /run
-       tmpfs           5.0M     0  5.0M   0% /run/lock
-       tmpfs            50M   14M   37M  27% /run/lxd_agent
-       /dev/sda15      105M  6.1M   99M   6% /boot/efi
-       ```
+```bash
+exit
+```
 
-See {ref}`instances-configure` and {ref}`instance-config` for more information.
+Enter an interactive shell into the `second` container:
 
-## Interact with instances
+```bash
+lxc shell second
+```
 
-You can interact with your instances by running commands in them (including an interactive shell) or accessing the files in the instance.
+Then in the `second` container, run the same commands:
 
-Start by launching an interactive shell in your instance:
+```bash
+free -m
+nproc
+```
 
-1. Run the `bash` command in your container:
+For the `second` container, notice that only `192 MiB` total memory and `1` CPU is available. These are the options that we configured for this container earlier.
 
-       lxc exec first -- bash
+You can try other commands to interact with your instance. For example, enter the following command to display information about the operating system:
 
-1. Enter some commands, for example, display information about the operating system:
+```bash
+cat /etc/*release
+```
 
-       cat /etc/*release
+Or have some fun:
 
-1. Exit the interactive shell:
+```bash
+apt update
+apt install fortune -y
+/usr/games/fortune
+```
 
-       exit
+When you're done, exit the shell:
 
-Instead of logging on to the instance and running commands there, you can run commands directly from the host.
+```bash
+exit
+```
 
-For example, you can install a command line tool on the instance and run it:
+Your command prompt should return to that of the host system. From here, try out one other way to run commands inside an instance: the `lxc exec` command. This command is used to execute a single command inside an instance from the host system, without opening a shell. Run:
 
-    lxc exec first -- apt-get update
-    lxc exec first -- apt-get install sl -y
-    lxc exec first -- /usr/games/sl
+```bash
+lxc exec second -- free -m
+```
+
+Notice that the output is the same as if you had run `lxc shell second` then the `free -m` command from inside the `second` container.
 
 See {ref}`run-commands` for more information.
 
-You can also access the files from your instance and interact with them:
+````
+% End group-tab CLI
 
-1. Pull a file from the container:
+````{group-tab} UI
 
-       lxc file pull first/etc/hosts .
+Go to the {guilabel}`Terminal` tab for the `first` container. This tab provides an interactive shell into an instance.
 
-1. Add an entry to the file:
+From there, run the same commands as you did on the host:
 
-       echo "1.2.3.4 my-example" >> hosts
+```bash
+free -m
+nproc
+```
 
-1. Push the file back to the container:
+Note that the total memory returned by `free -m` and the value returned by `nproc` are identical for the host system and the `first` container. This is because by default, containers inherit the resources from their host environment.
 
-       lxc file push hosts first/etc/hosts
+Go to the {guilabel}`Terminal` tab for the `second` container and enter the same commands. Notice that only `192 MiB` total memory and `1` CPU is available. These are the options that we configured for this container earlier.
 
-1. Use the same mechanism to access log files:
+You can try other commands to interact with your instance. For example, enter the following command to display information about the operating system:
 
-       lxc file pull first/var/log/syslog - | less
+```bash
+cat /etc/*release
+```
 
-   ```{note}
-   Press `q` to exit the `less` command.
-   ```
+Or have some fun:
+
+```bash
+apt update
+apt install fortune
+/usr/games/fortune
+```
+
+````
+`````
+
+(tutorial-files)=
+## Access files
+
+To access files inside an instance from your host system, use the CLI.
+
+As an example, let's create a file in the `first` container, pull it out to the host system, modify it, then push it back to the container.
+
+From the host system, use `lxc exec` to create an empty `helloworld` file in the `first` container:
+
+```bash
+lxc exec first -- touch helloworld.txt
+```
+
+Confirm that the file is empty:
+
+```bash
+lxc exec first -- cat helloworld.txt
+```
+
+Since the `touch` command creates an empty file, the `cat` command should display no output.
+
+Pull this file from the `first` container to the current directory of your host system:
+
+```bash
+lxc file pull first/root/helloworld.txt .
+```
+
+Add content to the file:
+
+```bash
+echo "Hello world" > helloworld.txt
+```
+
+Push the file back to the container:
+
+```bash
+lxc file push helloworld.txt first/root/helloworld.txt
+```
+
+Now again view the content of the file on the container:
+
+```bash
+lxc exec first -- cat helloworld.txt
+```
+
+You should see the line that you added:
+
+```{terminal}
+:input: lxc exec first -- cat helloworld.txt
+:user: your-user
+:host: host-system
+
+Hello world!
+```
 
 See {ref}`instances-access-files` for more information.
 
-## Manage snapshots
+(tutorial-snapshots)=
+## Back up and restore instances by creating snapshots
 
-You can create a snapshot of your instance, which makes it easy to restore the instance to a previous state.
+You can back up your instance by creating a snapshot, then use it later to restore the instance to a saved state.
 
-1. Create a snapshot called "clean":
+`````{tabs}
+````{group-tab} CLI
 
-       lxc snapshot first clean
+The following command creates a snapshot called "clean" that saves the current state of your instance. Run:
 
-1. Confirm that the snapshot has been created:
+```bash
+lxc snapshot first clean
+```
 
-       lxc list first
-       lxc info first
+Let's see how many snapshots are available for the `first` container:
 
-   ```{note}
-   `lxc list` shows the number of snapshots.
-   `lxc info` displays information about each snapshot.
-   ```
+```bash
+lxc list first
+```
 
-1. Break the container:
+The `SNAPSHOTS` column shows the number of available snapshots.
 
-       lxc exec first -- rm /usr/bin/bash
+Let's find out more information about the available snapshots for the `first` container:
 
-1. Confirm the breakage:
+```bash
+lxc info first
+```
 
-       lxc exec first -- bash
+At the bottom of the output, a `Snapshots` table displays details about available snapshots.
 
-   ```{note}
-   You do not get a shell, because you deleted the `bash` command.
-   ```
+If you accidentally do something to break an instance, or wish to revert recent changes to it, you can restore a previous state through a snapshot. To see how this works, let's deliberately break the `first` container by deleting the `bash` command from it:
 
-1. Restore the container to the state of the snapshot:
+```bash
+lxc exec first -- rm /usr/bin/bash
+```
 
-       lxc restore first clean
+Confirm that you can no longer use the bash command on `first`:
 
-1. Confirm that everything is back to normal:
+```bash
+lxc exec first -- bash
+```
 
-       lxc exec first -- bash
-       exit
+This results in an error because the `bash` command no longer exists. Luckily, we have a snapshot we can use to restore the container to a previous state. Run:
 
-1. Delete the snapshot:
+```bash
+lxc restore first clean
+```
 
-       lxc delete first/clean
+Confirm that you can now enter the `bash` shell:
 
-See {ref}`instances-snapshots` for more information.
+```bash
+lxc exec first -- bash
+```
 
-<!-- Include start tutorial next steps -->
+Then exit the shell:
 
+```bash
+exit
+```
+
+When you no longer need a snapshot, you can delete it. Go ahead and delete the `clean` snapshot:
+
+```bash
+lxc delete first/clean
+```
+
+````
+% End group-tab CLI
+
+````{group-tab} UI
+
+Go to the instance detail page of the `first` container and select the {guilabel}`Snapshots` tab.
+
+Click {guilabel}`Create snapshot` and enter the snapshot name `clean`. Leave the other options unchanged and create the snapshot. Confirm that the snapshot is now available in the {guilabel}`Snapshots` tab.
+
+If you accidentally do something to break an instance, or wish to revert recent changes to it, you can restore a previous state through a snapshot. To see how this works, let's deliberately break the `first` container by deleting the `bash` command from it.
+
+Go to the {guilabel}`Terminal` tab and break the container:
+
+```bash
+rm /usr/bin/bash
+```
+
+Refresh the page, and you'll see the following error:
+
+```{figure} /images/tutorial/broken_terminal.png
+:width: 100%
+:alt: Error when trying to load the terminal
+```
+
+The UI cannot open a terminal for your container anymore, because you deleted the `bash` command. Luckily, we have a snapshot we can use to restore the container to a previous state.
+
+Return to the {guilabel}`Snapshots` tab. From there, restore the container to the state of the `clean` snapshot by clicking the {guilabel}`Restore snapshot` button ({{restore_button}}) next to it.
+
+Confirm that the container was reverted to its previous unbroken state by returning to the {guilabel}`Terminal` tab. The terminal should now load.
+
+When you no longer need a snapshot, you can delete it. In the {guilabel}`Snapshots` tab, delete the snapshot by clicking the {guilabel}`Delete snapshot` button ({{delete_button}}) next to it.
+
+To learn more about instance snapshots, see: {ref}`instances-snapshots`.
+
+````
+`````
+
+(tutorial-delete)=
+## Optional: Stop and delete all instances
+
+Congratulations! You have reached the end of this tutorial and acquired a greater understanding of LXD's usage and capabilities along the way.
+
+If you wish, you can clean up the instances you created.
+
+```{admonition} Take caution when deleting instances
+:class: warning
+Deleting an instance is irreversible. All snapshots and other information associated with the instance will be lost.
+```
+
+`````{tabs}
+````{group-tab} CLI
+
+You must first stop an instance before you can delete it:
+
+```bash
+lxc stop ubuntu-vm
+lxc delete ubuntu-vm
+```
+
+You can also use the `--force` flag to delete an instance without stopping it:
+
+```bash
+lxc delete ubuntu-desktop --force
+```
+
+In the same way, you can delete the other instances that you created in this tutorial (`first` and `second`).
+
+````
+% End group-tab CLI
+
+````{group-tab} UI
+
+Click the checkbox to the left of each instance you want to delete. Use the buttons that appear at the top of the page to first stop then delete all checked instances.
+````
+`````
+
+(tutorial-snap-updates)=
+## Optional: Hold snap updates
+
+By default, snaps update automatically when a new release is published to their channel. In production environments, we strongly recommend that you disable automatic updates for the LXD snap and apply them manually. This approach allows you to schedule maintenance windows and avoid unplanned downtime.
+
+To hold updates for the LXD snap indefinitely, run on your host machine:
+
+```bash
+sudo snap refresh --hold lxd
+```
+
+Once updates are on hold, manually update LXD regularly to benefit from security and bug fixes.
+
+If you do not intend to run a production deployment of LXD, you might not need this. To remove the hold and restore automatic updates, run:
+
+```bash
+sudo snap refresh --unhold lxd
+```
+
+For more information on managing the LXD snap and its updates, see: {ref}`howto-snap`.
+
+(tutorial-next)=
 ## Next steps
 
-Now that you've done your first experiments with LXD, you should read up on important concepts in the {ref}`explanation` section and check out the {ref}`howtos` to start working with LXD!
-
-<!-- Include end tutorial next steps -->
+Now that you've completed your first steps with LXD, you have a general idea of how LXD works. Next, read up on important concepts in the {ref}`explanation` section and check out more advanced use cases in our {ref}`howtos`. You can also find a wealth of information in the {ref}`reference` section, including the {doc}`../api`.
