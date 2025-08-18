@@ -53,6 +53,10 @@ var powerFlexVolTypePrefixes = map[VolumeType]string{
 	VolumeTypeCustom:    "u",
 }
 
+// powerFlexSnapshotPrefix is a prefix used ONLY for actual PowerFlex snapshots of a volume.
+// It is NOT used for snapshots made when copying a volume with powerflex.snapshot_copy=true.
+var powerFlexSnapshotPrefix = "s"
+
 // powerFlexError contains arbitrary error responses from PowerFlex.
 // The maps values can be of various types.
 // Reading of the actual values is performed by specific receiver
