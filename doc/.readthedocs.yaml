@@ -15,7 +15,6 @@ build:
     pre_install:
       - pip install gitpython pyyaml
       - cd doc && python3 .sphinx/build_requirements.py
-      - git fetch --unshallow || true
     pre_build:
       - go build -ldflags "-s -w" -o trimpath -o lxc.bin ./lxc
 
