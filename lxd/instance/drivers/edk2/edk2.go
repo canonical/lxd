@@ -34,6 +34,9 @@ const (
 
 	// CSM is a firmware with the UEFI Compatibility Support Module enabled to boot BIOS-only operating systems.
 	CSM
+
+	// NOEFI is used for a faster boot without EFI using U-Boot firmware, which provides less features .
+	NOEFI
 )
 
 // OVMFDebugFirmware is the debug version of the "preferred" firmware.
@@ -41,6 +44,13 @@ const OVMFDebugFirmware = "OVMF_CODE.4MB.debug.fd"
 
 var architectureInstallations = map[int][]Installation{
 	osarch.ARCH_64BIT_INTEL_X86: {{
+		Paths: GetenvUBootPaths("/usr/share/qemu"),
+		Usage: map[FirmwareUsage][]FirmwarePair{
+			NOEFI: {
+				{Code: "u-boot-x86_64.rom", Vars: "u-boot-x86_64.rom"},
+			},
+		},
+	}, {
 		Paths: GetenvEdk2Paths("/usr/share/OVMF"),
 		Usage: map[FirmwareUsage][]FirmwarePair{
 			GENERIC: {
@@ -205,6 +215,25 @@ func GetenvEdk2Paths(defaultPath string) []string {
 	var qemuFwPaths []string
 
 	for _, v := range []string{"LXD_QEMU_FW_PATH", "LXD_OVMF_PATH"} {
+		searchPaths := os.Getenv(v)
+		if searchPaths == "" {
+			continue
+		}
+
+		qemuFwPaths = append(qemuFwPaths, strings.Split(searchPaths, ":")...)
+	}
+
+	return append(qemuFwPaths, defaultPath)
+}
+
+// GetenvUBootPaths returns a list of paths to search for non-EFI firmwares.
+// If LXD_U_BOOT_FW_PATH or LXD_U_BOOT_PATH env vars are set then these values are split on ":" and prefixed to the
+// returned slice of paths.
+// The defaultPath argument is returned as the last element in the slice.
+func GetenvUBootPaths(defaultPath string) []string {
+	var qemuFwPaths []string
+
+	for _, v := range []string{"LXD_U_BOOT_FW_PATH", "LXD_U_BOOT_PATH"} {
 		searchPaths := os.Getenv(v)
 		if searchPaths == "" {
 			continue
