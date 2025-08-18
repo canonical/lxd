@@ -375,34 +375,9 @@ func GetIdentityID(ctx context.Context, tx *sql.Tx, authMethod AuthMethod, ident
 	return id, nil
 }
 
-// IdentityExists checks if a identity with the given key exists.
-// generator: identity Exists
-func IdentityExists(ctx context.Context, tx *sql.Tx, authMethod AuthMethod, identifier string) (bool, error) {
-	_, err := GetIdentityID(ctx, tx, authMethod, identifier)
-	if err != nil {
-		if api.StatusErrorCheck(err, http.StatusNotFound) {
-			return false, nil
-		}
-
-		return false, err
-	}
-
-	return true, nil
-}
-
 // CreateIdentity adds a new identity to the database.
 // generator: identity Create
 func CreateIdentity(ctx context.Context, tx *sql.Tx, object Identity) (int64, error) {
-	// Check if a identity with the same key exists.
-	exists, err := IdentityExists(ctx, tx, object.AuthMethod, object.Identifier)
-	if err != nil {
-		return -1, fmt.Errorf("Failed to check for duplicates: %w", err)
-	}
-
-	if exists {
-		return -1, api.StatusErrorf(http.StatusConflict, "This \"identity\" entry already exists")
-	}
-
 	args := make([]any, 5)
 
 	// Populate the statement arguments.
@@ -419,8 +394,12 @@ func CreateIdentity(ctx context.Context, tx *sql.Tx, object Identity) (int64, er
 	}
 
 	// Execute the statement.
-	result, err := stmt.Exec(args...)
+	result, err := stmt.ExecContext(ctx, args...)
 	if err != nil {
+		if query.IsConflictErr(err) {
+			return -1, api.NewStatusError(http.StatusConflict, "This \"identity\" entry already exists")
+		}
+
 		return -1, fmt.Errorf("Failed to create \"identity\" entry: %w", err)
 	}
 
@@ -440,7 +419,7 @@ func DeleteIdentity(ctx context.Context, tx *sql.Tx, authMethod AuthMethod, iden
 		return fmt.Errorf("Failed to get \"identityDeleteByAuthMethodAndIdentifier\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(authMethod, identifier)
+	result, err := stmt.ExecContext(ctx, authMethod, identifier)
 	if err != nil {
 		return fmt.Errorf("Delete \"identity\": %w", err)
 	}
@@ -467,7 +446,7 @@ func DeleteIdentitys(ctx context.Context, tx *sql.Tx, name string, identityType 
 		return fmt.Errorf("Failed to get \"identityDeleteByNameAndType\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(name, identityType)
+	result, err := stmt.ExecContext(ctx, name, identityType)
 	if err != nil {
 		return fmt.Errorf("Delete \"identity\": %w", err)
 	}
@@ -493,8 +472,12 @@ func UpdateIdentity(ctx context.Context, tx *sql.Tx, authMethod AuthMethod, iden
 		return fmt.Errorf("Failed to get \"identityUpdate\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(object.AuthMethod, object.Type, object.Identifier, object.Name, object.Metadata, id)
+	result, err := stmt.ExecContext(ctx, object.AuthMethod, object.Type, object.Identifier, object.Name, object.Metadata, id)
 	if err != nil {
+		if query.IsConflictErr(err) {
+			return api.NewStatusError(http.StatusConflict, "A \"identity\" entry already exists with these properties")
+		}
+
 		return fmt.Errorf("Update \"identity\" entry failed: %w", err)
 	}
 

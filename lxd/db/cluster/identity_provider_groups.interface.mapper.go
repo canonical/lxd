@@ -17,14 +17,6 @@ type IdentityProviderGroupGenerated interface {
 	// generator: identity_provider_group GetOne
 	GetIdentityProviderGroup(ctx context.Context, tx *sql.Tx, name string) (*IdentityProviderGroup, error)
 
-	// GetIdentityProviderGroupID return the ID of the identity_provider_group with the given key.
-	// generator: identity_provider_group ID
-	GetIdentityProviderGroupID(ctx context.Context, tx *sql.Tx, name string) (int64, error)
-
-	// IdentityProviderGroupExists checks if a identity_provider_group with the given key exists.
-	// generator: identity_provider_group Exists
-	IdentityProviderGroupExists(ctx context.Context, tx *sql.Tx, name string) (bool, error)
-
 	// CreateIdentityProviderGroup adds a new identity_provider_group to the database.
 	// generator: identity_provider_group Create
 	CreateIdentityProviderGroup(ctx context.Context, tx *sql.Tx, object IdentityProviderGroup) (int64, error)
@@ -32,10 +24,6 @@ type IdentityProviderGroupGenerated interface {
 	// DeleteIdentityProviderGroup deletes the identity_provider_group matching the given key parameters.
 	// generator: identity_provider_group DeleteOne-by-Name
 	DeleteIdentityProviderGroup(ctx context.Context, tx *sql.Tx, name string) error
-
-	// UpdateIdentityProviderGroup updates the identity_provider_group matching the given key parameters.
-	// generator: identity_provider_group Update
-	UpdateIdentityProviderGroup(ctx context.Context, tx *sql.Tx, name string, object IdentityProviderGroup) error
 
 	// RenameIdentityProviderGroup renames the identity_provider_group matching the given key parameters.
 	// generator: identity_provider_group Rename
