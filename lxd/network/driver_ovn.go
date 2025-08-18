@@ -5982,7 +5982,7 @@ func (n *ovn) checkInternalAddressNotInUse(listenAddress net.IP) (isInternal boo
 		return false, fmt.Errorf("OVN network %q is missing %q config option", n.name, netIPKey)
 	}
 
-	netIP, netSubnet, err := net.ParseCIDR(n.config[netIPKey])
+	netIP, netSubnet, err := net.ParseCIDR(netIPAddress)
 	if err != nil {
 		return false, err
 	}
@@ -5997,8 +5997,7 @@ func (n *ovn) checkInternalAddressNotInUse(listenAddress net.IP) (isInternal boo
 		return true, fmt.Errorf("Listen address %q is already in use by %q of network %q", listenAddress, netIPKey, n.name)
 	}
 
-	var forwards map[int64]string
-	var loadBalancers map[int64]string
+	var forwards, loadBalancers map[int64]string
 
 	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		forwards, err = tx.GetNetworkForwardListenAddresses(ctx, n.id, false)

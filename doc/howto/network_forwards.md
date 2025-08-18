@@ -21,6 +21,8 @@ This feature can be useful if you have limited external IP addresses and want to
 - Forward traffic from different port numbers of the external address to different instances (and optionally different ports on those instances).
   This method allows to "share" your external IP address and expose more than one instance at a time.
 
+For {ref}`OVN networks <network-ovn>`, network forwards also allow an internal IP address (or specific ports on it) to be forwarded to another internal IP address (or specific ports).
+
 ```{tip}
 Network forwards are very similar to using a {ref}`proxy device<devices-proxy>` in NAT mode.
 
@@ -149,10 +151,12 @@ For both OVN and bridge networks, the listen addresses must not overlap with any
 
 ```{group-tab} OVN network
 
-For an OVN network, the allowed listen addresses must be defined in at least one of the following configuration options, using [CIDR notation](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing):
+For an OVN network, the allowed listen addresses that are external IPs must be defined in at least one of the following configuration options, using [CIDR notation](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing):
 
 - {config:option}`network-bridge-network-conf:ipv4.routes` or {config:option}`network-bridge-network-conf:ipv6.routes` in the OVN network's uplink network configuration
 - {config:option}`project-restricted:restricted.networks.subnets` in the OVN network's project configuration
+
+The allowed internal IPs do not need to be defined. Use any non-conflicting internal IP address available on the OVN network.
 
 ```
 
@@ -184,7 +188,7 @@ lxc network forward create <ovn_network_name> <listen_address>|--allocate=ipv{4,
 - For `<ovn_network_name>`, specify the name of the OVN network on which to create the forward.
 - Immediately following the network name, provide only one of the following for the listen address:
    - A listen IP address allowed by the {ref}`network-forwards-listen-addresses` (no port number)
-   - The `--allocate=` flag with a value of either `ipv4` or `ipv6` for automatic allocation of an allowed IP address
+   - The `--allocate=` flag with a value of either `ipv4` or `ipv6` for automatic allocation of an allowed external IP address
 - Optionally provide a default `target_address` (no port number). Any traffic that does not match a port specification is forwarded to this address. This must be an IP address within the OVN network's subnet; typically, the static IP address of an instance is used.
 - Optionally provide custom user.* keys to be stored in the network forward's configuration.
 

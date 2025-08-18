@@ -9,13 +9,13 @@ discourse: lxc:[Network&#32;load-balancers&#32;(OVN)](14317)
 Network load balancers are currently available for the {ref}`network-ovn`.
 ```
 
-Network load balancers are similar to forwards in that they allow specific ports on an external IP address to be forwarded to specific ports on internal IP addresses in the network that the load balancer belongs to.
+Network load balancers are similar to forwards in that they allow specific ports on an IP address (external or internal) to be forwarded to specific ports on internal IP addresses in the same network as the load balancer.
 
 The difference between load balancers and forwards is that load balancers can be used to share ingress traffic between multiple internal backend addresses. This feature can be useful if you have limited external IP addresses or want to share a single external address and ports over multiple instances.
 
 A load balancer is made up of:
 
-- A single external listen IP address.
+- A single listen IP address (external or internal).
 - One or more named backends consisting of an internal IP and optional port ranges.
 - One or more listen port ranges that are configured to forward to one or more named backends.
 
@@ -58,10 +58,16 @@ Network load balancers have the following properties:
 
 The following requirements must be met for valid listen addresses:
 
+For external listen IP addresses:
+
 - Allowed listen addresses must be defined in the uplink network's `ipv{n}.routes` settings or the project's {config:option}`project-restricted:restricted.networks.subnets` setting.
    - If you specify a listen address when creating a load balancer, it must be within the range of allowed addresses.
    - If you do not specify a listen address, you must use either `--allocate ipv4` or `--allocate ipv6`. This will allocate a listen address from the range of allowed addresses.
 - The listen address must not overlap with a subnet that is in use with another network or entity in that network.
+
+For internal listen IP addresses:
+
+- Allowed listen addresses must not be used by the associated network's gateway, other existing load balancers and network forwards, or instance NICs.
 
 (network-load-balancers-backend-specifications)=
 ## Configure backends
