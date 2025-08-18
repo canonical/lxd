@@ -1258,5 +1258,15 @@ func (d *powerflex) getVolumeName(vol Volume) (string, error) {
 		volumeTypePrefix = volumeTypePrefix + "_"
 	}
 
-	return volumeTypePrefix + volName + suffix, nil
+	volName = volumeTypePrefix + volName + suffix
+
+	// If volume is snapshot, prepend snapshot prefix to its name.
+	// This allows differentiating between snapshots which actually belong to its parent volume
+	// and snapshots which were being created as part of copying a volume using powerflex.snapshot_copy.
+	// The latter are snapshots of the original volume stand on their own and don't use the snapshot prefix.
+	if vol.IsSnapshot() {
+		volName = powerFlexSnapshotPrefix + volName
+	}
+
+	return volName, nil
 }
