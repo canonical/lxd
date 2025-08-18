@@ -17,6 +17,10 @@ on:
         required: true
         type: boolean
         default: true
+      tmate-debug:
+        description: Use tmate debugging session on integration test failure.
+        type: boolean
+        default: false
   schedule:
     - cron: '0 0 * * *'  # Test TICS daily
 
@@ -418,6 +422,14 @@ jobs:
           path: ${{env.GOCOVERDIR}}
           retention-days: 1
         if: env.GOCOVERDIR != ''
+
+      - name: Tmate debugging session
+        if: ${{ failure() && inputs.tmate-debug }}
+        timeout-minutes: 30
+        uses: mxschmitt/action-tmate@7b6a61a73bbb9793cb80ad69b8dd8ac19261834c # v3.22
+        with:
+          # Never allow public SSH access
+          limit-access-to-actor: true
 
   tics:
     name: Tiobe TICS
