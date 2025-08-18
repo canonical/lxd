@@ -206,6 +206,16 @@ sudo snap set lxd daemon.user.group=lxdusers
 
 You can confine users to specific projects, which can be configured with stricter restrictions to prevent misuse. For details, see: {ref}`projects-confine-users`, {ref}`exp-projects`, and {ref}`restricted-tls-certs`.
 
+(howto-security-harden-name-leakage)=
+### Prevent name leakage
+
+The default server configuration makes it possible to list all cgroups on a system, and by extension, all running containers. Prevent container name leakage by blocking access to `/sys/kernel/slab` and `/proc/sched_debug` before you start any containers. To do so, run:
+
+```bash
+chmod 400 /proc/sched_debug
+chmod 700 /sys/kernel/slab/
+```
+
 (howto-security-harden-host)=
 ## Harden the LXD host OS
 
