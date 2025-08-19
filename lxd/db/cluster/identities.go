@@ -140,8 +140,6 @@ func (i IdentityType) ActiveType() (IdentityType, error) {
 	switch i {
 	case api.IdentityTypeCertificateClientPending:
 		return api.IdentityTypeCertificateClient, nil
-	case api.IdentityTypeCertificateClusterLinkPending:
-		return api.IdentityTypeCertificateClusterLink, nil
 	default:
 		return "", fmt.Errorf("Identities of type %q cannot be activated", i)
 	}
