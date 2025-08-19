@@ -697,6 +697,27 @@ func (d *alletra) HasVolume(vol Volume) (bool, error) {
 		return false, err
 	}
 
+	// If volume represents a snapshot, also retrieve (encoded) volume name of the parent,
+	// and check if the snapshot exists.
+	if vol.IsSnapshot() {
+		parentVol := vol.GetParent()
+		parentVolName, err := d.getVolumeName(parentVol)
+		if err != nil {
+			return false, err
+		}
+
+		_, err = d.client().GetVolumeSnapshot(vol.pool, parentVolName, volName)
+		if err != nil {
+			if api.StatusErrorCheck(err, http.StatusNotFound) {
+				return false, nil
+			}
+
+			return false, err
+		}
+
+		return true, nil
+	}
+
 	// Otherwise, check if the volume exists.
 	_, err = d.client().GetVolume(vol.pool, volName)
 	if err != nil {
@@ -982,5 +1003,154 @@ func (d *alletra) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool
 		}
 	}
 
+	return nil
+}
+
+// CreateVolumeSnapshot creates a snapshot of a volume.
+func (d *alletra) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+	return d.createVolumeSnapshot(snapVol, true, op)
+}
+
+// createVolumeSnapshot creates a snapshot of a volume. If snapshotVMfilesystem is false, a VM's filesystem volume
+// is not copied.
+func (d *alletra) createVolumeSnapshot(snapVol Volume, snapshotVMfilesystem bool, op *operations.Operation) error {
+	revert := revert.New()
+	defer revert.Fail()
+
+	parentName, _, _ := api.GetParentAndSnapshotName(snapVol.name)
+	sourcePath := GetVolumeMountPath(d.name, snapVol.volType, parentName)
+
+	if filesystem.IsMountPoint(sourcePath) {
+		// Attempt to sync and freeze filesystem, but do not error if not able to freeze (as filesystem
+		// could still be busy), as we do not guarantee the consistency of a snapshot. This is costly but
+		// try to ensure that all cached data has been committed to disk. If we don't then the snapshot
+		// of the underlying filesystem can be inconsistent or, in the worst case, empty.
+		unfreezeFS, err := d.filesystemFreeze(sourcePath)
+		if err == nil {
+			defer func() {
+				err := unfreezeFS()
+				if err != nil {
+					d.logger.Warn("unfreezeFS failed on error path", logger.Ctx{"err": err})
+				}
+			}()
+		}
+	}
+
+	// Create the parent directory.
+	err := createParentSnapshotDirIfMissing(d.name, snapVol.volType, parentName)
+	if err != nil {
+		return err
+	}
+
+	err = snapVol.EnsureMountPath()
+	if err != nil {
+		return err
+	}
+
+	parentVol := snapVol.GetParent()
+	parentVolName, err := d.getVolumeName(parentVol)
+	if err != nil {
+		return err
+	}
+
+	snapVolName, err := d.getVolumeName(snapVol)
+	if err != nil {
+		return err
+	}
+
+	err = d.client().CreateVolumeSnapshot(snapVol.pool, parentVolName, snapVolName)
+	if err != nil {
+		return err
+	}
+
+	revert.Add(func() {
+		err := d.DeleteVolumeSnapshot(snapVol, op)
+		if err != nil {
+			d.logger.Warn("DeleteVolumeSnapshot failed on error path", logger.Ctx{"err": err})
+		}
+	})
+
+	// For VMs, create a snapshot of the filesystem volume too.
+	// Skip if snapshotVMfilesystem is false to prevent overwriting separately copied volumes.
+	if snapVol.IsVMBlock() && snapshotVMfilesystem {
+		fsVol := snapVol.NewVMBlockFilesystemVolume()
+
+		// Set the parent volume's UUID.
+		fsVol.SetParentUUID(snapVol.parentUUID)
+
+		err := d.CreateVolumeSnapshot(fsVol, op)
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() {
+			err := d.DeleteVolumeSnapshot(fsVol, op)
+			if err != nil {
+				d.logger.Warn("DeleteVolumeSnapshot failed on error path", logger.Ctx{"err": err})
+			}
+		})
+	}
+
+	revert.Success()
+	return nil
+}
+
+// DeleteVolumeSnapshot removes a snapshot from the storage device. The volName and snapshotName
+// must be bare names and should not be in the format "volume/snapshot".
+func (d *alletra) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+	parentVol := snapVol.GetParent()
+	parentVolName, err := d.getVolumeName(parentVol)
+	if err != nil {
+		return err
+	}
+
+	snapVolName, err := d.getVolumeName(snapVol)
+	if err != nil {
+		return err
+	}
+
+	// Delete snapshot.
+	err = d.client().DeleteVolumeSnapshot(snapVol.pool, parentVolName, snapVolName)
+	if err != nil {
+		return err
+	}
+
+	mountPath := snapVol.MountPath()
+
+	if snapVol.contentType == ContentTypeFS && shared.PathExists(mountPath) {
+		err = wipeDirectory(mountPath)
+		if err != nil {
+			return err
+		}
+
+		err = os.Remove(mountPath)
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("Failed to remove %q: %w", mountPath, err)
+		}
+	}
+
+	// Remove the parent snapshot directory if this is the last snapshot being removed.
+	err = deleteParentSnapshotDirIfEmpty(d.name, snapVol.volType, parentVol.name)
+	if err != nil {
+		return err
+	}
+
+	// For VM images, delete the filesystem volume too.
+	if snapVol.IsVMBlock() {
+		fsVol := snapVol.NewVMBlockFilesystemVolume()
+		fsVol.SetParentUUID(snapVol.parentUUID)
+
+		err := d.DeleteVolumeSnapshot(fsVol, op)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// RenameVolumeSnapshot renames a volume snapshot.
+func (d *alletra) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op *operations.Operation) error {
+	// Renaming a volume snapshot won't change an actual name of the HPE Alletra volume snapshot.
 	return nil
 }
