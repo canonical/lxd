@@ -10,6 +10,8 @@ test_lxd_benchmark_basic(){
 
   # Initial smoke test.
   lxd-benchmark launch --count 1 --report-file "${report_file}" testimage
+  lxd-benchmark launch --freeze --privileged --count 1 --report-file "${report_file}" testimage
+  lxd-benchmark start --report-file "${report_file}"
   lxd-benchmark delete --report-file "${report_file}"
 
   lxd-benchmark init --count "${count}" --report-file "${report_file}" testimage
@@ -25,7 +27,7 @@ test_lxd_benchmark_basic(){
 
   # Check the number of lines matches the number of commands + the header line
   cat "${report_file}"
-  [ "$(wc -l < "${report_file}")" = "7" ]
+  [ "$(wc -l < "${report_file}")" = "9" ]
 
   # cleanup
   rm "${report_file}"
