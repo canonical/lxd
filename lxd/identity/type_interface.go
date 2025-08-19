@@ -68,12 +68,6 @@ const (
 
 	// identityTypeCertificateClientPending represents identities for which a token has been issued but who have not yet authenticated with LXD.
 	identityTypeCertificateClientPending int64 = 8
-
-	// identityTypeCertificateClusterLink represents cluster links that authenticate using TLS and whose permissions are managed via group ownership.
-	identityTypeCertificateClusterLink int64 = 9
-
-	// identityTypeCertificateClusterLinkPending represents cluster links for which a token has been issued but who have not yet authenticated with a linked LXD cluster.
-	identityTypeCertificateClusterLinkPending int64 = 10
 )
 
 // types is a slice of all identity types that implement the [Type] interface.
@@ -86,8 +80,6 @@ var types = []Type{
 	CertificateMetricsRestricted{},
 	CertificateMetricsUnrestricted{},
 	CertificateServer{},
-	CertificateClientClusterLink{},
-	CertificateClientClusterLinkPending{},
 }
 
 var nameToType = make(map[string]Type, len(types))
