@@ -489,21 +489,17 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 
 	// Local unix socket queries.
 	if r.RemoteAddr == "@" && r.TLS == nil {
-		if w != nil {
-			cred, err := ucred.GetCredFromContext(r.Context())
-			if err != nil {
-				return false, "", "", nil, err
-			}
-
-			u, err := user.LookupId(strconv.FormatUint(uint64(cred.Uid), 10))
-			if err != nil {
-				return true, fmt.Sprint("uid=", cred.Uid), auth.AuthenticationMethodUnix, nil, nil
-			}
-
-			return true, u.Username, auth.AuthenticationMethodUnix, nil, nil
+		cred, err := ucred.GetCredFromContext(r.Context())
+		if err != nil {
+			return false, "", "", nil, err
 		}
 
-		return true, "", auth.AuthenticationMethodUnix, nil, nil
+		u, err := user.LookupId(strconv.FormatUint(uint64(cred.Uid), 10))
+		if err != nil {
+			return true, fmt.Sprint("uid=", cred.Uid), auth.AuthenticationMethodUnix, nil, nil
+		}
+
+		return true, u.Username, auth.AuthenticationMethodUnix, nil, nil
 	}
 
 	// Cluster notification with wrong certificate.
