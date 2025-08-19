@@ -3,6 +3,9 @@ test_lxd_benchmark_basic(){
   local report_file
   report_file="$(mktemp -p "${TEST_DIR}" XXX)"
 
+  # lxd-benchmark should fail if the provided image doesn't exist
+  ! lxd-benchmark launch --count 1 local:does-not-exist 2>/dev/null || false
+
   ensure_import_testimage
 
   # Initial smoke test.
