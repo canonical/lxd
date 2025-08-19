@@ -84,32 +84,6 @@ func LaunchContainers(c lxd.ContainerServer, count int, parallel int, image stri
 	return duration, nil
 }
 
-// CreateContainers create the specified number of containers.
-func CreateContainers(c lxd.ContainerServer, count int, parallel int, fingerprint string, privileged bool) (time.Duration, error) {
-	var duration time.Duration
-
-	batchSize, err := getBatchSize(parallel)
-	if err != nil {
-		return duration, err
-	}
-
-	batchCreate := func(index int, wg *sync.WaitGroup) {
-		defer wg.Done()
-
-		name := getContainerName(count, index)
-
-		err := createContainer(c, fingerprint, name, privileged)
-		if err != nil {
-			logf("Failed to launch container '%s': %s", name, err)
-			return
-		}
-	}
-
-	duration = processBatch(count, batchSize, batchCreate)
-
-	return duration, nil
-}
-
 // GetContainers returns containers created by the benchmark.
 func GetContainers(c lxd.ContainerServer) ([]api.Container, error) {
 	containers := []api.Container{}
