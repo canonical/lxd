@@ -548,18 +548,23 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 			trusted, _, fingerprint := util.CheckCASignature(*peerCertificate, d.endpoints.NetworkCert())
 			if !trusted {
 				return false, "", "", nil, nil
-			} else if trustCACertificates {
-				// If CA signed certificates are implicitly trusted via `core.trust_ca_certificates`, return now. Otherwise, continue to mTLS check.
-				// Returning the protocol as auth.AuthenticationMethodPKI will indicate to the auth.Authorizer that
-				// this certificate may not be present in the trust store. If it isn't in the trust store, the caller
-				// has full access to LXD. If it is in the trust store, standard TLS restrictions will apply.
-				return true, fingerprint, auth.AuthenticationMethodPKI, nil, nil
 			}
 
-			// We are trusted by the CA. But because `core.trust_ca_certificates` is false, we also need to check that
-			// the client certificate is in the trust store.
+			// Check if a matching certificate is present in the identity cache.
 			id, err := d.identityCache.Get(api.AuthenticationMethodTLS, fingerprint)
 			if err != nil {
+				if !api.StatusErrorCheck(err, http.StatusNotFound) {
+					return false, "", "", nil, err
+				}
+
+				// If we have a not found error and `core.trust_ca_certificates` is true, then the identity is implicitly
+				// trusted because their certificate was signed by the CA.
+				if trustCACertificates {
+					return true, fingerprint, auth.AuthenticationMethodPKI, nil, nil
+				}
+
+				// If we don't implicitly trust CA signed certificates, then the identity is not trusted because they
+				// are not present in the identity cache.
 				return false, "", "", nil, nil
 			}
 
