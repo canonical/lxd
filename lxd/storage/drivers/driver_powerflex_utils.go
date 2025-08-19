@@ -495,6 +495,20 @@ func (p *powerFlexClient) overwriteVolume(volumeID string, snapshotID string) er
 	return nil
 }
 
+// renameVolume renames the volume behind volumeID to newName.
+func (p *powerFlexClient) renameVolume(volumeID string, newName string) error {
+	body := map[string]any{
+		"newName": newName,
+	}
+
+	err := p.requestAuthenticated(http.MethodPost, "/api/instances/Volume::"+volumeID+"/action/setVolumeName", body, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to rename volume: %q: %w", volumeID, err)
+	}
+
+	return nil
+}
+
 // createVolumeSnapshot creates a new volume snapshot under the given systemID for the volume behind volumeID.
 // The accessMode can be either ReadWrite or ReadOnly.
 // The returned string represents the ID of the snapshot.
