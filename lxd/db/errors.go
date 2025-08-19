@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/canonical/go-dqlite/v3/driver"
-	"github.com/mattn/go-sqlite3"
 )
 
 var (
@@ -15,6 +14,5 @@ var (
 
 // SmartErrors are used to return more appropriate errors to the caller.
 var SmartErrors = map[int][]error{
-	http.StatusConflict:           {sqlite3.ErrConstraintUnique},
 	http.StatusServiceUnavailable: {driver.ErrNoAvailableLeader},
 }

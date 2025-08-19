@@ -332,6 +332,10 @@ func createIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		id, err := dbCluster.CreateIdentityProviderGroup(ctx, tx.Tx(), dbCluster.IdentityProviderGroup{Name: idpGroup.Name})
 		if err != nil {
+			if api.StatusErrorCheck(err, http.StatusConflict) {
+				return api.StatusErrorf(http.StatusConflict, "Identity provider group %q already exists", idpGroup.Name)
+			}
+
 			return err
 		}
 
@@ -412,6 +416,10 @@ func renameIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 		return dbCluster.RenameIdentityProviderGroup(ctx, tx.Tx(), idpGroupName, idpGroupPost.Name)
 	})
 	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusConflict) {
+			return response.Conflict(fmt.Errorf("Identity provider group %q already exists", idpGroupPost.Name))
+		}
+
 		return response.SmartError(err)
 	}
 

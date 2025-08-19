@@ -228,56 +228,9 @@ func GetIdentityProviderGroup(ctx context.Context, tx *sql.Tx, name string) (*Id
 	}
 }
 
-// GetIdentityProviderGroupID return the ID of the identity_provider_group with the given key.
-// generator: identity_provider_group ID
-func GetIdentityProviderGroupID(ctx context.Context, tx *sql.Tx, name string) (int64, error) {
-	stmt, err := Stmt(tx, identityProviderGroupID)
-	if err != nil {
-		return -1, fmt.Errorf("Failed to get \"identityProviderGroupID\" prepared statement: %w", err)
-	}
-
-	row := stmt.QueryRowContext(ctx, name)
-	var id int64
-	err = row.Scan(&id)
-	if errors.Is(err, sql.ErrNoRows) {
-		return -1, api.StatusErrorf(http.StatusNotFound, "IdentityProviderGroup not found")
-	}
-
-	if err != nil {
-		return -1, fmt.Errorf("Failed to get \"identity_providers_groups\" ID: %w", err)
-	}
-
-	return id, nil
-}
-
-// IdentityProviderGroupExists checks if a identity_provider_group with the given key exists.
-// generator: identity_provider_group Exists
-func IdentityProviderGroupExists(ctx context.Context, tx *sql.Tx, name string) (bool, error) {
-	_, err := GetIdentityProviderGroupID(ctx, tx, name)
-	if err != nil {
-		if api.StatusErrorCheck(err, http.StatusNotFound) {
-			return false, nil
-		}
-
-		return false, err
-	}
-
-	return true, nil
-}
-
 // CreateIdentityProviderGroup adds a new identity_provider_group to the database.
 // generator: identity_provider_group Create
 func CreateIdentityProviderGroup(ctx context.Context, tx *sql.Tx, object IdentityProviderGroup) (int64, error) {
-	// Check if a identity_provider_group with the same key exists.
-	exists, err := IdentityProviderGroupExists(ctx, tx, object.Name)
-	if err != nil {
-		return -1, fmt.Errorf("Failed to check for duplicates: %w", err)
-	}
-
-	if exists {
-		return -1, api.StatusErrorf(http.StatusConflict, "This \"identity_providers_groups\" entry already exists")
-	}
-
 	args := make([]any, 1)
 
 	// Populate the statement arguments.
@@ -290,8 +243,12 @@ func CreateIdentityProviderGroup(ctx context.Context, tx *sql.Tx, object Identit
 	}
 
 	// Execute the statement.
-	result, err := stmt.Exec(args...)
+	result, err := stmt.ExecContext(ctx, args...)
 	if err != nil {
+		if query.IsConflictErr(err) {
+			return -1, api.NewStatusError(http.StatusConflict, "This \"identity_providers_groups\" entry already exists")
+		}
+
 		return -1, fmt.Errorf("Failed to create \"identity_providers_groups\" entry: %w", err)
 	}
 
@@ -311,7 +268,7 @@ func DeleteIdentityProviderGroup(ctx context.Context, tx *sql.Tx, name string) e
 		return fmt.Errorf("Failed to get \"identityProviderGroupDeleteByName\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(name)
+	result, err := stmt.ExecContext(ctx, name)
 	if err != nil {
 		return fmt.Errorf("Delete \"identity_providers_groups\": %w", err)
 	}
@@ -330,36 +287,6 @@ func DeleteIdentityProviderGroup(ctx context.Context, tx *sql.Tx, name string) e
 	return nil
 }
 
-// UpdateIdentityProviderGroup updates the identity_provider_group matching the given key parameters.
-// generator: identity_provider_group Update
-func UpdateIdentityProviderGroup(ctx context.Context, tx *sql.Tx, name string, object IdentityProviderGroup) error {
-	id, err := GetIdentityProviderGroupID(ctx, tx, name)
-	if err != nil {
-		return err
-	}
-
-	stmt, err := Stmt(tx, identityProviderGroupUpdate)
-	if err != nil {
-		return fmt.Errorf("Failed to get \"identityProviderGroupUpdate\" prepared statement: %w", err)
-	}
-
-	result, err := stmt.Exec(object.Name, id)
-	if err != nil {
-		return fmt.Errorf("Update \"identity_providers_groups\" entry failed: %w", err)
-	}
-
-	n, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("Fetch affected rows: %w", err)
-	}
-
-	if n != 1 {
-		return fmt.Errorf("Query updated %d rows instead of 1", n)
-	}
-
-	return nil
-}
-
 // RenameIdentityProviderGroup renames the identity_provider_group matching the given key parameters.
 // generator: identity_provider_group Rename
 func RenameIdentityProviderGroup(ctx context.Context, tx *sql.Tx, name string, to string) error {
@@ -368,8 +295,12 @@ func RenameIdentityProviderGroup(ctx context.Context, tx *sql.Tx, name string, t
 		return fmt.Errorf("Failed to get \"identityProviderGroupRename\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(to, name)
+	result, err := stmt.ExecContext(ctx, to, name)
 	if err != nil {
+		if query.IsConflictErr(err) {
+			return api.NewStatusError(http.StatusConflict, "A \"identity_providers_groups\" entry already exists with this name")
+		}
+
 		return fmt.Errorf("Rename IdentityProviderGroup failed: %w", err)
 	}
 

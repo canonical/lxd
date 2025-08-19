@@ -184,7 +184,7 @@ func CreateInstanceProfiles(ctx context.Context, tx *sql.Tx, objects []InstanceP
 		}
 
 		// Execute the statement.
-		_, err = stmt.Exec(args...)
+		_, err = stmt.ExecContext(ctx, args...)
 		if err != nil {
 			return fmt.Errorf("Failed to create \"instances_profiles\" entry: %w", err)
 		}
@@ -202,7 +202,7 @@ func DeleteInstanceProfiles(ctx context.Context, tx *sql.Tx, instanceID int) err
 		return fmt.Errorf("Failed to get \"instanceProfileDeleteByInstanceID\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(int(instanceID))
+	result, err := stmt.ExecContext(ctx, int(instanceID))
 	if err != nil {
 		return fmt.Errorf("Delete \"instances_profiles\" entry failed: %w", err)
 	}

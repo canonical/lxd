@@ -27,7 +27,6 @@ import (
 //go:generate mapper method -i -e instance_snapshot GetMany references=Config,Device
 //go:generate mapper method -i -e instance_snapshot GetOne
 //go:generate mapper method -i -e instance_snapshot ID
-//go:generate mapper method -i -e instance_snapshot Exists
 //go:generate mapper method -i -e instance_snapshot Create references=Config,Device
 //go:generate mapper method -i -e instance_snapshot Rename
 //go:generate mapper method -i -e instance_snapshot DeleteOne-by-Project-and-Instance-and-Name

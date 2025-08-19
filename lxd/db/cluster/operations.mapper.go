@@ -249,8 +249,12 @@ func CreateOrReplaceOperation(ctx context.Context, tx *sql.Tx, object Operation)
 	}
 
 	// Execute the statement.
-	result, err := stmt.Exec(args...)
+	result, err := stmt.ExecContext(ctx, args...)
 	if err != nil {
+		if query.IsConflictErr(err) {
+			return -1, api.NewStatusError(http.StatusConflict, "This \"operations\" entry already exists")
+		}
+
 		return -1, fmt.Errorf("Failed to create \"operations\" entry: %w", err)
 	}
 
@@ -270,7 +274,7 @@ func DeleteOperation(ctx context.Context, tx *sql.Tx, uuid string) error {
 		return fmt.Errorf("Failed to get \"operationDeleteByUUID\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(uuid)
+	result, err := stmt.ExecContext(ctx, uuid)
 	if err != nil {
 		return fmt.Errorf("Delete \"operations\": %w", err)
 	}
@@ -297,7 +301,7 @@ func DeleteOperations(ctx context.Context, tx *sql.Tx, nodeID int64) error {
 		return fmt.Errorf("Failed to get \"operationDeleteByNodeID\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(nodeID)
+	result, err := stmt.ExecContext(ctx, nodeID)
 	if err != nil {
 		return fmt.Errorf("Delete \"operations\": %w", err)
 	}

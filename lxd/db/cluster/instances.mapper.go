@@ -757,34 +757,9 @@ func GetInstanceID(ctx context.Context, tx *sql.Tx, project string, name string)
 	return id, nil
 }
 
-// InstanceExists checks if a instance with the given key exists.
-// generator: instance Exists
-func InstanceExists(ctx context.Context, tx *sql.Tx, project string, name string) (bool, error) {
-	_, err := GetInstanceID(ctx, tx, project, name)
-	if err != nil {
-		if api.StatusErrorCheck(err, http.StatusNotFound) {
-			return false, nil
-		}
-
-		return false, err
-	}
-
-	return true, nil
-}
-
 // CreateInstance adds a new instance to the database.
 // generator: instance Create
 func CreateInstance(ctx context.Context, tx *sql.Tx, object Instance) (int64, error) {
-	// Check if a instance with the same key exists.
-	exists, err := InstanceExists(ctx, tx, object.Project, object.Name)
-	if err != nil {
-		return -1, fmt.Errorf("Failed to check for duplicates: %w", err)
-	}
-
-	if exists {
-		return -1, api.StatusErrorf(http.StatusConflict, "This \"instances\" entry already exists")
-	}
-
 	args := make([]any, 11)
 
 	// Populate the statement arguments.
@@ -807,8 +782,12 @@ func CreateInstance(ctx context.Context, tx *sql.Tx, object Instance) (int64, er
 	}
 
 	// Execute the statement.
-	result, err := stmt.Exec(args...)
+	result, err := stmt.ExecContext(ctx, args...)
 	if err != nil {
+		if query.IsConflictErr(err) {
+			return -1, api.NewStatusError(http.StatusConflict, "This \"instances\" entry already exists")
+		}
+
 		return -1, fmt.Errorf("Failed to create \"instances\" entry: %w", err)
 	}
 
@@ -865,8 +844,12 @@ func RenameInstance(ctx context.Context, tx *sql.Tx, project string, name string
 		return fmt.Errorf("Failed to get \"instanceRename\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(to, project, name)
+	result, err := stmt.ExecContext(ctx, to, project, name)
 	if err != nil {
+		if query.IsConflictErr(err) {
+			return api.NewStatusError(http.StatusConflict, "A \"instances\" entry already exists with this name")
+		}
+
 		return fmt.Errorf("Rename Instance failed: %w", err)
 	}
 
@@ -890,7 +873,7 @@ func DeleteInstance(ctx context.Context, tx *sql.Tx, project string, name string
 		return fmt.Errorf("Failed to get \"instanceDeleteByProjectAndName\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(project, name)
+	result, err := stmt.ExecContext(ctx, project, name)
 	if err != nil {
 		return fmt.Errorf("Delete \"instances\": %w", err)
 	}
@@ -922,8 +905,12 @@ func UpdateInstance(ctx context.Context, tx *sql.Tx, project string, name string
 		return fmt.Errorf("Failed to get \"instanceUpdate\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(object.Project, object.Name, object.Node, object.Type, object.Architecture, object.Ephemeral, object.CreationDate, object.Stateful, object.LastUseDate, object.Description, object.ExpiryDate, id)
+	result, err := stmt.ExecContext(ctx, object.Project, object.Name, object.Node, object.Type, object.Architecture, object.Ephemeral, object.CreationDate, object.Stateful, object.LastUseDate, object.Description, object.ExpiryDate, id)
 	if err != nil {
+		if query.IsConflictErr(err) {
+			return api.NewStatusError(http.StatusConflict, "A \"instances\" entry already exists with these properties")
+		}
+
 		return fmt.Errorf("Update \"instances\" entry failed: %w", err)
 	}
 

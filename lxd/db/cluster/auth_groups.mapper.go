@@ -268,16 +268,6 @@ func AuthGroupExists(ctx context.Context, tx *sql.Tx, name string) (bool, error)
 // CreateAuthGroup adds a new auth_group to the database.
 // generator: auth_group Create
 func CreateAuthGroup(ctx context.Context, tx *sql.Tx, object AuthGroup) (int64, error) {
-	// Check if a auth_group with the same key exists.
-	exists, err := AuthGroupExists(ctx, tx, object.Name)
-	if err != nil {
-		return -1, fmt.Errorf("Failed to check for duplicates: %w", err)
-	}
-
-	if exists {
-		return -1, api.StatusErrorf(http.StatusConflict, "This \"auths_groups\" entry already exists")
-	}
-
 	args := make([]any, 2)
 
 	// Populate the statement arguments.
@@ -291,8 +281,12 @@ func CreateAuthGroup(ctx context.Context, tx *sql.Tx, object AuthGroup) (int64, 
 	}
 
 	// Execute the statement.
-	result, err := stmt.Exec(args...)
+	result, err := stmt.ExecContext(ctx, args...)
 	if err != nil {
+		if query.IsConflictErr(err) {
+			return -1, api.NewStatusError(http.StatusConflict, "This \"auths_groups\" entry already exists")
+		}
+
 		return -1, fmt.Errorf("Failed to create \"auths_groups\" entry: %w", err)
 	}
 
@@ -312,7 +306,7 @@ func DeleteAuthGroup(ctx context.Context, tx *sql.Tx, name string) error {
 		return fmt.Errorf("Failed to get \"authGroupDeleteByName\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(name)
+	result, err := stmt.ExecContext(ctx, name)
 	if err != nil {
 		return fmt.Errorf("Delete \"auths_groups\": %w", err)
 	}
@@ -344,8 +338,12 @@ func UpdateAuthGroup(ctx context.Context, tx *sql.Tx, name string, object AuthGr
 		return fmt.Errorf("Failed to get \"authGroupUpdate\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(object.Name, object.Description, id)
+	result, err := stmt.ExecContext(ctx, object.Name, object.Description, id)
 	if err != nil {
+		if query.IsConflictErr(err) {
+			return api.NewStatusError(http.StatusConflict, "A \"auths_groups\" entry already exists with these properties")
+		}
+
 		return fmt.Errorf("Update \"auths_groups\" entry failed: %w", err)
 	}
 
@@ -369,8 +367,12 @@ func RenameAuthGroup(ctx context.Context, tx *sql.Tx, name string, to string) er
 		return fmt.Errorf("Failed to get \"authGroupRename\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(to, name)
+	result, err := stmt.ExecContext(ctx, to, name)
 	if err != nil {
+		if query.IsConflictErr(err) {
+			return api.NewStatusError(http.StatusConflict, "A \"auths_groups\" entry already exists with this name")
+		}
+
 		return fmt.Errorf("Rename AuthGroup failed: %w", err)
 	}
 

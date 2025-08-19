@@ -166,7 +166,7 @@ func DeleteNodeClusterGroup(ctx context.Context, tx *sql.Tx, groupID int) error 
 		return fmt.Errorf("Failed to get \"nodeClusterGroupDeleteByGroupID\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(groupID)
+	result, err := stmt.ExecContext(ctx, groupID)
 	if err != nil {
 		return fmt.Errorf("Delete \"nodes_clusters_groups\": %w", err)
 	}
