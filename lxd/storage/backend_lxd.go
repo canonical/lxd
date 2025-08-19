@@ -7316,6 +7316,12 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 
 	// If the instance is running, it should already be mounted, so check if the backup file
 	// is already accessible, and if so parse it directly, without disturbing the mount count.
+	// It is important to not always run the volume's MountTask.
+	// In a situation in which the instance is still running, but the DB was lost and the LXD daemon was restarted,
+	// the mount's ref counter is lost and not restored on start up.
+	// That means when running MountTask, it won't interfere with the running instance, but as there
+	// aren't anymore traces of the original mount, it will try to unmount the volume as the ref counter
+	// will be zero at the end of MountTask.
 	if shared.PathExists(backupYamlPath) {
 		backupConf, err = backup.ParseConfigYamlFile(backupYamlPath)
 		if err != nil {
