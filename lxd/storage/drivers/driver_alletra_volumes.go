@@ -1154,3 +1154,13 @@ func (d *alletra) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, o
 	// Renaming a volume snapshot won't change an actual name of the HPE Alletra volume snapshot.
 	return nil
 }
+
+// MountVolumeSnapshot sets up a read-only mount on top of the snapshot to avoid accidental modifications.
+func (d *alletra) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+	return mountVolume(d, snapVol, d.getMappedDevPath, op)
+}
+
+// UnmountVolumeSnapshot removes the read-only mount placed on top of a snapshot.
+func (d *alletra) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+	return unmountVolume(d, snapVol, false, d.getMappedDevPath, d.unmapVolume, op)
+}
