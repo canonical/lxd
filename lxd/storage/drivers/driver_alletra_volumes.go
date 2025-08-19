@@ -17,6 +17,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/backup"
+	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/block"
@@ -597,6 +598,11 @@ func (d *alletra) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.
 // CreateVolumeFromBackup re-creates a volume from its exported state.
 func (d *alletra) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
 	return genericVFSBackupUnpack(d, d.state, vol, srcBackup.Snapshots, srcData, op)
+}
+
+// BackupVolume creates an exported version of a volume.
+func (d *alletra) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
+	return genericVFSBackupVolume(d, vol, tarWriter, snapshots, op)
 }
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
