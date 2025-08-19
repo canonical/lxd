@@ -816,6 +816,10 @@ test_duplicate_detection() {
   lxc auth identity-provider-group delete foo
   lxc auth identity-provider-group delete bar
 
+  lxc auth identity create tls/foo
+  [ "$(! "${_LXC}" auth identity create tls/foo 2>&1 1>/dev/null)" = 'Error: An identity with name "foo" already exists' ]
+  lxc auth identity delete tls/foo
+
   lxc project create foo
   [ "$(! "${_LXC}" project create foo 2>&1 1>/dev/null)" = 'Error: Project "foo" already exists' ]
   lxc project create bar
