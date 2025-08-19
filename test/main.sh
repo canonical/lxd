@@ -187,6 +187,13 @@ cleanup() {
   else
     echo "==> Cleaning up"
 
+    # Run _foo_teardown function if any.
+    TEARDOWN_FUNC="_${TEST_CURRENT#test_}_teardown"
+    if declare -F "${TEARDOWN_FUNC}" >/dev/null; then
+      echo "==> TEARDOWN: ${TEST_CURRENT_DESCRIPTION}"
+      ${TEARDOWN_FUNC}
+    fi
+
     [ -e "${LXD_TEST_IMAGE:-}" ] && rm "${LXD_TEST_IMAGE}"
 
     kill_oidc
@@ -282,8 +289,24 @@ run_test() {
   fi
 
   if [ "${skip}" = false ]; then
+    # Run _foo_setup function if any.
+    SETUP_FUNC="_${TEST_CURRENT#test_}_setup"
+    if declare -F "${SETUP_FUNC}" >/dev/null; then
+      ${SETUP_FUNC}
+    fi
+
     # Run test.
     ${TEST_CURRENT}
+
+    # Run _foo_teardown function if any.
+    TEARDOWN_FUNC="_${TEST_CURRENT#test_}_teardown"
+    if declare -F "${TEARDOWN_FUNC}" >/dev/null; then
+      echo "==> TEARDOWN: ${TEST_CURRENT_DESCRIPTION}"
+      ${TEARDOWN_FUNC}
+
+      # Avoid re-running _foo_teardown later during cleanup()
+      unset -f "${TEARDOWN_FUNC}"
+    fi
 
     # Check whether test was skipped due to unmet requirements, and if so check if the test is required and fail.
     if [ -n "${TEST_UNMET_REQUIREMENT}" ]; then
