@@ -138,10 +138,9 @@ var networkLoadBalancerCmd = APIEndpoint{
 func networkLoadBalancersGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	var effectiveProjectName string
-	reqInfo := request.GetContextInfo(r.Context())
-	if reqInfo != nil {
-		effectiveProjectName = reqInfo.EffectiveProjectName
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
@@ -246,10 +245,9 @@ func networkLoadBalancersPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	var effectiveProjectName string
-	reqInfo := request.GetContextInfo(r.Context())
-	if reqInfo != nil {
-		effectiveProjectName = reqInfo.EffectiveProjectName
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
@@ -326,10 +324,9 @@ func networkLoadBalancerDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	var effectiveProjectName string
-	reqInfo := request.GetContextInfo(r.Context())
-	if reqInfo != nil {
-		effectiveProjectName = reqInfo.EffectiveProjectName
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
@@ -417,10 +414,9 @@ func networkLoadBalancerGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	var effectiveProjectName string
-	reqInfo := request.GetContextInfo(r.Context())
-	if reqInfo != nil {
-		effectiveProjectName = reqInfo.EffectiveProjectName
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
@@ -542,10 +538,9 @@ func networkLoadBalancerPut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	var effectiveProjectName string
-	reqInfo := request.GetContextInfo(r.Context())
-	if reqInfo != nil {
-		effectiveProjectName = reqInfo.EffectiveProjectName
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
