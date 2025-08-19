@@ -941,7 +941,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 				thing = "Snapshot"
 			}
 
-			return nil, nil, nil, fmt.Errorf("%s %q already exists", thing, args.Name)
+			return nil, nil, nil, api.StatusErrorf(http.StatusConflict, "%s %q already exists", thing, args.Name)
 		}
 
 		return nil, nil, nil, err

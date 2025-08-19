@@ -29,10 +29,6 @@ type InstanceGenerated interface {
 	// generator: instance ID
 	GetInstanceID(ctx context.Context, tx *sql.Tx, project string, name string) (int64, error)
 
-	// InstanceExists checks if a instance with the given key exists.
-	// generator: instance Exists
-	InstanceExists(ctx context.Context, tx *sql.Tx, project string, name string) (bool, error)
-
 	// CreateInstanceConfig adds new instance Config to the database.
 	// generator: instance Create
 	CreateInstanceConfig(ctx context.Context, tx *sql.Tx, instanceID int64, config map[string]string) error
