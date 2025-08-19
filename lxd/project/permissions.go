@@ -63,7 +63,7 @@ func FilterUsedBy(ctx context.Context, authorizer auth.Authorizer, entries []str
 	for entityType, urls := range urlsByEntityType {
 		// If only one entry of this type, check directly.
 		if len(urls) == 1 {
-			err := authorizer.CheckPermission(ctx, urls[0], auth.EntitlementCanView)
+			err := authorizer.CheckPermissionWithoutEffectiveProject(ctx, urls[0], auth.EntitlementCanView)
 			if err != nil {
 				continue
 			}
@@ -73,7 +73,7 @@ func FilterUsedBy(ctx context.Context, authorizer auth.Authorizer, entries []str
 		}
 
 		// Otherwise get a permission checker for the entity type.
-		canViewEntity, err := authorizer.GetPermissionChecker(ctx, auth.EntitlementCanView, entityType)
+		canViewEntity, err := authorizer.GetPermissionCheckerWithoutEffectiveProject(ctx, auth.EntitlementCanView, entityType)
 		if err != nil {
 			logger.Error("Failed to get permission checker for project used-by filtering", logger.Ctx{"entity_type": entityType, "err": err})
 			continue
