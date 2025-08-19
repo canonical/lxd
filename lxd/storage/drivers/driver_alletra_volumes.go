@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -25,6 +26,7 @@ import (
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/validate"
@@ -1066,4 +1068,60 @@ func (d *alletra) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) 
 // UnmountVolumeSnapshot removes the read-only mount placed on top of a snapshot.
 func (d *alletra) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
 	return unmountVolume(d, snapVol, false, d.getMappedDevPath, d.unmapVolume, op)
+}
+
+// ListVolumes returns a list of LXD volumes in storage pool.
+func (d *alletra) ListVolumes() ([]Volume, error) {
+	return []Volume{}, nil
+}
+
+// VolumeSnapshots returns a list of HPE Alletra storage snapshot names for the given volume (in no particular order).
+func (d *alletra) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
+	volName, err := d.getVolumeName(vol)
+	if err != nil {
+		return nil, err
+	}
+
+	volumeSnapshots, err := d.client().getVolumeSnapshots(vol.pool, volName)
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return nil, nil
+		}
+
+		return nil, err
+	}
+
+	logger.Debug("VolumeSnapshots", logger.Ctx{"volumeSnapshots": volumeSnapshots})
+
+	snapshotNames := make([]string, 0, len(volumeSnapshots))
+	for _, snapshot := range volumeSnapshots {
+		snapshotNames = append(snapshotNames, snapshot.Name)
+	}
+
+	return snapshotNames, nil
+}
+
+// CheckVolumeSnapshots checks that the volume's snapshots, according to the storage driver,
+// match those provided.
+func (d *alletra) CheckVolumeSnapshots(vol Volume, snapVols []Volume, op *operations.Operation) error {
+	storageSnapshotNames, err := vol.driver.VolumeSnapshots(vol, op)
+	if err != nil {
+		return err
+	}
+
+	// Check if the provided list of volume snapshots matches the ones from the storage.
+	for _, snap := range snapVols {
+		snapName, err := d.getVolumeName(snap)
+		if err != nil {
+			return err
+		}
+
+		logger.Debug("compare", logger.Ctx{"snapName": snapName, "storageSnapshotNames": storageSnapshotNames})
+
+		if !slices.Contains(storageSnapshotNames, snapName) {
+			return fmt.Errorf("Snapshot %q expected but not in storage", snapName)
+		}
+	}
+
+	return nil
 }
