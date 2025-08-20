@@ -85,6 +85,7 @@ var apiDevLXD = []devLXDAPIEndpoint{
 			Handler: func(d *Daemon, r *http.Request) response.Response {
 				return response.DevLXDResponse(http.StatusOK, []string{"/1.0"}, "json")
 			},
+			AllowUntrusted: true,
 		},
 	},
 	devLXD10Endpoint,
@@ -100,8 +101,8 @@ var apiDevLXD = []devLXDAPIEndpoint{
 
 var devLXD10Endpoint = devLXDAPIEndpoint{
 	Path:  "",
-	Get:   devLXDAPIEndpointAction{Handler: devLXDAPIGetHandler},
-	Patch: devLXDAPIEndpointAction{Handler: devLXDAPIPatchHandler},
+	Get:   devLXDAPIEndpointAction{Handler: devLXDAPIGetHandler, AllowUntrusted: true},
+	Patch: devLXDAPIEndpointAction{Handler: devLXDAPIPatchHandler, AllowUntrusted: true},
 }
 
 func devLXDAPIGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -189,7 +190,7 @@ func devLXDAPIPatchHandler(d *Daemon, r *http.Request) response.Response {
 
 var devLXDConfigEndpoint = devLXDAPIEndpoint{
 	Path: "config",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDConfigGetHandler},
+	Get:  devLXDAPIEndpointAction{Handler: devLXDConfigGetHandler, AllowUntrusted: true},
 }
 
 func devLXDConfigGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -240,7 +241,7 @@ func devLXDConfigGetHandler(d *Daemon, r *http.Request) response.Response {
 
 var devLXDConfigKeyEndpoint = devLXDAPIEndpoint{
 	Path: "config/{key}",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDConfigKeyGetHandler},
+	Get:  devLXDAPIEndpointAction{Handler: devLXDConfigKeyGetHandler, AllowUntrusted: true},
 }
 
 func devLXDConfigKeyGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -286,7 +287,7 @@ func devLXDConfigKeyGetHandler(d *Daemon, r *http.Request) response.Response {
 
 var devLXDImageExportEndpoint = devLXDAPIEndpoint{
 	Path: "images/{fingerprint}/export",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDImageExportHandler},
+	Get:  devLXDAPIEndpointAction{Handler: devLXDImageExportHandler, AllowUntrusted: true},
 }
 
 // devLXDImageExportHandler returns a file response containing the image files. The requested fingerprint must match
@@ -350,7 +351,7 @@ func devLXDImageExportHandler(d *Daemon, r *http.Request) response.Response {
 
 var devLXDMetadataEndpoint = devLXDAPIEndpoint{
 	Path: "meta-data",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDMetadataGetHandler},
+	Get:  devLXDAPIEndpointAction{Handler: devLXDMetadataGetHandler, AllowUntrusted: true},
 }
 
 func devLXDMetadataGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -366,7 +367,7 @@ func devLXDMetadataGetHandler(d *Daemon, r *http.Request) response.Response {
 
 var devLXDEventsEndpoint = devLXDAPIEndpoint{
 	Path: "events",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDEventsGetHandler},
+	Get:  devLXDAPIEndpointAction{Handler: devLXDEventsGetHandler, AllowUntrusted: true},
 }
 
 func devLXDEventsGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -432,7 +433,7 @@ func devLXDEventsGetHandler(d *Daemon, r *http.Request) response.Response {
 
 var devLXDDevicesEndpoint = devLXDAPIEndpoint{
 	Path: "devices",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDDevicesGetHandler},
+	Get:  devLXDAPIEndpointAction{Handler: devLXDDevicesGetHandler, AllowUntrusted: true},
 }
 
 func devLXDDevicesGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -457,7 +458,7 @@ func devLXDDevicesGetHandler(d *Daemon, r *http.Request) response.Response {
 
 var devLXDUbuntuProEndpoint = devLXDAPIEndpoint{
 	Path: "ubuntu-pro",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDUbuntuProGetHandler},
+	Get:  devLXDAPIEndpointAction{Handler: devLXDUbuntuProGetHandler, AllowUntrusted: true},
 }
 
 func devLXDUbuntuProGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -474,7 +475,7 @@ func devLXDUbuntuProGetHandler(d *Daemon, r *http.Request) response.Response {
 
 var devLXDUbuntuProTokenEndpoint = devLXDAPIEndpoint{
 	Path: "ubuntu-pro/token",
-	Post: devLXDAPIEndpointAction{Handler: devLXDUbuntuProTokenPostHandler},
+	Post: devLXDAPIEndpointAction{Handler: devLXDUbuntuProTokenPostHandler, AllowUntrusted: true},
 }
 
 func devLXDUbuntuProTokenPostHandler(d *Daemon, r *http.Request) response.Response {
