@@ -1217,3 +1217,51 @@ func (d *alletra) CheckVolumeSnapshots(vol Volume, snapVols []Volume, op *operat
 
 	return nil
 }
+
+// RestoreVolume restores a volume from a snapshot.
+func (d *alletra) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation) error {
+	ourUnmount, err := d.UnmountVolume(vol, false, op)
+	if err != nil {
+		return err
+	}
+
+	if ourUnmount {
+		defer func() {
+			err := d.MountVolume(vol, op)
+			if err != nil {
+				d.logger.Warn("MountVolume failed on error path", logger.Ctx{"err": err})
+			}
+		}()
+	}
+
+	volName, err := d.getVolumeName(vol)
+	if err != nil {
+		return err
+	}
+
+	snapVolName, err := d.getVolumeName(snapVol)
+	if err != nil {
+		return err
+	}
+
+	// Overwrite existing volume by copying the given snapshot content into it.
+	err = d.client().RestoreVolumeSnapshot(d.state.ShutdownCtx, vol.pool, volName, snapVolName)
+	if err != nil {
+		return err
+	}
+
+	// For VMs, also restore the filesystem volume.
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+
+		snapFSVol := snapVol.NewVMBlockFilesystemVolume()
+		snapFSVol.SetParentUUID(snapVol.parentUUID)
+
+		err := d.RestoreVolume(fsVol, snapFSVol, op)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
