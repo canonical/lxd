@@ -60,7 +60,7 @@ Container       | `c-`         | `c-5a2504b06a6c48498ee7ddb0b674fd14`
 Virtual machine | `v-`         | `v-5a2504b06a6c48498ee7ddb0b674fd14-b` (block volume) and `v-5a2504b06a6c48498ee7ddb0b674fd14` (file system volume)
 Image (ISO)     | `i-`         | `i-5a2504b06a6c48498ee7ddb0b674fd14-i`
 Custom volume   | `u-`         | `u-5a2504b06a6c48498ee7ddb0b674fd14`
-Snapshot        | `s`          | `sc-5a2504b06a6c48498ee7ddb0b674fd14` (container snapshot)
+Snapshot        | `s`          | `sc-5a2504b06a6c48498ee7ddb0b674fd14` (container snapshot), `sv-5a2504b06a6c48498ee7ddb0b674fd14-b` (VM snapshot) and `su-5a2504b06a6c48498ee7ddb0b674fd14` (custom volume snapshot)
 
 (storage-pure-limitations)=
 ### Limitations
