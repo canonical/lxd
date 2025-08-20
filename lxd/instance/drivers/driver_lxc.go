@@ -31,10 +31,10 @@ import (
 	"github.com/gorilla/websocket"
 	liblxc "github.com/lxc/go-lxc"
 	"github.com/pkg/sftp"
+	yaml "go.yaml.in/yaml/v2"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/proto"
-	yaml "go.yaml.in/yaml/v2"
 
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/backup/config"
