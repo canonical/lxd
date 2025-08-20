@@ -806,14 +806,38 @@ func (c *cmdIdentityCreate) command() *cobra.Command {
 }
 
 func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
-	var stdinData api.IdentitiesTLSPost
-
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
 	if exit {
 		return err
 	}
 
+	remoteName, method, idType, name, err := c.identity.resolveIdentityArg(args[0])
+	if err != nil {
+		return err
+	}
+
+	switch method {
+	case api.AuthenticationMethodTLS:
+		var certFilePath string
+		if len(args) == 2 {
+			certFilePath = args[1]
+		}
+
+		return c.createTLSIdentity(remoteName, name, certFilePath)
+	case api.AuthenticationMethodOIDC:
+		return errors.New("OIDC identities cannot be created manually")
+	}
+
+	if idType == "" {
+		return fmt.Errorf("Cannot create identities with authentication method %q", method)
+	}
+
+	return fmt.Errorf("Cannot create identities of type %q", idType)
+}
+
+func (c *cmdIdentityCreate) createTLSIdentity(remote string, name string, certFilePath string) error {
+	var stdinData api.IdentitiesTLSPost
 	// If stdin isn't a terminal, read text from it
 	if !termios.IsTerminal(getStdinFd()) {
 		contents, err := io.ReadAll(os.Stdin)
@@ -827,29 +851,10 @@ func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Parse remote
-	remoteName, resourceName, err := c.global.conf.ParseRemote(args[0])
-	if err != nil {
-		return err
-	}
-
 	transporter, wrapper := newLocationHeaderTransportWrapper()
-	client, err := c.global.conf.GetInstanceServerWithConnectionArgs(remoteName, &lxd.ConnectionArgs{TransportWrapper: wrapper})
+	client, err := c.global.conf.GetInstanceServerWithConnectionArgs(remote, &lxd.ConnectionArgs{TransportWrapper: wrapper})
 	if err != nil {
 		return err
-	}
-
-	if resourceName == "" {
-		return errors.New(i18n.G("Missing identity argument"))
-	}
-
-	authMethod, name, ok := strings.Cut(resourceName, "/")
-	if !ok {
-		return errors.New(i18n.G("Malformed argument, expected `[<remote>:]<authentication_method>/<name>`, got ") + args[0])
-	}
-
-	if authMethod != api.AuthenticationMethodTLS {
-		return errors.New(i18n.G("Identity creation only supported for TLS identities"))
 	}
 
 	// Add name and groups to any stdin data
@@ -861,8 +866,8 @@ func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// If the certificate argument is provided, read it and add it to the stdin data.
-	if len(args) == 2 {
-		pemEncodedX509Cert, err := os.ReadFile(args[1])
+	if certFilePath != "" {
+		pemEncodedX509Cert, err := os.ReadFile(certFilePath)
 		if err != nil {
 			return err
 		}
@@ -885,7 +890,7 @@ func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
 			}
 
 			var pendingIdentityUUIDStr string
-			identityURLPrefix := api.NewURL().Path(version.APIVersion, "auth", "identities", authMethod).String()
+			identityURLPrefix := api.NewURL().Path(version.APIVersion, "auth", "identities", api.AuthenticationMethodTLS).String()
 			_, err = fmt.Sscanf(pendingIdentityURL.Path, identityURLPrefix+"/%s", &pendingIdentityUUIDStr)
 			if err != nil {
 				return fmt.Errorf("Received unexpected location header %q: %w", transporter.location, err)
@@ -896,7 +901,7 @@ func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
 				return fmt.Errorf("Received invalid pending identity UUID %q: %w", pendingIdentityUUIDStr, err)
 			}
 
-			fmt.Printf(i18n.G("TLS identity %q (%s) pending identity token:")+"\n", resourceName, pendingIdentityUUID.String())
+			fmt.Printf(i18n.G("TLS identity %q (%s) pending identity token:")+"\n", name, pendingIdentityUUID.String())
 		}
 
 		// Encode certificate add token to JSON.
@@ -922,7 +927,7 @@ func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("TLS identity %q created with fingerprint %q")+"\n", resourceName, fingerprint)
+		fmt.Printf(i18n.G("TLS identity %q created with fingerprint %q")+"\n", name, fingerprint)
 	}
 
 	return nil
