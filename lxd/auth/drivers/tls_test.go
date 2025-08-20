@@ -58,15 +58,20 @@ func (s *tlsSuite) newIdentity(name string, identityType string, projects []stri
 }
 
 func (s *tlsSuite) setupCtx(id *identity.CacheEntry) context.Context {
-	reqInfo := &request.Info{}
-
+	var details request.RequestorArgs
 	if id != nil {
-		reqInfo.Username = id.Identifier
-		reqInfo.Protocol = id.AuthenticationMethod
-		reqInfo.Trusted = true
+		details.Username = id.Identifier
+		details.Protocol = id.AuthenticationMethod
+		details.Trusted = true
 	}
 
-	return context.WithValue(context.Background(), request.CtxRequestInfo, reqInfo)
+	r := &http.Request{
+		RemoteAddr: "127.0.0.1:53423",
+	}
+
+	err := request.SetRequestor(r, s.idCache, details)
+	s.Require().NoError(err)
+	return r.Context()
 }
 
 func (s *tlsSuite) TestTLSAuthorizer() {

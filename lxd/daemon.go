@@ -262,7 +262,12 @@ type APIEndpointAction struct {
 // allowAuthenticated is an AccessHandler which allows only authenticated requests. This should be used in conjunction
 // with further access control within the handler (e.g. to filter resources the user is able to view/edit).
 func allowAuthenticated(_ *Daemon, r *http.Request) response.Response {
-	if auth.IsTrusted(r.Context()) {
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if requestor.IsTrusted() {
 		return response.EmptySyncResponse
 	}
 
@@ -318,38 +323,40 @@ func allowPermission(entityType entity.Type, entitlement auth.Entitlement, muxVa
 // allowProjectResourceList should be used instead of allowAuthenticated when listing resources within a project.
 // This prevents a restricted TLS client from listing resources in a project that they do not have access to.
 func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
-	// The caller must be authenticated.
-	if !auth.IsTrusted(r.Context()) {
-		return response.Forbidden(nil)
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
 	}
 
-	isServerAdmin, err := auth.IsServerAdmin(r.Context(), d.identityCache)
-	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed to determine caller privilege: %w", err))
+	// The caller must be authenticated.
+	if !requestor.IsTrusted() {
+		return response.Forbidden(nil)
 	}
 
 	// A root user can list resources in any project.
-	if isServerAdmin {
+	if requestor.IsAdmin() {
 		return response.EmptySyncResponse
 	}
 
-	id, err := auth.GetIdentityFromCtx(r.Context(), d.identityCache)
-	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed to determine caller identity: %w", err))
+	id := requestor.CallerIdentity()
+	if id == nil {
+		return response.InternalError(errors.New("No identity present in request details"))
 	}
 
-	switch id.IdentityType {
-	case api.IdentityTypeOIDCClient:
-		// OIDC authenticated clients are governed by fine-grained auth. They can call the endpoint but may see an empty list.
+	idType := requestor.CallerIdentityType()
+	if id == nil {
+		return response.InternalError(errors.New("No identity type present in request details"))
+	}
+
+	if idType.IsFineGrained() {
+		// Fine-grained clients can call the endpoint but may see an empty list.
 		return response.EmptySyncResponse
-	case api.IdentityTypeCertificateClient:
-		// Fine-grained TLS identities can list resources in any project. They may see an empty list.
-		return response.EmptySyncResponse
-	case api.IdentityTypeCertificateClientRestricted:
-		// A restricted client may be able to call the endpoint, continue.
-	default:
-		// No other identity types may list resources (e.g. metrics certificates).
-		return response.Forbidden(nil)
+	}
+
+	// We should now only be left with restricted client certificates. Metrics certificates should have been disregarded
+	// already, because they cannot call any endpoint other than /1.0/metrics (which is enforced during authentication).
+	if idType.Name() != api.IdentityTypeCertificateClientRestricted {
+		return response.InternalError(fmt.Errorf("Encountered unexpected identity type %q listing resources", idType.Name()))
 	}
 
 	requestProjectName, allProjects, err := request.ProjectParams(r)
@@ -378,14 +385,14 @@ func reportEntitlements(ctx context.Context, authorizer auth.Authorizer, identit
 		return nil
 	}
 
-	id, err := auth.GetIdentityFromCtx(ctx, identityCache)
-	if err != nil {
-		return fmt.Errorf("Failed to get caller identity: %w", err)
-	}
-
-	identityType, err := identity.New(id.IdentityType)
+	requestor, err := request.GetRequestor(ctx)
 	if err != nil {
 		return err
+	}
+
+	identityType := requestor.CallerIdentityType()
+	if identityType == nil {
+		return errors.New("No identity type present in request details")
 	}
 
 	if !identityType.IsFineGrained() {
@@ -475,14 +482,18 @@ func extractEntitlementsFromQuery(r *http.Request, entityType entity.Type, allow
 // This does not perform authorization, only validates authentication.
 // Returns whether trusted or not, the username (or certificate fingerprint) of the trusted client, and the type of
 // client that has been authenticated (cluster, unix, oidc or tls).
-func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted bool, username string, method string, identityProviderGroups []string, err error) {
+func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.RequestorArgs, error) {
 	// Perform mTLS check against server certificates. If this passes, the request was made by another cluster member
 	// and the protocol is [request.ProtocolCluster].
 	if r.TLS != nil {
 		for _, i := range r.TLS.PeerCertificates {
 			trusted, fingerprint := util.CheckMutualTLS(*i, d.identityCache.X509Certificates(api.IdentityTypeCertificateServer))
 			if trusted {
-				return true, fingerprint, request.ProtocolCluster, nil, nil
+				return &request.RequestorArgs{
+					Trusted:  true,
+					Username: fingerprint,
+					Protocol: request.ProtocolCluster,
+				}, nil
 			}
 		}
 	}
@@ -491,39 +502,51 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 	if r.RemoteAddr == "@" && r.TLS == nil {
 		cred, err := ucred.GetCredFromContext(r.Context())
 		if err != nil {
-			return false, "", "", nil, err
+			return nil, err
 		}
 
-		u, err := user.LookupId(strconv.FormatUint(uint64(cred.Uid), 10))
-		if err != nil {
-			return true, fmt.Sprint("uid=", cred.Uid), request.ProtocolUnix, nil, nil
+		uid := strconv.FormatUint(uint64(cred.Uid), 10)
+		username := "uid=" + uid
+
+		u, err := user.LookupId(uid)
+		if err == nil {
+			username = u.Username
 		}
 
-		return true, u.Username, request.ProtocolUnix, nil, nil
+		return &request.RequestorArgs{
+			Trusted:  true,
+			Username: username,
+			Protocol: request.ProtocolUnix,
+		}, nil
 	}
 
 	// Cluster notification with wrong certificate.
 	if isClusterNotification(r) {
-		return false, "", "", nil, errors.New("Cluster notification isn't using trusted server certificate")
+		return nil, errors.New("Cluster notification isn't using trusted server certificate")
 	}
 
 	// Bad query, no TLS found.
 	if r.TLS == nil {
-		return false, "", "", nil, errors.New("Bad/missing TLS on network query")
+		return nil, errors.New("Bad/missing TLS on network query")
 	}
 
 	if d.oidcVerifier != nil && d.oidcVerifier.IsRequest(r) {
 		result, err := d.oidcVerifier.Auth(w, r)
 		if err != nil {
-			return false, "", "", nil, fmt.Errorf("Failed OIDC Authentication: %w", err)
+			return nil, fmt.Errorf("Failed OIDC Authentication: %w", err)
 		}
 
 		err = d.handleOIDCAuthenticationResult(r, result)
 		if err != nil {
-			return false, "", "", nil, fmt.Errorf("Failed to process OIDC authentication result: %w", err)
+			return nil, fmt.Errorf("Failed to process OIDC authentication result: %w", err)
 		}
 
-		return true, result.Email, api.AuthenticationMethodOIDC, result.IdentityProviderGroups, nil
+		return &request.RequestorArgs{
+			Trusted:                true,
+			Username:               result.Email,
+			Protocol:               api.AuthenticationMethodOIDC,
+			IdentityProviderGroups: result.IdentityProviderGroups,
+		}, nil
 	}
 
 	isMetricsRequest := func(u url.URL) bool {
@@ -547,31 +570,35 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 		for _, peerCertificate := range r.TLS.PeerCertificates {
 			trusted, _, fingerprint := util.CheckCASignature(*peerCertificate, d.endpoints.NetworkCert())
 			if !trusted {
-				return false, "", "", nil, nil
+				return &request.RequestorArgs{Trusted: false}, nil
 			}
 
 			// Check if a matching certificate is present in the identity cache.
 			id, err := d.identityCache.Get(api.AuthenticationMethodTLS, fingerprint)
 			if err != nil {
 				if !api.StatusErrorCheck(err, http.StatusNotFound) {
-					return false, "", "", nil, err
+					return nil, err
 				}
 
 				// If we have a not found error and `core.trust_ca_certificates` is true, then the identity is implicitly
 				// trusted because their certificate was signed by the CA.
 				if trustCACertificates {
-					return true, fingerprint, request.ProtocolPKI, nil, nil
+					return &request.RequestorArgs{
+						Trusted:  true,
+						Username: fingerprint,
+						Protocol: request.ProtocolPKI,
+					}, nil
 				}
 
 				// If we don't implicitly trust CA signed certificates, then the identity is not trusted because they
 				// are not present in the identity cache.
-				return false, "", "", nil, nil
+				return &request.RequestorArgs{Trusted: false}, nil
 			}
 
 			// The identity type must be in our list of candidate types (e.g. if this certificate is a metrics certificate
 			// and we're on a non-metrics related route).
 			if !slices.Contains(candidateIdentityTypes, id.IdentityType) {
-				return false, "", "", nil, nil
+				return &request.RequestorArgs{Trusted: false}, nil
 			}
 
 			// In CA mode we only consider if this exact certificate is valid via mTLS checks below.
@@ -586,12 +613,16 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (trusted b
 	for _, i := range r.TLS.PeerCertificates {
 		trusted, fingerprint := util.CheckMutualTLS(*i, candidateCertificates)
 		if trusted {
-			return true, fingerprint, api.AuthenticationMethodTLS, nil, nil
+			return &request.RequestorArgs{
+				Trusted:  true,
+				Username: fingerprint,
+				Protocol: api.AuthenticationMethodTLS,
+			}, nil
 		}
 	}
 
 	// Reject unauthorized.
-	return false, "", "", nil, nil
+	return &request.RequestorArgs{Trusted: false}, nil
 }
 
 // handleOIDCAuthenticationResult checks the identity cache for the OIDC identity by their email address. If no identity
@@ -849,7 +880,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		// Authentication
-		trusted, username, protocol, identityProviderGroups, err := d.Authenticate(w, r)
+		requestor, err := d.Authenticate(w, r)
 		if err != nil {
 			var authError oidc.AuthError
 			if errors.As(err, &authError) {
@@ -869,60 +900,32 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		// Initialise the request info.
-		reqInfo := request.InitContextInfo(r)
-
-		// Set the "trusted" value in the request context.
-		reqInfo.Trusted = trusted
-
-		// Set request source address value in the request context.
-		reqInfo.SourceAddress = r.RemoteAddr
+		err = request.SetRequestor(r, d.identityCache, *requestor)
+		if err != nil {
+			_ = response.SmartError(err).Render(w, r)
+			return
+		}
 
 		// Reject internal queries to remote, non-cluster, clients
-		if version == "internal" && !slices.Contains([]string{request.ProtocolUnix, request.ProtocolCluster}, protocol) {
+		if version == "internal" && !slices.Contains([]string{request.ProtocolUnix, request.ProtocolCluster}, requestor.Protocol) {
 			// Except for the initial cluster accept request (done over trusted TLS)
-			if !trusted || c.Path != "cluster/accept" || protocol != api.AuthenticationMethodTLS {
+			if !requestor.Trusted || c.Path != "cluster/accept" || requestor.Protocol != api.AuthenticationMethodTLS {
 				logger.Warn("Rejecting remote internal API request", logger.Ctx{"ip": r.RemoteAddr})
 				_ = response.Forbidden(nil).Render(w, r)
 				return
 			}
 		}
 
-		logCtx := logger.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr, "protocol": protocol}
-		if protocol == request.ProtocolCluster {
-			logCtx["fingerprint"] = username
+		logCtx := logger.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr, "protocol": requestor.Protocol}
+		if requestor.Protocol == request.ProtocolCluster {
+			logCtx["fingerprint"] = requestor.Username
 		} else {
-			logCtx["username"] = username
+			logCtx["username"] = requestor.Username
 		}
 
 		untrustedOk := (r.Method == "GET" && c.Get.AllowUntrusted) || (r.Method == "POST" && c.Post.AllowUntrusted)
-		if trusted {
+		if requestor.Trusted {
 			logger.Debug("Handling API request", logCtx)
-
-			// Add authentication/authorization context data.
-			reqInfo.Username = username
-			reqInfo.Protocol = protocol
-			if len(identityProviderGroups) > 0 {
-				reqInfo.IdentityProviderGroups = identityProviderGroups
-			}
-
-			// Add forwarded requestor data.
-			if protocol == request.ProtocolCluster {
-				// Add authentication/authorization context data.
-				reqInfo.ForwardedAddress = r.Header.Get(request.HeaderForwardedAddress)
-				reqInfo.ForwardedUsername = r.Header.Get(request.HeaderForwardedUsername)
-				reqInfo.ForwardedProtocol = r.Header.Get(request.HeaderForwardedProtocol)
-
-				forwardedIdentityProviderGroupsJSON := r.Header.Get(request.HeaderForwardedIdentityProviderGroups)
-				if forwardedIdentityProviderGroupsJSON != "" {
-					var forwardedIdentityProviderGroups []string
-					err = json.Unmarshal([]byte(forwardedIdentityProviderGroupsJSON), &forwardedIdentityProviderGroups)
-					if err != nil {
-						logger.Error("Failed unmarshalling identity provider groups from forwarded request header", logger.Ctx{"err": err})
-					} else {
-						reqInfo.ForwardedIdentityProviderGroups = forwardedIdentityProviderGroups
-					}
-				}
-			}
 		} else if untrustedOk && r.Header.Get("X-LXD-authenticated") == "" {
 			logger.Debug("Allowing untrusted "+r.Method, logger.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else {
@@ -1016,7 +1019,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			}
 
 			// If the request is not trusted, only call the handler if the action allows it.
-			if !trusted && !action.AllowUntrusted {
+			if !requestor.Trusted && !action.AllowUntrusted {
 				return response.Forbidden(errors.New("You must be authenticated"))
 			}
 
