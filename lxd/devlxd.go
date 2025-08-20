@@ -47,27 +47,10 @@ type devLXDAPIHandlerFunc func(*Daemon, *http.Request) response.Response
 // it to the handler.
 type hoistFunc func(*Daemon, *http.Request, devLXDAPIHandlerFunc) response.Response
 
-// devLXDAPIEndpointAction represents an action on an devLXD API endpoint.
-type devLXDAPIEndpointAction struct {
-	Handler devLXDAPIHandlerFunc
-}
-
-// devLXDAPIEndpoint represents a URL in devLXD API.
-type devLXDAPIEndpoint struct {
-	Name   string // Name for this endpoint.
-	Path   string // Path pattern for this endpoint
-	Get    devLXDAPIEndpointAction
-	Head   devLXDAPIEndpointAction
-	Put    devLXDAPIEndpointAction
-	Post   devLXDAPIEndpointAction
-	Delete devLXDAPIEndpointAction
-	Patch  devLXDAPIEndpointAction
-}
-
-var apiDevLXD = []devLXDAPIEndpoint{
+var apiDevLXD = []APIEndpoint{
 	{
 		Path: "/",
-		Get: devLXDAPIEndpointAction{
+		Get: APIEndpointAction{
 			Handler: func(d *Daemon, r *http.Request) response.Response {
 				return response.DevLXDResponse(http.StatusOK, []string{"/1.0"}, "json")
 			},
@@ -84,10 +67,10 @@ var apiDevLXD = []devLXDAPIEndpoint{
 	devLXDUbuntuProTokenEndpoint,
 }
 
-var devLXD10Endpoint = devLXDAPIEndpoint{
+var devLXD10Endpoint = APIEndpoint{
 	Path:  "",
-	Get:   devLXDAPIEndpointAction{Handler: devLXDAPIGetHandler},
-	Patch: devLXDAPIEndpointAction{Handler: devLXDAPIPatchHandler},
+	Get:   APIEndpointAction{Handler: devLXDAPIGetHandler},
+	Patch: APIEndpointAction{Handler: devLXDAPIPatchHandler},
 }
 
 func devLXDAPIGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -162,9 +145,9 @@ func devLXDAPIPatchHandler(d *Daemon, r *http.Request) response.Response {
 	return response.DevLXDResponse(http.StatusOK, "", "raw")
 }
 
-var devLXDConfigEndpoint = devLXDAPIEndpoint{
+var devLXDConfigEndpoint = APIEndpoint{
 	Path: "config",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDConfigGetHandler},
+	Get:  APIEndpointAction{Handler: devLXDConfigGetHandler},
 }
 
 func devLXDConfigGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -213,9 +196,9 @@ func devLXDConfigGetHandler(d *Daemon, r *http.Request) response.Response {
 	return response.DevLXDResponse(http.StatusOK, filtered, "json")
 }
 
-var devLXDConfigKeyEndpoint = devLXDAPIEndpoint{
+var devLXDConfigKeyEndpoint = APIEndpoint{
 	Path: "config/{key}",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDConfigKeyGetHandler},
+	Get:  APIEndpointAction{Handler: devLXDConfigKeyGetHandler},
 }
 
 func devLXDConfigKeyGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -259,9 +242,9 @@ func devLXDConfigKeyGetHandler(d *Daemon, r *http.Request) response.Response {
 	return response.DevLXDResponse(http.StatusOK, value, "raw")
 }
 
-var devLXDImageExportEndpoint = devLXDAPIEndpoint{
+var devLXDImageExportEndpoint = APIEndpoint{
 	Path: "images/{fingerprint}/export",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDImageExportHandler},
+	Get:  APIEndpointAction{Handler: devLXDImageExportHandler},
 }
 
 // devLXDImageExportHandler returns a file response containing the image files. The requested fingerprint must match
@@ -323,9 +306,9 @@ func devLXDImageExportHandler(d *Daemon, r *http.Request) response.Response {
 	return imageExportFiles(r.Context(), s, imgInfo, projectName)
 }
 
-var devLXDMetadataEndpoint = devLXDAPIEndpoint{
+var devLXDMetadataEndpoint = APIEndpoint{
 	Path: "meta-data",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDMetadataGetHandler},
+	Get:  APIEndpointAction{Handler: devLXDMetadataGetHandler},
 }
 
 func devLXDMetadataGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -339,9 +322,9 @@ func devLXDMetadataGetHandler(d *Daemon, r *http.Request) response.Response {
 	return response.DevLXDResponse(http.StatusOK, resp, "raw")
 }
 
-var devLXDEventsEndpoint = devLXDAPIEndpoint{
+var devLXDEventsEndpoint = APIEndpoint{
 	Path: "events",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDEventsGetHandler},
+	Get:  APIEndpointAction{Handler: devLXDEventsGetHandler},
 }
 
 func devLXDEventsGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -405,9 +388,9 @@ func devLXDEventsGetHandler(d *Daemon, r *http.Request) response.Response {
 	})
 }
 
-var devLXDDevicesEndpoint = devLXDAPIEndpoint{
+var devLXDDevicesEndpoint = APIEndpoint{
 	Path: "devices",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDDevicesGetHandler},
+	Get:  APIEndpointAction{Handler: devLXDDevicesGetHandler},
 }
 
 func devLXDDevicesGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -430,9 +413,9 @@ func devLXDDevicesGetHandler(d *Daemon, r *http.Request) response.Response {
 	return response.DevLXDResponse(http.StatusOK, inst.ExpandedDevices(), "json")
 }
 
-var devLXDUbuntuProEndpoint = devLXDAPIEndpoint{
+var devLXDUbuntuProEndpoint = APIEndpoint{
 	Path: "ubuntu-pro",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDUbuntuProGetHandler},
+	Get:  APIEndpointAction{Handler: devLXDUbuntuProGetHandler},
 }
 
 func devLXDUbuntuProGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -447,9 +430,9 @@ func devLXDUbuntuProGetHandler(d *Daemon, r *http.Request) response.Response {
 	return response.DevLXDResponse(http.StatusOK, settings, "json")
 }
 
-var devLXDUbuntuProTokenEndpoint = devLXDAPIEndpoint{
+var devLXDUbuntuProTokenEndpoint = APIEndpoint{
 	Path: "ubuntu-pro/token",
-	Post: devLXDAPIEndpointAction{Handler: devLXDUbuntuProTokenPostHandler},
+	Post: APIEndpointAction{Handler: devLXDUbuntuProTokenPostHandler},
 }
 
 func devLXDUbuntuProTokenPostHandler(d *Daemon, r *http.Request) response.Response {
@@ -479,7 +462,7 @@ func devLXDAPI(d *Daemon, f hoistFunc, isVsock bool) http.Handler {
 	return m
 }
 
-func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string, ep devLXDAPIEndpoint, f hoistFunc, isVsock bool) {
+func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string, ep APIEndpoint, f hoistFunc, isVsock bool) {
 	uri := ep.Path
 	if uri != "/" {
 		uri = path.Join("/", apiVersion, ep.Path)
@@ -499,7 +482,7 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 		// in api.Response format, while the responses over Unix socket are in devLXDResponse format.
 		request.SetContextValue(r, request.CtxDevLXDOverVsock, isVsock)
 
-		handleRequest := func(action devLXDAPIEndpointAction) (resp response.Response) {
+		handleRequest := func(action APIEndpointAction) (resp response.Response) {
 			// Handle panic in the handler.
 			defer func() {
 				err := recover()
