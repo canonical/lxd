@@ -759,25 +759,25 @@ func (c *cmdIdentity) command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Manage identities`))
 
-	identityCreateCmd := cmdIdentityCreate{global: c.global}
+	identityCreateCmd := cmdIdentityCreate{global: c.global, identity: c}
 	cmd.AddCommand(identityCreateCmd.command())
 
 	identityListCmd := cmdIdentityList{global: c.global}
 	cmd.AddCommand(identityListCmd.command())
 
-	identityShowCmd := cmdIdentityShow{global: c.global}
+	identityShowCmd := cmdIdentityShow{global: c.global, identity: c}
 	cmd.AddCommand(identityShowCmd.command())
 
 	identityInfoCmd := cmdIdentityInfo{global: c.global}
 	cmd.AddCommand(identityInfoCmd.command())
 
-	identityEditCmd := cmdIdentityEdit{global: c.global}
+	identityEditCmd := cmdIdentityEdit{global: c.global, identity: c}
 	cmd.AddCommand(identityEditCmd.command())
 
-	identityDeleteCmd := cmdIdentityDelete{global: c.global}
+	identityDeleteCmd := cmdIdentityDelete{global: c.global, identity: c}
 	cmd.AddCommand(identityDeleteCmd.command())
 
-	identityGroupCmd := cmdIdentityGroup{global: c.global}
+	identityGroupCmd := cmdIdentityGroup{global: c.global, identity: c}
 	cmd.AddCommand(identityGroupCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
@@ -788,6 +788,7 @@ func (c *cmdIdentity) command() *cobra.Command {
 
 type cmdIdentityCreate struct {
 	global     *cmdGlobal
+	identity   *cmdIdentity
 	flagGroups []string
 }
 
@@ -997,7 +998,8 @@ func (c *cmdIdentityList) run(cmd *cobra.Command, args []string) error {
 
 // Show.
 type cmdIdentityShow struct {
-	global *cmdGlobal
+	global   *cmdGlobal
+	identity *cmdIdentity
 }
 
 func (c *cmdIdentityShow) command() *cobra.Command {
@@ -1121,7 +1123,8 @@ func (c *cmdIdentityInfo) run(cmd *cobra.Command, args []string) error {
 
 // Edit.
 type cmdIdentityEdit struct {
-	global *cmdGlobal
+	global   *cmdGlobal
+	identity *cmdIdentity
 }
 
 func (c *cmdIdentityEdit) command() *cobra.Command {
@@ -1249,7 +1252,8 @@ func (c *cmdIdentityEdit) run(cmd *cobra.Command, args []string) error {
 }
 
 type cmdIdentityDelete struct {
-	global *cmdGlobal
+	global   *cmdGlobal
+	identity *cmdIdentity
 }
 
 func (c *cmdIdentityDelete) command() *cobra.Command {
@@ -1304,7 +1308,8 @@ func (c *cmdIdentityDelete) run(cmd *cobra.Command, args []string) error {
 }
 
 type cmdIdentityGroup struct {
-	global *cmdGlobal
+	global   *cmdGlobal
+	identity *cmdIdentity
 }
 
 func (c *cmdIdentityGroup) command() *cobra.Command {
@@ -1314,10 +1319,10 @@ func (c *cmdIdentityGroup) command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Manage groups for the identity`))
 
-	identityGroupAddCmd := cmdIdentityGroupAdd{global: c.global}
+	identityGroupAddCmd := cmdIdentityGroupAdd{global: c.global, identity: c.identity}
 	cmd.AddCommand(identityGroupAddCmd.command())
 
-	identityGroupRemoveCmd := cmdIdentityGroupRemove{global: c.global}
+	identityGroupRemoveCmd := cmdIdentityGroupRemove{global: c.global, identity: c.identity}
 	cmd.AddCommand(identityGroupRemoveCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
@@ -1327,7 +1332,8 @@ func (c *cmdIdentityGroup) command() *cobra.Command {
 }
 
 type cmdIdentityGroupAdd struct {
-	global *cmdGlobal
+	global   *cmdGlobal
+	identity *cmdIdentity
 }
 
 func (c *cmdIdentityGroupAdd) command() *cobra.Command {
@@ -1385,7 +1391,8 @@ func (c *cmdIdentityGroupAdd) run(cmd *cobra.Command, args []string) error {
 }
 
 type cmdIdentityGroupRemove struct {
-	global *cmdGlobal
+	global   *cmdGlobal
+	identity *cmdIdentity
 }
 
 func (c *cmdIdentityGroupRemove) command() *cobra.Command {
