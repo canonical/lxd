@@ -35,7 +35,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/proto"
-	"gopkg.in/yaml.v2"
+	"go.yaml.in/yaml/v2"
 
 	"github.com/canonical/lxd/client"
 	agentAPI "github.com/canonical/lxd/lxd-agent/api"

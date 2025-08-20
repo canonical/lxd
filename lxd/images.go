@@ -29,7 +29,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/kballard/go-shellquote"
-	"gopkg.in/yaml.v2"
+	"go.yaml.in/yaml/v2"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"

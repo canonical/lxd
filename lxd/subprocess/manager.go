@@ -7,7 +7,7 @@ import (
 	"io"
 	"os"
 
-	"gopkg.in/yaml.v2"
+	"go.yaml.in/yaml/v2"
 )
 
 // NewProcess is a constructor for a process object. Represents a process with argument config.

@@ -17,7 +17,7 @@ import (
 
 	dqlite "github.com/canonical/go-dqlite/v3"
 	"github.com/canonical/go-dqlite/v3/client"
-	"gopkg.in/yaml.v2"
+	"go.yaml.in/yaml/v2"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/node"
