@@ -724,7 +724,7 @@ func randomAddressInSubnet(ctx context.Context, subnet net.IPNet, validate func(
 		}
 
 		// If we've attempted all possible addresses then return.
-		if big.NewInt(int64(len(attempted))).Cmp(big.NewInt(0).Sub(usableHostsBig, big.NewInt(1))) == 0 {
+		if big.NewInt(int64(len(attempted))).Cmp(usableHostsBig) == 0 {
 			return nil, noAvailableAddressErr{error: fmt.Errorf("No available addresses in subnet %q", subnet.String())}
 		}
 
