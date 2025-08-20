@@ -790,3 +790,50 @@ func (p *AlletraClient) GrowVolume(poolName string, volName string, sizeBytes in
 
 	return nil
 }
+
+// GetVolumeSnapshots retrieves all existing snapshot for the given storage volume.
+func (p *AlletraClient) GetVolumeSnapshots(poolName string, volName string) ([]hpeVolume, error) {
+	var resp hpeRespMembers[hpeVolume]
+
+	url := api.NewURL().Path("api", "v1", "volumes").WithQuery("query", fmt.Sprintf(`"copyOf==%s"`, volName))
+
+	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to retrieve snapshots for volume %q in storage pool %q: %w", volName, poolName, err)
+	}
+
+	return resp.Members, nil
+}
+
+// GetVolumeSnapshot retrieves an existing snapshot for the given storage volume.
+func (p *AlletraClient) GetVolumeSnapshot(poolName string, volName string, snapshotName string) (*hpeVolume, error) {
+	return p.GetVolume(poolName, snapshotName)
+}
+
+// CreateVolumeSnapshot creates a new snapshot for the given storage volume.
+func (p *AlletraClient) CreateVolumeSnapshot(poolName string, volName string, snapshotName string) error {
+	req := map[string]any{
+		"action": "createSnapshot",
+		"parameters": map[string]any{
+			"name": snapshotName,
+		},
+	}
+
+	url := api.NewURL().Path("api", "v1", "volumes", volName)
+	err := p.requestAuthenticated(http.MethodPost, url.URL, req, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to create snapshot %q for volume %q in storage pool %q: %w", snapshotName, volName, poolName, err)
+	}
+
+	return nil
+}
+
+// DeleteVolumeSnapshot deletes an existing snapshot for the given storage volume.
+func (p *AlletraClient) DeleteVolumeSnapshot(poolName string, volName string, snapshotName string) error {
+	err := p.deleteVolume(poolName, snapshotName)
+	if err != nil {
+		return fmt.Errorf("Failed to delete snapshot %q for volume %q in storage pool %q: %w", snapshotName, volName, poolName, err)
+	}
+
+	return nil
+}
