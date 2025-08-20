@@ -2,6 +2,7 @@ package clients
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -12,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/canonical/lxd/lxd/storage/connectors"
 	"github.com/canonical/lxd/shared/api"
@@ -24,6 +26,7 @@ const (
 	linkStateReady     = 4
 	portProtocolISCSI  = 2
 	portProtocolNVME   = 6
+	taskStatusActive   = 2
 
 	apiErrorInvalidSessionKey       = 6
 	apiErrorExistentHost            = 16
@@ -124,6 +127,11 @@ type hpeVLUN struct {
 	LUN      int    `json:"lun"`
 	Hostname string `json:"hostname"`
 	Serial   string `json:"serial"`
+}
+
+// hpeTaskState represents a HPE Alletra task state.
+type hpeTaskState struct {
+	Status int `json:"status"`
 }
 
 type hpeRespMembers[T any] struct {
@@ -836,4 +844,50 @@ func (p *AlletraClient) DeleteVolumeSnapshot(poolName string, volName string, sn
 	}
 
 	return nil
+}
+
+// getTaskState retrieves a running task state.
+func (p *AlletraClient) getTaskState(taskID string) (*hpeTaskState, error) {
+	var resp hpeTaskState
+
+	url := api.NewURL().Path("api", "v1", "tasks", taskID).WithQuery("view", "excludeDetail")
+	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
+	if err != nil {
+		if isHpeErrorNotFound(err) {
+			return nil, api.StatusErrorf(http.StatusNotFound, "Task with ID %q not found", taskID)
+		}
+
+		return nil, fmt.Errorf("Failed to retrieve task with ID %q: %w", taskID, err)
+	}
+
+	return &resp, nil
+}
+
+// waitTaskFinish waits for HPE Alletra task to finish with any result (error, canceled, success).
+func (p *AlletraClient) waitTaskFinish(ctx context.Context, taskID string) (int, error) {
+	_, ok := ctx.Deadline()
+	if !ok {
+		// Set a default timeout of 180 seconds for the context
+		// if no deadline is already configured.
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 180*time.Second)
+		defer cancel()
+	}
+
+	for {
+		taskState, err := p.getTaskState(taskID)
+		if err != nil {
+			return -1, err
+		}
+
+		if taskState.Status != taskStatusActive {
+			return taskState.Status, nil
+		}
+
+		if ctx.Err() != nil {
+			return -1, ctx.Err()
+		}
+
+		time.Sleep(5 * time.Second)
+	}
 }
