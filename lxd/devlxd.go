@@ -14,6 +14,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/auth/bearer"
 	"github.com/canonical/lxd/lxd/cloudinit"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
@@ -487,8 +488,25 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 
 	// Function that handles the request by calling the appropriate handler.
 	handleFunc := func(w http.ResponseWriter, r *http.Request) {
-		// Set devLXD auth method to identify this request as coming from the /dev/lxd socket.
-		err := request.SetRequestor(r, d.identityCache, request.RequestorArgs{Protocol: request.ProtocolDevLXD})
+		var requestor request.RequestorArgs
+
+		// Set [request.ProtocolDevLXD] by default identify this request as coming from the /dev/lxd socket.
+		requestor.Protocol = request.ProtocolDevLXD
+
+		// Check if the caller has a bearer token.
+		isBearerRequest, token, subject := bearer.IsDevLXDRequest(r, d.globalConfig.ClusterUUID())
+		if isBearerRequest {
+			bearerRequestor, err := bearer.Authenticate(token, subject, d.identityCache)
+			if err != nil {
+				// Deny access to DevLXD altogether if the provided token is not verifiable.
+				_ = response.DevLXDErrorResponse(fmt.Errorf("Failed to verify bearer token: %w", err)).Render(w, r)
+				return
+			}
+
+			requestor = *bearerRequestor
+		}
+
+		err := request.SetRequestor(r, d.identityCache, requestor)
 		if err != nil {
 			_ = response.DevLXDErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "%v", err)).Render(w, r)
 			return
