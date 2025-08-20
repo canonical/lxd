@@ -2709,3 +2709,8 @@ pool be used for storing the project-specific images and backups artifacts.
 
 This introduces support for internal OVN load balancers and network forwards. This approach allows `ovn` networks to define ports on internal IP addresses that can be forwarded to other internal IPs inside their respective networks.
 This change removes the previous limitation on `ovn` networks that load balancers and network forwards could only use external IP addresses to forward to internal IPs.
+
+## `auth_bearer_devlxd`
+
+Adds a new `bearer` authentication method and enables authentication to the DevLXD API.
+See {ref}`DevLXD bearer tokens <devlxd-authentication-bearer>`.
