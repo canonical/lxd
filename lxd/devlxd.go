@@ -54,7 +54,16 @@ type hoistFunc func(*Daemon, *http.Request, devLXDAPIHandlerFunc) response.Respo
 
 // devLXDAPIEndpointAction represents an action on an devLXD API endpoint.
 type devLXDAPIEndpointAction struct {
+	// Handler is the function that handles the request.
 	Handler devLXDAPIHandlerFunc
+
+	// AccessHandler is an optional function that can be used to check access
+	// permissions before calling the main handler.
+	AccessHandler devLXDAPIHandlerFunc
+
+	// Whether this action allows untrusted requests.
+	// This option must be enabled if the access handler is not configured.
+	AllowUntrusted bool
 }
 
 // devLXDAPIEndpoint represents a URL in devLXD API.
