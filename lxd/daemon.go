@@ -344,7 +344,7 @@ func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
 	}
 
 	idType := requestor.CallerIdentityType()
-	if id == nil {
+	if idType == nil {
 		return response.InternalError(errors.New("No identity type present in request details"))
 	}
 
