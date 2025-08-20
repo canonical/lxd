@@ -150,6 +150,11 @@ type hpeTaskState struct {
 	Status int `json:"status"`
 }
 
+// hpePromoteResponse represents a HPE Alletra virtual copy promote response.
+type hpePromoteResponse struct {
+	TaskId int `json:"taskid"`
+}
+
 type hpeRespMembers[T any] struct {
 	Total   int `json:"total"`
 	Members []T `json:"members"`
@@ -955,5 +960,39 @@ func (p *alletraClient) waitTaskFinish(taskId string) (int, error) {
 		}
 
 		time.Sleep(5 * time.Second)
+	}
+}
+
+// restoreVolumeSnapshot restores the volume by copying the volume snapshot into its parent volume.
+func (p *alletraClient) restoreVolumeSnapshot(poolName string, volName string, snapshotName string) error {
+	req := map[string]any{
+		"action": 4, // PROMOTE_VIRTUAL_COPY
+	}
+
+	var resp hpePromoteResponse
+
+	url := api.NewURL().Path("api", "v1", "volumes", snapshotName)
+
+	err := p.requestAuthenticated(http.MethodPut, url.URL, req, &resp)
+	if err != nil {
+		return fmt.Errorf(`Failed to restore snapshot "%s/%s" to "%s/%s": %w`, poolName, snapshotName, poolName, volName, err)
+	}
+
+	status, err := p.waitTaskFinish(strconv.Itoa(resp.TaskId))
+	if err != nil {
+		return fmt.Errorf(`Failed to wait for restore snapshot operation "%s/%s" to "%s/%s": %w`, poolName, snapshotName, poolName, volName, err)
+	}
+
+	switch status {
+	case 1: // DONE
+		return nil
+	case 2: // ACTIVE
+		return fmt.Errorf(`Failed to restore snapshot "%s/%s" to "%s/%s": timeout`, poolName, snapshotName, poolName, volName)
+	case 3: // CANCELLED
+		return fmt.Errorf(`Failed to restore snapshot "%s/%s" to "%s/%s": cancelled`, poolName, snapshotName, poolName, volName)
+	case 4: // FAILED
+		return fmt.Errorf(`Failed to restore snapshot "%s/%s" to "%s/%s": task failed`, poolName, snapshotName, poolName, volName)
+	default:
+		return fmt.Errorf(`Failed to restore snapshot "%s/%s" to "%s/%s": unknown task state. Alletra API change?`, poolName, snapshotName, poolName, volName)
 	}
 }
