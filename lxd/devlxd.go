@@ -14,7 +14,6 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cloudinit"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
@@ -492,7 +491,7 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 		reqInfo := request.InitContextInfo(r)
 
 		// Set devLXD auth method to identify this request as coming from the /dev/lxd socket.
-		reqInfo.Protocol = auth.AuthenticationMethodDevLXD
+		reqInfo.Protocol = request.ProtocolDevLXD
 
 		// Indicate whether the devLXD is being accessed over vsock. This allowes the handler
 		// to determine the correct response type. The responses over vsock are always
