@@ -18,7 +18,7 @@ import (
 
 	"github.com/google/uuid"
 	"golang.org/x/sys/unix"
-	"gopkg.in/yaml.v2"
+	"go.yaml.in/yaml/v2"
 
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/linux"
