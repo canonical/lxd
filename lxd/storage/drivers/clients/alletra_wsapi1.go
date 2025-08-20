@@ -26,16 +26,20 @@ const (
 	linkStateReady     = 4
 	portProtocolISCSI  = 2
 	portProtocolNVME   = 6
+	taskStatusDone     = 1
 	taskStatusActive   = 2
+	taskStatusCanceled = 3
+	taskStatusFailed   = 4
 
 	apiErrorInvalidSessionKey       = 6
 	apiErrorExistentHost            = 16
 	apiErrorNonExistentVol          = 23
 	apiErrorVolumeIsAlreadyExported = 29
 
-	apiVolumeSetMemberAdd    = 1
-	apiVolumeSetMemberRemove = 2
-	apiActionGrowVolume      = 3
+	apiVolumeSetMemberAdd       = 1
+	apiVolumeSetMemberRemove    = 2
+	apiActionGrowVolume         = 3
+	apiActionPromoteVirtualCopy = 4
 )
 
 // createBodyReader creates a reader for the given request body contents.
@@ -132,6 +136,11 @@ type hpeVLUN struct {
 // hpeTaskState represents a HPE Alletra task state.
 type hpeTaskState struct {
 	Status int `json:"status"`
+}
+
+// hpePromoteResponse represents a HPE Alletra virtual copy promote response.
+type hpePromoteResponse struct {
+	TaskID int `json:"taskid"`
 }
 
 type hpeRespMembers[T any] struct {
@@ -889,5 +898,39 @@ func (p *AlletraClient) waitTaskFinish(ctx context.Context, taskID string) (int,
 		}
 
 		time.Sleep(5 * time.Second)
+	}
+}
+
+// RestoreVolumeSnapshot restores the volume by copying the volume snapshot into its parent volume.
+func (p *AlletraClient) RestoreVolumeSnapshot(ctx context.Context, poolName string, volName string, snapshotName string) error {
+	req := map[string]any{
+		"action": apiActionPromoteVirtualCopy,
+	}
+
+	var resp hpePromoteResponse
+
+	url := api.NewURL().Path("api", "v1", "volumes", snapshotName)
+
+	err := p.requestAuthenticated(http.MethodPut, url.URL, req, &resp)
+	if err != nil {
+		return fmt.Errorf(`Failed to restore snapshot "%s/%s" to "%s/%s": %w`, poolName, snapshotName, poolName, volName, err)
+	}
+
+	status, err := p.waitTaskFinish(ctx, strconv.Itoa(resp.TaskID))
+	if err != nil {
+		return fmt.Errorf(`Failed to wait for restore snapshot operation "%s/%s" to "%s/%s": %w`, poolName, snapshotName, poolName, volName, err)
+	}
+
+	switch status {
+	case taskStatusDone:
+		return nil
+	case taskStatusActive:
+		return fmt.Errorf(`Failed to restore snapshot "%s/%s" to "%s/%s": timeout`, poolName, snapshotName, poolName, volName)
+	case taskStatusCanceled:
+		return fmt.Errorf(`Failed to restore snapshot "%s/%s" to "%s/%s": cancelled`, poolName, snapshotName, poolName, volName)
+	case taskStatusFailed:
+		return fmt.Errorf(`Failed to restore snapshot "%s/%s" to "%s/%s": task failed`, poolName, snapshotName, poolName, volName)
+	default:
+		return fmt.Errorf(`Failed to restore snapshot "%s/%s" to "%s/%s": unknown task state. Alletra API change?`, poolName, snapshotName, poolName, volName)
 	}
 }
