@@ -682,7 +682,7 @@ func parsePermissionArgs(args []string) (*api.Permission, error) {
 	if entityType == entity.TypeIdentity {
 		authenticationMethod, identifier, ok := strings.Cut(entityName, "/")
 		if !ok {
-			return nil, fmt.Errorf("Malformed identity argument, expected `<authentication_method>/<identifier>`, got %q", entityName)
+			return nil, fmt.Errorf("Malformed identity argument, expected `<type>/<identifier>`, got %q", entityName)
 		}
 
 		pathArgs = []string{authenticationMethod, identifier}
@@ -794,7 +794,7 @@ type cmdIdentityCreate struct {
 
 func (c *cmdIdentityCreate) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("create", i18n.G("[<remote>:]<authentication_method>/<name> [<path to PEM encoded certificate>] [[--group <group_name>]]"))
+	cmd.Use = usage("create", i18n.G("[<remote>:]<type>/<name> [<path to PEM encoded certificate>] [[--group <group_name>]]"))
 	cmd.Short = i18n.G("Create an identity")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Create a TLS identity`))
@@ -1009,7 +1009,7 @@ type cmdIdentityShow struct {
 
 func (c *cmdIdentityShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("show", i18n.G("[<remote>:]<authentication_method>/<name_or_identifier>"))
+	cmd.Use = usage("show", i18n.G("[<remote>:]<type>/<name_or_identifier>"))
 	cmd.Short = i18n.G("View an identity")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show identity configurations
@@ -1136,7 +1136,7 @@ func (c *cmdIdentityEdit) command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Edit an identity as YAML`))
 	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc auth identity edit <authentication_method>/<name_or_identifier> < identity.yaml
+		`lxc auth identity edit <type>/<name_or_identifier> < identity.yaml
    Update an identity using the content of identity.yaml`))
 
 	cmd.RunE = c.run
@@ -1257,7 +1257,7 @@ type cmdIdentityDelete struct {
 
 func (c *cmdIdentityDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("delete", i18n.G("[<remote>:]<authentication_method>/<name_or_identifier>"))
+	cmd.Use = usage("delete", i18n.G("[<remote>:]<type>/<name_or_identifier>"))
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Delete an identity")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -1339,7 +1339,7 @@ type cmdIdentityGroupAdd struct {
 
 func (c *cmdIdentityGroupAdd) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("add", i18n.G("[<remote>:]<authentication_method>/<name_or_identifier> <group>"))
+	cmd.Use = usage("add", i18n.G("[<remote>:]<type>/<name_or_identifier> <group>"))
 	cmd.Short = i18n.G("Add a group to an identity")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Add a group to an identity`))
@@ -1391,7 +1391,7 @@ type cmdIdentityGroupRemove struct {
 
 func (c *cmdIdentityGroupRemove) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("remove", i18n.G("[<remote>:]<authentication_method>/<name_or_identifier> <group>"))
+	cmd.Use = usage("remove", i18n.G("[<remote>:]<type>/<name_or_identifier> <group>"))
 	cmd.Short = i18n.G("Remove a group from an identity")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Remove a group from an identity`))
