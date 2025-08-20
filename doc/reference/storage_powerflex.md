@@ -62,9 +62,9 @@ To be able to identify the volume types and snapshots, special identifiers are p
 Type            | Identifier   | Example
 :--             | :---         | :----------
 Container       | `c_`         | `c_WiUEsGpsSEmO592wtnT9FA==`
-Virtual machine | `v_`         | `v_WiUEsGpsSEmO592wtnT9FA==.b`
+Virtual machine | `v_`         | `v_WiUEsGpsSEmO592wtnT9FA==.b` (block volume) and `v_WiUEsGpsSEmO592wtnT9FA==` (file system volume)
 Image (ISO)     | `i_`         | `i_WiUEsGpsSEmO592wtnT9FA==.i`
-Custom volume   | `u_`         | `u_WiUEsGpsSEmO592wtnT9FA==`
+Custom volume   | `u_`         | `u_WiUEsGpsSEmO592wtnT9FA==` (file system volume) and `u_WiUEsGpsSEmO592wtnT9FA==.b` (block volume)
 
 (storage-powerflex-limitations)=
 ### Limitations
