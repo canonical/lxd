@@ -14,12 +14,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/connectors"
+	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
@@ -837,7 +839,29 @@ func (d *alletra) UpdateVolume(vol Volume, changedConfig map[string]string) erro
 
 // GetVolumeUsage returns the disk space used by the volume.
 func (d *alletra) GetVolumeUsage(vol Volume) (int64, error) {
-	return 0, ErrNotSupported
+	// If mounted, use the filesystem stats for pretty accurate usage information.
+	if vol.contentType == ContentTypeFS && filesystem.IsMountPoint(vol.MountPath()) {
+		var stat unix.Statfs_t
+
+		err := unix.Statfs(vol.MountPath(), &stat)
+		if err != nil {
+			return -1, err
+		}
+
+		return int64(stat.Blocks-stat.Bfree) * int64(stat.Bsize), nil
+	}
+
+	volName, err := d.getVolumeName(vol)
+	if err != nil {
+		return -1, err
+	}
+
+	volume, err := d.client().GetVolume(vol.pool, volName)
+	if err != nil {
+		return -1, err
+	}
+
+	return volume.TotalUsedMiB * factorMiB, nil
 }
 
 // SetVolumeQuota applies a size limit on volume.
