@@ -2145,10 +2145,10 @@ type cmdIdentityProviderGroupGroupRemove struct {
 
 func (c *cmdIdentityProviderGroupGroupRemove) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("remove", i18n.G("[<remote>:]<authentication_method>/<name_or_identifier> <group>"))
-	cmd.Short = i18n.G("Remove identities from groups")
+	cmd.Use = usage("remove", i18n.G("[<remote>:]<identity_provider_group> <group>"))
+	cmd.Short = i18n.G("Remove a LXD group from an identity provider group")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Remove identities from groups`))
+		`Remove a LXD group from an identity provider group`))
 
 	cmd.RunE = c.run
 
