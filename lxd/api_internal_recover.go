@@ -72,6 +72,33 @@ type internalRecoverImportPost struct {
 	Pools []api.StoragePoolsPost `json:"pools" yaml:"pools"`
 }
 
+// volumeConfigIsLatest checks whether the given volumeConfig's volume is newer than the existingVolumeConfig's volume.
+// The volume configs are expected to have a single volume in their list of volumes.
+// The check is performed by checking the config's modification time.
+// In case a backup config was created by discovering a volume just from its name,
+// its last modification time is zero and therefore always older than any backup config loaded from file.
+// This allows to determine if an enriched backup config can be used to override an existing one created by discovering a custom volume just from its name.
+func volumeConfigIsLatest(volumeConfig *backupConfig.Config, existingVolumeConfig *backupConfig.Config) (exists bool, newer bool) {
+	for _, volume := range volumeConfig.Volumes {
+		for _, existingVol := range existingVolumeConfig.Volumes {
+			if existingVol.Pool == volume.Pool && existingVol.Project == volume.Project && existingVol.Name == volume.Name {
+				// In case a custom storage volume got discovered through an instance's backup config,
+				// its using the modification time of the instance's backup config.
+				// LXD always writes changes to custom volumes to all the instance's backup configs the volume is attached to.
+				// In case this was failing for one or more instances, this check also ensures we are always
+				// picking the most recent config.
+				if existingVolumeConfig.LastModified().Before(volumeConfig.LastModified()) {
+					return true, true
+				}
+
+				return true, false
+			}
+		}
+	}
+
+	return false, false
+}
+
 // internalRecoverScan provides the discovery and import functionality for both recovery validate and import steps.
 func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.StoragePoolsPost, validateOnly bool) response.Response {
 	var err error
