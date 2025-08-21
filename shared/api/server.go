@@ -143,19 +143,19 @@ type ServerStorageDriverInfo struct {
 	// Example: zfs
 	//
 	// API extension: server_supported_storage_drivers
-	Name string
+	Name string `json:"Name"`
 
 	// Version of the driver
 	// Example: 0.8.4-1ubuntu11
 	//
 	// API extension: server_supported_storage_drivers
-	Version string
+	Version string `json:"Version"`
 
 	// Whether the driver has remote volumes
 	// Example: false
 	//
 	// API extension: server_supported_storage_drivers
-	Remote bool
+	Remote bool `json:"Remote"`
 }
 
 // ServerPut represents the modifiable fields of a LXD server configuration
