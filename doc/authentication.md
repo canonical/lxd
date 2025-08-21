@@ -236,7 +236,7 @@ frontend https_frontend
   # Rate limiting for LXD traffic (that passed above checks)
   stick-table type ip size 100k expire 30s store conn_rate(10s)
   tcp-request content track-sc0 src
-  tcp-request content reject if { sc_conn_rate(0) gt 20 }
+  tcp-request content reject if { sc_conn_rate(0) gt 50 }
 
   # Route to backend
   default_backend lxd_cluster_tcp
