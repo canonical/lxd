@@ -38,11 +38,11 @@ type RequestorArgs struct {
 // [identity.Type], which are set during SetRequestor.
 type Requestor struct {
 	trusted                         bool
-	sourceAddress                   string
+	originAddress                   string
 	username                        string
 	protocol                        string
 	identityProviderGroups          []string
-	forwardedSourceAddress          string
+	forwardedOriginAddress          string
 	forwardedUsername               string
 	forwardedProtocol               string
 	forwardedIdentityProviderGroups []string
@@ -68,13 +68,13 @@ func (r *Requestor) IsAdmin() bool {
 	return r.identityType.IsAdmin()
 }
 
-// CallerAddress returns the original caller address.
-func (r *Requestor) CallerAddress() string {
-	if r.forwardedSourceAddress != "" {
-		return r.forwardedSourceAddress
+// OriginAddress returns the original address of the caller.
+func (r *Requestor) OriginAddress() string {
+	if r.forwardedOriginAddress != "" {
+		return r.forwardedOriginAddress
 	}
 
-	return r.sourceAddress
+	return r.originAddress
 }
 
 // CallerUsername returns the original caller Username.
@@ -109,7 +109,7 @@ func (r *Requestor) EventLifecycleRequestor() *api.EventLifecycleRequestor {
 	return &api.EventLifecycleRequestor{
 		Username: r.CallerUsername(),
 		Protocol: r.CallerProtocol(),
-		Address:  r.CallerAddress(),
+		Address:  r.OriginAddress(),
 	}
 }
 
@@ -125,13 +125,13 @@ func (r *Requestor) CallerIdentityType() identity.Type {
 
 // IsForwarded returns true if the request was forwarded from another cluster member and false otherwise.
 func (r *Requestor) IsForwarded() bool {
-	return r.forwardedSourceAddress != ""
+	return r.forwardedOriginAddress != ""
 }
 
 // ForwardProxy returns a proxy function that adds the requestor details as headers to be inspected by the receiving cluster member.
 func (r *Requestor) ForwardProxy() func(req *http.Request) (*url.URL, error) {
 	return func(req *http.Request) (*url.URL, error) {
-		req.Header.Add(headerForwardedAddress, r.CallerAddress())
+		req.Header.Add(headerForwardedAddress, r.OriginAddress())
 
 		username := r.CallerUsername()
 		if username != "" {
@@ -190,7 +190,7 @@ func (r *Requestor) setForwardingDetails(req *http.Request) error {
 		}
 	}
 
-	r.forwardedSourceAddress = forwardedAddress
+	r.forwardedOriginAddress = forwardedAddress
 	r.forwardedUsername = forwardedUsername
 	r.forwardedProtocol = forwardedProtocol
 	r.forwardedIdentityProviderGroups = forwardedIdentityProviderGroups
@@ -256,7 +256,7 @@ func (r *Requestor) setIdentity(cache *identity.Cache) error {
 func SetRequestor(req *http.Request, identityCache *identity.Cache, args RequestorArgs) error {
 	r := &Requestor{
 		trusted:                args.Trusted,
-		sourceAddress:          req.RemoteAddr,
+		originAddress:          req.RemoteAddr,
 		username:               args.Username,
 		protocol:               args.Protocol,
 		identityProviderGroups: args.IdentityProviderGroups,
