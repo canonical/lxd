@@ -161,7 +161,12 @@ func ParseConfigYamlFile(path string) (*config.Config, error) {
 		return nil, err
 	}
 
-	backupConf := &config.Config{}
+	backupConfInfo, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to stat %q: %w", path, err)
+	}
+
+	backupConf := config.NewConfig(backupConfInfo.ModTime())
 	err = yaml.Unmarshal(data, backupConf)
 	if err != nil {
 		return nil, err
