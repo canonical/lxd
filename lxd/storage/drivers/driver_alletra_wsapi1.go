@@ -846,3 +846,19 @@ func (p *alletraClient) getVLUNsForHost(hostName string) ([]hpeVLUN, error) {
 
 	return resp.Members, nil
 }
+
+// growVolume resize an existing volume. This function does not resize any filesystem inside the volume.
+func (p *alletraClient) growVolume(poolName string, volName string, sizeBytes int64) error {
+	req := map[string]any{
+		"action":  3, // GROW_VOLUME
+		"sizeMiB": sizeBytes / (1024 * 1024),
+	}
+
+	url := api.NewURL().Path("api", "v1", "volumes", volName)
+	err := p.requestAuthenticated(http.MethodPut, url.URL, req, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to resize volume %q in storage pool %q: %w", volName, poolName, err)
+	}
+
+	return nil
+}
