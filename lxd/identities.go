@@ -899,7 +899,7 @@ func getIdentities(authenticationMethod string) func(d *Daemon, r *http.Request)
 		// Optimisation for when only one identity is present on the system.
 		if apiIdentity != nil {
 			if len(withEntitlements) > 0 {
-				err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeIdentity, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.IdentityURL(apiIdentity.AuthenticationMethod, apiIdentity.Identifier): apiIdentity})
+				err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeIdentity, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.IdentityURL(apiIdentity.AuthenticationMethod, apiIdentity.Identifier): apiIdentity})
 				if err != nil {
 					return response.SmartError(err)
 				}
@@ -951,7 +951,7 @@ func getIdentities(authenticationMethod string) func(d *Daemon, r *http.Request)
 			}
 
 			if len(withEntitlements) > 0 {
-				err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeIdentity, withEntitlements, urlToIdentity)
+				err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeIdentity, withEntitlements, urlToIdentity)
 				if err != nil {
 					return response.SmartError(err)
 				}
@@ -1070,7 +1070,7 @@ func getIdentity(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeIdentity, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.IdentityURL(string(id.AuthMethod), id.Identifier): apiIdentity})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeIdentity, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.IdentityURL(string(id.AuthMethod), id.Identifier): apiIdentity})
 		if err != nil {
 			return response.SmartError(err)
 		}

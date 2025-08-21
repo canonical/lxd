@@ -297,7 +297,7 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeNetworkZone, withEntitlements, urlToNetworkZone)
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeNetworkZone, withEntitlements, urlToNetworkZone)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -500,7 +500,7 @@ func networkZoneGet(d *Daemon, r *http.Request) response.Response {
 	info.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, info.UsedBy)
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeNetworkZone, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.NetworkZoneURL(effectiveProjectName, details.zoneName): info})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeNetworkZone, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.NetworkZoneURL(effectiveProjectName, details.zoneName): info})
 		if err != nil {
 			return response.SmartError(err)
 		}
