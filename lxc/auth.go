@@ -682,7 +682,7 @@ func parsePermissionArgs(args []string) (*api.Permission, error) {
 	if entityType == entity.TypeIdentity {
 		authenticationMethod, identifier, ok := strings.Cut(entityName, "/")
 		if !ok {
-			return nil, fmt.Errorf("Malformed identity argument, expected `<authentication_method>/<identifier>`, got %q", entityName)
+			return nil, fmt.Errorf("Malformed identity argument, expected `<type>/<identifier>`, got %q", entityName)
 		}
 
 		pathArgs = []string{authenticationMethod, identifier}
@@ -728,6 +728,29 @@ type cmdIdentity struct {
 	global *cmdGlobal
 }
 
+// resolveIdentityTypeShorthand takes a shorthand and returns an authentication method and identity type or an error.
+// If the shorthand resolves to more than one identity type, it returns an empty string for the identity type.
+func (c *cmdIdentity) resolveIdentityArg(identityArg string) (remote string, method string, identityType string, nameOrID string, err error) {
+	remoteName, resourceName, err := c.global.conf.ParseRemote(identityArg)
+	if err != nil {
+		return "", "", "", "", err
+	}
+
+	shorthandType, idName, ok := strings.Cut(resourceName, "/")
+	if !ok {
+		return "", "", "", "", errors.New(i18n.G("Malformed argument, expected `[<remote>:]<type>/<name>`, got ") + identityArg)
+	}
+
+	switch shorthandType {
+	case api.AuthenticationMethodTLS:
+		return remoteName, api.AuthenticationMethodTLS, "", idName, nil
+	case api.AuthenticationMethodOIDC:
+		return remoteName, api.AuthenticationMethodOIDC, api.IdentityTypeOIDCClient, idName, nil
+	}
+
+	return "", "", "", "", fmt.Errorf("Unrecognized identity type shorthand %q", shorthandType)
+}
+
 func (c *cmdIdentity) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("identity")
@@ -736,25 +759,25 @@ func (c *cmdIdentity) command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Manage identities`))
 
-	identityCreateCmd := cmdIdentityCreate{global: c.global}
+	identityCreateCmd := cmdIdentityCreate{global: c.global, identity: c}
 	cmd.AddCommand(identityCreateCmd.command())
 
 	identityListCmd := cmdIdentityList{global: c.global}
 	cmd.AddCommand(identityListCmd.command())
 
-	identityShowCmd := cmdIdentityShow{global: c.global}
+	identityShowCmd := cmdIdentityShow{global: c.global, identity: c}
 	cmd.AddCommand(identityShowCmd.command())
 
 	identityInfoCmd := cmdIdentityInfo{global: c.global}
 	cmd.AddCommand(identityInfoCmd.command())
 
-	identityEditCmd := cmdIdentityEdit{global: c.global}
+	identityEditCmd := cmdIdentityEdit{global: c.global, identity: c}
 	cmd.AddCommand(identityEditCmd.command())
 
-	identityDeleteCmd := cmdIdentityDelete{global: c.global}
+	identityDeleteCmd := cmdIdentityDelete{global: c.global, identity: c}
 	cmd.AddCommand(identityDeleteCmd.command())
 
-	identityGroupCmd := cmdIdentityGroup{global: c.global}
+	identityGroupCmd := cmdIdentityGroup{global: c.global, identity: c}
 	cmd.AddCommand(identityGroupCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
@@ -765,12 +788,13 @@ func (c *cmdIdentity) command() *cobra.Command {
 
 type cmdIdentityCreate struct {
 	global     *cmdGlobal
+	identity   *cmdIdentity
 	flagGroups []string
 }
 
 func (c *cmdIdentityCreate) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("create", i18n.G("[<remote>:]<authentication_method>/<name> [<path to PEM encoded certificate>] [[--group <group_name>]]"))
+	cmd.Use = usage("create", i18n.G("[<remote>:]<type>/<name> [<path to PEM encoded certificate>] [[--group <group_name>]]"))
 	cmd.Short = i18n.G("Create an identity")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Create a TLS identity`))
@@ -782,14 +806,38 @@ func (c *cmdIdentityCreate) command() *cobra.Command {
 }
 
 func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
-	var stdinData api.IdentitiesTLSPost
-
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
 	if exit {
 		return err
 	}
 
+	remoteName, method, idType, name, err := c.identity.resolveIdentityArg(args[0])
+	if err != nil {
+		return err
+	}
+
+	switch method {
+	case api.AuthenticationMethodTLS:
+		var certFilePath string
+		if len(args) == 2 {
+			certFilePath = args[1]
+		}
+
+		return c.createTLSIdentity(remoteName, name, certFilePath)
+	case api.AuthenticationMethodOIDC:
+		return errors.New("OIDC identities cannot be created manually")
+	}
+
+	if idType == "" {
+		return fmt.Errorf("Cannot create identities with authentication method %q", method)
+	}
+
+	return fmt.Errorf("Cannot create identities of type %q", idType)
+}
+
+func (c *cmdIdentityCreate) createTLSIdentity(remote string, name string, certFilePath string) error {
+	var stdinData api.IdentitiesTLSPost
 	// If stdin isn't a terminal, read text from it
 	if !termios.IsTerminal(getStdinFd()) {
 		contents, err := io.ReadAll(os.Stdin)
@@ -803,29 +851,10 @@ func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Parse remote
-	remoteName, resourceName, err := c.global.conf.ParseRemote(args[0])
-	if err != nil {
-		return err
-	}
-
 	transporter, wrapper := newLocationHeaderTransportWrapper()
-	client, err := c.global.conf.GetInstanceServerWithConnectionArgs(remoteName, &lxd.ConnectionArgs{TransportWrapper: wrapper})
+	client, err := c.global.conf.GetInstanceServerWithConnectionArgs(remote, &lxd.ConnectionArgs{TransportWrapper: wrapper})
 	if err != nil {
 		return err
-	}
-
-	if resourceName == "" {
-		return errors.New(i18n.G("Missing identity argument"))
-	}
-
-	authMethod, name, ok := strings.Cut(resourceName, "/")
-	if !ok {
-		return errors.New(i18n.G("Malformed argument, expected `[<remote>:]<authentication_method>/<name>`, got ") + args[0])
-	}
-
-	if authMethod != api.AuthenticationMethodTLS {
-		return errors.New(i18n.G("Identity creation only supported for TLS identities"))
 	}
 
 	// Add name and groups to any stdin data
@@ -837,8 +866,8 @@ func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// If the certificate argument is provided, read it and add it to the stdin data.
-	if len(args) == 2 {
-		pemEncodedX509Cert, err := os.ReadFile(args[1])
+	if certFilePath != "" {
+		pemEncodedX509Cert, err := os.ReadFile(certFilePath)
 		if err != nil {
 			return err
 		}
@@ -861,7 +890,7 @@ func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
 			}
 
 			var pendingIdentityUUIDStr string
-			identityURLPrefix := api.NewURL().Path(version.APIVersion, "auth", "identities", authMethod).String()
+			identityURLPrefix := api.NewURL().Path(version.APIVersion, "auth", "identities", api.AuthenticationMethodTLS).String()
 			_, err = fmt.Sscanf(pendingIdentityURL.Path, identityURLPrefix+"/%s", &pendingIdentityUUIDStr)
 			if err != nil {
 				return fmt.Errorf("Received unexpected location header %q: %w", transporter.location, err)
@@ -872,7 +901,7 @@ func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
 				return fmt.Errorf("Received invalid pending identity UUID %q: %w", pendingIdentityUUIDStr, err)
 			}
 
-			fmt.Printf(i18n.G("TLS identity %q (%s) pending identity token:")+"\n", resourceName, pendingIdentityUUID.String())
+			fmt.Printf(i18n.G("TLS identity %q (%s) pending identity token:")+"\n", name, pendingIdentityUUID.String())
 		}
 
 		// Encode certificate add token to JSON.
@@ -898,7 +927,7 @@ func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(i18n.G("TLS identity %q created with fingerprint %q")+"\n", resourceName, fingerprint)
+		fmt.Printf(i18n.G("TLS identity %q created with fingerprint %q")+"\n", name, fingerprint)
 	}
 
 	return nil
@@ -974,12 +1003,13 @@ func (c *cmdIdentityList) run(cmd *cobra.Command, args []string) error {
 
 // Show.
 type cmdIdentityShow struct {
-	global *cmdGlobal
+	global   *cmdGlobal
+	identity *cmdIdentity
 }
 
 func (c *cmdIdentityShow) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("show", i18n.G("[<remote>:]<authentication_method>/<name_or_identifier>"))
+	cmd.Use = usage("show", i18n.G("[<remote>:]<type>/<name_or_identifier>"))
 	cmd.Short = i18n.G("View an identity")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show identity configurations
@@ -1002,27 +1032,24 @@ func (c *cmdIdentityShow) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+	remote, method, idType, name, err := c.identity.resolveIdentityArg(args[0])
 	if err != nil {
 		return err
 	}
 
-	resource := resources[0]
-
-	if resource.name == "" {
-		return errors.New(i18n.G("Missing identity argument"))
-	}
-
-	authenticationMethod, nameOrID, ok := strings.Cut(resource.name, "/")
-	if !ok {
-		return fmt.Errorf("Malformed argument, expected `[<remote>:]<authentication_method>/<name_or_identifier>`, got %q", args[0])
+	server, err := c.global.conf.GetInstanceServer(remote)
+	if err != nil {
+		return err
 	}
 
 	// Show the identity
-	identity, _, err := resource.server.GetIdentity(authenticationMethod, nameOrID)
+	identity, _, err := server.GetIdentity(method, name)
 	if err != nil {
 		return err
+	}
+
+	if idType != "" && identity.Type != idType {
+		return fmt.Errorf("Expected identity of type %q but found identity with type %q", idType, identity.Type)
 	}
 
 	data, err := yaml.Marshal(&identity)
@@ -1098,7 +1125,8 @@ func (c *cmdIdentityInfo) run(cmd *cobra.Command, args []string) error {
 
 // Edit.
 type cmdIdentityEdit struct {
-	global *cmdGlobal
+	global   *cmdGlobal
+	identity *cmdIdentity
 }
 
 func (c *cmdIdentityEdit) command() *cobra.Command {
@@ -1108,7 +1136,7 @@ func (c *cmdIdentityEdit) command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Edit an identity as YAML`))
 	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc auth identity edit <authentication_method>/<name_or_identifier> < identity.yaml
+		`lxc auth identity edit <type>/<name_or_identifier> < identity.yaml
    Update an identity using the content of identity.yaml`))
 
 	cmd.RunE = c.run
@@ -1143,21 +1171,24 @@ func (c *cmdIdentityEdit) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+	remote, method, idType, name, err := c.identity.resolveIdentityArg(args[0])
 	if err != nil {
 		return err
 	}
 
-	resource := resources[0]
-
-	if resource.name == "" {
-		return errors.New(i18n.G("Missing identity argument"))
+	server, err := c.global.conf.GetInstanceServer(remote)
+	if err != nil {
+		return err
 	}
 
-	authenticationMethod, nameOrID, ok := strings.Cut(resource.name, "/")
-	if !ok {
-		return fmt.Errorf("Malformed argument, expected `[<remote>:]<authentication_method>/<name_or_identifier>`, got %q", args[0])
+	// Show the identity
+	identity, etag, err := server.GetIdentity(method, name)
+	if err != nil {
+		return err
+	}
+
+	if idType != "" && identity.Type != idType {
+		return fmt.Errorf("Expected identity of type %q but found identity with type %q", idType, identity.Type)
 	}
 
 	// If stdin isn't a terminal, read text from it
@@ -1173,13 +1204,7 @@ func (c *cmdIdentityEdit) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return resource.server.UpdateIdentity(authenticationMethod, nameOrID, newdata, "")
-	}
-
-	// Extract the current value
-	identity, etag, err := resource.server.GetIdentity(authenticationMethod, nameOrID)
-	if err != nil {
-		return err
+		return server.UpdateIdentity(method, name, newdata, etag)
 	}
 
 	data, err := yaml.Marshal(&identity)
@@ -1198,7 +1223,7 @@ func (c *cmdIdentityEdit) run(cmd *cobra.Command, args []string) error {
 		newdata := api.IdentityPut{}
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
-			err = resource.server.UpdateIdentity(authenticationMethod, nameOrID, newdata, etag)
+			err = server.UpdateIdentity(method, name, newdata, etag)
 		}
 
 		// Respawn the editor
@@ -1226,12 +1251,13 @@ func (c *cmdIdentityEdit) run(cmd *cobra.Command, args []string) error {
 }
 
 type cmdIdentityDelete struct {
-	global *cmdGlobal
+	global   *cmdGlobal
+	identity *cmdIdentity
 }
 
 func (c *cmdIdentityDelete) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("delete", i18n.G("[<remote>:]<authentication_method>/<name_or_identifier>"))
+	cmd.Use = usage("delete", i18n.G("[<remote>:]<type>/<name_or_identifier>"))
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Delete an identity")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -1260,28 +1286,31 @@ func (c *cmdIdentityDelete) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+	remote, method, idType, name, err := c.identity.resolveIdentityArg(args[0])
 	if err != nil {
 		return err
 	}
 
-	resource := resources[0]
-
-	if resource.name == "" {
-		return errors.New(i18n.G("Missing identity argument"))
+	server, err := c.global.conf.GetInstanceServer(remote)
+	if err != nil {
+		return err
 	}
 
-	authenticationMethod, nameOrID, ok := strings.Cut(resource.name, "/")
-	if !ok {
-		return fmt.Errorf("Malformed argument, expected `[<remote>:]<authentication_method>/<name_or_identifier>`, got %q", args[0])
+	id, _, err := server.GetIdentity(method, name)
+	if err != nil {
+		return err
 	}
 
-	return resource.server.DeleteIdentity(authenticationMethod, nameOrID)
+	if idType != "" && id.Type != idType {
+		return fmt.Errorf("Expected identity of type %q but found identity with type %q", idType, id.Type)
+	}
+
+	return server.DeleteIdentity(method, name)
 }
 
 type cmdIdentityGroup struct {
-	global *cmdGlobal
+	global   *cmdGlobal
+	identity *cmdIdentity
 }
 
 func (c *cmdIdentityGroup) command() *cobra.Command {
@@ -1291,10 +1320,10 @@ func (c *cmdIdentityGroup) command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Manage groups for the identity`))
 
-	identityGroupAddCmd := cmdIdentityGroupAdd{global: c.global}
+	identityGroupAddCmd := cmdIdentityGroupAdd{global: c.global, identity: c.identity}
 	cmd.AddCommand(identityGroupAddCmd.command())
 
-	identityGroupRemoveCmd := cmdIdentityGroupRemove{global: c.global}
+	identityGroupRemoveCmd := cmdIdentityGroupRemove{global: c.global, identity: c.identity}
 	cmd.AddCommand(identityGroupRemoveCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
@@ -1304,12 +1333,13 @@ func (c *cmdIdentityGroup) command() *cobra.Command {
 }
 
 type cmdIdentityGroupAdd struct {
-	global *cmdGlobal
+	global   *cmdGlobal
+	identity *cmdIdentity
 }
 
 func (c *cmdIdentityGroupAdd) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("add", i18n.G("[<remote>:]<authentication_method>/<name_or_identifier> <group>"))
+	cmd.Use = usage("add", i18n.G("[<remote>:]<type>/<name_or_identifier> <group>"))
 	cmd.Short = i18n.G("Add a group to an identity")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Add a group to an identity`))
@@ -1326,48 +1356,42 @@ func (c *cmdIdentityGroupAdd) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+	remote, method, idType, name, err := c.identity.resolveIdentityArg(args[0])
 	if err != nil {
 		return err
 	}
 
-	resource := resources[0]
-
-	if resource.name == "" {
-		return errors.New(i18n.G("Missing identity argument"))
-	}
-
-	authenticationMethod, nameOrID, ok := strings.Cut(resource.name, "/")
-	if !ok {
-		return fmt.Errorf("Malformed argument, expected `[<remote>:]<authentication_method>/<name_or_identifier>`, got %q", args[0])
-	}
-
-	identity, eTag, err := resource.server.GetIdentity(authenticationMethod, nameOrID)
+	server, err := c.global.conf.GetInstanceServer(remote)
 	if err != nil {
 		return err
 	}
 
-	added := false
-	if !slices.Contains(identity.Groups, args[1]) {
-		identity.Groups = append(identity.Groups, args[1])
-		added = true
+	identity, eTag, err := server.GetIdentity(method, name)
+	if err != nil {
+		return err
 	}
 
-	if !added {
-		return fmt.Errorf("Identity %q is already a member of group %q", resource.name, args[1])
+	if idType != "" && identity.Type != idType {
+		return fmt.Errorf("Expected identity of type %q but found identity with type %q", idType, identity.Type)
 	}
 
-	return resource.server.UpdateIdentity(authenticationMethod, nameOrID, identity.Writable(), eTag)
+	if slices.Contains(identity.Groups, args[1]) {
+		return fmt.Errorf("Identity %q is already a member of group %q", name, args[1])
+	}
+
+	identity.Groups = append(identity.Groups, args[1])
+
+	return server.UpdateIdentity(method, name, identity.Writable(), eTag)
 }
 
 type cmdIdentityGroupRemove struct {
-	global *cmdGlobal
+	global   *cmdGlobal
+	identity *cmdIdentity
 }
 
 func (c *cmdIdentityGroupRemove) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("remove", i18n.G("[<remote>:]<authentication_method>/<name_or_identifier> <group>"))
+	cmd.Use = usage("remove", i18n.G("[<remote>:]<type>/<name_or_identifier> <group>"))
 	cmd.Short = i18n.G("Remove a group from an identity")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Remove a group from an identity`))
@@ -1384,49 +1408,36 @@ func (c *cmdIdentityGroupRemove) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+	remote, method, idType, name, err := c.identity.resolveIdentityArg(args[0])
 	if err != nil {
 		return err
 	}
 
-	resource := resources[0]
-
-	if resource.name == "" {
-		return errors.New(i18n.G("Missing identity argument"))
-	}
-
-	authenticationMethod, nameOrID, ok := strings.Cut(resource.name, "/")
-	if !ok {
-		return fmt.Errorf("Malformed argument, expected `[<remote>:]<authentication_method>/<name_or_identifier>`, got %q", args[0])
-	}
-
-	identity, eTag, err := resource.server.GetIdentity(authenticationMethod, nameOrID)
+	server, err := c.global.conf.GetInstanceServer(remote)
 	if err != nil {
 		return err
 	}
 
-	if len(identity.Groups) == 0 {
-		return fmt.Errorf("Identity %q is not a member of any groups", resource.name)
+	identity, eTag, err := server.GetIdentity(method, name)
+	if err != nil {
+		return err
 	}
 
-	groups := make([]string, 0, len(identity.Groups)-1)
-	removed := false
-	for _, existingGroup := range identity.Groups {
-		if args[1] == existingGroup {
-			removed = true
-			continue
-		}
-
-		groups = append(groups, existingGroup)
+	if idType != "" && identity.Type != idType {
+		return fmt.Errorf("Expected identity of type %q but found identity with type %q", idType, identity.Type)
 	}
 
-	if !removed {
-		return fmt.Errorf("Identity %q is not a member of group %q", resource.name, args[0])
+	nGroups := len(identity.Groups)
+	identity.Groups = slices.DeleteFunc(identity.Groups, func(s string) bool {
+		return s == args[1]
+	})
+	if len(identity.Groups) == nGroups {
+		return fmt.Errorf("Identity %q is not a member of group %q", name, args[1])
 	}
 
-	identity.Groups = groups
-	return resource.server.UpdateIdentity(authenticationMethod, nameOrID, identity.Writable(), eTag)
+	identity.Groups = append(identity.Groups, args[1])
+
+	return server.UpdateIdentity(method, name, identity.Writable(), eTag)
 }
 
 type cmdPermission struct {
@@ -2134,10 +2145,10 @@ type cmdIdentityProviderGroupGroupRemove struct {
 
 func (c *cmdIdentityProviderGroupGroupRemove) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("remove", i18n.G("[<remote>:]<authentication_method>/<name_or_identifier> <group>"))
-	cmd.Short = i18n.G("Remove identities from groups")
+	cmd.Use = usage("remove", i18n.G("[<remote>:]<identity_provider_group> <group>"))
+	cmd.Short = i18n.G("Remove a LXD group from an identity provider group")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Remove identities from groups`))
+		`Remove a LXD group from an identity provider group`))
 
 	cmd.RunE = c.run
 
