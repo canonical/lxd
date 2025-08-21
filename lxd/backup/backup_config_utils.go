@@ -130,7 +130,8 @@ func ConvertFormat(backupConf *config.Config, version uint32) (*config.Config, e
 		// Rewrite the volumes only in case the old format is used.
 		// We can indicate this by checking whether or not the .Volumes key is set.
 		// This is applicable for both instances and custom storage volumes.
-		if len(copyBackupConf.Volumes) == 0 {
+		// In case there is no volume set we also don't populate one in the new file format.
+		if len(copyBackupConf.Volumes) == 0 && copyBackupConf.Volume != nil { //nolint:staticcheck
 			copyBackupConf.Volumes = []*config.Volume{
 				{
 					StorageVolume: *copyBackupConf.Volume,         //nolint:staticcheck
