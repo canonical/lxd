@@ -88,7 +88,7 @@ func ConfigToInstanceDBArgs(state *state.State, c *config.Config, projectName st
 // In case the requested format is already present it's a noop.
 func ConvertFormat(backupConf *config.Config, version uint32) (*config.Config, error) {
 	// Create a copy of the original config.
-	copyBackupConf := &config.Config{}
+	copyBackupConf := config.NewConfig(backupConf.LastModified())
 	err := shared.DeepCopy(backupConf, copyBackupConf)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to deep copy backup config: %w", err)
