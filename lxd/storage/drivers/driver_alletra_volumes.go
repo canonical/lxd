@@ -613,7 +613,26 @@ func (d *alletra) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowI
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
 func (d *alletra) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
-	return errors.New("CreateVolumeFromMigration: unsupported operation")
+	// When performing a cluster member move prepare the volumes on the target side.
+	if volTargetArgs.ClusterMoveSourceName != "" {
+		err := vol.EnsureMountPath()
+		if err != nil {
+			return err
+		}
+
+		if vol.IsVMBlock() {
+			fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume())
+			err := d.CreateVolumeFromMigration(fsVol, conn, volTargetArgs, preFiller, op)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	_, err := genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
+	return err
 }
 
 // DeleteVolume deletes the volume and all associated snapshots.
