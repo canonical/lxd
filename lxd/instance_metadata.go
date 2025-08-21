@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/gorilla/mux"
-	"gopkg.in/yaml.v2"
+	"go.yaml.in/yaml/v2"
 
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/lifecycle"
