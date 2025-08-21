@@ -32,6 +32,7 @@ const (
 
 	apiVolumeSetMemberAdd    = 1
 	apiVolumeSetMemberRemove = 2
+	apiActionGrowVolume      = 3
 )
 
 // createBodyReader creates a reader for the given request body contents.
@@ -772,4 +773,20 @@ func (p *AlletraClient) GetVLUNsForHost(hostName string) ([]hpeVLUN, error) {
 	}
 
 	return resp.Members, nil
+}
+
+// GrowVolume resize an existing volume. This function does not resize any filesystem inside the volume.
+func (p *AlletraClient) GrowVolume(poolName string, volName string, sizeBytes int64) error {
+	req := map[string]any{
+		"action":  apiActionGrowVolume,
+		"sizeMiB": sizeBytes / (1024 * 1024),
+	}
+
+	url := api.NewURL().Path("api", "v1", "volumes", volName)
+	err := p.requestAuthenticated(http.MethodPut, url.URL, req, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to resize volume %q in storage pool %q: %w", volName, poolName, err)
+	}
+
+	return nil
 }
