@@ -215,3 +215,8 @@ func (c *Config) CustomVolume() (*Volume, error) {
 
 	return volume, nil
 }
+
+// LastModified returns the backup config's immutable last modification time.
+func (c *Config) LastModified() time.Time {
+	return c.metadata.lastModified
+}
