@@ -398,7 +398,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeNetwork, withEntitlements, urlToNetwork)
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeNetwork, withEntitlements, urlToNetwork)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -979,7 +979,7 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeNetwork, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.NetworkURL(details.requestProject.Name, details.networkName): &n})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeNetwork, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.NetworkURL(details.requestProject.Name, details.networkName): &n})
 		if err != nil {
 			return response.SmartError(err)
 		}

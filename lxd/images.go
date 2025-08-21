@@ -1885,7 +1885,7 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 			urlToImage[entity.ImageURL(image.Project, image.Fingerprint)] = image
 		}
 
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeImage, withEntitlements, urlToImage)
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeImage, withEntitlements, urlToImage)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -3255,7 +3255,7 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeImage, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ImageURL(projectName, fingerprint): info})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeImage, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ImageURL(projectName, fingerprint): info})
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -3715,7 +3715,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeImageAlias, withEntitlements, urlToImageAlias)
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeImageAlias, withEntitlements, urlToImageAlias)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -3852,7 +3852,7 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeImageAlias, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ImageAliasURL(projectName, name): &alias})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeImageAlias, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ImageAliasURL(projectName, name): &alias})
 		if err != nil {
 			return response.SmartError(err)
 		}

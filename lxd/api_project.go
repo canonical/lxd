@@ -214,7 +214,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 			urlToProject[u] = p
 		}
 
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeProject, withEntitlements, urlToProject)
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeProject, withEntitlements, urlToProject)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -479,7 +479,7 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeProject, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ProjectURL(name): project})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeProject, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ProjectURL(name): project})
 		if err != nil {
 			return response.SmartError(err)
 		}

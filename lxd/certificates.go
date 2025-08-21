@@ -185,7 +185,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if len(withEntitlements) > 0 {
-			err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeCertificate, withEntitlements, urlToCertificate)
+			err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeCertificate, withEntitlements, urlToCertificate)
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -833,7 +833,7 @@ func certificateGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeCertificate, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.CertificateURL(cert.Fingerprint): cert})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeCertificate, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.CertificateURL(cert.Fingerprint): cert})
 		if err != nil {
 			return response.SmartError(err)
 		}

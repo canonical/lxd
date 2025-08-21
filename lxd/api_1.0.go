@@ -431,7 +431,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeServer, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ServerURL(): fullSrv})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeServer, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ServerURL(): fullSrv})
 		if err != nil {
 			return response.SmartError(err)
 		}
