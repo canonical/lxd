@@ -865,6 +865,116 @@ func (d *alletra) GetVolumeUsage(vol Volume) (int64, error) {
 }
 
 // SetVolumeQuota applies a size limit on volume.
+// Does nothing if supplied with an empty/zero size.
 func (d *alletra) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
-	return ErrNotSupported
+	// Convert to bytes.
+	sizeBytes, err := units.ParseByteSizeString(size)
+	if err != nil {
+		return err
+	}
+
+	// Do nothing if size isn't specified.
+	if sizeBytes <= 0 {
+		return nil
+	}
+
+	volName, err := d.getVolumeName(vol)
+	if err != nil {
+		return err
+	}
+
+	client := d.client()
+	volume, err := client.GetVolume(vol.pool, volName)
+	if err != nil {
+		return err
+	}
+
+	// Try to fetch the current size of the volume from the API.
+	// If the volume is not yet mapped to the system this speeds up the
+	// process as the volume doesn't have to be mapped to get its size
+	// from the actual block device.
+	oldSizeBytes := volume.SizeMiB * factorMiB
+
+	// Do nothing if volume is already specified size (+/- 512 bytes).
+	if oldSizeBytes+512 > sizeBytes && oldSizeBytes-512 < sizeBytes {
+		return nil
+	}
+
+	// HPE Alletra supports increasing of size only.
+	if sizeBytes < oldSizeBytes {
+		return ErrCannotBeShrunk
+	}
+
+	// Resize filesystem if needed.
+	if vol.contentType == ContentTypeFS {
+		fsType := vol.ConfigBlockFilesystem()
+
+		if sizeBytes > oldSizeBytes {
+			// Grow block device first.
+			err = client.GrowVolume(vol.pool, volName, sizeBytes-oldSizeBytes)
+			if err != nil {
+				return err
+			}
+
+			devPath, cleanup, err := d.getMappedDevPath(vol, true)
+			if err != nil {
+				return err
+			}
+
+			defer cleanup()
+
+			// Always wait for the disk to reflect the new size.
+			// In case SetVolumeQuota is called on an already mapped volume,
+			// it might take some time until the actual size of the device is reflected on the host.
+			// This is for example the case when creating a volume and the filler performs a resize in case the image exceeds the volume's size.
+			err = block.WaitDiskDeviceResize(d.state.ShutdownCtx, devPath, sizeBytes)
+			if err != nil {
+				return fmt.Errorf("Failed waiting for volume %q to change its size: %w", vol.name, err)
+			}
+
+			// Grow the filesystem to fill block device.
+			err = growFileSystem(fsType, devPath, vol)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		inUse := vol.MountInUse()
+
+		// Only perform pre-resize checks if we are not in "unsafe" mode.
+		// In unsafe mode we expect the caller to know what they are doing and understand the risks.
+		if !allowUnsafeResize && inUse {
+			// We don't allow online resizing of block volumes.
+			return ErrInUse
+		}
+
+		// Resize block device.
+		err = client.GrowVolume(vol.pool, volName, sizeBytes-oldSizeBytes)
+		if err != nil {
+			return err
+		}
+
+		devPath, cleanup, err := d.getMappedDevPath(vol, true)
+		if err != nil {
+			return err
+		}
+
+		defer cleanup()
+
+		err = block.WaitDiskDeviceResize(d.state.ShutdownCtx, devPath, sizeBytes)
+		if err != nil {
+			return fmt.Errorf("Failed waiting for volume %q to change its size: %w", vol.name, err)
+		}
+
+		// Move the VM GPT alt header to end of disk if needed (not needed in unsafe resize mode as it is
+		// expected the caller will do all necessary post resize actions themselves).
+		if vol.IsVMBlock() && !allowUnsafeResize {
+			err = d.moveGPTAltHeader(devPath)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
