@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared/api"
@@ -45,8 +46,18 @@ type Bucket struct {
 	*api.StorageBucket `yaml:",inline"` //nolint:musttag
 }
 
+// configMetadata represents internal fields which don't appear on the materialized backup config.
+type configMetadata struct {
+	// lastModified tracks the backup file's modification time.
+	lastModified time.Time
+}
+
 // Config represents the config of a backup that can be stored in a backup.yaml file (or embedded in index.yaml).
 type Config struct {
+	// Unexported fields.
+	// We cannot simply embed them as it will let the yaml marshaller panic.
+	metadata configMetadata
+
 	// The JSON representation of the fields does not use lowercase (and omitempty) to stay backwards compatible
 	// across all versions of LXD as the Config struct is also used throughout the migration.
 	Version   uint32                  `json:"Version" yaml:"version,omitempty"`
