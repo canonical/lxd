@@ -2752,8 +2752,9 @@ test_clustering_ha() {
   echo "Configure HAproxy"
   HOSTNAME="$(hostname)"
   PROXY_PROTOCOL="true"
+  CONN_RATE="20"
   setup_haproxy
-  configure_haproxy "${HOSTNAME}" "${PROXY_PROTOCOL}" "${LXD_ONE_ADDR}" "${LXD_TWO_ADDR}" "${LXD_THREE_ADDR}" > /etc/haproxy/haproxy.cfg
+  configure_haproxy "${HOSTNAME}" "${PROXY_PROTOCOL}" "${CONN_RATE}" "${LXD_ONE_ADDR}" "${LXD_TWO_ADDR}" "${LXD_THREE_ADDR}" > /etc/haproxy/haproxy.cfg
   start_haproxy
 
   # Add a host entry for the HAproxy frontend address
@@ -2805,7 +2806,7 @@ test_clustering_ha() {
   echo "Test rate limit is enforced and some connections are rejected"
   successes=0
   failures=0
-  for i in $(seq 20); do
+  for i in $(seq "$((CONN_RATE + 5))"); do
     echo "Connection attempt (${i})"
     if lxc query ha-cluster:/ >/dev/null; then
       successes="$((successes+1))"
