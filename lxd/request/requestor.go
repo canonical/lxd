@@ -155,9 +155,9 @@ func (r *Requestor) ForwardProxy() func(req *http.Request) (*url.URL, error) {
 	}
 }
 
-// ForwardingMemberFingerprint returns the fingerprint of the cluster member that forwarded the request. It returns
-// an error if the request was not sent by another cluster member.
-func (r *Requestor) ForwardingMemberFingerprint() (string, error) {
+// ClusterMemberTLSCertificateFingerprint returns the TLS certificate fingerprint of the cluster member that
+// sent the request. It returns an error if the request was not sent by another cluster member.
+func (r *Requestor) ClusterMemberTLSCertificateFingerprint() (string, error) {
 	if r.protocol != ProtocolCluster {
 		return "", ErrRequestNotInternal
 	}
