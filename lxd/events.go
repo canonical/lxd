@@ -125,7 +125,7 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 			return nil
 		}
 
-		fingerprint, err := requestor.ForwardingMemberFingerprint()
+		fingerprint, err := requestor.ClusterMemberTLSCertificateFingerprint()
 		if err != nil {
 			l.Warn("Failed setting up event connection", logger.Ctx{"err": err})
 			return nil

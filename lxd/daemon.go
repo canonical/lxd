@@ -379,7 +379,7 @@ func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
 
 // reportEntitlements takes a map of entity URLs to EntitlementReporters (in practice, API types that implement the ReportEntitlements method), and
 // reports the entitlements that the caller has on each entity URL to the corresponding EntitlementReporter.
-func reportEntitlements(ctx context.Context, authorizer auth.Authorizer, identityCache *identity.Cache, entityType entity.Type, requestedEntitlements []auth.Entitlement, entityURLToEntitlementReporter map[*api.URL]auth.EntitlementReporter) error {
+func reportEntitlements(ctx context.Context, authorizer auth.Authorizer, entityType entity.Type, requestedEntitlements []auth.Entitlement, entityURLToEntitlementReporter map[*api.URL]auth.EntitlementReporter) error {
 	// Nothing to do
 	if len(entityURLToEntitlementReporter) == 0 {
 		return nil
@@ -390,13 +390,20 @@ func reportEntitlements(ctx context.Context, authorizer auth.Authorizer, identit
 		return err
 	}
 
+	// No fine-grained identities are global admins. Check this first in case the caller is using e.g. the unix socket.
+	if requestor.IsAdmin() {
+		return api.NewStatusError(http.StatusBadRequest, "Cannot report entitlements for identities that do not use fine-grained authorization")
+	}
+
+	// Any other requestor should have an identity type present.
 	identityType := requestor.CallerIdentityType()
 	if identityType == nil {
 		return errors.New("No identity type present in request details")
 	}
 
+	// Check the identity type is fine-grained (it could be a restricted client certificate).
 	if !identityType.IsFineGrained() {
-		return errors.New("Not fine grained")
+		return api.NewStatusError(http.StatusBadRequest, "Cannot report entitlements for identities that do not use fine-grained authorization")
 	}
 
 	// In the case where we have only one entity URL, we'll use the authorizer's CheckPermission method

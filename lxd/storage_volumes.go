@@ -843,7 +843,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if len(withEntitlements) > 0 {
-			err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeStorageVolume, withEntitlements, urlToVolume)
+			err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeStorageVolume, withEntitlements, urlToVolume)
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -2065,7 +2065,7 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 	dbVolume.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, volumeUsedBy)
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeStorageVolume, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.StorageVolumeURL(dbVolume.Project, dbVolume.Location, dbVolume.Pool, dbVolume.Type, dbVolume.Name): dbVolume})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeStorageVolume, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.StorageVolumeURL(dbVolume.Project, dbVolume.Location, dbVolume.Pool, dbVolume.Type, dbVolume.Name): dbVolume})
 		if err != nil {
 			return response.SmartError(err)
 		}
