@@ -278,6 +278,7 @@ func SetRequestor(req *http.Request, identityCache *identity.Cache, args Request
 		}
 
 		// The only allowed protocols for the untrusted case are ProtocolDevLXD, or empty.
+		// The protocol is empty when calls made to the main API are untrusted.
 		if !slices.Contains([]string{ProtocolDevLXD, ""}, callerProtocol) {
 			return errors.New("Unsupported protocol set for untrusted request")
 		}
