@@ -5,7 +5,9 @@ import (
 )
 
 // entityTypeStorageVolumeSnapshot implements entityTypeDBInfo for a StorageVolumeSnapshot.
-type entityTypeStorageVolumeSnapshot struct{}
+type entityTypeStorageVolumeSnapshot struct {
+	entityTypeCommon
+}
 
 func (e entityTypeStorageVolumeSnapshot) code() int64 {
 	return entityTypeCodeStorageVolumeSnapshot

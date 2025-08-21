@@ -115,6 +115,14 @@ var updates = map[int]schema.Update{
 	72: updateFromV71,
 	73: updateFromV72,
 	74: updateFromV73,
+	75: updateFromV74,
+}
+
+func updateFromV74(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, `
+CREATE INDEX identity_name_auth_method ON identities (auth_method, name);
+`)
+	return err
 }
 
 func updateFromV73(ctx context.Context, tx *sql.Tx) error {
