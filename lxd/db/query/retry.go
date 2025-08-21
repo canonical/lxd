@@ -69,8 +69,7 @@ func jitterDeviation(factor float64, duration time.Duration) time.Duration {
 // IsRetriableError returns true if the given error might be transient and the
 // interaction can be safely retried.
 func IsRetriableError(err error) bool {
-	var dErr *driver.Error
-
+	var dErr driver.Error
 	if errors.As(err, &dErr) && dErr.Code == driver.ErrBusy {
 		return true
 	}
