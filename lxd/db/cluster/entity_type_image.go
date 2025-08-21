@@ -5,7 +5,9 @@ import (
 )
 
 // entityTypeImage implements entityTypeDBInfo for an Image.
-type entityTypeImage struct{}
+type entityTypeImage struct {
+	entityTypeCommon
+}
 
 func (e entityTypeImage) code() int64 {
 	return entityTypeCodeImage

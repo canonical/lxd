@@ -5,7 +5,9 @@ import (
 )
 
 // entityTypeStorageBucket implements entityTypeDBInfo for a StorageBucket.
-type entityTypeStorageBucket struct{}
+type entityTypeStorageBucket struct {
+	entityTypeCommon
+}
 
 func (e entityTypeStorageBucket) code() int64 {
 	return entityTypeCodeStorageBucket
