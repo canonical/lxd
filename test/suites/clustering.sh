@@ -2822,6 +2822,9 @@ test_clustering_ha() {
   echo "Cleanup"
   lxc remote remove ha-cluster
 
+  stop_haproxy
+  sed -i '/^127\.1\.2\.3/ d' /etc/hosts
+
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   sleep 0.5
@@ -2834,9 +2837,6 @@ test_clustering_ha() {
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
-
-  sed -i '/^127\.1\.2\.3/ d' /etc/hosts
-  stop_haproxy
 
   # Restore the original state of the system
   if [ "${FOUND_RADOSGW}" = "true" ]; then
