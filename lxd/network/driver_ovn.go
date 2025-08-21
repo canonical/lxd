@@ -1166,6 +1166,78 @@ func (n *ovn) getLogicalRouterPeerPortName(peerNetworkID int64) openvswitch.OVNR
 	return openvswitch.OVNRouterPort(fmt.Sprintf("%s-lrp-peer-net%d", n.getRouterName(), peerNetworkID))
 }
 
+// getUplinkGatewayUsage returns information about usage of external subnets by the uplink's gateways.
+func (n *ovn) getUplinkGatewayUsage() ([]externalSubnetUsage, error) {
+	var uplinkNetwork *api.Network
+	var err error
+
+	uplinkName := n.config["network"]
+	if uplinkName == "" {
+		return nil, fmt.Errorf(`OVN network %q is missing "network" config option`, n.name)
+	}
+
+	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		_, uplinkNetwork, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, uplinkName)
+		return err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Failed to load uplink network: %w", err)
+	}
+
+	if uplinkNetwork == nil {
+		return nil, errors.New("Failed to load uplink network")
+	}
+
+	uplinkPhysicalIP4GatewayKey := "ipv4.gateway"        // Uses CIDR notation.
+	uplinkPhysicalIP6GatewayKey := "ipv6.gateway"        // Uses CIDR notation.
+	uplinkBridgeIP4AddrKey := "ipv4.address"             // Uses CIDR notation.
+	uplinkBridgeIP6AddrKey := "ipv6.address"             // Uses CIDR notation.
+	uplinkBridgeIP4DHCPGatewayKey := "ipv4.dhcp.gateway" // Uses bare IP.
+
+	subnetsInUse := make([]externalSubnetUsage, 0, 5)
+
+	// Parse IPs in CIDR notation and record usage.
+	for _, key := range []string{uplinkPhysicalIP4GatewayKey, uplinkPhysicalIP6GatewayKey, uplinkBridgeIP4AddrKey, uplinkBridgeIP6AddrKey} {
+		if uplinkNetwork.Config[key] != "" {
+			bareIP, _, _ := strings.Cut(uplinkNetwork.Config[key], "/")
+
+			ipToParse := bareIP + "/32"
+			if strings.Contains(bareIP, ":") {
+				ipToParse = bareIP + "/128"
+			}
+
+			ipNet, err := ParseIPCIDRToNet(ipToParse)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to parse IP address: %w", err)
+			}
+
+			subnetsInUse = append(subnetsInUse, externalSubnetUsage{
+				subnet:         *ipNet,
+				networkProject: uplinkNetwork.Project,
+				networkName:    uplinkNetwork.Name,
+				usageType:      subnetUsageGateway,
+			})
+		}
+	}
+
+	// Parse ipv4.dhcp.gateway as bare IP and record usage.
+	if uplinkNetwork.Config[uplinkBridgeIP4DHCPGatewayKey] != "" {
+		ipNet, err := ParseIPToNet(uplinkNetwork.Config[uplinkBridgeIP4DHCPGatewayKey])
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse IP address: %w", err)
+		}
+
+		subnetsInUse = append(subnetsInUse, externalSubnetUsage{
+			subnet:         *ipNet,
+			networkProject: uplinkNetwork.Project,
+			networkName:    uplinkNetwork.Name,
+			usageType:      subnetUsageGateway,
+		})
+	}
+
+	return subnetsInUse, nil
+}
+
 // setupUplinkPort initialises the uplink connection. Returns the derived ovnUplinkVars settings used
 // during the initial creation of the logical network.
 func (n *ovn) setupUplinkPort(routerMAC net.HardwareAddr) (*ovnUplinkVars, error) {
