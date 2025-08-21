@@ -319,7 +319,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeProfile, withEntitlements, urlToProfile)
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeProfile, withEntitlements, urlToProfile)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -550,7 +550,7 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 	resp.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, resp.UsedBy)
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeProfile, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ProfileURL(details.effectiveProject.Name, details.profileName): resp})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeProfile, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ProfileURL(details.effectiveProject.Name, details.profileName): resp})
 		if err != nil {
 			return response.SmartError(err)
 		}

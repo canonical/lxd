@@ -379,7 +379,7 @@ func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
 
 // reportEntitlements takes a map of entity URLs to EntitlementReporters (in practice, API types that implement the ReportEntitlements method), and
 // reports the entitlements that the caller has on each entity URL to the corresponding EntitlementReporter.
-func reportEntitlements(ctx context.Context, authorizer auth.Authorizer, identityCache *identity.Cache, entityType entity.Type, requestedEntitlements []auth.Entitlement, entityURLToEntitlementReporter map[*api.URL]auth.EntitlementReporter) error {
+func reportEntitlements(ctx context.Context, authorizer auth.Authorizer, entityType entity.Type, requestedEntitlements []auth.Entitlement, entityURLToEntitlementReporter map[*api.URL]auth.EntitlementReporter) error {
 	// Nothing to do
 	if len(entityURLToEntitlementReporter) == 0 {
 		return nil

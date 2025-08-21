@@ -163,7 +163,7 @@ func instanceGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeInstance, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.InstanceURL(c.Project().Name, c.Name()): state.(auth.EntitlementReporter)})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeInstance, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.InstanceURL(c.Project().Name, c.Name()): state.(auth.EntitlementReporter)})
 		if err != nil {
 			return response.SmartError(err)
 		}
