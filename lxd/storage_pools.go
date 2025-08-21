@@ -236,7 +236,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeStoragePool, withEntitlements, urlToPool)
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeStoragePool, withEntitlements, urlToPool)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -697,7 +697,7 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeStoragePool, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.StoragePoolURL(poolName): &poolAPI})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeStoragePool, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.StoragePoolURL(poolName): &poolAPI})
 		if err != nil {
 			return response.SmartError(err)
 		}

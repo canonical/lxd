@@ -199,7 +199,7 @@ func getIdentityProviderGroups(d *Daemon, r *http.Request) response.Response {
 
 	if recursion {
 		if len(withEntitlements) > 0 {
-			err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeIdentityProviderGroup, withEntitlements, urlToIDPGroup)
+			err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeIdentityProviderGroup, withEntitlements, urlToIDPGroup)
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -285,7 +285,7 @@ func getIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeIdentityProviderGroup, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.IdentityProviderGroupURL(idpGroupName): apiIDPGroup})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeIdentityProviderGroup, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.IdentityProviderGroupURL(idpGroupName): apiIDPGroup})
 		if err != nil {
 			return response.SmartError(err)
 		}

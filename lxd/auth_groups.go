@@ -293,7 +293,7 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if len(withEntitlements) > 0 {
-			err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeAuthGroup, withEntitlements, urlToGroup)
+			err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeAuthGroup, withEntitlements, urlToGroup)
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -466,7 +466,7 @@ func getAuthGroup(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeAuthGroup, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.AuthGroupURL(groupName): apiGroup})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeAuthGroup, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.AuthGroupURL(groupName): apiGroup})
 		if err != nil {
 			return response.SmartError(err)
 		}
