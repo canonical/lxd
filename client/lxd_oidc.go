@@ -273,7 +273,7 @@ func (o *oidcClient) authenticate(issuer string, clientID string, audience strin
 	fmt.Printf("URL: %s\n", u.String())
 	fmt.Printf("Code: %s\n\n", resp.UserCode)
 
-	_ = openBrowser(u.String())
+	_ = OpenBrowser(u.String())
 
 	token, err := rp.DeviceAccessToken(ctx, resp.DeviceCode, time.Duration(resp.Interval)*time.Second, provider)
 	if err != nil {
