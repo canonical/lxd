@@ -158,7 +158,7 @@ func (e *embeddedOpenFGA) checkPermission(ctx context.Context, entityURL *api.UR
 
 	requestor, err := request.GetRequestor(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to check permission: %w", err)
 	}
 
 	// Untrusted requests are denied.
@@ -365,7 +365,7 @@ func (e *embeddedOpenFGA) getPermissionChecker(ctx context.Context, entitlement 
 
 	requestor, err := request.GetRequestor(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to get a permission checker: %w", err)
 	}
 
 	// Untrusted requests are denied.
