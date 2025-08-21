@@ -104,6 +104,12 @@ test_authorization() {
   lxc auth identity group add oidc/test-user@example.com test-group # Valid
 
   # Test fine-grained TLS identity creation
+
+  # Cannot create identities that are not tls
+  ! lxc auth identity create oidc/jane.doe@example.com || false
+  ! lxc auth identity create foo/bar || false
+
+  # Get a token
   tls_identity_token="$(lxc auth identity create tls/test-user --quiet --group test-group)"
   LXD_CONF2=$(mktemp -d -p "${TEST_DIR}" XXX)
   LXD_CONF="${LXD_CONF2}" gen_cert_and_key "client"
