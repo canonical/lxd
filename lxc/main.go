@@ -289,6 +289,10 @@ For help with any of those, simply call them with --help.`))
 	warningCmd := cmdWarning{global: &globalCmd}
 	app.AddCommand(warningCmd.command())
 
+	// webui sub-command
+	uiCmd := cmdUI{global: &globalCmd}
+	app.AddCommand(uiCmd.Command())
+
 	authCmd := cmdAuth{global: &globalCmd}
 	app.AddCommand(authCmd.command())
 
