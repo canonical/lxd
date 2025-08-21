@@ -21,6 +21,8 @@ configure_haproxy() {
   shift
   local proxy="${1}"
   shift
+  local conn_rate="${1}"
+  shift
   local servers="${*}"
   local i
   local backend_servers=""
@@ -42,6 +44,8 @@ configure_haproxy() {
   sed -n '/^# HAProxy$/,/^# EOF$/ p' "${MAIN_DIR}/../doc/authentication.md" | \
     # Replace the FQDN and remove the cluster members section
     sed 's/\blxd\.example\.com\b/'"${fqdn}"'/; /^\s*# LXD cluster members\b/d; /^\s*server lxd-/d' | \
+    # Update the connection rate limit
+    sed '/sc_conn_rate(0)/ s/ gt [0-9]\+ }$/ gt '"${conn_rate}"' }/' | \
     # Then insert the comment and backend servers
     sed '/^# EOF$/ i '"${comment}"'\n'"${backend_servers}"''
 }
