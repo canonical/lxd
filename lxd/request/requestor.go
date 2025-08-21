@@ -291,7 +291,7 @@ func SetRequestor(req *http.Request, identityCache *identity.Cache, args Request
 
 	// DevLXD requests must always be untrusted.
 	if callerProtocol == ProtocolDevLXD {
-		return errors.New("Received trusted request over DevLXD")
+		return errors.New("Received unexpected trusted request over DevLXD")
 	}
 
 	// There must be a protocol.
