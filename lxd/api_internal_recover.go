@@ -99,6 +99,73 @@ func volumeConfigIsLatest(volumeConfig *backupConfig.Config, existingVolumeConfi
 	return false, false
 }
 
+// appendUnknownVolumeConfig tries to add the given volume in the global map of discovered volumes.
+// In case it contains the most recent set of information, it will replace an already existing one.
+func appendUnknownVolumeConfig(originalPoolName string, projectName string, volumeConfig *backupConfig.Config, poolsProjectVols map[string]map[string][]*backupConfig.Config) error {
+	// We only ever expect a single volume per volume config.
+	// In case an instance has custom volumes attached, those are extracted and should be presented as their own custom volume config.
+	// This ensures the same behavior performed by detecUnknownCustomVolume which puts every custom volume discovered by name
+	// into its own backup config struct.
+	// The backup config for buckets is special as they don't have a volume listed.
+	// In case it's not a bucket's backup config, consider it to be an error.
+	if len(volumeConfig.Volumes) != 1 && volumeConfig.Bucket == nil {
+		return errors.New("Backup config must contain exactly one volume unless it is a bucket config")
+	}
+
+	var unknownVol *backupConfig.Volume
+
+	// Check if we can extract an actual volume from the backup config.
+	// This does not work for a bucket's config as it doesn't track neither pool nor volume.
+	if len(volumeConfig.Volumes) == 1 {
+		unknownVol = volumeConfig.Volumes[0]
+
+		// Change the original pool the volume was discovered on as the given volume config describes a volumes on another pool.
+		// When running ListUnknownVolumes on any pool, it might return volumes from this pool but also from other pools.
+		// This is imporant when the volume doesn't yet exist so it gets created under the right pool.
+		// If the volume is used to replace an existing volume (because its backup config is more recent), the comparison
+		// is already performed based on the values provided as part of the volume's backup config.
+		originalPoolName = unknownVol.Pool
+	}
+
+	volumeExists := false
+
+	// If we were able to extract a volume from the config, check if it already exists.
+	// If it exist we might want to use it to replace a volume with less enriched information.
+	if unknownVol != nil && poolsProjectVols[unknownVol.Pool] != nil {
+		for i, existingVolConfig := range poolsProjectVols[unknownVol.Pool][unknownVol.Project] {
+			volumeLatest := false
+
+			volumeExists, volumeLatest = volumeConfigIsLatest(volumeConfig, existingVolConfig)
+			if volumeLatest {
+				poolsProjectVols[unknownVol.Pool][unknownVol.Project][i] = volumeConfig
+				break
+			}
+
+			// If the given volume already exists and isn't newer, we can skip it.
+			// The volume is already tracked with more enriched information.
+			if volumeExists {
+				return nil
+			}
+		}
+	}
+
+	// In case the volume couldn't be used to replace an existing one or it doesn't exist at all, append it.
+	// This is always true for buckets.
+	if !volumeExists {
+		if poolsProjectVols[originalPoolName] == nil {
+			poolsProjectVols[originalPoolName] = map[string][]*backupConfig.Config{}
+		}
+
+		if poolsProjectVols[originalPoolName][projectName] == nil {
+			poolsProjectVols[originalPoolName][projectName] = []*backupConfig.Config{volumeConfig}
+		} else {
+			poolsProjectVols[originalPoolName][projectName] = append(poolsProjectVols[originalPoolName][projectName], volumeConfig)
+		}
+	}
+
+	return nil
+}
+
 // internalRecoverScan provides the discovery and import functionality for both recovery validate and import steps.
 func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.StoragePoolsPost, validateOnly bool) response.Response {
 	var err error
