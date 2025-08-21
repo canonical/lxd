@@ -77,6 +77,15 @@ type Config struct {
 	VolumeSnapshots []*api.StorageVolumeSnapshot `json:"VolumeSnapshots" yaml:"volume_snapshots,omitempty"`
 }
 
+// NewConfig returns a new Config instance initialized with an immutable last modified time.
+func NewConfig(lastModified time.Time) *Config {
+	return &Config{
+		metadata: configMetadata{
+			lastModified: lastModified,
+		},
+	}
+}
+
 // rootVolPoolName returns the pool name of an instance's root volume.
 // The name is derived from the instance's expanded devices.
 func (c *Config) rootVolPoolName() (string, error) {
