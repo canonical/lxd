@@ -7284,7 +7284,7 @@ func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]
 
 		switch volType {
 		case drivers.VolumeTypeVM, drivers.VolumeTypeContainer:
-			err = b.detectUnknownInstanceVolume(&poolVol, projectVols, op)
+			err = b.detectUnknownInstanceAndCustomVolumes(&poolVol, projectVols, op)
 			if err != nil {
 				return nil, err
 			}
@@ -7312,10 +7312,11 @@ func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]
 	return projectVols, nil
 }
 
-// detectUnknownInstanceVolume detects if a volume is unknown and if so attempts to mount the volume and parse the
-// backup stored on it. It then runs a series of consistency checks that compare the contents of the backup file to
+// detectUnknownInstanceAndCustomVolumes parses the given volume's backup config and detects if an instance's volume is unknown.
+// It then runs a series of consistency checks that compare the contents of the backup file to
 // the state of the volume on disk, and if all checks out, it adds the parsed backup file contents to projectVols.
-func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVols map[string][]*backupConfig.Config, op *operations.Operation) error {
+// In any case it also checks whether or not the instance has unknown custom volumes attached and appends them to projectVols too.
+func (b *lxdBackend) detectUnknownInstanceAndCustomVolumes(vol *drivers.Volume, projectVols map[string][]*backupConfig.Config, op *operations.Operation) error {
 	backupYamlPath := filepath.Join(vol.MountPath(), "backup.yaml")
 	var backupConf *backupConfig.Config
 	var err error
