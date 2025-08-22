@@ -2729,16 +2729,9 @@ test_clustering_ha() {
   ns2="${prefix}2"
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
 
-  # Spawn a third node
-  setup_clustering_netns 3
-  LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${LXD_ONE_DIR}"
-
   echo "Get IP:port of all cluster members"
   LXD_ONE_ADDR="$(LXD_DIR="${LXD_ONE_DIR}" lxc config get core.https_address)"
   LXD_TWO_ADDR="$(LXD_DIR="${LXD_TWO_DIR}" lxc config get core.https_address)"
-  LXD_THREE_ADDR="$(LXD_DIR="${LXD_THREE_DIR}" lxc config get core.https_address)"
 
   # Extract host and port of the first member
   LXD_ONE_HOST="$(echo "${LXD_ONE_ADDR}" | cut -d: -f1)"
@@ -2747,8 +2740,9 @@ test_clustering_ha() {
   echo "Configure HAproxy"
   HOSTNAME="$(hostname)"
   PROXY_PROTOCOL="true"
+  CONN_RATE="20"
   setup_haproxy
-  configure_haproxy "${HOSTNAME}" "${PROXY_PROTOCOL}" "${LXD_ONE_ADDR}" "${LXD_TWO_ADDR}" "${LXD_THREE_ADDR}" > /etc/haproxy/haproxy.cfg
+  configure_haproxy "${HOSTNAME}" "${PROXY_PROTOCOL}" "${CONN_RATE}" "${LXD_ONE_ADDR}" "${LXD_TWO_ADDR}" > /etc/haproxy/haproxy.cfg
   start_haproxy
 
   # Add a host entry for the HAproxy frontend address
@@ -2800,7 +2794,7 @@ test_clustering_ha() {
   echo "Test rate limit is enforced and some connections are rejected"
   successes=0
   failures=0
-  for i in $(seq 20); do
+  for i in $(seq "$((CONN_RATE + 5))"); do
     echo "Connection attempt (${i})"
     if lxc query ha-cluster:/ >/dev/null; then
       successes="$((successes+1))"
@@ -2816,21 +2810,18 @@ test_clustering_ha() {
   echo "Cleanup"
   lxc remote remove ha-cluster
 
+  stop_haproxy
+  sed -i '/^127\.1\.2\.3/ d' /etc/hosts
+
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   sleep 0.5
   rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_THREE_DIR}/unix.socket"
 
   teardown_clustering_netns
   teardown_clustering_bridge
 
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
-  kill_lxd "${LXD_THREE_DIR}"
-
-  sed -i '/^127\.1\.2\.3/ d' /etc/hosts
-  stop_haproxy
 
   # Restore the original state of the system
   if [ "${FOUND_RADOSGW}" = "true" ]; then
