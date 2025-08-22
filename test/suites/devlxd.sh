@@ -5,18 +5,12 @@ test_devlxd() {
   # Ensure testimage is not set as cached.
   lxd sql global "UPDATE images SET cached=0 WHERE fingerprint=\"${fingerprint}\""
 
-  (
-    cd devlxd-client || return
-    # Use -buildvcs=false here to prevent git complaining about untrusted directory when tests are run as root.
-    CGO_ENABLED=0 go build -tags netgo -v -buildvcs=false ./...
-  )
-
   lxc launch testimage devlxd -c security.devlxd=false
 
   ! lxc exec devlxd -- test -S /dev/lxd/sock || false
   lxc config unset devlxd security.devlxd
   lxc exec devlxd -- test -S /dev/lxd/sock
-  lxc file push --mode 0755 "devlxd-client/devlxd-client" devlxd/bin/
+  lxc file push --quiet "$(command -v devlxd-client)" devlxd/bin/
 
   # Try to get a host's private image from devlxd.
   [ "$(lxc exec devlxd -- devlxd-client image-export "${fingerprint}")" = "Forbidden" ]
