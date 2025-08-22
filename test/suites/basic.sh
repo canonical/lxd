@@ -774,8 +774,7 @@ EOF
 }
 
 test_basic_version() {
-  # XXX: add `fuidshift` to the list
-  for bin in lxc lxd lxd-agent lxd-benchmark lxd-migrate lxd-user; do
+  for bin in lxc lxd lxd-agent lxd-benchmark lxd-migrate lxd-user fuidshift; do
     "${bin}" --version
     "${bin}" --help
   done
