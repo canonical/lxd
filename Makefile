@@ -139,6 +139,10 @@ endif
 
 	@echo "$@ built successfully"
 
+.PHONY: test-binaries
+test-binaries: devlxd-client fuidshift mini-oidc sysinfo
+	@echo "$@ built successfully"
+
 .PHONY: dqlite
 dqlite:
 	# dqlite (+raft)
