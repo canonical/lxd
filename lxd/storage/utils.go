@@ -545,6 +545,15 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		//  shortdesc: The volume's UUID
 		//  scope: global
 		rules["volatile.uuid"] = validate.Optional(validate.IsUUID)
+
+		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex,storage-pure; group=volume-conf; key=volatile.owner)
+		//
+		// ---
+		//  type: string
+		//  defaultdesc: owner's identity ID
+		//  shortdesc: The identity ID of the volume owner
+		//  scope: global
+		rules["volatile.owner"] = validate.Optional(validate.IsUUID)
 	}
 
 	return rules
