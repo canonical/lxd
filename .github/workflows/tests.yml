@@ -204,6 +204,7 @@ jobs:
           # Build from unpacked dist tarball.
           cd /home/runner/work/lxd/lxd-test
           make
+          make test-binaries
 
       - name: Check lxc/lxd-agent binary sizes
         if: env.GOCOVERAGE != 'true'
@@ -302,6 +303,10 @@ jobs:
             /home/runner/go/bin/minio
             /home/runner/go/bin/dqlite
             /home/runner/go/bin/liblxc
+            /home/runner/go/bin/devlxd-client
+            /home/runner/go/bin/fuidshift
+            /home/runner/go/bin/mini-oidc
+            /home/runner/go/bin/sysinfo
           retention-days: 1
 
   system-tests:
