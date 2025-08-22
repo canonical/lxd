@@ -109,6 +109,16 @@ endif
 
 	@echo "$@ built successfully"
 
+.PHONY: mini-oidc
+mini-oidc:
+ifeq "$(GOCOVERDIR)" ""
+	go install -C test -v -trimpath -buildvcs=false ./mini-oidc
+else
+	go install -C test -v -trimpath -buildvcs=false ./mini-oidc -cover
+endif
+
+	@echo "$@ built successfully"
+
 .PHONY: sysinfo
 sysinfo:
 ifeq "$(GOCOVERDIR)" ""
