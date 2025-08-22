@@ -121,6 +121,12 @@ _container_devices_disk_mount() {
   # Check file content remains after removal.
   [ "$(lxc exec foo -- cat /opt/target-file)" = "hello" ]
 
+  # Check removal of mount point devices created in /dev.
+  lxc config device add foo bar disk source=/dev/zero path=/dev/test
+  lxc config device remove foo bar
+  ! lxc exec foo -- mount | grep -F "/dev/test" || false
+  ! lxc exec foo -- test -e /dev/test || false
+
   lxc stop -f foo
 }
 
