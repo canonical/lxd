@@ -99,6 +99,16 @@ endif
 
 	@echo "LXD-MIGRATE built successfully"
 
+.PHONY: devlxd-client
+devlxd-client:
+ifeq "$(GOCOVERDIR)" ""
+	CGO_ENABLED=0 go install -C test -v -trimpath -buildvcs=false -tags netgo ./devlxd-client
+else
+	CGO_ENABLED=0 go install -C test -v -trimpath -buildvcs=false -tags netgo ./devlxd-client -cover
+endif
+
+	@echo "$@ built successfully"
+
 .PHONY: dqlite
 dqlite:
 	# dqlite (+raft)
