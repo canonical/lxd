@@ -5,7 +5,7 @@ test_sql() {
   ! lxd sql global "" || false
 
   # Local database query
-  [ "$(lxd sql local --format csv "SELECT count(*) FROM config WHERE key = 'core.https_address'")" = 1 ]
+  [ "$(lxd sql local --format csv "SELECT COUNT(*) FROM config WHERE key = 'core.https_address'")" = 1 ]
 
   # Global database query
   lxc config set user.foo=bar
