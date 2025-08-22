@@ -4,6 +4,7 @@ test_container_devices_disk() {
   lxc init testimage foo
 
   _container_devices_disk_shift
+  _container_devices_disk_mount
   _container_devices_raw_mount_options
   _container_devices_disk_ceph
   _container_devices_disk_cephfs
@@ -94,6 +95,35 @@ _container_devices_disk_shift() {
   lxc config device remove foo shifted
   lxc storage volume delete "${POOL}" foo-shift
   lxc stop foo -f
+}
+
+_container_devices_disk_mount() {
+  lxc start foo
+  echo "Add a mount that points to an existing path in the instance."
+  lxc exec foo -- mkdir -p /opt/target
+  lxc exec foo -- chmod 754 /opt/target
+  lxc exec foo -- chown 12345:12345 /opt/target
+  lxc config device add foo bar disk source="$(mktemp -d -p "${TEST_DIR}" XXX)" path=/opt/target
+  lxc config device remove foo bar
+
+  echo "Check permissions and ownership remain after removal."
+  [ "$(lxc exec foo -- stat -c '%a %u %g' /opt/target)" = "754 12345 12345" ]
+
+  echo "Add a mount point that points to an existing file in the instance."
+  echo "hello" | lxc file push - foo/opt/target-file
+  lxc exec foo -- chmod 754 /opt/target-file
+  lxc exec foo -- chown 12345:12345 /opt/target-file
+  lxc config device add foo bar disk source="$(mktemp -p "${TEST_DIR}" XXX)" path=/opt/target-file
+  lxc config device remove foo bar
+
+  echo "Check permissions and ownership remain after removal."
+  [ "$(lxc exec foo -- stat -c '%a %u %g' /opt/target-file)" = "754 12345 12345" ]
+
+  echo "Check file content remains after removal."
+  [ "$(lxc exec foo -- cat /opt/target-file)" = "hello" ]
+
+  echo "Cleanup."
+  lxc stop -f foo
 }
 
 _container_devices_raw_mount_options() {
