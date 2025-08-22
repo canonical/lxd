@@ -205,9 +205,9 @@ func Test_openBrowser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("BROWSER", tt.env)
-			err := openBrowser(tt.url)
+			err := OpenBrowser(tt.url)
 			if err != nil {
-				t.Errorf("openBrowser() unexpected error = %v", err)
+				t.Errorf("OpenBrowser() unexpected error = %v", err)
 			}
 		})
 	}

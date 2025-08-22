@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-08-20 15:53+0100\n"
+"POT-Creation-Date: 2025-08-21 17:36+0200\n"
 "PO-Revision-Date: 2022-03-10 15:09+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Bulgarian <https://hosted.weblate.org/projects/linux-"
@@ -1721,63 +1721,63 @@ msgstr ""
 #: lxc/image.go:1677 lxc/image.go:1740 lxc/image_alias.go:24
 #: lxc/image_alias.go:60 lxc/image_alias.go:124 lxc/image_alias.go:177
 #: lxc/image_alias.go:288 lxc/import.go:29 lxc/info.go:33 lxc/init.go:44
-#: lxc/launch.go:24 lxc/list.go:50 lxc/main.go:85 lxc/manpage.go:22
-#: lxc/monitor.go:34 lxc/move.go:39 lxc/network.go:36 lxc/network.go:139
-#: lxc/network.go:241 lxc/network.go:331 lxc/network.go:418 lxc/network.go:476
-#: lxc/network.go:573 lxc/network.go:670 lxc/network.go:806 lxc/network.go:887
-#: lxc/network.go:1020 lxc/network.go:1146 lxc/network.go:1225
-#: lxc/network.go:1285 lxc/network.go:1379 lxc/network.go:1451
-#: lxc/network_acl.go:32 lxc/network_acl.go:98 lxc/network_acl.go:194
-#: lxc/network_acl.go:255 lxc/network_acl.go:311 lxc/network_acl.go:384
-#: lxc/network_acl.go:481 lxc/network_acl.go:567 lxc/network_acl.go:610
-#: lxc/network_acl.go:749 lxc/network_acl.go:806 lxc/network_acl.go:863
-#: lxc/network_acl.go:878 lxc/network_acl.go:1016 lxc/network_allocations.go:52
-#: lxc/network_forward.go:36 lxc/network_forward.go:93
-#: lxc/network_forward.go:182 lxc/network_forward.go:259
-#: lxc/network_forward.go:415 lxc/network_forward.go:500
-#: lxc/network_forward.go:608 lxc/network_forward.go:655
-#: lxc/network_forward.go:809 lxc/network_forward.go:883
-#: lxc/network_forward.go:898 lxc/network_forward.go:983
-#: lxc/network_load_balancer.go:36 lxc/network_load_balancer.go:97
-#: lxc/network_load_balancer.go:184 lxc/network_load_balancer.go:261
-#: lxc/network_load_balancer.go:411 lxc/network_load_balancer.go:479
-#: lxc/network_load_balancer.go:587 lxc/network_load_balancer.go:617
-#: lxc/network_load_balancer.go:772 lxc/network_load_balancer.go:845
-#: lxc/network_load_balancer.go:860 lxc/network_load_balancer.go:936
-#: lxc/network_load_balancer.go:1034 lxc/network_load_balancer.go:1049
-#: lxc/network_load_balancer.go:1122 lxc/network_peer.go:30
-#: lxc/network_peer.go:83 lxc/network_peer.go:168 lxc/network_peer.go:237
-#: lxc/network_peer.go:362 lxc/network_peer.go:447 lxc/network_peer.go:547
-#: lxc/network_peer.go:594 lxc/network_peer.go:731 lxc/network_zone.go:32
-#: lxc/network_zone.go:90 lxc/network_zone.go:186 lxc/network_zone.go:249
-#: lxc/network_zone.go:322 lxc/network_zone.go:417 lxc/network_zone.go:503
-#: lxc/network_zone.go:546 lxc/network_zone.go:673 lxc/network_zone.go:729
-#: lxc/network_zone.go:786 lxc/network_zone.go:864 lxc/network_zone.go:928
-#: lxc/network_zone.go:1004 lxc/network_zone.go:1102 lxc/network_zone.go:1189
-#: lxc/network_zone.go:1236 lxc/network_zone.go:1366 lxc/network_zone.go:1427
-#: lxc/network_zone.go:1442 lxc/network_zone.go:1500 lxc/operation.go:25
-#: lxc/operation.go:57 lxc/operation.go:107 lxc/operation.go:194
-#: lxc/profile.go:38 lxc/profile.go:113 lxc/profile.go:193 lxc/profile.go:289
-#: lxc/profile.go:371 lxc/profile.go:453 lxc/profile.go:511 lxc/profile.go:647
-#: lxc/profile.go:723 lxc/profile.go:880 lxc/profile.go:973 lxc/profile.go:1033
-#: lxc/profile.go:1120 lxc/profile.go:1184 lxc/project.go:33 lxc/project.go:99
-#: lxc/project.go:199 lxc/project.go:270 lxc/project.go:406 lxc/project.go:480
-#: lxc/project.go:600 lxc/project.go:665 lxc/project.go:751 lxc/project.go:795
-#: lxc/project.go:856 lxc/project.go:923 lxc/publish.go:34 lxc/query.go:35
-#: lxc/rebuild.go:28 lxc/remote.go:38 lxc/remote.go:94 lxc/remote.go:753
-#: lxc/remote.go:791 lxc/remote.go:877 lxc/remote.go:958 lxc/remote.go:1022
-#: lxc/remote.go:1071 lxc/rename.go:21 lxc/restore.go:22 lxc/snapshot.go:32
-#: lxc/storage.go:35 lxc/storage.go:98 lxc/storage.go:204 lxc/storage.go:262
-#: lxc/storage.go:394 lxc/storage.go:476 lxc/storage.go:656 lxc/storage.go:743
-#: lxc/storage.go:845 lxc/storage.go:939 lxc/storage_bucket.go:31
-#: lxc/storage_bucket.go:85 lxc/storage_bucket.go:190 lxc/storage_bucket.go:251
-#: lxc/storage_bucket.go:384 lxc/storage_bucket.go:462
-#: lxc/storage_bucket.go:556 lxc/storage_bucket.go:648
-#: lxc/storage_bucket.go:717 lxc/storage_bucket.go:751
-#: lxc/storage_bucket.go:792 lxc/storage_bucket.go:871
-#: lxc/storage_bucket.go:977 lxc/storage_bucket.go:1041
-#: lxc/storage_bucket.go:1176 lxc/storage_volume.go:67
-#: lxc/storage_volume.go:240 lxc/storage_volume.go:315
+#: lxc/launch.go:24 lxc/list.go:50 lxc/main.go:85 lxc/main_ui.go:28
+#: lxc/manpage.go:22 lxc/monitor.go:34 lxc/move.go:39 lxc/network.go:36
+#: lxc/network.go:139 lxc/network.go:241 lxc/network.go:331 lxc/network.go:418
+#: lxc/network.go:476 lxc/network.go:573 lxc/network.go:670 lxc/network.go:806
+#: lxc/network.go:887 lxc/network.go:1020 lxc/network.go:1146
+#: lxc/network.go:1225 lxc/network.go:1285 lxc/network.go:1379
+#: lxc/network.go:1451 lxc/network_acl.go:32 lxc/network_acl.go:98
+#: lxc/network_acl.go:194 lxc/network_acl.go:255 lxc/network_acl.go:311
+#: lxc/network_acl.go:384 lxc/network_acl.go:481 lxc/network_acl.go:567
+#: lxc/network_acl.go:610 lxc/network_acl.go:749 lxc/network_acl.go:806
+#: lxc/network_acl.go:863 lxc/network_acl.go:878 lxc/network_acl.go:1016
+#: lxc/network_allocations.go:52 lxc/network_forward.go:36
+#: lxc/network_forward.go:93 lxc/network_forward.go:182
+#: lxc/network_forward.go:259 lxc/network_forward.go:415
+#: lxc/network_forward.go:500 lxc/network_forward.go:608
+#: lxc/network_forward.go:655 lxc/network_forward.go:809
+#: lxc/network_forward.go:883 lxc/network_forward.go:898
+#: lxc/network_forward.go:983 lxc/network_load_balancer.go:36
+#: lxc/network_load_balancer.go:97 lxc/network_load_balancer.go:184
+#: lxc/network_load_balancer.go:261 lxc/network_load_balancer.go:411
+#: lxc/network_load_balancer.go:479 lxc/network_load_balancer.go:587
+#: lxc/network_load_balancer.go:617 lxc/network_load_balancer.go:772
+#: lxc/network_load_balancer.go:845 lxc/network_load_balancer.go:860
+#: lxc/network_load_balancer.go:936 lxc/network_load_balancer.go:1034
+#: lxc/network_load_balancer.go:1049 lxc/network_load_balancer.go:1122
+#: lxc/network_peer.go:30 lxc/network_peer.go:83 lxc/network_peer.go:168
+#: lxc/network_peer.go:237 lxc/network_peer.go:362 lxc/network_peer.go:447
+#: lxc/network_peer.go:547 lxc/network_peer.go:594 lxc/network_peer.go:731
+#: lxc/network_zone.go:32 lxc/network_zone.go:90 lxc/network_zone.go:186
+#: lxc/network_zone.go:249 lxc/network_zone.go:322 lxc/network_zone.go:417
+#: lxc/network_zone.go:503 lxc/network_zone.go:546 lxc/network_zone.go:673
+#: lxc/network_zone.go:729 lxc/network_zone.go:786 lxc/network_zone.go:864
+#: lxc/network_zone.go:928 lxc/network_zone.go:1004 lxc/network_zone.go:1102
+#: lxc/network_zone.go:1189 lxc/network_zone.go:1236 lxc/network_zone.go:1366
+#: lxc/network_zone.go:1427 lxc/network_zone.go:1442 lxc/network_zone.go:1500
+#: lxc/operation.go:25 lxc/operation.go:57 lxc/operation.go:107
+#: lxc/operation.go:194 lxc/profile.go:38 lxc/profile.go:113 lxc/profile.go:193
+#: lxc/profile.go:289 lxc/profile.go:371 lxc/profile.go:453 lxc/profile.go:511
+#: lxc/profile.go:647 lxc/profile.go:723 lxc/profile.go:880 lxc/profile.go:973
+#: lxc/profile.go:1033 lxc/profile.go:1120 lxc/profile.go:1184
+#: lxc/project.go:33 lxc/project.go:99 lxc/project.go:199 lxc/project.go:270
+#: lxc/project.go:406 lxc/project.go:480 lxc/project.go:600 lxc/project.go:665
+#: lxc/project.go:751 lxc/project.go:795 lxc/project.go:856 lxc/project.go:923
+#: lxc/publish.go:34 lxc/query.go:35 lxc/rebuild.go:28 lxc/remote.go:38
+#: lxc/remote.go:94 lxc/remote.go:753 lxc/remote.go:791 lxc/remote.go:877
+#: lxc/remote.go:958 lxc/remote.go:1022 lxc/remote.go:1071 lxc/rename.go:21
+#: lxc/restore.go:22 lxc/snapshot.go:32 lxc/storage.go:35 lxc/storage.go:98
+#: lxc/storage.go:204 lxc/storage.go:262 lxc/storage.go:394 lxc/storage.go:476
+#: lxc/storage.go:656 lxc/storage.go:743 lxc/storage.go:845 lxc/storage.go:939
+#: lxc/storage_bucket.go:31 lxc/storage_bucket.go:85 lxc/storage_bucket.go:190
+#: lxc/storage_bucket.go:251 lxc/storage_bucket.go:384
+#: lxc/storage_bucket.go:462 lxc/storage_bucket.go:556
+#: lxc/storage_bucket.go:648 lxc/storage_bucket.go:717
+#: lxc/storage_bucket.go:751 lxc/storage_bucket.go:792
+#: lxc/storage_bucket.go:871 lxc/storage_bucket.go:977
+#: lxc/storage_bucket.go:1041 lxc/storage_bucket.go:1176
+#: lxc/storage_volume.go:67 lxc/storage_volume.go:240 lxc/storage_volume.go:315
 #: lxc/storage_volume.go:396 lxc/storage_volume.go:621
 #: lxc/storage_volume.go:730 lxc/storage_volume.go:817
 #: lxc/storage_volume.go:922 lxc/storage_volume.go:1026
@@ -2829,7 +2829,7 @@ msgstr ""
 msgid "If the snapshot name already exists, delete and create a new one"
 msgstr ""
 
-#: lxc/main.go:445
+#: lxc/main.go:449
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
@@ -3071,7 +3071,7 @@ msgstr ""
 msgid "Invalid new snapshot name, parent volume must be the same as source"
 msgstr ""
 
-#: lxc/main.go:548
+#: lxc/main.go:552
 msgid "Invalid number of arguments"
 msgstr ""
 
@@ -4402,6 +4402,10 @@ msgstr ""
 msgid "Only managed networks can be modified"
 msgstr ""
 
+#: lxc/main_ui.go:27 lxc/main_ui.go:28
+msgid "Open the web interface"
+msgstr ""
+
 #: lxc/operation.go:87
 #, c-format
 msgid "Operation %s deleted"
@@ -4483,7 +4487,7 @@ msgstr ""
 msgid "Partitions:"
 msgstr ""
 
-#: lxc/main.go:406
+#: lxc/main.go:410
 #, c-format
 msgid "Password for %s: "
 msgstr ""
@@ -5563,7 +5567,7 @@ msgstr ""
 msgid "Show instance or server information"
 msgstr ""
 
-#: lxc/main.go:306 lxc/main.go:307
+#: lxc/main.go:310 lxc/main.go:311
 msgid "Show less common commands"
 msgstr ""
 
@@ -6067,6 +6071,10 @@ msgid ""
 "The provided fingerprint does not match the server certificate fingerprint"
 msgstr ""
 
+#: lxc/main_ui.go:82
+msgid "The server doesn't have a web UI installed"
+msgstr ""
+
 #: lxc/info.go:354
 msgid "The server doesn't implement the newer v2 resources API"
 msgstr ""
@@ -6108,7 +6116,7 @@ msgstr ""
 msgid "This LXD server is not available on the network"
 msgstr ""
 
-#: lxc/main.go:337
+#: lxc/main.go:341
 msgid ""
 "This client hasn't been configured to use a remote LXD server yet.\n"
 "As your platform can't run native Linux instances, you must connect to a "
@@ -6144,7 +6152,7 @@ msgstr ""
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
-#: lxc/main.go:451
+#: lxc/main.go:455
 msgid ""
 "To start your first container, try: lxc launch ubuntu:24.04\n"
 "Or for a virtual machine: lxc launch ubuntu:24.04 --vm"
@@ -6588,6 +6596,11 @@ msgstr ""
 
 #: lxc/query.go:42
 msgid "Wait for the operation to complete"
+msgstr ""
+
+#: lxc/main_ui.go:129
+#, c-format
+msgid "Web server running at: %s"
 msgstr ""
 
 #: lxc/export.go:41

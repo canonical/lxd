@@ -274,7 +274,8 @@ type HTTPTransporter interface {
 	Transport() *http.Transport
 }
 
-func openBrowser(url string) error {
+// OpenBrowser opens the specified URL in the default web browser.
+func OpenBrowser(url string) error {
 	var err error
 
 	browser := os.Getenv("BROWSER")
