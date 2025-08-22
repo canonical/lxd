@@ -391,6 +391,14 @@ endif
 ifeq ($(shell command -v golangci-lint),)
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin latest
 endif
+ifeq ($(shell command -v errortype), )
+	# XXX: if errortype becomes available as a golangci-lint linter, remove this and update golangci-lint config
+	(cd / ; go install fillmore-labs.com/errortype@latest)
+endif
+ifeq ($(shell command -v zerolint), )
+	# XXX: if zerolint becomes available as a golangci-lint linter, remove this and update golangci-lint config
+	(cd / ; go install fillmore-labs.com/zerolint@latest)
+endif
 ifneq ($(shell command -v yamllint),)
 	yamllint .github/workflows/*.yml
 endif
