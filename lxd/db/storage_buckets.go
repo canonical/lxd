@@ -10,8 +10,6 @@ import (
 	"net/http"
 	"strings"
 
-	dqliteDriver "github.com/canonical/go-dqlite/v3/driver"
-
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/api"
 )
@@ -300,9 +298,7 @@ func (c *ClusterTx) CreateStoragePoolBucket(ctx context.Context, poolID int64, p
 		VALUES (?, ?, ?, ?, (SELECT id FROM projects WHERE name = ?))
 		`, poolID, nodeID, info.Name, info.Description, projectName)
 	if err != nil {
-		var dqliteErr dqliteDriver.Error
-		// Detect SQLITE_CONSTRAINT_UNIQUE (2067) errors.
-		if errors.As(err, &dqliteErr) && dqliteErr.Code == 2067 {
+		if query.IsConflictErr(err) {
 			return -1, api.StatusErrorf(http.StatusConflict, "A bucket for that name already exists")
 		}
 
@@ -525,9 +521,7 @@ func (c *ClusterTx) CreateStoragePoolBucketKey(ctx context.Context, bucketID int
 		VALUES (?, ?, ?, ?, ?, ?)
 		`, bucketID, info.Name, info.Description, info.Role, info.AccessKey, info.SecretKey)
 	if err != nil {
-		var dqliteErr dqliteDriver.Error
-		// Detect SQLITE_CONSTRAINT_UNIQUE (2067) errors.
-		if errors.As(err, &dqliteErr) && dqliteErr.Code == 2067 {
+		if query.IsConflictErr(err) {
 			return -1, api.StatusErrorf(http.StatusConflict, "A bucket key for that name already exists")
 		}
 
