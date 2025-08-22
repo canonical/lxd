@@ -269,10 +269,10 @@ test_clustering_membership() {
 
   # Gracefully remove a node and check trust certificate is removed.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep node4
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT count(*) FROM identities WHERE type = 3 and name = "node4"')" = 1 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT COUNT(*) FROM identities WHERE type = 3 and name = "node4"')" = 1 ]
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster remove node4
   ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep node4 || false
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT count(*) FROM identities WHERE type = 3 and name = "node4"')" = 0 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT COUNT(*) FROM identities WHERE type = 3 and name = "node4"')" = 0 ]
 
   # The node isn't clustered anymore.
   ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster list || false
@@ -3116,8 +3116,8 @@ test_clustering_remove_raft_node() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -xF -- "- database"
 
   # The second node is still in the raft_nodes table.
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT count(*) FROM raft_nodes WHERE address = '100.64.1.102:8443'")" = 1 ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT count(*) FROM raft_nodes")" = 4 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT COUNT(*) FROM raft_nodes WHERE address = '100.64.1.102:8443'")" = 1 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT COUNT(*) FROM raft_nodes")" = 4 ]
 
   # Force removing the raft node.
   LXD_DIR="${LXD_ONE_DIR}" lxd cluster remove-raft-node -q "100.64.1.102"
@@ -3132,8 +3132,8 @@ test_clustering_remove_raft_node() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -xF -- "- database"
 
   # The second node is gone from the raft_nodes_table.
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT count(*) FROM raft_nodes WHERE address = '100.64.1.102:8443'")" = 0 ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT count(*) FROM raft_nodes")" = 3 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT COUNT(*) FROM raft_nodes WHERE address = '100.64.1.102:8443'")" = 0 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT COUNT(*) FROM raft_nodes")" = 3 ]
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
@@ -3346,9 +3346,9 @@ test_clustering_image_refresh() {
   if [ "${poolDriver}" != "dir" ]; then
     # Check image storage volume records exist.
     if [ "${poolDriver}" = "ceph" ]; then
-      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 1 ]
+      [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 1 ]
     else
-      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 3 ]
+      [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 3 ]
     fi
   fi
 
@@ -3378,11 +3378,11 @@ test_clustering_image_refresh() {
   if [ "${poolDriver}" != "dir" ]; then
     # Check image storage volume records actually removed from relevant members and replaced with new fingerprint.
     if [ "${poolDriver}" = "ceph" ]; then
-      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 0 ]
-      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name = '${new_fingerprint}'")" = 1 ]
+      [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 0 ]
+      [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM storage_volumes WHERE name = '${new_fingerprint}'")" = 1 ]
     else
-      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 1 ]
-      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name = '${new_fingerprint}'")" = 2 ]
+      [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 1 ]
+      [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM storage_volumes WHERE name = '${new_fingerprint}'")" = 2 ]
     fi
   fi
 
@@ -3391,11 +3391,11 @@ test_clustering_image_refresh() {
   # Also, it should only show 1 entry for the old image and 2 entries
   # for the new one.
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="foo"')" = "${old_fingerprint}" ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint = '${old_fingerprint}'")" = 1 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM images WHERE fingerprint = '${old_fingerprint}'")" = 1 ]
 
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="default"')" = "${new_fingerprint}" ]
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="bar"')" = "${new_fingerprint}" ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint = '${new_fingerprint}'")" = 2 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM images WHERE fingerprint = '${new_fingerprint}'")" = 2 ]
 
   pids=""
 
@@ -3413,11 +3413,11 @@ test_clustering_image_refresh() {
   done
 
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="foo"')" = "${old_fingerprint}" ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint = '${old_fingerprint}'")" = 1 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM images WHERE fingerprint = '${old_fingerprint}'")" = 1 ]
 
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="default"')" = "${new_fingerprint}" ]
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="bar"')" = "${new_fingerprint}" ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint = '${new_fingerprint}'")" = 2 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM images WHERE fingerprint = '${new_fingerprint}'")" = 2 ]
 
   # Modify public testimage
   dd if=/dev/urandom count=32 | LXD_DIR="${LXD_REMOTE_DIR}" lxc file push - c1/foo
@@ -3441,11 +3441,11 @@ test_clustering_image_refresh() {
   pids=""
 
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="foo"')" = "${old_fingerprint}" ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint = '${old_fingerprint}'")" = 1 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM images WHERE fingerprint = '${old_fingerprint}'")" = 1 ]
 
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="default"')" = "${new_fingerprint}" ]
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="bar"')" = "${new_fingerprint}" ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint = '${new_fingerprint}'")" = 2 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM images WHERE fingerprint = '${new_fingerprint}'")" = 2 ]
 
   # Clean up everything
   for project in default foo bar; do
