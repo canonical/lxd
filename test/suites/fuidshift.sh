@@ -1,9 +1,7 @@
 _common_fuidshift() {
   # test some bad arguments
-  fail=0
-  fuidshift /tmp -t b:0 > /dev/null 2>&1 && fail=1
-  fuidshift /tmp -t x:0:0:0 > /dev/null 2>&1 && fail=1
-  [ "${fail}" -ne 1 ]
+  ! fuidshift /tmp -t b:0 > /dev/null 2>&1 || false
+  ! fuidshift /tmp -t x:0:0:0 > /dev/null 2>&1 || false
 }
 
 _nonroot_fuidshift() {
@@ -16,6 +14,7 @@ _nonroot_fuidshift() {
   u1=$((u+1))
   g1=$((g+1))
 
+  fail=0
   touch "${LXD_FUIDMAP_DIR}/x1"
   fuidshift "${LXD_FUIDMAP_DIR}/x1" -t "u:${u}:100000:1" "g:${g}:100000:1" | tee /dev/stderr | grep "to 100000 100000" > /dev/null || fail=1
   if [ "${fail}" -eq 1 ]; then
