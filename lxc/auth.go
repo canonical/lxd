@@ -222,7 +222,7 @@ func (c *cmdGroupEdit) helpTemplate() string {
 ### Any line starting with a '# will be ignored.
 ###
 ### NOTE: All group information is shown but only the description and permissions can be modified.
-### 
+###
 ### name: my-first-group
 ### description: My first group.
 ### permissions:
@@ -1076,7 +1076,7 @@ func (c *cmdIdentityInfo) command() *cobra.Command {
 
 This command will display permissions for the current user.
 This includes contextual information, such as effective groups and permissions
-that are granted via identity provider group mappings. 
+that are granted via identity provider group mappings.
 `))
 
 	cmd.RunE = c.run
