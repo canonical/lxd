@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -20,6 +21,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/events"
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/request"
@@ -648,6 +650,26 @@ func allowDevLXDPermission(entityType entity.Type, entitlement auth.Entitlement,
 
 		return response.EmptySyncResponse
 	}
+}
+
+// getDevLXDIdentity extracts the identity of the caller from the request context.
+// The identity is expected to be present and have a valid identifier. Otherwise, an error is returned.
+func getDevLXDIdentity(ctx context.Context) (*identity.CacheEntry, error) {
+	requestor, err := request.GetRequestor(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	identity := requestor.CallerIdentity()
+	if identity == nil {
+		return nil, errors.New("Request context identity is missing")
+	}
+
+	if identity.Identifier == "" {
+		return nil, errors.New("Request context identity is missing identifier")
+	}
+
+	return identity, nil
 }
 
 // getInstanceFromContextAndCheckSecurityFlags checks if the instance has the provided devLXD security features enabled.
