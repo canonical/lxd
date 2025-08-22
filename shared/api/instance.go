@@ -168,7 +168,7 @@ type InstancePostTarget struct {
 	Operation string `json:"operation,omitempty" yaml:"operation,omitempty"`
 
 	// Migration websockets credentials
-	// Example: {"migration": "random-string", "criu": "random-string"}
+	// Example: {"migration": "random-string"}
 	Websockets map[string]string `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 }
 
