@@ -6,14 +6,12 @@ import (
 	"fmt"
 	"io"
 	"net/url"
-	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instance/operationlock"
-	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
@@ -41,10 +39,7 @@ func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 	secretNames := []string{api.SecretNameControl, api.SecretNameFilesystem}
 	if stateful && inst.IsRunning() {
 		if inst.Type() == instancetype.Container {
-			_, err := exec.LookPath("criu")
-			if err != nil {
-				return nil, migration.ErrNoLiveMigrationSource
-			}
+			return nil, errors.New("Live migration is not supported for containers")
 		}
 
 		ret.live = true
@@ -175,10 +170,7 @@ func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	secretNames := []string{api.SecretNameControl, api.SecretNameFilesystem}
 	if sink.live {
 		if sink.instance.Type() == instancetype.Container {
-			_, err := exec.LookPath("criu")
-			if err != nil {
-				return nil, migration.ErrNoLiveMigrationTarget
-			}
+			return nil, errors.New("Live migration is not supported for containers")
 		}
 
 		secretNames = append(secretNames, api.SecretNameState)
