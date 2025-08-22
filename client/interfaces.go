@@ -456,6 +456,9 @@ type InstanceServer interface {
 	DeleteIdentity(authenticationMethod string, nameOrIdentifier string) error
 	CreateIdentityTLS(identitiesTLSPost api.IdentitiesTLSPost) error
 	CreateIdentityTLSToken(identitiesTLSPost api.IdentitiesTLSPost) (*api.CertificateAddToken, error)
+	CreateIdentityBearer(identitiesBearerPost api.IdentitiesBearerPost) error
+	IssueBearerIdentityToken(nameOrIdentifier string, identityBearerTokenPost api.IdentityBearerTokenPost) (*api.IdentityBearerToken, error)
+	RevokeBearerIdentityToken(nameOrIdentifier string) error
 	GetIdentityProviderGroupNames() (identityProviderGroupNames []string, err error)
 	GetIdentityProviderGroups() (identityProviderGroups []api.IdentityProviderGroup, err error)
 	GetIdentityProviderGroup(identityProviderGroupName string) (identityProviderGroup *api.IdentityProviderGroup, ETag string, err error)

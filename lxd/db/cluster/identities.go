@@ -63,8 +63,9 @@ import (
 type AuthMethod string
 
 const (
-	authMethodTLS  int64 = 1
-	authMethodOIDC int64 = 2
+	authMethodTLS    int64 = 1
+	authMethodOIDC   int64 = 2
+	authMethodBearer int64 = 3
 )
 
 // ScanInteger implements [query.IntegerScanner] for [AuthMethod]. This simplifies the Scan implementation.
@@ -74,6 +75,8 @@ func (a *AuthMethod) ScanInteger(authMethodCode int64) error {
 		*a = api.AuthenticationMethodTLS
 	case authMethodOIDC:
 		*a = api.AuthenticationMethodOIDC
+	case authMethodBearer:
+		*a = api.AuthenticationMethodBearer
 	default:
 		return fmt.Errorf("Unknown authentication method `%d`", authMethodCode)
 	}
@@ -94,6 +97,8 @@ func (a AuthMethod) Value() (driver.Value, error) {
 		return authMethodTLS, nil
 	case api.AuthenticationMethodOIDC:
 		return authMethodOIDC, nil
+	case api.AuthenticationMethodBearer:
+		return authMethodBearer, nil
 	}
 
 	return nil, fmt.Errorf("Invalid authentication method %q", a)

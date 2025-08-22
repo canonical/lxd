@@ -326,6 +326,10 @@ definitions:
                 description: The instance state
                 example: Started
                 type: string
+            auth:
+                description: Whether the client is trusted or untrusted
+                example: trusted
+                type: string
     DevLXDPut:
         title: The instance state
         type: object

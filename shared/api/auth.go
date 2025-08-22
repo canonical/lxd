@@ -4,8 +4,11 @@ const (
 	// AuthenticationMethodTLS is the default authentication method for interacting with LXD remotely.
 	AuthenticationMethodTLS = "tls"
 
-	// AuthenticationMethodOIDC is a token based authentication method.
+	// AuthenticationMethodOIDC is the OpenID Connect authentication method.
 	AuthenticationMethodOIDC = "oidc"
+
+	// AuthenticationMethodBearer is the authentication method used when the caller sends a bearer token that was issued by LXD.
+	AuthenticationMethodBearer = "bearer"
 )
 
 const (
@@ -32,6 +35,9 @@ const (
 
 	// IdentityTypeOIDCClient represents an identity that authenticates with OIDC.
 	IdentityTypeOIDCClient = "OIDC client"
+
+	// IdentityTypeBearerTokenDevLXD represents an identity that bears a LXD token that can be used to interact with the DevLXD API.
+	IdentityTypeBearerTokenDevLXD = "DevLXD token bearer"
 )
 
 // WithEntitlements is meant to be an embedded struct to API types eligible for entitlement enrichment,
@@ -164,6 +170,44 @@ type IdentitiesTLSPost struct {
 	// Groups is the list of groups for which the identity is a member.
 	// Example: ["foo", "bar"]
 	Groups []string `json:"groups" yaml:"groups"`
+}
+
+// IdentitiesBearerPost contains required information for the creation of a token identity.
+//
+// swagger:model
+//
+// API extension: auth_bearer_devlxd.
+type IdentitiesBearerPost struct {
+	// Type of identity
+	// Example: DevLXD token bearer
+	Type string `json:"type" yaml:"type"`
+
+	// Name associated with the identity
+	// Example: foo
+	Name string `json:"name" yaml:"name"`
+
+	// Groups is the list of groups for which the identity is a member.
+	// Example: ["foo", "bar"]
+	Groups []string `json:"groups" yaml:"groups"`
+}
+
+// IdentityBearerToken contains a token issued for an identity whose authentication method is
+// api.AuthenticationMethodBearer.
+//
+// swagger:model
+//
+// API extension: auth_bearer_devlxd.
+type IdentityBearerToken struct {
+	Token string `json:"token" yaml:"token"`
+}
+
+// IdentityBearerTokenPost contains parameters used when issuing a token for a bearer identity.
+//
+// swagger:model
+//
+// API extension: auth_bearer_devlxd.
+type IdentityBearerTokenPost struct {
+	Expiry string `json:"expiry" yaml:"expiry"`
 }
 
 // AuthGroup is the type for a LXD group.

@@ -37,6 +37,8 @@ type ProtocolDevLXD struct {
 
 	// isDevLXDOverVsock indicates whether the devLXD connection is over vsock.
 	isDevLXDOverVsock bool
+
+	bearerToken string
 }
 
 // GetConnectionInfo returns the basic connection information used to interact with the server.
@@ -123,6 +125,11 @@ func (r *ProtocolDevLXD) rawQuery(method string, url string, data any, ETag stri
 	// Set the ETag.
 	if ETag != "" {
 		req.Header.Set("If-Match", ETag)
+	}
+
+	// Set the bearer token
+	if r.bearerToken != "" {
+		req.Header.Set("Authorization", "Bearer "+r.bearerToken)
 	}
 
 	req.Header.Set("User-Agent", r.httpUserAgent)

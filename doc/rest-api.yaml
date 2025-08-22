@@ -747,6 +747,30 @@ definitions:
                 x-go-name: Type
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
+    IdentitiesBearerPost:
+        properties:
+            groups:
+                description: Groups is the list of groups for which the identity is a member.
+                example:
+                    - foo
+                    - bar
+                items:
+                    type: string
+                type: array
+                x-go-name: Groups
+            name:
+                description: Name associated with the identity
+                example: foo
+                type: string
+                x-go-name: Name
+            type:
+                description: Type of identity
+                example: DevLXD token bearer
+                type: string
+                x-go-name: Type
+        title: IdentitiesBearerPost contains required information for the creation of a token identity.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
     IdentitiesTLSPost:
         properties:
             certificate:
@@ -832,6 +856,24 @@ definitions:
                 type: string
                 x-go-name: Type
         title: Identity is the type for an authenticated party that can make requests to the HTTPS API.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    IdentityBearerToken:
+        description: |-
+            IdentityBearerToken contains a token issued for an identity whose authentication method is
+            api.AuthenticationMethodBearer.
+        properties:
+            token:
+                type: string
+                x-go-name: Token
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    IdentityBearerTokenPost:
+        properties:
+            expiry:
+                type: string
+                x-go-name: Expiry
+        title: IdentityBearerTokenPost contains parameters used when issuing a token for a bearer identity.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
     IdentityInfo:
@@ -7553,6 +7595,51 @@ paths:
                 "500":
                     $ref: '#/responses/InternalServerError'
             summary: Get the identities
+            tags:
+                - identities
+    /1.0/auth/identities/bearer:
+        post:
+            consumes:
+                - application/json
+            description: Creates a new bearer identity.
+            operationId: identities_post_bearer
+            parameters:
+                - description: Bearer Identity
+                  in: body
+                  name: Bearer identity
+                  required: true
+                  schema:
+                    $ref: '#/definitions/IdentitiesBearerPost'
+            produces:
+                - application/json
+            responses:
+                "201":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Add a bearer identity.
+            tags:
+                - identities
+    /1.0/auth/identities/bearer/{nameOrID}/token:
+        post:
+            consumes:
+                - application/json
+            description: Revokes any existing token for the identity.
+            operationId: identity_delete_bearer_token
+            produces:
+                - application/json
+            responses:
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Revoke a bearer identity token.
             tags:
                 - identities
     /1.0/auth/identities/current:
