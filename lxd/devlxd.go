@@ -586,6 +586,20 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 	}
 }
 
+// allowDevLXDAuthenticated is an access handler that rejects requests from unauthenticated clients.
+func allowDevLXDAuthenticated(_ *Daemon, r *http.Request) response.Response {
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	if !requestor.IsTrusted() {
+		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusForbidden))
+	}
+
+	return response.EmptySyncResponse
+}
+
 // allowDevLXDPermission returns a wrapper that checks access to a given LXD entity
 // (e.g. image, instance, network).
 //
