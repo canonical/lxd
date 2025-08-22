@@ -46,8 +46,7 @@ test_devlxd() {
   ${cmd} exec devlxd -- devlxd-client monitor-stream > "${TEST_DIR}/devlxd-stream.log" &
   client_stream=$!
 
-  (
-    cat << EOF
+  EXPECTED_MD5="$(md5sum - << EOF
 {
   "type": "config",
   "timestamp": "0001-01-01T00:00:00Z",
@@ -84,7 +83,7 @@ test_devlxd() {
   }
 }
 EOF
-  ) > "${TEST_DIR}/devlxd.expected"
+)"
 
   MATCH=0
 
@@ -100,7 +99,7 @@ EOF
     lxc config device add devlxd mnt disk source="${TEST_DIR}" path=/mnt
     lxc config device remove devlxd mnt
 
-    if [ "$(tr -d '\0' < "${TEST_DIR}/devlxd-websocket.log" | md5sum | cut -d' ' -f1)" != "$(md5sum "${TEST_DIR}/devlxd.expected" | cut -d' ' -f1)" ] || [ "$(tr -d '\0' < "${TEST_DIR}/devlxd-stream.log" | md5sum | cut -d' ' -f1)" != "$(md5sum "${TEST_DIR}/devlxd.expected" | cut -d' ' -f1)" ]; then
+    if [ "$(tr -d '\0' < "${TEST_DIR}/devlxd-websocket.log" | md5sum)" != "${EXPECTED_MD5}" ] || [ "$(tr -d '\0' < "${TEST_DIR}/devlxd-stream.log" | md5sum)" != "${EXPECTED_MD5}" ]; then
       sleep 0.5
       continue
     fi
