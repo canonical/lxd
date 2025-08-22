@@ -25,10 +25,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/checkpoint-restore/go-criu/v6/crit"
 	"github.com/flosch/pongo2"
 	"github.com/google/uuid"
-	"github.com/gorilla/websocket"
 	liblxc "github.com/lxc/go-lxc"
 	"github.com/pkg/sftp"
 	yaml "go.yaml.in/yaml/v2"
@@ -42,7 +40,6 @@ import (
 	"github.com/canonical/lxd/lxd/daemon"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
-	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/device"
 	"github.com/canonical/lxd/lxd/device/cdi"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
@@ -62,7 +59,6 @@ import (
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/response"
-	"github.com/canonical/lxd/lxd/rsync"
 	"github.com/canonical/lxd/lxd/seccomp"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
@@ -79,7 +75,6 @@ import (
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/termios"
 	"github.com/canonical/lxd/shared/units"
-	"github.com/canonical/lxd/shared/ws"
 )
 
 // Helper functions.
@@ -2237,7 +2232,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	}
 
 	if snapName != "" && expiry != nil {
-		err := d.snapshot(snapName, expiry, false)
+		err := d.snapshot(snapName, expiry)
 		if err != nil {
 			return "", nil, fmt.Errorf("Failed taking startup snapshot: %w", err)
 		}
@@ -2331,51 +2326,10 @@ func (d *lxc) Start(stateful bool) error {
 		d.logger.Info("Starting instance", ctxMap)
 	}
 
-	// If stateful, restore now.
 	if stateful {
-		if !d.stateful {
-			err = errors.New("Instance has no existing state to restore")
-			op.Done(err)
-			return err
-		}
-
-		d.logger.Info("Restoring stateful checkpoint")
-
-		criuMigrationArgs := instance.CriuMigrationArgs{
-			Cmd:          liblxc.MIGRATE_RESTORE,
-			StateDir:     d.StatePath(),
-			Function:     "snapshot",
-			Stop:         false,
-			ActionScript: false,
-			DumpDir:      "",
-			PreDumpDir:   "",
-		}
-
-		err = d.migrate(&criuMigrationArgs)
-		if err != nil && !d.IsRunning() {
-			op.Done(err)
-			return fmt.Errorf("Failed restoring stateful checkpoint: %w", err)
-		}
-
-		_ = os.RemoveAll(d.StatePath())
-		d.stateful = false
-
-		err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			return tx.UpdateInstanceStatefulFlag(ctx, d.id, false)
-		})
-		if err != nil {
-			op.Done(err)
-			return fmt.Errorf("Failed clearing instance stateful flag: %w", err)
-		}
-
-		if op.Action() == "start" {
-			d.logger.Info("Started instance", ctxMap)
-			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStarted.Event(d, nil))
-		}
-
-		return nil
+		return errors.New("Stateful restore is not supported for containers")
 	} else if d.stateful {
-		/* stateless start required when we have state, let's delete it */
+		// Clear any left over state when doing stateless start.
 		err := os.RemoveAll(d.StatePath())
 		if err != nil {
 			op.Done(err)
@@ -2649,6 +2603,10 @@ func (d *lxc) Stop(stateful bool) error {
 		return ErrInstanceIsStopped
 	}
 
+	if stateful {
+		return errors.New("Stateful stop is not supported for containers")
+	}
+
 	// Setup a new operation
 	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, true)
 	if err != nil {
@@ -2701,54 +2659,8 @@ func (d *lxc) Stop(stateful bool) error {
 		}
 	}
 
-	// Handle stateful stop
-	if stateful {
-		// Cleanup any existing state
-		stateDir := d.StatePath()
-		_ = os.RemoveAll(stateDir)
-
-		err := os.MkdirAll(stateDir, 0700)
-		if err != nil {
-			op.Done(err)
-			return err
-		}
-
-		criuMigrationArgs := instance.CriuMigrationArgs{
-			Cmd:          liblxc.MIGRATE_DUMP,
-			StateDir:     stateDir,
-			Function:     "snapshot",
-			Stop:         true,
-			ActionScript: false,
-			DumpDir:      "",
-			PreDumpDir:   "",
-		}
-
-		// Checkpoint
-		err = d.migrate(&criuMigrationArgs)
-		if err != nil {
-			op.Done(err)
-			return err
-		}
-
-		err = op.Wait(context.Background())
-		if err != nil && d.IsRunning() {
-			return err
-		}
-
-		d.stateful = true
-
-		err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			return tx.UpdateInstanceStatefulFlag(ctx, d.id, true)
-		})
-		if err != nil {
-			return fmt.Errorf("Failed updating instance stateful flag: %w", err)
-		}
-
-		d.logger.Info("Stopped instance", ctxMap)
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStopped.Event(d, nil))
-
-		return nil
-	} else if shared.PathExists(d.StatePath()) {
+	if shared.PathExists(d.StatePath()) {
+		// If stopping statelessly, wipe left over state.
 		_ = os.RemoveAll(d.StatePath())
 	}
 
@@ -3433,88 +3345,19 @@ func (d *lxc) RenderState(hostInterfaces []net.Interface) (*api.InstanceState, e
 }
 
 // snapshot creates a snapshot of the instance.
-func (d *lxc) snapshot(name string, expiry *time.Time, stateful bool) error {
-	// Deal with state.
-	if stateful {
-		// Quick checks.
-		if !d.IsRunning() {
-			return errors.New("Unable to create a stateful snapshot. The instance isn't running")
-		}
-
-		_, err := exec.LookPath("criu")
-		if err != nil {
-			return errors.New("Unable to create a stateful snapshot. CRIU isn't installed")
-		}
-
-		// Cleanup any existing state
-		stateDir := d.StatePath()
-		_ = os.RemoveAll(stateDir)
-
-		// Create the state path and make sure we don't keep state around after the snapshot has been made.
-		err = os.MkdirAll(stateDir, 0700)
-		if err != nil {
-			return err
-		}
-
-		defer func() { _ = os.RemoveAll(stateDir) }()
-
-		// Release liblxc container once done.
-		defer func() {
-			d.release()
-		}()
-
-		// Load the go-lxc struct
-		if d.expandedConfig["raw.lxc"] != "" {
-			cc, err := d.initLXC(true)
-			if err != nil {
-				return err
-			}
-
-			err = d.loadRawLXCConfig(cc)
-			if err != nil {
-				return err
-			}
-		} else {
-			_, err = d.initLXC(false)
-			if err != nil {
-				return err
-			}
-		}
-
-		/* TODO: ideally we would freeze here and unfreeze below after
-		 * we've copied the filesystem, to make sure there are no
-		 * changes by the container while snapshotting. Unfortunately
-		 * there is abug in CRIU where it doesn't leave the container
-		 * in the same state it found it w.r.t. freezing, i.e. CRIU
-		 * freezes too, and then /always/ thaws, even if the container
-		 * was frozen. Until that's fixed, all calls to Unfreeze()
-		 * after snapshotting will fail.
-		 */
-		criuMigrationArgs := instance.CriuMigrationArgs{
-			Cmd:          liblxc.MIGRATE_DUMP,
-			StateDir:     stateDir,
-			Function:     "snapshot",
-			Stop:         false,
-			ActionScript: false,
-			DumpDir:      "",
-			PreDumpDir:   "",
-		}
-
-		// Dump the state.
-		err = d.migrate(&criuMigrationArgs)
-		if err != nil {
-			return fmt.Errorf("Failed taking stateful checkpoint: %w", err)
-		}
-	}
-
+func (d *lxc) snapshot(name string, expiry *time.Time) error {
 	// Wait for any file operations to complete to have a more consistent snapshot.
 	d.stopForkfile(false)
 
-	return d.snapshotCommon(d, name, expiry, stateful)
+	return d.snapshotCommon(d, name, expiry, false)
 }
 
 // Snapshot takes a new snapshot.
 func (d *lxc) Snapshot(name string, expiry *time.Time, stateful bool) error {
+	if stateful {
+		return errors.New("Stateful snapshots are not supported for containers")
+	}
+
 	unlock, err := d.updateBackupFileLock(context.Background())
 	if err != nil {
 		return err
@@ -3522,11 +3365,15 @@ func (d *lxc) Snapshot(name string, expiry *time.Time, stateful bool) error {
 
 	defer unlock()
 
-	return d.snapshot(name, expiry, stateful)
+	return d.snapshot(name, expiry)
 }
 
 // Restore restores a snapshot.
 func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
+	if stateful {
+		return errors.New("Stateful snapshot restore is not supported for containers")
+	}
+
 	var ctxMap logger.Ctx
 
 	op, err := operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
@@ -3595,45 +3442,12 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	// This is required so we can actually unmount the container and restore its rootfs.
 	d.stopForkfile(false)
 
-	// Initialize storage interface for the container and mount the rootfs for criu state check.
+	// Load the storage driver.
 	pool, err := storagePools.LoadByInstance(d.state, d)
 	if err != nil {
 		op.Done(err)
 		return err
 	}
-
-	d.logger.Debug("Mounting instance to check for CRIU state path existence")
-
-	revert := revert.New()
-	defer revert.Fail()
-
-	// Ensure that storage is mounted for state path checks and for backup.yaml updates.
-	_, err = d.mount()
-	if err != nil {
-		op.Done(err)
-		return fmt.Errorf("Failed mounting instance: %w", err)
-	}
-
-	revert.Add(func() { _ = d.unmount() })
-
-	// Check for CRIU if necessary, before doing a bunch of filesystem manipulations.
-	// Requires container be mounted to check StatePath exists.
-	if shared.PathExists(d.StatePath()) {
-		_, err := exec.LookPath("criu")
-		if err != nil {
-			err = errors.New("Failed to restore container state. CRIU isn't installed")
-			op.Done(err)
-			return err
-		}
-	}
-
-	err = d.unmount()
-	if err != nil {
-		op.Done(err)
-		return fmt.Errorf("Failed unmounting instance: %w", err)
-	}
-
-	revert.Success()
 
 	// Restore the rootfs.
 	err = pool.RestoreInstanceSnapshot(d, sourceContainer, nil)
@@ -3661,46 +3475,6 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	if err != nil {
 		op.Done(err)
 		return err
-	}
-
-	// If the container wasn't running but was stateful, should we restore it as running?
-	if stateful {
-		if !shared.PathExists(d.StatePath()) {
-			err = errors.New("Stateful snapshot restore requested but snapshot is stateless")
-			op.Done(err)
-			return err
-		}
-
-		d.logger.Debug("Performing stateful restore", ctxMap)
-		d.stateful = true
-
-		criuMigrationArgs := instance.CriuMigrationArgs{
-			Cmd:          liblxc.MIGRATE_RESTORE,
-			StateDir:     d.StatePath(),
-			Function:     "snapshot",
-			Stop:         false,
-			ActionScript: false,
-			DumpDir:      "",
-			PreDumpDir:   "",
-		}
-
-		// Checkpoint.
-		err = d.migrate(&criuMigrationArgs)
-		if err != nil {
-			op.Done(err)
-			return fmt.Errorf("Failed taking stateful checkpoint: %w", err)
-		}
-
-		// Remove the state from the parent container; we only keep this in snapshots.
-		err = os.RemoveAll(d.StatePath())
-		if err != nil && !os.IsNotExist(err) {
-			op.Done(err)
-			return err
-		}
-
-		d.logger.Debug("Performed stateful restore", ctxMap)
-		d.logger.Info("Restored instance", ctxMap)
-		return nil
 	}
 
 	// Restart the container.
@@ -5148,104 +4922,6 @@ func (d *lxc) Export(w io.Writer, properties map[string]string, expiration time.
 	return meta, nil
 }
 
-func collectCRIULogFile(d instance.Instance, imagesDir string, function string, method string) error {
-	t := time.Now().Format(time.RFC3339)
-	newPath := filepath.Join(d.LogPath(), function+"_"+method+"_"+t+".log")
-	return shared.FileCopy(filepath.Join(imagesDir, method+".log"), newPath)
-}
-
-func getCRIULogErrors(imagesDir string, method string) (string, error) {
-	f, err := os.Open(path.Join(imagesDir, method+".log"))
-	if err != nil {
-		return "", err
-	}
-
-	defer func() { _ = f.Close() }()
-
-	scanner := bufio.NewScanner(f)
-	ret := []string{}
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.Contains(line, "Error") || strings.Contains(line, "Warn") {
-			ret = append(ret, scanner.Text())
-		}
-	}
-
-	return strings.Join(ret, "\n"), nil
-}
-
-// Check if CRIU supports pre-dumping and number of pre-dump iterations.
-func (d *lxc) migrationSendCheckForPreDumpSupport() (bool, int) {
-	// Check if this architecture/kernel/criu combination supports pre-copy dirty memory tracking feature.
-	_, err := shared.RunCommandContext(context.TODO(), "criu", "check", "--feature", "mem_dirty_track")
-	if err != nil {
-		// CRIU says it does not know about dirty memory tracking.
-		// This means the rest of this function is irrelevant.
-		return false, 0
-	}
-
-	// CRIU says it can actually do pre-dump. Let's set it to true
-	// unless the user wants something else.
-	usePreDumps := true
-
-	// What does the configuration say about pre-copy
-	tmp := d.ExpandedConfig()["migration.incremental.memory"]
-
-	if tmp != "" {
-		usePreDumps = shared.IsTrue(tmp)
-	}
-
-	var maxIterations int
-
-	// migration.incremental.memory.iterations is the value after which the
-	// container will be definitely migrated, even if the remaining number
-	// of memory pages is below the defined threshold.
-	tmp = d.ExpandedConfig()["migration.incremental.memory.iterations"]
-	if tmp != "" {
-		maxIterations, _ = strconv.Atoi(tmp)
-	} else {
-		// default to 10
-		maxIterations = 10
-	}
-
-	if maxIterations > 999 {
-		// the pre-dump directory is hardcoded to a string
-		// with maximal 3 digits. 999 pre-dumps makes no
-		// sense at all, but let's make sure the number
-		// is not higher than this.
-		maxIterations = 999
-	}
-
-	logger.Debugf("Using maximal %d iterations for pre-dumping", maxIterations)
-
-	return usePreDumps, maxIterations
-}
-
-func (d *lxc) migrationSendWriteActionScript(directory string, operation string, secret string, execPath string) error {
-	script := fmt.Sprintf(`#!/bin/sh -e
-if [ "$CRTOOLS_SCRIPT_ACTION" = "post-dump" ]; then
-	%s migratedumpsuccess %s %s
-fi
-`, execPath, operation, secret)
-
-	f, err := os.Create(filepath.Join(directory, "action.sh"))
-	if err != nil {
-		return err
-	}
-
-	err = f.Chmod(0500)
-	if err != nil {
-		return err
-	}
-
-	_, err = f.WriteString(script)
-	if err != nil {
-		return err
-	}
-
-	return f.Close()
-}
-
 // MigrateSend controls the sending side of a migration.
 func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	d.logger.Info("Migration send starting")
@@ -5260,12 +4936,8 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 		return err
 	}
 
-	var stateConn io.ReadWriteCloser
 	if args.Live {
-		stateConn, err = args.StateConn(connectionsCtx)
-		if err != nil {
-			return err
-		}
+		return errors.New("Live migration is not supported for containers")
 	}
 
 	pool, err := storagePools.LoadByInstance(d.state, d)
@@ -5289,21 +4961,8 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	indexHeaderVersion := migration.IndexHeaderVersion
 	offerHeader.IndexHeaderVersion = &indexHeaderVersion
 
-	// Add CRIU and predump info to source header.
-	maxDumpIterations := 0
-	if args.Live {
-		var offerUsePreDumps bool
-		offerUsePreDumps, maxDumpIterations = d.migrationSendCheckForPreDumpSupport()
-		offerHeader.Predump = proto.Bool(offerUsePreDumps)
-		offerHeader.Criu = migration.CRIUType_CRIU_RSYNC.Enum()
-	} else {
-		offerHeader.Predump = proto.Bool(false)
-
-		if d.IsRunning() {
-			// Indicate instance is running to target (can trigger MultiSync mode).
-			offerHeader.Criu = migration.CRIUType_NONE.Enum()
-		}
-	}
+	// Predump/CRIU not used for containers.
+	offerHeader.Predump = proto.Bool(false)
 
 	// Add idmap info to source header for containers.
 	idmapset, err := d.DiskIdmap()
@@ -5395,10 +5054,8 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 		}
 	}
 
-	// If s.live is true or Criu is set to CRIUType_NONE rather than nil, it indicates that the source instance
-	// is running, and if we are doing a non-optimized transfer (i.e using rsync or raw block transfer) then we
-	// should do a two stage transfer to minimize downtime.
-	instanceRunning := args.Live || (respHeader.Criu != nil && *respHeader.Criu == migration.CRIUType_NONE)
+	// For containers, only stateless migration is currently supported; do not use CRIU signals.
+	instanceRunning := args.Live
 	nonOptimizedMigration := volSourceArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || slices.Contains([]migration.MigrationFSType{migration.MigrationFSType_BLOCK_AND_RSYNC, migration.MigrationFSType_RBD_AND_RSYNC}, volSourceArgs.MigrationType.FSType)
 	if instanceRunning && nonOptimizedMigration {
 		// Indicate this info to the storage driver so that it can alter its behaviour if needed.
@@ -5445,12 +5102,6 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 		args.Disconnect()
 	}()
 
-	restoreSuccess := make(chan bool, 1)
-	defer close(restoreSuccess)
-
-	// Don't defer close this one as its needed potentially after this function has ended.
-	dumpSuccess := make(chan error, 1)
-
 	g.Go(func() error {
 		d.logger.Debug("Migrate send transfer started")
 		defer d.logger.Debug("Migrate send transfer finished")
@@ -5465,178 +5116,6 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 		}
 
 		d.logger.Debug("Finished storage migration phase")
-
-		if args.Live {
-			d.logger.Debug("Starting live migration phase")
-
-			// Setup rsync options (used for CRIU state transfers).
-			rsyncBwlimit := pool.Driver().Config()["rsync.bwlimit"]
-			rsyncFeatures := respHeader.GetRsyncFeaturesSlice()
-
-			if respHeader.Criu == nil {
-				return errors.New("Got no CRIU socket type for live migration")
-			} else if *respHeader.Criu != migration.CRIUType_CRIU_RSYNC {
-				return fmt.Errorf("Formats other than criu rsync not understood (%q)", respHeader.Criu)
-			}
-
-			checkpointDir, err := os.MkdirTemp("", "lxd_checkpoint_")
-			if err != nil {
-				return err
-			}
-
-			// What happens below is slightly convoluted. Due to various complications
-			// with networking, there's no easy way for criu to exit and leave the
-			// container in a frozen state for us to somehow resume later.
-			// Instead, we use what criu calls an "action-script", which is basically a
-			// callback that lets us know when the dump is done. (Unfortunately, we
-			// can't pass arguments, just an executable path, so we write a custom
-			// action script with the real command we want to run.)
-			// This script then blocks until the migration operation either finishes
-			// successfully or fails, and exits 1 or 0, which causes criu to either
-			// leave the container running or kill it as we asked.
-			dumpDone := make(chan bool, 1)
-			actionScriptOpSecret, err := shared.RandomCryptoString()
-			if err != nil {
-				_ = os.RemoveAll(checkpointDir)
-				return err
-			}
-
-			actionScriptOp, err := operations.OperationCreate(
-				context.Background(),
-				d.state,
-				d.Project().Name,
-				operations.OperationClassWebsocket,
-				operationtype.InstanceLiveMigrate,
-				nil,
-				nil,
-				func(_ *operations.Operation) error {
-					result := <-restoreSuccess
-					if !result {
-						return errors.New("restore failed, failing CRIU")
-					}
-
-					return nil
-				},
-				nil,
-				func(_ *operations.Operation, r *http.Request, w http.ResponseWriter) error {
-					secret := r.FormValue("secret")
-					if secret == "" {
-						return errors.New("Missing action script secret")
-					}
-
-					if secret != actionScriptOpSecret {
-						return os.ErrPermission
-					}
-
-					c, err := ws.Upgrader.Upgrade(w, r, nil)
-					if err != nil {
-						return err
-					}
-
-					dumpDone <- true
-
-					closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-					return c.WriteMessage(websocket.CloseMessage, closeMsg)
-				},
-			)
-			if err != nil {
-				_ = os.RemoveAll(checkpointDir)
-				return err
-			}
-
-			err = d.migrationSendWriteActionScript(checkpointDir, actionScriptOp.URL(), actionScriptOpSecret, d.state.OS.ExecPath)
-			if err != nil {
-				_ = os.RemoveAll(checkpointDir)
-				return err
-			}
-
-			preDumpCounter := 0
-			preDumpDir := ""
-
-			// Check if the other side knows about pre-dumping and the associated
-			// rsync protocol.
-			if respHeader.GetPredump() {
-				d.logger.Debug("The other side does support pre-copy")
-				final := false
-				for !final {
-					preDumpCounter++
-					if preDumpCounter < maxDumpIterations {
-						final = false
-					} else {
-						final = true
-					}
-
-					dumpDir := fmt.Sprintf("%03d", preDumpCounter)
-					loopArgs := preDumpLoopArgs{
-						stateConn:     stateConn,
-						checkpointDir: checkpointDir,
-						bwlimit:       rsyncBwlimit,
-						preDumpDir:    preDumpDir,
-						dumpDir:       dumpDir,
-						final:         final,
-						rsyncFeatures: rsyncFeatures,
-					}
-
-					final, err = d.migrateSendPreDumpLoop(&loopArgs)
-					if err != nil {
-						_ = os.RemoveAll(checkpointDir)
-						return err
-					}
-
-					preDumpDir = fmt.Sprintf("%03d", preDumpCounter)
-					preDumpCounter++
-				}
-			} else {
-				d.logger.Debug("The other side does not support pre-copy")
-			}
-
-			err = actionScriptOp.Start()
-			if err != nil {
-				_ = os.RemoveAll(checkpointDir)
-				return err
-			}
-
-			go func() {
-				d.logger.Debug("Final CRIU dump started")
-				defer d.logger.Debug("Final CRIU dump stopped")
-				criuMigrationArgs := instance.CriuMigrationArgs{
-					Cmd:          liblxc.MIGRATE_DUMP,
-					Stop:         true,
-					ActionScript: true,
-					PreDumpDir:   preDumpDir,
-					DumpDir:      "final",
-					StateDir:     checkpointDir,
-					Function:     "migration",
-				}
-
-				// Do the final CRIU dump. This is needs no special handling if
-				// pre-dumps are used or not.
-				dumpSuccess <- d.migrate(&criuMigrationArgs)
-				_ = os.RemoveAll(checkpointDir)
-			}()
-
-			select {
-			// The checkpoint failed, let's just abort.
-			case err = <-dumpSuccess:
-				return err
-			// The dump finished, let's continue on to the restore.
-			case <-dumpDone:
-				d.logger.Debug("Dump finished, continuing with restore...")
-			}
-
-			// We do the transfer serially right now, but there's really no reason for us to;
-			// since we have separate websockets, we can do it in parallel if we wanted to.
-			// However assuming we're network bound, there's really no reason to do these in.
-			// parallel. In the future when we're using p.haul's protocol, it will make sense
-			// to do these in parallel.
-			ctName, _, _ := api.GetParentAndSnapshotName(d.Name())
-			err = rsync.Send(ctName, shared.AddSlash(checkpointDir), stateConn, nil, rsyncFeatures, rsyncBwlimit, d.state.OS.ExecPath)
-			if err != nil {
-				return err
-			}
-
-			d.logger.Debug("Finished live migration phase")
-		}
 
 		// Perform final sync if in multi sync mode.
 		if volSourceArgs.MultiSync {
@@ -5662,18 +5141,6 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	{
 		// Wait for routines to finish and collect first error.
 		err := g.Wait()
-
-		if args.Live {
-			restoreSuccess <- err == nil
-
-			if err == nil {
-				err := <-dumpSuccess
-				if err != nil {
-					d.logger.Error("Dump failed after successful restore", logger.Ctx{"err": err})
-				}
-			}
-		}
-
 		if err == nil {
 			postMigrateSendErr := d.postMigrateSendCommon(d, args.ClusterMoveSourceName)
 			if postMigrateSendErr != nil {
@@ -5683,117 +5150,6 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 
 		return err
 	}
-}
-
-type preDumpLoopArgs struct {
-	stateConn     io.ReadWriteCloser
-	checkpointDir string
-	bwlimit       string
-	preDumpDir    string
-	dumpDir       string
-	final         bool
-	rsyncFeatures []string
-}
-
-// migrateSendPreDumpLoop is the main logic behind the pre-copy migration.
-// This function contains the actual pre-dump, the corresponding rsync transfer and it tells the outer loop to
-// abort if the threshold of memory pages transferred by pre-dumping has been reached.
-func (d *lxc) migrateSendPreDumpLoop(args *preDumpLoopArgs) (bool, error) {
-	// Do a CRIU pre-dump
-	criuMigrationArgs := instance.CriuMigrationArgs{
-		Cmd:          liblxc.MIGRATE_PRE_DUMP,
-		Stop:         false,
-		ActionScript: false,
-		PreDumpDir:   args.preDumpDir,
-		DumpDir:      args.dumpDir,
-		StateDir:     args.checkpointDir,
-		Function:     "migration",
-	}
-
-	d.logger.Debug("Doing another CRIU pre-dump", logger.Ctx{"preDumpDir": args.preDumpDir})
-
-	final := args.final
-
-	if d.Type() != instancetype.Container {
-		return false, errors.New("Instance is not container type")
-	}
-
-	err := d.migrate(&criuMigrationArgs)
-	if err != nil {
-		return final, fmt.Errorf("Failed sending instance: %w", err)
-	}
-
-	// Send the pre-dump.
-	ctName, _, _ := api.GetParentAndSnapshotName(d.Name())
-	err = rsync.Send(ctName, shared.AddSlash(args.checkpointDir), args.stateConn, nil, args.rsyncFeatures, args.bwlimit, d.state.OS.ExecPath)
-	if err != nil {
-		return final, err
-	}
-
-	// The function readCriuStatsDump() reads the CRIU 'stats-dump' file
-	// in path and returns the pages_written, pages_skipped_parent, error.
-	readCriuStatsDump := func(path string) (uint64, uint64, error) {
-		// Get dump statistics with crit
-		dumpStats, err := crit.GetDumpStats(path)
-		if err != nil {
-			return 0, 0, fmt.Errorf("Failed to parse CRIU's 'stats-dump' file: %w", err)
-		}
-
-		return dumpStats.GetPagesWritten(), dumpStats.GetPagesSkippedParent(), nil
-	}
-
-	// Read the CRIU's 'stats-dump' file
-	dumpPath := shared.AddSlash(args.checkpointDir)
-	dumpPath += shared.AddSlash(args.dumpDir)
-	written, skippedParent, err := readCriuStatsDump(dumpPath)
-	if err != nil {
-		return final, err
-	}
-
-	totalPages := written + skippedParent
-	var percentageSkipped int
-	if totalPages > 0 {
-		percentageSkipped = int(100 - ((100 * written) / totalPages))
-	}
-
-	d.logger.Debug("CRIU pages", logger.Ctx{"pages": written, "skipped": skippedParent, "skippedPerc": percentageSkipped})
-
-	// threshold is the percentage of memory pages that needs
-	// to be pre-copied for the pre-copy migration to stop.
-	var threshold int
-	tmp := d.ExpandedConfig()["migration.incremental.memory.goal"]
-	if tmp != "" {
-		threshold, _ = strconv.Atoi(tmp)
-	} else {
-		// defaults to 70%
-		threshold = 70
-	}
-
-	if percentageSkipped > threshold {
-		d.logger.Debug("Memory pages skipped due to pre-copy is larger than threshold", logger.Ctx{"skippedPerc": percentageSkipped, "thresholdPerc": threshold})
-		d.logger.Debug("This was the last pre-dump; next dump is the final dump")
-		final = true
-	}
-
-	// If in pre-dump mode, the receiving side expects a message to know if this was the last pre-dump.
-	logger.Debug("Sending another CRIU pre-dump header")
-	sync := migration.MigrationSync{
-		FinalPreDump: proto.Bool(final),
-	}
-
-	data, err := proto.Marshal(&sync)
-	if err != nil {
-		return false, err
-	}
-
-	_, err = args.stateConn.Write(data)
-	if err != nil {
-		return final, err
-	}
-
-	d.logger.Debug("Sending another CRIU pre-dump header done")
-
-	return final, nil
 }
 
 func (d *lxc) resetContainerDiskIdmap(srcIdmap *idmap.IdmapSet) error {
@@ -5844,12 +5200,8 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		return err
 	}
 
-	var stateConn io.ReadWriteCloser
 	if args.Live {
-		stateConn, err = args.StateConn(connectionsCtx)
-		if err != nil {
-			return err
-		}
+		return errors.New("Live migration is not supported for containers")
 	}
 
 	// Receive offer from source.
@@ -5858,15 +5210,6 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	err = args.ControlReceive(offerHeader)
 	if err != nil {
 		return fmt.Errorf("Failed receiving migration offer from source: %w", err)
-	}
-
-	criuType := migration.CRIUType_CRIU_RSYNC.Enum()
-	if offerHeader.Criu != nil && *offerHeader.Criu == migration.CRIUType_NONE {
-		criuType = migration.CRIUType_NONE.Enum()
-	} else {
-		if !args.Live {
-			criuType = nil
-		}
 	}
 
 	// When doing a cluster same-name move we cannot load the storage pool using the instance's volume DB
@@ -5918,9 +5261,6 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	respHeader.SnapshotNames = offerHeader.SnapshotNames
 	respHeader.Snapshots = offerHeader.Snapshots
 	respHeader.Refresh = &args.Refresh
-
-	// Add CRIU info to response.
-	respHeader.Criu = criuType
 
 	if args.Refresh {
 		// Get the remote snapshots on the source.
@@ -5974,16 +5314,8 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		offerHeader.SnapshotNames = syncSnapshotNames
 	}
 
-	if offerHeader.GetPredump() {
-		// If the other side wants pre-dump and if this side supports it, let's use it.
-		respHeader.Predump = proto.Bool(true)
-	} else {
-		respHeader.Predump = proto.Bool(false)
-	}
-
-	// Get rsync options from sender, these are passed into mySink function as part of
-	// MigrationSinkArgs below.
-	rsyncFeatures := respHeader.GetRsyncFeaturesSlice()
+	// Predump is not used for containers.
+	respHeader.Predump = proto.Bool(false)
 
 	// Send response to source.
 	d.logger.Debug("Sending migration response to source")
@@ -6099,17 +5431,8 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			snapshots = offerHeader.Snapshots
 		}
 
-		// Default to not expecting to receive the final rootfs sync.
-		sendFinalFsDelta := false
-
-		// If we are doing a stateful live transfer or the CRIU type indicates we
-		// are doing a stateless transfer with a running instance then we should
-		// expect the source to send us a final rootfs sync.
-		if args.Live {
-			sendFinalFsDelta = true
-		} else if criuType != nil && *criuType == migration.CRIUType_NONE {
-			sendFinalFsDelta = true
-		}
+		// For containers, expect a final delta only when args.Live (not currently used as CRIU is not supported) is true.
+		sendFinalFsDelta := args.Live
 
 		volTargetArgs := migration.VolumeTargetArgs{
 			IndexHeaderVersion:    respHeader.GetIndexHeaderVersion(),
@@ -6218,105 +5541,9 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		return nil
 	})
 
-	// Start live state transfer routine (if required) and initialise a channel that is closed when the
-	// routine finishes. It is never closed if the routine is not started.
-	stateTransferDone := make(chan struct{})
-	if args.Live {
-		g.Go(func() error {
-			d.logger.Debug("Migrate receive state transfer started")
-			defer d.logger.Debug("Migrate receive state transfer finished")
-
-			defer close(stateTransferDone)
-
-			imagesDir, err := os.MkdirTemp("", "lxd_restore_")
-			if err != nil {
-				return err
-			}
-
-			defer func() { _ = os.RemoveAll(imagesDir) }()
-
-			sync := &migration.MigrationSync{
-				FinalPreDump: proto.Bool(false),
-			}
-
-			if respHeader.GetPredump() {
-				for !sync.GetFinalPreDump() {
-					d.logger.Debug("Waiting to receive pre-dump rsync")
-
-					// Transfer a CRIU pre-dump.
-					err = rsync.Recv(shared.AddSlash(imagesDir), stateConn, nil, rsyncFeatures)
-					if err != nil {
-						return fmt.Errorf("Failed receiving pre-dump rsync: %w", err)
-					}
-
-					d.logger.Debug("Done receiving pre-dump rsync")
-
-					d.logger.Debug("Waiting to receive pre-dump header")
-
-					// We can't use io.ReadAll here because sender doesn't call Close() to
-					// send the frame end indicator after writing the pre-dump header.
-					// So define a small buffer sufficient to fit migration.MigrationSync and
-					// then read what we have into it.
-					buf := make([]byte, 128)
-					n, err := stateConn.Read(buf)
-					if err != nil {
-						return fmt.Errorf("Failed receiving pre-dump header: %w", err)
-					}
-
-					err = proto.Unmarshal(buf[:n], sync)
-					if err != nil {
-						return fmt.Errorf("Failed unmarshalling pre-dump header: %w (%v)", err, string(buf))
-					}
-
-					d.logger.Debug("Done receiving pre-dump header")
-				}
-			}
-
-			// Final CRIU dump.
-			d.logger.Debug("About to receive final dump rsync")
-			err = rsync.Recv(shared.AddSlash(imagesDir), stateConn, nil, rsyncFeatures)
-			if err != nil {
-				return fmt.Errorf("Failed receiving final dump rsync: %w", err)
-			}
-
-			d.logger.Debug("Done receiving final dump rsync")
-
-			// Wait until filesystem transfer is done before starting final state sync and restore.
-			<-fsTransferDone
-
-			// But only proceed if no errors have occurred thus far.
-			err = ctx.Err()
-			if err != nil {
-				return err
-			}
-
-			criuMigrationArgs := instance.CriuMigrationArgs{
-				Cmd:          liblxc.MIGRATE_RESTORE,
-				StateDir:     imagesDir,
-				Function:     "migration",
-				Stop:         false,
-				ActionScript: false,
-				DumpDir:      "final",
-				PreDumpDir:   "",
-			}
-
-			// Currently we only do a single CRIU pre-dump so we can hardcode "final"
-			// here since we know that "final" is the folder for CRIU's final dump.
-			err = d.migrate(&criuMigrationArgs)
-			if err != nil {
-				return err
-			}
-
-			return nil
-		})
-	}
-
 	{
 		// Wait until the filesystem transfer and state transfer routines have finished.
 		<-fsTransferDone
-		if args.Live {
-			<-stateTransferDone
-		}
 
 		// If context is cancelled by this stage, then an error has occurred.
 		// Wait for all routines to finish and collect the first error that occurred.
@@ -6404,205 +5631,6 @@ func (d *lxc) ConversionReceive(args instance.ConversionReceiveArgs) error {
 	if err != nil {
 		return fmt.Errorf("Failed creating instance on target: %w", err)
 	}
-
-	return nil
-}
-
-// Migrate migrates the instance to another node.
-func (d *lxc) migrate(args *instance.CriuMigrationArgs) error {
-	ctxMap := logger.Ctx{
-		"created":      d.creationDate,
-		"ephemeral":    d.ephemeral,
-		"used":         d.lastUsedDate,
-		"statedir":     args.StateDir,
-		"actionscript": args.ActionScript,
-		"predumpdir":   args.PreDumpDir,
-		"features":     args.Features,
-		"stop":         args.Stop}
-
-	_, err := exec.LookPath("criu")
-	if err != nil {
-		return migration.ErrNoLiveMigration
-	}
-
-	d.logger.Info("Migrating container", ctxMap)
-
-	prettyCmd := ""
-	switch args.Cmd {
-	case liblxc.MIGRATE_PRE_DUMP:
-		prettyCmd = "pre-dump"
-	case liblxc.MIGRATE_DUMP:
-		prettyCmd = "dump"
-	case liblxc.MIGRATE_RESTORE:
-		prettyCmd = "restore"
-	default:
-		prettyCmd = "unknown"
-		d.logger.Warn("Unknown migrate call", logger.Ctx{"cmd": args.Cmd})
-	}
-
-	pool, err := d.getStoragePool()
-	if err != nil {
-		return err
-	}
-
-	preservesInodes := pool.Driver().Info().PreservesInodes
-	finalStateDir := args.StateDir
-	var migrateErr error
-
-	/* For restore, we need an extra fork so that we daemonize monitor
-	 * instead of having it be a child of LXD, so let's hijack the command
-	 * here and do the extra fork.
-	 */
-	if args.Cmd == liblxc.MIGRATE_RESTORE {
-		// Check that we're not already running.
-		if d.IsRunning() {
-			return errors.New("The container is already running")
-		}
-
-		// Run the shared start code.
-		configPath, postStartHooks, err := d.startCommon()
-		if err != nil {
-			if args.Op != nil {
-				args.Op.Done(err)
-			}
-
-			return err
-		}
-
-		/*
-		 * For unprivileged containers we need to shift the
-		 * perms on the images images so that they can be
-		 * opened by the process after it is in its user
-		 * namespace.
-		 */
-		idmapset, err := d.CurrentIdmap()
-		if err != nil {
-			return err
-		}
-
-		if idmapset != nil {
-			storageType, err := d.getStorageType()
-			if err != nil {
-				return fmt.Errorf("Storage type: %w", err)
-			}
-
-			switch storageType {
-			case "zfs":
-				err = idmapset.ShiftRootfs(args.StateDir, storageDrivers.ShiftZFSSkipper)
-			case "btrfs":
-				err = storageDrivers.ShiftBtrfsRootfs(args.StateDir, idmapset)
-			default:
-				err = idmapset.ShiftRootfs(args.StateDir, nil)
-			}
-
-			if err != nil {
-				return err
-			}
-		}
-
-		if args.DumpDir != "" {
-			finalStateDir = args.StateDir + "/" + args.DumpDir
-		}
-
-		_, migrateErr = shared.RunCommandContext(
-			context.TODO(),
-			d.state.OS.ExecPath,
-			"forkmigrate",
-			d.name,
-			d.state.OS.LxcPath,
-			configPath,
-			finalStateDir,
-			strconv.FormatBool(preservesInodes),
-		)
-
-		if migrateErr == nil {
-			// Run any post start hooks.
-			err = d.runHooks(postStartHooks)
-			if err != nil {
-				if args.Op != nil {
-					args.Op.Done(err) // Must come before Stop() otherwise stop will not proceed.
-				}
-
-				// Attempt to stop container.
-				_ = d.Stop(false)
-
-				return err
-			}
-		}
-	} else {
-		// Load the go-lxc struct
-		var cc *liblxc.Container
-		if d.expandedConfig["raw.lxc"] != "" {
-			cc, err = d.initLXC(true)
-			if err != nil {
-				return err
-			}
-
-			err = d.loadRawLXCConfig(cc)
-			if err != nil {
-				return err
-			}
-		} else {
-			cc, err = d.initLXC(false)
-			if err != nil {
-				return err
-			}
-		}
-
-		script := ""
-		if args.ActionScript {
-			script = filepath.Join(args.StateDir, "action.sh")
-		}
-
-		if args.DumpDir != "" {
-			finalStateDir = args.StateDir + "/" + args.DumpDir
-		}
-
-		// TODO: make this configurable? Ultimately I think we don't
-		// want to do that; what we really want to do is have "modes"
-		// of criu operation where one is "make this succeed" and the
-		// other is "make this fast". Anyway, for now, let's choose a
-		// really big size so it almost always succeeds, even if it is
-		// slow.
-		ghostLimit := uint64(256 * 1024 * 1024)
-
-		opts := liblxc.MigrateOptions{
-			Stop:            args.Stop,
-			Directory:       finalStateDir,
-			Verbose:         true,
-			PreservesInodes: preservesInodes,
-			ActionScript:    script,
-			GhostLimit:      ghostLimit,
-		}
-
-		if args.PreDumpDir != "" {
-			opts.PredumpDir = "../" + args.PreDumpDir
-		}
-
-		if !d.IsRunning() {
-			// otherwise the migration will needlessly fail
-			args.Stop = false
-		}
-
-		migrateErr = cc.Migrate(args.Cmd, opts)
-	}
-
-	collectErr := collectCRIULogFile(d, finalStateDir, args.Function, prettyCmd)
-	if collectErr != nil {
-		d.logger.Error("Error collecting checkpoint log file", logger.Ctx{"err": collectErr})
-	}
-
-	if migrateErr != nil {
-		log, err2 := getCRIULogErrors(finalStateDir, prettyCmd)
-		if err2 == nil {
-			d.logger.Info("Failed migrating container", ctxMap)
-			migrateErr = fmt.Errorf("%s %s failed\n%s", args.Function, prettyCmd, log)
-		}
-
-		return migrateErr
-	}
-
-	d.logger.Info("Migrated container", ctxMap)
 
 	return nil
 }
