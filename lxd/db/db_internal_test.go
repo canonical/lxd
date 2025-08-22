@@ -96,25 +96,25 @@ func (s *dbTestSuite) Test_deleting_a_container_cascades_on_related_tables() {
 	s.NoError(err, "Error deleting container!")
 
 	// Make sure there are 0 container_profiles entries left.
-	statements = `SELECT count(*) FROM instances_profiles;`
+	statements = `SELECT COUNT(*) FROM instances_profiles;`
 	err = tx.QueryRow(statements).Scan(&count)
 	s.NoError(err)
 	s.Equal(0, count, "Deleting a container didn't delete the profile association!")
 
 	// Make sure there are 0 containers_config entries left.
-	statements = `SELECT count(*) FROM instances_config;`
+	statements = `SELECT COUNT(*) FROM instances_config;`
 	err = tx.QueryRow(statements).Scan(&count)
 	s.NoError(err)
 	s.Equal(0, count, "Deleting a container didn't delete the associated container_config!")
 
 	// Make sure there are 0 containers_devices entries left.
-	statements = `SELECT count(*) FROM instances_devices;`
+	statements = `SELECT COUNT(*) FROM instances_devices;`
 	err = tx.QueryRow(statements).Scan(&count)
 	s.NoError(err)
 	s.Equal(0, count, "Deleting a container didn't delete the associated container_devices!")
 
 	// Make sure there are 0 containers_devices_config entries left.
-	statements = `SELECT count(*) FROM instances_devices_config;`
+	statements = `SELECT COUNT(*) FROM instances_devices_config;`
 	err = tx.QueryRow(statements).Scan(&count)
 	s.NoError(err)
 	s.Equal(0, count, "Deleting a container didn't delete the associated container_devices_config!")
@@ -135,25 +135,25 @@ func (s *dbTestSuite) Test_deleting_a_profile_cascades_on_related_tables() {
 	s.NoError(err)
 
 	// Make sure there are 0 container_profiles entries left.
-	statements = `SELECT count(*) FROM instances_profiles WHERE profile_id = 2;`
+	statements = `SELECT COUNT(*) FROM instances_profiles WHERE profile_id = 2;`
 	err = tx.QueryRow(statements).Scan(&count)
 	s.NoError(err)
 	s.Equal(0, count, "Deleting a profile didn't delete the container association!")
 
 	// Make sure there are 0 profiles_devices entries left.
-	statements = `SELECT count(*) FROM profiles_devices WHERE profile_id == 2;`
+	statements = `SELECT COUNT(*) FROM profiles_devices WHERE profile_id == 2;`
 	err = tx.QueryRow(statements).Scan(&count)
 	s.NoError(err)
 	s.Equal(0, count, "Deleting a profile didn't delete the related profiles_devices!")
 
 	// Make sure there are 0 profiles_config entries left.
-	statements = `SELECT count(*) FROM profiles_config WHERE profile_id == 2;`
+	statements = `SELECT COUNT(*) FROM profiles_config WHERE profile_id == 2;`
 	err = tx.QueryRow(statements).Scan(&count)
 	s.NoError(err)
 	s.Equal(0, count, "Deleting a profile didn't delete the related profiles_config! There are %d left")
 
 	// Make sure there are 0 profiles_devices_config entries left.
-	statements = `SELECT count(*) FROM profiles_devices_config WHERE profile_device_id == 3;`
+	statements = `SELECT COUNT(*) FROM profiles_devices_config WHERE profile_device_id == 3;`
 	err = tx.QueryRow(statements).Scan(&count)
 	s.NoError(err)
 	s.Equal(0, count, "Deleting a profile didn't delete the related profiles_devices_config!")
@@ -173,13 +173,13 @@ func (s *dbTestSuite) Test_deleting_an_image_cascades_on_related_tables() {
 	_, err = tx.Exec(statements)
 	s.NoError(err)
 	// Make sure there are 0 images_aliases entries left.
-	statements = `SELECT count(*) FROM images_aliases;`
+	statements = `SELECT COUNT(*) FROM images_aliases;`
 	err = tx.QueryRow(statements).Scan(&count)
 	s.NoError(err)
 	s.Equal(0, count, "Deleting an image didn't delete the image alias association!")
 
 	// Make sure there are 0 images_properties entries left.
-	statements = `SELECT count(*) FROM images_properties;`
+	statements = `SELECT COUNT(*) FROM images_properties;`
 	err = tx.QueryRow(statements).Scan(&count)
 	s.NoError(err)
 	s.Equal(0, count, "Deleting an image didn't delete the related images_properties!")
