@@ -28,14 +28,8 @@ test_cloud_init() {
 
   lxc delete -f c1 c2
 
-  (
-    cd devlxd-client || return
-    # Use -buildvcs=false here to prevent git complaining about untrusted directory when tests are run as root.
-    CGO_ENABLED=0 go build -tags netgo -v -buildvcs=false ./...
-  )
-
   lxc launch testimage devlxd
-  lxc file push --quiet --mode 0755 "devlxd-client/devlxd-client" devlxd/bin/
+  lxc file push --quiet "$(command -v devlxd-client)" devlxd/bin/
 
   echo "Check that unknown cloud-init format is passed to the instance unmodified"
   lxc config set devlxd cloud-init.user-data="invalid-yaml"
