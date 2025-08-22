@@ -1995,9 +1995,9 @@ func (d *qemu) AgentCertificate() *x509.Certificate {
 
 func (d *qemu) architectureSupportsUEFI(arch int) bool {
 	return slices.Contains([]int{osarch.ARCH_64BIT_INTEL_X86,
-				     osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN,
-				     osarch.ARCH_64BIT_RISCV_LITTLE_ENDIAN},
-				     arch)
+		osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN,
+		osarch.ARCH_64BIT_RISCV_LITTLE_ENDIAN},
+		arch)
 }
 
 func (d *qemu) setupNvram() error {
