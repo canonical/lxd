@@ -325,7 +325,7 @@ endif
 	@echo "LXD built successfully"
 
 .PHONY: check
-check: default check-unit
+check: default check-unit test-binaries
 	cd test && ./main.sh
 
 .PHONY: check-unit
