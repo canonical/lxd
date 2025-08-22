@@ -7768,7 +7768,21 @@ func (d *lxc) insertMount(source, target, fstype string, flags int, idmapType id
 	}
 
 	if d.state.OS.LXCFeatures["mount_injection_file"] && idmapType == idmap.IdmapStorageNone {
-		return d.insertMountLXC(source, target, fstype, flags)
+		// Only use liblxc's mount injection when the target path does not already
+		// exist inside the container. liblxc's mount injection may create or
+		// replace a placeholder at the mount target as part of its attach logic.
+		// When the target already exists, this can implicitly change or overwrite
+		// the path's mode/uid/gid or other metadata.
+		pid := d.InitPID()
+		if pid > 0 {
+			if !strings.HasPrefix(target, "/") {
+				target = "/" + target
+			}
+
+			if !shared.PathExists(fmt.Sprintf("/proc/%d/root%s", pid, target)) {
+				return d.insertMountLXC(source, target, fstype, flags)
+			}
+		}
 	}
 
 	return d.insertMountLXD(source, target, fstype, flags, -1, idmapType)
