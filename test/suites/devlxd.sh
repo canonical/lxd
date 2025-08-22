@@ -115,19 +115,19 @@ EOF
   monitorDevlxdPID=$!
 
   # Test instance Ready state
-  lxc info devlxd | grep -xF 'Status: RUNNING'
+  [ "$(lxc list -f csv -c s devlxd)" = "RUNNING" ]
   lxc exec devlxd -- devlxd-client ready-state true
   [ "$(lxc config get devlxd volatile.last_state.ready)" = "true" ]
 
   [ "$(grep -Fc "instance-ready" "${TEST_DIR}/devlxd.log")" = "1" ]
 
-  lxc info devlxd | grep -xF 'Status: READY'
+  [ "$(lxc list -f csv -c s devlxd)" = "READY" ]
   lxc exec devlxd -- devlxd-client ready-state false
   [ "$(lxc config get devlxd volatile.last_state.ready)" = "false" ]
 
   [ "$(grep -Fc "instance-ready" "${TEST_DIR}/devlxd.log")" = "1" ]
 
-  lxc info devlxd | grep -xF 'Status: RUNNING'
+  [ "$(lxc list -f csv -c s devlxd)" = "RUNNING" ]
 
   kill -9 "${monitorDevlxdPID}" || true
 
