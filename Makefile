@@ -109,6 +109,16 @@ endif
 
 	@echo "$@ built successfully"
 
+.PHONY: fuidshift
+fuidshift:
+ifeq "$(GOCOVERDIR)" ""
+	go install -v -trimpath -buildvcs=false ./fuidshift
+else
+	go install -v -trimpath -buildvcs=false ./fuidshift -cover
+endif
+
+	@echo "$@ built successfully"
+
 .PHONY: mini-oidc
 mini-oidc:
 ifeq "$(GOCOVERDIR)" ""
