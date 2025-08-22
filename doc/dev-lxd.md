@@ -45,6 +45,15 @@ For containers, LXD inspects user credentials associated with the connection and
 
 For virtual machines, LXD extracts the virtual socket ID from the remote address of the caller (the LXD agent), and matches it with a virtual machine.
 
+(devlxd-authentication-bearer)=
+### Bearer tokens
+
+Processes within guest instances can now authenticate over the DevLXD socket using a bearer token.
+To do this, set an `Authorization: Bearer {token}` header on requests to the socket.
+
+Bearer tokens can be obtained by creating a `DevLXD token bearer` identity in the identities API and issuing a token for it.
+For more information, see {ref}`devlxd-authenticate`.
+
 (devlxd-api-spec)=
 ## REST-API
 

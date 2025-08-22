@@ -312,6 +312,52 @@ func (r *ProtocolLXD) CreateIdentityTLSToken(tlsIdentitiesPost api.IdentitiesTLS
 	return &token, nil
 }
 
+// CreateIdentityBearer creates a bearer token identity.
+func (r *ProtocolLXD) CreateIdentityBearer(identitiesBearerPost api.IdentitiesBearerPost) error {
+	err := r.CheckExtension("auth_bearer_devlxd")
+	if err != nil {
+		return err
+	}
+
+	_, err = r.queryStruct(http.MethodPost, api.NewURL().Path("auth", "identities", api.AuthenticationMethodBearer).String(), identitiesBearerPost, "", nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// IssueBearerIdentityToken revokes the existing token for the identity and issues a new token.
+func (r *ProtocolLXD) IssueBearerIdentityToken(nameOrIdentifier string, identityBearerTokenPost api.IdentityBearerTokenPost) (*api.IdentityBearerToken, error) {
+	err := r.CheckExtension("auth_bearer_devlxd")
+	if err != nil {
+		return nil, err
+	}
+
+	var token api.IdentityBearerToken
+	_, err = r.queryStruct(http.MethodPost, api.NewURL().Path("auth", "identities", api.AuthenticationMethodBearer, nameOrIdentifier, "token").String(), identityBearerTokenPost, "", &token)
+	if err != nil {
+		return nil, err
+	}
+
+	return &token, nil
+}
+
+// RevokeBearerIdentityToken revokes the existing token for the identity.
+func (r *ProtocolLXD) RevokeBearerIdentityToken(nameOrIdentifier string) error {
+	err := r.CheckExtension("auth_bearer_devlxd")
+	if err != nil {
+		return err
+	}
+
+	_, err = r.queryStruct(http.MethodDelete, api.NewURL().Path("auth", "identities", api.AuthenticationMethodBearer, nameOrIdentifier, "token").String(), nil, "", nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // GetIdentityProviderGroupNames returns a list of identity provider group names.
 func (r *ProtocolLXD) GetIdentityProviderGroupNames() ([]string, error) {
 	err := r.CheckExtension("access_management")

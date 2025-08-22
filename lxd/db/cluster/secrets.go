@@ -8,10 +8,13 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/http"
+	"slices"
 	"time"
 
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 )
 
@@ -85,11 +88,15 @@ type SecretType string
 const (
 	// SecretTypeCoreAuth is the SecretType for core auth secrets.
 	SecretTypeCoreAuth SecretType = "core_auth"
+
+	// SecretTypeBearerSigningKey is the SecretType for bearer identity signing keys.
+	SecretTypeBearerSigningKey SecretType = "bearer_signing_key"
 )
 
 const (
 	// secretTypeCodeCoreAuth is the database code for SecretTypeCoreAuth.
-	secretTypeCodeCoreAuth int64 = 1
+	secretTypeCodeCoreAuth        int64 = 1
+	secretTypeCodeBearerSigingKey int64 = 2
 )
 
 // Value implements [driver.Valuer] for SecretType.
@@ -97,6 +104,8 @@ func (s SecretType) Value() (driver.Value, error) {
 	switch s {
 	case SecretTypeCoreAuth:
 		return secretTypeCodeCoreAuth, nil
+	case SecretTypeBearerSigningKey:
+		return secretTypeCodeBearerSigingKey, nil
 	}
 
 	return nil, fmt.Errorf("Invalid secret type %q", s)
@@ -107,9 +116,13 @@ func (s *SecretType) ScanInteger(code int64) error {
 	switch code {
 	case secretTypeCodeCoreAuth:
 		*s = SecretTypeCoreAuth
+	case secretTypeCodeBearerSigingKey:
+		*s = SecretTypeBearerSigningKey
+	default:
+		return fmt.Errorf("Invalid secret type code %d", code)
 	}
 
-	return fmt.Errorf("Invalid secret type code %d", code)
+	return nil
 }
 
 // Scan implements sql.Scanner for SecretType.
@@ -290,4 +303,98 @@ func deleteSecretsByID(ctx context.Context, tx *sql.Tx, ids ...int) error {
 	}
 
 	return nil
+}
+
+// GetAllBearerIdentitySigningKeys returns a map of identity ID to token signing keys.
+// It should only be used to refresh the identity cache.
+// Any identities with more than one signing key (this should never happen) are omitted from the returned map and added
+// to the list of identity IDs with multiple signing keys.
+// This so that the identity cache refresh handling can handle this at the call site (e.g. so as not to prevent
+// refreshing the cache for all identities).
+func GetAllBearerIdentitySigningKeys(ctx context.Context, tx *sql.Tx) (identityIDToSigningKey map[int]AuthSecretValue, identityIDsWithMultipleSigningKeys []int, err error) {
+	q := `SELECT entity_id, value FROM secrets WHERE entity_type = ? AND type = ?`
+
+	identityIDToSigningKey = make(map[int]AuthSecretValue)
+	scanFunc := func(scan func(dest ...any) error) error {
+		var identityID int
+		var value AuthSecretValue
+		err := scan(&identityID, &value)
+		if err != nil {
+			return err
+		}
+
+		// Check the identity ID has not already been determined to have multiple keys.
+		if slices.Contains(identityIDsWithMultipleSigningKeys, identityID) {
+			return nil
+		}
+
+		// Check our running map, if a signing key is already present for the ID, delete the existing one from the map
+		// and append the identity ID to the list of offenders.
+		_, ok := identityIDToSigningKey[identityID]
+		if ok {
+			delete(identityIDToSigningKey, identityID)
+			identityIDsWithMultipleSigningKeys = append(identityIDsWithMultipleSigningKeys, identityID)
+			return nil
+		}
+
+		// Otherwise, set the value in the map.
+		identityIDToSigningKey[identityID] = value
+		return nil
+	}
+
+	err = query.Scan(ctx, tx, q, scanFunc, EntityType(entity.TypeIdentity), SecretTypeBearerSigningKey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to get bearer identity signing keys: %w", err)
+	}
+
+	return identityIDToSigningKey, identityIDsWithMultipleSigningKeys, nil
+}
+
+// DeleteBearerIdentitySigningKey deletes any signing keys for the identity. It returns an [api.StatusError] with
+// [http.StatusNotFound] if no key exists.
+func DeleteBearerIdentitySigningKey(ctx context.Context, tx *sql.Tx, identityID int) error {
+	q := "DELETE FROM secrets WHERE entity_type = ? AND entity_id = ? AND type = ?"
+	res, err := tx.ExecContext(ctx, q, EntityType(entity.TypeIdentity), identityID, SecretTypeBearerSigningKey)
+	if err != nil {
+		return fmt.Errorf("Failed to delete bearer identity signing key: %w", err)
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Failed to verify deletion of bearer identity signing key: %w", err)
+	}
+
+	switch rowsAffected {
+	case 0:
+		// No signing key, and therefore no token
+		return api.NewStatusError(http.StatusNotFound, "No token exists for the identity")
+	case 1:
+		// Happy path
+		return nil
+	}
+
+	// Unhappy path. We deleted all of the secrets for the identity - but there should only ever have been one.
+	return errors.New("Encountered more than one signing key for an identity")
+}
+
+// RotateBearerIdentitySigningKey deletes any existing signing keys for the identity and creates a new one.
+func RotateBearerIdentitySigningKey(ctx context.Context, tx *sql.Tx, identityID int) (AuthSecretValue, error) {
+	// Delete any existing key, continuing if there was no key.
+	// If any other error occurs, including the identity having more than one existing signing key, it will not be possible
+	// to rotate the keys.
+	err := DeleteBearerIdentitySigningKey(ctx, tx, identityID)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return nil, err
+	}
+
+	// Get new signing key value.
+	signingKey := newAuthSecretValue()
+
+	// Create the signing key.
+	_, err = createSecret(ctx, tx, entity.TypeIdentity, identityID, SecretTypeBearerSigningKey, signingKey, time.Now().UTC())
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create bearer identity initial key material: %w", err)
+	}
+
+	return signingKey, nil
 }

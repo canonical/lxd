@@ -37,6 +37,10 @@ type DevLXDGet struct {
 	// What cluster member this instance is located on
 	// Example: lxd01
 	Location string `json:"location" yaml:"location"`
+
+	// Whether the caller is trusted or untrusted
+	// Example: untrusted
+	Auth string `json:"auth" yaml:"auth"`
 }
 
 // DevLXDUbuntuProGuestTokenResponse contains the expected fields of proAPIGetGuestTokenV1 that must be passed back to

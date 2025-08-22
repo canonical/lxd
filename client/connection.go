@@ -64,6 +64,9 @@ type ConnectionArgs struct {
 	// Caching support for image servers
 	CachePath   string
 	CacheExpiry time.Duration
+
+	// Bearer token for authenticating as a bearer identity.
+	BearerToken string
 }
 
 // ConnectLXD lets you connect to a remote LXD daemon over HTTPs.
@@ -359,6 +362,7 @@ func ConnectDevLXDWithContext(ctx context.Context, socketPath string, args *Conn
 		httpUnixPath:         socketPath,
 		httpUserAgent:        useragent,
 		eventListenerManager: newEventListenerManager(ctx),
+		bearerToken:          args.BearerToken,
 	}, nil
 }
 
@@ -386,6 +390,7 @@ func ConnectDevLXDHTTPWithContext(ctx context.Context, args *ConnectionArgs, cli
 		ctxConnected:         ctxConnected,
 		ctxConnectedCancel:   ctxConnectedCancel,
 		eventListenerManager: newEventListenerManager(ctx),
+		bearerToken:          args.BearerToken,
 	}
 
 	// Setup the HTTP client.
