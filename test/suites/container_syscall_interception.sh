@@ -1,6 +1,5 @@
 test_container_syscall_interception() {
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   lxc launch testimage c1 -c limits.memory=123MiB
   lxc file push --quiet "$(command -v sysinfo)" c1/root/sysinfo
