@@ -2257,6 +2257,14 @@ See {ref}`dev-lxd` for more information.
 
 ```
 
+```{config:option} security.devlxd.management.volumes instance-security
+:defaultdesc: "`false`"
+:liveupdate: "yes"
+:shortdesc: "Controls the availability of the volume management API over `devlxd`"
+:type: "bool"
+
+```
+
 ```{config:option} security.idmap.base instance-security
 :condition: "unprivileged container"
 :liveupdate: "no"
@@ -2544,6 +2552,13 @@ The disk quota is applied the next time the instance starts.
 :shortdesc: "RBD device path for Ceph disk devices"
 :type: "string"
 
+```
+
+```{config:option} volatile.<name>.devlxd.owner instance-volatile
+:shortdesc: "DevLXD identity ID that owns the device."
+:type: "string"
+ID of the devLXD identity that owns the device. It is used by devLXD to restrict
+access of an identity to devices that were created by that identity.
 ```
 
 ```{config:option} volatile.<name>.host_name instance-volatile
@@ -5161,6 +5176,14 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 
 ```
 
+```{config:option} volatile.owner storage-btrfs-volume-conf
+:defaultdesc: "owner's identity ID"
+:scope: "global"
+:shortdesc: "The identity ID of the volume owner"
+:type: "string"
+
+```
+
 ```{config:option} volatile.uuid storage-btrfs-volume-conf
 :defaultdesc: "random UUID"
 :scope: "global"
@@ -5367,6 +5390,14 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 
 ```
 
+```{config:option} volatile.owner storage-ceph-volume-conf
+:defaultdesc: "owner's identity ID"
+:scope: "global"
+:shortdesc: "The identity ID of the volume owner"
+:type: "string"
+
+```
+
 ```{config:option} volatile.uuid storage-ceph-volume-conf
 :defaultdesc: "random UUID"
 :scope: "global"
@@ -5542,6 +5573,14 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 ```{config:option} volatile.idmap.next storage-cephfs-volume-conf
 :condition: "filesystem"
 :shortdesc: "JSON-serialized UID/GID map that has been applied to the volume"
+:type: "string"
+
+```
+
+```{config:option} volatile.owner storage-cephfs-volume-conf
+:defaultdesc: "owner's identity ID"
+:scope: "global"
+:shortdesc: "The identity ID of the volume owner"
 :type: "string"
 
 ```
@@ -5722,6 +5761,14 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 ```{config:option} volatile.idmap.next storage-dir-volume-conf
 :condition: "filesystem"
 :shortdesc: "JSON-serialized UID/GID map that has been applied to the volume"
+:type: "string"
+
+```
+
+```{config:option} volatile.owner storage-dir-volume-conf
+:defaultdesc: "owner's identity ID"
+:scope: "global"
+:shortdesc: "The identity ID of the volume owner"
 :type: "string"
 
 ```
@@ -5958,6 +6005,14 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 
 ```
 
+```{config:option} volatile.owner storage-lvm-volume-conf
+:defaultdesc: "owner's identity ID"
+:scope: "global"
+:shortdesc: "The identity ID of the volume owner"
+:type: "string"
+
+```
+
 ```{config:option} volatile.uuid storage-lvm-volume-conf
 :defaultdesc: "random UUID"
 :scope: "global"
@@ -6181,6 +6236,14 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 
 ```
 
+```{config:option} volatile.owner storage-powerflex-volume-conf
+:defaultdesc: "owner's identity ID"
+:scope: "global"
+:shortdesc: "The identity ID of the volume owner"
+:type: "string"
+
+```
+
 ```{config:option} volatile.uuid storage-powerflex-volume-conf
 :defaultdesc: "random UUID"
 :scope: "global"
@@ -6294,6 +6357,14 @@ This number is then incremented by one for the new name.
 :shortdesc: "Schedule for automatic volume snapshots"
 :type: "string"
 Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).
+```
+
+```{config:option} volatile.owner storage-pure-volume-conf
+:defaultdesc: "owner's identity ID"
+:scope: "global"
+:shortdesc: "The identity ID of the volume owner"
+:type: "string"
+
 ```
 
 ```{config:option} volatile.uuid storage-pure-volume-conf
@@ -6477,6 +6548,14 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 ```{config:option} volatile.idmap.next storage-zfs-volume-conf
 :condition: "filesystem"
 :shortdesc: "JSON-serialized UID/GID map that has been applied to the volume"
+:type: "string"
+
+```
+
+```{config:option} volatile.owner storage-zfs-volume-conf
+:defaultdesc: "owner's identity ID"
+:scope: "global"
+:shortdesc: "The identity ID of the volume owner"
 :type: "string"
 
 ```
