@@ -14,6 +14,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/auth/bearer"
 	"github.com/canonical/lxd/lxd/cloudinit"
 	"github.com/canonical/lxd/lxd/db"
@@ -25,6 +26,7 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 	"github.com/canonical/lxd/shared/ws"
@@ -640,6 +642,64 @@ func enforceDevLXDProject(r *http.Request) error {
 	}
 
 	return nil
+}
+
+// allowDevLXDPermission returns a wrapper that checks access to a given LXD entity
+// (e.g. image, instance, network).
+//
+// The mux route variables required to identify the entity must be passed in.
+// For example, an instance needs its name, so the mux var "name" should be provided.
+// Always pass mux vars in the same order they appear in the API route.
+func allowDevLXDPermission(entityType entity.Type, entitlement auth.Entitlement, muxVars ...string) func(d *Daemon, r *http.Request) response.Response {
+	return func(d *Daemon, r *http.Request) response.Response {
+		var err error
+		var entityURL *api.URL
+
+		s := d.State()
+
+		// Disallow cross-project access.
+		err = enforceDevLXDProject(r)
+		if err != nil {
+			return response.DevLXDErrorResponse(err)
+		}
+
+		inst, err := request.GetContextValue[instance.Instance](r.Context(), request.CtxDevLXDInstance)
+		if err != nil {
+			return response.DevLXDErrorResponse(err)
+		}
+
+		instProject := inst.Project().Name
+
+		if entityType == entity.TypeProject && len(muxVars) == 0 {
+			entityURL = entity.ProjectURL(instProject)
+		} else {
+			muxValues := make([]string, 0, len(muxVars))
+			vars := mux.Vars(r)
+			for _, muxVar := range muxVars {
+				muxValue := vars[muxVar]
+				if muxValue == "" {
+					return response.DevLXDErrorResponse(fmt.Errorf("Failed to perform permission check: Path argument label %q not found in request URL %q", muxVar, r.URL))
+				}
+
+				muxValues = append(muxValues, muxValue)
+			}
+
+			targetParam := request.QueryParam(r, "target")
+
+			entityURL, err = entityType.URL(instProject, targetParam, muxValues...)
+			if err != nil {
+				return response.DevLXDErrorResponse(fmt.Errorf("Failed to perform permission check: %w", err))
+			}
+		}
+
+		// Validate whether the user has the needed permission.
+		err = s.Authorizer.CheckPermission(r.Context(), entityURL, entitlement)
+		if err != nil {
+			return response.DevLXDErrorResponse(err)
+		}
+
+		return response.EmptySyncResponse
+	}
 }
 
 // getInstanceFromContextAndCheckSecurityFlags checks if the instance has the provided devLXD security features enabled.
