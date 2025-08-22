@@ -109,6 +109,16 @@ endif
 
 	@echo "$@ built successfully"
 
+.PHONY: sysinfo
+sysinfo:
+ifeq "$(GOCOVERDIR)" ""
+	go install -C test -v -trimpath -buildvcs=false ./syscall/sysinfo
+else
+	go install -C test -v -trimpath -buildvcs=false ./syscall/sysinfo -cover
+endif
+
+	@echo "$@ built successfully"
+
 .PHONY: dqlite
 dqlite:
 	# dqlite (+raft)
