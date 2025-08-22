@@ -21,7 +21,6 @@ To migrate an instance (move it from one LXD server to another) using the CLI, u
     lxc move [<source_remote>:]<source_instance_name> <target_remote>:[<target_instance_name>]
 
 When migrating a container, you must stop it first.
-See {ref}`live-migration-containers` for more information.
 
 When migrating a virtual machine, you must either enable {ref}`live-migration-vms` or stop it first.
 
@@ -82,27 +81,6 @@ For a virtual machine to be eligible for live migration, it must meet the follow
   ```
 
 - The virtual machine must not depend on any resources specific to its current host, such as local storage or a local (non-OVN) bridge network.
-
-(live-migration-containers)=
-### Live migration for containers
-
-For containers, there is limited support for live migration using [{abbr}`CRIU (Checkpoint/Restore in Userspace)`](https://criu.org/Main_Page).
-However, because of extensive kernel dependencies, only very basic containers (non-`systemd` containers without a network device) can be migrated reliably.
-In most real-world scenarios, you should stop the container, migrate it, then start it again.
-
-If you want to use live migration for containers, you must enable CRIU on both the source and the target server.
-If you are using the snap, use the following commands to enable CRIU:
-
-    snap set lxd criu.enable=true
-    sudo systemctl reload snap.lxd.daemon
-
-Otherwise, make sure you have CRIU installed on both systems.
-
-To optimize the memory transfer for a container, set the {config:option}`instance-migration:migration.incremental.memory` property to `true` to make use of the pre-copy features in CRIU.
-With this configuration, LXD instructs CRIU to perform a series of memory dumps for the container.
-After each dump, LXD sends the memory dump to the specified remote.
-In an ideal scenario, each memory dump will decrease the delta to the previous memory dump, thereby increasing the percentage of memory that is already synced.
-When the percentage of synced memory is equal to or greater than the threshold specified via {config:option}`instance-migration:migration.incremental.memory.goal`, or the maximum number of allowed iterations specified via {config:option}`instance-migration:migration.incremental.memory.iterations` is reached, LXD instructs CRIU to perform a final memory dump and transfers it.
 
 ## Temporarily migrate all instances from a cluster member
 
