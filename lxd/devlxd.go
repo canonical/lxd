@@ -46,7 +46,7 @@ type devLXDAPIHandlerFunc func(*Daemon, *http.Request) response.Response
 
 // hoistFunc is a function that wraps the incoming requests, retrieves the targeted instance, and passes
 // it to the handler.
-type hoistFunc func(*Daemon, *http.Request, devLXDAPIHandlerFunc) response.Response
+type hoistFunc func(d *Daemon, r *http.Request, handler devLXDAPIHandlerFunc, accessHandler devLXDAPIHandlerFunc) response.Response
 
 // devLXDAPIEndpointAction represents an action on an devLXD API endpoint.
 type devLXDAPIEndpointAction struct {
@@ -552,7 +552,19 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 				return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusNotImplemented))
 			}
 
-			return f(d, r, action.Handler)
+			// All API endpoint acctions should either have an
+			// access handler or allow untrusted requests.
+			if action.AccessHandler == nil && !action.AllowUntrusted {
+				return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "Access handler not defined for %s %s", r.Method, r.URL.RequestURI()))
+			}
+
+			// If the request is not trusted, only call the handler
+			// if the action allows it.
+			if !requestor.Trusted && !action.AllowUntrusted {
+				return response.DevLXDErrorResponse(api.NewStatusError(http.StatusForbidden, "You must be authenticated"))
+			}
+
+			return f(d, r, action.Handler, action.AccessHandler)
 		}
 
 		var resp response.Response
