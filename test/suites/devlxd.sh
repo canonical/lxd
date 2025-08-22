@@ -204,3 +204,53 @@ EOF
 
   [ "${MATCH}" = "1" ]
 }
+
+test_devlxd_volume_management() {
+  local testName="devlxd-volume-mgmt"
+
+  local instPrefix="${testName}"
+  local instTypes="container" # "container vm" - VMs are currently not supported in LXD test suite.
+  local pool="${testName}"
+  local project="${testName}"
+
+  ensure_import_testimage
+  poolDriver="$(storage_backend "$LXD_DIR")"
+
+  lxc storage create "${pool}" "${poolDriver}"
+  if [ "${project}" != "default" ]; then
+    lxc project create "${project}" --config features.images=false
+  fi
+
+  for instType in $instTypes; do
+    inst="${instPrefix}-${instType}"
+
+    opts=""
+    if [ "${instType}" = "vm" ]; then
+        opts="--vm"
+    fi
+
+    # shellcheck disable=SC2248
+    lxc launch testimage "${inst}" $opts \
+        --project "${project}" \
+        --storage "${pool}"
+
+    # Install devlxd-client and make sure it works.
+    lxc file push --project "${project}" --quiet "$(command -v devlxd-client)" "${inst}/bin/"
+    lxc exec --project "${project}" "${inst}" -- devlxd-client
+
+    # Ensure supported storage drivers are included in /1.0 only when volume management security flag is enabled.
+    lxc exec "${inst}" --project "${project}" -- devlxd-client get-state | jq -e '.supported_storage_drivers | length == 0'
+    lxc config set "${inst}" --project "${project}" security.devlxd.management.volumes=true
+    lxc exec "${inst}" --project "${project}" -- devlxd-client get-state | jq -e '.supported_storage_drivers | length > 0'
+    lxc exec "${inst}" --project "${project}" -- devlxd-client get-state | jq -e '.supported_storage_drivers[] | select(.name == "dir") | .remote == false'
+
+    # Cleanup.
+    lxc delete "${inst}" --project "${project}" --force
+  done
+
+  # Cleanup.
+  lxc storage delete "${pool}"
+  if [ "${project}" != "default" ]; then
+      lxc project delete "${project}"
+  fi
+}
