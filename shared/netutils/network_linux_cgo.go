@@ -166,19 +166,9 @@ func NetnsGetifaddrs(initPID int32, hostInterfaces []net.Interface) (map[string]
 
 			goAddrString := C.GoString(addressStr)
 			scope := "global"
-			if strings.HasPrefix(goAddrString, "127") {
+			if strings.HasPrefix(goAddrString, "127.") || goAddrString == "::1" {
 				scope = "local"
-			}
-
-			if goAddrString == "::1" {
-				scope = "local"
-			}
-
-			if strings.HasPrefix(goAddrString, "169.254") {
-				scope = "link"
-			}
-
-			if strings.HasPrefix(goAddrString, "fe80:") {
+			} else if strings.HasPrefix(goAddrString, "169.254.") || strings.HasPrefix(goAddrString, "fe80:") {
 				scope = "link"
 			}
 
