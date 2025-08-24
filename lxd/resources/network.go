@@ -16,6 +16,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/network/openvswitch"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -635,22 +636,7 @@ func GetNetworkState(name string) (*api.NetworkState, error) {
 				family = "inet6"
 			}
 
-			scope := "global"
-			if strings.HasPrefix(fields[0], "127") {
-				scope = "local"
-			}
-
-			if fields[0] == "::1" {
-				scope = "local"
-			}
-
-			if strings.HasPrefix(fields[0], "169.254") {
-				scope = "link"
-			}
-
-			if strings.HasPrefix(fields[0], "fe80:") {
-				scope = "link"
-			}
+			scope := shared.GetIPScope(fields[0])
 
 			address := api.NetworkStateAddress{}
 			address.Family = family
