@@ -15,9 +15,9 @@ import (
 	"net"
 	"os"
 	"strconv"
-	"strings"
 	"unsafe"
 
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -165,28 +165,11 @@ func NetnsGetifaddrs(initPID int32, hostInterfaces []net.Interface) (map[string]
 			}
 
 			goAddrString := C.GoString(addressStr)
-			scope := "global"
-			if strings.HasPrefix(goAddrString, "127") {
-				scope = "local"
-			}
-
-			if goAddrString == "::1" {
-				scope = "local"
-			}
-
-			if strings.HasPrefix(goAddrString, "169.254") {
-				scope = "link"
-			}
-
-			if strings.HasPrefix(goAddrString, "fe80:") {
-				scope = "link"
-			}
-
 			address := api.InstanceStateNetworkAddress{}
 			address.Family = family
 			address.Address = goAddrString
 			address.Netmask = strconv.Itoa(int(addr.ifa_prefixlen))
-			address.Scope = scope
+			address.Scope = shared.GetIPScope(goAddrString)
 
 			addNetwork.Addresses = append(addNetwork.Addresses, address)
 		} else if addr.ifa_addr != nil && addr.ifa_addr.sa_family == C.AF_PACKET {
