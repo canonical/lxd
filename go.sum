@@ -33,6 +33,8 @@ github.com/bmatcuk/doublestar/v4 v4.9.1 h1:X8jg9rRZmJd4yRy7ZeNDRnM+T3ZfHv15JiBJ/
 github.com/bmatcuk/doublestar/v4 v4.9.1/go.mod h1:xBQ8jztBU6kakFMg+8WGxn0c6z1fTSPVIjEY1Wr7jzc=
 github.com/canonical/go-dqlite/v3 v3.0.1 h1:eUTcEHetVi1+zr+ZFz7PU0G+0eK66GZ7DKhi+wHs1f0=
 github.com/canonical/go-dqlite/v3 v3.0.1/go.mod h1:Kb/9JVog9XeIlnlnSyO1JgMoE4PoKXZCB8fJNcvvHAc=
+github.com/canonical/go-dqlite/v3 v3.0.2-0.20250821082215-6aba7769230c h1:tWIsygrXXvUQ/4pqY7RxKcrLnxpD+qJ9WhEN5NL5PwQ=
+github.com/canonical/go-dqlite/v3 v3.0.2-0.20250821082215-6aba7769230c/go.mod h1:Kb/9JVog9XeIlnlnSyO1JgMoE4PoKXZCB8fJNcvvHAc=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
 github.com/cenkalti/backoff/v4 v4.3.0/go.mod h1:Y3VNntkOUPxTVeUxJ/G5vcM//AlwfmyYozVcomhLiZE=
 github.com/cenkalti/backoff/v5 v5.0.3 h1:ZN+IMa753KfX5hd8vVaMixjnqRZ3y8CuJKRKj1xcsSM=

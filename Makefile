@@ -16,7 +16,7 @@ GOTOOLCHAIN=local
 export GOTOOLCHAIN
 GOCOVERDIR ?= $(shell go env GOCOVERDIR)
 ARCH ?= $(shell uname -m)
-DQLITE_BRANCH=master
+DQLITE_BRANCH=delete-database
 LIBLXC_BRANCH=main
 
 ifneq "$(wildcard vendor)" ""
@@ -157,7 +157,7 @@ dqlite:
 	cd "$(DQLITE_PATH)" && \
 		autoreconf -i && \
 		./configure --enable-build-raft && \
-		make
+		make -j
 
 .PHONY: liblxc
 liblxc:
