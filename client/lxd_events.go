@@ -11,7 +11,11 @@ import (
 // getEvents connects to the LXD monitoring interface.
 func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 	// Resolve the project name.
-	connInfo, _ := r.GetConnectionInfo()
+	connInfo, err := r.GetConnectionInfo()
+	if err != nil {
+		return nil, err
+	}
+
 	if connInfo.Project == "" {
 		return nil, errors.New("Unexpected empty project in connection info")
 	}
