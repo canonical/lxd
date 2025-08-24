@@ -288,7 +288,12 @@ func (r *ProtocolLXD) rawQuery(method string, url string, data any, ETag string)
 		return nil, "", err
 	}
 
-	defer func() { _ = resp.Body.Close() }()
+	defer func() {
+		err := resp.Body.Close()
+		if err != nil {
+			logger.Debug("Failed to close response body", logger.Ctx{"err": err})
+		}
+	}()
 
 	return lxdParseResponse(resp)
 }
