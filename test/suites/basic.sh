@@ -778,6 +778,16 @@ test_basic_version() {
     "${bin}" --version
     "${bin}" --help
   done
+
+  # lxd subcommands
+  for sub in activateifneeded callhook import init manpage migratedump netcat recover shutdown sql version waitready cluster; do
+      lxd "${sub}" --help
+  done
+
+  # lxd fork subcommands, except for: forkcoresched forkexec forkproxy forksyscall forkuevent
+  for sub in forkconsole forkdns forkfile forklimits forkmigrate forksyscallgo forkmount forknet forkstart forkzfs; do
+      lxd "${sub}" --help
+  done
 }
 
 test_server_info() {
