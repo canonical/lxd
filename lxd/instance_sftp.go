@@ -124,8 +124,8 @@ func (r *sftpServeResponse) Render(w http.ResponseWriter, req *http.Request) err
 
 	defer func() { _ = remoteConn.Close() }()
 
-	remoteTCP, _ := tcp.ExtractConn(remoteConn)
-	if remoteTCP != nil {
+	remoteTCP, err := tcp.ExtractConn(remoteConn)
+	if err == nil && remoteTCP != nil {
 		// Apply TCP timeouts if remote connection is TCP (rather than Unix).
 		err = tcp.SetTimeouts(remoteTCP, 0)
 		if err != nil {

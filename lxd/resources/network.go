@@ -636,19 +636,9 @@ func GetNetworkState(name string) (*api.NetworkState, error) {
 			}
 
 			scope := "global"
-			if strings.HasPrefix(fields[0], "127") {
+			if strings.HasPrefix(fields[0], "127.") || fields[0] == "::1" {
 				scope = "local"
-			}
-
-			if fields[0] == "::1" {
-				scope = "local"
-			}
-
-			if strings.HasPrefix(fields[0], "169.254") {
-				scope = "link"
-			}
-
-			if strings.HasPrefix(fields[0], "fe80:") {
+			} else if strings.HasPrefix(fields[0], "169.254.") || strings.HasPrefix(fields[0], "fe80:") {
 				scope = "link"
 			}
 

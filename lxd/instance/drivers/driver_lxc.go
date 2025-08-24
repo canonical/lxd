@@ -8507,6 +8507,9 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 
 	for scanner.Scan() {
 		fields := strings.Fields(scanner.Text())
+		if len(fields) < 3 {
+			continue
+		}
 
 		mountMap[fields[0]] = mountInfo{Mountpoint: fields[1], FSType: fields[2]}
 	}
