@@ -370,8 +370,14 @@ func (r *ProtocolLXD) queryStruct(method string, path string, data any, ETag str
 func (r *ProtocolLXD) queryOperation(method string, path string, data any, ETag string, useEventListener bool) (Operation, string, error) {
 	// Attempt to setup an early event listener if requested.
 	var listener *EventListener
+	var err error
+
 	if useEventListener {
-		listener, _ = r.GetEvents()
+		listener, err = r.GetEvents()
+
+		if err != nil {
+			logger.Debug("Failed to get events", logger.Ctx{"err": err})
+		}
 	}
 
 	// Send the query
