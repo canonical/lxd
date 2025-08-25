@@ -146,7 +146,7 @@ func run(args []string) error {
 
 		return nil
 	case "storage":
-		usageErr := fmt.Errorf("Usage: %s storage get", args[0])
+		usageErr := fmt.Errorf("Usage: %s storage <get|volumes>", args[0])
 
 		if len(args) < 3 {
 			return usageErr
@@ -167,6 +167,19 @@ func run(args []string) error {
 			}
 
 			return printPrettyJSON(storage)
+		case "volumes":
+			if len(args) != 4 {
+				return fmt.Errorf("Usage: %s storage volumes <poolName>", args[0])
+			}
+
+			poolName := args[3]
+
+			vols, err := client.GetStoragePoolVolumes(poolName)
+			if err != nil {
+				return err
+			}
+
+			return printPrettyJSON(vols)
 		default:
 			return fmt.Errorf("Unknown subcommand: %q\n%w", subcmd, usageErr)
 		}
