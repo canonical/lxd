@@ -376,9 +376,6 @@ func instanceFileHead(inst instance.Instance, path string) response.Response {
 func applyEffectiveFileOwnership(inst instance.Instance, headers *shared.LXDFileHeaders, file *sftp.File) error {
 	uid := headers.UID
 	gid := headers.GID
-	if inst.Type() != instancetype.Container {
-		return nil
-	}
 
 	c, ok := inst.(instance.Container)
 	if !ok {
@@ -556,9 +553,16 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 		// Set file ownership.
 		if !exists || headers.UIDModifyExisting || headers.GIDModifyExisting {
 			if headers.UID >= 0 || headers.GID >= 0 {
-				err = applyEffectiveFileOwnership(inst, headers, file)
-				if err != nil {
-					return response.SmartError(err)
+				if inst.Type() != instancetype.Container {
+					err = file.Chown(int(headers.UID), int(headers.GID))
+					if err != nil {
+						return response.SmartError(err)
+					}
+				} else {
+					err = applyEffectiveFileOwnership(inst, headers, file)
+					if err != nil {
+						return response.SmartError(err)
+					}
 				}
 			}
 		}
