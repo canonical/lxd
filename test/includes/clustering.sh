@@ -195,6 +195,10 @@ cluster:
   server_name: node1
   enabled: true
 EOF
+
+  # Print the preseed for debugging purposes.
+  cat "${LXD_DIR}/preseed.yaml"
+
   lxd init --preseed < "${LXD_DIR}/preseed.yaml"
   )
 }
@@ -293,6 +297,9 @@ EOF
 EOF
       fi
     fi
+
+    # Print the preseed for debugging purposes.
+    cat "${LXD_DIR}/preseed.yaml"
 
     lxd init --preseed < "${LXD_DIR}/preseed.yaml"
   )
