@@ -359,7 +359,16 @@ func (o *OVN) LogicalRouterAdd(routerName OVNRouter, mayExist bool) error {
 		args = append(args, "--may-exist")
 	}
 
-	_, err := o.nbctl(append(args, "lr-add", string(routerName))...)
+	// Create a logical router.
+	args = append(args, "lr-add", string(routerName), "--")
+
+	// Set its properties.
+	args = append(args, "set", "logical_router", string(routerName),
+		"options:always_learn_from_arp_request=false",
+		"options:dynamic_neigh_routers=true",
+	)
+
+	_, err := o.nbctl(args...)
 	if err != nil {
 		return err
 	}
