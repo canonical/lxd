@@ -2,7 +2,6 @@ package drivers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -608,7 +607,169 @@ func (d *alletra) BackupVolume(vol VolumeCopy, projectName string, tarWriter *in
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
 func (d *alletra) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error {
-	return errors.New("CreateVolumeFromCopy: unsupported operation")
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Function to run once the volume is created, which will ensure appropriate permissions
+	// on the mount path inside the volume, and resize the volume to specified size.
+	postCreateTasks := func(v Volume) error {
+		if vol.contentType == ContentTypeFS {
+			// Mount the volume and ensure the permissions are set correctly inside the mounted volume.
+			err := v.MountTask(func(_ string, _ *operations.Operation) error {
+				return v.EnsureMountPath()
+			}, op)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Resize volume to the size specified.
+		err := d.SetVolumeQuota(v, v.config["size"], false, op)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	// For VMs, also copy the filesystem volume.
+	if vol.IsVMBlock() {
+		// Ensure that the volume's snapshots are also replaced with their filesystem counterpart.
+		fsVolSnapshots := make([]Volume, 0, len(vol.Snapshots))
+		for _, snapshot := range vol.Snapshots {
+			fsVolSnapshots = append(fsVolSnapshots, snapshot.NewVMBlockFilesystemVolume())
+		}
+
+		srcFsVolSnapshots := make([]Volume, 0, len(srcVol.Snapshots))
+		for _, snapshot := range srcVol.Snapshots {
+			srcFsVolSnapshots = append(srcFsVolSnapshots, snapshot.NewVMBlockFilesystemVolume())
+		}
+
+		fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume(), fsVolSnapshots...)
+		srcFSVol := NewVolumeCopy(srcVol.NewVMBlockFilesystemVolume(), srcFsVolSnapshots...)
+
+		// Ensure parent UUID is retained for the filesystem volumes.
+		fsVol.SetParentUUID(vol.parentUUID)
+		srcFSVol.SetParentUUID(srcVol.parentUUID)
+
+		err := d.CreateVolumeFromCopy(fsVol, srcFSVol, false, op)
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() {
+			err := d.DeleteVolume(fsVol.Volume, op)
+			if err != nil {
+				d.logger.Warn("DeleteVolume failed on error path", logger.Ctx{"err": err})
+			}
+		})
+	}
+
+	poolName := vol.pool
+
+	volName, err := d.getVolumeName(vol.Volume)
+	if err != nil {
+		return err
+	}
+
+	srcVolName, err := d.getVolumeName(srcVol.Volume)
+	if err != nil {
+		return err
+	}
+
+	// Since snapshots are first copied into destination volume from which a new snapshot is created,
+	// we need to also precreate and remove the destination volume if an error occurs during copying of snapshots.
+
+	// Determine a destination volume size
+	sizeBytes, err := units.ParseByteSizeString(vol.config["size"])
+	if err != nil {
+		return err
+	}
+
+	// Determine a source volume size on the array
+	srcVolume, err := d.client().GetVolume(poolName, srcVolName)
+	if err != nil {
+		return err
+	}
+
+	// A tricky part here is that we need to carefully deal with volume size,
+	// because HPE Alletra does not allow volume shrunk.
+	if srcVolume.SizeMiB*factorMiB > sizeBytes {
+		return ErrCannotBeShrunk
+	}
+
+	// Pre-create the target volume (empty).
+	err = d.client().CreateVolume(vol.pool, volName, sizeBytes)
+	if err != nil {
+		return err
+	}
+
+	revert.Add(func() {
+		err := d.client().DeleteVolume(vol.pool, volName)
+		if err != nil {
+			d.logger.Warn("DeleteVolume API call failed on error path", logger.Ctx{"err": err})
+		}
+	})
+
+	// Copy volume snapshots.
+	// HPE Alletra Storage does not allow copying snapshots along with the volume. Therefore, we
+	// copy the snapshots sequentially. Each snapshot is first copied into destination
+	// volume from which a new snapshot is created. The process is repeated until all
+	// snapshots are copied.
+	if !srcVol.IsSnapshot() {
+		for _, snapshot := range vol.Snapshots {
+			_, snapshotShortName, _ := api.GetParentAndSnapshotName(snapshot.name)
+
+			// Find the corresponding source snapshot.
+			var srcSnapshot *Volume
+			for _, srcSnap := range srcVol.Snapshots {
+				_, srcSnapshotShortName, _ := api.GetParentAndSnapshotName(srcSnap.name)
+				if snapshotShortName == srcSnapshotShortName {
+					srcSnapshot = &srcSnap
+					break
+				}
+			}
+
+			if srcSnapshot == nil {
+				return fmt.Errorf("Failed to copy snapshot %q: Source snapshot does not exist", snapshotShortName)
+			}
+
+			srcSnapshotName, err := d.getVolumeName(*srcSnapshot)
+			if err != nil {
+				return err
+			}
+
+			// Copy the snapshot on the destination volume.
+			err = d.client().CreateVolumePhysicalCopy(d.state.ShutdownCtx, poolName, srcSnapshotName, volName)
+			if err != nil {
+				return fmt.Errorf("Failed copying snapshot %q: %w", snapshot.name, err)
+			}
+
+			// Set snapshot's parent UUID and retain source snapshot UUID.
+			snapshot.SetParentUUID(vol.config["volatile.uuid"])
+
+			// Create snapshot from a new volume (that was created from the source snapshot).
+			// However, do not create VM's filesystem volume snapshot, as filesystem volume is
+			// copied before block volume.
+			err = d.createVolumeSnapshot(snapshot, false, op)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	err = d.client().CreateVolumePhysicalCopy(d.state.ShutdownCtx, poolName, srcVolName, volName)
+	if err != nil {
+		return err
+	}
+
+	err = postCreateTasks(vol.Volume)
+	if err != nil {
+		return err
+	}
+
+	revert.Success()
+	return nil
 }
 
 // MigrateVolume sends a volume for migration.
