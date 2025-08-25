@@ -20,7 +20,7 @@ var Upgrader = websocket.Upgrader{
 // ping go routine if the underlying connection is TCP. Otherwise this is a no-op.
 func StartKeepAlive(conn *websocket.Conn) {
 	// Set TCP timeout options.
-	remoteTCP, err := tcp.ExtractConn(conn.UnderlyingConn())
+	remoteTCP, err := tcp.ExtractConn(conn.NetConn())
 	if err != nil || remoteTCP == nil {
 		return
 	}
