@@ -4,12 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/canonical/lxd/lxd/util"
 )
 
 func Test_randomAddressInSubnet(t *testing.T) {
@@ -165,5 +168,44 @@ func Test_randomAddressInSubnet(t *testing.T) {
 
 			cancel()
 		})
+	}
+}
+
+func Test_randomHwaddr(t *testing.T) {
+	tests := []struct {
+		name string
+		seed string
+		want string
+	}{
+		{
+			name: "No seed",
+			seed: "",
+			want: "00:16:3e:ce:9d:85",
+		},
+		{
+			name: "Debian random seed",
+			seed: "4",
+			want: "00:16:3e:a5:31:ce",
+		},
+		{
+			name: "Good enough random seed",
+			seed: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			want: "00:16:3e:95:be:02",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			seedNbr, _ := util.GetStableRandomGenerator(tt.seed)
+			got := randomHwaddr(seedNbr)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func Benchmark_randomHwaddr(b *testing.B) {
+	seed := rand.New(rand.NewSource(0))
+	for b.Loop() {
+		_ = randomHwaddr(seed)
 	}
 }
