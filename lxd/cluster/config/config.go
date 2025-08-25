@@ -191,11 +191,6 @@ func (c *Config) InstancesNICHostname() string {
 	return c.m.GetString("instances.nic.host_name")
 }
 
-// InstancesPlacementScriptlet returns the instances placement scriptlet source code.
-func (c *Config) InstancesPlacementScriptlet() string {
-	return c.m.GetString("instances.placement.scriptlet")
-}
-
 // InstancesMigrationStateful returns the whether or not to auto enable migration.stateful for all VM instances.
 func (c *Config) InstancesMigrationStateful() bool {
 	return c.m.GetBool("instances.migration.stateful")
