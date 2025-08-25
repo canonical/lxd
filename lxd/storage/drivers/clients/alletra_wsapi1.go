@@ -21,15 +21,16 @@ import (
 )
 
 const (
-	sessionTypeRegular = 1
-	transportTypeTCP   = 2
-	linkStateReady     = 4
-	portProtocolISCSI  = 2
-	portProtocolNVME   = 6
-	taskStatusDone     = 1
-	taskStatusActive   = 2
-	taskStatusCanceled = 3
-	taskStatusFailed   = 4
+	sessionTypeRegular    = 1
+	transportTypeTCP      = 2
+	linkStateReady        = 4
+	portProtocolISCSI     = 2
+	portProtocolNVME      = 6
+	taskStatusDone        = 1
+	taskStatusActive      = 2
+	taskStatusCanceled    = 3
+	taskStatusFailed      = 4
+	operationPriorityHigh = 1
 
 	apiErrorInvalidSessionKey       = 6
 	apiErrorExistentHost            = 16
@@ -140,6 +141,11 @@ type hpeTaskState struct {
 
 // hpePromoteResponse represents a HPE Alletra virtual copy promote response.
 type hpePromoteResponse struct {
+	TaskID int `json:"taskid"`
+}
+
+// hpeCreatePhysicalCopyResponse represents a HPE Alletra create physical copy response.
+type hpeCreatePhysicalCopyResponse struct {
 	TaskID int `json:"taskid"`
 }
 
@@ -932,5 +938,43 @@ func (p *AlletraClient) RestoreVolumeSnapshot(ctx context.Context, poolName stri
 		return fmt.Errorf(`Failed to restore snapshot "%s/%s" to "%s/%s": task failed`, poolName, snapshotName, poolName, volName)
 	default:
 		return fmt.Errorf(`Failed to restore snapshot "%s/%s" to "%s/%s": unknown task state. Alletra API change?`, poolName, snapshotName, poolName, volName)
+	}
+}
+
+// CreateVolumePhysicalCopy creates a new physical copy for the given storage volume or snapshot.
+func (p *AlletraClient) CreateVolumePhysicalCopy(ctx context.Context, poolName string, volName string, copyName string) error {
+	req := map[string]any{
+		"action": "createPhysicalCopy",
+		"parameters": map[string]any{
+			"destVolume":   copyName,
+			"saveSnapshot": false,
+			"priority":     operationPriorityHigh,
+		},
+	}
+
+	var resp hpeCreatePhysicalCopyResponse
+
+	url := api.NewURL().Path("api", "v1", "volumes", volName)
+	err := p.requestAuthenticated(http.MethodPost, url.URL, req, &resp)
+	if err != nil {
+		return fmt.Errorf("Failed to create a physical copy %q for volume/snapshot %q in storage pool %q: %w", copyName, volName, poolName, err)
+	}
+
+	status, err := p.waitTaskFinish(ctx, strconv.Itoa(resp.TaskID))
+	if err != nil {
+		return fmt.Errorf(`Failed to wait for create a physical copy operation "%s/%s" to "%s/%s": %w`, poolName, volName, poolName, copyName, err)
+	}
+
+	switch status {
+	case taskStatusDone:
+		return nil
+	case taskStatusActive:
+		return fmt.Errorf(`Failed to create a physical copy "%s/%s" to "%s/%s": timeout`, poolName, volName, poolName, copyName)
+	case taskStatusCanceled:
+		return fmt.Errorf(`Failed to create a physical copy "%s/%s" to "%s/%s": cancelled`, poolName, volName, poolName, copyName)
+	case taskStatusFailed:
+		return fmt.Errorf(`Failed to create a physical copy "%s/%s" to "%s/%s": task failed`, poolName, volName, poolName, copyName)
+	default:
+		return fmt.Errorf(`Failed to create a physical copy "%s/%s" to "%s/%s": unknown task state. Alletra API change?`, poolName, volName, copyName, volName)
 	}
 }
