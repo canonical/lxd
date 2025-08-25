@@ -253,6 +253,39 @@ func run(args []string) error {
 			return fmt.Errorf("Unknown subcommand: %q\n%w", subcmd, usageErr)
 		}
 
+	case "instance":
+		usageErr := fmt.Errorf("Usage: %s instance <get>", args[0])
+
+		if len(args) < 3 {
+			return usageErr
+		}
+
+		subcmd := args[2]
+		switch subcmd {
+		case "get":
+			fallthrough
+		case "get-etag":
+			if len(args) != 4 {
+				return fmt.Errorf("Usage: %s instance get[-etag] <instName>", args[0])
+			}
+
+			instName := args[3]
+
+			inst, etag, err := client.GetInstance(instName)
+			if err != nil {
+				return err
+			}
+
+			if subcmd == "get" {
+				return printPrettyJSON(inst)
+			}
+
+			fmt.Print(etag)
+			return nil
+		default:
+			return fmt.Errorf("Unknown subcommand: %q\n%w", subcmd, usageErr)
+		}
+
 	default:
 		key, err := client.GetConfigByKey(os.Args[1])
 		if err != nil {
