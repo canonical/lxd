@@ -3226,7 +3226,7 @@ func (d *lxc) Unfreeze() error {
 
 	err = cc.Unfreeze()
 	if err != nil {
-		d.logger.Error("Failed unfreezing container", ctxMap)
+		return fmt.Errorf("Failed unfreezing container: %w", err)
 	}
 
 	d.logger.Info("Unfroze container", ctxMap)
