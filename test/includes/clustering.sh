@@ -216,11 +216,19 @@ spawn_lxd_and_join_cluster() {
   fi
   driver="dir"
   port="8443"
+  source=""
+  source_reuse="false"
   if [ "$#" -ge  "8" ]; then
       driver="${8}"
   fi
   if [ "$#" -ge  "9" ]; then
       port="${9}"
+  fi
+  if [ "$#" -ge  "10" ]; then
+      source="${10}"
+  fi
+  if [ "$#" -ge  "11" ]; then
+      source_reuse="${11}"
   fi
 
   echo "==> Spawn additional cluster node in ${ns} with storage driver ${driver}"
@@ -253,7 +261,11 @@ EOF
   - entity: storage-pool
     name: data
     key: source
-    value: ""
+    value: "${source}"
+  - entity: storage-pool
+    name: data
+    key: source.reuse
+    value: ${source_reuse}
 EOF
       if [ "${driver}" = "zfs" ]; then
         cat >> "${LXD_DIR}/preseed.yaml" <<EOF
@@ -261,10 +273,6 @@ EOF
     name: data
     key: zfs.pool_name
     value: lxdtest-$(basename "${TEST_DIR}")-${ns}
-  - entity: storage-pool
-    name: data
-    key: size
-    value: 1GiB
 EOF
       fi
       if [ "${driver}" = "lvm" ]; then
@@ -273,13 +281,10 @@ EOF
     name: data
     key: lvm.vg_name
     value: lxdtest-$(basename "${TEST_DIR}")-${ns}
-  - entity: storage-pool
-    name: data
-    key: size
-    value: 1GiB
 EOF
       fi
-      if [ "${driver}" = "btrfs" ]; then
+      # shellcheck disable=SC2235
+      if ([ "${driver}" = "btrfs" ] && [ "${source}" = "" ]) || ([ "${driver}" = "zfs" ] && [ "${source}" = "" ]) || ([ "${driver}" = "lvm" ] && [ "${source}" = "" ]); then
         cat >> "${LXD_DIR}/preseed.yaml" <<EOF
   - entity: storage-pool
     name: data
