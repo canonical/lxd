@@ -145,6 +145,32 @@ func run(args []string) error {
 		fmt.Println(config)
 
 		return nil
+	case "storage":
+		usageErr := fmt.Errorf("Usage: %s storage get", args[0])
+
+		if len(args) < 3 {
+			return usageErr
+		}
+
+		subcmd := args[2]
+		switch subcmd {
+		case "get":
+			if len(args) != 4 {
+				return fmt.Errorf("Usage: %s storage get <poolName>", args[0])
+			}
+
+			poolName := args[3]
+
+			storage, _, err := client.GetStoragePool(poolName)
+			if err != nil {
+				return err
+			}
+
+			return printPrettyJSON(storage)
+		default:
+			return fmt.Errorf("Unknown subcommand: %q\n%w", subcmd, usageErr)
+		}
+
 	default:
 		key, err := client.GetConfigByKey(os.Args[1])
 		if err != nil {
