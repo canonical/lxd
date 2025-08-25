@@ -15,7 +15,6 @@ import (
 
 	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
-	scriptletLoad "github.com/canonical/lxd/lxd/scriptlet/load"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/validate"
 )
@@ -594,15 +593,6 @@ var ConfigSchema = config.Schema{
 	//  defaultdesc: `random`
 	//  shortdesc: How to set the host name for a NIC
 	"instances.nic.host_name": {Validator: validate.Optional(validate.IsOneOf("random", "mac"))},
-
-	// lxdmeta:generate(entities=server; group=miscellaneous; key=instances.placement.scriptlet)
-	// When using custom automatic instance placement logic, this option stores the scriptlet.
-	// See {ref}`clustering-instance-placement-scriptlet` for more information.
-	// ---
-	//  type: string
-	//  scope: global
-	//  shortdesc: Instance placement scriptlet for automatic instance placement
-	"instances.placement.scriptlet": {Validator: validate.Optional(scriptletLoad.InstancePlacementValidate)},
 
 	// lxdmeta:generate(entities=server; group=miscellaneous; key=instances.migration.stateful)
 	// You can override this setting for relevant instances, either in the instance-specific configuration or through a profile.
