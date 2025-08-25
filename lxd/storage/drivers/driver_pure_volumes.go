@@ -260,7 +260,7 @@ func (d *pure) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInco
 			// Find the corresponding source snapshot.
 			var srcSnapshot *Volume
 			for _, srcSnap := range srcVol.Snapshots {
-				_, srcSnapshotShortName, _ := api.GetParentAndSnapshotName(snapshot.name)
+				_, srcSnapshotShortName, _ := api.GetParentAndSnapshotName(srcSnap.name)
 				if snapshotShortName == srcSnapshotShortName {
 					srcSnapshot = &srcSnap
 					break
