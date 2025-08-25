@@ -146,7 +146,7 @@ func run(args []string) error {
 
 		return nil
 	case "storage":
-		usageErr := fmt.Errorf("Usage: %s storage <get|volumes|get-volume|create-volume|update-volume>", args[0])
+		usageErr := fmt.Errorf("Usage: %s storage <get|volumes|get-volume|create-volume|update-volume|delete-volume>", args[0])
 
 		if len(args) < 3 {
 			return usageErr
@@ -239,6 +239,16 @@ func run(args []string) error {
 			}
 
 			return client.UpdateStoragePoolVolume(poolName, volType, volName, vol, etag)
+		case "delete-volume":
+			if len(args) != 6 {
+				return fmt.Errorf("Usage: %s storage delete-volume <poolName> <volType> <volName>", args[0])
+			}
+
+			poolName := args[3]
+			volType := args[4]
+			volName := args[5]
+
+			return client.DeleteStoragePoolVolume(poolName, volType, volName)
 		default:
 			return fmt.Errorf("Unknown subcommand: %q\n%w", subcmd, usageErr)
 		}
