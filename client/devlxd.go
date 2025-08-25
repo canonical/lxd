@@ -240,7 +240,7 @@ func (r *ProtocolDevLXD) rawWebsocket(url string) (*websocket.Conn, error) {
 	}
 
 	// Set TCP timeout options.
-	remoteTCP, err := tcp.ExtractConn(conn.UnderlyingConn())
+	remoteTCP, err := tcp.ExtractConn(conn.NetConn())
 	if err == nil && remoteTCP != nil {
 		err = tcp.SetTimeouts(remoteTCP, 0)
 		if err != nil {
