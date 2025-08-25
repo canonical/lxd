@@ -13,11 +13,6 @@ test_migration() {
   spawn_lxd "${LXD2_DIR}" true
   LXD2_ADDR=$(cat "${LXD2_DIR}/lxd.addr")
 
-  if command -v criu >/dev/null; then
-    # workaround for kernel/criu
-    umount /sys/kernel/debug >/dev/null 2>&1 || true
-  fi
-
   token="$(lxc config trust add --name foo -q)"
   # shellcheck disable=2153
   lxc_remote remote add l1 "${LXD_ADDR}" --token "${token}"
@@ -736,45 +731,31 @@ migration() {
   lxc storage volume delete l2:"${remote_pool}" iso2
   rm -f foo.iso
 
-  if ! command -v criu >/dev/null 2>&1; then
-    echo "==> SKIP: live migration with CRIU (missing binary)"
-    return
-  fi
-
-  echo "==> CRIU: starting testing live-migration"
+  echo "==> Test container live migration (not supported)"
   lxc_remote launch testimage l1:migratee -c raw.lxc=lxc.console.path=none
 
-  # Wait for the container to be done booting
-  sleep 1
+  # Stateful stop is not supported for containers.
+  ! lxc_remote stop --stateful l1:migratee || false
 
-  # Test stateful stop
-  lxc_remote stop --stateful l1:migratee
-  lxc_remote start l1:migratee
+  # Stateful snapshots are not supported for containers.
+  ! lxc_remote snapshot --stateful l1:migratee || false
 
-  # Test stateful snapshots
-  # There is apparently a bug in CRIU that prevents checkpointing an instance that has been started from a
-  # checkpoint. So stop instance first before taking stateful snapshot.
-  lxc_remote stop -f l1:migratee
-  lxc_remote start l1:migratee
-  lxc_remote snapshot --stateful l1:migratee
-  lxc_remote restore l1:migratee snap0
+  # Take stateless snapshot.
+  lxc_remote snapshot l1:migratee
 
-  # Test live migration of container
-  # There is apparently a bug in CRIU that prevents checkpointing an instance that has been started from a
-  # checkpoint. So stop instance first before taking stateful snapshot.
-  lxc_remote stop -f l1:migratee
-  lxc_remote start l1:migratee
-  lxc_remote move l1:migratee l2:migratee
+  # Check container isn't frozen.
+  LXC_LOCAL='' lxc_remote exec l1:migratee -- ls
 
-  # Test copy of stateful snapshot
-  lxc_remote copy l2:migratee/snap0 l1:migratee
-  ! lxc_remote copy l2:migratee/snap0 l1:migratee-new-name || false
+  # Live migration is not supported for containers.
+  ! lxc_remote move l1:migratee l2:migratee || false
+
+  # Test stateless move of running container with snapshot.
+  lxc_remote move --stateless l1:migratee l2:migratee
 
   # Test stateless copies
   lxc_remote copy --stateless l2:migratee/snap0 l1:migratee-new-name
 
   # Cleanup
-  lxc_remote delete --force l1:migratee
   lxc_remote delete --force l2:migratee
   lxc_remote delete --force l1:migratee-new-name
 }

@@ -283,31 +283,6 @@ snap_restore() {
   # Check if the volumes's UUID is the same as the original volume
   [ "$(lxc storage volume get "${pool}" container/bar volatile.uuid)" = "${initialVolumeUUID}" ]
 
-  # Check that instances UUIS remain the same before and after snapshoting  (stateful mode)
-  if ! command -v criu >/dev/null 2>&1; then
-    echo "==> SKIP: stateful snapshotting with CRIU (missing binary)"
-  else
-    initialUUID=$(lxc config get bar volatile.uuid)
-    initialGenerationID=$(lxc config get bar volatile.uuid.generation)
-    lxc start bar
-    lxc snapshot bar snap2 --stateful
-    restore_and_compare_fs snap2
-
-    newUUID=$(lxc config get bar volatile.uuid)
-    if [ "${initialUUID}" != "${newUUID}" ]; then
-      echo "==> UUID of the instance should remain the same after restoring its stateful snapshot"
-      false
-    fi
-
-    newGenerationID=$(lxc config get bar volatile.uuid.generation)
-    if [ "${initialGenerationID}" = "${newGenerationID}" ]; then
-      echo "==> Generation UUID of the instance should change after restoring its stateful snapshot"
-      false
-    fi
-
-    lxc stop bar --force
-  fi
-
   # Check that instances have two different UUID after a snapshot copy
   lxc launch testimage bar2
   initialUUID=$(lxc config get bar2 volatile.uuid)
