@@ -155,6 +155,11 @@ type hpePromoteResponse struct {
 	TaskId int `json:"taskid"`
 }
 
+// hpeCreatePhysicalCopyResponse represents a HPE Alletra create physical copy response.
+type hpeCreatePhysicalCopyResponse struct {
+	TaskId int `json:"taskid"`
+}
+
 type hpeRespMembers[T any] struct {
 	Total   int `json:"total"`
 	Members []T `json:"members"`
@@ -994,5 +999,43 @@ func (p *alletraClient) restoreVolumeSnapshot(poolName string, volName string, s
 		return fmt.Errorf(`Failed to restore snapshot "%s/%s" to "%s/%s": task failed`, poolName, snapshotName, poolName, volName)
 	default:
 		return fmt.Errorf(`Failed to restore snapshot "%s/%s" to "%s/%s": unknown task state. Alletra API change?`, poolName, snapshotName, poolName, volName)
+	}
+}
+
+// createVolumePhysicalCopy creates a new physical copy for the given storage volume or snapshot.
+func (p *alletraClient) createVolumePhysicalCopy(poolName string, volName string, copyName string) error {
+	req := map[string]any{
+		"action": "createPhysicalCopy",
+		"parameters": map[string]any{
+			"destVolume":   copyName,
+			"saveSnapshot": false,
+			"priority":     1, // HIGH
+		},
+	}
+
+	var resp hpeCreatePhysicalCopyResponse
+
+	url := api.NewURL().Path("api", "v1", "volumes", volName)
+	err := p.requestAuthenticated(http.MethodPost, url.URL, req, &resp)
+	if err != nil {
+		return fmt.Errorf("Failed to create a physical copy %q for volume/snapshot %q in storage pool %q: %w", copyName, volName, poolName, err)
+	}
+
+	status, err := p.waitTaskFinish(strconv.Itoa(resp.TaskId))
+	if err != nil {
+		return fmt.Errorf(`Failed to wait for create a physical copy operation "%s/%s" to "%s/%s": %w`, poolName, volName, poolName, copyName, err)
+	}
+
+	switch status {
+	case 1: // DONE
+		return nil
+	case 2: // ACTIVE
+		return fmt.Errorf(`Failed to create a physical copy "%s/%s" to "%s/%s": timeout`, poolName, volName, poolName, copyName)
+	case 3: // CANCELLED
+		return fmt.Errorf(`Failed to create a physical copy "%s/%s" to "%s/%s": cancelled`, poolName, volName, poolName, copyName)
+	case 4: // FAILED
+		return fmt.Errorf(`Failed to create a physical copy "%s/%s" to "%s/%s": task failed`, poolName, volName, poolName, copyName)
+	default:
+		return fmt.Errorf(`Failed to create a physical copy "%s/%s" to "%s/%s": unknown task state. Alletra API change?`, poolName, volName, copyName, volName)
 	}
 }
