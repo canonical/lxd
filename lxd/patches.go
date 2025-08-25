@@ -105,6 +105,7 @@ var patches = []patch{
 	{name: "cluster_config_volatile_uuid", stage: patchPreLoadClusterConfig, run: patchClusterConfigVolatileUUID},
 	{name: "storage_update_powerflex_clone_copy_setting", stage: patchPostDaemonStorage, run: patchUpdatePowerFlexCloneCopySetting},
 	{name: "storage_update_powerflex_snapshot_prefix", stage: patchPostDaemonStorage, run: patchUpdatePowerFlexSnapshotPrefix},
+	{name: "config_remove_instances_placement_scriptlet", stage: patchPreLoadClusterConfig, run: patchRemoveInstancesPlacementScriptlet},
 }
 
 type patch struct {
@@ -1754,6 +1755,36 @@ func patchUpdatePowerFlexSnapshotPrefix(_ string, d *Daemon) error {
 	}
 
 	return nil
+}
+
+// patchRemoveInstancesPlacementScriptlet removes the 'instances.placement.scriptlet' config key from the cluster.
+// If the key is set, its value is copied to 'user.instances.placement.scriptlet'.
+func patchRemoveInstancesPlacementScriptlet(name string, d *Daemon) error {
+	s := d.State()
+	return s.DB.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		config, err := tx.Config(ctx)
+		if err != nil {
+			return err
+		}
+
+		const oldKey = "instances.placement.scriptlet"
+		const newKey = "user.instances.placement.scriptlet"
+
+		oldVal, ok := config[oldKey]
+		if !ok || oldVal == "" {
+			return nil
+		}
+
+		updates := map[string]string{
+			oldKey: "",
+		}
+
+		if config[newKey] == "" {
+			updates[newKey] = oldVal
+		}
+
+		return tx.UpdateClusterConfig(updates)
+	})
 }
 
 // Patches end here
