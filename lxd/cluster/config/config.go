@@ -602,6 +602,15 @@ var ConfigSchema = config.Schema{
 	//  shortdesc: Whether to set `migration.stateful` to `true` for the instances
 	"instances.migration.stateful": {Type: config.Bool, Default: "false"},
 
+	// TODO: Remove after sunset period
+	// lxdmeta:generate(entities=server; group=miscellaneous; key=user.instances.placement.scriptlet)
+	// Stores the migrated value from the deprecated `instances.placement.scriptlet` configuration key. LXD ignores this key; changing it has no effect. It exists only to preserve previously stored data and may be removed in a future release.
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: Legacy storage for `instances.placement.scriptlet` (no effect)
+
 	// lxdmeta:generate(entities=server; group=loki; key=loki.auth.username)
 	//
 	// ---
