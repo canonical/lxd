@@ -96,7 +96,7 @@ func (d *alletra) Info() Info {
 		Version:                      alletraVersion,
 		DefaultBlockSize:             d.defaultBlockVolumeSize(),
 		DefaultVMBlockFilesystemSize: d.defaultVMBlockFilesystemSize(),
-		OptimizedImages:              false,
+		OptimizedImages:              true,
 		PreservesInodes:              true,
 		Remote:                       d.isRemote(),
 		VolumeTypes:                  []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
