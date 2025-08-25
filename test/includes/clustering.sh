@@ -286,6 +286,9 @@ EOF
       fi
     fi
 
+    # Print the preseed for debugging purposes.
+    cat "${LXD_DIR}/preseed.yaml"
+
     lxd init --preseed < "${LXD_DIR}/preseed.yaml"
   )
 }
