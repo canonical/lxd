@@ -417,6 +417,7 @@ if [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_uuid "clustering uuid"
     run_test test_clustering_trust_add "clustering trust add"
     run_test test_clustering_waitready "clustering waitready"
+    run_test test_clustering_recovery "clustering recovery"
 fi
 
 if [ "${1:-"all"}" != "cluster" ]; then
