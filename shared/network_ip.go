@@ -15,6 +15,19 @@ type IPRange struct {
 	End   net.IP
 }
 
+// GetIPScope returns the scope of the IP: global, local or link.
+func GetIPScope(ip string) string {
+	if ip == "::1" || strings.HasPrefix(ip, "127.") {
+		return "local"
+	}
+
+	if strings.HasPrefix(ip, "fe80:") || strings.HasPrefix(ip, "169.254.") {
+		return "link"
+	}
+
+	return "global"
+}
+
 // ParseIPRange parses an IP range in the format "start-end" and converts it to a shared.IPRange.
 // If allowedNets are supplied, then each IP in the range is checked that it belongs to at least one of them.
 // IPs in the range can be zero prefixed, e.g. "::1" or "0.0.0.1", however they should not overlap with any
