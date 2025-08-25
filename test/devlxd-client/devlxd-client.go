@@ -146,7 +146,7 @@ func run(args []string) error {
 
 		return nil
 	case "storage":
-		usageErr := fmt.Errorf("Usage: %s storage <get|volumes|get-volume|create-volume>", args[0])
+		usageErr := fmt.Errorf("Usage: %s storage <get|volumes|get-volume|create-volume|update-volume>", args[0])
 
 		if len(args) < 3 {
 			return usageErr
@@ -217,6 +217,28 @@ func run(args []string) error {
 			}
 
 			return client.CreateStoragePoolVolume(poolName, vol)
+		case "update-volume":
+			if len(args) < 7 || len(args) > 8 {
+				return fmt.Errorf("Usage: %s storage update-volume <poolName> <volType> <volName> <vol> [<etag>]", args[0])
+			}
+
+			poolName := args[3]
+			volType := args[4]
+			volName := args[5]
+			volData := args[6]
+
+			etag := ""
+			if len(args) == 8 {
+				etag = args[7]
+			}
+
+			vol := api.DevLXDStorageVolumePut{}
+			err := json.Unmarshal([]byte(volData), &vol)
+			if err != nil {
+				return err
+			}
+
+			return client.UpdateStoragePoolVolume(poolName, volType, volName, vol, etag)
 		default:
 			return fmt.Errorf("Unknown subcommand: %q\n%w", subcmd, usageErr)
 		}
