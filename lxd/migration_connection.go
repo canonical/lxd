@@ -98,7 +98,7 @@ func (c *migrationConn) AcceptIncoming(r *http.Request, w http.ResponseWriter) e
 	}
 
 	// Set TCP timeout options.
-	remoteTCP, err := tcp.ExtractConn(c.conn.UnderlyingConn())
+	remoteTCP, err := tcp.ExtractConn(c.conn.NetConn())
 	if err == nil && remoteTCP != nil {
 		err = tcp.SetTimeouts(remoteTCP, 0)
 		if err != nil {
