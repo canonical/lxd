@@ -162,3 +162,12 @@ func Test_DeviceNextInterfaceHWAddr(t *testing.T) {
 
 	assert.NotEqual(t, mac1, mac2, "Expected different MAC addresses for subsequent calls")
 }
+
+func Benchmark_DeviceNextInterfaceHWAddr(b *testing.B) {
+	for b.Loop() {
+		_, err := DeviceNextInterfaceHWAddr()
+		if err != nil {
+			b.Fatalf("Failed to get next interface HW address: %v", err)
+		}
+	}
+}
