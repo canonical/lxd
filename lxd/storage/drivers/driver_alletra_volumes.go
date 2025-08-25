@@ -611,6 +611,16 @@ func (d *alletra) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowI
 	return errors.New("CreateVolumeFromCopy: unsupported operation")
 }
 
+// MigrateVolume sends a volume for migration.
+func (d *alletra) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
+	// When performing a cluster member move don't do anything on the source member.
+	if volSrcArgs.ClusterMove {
+		return nil
+	}
+
+	return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
+}
+
 // CreateVolumeFromMigration creates a volume being sent via a migration.
 func (d *alletra) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
 	// When performing a cluster member move prepare the volumes on the target side.
