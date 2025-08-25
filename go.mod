@@ -24,7 +24,7 @@ require (
 	github.com/gorilla/websocket v1.5.1
 	github.com/gosexy/gettext v0.0.0-20160830220431-74466a0a0c4a
 	github.com/j-keck/arping v1.0.3
-	github.com/jaypipes/pcidb v1.0.1
+	github.com/jaypipes/pcidb v1.1.0
 	github.com/jochenvg/go-udev v0.0.0-20240801134859-b65ed646224b
 	github.com/juju/gomaasapi v0.0.0-20200602032615-aa561369c767
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
@@ -120,7 +120,6 @@ require (
 	github.com/mdlayher/socket v0.5.1 // indirect
 	github.com/minio/crc64nvme v1.1.1 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
-	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/muhlemmer/gu v0.3.1 // indirect
 	github.com/muhlemmer/httpforwarded v0.1.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
