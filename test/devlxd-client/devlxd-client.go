@@ -254,7 +254,7 @@ func run(args []string) error {
 		}
 
 	case "instance":
-		usageErr := fmt.Errorf("Usage: %s instance <get>", args[0])
+		usageErr := fmt.Errorf("Usage: %s instance <get|update>", args[0])
 
 		if len(args) < 3 {
 			return usageErr
@@ -282,6 +282,26 @@ func run(args []string) error {
 
 			fmt.Print(etag)
 			return nil
+		case "update":
+			if len(args) < 5 || len(args) > 6 {
+				return fmt.Errorf("Usage: %s instance update <instName> <inst> [<etag>]", args[0])
+			}
+
+			instName := args[3]
+			instData := args[4]
+
+			etag := ""
+			if len(args) == 6 {
+				etag = args[5]
+			}
+
+			var inst api.DevLXDInstancePut
+			err := json.Unmarshal([]byte(instData), &inst)
+			if err != nil {
+				return err
+			}
+
+			return client.UpdateInstance(instName, inst, etag)
 		default:
 			return fmt.Errorf("Unknown subcommand: %q\n%w", subcmd, usageErr)
 		}
