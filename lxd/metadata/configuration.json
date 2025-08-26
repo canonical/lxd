@@ -4067,6 +4067,16 @@
 						}
 					},
 					{
+						"ipv4.dhcp.ranges": {
+							"condition": "IPv4 DHCP",
+							"defaultdesc": "all addresses",
+							"longdesc": "Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.",
+							"scope": "global",
+							"shortdesc": "IPv4 ranges to use for DHCP",
+							"type": "string"
+						}
+					},
+					{
 						"ipv4.l3only": {
 							"condition": "IPv4 address",
 							"defaultdesc": "`false`",
