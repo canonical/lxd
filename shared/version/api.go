@@ -353,7 +353,6 @@ var APIExtensions = []string{
 	"projects_networks_zones",
 	"network_txqueuelen",
 	"cluster_member_state",
-	"instances_placement_scriptlet",
 	"storage_pool_source_wipe",
 	"zfs_block_mode",
 	"instance_generation_id",
