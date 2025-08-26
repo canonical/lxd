@@ -104,7 +104,7 @@ devlxd-client:
 ifeq "$(GOCOVERDIR)" ""
 	CGO_ENABLED=0 go install -C test -v -trimpath -buildvcs=false -tags netgo ./devlxd-client
 else
-	CGO_ENABLED=0 go install -C test -v -trimpath -buildvcs=false -tags netgo ./devlxd-client -cover
+	CGO_ENABLED=0 go install -C test -v -trimpath -buildvcs=false -cover -tags netgo ./devlxd-client
 endif
 
 	@echo "$@ built successfully"
@@ -114,7 +114,7 @@ fuidshift:
 ifeq "$(GOCOVERDIR)" ""
 	go install -v -trimpath -buildvcs=false ./fuidshift
 else
-	go install -v -trimpath -buildvcs=false ./fuidshift -cover
+	go install -v -trimpath -buildvcs=false -cover ./fuidshift
 endif
 
 	@echo "$@ built successfully"
@@ -124,7 +124,7 @@ mini-oidc:
 ifeq "$(GOCOVERDIR)" ""
 	go install -C test -v -trimpath -buildvcs=false ./mini-oidc
 else
-	go install -C test -v -trimpath -buildvcs=false ./mini-oidc -cover
+	go install -C test -v -trimpath -buildvcs=false -cover ./mini-oidc
 endif
 
 	@echo "$@ built successfully"
@@ -134,7 +134,7 @@ sysinfo:
 ifeq "$(GOCOVERDIR)" ""
 	go install -C test -v -trimpath -buildvcs=false ./syscall/sysinfo
 else
-	go install -C test -v -trimpath -buildvcs=false ./syscall/sysinfo -cover
+	go install -C test -v -trimpath -buildvcs=false -cover ./syscall/sysinfo
 endif
 
 	@echo "$@ built successfully"
