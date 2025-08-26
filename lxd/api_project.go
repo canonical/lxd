@@ -578,7 +578,7 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 	requestor := request.CreateRequestor(r.Context())
 	s.Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, requestor, nil))
 
-	return projectChange(s, project, req)
+	return projectChange(r.Context(), s, project, req)
 }
 
 // swagger:operation PATCH /1.0/projects/{name} projects project_patch
@@ -694,7 +694,7 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 	requestor := request.CreateRequestor(r.Context())
 	s.Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, requestor, nil))
 
-	return projectChange(s, project, req)
+	return projectChange(r.Context(), s, project, req)
 }
 
 // isProjectInUse checks if a project is in use by any instances, images, profiles, storage volumes, etc.
@@ -705,7 +705,7 @@ func isProjectInUse(projectUsedBy []string) bool {
 }
 
 // Common logic between PUT and PATCH.
-func projectChange(s *state.State, project *api.Project, req api.ProjectPut) response.Response {
+func projectChange(ctx context.Context, s *state.State, project *api.Project, req api.ProjectPut) response.Response {
 	// Make a list of config keys that have changed.
 	configChanged := []string{}
 	for key := range project.Config {
