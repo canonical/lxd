@@ -148,7 +148,7 @@ func IsInRange(minVal int64, maxVal int64) func(value string) error {
 
 // IsPriority validates priority number.
 func IsPriority(value string) error {
-	valueInt, err := strconv.ParseInt(value, 10, 64)
+	valueInt, err := strconv.Atoi(value)
 	if err != nil {
 		return fmt.Errorf("Invalid value for an integer %q", value)
 	}
