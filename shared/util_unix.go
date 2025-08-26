@@ -10,10 +10,10 @@ import (
 )
 
 // GetOwnerMode retrieves the file mode, user ID, and group ID for the given file.
-func GetOwnerMode(fInfo os.FileInfo) (os.FileMode, int, int) {
-	mode := fInfo.Mode()
-	uid := int(fInfo.Sys().(*syscall.Stat_t).Uid)
-	gid := int(fInfo.Sys().(*syscall.Stat_t).Gid)
+func GetOwnerMode(fInfo os.FileInfo) (mode os.FileMode, uid int, gid int) {
+	mode = fInfo.Mode()
+	uid = int(fInfo.Sys().(*syscall.Stat_t).Uid)
+	gid = int(fInfo.Sys().(*syscall.Stat_t).Gid)
 	return mode, uid, gid
 }
 
