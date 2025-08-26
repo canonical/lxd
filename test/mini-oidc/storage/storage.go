@@ -38,11 +38,11 @@ type Storage struct {
 	lock          sync.Mutex
 	authRequests  map[string]*AuthRequest
 	codes         map[string]string
-	tokens        map[string]*Token
+	tokens        map[string]*token
 	clients       map[string]*Client
 	userStore     UserStore
 	services      map[string]Service
-	refreshTokens map[string]*RefreshToken
+	refreshTokens map[string]*refreshToken
 	signingKey    signingKey
 	deviceCodes   map[string]deviceAuthorizationEntry
 	userCodes     map[string]string
@@ -100,8 +100,8 @@ func NewStorage(userStore UserStore) *Storage {
 	return &Storage{
 		authRequests:  make(map[string]*AuthRequest),
 		codes:         make(map[string]string),
-		tokens:        make(map[string]*Token),
-		refreshTokens: make(map[string]*RefreshToken),
+		tokens:        make(map[string]*token),
+		refreshTokens: make(map[string]*refreshToken),
 		clients:       clients,
 		userStore:     userStore,
 		services: map[string]Service{
@@ -469,7 +469,7 @@ func (s *Storage) SetUserinfoFromRequest(ctx context.Context, userinfo *oidc.Use
 // SetUserinfoFromToken implements the op.Storage interface
 // it will be called for the userinfo endpoint, so we read the token and pass the information from that to the private function.
 func (s *Storage) SetUserinfoFromToken(ctx context.Context, userinfo *oidc.UserInfo, tokenID, subject, origin string) error {
-	token, ok := func() (*Token, bool) {
+	token, ok := func() (*token, bool) {
 		s.lock.Lock()
 		defer s.lock.Unlock()
 		token, ok := s.tokens[tokenID]
@@ -497,7 +497,7 @@ func (s *Storage) SetUserinfoFromToken(ctx context.Context, userinfo *oidc.UserI
 // SetIntrospectionFromToken implements the op.Storage interface
 // it will be called for the introspection endpoint, so we read the token and pass the information from that to the private function.
 func (s *Storage) SetIntrospectionFromToken(ctx context.Context, introspection *oidc.IntrospectionResponse, tokenID, subject, clientID string) error {
-	token, ok := func() (*Token, bool) {
+	token, ok := func() (*token, bool) {
 		s.lock.Lock()
 		defer s.lock.Unlock()
 		token, ok := s.tokens[tokenID]
@@ -584,10 +584,10 @@ func (s *Storage) Health(ctx context.Context) error {
 }
 
 // createRefreshToken will store a refresh_token in-memory based on the provided information.
-func (s *Storage) createRefreshToken(accessToken *Token, amr []string, authTime time.Time) (string, error) {
+func (s *Storage) createRefreshToken(accessToken *token, amr []string, authTime time.Time) (string, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	token := &RefreshToken{
+	token := &refreshToken{
 		ID:            accessToken.RefreshTokenID,
 		Token:         accessToken.RefreshTokenID,
 		AuthTime:      authTime,
@@ -627,10 +627,10 @@ func (s *Storage) renewRefreshToken(currentRefreshToken string) (token string, r
 }
 
 // accessToken will store an access_token in-memory based on the provided information.
-func (s *Storage) accessToken(applicationID, refreshTokenID, subject string, audience, scopes []string) (*Token, error) {
+func (s *Storage) accessToken(applicationID, refreshTokenID, subject string, audience, scopes []string) (*token, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	token := &Token{
+	token := &token{
 		ID:             uuid.NewString(),
 		ApplicationID:  applicationID,
 		RefreshTokenID: refreshTokenID,
