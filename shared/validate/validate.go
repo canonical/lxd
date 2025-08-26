@@ -482,13 +482,9 @@ func IsNetworkMTU(value string) error {
 
 // IsNetworkPort validates an IP port number >= 0 and <= 65535.
 func IsNetworkPort(value string) error {
-	port, err := strconv.ParseUint(value, 10, 32)
+	_, err := strconv.ParseUint(value, 10, 16)
 	if err != nil {
 		return fmt.Errorf("Invalid port number %q", value)
-	}
-
-	if port > 65535 {
-		return fmt.Errorf("Out of port number range (0-65535) %q", value)
 	}
 
 	return nil
