@@ -201,13 +201,13 @@ func CodeChallengeToOIDC(challenge *OIDCCodeChallenge) *oidc.CodeChallenge {
 }
 
 // RefreshTokenRequestFromBusiness will simply wrap the storage RefreshToken to implement the op.RefreshTokenRequest interface.
-func RefreshTokenRequestFromBusiness(token *RefreshToken) op.RefreshTokenRequest {
+func RefreshTokenRequestFromBusiness(token *refreshToken) op.RefreshTokenRequest {
 	return &RefreshTokenRequest{token}
 }
 
 // RefreshTokenRequest is a wrapper for the storage RefreshToken to implement the op.RefreshTokenRequest interface.
 type RefreshTokenRequest struct {
-	*RefreshToken
+	*refreshToken
 }
 
 // GetAMR returns the AMR of the token.
