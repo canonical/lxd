@@ -12,7 +12,7 @@ type Firewall interface {
 	Compat() (bool, error)
 
 	NetworkSetup(networkName string, ip4Address net.IP, ip6Address net.IP, opts drivers.Opts) error
-	NetworkClear(networkName string, delete bool, ipVersions []uint) error
+	NetworkClear(networkName string, remove bool, ipVersions []uint) error
 	NetworkApplyACLRules(networkName string, rules []drivers.ACLRule) error
 	NetworkApplyForwards(networkName string, rules []drivers.AddressForward) error
 
