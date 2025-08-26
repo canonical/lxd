@@ -762,7 +762,7 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 	}
 
 	// Update the database entry.
-	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		err := limits.AllowProjectUpdate(ctx, s.GlobalConfig, tx, project.Name, req.Config, configChanged)
 		if err != nil {
 			return err
