@@ -2262,7 +2262,6 @@ definitions:
                     type: string
                 description: Migration websockets credentials
                 example:
-                    criu: random-string
                     migration: random-string
                 type: object
                 x-go-name: Websockets
