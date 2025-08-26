@@ -31,12 +31,10 @@ import (
 	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
-	"github.com/canonical/lxd/lxd/scriptlet"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	apiScriptlet "github.com/canonical/lxd/shared/api/scriptlet"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/revert"
@@ -1295,34 +1293,6 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if s.ServerClustered && !clusterNotification && targetMemberInfo == nil {
-		// Run instance placement scriptlet if enabled and no cluster member selected yet.
-		if s.GlobalConfig.InstancesPlacementScriptlet() != "" {
-			leaderInfo, err := s.LeaderInfo()
-			if err != nil {
-				return response.InternalError(err)
-			}
-
-			// Copy request so we don't modify it when expanding the config.
-			reqExpanded := apiScriptlet.InstancePlacement{
-				InstancesPost: req,
-				Project:       targetProjectName,
-				Reason:        apiScriptlet.InstancePlacementReasonNew,
-			}
-
-			var globalConfigDump map[string]string
-			if s.GlobalConfig != nil {
-				globalConfigDump = s.GlobalConfig.Dump()
-			}
-
-			reqExpanded.Config = instancetype.ExpandInstanceConfig(globalConfigDump, reqExpanded.Config, profiles)
-			reqExpanded.Devices = instancetype.ExpandInstanceDevices(deviceConfig.NewDevices(reqExpanded.Devices), profiles).CloneNative()
-
-			targetMemberInfo, err = scriptlet.InstancePlacementRun(r.Context(), logger.Log, s, &reqExpanded, candidateMembers, leaderInfo.Address)
-			if err != nil {
-				return response.SmartError(fmt.Errorf("Failed instance placement scriptlet: %w", err))
-			}
-		}
-
 		// If no target member was selected yet, pick the member with the least number of instances.
 		if targetMemberInfo == nil {
 			err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
