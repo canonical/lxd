@@ -737,7 +737,9 @@ func StringPrefixInSlice(key string, list []string) bool {
 
 // RemoveElementsFromSlice returns a slice equivalent to removing the given elements from the given list.
 // Elements not present in the list are ignored.
+// The input slice is cloned to avoid modifying the original slice.
 func RemoveElementsFromSlice[T comparable](list []T, elements ...T) []T {
+	list = slices.Clone(list)
 	for i := len(elements) - 1; i >= 0; i-- {
 		element := elements[i]
 		match := false
