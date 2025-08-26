@@ -3621,6 +3621,15 @@ You can set the option to `none` to turn off IPv4, or to `auto` to generate a ne
 
 ```
 
+```{config:option} ipv4.dhcp.ranges network-ovn-network-conf
+:condition: "IPv4 DHCP"
+:defaultdesc: "all addresses"
+:scope: "global"
+:shortdesc: "IPv4 ranges to use for DHCP"
+:type: "string"
+Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.
+```
+
 ```{config:option} ipv4.l3only network-ovn-network-conf
 :condition: "IPv4 address"
 :defaultdesc: "`false`"
