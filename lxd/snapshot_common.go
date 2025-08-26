@@ -70,22 +70,22 @@ func getCronSyntax(spec string, subjectID int64) string {
 
 		if strings.Count(alias, "%s") > 1 {
 			return fmt.Sprintf(alias, obfuscatedMinute, obfuscatedHour)
-		} else {
-			return fmt.Sprintf(alias, obfuscatedMinute)
 		}
+
+		return fmt.Sprintf(alias, obfuscatedMinute)
 	}
 
 	return spec
 }
 
-func getObfuscatedTimeValuesForSubject(subjectID int64) (string, string) {
-	var minuteResult = "0"
-	var hourResult = "0"
+func getObfuscatedTimeValuesForSubject(subjectID int64) (minuteResult string, hourResult string) {
+	minuteResult = "0"
+	hourResult = "0"
 
-	minSequence, minSequenceErr := util.GenerateSequenceInt64(0, 60, 1)
-	min, minErr := util.GetStableRandomInt64FromList(subjectID, minSequence)
-	if minErr == nil && minSequenceErr == nil {
-		minuteResult = strconv.FormatInt(min, 10)
+	minuteSequence, minuteSequenceErr := util.GenerateSequenceInt64(0, 60, 1)
+	minute, minuteErr := util.GetStableRandomInt64FromList(subjectID, minuteSequence)
+	if minuteErr == nil && minuteSequenceErr == nil {
+		minuteResult = strconv.FormatInt(minute, 10)
 	}
 
 	hourSequence, hourSequenceErr := util.GenerateSequenceInt64(0, 24, 1)

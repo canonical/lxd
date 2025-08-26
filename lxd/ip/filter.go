@@ -1,6 +1,8 @@
 package ip
 
 import (
+	"context"
+
 	"github.com/canonical/lxd/shared"
 )
 
@@ -74,7 +76,7 @@ func (u32 *U32Filter) Add() error {
 		cmd = append(cmd, "flowid", u32.Flowid)
 	}
 
-	_, err := shared.RunCommand("tc", cmd...)
+	_, err := shared.RunCommandContext(context.TODO(), "tc", cmd...)
 	if err != nil {
 		return err
 	}
