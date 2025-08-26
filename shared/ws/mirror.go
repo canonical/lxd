@@ -10,9 +10,9 @@ import (
 
 // Mirror takes a websocket and replicates all read/write to a ReadWriteCloser.
 // Returns channels indicating when reads and writes are finished (respectively).
-func Mirror(conn *websocket.Conn, rwc io.ReadWriteCloser) (chan error, chan error) {
-	chRead := MirrorRead(conn, rwc)
-	chWrite := MirrorWrite(conn, rwc)
+func Mirror(conn *websocket.Conn, rwc io.ReadWriteCloser) (chRead chan error, chWrite chan error) {
+	chRead = MirrorRead(conn, rwc)
+	chWrite = MirrorWrite(conn, rwc)
 
 	return chRead, chWrite
 }
