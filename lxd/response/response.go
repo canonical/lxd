@@ -454,8 +454,8 @@ func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	// For a single file, return it inline
 	if len(r.files) == 1 {
 		remoteConn := ucred.GetConnFromContext(req.Context())
-		remoteTCP, _ := tcp.ExtractConn(remoteConn)
-		if remoteTCP != nil {
+		remoteTCP, err := tcp.ExtractConn(remoteConn)
+		if err == nil && remoteTCP != nil {
 			// Apply TCP timeouts if remote connection is TCP (rather than Unix).
 			err = tcp.SetTimeouts(remoteTCP, 10*time.Second)
 			if err != nil {

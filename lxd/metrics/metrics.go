@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"fmt"
 	"slices"
 	"sort"
 	"strconv"
@@ -161,13 +160,8 @@ func MetricSetFromAPI(metrics *Metrics, labels map[string]string) (*MetricSet, e
 	for dev, stats := range metrics.CPU {
 		getLabels := func(mode string) map[string]string {
 			labels := map[string]string{"mode": mode}
-			cpu := ""
-
-			if dev != "cpu" {
-				_, _ = fmt.Sscanf(dev, "cpu%s", &cpu)
-			}
-
-			if cpu != "" {
+			cpu, found := strings.CutPrefix(dev, "cpu")
+			if found {
 				labels["cpu"] = cpu
 			}
 

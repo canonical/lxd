@@ -288,7 +288,12 @@ func (r *ProtocolLXD) rawQuery(method string, url string, data any, ETag string)
 		return nil, "", err
 	}
 
-	defer func() { _ = resp.Body.Close() }()
+	defer func() {
+		err := resp.Body.Close()
+		if err != nil {
+			logger.Debug("Failed to close response body", logger.Ctx{"err": err})
+		}
+	}()
 
 	return lxdParseResponse(resp)
 }
@@ -365,8 +370,14 @@ func (r *ProtocolLXD) queryStruct(method string, path string, data any, ETag str
 func (r *ProtocolLXD) queryOperation(method string, path string, data any, ETag string, useEventListener bool) (Operation, string, error) {
 	// Attempt to setup an early event listener if requested.
 	var listener *EventListener
+	var err error
+
 	if useEventListener {
-		listener, _ = r.GetEvents()
+		listener, err = r.GetEvents()
+
+		if err != nil {
+			logger.Debug("Failed to get events", logger.Ctx{"err": err})
+		}
 	}
 
 	// Send the query
@@ -438,8 +449,8 @@ func (r *ProtocolLXD) rawWebsocket(url string) (*websocket.Conn, error) {
 	}
 
 	// Set TCP timeout options.
-	remoteTCP, _ := tcp.ExtractConn(conn.UnderlyingConn())
-	if remoteTCP != nil {
+	remoteTCP, err := tcp.ExtractConn(conn.NetConn())
+	if err == nil && remoteTCP != nil {
 		err = tcp.SetTimeouts(remoteTCP, 0)
 		if err != nil {
 			logger.Warn("Failed setting TCP timeouts on remote connection", logger.Ctx{"err": err})
