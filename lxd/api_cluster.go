@@ -843,9 +843,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 		existingConfigDump := currentClusterConfig.Dump()
 		changes := make(map[string]string, len(existingConfigDump))
-		for k, v := range existingConfigDump {
-			changes[k] = v
-		}
+		maps.Copy(changes, existingConfigDump)
 
 		// Copy the old config so that the update triggers have access to it.
 		// In this case it will not be used as we are not changing any node values.
