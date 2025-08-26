@@ -34,7 +34,7 @@ func GetState(fd int) (*State, error) {
 }
 
 // GetSize returns the dimensions of the given terminal.
-func GetSize(fd int) (int, int, error) {
+func GetSize(fd int) (col int, row int, err error) {
 	winsize, err := unix.IoctlGetWinsize(fd, unix.TIOCGWINSZ)
 	if err != nil {
 		return -1, -1, err

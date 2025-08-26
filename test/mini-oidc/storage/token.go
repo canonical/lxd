@@ -2,7 +2,7 @@ package storage
 
 import "time"
 
-type Token struct {
+type token struct {
 	ID             string
 	ApplicationID  string
 	Subject        string
@@ -12,7 +12,7 @@ type Token struct {
 	Scopes         []string
 }
 
-type RefreshToken struct {
+type refreshToken struct {
 	ID            string
 	Token         string
 	AuthTime      time.Time
