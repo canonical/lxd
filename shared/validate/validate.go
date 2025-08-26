@@ -97,17 +97,17 @@ func IsUint32(value string) error {
 // ParseUint32Range parses a uint32 range in the form "number" or "start-end".
 // Returns the start number and the size of the range.
 func ParseUint32Range(value string) (start uint32, rangeSize uint32, err error) {
-	rangeParts := strings.SplitN(value, "-", 2)
+	startStr, endStr, found := strings.Cut(value, "-")
 
-	startNum, err := strconv.ParseUint(rangeParts[0], 10, 32)
+	startNum, err := strconv.ParseUint(startStr, 10, 32)
 	if err != nil {
 		return 0, 0, fmt.Errorf("Invalid number %q", value)
 	}
 
 	rangeSize = 1
 
-	if len(rangeParts) == 2 {
-		endNum, err := strconv.ParseUint(rangeParts[1], 10, 32)
+	if found {
+		endNum, err := strconv.ParseUint(endStr, 10, 32)
 		if err != nil {
 			return 0, 0, fmt.Errorf("Invalid end number %q", value)
 		}
