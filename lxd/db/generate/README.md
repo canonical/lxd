@@ -47,6 +47,7 @@ This would produce `CreateInstanceProfiles` and `CreateProfileInstances` respect
 ### SQL Statement Generation
 
 SQL generation supports the following SQL statement types:
+
 Type                                  | Description
 :---                                  | :----
 `objects`                             | Creates a basic SELECT statement of the form `SELECT <columns> FROM <table> ORDER BY <columns>`.
@@ -88,6 +89,7 @@ Tag                         | Description
 ### Go Function Generation
 
 Go function generation supports the following types:
+
 Type                                | Description
 :---                                | :----
 `GetMany`                           | Return a slice of structs for all rows in a table matching the filter.
