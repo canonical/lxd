@@ -7,4 +7,4 @@ const SecretNameControl = "control"
 const SecretNameFilesystem = "fs"
 
 // SecretNameState is the secret name used for the migration state connection.
-const SecretNameState = "criu" // Legacy value used for backward compatibility for clients.
+const SecretNameState = "criu" // Legacy value used for backward compatibility for clients (needed for VM migration).
