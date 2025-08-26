@@ -2713,3 +2713,8 @@ The following pool-level configuration keys have been added:
 ## `resources_disk_used_by`
 
 Adds the field `used_by` to potential storage disk returned by the resources end point to indicate its use by any virtual parent device, e.g. `bcache`.
+
+## `ovn_dhcp_ranges`
+
+This introduces support for the {config:option}`network-ovn-network-conf:ipv4.dhcp.ranges` configuration key for `ovn` networks. This key allows specifying a list of IPv4 ranges
+reserved for dynamic allocation using DHCP.
