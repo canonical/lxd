@@ -1,6 +1,6 @@
 module github.com/canonical/lxd
 
-go 1.24.5
+go 1.24.6
 
 require (
 	github.com/NVIDIA/nvidia-container-toolkit v1.17.8
@@ -72,7 +72,7 @@ require (
 require (
 	cel.dev/expr v0.24.0 // indirect
 	github.com/NVIDIA/go-nvlib v0.8.0 // indirect
-	github.com/NVIDIA/go-nvml v0.13.0-0 // indirect
+	github.com/NVIDIA/go-nvml v0.13.0-1 // indirect
 	github.com/Rican7/retry v0.3.1 // indirect
 	github.com/Yiling-J/theine-go v0.6.2 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
@@ -166,8 +166,8 @@ require (
 	golang.org/x/mod v0.27.0 // indirect
 	golang.org/x/net v0.43.0 // indirect
 	gonum.org/v1/gonum v0.16.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20250818200422-3122310a409c // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250818200422-3122310a409c // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20250825161204-c5933d9347a5 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250825161204-c5933d9347a5 // indirect
 	google.golang.org/grpc v1.75.0 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
