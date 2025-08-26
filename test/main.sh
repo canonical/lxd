@@ -429,6 +429,8 @@ if [ "${1:-"all"}" != "standalone" ]; then
 fi
 
 if [ "${1:-"all"}" != "cluster" ]; then
+    run_test test_concurrent "concurrent startup"
+    run_test test_concurrent_exec "concurrent exec"
     run_test test_projects_default "default project"
     run_test test_projects_copy "copy/move between projects"
     run_test test_projects_crud "projects CRUD operations"
@@ -549,8 +551,6 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_backup_export_import_recover "backup export, import, and recovery"
     run_test test_container_local_cross_pool_handling "container local cross pool handling"
     run_test test_incremental_copy "incremental container copy"
-    run_test test_concurrent_exec "concurrent exec"
-    run_test test_concurrent "concurrent startup"
     run_test test_profiles_project_default "profiles in default project"
     run_test test_profiles_project_images_profiles "profiles in project with images and profiles enabled"
     run_test test_profiles_project_images "profiles in project with images enabled and profiles disabled"
