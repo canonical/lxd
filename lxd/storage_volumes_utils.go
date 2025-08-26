@@ -111,7 +111,7 @@ func storagePoolVolumeUpdateUsers(ctx context.Context, s *state.State, projectNa
 			Devices:     newDevices,
 		}
 
-		err = doProfileUpdate(ctx, s, p, profile.Name, profileID, &profile, pUpdate)
+		err = doProfileUpdate(ctx, s, p, profile.Name, &profile, pUpdate)
 		if err != nil {
 			return err
 		}
@@ -123,7 +123,7 @@ func storagePoolVolumeUpdateUsers(ctx context.Context, s *state.State, projectNa
 				Devices:     profile.Devices,
 			}
 
-			err := doProfileUpdate(ctx, s, p, profile.Name, profileID, &profile, original)
+			err := doProfileUpdate(ctx, s, p, profile.Name, &profile, original)
 			if err != nil {
 				logger.Error("Failed reverting profile update", logger.Ctx{"project": p.Name, "profile": profile.Name, "error": err})
 			}
