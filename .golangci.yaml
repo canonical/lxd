@@ -82,6 +82,8 @@ linters:
         - float-compare
         - require-error
   exclusions:
+    # Flag unused exclusions rules
+    warn-unused: true
     generated: lax
     paths:
       - third_party$
