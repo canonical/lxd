@@ -1,9 +1,9 @@
 #!/bin/bash
 set -eu
 
-# golangci/golangci-lint-action runs on PR
-if [ "${GITHUB_EVENT_NAME:-}" = "pull_request" ]; then
-    echo "Skipping golangci-lint script during PR tests (already done by golangci-lint action)"
+# golangci-lint is run via GitHub actions so avoid checking twice
+if [ -n "${GITHUB_ACTIONS:-}" ]; then
+    echo "Skipping golangci-lint script (already done by golangci-lint action)"
     exit 0
 fi
 
