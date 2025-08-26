@@ -318,6 +318,12 @@ func Test_IsPriority(t *testing.T) {
 	}
 }
 
+func Benchmark_IsPriority(b *testing.B) {
+	for b.Loop() {
+		_ = validate.IsPriority("10")
+	}
+}
+
 func Test_IsBool(t *testing.T) {
 	tests := []struct {
 		value    string
