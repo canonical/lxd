@@ -25,12 +25,6 @@ void forkfile(void)
 	char *listenfd = NULL;
 	pid_t pid = 0;
 
-	// Check that we're root.
-	if (geteuid() != 0) {
-		fprintf(stderr, "Error: forkfile requires root privileges\n");
-		_exit(1);
-	}
-
 	// Check the first argument.
 	listenfd = advance_arg(false);
 	if (listenfd == NULL)
@@ -41,6 +35,12 @@ void forkfile(void)
 
 	if (listenfd == NULL || (strcmp(listenfd, "--help") == 0 || strcmp(listenfd, "--version") == 0 || strcmp(listenfd, "-h") == 0))
 		return;
+
+	// Check that we're root.
+	if (geteuid() != 0) {
+		fprintf(stderr, "Error: forkfile requires root privileges\n");
+		_exit(1);
+	}
 
 	// Get the container rootfs.
 	rootfs_fd = atoi(advance_arg(true));
