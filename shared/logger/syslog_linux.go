@@ -13,10 +13,12 @@ type syslogHandler struct {
 	handler logrus.Hook
 }
 
+// Fire sends the log entry to syslog.
 func (h syslogHandler) Fire(entry *logrus.Entry) error {
 	return h.handler.Fire(entry)
 }
 
+// Levels returns the log levels that this hook is interested in.
 func (h syslogHandler) Levels() []logrus.Level {
 	return []logrus.Level{
 		logrus.PanicLevel,
