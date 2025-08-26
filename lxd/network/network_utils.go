@@ -2,7 +2,6 @@ package network
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	cryptorand "crypto/rand"
 	"encoding/hex"
@@ -1087,16 +1086,20 @@ func usesIPv6Firewall(netConfig map[string]string) bool {
 // RandomHwaddr generates a random MAC address from the provided random source.
 func randomHwaddr(r *rand.Rand) string {
 	// Generate a new random MAC address using the usual prefix.
-	ret := bytes.Buffer{}
-	for _, c := range "00:16:3e:xx:xx:xx" {
-		if c == 'x' {
-			ret.WriteString(fmt.Sprintf("%x", r.Int31n(16)))
-		} else {
-			ret.WriteString(string(c))
-		}
+	const hex = "0123456789abcdef"
+
+	// Preallocate exact length: "00:16:3e:xx:xx:xx" = 17 chars
+	b := [17]byte{'0', '0', ':', '1', '6', ':', '3', 'e'}
+
+	pos := 8
+	for range 3 {
+		b[pos] = ':'
+		b[pos+1] = hex[r.Int31n(16)]
+		b[pos+2] = hex[r.Int31n(16)]
+		pos += 3
 	}
 
-	return ret.String()
+	return string(b[:])
 }
 
 // VLANInterfaceCreate creates a VLAN interface on parent interface (if needed).
