@@ -1,4 +1,5 @@
 #!/bin/bash
+set -eu
 
 # differential-shellcheck is run via GitHub actions so avoid checking twice
 if [ -n "${GITHUB_ACTIONS:-}" ]; then
