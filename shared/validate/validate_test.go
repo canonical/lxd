@@ -263,6 +263,13 @@ func Test_ParseUint32Range(t *testing.T) {
 	}
 }
 
+func Benchmark_ParseUint32Range(b *testing.B) {
+	for b.Loop() {
+		_, _, _ = validate.ParseUint32Range("1-5")
+		_, _, _ = validate.ParseUint32Range("1")
+	}
+}
+
 func Test_IsUint32Range(t *testing.T) {
 	tests := []struct {
 		value    string
