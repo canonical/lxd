@@ -1,6 +1,8 @@
 package ip
 
 import (
+	"context"
+
 	"github.com/canonical/lxd/shared"
 )
 
@@ -18,7 +20,7 @@ func (t *Tuntap) Add() error {
 		cmd = append(cmd, "multi_queue")
 	}
 
-	_, err := shared.RunCommand("ip", cmd...)
+	_, err := shared.RunCommandContext(context.TODO(), "ip", cmd...)
 	if err != nil {
 		return err
 	}
