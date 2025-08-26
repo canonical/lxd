@@ -464,6 +464,37 @@ func Test_IsInterfaceName(t *testing.T) {
 	}
 }
 
+func Test_IsNetworkRange(t *testing.T) {
+	tests := []struct {
+		value    string
+		expected bool
+	}{
+		{
+			value:    "192.0.2.1",
+			expected: false,
+		},
+		{
+			value:    "::1-::ffff",
+			expected: true,
+		},
+		{
+			value:    "192.0.2.1-192.0.2.2",
+			expected: true,
+		},
+		{
+			value:    "192.0.2.1/24",
+			expected: false,
+		},
+	}
+
+	for _, test := range tests {
+		err := validate.IsNetworkRange(test.value)
+		if (err == nil) != test.expected {
+			t.Errorf("IsNetworkRange(%q) = %v, want %v", test.value, err == nil, test.expected)
+		}
+	}
+}
+
 func Test_IsNetworkMAC(t *testing.T) {
 	tests := []struct {
 		value    string
