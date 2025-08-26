@@ -57,7 +57,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
-          # A non-shallow clone is needed for the Differential ShellCheck and golangci-lint
+          # A non-shallow clone is needed for the Differential ShellCheck
           fetch-depth: 0
 
       - name: Require GHA pinning
@@ -258,9 +258,7 @@ jobs:
       #      useful feedback in the PR through github-code-scanning bot
       - name: Run golangci-lint
         if: github.event_name == 'pull_request'
-        uses: golangci/golangci-lint-action@0a35821d5c230e903fcfe077583637dea1b27b47 # v8
-        with:
-          args: --timeout=5m --new --new-from-rev=${{ github.event.pull_request.base.sha }} --whole-files
+        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
 
       - name: Run static analysis
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.static-analysis == 'true' }}
