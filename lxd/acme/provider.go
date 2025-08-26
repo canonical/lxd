@@ -27,6 +27,7 @@ func NewHTTP01Provider() HTTP01Provider {
 	return &http01Provider{}
 }
 
+// Present sets the provider's domain, token, and keyAuth values.
 func (p *http01Provider) Present(domain string, token string, keyAuth string) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -38,6 +39,7 @@ func (p *http01Provider) Present(domain string, token string, keyAuth string) er
 	return nil
 }
 
+// CleanUp clears the provider's domain, token, and keyAuth values.
 func (p *http01Provider) CleanUp(domain string, token string, keyAuth string) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -49,6 +51,7 @@ func (p *http01Provider) CleanUp(domain string, token string, keyAuth string) er
 	return nil
 }
 
+// KeyAuth returns the key authorization value.
 func (p *http01Provider) KeyAuth() string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -56,6 +59,7 @@ func (p *http01Provider) KeyAuth() string {
 	return p.keyAuth
 }
 
+// Domain returns the domain value.
 func (p *http01Provider) Domain() string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -63,6 +67,7 @@ func (p *http01Provider) Domain() string {
 	return p.domain
 }
 
+// Token returns the token value.
 func (p *http01Provider) Token() string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
