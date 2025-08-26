@@ -98,10 +98,6 @@ func IsUint32(value string) error {
 // Returns the start number and the size of the range.
 func ParseUint32Range(value string) (start uint32, rangeSize uint32, err error) {
 	rangeParts := strings.SplitN(value, "-", 2)
-	rangeLen := len(rangeParts)
-	if rangeLen != 1 && rangeLen != 2 {
-		return 0, 0, errors.New("Range must contain a single number or start and end numbers")
-	}
 
 	startNum, err := strconv.ParseUint(rangeParts[0], 10, 32)
 	if err != nil {
@@ -110,7 +106,7 @@ func ParseUint32Range(value string) (start uint32, rangeSize uint32, err error) 
 
 	rangeSize = 1
 
-	if rangeLen == 2 {
+	if len(rangeParts) == 2 {
 		endNum, err := strconv.ParseUint(rangeParts[1], 10, 32)
 		if err != nil {
 			return 0, 0, fmt.Errorf("Invalid end number %q", value)
