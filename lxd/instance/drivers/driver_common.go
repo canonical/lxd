@@ -714,7 +714,11 @@ func (d *common) runHooks(hooks []func() error) error {
 	return nil
 }
 
-// snapshot handles the common part of the snapshoting process.
+// snapshotCommon handles the common part of a snapshot.
+// It creates the DB record and snapshots the instance, derives expiry from
+// inst's "snapshots.expiry"" if expiry is nil, mounts the instance to update
+// backup.yaml, and reverts on error. The snapshot is marked stateful when
+// stateful is true.
 func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *time.Time, stateful bool) error {
 	revert := revert.New()
 	defer revert.Fail()
