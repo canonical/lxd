@@ -5136,74 +5136,16 @@ func (d *qemu) Snapshot(name string, expiry *time.Time, stateful bool) error {
 
 // Restore restores an instance snapshot.
 func (d *qemu) Restore(source instance.Instance, stateful bool) error {
-	op, err := operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
-	if err != nil {
-		return fmt.Errorf("Failed to create instance restore operation: %w", err)
-	}
-
-	defer op.Done(nil)
-
-	var ctxMap logger.Ctx
-
-	// Stop the instance.
-	wasRunning := false
-	if d.IsRunning() {
-		wasRunning = true
-
-		ephemeral := d.IsEphemeral()
-		if ephemeral {
-			// Unset ephemeral flag.
-			args := db.InstanceArgs{
-				Architecture: d.Architecture(),
-				Config:       d.LocalConfig(),
-				Description:  d.Description(),
-				Devices:      d.LocalDevices(),
-				Ephemeral:    false,
-				Profiles:     d.Profiles(),
-				Project:      d.Project().Name,
-				Type:         d.Type(),
-				Snapshot:     d.IsSnapshot(),
-			}
-
-			err := d.Update(args, false)
-			if err != nil {
-				op.Done(err)
-				return err
-			}
-
-			// On function return, set the flag back on.
-			defer func() {
-				args.Ephemeral = ephemeral
-				_ = d.Update(args, false)
-			}()
-		}
-
-		// This will unmount the instance storage.
-		err := d.Stop(false)
-		if err != nil {
-			op.Done(err)
-			return err
-		}
-
-		// Refresh the operation as that one is now complete.
-		op, err = operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
-		if err != nil {
-			return fmt.Errorf("Failed to create instance restore operation: %w", err)
-		}
-
-		defer op.Done(nil)
-	}
-
-	ctxMap = logger.Ctx{
+	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate,
-		"source":    source.Name()}
+		"source":    source.Name(),
+	}
 
 	d.logger.Info("Restoring instance", ctxMap)
 
-	// Load the storage driver.
-	pool, err := storagePools.LoadByInstance(d.state, d)
+	pool, wasRunning, op, err := d.restoreCommon(d, source)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -5211,27 +5153,6 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 
 	// Restore the rootfs.
 	err = pool.RestoreInstanceSnapshot(d, source, nil)
-	if err != nil {
-		op.Done(err)
-		return err
-	}
-
-	// Restore the configuration.
-	args := db.InstanceArgs{
-		Architecture: source.Architecture(),
-		Config:       source.LocalConfig(),
-		Description:  source.Description(),
-		Devices:      source.LocalDevices(),
-		Ephemeral:    source.IsEphemeral(),
-		Profiles:     source.Profiles(),
-		Project:      source.Project().Name,
-		Type:         source.Type(),
-		Snapshot:     source.IsSnapshot(),
-	}
-
-	// Don't pass as user-requested as there's no way to fix a bad config.
-	// This will call d.UpdateBackupFile() to ensure snapshot list is up to date.
-	err = d.Update(args, false)
 	if err != nil {
 		op.Done(err)
 		return err
