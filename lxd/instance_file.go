@@ -373,30 +373,30 @@ func instanceFileHead(inst instance.Instance, path string) response.Response {
 }
 
 // For containers we can only run chown/chgrp if target uid/gid is within uidmap allowed range.
-func applyEffectiveFileOwnership(inst instance.Instance, headers *shared.LXDFileHeaders, file *sftp.File) error {
-	uid := headers.UID
-	gid := headers.GID
+func effectiveFileOwnership(inst instance.Instance, headers *shared.LXDFileHeaders, fileName string) (uid, gid int64, err error) {
+	uid = headers.UID
+	gid = headers.GID
 
 	c, ok := inst.(instance.Container)
 	if !ok {
-		return fmt.Errorf("Invalid instance type: %T", inst)
+		return 0, 0, fmt.Errorf("Invalid instance type: %T", inst)
 	}
 
 	idmapset, err := c.CurrentIdmap()
 	if err != nil {
-		return err
+		return 0, 0, err
 	}
 
 	if idmapset == nil {
-		return nil
+		return uid, gid, nil
 	}
 
 	idmapranges, err := idmapset.ValidRanges()
 	if len(idmapranges) != 2 {
-		return err
+		return 0, 0, err
 	}
 
-	l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "file": file.Name()})
+	l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "file": fileName})
 	for _, idmaprange := range idmapranges {
 		if idmaprange.Isuid && !idmaprange.Contains(headers.UID) {
 			l.Info("Requested UID not within idmap range", logger.Ctx{"uid": uid})
@@ -409,13 +409,7 @@ func applyEffectiveFileOwnership(inst instance.Instance, headers *shared.LXDFile
 		}
 	}
 
-	// -1 leaves the id unchanged
-	err = file.Chown(int(uid), int(gid))
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return uid, gid, nil
 }
 
 // swagger:operation POST /1.0/instances/{name}/files instances instance_files_post
@@ -553,16 +547,17 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 		// Set file ownership.
 		if !exists || headers.UIDModifyExisting || headers.GIDModifyExisting {
 			if headers.UID >= 0 || headers.GID >= 0 {
-				if inst.Type() != instancetype.Container {
-					err = file.Chown(int(headers.UID), int(headers.GID))
+				// For containers, make sure we are not trying to apply IDs outside of the allowed range.
+				if inst.Type() == instancetype.Container {
+					headers.UID, headers.GID, err = effectiveFileOwnership(inst, headers, file.Name())
 					if err != nil {
 						return response.SmartError(err)
 					}
-				} else {
-					err = applyEffectiveFileOwnership(inst, headers, file)
-					if err != nil {
-						return response.SmartError(err)
-					}
+				}
+
+				err = file.Chown(int(headers.UID), int(headers.GID))
+				if err != nil {
+					return response.SmartError(err)
 				}
 			}
 		}
