@@ -69,3 +69,18 @@ func (rc *responseCapture) ToAPIResponse() (*api.Response, string, error) {
 
 	return &response, etag, nil
 }
+
+// Render renders the response and returns a potential error.
+func (rc *responseCapture) Render(resp Response) error {
+	err := resp.Render(rc, rc.request)
+	if err != nil {
+		return err
+	}
+
+	_, _, err = rc.ToAPIResponse()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
