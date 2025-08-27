@@ -23,6 +23,8 @@ test_filemanip() {
   chown "${myuid}" "${TEST_DIR}/filemanip"
   lxc --project=test file push "${TEST_DIR}"/filemanip filemanip/root/
   [ "$(lxc exec filemanip --project=test -- cat /root/filemanip)" = "test" ]
+  lxc --project=test file push -p "${TEST_DIR}"/filemanip filemanip/root/temp/
+  [ "$(lxc exec filemanip --project=test -- cat /root/temp/filemanip)" = "test" ]
   chown root "${TEST_DIR}/filemanip"
 
   # lxc {push|pull} -r
