@@ -777,15 +777,15 @@ func GetNetworkCounters(name string) (*api.NetworkStateCounters, error) {
 		return nil, err
 	}
 
+	// A sample line:
+	// eth0: 1024 0 0 0 0 0 0 0 2048 0 0 0 0 0 0 0
 	for line := range strings.SplitSeq(string(content), "\n") {
 		fields := strings.Fields(line)
-
 		if len(fields) != 17 {
 			continue
 		}
 
-		intName := strings.TrimSuffix(fields[0], ":")
-		if intName != name {
+		if fields[0] != name+":" {
 			continue
 		}
 
