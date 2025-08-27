@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"sort"
 	"strconv"
 	"strings"
@@ -43,9 +44,7 @@ func (m *Map) Change(changes map[string]string) (map[string]string, error) {
 	values := make(map[string]string, len(m.schema))
 
 	errors := ErrorList{}
-	for name, change := range changes {
-		values[name] = change
-	}
+	maps.Copy(values, changes)
 
 	if errors.Len() > 0 {
 		return nil, errors

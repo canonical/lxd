@@ -530,11 +530,11 @@ func ovnRulePortToOVNACLMatch(protocol string, direction string, portCriteria ..
 	fieldParts := make([]string, 0, len(portCriteria))
 
 	for _, portCriterion := range portCriteria {
-		criterionParts := strings.SplitN(portCriterion, "-", 2)
-		if len(criterionParts) > 1 {
-			fieldParts = append(fieldParts, fmt.Sprintf("(%s.%s >= %s && %s.%s <= %s)", protocol, direction, criterionParts[0], protocol, direction, criterionParts[1]))
+		firstPort, lastPort, found := strings.Cut(portCriterion, "-")
+		if found {
+			fieldParts = append(fieldParts, fmt.Sprintf("(%s.%s >= %s && %s.%s <= %s)", protocol, direction, firstPort, protocol, direction, lastPort))
 		} else {
-			fieldParts = append(fieldParts, fmt.Sprintf("%s.%s == %s", protocol, direction, criterionParts[0]))
+			fieldParts = append(fieldParts, fmt.Sprintf("%s.%s == %s", protocol, direction, firstPort))
 		}
 	}
 
