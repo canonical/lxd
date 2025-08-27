@@ -21,3 +21,24 @@ func Render(req *http.Request, resp response.Response) error {
 
 	return nil
 }
+
+// RenderToStruct renders the response into a struct and returns the ETag.
+func RenderToStruct(req *http.Request, resp response.Response, target any) (etag string, err error) {
+	rc := response.NewResponseCapture(req)
+	err = resp.Render(rc, req)
+	if err != nil {
+		return "", err
+	}
+
+	apiResp, etag, err := rc.ToAPIResponse()
+	if err != nil {
+		return "", err
+	}
+
+	err = apiResp.MetadataAsStruct(target)
+	if err != nil {
+		return "", err
+	}
+
+	return etag, nil
+}
