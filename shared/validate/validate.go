@@ -97,21 +97,17 @@ func IsUint32(value string) error {
 // ParseUint32Range parses a uint32 range in the form "number" or "start-end".
 // Returns the start number and the size of the range.
 func ParseUint32Range(value string) (start uint32, rangeSize uint32, err error) {
-	rangeParts := strings.SplitN(value, "-", 2)
-	rangeLen := len(rangeParts)
-	if rangeLen != 1 && rangeLen != 2 {
-		return 0, 0, errors.New("Range must contain a single number or start and end numbers")
-	}
+	startStr, endStr, found := strings.Cut(value, "-")
 
-	startNum, err := strconv.ParseUint(rangeParts[0], 10, 32)
+	startNum, err := strconv.ParseUint(startStr, 10, 32)
 	if err != nil {
 		return 0, 0, fmt.Errorf("Invalid number %q", value)
 	}
 
 	rangeSize = 1
 
-	if rangeLen == 2 {
-		endNum, err := strconv.ParseUint(rangeParts[1], 10, 32)
+	if found {
+		endNum, err := strconv.ParseUint(endStr, 10, 32)
 		if err != nil {
 			return 0, 0, fmt.Errorf("Invalid end number %q", value)
 		}
@@ -152,7 +148,7 @@ func IsInRange(minVal int64, maxVal int64) func(value string) error {
 
 // IsPriority validates priority number.
 func IsPriority(value string) error {
-	valueInt, err := strconv.ParseInt(value, 10, 64)
+	valueInt, err := strconv.Atoi(value)
 	if err != nil {
 		return fmt.Errorf("Invalid value for an integer %q", value)
 	}
@@ -486,13 +482,9 @@ func IsNetworkMTU(value string) error {
 
 // IsNetworkPort validates an IP port number >= 0 and <= 65535.
 func IsNetworkPort(value string) error {
-	port, err := strconv.ParseUint(value, 10, 32)
+	_, err := strconv.ParseUint(value, 10, 16)
 	if err != nil {
 		return fmt.Errorf("Invalid port number %q", value)
-	}
-
-	if port > 65535 {
-		return fmt.Errorf("Out of port number range (0-65535) %q", value)
 	}
 
 	return nil
@@ -500,19 +492,15 @@ func IsNetworkPort(value string) error {
 
 // IsNetworkPortRange validates an IP port range in the format "port" or "start-end".
 func IsNetworkPortRange(value string) error {
-	ports := strings.SplitN(value, "-", 2)
-	portsLen := len(ports)
-	if portsLen != 1 && portsLen != 2 {
-		return errors.New("Port range must contain either a single port or start and end port numbers")
-	}
+	startPortStr, endPortStr, found := strings.Cut(value, "-")
 
-	startPort, err := strconv.ParseUint(ports[0], 10, 32)
+	startPort, err := strconv.ParseUint(startPortStr, 10, 16)
 	if err != nil {
-		return fmt.Errorf("Invalid port number %q", value)
+		return fmt.Errorf("Invalid start port number %q", value)
 	}
 
-	if portsLen == 2 {
-		endPort, err := strconv.ParseUint(ports[1], 10, 32)
+	if found {
+		endPort, err := strconv.ParseUint(endPortStr, 10, 16)
 		if err != nil {
 			return fmt.Errorf("Invalid end port number %q", value)
 		}
