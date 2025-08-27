@@ -917,10 +917,11 @@ func InstanceContentType(inst instance.Instance) drivers.ContentType {
 	return contentType
 }
 
-// VolumeIsUsedByDevice returns true when vol is referred to by dev, assumes the volume
-// belongs to the correct project to be referenced by the instance.
-// instanceType=instanceType.Any indicates the device is used by a profile.
-// The instanceName argument is only used if instanceType != instanceType.Any.
+// VolumeIsUsedByDevice reports whether a device config refers to the given storage volume.
+// Assumes vol is in the correct project (no cross‑project lookup). Handles implicit
+// root-disk references (e.g. empty source or source == instanceName).
+// Use instancetype.Any for profile devices; instanceName is ignored in that case.
+// For instance devices, pass the concrete instance type and name.
 func VolumeIsUsedByDevice(vol api.StorageVolume, instanceType instancetype.Type, instanceName string, dev map[string]string) (bool, error) {
 	if dev["type"] != cluster.TypeDisk.String() {
 		return false, nil
