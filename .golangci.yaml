@@ -88,11 +88,9 @@ linters:
         - float-compare
         - require-error
   exclusions:
+    # Flag unused exclusions rules
+    warn-unused: true
     generated: lax
-    paths:
-      - third_party$
-      - builtin$
-      - examples$
     rules:
       - linters:
           - staticcheck
@@ -110,9 +108,3 @@ formatters:
         - standard
         - default
         - prefix(github.com/canonical/lxd)
-  exclusions:
-    generated: lax
-    paths:
-      - third_party$
-      - builtin$
-      - examples$
