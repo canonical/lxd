@@ -865,7 +865,10 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 			// On function return, set the flag back on.
 			defer func() {
 				args.Ephemeral = ephemeral
-				_ = inst.Update(args, false)
+				err = inst.Update(args, false)
+				if err != nil {
+					d.logger.Error("Failed to restore ephemeral flag after restore", logger.Ctx{"project": d.Project().Name, "instance": d.Name(), "err": err})
+				}
 			}()
 		}
 
