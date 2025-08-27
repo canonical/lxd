@@ -263,6 +263,13 @@ func Test_ParseUint32Range(t *testing.T) {
 	}
 }
 
+func Benchmark_ParseUint32Range(b *testing.B) {
+	for b.Loop() {
+		_, _, _ = validate.ParseUint32Range("1-5")
+		_, _, _ = validate.ParseUint32Range("1")
+	}
+}
+
 func Test_IsUint32Range(t *testing.T) {
 	tests := []struct {
 		value    string
@@ -308,6 +315,12 @@ func Test_IsPriority(t *testing.T) {
 		if (err == nil) != test.expected {
 			t.Errorf("IsPriority(%q) = %v, want %v", test.value, err == nil, test.expected)
 		}
+	}
+}
+
+func Benchmark_IsPriority(b *testing.B) {
+	for b.Loop() {
+		_ = validate.IsPriority("10")
 	}
 }
 
@@ -451,6 +464,37 @@ func Test_IsInterfaceName(t *testing.T) {
 	}
 }
 
+func Test_IsNetworkRange(t *testing.T) {
+	tests := []struct {
+		value    string
+		expected bool
+	}{
+		{
+			value:    "192.0.2.1",
+			expected: false,
+		},
+		{
+			value:    "::1-::ffff",
+			expected: true,
+		},
+		{
+			value:    "192.0.2.1-192.0.2.2",
+			expected: true,
+		},
+		{
+			value:    "192.0.2.1/24",
+			expected: false,
+		},
+	}
+
+	for _, test := range tests {
+		err := validate.IsNetworkRange(test.value)
+		if (err == nil) != test.expected {
+			t.Errorf("IsNetworkRange(%q) = %v, want %v", test.value, err == nil, test.expected)
+		}
+	}
+}
+
 func Test_IsNetworkMAC(t *testing.T) {
 	tests := []struct {
 		value    string
@@ -517,6 +561,52 @@ func Test_IsNetwork(t *testing.T) {
 		err := validate.IsNetwork(test.value)
 		if (err == nil) != test.expected {
 			t.Errorf("IsNetwork(%q) = %v, want %v", test.value, err == nil, test.expected)
+		}
+	}
+}
+
+func Test_IsNetworkPort(t *testing.T) {
+	tests := []struct {
+		value    string
+		expected bool
+	}{
+		{"80", true},
+		{"0", true},
+		{"65535", true},
+		{"-1", false},
+		{"65536", false},
+		{"abc", false},
+	}
+
+	for _, test := range tests {
+		err := validate.IsNetworkPort(test.value)
+		if (err == nil) != test.expected {
+			t.Errorf("IsNetworkPort(%q) = %v, want %v", test.value, err == nil, test.expected)
+		}
+	}
+}
+
+func Test_IsNetworkPortRange(t *testing.T) {
+	tests := []struct {
+		value    string
+		expected bool
+	}{
+		{"80", true},
+		{"0", true},
+		{"65535", true},
+		{"80-90", true},
+		{"0-65535", true},
+		{"90-80", false},
+		{"-1", false},
+		{"65536", false},
+		{"80-65536", false},
+		{"abc", false},
+	}
+
+	for _, test := range tests {
+		err := validate.IsNetworkPortRange(test.value)
+		if (err == nil) != test.expected {
+			t.Errorf("IsNetworkPortRange(%q) = %v, want %v", test.value, err == nil, test.expected)
 		}
 	}
 }
