@@ -610,6 +610,14 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 
 		// Set file ownership.
 		if headers.UID >= 0 || headers.GID >= 0 {
+			// For containers, make sure we are not trying to apply IDs outside of the allowed range.
+			if inst.Type() == instancetype.Container {
+				headers.UID, headers.GID, err = effectiveFileOwnership(inst, headers, path)
+				if err != nil {
+					return response.SmartError(err)
+				}
+			}
+
 			err = client.Chown(path, int(headers.UID), int(headers.GID))
 			if err != nil {
 				return response.SmartError(err)
