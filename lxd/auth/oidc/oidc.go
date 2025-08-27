@@ -684,7 +684,7 @@ func (o *Verifier) secureCookieFromSession(ctx context.Context, sessionID uuid.U
 
 	var secret cluster.AuthSecret
 	var startNewSession bool
-	for i := 0; i < len(secrets); i++ {
+	for i := range secrets {
 		// If the secret was created after the session started, skip.
 		if secrets[i].CreationDate.Unix() > sessionStartedAtSeconds {
 			continue
