@@ -1,8 +1,9 @@
 #!/bin/bash
+set -eu
 
-# differential-shellcheck runs on PR
-if [ "${GITHUB_EVENT_NAME:-}" = "pull_request" ]; then
-    echo "Skipping shellcheck script during PR tests (already done by differential-shellcheck action)"
+# differential-shellcheck is run via GitHub actions so avoid checking twice
+if [ -n "${GITHUB_ACTIONS:-}" ]; then
+    echo "Skipping shellcheck script (already done by differential-shellcheck action)"
     exit 0
 fi
 
