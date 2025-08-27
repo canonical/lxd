@@ -18,6 +18,7 @@ import (
 	"github.com/canonical/lxd/lxd/network/openvswitch"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/validate"
 )
 
 var sysClassNet = "/sys/class/net"
@@ -584,8 +585,9 @@ func getOVSBridgeState(name string) *api.NetworkStateBridge {
 // GetNetworkState returns the OS configuration for the network interface.
 func GetNetworkState(name string) (*api.NetworkState, error) {
 	// Reject known bad names that might cause problem when dealing with paths.
-	if strings.Contains(name, "/") || strings.Contains(name, "\\") || strings.Contains(name, "..") {
-		return nil, api.StatusErrorf(http.StatusBadRequest, "Invalid network interface name: %q", name)
+	err := validate.IsInterfaceName(name)
+	if err != nil {
+		return nil, api.StatusErrorf(http.StatusBadRequest, "Invalid network interface name %q: %v", name, err)
 	}
 
 	// Get some information
