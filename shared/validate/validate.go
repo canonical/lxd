@@ -241,6 +241,11 @@ func IsInterfaceName(value string) error {
 		return errors.New("Network interface is too long (maximum 15 characters)")
 	}
 
+	// Reject known bad names that might cause problem when dealing with paths.
+	if strings.Contains(value, "..") {
+		return errors.New("Network interface name must not contain '..'")
+	}
+
 	// Validate the character set.
 	match, _ := regexp.MatchString(`^[-_a-zA-Z0-9.]+$`, value)
 	if !match {
