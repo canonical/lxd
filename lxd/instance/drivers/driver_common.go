@@ -383,8 +383,6 @@ func (d *common) getSharedVolumes(ctx context.Context, tx *db.ClusterTx, volumes
 func (d *common) attachedCustomVolumes(ctx context.Context, tx *db.ClusterTx, inst instance.Instance, devices deviceConfig.Devices) (map[volumeKey]*api.StorageVolume, error) {
 	instanceProject := inst.Project()
 
-	// Get the instance's effective project for volumes.
-	// Create variables so we can point to them.
 	customType := dbCluster.StoragePoolVolumeTypeCustom
 	effectiveProject := project.StorageVolumeProjectFromRecord(&instanceProject, dbCluster.StoragePoolVolumeTypeCustom)
 	filter := db.StorageVolumeFilter{
@@ -397,26 +395,37 @@ func (d *common) attachedCustomVolumes(ctx context.Context, tx *db.ClusterTx, in
 		return nil, err
 	}
 
-	// Add all volumes attached to inst to targetVolumes.
+	// Create lookup map for O(1) access.
+	volLookup := make(map[volumeKey]*db.StorageVolume, len(accessibleVolumes))
+	for _, v := range accessibleVolumes {
+		// Snapshotting ISO volumes is not possible.
+		if v.ContentType == dbCluster.StoragePoolVolumeContentTypeNameISO {
+			continue
+		}
+
+		volLookup[volumeKey{v.Pool, v.Name}] = v
+	}
+
 	volumes := make(map[volumeKey]*api.StorageVolume)
-	for _, device := range devices {
-		// Find StorageVolume object for the volume used as source for this disk, if any.
-		for _, dbVol := range accessibleVolumes {
-			// Snapshotting ISO volumes is not possible, so skip those.
-			if dbVol.ContentType == dbCluster.StoragePoolVolumeContentTypeNameISO {
-				continue
-			}
+	for _, dev := range devices {
+		pool := dev["pool"]
+		source := dev["source"]
+		if pool == "" || source == "" || dev["type"] != "disk" {
+			continue
+		}
 
-			volumeIsUsed, err := storagePools.VolumeIsUsedByDevice(dbVol.StorageVolume, inst.Type(), inst.Name(), device)
-			if err != nil {
-				return nil, err
-			}
+		vol, ok := volLookup[volumeKey{pool, source}]
+		if !ok {
+			continue
+		}
 
-			// Check if the volume shares the name with disk source and is in the appropriate project.
-			if volumeIsUsed {
-				volumes[volumeKey{dbVol.Pool, dbVol.Name}] = &dbVol.StorageVolume
-				break
-			}
+		volUsed, err := storagePools.VolumeIsUsedByDevice(vol.StorageVolume, inst.Type(), inst.Name(), dev)
+		if err != nil {
+			return nil, err
+		}
+
+		if volUsed {
+			volumes[volumeKey{vol.Pool, vol.Name}] = &vol.StorageVolume
 		}
 	}
 
