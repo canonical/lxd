@@ -628,25 +628,24 @@ func GetNetworkState(name string) (*api.NetworkState, error) {
 	addrs, err := netIf.Addrs()
 	if err == nil {
 		for _, addr := range addrs {
-			fields := strings.SplitN(addr.String(), "/", 2)
-			if len(fields) != 2 {
+			address, netmask, found := strings.Cut(addr.String(), "/")
+			if !found {
 				continue
 			}
 
 			family := "inet"
-			if strings.Contains(fields[0], ":") {
+			if strings.Contains(address, ":") {
 				family = "inet6"
 			}
 
-			scope := shared.GetIPScope(fields[0])
+			networkAddress := api.NetworkStateAddress{
+				Family:  family,
+				Address: address,
+				Netmask: netmask,
+				Scope:   shared.GetIPScope(address),
+			}
 
-			address := api.NetworkStateAddress{}
-			address.Family = family
-			address.Address = fields[0]
-			address.Netmask = fields[1]
-			address.Scope = scope
-
-			network.Addresses = append(network.Addresses, address)
+			network.Addresses = append(network.Addresses, networkAddress)
 		}
 	}
 
