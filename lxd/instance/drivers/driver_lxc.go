@@ -3369,7 +3369,7 @@ func (d *lxc) Snapshot(name string, expiry *time.Time, stateful bool, disks devi
 }
 
 // Restore restores a snapshot.
-func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
+func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool, disks deviceConfig.Devices) error {
 	if stateful {
 		return api.StatusErrorf(http.StatusBadRequest, "Stateful snapshot restore is not supported for containers")
 	}
@@ -3383,7 +3383,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 
 	d.logger.Info("Restoring instance", ctxMap)
 
-	pool, wasRunning, op, err := d.restoreCommon(d, sourceContainer)
+	targetSnapshots, pool, wasRunning, op, err := d.restoreCommon(d, sourceContainer, disks)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -3393,11 +3393,11 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	// This is required so we can actually unmount the container and restore its rootfs.
 	d.stopForkfile(false)
 
-	// Restore the rootfs.
-	err = pool.RestoreInstanceSnapshot(d, sourceContainer, nil)
+	// Restore the volumes.
+	err = pool.RestoreInstanceSnapshot(d, sourceContainer, targetSnapshots, nil)
 	if err != nil {
 		op.Done(err)
-		return fmt.Errorf("Failed to restore snapshot rootfs: %w", err)
+		return fmt.Errorf("Failed to restore snapshot: %w", err)
 	}
 
 	// Restart the container.
