@@ -175,7 +175,8 @@ func (d *powerflex) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allo
 		}
 
 		// Resize volume to the size specified.
-		err := d.SetVolumeQuota(vol.Volume, vol.ConfigSize(), false, op)
+		// In case there isn't any explicit size set, it's a noop.
+		err := d.SetVolumeQuota(vol.Volume, vol.config["size"], false, op)
 		if err != nil {
 			return err
 		}
