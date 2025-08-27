@@ -88,8 +88,12 @@ func (r *devLXDResponse) Render(w http.ResponseWriter, req *http.Request) (err e
 	if r.contentType != "websocket" {
 		w.Header().Set("Content-Type", "application/octet-stream")
 
-		_, err = fmt.Fprint(w, r.content.(string))
-		return err
+		if r.content != nil {
+			_, err = fmt.Fprint(w, fmt.Sprint(r.content))
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
