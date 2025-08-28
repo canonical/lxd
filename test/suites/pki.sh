@@ -36,7 +36,7 @@ EOF
   # Setup the daemon.
   LXD5_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   spawn_lxd "${LXD5_DIR}" true
-  LXD5_ADDR=$(cat "${LXD5_DIR}/lxd.addr")
+  LXD5_ADDR=$(< "${LXD5_DIR}/lxd.addr")
 
   # Add a certificate to the trust store that is not signed by the CA before enabling CA mode.
   token="$(LXD_DIR=${LXD5_DIR} lxc config trust add --name foo --quiet --project default)"
