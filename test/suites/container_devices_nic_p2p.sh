@@ -115,7 +115,7 @@ test_container_devices_nic_p2p() {
   fi
 
   # Check custom MTU is applied on host-side on hot-plug.
-  if [ "$(cat /sys/class/net/"${vethHostName}p2p"/mtu)" != "1401" ]; then
+  if [ "$(< /sys/class/net/"${vethHostName}p2p"/mtu)" != "1401" ]; then
     echo "host veth mtu invalid"
     false
   fi
