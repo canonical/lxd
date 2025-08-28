@@ -37,8 +37,7 @@ test_image_prefer_cached() {
       return 1
   fi
 
-  lxc delete c1
-  lxc delete c2
+  lxc delete c1 c2
   lxc remote remove l2
   lxc image delete "${fp1}"
 
