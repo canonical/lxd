@@ -25,8 +25,6 @@ test_storage_profiles() {
     # Create loop file btrfs pool.
     lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool2" "${HAS_BTRFS}"
 
-    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool4" dir
-
     # Set default storage pool for image import.
     lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")-pool1"
 
