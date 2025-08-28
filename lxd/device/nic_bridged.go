@@ -92,6 +92,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		"maas.subnet.ipv6",
 		"boot.priority",
 		"vlan",
+		"required",
 	}
 
 	// checkWithManagedNetwork validates the device's settings against the managed network.
@@ -214,6 +215,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		var err error
 		d.network, err = network.LoadByName(d.state, api.ProjectDefaultName, d.config["network"])
 		if err != nil {
+
 			return fmt.Errorf("Error loading network config for %q: %w", d.config["network"], err)
 		}
 
@@ -486,8 +488,8 @@ func (d *nicBridged) PreStartCheck() error {
 		return nil
 	}
 
-	// If managed network is not available, don't try and start instance.
-	if d.network.LocalStatus() == api.NetworkStatusUnavailable {
+	// If managed network is required and not available, don't try and start instance.
+	if shared.IsTrueOrEmpty(d.config["required"]) && d.network.LocalStatus() == api.NetworkStatusUnavailable {
 		return api.StatusErrorf(http.StatusServiceUnavailable, "Network %q unavailable on this server", d.network.Name())
 	}
 
@@ -499,6 +501,10 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
 		return nil, err
+	}
+
+	if d.network == nil || d.network.LocalStatus() == api.NetworkStatusUnavailable {
+		return nil, nil
 	}
 
 	revert := revert.New()
