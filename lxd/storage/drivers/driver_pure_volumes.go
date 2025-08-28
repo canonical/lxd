@@ -195,7 +195,7 @@ func (d *pure) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInco
 		}
 
 		// Resize volume to the size specified.
-		err := d.SetVolumeQuota(v, v.ConfigSize(), false, op)
+		err := d.SetVolumeQuota(v, vol.config["size"], false, op)
 		if err != nil {
 			return err
 		}
