@@ -811,7 +811,7 @@ test_projects_limits() {
     spawn_lxd "${LXD_REMOTE_DIR}" true
     lxc project switch p1
 
-    LXD_REMOTE_ADDR=$(cat "${LXD_REMOTE_DIR}/lxd.addr")
+    LXD_REMOTE_ADDR=$(< "${LXD_REMOTE_DIR}/lxd.addr")
     (LXD_DIR=${LXD_REMOTE_DIR} deps/import-busybox --alias remoteimage --template start --public)
 
     lxc remote add l2 "${LXD_REMOTE_ADDR}" --accept-certificate --password foo
