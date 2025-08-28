@@ -27,7 +27,7 @@ _server_config_cluster_uuid() {
   my_curl -X PATCH "https://${LXD_ADDR}/1.0" -d "{\"config\":{\"core.https_address\":\"${LXD_ADDR}\",\"volatile.uuid\":\"${cluster_uuid}\"}}" | jq -e '.status == "Success" and .status_code == 200'
 
   # Check that the cluster UUID matches the server UUID
-  [ "$(cat "${LXD_DIR}/server.uuid")" = "${cluster_uuid}" ]
+  [ "$(< "${LXD_DIR}/server.uuid")" = "${cluster_uuid}" ]
 }
 
 _server_config_auth_secret() {
@@ -44,7 +44,7 @@ _server_config_auth_secret() {
 
 _server_config_access() {
   # test untrusted server GET
-  ! my_curl -X GET "https://$(cat "${LXD_SERVERCONFIG_DIR}/lxd.addr")/1.0" | grep -wF "environment" || false
+  ! my_curl -X GET "https://$(< "${LXD_SERVERCONFIG_DIR}/lxd.addr")/1.0" | grep -wF "environment" || false
 
   # test authentication type, only tls is enabled by default
   [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0" | jq -r '.metadata.auth_methods | .[]')" = "tls" ]
