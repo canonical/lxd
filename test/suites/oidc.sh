@@ -14,7 +14,7 @@ test_oidc() {
 
   # Setup OIDC
   spawn_oidc
-  lxc config set "oidc.issuer=http://127.0.0.1:$(cat "${TEST_DIR}/oidc.port")/"
+  lxc config set "oidc.issuer=http://127.0.0.1:$(< "${TEST_DIR}/oidc.port")/"
   lxc config set "oidc.client.id=device"
 
   # Expect this to fail. No user set.
