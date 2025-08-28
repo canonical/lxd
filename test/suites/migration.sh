@@ -11,7 +11,7 @@ test_migration() {
 
   LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   spawn_lxd "${LXD2_DIR}" true
-  LXD2_ADDR=$(cat "${LXD2_DIR}/lxd.addr")
+  LXD2_ADDR=$(< "${LXD2_DIR}/lxd.addr")
 
   if command -v criu >/dev/null; then
     # workaround for kernel/criu
@@ -304,7 +304,7 @@ migration() {
   lxc_remote copy l1:c1 l2:c2 --refresh
   lxc_remote start l2:c2
   lxc_remote file pull l2:c2/root/testfile1 .
-  [ "$(cat testfile1)" = "test" ]
+  [ "$(< testfile1)" = "test" ]
   rm testfile1
   lxc_remote stop -f l2:c2
 
