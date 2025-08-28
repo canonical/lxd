@@ -42,7 +42,7 @@ test_network() {
   lxc network set lxdt$$ ipv6.routing false
   lxc network set lxdt$$ ipv6.dhcp.stateful true
   lxc network set lxdt$$ bridge.hwaddr 00:11:22:33:44:55
-  [ "$(cat /sys/class/net/lxdt$$/address)" = "00:11:22:33:44:55" ]
+  [ "$(< /sys/class/net/lxdt$$/address)" = "00:11:22:33:44:55" ]
 
   # validate unset and patch
   [ "$(lxc network get lxdt$$ ipv6.dhcp.stateful)" = "true" ]
