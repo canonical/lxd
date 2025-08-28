@@ -36,7 +36,7 @@ test_container_devices_nic_bridged() {
   lxc network set "${brName}" ipv6.address 2001:db8::1/64
   lxc network set "${brName}" ipv4.routes 192.0.3.0/24
   lxc network set "${brName}" ipv6.routes 2001:db8::/64
-  [ "$(cat "/sys/class/net/${brName}/address")" = "00:11:22:33:44:55" ]
+  [ "$(< "/sys/class/net/${brName}/address")" = "00:11:22:33:44:55" ]
 
   # Record how many nics we started with.
   startNicCount=$(find /sys/class/net | wc -l)
@@ -129,7 +129,7 @@ test_container_devices_nic_bridged() {
   fi
 
   # Check profile custom MTU doesn't affect the host.
-  if [ "$(cat /sys/class/net/"${vethHostName}"/mtu)" != "1500" ]; then
+  if [ "$(< /sys/class/net/"${vethHostName}"/mtu)" != "1500" ]; then
     echo "host veth mtu invalid"
     false
   fi
@@ -141,7 +141,7 @@ test_container_devices_nic_bridged() {
   fi
 
   # Check profile custom txqueuelen is applied on host side of veth.
-  if [ "$(cat /sys/class/net/"${vethHostName}"/tx_queue_len)" != "1200" ]; then
+  if [ "$(< /sys/class/net/"${vethHostName}"/tx_queue_len)" != "1200" ]; then
     echo "host veth txqueuelen invalid"
     false
   fi
@@ -223,7 +223,7 @@ test_container_devices_nic_bridged() {
   fi
 
   # Check custom MTU doesn't affect the host.
-  if [ "$(cat /sys/class/net/"${vethHostName}"/mtu)" != "1500" ]; then
+  if [ "$(< /sys/class/net/"${vethHostName}"/mtu)" != "1500" ]; then
     echo "host veth mtu invalid"
     false
   fi
@@ -283,7 +283,7 @@ test_container_devices_nic_bridged() {
   fi
 
   # Check custom MTU doesn't affect the host.
-  if [ "$(cat /sys/class/net/"${vethHostName}"/mtu)" != "1500" ]; then
+  if [ "$(< /sys/class/net/"${vethHostName}"/mtu)" != "1500" ]; then
     echo "host veth mtu invalid"
     false
   fi
@@ -580,7 +580,7 @@ test_container_devices_nic_bridged() {
   lxc network set "${brName}" ipv6.address none
 
   # Confirm IPv6 is disabled.
-  [ "$(cat "/proc/sys/net/ipv6/conf/${brName}/disable_ipv6")" = "1" ]
+  [ "$(< "/proc/sys/net/ipv6/conf/${brName}/disable_ipv6")" = "1" ]
 
   if [ -f "${LXD_DIR}/networks/${brName}/dnsmasq.leases" ] ; then
     echo "dnsmasq.leases file still present after disabling DHCP"
@@ -606,7 +606,7 @@ test_container_devices_nic_bridged() {
   lxc profile device set "${ctName}" eth0 ipv6.routes "2001:db8::1${ipRand}/128"
 
   # Confirm IPv6 is re-enabled.
-  [ "$(cat "/proc/sys/net/ipv6/conf/${brName}/disable_ipv6")" = "0" ]
+  [ "$(< "/proc/sys/net/ipv6/conf/${brName}/disable_ipv6")" = "0" ]
 
   # Check dnsmasq host file is created on add.
   lxc config device add "${ctName}" eth0 nic nictype=bridged parent="${brName}" name=eth0
