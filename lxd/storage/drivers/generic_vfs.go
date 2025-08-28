@@ -1213,7 +1213,7 @@ func mountVolume(d Driver, vol Volume, getDevicePath getVolumePathFunc, op *oper
 	defer revert.Fail()
 
 	// Activate volume if needed.
-	volDevPath, cleanup, err := getDevicePath(vol, true)
+	volDevPath, cleanup, err := getDevicePath(vol, !vol.MountInUse())
 	if err != nil {
 		return err
 	}
