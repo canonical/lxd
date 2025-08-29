@@ -41,6 +41,21 @@ type DevLXDGet struct {
 	// Whether the caller is trusted or untrusted
 	// Example: untrusted
 	Auth string `json:"auth" yaml:"auth"`
+
+	// List of supported storage drivers.
+	// Example: [{"name": "zfs", "remote": false}, {"name": "btrfs", "remote": true}]
+	SupportedStorageDrivers []DevLXDServerStorageDriverInfo `json:"supported_storage_drivers" yaml:"supported_storage_drivers"`
+}
+
+// DevLXDServerStorageDriverInfo represents the read-only info about a storage driver.
+type DevLXDServerStorageDriverInfo struct {
+	// Name of the driver.
+	// Example: zfs
+	Name string
+
+	// Whether the driver has remote volumes.
+	// Example: false
+	Remote bool
 }
 
 // DevLXDUbuntuProGuestTokenResponse contains the expected fields of proAPIGetGuestTokenV1 that must be passed back to
