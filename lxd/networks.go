@@ -1142,20 +1142,30 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Get the existing network.
-	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
+	err = doNetworkDelete(r.Context(), s, details.networkName, effectiveProjectName, details.requestProject.Config)
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+		return response.SmartError(err)
+	}
+
+	return response.EmptySyncResponse
+}
+
+// doNetworkDelete deletes the named network in the given project.
+func doNetworkDelete(ctx context.Context, s *state.State, name string, effectiveProjectName string, requestProjectConfig map[string]string) error {
+	// Get the existing network.
+	n, err := network.LoadByName(s, effectiveProjectName, name)
+	if err != nil {
+		return fmt.Errorf("Failed loading network: %w", err)
 	}
 
 	// Check if project allows access to network.
-	if !project.NetworkAllowed(details.requestProject.Config, details.networkName, n.IsManaged()) {
-		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
+	if !project.NetworkAllowed(requestProjectConfig, name, n.IsManaged()) {
+		return api.NewStatusError(http.StatusNotFound, "Network not found")
 	}
 
-	requestor, err := request.GetRequestor(r.Context())
+	requestor, err := request.GetRequestor(ctx)
 	if err != nil {
-		return response.SmartError(err)
+		return err
 	}
 
 	clusterNotification := requestor.IsClusterNotification()
@@ -1163,55 +1173,54 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		// Quick checks.
 		inUse, err := n.IsUsed()
 		if err != nil {
-			return response.SmartError(err)
+			return err
 		}
 
 		if inUse {
-			return response.BadRequest(errors.New("The network is currently in use"))
+			return api.NewStatusError(http.StatusBadRequest, "The network is currently in use")
 		}
 	}
 
 	if n.LocalStatus() != api.NetworkStatusPending {
 		err = n.Delete(requestor.ClientType())
 		if err != nil {
-			return response.InternalError(err)
+			return fmt.Errorf("Failed to delete network: %w", err)
 		}
 	}
 
 	// If this is a cluster notification, we're done, any database work will be done by the node that is
 	// originally serving the request.
 	if clusterNotification {
-		return response.EmptySyncResponse
+		return nil
 	}
 
 	// If we are clustered, also notify all other nodes, if any.
 	if s.ServerClustered {
 		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAll)
 		if err != nil {
-			return response.SmartError(err)
+			return err
 		}
 
 		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 			return client.UseProject(n.Project()).DeleteNetwork(n.Name())
 		})
 		if err != nil {
-			return response.SmartError(err)
+			return err
 		}
 	}
 
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Remove the network from the database.
 		err = tx.DeleteNetwork(ctx, n.Project(), n.Name())
-
 		return err
 	})
 	if err != nil {
-		return response.SmartError(err)
+		return err
 	}
 
 	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkDeleted.Event(n, requestor.EventLifecycleRequestor(), nil))
 
-	return response.EmptySyncResponse
+	return nil
 }
 
 // swagger:operation POST /1.0/networks/{name} networks network_post
