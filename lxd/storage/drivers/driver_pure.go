@@ -28,6 +28,9 @@ var pureSupportedConnectors = []string{
 	connectors.TypeNVME,
 }
 
+// pureMinVolumeSizeBytes defines the minimum size of a Pure Storage volume, which is 1MiB.
+const pureMinVolumeSizeBytes = 1024 * 1024
+
 type pure struct {
 	common
 
