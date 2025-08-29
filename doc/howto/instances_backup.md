@@ -55,6 +55,8 @@ Use the following command to create a snapshot of an instance:
 
 For virtual machines, you can add the `--stateful` flag to capture not only the data included in the instance volume but also the running state of the instance.
 Note that this feature is not fully supported for containers because of CRIU limitations.
+
+By default, instance snapshots include a snapshot of the instance's root disk volume only. To include snapshots of attached storage volumes, set the `--disk-volumes` flag to "all-exclusive".
 ````
 ````{group-tab} API
 To create a snapshot of an instance, send a POST request to the `snapshots` endpoint:
@@ -72,6 +74,8 @@ If you want to replace an existing snapshot, {ref}`delete it <instances-snapshot
 
 For virtual machines, you can add `"stateful": true` to the request data to capture not only the data included in the instance volume but also the running state of the instance.
 Note that this feature is not fully supported for containers because of CRIU limitations.
+
+By default, instance snapshots include a snapshot of the instance's root disk volume only. To include snapshots of attached storage volumes, set the `disk_volumes_mode` flag to "all-exclusive" in the request data.
 
 See [`POST /1.0/instances/{name}/snapshots`](swagger:/instances/instance_snapshots_post) for more information.
 ````
@@ -118,6 +122,8 @@ Other changes to the configuration are silently ignored.
 To delete a snapshot, use the following command:
 
     lxc delete <instance_name>/<snapshot_name>
+
+By default, only the instance's root disk volume snapshot is deleted. To also delete snapshots of attached storage volumes, set the `--disk-volumes` flag to "all-exclusive".
 ````
 ````{group-tab} API
 To retrieve the snapshots for an instance, send a GET request to the `snapshots` endpoint:
@@ -143,6 +149,8 @@ Other changes to the configuration are silently ignored.
 To delete a snapshot, send a DELETE request:
 
     lxc query --request DELETE /1.0/instances/<instance_name>/snapshots/<snapshot_name>
+
+By default, only the instance's root disk volume snapshot is deleted. To also delete snapshots of attached storage volumes, set the `disk-volumes` query parameter to "all-exclusive" in the request.
 
 See [`GET /1.0/instances/{name}/snapshots`](swagger:/instances/instance_snapshots_get), [`GET /1.0/instances/{name}/snapshots/{snapshot}`](swagger:/instances/instance_snapshot_get), [`PATCH /1.0/instances/{name}/snapshots/{snapshot}`](swagger:/instances/instance_snapshot_patch), and [`DELETE /1.0/instances/{name}/snapshots/{snapshot}`](swagger:/instances/instance_snapshot_delete) for more information.
 
@@ -214,6 +222,8 @@ To restore an instance to a snapshot, use the following command:
     lxc restore <instance_name> <snapshot_name>
 
 If the snapshot is stateful (which means that it contains information about the running state of the instance), you can add the `--stateful` flag to restore the state.
+
+By default, instance snapshot restores include a snapshot of the instance's root disk volume only. To also restore snapshots of attached storage volumes, set the `--disk-volumes` flag to "all-exclusive".
 ```
 ```{group-tab} API
 To restore an instance to a snapshot, send a PUT request to the instance:
@@ -228,6 +238,8 @@ If the snapshot is stateful (which means that it contains information about the 
       "restore": "<instance_name>/<snapshot_name>",
       "stateful": true
     }'
+
+By default, instance snapshot restores include a snapshot of the instance's root disk volume only. To also restore snapshots of attached storage volumes, set the `restore_disk_volumes_mode` flag to "all-exclusive" in the request data.
 
 See [`PUT /1.0/instances/{name}`](swagger:/instances/instance_put) for more information.
 ```
