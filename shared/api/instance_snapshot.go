@@ -23,6 +23,18 @@ type InstanceSnapshotsPost struct {
 	//
 	// API extension: snapshot_expiry_creation
 	ExpiresAt *time.Time `json:"expires_at" yaml:"expires_at"`
+
+	// Whether to snapshot all attached volumes.
+	// Example: false
+	//
+	// API extension: instance_snapshot_multi_volume
+	IncludeAttached bool `json:"include_attached" yaml:"include_attached"`
+
+	// Disks to include in snapshot.
+	// Example: ["root", "data"]
+	//
+	// API extension: instance_snapshot_multi_volume
+	Disks []string `json:"disks,omitempty" yaml:"disks,omitempty"`
 }
 
 // InstanceSnapshotPost represents the fields required to rename/move a LXD instance snapshot.

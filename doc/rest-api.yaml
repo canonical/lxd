@@ -2301,11 +2301,25 @@ definitions:
                         type: disk
                 type: object
                 x-go-name: Devices
+            disks:
+                description: Disks to include in restore.
+                example:
+                    - root
+                    - data
+                items:
+                    type: string
+                type: array
+                x-go-name: Disks
             ephemeral:
                 description: Whether the instance is ephemeral (deleted on shutdown)
                 example: false
                 type: boolean
                 x-go-name: Ephemeral
+            include_attached:
+                description: Whether to include all attached volume snapshots in restore.
+                example: false
+                type: boolean
+                x-go-name: IncludeAttached
             profiles:
                 description: List of profiles applied to the instance
                 example:
@@ -2468,12 +2482,26 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     InstanceSnapshotsPost:
         properties:
+            disks:
+                description: Disks to include in snapshot.
+                example:
+                    - root
+                    - data
+                items:
+                    type: string
+                type: array
+                x-go-name: Disks
             expires_at:
                 description: When the snapshot expires (gets auto-deleted)
                 example: "2021-03-23T17:38:37.753398689-04:00"
                 format: date-time
                 type: string
                 x-go-name: ExpiresAt
+            include_attached:
+                description: Whether to snapshot all attached volumes.
+                example: false
+                type: boolean
+                x-go-name: IncludeAttached
             name:
                 description: Snapshot name
                 example: snap0
@@ -2945,11 +2973,25 @@ definitions:
                         type: disk
                 type: object
                 x-go-name: Devices
+            disks:
+                description: Disks to include in restore.
+                example:
+                    - root
+                    - data
+                items:
+                    type: string
+                type: array
+                x-go-name: Disks
             ephemeral:
                 description: Whether the instance is ephemeral (deleted on shutdown)
                 example: false
                 type: boolean
                 x-go-name: Ephemeral
+            include_attached:
+                description: Whether to include all attached volume snapshots in restore.
+                example: false
+                type: boolean
+                x-go-name: IncludeAttached
             instance_type:
                 description: Cloud instance type (AWS, GCP, Azure, ...) to emulate with limits
                 example: t1.micro

@@ -55,6 +55,8 @@ Use the following command to create a snapshot of an instance:
 
 For virtual machines, you can add the `--stateful` flag to capture not only the data included in the instance volume but also the running state of the instance.
 Note that this feature is not fully supported for containers because of CRIU limitations.
+
+By default, instance snapshots include a snapshot of the instance's root disk device only. To include snapshots of attached storage volumes, set the `--include-attached` flag or specify a comma-separated list of specific disks to snapshot alongside the root disk using the `--disks` flag.
 ````
 ````{group-tab} API
 To create a snapshot of an instance, send a POST request to the `snapshots` endpoint:
@@ -72,6 +74,8 @@ If you want to replace an existing snapshot, {ref}`delete it <instances-snapshot
 
 For virtual machines, you can add `"stateful": true` to the request data to capture not only the data included in the instance volume but also the running state of the instance.
 Note that this feature is not fully supported for containers because of CRIU limitations.
+
+By default, instance snapshots include a snapshot of the instance's root disk device only. To include snapshots of attached storage volumes, add `"include_attached: true` to the request data or specify a list of disks to snapshot alongside the root disk by adding `disks: [<disk>...]` to the request data.
 
 See [`POST /1.0/instances/{name}/snapshots`](swagger:/instances/instance_snapshots_post) for more information.
 ````
@@ -214,6 +218,8 @@ To restore an instance to a snapshot, use the following command:
     lxc restore <instance_name> <snapshot_name>
 
 If the snapshot is stateful (which means that it contains information about the running state of the instance), you can add the `--stateful` flag to restore the state.
+
+By default, instance restores use a snapshot of the instance's root disk device only. To also restore snapshots of all attached storage volumes, set the `--include-attached` flag or specify a comma-separated list of specific disks to restore alongside the root disk using the `--disks` flag.
 ```
 ```{group-tab} API
 To restore an instance to a snapshot, send a PUT request to the instance:
@@ -228,6 +234,8 @@ If the snapshot is stateful (which means that it contains information about the 
       "restore": "<instance_name>/<snapshot_name>",
       "stateful": true
     }'
+
+By default, instance restores use a snapshot of the instance's root disk device only. To also restore snapshots of all attached storage volumes, add `"include_attached: true` to the request data or specify a list of disks to restore alongside the root disk by adding `disks: [<disk>...]` to the request data.
 
 See [`PUT /1.0/instances/{name}`](swagger:/instances/instance_put) for more information.
 ```

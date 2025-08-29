@@ -917,11 +917,12 @@ func InstanceContentType(inst instance.Instance) drivers.ContentType {
 	return contentType
 }
 
-// volumeIsUsedByDevice; true when vol is referred to by dev, assumes the volume
-// belongs to the correct project to be referenced by the instance.
-// instanceType=instanceType.Any indicates the device is used by a profile.
-// The instanceName argument is only used if instanceType != instanceType.Any.
-func volumeIsUsedByDevice(vol api.StorageVolume, instanceType instancetype.Type, instanceName string, dev map[string]string) (bool, error) {
+// VolumeIsUsedByDevice reports whether a device config refers to the given storage volume.
+// Assumes vol is in the correct project (no cross‑project lookup). Handles implicit
+// root-disk references (e.g. empty source or source == instanceName).
+// Use instancetype.Any for profile devices; instanceName is ignored in that case.
+// For instance devices, pass the concrete instance type and name.
+func VolumeIsUsedByDevice(vol api.StorageVolume, instanceType instancetype.Type, instanceName string, dev map[string]string) (bool, error) {
 	if dev["type"] != cluster.TypeDisk.String() {
 		return false, nil
 	}
@@ -1055,7 +1056,7 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 		// Iterate through each of the profiles's devices, looking for disks in the same pool as volume.
 		// Then try and match the volume name against the profile device's "source" property.
 		for name, dev := range profile.Devices {
-			usesVol, err := volumeIsUsedByDevice(*vol, instancetype.Any, "", dev)
+			usesVol, err := VolumeIsUsedByDevice(*vol, instancetype.Any, "", dev)
 			if err != nil {
 				return err
 			}
@@ -1118,7 +1119,7 @@ func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName st
 			// Iterate through each of the instance's devices, looking for disks in the same pool as volume.
 			// Then try and match the volume name against the instance device's "source" property.
 			for devName, dev := range devices {
-				usesVol, err := volumeIsUsedByDevice(*vol, inst.Type, inst.Name, dev)
+				usesVol, err := VolumeIsUsedByDevice(*vol, inst.Type, inst.Name, dev)
 				if err != nil {
 					return err
 				}

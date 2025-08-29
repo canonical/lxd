@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -20,9 +21,11 @@ import (
 type cmdSnapshot struct {
 	global *cmdGlobal
 
-	flagStateful bool
-	flagNoExpiry bool
-	flagReuse    bool
+	flagStateful        bool
+	flagNoExpiry        bool
+	flagReuse           bool
+	flagIncludeAttached bool
+	flagDisks           string
 }
 
 func (c *cmdSnapshot) command() *cobra.Command {
@@ -44,6 +47,8 @@ running state, including process memory state, TCP connections, ...`))
 	cmd.Flags().BoolVar(&c.flagStateful, "stateful", false, i18n.G("Whether or not to snapshot the instance's running state"))
 	cmd.Flags().BoolVar(&c.flagNoExpiry, "no-expiry", false, i18n.G("Ignore any configured auto-expiry for the instance"))
 	cmd.Flags().BoolVar(&c.flagReuse, "reuse", false, i18n.G("If the snapshot name already exists, delete and create a new one"))
+	cmd.Flags().StringVar(&c.flagDisks, "disks", "", i18n.G(`Disks to include in snapshot.`))
+	cmd.Flags().BoolVar(&c.flagIncludeAttached, "include-attached", false, i18n.G(`Whether or not to snapshot all attached volumes alongside instance's root disk.`))
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
 		if len(args) > 0 {
 			return nil, cobra.ShellCompDirectiveNoFileComp
@@ -63,6 +68,10 @@ func (c *cmdSnapshot) run(cmd *cobra.Command, args []string) error {
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
 	if exit {
 		return err
+	}
+
+	if c.flagIncludeAttached && c.flagDisks != "" {
+		return errors.New("Cannot use --include-attached flag with --disks")
 	}
 
 	// If stdin isn't a terminal, read text from it
@@ -121,8 +130,10 @@ func (c *cmdSnapshot) run(cmd *cobra.Command, args []string) error {
 	}
 
 	req := api.InstanceSnapshotsPost{
-		Name:     snapname,
-		Stateful: c.flagStateful,
+		Name:            snapname,
+		Stateful:        c.flagStateful,
+		IncludeAttached: c.flagIncludeAttached,
+		Disks:           shared.SplitNTrimSpace(c.flagDisks, ",", -1, true),
 	}
 
 	if !stdinData.ExpiresAt.IsZero() {

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-08-27 10:07+0000\n"
+"POT-Creation-Date: 2025-08-29 11:41-0600\n"
 "PO-Revision-Date: 2023-03-10 15:14+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -1740,11 +1740,11 @@ msgstr "プロファイルを作成します"
 msgid "Create identity provider groups"
 msgstr "新たにクラスターグループを作成します"
 
-#: lxc/snapshot.go:31
+#: lxc/snapshot.go:34
 msgid "Create instance snapshots"
 msgstr "インスタンスのスナップショットを作成します"
 
-#: lxc/snapshot.go:32
+#: lxc/snapshot.go:35
 msgid ""
 "Create instance snapshots\n"
 "\n"
@@ -2069,7 +2069,7 @@ msgstr "警告を削除します"
 #: lxc/project.go:856 lxc/project.go:923 lxc/publish.go:34 lxc/query.go:35
 #: lxc/rebuild.go:28 lxc/remote.go:38 lxc/remote.go:94 lxc/remote.go:753
 #: lxc/remote.go:791 lxc/remote.go:877 lxc/remote.go:958 lxc/remote.go:1022
-#: lxc/remote.go:1071 lxc/rename.go:21 lxc/restore.go:22 lxc/snapshot.go:32
+#: lxc/remote.go:1071 lxc/rename.go:21 lxc/restore.go:26 lxc/snapshot.go:35
 #: lxc/storage.go:35 lxc/storage.go:98 lxc/storage.go:204 lxc/storage.go:262
 #: lxc/storage.go:394 lxc/storage.go:476 lxc/storage.go:656 lxc/storage.go:743
 #: lxc/storage.go:845 lxc/storage.go:939 lxc/storage_bucket.go:31
@@ -2205,6 +2205,15 @@ msgstr "ディスク使用量:"
 #: lxc/info.go:430
 msgid "Disk:"
 msgstr "ディスク:"
+
+#: lxc/restore.go:40
+msgid "Disks to include in restore."
+msgstr ""
+
+#: lxc/snapshot.go:50
+#, fuzzy
+msgid "Disks to include in snapshot."
+msgstr "インスタンスとスナップショットを削除します"
 
 #: lxc/info.go:433
 msgid "Disks:"
@@ -3203,7 +3212,7 @@ msgstr ""
 "存在するスナップショット名の場合は既存のスナップショットを削除したあとに新し"
 "いスナップショットを作成します"
 
-#: lxc/snapshot.go:46 lxc/storage_volume.go:2455
+#: lxc/snapshot.go:49 lxc/storage_volume.go:2455
 msgid "If the snapshot name already exists, delete and create a new one"
 msgstr ""
 "存在するスナップショット名の場合は既存のスナップショットを削除したあとに新し"
@@ -3215,7 +3224,7 @@ msgid ""
 "lxd init"
 msgstr "初めてこのマシンで LXD を使う場合、lxd init と実行する必要があります"
 
-#: lxc/snapshot.go:45
+#: lxc/snapshot.go:48
 msgid "Ignore any configured auto-expiry for the instance"
 msgstr "設定されている自動でのインスタンスの有効期限設定を無視します"
 
@@ -3418,7 +3427,7 @@ msgstr "クライアントバージョン: %s\n"
 msgid "Invalid format: %s"
 msgstr "不正なフォーマット %s"
 
-#: lxc/snapshot.go:95
+#: lxc/snapshot.go:104
 #, c-format
 msgid "Invalid instance name: %s"
 msgstr "不正なインスタンス名: %s"
@@ -5719,11 +5728,11 @@ msgstr ""
 msgid "Restore cluster member"
 msgstr "クラスターメンバーをリストアします"
 
-#: lxc/restore.go:21
+#: lxc/restore.go:25
 msgid "Restore instances from snapshots"
 msgstr "スナップショットからインスタンスをリストアします"
 
-#: lxc/restore.go:22
+#: lxc/restore.go:26
 msgid ""
 "Restore instances from snapshots\n"
 "\n"
@@ -7394,7 +7403,14 @@ msgstr "処理が完全に終わるまで待ちます"
 msgid "Whether or not to only backup the instance (without snapshots)"
 msgstr "スナップショットを含めずにインスタンスのみをバックアップするかどうか"
 
-#: lxc/restore.go:34
+#: lxc/restore.go:39
+#, fuzzy
+msgid ""
+"Whether or not to restore snapshots of all attached volumes alongside "
+"instance's root disk snapshot."
+msgstr "インスタンスの稼動状態のスナップショットを取得するかどうか"
+
+#: lxc/restore.go:38
 msgid ""
 "Whether or not to restore the instance's running state from snapshot (if "
 "available)"
@@ -7402,7 +7418,14 @@ msgstr ""
 "スナップショットからインスタンスの稼動状態をリストアするかどうか (取得可能な"
 "場合)"
 
-#: lxc/snapshot.go:44
+#: lxc/snapshot.go:51
+#, fuzzy
+msgid ""
+"Whether or not to snapshot all attached volumes alongside instance's root "
+"disk."
+msgstr "インスタンスの稼動状態のスナップショットを取得するかどうか"
+
+#: lxc/snapshot.go:47
 msgid "Whether or not to snapshot the instance's running state"
 msgstr "インスタンスの稼動状態のスナップショットを取得するかどうか"
 
@@ -7671,7 +7694,7 @@ msgstr "[<remote>:]<instance> <profile>"
 msgid "[<remote>:]<instance> <profiles>"
 msgstr "[<remote>:]<instance> <profiles>"
 
-#: lxc/restore.go:20
+#: lxc/restore.go:24
 msgid "[<remote>:]<instance> <snapshot>"
 msgstr "[<remote>:]<instance> <snapshot>"
 
@@ -7680,7 +7703,7 @@ msgstr "[<remote>:]<instance> <snapshot>"
 msgid "[<remote>:]<instance> <template>"
 msgstr "[<remote>:]<instance> <template>"
 
-#: lxc/snapshot.go:30
+#: lxc/snapshot.go:33
 msgid "[<remote>:]<instance> [<snapshot name>]"
 msgstr "[<remote>:]<instance> [<snapshot name>]"
 
@@ -8694,7 +8717,7 @@ msgstr ""
 "lxc query -X DELETE --wait /1.0/instances/c1\n"
 "    ローカルのインスタンス \"c1\" を削除します。"
 
-#: lxc/snapshot.go:37
+#: lxc/snapshot.go:40
 #, fuzzy
 msgid ""
 "lxc snapshot u1 snap0\n"
@@ -8709,7 +8732,7 @@ msgstr ""
 "lxc init ubuntu:22.04 u1 < config.yaml\n"
 "    config.yaml の設定を使ってインスタンスを作成します"
 
-#: lxc/restore.go:26
+#: lxc/restore.go:30
 msgid ""
 "lxc snapshot u1 snap0\n"
 "    Create the snapshot.\n"

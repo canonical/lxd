@@ -209,6 +209,18 @@ type InstancePut struct {
 	// Instance description
 	// Example: My test instance
 	Description string `json:"description" yaml:"description"`
+
+	// Whether to include all attached volume snapshots in restore.
+	// Example: false
+	//
+	// API extension: instance_snapshot_multi_volume
+	IncludeAttached bool `json:"include_attached" yaml:"include_attached"`
+
+	// Disks to include in restore.
+	// Example: ["root", "data"]
+	//
+	// API extension: instance_snapshot_multi_volume
+	Disks []string `json:"disks,omitempty" yaml:"disks,omitempty"`
 }
 
 // InstanceRebuildPost indicates how to rebuild an instance.

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-08-27 10:07+0000\n"
+"POT-Creation-Date: 2025-08-29 11:41-0600\n"
 "PO-Revision-Date: 2022-03-10 15:07+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian <https://hosted.weblate.org/projects/linux-containers/"
@@ -1446,11 +1446,11 @@ msgstr ""
 msgid "Create identity provider groups"
 msgstr ""
 
-#: lxc/snapshot.go:31
+#: lxc/snapshot.go:34
 msgid "Create instance snapshots"
 msgstr ""
 
-#: lxc/snapshot.go:32
+#: lxc/snapshot.go:35
 msgid ""
 "Create instance snapshots\n"
 "\n"
@@ -1768,7 +1768,7 @@ msgstr ""
 #: lxc/project.go:856 lxc/project.go:923 lxc/publish.go:34 lxc/query.go:35
 #: lxc/rebuild.go:28 lxc/remote.go:38 lxc/remote.go:94 lxc/remote.go:753
 #: lxc/remote.go:791 lxc/remote.go:877 lxc/remote.go:958 lxc/remote.go:1022
-#: lxc/remote.go:1071 lxc/rename.go:21 lxc/restore.go:22 lxc/snapshot.go:32
+#: lxc/remote.go:1071 lxc/rename.go:21 lxc/restore.go:26 lxc/snapshot.go:35
 #: lxc/storage.go:35 lxc/storage.go:98 lxc/storage.go:204 lxc/storage.go:262
 #: lxc/storage.go:394 lxc/storage.go:476 lxc/storage.go:656 lxc/storage.go:743
 #: lxc/storage.go:845 lxc/storage.go:939 lxc/storage_bucket.go:31
@@ -1898,6 +1898,14 @@ msgstr ""
 
 #: lxc/info.go:430
 msgid "Disk:"
+msgstr ""
+
+#: lxc/restore.go:40
+msgid "Disks to include in restore."
+msgstr ""
+
+#: lxc/snapshot.go:50
+msgid "Disks to include in snapshot."
 msgstr ""
 
 #: lxc/info.go:433
@@ -2827,7 +2835,7 @@ msgstr ""
 msgid "If the image alias already exists, delete and create a new one"
 msgstr ""
 
-#: lxc/snapshot.go:46 lxc/storage_volume.go:2455
+#: lxc/snapshot.go:49 lxc/storage_volume.go:2455
 msgid "If the snapshot name already exists, delete and create a new one"
 msgstr ""
 
@@ -2837,7 +2845,7 @@ msgid ""
 "lxd init"
 msgstr ""
 
-#: lxc/snapshot.go:45
+#: lxc/snapshot.go:48
 msgid "Ignore any configured auto-expiry for the instance"
 msgstr ""
 
@@ -3030,7 +3038,7 @@ msgstr ""
 msgid "Invalid format: %s"
 msgstr ""
 
-#: lxc/snapshot.go:95
+#: lxc/snapshot.go:104
 #, c-format
 msgid "Invalid instance name: %s"
 msgstr ""
@@ -5084,11 +5092,11 @@ msgstr ""
 msgid "Restore cluster member"
 msgstr ""
 
-#: lxc/restore.go:21
+#: lxc/restore.go:25
 msgid "Restore instances from snapshots"
 msgstr ""
 
-#: lxc/restore.go:22
+#: lxc/restore.go:26
 msgid ""
 "Restore instances from snapshots\n"
 "\n"
@@ -6629,13 +6637,25 @@ msgstr ""
 msgid "Whether or not to only backup the instance (without snapshots)"
 msgstr ""
 
-#: lxc/restore.go:34
+#: lxc/restore.go:39
+msgid ""
+"Whether or not to restore snapshots of all attached volumes alongside "
+"instance's root disk snapshot."
+msgstr ""
+
+#: lxc/restore.go:38
 msgid ""
 "Whether or not to restore the instance's running state from snapshot (if "
 "available)"
 msgstr ""
 
-#: lxc/snapshot.go:44
+#: lxc/snapshot.go:51
+msgid ""
+"Whether or not to snapshot all attached volumes alongside instance's root "
+"disk."
+msgstr ""
+
+#: lxc/snapshot.go:47
 msgid "Whether or not to snapshot the instance's running state"
 msgstr ""
 
@@ -6890,7 +6910,7 @@ msgstr ""
 msgid "[<remote>:]<instance> <profiles>"
 msgstr ""
 
-#: lxc/restore.go:20
+#: lxc/restore.go:24
 msgid "[<remote>:]<instance> <snapshot>"
 msgstr ""
 
@@ -6899,7 +6919,7 @@ msgstr ""
 msgid "[<remote>:]<instance> <template>"
 msgstr ""
 
-#: lxc/snapshot.go:30
+#: lxc/snapshot.go:33
 msgid "[<remote>:]<instance> [<snapshot name>]"
 msgstr ""
 
@@ -7707,7 +7727,7 @@ msgid ""
 "    Delete local instance \"c1\"."
 msgstr ""
 
-#: lxc/snapshot.go:37
+#: lxc/snapshot.go:40
 msgid ""
 "lxc snapshot u1 snap0\n"
 "\tCreate a snapshot of \"u1\" called \"snap0\".\n"
@@ -7717,7 +7737,7 @@ msgid ""
 "\"config.yaml\"."
 msgstr ""
 
-#: lxc/restore.go:26
+#: lxc/restore.go:30
 msgid ""
 "lxc snapshot u1 snap0\n"
 "    Create the snapshot.\n"
