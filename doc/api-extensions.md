@@ -2714,3 +2714,7 @@ This change removes the previous limitation on `ovn` networks that load balancer
 
 Adds a new `bearer` authentication method and enables authentication to the DevLXD API.
 See {ref}`DevLXD bearer tokens <devlxd-authentication-bearer>`.
+
+## `import_custom_volume_tar`
+
+This adds new option `tar` for parameter `--type` in `POST /1.0/storage-pools/{poolName}/volumes/{type}` API call.

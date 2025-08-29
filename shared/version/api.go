@@ -458,6 +458,7 @@ var APIExtensions = []string{
 	"daemon_storage_per_project",
 	"ovn_internal_load_balancer",
 	"auth_bearer_devlxd",
+	"import_custom_volume_tar",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
