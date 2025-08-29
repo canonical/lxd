@@ -46,11 +46,20 @@ type devLXDAPIHandlerFunc func(*Daemon, *http.Request) response.Response
 
 // hoistFunc is a function that wraps the incoming requests, retrieves the targeted instance, and passes
 // it to the handler.
-type hoistFunc func(*Daemon, *http.Request, devLXDAPIHandlerFunc) response.Response
+type hoistFunc func(d *Daemon, r *http.Request, handler devLXDAPIHandlerFunc, accessHandler devLXDAPIHandlerFunc) response.Response
 
 // devLXDAPIEndpointAction represents an action on an devLXD API endpoint.
 type devLXDAPIEndpointAction struct {
+	// Handler is the function that handles the request.
 	Handler devLXDAPIHandlerFunc
+
+	// AccessHandler is an optional function that can be used to check access
+	// permissions before calling the main handler.
+	AccessHandler devLXDAPIHandlerFunc
+
+	// Whether this action allows untrusted requests.
+	// This option must be enabled if the access handler is not configured.
+	AllowUntrusted bool
 }
 
 // devLXDAPIEndpoint represents a URL in devLXD API.
@@ -72,6 +81,7 @@ var apiDevLXD = []devLXDAPIEndpoint{
 			Handler: func(d *Daemon, r *http.Request) response.Response {
 				return response.DevLXDResponse(http.StatusOK, []string{"/1.0"}, "json")
 			},
+			AllowUntrusted: true,
 		},
 	},
 	devLXD10Endpoint,
@@ -87,8 +97,8 @@ var apiDevLXD = []devLXDAPIEndpoint{
 
 var devLXD10Endpoint = devLXDAPIEndpoint{
 	Path:  "",
-	Get:   devLXDAPIEndpointAction{Handler: devLXDAPIGetHandler},
-	Patch: devLXDAPIEndpointAction{Handler: devLXDAPIPatchHandler},
+	Get:   devLXDAPIEndpointAction{Handler: devLXDAPIGetHandler, AllowUntrusted: true},
+	Patch: devLXDAPIEndpointAction{Handler: devLXDAPIPatchHandler, AllowUntrusted: true},
 }
 
 func devLXDAPIGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -176,7 +186,7 @@ func devLXDAPIPatchHandler(d *Daemon, r *http.Request) response.Response {
 
 var devLXDConfigEndpoint = devLXDAPIEndpoint{
 	Path: "config",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDConfigGetHandler},
+	Get:  devLXDAPIEndpointAction{Handler: devLXDConfigGetHandler, AllowUntrusted: true},
 }
 
 func devLXDConfigGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -227,7 +237,7 @@ func devLXDConfigGetHandler(d *Daemon, r *http.Request) response.Response {
 
 var devLXDConfigKeyEndpoint = devLXDAPIEndpoint{
 	Path: "config/{key}",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDConfigKeyGetHandler},
+	Get:  devLXDAPIEndpointAction{Handler: devLXDConfigKeyGetHandler, AllowUntrusted: true},
 }
 
 func devLXDConfigKeyGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -273,7 +283,7 @@ func devLXDConfigKeyGetHandler(d *Daemon, r *http.Request) response.Response {
 
 var devLXDImageExportEndpoint = devLXDAPIEndpoint{
 	Path: "images/{fingerprint}/export",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDImageExportHandler},
+	Get:  devLXDAPIEndpointAction{Handler: devLXDImageExportHandler, AllowUntrusted: true},
 }
 
 // devLXDImageExportHandler returns a file response containing the image files. The requested fingerprint must match
@@ -337,7 +347,7 @@ func devLXDImageExportHandler(d *Daemon, r *http.Request) response.Response {
 
 var devLXDMetadataEndpoint = devLXDAPIEndpoint{
 	Path: "meta-data",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDMetadataGetHandler},
+	Get:  devLXDAPIEndpointAction{Handler: devLXDMetadataGetHandler, AllowUntrusted: true},
 }
 
 func devLXDMetadataGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -353,7 +363,7 @@ func devLXDMetadataGetHandler(d *Daemon, r *http.Request) response.Response {
 
 var devLXDEventsEndpoint = devLXDAPIEndpoint{
 	Path: "events",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDEventsGetHandler},
+	Get:  devLXDAPIEndpointAction{Handler: devLXDEventsGetHandler, AllowUntrusted: true},
 }
 
 func devLXDEventsGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -419,7 +429,7 @@ func devLXDEventsGetHandler(d *Daemon, r *http.Request) response.Response {
 
 var devLXDDevicesEndpoint = devLXDAPIEndpoint{
 	Path: "devices",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDDevicesGetHandler},
+	Get:  devLXDAPIEndpointAction{Handler: devLXDDevicesGetHandler, AllowUntrusted: true},
 }
 
 func devLXDDevicesGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -444,7 +454,7 @@ func devLXDDevicesGetHandler(d *Daemon, r *http.Request) response.Response {
 
 var devLXDUbuntuProEndpoint = devLXDAPIEndpoint{
 	Path: "ubuntu-pro",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDUbuntuProGetHandler},
+	Get:  devLXDAPIEndpointAction{Handler: devLXDUbuntuProGetHandler, AllowUntrusted: true},
 }
 
 func devLXDUbuntuProGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -461,7 +471,7 @@ func devLXDUbuntuProGetHandler(d *Daemon, r *http.Request) response.Response {
 
 var devLXDUbuntuProTokenEndpoint = devLXDAPIEndpoint{
 	Path: "ubuntu-pro/token",
-	Post: devLXDAPIEndpointAction{Handler: devLXDUbuntuProTokenPostHandler},
+	Post: devLXDAPIEndpointAction{Handler: devLXDUbuntuProTokenPostHandler, AllowUntrusted: true},
 }
 
 func devLXDUbuntuProTokenPostHandler(d *Daemon, r *http.Request) response.Response {
@@ -543,7 +553,19 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 				return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusNotImplemented))
 			}
 
-			return f(d, r, action.Handler)
+			// All API endpoint acctions should either have an
+			// access handler or allow untrusted requests.
+			if action.AccessHandler == nil && !action.AllowUntrusted {
+				return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "Access handler not defined for %s %s", r.Method, r.URL.RequestURI()))
+			}
+
+			// If the request is not trusted, only call the handler
+			// if the action allows it.
+			if !requestor.Trusted && !action.AllowUntrusted {
+				return response.DevLXDErrorResponse(api.NewStatusError(http.StatusForbidden, "You must be authenticated"))
+			}
+
+			return f(d, r, action.Handler, action.AccessHandler)
 		}
 
 		var resp response.Response
