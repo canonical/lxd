@@ -48,7 +48,7 @@ func (d *pure) commonVolumeRules() map[string]func(value string) error {
 		//  type: string
 		//  defaultdesc: same as `volume.size`
 		//  shortdesc: Size/quota of the storage volume
-		"size": validate.Optional(validate.IsMultipleOfUnit("512B")),
+		"size": validate.Optional(validate.IsSize),
 	}
 }
 
@@ -68,6 +68,8 @@ func (d *pure) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 	if err != nil {
 		return err
 	}
+
+	sizeBytes = d.roundVolumeSize(sizeBytes)
 
 	// Create the volume.
 	err = client.createVolume(vol.pool, volName, sizeBytes)
@@ -786,6 +788,8 @@ func (d *pure) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, o
 		return nil
 	}
 
+	sizeBytes = d.roundVolumeSize(sizeBytes)
+
 	volName, err := d.getVolumeName(vol)
 	if err != nil {
 		return err
@@ -1314,4 +1318,14 @@ func (d *pure) CheckVolumeSnapshots(vol Volume, snapVols []Volume, op *operation
 func (d *pure) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op *operations.Operation) error {
 	// Renaming a volume snapshot won't change an actual name of the Pure Storage volume snapshot.
 	return nil
+}
+
+// roundVolumeSize rounds the given size in bytes to the next multiple of 512 bytes,
+// which is the minimum allocation unit size on Pure Storage.
+func (d *pure) roundVolumeSize(sizeBytes int64) int64 {
+	if sizeBytes%512 != 0 {
+		sizeBytes = (sizeBytes/512 + 1) * 512
+	}
+
+	return sizeBytes
 }
