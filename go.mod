@@ -13,7 +13,7 @@ require (
 	github.com/flosch/pongo2 v0.0.0-20200913210552-0d938eb266f3
 	github.com/fvbommel/sortorder v1.1.0
 	github.com/go-acme/lego/v4 v4.25.2
-	github.com/go-chi/chi/v5 v5.2.2
+	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-jose/go-jose/v4 v4.1.2
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/gopacket v1.1.19
@@ -48,10 +48,10 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
-	github.com/stretchr/testify v1.11.0
+	github.com/stretchr/testify v1.11.1
 	github.com/vishvananda/netlink v1.3.1
 	github.com/zitadel/oidc/v3 v3.44.0
-	go.starlark.net v0.0.0-20250804182900-3c9dc17c5f2e
+	go.starlark.net v0.0.0-20250826212936-2a4f36945129
 	go.uber.org/zap v1.27.0
 	go.yaml.in/yaml/v2 v2.4.2
 	golang.org/x/crypto v0.41.0
@@ -95,7 +95,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
-	github.com/google/cel-go v0.26.0 // indirect
+	github.com/google/cel-go v0.26.1 // indirect
 	github.com/google/renameio v1.0.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.2 // indirect
