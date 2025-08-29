@@ -126,64 +126,6 @@ test_clustering_move() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster unset node3 scheduler.instance
   lxc move cluster:c1 --target node1
 
-  # Perform extended scheduler tests involving the `instance.placement.scriptlet` global setting.
-  # Start by statically targeting node3 (index 0).
-  cat << EOF | LXD_DIR="${LXD_ONE_DIR}" lxc config set instances.placement.scriptlet=-
-def instance_placement(request, candidate_members):
-        if request.reason != "relocation":
-                return "Expecting reason relocation"
-
-        # Set statically target to 1st member.
-        set_target(candidate_members[0].server_name)
-
-        return
-EOF
-
-  lxc move cluster:c1 --target @foobar3
-  lxc info cluster:c1 | grep -xF "Location: node3"
-  lxc move cluster:c2 --target @foobar3
-  lxc info cluster:c2 | grep -xF "Location: node3"
-
-  # Ensure that setting an invalid target won't interrupt the move and fall back to the built in behavior.
-  # Equally distribute the instances beforehand so that node1 will get selected.
-  lxc move cluster:c2 --target node2
-
-  cat << EOF | LXD_DIR="${LXD_ONE_DIR}" lxc config set instances.placement.scriptlet=-
-def instance_placement(request, candidate_members):
-        # Set invalid member target.
-        result = set_target("foo")
-        log_warn("Setting invalid member target result: ", result)
-
-        return
-EOF
-
-  lxc move cluster:c1 --target @foobar1
-  lxc info cluster:c1 | grep -xF "Location: node1"
-
-  # If the scriptlet produces a runtime error, the move fails.
-  cat << EOF | LXD_DIR="${LXD_ONE_DIR}" lxc config set instances.placement.scriptlet=-
-def instance_placement(request, candidate_members):
-        # Try to access an invalid index (non existing member)
-        log_info("Accessing invalid field ", candidate_members[42])
-
-        return
-EOF
-
-  ! lxc move cluster:c1 --target @foobar2 || false
-
-  # If the scriptlet intentionally runs into an error, the move fails.
-  cat << EOF | LXD_DIR="${LXD_ONE_DIR}" lxc config set instances.placement.scriptlet=-
-def instance_placement(request, candidate_members):
-        log_error("instance placement not allowed") # Log placement error.
-
-        fail("Instance not allowed") # Fail to prevent instance creation.
-EOF
-
-  ! lxc move cluster:c1 --target @foobar2 || false
-
-  # Cleanup
-  LXD_DIR="${LXD_ONE_DIR}" lxc config unset instances.placement.scriptlet
-
   # Perform project restriction tests.
   # At this stage we have:
   # - node1 in group foobar1,default

@@ -4865,14 +4865,6 @@ If set to `random`, use the random host interface name as the host name.
 If set to `mac`, generate a host name in the form `lxd<mac_address>` (MAC without leading two digits).
 ```
 
-```{config:option} instances.placement.scriptlet server-miscellaneous
-:scope: "global"
-:shortdesc: "Instance placement scriptlet for automatic instance placement"
-:type: "string"
-When using custom automatic instance placement logic, this option stores the scriptlet.
-See {ref}`clustering-instance-placement-scriptlet` for more information.
-```
-
 ```{config:option} maas.api.key server-miscellaneous
 :scope: "global"
 :shortdesc: "API key to manage MAAS"
@@ -4961,6 +4953,14 @@ Specify the volume using the syntax `POOL/VOLUME`.
 :shortdesc: "Volume to use to store project-specific image tarballs"
 :type: "string"
 Specify the volume using the syntax `POOL/VOLUME`.
+```
+
+```{config:option} user.instances.placement.scriptlet server-miscellaneous
+:scope: "global"
+:shortdesc: "Legacy storage for `instances.placement.scriptlet` (no effect)"
+:type: "string"
+Stores the migrated value from the deprecated `instances.placement.scriptlet` configuration key. LXD ignores this key; changing it has no effect. It exists only to preserve previously stored data and may be removed in a future release.
+
 ```
 
 ```{config:option} volatile.uuid server-miscellaneous

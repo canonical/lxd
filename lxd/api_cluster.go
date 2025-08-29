@@ -42,7 +42,6 @@ import (
 	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
-	"github.com/canonical/lxd/lxd/scriptlet"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/lxd/task"
@@ -50,7 +49,6 @@ import (
 	"github.com/canonical/lxd/lxd/warnings"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	apiScriptlet "github.com/canonical/lxd/shared/api/scriptlet"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
@@ -4481,63 +4479,19 @@ func clusterGroupValidateName(name string) error {
 
 func evacuateClusterSelectTarget(ctx context.Context, s *state.State, gateway *cluster.Gateway, inst instance.Instance, candidateMembers []db.NodeInfo) (*db.NodeInfo, error) {
 	var targetMemberInfo *db.NodeInfo
+	var err error
 
-	// Run instance placement scriptlet if enabled.
-	if s.GlobalConfig.InstancesPlacementScriptlet() != "" {
-		leaderAddress, err := gateway.LeaderAddress()
+	// Find the least loaded cluster member which supports the instance's architecture.
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		targetMemberInfo, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
-		// Copy request so we don't modify it when expanding the config.
-		reqExpanded := apiScriptlet.InstancePlacement{
-			InstancesPost: api.InstancesPost{
-				Name: inst.Name(),
-				Type: api.InstanceType(inst.Type().String()),
-				InstancePut: api.InstancePut{
-					Config:  inst.ExpandedConfig(),
-					Devices: inst.ExpandedDevices().CloneNative(),
-				},
-			},
-			Project: inst.Project().Name,
-			Reason:  apiScriptlet.InstancePlacementReasonEvacuation,
-		}
-
-		reqExpanded.Architecture, err = osarch.ArchitectureName(inst.Architecture())
-		if err != nil {
-			return nil, fmt.Errorf("Failed getting architecture for instance %q in project %q: %w", inst.Name(), inst.Project().Name, err)
-		}
-
-		for _, p := range inst.Profiles() {
-			reqExpanded.Profiles = append(reqExpanded.Profiles, p.Name)
-		}
-
-		ctx, cancel := context.WithTimeout(ctx, time.Second*5)
-		targetMemberInfo, err = scriptlet.InstancePlacementRun(ctx, logger.Log, s, &reqExpanded, candidateMembers, leaderAddress)
-		if err != nil {
-			cancel()
-			return nil, fmt.Errorf("Failed instance placement scriptlet for instance %q in project %q: %w", inst.Name(), inst.Project().Name, err)
-		}
-
-		cancel()
-	}
-
-	// If target member not specified yet, then find the least loaded cluster member which
-	// supports the instance's architecture.
-	if targetMemberInfo == nil {
-		var err error
-
-		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-			targetMemberInfo, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
-			if err != nil {
-				return err
-			}
-
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return targetMemberInfo, nil

@@ -145,7 +145,7 @@ test_completions() {
 
     # 'config'
     [ "$(complete config show '')" = 'c1,c2,localhost:' ]
-    [ "$(complete config set '')" = 'acme.,backups.,c1,c2,cluster.,core.,images.,instances.,localhost:,loki.,maas.,network.,oidc.,storage.' ]
+    [ "$(complete config set '')" = 'acme.,backups.,c1,c2,cluster.,core.,images.,instances.,localhost:,loki.,maas.,network.,oidc.,storage.,user.' ]
     [ "$(complete config set n)" = 'network.' ]
     [ "$(complete config set c)" = 'c1,c2,cluster.,core.' ]
     [ "$(complete config set l)" = 'localhost:,loki.' ]
@@ -157,7 +157,7 @@ test_completions() {
     [ "$(complete config set localhost:c1 '')" = 'boot.,cloud-init.,cluster.,environment.,limits.,linux.,migration.,nvidia.,raw.,security.,snapshots.,ubuntu_pro.,user.' ]
     [ "$(complete config set c1 limits.)" = 'limits.cpu.,limits.cpu=,limits.disk.,limits.hugepages.,limits.kernel.,limits.memory.,limits.memory=,limits.processes=' ]
     [ "$(complete config set c1 migration.)" = 'migration.incremental.' ] # No .stateful because c1 is not a VM.
-    [ "$(complete config get '')" = 'acme.,backups.,c1,c2,cluster.,core.,images.,instances.,localhost:,loki.,maas.,network.,oidc.,storage.' ]
+    [ "$(complete config get '')" = 'acme.,backups.,c1,c2,cluster.,core.,images.,instances.,localhost:,loki.,maas.,network.,oidc.,storage.,user.' ]
     [ "$(complete config get n)" = 'network.' ]
     [ "$(complete config get c)" = 'c1,c2,cluster.,core.' ]
     [ "$(complete config get l)" = 'localhost:,loki.' ]
