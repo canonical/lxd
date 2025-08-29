@@ -2477,22 +2477,10 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 		return nil, nil
 	}
 
-	// Remove main image file.
-	fname := filepath.Join(s.ImagesStoragePath(), fingerprint)
-	if shared.PathExists(fname) {
-		err = os.Remove(fname)
-		if err != nil {
-			logger.Error("Error deleting image file", logger.Ctx{"fingerprint": fingerprint, "file": fname, "err": err})
-		}
-	}
-
-	// Remove the rootfs file for the image.
-	fname = fname + ".rootfs"
-	if shared.PathExists(fname) {
-		err = os.Remove(fname)
-		if err != nil {
-			logger.Error("Error deleting image rootfs file", logger.Ctx{"fingerprint": fingerprint, "file": fname, "err": err})
-		}
+	// Remove main image file and rootfs file from disk.
+	err = imageDeleteFromDisk(s, fingerprint)
+	if err != nil {
+		logger.Error("Failed deleting image from disk", logger.Ctx{"project": projectName, "fingerprint": fingerprint, "err": err})
 	}
 
 	setRefreshResult(true)
