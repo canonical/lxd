@@ -48,6 +48,17 @@ executable, passing the shell commands as arguments, for example:
 
   lxc exec <instance> -- sh -c "cd /tmp && pwd"
 
+For interactive sessions, a convenient 'shell' alias is provided to
+spawn a login shell inside the instance:
+
+  lxc shell <instance>
+
+This 'shell' alias is a shorthand for:
+
+  lxc exec <instance> -- su -l
+
+Note: due to using 'su -l', most environment variables will be reset.
+
 Mode defaults to non-interactive, interactive mode is selected if both stdin AND stdout are terminals (stderr is ignored).`))
 
 	cmd.RunE = c.run
