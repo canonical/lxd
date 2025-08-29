@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-08-27 10:07+0000\n"
+"POT-Creation-Date: 2025-08-29 11:41-0600\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Krombel <krombel@krombel.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -1763,12 +1763,12 @@ msgstr "Fehlerhafte Profil URL %s"
 msgid "Create identity provider groups"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/snapshot.go:31
+#: lxc/snapshot.go:34
 #, fuzzy
 msgid "Create instance snapshots"
 msgstr "Herunterfahren des Containers erzwingen."
 
-#: lxc/snapshot.go:32
+#: lxc/snapshot.go:35
 msgid ""
 "Create instance snapshots\n"
 "\n"
@@ -2112,7 +2112,7 @@ msgstr ""
 #: lxc/project.go:856 lxc/project.go:923 lxc/publish.go:34 lxc/query.go:35
 #: lxc/rebuild.go:28 lxc/remote.go:38 lxc/remote.go:94 lxc/remote.go:753
 #: lxc/remote.go:791 lxc/remote.go:877 lxc/remote.go:958 lxc/remote.go:1022
-#: lxc/remote.go:1071 lxc/rename.go:21 lxc/restore.go:22 lxc/snapshot.go:32
+#: lxc/remote.go:1071 lxc/rename.go:21 lxc/restore.go:26 lxc/snapshot.go:35
 #: lxc/storage.go:35 lxc/storage.go:98 lxc/storage.go:204 lxc/storage.go:262
 #: lxc/storage.go:394 lxc/storage.go:476 lxc/storage.go:656 lxc/storage.go:743
 #: lxc/storage.go:845 lxc/storage.go:939 lxc/storage_bucket.go:31
@@ -2256,6 +2256,15 @@ msgstr " Prozessorauslastung:"
 #, fuzzy
 msgid "Disk:"
 msgstr " Prozessorauslastung:"
+
+#: lxc/restore.go:40
+msgid "Disks to include in restore."
+msgstr ""
+
+#: lxc/snapshot.go:50
+#, fuzzy
+msgid "Disks to include in snapshot."
+msgstr "Herunterfahren des Containers erzwingen."
 
 #: lxc/info.go:433
 #, fuzzy
@@ -3251,7 +3260,7 @@ msgstr ""
 msgid "If the image alias already exists, delete and create a new one"
 msgstr ""
 
-#: lxc/snapshot.go:46 lxc/storage_volume.go:2455
+#: lxc/snapshot.go:49 lxc/storage_volume.go:2455
 msgid "If the snapshot name already exists, delete and create a new one"
 msgstr ""
 
@@ -3261,7 +3270,7 @@ msgid ""
 "lxd init"
 msgstr ""
 
-#: lxc/snapshot.go:45
+#: lxc/snapshot.go:48
 msgid "Ignore any configured auto-expiry for the instance"
 msgstr ""
 
@@ -3460,7 +3469,7 @@ msgstr "Ungültiges Ziel %s"
 msgid "Invalid format: %s"
 msgstr "Ungültiges Ziel %s"
 
-#: lxc/snapshot.go:95
+#: lxc/snapshot.go:104
 #, fuzzy, c-format
 msgid "Invalid instance name: %s"
 msgstr "Ungültige Quelle %s"
@@ -5670,12 +5679,12 @@ msgstr ""
 msgid "Restore cluster member"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
-#: lxc/restore.go:21
+#: lxc/restore.go:25
 #, fuzzy
 msgid "Restore instances from snapshots"
 msgstr "Herunterfahren des Containers erzwingen."
 
-#: lxc/restore.go:22
+#: lxc/restore.go:26
 msgid ""
 "Restore instances from snapshots\n"
 "\n"
@@ -7327,7 +7336,14 @@ msgstr ""
 msgid "Whether or not to only backup the instance (without snapshots)"
 msgstr "Zustand des laufenden Containers sichern oder nicht"
 
-#: lxc/restore.go:34
+#: lxc/restore.go:39
+#, fuzzy
+msgid ""
+"Whether or not to restore snapshots of all attached volumes alongside "
+"instance's root disk snapshot."
+msgstr "Zustand des laufenden Containers sichern oder nicht"
+
+#: lxc/restore.go:38
 #, fuzzy
 msgid ""
 "Whether or not to restore the instance's running state from snapshot (if "
@@ -7336,7 +7352,14 @@ msgstr ""
 "Laufenden Zustand des Containers aus dem Sicherungspunkt (falls vorhanden) "
 "wiederherstellen oder nicht"
 
-#: lxc/snapshot.go:44
+#: lxc/snapshot.go:51
+#, fuzzy
+msgid ""
+"Whether or not to snapshot all attached volumes alongside instance's root "
+"disk."
+msgstr "Zustand des laufenden Containers sichern oder nicht"
+
+#: lxc/snapshot.go:47
 #, fuzzy
 msgid "Whether or not to snapshot the instance's running state"
 msgstr "Zustand des laufenden Containers sichern oder nicht"
@@ -7809,7 +7832,7 @@ msgstr ""
 "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
 "Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
-#: lxc/restore.go:20
+#: lxc/restore.go:24
 #, fuzzy
 msgid "[<remote>:]<instance> <snapshot>"
 msgstr ""
@@ -7828,7 +7851,7 @@ msgstr ""
 "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
 "Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
-#: lxc/snapshot.go:30
+#: lxc/snapshot.go:33
 #, fuzzy
 msgid "[<remote>:]<instance> [<snapshot name>]"
 msgstr ""
@@ -9061,7 +9084,7 @@ msgid ""
 "    Delete local instance \"c1\"."
 msgstr ""
 
-#: lxc/snapshot.go:37
+#: lxc/snapshot.go:40
 msgid ""
 "lxc snapshot u1 snap0\n"
 "\tCreate a snapshot of \"u1\" called \"snap0\".\n"
@@ -9071,7 +9094,7 @@ msgid ""
 "\"config.yaml\"."
 msgstr ""
 
-#: lxc/restore.go:26
+#: lxc/restore.go:30
 msgid ""
 "lxc snapshot u1 snap0\n"
 "    Create the snapshot.\n"
