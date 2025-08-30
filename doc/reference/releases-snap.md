@@ -119,6 +119,15 @@ New LXD releases are [published progressively as snaps](https://documentation.ub
 
 This can cause issues when updating the LXD snap for {ref}`clusters <exp-clusters>`, as cluster members must use the same version of the snap at all times. For a guide on how to avoid this issue using the `--cohort` flag, see {ref}`howto-snap-updates-sync`.
 
+(ref-snap-upgrades-downgrades)=
+### Upgrades, downgrades, and reverting
+
+To upgrade LXD means to move to a newer {ref}`track <ref-snap-tracks>`, such as from {{current_lts_track}} to {{current_feature_track}}. For instructions, see: {ref}`howto-snap-change`.
+
+Downgrading (moving to a channel with an older track, such as from {{current_feature_track}} to {{current_lts_track}}) is neither recommended nor supported, as breaking changes can exist between major versions.
+
+Breaking changes can be introduced between feature release versions as well. Thus, we also do not support reverting to an older feature release revision.
+
 ## Related topics
 
 How-to guides:

@@ -207,6 +207,8 @@ sudo snap refresh lxd --channel=<target channel>
 
 This command immediately updates the installed snap version.
 
+Also see: {ref}`ref-snap-upgrades-downgrades`.
+
 (howto-snap-daemon)=
 ## Manage the LXD daemon
 
