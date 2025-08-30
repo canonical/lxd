@@ -714,11 +714,17 @@ func (d *pure) FillVolumeConfig(vol Volume) error {
 
 // ValidateVolume validates the supplied volume config.
 func (d *pure) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
-	// When creating volumes from ISO images, round its size to the next multiple of 512B.
+	// When creating volumes from ISO images, round its size to the next multiple of 512B,
+	// and ensure it has at least minimum allowed size.
 	if vol.ContentType() == ContentTypeISO {
 		sizeBytes, err := units.ParseByteSizeString(vol.ConfigSize())
 		if err != nil {
 			return err
+		}
+
+		// Ensure volume size is at least 1MiB.
+		if sizeBytes < pureMinVolumeSizeBytes {
+			vol.SetConfigSize(strconv.FormatInt(pureMinVolumeSizeBytes, 10))
 		}
 
 		// If the remainder when dividing by 512 is greater than 0, round the size up
