@@ -15,7 +15,9 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
@@ -910,6 +912,98 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
+// doProjectForceDelete handles force deletion of project entities.
+func doProjectForceDelete(ctx context.Context, s *state.State, projectName string) error {
+	// Get the project entities.
+	var usedBy []string
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		project, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
+		if err != nil {
+			return fmt.Errorf("Failed loading project %q: %w", projectName, err)
+		}
+
+		usedBy, err = projectUsedBy(ctx, tx, project)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Parse entity URLs.
+	defaultProfile := api.NewURL().Path(version.APIVersion, "profiles", api.ProjectDefaultName).Project(projectName).String()
+	toDelete := make([]entity.Reference, 0, len(usedBy))
+	for _, u := range usedBy {
+		// Allow the project default profile to be removed alongside the project even if the
+		// requestor lacks profile delete entitlement. Deleting the project removes the linked
+		// default profile record, so the project delete entitlement already covers this
+		// case and we can skip the per-entity permission checks here.
+		if u == defaultProfile {
+			continue
+		}
+
+		parsedURL, err := url.Parse(u)
+		if err != nil {
+			return fmt.Errorf("Failed parsing URL %q: %w", u, err)
+		}
+
+		// Build an entity reference directly from the URL.
+		ref, err := entity.ReferenceFromURL(*parsedURL)
+		if err != nil {
+			return err
+		}
+
+		// Skip instances and storage volumes not hosted on this node when a location is specified.
+		// These entities will be deleted by the node they are hosted on when a delete request is a cluster notification.
+		if (ref.EntityType == entity.TypeInstance || ref.EntityType == entity.TypeStorageVolume) && ref.Location != "" && ref.Location != s.ServerName {
+			continue
+		}
+
+		// Early permission check. (entityDeleter).Delete() implementations still perform their own checks, but we should fail fast here to prevent partial deletions.
+		err = s.Authorizer.CheckPermission(ctx, ref.URL(), auth.EntitlementCanDelete)
+		if err != nil {
+			return err
+		}
+
+		toDelete = append(toDelete, ref)
+	}
+
+	// Sort entities by type to ensure proper deletion order (instances first, then profiles).
+	slices.SortFunc(toDelete, func(a, b entity.Reference) int {
+		// Define deletion priority (lower number = delete first).
+		getPriority := func(t entity.Type) int {
+			switch t {
+			case entity.TypeInstance:
+				return 1 // Delete instances first.
+			case entity.TypeProfile:
+				return 2 // Delete profiles after instances to avoid "profile is currently in use" errors.
+			default:
+				return 3 // Everything else can be deleted in any order.
+			}
+		}
+
+		return getPriority(a.EntityType) - getPriority(b.EntityType)
+	})
+
+	// Delete entities.
+	for _, ref := range toDelete {
+		deleter, err := getEntityDeleter(ref.EntityType)
+		if err != nil {
+			return fmt.Errorf("Failed getting deleter for entity type %q: %w", ref.EntityType, err)
+		}
+
+		err = deleter.Delete(ctx, s, ref)
+		if err != nil {
+			return fmt.Errorf("Failed deleting %s %q: %w", ref.Name(), ref.EntityType, err)
+		}
+	}
+
+	return nil
+}
+
 // swagger:operation DELETE /1.0/projects/{name} projects project_delete
 //
 //	Delete the project
@@ -919,6 +1013,11 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 //	---
 //	produces:
 //	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: force
+//	    description: Force delete project and its entities
+//	    type: boolean
 //	responses:
 //	  "200":
 //	    $ref: "#/responses/EmptySyncResponse"
@@ -936,6 +1035,8 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	force := shared.IsTrue(r.FormValue("force"))
+
 	// Quick checks.
 	if name == api.ProjectDefaultName {
 		return response.Forbidden(errors.New("The 'default' project cannot be deleted"))
@@ -946,21 +1047,64 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// On cluster notification, clear the node config values and handle force deletion of local entities (if requested).
+	if requestor.IsClusterNotification() {
+		if force {
+			err = doProjectForceDelete(r.Context(), s, name)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
+
+		return response.EmptySyncResponse
+	}
+
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		project, err := dbCluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
-			return fmt.Errorf("Fetch project %q: %w", name, err)
+			return fmt.Errorf("Failed loading project %q: %w", name, err)
 		}
 
-		empty, err := projectIsEmpty(ctx, project, tx)
+		if !force {
+			// Verify the project is empty.
+			empty, err := projectIsEmpty(ctx, project, tx)
+			if err != nil {
+				return err
+			}
+
+			if !empty {
+				return errors.New("Only empty projects can be removed")
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if force {
+		// Force delete all project entities from the local node.
+		err = doProjectForceDelete(r.Context(), s, name)
 		if err != nil {
-			return err
+			return response.SmartError(err)
 		}
 
-		if !empty {
-			return errors.New("Only empty projects can be removed")
+		// Send notification to other cluster members to handle force deletion (if requested).
+		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAll)
+		if err != nil {
+			return response.SmartError(err)
 		}
 
+		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
+			return client.ForceDeleteProject(name)
+		})
+		if err != nil {
+			return response.SmartError(fmt.Errorf("Failed to notify other cluster members: %w", err))
+		}
+	}
+
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return dbCluster.DeleteProject(ctx, tx.Tx(), name)
 	})
 
