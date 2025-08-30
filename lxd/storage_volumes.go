@@ -2394,30 +2394,37 @@ func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	target := request.QueryParam(r, "target")
-	resp := forwardedResponseToNode(r.Context(), s, target)
-	if resp != nil {
-		return resp
-	}
-
-	resp = forwardedResponseIfVolumeIsRemote(r.Context(), s)
-	if resp != nil {
-		return resp
-	}
-
 	requestProjectName := request.ProjectParam(r)
 	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	if details.volumeType != cluster.StoragePoolVolumeTypeCustom && details.volumeType != cluster.StoragePoolVolumeTypeImage {
-		return response.BadRequest(fmt.Errorf("Storage volumes of type %q cannot be deleted with the storage API", details.volumeTypeName))
+	return doStoragePoolVolumeDelete(r.Context(), s, target, details.volumeName, details.volumeType, details.pool, effectiveProjectName, requestProjectName)
+}
+
+// doStoragePoolVolumeDelete deletes a storage volume in the given project and pool.
+// Returns a [response.Response] indicating success or failure.
+func doStoragePoolVolumeDelete(ctx context.Context, s *state.State, target string, name string, volType cluster.StoragePoolVolumeType, pool storagePools.Pool, effectiveProjectName string, requestProjectName string) response.Response {
+	resp := forwardedResponseToNode(ctx, s, target)
+	if resp != nil {
+		return resp
+	}
+
+	resp = forwardedResponseIfVolumeIsRemote(ctx, s)
+	if resp != nil {
+		return resp
+	}
+
+	if volType != cluster.StoragePoolVolumeTypeCustom && volType != cluster.StoragePoolVolumeTypeImage {
+		return response.BadRequest(fmt.Errorf("Storage volumes of type %q cannot be deleted with the storage API", volType.String()))
 	}
 
 	// Get the storage volume.
 	var dbVolume *db.StorageVolume
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbVolume, err = tx.GetStoragePoolVolume(ctx, details.pool.ID(), effectiveProjectName, details.volumeType, details.volumeName, true)
+	var err error
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, pool.ID(), effectiveProjectName, volType, name, true)
 		return err
 	})
 	if err != nil {
@@ -2441,22 +2448,22 @@ func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(volumeUsedBy) > 0 {
-		if len(volumeUsedBy) != 1 || details.volumeType != cluster.StoragePoolVolumeTypeImage || !isImageURL(volumeUsedBy[0], dbVolume.Name) {
+		if len(volumeUsedBy) != 1 || volType != cluster.StoragePoolVolumeTypeImage || !isImageURL(volumeUsedBy[0], dbVolume.Name) {
 			return response.BadRequest(errors.New("The storage volume is still in use"))
 		}
 	}
 
 	// Use an empty operation for this sync response to pass the requestor
 	op := &operations.Operation{}
-	op.SetRequestor(r.Context())
+	op.SetRequestor(ctx)
 
-	switch details.volumeType {
+	switch volType {
 	case cluster.StoragePoolVolumeTypeCustom:
-		err = details.pool.DeleteCustomVolume(effectiveProjectName, details.volumeName, op)
+		err = pool.DeleteCustomVolume(effectiveProjectName, name, op)
 	case cluster.StoragePoolVolumeTypeImage:
-		err = details.pool.DeleteImage(details.volumeName, op)
+		err = pool.DeleteImage(name, op)
 	default:
-		return response.BadRequest(fmt.Errorf(`Storage volumes of type %q cannot be deleted with the storage API`, details.volumeTypeName))
+		return response.BadRequest(fmt.Errorf(`Storage volumes of type %q cannot be deleted with the storage API`, volType.String()))
 	}
 
 	if err != nil {
