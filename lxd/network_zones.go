@@ -413,19 +413,29 @@ func networkZoneDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	netzone, err := zone.LoadByNameAndProject(s, effectiveProjectName, details.zoneName)
+	err = doNetworkZoneDelete(r.Context(), s, details.zoneName, effectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	return response.EmptySyncResponse
+}
+
+// doNetworkZoneDelete deletes the named network zone in the given project.
+func doNetworkZoneDelete(ctx context.Context, s *state.State, zoneName string, projectName string) error {
+	netzone, err := zone.LoadByNameAndProject(s, projectName, zoneName)
+	if err != nil {
+		return err
 	}
 
 	err = netzone.Delete()
 	if err != nil {
-		return response.SmartError(err)
+		return err
 	}
 
-	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkZoneDeleted.Event(netzone, request.CreateRequestor(r.Context()), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.NetworkZoneDeleted.Event(netzone, request.CreateRequestor(ctx), nil))
 
-	return response.EmptySyncResponse
+	return nil
 }
 
 // swagger:operation GET /1.0/network-zones/{zone} network-zones network_zone_get
