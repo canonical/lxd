@@ -19,6 +19,7 @@ import (
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -369,19 +370,29 @@ func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	netACL, err := acl.LoadByName(s, projectName, aclName)
+	err = doNetworkACLDelete(r.Context(), s, aclName, projectName)
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	return response.EmptySyncResponse
+}
+
+// doNetworkACLDelete deletes the named network ACL in the given project.
+func doNetworkACLDelete(ctx context.Context, s *state.State, aclName string, projectName string) error {
+	netACL, err := acl.LoadByName(s, projectName, aclName)
+	if err != nil {
+		return err
 	}
 
 	err = netACL.Delete()
 	if err != nil {
-		return response.SmartError(err)
+		return err
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.NetworkACLDeleted.Event(netACL, request.CreateRequestor(r.Context()), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.NetworkACLDeleted.Event(netACL, request.CreateRequestor(ctx), nil))
 
-	return response.EmptySyncResponse
+	return nil
 }
 
 // swagger:operation GET /1.0/network-acls/{name} network-acls network_acl_get
