@@ -205,7 +205,7 @@ test_network_ovn() {
   fi
 
   ovn_encap_iface_name="$(ip -json address | jq -r '.[] | select(.addr_info | .[] | .local == "'"${ovn_encap_ip}"'" ) | .ifname')"
-  ovn_encap_iface_mtu="$(cat "/sys/class/net/${ovn_encap_iface_name}/mtu")"
+  ovn_encap_iface_mtu="$(< "/sys/class/net/${ovn_encap_iface_name}/mtu")"
 
   # MTU is 1500 if overlay MTU is greater than or equal to 1500 plus the overhead.
   # Otherwise it is 1500 minus the overhead.

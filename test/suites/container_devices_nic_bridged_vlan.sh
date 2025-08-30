@@ -14,12 +14,12 @@ test_container_devices_nic_bridged_vlan() {
   lxc network set "${prefix}" bridge.driver "${bridgeDriver}"
 
   if [ "$bridgeDriver" = "native" ]; then
-    if [ "$(cat "/sys/class/net/${prefix}/bridge/vlan_filtering")" != "1" ]; then
+    if [ "$(< "/sys/class/net/${prefix}/bridge/vlan_filtering")" != "1" ]; then
       echo "vlan filtering not enabled on managed bridge interface"
       false
     fi
 
-    if [ "$(cat "/sys/class/net/${prefix}/bridge/default_pvid")" != "1" ]; then
+    if [ "$(< "/sys/class/net/${prefix}/bridge/default_pvid")" != "1" ]; then
       echo "vlan default PVID not 1 on managed bridge interface"
       false
     fi
