@@ -18,10 +18,12 @@ import (
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
+	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/node"
@@ -31,6 +33,7 @@ import (
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
+	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -38,6 +41,7 @@ import (
 	"github.com/canonical/lxd/shared/i18n"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/validate"
+	"github.com/canonical/lxd/shared/version"
 )
 
 var projectsCmd = APIEndpoint{
@@ -1076,6 +1080,11 @@ func projectNodeConfigDelete(d *Daemon, s *state.State, name string) error {
 //	---
 //	produces:
 //	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: force
+//	    description: Force delete project and its entities
+//	    type: boolean
 //	responses:
 //	  "200":
 //	    $ref: "#/responses/EmptySyncResponse"
@@ -1093,13 +1102,17 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	force := shared.IsTrue(r.FormValue("force"))
+
 	// Quick checks.
 	if name == api.ProjectDefaultName {
 		return response.Forbidden(errors.New("The 'default' project cannot be deleted"))
 	}
 
+	clusterNotification := isClusterNotification(r)
+
 	// On cluster notification, just clear the node config values and we're done.
-	if isClusterNotification(r) {
+	if clusterNotification {
 		err = projectNodeConfigDelete(d, s, name)
 		if err != nil {
 			return response.SmartError(err)
@@ -1108,26 +1121,263 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.EmptySyncResponse
 	}
 
-	// Verify the project is empty.
+	var usedBy []string
+	var projectConfig map[string]string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		project, err := dbCluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
 			return fmt.Errorf("Fetch project %q: %w", name, err)
 		}
 
-		empty, err := projectIsEmpty(ctx, project, tx)
-		if err != nil {
-			return err
-		}
+		if !force {
+			// Verify the project is empty.
+			empty, err := projectIsEmpty(ctx, project, tx)
+			if err != nil {
+				return err
+			}
 
-		if !empty {
-			return errors.New("Only empty projects can be removed")
+			if !empty {
+				return errors.New("Only empty projects can be removed")
+			}
+		} else {
+			usedBy, err = projectUsedBy(ctx, tx, project)
+			if err != nil {
+				return err
+			}
+
+			projectConfig, err = dbCluster.GetProjectConfig(ctx, tx.Tx(), project.Name)
+			if err != nil {
+				return fmt.Errorf("Fetch project %q config: %w", name, err)
+			}
 		}
 
 		return nil
 	})
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if force {
+		type entityInfo struct {
+			pathArgs []string
+			target   string
+		}
+
+		// Parse used by list.
+		defaultProfile := api.NewURL().Path(version.APIVersion, "profiles", api.ProjectDefaultName).Project(name).String()
+
+		var instances []*entityInfo
+		var profiles []*entityInfo
+		var images []*entityInfo
+		var networks []*entityInfo
+		var networkACLs []*entityInfo
+		var networkZones []*entityInfo
+		var storageVolumes []*entityInfo
+
+		for _, u := range usedBy {
+			if u == defaultProfile {
+				continue
+			}
+
+			url, err := url.Parse(u)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			entityType, _, target, pathArgs, err := entity.ParseURL(*url)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			info := &entityInfo{
+				pathArgs: pathArgs,
+				target:   target,
+			}
+
+			switch entityType {
+			case entity.TypeInstance:
+				instances = append(instances, info)
+			case entity.TypeProfile:
+				profiles = append(profiles, info)
+			case entity.TypeImage:
+				images = append(images, info)
+			case entity.TypeNetwork:
+				networks = append(networks, info)
+			case entity.TypeNetworkACL:
+				networkACLs = append(networkACLs, info)
+			case entity.TypeNetworkZone:
+				networkZones = append(networkZones, info)
+			case entity.TypeStorageVolume:
+				storageVolumes = append(storageVolumes, info)
+			}
+		}
+
+		remaining := len(instances) + len(profiles) + len(images) + len(networks) + len(networkACLs) + len(networkZones) + len(storageVolumes)
+
+		imageIDs := make(map[string]int, len(images))
+		if len(images) > 0 {
+			err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+				for _, imageInfo := range images {
+					fingerprint := imageInfo.pathArgs[0]
+					id, _, err := tx.GetImage(ctx, fingerprint, dbCluster.ImageFilter{Project: &name})
+					if err != nil {
+						return err
+					}
+
+					imageIDs[fingerprint] = id
+				}
+
+				return nil
+			})
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
+
+		// Delete instances.
+		for _, instanceInfo := range instances {
+			instanceName := instanceInfo.pathArgs[0]
+
+			err = s.Authorizer.CheckPermission(r.Context(), entity.InstanceURL(name, instanceName), auth.EntitlementCanDelete)
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			inst, err := instance.LoadByProjectAndName(s, name, instanceName)
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			_ = doInstanceDelete(r.Context(), s, instanceName, name, inst.Type())
+
+			remaining--
+		}
+
+		// Delete profiles.
+		for _, profileInfo := range profiles {
+			profileName := profileInfo.pathArgs[0]
+
+			err = s.Authorizer.CheckPermission(r.Context(), entity.ProfileURL(name, profileName), auth.EntitlementCanDelete)
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			err = doProfileDelete(r.Context(), s, profileName, name)
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			remaining--
+		}
+
+		// Delete images.
+		for _, imageInfo := range images {
+			fingerprint := imageInfo.pathArgs[0]
+
+			err = s.Authorizer.CheckPermission(r.Context(), entity.ImageURL(name, fingerprint), auth.EntitlementCanDelete)
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			_ = doImageDelete(r.Context(), s, fingerprint, imageIDs[fingerprint], name, isClusterNotification(r))
+
+			remaining--
+		}
+
+		// Delete networks.
+		for _, networkInfo := range networks {
+			networkName := networkInfo.pathArgs[0]
+
+			err = s.Authorizer.CheckPermission(r.Context(), entity.NetworkURL(name, networkName), auth.EntitlementCanDelete)
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			err = doNetworkDelete(r.Context(), s, networkName, name, projectConfig, clusterNotification, clusterRequest.UserAgentClientType(r.Header.Get("User-Agent")))
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			remaining--
+		}
+
+		// Delete network ACLs.
+		for _, networkACLInfo := range networkACLs {
+			networkACLName := networkACLInfo.pathArgs[0]
+
+			err = s.Authorizer.CheckPermission(r.Context(), entity.NetworkACLURL(name, networkACLName), auth.EntitlementCanDelete)
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			err = doNetworkACLDelete(r.Context(), s, networkACLName, name)
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			remaining--
+		}
+
+		// Delete network zones.
+		for _, networkZoneInfo := range networkZones {
+			networkZoneName := networkZoneInfo.pathArgs[0]
+
+			err = s.Authorizer.CheckPermission(r.Context(), entity.NetworkZoneURL(name, networkZoneName), auth.EntitlementCanDelete)
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			err = doNetworkZoneDelete(r.Context(), s, networkZoneName, name)
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			remaining--
+		}
+
+		// Delete storage volumes.
+		poolCache := map[string]storagePools.Pool{}
+		volTypeCache := map[string]dbCluster.StoragePoolVolumeType{}
+		for _, storageVolumeInfo := range storageVolumes {
+			poolName := storageVolumeInfo.pathArgs[0]
+			volTypeStr := storageVolumeInfo.pathArgs[1]
+			volName := storageVolumeInfo.pathArgs[2]
+
+			err = s.Authorizer.CheckPermission(r.Context(), entity.StorageVolumeURL(name, storageVolumeInfo.target, poolName, volName, volTypeStr), auth.EntitlementCanDelete)
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			pool, ok := poolCache[poolName]
+			if !ok {
+				var err error
+				pool, err = storagePools.LoadByName(s, poolName)
+				if err != nil {
+					return response.SmartError(err)
+				}
+
+				poolCache[poolName] = pool
+			}
+
+			volType, ok := volTypeCache[volTypeStr]
+			if !ok {
+				var err error
+				volType, err = dbCluster.StoragePoolVolumeTypeFromName(volTypeStr)
+				if err != nil {
+					return response.SmartError(err)
+				}
+
+				volTypeCache[volTypeStr] = volType
+			}
+
+			_ = doStoragePoolVolumeDelete(r.Context(), s, storageVolumeInfo.target, volName, volType, pool, name, request.ProjectParam(r))
+
+			remaining--
+		}
+
+		if remaining > 0 {
+			return response.BadRequest(errors.New("Project could not be force deleted"))
+		}
 	}
 
 	// Clear the project-specific config keys from the local node config.
