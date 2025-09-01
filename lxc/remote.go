@@ -263,7 +263,7 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 		return api.StatusErrorf(http.StatusServiceUnavailable, "%s: %w", i18n.G("Unavailable remote server"), err)
 	}
 
-	// Add client certificate to trust store. Even if we are already trusted (src.Auth == "trusted"),
+	// Add client certificate to trust store. Even if we are already trusted (src.Auth == api.AuthTrusted),
 	// we want to send the token to invalidate it. Therefore, we can ignore the conflict error, which
 	// is thrown if we are trying to add a client cert that is already trusted by LXD remote.
 	//
@@ -298,7 +298,7 @@ func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token stri
 		return err
 	}
 
-	if srv.Auth != "trusted" {
+	if srv.Auth != api.AuthTrusted {
 		return errors.New(i18n.G("Server doesn't trust us after authentication"))
 	}
 
@@ -646,7 +646,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Check if additional authentication is required.
-	if srv.Auth != "trusted" {
+	if srv.Auth != api.AuthTrusted {
 		if c.flagAuthType == api.AuthenticationMethodTLS {
 			var gainTrust func() error
 
@@ -717,7 +717,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		if srv.Auth != "trusted" {
+		if srv.Auth != api.AuthTrusted {
 			return errors.New(i18n.G("Server doesn't trust us after authentication"))
 		}
 
