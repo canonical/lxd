@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"slices"
 	"time"
 
 	"github.com/canonical/lxd/lxd/db/query"
@@ -307,14 +306,10 @@ func deleteSecretsByID(ctx context.Context, tx *sql.Tx, ids ...int) error {
 
 // GetAllBearerIdentitySigningKeys returns a map of identity ID to token signing keys.
 // It should only be used to refresh the identity cache.
-// Any identities with more than one signing key (this should never happen) are omitted from the returned map and added
-// to the list of identity IDs with multiple signing keys.
-// This so that the identity cache refresh handling can handle this at the call site (e.g. so as not to prevent
-// refreshing the cache for all identities).
-func GetAllBearerIdentitySigningKeys(ctx context.Context, tx *sql.Tx) (identityIDToSigningKey map[int]AuthSecretValue, identityIDsWithMultipleSigningKeys []int, err error) {
+func GetAllBearerIdentitySigningKeys(ctx context.Context, tx *sql.Tx) (map[int]AuthSecretValue, error) {
 	q := `SELECT entity_id, value FROM secrets WHERE entity_type = ? AND type = ?`
 
-	identityIDToSigningKey = make(map[int]AuthSecretValue)
+	identityIDToSigningKey := make(map[int]AuthSecretValue)
 	scanFunc := func(scan func(dest ...any) error) error {
 		var identityID int
 		var value AuthSecretValue
@@ -323,31 +318,16 @@ func GetAllBearerIdentitySigningKeys(ctx context.Context, tx *sql.Tx) (identityI
 			return err
 		}
 
-		// Check the identity ID has not already been determined to have multiple keys.
-		if slices.Contains(identityIDsWithMultipleSigningKeys, identityID) {
-			return nil
-		}
-
-		// Check our running map, if a signing key is already present for the ID, delete the existing one from the map
-		// and append the identity ID to the list of offenders.
-		_, ok := identityIDToSigningKey[identityID]
-		if ok {
-			delete(identityIDToSigningKey, identityID)
-			identityIDsWithMultipleSigningKeys = append(identityIDsWithMultipleSigningKeys, identityID)
-			return nil
-		}
-
-		// Otherwise, set the value in the map.
 		identityIDToSigningKey[identityID] = value
 		return nil
 	}
 
-	err = query.Scan(ctx, tx, q, scanFunc, EntityType(entity.TypeIdentity), SecretTypeBearerSigningKey)
+	err := query.Scan(ctx, tx, q, scanFunc, entityTypeCodeIdentity, SecretTypeBearerSigningKey)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to get bearer identity signing keys: %w", err)
+		return nil, fmt.Errorf("Failed to get bearer identity signing keys: %w", err)
 	}
 
-	return identityIDToSigningKey, identityIDsWithMultipleSigningKeys, nil
+	return identityIDToSigningKey, nil
 }
 
 // DeleteBearerIdentitySigningKey deletes any signing keys for the identity. It returns an [api.StatusError] with
