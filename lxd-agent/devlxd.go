@@ -79,6 +79,7 @@ func getDevLXDVsockClient(d *Daemon, r *http.Request) (lxd.DevLXDServer, error) 
 		return nil, err
 	}
 
+	// Extract optional bearer token from client and pass it to the LXD server for authentication
 	args := &lxd.ConnectionArgs{}
 	token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 	if ok {
