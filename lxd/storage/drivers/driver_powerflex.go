@@ -21,6 +21,10 @@ const powerFlexDefaultUser = "admin"
 // powerFlexDefaultSize represents the default PowerFlex volume size.
 const powerFlexDefaultSize = "8GiB"
 
+// powerFlexMinVolumeSizeBytes represents the minimal PowerFlex volume size in bytes.
+// This translates to 8 GiB.
+const powerFlexMinVolumeSizeBytes = 8589934592
+
 var powerflexSupportedConnectors = []string{
 	connectors.TypeNVME,
 	connectors.TypeSDC,
