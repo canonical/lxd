@@ -53,3 +53,15 @@ func devLXDStoragePoolGetHandler(d *Daemon, r *http.Request) response.Response {
 
 	return response.DevLXDResponseETag(http.StatusOK, respPool, "json", etag)
 }
+
+// isDevLXDVolumeOwner checks whether the given storage volume is owned by the specified identity ID.
+// The volume is owned if it has a config key "volatile.devlxd.owner" set to the identity ID.
+func isDevLXDVolumeOwner(volConfig map[string]string, identityID string) bool {
+	owner, ok := volConfig["volatile.devlxd.owner"]
+	if !ok {
+		// Missing owner key means the volume is not owned by devLXD.
+		return false
+	}
+
+	return owner == identityID
+}
