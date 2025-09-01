@@ -392,3 +392,9 @@ func (d *powerflex) MigrationTypes(contentType ContentType, refresh bool, copySn
 		},
 	}
 }
+
+// roundVolumeBlockSizeBytes rounds the given size (in bytes) up to the next
+// multiple of 8 GiB, which is the minimum allocation unit on PowerFlex.
+func (d *powerflex) roundVolumeBlockSizeBytes(_ Volume, sizeBytes int64) int64 {
+	return roundAbove(powerFlexMinVolumeSizeBytes, sizeBytes)
+}
