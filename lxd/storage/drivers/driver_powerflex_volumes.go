@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"os"
 	"slices"
@@ -472,22 +471,8 @@ func (d *powerflex) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 			return err
 		}
 
-		// Get the volumes size in GiB.
-		// Always round to the next full GiB.
-		sizeGiB := int64(math.Ceil(float64(sizeBytes) / float64(factorGiB)))
-
-		// Get the rest of the modulo operation.
-		nonMultipleRest := sizeGiB % 8
-
-		// Check how many times the given size can be divided by 8.
-		multipleCount := sizeGiB / 8
-
-		// If the given size is smaller than 8, create a volume with at least 8GiB.
-		if nonMultipleRest != 0 {
-			multipleCount++
-		}
-
-		vol.SetConfigSize(strconv.FormatInt(multipleCount*factorGiB*8, 10))
+		sizeBytes = d.roundVolumeBlockSizeBytes(vol, sizeBytes)
+		vol.SetConfigSize(strconv.FormatInt(sizeBytes, 10))
 	}
 
 	commonRules := d.commonVolumeRules()
