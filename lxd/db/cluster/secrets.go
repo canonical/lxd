@@ -95,8 +95,8 @@ const (
 
 const (
 	// secretTypeCodeCoreAuth is the database code for SecretTypeCoreAuth.
-	secretTypeCodeCoreAuth        int64 = 1
-	secretTypeCodeBearerSigingKey int64 = 2
+	secretTypeCodeCoreAuth         int64 = 1
+	secretTypeCodeBearerSigningKey int64 = 2
 )
 
 // Value implements [driver.Valuer] for SecretType.
@@ -105,7 +105,7 @@ func (s SecretType) Value() (driver.Value, error) {
 	case SecretTypeCoreAuth:
 		return secretTypeCodeCoreAuth, nil
 	case SecretTypeBearerSigningKey:
-		return secretTypeCodeBearerSigingKey, nil
+		return secretTypeCodeBearerSigningKey, nil
 	}
 
 	return nil, fmt.Errorf("Invalid secret type %q", s)
@@ -116,7 +116,7 @@ func (s *SecretType) ScanInteger(code int64) error {
 	switch code {
 	case secretTypeCodeCoreAuth:
 		*s = SecretTypeCoreAuth
-	case secretTypeCodeBearerSigingKey:
+	case secretTypeCodeBearerSigningKey:
 		*s = SecretTypeBearerSigningKey
 	default:
 		return fmt.Errorf("Invalid secret type code %d", code)
