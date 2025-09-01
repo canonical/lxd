@@ -142,7 +142,7 @@ var api10 = []APIEndpoint{
 	oidcIdentityCmd,
 	tlsIdentitiesCmd,
 	oidcIdentitiesCmd,
-	tokenIdentitiesCmd,
+	bearerIdentitiesCmd,
 	bearerIdentityCmd,
 	bearerIdentityTokenCmd,
 	authGroupsCmd,

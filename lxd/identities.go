@@ -47,7 +47,7 @@ var identitiesCmd = APIEndpoint{
 
 	Get: APIEndpointAction{
 		// Empty authentication method will return all identities.
-		Handler:       getIdentities(""),
+		Handler:       identitiesGet(""),
 		AccessHandler: allowAuthenticated,
 	},
 }
@@ -58,7 +58,7 @@ var currentIdentityCmd = APIEndpoint{
 	MetricsType: entity.TypeIdentity,
 
 	Get: APIEndpointAction{
-		Handler:       getCurrentIdentityInfo,
+		Handler:       identityGetCurrent,
 		AccessHandler: allowAuthenticated,
 	},
 }
@@ -69,11 +69,11 @@ var tlsIdentitiesCmd = APIEndpoint{
 	MetricsType: entity.TypeIdentity,
 
 	Get: APIEndpointAction{
-		Handler:       getIdentities(api.AuthenticationMethodTLS),
+		Handler:       identitiesGet(api.AuthenticationMethodTLS),
 		AccessHandler: allowAuthenticated,
 	},
 	Post: APIEndpointAction{
-		Handler:        createIdentityTLS,
+		Handler:        identitiesTLSPost,
 		AllowUntrusted: true,
 	},
 }
@@ -84,22 +84,22 @@ var oidcIdentitiesCmd = APIEndpoint{
 	MetricsType: entity.TypeIdentity,
 
 	Get: APIEndpointAction{
-		Handler:       getIdentities(api.AuthenticationMethodOIDC),
+		Handler:       identitiesGet(api.AuthenticationMethodOIDC),
 		AccessHandler: allowAuthenticated,
 	},
 }
 
-var tokenIdentitiesCmd = APIEndpoint{
+var bearerIdentitiesCmd = APIEndpoint{
 	Name:        "identities",
 	Path:        "auth/identities/bearer",
 	MetricsType: entity.TypeIdentity,
 
 	Get: APIEndpointAction{
-		Handler:       getIdentities(api.AuthenticationMethodBearer),
+		Handler:       identitiesGet(api.AuthenticationMethodBearer),
 		AccessHandler: allowAuthenticated,
 	},
 	Post: APIEndpointAction{
-		Handler:       createIdentityToken,
+		Handler:       identitiesBearerPost,
 		AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanCreateIdentities),
 	},
 }
@@ -110,19 +110,19 @@ var tlsIdentityCmd = APIEndpoint{
 	MetricsType: entity.TypeIdentity,
 
 	Get: APIEndpointAction{
-		Handler:       getIdentity,
+		Handler:       identityGet,
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodTLS, auth.EntitlementCanView),
 	},
 	Put: APIEndpointAction{
-		Handler:       updateIdentity(api.AuthenticationMethodTLS),
+		Handler:       identityPut(api.AuthenticationMethodTLS),
 		AccessHandler: allowAuthenticated,
 	},
 	Patch: APIEndpointAction{
-		Handler:       patchIdentity(api.AuthenticationMethodTLS),
+		Handler:       identityPatch(api.AuthenticationMethodTLS),
 		AccessHandler: allowAuthenticated,
 	},
 	Delete: APIEndpointAction{
-		Handler:       deleteIdentity,
+		Handler:       identityDelete,
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodTLS, auth.EntitlementCanDelete),
 	},
 }
@@ -133,19 +133,19 @@ var oidcIdentityCmd = APIEndpoint{
 	MetricsType: entity.TypeIdentity,
 
 	Get: APIEndpointAction{
-		Handler:       getIdentity,
+		Handler:       identityGet,
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodOIDC, auth.EntitlementCanView),
 	},
 	Put: APIEndpointAction{
-		Handler:       updateIdentity(api.AuthenticationMethodOIDC),
+		Handler:       identityPut(api.AuthenticationMethodOIDC),
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodOIDC, auth.EntitlementCanEdit),
 	},
 	Patch: APIEndpointAction{
-		Handler:       patchIdentity(api.AuthenticationMethodOIDC),
+		Handler:       identityPatch(api.AuthenticationMethodOIDC),
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodOIDC, auth.EntitlementCanEdit),
 	},
 	Delete: APIEndpointAction{
-		Handler:       deleteIdentity,
+		Handler:       identityDelete,
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodOIDC, auth.EntitlementCanDelete),
 	},
 }
@@ -156,19 +156,19 @@ var bearerIdentityCmd = APIEndpoint{
 	MetricsType: entity.TypeIdentity,
 
 	Get: APIEndpointAction{
-		Handler:       getIdentity,
+		Handler:       identityGet,
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodBearer, auth.EntitlementCanView),
 	},
 	Put: APIEndpointAction{
-		Handler:       updateIdentity(api.AuthenticationMethodBearer),
+		Handler:       identityPut(api.AuthenticationMethodBearer),
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodBearer, auth.EntitlementCanEdit),
 	},
 	Patch: APIEndpointAction{
-		Handler:       patchIdentity(api.AuthenticationMethodBearer),
+		Handler:       identityPatch(api.AuthenticationMethodBearer),
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodBearer, auth.EntitlementCanEdit),
 	},
 	Delete: APIEndpointAction{
-		Handler:       deleteIdentity,
+		Handler:       identityDelete,
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodBearer, auth.EntitlementCanDelete),
 	},
 }
@@ -178,11 +178,11 @@ var bearerIdentityTokenCmd = APIEndpoint{
 	MetricsType: entity.TypeIdentity,
 
 	Post: APIEndpointAction{
-		Handler:       tokenIdentityIssueToken,
+		Handler:       identityBearerTokenPost,
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodBearer, auth.EntitlementCanEdit),
 	},
 	Delete: APIEndpointAction{
-		Handler:       tokenIdentityRevokeToken,
+		Handler:       identityBearerTokenDelete,
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodBearer, auth.EntitlementCanEdit),
 	},
 }
@@ -326,7 +326,7 @@ func identityAccessHandler(authenticationMethod string, entitlement auth.Entitle
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func createIdentityTLS(d *Daemon, r *http.Request) response.Response {
+func identitiesTLSPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	// Parse the request.
@@ -379,7 +379,7 @@ func createIdentityTLS(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func createIdentityToken(d *Daemon, r *http.Request) response.Response {
+func identitiesBearerPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	req := api.IdentitiesBearerPost{}
@@ -467,7 +467,7 @@ func createIdentityToken(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func tokenIdentityIssueToken(d *Daemon, r *http.Request) response.Response {
+func identityBearerTokenPost(d *Daemon, r *http.Request) response.Response {
 	var req api.IdentityBearerTokenPost
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -538,7 +538,7 @@ func tokenIdentityIssueToken(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/NotFound"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func tokenIdentityRevokeToken(d *Daemon, r *http.Request) response.Response {
+func identityBearerTokenDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	id, err := request.GetContextValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
@@ -1092,7 +1092,7 @@ func tlsIdentityTokenValidate(ctx context.Context, s *state.State, token api.Cer
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func getIdentities(authenticationMethod string) func(d *Daemon, r *http.Request) response.Response {
+func identitiesGet(authenticationMethod string) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
 		recursion := util.IsRecursionRequest(r)
 		s := d.State()
@@ -1322,7 +1322,7 @@ func getIdentities(authenticationMethod string) func(d *Daemon, r *http.Request)
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func getIdentity(d *Daemon, r *http.Request) response.Response {
+func identityGet(d *Daemon, r *http.Request) response.Response {
 	id, err := request.GetContextValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
 	if err != nil {
 		return response.SmartError(err)
@@ -1397,7 +1397,7 @@ func getIdentity(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
+func identityGetCurrent(d *Daemon, r *http.Request) response.Response {
 	requestor, err := request.GetRequestor(r.Context())
 	if err != nil {
 		return response.SmartError(err)
@@ -1545,7 +1545,7 @@ func getCurrentIdentityInfo(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/InternalServerError"
 //	  "501":
 //	    $ref: "#/responses/NotImplemented"
-func updateIdentity(authenticationMethod string) func(d *Daemon, r *http.Request) response.Response {
+func identityPut(authenticationMethod string) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
 		s := d.State()
 		id, err := addIdentityDetailsToContext(s, r, authenticationMethod)
@@ -1778,7 +1778,7 @@ func updateIdentityPrivileged(s *state.State, r *http.Request, id dbCluster.Iden
 //	    $ref: "#/responses/InternalServerError"
 //	  "501":
 //	    $ref: "#/responses/NotImplemented"
-func patchIdentity(authenticationMethod string) func(d *Daemon, r *http.Request) response.Response {
+func identityPatch(authenticationMethod string) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
 		s := d.State()
 		id, err := addIdentityDetailsToContext(s, r, authenticationMethod)
@@ -2006,7 +2006,7 @@ func patchSelfIdentityUnprivileged(s *state.State, r *http.Request, id dbCluster
 //	    $ref: "#/responses/InternalServerError"
 //	  "501":
 //	    $ref: "#/responses/NotImplemented"
-func deleteIdentity(d *Daemon, r *http.Request) response.Response {
+func identityDelete(d *Daemon, r *http.Request) response.Response {
 	id, err := request.GetContextValue[*dbCluster.Identity](r.Context(), ctxClusterDBIdentity)
 	if err != nil {
 		return response.SmartError(err)
