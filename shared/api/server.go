@@ -1,5 +1,13 @@
 package api
 
+const (
+	// AuthTrusted is the value of [ServerUntrusted.Auth] returned by the server when the client has authenticated.
+	AuthTrusted = "trusted"
+
+	// AuthUntrusted is the value of [ServerUntrusted.Auth] returned by the server when the client not authenticated.
+	AuthUntrusted = "untrusted"
+)
+
 // ServerEnvironment represents the read-only environment fields of a LXD server.
 type ServerEnvironment struct {
 	// List of addresses the server is listening on
