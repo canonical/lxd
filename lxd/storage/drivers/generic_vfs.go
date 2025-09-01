@@ -1299,7 +1299,7 @@ func unmountVolume(d Driver, vol Volume, keepBlockDev bool, getDevicePath getVol
 		}
 
 		ourUnmount = true
-	} else if vol.contentType == ContentTypeBlock {
+	} else if IsContentBlock(vol.contentType) {
 		// For VMs, unmount the filesystem volume.
 		if vol.IsVMBlock() {
 			fsVol := vol.NewVMBlockFilesystemVolume()
