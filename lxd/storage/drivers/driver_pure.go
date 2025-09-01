@@ -28,6 +28,9 @@ var pureSupportedConnectors = []string{
 	connectors.TypeNVME,
 }
 
+// pureMinVolumeSizeBytes defines the minimum size of a Pure Storage volume, which is 1MiB.
+const pureMinVolumeSizeBytes = 1024 * 1024
+
 type pure struct {
 	common
 
@@ -374,4 +377,15 @@ func (d *pure) MigrationTypes(contentType ContentType, refresh bool, copySnapsho
 			Features: rsyncFeatures,
 		},
 	}
+}
+
+// roundVolumeBlockSizeBytes rounds the given size (in bytes) up to the next
+// multiple of 512 bytes, which is the minimum allocation unit on Pure Storage.
+// It also enforces a minimum volume size of 1 MiB.
+func (d *pure) roundVolumeBlockSizeBytes(_ Volume, sizeBytes int64) int64 {
+	if sizeBytes < pureMinVolumeSizeBytes {
+		return pureMinVolumeSizeBytes
+	}
+
+	return roundAbove(512, sizeBytes)
 }
