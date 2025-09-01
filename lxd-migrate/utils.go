@@ -237,7 +237,7 @@ func (c *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 	}
 
 	// Check if our cert is already trusted
-	if srv.Auth == "trusted" {
+	if srv.Auth == api.AuthTrusted {
 		fmt.Printf("\nRemote LXD server:\n  Hostname: %s\n  Version: %s\n\n", srv.Environment.ServerName, srv.Environment.ServerVersion)
 		return instanceServer, "", nil
 	}
@@ -325,7 +325,7 @@ func (c *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 		return nil, "", err
 	}
 
-	if srv.Auth == "untrusted" {
+	if srv.Auth == api.AuthUntrusted {
 		return nil, "", errors.New("Server doesn't trust us after authentication")
 	}
 
