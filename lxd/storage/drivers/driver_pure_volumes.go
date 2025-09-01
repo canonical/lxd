@@ -48,7 +48,7 @@ func (d *pure) commonVolumeRules() map[string]func(value string) error {
 		//  type: string
 		//  defaultdesc: same as `volume.size`
 		//  shortdesc: Size/quota of the storage volume
-		"size": validate.Optional(validate.IsMultipleOfUnit("512B")),
+		"size": validate.Optional(validate.IsSize),
 	}
 }
 
