@@ -916,7 +916,7 @@ func (d *lvm) unmountCommon(vol Volume, keepBlockDev bool, op *operations.Operat
 		d.logger.Debug("Unmounted logical volume", logger.Ctx{"volName": vol.name, "path": mountPath, "keepBlockDev": keepBlockDev})
 
 		ourUnmount = true
-	} else if vol.contentType == ContentTypeBlock {
+	} else if IsContentBlock(vol.contentType) {
 		volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 		keepBlockDev = keepBlockDev || !shared.PathExists(volDevPath)
 	}
