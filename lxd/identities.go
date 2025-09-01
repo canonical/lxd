@@ -1838,7 +1838,7 @@ func updateIdentityCache(d *Daemon) {
 		return nil
 	})
 	if err != nil {
-		logger.Warn("Failed reading certificates from global database", logger.Ctx{"err": err})
+		logger.Warn("Failed reading identities from global database", logger.Ctx{"err": err})
 		return
 	}
 
