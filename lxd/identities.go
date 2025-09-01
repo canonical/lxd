@@ -2150,14 +2150,9 @@ func updateIdentityCache(d *Daemon) {
 			idpGroupMapping[apiIDPGroup.Name] = apiIDPGroup.Groups
 		}
 
-		var identityIDsWithMultipleSigningKeys []int
-		bearerIdentitySecrets, identityIDsWithMultipleSigningKeys, err = dbCluster.GetAllBearerIdentitySigningKeys(ctx, tx.Tx())
+		bearerIdentitySecrets, err = dbCluster.GetAllBearerIdentitySigningKeys(ctx, tx.Tx())
 		if err != nil {
 			return err
-		}
-
-		if len(identityIDsWithMultipleSigningKeys) > 0 {
-			logger.Warn("Found identities with multiple signing keys - these will be omitted from the identity cache", logger.Ctx{"identity_ids": identityIDsWithMultipleSigningKeys})
 		}
 
 		return nil
