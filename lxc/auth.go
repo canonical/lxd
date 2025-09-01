@@ -849,6 +849,12 @@ func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
 	return fmt.Errorf("Cannot create identities of type %q", idType)
 }
 
+// createTLSIdentity is called via `lxc auth identity create tls/<name>`.
+// It accepts the remote name, the name of the identity, and a path to a PEM encoded TLS certificate.
+// These parameters, in addition to contents of stdin, are used to compose an [api.IdentitiesTLSPost] request body.
+// If no certificate file path is given (and no certificate is present from stdin), then `token` is set to `true` in
+// the request body, and a certificate add token is returned from the server and printed.
+// If a certificate is given, then the identity is created directly.
 func (c *cmdIdentityCreate) createTLSIdentity(remote string, name string, certFilePath string) error {
 	var stdinData api.IdentitiesTLSPost
 	// If stdin isn't a terminal, read text from it
