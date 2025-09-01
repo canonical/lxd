@@ -289,12 +289,6 @@ func SetRequestor(req *http.Request, identityCache *identity.Cache, args Request
 
 	// Trusted
 
-	// DevLXD requests must always be untrusted. Note that identities of type api.IdentityTypeBearerTokenDevLXD will
-	// have api.AuthenticationMethodBearer set as the protocol.
-	if callerProtocol == ProtocolDevLXD {
-		return errors.New("Received unexpected trusted request over DevLXD")
-	}
-
 	// There must be a protocol.
 	if callerProtocol == "" {
 		return errors.New("Caller is trusted but no protocol was set")
