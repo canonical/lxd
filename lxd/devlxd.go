@@ -123,9 +123,9 @@ func devLXDAPIGetHandler(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	clientAuth := "untrusted"
+	clientAuth := api.AuthUntrusted
 	if requestor.IsTrusted() {
-		clientAuth = "trusted"
+		clientAuth = api.AuthTrusted
 	}
 
 	resp := api.DevLXDGet{
