@@ -649,7 +649,7 @@ func parsePermissionArgs(args []string) (*api.Permission, error) {
 
 	if entityType == entity.TypeServer {
 		if len(args) != 3 {
-			return nil, errors.New("Expected three arguments: `lxc auth group grant [<remote>:]<group> server <entitlement>`")
+			return nil, errors.New("Expected three arguments: `lxc auth group permission add [<remote>:]<group> server <entitlement>`")
 		}
 
 		return &api.Permission{
@@ -660,7 +660,7 @@ func parsePermissionArgs(args []string) (*api.Permission, error) {
 	}
 
 	if len(args) < 4 {
-		return nil, errors.New("Expected at least four arguments: `lxc auth group grant [<remote>:]<group> <object_type> <object_name> <entitlement> [<key>=<value>...]`")
+		return nil, errors.New("Expected at least four arguments: `lxc auth group permission add [<remote>:]<group> <object_type> <object_name> <entitlement> [<key>=<value>...]`")
 	}
 
 	entityName := args[2]
