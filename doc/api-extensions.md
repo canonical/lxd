@@ -2752,3 +2752,7 @@ This adds a new `requestor` field to operations, which contains information abou
 ## `import_custom_volume_tar`
 
 This adds new option `tar` for parameter `--type` in `POST /1.0/storage-pools/{poolName}/volumes/{type}` API call.
+
+## `projects_force_delete`
+
+Adds support for force deleting projects and their entities (instances, profiles, images, networks, network ACLs, network zones, storage volumes, and storage buckets) by setting the `force` query parameter on `DELETE /1.0/projects/{name}` requests.

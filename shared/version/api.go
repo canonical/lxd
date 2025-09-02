@@ -460,6 +460,7 @@ var APIExtensions = []string{
 	"ovn_dhcp_ranges",
 	"operation_requestor",
 	"import_custom_volume_tar",
+	"projects_force_delete",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
