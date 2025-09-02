@@ -67,17 +67,20 @@ const (
 	authMethodOIDC int64 = 2
 )
 
+// authMethodCodeToText maps the database code for an authentication method to it's string representation.
+var authMethodCodeToText = map[int64]string{
+	authMethodTLS:  api.AuthenticationMethodTLS,
+	authMethodOIDC: api.AuthenticationMethodOIDC,
+}
+
 // ScanInteger implements [query.IntegerScanner] for [AuthMethod]. This simplifies the Scan implementation.
 func (a *AuthMethod) ScanInteger(authMethodCode int64) error {
-	switch authMethodCode {
-	case authMethodTLS:
-		*a = api.AuthenticationMethodTLS
-	case authMethodOIDC:
-		*a = api.AuthenticationMethodOIDC
-	default:
+	text, ok := authMethodCodeToText[authMethodCode]
+	if !ok {
 		return fmt.Errorf("Unknown authentication method `%d`", authMethodCode)
 	}
 
+	*a = AuthMethod(text)
 	return nil
 }
 
