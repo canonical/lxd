@@ -32,9 +32,9 @@ func (CertificateClient) Name() string {
 	return api.IdentityTypeCertificateClient
 }
 
-// CertificateClientPending represents an identity for which a token has been issued
-// but who has not yet authenticated with LXD. It supports fine-grained permissions
-// but is not cacheable and not an admin.
+// CertificateClientPending represents an identity for which a token has been issued but who has not yet authenticated with LXD.
+// It supports fine-grained permission management (e.g. the identity can be added to groups while in a pending state,
+// allowing the token holder to assume the correct permissions when they eventually use the token to gain trust).
 type CertificateClientPending struct {
 	typeInfoCommon
 }
