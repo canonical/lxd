@@ -47,7 +47,7 @@ var ErrExecCommandNotFound = api.StatusErrorf(http.StatusBadRequest, "Command no
 var ErrExecCommandNotExecutable = api.StatusErrorf(http.StatusBadRequest, "Command not executable")
 
 // ErrInstanceIsStopped indicates that the instance is stopped.
-var ErrInstanceIsStopped error = api.StatusErrorf(http.StatusBadRequest, "The instance is already stopped")
+var ErrInstanceIsStopped = api.StatusErrorf(http.StatusBadRequest, "The instance is already stopped")
 
 // deviceManager is an interface that allows managing device lifecycle.
 type deviceManager interface {
