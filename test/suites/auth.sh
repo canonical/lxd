@@ -193,6 +193,14 @@ fine_grained: true"
   ! lxc auth group permission remove test-group identity "tls/${pending_identity_id}" can_view || false # Already removed
   lxc auth identity delete tls/tmp
 
+  lxc auth identity create devlxd/tmp
+  devlxd_identity_id="$(lxc auth identity list --format csv | grep -F 'DevLXD token bearer' | cut -d, -f4)"
+  ! lxc auth group permission add test-group identity "${devlxd_identity_id}" can_view || false # Missing authentication method
+  lxc auth group permission add test-group identity "devlxd/${devlxd_identity_id}" can_view # Valid
+  lxc auth group permission remove test-group identity "devlxd/${devlxd_identity_id}" can_view
+  ! lxc auth group permission remove test-group identity "devlxd/${devlxd_identity_id}" can_view || false # Already removed
+  lxc auth identity delete devlxd/tmp
+
   ### IDENTITY PROVIDER GROUP MANAGEMENT ###
   lxc auth identity-provider-group create test-idp-group
   ! lxc auth identity-provider-group group add test-idp-group not-found || false # Group not found
