@@ -3,10 +3,10 @@ package cluster
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/identity"
-	"github.com/canonical/lxd/shared/api"
 )
 
 // entityTypeIdentity implements entityTypeDBInfo for an Identity.
@@ -84,10 +84,15 @@ CREATE TRIGGER %s
 
 // authMethodCaseClause returns the SQL CASE clause for auth method mapping.
 func authMethodCaseClause() string {
-	return fmt.Sprintf(`CASE identities.auth_method
-		WHEN %d THEN '%s'
-		WHEN %d THEN '%s'
-	END`, authMethodTLS, api.AuthenticationMethodTLS, authMethodOIDC, api.AuthenticationMethodOIDC)
+	var b strings.Builder
+	b.WriteString(`CASE identities.auth_method `)
+	for code, text := range authMethodCodeToText {
+		codeStr := strconv.FormatInt(code, 10)
+		b.WriteString(`WHEN ` + codeStr + ` THEN '` + text + `' `)
+	}
+
+	b.WriteString(`END`)
+	return b.String()
 }
 
 // onInsertTriggerSQL enforces that newly created identities have a unique name within the authentication method (where
