@@ -2554,6 +2554,13 @@ The disk quota is applied the next time the instance starts.
 
 ```
 
+```{config:option} volatile.<name>.devlxd.owner instance-volatile
+:shortdesc: "DevLXD identity ID that owns the device."
+:type: "string"
+ID of the DevLXD identity that owns the device. It is used by DevLXD to restrict
+access of an identity to devices that were created by that identity.
+```
+
 ```{config:option} volatile.<name>.host_name instance-volatile
 :shortdesc: "Network device name on the host"
 :type: "string"
@@ -5202,6 +5209,14 @@ This number is then incremented by one for the new name.
 Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).
 ```
 
+```{config:option} volatile.devlxd.owner storage-alletra-volume-conf
+:defaultdesc: "DevLXD owner identity ID"
+:scope: "global"
+:shortdesc: "The ID of the DevLXD identity which owns the volume"
+:type: "string"
+
+```
+
 ```{config:option} volatile.idmap.last storage-alletra-volume-conf
 :condition: "filesystem"
 :shortdesc: "JSON-serialized UID/GID map that has been applied to the volume"
@@ -5348,6 +5363,14 @@ This number is then incremented by one for the new name.
 :shortdesc: "Schedule for automatic volume snapshots"
 :type: "string"
 Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).
+```
+
+```{config:option} volatile.devlxd.owner storage-btrfs-volume-conf
+:defaultdesc: "DevLXD owner identity ID"
+:scope: "global"
+:shortdesc: "The ID of the DevLXD identity which owns the volume"
+:type: "string"
+
 ```
 
 ```{config:option} volatile.idmap.last storage-btrfs-volume-conf
@@ -5556,6 +5579,14 @@ This number is then incremented by one for the new name.
 Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).
 ```
 
+```{config:option} volatile.devlxd.owner storage-ceph-volume-conf
+:defaultdesc: "DevLXD owner identity ID"
+:scope: "global"
+:shortdesc: "The ID of the DevLXD identity which owns the volume"
+:type: "string"
+
+```
+
 ```{config:option} volatile.idmap.last storage-ceph-volume-conf
 :condition: "filesystem"
 :shortdesc: "JSON-serialized UID/GID map that has been applied to the volume"
@@ -5733,6 +5764,14 @@ This number is then incremented by one for the new name.
 :shortdesc: "Schedule for automatic volume snapshots"
 :type: "string"
 Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).
+```
+
+```{config:option} volatile.devlxd.owner storage-cephfs-volume-conf
+:defaultdesc: "DevLXD owner identity ID"
+:scope: "global"
+:shortdesc: "The ID of the DevLXD identity which owns the volume"
+:type: "string"
+
 ```
 
 ```{config:option} volatile.idmap.last storage-cephfs-volume-conf
@@ -5913,6 +5952,14 @@ This number is then incremented by one for the new name.
 :shortdesc: "Schedule for automatic volume snapshots"
 :type: "string"
 Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).
+```
+
+```{config:option} volatile.devlxd.owner storage-dir-volume-conf
+:defaultdesc: "DevLXD owner identity ID"
+:scope: "global"
+:shortdesc: "The ID of the DevLXD identity which owns the volume"
+:type: "string"
+
 ```
 
 ```{config:option} volatile.idmap.last storage-dir-volume-conf
@@ -6147,6 +6194,14 @@ This number is then incremented by one for the new name.
 Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).
 ```
 
+```{config:option} volatile.devlxd.owner storage-lvm-volume-conf
+:defaultdesc: "DevLXD owner identity ID"
+:scope: "global"
+:shortdesc: "The ID of the DevLXD identity which owns the volume"
+:type: "string"
+
+```
+
 ```{config:option} volatile.idmap.last storage-lvm-volume-conf
 :condition: "filesystem"
 :shortdesc: "JSON-serialized UID/GID map that has been applied to the volume"
@@ -6370,6 +6425,14 @@ This number is then incremented by one for the new name.
 Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).
 ```
 
+```{config:option} volatile.devlxd.owner storage-powerflex-volume-conf
+:defaultdesc: "DevLXD owner identity ID"
+:scope: "global"
+:shortdesc: "The ID of the DevLXD identity which owns the volume"
+:type: "string"
+
+```
+
 ```{config:option} volatile.idmap.last storage-powerflex-volume-conf
 :condition: "filesystem"
 :shortdesc: "JSON-serialized UID/GID map that has been applied to the volume"
@@ -6542,6 +6605,14 @@ This number is then incremented by one for the new name.
 :shortdesc: "Schedule for automatic volume snapshots"
 :type: "string"
 Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).
+```
+
+```{config:option} volatile.devlxd.owner storage-pure-volume-conf
+:defaultdesc: "DevLXD owner identity ID"
+:scope: "global"
+:shortdesc: "The ID of the DevLXD identity which owns the volume"
+:type: "string"
+
 ```
 
 ```{config:option} volatile.idmap.last storage-pure-volume-conf
@@ -6727,6 +6798,14 @@ This number is then incremented by one for the new name.
 :shortdesc: "Schedule for automatic volume snapshots"
 :type: "string"
 Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).
+```
+
+```{config:option} volatile.devlxd.owner storage-zfs-volume-conf
+:defaultdesc: "DevLXD owner identity ID"
+:scope: "global"
+:shortdesc: "The ID of the DevLXD identity which owns the volume"
+:type: "string"
+
 ```
 
 ```{config:option} volatile.idmap.last storage-zfs-volume-conf
