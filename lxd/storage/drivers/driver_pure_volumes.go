@@ -48,7 +48,7 @@ func (d *pure) commonVolumeRules() map[string]func(value string) error {
 		//  type: string
 		//  defaultdesc: same as `volume.size`
 		//  shortdesc: Size/quota of the storage volume
-		"size": validate.Optional(validate.IsMultipleOfUnit("512B")),
+		"size": validate.Optional(validate.IsSize),
 	}
 }
 
@@ -68,6 +68,8 @@ func (d *pure) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 	if err != nil {
 		return err
 	}
+
+	sizeBytes = d.roundVolumeBlockSizeBytes(vol, sizeBytes)
 
 	// Create the volume.
 	err = client.createVolume(vol.pool, volName, sizeBytes)
@@ -714,20 +716,16 @@ func (d *pure) FillVolumeConfig(vol Volume) error {
 
 // ValidateVolume validates the supplied volume config.
 func (d *pure) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
-	// When creating volumes from ISO images, round its size to the next multiple of 512B.
+	// When creating volumes from ISO images, round its size to the next multiple of 512B,
+	// and ensure it is at least 1MiB.
 	if vol.ContentType() == ContentTypeISO {
 		sizeBytes, err := units.ParseByteSizeString(vol.ConfigSize())
 		if err != nil {
 			return err
 		}
 
-		// If the remainder when dividing by 512 is greater than 0, round the size up
-		// to the next multiple of 512.
-		remainder := sizeBytes % 512
-		if remainder > 0 {
-			sizeBytes = (sizeBytes/512 + 1) * 512
-			vol.SetConfigSize(strconv.FormatInt(sizeBytes, 10))
-		}
+		sizeBytes = d.roundVolumeBlockSizeBytes(vol, sizeBytes)
+		vol.SetConfigSize(strconv.FormatInt(sizeBytes, 10))
 	}
 
 	commonRules := d.commonVolumeRules()
@@ -785,6 +783,8 @@ func (d *pure) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, o
 	if sizeBytes <= 0 {
 		return nil
 	}
+
+	sizeBytes = d.roundVolumeBlockSizeBytes(vol, sizeBytes)
 
 	volName, err := d.getVolumeName(vol)
 	if err != nil {
