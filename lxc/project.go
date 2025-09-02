@@ -189,6 +189,8 @@ func (c *cmdProjectCreate) run(cmd *cobra.Command, args []string) error {
 type cmdProjectDelete struct {
 	global  *cmdGlobal
 	project *cmdProject
+
+	flagForce bool
 }
 
 func (c *cmdProjectDelete) command() *cobra.Command {
@@ -198,6 +200,8 @@ func (c *cmdProjectDelete) command() *cobra.Command {
 	cmd.Short = i18n.G("Delete projects")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Delete projects`))
+
+	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Force delete project and its entities")+"``")
 
 	cmd.RunE = c.run
 
@@ -236,10 +240,17 @@ func (c *cmdProjectDelete) run(cmd *cobra.Command, args []string) error {
 		return errors.New(i18n.G("Missing project name"))
 	}
 
-	// Delete the project
-	err = resource.server.DeleteProject(resource.name)
-	if err != nil {
-		return err
+	// Delete the project.
+	if c.flagForce {
+		err := resource.server.ForceDeleteProject(resource.name)
+		if err != nil {
+			return err
+		}
+	} else {
+		err = resource.server.DeleteProject(resource.name)
+		if err != nil {
+			return err
+		}
 	}
 
 	if !c.global.flagQuiet {
