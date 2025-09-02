@@ -20,11 +20,6 @@ func (CertificateMetricsRestricted) Code() int64 {
 	return identityTypeCertificateMetricsRestricted
 }
 
-// IsCacheable indicates that this identity can be cached.
-func (CertificateMetricsRestricted) IsCacheable() bool {
-	return true
-}
-
 // LegacyCertificateType returns the legacy certificate type for this identity type.
 func (CertificateMetricsRestricted) LegacyCertificateType() (certificate.Type, error) {
 	return certificate.TypeMetrics, nil
@@ -48,11 +43,6 @@ func (CertificateMetricsUnrestricted) AuthenticationMethod() string {
 // Code returns the identity type code for this identity type.
 func (CertificateMetricsUnrestricted) Code() int64 {
 	return identityTypeCertificateMetricsUnrestricted
-}
-
-// IsCacheable indicates that this identity can be cached.
-func (CertificateMetricsUnrestricted) IsCacheable() bool {
-	return true
 }
 
 // LegacyCertificateType returns the legacy certificate type for this identity type.

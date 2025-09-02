@@ -14,11 +14,6 @@ func (typeInfoCommon) IsAdmin() bool {
 	return false
 }
 
-// IsCacheable returns false by default.
-func (typeInfoCommon) IsCacheable() bool {
-	return false
-}
-
 // IsFineGrained returns false by default.
 func (typeInfoCommon) IsFineGrained() bool {
 	return false
