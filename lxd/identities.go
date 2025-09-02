@@ -2176,7 +2176,7 @@ func updateIdentityCache(d *Daemon) {
 			continue
 		}
 
-		if !identityType.IsCacheable() {
+		if identityType.IsPending() {
 			continue
 		}
 
