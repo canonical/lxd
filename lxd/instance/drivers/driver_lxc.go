@@ -1282,8 +1282,8 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 	return cc, err
 }
 
-var idmappedStorageMap map[unix.Fsid]idmap.IdmapStorageType = map[unix.Fsid]idmap.IdmapStorageType{}
-var idmappedStorageMapString map[string]idmap.IdmapStorageType = map[string]idmap.IdmapStorageType{}
+var idmappedStorageMap = map[unix.Fsid]idmap.IdmapStorageType{}
+var idmappedStorageMapString = map[string]idmap.IdmapStorageType{}
 var idmappedStorageMapLock sync.Mutex
 
 // IdmappedStorage determines if the container can use idmapped mounts.
