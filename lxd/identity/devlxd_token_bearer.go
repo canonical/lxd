@@ -26,11 +26,6 @@ func (DevLXDTokenBearer) AuthenticationMethod() string {
 	return api.AuthenticationMethodBearer
 }
 
-// IsCacheable indicates that this identity can be cached.
-func (DevLXDTokenBearer) IsCacheable() bool {
-	return true
-}
-
 // IsFineGrained indicates that this identity uses fine-grained permissions.
 func (DevLXDTokenBearer) IsFineGrained() bool {
 	return true

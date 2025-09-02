@@ -20,11 +20,6 @@ func (OIDCClient) Code() int64 {
 	return identityTypeOIDCClient
 }
 
-// IsCacheable indicates that this identity can be cached.
-func (OIDCClient) IsCacheable() bool {
-	return true
-}
-
 // IsFineGrained indicates that this identity uses fine-grained permissions.
 func (OIDCClient) IsFineGrained() bool {
 	return true

@@ -22,11 +22,6 @@ func (CertificateClient) Code() int64 {
 	return identityTypeCertificateClient
 }
 
-// IsCacheable indicates that this identity can be cached.
-func (CertificateClient) IsCacheable() bool {
-	return true
-}
-
 // IsFineGrained indicates that this identity uses fine-grained permissions.
 func (CertificateClient) IsFineGrained() bool {
 	return true
@@ -37,9 +32,9 @@ func (CertificateClient) Name() string {
 	return api.IdentityTypeCertificateClient
 }
 
-// CertificateClientPending represents an identity for which a token has been issued
-// but who has not yet authenticated with LXD. It supports fine-grained permissions
-// but is not cacheable and not an admin.
+// CertificateClientPending represents an identity for which a token has been issued but who has not yet authenticated with LXD.
+// It supports fine-grained permission management (e.g. the identity can be added to groups while in a pending state,
+// allowing the token holder to assume the correct permissions when they eventually use the token to gain trust).
 type CertificateClientPending struct {
 	typeInfoCommon
 }
@@ -86,11 +81,6 @@ func (CertificateClientRestricted) Code() int64 {
 	return identityTypeCertificateClientRestricted
 }
 
-// IsCacheable indicates that this identity can be cached.
-func (CertificateClientRestricted) IsCacheable() bool {
-	return true
-}
-
 // LegacyCertificateType returns the legacy certificate type for this identity type.
 func (CertificateClientRestricted) LegacyCertificateType() (certificate.Type, error) {
 	return certificate.TypeClient, nil
@@ -120,11 +110,6 @@ func (CertificateClientUnrestricted) Code() int64 {
 
 // IsAdmin indicates that this identity type has administrator privileges (unrestricted).
 func (CertificateClientUnrestricted) IsAdmin() bool {
-	return true
-}
-
-// IsCacheable indicates that this identity can be cached.
-func (CertificateClientUnrestricted) IsCacheable() bool {
 	return true
 }
 
