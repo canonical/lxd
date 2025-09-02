@@ -145,3 +145,20 @@ func (r *ProtocolLXD) DeleteProject(name string) error {
 
 	return nil
 }
+
+// ForceDeleteProject force deletes a project and its entities (instances, profiles, images, networks, network ACLs, network zones, and storage volumes).
+func (r *ProtocolLXD) ForceDeleteProject(name string) error {
+	err := r.CheckExtension("projects_force_delete")
+	if err != nil {
+		return err
+	}
+
+	// Send the request
+	u := api.NewURL().Path("projects", name).WithQuery("force", "1")
+	_, _, err = r.query(http.MethodDelete, u.String(), nil, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
