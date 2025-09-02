@@ -68,7 +68,7 @@ Snapshot        | `s`          | `sc-5a2504b06a6c48498ee7ddb0b674fd14` (containe
 The `pure` driver has the following limitations:
 
 Volume size constraints
-: Minimum volume size (quota) is `1MiB` and must be a multiple of `512B`.
+: Minimum volume size (quota) is `1MiB` and must be a multiple of `512B`. If the requested size does not meet these conditions, LXD automatically rounds it up to the nearest valid value.
 
 Snapshots cannot be mounted
 : Snapshots cannot be mounted directly to the host. Instead, a temporary volume must be created to access the snapshot's contents.
