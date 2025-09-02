@@ -2708,3 +2708,7 @@ This change removes the previous limitation on `ovn` networks that load balancer
 
 Adds a new `bearer` authentication method and enables authentication to the DevLXD API.
 See {ref}`DevLXD bearer tokens <devlxd-authentication-bearer>`.
+
+## `projects_force_delete`
+
+Adds support for force deleting projects and their entities (instances, profiles, images, networks, network ACLs, network zones, and storage volumes) by setting the `force` query parameter on `DELETE /1.0/projects/{name}` requests.
