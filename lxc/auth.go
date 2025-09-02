@@ -680,9 +680,9 @@ func parsePermissionArgs(args []string) (*api.Permission, error) {
 
 	pathArgs := []string{entityName}
 	if entityType == entity.TypeIdentity {
-		authenticationMethod, identifier, ok := strings.Cut(entityName, "/")
-		if !ok {
-			return nil, fmt.Errorf("Malformed identity argument, expected `<type>/<identifier>`, got %q", entityName)
+		authenticationMethod, _, identifier, err := resolveIdentityTypeShorthand(entityName)
+		if err != nil {
+			return nil, err
 		}
 
 		pathArgs = []string{authenticationMethod, identifier}
