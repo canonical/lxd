@@ -1408,3 +1408,68 @@ test_projects_backups_volume() {
   lxc project delete foo
   lxc storage volume delete "${pool}" vol
 }
+
+test_projects_force_delete() {
+  echo "Create project with all features enabled."
+  lxc project create foo -c features.networks=true -c features.networks.zones=true -c features.images=true -c features.profiles=true -c features.storage.volumes=true -c features.storage.buckets=true
+
+  echo "Create storage volume in project."
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+  lxc storage volume create "${pool}" vol1 --project foo
+
+  echo "Create network ACL in project."
+  lxc network acl create acl1 --project foo
+
+  echo "Create network zone in project."
+  lxc network zone create zone1 --project foo
+
+  echo "Create profile in project."
+  lxc profile create profile1 --project foo
+
+  echo "Add image to project."
+  deps/import-busybox --project foo --alias testimage
+
+  echo "Create instance in project."
+  lxc init testimage c1 --project foo -s "${pool}"
+
+  if ovn_enabled; then
+    echo "Create OVN uplink network."
+    setup_ovn
+    uplink_network="uplink$$"
+
+    echo "Create a dummy physical network for use as an uplink."
+    ip link add dummy0 type dummy
+    lxc network create "${uplink_network}" --type=physical parent=dummy0
+
+    echo "Set OVN ranges."
+    lxc network set "${uplink_network}" ipv4.ovn.ranges=192.0.2.100-192.0.2.254
+    lxc network set "${uplink_network}" ipv6.ovn.ranges=2001:db8:1:2::100-2001:db8:1:2::254
+
+    echo "Set IP routes that include OVN ranges."
+    lxc network set "${uplink_network}" ipv4.routes=192.0.2.0/24
+    lxc network set "${uplink_network}" ipv6.routes=2001:db8:1:2::/64
+
+    echo "Create OVN network in project."
+    lxc network create foonet --type ovn --project foo network="${uplink_network}"
+  fi
+
+  echo "Checking project entities are deleted when the project is force deleted..."
+
+  echo "Force delete project."
+  lxc project delete --force foo --yes
+
+  echo "Check storage volume deleted."
+  [ "$(lxc storage volume list --all-projects | grep -cF vol1)" = 0 ]
+  echo "Check network deleted."
+  [ "$(lxc network list --all-projects | grep -cF foonet)" = 0 ]
+  echo "Check network ACL deleted."
+  [ "$(lxc network acl list --all-projects | grep -cF acl1)" = 0 ]
+  echo "Check network zone deleted."
+  [ "$(lxc network zone list --all-projects | grep -cF zone1)" = 0 ]
+  echo "Check profile deleted."
+  [ "$(lxc profile list --all-projects | grep -cF profile1)" = 0 ]
+  echo "Check image deleted."
+  [ "$(lxc image list --all-projects | grep -cF testimage)" = 0 ]
+  echo "Check instance deleted."
+  [ "$(lxc list --all-projects | grep -cF c1)" = 0 ]
+}
