@@ -649,7 +649,7 @@ func parsePermissionArgs(args []string) (*api.Permission, error) {
 
 	if entityType == entity.TypeServer {
 		if len(args) != 3 {
-			return nil, errors.New("Expected three arguments: `lxc auth group grant [<remote>:]<group> server <entitlement>`")
+			return nil, errors.New("Expected three arguments: `lxc auth group permission add [<remote>:]<group> server <entitlement>`")
 		}
 
 		return &api.Permission{
@@ -660,7 +660,7 @@ func parsePermissionArgs(args []string) (*api.Permission, error) {
 	}
 
 	if len(args) < 4 {
-		return nil, errors.New("Expected at least four arguments: `lxc auth group grant [<remote>:]<group> <object_type> <object_name> <entitlement> [<key>=<value>...]`")
+		return nil, errors.New("Expected at least four arguments: `lxc auth group permission add [<remote>:]<group> <object_type> <object_name> <entitlement> [<key>=<value>...]`")
 	}
 
 	entityName := args[2]
@@ -680,9 +680,9 @@ func parsePermissionArgs(args []string) (*api.Permission, error) {
 
 	pathArgs := []string{entityName}
 	if entityType == entity.TypeIdentity {
-		authenticationMethod, identifier, ok := strings.Cut(entityName, "/")
-		if !ok {
-			return nil, fmt.Errorf("Malformed identity argument, expected `<type>/<identifier>`, got %q", entityName)
+		authenticationMethod, _, identifier, err := resolveIdentityTypeShorthand(entityName)
+		if err != nil {
+			return nil, err
 		}
 
 		pathArgs = []string{authenticationMethod, identifier}
@@ -728,29 +728,42 @@ type cmdIdentity struct {
 	global *cmdGlobal
 }
 
-// resolveIdentityTypeShorthand takes a shorthand and returns an authentication method and identity type or an error.
-// If the shorthand resolves to more than one identity type, it returns an empty string for the identity type.
+// resolveIdentityTypeShorthand takes an identity argument of the form <type>/<name> and returns an authentication
+// method, an identity type, and a name (or an error).
+// If the shorthand <type> resolves to more than one identity type, it returns an empty string for the identity type.
+func resolveIdentityTypeShorthand(identityArg string) (method string, identityType string, nameOrID string, err error) {
+	shorthandType, idName, ok := strings.Cut(identityArg, "/")
+	if !ok {
+		return "", "", "", errors.New(i18n.G("Malformed argument, expected `[<remote>:]<type>/<name>`, got ") + identityArg)
+	}
+
+	switch shorthandType {
+	case api.AuthenticationMethodTLS:
+		return api.AuthenticationMethodTLS, "", idName, nil
+	case api.AuthenticationMethodOIDC:
+		return api.AuthenticationMethodOIDC, api.IdentityTypeOIDCClient, idName, nil
+	case "devlxd":
+		return api.AuthenticationMethodBearer, api.IdentityTypeBearerTokenDevLXD, idName, nil
+	}
+
+	return "", "", "", fmt.Errorf("Unrecognized identity type shorthand %q", shorthandType)
+}
+
+// resolveIdentityTypeShorthand takes an identity argument of the form [<remote>:]<type>/<name> and returns the remote
+// name, an authentication method, an identity type, and a name (or an error).
+// If the shorthand <type> resolves to more than one identity type, it returns an empty string for the identity type.
 func (c *cmdIdentity) resolveIdentityArg(identityArg string) (remote string, method string, identityType string, nameOrID string, err error) {
 	remoteName, resourceName, err := c.global.conf.ParseRemote(identityArg)
 	if err != nil {
 		return "", "", "", "", err
 	}
 
-	shorthandType, idName, ok := strings.Cut(resourceName, "/")
-	if !ok {
-		return "", "", "", "", errors.New(i18n.G("Malformed argument, expected `[<remote>:]<type>/<name>`, got ") + identityArg)
+	method, identityType, nameOrID, err = resolveIdentityTypeShorthand(resourceName)
+	if err != nil {
+		return "", "", "", "", err
 	}
 
-	switch shorthandType {
-	case api.AuthenticationMethodTLS:
-		return remoteName, api.AuthenticationMethodTLS, "", idName, nil
-	case api.AuthenticationMethodOIDC:
-		return remoteName, api.AuthenticationMethodOIDC, api.IdentityTypeOIDCClient, idName, nil
-	case "devlxd":
-		return remoteName, api.AuthenticationMethodBearer, api.IdentityTypeBearerTokenDevLXD, idName, nil
-	}
-
-	return "", "", "", "", fmt.Errorf("Unrecognized identity type shorthand %q", shorthandType)
+	return remoteName, method, identityType, nameOrID, nil
 }
 
 func (c *cmdIdentity) command() *cobra.Command {
