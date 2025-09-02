@@ -27,9 +27,6 @@ type Type interface {
 	// IsAdmin returns true if this identity type has administrator privileges (unrestricted).
 	IsAdmin() bool
 
-	// IsCacheable returns true if this identity type can be cached.
-	IsCacheable() bool
-
 	// IsFineGrained returns true if this identity type supports fine-grained permissions (managed via group ownership).
 	IsFineGrained() bool
 

@@ -26,11 +26,6 @@ func (CertificateServer) IsAdmin() bool {
 	return true
 }
 
-// IsCacheable indicates that this identity can be cached.
-func (CertificateServer) IsCacheable() bool {
-	return true
-}
-
 // LegacyCertificateType returns the legacy certificate type for this identity type.
 func (CertificateServer) LegacyCertificateType() (certificate.Type, error) {
 	return certificate.TypeServer, nil
