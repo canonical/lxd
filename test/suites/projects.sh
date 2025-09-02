@@ -1274,3 +1274,131 @@ test_projects_before_init() {
 
   shutdown_lxd "${LXD_INIT_DIR}"
 }
+
+test_projects_force_delete() {
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+  create_object_storage_pool s3
+
+  echo "Capture baseline state before creating project."
+  VOLUMES_BEFORE="$(lxc storage volume list "${pool}" -f csv --all-projects)"
+  BUCKETS_BEFORE="$(lxc storage bucket list s3 -f csv --all-projects)"
+  NETWORKS_BEFORE="$(lxc network list -f csv --all-projects)"
+  ACLS_BEFORE="$(lxc network acl list -f csv --all-projects)"
+  ZONES_BEFORE="$(lxc network zone list -f csv --all-projects)"
+  PROFILES_BEFORE="$(lxc profile list -f csv --all-projects)"
+  IMAGES_BEFORE="$(lxc image list -f csv --all-projects)"
+  INSTANCES_BEFORE="$(lxc list -f csv --all-projects)"
+
+  echo "Create project with all features enabled."
+  lxc project create foo -c features.networks=true -c features.networks.zones=true -c features.images=true -c features.profiles=true -c features.storage.volumes=true -c features.storage.buckets=true
+
+  echo "Create storage volume in project."
+  lxc storage volume create "${pool}" custom/vol1 --project foo
+
+  echo "Create storage bucket in project."
+  lxc storage bucket create s3 bucket1 --project foo
+
+  echo "Create network ACL in project."
+  lxc network acl create acl1 --project foo
+
+  echo "Create network zone in project."
+  lxc network zone create zone1 --project foo
+
+  echo "Create profile in project."
+  lxc profile create profile1 --project foo
+
+  echo "Add image to project."
+  deps/import-busybox --project foo --alias testimage
+
+  uplink_network="uplink$$"
+  if ovn_enabled; then
+    echo "Create OVN uplink network."
+    setup_ovn
+
+    echo "Create a dummy physical network for use as an uplink."
+    ip link add dummy0 type dummy
+    lxc network create "${uplink_network}" --type=physical parent=dummy0
+
+    echo "Set OVN ranges."
+    lxc network set "${uplink_network}" ipv4.ovn.ranges=192.0.2.100-192.0.2.254
+    lxc network set "${uplink_network}" ipv6.ovn.ranges=2001:db8:1:2::100-2001:db8:1:2::254
+
+    echo "Set IP routes that include OVN ranges."
+    lxc network set "${uplink_network}" ipv4.routes=192.0.2.0/24
+    lxc network set "${uplink_network}" ipv6.routes=2001:db8:1:2::/64
+
+    echo "Create OVN network in project."
+    lxc network create foonet --type ovn --project foo network="${uplink_network}"
+
+    echo "Add NIC to profile in project."
+    (
+      cat <<EOF
+config: {}
+description: ""
+devices:
+  eth1:
+    name: eth1
+    network: foonet
+    type: nic
+name: default
+used_by:
+EOF
+  ) | lxc profile edit profile1 --project foo
+  fi
+
+  echo "Check that regular delete fails on non-empty project."
+  ! lxc project delete foo || false
+
+  echo "Check force delete of non-existent project."
+  ! lxc project delete nonexistent --force || false
+
+  echo "Check force delete of default project fails."
+  ! lxc project delete default --force || false
+
+  echo "Create and start instance."
+  lxc launch testimage c1 --project foo -s "${pool}" -p profile1
+
+  echo "Create and start instance with \"security.protection.delete\" set."
+  lxc launch testimage c2 --project foo -s "${pool}" -p profile1 -c security.protection.delete=true
+
+  echo "Check force delete project fails with instance that has \"security.protection.delete\" set."
+  ! lxc project delete foo --force || false
+
+  echo "Unset \"security.protection.delete\" on instance."
+  lxc config unset c2 security.protection.delete --project foo
+
+  echo "Force delete project."
+  lxc project delete foo --force
+
+  echo "Check project is deleted."
+  ! lxc project show foo || false
+
+  echo "Clean up OVN parent network."
+  if ovn_enabled; then
+    lxc network delete "${uplink_network}"
+    ip link delete dummy0
+    unset_ovn_configuration
+  fi
+
+  echo "Verify all entities were cleaned up by comparing before/after state."
+  VOLUMES_AFTER="$(lxc storage volume list "${pool}" -f csv --all-projects)"
+  BUCKETS_AFTER="$(lxc storage bucket list s3 -f csv --all-projects)"
+  NETWORKS_AFTER="$(lxc network list -f csv --all-projects)"
+  ACLS_AFTER="$(lxc network acl list -f csv --all-projects)"
+  ZONES_AFTER="$(lxc network zone list -f csv --all-projects)"
+  PROFILES_AFTER="$(lxc profile list -f csv --all-projects)"
+  IMAGES_AFTER="$(lxc image list -f csv --all-projects)"
+  INSTANCES_AFTER="$(lxc list -f csv --all-projects)"
+
+  [ "${VOLUMES_BEFORE}" = "${VOLUMES_AFTER}" ]
+  [ "${BUCKETS_BEFORE}" = "${BUCKETS_AFTER}" ]
+  [ "${NETWORKS_BEFORE}" = "${NETWORKS_AFTER}" ]
+  [ "${ACLS_BEFORE}" = "${ACLS_AFTER}" ]
+  [ "${ZONES_BEFORE}" = "${ZONES_AFTER}" ]
+  [ "${PROFILES_BEFORE}" = "${PROFILES_AFTER}" ]
+  [ "${IMAGES_BEFORE}" = "${IMAGES_AFTER}" ]
+  [ "${INSTANCES_BEFORE}" = "${INSTANCES_AFTER}" ]
+
+  echo "Clean up object storage pool."
+  delete_object_storage_pool s3
+}
