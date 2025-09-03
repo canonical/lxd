@@ -257,8 +257,8 @@ jobs:
       # XXX: `make static-analysis` also run golangci-lint but this one provides
       #      useful feedback in the PR through github-code-scanning bot
       - name: Run golangci-lint
-        if: github.event_name == 'pull_request'
-        uses: golangci/golangci-lint-action@e7fa5ac41e1cf5b7d48e45e42232ce7ada589601 # v8
+        if: github.event_name == 'pull_request' || github.event_name == 'schedule'
+        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
 
       - name: Run static analysis
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.static-analysis == 'true' }}
