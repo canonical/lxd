@@ -327,6 +327,7 @@ TTL
 UDP
 UEFI
 UFW
+UI's
 UID
 UIDs
 unconfigured
