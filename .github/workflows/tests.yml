@@ -28,6 +28,7 @@ env:
   LXD_REQUIRED_TESTS: "storage_buckets,network_ovn"
   GOCOVERAGE: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && 'true' || 'false' }}
   GOCOVERDIR: ''  # Later set to the fully qualified path if needed
+  SNAP_CACHE_DIR: "/home/runner/snap-cache"
 
 permissions:
   contents: read
@@ -304,6 +305,31 @@ jobs:
             /home/runner/go/bin/sysinfo
           retention-days: 1
 
+  snap-cache:
+    name: Seed the snap cache
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Download snap dependencies
+        run: |
+          set -eux
+          . test/includes/snap.sh
+
+          # Seed the snap dependencies cache
+          download_snap core24 "latest/stable"
+          download_snap microceph
+          download_snap microovn
+
+      - name: Upload snap cache
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: snap-cache
+          path: |
+            /home/runner/snap-cache/*
+          retention-days: 1
+
   system-tests:
     env:
       LXD_CEPH_CLUSTER: "ceph"
@@ -321,7 +347,7 @@ jobs:
     if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
     name: System
     runs-on: ubuntu-22.04
-    needs: code-tests
+    needs: [ "code-tests", "snap-cache" ]
     strategy:
       fail-fast: false
       matrix:
