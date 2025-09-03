@@ -22,8 +22,19 @@ runs:
       shell: bash
       run: |
           set -eux
+          # External repos using this action won't have access to the `test/includes/snap.sh` file
+          # so install directly from the store instead.
+          if [ -e test/includes/snap.sh ]; then
+            sudo bash -c ". test/includes/snap.sh; install_snap microovn ${{ inputs.microovn-channel }}"
+          else
+            sudo snap install microovn --channel "${{ inputs.microovn-channel }}"
+          fi
 
-          sudo snap install microovn --channel "${{ inputs.microovn-channel }}"
+    - name: Configure MicroOVN snap
+      shell: bash
+      run: |
+          set -eux
+
           sudo microovn waitready
           sudo microovn cluster bootstrap
           sudo microovn status
