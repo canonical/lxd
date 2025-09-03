@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -42,7 +43,7 @@ var operationWait = APIEndpoint{
 func operationDelete(d *Daemon, r *http.Request) response.Response {
 	id := r.PathValue("id")
 	if id == "" {
-		return response.BadRequest(fmt.Errorf("Failed to extract operation ID from URL"))
+		return response.BadRequest(errors.New("Failed to extract operation ID from URL"))
 	}
 
 	// First check if the query is for a local operation from this node
@@ -62,7 +63,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 func operationGet(d *Daemon, r *http.Request) response.Response {
 	id := r.PathValue("id")
 	if id == "" {
-		return response.BadRequest(fmt.Errorf("Failed to extract operation ID from URL"))
+		return response.BadRequest(errors.New("Failed to extract operation ID from URL"))
 	}
 
 	var body *api.Operation
@@ -151,7 +152,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 	id := r.PathValue("id")
 	if id == "" {
-		return response.BadRequest(fmt.Errorf("Failed to extract operation ID from URL"))
+		return response.BadRequest(errors.New("Failed to extract operation ID from URL"))
 	}
 
 	// First check if the query is for a local operation from this node
@@ -166,7 +167,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 	id := r.PathValue("id")
 	if id == "" {
-		return response.BadRequest(fmt.Errorf("Failed to extract operation ID from URL"))
+		return response.BadRequest(errors.New("Failed to extract operation ID from URL"))
 	}
 
 	timeoutSecs, err := shared.AtoiEmptyDefault(r.FormValue("timeout"), -1)
