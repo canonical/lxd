@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
@@ -13,6 +14,7 @@ import (
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/version"
@@ -65,8 +67,14 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
+	return doInstanceDelete(r.Context(), s, name, projectName, instanceType)
+}
+
+// doInstanceDelete deletes an instance in the given project.
+// Returns a [response.Response] indicating success or failure.
+func doInstanceDelete(ctx context.Context, s *state.State, name string, projectName string, instanceType instancetype.Type) response.Response {
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, projectName, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(ctx, s, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -95,7 +103,7 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.InstanceDelete, resources, nil, rmct, nil, nil)
+	op, err := operations.OperationCreate(ctx, s, projectName, operations.OperationClassTask, operationtype.InstanceDelete, resources, nil, rmct, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
