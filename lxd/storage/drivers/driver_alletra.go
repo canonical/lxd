@@ -221,12 +221,48 @@ func (d *alletra) Validate(config map[string]string) error {
 // Create is called during pool creation and is effectively using an empty driver struct.
 // WARNING: The Create() function cannot rely on any of the struct attributes being set.
 func (d *alletra) Create() error {
-	return ErrNotSupported
+	err := d.FillConfig()
+	if err != nil {
+		return err
+	}
+
+	// Validate both pool and gateway here and return an error if they are not set.
+	// Since those aren't any cluster member specific keys the general validation
+	// rules allow empty strings in order to create the pending storage pools.
+	if d.config["alletra.wsapi"] == "" {
+		return errors.New("The alletra.wsapi cannot be empty")
+	}
+
+	if d.config["alletra.user.name"] == "" {
+		return errors.New("The alletra.user.name cannot be empty")
+	}
+
+	if d.config["alletra.user.password"] == "" {
+		return errors.New("The alletra.user.password cannot be empty")
+	}
+
+	err = d.client().CreateVolumeSet(d.name)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Delete removes a storage pool.
 func (d *alletra) Delete(op *operations.Operation) error {
-	return ErrNotSupported
+	err := d.client().DeleteVolumeSet(d.name)
+	if err != nil {
+		return err
+	}
+
+	// If the user completely destroyed it, call it done.
+	if !shared.PathExists(GetPoolMountPath(d.name)) {
+		return nil
+	}
+
+	// On delete, wipe everything in the directory.
+	return wipeDirectory(GetPoolMountPath(d.name))
 }
 
 // Update applies any driver changes required from a configuration change.
