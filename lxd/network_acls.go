@@ -383,12 +383,12 @@ func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 func doNetworkACLDelete(ctx context.Context, s *state.State, aclName string, projectName string) error {
 	netACL, err := acl.LoadByName(s, projectName, aclName)
 	if err != nil {
-		return err
+		return api.StatusErrorf(http.StatusBadRequest, "Failed loading network ACL %q: %w", aclName, err)
 	}
 
 	err = netACL.Delete()
 	if err != nil {
-		return err
+		return api.StatusErrorf(http.StatusInternalServerError, "Failed deleting network ACL %q: %w", aclName, err)
 	}
 
 	s.Events.SendLifecycle(projectName, lifecycle.NetworkACLDeleted.Event(netACL, request.CreateRequestor(ctx), nil))
