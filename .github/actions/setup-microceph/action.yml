@@ -10,6 +10,10 @@ inputs:
     description: Number of OSDs to add to MicroCeph
     default: 1
     type: integer
+  snap-cache-dir:
+    description: Directory to use for snap cache
+    default: "/home/runner/snap-cache"
+    type: string
 
 runs:
   using: composite
@@ -42,6 +46,21 @@ runs:
 
     - name: Install MicroCeph snap
       shell: bash
+      env:
+        SNAP_CACHE_DIR: ${{ inputs.snap-cache-dir }}
+        SNAP_CHANNEL: ${{ inputs.microceph-channel }}
+      run: |
+          set -eux
+          # External repos using this action won't have access to the `test/includes/snap.sh` file
+          # so install directly from the store instead.
+          if [ -e test/includes/snap.sh ]; then
+            sudo --preserve-env=SNAP_CACHE_DIR bash -c ". test/includes/snap.sh; install_snap core24 latest/stable; install_snap microceph \"${SNAP_CHANNEL}\""
+          else
+            sudo snap install microceph --channel="${SNAP_CHANNEL}"
+          fi
+
+    - name: Configure MicroCeph snap
+      shell: bash
       run: |
           set -eux
 
@@ -56,7 +75,6 @@ runs:
           trap cleanup ERR HUP INT TERM
 
           ephemeral_disk="${{ steps.free_ephemeral_disk.outputs.ephemeral_disk }}"
-          sudo snap install microceph --channel "${{ inputs.microceph-channel }}"
           sudo microceph cluster bootstrap
           sudo microceph.ceph config set global mon_allow_pool_size_one true
           sudo microceph.ceph config set global mon_allow_pool_delete true
