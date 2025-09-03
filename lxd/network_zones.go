@@ -426,12 +426,12 @@ func networkZoneDelete(d *Daemon, r *http.Request) response.Response {
 func doNetworkZoneDelete(ctx context.Context, s *state.State, zoneName string, effectiveProjectName string) error {
 	netzone, err := zone.LoadByNameAndProject(s, effectiveProjectName, zoneName)
 	if err != nil {
-		return err
+		return api.StatusErrorf(http.StatusBadRequest, "Failed loading network zone %q: %w", zoneName, err)
 	}
 
 	err = netzone.Delete()
 	if err != nil {
-		return err
+		return api.StatusErrorf(http.StatusInternalServerError, "Failed deleting network zone %q: %w", zoneName, err)
 	}
 
 	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkZoneDeleted.Event(netzone, request.CreateRequestor(ctx), nil))
