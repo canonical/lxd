@@ -430,7 +430,7 @@ func doNetworkZoneDelete(ctx context.Context, s *state.State, zoneName string, p
 
 	err = netzone.Delete()
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed deleting network zone %q: %w", zoneName, err)
 	}
 
 	s.Events.SendLifecycle(projectName, lifecycle.NetworkZoneDeleted.Event(netzone, request.CreateRequestor(ctx), nil))
