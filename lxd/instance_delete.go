@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
@@ -13,6 +14,7 @@ import (
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/version"
@@ -75,13 +77,23 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	inst, err := instance.LoadByProjectAndName(s, projectName, name)
+	op, err := doInstanceDelete(r.Context(), s, name, projectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
+	return operations.OperationResponse(op)
+}
+
+// doInstanceDelete deletes an instance in the given project.
+func doInstanceDelete(ctx context.Context, s *state.State, name string, projectName string) (*operations.Operation, error) {
+	inst, err := instance.LoadByProjectAndName(s, projectName, name)
+	if err != nil {
+		return nil, err
+	}
+
 	if inst.IsRunning() {
-		return response.BadRequest(errors.New("Instance is running"))
+		return nil, api.NewStatusError(http.StatusBadRequest, "Instance is running")
 	}
 
 	rmct := func(op *operations.Operation) error {
@@ -95,10 +107,10 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.InstanceDelete, resources, nil, rmct, nil, nil)
+	op, err := operations.OperationCreate(ctx, s, projectName, operations.OperationClassTask, operationtype.InstanceDelete, resources, nil, rmct, nil, nil)
 	if err != nil {
-		return response.InternalError(err)
+		return nil, err
 	}
 
-	return operations.OperationResponse(op)
+	return op, nil
 }
