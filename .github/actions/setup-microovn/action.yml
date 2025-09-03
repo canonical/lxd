@@ -14,16 +14,34 @@ inputs:
     description: MicroOVN snap channel to install
     default: "latest/edge"
     type: string
+  snap-cache-dir:
+    description: Directory to use for snap cache
+    default: "/home/runner/snap-cache"
+    type: string
 
 runs:
   using: composite
   steps:
     - name: Install MicroOVN snap
       shell: bash
+      env:
+        SNAP_CACHE_DIR: ${{ inputs.snap-cache-dir }}
+        SNAP_CHANNEL: ${{ inputs.microovn-channel }}
+      run: |
+          set -eux
+          # External repos using this action won't have access to the `test/includes/snap.sh` file
+          # so install directly from the store instead.
+          if [ -e test/includes/snap.sh ]; then
+            sudo --preserve-env=SNAP_CACHE_DIR bash -c ". test/includes/snap.sh; install_snap core24 latest/stable; install_snap microovn \"${SNAP_CHANNEL}\""
+          else
+            sudo snap install microovn --channel "${SNAP_CHANNEL}"
+          fi
+
+    - name: Configure MicroOVN snap
+      shell: bash
       run: |
           set -eux
 
-          sudo snap install microovn --channel "${{ inputs.microovn-channel }}"
           sudo microovn waitready
           sudo microovn cluster bootstrap
           sudo microovn status
