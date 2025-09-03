@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"time"
@@ -387,7 +388,7 @@ func doNetworkACLDelete(ctx context.Context, s *state.State, aclName string, pro
 
 	err = netACL.Delete()
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed deleting network ACL %q: %w", aclName, err)
 	}
 
 	s.Events.SendLifecycle(projectName, lifecycle.NetworkACLDeleted.Event(netACL, request.CreateRequestor(ctx), nil))
