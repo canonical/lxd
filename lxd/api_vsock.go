@@ -9,35 +9,39 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/instance"
-	"github.com/canonical/lxd/lxd/request"
-	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
 )
 
+// vSockServer creates an http.Server capable of handling /dev/lxd requests over vsock.
 func vSockServer(d *Daemon) *http.Server {
-	isVsock := true
-
 	return &http.Server{
-		Handler: devLXDAPI(d, hoistReqVM, isVsock),
+		Handler: devLXDAPI(d, vSockAuthenticator{}),
 	}
 }
 
-// hoistReqVM authenticates a VM accessing /dev/lxd over vsock using its agent certificate,
-// identifies and retrieves the corresponding instance, and passes it to the handler if trusted.
-func hoistReqVM(d *Daemon, r *http.Request, handler devLXDAPIHandlerFunc) response.Response {
+// vSockAuthenticator implements DevLXDAuthenticator for vsock connections.
+type vSockAuthenticator struct{}
+
+// IsVsock returns true indicating that this authenticator is used for vsock connections.
+func (vSockAuthenticator) IsVsock() bool {
+	return true
+}
+
+// AuthenticateInstance authenticates a VM accessing /dev/lxd over vsock using its agent certificate,
+// and returns the corresponding VM instance.
+func (vSockAuthenticator) AuthenticateInstance(d *Daemon, r *http.Request) (instance.Instance, error) {
 	trusted, inst, err := authenticateAgentCert(d.State(), r)
 	if err != nil {
-		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusInternalServerError, err.Error()))
+		return nil, api.NewStatusError(http.StatusInternalServerError, err.Error())
 	}
 
 	if !trusted {
-		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusUnauthorized))
+		return nil, api.NewGenericStatusError(http.StatusUnauthorized)
 	}
 
-	request.SetContextValue(r, request.CtxDevLXDInstance, inst)
-	return handler(d, r)
+	return inst, nil
 }
 
 func authenticateAgentCert(s *state.State, r *http.Request) (bool, instance.Instance, error) {

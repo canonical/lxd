@@ -16,7 +16,6 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/request"
-	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/ucred"
 	"github.com/canonical/lxd/shared/api"
@@ -26,35 +25,41 @@ import (
 // devLXDServer creates an http.Server capable of handling requests against the
 // /dev/lxd Unix socket endpoint created inside containers.
 func devLXDServer(d *Daemon) *http.Server {
-	isVsock := false
-
 	return &http.Server{
-		Handler:     devLXDAPI(d, hoistReqContainer, isVsock),
+		Handler:     devLXDAPI(d, containerAuthenticator{}),
 		ConnState:   pidMapper.ConnStateHandler,
 		ConnContext: request.SaveConnectionInContext,
 	}
 }
 
+// containerAuthenticator implements DevLXDAuthenticator for Unix socket connections.
+type containerAuthenticator struct{}
+
+// IsVsock returns false indicating that this authenticator is not used for vsock connections.
+func (containerAuthenticator) IsVsock() bool {
+	return false
+}
+
 // hoistReqContainer identifies the calling container based on the Unix socket credentials,
-// verifies it's the container's root user, and passes the identified container to the handler.
-func hoistReqContainer(d *Daemon, r *http.Request, handler devLXDAPIHandlerFunc) response.Response {
+// verifies it's the container's root user, and returns the container instance.
+func (containerAuthenticator) AuthenticateInstance(d *Daemon, r *http.Request) (instance.Instance, error) {
 	conn := ucred.GetConnFromContext(r.Context())
 
 	unixConn, ok := conn.(*net.UnixConn)
 	if !ok {
-		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusInternalServerError, "Not a unix connection"))
+		return nil, api.NewStatusError(http.StatusInternalServerError, "Not a unix connection")
 	}
 
 	cred := pidMapper.GetConnUcred(unixConn)
 	if cred == nil {
-		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusInternalServerError, errPIDNotInContainer.Error()))
+		return nil, api.NewStatusError(http.StatusInternalServerError, errPIDNotInContainer.Error())
 	}
 
 	s := d.State()
 
 	c, err := devlxdFindContainerForPID(s, cred.Pid)
 	if err != nil {
-		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusInternalServerError, err.Error()))
+		return nil, api.NewStatusError(http.StatusInternalServerError, err.Error())
 	}
 
 	// Access control
@@ -67,11 +72,10 @@ func hoistReqContainer(d *Daemon, r *http.Request, handler devLXDAPIHandlerFunc)
 	}
 
 	if rootUID != cred.Uid {
-		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusUnauthorized, "Access denied for non-root user"))
+		return nil, api.NewStatusError(http.StatusUnauthorized, "Access denied for non-root user")
 	}
 
-	request.SetContextValue(r, request.CtxDevLXDInstance, c)
-	return handler(d, r)
+	return c, nil
 }
 
 /*
