@@ -238,31 +238,6 @@ if [ -n "${INACCESSIBLE_DIRS:-}" ]; then
     exit 1
 fi
 
-if [ "${LXD_TMPFS:-0}" = "1" ]; then
-  mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=7G
-fi
-
-mkdir -p "${TEST_DIR}/dev"
-mount -t tmpfs none "${TEST_DIR}"/dev
-export LXD_DEVMONITOR_DIR="${TEST_DIR}/dev"
-
-LXD_CONF=$(mktemp -d -p "${TEST_DIR}" XXX)
-export LXD_CONF
-
-LXD_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-export LXD_DIR
-chmod +x "${LXD_DIR}"
-spawn_lxd "${LXD_DIR}" true
-LXD_ADDR=$(< "${LXD_DIR}/lxd.addr")
-export LXD_ADDR
-
-export LXD_SKIP_TESTS="${LXD_SKIP_TESTS:-}"
-
-export LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
-
-# This must be enough to accomodate the busybox testimage
-export SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
-
 run_test() {
   TEST_CURRENT=${1}
   TEST_CURRENT_DESCRIPTION=${2:-${1#test_}}
@@ -325,14 +300,6 @@ if [ -n "${GITHUB_ACTIONS:-}" ]; then
     echo ":--- | :---" >> "${GITHUB_STEP_SUMMARY}"
 fi
 
-# allow for running a specific set of tests
-if [ "$#" -gt 0 ] && [ "$1" != "all" ] && [ "$1" != "cluster" ] && [ "$1" != "standalone" ] && [ "$1" != "test-shell" ]; then
-  run_test "test_${1}"
-  # shellcheck disable=SC2034
-  TEST_RESULT=success
-  exit
-fi
-
 # Spawn an interactive test shell when invoked as `./main.sh test-shell`.
 # This is useful for quick interactions with LXD and its test suite.
 if [ "${1:-"all"}" = "test-shell" ]; then
@@ -350,6 +317,37 @@ if [ "${1:-"all"}" = "test-shell" ]; then
   # To do so, swallow any error code returned from the interactive \`test-shell\`.
   bash --rcfile test-shell.bashrc || true
 
+  exit
+fi
+
+if [ "${LXD_TMPFS:-0}" = "1" ]; then
+  mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=7G
+fi
+
+mkdir -p "${TEST_DIR}/dev"
+mount -t tmpfs none "${TEST_DIR}"/dev
+export LXD_DEVMONITOR_DIR="${TEST_DIR}/dev"
+
+LXD_CONF=$(mktemp -d -p "${TEST_DIR}" XXX)
+export LXD_CONF
+
+LXD_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+export LXD_DIR
+chmod +x "${LXD_DIR}"
+spawn_lxd "${LXD_DIR}" true
+LXD_ADDR=$(< "${LXD_DIR}/lxd.addr")
+export LXD_ADDR
+
+export LXD_SKIP_TESTS="${LXD_SKIP_TESTS:-}"
+
+export LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
+
+# This must be enough to accomodate the busybox testimage
+export SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
+
+# allow for running a specific set of tests
+if [ "$#" -gt 0 ] && [ "$1" != "all" ] && [ "$1" != "cluster" ] && [ "$1" != "standalone" ]; then
+  run_test "test_${1}"
   # shellcheck disable=SC2034
   TEST_RESULT=success
   exit
