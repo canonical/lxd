@@ -35,6 +35,8 @@ github.com/canonical/go-dqlite/v3 v3.0.2 h1:nDxmVdwYmiw6DjDlwgneidkI2RPyp29uSwH3
 github.com/canonical/go-dqlite/v3 v3.0.2/go.mod h1:Kb/9JVog9XeIlnlnSyO1JgMoE4PoKXZCB8fJNcvvHAc=
 github.com/canonical/go-dqlite/v3 v3.0.3-0.20250902083807-26cf0badbcee h1:rSGQqkbMX+GGGIiAIs9oXBxYZNSeNiuyIwa3ow+k0Ro=
 github.com/canonical/go-dqlite/v3 v3.0.3-0.20250902083807-26cf0badbcee/go.mod h1:6O+E6MiYesijRUOECyywp16iT+N4QOrvjDWWiMJ/xF0=
+github.com/canonical/go-dqlite/v3 v3.0.3 h1:JkdMD+f21yuPcS+r6gzO57lBkU5U76xmWyk8uT/eruI=
+github.com/canonical/go-dqlite/v3 v3.0.3/go.mod h1:6O+E6MiYesijRUOECyywp16iT+N4QOrvjDWWiMJ/xF0=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
 github.com/cenkalti/backoff/v4 v4.3.0/go.mod h1:Y3VNntkOUPxTVeUxJ/G5vcM//AlwfmyYozVcomhLiZE=
 github.com/cenkalti/backoff/v5 v5.0.3 h1:ZN+IMa753KfX5hd8vVaMixjnqRZ3y8CuJKRKj1xcsSM=
