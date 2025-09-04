@@ -7,6 +7,7 @@ APIs
 balancer
 Charmhub
 CLI
+devLXD
 Diátaxis
 Dqlite
 dropdown
