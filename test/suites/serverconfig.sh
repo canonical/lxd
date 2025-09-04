@@ -106,6 +106,11 @@ _server_config_storage() {
   lxc config set storage.backups_volume "${pool}/backups"
   lxc config set storage.images_volume "${pool}/images"
 
+  # Regression test for the case where project deletion unmounted the daemon storage volume.
+  lxc project create foo
+  lxc project delete foo
+  [ -d "${LXD_DIR}/storage-pools/${pool}/custom/default_images/images" ]
+
   # Validate the old location is really gone
   [ ! -e "${LXD_DIR}/backups" ]
   [ ! -e "${LXD_DIR}/images" ]
