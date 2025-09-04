@@ -724,7 +724,7 @@ _backup_volume_export_with_project() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  mkdir "${LXD_DIR}/optimized" "${LXD_DIR}/non-optimized"
+  mkdir "${LXD_DIR}/optimized" "${LXD_DIR}/non-optimized" "${LXD_DIR}/optimized-none" "${LXD_DIR}/optimized-squashfs" "${LXD_DIR}/non-optimized-none" "${LXD_DIR}/non-optimized-squashfs"
   lxd_backend=$(storage_backend "$LXD_DIR")
 
   # Create test container.
@@ -756,64 +756,89 @@ _backup_volume_export_with_project() {
   if storage_backend_optimized_backup "$lxd_backend"; then
     # Create optimized backups without snapshots.
     lxc storage volume export "${custom_vol_pool}" testvol "${LXD_DIR}/testvol-optimized.tar.gz" --volume-only --optimized-storage
+    lxc storage volume export "${custom_vol_pool}" testvol "${LXD_DIR}/testvol-optimized.tar" --volume-only --optimized-storage --compression none
+    lxc storage volume export "${custom_vol_pool}" testvol "${LXD_DIR}/testvol-optimized.squashfs" --volume-only --optimized-storage --compression squashfs
 
     # Extract backups.
     tar --warning=no-timestamp -xzf "${LXD_DIR}/testvol-optimized.tar.gz" -C "${LXD_DIR}/optimized"
+    tar --warning=no-timestamp -xf "${LXD_DIR}/testvol-optimized.tar" -C "${LXD_DIR}/optimized-none"
+    unsquashfs -f -d "${LXD_DIR}/optimized-squashfs" "${LXD_DIR}/testvol-optimized.squashfs"
 
-    ls -l "${LXD_DIR}/optimized/backup/"
-    [ -f "${LXD_DIR}/optimized/backup/index.yaml" ]
-    [ -f "${LXD_DIR}/optimized/backup/volume.bin" ]
-    [ ! -d "${LXD_DIR}/optimized/backup/volume-snapshots" ]
+    # Check extracted content.
+    for d in optimized optimized-none optimized-squashfs; do
+      ls -l "${LXD_DIR}/${d}/backup/"
+      [ -f "${LXD_DIR}/${d}/backup/index.yaml" ]
+      [ -f "${LXD_DIR}/${d}/backup/volume.bin" ]
+      [ ! -d "${LXD_DIR}/${d}/backup/volume-snapshots" ]
+
+      ! grep -F -- '- test-snap0' "${LXD_DIR}/${d}/backup/index.yaml" || false
+    done
   fi
 
   # Create non-optimized backups without snapshots.
   lxc storage volume export "${custom_vol_pool}" testvol "${LXD_DIR}/testvol.tar.gz" --volume-only
+  lxc storage volume export "${custom_vol_pool}" testvol "${LXD_DIR}/testvol.tar" --volume-only --compression none
+  lxc storage volume export "${custom_vol_pool}" testvol "${LXD_DIR}/testvol.squashfs" --volume-only --compression squashfs
 
   # Extract non-optimized backups.
   tar --warning=no-timestamp -xzf "${LXD_DIR}/testvol.tar.gz" -C "${LXD_DIR}/non-optimized"
+  tar --warning=no-timestamp -xf "${LXD_DIR}/testvol.tar" -C "${LXD_DIR}/non-optimized-none"
+  unsquashfs -f -d "${LXD_DIR}/non-optimized-squashfs" "${LXD_DIR}/testvol.squashfs"
 
   # Check extracted content.
-  ls -l "${LXD_DIR}/non-optimized/backup/"
-  [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
-  [ -d "${LXD_DIR}/non-optimized/backup/volume" ]
-  [ "$(< "${LXD_DIR}/non-optimized/backup/volume/test")" = "bar" ]
-  [ ! -d "${LXD_DIR}/non-optimized/backup/volume-snapshots" ]
+  for d in non-optimized non-optimized-none non-optimized-squashfs; do
+    ls -l "${LXD_DIR}/${d}/backup/"
+    [ -f "${LXD_DIR}/${d}/backup/index.yaml" ]
+    [ -d "${LXD_DIR}/${d}/backup/volume" ]
+    [ "$(< "${LXD_DIR}/${d}/backup/volume/test")" = "bar" ]
+    [ ! -d "${LXD_DIR}/${d}/backup/volume-snapshots" ]
 
-  ! grep -F -- '- test-snap0' "${LXD_DIR}/non-optimized/backup/index.yaml" || false
+    ! grep -F -- '- test-snap0' "${LXD_DIR}/${d}/backup/index.yaml" || false
+  done
 
-  rm -rf "${LXD_DIR}/non-optimized/"*
-  rm "${LXD_DIR}/testvol.tar.gz"
+  rm "${LXD_DIR}/testvol.tar.gz" "${LXD_DIR}/testvol.tar" "${LXD_DIR}/testvol.squashfs"
 
   if storage_backend_optimized_backup "$lxd_backend"; then
     # Create optimized backups with snapshots.
     lxc storage volume export "${custom_vol_pool}" testvol "${LXD_DIR}/testvol-optimized.tar.gz" --optimized-storage
+    lxc storage volume export "${custom_vol_pool}" testvol "${LXD_DIR}/testvol-optimized.tar" --optimized-storage --compression none
+    lxc storage volume export "${custom_vol_pool}" testvol "${LXD_DIR}/testvol-optimized.squashfs" --optimized-storage --compression squashfs
 
     # Extract backups.
     tar --warning=no-timestamp -xzf "${LXD_DIR}/testvol-optimized.tar.gz" -C "${LXD_DIR}/optimized"
+    tar --warning=no-timestamp -xf "${LXD_DIR}/testvol-optimized.tar" -C "${LXD_DIR}/optimized-none"
+    unsquashfs -f -d "${LXD_DIR}/optimized-squashfs" "${LXD_DIR}/testvol-optimized.squashfs"
 
-    ls -l "${LXD_DIR}/optimized/backup/"
-    [ -f "${LXD_DIR}/optimized/backup/index.yaml" ]
-    [ -f "${LXD_DIR}/optimized/backup/volume.bin" ]
-    [ -f "${LXD_DIR}/optimized/backup/volume-snapshots/test-snap0.bin" ]
+    # Check extracted content.
+    for d in optimized optimized-none optimized-squashfs; do
+      ls -l "${LXD_DIR}/${d}/backup/"
+      [ -f "${LXD_DIR}/${d}/backup/index.yaml" ]
+      [ -f "${LXD_DIR}/${d}/backup/volume.bin" ]
+      [ -f "${LXD_DIR}/${d}/backup/volume-snapshots/test-snap0.bin" ]
+    done
   fi
 
   # Create non-optimized backups with snapshots.
   lxc storage volume export "${custom_vol_pool}" testvol "${LXD_DIR}/testvol.tar.gz"
+  lxc storage volume export "${custom_vol_pool}" testvol "${LXD_DIR}/testvol.tar" --compression none
+  lxc storage volume export "${custom_vol_pool}" testvol "${LXD_DIR}/testvol.squashfs" --compression squashfs
 
   # Extract backups.
   tar --warning=no-timestamp -xzf "${LXD_DIR}/testvol.tar.gz" -C "${LXD_DIR}/non-optimized"
+  tar --warning=no-timestamp -xf "${LXD_DIR}/testvol.tar" -C "${LXD_DIR}/non-optimized-none"
+  unsquashfs -f -d "${LXD_DIR}/non-optimized-squashfs" "${LXD_DIR}/testvol.squashfs"
 
   # Check extracted content.
-  ls -l "${LXD_DIR}/non-optimized/backup/"
-  [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
-  [ -d "${LXD_DIR}/non-optimized/backup/volume" ]
-  [ "$(< "${LXD_DIR}/non-optimized/backup/volume/test")" = "bar" ]
-  [ -d "${LXD_DIR}/non-optimized/backup/volume-snapshots/test-snap0" ]
-  [  "$(< "${LXD_DIR}/non-optimized/backup/volume-snapshots/test-snap0/test")" = "foo" ]
+  for d in non-optimized non-optimized-none non-optimized-squashfs; do
+    ls -l "${LXD_DIR}/${d}/backup/"
+    [ -f "${LXD_DIR}/${d}/backup/index.yaml" ]
+    [ -d "${LXD_DIR}/${d}/backup/volume" ]
+    [ "$(< "${LXD_DIR}/${d}/backup/volume/test")" = "bar" ]
+    [ -d "${LXD_DIR}/${d}/backup/volume-snapshots/test-snap0" ]
+    [ "$(< "${LXD_DIR}/${d}/backup/volume-snapshots/test-snap0/test")" = "foo" ]
 
-  grep -F -- '- test-snap0' "${LXD_DIR}/non-optimized/backup/index.yaml"
-
-  rm -rf "${LXD_DIR}/non-optimized/"*
+    grep -F -- '- test-snap0' "${LXD_DIR}/${d}/backup/index.yaml"
+  done
 
   old_uuid="$(lxc storage volume get "${custom_vol_pool}" testvol volatile.uuid)"
   old_snap0_uuid="$(lxc storage volume get "${custom_vol_pool}" testvol/test-snap0 volatile.uuid)"
@@ -884,14 +909,13 @@ _backup_volume_export_with_project() {
   fi
 
   # Clean up.
-  rm -rf "${LXD_DIR}/non-optimized/"* "${LXD_DIR}/optimized/"*
+  rm -rf "${LXD_DIR}/non-optimized/"* "${LXD_DIR}/optimized/"* "${LXD_DIR}/non-optimized-none/"* "${LXD_DIR}/optimized-none/"* "${LXD_DIR}/non-optimized-squashfs/"* "${LXD_DIR}/optimized-squashfs/"*
   lxc storage volume detach "${custom_vol_pool}" testvol c1
   lxc storage volume detach "${custom_vol_pool}" testvol2 c1
   lxc storage volume rm "${custom_vol_pool}" testvol
   lxc storage volume rm "${custom_vol_pool}" testvol2
   lxc delete -f c1
-  rmdir "${LXD_DIR}/optimized"
-  rmdir "${LXD_DIR}/non-optimized"
+  rmdir "${LXD_DIR}/optimized" "${LXD_DIR}/non-optimized" "${LXD_DIR}/optimized-none" "${LXD_DIR}/non-optimized-none" "${LXD_DIR}/non-optimized-squashfs" "${LXD_DIR}/optimized-squashfs"
 
   if [ "${project}" != "default" ]; then
     lxc project switch default
