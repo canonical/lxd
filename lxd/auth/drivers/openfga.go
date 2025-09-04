@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
-	"time"
 
 	"github.com/oklog/ulid/v2"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
@@ -156,8 +155,6 @@ func (e *embeddedOpenFGA) checkPermission(ctx context.Context, entityURL *api.UR
 	}
 
 	logCtx := logger.Ctx{"entity_url": entityURL.String(), "entitlement": entitlement}
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
 
 	// Untrusted requests are denied.
 	if !auth.IsTrusted(ctx) {
@@ -345,8 +342,6 @@ func (e *embeddedOpenFGA) checkPermission(ctx context.Context, entityURL *api.UR
 // considered.
 func (e *embeddedOpenFGA) getPermissionChecker(ctx context.Context, entitlement auth.Entitlement, entityType entity.Type, checkEffectiveProject bool) (auth.PermissionChecker, error) {
 	logCtx := logger.Ctx{"entity_type": entityType, "entitlement": entitlement}
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
 
 	// allowFunc is used to allow/disallow all.
 	allowFunc := func(b bool) func(*api.URL) bool {
