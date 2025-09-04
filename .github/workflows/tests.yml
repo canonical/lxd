@@ -750,7 +750,6 @@ jobs:
           lxc profile device add default eth0 nic network=local-network
           lxc config set core.https_address "[::]:8443"
           lxc config set cluster.https_address "127.0.0.1"
-          lxc cluster enable local
           lxc config set user.show_permissions=true
           lxc config trust add lxd-ui/keys/lxd-ui.crt
 
@@ -790,7 +789,7 @@ jobs:
           export PATH="/home/runner/go/bin:$PATH"
           export CI=true
           export DISABLE_VM_TESTS=true
-          npx playwright test --project "chromium:lxd-${TARGET:-latest-edge}"
+          npx playwright test --project "chromium:lxd-${TARGET:-latest-edge}:unclustered"
 
       - name: Upload lxd-ui test artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
