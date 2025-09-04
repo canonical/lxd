@@ -48,13 +48,13 @@ test_container_devices_nic_physical() {
   fi
 
   # Check original MTU is restored on physical device.
-  if [ "$(cat /sys/class/net/"${ctName}"/mtu)" != "1500" ]; then
+  if [ "$(< /sys/class/net/"${ctName}"/mtu)" != "1500" ]; then
     echo "mtu invalid"
     false
   fi
 
   # Check original MAC is restored on physical device.
-   if [ "$(cat /sys/class/net/"${ctName}"/address)" != "${dummyMAC}" ]; then
+   if [ "$(< /sys/class/net/"${ctName}"/address)" != "${dummyMAC}" ]; then
     echo "mac invalid"
     false
   fi
@@ -64,13 +64,13 @@ test_container_devices_nic_physical() {
   lxc config device remove "${ctName}" eth0
 
   # Check original MTU is restored on physical device.
-  if [ "$(cat /sys/class/net/"${ctName}"/mtu)" != "1500" ]; then
+  if [ "$(< /sys/class/net/"${ctName}"/mtu)" != "1500" ]; then
     echo "mtu invalid"
     false
   fi
 
   # Check original MAC is restored on physical device.
-   if [ "$(cat /sys/class/net/"${ctName}"/address)" != "${dummyMAC}" ]; then
+   if [ "$(< /sys/class/net/"${ctName}"/address)" != "${dummyMAC}" ]; then
     echo "mac invalid"
     false
   fi
@@ -103,13 +103,13 @@ test_container_devices_nic_physical() {
   lxc config device remove "${ctName}" eth0
 
   # Check original MTU is restored on physical device.
-  if [ "$(cat /sys/class/net/"${ctName}"/mtu)" != "1500" ]; then
+  if [ "$(< /sys/class/net/"${ctName}"/mtu)" != "1500" ]; then
     echo "mtu invalid"
     false
   fi
 
   # Check original MAC is restored on physical device.
-   if [ "$(cat /sys/class/net/"${ctName}"/address)" != "${dummyMAC}" ]; then
+   if [ "$(< /sys/class/net/"${ctName}"/address)" != "${dummyMAC}" ]; then
     echo "mac invalid"
     false
   fi
@@ -140,13 +140,13 @@ test_container_devices_nic_physical() {
   lxc config device remove "${ctName}" eth0
 
   # Check original MTU is restored on physical device.
-  if [ "$(cat /sys/class/net/"${ctName}"/mtu)" != "1500" ]; then
+  if [ "$(< /sys/class/net/"${ctName}"/mtu)" != "1500" ]; then
     echo "mtu invalid"
     false
   fi
 
   # Check original MAC is restored on physical device.
-   if [ "$(cat /sys/class/net/"${ctName}"/address)" != "${dummyMAC}" ]; then
+   if [ "$(< /sys/class/net/"${ctName}"/address)" != "${dummyMAC}" ]; then
     echo "mac invalid"
     false
   fi
@@ -162,13 +162,13 @@ test_container_devices_nic_physical() {
   lxc stop -f "${ctName}"
 
   # Check original MTU is restored on physical device.
-  if [ "$(cat /sys/class/net/"${ctName}"/mtu)" != "1500" ]; then
+  if [ "$(< /sys/class/net/"${ctName}"/mtu)" != "1500" ]; then
     echo "mtu invalid"
     false
   fi
 
   # Check original MAC is restored on physical device.
-   if [ "$(cat /sys/class/net/"${ctName}"/address)" != "${dummyMAC}" ]; then
+   if [ "$(< /sys/class/net/"${ctName}"/address)" != "${dummyMAC}" ]; then
     echo "mac invalid"
     false
   fi
