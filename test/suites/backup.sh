@@ -757,8 +757,6 @@ _backup_volume_export_with_project() {
     # Create optimized backup without snapshots.
     lxc storage volume export "${custom_vol_pool}" testvol "${LXD_DIR}/testvol-optimized.tar.gz" --volume-only --optimized-storage
 
-    [ -f "${LXD_DIR}/testvol-optimized.tar.gz" ]
-
     # Extract backup tarball.
     tar --warning=no-timestamp -xzf "${LXD_DIR}/testvol-optimized.tar.gz" -C "${LXD_DIR}/optimized"
 
@@ -770,8 +768,6 @@ _backup_volume_export_with_project() {
 
   # Create non-optimized backup without snapshots.
   lxc storage volume export "${custom_vol_pool}" testvol "${LXD_DIR}/testvol.tar.gz" --volume-only
-
-  [ -f "${LXD_DIR}/testvol.tar.gz" ]
 
   # Extract non-optimized backup tarball.
   tar --warning=no-timestamp -xzf "${LXD_DIR}/testvol.tar.gz" -C "${LXD_DIR}/non-optimized"
@@ -792,8 +788,6 @@ _backup_volume_export_with_project() {
     # Create optimized backup with snapshots.
     lxc storage volume export "${custom_vol_pool}" testvol "${LXD_DIR}/testvol-optimized.tar.gz" --optimized-storage
 
-    [ -f "${LXD_DIR}/testvol-optimized.tar.gz" ]
-
     # Extract backup tarball.
     tar --warning=no-timestamp -xzf "${LXD_DIR}/testvol-optimized.tar.gz" -C "${LXD_DIR}/optimized"
 
@@ -805,8 +799,6 @@ _backup_volume_export_with_project() {
 
   # Create non-optimized backup with snapshots.
   lxc storage volume export "${custom_vol_pool}" testvol "${LXD_DIR}/testvol.tar.gz"
-
-  [ -f "${LXD_DIR}/testvol.tar.gz" ]
 
   # Extract backup tarball.
   tar --warning=no-timestamp -xzf "${LXD_DIR}/testvol.tar.gz" -C "${LXD_DIR}/non-optimized"
