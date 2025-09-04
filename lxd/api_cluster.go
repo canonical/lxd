@@ -3414,7 +3414,7 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 			return err
 		}
 
-		targetMemberInfo, err := evacuateClusterSelectTarget(ctx, opts.s, opts.gateway, inst, candidateMembers)
+		targetMemberInfo, err := evacuateClusterSelectTarget(ctx, opts.s, candidateMembers)
 		if err != nil {
 			if api.StatusErrorCheck(err, http.StatusNotFound) {
 				// Skip migration if no target is available
@@ -4477,7 +4477,7 @@ func clusterGroupValidateName(name string) error {
 	return nil
 }
 
-func evacuateClusterSelectTarget(ctx context.Context, s *state.State, gateway *cluster.Gateway, inst instance.Instance, candidateMembers []db.NodeInfo) (*db.NodeInfo, error) {
+func evacuateClusterSelectTarget(ctx context.Context, s *state.State, candidateMembers []db.NodeInfo) (*db.NodeInfo, error) {
 	var targetMemberInfo *db.NodeInfo
 	var err error
 
