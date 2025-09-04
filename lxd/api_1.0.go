@@ -29,7 +29,6 @@ import (
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
-	scriptletLoad "github.com/canonical/lxd/lxd/scriptlet/load"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -1176,15 +1175,6 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		err := autoRenewCertificate(s.ShutdownCtx, d, acmeCAURLChanged)
 		if err != nil {
 			return err
-		}
-	}
-
-	// Compile and load the instance placement scriptlet.
-	value, ok = clusterChanged["instances.placement.scriptlet"]
-	if ok {
-		err := scriptletLoad.InstancePlacementSet(value)
-		if err != nil {
-			return fmt.Errorf("Failed saving instance placement scriptlet: %w", err)
 		}
 	}
 

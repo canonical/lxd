@@ -5442,14 +5442,6 @@
 						}
 					},
 					{
-						"instances.placement.scriptlet": {
-							"longdesc": "When using custom automatic instance placement logic, this option stores the scriptlet.\nSee {ref}`clustering-instance-placement-scriptlet` for more information.",
-							"scope": "global",
-							"shortdesc": "Instance placement scriptlet for automatic instance placement",
-							"type": "string"
-						}
-					},
-					{
 						"maas.api.key": {
 							"longdesc": "",
 							"scope": "global",
@@ -5548,6 +5540,14 @@
 							"longdesc": "Specify the volume using the syntax `POOL/VOLUME`.",
 							"scope": "local",
 							"shortdesc": "Volume to use to store project-specific image tarballs",
+							"type": "string"
+						}
+					},
+					{
+						"user.instances.placement.scriptlet": {
+							"longdesc": "Stores the migrated value from the deprecated `instances.placement.scriptlet` configuration key. LXD ignores this key; changing it has no effect. It exists only to preserve previously stored data and may be removed in a future release.\n",
+							"scope": "global",
+							"shortdesc": "Legacy storage for `instances.placement.scriptlet` (no effect)",
 							"type": "string"
 						}
 					},

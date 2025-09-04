@@ -2115,12 +2115,6 @@ Adds a `txqueuelen` key to control the `txqueuelen` parameter of the NIC device.
 
 Adds `GET /1.0/cluster/members/<member>/state` API endpoint and associated `ClusterMemberState` API response type.
 
-## `instances_placement_scriptlet`
-
-Adds support for a Starlark scriptlet to be provided to LXD to allow customized logic that controls placement of new instances in a cluster.
-
-The Starlark scriptlet is provided to LXD via the new global configuration option {config:option}`server-miscellaneous:instances.placement.scriptlet`.
-
 ## `storage_pool_source_wipe`
 Adds support for a `source.wipe` Boolean on the storage pool, indicating
 that LXD should wipe partition headers off the requested disk rather

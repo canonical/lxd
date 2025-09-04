@@ -15,7 +15,6 @@ import (
 
 	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
-	scriptletLoad "github.com/canonical/lxd/lxd/scriptlet/load"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/validate"
 )
@@ -190,11 +189,6 @@ func (c *Config) ImagesRemoteCacheExpiryDays() int64 {
 // InstancesNICHostname returns hostname mode to use for instance NICs.
 func (c *Config) InstancesNICHostname() string {
 	return c.m.GetString("instances.nic.host_name")
-}
-
-// InstancesPlacementScriptlet returns the instances placement scriptlet source code.
-func (c *Config) InstancesPlacementScriptlet() string {
-	return c.m.GetString("instances.placement.scriptlet")
 }
 
 // InstancesMigrationStateful returns the whether or not to auto enable migration.stateful for all VM instances.
@@ -595,15 +589,6 @@ var ConfigSchema = config.Schema{
 	//  shortdesc: How to set the host name for a NIC
 	"instances.nic.host_name": {Validator: validate.Optional(validate.IsOneOf("random", "mac"))},
 
-	// lxdmeta:generate(entities=server; group=miscellaneous; key=instances.placement.scriptlet)
-	// When using custom automatic instance placement logic, this option stores the scriptlet.
-	// See {ref}`clustering-instance-placement-scriptlet` for more information.
-	// ---
-	//  type: string
-	//  scope: global
-	//  shortdesc: Instance placement scriptlet for automatic instance placement
-	"instances.placement.scriptlet": {Validator: validate.Optional(scriptletLoad.InstancePlacementValidate)},
-
 	// lxdmeta:generate(entities=server; group=miscellaneous; key=instances.migration.stateful)
 	// You can override this setting for relevant instances, either in the instance-specific configuration or through a profile.
 	// ---
@@ -611,6 +596,15 @@ var ConfigSchema = config.Schema{
 	//  scope: global
 	//  shortdesc: Whether to set `migration.stateful` to `true` for the instances
 	"instances.migration.stateful": {Type: config.Bool, Default: "false"},
+
+	// TODO: Remove after sunset period
+	// lxdmeta:generate(entities=server; group=miscellaneous; key=user.instances.placement.scriptlet)
+	// Stores the migrated value from the deprecated `instances.placement.scriptlet` configuration key. LXD ignores this key; changing it has no effect. It exists only to preserve previously stored data and may be removed in a future release.
+	//
+	// ---
+	//  type: string
+	//  scope: global
+	//  shortdesc: Legacy storage for `instances.placement.scriptlet` (no effect)
 
 	// lxdmeta:generate(entities=server; group=loki; key=loki.auth.username)
 	//

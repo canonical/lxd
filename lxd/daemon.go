@@ -64,7 +64,6 @@ import (
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/rsync"
-	scriptletLoad "github.com/canonical/lxd/lxd/scriptlet/load"
 	"github.com/canonical/lxd/lxd/seccomp"
 	"github.com/canonical/lxd/lxd/state"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
@@ -1771,7 +1770,6 @@ func (d *Daemon) init() error {
 	lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes := d.globalConfig.LokiServer()
 	oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim := d.globalConfig.OIDCServer()
 	syslogSocketEnabled := d.localConfig.SyslogSocket()
-	instancePlacementScriptlet := d.globalConfig.InstancesPlacementScriptlet()
 
 	d.endpoints.NetworkUpdateTrustedProxy(d.globalConfig.HTTPSTrustedProxy())
 	d.globalConfigMu.Unlock()
@@ -1888,14 +1886,6 @@ func (d *Daemon) init() error {
 		err = d.endpoints.UpStorageBuckets(storageBucketsAddress)
 		if err != nil {
 			return err
-		}
-	}
-
-	// Load instance placement scriptlet.
-	if instancePlacementScriptlet != "" {
-		err = scriptletLoad.InstancePlacementSet(instancePlacementScriptlet)
-		if err != nil {
-			logger.Warn("Failed loading instance placement scriptlet", logger.Ctx{"err": err})
 		}
 	}
 
