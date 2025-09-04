@@ -24,14 +24,11 @@ import (
 	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
-	"github.com/canonical/lxd/lxd/scriptlet"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	apiScriptlet "github.com/canonical/lxd/shared/api/scriptlet"
 	"github.com/canonical/lxd/shared/entity"
-	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -233,32 +230,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		if targetMemberInfo == nil && s.GlobalConfig.InstancesPlacementScriptlet() != "" {
-			leaderInfo, err := s.LeaderInfo()
-			if err != nil {
-				return response.InternalError(err)
-			}
-
-			req := apiScriptlet.InstancePlacement{
-				InstancesPost: api.InstancesPost{
-					Name: name,
-					Type: api.InstanceType(instanceType.String()),
-					InstancePut: api.InstancePut{
-						Config:  inst.ExpandedConfig(),
-						Devices: inst.ExpandedDevices().CloneNative(),
-					},
-				},
-				Project: projectName,
-				Reason:  apiScriptlet.InstancePlacementReasonRelocation,
-			}
-
-			targetMemberInfo, err = scriptlet.InstancePlacementRun(r.Context(), logger.Log, s, &req, candidateMembers, leaderInfo.Address)
-			if err != nil {
-				return response.BadRequest(fmt.Errorf("Failed instance placement scriptlet: %w", err))
-			}
-		}
-
-		// If no member was selected yet, pick the member with the least number of instances.
+		// Pick the member with the least number of instances.
 		if targetMemberInfo == nil {
 			var filteredCandidateMembers []db.NodeInfo
 
