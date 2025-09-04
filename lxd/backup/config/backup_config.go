@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared/api"
@@ -46,8 +47,18 @@ type Bucket struct {
 	*api.StorageBucket `yaml:",inline"` //nolint:musttag
 }
 
+// configMetadata represents internal fields which don't appear on the materialized backup config.
+type configMetadata struct {
+	// lastModified tracks the backup file's modification time.
+	lastModified time.Time
+}
+
 // Config represents the config of a backup that can be stored in a backup.yaml file (or embedded in index.yaml).
 type Config struct {
+	// Unexported fields.
+	// We cannot simply embed them as it will let the yaml marshaller panic.
+	metadata configMetadata
+
 	// The JSON representation of the fields does not use lowercase (and omitempty) to stay backwards compatible
 	// across all versions of LXD as the Config struct is also used throughout the migration.
 	Version   uint32                  `json:"Version" yaml:"version,omitempty"`
@@ -65,6 +76,15 @@ type Config struct {
 	Volume *api.StorageVolume `json:"Volume" yaml:"volume,omitempty"`
 	// Deprecated: Use the list of Snapshots under Volumes.
 	VolumeSnapshots []*api.StorageVolumeSnapshot `json:"VolumeSnapshots" yaml:"volume_snapshots,omitempty"`
+}
+
+// NewConfig returns a new Config instance initialized with an immutable last modified time.
+func NewConfig(lastModified time.Time) *Config {
+	return &Config{
+		metadata: configMetadata{
+			lastModified: lastModified,
+		},
+	}
 }
 
 // rootVolPoolName returns the pool name of an instance's root volume.
@@ -195,4 +215,9 @@ func (c *Config) CustomVolume() (*Volume, error) {
 	}
 
 	return volume, nil
+}
+
+// LastModified returns the backup config's immutable last modification time.
+func (c *Config) LastModified() time.Time {
+	return c.metadata.lastModified
 }
