@@ -19,6 +19,7 @@ import (
 	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/cluster"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
+	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
@@ -1524,7 +1525,7 @@ func patchRemoveBackupsImagesSymlinks(_ string, d *Daemon) error {
 
 // If storage.images_volume is set, move images into an `images` subfolder.
 func patchMoveBackupsImagesStorage(name string, d *Daemon) error {
-	moveStorage := func(destPath string) error {
+	moveStorage := func(storageType config.DaemonStorageType, destPath string) error {
 		sourcePath, dirName := filepath.Split(destPath)
 
 		err := os.MkdirAll(destPath, 0700)
@@ -1544,7 +1545,7 @@ func patchMoveBackupsImagesStorage(name string, d *Daemon) error {
 
 			oldPath := filepath.Join(sourcePath, item.Name())
 			newPath := filepath.Join(destPath, item.Name())
-			logger.Debugf("Moving backup from %q to %q", oldPath, newPath)
+			logger.Debugf("Moving %s from %q to %q", storageType, oldPath, newPath)
 			err = os.Rename(oldPath, newPath)
 			if err != nil {
 				return fmt.Errorf("Failed moving file from %q to %q: %w", oldPath, newPath, err)
@@ -1555,14 +1556,14 @@ func patchMoveBackupsImagesStorage(name string, d *Daemon) error {
 	}
 
 	if d.localConfig.StorageImagesVolume("") != "" {
-		err := moveStorage(d.State().ImagesStoragePath(""))
+		err := moveStorage(config.DaemonStorageTypeImages, d.State().ImagesStoragePath(""))
 		if err != nil {
 			return err
 		}
 	}
 
 	if d.localConfig.StorageBackupsVolume("") != "" {
-		err := moveStorage(d.State().BackupsStoragePath(""))
+		err := moveStorage(config.DaemonStorageTypeBackups, d.State().BackupsStoragePath(""))
 		if err != nil {
 			return err
 		}
