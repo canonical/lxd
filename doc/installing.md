@@ -252,6 +252,7 @@ sudo apt install \
     nftables \
     rsync \
     squashfs-tools \
+    squashfs-tools-ng \
     tar \
     xz-utils
 
