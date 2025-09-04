@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/canonical/lxd/lxd/archive"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instancewriter"
@@ -1193,4 +1195,139 @@ func genericVFSListVolumes(d Driver) ([]Volume, error) {
 	}
 
 	return vols, nil
+}
+
+type getVolumePathFunc func(Volume, bool) (string, revert.Hook, error)
+type volumeUnmapFunc func(vol Volume) error
+
+// mountVolume mounts a volume and increments ref counter. Please use unmountVolume() helper when done with the volume.
+func mountVolume(d Driver, vol Volume, getDevicePath getVolumePathFunc, op *operations.Operation) error {
+	unlock, err := vol.MountLock()
+	if err != nil {
+		return err
+	}
+
+	defer unlock()
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Activate volume if needed.
+	volDevPath, cleanup, err := getDevicePath(vol, true)
+	if err != nil {
+		return err
+	}
+
+	revert.Add(cleanup)
+
+	switch vol.contentType {
+	case ContentTypeFS:
+		mountPath := vol.MountPath()
+		if !filesystem.IsMountPoint(mountPath) {
+			err = vol.EnsureMountPath()
+			if err != nil {
+				return err
+			}
+
+			fsType := vol.ConfigBlockFilesystem()
+
+			if vol.mountFilesystemProbe {
+				fsType, err = fsProbe(volDevPath)
+				if err != nil {
+					return fmt.Errorf("Failed probing filesystem: %w", err)
+				}
+			}
+
+			mountFlags, mountOptions := filesystem.ResolveMountOptions(strings.Split(vol.ConfigBlockMountOptions(), ","))
+			err = TryMount(context.TODO(), volDevPath, mountPath, fsType, mountFlags, mountOptions)
+			if err != nil {
+				return err
+			}
+
+			d.Logger().Debug("Mounted volume", logger.Ctx{"volName": vol.name, "dev": volDevPath, "path": mountPath, "options": mountOptions})
+		}
+
+	case ContentTypeBlock:
+		// For VMs, mount the filesystem volume.
+		if vol.IsVMBlock() {
+			fsVol := vol.NewVMBlockFilesystemVolume()
+			err := d.MountVolume(fsVol, op)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	vol.MountRefCountIncrement() // From here on it is up to caller to call unmountVolume() when done.
+	revert.Success()
+	return nil
+}
+
+func unmountVolume(d Driver, vol Volume, keepBlockDev bool, getDevicePath getVolumePathFunc, unmapVolume volumeUnmapFunc, op *operations.Operation) (bool, error) {
+	l := d.Logger().AddContext(logger.Ctx{"volName": vol.name})
+	unlock, err := vol.MountLock()
+	if err != nil {
+		return false, err
+	}
+
+	defer unlock()
+
+	ourUnmount := false
+	mountPath := vol.MountPath()
+	refCount := vol.MountRefCountDecrement()
+
+	// Attempt to unmount the volume.
+	if vol.contentType == ContentTypeFS && filesystem.IsMountPoint(mountPath) {
+		if refCount > 0 {
+			l.Debug("Skipping unmount as in use", logger.Ctx{"refCount": refCount})
+			return false, ErrInUse
+		}
+
+		err := TryUnmount(mountPath, unix.MNT_DETACH)
+		if err != nil {
+			return false, err
+		}
+
+		l.Debug("Unmounted volume", logger.Ctx{"path": mountPath, "keepBlockDev": keepBlockDev})
+
+		// Attempt to unmap.
+		if !keepBlockDev {
+			err = unmapVolume(vol)
+			if err != nil {
+				return false, err
+			}
+		}
+
+		ourUnmount = true
+	} else if IsContentBlock(vol.contentType) {
+		// For VMs, unmount the filesystem volume.
+		if vol.IsVMBlock() {
+			fsVol := vol.NewVMBlockFilesystemVolume()
+			ourUnmount, err = d.UnmountVolume(fsVol, false, op)
+			if err != nil {
+				return false, err
+			}
+		}
+
+		if !keepBlockDev {
+			// Check if device is currently mapped (but don't map if not).
+			devPath, _, _ := getDevicePath(vol, false)
+			if devPath != "" && shared.PathExists(devPath) {
+				if refCount > 0 {
+					l.Debug("Skipping unmount as in use", logger.Ctx{"refCount": refCount})
+					return false, ErrInUse
+				}
+
+				// Attempt to unmap.
+				err := unmapVolume(vol)
+				if err != nil {
+					return false, err
+				}
+
+				ourUnmount = true
+			}
+		}
+	}
+
+	return ourUnmount, nil
 }
