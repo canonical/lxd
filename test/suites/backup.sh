@@ -754,10 +754,10 @@ _backup_volume_export_with_project() {
   lxc storage volume set "${custom_vol_pool}" testvol user.foo=post-test-snap1
 
   if storage_backend_optimized_backup "$lxd_backend"; then
-    # Create optimized backup without snapshots.
+    # Create optimized backups without snapshots.
     lxc storage volume export "${custom_vol_pool}" testvol "${LXD_DIR}/testvol-optimized.tar.gz" --volume-only --optimized-storage
 
-    # Extract backup tarball.
+    # Extract backups.
     tar --warning=no-timestamp -xzf "${LXD_DIR}/testvol-optimized.tar.gz" -C "${LXD_DIR}/optimized"
 
     ls -l "${LXD_DIR}/optimized/backup/"
@@ -766,13 +766,13 @@ _backup_volume_export_with_project() {
     [ ! -d "${LXD_DIR}/optimized/backup/volume-snapshots" ]
   fi
 
-  # Create non-optimized backup without snapshots.
+  # Create non-optimized backups without snapshots.
   lxc storage volume export "${custom_vol_pool}" testvol "${LXD_DIR}/testvol.tar.gz" --volume-only
 
-  # Extract non-optimized backup tarball.
+  # Extract non-optimized backups.
   tar --warning=no-timestamp -xzf "${LXD_DIR}/testvol.tar.gz" -C "${LXD_DIR}/non-optimized"
 
-  # Check tarball content.
+  # Check extracted content.
   ls -l "${LXD_DIR}/non-optimized/backup/"
   [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
   [ -d "${LXD_DIR}/non-optimized/backup/volume" ]
@@ -785,10 +785,10 @@ _backup_volume_export_with_project() {
   rm "${LXD_DIR}/testvol.tar.gz"
 
   if storage_backend_optimized_backup "$lxd_backend"; then
-    # Create optimized backup with snapshots.
+    # Create optimized backups with snapshots.
     lxc storage volume export "${custom_vol_pool}" testvol "${LXD_DIR}/testvol-optimized.tar.gz" --optimized-storage
 
-    # Extract backup tarball.
+    # Extract backups.
     tar --warning=no-timestamp -xzf "${LXD_DIR}/testvol-optimized.tar.gz" -C "${LXD_DIR}/optimized"
 
     ls -l "${LXD_DIR}/optimized/backup/"
@@ -797,13 +797,13 @@ _backup_volume_export_with_project() {
     [ -f "${LXD_DIR}/optimized/backup/volume-snapshots/test-snap0.bin" ]
   fi
 
-  # Create non-optimized backup with snapshots.
+  # Create non-optimized backups with snapshots.
   lxc storage volume export "${custom_vol_pool}" testvol "${LXD_DIR}/testvol.tar.gz"
 
-  # Extract backup tarball.
+  # Extract backups.
   tar --warning=no-timestamp -xzf "${LXD_DIR}/testvol.tar.gz" -C "${LXD_DIR}/non-optimized"
 
-  # Check tarball content.
+  # Check extracted content.
   ls -l "${LXD_DIR}/non-optimized/backup/"
   [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
   [ -d "${LXD_DIR}/non-optimized/backup/volume" ]
