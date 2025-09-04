@@ -141,7 +141,7 @@ var api10 = []APIEndpoint{
 	oidcIdentityCmd,
 	tlsIdentitiesCmd,
 	oidcIdentitiesCmd,
-	tokenIdentitiesCmd,
+	bearerIdentitiesCmd,
 	bearerIdentityCmd,
 	bearerIdentityTokenCmd,
 	authGroupsCmd,
@@ -249,7 +249,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		APIStatus:         "stable",
 		APIVersion:        version.APIVersion,
 		Public:            false,
-		Auth:              "untrusted",
+		Auth:              api.AuthUntrusted,
 		AuthMethods:       authMethods,
 		ClientCertificate: r.TLS != nil && len(r.TLS.PeerCertificates) > 0,
 	}
@@ -276,7 +276,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	srv.Auth = "trusted"
+	srv.Auth = api.AuthTrusted
 
 	localHTTPSAddress := s.LocalConfig.HTTPSAddress()
 

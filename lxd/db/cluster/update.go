@@ -116,6 +116,18 @@ var updates = map[int]schema.Update{
 	73: updateFromV72,
 	74: updateFromV73,
 	75: updateFromV74,
+	76: updateFromV75,
+}
+
+func updateFromV75(ctx context.Context, tx *sql.Tx) error {
+	entityTypeCode := strconv.FormatInt(entityTypeCodeIdentity, 10)
+	secretTypeCode := strconv.FormatInt(secretTypeCodeBearerSigningKey, 10)
+	_, err := tx.ExecContext(ctx, `
+CREATE UNIQUE INDEX secrets_bearer_identity_signing_key_unique ON secrets (entity_type, entity_id, type) 
+	WHERE entity_type = `+entityTypeCode+`
+	AND type = `+secretTypeCode+`
+`)
+	return err
 }
 
 func updateFromV74(ctx context.Context, tx *sql.Tx) error {
