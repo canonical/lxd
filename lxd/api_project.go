@@ -1032,7 +1032,9 @@ func projectNodeConfigDelete(d *Daemon, s *state.State, name string) error {
 		}
 
 		// Unmount the project-specific storage volumes.
-		for _, projectStorageVolume := range []string{config.StorageImagesVolume(name), config.StorageBackupsVolume(name)} {
+		localConfig := s.LocalConfig.Dump()
+		for _, volumeConfig := range []string{imagesVolumeConfig, backupsVolumeConfig} {
+			projectStorageVolume := localConfig[volumeConfig]
 			if projectStorageVolume == "" {
 				continue
 			}
