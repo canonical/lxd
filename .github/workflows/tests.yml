@@ -26,7 +26,7 @@ on:
 
 env:
   LXD_REQUIRED_TESTS: "storage_buckets,network_ovn"
-  GOCOVERAGE: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && 'true' || 'false' }}
+  GOCOVERAGE: ${{ ( ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.repository == 'canonical/lxd' ) && 'true' || 'false' }}
   GOCOVERDIR: ''  # Later set to the fully qualified path if needed
 
 permissions:
