@@ -4030,20 +4030,59 @@ func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]i
 	}
 
 	// QMP uses two separate values for the cache.
-	directCache := true   // Bypass host cache, use O_DIRECT semantics by default.
-	noFlushCache := false // Don't ignore any flush requests for the device.
+	var directCache bool  // True to bypass host cache and use O_DIRECT semantics
+	var noFlushCache bool // True to ignore any flush requests for the device
+	// "writeback" not supported yet, see https://gitlab.com/qemu-project/qemu/-/issues/3103
+	// var writebackCache bool // True to complete writes once they are in the write page cache
+
+	/*
+		qemu's cache= modes and their interpretation.
+
+		=============  ===============   ============   ==============
+		\              cache.writeback   cache.direct   cache.no-flush
+		=============  ===============   ============   ==============
+		writeback      on                off            off
+		none           on                on             off
+		writethrough   off               off            off
+		directsync     off               on             off
+		unsafe         on                off            on
+		=============  ===============   ============   ==============
+
+		LXD lets users select io.cache=, and this influences opened files' modes
+		we pass around as opened FD to qemu.
+		The expectation should be that LXD's cache= equals Qemu's behavior.
+	*/
 
 	switch cacheMode {
+	case "writeback":
+		// writebackCache = true
+		directCache = false
+		noFlushCache = false
+	case "none":
+		// writebackCache = true
+		directCache = true
+		noFlushCache = false
+	case "writethrough":
+		// writebackCache = false
+		directCache = false
+		noFlushCache = false
+	case "directsync":
+		// writebackCache = false
+		directCache = true
+		noFlushCache = false
 	case "unsafe":
+		// writebackCache = true
 		directCache = false
 		noFlushCache = true
-	case "writeback":
-		directCache = false
+	default:
+		return nil, fmt.Errorf("Unsupported cache mode: %q", cacheMode)
 	}
 
 	blockDev := map[string]any{
 		"aio": aioMode,
+		// BlockdevCacheOptions, which somehow doesn't contain BlockdevCacheInfo's "writeback" (yet).
 		"cache": map[string]any{
+			// "writeback": writebackCache,
 			"direct":   directCache,
 			"no-flush": noFlushCache,
 		},
