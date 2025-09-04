@@ -353,15 +353,15 @@ run_images_public() {
   query /1.0/images/aliases/default-img?project=default | jq -e '.status_code == 200'
 
   # All callers can get the image with a prefix of 12 characters or more.
+  query "/1.0/images/%25" | jq -r '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
   query "/1.0/images/${fingerprint:0:11}" | jq -r '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
-  query /1.0/images/%25 | jq -r '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
   query "/1.0/images/%25${fingerprint:0:11}" | jq -r '.error == "Image fingerprint prefix must contain only lowercase hexadecimal characters" and .error_code == 400'
   query "/1.0/images/${fingerprint:0:12}" | jq -r '.status_code == 200'
   query "/1.0/images/${fingerprint}" | jq -r '.status_code == 200'
   query "/1.0/images/${fingerprint}?project=default" | jq -r '.status_code == 200'
 
   # All callers can export the public image if using a valid prefix.
-  query /1.0/images/%25/export | jq -r '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
+  query "/1.0/images/%25/export" | jq -r '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
   query "/1.0/images/${fingerprint:0:11}/export" | jq -r '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
   query "/1.0/images/%25${fingerprint:0:11}/export" | jq -r '.error == "Image fingerprint prefix must contain only lowercase hexadecimal characters" and .error_code == 400'
   query "/1.0/images/${fingerprint}/export" -o "${TEST_DIR}/public1.img"
