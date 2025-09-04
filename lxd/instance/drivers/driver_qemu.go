@@ -4199,7 +4199,12 @@ func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]i
 				permissions = unix.O_RDONLY
 			}
 
-			permissions |= unix.O_DIRECT
+			// only open the file with O_DIRECT when the QEMU caching configuration expects this.
+			// otherwise QEMU will error that the transferred FD has the wrong flags.
+			// qemu checks this since 99c147e2f53726290bbdde795b6efbb4d9138657
+			if directCache {
+				permissions |= unix.O_DIRECT
+			}
 
 			f, err := os.OpenFile(pathSource.Path, permissions, 0)
 			if err != nil {
