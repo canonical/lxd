@@ -411,7 +411,7 @@ func imgPostInstanceInfo(s *state.State, req api.ImagesPost, op *operations.Oper
 					processed = value
 				}
 
-				shared.SetProgressMetadata(metadata, "create_image_from_container_pack", "Image pack", percent, processed, speed)
+				shared.SetProgressMetadata(metadata, "create_image_from_instance_pack", "Image pack", percent, processed, speed)
 				_ = op.UpdateMetadata(metadata)
 			},
 			Length: totalSize,
@@ -473,7 +473,7 @@ func imgPostInstanceInfo(s *state.State, req api.ImagesPost, op *operations.Oper
 	// Tracker instance for the export phase.
 	tracker := &ioprogress.ProgressTracker{
 		Handler: func(value, speed int64) {
-			shared.SetProgressMetadata(metadata, "create_image_from_container_pack", "Exporting", value, 0, 0)
+			shared.SetProgressMetadata(metadata, "create_image_from_instance_pack", "Exporting", value, 0, 0)
 			_ = op.UpdateMetadata(metadata)
 		},
 	}
