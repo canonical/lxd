@@ -8,7 +8,7 @@ test_image_prefer_cached() {
   local LXD2_DIR LXD2_ADDR
   LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   spawn_lxd "${LXD2_DIR}" true
-  LXD2_ADDR=$(cat "${LXD2_DIR}/lxd.addr")
+  LXD2_ADDR=$(< "${LXD2_DIR}/lxd.addr")
 
   (LXD_DIR=${LXD2_DIR} deps/import-busybox --alias testimage --public)
   fp1="$(LXD_DIR=${LXD2_DIR} lxc image info testimage | awk '/^Fingerprint/ {print $2}')"
@@ -38,8 +38,7 @@ test_image_prefer_cached() {
       return 1
   fi
 
-  lxc delete c1
-  lxc delete c2
+  lxc delete c1 c2
   lxc remote remove l2
   lxc image delete "${fp1}"
 

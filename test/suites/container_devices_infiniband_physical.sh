@@ -23,7 +23,7 @@ test_container_devices_infiniband_physical() {
   ctMAC="96:29:52:03:73:4b:81:e${macRand}"
 
   # Get host dev MAC to check MAC restore.
-  parentHostMAC=$(cat /sys/class/net/"${parent}"/address)
+  parentHostMAC=$(< /sys/class/net/"${parent}"/address)
 
   # Record how many nics we started with.
   startNicCount=$(find /sys/class/net | wc -l)

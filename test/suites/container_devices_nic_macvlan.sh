@@ -89,7 +89,7 @@ test_container_devices_nic_macvlan() {
   fi
 
   echo "==> Check VLAN interface created."
-  if [ "$(cat "/sys/class/net/${ctName}.10/carrier")" != "1" ]; then
+  if [ "$(< "/sys/class/net/${ctName}.10/carrier")" != "1" ]; then
     echo "vlan interface not created"
     false
   fi
@@ -98,7 +98,7 @@ test_container_devices_nic_macvlan() {
   lxc config device remove "${ctName}" eth0
 
   echo "==> Check parent device is still up."
-  if [ "$(cat "/sys/class/net/${ctName}/carrier")" != "1" ]; then
+  if [ "$(< "/sys/class/net/${ctName}/carrier")" != "1" ]; then
     echo "parent is down"
     false
   fi
