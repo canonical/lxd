@@ -123,9 +123,9 @@ func devLXDAPIGetHandler(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	clientAuth := "untrusted"
+	clientAuth := api.AuthUntrusted
 	if requestor.IsTrusted() {
-		clientAuth = "trusted"
+		clientAuth = api.AuthTrusted
 	}
 
 	resp := api.DevLXDGet{
@@ -501,9 +501,6 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 	handleFunc := func(w http.ResponseWriter, r *http.Request) {
 		var requestor request.RequestorArgs
 
-		// Set [request.ProtocolDevLXD] by default identify this request as coming from the /dev/lxd socket.
-		requestor.Protocol = request.ProtocolDevLXD
-
 		// Check if the caller has a bearer token.
 		isBearerRequest, token, subject := bearer.IsDevLXDRequest(r, d.globalConfig.ClusterUUID())
 		if isBearerRequest {
@@ -516,6 +513,9 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 
 			requestor = *bearerRequestor
 		}
+
+		// Always set [request.ProtocolDevLXD] to identify this request as coming from the /dev/lxd socket.
+		requestor.Protocol = request.ProtocolDevLXD
 
 		err := request.SetRequestor(r, d.identityCache, requestor)
 		if err != nil {

@@ -198,7 +198,7 @@ func (r *Requestor) setForwardingDetails(req *http.Request) error {
 }
 
 // setIdentity validates and sets the [identity.CacheEntry] in the Requestor.
-// It must be called after setForwardingDetails.
+// It must only be called when Requestor.trusted is true, and after setForwardingDetails has been called.
 func (r *Requestor) setIdentity(cache *identity.Cache) error {
 	callerProtocol := r.CallerProtocol()
 	callerUsername := r.CallerUsername()
@@ -222,10 +222,14 @@ func (r *Requestor) setIdentity(cache *identity.Cache) error {
 		return nil
 	}
 
-	// If the protocol was cluster, the authentication method is TLS.
 	method := callerProtocol
-	if callerProtocol == ProtocolCluster {
+	switch callerProtocol {
+	case ProtocolCluster:
+		// If the protocol was cluster, the authentication method is TLS (e.g. mTLS between cluster members).
 		method = api.AuthenticationMethodTLS
+	case ProtocolDevLXD:
+		// For a trusted devlxd request, the only authentication method that can have been used is a bearer token.
+		method = api.AuthenticationMethodBearer
 	}
 
 	// Expect the method to a remote API method at this point.
@@ -288,12 +292,6 @@ func SetRequestor(req *http.Request, identityCache *identity.Cache, args Request
 	}
 
 	// Trusted
-
-	// DevLXD requests must always be untrusted. Note that identities of type api.IdentityTypeBearerTokenDevLXD will
-	// have api.AuthenticationMethodBearer set as the protocol.
-	if callerProtocol == ProtocolDevLXD {
-		return errors.New("Received unexpected trusted request over DevLXD")
-	}
 
 	// There must be a protocol.
 	if callerProtocol == "" {

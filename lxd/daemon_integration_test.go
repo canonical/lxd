@@ -11,6 +11,7 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/sys"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // The daemon is started and a client can connect to it via unix socket.
@@ -22,7 +23,7 @@ func TestIntegration_UnixSocket(t *testing.T) {
 
 	server, _, err := client.GetServer()
 	require.NoError(t, err)
-	assert.Equal(t, "trusted", server.Auth)
+	assert.Equal(t, api.AuthTrusted, server.Auth)
 	assert.False(t, server.Environment.ServerClustered)
 	assert.False(t, client.IsClustered())
 }

@@ -44,7 +44,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		APIStatus:     "stable",
 		APIVersion:    version.APIVersion,
 		Public:        false,
-		Auth:          "trusted",
+		Auth:          api.AuthTrusted,
 		AuthMethods:   []string{api.AuthenticationMethodTLS},
 	}
 
