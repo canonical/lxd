@@ -1178,6 +1178,24 @@ run_projects_restrictions() {
 
   lxc delete c1
 
+  echo "==> Check that restricted.* options are not checked during project update if restricted=false."
+
+  echo "==> Set project restricted=false."
+  lxc project set local:p1 restricted=false
+  echo "==> Set project restricted.virtual-machines.lowlevel=block."
+  lxc project set local:p1 restricted.virtual-machines.lowlevel=block
+
+  echo "==> Create an instance and mount a disk device to it with io.threads=4."
+  lxc init --vm --empty v1
+  # Device is allowed to use `io.threads` despite `restricted.virtual-machines.lowlevel=block` because `restricted!=true`.
+  lxc config device add v1 foo disk source=/mnt path=/mnt io.threads=4
+
+  echo "==> Check that project update succeeds."
+  lxc project set local:p1 restricted.virtual-machines.lowlevel=allow
+
+  echo "==> Clean up the instance."
+  lxc delete v1
+
   lxc image delete testimage
 
   lxc profile device remove local:default root
