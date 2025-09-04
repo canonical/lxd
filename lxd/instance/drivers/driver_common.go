@@ -871,7 +871,7 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 				args.Ephemeral = ephemeral
 				err = inst.Update(args, false)
 				if err != nil {
-					d.logger.Error("Failed to restore ephemeral flag after restore", logger.Ctx{"project": d.Project().Name, "instance": d.Name(), "err": err})
+					d.logger.Error("Failed to restore ephemeral flag after restore", logger.Ctx{"err": err})
 				}
 			}()
 		}
