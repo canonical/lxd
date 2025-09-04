@@ -54,6 +54,7 @@ runs:
           socat \
           sqlite3 \
           squashfs-tools \
+          squashfs-tools-ng \
           swtpm \
           tar \
           tcl \
