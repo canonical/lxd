@@ -3,10 +3,10 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
-	"math/rand"
 	"net"
 	"os"
 	"os/exec"
@@ -1381,6 +1381,30 @@ func (c *cmdFileMount) sshfsMount(ctx context.Context, resource remoteResource, 
 	return sftpConn.Close()
 }
 
+// generateRandomString generates a random string of given length using alphanumeric characters.
+func generateRandomString(length int) (string, error) {
+	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	const n = byte(len(chars))
+
+	// Preallocate result
+	result := make([]byte, length)
+
+	// Read random bytes in bulk
+	randomBytes := make([]byte, length)
+
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		return "", err
+	}
+
+	for i, b := range randomBytes {
+		// Map random byte to index in [0, n)
+		result[i] = chars[b%n]
+	}
+
+	return string(result), nil
+}
+
 // sshSFTPServer runs an SSH server listening on a random port of 127.0.0.1.
 // It provides an unauthenticated SFTP server connected to the instance's filesystem.
 func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resource remoteResource) error {
@@ -1388,16 +1412,6 @@ func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resou
 	_, _, err := resource.server.GetInstance(instName)
 	if err != nil {
 		return err
-	}
-
-	randString := func(length int) string {
-		var chars = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0987654321")
-		randStr := make([]rune, length)
-		for i := range randStr {
-			randStr[i] = chars[rand.Intn(len(chars))]
-		}
-
-		return string(randStr)
 	}
 
 	// Setup an SSH SFTP server.
@@ -1411,10 +1425,17 @@ func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resou
 		if c.flagAuthUser != "" {
 			authUser = c.flagAuthUser
 		} else {
-			authUser = randString(8)
+			authUser, err = generateRandomString(8)
+			if err != nil {
+				return fmt.Errorf("Failed generating auth username: %w", err)
+			}
 		}
 
-		authPass = randString(8)
+		authPass, err = generateRandomString(8)
+		if err != nil {
+			return fmt.Errorf("Failed generating auth password: %w", err)
+		}
+
 		config.PasswordCallback = func(c ssh.ConnMetadata, pass []byte) (*ssh.Permissions, error) {
 			if c.User() == authUser && string(pass) == authPass {
 				return nil, nil
