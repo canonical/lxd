@@ -316,6 +316,12 @@ if [ "${1:-"all"}" = "test-shell" ]; then
   exit
 fi
 
+# Preflight check
+if ldd "${_LXC}" | grep -F liblxc; then
+    echo "lxc binary must not be linked with liblxc"
+    exit 1
+fi
+
 if [ "${LXD_TMPFS:-0}" = "1" ]; then
   mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=7G
 fi
@@ -357,30 +363,9 @@ else
   echo "==> Saving testimage for reuse (${LXD_TEST_IMAGE})"
 fi
 
-if [ "${1:-"all"}" != "cluster" ]; then
-    run_test test_check_deps "checking dependencies"
-    run_test test_database_restore "database restore"
-    run_test test_database_no_disk_space "database out of disk space"
-    run_test test_sql "lxd sql"
-    run_test test_tls_restrictions "TLS restrictions"
-    run_test test_tls_version "TLS version"
-    run_test test_completions "CLI completions"
-    run_test test_oidc "OpenID Connect"
-    run_test test_authorization "Authorization"
-    run_test test_certificate_edit "Certificate edit"
-    run_test test_basic_usage "basic usage"
-    run_test test_duplicate_detection "duplicate detection"
-    run_test test_basic_version "basic version"
-    run_test test_server_info "server info"
-    run_test test_remote_url "remote url handling"
-    run_test test_remote_url_with_token "remote token handling"
-    run_test test_remote_admin "remote administration"
-    run_test test_remote_usage "remote usage"
-    run_test test_vm_empty "Empty VM"
-fi
-
 if [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_enable "clustering enable"
+    run_test test_clustering_edit_configuration "clustering config edit"
     run_test test_clustering_membership "clustering membership"
     run_test test_clustering_containers "clustering containers"
     run_test test_clustering_storage "clustering storage"
@@ -408,7 +393,6 @@ if [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_image_refresh "clustering image refresh"
     run_test test_clustering_evacuation "clustering evacuation"
     run_test test_clustering_move "clustering move"
-    run_test test_clustering_edit_configuration "clustering config edit"
     run_test test_clustering_remove_members "clustering config remove members"
     run_test test_clustering_autotarget "clustering autotarget member"
     run_test test_clustering_upgrade "clustering upgrade"
@@ -424,6 +408,24 @@ fi
 if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_concurrent "concurrent startup"
     run_test test_concurrent_exec "concurrent exec"
+    run_test test_database_restore "database restore"
+    run_test test_database_no_disk_space "database out of disk space"
+    run_test test_sql "lxd sql"
+    run_test test_tls_restrictions "TLS restrictions"
+    run_test test_tls_version "TLS version"
+    run_test test_completions "CLI completions"
+    run_test test_oidc "OpenID Connect"
+    run_test test_authorization "Authorization"
+    run_test test_certificate_edit "Certificate edit"
+    run_test test_basic_usage "basic usage"
+    run_test test_duplicate_detection "duplicate detection"
+    run_test test_basic_version "basic version"
+    run_test test_server_info "server info"
+    run_test test_remote_url "remote url handling"
+    run_test test_remote_url_with_token "remote token handling"
+    run_test test_remote_admin "remote administration"
+    run_test test_remote_usage "remote usage"
+    run_test test_vm_empty "Empty VM"
     run_test test_projects_default "default project"
     run_test test_projects_copy "copy/move between projects"
     run_test test_projects_crud "projects CRUD operations"
