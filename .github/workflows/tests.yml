@@ -140,53 +140,9 @@ jobs:
           tar -xzf lxd-test.tar.gz -C /home/runner/work/lxd/
           rm lxd-test.tar.gz
 
-      - name: deps cache key
-        id: deps-cache-key
-
-        shell: bash
-        env:
-          BRANCH: ${{ ( github.base_ref != '' ) && github.base_ref || github.ref_name }}
-        run: |
-          set -eux
-          . /etc/os-release
-          ARCH="$(dpkg --print-architecture)"
-          DATE="$(date --utc '+%Y%m%d')"
-
-          # i.e: deps-ubuntu-24.04-amd64-${BRANCH}-${DATE}
-          echo "KEY=deps-${ID}-${VERSION_ID}-${ARCH}-${BRANCH}-${DATE}" >> $GITHUB_OUTPUT
-
-      # GitHub will remove any cache entries that have not been accessed in over 7 days.
-      # https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/caching-dependencies-to-speed-up-workflows#usage-limits-and-eviction-policy
-      - name: Cache dqlite/liblxc deps
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        id: cache-deps
-        with:
-          path: |
-            /home/runner/go/bin/dqlite
-            /home/runner/go/bin/liblxc
-          key: ${{ steps.deps-cache-key.outputs.KEY }}
-
-      - name: Build LXD dependencies
-        if: ${{ steps.cache-deps.outputs.cache-hit != 'true' }}
-        run: |
-          set -eux
-
-          # Build from unpacked dist tarball.
-          cd /home/runner/work/lxd/lxd-test
-          make deps
-
-          # Include dqlite libs in dependencies for system tests.
-          mkdir /home/runner/go/bin/dqlite
-          mv /home/runner/work/lxd/lxd-test/vendor/dqlite/include /home/runner/go/bin/dqlite/include
-          mv /home/runner/work/lxd/lxd-test/vendor/dqlite/.libs /home/runner/go/bin/dqlite/libs
-
-          # Include liblxc libs in dependencies for system tests.
-          mkdir -p /home/runner/go/bin/liblxc
-          mv /home/runner/work/lxd/lxd-test/vendor/liblxc/include /home/runner/go/bin/liblxc/include
-          mv /home/runner/work/lxd/lxd-test/vendor/liblxc/lib /home/runner/go/bin/liblxc/libs
-
-          # liblxc requires a rootfs dir
-          mkdir -p /home/runner/go/bin/liblxc/rootfs
+      # In code-tests, this action warms the cache for the system-tests job
+      - name: Build or restore dqlite/liblxc dependencies
+        uses: ./.github/actions/cache-dqlite-liblxc
 
       - name: Update env variables for deps
         run: |
@@ -305,8 +261,6 @@ jobs:
           path: |
             /home/runner/go/bin/lxc*
             /home/runner/go/bin/lxd*
-            /home/runner/go/bin/dqlite
-            /home/runner/go/bin/liblxc
             /home/runner/go/bin/devlxd-client
             /home/runner/go/bin/fuidshift
             /home/runner/go/bin/mini-oidc
@@ -363,6 +317,10 @@ jobs:
 
       - name: Install runtime dependencies
         uses: ./.github/actions/install-lxd-runtimedeps
+
+      # Restore the cache warmed in code-tests job
+      - name: Build or restore dqlite/liblxc dependencies
+        uses: ./.github/actions/cache-dqlite-liblxc
 
       # Restore the cache warmed in code-tests job
       - name: Download snap dependencies
