@@ -65,25 +65,18 @@ func patchMissingSnapshotRecords(b *lxdBackend) error {
 			// Get all the instance snapshot DB records.
 			var instPoolName string
 			var snapshots []cluster.Instance
-			err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				instPoolName, err = tx.GetInstancePool(ctx, p.Name, inst.Name)
-				if err != nil {
-					if api.StatusErrorCheck(err, http.StatusNotFound) {
-						// If the instance cannot be associated to a pool its got bigger problems
-						// outside the scope of this patch. Will skip due to empty instPoolName.
-						return nil
-					}
-
-					return fmt.Errorf("Failed finding pool for instance %q in project %q: %w", inst.Name, p.Name, err)
+			instPoolName, err = tx.GetInstancePool(ctx, p.Name, inst.Name)
+			if err != nil {
+				if api.StatusErrorCheck(err, http.StatusNotFound) {
+					// If the instance cannot be associated to a pool its got bigger problems
+					// outside the scope of this patch. Will skip due to empty instPoolName.
+					return nil
 				}
 
-				snapshots, err = tx.GetInstanceSnapshotsWithName(ctx, p.Name, inst.Name)
-				if err != nil {
-					return err
-				}
+				return fmt.Errorf("Failed finding pool for instance %q in project %q: %w", inst.Name, p.Name, err)
+			}
 
-				return nil
-			})
+			snapshots, err = tx.GetInstanceSnapshotsWithName(ctx, p.Name, inst.Name)
 			if err != nil {
 				return err
 			}
