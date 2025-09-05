@@ -466,6 +466,37 @@ func Test_IsInterfaceName(t *testing.T) {
 	}
 }
 
+func Test_IsNetworkAddressCIDR(t *testing.T) {
+	tests := []struct {
+		value    string
+		expected bool
+	}{
+		{
+			value:    "192.0.2.1/24",
+			expected: true,
+		},
+		{
+			value:    "2001:db8::1/64",
+			expected: true,
+		},
+		{
+			value:    "192.0.2.1",
+			expected: false,
+		},
+		{
+			value:    "2001:db8::1",
+			expected: false,
+		},
+	}
+
+	for _, test := range tests {
+		err := validate.IsNetworkAddressCIDR(test.value)
+		if (err == nil) != test.expected {
+			t.Errorf("IsNetworkAddressCIDR(%q) = %v, want %v", test.value, err == nil, test.expected)
+		}
+	}
+}
+
 func Test_IsNetworkRange(t *testing.T) {
 	tests := []struct {
 		value    string
