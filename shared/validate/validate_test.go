@@ -484,7 +484,23 @@ func Test_IsNetworkRange(t *testing.T) {
 			expected: true,
 		},
 		{
+			value:    "192.0.2.2-192.0.2.1",
+			expected: false,
+		},
+		{
+			value:    "192.0.2.1-2001:db8::1",
+			expected: false,
+		},
+		{
 			value:    "192.0.2.1/24",
+			expected: false,
+		},
+		{
+			value:    "start-192.0.2.2",
+			expected: false,
+		},
+		{
+			value:    "192.0.2.1-end",
 			expected: false,
 		},
 	}
