@@ -9,11 +9,9 @@ runs:
       shell: bash
       run: |
         set -eux
+        . /etc/os-release
         ARCH="$(dpkg --print-architecture)"
         DATE="$(date --utc '+%Y%m%d')"
-
-        # To download the binaries for the right arch.
-        echo "ARCH=${ARCH}" >> $GITHUB_OUTPUT
 
         # i.e: deps-ubuntu-24.04-amd64-${DATE}
         echo "KEY=deps-${ID}-${VERSION_ID}-${ARCH}-${DATE}" >> $GITHUB_OUTPUT
