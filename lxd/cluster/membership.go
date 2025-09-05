@@ -722,12 +722,14 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 	wg.Wait()
 }
 
-// Rebalance the raft cluster, trying to see if we have a spare online node
-// that we can promote to voter node if we are below membershipMaxRaftVoters,
-// or to standby if we are below membershipMaxStandBys.
+// Rebalance adjusts raft node roles to maintain cluster membership limits according to the following rules:
+// - Cluster members with the "database-client" role are mapped to the raft "spare" role during rebalancing.
+// - If we are below membershipMaxRaftVoters, promote a cluster member to "voter".
+// - If we are below membershipMaxStandBys, promote a cluster member to "standby".
 //
-// If there's such spare node, return its address as well as the new list of
-// raft nodes.
+// Returns:
+// - The address of the node that was promoted or demoted (if any).
+// - The full list of raft nodes after rebalancing.
 func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string) (string, []db.RaftNode, error) {
 	// If we're a standalone node, do nothing.
 	if gateway.memoryDial != nil {
