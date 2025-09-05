@@ -28,6 +28,7 @@ env:
   LXD_REQUIRED_TESTS: "storage_buckets,network_ovn"
   GOCOVERAGE: ${{ ( ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.repository == 'canonical/lxd' ) && 'true' || 'false' }}
   GOCOVERDIR: ''  # Later set to the fully qualified path if needed
+  SNAP_CACHE_DIR: "/home/runner/snap-cache"
 
 permissions:
   contents: read
@@ -287,6 +288,12 @@ jobs:
           retention-days: 1
         if: env.GOCOVERDIR != ''
 
+      # In code-tests, this action warms the cache for the system-tests job
+      - name: Download snap dependencies
+        uses: ./.github/actions/download-snaps
+        with:
+          snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
+
       - name: Download minio/mc to add to system test dependencies
         uses: ./.github/actions/download-minio
 
@@ -357,6 +364,12 @@ jobs:
 
       - name: Install runtime dependencies
         uses: ./.github/actions/install-lxd-runtimedeps
+
+      # Restore the cache warmed in code-tests job
+      - name: Download snap dependencies
+        uses: ./.github/actions/download-snaps
+        with:
+          snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
 
       - name: Download system test dependencies
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
