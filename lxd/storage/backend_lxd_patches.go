@@ -113,8 +113,21 @@ func patchMissingSnapshotRecords(b *lxdBackend) error {
 				}
 
 				if !foundVolumeSnapshot {
+					// If we're updating from an old LXD release, it's possible that some instance volumes might still have
+					// some of the old-style disk volume keys set in their config. These are not allowed any more for instance
+					// volumes and snapshots. So filter them out here rather than try to configure these as device overrides
+					// which would be the modern way.
+					config := make(map[string]string, len(dbVol.Config))
+					for key, value := range dbVol.Config {
+						if slices.Contains(instanceDiskVolumeEffectiveFields, key) {
+							continue
+						}
+
+						config[key] = value
+					}
+
 					b.logger.Info("Creating missing volume snapshot record", logger.Ctx{"project": snapshots[i].Project, "instance": snapshots[i].Name})
-					err = VolumeDBCreate(b, snapshots[i].Project, snapshots[i].Name, "Auto repaired", volType, true, dbVol.Config, snapshots[i].CreationDate, time.Time{}, contentType, false, true)
+					err = VolumeDBCreate(b, snapshots[i].Project, snapshots[i].Name, "Auto repaired", volType, true, config, snapshots[i].CreationDate, time.Time{}, contentType, false, true)
 					if err != nil {
 						return err
 					}
