@@ -271,7 +271,7 @@ jobs:
           sudo chmod o+w ./lxd/auth/drivers/openfga_model.openfga
           make static-analysis
 
-      - name: Unit tests (all)
+      - name: Unit tests
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.unit-tests == 'true' }}
         run: |
           set -eux
