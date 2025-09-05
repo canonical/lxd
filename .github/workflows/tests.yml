@@ -406,6 +406,8 @@ jobs:
 
       - name: Setup MicroOVN
         uses: ./.github/actions/setup-microovn
+        with:
+          snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
 
       - name: Make GOCOVERDIR
         run: |
