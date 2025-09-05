@@ -24,11 +24,6 @@ import (
 	"github.com/canonical/lxd/shared/units"
 )
 
-// stringInSlice checks whether the supplied string is present in the supplied slice.
-func stringInSlice(key string, list []string) bool {
-	return slices.Contains(list, key)
-}
-
 // Required returns function that runs one or more validators, all must pass without error.
 func Required(validators ...func(value string) error) func(value string) error {
 	return func(value string) error {
