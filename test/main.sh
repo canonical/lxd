@@ -80,7 +80,7 @@ install_storage_driver_tools
 install_instance_drivers
 
 echo "==> Checking for dependencies"
-check_dependencies lxd lxc curl busybox dnsmasq iptables jq nc ping yq git s3cmd sqlite3 rsync shuf setfacl setfattr socat swtpm dig xz
+check_dependencies lxd lxc curl busybox dnsmasq iptables jq nc ping yq git s3cmd sqlite3 rsync shuf setfacl setfattr socat swtpm dig tar2sqfs unsquashfs xz
 if [ "${LXD_VM_TESTS:-0}" = "1" ]; then
   check_dependencies qemu-img "qemu-system-$(uname -m)" sgdisk
 fi
