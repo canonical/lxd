@@ -453,6 +453,7 @@ func Test_IsInterfaceName(t *testing.T) {
 		{"1234", true},
 		{"abcdefghijklmno", true},
 		{"abcdefghijklmnop", false},
+		{"eth,0", false},
 		{"", false},
 		{"a", false},
 	}
