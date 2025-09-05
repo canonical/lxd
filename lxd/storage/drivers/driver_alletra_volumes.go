@@ -2,7 +2,9 @@ package drivers
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
 	"os"
@@ -13,11 +15,14 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/canonical/lxd/lxd/backup"
+	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/connectors"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/validate"
@@ -449,6 +454,247 @@ func (d *alletra) GetVolumeDiskPath(vol Volume) (string, error) {
 	}
 
 	return "", ErrNotSupported
+}
+
+// CreateVolume creates an empty volume and can optionally fill it by executing the supplied filler function.
+func (d *alletra) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
+	client := d.client()
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	volName, err := d.getVolumeName(vol)
+	if err != nil {
+		return err
+	}
+
+	sizeBytes, err := units.ParseByteSizeString(vol.ConfigSize())
+	if err != nil {
+		return err
+	}
+
+	// Create the volume.
+	err = client.CreateVolume(vol.pool, volName, sizeBytes)
+	if err != nil {
+		return err
+	}
+
+	revert.Add(func() {
+		err := client.DeleteVolume(vol.pool, volName)
+		if err != nil {
+			d.logger.Error("DeleteVolume API call failed on error path", logger.Ctx{"err": err})
+		}
+	})
+
+	volumeFilesystem := vol.ConfigBlockFilesystem()
+	if vol.contentType == ContentTypeFS {
+		devPath, cleanup, err := d.getMappedDevPath(vol, true)
+		if err != nil {
+			return err
+		}
+
+		revert.Add(cleanup)
+
+		_, err = makeFSType(devPath, volumeFilesystem, nil)
+		if err != nil {
+			return err
+		}
+	}
+
+	// For VMs, also create the filesystem volume.
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+
+		err := d.CreateVolume(fsVol, nil, op)
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() {
+			err := d.DeleteVolume(fsVol, op)
+			if err != nil {
+				d.logger.Error("DeleteVolume failed on error path", logger.Ctx{"err": err})
+			}
+		})
+	}
+
+	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+		// Run the volume filler function if supplied.
+		if filler != nil && filler.Fill != nil {
+			var err error
+			var devPath string
+
+			if IsContentBlock(vol.contentType) {
+				// Get the device path.
+				devPath, err = d.GetVolumeDiskPath(vol)
+				if err != nil {
+					return err
+				}
+			}
+
+			allowUnsafeResize := false
+			if vol.volType == VolumeTypeImage {
+				// Allow filler to resize initial image volume as needed.
+				// Some storage drivers don't normally allow image volumes to be resized due to
+				// them having read-only snapshots that cannot be resized. However when creating
+				// the initial image volume and filling it before the snapshot is taken resizing
+				// can be allowed and is required in order to support unpacking images larger than
+				// the default volume size. The filler function is still expected to obey any
+				// volume size restrictions configured on the pool.
+				// Unsafe resize is also needed to disable filesystem resize safety checks.
+				// This is safe because if for some reason an error occurs the volume will be
+				// discarded rather than leaving a corrupt filesystem.
+				allowUnsafeResize = true
+			}
+
+			// Run the filler.
+			err = d.runFiller(vol, devPath, filler, allowUnsafeResize)
+			if err != nil {
+				return err
+			}
+
+			// Move the GPT alt header to end of disk if needed.
+			if vol.IsVMBlock() {
+				err = d.moveGPTAltHeader(devPath)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		if vol.contentType == ContentTypeFS {
+			// Run EnsureMountPath again after mounting and filling to ensure the mount directory has
+			// the correct permissions set.
+			err = vol.EnsureMountPath()
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}, op)
+	if err != nil {
+		return err
+	}
+
+	revert.Success()
+	return nil
+}
+
+// CreateVolumeFromBackup re-creates a volume from its exported state.
+func (d *alletra) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
+	return genericVFSBackupUnpack(d, d.state, vol, srcBackup.Snapshots, srcData, op)
+}
+
+// CreateVolumeFromCopy provides same-pool volume copying functionality.
+func (d *alletra) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error {
+	return errors.New("CreateVolumeFromCopy: unsupported operation")
+}
+
+// CreateVolumeFromMigration creates a volume being sent via a migration.
+func (d *alletra) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
+	return errors.New("CreateVolumeFromMigration: unsupported operation")
+}
+
+// DeleteVolume deletes the volume and all associated snapshots.
+func (d *alletra) DeleteVolume(vol Volume, op *operations.Operation) error {
+	volExists, err := d.HasVolume(vol)
+	if err != nil {
+		return err
+	}
+
+	if !volExists {
+		return nil
+	}
+
+	volName, err := d.getVolumeName(vol)
+	if err != nil {
+		return err
+	}
+
+	connector, err := d.connector()
+	if err != nil {
+		return err
+	}
+
+	// Get the qualified name of the host.
+	qn, err := connector.QualifiedName()
+	if err != nil {
+		return err
+	}
+
+	host, err := d.client().GetCurrentHost(connector.Type(), qn)
+	if err != nil {
+		// If the host doesn't exist, continue with the deletion of
+		// the volume and do not try to delete the volume mapping as
+		// it cannot exist.
+		if !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return err
+		}
+	} else {
+		// Delete the volume mapping with the host.
+		err = d.client().DisconnectHostFromVolume(vol.pool, volName, host.Name)
+		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return err
+		}
+	}
+
+	err = d.client().DeleteVolume(vol.pool, volName)
+	if err != nil {
+		return err
+	}
+
+	// For VMs, also delete the filesystem volume.
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+
+		err := d.DeleteVolume(fsVol, op)
+		if err != nil {
+			return err
+		}
+	}
+
+	mountPath := vol.MountPath()
+
+	if vol.contentType == ContentTypeFS && shared.PathExists(mountPath) {
+		err := wipeDirectory(mountPath)
+		if err != nil {
+			return err
+		}
+
+		err = os.Remove(mountPath)
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("Failed to remove %q: %w", mountPath, err)
+		}
+	}
+
+	return nil
+}
+
+// HasVolume indicates whether a specific volume exists on the storage pool.
+func (d *alletra) HasVolume(vol Volume) (bool, error) {
+	volName, err := d.getVolumeName(vol)
+	if err != nil {
+		return false, err
+	}
+
+	// Otherwise, check if the volume exists.
+	_, err = d.client().GetVolume(vol.pool, volName)
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	return true, nil
+}
+
+// RenameVolume renames a volume and its snapshots.
+func (d *alletra) RenameVolume(vol Volume, newVolName string, op *operations.Operation) error {
+	// Renaming a volume won't change an actual name of the volume on the storage array side.
+	return nil
 }
 
 // commonVolumeRules returns validation rules which are common for pool and volume.
