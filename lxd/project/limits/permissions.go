@@ -1091,6 +1091,9 @@ func AllowProjectUpdate(ctx context.Context, globalConfig *clusterConfig.Config,
 		return err
 	}
 
+	restrictedValue, ok := info.Project.Config["restricted"]
+	projectIsRestricted := ok && shared.IsTrue(restrictedValue)
+
 	// List of keys that need to check aggregate values across all project
 	// instances.
 	aggregateKeys := []string{}
@@ -1110,9 +1113,11 @@ func AllowProjectUpdate(ctx context.Context, globalConfig *clusterConfig.Config,
 				Config: config,
 			}
 
-			err := checkInstanceRestrictions(project, info.Instances, info.Profiles)
-			if err != nil {
-				return fmt.Errorf("Conflict detected when changing %q in project %q: %w", key, projectName, err)
+			if projectIsRestricted {
+				err := checkInstanceRestrictions(project, info.Instances, info.Profiles)
+				if err != nil {
+					return fmt.Errorf("Conflict detected when changing %q in project %q: %w", key, projectName, err)
+				}
 			}
 
 			continue
