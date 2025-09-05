@@ -513,6 +513,41 @@ func Test_IsNetworkRange(t *testing.T) {
 	}
 }
 
+func Test_IsNetworkV4(t *testing.T) {
+	tests := []struct {
+		value    string
+		expected bool
+	}{
+		{
+			value:    "192.0.2.1",
+			expected: false,
+		},
+		{
+			value:    "192.0.2.1/24",
+			expected: false,
+		},
+		{
+			value:    "192.0.2.0/24",
+			expected: true,
+		},
+		{
+			value:    "2001:db8::1",
+			expected: false,
+		},
+		{
+			value:    "2001:db8::/64",
+			expected: false,
+		},
+	}
+
+	for _, test := range tests {
+		err := validate.IsNetworkV4(test.value)
+		if (err == nil) != test.expected {
+			t.Errorf("IsNetworkV4(%q) = %v, want %v", test.value, err == nil, test.expected)
+		}
+	}
+}
+
 func Test_IsNetworkMAC(t *testing.T) {
 	tests := []struct {
 		value    string
