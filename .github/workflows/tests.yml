@@ -402,6 +402,7 @@ jobs:
         with:
           microceph-channel: "squid/candidate"
           osd-count: 3
+          snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
 
       - name: Setup MicroOVN
         uses: ./.github/actions/setup-microovn
