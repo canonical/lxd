@@ -369,6 +369,7 @@ fi
 
 if [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_enable "clustering enable"
+    run_test test_clustering_edit_configuration "clustering config edit"
     run_test test_clustering_membership "clustering membership"
     run_test test_clustering_containers "clustering containers"
     run_test test_clustering_storage "clustering storage"
@@ -397,7 +398,6 @@ if [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_evacuation "clustering evacuation"
     run_test test_clustering_instance_placement_scriptlet "clustering instance placement scriptlet"
     run_test test_clustering_move "clustering move"
-    run_test test_clustering_edit_configuration "clustering config edit"
     run_test test_clustering_remove_members "clustering config remove members"
     run_test test_clustering_autotarget "clustering autotarget member"
     run_test test_clustering_upgrade "clustering upgrade"
