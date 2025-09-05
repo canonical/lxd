@@ -320,6 +320,12 @@ if [ "${1:-"all"}" = "test-shell" ]; then
   exit
 fi
 
+# Preflight check
+if ldd "${_LXC}" | grep -F liblxc; then
+    echo "lxc binary must not be linked with liblxc"
+    exit 1
+fi
+
 if [ "${LXD_TMPFS:-0}" = "1" ]; then
   mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=7G
 fi
@@ -362,7 +368,6 @@ else
 fi
 
 if [ "${1:-"all"}" != "cluster" ]; then
-    run_test test_check_deps "checking dependencies"
     run_test test_database_restore "database restore"
     run_test test_database_no_disk_space "database out of disk space"
     run_test test_sql "lxd sql"
