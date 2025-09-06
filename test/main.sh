@@ -132,27 +132,23 @@ cleanup() {
   unset SERVER_DEBUG
   unset SHELL_TRACING
 
-  # Allow for inspection
-  if [ -n "${LXD_INSPECT:-}" ]; then
-    if [ "${TEST_RESULT}" != "success" ]; then
+  # Check if we failed and if so, provide debug info and possibly an inspection shell.
+  if [ "${TEST_RESULT}" != "success" ]; then
+    # Allow for inspection on failure
+    if [ -n "${LXD_INSPECT:-}" ]; then
+      # Re-execution prevention
+      export LXD_INSPECT_INPROGRESS=true
+
       echo "==> FAILED TEST: ${TEST_CURRENT#test_} (${TEST_CURRENT_DESCRIPTION})"
+      echo "==> Test result: ${TEST_RESULT}"
       # red
       PS1_PREFIX="\[\033[0;31m\]LXD-TEST\[\033[0m\]"
-    else
-      # green
-      PS1_PREFIX="\[\033[0;32m\]LXD-TEST\[\033[0m\]"
+
+      echo -e "\033[0;33mDropping to a shell for inspection.\nOnce done, exit (Ctrl-D) to continue\033[0m"
+      export PS1="${PS1_PREFIX} ${PS1:-\u@\h:\w\$ }"
+      bash --norc
     fi
-    echo "==> Test result: ${TEST_RESULT}"
 
-    # Re-execution prevention
-    export LXD_INSPECT_INPROGRESS=true
-
-    echo -e "\033[0;33mDropping to a shell for inspection.\nOnce done, exit (Ctrl-D) to continue\033[0m"
-    export PS1="${PS1_PREFIX} ${PS1:-\u@\h:\w\$ }"
-    bash --norc
-  fi
-
-  if [ "${TEST_RESULT}" != "success" ]; then
     echo ""
     echo "df -h output:"
     df -h
