@@ -2118,7 +2118,11 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 		// So we unpack the image directly into a new volume rather than use the optimized snapsot.
 		// This is slower but allows for individual volumes to be created from an image that are smaller
 		// than the pool's volume settings.
-		if errors.Is(err, drivers.ErrCannotBeShrunk) {
+		if err != nil {
+			if !errors.Is(err, drivers.ErrCannotBeShrunk) {
+				return err
+			}
+
 			l.Debug("Cached image volume is larger than new volume and cannot be shrunk, creating non-optimized volume")
 
 			volFiller := drivers.VolumeFiller{
@@ -2130,8 +2134,6 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 			if err != nil {
 				return err
 			}
-		} else if err != nil {
-			return err
 		}
 	}
 
