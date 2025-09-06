@@ -389,7 +389,7 @@ func (c *Cluster) transaction(ctx context.Context, f func(context.Context, *Clus
 		}
 
 		err := query.Transaction(ctx, c.db, txFunc)
-		if errors.Is(err, context.DeadlineExceeded) {
+		if err != nil && errors.Is(err, context.DeadlineExceeded) {
 			// If the query timed out it likely means that the leader has abruptly become unreachable.
 			// Now that this query has been cancelled, a leader election should have taken place by now.
 			// So let's retry the transaction once more in case the global database is now available again.
