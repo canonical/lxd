@@ -2079,7 +2079,11 @@ func (d *Daemon) startClusterTasks() {
 }
 
 func (d *Daemon) stopClusterTasks() {
-	_ = d.clusterTasks.Stop(3 * time.Second)
+	err := d.clusterTasks.Stop(3 * time.Second)
+	if err != nil {
+		logger.Warn("Failed stopping cluster tasks", logger.Ctx{"err": err})
+	}
+
 	d.clusterTasks = task.NewGroup()
 }
 
