@@ -143,31 +143,28 @@ Force-removing a cluster member will leave the member's database in an inconsist
 As a result, it will not be possible to re-initialize LXD later, and the server must be fully reinstalled.
 ```
 
-## Upgrade cluster members
+(howto-cluster-manage-update-upgrade)=
+## Update or upgrade cluster members
 
-To upgrade a cluster, you must upgrade all of its members.
-All members must be upgraded to the same version of LXD.
+To update or upgrade a cluster, you must perform the same operation on all of its members, ensuring that they all use the same version of LXD.
 
 ```{caution}
-Do not attempt to upgrade your cluster if any of its members are offline.
-Offline members cannot be upgraded, and your cluster will end up in a blocked state.
+Do not attempt to update or upgrade your cluster if any of its members are offline.
+Offline members cannot be updated or upgraded, and your cluster will end up in a blocked state.
 
-Also note that if you are using the snap, upgrades might happen automatically, so to prevent any issues you should always recover or remove offline members immediately.
+Also note that if you are using the snap, updates might happen automatically, so to prevent any issues you should always recover or remove offline members immediately.
 ```
 
-To upgrade a single member, simply upgrade the LXD package on the host and restart the LXD daemon.
-For example, if you are using the snap then refresh to the latest version and cohort in the current channel (also reloads LXD):
-
-    sudo snap refresh lxd --cohort="+"
+To update or upgrade the cluster, you must apply the change to each cluster member's LXD installation. If you are using the snap, see {ref}`howto-snap-updates` for update instructions about updates, and {ref}`howto-snap-change` for upgrade instructions.
 
 If the new version of the daemon has database schema or API changes, the upgraded member might transition into a "blocked" state.
 In this case, the member does not serve any LXD API requests (which means that `lxc` commands don't work on that member anymore), but any running instances will continue to run.
 
-This happens if there are other cluster members that have not been upgraded and are therefore running an older version.
+This happens if there are other cluster members that have not been updated or upgraded, resulting in mismatched versions.
 Run [`lxc cluster list`](lxc_cluster_list.md) on a cluster member that is not blocked to see if any members are blocked.
 
-As you proceed upgrading the rest of the cluster members, they will all transition to the "blocked" state.
-When you upgrade the last member, the blocked members will notice that all servers are now up-to-date, and the blocked members become operational again.
+As you proceed updating or upgrading the rest of the cluster members, they will all transition to the "blocked" state.
+When you update or upgrade the last member, the blocked members will notice that all LXD versions now match, and the blocked members become operational again.
 
 ## Update the cluster certificate
 
