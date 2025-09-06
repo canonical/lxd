@@ -226,7 +226,7 @@ func startHTTPServer(d *Daemon) error {
 	// Start the server.
 	go func() {
 		err := servers["http"].Serve(networkTLSListener(l, tlsConfig))
-		if !errors.Is(err, http.ErrServerClosed) {
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errChan <- err
 		}
 
