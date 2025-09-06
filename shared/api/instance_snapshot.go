@@ -23,6 +23,12 @@ type InstanceSnapshotsPost struct {
 	//
 	// API extension: snapshot_expiry_creation
 	ExpiresAt *time.Time `json:"expires_at" yaml:"expires_at"`
+
+	// Disk types to include in restore. Possible values are "root" and "exclusive-volumes". If not specified, only the root disk is restored.
+	// Example: ["root", "exclusive-volumes"]
+	//
+	// API extension: instance_snapshot_multi_volume
+	Disks []string `json:"disks,omitempty" yaml:"disks,omitempty"`
 }
 
 // InstanceSnapshotPost represents the fields required to rename/move a LXD instance snapshot.

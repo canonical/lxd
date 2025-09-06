@@ -1444,7 +1444,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}
 
 	if snapName != "" && expiry != nil {
-		err := d.snapshot(snapName, expiry, false)
+		err := d.snapshot(snapName, expiry, false, deviceConfig.Devices{})
 		if err != nil {
 			err = fmt.Errorf("Failed taking startup snapshot: %w", err)
 			op.Done(err)
@@ -5063,7 +5063,7 @@ func (d *qemu) IsPrivileged() bool {
 }
 
 // snapshot creates a snapshot of the instance.
-func (d *qemu) snapshot(name string, expiry *time.Time, stateful bool) error {
+func (d *qemu) snapshot(name string, expiry *time.Time, stateful bool, disks deviceConfig.Devices) error {
 	var err error
 	var monitor *qmp.Monitor
 
@@ -5093,7 +5093,7 @@ func (d *qemu) snapshot(name string, expiry *time.Time, stateful bool) error {
 	}
 
 	// Create the snapshot.
-	err = d.snapshotCommon(d, name, expiry, stateful)
+	err = d.snapshotCommon(d, name, expiry, stateful, disks)
 	if err != nil {
 		return err
 	}
@@ -5116,7 +5116,7 @@ func (d *qemu) snapshot(name string, expiry *time.Time, stateful bool) error {
 }
 
 // Snapshot takes a new snapshot.
-func (d *qemu) Snapshot(name string, expiry *time.Time, stateful bool) error {
+func (d *qemu) Snapshot(name string, expiry *time.Time, stateful bool, disks deviceConfig.Devices) error {
 	unlock, err := d.updateBackupFileLock(context.Background())
 	if err != nil {
 		return err
@@ -5124,11 +5124,11 @@ func (d *qemu) Snapshot(name string, expiry *time.Time, stateful bool) error {
 
 	defer unlock()
 
-	return d.snapshot(name, expiry, stateful)
+	return d.snapshot(name, expiry, stateful, disks)
 }
 
 // Restore restores an instance snapshot.
-func (d *qemu) Restore(source instance.Instance, stateful bool) error {
+func (d *qemu) Restore(source instance.Instance, stateful bool, disks deviceConfig.Devices) error {
 	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
@@ -5138,17 +5138,17 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 
 	d.logger.Info("Restoring instance", ctxMap)
 
-	pool, wasRunning, op, err := d.restoreCommon(d, source)
+	targetSnapshots, pool, wasRunning, op, err := d.restoreCommon(d, source, disks)
 	if err != nil {
 		op.Done(err)
 		return err
 	}
 
-	// Restore the rootfs.
-	err = pool.RestoreInstanceSnapshot(d, source, nil)
+	// Restore the volumes.
+	err = pool.RestoreInstanceSnapshot(d, source, targetSnapshots, nil)
 	if err != nil {
 		op.Done(err)
-		return err
+		return fmt.Errorf("Failed to restore snapshot: %w", err)
 	}
 
 	d.stateful = stateful
