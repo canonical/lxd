@@ -1467,7 +1467,11 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 			}
 
 			err := d.applyQuota(false)
-			if errors.Is(err, storageDrivers.ErrInUse) {
+			if err != nil {
+				if !errors.Is(err, storageDrivers.ErrInUse) {
+					return err
+				}
+
 				// Save volatile apply_quota key for next boot if cannot apply now.
 				err = d.volatileSet(map[string]string{"apply_quota": "true"})
 				if err != nil {
@@ -1475,8 +1479,6 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 				}
 
 				d.logger.Warn("Could not apply quota because disk is in use, deferring until next start")
-			} else if err != nil {
-				return err
 			}
 		}
 	}

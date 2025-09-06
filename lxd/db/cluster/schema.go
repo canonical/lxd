@@ -491,6 +491,10 @@ CREATE TABLE secrets (
     value TEXT NOT NULL,
     creation_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE UNIQUE INDEX secrets_bearer_identity_signing_key_unique ON secrets (entity_type, entity_id, type)
+	WHERE entity_type = 24
+	AND type = 2
+;
 CREATE INDEX secrets_entity_type_entity_id_type ON secrets (entity_type,
     entity_id,
     type);
@@ -675,5 +679,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (75, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (76, strftime("%s"))
 `

@@ -622,11 +622,14 @@ func (m *Method) id(buf *file.Buffer) error {
 	buf.L("row := stmt.QueryRowContext(ctx, %s)", mapping.FieldParamsMarshal(nk))
 	buf.L("var id int64")
 	buf.L("err = row.Scan(&id)")
+	buf.L("if err != nil {")
 	buf.L("if errors.Is(err, sql.ErrNoRows) {")
 	buf.L(`return -1, api.StatusErrorf(http.StatusNotFound, "%s not found")`, lex.Camel(m.entity))
 	buf.L("}")
 	buf.N()
-	m.ifErrNotNil(buf, true, "-1", fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" ID: %%w", err)`, entityTable(m.entity, m.config["table"])))
+	buf.L(`return -1, fmt.Errorf("Failed to get \"%s\" ID: %%w", err)`, entityTable(m.entity, m.config["table"]))
+	buf.L("}")
+	buf.N()
 	buf.L("return id, nil")
 
 	return nil

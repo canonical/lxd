@@ -123,7 +123,7 @@ func updateFromV75(ctx context.Context, tx *sql.Tx) error {
 	entityTypeCode := strconv.FormatInt(entityTypeCodeIdentity, 10)
 	secretTypeCode := strconv.FormatInt(secretTypeCodeBearerSigningKey, 10)
 	_, err := tx.ExecContext(ctx, `
-CREATE UNIQUE INDEX secrets_bearer_identity_signing_key_unique ON secrets (entity_type, entity_id, type) 
+CREATE UNIQUE INDEX secrets_bearer_identity_signing_key_unique ON secrets (entity_type, entity_id, type)
 	WHERE entity_type = `+entityTypeCode+`
 	AND type = `+secretTypeCode+`
 `)
