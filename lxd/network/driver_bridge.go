@@ -1295,7 +1295,7 @@ func (n *bridge) startDnsmasq(dnsmasqCmd []string, dnsClustered bool, dnsCluster
 	_, err = p.Wait(ctx)
 	cancel()
 
-	if !errors.Is(err, context.DeadlineExceeded) {
+	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
 		stderr, _ := os.ReadFile(dnsmasqLogPath)
 
 		return fmt.Errorf("The DNS and DHCP service exited prematurely: %w (%q)", err, strings.TrimSpace(string(stderr)))
