@@ -1271,15 +1271,20 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		}
 
 		// Check if nvram path and its target exist.
+		nvramMissing := false
 		nvramPath := d.nvramPath()
 		nvramTarget, err := filepath.EvalSymlinks(nvramPath)
-		if err != nil && !errors.Is(err, fs.ErrNotExist) {
-			op.Done(err)
-			return err
+		if err != nil {
+			if !errors.Is(err, fs.ErrNotExist) {
+				op.Done(err)
+				return err
+			}
+
+			nvramMissing = true
 		}
 
 		// Decide if nvram file needs to be setup/refreshed.
-		if errors.Is(err, fs.ErrNotExist) || shared.IsTrue(d.localConfig["volatile.apply_nvram"]) || ovmfNeedsUpdate(nvramTarget) {
+		if nvramMissing || shared.IsTrue(d.localConfig["volatile.apply_nvram"]) || ovmfNeedsUpdate(nvramTarget) {
 			err = d.setupNvram()
 			if err != nil {
 				op.Done(err)
