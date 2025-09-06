@@ -2708,3 +2708,8 @@ This change removes the previous limitation on `ovn` networks that load balancer
 
 Adds a new `bearer` authentication method and enables authentication to the DevLXD API.
 See {ref}`DevLXD bearer tokens <devlxd-authentication-bearer>`.
+
+## `ovn_dhcp_ranges`
+
+This introduces support for the {config:option}`network-ovn-network-conf:ipv4.dhcp.ranges` configuration key for `ovn` networks. This key allows specifying a list of IPv4 ranges
+reserved for dynamic allocation using DHCP.

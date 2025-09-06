@@ -489,6 +489,37 @@ test_network_ovn() {
   echo "Check that instance NIC passthrough with ipv6.routes.external does not allow using volatile.network.ipv6.address."
   ! lxc launch testimage c1 -n "${ovn_network}" -d eth0,ipv6.routes.external="${volatile_ip6}/128" || false
 
+  echo "Test DHCP reservation."
+
+  echo "Set ipv4.dhcp.ranges for the OVN network that reserve three IPs (10.24.140.10-10.24.140.12)."
+  lxc network set "${ovn_network}" ipv4.dhcp.ranges=10.24.140.10-10.24.140.12
+
+  echo "Launch three instances on the OVN network."
+  lxc launch testimage c1 --network "${ovn_network}"
+  lxc launch testimage c2 --network "${ovn_network}"
+  lxc launch testimage c3 --network "${ovn_network}"
+
+  echo "Bring up the IPv4 interface for each instance."
+  setup_instance_ip4_interface "c1"
+  setup_instance_ip4_interface "c2"
+  setup_instance_ip4_interface "c3"
+
+  echo "Check that the 4th instance creation fails because all reserved dynamic addresses are taken."
+  ! lxc launch testimage c4 --network "${ovn_network}" || false
+
+  echo "Check IPs assigned to instances."
+  [ "$(lxc list -f csv -c 4 c1)" = "10.24.140.10 (eth0)" ]
+  [ "$(lxc list -f csv -c 4 c2)" = "10.24.140.11 (eth0)" ]
+  [ "$(lxc list -f csv -c 4 c3)" = "10.24.140.12 (eth0)" ]
+
+  echo "Check the exclude_ips field on the OVN logical switch, it should contain all IPs except ipv4.dhcp.ranges."
+  [ "$(ovn-nbctl list logical_switch | grep -Fc 'exclude_ips="10.24.140.1..10.24.140.9 10.24.140.13..10.24.140.255"')" = "1" ]
+
+  echo "Delete the instances."
+  lxc delete c1 --force
+  lxc delete c2 --force
+  lxc delete c3 --force
+
   echo "Test automatic allocation of an allowed external IP addresses for forwards and load balancers."
 
   echo "Update uplink's routes to include the uplink's IPv4 and IPv6 gateway addresses."
@@ -689,6 +720,18 @@ test_network_ovn() {
   assert_row_count
 
   unset_ovn_configuration
+}
+
+setup_instance_ip4_interface() {
+  local uuid internal_switch_port_name ipv4_address
+
+  uuid="$(lxc query /1.0/instances/"${1}" | jq -er '.config."volatile.uuid"')"
+  internal_switch_port_name="${chassis_group_name}-instance-${uuid}-eth0"
+
+  ipv4_address="$(ovn-nbctl get logical_switch_port "${internal_switch_port_name}" dynamic_addresses | tr -d '"' | cut -d' ' -f 2)"
+
+  lxc exec "${1}" -- ip -4 addr add "${ipv4_address}/24" dev eth0
+  lxc exec "${1}" -- ip -4 route add default via 10.24.140.1 dev eth0
 }
 
 auto_allocate_forwards_ip4() {

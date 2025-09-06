@@ -1,6 +1,7 @@
 package network
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -440,6 +441,15 @@ func (n *ovn) Validate(config map[string]string) error {
 		//  defaultdesc: `true`
 		//  shortdesc: Whether to allocate IPv4 addresses using DHCP
 		"ipv4.dhcp": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=ipv4.dhcp.ranges)
+		// Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.
+		// ---
+		//  type: string
+		//  condition: IPv4 DHCP
+		//  defaultdesc: all addresses
+		//  shortdesc: IPv4 ranges to use for DHCP
+		//  scope: global
+		"ipv4.dhcp.ranges": validate.Optional(validate.IsListOf(validate.IsNetworkRangeV4)),
 		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=ipv6.address)
 		// Use CIDR notation.
 		//
@@ -2190,7 +2200,7 @@ func (n *ovn) validateUplinkNetwork(ctx context.Context, tx *db.ClusterTx, p *ap
 
 // getDHCPv4Reservations returns list of DHCP IPv4 reservations for this network.
 func (n *ovn) getDHCPv4Reservations() ([]shared.IPRange, error) {
-	routerIntPortIPv4, _, err := n.parseRouterIntPortIPv4Net()
+	routerIntPortIPv4, ipv4Net, err := n.parseRouterIntPortIPv4Net()
 	if err != nil {
 		return nil, fmt.Errorf("Failed parsing router's internal port IPv4 Net for DHCP reservation: %w", err)
 	}
@@ -2198,7 +2208,44 @@ func (n *ovn) getDHCPv4Reservations() ([]shared.IPRange, error) {
 	var dhcpReserveIPv4s []shared.IPRange
 
 	if routerIntPortIPv4 != nil {
-		dhcpReserveIPv4s = []shared.IPRange{{Start: routerIntPortIPv4}}
+		if n.config["ipv4.dhcp.ranges"] == "" {
+			dhcpReserveIPv4s = []shared.IPRange{{Start: routerIntPortIPv4}}
+		} else {
+			allowedNets := []*net.IPNet{n.DHCPv4Subnet()}
+			dhcpRanges, err := shared.ParseIPRanges(n.config["ipv4.dhcp.ranges"], allowedNets...)
+			if err != nil {
+				return nil, err
+			}
+
+			sort.Slice(dhcpRanges, func(i, j int) bool {
+				return bytes.Compare(dhcpRanges[i].Start, dhcpRanges[j].Start) < 0
+			})
+
+			reservedIPs, err := complementRangesIP4(dhcpRanges, ipv4Net)
+			if err != nil {
+				return nil, err
+			}
+
+			dhcpReserveIPv4s = append(dhcpReserveIPv4s, reservedIPs...)
+
+			if !ipInRanges(routerIntPortIPv4, dhcpReserveIPv4s) {
+				dhcpReserveIPv4s = append(dhcpReserveIPv4s, shared.IPRange{Start: routerIntPortIPv4})
+			}
+		}
+	}
+
+	err = UsedByInstanceDevices(n.state, n.Project(), n.Name(), n.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
+		ip := net.ParseIP(nicConfig["ipv4.address"])
+		if ip != nil {
+			if !ipInRanges(ip, dhcpReserveIPv4s) {
+				dhcpReserveIPv4s = append(dhcpReserveIPv4s, shared.IPRange{Start: ip})
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return dhcpReserveIPv4s, nil
