@@ -92,7 +92,6 @@ func (c *ClusterTx) GetLocalExpiredInstanceSnapshots(ctx context.Context) ([]clu
 }
 
 // GetInstanceSnapshotID returns the ID of the snapshot with the given name.
-func (c *ClusterTx) GetInstanceSnapshotID(ctx context.Context, project, instance, name string) (int, error) {
-	id, err := cluster.GetInstanceSnapshotID(ctx, c.tx, project, instance, name)
-	return int(id), err
+func (c *ClusterTx) GetInstanceSnapshotID(ctx context.Context, project, instance, name string) (int64, error) {
+	return cluster.GetInstanceSnapshotID(ctx, c.tx, project, instance, name)
 }
