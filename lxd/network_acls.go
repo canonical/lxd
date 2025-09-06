@@ -360,7 +360,7 @@ func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, _, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, _, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -370,7 +370,7 @@ func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = doNetworkACLDelete(r.Context(), s, aclName, projectName)
+	err = doNetworkACLDelete(r.Context(), s, aclName, effectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
