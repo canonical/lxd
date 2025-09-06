@@ -746,11 +746,11 @@ func GetInstanceID(ctx context.Context, tx *sql.Tx, project string, name string)
 	row := stmt.QueryRowContext(ctx, project, name)
 	var id int64
 	err = row.Scan(&id)
-	if errors.Is(err, sql.ErrNoRows) {
-		return -1, api.StatusErrorf(http.StatusNotFound, "Instance not found")
-	}
-
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return -1, api.StatusErrorf(http.StatusNotFound, "Instance not found")
+		}
+
 		return -1, fmt.Errorf("Failed to get \"instances\" ID: %w", err)
 	}
 

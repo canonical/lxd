@@ -313,11 +313,11 @@ func GetInstanceSnapshotID(ctx context.Context, tx *sql.Tx, project string, inst
 	row := stmt.QueryRowContext(ctx, project, instance, name)
 	var id int64
 	err = row.Scan(&id)
-	if errors.Is(err, sql.ErrNoRows) {
-		return -1, api.StatusErrorf(http.StatusNotFound, "InstanceSnapshot not found")
-	}
-
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return -1, api.StatusErrorf(http.StatusNotFound, "InstanceSnapshot not found")
+		}
+
 		return -1, fmt.Errorf("Failed to get \"instances_snapshots\" ID: %w", err)
 	}
 
