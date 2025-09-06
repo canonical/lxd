@@ -447,11 +447,11 @@ func GetWarningID(ctx context.Context, tx *sql.Tx, uuid string) (int64, error) {
 	row := stmt.QueryRowContext(ctx, uuid)
 	var id int64
 	err = row.Scan(&id)
-	if errors.Is(err, sql.ErrNoRows) {
-		return -1, api.StatusErrorf(http.StatusNotFound, "Warning not found")
-	}
-
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return -1, api.StatusErrorf(http.StatusNotFound, "Warning not found")
+		}
+
 		return -1, fmt.Errorf("Failed to get \"warnings\" ID: %w", err)
 	}
 
