@@ -180,7 +180,11 @@ func (s *consoleWs) connectVGA(r *http.Request, w http.ResponseWriter) error {
 		go func() {
 			l := logger.AddContext(logger.Ctx{"address": conn.RemoteAddr().String()})
 
-			defer l.Debug("Finished mirroring websocket to console")
+			defer func() {
+				l.Debug("Finished mirroring websocket to console")
+				_ = conn.Close()
+				_ = console.Close()
+			}()
 
 			l.Debug("Started mirroring websocket")
 			readDone, writeDone := ws.Mirror(conn, console)
