@@ -14,6 +14,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/auth/bearer"
 	"github.com/canonical/lxd/lxd/cloudinit"
 	"github.com/canonical/lxd/lxd/db"
@@ -25,6 +26,7 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 	"github.com/canonical/lxd/shared/ws"
@@ -39,6 +41,10 @@ const (
 
 	// The security.devlxd.images key is used to enable devLXD image export.
 	devLXDSecurityImagesKey DevLXDSecurityKey = "security.devlxd.images"
+
+	// The security.devlxd.management.volumes key is used to allow volume
+	// management through devLXD.
+	devLXDSecurityManagementVolumesKey DevLXDSecurityKey = "security.devlxd.management.volumes"
 )
 
 // devLXDAPIAuthenticator is an interface that abstracts the authentication mechanism used to
@@ -65,6 +71,11 @@ var apiDevLXD = []APIEndpoint{
 	devLXDMetadataEndpoint,
 	devLXDEventsEndpoint,
 	devLXDDevicesEndpoint,
+	devLXDInstanceEndpoint,
+	devLXDStoragePoolEndpoint,
+	devLXDStoragePoolVolumeTypeEndpoint,
+	devLXDStoragePoolVolumesEndpoint,
+	devLXDStoragePoolVolumesTypeEndpoint,
 	devLXDUbuntuProEndpoint,
 	devLXDUbuntuProTokenEndpoint,
 }
@@ -112,11 +123,26 @@ func devLXDAPIGetHandler(d *Daemon, r *http.Request) response.Response {
 		clientAuth = api.AuthTrusted
 	}
 
+	var supportedStorageDrivers []api.DevLXDServerStorageDriverInfo
+
+	// Include supported storage drivers if the instance has the devLXD volume
+	// management security flag enabled.
+	if shared.IsTrue(inst.ExpandedConfig()[string(devLXDSecurityManagementVolumesKey)]) {
+		storageDrivers, _ := readStoragePoolDriversCache()
+		for _, driver := range storageDrivers {
+			supportedStorageDrivers = append(supportedStorageDrivers, api.DevLXDServerStorageDriverInfo{
+				Name:   driver.Name,
+				Remote: driver.Remote,
+			})
+		}
+	}
+
 	resp := api.DevLXDGet{
-		APIVersion:   version.APIVersion,
-		Location:     location,
-		InstanceType: inst.Type().String(),
-		Auth:         clientAuth,
+		APIVersion:              version.APIVersion,
+		Location:                location,
+		InstanceType:            inst.Type().String(),
+		Auth:                    clientAuth,
+		SupportedStorageDrivers: supportedStorageDrivers,
 		DevLXDPut: api.DevLXDPut{
 			State: state.String(),
 		},
@@ -597,23 +623,97 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 	}
 }
 
-// getInstanceFromContextAndCheckSecurityFlags checks if the instance has the provided devLXD security features enabled.
+// allowDevLXDAuthenticated is an access handler that rejects requests from unauthenticated clients.
+// It is similar to [allowAuthenticated] but returns DevLXD errors.
+func allowDevLXDAuthenticated(_ *Daemon, r *http.Request) response.Response {
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	if !requestor.IsTrusted() {
+		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusForbidden))
+	}
+
+	return response.EmptySyncResponse
+}
+
+// allowDevLXDPermission returns a wrapper that checks access to a given LXD entity
+// (e.g. image, instance, network).
+//
+// The mux route variables required to identify the entity must be passed in.
+// For example, an instance needs its name, so the mux var "name" should be provided.
+// Always pass mux vars in the same order they appear in the API route.
+func allowDevLXDPermission(entityType entity.Type, entitlement auth.Entitlement, muxVars ...string) func(d *Daemon, r *http.Request) response.Response {
+	return func(d *Daemon, r *http.Request) response.Response {
+		s := d.State()
+
+		inst, err := request.GetContextValue[instance.Instance](r.Context(), request.CtxDevLXDInstance)
+		if err != nil {
+			return response.DevLXDErrorResponse(err)
+		}
+
+		muxValues := make([]string, 0, len(muxVars))
+		vars := mux.Vars(r)
+		for _, muxVar := range muxVars {
+			muxValue := vars[muxVar]
+			if muxValue == "" {
+				return response.DevLXDErrorResponse(fmt.Errorf("Failed to perform permission check: Path argument label %q not found in request URL %q", muxVar, r.URL))
+			}
+
+			muxValues = append(muxValues, muxValue)
+		}
+
+		instProject := inst.Project().Name
+		projectParam := request.QueryParam(r, "project")
+		targetParam := request.QueryParam(r, "target")
+
+		// Disallow cross-project access.
+		if projectParam != "" && projectParam != instProject {
+			return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusForbidden, "Cross-project access is not allowed"))
+		}
+
+		entityURL, err := entityType.URL(instProject, targetParam, muxValues...)
+		if err != nil {
+			return response.DevLXDErrorResponse(fmt.Errorf("Failed to perform permission check: %w", err))
+		}
+
+		// Validate whether the user has the needed permission.
+		err = s.Authorizer.CheckPermission(r.Context(), entityURL, entitlement)
+		if err != nil {
+			return response.DevLXDErrorResponse(err)
+		}
+
+		return response.EmptySyncResponse
+	}
+}
+
+// getInstanceFromContextAndCheckSecurityFlags retrieves the instance from the provided request
+// context and verifies that the instance has the provided devLXD security features enabled.
 func getInstanceFromContextAndCheckSecurityFlags(ctx context.Context, keys ...DevLXDSecurityKey) (instance.Instance, error) {
 	inst, err := request.GetContextValue[instance.Instance](ctx, request.CtxDevLXDInstance)
 	if err != nil {
 		return nil, err
 	}
 
-	config := inst.ExpandedConfig()
+	if !hasInstanceSecurityFeatures(inst, keys...) {
+		return nil, api.NewGenericStatusError(http.StatusForbidden)
+	}
+
+	return inst, nil
+}
+
+// hasInstanceSecurityFeatures checks whether the instance has the provided devLXD security features enabled.
+func hasInstanceSecurityFeatures(inst instance.Instance, keys ...DevLXDSecurityKey) bool {
 	for _, key := range keys {
-		value := config[string(key)]
+		value := inst.ExpandedConfig()[string(key)]
 
 		// The devLXD is enabled by default, therefore we only prevent access if the feature
 		// is explicitly disabled (set to "false"). All other features must be explicitly enabled.
 		if shared.IsFalse(value) || (value == "" && key != devLXDSecurityKey) {
-			return nil, api.NewGenericStatusError(http.StatusForbidden)
+			return false
 		}
 	}
 
-	return inst, nil
+	return true
 }

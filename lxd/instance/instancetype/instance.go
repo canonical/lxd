@@ -342,6 +342,15 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	//  shortdesc: Controls the availability of the `/1.0/images` API over `devlxd`
 	"security.devlxd.images": validate.Optional(validate.IsBool),
 
+	// lxdmeta:generate(entities=instance; group=security; key=security.devlxd.management.volumes)
+	//
+	// ---
+	//  type: bool
+	//  defaultdesc: `false`
+	//  liveupdate: yes
+	//  shortdesc: Controls the availability of the volume management API over `devlxd`
+	"security.devlxd.management.volumes": validate.Optional(validate.IsBool),
+
 	// lxdmeta:generate(entities=instance; group=security; key=security.protection.delete)
 	//
 	// ---
@@ -1367,6 +1376,16 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 
 		if strings.HasSuffix(key, ".last_state.ready") {
 			return validate.IsBool, nil
+		}
+
+		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.devlxd.owner)
+		// ID of the DevLXD identity that owns the device. It is used by DevLXD to restrict
+		// access of an identity to devices that were created by that identity.
+		// ---
+		//  type: string
+		//  shortdesc: DevLXD identity ID that owns the device.
+		if strings.HasSuffix(key, ".devlxd.owner") {
+			return validate.IsAny, nil
 		}
 	}
 
