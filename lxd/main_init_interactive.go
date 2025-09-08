@@ -16,7 +16,7 @@ import (
 	"go.yaml.in/yaml/v2"
 	"golang.org/x/sys/unix"
 
-	"github.com/canonical/lxd/client"
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/network"
@@ -278,6 +278,20 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, server *api.Server) err
 				}
 
 				cluster.MemberConfig[i].Value = configValue
+
+				if config.Key == "source" {
+					configValue, err := c.global.asker.AskBool("Are you reusing an existing source? (yes/no) [default=no]: ", "no")
+					if err != nil {
+						return err
+					}
+
+					cluster.MemberConfig = append(cluster.MemberConfig, api.ClusterMemberConfigKey{
+						Entity: config.Entity,
+						Name:   config.Name,
+						Key:    "source.reuse",
+						Value:  strconv.FormatBool(configValue),
+					})
+				}
 			}
 
 			config.Cluster.MemberConfig = cluster.MemberConfig
