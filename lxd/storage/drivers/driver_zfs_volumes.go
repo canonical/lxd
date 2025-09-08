@@ -1492,27 +1492,29 @@ func (d *zfs) DeleteVolume(vol Volume, op *operations.Operation) error {
 }
 
 func (d *zfs) deleteVolume(vol Volume, op *operations.Operation) error {
+	dataset := d.dataset(vol, false)
+
 	// Check that we have a dataset to delete.
-	exists, err := d.datasetExists(d.dataset(vol, false))
+	exists, err := d.datasetExists(dataset)
 	if err != nil {
 		return err
 	}
 
 	if exists {
 		// Handle clones.
-		clones, err := d.getClones(d.dataset(vol, false))
+		clones, err := d.getClones(dataset)
 		if err != nil {
 			return err
 		}
 
 		if len(clones) > 0 {
 			// Move to the deleted path.
-			_, err := shared.RunCommandContext(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", d.dataset(vol, false), d.dataset(vol, true))
+			_, err := shared.RunCommandContext(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", dataset, d.dataset(vol, true))
 			if err != nil {
 				return err
 			}
 		} else {
-			err := d.deleteDatasetRecursive(d.dataset(vol, false))
+			err := d.deleteDatasetRecursive(dataset)
 			if err != nil {
 				return err
 			}
