@@ -2708,3 +2708,8 @@ This change removes the previous limitation on `ovn` networks that load balancer
 
 Adds a new `bearer` authentication method and enables authentication to the DevLXD API.
 See {ref}`DevLXD bearer tokens <devlxd-authentication-bearer>`.
+
+## `devlxd_volume_management`
+
+Changes to existing endpoints:
+- `GET /1.0` — Adds a `supported_storage_drivers` field to the response, which is populated when `security.devlxd.management.volumes` is enabled.
