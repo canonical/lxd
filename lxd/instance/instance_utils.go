@@ -1297,3 +1297,61 @@ func getDiskVolumes(s *state.State, inst Instance, candidates map[volKey]struct{
 
 	return accessible, shared, nil
 }
+
+// PlanAttachedVolumesForSnapshot determines the list of custom volumes to snapshot for the provided instance.
+// Returns attached volumes along with a mapping of volume UUID -> generated snapshot UUID.
+func PlanAttachedVolumesForSnapshot(s *state.State, inst Instance, diskVolumesMode string) (attached []*api.StorageVolume, uuidMap map[string]string, err error) {
+	// Root disk only, nothing to do.
+	if diskVolumesMode == api.DiskVolumesModeRoot || diskVolumesMode == "" {
+		return nil, nil, nil
+	}
+
+	// Start with all disk devices that are sourced by custom volumes.
+	devices := inst.ExpandedDevices().Clone()
+	for name, dev := range devices {
+		if !filters.IsCustomVolumeDisk(dev) {
+			delete(devices, name)
+		}
+	}
+
+	// Fill candidate volume keys for O(1) lookups.
+	candidates := make(map[volKey]struct{}, len(devices))
+	for _, dev := range devices {
+		candidates[volKey{pool: dev["pool"], name: dev["source"]}] = struct{}{}
+	}
+
+	accessible, shared, err := getDiskVolumes(s, inst, candidates)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for name, dev := range devices {
+		// Exclude shared volumes if diskVolumesMode is "all-exclusive".
+		if diskVolumesMode == api.DiskVolumesModeAllExclusive {
+			_, isShared := shared[volKey{pool: dev["pool"], name: dev["source"]}]
+			if isShared {
+				delete(devices, name)
+			}
+		}
+	}
+
+	uuidMap = make(map[string]string) // volUUID -> new snapshot UUID
+	for _, dev := range devices {
+		v, ok := accessible[volKey{pool: dev["pool"], name: dev["source"]}]
+		if !ok {
+			continue
+		}
+
+		if !deviceUsesVolume(v.StorageVolume, dev) {
+			continue
+		}
+
+		attached = append(attached, &v.StorageVolume)
+		volUUID := v.Config["volatile.uuid"]
+		if volUUID != "" {
+			uuidMap[volUUID] = uuid.New().String()
+		}
+	}
+
+	return attached, uuidMap, nil
+}
