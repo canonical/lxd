@@ -1,5 +1,5 @@
 name: Download minio/mc
-description: Download minio/mc binaries and cache them for the day
+description: Download minio/mc binaries and cache them using GitHub's default cache eviction policy (currently 7 days)
 
 runs:
   using: composite
@@ -10,18 +10,17 @@ runs:
       run: |
         set -eux
         ARCH="$(dpkg --print-architecture)"
-        DATE="$(date --utc '+%Y%m%d')"
 
         # To download the binaries for the right arch.
         echo "ARCH=${ARCH}" >> $GITHUB_OUTPUT
 
-        # i.e: minio-amd64-${DATE}
-        echo "KEY=minio-${ARCH}-${DATE}" >> $GITHUB_OUTPUT
+        # i.e: minio-amd64
+        echo "KEY=minio-${ARCH}" >> $GITHUB_OUTPUT
 
     # GitHub will remove any cache entries that have not been accessed in over 7 days.
     # https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/caching-dependencies-to-speed-up-workflows#usage-limits-and-eviction-policy
     - name: Cache minio/mc binaries
-      uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+      uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
       id: cache-minio
       with:
         path: |
