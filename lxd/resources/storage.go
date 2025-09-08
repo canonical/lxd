@@ -164,9 +164,15 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			entryPath := filepath.Join(sysClassBlock, entryName)
 			devicePath := filepath.Join(entryPath, "device")
 
-			// Only keep the main entries not partitions
+			// Only keep the main entries not partitions.
+			// Also account for bcache devices.
 			if !sysfsExists(devicePath) {
-				continue
+				if !sysfsExists(filepath.Join(entryPath, "bcache")) {
+					continue
+				}
+
+				// The bcache virtual device's info is listed right under its entryPath.
+				devicePath = entryPath
 			}
 
 			// Setup the entry
