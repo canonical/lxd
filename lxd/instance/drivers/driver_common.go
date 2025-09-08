@@ -890,6 +890,9 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 		}
 	}
 
+	// "volatile.attached_volumes" should not be included in the instance config.
+	delete(source.LocalConfig(), "volatile.attached_volumes")
+
 	// Restore the configuration.
 	args := db.InstanceArgs{
 		Architecture: source.Architecture(),
