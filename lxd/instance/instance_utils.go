@@ -28,6 +28,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instance/operationlock"
 	"github.com/canonical/lxd/lxd/migration"
+	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/seccomp"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/sys"
@@ -1235,4 +1236,64 @@ func deviceUsesVolume(vol api.StorageVolume, dev map[string]string) bool {
 	}
 
 	return volType == vol.Type && dev["source"] == volName && dev["source.snapshot"] == snapName
+}
+
+type volKey struct{ pool, name string }
+
+// getDiskVolumes returns all accessible and shared disk devices sourced by custom storage volumes in the effective project of the provided instance.
+// This helper function is designed to be used by [PlanAttachedVolumesForSnapshot] and [ResolveAttachedVolumeSnapshotsForRestore]. Therefore, it only considers
+// compatible content types (e.g. excludes ISO) and skips volumes that are not in the candidates map.
+func getDiskVolumes(s *state.State, inst Instance, candidates map[volKey]struct{}) (accessible map[volKey]*db.StorageVolume, shared map[volKey]struct{}, err error) {
+	instProject := inst.Project()
+	effectiveProject := project.StorageVolumeProjectFromRecord(&instProject, cluster.StoragePoolVolumeTypeCustom)
+	accessible = make(map[volKey]*db.StorageVolume)
+	shared = make(map[volKey]struct{})
+
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// List all custom volumes in the effective project.
+		volType := cluster.StoragePoolVolumeTypeCustom
+		filter := db.StorageVolumeFilter{Type: &volType, Project: &effectiveProject}
+		vols, err := tx.GetStorageVolumes(ctx, true, filter)
+		if err != nil {
+			return err
+		}
+
+		for _, v := range vols {
+			// Filter out devices that are unsupported content types (e.g. ISO).
+			if v.ContentType == cluster.StoragePoolVolumeContentTypeNameISO {
+				continue
+			}
+
+			accessible[volKey{pool: v.Pool, name: v.Name}] = v
+		}
+
+		// Iterate other instances in the same effective project to detect sharing.
+		filterInst := cluster.InstanceFilter{Project: &effectiveProject}
+		return tx.InstanceList(ctx, func(dbInst db.InstanceArgs, p api.Project) error {
+			// Skip the provided instance (use parent name when snapshot).
+			instName, _, _ := api.GetParentAndSnapshotName(inst.Name())
+			if p.Name == instProject.Name && dbInst.Name == instName {
+				return nil
+			}
+
+			// Expand devices for this DB instance (includes profile devices).
+			for _, d := range instancetype.ExpandInstanceDevices(dbInst.Devices, dbInst.Profiles) {
+				if !filters.IsCustomVolumeDisk(d) {
+					continue
+				}
+
+				_, ok := candidates[volKey{pool: d["pool"], name: d["source"]}]
+				if ok {
+					shared[volKey{pool: d["pool"], name: d["source"]}] = struct{}{}
+				}
+			}
+
+			return nil
+		}, filterInst)
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return accessible, shared, nil
 }
