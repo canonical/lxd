@@ -341,9 +341,23 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid snapshot name: %w", err))
 	}
 
+	snapshotConfig := inst.LocalConfig()
+	diskVolumes, attachedVolumesUUIDs, err := instance.PlanAttachedVolumesForSnapshot(s, inst, req.DiskVolumesMode)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Set "volatile.attached_volumes" to reference attached volume snapshots' UUIDs.
+	marshaledUUIDs, err := json.Marshal(attachedVolumesUUIDs)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	snapshotConfig["volatile.attached_volumes"] = string(marshaledUUIDs)
+
 	snapshot := func(op *operations.Operation) error {
 		inst.SetOperation(op)
-		return inst.Snapshot(req.Name, req.ExpiresAt, req.Stateful)
+		return inst.Snapshot(req.Name, req.ExpiresAt, req.Stateful, diskVolumes)
 	}
 
 	resources := map[string][]api.URL{}
