@@ -612,7 +612,15 @@ func validatePoolCommonRules() map[string]func(string) error {
 		//  defaultdesc: `false`
 		//  shortdesc: Whether to wipe the block device before creating the pool
 		//  scope: local
-		"source.wipe":             validate.Optional(validate.IsBool),
+		"source.wipe": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=storage-dir,storage-lvm,storage-btrfs,storage-zfs,storage-ceph,storage-cephfs; group=pool-conf; key=source.recover)
+		// Set this option to true to recover an existing source which was previously created by LXD.
+		// ---
+		//  type: bool
+		//  defaultdesc: `false`
+		//  shortdesc: Whether to recover an existing `source`
+		//  scope: local
+		"source.recover":          validate.Optional(validate.IsBool),
 		"volatile.initial_source": validate.IsAny,
 		// lxdmeta:generate(entities=storage-dir,storage-lvm,storage-powerflex,storage-pure,storage-alletra; group=pool-conf; key=rsync.bwlimit)
 		// When `rsync` must be used to transfer storage entities, this option specifies the upper limit
