@@ -2232,7 +2232,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	}
 
 	if snapName != "" && expiry != nil {
-		err := d.snapshot(snapName, expiry)
+		err := d.snapshot(snapName, expiry, api.DiskVolumesModeRoot)
 		if err != nil {
 			return "", nil, fmt.Errorf("Failed taking startup snapshot: %w", err)
 		}
@@ -3345,15 +3345,15 @@ func (d *lxc) RenderState(hostInterfaces []net.Interface) (*api.InstanceState, e
 }
 
 // snapshot creates a snapshot of the instance.
-func (d *lxc) snapshot(name string, expiry *time.Time) error {
+func (d *lxc) snapshot(name string, expiry *time.Time, diskVolumesMode string) error {
 	// Wait for any file operations to complete to have a more consistent snapshot.
 	d.stopForkfile(false)
 
-	return d.snapshotCommon(d, name, expiry, false)
+	return d.snapshotCommon(d, name, expiry, false, diskVolumesMode)
 }
 
 // Snapshot takes a new snapshot.
-func (d *lxc) Snapshot(name string, expiry *time.Time, stateful bool) error {
+func (d *lxc) Snapshot(name string, expiry *time.Time, stateful bool, diskVolumesMode string) error {
 	if stateful {
 		return api.StatusErrorf(http.StatusBadRequest, "Stateful snapshots are not supported for containers")
 	}
@@ -3365,7 +3365,7 @@ func (d *lxc) Snapshot(name string, expiry *time.Time, stateful bool) error {
 
 	defer unlock()
 
-	return d.snapshot(name, expiry)
+	return d.snapshot(name, expiry, diskVolumesMode)
 }
 
 // Restore restores a snapshot.
