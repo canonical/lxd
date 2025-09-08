@@ -2967,21 +2967,23 @@ func (d *zfs) CreateVolumeSnapshot(vol Volume, op *operations.Operation) error {
 func (d *zfs) DeleteVolumeSnapshot(vol Volume, op *operations.Operation) error {
 	parentName, _, _ := api.GetParentAndSnapshotName(vol.name)
 
+	dataset := d.dataset(vol, false)
+
 	// Handle clones.
-	clones, err := d.getClones(d.dataset(vol, false))
+	clones, err := d.getClones(dataset)
 	if err != nil {
 		return err
 	}
 
 	if len(clones) > 0 {
 		// Move to the deleted path.
-		_, err := shared.RunCommandContext(context.TODO(), "zfs", "rename", d.dataset(vol, false), d.dataset(vol, true))
+		_, err := shared.RunCommandContext(context.TODO(), "zfs", "rename", dataset, d.dataset(vol, true))
 		if err != nil {
 			return err
 		}
 	} else {
 		// Delete the snapshot.
-		_, err := shared.RunCommandContext(context.TODO(), "zfs", "destroy", "-r", d.dataset(vol, false))
+		_, err := shared.RunCommandContext(context.TODO(), "zfs", "destroy", "-r", dataset)
 		if err != nil {
 			return err
 		}
