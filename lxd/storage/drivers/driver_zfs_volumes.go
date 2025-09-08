@@ -1738,6 +1738,8 @@ func (d *zfs) GetVolumeUsage(vol Volume) (int64, error) {
 // SetVolumeQuota sets the quota/reservation on the volume.
 // Does nothing if supplied with an empty/zero size for block volumes.
 func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
+	dataset := d.dataset(vol, false)
+
 	// Convert to bytes.
 	sizeBytes, err := units.ParseByteSizeString(size)
 	if err != nil {
@@ -1755,7 +1757,7 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 
 		sizeBytes = d.roundVolumeBlockSizeBytes(vol, sizeBytes)
 
-		oldSizeBytesStr, err := d.getDatasetProperty(d.dataset(vol, false), "volsize")
+		oldSizeBytesStr, err := d.getDatasetProperty(dataset, "volsize")
 		if err != nil {
 			return err
 		}
@@ -1805,13 +1807,13 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 				l.Debug("ZFS volume filesystem shrunk")
 
 				// Shrink the block device.
-				err = d.setDatasetProperties(d.dataset(vol, false), fmt.Sprintf("volsize=%d", sizeBytes))
+				err = d.setDatasetProperties(dataset, fmt.Sprintf("volsize=%d", sizeBytes))
 				if err != nil {
 					return err
 				}
 			} else if sizeBytes > oldVolSizeBytes {
 				// Grow block device first.
-				err = d.setDatasetProperties(d.dataset(vol, false), fmt.Sprintf("volsize=%d", sizeBytes))
+				err = d.setDatasetProperties(dataset, fmt.Sprintf("volsize=%d", sizeBytes))
 				if err != nil {
 					return err
 				}
@@ -1844,7 +1846,7 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 				}
 			}
 
-			err = d.setDatasetProperties(d.dataset(vol, false), fmt.Sprintf("volsize=%d", sizeBytes))
+			err = d.setDatasetProperties(dataset, fmt.Sprintf("volsize=%d", sizeBytes))
 			if err != nil {
 				return err
 			}
@@ -1870,7 +1872,7 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 	}
 
 	// Clear the existing quota.
-	err = d.setDatasetProperties(d.dataset(vol, false), "quota=none", "refquota=none", "reservation=none", "refreservation=none")
+	err = d.setDatasetProperties(dataset, "quota=none", "refquota=none", "reservation=none", "refreservation=none")
 	if err != nil {
 		return err
 	}
@@ -1888,13 +1890,13 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 		reservationKey = "refreservation"
 	}
 
-	err = d.setDatasetProperties(d.dataset(vol, false), quotaKey+"="+value)
+	err = d.setDatasetProperties(dataset, quotaKey+"="+value)
 	if err != nil {
 		return err
 	}
 
 	if shared.IsTrue(vol.ExpandedConfig("zfs.reserve_space")) {
-		err = d.setDatasetProperties(d.dataset(vol, false), reservationKey+"="+value)
+		err = d.setDatasetProperties(dataset, reservationKey+"="+value)
 		if err != nil {
 			return err
 		}
