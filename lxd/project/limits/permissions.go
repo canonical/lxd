@@ -26,7 +26,7 @@ import (
 )
 
 // projectLimitDiskPool is the prefix used for pool-specific disk limits.
-var projectLimitDiskPool = "limits.disk.pool."
+const projectLimitDiskPool string = "limits.disk.pool."
 
 // HiddenStoragePools returns a list of storage pools that should be hidden from users of the project.
 func HiddenStoragePools(ctx context.Context, tx *db.ClusterTx, projectName string) ([]string, error) {
