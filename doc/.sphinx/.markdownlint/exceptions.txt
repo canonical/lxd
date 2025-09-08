@@ -24,6 +24,7 @@
 .tmp/doc/contributing.md:147: MD032 Lists should be surrounded by blank lines
 .tmp/doc/doc-cheat-sheet-myst.md:171: MD034 Bare URL used
 .tmp/doc/reference/releases-snap.md:44: MD007 Unordered list indentation
+.tmp/doc/reference/releases-snap.md:156: MD007 Unordered list indentation
 .tmp/doc/howto/access_ui.md:31: MD029 Ordered list item prefix
 .tmp/doc/howto/import_machines_to_instances.md:128: MD034 Bare URL used
 .tmp/doc/howto/import_machines_to_instances.md:232: MD034 Bare URL used

@@ -59,7 +59,7 @@ The recommended way to {ref}`install LXD <installing>` is [its snap package](htt
 (ref-snap-channels)=
 ### Channels
 
-Each installed LXD snap follows a [channel](https://snapcraft.io/docs/channels). Channels are composed of a {ref}`track <ref-snap-tracks>` and a {ref}`risk level <ref-snap-risk>` (for example, the {{current_feature_track}}/stable channel). Each channel points to one release at a time, and when a new release is published to a channel, it replaces the previous one. {ref}`Updating the snap <howto-snap-updates>` then updates to that release.
+Each installed LXD snap follows a [channel](https://snapcraft.io/docs/channels). Channels are composed of a {ref}`track <ref-snap-tracks>` and a {ref}`risk level <ref-snap-risk>` (for example, the {{current_feature_track}}/stable channel). Each channel points to one release at a time, and when a new release is published to a channel, it replaces the previous one. {ref}`Updating the snap <ref-snap-updates>` then updates to that release.
 
 To view all available channels, run:
 
@@ -107,17 +107,47 @@ For each LXD track, there are three [risk levels](https://snapcraft.io/docs/chan
 
 We recommend that you use the `stable` risk level to install fully tested releases; this is the only risk level supported under [Ubuntu Pro](https://ubuntu.com/pro), as well as the default risk level if one is not specified at install. The `candidate` and `edge` levels offer newer but less-tested updates, posing higher risk.
 
+(ref-snap-updates-upgrades)=
+### Updates and upgrades
+
+In this section, find information about updates and upgrades to the LXD snap, as well as about {ref}`ref-snap-downgrades`.
+
 (ref-snap-updates)=
-### Updates
+#### Updates
+To update the LXD snap means to refresh it to the release most recently published to its tracked channel. With the exception of updates published to {ref}`the latest track <ref-snap-tracks-latest>`, these are always within the same major version. They can be automatically or manually performed.
 
-By default, installed snaps update automatically when new releases are published to the channel they're tracking. For control over LXD updates, we recommend that you modify this auto-update behavior by either {ref}`holding <howto-snap-updates-hold>` or {ref}`scheduling updates <howto-snap-updates-schedule>` as described in our {ref}`howto-snap` guide. You can then apply updates according to your needs.
+By default, installed snaps update automatically when new releases are published to the channel they're tracking. For control over LXD updates, we recommend that you modify this auto-update behavior by either {ref}`holding <howto-snap-updates-hold>` or {ref}`scheduling updates <howto-snap-updates-schedule>` as described in our {ref}`howto-snap` guide. You can then apply updates according to your schedule.
 
-(ref-snap-updates-cluster)=
-#### Updates on clusters
+(ref-snap-upgrades)=
+#### Upgrades
 
-New LXD releases are [published progressively as snaps](https://documentation.ubuntu.com/snapcraft/stable/how-to/publishing/manage-revisions-and-releases/#deliver-a-progressive-release). This means that updates might not be immediately available to all machines at the same time.
+To upgrade the LXD snap means to change its channel's {ref}`track <ref-snap-tracks>` to a higher version, such as from {{current_lts_track}} to {{current_feature_track}}. Such upgrades must be {ref}`manually performed <howto-snap-change>`.
 
-This can cause issues when updating the LXD snap for {ref}`clusters <exp-clusters>`, as cluster members must use the same version of the snap at all times. For a guide on how to avoid this issue using the `--cohort` flag, see {ref}`howto-snap-updates-sync`.
+(ref-snap-downgrades)=
+#### Downgrades
+
+We support the following changes _only_ within the same LTS track:
+
+- [Reverting to an earlier snap revision](https://snapcraft.io/docs/managing-updates#p-32248-revert-to-an-earlier-revision)
+- {ref}`Decreasing <howto-snap-change>` the {ref}`risk level <ref-snap-risk>` (such as from `edge` to `stable`).
+
+Due to potential breaking changes, the following are _not_ supported:
+
+- All downgrades from a higher to a lower track.
+- For the {ref}`latest track <ref-snap-tracks-latest>` or the {ref}`current feature track <ref-snap-track-feature>`:
+  - Reverting to an earlier revision.
+  - Decreasing the risk level.
+  - Changing to an {ref}`LTS track <ref-snap-tracks-lts>`.
+
+(ref-snap-cluster)=
+#### Clusters
+
+LXD cluster members must use the same version of the snap at all times. Thus, when updating or upgrading a cluster, the changes must be made to all cluster members. See: {ref}`howto-snap-updates-sync` and {ref}`howto-cluster-manage-update-upgrade`.
+
+(ref-snap-database)=
+#### Database schema update and backup
+
+When the daemon restarts after an LXD update or upgrade, if a new database schema is detected, the database is updated. A backup of the database before the update is created and stored in the same location as the active database. If LXD is installed through the snap, this location is `/var/snap/lxd/common/lxd/database`. If installed by other means, the location is typically `/var/lib/lxd/database/`.
 
 ## Related topics
 
