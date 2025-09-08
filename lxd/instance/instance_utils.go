@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -1314,4 +1315,52 @@ func getProjectVolumes(s *state.State, inst Instance) (volumes map[volKey]*db.St
 	}
 
 	return volumes, nil
+}
+
+// PlanAttachedVolumesForSnapshot determines the list of custom volumes to
+// snapshot for the provided instance and sets "volatile.attached_volumes".
+func PlanAttachedVolumesForSnapshot(s *state.State, inst Instance, diskVolumesMode string) (attached []*api.StorageVolume, err error) {
+	switch diskVolumesMode {
+	case api.DiskVolumesModeRoot, "":
+		// Root disk only, nothing to do.
+		return nil, nil
+	case api.DiskVolumesModeAllExclusive:
+	default:
+		return nil, errors.New("Invalid disk volumes mode")
+	}
+
+	// Get custom storage volumes in the instance's effective project.
+	volumes, err := getProjectVolumes(s, inst)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build slice of attached volumes and map of volUUID -> new snapshot UUID.
+	attached = make([]*api.StorageVolume, 0, len(volumes))
+	uuids := make(map[string]string, len(volumes))
+	for _, dev := range inst.ExpandedDevices() {
+		v, ok := volumes[volKey{pool: dev["pool"], name: dev["source"]}]
+		// If the device's source volume doesn't exist or the device isn't sourced by the volume, skip it.
+		if !ok || !deviceSourcedByVolume(v.StorageVolume, dev) {
+			continue
+		}
+
+		attached = append(attached, &v.StorageVolume)
+
+		volUUID := v.Config["volatile.uuid"]
+		if volUUID != "" {
+			uuids[volUUID] = uuid.New().String()
+		}
+	}
+
+	// Set "volatile.attached_volumes" to JSON map of volUUID -> snapshot UUID.
+	// This is used to resolve snapshots of attached volumes during restore.
+	marshalled, err := json.Marshal(uuids)
+	if err != nil {
+		return nil, err
+	}
+
+	inst.LocalConfig()["volatile.attached_volumes"] = string(marshalled)
+
+	return attached, nil
 }
