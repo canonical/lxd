@@ -139,6 +139,11 @@ Due to potential breaking changes, the following are _not_ supported:
   - Decreasing the risk level.
   - Changing to an {ref}`LTS track <ref-snap-tracks-lts>`.
 
+(ref-snap-cluster)=
+#### Clusters
+
+LXD cluster members must use the same version of the snap at all times. Thus, when updating or upgrading a cluster, the changes must be made to all cluster members. See: {ref}`howto-snap-updates-sync` and {ref}`howto-cluster-manage-update-upgrade`.
+
 (ref-snap-database)=
 #### Database schema update and backup
 

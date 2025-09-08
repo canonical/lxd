@@ -181,8 +181,12 @@ Downgrading is not supported from higher to lower tracks, and neither is changin
 To change the {ref}`channel <ref-snap-channels>` and immediately use the most recent release in the target channel, run:
 
 ```bash
-sudo snap refresh lxd --channel=<target channel>
+sudo snap refresh lxd --channel=<target channel> [--cohort="+"]
 ```
+
+Include the optional `--cohort="+"` flag only for cluster members who have not previously set this flag before. See: {ref}`howto-snap-updates-sync`.
+
+If you upgrade LXD on cluster members, all members must be upgraded to the same version. For details, see: {ref}`howto-cluster-manage-update-upgrade`.
 
 ### Examples
 
