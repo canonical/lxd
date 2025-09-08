@@ -28,6 +28,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instance/operationlock"
 	"github.com/canonical/lxd/lxd/migration"
+	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/seccomp"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/sys"
@@ -1233,4 +1234,49 @@ func deviceSourcedByVolume(volume api.StorageVolume, device map[string]string) b
 	}
 
 	return volType == volume.Type && device["source"] == volName && device["source.snapshot"] == snapName
+}
+
+// volKey is a map key used for storage volume lookups.
+type volKey struct{ pool, name string }
+
+// getSharedVolumes checks which of the provided volumes are in use by other
+// instances in the same effective project. Returns a lookup map of shared
+// storage volumes keyed by [volKey].
+func getSharedVolumes(s *state.State, inst Instance, volumes map[volKey]*db.StorageVolume) (shared map[volKey]struct{}, err error) {
+	instProject := inst.Project()
+	effectiveProject := project.StorageVolumeProjectFromRecord(&instProject, cluster.StoragePoolVolumeTypeCustom)
+
+	shared = make(map[volKey]struct{})
+	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// Iterate other instances in the same effective project to detect sharing.
+		filterInst := cluster.InstanceFilter{Project: &effectiveProject}
+		return tx.InstanceList(ctx, func(dbInst db.InstanceArgs, p api.Project) error {
+			// Skip the provided instance (use parent name when snapshot).
+			instName, _, _ := api.GetParentAndSnapshotName(inst.Name())
+			if p.Name == instProject.Name && dbInst.Name == instName {
+				return nil
+			}
+
+			// Expand devices for this DB instance (includes profile devices).
+			for _, d := range instancetype.ExpandInstanceDevices(dbInst.Devices, dbInst.Profiles) {
+				// Exclude disk devices that are not sourced by custom volumes.
+				if !filters.IsCustomVolumeDisk(d) {
+					continue
+				}
+
+				// If this instance uses one of the provided volumes, add it to the shared map.
+				_, isShared := volumes[volKey{pool: d["pool"], name: d["source"]}]
+				if isShared {
+					shared[volKey{pool: d["pool"], name: d["source"]}] = struct{}{}
+				}
+			}
+
+			return nil
+		}, filterInst)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return shared, nil
 }
