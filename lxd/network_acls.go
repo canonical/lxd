@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -359,7 +361,7 @@ func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, _, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, _, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -369,19 +371,29 @@ func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	netACL, err := acl.LoadByName(s, projectName, aclName)
+	err = doNetworkACLDelete(r.Context(), s, aclName, effectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	return response.EmptySyncResponse
+}
+
+// doNetworkACLDelete deletes the named network ACL in the given project.
+func doNetworkACLDelete(ctx context.Context, s *state.State, aclName string, projectName string) error {
+	netACL, err := acl.LoadByName(s, projectName, aclName)
+	if err != nil {
+		return err
 	}
 
 	err = netACL.Delete()
 	if err != nil {
-		return response.SmartError(err)
+		return fmt.Errorf("Failed deleting network ACL %q: %w", aclName, err)
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.NetworkACLDeleted.Event(netACL, request.CreateRequestor(r.Context()), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.NetworkACLDeleted.Event(netACL, request.CreateRequestor(ctx), nil))
 
-	return response.EmptySyncResponse
+	return nil
 }
 
 // swagger:operation GET /1.0/network-acls/{name} network-acls network_acl_get
