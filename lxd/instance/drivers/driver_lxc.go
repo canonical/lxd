@@ -3369,7 +3369,7 @@ func (d *lxc) Snapshot(name string, expiry *time.Time, stateful bool) error {
 }
 
 // Restore restores a snapshot.
-func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
+func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool, diskVolumesMode string) error {
 	if stateful {
 		return api.StatusErrorf(http.StatusBadRequest, "Stateful snapshot restore is not supported for containers")
 	}
