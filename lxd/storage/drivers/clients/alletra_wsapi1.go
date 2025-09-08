@@ -114,53 +114,10 @@ type hpeHost struct {
 }
 
 type hpeVolume struct {
-	ID                    int         `json:"id"`
-	Name                  string      `json:"name"`
-	ShortName             string      `json:"shortName"`
-	DeduplicationState    int         `json:"deduplicationState"`
-	CompressionState      int         `json:"compressionState"`
-	ProvisioningType      int         `json:"provisioningType"`
-	CopyType              int         `json:"copyType"`
-	BaseID                int         `json:"baseId"`
-	ReadOnly              bool        `json:"readOnly"`
-	State                 int         `json:"state"`
-	FailedStates          []string    `json:"failedStates"`
-	DegradedStates        []string    `json:"degradedStates"`
-	AdditionalStates      []string    `json:"additionalStates"`
-	TotalReservedMiB      int64       `json:"totalReservedMiB"`
-	TotalUsedMiB          int64       `json:"totalUsedMiB"`
-	SizeMiB               int64       `json:"sizeMiB"`
-	HostWriteMiB          int64       `json:"hostWriteMiB"`
-	WWN                   string      `json:"wwn"`
-	NGUID                 string      `json:"nguid"`
-	CreationTimeSec       int         `json:"creationTimeSec"`
-	CreationTime8601      string      `json:"creationTime8601"`
-	UsrSpcAllocWarningPct int         `json:"usrSpcAllocWarningPct"`
-	UsrSpcAllocLimitPct   int         `json:"usrSpcAllocLimitPct"`
-	Policies              hpePolicies `json:"policies"`
-	UserCPG               string      `json:"userCPG"`
-	UUID                  string      `json:"uuid"`
-	UDID                  int         `json:"udid"`
-	CapacityEfficiency    hpeCapacity `json:"capacityEfficiency"`
-	RcopyStatus           int         `json:"rcopyStatus"`
-	Links                 []hpeLink   `json:"links"`
-}
-
-type hpePolicies struct {
-	StaleSS    bool `json:"staleSS"`
-	OneHost    bool `json:"oneHost"`
-	ZeroDetect bool `json:"zeroDetect"`
-	System     bool `json:"system"`
-	Caching    bool `json:"caching"`
-}
-
-type hpeCapacity struct {
-	Compaction float64 `json:"compaction"`
-}
-
-type hpeLink struct {
-	Href string `json:"href"`
-	Rel  string `json:"rel"`
+	Name         string `json:"name"`
+	TotalUsedMiB int64  `json:"totalUsedMiB"`
+	SizeMiB      int64  `json:"sizeMiB"`
+	NGUID        string `json:"nguid"`
 }
 
 type hpeVLUN struct {
