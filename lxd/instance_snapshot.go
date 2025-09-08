@@ -343,7 +343,7 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 
 	snapshot := func(op *operations.Operation) error {
 		inst.SetOperation(op)
-		return inst.Snapshot(req.Name, req.ExpiresAt, req.Stateful)
+		return inst.Snapshot(req.Name, req.ExpiresAt, req.Stateful, req.DiskVolumesMode)
 	}
 
 	resources := map[string][]api.URL{}
