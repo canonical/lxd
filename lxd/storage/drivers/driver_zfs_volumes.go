@@ -55,7 +55,8 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 
 	// Look for previously deleted images.
 	if vol.volType == VolumeTypeImage {
-		exists, err := d.datasetExists(d.dataset(vol, true))
+		dataset := d.dataset(vol, true)
+		exists, err := d.datasetExists(dataset)
 		if err != nil {
 			return err
 		}
@@ -66,7 +67,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 			if vol.IsBlockBacked() && (vol.contentType == ContentTypeBlock || d.isBlockBacked(vol)) {
 				// For block volumes check if the cached image volume is larger than the current pool volume.size
 				// setting (if so we won't be able to resize the snapshot to that the smaller size later).
-				volSize, err := d.getDatasetProperty(d.dataset(vol, true), "volsize")
+				volSize, err := d.getDatasetProperty(dataset, "volsize")
 				if err != nil {
 					return err
 				}
@@ -96,7 +97,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 					d.logger.Debug("Renaming deleted cached image volume so that regeneration is used", logger.Ctx{"fingerprint": vol.Name()})
 					randomVol := NewVolume(d, d.name, vol.volType, vol.contentType, d.randomVolumeName(vol), vol.config, vol.poolConfig)
 
-					_, err := shared.RunCommandContext(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", d.dataset(vol, true), d.dataset(randomVol, true))
+					_, err := shared.RunCommandContext(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", dataset, d.dataset(randomVol, true))
 					if err != nil {
 						return err
 					}
@@ -120,7 +121,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 			// Restore the image.
 			if canRestore {
 				d.logger.Debug("Restoring previously deleted cached image volume", logger.Ctx{"fingerprint": vol.Name()})
-				_, err := shared.RunCommandContext(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", d.dataset(vol, true), d.dataset(vol, false))
+				_, err := shared.RunCommandContext(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", dataset, d.dataset(vol, false))
 				if err != nil {
 					return err
 				}
@@ -316,14 +317,14 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		if vol.contentType == ContentTypeBlock {
 			// Re-create the FS config volume's readonly snapshot now that the filler function has run
 			// and unpacked into both config and block volumes.
-			fsVol := vol.NewVMBlockFilesystemVolume()
+			fsVolDsName := d.dataset(vol.NewVMBlockFilesystemVolume(), false) + "@readonly"
 
-			_, err := shared.RunCommandContext(context.TODO(), "zfs", "destroy", "-r", d.dataset(fsVol, false)+"@readonly")
+			_, err := shared.RunCommandContext(context.TODO(), "zfs", "destroy", "-r", fsVolDsName)
 			if err != nil {
 				return err
 			}
 
-			_, err = shared.RunCommandContext(context.TODO(), "zfs", "snapshot", "-r", d.dataset(fsVol, false)+"@readonly")
+			_, err = shared.RunCommandContext(context.TODO(), "zfs", "snapshot", "-r", fsVolDsName)
 			if err != nil {
 				return err
 			}
