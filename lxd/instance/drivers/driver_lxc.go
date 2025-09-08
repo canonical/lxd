@@ -3394,7 +3394,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool, diskVolu
 	d.stopForkfile(false)
 
 	// Restore the rootfs.
-	err = pool.RestoreInstanceSnapshot(d, sourceContainer, nil)
+	err = pool.RestoreInstanceSnapshot(d, sourceContainer, diskVolumes, nil)
 	if err != nil {
 		op.Done(err)
 		return fmt.Errorf("Failed to restore snapshot rootfs: %w", err)
