@@ -5177,7 +5177,7 @@ func (d *qemu) Snapshot(name string, expiry *time.Time, stateful bool) error {
 }
 
 // Restore restores an instance snapshot.
-func (d *qemu) Restore(source instance.Instance, stateful bool) error {
+func (d *qemu) Restore(source instance.Instance, stateful bool, diskVolumesMode string) error {
 	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
