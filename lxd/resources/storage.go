@@ -439,6 +439,12 @@ func GetStorage() (*api.ResourcesStorage, error) {
 				return nil, err
 			}
 
+			// Identify if the disk is in use by any bcache device.
+			// The bcache device's own 'bcache' path is a link, not a directory.
+			if sysfsIsDir(filepath.Join(devicePath, "bcache")) {
+				disk.UsedBy = "bcache"
+			}
+
 			// Add to list
 			storage.Disks = append(storage.Disks, disk)
 		}
