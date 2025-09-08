@@ -143,7 +143,7 @@ func (d *alletra) ensureHost() (hostName string, cleanup revert.Hook, err error)
 			revert.Add(func() {
 				err := d.client().DeleteHost(hostname)
 				if err != nil {
-					d.logger.Error("DeleteHost API call failed on error path", logger.Ctx{"err": err, "hostname": hostname})
+					d.logger.Warn("DeleteHost API call failed on error path", logger.Ctx{"err": err, "hostname": hostname})
 				}
 			})
 		}
@@ -197,7 +197,7 @@ func (d *alletra) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 		reverter.Add(func() {
 			err := d.client().DisconnectHostFromVolume(vol.pool, volName, hostname)
 			if err != nil {
-				d.logger.Error("DisconnectHostFromVolume API call failed on error path", logger.Ctx{"err": err, "volName": volName, "hostname": hostname})
+				d.logger.Warn("DisconnectHostFromVolume API call failed on error path", logger.Ctx{"err": err, "volName": volName, "hostname": hostname})
 			}
 		})
 	}
@@ -226,7 +226,7 @@ func (d *alletra) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 		outerReverter.Add(func() {
 			err := d.unmapVolume(vol)
 			if err != nil {
-				d.logger.Error("unmapVolume failed on error path", logger.Ctx{"err": err})
+				d.logger.Warn("unmapVolume failed on error path", logger.Ctx{"err": err})
 			}
 		})
 	}
@@ -493,7 +493,7 @@ func (d *alletra) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.
 	revert.Add(func() {
 		err := client.DeleteVolume(vol.pool, volName)
 		if err != nil {
-			d.logger.Error("DeleteVolume API call failed on error path", logger.Ctx{"err": err})
+			d.logger.Warn("DeleteVolume API call failed on error path", logger.Ctx{"err": err})
 		}
 	})
 
@@ -524,7 +524,7 @@ func (d *alletra) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.
 		revert.Add(func() {
 			err := d.DeleteVolume(fsVol, op)
 			if err != nil {
-				d.logger.Error("DeleteVolume failed on error path", logger.Ctx{"err": err})
+				d.logger.Warn("DeleteVolume failed on error path", logger.Ctx{"err": err})
 			}
 		})
 	}
