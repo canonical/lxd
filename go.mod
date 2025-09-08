@@ -1,6 +1,6 @@
 module github.com/canonical/lxd
 
-go 1.23.10
+go 1.24.0
 
 require (
 	github.com/Rican7/retry v0.3.1
@@ -45,7 +45,7 @@ require (
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	github.com/zitadel/oidc/v2 v2.12.2
 	golang.org/x/crypto v0.41.0
-	golang.org/x/oauth2 v0.30.0
+	golang.org/x/oauth2 v0.31.0
 	golang.org/x/sync v0.16.0
 	golang.org/x/sys v0.35.0
 	golang.org/x/term v0.34.0
