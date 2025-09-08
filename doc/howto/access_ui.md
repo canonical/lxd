@@ -22,45 +22,66 @@ It does not provide full functionality yet, but it is constantly evolving, alrea
 
 Complete the following steps to access the LXD web UI:
 
-1. Make sure that your LXD server is {ref}`exposed to the network <server-expose>`.
+(access-ui-expose)=
+## Expose the server to the network
+
+Make sure that your LXD server is {ref}`exposed to the network <server-expose>`.
    You can expose the server during {ref}`initialization <initialize>`, or afterwards by setting the {config:option}`server-core:core.https_address` server configuration option.
+
+(access-ui-browser)=
+## Access the UI in your browser
+
+Access the UI in your browser by entering the server address (for example, [`https://127.0.0.1:8443`](https://127.0.0.1:8443) for a local server, or an address like `https://192.0.2.10:8443` for a server running on `192.0.2.10`).
+
+If you have already set up access to the UI, you will see the {guilabel}`Instances` page. For setup instructions, continue below.
+
+(access-ui-setup)=
+## Set up access
 
 <!-- Include start access UI -->
 
-2. Access the UI in your browser by entering the server address (for example, [`https://127.0.0.1:8443`](https://127.0.0.1:8443) for a local server, or an address like `https://192.0.2.10:8443` for a server running on `192.0.2.10`).
+Access to the UI requires both a browser certificate and a trust token.
 
-   If you have not set up a secure {ref}`authentication-server-certificate`, LXD uses a self-signed certificate, which will cause a security warning in your browser.
-   Use your browser's mechanism to continue despite the security warning.
+### Set up the browser certificate
 
-   ```{figure} /images/ui_security_warning.png
-   :width: 80%
-   :alt: Example for a security warning in Chrome
-   ```
+If you already have a client certificate for the LXD UI installed in your browser, a banner displays titled "Client certificate already present." Click "Skip to step 2" to [set up the trust token](#set-up-the-trust-token).
 
-1. Set up the certificates that are required for the UI client to authenticate with the LXD server by following the steps presented in the UI.
+```{figure} /images/UI/certificate-skip.png
+:width: 100%
+:alt: Banner that indicates a client certificate is already present
+```
 
-   You have two options, depending on whether you already have a client certificate selected in your browser:
+If you don't have a certificate yet, choose the tab in the UI that corresponds to your environment. Follow the instructions to generate and import a `.pfx` certificate. If prompted by your browser to select a certificate, select the one you imported.
 
-   - If you don't have a certificate yet, click {guilabel}`Create a new certificate` to get instructions for creating a set of certificates, adding the public key to the server's trust store, and adding the private key to your browser.
+The screenshot below shows the tab for Chrome on Linux. Make sure to select the correct tab for your environment.
 
-     ```{figure} /images/ui_set_up_certificates.png
-     :width: 100%
-     :alt: Instructions for setting up certificates for the UI
-     ```
+```{figure} /images/UI/certificate-create.png
+:width: 100%
+:alt: Instructions for setting up certificates for the UI
+```
 
-   - If you already have a client certificate in your browser, select "use an existing certificate" to authorize the certificate with the server and re-use it.
+When finished, click the {guilabel}`Trust token` step in the left-hand menu.
 
-     ```{figure} /images/ui_set_up_existing_cert.png
-     :width: 100%
-     :alt: Instructions for re-using an existing certificate for the UI
-     ```
+### Set up the trust token
 
-   See {ref}`authentication` for more information.
+Follow the instructions to generate a trust token and provide it to your browser.
+
+Example:
+
+```{figure} /images/UI/token-create.png
+:width: 100%
+:alt: Example for generating a LXD UI trust token and providing it to the browser
+```
+
+Click {guilabel}`Connect` to complete the login process.
 
 <!-- Include end access UI -->
 
-After setting up the certificates, you can start creating instances, editing profiles, or configuring your server.
+Now you can start creating instances, editing profiles, or configuring your server.
 
+For detailed information about the authentication process, see: {ref}`authentication`.
+
+(access-ui-enable)=
 ## Enable or disable the UI
 
 The {ref}`snap configuration option <howto-snap-configure>` `lxd ui.enable` controls whether the UI is enabled for LXD.
