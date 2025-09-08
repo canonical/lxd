@@ -1,6 +1,6 @@
 module github.com/canonical/lxd
 
-go 1.23.10
+go 1.24.0
 
 require (
 	github.com/Rican7/retry v0.3.1
@@ -46,10 +46,10 @@ require (
 	github.com/zitadel/oidc/v2 v2.12.2
 	golang.org/x/crypto v0.41.0
 	golang.org/x/oauth2 v0.30.0
-	golang.org/x/sync v0.16.0
+	golang.org/x/sync v0.17.0
 	golang.org/x/sys v0.35.0
 	golang.org/x/term v0.34.0
-	golang.org/x/text v0.28.0
+	golang.org/x/text v0.29.0
 	google.golang.org/protobuf v1.36.8
 	gopkg.in/juju/environschema.v1 v1.0.1
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
