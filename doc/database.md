@@ -26,7 +26,7 @@ The database files are stored in the `database` sub-directory of your LXD data d
 
 Upgrading LXD to a newer version might require updating the database schema.
 In this case, LXD automatically stores a backup of the database and then runs the update.
-See {ref}`installing-upgrade` for more information.
+See {ref}`ref-snap-database` for more information.
 
 ## Backup
 
