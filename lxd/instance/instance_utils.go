@@ -23,6 +23,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instance/operationlock"
@@ -1208,4 +1209,30 @@ func SnapshotProtobufToInstanceArgs(s *state.State, inst Instance, snap *migrati
 	}
 
 	return &args, nil
+}
+
+// deviceUsesVolume checks if a device is sourced by the provided storage volume.
+func deviceUsesVolume(vol api.StorageVolume, dev map[string]string) bool {
+	if !filters.IsDisk(dev) {
+		return false
+	}
+
+	if dev["pool"] != vol.Pool {
+		return false
+	}
+
+	volName, snapName, isSnap := api.GetParentAndSnapshotName(vol.Name)
+	if !isSnap {
+		volName = vol.Name
+		if dev["source.snapshot"] != "" {
+			return false
+		}
+	}
+
+	volType := dev["source.type"]
+	if volType == "" {
+		volType = cluster.StoragePoolVolumeTypeNameCustom
+	}
+
+	return volType == vol.Type && dev["source"] == volName && dev["source.snapshot"] == snapName
 }
