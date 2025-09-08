@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -1354,4 +1355,112 @@ func PlanAttachedVolumesForSnapshot(s *state.State, inst Instance, diskVolumesMo
 	}
 
 	return attached, uuidMap, nil
+}
+
+// ResolveAttachedVolumeSnapshotsForRestore resolves the custom storage volume snapshots that were taken
+// alongside sourceSnapshot and are relevant to the provided disk devices. It reads the snapshot's
+// "volatile.attached_volumes" (JSON map of volumeUUID -> snapshotUUID) and returns the matching snapshot
+// volumes. Fails if a referenced snapshot is missing.
+// When diskVolumesMode is "all-exclusive", also fails if any of the source volumes are now shared.
+func ResolveAttachedVolumeSnapshotsForRestore(s *state.State, sourceSnapshot Instance, diskVolumesMode string) ([]*api.StorageVolume, error) {
+	// Root disk only, nothing to do.
+	if diskVolumesMode == api.DiskVolumesModeRoot || diskVolumesMode == "" {
+		return nil, nil
+	}
+
+	devices := sourceSnapshot.ExpandedDevices().Clone()
+	raw, ok := sourceSnapshot.LocalConfig()["volatile.attached_volumes"]
+	if !ok {
+		return nil, errors.New(`Cannot get attached volumes as "volatile.attached_volumes" is unset`)
+	}
+
+	var snapByVolUUID map[string]string
+	err := json.Unmarshal([]byte(raw), &snapByVolUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fill candidate volume keys for O(1) lookups.
+	candidates := make(map[volKey]struct{})
+	for _, dev := range devices {
+		if !filters.IsCustomVolumeDisk(dev) {
+			continue
+		}
+
+		candidates[volKey{pool: dev["pool"], name: dev["source"]}] = struct{}{}
+	}
+
+	accessible, shared, err := getDiskVolumes(s, sourceSnapshot, candidates)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []*api.StorageVolume
+	var missing []*api.StorageVolume
+	var nowShared []*api.StorageVolume
+
+	snapUUIDToVol := make(map[string]db.StorageVolume, len(accessible)) // snapshot UUID -> vol
+	for _, v := range accessible {
+		_, _, isSnap := api.GetParentAndSnapshotName(v.Name)
+		if isSnap {
+			snapUUIDToVol[v.Config["volatile.uuid"]] = *v
+		}
+	}
+
+	// Identify attached base volumes (non-snapshots) and resolve to their snapshot via UUID mapping.
+	for _, dev := range devices {
+		base, ok := accessible[volKey{dev["pool"], dev["source"]}]
+		if !ok {
+			continue
+		}
+
+		if !deviceUsesVolume(base.StorageVolume, dev) {
+			continue
+		}
+
+		volUUID := base.Config["volatile.uuid"]
+		snapUUID, ok := snapByVolUUID[volUUID]
+		if !ok {
+			// This attached volume was not snapshotted.
+			continue
+		}
+
+		// If restoring with all-exclusive, error if the base volume is now shared.
+		if diskVolumesMode == api.DiskVolumesModeAllExclusive {
+			_, isShared := shared[volKey{dev["pool"], dev["source"]}]
+			if isShared {
+				nowShared = append(nowShared, &base.StorageVolume)
+				continue
+			}
+		}
+
+		snapVol, ok := snapUUIDToVol[snapUUID]
+		if ok {
+			result = append(result, &snapVol.StorageVolume)
+		} else {
+			missing = append(missing, &base.StorageVolume)
+		}
+	}
+
+	if len(nowShared) > 0 || len(missing) > 0 {
+		var b strings.Builder
+		volToDev := make(map[volKey]string, len(devices))
+		for name, d := range devices {
+			volToDev[volKey{d["pool"], d["source"]}] = name
+		}
+
+		b.WriteString("Cannot restore source volumes for the following devices:\n")
+
+		for _, v := range nowShared {
+			b.WriteString(volToDev[volKey{v.Pool, v.Name}] + " (volume is now shared)")
+		}
+
+		for _, v := range missing {
+			b.WriteString(volToDev[volKey{v.Pool, v.Name}] + " (snapshot missing)")
+		}
+
+		return nil, errors.New(b.String())
+	}
+
+	return result, nil
 }
