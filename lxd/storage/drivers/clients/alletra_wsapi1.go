@@ -21,26 +21,26 @@ import (
 )
 
 const (
-	sessionTypeRegular    = 1
-	transportTypeTCP      = 2
-	linkStateReady        = 4
-	portProtocolISCSI     = 2
-	portProtocolNVME      = 6
-	taskStatusDone        = 1
-	taskStatusActive      = 2
-	taskStatusCanceled    = 3
-	taskStatusFailed      = 4
-	operationPriorityHigh = 1
+	hpeSessionTypeRegular    = 1
+	hpeTransportTypeTCP      = 2
+	hpeLinkStateReady        = 4
+	hpePortProtocolISCSI     = 2
+	hpePortProtocolNVME      = 6
+	hpeTaskStatusDone        = 1
+	hpeTaskStatusActive      = 2
+	hpeTaskStatusCanceled    = 3
+	hpeTaskStatusFailed      = 4
+	hpeOperationPriorityHigh = 1
 
-	apiErrorInvalidSessionKey       = 6
-	apiErrorExistentHost            = 16
-	apiErrorNonExistentVol          = 23
-	apiErrorVolumeIsAlreadyExported = 29
+	hpeAPIErrorInvalidSessionKey       = 6
+	hpeAPIErrorExistentHost            = 16
+	hpeAPIErrorNonExistentVol          = 23
+	hpeAPIErrorVolumeIsAlreadyExported = 29
 
-	apiVolumeSetMemberAdd       = 1
-	apiVolumeSetMemberRemove    = 2
-	apiActionGrowVolume         = 3
-	apiActionPromoteVirtualCopy = 4
+	hpeAPIVolumeSetMemberAdd       = 1
+	hpeAPIVolumeSetMemberRemove    = 2
+	hpeAPIActionGrowVolume         = 3
+	hpeAPIActionPromoteVirtualCopy = 4
 )
 
 // createBodyReader creates a reader for the given request body contents.
@@ -295,7 +295,7 @@ func (p *AlletraClient) request(method string, url url.URL, reqBody map[string]a
 		// The unauthorized error is reported when an invalid (or expired) access token is provided.
 		// Wrap unauthorized requests into an API status error to allow easier checking for expired
 		// token in the requestAuthenticated function.
-		if resp.StatusCode == http.StatusForbidden && hpeErr.Code == apiErrorInvalidSessionKey {
+		if resp.StatusCode == http.StatusForbidden && hpeErr.Code == hpeAPIErrorInvalidSessionKey {
 			return api.StatusErrorf(http.StatusForbidden, "Unauthorized request")
 		}
 
@@ -411,7 +411,7 @@ func (p *AlletraClient) login() error {
 	body := map[string]any{
 		"user":        p.username,
 		"password":    p.password,
-		"sessionType": sessionTypeRegular,
+		"sessionType": hpeSessionTypeRegular,
 	}
 
 	url := api.NewURL().Path("api", "v1", "credentials")
@@ -458,7 +458,7 @@ func (p *AlletraClient) DeleteVolumeSet(volumeSetName string) error {
 }
 
 // modifyVolumeSet is used to add/remove a volume from a volume set.
-// Argument action can be apiVolumeSetMemberAdd or apiVolumeSetMemberRemove.
+// Argument action can be hpeAPIVolumeSetMemberAdd or hpeAPIVolumeSetMemberRemove.
 func (p *AlletraClient) modifyVolumeSet(volumeSetName string, action int, volName string) error {
 	req := map[string]any{
 		"action":     action,
@@ -533,7 +533,7 @@ func (p *AlletraClient) CreateHost(connectorType string, hostName string, qns []
 		req["iqns"] = qns[0]
 	case connectors.TypeNVME:
 		req["NQN"] = qns[0]
-		req["transportType"] = transportTypeTCP
+		req["transportType"] = hpeTransportTypeTCP
 	default:
 		return fmt.Errorf("Unsupported HPE Alletra Storage mode %q", connectorType)
 	}
@@ -544,7 +544,7 @@ func (p *AlletraClient) CreateHost(connectorType string, hostName string, qns []
 		hpeErr, ok := err.(*hpeError)
 		if ok {
 			switch hpeErr.Code {
-			case apiErrorExistentHost:
+			case hpeAPIErrorExistentHost:
 				return nil
 			default:
 				return fmt.Errorf("Unexpected Alletra WSAPI response: Code: %d. Desc: %q", hpeErr.Code, hpeErr.Desc)
@@ -600,7 +600,7 @@ func (p *AlletraClient) CreateVolume(poolName string, volName string, sizeBytes 
 	}
 
 	// Add a newly created volume to a volume set
-	err = p.modifyVolumeSet(poolName, apiVolumeSetMemberAdd, volName)
+	err = p.modifyVolumeSet(poolName, hpeAPIVolumeSetMemberAdd, volName)
 	return err
 }
 
@@ -614,7 +614,7 @@ func (p *AlletraClient) GetVolume(poolName string, volName string) (*hpeVolume, 
 		hpeErr, ok := err.(*hpeError)
 		if ok {
 			switch hpeErr.Code {
-			case apiErrorNonExistentVol:
+			case hpeAPIErrorNonExistentVol:
 				return nil, api.StatusErrorf(http.StatusNotFound, "Volume (or snapshot) %q not found", volName)
 			default:
 				return nil, fmt.Errorf("Unexpected Alletra WSAPI response: Code: %d. Desc: %q", hpeErr.Code, hpeErr.Desc)
@@ -640,7 +640,7 @@ func (p *AlletraClient) deleteVolume(poolName string, volName string) error {
 		hpeErr, ok := err.(*hpeError)
 		if ok {
 			switch hpeErr.Code {
-			case apiErrorNonExistentVol:
+			case hpeAPIErrorNonExistentVol:
 				return nil
 			default:
 				return fmt.Errorf("Unexpected Alletra WSAPI response: Code: %d. Desc: %q", hpeErr.Code, hpeErr.Desc)
@@ -655,7 +655,7 @@ func (p *AlletraClient) deleteVolume(poolName string, volName string) error {
 
 // DeleteVolume deletes an exisiting volume in the given storage pool.
 func (p *AlletraClient) DeleteVolume(poolName string, volName string) error {
-	err := p.modifyVolumeSet(poolName, apiVolumeSetMemberRemove, volName)
+	err := p.modifyVolumeSet(poolName, hpeAPIVolumeSetMemberRemove, volName)
 	if err != nil {
 		return err
 	}
@@ -679,13 +679,13 @@ func (p *AlletraClient) GetTargetAddrs(connectorType string) (targetAddrs []stri
 	}
 
 	for _, member := range portData.Members {
-		if member.LinkState != linkStateReady {
+		if member.LinkState != hpeLinkStateReady {
 			continue // skip down or unlinked ports
 		}
 
 		switch connectorType {
 		case connectors.TypeISCSI:
-			if member.Protocol != portProtocolISCSI {
+			if member.Protocol != hpePortProtocolISCSI {
 				continue
 			}
 
@@ -694,7 +694,7 @@ func (p *AlletraClient) GetTargetAddrs(connectorType string) (targetAddrs []stri
 			}
 
 		case connectors.TypeNVME:
-			if member.Protocol != portProtocolNVME {
+			if member.Protocol != hpePortProtocolNVME {
 				continue
 			}
 
@@ -724,7 +724,7 @@ func (p *AlletraClient) ConnectHostToVolume(poolName string, volName string, hos
 		hpeErr, ok := err.(*hpeError)
 		if ok {
 			switch hpeErr.Code {
-			case apiErrorVolumeIsAlreadyExported:
+			case hpeAPIErrorVolumeIsAlreadyExported:
 				p.logger.Debug("New vLUN hasn't been created. Volume %q already attached to %q", logger.Ctx{"volName": volName, "hostName": hostName})
 				return false, nil
 			default:
@@ -801,7 +801,7 @@ func (p *AlletraClient) GetVLUNsForHost(hostName string) ([]hpeVLUN, error) {
 // GrowVolume resize an existing volume. This function does not resize any filesystem inside the volume.
 func (p *AlletraClient) GrowVolume(poolName string, volName string, sizeBytes int64) error {
 	req := map[string]any{
-		"action":  apiActionGrowVolume,
+		"action":  hpeAPIActionGrowVolume,
 		"sizeMiB": sizeBytes / (1024 * 1024),
 	}
 
@@ -895,7 +895,7 @@ func (p *AlletraClient) waitTaskFinish(ctx context.Context, taskID string) (int,
 			return -1, err
 		}
 
-		if taskState.Status != taskStatusActive {
+		if taskState.Status != hpeTaskStatusActive {
 			return taskState.Status, nil
 		}
 
@@ -910,7 +910,7 @@ func (p *AlletraClient) waitTaskFinish(ctx context.Context, taskID string) (int,
 // RestoreVolumeSnapshot restores the volume by copying the volume snapshot into its parent volume.
 func (p *AlletraClient) RestoreVolumeSnapshot(ctx context.Context, poolName string, volName string, snapshotName string) error {
 	req := map[string]any{
-		"action": apiActionPromoteVirtualCopy,
+		"action": hpeAPIActionPromoteVirtualCopy,
 	}
 
 	var resp hpePromoteResponse
@@ -928,13 +928,13 @@ func (p *AlletraClient) RestoreVolumeSnapshot(ctx context.Context, poolName stri
 	}
 
 	switch status {
-	case taskStatusDone:
+	case hpeTaskStatusDone:
 		return nil
-	case taskStatusActive:
+	case hpeTaskStatusActive:
 		return fmt.Errorf(`Failed to restore snapshot "%s/%s" to "%s/%s": timeout`, poolName, snapshotName, poolName, volName)
-	case taskStatusCanceled:
+	case hpeTaskStatusCanceled:
 		return fmt.Errorf(`Failed to restore snapshot "%s/%s" to "%s/%s": cancelled`, poolName, snapshotName, poolName, volName)
-	case taskStatusFailed:
+	case hpeTaskStatusFailed:
 		return fmt.Errorf(`Failed to restore snapshot "%s/%s" to "%s/%s": task failed`, poolName, snapshotName, poolName, volName)
 	default:
 		return fmt.Errorf(`Failed to restore snapshot "%s/%s" to "%s/%s": unknown task state. Alletra API change?`, poolName, snapshotName, poolName, volName)
@@ -948,7 +948,7 @@ func (p *AlletraClient) CreateVolumePhysicalCopy(ctx context.Context, poolName s
 		"parameters": map[string]any{
 			"destVolume":   copyName,
 			"saveSnapshot": false,
-			"priority":     operationPriorityHigh,
+			"priority":     hpeOperationPriorityHigh,
 		},
 	}
 
@@ -966,13 +966,13 @@ func (p *AlletraClient) CreateVolumePhysicalCopy(ctx context.Context, poolName s
 	}
 
 	switch status {
-	case taskStatusDone:
+	case hpeTaskStatusDone:
 		return nil
-	case taskStatusActive:
+	case hpeTaskStatusActive:
 		return fmt.Errorf(`Failed to create a physical copy "%s/%s" to "%s/%s": timeout`, poolName, volName, poolName, copyName)
-	case taskStatusCanceled:
+	case hpeTaskStatusCanceled:
 		return fmt.Errorf(`Failed to create a physical copy "%s/%s" to "%s/%s": cancelled`, poolName, volName, poolName, copyName)
-	case taskStatusFailed:
+	case hpeTaskStatusFailed:
 		return fmt.Errorf(`Failed to create a physical copy "%s/%s" to "%s/%s": task failed`, poolName, volName, poolName, copyName)
 	default:
 		return fmt.Errorf(`Failed to create a physical copy "%s/%s" to "%s/%s": unknown task state. Alletra API change?`, poolName, volName, copyName, volName)
