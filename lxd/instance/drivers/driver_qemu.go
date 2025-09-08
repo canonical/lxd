@@ -1449,7 +1449,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}
 
 	if snapName != "" && expiry != nil {
-		err := d.snapshot(snapName, expiry, false)
+		err := d.snapshot(snapName, expiry, false, api.DiskVolumesModeRoot)
 		if err != nil {
 			err = fmt.Errorf("Failed taking startup snapshot: %w", err)
 			op.Done(err)
@@ -5112,7 +5112,7 @@ func (d *qemu) IsPrivileged() bool {
 }
 
 // snapshot creates a snapshot of the instance.
-func (d *qemu) snapshot(name string, expiry *time.Time, stateful bool) error {
+func (d *qemu) snapshot(name string, expiry *time.Time, stateful bool, diskVolumesMode string) error {
 	var err error
 	var monitor *qmp.Monitor
 
@@ -5142,7 +5142,7 @@ func (d *qemu) snapshot(name string, expiry *time.Time, stateful bool) error {
 	}
 
 	// Create the snapshot.
-	err = d.snapshotCommon(d, name, expiry, stateful)
+	err = d.snapshotCommon(d, name, expiry, stateful, diskVolumesMode)
 	if err != nil {
 		return err
 	}
@@ -5165,7 +5165,7 @@ func (d *qemu) snapshot(name string, expiry *time.Time, stateful bool) error {
 }
 
 // Snapshot takes a new snapshot.
-func (d *qemu) Snapshot(name string, expiry *time.Time, stateful bool) error {
+func (d *qemu) Snapshot(name string, expiry *time.Time, stateful bool, diskVolumesMode string) error {
 	unlock, err := d.updateBackupFileLock(context.Background())
 	if err != nil {
 		return err
@@ -5173,7 +5173,7 @@ func (d *qemu) Snapshot(name string, expiry *time.Time, stateful bool) error {
 
 	defer unlock()
 
-	return d.snapshot(name, expiry, stateful)
+	return d.snapshot(name, expiry, stateful, diskVolumesMode)
 }
 
 // Restore restores an instance snapshot.
