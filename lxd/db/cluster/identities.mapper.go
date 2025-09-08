@@ -364,11 +364,11 @@ func GetIdentityID(ctx context.Context, tx *sql.Tx, authMethod AuthMethod, ident
 	row := stmt.QueryRowContext(ctx, authMethod, identifier)
 	var id int64
 	err = row.Scan(&id)
-	if errors.Is(err, sql.ErrNoRows) {
-		return -1, api.StatusErrorf(http.StatusNotFound, "Identity not found")
-	}
-
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return -1, api.StatusErrorf(http.StatusNotFound, "Identity not found")
+		}
+
 		return -1, fmt.Errorf("Failed to get \"identity\" ID: %w", err)
 	}
 
