@@ -172,6 +172,16 @@ type InstancePostTarget struct {
 	Websockets map[string]string `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 }
 
+const (
+	// DiskVolumesModeRoot represents the "root" disk volumes mode.
+	// This mode performs an action on the root disk only.
+	DiskVolumesModeRoot = "root"
+
+	// DiskVolumesModeAllExclusive represents the "all-exclusive" disk volumes mode.
+	// This mode performs an action on the root disk and all exclusive (non-shared) disk volumes.
+	DiskVolumesModeAllExclusive = "all-exclusive"
+)
+
 // InstancePut represents the modifiable fields of a LXD instance.
 //
 // swagger:model
