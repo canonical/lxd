@@ -2660,7 +2660,7 @@ func (d *zfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrc
 	srcSnapshot := d.dataset(vol, false)
 	if !vol.IsSnapshot() {
 		// Create a temporary read-only snapshot.
-		srcSnapshot = d.dataset(vol, false) + "@migration-" + uuid.New().String()
+		srcSnapshot += "@migration-" + uuid.New().String()
 		_, err := shared.RunCommandContext(context.TODO(), "zfs", "snapshot", "-r", srcSnapshot)
 		if err != nil {
 			return err
