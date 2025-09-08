@@ -453,6 +453,7 @@ func Test_IsInterfaceName(t *testing.T) {
 		{"1234", true},
 		{"abcdefghijklmno", true},
 		{"abcdefghijklmnop", false},
+		{"eth,0", false},
 		{"", false},
 		{"a", false},
 	}
@@ -461,6 +462,37 @@ func Test_IsInterfaceName(t *testing.T) {
 		err := validate.IsInterfaceName(test.value)
 		if (err == nil) != test.expected {
 			t.Errorf("IsInterfaceName(%q) = %v, want %v", test.value, err == nil, test.expected)
+		}
+	}
+}
+
+func Test_IsNetworkAddressCIDR(t *testing.T) {
+	tests := []struct {
+		value    string
+		expected bool
+	}{
+		{
+			value:    "192.0.2.1/24",
+			expected: true,
+		},
+		{
+			value:    "2001:db8::1/64",
+			expected: true,
+		},
+		{
+			value:    "192.0.2.1",
+			expected: false,
+		},
+		{
+			value:    "2001:db8::1",
+			expected: false,
+		},
+	}
+
+	for _, test := range tests {
+		err := validate.IsNetworkAddressCIDR(test.value)
+		if (err == nil) != test.expected {
+			t.Errorf("IsNetworkAddressCIDR(%q) = %v, want %v", test.value, err == nil, test.expected)
 		}
 	}
 }
@@ -483,7 +515,23 @@ func Test_IsNetworkRange(t *testing.T) {
 			expected: true,
 		},
 		{
+			value:    "192.0.2.2-192.0.2.1",
+			expected: false,
+		},
+		{
+			value:    "192.0.2.1-2001:db8::1",
+			expected: false,
+		},
+		{
 			value:    "192.0.2.1/24",
+			expected: false,
+		},
+		{
+			value:    "start-192.0.2.2",
+			expected: false,
+		},
+		{
+			value:    "192.0.2.1-end",
 			expected: false,
 		},
 	}
@@ -492,6 +540,80 @@ func Test_IsNetworkRange(t *testing.T) {
 		err := validate.IsNetworkRange(test.value)
 		if (err == nil) != test.expected {
 			t.Errorf("IsNetworkRange(%q) = %v, want %v", test.value, err == nil, test.expected)
+		}
+	}
+}
+
+func Test_IsNetworkV4(t *testing.T) {
+	tests := []struct {
+		value    string
+		expected bool
+	}{
+		{
+			value:    "192.0.2.1",
+			expected: false,
+		},
+		{
+			value:    "192.0.2.1/24",
+			expected: false,
+		},
+		{
+			value:    "192.0.2.0/24",
+			expected: true,
+		},
+		{
+			value:    "2001:db8::1",
+			expected: false,
+		},
+		{
+			value:    "2001:db8::/64",
+			expected: false,
+		},
+	}
+
+	for _, test := range tests {
+		err := validate.IsNetworkV4(test.value)
+		if (err == nil) != test.expected {
+			t.Errorf("IsNetworkV4(%q) = %v, want %v", test.value, err == nil, test.expected)
+		}
+	}
+}
+
+func Test_IsNetworkV6(t *testing.T) {
+	tests := []struct {
+		value    string
+		expected bool
+	}{
+		{
+			value:    "192.0.2.1",
+			expected: false,
+		},
+		{
+			value:    "192.0.2.1/24",
+			expected: false,
+		},
+		{
+			value:    "192.0.2.0/24",
+			expected: false,
+		},
+		{
+			value:    "2001:db8::1",
+			expected: false,
+		},
+		{
+			value:    "2001:db8::1/64",
+			expected: false,
+		},
+		{
+			value:    "2001:db8::/64",
+			expected: true,
+		},
+	}
+
+	for _, test := range tests {
+		err := validate.IsNetworkV6(test.value)
+		if (err == nil) != test.expected {
+			t.Errorf("IsNetworkV6(%q) = %v, want %v", test.value, err == nil, test.expected)
 		}
 	}
 }
