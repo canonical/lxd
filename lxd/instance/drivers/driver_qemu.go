@@ -5194,7 +5194,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool, diskVolumes []*a
 	}
 
 	// Restore the rootfs.
-	err = pool.RestoreInstanceSnapshot(d, source, nil)
+	err = pool.RestoreInstanceSnapshot(d, source, diskVolumes, nil)
 	if err != nil {
 		op.Done(err)
 		return err
