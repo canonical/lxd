@@ -25,8 +25,14 @@ import (
 	"github.com/canonical/lxd/shared/validate"
 )
 
-// projectLimitDiskPool is the prefix used for pool-specific disk limits.
-const projectLimitDiskPool string = "limits.disk.pool."
+const (
+	// projectLimitDiskPool is the prefix used for pool-specific disk limits.
+	projectLimitDiskPool string = "limits.disk.pool."
+	// projectLimitNetworkUplinkIP4 is the prefix used for network-specific uplink IPv4 IP limits.
+	projectLimitNetworkUplinkIP4 string = "limits.networks.uplink_ips.ipv4."
+	// projectLimitNetworkUplinkIP6 is the prefix used for network-specific uplink IPv6 IP limits.
+	projectLimitNetworkUplinkIP6 string = "limits.networks.uplink_ips.ipv6."
+)
 
 // HiddenStoragePools returns a list of storage pools that should be hidden from users of the project.
 func HiddenStoragePools(ctx context.Context, tx *db.ClusterTx, projectName string) ([]string, error) {
@@ -1028,8 +1034,8 @@ func checkUplinkUse(ctx context.Context, tx *db.ClusterTx, projectName string, c
 
 	// Check uplink IP quota limits.
 	for uplink := range uplinksInUseSet {
-		ivp4LimitsRaw, hasIPV4Limits := config["limits.networks.uplink_ips.ipv4."+uplink]
-		ivp6LimitsRaw, hasIPV6Limits := config["limits.networks.uplink_ips.ipv6."+uplink]
+		ivp4LimitsRaw, hasIPV4Limits := config[projectLimitNetworkUplinkIP4+uplink]
+		ivp6LimitsRaw, hasIPV6Limits := config[projectLimitNetworkUplinkIP6+uplink]
 
 		ivp4Limits, err := strconv.Atoi(ivp4LimitsRaw)
 		if err != nil {
