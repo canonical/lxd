@@ -2711,7 +2711,25 @@ See {ref}`DevLXD bearer tokens <devlxd-authentication-bearer>`.
 
 ## `devlxd_volume_management`
 
-Changes to existing endpoints:
+Enables additional DevLXD endpoints for managing custom storage volumes and instance devices when `security.devlxd.management.volumes` is set to true.
+These endpoints are primarily intended for use by the LXD CSI driver.
+
+Management is limited to custom storage volumes.
+Additionally, the client is required to authenticate using DevLXD identity, which is used to track storage volume and instance device owner.
+Volumes and instance devices created through the DevLXD are marked as owned by the authenticated identity and can later be modified or removed through DevLXD only by the same identity.
+
+New DevLXD endpoints:
+
+* `GET /1.0/storage-pools/{pool}` — Retrieve a storage pool.
+* `GET /1.0/storage-pools/{pool}/volumes` — List owned custom volumes in a pool.
+* `GET /1.0/storage-pools/{pool}/volumes/{volume}` — Retrieve an owned custom volume.
+* `POST /1.0/storage-pools/{pool}/volumes` — Create a new owned custom volume in a pool.
+* `PUT /1.0/storage-pools/{pool}/volumes/{volume}` — Update an owned custom volume.
+* `DELETE /1.0/storage-pools/{pool}/volumes/{volume}` — Delete an owned custom volume.
+* `GET /1.0/instances/{inst}` — Retrieve an instance and its owned devices.
+* `PATCH /1.0/instances/{inst}` — Add new instance devices or modify owned devices.
+
+Changes to existing DevLXD endpoints:
 
 * `GET /1.0` — Adds a `supported_storage_drivers` field to the response, which is populated when `security.devlxd.management.volumes` is enabled.
 
