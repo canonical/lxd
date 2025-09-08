@@ -524,6 +524,13 @@ func (d *powerflex) GetVolumeUsage(vol Volume) (int64, error) {
 // SetVolumeQuota applies a size limit on volume.
 // Does nothing if supplied with an empty/zero size.
 func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
+	// Block image volumes cannot be resized because they have a readonly snapshot that doesn't get
+	// updated when the volume's size is changed, and this is what instances are created from.
+	// During initial volume fill allowUnsafeResize is enabled because snapshot hasn't been taken yet.
+	if !allowUnsafeResize && vol.volType == VolumeTypeImage {
+		return ErrNotSupported
+	}
+
 	// Convert to bytes.
 	sizeBytes, err := units.ParseByteSizeString(size)
 	if err != nil {
@@ -565,13 +572,6 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 	// PowerFlex supports increasing of size only.
 	if sizeBytes < oldSizeBytes {
 		return errors.New("Volume capacity can only be increased")
-	}
-
-	// Block image volumes cannot be resized because they have a readonly snapshot that doesn't get
-	// updated when the volume's size is changed, and this is what instances are created from.
-	// During initial volume fill allowUnsafeResize is enabled because snapshot hasn't been taken yet.
-	if !allowUnsafeResize && vol.volType == VolumeTypeImage {
-		return ErrNotSupported
 	}
 
 	// Resize filesystem if needed.
