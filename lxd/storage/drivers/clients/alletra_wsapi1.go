@@ -27,7 +27,6 @@ const (
 
 	apiErrorInvalidSessionKey       = 6
 	apiErrorExistentHost            = 16
-	apiErrorExportedVLUN            = 26
 	apiErrorNonExistentVol          = 23
 	apiErrorVolumeIsAlreadyExported = 29
 
@@ -539,15 +538,6 @@ func (p *AlletraClient) DeleteHost(hostName string) error {
 	url := api.NewURL().Path("api", "v1", "hosts", hostName)
 	err := p.requestAuthenticated(http.MethodDelete, url.URL, nil, nil)
 	if err != nil {
-		hpeErr, ok := err.(*hpeError)
-		if ok {
-			switch hpeErr.Code {
-			case apiErrorExportedVLUN:
-				p.logger.Debug("Host won't be deleted since it has exported volumes", logger.Ctx{"hostName": hostName})
-				return nil
-			}
-		}
-
 		return fmt.Errorf("Failed to delete host %q: %w", hostName, err)
 	}
 
