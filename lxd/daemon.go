@@ -185,15 +185,11 @@ type DaemonConfig struct {
 
 // newDaemon returns a new Daemon object with the given configuration.
 func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
-	lxdEvents := events.NewServer(daemon.Debug, daemon.Verbose, cluster.EventHubPush)
-	devLXDEvents := events.NewDevLXDServer(daemon.Debug, daemon.Verbose)
 	shutdownCtx := cancel.New()
 
 	d := &Daemon{
 		identityCache:    &identity.Cache{},
 		config:           config,
-		devLXDEvents:     devLXDEvents,
-		events:           lxdEvents,
 		tasks:            task.NewGroup(),
 		clusterTasks:     task.NewGroup(),
 		db:               &db.DB{},
@@ -1128,7 +1124,14 @@ func (d *Daemon) init() error {
 		return err
 	}
 
-	// Setup logger
+	// Setup events
+	d.devLXDEvents = events.NewDevLXDServer(daemon.Debug, daemon.Verbose)
+	d.events, err = events.NewServer(daemon.Debug, daemon.Verbose, cluster.EventHubPush)
+	if err != nil {
+		return err
+	}
+
+	// Configure logging events.
 	events.LoggingServer = d.events
 
 	// Setup internal event listener
