@@ -455,6 +455,7 @@ var APIExtensions = []string{
 	"pci_hotplug",
 	"device_patch_removal",
 	"ovn_internal_load_balancer",
+	"storage_driver_alletra",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
