@@ -531,6 +531,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_storage_volume_import "storage volume import"
     run_test test_storage_volume_initial_config "storage volume initial configuration"
     run_test test_resources "resources"
+    run_test test_resources_bcache "resources bcache"
     run_test test_kernel_limits "kernel limits"
     run_test test_console "console"
     run_test test_query "query"
