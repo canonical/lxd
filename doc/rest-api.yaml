@@ -4317,6 +4317,8 @@ definitions:
                     interactive: true
                 type: object
                 x-go-name: Metadata
+            requestor:
+                $ref: '#/definitions/OperationRequestor'
             resources:
                 additionalProperties:
                     items:
@@ -4343,6 +4345,27 @@ definitions:
                 format: date-time
                 type: string
                 x-go-name: UpdatedAt
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    OperationRequestor:
+        description: 'API extension: operation_requestor.'
+        properties:
+            address:
+                description: Address is the origin address of the request.
+                example: 10.0.2.15
+                type: string
+                x-go-name: Address
+            protocol:
+                description: Protocol represents the method used to authenticate the requestor.
+                example: oidc
+                type: string
+                x-go-name: Protocol
+            username:
+                description: Username is the username of the requestor. This is the identifier of the identity, or the username if using the unix socket.
+                example: jane.doe@example.com
+                type: string
+                x-go-name: Username
+        title: OperationRequestor represents the initial requestor of an operation
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
     Permission:
