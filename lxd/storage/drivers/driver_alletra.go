@@ -103,7 +103,7 @@ func (d *alletra) Info() Info {
 		Version:                      alletraVersion,
 		DefaultBlockSize:             d.defaultBlockVolumeSize(),
 		DefaultVMBlockFilesystemSize: d.defaultVMBlockFilesystemSize(),
-		OptimizedImages:              false,
+		OptimizedImages:              true,
 		PreservesInodes:              true,
 		Remote:                       d.isRemote(),
 		VolumeTypes:                  []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
@@ -267,7 +267,10 @@ func (d *alletra) Delete(op *operations.Operation) error {
 
 // Update applies any driver changes required from a configuration change.
 func (d *alletra) Update(changedConfig map[string]string) error {
-	return ErrNotSupported
+	// We don't need to do anything here, and just return success,
+	// because we have no driver-level config options we want to allow
+	// for an update.
+	return nil
 }
 
 // Mount mounts the storage pool.
