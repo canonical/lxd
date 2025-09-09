@@ -1349,7 +1349,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed syncing image between nodes: %w", err)
 		}
 
-		s.Events.SendLifecycle(projectName, lifecycle.ImageCreated.Event(info.Fingerprint, projectName, op.Requestor(), logger.Ctx{"type": info.Type}))
+		s.Events.SendLifecycle(projectName, lifecycle.ImageCreated.Event(info.Fingerprint, projectName, op.EventLifecycleRequestor(), logger.Ctx{"type": info.Type}))
 
 		return nil
 	}
@@ -2367,7 +2367,7 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 
 		// Sent a lifecycle event if the refresh actually happened.
 		if result {
-			s.Events.SendLifecycle(projectName, lifecycle.ImageRefreshed.Event(fingerprint, projectName, op.Requestor(), nil))
+			s.Events.SendLifecycle(projectName, lifecycle.ImageRefreshed.Event(fingerprint, projectName, op.EventLifecycleRequestor(), nil))
 		}
 	}
 
@@ -2738,7 +2738,7 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 
 			logger.Info("Deleted expired cached image record", logger.Ctx{"fingerprint": fingerprint, "project": dbImage.Project, "expiry": imageExpiry})
 
-			s.Events.SendLifecycle(dbImage.Project, lifecycle.ImageDeleted.Event(fingerprint, dbImage.Project, op.Requestor(), nil))
+			s.Events.SendLifecycle(dbImage.Project, lifecycle.ImageDeleted.Event(fingerprint, dbImage.Project, op.EventLifecycleRequestor(), nil))
 		}
 
 		// Skip deleting the image files and image storage volumes on disk if image is not expired in all
@@ -2960,7 +2960,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		s.Events.SendLifecycle(projectName, lifecycle.ImageDeleted.Event(details.image.Fingerprint, projectName, op.Requestor(), nil))
+		s.Events.SendLifecycle(projectName, lifecycle.ImageDeleted.Event(details.image.Fingerprint, projectName, op.EventLifecycleRequestor(), nil))
 
 		return nil
 	}
@@ -4531,7 +4531,7 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed operation %q: %q", opWaitAPI.Status, opWaitAPI.Err)
 		}
 
-		s.Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(details.imageFingerprintPrefix, projectName, op.Requestor(), logger.Ctx{"target": req.Target}))
+		s.Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(details.imageFingerprintPrefix, projectName, op.EventLifecycleRequestor(), logger.Ctx{"target": req.Target}))
 
 		return nil
 	}
@@ -4979,7 +4979,7 @@ func createTokenResponse(s *state.State, r *http.Request, projectName string, fi
 		return response.InternalError(err)
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.ImageSecretCreated.Event(fingerprint, projectName, op.Requestor(), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.ImageSecretCreated.Event(fingerprint, projectName, op.EventLifecycleRequestor(), nil))
 
 	return operations.OperationResponse(op)
 }
