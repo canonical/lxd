@@ -135,6 +135,15 @@ func (r *Requestor) CallerIsEqual(requestor *Requestor) bool {
 	return requestor.CallerUsername() == r.CallerUsername() && requestor.CallerProtocol() == r.CallerProtocol()
 }
 
+// OperationRequestor returns an [api.OperationRequestor] representing the original caller.
+func (r *Requestor) OperationRequestor() *api.OperationRequestor {
+	return &api.OperationRequestor{
+		Username: r.CallerUsername(),
+		Protocol: r.CallerProtocol(),
+		Address:  r.OriginAddress(),
+	}
+}
+
 // CallerIdentity returns the identity.CacheEntry for the caller. It may be nil (e.g. if the protocol is ProtocolUnix).
 func (r *Requestor) CallerIdentity() *identity.CacheEntry {
 	return r.identity
