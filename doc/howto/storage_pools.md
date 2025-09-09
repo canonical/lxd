@@ -222,6 +222,20 @@ Create a storage pool named `pool4` that uses NVMe/TCP to connect to Pure Storag
 
     lxc storage create pool4 pure pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token> pure.mode=nvme pure.target=<target_address_1>,<target_address_2>
 
+#### Create a HPE Alletra pool
+
+Create a storage pool named `pool1` that uses NVMe/TCP by default:
+
+    lxc storage create pool1 alletra alletra.wsapi=https://<alletra-storage-address> alletra.user.name=<alletra-storage-username> alletra.user.password=<alletra-storage-password>
+
+Create a storage pool named `pool2` that uses a HPE Alletra gateway with a certificate that is not trusted:
+
+    lxc storage create pool2 alletra alletra.wsapi=https://<alletra-storage-address> alletra.wsapi.verify=false alletra.user.name=<alletra-storage-username> alletra.user.password=<alletra-storage-password>
+
+Create a storage pool named `pool3` that uses NVMe/TCP to connect to Pure Storage array via specific target addresses:
+
+    lxc storage create pool3 alletra alletra.wsapi=https://<alletra-storage-address> alletra.user.name=<alletra-storage-username> alletra.user.password=<alletra-storage-password> alletra.mode=nvme alletra.target=<target_address_1>,<target_address_2>
+
 ````
 
 ````{group-tab} UI
@@ -334,6 +348,19 @@ Storage pool my-purestorage-pool pending on member vm02
 Storage pool purestorage-pool pending on member vm03
 :input: lxc storage purestorage-pool pure pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token>
 Storage pool purestorage-pool created
+```
+
+Create a storage pool named `my-alletrastorage-pool` using the {ref}`HPE Alletra driver <storage-alletra>`:
+
+```{terminal}
+:input: lxc storage create my-alletrastorage-pool alletra --target=vm01
+Storage pool my-alletrastorage-pool pending on member vm01
+:input: lxc storage create my-alletrastorage-pool alletra --target=vm02
+Storage pool my-alletrastorage-pool pending on member vm02
+:input: lxc storage create my-alletrastorage-pool alletra --target=vm03
+Storage pool my-alletrastorage-pool pending on member vm03
+:input: lxc storage my-alletrastorage-pool alletra alletra.wsapi=https://<alletra-storage-address> alletra.user.name=<alletra-storage-username> alletra.user.password=<alletra-storage-password>
+Storage pool my-alletrastorage-pool created
 ```
 
 ````
