@@ -3,7 +3,7 @@ package zone
 import (
 	"strings"
 
-	"github.com/canonical/lxd/lxd/cluster/request"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/api"
 )

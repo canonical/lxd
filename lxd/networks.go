@@ -20,7 +20,6 @@ import (
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
-	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/warningtype"
@@ -531,7 +530,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 
 	resp := response.SyncResponseLocation(true, nil, u.String())
 
-	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
 
 	if isClusterNotification(r) {
 		n, err := network.LoadByName(s, projectName, req.Name)
@@ -599,7 +598,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	// network, either way finalize the config in the db and actually create the network on all cluster nodes.
 	if count > 1 || (netInfo != nil && netInfo.Status != api.NetworkStatusCreated) {
 		// Simulate adding pending node network config when the driver doesn't support per-node config.
-		if !netTypeInfo.NodeSpecificConfig && clientType != clusterRequest.ClientTypeJoiner {
+		if !netTypeInfo.NodeSpecificConfig && clientType != request.ClientTypeJoiner {
 			// Create pending entry for each node.
 			err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 				members, err := tx.GetNodes(ctx)
@@ -648,7 +647,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	defer revert.Fail()
 
 	// Populate default config unless joining a cluster.
-	if clientType != clusterRequest.ClientTypeJoiner {
+	if clientType != request.ClientTypeJoiner {
 		err = netType.FillConfig(req.Config)
 		if err != nil {
 			return response.SmartError(err)
@@ -711,7 +710,7 @@ func networkPartiallyCreated(netInfo *api.Network) bool {
 // networksPostCluster checks that there is a pending network in the database and then attempts to setup the
 // network on each node. If all nodes are successfully setup then the network's state is set to created.
 // Accepts an optional existing network record, which will exist when performing subsequent re-create attempts.
-func networksPostCluster(ctx context.Context, s *state.State, projectName string, netInfo *api.Network, req api.NetworksPost, clientType clusterRequest.ClientType, netType network.Type) error {
+func networksPostCluster(ctx context.Context, s *state.State, projectName string, netInfo *api.Network, req api.NetworksPost, clientType request.ClientType, netType network.Type) error {
 	// Check that no node-specific config key has been supplied in request.
 	for key := range req.Config {
 		if slices.Contains(db.NodeSpecificNetworkConfig, key) {
@@ -854,14 +853,14 @@ func networksPostCluster(ctx context.Context, s *state.State, projectName string
 
 // Create the network on the system. The clusterNotification flag is used to indicate whether creation request
 // is coming from a cluster notification (and if so we should not delete the database record on error).
-func doNetworksCreate(ctx context.Context, s *state.State, n network.Network, clientType clusterRequest.ClientType) error {
+func doNetworksCreate(ctx context.Context, s *state.State, n network.Network, clientType request.ClientType) error {
 	revert := revert.New()
 	defer revert.Fail()
 
 	// Don't validate network config during pre-cluster-join phase, as if network has ACLs they won't exist
 	// in the local database yet. Once cluster join is completed, network will be restarted to give chance for
 	// ACL firewall config to be applied.
-	if clientType != clusterRequest.ClientTypeJoiner {
+	if clientType != request.ClientTypeJoiner {
 		// Validate so that when run on a cluster node the full config (including node specific config)
 		// is checked.
 		err := n.Validate(n.Config())
@@ -885,7 +884,7 @@ func doNetworksCreate(ctx context.Context, s *state.State, n network.Network, cl
 
 	// Only start networks when not doing a cluster pre-join phase (this ensures that networks are only started
 	// once the node has fully joined the clustered database and has consistent config with rest of the nodes).
-	if clientType != clusterRequest.ClientTypeJoiner {
+	if clientType != request.ClientTypeJoiner {
 		err = n.Start()
 		if err != nil {
 			return err
@@ -1151,7 +1150,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
-	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
 
 	clusterNotification := isClusterNotification(r)
 	if !clusterNotification {
@@ -1462,7 +1461,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
 
 	response := doNetworkUpdate(n, req, targetNode, clientType, r.Method, s.ServerClustered)
 
@@ -1517,7 +1516,7 @@ func networkPatch(d *Daemon, r *http.Request) response.Response {
 
 // doNetworkUpdate loads the current local network config, merges with the requested network config, validates
 // and applies the changes. Will also notify other cluster nodes of non-node specific config if needed.
-func doNetworkUpdate(n network.Network, req api.NetworkPut, targetNode string, clientType clusterRequest.ClientType, httpMethod string, clustered bool) response.Response {
+func doNetworkUpdate(n network.Network, req api.NetworkPut, targetNode string, clientType request.ClientType, httpMethod string, clustered bool) response.Response {
 	if req.Config == nil {
 		req.Config = map[string]string{}
 	}
@@ -1631,7 +1630,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
-	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
 	leases, err := n.Leases(reqProject.Name, clientType)
 	if err != nil {
 		return response.SmartError(err)

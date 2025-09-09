@@ -7,8 +7,8 @@ import (
 
 	"github.com/miekg/dns"
 
-	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared/api"
 )
 
