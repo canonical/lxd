@@ -41,10 +41,20 @@ type Server struct {
 	listeners map[string]*Listener
 	notify    NotifyFunc
 	location  string
+
+	// logger is a [logger.Logger] that can be used while an event is being processed.
+	// This is necessary because the global [logger.Logger] is configured with a hook that will send logging events to the server.
+	// If the global logger is used while the Server is locked, the Server goes into deadlock. This logger should be used instead.
+	logger logger.Logger
 }
 
 // NewServer returns a new event server.
-func NewServer(debug bool, verbose bool, notify NotifyFunc) *Server {
+func NewServer(debug bool, verbose bool, notify NotifyFunc) (*Server, error) {
+	eventServerLogger, err := logger.New("", "", verbose, debug, nil)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to instantiate event server logger: %w", err)
+	}
+
 	server := &Server{
 		serverCommon: serverCommon{
 			debug:   debug,
@@ -52,9 +62,10 @@ func NewServer(debug bool, verbose bool, notify NotifyFunc) *Server {
 		},
 		listeners: map[string]*Listener{},
 		notify:    notify,
+		logger:    eventServerLogger,
 	}
 
-	return server
+	return server, nil
 }
 
 // SetLocalLocation sets the local location of this member.
