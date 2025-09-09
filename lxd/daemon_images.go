@@ -644,7 +644,7 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 
 	var lifecycleRequestor *api.EventLifecycleRequestor
 	if op != nil {
-		lifecycleRequestor = op.Requestor()
+		lifecycleRequestor = op.EventLifecycleRequestor()
 	} else {
 		lifecycleRequestor = request.CreateRequestor(ctx)
 	}
