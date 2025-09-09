@@ -1937,8 +1937,6 @@ func (d *zfs) getVolumeDiskPathFromDataset(dataset string) (string, error) {
 	// Locate zvol_id.
 	zvolid := "/lib/udev/zvol_id"
 	if !shared.PathExists(zvolid) {
-		var err error
-
 		zvolid, err = exec.LookPath("zvol_id")
 		if err != nil {
 			return "", err
