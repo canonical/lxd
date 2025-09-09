@@ -607,7 +607,9 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if isClusterNotification(r) {
+	clusterNotification := requestor.IsClusterNotification()
+
+	if clusterNotification {
 		// In this case the ProfilePut request payload contains information about the old profile, since
 		// the new one has already been saved in the database.
 		old := api.ProfilePut{}
@@ -654,7 +656,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 
 	err = doProfileUpdate(r.Context(), s, details.effectiveProject, details.profileName, profile, req)
 
-	if err == nil && !isClusterNotification(r) {
+	if err == nil && !clusterNotification {
 		// Notify all other nodes. If a node is down, it will be ignored.
 		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
 		if err != nil {

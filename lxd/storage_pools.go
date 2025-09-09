@@ -330,7 +330,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 
 	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
 
-	if isClusterNotification(r) {
+	if requestor.IsClusterNotification() {
 		// This is an internal request which triggers the actual
 		// creation of the pool across all nodes, after they have been
 		// previously defined.
@@ -1001,7 +1001,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
-	clusterNotification := isClusterNotification(r)
+	clusterNotification := requestor.IsClusterNotification()
 	var notifier cluster.Notifier
 	if !clusterNotification {
 		// Quick checks.
