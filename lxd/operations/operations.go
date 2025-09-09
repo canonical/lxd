@@ -108,7 +108,7 @@ type Operation struct {
 	entityType  entity.Type
 	entitlement auth.Entitlement
 	dbOpType    operationtype.Type
-	requestor   *api.EventLifecycleRequestor
+	requestor   *request.Requestor
 	logger      logger.Logger
 
 	// Those functions are called at various points in the Operation lifecycle
@@ -217,7 +217,7 @@ func (op *Operation) SetEventServer(events *events.Server) {
 
 // SetRequestor sets a requestor for this operation from an http.Request.
 func (op *Operation) SetRequestor(ctx context.Context) {
-	op.requestor = request.CreateRequestor(ctx)
+	op.requestor, _ = request.GetRequestor(ctx)
 }
 
 // CheckRequestor checks that the requestor of a given HTTP request is equal to the requestor of the operation.
@@ -227,8 +227,12 @@ func (op *Operation) CheckRequestor(r *http.Request) error {
 		return errors.New("Operation does not contain a requestor")
 	}
 
-	requestor := request.CreateRequestor(r.Context())
-	if requestor.Username != opRequestor.Username || requestor.Protocol != opRequestor.Protocol {
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return fmt.Errorf("Failed to verify operation requestor: %w", err)
+	}
+
+	if !opRequestor.CallerIsEqual(requestor) {
 		return api.StatusErrorf(http.StatusForbidden, "Operation requestor mismatch")
 	}
 
@@ -241,7 +245,7 @@ func (op *Operation) SetOnDone(f func(*Operation)) {
 }
 
 // Requestor returns the initial requestor for this operation.
-func (op *Operation) Requestor() *api.EventLifecycleRequestor {
+func (op *Operation) Requestor() *request.Requestor {
 	return op.requestor
 }
 
