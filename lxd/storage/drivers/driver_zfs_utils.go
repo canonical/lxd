@@ -288,14 +288,11 @@ func (d *zfs) getDatasetProperties(dataset string, keys ...string) (map[string]s
 	props := make(map[string]string, len(keys))
 
 	for row := range strings.SplitSeq(output, "\n") {
-		prop := strings.Split(row, "\t")
-
-		if len(prop) < 2 {
+		key, val, found := strings.Cut(row, "\t")
+		if !found {
 			continue
 		}
 
-		key := prop[0]
-		val := prop[1]
 		props[key] = val
 	}
 
