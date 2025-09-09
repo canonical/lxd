@@ -1565,6 +1565,11 @@ func (d *alletra) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation
 
 // ListVolumes returns a list of LXD volumes in storage pool.
 func (d *alletra) ListVolumes() ([]Volume, error) {
+	// The reason for having this method to always return an empty array
+	// is that we can't really get this information from a storage array.
+	// Particularly, we need to know the original volume name, but we don't
+	// have it stored on the array side as we use a UUID-based generated names
+	// (see getVolumeName() method).
 	return []Volume{}, nil
 }
 
