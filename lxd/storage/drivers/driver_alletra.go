@@ -285,7 +285,19 @@ func (d *alletra) Unmount() (bool, error) {
 
 // GetResources returns the pool resource usage information.
 func (d *alletra) GetResources() (*api.ResourcesStoragePool, error) {
-	return nil, ErrNotSupported
+	// We have to keep in mind, that CPG is a shared resource, and it can be
+	// that the same CPG is used by many other LXD storage pools or even for
+	// another workloads (unrelated to LXD). So this used/free information
+	// can be inacurate for this reason.
+	spaceReport, err := d.client().GetCPGSpaceReport()
+	if err != nil {
+		return nil, err
+	}
+
+	res := api.ResourcesStoragePool{}
+	res.Space.Used = uint64(spaceReport.OverprovisionedUsedMiB) * 1024 * 1024
+	res.Space.Total = res.Space.Used + uint64(spaceReport.OverProvisionedFreeMiB)*1024*1024
+	return &res, nil
 }
 
 // getNVMeTargetQN discovers the targetQN used for the given addresses.
