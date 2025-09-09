@@ -537,7 +537,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 
 	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
 
-	if isClusterNotification(r) {
+	if requestor.IsClusterNotification() {
 		n, err := network.LoadByName(s, projectName, req.Name)
 		if err != nil {
 			return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
@@ -1160,7 +1160,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 
 	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
 
-	clusterNotification := isClusterNotification(r)
+	clusterNotification := requestor.IsClusterNotification()
 	if !clusterNotification {
 		// Quick checks.
 		inUse, err := n.IsUsed()

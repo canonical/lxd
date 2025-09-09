@@ -335,7 +335,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// On other cluster nodes, we're done.
-	if isClusterNotification(r) {
+	if requestor.IsClusterNotification() {
 		return response.SyncResponse(true, nil)
 	}
 
@@ -937,8 +937,13 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(errors.New("The 'default' project cannot be renamed"))
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// On cluster notification, just update the node config values and we're done.
-	if isClusterNotification(r) {
+	if requestor.IsClusterNotification() {
 		err = projectNodeConfigRename(d, r.Context(), name, req.Name)
 		if err != nil {
 			return response.SmartError(err)
@@ -1109,7 +1114,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// On cluster notification, just clear the node config values and we're done.
-	if isClusterNotification(r) {
+	if requestor.IsClusterNotification() {
 		err = projectNodeConfigDelete(d, s, name)
 		if err != nil {
 			return response.SmartError(err)
