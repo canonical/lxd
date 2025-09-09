@@ -249,6 +249,15 @@ func (op *Operation) Requestor() *request.Requestor {
 	return op.requestor
 }
 
+// EventLifecycleRequestor returns the [api.EventLifecycleRequestor] for the operation.
+func (op *Operation) EventLifecycleRequestor() *api.EventLifecycleRequestor {
+	if op.requestor == nil {
+		return &api.EventLifecycleRequestor{}
+	}
+
+	return op.requestor.EventLifecycleRequestor()
+}
+
 func (op *Operation) done() {
 	if op.onDone != nil {
 		// This can mark the request that spawned this operation as completed for the API metrics.
