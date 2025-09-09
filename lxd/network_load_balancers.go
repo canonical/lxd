@@ -10,7 +10,6 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
-	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network"
@@ -278,7 +277,7 @@ func networkLoadBalancersPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Network driver %q does not support load balancers", n.Type()))
 	}
 
-	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
 
 	listenAddress, err := n.LoadBalancerCreate(req, clientType)
 	if err != nil {
@@ -353,7 +352,7 @@ func networkLoadBalancerDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
 
 	err = n.LoadBalancerDelete(listenAddress, clientType)
 	if err != nil {
@@ -613,7 +612,7 @@ func networkLoadBalancerPut(d *Daemon, r *http.Request) response.Response {
 
 	req.Normalise() // So we handle the request in normalised/canonical form.
 
-	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
 
 	err = n.LoadBalancerUpdate(listenAddress, req, clientType)
 	if err != nil {

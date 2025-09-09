@@ -8,7 +8,6 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
-	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network/zone"
 	"github.com/canonical/lxd/lxd/request"
@@ -500,7 +499,7 @@ func networkZoneRecordPut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
 	err = netzone.UpdateRecord(recordName, req, clientType)
 	if err != nil {
 		return response.SmartError(err)
