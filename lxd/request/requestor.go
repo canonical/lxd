@@ -51,6 +51,13 @@ type Requestor struct {
 	identityType                    identity.Type
 }
 
+// IsClusterNotification returns true if this an API request coming from a
+// cluster node that is notifying us of some user-initiated API request that
+// needs some action to be taken on this node as well.
+func (r *Requestor) IsClusterNotification() bool {
+	return r.ClientType() == ClientTypeNotifier
+}
+
 // IsTrusted returns true if the caller is authenticated and false otherwise.
 func (r *Requestor) IsTrusted() bool {
 	return r.trusted
