@@ -349,11 +349,7 @@ func (d *zfs) needsRecursion(dataset string) bool {
 		return false
 	}
 
-	if len(entries) == 0 {
-		return false
-	}
-
-	return true
+	return len(entries) != 0
 }
 
 func (d *zfs) sendDataset(dataset string, parent string, volSrcArgs *migration.VolumeSourceArgs, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTracker) error {
