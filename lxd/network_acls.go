@@ -13,7 +13,6 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
-	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network/acl"
@@ -589,7 +588,7 @@ func networkACLPut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
 
 	err = netACL.Update(&req, clientType)
 	if err != nil {
@@ -716,7 +715,7 @@ func networkACLLogGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
 	log, err := netACL.GetLog(r.Context(), clientType)
 	if err != nil {
 		return response.SmartError(err)
