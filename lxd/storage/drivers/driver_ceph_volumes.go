@@ -1306,6 +1306,13 @@ func (d *ceph) GetVolumeUsage(vol Volume) (int64, error) {
 // SetVolumeQuota applies a size limit on volume.
 // Does nothing if supplied with an empty/zero size.
 func (d *ceph) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
+	// Block image volumes cannot be resized because they have a readonly snapshot that doesn't get
+	// updated when the volume's size is changed, and this is what instances are created from.
+	// During initial volume fill allowUnsafeResize is enabled because snapshot hasn't been taken yet.
+	if !allowUnsafeResize && vol.volType == VolumeTypeImage {
+		return ErrNotSupported
+	}
+
 	// Convert to bytes.
 	sizeBytes, err := units.ParseByteSizeString(size)
 	if err != nil {
@@ -1334,13 +1341,6 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, o
 	// Do nothing if volume is already specified size (+/- 512 bytes).
 	if oldSizeBytes+512 > sizeBytes && oldSizeBytes-512 < sizeBytes {
 		return nil
-	}
-
-	// Block image volumes cannot be resized because they have a readonly snapshot that doesn't get
-	// updated when the volume's size is changed, and this is what instances are created from.
-	// During initial volume fill allowUnsafeResize is enabled because snapshot hasn't been taken yet.
-	if !allowUnsafeResize && vol.volType == VolumeTypeImage {
-		return ErrNotSupported
 	}
 
 	inUse := vol.MountInUse()
