@@ -943,10 +943,15 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 		return nil, err
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return nil, err
+	}
+
 	if exists {
 		// Do not create a database entry if the request is coming from the internal
 		// cluster communications for image synchronization
-		if !isClusterNotification(r) {
+		if !requestor.IsClusterNotification() {
 			return &info, errors.New("Image with same fingerprint already exists")
 		}
 
@@ -1252,6 +1257,13 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	isClusterNotification := requestor.IsClusterNotification()
+
 	// Begin background operation
 	run := func(op *operations.Operation) error {
 		var err error
@@ -1301,7 +1313,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		if isClusterNotification(r) {
+		if isClusterNotification {
 			// If dealing with in-cluster image copy, don't touch the database.
 			return nil
 		}
@@ -2827,6 +2839,13 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	isClusterNotification := requestor.IsClusterNotification()
+
 	do := func(op *operations.Operation) error {
 		// Lock this operation to ensure that concurrent image operations don't conflict.
 		// Other operations will wait for this one to finish.
@@ -2854,7 +2873,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 			return api.StatusErrorf(http.StatusNotFound, "Image not found")
 		}
 
-		if !isClusterNotification(r) {
+		if !isClusterNotification {
 			var referenced bool
 
 			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -2936,7 +2955,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Only perform the deletion of remote volumes on the server handling the request.
-			if !isClusterNotification(r) || !pool.Driver().Info().Remote {
+			if !isClusterNotification || !pool.Driver().Info().Remote {
 				err = pool.DeleteImage(details.image.Fingerprint, op)
 				if err != nil {
 					return fmt.Errorf("Error deleting image %q from storage pool %q: %w", details.image.Fingerprint, pool.Name(), err)
@@ -2951,7 +2970,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Remove the database entry.
-		if !isClusterNotification(r) {
+		if !isClusterNotification {
 			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				return tx.DeleteImage(ctx, details.imageID)
 			})

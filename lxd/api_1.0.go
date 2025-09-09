@@ -502,9 +502,14 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// If this is a notification from a cluster node, just run the triggers
 	// for reacting to the values that changed.
-	if isClusterNotification(r) {
+	if requestor.IsClusterNotification() {
 		logger.Debug("Handling config changed notification")
 		changed := make(map[string]string)
 		for key, value := range req.Config {

@@ -1002,7 +1002,13 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	targetProjectName := request.ProjectParam(r)
-	clusterNotification := isClusterNotification(r)
+
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	clusterNotification := requestor.IsClusterNotification()
 
 	logger.Debug("Responding to instance create")
 
@@ -1035,7 +1041,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 	// Parse the request
 	req := api.InstancesPost{}
-	err := json.NewDecoder(r.Body).Decode(&req)
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}

@@ -113,8 +113,15 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 
 	l := logger.AddContext(logger.Ctx{"remote": r.RemoteAddr})
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return err
+	}
+
+	isClusterNotification := requestor.IsClusterNotification()
+
 	var excludeLocations []string
-	if isClusterNotification(r) {
+	if isClusterNotification {
 		// Get the current local serverName and store it for the events.
 		// We do that now to avoid issues with changes to the name and to limit
 		// the number of DB access to just one per connection.
@@ -150,7 +157,7 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 
 	var recvFunc events.EventHandler
 	var excludeSources []events.EventSource
-	if isClusterNotification(r) {
+	if isClusterNotification {
 		// If client is another cluster member, it will already be pulling events from other cluster
 		// members so no need to also deliver forwarded events that this member receives.
 		excludeSources = append(excludeSources, events.EventSourcePull)

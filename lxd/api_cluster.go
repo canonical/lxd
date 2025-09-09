@@ -2317,8 +2317,13 @@ func updateClusterCertificate(ctx context.Context, s *state.State, gateway *clus
 
 	newClusterCertFilename := shared.VarPath(acme.ClusterCertFilename)
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return err
+	}
+
 	// First node forwards request to all other cluster nodes
-	if r == nil || !isClusterNotification(r) {
+	if r == nil || !requestor.IsClusterNotification() {
 		var err error
 
 		revert.Add(func() {
@@ -2408,7 +2413,7 @@ func updateClusterCertificate(ctx context.Context, s *state.State, gateway *clus
 		}
 	}
 
-	err := util.WriteCert(s.OS.VarDir, "cluster", []byte(req.ClusterCertificate), []byte(req.ClusterCertificateKey), nil)
+	err = util.WriteCert(s.OS.VarDir, "cluster", []byte(req.ClusterCertificate), []byte(req.ClusterCertificateKey), nil)
 	if err != nil {
 		return err
 	}

@@ -184,8 +184,13 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 			return coalesceErrors(local, failures)
 		}
 
+		requestor, err := request.GetRequestor(r.Context())
+		if err != nil {
+			return err
+		}
+
 		// Only return the local data if asked by cluster member.
-		if isClusterNotification(r) {
+		if requestor.IsClusterNotification() {
 			return localAction(false)
 		}
 
