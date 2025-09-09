@@ -154,6 +154,11 @@ type hpeRespMembers[T any] struct {
 	Members []T `json:"members"`
 }
 
+type hpeSpaceReport struct {
+	OverprovisionedUsedMiB int64 `json:"overprovisionedUsedMiB"`
+	OverProvisionedFreeMiB int64 `json:"overProvisionedFreeMiB"`
+}
+
 // hpeError represents an error response from the HPE Storage API.
 type hpeError struct {
 	Code           int    `json:"code"`
@@ -977,4 +982,22 @@ func (p *AlletraClient) CreateVolumePhysicalCopy(ctx context.Context, poolName s
 	default:
 		return fmt.Errorf(`Failed to create a physical copy "%s/%s" to "%s/%s": unknown task state. Alletra API change?`, poolName, volName, copyName, volName)
 	}
+}
+
+// GetCPGSpaceReport retrieves a space report about CPG.
+func (p *AlletraClient) GetCPGSpaceReport() (*hpeSpaceReport, error) {
+	var resp hpeSpaceReport
+
+	req := map[string]any{
+		"cpg": p.cpg,
+	}
+
+	url := api.NewURL().Path("api", "v1", "spacereporter")
+
+	err := p.requestAuthenticated(http.MethodPost, url.URL, req, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to retrieve a space report for a CPG %q: %w", p.cpg, err)
+	}
+
+	return &resp, nil
 }
