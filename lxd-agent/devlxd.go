@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"path/filepath"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -419,9 +418,10 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 
 // Create a new net.Listener bound to the unix socket of the devLXD endpoint.
 func createDevLXDListener(dir string) (net.Listener, error) {
-	path := filepath.Join(dir, "lxd", "sock")
+	parentDir := dir + "/lxd"
+	path := parentDir + "/sock"
 
-	err := os.MkdirAll(filepath.Dir(path), 0755)
+	err := os.MkdirAll(parentDir, 0755)
 	if err != nil {
 		return nil, err
 	}
