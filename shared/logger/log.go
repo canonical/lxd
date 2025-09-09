@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"fmt"
 	"io"
 	"os"
 
@@ -18,8 +19,19 @@ func init() {
 	Log = newWrapper(logger)
 }
 
-// InitLogger intializes a full logging instance.
+// InitLogger initializes Log, the global logger.
 func InitLogger(filepath string, syslogName string, verbose bool, debug bool, hook logrus.Hook) error {
+	logger, err := New(filepath, syslogName, verbose, debug, hook)
+	if err != nil {
+		return fmt.Errorf("Failed to initialize global logger: %w", err)
+	}
+
+	Log = logger
+	return nil
+}
+
+// New returns a new logging instance with the given settings and hooks.
+func New(filepath string, syslogName string, verbose bool, debug bool, hook logrus.Hook) (Logger, error) {
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
 	logger.SetOutput(io.Discard)
@@ -41,7 +53,7 @@ func InitLogger(filepath string, syslogName string, verbose bool, debug bool, ho
 	if filepath != "" {
 		f, err := os.OpenFile(filepath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		writers = append(writers, f)
@@ -56,7 +68,7 @@ func InitLogger(filepath string, syslogName string, verbose bool, debug bool, ho
 	if syslogName != "" {
 		err := setupSyslog(logger, syslogName)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -65,8 +77,5 @@ func InitLogger(filepath string, syslogName string, verbose bool, debug bool, ho
 		logger.AddHook(hook)
 	}
 
-	// Set the logger.
-	Log = newWrapper(logger)
-
-	return nil
+	return newWrapper(logger), nil
 }
