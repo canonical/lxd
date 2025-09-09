@@ -446,13 +446,6 @@ func setCORSHeaders(rw http.ResponseWriter, req *http.Request, config *clusterCo
 	}
 }
 
-// Return true if this an API request coming from a cluster node that is
-// notifying us of some user-initiated API request that needs some action to be
-// taken on this node as well.
-func isClusterNotification(r *http.Request) bool {
-	return r.Header.Get("User-Agent") == request.UserAgentNotifier
-}
-
 type uiHTTPDir struct {
 	http.FileSystem
 }
