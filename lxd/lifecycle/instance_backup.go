@@ -24,7 +24,7 @@ func (a InstanceBackupAction) Event(fullBackupName string, inst instance, ctx ma
 
 	var requestor *api.EventLifecycleRequestor
 	if inst.Operation() != nil {
-		requestor = inst.Operation().Requestor()
+		requestor = inst.Operation().EventLifecycleRequestor()
 	}
 
 	return api.EventLifecycle{

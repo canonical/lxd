@@ -24,7 +24,7 @@ func (a InstanceSnapshotAction) Event(inst instance, ctx map[string]any) api.Eve
 
 	var requestor *api.EventLifecycleRequestor
 	if inst.Operation() != nil {
-		requestor = inst.Operation().Requestor()
+		requestor = inst.Operation().EventLifecycleRequestor()
 	}
 
 	return api.EventLifecycle{

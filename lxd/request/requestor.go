@@ -113,6 +113,15 @@ func (r *Requestor) EventLifecycleRequestor() *api.EventLifecycleRequestor {
 	}
 }
 
+// CallerIsEqual returns true if the given Requestor is the same caller as this Requestor.
+func (r *Requestor) CallerIsEqual(requestor *Requestor) bool {
+	if requestor == nil {
+		return false
+	}
+
+	return requestor.CallerUsername() == r.CallerUsername() && requestor.CallerProtocol() == r.CallerProtocol()
+}
+
 // CallerIdentity returns the identity.CacheEntry for the caller. It may be nil (e.g. if the protocol is ProtocolUnix).
 func (r *Requestor) CallerIdentity() *identity.CacheEntry {
 	return r.identity
