@@ -429,7 +429,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 			return fmt.Errorf("Create volume backup: %w", err)
 		}
 
-		s.Events.SendLifecycle(effectiveProjectName, lifecycle.StorageVolumeBackupCreated.Event(details.pool.Name(), details.volumeTypeName, args.Name, effectiveProjectName, op.Requestor(), logger.Ctx{"type": details.volumeTypeName}))
+		s.Events.SendLifecycle(effectiveProjectName, lifecycle.StorageVolumeBackupCreated.Event(details.pool.Name(), details.volumeTypeName, args.Name, effectiveProjectName, op.EventLifecycleRequestor(), logger.Ctx{"type": details.volumeTypeName}))
 
 		return nil
 	}
@@ -636,7 +636,7 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 			return err
 		}
 
-		s.Events.SendLifecycle(effectiveProjectName, lifecycle.StorageVolumeBackupRenamed.Event(details.pool.Name(), details.volumeTypeName, newName, effectiveProjectName, op.Requestor(), logger.Ctx{"old_name": oldName}))
+		s.Events.SendLifecycle(effectiveProjectName, lifecycle.StorageVolumeBackupRenamed.Event(details.pool.Name(), details.volumeTypeName, newName, effectiveProjectName, op.EventLifecycleRequestor(), logger.Ctx{"old_name": oldName}))
 
 		return nil
 	}
@@ -733,7 +733,7 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 			return err
 		}
 
-		s.Events.SendLifecycle(effectiveProjectName, lifecycle.StorageVolumeBackupDeleted.Event(details.pool.Name(), details.volumeTypeName, fullName, effectiveProjectName, op.Requestor(), nil))
+		s.Events.SendLifecycle(effectiveProjectName, lifecycle.StorageVolumeBackupDeleted.Event(details.pool.Name(), details.volumeTypeName, fullName, effectiveProjectName, op.EventLifecycleRequestor(), nil))
 
 		return nil
 	}

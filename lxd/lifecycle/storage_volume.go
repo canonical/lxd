@@ -30,7 +30,7 @@ func (a StorageVolumeAction) Event(v volume, volumeType string, projectName stri
 
 	var requestor *api.EventLifecycleRequestor
 	if op != nil {
-		requestor = op.Requestor()
+		requestor = op.EventLifecycleRequestor()
 	}
 
 	return api.EventLifecycle{
