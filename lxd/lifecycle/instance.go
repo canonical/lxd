@@ -45,7 +45,7 @@ func (a InstanceAction) Event(inst instance, ctx map[string]any) api.EventLifecy
 
 	var requestor *api.EventLifecycleRequestor
 	if inst.Operation() != nil {
-		requestor = inst.Operation().Requestor()
+		requestor = inst.Operation().EventLifecycleRequestor()
 	}
 
 	return api.EventLifecycle{
