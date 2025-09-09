@@ -136,34 +136,9 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 
 	d := newDaemon(c.global.flagLogDebug, c.global.flagLogVerbose)
 
-	// Start the server.
-	err = startHTTPServer(d)
+	err = d.init()
 	if err != nil {
-		return fmt.Errorf("Failed to start HTTP server: %w", err)
-	}
-
-	// Check whether we should start the devlxd server in the early setup. This way, /dev/lxd/sock
-	// will be available for any systemd services starting after the lxd-agent.
-	if shared.PathExists("agent.conf") {
-		f, err := os.Open("agent.conf")
-		if err != nil {
-			return err
-		}
-
-		err = setConnectionInfo(d, f)
-		if err != nil {
-			_ = f.Close()
-			return err
-		}
-
-		_ = f.Close()
-
-		if d.devlxdEnabled {
-			err = startDevlxdServer(d)
-			if err != nil {
-				return err
-			}
-		}
+		return fmt.Errorf("Failed to initialise daemon: %w", err)
 	}
 
 	// Create a cancellation context.
