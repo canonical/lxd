@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/canonical/lxd/lxd/events"
-	"github.com/canonical/lxd/shared"
 )
 
 // A Daemon can respond to requests from a shared client.
@@ -58,25 +57,27 @@ func (d *Daemon) init() error {
 
 	// Check whether we should start the devlxd server in the early setup. This way, /dev/lxd/sock
 	// will be available for any systemd services starting after the lxd-agent.
-	if shared.PathExists("agent.conf") {
-		f, err := os.Open("agent.conf")
-		if err != nil {
-			return err
+	f, err := os.Open("agent.conf")
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
 		}
 
-		err = setConnectionInfo(d, f)
-		if err != nil {
-			_ = f.Close()
-			return err
-		}
+		return err
+	}
 
+	err = setConnectionInfo(d, f)
+	if err != nil {
 		_ = f.Close()
+		return err
+	}
 
-		if d.devlxdEnabled {
-			err = startDevlxdServer(d)
-			if err != nil {
-				return err
-			}
+	_ = f.Close()
+
+	if d.devlxdEnabled {
+		err = startDevlxdServer(d)
+		if err != nil {
+			return err
 		}
 	}
 
