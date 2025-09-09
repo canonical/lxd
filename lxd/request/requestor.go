@@ -46,6 +46,7 @@ type Requestor struct {
 	forwardedUsername               string
 	forwardedProtocol               string
 	forwardedIdentityProviderGroups []string
+	clientType                      ClientType
 	identity                        *identity.CacheEntry
 	identityType                    identity.Type
 }
@@ -102,6 +103,11 @@ func (r *Requestor) CallerIdentityProviderGroups() []string {
 	}
 
 	return r.identityProviderGroups
+}
+
+// ClientType returns the client type, which is derived from the "User-Agent" request header.
+func (r *Requestor) ClientType() ClientType {
+	return r.clientType
 }
 
 // EventLifecycleRequestor returns an api.EventLifecycleRequestor representing the original caller.
@@ -269,6 +275,7 @@ func SetRequestor(req *http.Request, identityCache *identity.Cache, args Request
 		username:               args.Username,
 		protocol:               args.Protocol,
 		identityProviderGroups: args.IdentityProviderGroups,
+		clientType:             userAgentClientType(req.Header.Get("User-Agent")),
 	}
 
 	err := r.setForwardingDetails(req)
@@ -284,6 +291,11 @@ func SetRequestor(req *http.Request, identityCache *identity.Cache, args Request
 		// If the caller is not trusted, there should not be a username.
 		if callerUsername != "" {
 			return errors.New("Caller is not trusted but a username was set")
+		}
+
+		// Cluster notification with wrong certificate.
+		if r.clientType == ClientTypeNotifier {
+			return errors.New("Cluster notification isn't using trusted server certificate")
 		}
 
 		// The only allowed protocols for the untrusted case are ProtocolDevLXD, or empty.
@@ -311,6 +323,20 @@ func SetRequestor(req *http.Request, identityCache *identity.Cache, args Request
 	// There must be a username.
 	if callerUsername == "" {
 		return errors.New("Caller is trusted but no username was set")
+	}
+
+	// If a trusted request is from a cluster member, the protocol must be ProtocolCluster.
+	// If "core.trust_ca_certificates" is false, the peer certificate is additionally verified via mTLS and
+	// RequestorArgs.Protocol is set to [api.AuthenticationMethodTLS].
+	// XXX: We allow ProtocolUnix because initDataNodeApply() in lxd/init.go uses a local client to join a cluster. initDataNodeApply() is used by 'lxd init' and PUT /1.0/cluster.
+	allowedClusterProtocols := []string{ProtocolCluster, ProtocolUnix}
+	_, err = r.ClusterMemberTLSCertificateFingerprint()
+	if err == nil {
+		allowedClusterProtocols = append(allowedClusterProtocols, api.AuthenticationMethodTLS)
+	}
+
+	if r.clientType != ClientTypeNormal && !slices.Contains(allowedClusterProtocols, callerProtocol) {
+		return errors.New("Unsupported protocol set for trusted cluster request")
 	}
 
 	err = r.setIdentity(identityCache)
