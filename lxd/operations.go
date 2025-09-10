@@ -493,7 +493,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanViewOperations, entity.TypeProject)
+	canViewProjectOperations, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanViewOperations, entity.TypeProject)
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed to get operation permission checker: %w", err))
 	}
@@ -510,7 +510,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
-			if !userHasPermission(entity.ProjectURL(v.Project())) {
+			if !canViewProjectOperations(entity.ProjectURL(v.Project())) {
 				continue
 			}
 
@@ -538,7 +538,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
-			if !userHasPermission(entity.ProjectURL(v.Project())) {
+			if !canViewProjectOperations(entity.ProjectURL(v.Project())) {
 				continue
 			}
 
