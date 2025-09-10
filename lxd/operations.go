@@ -488,6 +488,11 @@ func operationCancel(ctx context.Context, s *state.State, projectName string, op
 func operationsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	projectName, allProjects, err := request.ProjectParams(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -511,7 +516,8 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
-			if !canViewProjectOperations(entity.ProjectURL(operationProject)) {
+			// Omit operations if the caller does not have `can_view_operations` on the operations' project and the caller is not the operation owner.
+			if !canViewProjectOperations(entity.ProjectURL(operationProject)) && !requestor.CallerIsEqual(v.Requestor()) {
 				continue
 			}
 
@@ -540,7 +546,8 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
-			if !canViewProjectOperations(entity.ProjectURL(operationProject)) {
+			// Omit operations if the caller does not have `can_view_operations` on the operations' project and the caller is not the operation owner.
+			if !canViewProjectOperations(entity.ProjectURL(operationProject)) && !requestor.CallerIsEqual(v.Requestor()) {
 				continue
 			}
 
@@ -562,11 +569,6 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	recursion := util.IsRecursionRequest(r)
-
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	// Check if called from a cluster node.
 	if requestor.IsClusterNotification() {
