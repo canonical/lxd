@@ -16,7 +16,6 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/request"
-	lxdRequest "github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/lxd/storage/s3"
@@ -223,7 +222,7 @@ func restServer(d *Daemon) *http.Server {
 
 	return &http.Server{
 		Handler:     &lxdHTTPServer{r: mux, d: d},
-		ConnContext: lxdRequest.SaveConnectionInContext,
+		ConnContext: request.SaveConnectionInContext,
 	}
 }
 
