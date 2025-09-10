@@ -984,8 +984,30 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 	// First check if the query is for a local operation from this node
 	op, err := operations.OperationGetInternal(id)
 	if err == nil {
-		if secret != "" && op.Metadata()["secret"] != secret {
-			return response.Forbidden(nil)
+		if secret != "" {
+			// If a secret is provided and it matches the operation, allow access.
+			if op.Metadata()["secret"] != secret {
+				return response.Forbidden(nil)
+			}
+		} else {
+			// Allow view access if the caller is the requestor.
+			if !requestor.CallerIsEqual(op.Requestor()) {
+				// Otherwise, perform access check based on whether the operation is project specific.
+				operationProject := op.Project()
+				var entityURL *api.URL
+				if operationProject == "" {
+					// If not project specific, this is a server level operation.
+					entityURL = entity.ServerURL()
+				} else {
+					// If project specific, check `can_view_operations` on the operations' project.
+					entityURL = entity.ProjectURL(operationProject)
+				}
+
+				err = s.Authorizer.CheckPermission(r.Context(), entityURL, auth.EntitlementCanViewOperations)
+				if err != nil {
+					return response.SmartError(err)
+				}
+			}
 		}
 
 		var ctx context.Context
