@@ -7,9 +7,32 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 )
+
+// devLXDStoragePoolVolumeTypeAccessHandler returns an access handler which checks the given entitlement
+// on a storage volume and ensures cross-project access is not allowed.
+func devLXDStoragePoolVolumeTypeAccessHandler(entityType entity.Type, entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
+	return func(d *Daemon, r *http.Request) response.Response {
+		s := d.State()
+
+		// Disallow cross-project access and ensure project query parameter is set.
+		err := enforceDevLXDProject(r)
+		if err != nil {
+			return response.DevLXDErrorResponse(err)
+		}
+
+		err = checkStoragePoolVolumeTypeAccess(s, r, entityType, entitlement)
+		if err != nil {
+			return response.DevLXDErrorResponse(err)
+		}
+
+		return response.EmptySyncResponse
+	}
+}
 
 var devLXDStoragePoolEndpoint = APIEndpoint{
 	Path: "storage-pools/{poolName}",
