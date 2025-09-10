@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"sync"
 
@@ -59,7 +61,7 @@ func (d *Daemon) init() error {
 	// will be available for any systemd services starting after the lxd-agent.
 	f, err := os.Open("agent.conf")
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			return nil
 		}
 
