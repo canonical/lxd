@@ -86,7 +86,7 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 		}
 	}
 
-	canViewPrivilegedEvents := s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanViewPrivilegedEvents) == nil
+	canViewPrivilegedEvents := s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanViewEvents) == nil
 
 	types := strings.Split(r.FormValue("type"), ",")
 	if len(types) == 1 && types[0] == "" {
