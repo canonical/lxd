@@ -7913,7 +7913,7 @@
 				},
 				{
 					"name": "can_view_events",
-					"description": "Grants permission to view events relating to the project."
+					"description": "Grants permission to view life cycle events relating to the project."
 				},
 				{
 					"name": "can_view_metrics",
@@ -8033,8 +8033,12 @@
 					"description": "If a project is configured with `restricted.cluster.target`, clients with this permission can override the restriction."
 				},
 				{
-					"name": "can_view_privileged_events",
-					"description": "Grants permission to view privileged event types, such as logging events."
+					"name": "can_view_events",
+					"description": "Grants permission to view `logging` events, `ovn` events, and all `lifecycle` events that are not specific to a project."
+				},
+				{
+					"name": "can_view_operations",
+					"description": "Grants permission to view operations that are not specific to a project."
 				},
 				{
 					"name": "can_view_resources",
