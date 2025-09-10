@@ -519,11 +519,6 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.
 		}, nil
 	}
 
-	// Cluster notification with wrong certificate.
-	if isClusterNotification(r) {
-		return nil, errors.New("Cluster notification isn't using trusted server certificate")
-	}
-
 	// Bad query, no TLS found.
 	if r.TLS == nil {
 		return nil, errors.New("Bad/missing TLS on network query")
