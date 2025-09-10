@@ -158,11 +158,35 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	var body *api.Operation
 
 	// First check if the query is for a local operation from this node
 	op, err := operations.OperationGetInternal(id)
 	if err == nil {
+		// Allow view access if the caller is the requestor.
+		if !requestor.CallerIsEqual(op.Requestor()) {
+			// Otherwise, perform access check based on whether the operation is project specific.
+			operationProject := op.Project()
+			var entityURL *api.URL
+			if operationProject == "" {
+				// If not project specific, this is a server level operation.
+				entityURL = entity.ServerURL()
+			} else {
+				// If project specific, check `can_view_operations` on the operations' project.
+				entityURL = entity.ProjectURL(operationProject)
+			}
+
+			err = s.Authorizer.CheckPermission(r.Context(), entityURL, auth.EntitlementCanViewOperations)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
+
 		_, body, err = op.Render()
 		if err != nil {
 			return response.SmartError(err)
