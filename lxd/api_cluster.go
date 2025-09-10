@@ -2447,19 +2447,6 @@ func updateClusterCertificate(ctx context.Context, s *state.State, gateway *clus
 func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	req := internalClusterPostAcceptRequest{}
-
-	// Parse the request
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
-	// Quick checks.
-	if req.Name == "" {
-		return response.BadRequest(errors.New("No name provided"))
-	}
-
 	// Redirect all requests to the leader, which is the one with
 	// knowledge of which nodes are part of the raft cluster.
 	leaderInfo, err := s.LeaderInfo()
@@ -2481,6 +2468,19 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 		}
 
 		return response.SyncResponseRedirect(url.String())
+	}
+
+	req := internalClusterPostAcceptRequest{}
+
+	// Parse the request
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	// Quick checks.
+	if req.Name == "" {
+		return response.BadRequest(errors.New("No name provided"))
 	}
 
 	// Get lock now we are on leader.
