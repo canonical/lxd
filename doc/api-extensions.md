@@ -2709,3 +2709,7 @@ The following pool-level configuration keys have been added:
 1. {config:option}`storage-alletra-pool-conf:alletra.cpg`
 1. {config:option}`storage-alletra-pool-conf:alletra.target`
 1. {config:option}`storage-alletra-pool-conf:alletra.mode`
+
+## `resources_disk_used_by`
+
+Adds the field `used_by` to potential storage disk returned by the resources end point to indicate its use by any virtual parent device, e.g. bcache.
