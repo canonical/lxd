@@ -53,6 +53,15 @@ func sysfsExists(path string) bool {
 	return err == nil
 }
 
+func sysfsIsDir(path string) bool {
+	f, err := os.Lstat(path)
+	if err != nil {
+		return false
+	}
+
+	return f.IsDir()
+}
+
 func sysfsNumaNode(path string) (uint64, error) {
 	// List all the directory entries
 	entries, err := os.ReadDir(path)
