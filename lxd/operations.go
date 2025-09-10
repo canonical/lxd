@@ -506,11 +506,12 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		body := shared.Jmap{}
 
 		for _, v := range localOps {
-			if !allProjects && v.Project() != "" && v.Project() != projectName {
+			operationProject := v.Project()
+			if !allProjects && operationProject != "" && operationProject != projectName {
 				continue
 			}
 
-			if !canViewProjectOperations(entity.ProjectURL(v.Project())) {
+			if !canViewProjectOperations(entity.ProjectURL(operationProject)) {
 				continue
 			}
 
@@ -534,11 +535,12 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		body := shared.Jmap{}
 
 		for _, v := range localOps {
-			if !allProjects && v.Project() != "" && v.Project() != projectName {
+			operationProject := v.Project()
+			if !allProjects && operationProject != "" && operationProject != projectName {
 				continue
 			}
 
-			if !canViewProjectOperations(entity.ProjectURL(v.Project())) {
+			if !canViewProjectOperations(entity.ProjectURL(operationProject)) {
 				continue
 			}
 
