@@ -34,12 +34,7 @@ func (r *CSVReport) Load() error {
 		return err
 	}
 
-	defer func() {
-		err := file.Close()
-		if err != nil {
-			logf("Error closing file %s: %v", r.Filename, err)
-		}
-	}()
+	defer func() { _ = file.Close() }()
 
 	reader := csv.NewReader(file)
 	for line := 1; err != io.EOF; line++ {
@@ -66,12 +61,7 @@ func (r *CSVReport) Write() error {
 		return err
 	}
 
-	defer func() {
-		err := file.Close()
-		if err != nil {
-			logf("Error closing file %s: %v", r.Filename, err)
-		}
-	}()
+	defer func() { _ = file.Close() }()
 
 	writer := csv.NewWriter(file)
 	err = writer.WriteAll(r.records)
