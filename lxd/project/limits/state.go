@@ -38,10 +38,10 @@ func GetCurrentAllocations(ctx context.Context, globalConfig map[string]any, tx 
 		}
 	}
 
-	allAggregateLimits := append(allAggregateLimits, poolLimits...)
+	allInstanceAggregateLimits := append(allInstanceAggregateLimits, poolLimits...)
 
 	// Get the instance aggregated values.
-	raw, err := getAggregateLimits(info, allAggregateLimits)
+	raw, err := getAggregateLimits(info, allInstanceAggregateLimits)
 	if err != nil {
 		return nil, err
 	}
