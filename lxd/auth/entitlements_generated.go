@@ -97,8 +97,11 @@ const (
 	// EntitlementCanOverrideClusterTargetRestriction is the "can_override_cluster_target_restriction" entitlement. It applies to the following entities: entity.TypeServer.
 	EntitlementCanOverrideClusterTargetRestriction Entitlement = "can_override_cluster_target_restriction"
 
-	// EntitlementCanViewPrivilegedEvents is the "can_view_privileged_events" entitlement. It applies to the following entities: entity.TypeServer.
-	EntitlementCanViewPrivilegedEvents Entitlement = "can_view_privileged_events"
+	// EntitlementCanViewEvents is the "can_view_events" entitlement. It applies to the following entities: entity.TypeProject, entity.TypeServer.
+	EntitlementCanViewEvents Entitlement = "can_view_events"
+
+	// EntitlementCanViewOperations is the "can_view_operations" entitlement. It applies to the following entities: entity.TypeProject, entity.TypeServer.
+	EntitlementCanViewOperations Entitlement = "can_view_operations"
 
 	// EntitlementCanViewResources is the "can_view_resources" entitlement. It applies to the following entities: entity.TypeServer.
 	EntitlementCanViewResources Entitlement = "can_view_resources"
@@ -252,12 +255,6 @@ const (
 
 	// EntitlementCanDeleteStorageBuckets is the "can_delete_storage_buckets" entitlement. It applies to the following entities: entity.TypeProject.
 	EntitlementCanDeleteStorageBuckets Entitlement = "can_delete_storage_buckets"
-
-	// EntitlementCanViewOperations is the "can_view_operations" entitlement. It applies to the following entities: entity.TypeProject.
-	EntitlementCanViewOperations Entitlement = "can_view_operations"
-
-	// EntitlementCanViewEvents is the "can_view_events" entitlement. It applies to the following entities: entity.TypeProject.
-	EntitlementCanViewEvents Entitlement = "can_view_events"
 
 	// EntitlementUser is the "user" entitlement. It applies to the following entities: entity.TypeInstance.
 	EntitlementUser Entitlement = "user"
@@ -496,7 +493,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanDeleteStorageBuckets,
 		// Grants permission to view operations relating to the project.
 		EntitlementCanViewOperations,
-		// Grants permission to view events relating to the project.
+		// Grants permission to view life cycle events relating to the project.
 		EntitlementCanViewEvents,
 		// Grants permission to view project level metrics.
 		EntitlementCanViewMetrics,
@@ -556,8 +553,10 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanDeleteProjects,
 		// If a project is configured with `restricted.cluster.target`, clients with this permission can override the restriction.
 		EntitlementCanOverrideClusterTargetRestriction,
-		// Grants permission to view privileged event types, such as logging events.
-		EntitlementCanViewPrivilegedEvents,
+		// Grants permission to view `logging` events, `ovn` events, and all `lifecycle` events that are not specific to a project.
+		EntitlementCanViewEvents,
+		// Grants permission to view operations that are not specific to a project.
+		EntitlementCanViewOperations,
 		// Grants permission to view server and storage pool resource usage information.
 		EntitlementCanViewResources,
 		// Grants permission to view all server and project level metrics.
