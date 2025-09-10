@@ -277,9 +277,12 @@ func networkLoadBalancersPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Network driver %q does not support load balancers", n.Type()))
 	}
 
-	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
-	listenAddress, err := n.LoadBalancerCreate(req, clientType)
+	listenAddress, err := n.LoadBalancerCreate(req, requestor.ClientType())
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed creating load balancer: %w", err))
 	}
@@ -352,9 +355,12 @@ func networkLoadBalancerDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
-	err = n.LoadBalancerDelete(listenAddress, clientType)
+	err = n.LoadBalancerDelete(listenAddress, requestor.ClientType())
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed deleting load balancer: %w", err))
 	}
@@ -612,9 +618,12 @@ func networkLoadBalancerPut(d *Daemon, r *http.Request) response.Response {
 
 	req.Normalise() // So we handle the request in normalised/canonical form.
 
-	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
-	err = n.LoadBalancerUpdate(listenAddress, req, clientType)
+	err = n.LoadBalancerUpdate(listenAddress, req, requestor.ClientType())
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed updating load balancer: %w", err))
 	}

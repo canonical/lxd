@@ -535,7 +535,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 
 	resp := response.SyncResponseLocation(true, nil, u.String())
 
-	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
+	clientType := requestor.ClientType()
 
 	if requestor.IsClusterNotification() {
 		n, err := network.LoadByName(s, projectName, req.Name)
@@ -1158,8 +1158,6 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
-
 	clusterNotification := requestor.IsClusterNotification()
 	if !clusterNotification {
 		// Quick checks.
@@ -1174,7 +1172,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if n.LocalStatus() != api.NetworkStatusPending {
-		err = n.Delete(clientType)
+		err = n.Delete(requestor.ClientType())
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -1473,9 +1471,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
-
-	response := doNetworkUpdate(n, req, targetNode, clientType, r.Method, s.ServerClustered)
+	response := doNetworkUpdate(n, req, targetNode, requestor.ClientType(), r.Method, s.ServerClustered)
 
 	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkUpdated.Event(n, requestor.EventLifecycleRequestor(), nil))
 
@@ -1641,8 +1637,12 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
-	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
-	leases, err := n.Leases(reqProject.Name, clientType)
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	leases, err := n.Leases(reqProject.Name, requestor.ClientType())
 	if err != nil {
 		return response.SmartError(err)
 	}

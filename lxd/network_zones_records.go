@@ -499,8 +499,12 @@ func networkZoneRecordPut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
-	err = netzone.UpdateRecord(recordName, req, clientType)
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = netzone.UpdateRecord(recordName, req, requestor.ClientType())
 	if err != nil {
 		return response.SmartError(err)
 	}
