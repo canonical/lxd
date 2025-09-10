@@ -88,27 +88,29 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 
 	canViewPrivilegedEvents := s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanViewEvents) == nil
 
+	// User requested types
 	types := strings.Split(r.FormValue("type"), ",")
 	if len(types) == 1 && types[0] == "" {
+		// If no types were requested, return all event types the caller has permission to view.
 		types = []string{}
 		for _, entry := range eventTypes {
-			if !canViewPrivilegedEvents && slices.Contains(privilegedEventTypes, entry) {
+			if !canViewServerEvents && slices.Contains(privilegedEventTypes, entry) {
 				continue
 			}
 
 			types = append(types, entry)
 		}
-	}
+	} else {
+		// Otherwise, validate the provided types.
+		for _, entry := range types {
+			if !slices.Contains(eventTypes, entry) {
+				return api.StatusErrorf(http.StatusBadRequest, "%q isn't a supported event type", entry)
+			}
 
-	// Validate event types.
-	for _, entry := range types {
-		if !slices.Contains(eventTypes, entry) {
-			return api.StatusErrorf(http.StatusBadRequest, "%q isn't a supported event type", entry)
+			if !canViewServerEvents && slices.Contains(privilegedEventTypes, entry) {
+				return api.StatusErrorf(http.StatusForbidden, "Forbidden")
+			}
 		}
-	}
-
-	if slices.Contains(types, api.EventTypeLogging) && !canViewPrivilegedEvents {
-		return api.StatusErrorf(http.StatusForbidden, "Forbidden")
 	}
 
 	l := logger.AddContext(logger.Ctx{"remote": r.RemoteAddr})
