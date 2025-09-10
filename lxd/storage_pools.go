@@ -320,7 +320,12 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		ctx["target"] = targetNode
 	}
 
-	lc := lifecycle.StoragePoolCreated.Event(req.Name, request.CreateRequestor(r.Context()), ctx)
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	lc := lifecycle.StoragePoolCreated.Event(req.Name, requestor.EventLifecycleRequestor(), ctx)
 	resp := response.SyncResponseLocation(true, nil, lc.Source)
 
 	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
@@ -822,18 +827,21 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
 
 	response := doStoragePoolUpdate(s, pool, req, targetNode, clientType, r.Method, s.ServerClustered)
-
-	requestor := request.CreateRequestor(r.Context())
 
 	ctx := logger.Ctx{}
 	if targetNode != "" {
 		ctx["target"] = targetNode
 	}
 
-	s.Events.SendLifecycle("", lifecycle.StoragePoolUpdated.Event(pool.Name(), requestor, ctx))
+	s.Events.SendLifecycle("", lifecycle.StoragePoolUpdated.Event(pool.Name(), requestor.EventLifecycleRequestor(), ctx))
 
 	return response
 }
@@ -987,6 +995,11 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
 	clusterNotification := isClusterNotification(r)
 	var notifier cluster.Notifier
@@ -1070,8 +1083,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle("", lifecycle.StoragePoolDeleted.Event(pool.Name(), requestor, nil))
+	s.Events.SendLifecycle("", lifecycle.StoragePoolDeleted.Event(pool.Name(), requestor.EventLifecycleRequestor(), nil))
 
 	return response.EmptySyncResponse
 }
