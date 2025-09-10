@@ -74,19 +74,19 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 	//   `all-projects=true`.
 	var projectPermissionFunc auth.PermissionChecker
 	if projectName != "" {
-		err := s.Authorizer.CheckPermission(r.Context(), entity.ProjectURL(projectName), auth.EntitlementCanViewEvents)
+		err := s.Authorizer.CheckPermission(r.Context(), entity.ProjectURL(projectName), auth.EntitlementCanViewLifecycleEvents)
 		if err != nil {
 			return err
 		}
 	} else if allProjects {
 		var err error
-		projectPermissionFunc, err = s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanViewEvents, entity.TypeProject)
+		projectPermissionFunc, err = s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanViewLifecycleEvents, entity.TypeProject)
 		if err != nil {
 			return err
 		}
 	}
 
-	canViewPrivilegedEvents := s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanViewPrivilegedEvents) == nil
+	canViewPrivilegedEvents := s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanViewEvents) == nil
 
 	types := strings.Split(r.FormValue("type"), ",")
 	if len(types) == 1 && types[0] == "" {
