@@ -329,6 +329,11 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	node.ConfigSchema["storage.project."+project.Name+".images_volume"] = config.Key{}
 	node.ConfigSchema["storage.project."+project.Name+".backups_volume"] = config.Key{}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// On other cluster nodes, we're done.
 	if isClusterNotification(r) {
 		return response.SyncResponse(true, nil)
@@ -383,8 +388,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed creating project %q: %w", project.Name, err))
 	}
 
-	requestor := request.CreateRequestor(r.Context())
-	lc := lifecycle.ProjectCreated.Event(project.Name, requestor, nil)
+	lc := lifecycle.ProjectCreated.Event(project.Name, requestor.EventLifecycleRequestor(), nil)
 	s.Events.SendLifecycle(project.Name, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
@@ -1099,6 +1103,11 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(errors.New("The 'default' project cannot be deleted"))
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// On cluster notification, just clear the node config values and we're done.
 	if isClusterNotification(r) {
 		err = projectNodeConfigDelete(d, s, name)
@@ -1157,8 +1166,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(name, lifecycle.ProjectDeleted.Event(name, requestor, nil))
+	s.Events.SendLifecycle(name, lifecycle.ProjectDeleted.Event(name, requestor.EventLifecycleRequestor(), nil))
 
 	return response.EmptySyncResponse
 }

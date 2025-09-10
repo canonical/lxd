@@ -631,6 +631,11 @@ func networkZonePut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
 
 	err = netzone.Update(&req, clientType)
@@ -638,7 +643,7 @@ func networkZonePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkZoneUpdated.Event(netzone, request.CreateRequestor(r.Context()), nil))
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkZoneUpdated.Event(netzone, requestor.EventLifecycleRequestor(), nil))
 
 	return response.EmptySyncResponse
 }
