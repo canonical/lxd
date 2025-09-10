@@ -616,6 +616,32 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 	}
 }
 
+// enforceDevLXDProject ensures the "project" query parameter matches the instance's project.
+// If missing, it is set to the instance's project, since permission checkers use it to identify the project.
+// If different, the request is rejected with a forbidden error.
+func enforceDevLXDProject(r *http.Request) error {
+	inst, err := request.GetContextValue[instance.Instance](r.Context(), request.CtxDevLXDInstance)
+	if err != nil {
+		return err
+	}
+
+	instProject := inst.Project().Name
+	projectParam := request.QueryParam(r, "project")
+
+	if projectParam == "" {
+		// Ensure the project query parameter is always set.
+		// This is needed by the permission checkers to determine the correct project.
+		q := r.URL.Query()
+		q.Set("project", instProject)
+		r.URL.RawQuery = q.Encode()
+	} else if projectParam != instProject {
+		// Disallow cross-project access.
+		return api.NewGenericStatusError(http.StatusForbidden)
+	}
+
+	return nil
+}
+
 // getInstanceFromContextAndCheckSecurityFlags checks if the instance has the provided devLXD security features enabled.
 func getInstanceFromContextAndCheckSecurityFlags(ctx context.Context, keys ...DevLXDSecurityKey) (instance.Instance, error) {
 	inst, err := request.GetContextValue[instance.Instance](ctx, request.CtxDevLXDInstance)
