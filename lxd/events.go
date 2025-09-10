@@ -29,7 +29,7 @@ var eventsCmd = APIEndpoint{
 	Path:        "events",
 	MetricsType: entity.TypeServer,
 
-	Get: APIEndpointAction{Handler: eventsGet, AccessHandler: allowProjectResourceList},
+	Get: APIEndpointAction{Handler: eventsGet, AccessHandler: allowAuthenticated},
 }
 
 type eventsServe struct {
