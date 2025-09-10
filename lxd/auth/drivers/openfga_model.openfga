@@ -127,6 +127,9 @@ type server
     # Grants permission to view `logging` events, `ovn` events, and all `lifecycle` events that are not specific to a project.
     define can_view_events: [identity, service_account, group#member] or admin or viewer
 
+    # Grants permission to view operations that are not specific to a project.
+    define can_view_operations: [identity, service_account, group#member] or admin or viewer
+
     # Grants permission to view server and storage pool resource usage information.
     define can_view_resources: [identity, service_account, group#member] or admin or viewer
 
