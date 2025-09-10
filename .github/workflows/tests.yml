@@ -446,6 +446,10 @@ jobs:
           path: ${{env.GOCOVERDIR}}
           merge-multiple: true
 
+      # Restore the cache warmed in code-tests job
+      - name: Build or restore dqlite/liblxc dependencies
+        uses: ./.github/actions/cache-dqlite-liblxc
+
       - name: Download system test dependencies
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
