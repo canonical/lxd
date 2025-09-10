@@ -503,6 +503,15 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(fmt.Errorf("Failed to get operation permission checker: %w", err))
 	}
 
+	// Not all operations have a project. Operations that don't have a project should be considered "server level".
+	var canViewServerOperations bool
+	err = s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanViewOperations)
+	if err == nil {
+		canViewServerOperations = true
+	} else if !auth.IsDeniedError(err) {
+		return response.SmartError(fmt.Errorf("Failed to check caller access to server operations: %w", err))
+	}
+
 	localOperationURLs := func() (shared.Jmap, error) {
 		// Get all the operations.
 		localOps := operations.Clone()
@@ -513,6 +522,11 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		for _, v := range localOps {
 			operationProject := v.Project()
 			if !allProjects && operationProject != "" && operationProject != projectName {
+				continue
+			}
+
+			// Omit operations that don't have a project if the caller does not have access to server operations.
+			if operationProject == "" && !canViewServerOperations {
 				continue
 			}
 
@@ -543,6 +557,11 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		for _, v := range localOps {
 			operationProject := v.Project()
 			if !allProjects && operationProject != "" && operationProject != projectName {
+				continue
+			}
+
+			// Omit operations that don't have a project if the caller does not have access.
+			if operationProject == "" && !canViewServerOperations {
 				continue
 			}
 
