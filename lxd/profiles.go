@@ -602,6 +602,11 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	if isClusterNotification(r) {
 		// In this case the ProfilePut request payload contains information about the old profile, since
 		// the new one has already been saved in the database.
@@ -664,8 +669,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(details.effectiveProject.Name, lifecycle.ProfileUpdated.Event(details.profileName, details.effectiveProject.Name, requestor, nil))
+	s.Events.SendLifecycle(details.effectiveProject.Name, lifecycle.ProfileUpdated.Event(details.profileName, details.effectiveProject.Name, requestor.EventLifecycleRequestor(), nil))
 
 	return response.SmartError(err)
 }

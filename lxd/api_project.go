@@ -356,8 +356,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed creating project %q: %w", project.Name, err))
 	}
 
-	requestor := request.CreateRequestor(r.Context())
-	lc := lifecycle.ProjectCreated.Event(project.Name, requestor, nil)
+	lc := lifecycle.ProjectCreated.Event(project.Name, requestor.EventLifecycleRequestor(), nil)
 	s.Events.SendLifecycle(project.Name, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
@@ -958,8 +957,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(name, lifecycle.ProjectDeleted.Event(name, requestor, nil))
+	s.Events.SendLifecycle(name, lifecycle.ProjectDeleted.Event(name, requestor.EventLifecycleRequestor(), nil))
 
 	return response.EmptySyncResponse
 }

@@ -500,6 +500,11 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(errors.New("Network type does not support non-default projects"))
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Check if project has limits.network and if so check we are allowed to create another network.
 	if projectName != api.ProjectDefaultName && reqProject.Config != nil && reqProject.Config["limits.networks"] != "" {
 		networksLimit, err := strconv.Atoi(reqProject.Config["limits.networks"])
@@ -626,8 +631,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 				return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 			}
 
-			requestor := request.CreateRequestor(r.Context())
-			s.Events.SendLifecycle(projectName, lifecycle.NetworkCreated.Event(n, requestor, nil))
+			s.Events.SendLifecycle(projectName, lifecycle.NetworkCreated.Event(n, requestor.EventLifecycleRequestor(), nil))
 		}
 
 		err = networksPostCluster(r.Context(), s, projectName, netInfo, req, clientType, netType)
@@ -680,8 +684,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(projectName, lifecycle.NetworkCreated.Event(n, requestor, nil))
+	s.Events.SendLifecycle(projectName, lifecycle.NetworkCreated.Event(n, requestor.EventLifecycleRequestor(), nil))
 
 	revert.Success()
 	return resp
@@ -1150,6 +1153,11 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
 
 	clusterNotification := isClusterNotification(r)
@@ -1203,8 +1211,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkDeleted.Event(n, requestor, nil))
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkDeleted.Event(n, requestor.EventLifecycleRequestor(), nil))
 
 	return response.EmptySyncResponse
 }
@@ -1439,6 +1446,11 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// In clustered mode, we differentiate between node specific and non-node specific config keys based on
 	// whether the user has specified a target to apply the config to.
 	if s.ServerClustered {
@@ -1465,8 +1477,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 
 	response := doNetworkUpdate(n, req, targetNode, clientType, r.Method, s.ServerClustered)
 
-	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkUpdated.Event(n, requestor, nil))
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkUpdated.Event(n, requestor.EventLifecycleRequestor(), nil))
 
 	return response
 }
