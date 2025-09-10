@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"slices"
@@ -51,6 +52,15 @@ func (r *eventsServe) String() string {
 	return "event handler"
 }
 
+// requestorMetadata is used during event filtering so that events can be filtered by [api.OperationRequestor] or
+// [api.EventLifecycleRequestor] without unmarshalling unnecessary fields in event or operation metadata.
+type requestorMetadata struct {
+	Requestor *struct {
+		Username string `json:"username"`
+		Protocol string `json:"protocol"`
+	} `json:"requestor"`
+}
+
 func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error {
 	projectName, allProjects, err := request.ProjectParams(r)
 	if err != nil {
@@ -64,29 +74,37 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 		}
 	}
 
-	// Notes on authorization for events:
-	// - Checks are currently performed at the project level. Fine-grained auth uses `can_view_events` on the project,
-	//   TLS auth checks if a restricted identity has access to the project against which the event is defined.
-	// - If project "foo" does not have a particular feature enabled, say 'features.networks', if a network is updated
-	//   via project "foo", no events will be emitted in project "foo" relating to the network. They will only be emitted
-	//   in project "default". In order to get all related events, TLS users must be granted access to the default project,
-	//   fine-grained users can be granted `can_view_events` on the default project. Both must call the events API with
-	//   `all-projects=true`.
-	var projectPermissionFunc auth.PermissionChecker
-	if projectName != "" {
-		err := s.Authorizer.CheckPermission(r.Context(), entity.ProjectURL(projectName), auth.EntitlementCanViewEvents)
-		if err != nil {
-			return err
-		}
-	} else if allProjects {
-		var err error
-		projectPermissionFunc, err = s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanViewEvents, entity.TypeProject)
-		if err != nil {
-			return err
-		}
+	// Get permission checkers required for filtering
+
+	// This permission checker is for use with project specific lifecycle events.
+	canViewProjectLifecycleEvents, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanViewEvents, entity.TypeProject)
+	if err != nil {
+		return err
 	}
 
-	canViewPrivilegedEvents := s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanViewEvents) == nil
+	// This permission checker is for use with project specific operations.
+	canViewProjectOperations, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanViewOperations, entity.TypeProject)
+	if err != nil {
+		return err
+	}
+
+	// `can_view_operations` on `server` is required to view any operation event that is not project specific.
+	var canViewServerOperations bool
+	err = s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanViewOperations)
+	if err == nil {
+		canViewServerOperations = true
+	} else if !auth.IsDeniedError(err) {
+		return err
+	}
+
+	// `can_view_events` on `server` is required to view any of the privileged event types, or any lifecycle event that is not project specific.
+	var canViewServerEvents bool
+	err = s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanViewEvents)
+	if err == nil {
+		canViewServerEvents = true
+	} else if !auth.IsDeniedError(err) {
+		return err
+	}
 
 	// User requested types
 	types := strings.Split(r.FormValue("type"), ",")
@@ -162,6 +180,58 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 		}
 	}
 
+	filter := func(log logger.Logger, event api.Event) bool {
+		l = log.AddContext(logger.Ctx{"type": event.Type, "location": event.Location, "project": event.Project})
+
+		// Privileged events require `can_view_events` on `server.
+		if slices.Contains(privilegedEventTypes, event.Type) {
+			return canViewServerEvents
+		}
+
+		switch event.Type {
+		case api.EventTypeLifecycle:
+			// Lifecycle events that are not project specific require `can_view_events` on `server`.
+			if event.Project == "" {
+				return canViewServerEvents
+			}
+
+			// Otherwise check if the caller has `can_view_lifecycle_events` on the project.
+			if canViewProjectLifecycleEvents(entity.ProjectURL(event.Project)) {
+				return true
+			}
+
+		case api.EventTypeOperation:
+			// Operations that are not project specific require `can_view_operations` on `server`.
+			if event.Project == "" {
+				return canViewServerOperations
+			}
+
+			// Otherwise check if the caller has `can_view_operations` on the project.
+			if canViewProjectOperations(entity.ProjectURL(event.Project)) {
+				return true
+			}
+
+		default:
+			// We don't expect any other event types at this point
+			l.Warn("Received unexpected event type")
+			return false
+		}
+
+		// At this point the caller does not have permission to view the event via group membership or project.
+		// Check the event or operation requestor to see if they are the identity that triggered the event.
+
+		// Unmarshal the requestor from the event metadata.
+		var m requestorMetadata
+		err := json.Unmarshal(event.Metadata, &m)
+		if err != nil {
+			l.Error("Failed to unmarshal event metadata during requestor filtering")
+			return false
+		}
+
+		// Allow the event if the same requestor is connected. Otherwise, filter it out.
+		return m.Requestor != nil && m.Requestor.Username == requestor.CallerUsername() && m.Requestor.Protocol == requestor.CallerProtocol()
+	}
+
 	// Upgrade the connection to websocket as late as possible.
 	// This is because the client will assume it's getting events as soon as the upgrade is performed.
 	conn, err := ws.Upgrader.Upgrade(w, r, nil)
@@ -173,7 +243,7 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 	defer func() { _ = conn.Close() }() // Ensure listener below ends when this function ends.
 
 	listenerConnection := events.NewWebsocketListenerConnection(conn)
-	listener, err := s.Events.AddListener(projectName, allProjects, projectPermissionFunc, listenerConnection, types, excludeSources, recvFunc, excludeLocations)
+	listener, err := s.Events.AddListener(projectName, allProjects, filter, listenerConnection, types, excludeSources, recvFunc, excludeLocations)
 	if err != nil {
 		l.Warn("Failed to add event listener", logger.Ctx{"err": err})
 		return nil
