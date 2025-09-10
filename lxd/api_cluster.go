@@ -1507,11 +1507,6 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	leaderInfo, err := s.LeaderInfo()
 	if err != nil {
 		return response.InternalError(err)
@@ -1519,6 +1514,11 @@ func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 
 	if !leaderInfo.Clustered {
 		return response.InternalError(cluster.ErrNodeIsNotClustered)
+	}
+
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	var raftNodes []db.RaftNode
