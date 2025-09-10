@@ -3335,11 +3335,11 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 	}
 
 	// Check that the uplink volatile IPs haven't been removed incorrectly.
-	for _, ipVersion := range []int{4, 6} {
-		networkAddrKey := "ipv" + strconv.Itoa(ipVersion) + ".address"
+	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
+		networkAddrKey := keyPrefix + ".address"
 		uplinkAddrKey := ovnVolatileUplinkIPv4
 
-		if ipVersion == 6 {
+		if keyPrefix == "ipv6" {
 			uplinkAddrKey = ovnVolatileUplinkIPv6
 		}
 
