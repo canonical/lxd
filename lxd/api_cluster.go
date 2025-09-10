@@ -1996,16 +1996,6 @@ func clusterNodePost(d *Daemon, r *http.Request) response.Response {
 func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	force, err := strconv.Atoi(r.FormValue("force"))
-	if err != nil {
-		force = 0
-	}
-
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	// Redirect all requests to the leader, which is the one with
 	// knowledge of which nodes are part of the raft cluster.
 	localClusterAddress := s.LocalConfig.ClusterAddress()
@@ -2016,6 +2006,16 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 
 	if !leaderInfo.Clustered {
 		return response.InternalError(cluster.ErrNodeIsNotClustered)
+	}
+
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	force, err := strconv.Atoi(r.FormValue("force"))
+	if err != nil {
+		force = 0
 	}
 
 	var localInfo, leaderNodeInfo db.NodeInfo
