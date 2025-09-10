@@ -15,6 +15,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/cluster"
@@ -107,6 +108,7 @@ var patches = []patch{
 	{name: "storage_update_powerflex_clone_copy_setting", stage: patchPostDaemonStorage, run: patchUpdatePowerFlexCloneCopySetting},
 	{name: "storage_update_powerflex_snapshot_prefix", stage: patchPostDaemonStorage, run: patchUpdatePowerFlexSnapshotPrefix},
 	{name: "config_remove_instances_placement_scriptlet", stage: patchPreLoadClusterConfig, run: patchRemoveInstancesPlacementScriptlet},
+	{name: "event_entitlement_rename", stage: patchPreLoadClusterConfig, run: patchEventEntitlementNames},
 }
 
 type patch struct {
@@ -1785,6 +1787,21 @@ func patchRemoveInstancesPlacementScriptlet(name string, d *Daemon) error {
 		}
 
 		return tx.UpdateClusterConfig(updates)
+	})
+}
+
+func patchEventEntitlementNames(name string, d *Daemon) error {
+	s := d.State()
+	return s.DB.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		q := `UPDATE auth_groups_permissions SET entitlement = ? WHERE entitlement = ? AND entity_type = ?`
+
+		// Rename `can_view_privileged_events` on `server` to `can_view_events`.
+		_, err := tx.Tx().ExecContext(ctx, q, auth.EntitlementCanViewEvents, "can_view_privileged_events", dbCluster.EntityType(entity.TypeServer))
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
 }
 
