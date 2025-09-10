@@ -39,6 +39,10 @@ const (
 
 	// The security.devlxd.images key is used to enable devLXD image export.
 	devLXDSecurityImagesKey DevLXDSecurityKey = "security.devlxd.images"
+
+	// The security.devlxd.management.volumes key is used to allow volume
+	// management through devLXD.
+	devLXDSecurityManagementVolumesKey DevLXDSecurityKey = "security.devlxd.management.volumes"
 )
 
 // devLXDAPIAuthenticator is an interface that abstracts the authentication mechanism used to
@@ -112,11 +116,26 @@ func devLXDAPIGetHandler(d *Daemon, r *http.Request) response.Response {
 		clientAuth = api.AuthTrusted
 	}
 
+	supportedStorageDrivers := []api.DevLXDServerStorageDriverInfo{}
+
+	// Include supported storage drivers if the instance has the devLXD volume
+	// management security flag enabled.
+	if shared.IsTrue(inst.ExpandedConfig()[string(devLXDSecurityManagementVolumesKey)]) {
+		storageDrivers, _ := readStoragePoolDriversCache()
+		for _, driver := range storageDrivers {
+			supportedStorageDrivers = append(supportedStorageDrivers, api.DevLXDServerStorageDriverInfo{
+				Name:   driver.Name,
+				Remote: driver.Remote,
+			})
+		}
+	}
+
 	resp := api.DevLXDGet{
-		APIVersion:   version.APIVersion,
-		Location:     location,
-		InstanceType: inst.Type().String(),
-		Auth:         clientAuth,
+		APIVersion:              version.APIVersion,
+		Location:                location,
+		InstanceType:            inst.Type().String(),
+		Auth:                    clientAuth,
+		SupportedStorageDrivers: supportedStorageDrivers,
 		DevLXDPut: api.DevLXDPut{
 			State: state.String(),
 		},
