@@ -1089,90 +1089,46 @@ func checkUplinkUse(ctx context.Context, tx *db.ClusterTx, projectName string, c
 
 // AllowProjectUpdate checks the new config to be set on a project is valid.
 func AllowProjectUpdate(ctx context.Context, globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, config map[string]string, changed []string) error {
-	var globalConfigDump map[string]any
-	if globalConfig != nil {
-		globalConfigDump = globalConfig.Dump()
-	}
-
 	info, err := fetchProject(ctx, tx, projectName, false)
 	if err != nil {
 		return err
 	}
 
-	info.Instances, err = expandInstancesConfigAndDevices(globalConfigDump, info.Instances, info.Profiles)
+	// Set the fetched project's config to new config for validation.
+	info.Project.Config = config
+
+	// This checks if restricted uplinks are used within this project and if limits
+	// for uplink IP usage are respected.
+	// This is done separately because this may require getting network info from the database.
+	err = checkUplinkUse(ctx, tx, projectName, info.Project.Config)
 	if err != nil {
 		return err
 	}
 
-	restrictedValue, ok := info.Project.Config["restricted"]
-	projectIsRestricted := ok && shared.IsTrue(restrictedValue)
-
-	// List of keys that need to check aggregate values across all project
-	// instances.
-	aggregateKeys := []string{}
-
-	// This checks if restricted uplinks are used within this project.
-	// This is done separately because this may require getting network info from the database and
-	// restricted.networks.uplinks is an allowlist, so restrictions are enforced even if it is not set.
-	err = checkUplinkUse(ctx, tx, projectName, config)
+	// Check instance restrictions and aggregate limits affected by instance-level values.
+	// This function will also set the "Instances" field for the fetched project.
+	err = checkInstanceRestrictionsAndAggregateLimits(globalConfig, tx, info)
 	if err != nil {
-		return err
+		return fmt.Errorf("Conflict detected when updating project %q: %w", projectName, err)
 	}
 
+	// Handle the changed project limits not yet checked.
 	for _, key := range changed {
-		if strings.HasPrefix(key, "restricted.") {
-			project := api.Project{
-				Name:   projectName,
-				Config: config,
-			}
-
-			if projectIsRestricted {
-				err := checkInstanceRestrictions(project, info.Instances, info.Profiles)
-				if err != nil {
-					return fmt.Errorf("Conflict detected when changing %q in project %q: %w", key, projectName, err)
-				}
-			}
-
-			continue
-		}
-
 		switch key {
 		case "limits.instances":
 			err := validateTotalInstanceCountLimit(info.Instances, config[key], projectName)
 			if err != nil {
-				return fmt.Errorf("Can't change limits.instances in project %q: %w", projectName, err)
+				return fmt.Errorf("Can't change %q in project %q: %w", key, projectName, err)
 			}
 
-		case "limits.containers":
-			fallthrough
-		case "limits.virtual-machines":
+		case "limits.containers", "limits.virtual-machines":
 			err := validateInstanceCountLimit(info.Instances, key, config[key], projectName)
 			if err != nil {
 				return fmt.Errorf("Can't change %q in project %q: %w", key, projectName, err)
 			}
 
-		case "limits.processes":
-			fallthrough
-		case "limits.cpu":
-			fallthrough
-		case "limits.memory":
-			fallthrough
-		case "limits.disk":
-			aggregateKeys = append(aggregateKeys, key)
-		}
-	}
-
-	if len(aggregateKeys) > 0 {
-		totals, err := getTotalsAcrossProjectEntities(info, aggregateKeys, false)
-		if err != nil {
-			return err
-		}
-
-		for _, key := range aggregateKeys {
-			err := validateAggregateLimit(totals, key, config[key])
-			if err != nil {
-				return err
-			}
+		case "limits.networks":
+			// TODO: check network limits.
 		}
 	}
 
@@ -1235,42 +1191,6 @@ func validateInstanceCountLimit(instances []api.Instance, key, value, project st
 var countConfigInstanceType = map[string]api.InstanceType{
 	"limits.containers":       api.InstanceTypeContainer,
 	"limits.virtual-machines": api.InstanceTypeVM,
-}
-
-// Validates an aggregate limit, checking that the new value is not below the
-// current total amount.
-func validateAggregateLimit(totals map[string]int64, key, value string) error {
-	if value == "" {
-		return nil
-	}
-
-	keyName := key
-
-	// Handle pool-specific limits.
-	if strings.HasPrefix(key, projectLimitDiskPool) {
-		keyName = "limits.disk"
-	}
-
-	parser := aggregateLimitConfigValueParsers[keyName]
-	limit, err := parser(value)
-	if err != nil {
-		return fmt.Errorf("Invalid value %q for limit %q: %w", value, key, err)
-	}
-
-	total := totals[key]
-	if limit < total {
-		keyName := key
-
-		// Handle pool-specific limits.
-		if strings.HasPrefix(key, projectLimitDiskPool) {
-			keyName = "limits.disk"
-		}
-
-		printer := aggregateLimitConfigValuePrinters[keyName]
-		return fmt.Errorf("%q is too low: current total is %q", key, printer(total))
-	}
-
-	return nil
 }
 
 // Return true if the project has some limits or restrictions set.
@@ -1569,21 +1489,6 @@ var aggregateLimitConfigValueParsers = map[string]func(string) (int64, error){
 	},
 	"limits.disk": func(value string) (int64, error) {
 		return units.ParseByteSizeString(value)
-	},
-}
-
-var aggregateLimitConfigValuePrinters = map[string]func(int64) string{
-	"limits.memory": func(limit int64) string {
-		return units.GetByteSizeStringIEC(limit, 1)
-	},
-	"limits.processes": func(limit int64) string {
-		return strconv.FormatInt(limit, 10)
-	},
-	"limits.cpu": func(limit int64) string {
-		return strconv.FormatInt(limit, 10)
-	},
-	"limits.disk": func(limit int64) string {
-		return units.GetByteSizeStringIEC(limit, 1)
 	},
 }
 
