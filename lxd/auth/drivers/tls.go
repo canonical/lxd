@@ -190,7 +190,7 @@ func (t *tls) allowProjectUnspecificEntityType(entitlement auth.Entitlement, ent
 	case entity.TypeProject:
 		// If the project is in the list of projects that the identity is restricted to, then they have the following
 		// entitlements.
-		return slices.Contains(id.Projects, projectName) && slices.Contains([]auth.Entitlement{auth.EntitlementCanView, auth.EntitlementCanCreateImages, auth.EntitlementCanCreateImageAliases, auth.EntitlementCanCreateInstances, auth.EntitlementCanCreateNetworks, auth.EntitlementCanCreateNetworkACLs, auth.EntitlementCanCreateNetworkZones, auth.EntitlementCanCreateProfiles, auth.EntitlementCanCreateStorageVolumes, auth.EntitlementCanCreateStorageBuckets, auth.EntitlementCanViewEvents, auth.EntitlementCanViewOperations, auth.EntitlementCanViewMetrics}, entitlement)
+		return slices.Contains(id.Projects, projectName) && slices.Contains([]auth.Entitlement{auth.EntitlementCanView, auth.EntitlementCanCreateImages, auth.EntitlementCanCreateImageAliases, auth.EntitlementCanCreateInstances, auth.EntitlementCanCreateNetworks, auth.EntitlementCanCreateNetworkACLs, auth.EntitlementCanCreateNetworkZones, auth.EntitlementCanCreateProfiles, auth.EntitlementCanCreateStorageVolumes, auth.EntitlementCanCreateStorageBuckets, auth.EntitlementCanViewLifecycleEvents, auth.EntitlementCanViewOperations, auth.EntitlementCanViewMetrics}, entitlement)
 
 	default:
 		return false
