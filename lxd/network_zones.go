@@ -636,9 +636,7 @@ func networkZonePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
-
-	err = netzone.Update(&req, clientType)
+	err = netzone.Update(&req, requestor.ClientType())
 	if err != nil {
 		return response.SmartError(err)
 	}
