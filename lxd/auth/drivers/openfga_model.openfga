@@ -323,7 +323,7 @@ type project
     # Grants permission to view operations relating to the project.
     define can_view_operations: [identity, service_account, group#member] or operator or viewer or can_view_projects from server
 
-    # Grants permission to view events relating to the project.
+    # Grants permission to view life cycle events relating to the project.
     define can_view_events: [identity, service_account, group#member] or operator or viewer or can_view_projects from server
 
     # Grants permission to view project level metrics.
