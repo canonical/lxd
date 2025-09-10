@@ -2887,17 +2887,26 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestor, err := request.GetRequestor(r.Context())
+	op, err := doImageDelete(r.Context(), s, details.image.Fingerprint, details.imageID, projectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	isClusterNotification := requestor.IsClusterNotification()
+	return operations.OperationResponse(op)
+}
 
+// doImageDelete deletes an image with the given fingerprint and imageID in the given project.
+func doImageDelete(ctx context.Context, s *state.State, fingerprint string, imageID int, projectName string) (*operations.Operation, error) {
+	requestor, err := request.GetRequestor(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	isClusterNotification := requestor.IsClusterNotification()
 	do := func(op *operations.Operation) error {
 		// Lock this operation to ensure that concurrent image operations don't conflict.
 		// Other operations will wait for this one to finish.
-		unlock, err := imageOperationLock(details.image.Fingerprint)
+		unlock, err := imageOperationLock(fingerprint)
 		if err != nil {
 			return err
 		}
@@ -2909,7 +2918,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Check image still exists and another request hasn't removed it since we resolved the image
 			// fingerprint above.
-			exist, err = tx.ImageExists(ctx, projectName, details.image.Fingerprint)
+			exist, err = tx.ImageExists(ctx, projectName, fingerprint)
 
 			return err
 		})
@@ -2929,7 +2938,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 				// referenced by other projects. In that case we don't want to
 				// physically delete it just yet, but just to remove the
 				// relevant database entry.
-				projects, err := tx.ProjectsWithImage(ctx, details.image.Fingerprint)
+				projects, err := tx.ProjectsWithImage(ctx, fingerprint)
 				if err != nil {
 					return err
 				}
@@ -2948,7 +2957,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 				}
 
 				if referenced {
-					err = tx.DeleteImage(ctx, details.imageID)
+					err = tx.DeleteImage(ctx, imageID)
 					if err != nil {
 						return fmt.Errorf("Error deleting image info from the database: %w", err)
 					}
@@ -2971,7 +2980,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 			}
 
 			err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-				op, err := client.UseProject(projectName).DeleteImage(details.image.Fingerprint)
+				op, err := client.UseProject(projectName).DeleteImage(fingerprint)
 				if err != nil {
 					return fmt.Errorf("Failed to request to delete image from peer node: %w", err)
 				}
@@ -2993,7 +3002,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Delete the pool volumes.
-			poolIDs, err = tx.GetPoolsWithImage(ctx, details.image.Fingerprint)
+			poolIDs, err = tx.GetPoolsWithImage(ctx, fingerprint)
 			if err != nil {
 				return err
 			}
@@ -3012,20 +3021,20 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 		for _, poolName := range poolNames {
 			pool, err := storagePools.LoadByName(s, poolName)
 			if err != nil {
-				return fmt.Errorf("Error loading storage pool %q to delete image %q: %w", poolName, details.image.Fingerprint, err)
+				return fmt.Errorf("Error loading storage pool %q to delete image %q: %w", poolName, fingerprint, err)
 			}
 
 			// Only perform the deletion of remote volumes on the server handling the request.
 			if !isClusterNotification || !pool.Driver().Info().Remote {
-				err = pool.DeleteImage(details.image.Fingerprint, op)
+				err = pool.DeleteImage(fingerprint, op)
 				if err != nil {
-					return fmt.Errorf("Error deleting image %q from storage pool %q: %w", details.image.Fingerprint, pool.Name(), err)
+					return fmt.Errorf("Error deleting image %q from storage pool %q: %w", fingerprint, pool.Name(), err)
 				}
 			}
 		}
 
 		// Remove main image file from disk.
-		err = imageDeleteFromDisk(s.LocalConfig.StorageImagesVolume(projectName), details.image.Fingerprint)
+		err = imageDeleteFromDisk(s.LocalConfig.StorageImagesVolume(projectName), fingerprint)
 		if err != nil {
 			return err
 		}
@@ -3033,27 +3042,27 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 		// Remove the database entry.
 		if !isClusterNotification {
 			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				return tx.DeleteImage(ctx, details.imageID)
+				return tx.DeleteImage(ctx, imageID)
 			})
 			if err != nil {
 				return fmt.Errorf("Error deleting image info from the database: %w", err)
 			}
 		}
 
-		s.Events.SendLifecycle(projectName, lifecycle.ImageDeleted.Event(details.image.Fingerprint, projectName, op.EventLifecycleRequestor(), nil))
+		s.Events.SendLifecycle(projectName, lifecycle.ImageDeleted.Event(fingerprint, projectName, op.EventLifecycleRequestor(), nil))
 
 		return nil
 	}
 
 	resources := map[string][]api.URL{}
-	resources["images"] = []api.URL{*api.NewURL().Path(version.APIVersion, "images", details.image.Fingerprint)}
+	resources["images"] = []api.URL{*api.NewURL().Path(version.APIVersion, "images", fingerprint)}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.ImageDelete, resources, nil, do, nil, nil)
+	op, err := operations.OperationCreate(ctx, s, projectName, operations.OperationClassTask, operationtype.ImageDelete, resources, nil, do, nil, nil)
 	if err != nil {
-		return response.InternalError(err)
+		return nil, err
 	}
 
-	return operations.OperationResponse(op)
+	return op, nil
 }
 
 // imageDeleteFromDisk removes the main image file and rootfs file of an image.
