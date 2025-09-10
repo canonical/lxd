@@ -2772,23 +2772,9 @@ type internalClusterPostAssignRequest struct {
 // Used to to transfer the responsibilities of a member to another one.
 func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
-	req := internalClusterPostHandoverRequest{}
-
-	// Parse the request
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
-	// Quick checks.
-	if req.Address == "" {
-		return response.BadRequest(errors.New("No ID provided"))
-	}
 
 	// Redirect all requests to the leader, which is the one with
 	// authoritative knowledge of the current raft configuration.
-	localClusterAddress := s.LocalConfig.ClusterAddress()
-
 	leaderInfo, err := s.LeaderInfo()
 	if err != nil {
 		return response.InternalError(err)
@@ -2804,6 +2790,21 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 
 		return response.SyncResponseRedirect(url.String())
 	}
+
+	req := internalClusterPostHandoverRequest{}
+
+	// Parse the request
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	// Quick checks.
+	if req.Address == "" {
+		return response.BadRequest(errors.New("No ID provided"))
+	}
+
+	localClusterAddress := s.LocalConfig.ClusterAddress()
 
 	// Get lock now we are on leader.
 	d.clusterMembershipMutex.Lock()
