@@ -2520,6 +2520,15 @@
 						}
 					},
 					{
+						"security.devlxd.management.volumes": {
+							"defaultdesc": "`false`",
+							"liveupdate": "yes",
+							"longdesc": "",
+							"shortdesc": "Controls the availability of the volume management API over `devlxd`",
+							"type": "bool"
+						}
+					},
+					{
 						"security.idmap.base": {
 							"condition": "unprivileged container",
 							"liveupdate": "no",

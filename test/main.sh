@@ -503,6 +503,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_template "file templating"
     run_test test_pki "PKI mode"
     run_test test_devlxd "/dev/lxd"
+    run_test test_devlxd_volume_management "devLXD volume management"
     run_test test_fuidshift "fuidshift"
     run_test test_migration "migration"
     run_test test_fdleak "fd leak"

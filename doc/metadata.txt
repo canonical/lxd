@@ -2257,6 +2257,14 @@ See {ref}`dev-lxd` for more information.
 
 ```
 
+```{config:option} security.devlxd.management.volumes instance-security
+:defaultdesc: "`false`"
+:liveupdate: "yes"
+:shortdesc: "Controls the availability of the volume management API over `devlxd`"
+:type: "bool"
+
+```
+
 ```{config:option} security.idmap.base instance-security
 :condition: "unprivileged container"
 :liveupdate: "no"
