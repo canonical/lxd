@@ -328,7 +328,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	lc := lifecycle.StoragePoolCreated.Event(req.Name, requestor.EventLifecycleRequestor(), ctx)
 	resp := response.SyncResponseLocation(true, nil, lc.Source)
 
-	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
+	clientType := requestor.ClientType()
 
 	if requestor.IsClusterNotification() {
 		// This is an internal request which triggers the actual
@@ -832,9 +832,7 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
-
-	response := doStoragePoolUpdate(s, pool, req, targetNode, clientType, r.Method, s.ServerClustered)
+	response := doStoragePoolUpdate(s, pool, req, targetNode, requestor.ClientType(), r.Method, s.ServerClustered)
 
 	ctx := logger.Ctx{}
 	if targetNode != "" {
@@ -1000,7 +998,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
+	clientType := requestor.ClientType()
 	clusterNotification := requestor.IsClusterNotification()
 	var notifier cluster.Notifier
 	if !clusterNotification {
