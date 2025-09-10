@@ -120,18 +120,13 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 
 	isClusterNotification := requestor.IsClusterNotification()
 
+	var recvFunc events.EventHandler
+	var excludeSources []events.EventSource
 	var excludeLocations []string
 	if isClusterNotification {
 		// Get the current local serverName and store it for the events.
 		// We do that now to avoid issues with changes to the name and to limit
 		// the number of DB access to just one per connection.
-
-		requestor, err := request.GetRequestor(r.Context())
-		if err != nil {
-			l.Warn("Failed setting up event connection", logger.Ctx{"err": err})
-			return nil
-		}
-
 		fingerprint, err := requestor.ClusterMemberTLSCertificateFingerprint()
 		if err != nil {
 			l.Warn("Failed setting up event connection", logger.Ctx{"err": err})
@@ -153,11 +148,7 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 			l.Warn("Failed setting up event connection", logger.Ctx{"err": err})
 			return nil
 		}
-	}
 
-	var recvFunc events.EventHandler
-	var excludeSources []events.EventSource
-	if isClusterNotification {
 		// If client is another cluster member, it will already be pulling events from other cluster
 		// members so no need to also deliver forwarded events that this member receives.
 		excludeSources = append(excludeSources, events.EventSourcePull)
