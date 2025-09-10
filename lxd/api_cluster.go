@@ -2001,7 +2001,6 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 
 	// Redirect all requests to the leader, which is the one with
 	// knowledge of which nodes are part of the raft cluster.
-	localClusterAddress := s.LocalConfig.ClusterAddress()
 	leaderInfo, err := s.LeaderInfo()
 	if err != nil {
 		return response.SmartError(err)
@@ -2020,6 +2019,8 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		force = 0
 	}
+
+	localClusterAddress := s.LocalConfig.ClusterAddress()
 
 	var localInfo, leaderNodeInfo db.NodeInfo
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
