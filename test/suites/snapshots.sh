@@ -346,9 +346,7 @@ snap_restore() {
     lxc list --fast | grep -wF bar | grep -wF RUNNING
   fi
 
-  lxc stop --force bar
-
-  lxc delete bar
+  lxc delete --force bar
 
   # Test if container's with hyphen's in their names are treated correctly.
   lxc launch testimage a-b -d "${SMALL_ROOT_DISK}"
