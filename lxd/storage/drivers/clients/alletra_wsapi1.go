@@ -537,7 +537,7 @@ func (p *AlletraClient) CreateHost(connectorType string, hostName string, qns []
 
 	switch connectorType {
 	case connectors.TypeISCSI:
-		req["iqns"] = qns[0]
+		req["iSCSINames"] = qns
 	case connectors.TypeNVME:
 		req["NQN"] = qns[0]
 		req["transportType"] = hpeTransportTypeTCP
