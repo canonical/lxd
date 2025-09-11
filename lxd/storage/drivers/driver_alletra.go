@@ -32,7 +32,7 @@ type alletra struct {
 	storageConnector connectors.Connector
 
 	// Holds the targetQN of NVMe target.
-	nvmeTargetQN string
+	targetQN string
 
 	// Holds the low level HTTP client for the HPE Alletra Storage API.
 	// Use .client() method to retrieve the client struct.
@@ -301,39 +301,100 @@ func (d *alletra) GetResources() (*api.ResourcesStoragePool, error) {
 }
 
 // getNVMeTargetQN discovers the targetQN used for the given addresses.
-func (d *alletra) getNVMeTargetQN(targetAddresses ...string) (string, error) {
+func (d *alletra) getNVMeTargetQN(targetAddresses ...string) (targetQN string, err error) {
+	connector, err := d.connector()
+	if err != nil {
+		return "", err
+	}
+
+	// The discovery log from the first reachable target address is returned.
+	discoveryLogRecords, err := connector.Discover(d.state.ShutdownCtx, targetAddresses...)
+	if err != nil {
+		return "", fmt.Errorf("Failed to discover array NVMe subsystem NQN: %w", err)
+	}
+
+	for _, recordAny := range discoveryLogRecords {
+		record, ok := recordAny.(connectors.NVMeDiscoveryLogRecord)
+		if !ok {
+			return "", fmt.Errorf("Invalid discovery log record entry type %T is not connectors.NVMeDiscoveryLogRecord", recordAny)
+		}
+
+		if record.SubType != connectors.SubtypeNVMESubsys {
+			continue
+		}
+
+		// The targetQN is listed together with every log record of type SubtypeNVMESubsys.
+		targetQN = record.SubNQN
+		break
+	}
+
+	return targetQN, nil
+}
+
+// getISCSITargetQN discovers the targetQN used for the given addresses.
+func (d *alletra) getISCSITargetQN(targetAddresses ...string) (targetQN string, err error) {
+	connector, err := d.connector()
+	if err != nil {
+		return "", err
+	}
+
+	// The discovery log from the first reachable target address is returned.
+	discoveryLogRecords, err := connector.Discover(d.state.ShutdownCtx, targetAddresses...)
+	if err != nil {
+		return "", fmt.Errorf("Failed to discover array ISCSI subsystem IQN: %w", err)
+	}
+
+	record, ok := discoveryLogRecords[0].(connectors.ISCSIDiscoveryLogRecord)
+	if !ok {
+		return "", fmt.Errorf("Invalid discovery log record entry type %T is not connectors.ISCSIDiscoveryLogRecord", discoveryLogRecords[0])
+	}
+
+	// The targetQN is listed together with every log record.
+	targetQN = record.IQN
+
+	return targetQN, nil
+}
+
+// getTargetQN discovers the targetQN used for the given addresses.
+func (d *alletra) getTargetQN(targetAddresses ...string) (string, error) {
 	// The targetQN is unqiue per HPE Alletra storage pool.
 	// Cache the targetQN as it doesn't change throughout the lifetime of the storage pool,
-	// if there are volumes mapped and NVMe session is active.
-	if d.nvmeTargetQN == "" {
-		connector, err := d.connector()
+	// if there are volumes mapped and NVMe/TCP or ISCSI session is active.
+	targetQN := d.targetQN
+	if targetQN != "" {
+		return targetQN, nil
+	}
+
+	connector, err := d.connector()
+	if err != nil {
+		return "", err
+	}
+
+	mode := connector.Type()
+
+	switch mode {
+	case connectors.TypeISCSI:
+		targetQN, err = d.getISCSITargetQN(targetAddresses...)
 		if err != nil {
 			return "", err
 		}
 
-		// The discovery log from the first reachable target address is returned.
-		discoveryLogRecords, err := connector.Discover(d.state.ShutdownCtx, targetAddresses...)
+	case connectors.TypeNVME:
+		targetQN, err = d.getNVMeTargetQN(targetAddresses...)
 		if err != nil {
-			return "", fmt.Errorf("Failed to discover array NVMe subsystem NQN: %w", err)
+			return "", err
 		}
 
-		for _, recordAny := range discoveryLogRecords {
-			record, ok := recordAny.(connectors.NVMeDiscoveryLogRecord)
-			if !ok {
-				return "", fmt.Errorf("Invalid discovery log record entry type %T is not connectors.NVMeDiscoveryLogRecord", recordAny)
-			}
-
-			if record.SubType != connectors.SubtypeNVMESubsys {
-				continue
-			}
-
-			// The targetQN is listed together with every log record of type SubtypeNVMESubsys.
-			d.nvmeTargetQN = record.SubNQN
-			break
-		}
+	default:
+		return "", fmt.Errorf("Storage target QN discovery is not supported for mode %q", mode)
 	}
 
-	return d.nvmeTargetQN, nil
+	if targetQN == "" {
+		return "", errors.New("Couldn't discover target QN")
+	}
+
+	d.targetQN = targetQN
+	return targetQN, nil
 }
 
 // getTarget discovers the targetQN and target's IP addresses list.
@@ -362,12 +423,8 @@ func (d *alletra) getTarget() (targetQN string, targetAddrs []string, err error)
 		return "", nil, fmt.Errorf("No usable target found for mode %q", mode)
 	}
 
-	if mode != connectors.TypeNVME {
-		return "", nil, fmt.Errorf("Storage target QN discovery is not supported for mode %q", mode)
-	}
-
 	// Discover the targetQN from any of the addresses.
-	targetQN, err = d.getNVMeTargetQN(targetAddrs...)
+	targetQN, err = d.getTargetQN(targetAddrs...)
 	if err != nil {
 		return "", nil, err
 	}
