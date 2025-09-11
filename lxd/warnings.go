@@ -372,7 +372,13 @@ func warningPut(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(errors.New(`Status may only be set to "acknowledge" or "new"`))
 	}
 
+	var warning *cluster.Warning
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		warning, err = cluster.GetWarning(ctx, tx.Tx(), id)
+		if err != nil {
+			return err
+		}
+
 		err := tx.UpdateWarningStatus(id, status)
 		if err != nil {
 			return err
@@ -385,9 +391,9 @@ func warningPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if status == warningtype.StatusAcknowledged {
-		s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.WarningAcknowledged.Event(id, request.CreateRequestor(r.Context()), nil))
+		s.Events.SendLifecycle(warning.Project, lifecycle.WarningAcknowledged.Event(id, request.CreateRequestor(r.Context()), nil))
 	} else {
-		s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.WarningReset.Event(id, request.CreateRequestor(r.Context()), nil))
+		s.Events.SendLifecycle(warning.Project, lifecycle.WarningReset.Event(id, request.CreateRequestor(r.Context()), nil))
 	}
 
 	return response.EmptySyncResponse
@@ -415,7 +421,13 @@ func warningDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	var warning *cluster.Warning
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		warning, err = cluster.GetWarning(ctx, tx.Tx(), id)
+		if err != nil {
+			return err
+		}
+
 		err := cluster.DeleteWarning(ctx, tx.Tx(), id)
 		if err != nil {
 			return err
@@ -427,7 +439,7 @@ func warningDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.WarningDeleted.Event(id, request.CreateRequestor(r.Context()), nil))
+	s.Events.SendLifecycle(warning.Project, lifecycle.WarningDeleted.Event(id, request.CreateRequestor(r.Context()), nil))
 
 	return response.EmptySyncResponse
 }
