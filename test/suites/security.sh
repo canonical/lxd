@@ -1,6 +1,5 @@
 test_security() {
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   # CVE-2016-1581
   if [ "$(storage_backend "$LXD_DIR")" = "zfs" ]; then
@@ -140,7 +139,6 @@ test_security() {
 
 test_security_protection() {
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Test deletion protecton
   lxc init testimage c1
