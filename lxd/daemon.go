@@ -698,7 +698,7 @@ func (d *Daemon) handleOIDCAuthenticationResult(r *http.Request, result *oidc.Au
 		}
 
 		lc := action.Event(api.AuthenticationMethodOIDC, result.Email, request.CreateRequestor(r.Context()), nil)
-		s.Events.SendLifecycle(api.ProjectDefaultName, lc)
+		s.Events.SendLifecycle("", lc)
 
 		s.UpdateIdentityCache()
 	}

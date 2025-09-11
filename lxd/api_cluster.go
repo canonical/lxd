@@ -3769,7 +3769,7 @@ func clusterGroupsPost(d *Daemon, r *http.Request) response.Response {
 
 	requestor := request.CreateRequestor(r.Context())
 	lc := lifecycle.ClusterGroupCreated.Event(req.Name, requestor, nil)
-	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
+	s.Events.SendLifecycle("", lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
 }
@@ -4071,7 +4071,7 @@ func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
 
 	requestor := request.CreateRequestor(r.Context())
 	lc := lifecycle.ClusterGroupRenamed.Event(req.Name, requestor, logger.Ctx{"old_name": name})
-	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
+	s.Events.SendLifecycle("", lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
 }
@@ -4197,7 +4197,7 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterGroupUpdated.Event(name, requestor, logger.Ctx{"description": req.Description, "members": req.Members}))
+	s.Events.SendLifecycle("", lifecycle.ClusterGroupUpdated.Event(name, requestor, logger.Ctx{"description": req.Description, "members": req.Members}))
 
 	return response.EmptySyncResponse
 }
@@ -4371,7 +4371,7 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterGroupUpdated.Event(name, requestor, logger.Ctx{"description": req.Description, "members": req.Members}))
+	s.Events.SendLifecycle("", lifecycle.ClusterGroupUpdated.Event(name, requestor, logger.Ctx{"description": req.Description, "members": req.Members}))
 
 	return response.EmptySyncResponse
 }
