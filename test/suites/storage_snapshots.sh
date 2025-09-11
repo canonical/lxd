@@ -44,7 +44,7 @@ description: foodesc
 expires_at: ${expiry_date_in_one_minute}
 EOF
   # Check that the expiry date is set correctly
-  lxc storage volume show "${storage_pool}" "${storage_volume}/yaml_volume_snapshot" | grep "expires_at: ${expiry_date_in_one_minute}"
+  lxc storage volume show "${storage_pool}" "${storage_volume}/yaml_volume_snapshot" | grep -F "expires_at: ${expiry_date_in_one_minute}"
 
   # Dates are formatted differently between `show` and `get --property`
   property_expiry_date_in_one_minute="$(date -u -d "${expiry_date_in_one_minute}" '+%Y-%m-%d %H:%M:%S %z %Z')"
@@ -72,8 +72,8 @@ EOF
   # This will create a snapshot named 'test0' and 'test1'
   lxc storage volume snapshot "${storage_pool}" "${storage_volume}"
   lxc storage volume snapshot "${storage_pool}" "${storage_volume}"
-  lxc storage volume list "${storage_pool}" |  grep "${storage_volume}/test0"
-  lxc storage volume list "${storage_pool}" |  grep "${storage_volume}/test1"
+  lxc storage volume list "${storage_pool}" | grep -F "${storage_volume}/test0"
+  lxc storage volume list "${storage_pool}" | grep -F "${storage_volume}/test1"
   lxc storage volume rm "${storage_pool}" "${storage_volume}/test0"
   lxc storage volume rm "${storage_pool}" "${storage_volume}/test1"
   lxc storage volume unset "${storage_pool}" "${storage_volume}" snapshots.pattern
@@ -106,18 +106,18 @@ EOF
   [ "$(date -d "${created_at} today + 1days")" = "$(date -d "${expires_at}")" ]
 
   lxc storage volume snapshot "${storage_pool}" "${storage_volume}" --no-expiry
-  lxc storage volume show "${storage_pool}" "${storage_volume}/snap2" | grep 'expires_at: 0001-01-01T00:00:00Z'
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap2" | grep -F 'expires_at: 0001-01-01T00:00:00Z'
 
   lxc storage volume rm "${storage_pool}" "${storage_volume}/snap2"
   lxc storage volume rm "${storage_pool}" "${storage_volume}/snap1"
 
   # Test snapshot renaming
   lxc storage volume snapshot "${storage_pool}" "${storage_volume}"
-  lxc storage volume list "${storage_pool}" |  grep "${storage_volume}/snap1"
+  lxc storage volume list "${storage_pool}" | grep -F "${storage_volume}/snap1"
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap1" | grep 'name: snap1'
   lxc storage volume rename "${storage_pool}" "${storage_volume}/snap1" "${storage_volume}/foo"
-  lxc storage volume list "${storage_pool}" |  grep "${storage_volume}/foo"
-  lxc storage volume show "${storage_pool}" "${storage_volume}/foo" | grep 'name: foo'
+  lxc storage volume list "${storage_pool}" | grep -F "${storage_volume}/foo"
+  lxc storage volume show "${storage_pool}" "${storage_volume}/foo" | grep -F 'name: foo'
 
   lxc storage volume attach "${storage_pool}" "${storage_volume}" c1 /mnt
   # Delete file on volume
@@ -306,7 +306,7 @@ EOF
   lxc project delete "project1"
   lxc storage delete "${storage_pool}"
 
-  fingerprint="$(lxc config trust ls --format csv | grep foo | cut -d, -f4)"
+  fingerprint="$(lxc config trust list --format csv | awk -F, '/^client,foo,/ {print $4}')"
   lxc config trust remove "${fingerprint}"
   lxc remote remove "localhost"
 
