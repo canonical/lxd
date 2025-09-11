@@ -22,6 +22,7 @@ var alletraVersion = ""
 // alletraSupportedConnectors represents a list of storage connectors that can be used.
 var alletraSupportedConnectors = []string{
 	connectors.TypeNVME,
+	connectors.TypeISCSI,
 }
 
 type alletra struct {
