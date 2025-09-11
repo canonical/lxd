@@ -350,7 +350,7 @@ func (d *alletra) unmapVolume(vol Volume) error {
 			return err
 		}
 
-		// Disconnect from the NVMe subsystem.
+		// Disconnect from the array.
 		// Do this first before removing the host from HPE Alletra.
 		err = connector.Disconnect(targetQN)
 		if err != nil {
@@ -358,16 +358,16 @@ func (d *alletra) unmapVolume(vol Volume) error {
 		}
 
 		// Delete the host from HPE Alletra if the last volume mapping got removed.
-		// This requires the host to be already disconnected from the NVMe subsystem.
+		// This requires the host to be already disconnected from the array.
 		err = d.client().DeleteHost(host.Name)
 		if err != nil {
 			return err
 		}
 
-		// We have to invalidate a cached value of NVMe target qualified name as we've
+		// We have to invalidate a cached value of target qualified name as we've
 		// disconnected from the array and removed the host. Experiment shows, that
-		// after this, previous QN becomes invalid and we have to do NVMe discovery.
-		d.nvmeTargetQN = ""
+		// after this, previous QN becomes invalid and we have to discovery again.
+		d.targetQN = ""
 	}
 
 	return nil
