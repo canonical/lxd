@@ -127,6 +127,7 @@ type hpeVolume struct {
 	TotalUsedMiB int64  `json:"totalUsedMiB"`
 	SizeMiB      int64  `json:"sizeMiB"`
 	NGUID        string `json:"nguid"`
+	WWN          string `json:"wwn"`
 }
 
 type hpeVLUN struct {
