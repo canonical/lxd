@@ -28,16 +28,16 @@ type CSVReport struct {
 }
 
 // Load reads current content of the filename and loads records.
-func (r *CSVReport) Load() error {
+func (r *CSVReport) Load() (err error) {
 	file, err := os.Open(r.Filename)
 	if err != nil {
 		return err
 	}
 
 	defer func() {
-		err := file.Close()
-		if err != nil {
-			logf("Error closing file %s: %v", r.Filename, err)
+		cerr := file.Close()
+		if err == nil {
+			err = cerr
 		}
 	}()
 
@@ -60,16 +60,16 @@ func (r *CSVReport) Load() error {
 }
 
 // Write writes current records to file.
-func (r *CSVReport) Write() error {
+func (r *CSVReport) Write() (err error) {
 	file, err := os.OpenFile(r.Filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0640)
 	if err != nil {
 		return err
 	}
 
 	defer func() {
-		err := file.Close()
-		if err != nil {
-			logf("Error closing file %s: %v", r.Filename, err)
+		cerr := file.Close()
+		if err == nil {
+			err = cerr
 		}
 	}()
 
@@ -80,7 +80,7 @@ func (r *CSVReport) Write() error {
 	}
 
 	logf("Written report file %s", r.Filename)
-	return file.Close()
+	return nil
 }
 
 // AddRecord adds a record to the report.
