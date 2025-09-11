@@ -157,7 +157,7 @@ test_security_protection() {
   # Test start protection
   lxc profile set default security.protection.start true
 
-  lxc init testimage c1
+  lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
   ! lxc start c1 || false
 
   lxc config set c1 security.protection.start false
@@ -175,8 +175,7 @@ test_security_protection() {
   export LXD_IDMAPPED_MOUNTS_DISABLE=1
   respawn_lxd "${LXD_DIR}" true
 
-  lxc init testimage c1
-  lxc start c1
+  lxc launch testimage c1 -d "${SMALL_ROOT_DISK}"
   lxc stop c1 --force
 
   lxc profile set default security.protection.shift true
