@@ -443,15 +443,15 @@ test_snap_schedule() {
   lxc launch testimage c3 -d "${SMALL_ROOT_DISK}" -c snapshots.schedule='@startup, 10 5,6 * * *'
   lxc launch testimage c4 -d "${SMALL_ROOT_DISK}" -c snapshots.schedule='@startup, 10 5-8 * * *'
   lxc launch testimage c5 -d "${SMALL_ROOT_DISK}" -c snapshots.schedule='@startup, 10 2,5-8/2 * * *'
-  lxc info c1 | grep -wF snap0
-  lxc info c2 | grep -wF snap0
-  lxc info c3 | grep -wF snap0
-  lxc info c4 | grep -wF snap0
-  lxc info c5 | grep -wF snap0
+  [ "$(lxc list --columns nS --format csv c1)" = "c1,1" ]
+  [ "$(lxc list --columns nS --format csv c2)" = "c2,1" ]
+  [ "$(lxc list --columns nS --format csv c3)" = "c3,1" ]
+  [ "$(lxc list --columns nS --format csv c4)" = "c4,1" ]
+  [ "$(lxc list --columns nS --format csv c5)" = "c5,1" ]
 
   # Check we get a new snapshot on restart
   lxc restart c1 -f
-  lxc info c1 | grep -wF snap1
+  [ "$(lxc list --columns nS --format csv c1)" = "c1,2" ]
 
   lxc delete -f c1 c2 c3 c4 c5
 }
