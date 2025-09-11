@@ -99,14 +99,11 @@ test_security() {
     # shellcheck disable=2030
     LXD_DIR="${LXD_STORAGE_DIR}"
 
-    # Import image into default storage pool.
-    ensure_import_testimage
-
     # Verify that no privileged container can be created
-    ! lxc launch testimage c1 -c security.privileged=true || false
+    ! lxc init --empty c1 -d "${SMALL_ROOT_DISK}" -c security.privileged=true || false
 
     # Verify that unprivileged container can be created
-    lxc launch testimage c1
+    lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
 
     # Verify that we can't be tricked into using privileged containers
     ! lxc config set c1 security.privileged true || false
@@ -129,7 +126,7 @@ test_security() {
     lxc profile set default security.privileged false
     lxc profile unset default security.privileged
 
-    lxc delete -f c1
+    lxc delete c1
   )
 
   # shellcheck disable=SC2031,2269
@@ -141,13 +138,13 @@ test_security_protection() {
   ensure_import_testimage
 
   # Test deletion protecton
-  lxc init testimage c1
+  lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1
   lxc delete c1
 
   lxc profile set default security.protection.delete true
 
-  lxc init testimage c1
+  lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1
   lxc delete c1/snap0
   ! lxc delete c1 || false
