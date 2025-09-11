@@ -416,7 +416,7 @@ func (d *alletra) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.H
 	switch connector.Type() {
 	case connectors.TypeISCSI:
 		diskPrefix = "scsi-"
-		diskSuffix = strings.ToLower(hpeVol.NGUID)
+		diskSuffix = strings.ToLower(hpeVol.WWN)
 	case connectors.TypeNVME:
 		diskPrefix = "nvme-eui."
 		diskSuffix = strings.ToLower(hpeVol.NGUID)
