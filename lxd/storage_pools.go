@@ -419,7 +419,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
+	s.Events.SendLifecycle("", lc)
 
 	return resp
 }
@@ -834,7 +834,7 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 		ctx["target"] = targetNode
 	}
 
-	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.StoragePoolUpdated.Event(pool.Name(), requestor, ctx))
+	s.Events.SendLifecycle("", lifecycle.StoragePoolUpdated.Event(pool.Name(), requestor, ctx))
 
 	return response
 }
@@ -1072,7 +1072,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.StoragePoolDeleted.Event(pool.Name(), requestor, nil))
+	s.Events.SendLifecycle("", lifecycle.StoragePoolDeleted.Event(pool.Name(), requestor, nil))
 
 	return response.EmptySyncResponse
 }
