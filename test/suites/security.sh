@@ -193,9 +193,8 @@ test_security_protection() {
   ! lxc start c1 || false
   lxc config set c1 security.protection.shift false
   lxc start c1
-  lxc stop c1 --force
+  lxc delete c1 --force
 
-  lxc delete c1
   lxc profile unset default security.protection.shift
 
   # Respawn LXD to restore default kernel shifting support.
