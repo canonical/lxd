@@ -413,7 +413,7 @@ jobs:
 
   tics:
     name: Tiobe TICS
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     needs: [client, system-tests, ui-e2e-tests]
     env:
       CGO_CFLAGS: "-I/home/runner/go/bin/dqlite/include/ -I/home/runner/go/bin/liblxc/include/"
