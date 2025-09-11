@@ -1,6 +1,7 @@
 package connectors
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -9,9 +10,11 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 )
 
@@ -32,6 +35,11 @@ type connectorISCSI struct {
 	common
 
 	iqn string
+}
+
+// ISCSIDiscoveryLogRecord represents an ISCSI discovery entry.
+type ISCSIDiscoveryLogRecord struct {
+	IQN string
 }
 
 // Type returns the type of the connector.
@@ -258,5 +266,51 @@ func (c *connectorISCSI) findSession(targetQN string) (*session, error) {
 
 // Discover returns the targets found on the first reachable targetAddr.
 func (c *connectorISCSI) Discover(ctx context.Context, targetAddresses ...string) ([]any, error) {
-	return nil, ErrNotSupported
+	if c.Type() != TypeISCSI {
+		return nil, errors.New("Discover() helper can only be used with iSCSI connector type")
+	}
+
+	// Set a deadline for the overall discovery.
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	result := make([]any, 0)
+	for _, targetAddr := range targetAddresses {
+		stdout, err := shared.RunCommandContext(ctx, "iscsiadm", "--mode", "discovery", "--type", "sendtargets", "--portal", targetAddr)
+		if err != nil {
+			logger.Warn("Failed connecting to discovery target", logger.Ctx{"target_address": targetAddr, "err": err})
+			continue
+		}
+
+		scanner := bufio.NewScanner(strings.NewReader(stdout))
+
+		for scanner.Scan() {
+			// each string looks like "192.168.168.1:3260,41 iqn.2023-24.com.org:cz2e123asd"
+			fields := strings.Fields(scanner.Text())
+
+			if len(fields) != 2 {
+				continue
+			}
+
+			if !strings.HasPrefix(fields[0], targetAddr) {
+				continue
+			}
+
+			result = append(result, ISCSIDiscoveryLogRecord{
+				IQN: fields[1],
+			})
+		}
+
+		if len(result) != 0 {
+			// We have already found something.
+			break
+		}
+	}
+
+	// In case none of the target addresses returned any log records also return an error.
+	if len(result) == 0 {
+		return nil, errors.New("Failed to fetch a discovery log record from any of the target addresses")
+	}
+
+	return result, nil
 }
