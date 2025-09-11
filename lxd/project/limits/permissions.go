@@ -358,7 +358,8 @@ func checkInstanceRestrictionsAndAggregateLimits(globalConfig *clusterConfig.Con
 	isRestricted := false
 
 	for key, value := range info.Project.Config {
-		if slices.Contains(allInstanceAggregateLimits, key) || strings.HasPrefix(key, projectLimitDiskPool) {
+		// Check that the key is a known limits key and the value is not empty.
+		if value != "" && (slices.Contains(allInstanceAggregateLimits, key) || strings.HasPrefix(key, projectLimitDiskPool)) {
 			aggregateKeys = append(aggregateKeys, key)
 			continue
 		}
