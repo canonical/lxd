@@ -399,9 +399,7 @@ test_snap_expiry() {
   local lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
 
-  ensure_import_testimage
-
-  lxc launch testimage c1 -d "${SMALL_ROOT_DISK}"
+  lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1
   lxc config show c1/snap0 | grep -F 'expires_at: 0001-01-01T00:00:00Z'
   [ "$(lxc config get --property c1/snap0 expires_at)" = "0001-01-01 00:00:00 +0000 UTC" ]
@@ -428,7 +426,7 @@ test_snap_expiry() {
   lxc config show c1/snap2 | grep -F 'expires_at: 0001-01-01T00:00:00Z'
   [ "$(lxc config get --property c1/snap2 expires_at)" = "0001-01-01 00:00:00 +0000 UTC" ]
 
-  lxc delete -f c1 c2
+  lxc delete c1 c2
 }
 
 test_snap_schedule() {
