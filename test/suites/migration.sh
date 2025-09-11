@@ -302,9 +302,7 @@ migration() {
   # Refresh the container and validate the contents
   lxc_remote copy l1:c1 l2:c2 --refresh
   lxc_remote start l2:c2
-  lxc_remote file pull l2:c2/root/testfile1 .
-  [ "$(< testfile1)" = "test" ]
-  rm testfile1
+  [ "$(lxc_remote file pull l2:c2/root/testfile1 -)" = "test" ]
   lxc_remote stop -f l2:c2
 
   # Change the files modification time by adding one nanosecond.
