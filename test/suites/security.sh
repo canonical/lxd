@@ -19,7 +19,7 @@ test_security() {
   fi
 
   # CVE-2016-1582
-  lxc launch testimage test-priv -c security.privileged=true
+  lxc launch testimage test-priv -c security.privileged=true -d "${SMALL_ROOT_DISK}"
 
   PERM=$(stat -L -c %a "${LXD_DIR}/containers/test-priv")
   FUID=$(stat -L -c %u "${LXD_DIR}/containers/test-priv")
@@ -52,7 +52,7 @@ test_security() {
 
   lxc delete test-priv --force
 
-  lxc launch testimage test-unpriv
+  lxc launch testimage test-unpriv -d "${SMALL_ROOT_DISK}"
   lxc config set test-unpriv security.privileged true
   lxc restart test-unpriv --force
 
