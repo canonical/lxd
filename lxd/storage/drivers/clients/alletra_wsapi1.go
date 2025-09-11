@@ -83,6 +83,7 @@ type hpePort struct {
 	Protocol  int    `json:"protocol"`
 	NodeWWN   string `json:"nodeWWN"`
 	LinkState int    `json:"linkState"`
+	IPAddr    string `json:"IPAddr"`
 }
 
 // hpePortPos represents the port position in HPE Storage.
@@ -694,8 +695,8 @@ func (p *AlletraClient) GetTargetAddrs(connectorType string) (targetAddrs []stri
 				continue
 			}
 
-			if member.NodeWWN != "" {
-				targetAddrs = append(targetAddrs, member.NodeWWN)
+			if member.IPAddr != "" {
+				targetAddrs = append(targetAddrs, member.IPAddr)
 			}
 
 		case connectors.TypeNVME:
