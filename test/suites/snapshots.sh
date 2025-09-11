@@ -173,7 +173,6 @@ snap_restore() {
   pool="$1"
 
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   ##########################################################
   # PREPARATION
@@ -376,7 +375,6 @@ test_snap_expiry() {
   lxd_backend=$(storage_backend "$LXD_DIR")
 
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   lxc launch testimage c1 -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1
@@ -413,7 +411,6 @@ test_snap_schedule() {
   lxd_backend=$(storage_backend "$LXD_DIR")
 
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Check we get a snapshot on first start
   lxc launch testimage c1 -d "${SMALL_ROOT_DISK}" -c snapshots.schedule='@startup'
@@ -439,7 +436,6 @@ test_snap_volume_db_recovery() {
   lxd_backend=$(storage_backend "$LXD_DIR")
 
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   poolName=$(lxc profile device get default root pool)
 
