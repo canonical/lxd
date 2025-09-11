@@ -5614,6 +5614,11 @@ definitions:
                 example: "3:5"
                 type: string
                 x-go-name: USBAddress
+            used_by:
+                description: Parent device type
+                example: bcache
+                type: string
+                x-go-name: UsedBy
             wwn:
                 description: WWN identifier
                 example: eui.0000000001000000e4d25cafae2e4c00
