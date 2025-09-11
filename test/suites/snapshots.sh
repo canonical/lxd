@@ -430,8 +430,7 @@ test_snap_expiry() {
   lxc config show c1/snap2 | grep -F 'expires_at: 0001-01-01T00:00:00Z'
   [ "$(lxc config get --property c1/snap2 expires_at)" = "0001-01-01 00:00:00 +0000 UTC" ]
 
-  lxc rm -f c1
-  lxc rm -f c2
+  lxc delete -f c1 c2
 }
 
 test_snap_schedule() {
@@ -457,7 +456,7 @@ test_snap_schedule() {
   lxc restart c1 -f
   lxc info c1 | grep -wF snap1
 
-  lxc rm -f c1 c2 c3 c4 c5
+  lxc delete -f c1 c2 c3 c4 c5
 }
 
 test_snap_volume_db_recovery() {
