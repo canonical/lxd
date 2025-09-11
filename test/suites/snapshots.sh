@@ -367,7 +367,7 @@ snap_restore() {
   lxc copy c1 c2
   ! lxc storage volume show "${pool}" container/c2 | grep '^created_at: 0001-01-01T00:00:00Z' || false
   [ "$(lxc storage volume show "${pool}" container/c1/snap0 | awk /created_at:/)" = "$(lxc storage volume show "${pool}" container/c2/snap0 | awk /created_at:/)" ]
-  lxc delete -f c1 c2
+  lxc delete c1 c2
 
   # Check the restore isn't blocked by not anymore existing custom volumes.
   lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
