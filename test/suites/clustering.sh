@@ -4167,23 +4167,23 @@ EOF
 
   # c1 should go to node1
   lxc init testimage cluster:c1
-  lxc info cluster:c1 | grep -xF "Location: node1"
+  [ "$(lxc info cluster:c1 | grep -cF "Location: node1")" = 1 ]
 
   # c2 should go to node2. Additionally it should be possible to specify the network.
   lxc init testimage cluster:c2 --target=@blah --network "${bridge}"
-  lxc info cluster:c2 | grep -xF "Location: node2"
+  [ "$(lxc info cluster:c2 | grep -cF "Location: node2")" = 1 ]
 
   # c3 should go to node2 again. Additionally it should be possible to specify the storage pool.
   lxc init testimage cluster:c3 --target=@blah --storage data
-  lxc info cluster:c3 | grep -xF "Location: node2"
+  [ "$(lxc info cluster:c3 | grep -cF "Location: node2")" = 1 ]
 
   # Direct targeting of node2 should work
   lxc init testimage cluster:c4 --target=node2
-  lxc info cluster:c4 | grep -xF "Location: node2"
+  [ "$(lxc info cluster:c4 | grep -cF "Location: node2")" = 1 ]
 
   # Direct targeting of node3 should work
   lxc init testimage cluster:c5 --target=node3
-  lxc info cluster:c5 | grep -xF "Location: node3"
+  [ "$(lxc info cluster:c5 | grep -cF "Location: node3")" = 1 ]
 
   # Check "volatile.cluster.target" is set correctly.
   [ "$(lxc config get cluster:c1 volatile.cluster.target)" = "" ]
@@ -4249,17 +4249,17 @@ EOF
   lxc cluster unset cluster:node2 scheduler.instance
   lxc init testimage cluster:c1 --project foo
   lxc init testimage cluster:c2 --project foo
-  lxc info cluster:c1 --project foo | grep -xF "Location: node2"
-  lxc info cluster:c2 --project foo | grep -xF "Location: node2"
+  [ "$(lxc info cluster:c1 --project foo | grep -cF "Location: node2")" = 1 ]
+  [ "$(lxc info cluster:c2 --project foo | grep -cF "Location: node2")" = 1 ]
   lxc delete -f c1 c2 --project foo
 
   # Check can specify any member or group when restricted.cluster.groups is empty.
   lxc project unset foo restricted.cluster.groups
   lxc init testimage cluster:c1 --project foo --target=node1
-  lxc info cluster:c1 --project foo | grep -xF "Location: node1"
+  [ "$(lxc info cluster:c1 --project foo | grep -cF "Location: node1")" = 1 ]
 
   lxc init testimage cluster:c2 --project foo --target=@blah
-  lxc info cluster:c2 --project foo | grep -xF "Location: node2"
+  [ "$(lxc info cluster:c2 --project foo | grep -cF "Location: node2")" = 1 ]
 
   # Check "volatile.cluster.target" is set correctly.
   [ "$(lxc config get cluster:c2 --project foo volatile.cluster.target)" = "@blah" ]
