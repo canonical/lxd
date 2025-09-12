@@ -42,7 +42,7 @@ func storageAddDriveInfo(devicePath string, disk *api.ResourcesStorageDisk) erro
 
 	// Retrieve udev information
 	udevInfo := filepath.Join(runUdevData, "b"+disk.Device)
-	if sysfsExists(udevInfo) {
+	if pathExists(udevInfo) {
 		// Get the udev information
 		f, err := os.Open(udevInfo)
 		if err != nil {
@@ -133,7 +133,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 	storage.Disks = []api.ResourcesStorageDisk{}
 
 	// Detect all block devices
-	if sysfsExists(sysClassBlock) {
+	if pathExists(sysClassBlock) {
 		entries, err := os.ReadDir(sysClassBlock)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to list %q: %w", sysClassBlock, err)
@@ -166,8 +166,8 @@ func GetStorage() (*api.ResourcesStorage, error) {
 
 			// Only keep the main entries not partitions.
 			// Also account for bcache devices.
-			if !sysfsExists(devicePath) {
-				if !sysfsExists(filepath.Join(entryPath, "bcache")) {
+			if !pathExists(devicePath) {
+				if !pathExists(filepath.Join(entryPath, "bcache")) {
 					continue
 				}
 
@@ -180,7 +180,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			disk.ID = entryName
 
 			// Firmware revision
-			if sysfsExists(filepath.Join(devicePath, "firmware_rev")) {
+			if pathExists(filepath.Join(devicePath, "firmware_rev")) {
 				firmwareRevision, err := os.ReadFile(filepath.Join(devicePath, "firmware_rev"))
 				if err != nil {
 					return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(devicePath, "firmware_rev"), err)
@@ -223,7 +223,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			}
 
 			// NUMA node
-			if sysfsExists(filepath.Join(devicePath, "numa_node")) {
+			if pathExists(filepath.Join(devicePath, "numa_node")) {
 				numaNode, err := readInt(filepath.Join(devicePath, "numa_node"))
 				if err != nil {
 					return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(devicePath, "numa_node"), err)
@@ -235,7 +235,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			}
 
 			// Disk model
-			if sysfsExists(filepath.Join(devicePath, "model")) {
+			if pathExists(filepath.Join(devicePath, "model")) {
 				diskModel, err := os.ReadFile(filepath.Join(devicePath, "model"))
 				if err != nil {
 					return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(devicePath, "model"), err)
@@ -245,7 +245,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			}
 
 			// Disk type
-			if sysfsExists(filepath.Join(devicePath, "subsystem")) {
+			if pathExists(filepath.Join(devicePath, "subsystem")) {
 				diskSubsystem, err := filepath.EvalSymlinks(filepath.Join(devicePath, "subsystem"))
 				if err != nil {
 					return nil, fmt.Errorf("Failed to find %q: %w", filepath.Join(devicePath, "subsystem"), err)
@@ -284,7 +284,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			disk.Removable = diskRemovable == 1
 
 			// WWN
-			if sysfsExists(filepath.Join(entryPath, "wwid")) {
+			if pathExists(filepath.Join(entryPath, "wwid")) {
 				diskWWN, err := os.ReadFile(filepath.Join(entryPath, "wwid"))
 				if err != nil {
 					return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "wwid"), err)
@@ -316,7 +316,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 					continue
 				}
 
-				if !sysfsExists(filepath.Join(subEntryPath, "partition")) {
+				if !pathExists(filepath.Join(subEntryPath, "partition")) {
 					continue
 				}
 
@@ -375,7 +375,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			}
 
 			// Try to find the udev device path
-			if sysfsExists(devDiskByPath) {
+			if pathExists(devDiskByPath) {
 				links, err := os.ReadDir(devDiskByPath)
 				if err != nil {
 					return nil, fmt.Errorf("Failed to list the links in %q: %w", devDiskByPath, err)
@@ -397,7 +397,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			}
 
 			// Try to find the udev device id
-			if sysfsExists(block.DevDiskByID) {
+			if pathExists(block.DevDiskByID) {
 				links, err := os.ReadDir(block.DevDiskByID)
 				if err != nil {
 					return nil, fmt.Errorf("Failed to list the links in %q: %w", block.DevDiskByID, err)
@@ -426,7 +426,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 
 			// If no RPM set and drive is rotational, set to RPM to 1
 			diskRotationalPath := filepath.Join("/sys/class/block/", entryName, "queue/rotational")
-			if disk.RPM == 0 && sysfsExists(diskRotationalPath) {
+			if disk.RPM == 0 && pathExists(diskRotationalPath) {
 				diskRotational, err := readUint(diskRotationalPath)
 				if err == nil {
 					disk.RPM = diskRotational

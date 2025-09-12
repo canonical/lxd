@@ -137,7 +137,7 @@ func parseMeminfo(path string) (*meminfo, error) {
 func getMemoryBlockSizeBytes() uint64 {
 	memoryBlockSizePath := filepath.Join(sysDevicesSystemMemory, "block_size_bytes")
 
-	if !sysfsExists(memoryBlockSizePath) {
+	if !pathExists(memoryBlockSizePath) {
 		return 0
 	}
 
@@ -178,7 +178,7 @@ func getTotalMemory(sysDevicesBase string) uint64 {
 		}
 
 		// Ignore invalid entries.
-		if !sysfsExists(filepath.Join(entryPath, "online")) {
+		if !pathExists(filepath.Join(entryPath, "online")) {
 			continue
 		}
 
@@ -223,7 +223,7 @@ func GetMemory() (*api.ResourcesMemory, error) {
 	memory.Total = info.Total
 
 	// Get NUMA information
-	if sysfsExists(sysDevicesNode) {
+	if pathExists(sysDevicesNode) {
 		memory.Nodes = []api.ResourcesMemoryNode{}
 
 		// List all the nodes
@@ -237,7 +237,7 @@ func GetMemory() (*api.ResourcesMemory, error) {
 			entryName := entry.Name()
 			entryPath := filepath.Join(sysDevicesNode, entryName)
 
-			if !sysfsExists(filepath.Join(entryPath, "meminfo")) {
+			if !pathExists(filepath.Join(entryPath, "meminfo")) {
 				continue
 			}
 
