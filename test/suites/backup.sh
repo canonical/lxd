@@ -1050,13 +1050,10 @@ test_backup_export_import_recover() {
 
     poolName=$(lxc profile device get default root pool)
 
-    ensure_import_testimage
-    ensure_has_localhost_remote "${LXD_ADDR}"
-
     # Create and export an instance.
-    lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
+    lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
     lxc export c1 "${LXD_DIR}/c1.tar.gz"
-    lxc delete -f c1
+    lxc delete c1
 
     # Import instance and remove no longer required tarball.
     lxc import "${LXD_DIR}/c1.tar.gz" c2
@@ -1074,7 +1071,7 @@ yes
 EOF
 
     # Remove recovered instance.
-    lxc delete -f c2
+    lxc delete c2
   )
 }
 
