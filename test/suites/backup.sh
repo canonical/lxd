@@ -377,7 +377,6 @@ _backup_import_with_project() {
   fi
 
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   lxc launch testimage c1 -d "${SMALL_ROOT_DISK}"
   lxc launch testimage c2 -d "${SMALL_ROOT_DISK}"
@@ -718,7 +717,6 @@ _backup_volume_export_with_project() {
   fi
 
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   mkdir "${LXD_DIR}/optimized" "${LXD_DIR}/non-optimized" "${LXD_DIR}/optimized-none" "${LXD_DIR}/optimized-squashfs" "${LXD_DIR}/non-optimized-none" "${LXD_DIR}/non-optimized-squashfs"
   lxd_backend=$(storage_backend "$LXD_DIR")
@@ -923,8 +921,6 @@ _backup_volume_export_with_project() {
 }
 
 test_backup_volume_rename_delete() {
-  ensure_has_localhost_remote "${LXD_ADDR}"
-
   pool="lxdtest-$(basename "${LXD_DIR}")"
 
   # Create test volume.
