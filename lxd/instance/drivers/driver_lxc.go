@@ -6981,11 +6981,14 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 		close(chReady)
 
 		// Wait for completion.
-		err = forkfile.Wait()
-		if err != nil {
-			d.logger.Warn("SFTP server stopped with error", logger.Ctx{"err": err, "stderr": strings.TrimSpace(stderr.String())})
+		// Do not log anything if the process received a SIGTERM (exit status 128+15=143)
+		// as that likely means the instance is being stopped.
+		exitStatus, err := shared.ExitStatus(forkfile.Wait())
+		if exitStatus == 143 {
 			return
 		}
+
+		d.logger.Warn("SFTP server stopped with error", logger.Ctx{"err": err, "exitStatus": exitStatus, "stderr": strings.TrimSpace(stderr.String())})
 	}()
 
 	// Wait for forkfile to have been spawned.
