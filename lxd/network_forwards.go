@@ -10,7 +10,6 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
-	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network"
@@ -277,9 +276,12 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Network driver %q does not support forwards", n.Type()))
 	}
 
-	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
-	listenAddress, err := n.ForwardCreate(req, clientType)
+	listenAddress, err := n.ForwardCreate(req, requestor.ClientType())
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed creating forward: %w", err))
 	}
@@ -352,9 +354,12 @@ func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
-	err = n.ForwardDelete(listenAddress, clientType)
+	err = n.ForwardDelete(listenAddress, requestor.ClientType())
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed deleting forward: %w", err))
 	}
@@ -606,9 +611,12 @@ func networkForwardPut(d *Daemon, r *http.Request) response.Response {
 
 	req.Normalise() // So we handle the request in normalised/canonical form.
 
-	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
-	err = n.ForwardUpdate(listenAddress, req, clientType)
+	err = n.ForwardUpdate(listenAddress, req, requestor.ClientType())
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed updating forward: %w", err))
 	}
