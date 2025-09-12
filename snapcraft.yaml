@@ -902,7 +902,7 @@ parts:
       - spice-protocol
       - spice-server
     source: https://git.launchpad.net/ubuntu/+source/qemu
-    source-commit: e63cad5bb3e377aacfc808c2cf075e0613072b88 # import/1%8.2.2+ds-0ubuntu1.8
+    source-commit: bc0011afab01de8c41ec80fc8c24dd33fb30cd90 # import/1%8.2.2+ds-0ubuntu1.10
     source-depth: 1
     source-type: git
     plugin: autotools
