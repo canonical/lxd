@@ -574,7 +574,6 @@ _backup_export_with_project() {
   fi
 
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   lxc launch testimage c1 -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1
@@ -647,8 +646,6 @@ _backup_export_with_project() {
 }
 
 test_backup_rename() {
-  ensure_has_localhost_remote "${LXD_ADDR}"
-
   OUTPUT="$(! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 || false)"
   if ! echo "${OUTPUT}" | grep -F "Error: Instance backup not found" ; then
     echo "invalid rename response for missing container"
@@ -986,8 +983,6 @@ test_backup_volume_rename_delete() {
 }
 
 test_backup_instance_uuid() {
-  ensure_has_localhost_remote "${LXD_ADDR}"
-
   echo "==> Checking instance UUIDs during backup operation"
   lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
   initialUUID=$(lxc config get c1 volatile.uuid)
@@ -1078,8 +1073,6 @@ EOF
 test_backup_export_import_instance_only() {
   poolName=$(lxc profile device get default root pool)
 
-  ensure_has_localhost_remote "${LXD_ADDR}"
-
   # Create an instance with snapshot.
   lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1
@@ -1103,7 +1096,6 @@ test_backup_export_import_instance_only() {
 
 test_backup_metadata() {
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Fetch the least and most recent supported backup metadata version from the range.
   lowest_version=$(lxc query /1.0 | jq -r .environment.backup_metadata_version_range[0])
