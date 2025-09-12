@@ -714,9 +714,9 @@ _backup_volume_export_with_project() {
 
     # Add a root device to the default profile of the project.
     lxc profile device add default root disk path="/" pool="${pool}"
+  else
+    ensure_import_testimage
   fi
-
-  ensure_import_testimage
 
   mkdir "${LXD_DIR}/optimized" "${LXD_DIR}/non-optimized" "${LXD_DIR}/optimized-none" "${LXD_DIR}/optimized-squashfs" "${LXD_DIR}/non-optimized-none" "${LXD_DIR}/non-optimized-squashfs"
   lxd_backend=$(storage_backend "$LXD_DIR")
