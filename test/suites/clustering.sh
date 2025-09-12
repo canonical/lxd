@@ -3657,6 +3657,11 @@ test_clustering_evacuation() {
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c7 | grep -cF "Status: RUNNING")" = 1 ]
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c7 | grep -cF "Location: node1")" = 1 ]
 
+  # Move c7 to @default to check "volatile.cluster.target" is updated.
+  LXD_DIR="${LXD_TWO_DIR}" lxc stop c7 -f
+  LXD_DIR="${LXD_TWO_DIR}" lxc move c7 --target=@default
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get c7 volatile.cluster.target)" = "@default" ]
+
   # Clean up
   LXD_DIR="${LXD_TWO_DIR}" lxc rm -f c1
   LXD_DIR="${LXD_TWO_DIR}" lxc rm -f c2
