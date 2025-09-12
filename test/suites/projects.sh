@@ -5,7 +5,7 @@ test_projects_default() {
 
   # Containers and images are assigned to the default project
   ensure_import_testimage
-  lxc init testimage c1
+  lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
   lxc project show default | grep -xF -- "- /1.0/profiles/default"
   lxc project show default | grep -F -- "- /1.0/images/"
   lxc delete c1
@@ -95,7 +95,7 @@ test_projects_containers() {
   lxc profile device add default root disk path="/" pool="${pool}"
 
   # Create a container in the project
-  lxc init testimage c1
+  lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
 
   # The container is listed when using this project
   lxc list -c n | grep -wF c1
@@ -133,7 +133,7 @@ test_projects_containers() {
 
   # Create a container with the same name in the default project
   ensure_import_testimage
-  lxc init testimage c1
+  lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
   lxc start c1
   [ "$(lxc list -f csv -c ns c1)" = "c1,RUNNING" ]
   lxc stop --force c1
@@ -162,7 +162,7 @@ test_projects_copy() {
   lxc project create bar -c features.profiles=false -c features.images=false
 
   # Create a container in the project
-  lxc --project foo init testimage c1
+  lxc --project foo init testimage c1 -d "${SMALL_ROOT_DISK}"
   lxc --project foo copy c1 c1 --target-project bar
   lxc --project bar start c1
   lxc --project bar delete c1 -f
@@ -210,7 +210,7 @@ test_projects_snapshots() {
   lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")"
 
   # Create a container in the project
-  lxc init testimage c1
+  lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
 
   # Create, rename, restore and delete a snapshot
   lxc snapshot c1
@@ -231,7 +231,7 @@ test_projects_snapshots() {
 
   lxc project switch default
   ensure_import_testimage
-  lxc init testimage c1
+  lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1
   lxc delete c1
 
@@ -252,14 +252,11 @@ test_projects_backups() {
   lxc project create foo
   lxc project switch foo
 
-  # Import an image into the project
-  deps/import-busybox --project foo --alias testimage
-
   # Add a root device to the default profile of the project
   lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")"
 
   # Create a container in the project
-  lxc init testimage c1
+  lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
 
   mkdir "${LXD_DIR}/non-optimized"
 
@@ -281,7 +278,6 @@ test_projects_backups() {
 
   # Delete the project
   rm -rf "${LXD_DIR}/non-optimized/"
-  lxc image delete testimage
   lxc project delete foo
 }
 
@@ -357,7 +353,7 @@ test_projects_profiles_default() {
   fingerprint="$(lxc image list -c f --format json | jq .[0].fingerprint)"
 
   # Create a container
-  lxc init "${fingerprint}" c1
+  lxc init "${fingerprint}" c1 -d "${SMALL_ROOT_DISK}"
 
   # Switch back the default project
   lxc project switch default
@@ -368,7 +364,7 @@ test_projects_profiles_default() {
 
   # Create a container in the default project as well.
   ensure_import_testimage
-  lxc init testimage c1
+  lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
 
   # If we look at the global profile we see that it's being used by both the
   # container in the above project and the one we just created.
@@ -544,7 +540,7 @@ test_projects_network() {
   lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")"
 
   # Create a container in the project
-  lxc init -n "${network}" testimage c1
+  lxc init -n "${network}" testimage c1 -d "${SMALL_ROOT_DISK}"
 
   lxc network show "${network}" | grep -xF -- "- /1.0/instances/c1?project=foo"
 
@@ -572,8 +568,6 @@ test_projects_limits() {
   # Add a root device to the default profile of the project and import an image.
   pool="lxdtest-$(basename "${LXD_DIR}")"
   lxc profile device add default root disk path="/" pool="${pool}"
-
-  deps/import-busybox --project p1 --alias testimage
 
   # Test per-pool limits.
   lxc storage create limit1 dir
@@ -613,15 +607,15 @@ test_projects_limits() {
   lxc storage delete limit2
 
   # Create a couple of containers in the project.
-  lxc init testimage c1
-  lxc init testimage c2
+  lxc init --empty c1
+  lxc init --empty c2
 
   # Can't set the containers limit below the current count.
   ! lxc project set p1 limits.containers 1 || false
 
   # Can't create containers anymore after the limit is reached.
   lxc project set p1 limits.containers 2
-  ! lxc init testimage c3 || false
+  ! lxc init --empty c3 || false
 
   # Can't set the project's memory limit to a percentage value.
   ! lxc project set p1 limits.memory 10% || false
@@ -650,16 +644,16 @@ test_projects_limits() {
   lxc profile device add unrestricted root disk path="/" pool="${pool}"
 
   # Can't create a new container without defining "limits.memory"
-  ! lxc init testimage c2 -p unrestricted || false
+  ! lxc init --empty c2 -p unrestricted || false
 
   # Can't create a new container if "limits.memory" is too high
-  ! lxc init testimage c2 -p unrestricted -c limits.memory=4GiB || false
+  ! lxc init --empty c2 -p unrestricted -c limits.memory=4GiB || false
 
   # Can't create a new container if "limits.memory" is a percentage
-  ! lxc init testimage c2 -p unrestricted -c limits.memory=10% || false
+  ! lxc init --empty c2 -p unrestricted -c limits.memory=10% || false
 
   # No error occurs if we define "limits.memory" and stay within the limits.
-  lxc init testimage c2 -p unrestricted -c limits.memory=1GiB
+  lxc init --empty c2 -p unrestricted -c limits.memory=1GiB
 
   # Can't change the container's "limits.memory" if it would overflow the limit.
   ! lxc config set c2 limits.memory=4GiB || false
@@ -830,9 +824,7 @@ test_projects_limits() {
   fi
 
   lxc storage volume delete "${pool}" v1
-  lxc delete c1
-  lxc delete c2
-  lxc image delete testimage
+  lxc delete c1 c2
   lxc profile delete unrestricted
 
   lxc project switch default
@@ -850,11 +842,9 @@ test_projects_limits() {
   pool="lxdtest-$(basename "${LXD_DIR}")"
   lxc profile device add default root disk path="/" pool="${pool}"
 
-  deps/import-busybox --project p1 --alias testimage
-
   # Create a couple of containers in the project.
-  lxc init testimage c1 -c limits.memory=1GiB
-  lxc init testimage c2 -c limits.memory=1GiB
+  lxc init --empty c1 -c limits.memory=1GiB -d "${SMALL_ROOT_DISK}"
+  lxc init --empty c2 -c limits.memory=1GiB -d "${SMALL_ROOT_DISK}"
 
   lxc export c1
   lxc delete c1
@@ -867,7 +857,6 @@ test_projects_limits() {
 
   rm c1.tar.gz
   lxc delete c2
-  lxc image delete testimage
   lxc project switch default
   lxc project delete p1
 
@@ -1064,7 +1053,7 @@ run_projects_restrictions() {
   ! lxc init testimage c1 -c security.privileged=true || false
 
   # It's possible to create non-isolated containers.
-  lxc init testimage c1 -c security.idmap.isolated=false
+  lxc init testimage c1 -c security.idmap.isolated=false -d "${SMALL_ROOT_DISK}"
 
   # It's not possible to change low-level options
   ! lxc config set c1 "raw.idmap=both 0 0" || false
@@ -1138,7 +1127,7 @@ run_projects_restrictions() {
   # Setting restricted.containers.nesting to 'allow' makes it possible to create
   # nested containers.
   lxc project set local:p1 restricted.containers.nesting=allow
-  lxc init testimage c1 -c security.nesting=true
+  lxc init testimage c1 -c security.nesting=true -d "${SMALL_ROOT_DISK}"
 
   # It's not possible to set restricted.containers.nesting back to 'block',
   # because there's an instance with security.nesting=true.
@@ -1149,7 +1138,7 @@ run_projects_restrictions() {
   # Setting restricted.containers.lowlevel to 'allow' makes it possible to set
   # low-level options.
   lxc project set local:p1 restricted.containers.lowlevel=allow
-  lxc init testimage c1 -c "raw.idmap=both 0 0"
+  lxc init testimage c1 -c "raw.idmap=both 0 0" -d "${SMALL_ROOT_DISK}"
 
   # It's not possible to set restricted.containers.lowlevel back to 'block',
   # because there's an instance with raw.idmap set.
@@ -1160,7 +1149,7 @@ run_projects_restrictions() {
   # Setting restricted.containers.privilege to 'allow' makes it possible to create
   # privileged containers.
   lxc project set local:p1 restricted.containers.privilege=allow
-  lxc init testimage c1 -c security.privileged=true
+  lxc init testimage c1 -c security.privileged=true -d "${SMALL_ROOT_DISK}"
 
   # It's not possible to set restricted.containers.privilege back to
   # 'unprivileged', because there's an instance with security.privileged=true.
@@ -1186,7 +1175,7 @@ run_projects_restrictions() {
   lxc project set local:p1 restricted.virtual-machines.lowlevel=block
 
   echo "==> Create an instance and mount a disk device to it with io.threads=4."
-  lxc init --vm --empty v1
+  lxc init --vm --empty v1 -d "${SMALL_ROOT_DISK}"
   # Device is allowed to use `io.threads` despite `restricted.virtual-machines.lowlevel=block` because `restricted!=true`.
   lxc config device add v1 foo disk source=/mnt path=/mnt io.threads=4
 
@@ -1225,7 +1214,7 @@ test_projects_usage() {
     limits.cpu=1 \
     limits.memory=512MiB \
     limits.processes=20
-  lxc profile device set default root size=300MiB --project test-usage
+  lxc profile device set default root size=48MiB --project test-usage
 
   # Spin up a container
   deps/import-busybox --project test-usage --alias testimage
@@ -1234,7 +1223,7 @@ test_projects_usage() {
 
   lxc project info test-usage --format csv | grep -xF "CONTAINERS,UNLIMITED,1"
   lxc project info test-usage --format csv | grep -xF "CPU,5,1"
-  lxc project info test-usage --format csv | grep -xF "DISK,10.00GiB,300.00MiB"
+  lxc project info test-usage --format csv | grep -xF "DISK,10.00GiB,48.00MiB"
   lxc project info test-usage --format csv | grep -xF "INSTANCES,UNLIMITED,1"
   lxc project info test-usage --format csv | grep -xF "MEMORY,1.00GiB,512.00MiB"
   lxc project info test-usage --format csv | grep -xF "NETWORKS,3,0"
@@ -1262,8 +1251,8 @@ EOF
   lxc profile device set default root size=300MiB --project test-project-yaml
   deps/import-busybox --project test-project-yaml --alias testimage
 
-  lxc init testimage c1 --project test-project-yaml
-  lxc init testimage c2 --project test-project-yaml
+  lxc init testimage c1 --project test-project-yaml -d "${SMALL_ROOT_DISK}"
+  lxc init testimage c2 --project test-project-yaml -d "${SMALL_ROOT_DISK}"
   ! lxc init testimage c3 --project test-project-yaml || false # Should fail due to the project limits.cpu=2 (here we would have 3 containers with 1 CPU each)
 
   lxc delete -f c1 --project test-project-yaml
