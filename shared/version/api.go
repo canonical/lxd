@@ -459,6 +459,7 @@ var APIExtensions = []string{
 	"auth_bearer_devlxd",
 	"devlxd_volume_management",
 	"storage_driver_alletra",
+	"resources_disk_used_by",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
