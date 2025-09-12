@@ -11,7 +11,6 @@ import (
 	"maps"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -1923,22 +1922,30 @@ func (d *zfs) tryGetVolumeDiskPathFromDataset(ctx context.Context, dataset strin
 }
 
 func (d *zfs) getVolumeDiskPathFromDataset(dataset string) (string, error) {
-	zvolUdevLink := filepath.Join("/dev/zvol", dataset)
-
 	// Shortcut for udev.
-	sb, err := os.Stat(zvolUdevLink)
+	// If the udev link exists, resolve it and confirm it's a block device
+	// before returning it. Chasing the symlink to the actual device node
+	// (`/dev/zdX`) ensures consistency with the "slow path" where `zvol_id` is
+	// invoked directly.
+	devPath, err := os.Readlink("/dev/zvol/" + dataset)
 	if err == nil {
-		// If the udev link exists and is a block device, return it.
-		if shared.IsBlockdev(sb.Mode()) {
-			return zvolUdevLink, nil
+		// devPath is relative to /dev/zvol, so extract the last part
+		// it looks like `../../../zd0` and we need to turn that into `/dev/zd0`.
+		lastSlashIndex := strings.LastIndex(devPath, "/")
+		if lastSlashIndex != -1 {
+			devPath = "/dev" + devPath[lastSlashIndex:]
+
+			// If the udev link exists and is a block device, return it.
+			sb, err := os.Stat(devPath)
+			if err == nil && shared.IsBlockdev(sb.Mode()) {
+				return devPath, nil
+			}
 		}
 	}
 
 	// Locate zvol_id.
 	zvolid := "/lib/udev/zvol_id"
 	if !shared.PathExists(zvolid) {
-		var err error
-
 		zvolid, err = exec.LookPath("zvol_id")
 		if err != nil {
 			return "", err
@@ -1964,7 +1971,7 @@ func (d *zfs) getVolumeDiskPathFromDataset(dataset string) (string, error) {
 		}
 
 		// Resolve the dataset path.
-		entryPath := filepath.Join("/dev", entryName)
+		entryPath := "/dev/" + entryName
 		output, err := shared.RunCommandContext(context.TODO(), zvolid, entryPath)
 		if err != nil {
 			continue
