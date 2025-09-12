@@ -4154,6 +4154,11 @@ EOF
   lxc init testimage cluster:c5 --target=node3
   lxc info cluster:c5 | grep -xF "Location: node3"
 
+  # Check "volatile.cluster.target" is set correctly.
+  [ "$(lxc config get cluster:c1 volatile.cluster.target)" = "" ]
+  [ "$(lxc config get cluster:c2 volatile.cluster.target)" = "@blah" ]
+  [ "$(lxc config get cluster:c3 volatile.cluster.target)" = "@blah" ]
+
   # Clean up
   lxc rm -f c1 c2 c3 c4 c5
 
@@ -4224,6 +4229,9 @@ EOF
 
   lxc init testimage cluster:c2 --project foo --target=@blah
   lxc info cluster:c2 --project foo | grep -xF "Location: node2"
+
+  # Check "volatile.cluster.target" is set correctly.
+  [ "$(lxc config get cluster:c2 --project foo volatile.cluster.target)" = "@blah" ]
 
   lxc delete -f c1 c2 --project foo
 
