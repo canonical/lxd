@@ -509,17 +509,17 @@ _backup_import_with_project() {
   lxc storage create pool_2 dir
 
   # Export created container
-  lxc init testimage c3 -d "${SMALL_ROOT_DISK}" -s pool_1
+  lxc init --empty c3 -d "${SMALL_ROOT_DISK}" -s pool_1
   lxc export c3 "${LXD_DIR}/c3.tar.gz"
 
   # Remove container and storage pool
-  lxc delete -f c3
+  lxc delete c3
   lxc storage delete pool_1
 
   # This should succeed as it will fall back on the default pool
   lxc import "${LXD_DIR}/c3.tar.gz"
 
-  lxc delete -f c3
+  lxc delete c3
 
   # Remove root device
   lxc profile device remove default root
@@ -533,7 +533,7 @@ _backup_import_with_project() {
   # Specify pool explicitly
   lxc import "${LXD_DIR}/c3.tar.gz" -s pool_2
 
-  lxc delete -f c3
+  lxc delete c3
 
   # Reset default storage pool
   lxc profile device add default root disk path=/ pool="${default_pool}"
