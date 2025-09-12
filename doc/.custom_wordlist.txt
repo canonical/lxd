@@ -366,3 +366,9 @@ Zettabyte
 ZFS
 zpool
 zpools
+HPE
+Alletra
+WSAPI
+CPG
+vLUN
+vLUNs
