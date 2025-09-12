@@ -1,4 +1,5 @@
 test_snapshots() {
+  ensure_import_testimage
   snapshots "lxdtest-$(basename "${LXD_DIR}")"
 
   if [ "$(storage_backend "$LXD_DIR")" = "lvm" ]; then
@@ -21,7 +22,6 @@ snapshots() {
   lxd_backend=$(storage_backend "$LXD_DIR")
   pool="$1"
 
-  ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   lxc init testimage foo
