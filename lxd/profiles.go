@@ -915,12 +915,22 @@ func profileDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if details.profileName == "default" {
-		return response.Forbidden(errors.New(`The "default" profile cannot be deleted`))
+	err = doProfileDelete(r.Context(), s, details.profileName, details.effectiveProject.Name)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		profile, err := dbCluster.GetProfile(ctx, tx.Tx(), details.effectiveProject.Name, details.profileName)
+	return response.EmptySyncResponse
+}
+
+// doProfileDelete deletes a named profile in the given project.
+func doProfileDelete(ctx context.Context, s *state.State, name string, effectiveProjectName string) error {
+	if name == "default" {
+		return api.NewStatusError(http.StatusForbidden, `The "default" profile cannot be deleted`)
+	}
+
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		profile, err := dbCluster.GetProfile(ctx, tx.Tx(), effectiveProjectName, name)
 		if err != nil {
 			return err
 		}
@@ -931,17 +941,17 @@ func profileDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if len(usedBy) > 0 {
-			return errors.New("Profile is currently in use")
+			return api.NewStatusError(http.StatusBadRequest, "Profile is currently in use")
 		}
 
-		return dbCluster.DeleteProfile(ctx, tx.Tx(), details.effectiveProject.Name, details.profileName)
+		return dbCluster.DeleteProfile(ctx, tx.Tx(), effectiveProjectName, name)
 	})
 	if err != nil {
-		return response.SmartError(err)
+		return err
 	}
 
-	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(details.effectiveProject.Name, lifecycle.ProfileDeleted.Event(details.profileName, details.effectiveProject.Name, requestor, nil))
+	eventLifecycleRequestor := request.CreateRequestor(ctx)
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.ProfileDeleted.Event(name, effectiveProjectName, eventLifecycleRequestor, nil))
 
-	return response.EmptySyncResponse
+	return nil
 }
