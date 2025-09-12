@@ -2447,8 +2447,6 @@ func updateClusterCertificate(ctx context.Context, s *state.State, gateway *clus
 func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	// Redirect all requests to the leader, which is the one with
-	// knowledge of which nodes are part of the raft cluster.
 	leaderInfo, err := s.LeaderInfo()
 	if err != nil {
 		return response.InternalError(err)
@@ -2550,8 +2548,6 @@ type internalRaftNode struct {
 func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	// Redirect all requests to the leader, which is the one with with
-	// up-to-date knowledge of what nodes are part of the raft cluster.
 	leaderInfo, err := s.LeaderInfo()
 	if err != nil {
 		return response.InternalError(err)
@@ -2773,8 +2769,6 @@ type internalClusterPostAssignRequest struct {
 func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	// Redirect all requests to the leader, which is the one with
-	// authoritative knowledge of the current raft configuration.
 	leaderInfo, err := s.LeaderInfo()
 	if err != nil {
 		return response.InternalError(err)
