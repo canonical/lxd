@@ -647,7 +647,6 @@ _backup_export_with_project() {
 }
 
 test_backup_rename() {
-  ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   OUTPUT="$(! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 || false)"
@@ -987,7 +986,6 @@ test_backup_volume_rename_delete() {
 }
 
 test_backup_instance_uuid() {
-  ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   echo "==> Checking instance UUIDs during backup operation"
@@ -1083,7 +1081,6 @@ EOF
 test_backup_export_import_instance_only() {
   poolName=$(lxc profile device get default root pool)
 
-  ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Create an instance with snapshot.
