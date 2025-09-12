@@ -32,11 +32,6 @@ var acmeChallengeCmd = APIEndpoint{
 func acmeProvideChallenge(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	token, err := url.PathUnescape(mux.Vars(r)["token"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	leaderInfo, err := s.LeaderInfo()
 	if err != nil {
 		return response.SmartError(err)
@@ -52,7 +47,16 @@ func acmeProvideChallenge(d *Daemon, r *http.Request) response.Response {
 		return response.ForwardedResponse(client)
 	}
 
-	if d.http01Provider == nil || d.http01Provider.Token() != token {
+	if d.http01Provider == nil {
+		return response.NotFound(nil)
+	}
+
+	token, err := url.PathUnescape(mux.Vars(r)["token"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if d.http01Provider.Token() != token {
 		return response.NotFound(nil)
 	}
 

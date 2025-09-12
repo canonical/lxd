@@ -1509,11 +1509,6 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	leaderInfo, err := s.LeaderInfo()
 	if err != nil {
 		return response.InternalError(err)
@@ -1521,6 +1516,11 @@ func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 
 	if !leaderInfo.Clustered {
 		return response.InternalError(cluster.ErrNodeIsNotClustered)
+	}
+
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	var raftNodes []db.RaftNode
@@ -1998,19 +1998,8 @@ func clusterNodePost(d *Daemon, r *http.Request) response.Response {
 func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	force, err := strconv.Atoi(r.FormValue("force"))
-	if err != nil {
-		force = 0
-	}
-
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	// Redirect all requests to the leader, which is the one with
 	// knowledge of which nodes are part of the raft cluster.
-	localClusterAddress := s.LocalConfig.ClusterAddress()
 	leaderInfo, err := s.LeaderInfo()
 	if err != nil {
 		return response.SmartError(err)
@@ -2019,6 +2008,18 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	if !leaderInfo.Clustered {
 		return response.InternalError(cluster.ErrNodeIsNotClustered)
 	}
+
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	force, err := strconv.Atoi(r.FormValue("force"))
+	if err != nil {
+		force = 0
+	}
+
+	localClusterAddress := s.LocalConfig.ClusterAddress()
 
 	var localInfo, leaderNodeInfo db.NodeInfo
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -2448,19 +2449,6 @@ func updateClusterCertificate(ctx context.Context, s *state.State, gateway *clus
 func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	req := internalClusterPostAcceptRequest{}
-
-	// Parse the request
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
-	// Quick checks.
-	if req.Name == "" {
-		return response.BadRequest(errors.New("No name provided"))
-	}
-
 	// Redirect all requests to the leader, which is the one with
 	// knowledge of which nodes are part of the raft cluster.
 	leaderInfo, err := s.LeaderInfo()
@@ -2482,6 +2470,19 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 		}
 
 		return response.SyncResponseRedirect(url.String())
+	}
+
+	req := internalClusterPostAcceptRequest{}
+
+	// Parse the request
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	// Quick checks.
+	if req.Name == "" {
+		return response.BadRequest(errors.New("No name provided"))
 	}
 
 	// Get lock now we are on leader.
@@ -2773,23 +2774,9 @@ type internalClusterPostAssignRequest struct {
 // Used to to transfer the responsibilities of a member to another one.
 func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
-	req := internalClusterPostHandoverRequest{}
-
-	// Parse the request
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
-	// Quick checks.
-	if req.Address == "" {
-		return response.BadRequest(errors.New("No ID provided"))
-	}
 
 	// Redirect all requests to the leader, which is the one with
 	// authoritative knowledge of the current raft configuration.
-	localClusterAddress := s.LocalConfig.ClusterAddress()
-
 	leaderInfo, err := s.LeaderInfo()
 	if err != nil {
 		return response.InternalError(err)
@@ -2805,6 +2792,21 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 
 		return response.SyncResponseRedirect(url.String())
 	}
+
+	req := internalClusterPostHandoverRequest{}
+
+	// Parse the request
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	// Quick checks.
+	if req.Address == "" {
+		return response.BadRequest(errors.New("No ID provided"))
+	}
+
+	localClusterAddress := s.LocalConfig.ClusterAddress()
 
 	// Get lock now we are on leader.
 	d.clusterMembershipMutex.Lock()
