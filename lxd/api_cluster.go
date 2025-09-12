@@ -2457,8 +2457,7 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if !leaderInfo.Leader {
-		logger.Debugf("Redirect member accept request to %s", leaderInfo.Address)
-
+		logger.Debug("Redirect member accept request", logger.Ctx{"leader": leaderInfo.Address})
 		url := &url.URL{
 			Scheme: "https",
 			Path:   "/internal/cluster/accept",
@@ -2558,7 +2557,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 	}
 
 	if !leaderInfo.Leader {
-		logger.Debugf("Redirect cluster rebalance request to %s", leaderInfo.Address)
+		logger.Debug("Redirect cluster rebalance request", logger.Ctx{"leader": leaderInfo.Address})
 		url := &url.URL{
 			Scheme: "https",
 			Path:   "/internal/cluster/rebalance",
@@ -2775,7 +2774,7 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if !leaderInfo.Leader {
-		logger.Debugf("Redirect handover request to %s", leaderInfo.Address)
+		logger.Debug("Redirect handover request", logger.Ctx{"leader": leaderInfo.Address})
 		url := &url.URL{
 			Scheme: "https",
 			Path:   "/internal/cluster/handover",
