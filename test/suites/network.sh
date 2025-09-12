@@ -119,10 +119,10 @@ test_network() {
   lxc config device set outsider eth0 ipv4.address "${v4_addr_foo}" --project foo
   lxc config device set outsider eth0 ipv6.address "${v6_addr_foo}" --project foo
 
-  lxc network list-leases lxdt$$ | grep -wF STATIC | grep -F "${v4_addr}"
-  lxc network list-leases lxdt$$ | grep -wF STATIC | grep -F "${v6_addr}"
-  lxc network list-leases lxdt$$ --project foo | grep -wF STATIC | grep -F "${v4_addr_foo}"
-  lxc network list-leases lxdt$$ --project foo | grep -wF STATIC | grep -F "${v6_addr_foo}"
+  lxc network list-leases -f csv lxdt$$ | grep -F ",${v4_addr},STATIC"
+  lxc network list-leases -f csv lxdt$$ | grep -F ",${v6_addr},STATIC"
+  lxc network list-leases -f csv lxdt$$ --project foo | grep -F ",${v4_addr_foo},STATIC"
+  lxc network list-leases -f csv lxdt$$ --project foo | grep -F ",${v6_addr_foo},STATIC"
 
   # Request DHCPv6 lease (if udhcpc6 is in busybox image).
   busyboxUdhcpc6=1
