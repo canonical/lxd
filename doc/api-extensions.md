@@ -2712,4 +2712,4 @@ The following pool-level configuration keys have been added:
 
 ## `resources_disk_used_by`
 
-Adds the field `used_by` to potential storage disk returned by the resources end point to indicate its use by any virtual parent device, e.g. bcache.
+Adds the field `used_by` to potential storage disk returned by the resources end point to indicate its use by any virtual parent device, e.g. `bcache`.
