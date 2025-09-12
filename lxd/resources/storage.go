@@ -164,9 +164,15 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			entryPath := filepath.Join(sysClassBlock, entryName)
 			devicePath := filepath.Join(entryPath, "device")
 
-			// Only keep the main entries not partitions
+			// Only keep the main entries not partitions.
+			// Also account for bcache devices.
 			if !sysfsExists(devicePath) {
-				continue
+				if !sysfsExists(filepath.Join(entryPath, "bcache")) {
+					continue
+				}
+
+				// The bcache virtual device's info is listed right under its entryPath.
+				devicePath = entryPath
 			}
 
 			// Setup the entry
@@ -431,6 +437,12 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			disk.DeviceFSUUID, err = block.DiskFSUUID(filepath.Join("/dev", entryName))
 			if err != nil {
 				return nil, err
+			}
+
+			// Identify if the disk is in use by any bcache device.
+			// The bcache device's own 'bcache' path is a link, not a directory.
+			if sysfsIsDir(filepath.Join(devicePath, "bcache")) {
+				disk.UsedBy = "bcache"
 			}
 
 			// Add to list
