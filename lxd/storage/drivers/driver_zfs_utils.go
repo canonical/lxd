@@ -288,14 +288,11 @@ func (d *zfs) getDatasetProperties(dataset string, keys ...string) (map[string]s
 	props := make(map[string]string, len(keys))
 
 	for row := range strings.SplitSeq(output, "\n") {
-		prop := strings.Split(row, "\t")
-
-		if len(prop) < 2 {
+		key, val, found := strings.Cut(row, "\t")
+		if !found {
 			continue
 		}
 
-		key := prop[0]
-		val := prop[1]
 		props[key] = val
 	}
 
@@ -305,24 +302,22 @@ func (d *zfs) getDatasetProperties(dataset string, keys ...string) (map[string]s
 // version returns the ZFS version based on kernel module version on package.
 func (d *zfs) version() (string, error) {
 	// Loaded kernel module version
-	if shared.PathExists("/sys/module/zfs/version") {
-		out, err := os.ReadFile("/sys/module/zfs/version")
-		if err == nil {
-			return strings.TrimSpace(string(out)), nil
-		}
+	outBytes, err := os.ReadFile("/sys/module/zfs/version")
+	if err == nil {
+		return strings.TrimSpace(string(outBytes)), nil
 	}
 
 	// Module information version
 	out, err := shared.RunCommandContext(context.TODO(), "modinfo", "-F", "version", "zfs")
 	if err == nil {
-		return strings.TrimSpace(string(out)), nil
+		return strings.TrimSpace(out), nil
 	}
 
 	// This function is only really ever relevant on Ubuntu as the only
 	// distro that ships out of sync tools and kernel modules
 	out, err = shared.RunCommandContext(context.TODO(), "dpkg-query", "--showformat=${Version}", "--show", "zfsutils-linux")
 	if out != "" && err == nil {
-		return strings.TrimSpace(string(out)), nil
+		return strings.TrimSpace(out), nil
 	}
 
 	return "", errors.New("Could not determine ZFS module version")
@@ -349,11 +344,7 @@ func (d *zfs) needsRecursion(dataset string) bool {
 		return false
 	}
 
-	if len(entries) == 0 {
-		return false
-	}
-
-	return true
+	return len(entries) != 0
 }
 
 func (d *zfs) sendDataset(dataset string, parent string, volSrcArgs *migration.VolumeSourceArgs, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTracker) error {
@@ -380,8 +371,7 @@ func (d *zfs) sendDataset(dataset string, parent string, volSrcArgs *migration.V
 		args = append(args, "-i", parent)
 	}
 
-	args = append(args, dataset)
-	cmd := exec.Command("zfs", args...)
+	cmd := exec.Command("zfs", append(args, dataset)...)
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
@@ -419,9 +409,10 @@ func (d *zfs) sendDataset(dataset string, parent string, volSrcArgs *migration.V
 
 func (d *zfs) receiveDataset(vol Volume, conn io.ReadWriteCloser, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
 	// Assemble zfs receive command.
-	cmd := exec.Command("zfs", "receive", "-x", "mountpoint", "-F", "-u", d.dataset(vol, false))
+	dataset := d.dataset(vol, false)
+	cmd := exec.Command("zfs", "receive", "-x", "mountpoint", "-F", "-u", dataset)
 	if vol.ContentType() == ContentTypeBlock || d.isBlockBacked(vol) {
-		cmd = exec.Command("zfs", "receive", "-F", "-u", d.dataset(vol, false))
+		cmd = exec.Command("zfs", "receive", "-F", "-u", dataset)
 	}
 
 	// Prepare stdin/stderr.
