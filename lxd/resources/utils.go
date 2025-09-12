@@ -53,7 +53,7 @@ func pathExists(path string) bool {
 	return err == nil
 }
 
-func sysfsIsDir(path string) bool {
+func pathIsDir(path string) bool {
 	f, err := os.Lstat(path)
 	if err != nil {
 		return false
