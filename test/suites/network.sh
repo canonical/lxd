@@ -2,8 +2,6 @@ test_network() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  lxc init testimage nettest
-
   # Test DNS resolution of instance names
   lxc network create lxdt$$
   lxc launch testimage 0abc -d "${SMALL_ROOT_DISK}" -n lxdt$$
@@ -100,6 +98,7 @@ test_network() {
 
   lxc network delete lxdt$$
 
+  lxc init testimage nettest
   # Configured bridge with static assignment
   lxc network create lxdt$$ dns.domain=test dns.mode=managed ipv6.dhcp.stateful=true
   lxc network attach lxdt$$ nettest eth0
