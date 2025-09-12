@@ -3629,6 +3629,11 @@ test_clustering_evacuation() {
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c6)" = "RUNNING,node2" ]
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c7)" = "RUNNING,node1" ]
 
+  # Move c7 to @default to check "volatile.cluster.target" is updated.
+  LXD_DIR="${LXD_TWO_DIR}" lxc stop c7 -f
+  LXD_DIR="${LXD_TWO_DIR}" lxc move c7 --target=@default
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get c7 volatile.cluster.target)" = "@default" ]
+
   # Clean up
   LXD_DIR="${LXD_TWO_DIR}" lxc delete -f c1 c2 c3 c4 c5 c6 c7
   LXD_DIR="${LXD_TWO_DIR}" lxc image delete testimage
