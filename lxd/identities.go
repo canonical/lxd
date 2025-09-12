@@ -2192,14 +2192,6 @@ func updateIdentityCache(d *Daemon) {
 			}
 
 			cacheEntry.Certificate = cert
-		} else if cacheEntry.AuthenticationMethod == api.AuthenticationMethodOIDC {
-			subject, err := id.Subject()
-			if err != nil {
-				logger.Warn("Failed to extract OIDC subject from OIDC identity metadata", logger.Ctx{"err": err})
-				continue
-			}
-
-			cacheEntry.Subject = subject
 		} else if cacheEntry.AuthenticationMethod == api.AuthenticationMethodBearer {
 			secret, ok := bearerIdentitySecrets[id.ID]
 			if !ok {

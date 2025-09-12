@@ -22,6 +22,14 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
+var userAgent = version.ClientUserAgent{
+	Name:         "lxc",
+	Version:      version.Version,
+	IsLTS:        version.IsLTSVersion,
+	OS:           version.GetOSTokens(),
+	Capabilities: []string{"cookiejar"},
+}
+
 type cmdGlobal struct {
 	asker cli.Asker
 
@@ -467,7 +475,7 @@ Or for a virtual machine: lxc launch ubuntu:24.04 --vm`)
 	}
 
 	// Set the user agent
-	c.conf.UserAgent = version.UserAgent
+	c.conf.UserAgent = userAgent.String()
 
 	// Setup the logger
 	err = logger.InitLogger("", "", c.flagLogVerbose, c.flagLogDebug, nil)
@@ -482,7 +490,8 @@ Or for a virtual machine: lxc launch ubuntu:24.04 --vm`)
 // It saves any configuration that must persist between runs.
 func (c *cmdGlobal) PostRun(cmd *cobra.Command, args []string) error {
 	if c.conf != nil && shared.PathExists(c.confPath) {
-		// Save OIDC tokens on exit
+		// Save cookies and OIDC tokens on exit
+		c.conf.SaveCookies()
 		c.conf.SaveOIDCTokens()
 	}
 

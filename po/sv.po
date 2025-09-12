@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-08-27 10:07+0000\n"
+"POT-Creation-Date: 2025-09-12 16:43+0100\n"
 "PO-Revision-Date: 2022-03-10 15:07+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Swedish <https://hosted.weblate.org/projects/linux-containers/"
@@ -133,7 +133,7 @@ msgid ""
 "### Note that the name is shown but cannot be changed"
 msgstr ""
 
-#: lxc/auth.go:1197
+#: lxc/auth.go:1222
 msgid ""
 "### This is a YAML representation of the group.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -154,7 +154,7 @@ msgid ""
 "groups can be modified"
 msgstr ""
 
-#: lxc/auth.go:220
+#: lxc/auth.go:223
 msgid ""
 "### This is a YAML representation of the group.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -178,7 +178,7 @@ msgid ""
 "### - operations\n"
 msgstr ""
 
-#: lxc/auth.go:2002
+#: lxc/auth.go:2027
 msgid ""
 "### This is a YAML representation of the identity provider group.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -512,11 +512,11 @@ msgstr ""
 msgid "<old alias> <new alias>"
 msgstr ""
 
-#: lxc/remote.go:955 lxc/remote.go:1020
+#: lxc/remote.go:955 lxc/remote.go:1021
 msgid "<remote>"
 msgstr ""
 
-#: lxc/remote.go:1069
+#: lxc/remote.go:1070
 msgid "<remote> <URL>"
 msgstr ""
 
@@ -557,7 +557,7 @@ msgstr ""
 msgid "AUTH TYPE"
 msgstr ""
 
-#: lxc/auth.go:1043
+#: lxc/auth.go:1068
 msgid "AUTHENTICATION METHOD"
 msgstr ""
 
@@ -600,11 +600,11 @@ msgstr ""
 msgid "Add a cluster member to a cluster group"
 msgstr ""
 
-#: lxc/auth.go:1392 lxc/auth.go:1393
+#: lxc/auth.go:1417 lxc/auth.go:1418
 msgid "Add a group to an identity"
 msgstr ""
 
-#: lxc/auth.go:2291 lxc/auth.go:2292
+#: lxc/auth.go:2316 lxc/auth.go:2317
 msgid "Add a group to an identity provider group"
 msgstr ""
 
@@ -677,7 +677,7 @@ msgid ""
 "restricted to one or more projects.\n"
 msgstr ""
 
-#: lxc/auth.go:520 lxc/auth.go:521
+#: lxc/auth.go:523 lxc/auth.go:524
 msgid "Add permissions to groups"
 msgstr ""
 
@@ -980,6 +980,10 @@ msgstr ""
 msgid "CREATED AT"
 msgstr ""
 
+#: lxc/auth.go:2568
+msgid "CREATION DATE"
+msgstr ""
+
 #: lxc/info.go:138
 #, c-format
 msgid "CUDA Version: %v"
@@ -1197,11 +1201,11 @@ msgstr ""
 msgid "Columns"
 msgstr ""
 
-#: lxc/main.go:84
+#: lxc/main.go:92
 msgid "Command line client for LXD"
 msgstr ""
 
-#: lxc/main.go:85
+#: lxc/main.go:93
 msgid ""
 "Command line client for LXD\n"
 "\n"
@@ -1367,12 +1371,12 @@ msgstr ""
 msgid "Could not find certificate key file path: %s"
 msgstr ""
 
-#: lxc/auth.go:305 lxc/auth.go:2077
+#: lxc/auth.go:308 lxc/auth.go:2102
 #, c-format
 msgid "Could not parse group: %s"
 msgstr ""
 
-#: lxc/auth.go:1280
+#: lxc/auth.go:1305
 #, c-format
 msgid "Could not parse identity: %s"
 msgstr ""
@@ -1401,7 +1405,7 @@ msgstr ""
 msgid "Couldn't find a matching entry"
 msgstr ""
 
-#: lxc/auth.go:804
+#: lxc/auth.go:820
 msgid "Create a TLS identity"
 msgstr ""
 
@@ -1421,7 +1425,7 @@ msgstr ""
 msgid "Create an empty instance"
 msgstr ""
 
-#: lxc/auth.go:803
+#: lxc/auth.go:819
 msgid "Create an identity"
 msgstr ""
 
@@ -1437,11 +1441,11 @@ msgstr ""
 msgid "Create files and directories in instances"
 msgstr ""
 
-#: lxc/auth.go:104 lxc/auth.go:105
+#: lxc/auth.go:107 lxc/auth.go:108
 msgid "Create groups"
 msgstr ""
 
-#: lxc/auth.go:1888 lxc/auth.go:1889
+#: lxc/auth.go:1913 lxc/auth.go:1914
 msgid "Create identity provider groups"
 msgstr ""
 
@@ -1549,7 +1553,7 @@ msgstr ""
 msgid "DEFAULT TARGET ADDRESS"
 msgstr ""
 
-#: lxc/auth.go:381 lxc/cluster.go:200 lxc/cluster_group.go:511
+#: lxc/auth.go:384 lxc/cluster.go:200 lxc/cluster_group.go:511
 #: lxc/image.go:1140 lxc/image_alias.go:270 lxc/list.go:563 lxc/network.go:1122
 #: lxc/network_acl.go:173 lxc/network_forward.go:160
 #: lxc/network_load_balancer.go:163 lxc/network_peer.go:150
@@ -1580,6 +1584,10 @@ msgstr ""
 msgid "Define a compression algorithm: for backup or none"
 msgstr ""
 
+#: lxc/auth.go:2583
+msgid "Delete OIDC sessions"
+msgstr ""
+
 #: lxc/operation.go:56 lxc/operation.go:57
 msgid "Delete a background operation (will attempt to cancel)"
 msgstr ""
@@ -1592,7 +1600,11 @@ msgstr ""
 msgid "Delete all warnings"
 msgstr ""
 
-#: lxc/auth.go:1311 lxc/auth.go:1312
+#: lxc/auth.go:2584
+msgid "Delete an OIDC session"
+msgstr ""
+
+#: lxc/auth.go:1336 lxc/auth.go:1337
 msgid "Delete an identity"
 msgstr ""
 
@@ -1600,11 +1612,11 @@ msgstr ""
 msgid "Delete files in instances"
 msgstr ""
 
-#: lxc/auth.go:158 lxc/auth.go:159
+#: lxc/auth.go:161 lxc/auth.go:162
 msgid "Delete groups"
 msgstr ""
 
-#: lxc/auth.go:1940 lxc/auth.go:1941
+#: lxc/auth.go:1965 lxc/auth.go:1966
 msgid "Delete identity provider groups"
 msgstr ""
 
@@ -1680,18 +1692,24 @@ msgstr ""
 msgid "Delete warning"
 msgstr ""
 
+#: lxc/auth.go:2618
+#, c-format
+msgid "Deleted OIDC session %q"
+msgstr ""
+
 #: lxc/action.go:33 lxc/action.go:58 lxc/action.go:84 lxc/action.go:111
 #: lxc/alias.go:23 lxc/alias.go:60 lxc/alias.go:110 lxc/alias.go:159
-#: lxc/alias.go:214 lxc/auth.go:37 lxc/auth.go:66 lxc/auth.go:105
-#: lxc/auth.go:159 lxc/auth.go:208 lxc/auth.go:337 lxc/auth.go:397
-#: lxc/auth.go:446 lxc/auth.go:498 lxc/auth.go:521 lxc/auth.go:580
-#: lxc/auth.go:761 lxc/auth.go:804 lxc/auth.go:995 lxc/auth.go:1063
-#: lxc/auth.go:1123 lxc/auth.go:1185 lxc/auth.go:1312 lxc/auth.go:1369
-#: lxc/auth.go:1393 lxc/auth.go:1445 lxc/auth.go:1501 lxc/auth.go:1527
-#: lxc/auth.go:1589 lxc/auth.go:1647 lxc/auth.go:1669 lxc/auth.go:1851
-#: lxc/auth.go:1889 lxc/auth.go:1941 lxc/auth.go:1990 lxc/auth.go:2109
-#: lxc/auth.go:2169 lxc/auth.go:2218 lxc/auth.go:2269 lxc/auth.go:2292
-#: lxc/auth.go:2345 lxc/cluster.go:33 lxc/cluster.go:126 lxc/cluster.go:218
+#: lxc/alias.go:214 lxc/auth.go:37 lxc/auth.go:69 lxc/auth.go:108
+#: lxc/auth.go:162 lxc/auth.go:211 lxc/auth.go:340 lxc/auth.go:400
+#: lxc/auth.go:449 lxc/auth.go:501 lxc/auth.go:524 lxc/auth.go:583
+#: lxc/auth.go:777 lxc/auth.go:820 lxc/auth.go:1020 lxc/auth.go:1088
+#: lxc/auth.go:1148 lxc/auth.go:1210 lxc/auth.go:1337 lxc/auth.go:1394
+#: lxc/auth.go:1418 lxc/auth.go:1470 lxc/auth.go:1526 lxc/auth.go:1552
+#: lxc/auth.go:1614 lxc/auth.go:1672 lxc/auth.go:1694 lxc/auth.go:1876
+#: lxc/auth.go:1914 lxc/auth.go:1966 lxc/auth.go:2015 lxc/auth.go:2134
+#: lxc/auth.go:2194 lxc/auth.go:2243 lxc/auth.go:2294 lxc/auth.go:2317
+#: lxc/auth.go:2370 lxc/auth.go:2433 lxc/auth.go:2459 lxc/auth.go:2512
+#: lxc/auth.go:2584 lxc/cluster.go:33 lxc/cluster.go:126 lxc/cluster.go:218
 #: lxc/cluster.go:275 lxc/cluster.go:334 lxc/cluster.go:407 lxc/cluster.go:489
 #: lxc/cluster.go:533 lxc/cluster.go:591 lxc/cluster.go:682 lxc/cluster.go:776
 #: lxc/cluster.go:899 lxc/cluster.go:983 lxc/cluster.go:1093
@@ -1722,7 +1740,7 @@ msgstr ""
 #: lxc/image.go:1677 lxc/image.go:1740 lxc/image_alias.go:24
 #: lxc/image_alias.go:60 lxc/image_alias.go:124 lxc/image_alias.go:177
 #: lxc/image_alias.go:288 lxc/import.go:29 lxc/info.go:33 lxc/init.go:44
-#: lxc/launch.go:24 lxc/list.go:50 lxc/main.go:85 lxc/manpage.go:22
+#: lxc/launch.go:24 lxc/list.go:50 lxc/main.go:93 lxc/manpage.go:22
 #: lxc/monitor.go:34 lxc/move.go:39 lxc/network.go:36 lxc/network.go:139
 #: lxc/network.go:241 lxc/network.go:331 lxc/network.go:418 lxc/network.go:476
 #: lxc/network.go:573 lxc/network.go:670 lxc/network.go:806 lxc/network.go:887
@@ -1766,8 +1784,8 @@ msgstr ""
 #: lxc/project.go:600 lxc/project.go:665 lxc/project.go:751 lxc/project.go:795
 #: lxc/project.go:856 lxc/project.go:923 lxc/publish.go:34 lxc/query.go:35
 #: lxc/rebuild.go:28 lxc/remote.go:38 lxc/remote.go:94 lxc/remote.go:753
-#: lxc/remote.go:791 lxc/remote.go:877 lxc/remote.go:958 lxc/remote.go:1022
-#: lxc/remote.go:1071 lxc/rename.go:21 lxc/restore.go:22 lxc/snapshot.go:32
+#: lxc/remote.go:791 lxc/remote.go:877 lxc/remote.go:958 lxc/remote.go:1023
+#: lxc/remote.go:1072 lxc/rename.go:21 lxc/restore.go:22 lxc/snapshot.go:32
 #: lxc/storage.go:35 lxc/storage.go:98 lxc/storage.go:204 lxc/storage.go:262
 #: lxc/storage.go:394 lxc/storage.go:476 lxc/storage.go:656 lxc/storage.go:743
 #: lxc/storage.go:845 lxc/storage.go:939 lxc/storage_bucket.go:31
@@ -1866,7 +1884,7 @@ msgstr ""
 msgid "Directory import is not available on this platform"
 msgstr ""
 
-#: lxc/exec.go:61
+#: lxc/exec.go:72
 msgid "Directory to run the command in (default /root)"
 msgstr ""
 
@@ -1874,11 +1892,11 @@ msgstr ""
 msgid "Disable authentication when using SSH SFTP listener"
 msgstr ""
 
-#: lxc/exec.go:57
+#: lxc/exec.go:68
 msgid "Disable pseudo-terminal allocation"
 msgstr ""
 
-#: lxc/exec.go:58
+#: lxc/exec.go:69
 msgid "Disable stdin (reads from /dev/null)"
 msgstr ""
 
@@ -1935,7 +1953,7 @@ msgstr ""
 msgid "Don't require user confirmation for using --force"
 msgstr ""
 
-#: lxc/main.go:101
+#: lxc/main.go:109
 msgid "Don't show progress information"
 msgstr ""
 
@@ -1946,6 +1964,10 @@ msgstr ""
 #: lxc/info.go:113 lxc/info.go:199
 #, c-format
 msgid "Driver: %v (%v)"
+msgstr ""
+
+#: lxc/auth.go:2563
+msgid "EMAIL"
 msgstr ""
 
 #: lxc/network_zone.go:848
@@ -1960,7 +1982,7 @@ msgstr ""
 msgid "EXPIRES AT"
 msgstr ""
 
-#: lxc/config_trust.go:412
+#: lxc/auth.go:2569 lxc/config_trust.go:412
 msgid "EXPIRY DATE"
 msgstr ""
 
@@ -1974,7 +1996,7 @@ msgstr ""
 msgid "Edit a cluster group"
 msgstr ""
 
-#: lxc/auth.go:1184 lxc/auth.go:1185
+#: lxc/auth.go:1209 lxc/auth.go:1210
 msgid "Edit an identity as YAML"
 msgstr ""
 
@@ -1986,11 +2008,11 @@ msgstr ""
 msgid "Edit files in instances"
 msgstr ""
 
-#: lxc/auth.go:207 lxc/auth.go:208
+#: lxc/auth.go:210 lxc/auth.go:211
 msgid "Edit groups as YAML"
 msgstr ""
 
-#: lxc/auth.go:1989 lxc/auth.go:1990
+#: lxc/auth.go:2014 lxc/auth.go:2015
 msgid "Edit identity provider groups as YAML"
 msgstr ""
 
@@ -2100,7 +2122,7 @@ msgstr ""
 msgid "Entry TTL"
 msgstr ""
 
-#: lxc/exec.go:54
+#: lxc/exec.go:65
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr ""
 
@@ -2191,6 +2213,17 @@ msgid ""
 "\n"
 "  lxc exec <instance> -- sh -c \"cd /tmp && pwd\"\n"
 "\n"
+"For interactive sessions, a convenient 'shell' alias is provided to\n"
+"spawn a login shell inside the instance:\n"
+"\n"
+"  lxc shell <instance>\n"
+"\n"
+"This 'shell' alias is a shorthand for:\n"
+"\n"
+"  lxc exec <instance> -- su -l\n"
+"\n"
+"Note: due to using 'su -l', most environment variables will be reset.\n"
+"\n"
 "Mode defaults to non-interactive, interactive mode is selected if both stdin "
 "AND stdout are terminals (stderr is ignored)."
 msgstr ""
@@ -2263,12 +2296,12 @@ msgstr ""
 msgid "FIRST SEEN"
 msgstr ""
 
-#: lxc/file.go:1474
+#: lxc/file.go:1495
 #, c-format
 msgid "Failed SSH handshake with client %q: %v"
 msgstr ""
 
-#: lxc/file.go:1497
+#: lxc/file.go:1518
 #, c-format
 msgid "Failed accepting channel client %q: %v"
 msgstr ""
@@ -2283,7 +2316,7 @@ msgstr ""
 msgid "Failed checking instance snapshot exists \"%s:%s\": %w"
 msgstr ""
 
-#: lxc/file.go:1524
+#: lxc/file.go:1545
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
 msgstr ""
@@ -2318,7 +2351,7 @@ msgstr ""
 msgid "Failed fetching fingerprint %q: %w"
 msgstr ""
 
-#: lxc/file.go:1430
+#: lxc/file.go:1451
 #, c-format
 msgid "Failed generating SSH host key: %w"
 msgstr ""
@@ -2333,7 +2366,7 @@ msgstr ""
 msgid "Failed loading profile %q: %w"
 msgstr ""
 
-#: lxc/file.go:1435
+#: lxc/file.go:1456
 #, c-format
 msgid "Failed parsing SSH host key: %w"
 msgstr ""
@@ -2348,7 +2381,7 @@ msgstr ""
 msgid "Failed starting sshfs: %w"
 msgstr ""
 
-#: lxc/file.go:1462
+#: lxc/file.go:1483
 #, c-format
 msgid "Failed to accept incoming connection: %w"
 msgstr ""
@@ -2392,7 +2425,7 @@ msgstr ""
 msgid "Failed to find project: %w"
 msgstr ""
 
-#: lxc/file.go:1447
+#: lxc/file.go:1468
 #, c-format
 msgid "Failed to listen for connection: %w"
 msgstr ""
@@ -2452,7 +2485,7 @@ msgstr ""
 msgid "Force evacuation without user confirmation"
 msgstr ""
 
-#: lxc/exec.go:56
+#: lxc/exec.go:67
 msgid "Force pseudo-terminal allocation"
 msgstr ""
 
@@ -2472,7 +2505,7 @@ msgstr ""
 msgid "Force the removal of running instances"
 msgstr ""
 
-#: lxc/main.go:97
+#: lxc/main.go:105
 msgid "Force using the local unix socket"
 msgstr ""
 
@@ -2500,11 +2533,12 @@ msgid ""
 "Are you really sure you want to force removing %s? (yes/no): "
 msgstr ""
 
-#: lxc/alias.go:112 lxc/auth.go:341 lxc/auth.go:999 lxc/auth.go:2113
-#: lxc/cluster.go:128 lxc/cluster.go:984 lxc/cluster_group.go:449
-#: lxc/config_template.go:275 lxc/config_trust.go:351 lxc/config_trust.go:433
-#: lxc/image.go:1119 lxc/image_alias.go:182 lxc/list.go:134 lxc/network.go:1024
-#: lxc/network.go:1148 lxc/network_acl.go:101 lxc/network_allocations.go:58
+#: lxc/alias.go:112 lxc/auth.go:344 lxc/auth.go:1024 lxc/auth.go:2138
+#: lxc/auth.go:2516 lxc/cluster.go:128 lxc/cluster.go:984
+#: lxc/cluster_group.go:449 lxc/config_template.go:275 lxc/config_trust.go:351
+#: lxc/config_trust.go:433 lxc/image.go:1119 lxc/image_alias.go:182
+#: lxc/list.go:134 lxc/network.go:1024 lxc/network.go:1148
+#: lxc/network_acl.go:101 lxc/network_allocations.go:58
 #: lxc/network_forward.go:96 lxc/network_load_balancer.go:100
 #: lxc/network_peer.go:86 lxc/network_zone.go:93 lxc/network_zone.go:789
 #: lxc/operation.go:109 lxc/profile.go:740 lxc/project.go:482
@@ -2558,7 +2592,7 @@ msgstr ""
 msgid "GPUs:"
 msgstr ""
 
-#: lxc/auth.go:1047 lxc/auth.go:2153
+#: lxc/auth.go:1072 lxc/auth.go:2178
 msgid "GROUPS"
 msgstr ""
 
@@ -2707,22 +2741,22 @@ msgstr ""
 msgid "Given target %q does not match source volume location %q"
 msgstr ""
 
-#: lxc/auth.go:143
+#: lxc/auth.go:146
 #, c-format
 msgid "Group %s created"
 msgstr ""
 
-#: lxc/auth.go:193
+#: lxc/auth.go:196
 #, c-format
 msgid "Group %s deleted"
 msgstr ""
 
-#: lxc/auth.go:431 lxc/auth.go:2203
+#: lxc/auth.go:434 lxc/auth.go:2228
 #, c-format
 msgid "Group %s renamed to %s"
 msgstr ""
 
-#: lxc/exec.go:60
+#: lxc/exec.go:71
 msgid "Group ID to run the command as (default 0)"
 msgstr ""
 
@@ -2742,12 +2776,12 @@ msgstr ""
 msgid "Hugepages:\n"
 msgstr ""
 
-#: lxc/file.go:1547
+#: lxc/file.go:1568
 #, c-format
 msgid "I/O copy from SSH to instance failed: %v"
 msgstr ""
 
-#: lxc/file.go:1536
+#: lxc/file.go:1557
 #, c-format
 msgid "I/O copy from instance to SSH failed: %v"
 msgstr ""
@@ -2776,7 +2810,7 @@ msgstr ""
 msgid "ID: %s"
 msgstr ""
 
-#: lxc/auth.go:1046
+#: lxc/auth.go:1071
 msgid "IDENTIFIER"
 msgstr ""
 
@@ -2784,7 +2818,7 @@ msgstr ""
 msgid "IMAGES"
 msgstr ""
 
-#: lxc/network.go:1203
+#: lxc/auth.go:2566 lxc/network.go:1203
 msgid "IP ADDRESS"
 msgstr ""
 
@@ -2808,12 +2842,12 @@ msgstr ""
 msgid "ISSUE DATE"
 msgstr ""
 
-#: lxc/auth.go:1925
+#: lxc/auth.go:1950
 #, c-format
 msgid "Identity provider group %s created"
 msgstr ""
 
-#: lxc/auth.go:1975
+#: lxc/auth.go:2000
 #, c-format
 msgid "Identity provider group %s deleted"
 msgstr ""
@@ -2830,7 +2864,7 @@ msgstr ""
 msgid "If the snapshot name already exists, delete and create a new one"
 msgstr ""
 
-#: lxc/main.go:445
+#: lxc/main.go:453
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
@@ -2942,7 +2976,7 @@ msgstr ""
 msgid "Input data"
 msgstr ""
 
-#: lxc/auth.go:1646 lxc/auth.go:1647
+#: lxc/auth.go:1671 lxc/auth.go:1672
 msgid "Inspect permissions"
 msgstr ""
 
@@ -2954,7 +2988,7 @@ msgstr ""
 msgid "Instance disconnected"
 msgstr ""
 
-#: lxc/file.go:1538
+#: lxc/file.go:1559
 #, c-format
 msgid "Instance disconnected for client %q"
 msgstr ""
@@ -3072,7 +3106,7 @@ msgstr ""
 msgid "Invalid new snapshot name, parent volume must be the same as source"
 msgstr ""
 
-#: lxc/main.go:548
+#: lxc/main.go:557
 msgid "Invalid number of arguments"
 msgstr ""
 
@@ -3112,22 +3146,22 @@ msgstr ""
 msgid "IsSM: %s (%s)"
 msgstr ""
 
-#: lxc/auth.go:1526
+#: lxc/auth.go:1551
 msgid "Issue a token for a bearer identity"
 msgstr ""
 
-#: lxc/auth.go:1527
+#: lxc/auth.go:1552
 msgid ""
 "Issue a token for a bearer identity\n"
 "\n"
 "Note that this revokes the current token if one is issued"
 msgstr ""
 
-#: lxc/auth.go:1501
+#: lxc/auth.go:1526
 msgid "Issue and revoke tokens for bearer identities\n"
 msgstr ""
 
-#: lxc/auth.go:1573
+#: lxc/auth.go:1598
 #, c-format
 msgid "Issued token for identity %q"
 msgstr ""
@@ -3208,6 +3242,10 @@ msgstr ""
 msgid "List DHCP leases"
 msgstr ""
 
+#: lxc/auth.go:2511 lxc/auth.go:2512
+msgid "List OIDC sessions"
+msgstr ""
+
 #: lxc/alias.go:109 lxc/alias.go:110
 msgid "List aliases"
 msgstr ""
@@ -3276,15 +3314,15 @@ msgstr ""
 msgid "List background operations"
 msgstr ""
 
-#: lxc/auth.go:336 lxc/auth.go:337
+#: lxc/auth.go:339 lxc/auth.go:340
 msgid "List groups"
 msgstr ""
 
-#: lxc/auth.go:994 lxc/auth.go:995
+#: lxc/auth.go:1019 lxc/auth.go:1020
 msgid "List identities"
 msgstr ""
 
-#: lxc/auth.go:2108 lxc/auth.go:2109
+#: lxc/auth.go:2133 lxc/auth.go:2134
 msgid "List identity provider groups"
 msgstr ""
 
@@ -3439,7 +3477,7 @@ msgstr ""
 msgid "List operations from all projects"
 msgstr ""
 
-#: lxc/auth.go:1668 lxc/auth.go:1669
+#: lxc/auth.go:1693 lxc/auth.go:1694
 msgid "List permissions"
 msgstr ""
 
@@ -3623,15 +3661,19 @@ msgstr ""
 msgid "Make the image public (accessible to unauthenticated clients as well)"
 msgstr ""
 
-#: lxc/auth.go:741
+#: lxc/auth.go:740
 msgid "Malformed argument, expected `[<remote>:]<type>/<name>`, got "
+msgstr ""
+
+#: lxc/auth.go:2432 lxc/auth.go:2433
+msgid "Manage OIDC sessions"
 msgstr ""
 
 #: lxc/network.go:35 lxc/network.go:36
 msgid "Manage and attach instances to networks"
 msgstr ""
 
-#: lxc/auth.go:1500
+#: lxc/auth.go:1525
 msgid "Manage bearer identity tokens"
 msgstr ""
 
@@ -3659,19 +3701,19 @@ msgstr ""
 msgid "Manage files in instances"
 msgstr ""
 
-#: lxc/auth.go:65 lxc/auth.go:66 lxc/auth.go:1850 lxc/auth.go:1851
+#: lxc/auth.go:68 lxc/auth.go:69 lxc/auth.go:1875 lxc/auth.go:1876
 msgid "Manage groups"
 msgstr ""
 
-#: lxc/auth.go:1368 lxc/auth.go:1369
+#: lxc/auth.go:1393 lxc/auth.go:1394
 msgid "Manage groups for the identity"
 msgstr ""
 
-#: lxc/auth.go:760 lxc/auth.go:761
+#: lxc/auth.go:776 lxc/auth.go:777
 msgid "Manage identities"
 msgstr ""
 
-#: lxc/auth.go:2268 lxc/auth.go:2269
+#: lxc/auth.go:2293 lxc/auth.go:2294
 msgid "Manage identity provider group mappings"
 msgstr ""
 
@@ -3762,7 +3804,7 @@ msgstr ""
 msgid "Manage network zones"
 msgstr ""
 
-#: lxc/auth.go:497 lxc/auth.go:498
+#: lxc/auth.go:500 lxc/auth.go:501
 msgid "Manage permissions"
 msgstr ""
 
@@ -3911,16 +3953,16 @@ msgstr ""
 msgid "Missing cluster member name"
 msgstr ""
 
-#: lxc/auth.go:129 lxc/auth.go:183 lxc/auth.go:259 lxc/auth.go:421
-#: lxc/auth.go:470 lxc/auth.go:545 lxc/auth.go:604 lxc/auth.go:2242
+#: lxc/auth.go:132 lxc/auth.go:186 lxc/auth.go:262 lxc/auth.go:424
+#: lxc/auth.go:473 lxc/auth.go:548 lxc/auth.go:607 lxc/auth.go:2267
 msgid "Missing group name"
 msgstr ""
 
-#: lxc/auth.go:1912 lxc/auth.go:1965 lxc/auth.go:2031 lxc/auth.go:2193
+#: lxc/auth.go:1937 lxc/auth.go:1990 lxc/auth.go:2056 lxc/auth.go:2218
 msgid "Missing identity provider group name"
 msgstr ""
 
-#: lxc/auth.go:2316 lxc/auth.go:2369
+#: lxc/auth.go:2341 lxc/auth.go:2394
 msgid "Missing identity provider group name argument"
 msgstr ""
 
@@ -4023,6 +4065,10 @@ msgstr ""
 #: lxc/project.go:443 lxc/project.go:632 lxc/project.go:701 lxc/project.go:827
 #: lxc/project.go:956
 msgid "Missing project name"
+msgstr ""
+
+#: lxc/auth.go:2483 lxc/auth.go:2608
+msgid "Missing session ID"
 msgstr ""
 
 #: lxc/profile.go:328
@@ -4141,7 +4187,7 @@ msgstr ""
 msgid "Must supply instance name for: "
 msgstr ""
 
-#: lxc/auth.go:380 lxc/auth.go:1045 lxc/auth.go:2152 lxc/cluster.go:195
+#: lxc/auth.go:383 lxc/auth.go:1070 lxc/auth.go:2177 lxc/cluster.go:195
 #: lxc/cluster.go:1075 lxc/cluster_group.go:510 lxc/config_trust.go:408
 #: lxc/config_trust.go:513 lxc/list.go:571 lxc/network.go:1117
 #: lxc/network_acl.go:172 lxc/network_peer.go:149 lxc/network_zone.go:164
@@ -4440,11 +4486,11 @@ msgstr ""
 msgid "Override device or modify profile instead"
 msgstr ""
 
-#: lxc/main.go:98
+#: lxc/main.go:106
 msgid "Override the source project"
 msgstr ""
 
-#: lxc/exec.go:55
+#: lxc/exec.go:66
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr ""
 
@@ -4508,7 +4554,7 @@ msgstr ""
 msgid "Partitions:"
 msgstr ""
 
-#: lxc/main.go:406
+#: lxc/main.go:414
 #, c-format
 msgid "Password for %s: "
 msgstr ""
@@ -4550,7 +4596,7 @@ msgstr ""
 msgid "Press ctrl+c to finish"
 msgstr ""
 
-#: lxc/auth.go:306 lxc/auth.go:1281 lxc/auth.go:2078 lxc/cluster.go:866
+#: lxc/auth.go:309 lxc/auth.go:1306 lxc/auth.go:2103 lxc/cluster.go:866
 #: lxc/cluster_group.go:405 lxc/config.go:323 lxc/config.go:398
 #: lxc/config.go:1381 lxc/config_metadata.go:157 lxc/config_template.go:239
 #: lxc/config_trust.go:314 lxc/image.go:493 lxc/network.go:773
@@ -4567,7 +4613,7 @@ msgstr ""
 msgid "Pretty rendering (short for --format=pretty)"
 msgstr ""
 
-#: lxc/main.go:96
+#: lxc/main.go:104
 msgid "Print help"
 msgstr ""
 
@@ -4575,7 +4621,7 @@ msgstr ""
 msgid "Print the raw response"
 msgstr ""
 
-#: lxc/main.go:95
+#: lxc/main.go:103
 msgid "Print version number"
 msgstr ""
 
@@ -4858,8 +4904,8 @@ msgstr ""
 msgid "Remote %s already exists"
 msgstr ""
 
-#: lxc/project.go:890 lxc/remote.go:906 lxc/remote.go:987 lxc/remote.go:1052
-#: lxc/remote.go:1100
+#: lxc/project.go:890 lxc/remote.go:906 lxc/remote.go:987 lxc/remote.go:1053
+#: lxc/remote.go:1101
 #, c-format
 msgid "Remote %s doesn't exist"
 msgstr ""
@@ -4874,7 +4920,7 @@ msgstr ""
 msgid "Remote %s is global and cannot be removed"
 msgstr ""
 
-#: lxc/remote.go:910 lxc/remote.go:991 lxc/remote.go:1104
+#: lxc/remote.go:910 lxc/remote.go:991 lxc/remote.go:1105
 #, c-format
 msgid "Remote %s is static and cannot be modified"
 msgstr ""
@@ -4905,7 +4951,7 @@ msgstr ""
 msgid "Remove %s (yes/no): "
 msgstr ""
 
-#: lxc/auth.go:2344 lxc/auth.go:2345
+#: lxc/auth.go:2369 lxc/auth.go:2370
 msgid "Remove a LXD group from an identity provider group"
 msgstr ""
 
@@ -4913,7 +4959,7 @@ msgstr ""
 msgid "Remove a cluster member from a cluster group"
 msgstr ""
 
-#: lxc/auth.go:1444 lxc/auth.go:1445
+#: lxc/auth.go:1469 lxc/auth.go:1470
 msgid "Remove a group from an identity"
 msgstr ""
 
@@ -4957,7 +5003,7 @@ msgstr ""
 msgid "Remove member from group"
 msgstr ""
 
-#: lxc/auth.go:579 lxc/auth.go:580
+#: lxc/auth.go:582 lxc/auth.go:583
 msgid "Remove permissions from groups"
 msgstr ""
 
@@ -5002,11 +5048,11 @@ msgstr ""
 msgid "Rename aliases"
 msgstr ""
 
-#: lxc/auth.go:396 lxc/auth.go:397
+#: lxc/auth.go:399 lxc/auth.go:400
 msgid "Rename groups"
 msgstr ""
 
-#: lxc/auth.go:2168 lxc/auth.go:2169
+#: lxc/auth.go:2193 lxc/auth.go:2194
 msgid "Rename identity provider groups"
 msgstr ""
 
@@ -5124,11 +5170,11 @@ msgstr ""
 msgid "Revoke cluster member join token"
 msgstr ""
 
-#: lxc/auth.go:1588 lxc/auth.go:1589
+#: lxc/auth.go:1613 lxc/auth.go:1614
 msgid "Revoke the current token for a bearer identity"
 msgstr ""
 
-#: lxc/auth.go:1632
+#: lxc/auth.go:1657
 #, c-format
 msgid "Revoked token for identity %q"
 msgstr ""
@@ -5165,12 +5211,12 @@ msgstr ""
 msgid "SR-IOV information:"
 msgstr ""
 
-#: lxc/file.go:1467
+#: lxc/file.go:1488
 #, c-format
 msgid "SSH client connected %q"
 msgstr ""
 
-#: lxc/file.go:1468
+#: lxc/file.go:1489
 #, c-format
 msgid "SSH client disconnected %q"
 msgstr ""
@@ -5436,7 +5482,7 @@ msgid ""
 "    lxc storage volume set [<remote>:]<pool> [<type>/]<volume> <key> <value>"
 msgstr ""
 
-#: lxc/remote.go:1070 lxc/remote.go:1071
+#: lxc/remote.go:1071 lxc/remote.go:1072
 msgid "Set the URL for the remote"
 msgstr ""
 
@@ -5524,15 +5570,23 @@ msgstr ""
 msgid "Setup SSH SFTP listener on address:port instead of mounting"
 msgstr ""
 
-#: lxc/main.go:99
+#: lxc/auth.go:2458
+msgid "Show OIDC session"
+msgstr ""
+
+#: lxc/main.go:107
 msgid "Show all debug messages"
 msgstr ""
 
-#: lxc/main.go:100
+#: lxc/main.go:108
 msgid "Show all information messages"
 msgstr ""
 
-#: lxc/auth.go:2217 lxc/auth.go:2218
+#: lxc/auth.go:2459
+msgid "Show an OIDC session"
+msgstr ""
+
+#: lxc/auth.go:2242 lxc/auth.go:2243
 msgid "Show an identity provider group"
 msgstr ""
 
@@ -5560,11 +5614,11 @@ msgstr ""
 msgid "Show full device configuration"
 msgstr ""
 
-#: lxc/auth.go:445 lxc/auth.go:446
+#: lxc/auth.go:448 lxc/auth.go:449
 msgid "Show group configurations"
 msgstr ""
 
-#: lxc/auth.go:1063
+#: lxc/auth.go:1088
 msgid ""
 "Show identity configurations\n"
 "\n"
@@ -5597,7 +5651,7 @@ msgstr ""
 msgid "Show instance or server information"
 msgstr ""
 
-#: lxc/main.go:306 lxc/main.go:307
+#: lxc/main.go:314 lxc/main.go:315
 msgid "Show less common commands"
 msgstr ""
 
@@ -5669,7 +5723,7 @@ msgstr ""
 msgid "Show storage volume state information"
 msgstr ""
 
-#: lxc/auth.go:1123
+#: lxc/auth.go:1148
 msgid ""
 "Show the current identity\n"
 "\n"
@@ -5895,7 +5949,7 @@ msgstr ""
 msgid "Switch the current project"
 msgstr ""
 
-#: lxc/remote.go:1021 lxc/remote.go:1022
+#: lxc/remote.go:1022 lxc/remote.go:1023
 msgid "Switch the default remote"
 msgstr ""
 
@@ -5907,12 +5961,12 @@ msgstr ""
 msgid "TARGET"
 msgstr ""
 
-#: lxc/auth.go:911
+#: lxc/auth.go:933
 #, c-format
 msgid "TLS identity %q (%s) pending identity token:"
 msgstr ""
 
-#: lxc/auth.go:937
+#: lxc/auth.go:959
 #, c-format
 msgid "TLS identity %q created with fingerprint %q"
 msgstr ""
@@ -5921,7 +5975,7 @@ msgstr ""
 msgid "TOKEN"
 msgstr ""
 
-#: lxc/auth.go:1044 lxc/config_trust.go:407 lxc/image.go:1148
+#: lxc/auth.go:1069 lxc/config_trust.go:407 lxc/image.go:1148
 #: lxc/image_alias.go:269 lxc/list.go:577 lxc/network.go:1118
 #: lxc/network.go:1204 lxc/network_allocations.go:26 lxc/operation.go:172
 #: lxc/storage_volume.go:1762 lxc/warning.go:217
@@ -6142,7 +6196,7 @@ msgstr ""
 msgid "This LXD server is not available on the network"
 msgstr ""
 
-#: lxc/main.go:337
+#: lxc/main.go:345
 msgid ""
 "This client hasn't been configured to use a remote LXD server yet.\n"
 "As your platform can't run native Linux instances, you must connect to a "
@@ -6178,7 +6232,7 @@ msgstr ""
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
-#: lxc/main.go:451
+#: lxc/main.go:459
 msgid ""
 "To start your first container, try: lxc launch ubuntu:24.04\n"
 "Or for a virtual machine: lxc launch ubuntu:24.04 --vm"
@@ -6303,7 +6357,15 @@ msgstr ""
 msgid "USED BY"
 msgstr ""
 
-#: lxc/warning.go:218
+#: lxc/auth.go:2567
+msgid "USER AGENT"
+msgstr ""
+
+#: lxc/auth.go:2564
+msgid "USERNAME"
+msgstr ""
+
+#: lxc/auth.go:2565 lxc/warning.go:218
 msgid "UUID"
 msgstr ""
 
@@ -6326,7 +6388,7 @@ msgstr ""
 msgid "Unknown certificate type %q"
 msgstr ""
 
-#: lxc/file.go:1490
+#: lxc/file.go:1511
 #, c-format
 msgid "Unknown channel type for client %q: %s"
 msgstr ""
@@ -6549,7 +6611,7 @@ msgid ""
 "Use storage driver optimized format (can only be restored on a similar pool)"
 msgstr ""
 
-#: lxc/main.go:102
+#: lxc/main.go:110
 msgid "Use with help or --help to view sub-commands"
 msgstr ""
 
@@ -6558,7 +6620,7 @@ msgstr ""
 msgid "Used: %v"
 msgstr ""
 
-#: lxc/exec.go:59
+#: lxc/exec.go:70
 msgid "User ID to run the command as (default 0)"
 msgstr ""
 
@@ -6603,11 +6665,11 @@ msgstr ""
 msgid "Verb: %s (%s)"
 msgstr ""
 
-#: lxc/auth.go:1062
+#: lxc/auth.go:1087
 msgid "View an identity"
 msgstr ""
 
-#: lxc/auth.go:1122
+#: lxc/auth.go:1147
 msgid "View the current identity"
 msgstr ""
 
@@ -6650,11 +6712,11 @@ msgstr ""
 msgid "YES"
 msgstr ""
 
-#: lxc/exec.go:101
+#: lxc/exec.go:112
 msgid "You can't pass -t and -T at the same time"
 msgstr ""
 
-#: lxc/exec.go:105
+#: lxc/exec.go:116
 msgid "You can't pass -t or -T at the same time as --mode"
 msgstr ""
 
@@ -6681,12 +6743,12 @@ msgid ""
 "[<path>]"
 msgstr ""
 
-#: lxc/auth.go:334 lxc/auth.go:992 lxc/auth.go:1121 lxc/auth.go:2106
-#: lxc/cluster.go:123 lxc/cluster.go:981 lxc/cluster_group.go:444
-#: lxc/config_trust.go:346 lxc/config_trust.go:429 lxc/monitor.go:32
-#: lxc/network.go:1017 lxc/network_acl.go:95 lxc/network_zone.go:87
-#: lxc/operation.go:104 lxc/profile.go:720 lxc/project.go:477
-#: lxc/storage.go:653 lxc/version.go:20 lxc/warning.go:70
+#: lxc/auth.go:337 lxc/auth.go:1017 lxc/auth.go:1146 lxc/auth.go:2131
+#: lxc/auth.go:2509 lxc/cluster.go:123 lxc/cluster.go:981
+#: lxc/cluster_group.go:444 lxc/config_trust.go:346 lxc/config_trust.go:429
+#: lxc/monitor.go:32 lxc/network.go:1017 lxc/network_acl.go:95
+#: lxc/network_zone.go:87 lxc/operation.go:104 lxc/profile.go:720
+#: lxc/project.go:477 lxc/storage.go:653 lxc/version.go:20 lxc/warning.go:70
 msgid "[<remote>:]"
 msgstr ""
 
@@ -6714,7 +6776,7 @@ msgstr ""
 msgid "[<remote>:] [<filters>...]"
 msgstr ""
 
-#: lxc/auth.go:1667
+#: lxc/auth.go:1692
 msgid "[<remote>:] [project=<project_name>] [entity_type=<entity_type>]"
 msgstr ""
 
@@ -6775,7 +6837,7 @@ msgstr ""
 msgid "[<remote>:]<alias> <new-name>"
 msgstr ""
 
-#: lxc/auth.go:1587
+#: lxc/auth.go:1612
 msgid "[<remote>:]<authentication_method>/<name_or_identifier>"
 msgstr ""
 
@@ -6783,13 +6845,13 @@ msgstr ""
 msgid "[<remote>:]<fingerprint>"
 msgstr ""
 
-#: lxc/auth.go:103 lxc/auth.go:156 lxc/auth.go:206 lxc/auth.go:444
-#: lxc/auth.go:1183 lxc/auth.go:1887 lxc/cluster_group.go:175
+#: lxc/auth.go:106 lxc/auth.go:159 lxc/auth.go:209 lxc/auth.go:447
+#: lxc/auth.go:1208 lxc/auth.go:1912 lxc/cluster_group.go:175
 #: lxc/cluster_group.go:260 lxc/cluster_group.go:321 lxc/cluster_group.go:673
 msgid "[<remote>:]<group>"
 msgstr ""
 
-#: lxc/auth.go:519 lxc/auth.go:577
+#: lxc/auth.go:522 lxc/auth.go:580
 msgid ""
 "[<remote>:]<group> <entity_type> [<entity_name>] <entitlement> "
 "[<key>=<value>...]"
@@ -6799,19 +6861,19 @@ msgstr ""
 msgid "[<remote>:]<group> <new-name>"
 msgstr ""
 
-#: lxc/auth.go:394
+#: lxc/auth.go:397
 msgid "[<remote>:]<group> <new_name>"
 msgstr ""
 
-#: lxc/auth.go:1938 lxc/auth.go:1988 lxc/auth.go:2216
+#: lxc/auth.go:1963 lxc/auth.go:2013 lxc/auth.go:2241
 msgid "[<remote>:]<identity_provider_group>"
 msgstr ""
 
-#: lxc/auth.go:2290 lxc/auth.go:2343
+#: lxc/auth.go:2315 lxc/auth.go:2368
 msgid "[<remote>:]<identity_provider_group> <group>"
 msgstr ""
 
-#: lxc/auth.go:2166
+#: lxc/auth.go:2191
 msgid "[<remote>:]<identity_provider_group> <new_name>"
 msgstr ""
 
@@ -7245,25 +7307,33 @@ msgstr ""
 msgid "[<remote>:]<project> <new-name>"
 msgstr ""
 
+#: lxc/auth.go:2457
+msgid "[<remote>:]<session ID>"
+msgstr ""
+
+#: lxc/auth.go:2581
+msgid "[<remote>:]<session_id>"
+msgstr ""
+
 #: lxc/copy.go:40
 msgid "[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
 msgstr ""
 
-#: lxc/auth.go:1525
+#: lxc/auth.go:1550
 msgid "[<remote>:]<type>/<name>"
 msgstr ""
 
-#: lxc/auth.go:802
+#: lxc/auth.go:818
 msgid ""
 "[<remote>:]<type>/<name> [<path to PEM encoded certificate>] [[--group "
 "<group_name>]]"
 msgstr ""
 
-#: lxc/auth.go:1061 lxc/auth.go:1309
+#: lxc/auth.go:1086 lxc/auth.go:1334
 msgid "[<remote>:]<type>/<name_or_identifier>"
 msgstr ""
 
-#: lxc/auth.go:1391 lxc/auth.go:1443
+#: lxc/auth.go:1416 lxc/auth.go:1468
 msgid "[<remote>:]<type>/<name_or_identifier> <group>"
 msgstr ""
 
@@ -7374,19 +7444,19 @@ msgid ""
 "    Rename existing alias \"list\" to \"my-list\"."
 msgstr ""
 
-#: lxc/auth.go:210
+#: lxc/auth.go:213
 msgid ""
 "lxc auth group edit <group> < group.yaml\n"
 "   Update a group using the content of group.yaml"
 msgstr ""
 
-#: lxc/auth.go:1187
+#: lxc/auth.go:1212
 msgid ""
 "lxc auth identity edit <type>/<name_or_identifier> < identity.yaml\n"
 "   Update an identity using the content of identity.yaml"
 msgstr ""
 
-#: lxc/auth.go:1992
+#: lxc/auth.go:2017
 msgid ""
 "lxc auth identity-provider-group edit <identity_provider_group> < identity-"
 "provider-group.yaml\n"

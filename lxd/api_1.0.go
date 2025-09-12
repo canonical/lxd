@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
@@ -23,6 +24,7 @@ import (
 	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	dbOIDC "github.com/canonical/lxd/lxd/db/oidc"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -151,6 +153,8 @@ var api10 = []APIEndpoint{
 	permissionsCmd,
 	storageVolumesCmd,
 	storageVolumesTypeCmd,
+	oidcSessionsCmd,
+	oidcSessionCmd,
 }
 
 // swagger:operation GET /1.0?public server server_get_untrusted
@@ -1204,7 +1208,12 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 				return util.HTTPClient("", d.proxy)
 			}
 
-			d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, s.CoreAuthSecrets, d.identityCache, httpClientFunc, &oidc.Opts{GroupsClaim: oidcGroupsClaim})
+			sessionExpiryFunc := func() (time.Time, error) {
+				return shared.GetExpiry(time.Now().UTC(), d.globalConfig.OIDCSessionExpiry())
+			}
+
+			sessionHandler := dbOIDC.NewSessionHandler(d.db.Cluster, d.events, sessionExpiryFunc)
+			d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim, d.globalConfig.ClusterUUID(), s.CoreAuthSecrets, httpClientFunc, sessionHandler)
 			if err != nil {
 				return fmt.Errorf("Failed creating verifier: %w", err)
 			}

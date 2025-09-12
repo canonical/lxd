@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 
+	cookiejar "github.com/juju/persistent-cookiejar"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 
 	"github.com/canonical/lxd/client"
@@ -340,6 +341,40 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 		}
 
 		args.OIDCTokens = c.oidcTokens[name]
+
+		if c.cookieJars == nil || c.cookieJars[name] == nil {
+			if !shared.PathExists(c.ConfigPath("jars")) {
+				err := os.MkdirAll(c.ConfigPath("jars"), 0700)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			if !shared.PathExists(c.CookiesPath(name)) {
+				if shared.PathExists(c.ConfigPath("cookies")) {
+					err := shared.FileCopy(c.ConfigPath("cookies"), c.CookiesPath(name))
+					if err != nil {
+						return nil, err
+					}
+				}
+			}
+
+			jar, err := cookiejar.New(
+				&cookiejar.Options{
+					Filename: c.CookiesPath(name),
+				})
+			if err != nil {
+				return nil, err
+			}
+
+			if c.cookieJars == nil {
+				c.cookieJars = map[string]*cookiejar.Jar{}
+			}
+
+			c.cookieJars[name] = jar
+		}
+
+		args.CookieJar = c.cookieJars[name]
 	}
 
 	// Stop here if no TLS involved
