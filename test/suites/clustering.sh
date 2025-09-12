@@ -3543,74 +3543,97 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c6 --target=node2
   LXD_DIR="${LXD_ONE_DIR}" lxc config set c6 boot.host_shutdown_timeout=1
 
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group create foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group assign node3 default,foo
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c7 --target=@foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set c7 boot.host_shutdown_timeout=1
+
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get c7 volatile.cluster.target)" = "@foo" ]
+
   # For debugging
   LXD_DIR="${LXD_TWO_DIR}" lxc list
+
+  # Move c7 to node1 to test "volatile.cluster.target" handling post-evacuation.
+  LXD_DIR="${LXD_TWO_DIR}" lxc stop c7 -f
+  LXD_DIR="${LXD_TWO_DIR}" lxc move c7 --target=node1
+  LXD_DIR="${LXD_TWO_DIR}" lxc start c7
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c7 | grep -cF "Location: node1")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c7 | grep -cF "Status: RUNNING")" = 1 ]
 
   # Evacuate first node
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster evacuate node1 --force
 
   # Ensure the node is evacuated
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -F "status: Evacuated"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -cF "status: Evacuated")" = 1 ]
 
   # For debugging
   LXD_DIR="${LXD_TWO_DIR}" lxc list
 
   # Check instance status
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -xF "Status: RUNNING"
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -xF "Location: node1" || false
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -xF "Status: RUNNING"
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -xF "Location: node1" || false
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -xF "Status: STOPPED"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -xF "Location: node1"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -xF "Status: RUNNING"
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -xF "Location: node1" || false
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -xF "Status: STOPPED"
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -xF "Location: node1" || false
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -xF "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -xF "Location: node2"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -cF "Location: node1")" = 0 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -cF "Location: node1")" = 0 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -cF "Status: STOPPED")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -cF "Location: node1")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -cF "Location: node1")" = 0 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -cF "Status: STOPPED")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -cF "Location: node1")" = 0 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -cF "Location: node2")" = 1 ]
+
+  # Check "volatile.target.cluster" (initial target cluster group) is respected.
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c7 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c7 | grep -cF "Location: node3")" = 1 ]
 
   c1_location=$(LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | awk '/Location:/ {print $2}')
   c2_location=$(LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | awk '/Location:/ {print $2}')
   c4_location=$(LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | awk '/Location:/ {print $2}')
   c5_location=$(LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | awk '/Location:/ {print $2}')
   c6_location=$(LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | awk '/Location:/ {print $2}')
+  c7_location=$(LXD_DIR="${LXD_TWO_DIR}" lxc info c7 | awk '/Location:/ {print $2}')
 
   # Restore first node with "skip" mode.
   # "skip" mode restores cluster member status without starting instances or migrating back evacuated instances.
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster restore node1 --action=skip --force
 
   # Ensure the node is restored
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -xF "status: Online"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -cF "status: Online")" = 1 ]
 
   # Verify that instances remain in their evacuated state/location
   # c1 should stay on the node it was migrated to
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -xF "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -xF "Location: ${c1_location}"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -cF "Location: ${c1_location}")" = 1 ]
   # c2 should stay on the node it was migrated to
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -xF "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -xF "Location: ${c2_location}"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -cF "Location: ${c2_location}")" = 1 ]
   # c3 should remain stopped on node1
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -xF "Status: STOPPED"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -xF "Location: node1"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -cF "Status: STOPPED")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -cF "Location: node1")" = 1 ]
   # c4 should stay on the node it was migrated to
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -xF "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -xF "Location: ${c4_location}"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -cF "Location: ${c4_location}")" = 1 ]
   # c5 should remain stopped on the node it was migrated to
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -xF "Status: STOPPED"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -xF "Location: ${c5_location}"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -cF "Status: STOPPED")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -cF "Location: ${c5_location}")" = 1 ]
   # c6 should stay on the node it was already on
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -xF "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -xF "Location: ${c6_location}"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -cF "Location: ${c6_location}")" = 1 ]
+  # c7 should stay on the node it was already on
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c7 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c7 | grep -cF "Location: ${c7_location}")" = 1 ]
 
   # Now test a full restore for comparison
   # Evacuate node1 again
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster evacuate node1 --force
 
   # Ensure instances cannot be created on the evacuated node
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc launch testimage c7 --target=node1 || false
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc launch testimage c8 --target=node1 || false
 
   # Ensure the node is evacuated
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -xF "status: Evacuated"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -cF "status: Evacuated")" = 1 ]
 
   # Restore first node (without "skip" mode)
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster restore node1 --force
@@ -3619,18 +3642,25 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_TWO_DIR}" lxc list
 
   # Ensure the instances were moved back to the origin
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -xF "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -xF "Location: node1"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -xF "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -xF "Location: node1"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -xF "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -xF "Location: node1"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -xF "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -xF "Location: node1"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -xF "Status: STOPPED"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -xF "Location: node1"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -xF "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -xF "Location: node2"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -cF "Location: node1")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -cF "Location: node1")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -cF "Location: node1")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -cF "Location: node1")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -cF "Status: STOPPED")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -cF "Location: node1")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -cF "Location: node2")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c7 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c7 | grep -cF "Location: node1")" = 1 ]
+
+  # Move c7 to @default to check "volatile.cluster.target" is updated.
+  LXD_DIR="${LXD_TWO_DIR}" lxc stop c7 -f
+  LXD_DIR="${LXD_TWO_DIR}" lxc move c7 --target=@default
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get c7 volatile.cluster.target)" = "@default" ]
 
   # Clean up
   LXD_DIR="${LXD_TWO_DIR}" lxc rm -f c1
@@ -3639,6 +3669,7 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_TWO_DIR}" lxc rm -f c4
   LXD_DIR="${LXD_TWO_DIR}" lxc rm -f c5
   LXD_DIR="${LXD_TWO_DIR}" lxc rm -f c6
+  LXD_DIR="${LXD_TWO_DIR}" lxc rm -f c7
   LXD_DIR="${LXD_TWO_DIR}" lxc image rm testimage
 
   printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
@@ -4136,23 +4167,28 @@ EOF
 
   # c1 should go to node1
   lxc init testimage cluster:c1
-  lxc info cluster:c1 | grep -xF "Location: node1"
+  [ "$(lxc info cluster:c1 | grep -cF "Location: node1")" = 1 ]
 
   # c2 should go to node2. Additionally it should be possible to specify the network.
   lxc init testimage cluster:c2 --target=@blah --network "${bridge}"
-  lxc info cluster:c2 | grep -xF "Location: node2"
+  [ "$(lxc info cluster:c2 | grep -cF "Location: node2")" = 1 ]
 
   # c3 should go to node2 again. Additionally it should be possible to specify the storage pool.
   lxc init testimage cluster:c3 --target=@blah --storage data
-  lxc info cluster:c3 | grep -xF "Location: node2"
+  [ "$(lxc info cluster:c3 | grep -cF "Location: node2")" = 1 ]
 
   # Direct targeting of node2 should work
   lxc init testimage cluster:c4 --target=node2
-  lxc info cluster:c4 | grep -xF "Location: node2"
+  [ "$(lxc info cluster:c4 | grep -cF "Location: node2")" = 1 ]
 
   # Direct targeting of node3 should work
   lxc init testimage cluster:c5 --target=node3
-  lxc info cluster:c5 | grep -xF "Location: node3"
+  [ "$(lxc info cluster:c5 | grep -cF "Location: node3")" = 1 ]
+
+  # Check "volatile.cluster.target" is set correctly.
+  [ "$(lxc config get cluster:c1 volatile.cluster.target)" = "" ]
+  [ "$(lxc config get cluster:c2 volatile.cluster.target)" = "@blah" ]
+  [ "$(lxc config get cluster:c3 volatile.cluster.target)" = "@blah" ]
 
   # Clean up
   lxc rm -f c1 c2 c3 c4 c5
@@ -4213,17 +4249,20 @@ EOF
   lxc cluster unset cluster:node2 scheduler.instance
   lxc init testimage cluster:c1 --project foo
   lxc init testimage cluster:c2 --project foo
-  lxc info cluster:c1 --project foo | grep -xF "Location: node2"
-  lxc info cluster:c2 --project foo | grep -xF "Location: node2"
+  [ "$(lxc info cluster:c1 --project foo | grep -cF "Location: node2")" = 1 ]
+  [ "$(lxc info cluster:c2 --project foo | grep -cF "Location: node2")" = 1 ]
   lxc delete -f c1 c2 --project foo
 
   # Check can specify any member or group when restricted.cluster.groups is empty.
   lxc project unset foo restricted.cluster.groups
   lxc init testimage cluster:c1 --project foo --target=node1
-  lxc info cluster:c1 --project foo | grep -xF "Location: node1"
+  [ "$(lxc info cluster:c1 --project foo | grep -cF "Location: node1")" = 1 ]
 
   lxc init testimage cluster:c2 --project foo --target=@blah
-  lxc info cluster:c2 --project foo | grep -xF "Location: node2"
+  [ "$(lxc info cluster:c2 --project foo | grep -cF "Location: node2")" = 1 ]
+
+  # Check "volatile.cluster.target" is set correctly.
+  [ "$(lxc config get cluster:c2 --project foo volatile.cluster.target)" = "@blah" ]
 
   lxc delete -f c1 c2 --project foo
 
