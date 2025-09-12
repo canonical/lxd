@@ -1089,7 +1089,7 @@ test_backup_export_import_instance_only() {
 
   # Export the instance and remove it.
   lxc export c1 "${LXD_DIR}/c1.tar.gz" --instance-only
-  lxc delete -f c1
+  lxc delete c1
 
   # Import the instance from tarball.
   lxc import "${LXD_DIR}/c1.tar.gz"
@@ -1098,7 +1098,7 @@ test_backup_export_import_instance_only() {
   [ "$(lxc query "/1.0/storage-pools/${poolName}/volumes/container/c1/snapshots" | jq -r 'length')" = "0" ]
 
   rm "${LXD_DIR}/c1.tar.gz"
-  lxc delete -f c1
+  lxc delete c1
 }
 
 test_backup_metadata() {
@@ -1144,7 +1144,7 @@ test_backup_metadata() {
   [ "$(yq '.config.volume_snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
 
   rm -rf "${tmpDir}/backup" "${tmpDir}/c1.tar.gz"
-  lxc delete -f c1
+  lxc delete c1
 
   # Create a custom storage volume with one snapshot.
   poolName=$(lxc profile device get default root pool)
