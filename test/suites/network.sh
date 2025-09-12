@@ -12,8 +12,7 @@ test_network() {
   sleep 2
   dig @"${v4_addr}" 0abc.lxd
   dig @"${v4_addr}" def0.lxd
-  lxc delete -f 0abc
-  lxc delete -f def0
+  lxc delete -f 0abc def0
   lxc network delete lxdt$$
 
   # Cleanup any leftover from previous run
