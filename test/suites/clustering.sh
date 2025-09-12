@@ -3565,24 +3565,24 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster evacuate node1 --force
 
   # Ensure the node is evacuated
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -F "status: Evacuated"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -cF "status: Evacuated")" = 1 ]
 
   # For debugging
   LXD_DIR="${LXD_TWO_DIR}" lxc list
 
   # Check instance status
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -xF "Status: RUNNING"
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -xF "Location: node1" || false
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -xF "Status: RUNNING"
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -xF "Location: node1" || false
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -xF "Status: STOPPED"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -xF "Location: node1"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -xF "Status: RUNNING"
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -xF "Location: node1" || false
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -xF "Status: STOPPED"
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -xF "Location: node1" || false
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -xF "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -xF "Location: node2"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -cF "Location: node1")" = 0 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -cF "Location: node1")" = 0 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -cF "Status: STOPPED")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -cF "Location: node1")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -cF "Location: node1")" = 0 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -cF "Status: STOPPED")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -cF "Location: node1")" = 0 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -cF "Location: node2")" = 1 ]
 
   # Check "volatile.target.cluster" (initial target cluster group) is respected.
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c7 | grep -cF "Status: RUNNING")" = 1 ]
@@ -3600,27 +3600,27 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster restore node1 --action=skip --force
 
   # Ensure the node is restored
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -xF "status: Online"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -cF "status: Online")" = 1 ]
 
   # Verify that instances remain in their evacuated state/location
   # c1 should stay on the node it was migrated to
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -xF "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -xF "Location: ${c1_location}"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -cF "Location: ${c1_location}")" = 1 ]
   # c2 should stay on the node it was migrated to
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -xF "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -xF "Location: ${c2_location}"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -cF "Location: ${c2_location}")" = 1 ]
   # c3 should remain stopped on node1
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -xF "Status: STOPPED"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -xF "Location: node1"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -cF "Status: STOPPED")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -cF "Location: node1")" = 1 ]
   # c4 should stay on the node it was migrated to
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -xF "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -xF "Location: ${c4_location}"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -cF "Location: ${c4_location}")" = 1 ]
   # c5 should remain stopped on the node it was migrated to
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -xF "Status: STOPPED"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -xF "Location: ${c5_location}"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -cF "Status: STOPPED")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -cF "Location: ${c5_location}")" = 1 ]
   # c6 should stay on the node it was already on
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -xF "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -xF "Location: ${c6_location}"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -cF "Location: ${c6_location}")" = 1 ]
   # c7 should stay on the node it was already on
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c7 | grep -cF "Status: RUNNING")" = 1 ]
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c7 | grep -cF "Location: ${c7_location}")" = 1 ]
@@ -3633,7 +3633,7 @@ test_clustering_evacuation() {
   ! LXD_DIR="${LXD_TWO_DIR}" lxc launch testimage c8 --target=node1 || false
 
   # Ensure the node is evacuated
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -xF "status: Evacuated"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -cF "status: Evacuated")" = 1 ]
 
   # Restore first node (without "skip" mode)
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster restore node1 --force
@@ -3642,18 +3642,18 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_TWO_DIR}" lxc list
 
   # Ensure the instances were moved back to the origin
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -xF "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -xF "Location: node1"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -xF "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -xF "Location: node1"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -xF "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -xF "Location: node1"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -xF "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -xF "Location: node1"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -xF "Status: STOPPED"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -xF "Location: node1"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -xF "Status: RUNNING"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -xF "Location: node2"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -cF "Location: node1")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -cF "Location: node1")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -cF "Location: node1")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -cF "Location: node1")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -cF "Status: STOPPED")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -cF "Location: node1")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -cF "Status: RUNNING")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -cF "Location: node2")" = 1 ]
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c7 | grep -cF "Status: RUNNING")" = 1 ]
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc info c7 | grep -cF "Location: node1")" = 1 ]
 
