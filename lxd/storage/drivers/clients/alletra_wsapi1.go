@@ -717,6 +717,16 @@ func (p *AlletraClient) GetTargetAddrs(connectorType string) (targetAddrs []stri
 // ConnectHostToVolume creates a connection between a host and volume. It returns true if the connection
 // was created, and false if it already existed.
 func (p *AlletraClient) ConnectHostToVolume(poolName string, volName string, hostName string) (bool, error) {
+	vlun, errVLUN := p.GetVLUN(volName)
+	if errVLUN != nil {
+		return false, fmt.Errorf("HPE Error %w", errVLUN)
+	}
+
+	if vlun != nil && vlun.Hostname == hostName {
+		p.logger.Debug("No need to connect host to volume as there is a vLUN", logger.Ctx{"volName": volName, "hostName": hostName})
+		return false, nil
+	}
+
 	url := api.NewURL().Path("api", "v1", "vluns")
 
 	req := make(map[string]any)
