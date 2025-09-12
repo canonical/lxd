@@ -15,9 +15,6 @@ do_copy() {
   local source_pool="${1}"
   local target_pool="${2}"
 
-  # Make sure the containers don't exist
-  lxc rm -f c1 c2 || true
-
   if [ -z "${source_pool}" ]; then
     source_pool=$(lxc profile device get default root pool)
   fi
@@ -94,5 +91,5 @@ do_copy() {
   ! lxc config show c2/snap2 || false
   ! lxc storage volume show "${target_pool}" container/c2/snap2 || false
 
-  lxc rm -f c1 c2
+  lxc delete -f c1 c2
 }
