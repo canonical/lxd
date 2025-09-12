@@ -1,6 +1,5 @@
 test_incremental_copy() {
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   do_copy "" ""
 
