@@ -336,13 +336,20 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	isClusterNotification := requestor.IsClusterNotification()
+
 	// Get the data
 	wg := sync.WaitGroup{}
 	networkCert := s.Endpoints.NetworkCert()
 	for memberAddress, instances := range memberAddressInstances {
 		// If this is an internal request from another cluster node, ignore instances from other
 		// projectInstanceToNodeName, and return only the ones on this member.
-		if isClusterNotification(r) && memberAddress != "" {
+		if isClusterNotification && memberAddress != "" {
 			continue
 		}
 
@@ -357,7 +364,7 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 
 		// For recursion requests we need to fetch the state of remote instances from their respective
 		// projectInstanceToNodeName.
-		if mustLoadObjects && memberAddress != "" && !isClusterNotification(r) {
+		if mustLoadObjects && memberAddress != "" && !isClusterNotification {
 			wg.Add(1)
 
 			go func(memberAddress string, instances []db.Instance) {

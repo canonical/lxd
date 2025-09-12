@@ -21,7 +21,7 @@ const ClientTypeJoiner ClientType = "joiner"
 const ClientTypeNormal ClientType = "normal"
 
 // UserAgentClientType converts user agent to client type.
-func UserAgentClientType(userAgent string) ClientType {
+func userAgentClientType(userAgent string) ClientType {
 	switch userAgent {
 	case UserAgentNotifier:
 		return ClientTypeNotifier

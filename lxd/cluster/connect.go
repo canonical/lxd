@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/canonical/lxd/client"
-	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/request"
@@ -49,7 +48,7 @@ func Connect(ctx context.Context, address string, networkCert *shared.CertInfo, 
 	}
 
 	if notify {
-		args.UserAgent = clusterRequest.UserAgentNotifier
+		args.UserAgent = request.UserAgentNotifier
 	}
 
 	requestor, err := request.GetRequestor(ctx)

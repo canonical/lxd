@@ -11,7 +11,6 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
-	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network/zone"
@@ -632,14 +631,17 @@ func networkZonePut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
-
-	err = netzone.Update(&req, clientType)
+	requestor, err := request.GetRequestor(r.Context())
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkZoneUpdated.Event(netzone, request.CreateRequestor(r.Context()), nil))
+	err = netzone.Update(&req, requestor.ClientType())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkZoneUpdated.Event(netzone, requestor.EventLifecycleRequestor(), nil))
 
 	return response.EmptySyncResponse
 }

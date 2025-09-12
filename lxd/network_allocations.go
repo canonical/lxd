@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/canonical/lxd/lxd/auth"
-	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/network"
@@ -199,7 +198,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 				})
 			}
 
-			leases, err := n.Leases("", clusterRequest.ClientTypeNormal)
+			leases, err := n.Leases("", request.ClientTypeNormal)
 			if err != nil && !errors.Is(err, network.ErrNotImplemented) {
 				return response.SmartError(fmt.Errorf("Failed getting leases for network %q: %w", networkName, err))
 			}
