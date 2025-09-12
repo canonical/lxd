@@ -12,9 +12,11 @@ runs:
         . /etc/os-release
         ARCH="$(dpkg --print-architecture)"
         DATE="$(date --utc '+%Y%m%d')"
+        YESTERDAY="$(date --utc '+%Y%m%d' --date=yesterday)"
 
         # i.e: deps-ubuntu-24.04-amd64-${DATE}
         echo "KEY=deps-${ID}-${VERSION_ID}-${ARCH}-${DATE}" >> $GITHUB_OUTPUT
+        echo "FALLBACK_KEY=deps-${ID}-${VERSION_ID}-${ARCH}-${YESTERDAY}" >> $GITHUB_OUTPUT
 
     # GitHub will remove any cache entries that have not been accessed in over 7 days.
     # https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/caching-dependencies-to-speed-up-workflows#usage-limits-and-eviction-policy
@@ -26,6 +28,8 @@ runs:
           /home/runner/go/bin/dqlite
           /home/runner/go/bin/liblxc
         key: ${{ steps.deps-cache-key.outputs.KEY }}
+        restore-keys: |
+          - ${{ steps.deps-cache-key.outputs.FALLBACK_KEY }}
 
     - name: Build LXD dependencies
       if: ${{ steps.cache-deps.outputs.cache-hit != 'true' }}
