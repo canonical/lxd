@@ -23,7 +23,7 @@ func GetUSB() (*api.ResourcesUSB, error) {
 	usb := api.ResourcesUSB{}
 	usb.Devices = []api.ResourcesUSBDevice{}
 
-	if !sysfsExists(sysBusUSB) {
+	if !pathExists(sysBusUSB) {
 		return &usb, nil
 	}
 
@@ -45,12 +45,12 @@ func GetUSB() (*api.ResourcesUSB, error) {
 		devicePath := filepath.Join(sysBusUSB, entryName)
 
 		// Skip entries without a bus address
-		if !sysfsExists(filepath.Join(devicePath, "busnum")) {
+		if !pathExists(filepath.Join(devicePath, "busnum")) {
 			continue
 		}
 
 		devClassFile := filepath.Join(devicePath, "bDeviceClass")
-		if sysfsExists(devClassFile) {
+		if pathExists(devClassFile) {
 			content, err := os.ReadFile(devClassFile)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to read %q: %w", devClassFile, err)
@@ -83,7 +83,7 @@ func GetUSB() (*api.ResourcesUSB, error) {
 
 		// Get serial number
 		deviceSerialPath := filepath.Join(devicePath, "iSerial")
-		if sysfsExists(deviceSerialPath) {
+		if pathExists(deviceSerialPath) {
 			content, err := os.ReadFile(deviceSerialPath)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to read %q: %w", deviceSerialPath, err)
@@ -96,7 +96,7 @@ func GetUSB() (*api.ResourcesUSB, error) {
 		var productID uint64
 
 		deviceProductIDPath := filepath.Join(devicePath, "idProduct")
-		if sysfsExists(deviceProductIDPath) {
+		if pathExists(deviceProductIDPath) {
 			content, err := os.ReadFile(deviceProductIDPath)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to read %q: %w", deviceProductIDPath, err)
@@ -114,7 +114,7 @@ func GetUSB() (*api.ResourcesUSB, error) {
 		var vendorID uint64
 
 		deviceVendorIDPath := filepath.Join(devicePath, "idVendor")
-		if sysfsExists(deviceVendorIDPath) {
+		if pathExists(deviceVendorIDPath) {
 			content, err := os.ReadFile(deviceVendorIDPath)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to read %q: %w", deviceVendorIDPath, err)
@@ -130,7 +130,7 @@ func GetUSB() (*api.ResourcesUSB, error) {
 
 		// Get vendor and product name
 		deviceProductPath := filepath.Join(devicePath, "product")
-		if sysfsExists(deviceProductPath) {
+		if pathExists(deviceProductPath) {
 			content, err := os.ReadFile(deviceProductPath)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to read %q: %w", deviceProductPath, err)
@@ -154,7 +154,7 @@ func GetUSB() (*api.ResourcesUSB, error) {
 
 		// Get speed
 		deviceSpeedPath := filepath.Join(devicePath, "speed")
-		if sysfsExists(deviceSpeedPath) {
+		if pathExists(deviceSpeedPath) {
 			content, err := os.ReadFile(deviceSpeedPath)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to read %q: %w", deviceSpeedPath, err)
@@ -187,7 +187,7 @@ func GetUSB() (*api.ResourcesUSB, error) {
 			var class *usbid.Class
 
 			interfaceClassPath := filepath.Join(subDevicePath, "bInterfaceClass")
-			if sysfsExists(interfaceClassPath) {
+			if pathExists(interfaceClassPath) {
 				content, err := os.ReadFile(interfaceClassPath)
 				if err != nil {
 					return nil, fmt.Errorf("Failed to read %q: %w", interfaceClassPath, err)
@@ -208,7 +208,7 @@ func GetUSB() (*api.ResourcesUSB, error) {
 
 			// Get subclass ID
 			interfaceSubClassPath := filepath.Join(subDevicePath, "bInterfaceSubClass")
-			if sysfsExists(interfaceSubClassPath) {
+			if pathExists(interfaceSubClassPath) {
 				content, err := os.ReadFile(interfaceSubClassPath)
 				if err != nil {
 					return nil, fmt.Errorf("Failed to read %q: %w", interfaceSubClassPath, err)
@@ -229,7 +229,7 @@ func GetUSB() (*api.ResourcesUSB, error) {
 
 			// Get number
 			interfaceNumber := filepath.Join(subDevicePath, "bInterfaceNumber")
-			if sysfsExists(interfaceNumber) {
+			if pathExists(interfaceNumber) {
 				content, err := os.ReadFile(interfaceNumber)
 				if err != nil {
 					return nil, fmt.Errorf("Failed to read %q: %w", interfaceNumber, err)
@@ -243,7 +243,7 @@ func GetUSB() (*api.ResourcesUSB, error) {
 
 			// Get driver
 			driverPath := filepath.Join(subDevicePath, "driver")
-			if sysfsExists(driverPath) {
+			if pathExists(driverPath) {
 				linkTarget, err := filepath.EvalSymlinks(driverPath)
 				if err != nil {
 					return nil, fmt.Errorf("Failed to get driver of %q: %w", subDevicePath, err)

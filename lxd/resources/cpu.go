@@ -24,7 +24,7 @@ func GetCPUIsolated() []int64 {
 	isolatedPath := filepath.Join(sysDevicesCPU, "isolated")
 
 	isolatedCpusInt := []int64{}
-	if sysfsExists(isolatedPath) {
+	if pathExists(isolatedPath) {
 		buf, err := os.ReadFile(isolatedPath)
 		if err != nil {
 			return isolatedCpusInt
@@ -118,7 +118,7 @@ func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 		entryName := entry.Name()
 		entryPath := filepath.Join(path, entryName)
 
-		if !sysfsExists(filepath.Join(entryPath, "level")) {
+		if !pathExists(filepath.Join(entryPath, "level")) {
 			continue
 		}
 
@@ -317,7 +317,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 		entryPath := filepath.Join(sysDevicesCPU, entryName)
 
 		// Skip any non-CPU entry
-		if !sysfsExists(filepath.Join(entryPath, "topology")) {
+		if !pathExists(filepath.Join(entryPath, "topology")) {
 			continue
 		}
 
@@ -374,7 +374,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			}
 
 			// Cache information
-			if sysfsExists(filepath.Join(entryPath, "cache")) {
+			if pathExists(filepath.Join(entryPath, "cache")) {
 				socketCache, err := getCPUCache(filepath.Join(entryPath, "cache"))
 				if err != nil {
 					return nil, fmt.Errorf("Failed to get CPU cache information: %w", err)
@@ -384,14 +384,14 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			}
 
 			// Frequency
-			if sysfsExists(filepath.Join(entryPath, "cpufreq", "cpuinfo_min_freq")) {
+			if pathExists(filepath.Join(entryPath, "cpufreq", "cpuinfo_min_freq")) {
 				freqMinimum, err := readUint(filepath.Join(entryPath, "cpufreq", "cpuinfo_min_freq"))
 				if err != nil {
 					return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "cpufreq", "cpuinfo_min_freq"), err)
 				}
 
 				resSocket.FrequencyMinimum = freqMinimum / 1000
-			} else if sysfsExists(filepath.Join(entryPath, "cpufreq", "scaling_min_freq")) {
+			} else if pathExists(filepath.Join(entryPath, "cpufreq", "scaling_min_freq")) {
 				freqMinimum, err := readUint(filepath.Join(entryPath, "cpufreq", "scaling_min_freq"))
 				if err != nil {
 					return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "cpufreq", "scaling_min_freq"), err)
@@ -400,14 +400,14 @@ func GetCPU() (*api.ResourcesCPU, error) {
 				resSocket.FrequencyMinimum = freqMinimum / 1000
 			}
 
-			if sysfsExists(filepath.Join(entryPath, "cpufreq", "cpuinfo_max_freq")) {
+			if pathExists(filepath.Join(entryPath, "cpufreq", "cpuinfo_max_freq")) {
 				freqTurbo, err := readUint(filepath.Join(entryPath, "cpufreq", "cpuinfo_max_freq"))
 				if err != nil {
 					return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "cpufreq", "cpuinfo_max_freq"), err)
 				}
 
 				resSocket.FrequencyTurbo = freqTurbo / 1000
-			} else if sysfsExists(filepath.Join(entryPath, "cpufreq", "scaling_max_freq")) {
+			} else if pathExists(filepath.Join(entryPath, "cpufreq", "scaling_max_freq")) {
 				freqTurbo, err := readUint(filepath.Join(entryPath, "cpufreq", "scaling_max_freq"))
 				if err != nil {
 					return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "cpufreq", "scaling_max_freq"), err)
@@ -434,7 +434,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			resCore.Die = uint64(cpuDie)
 
 			// Frequency
-			if sysfsExists(filepath.Join(entryPath, "cpufreq", "scaling_cur_freq")) {
+			if pathExists(filepath.Join(entryPath, "cpufreq", "scaling_cur_freq")) {
 				freqCurrent, err := readUint(filepath.Join(entryPath, "cpufreq", "scaling_cur_freq"))
 				if err != nil {
 					return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "cpufreq", "scaling_cur_freq"), err)
@@ -458,7 +458,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 
 		thread := api.ResourcesCPUThread{}
 		thread.Online = true
-		if sysfsExists(filepath.Join(entryPath, "online")) {
+		if pathExists(filepath.Join(entryPath, "online")) {
 			online, err := readUint(filepath.Join(entryPath, "online"))
 			if err != nil {
 				return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "online"), err)
