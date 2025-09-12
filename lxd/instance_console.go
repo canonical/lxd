@@ -28,6 +28,7 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 	"github.com/canonical/lxd/shared/ws"
@@ -63,6 +64,9 @@ type consoleWs struct {
 
 	// channel type (either console or vga)
 	protocol string
+
+	// track either server or client disconnected
+	consoleDone cancel.Canceller
 }
 
 // Metadata returns a map of metadata.
@@ -180,14 +184,23 @@ func (s *consoleWs) connectVGA(r *http.Request, w http.ResponseWriter) error {
 		go func() {
 			l := logger.AddContext(logger.Ctx{"address": conn.RemoteAddr().String()})
 
-			defer l.Debug("Finished mirroring websocket to console")
+			defer l.Debug("Finished mirroring websocket")
 
 			l.Debug("Started mirroring websocket")
 			readDone, writeDone := ws.Mirror(conn, console)
 
-			<-readDone
-			l.Debug("Finished mirroring console to websocket")
-			<-writeDone
+			for readDone != nil && writeDone != nil {
+				select {
+				case <-readDone:
+					l.Debug("Finished mirroring console to websocket")
+					readDone = nil
+					s.consoleDone.Cancel()
+				case <-writeDone:
+					l.Debug("Finished mirroring websocket to console")
+					writeDone = nil
+					s.consoleDone.Cancel()
+				}
+			}
 		}()
 
 		s.connsLock.Lock()
@@ -231,8 +244,6 @@ func (s *consoleWs) doConsole() error {
 		_ = shared.SetSize(int(console.Fd()), s.width, s.height)
 	}
 
-	consoleDoneCh := make(chan struct{})
-
 	// Wait for control socket to connect and then read messages from the remote side in a loop.
 	go func() {
 		defer logger.Debug("Console control websocket finished")
@@ -249,7 +260,7 @@ func (s *consoleWs) doConsole() error {
 			_, r, err := conn.NextReader()
 			if err != nil {
 				logger.Debugf("Got error getting next reader: %v", err)
-				close(consoleDoneCh)
+				s.consoleDone.Cancel()
 				return
 			}
 
@@ -314,7 +325,7 @@ func (s *consoleWs) doConsole() error {
 	select {
 	case <-mirrorDoneCh:
 		close(consoleDisconnectCh)
-	case <-consoleDoneCh:
+	case <-s.consoleDone.Done():
 		close(consoleDisconnectCh)
 	}
 
@@ -352,8 +363,6 @@ func (s *consoleWs) doConsole() error {
 func (s *consoleWs) doVGA() error {
 	defer logger.Debug("VGA websocket finished")
 
-	consoleDoneCh := make(chan struct{})
-
 	// The control socket is used to terminate the operation.
 	go func() {
 		defer logger.Debug("VGA control websocket finished")
@@ -370,14 +379,14 @@ func (s *consoleWs) doVGA() error {
 			_, _, err := conn.NextReader()
 			if err != nil {
 				logger.Debugf("Got error getting next reader: %v", err)
-				close(consoleDoneCh)
+				s.consoleDone.Cancel()
 				return
 			}
 		}
 	}()
 
 	// Wait until the control channel is done.
-	<-consoleDoneCh
+	<-s.consoleDone.Done()
 	s.connsLock.Lock()
 	control := s.conns[-1]
 	s.connsLock.Unlock()
@@ -509,6 +518,7 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 	ws.conns = map[int]*websocket.Conn{}
 	ws.conns[-1] = nil
 	ws.conns[0] = nil
+	ws.consoleDone = cancel.New()
 	ws.dynamic = map[*websocket.Conn]*os.File{}
 	for i := -1; i < len(ws.conns)-1; i++ {
 		ws.fds[i], err = shared.RandomCryptoString()
