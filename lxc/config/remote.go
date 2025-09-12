@@ -6,13 +6,13 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	cookiejar "github.com/juju/persistent-cookiejar"
 	"net"
 	"os"
 	"runtime"
 	"slices"
 	"strings"
 
+	cookiejar "github.com/juju/persistent-cookiejar"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 
 	"github.com/canonical/lxd/client"

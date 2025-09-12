@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/zitadel/oidc/v3/pkg/oidc"
 	"github.com/juju/persistent-cookiejar"
+	"github.com/zitadel/oidc/v3/pkg/oidc"
 
 	"github.com/canonical/lxd/shared"
 )

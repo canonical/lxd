@@ -2715,6 +2715,7 @@ Changes to existing endpoints:
 
 * `GET /1.0` — Adds a `supported_storage_drivers` field to the response, which is populated when `security.devlxd.management.volumes` is enabled.
 
+<<<<<<< HEAD
 ## `storage_driver_alletra`
 
 Adds a new `alletra` storage driver for the consumption of storage volumes from an HPE Alletra storage array.
@@ -2732,3 +2733,13 @@ The following pool-level configuration keys have been added:
 ## `resources_disk_used_by`
 
 Adds the field `used_by` to potential storage disk returned by the resources end point to indicate its use by any virtual parent device, e.g. bcache.
+
+## `auth_oidc_sessions`
+
+Adds session support for OIDC authentication. This is required for some identity providers due to the nature of the tokens that they issue.
+
+The duration of OIDC sessions can be configured via the {config:option}`server-oidc:oidc.session.expiry` configuration key.
+
+When a session expires, LXD will re-verify the login with the identity provider.
+If this is not possible, the user will be prompted to log in again.
+If the user already has a session with the identity provider, this will cause a brief redirection.
