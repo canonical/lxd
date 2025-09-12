@@ -6,8 +6,8 @@ test_network() {
 
   # Test DNS resolution of instance names
   lxc network create lxdt$$
-  lxc launch testimage 0abc -n lxdt$$
-  lxc launch testimage def0 -n lxdt$$
+  lxc launch testimage 0abc -d "${SMALL_ROOT_DISK}" -n lxdt$$
+  lxc launch testimage def0 -d "${SMALL_ROOT_DISK}" -n lxdt$$
   v4_addr="$(lxc network get lxdt$$ ipv4.address | cut -d/ -f1)"
   sleep 2
   dig @"${v4_addr}" 0abc.lxd
@@ -114,7 +114,7 @@ test_network() {
 
   # Create new project with an instance with ipv[46] for the next tests.
   lxc project create foo -c features.networks=false -c features.images=false -c features.profiles=false
-  lxc launch testimage outsider -n lxdt$$ --project foo
+  lxc launch testimage outsider -d "${SMALL_ROOT_DISK}" -n lxdt$$ --project foo
   v4_addr_foo="$(lxc network get lxdt$$ ipv4.address | cut -d/ -f1)1"
   v6_addr_foo="$(lxc network get lxdt$$ ipv6.address | cut -d/ -f1)01"
   lxc config device set outsider eth0 ipv4.address "${v4_addr_foo}" --project foo
