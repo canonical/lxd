@@ -76,8 +76,7 @@ test_migration() {
   # Test config overrides for migration of instance with snapshots
   lxc_remote network create l1:foonet ipv4.address=10.100.10.1/24
   lxc_remote network create l2:foonet2 ipv4.address=10.100.100.1/24
-  ensure_import_testimage
-  lxc_remote init testimage l1:u1
+  lxc_remote init --empty l1:u1
   lxc_remote config device add l1:u1 eth1 nic name=eth1 network=foonet ipv4.address=10.100.10.10
   lxc_remote snapshot l1:u1 snap
 
