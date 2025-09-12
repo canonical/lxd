@@ -488,7 +488,8 @@ Or for a virtual machine: lxc launch ubuntu:24.04 --vm`)
 // It saves any configuration that must persist between runs.
 func (c *cmdGlobal) PostRun(cmd *cobra.Command, args []string) error {
 	if c.conf != nil && shared.PathExists(c.confPath) {
-		// Save OIDC tokens on exit
+		// Save cookies and OIDC tokens on exit
+		c.conf.SaveCookies()
 		c.conf.SaveOIDCTokens()
 	}
 
