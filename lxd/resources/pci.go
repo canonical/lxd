@@ -18,7 +18,7 @@ func GetPCI() (*api.ResourcesPCI, error) {
 	pci := api.ResourcesPCI{}
 	pci.Devices = []api.ResourcesPCIDevice{}
 
-	if !sysfsExists(sysBusPci) {
+	if !pathExists(sysBusPci) {
 		return &pci, nil
 	}
 
@@ -49,7 +49,7 @@ func GetPCI() (*api.ResourcesPCI, error) {
 		// Get driver name
 		driverPath := filepath.Join(devicePath, "driver")
 
-		if sysfsExists(driverPath) {
+		if pathExists(driverPath) {
 			linkTarget, err := filepath.EvalSymlinks(driverPath)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to get driver of %q: %w", devicePath, err)
@@ -67,7 +67,7 @@ func GetPCI() (*api.ResourcesPCI, error) {
 		}
 
 		// Get NUMA node
-		if sysfsExists(filepath.Join(devicePath, "numa_node")) {
+		if pathExists(filepath.Join(devicePath, "numa_node")) {
 			numaNode, err := readInt(filepath.Join(devicePath, "numa_node"))
 			if err != nil {
 				return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(devicePath, "numa_node"), err)
@@ -83,7 +83,7 @@ func GetPCI() (*api.ResourcesPCI, error) {
 
 		// Get product ID node
 		deviceDevicePath := filepath.Join(devicePath, "device")
-		if sysfsExists(deviceDevicePath) {
+		if pathExists(deviceDevicePath) {
 			id, err := os.ReadFile(deviceDevicePath)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to read %q: %w", deviceDevicePath, err)
@@ -94,7 +94,7 @@ func GetPCI() (*api.ResourcesPCI, error) {
 
 		// Get vendor ID node
 		deviceVendorPath := filepath.Join(devicePath, "vendor")
-		if sysfsExists(deviceVendorPath) {
+		if pathExists(deviceVendorPath) {
 			id, err := os.ReadFile(deviceVendorPath)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to read %q: %w", deviceVendorPath, err)
@@ -120,7 +120,7 @@ func GetPCI() (*api.ResourcesPCI, error) {
 
 		// Get IOMMU Group
 		iommuGroupSymPath := filepath.Join(sysBusPci, device.PCIAddress, "iommu_group")
-		if sysfsExists(iommuGroupSymPath) {
+		if pathExists(iommuGroupSymPath) {
 			iommuGroupPath, err := os.Readlink(iommuGroupSymPath)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to readlink %q: %w", iommuGroupSymPath, err)
@@ -137,7 +137,7 @@ func GetPCI() (*api.ResourcesPCI, error) {
 
 		// Get VPD info
 		vpdSysPath := filepath.Join(devicePath, "vpd")
-		if sysfsExists(vpdSysPath) {
+		if pathExists(vpdSysPath) {
 			data, err := os.ReadFile(vpdSysPath)
 
 			// If the file is readable, parse the VPD data.
