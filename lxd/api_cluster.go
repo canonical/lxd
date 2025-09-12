@@ -2067,7 +2067,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 			}()
 		}
 
-		logger.Debugf("Redirect member delete request to %s", leaderInfo.Address)
+		logger.Debug("Redirect member delete request", logger.Ctx{"leader": leaderInfo.Address})
 		client, err := cluster.Connect(r.Context(), leaderInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 		if err != nil {
 			return response.SmartError(err)
@@ -2449,8 +2449,6 @@ func updateClusterCertificate(ctx context.Context, s *state.State, gateway *clus
 func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	// Redirect all requests to the leader, which is the one with
-	// knowledge of which nodes are part of the raft cluster.
 	leaderInfo, err := s.LeaderInfo()
 	if err != nil {
 		return response.InternalError(err)
@@ -2461,8 +2459,7 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if !leaderInfo.Leader {
-		logger.Debugf("Redirect member accept request to %s", leaderInfo.Address)
-
+		logger.Debug("Redirect member accept request", logger.Ctx{"leader": leaderInfo.Address})
 		url := &url.URL{
 			Scheme: "https",
 			Path:   "/internal/cluster/accept",
@@ -2552,8 +2549,6 @@ type internalRaftNode struct {
 func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	// Redirect all requests to the leader, which is the one with with
-	// up-to-date knowledge of what nodes are part of the raft cluster.
 	leaderInfo, err := s.LeaderInfo()
 	if err != nil {
 		return response.InternalError(err)
@@ -2564,7 +2559,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 	}
 
 	if !leaderInfo.Leader {
-		logger.Debugf("Redirect cluster rebalance request to %s", leaderInfo.Address)
+		logger.Debug("Redirect cluster rebalance request", logger.Ctx{"leader": leaderInfo.Address})
 		url := &url.URL{
 			Scheme: "https",
 			Path:   "/internal/cluster/rebalance",
@@ -2775,15 +2770,17 @@ type internalClusterPostAssignRequest struct {
 func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	// Redirect all requests to the leader, which is the one with
-	// authoritative knowledge of the current raft configuration.
 	leaderInfo, err := s.LeaderInfo()
 	if err != nil {
 		return response.InternalError(err)
 	}
 
+	if !leaderInfo.Clustered {
+		return response.InternalError(cluster.ErrNodeIsNotClustered)
+	}
+
 	if !leaderInfo.Leader {
-		logger.Debugf("Redirect handover request to %s", leaderInfo.Address)
+		logger.Debug("Redirect handover request", logger.Ctx{"leader": leaderInfo.Address})
 		url := &url.URL{
 			Scheme: "https",
 			Path:   "/internal/cluster/handover",
