@@ -719,7 +719,7 @@ func (d *common) runHooks(hooks []func() error) error {
 // inst's "snapshots.expiry"" if expiry is nil, mounts the instance to update
 // backup.yaml, and reverts on error. The snapshot is marked stateful when
 // stateful is true.
-func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *time.Time, stateful bool) error {
+func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *time.Time, stateful bool, diskVolumes []*api.StorageVolume) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -766,7 +766,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 		return err
 	}
 
-	err = pool.CreateInstanceSnapshot(snap, inst, d.op)
+	err = pool.CreateInstanceSnapshot(snap, inst, diskVolumes, d.op)
 	if err != nil {
 		return fmt.Errorf("Create instance snapshot: %w", err)
 	}
@@ -889,6 +889,9 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 			return nil, false, nil, fmt.Errorf("Failed to create instance restore operation: %w", err)
 		}
 	}
+
+	// "volatile.attached_volumes" should not be included in the instance config.
+	delete(source.LocalConfig(), "volatile.attached_volumes")
 
 	// Restore the configuration.
 	args := db.InstanceArgs{

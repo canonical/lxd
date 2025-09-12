@@ -2232,7 +2232,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	}
 
 	if snapName != "" && expiry != nil {
-		err := d.snapshot(snapName, expiry)
+		err := d.snapshot(snapName, expiry, []*api.StorageVolume{})
 		if err != nil {
 			return "", nil, fmt.Errorf("Failed taking startup snapshot: %w", err)
 		}
@@ -3345,15 +3345,15 @@ func (d *lxc) RenderState(hostInterfaces []net.Interface) (*api.InstanceState, e
 }
 
 // snapshot creates a snapshot of the instance.
-func (d *lxc) snapshot(name string, expiry *time.Time) error {
+func (d *lxc) snapshot(name string, expiry *time.Time, diskVolumes []*api.StorageVolume) error {
 	// Wait for any file operations to complete to have a more consistent snapshot.
 	d.stopForkfile(false)
 
-	return d.snapshotCommon(d, name, expiry, false)
+	return d.snapshotCommon(d, name, expiry, false, diskVolumes)
 }
 
 // Snapshot takes a new snapshot.
-func (d *lxc) Snapshot(name string, expiry *time.Time, stateful bool) error {
+func (d *lxc) Snapshot(name string, expiry *time.Time, stateful bool, diskVolumes []*api.StorageVolume) error {
 	if stateful {
 		return api.StatusErrorf(http.StatusBadRequest, "Stateful snapshots are not supported for containers")
 	}
@@ -3365,11 +3365,11 @@ func (d *lxc) Snapshot(name string, expiry *time.Time, stateful bool) error {
 
 	defer unlock()
 
-	return d.snapshot(name, expiry)
+	return d.snapshot(name, expiry, diskVolumes)
 }
 
 // Restore restores a snapshot.
-func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
+func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool, diskVolumes []*api.StorageVolume) error {
 	if stateful {
 		return api.StatusErrorf(http.StatusBadRequest, "Stateful snapshot restore is not supported for containers")
 	}
@@ -3394,7 +3394,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	d.stopForkfile(false)
 
 	// Restore the rootfs.
-	err = pool.RestoreInstanceSnapshot(d, sourceContainer, nil)
+	err = pool.RestoreInstanceSnapshot(d, sourceContainer, diskVolumes, nil)
 	if err != nil {
 		op.Done(err)
 		return fmt.Errorf("Failed to restore snapshot rootfs: %w", err)

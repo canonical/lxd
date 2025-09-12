@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -23,6 +24,7 @@ type cmdDelete struct {
 	flagForce          bool
 	flagForceProtected bool
 	flagInteractive    bool
+	flagDiskVolumes    string
 }
 
 func (c *cmdDelete) command() *cobra.Command {
@@ -36,6 +38,7 @@ func (c *cmdDelete) command() *cobra.Command {
 	cmd.RunE = c.run
 	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Force the removal of running instances"))
 	cmd.Flags().BoolVarP(&c.flagInteractive, "interactive", "i", false, i18n.G("Require user confirmation"))
+	cmd.Flags().StringVar(&c.flagDiskVolumes, "disk-volumes", "", i18n.G(`Disk volumes mode. Possible values are "root" (default) and "all-exclusive". "root" only deletes the snapshot for an instance's root disk. "all-exclusive" deletes snapshots for the instance's root disk and any exclusively attached volumes (non-shared).`))
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return c.global.cmpInstancesAction(toComplete, "delete", c.flagForce)
@@ -64,9 +67,78 @@ func (c *cmdDelete) doDelete(d lxd.InstanceServer, name string) error {
 	if shared.IsSnapshot(name) {
 		// Snapshot delete
 		fields := strings.SplitN(name, shared.SnapshotDelimiter, 2)
+
+		// Resolve attached volume snapshots to delete if requested.
+		var attachedSnapshotUUIDs map[string]string
+		if c.flagDiskVolumes == api.DiskVolumesModeAllExclusive {
+			snap, _, err := d.GetInstanceSnapshot(fields[0], fields[1])
+			if err != nil {
+				return err
+			}
+
+			raw := snap.Config["volatile.attached_volumes"]
+			if raw != "" {
+				// Parse JSON map: attached volume UUID -> snapshot UUID.
+				err := json.Unmarshal([]byte(raw), &attachedSnapshotUUIDs)
+				if err != nil {
+					return fmt.Errorf("Failed to parse volatile.attached_volumes: %w", err)
+				}
+			}
+		}
+
 		op, err = d.DeleteInstanceSnapshot(fields[0], fields[1])
+		if err != nil {
+			return err
+		}
+
+		err := op.Wait()
+		if err != nil {
+			return err
+		}
+
+		if c.flagDiskVolumes == api.DiskVolumesModeAllExclusive && len(attachedSnapshotUUIDs) > 0 {
+			vols, err := d.GetVolumesWithFilterAllProjects([]string{"type=custom"})
+			if err != nil {
+				return fmt.Errorf("Failed getting volumes to delete attached snapshots: %w", err)
+			}
+
+			// Build reverse lookup from snapshot UUID to volume record(s).
+			targetUUIDs := make(map[string]struct{}, len(attachedSnapshotUUIDs))
+			for _, snapUUID := range attachedSnapshotUUIDs {
+				targetUUIDs[snapUUID] = struct{}{}
+			}
+
+			// For each matching snapshot volume, delete it.
+			for _, v := range vols {
+				// Only consider snapshot volumes.
+				volName, snapName, isSnap := api.GetParentAndSnapshotName(v.Name)
+				if !isSnap {
+					continue
+				}
+
+				if v.Config == nil {
+					continue
+				}
+
+				uuid, ok := v.Config["volatile.uuid"]
+				if ok {
+					_, ok := targetUUIDs[uuid]
+					if ok {
+						op, err := d.DeleteStoragePoolVolumeSnapshot(v.Pool, v.Type, volName, snapName)
+						if err != nil {
+							return fmt.Errorf("Failed deleting attached volume snapshot %q: %w", v.Name, err)
+						}
+
+						err = op.Wait()
+						if err != nil {
+							return err
+						}
+					}
+				}
+			}
+		}
 	} else {
-		// Instance delete
+		// Instance delete.
 		op, err = d.DeleteInstance(name)
 	}
 
