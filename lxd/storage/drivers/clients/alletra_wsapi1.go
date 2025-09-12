@@ -83,6 +83,7 @@ type hpePort struct {
 	Protocol  int    `json:"protocol"`
 	NodeWWN   string `json:"nodeWWN"`
 	LinkState int    `json:"linkState"`
+	IPAddr    string `json:"IPAddr"`
 }
 
 // hpePortPos represents the port position in HPE Storage.
@@ -126,6 +127,7 @@ type hpeVolume struct {
 	TotalUsedMiB int64  `json:"totalUsedMiB"`
 	SizeMiB      int64  `json:"sizeMiB"`
 	NGUID        string `json:"nguid"`
+	WWN          string `json:"wwn"`
 }
 
 type hpeVLUN struct {
@@ -535,7 +537,7 @@ func (p *AlletraClient) CreateHost(connectorType string, hostName string, qns []
 
 	switch connectorType {
 	case connectors.TypeISCSI:
-		req["iqns"] = qns[0]
+		req["iSCSINames"] = qns
 	case connectors.TypeNVME:
 		req["NQN"] = qns[0]
 		req["transportType"] = hpeTransportTypeTCP
@@ -694,8 +696,8 @@ func (p *AlletraClient) GetTargetAddrs(connectorType string) (targetAddrs []stri
 				continue
 			}
 
-			if member.NodeWWN != "" {
-				targetAddrs = append(targetAddrs, member.NodeWWN)
+			if member.IPAddr != "" {
+				targetAddrs = append(targetAddrs, member.IPAddr)
 			}
 
 		case connectors.TypeNVME:
@@ -715,6 +717,16 @@ func (p *AlletraClient) GetTargetAddrs(connectorType string) (targetAddrs []stri
 // ConnectHostToVolume creates a connection between a host and volume. It returns true if the connection
 // was created, and false if it already existed.
 func (p *AlletraClient) ConnectHostToVolume(poolName string, volName string, hostName string) (bool, error) {
+	vlun, errVLUN := p.GetVLUN(volName)
+	if errVLUN != nil {
+		return false, fmt.Errorf("HPE Error %w", errVLUN)
+	}
+
+	if vlun != nil && vlun.Hostname == hostName {
+		p.logger.Debug("No need to connect host to volume as there is a vLUN", logger.Ctx{"volName": volName, "hostName": hostName})
+		return false, nil
+	}
+
 	url := api.NewURL().Path("api", "v1", "vluns")
 
 	req := make(map[string]any)
