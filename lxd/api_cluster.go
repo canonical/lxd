@@ -2773,6 +2773,10 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
+	if !leaderInfo.Clustered {
+		return response.InternalError(cluster.ErrNodeIsNotClustered)
+	}
+
 	if !leaderInfo.Leader {
 		logger.Debug("Redirect handover request", logger.Ctx{"leader": leaderInfo.Address})
 		url := &url.URL{
