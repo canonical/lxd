@@ -211,7 +211,7 @@ func (d *alletra) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 		return nil, err
 	}
 
-	// Connect to the array.
+	// Connect to the array or do a rescan to get a new volumes mapped.
 	connReverter, err := connector.Connect(d.state.ShutdownCtx, targetQN, targetAddrs...)
 	if err != nil {
 		return nil, err
@@ -272,61 +272,69 @@ func (d *alletra) unmapVolume(vol Volume) error {
 		return err
 	}
 
+	// Get a path of a block device we want to unmap.
+	volumePath, _, _ := d.getMappedDevPath(vol, false)
+
+	// When iSCSI volume is disconnected from the host, the device will remain on the system.
+	//
+	// To remove the device, we need to either logout from the session or remove the
+	// device manually. Logging out of the session is not desired as it would disconnect
+	// from all connected volumes. Therefore, we need to manually remove the device.
+	//
+	// Also, for iSCSI we don't want to unmap the device on the storage array side before removing it
+	// from the host, because on some storage arrays (for example, HPE Alletra) we've seen that removing
+	// a vLUN from the array immediately makes device inaccessible and traps any task tries to access it
+	// to D-state (and this task can be systemd-udevd which tries to remove a device node!).
+	// That's why it is better to remove the device node from the host and then remove vLUN.
+	if volumePath != "" && connector.Type() == connectors.TypeISCSI {
+		// removeDevice removes device from the system if the device is removable.
+		removeDevice := func(devName string) error {
+			path := "/sys/block/" + devName + "/device/delete"
+			if shared.PathExists(path) {
+				// Delete device.
+				err := os.WriteFile(path, []byte("1"), 0400)
+				if err != nil {
+					return err
+				}
+			}
+
+			return nil
+		}
+
+		devName := filepath.Base(volumePath)
+		if strings.HasPrefix(devName, "dm-") {
+			_, err := shared.RunCommandContext(d.state.ShutdownCtx, "multipath", "-f", volumePath)
+			if err != nil {
+				return fmt.Errorf("Failed to unmap volume %q: Failed to remove multipath device %q: %w", vol.name, devName, err)
+			}
+		} else {
+			// For non-multipath device (/dev/sd*), remove the device itself.
+			err := removeDevice(devName)
+			if err != nil {
+				return fmt.Errorf("Failed to unmap volume %q: Failed to remove device %q: %w", vol.name, devName, err)
+			}
+		}
+
+		// Wait until the volume has disappeared.
+		ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 30*time.Second)
+		defer cancel()
+
+		if !block.WaitDiskDeviceGone(ctx, volumePath) {
+			return fmt.Errorf("Timeout exceeded waiting for HPE Alletra storage volume %q to disappear on path %q", vol.name, volumePath)
+		}
+
+		// Device is not there anymore.
+		volumePath = ""
+	}
+
 	// Disconnect the volume from the host and ignore error if connection does not exist.
 	err = d.client().DisconnectHostFromVolume(vol.pool, volName, host.Name)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 		return err
 	}
 
-	volumePath, _, _ := d.getMappedDevPath(vol, false)
-	if volumePath != "" {
-		// When iSCSI volume is disconnected from the host, the device will remain on the system.
-		//
-		// To remove the device, we need to either logout from the session or remove the
-		// device manually. Logging out of the session is not desired as it would disconnect
-		// from all connected volumes. Therefore, we need to manually remove the device.
-		if connector.Type() == connectors.TypeISCSI {
-			// removeDevice removes device from the system if the device is removable.
-			removeDevice := func(devName string) error {
-				path := "/sys/block/" + devName + "/device/delete"
-				if shared.PathExists(path) {
-					// Delete device.
-					err := os.WriteFile(path, []byte("1"), 0400)
-					if err != nil {
-						return err
-					}
-				}
-
-				return nil
-			}
-
-			devName := filepath.Base(volumePath)
-			if strings.HasPrefix(devName, "dm-") {
-				// Multipath device (/dev/dm-*) itself is not removable.
-				// Therefore, we remove its slaves instead.
-				slaves, err := filepath.Glob("/sys/block/" + devName + "/slaves/*")
-				if err != nil {
-					return fmt.Errorf("Failed to unmap volume %q: Failed to list slaves for device %q: %w", vol.name, devName, err)
-				}
-
-				// Remove slave devices.
-				for _, slave := range slaves {
-					slaveDevName := filepath.Base(slave)
-
-					err := removeDevice(slaveDevName)
-					if err != nil {
-						return fmt.Errorf("Failed to unmap volume %q: Failed to remove slave device %q: %w", vol.name, slaveDevName, err)
-					}
-				}
-			} else {
-				// For non-multipath device (/dev/sd*), remove the device itself.
-				err := removeDevice(devName)
-				if err != nil {
-					return fmt.Errorf("Failed to unmap volume %q: Failed to remove device %q: %w", vol.name, devName, err)
-				}
-			}
-		}
-
+	// When NVMe/TCP volume is disconnected from the host, the device automatically disappears.
+	if volumePath != "" && connector.Type() == connectors.TypeNVME {
 		// Wait until the volume has disappeared.
 		ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 30*time.Second)
 		defer cancel()
