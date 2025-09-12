@@ -2065,7 +2065,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 			}()
 		}
 
-		logger.Debugf("Redirect member delete request to %s", leaderInfo.Address)
+		logger.Debug("Redirect member delete request", logger.Ctx{"leader": leaderInfo.Address})
 		client, err := cluster.Connect(r.Context(), leaderInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 		if err != nil {
 			return response.SmartError(err)
