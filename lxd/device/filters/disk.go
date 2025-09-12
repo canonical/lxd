@@ -43,3 +43,8 @@ func IsCustomVolumeFilesystemDisk(device map[string]string) bool {
 func IsHostFilesystemShareDisk(device map[string]string) bool {
 	return IsDisk(device) && device["path"] != "/" && device["path"] != "" && device["source"] != "" && device["pool"] == ""
 }
+
+// IsCustomVolumeDiskSnapshot evaluates whether or not the given device refers to a snapshot of a custom volume.
+func IsCustomVolumeDiskSnapshot(device map[string]string) bool {
+	return IsCustomVolumeDisk(device) && device["source.snapshot"] != ""
+}
