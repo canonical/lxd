@@ -2301,6 +2301,11 @@ definitions:
                         type: disk
                 type: object
                 x-go-name: Devices
+            disks:
+                description: Which disk volumes to restore from an instance snapshot. Possible values are "root" or "all-exclusive".
+                example: all-exclusive
+                type: string
+                x-go-name: DiskVolumesMode
             ephemeral:
                 description: Whether the instance is ephemeral (deleted on shutdown)
                 example: false
@@ -2468,6 +2473,11 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     InstanceSnapshotsPost:
         properties:
+            disks:
+                description: Which disk volumes to include in instance snapshot. Possible values are "root" or "all-exclusive".
+                example: all-exclusive
+                type: string
+                x-go-name: DiskVolumesMode
             expires_at:
                 description: When the snapshot expires (gets auto-deleted)
                 example: "2021-03-23T17:38:37.753398689-04:00"
@@ -2945,6 +2955,11 @@ definitions:
                         type: disk
                 type: object
                 x-go-name: Devices
+            disks:
+                description: Which disk volumes to restore from an instance snapshot. Possible values are "root" or "all-exclusive".
+                example: all-exclusive
+                type: string
+                x-go-name: DiskVolumesMode
             ephemeral:
                 description: Whether the instance is ephemeral (deleted on shutdown)
                 example: false
