@@ -429,6 +429,7 @@ test_clustering_containers() {
   LXD_DIR="${LXD_ONE_DIR}" lxc file pull foo/hello-world-text "${TEST_DIR}/hello-world-text"
   [ "$(< "${TEST_DIR}/hello-world-text")" = "hello world" ]
   rm "${TEST_DIR}/hello-world-text"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc file pull foo/hello-world-text -)" = "hello world" ]
   LXD_DIR="${LXD_ONE_DIR}" lxc file push --recursive "${TEST_DIR}/hello-world" foo/
   rm -r "${TEST_DIR}/hello-world"
   LXD_DIR="${LXD_ONE_DIR}" lxc file pull --recursive foo/hello-world "${TEST_DIR}"
