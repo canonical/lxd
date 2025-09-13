@@ -1623,13 +1623,14 @@ test_clustering_profiles() {
   ns2="${prefix}2"
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
 
+  LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
+  # TODO: Fix known race in importing small images that complete before event listener is setup.
+  sleep 1
+
   # Create an empty profile.
   LXD_DIR="${LXD_TWO_DIR}" lxc profile create web
 
   # Launch two containers on the two nodes, using the above profile.
-  LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
-  # TODO: Fix known race in importing small images that complete before event listener is setup.
-  sleep 2
   LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node1 -p default -p web testimage c1
   LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node2 -p default -p web testimage c2
 
