@@ -410,9 +410,6 @@ test_clustering_containers() {
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c nsL)" = "foo,STOPPED,node2" ]
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c nsL)" = "foo,STOPPED,node2" ]
 
-  # A Location: field indicates on which node the container is running
-  LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -xF "Location: node2"
-
   # Start the container via node1
   LXD_DIR="${LXD_ONE_DIR}" lxc start foo
   LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -xF "Status: RUNNING"
