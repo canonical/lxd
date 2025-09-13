@@ -877,12 +877,12 @@ test_clustering_storage() {
     # Launch a container on node2
     LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
     LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node2 testimage foo
-    LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -xF "Location: node2"
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L foo)" = "node2" ]
 
     # Stop the container and move it to node1
     LXD_DIR="${LXD_ONE_DIR}" lxc stop foo --force
     LXD_DIR="${LXD_TWO_DIR}" lxc move foo bar --target node1
-    LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -xF "Location: node1"
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L bar)" = "node1" ]
 
     # Start and stop the migrated container on node1
     LXD_DIR="${LXD_TWO_DIR}" lxc start bar
@@ -890,13 +890,13 @@ test_clustering_storage() {
 
     # Rename the container locally on node1
     LXD_DIR="${LXD_TWO_DIR}" lxc rename bar foo
-    LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -xF "Location: node1"
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L foo)" = "node1" ]
 
     # Copy the container without specifying a target, it will be placed on node2
     # since it's the one with the least number of containers (0 vs 1)
     sleep 6 # Wait for pending operations to be removed from the database
     LXD_DIR="${LXD_ONE_DIR}" lxc copy foo bar
-    LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -xF "Location: node2"
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L bar)" = "node2" ]
 
     # Start and stop the copied container on node2
     LXD_DIR="${LXD_TWO_DIR}" lxc start bar
