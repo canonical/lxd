@@ -544,8 +544,7 @@ test_clustering_containers() {
   LXD_DIR="${LXD_THREE_DIR}" lxc init --empty egg
   LXD_DIR="${LXD_THREE_DIR}" lxc info egg | grep -xF "Location: node3"
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc delete egg
-  LXD_DIR="${LXD_ONE_DIR}" lxc delete bar
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete egg bar
 
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
