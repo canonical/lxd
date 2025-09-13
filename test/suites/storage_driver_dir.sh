@@ -10,6 +10,12 @@ test_storage_driver_dir() {
   fi
 
   do_dir_on_empty_fs
+
+  if uname -r | grep -- -kvm$; then
+    echo "==> SKIP: the -kvm kernel flavor is does not support XFS quotas (CONFIG_XFS_QUOTA is not set)"
+    return
+  fi
+
   do_dir_xfs_project_quotas
 }
 
