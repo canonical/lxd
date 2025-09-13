@@ -209,9 +209,11 @@ test_devlxd_volume_management() {
   local testName="devlxd-volume-mgmt"
 
   local instPrefix="${testName}"
-  local instTypes="container" # "container vm" - VMs are currently not supported in LXD test suite.
+  local instTypes="container" # "container virtual-machine" - VMs are currently not supported in LXD test suite.
   local pool="${testName}"
   local project="${testName}"
+  local authGroup="${testName}-group"
+  local authIdentity="devlxd/${testName}-identity"
 
   ensure_import_testimage
   poolDriver="$(storage_backend "$LXD_DIR")"
@@ -225,7 +227,7 @@ test_devlxd_volume_management() {
     inst="${instPrefix}-${instType}"
 
     opts=""
-    if [ "${instType}" = "vm" ]; then
+    if [ "${instType}" = "virtual-machine" ]; then
         opts="--vm"
     fi
 
@@ -244,8 +246,156 @@ test_devlxd_volume_management() {
     lxc exec "${inst}" --project "${project}" -- devlxd-client get-state | jq -e '.supported_storage_drivers | length > 0'
     lxc exec "${inst}" --project "${project}" -- devlxd-client get-state | jq -e '.supported_storage_drivers[] | select(.name == "dir") | .remote == false'
 
+    # Test devLXD authentication (devLXD identity).
+    # Fail when token is not passed.
+    [ "$(lxc exec "${inst}" --project "${project}" -- devlxd-client instance get "${inst}")" = "You must be authenticated" ]
+
+    # Fail when invalid token is passed (replace signature part).
+    invalidToken="${token%.*}.invalid"
+    ! lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${invalidToken}" -- devlxd-client instance get "${inst}" || false
+
+    # Fail when a valid identity token is passed, but the identity does not have permissions.
+    lxc auth identity create "${authIdentity}"
+    token=$(lxc auth identity token issue "${authIdentity}" --quiet)
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}")" = "Not Found" ]
+
+    # Succeed when a valid identity token is passed and the identity has permissions.
+    lxc auth group create "${authGroup}"
+    lxc auth group permission add "${authGroup}" instance "${inst}" can_view project="${project}"
+    lxc auth identity group add "${authIdentity}" "${authGroup}"
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}" | jq -e .name
+
+    # Test devLXD authorization (volume management security flag).
+    # Fail when the security flag is not set.
+    lxc config set "${inst}" --project "${project}" security.devlxd.management.volumes=false
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}")" = "Forbidden" ]
+    lxc config set "${inst}" --project "${project}" security.devlxd.management.volumes=true
+
+    # Get storage pool.
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get invalid-pool)" = "Storage pool not found" ]
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get "${pool}"
+
+    # Get storage volumes (ok - custom volumes requested).
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage volumes "${pool}" | jq 'length == 0'
+
+    # Get storage volume (fail - insufficient permissions).
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" "${instType}" "${inst}")" = "Not Found" ]
+
+    # Grant storage volume management permission.
+    lxc auth group permission add "${authGroup}" project "${project}" storage_volume_manager
+
+    # Get storage volume (fail - non-custom volume requested).
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" "${instType}" "${inst}")" = "Only custom storage volume requests are allowed" ]
+
+    # Create a custom storage volume.
+    vol1='{\"name\": \"vol-01\", \"type\": \"custom\", \"config\": {\"size\": \"10MiB\"}}'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${vol1}"
+
+    vol2='{\"name\": \"vol-02\", \"type\": \"custom\", \"config\": {\"size\": \"10MiB\"}}'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${vol2}"
+
+    # Fail - already exists.
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${vol2}")" = "Volume by that name already exists" ]
+
+    # Verify created storage volumes.
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage volumes "${pool}" | jq 'length == 2'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" custom vol-01
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" custom vol-02
+
+    # Update storage volume.
+    volNew='{\"description\": \"Updated volume\", \"config\": {\"size\": \"20MiB\"}}'
+
+    # Update storage volume (fail - non-custom volume).
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage update-volume "${pool}" "${instType}" "${inst}" "${volNew}")" = "Only custom storage volume requests are allowed" ]
+
+    # Update storage volume (fail - incorrect ETag).
+    ! lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage update-volume "${pool}" custom vol-01 "${volNew}" incorrect-etag || false
+
+    # Update storage volume (ok - no ETag).
+    etag=$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume-etag "${pool}" custom vol-01)
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage update-volume "${pool}" custom vol-01 "${volNew}"
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" custom vol-01 | jq -e '.config.size == "20MiB" and .description == "Updated volume"'
+
+    # Update storage volume (ok - correct ETag).
+    etag=$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume-etag "${pool}" custom vol-02)
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage update-volume "${pool}" custom vol-02 "${volNew}" "${etag}"
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" custom vol-02 | jq -e '.config.size == "20MiB" and .description == "Updated volume"'
+
+    # Get instance.
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}"
+
+    # Attach new device.
+    attachReq=$(cat <<EOF
+{
+    \"devices\": {
+        \"vol-01\": {
+            \"type\": \"disk\",
+            \"pool\": \"${pool}\",
+            \"source\": \"vol-01\",
+            \"path\": \"/mnt/vol-01\"
+        }
+    }
+}
+EOF
+)
+
+    # Fail - missing edit permission.
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance update "${inst}" "${attachReq}")" = "Forbidden" ]
+
+    # Succeed - with edit permission.
+    lxc auth group permission add "${authGroup}" instance "${inst}" can_edit project="${project}"
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance update "${inst}" "${attachReq}"
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}" | jq -e -r '.devices."vol-01".source == "vol-01"'
+
+    # Detach device.
+    detachReq=$(cat <<EOF
+{
+    \"devices\": {
+        \"vol-01\": null
+    }
+}
+EOF
+)
+
+    etag=$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get-etag "${inst}")
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance update "${inst}" "${detachReq}" "${etag}"
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}" | jq '.devices' | jq -e 'length == 0'
+
+    # Manage device on a different instance.
+    inst2="${inst}-2"
+    lxc launch testimage "${inst2}" --project "${project}" --storage "${pool}"
+
+    # Fail - missing permission.
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst2}")" = "Not Found" ]
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance update "${inst2}" "${attachReq}")" = "Not Found" ]
+
+    # Succeed - with edit permissions.
+    lxc auth group permission add "${authGroup}" instance "${inst2}" can_edit project="${project}"
+    etag=$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get-etag "${inst2}")
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance update "${inst2}" "${attachReq}" "${etag}"
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst2}" | jq -e -r '.devices."vol-01".source == "vol-01"'
+
+    etag=$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get-etag "${inst2}")
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance update "${inst2}" "${detachReq}" "${etag}"
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst2}" | jq '.devices' | jq -e 'length == 0'
+
+    lxc delete "${inst}-2" --project "${project}" --force
+
+    # Delete storage volume (fail - non-custom volume).
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage delete-volume "${pool}" "${instType}" "${inst}")" = "Only custom storage volume requests are allowed" ]
+
+    # Delete storage volumes.
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage delete-volume "${pool}" custom non-existing-volume)" = "Storage pool volume not found" ]
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage delete-volume "${pool}" custom vol-01
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage delete-volume "${pool}" custom vol-02
+
+    # Ensure storage volumes are deleted.
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage volumes "${pool}" | jq 'length == 0'
+
     # Cleanup.
     lxc delete "${inst}" --project "${project}" --force
+    lxc auth identity delete "${authIdentity}"
+    lxc auth group delete "${authGroup}"
   done
 
   # Cleanup.
