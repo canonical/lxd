@@ -2878,7 +2878,7 @@ test_clustering_handover() {
   echo "Stopped member 1"
 
   # The fourth node has been promoted, while the first one demoted.
-  LXD_DIR="${LXD_THREE_DIR}" lxd sql local 'select * from raft_nodes'
+  LXD_DIR="${LXD_THREE_DIR}" lxd sql local 'SELECT * FROM raft_nodes'
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster ls
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster show node1
