@@ -867,8 +867,7 @@ test_clustering_storage() {
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume detach pool1 v1 baz
 
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete pool1 v1
-    LXD_DIR="${LXD_ONE_DIR}" lxc delete baz
-    LXD_DIR="${LXD_ONE_DIR}" lxc delete buz
+    LXD_DIR="${LXD_ONE_DIR}" lxc delete baz buz
 
     LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
   fi
@@ -904,8 +903,7 @@ test_clustering_storage() {
     LXD_DIR="${LXD_ONE_DIR}" lxc stop bar --force
 
     # Purge the containers
-    LXD_DIR="${LXD_ONE_DIR}" lxc delete bar
-    LXD_DIR="${LXD_ONE_DIR}" lxc delete foo
+    LXD_DIR="${LXD_ONE_DIR}" lxc delete bar foo
 
     # Delete the image too.
     LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
