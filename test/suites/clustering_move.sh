@@ -26,8 +26,6 @@ test_clustering_move() {
   ns3="${prefix}3"
   spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}"
 
-  ensure_import_testimage
-
   # Preparation
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster group create foobar1
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster group assign node1 foobar1,default
@@ -38,9 +36,9 @@ test_clustering_move() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster group create foobar3
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster group assign node3 foobar3,default
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c1 --target node1
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c2 --target node2
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c3 --target node3
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c1 --target node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c2 --target node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c3 --target node3
 
   LXD_DIR="${LXD_ONE_DIR}" lxc project create test-project --force-local # Create test project using unix socket.
 
@@ -214,7 +212,7 @@ EOF
 
   # Cleanup
   lxc remote remove cluster
-  LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1 c2 c3
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 c3
   LXD_DIR="${LXD_ONE_DIR}" lxc auth group delete instance-movers
   LXD_DIR="${LXD_ONE_DIR}" lxc auth identity delete tls/test
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
