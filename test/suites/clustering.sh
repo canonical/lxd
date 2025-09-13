@@ -787,8 +787,7 @@ test_clustering_storage() {
     # Init a new container on node2 using the snapshot on node1
     LXD_DIR="${LXD_ONE_DIR}" lxc copy foo/snap-test egg --target node2
     LXD_DIR="${LXD_TWO_DIR}" lxc start egg
-    LXD_DIR="${LXD_ONE_DIR}" lxc stop egg --force
-    LXD_DIR="${LXD_ONE_DIR}" lxc delete egg
+    LXD_DIR="${LXD_ONE_DIR}" lxc delete egg --force
   fi
 
   # If the driver has the same per-node storage pool config (e.g. size), make sure it's included in the
