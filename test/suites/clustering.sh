@@ -3619,13 +3619,8 @@ test_clustering_evacuation() {
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c6)" = "RUNNING,node2" ]
 
   # Clean up
-  LXD_DIR="${LXD_TWO_DIR}" lxc rm -f c1
-  LXD_DIR="${LXD_TWO_DIR}" lxc rm -f c2
-  LXD_DIR="${LXD_TWO_DIR}" lxc rm -f c3
-  LXD_DIR="${LXD_TWO_DIR}" lxc rm -f c4
-  LXD_DIR="${LXD_TWO_DIR}" lxc rm -f c5
-  LXD_DIR="${LXD_TWO_DIR}" lxc rm -f c6
-  LXD_DIR="${LXD_TWO_DIR}" lxc image rm testimage
+  LXD_DIR="${LXD_TWO_DIR}" lxc delete -f c1 c2 c3 c4 c5 c6
+  LXD_DIR="${LXD_TWO_DIR}" lxc image delete testimage
 
   printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
   LXD_DIR="${LXD_ONE_DIR}" lxc storage delete data
