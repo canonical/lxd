@@ -4399,7 +4399,9 @@ test_clustering_events() {
   kill -9 "${monitorNode2PID}" || true
   kill -9 "${monitorNode3PID}" || true
 
-  # Cleanup.
+  # Cleanup
+  # XXX: deleting c1 c2 and c3 at once causes the test to fail with
+  # `No active cluster event listener clients` and `Failed heartbeat`
   LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1
   LXD_DIR="${LXD_TWO_DIR}" lxc delete -f c2
   LXD_DIR="${LXD_THREE_DIR}" lxc delete -f c3
