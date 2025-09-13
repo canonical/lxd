@@ -83,6 +83,7 @@ config:
     - xz-utils
     # test deps
     - acl
+    - bcache-tools
     - bind9-dnsutils
     - btrfs-progs
     - busybox-static
