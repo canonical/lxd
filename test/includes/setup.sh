@@ -2,14 +2,14 @@
 
 ensure_has_localhost_remote() {
     local addr="${1}"
-    if ! lxc remote list | grep -wF "localhost" >/dev/null; then
+    if ! lxc remote list -f csv | grep -wF "localhost" >/dev/null; then
         token="$(lxc config trust add --name foo -q)"
         lxc remote add localhost "https://${addr}" --token "${token}"
     fi
 }
 
 ensure_import_testimage() {
-    if lxc image alias list testimage | grep -wF "testimage" >/dev/null; then
+    if lxc image alias list -f csv testimage | grep -wF "testimage" >/dev/null; then
         return
     fi
 
@@ -17,7 +17,7 @@ ensure_import_testimage() {
         echo "Importing ${LXD_TEST_IMAGE} test image from disk"
         lxc image import "${LXD_TEST_IMAGE}" --alias testimage
     else
-        project="$(lxc project list | awk '/(current)/ {print $2}')"
+        project="$(lxc project list -f csv | awk '/(current)/ {print $1}')"
         deps/import-busybox --alias testimage --project "$project"
     fi
 }
