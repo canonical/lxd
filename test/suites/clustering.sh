@@ -3599,7 +3599,7 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster evacuate node1 --force
 
   # Ensure instances cannot be created on the evacuated node
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc launch testimage c7 --target=node1 || false
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc init --empty c7 --target=node1 || false
 
   # Ensure the node is evacuated
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -xF "status: Evacuated"
