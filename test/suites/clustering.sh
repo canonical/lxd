@@ -816,7 +816,7 @@ test_clustering_storage() {
     # Ensure that node-specific config appears on all nodes,
     # regardless of the pool being created before or after the node joined.
     for n in node1 node2 node3 ; do
-      LXD_DIR="${LXD_ONE_DIR}" lxc storage get pool1 "${key}" --target "${n}" | grep -F "${value}"
+      [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc storage get pool1 "${key}" --target "${n}")" = "${value}" ]
     done
 
     # Other storage backends will be finished with the third node, so we can remove it.
