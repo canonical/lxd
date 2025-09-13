@@ -1128,8 +1128,7 @@ test_clustering_network() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep -F status: | grep -wF Pending
 
   # A container can't be created when its NIC is associated with a pending network.
-  LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 -n "${net}" testimage bar || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 -n "${net}" --empty bar || false
 
   # The bridge.external_interfaces config key is not legal for the final network creation
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" bridge.external_interfaces=foo || false
@@ -1214,7 +1213,7 @@ test_clustering_network() {
 
   # Check instance can be connected to created network and assign static DHCP allocations.
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}"
-  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node1 -n "${net}" testimage c1
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node1 -n "${net}" --empty c1
   LXD_DIR="${LXD_ONE_DIR}" lxc config device set c1 eth0 ipv4.address=192.0.2.2
 
   # Check cannot assign static IPv6 without stateful DHCPv6 enabled.
@@ -1223,12 +1222,12 @@ test_clustering_network() {
   LXD_DIR="${LXD_ONE_DIR}" lxc config device set c1 eth0 ipv6.address=2001:db8::2
 
   # Check duplicate static DHCP allocation detection is working for same server as c1.
-  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node1 -n "${net}" testimage c2
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node1 -n "${net}" --empty c2
   ! LXD_DIR="${LXD_ONE_DIR}" lxc config device set c2 eth0 ipv4.address=192.0.2.2 || false
   ! LXD_DIR="${LXD_ONE_DIR}" lxc config device set c2 eth0 ipv6.address=2001:db8::2 || false
 
   # Check duplicate static DHCP allocation is allowed for instance on a different server.
-  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 -n "${net}" testimage c3
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 -n "${net}" --empty c3
   LXD_DIR="${LXD_ONE_DIR}" lxc config device set c3 eth0 ipv4.address=192.0.2.2
   LXD_DIR="${LXD_ONE_DIR}" lxc config device set c3 eth0 ipv6.address=2001:db8::2
 
@@ -1253,8 +1252,7 @@ test_clustering_network() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network list --target=node2 | grep localBridge2
 
   # Cleanup instances and image.
-  LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1 c2 c3
-  LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 c3
 
   # Delete network.
   LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net}"
