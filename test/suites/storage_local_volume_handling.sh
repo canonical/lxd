@@ -1,12 +1,8 @@
 test_storage_local_volume_handling() {
-  ensure_import_testimage
-
   local LXD_STORAGE_DIR lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
   LXD_STORAGE_DIR=$(mktemp -d -p "${TEST_DIR}" XXXXXXXXX)
   spawn_lxd "${LXD_STORAGE_DIR}" false
-
-  ensure_import_testimage
 
   (
     set -e
@@ -163,10 +159,10 @@ test_storage_local_volume_handling() {
     lxc storage volume create pool_2 vol2
 
     # List volumes from all pools
-    lxc storage volume list --format csv --columns pn | grep "pool_1,vol1"
-    lxc storage volume list --format csv --columns pn | grep "pool_2,vol1"
-    lxc storage volume list --format csv --columns pn | grep "pool_1,vol2"
-    lxc storage volume list --format csv --columns pn | grep "pool_2,vol2"
+    lxc storage volume list --format csv --columns pn | grep -xF "pool_1,vol1"
+    lxc storage volume list --format csv --columns pn | grep -xF "pool_2,vol1"
+    lxc storage volume list --format csv --columns pn | grep -xF "pool_1,vol2"
+    lxc storage volume list --format csv --columns pn | grep -xF "pool_2,vol2"
 
     lxc storage volume delete pool_1 vol1
     lxc storage volume delete pool_1 vol2
