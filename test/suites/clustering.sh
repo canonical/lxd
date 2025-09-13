@@ -725,9 +725,7 @@ test_clustering_storage() {
   LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep -F status: | grep -wF Pending
 
   # A container can't be created when associated with a pending pool.
-  LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 -s pool1 testimage bar || false
-  LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 -s pool1 --empty bar || false
 
   # The source config key is not legal for the final pool creation
   if [ "${poolDriver}" = "dir" ]; then
@@ -854,11 +852,11 @@ test_clustering_storage() {
 
     # Attach a custom volume to a container on node1
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create pool1 v1
-    LXD_DIR="${LXD_ONE_DIR}" lxc init --target node1 -s pool1 testimage baz
+    LXD_DIR="${LXD_ONE_DIR}" lxc init --target node1 -s pool1 --empty baz
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume attach pool1 custom/v1 baz testDevice /opt
 
     # Trying to attach a custom volume to a container on another node fails
-    LXD_DIR="${LXD_TWO_DIR}" lxc init --target node2 -s pool1 testimage buz
+    LXD_DIR="${LXD_TWO_DIR}" lxc init --target node2 -s pool1 --empty buz
     ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume attach pool1 custom/v1 buz testDevice /opt || false
 
     # Create an unrelated volume and rename it on a node which differs from the
