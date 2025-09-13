@@ -85,6 +85,20 @@ if [ "${LXD_VM_TESTS:-0}" = "1" ]; then
   check_dependencies qemu-img "qemu-system-$(uname -m)" sgdisk
 fi
 
+# If no test image is specified, busybox-static will be needed by test/deps/import-busybox
+if [ -z "${LXD_TEST_IMAGE:-}" ]; then
+  BUSYBOX="$(command -v busybox)"
+  if [ ! -e "${BUSYBOX}" ]; then
+      echo "Please install busybox (busybox-static) or set LXD_TEST_IMAGE"
+      exit 1
+  fi
+
+  if ldd "${BUSYBOX}" >/dev/null 2>&1; then
+      echo "The testsuite requires ${BUSYBOX} to be a static binary"
+      exit 1
+  fi
+fi
+
 # find the path to lxc binary, not the shell wrapper function
 _LXC="$(unset -f lxc; command -v lxc)"
 readonly _LXC
