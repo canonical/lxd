@@ -4445,14 +4445,10 @@ test_clustering_uuid() {
   ns2="${prefix}2"
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
 
-  ensure_import_testimage
-
   # spawn an instance on the first LXD node
-  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1 --target=node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c1 --target=node1
   # get its volatile.uuid
   uuid_before_move=$(LXD_DIR="${LXD_ONE_DIR}" lxc config get c1 volatile.uuid)
-  # stop the instance
-  LXD_DIR="${LXD_ONE_DIR}" lxc stop -f c1
   # move the instance to the second LXD node
   LXD_DIR="${LXD_ONE_DIR}" lxc move c1 --target=node2
   # get the volatile.uuid of the moved instance on the second node
