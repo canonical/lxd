@@ -8,6 +8,7 @@ ensure_has_localhost_remote() {
 }
 
 ensure_import_testimage() {
+    local project=""
     if lxc image alias list -f csv testimage | grep -wF "testimage" >/dev/null; then
         return
     fi
