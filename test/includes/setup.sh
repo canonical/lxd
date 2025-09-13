@@ -2,6 +2,7 @@
 
 ensure_has_localhost_remote() {
     local addr="${1}"
+    local token=""
     if ! lxc remote list -f csv | grep -wF "localhost" >/dev/null; then
         token="$(lxc config trust add --name foo -q)"
         lxc remote add localhost "https://${addr}" --token "${token}"
@@ -9,6 +10,7 @@ ensure_has_localhost_remote() {
 }
 
 ensure_import_testimage() {
+    local project=""
     if lxc image alias list -f csv testimage | grep -wF "testimage" >/dev/null; then
         return
     fi
