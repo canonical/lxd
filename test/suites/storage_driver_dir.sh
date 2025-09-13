@@ -77,7 +77,7 @@ do_dir_xfs_project_quotas() {
   project_id=$(lsattr -p "${container_path}" | awk '{print $1}' | head -n 1)
 
   echo "==> Check that XFS project quota matches the container's root disk size limit."
-  project_hard_quota=$(xfs_quota -x -c 'report -h' "${mount_point}" | awk -v id="${project_id}" '$1 ~ "\\<" id "\\>" {print $4}')
+  project_hard_quota=$(xfs_quota -x -c 'report -h' "${mount_point}" | awk -v id="${project_id}" '$1 ~ id {print $4}')
   if [ -z "${project_hard_quota}" ]; then
      echo "Error: XFS project size hard quota not found"
      return 1
