@@ -412,7 +412,7 @@ test_clustering_containers() {
 
   # Start the container via node1
   LXD_DIR="${LXD_ONE_DIR}" lxc start foo
-  LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -xF "Status: RUNNING"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c s foo)" = "RUNNING" ]
   LXD_DIR="${LXD_ONE_DIR}" lxc list --fast | grep -wF foo | grep -wF RUNNING
 
   # Trying to delete a node which has container results in an error
