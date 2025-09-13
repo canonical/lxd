@@ -2251,8 +2251,7 @@ test_clustering_address() {
   ! LXD_DIR="${LXD_ONE_DIR}" lxc config set "cluster.https_address" "100.64.1.101:8448" || false
 
   # Create a container using the REST API exposed over core.https_address.
-  LXD_DIR="${LXD_ONE_DIR}" deps/import-busybox --alias testimage
-  lxc init --target node2 testimage cluster:c1
+  lxc init --target node2 --empty cluster:c1
   lxc list cluster: | grep -wF c1
 
   # The core.https_address config value can be set to a wildcard address if
