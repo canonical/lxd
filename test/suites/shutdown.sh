@@ -42,7 +42,7 @@ test_shutdown() {
     fi
 
     # Cleanup
-    delete_instances 2
+    lxc delete -f i{1..2}
     rm "$scenario_name.log"
 
     scenario_name="scenario3"
@@ -107,7 +107,7 @@ test_shutdown() {
     fi
 
     # Cleanup
-    delete_instances 4
+    lxc delete -f i{1..4}
     for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
     rm "$scenario_name.log"
 
@@ -190,7 +190,7 @@ test_shutdown() {
     fi
 
     # Cleanup
-    delete_instances 4
+    lxc delete -f i{1..4}
     for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
     rm "$scenario_name.log"
 
@@ -279,7 +279,7 @@ test_shutdown() {
     fi
 
     # Cleanup
-    delete_instances 5
+    lxc delete -f i{1..5}
     for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
     rm "$scenario_name.log"
 
@@ -390,7 +390,7 @@ test_shutdown() {
     fi
 
     # Cleanup
-    delete_instances 5
+    lxc delete -f i{1..5}
     for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
     rm "$scenario_name.log"
 
@@ -486,7 +486,7 @@ test_shutdown() {
     fi
 
     # Cleanup
-    delete_instances 5
+    lxc delete -f i{1..5}
     for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
     rm "$scenario_name.log"
 
@@ -584,7 +584,7 @@ test_shutdown() {
     fi
 
     # Cleanup
-    delete_instances 5
+    lxc delete -f i{1..5}
     for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
     rm "$scenario_name.log"
 
@@ -667,7 +667,7 @@ test_shutdown() {
     fi
 
     # Cleanup
-    delete_instances 5
+    lxc delete -f i{1..5}
     for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
     rm "$scenario_name.log"
 
