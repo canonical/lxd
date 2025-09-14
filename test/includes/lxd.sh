@@ -381,7 +381,8 @@ lxd_shutdown_restart() {
     echo "Waiting for LXD to shutdown gracefully..." | tee -a "$logfile"
     for _ in $(seq 540); do
         if ! kill -0 "$daemon_pid" 2>/dev/null; then
-            sleep 5 # Give the monitor a moment to catch up
+            # The monitor process will terminate once LXD exits
+            wait "${monitor_pid}" || true
             break
         fi
         sleep 1
