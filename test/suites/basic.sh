@@ -854,7 +854,7 @@ test_duplicate_detection() {
 
   lxc network create foo
   [ "$(! "${_LXC}" network create foo 2>&1 1>/dev/null)" = 'Error: The network already exists' ]
-  lxc network create bar
+  lxc network create bar ipv4.address=none ipv6.address=none
   [ "$(! "${_LXC}" network rename bar foo 2>&1 1>/dev/null)" = 'Error: Network "foo" already exists' ]
   lxc network delete bar
 
