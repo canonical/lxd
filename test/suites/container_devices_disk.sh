@@ -190,11 +190,11 @@ _container_devices_disk_patch() {
   lxc init c1 --empty
 
   # Ensure no devices are present.
-  [ "$(lxc config device list c1 | awk 'NF' | wc -l)" -eq 0 ]
+  [ "$(lxc config device list c1)" = "" ]
 
   # Ensure a new device is added.
   lxc query -X PATCH /1.0/instances/c1 -d '{\"devices\": {\"tmp\": {\"type\": \"disk\", \"source\": \"/etc/os-release\", \"path\": \"/tmp/release\"}}}'
-  [ "$(lxc config device list c1 | awk 'NF' | wc -l)" -eq 1 ]
+  [ "$(lxc config device list c1)" = "tmp" ]
 
   # Ensure the device is updated.
   lxc query -X PATCH /1.0/instances/c1 -d '{\"devices\": {\"tmp\": {\"type\": \"disk\", \"source\": \"/etc/os-release\", \"path\": \"/tmp/release-new\"}}}'
@@ -202,11 +202,11 @@ _container_devices_disk_patch() {
 
   # Ensure the device is not removed when patching with an empty devices object.
   lxc query -X PATCH /1.0/instances/c1 -d '{\"devices\": {}}'
-  [ "$(lxc config device list c1 | awk 'NF' | wc -l)" -eq 1 ]
+  [ "$(lxc config device list c1)" = "tmp" ]
 
   # Ensure the device is removed when patching with a null device.
   lxc query -X PATCH /1.0/instances/c1 -d '{\"devices\": {\"tmp\": null }}'
-  [ "$(lxc config device list c1 | awk 'NF' | wc -l)" -eq 0 ]
+  [ "$(lxc config device list c1)" = "" ]
 
   lxc delete --force c1
 }
