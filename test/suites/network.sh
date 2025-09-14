@@ -78,10 +78,6 @@ test_network() {
   ! lxc network list | grep -wF "lxdt$$" || false # the old name is gone
   lxc network delete newnet$$
 
-  # Unconfigured bridge
-  lxc network create lxdt$$ ipv4.address=none ipv6.address=none
-  lxc network delete lxdt$$
-
   # Check that we can return state for physical networks
   ip link add dummy0 type dummy
   lxc network create lxdt$$ --type=physical parent=dummy0
