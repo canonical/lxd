@@ -528,7 +528,7 @@ test_projects_storage() {
 test_projects_network() {
   # Standard bridge with random subnet and a bunch of options
   network="lxdt$$"
-  lxc network create "${network}"
+  lxc network create "${network}" ipv4.address=none ipv6.address=none
 
   lxc project create foo
   lxc project switch foo
@@ -899,7 +899,7 @@ run_projects_restrictions() {
 
   # Add a managed network.
   netManaged="lxd$$"
-  lxc network create "local:${netManaged}"
+  lxc network create "local:${netManaged}" ipv4.address=none ipv6.address=none
 
   netUnmanaged="${netManaged}-unm"
   ip link add "${netUnmanaged}" type bridge
