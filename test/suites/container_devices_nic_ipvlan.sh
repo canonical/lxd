@@ -1,6 +1,5 @@
 test_container_devices_nic_ipvlan() {
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   ctName="nt$$"
   ipRand=$(shuf -i 0-9 -n 1)
