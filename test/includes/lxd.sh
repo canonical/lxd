@@ -405,16 +405,3 @@ create_instances() {
   echo "All instances created successfully."
   return 0
 }
-
-# delete_instances deletes a specified number of instances in the background.
-# The instances should be called i1, i2, i3, etc.
-delete_instances() {
-  local n="$1"  # Number of instances to delete.
-
-  for i in $(seq 1 "$n"); do
-    echo "Deleting i$i..."
-    lxc delete "i$i" --force
-  done
-
-  return 0
-}
