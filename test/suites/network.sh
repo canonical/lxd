@@ -16,6 +16,9 @@ test_network() {
   lxc delete -f def0
   lxc network delete lxdt$$
 
+  # Cleanup any leftover from previous run
+  ip link delete dummy0 || true
+
   # Check that we return bridge informatin for ovs bridges
   systemctl start openvswitch-switch
   ip link add dummy0 type dummy
