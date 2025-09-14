@@ -2032,9 +2032,9 @@ test_clustering_shutdown_nodes() {
   instance_pid="$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c p foo)"
 
   # Get server PIDs
-  daemon_pid1=$(LXD_DIR="${LXD_ONE_DIR}" lxc info | awk '/server_pid/{print $2}')
-  daemon_pid2=$(LXD_DIR="${LXD_TWO_DIR}" lxc info | awk '/server_pid/{print $2}')
-  daemon_pid3=$(LXD_DIR="${LXD_THREE_DIR}" lxc info | awk '/server_pid/{print $2}')
+  daemon_pid1=$(< "${LXD_ONE_DIR}/lxd.pid")
+  daemon_pid2=$(< "${LXD_TWO_DIR}/lxd.pid")
+  daemon_pid3=$(< "${LXD_THREE_DIR}/lxd.pid")
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   wait "${daemon_pid2}"
