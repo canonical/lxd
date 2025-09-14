@@ -872,6 +872,11 @@ test_duplicate_detection() {
   lxc network forward create foo 10.1.1.1
   [ "$(! "${_LXC}" network forward create foo 10.1.1.1 2>&1 1>/dev/null)" = 'Error: Failed creating forward: A forward for that listen address already exists' ]
   lxc network forward delete foo 10.1.1.1
+
+  lxc network forward create foo 2001:db8::1
+  [ "$(! "${_LXC}" network forward create foo 2001:db8::1 2>&1 1>/dev/null)" = 'Error: Failed creating forward: A forward for that listen address already exists' ]
+  lxc network forward delete foo 2001:db8::1
+
   lxc network delete foo
 
   if ovn_enabled; then
