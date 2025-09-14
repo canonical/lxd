@@ -1144,8 +1144,8 @@ test_clustering_network() {
   LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${net}"
   LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}"
 
-  LXD_PID1="$(LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0 | jq .environment.server_pid)"
-  LXD_PID2="$(LXD_DIR="${LXD_TWO_DIR}" lxc query /1.0 | jq .environment.server_pid)"
+  LXD_PID1="$(< "${LXD_ONE_DIR}/lxd.pid")"
+  LXD_PID2="$(< "${LXD_TWO_DIR}/lxd.pid")"
 
   # Test network create partial failures.
   nsenter -n -t "${LXD_PID1}" -- ip link add "${net}" type dummy # Create dummy interface to conflict with network.
