@@ -1,4 +1,5 @@
 test_shutdown() {
+    ensure_import_testimage
     lxd_backend=$(storage_backend "$LXD_DIR")
 
     scenario_name="scenario1"
