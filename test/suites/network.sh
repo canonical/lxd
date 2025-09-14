@@ -104,8 +104,7 @@ test_network() {
   lxc network attach lxdt$$ nettest eth0
   v4_addr="$(lxc network get lxdt$$ ipv4.address | cut -d/ -f1)0"
   v6_addr="$(lxc network get lxdt$$ ipv6.address | cut -d/ -f1)00"
-  lxc config device set nettest eth0 ipv4.address "${v4_addr}"
-  lxc config device set nettest eth0 ipv6.address "${v6_addr}"
+  lxc config device set nettest eth0 ipv4.address="${v4_addr}" ipv6.address="${v6_addr}"
   grep -q "${v4_addr}.*nettest" "${LXD_DIR}/networks/lxdt$$/dnsmasq.hosts/nettest.eth0"
   grep -q "${v6_addr}.*nettest" "${LXD_DIR}/networks/lxdt$$/dnsmasq.hosts/nettest.eth0"
   lxc start nettest
@@ -115,8 +114,7 @@ test_network() {
   lxc launch testimage outsider -d "${SMALL_ROOT_DISK}" -n lxdt$$ --project foo
   v4_addr_foo="$(lxc network get lxdt$$ ipv4.address | cut -d/ -f1)1"
   v6_addr_foo="$(lxc network get lxdt$$ ipv6.address | cut -d/ -f1)01"
-  lxc config device set outsider eth0 ipv4.address "${v4_addr_foo}" --project foo
-  lxc config device set outsider eth0 ipv6.address "${v6_addr_foo}" --project foo
+  lxc config device set outsider eth0 ipv4.address="${v4_addr_foo}" ipv6.address="${v6_addr_foo}" --project foo
 
   list_leases="$(lxc network list-leases -f csv lxdt$$)"
   grep -F ",${v4_addr},STATIC" <<< "${list_leases}"
