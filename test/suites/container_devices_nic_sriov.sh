@@ -15,7 +15,6 @@ test_container_devices_nic_sriov() {
   fi
 
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   ctName="nt$$"
   macRand=$(shuf -i 0-9 -n 1)

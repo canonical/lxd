@@ -1,6 +1,5 @@
 test_container_devices_nic_bridged_vlan() {
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
   prefix="lxdvlan$$"
   bridgeDriver=${LXD_NIC_BRIDGED_DRIVER:-"native"}
 

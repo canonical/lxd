@@ -14,7 +14,6 @@ test_container_devices_nic_bridged_filtering() {
   fi
 
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Record how many nics we started with.
   startNicCount=$(find /sys/class/net | wc -l)
