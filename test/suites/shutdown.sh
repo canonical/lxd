@@ -76,7 +76,7 @@ test_shutdown() {
     done
 
     # Wait for all instance operations to be registered before initiating the shutdown sequence.
-    sleep 5
+    sleep 1
     # Initiate the LXD shutdown sequence.
     # This call should block until before the global timeout is reached.
     lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
@@ -142,7 +142,7 @@ test_shutdown() {
     done
 
     # Wait for all instance operations to be registered before initiating the shutdown sequence.
-    sleep 5
+    sleep 1
     # Initiate the LXD shutdown sequence.
     # This call should block until before the global timeout is reached.
     lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
@@ -221,7 +221,7 @@ test_shutdown() {
         lxd_websocket_operation "$instance_name" "$duration_seconds" &
     done
 
-    sleep 5
+    sleep 1
     lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
 
     expected_msgs=(
@@ -323,7 +323,7 @@ test_shutdown() {
     # Simulate a volume operation that runs for 10 seconds.
     lxd_volume_operation backups backups_volume 10s &
 
-    sleep 5
+    sleep 1
     lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
 
     expected_msgs=(
@@ -422,7 +422,7 @@ test_shutdown() {
     # Simulate a volume operation that runs for 10 seconds.
     lxd_volume_operation images images_volume 10s &
 
-    sleep 5
+    sleep 1
     lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
 
     expected_msgs=(
@@ -525,7 +525,7 @@ test_shutdown() {
     lxd_volume_operation mypool images_volume 5s &
     lxd_volume_operation mypool backups_volume 8s &
 
-    sleep 5
+    sleep 1
     lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
 
     expected_msgs=(
@@ -636,7 +636,7 @@ test_shutdown() {
     # In this situation, this is the unmount timeout that will be fired (1 minute and not the global shutdown timeout which is set to 2 minutes in this scenario).
     lxd_volume_operation mypool backups_volume 80s &
 
-    sleep 5
+    sleep 1
     lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
 
     expected_msgs=(
