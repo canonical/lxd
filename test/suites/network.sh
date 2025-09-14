@@ -57,11 +57,19 @@ test_network() {
   lxc network unset lxdt$$ ipv6.address
   ! lxc network show lxdt$$ | grep ipv6.address || false
 
-  # check ipv4.address and ipv6.address can be regenerated on update using "auto" value.
-  lxc network set lxdt$$ ipv4.address auto
-  lxc network show lxdt$$ | grep -F ipv4.address
+  # check ipv4.address and ipv6.address can be regenerated individually on update using "auto" value.
+  original_ipv4_address="$(lxc network get "lxdt$$" ipv4.address)"
+  original_ipv6_address="$(lxc network get "lxdt$$" ipv6.address)"
+  lxc network set lxdt$$ ipv4.address=auto
+  new_ipv4_address="$(lxc network get "lxdt$$" ipv4.address)"
+  [ "${new_ipv4_address}" != "${original_ipv4_address}" ]
+  [ "$(lxc network get lxdt$$ ipv6.address)" = "${original_ipv6_address}" ]
   lxc network set lxdt$$ ipv6.address auto
-  lxc network show lxdt$$ | grep -F ipv6.address
+  new_ipv6_address="$(lxc network get "lxdt$$" ipv6.address)"
+  [ "$(lxc network get lxdt$$ ipv4.address)" = "${new_ipv4_address}" ]
+  [ "${new_ipv6_address}" != "${original_ipv6_address}" ]
+  # the "auto" value is special and should not appear as it is replaced by a random address.
+  ! lxc network show lxdt$$ | grep -F .address | grep -wF auto || false
 
   # delete the network
   lxc network delete lxdt$$
