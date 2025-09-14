@@ -80,7 +80,7 @@ test_authorization() {
 
   # Network permissions
   ! lxc auth group permission add test-group network n1 can_view project=default || false # Not found
-  lxc network create n1
+  lxc network create n1 ipv4.address=none ipv6.address=none
   ! lxc auth group permission add test-group network n1 can_view || false # No project
   lxc auth group permission add test-group network n1 can_view project=default # Valid
   lxc auth group permission remove test-group network n1 can_view project=default # Valid
@@ -415,7 +415,7 @@ network_used_by() {
   pool_name="$(lxc storage list -f csv | cut -d, -f1)"
 
   # Test network for used-by filtering
-  lxc network create n1
+  lxc network create n1 ipv4.address=none ipv6.address=none
   lxc auth group permission add test-group network n1 can_view project=default
 
   # Used-by list should be empty.
@@ -680,7 +680,7 @@ user_is_project_operator() {
     lxc_remote profile create "${remote}:test-profile"
     lxc_remote profile device add "${remote}:test-profile" eth0 none
     lxc_remote profile delete "${remote}:test-profile"
-    lxc_remote network create "${remote}:test-network"
+    lxc_remote network create "${remote}:test-network" ipv4.address=none ipv6.address=none
     lxc_remote network set "${remote}:test-network" bridge.mtu=1500
     lxc_remote network delete "${remote}:test-network"
     lxc_remote network acl create "${remote}:test-network-acl"
@@ -934,7 +934,7 @@ auth_project_features() {
 
   # Create a network in the default project.
   networkName="net$$"
-  lxc network create "${networkName}" --project default
+  lxc network create "${networkName}" --project default ipv4.address=none ipv6.address=none
 
   # The network we created in the default project is not visible in project blah.
   ! lxc_remote network show "${remote}:${networkName}" --project blah || false
@@ -962,7 +962,7 @@ auth_project_features() {
   ! lxc_remote network delete "${remote}:${networkName}" --project blah || false
 
   # Create a network in the blah project.
-  lxc_remote network create "${remote}:blah-network" --project blah
+  lxc_remote network create "${remote}:blah-network" --project blah ipv4.address=none ipv6.address=none
 
   # The network is visible only because we have granted view access on networks in the default project.
   lxc_remote network show "${remote}:blah-network" --project blah
@@ -1518,8 +1518,8 @@ entities_enrichment_with_entitlements() {
   lxc profile delete test-profile2
 
   # Network
-  lxc network create test-network1
-  lxc network create test-network2
+  lxc network create test-network1 ipv4.address=none ipv6.address=none
+  lxc network create test-network2 ipv4.address=none ipv6.address=none
   lxc auth group permission add test-group network test-network1 can_view project=default
   lxc auth group permission add test-group network test-network2 can_view project=default
   lxc auth group permission add test-group network test-network2 can_edit project=default
