@@ -69,10 +69,12 @@ test_shutdown() {
     instance_ops_duration["i2"]=8s
     instance_ops_duration["i3"]=10s
 
+    pids=""
     for instance_name in "${!instance_ops_duration[@]}"; do
         duration_seconds="${instance_ops_duration[$instance_name]}"
         echo "Starting operation for instance $instance_name for $duration_seconds seconds"
         lxd_websocket_operation "$instance_name" "$duration_seconds" &
+        pids="$pids $!"
     done
 
     # Wait for all instance operations to be registered before initiating the shutdown sequence.
@@ -106,6 +108,7 @@ test_shutdown() {
 
     # Cleanup
     delete_instances 4
+    for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
     rm "$scenario_name.log"
 
     scenario_name="scenario4"
@@ -135,10 +138,12 @@ test_shutdown() {
     lxc config set i3 boot.stop.priority 1
     lxc config set i4 boot.stop.priority 1
 
+    pids=""
     for instance_name in "${!instance_ops_duration[@]}"; do
         duration_seconds="${instance_ops_duration[$instance_name]}"
         echo "Starting operation for instance $instance_name for $duration_seconds seconds"
         lxd_websocket_operation "$instance_name" "$duration_seconds" &
+        pids="$pids $!"
     done
 
     # Wait for all instance operations to be registered before initiating the shutdown sequence.
@@ -186,6 +191,7 @@ test_shutdown() {
 
     # Cleanup
     delete_instances 4
+    for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
     rm "$scenario_name.log"
 
     scenario_name="scenario5"
@@ -215,10 +221,12 @@ test_shutdown() {
     instance_ops_duration["i4"]=8s
     instance_ops_duration["i5"]=12s
 
+    pids=""
     for instance_name in "${!instance_ops_duration[@]}"; do
         duration_seconds="${instance_ops_duration[$instance_name]}"
         echo "Starting operation for instance $instance_name for $duration_seconds seconds"
         lxd_websocket_operation "$instance_name" "$duration_seconds" &
+        pids="$pids $!"
     done
 
     sleep 1
@@ -272,6 +280,7 @@ test_shutdown() {
 
     # Cleanup
     delete_instances 5
+    for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
     rm "$scenario_name.log"
 
     # The following scenarios are only relevant for LXD with storage backend other than ceph.
@@ -314,14 +323,17 @@ test_shutdown() {
     instance_ops_duration["i4"]=8s
     instance_ops_duration["i5"]=12s
 
+    pids=""
     for instance_name in "${!instance_ops_duration[@]}"; do
         duration_seconds="${instance_ops_duration[$instance_name]}"
         echo "Starting operation for instance $instance_name for $duration_seconds seconds"
         lxd_websocket_operation "$instance_name" "$duration_seconds" &
+        pids="$pids $!"
     done
 
     # Simulate a volume operation that runs for 10 seconds.
     lxd_volume_operation backups backups_volume 10s &
+    pids="$pids $!"
 
     sleep 1
     lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
@@ -376,6 +388,7 @@ test_shutdown() {
 
     # Cleanup
     delete_instances 5
+    for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
     rm "$scenario_name.log"
     lxc config unset storage.backups_volume
     lxc storage volume delete backups backups_volume
@@ -413,14 +426,17 @@ test_shutdown() {
     instance_ops_duration["i4"]=8s
     instance_ops_duration["i5"]=12s
 
+    pids=""
     for instance_name in "${!instance_ops_duration[@]}"; do
         duration_seconds="${instance_ops_duration[$instance_name]}"
         echo "Starting operation for instance $instance_name for $duration_seconds seconds"
         lxd_websocket_operation "$instance_name" "$duration_seconds" &
+        pids="$pids $!"
     done
 
     # Simulate a volume operation that runs for 10 seconds.
     lxd_volume_operation images images_volume 10s &
+    pids="$pids $!"
 
     sleep 1
     lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
@@ -475,6 +491,7 @@ test_shutdown() {
 
     # Cleanup
     delete_instances 5
+    for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
     rm "$scenario_name.log"
     lxc config unset storage.images_volume
     lxc storage volume delete images images_volume
@@ -515,15 +532,19 @@ test_shutdown() {
     instance_ops_duration["i4"]=8s
     instance_ops_duration["i5"]=12s
 
+    pids=""
     for instance_name in "${!instance_ops_duration[@]}"; do
         duration_seconds="${instance_ops_duration[$instance_name]}"
         echo "Starting operation for instance $instance_name for $duration_seconds seconds"
         lxd_websocket_operation "$instance_name" "$duration_seconds" &
+        pids="$pids $!"
     done
 
     # Simulate a volume operation on the images volume that runs for 10 seconds and on the backups volume that runs for 20 seconds.
     lxd_volume_operation mypool images_volume 5s &
+    pids="$pids $!"
     lxd_volume_operation mypool backups_volume 8s &
+    pids="$pids $!"
 
     sleep 1
     lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
@@ -578,6 +599,7 @@ test_shutdown() {
 
     # Cleanup
     delete_instances 5
+    for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
     rm "$scenario_name.log"
     lxc config unset storage.backups_volume
     lxc config unset storage.images_volume
@@ -624,17 +646,21 @@ test_shutdown() {
     instance_ops_duration["i4"]=5s
     instance_ops_duration["i5"]=10s
 
+    pids=""
     for instance_name in "${!instance_ops_duration[@]}"; do
         duration_seconds="${instance_ops_duration[$instance_name]}"
         echo "Starting operation for instance $instance_name for $duration_seconds seconds"
         lxd_websocket_operation "$instance_name" "$duration_seconds" &
+        pids="$pids $!"
     done
 
     # Simulate a volume operation on the images volume that runs for 10 seconds and on the backups volume that runs for 20 seconds.
     lxd_volume_operation mypool images_volume 5s &
+    pids="$pids $!"
     # This operation will not finish before the shutdown timeout is reached. An error log message should be shown.
     # In this situation, this is the unmount timeout that will be fired (1 minute and not the global shutdown timeout which is set to 2 minutes in this scenario).
     lxd_volume_operation mypool backups_volume 80s &
+    pids="$pids $!"
 
     sleep 1
     lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
@@ -668,6 +694,7 @@ test_shutdown() {
 
     # Cleanup
     delete_instances 5
+    for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
     rm "$scenario_name.log"
     lxc config unset storage.backups_volume
     lxc config unset storage.images_volume
