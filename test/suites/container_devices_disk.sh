@@ -1,6 +1,5 @@
 test_container_devices_disk() {
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   lxc init testimage foo
 
