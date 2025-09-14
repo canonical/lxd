@@ -383,7 +383,7 @@ lxd_shutdown_restart() {
             wait "${monitor_pid}" || true
             break
         fi
-        sleep 1
+        sleep 0.5
     done
 
     echo "LXD shutdown sequence completed."
