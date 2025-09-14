@@ -69,7 +69,7 @@ test_network() {
   # edit network description
   lxc network create lxdt$$ ipv4.address=none ipv6.address=none
   lxc network show lxdt$$ | sed 's/^description:.*/description: foo/' | lxc network edit lxdt$$
-  lxc network show lxdt$$ | grep -xF 'description: foo'
+  [ "$(lxc network get lxdt$$ -p description)" = "foo" ]
   lxc network delete lxdt$$
 
   # rename network
