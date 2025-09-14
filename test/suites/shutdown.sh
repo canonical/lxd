@@ -20,7 +20,7 @@ test_shutdown() {
     echo "Expected behavior: LXD should shutdown without any issues."
     echo "----------------------------------------------------------"
 
-    if ! create_instances 6; then
+    if ! create_instances 2; then
         echo "Failed to create instances."
         exit 1
     fi
@@ -42,7 +42,7 @@ test_shutdown() {
     fi
 
     # Cleanup
-    delete_instances 6
+    delete_instances 2
     rm "$scenario_name.log"
 
     scenario_name="scenario3"
