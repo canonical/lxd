@@ -3,7 +3,7 @@ test_network() {
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Test DNS resolution of instance names
-  lxc network create lxdt$$
+  lxc network create lxdt$$ ipv6.address=none
   lxc launch testimage 0abc -d "${SMALL_ROOT_DISK}" -n lxdt$$
   lxc launch testimage def0 -d "${SMALL_ROOT_DISK}" -n lxdt$$
   v4_addr="$(lxc network get lxdt$$ ipv4.address | cut -d/ -f1)"
@@ -67,13 +67,13 @@ test_network() {
   lxc network delete lxdt$$
 
   # edit network description
-  lxc network create lxdt$$
+  lxc network create lxdt$$ ipv4.address=none ipv6.address=none
   lxc network show lxdt$$ | sed 's/^description:.*/description: foo/' | lxc network edit lxdt$$
   lxc network show lxdt$$ | grep -xF 'description: foo'
   lxc network delete lxdt$$
 
   # rename network
-  lxc network create lxdt$$
+  lxc network create lxdt$$ ipv4.address=none ipv6.address=none
   lxc network rename lxdt$$ newnet$$
   ! lxc network list | grep -wF "lxdt$$" || false # the old name is gone
   lxc network delete newnet$$
