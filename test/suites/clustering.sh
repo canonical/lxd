@@ -1133,7 +1133,7 @@ test_clustering_network() {
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" bridge.external_interfaces=foo || false
 
   # Create the network
-  LXD_DIR="${LXD_TWO_DIR}" lxc network create "${net}"
+  LXD_DIR="${LXD_TWO_DIR}" lxc network create "${net}" ipv4.address=none ipv6.address=none
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep -F status: | grep -wF Created
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" --target node2 | grep -F status: | grep -wF Created
 
