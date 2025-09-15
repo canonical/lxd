@@ -283,7 +283,8 @@ func (i Identity) X509() (*x509.Certificate, error) {
 
 // OIDCMetadata contains metadata for OIDC identities.
 type OIDCMetadata struct {
-	Subject string `json:"subject"`
+	Subject                string   `json:"subject"`
+	IdentityProviderGroups []string `json:"identity_provider_groups"`
 }
 
 // Subject returns OIDC subject from the identity metadata. The [AuthMethod] of the [Identity] must be [api.AuthenticationMethodOIDC].
