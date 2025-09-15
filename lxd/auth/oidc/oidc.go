@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/mail"
-	"slices"
 	"strings"
 	"time"
 
@@ -16,7 +15,6 @@ import (
 	"github.com/zitadel/oidc/v3/pkg/client/rp"
 	httphelper "github.com/zitadel/oidc/v3/pkg/http"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
-	"github.com/zitadel/oidc/v3/pkg/op"
 
 	"github.com/canonical/lxd/lxd/auth/bearer"
 	"github.com/canonical/lxd/lxd/auth/encryption"
@@ -136,40 +134,30 @@ func (o *Verifier) userInfo(ctx context.Context, token string) (*oidc.UserInfo, 
 	return &userinfo, nil
 }
 
-// authenticateAccessToken verifies the access token and checks that the configured audience is present the in access
-// token claims. We do not attempt to refresh access tokens as this is performed client side. The access token subject
-// is returned if no error occurs.
-func (o *Verifier) authenticateAccessToken(ctx context.Context, accessToken string) (*AuthenticationResult, error) {
-	claims, err := op.VerifyAccessToken[*oidc.AccessTokenClaims](ctx, accessToken, o.accessTokenVerifier)
+// authenticateBearerToken calls the /userinfo endpoint with the given token to retrieve information about the user. Then
+// starts a new session.
+func (o *Verifier) authenticateBearerToken(r *http.Request, w http.ResponseWriter, accessToken string) (*AuthenticationResult, error) {
+	err := o.ensureConfig(r.Context(), r.Host)
 	if err != nil {
-		return nil, AuthError{Err: fmt.Errorf("Failed to verify access token: %w", err)}
+		return nil, fmt.Errorf("Could not verify OIDC configuration: %w", err)
 	}
 
-	// Check that the token includes the configured audience.
-	audience := claims.GetAudience()
-	if o.audience != "" && !slices.Contains(audience, o.audience) {
-		return nil, AuthError{Err: errors.New("Provided OIDC token doesn't allow the configured audience")}
-	}
-
-	id, err := o.identityCache.GetByOIDCSubject(claims.Subject)
-	if err == nil {
-		return &AuthenticationResult{
-			IdentityType:           api.IdentityTypeOIDCClient,
-			Email:                  id.Identifier,
-			Name:                   id.Name,
-			Subject:                claims.Subject,
-			IdentityProviderGroups: o.getGroupsFromClaims(claims.Claims),
-		}, nil
-	} else if !api.StatusErrorCheck(err, http.StatusNotFound) {
-		return nil, fmt.Errorf("Failed to get OIDC identity from identity cache by their subject (%s): %w", claims.Subject, err)
-	}
-
-	userInfo, err := rp.Userinfo[*oidc.UserInfo](ctx, accessToken, oidc.BearerToken, claims.Subject, o.relyingParty)
+	userInfo, err := o.userInfo(r.Context(), accessToken)
 	if err != nil {
 		return nil, AuthError{Err: fmt.Errorf("Failed to call user info endpoint with given access token: %w", err)}
 	}
 
-	return o.getResultFromClaims(userInfo, userInfo.Claims)
+	res, err := o.getResultFromClaims(userInfo, userInfo.Claims)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse user info response: %w", err)
+	}
+
+	err = o.startSession(r, w, *res, nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to start a new session: %w", err)
+	}
+
+	return res, nil
 }
 
 // authenticateIDToken gets the ID token from the request cookies and validates it. If it is not present or not valid, it
