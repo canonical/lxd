@@ -98,21 +98,31 @@ func (e AuthError) Unwrap() error {
 	return e.Err
 }
 
-// Auth extracts OIDC tokens from the request, verifies them, and returns an AuthenticationResult or an error.
+// Auth checks if a session cookie is present and tries to verify it. Otherwise, it checks if a bearer token was sent
+// and verifies that instead (for the CLI).
 func (o *Verifier) Auth(w http.ResponseWriter, r *http.Request) (*AuthenticationResult, error) {
-	err := o.ensureConfig(r.Context(), r.Host)
-	if err != nil {
-		return nil, fmt.Errorf("Authorization failed: %w", err)
+	cookie, err := r.Cookie(cookieNameSession)
+	if err == nil {
+		// Session cookie exists, verify it.
+		res, err := o.verifySession(r, w, cookie.Value)
+		if err != nil {
+			// If anything fails, delete the cookie.
+			o.deleteSessionCookie(w)
+			return nil, err
+		}
+
+		return res, nil
 	}
 
 	// If a bearer token is provided, it must be valid.
 	bearerToken, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
-	if ok {
-		return o.authenticateAccessToken(r.Context(), bearerToken)
+	if ok && bearerToken != "" {
+		return o.authenticateBearerToken(r, w, bearerToken)
 	}
 
-	// Otherwise, it must be a browser.
-	return o.authenticateIDToken(w, r)
+	// Return an AuthError, instructing the daemon to write OIDC headers for the client to use to obtain a token via the
+	// device flow.
+	return nil, AuthError{Err: errors.New("No credentials found")}
 }
 
 // userInfo calls the /userinfo endpoint of the configured issuer with the given access token.
