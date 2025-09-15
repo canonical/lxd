@@ -40,10 +40,7 @@ func PrintServerInfo(c lxd.ContainerServer) error {
 func LaunchContainers(c lxd.ContainerServer, count int, parallel int, image string, privileged bool, start bool, freeze bool) (time.Duration, error) {
 	var duration time.Duration
 
-	batchSize, err := getBatchSize(parallel)
-	if err != nil {
-		return duration, err
-	}
+	batchSize := getBatchSize(parallel)
 
 	printTestConfig(count, batchSize, image, privileged, freeze)
 
@@ -106,10 +103,7 @@ func GetContainers(c lxd.ContainerServer) ([]api.Container, error) {
 func StartContainers(c lxd.ContainerServer, containers []api.Container, parallel int) (time.Duration, error) {
 	var duration time.Duration
 
-	batchSize, err := getBatchSize(parallel)
-	if err != nil {
-		return duration, err
-	}
+	batchSize := getBatchSize(parallel)
 
 	count := len(containers)
 	logf("Starting %d containers", count)
@@ -135,10 +129,7 @@ func StartContainers(c lxd.ContainerServer, containers []api.Container, parallel
 func StopContainers(c lxd.ContainerServer, containers []api.Container, parallel int) (time.Duration, error) {
 	var duration time.Duration
 
-	batchSize, err := getBatchSize(parallel)
-	if err != nil {
-		return duration, err
-	}
+	batchSize := getBatchSize(parallel)
 
 	count := len(containers)
 	logf("Stopping %d containers", count)
@@ -164,10 +155,7 @@ func StopContainers(c lxd.ContainerServer, containers []api.Container, parallel 
 func DeleteContainers(c lxd.ContainerServer, containers []api.Container, parallel int) (time.Duration, error) {
 	var duration time.Duration
 
-	batchSize, err := getBatchSize(parallel)
-	if err != nil {
-		return duration, err
-	}
+	batchSize := getBatchSize(parallel)
 
 	count := len(containers)
 	logf("Deleting %d containers", count)
@@ -185,7 +173,7 @@ func DeleteContainers(c lxd.ContainerServer, containers []api.Container, paralle
 			}
 		}
 
-		err = deleteContainer(c, name)
+		err := deleteContainer(c, name)
 		if err != nil {
 			logf("Failed to delete container: %s", name)
 			return
