@@ -674,7 +674,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 			projects, err = dbCluster.GetProjects(ctx, tx.Tx())
 			if err != nil {
-				return fmt.Errorf("Failed to load projects for networks: %w", err)
+				return fmt.Errorf("Failed loading projects for networks: %w", err)
 			}
 
 			for _, p := range projects {
@@ -2162,7 +2162,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 			return err
 		})
 		if err != nil {
-			return response.SmartError(fmt.Errorf("Failed to load projects for networks: %w", err))
+			return response.SmartError(fmt.Errorf("Failed loading projects for networks: %w", err))
 		}
 
 		for _, networkProjectName := range networkProjectNames {
@@ -2899,7 +2899,7 @@ func clusterCheckNetworksMatch(ctx context.Context, cluster *db.Cluster, reqNetw
 		// Get a list of projects for networks.
 		networkProjectNames, err := dbCluster.GetProjectNames(ctx, tx.Tx())
 		if err != nil {
-			return fmt.Errorf("Failed to load projects for networks: %w", err)
+			return fmt.Errorf("Failed loading projects for networks: %w", err)
 		}
 
 		for _, networkProjectName := range networkProjectNames {

@@ -1128,6 +1128,20 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		userCanCreateImages = true
 	}
 
+	// Load the project entry so we have a valid project name.
+	var dbProject *dbCluster.Project
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbProject, err = dbCluster.GetProject(ctx, tx.Tx(), projectName)
+		if err != nil {
+			return fmt.Errorf("Failed loading project %q: %w", projectName, err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	secret := r.Header.Get("X-LXD-secret")
 	fingerprint := r.Header.Get("X-LXD-fingerprint")
 
@@ -1139,7 +1153,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// We need to invalidate the secret whether the source is trusted or not.
-	op, err := imageValidSecret(s, r, projectName, fingerprint, secret)
+	op, err := imageValidSecret(s, r, dbProject.Name, fingerprint, secret)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1156,7 +1170,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// create a directory under which we keep everything while building
-	builddir, err := os.MkdirTemp(s.ImagesStoragePath(projectName), "lxd_build_")
+	builddir, err := os.MkdirTemp(s.ImagesStoragePath(dbProject.Name), "lxd_build_")
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -1183,7 +1197,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	// allowed to use.
 	var budget int64
 	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-		budget, err = limits.GetImageSpaceBudget(ctx, s.GlobalConfig, tx, projectName)
+		budget, err = limits.GetImageSpaceBudget(ctx, s.GlobalConfig, tx, dbProject.Name)
 		return err
 	})
 	if err != nil {
@@ -1227,7 +1241,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			"public":     req.Public,
 		}
 
-		return createTokenResponse(s, r, projectName, req.Source.Fingerprint, metadata)
+		return createTokenResponse(s, r, dbProject.Name, req.Source.Fingerprint, metadata)
 	}
 
 	if !imageUpload && !slices.Contains([]string{"container", "instance", "virtual-machine", "snapshot", "image", "url"}, req.Source.Type) {
@@ -1245,7 +1259,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			r.Body = post
-			resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, projectName, name, instanceType)
+			resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, dbProject.Name, name, instanceType)
 			if err != nil {
 				cleanup(builddir, post)
 				return response.SmartError(err)
@@ -1275,19 +1289,19 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 
 		if imageUpload {
 			/* Processing image upload */
-			info, err = getImgPostInfo(s, r, builddir, projectName, post, imageMetadata)
+			info, err = getImgPostInfo(s, r, builddir, dbProject.Name, post, imageMetadata)
 		} else {
 			switch req.Source.Type {
 			case api.SourceTypeImage:
 				/* Processing image copy from remote */
-				info, err = imgPostRemoteInfo(r.Context(), s, req, op, projectName, budget)
+				info, err = imgPostRemoteInfo(r.Context(), s, req, op, dbProject.Name, budget)
 			case "url":
 				/* Processing image copy from URL */
-				info, err = imgPostURLInfo(r.Context(), s, req, op, projectName, budget)
+				info, err = imgPostURLInfo(r.Context(), s, req, op, dbProject.Name, budget)
 			default:
 				/* Processing image creation from container */
 				imagePublishLock.Lock()
-				info, err = imgPostInstanceInfo(s, req, op, projectName, builddir, budget)
+				info, err = imgPostInstanceInfo(s, req, op, dbProject.Name, builddir, budget)
 				imagePublishLock.Unlock()
 			}
 		}
@@ -1329,13 +1343,13 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			imgID, _, err := tx.GetImageByFingerprintPrefix(ctx, info.Fingerprint, dbCluster.ImageFilter{Project: &projectName})
+			imgID, _, err := tx.GetImageByFingerprintPrefix(ctx, info.Fingerprint, dbCluster.ImageFilter{Project: &dbProject.Name})
 			if err != nil {
 				return fmt.Errorf("Fetch image %q: %w", info.Fingerprint, err)
 			}
 
 			for _, alias := range req.Aliases {
-				_, _, err := tx.GetImageAlias(ctx, projectName, alias.Name, true)
+				_, _, err := tx.GetImageAlias(ctx, dbProject.Name, alias.Name, true)
 				if !response.IsNotFoundError(err) {
 					if err != nil {
 						return fmt.Errorf("Fetch image alias %q: %w", alias.Name, err)
@@ -1344,7 +1358,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 					return fmt.Errorf("Alias already exists: %s", alias.Name)
 				}
 
-				err = tx.CreateImageAlias(ctx, projectName, alias.Name, imgID, alias.Description)
+				err = tx.CreateImageAlias(ctx, dbProject.Name, alias.Name, imgID, alias.Description)
 				if err != nil {
 					return fmt.Errorf("Add new image alias to the database: %w", err)
 				}
@@ -1357,12 +1371,12 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Sync the images between each node in the cluster on demand
-		err = imageSyncBetweenNodes(s.ShutdownCtx, s, r, projectName, info.Fingerprint)
+		err = imageSyncBetweenNodes(s.ShutdownCtx, s, r, dbProject.Name, info.Fingerprint)
 		if err != nil {
 			return fmt.Errorf("Failed syncing image between nodes: %w", err)
 		}
 
-		s.Events.SendLifecycle(projectName, lifecycle.ImageCreated.Event(info.Fingerprint, projectName, op.EventLifecycleRequestor(), logger.Ctx{"type": info.Type}))
+		s.Events.SendLifecycle(dbProject.Name, lifecycle.ImageCreated.Event(info.Fingerprint, dbProject.Name, op.EventLifecycleRequestor(), logger.Ctx{"type": info.Type}))
 
 		return nil
 	}
@@ -1378,7 +1392,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	imageOp, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.ImageDownload, nil, metadata, run, nil, nil)
+	imageOp, err := operations.OperationCreate(r.Context(), s, dbProject.Name, operations.OperationClassTask, operationtype.ImageDownload, nil, metadata, run, nil, nil)
 	if err != nil {
 		cleanup(builddir, post)
 		return response.InternalError(err)
