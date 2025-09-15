@@ -1,6 +1,6 @@
 module github.com/canonical/lxd
 
-go 1.23.10
+go 1.24.6
 
 require (
 	github.com/Rican7/retry v0.3.1
