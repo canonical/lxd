@@ -126,8 +126,7 @@ func CompressedTarReader(s *state.State, ctx context.Context, r io.ReadSeeker, u
 	return tr, cancelFunc, nil
 }
 
-// Unpack extracts image from archive.
-func Unpack(s *state.State, file string, path string, blockBackend bool, tracker *ioprogress.ProgressTracker) error {
+func doUnpack(s *state.State, file string, path string, blockBackend bool, excludeDevices bool, tracker *ioprogress.ProgressTracker) error {
 	extractArgs, extension, unpacker, err := shared.DetectCompression(file)
 	if err != nil {
 		return err
@@ -139,7 +138,7 @@ func Unpack(s *state.State, file string, path string, blockBackend bool, tracker
 	var reader io.Reader
 	if strings.HasPrefix(extension, ".tar") {
 		command = "tar"
-		if s.OS.RunningInUserNS {
+		if excludeDevices && s.OS.RunningInUserNS {
 			// We can't create char/block devices so avoid extracting them.
 			args = append(args, "--anchored")
 			args = append(args, "--wildcards")
@@ -277,4 +276,9 @@ func Unpack(s *state.State, file string, path string, blockBackend bool, tracker
 	}
 
 	return nil
+}
+
+// UnpackImage extracts image from archive.
+func UnpackImage(s *state.State, file string, path string, blockBackend bool, tracker *ioprogress.ProgressTracker) error {
+	return doUnpack(s, file, path, blockBackend, true, tracker)
 }
