@@ -13,7 +13,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/securecookie"
-	"github.com/zitadel/oidc/v3/pkg/client"
 	"github.com/zitadel/oidc/v3/pkg/client/rp"
 	httphelper "github.com/zitadel/oidc/v3/pkg/http"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
@@ -50,8 +49,7 @@ const (
 
 // Verifier holds all information needed to verify and manage OIDC logins and sessions.
 type Verifier struct {
-	accessTokenVerifier *op.AccessTokenVerifier
-	relyingParty        rp.RelyingParty
+	relyingParty rp.RelyingParty
 
 	clientID       string
 	clientSecret   string
@@ -449,13 +447,6 @@ func (o *Verifier) ensureConfig(ctx context.Context, host string) error {
 		o.expireConfig = false
 	}
 
-	if o.accessTokenVerifier == nil {
-		err := o.setAccessTokenVerifier(ctx)
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -508,30 +499,6 @@ func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
 	}
 
 	o.relyingParty = relyingParty
-	return nil
-}
-
-// setAccessTokenVerifier sets the accessTokenVerifier on the Verifier. It uses the oidc.KeySet from the relyingParty if
-// it is set, otherwise it calls the discovery endpoint (/.well-known/openid-configuration).
-func (o *Verifier) setAccessTokenVerifier(ctx context.Context) error {
-	httpClient, err := o.httpClientFunc()
-	if err != nil {
-		return err
-	}
-
-	var keySet oidc.KeySet
-	if o.relyingParty != nil {
-		keySet = o.relyingParty.IDTokenVerifier().KeySet
-	} else {
-		discoveryConfig, err := client.Discover(ctx, o.issuer, httpClient)
-		if err != nil {
-			return fmt.Errorf("Failed calling OIDC discovery endpoint: %w", err)
-		}
-
-		keySet = rp.NewRemoteKeySet(httpClient, discoveryConfig.JwksURI)
-	}
-
-	o.accessTokenVerifier = op.NewAccessTokenVerifier(o.issuer, keySet)
 	return nil
 }
 
