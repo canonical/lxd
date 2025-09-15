@@ -1094,7 +1094,7 @@ func GetIdmapSet() *IdmapSet {
 		if err == nil {
 			logger.Infof("Kernel uid/gid map:")
 			for _, lxcmap := range kernelIdmapSet.ToLxcString() {
-				logger.Infof(fmt.Sprintf(" - %s", lxcmap))
+				logger.Infof(" - %s", lxcmap)
 			}
 		}
 
@@ -1103,7 +1103,7 @@ func GetIdmapSet() *IdmapSet {
 			logger.Warnf("Only privileged containers will be able to run")
 			idmapSet = nil
 		} else {
-			logger.Infof("Configured LXD uid/gid map:")
+			logger.Info("Configured LXD uid/gid map:")
 			for _, lxcmap := range idmapSet.Idmap {
 				suffix := ""
 
