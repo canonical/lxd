@@ -36,10 +36,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Install Go (1.18)
+      - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.18.x
+          go-version-file: 'go.mod'
 
       - name: Install dependencies
         run: |
@@ -121,15 +121,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: ["1.18.x"]
         suite: ["cluster", "standalone"]
         backend: ["dir", "btrfs", "lvm", "zfs", "ceph", "random"]
         include:
-          - go: "1.16.x"
-            suite: cluster
+          - suite: cluster
             backend: dir
-          - go: "1.16.x"
-            suite: standalone
+          - suite: standalone
             backend: dir
         exclude:
           - suite: standalone
@@ -178,10 +175,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Install Go (${{ matrix.go }})
+      - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go }}
+          go-version-file: 'go.mod'
 
       - name: Install dependencies
         run: |
@@ -341,8 +338,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go:
-          - 1.18.x
         os:
           - ubuntu-latest
           - macos-latest
@@ -353,10 +348,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Install Go (${{ matrix.go }})
+      - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go }}
+          go-version-file: 'go.mod'
 
       - name: Create build directory
         run: |
@@ -404,10 +399,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Install Go (1.18)
+      - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.18.x
+          go-version-file: 'go.mod'
 
       - name: Build docs (Sphinx)
         shell: 'script -q -e -c "export TERM=xterm-256color; bash {0}"'
@@ -446,11 +441,6 @@ jobs:
           # so require the key obtained by `ssh-keyscan` to match the expected hash from https://help.launchpad.net/SSHFingerprints
           ssh-keyscan git.launchpad.net >> ~/.ssh/known_hosts
           ssh-keygen -qlF git.launchpad.net | grep -xF 'git.launchpad.net RSA SHA256:UNOzlP66WpDuEo34Wgs8mewypV0UzqHLsIFoqwe8dYo'
-
-      - name: Install Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: 1.22.x
 
       - name: Trigger Launchpad snap build
         env:
