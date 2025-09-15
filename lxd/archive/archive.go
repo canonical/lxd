@@ -282,3 +282,8 @@ func doUnpack(s *state.State, file string, path string, blockBackend bool, exclu
 func UnpackImage(s *state.State, file string, path string, blockBackend bool, tracker *ioprogress.ProgressTracker) error {
 	return doUnpack(s, file, path, blockBackend, true, tracker)
 }
+
+// UnpackRaw extracts all content from archive.
+func UnpackRaw(s *state.State, file string, path string, blockBackend bool, tracker *ioprogress.ProgressTracker) error {
+	return doUnpack(s, file, path, blockBackend, false, tracker)
+}
