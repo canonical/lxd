@@ -725,19 +725,8 @@ func (o *Verifier) secureCookieFromSession(ctx context.Context, sessionID uuid.U
 	return securecookie.New(cookieHashKey, cookieBlockKey), startNewSession, nil
 }
 
-// Opts contains optional configurable fields for the Verifier.
-type Opts struct {
-	GroupsClaim string
-}
-
 // NewVerifier returns a Verifier.
-func NewVerifier(issuer string, clientID string, clientSecret string, scopes []string, audience string, secretsFunc func(ctx context.Context) (cluster.AuthSecrets, error), identityCache *identity.Cache, httpClientFunc func() (*http.Client, error), options *Opts) (*Verifier, error) {
-	opts := &Opts{}
-
-	if options != nil && options.GroupsClaim != "" {
-		opts.GroupsClaim = options.GroupsClaim
-	}
-
+func NewVerifier(issuer string, clientID string, clientSecret string, scopes []string, audience string, groupsClaim string, secretsFunc func(ctx context.Context) (cluster.AuthSecrets, error), identityCache *identity.Cache, httpClientFunc func() (*http.Client, error), options *Opts) (*Verifier, error) {
 	verifier := &Verifier{
 		issuer:         issuer,
 		clientID:       clientID,
@@ -745,7 +734,7 @@ func NewVerifier(issuer string, clientID string, clientSecret string, scopes []s
 		scopes:         scopes,
 		audience:       audience,
 		identityCache:  identityCache,
-		groupsClaim:    opts.GroupsClaim,
+		groupsClaim:    groupsClaim,
 		secretsFunc:    secretsFunc,
 		httpClientFunc: httpClientFunc,
 	}
