@@ -680,7 +680,7 @@ func validateStorageVolumes(s *state.State, ctx context.Context, nodeValues map[
 			return err
 		})
 		if err != nil {
-			return fmt.Errorf("Failed to load project %q: %w", projectName, err)
+			return fmt.Errorf("Failed loading project %q: %w", projectName, err)
 		}
 
 		// Disallow setting external storage on non-empty projects.
