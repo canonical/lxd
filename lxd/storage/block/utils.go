@@ -130,6 +130,20 @@ func DiskFSUUID(pathName string) (string, error) {
 	return strings.TrimSpace(uuid), nil
 }
 
+// RefreshDiskDeviceSize refreshes ISCSI multipath device-mapper device size.
+func RefreshDiskDeviceSize(ctx context.Context, diskPath string) error {
+	devName := filepath.Base(diskPath)
+	if strings.HasPrefix(devName, "dm-") {
+		// Ask multipathd to refresh multipath device size.
+		_, err := shared.RunCommandContext(ctx, "multipath", "-r", diskPath)
+		if err != nil {
+			return fmt.Errorf("Failed to update multipath device %q size: %w", devName, err)
+		}
+	}
+
+	return nil
+}
+
 // WaitDiskDeviceResize waits until the disk device reflects the new size.
 func WaitDiskDeviceResize(ctx context.Context, diskPath string, newSizeBytes int64) error {
 	_, ok := ctx.Deadline()
