@@ -39,14 +39,8 @@ const (
 	// cookieNameLoginID is used to identify a single login flow.
 	cookieNameLoginID = "login_id"
 
-	// cookieNameIDToken is the identifier used to set and retrieve the identity token.
-	cookieNameIDToken = "oidc_identity"
-
-	// cookieNameRefreshToken is the identifier used to set and retrieve the refresh token.
-	cookieNameRefreshToken = "oidc_refresh"
-
-	// cookieNameSessionID is used to identify the session. It does not need to be encrypted.
-	cookieNameSessionID = "session_id"
+	// cookieNameSession references a cookie that is a JWT containing the session information.
+	cookieNameSession = "session"
 )
 
 // Verifier holds all information needed to verify and manage OIDC logins and sessions.
@@ -411,22 +405,8 @@ func (*Verifier) IsRequest(r *http.Request) bool {
 		return true
 	}
 
-	_, err := r.Cookie(cookieNameSessionID)
-	if err != nil {
-		return false
-	}
-
-	idTokenCookie, err := r.Cookie(cookieNameIDToken)
-	if err == nil && idTokenCookie != nil {
-		return true
-	}
-
-	refreshTokenCookie, err := r.Cookie(cookieNameRefreshToken)
-	if err == nil && refreshTokenCookie != nil {
-		return true
-	}
-
-	return false
+	_, err := r.Cookie(cookieNameSession)
+	return err == nil
 }
 
 // ExpireConfig sets the expiry time of the current configuration to zero. This forces the verifier to reconfigure the
@@ -524,112 +504,6 @@ func (o *Verifier) startSession(ctx context.Context, w http.ResponseWriter, idTo
 		return err
 	}
 
-	return nil
-}
-
-// getCookies gets the sessionID, identity and refresh tokens from the request cookies and decrypts them. The
-// startNewSession boolean indicates that the cookes were encrypted with keys derived from an old secret that has since
-// been rotated out of use. A new session should be started so that the user is not logged out.
-func (o *Verifier) getCookies(r *http.Request) (idToken string, refreshToken string, startNewSession bool, err error) {
-	sessionIDCookie, err := r.Cookie(cookieNameSessionID)
-	if err != nil && !errors.Is(err, http.ErrNoCookie) {
-		return "", "", false, fmt.Errorf("Failed to get session ID cookie from request: %w", err)
-	} else if sessionIDCookie == nil {
-		return "", "", false, nil
-	}
-
-	sessionID, err := uuid.Parse(sessionIDCookie.Value)
-	if err != nil {
-		return "", "", false, fmt.Errorf("Invalid session ID cookie: %w", err)
-	}
-
-	secureCookie, startNewSession, err := o.secureCookieFromSession(r.Context(), sessionID)
-	if err != nil {
-		return "", "", false, fmt.Errorf("Failed to decrypt cookies: %w", err)
-	}
-
-	idTokenCookie, err := r.Cookie(cookieNameIDToken)
-	if err != nil && !errors.Is(err, http.ErrNoCookie) {
-		return "", "", false, fmt.Errorf("Failed to get ID token cookie from request: %w", err)
-	}
-
-	if idTokenCookie != nil {
-		err = secureCookie.Decode(cookieNameIDToken, idTokenCookie.Value, &idToken)
-		if err != nil {
-			return "", "", false, fmt.Errorf("Failed to decrypt ID token cookie: %w", err)
-		}
-	}
-
-	refreshTokenCookie, err := r.Cookie(cookieNameRefreshToken)
-	if err != nil && !errors.Is(err, http.ErrNoCookie) {
-		return "", "", false, fmt.Errorf("Failed to get refresh token cookie from request: %w", err)
-	}
-
-	if refreshTokenCookie != nil {
-		err = secureCookie.Decode(cookieNameRefreshToken, refreshTokenCookie.Value, &refreshToken)
-		if err != nil {
-			return "", "", false, fmt.Errorf("Failed to decrypt refresh token cookie: %w", err)
-		}
-	}
-
-	return idToken, refreshToken, startNewSession, nil
-}
-
-// setCookies encrypts the session, ID, and refresh tokens and sets them in the HTTP response. Cookies are only set if they are
-// non-empty. If delete is true, the values are set to empty strings and the cookie expiry is set to unix zero time.
-func (*Verifier) setCookies(w http.ResponseWriter, secureCookie *securecookie.SecureCookie, sessionID uuid.UUID, idToken string, refreshToken string, deleteCookies bool) error {
-	idTokenCookie := http.Cookie{
-		Name:     cookieNameIDToken,
-		Path:     "/",
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
-	}
-
-	refreshTokenCookie := http.Cookie{
-		Name:     cookieNameRefreshToken,
-		Path:     "/",
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
-	}
-
-	sessionIDCookie := http.Cookie{
-		Name:     cookieNameSessionID,
-		Path:     "/",
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
-	}
-
-	if deleteCookies {
-		idTokenCookie.Expires = time.Unix(0, 0)
-		refreshTokenCookie.Expires = time.Unix(0, 0)
-		sessionIDCookie.Expires = time.Unix(0, 0)
-
-		http.SetCookie(w, &idTokenCookie)
-		http.SetCookie(w, &refreshTokenCookie)
-		http.SetCookie(w, &sessionIDCookie)
-		return nil
-	}
-
-	encodedIDTokenCookie, err := secureCookie.Encode(cookieNameIDToken, idToken)
-	if err != nil {
-		return fmt.Errorf("Failed to encrypt ID token: %w", err)
-	}
-
-	encodedRefreshToken, err := secureCookie.Encode(cookieNameRefreshToken, refreshToken)
-	if err != nil {
-		return fmt.Errorf("Failed to encrypt refresh token: %w", err)
-	}
-
-	sessionIDCookie.Value = sessionID.String()
-	idTokenCookie.Value = encodedIDTokenCookie
-	refreshTokenCookie.Value = encodedRefreshToken
-
-	http.SetCookie(w, &idTokenCookie)
-	http.SetCookie(w, &refreshTokenCookie)
-	http.SetCookie(w, &sessionIDCookie)
 	return nil
 }
 
