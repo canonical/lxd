@@ -1356,6 +1356,11 @@ func (d *alletra) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool
 
 			defer cleanup()
 
+			err = block.RefreshDiskDeviceSize(d.state.ShutdownCtx, devPath)
+			if err != nil {
+				return fmt.Errorf("Failed refreshing volume %q size: %w", vol.name, err)
+			}
+
 			// Always wait for the disk to reflect the new size.
 			// In case SetVolumeQuota is called on an already mapped volume,
 			// it might take some time until the actual size of the device is reflected on the host.
@@ -1393,6 +1398,11 @@ func (d *alletra) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool
 		}
 
 		defer cleanup()
+
+		err = block.RefreshDiskDeviceSize(d.state.ShutdownCtx, devPath)
+		if err != nil {
+			return fmt.Errorf("Failed refreshing volume %q size: %w", vol.name, err)
+		}
 
 		err = block.WaitDiskDeviceResize(d.state.ShutdownCtx, devPath, sizeBytes)
 		if err != nil {
