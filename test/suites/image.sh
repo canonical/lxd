@@ -130,9 +130,15 @@ test_image_import_existing_alias() {
     lxc delete c
     lxc image export testimage testimage.file
     lxc image delete testimage
+
     # XXX: ensure_import_testimage imports a `.tar.xz` image which is why once exported, those extensions are appended
     # the image can be imported with an existing alias
     lxc image import testimage.file.tar.xz --alias newimage
+
+    # Test for proper error message when importing an image to a non-existing project
+    output="$(! lxc image import testimage.file.tar.xz --project nonexistingproject 2>&1 || false)"
+    echo "${output}" | grep -F "Project not found"
+
     rm testimage.file.tar.xz
     lxc image delete newimage image2
 }
