@@ -41,6 +41,7 @@ import (
 	"github.com/canonical/lxd/lxd/daemon"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	dbOIDC "github.com/canonical/lxd/lxd/db/oidc"
 	"github.com/canonical/lxd/lxd/db/openfga"
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/dns"
@@ -1815,7 +1816,8 @@ func (d *Daemon) init() error {
 			return util.HTTPClient("", d.proxy)
 		}
 
-		d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, d.getCoreAuthSecrets, d.identityCache, httpClientFunc, &oidc.Opts{GroupsClaim: oidcGroupsClaim})
+		sessionHandler := dbOIDC.NewSessionHandler(d.db.Cluster, d.events, d.globalConfig.OIDCSessionExpiry)
+		d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim, d.globalConfig.ClusterUUID(), d.getCoreAuthSecrets, httpClientFunc, sessionHandler)
 		if err != nil {
 			return err
 		}
