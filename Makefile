@@ -243,7 +243,6 @@ endif
 	go get github.com/gorilla/websocket@v1.5.1 # Due to riscv64 crashes in LP
 	go get tags.cncf.io/container-device-interface@v0.8.1 # Due to incompat with nvidia-container-toolkit
 	go get github.com/olekukonko/tablewriter@v0.0.5 # Due to breaking API in later versions
-	go get github.com/openfga/openfga@v1.9.5 # Due to API breakage
 
 	# Enforce minimum go version
 	go mod tidy -go=$(GOMIN)
