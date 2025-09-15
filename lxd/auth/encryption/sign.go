@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 const (
@@ -37,6 +38,17 @@ func LXDAudience(clusterUUID string) string {
 // - Expiry (exp): The given time (UTC).
 func GetDevLXDBearerToken(secret []byte, identityIdentifier string, clusterUUID string, expiresAt time.Time) (string, error) {
 	return getToken(secret, nil, identityIdentifier, clusterUUID, DevLXDAudience, expiresAt)
+}
+
+// GetOIDCSessionToken generates and signs a token to be set as an OIDC session cookie. For claims it has:
+// - Subject (sub): Session ID (UUID)
+// - Issuer (iss): "lxd:{cluster_uuid}"
+// - Audience (aud): "lxd:{cluster_uuid}"
+// - Not before (nbf): time now (UTC)
+// - Issued at (iat): time now (UTC)
+// - Expiry (exp): The given time (UTC).
+func GetOIDCSessionToken(secret []byte, sessionID uuid.UUID, clusterUUID string, expiresAt time.Time) (string, error) {
+	return getToken(secret, sessionID[:], sessionID.String(), clusterUUID, LXDAudience, expiresAt)
 }
 
 // getToken generates and signs a token for use with the LXD. If a salt is provided, a signing key will be generated
