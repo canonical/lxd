@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/gorilla/securecookie"
 	"github.com/zitadel/oidc/v3/pkg/client/rp"
@@ -160,64 +161,143 @@ func (o *Verifier) authenticateBearerToken(r *http.Request, w http.ResponseWrite
 	return res, nil
 }
 
-// authenticateIDToken gets the ID token from the request cookies and validates it. If it is not present or not valid, it
-// attempts to refresh the ID token (with a refresh token also taken from the request cookies).
-func (o *Verifier) authenticateIDToken(w http.ResponseWriter, r *http.Request) (*AuthenticationResult, error) {
-	idToken, refreshToken, startNewSession, err := o.getCookies(r)
+// verifySession verifies the given session token in-memory, then gets the session details via the [SessionHandler] to
+// return an [AuthenticationResult]. If the session token is expired but otherwise valid, the login will be re-confirmed
+// with the IdP and a new session will be started. If the session token was signed by a key derived from an out-of-date
+// cluster secret, a new session will be started without verifying the login, but the expiry will be the same as the
+// expiry of the existing session.
+func (o *Verifier) verifySession(r *http.Request, w http.ResponseWriter, sessionToken string) (*AuthenticationResult, error) {
+	// Verify the token.
+	sessionID, startNewSession, err := o.verifySessionToken(r.Context(), sessionToken)
 	if err != nil {
-		// Cookies are present but we failed to decrypt them. They may have been tampered with, so delete them to force
-		// the user to log in again.
-		_ = o.setCookies(w, nil, uuid.UUID{}, "", "", true)
-		return nil, fmt.Errorf("Failed to retrieve login information: %w", err)
-	} else if idToken == "" && refreshToken == "" {
-		// The IsRequest function gates calls to the OIDC verifier. We should not reach this block.
-		return nil, AuthError{Err: errors.New("No credentials found")}
+		if !errors.Is(err, jwt.ErrTokenExpired) {
+			// For any error other than expiry, the token is invalid (e.g. tampered with).
+			return nil, fmt.Errorf("Session token invalid: %w", err)
+		}
+
+		return o.handleExpiredSession(r, w, *sessionID)
 	}
 
-	var claims *oidc.IDTokenClaims
-	if idToken != "" {
-		// Try to verify the ID token.
-		claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](r.Context(), idToken, o.relyingParty.IDTokenVerifier())
-		if err == nil {
-			if startNewSession {
-				err = o.startSession(r.Context(), w, idToken, refreshToken)
-				if err != nil {
-					return nil, AuthError{Err: fmt.Errorf("Failed to refresh session: %w", err)}
-				}
-			}
+	// Get the session details.
+	res, tokens, expiry, err := o.sessionHandler.GetIdentityBySessionID(r.Context(), *sessionID)
+	if err != nil {
+		// Unexpected error.
+		if !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return nil, fmt.Errorf("Failed to get session information: %w", err)
+		}
 
-			return o.getResultFromClaims(claims, claims.Claims)
+		// If not found, check if the caller already sent a bearer token to reverify.
+		token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+		if ok && token != "" {
+			return o.authenticateBearerToken(r, w, token)
+		}
+
+		// Otherwise, the session was revoked.
+		return nil, AuthError{Err: errors.New("Session revoked, please log in again")}
+	}
+
+	// If we signed the session with a key derived from an old cluster secret, start a new session and override the expiry.
+	if startNewSession {
+		err = o.startSession(r, w, *res, tokens, expiry)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to start a new session: %w", err)
+		}
+
+		// Delete the old session from the database.
+		err = o.sessionHandler.DeleteSession(r.Context(), *sessionID)
+		if err != nil {
+			logger.Warn("Failed to delete session with stale signing key from database", logger.Ctx{"session_uuid": sessionID.String(), "err": err})
 		}
 	}
 
-	// If ID token verification failed (or it wasn't provided, try refreshing the token).
-	tokens, err := rp.RefreshTokens[*oidc.IDTokenClaims](r.Context(), o.relyingParty, refreshToken, "", "")
+	return res, nil
+}
+
+// handleExpiredSession attempts to start a new session based on details saved in an existing session. If no tokens are
+// saved in the session, it checks if the caller sent their access token as an authorization header (CLI). If tokens are
+// present, the identity is reverified using the access token. If this fails, the refresh token is used (if present) to
+// get a new set of tokens.
+func (o *Verifier) handleExpiredSession(r *http.Request, w http.ResponseWriter, sessionID uuid.UUID) (*AuthenticationResult, error) {
+	defer func() {
+		// Always delete the old session from the database.
+		err := o.sessionHandler.DeleteSession(r.Context(), sessionID)
+		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+			logger.Warn("Failed to delete session with stale signing key from database", logger.Ctx{"session_uuid": sessionID.String(), "err": err})
+		}
+	}()
+
+	_, tokens, _, err := o.sessionHandler.GetIdentityBySessionID(r.Context(), sessionID)
 	if err != nil {
-		return nil, AuthError{Err: fmt.Errorf("Failed to refresh ID tokens: %w", err)}
+		if !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return nil, fmt.Errorf("Failed to get session information: %w", err)
+		}
+
+		token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+		if ok && token != "" {
+			return o.authenticateBearerToken(r, w, token)
+		}
+
+		return nil, AuthError{Err: errors.New("Session expired or revoked, please log in again")}
 	}
 
-	idTokenAny := tokens.Extra("id_token")
-	if idTokenAny == nil {
-		return nil, AuthError{Err: errors.New("ID tokens missing from OIDC refresh response")}
+	// If no access token in session. Return an auth error so that the oidc headers are sent for them to obtain a new token from the IdP.
+	if tokens.AccessToken == "" {
+		token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+		if ok && token != "" {
+			return o.authenticateBearerToken(r, w, token)
+		}
+
+		return nil, AuthError{Err: errors.New("Session expired, please log in again")}
 	}
 
-	idToken, ok := idTokenAny.(string)
-	if !ok {
-		return nil, AuthError{Err: errors.New("Malformed ID tokens in OIDC refresh response")}
-	}
-
-	// Verify the refreshed ID token.
-	claims, err = rp.VerifyIDToken[*oidc.IDTokenClaims](r.Context(), idToken, o.relyingParty.IDTokenVerifier())
+	err = o.ensureConfig(r.Context(), r.Host)
 	if err != nil {
-		return nil, AuthError{Err: fmt.Errorf("Failed to verify refreshed ID token: %w", err)}
+		return nil, fmt.Errorf("Failed to verify OIDC configuration: %w", err)
 	}
 
-	err = o.startSession(r.Context(), w, idToken, tokens.RefreshToken)
+	// Reverify access token.
+	userInfo, err := o.userInfo(r.Context(), tokens.AccessToken)
+	if err == nil {
+		res, err := o.getResultFromClaims(userInfo, userInfo.Claims)
+		if err != nil {
+			return nil, err
+		}
+
+		err = o.startSession(r, w, *res, tokens, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		return res, nil
+	}
+
+	// If access token verification failed try refreshing the token.
+	if tokens.RefreshToken == "" {
+		return nil, errors.New("Cannot refresh session")
+	}
+
+	refreshedTokens, err := rp.RefreshTokens[*oidc.IDTokenClaims](r.Context(), o.relyingParty, tokens.RefreshToken, "", "")
 	if err != nil {
-		return nil, AuthError{Err: fmt.Errorf("Failed to create new session with refreshed token: %w", err)}
+		return nil, fmt.Errorf("Failed to refresh ID tokens: %w", err)
 	}
 
-	return o.getResultFromClaims(claims, claims.Claims)
+	// Verify the refreshed access token.
+	userInfo, err = o.userInfo(r.Context(), refreshedTokens.AccessToken)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to verify refreshed access token: %w", err)
+	}
+
+	res, err := o.getResultFromClaims(userInfo, userInfo.Claims)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse user info response: %w", err)
+	}
+
+	err = o.startSession(r, w, *res, refreshedTokens, nil)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to start a new session: %w", err)
+	}
+
+	return res, err
 }
 
 // verifySessionToken verifies the given session token. If the token is valid, it returns the session ID and a boolean
