@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/mail"
+	"slices"
 	"strings"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 	"github.com/canonical/lxd/lxd/auth/bearer"
 	"github.com/canonical/lxd/lxd/auth/encryption"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
@@ -148,7 +150,16 @@ func (o *Verifier) userInfo(ctx context.Context, token string) (*oidc.UserInfo, 
 // authenticateBearerToken calls the /userinfo endpoint with the given token to retrieve information about the user. Then
 // starts a new session.
 func (o *Verifier) authenticateBearerToken(r *http.Request, w http.ResponseWriter, accessToken string) (*AuthenticationResult, error) {
-	err := o.ensureConfig(r.Context(), r.Host)
+	agent, err := request.ParseUserAgent(r.UserAgent())
+	if err != nil {
+		return nil, api.StatusErrorf(http.StatusBadRequest, "Failed to parse user agent to determine persistent cookie feature: %w", err)
+	}
+
+	if !slices.Contains(agent.Features, api.ClientFeatureCookieJar) {
+		return nil, api.StatusErrorf(http.StatusBadRequest, "OIDC authentication requires persistent cookie support. Please update your client")
+	}
+
+	err = o.ensureConfig(r.Context(), r.Host)
 	if err != nil {
 		return nil, fmt.Errorf("Could not verify OIDC configuration: %w", err)
 	}
