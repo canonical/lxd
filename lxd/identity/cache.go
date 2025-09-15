@@ -33,9 +33,6 @@ type CacheEntry struct {
 	// Certificate is optional. It is pre-computed for identities with AuthenticationMethod api.AuthenticationMethodTLS.
 	Certificate *x509.Certificate
 
-	// Subject is optional. It is only set when AuthenticationMethod is api.AuthenticationMethodOIDC.
-	Subject string
-
 	// Secret is optional. It is required for identities with AuthenticationMethod set to api.AuthenticationMethodBearer
 	Secret []byte
 }
@@ -183,30 +180,6 @@ func (c *Cache) X509Certificates(identityTypes ...string) map[string]x509.Certif
 	}
 
 	return certificates
-}
-
-// GetByOIDCSubject returns a CacheEntry with the given subject or returns an api.StatusError with http.StatusNotFound.
-func (c *Cache) GetByOIDCSubject(subject string) (*CacheEntry, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	oidcEntries, ok := c.entries[api.AuthenticationMethodOIDC]
-	if !ok {
-		return nil, api.StatusErrorf(http.StatusNotFound, "Identity with OIDC subject %q not found", subject)
-	}
-
-	for _, entry := range oidcEntries {
-		if entry == nil {
-			continue
-		}
-
-		if entry.Subject == subject {
-			entryCopy := *entry
-			return &entryCopy, nil
-		}
-	}
-
-	return nil, api.StatusErrorf(http.StatusNotFound, "Identity with OIDC subject %q not found", subject)
 }
 
 // GetIdentityProviderGroupMapping returns the auth groups that the given identity provider group maps to or an
