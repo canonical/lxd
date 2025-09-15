@@ -1,5 +1,9 @@
 package api
 
+import (
+	"time"
+)
+
 const (
 	// AuthenticationMethodTLS is the default authentication method for interacting with LXD remotely.
 	AuthenticationMethodTLS = "tls"
@@ -366,4 +370,39 @@ type PermissionInfo struct {
 	// Groups is a list of groups that have the Entitlement on the Entity.
 	// Example: ["foo", "bar"]
 	Groups []string `json:"groups" yaml:"groups"`
+}
+
+// OIDCSession contains session details for a current login.
+//
+// swagger:model
+//
+// API extension: auth_oidc_sessions.
+type OIDCSession struct {
+	// UUID is the session UUID.
+	// Example: 01993985-7b5d-7a7e-afeb-23e8f6a15cf4
+	UUID string `json:"uuid" yaml:"uuid"`
+
+	// Email is the email of the user that holds the session.
+	// Example: jane.doe@example.com
+	Email string `json:"email" yaml:"email"`
+
+	// Username is the name of the user that holds the session.
+	// Example: Jane Doe
+	Username string `json:"username" yaml:"username"`
+
+	// IP is the IP address of the user that holds the session.
+	// Example: 10.21.242.46
+	IP string `json:"ip" yaml:"ip"`
+
+	// UserAgent is the UserAgent of the user that holds the session.
+	// Example: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36
+	UserAgent string `json:"user_agent" yaml:"user_agent"`
+
+	// ExpiresAt is when the session will expire.
+	// Example: 2025-09-11T15:14:04+00:00
+	ExpiresAt time.Time `json:"expires_at" yaml:"expires_at"`
+
+	// CreatedAt is when the session was started.
+	// Example: 2025-09-11T15:14:04+00:00
+	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
 }
