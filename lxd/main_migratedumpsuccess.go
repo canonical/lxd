@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -79,5 +80,5 @@ func (c *cmdMigratedumpsuccess) Run(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	return fmt.Errorf(op.Err)
+	return errors.New(op.Err)
 }

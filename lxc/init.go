@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -127,7 +128,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 
 	if c.flagEmpty {
 		if len(args) > 1 {
-			return nil, "", fmt.Errorf(i18n.G("--empty cannot be combined with an image name"))
+			return nil, "", errors.New(i18n.G("--empty cannot be combined with an image name"))
 		}
 
 		if len(args) == 0 {
@@ -158,7 +159,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 
 	if !c.global.flagQuiet {
 		if name == "" {
-			fmt.Printf(i18n.G("Creating the instance") + "\n")
+			fmt.Print(i18n.G("Creating the instance") + "\n")
 		} else {
 			fmt.Printf(i18n.G("Creating %s")+"\n", name)
 		}
@@ -319,7 +320,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 
 		if conf.Remotes[iremote].Protocol != "simplestreams" {
 			if imgInfo.Type != "virtual-machine" && c.flagVM {
-				return nil, "", fmt.Errorf(i18n.G("Asked for a VM but image is of type container"))
+				return nil, "", errors.New(i18n.G("Asked for a VM but image is of type container"))
 			}
 
 			req.Type = api.InstanceType(imgInfo.Type)
@@ -379,7 +380,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 		// Try using the older "containers" field
 		instances, ok = opInfo.Resources["containers"]
 		if !ok || len(instances) == 0 {
-			return nil, "", fmt.Errorf(i18n.G("Didn't get any affected image, instance or snapshot from server"))
+			return nil, "", errors.New(i18n.G("Didn't get any affected image, instance or snapshot from server"))
 		}
 	}
 
@@ -411,7 +412,7 @@ func (c *cmdInit) checkNetwork(d lxd.InstanceServer, name string) {
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "\n"+i18n.G("The instance you are starting doesn't have any network attached to it.")+"\n")
-	fmt.Fprintf(os.Stderr, "  "+i18n.G("To create a new network, use: lxc network create")+"\n")
-	fmt.Fprintf(os.Stderr, "  "+i18n.G("To attach a network to an instance, use: lxc network attach")+"\n\n")
+	fmt.Fprint(os.Stderr, "\n"+i18n.G("The instance you are starting doesn't have any network attached to it.")+"\n")
+	fmt.Fprint(os.Stderr, "  "+i18n.G("To create a new network, use: lxc network create")+"\n")
+	fmt.Fprint(os.Stderr, "  "+i18n.G("To attach a network to an instance, use: lxc network attach")+"\n\n")
 }

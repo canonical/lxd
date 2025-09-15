@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -121,7 +122,7 @@ func (c *cmdNetworkACLList) Run(cmd *cobra.Command, args []string) error {
 
 	// List the networks.
 	if resource.name != "" {
-		return fmt.Errorf(i18n.G("Filtering isn't supported yet"))
+		return errors.New(i18n.G("Filtering isn't supported yet"))
 	}
 
 	acls, err := resource.server.GetNetworkACLs()
@@ -184,7 +185,7 @@ func (c *cmdNetworkACLShow) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network ACL name"))
+		return errors.New(i18n.G("Missing network ACL name"))
 	}
 
 	// Show the network ACL config.
@@ -236,7 +237,7 @@ func (c *cmdNetworkACLShowLog) Run(cmd *cobra.Command, args []string) error {
 
 	resource := resources[0]
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network ACL name"))
+		return errors.New(i18n.G("Missing network ACL name"))
 	}
 
 	// Get the ACL log.
@@ -287,7 +288,7 @@ func (c *cmdNetworkACLGet) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network ACL name"))
+		return errors.New(i18n.G("Missing network ACL name"))
 	}
 
 	resp, _, err := resource.server.GetNetworkACL(resource.name)
@@ -347,7 +348,7 @@ func (c *cmdNetworkACLCreate) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network ACL name"))
+		return errors.New(i18n.G("Missing network ACL name"))
 	}
 
 	// If stdin isn't a terminal, read yaml from it.
@@ -437,7 +438,7 @@ func (c *cmdNetworkACLSet) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network ACL name"))
+		return errors.New(i18n.G("Missing network ACL name"))
 	}
 
 	// Get the network ACL.
@@ -569,7 +570,7 @@ func (c *cmdNetworkACLEdit) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network ACL name"))
+		return errors.New(i18n.G("Missing network ACL name"))
 	}
 
 	// If stdin isn't a terminal, read text from it
@@ -672,7 +673,7 @@ func (c *cmdNetworkACLRename) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network ACL name"))
+		return errors.New(i18n.G("Missing network ACL name"))
 	}
 
 	// Rename the network.
@@ -721,7 +722,7 @@ func (c *cmdNetworkACLDelete) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network ACL name"))
+		return errors.New(i18n.G("Missing network ACL name"))
 	}
 
 	// Delete the network ACL.
@@ -841,7 +842,7 @@ func (c *cmdNetworkACLRule) RunAdd(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network ACL name"))
+		return errors.New(i18n.G("Missing network ACL name"))
 	}
 
 	// Get config keys from arguments.
@@ -874,7 +875,7 @@ func (c *cmdNetworkACLRule) RunAdd(cmd *cobra.Command, args []string) error {
 	} else if args[1] == "egress" {
 		netACL.Egress = append(netACL.Egress, *rule)
 	} else {
-		return fmt.Errorf(i18n.G("The direction argument must be one of: ingress, egress"))
+		return errors.New(i18n.G("The direction argument must be one of: ingress, egress"))
 	}
 
 	return resource.server.UpdateNetworkACL(resource.name, netACL.Writable(), etag)
@@ -908,7 +909,7 @@ func (c *cmdNetworkACLRule) RunRemove(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing network ACL name"))
+		return errors.New(i18n.G("Missing network ACL name"))
 	}
 
 	// Get config filters from arguments.
@@ -963,7 +964,7 @@ func (c *cmdNetworkACLRule) RunRemove(cmd *cobra.Command, args []string) error {
 		for _, r := range rules {
 			if isFilterMatch(&r, filters) {
 				if removed && !c.flagRemoveForce {
-					return nil, fmt.Errorf(i18n.G("Multiple rules match. Use --force to remove them all"))
+					return nil, errors.New(i18n.G("Multiple rules match. Use --force to remove them all"))
 				}
 
 				removed = true
@@ -974,7 +975,7 @@ func (c *cmdNetworkACLRule) RunRemove(cmd *cobra.Command, args []string) error {
 		}
 
 		if !removed {
-			return nil, fmt.Errorf(i18n.G("No matching rule(s) found"))
+			return nil, errors.New(i18n.G("No matching rule(s) found"))
 		}
 
 		return newRules, nil
@@ -996,7 +997,7 @@ func (c *cmdNetworkACLRule) RunRemove(cmd *cobra.Command, args []string) error {
 
 		netACL.Egress = rules
 	} else {
-		return fmt.Errorf(i18n.G("The direction argument must be one of: ingress, egress"))
+		return errors.New(i18n.G("The direction argument must be one of: ingress, egress"))
 	}
 
 	return resource.server.UpdateNetworkACL(resource.name, netACL.Writable(), etag)

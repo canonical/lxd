@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"os/user"
@@ -280,7 +281,7 @@ For help with any of those, simply call them with --help.`))
 	if err != nil {
 		// Handle non-Linux systems
 		if err == config.ErrNotLinux {
-			fmt.Fprintf(os.Stderr, i18n.G(`This client hasn't been configured to use a remote LXD server yet.
+			fmt.Fprint(os.Stderr, i18n.G(`This client hasn't been configured to use a remote LXD server yet.
 As your platform can't run native Linux instances, you must connect to a remote LXD server.
 
 If you already added a remote server, make it the default with "lxc remote switch NAME".
@@ -385,18 +386,18 @@ func (c *cmdGlobal) PreRun(cmd *cobra.Command, args []string) error {
 
 		flush := false
 		if runInit {
-			fmt.Fprintf(os.Stderr, i18n.G("If this is your first time running LXD on this machine, you should also run: lxd init")+"\n")
+			fmt.Fprint(os.Stderr, i18n.G("If this is your first time running LXD on this machine, you should also run: lxd init")+"\n")
 			flush = true
 		}
 
 		if !shared.StringInSlice(cmd.Name(), []string{"init", "launch"}) {
-			fmt.Fprintf(os.Stderr, i18n.G(`To start your first container, try: lxc launch ubuntu:22.04
+			fmt.Fprint(os.Stderr, i18n.G(`To start your first container, try: lxc launch ubuntu:22.04
 Or for a virtual machine: lxc launch ubuntu:22.04 --vm`)+"\n")
 			flush = true
 		}
 
 		if flush {
-			fmt.Fprintf(os.Stderr, "\n")
+			fmt.Fprint(os.Stderr, "\n")
 		}
 
 		// And save the initial configuration
@@ -486,7 +487,7 @@ func (c *cmdGlobal) CheckArgs(cmd *cobra.Command, args []string, minArgs int, ma
 			return true, nil
 		}
 
-		return true, fmt.Errorf(i18n.G("Invalid number of arguments"))
+		return true, errors.New(i18n.G("Invalid number of arguments"))
 	}
 
 	return false, nil

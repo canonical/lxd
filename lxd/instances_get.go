@@ -236,7 +236,7 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	logger.Debugf("DBERR: containersGet, db is locked")
-	logger.Debugf(logger.GetStack())
+	logger.Debug(logger.GetStack())
 	return response.InternalError(fmt.Errorf("DB is locked"))
 }
 
