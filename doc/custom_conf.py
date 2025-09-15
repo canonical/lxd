@@ -186,6 +186,7 @@ linkcheck_ignore = [
     'https://www.schlachter.tech/solutions/pongo2-template-engine/',
     # Cloudflare protection on SourceForge domains might block linkcheck
     r"https://.*\.sourceforge\.net/.*",
+    'https://www.hpe.com/emea_europe/en/hpe-alletra.html'
 ]
 
 # Pages on which to ignore anchors
