@@ -27,6 +27,14 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
+// SessionHandler is used where session handling must call the database. Methods should only be called after a client
+// session cookie or bearer token has been verified.
+type SessionHandler interface {
+	StartSession(r *http.Request, res AuthenticationResult, tokens *oidc.Tokens[*oidc.IDTokenClaims], expiryOverride *time.Time) (sessionID *uuid.UUID, expiry *time.Time, err error)
+	GetIdentityBySessionID(ctx context.Context, sessionID uuid.UUID) (res *AuthenticationResult, tokens *oidc.Tokens[*oidc.IDTokenClaims], sessionExpiry *time.Time, err error)
+	DeleteSession(ctx context.Context, sessionID uuid.UUID) error
+}
+
 const (
 	// cookieNameLoginID is used to identify a single login flow.
 	cookieNameLoginID = "login_id"
