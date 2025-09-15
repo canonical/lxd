@@ -157,7 +157,7 @@ dqlite:
 	cd "$(DQLITE_PATH)" && \
 		autoreconf -i && \
 		./configure --enable-build-raft && \
-		make
+		make -j
 
 .PHONY: liblxc
 liblxc:
