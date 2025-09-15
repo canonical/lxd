@@ -462,15 +462,32 @@ func (o *Verifier) Login(w http.ResponseWriter, r *http.Request) {
 	handler(w, r)
 }
 
-// Logout deletes the ID and refresh token cookies and redirects the user to the login page.
+// Logout always deletes the session cookie. If the caller is logged in with a valid session cookie, then that session
+// deleted from the database.
 func (o *Verifier) Logout(w http.ResponseWriter, r *http.Request) {
-	err := o.setCookies(w, nil, uuid.UUID{}, "", "", true)
+	defer func() {
+		// Always delete session cookie and redirect to the login page.
+		o.deleteSessionCookie(w)
+		http.Redirect(w, r, "/ui/login/", http.StatusFound)
+	}()
+
+	sessionCookie, err := r.Cookie(cookieNameSession)
 	if err != nil {
-		_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to delete login information: %w", err).Error()).Render(w, r)
+		// Not logged in.
 		return
 	}
 
-	http.Redirect(w, r, "/ui/login/", http.StatusFound)
+	sessionID, _, err := o.verifySessionToken(r.Context(), sessionCookie.Value)
+	if err != nil {
+		// Not logged in.
+		return
+	}
+
+	// Delete the current session
+	err = o.sessionHandler.DeleteSession(r.Context(), *sessionID)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		logger.Warn("Unable to delete session after OIDC logout", logger.Ctx{"session_uuid": sessionID.String(), "err": err})
+	}
 }
 
 // Callback is a http.HandlerFunc which implements the code exchange required on the /oidc/callback endpoint.
