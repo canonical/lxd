@@ -1280,3 +1280,38 @@ func getSharedVolumes(s *state.State, inst Instance, volumes map[volKey]*db.Stor
 
 	return shared, nil
 }
+
+// getProjectVolumes gets all custom volumes in the instance's effective
+// project, excluding ISO volumes. Returns a lookup map of storage volumes
+// keyed by [volKey].
+func getProjectVolumes(s *state.State, inst Instance) (volumes map[volKey]*db.StorageVolume, err error) {
+	instProject := inst.Project()
+	effectiveProject := project.StorageVolumeProjectFromRecord(&instProject, cluster.StoragePoolVolumeTypeCustom)
+	volumes = make(map[volKey]*db.StorageVolume)
+
+	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// List all custom volumes in the effective project.
+		volType := cluster.StoragePoolVolumeTypeCustom
+		filter := db.StorageVolumeFilter{Type: &volType, Project: &effectiveProject}
+		vols, err := tx.GetStorageVolumes(ctx, true, filter)
+		if err != nil {
+			return err
+		}
+
+		for _, v := range vols {
+			// Skip volumes with content type ISO.
+			if v.ContentType == cluster.StoragePoolVolumeContentTypeNameISO {
+				continue
+			}
+
+			volumes[volKey{pool: v.Pool, name: v.Name}] = v
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return volumes, nil
+}
