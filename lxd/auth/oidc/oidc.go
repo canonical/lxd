@@ -455,7 +455,7 @@ func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
 
 		// For the auth code flow, ignore the boolean which tells us to start a new session. We only care that
 		// we are able to decrypt cookies when the flow is complete. These cookies don't need to persist.
-		secureCookie, _, err := o.secureCookieFromSession(r.Context(), loginUUID)
+		secureCookie, err := o.secureCookieFromV7UUID(r.Context(), loginUUID)
 		if err != nil {
 			return nil, err
 		}
@@ -494,7 +494,7 @@ func (o *Verifier) startSession(ctx context.Context, w http.ResponseWriter, idTo
 		return err
 	}
 
-	secureCookie, _, err := o.secureCookieFromSession(ctx, sessionID)
+	secureCookie, err := o.secureCookieFromV7UUID(ctx, sessionID)
 	if err != nil {
 		return err
 	}
@@ -540,65 +540,40 @@ func (o *Verifier) getSecretFromUsedAtTime(ctx context.Context, usedAtTimeUnixSe
 	return secret, needsRefresh, nil
 }
 
-// secureCookieFromSession returns a *securecookie.SecureCookie that is secure, unique to each client, and possible to
+// secureCookieFromV7UUID returns a *securecookie.SecureCookie that is secure, unique to each client, and possible to
 // decrypt on all cluster members. To do this we use the cluster secret as an input seed to HMAC and use the given
-// sessionID [uuid.UUID] as a salt. The session ID can then be stored as a plaintext cookie so that we can regenerate
-// the keys upon the next request.
-//
-// A boolean value is returned that indicates if a new session should be started. This is calculated by comparing the
-// session start time (extracted from the v7 UUID) against the most recent core auth secret. If the session was started
-// before the most recent secret was created, then the cookies are encrypted with keys derived from an out of date
-// secret. We need to start a new session so that the user is not logged out when that secret is eventually deleted.
-//
-// Warning: Changes to this function might cause all existing OIDC users to be logged out of LXD (but not logged out of
-// the IdP).
-func (o *Verifier) secureCookieFromSession(ctx context.Context, sessionID uuid.UUID) (*securecookie.SecureCookie, bool, error) {
+// [uuid.UUID] as a salt. The UUID must be stored as a plaintext cookie so that we can regenerate the keys upon the
+// next request. The UUID must be a v7 UUID so that we are able to determine the cluster secret that was used as a seed
+// when decrypting.
+func (o *Verifier) secureCookieFromV7UUID(ctx context.Context, sessionID uuid.UUID) (*securecookie.SecureCookie, error) {
 	// Get the sessionID as a binary so that we can use it as a salt.
 	salt, err := sessionID.MarshalBinary()
 	if err != nil {
-		return nil, false, fmt.Errorf("Failed to marshal session ID as binary: %w", err)
+		return nil, fmt.Errorf("Failed to marshal session ID as binary: %w", err)
 	}
 
 	// Get the secret used when the session was created
 	sessionStartedAtSeconds, _ := sessionID.Time().UnixTime()
-	secrets, err := o.secretsFunc(ctx)
+	secret, _, err := o.getSecretFromUsedAtTime(ctx, sessionStartedAtSeconds)
 	if err != nil {
-		return nil, false, err
-	}
-
-	var secret cluster.AuthSecret
-	var startNewSession bool
-	for i := range secrets {
-		// If the secret was created after the session started, skip.
-		if secrets[i].CreationDate.Unix() > sessionStartedAtSeconds {
-			continue
-		}
-
-		// Take the first secret that was created before the session started.
-		secret = secrets[i]
-		if i > 0 {
-			// If this isn't the most recent secret, indicate that a new session should be started.
-			startNewSession = true
-		}
-
-		break
+		return nil, err
 	}
 
 	// Derive a hash key. The hash key is used to verify the integrity of decrypted values using HMAC.
 	// Use a key length of 64. This instructs the securecookie library to use HMAC-SHA512.
 	cookieHashKey, err := encryption.CookieHashKey(secret.Value, salt)
 	if err != nil {
-		return nil, false, fmt.Errorf("Failed creating secure cookie hash key: %w", err)
+		return nil, fmt.Errorf("Failed creating secure cookie hash key: %w", err)
 	}
 
 	// Derive a block key. The block key is used to perform AES encryption on the cookie contents.
 	// Use a key length of 32. This instructs the securecookie library to use AES-256.
 	cookieBlockKey, err := encryption.CookieBlockKey(secret.Value, salt)
 	if err != nil {
-		return nil, false, fmt.Errorf("Failed creating secure cookie block key: %w", err)
+		return nil, fmt.Errorf("Failed creating secure cookie block key: %w", err)
 	}
 
-	return securecookie.New(cookieHashKey, cookieBlockKey), startNewSession, nil
+	return securecookie.New(cookieHashKey, cookieBlockKey), nil
 }
 
 // NewVerifier returns a Verifier.
