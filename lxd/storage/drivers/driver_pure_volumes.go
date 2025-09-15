@@ -841,6 +841,16 @@ func (d *pure) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, o
 			if err != nil {
 				return err
 			}
+
+			err = block.RefreshDiskDeviceSize(d.state.ShutdownCtx, devPath)
+			if err != nil {
+				return fmt.Errorf("Failed refreshing volume %q size: %w", vol.name, err)
+			}
+
+			err = block.WaitDiskDeviceResize(d.state.ShutdownCtx, devPath, sizeBytes)
+			if err != nil {
+				return err
+			}
 		} else {
 			// Grow block device first.
 			err = d.client().resizeVolume(vol.pool, volName, sizeBytes, truncate)
@@ -854,6 +864,11 @@ func (d *pure) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, o
 			}
 
 			defer cleanup()
+
+			err = block.RefreshDiskDeviceSize(d.state.ShutdownCtx, devPath)
+			if err != nil {
+				return fmt.Errorf("Failed refreshing volume %q size: %w", vol.name, err)
+			}
 
 			// Ensure the block device is resized before growing the filesystem.
 			// This should succeed immediately, but if volume was already mapped,
@@ -891,25 +906,30 @@ func (d *pure) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, o
 			return err
 		}
 
+		devPath, cleanup, err := d.getMappedDevPath(vol, true)
+		if err != nil {
+			return err
+		}
+
+		defer cleanup()
+
+		err = block.RefreshDiskDeviceSize(d.state.ShutdownCtx, devPath)
+		if err != nil {
+			return fmt.Errorf("Failed refreshing volume %q size: %w", vol.name, err)
+		}
+
+		// Wait for the block device to be resized before moving GPT alt header.
+		// This ensures that the GPT alt header is not moved before the actual
+		// size is reflected on a local host. Otherwise, the GPT alt header
+		// would be moved to the same location.
+		err = block.WaitDiskDeviceResize(d.state.ShutdownCtx, devPath, sizeBytes)
+		if err != nil {
+			return err
+		}
+
 		// Move the VM GPT alt header to end of disk if needed (not needed in unsafe resize mode as it is
 		// expected the caller will do all necessary post resize actions themselves).
 		if vol.IsVMBlock() && !allowUnsafeResize {
-			devPath, cleanup, err := d.getMappedDevPath(vol, true)
-			if err != nil {
-				return err
-			}
-
-			defer cleanup()
-
-			// Wait for the block device to be resized before moving GPT alt header.
-			// This ensures that the GPT alt header is not moved before the actual
-			// size is reflected on a local host. Otherwise, the GPT alt header
-			// would be moved to the same location.
-			err = block.WaitDiskDeviceResize(d.state.ShutdownCtx, devPath, sizeBytes)
-			if err != nil {
-				return err
-			}
-
 			err = d.moveGPTAltHeader(devPath)
 			if err != nil {
 				return err
