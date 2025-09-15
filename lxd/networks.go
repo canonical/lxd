@@ -1792,7 +1792,7 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 		err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 			projectNames, err := dbCluster.GetProjectNames(ctx, tx.Tx())
 			if err != nil {
-				return fmt.Errorf("Failed to load projects: %w", err)
+				return fmt.Errorf("Failed loading projects: %w", err)
 			}
 
 			for _, projectName := range projectNames {
@@ -1982,7 +1982,7 @@ func networkRestartOVN(s *state.State) error {
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to load projects: %w", err)
+		return fmt.Errorf("Failed loading projects: %w", err)
 	}
 
 	// Go over all the networks in every project.
