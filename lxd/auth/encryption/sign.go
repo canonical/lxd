@@ -22,6 +22,12 @@ func Issuer(clusterUUID string) string {
 	return strings.Join([]string{"lxd", clusterUUID}, ":")
 }
 
+// LXDAudience is the expected audience for the main API tokens (including OIDC session tokens).
+// This is the same as the [Issuer].
+func LXDAudience(clusterUUID string) string {
+	return Issuer(clusterUUID)
+}
+
 // GetDevLXDBearerToken generates and signs a token for use with the DevLXD API. For claims it has:
 // - Subject (sub): Identity identifier (UUID)
 // - Issuer (iss): "lxd:{cluster_uuid}"
