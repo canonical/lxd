@@ -382,7 +382,19 @@ func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	handler := rp.CodeExchangeHandler(func(w http.ResponseWriter, r *http.Request, tokens *oidc.Tokens[*oidc.IDTokenClaims], state string, rp rp.RelyingParty) {
-		err := o.startSession(r.Context(), w, tokens.IDToken, tokens.RefreshToken)
+		userInfo, err := o.userInfo(r.Context(), tokens.AccessToken)
+		if err != nil {
+			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to start a new session: %w", err).Error()).Render(w, r)
+			return
+		}
+
+		res, err := o.getResultFromClaims(userInfo, userInfo.Claims)
+		if err != nil {
+			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to start a new session: %w", err).Error()).Render(w, r)
+			return
+		}
+
+		err = o.startSession(r, w, *res, tokens, nil)
 		if err != nil {
 			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to start a new session: %w", err).Error()).Render(w, r)
 			return
