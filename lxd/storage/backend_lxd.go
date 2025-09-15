@@ -7463,7 +7463,7 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 			// This will return no record for any temporary pool structs being used (as ID is -1).
 			volume, err := VolumeDBGet(b, projectName, fullSnapshotName, volType)
 			if err != nil && !response.IsNotFoundError(err) {
-				return err
+				return fmt.Errorf("Failed to check if instance %q snapshot %q volume in project %q exists on pool %q: %w", instName, snapshot.Name, projectName, b.Name(), err)
 			} else if volume != nil {
 				return fmt.Errorf("Instance %q snapshot %q in project %q already has storage DB record", instName, snapshot.Name, projectName)
 			}
