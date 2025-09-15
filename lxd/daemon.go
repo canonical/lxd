@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/x509"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -28,7 +27,6 @@ import (
 	liblxc "github.com/lxc/go-lxc"
 	"golang.org/x/sys/unix"
 
-	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/acme"
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/auth"
@@ -55,7 +53,6 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
-	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/loki"
 	"github.com/canonical/lxd/lxd/maas"
 	"github.com/canonical/lxd/lxd/metrics"
@@ -552,7 +549,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.
 			return nil, fmt.Errorf("Failed OIDC Authentication: %w", err)
 		}
 
-		err = d.handleOIDCAuthenticationResult(r, result)
+		err = d.handleOIDCAuthenticationResult(result)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to process OIDC authentication result: %w", err)
 		}
@@ -641,84 +638,25 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.
 	return &request.RequestorArgs{Trusted: false}, nil
 }
 
-// handleOIDCAuthenticationResult checks the identity cache for the OIDC identity by their email address. If no identity
-// is found, an identity is added with that email. If an identity is found but the OIDC subject is different to the
-// expected value, the identity is updated with the new subject.
-func (d *Daemon) handleOIDCAuthenticationResult(r *http.Request, result *oidc.AuthenticationResult) error {
-	var action lifecycle.IdentityAction
-
-	id, err := d.identityCache.Get(api.AuthenticationMethodOIDC, result.Email)
-	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
-		return fmt.Errorf("Failed getting OIDC identity from cache: %w", err)
-	} else if err != nil {
-		// Identity not found. Add it to the database and refresh the identity cache.
-		idMetadata := dbCluster.OIDCMetadata{Subject: result.Subject}
-		b, err := json.Marshal(idMetadata)
-		if err != nil {
-			return fmt.Errorf("Failed to marshal OIDC identity metadata: %w", err)
-		}
-
-		err = d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-			_, err := dbCluster.CreateIdentity(ctx, tx.Tx(), dbCluster.Identity{
-				AuthMethod: api.AuthenticationMethodOIDC,
-				Type:       api.IdentityTypeOIDCClient,
-				Identifier: result.Email,
-				Name:       result.Name,
-				Metadata:   string(b),
-			})
-			return err
-		})
-		if err != nil {
-			return fmt.Errorf("Failed to add new OIDC identity to database: %w", err)
-		}
-
-		action = lifecycle.IdentityCreated
-	} else if id.Subject != result.Subject || id.Name != result.Name {
-		// The OIDC subject of the user with this email address has changed (this should be rare). Replace the
-		// subject in the identity metadata and refresh the cache.
-		idMetadata := dbCluster.OIDCMetadata{Subject: result.Subject}
-		b, err := json.Marshal(idMetadata)
-		if err != nil {
-			return fmt.Errorf("Failed to marshal OIDC identity metadata: %w", err)
-		}
-
-		err = d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-			return dbCluster.UpdateIdentity(ctx, tx.Tx(), api.AuthenticationMethodOIDC, result.Email, dbCluster.Identity{
-				AuthMethod: api.AuthenticationMethodOIDC,
-				Type:       api.IdentityTypeOIDCClient,
-				Identifier: result.Email,
-				Name:       result.Name,
-				Metadata:   string(b),
-			})
-		})
-		if err != nil {
-			return fmt.Errorf("Failed to update OIDC identity information: %w", err)
-		}
-
-		action = lifecycle.IdentityUpdated
+// handleOIDCAuthenticationResult checks the identity cache for the OIDC identity by their email address.
+// If no identity is found, the cache is refreshed.
+// This is for new OIDC logins and is currently required for authorization to work because group membership is saved to the cache.
+// The [oidc.Verifier] has already handled adding the identity to the database via the [oidc.SessionHandler].
+//
+// Note that in this case we do not need to notify other cluster members about the new identity.
+// This is because the cache is not required for authentication.
+// If this identity makes a request to another cluster member, that cluster member will call this same function to refresh
+// their cache if the identity is missing.
+func (d *Daemon) handleOIDCAuthenticationResult(result *oidc.AuthenticationResult) error {
+	s := d.State()
+	_, err := s.IdentityCache.Get(api.AuthenticationMethodOIDC, result.Email)
+	if err == nil {
+		return nil
+	} else if !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return err
 	}
 
-	if action != "" {
-		// Notify other nodes about the new identity.
-		s := d.State()
-		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
-		if err != nil {
-			return fmt.Errorf("Failed to notify cluster members of new or updated OIDC identity: %w", err)
-		}
-
-		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-			_, _, err := client.RawQuery(http.MethodPost, "/internal/identity-cache-refresh", nil, "")
-			return err
-		})
-		if err != nil {
-			return fmt.Errorf("Failed to notify cluster members of new or updated OIDC identity: %w", err)
-		}
-
-		lc := action.Event(api.AuthenticationMethodOIDC, result.Email, request.CreateRequestor(r.Context()), nil)
-		s.Events.SendLifecycle("", lc)
-
-		s.UpdateIdentityCache()
-	}
+	s.UpdateIdentityCache()
 
 	return nil
 }
