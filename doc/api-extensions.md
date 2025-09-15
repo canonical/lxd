@@ -2737,3 +2737,12 @@ Adds the field `used_by` to potential storage disk returned by the resources end
 
 This introduces support for the {config:option}`network-ovn-network-conf:ipv4.dhcp.ranges` configuration key for `ovn` networks. This key allows specifying a list of IPv4 ranges
 reserved for dynamic allocation using DHCP.
+
+Adds the field `used_by` to potential storage disk returned by the resources end point to indicate its use by any virtual parent device, e.g. bcache.
+
+## `auth_oidc_sessions`
+
+Adds session support for OIDC authentication. This enables compatibility with identity providers that issue opaque access tokens.
+
+When a session expires, LXD will re-verify the login with the identity provider.
+The duration of OIDC sessions defaults to one week and can be configured via the {config:option}`server-oidc:oidc.session.expiry` configuration key.
