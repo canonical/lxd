@@ -548,6 +548,18 @@ func (o *Verifier) startSession(r *http.Request, w http.ResponseWriter, res Auth
 	return nil
 }
 
+// deleteSessionCookie deletes the session cookie.
+func (o *Verifier) deleteSessionCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     cookieNameSession,
+		Path:     "/",
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+		Expires:  time.Unix(0, 0),
+	})
+}
+
 // getSecretFromUsedAtTime returns the secret that should have been used to encrypt a cookie or sign a token at the
 // given unix time in seconds. A "needsRefresh" boolean is returned to indicate if the returned secret is not the most
 // recent, this prompts the Verifier to refresh the session token, so that it doesn't become unverifiable.
