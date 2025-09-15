@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -285,6 +286,17 @@ func (i Identity) X509() (*x509.Certificate, error) {
 type OIDCMetadata struct {
 	Subject                string   `json:"subject"`
 	IdentityProviderGroups []string `json:"identity_provider_groups"`
+}
+
+// Equals returns true if the given [OIDCMetadata] is equal to the receiver.
+func (o OIDCMetadata) Equals(m OIDCMetadata) bool {
+	if o.Subject != m.Subject {
+		return false
+	}
+
+	slices.Sort(o.IdentityProviderGroups)
+	slices.Sort(m.IdentityProviderGroups)
+	return slices.Equal(o.IdentityProviderGroups, m.IdentityProviderGroups)
 }
 
 // OIDCMetadata returns the identity metadata as [OIDCMetadata]. The [AuthMethod] of the [Identity] must be [api.AuthenticationMethodOIDC].
