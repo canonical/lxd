@@ -2793,3 +2793,10 @@ This adds new option `tar` for parameter `--type` in `POST /1.0/storage-pools/{p
 ## `projects_force_delete`
 
 Adds support for force deleting projects and their entities (instances, profiles, images, networks, network ACLs, network zones, storage volumes, and storage buckets) by setting the `force` query parameter on `DELETE /1.0/projects/{name}` requests.
+
+## `auth_oidc_sessions`
+
+Adds session support for OIDC authentication. This enables compatibility with identity providers that issue opaque access tokens.
+
+When a session expires, LXD will re-verify the login with the identity provider.
+The duration of OIDC sessions defaults to one week and can be configured via the {config:option}`server-oidc:oidc.session.expiry` configuration key.
