@@ -2,11 +2,13 @@ package bearer
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 
 	"github.com/canonical/lxd/lxd/auth/encryption"
 	"github.com/canonical/lxd/lxd/identity"
@@ -116,4 +118,50 @@ func Authenticate(token string, subject string, identityCache *identity.Cache) (
 		Protocol: api.AuthenticationMethodBearer,
 		Username: entry.Identifier,
 	}, nil
+}
+
+// IsSessionToken returns the session UUID and the issued at claim, or an error if it is not a LXD token.
+// This returns an error because we get the token from a cookie that we set, so we always expect it to be a LXD token.
+func IsSessionToken(token string, clusterUUID string) (*uuid.UUID, *time.Time, error) {
+	sub, issuedAt, err := isLXDToken(token, clusterUUID, encryption.LXDAudience(clusterUUID))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	sessionID, err := uuid.Parse(sub)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &sessionID, issuedAt, nil
+}
+
+// VerifySessionToken returns an error if the given token is not valid.
+func VerifySessionToken(token string, clusterSecret []byte, sessionID uuid.UUID) error {
+	// Always use UTC time.
+	timeFunc := func() time.Time {
+		return time.Now().UTC()
+	}
+
+	// Get a parser. We don't need to verify the issuer or audience because we already validated that in `IsRequest`.
+	// We do not use a leeway. This is so the expiry is exact. This might cause issues if there is time skew between
+	// cluster members.
+	parser := jwt.NewParser(
+		jwt.WithIssuedAt(),           // Verify time now is not before the token was issued. The not before is automatically verified.
+		jwt.WithExpirationRequired(), // Verify token has not expired.
+		jwt.WithTimeFunc(timeFunc),   // Ensure the UTC time is used for comparison.
+	)
+
+	// Use the identity secret as the signing key.
+	keyFunc := func(_ *jwt.Token) (any, error) {
+		return encryption.TokenSigningKey(clusterSecret, sessionID[:])
+	}
+
+	// Verify the token.
+	_, err := parser.Parse(token, keyFunc)
+	if err != nil {
+		return fmt.Errorf("Failed to verify session token: %w", err)
+	}
+
+	return nil
 }
