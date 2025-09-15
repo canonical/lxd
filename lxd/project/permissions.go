@@ -1566,7 +1566,7 @@ func CheckTargetMember(p *api.Project, targetMemberName string, allMembers []db.
 			// If restricted groups are specified then check member is in at least one of them.
 			err := AllowClusterMember(p, &potentialMember)
 			if err != nil {
-				return nil, api.StatusErrorf(http.StatusForbidden, err.Error())
+				return nil, api.NewStatusError(http.StatusForbidden, err.Error())
 			}
 
 			return &potentialMember, nil
@@ -1581,7 +1581,7 @@ func CheckTargetGroup(ctx context.Context, tx *db.ClusterTx, p *api.Project, gro
 	// If restricted groups are specified then check the requested group is in the list.
 	err := AllowClusterGroup(p, groupName)
 	if err != nil {
-		return api.StatusErrorf(http.StatusForbidden, err.Error())
+		return api.NewStatusError(http.StatusForbidden, err.Error())
 	}
 
 	// Check if the target group exists.
