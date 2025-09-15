@@ -6,12 +6,12 @@ import (
 	"time"
 )
 
-func getBatchSize(parallel int) (int, error) {
+func getBatchSize(parallel int) int {
 	if parallel > 0 {
-		return parallel, nil
+		return parallel
 	}
 
-	return runtime.NumCPU(), nil
+	return runtime.NumCPU()
 }
 
 func processBatch(count int, batchSize int, process func(index int, wg *sync.WaitGroup)) time.Duration {
