@@ -798,7 +798,7 @@ func (*openfgaStore) ReadPage(ctx context.Context, store string, tk *openfgav1.T
 }
 
 // Write is not implemented, we should never be performing writes because we are reading directly from the cluster DB.
-func (*openfgaStore) Write(ctx context.Context, store string, d storage.Deletes, w storage.Writes) error {
+func (*openfgaStore) Write(ctx context.Context, store string, d storage.Deletes, w storage.Writes, opts ...storage.TupleWriteOption) error {
 	return api.NewGenericStatusError(http.StatusNotImplemented)
 }
 
