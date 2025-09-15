@@ -661,7 +661,7 @@ func (n *common) notifyDependentNetworks(changedKeys []string) {
 		return err
 	})
 	if err != nil {
-		n.logger.Error("Failed to load projects", logger.Ctx{"err": err})
+		n.logger.Error("Failed loading projects", logger.Ctx{"err": err})
 		return
 	}
 
