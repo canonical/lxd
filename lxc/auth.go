@@ -49,6 +49,9 @@ func (c *cmdAuth) command() *cobra.Command {
 	identityProviderGroupCmd := cmdIdentityProviderGroup{global: c.global}
 	cmd.AddCommand(identityProviderGroupCmd.command())
 
+	oidcSessionCmd := cmdOIDCSession{global: c.global}
+	cmd.AddCommand(oidcSessionCmd.command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
@@ -2415,4 +2418,203 @@ func (c *cmdIdentityProviderGroupGroupRemove) run(cmd *cobra.Command, args []str
 
 	idpGroup.Groups = groups
 	return resource.server.UpdateIdentityProviderGroup(resource.name, idpGroup.Writable(), eTag)
+}
+
+type cmdOIDCSession struct {
+	global *cmdGlobal
+}
+
+func (c *cmdOIDCSession) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("oidc-session")
+	cmd.Short = i18n.G("Manage OIDC sessions")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Manage OIDC sessions`))
+
+	sessionDeleteCmd := cmdOIDCSessionDelete{global: c.global}
+	cmd.AddCommand(sessionDeleteCmd.command())
+
+	sessionShowCmd := cmdOIDCSessionShow{global: c.global}
+	cmd.AddCommand(sessionShowCmd.command())
+
+	sessionListCmd := cmdOIDCSessionList{global: c.global}
+	cmd.AddCommand(sessionListCmd.command())
+
+	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
+	cmd.Args = cobra.NoArgs
+	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
+	return cmd
+}
+
+type cmdOIDCSessionShow struct {
+	global *cmdGlobal
+}
+
+func (c *cmdOIDCSessionShow) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("show", i18n.G("[<remote>:]<session ID>"))
+	cmd.Short = i18n.G("Show OIDC session")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Show an OIDC session`))
+
+	cmd.RunE = c.run
+
+	return cmd
+}
+
+func (c *cmdOIDCSessionShow) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New(i18n.G("Missing session ID"))
+	}
+
+	// Show the session
+	session, err := resource.server.GetOIDCSession(resource.name)
+	if err != nil {
+		return err
+	}
+
+	data, err := yaml.Marshal(&session)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s", data)
+
+	return nil
+}
+
+type cmdOIDCSessionList struct {
+	global     *cmdGlobal
+	flagFormat string
+}
+
+func (c *cmdOIDCSessionList) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("list", i18n.G("[<remote>:]"))
+	cmd.Aliases = []string{"ls"}
+	cmd.Short = i18n.G("List OIDC sessions")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`List OIDC sessions`))
+
+	cmd.RunE = c.run
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
+
+	return cmd
+}
+
+func (c *cmdOIDCSessionList) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	remote := ""
+	if len(args) > 0 {
+		remote = args[0]
+	}
+
+	resources, err := c.global.ParseServers(remote)
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	var sessions []api.OIDCSession
+	// List the sessions
+	if resource.name == "" {
+		sessions, err = resource.server.GetOIDCSessions()
+		if err != nil {
+			return err
+		}
+	} else {
+		sessions, err = resource.server.GetOIDCSessionsByEmail(resource.name)
+		if err != nil {
+			return err
+		}
+	}
+
+	data := [][]string{}
+	for _, session := range sessions {
+		data = append(data, []string{session.Email, session.Username, session.UUID, session.IP, session.UserAgent, session.CreatedAt.String(), session.ExpiresAt.String()})
+	}
+
+	sort.Sort(cli.SortColumnsNaturally(data))
+
+	header := []string{
+		i18n.G("EMAIL"),
+		i18n.G("USERNAME"),
+		i18n.G("UUID"),
+		i18n.G("IP ADDRESS"),
+		i18n.G("USER AGENT"),
+		i18n.G("CREATION DATE"),
+		i18n.G("EXPIRY DATE"),
+	}
+
+	return cli.RenderTable(c.flagFormat, header, data, sessions)
+}
+
+type cmdOIDCSessionDelete struct {
+	global *cmdGlobal
+}
+
+func (c *cmdOIDCSessionDelete) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("delete", i18n.G("[<remote>:]<session_id>"))
+	cmd.Aliases = []string{"rm"}
+	cmd.Short = i18n.G("Delete OIDC sessions")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Delete an OIDC session`))
+
+	cmd.RunE = c.run
+
+	return cmd
+}
+
+func (c *cmdOIDCSessionDelete) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New(i18n.G("Missing session ID"))
+	}
+
+	// Delete the session
+	err = resource.server.DeleteOIDCSession(resource.name)
+	if err != nil {
+		return err
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("Deleted OIDC session %q")+"\n", resource.name)
+	}
+
+	return nil
 }
