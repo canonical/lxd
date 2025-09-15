@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 
 	"github.com/canonical/lxd/lxd/auth/encryption"
 	"github.com/canonical/lxd/lxd/identity"
@@ -30,6 +31,25 @@ func IsDevLXDRequest(r *http.Request, clusterUUID string) (isRequest bool, token
 	}
 
 	return true, token, subject
+}
+
+// IsSessionToken returns the session UUID and the issued at claim, or an error if it is not a LXD token.
+// The issued at claim is used to determine the cluster secret used when the signing key was derived.
+// The session ID is used as a salt when deriving the signing key from the cluster secret.
+// LXD sets session tokens as cookies. If this function returns an error, the session cookie should be deleted
+// to force the caller to reauthenticate.
+func IsSessionToken(token string, clusterUUID string) (*uuid.UUID, *time.Time, error) {
+	sub, issuedAt, err := isLXDToken(token, clusterUUID, encryption.LXDAudience(clusterUUID))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	sessionID, err := uuid.Parse(sub)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &sessionID, issuedAt, nil
 }
 
 // isLXDToken checks if the given token looks like it was issued by this LXD cluster and returns an error if it doesn't.
@@ -99,6 +119,14 @@ func Authenticate(token string, subject string, identityCache *identity.Cache) (
 		Protocol: api.AuthenticationMethodBearer,
 		Username: entry.Identifier,
 	}, nil
+}
+
+// VerifySessionToken verifies that a given OIDC session token was signed by a key derived from the given cluster secret
+// using the session ID as a salt.
+func VerifySessionToken(token string, clusterSecret []byte, sessionID uuid.UUID) error {
+	return verifyToken(token, func() ([]byte, error) {
+		return encryption.TokenSigningKey(clusterSecret, sessionID[:])
+	})
 }
 
 // verifyToken verifies that the given token was signed by the key returned by the given key func.
