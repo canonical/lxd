@@ -52,7 +52,7 @@ require (
 	github.com/vishvananda/netlink v1.3.1
 	github.com/zitadel/oidc/v3 v3.44.0
 	go.uber.org/zap v1.27.0
-	go.yaml.in/yaml/v2 v2.4.2
+	go.yaml.in/yaml/v2 v2.4.3
 	golang.org/x/crypto v0.41.0
 	golang.org/x/oauth2 v0.31.0
 	golang.org/x/sync v0.17.0
