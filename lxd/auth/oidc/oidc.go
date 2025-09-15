@@ -415,10 +415,29 @@ func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	handler := rp.CodeExchangeHandler(func(w http.ResponseWriter, r *http.Request, tokens *oidc.Tokens[*oidc.IDTokenClaims], state string, rp rp.RelyingParty) {
-		err := o.startSession(r.Context(), w, tokens.IDToken, tokens.RefreshToken)
+	callback := func(ctx context.Context, tokens *oidc.Tokens[*oidc.IDTokenClaims]) error {
+		userInfo, err := o.userInfo(r.Context(), tokens.AccessToken)
 		if err != nil {
-			_ = response.ErrorResponse(http.StatusInternalServerError, fmt.Errorf("Failed to start a new session: %w", err).Error()).Render(w, r)
+			return fmt.Errorf("Failed to get caller identity: %w", err)
+		}
+
+		res, err := o.getResultFromClaims(userInfo, userInfo.Claims)
+		if err != nil {
+			return fmt.Errorf("Failed to parse user info response: %w", err)
+		}
+
+		err = o.startSession(r, w, *res, tokens, nil)
+		if err != nil {
+			return fmt.Errorf("Failed to start a new session: %w", err)
+		}
+
+		return nil
+	}
+
+	handler := rp.CodeExchangeHandler(func(w http.ResponseWriter, r *http.Request, tokens *oidc.Tokens[*oidc.IDTokenClaims], state string, rp rp.RelyingParty) {
+		err = callback(r.Context(), tokens)
+		if err != nil {
+			_ = response.SmartError(fmt.Errorf("Failed to run OIDC callback: %w", err)).Render(w, r)
 			return
 		}
 
