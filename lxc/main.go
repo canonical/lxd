@@ -22,6 +22,18 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
+var capabilities = []string{
+	"cookiejar",
+}
+
+var userAgent = version.ClientUserAgent{
+	Name:         "lxc",
+	Version:      version.Version,
+	IsLTS:        version.IsLTSVersion,
+	OS:           version.GetOSTokens(),
+	Capabilities: capabilities,
+}
+
 type cmdGlobal struct {
 	asker cli.Asker
 
@@ -467,7 +479,7 @@ Or for a virtual machine: lxc launch ubuntu:24.04 --vm`)
 	}
 
 	// Set the user agent
-	c.conf.UserAgent = version.UserAgent
+	c.conf.UserAgent = userAgent.String()
 
 	// Setup the logger
 	err = logger.InitLogger("", "", c.flagLogVerbose, c.flagLogDebug, nil)
