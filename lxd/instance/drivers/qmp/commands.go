@@ -505,7 +505,7 @@ func (m *Monitor) RemoveBlockDevice(blockDevName string) error {
 		err := m.run("blockdev-del", blockDevName, nil)
 		if err != nil {
 			if strings.Contains(err.Error(), "is in use") {
-				return api.StatusErrorf(http.StatusLocked, err.Error())
+				return api.NewStatusError(http.StatusLocked, err.Error())
 			}
 
 			if strings.Contains(err.Error(), "Failed to find") {
