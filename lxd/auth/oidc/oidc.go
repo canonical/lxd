@@ -504,6 +504,41 @@ func (o *Verifier) startSession(ctx context.Context, w http.ResponseWriter, idTo
 	return nil
 }
 
+// getSecretFromUsedAtTime returns the secret that should have been used to encrypt a cookie or sign a token at the
+// given unix time in seconds. A boolean is returned to indicate if the returned secret is not the most recent, this
+// prompts the Verifier to refresh the session token, so that it doesn't become unverifiable.
+func (o *Verifier) getSecretFromUsedAtTime(ctx context.Context, usedAtTimeUnixSeconds int64) (*cluster.AuthSecret, bool, error) {
+	secrets, err := o.secretsFunc(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+
+	var secret *cluster.AuthSecret
+	var startNewSession bool
+	for i := range secrets {
+		// If this secret was created after the used at, skip.
+		if secrets[i].CreationDate.Unix() > usedAtTimeUnixSeconds {
+			continue
+		}
+
+		// Take the first secret that was created before the used at time.
+		secret = &secrets[i]
+		if i > 0 {
+			// If this isn't the most recent secret, indicate that the newest secret should be used next time.
+			startNewSession = true
+		}
+
+		break
+	}
+
+	// If the found secret was created after the session started, return an error
+	if secret == nil {
+		return nil, false, errors.New("No secrets were in date")
+	}
+
+	return secret, startNewSession, nil
+}
+
 // secureCookieFromSession returns a *securecookie.SecureCookie that is secure, unique to each client, and possible to
 // decrypt on all cluster members. To do this we use the cluster secret as an input seed to HMAC and use the given
 // sessionID [uuid.UUID] as a salt. The session ID can then be stored as a plaintext cookie so that we can regenerate
