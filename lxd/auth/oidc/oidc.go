@@ -489,25 +489,35 @@ func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
 	return nil
 }
 
-// startSession creates a session ID, then derives encryption keys with it. The ID and refresh token are encrypted
-// with the derived key, and then the session ID and encrypted ID and refresh tokens are all saved as cookies.
-func (o *Verifier) startSession(ctx context.Context, w http.ResponseWriter, idToken string, refreshToken string) error {
-	// Use a v7 UUID for the session ID. Encoding the current unix epoch into the ID allows us to determine if an
-	// outdated secret was used for encryption key generation.
-	sessionID, err := uuid.NewV7()
+// startSession starts a new session via the [SessionHandler]. It then issues a token and sets it as a cookie for future
+// authentication.
+func (o *Verifier) startSession(r *http.Request, w http.ResponseWriter, res AuthenticationResult, tokens *oidc.Tokens[*oidc.IDTokenClaims], expiryOverride *time.Time) error {
+	secrets, err := o.secretsFunc(r.Context())
 	if err != nil {
 		return err
 	}
 
-	secureCookie, err := o.secureCookieFromV7UUID(ctx, sessionID)
+	sessionID, expiry, err := o.sessionHandler.StartSession(r, res, tokens, expiryOverride)
 	if err != nil {
 		return err
 	}
 
-	err = o.setCookies(w, secureCookie, sessionID, idToken, refreshToken, false)
+	token, err := encryption.GetOIDCSessionToken(secrets[0].Value, *sessionID, o.clusterUUID, *expiry)
 	if err != nil {
 		return err
 	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     cookieNameSession,
+		Path:     "/",
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+		Value:    token,
+		// This sets the cookie to expire [SessionCookieExpiryBuffer] after the token within the cookie expires.
+		// This allows sessions to be refreshed.
+		Expires: expiry.Add(SessionCookieExpiryBuffer),
+	})
 
 	return nil
 }
