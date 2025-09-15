@@ -21,7 +21,6 @@ import (
 
 	"github.com/canonical/lxd/lxd/auth/encryption"
 	"github.com/canonical/lxd/lxd/db/cluster"
-	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
@@ -51,11 +50,10 @@ const (
 	cookieNameSessionID = "session_id"
 )
 
-// Verifier holds all information needed to verify an access token offline.
+// Verifier holds all information needed to verify and manage OIDC logins and sessions.
 type Verifier struct {
 	accessTokenVerifier *op.AccessTokenVerifier
 	relyingParty        rp.RelyingParty
-	identityCache       *identity.Cache
 
 	clientID       string
 	clientSecret   string
@@ -65,6 +63,8 @@ type Verifier struct {
 	groupsClaim    string
 	secretsFunc    func(ctx context.Context) (cluster.AuthSecrets, error)
 	httpClientFunc func() (*http.Client, error)
+	clusterUUID    string
+	sessionHandler SessionHandler
 
 	// host is used for setting a valid callback URL when setting the relyingParty.
 	// When creating the relyingParty, the OIDC library performs discovery (e.g. it calls the /well-known/oidc-configuration endpoint).
@@ -728,17 +728,18 @@ func (o *Verifier) secureCookieFromSession(ctx context.Context, sessionID uuid.U
 }
 
 // NewVerifier returns a Verifier.
-func NewVerifier(issuer string, clientID string, clientSecret string, scopes []string, audience string, groupsClaim string, secretsFunc func(ctx context.Context) (cluster.AuthSecrets, error), identityCache *identity.Cache, httpClientFunc func() (*http.Client, error), options *Opts) (*Verifier, error) {
+func NewVerifier(issuer string, clientID string, clientSecret string, scopes []string, audience string, groupsClaim string, clusterUUID string, secretsFunc func(ctx context.Context) (cluster.AuthSecrets, error), httpClientFunc func() (*http.Client, error), sessionHandler SessionHandler) (*Verifier, error) {
 	verifier := &Verifier{
 		issuer:         issuer,
 		clientID:       clientID,
 		clientSecret:   clientSecret,
 		scopes:         scopes,
 		audience:       audience,
-		identityCache:  identityCache,
 		groupsClaim:    groupsClaim,
+		clusterUUID:    clusterUUID,
 		secretsFunc:    secretsFunc,
 		httpClientFunc: httpClientFunc,
+		sessionHandler: sessionHandler,
 	}
 
 	return verifier, nil
