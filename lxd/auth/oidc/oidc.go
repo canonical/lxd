@@ -116,6 +116,26 @@ func (o *Verifier) Auth(w http.ResponseWriter, r *http.Request) (*Authentication
 	return o.authenticateIDToken(w, r)
 }
 
+// userInfo calls the /userinfo endpoint of the configured issuer with the given access token.
+// Note that this implementation is required because the zitadel library implementation asserts that the endpoint returns
+// a value with a specific subject, which we can't do for opaque tokens.
+func (o *Verifier) userInfo(ctx context.Context, token string) (*oidc.UserInfo, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, o.relyingParty.UserinfoEndpoint(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// We only expect bearer tokens.
+	req.Header.Set("Authorization", "Bearer "+token)
+	var userinfo oidc.UserInfo
+	err = httphelper.HttpRequest(o.relyingParty.HttpClient(), req, &userinfo)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get user info: %w", err)
+	}
+
+	return &userinfo, nil
+}
+
 // authenticateAccessToken verifies the access token and checks that the configured audience is present the in access
 // token claims. We do not attempt to refresh access tokens as this is performed client side. The access token subject
 // is returned if no error occurs.
