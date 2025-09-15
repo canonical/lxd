@@ -1097,7 +1097,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), targetProjectName)
 		if err != nil {
-			return fmt.Errorf("Failed loading project: %w", err)
+			return fmt.Errorf("Failed loading project %q: %w", targetProjectName, err)
 		}
 
 		targetProject, err = dbProject.ToAPI(ctx, tx.Tx())
