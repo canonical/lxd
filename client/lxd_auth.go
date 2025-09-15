@@ -517,3 +517,94 @@ func (r *ProtocolLXD) GetPermissionsInfo(args GetPermissionsArgs) ([]api.Permiss
 
 	return permissions, nil
 }
+
+// GetOIDCSessionUUIDs gets all OIDC session UUIDs.
+func (r *ProtocolLXD) GetOIDCSessionUUIDs() ([]string, error) {
+	err := r.CheckExtension("auth_oidc_sessions")
+	if err != nil {
+		return nil, err
+	}
+
+	urls := []string{}
+	_, err = r.queryStruct(http.MethodGet, api.NewURL().Path("auth", "oidc-sessions").String(), nil, "", &urls)
+	if err != nil {
+		return nil, err
+	}
+
+	return urlsToResourceNames("/1.0/auth/oidc-sessions", urls...)
+}
+
+// GetOIDCSessionUUIDsByEmail gets a list of session UUIDs for the user with the given email address.
+func (r *ProtocolLXD) GetOIDCSessionUUIDsByEmail(email string) ([]string, error) {
+	err := r.CheckExtension("auth_oidc_sessions")
+	if err != nil {
+		return nil, err
+	}
+
+	urls := []string{}
+	_, err = r.queryStruct(http.MethodGet, api.NewURL().Path("auth", "oidc-sessions").WithQuery("email", email).String(), nil, "", &urls)
+	if err != nil {
+		return nil, err
+	}
+
+	return urlsToResourceNames("/1.0/auth/oidc-sessions", urls...)
+}
+
+// GetOIDCSessions gets all OIDC sessions.
+func (r *ProtocolLXD) GetOIDCSessions() ([]api.OIDCSession, error) {
+	err := r.CheckExtension("auth_oidc_sessions")
+	if err != nil {
+		return nil, err
+	}
+
+	var sessions []api.OIDCSession
+	_, err = r.queryStruct(http.MethodGet, api.NewURL().Path("auth", "oidc-sessions").WithQuery("recursion", "1").String(), nil, "", &sessions)
+	if err != nil {
+		return nil, err
+	}
+
+	return sessions, nil
+}
+
+// GetOIDCSessionsByEmail gets all OIDC sessions for the user with the given email address.
+func (r *ProtocolLXD) GetOIDCSessionsByEmail(email string) ([]api.OIDCSession, error) {
+	err := r.CheckExtension("auth_oidc_sessions")
+	if err != nil {
+		return nil, err
+	}
+
+	var sessions []api.OIDCSession
+	_, err = r.queryStruct(http.MethodGet, api.NewURL().Path("auth", "oidc-sessions").WithQuery("recursion", "1").WithQuery("email", email).String(), nil, "", &sessions)
+	if err != nil {
+		return nil, err
+	}
+
+	return sessions, nil
+}
+
+// GetOIDCSession gets an [api.OIDCSession] by session ID.
+func (r *ProtocolLXD) GetOIDCSession(sessionID string) (*api.OIDCSession, error) {
+	err := r.CheckExtension("auth_oidc_sessions")
+	if err != nil {
+		return nil, err
+	}
+
+	var session api.OIDCSession
+	_, err = r.queryStruct(http.MethodGet, api.NewURL().Path("auth", "oidc-sessions", sessionID).String(), nil, "", &session)
+	if err != nil {
+		return nil, err
+	}
+
+	return &session, nil
+}
+
+// DeleteOIDCSession deletes an OIDC session (revokes the session for the user).
+func (r *ProtocolLXD) DeleteOIDCSession(sessionID string) error {
+	err := r.CheckExtension("auth_oidc_sessions")
+	if err != nil {
+		return err
+	}
+
+	_, err = r.queryStruct(http.MethodDelete, api.NewURL().Path("auth", "oidc-sessions", sessionID).String(), nil, "", nil)
+	return err
+}

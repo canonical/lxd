@@ -471,6 +471,12 @@ type InstanceServer interface {
 	DeleteIdentityProviderGroup(identityProviderGroupName string) error
 	GetPermissions(args GetPermissionsArgs) (permissions []api.Permission, err error)
 	GetPermissionsInfo(args GetPermissionsArgs) (permissions []api.PermissionInfo, err error)
+	GetOIDCSessionUUIDs() (uuids []string, err error)
+	GetOIDCSessionUUIDsByEmail(email string) (uuids []string, err error)
+	GetOIDCSessions() (sessions []api.OIDCSession, err error)
+	GetOIDCSessionsByEmail(email string) (sessions []api.OIDCSession, err error)
+	GetOIDCSession(sessionID string) (session *api.OIDCSession, err error)
+	DeleteOIDCSession(sessionID string) error
 
 	// Internal functions (for internal use)
 	RawQuery(method string, path string, data any, queryETag string) (resp *api.Response, ETag string, err error)
