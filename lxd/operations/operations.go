@@ -541,6 +541,11 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 		MayCancel:   op.mayCancel(),
 	}
 
+	requestor := op.Requestor()
+	if requestor != nil {
+		retOp.Requestor = requestor.OperationRequestor()
+	}
+
 	if op.state != nil {
 		retOp.Location = op.state.ServerName
 	}
