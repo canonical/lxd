@@ -6,7 +6,7 @@ It is commonly used as a central location for managing users, groups, roles, and
 
 LXD supports authentication via [OpenID Connect (OIDC)](https://openid.net/) (see {ref}`authentication-openid`).
 Entra ID is an OIDC provider; however, some aspects of the Entra ID OIDC service are non-standard.
-In particular, the `access_token` that is returned when a user successfully authenticates using the [device authorization grant](https://tools.ietf.org/html/rfc8628) flow is an [opaque string](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-device-code#successful-authentication-response), and not a [JSON Web Token (JWT)](https://datatracker.ietf.org/doc/html/rfc7519).
+In particular, the `access_token` that is returned when a user successfully authenticates using the [device authorization grant](https://datatracker.ietf.org/doc/html/rfc8628) flow is an [opaque string](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-device-code#successful-authentication-response), and not a [JSON Web Token (JWT)](https://datatracker.ietf.org/doc/html/rfc7519).
 
 The LXD CLI uses the device authorization grant flow to obtain an access token.
 When a command is issued, the CLI adds this token to all requests to the LXD API.
