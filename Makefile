@@ -10,6 +10,7 @@ TAG_SQLITE3=$(shell printf "$(HASH)include <dqlite.h>\nvoid main(){dqlite_node_i
 GOPATH ?= $(shell go env GOPATH)
 CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 SPHINXENV=doc/.sphinx/venv/bin/activate
+DQLITE_BRANCH=lts-1.17.x
 
 ifneq "$(wildcard vendor)" ""
 	RAFT_PATH=$(CURDIR)/vendor/raft
@@ -52,33 +53,26 @@ lxd-p2c:
 
 .PHONY: deps
 deps:
-	@if [ ! -e "$(RAFT_PATH)" ]; then \
-		git clone "https://github.com/canonical/raft" "$(RAFT_PATH)"; \
-		cd "$(RAFT_PATH)"; git reset --hard abf9c42a9bb63c24920ab9f0bfbc4b7a47e7e5f4; \
-	fi
-
-	cd "$(RAFT_PATH)" && \
-		autoreconf -i && \
-		./configure && \
-		make
-
-	# dqlite
+	# dqlite (+raft)
 	@if [ ! -e "$(DQLITE_PATH)" ]; then \
-		git clone "https://github.com/canonical/dqlite" "$(DQLITE_PATH)"; \
-		cd "$(DQLITE_PATH)"; git reset --hard 50ee9af350b2fb4e79f9eb58db22c8a0927138de; \
+		echo "Retrieving dqlite from ${DQLITE_BRANCH} branch"; \
+		git clone --depth=1 --branch "${DQLITE_BRANCH}" "https://github.com/canonical/dqlite" "$(DQLITE_PATH)"; \
+	elif [ -e "$(DQLITE_PATH)/.git" ]; then \
+		echo "Updating existing dqlite branch"; \
+		cd "$(DQLITE_PATH)"; git pull; \
 	fi
 
 	cd "$(DQLITE_PATH)" && \
 		autoreconf -i && \
-		PKG_CONFIG_PATH="$(RAFT_PATH)" ./configure && \
-		make CFLAGS="-I$(RAFT_PATH)/include/" LDFLAGS="-L$(RAFT_PATH)/.libs/"
+		./configure --enable-build-raft && \
+		make
 
 	# environment
 	@echo ""
 	@echo "Please set the following in your environment (possibly ~/.bashrc)"
-	@echo "export CGO_CFLAGS=\"-I$(RAFT_PATH)/include/ -I$(DQLITE_PATH)/include/\""
-	@echo "export CGO_LDFLAGS=\"-L$(RAFT_PATH)/.libs -L$(DQLITE_PATH)/.libs/\""
-	@echo "export LD_LIBRARY_PATH=\"$(RAFT_PATH)/.libs/:$(DQLITE_PATH)/.libs/\""
+	@echo "export CGO_CFLAGS=\"-I$(DQLITE_PATH)/include/\""
+	@echo "export CGO_LDFLAGS=\"-L$(DQLITE_PATH)/.libs/\""
+	@echo "export LD_LIBRARY_PATH=\"$(DQLITE_PATH)/.libs/\""
 	@echo "export CGO_LDFLAGS_ALLOW=\"(-Wl,-wrap,pthread_create)|(-Wl,-z,now)\""
 
 .PHONY: update
@@ -185,12 +179,9 @@ dist: doc
 	# Download dependencies
 	(cd $(TMP)/lxd-$(VERSION) ; go mod vendor)
 
-	# Download the dqlite libraries
-	git clone --depth=1 https://github.com/canonical/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
-	(cd $(TMP)/lxd-$(VERSION)/vendor/dqlite ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
-
-	git clone --depth=1 https://github.com/canonical/raft $(TMP)/lxd-$(VERSION)/vendor/raft
-	(cd $(TMP)/lxd-$(VERSION)/vendor/raft ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
+	# Download the dqlite library
+	git clone --depth=1 --branch "$(DQLITE_BRANCH)" https://github.com/canonical/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
+	(cd $(TMP)/lxd-$(VERSION)/vendor/dqlite ; git rev-parse HEAD | tee .gitref)
 
 	# Copy doc output
 	cp -r doc/html $(TMP)/lxd-$(VERSION)/doc/html/
