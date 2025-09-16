@@ -72,6 +72,100 @@ type internalRecoverImportPost struct {
 	Pools []api.StoragePoolsPost `json:"pools" yaml:"pools"`
 }
 
+// volumeConfigIsLatest checks whether the given volumeConfig's volume is newer than the existingVolumeConfig's volume.
+// The volume configs are expected to have a single volume in their list of volumes.
+// The check is performed by checking the config's modification time.
+// In case a backup config was created by discovering a volume just from its name,
+// its last modification time is zero and therefore always older than any backup config loaded from file.
+// This allows to determine if an enriched backup config can be used to override an existing one created by discovering a custom volume just from its name.
+func volumeConfigIsLatest(volumeConfig *backupConfig.Config, existingVolumeConfig *backupConfig.Config) (exists bool, newer bool) {
+	for _, volume := range volumeConfig.Volumes {
+		for _, existingVol := range existingVolumeConfig.Volumes {
+			if existingVol.Pool == volume.Pool && existingVol.Project == volume.Project && existingVol.Name == volume.Name {
+				// In case a custom storage volume got discovered through an instance's backup config,
+				// its using the modification time of the instance's backup config.
+				// LXD always writes changes to custom volumes to all the instance's backup configs the volume is attached to.
+				// In case this was failing for one or more instances, this check also ensures we are always
+				// picking the most recent config.
+				if existingVolumeConfig.LastModified().Before(volumeConfig.LastModified()) {
+					return true, true
+				}
+
+				return true, false
+			}
+		}
+	}
+
+	return false, false
+}
+
+// appendUnknownVolumeConfig tries to add the given volume in the global map of discovered volumes.
+// In case it contains the most recent set of information, it will replace an already existing one.
+func appendUnknownVolumeConfig(originalPoolName string, projectName string, volumeConfig *backupConfig.Config, poolsProjectVols map[string]map[string][]*backupConfig.Config) error {
+	// We only ever expect a single volume per volume config.
+	// In case an instance has custom volumes attached, those are extracted and should be presented as their own custom volume config.
+	// This ensures the same behavior performed by detecUnknownCustomVolume which puts every custom volume discovered by name
+	// into its own backup config struct.
+	// The backup config for buckets is special as they don't have a volume listed.
+	// In case it's not a bucket's backup config, consider it to be an error.
+	if len(volumeConfig.Volumes) != 1 && volumeConfig.Bucket == nil {
+		return errors.New("Backup config must contain exactly one volume unless it is a bucket config")
+	}
+
+	var unknownVol *backupConfig.Volume
+
+	// Check if we can extract an actual volume from the backup config.
+	// This does not work for a bucket's config as it doesn't track neither pool nor volume.
+	if len(volumeConfig.Volumes) == 1 {
+		unknownVol = volumeConfig.Volumes[0]
+
+		// Change the original pool the volume was discovered on as the given volume config describes a volumes on another pool.
+		// When running ListUnknownVolumes on any pool, it might return volumes from this pool but also from other pools.
+		// This is imporant when the volume doesn't yet exist so it gets created under the right pool.
+		// If the volume is used to replace an existing volume (because its backup config is more recent), the comparison
+		// is already performed based on the values provided as part of the volume's backup config.
+		originalPoolName = unknownVol.Pool
+	}
+
+	volumeExists := false
+
+	// If we were able to extract a volume from the config, check if it already exists.
+	// If it exist we might want to use it to replace a volume with less enriched information.
+	if unknownVol != nil && poolsProjectVols[unknownVol.Pool] != nil {
+		for i, existingVolConfig := range poolsProjectVols[unknownVol.Pool][unknownVol.Project] {
+			volumeLatest := false
+
+			volumeExists, volumeLatest = volumeConfigIsLatest(volumeConfig, existingVolConfig)
+			if volumeLatest {
+				poolsProjectVols[unknownVol.Pool][unknownVol.Project][i] = volumeConfig
+				break
+			}
+
+			// If the given volume already exists and isn't newer, we can skip it.
+			// The volume is already tracked with more enriched information.
+			if volumeExists {
+				return nil
+			}
+		}
+	}
+
+	// In case the volume couldn't be used to replace an existing one or it doesn't exist at all, append it.
+	// This is always true for buckets.
+	if !volumeExists {
+		if poolsProjectVols[originalPoolName] == nil {
+			poolsProjectVols[originalPoolName] = map[string][]*backupConfig.Config{}
+		}
+
+		if poolsProjectVols[originalPoolName][projectName] == nil {
+			poolsProjectVols[originalPoolName][projectName] = []*backupConfig.Config{volumeConfig}
+		} else {
+			poolsProjectVols[originalPoolName][projectName] = append(poolsProjectVols[originalPoolName][projectName], volumeConfig)
+		}
+	}
+
+	return nil
+}
+
 // internalRecoverScan provides the discovery and import functionality for both recovery validate and import steps.
 func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.StoragePoolsPost, validateOnly bool) response.Response {
 	var err error
@@ -238,8 +332,17 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 			return response.SmartError(fmt.Errorf("Failed checking volumes on pool %q: %w", pool.Name(), err))
 		}
 
-		// Store for consumption after validation scan to avoid needing to reprocess.
-		poolsProjectVols[p.Name] = poolProjectVols
+		// Iterate over the list of returned unknown volumes and store them for consumption after validation scan to avoid needing to reprocess.
+		// Some of the volumes might be actually located on another pool if they have been discovered from an instance on the current pool.
+		// Therefore we have to check each unknown volume separately.
+		for projectName, volConfigs := range poolProjectVols {
+			for _, volConfig := range volConfigs {
+				err = appendUnknownVolumeConfig(p.Name, projectName, volConfig, poolsProjectVols)
+				if err != nil {
+					return response.SmartError(fmt.Errorf("Failed to add unknown volume to the list: %w", err))
+				}
+			}
+		}
 
 		// Check dependencies are met for each volume.
 		for projectName, poolVols := range poolProjectVols {
@@ -312,6 +415,9 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 					var displayType, displayName string
 					var displaySnapshotCount int
 
+					// The volume's pool name is the one where it originates from.
+					displayPoolName := poolName
+
 					// Build display fields for scan results.
 					if poolVol.Instance != nil {
 						displayType = poolVol.Instance.Type
@@ -329,12 +435,14 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 							return response.SmartError(fmt.Errorf("Failed getting the custom volume: %w", err))
 						}
 
+						// In case of custom volumes those could be discovered from the instance's backup config inside another pool.
+						displayPoolName = customVol.Pool
 						displayName = customVol.Name
 						displaySnapshotCount = len(customVol.Snapshots)
 					}
 
 					res.UnknownVolumes = append(res.UnknownVolumes, internalRecoverValidateVolume{
-						Pool:          poolName,
+						Pool:          displayPoolName,
 						Project:       projectName,
 						Type:          displayType,
 						Name:          displayName,
@@ -349,6 +457,7 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 
 	// If in import mode and no dependency errors, then re-create missing DB records.
 
+	// Create the pools themselves.
 	for _, pool := range pools {
 		// Create missing storage pool DB record if neeed.
 		if pool.ID() == storagePools.PoolIDTemporary {
@@ -420,10 +529,11 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 
 			// Record this newly created pool so that defer doesn't unmount on return.
 			pools[pool.Name()] = newPool
-			pool = newPool // Replace temporary pool handle with proper one from DB.
 		}
+	}
 
-		// Create any missing instance, storage volume, and storage bucket records.
+	// Recover the storage volumes and buckets.
+	for _, pool := range pools {
 		for projectName, poolVols := range poolsProjectVols[pool.Name()] {
 			projectInfo := projects[projectName]
 
@@ -432,7 +542,6 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 				return response.SmartError(fmt.Errorf("Project %q not found", projectName))
 			}
 
-			profileProjectName := project.ProfileProjectFromRecord(projectInfo)
 			customStorageProjectName := project.StorageVolumeProjectFromRecord(projectInfo, dbCluster.StoragePoolVolumeTypeCustom)
 
 			// Recover unknown custom volumes (do this first before recovering instances so that any
@@ -457,6 +566,36 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 
 				revert.Add(cleanup)
 			}
+
+			// Recover unknown buckets.
+			for _, poolVol := range poolVols {
+				// Skip non bucket volumes.
+				if poolVol.Bucket == nil {
+					continue
+				}
+
+				// Import bucket.
+				cleanup, err := pool.ImportBucket(projectName, poolVol, nil)
+				if err != nil {
+					return response.SmartError(fmt.Errorf("Failed importing bucket %q in project %q: %w", poolVol.Bucket.Name, projectName, err))
+				}
+
+				revert.Add(cleanup)
+			}
+		}
+	}
+
+	// Finally restore the instances.
+	for _, pool := range pools {
+		for projectName, poolVols := range poolsProjectVols[pool.Name()] {
+			projectInfo := projects[projectName]
+
+			if projectInfo == nil {
+				// Shouldn't happen as we validated this above, but be sure for safety.
+				return response.SmartError(fmt.Errorf("Project %q not found", projectName))
+			}
+
+			profileProjectName := project.ProfileProjectFromRecord(projectInfo)
 
 			// Recover unknown instance volumes.
 			for _, poolVol := range poolVols {
@@ -517,22 +656,6 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 						return response.SmartError(fmt.Errorf("Failed reinitializing root disk quota %q for instance %q in project %q: %w", rootConfig["size"], poolVol.Instance.Name, projectName, err))
 					}
 				}
-			}
-
-			// Recover unknown buckets.
-			for _, poolVol := range poolVols {
-				// Skip non bucket volumes.
-				if poolVol.Bucket == nil {
-					continue
-				}
-
-				// Import bucket.
-				cleanup, err := pool.ImportBucket(projectName, poolVol, nil)
-				if err != nil {
-					return response.SmartError(fmt.Errorf("Failed importing bucket %q in project %q: %w", poolVol.Bucket.Name, projectName, err))
-				}
-
-				revert.Add(cleanup)
 			}
 		}
 	}
