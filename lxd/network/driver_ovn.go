@@ -2227,7 +2227,7 @@ func (n *ovn) getDHCPv4Reservations() ([]shared.IPRange, error) {
 			dhcpReserveIPv4s = append(dhcpReserveIPv4s, reservedIPs...)
 
 			// Add the router IP in the reserved IP list, if it is not there yet.
-			if !ipInRanges(routerIntPortIPv4, dhcpReserveIPv4s) {
+			if !ipInRanges(routerIntPortIPv4.To4(), dhcpReserveIPv4s) {
 				dhcpReserveIPv4s = append(dhcpReserveIPv4s, shared.IPRange{Start: routerIntPortIPv4})
 			}
 		}
