@@ -174,9 +174,10 @@ linkcheck_ignore = [
     # Blocked from GH runners
     'https://www.schlachter.tech/solutions/pongo2-template-engine/',
     r"https://.*\.sourceforge\.net/.*",
-    r'https://www.canonical.com.*',
-    'https://snapcraft.io/lxd',
-    r'https://ubuntu.com.*',
+    r'https://.*canonical\.com/.*',
+    'https://snapcraft\.io/lxd',
+    r'https://ubuntu\.com/.*',
+    r'https://bugs\.launchpad\.net/.*',
 ]
 
 # Ignore anchors for these URLs in linkcheck, but still check the URLs themselves
