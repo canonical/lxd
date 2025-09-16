@@ -1,11 +1,14 @@
 package bearer
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 
 	"github.com/canonical/lxd/lxd/auth/encryption"
 	"github.com/canonical/lxd/lxd/identity"
@@ -22,43 +25,57 @@ func IsDevLXDRequest(r *http.Request, clusterUUID string) (isRequest bool, token
 		return false, "", ""
 	}
 
+	subject, _, err := isLXDToken(token, clusterUUID, encryption.DevLXDAudience(clusterUUID))
+	if err != nil {
+		return false, "", ""
+	}
+
+	return true, token, subject
+}
+
+// isLXDToken checks if the given token looks like it was issued by this LXD cluster and returns an error if it doesn't.
+// It does not verify the token signature.
+func isLXDToken(token string, clusterUUID string, expectedAudience string) (string, *time.Time, error) {
 	// Check we can parse the token. If we can't parse it, it could be an opaque OAuth2.0 token.
 	claims := jwt.MapClaims{}
 	t, _, err := jwt.NewParser().ParseUnverified(token, claims)
 	if err != nil {
-		return false, "", ""
+		return "", nil, errors.New("Token is not a JWT")
 	}
 
 	// There must be an issuer
 	issuer, err := t.Claims.GetIssuer()
 	if err != nil {
-		return false, "", ""
+		return "", nil, errors.New("Token does not have an issuer")
 	}
 
 	// There must be a subject
 	sub, err := t.Claims.GetSubject()
 	if err != nil {
-		return false, "", ""
+		return "", nil, errors.New("Token does not have a subject")
 	}
 
 	// Expect the issuer to be "lxd:{cluster_uuid}".
 	expectIssuer := encryption.Issuer(clusterUUID)
 	if issuer != expectIssuer {
-		return false, "", ""
+		return "", nil, errors.New("Token issuer does not match")
 	}
 
-	// Expect the audience to be "devlxd:{cluster_uuid}".
-	expectAudience := encryption.DevLXDAudience(clusterUUID)
 	audience, err := t.Claims.GetAudience()
 	if err != nil {
-		return false, "", ""
+		return "", nil, errors.New("Token does not have an audience")
 	}
 
-	if len(audience) != 1 || audience[0] != expectAudience {
-		return false, "", ""
+	if len(audience) != 1 || audience[0] != expectedAudience {
+		return "", nil, errors.New("Token does not contain the expected audience")
 	}
 
-	return true, token, sub
+	issuedAt, err := t.Claims.GetIssuedAt()
+	if err != nil {
+		return "", nil, errors.New("Token does not contain an issued at field")
+	}
+
+	return sub, &issuedAt.Time, nil
 }
 
 // Authenticate gets a bearer identity from the cache using the given subject, and verifies that it is of the expected
@@ -101,4 +118,50 @@ func Authenticate(token string, subject string, identityCache *identity.Cache) (
 		Protocol: api.AuthenticationMethodBearer,
 		Username: entry.Identifier,
 	}, nil
+}
+
+// IsSessionToken returns the session UUID and the issued at claim, or an error if it is not a LXD token.
+// This returns an error because we get the token from a cookie that we set, so we always expect it to be a LXD token.
+func IsSessionToken(token string, clusterUUID string) (*uuid.UUID, *time.Time, error) {
+	sub, issuedAt, err := isLXDToken(token, clusterUUID, encryption.LXDAudience(clusterUUID))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	sessionID, err := uuid.Parse(sub)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &sessionID, issuedAt, nil
+}
+
+// VerifySessionToken returns an error if the given token is not valid.
+func VerifySessionToken(token string, clusterSecret []byte, sessionID uuid.UUID) error {
+	// Always use UTC time.
+	timeFunc := func() time.Time {
+		return time.Now().UTC()
+	}
+
+	// Get a parser. We don't need to verify the issuer or audience because we already validated that in `IsRequest`.
+	// We do not use a leeway. This is so the expiry is exact. This might cause issues if there is time skew between
+	// cluster members.
+	parser := jwt.NewParser(
+		jwt.WithIssuedAt(),           // Verify time now is not before the token was issued. The not before is automatically verified.
+		jwt.WithExpirationRequired(), // Verify token has not expired.
+		jwt.WithTimeFunc(timeFunc),   // Ensure the UTC time is used for comparison.
+	)
+
+	// Use the identity secret as the signing key.
+	keyFunc := func(_ *jwt.Token) (any, error) {
+		return encryption.TokenSigningKey(clusterSecret, sessionID[:])
+	}
+
+	// Verify the token.
+	_, err := parser.Parse(token, keyFunc)
+	if err != nil {
+		return fmt.Errorf("Failed to verify session token: %w", err)
+	}
+
+	return nil
 }
