@@ -4570,3 +4570,111 @@ test_clustering_trust_add() {
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
 }
+
+test_clustering_projects_force_delete() {
+  local LXD_DIR
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # Add a newline at the end of each line. YAML has weird rules.
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  # Spawn a second node
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
+
+  echo "Capture baseline state before creating project."
+  VOLUMES_BEFORE="$(LXD_DIR="${LXD_ONE_DIR}" lxc storage volume list -f csv --all-projects)"
+  ACLS_BEFORE="$(LXD_DIR="${LXD_ONE_DIR}" lxc network acl list -f csv --all-projects)"
+  ZONES_BEFORE="$(LXD_DIR="${LXD_ONE_DIR}" lxc network zone list -f csv --all-projects)"
+  PROFILES_BEFORE="$(LXD_DIR="${LXD_ONE_DIR}" lxc profile list -f csv --all-projects)"
+  IMAGES_BEFORE="$(LXD_DIR="${LXD_ONE_DIR}" lxc image list -f csv --all-projects)"
+  INSTANCES_BEFORE="$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv --all-projects)"
+
+  echo "Create project with all features enabled."
+  LXD_DIR="${LXD_ONE_DIR}" lxc project create foo -c features.networks=true -c features.networks.zones=true -c features.images=true -c features.profiles=true -c features.storage.volumes=true -c features.storage.buckets=true
+
+  echo "Create storage volume in project on node1."
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir --target node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir --target node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create pool1 custom/vol1 --project foo --target node1
+
+  echo "Create network ACL in project."
+  LXD_DIR="${LXD_ONE_DIR}" lxc network acl create acl1 --project foo
+
+  echo "Create network zone in project."
+  LXD_DIR="${LXD_ONE_DIR}" lxc network zone create zone1 --project foo
+
+  echo "Create profile in project."
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile create profile1 --project foo
+
+  echo "Add image to project."
+  LXD_DIR="${LXD_ONE_DIR}" deps/import-busybox --project foo --alias testimage
+
+  echo "Create instance in project on node1."
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c1 --project foo --target node1 -s pool1
+
+  echo "Create another instance on node2."
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c2 --project foo --target node2 -s pool1
+
+  echo "Create storage volume on node2."
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create pool1 custom/vol2 --project foo --target node2
+
+  echo "Check entities exist on both nodes."
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c n --all-projects | grep -c "c[12]")" = 2 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc storage volume list -f csv -c n --all-projects | grep -c "vol[12]")" = 2 ]
+
+  echo "Check that regular delete fails on non-empty project."
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc project delete foo || false
+
+  echo "Check forced project deletion from node1."
+  LXD_DIR="${LXD_ONE_DIR}" lxc project delete foo --force
+
+  echo "Check project is deleted from both nodes."
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc project show foo || false
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc project show foo || false
+
+  echo "Verify all entities were cleaned up by comparing before/after state."
+  VOLUMES_AFTER="$(LXD_DIR="${LXD_ONE_DIR}" lxc storage volume list -f csv --all-projects)"
+  ACLS_AFTER="$(LXD_DIR="${LXD_ONE_DIR}" lxc network acl list -f csv --all-projects)"
+  ZONES_AFTER="$(LXD_DIR="${LXD_ONE_DIR}" lxc network zone list -f csv --all-projects)"
+  PROFILES_AFTER="$(LXD_DIR="${LXD_ONE_DIR}" lxc profile list -f csv --all-projects)"
+  IMAGES_AFTER="$(LXD_DIR="${LXD_ONE_DIR}" lxc image list -f csv --all-projects)"
+  INSTANCES_AFTER="$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv --all-projects)"
+
+  [ "${VOLUMES_BEFORE}" = "${VOLUMES_AFTER}" ]
+  [ "${ACLS_BEFORE}" = "${ACLS_AFTER}" ]
+  [ "${ZONES_BEFORE}" = "${ZONES_AFTER}" ]
+  [ "${PROFILES_BEFORE}" = "${PROFILES_AFTER}" ]
+  [ "${IMAGES_BEFORE}" = "${IMAGES_AFTER}" ]
+  [ "${INSTANCES_BEFORE}" = "${INSTANCES_AFTER}" ]
+
+  echo "Verify same state from node2."
+  VOLUMES_AFTER_NODE2="$(LXD_DIR="${LXD_TWO_DIR}" lxc storage volume list -f csv --all-projects)"
+  INSTANCES_AFTER_NODE2="$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv --all-projects)"
+  [ "${VOLUMES_BEFORE}" = "${VOLUMES_AFTER_NODE2}" ]
+  [ "${INSTANCES_BEFORE}" = "${INSTANCES_AFTER_NODE2}" ]
+
+  # Clean up cluster
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+}
