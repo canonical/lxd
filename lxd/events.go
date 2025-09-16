@@ -228,8 +228,17 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 			return false
 		}
 
-		// Allow the event if the same requestor is connected. Otherwise, filter it out.
-		return m.Requestor != nil && m.Requestor.Username == requestor.CallerUsername() && m.Requestor.Protocol == requestor.CallerProtocol()
+		if m.Requestor == nil {
+			return false
+		}
+
+		// Allow the event if the same requestor is connected.
+		if m.Requestor.Username == requestor.CallerUsername() && m.Requestor.Protocol == requestor.CallerProtocol() {
+			return true
+		}
+
+		// Otherwise, filter it out.
+		return false
 	}
 
 	// Upgrade the connection to websocket as late as possible.
