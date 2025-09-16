@@ -7841,7 +7841,16 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 
 	// Copy the volume's config so VolumeDBCreate can safely modify the copy if needed.
-	vol := b.GetNewVolume(volType, contentType, volStorageName, volumeConfig)
+	// Don't generate a new UUID as we are importing an existing instance's volume.
+	vol := b.GetVolume(volType, contentType, volStorageName, volumeConfig)
+
+	volConfig := vol.Config()
+
+	// In case the instance got lost on an old LXD which didn't set a volume's UUID,
+	// ensure we set a new one.
+	if volConfig["volatile.uuid"] == "" {
+		volConfig["volatile.uuid"] = uuid.New().String()
+	}
 
 	// Create storage volume database records if in recover mode.
 	if poolVol != nil {
@@ -7868,7 +7877,16 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 
 				// Copy volume config from backup file if present,
 				// so VolumeDBCreate can safely modify the copy if needed.
-				snapVol := b.GetNewVolume(volType, contentType, fullSnapName, poolVolSnap.Config)
+				// Don't generate a new UUID as we are importing an existing instance's snapshot volume.
+				snapVol := b.GetVolume(volType, contentType, fullSnapName, poolVolSnap.Config)
+
+				snapVolConfig := snapVol.Config()
+
+				// See the comment for the instance's root volume above.
+				// The same also applies for its snapshots.
+				if snapVolConfig["volatile.uuid"] == "" {
+					snapVolConfig["volatile.uuid"] = uuid.New().String()
+				}
 
 				// Validate config and create database entry for recovered storage volume.
 				err = VolumeDBCreate(b, inst.Project().Name, fullSnapName, poolVolSnap.Description, volType, true, snapVol.Config(), poolVolSnap.CreatedAt, time.Time{}, contentType, false, true)
