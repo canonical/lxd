@@ -12,6 +12,7 @@ type devLXDResponse struct {
 	content any
 	code    int
 	ctype   string
+	etag    string
 	hook    func(w http.ResponseWriter) error
 }
 
@@ -19,12 +20,24 @@ type devLXDResponse struct {
 func (r *devLXDResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	var err error
 
-	// Write response.
+	// Handle hooks first, if defined.
 	if r.hook != nil {
-		err = r.hook(w)
-	} else if r.code != http.StatusOK {
+		return r.hook(w)
+	}
+
+	// Handle error responses.
+	if r.code != http.StatusOK {
 		http.Error(w, fmt.Sprint(r.content), r.code)
-	} else if r.ctype == "json" {
+		return nil
+	}
+
+	// Set ETag if provided.
+	if r.etag != "" {
+		w.Header().Set("Etag", r.etag)
+	}
+
+	// Handle different content types.
+	if r.ctype == "json" {
 		w.Header().Set("Content-Type", "application/json")
 		err = util.WriteJSON(w, r.content, nil)
 	} else if r.ctype != "websocket" {
@@ -62,6 +75,15 @@ func okResponse(ct any, ctype string) *devLXDResponse {
 		content: ct,
 		code:    http.StatusOK,
 		ctype:   ctype,
+	}
+}
+
+func okResponseETag(ct any, ctype string, etag string) *devLXDResponse {
+	return &devLXDResponse{
+		content: ct,
+		code:    http.StatusOK,
+		ctype:   ctype,
+		etag:    etag,
 	}
 }
 
