@@ -1295,3 +1295,19 @@ func (d *powerflex) getVolumeName(vol Volume) (string, error) {
 
 	return volName, nil
 }
+
+// getUUIDFromVolumeName translates the volume's name to the respective UUID.
+// It expects the volume name without any prefix/suffix.
+func (d *powerflex) getUUIDFromVolumeName(name string) (uuid.UUID, error) {
+	decodedName, err := base64.StdEncoding.DecodeString(name)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("Failed to decode volume name %q: %w", name, err)
+	}
+
+	uuidBytes, err := uuid.FromBytes(decodedName)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("Failed to parse UUID from decoded volume name: %w", err)
+	}
+
+	return uuidBytes, nil
+}
