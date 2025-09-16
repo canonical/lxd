@@ -7379,7 +7379,7 @@ func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]
 		case drivers.VolumeTypeVM, drivers.VolumeTypeContainer:
 			err = b.detectUnknownInstanceAndCustomVolumes(&poolVol, projectVols, op)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("Failed to detect unknown instances: %w", err)
 			}
 
 		case drivers.VolumeTypeCustom:
@@ -7388,7 +7388,7 @@ func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]
 			poolVol = b.GetNewVolume(poolVol.Type(), poolVol.ContentType(), poolVol.Name(), poolVol.Config())
 			err = b.detectUnknownCustomVolume(&poolVol, projectVols, op)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("Failed to detect unknown custom volumes: %w", err)
 			}
 
 		case drivers.VolumeTypeBucket:
@@ -7397,7 +7397,7 @@ func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]
 			poolVol = b.GetNewVolume(poolVol.Type(), poolVol.ContentType(), poolVol.Name(), poolVol.Config())
 			err = b.detectUnknownBuckets(&poolVol, projectVols)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("Failed to detect unknown buckets: %w", err)
 			}
 		}
 	}
