@@ -700,14 +700,24 @@ func storagePoolBucketDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = details.pool.DeleteBucket(effectiveProjectName, details.bucketName, nil)
+	err = doStorageBucketDelete(details.pool, effectiveProjectName, details.bucketName)
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed deleting storage bucket: %w", err))
+		return response.SmartError(err)
 	}
 
 	s.Events.SendLifecycle(effectiveProjectName, lifecycle.StorageBucketDeleted.Event(details.pool, effectiveProjectName, details.bucketName, request.CreateRequestor(r.Context()), nil))
 
 	return response.EmptySyncResponse
+}
+
+// doStorageBucketDelete deletes a storage bucket in the given project and pool.
+func doStorageBucketDelete(pool storagePools.Pool, projectName string, name string) error {
+	err := pool.DeleteBucket(projectName, name, nil)
+	if err != nil {
+		return fmt.Errorf("Failed deleting storage bucket %q: %w", name, err)
+	}
+
+	return nil
 }
 
 // API endpoints
