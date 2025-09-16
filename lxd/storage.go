@@ -120,8 +120,12 @@ func storageStartup(s *state.State) error {
 	// periodically try to initialize them again in the background.
 	if len(initPools) > 0 {
 		go func() {
+			delay := 5 * time.Second // first delay
+			step := 5 * time.Second  // increment per iteration
+			maxDelay := time.Minute  // cap at 60s
+
 			for {
-				t := time.NewTimer(time.Duration(time.Minute))
+				t := time.NewTimer(delay)
 
 				select {
 				case <-s.ShutdownCtx.Done():
@@ -162,6 +166,13 @@ func storageStartup(s *state.State) error {
 						s.StorageReady.Cancel()
 
 						return // Our job here is done.
+					}
+				}
+
+				if delay < maxDelay {
+					delay += step
+					if delay > maxDelay {
+						delay = maxDelay
 					}
 				}
 			}
