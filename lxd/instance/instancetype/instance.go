@@ -452,6 +452,13 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	//  shortdesc: The origin of the evacuated instance
 	"volatile.evacuate.origin": validate.IsAny,
 
+	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.cluster.target)
+	// The target cluster group at instance creation or migration time. This is used during scheduling events such as evacuation to ensure the instance is placed correctly.
+	// ---
+	// type: string
+	// shortdesc: The target cluster group
+	"volatile.cluster.target": validate.IsAny,
+
 	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.last_state.power)
 	//
 	// ---
