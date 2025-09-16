@@ -44,10 +44,10 @@ test_waitready() {
   lxc network unset "${br_name}" bridge.external_interfaces
   ip link del foo
 
-  # LXD retries starting the networks every 60s.
-  # Wait for 80s to ensure the network is now ready but the storage pool isn't.
+  # LXD retries starting the networks every few seconds.
+  # Wait for 15s to ensure the network is now ready but the storage pool isn't.
   echo "==> Networks will appear ready after the next retry"
-  [ "$(lxd waitready --network --storage --timeout 80 2>&1)" = "Error: Storage pools not ready yet after 80s timeout" ]
+  [ "$(lxd waitready --network --storage --timeout 15 2>&1)" = "Error: Storage pools not ready yet after 15s timeout" ]
 
   # Not setting a timeout should have the same effect and return instantly.
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc query "/internal/ready?network=1&storage=1" 2>&1)" = "Error: Storage pools not ready yet" ]
@@ -62,11 +62,10 @@ test_waitready() {
   echo "==> Restore the storage pool directory"
   rm "${LXD_DIR}/storage-pools/${storage_pool}"
 
-  # LXD retries starting the storage pools every 60s.
-  # The internal TryMount function retries 20 times over a course of 10s so we should account for this too.
-  # Wait for 80s to ensure the storage pool is now ready too.
+  # LXD retries starting the storage pools every few seconds.
+  # Wait for 15s to ensure the storage pool is now ready too.
   echo "==> All resources will appear ready after the next retry window"
-  lxd waitready --network --storage --timeout 80
+  lxd waitready --network --storage --timeout 15
 
   # The standard waitready without extra flags should still return with success.
   lxd waitready
