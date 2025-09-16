@@ -1,6 +1,5 @@
 test_security() {
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   # CVE-2016-1581
   if [ "$(storage_backend "$LXD_DIR")" = "zfs" ]; then
@@ -20,7 +19,7 @@ test_security() {
   fi
 
   # CVE-2016-1582
-  lxc launch testimage test-priv -c security.privileged=true
+  lxc launch testimage test-priv -c security.privileged=true -d "${SMALL_ROOT_DISK}"
 
   PERM=$(stat -L -c %a "${LXD_DIR}/containers/test-priv")
   FUID=$(stat -L -c %u "${LXD_DIR}/containers/test-priv")
@@ -53,7 +52,7 @@ test_security() {
 
   lxc delete test-priv --force
 
-  lxc launch testimage test-unpriv
+  lxc launch testimage test-unpriv -d "${SMALL_ROOT_DISK}"
   lxc config set test-unpriv security.privileged true
   lxc restart test-unpriv --force
 
@@ -100,14 +99,11 @@ test_security() {
     # shellcheck disable=2030
     LXD_DIR="${LXD_STORAGE_DIR}"
 
-    # Import image into default storage pool.
-    ensure_import_testimage
-
     # Verify that no privileged container can be created
-    ! lxc launch testimage c1 -c security.privileged=true || false
+    ! lxc init --empty c1 -d "${SMALL_ROOT_DISK}" -c security.privileged=true || false
 
     # Verify that unprivileged container can be created
-    lxc launch testimage c1
+    lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
 
     # Verify that we can't be tricked into using privileged containers
     ! lxc config set c1 security.privileged true || false
@@ -130,7 +126,7 @@ test_security() {
     lxc profile set default security.privileged false
     lxc profile unset default security.privileged
 
-    lxc delete -f c1
+    lxc delete c1
   )
 
   # shellcheck disable=SC2031,2269
@@ -140,16 +136,15 @@ test_security() {
 
 test_security_protection() {
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Test deletion protecton
-  lxc init testimage c1
+  lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1
   lxc delete c1
 
   lxc profile set default security.protection.delete true
 
-  lxc init testimage c1
+  lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1
   lxc delete c1/snap0
   ! lxc delete c1 || false
@@ -162,7 +157,7 @@ test_security_protection() {
   # Test start protection
   lxc profile set default security.protection.start true
 
-  lxc init testimage c1
+  lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
   ! lxc start c1 || false
 
   lxc config set c1 security.protection.start false
@@ -180,8 +175,7 @@ test_security_protection() {
   export LXD_IDMAPPED_MOUNTS_DISABLE=1
   respawn_lxd "${LXD_DIR}" true
 
-  lxc init testimage c1
-  lxc start c1
+  lxc launch testimage c1 -d "${SMALL_ROOT_DISK}"
   lxc stop c1 --force
 
   lxc profile set default security.protection.shift true
@@ -199,9 +193,8 @@ test_security_protection() {
   ! lxc start c1 || false
   lxc config set c1 security.protection.shift false
   lxc start c1
-  lxc stop c1 --force
+  lxc delete c1 --force
 
-  lxc delete c1
   lxc profile unset default security.protection.shift
 
   # Respawn LXD to restore default kernel shifting support.
