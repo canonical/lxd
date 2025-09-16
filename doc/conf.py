@@ -175,9 +175,10 @@ linkcheck_ignore = [
     'https://www.schlachter.tech/solutions/pongo2-template-engine/',
     r"https://.*\.sourceforge\.net/.*",
     r'https://.*canonical\.com/.*',
-    'https://snapcraft\.io/lxd',
+    r'https://snapcraft\.io/.*',
     r'https://ubuntu\.com/.*',
     r'https://bugs\.launchpad\.net/.*',
+    r'https://microcloud\.is/.*',
 ]
 
 # Ignore anchors for these URLs in linkcheck, but still check the URLs themselves
