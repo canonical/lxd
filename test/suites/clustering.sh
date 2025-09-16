@@ -4557,3 +4557,97 @@ test_clustering_trust_add() {
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
 }
+
+test_clustering_projects_force_delete() {
+  local LXD_DIR
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # Add a newline at the end of each line. YAML has weird rules.
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  # Spawn a second node
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
+
+  echo "Create project with all features enabled."
+  LXD_DIR="${LXD_ONE_DIR}" lxc project create foo -c features.networks=true -c features.networks.zones=true -c features.images=true -c features.profiles=true -c features.storage.volumes=true -c features.storage.buckets=true
+
+  echo "Create storage volume in project on node1."
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir --target node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir --target node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create pool1 custom/vol1 --project foo --target node1
+
+  echo "Create network ACL in project."
+  LXD_DIR="${LXD_ONE_DIR}" lxc network acl create acl1 --project foo
+
+  echo "Create network zone in project."
+  LXD_DIR="${LXD_ONE_DIR}" lxc network zone create zone1 --project foo
+
+  echo "Create profile in project."
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile create profile1 --project foo
+
+  echo "Add image to project."
+  LXD_DIR="${LXD_ONE_DIR}" deps/import-busybox --project foo --alias testimage
+
+  echo "Create instance in project on node1."
+  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c1 --project foo --target node1 -s pool1
+
+  echo "Create another instance on node2."
+  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c2 --project foo --target node2 -s pool1
+
+  echo "Create storage volume on node2."
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create pool1 custom/vol2 --project foo --target node2
+
+  echo "Check entities exist on both nodes."
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list --all-projects | grep -c c)" = 2 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc storage volume list --all-projects | grep -c vol)" = 2 ]
+
+  echo "Check that regular delete fails on non-empty project."
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc project delete foo || false
+
+  echo "Check forced project deletion from node1."
+  LXD_DIR="${LXD_ONE_DIR}" lxc project delete foo --force --yes
+
+  echo "Check all entities are deleted from both nodes."
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc storage volume list --all-projects | grep -cF vol1)" = 0 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc storage volume list --all-projects | grep -cF vol2)" = 0 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc network acl list --all-projects | grep -cF acl1)" = 0 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc network zone list --all-projects | grep -cF zone1)" = 0 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc profile list --all-projects | grep -cF profile1)" = 0 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc image list --all-projects | grep -cF testimage)" = 0 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list --all-projects | grep -cF c1)" = 0 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list --all-projects | grep -cF c2)" = 0 ]
+
+  echo "Check project is deleted from both nodes."
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc project show foo || false
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc project show foo || false
+
+  echo "Check same results from node2."
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc storage volume list --all-projects | grep -cF vol1)" = 0 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc storage volume list --all-projects | grep -cF vol2)" = 0 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list --all-projects | grep -cF c)" = 0 ]
+
+  # Clean up cluster
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+}
