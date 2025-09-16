@@ -220,7 +220,7 @@ fine_grained: true"
   echo "${list_output}" | grep -Fq 'project,/1.0/projects/default,"can_create_image_aliases,can_create_images,can_create_instances,..."'
 
   list_output="$(lxc auth permission list entity_type=server --format csv --max-entitlements 0)"
-  echo "${list_output}" | grep -Fq 'server,/1.0,"admin:(admins),can_create_groups,can_create_identities,can_create_identity_provider_groups,can_create_projects,can_create_storage_pools,can_delete_groups,can_delete_identities,can_delete_identity_provider_groups,can_delete_projects,can_delete_storage_pools,can_edit,can_edit_groups,can_edit_identities,can_edit_identity_provider_groups,can_edit_projects,can_edit_storage_pools,can_override_cluster_target_restriction,can_view_groups,can_view_identities,can_view_identity_provider_groups,can_view_metrics,can_view_permissions,can_view_privileged_events,can_view_projects,can_view_resources,can_view_unmanaged_networks,can_view_warnings,permission_manager,project_manager,storage_pool_manager,viewer"'
+  echo "${list_output}" | grep -Fq 'server,/1.0,"admin:(admins),can_create_groups,can_create_identities,can_create_identity_provider_groups,can_create_projects,can_create_storage_pools,can_delete_groups,can_delete_identities,can_delete_identity_provider_groups,can_delete_projects,can_delete_storage_pools,can_edit,can_edit_groups,can_edit_identities,can_edit_identity_provider_groups,can_edit_projects,can_edit_storage_pools,can_override_cluster_target_restriction,can_view_events,can_view_groups,can_view_identities,can_view_identity_provider_groups,can_view_metrics,can_view_operations,can_view_permissions,can_view_projects,can_view_resources,can_view_unmanaged_networks,can_view_warnings,permission_manager,project_manager,storage_pool_manager,viewer"'
 
   list_output="$(lxc auth permission list entity_type=project --format csv --max-entitlements 0)"
   echo "${list_output}" | grep -Fq 'project,/1.0/projects/default,"can_create_image_aliases,can_create_images,can_create_instances,can_create_network_acls,can_create_network_zones,can_create_networks,can_create_profiles,can_create_storage_buckets,can_create_storage_volumes,can_delete,can_delete_image_aliases,can_delete_images,can_delete_instances,can_delete_network_acls,can_delete_network_zones,can_delete_networks,can_delete_profiles,can_delete_storage_buckets,can_delete_storage_volumes,can_edit,can_edit_image_aliases,can_edit_images,can_edit_instances,can_edit_network_acls,can_edit_network_zones,can_edit_networks,can_edit_profiles,can_edit_storage_buckets,can_edit_storage_volumes,can_operate_instances,can_view,can_view_events,can_view_image_aliases,can_view_images,can_view_instances,can_view_metrics,can_view_network_acls,can_view_network_zones,can_view_networks,can_view_operations,can_view_profiles,can_view_storage_buckets,can_view_storage_volumes,image_alias_manager,image_manager,instance_manager,network_acl_manager,network_manager,network_zone_manager,operator,profile_manager,storage_bucket_manager,storage_volume_manager,viewer"'
@@ -234,6 +234,8 @@ fine_grained: true"
   # Remove existing group permissions before testing fine-grained auth.
   lxc auth group permission remove test-group server viewer
   lxc auth group permission remove test-group server project_manager
+
+  LXD_CONF="${LXD_CONF2}" events_filtering
 
   # Check storage pool used-by URLs
   storage_pool_used_by "oidc"
@@ -345,6 +347,64 @@ fine_grained: true"
   lxc config unset core.remote_token_expiry
   lxc config unset oidc.issuer
   lxc config unset oidc.client.id
+}
+
+events_filtering() {
+  monfile="${TEST_DIR}/monitor-out.jsonl"
+
+  # Monitor as fine-grained identity with no permissions.
+  lxc remote switch tls
+  lxc monitor --all-projects --format json > "${monfile}" &
+  monitor_pid=$!
+  sleep 0.1
+  lxc remote switch local
+
+  # Create an image via unix socket, then kill the monitor process.
+  lxc profile create p1
+  kill -9 "${monitor_pid}" || true
+
+  # The file should be empty.
+  [ "$(cat "${monfile}")" = "" ]
+  rm "${monfile}"
+  lxc profile delete p1
+
+  # Monitor as fine-grained identity with can_view_events in the default project.
+  lxc auth group permission add test-group project default can_view_events
+  lxc remote switch tls
+  lxc monitor --all-projects --format json > "${monfile}" &
+  monitor_pid=$!
+  sleep 0.1
+  lxc remote switch local
+
+  # Create a profile via unix socket, then kill the monitor process.
+  lxc profile create p1
+  kill -9 "${monitor_pid}" || true
+
+  # The file should contain a single "profile-created" lifecycle event because the identity that is monitoring
+  # has can_view_events, but is not the same caller that started the operation.
+  jq -s -e 'length == 1 and .[0].type == "lifecycle" and .[0].metadata.action == "profile-created"' "${monfile}"
+  lxc profile delete p1
+  rm "${monfile}"
+  lxc auth group permission remove test-group project default can_view_events
+
+  # Monitor as fine-grained identity that creates the profile with minimal permissions.
+  lxc auth group permission add test-group project default can_create_profiles
+  lxc remote switch tls
+  lxc monitor --all-projects --format json > "${monfile}" &
+  monitor_pid=$!
+  sleep 0.1
+  lxc remote switch local
+
+  # Create a profile via the fine-grained identity, without view permissions.
+  lxc profile create tls:p1
+  kill -9 "${monitor_pid}" || true
+
+  # The file should contain the lifecycle event, because the identity that is monitoring is the same identity that
+  # created the profile.
+  jq -s -e 'any(.type == "lifecycle" and .metadata.action == "profile-created")' "${monfile}"
+  lxc profile delete p1
+  rm "${monfile}"
+  lxc auth group permission remove test-group project default can_create_profiles
 }
 
 storage_pool_used_by() {
@@ -504,11 +564,6 @@ fine_grained_authorization() {
   # Change permission to "user" for instance "user-foo"
   lxc auth group permission add test-group instance user-foo user project=default
 
-  # To exec into an instance, Members of test-group will also need `can_view_events` for the project.
-  # This is because the client uses the events API to figure out when the operation is finished.
-  # Ideally we would use operations for this instead or allow more fine-grained filtering on events.
-  lxc auth group permission add test-group project default can_view_events
-
   echo "==> Checking permissions for member of group with user entitlement on instance user-foo in default project..."
   user_is_instance_user "${remote}" user-foo # Pass instance name into test as we don't have permission to create one.
   lxc delete user-foo --force # Must clean this up now as subsequent tests assume a clean project.
@@ -516,8 +571,6 @@ fine_grained_authorization() {
   user_is_not_server_operator "${remote}"
   user_is_not_project_manager "${remote}"
   user_is_not_project_operator "${remote}"
-
-  lxc auth group permission remove test-group project default can_view_events
 
   echo "==> Checking 'can_view_warnings' entitlement..."
   # Delete previous warnings
