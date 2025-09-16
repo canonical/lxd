@@ -78,12 +78,6 @@ func (d *dir) Create() error {
 		return fmt.Errorf("Source path %q doesn't exist", sourcePath)
 	}
 
-	// Check that if within LXD_DIR, we're at our expected spot.
-	cleanSource := filepath.Clean(sourcePath)
-	if strings.HasPrefix(cleanSource, shared.VarPath()) && cleanSource != GetPoolMountPath(d.name) {
-		return fmt.Errorf("Source path %q is within the LXD directory", cleanSource)
-	}
-
 	// Check that the path is currently empty.
 	isEmpty, err := shared.PathIsEmpty(sourcePath)
 	if err != nil {
@@ -152,6 +146,12 @@ func (d *dir) Mount() (bool, error) {
 	// Check if already mounted.
 	if sameMount(sourcePath, path) {
 		return false, nil
+	}
+
+	// Check that if within LXD_DIR, we're at our expected spot.
+	cleanSource := filepath.Clean(sourcePath)
+	if strings.HasPrefix(cleanSource, shared.VarPath()) && cleanSource != GetPoolMountPath(d.name) {
+		return false, fmt.Errorf("Source path %q is within the LXD directory", cleanSource)
 	}
 
 	// Setup the bind-mount.

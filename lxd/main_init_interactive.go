@@ -269,10 +269,10 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, server *api.Server) err
 			}
 
 			for i, config := range cluster.MemberConfig {
-				question := "Choose " + config.Description + ": "
+				question := fmt.Sprintf("Choose %s [default=%s]: ", config.Description, config.Value)
 
 				// Allow for empty values.
-				configValue, err := c.global.asker.AskString(question, "", validate.Optional())
+				configValue, err := c.global.asker.AskString(question, config.Value, validate.Optional())
 				if err != nil {
 					return err
 				}
