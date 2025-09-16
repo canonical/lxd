@@ -186,9 +186,10 @@ linkcheck_ignore = [
     'https://www.schlachter.tech/solutions/pongo2-template-engine/',
     r"https://.*\.sourceforge\.net/.*",
     'https://www.hpe.com/emea_europe/en/hpe-alletra.html'
-    r'https://www.canonical.com.*',
-    'https://snapcraft.io/lxd',
-    r'https://ubuntu.com.*',
+    r'https://.*canonical\.com/.*',
+    'https://snapcraft\.io/lxd',
+    r'https://ubuntu\.com/.*',
+    r'https://bugs\.launchpad\.net/.*',
 ]
 
 # Pages on which to ignore anchors
