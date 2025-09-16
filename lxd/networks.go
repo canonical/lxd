@@ -1843,8 +1843,12 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 	// periodically try to initialize them again in the background.
 	if remainingNetworksCount() > 0 {
 		go func() {
+			delay := 5 * time.Second // first delay
+			step := 5 * time.Second  // increment per iteration
+			maxDelay := time.Minute  // cap at 60s
+
 			for {
-				t := time.NewTimer(time.Duration(time.Minute))
+				t := time.NewTimer(delay)
 				s := stateFunc() // Get fresh state in case global config has been updated.
 
 				select {
@@ -1892,6 +1896,13 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 						s.NetworkReady.Cancel()
 
 						return // Our job here is done.
+					}
+				}
+
+				if delay < maxDelay {
+					delay += step
+					if delay > maxDelay {
+						delay = maxDelay
 					}
 				}
 			}
