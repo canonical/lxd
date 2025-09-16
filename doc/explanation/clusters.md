@@ -22,7 +22,7 @@ If you want to quickly set up a basic LXD cluster, check out [MicroCloud](https:
 ## Cluster members
 
 A LXD cluster consists of one bootstrap server and at least two further cluster members.
-It stores its state in a [distributed database](../database.md), which is a [Dqlite](https://dqlite.io/) database replicated using the Raft algorithm.
+It stores its state in a [distributed database](../database.md), which is a [Dqlite](https://canonical.com/dqlite) database replicated using the Raft algorithm.
 
 While you could create a cluster with only two members, it is strongly recommended that the number of cluster members be at least three.
 With this setup, the cluster can survive the loss of at least one member and still be able to establish quorum for its distributed state.
