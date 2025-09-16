@@ -1,5 +1,5 @@
 ---
-relatedlinks: "[Canonical&#32;Dqlite](https://dqlite.io/), [Dqlite&#32;GitHub](https://github.com/canonical/dqlite)"
+relatedlinks: "[Canonical&#32;Dqlite](https://canonical.com/dqlite), [Dqlite&#32;GitHub](https://github.com/canonical/dqlite)"
 ---
 
 (database)=
@@ -14,7 +14,7 @@ With a database, you can run a simple query on the database to retrieve this inf
 ## Dqlite
 
 In a LXD cluster, all members of the cluster must share the same database state.
-Therefore, LXD uses [Dqlite](https://dqlite.io/), a distributed version of SQLite.
+Therefore, LXD uses [Dqlite](https://canonical.com/dqlite), a distributed version of SQLite.
 Dqlite provides replication, fault-tolerance, and automatic failover without the need of external database processes.
 
 When using LXD as a single machine and not as a cluster, the Dqlite database effectively behaves like a regular SQLite database.

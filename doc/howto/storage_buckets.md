@@ -89,7 +89,7 @@ Finally, click {guilabel}`Create bucket`.
 (howto-storage-buckets-create-requirements-local-minio)=
 ##### MinIO
 
-LXD uses [MinIO](https://min.io) to set up local storage buckets. To use this feature with LXD, you must install both the server and client binaries.
+LXD uses [MinIO](https://min.io/) to set up local storage buckets. To use this feature with LXD, you must install both the server and client binaries.
 
 - MinIO Server:
    - Source:
