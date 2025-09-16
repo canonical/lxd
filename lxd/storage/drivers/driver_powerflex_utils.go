@@ -338,6 +338,17 @@ func (p *powerFlexClient) getStoragePoolStatistics(poolID string) (*powerFlexSto
 	return &actualResponse, nil
 }
 
+// getStoragePoolVolumes returns the storage pools volumes.
+func (p *powerFlexClient) getStoragePoolVolumes(poolID string) ([]powerFlexVolume, error) {
+	var actualResponse []powerFlexVolume
+	err := p.requestAuthenticated(http.MethodGet, "/api/instances/StoragePool::"+poolID+"/relationships/Volume", nil, &actualResponse)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get storage pool volumes: %q: %w", poolID, err)
+	}
+
+	return actualResponse, nil
+}
+
 // getProtectionDomainID returns the ID of the protection domain behind domainName.
 func (p *powerFlexClient) getProtectionDomainID(domainName string) (string, error) {
 	body := map[string]any{
