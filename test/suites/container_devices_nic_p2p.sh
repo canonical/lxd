@@ -5,7 +5,6 @@ test_container_devices_nic_p2p() {
   fi
 
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   vethHostName="veth$$"
   ctName="nt$$"

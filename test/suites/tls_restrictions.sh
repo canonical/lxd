@@ -146,7 +146,7 @@ test_tls_restrictions() {
 
   # Create a network in the default project.
   networkName="net$$"
-  lxc network create "${networkName}" --project default
+  lxc network create "${networkName}" --project default ipv4.address=none ipv6.address=none
 
   # The network we created in the default project is visible in project blah.
   lxc_remote network show "localhost:${networkName}" --project blah
@@ -166,7 +166,7 @@ test_tls_restrictions() {
   lxc_remote network delete "localhost:${networkName}" --project blah
 
   # Create a network in the blah project.
-  lxc_remote network create localhost:blah-network --project blah
+  lxc_remote network create localhost:blah-network --project blah ipv4.address=none ipv6.address=none
 
   # Network is visible to restricted client in project blah.
   lxc_remote network show localhost:blah-network --project blah

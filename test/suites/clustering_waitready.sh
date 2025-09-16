@@ -34,7 +34,7 @@ test_clustering_waitready() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network create br1 --target "node1"
   LXD_DIR="${LXD_ONE_DIR}" lxc network create br1 --target "node2"
   LXD_DIR="${LXD_ONE_DIR}" lxc network create br1 --target "node3"
-  LXD_DIR="${LXD_ONE_DIR}" lxc network create br1
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create br1 ipv4.address=none ipv6.address=none
 
   # Set up node-specific storage pool keys for the selected backend.
   driver_config=""
