@@ -1,5 +1,5 @@
 <!--
-Github issues are used for bug reports. For support questions, please use [our forum](https://discourse.ubuntu.com/c/lxd/).
+Github issues are used for bug reports. For support questions, please use [our forum](https://discourse.ubuntu.com/c/lxd/126).
 
 Please fill the template below as it will greatly help us track down your issue and reproduce it on our side.
 Feel free to remove anything which doesn't apply to you and add more information where it makes sense.
