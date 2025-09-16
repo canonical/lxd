@@ -121,7 +121,7 @@ sudo ufw route allow in on lxdbr0 from "${CIDR6}"
 
 Running LXD and Docker on the same host can cause connectivity issues.
 A common reason for these issues is that Docker sets the global FORWARD policy to `drop`, which prevents LXD from forwarding traffic and thus causes the instances to lose network connectivity.
-See [Docker on a router](https://docs.docker.com/network/packet-filtering-firewalls/#docker-on-a-router) for detailed information.
+See [Docker on a router](https://docs.docker.com/engine/network/packet-filtering-firewalls/#docker-on-a-router) for detailed information.
 
 There are different ways of working around this problem:
 

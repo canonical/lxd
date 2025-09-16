@@ -74,7 +74,7 @@ Clarify concepts or common questions based on your own experience.
 Report documentation issues by opening an issue on [GitHub](https://github.com/canonical/lxd/issues).
 : - We will evaluate and update the documentation as needed.
 
-Ask questions or suggest improvements in the [LXD forum](https://discourse.ubuntu.com/c/lxd).
+Ask questions or suggest improvements in the [LXD forum](https://discourse.ubuntu.com/c/lxd/126).
 : - We monitor discussions and update the documentation when necessary.
 
 Join discussions in the `#lxd` channel on IRC via [Libera Chat](https://web.libera.chat/#lxd).
