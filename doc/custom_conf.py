@@ -187,9 +187,10 @@ linkcheck_ignore = [
     r"https://.*\.sourceforge\.net/.*",
     'https://www.hpe.com/emea_europe/en/hpe-alletra.html'
     r'https://.*canonical\.com/.*',
-    'https://snapcraft\.io/lxd',
+    r'https://snapcraft\.io/.*',
     r'https://ubuntu\.com/.*',
     r'https://bugs\.launchpad\.net/.*',
+    r'https://microcloud\.is/.*',
 ]
 
 # Pages on which to ignore anchors
