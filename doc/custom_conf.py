@@ -167,23 +167,6 @@ else:
 ### Link checker
 ############################################################
 
-# Links to ignore when checking links
-linkcheck_ignore = [
-    'https://127.0.0.1:8443',
-    'https://127.0.0.1:8443/1.0',
-    'https://web.libera.chat/#lxd',
-    'http://localhost:8000',
-    'http://localhost:8080',
-    'http://localhost:8080/admin',
-    r'/lxd/latest/api/.*',
-    r'/api/.*',
-    # Those links may fail from time to time
-    'https://www.dell.com/',
-    'https://www.dell.com/en-us/shop/powerflex/sf/powerflex',
-    'https://www.gnu.org/licenses/agpl-3.0.en.html',
-    # 403 from GH runners
-    'https://www.schlachter.tech/solutions/pongo2-template-engine/',
-    ]
 
 # Pages on which to ignore anchors
 # (This list will be appended to linkcheck_anchors_ignore_for_url)

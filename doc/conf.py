@@ -160,10 +160,19 @@ ogp_image = "https://documentation.ubuntu.com/lxd/en/stable-5.0/_static/tag.png"
 # Links to ignore when checking links
 
 linkcheck_ignore = [
+    'https://127.0.0.1:8443',
     'https://127.0.0.1:8443/1.0',
     'https://web.libera.chat/#lxd',
+    'http://localhost:8000',
+    'http://localhost:8080',
+    'http://localhost:8080/admin',
+    r'/lxd/latest/api/.*',
+    r'/api/.*',
+    # Those links may fail from time to time
+    'https://www.gnu.org/licenses/agpl-3.0.en.html',
+    r"https://ceph\.io(/.*)?",
+    # Blocked from GH runners
     'https://www.schlachter.tech/solutions/pongo2-template-engine/',
-    # Cloudflare protection on SourceForge domains might block linkcheck
     r"https://.*\.sourceforge\.net/.*",
 ]
 
