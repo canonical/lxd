@@ -180,7 +180,7 @@ For a non-clustered LXD server, create `pool1` by passing in a Ceph Object Gatew
 lxc storage create pool1 cephobject cephobject.radosgw.endpoint=http://192.0.2.10:8080
 ```
 
-If your LXD server is clustered, such as in a [MicroCloud](https://microcloud.is) deployment, see: {ref}`storage-pools-cluster`.
+If your LXD server is clustered, such as in a [MicroCloud](https://canonical.com/microcloud) deployment, see: {ref}`storage-pools-cluster`.
 
 #### Create a Dell PowerFlex pool
 
