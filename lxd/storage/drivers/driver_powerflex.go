@@ -112,6 +112,7 @@ func (d *powerflex) Info() Info {
 		IOUring:                      true,
 		MountedRoot:                  false,
 		PopulateParentVolumeUUID:     false,
+		UUIDVolumeNames:              true,
 	}
 }
 
