@@ -922,7 +922,7 @@ func InstanceContentType(inst instance.Instance) drivers.ContentType {
 // instanceType=instanceType.Any indicates the device is used by a profile.
 // The instanceName argument is only used if instanceType != instanceType.Any.
 func volumeIsUsedByDevice(vol api.StorageVolume, instanceType instancetype.Type, instanceName string, dev map[string]string) (bool, error) {
-	if dev["type"] != cluster.TypeDisk.String() {
+	if !filters.IsDisk(dev) {
 		return false, nil
 	}
 
@@ -946,29 +946,18 @@ func volumeIsUsedByDevice(vol api.StorageVolume, instanceType instancetype.Type,
 		}
 	}
 
-	var volName string
-	var snapName string
-
-	if shared.IsSnapshot(vol.Name) {
-		parts := strings.SplitN(vol.Name, shared.SnapshotDelimiter, 2)
-		volName, snapName = parts[0], parts[1]
-	} else if dev["source.snapshot"] != "" {
+	volName, snapName, isSnap := api.GetParentAndSnapshotName(vol.Name)
+	if !isSnap && filters.IsCustomVolumeDiskSnapshot(dev) {
 		// vol is not a snapshot but dev refers to one
 		return false, nil
-	} else {
-		volName = vol.Name
 	}
 
-	volumeTypeName := cluster.StoragePoolVolumeTypeNameCustom
-	if dev["source.type"] != "" {
-		volumeTypeName = dev["source.type"]
+	volumeTypeName := dev["source.type"]
+	if volumeTypeName == "" {
+		volumeTypeName = cluster.StoragePoolVolumeTypeNameCustom
 	}
 
-	if volumeTypeName == vol.Type && dev["source"] == volName && dev["source.snapshot"] == snapName {
-		return true, nil
-	}
-
-	return false, nil
+	return volumeTypeName == vol.Type && dev["source"] == volName && dev["source.snapshot"] == snapName, nil
 }
 
 // VolumeUsedByProfileDevices finds profiles using a volume and passes them to profileFunc for evaluation.

@@ -341,9 +341,14 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid snapshot name: %w", err))
 	}
 
+	diskVolumes, err := instance.PlanAttachedVolumesForSnapshot(s, inst, req.DiskVolumesMode)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	snapshot := func(op *operations.Operation) error {
 		inst.SetOperation(op)
-		return inst.Snapshot(req.Name, req.ExpiresAt, req.Stateful)
+		return inst.Snapshot(req.Name, req.ExpiresAt, req.Stateful, diskVolumes)
 	}
 
 	resources := map[string][]api.URL{}

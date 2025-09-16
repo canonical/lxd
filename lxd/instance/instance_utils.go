@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -23,10 +24,12 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instance/operationlock"
 	"github.com/canonical/lxd/lxd/migration"
+	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/seccomp"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/sys"
@@ -1208,4 +1211,261 @@ func SnapshotProtobufToInstanceArgs(s *state.State, inst Instance, snap *migrati
 	}
 
 	return &args, nil
+}
+
+// deviceSourcedByVolume checks if a device is sourced by the provided storage volume.
+func deviceSourcedByVolume(volume api.StorageVolume, device map[string]string) bool {
+	if !filters.IsDisk(device) {
+		return false
+	}
+
+	if device["pool"] != volume.Pool {
+		return false
+	}
+
+	volName, snapName, isSnap := api.GetParentAndSnapshotName(volume.Name)
+	if !isSnap && filters.IsCustomVolumeDiskSnapshot(device) {
+		// Volume is not a snapshot but device refers to a snapshot.
+		return false
+	}
+
+	volType := device["source.type"]
+	if volType == "" {
+		volType = cluster.StoragePoolVolumeTypeNameCustom
+	}
+
+	return volType == volume.Type && device["source"] == volName && device["source.snapshot"] == snapName
+}
+
+// volKey is a map key used for storage volume lookups.
+type volKey struct{ pool, name string }
+
+// getSharedVolumes checks which of the provided volumes are in use by other
+// instances in the same effective project. Returns a lookup map of shared
+// storage volumes keyed by [volKey].
+func getSharedVolumes(s *state.State, inst Instance, volumes map[volKey]*db.StorageVolume) (shared map[volKey]struct{}, err error) {
+	instProject := inst.Project()
+	effectiveProject := project.StorageVolumeProjectFromRecord(&instProject, cluster.StoragePoolVolumeTypeCustom)
+
+	shared = make(map[volKey]struct{})
+	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// Iterate other instances in the same effective project to detect sharing.
+		filterInst := cluster.InstanceFilter{Project: &effectiveProject}
+		return tx.InstanceList(ctx, func(dbInst db.InstanceArgs, p api.Project) error {
+			// Skip the provided instance (use parent name when snapshot).
+			instName, _, _ := api.GetParentAndSnapshotName(inst.Name())
+			if p.Name == instProject.Name && dbInst.Name == instName {
+				return nil
+			}
+
+			// Expand devices for this DB instance (includes profile devices).
+			for _, d := range instancetype.ExpandInstanceDevices(dbInst.Devices, dbInst.Profiles) {
+				// Exclude disk devices that are not sourced by custom volumes.
+				if !filters.IsCustomVolumeDisk(d) {
+					continue
+				}
+
+				// If this instance uses one of the provided volumes, add it to the shared map.
+				_, isShared := volumes[volKey{pool: d["pool"], name: d["source"]}]
+				if isShared {
+					shared[volKey{pool: d["pool"], name: d["source"]}] = struct{}{}
+				}
+			}
+
+			return nil
+		}, filterInst)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return shared, nil
+}
+
+// getProjectVolumes gets all custom volumes in the instance's effective
+// project, excluding ISO volumes. Returns a lookup map of storage volumes
+// keyed by [volKey].
+func getProjectVolumes(s *state.State, inst Instance) (volumes map[volKey]*db.StorageVolume, err error) {
+	instProject := inst.Project()
+	effectiveProject := project.StorageVolumeProjectFromRecord(&instProject, cluster.StoragePoolVolumeTypeCustom)
+	volumes = make(map[volKey]*db.StorageVolume)
+
+	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// List all custom volumes in the effective project.
+		volType := cluster.StoragePoolVolumeTypeCustom
+		filter := db.StorageVolumeFilter{Type: &volType, Project: &effectiveProject}
+		vols, err := tx.GetStorageVolumes(ctx, true, filter)
+		if err != nil {
+			return err
+		}
+
+		for _, v := range vols {
+			// Skip volumes with content type ISO.
+			if v.ContentType == cluster.StoragePoolVolumeContentTypeNameISO {
+				continue
+			}
+
+			volumes[volKey{pool: v.Pool, name: v.Name}] = v
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return volumes, nil
+}
+
+// PlanAttachedVolumesForSnapshot determines the list of custom volumes to
+// snapshot for the provided instance and sets "volatile.attached_volumes".
+func PlanAttachedVolumesForSnapshot(s *state.State, inst Instance, diskVolumesMode string) (attached []*api.StorageVolume, err error) {
+	switch diskVolumesMode {
+	case api.DiskVolumesModeRoot, "":
+		// Root disk only, nothing to do.
+		return nil, nil
+	case api.DiskVolumesModeAllExclusive:
+	default:
+		return nil, errors.New("Invalid disk volumes mode")
+	}
+
+	// Get custom storage volumes in the instance's effective project.
+	volumes, err := getProjectVolumes(s, inst)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build slice of attached volumes and map of volUUID -> new snapshot UUID.
+	attached = make([]*api.StorageVolume, 0, len(volumes))
+	uuids := make(map[string]string, len(volumes))
+	for _, dev := range inst.ExpandedDevices() {
+		v, ok := volumes[volKey{pool: dev["pool"], name: dev["source"]}]
+		// If the device's source volume doesn't exist or the device isn't sourced by the volume, skip it.
+		if !ok || !deviceSourcedByVolume(v.StorageVolume, dev) {
+			continue
+		}
+
+		attached = append(attached, &v.StorageVolume)
+
+		volUUID := v.Config["volatile.uuid"]
+		if volUUID != "" {
+			uuids[volUUID] = uuid.New().String()
+		}
+	}
+
+	// Set "volatile.attached_volumes" to JSON map of volUUID -> snapshot UUID.
+	// This is used to resolve snapshots of attached volumes during restore.
+	marshalled, err := json.Marshal(uuids)
+	if err != nil {
+		return nil, err
+	}
+
+	inst.LocalConfig()["volatile.attached_volumes"] = string(marshalled)
+
+	return attached, nil
+}
+
+// ResolveAttachedVolumeSnapshotsForRestore resolves the custom storage volume
+// snapshots that were taken alongside sourceSnapshot. It reads the snapshot's
+// "volatile.attached_volumes" (JSON map of volumeUUID -> snapshotUUID) and
+// returns the matching snapshot volumes. Fails if a referenced snapshot is
+// missing. When diskVolumesMode is "all-exclusive", fails if any of the source
+// volumes are now shared.
+func ResolveAttachedVolumeSnapshotsForRestore(s *state.State, sourceSnapshot Instance, diskVolumesMode string) (attached []*api.StorageVolume, err error) {
+	allExclusiveMode := false
+	switch diskVolumesMode {
+	case api.DiskVolumesModeRoot, "":
+		// Root disk only, nothing to do.
+		return nil, nil
+	case api.DiskVolumesModeAllExclusive:
+		allExclusiveMode = true
+	default:
+		return nil, errors.New("Invalid disk volumes mode")
+	}
+
+	raw, ok := sourceSnapshot.LocalConfig()["volatile.attached_volumes"]
+	if !ok {
+		return nil, errors.New(`Cannot get attached volumes as "volatile.attached_volumes" is unset`)
+	}
+
+	var snapByVolUUID map[string]string
+	err = json.Unmarshal([]byte(raw), &snapByVolUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get custom storage volumes in the instance's effective project.
+	volumes, err := getProjectVolumes(s, sourceSnapshot)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get shared volumes in the instance's effective project. If any of the
+	// source snapshot's volumes are now shared, we can't restore them when
+	// diskVolumesMode is "all-exclusive".
+	shared, err := getSharedVolumes(s, sourceSnapshot, volumes)
+	if err != nil {
+		return nil, err
+	}
+
+	var missing []*api.StorageVolume
+	var nowShared []*api.StorageVolume
+
+	snapUUIDToVol := make(map[string]db.StorageVolume, len(volumes)) // snapshot UUID -> vol
+	for _, v := range volumes {
+		_, _, isSnap := api.GetParentAndSnapshotName(v.Name)
+		if isSnap {
+			snapUUIDToVol[v.Config["volatile.uuid"]] = *v
+		}
+	}
+
+	// Identify attached base volumes (non-snapshots) and resolve to their snapshot via UUID mapping.
+	for _, dev := range sourceSnapshot.ExpandedDevices() {
+		v, ok := volumes[volKey{pool: dev["pool"], name: dev["source"]}]
+		// If the device's source volume doesn't exist or the device isn't sourced by the volume, skip it.
+		if !ok || !deviceSourcedByVolume(v.StorageVolume, dev) {
+			continue
+		}
+
+		snapUUID, ok := snapByVolUUID[v.Config["volatile.uuid"]]
+		if !ok {
+			// This attached volume was not snapshotted, skip it.
+			continue
+		}
+
+		// If restoring with "all-exclusive" mode, track volumes that are shared for error message.
+		if allExclusiveMode {
+			_, isShared := shared[volKey{pool: dev["pool"], name: dev["source"]}]
+			if isShared {
+				nowShared = append(nowShared, &v.StorageVolume)
+				continue
+			}
+		}
+
+		snapVol, ok := snapUUIDToVol[snapUUID]
+		if ok {
+			attached = append(attached, &snapVol.StorageVolume)
+		} else {
+			missing = append(missing, &v.StorageVolume)
+		}
+	}
+
+	// Build error message if any attached volumes are now shared or if any snapshots are missing.
+	lines := make([]string, 0, len(nowShared)+len(missing))
+
+	if allExclusiveMode {
+		for _, v := range nowShared {
+			lines = append(lines, volumes[volKey{v.Pool, v.Name}].Name+" (volume is shared)")
+		}
+	}
+
+	for _, v := range missing {
+		lines = append(lines, volumes[volKey{v.Pool, v.Name}].Name+" (snapshot missing)")
+	}
+
+	if len(lines) > 0 {
+		return nil, errors.New("Cannot restore source volumes for the following devices:\n" + strings.Join(lines, "\n"))
+	}
+
+	return attached, nil
 }
