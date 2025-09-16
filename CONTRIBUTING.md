@@ -14,7 +14,7 @@ All contributors must adhere to the [Ubuntu Code of Conduct](https://ubuntu.com/
 
 ## License and copyright
 
-All contributors must sign the [Canonical contributor license agreement (CCLA)](https://ubuntu.com/legal/contributors), which grants Canonical permission to use the contributions.
+All contributors must sign the [Canonical contributor license agreement (CCLA)](https://canonical.com/legal/contributors), which grants Canonical permission to use the contributions.
 
 - You retain copyright ownership of your contributions (no copyright assignment).
 - By default, contributions are licensed under the project's **AGPL-3.0-only** license.
