@@ -69,6 +69,95 @@ EOF
   shutdown_lxd "${LXD_IMPORT_DIR}"
 }
 
+test_storage_volume_recover_by_container() {
+  LXD_IMPORT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  spawn_lxd "${LXD_IMPORT_DIR}" true
+
+  poolName=$(lxc profile device get default root pool)
+  poolDriver=$(lxc storage show "${poolName}" | awk '/^driver:/ {print $2}')
+
+  # Create another storage pool.
+  poolName2="${poolName}-2"
+  lxc storage create "${poolName2}" "${poolDriver}"
+
+  # Create container.
+  ensure_import_testimage
+  lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
+
+  # Create a custom volume and attach to the instance.
+  lxc storage volume create "${poolName}" vol1 size=32MiB
+  lxc storage volume snapshot "${poolName}" vol1
+  lxc storage volume attach "${poolName}" vol1 c1 /mnt
+
+  # Create a custom volume in a different pool and attach to the instance.
+  lxc storage volume create "${poolName2}" vol2 size=32MiB
+  lxc storage volume snapshot "${poolName2}" vol2
+  lxc storage volume attach "${poolName2}" vol2 c1 /mnt2
+
+  # Get the volume's UUIDs before deleting it's database entries.
+  vol1_uuid="$(lxc storage volume get "${poolName}" vol1 volatile.uuid)"
+  vol2_uuid="$(lxc storage volume get "${poolName2}" vol2 volatile.uuid)"
+
+  # Delete database entries of the created custom volumes.
+  lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='vol1'"
+  lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='vol2'"
+
+  # Ensure the custom volumes are no longer listed.
+  ! lxc storage volume show "${poolName}" vol1 || false
+  ! lxc storage volume show "${poolName2}" vol2 || false
+
+  # Recover custom volumes.
+  cat <<EOF | lxd recover
+no
+yes
+yes
+EOF
+
+  # Ensure custom storage volumes have been recovered.
+  lxc storage volume show "${poolName}" vol1 | grep -xF 'content_type: filesystem'
+  lxc storage volume show "${poolName2}" vol2 | grep -xF 'content_type: filesystem'
+
+  # Ensure the custom volumes still have the same UUIDs.
+  # This validates that the custom storage volumes were recovered from the instance's backup config.
+  [ "${vol1_uuid}" = "$(lxc storage volume get "${poolName}" vol1 volatile.uuid)" ]
+  [ "${vol2_uuid}" = "$(lxc storage volume get "${poolName2}" vol2 volatile.uuid)" ]
+
+  # Detach the custom volumes from the instance.
+  lxc storage volume detach "${poolName}" vol1 c1
+  lxc storage volume detach "${poolName2}" vol2 c1
+
+  # Delete database entries of the created custom volumes.
+  lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='vol1'"
+  lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='vol2'"
+
+  # Ensure the custom volumes are no longer listed.
+  ! lxc storage volume show "${poolName}" vol1 || false
+  ! lxc storage volume show "${poolName2}" vol2 || false
+
+  # Recover custom volumes.
+  cat <<EOF | lxd recover
+no
+yes
+yes
+EOF
+
+  # Ensure custom storage volumes have been recovered.
+  lxc storage volume show "${poolName}" vol1 | grep -xF 'content_type: filesystem'
+  lxc storage volume show "${poolName2}" vol2 | grep -xF 'content_type: filesystem'
+
+  # Check the custom volumes got different UUIDs.
+  # This validates that the custom storage volumes were recovered by name which looses all of their configuration.
+  [ "${vol1_uuid}" != "$(lxc storage volume get "${poolName}" vol1 volatile.uuid)" ]
+  [ "${vol2_uuid}" != "$(lxc storage volume get "${poolName2}" vol2 volatile.uuid)" ]
+
+  # Cleanup
+  lxc storage volume delete "${poolName}" vol1
+  lxc storage volume delete "${poolName2}" vol2
+  lxc delete -f c1
+  lxc storage delete "${poolName2}"
+  shutdown_lxd "${LXD_IMPORT_DIR}"
+}
+
 test_container_recover() {
   LXD_IMPORT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   spawn_lxd "${LXD_IMPORT_DIR}" true
