@@ -1377,6 +1377,16 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 		if strings.HasSuffix(key, ".last_state.ready") {
 			return validate.IsBool, nil
 		}
+
+		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.devlxd.owner)
+		// ID of the DevLXD identity that owns the device. It is used by DevLXD to restrict
+		// access of an identity to devices that were created by that identity.
+		// ---
+		//  type: string
+		//  shortdesc: DevLXD identity ID that owns the device.
+		if strings.HasSuffix(key, ".devlxd.owner") {
+			return validate.IsAny, nil
+		}
 	}
 
 	if (instanceType == Any || instanceType == Container) && strings.HasPrefix(key, "linux.sysctl.") {
