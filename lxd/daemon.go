@@ -2707,3 +2707,32 @@ func (d *Daemon) handleHeartbeatClusterRoleChanges(heartbeatData *cluster.APIHea
 
 	return offlineMemberIDs
 }
+
+// runWithBackoff calls fn after progressively increasing delays (starting at start,
+// incrementing by step each iteration, capped at maxDelay). It stops when fn returns true or
+// ctx is done.
+func runWithBackoff(ctx context.Context, start, step, maxDelay time.Duration, fn func() bool) {
+	delay := start
+
+	for {
+		t := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			if !t.Stop() {
+				<-t.C
+			}
+
+			return
+		case <-t.C:
+		}
+
+		if fn() {
+			return
+		}
+
+		delay += step
+		if delay > maxDelay {
+			delay = maxDelay
+		}
+	}
+}
