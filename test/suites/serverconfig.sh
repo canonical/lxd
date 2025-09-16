@@ -6,6 +6,7 @@ test_server_config() {
   _server_config_password
   _server_config_access
   _server_config_storage
+  _server_config_user_microcloud
 
   kill_lxd "${LXD_SERVERCONFIG_DIR}"
 }
@@ -146,4 +147,24 @@ _server_config_storage() {
 
   # Cleanup
   lxc delete -f foo
+}
+
+_server_config_user_microcloud() {
+  # Set config key user.microcloud, which is readable by untrusted clients
+  lxc config set user.microcloud true
+  [ "$(lxc config get user.microcloud)" = "true" ]
+  [ "$(curl "https://${LXD_ADDR}/1.0" --insecure | jq '.metadata.config["user.microcloud"]')" = '"true"' ]
+
+  # Set config key user.foo, which is not exposed to untrusted clients
+  lxc config set user.foo bar
+  [ "$(lxc config get user.foo)" = "bar" ]
+  [ "$(curl "https://${LXD_ADDR}/1.0" --insecure | jq '.metadata.config["user.foo"]')" = 'null' ]
+
+  # Unset all config and check it worked
+  lxc config unset user.microcloud
+  lxc config unset user.foo
+  [ "$(lxc config get user.microcloud)" = "" ]
+  [ "$(lxc config get user.foo)" = "" ]
+  [ "$(curl "https://${LXD_ADDR}/1.0" --insecure | jq '.metadata.config["user.microcloud"]')" = 'null' ]
+  [ "$(curl "https://${LXD_ADDR}/1.0" --insecure | jq '.metadata.config["user.foo"]')" = 'null' ]
 }
