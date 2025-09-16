@@ -7324,6 +7324,8 @@ func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]
 // It then runs a series of consistency checks that compare the contents of the backup file to
 // the state of the volume on disk, and if all checks out, it adds the parsed backup file contents to projectVols.
 // In any case it also checks whether or not the instance has unknown custom volumes attached and appends them to projectVols too.
+// If any custom volumes were found, they are each put into their own backup config and removed from the instance's backup config.
+// This follows the same process applied by detectUnknownCustomVolume.
 func (b *lxdBackend) detectUnknownInstanceAndCustomVolumes(vol *drivers.Volume, projectVols map[string][]*backupConfig.Config, op *operations.Operation) error {
 	backupYamlPath := filepath.Join(vol.MountPath(), "backup.yaml")
 	var backupConf *backupConfig.Config
