@@ -1295,13 +1295,14 @@ type projectInfo struct {
 	Profiles  []api.Profile
 	Instances []api.Instance
 	Volumes   []db.StorageVolumeArgs
+	Networks  []string
 
 	// poolName: driverName
 	StoragePoolDrivers map[string]string
 }
 
-// Fetch the given project from the database along with its profiles, instances
-// and possibly custom volumes.
+// Fetch the given project from the database along with its profiles, instances,
+// networks, and possibly custom volumes.
 //
 // If the skipIfNoLimits flag is true, then profiles, instances and volumes
 // won't be loaded if the profile has no limits set on it, and nil will be
@@ -1342,6 +1343,11 @@ func fetchProject(ctx context.Context, tx *db.ClusterTx, projectName string, ski
 	info.Volumes, err = tx.GetCustomVolumesInProject(ctx, projectName)
 	if err != nil {
 		return nil, fmt.Errorf("Fetch project custom volumes from database: %w", err)
+	}
+
+	info.Networks, err = tx.GetCreatedNetworkNamesByProject(ctx, projectName)
+	if err != nil {
+		return nil, fmt.Errorf("Fetch project networks from database: %w", err)
 	}
 
 	return info, nil
