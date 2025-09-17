@@ -97,7 +97,7 @@ WHERE storage_volumes.id = ?
 	err := c.tx.QueryRowContext(ctx, stmt, volumeID).Scan(&response.ID, &response.Name, &response.Description, &response.CreationDate, &rawVolumeType, &response.NodeID, &response.PoolName, &response.ProjectName)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return StorageVolumeArgs{}, api.StatusErrorf(http.StatusNotFound, "Storage pool volume not found")
+			return StorageVolumeArgs{}, api.StatusErrorf(http.StatusNotFound, "Storage volume not found")
 		}
 
 		return StorageVolumeArgs{}, err
@@ -582,7 +582,7 @@ SELECT storage_volumes_all.id
 	}
 
 	if len(result) == 0 {
-		return -1, api.StatusErrorf(http.StatusNotFound, "Storage pool volume not found")
+		return -1, api.StatusErrorf(http.StatusNotFound, "Storage volume not found")
 	}
 
 	return int64(result[0]), nil
@@ -666,7 +666,7 @@ func (c *ClusterTx) GetStorageVolumeNodes(ctx context.Context, poolID int64, pro
 
 	nodeCount := len(nodes)
 	if nodeCount == 0 {
-		return nil, api.StatusErrorf(http.StatusNotFound, "Storage pool volume not found")
+		return nil, api.StatusErrorf(http.StatusNotFound, "Storage volume not found")
 	} else if nodeCount > 1 {
 		driver, err := c.GetStoragePoolDriver(ctx, poolID)
 		if err != nil {
