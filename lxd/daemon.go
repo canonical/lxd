@@ -314,70 +314,77 @@ func allowPermission(entityType entity.Type, entitlement auth.Entitlement, muxVa
 
 // allowProjectResourceList should be used instead of allowAuthenticated when listing resources within a project.
 // This prevents a restricted TLS client from listing resources in a project that they do not have access to.
-func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	// The caller must be authenticated.
-	if !requestor.IsTrusted() {
-		return response.Forbidden(nil)
-	}
-
-	// A root user can list resources in any project.
-	if requestor.IsAdmin() {
-		return response.EmptySyncResponse
-	}
-
-	id := requestor.CallerIdentity()
-	if id == nil {
-		return response.InternalError(errors.New("No identity present in request details"))
-	}
-
-	idType := requestor.CallerIdentityType()
-	if idType == nil {
-		return response.InternalError(errors.New("No identity type present in request details"))
-	}
-
-	requestProjectName, allProjects, err := request.ProjectParams(r)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if idType.IsFineGrained() {
-		if allProjects {
-			return response.EmptySyncResponse
-		}
-
-		s := d.State()
-
-		// Fine-grained clients must be able to view the containing project.
-		err = s.Authorizer.CheckPermission(r.Context(), entity.ProjectURL(requestProjectName), auth.EntitlementCanView)
+// The allowAllProjects parameter controls whether usage of the "all-projects" query parameter is allowed for restricted TLS clients.
+func allowProjectResourceList(allowAllProjects bool) func(d *Daemon, r *http.Request) response.Response {
+	return func(d *Daemon, r *http.Request) response.Response {
+		requestor, err := request.GetRequestor(r.Context())
 		if err != nil {
 			return response.SmartError(err)
 		}
 
+		// The caller must be authenticated.
+		if !requestor.IsTrusted() {
+			return response.Forbidden(nil)
+		}
+
+		// A root user can list resources in any project.
+		if requestor.IsAdmin() {
+			return response.EmptySyncResponse
+		}
+
+		id := requestor.CallerIdentity()
+		if id == nil {
+			return response.InternalError(errors.New("No identity present in request details"))
+		}
+
+		idType := requestor.CallerIdentityType()
+		if idType == nil {
+			return response.InternalError(errors.New("No identity type present in request details"))
+		}
+
+		requestProjectName, allProjects, err := request.ProjectParams(r)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		if idType.IsFineGrained() {
+			if allProjects {
+				return response.EmptySyncResponse
+			}
+
+			s := d.State()
+
+			// Fine-grained clients must be able to view the containing project.
+			err = s.Authorizer.CheckPermission(r.Context(), entity.ProjectURL(requestProjectName), auth.EntitlementCanView)
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			return response.EmptySyncResponse
+		}
+
+		// We should now only be left with restricted client certificates. Metrics certificates should have been disregarded
+		// already, because they cannot call any endpoint other than /1.0/metrics (which is enforced during authentication).
+		if idType.Name() != api.IdentityTypeCertificateClientRestricted {
+			return response.InternalError(fmt.Errorf("Encountered unexpected identity type %q listing resources", idType.Name()))
+		}
+
+		// all-projects requests may not be allowed, depending on the handler.
+		if allProjects {
+			if allowAllProjects {
+				return response.EmptySyncResponse
+			}
+
+			return response.Forbidden(errors.New("Certificate is restricted"))
+		}
+
+		// Disallow listing resources in projects the caller does not have access to.
+		if !slices.Contains(id.Projects, requestProjectName) {
+			return response.Forbidden(errors.New("Certificate is restricted"))
+		}
+
 		return response.EmptySyncResponse
 	}
-
-	// We should now only be left with restricted client certificates. Metrics certificates should have been disregarded
-	// already, because they cannot call any endpoint other than /1.0/metrics (which is enforced during authentication).
-	if idType.Name() != api.IdentityTypeCertificateClientRestricted {
-		return response.InternalError(fmt.Errorf("Encountered unexpected identity type %q listing resources", idType.Name()))
-	}
-
-	// all-projects requests are not allowed
-	if allProjects {
-		return response.Forbidden(errors.New("Certificate is restricted"))
-	}
-
-	// Disallow listing resources in projects the caller does not have access to.
-	if !slices.Contains(id.Projects, requestProjectName) {
-		return response.Forbidden(errors.New("Certificate is restricted"))
-	}
-
-	return response.EmptySyncResponse
 }
 
 // reportEntitlements takes a map of entity URLs to EntitlementReporters (in practice, API types that implement the ReportEntitlements method), and
