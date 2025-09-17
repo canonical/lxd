@@ -348,12 +348,12 @@ func createAuthGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = validatePermissions(group.Permissions)
+	s := d.State()
+	validatedPermissions, err := validatePermissions(r.Context(), s, group.Permissions)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	s := d.State()
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		groupID, err := dbCluster.CreateAuthGroup(ctx, tx.Tx(), dbCluster.AuthGroup{
 			Name:        group.Name,
@@ -367,7 +367,7 @@ func createAuthGroup(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		err = upsertPermissions(ctx, tx.Tx(), int(groupID), group.Permissions)
+		err = dbCluster.SetAuthGroupPermissions(ctx, tx.Tx(), int(groupID), validatedPermissions)
 		if err != nil {
 			return err
 		}
@@ -506,12 +506,12 @@ func updateAuthGroup(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid request body: %w", err))
 	}
 
-	err = validatePermissions(groupPut.Permissions)
+	s := d.State()
+	validatedPermissions, err := validatePermissions(r.Context(), s, groupPut.Permissions)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	s := d.State()
 	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentity)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
@@ -546,7 +546,7 @@ func updateAuthGroup(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		err = upsertPermissions(ctx, tx.Tx(), group.ID, groupPut.Permissions)
+		err = dbCluster.SetAuthGroupPermissions(ctx, tx.Tx(), group.ID, validatedPermissions)
 		if err != nil {
 			return err
 		}
@@ -602,11 +602,6 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid request body: %w", err))
 	}
 
-	err = validatePermissions(groupPut.Permissions)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	s := d.State()
 	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentity)
 	if err != nil {
@@ -618,11 +613,15 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
 	}
 
+	newPermissions := make([]api.Permission, 0, len(groupPut.Permissions))
+	var groupID int
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		group, err := dbCluster.GetAuthGroup(ctx, tx.Tx(), groupName)
 		if err != nil {
 			return err
 		}
+
+		groupID = group.ID
 
 		apiGroup, err := group.ToAPI(ctx, tx.Tx(), canViewIdentity, canViewIDPGroup)
 		if err != nil {
@@ -644,19 +643,25 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		newPermissions := make([]api.Permission, 0, len(groupPut.Permissions))
 		for _, permission := range groupPut.Permissions {
 			if !slices.Contains(apiGroup.Permissions, permission) {
 				newPermissions = append(newPermissions, permission)
 			}
 		}
 
-		err = upsertPermissions(ctx, tx.Tx(), group.ID, newPermissions)
-		if err != nil {
-			return err
-		}
-
 		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	newDBPermissions, err := validatePermissions(r.Context(), s, newPermissions)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return dbCluster.SetAuthGroupPermissions(ctx, tx.Tx(), groupID, newDBPermissions)
 	})
 	if err != nil {
 		return response.SmartError(err)
