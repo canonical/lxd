@@ -35,9 +35,9 @@ var instancesCmd = APIEndpoint{
 		{Name: "vms", Path: "virtual-machines"},
 	},
 
-	Get:  APIEndpointAction{Handler: instancesGet, AccessHandler: allowProjectResourceList},
+	Get:  APIEndpointAction{Handler: instancesGet, AccessHandler: allowProjectResourceList(false)},
 	Post: APIEndpointAction{Handler: instancesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateInstances), ContentTypes: []string{"application/json", "application/octet-stream"}},
-	Put:  APIEndpointAction{Handler: instancesPut, AccessHandler: allowProjectResourceList},
+	Put:  APIEndpointAction{Handler: instancesPut, AccessHandler: allowProjectResourceList(false)},
 }
 
 var instanceCmd = APIEndpoint{
@@ -129,7 +129,7 @@ var instanceSnapshotsCmd = APIEndpoint{
 		{Name: "vmSnapshots", Path: "virtual-machines/{name}/snapshots"},
 	},
 
-	Get:  APIEndpointAction{Handler: instanceSnapshotsGet, AccessHandler: allowProjectResourceList},
+	Get:  APIEndpointAction{Handler: instanceSnapshotsGet, AccessHandler: allowProjectResourceList(false)},
 	Post: APIEndpointAction{Handler: instanceSnapshotsPost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanManageSnapshots, "name")},
 }
 
@@ -212,7 +212,7 @@ var instanceBackupsCmd = APIEndpoint{
 		{Name: "vmBackups", Path: "virtual-machines/{name}/backups"},
 	},
 
-	Get:  APIEndpointAction{Handler: instanceBackupsGet, AccessHandler: allowProjectResourceList},
+	Get:  APIEndpointAction{Handler: instanceBackupsGet, AccessHandler: allowProjectResourceList(false)},
 	Post: APIEndpointAction{Handler: instanceBackupsPost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanManageBackups, "name")},
 }
 
