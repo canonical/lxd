@@ -261,6 +261,7 @@ test_devlxd_volume_management() {
 
     # Succeed when a valid identity token is passed and the identity has permissions.
     lxc auth group create "${authGroup}"
+    lxc auth group permission add "${authGroup}" project "${project}" can_view
     lxc auth group permission add "${authGroup}" instance "${inst}" can_view project="${project}"
     lxc auth identity group add "${authIdentity}" "${authGroup}"
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}" | jq -e .name
@@ -291,7 +292,7 @@ test_devlxd_volume_management() {
     vol1='{\"name\": \"vol-01\", \"type\": \"custom\", \"config\": {\"size\": \"10MiB\"}}'
 
     # Create a custom storage volume (fail - insufficient permissions).
-    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${vol1}")" = "Not Found" ]
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${vol1}")" = "Forbidden" ]
 
     # Grant storage volume create permission.
     lxc auth group permission add "${authGroup}" project "${project}" can_create_storage_volumes
