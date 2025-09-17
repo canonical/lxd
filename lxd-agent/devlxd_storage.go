@@ -8,7 +8,6 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -51,11 +50,6 @@ var devLXDStoragePoolVolumesTypeEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDStoragePoolVolumesGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	// Non-recursive requests are currently not supported.
-	if !util.IsRecursionRequest(r) {
-		return errorResponse(http.StatusNotImplemented, "Only recursive requests are currently supported")
-	}
-
 	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
 	if err != nil {
 		return errorResponse(http.StatusBadRequest, err.Error())
