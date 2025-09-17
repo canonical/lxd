@@ -211,7 +211,7 @@ parts:
 
   criu:
     source: https://github.com/checkpoint-restore/criu
-    source-commit: f8b14286b092853a4485813e1efd564109df9123 # v3.19
+    source-commit: c2b48ff423aa663b3534a5ba96907366e4c1b408 # v4.0
     source-depth: 1
     source-type: git
     plugin: nil
@@ -560,12 +560,12 @@ parts:
     after:
       - libseccomp
     source: https://github.com/NVIDIA/libnvidia-container
-    source-commit: 4c2494f16573b585788a42e9c7bee76ecd48c73d # v1.16.1
+    source-commit: a198166e1c1166f4847598438115ea97dacc7a92 # v1.17.6
     source-depth: 1
     source-type: git
     plugin: make
     build-environment:
-      - GIT_TAG: "1.16.1" # Enables source-depth: 1, should match git tag without "v" prefix.
+      - GIT_TAG: "1.17.6" # Enables source-depth: 1, should match git tag without "v" prefix.
     build-packages:
       - bmake
       - curl
@@ -573,7 +573,7 @@ parts:
       - lsb-release
       - libtirpc-dev
     build-snaps:
-      - go/1.23/stable
+      - go/1.24/stable
     override-prime: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
@@ -583,6 +583,9 @@ parts:
     override-build: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       set -ex
+
+      # Setup build environment
+      export GOTOOLCHAIN="local"
 
       # Git cherry-picks
       git config user.email "noreply@lists.canonical.com"
@@ -745,7 +748,7 @@ parts:
       - spice-protocol
       - spice-server
     source: https://git.launchpad.net/ubuntu/+source/qemu
-    source-commit: 50a4fe555e21d4b633580d63ae45e807de9e2f91 # import/1%8.2.2+ds-0ubuntu1.5
+    source-commit: e63cad5bb3e377aacfc808c2cf075e0613072b88 # import/1%8.2.2+ds-0ubuntu1.8
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -1203,7 +1206,7 @@ parts:
 
   zfs-2-1:
     source: https://github.com/openzfs/zfs
-    source-commit: fb6d532066f23458f768a97ae94b158c42cbe484 # zfs-2.1.15
+    source-commit: a7186651d3306debca6b4f72797239eea61db36c # zfs-2.1.16
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -1238,7 +1241,7 @@ parts:
 
   zfs-2-2:
     source: https://github.com/openzfs/zfs
-    source-commit: baa50314567afd986a00838f0fa65fdacbd12daf # zfs-2.2.6
+    source-commit: 3e4a3e161c00273303cd9fa9e0dc09ead3499a8a # zfs-2.2.8
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -1446,7 +1449,7 @@ parts:
       - liblapack-dev
       - pkg-config
     build-snaps:
-      - go/1.23/stable
+      - go/1.24/stable
     stage-packages:
       - acl
       - attr
@@ -1465,6 +1468,7 @@ parts:
       set -ex
 
       # Setup build environment
+      export GOTOOLCHAIN="local"
       export GOPATH="$(realpath ./.go)"
 
       # Setup the GOPATH
@@ -1483,6 +1487,7 @@ parts:
       git config user.name "LXD snap builder"
 
       # Setup build environment
+      export GOTOOLCHAIN="local"
       export GOPATH="$(realpath ./.go)"
       export CGO_CFLAGS="-I${CRAFT_STAGE}/include/ -I${CRAFT_STAGE}/usr/local/include/"
       export CGO_LDFLAGS="-L${CRAFT_STAGE}/lib/ -L${CRAFT_STAGE}/usr/local/lib/"
@@ -1537,7 +1542,7 @@ parts:
       - lxd
       - sqlite
     build-snaps:
-      - go/1.23/stable
+      - go/1.24/stable
     plugin: nil
     override-pull: |
       craftctl default
