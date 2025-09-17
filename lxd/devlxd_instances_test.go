@@ -8,7 +8,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
-func Test_devLXDPatchInstanceDevices(t *testing.T) {
+func Test_generateDevLXDInstanceDevices(t *testing.T) {
 	type Devices map[string]map[string]string
 	type Config map[string]string
 
