@@ -31,7 +31,7 @@ var networkACLsCmd = APIEndpoint{
 	Path:        "network-acls",
 	MetricsType: entity.TypeNetwork,
 
-	Get:  APIEndpointAction{Handler: networkACLsGet, AccessHandler: allowProjectResourceList},
+	Get:  APIEndpointAction{Handler: networkACLsGet, AccessHandler: allowProjectResourceList(false)},
 	Post: APIEndpointAction{Handler: networkACLsPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateNetworkACLs)},
 }
 
