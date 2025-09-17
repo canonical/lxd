@@ -281,14 +281,22 @@ test_devlxd_volume_management() {
     # Get storage volume (fail - insufficient permissions).
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" "${instType}" "${inst}")" = "Not Found" ]
 
-    # Grant storage volume management permission.
-    lxc auth group permission add "${authGroup}" project "${project}" storage_volume_manager
+    # Grant storage volume view permission.
+    lxc auth group permission add "${authGroup}" project "${project}" can_view_storage_volumes
 
     # Get storage volume (fail - non-custom volume requested).
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" "${instType}" "${inst}")" = "Only custom storage volume requests are allowed" ]
 
     # Create a custom storage volume.
     vol1='{\"name\": \"vol-01\", \"type\": \"custom\", \"config\": {\"size\": \"10MiB\"}}'
+
+    # Create a custom storage volume (fail - insufficient permissions).
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${vol1}")" = "Not Found" ]
+
+    # Grant storage volume create permission.
+    lxc auth group permission add "${authGroup}" project "${project}" can_create_storage_volumes
+
+    # Create a custom storage volumes (ok).
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${vol1}"
 
     vol2='{\"name\": \"vol-02\", \"type\": \"custom\", \"config\": {\"size\": \"10MiB\"}}'
@@ -304,6 +312,12 @@ test_devlxd_volume_management() {
 
     # Update storage volume.
     volNew='{\"description\": \"Updated volume\", \"config\": {\"size\": \"20MiB\"}}'
+
+    # Update storage volume (fail - insufficient permissions).
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage update-volume "${pool}" custom vol-01 "${volNew}")" = "Forbidden" ]
+
+    # Grant storage volume edit permission.
+    lxc auth group permission add "${authGroup}" project "${project}" can_edit_storage_volumes
 
     # Update storage volume (fail - non-custom volume).
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage update-volume "${pool}" "${instType}" "${inst}" "${volNew}")" = "Only custom storage volume requests are allowed" ]
@@ -380,6 +394,12 @@ EOF
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst2}" | jq '.devices' | jq -e 'length == 0'
 
     lxc delete "${inst}-2" --project "${project}" --force
+
+    # Delete storage volume (fail - insufficient permissions).
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage delete-volume "${pool}" "${instType}" "${inst}")" = "Forbidden" ]
+
+    # Grant storage volume delete permission.
+    lxc auth group permission add "${authGroup}" project "${project}" can_delete_storage_volumes
 
     # Delete storage volume (fail - non-custom volume).
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage delete-volume "${pool}" "${instType}" "${inst}")" = "Only custom storage volume requests are allowed" ]
