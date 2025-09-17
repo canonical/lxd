@@ -511,3 +511,25 @@ func devLXDStoragePoolVolumeTypeAccessHandler(entityType entity.Type, entitlemen
 		return response.EmptySyncResponse
 	}
 }
+
+// extractVolumeParams extracts the pool name, volume type and volume name from the request URL.
+func extractVolumeParams(r *http.Request) (poolName string, volType string, volName string, err error) {
+	pathVars := mux.Vars(r)
+
+	poolName, err = url.PathUnescape(pathVars["poolName"])
+	if err != nil {
+		return "", "", "", api.NewGenericStatusError(http.StatusBadRequest)
+	}
+
+	volType, err = url.PathUnescape(pathVars["type"])
+	if err != nil {
+		return "", "", "", api.NewGenericStatusError(http.StatusBadRequest)
+	}
+
+	volName, err = url.PathUnescape(pathVars["volumeName"])
+	if err != nil {
+		return "", "", "", api.NewGenericStatusError(http.StatusBadRequest)
+	}
+
+	return poolName, volType, volName, nil
+}
