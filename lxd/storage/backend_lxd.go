@@ -7269,6 +7269,85 @@ func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backupConfig.C
 	return backupConf.Snapshots, nil
 }
 
+// normalizeUnknownVolumes tries to normalize volumes returned from a driver's ListVolumes.
+// In addition it skips unknown custom volumes which cannot be recovered by name.
+// This might be the case if the volume name is based on its UUID which cannot be translated to the original name.
+// Instead we have to identify which instance in LXD belongs to the respective volume to normalize its name.
+// This is necessary to not disturb potentially running instances in case we are trying to re-mount an instance's volume
+// which is already mounted to the system by its actual name which we don't yet know because we haven't looked into
+// the instances backup config file.
+// Therefore try to lookup the instance's root volume using the volume's UUID.
+// An instance's root volume always has the same name as its parent instance.
+func (b *lxdBackend) normalizeUnknownVolumes(ctx context.Context, poolVols []drivers.Volume) ([]drivers.Volume, error) {
+	normalizedUnknownVols := make([]drivers.Volume, 0, len(poolVols))
+
+	err := b.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		for _, vol := range poolVols {
+			volUUID := vol.Config()["volatile.uuid"]
+
+			if b.driver.Info().UUIDVolumeNames {
+				// This is likely an indicator that the storage driver's ListVolumes returned volumes with a set name.
+				// We have to skip those volumes as they are not following the protocol.
+				if vol.Name() != "" {
+					logger.Warn("Cannot normalize unknown volume with already set name", logger.Ctx{"pool": b.name, "volume": vol.Name()})
+					continue
+				}
+
+				// Skip custom volumes from drivers using the volume's UUID for their name.
+				// Instead the volume should be attached to any of the instances so it can be
+				// recovered through the respective backup config file.
+				if vol.Type() == drivers.VolumeTypeCustom {
+					continue
+				}
+
+				// Fetch the instance's volume from the DB in case it already exists by using its unique UUID.
+				dbVol, err := tx.GetStoragePoolVolumeWithUUID(ctx, volUUID)
+				if err != nil && !response.IsNotFoundError(err) {
+					return fmt.Errorf("Failed to get storage volume for UUID %q on pool %q: %w", volUUID, b.name, err)
+				}
+
+				newVolName := dbVol.Name
+				dbVolType := VolumeDBTypeToType(dbVol.Type)
+
+				// Reject volumes if their type on storage is different to what is already known in the DB.
+				if dbVolType != vol.Type() {
+					return fmt.Errorf("Volume %q in pool %q has type %q but is already known under type %q", newVolName, b.name, vol.Type(), dbVolType)
+				}
+
+				// Create a new volume struct with the actual name of the instance.
+				// This allows crafting the right mount path for the backup config to check whether or not
+				// it already exists and the instance is currently running.
+				// The new volume name might either be empty (if unknown) or set to the known name from the DB.
+				newVol := b.GetVolume(vol.Type(), vol.ContentType(), newVolName, vol.Config())
+
+				// In case the new volume's name is empty, set a custom mount path based on the volume's UUID.
+				// This ensures when mounting the volume, we are picking a unique path as the actual volume's name is empty.
+				if newVolName == "" {
+					newVol.SetMountCustomPath(drivers.GetVolumeMountPath(b.name, newVol.Type(), volUUID))
+				}
+
+				normalizedUnknownVols = append(normalizedUnknownVols, newVol)
+			} else {
+				// This is likely an indicator that the storage driver's ListVolumes returned volumes without a set name.
+				// We have to skip those volumes as they are not following the protocol.
+				if vol.Name() == "" {
+					logger.Warn("Cannot normalize unknown volume with empty name", logger.Ctx{"pool": b.name, "uuid": volUUID})
+					continue
+				}
+
+				normalizedUnknownVols = append(normalizedUnknownVols, vol)
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return normalizedUnknownVols, nil
+}
+
 // ListUnknownVolumes returns volumes that exist on the storage pool but don't have records in the database.
 // Returns the unknown volumes parsed/generated backup config in a slice (keyed on project name).
 func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]*backupConfig.Config, error) {
@@ -7279,6 +7358,11 @@ func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]
 	poolVols, err := b.driver.ListVolumes()
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting pool volumes: %w", err)
+	}
+
+	poolVols, err = b.normalizeUnknownVolumes(context.TODO(), poolVols)
+	if err != nil {
+		return nil, fmt.Errorf("Failed resolving pool volumes: %w", err)
 	}
 
 	projectVols := make(map[string][]*backupConfig.Config)
