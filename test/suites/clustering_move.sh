@@ -50,7 +50,9 @@ test_clustering_move() {
   # Make the identity a member of a group that has minimal permissions for moving the instances.
   LXD_DIR=${LXD_ONE_DIR} lxc auth group create instance-movers
   LXD_DIR=${LXD_ONE_DIR} lxc auth identity group add tls/test instance-movers
+  LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers project default can_view # Required to grant can_create_instances and entitlements on project resource.
   LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers project default can_create_instances # Required, since a move constitutes an initial copy.
+  LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers project test-project can_view # Required to grant can_create_instances
   LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers project test-project can_create_instances # Required, since a move constitutes an initial copy.
   LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers instance c1 can_edit project=default
   LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers instance c1 can_view project=default
