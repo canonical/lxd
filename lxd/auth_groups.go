@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -20,6 +19,7 @@ import (
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -809,46 +809,39 @@ func deleteAuthGroup(d *Daemon, r *http.Request) response.Response {
 
 // validatePermissions checks that a) the entity type exists, b) the entitlement exists, c) then entity type matches the
 // entity reference (URL), and d) that the entitlement is valid for the entity type.
-func validatePermissions(permissions []api.Permission) error {
+func validatePermissions(ctx context.Context, s *state.State, permissions []api.Permission) ([]dbCluster.Permission, error) {
+	projectsWithViewPermissionRequired := make(map[string][]api.Permission, len(permissions))
+	entityReferences := make(map[*api.URL]*dbCluster.EntityRef, len(permissions))
+	permissionToURL := make(map[api.Permission]*api.URL, len(permissions))
 	for _, permission := range permissions {
 		entityType := entity.Type(permission.EntityType)
 		err := entityType.Validate()
 		if err != nil {
-			return api.StatusErrorf(http.StatusBadRequest, "Failed to validate entity type for permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
+			return nil, api.StatusErrorf(http.StatusBadRequest, "Failed to validate entity type for permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
 		}
 
 		u, err := url.Parse(permission.EntityReference)
 		if err != nil {
-			return api.StatusErrorf(http.StatusBadRequest, "Failed to parse permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
+			return nil, api.StatusErrorf(http.StatusBadRequest, "Failed to parse permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
 		}
 
-		referenceEntityType, _, _, _, err := entity.ParseURL(*u)
+		referenceEntityType, projectName, _, _, err := entity.ParseURL(*u)
 		if err != nil {
-			return api.StatusErrorf(http.StatusBadRequest, "Failed to parse permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
+			return nil, api.StatusErrorf(http.StatusBadRequest, "Failed to parse permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
 		}
 
 		if entityType != referenceEntityType {
-			return api.StatusErrorf(http.StatusBadRequest, "Failed to parse permission with entity reference %q and entitlement %q: Entity type does not correspond to entity reference", permission.EntityReference, permission.Entitlement)
+			return nil, api.StatusErrorf(http.StatusBadRequest, "Failed to parse permission with entity reference %q and entitlement %q: Entity type does not correspond to entity reference", permission.EntityReference, permission.Entitlement)
 		}
 
 		err = auth.ValidateEntitlement(entityType, auth.Entitlement(permission.Entitlement))
 		if err != nil {
-			return api.StatusErrorf(http.StatusBadRequest, "Failed to validate group permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
+			return nil, api.StatusErrorf(http.StatusBadRequest, "Failed to validate group permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
 		}
-	}
 
-	return nil
-}
-
-// upsertPermissions converts the given slice of api.Permission into a slice of cluster.Permission by resolving
-// the URLs of each permission to an entity ID. Then sets those permissions against the group with the given ID.
-func upsertPermissions(ctx context.Context, tx *sql.Tx, groupID int, permissions []api.Permission) error {
-	entityReferences := make(map[*api.URL]*dbCluster.EntityRef, len(permissions))
-	permissionToURL := make(map[api.Permission]*api.URL, len(permissions))
-	for _, permission := range permissions {
-		u, err := url.Parse(permission.EntityReference)
-		if err != nil {
-			return fmt.Errorf("Failed to parse permission entity reference: %w", err)
+		requiresProject, _ := entityType.RequiresProject()
+		if requiresProject || entityType == entity.TypeProject {
+			projectsWithViewPermissionRequired[projectName] = append(projectsWithViewPermissionRequired[projectName], permission)
 		}
 
 		apiURL := &api.URL{URL: *u}
@@ -856,9 +849,29 @@ func upsertPermissions(ctx context.Context, tx *sql.Tx, groupID int, permissions
 		permissionToURL[permission] = apiURL
 	}
 
-	err := dbCluster.PopulateEntityReferencesFromURLs(ctx, tx, entityReferences)
+	if len(projectsWithViewPermissionRequired) > 0 {
+		viewableProjects, err := s.Authorizer.GetViewableProjects(ctx, permissions)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to verify that projects are viewable: %w", err)
+		}
+
+		for project, perms := range projectsWithViewPermissionRequired {
+			if !slices.Contains(viewableProjects, project) {
+				if len(perms) == 1 {
+					// Return an informative error message if possible.
+					return nil, api.StatusErrorf(http.StatusBadRequest, "Entitlement %q on entity type %q references project %q, but the project cannot be viewed by the group", perms[0].Entitlement, perms[0].EntityType, project)
+				}
+
+				return nil, api.StatusErrorf(http.StatusBadRequest, "Members of the group cannot view project %q, but %d permissions reference this project", project, len(perms))
+			}
+		}
+	}
+
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		return dbCluster.PopulateEntityReferencesFromURLs(ctx, tx.Tx(), entityReferences)
+	})
 	if err != nil {
-		return err
+		return nil, api.StatusErrorf(http.StatusBadRequest, "Could not resolve permission URLs: %w", err)
 	}
 
 	authGroupPermissions := make([]dbCluster.Permission, 0, len(permissions))
@@ -867,7 +880,7 @@ func upsertPermissions(ctx context.Context, tx *sql.Tx, groupID int, permissions
 		entityType := dbCluster.EntityType(permission.EntityType)
 		entityRef, ok := entityReferences[apiURL]
 		if !ok {
-			return api.StatusErrorf(http.StatusBadRequest, "Missing entity ID for permission with URL %q", permission.EntityReference)
+			return nil, api.StatusErrorf(http.StatusBadRequest, "Missing entity ID for permission with URL %q", permission.EntityReference)
 		}
 
 		authGroupPermissions = append(authGroupPermissions, dbCluster.Permission{
@@ -877,10 +890,5 @@ func upsertPermissions(ctx context.Context, tx *sql.Tx, groupID int, permissions
 		})
 	}
 
-	err = dbCluster.SetAuthGroupPermissions(ctx, tx, groupID, authGroupPermissions)
-	if err != nil {
-		return fmt.Errorf("Failed to set group permissions: %w", err)
-	}
-
-	return nil
+	return authGroupPermissions, nil
 }
