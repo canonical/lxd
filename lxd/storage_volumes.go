@@ -2477,8 +2477,6 @@ func doStoragePoolVolumeDelete(ctx context.Context, s *state.State, name string,
 		err = pool.DeleteCustomVolume(effectiveProjectName, name, op)
 	case cluster.StoragePoolVolumeTypeImage:
 		err = pool.DeleteImage(name, op)
-	default:
-		return api.StatusErrorf(http.StatusBadRequest, `Storage volumes of type %q cannot be deleted with the storage API`, volType.String())
 	}
 
 	if err != nil {
