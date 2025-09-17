@@ -309,21 +309,10 @@ func devLXDStoragePoolVolumeGetHandler(d *Daemon, r *http.Request) response.Resp
 	}
 
 	projectName := inst.Project().Name
-	pathVars := mux.Vars(r)
 
-	poolName, err := url.PathUnescape(pathVars["poolName"])
+	poolName, volType, volName, err := extractVolumeParams(r)
 	if err != nil {
-		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
-	}
-
-	volName, err := url.PathUnescape(pathVars["volumeName"])
-	if err != nil {
-		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
-	}
-
-	volType, err := url.PathUnescape(pathVars["type"])
-	if err != nil {
-		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
+		return response.DevLXDErrorResponse(err)
 	}
 
 	vol, etag, err := devLXDStoragePoolVolumeGet(r.Context(), d, r.URL.Query().Get("target"), projectName, poolName, volName, volType)
@@ -344,21 +333,10 @@ func devLXDStoragePoolVolumePutHandler(d *Daemon, r *http.Request) response.Resp
 
 	projectName := inst.Project().Name
 	target := r.URL.Query().Get("target")
-	pathVars := mux.Vars(r)
 
-	poolName, err := url.PathUnescape(pathVars["poolName"])
+	poolName, volType, volName, err := extractVolumeParams(r)
 	if err != nil {
-		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
-	}
-
-	volName, err := url.PathUnescape(pathVars["volumeName"])
-	if err != nil {
-		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
-	}
-
-	volType, err := url.PathUnescape(pathVars["type"])
-	if err != nil {
-		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
+		return response.DevLXDErrorResponse(err)
 	}
 
 	// Retrieve the volume first to ensure the caller owns it.
@@ -436,21 +414,10 @@ func devLXDStoragePoolVolumeDeleteHandler(d *Daemon, r *http.Request) response.R
 
 	projectName := inst.Project().Name
 	target := r.URL.Query().Get("target")
-	pathVars := mux.Vars(r)
 
-	poolName, err := url.PathUnescape(pathVars["poolName"])
+	poolName, volType, volName, err := extractVolumeParams(r)
 	if err != nil {
-		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
-	}
-
-	volName, err := url.PathUnescape(pathVars["volumeName"])
-	if err != nil {
-		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
-	}
-
-	volType, err := url.PathUnescape(pathVars["type"])
-	if err != nil {
-		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
+		return response.DevLXDErrorResponse(err)
 	}
 
 	// Retrieve the volume first to ensure the caller owns it.
