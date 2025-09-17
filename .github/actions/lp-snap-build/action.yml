@@ -1,0 +1,64 @@
+name: Setup SSH for integration with snap build on Launchpad
+description: |
+  This action sets up SSH access to Launchpad for pushing and pulling code and signing commits.
+  It also configures Git with the necessary settings for signing commits.
+  It clones the snap packaging repository into ~/${PACKAGE}-pkg-snap-lp
+  Lastly it installs the `lxd-snapcraft` tool to allow modifying the snapcraft.yaml file.
+
+  It relies on some environment variables being set:
+  - `SSH_AUTH_SOCK`: The path to the SSH agent socket.
+  - `REPO`: The URL of the snap packaging repository.
+  - `BRANCH`: The branch to clone from the snap packaging repository.
+  - `PACKAGE`: The name of the snap package.
+
+inputs:
+  ssh-key:
+    description: The private SSH key for pulling/pushing to Launchpad and commit signing.
+    type: string
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Launchpad SSH access
+      shell: bash
+      run: |
+        set -eux
+        mkdir -m 0700 -p ~/.ssh/
+        ssh-agent -a "${SSH_AUTH_SOCK}" > /dev/null
+        ssh-add - <<< "${{ inputs.ssh-key }}"
+        ssh-add -L > ~/.ssh/id_ed25519.pub
+        # In ephemeral environments like GitHub Action runners, relying on TOFU isn't providing any security
+        # so require the key obtained by `ssh-keyscan` to match the expected hash from https://help.launchpad.net/SSHFingerprints
+        ssh-keyscan git.launchpad.net >> ~/.ssh/known_hosts
+        [ "$(ssh-keygen -qlF git.launchpad.net)" = 'git.launchpad.net RSA SHA256:UNOzlP66WpDuEo34Wgs8mewypV0UzqHLsIFoqwe8dYo' ]
+
+    - name: Configure Git
+      shell: bash
+      run: |
+        set -eux
+        git config --global transfer.fsckobjects true
+        git config --global user.name "Canonical LXD Bot"
+        git config --global user.email "lxd@lists.canonical.com"
+        git config --global commit.gpgsign true
+        git config --global gpg.format "ssh"
+        git config --global user.signingkey ~/.ssh/id_ed25519.pub
+
+    - name: Git clone repository
+      shell: bash
+      run: |
+        set -eux
+        git clone --depth 1 -b "${BRANCH}" "${REPO}" ~/"${PACKAGE}-pkg-snap-lp"
+
+    - name: Install lxd-snapcraft tool
+      shell: bash
+      run: |
+        # Depends on Go being available which is the case in the GitHub Actions environment
+        set -eux
+        go install github.com/canonical/lxd-ci/lxd-snapcraft@latest
+
+        # Update system PATH to add ~/go/bin if needed
+        echo "${PATH}"
+        if ! echo "${PATH}" | grep -qF '/go/bin:'; then
+          echo "$(go env GOPATH)/bin" >> "${GITHUB_PATH}"
+        fi
