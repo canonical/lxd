@@ -2,24 +2,59 @@ package drivers
 
 // Info represents information about a storage driver.
 type Info struct {
-	Name                         string
-	Version                      string
-	VolumeTypes                  []VolumeType // Supported volume types.
-	DefaultBlockSize             string       // Default block volume size.
-	DefaultVMBlockFilesystemSize string       // Default volume size for VM block filesystems.
-	Buckets                      bool         // Buckets supported.
-	Remote                       bool         // Whether the driver uses a remote backing store.
-	VolumeMultiNode              bool         // Whether volumes can be used on multiple nodes concurrently.
-	OptimizedImages              bool         // Whether driver stores images as separate volume.
-	OptimizedBackups             bool         // Whether driver supports optimized volume backups.
-	OptimizedBackupHeader        bool         // Whether driver generates an optimised backup header file in backup.
-	PreservesInodes              bool         // Whether driver preserves inodes when volumes are moved hosts.
-	BlockBacking                 bool         // Whether driver uses block devices as backing store.
-	RunningCopyFreeze            bool         // Whether instance should be frozen during snapshot if running.
-	DirectIO                     bool         // Whether the driver supports direct I/O.
-	IOUring                      bool         // Whether the driver supports io_uring.
-	MountedRoot                  bool         // Whether the pool directory itself is a mount.
-	PopulateParentVolumeUUID     bool         // Whether the volume should have parent UUID populated before any action.
+	// Name of the storage driver.
+	Name string
+
+	// Version of the storage driver.
+	Version string
+
+	// Supported volume types.
+	VolumeTypes []VolumeType
+
+	// Default block volume size.
+	DefaultBlockSize string
+
+	// Default volume size for VM block filesystems.
+	DefaultVMBlockFilesystemSize string
+
+	// Buckets supported.
+	Buckets bool
+
+	// Whether the driver uses a remote backing store.
+	Remote bool
+
+	// Whether volumes can be used on multiple nodes concurrently.
+	VolumeMultiNode bool
+
+	// Whether driver stores images as separate volume.
+	OptimizedImages bool
+
+	// Whether driver supports optimized volume backups.
+	OptimizedBackups bool
+
+	// Whether driver generates an optimised backup header file in backup.
+	OptimizedBackupHeader bool
+
+	// Whether driver preserves inodes when volumes are moved hosts.
+	PreservesInodes bool
+
+	// Whether driver uses block devices as backing store.
+	BlockBacking bool
+
+	// Whether instance should be frozen during snapshot if running.
+	RunningCopyFreeze bool
+
+	// Whether the driver supports direct I/O.
+	DirectIO bool
+
+	// Whether the driver supports io_uring.
+	IOUring bool
+
+	// Whether the pool directory itself is a mount.
+	MountedRoot bool
+
+	// Whether the volume should have parent UUID populated before any action.
+	PopulateParentVolumeUUID bool
 }
 
 // VolumeFiller provides a struct for filling a volume.
