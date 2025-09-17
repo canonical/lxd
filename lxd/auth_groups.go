@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/gorilla/mux"
 
@@ -354,11 +353,8 @@ func createAuthGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	defer cancel()
-
 	s := d.State()
-	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		groupID, err := dbCluster.CreateAuthGroup(ctx, tx.Tx(), dbCluster.AuthGroup{
 			Name:        group.Name,
 			Description: group.Description,
@@ -433,9 +429,6 @@ func getAuthGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	defer cancel()
-
 	var apiGroup *api.AuthGroup
 	s := d.State()
 	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentity)
@@ -448,7 +441,7 @@ func getAuthGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
 	}
 
-	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		group, err := dbCluster.GetAuthGroup(ctx, tx.Tx(), groupName)
 		if err != nil {
 			return err
@@ -518,9 +511,6 @@ func updateAuthGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	defer cancel()
-
 	s := d.State()
 	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentity)
 	if err != nil {
@@ -532,7 +522,7 @@ func updateAuthGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
 	}
 
-	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		group, err := dbCluster.GetAuthGroup(ctx, tx.Tx(), groupName)
 		if err != nil {
 			return err
@@ -617,9 +607,6 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	defer cancel()
-
 	s := d.State()
 	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentity)
 	if err != nil {
@@ -631,7 +618,7 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed to get a permission checker: %w", err))
 	}
 
-	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		group, err := dbCluster.GetAuthGroup(ctx, tx.Tx(), groupName)
 		if err != nil {
 			return err
@@ -725,11 +712,8 @@ func renameAuthGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	defer cancel()
-
 	s := d.State()
-	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return dbCluster.RenameAuthGroup(ctx, tx.Tx(), groupName, groupPost.Name)
 	})
 	if err != nil {
@@ -790,11 +774,8 @@ func deleteAuthGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	defer cancel()
-
 	s := d.State()
-	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return dbCluster.DeleteAuthGroup(ctx, tx.Tx(), groupName)
 	})
 	if err != nil {
