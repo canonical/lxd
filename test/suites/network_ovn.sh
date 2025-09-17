@@ -706,10 +706,32 @@ test_network_ovn() {
   lxc network load-balancer create "${project_ovn_network}" 192.0.2.2
   lxc network load-balancer create "${project_ovn_network}" 2001:db8:1:2::2
 
-  # Clean up
+  echo "==> Delete load balancers and the network."
   lxc network load-balancer delete "${project_ovn_network}" 192.0.2.2
   lxc network load-balancer delete "${project_ovn_network}" 2001:db8:1:2::2
   lxc network delete "${project_ovn_network}"
+
+  echo "==> Test that limits.networks is enforced."
+
+  echo "==> Set limits.networks=1 for the project."
+  lxc project set testovn limits.networks=1
+
+  echo "==> Create project network ovn1."
+  lxc network create ovn1 --type=ovn network="${uplink_network}" ipv4.address=192.0.2.1/24 ipv6.address=2001:db8:1:2::1/64
+
+  echo "==> Check that creating more networks is not allowed because limits.networks=1."
+  ! lxc network create ovn2 --type=ovn network="${uplink_network}" || false
+
+  echo "==> Check that limits.networks is enforced during project update."
+  ! lxc project set testovn limits.networks=0 || false
+
+  echo "==> Delete the network."
+  lxc network delete ovn1
+
+  echo "==> Check that updating limits.networks is allowed now that there are no created networks."
+  lxc project set testovn limits.networks=0
+
+  echo "==> Clean up the project."
   lxc project switch default
   lxc project delete testovn
 
