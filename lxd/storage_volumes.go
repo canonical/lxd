@@ -2432,7 +2432,7 @@ func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 // doStoragePoolVolumeDelete deletes a storage volume in the given project and pool.
 func doStoragePoolVolumeDelete(ctx context.Context, s *state.State, name string, volType cluster.StoragePoolVolumeType, pool storagePools.Pool, requestProjectName string, effectiveProjectName string) error {
 	if volType != cluster.StoragePoolVolumeTypeCustom && volType != cluster.StoragePoolVolumeTypeImage {
-		return api.StatusErrorf(http.StatusBadRequest, "Storage volumes of type %q cannot be deleted with the storage API", volType.String())
+		return api.StatusErrorf(http.StatusBadRequest, "Storage volumes of type %q cannot be deleted directly", volType.String())
 	}
 
 	// Get the storage volume.
