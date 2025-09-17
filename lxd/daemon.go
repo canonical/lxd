@@ -340,8 +340,24 @@ func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(errors.New("No identity type present in request details"))
 	}
 
+	requestProjectName, allProjects, err := request.ProjectParams(r)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	if idType.IsFineGrained() {
-		// Fine-grained clients can call the endpoint but may see an empty list.
+		if allProjects {
+			return response.EmptySyncResponse
+		}
+
+		s := d.State()
+
+		// Fine-grained clients must be able to view the containing project.
+		err = s.Authorizer.CheckPermission(r.Context(), entity.ProjectURL(requestProjectName), auth.EntitlementCanView)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
 		return response.EmptySyncResponse
 	}
 
@@ -349,11 +365,6 @@ func allowProjectResourceList(d *Daemon, r *http.Request) response.Response {
 	// already, because they cannot call any endpoint other than /1.0/metrics (which is enforced during authentication).
 	if idType.Name() != api.IdentityTypeCertificateClientRestricted {
 		return response.InternalError(fmt.Errorf("Encountered unexpected identity type %q listing resources", idType.Name()))
-	}
-
-	requestProjectName, allProjects, err := request.ProjectParams(r)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	// all-projects requests are not allowed
