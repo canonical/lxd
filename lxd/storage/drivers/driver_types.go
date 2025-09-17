@@ -55,6 +55,13 @@ type Info struct {
 
 	// Whether the volume should have parent UUID populated before any action.
 	PopulateParentVolumeUUID bool
+
+	// Whether the volume name is translated using its UUID.
+	// If set to true, any volume returned by the driver's ListVolumes function
+	// has to be handled with care because the name of the volume on storage does not
+	// relate to the volume's actual name inside LXD's database.
+	// Drivers usually take the volume's UUID and translate it to a base64 encoded string.
+	UUIDVolumeNames bool
 }
 
 // VolumeFiller provides a struct for filling a volume.
