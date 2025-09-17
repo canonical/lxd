@@ -101,7 +101,9 @@ test_storage_volume_recover_by_container() {
   c1_uuid="$(lxc storage volume get "${poolName}" container/c1 volatile.uuid)"
   c1_snap0_uuid="$(lxc storage volume get "${poolName}" container/c1/snap0 volatile.uuid)"
   vol1_uuid="$(lxc storage volume get "${poolName}" vol1 volatile.uuid)"
+  vol1_snap0_uuid="$(lxc storage volume get "${poolName}" vol1/snap0 volatile.uuid)"
   vol2_uuid="$(lxc storage volume get "${poolName2}" vol2 volatile.uuid)"
+  vol2_snap0_uuid="$(lxc storage volume get "${poolName2}" vol2/snap0 volatile.uuid)"
 
   # Delete database entries of the created container.
   lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='c1'"
@@ -146,7 +148,9 @@ EOF
   # Ensure the custom volumes still have the same UUIDs.
   # This validates that the custom storage volumes were recovered from the instance's backup config.
   [ "${vol1_uuid}" = "$(lxc storage volume get "${poolName}" vol1 volatile.uuid)" ]
+  [ "${vol1_snap0_uuid}" = "$(lxc storage volume get "${poolName}" vol1/snap0 volatile.uuid)" ]
   [ "${vol2_uuid}" = "$(lxc storage volume get "${poolName2}" vol2 volatile.uuid)" ]
+  [ "${vol2_snap0_uuid}" = "$(lxc storage volume get "${poolName2}" vol2/snap0 volatile.uuid)" ]
 
   # Detach the custom volumes from the instance.
   lxc storage volume detach "${poolName}" vol1 c1
