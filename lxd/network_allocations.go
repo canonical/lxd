@@ -26,7 +26,7 @@ var networkAllocationsCmd = APIEndpoint{
 	Path:        "network-allocations",
 	MetricsType: entity.TypeNetwork,
 
-	Get: APIEndpointAction{Handler: networkAllocationsGet, AccessHandler: allowProjectResourceList},
+	Get: APIEndpointAction{Handler: networkAllocationsGet, AccessHandler: allowProjectResourceList(false)},
 }
 
 // swagger:operation GET /1.0/network-allocations network-allocations network_allocations_get
