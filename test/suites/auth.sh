@@ -45,10 +45,13 @@ test_authorization() {
   ! lxc auth group permission add test-group instance c1 can_exec project=default || false # Not found
   lxc init --empty c1
   ! lxc auth group permission add test-group instance c1 can_exec || false # No project
+  ! lxc auth group permission add test-group instance c1 can_exec project=default || false # Cannot view default project
+  lxc auth group permission add test-group project default can_view
   lxc auth group permission add test-group instance c1 can_exec project=default # Valid
   lxc auth group permission remove test-group instance c1 can_exec project=default # Valid
   ! lxc auth group permission remove test-group instance c1 can_exec project=default || false # Already removed
   ! lxc auth group permission add test-group instance c1 not_an_instance_entitlement project=default || false # Invalid entitlement
+  lxc auth group permission remove test-group project default can_view
 
   # Instance snapshot permissions, these are not valid because permissions can only be granted on the parent instance.
   lxc snapshot c1 c1-snap
@@ -60,10 +63,13 @@ test_authorization() {
   pool_name="$(lxc storage list -f csv | cut -d, -f1)"
   lxc storage volume create "${pool_name}" vol1
   ! lxc auth group permission add test-group storage_volume vol1 can_manage_backups || false # No project, pool, or volume type
+  ! lxc auth group permission add test-group storage_volume vol1 can_manage_backups project=default pool="${pool_name}" type=custom || false # Cannot view default project
+  lxc auth group permission add test-group project default viewer # Use the viewer role here to assert that validation works with computed relations too.
   lxc auth group permission add test-group storage_volume vol1 can_manage_backups project=default pool="${pool_name}" type=custom # Valid
   lxc auth group permission remove test-group storage_volume vol1 can_manage_backups project=default pool="${pool_name}" type=custom # Valid
   ! lxc auth group permission remove test-group storage_volume vol1 can_manage_backups project=default pool="${pool_name}" type=custom || false # Already removed
   ! lxc auth group permission remove test-group storage_volume vol1 not_a_storage_volume_entitlement project=default pool="${pool_name}" type=custom || false # Invalid entitlement
+  lxc auth group permission remove test-group project default viewer
 
   # Storage volume snapshot permissions, these are not valid because permissions can only be granted on the parent volume.
   lxc storage volume snapshot "${pool_name}" vol1 vol1-snap
@@ -74,18 +80,23 @@ test_authorization() {
   lxc storage volume delete "${pool_name}" vol1
 
   # Test permission is removed automatically when instance is removed.
+  lxc auth group permission add test-group project default can_view
   lxc auth group permission add test-group instance c1 can_exec project=default # Valid
   lxc rm c1 --force
   [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM auth_groups_permissions WHERE entitlement = 'can_exec'")" = 0 ] # Permission should be removed when instance is removed.
+  lxc auth group permission remove test-group project default can_view
 
   # Network permissions
   ! lxc auth group permission add test-group network n1 can_view project=default || false # Not found
   lxc network create n1 ipv4.address=none ipv6.address=none
   ! lxc auth group permission add test-group network n1 can_view || false # No project
+  ! lxc auth group permission add test-group network n1 can_view project=default || false # Cannot view default project
+  lxc auth group permission add test-group project default can_view
   lxc auth group permission add test-group network n1 can_view project=default # Valid
   lxc auth group permission remove test-group network n1 can_view project=default # Valid
   ! lxc auth group permission remove test-group network n1 can_view project=default || false # Already removed
   ! lxc auth group permission add test-group network n1 not_a_network_entitlement project=default || false # Invalid entitlement
+  lxc auth group permission remove test-group project default can_view
   lxc network rm n1
 
   ### IDENTITY MANAGEMENT ###
@@ -367,6 +378,7 @@ events_filtering() {
   lxc profile delete p1
 
   # Monitor as fine-grained identity with can_view_events in the default project.
+  lxc auth group permission add test-group project default can_view
   lxc auth group permission add test-group project default can_view_events
   lxc remote switch tls
   lxc monitor --all-projects --format json > "${monfile}" &
@@ -403,6 +415,7 @@ events_filtering() {
   lxc profile delete p1
   rm "${monfile}"
   lxc auth group permission remove test-group project default can_create_profiles
+  lxc auth group permission remove test-group project default can_view
 }
 
 storage_pool_used_by() {
@@ -410,6 +423,9 @@ storage_pool_used_by() {
 
   # test-group must have no permissions to start the test.
   [ "$(lxc query /1.0/auth/groups/test-group | jq '.permissions | length')" -eq 0 ]
+
+  # Allow the test group to view the default project so that entitlements can be granted against entities within it.
+  lxc auth group permission add test-group project default can_view
 
   # Test storage pool used-by filtering
   pool_name="$(lxc storage list -f csv | cut -d, -f1)"
@@ -466,6 +482,7 @@ storage_pool_used_by() {
   [ "$(lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq 0 ]
 
   # Clean up storage volume used-by tests.
+  lxc auth group permission remove test-group project default can_view
   lxc delete c1 -f
   lxc storage volume delete "${pool_name}" vol1
   [ "$(lxc query "/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq $((start_length)) ]
@@ -476,6 +493,9 @@ network_used_by() {
 
   # test-group must have no permissions to start the test.
   [ "$(lxc query /1.0/auth/groups/test-group | jq '.permissions | length')" -eq 0 ]
+
+  # Allow the test group to view the default project so that entitlements can be granted against entities within it.
+  lxc auth group permission add test-group project default can_view
 
   # Test storage pool
   pool_name="$(lxc storage list -f csv | cut -d, -f1)"
@@ -503,6 +523,7 @@ network_used_by() {
   [ "$(lxc_remote query "${remote}:/1.0/networks/n1" | jq '.used_by | length')" -eq 1 ]
 
   # Allow members of test-group to view the instance. They should see it in the used-by list.
+  lxc auth group permission add test-group project foo can_view
   lxc auth group permission add test-group instance c2 can_view project=foo
   [ "$(lxc_remote query "${remote}:/1.0/networks/n1" | jq '.used_by | length')" -eq 2 ]
 
@@ -511,9 +532,13 @@ network_used_by() {
   lxc delete c2 --project foo -f
   lxc project delete foo
   lxc network delete n1
+  lxc auth group permission remove test-group project default can_view
 }
 
 fine_grained_authorization() {
+  # test-group must have no permissions to start the test.
+  [ "$(lxc query /1.0/auth/groups/test-group | jq '.permissions | length')" -eq 0 ]
+
   remote="${1}"
 
   echo "==> Checking permissions for member of group with no permissions..."
@@ -521,6 +546,10 @@ fine_grained_authorization() {
   user_is_not_server_operator "${remote}"
   user_is_not_project_manager "${remote}"
   user_is_not_project_operator "${remote}"
+
+  # Project list will not fail but there will be no output.
+  [ "$(lxc project list "${remote}:" -f csv || echo fail)" = "" ]
+  ! lxc project show "${remote}:default" || false
 
   # Give the test-group the `admin` entitlement on entity type `server`.
   lxc auth group permission add test-group server admin
@@ -560,15 +589,13 @@ fine_grained_authorization() {
   lxc launch testimage user-foo
 
   # Change permission to "user" for instance "user-foo"
+  lxc auth group permission add test-group project default can_view
   lxc auth group permission add test-group instance user-foo user project=default
 
   echo "==> Checking permissions for member of group with user entitlement on instance user-foo in default project..."
   user_is_instance_user "${remote}" user-foo # Pass instance name into test as we don't have permission to create one.
   lxc delete user-foo --force # Must clean this up now as subsequent tests assume a clean project.
-  user_is_not_server_admin "${remote}"
-  user_is_not_server_operator "${remote}"
-  user_is_not_project_manager "${remote}"
-  user_is_not_project_operator "${remote}"
+  lxc auth group permission remove test-group project default can_view
 
   echo "==> Checking 'can_view_warnings' entitlement..."
   # Delete previous warnings
@@ -758,10 +785,6 @@ user_is_project_operator() {
 
 user_is_not_project_operator() {
   remote="${1}"
-
-  # Project list will not fail but there will be no output.
-  [ "$(lxc project list "${remote}:" -f csv || echo fail)" = "" ]
-  ! lxc project show "${remote}:default" || false
 
   # Should not be able to see or create any instances.
   lxc_remote init --empty c1
@@ -956,6 +979,7 @@ auth_project_features() {
   ! lxc_remote image list "${remote}:" --project blah | grep -F "${test_image_fingerprint_short}" || false
 
   # Make the images in the default project viewable to members of test-group
+  lxc auth group permission add test-group project default can_view
   lxc auth group permission add test-group project default can_view_images
 
   # The test image in the default project should now be visible via project blah.
@@ -963,7 +987,7 @@ auth_project_features() {
   lxc_remote image show "${remote}:${test_image_fingerprint}" --project blah
   lxc_remote image list "${remote}:" --project blah | grep -F "${test_image_fingerprint_short}"
 
-  # Members of test-group can view it via project default. (This is true even though they do not have can_view on project default).
+  # Members of test-group can view it via project default.
   lxc_remote image info "${remote}:${test_image_fingerprint}" --project default
   lxc_remote image show "${remote}:${test_image_fingerprint}" --project default
   lxc_remote image list "${remote}:" --project default | grep -F "${test_image_fingerprint_short}"
@@ -990,6 +1014,7 @@ auth_project_features() {
   # Image clean up
   lxc image delete "${test_image_fingerprint}" --project default
   lxc auth group permission remove test-group project default can_view_images
+  lxc auth group permission remove test-group project default can_view
   rm "${TEST_DIR}/${test_image_fingerprint}.tar.xz"
 
   ### NETWORKS (initial value is false in new projects).
@@ -1004,6 +1029,7 @@ auth_project_features() {
   [ "$(lxc_remote network list "${remote}:" --all-projects -f csv || echo fail)" = "" ]
 
   # Make networks in the default project viewable to members of test-group
+  lxc auth group permission add test-group project default can_view
   lxc auth group permission add test-group project default can_view_networks
 
   # The network we created in the default project is now visible in project blah.
@@ -1043,6 +1069,7 @@ auth_project_features() {
   lxc network delete "${networkName}" --project blah
   lxc network delete blah-network --project blah
   lxc auth group permission remove test-group project default can_view_networks
+  lxc auth group permission remove test-group project default can_view
 
   ### NETWORK ZONES (initial value is false in new projects).
 
@@ -1056,6 +1083,7 @@ auth_project_features() {
   ! lxc_remote network zone list "${remote}:" --all-projects | grep -F "${zoneName}" || false
 
   # Allow view access to network zones in the default project.
+  lxc auth group permission add test-group project default can_view
   lxc auth group permission add test-group project default can_view_network_zones
 
   # Members of test-group can now view the network zone via the default project and via the blah project.
@@ -1088,6 +1116,7 @@ auth_project_features() {
   lxc network zone delete "${zoneName}" --project blah
   lxc network zone delete blah-zone --project blah
   lxc auth group permission remove test-group project default can_view_network_zones
+  lxc auth group permission remove test-group project default can_view
 
   ### Network allocations
 
@@ -1101,6 +1130,7 @@ auth_project_features() {
   lxc init testimage foo --network "${networkName}"
 
   # To create the instance in the blah project we need to temporarily grant view access on the network.
+  lxc auth group permission add test-group project default can_view
   lxc auth group permission add test-group network "${networkName}" can_view project=default
   lxc_remote init testimage "${remote}:bar" --network "${networkName}" --project blah
   lxc auth group permission remove test-group network "${networkName}" can_view project=default
@@ -1130,6 +1160,7 @@ auth_project_features() {
   lxc image delete testimage --project blah
   lxc network delete "${networkName}"
   lxc auth group permission remove test-group project default can_view_networks
+  lxc auth group permission remove test-group project default can_view
 
   ### PROFILES (initial value is true for new projects)
 
@@ -1148,6 +1179,7 @@ auth_project_features() {
   lxc project switch default
 
   # Grant members of test-group permission to view profiles in the default project
+  lxc auth group permission add test-group project default can_view
   lxc auth group permission add test-group project default can_view_profiles
 
   # The profile we just created is now visible via the default project and via the blah project
@@ -1178,6 +1210,7 @@ auth_project_features() {
   lxc profile delete "${profileName}" --project blah
   lxc profile delete blah-profile --project blah
   lxc auth group permission remove test-group project default can_view_profiles
+  lxc auth group permission remove test-group project default can_view
 
   ### STORAGE VOLUMES (initial value is true for new projects)
 
@@ -1193,6 +1226,7 @@ auth_project_features() {
   ! lxc_remote storage volume list "${remote}:${pool_name}" --project blah | grep -F "${volName}" || false
 
   # Grant members of test-group permission to view storage volumes in project default
+  lxc auth group permission add test-group project default can_view
   lxc auth group permission add test-group project default can_view_storage_volumes
 
   # Members of test-group can't view it via project default and project blah.
@@ -1223,6 +1257,7 @@ auth_project_features() {
   lxc storage volume delete "${pool_name}" "${volName}"
   lxc storage volume delete "${pool_name}" blah-volume
   lxc auth group permission remove test-group project default can_view_storage_volumes
+  lxc auth group permission remove test-group project default can_view
 
   ### STORAGE BUCKETS (initial value is true for new projects)
 
@@ -1242,6 +1277,7 @@ auth_project_features() {
   [ "$(lxc_remote storage bucket list "${remote}:s3" --all-projects -f csv || echo fail)" = "" ]
 
   # Grant view permission on storage buckets in project default to members of test-group
+  lxc auth group permission add test-group project default can_view
   lxc auth group permission add test-group project default can_view_storage_buckets
 
   # Members of test-group can now view the bucket via project default and project blah.
@@ -1274,6 +1310,7 @@ auth_project_features() {
   lxc storage bucket delete s3 blah-bucket --project blah
   lxc storage bucket delete s3 "${bucketName}" --project blah
   lxc auth group permission remove test-group project default can_view_storage_buckets
+  lxc auth group permission remove test-group project default can_view
   delete_object_storage_pool s3
 
   # General clean up
@@ -1307,6 +1344,7 @@ auth_ovn() {
   echo "Create a project and grant the fine-grained identity operator access."
   lxc project create foo -c features.networks=true
   lxc auth group permission add test-group project foo operator
+  lxc auth group permission add test-group project default can_view
   lxc auth group permission add test-group network "${uplink_network}" can_view project=default
 
   echo "Create an OVN network as the fine-grained identity and check access."
@@ -1321,6 +1359,7 @@ auth_ovn() {
 
   # Clean up
   lxc network delete "${uplink_network}"
+  lxc auth group permission remove test-group project default can_view
   ip link delete dummy0
   lxc project delete foo
   unset_ovn_configuration
@@ -1351,6 +1390,7 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission add test-group project test-project1 can_delete
   lxc project create test-project2
   lxc auth group permission add test-group project test-project2 operator
+  lxc auth group permission add test-group project default can_view
 
   # Check the created project entitlements given a list of candidate entitlements (some should not be returned, this depends on the privilege of the caller).
   lxc_remote query "oidc:/1.0/projects/test-project1?with-access-entitlements=can_view,can_edit,can_delete,can_create_instances,can_create_networks" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
@@ -1361,6 +1401,8 @@ entities_enrichment_with_entitlements() {
         .access_entitlements | sort | @csv == "\"can_delete\",\"can_edit\",\"can_view\""
       elif .name == "test-project2" then
         .access_entitlements | sort | @csv == "\"can_create_instances\",\"can_create_networks\",\"can_view\""
+      elif .name == "default" then
+        .access_entitlements | sort | @csv == "\"can_view\""
       else
         false
       end
@@ -1652,6 +1694,8 @@ entities_enrichment_with_entitlements() {
 
   lxc network zone delete zone1
   lxc network zone delete zone2
+
+  lxc auth group permission remove test-group project default can_view
 
   # Server
   lxc auth group permission add test-group server admin
