@@ -1128,7 +1128,13 @@ func AllowProjectUpdate(ctx context.Context, globalConfig *clusterConfig.Config,
 			}
 
 		case "limits.networks":
-			// TODO: check network limits.
+			// If project does not have its own networks, no need to validate limits.networks.
+			if shared.IsTrue(config["features.networks"]) {
+				err := validateNetworksCountLimit(info.Networks, config[key])
+				if err != nil {
+					return fmt.Errorf("Can't change %q in project %q: %w", key, projectName, err)
+				}
+			}
 		}
 	}
 
@@ -1183,6 +1189,27 @@ func validateInstanceCountLimit(instances []api.Instance, key, value, project st
 
 	if limit < count {
 		return fmt.Errorf(`%q is too low: there currently are %d instances of type %s in project %q`, key, count, instanceType, project)
+	}
+
+	return nil
+}
+
+// validateNetworksCountLimit checks that "limits.networks" is equal or above
+// the current count of project networks.
+func validateNetworksCountLimit(networks []string, limitValue string) error {
+	if limitValue == "" {
+		return nil
+	}
+
+	limit, err := strconv.Atoi(limitValue)
+	if err != nil {
+		return err
+	}
+
+	count := len(networks)
+
+	if limit < count {
+		return fmt.Errorf("Network limit exceeded: there currently are %d networks", count)
 	}
 
 	return nil
