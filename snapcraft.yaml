@@ -421,8 +421,8 @@ parts:
 
   liburing:
     source: https://github.com/axboe/liburing
+    source-commit: f4e42a515cd78c8c9cac2be14222834be5f8df2b # liburing-2.5
     source-depth: 1
-    source-tag: liburing-2.5
     source-type: git
     plugin: autotools
     autotools-configure-parameters:
