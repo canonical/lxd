@@ -809,6 +809,7 @@ jobs:
     name: Documentation
     runs-on: ubuntu-24.04
     if: github.event_name == 'workflow_dispatch' || github.repository == 'canonical/lxd'
+    needs: code-tests
     steps:
       - name: Checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
