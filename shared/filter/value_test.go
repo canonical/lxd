@@ -159,3 +159,22 @@ func TestValueOf_Instance(t *testing.T) {
 		})
 	}
 }
+
+func Benchmark_ValueOf_Instance(b *testing.B) {
+	date := time.Date(2020, 1, 29, 11, 10, 32, 0, time.UTC)
+	instance := api.Instance{
+		Name:         "c1",
+		Status:       "Running",
+		Architecture: "x86_64",
+		Stateful:     false,
+		CreatedAt:    date,
+	}
+
+	for b.Loop() {
+		_ = filter.ValueOf(instance, "architecture")
+		_ = filter.ValueOf(instance, "created_at")
+		_ = filter.ValueOf(instance, "name")
+		_ = filter.ValueOf(instance, "status")
+		_ = filter.ValueOf(instance, "stateful")
+	}
+}
