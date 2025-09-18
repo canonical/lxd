@@ -8,6 +8,15 @@ import (
 // ValueOf returns the value of the given field.
 func ValueOf(obj any, field string) any {
 	value := reflect.ValueOf(obj)
+
+	if value.Kind() == reflect.Pointer {
+		if value.IsNil() {
+			return nil
+		}
+
+		value = value.Elem()
+	}
+
 	typ := value.Type()
 	parts := strings.Split(field, ".")
 
