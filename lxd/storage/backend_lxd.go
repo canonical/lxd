@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -7413,6 +7414,41 @@ func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]
 	return projectVols, nil
 }
 
+// cleanupUnknownVolumeMountPath cleans up the left over mount path using the volume's UUID.
+// In case an unknown volume wasn't known in the DB, we couldn't normalize it to find out its actual name.
+// This caused the volume to be mounted under its UUID (last part of the mount path).
+// After recovery the volume gets mounted under its actual name which would leave an empty directory behind.
+func (b *lxdBackend) cleanupUnknownVolumeMountPath(poolVol *drivers.Volume) error {
+	// Cleanup is only required for volumes which don't have a name.
+	// This is the subset of volumes returned from drivers using UUID's for the volume name
+	// which weren't yet known to LXD before running the recovery.
+	if b.driver.Info().UUIDVolumeNames && poolVol.Name() == "" {
+		mountPath := poolVol.MountPath()
+		mountPathBase := path.Base(mountPath)
+
+		// It looks like the mount path already used the instance's name so skip the cleanup.
+		if mountPathBase != poolVol.Config()["volatile.uuid"] {
+			return nil
+		}
+
+		mountPathEmpty, err := shared.PathIsEmpty(mountPath)
+		if err != nil {
+			return fmt.Errorf("Failed to check if unknown volume's directory %q is empty: %w", mountPath, err)
+		}
+
+		if !mountPathEmpty {
+			return fmt.Errorf("Cannot cleanup unknown volume's directory %q as it's not empty", mountPath)
+		}
+
+		err = os.Remove(mountPath)
+		if err != nil {
+			return fmt.Errorf("Failed to cleanup unknown volume's directory %q: %w", mountPath, err)
+		}
+	}
+
+	return nil
+}
+
 // detectUnknownInstanceAndCustomVolumes parses the given volume's backup config and detects if an instance's volume is unknown.
 // It then runs a series of consistency checks that compare the contents of the backup file to
 // the state of the volume on disk, and if all checks out, it adds the parsed backup file contents to projectVols.
@@ -7451,6 +7487,11 @@ func (b *lxdBackend) detectUnknownInstanceAndCustomVolumes(vol *drivers.Volume, 
 		}, op)
 		if err != nil {
 			return err
+		}
+
+		err = b.cleanupUnknownVolumeMountPath(vol)
+		if err != nil {
+			return fmt.Errorf("Failed cleaning up mount path %q of unknown volume: %w", vol.MountPath(), err)
 		}
 	}
 
