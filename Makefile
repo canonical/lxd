@@ -38,7 +38,7 @@ export CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 default: all
 
 .PHONY: all
-all: client lxd lxd-agent lxd-migrate
+all: client lxd lxd-agent lxd-migrate test-binaries
 
 .PHONY: build
 build: lxd
