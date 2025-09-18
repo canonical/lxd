@@ -8,18 +8,20 @@ import (
 // ValueOf returns the value of the given field.
 func ValueOf(obj any, field string) any {
 	value := reflect.ValueOf(obj)
+	valueKind := value.Kind()
 
-	if value.Kind() == reflect.Pointer {
+	if valueKind == reflect.Pointer {
 		if value.IsNil() {
 			return nil
 		}
 
 		value = value.Elem()
+		valueKind = value.Kind()
 	}
 
 	key, rest, found := strings.Cut(field, ".")
 
-	if value.Kind() == reflect.Map {
+	if valueKind == reflect.Map {
 		switch reflect.TypeOf(obj).Elem().Kind() {
 		case reflect.String:
 			m, ok := value.Interface().(map[string]string)
