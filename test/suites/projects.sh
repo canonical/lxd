@@ -918,6 +918,7 @@ run_projects_restrictions() {
     # that networks in the default project can never be modified by this user via the "punching through" that the feature flags allow
     # with restricted certs.
     lxc auth group permission add local:test-group project p1 operator
+    lxc auth group permission add local:test-group project default can_view
     lxc auth group permission add local:test-group project default can_view_networks
     lxc auth group permission add local:test-group server can_view_unmanaged_networks
   fi
