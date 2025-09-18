@@ -7496,6 +7496,12 @@ func (b *lxdBackend) detectUnknownInstanceAndCustomVolumes(vol *drivers.Volume, 
 	}
 
 	if backupConf.Instance == nil {
+		// Drivers with UUID based volume names don't populate a name.
+		// Instead return the volume's custom mount path which contains its UUID for reference.
+		if b.driver.Info().UUIDVolumeNames {
+			return fmt.Errorf("Instance on volume path %q has no instance information in its backup file", vol.MountPath())
+		}
+
 		return fmt.Errorf("Instance on volume %q has no instance information in its backup file", vol.Name())
 	}
 
