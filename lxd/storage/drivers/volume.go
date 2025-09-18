@@ -445,6 +445,11 @@ func (v Volume) SetConfigStateSize(size string) {
 	v.config["size.state"] = size
 }
 
+// SetMountCustomPath sets a custom path for mounting the volume.
+func (v *Volume) SetMountCustomPath(path string) {
+	v.mountCustomPath = path
+}
+
 // ConfigBlockFilesystem returns the filesystem to use for block volumes. Returns config value "block.filesystem"
 // if defined in volume or pool's volume config, otherwise the DefaultFilesystem.
 func (v Volume) ConfigBlockFilesystem() string {
