@@ -17,10 +17,7 @@ func ValueOf(obj any, field string) any {
 		value = value.Elem()
 	}
 
-	parts := strings.Split(field, ".")
-
-	key := parts[0]
-	rest := strings.Join(parts[1:], ".")
+	key, rest, found := strings.Cut(field, ".")
 
 	if value.Kind() == reflect.Map {
 		switch reflect.TypeOf(obj).Elem().Kind() {
@@ -59,7 +56,7 @@ func ValueOf(obj any, field string) any {
 		yamlKey, _, _ := strings.Cut(yaml, ",")
 		if yamlKey == key {
 			v := fieldValue.Interface()
-			if len(parts) == 1 {
+			if !found {
 				return v
 			}
 
