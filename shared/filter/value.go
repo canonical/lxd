@@ -43,6 +43,10 @@ func ValueOf(obj any, field string) any {
 		return nil
 	}
 
+	if valueKind != reflect.Struct {
+		return nil
+	}
+
 	typ := value.Type()
 	var parent any
 
