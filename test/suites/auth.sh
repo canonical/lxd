@@ -788,55 +788,55 @@ user_is_not_project_operator() {
 
   # Should not be able to see or create any instances.
   lxc_remote init --empty c1
-  [ "$(lxc_remote list "${remote}:" -f csv || echo fail)" = "" ]
+  ! lxc_remote list "${remote}:" -f csv || false
   [ "$(lxc_remote list "${remote}:" -f csv --all-projects || echo fail)" = "" ]
   ! lxc_remote init --empty "${remote}:test-instance" || false
   lxc_remote delete c1
 
   # Should not be able to see network allocations.
-  [ "$(lxc_remote network list-allocations "${remote}:" -f csv || echo fail)" = "" ]
+  ! lxc_remote network list-allocations "${remote}:" -f csv || false
   [ "$(lxc_remote network list-allocations "${remote}:" --all-projects -f csv || echo fail)" = "" ]
 
   # Should not be able to see or create networks.
-  [ "$(lxc_remote network list "${remote}:" -f csv || echo fail)" = "" ]
+  ! lxc_remote network list "${remote}:" -f csv || false
   ! lxc_remote network create "${remote}:test-network" || false
 
   # Should not be able to see or create network ACLs.
   lxc_remote network acl create acl1
-  [ "$(lxc_remote network acl list "${remote}:" -f csv || echo fail)" = "" ]
+  ! lxc_remote network acl list "${remote}:" -f csv || false
   [ "$(lxc_remote network acl list "${remote}:" -f csv --all-projects || echo fail)" = "" ]
   ! lxc_remote network acl create "${remote}:test-acl" || false
   lxc_remote network acl delete acl1
 
   # Should not be able to see or create network zones.
   lxc_remote network zone create zone1
-  [ "$(lxc_remote network zone list "${remote}:" -f csv || echo fail)" = "" ]
+  ! lxc_remote network zone list "${remote}:" -f csv || false
   [ "$(lxc_remote network zone list "${remote}:" -f csv --all-projects || echo fail)" = "" ]
   ! lxc_remote network zone create "${remote}:test-zone" || false
   lxc_remote network zone delete zone1
 
   # Should not be able to see or create profiles.
-  [ "$(lxc_remote profile list "${remote}:" -f csv || echo fail)" = "" ]
+  ! lxc_remote profile list "${remote}:" -f csv || false
   [ "$(lxc_remote profile list "${remote}:" -f csv --all-projects || echo fail)" = "" ]
   ! lxc_remote profile create "${remote}:test-profile" || false
 
   # Should not be able to see or create image aliases
   test_image_fingerprint="$(lxc_remote image info testimage | awk '/^Fingerprint/ {print $2}')"
-  [ "$(lxc_remote image alias list "${remote}:" -f csv || echo fail)" = "" ]
+  ! lxc_remote image alias list "${remote}:" -f csv || false
   ! lxc_remote image alias create "${remote}:testimage2" "${test_image_fingerprint}" || false
 
   # Should not be able to see or create storage pool volumes.
   pool_name="$(lxc_remote storage list "${remote}:" -f csv | cut -d, -f1)"
   lxc_remote storage volume create "${pool_name}" vol1
-  [ "$(lxc_remote storage volume list "${remote}:${pool_name}" -f csv || echo fail)" = "" ]
+  ! lxc_remote storage volume list "${remote}:${pool_name}" -f csv || false
   [ "$(lxc_remote storage volume list "${remote}:${pool_name}" --all-projects -f csv || echo fail)" = "" ]
-  [ "$(lxc_remote storage volume list "${remote}:" -f csv || echo fail)" = "" ]
+  ! lxc_remote storage volume list "${remote}:" -f csv || false
   [ "$(lxc_remote storage volume list "${remote}:" --all-projects -f csv || echo fail)" = "" ]
   ! lxc_remote storage volume create "${remote}:${pool_name}" test-volume || false
   lxc_remote storage volume delete "${pool_name}" vol1
 
   # Should not be able to see any operations.
-  [ "$(lxc_remote operation list "${remote}:" -f csv || echo fail)" = "" ]
+  ! lxc_remote operation list "${remote}:" -f csv || false
   [ "$(lxc_remote operation list "${remote}:" --all-projects -f csv || echo fail)" = "" ]
 
   # Image list will still work but none will be shown because none are public.
@@ -903,21 +903,20 @@ auth_project_features() {
   # Validate restricted caller cannot create projects.
   ! lxc_remote project create "${remote}:blah1" || false
 
-  # Validate restricted caller cannot see resources in projects they do not have access to (the call will not fail, but
-  # the lists should be empty
-  [ "$(lxc_remote list "${remote}:" --project default --format csv || echo fail)" = "" ]
-  [ "$(lxc_remote profile list "${remote}:" --project default --format csv || echo fail)" = "" ]
+  # Validate restricted caller cannot see resources in projects they do not have access to.
+  ! lxc_remote list "${remote}:" --project default --format csv || false
+  ! lxc_remote profile list "${remote}:" --project default --format csv || false
   [ "$(lxc_remote profile list "${remote}:" --all-projects --format csv || echo fail)" = "" ]
-  [ "$(lxc_remote network list "${remote}:" --project default --format csv || echo fail)" = "" ]
-  [ "$(lxc_remote operation list "${remote}:" --project default --format csv || echo fail)" = "" ]
-  [ "$(lxc_remote network zone list "${remote}:" --project default --format csv || echo fail)" = "" ]
+  ! lxc_remote network list "${remote}:" --project default --format csv || false
+  ! lxc_remote operation list "${remote}:" --project default --format csv || false
+  ! lxc_remote network zone list "${remote}:" --project default --format csv || false
   [ "$(lxc_remote network zone list "${remote}:" --all-projects --format csv || echo fail)" = "" ]
   [ "$(lxc_remote network list "${remote}:" --all-projects --format csv || echo fail)" = "" ]
   [ "$(lxc_remote network acl list "${remote}:" --all-projects --format csv || echo fail)" = "" ]
-  [ "$(lxc_remote storage volume list "${remote}:${pool_name}" --project default --format csv || echo fail)" = "" ]
+  ! lxc_remote storage volume list "${remote}:${pool_name}" --project default --format csv || false
   lxd_backend=$(storage_backend "$LXD_DIR")
   if [ "${lxd_backend}" != "ceph" ]; then
-    [ "$(lxc_remote storage bucket list "${remote}:${pool_name}" --project default --format csv || echo fail)" = "" ]
+    ! lxc_remote storage bucket list "${remote}:${pool_name}" --project default --format csv || false
     [ "$(lxc_remote storage bucket list "${remote}:${pool_name}" --all-projects --format csv || echo fail)" = "" ]
   fi
 
