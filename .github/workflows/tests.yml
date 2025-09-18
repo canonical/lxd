@@ -161,7 +161,6 @@ jobs:
           # Build from unpacked dist tarball.
           cd /home/runner/work/lxd/lxd-test
           make
-          make test-binaries
 
       - name: Check lxc/lxd-agent binary sizes
         if: env.GOCOVERAGE != 'true'
