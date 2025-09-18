@@ -17,13 +17,10 @@ func ValueOf(obj any, field string) any {
 		value = value.Elem()
 	}
 
-	typ := value.Type()
 	parts := strings.Split(field, ".")
 
 	key := parts[0]
 	rest := strings.Join(parts[1:], ".")
-
-	var parent any
 
 	if value.Kind() == reflect.Map {
 		switch reflect.TypeOf(obj).Elem().Kind() {
@@ -46,6 +43,9 @@ func ValueOf(obj any, field string) any {
 		}
 		return nil
 	}
+
+	typ := value.Type()
+	var parent any
 
 	for i := range value.NumField() {
 		fieldValue := value.Field(i)
