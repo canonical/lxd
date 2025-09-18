@@ -250,14 +250,14 @@ test_devlxd_volume_management() {
     # Fail when token is not passed.
     [ "$(lxc exec "${inst}" --project "${project}" -- devlxd-client instance get "${inst}")" = "You must be authenticated" ]
 
-    # Fail when invalid token is passed (replace signature part).
-    invalidToken="${token%.*}.invalid"
-    ! lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${invalidToken}" -- devlxd-client instance get "${inst}" || false
-
     # Fail when a valid identity token is passed, but the identity does not have permissions.
     lxc auth identity create "${authIdentity}"
     token=$(lxc auth identity token issue "${authIdentity}" --quiet)
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}")" = "Not Found" ]
+
+    # Fail when invalid token is passed (replace signature part).
+    invalidToken="${token%.*}.invalid"
+    ! lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${invalidToken}" -- devlxd-client instance get "${inst}" || false
 
     # Succeed when a valid identity token is passed and the identity has permissions.
     lxc auth group create "${authGroup}"
