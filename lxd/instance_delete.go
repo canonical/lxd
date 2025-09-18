@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 
@@ -77,7 +78,7 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	op, err := doInstanceDelete(r.Context(), s, name, projectName)
+	op, err := doInstanceDelete(r.Context(), s, name, projectName, false)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -86,14 +87,27 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 }
 
 // doInstanceDelete deletes an instance in the given project.
-func doInstanceDelete(ctx context.Context, s *state.State, name string, projectName string) (*operations.Operation, error) {
+// If the instance is running and force is true, the instance is force stopped. Otherwise, an error is returned.
+func doInstanceDelete(ctx context.Context, s *state.State, name string, projectName string, force bool) (*operations.Operation, error) {
 	inst, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return nil, err
 	}
 
 	if inst.IsRunning() {
-		return nil, api.NewStatusError(http.StatusBadRequest, "Instance is running")
+		if !force {
+			return nil, api.NewStatusError(http.StatusBadRequest, "Instance is running")
+		}
+
+		// Stop instance.
+		err = doInstanceStatePut(inst, api.InstanceStatePut{
+			Action:  "stop",
+			Timeout: -1,
+			Force:   true,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("Failed force stopping instance %q before deletion: %w", name, err)
+		}
 	}
 
 	rmct := func(op *operations.Operation) error {
