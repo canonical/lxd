@@ -229,7 +229,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 }
 
 // projectUsedBy returns a list of URLs for all instances, images, profiles,
-// storage volumes, networks, and acls that use this project.
+// storage volumes, storage buckets, networks, and acls that use this project.
 func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *dbCluster.Project) ([]string, error) {
 	reportedEntityTypes := []entity.Type{
 		entity.TypeInstance,
@@ -238,6 +238,7 @@ func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *dbCluster.Pro
 		entity.TypeStorageVolume,
 		entity.TypeNetwork,
 		entity.TypeNetworkACL,
+		entity.TypeStorageBucket,
 	}
 
 	entityURLs, err := dbCluster.GetEntityURLs(ctx, tx.Tx(), project.Name, reportedEntityTypes...)
