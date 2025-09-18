@@ -85,6 +85,11 @@ if [ "${LXD_VM_TESTS:-0}" = "1" ]; then
   check_dependencies qemu-img "qemu-system-$(uname -m)" sgdisk
 fi
 
+echo "==> Checking test dependencies"
+if ! check_dependencies devlxd-client fuidshift mini-oidc sysinfo; then
+  ( cd .. && make test-binaries )
+fi
+
 # If no test image is specified, busybox-static will be needed by test/deps/import-busybox
 if [ -z "${LXD_TEST_IMAGE:-}" ]; then
   BUSYBOX="$(command -v busybox)"
