@@ -1222,7 +1222,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		project, err := dbCluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
-			return fmt.Errorf("Fetch project %q: %w", name, err)
+			return fmt.Errorf("Failed loading project %q: %w", name, err)
 		}
 
 		if !force {
