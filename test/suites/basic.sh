@@ -156,6 +156,9 @@ test_basic_usage() {
 
   lxc rename bar foo
   [ "$(lxc list -c n -f csv)" = "foo" ]
+
+  # Check volatile.apply_template is kept until applied (instance start).
+  [ "$(lxc config get foo volatile.apply_template)" = "rename" ]
   lxc rename foo bar
 
   # Test container copy
