@@ -534,12 +534,12 @@ test_basic_usage() {
     [ "$(< "${LXD_DIR}/containers/foo/rootfs/tmp/foo")" = "foo" ]
   fi
 
+  # cleanup
+  lxc delete foo -f
+
   lxc launch testimage deleterunning
   my_curl -X DELETE "https://${LXD_ADDR}/1.0/containers/deleterunning" | grep "Instance is running"
   lxc delete deleterunning -f
-
-  # cleanup
-  lxc delete foo -f
 
   if [ -e /sys/module/apparmor/ ]; then
     # check that an apparmor profile is created for this container, that it is
