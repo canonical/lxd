@@ -499,11 +499,13 @@ test_basic_usage() {
 
   lxc file push "${LXD_DIR}/in" foo/root/
   [ "$(lxc exec foo -- /bin/cat /root/in)" = "abc" ]
-  lxc exec foo -- /bin/rm -f root/in
+  lxc file delete foo/root/in
 
   lxc file push "${LXD_DIR}/in" foo/root/in1
-  [ "$(lxc exec foo -- /bin/cat /root/in1)" = "abc" ]
-  lxc exec foo -- /bin/rm -f root/in1
+  [ "$(lxc file pull foo/root/in1 -)" = "abc" ]
+  lxc file delete foo/root/in1
+
+  rm "${LXD_DIR}/in"
 
   # test lxc file edit doesn't change target file's owner and permissions
   echo "content" | lxc file push - foo/tmp/edit_test
