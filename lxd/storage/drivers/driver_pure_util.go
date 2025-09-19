@@ -1530,3 +1530,17 @@ func (d *pure) getVolumeName(vol Volume) (string, error) {
 
 	return volName, nil
 }
+
+// getUUIDFromVolumeName translates the volume's name to the respective UUID.
+// It expects the volume name without any prefix/suffix.
+func (d *pure) getUUIDFromVolumeName(name string) (uuid.UUID, error) {
+	// The UUID library internally handles the UUID without hyphens.
+	// As the Pure volume name uses the UUID's string representation without hyphens,
+	// we can simply parse it in its byte format to get back the original UUID.
+	volUUID, err := uuid.ParseBytes([]byte(name))
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("Failed parsing UUID from volume name %q: %w", name, err)
+	}
+
+	return volUUID, nil
+}
