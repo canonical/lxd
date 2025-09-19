@@ -525,8 +525,8 @@ test_basic_usage() {
   lxc exec foo true
 
   # Detect regressions/hangs in exec
-  sum=$(ps aux | tee "${LXD_DIR}/out" | lxc exec foo -- md5sum | cut -d' ' -f1)
-  [ "${sum}" = "$(md5sum "${LXD_DIR}/out" | cut -d' ' -f1)" ]
+  sum=$(ps aux | tee "${LXD_DIR}/out" | lxc exec foo -- md5sum)
+  [ "${sum}" = "$(md5sum < "${LXD_DIR}/out")" ]
   rm "${LXD_DIR}/out"
 
   # FIXME: make this backend agnostic
