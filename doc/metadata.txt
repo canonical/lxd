@@ -4236,7 +4236,7 @@ To temporarily remove the restrictions, you can disable this option instead of c
 
 ```{config:option} restricted.backups project-restricted
 :defaultdesc: "`block`"
-:shortdesc: "Whether to prevent creating instance or volume backups"
+:shortdesc: "When set to `block`, creating instance or volume backups is prevented"
 :type: "string"
 Possible values are `allow` or `block`.
 ```
@@ -4249,7 +4249,7 @@ If specified, this option prevents targeting cluster groups other than the provi
 
 ```{config:option} restricted.cluster.target project-restricted
 :defaultdesc: "`block`"
-:shortdesc: "Whether to prevent targeting of cluster members"
+:shortdesc: "When set to `block`, targeting of cluster members is prevented"
 :type: "string"
 Possible values are `allow` or `block`.
 When set to `allow`, this option allows targeting of cluster members (either directly or via a group) when creating or moving instances.
@@ -4257,7 +4257,7 @@ When set to `allow`, this option allows targeting of cluster members (either dir
 
 ```{config:option} restricted.containers.interception project-restricted
 :defaultdesc: "`block`"
-:shortdesc: "Whether to prevent using system call interception options"
+:shortdesc: "When set to `block`, using system call interception options is prevented"
 :type: "string"
 Possible values are `allow`, `block`, or `full`.
 When set to `allow`, interception options that are usually safe are allowed.
@@ -4266,7 +4266,7 @@ File system mounting remains blocked.
 
 ```{config:option} restricted.containers.lowlevel project-restricted
 :defaultdesc: "`block`"
-:shortdesc: "Whether to prevent using low-level container options"
+:shortdesc: "When set to `block`, using low-level container options is prevented"
 :type: "string"
 Possible values are `allow` or `block`.
 When set to `allow`, low-level container options like {config:option}`instance-raw:raw.lxc`, {config:option}`instance-raw:raw.idmap`, `volatile.*`, etc. can be used.
@@ -4274,7 +4274,7 @@ When set to `allow`, low-level container options like {config:option}`instance-r
 
 ```{config:option} restricted.containers.nesting project-restricted
 :defaultdesc: "`block`"
-:shortdesc: "Whether to prevent running nested LXD"
+:shortdesc: "When set to `block`, running nested LXD is prevented"
 :type: "string"
 Possible values are `allow` or `block`.
 When set to `allow`, {config:option}`instance-security:security.nesting` can be set to `true` for an instance.
@@ -4321,14 +4321,14 @@ If this option is left empty, all paths are allowed.
 
 ```{config:option} restricted.devices.gpu project-restricted
 :defaultdesc: "`block`"
-:shortdesc: "Whether to prevent using devices of type `gpu`"
+:shortdesc: "When set to `block`, using devices of type `gpu` is prevented"
 :type: "string"
 Possible values are `allow` or `block`.
 ```
 
 ```{config:option} restricted.devices.infiniband project-restricted
 :defaultdesc: "`block`"
-:shortdesc: "Whether to prevent using devices of type `infiniband`"
+:shortdesc: "When set to `block`, using devices of type `infiniband` is prevented"
 :type: "string"
 Possible values are `allow` or `block`.
 ```
@@ -4346,42 +4346,42 @@ Possible values are `allow`, `block`, or `managed`.
 
 ```{config:option} restricted.devices.pci project-restricted
 :defaultdesc: "`block`"
-:shortdesc: "Whether to prevent using devices of type `pci`"
+:shortdesc: "When set to `block`, using devices of type `pci` is prevented"
 :type: "string"
 Possible values are `allow` or `block`.
 ```
 
 ```{config:option} restricted.devices.proxy project-restricted
 :defaultdesc: "`block`"
-:shortdesc: "Whether to prevent using devices of type `proxy`"
+:shortdesc: "When set to `block`, using devices of type `proxy` is prevented"
 :type: "string"
 Possible values are `allow` or `block`.
 ```
 
 ```{config:option} restricted.devices.unix-block project-restricted
 :defaultdesc: "`block`"
-:shortdesc: "Whether to prevent using devices of type `unix-block`"
+:shortdesc: "When set to `block`, using devices of type `unix-block` is prevented"
 :type: "string"
 Possible values are `allow` or `block`.
 ```
 
 ```{config:option} restricted.devices.unix-char project-restricted
 :defaultdesc: "`block`"
-:shortdesc: "Whether to prevent using devices of type `unix-char`"
+:shortdesc: "When set to `block`, using devices of type `unix-char` is prevented"
 :type: "string"
 Possible values are `allow` or `block`.
 ```
 
 ```{config:option} restricted.devices.unix-hotplug project-restricted
 :defaultdesc: "`block`"
-:shortdesc: "Whether to prevent using devices of type `unix-hotplug`"
+:shortdesc: "When set to `block`, using devices of type `unix-hotplug` is prevented"
 :type: "string"
 Possible values are `allow` or `block`.
 ```
 
 ```{config:option} restricted.devices.usb project-restricted
 :defaultdesc: "`block`"
-:shortdesc: "Whether to prevent using devices of type `usb`"
+:shortdesc: "When set to `block`, using devices of type `usb` is prevented"
 :type: "string"
 Possible values are `allow` or `block`.
 ```
@@ -4433,14 +4433,14 @@ Specify a comma-delimited list of network zones that can be used (or something u
 
 ```{config:option} restricted.snapshots project-restricted
 :defaultdesc: "`block`"
-:shortdesc: "Whether to prevent creating instance or volume snapshots"
+:shortdesc: "When set to `block`, creating instance or volume snapshots is prevented"
 :type: "string"
 
 ```
 
 ```{config:option} restricted.virtual-machines.lowlevel project-restricted
 :defaultdesc: "`block`"
-:shortdesc: "Whether to prevent using low-level VM options"
+:shortdesc: "When set to `block`, using low-level VM options is prevented"
 :type: "string"
 Possible values are `allow` or `block`.
 When set to `allow`, low-level VM options like {config:option}`instance-raw:raw.qemu`, `volatile.*`, etc. can be used.
