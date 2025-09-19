@@ -26,8 +26,11 @@ type EntityType string
 
 // entityTypeDBInfo defines how an entity type behaves at the database level.
 //
-// To create a new entity type, first create a new `(shared/entity).Type` then create a type that implements the methods
-// defined on entityTypeDBInfo.
+// To create a new entity type:
+// 1. Create a new `(shared/entity).Type`
+// 2. Create a type that implements the methods defined on entityTypeDBInfo.
+// 3. Consider adding an implementation of entityDeleter in lxd/entity_deleter.go
+// 4. Consider updating [entity.Reference.Name] or adding a helper function in shared/entity/ref.go for parsing an [entity.Reference]'s path parts.
 //
 // The code method must return a unique int64 for the entity type (see the entityTypeCode constants below). Other SQL
 // related method may return an empty string if the method is not applicable to the entity type. For example,
