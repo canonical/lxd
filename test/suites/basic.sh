@@ -192,7 +192,7 @@ test_basic_usage() {
   lxc delete baz
   lxc image delete foo-image bar-image2
 
-  # the first image should have bar-image2 alias and the second imgae foo-image alias
+  # the first image should have bar-image2 alias and the second image foo-image alias
   if [ "$fooImage" = "$barImage2" ]; then
     echo "foo-image and bar-image2 aliases should be assigned to two different images"
     false
