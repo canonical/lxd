@@ -427,6 +427,9 @@ func (v Volume) NewVMBlockFilesystemVolume() Volume {
 	// Propagate filesystem probe mode of parent volume.
 	vol.SetMountFilesystemProbe(v.mountFilesystemProbe)
 
+	// Propagate mount custom path of parent volume.
+	vol.SetMountCustomPath(v.mountCustomPath)
+
 	return vol
 }
 
