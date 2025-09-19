@@ -100,44 +100,18 @@ func (r *ProtocolLXD) GetServerResources() (*api.Resources, error) {
 
 // UseProject returns a client that will use a specific project.
 func (r *ProtocolLXD) UseProject(name string) InstanceServer {
-	return &ProtocolLXD{
-		ctx:                  r.ctx,
-		ctxConnected:         r.ctxConnected,
-		ctxConnectedCancel:   r.ctxConnectedCancel,
-		server:               r.server,
-		http:                 r.http,
-		httpCertificate:      r.httpCertificate,
-		httpBaseURL:          r.httpBaseURL,
-		httpProtocol:         r.httpProtocol,
-		httpUserAgent:        r.httpUserAgent,
-		requireAuthenticated: r.requireAuthenticated,
-		clusterTarget:        r.clusterTarget,
-		project:              name,
-		eventListenerManager: r.eventListenerManager,
-		oidcClient:           r.oidcClient,
-	}
+	server := *r
+	server.project = name
+	return &server
 }
 
 // UseTarget returns a client that will target a specific cluster member.
 // Use this member-specific operations such as specific container
 // placement, preparing a new storage pool or network, ...
 func (r *ProtocolLXD) UseTarget(name string) InstanceServer {
-	return &ProtocolLXD{
-		ctx:                  r.ctx,
-		ctxConnected:         r.ctxConnected,
-		ctxConnectedCancel:   r.ctxConnectedCancel,
-		server:               r.server,
-		http:                 r.http,
-		httpCertificate:      r.httpCertificate,
-		httpBaseURL:          r.httpBaseURL,
-		httpProtocol:         r.httpProtocol,
-		httpUserAgent:        r.httpUserAgent,
-		requireAuthenticated: r.requireAuthenticated,
-		project:              r.project,
-		eventListenerManager: r.eventListenerManager,
-		oidcClient:           r.oidcClient,
-		clusterTarget:        name,
-	}
+	server := *r
+	server.clusterTarget = name
+	return &server
 }
 
 // IsAgent returns true if the server is a LXD agent.
