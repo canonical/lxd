@@ -412,6 +412,7 @@ var ConfigSchema = config.Schema{
 	// ---
 	//  type: string
 	//  scope: global
+	//  defaultdesc: `0`
 	//  shortdesc: BGP Autonomous System Number for the local server
 	"core.bgp_asn": {Type: config.Int64, Default: "0", Validator: validate.Optional(validate.IsInRange(0, 4294967294))},
 
