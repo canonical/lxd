@@ -434,8 +434,7 @@ test_basic_usage() {
   # cycle it a few times
   lxc start foo
   mac1=$(lxc exec foo -- cat /sys/class/net/eth0/address)
-  lxc stop foo --force
-  lxc start foo
+  lxc restart foo --force
   mac2=$(lxc exec foo -- cat /sys/class/net/eth0/address)
 
   if [ -n "${mac1}" ] && [ -n "${mac2}" ] && [ "${mac1}" != "${mac2}" ]; then
