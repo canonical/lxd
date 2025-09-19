@@ -84,6 +84,9 @@ test_storage_volume_recover_by_container() {
   ensure_import_testimage
   lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
 
+  # Snapshot the instance to allow checking also the snapshot recovery.
+  lxc snapshot c1
+
   # Create a custom volume and attach to the instance.
   lxc storage volume create "${poolName}" vol1 size=32MiB
   lxc storage volume snapshot "${poolName}" vol1
@@ -95,8 +98,33 @@ test_storage_volume_recover_by_container() {
   lxc storage volume attach "${poolName2}" vol2 c1 /mnt2
 
   # Get the volume's UUIDs before deleting it's database entries.
+  c1_uuid="$(lxc storage volume get "${poolName}" container/c1 volatile.uuid)"
+  c1_snap0_uuid="$(lxc storage volume get "${poolName}" container/c1/snap0 volatile.uuid)"
   vol1_uuid="$(lxc storage volume get "${poolName}" vol1 volatile.uuid)"
+  vol1_snap0_uuid="$(lxc storage volume get "${poolName}" vol1/snap0 volatile.uuid)"
   vol2_uuid="$(lxc storage volume get "${poolName2}" vol2 volatile.uuid)"
+  vol2_snap0_uuid="$(lxc storage volume get "${poolName2}" vol2/snap0 volatile.uuid)"
+
+  # Delete database entries of the created container.
+  lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='c1'"
+  lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='c1'"
+
+  # Ensure the instance is no longer listed.
+  ! lxc info c1 || false
+
+  # Recover the instance.
+  cat <<EOF | lxd recover
+no
+yes
+yes
+EOF
+
+  # Ensure the instance has been recovered.
+  lxc info c1
+
+  # Ensure the instance still has the same volume UUIDs.
+  [ "${c1_uuid}" = "$(lxc storage volume get "${poolName}" container/c1 volatile.uuid)" ]
+  [ "${c1_snap0_uuid}" = "$(lxc storage volume get "${poolName}" container/c1/snap0 volatile.uuid)" ]
 
   # Delete database entries of the created custom volumes.
   lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='vol1'"
@@ -120,7 +148,9 @@ EOF
   # Ensure the custom volumes still have the same UUIDs.
   # This validates that the custom storage volumes were recovered from the instance's backup config.
   [ "${vol1_uuid}" = "$(lxc storage volume get "${poolName}" vol1 volatile.uuid)" ]
+  [ "${vol1_snap0_uuid}" = "$(lxc storage volume get "${poolName}" vol1/snap0 volatile.uuid)" ]
   [ "${vol2_uuid}" = "$(lxc storage volume get "${poolName2}" vol2 volatile.uuid)" ]
+  [ "${vol2_snap0_uuid}" = "$(lxc storage volume get "${poolName2}" vol2/snap0 volatile.uuid)" ]
 
   # Detach the custom volumes from the instance.
   lxc storage volume detach "${poolName}" vol1 c1

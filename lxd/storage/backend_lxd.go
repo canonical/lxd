@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -6672,7 +6673,15 @@ func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backupConfi
 
 		// Copy volume config from backup file if present
 		// (so VolumeDBCreate can safely modify the copy if needed).
-		snapVol := b.GetNewVolume(drivers.VolumeTypeCustom, drivers.ContentType(poolVolSnap.ContentType), fullSnapName, poolVolSnap.Config)
+		snapVol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(poolVolSnap.ContentType), fullSnapName, poolVolSnap.Config)
+
+		snapVolConfig := snapVol.Config()
+
+		// See the comment for the custom volume above.
+		// The same also applies for its snapshots.
+		if snapVolConfig["volatile.uuid"] == "" {
+			snapVolConfig["volatile.uuid"] = uuid.New().String()
+		}
 
 		// Validate config and create database entry for restored storage volume.
 		err = VolumeDBCreate(b, projectName, fullSnapName, poolVolSnap.Description, drivers.VolumeTypeCustom, true, snapVol.Config(), poolVolSnap.CreatedAt, time.Time{}, drivers.ContentType(poolVolSnap.ContentType), false, true)
@@ -7496,6 +7505,85 @@ func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backupConfig.C
 	return backupConf.Snapshots, nil
 }
 
+// normalizeUnknownVolumes tries to normalize volumes returned from a driver's ListVolumes.
+// In addition it skips unknown custom volumes which cannot be recovered by name.
+// This might be the case if the volume name is based on its UUID which cannot be translated to the original name.
+// Instead we have to identify which instance in LXD belongs to the respective volume to normalize its name.
+// This is necessary to not disturb potentially running instances in case we are trying to re-mount an instance's volume
+// which is already mounted to the system by its actual name which we don't yet know because we haven't looked into
+// the instances backup config file.
+// Therefore try to lookup the instance's root volume using the volume's UUID.
+// An instance's root volume always has the same name as its parent instance.
+func (b *lxdBackend) normalizeUnknownVolumes(ctx context.Context, poolVols []drivers.Volume) ([]drivers.Volume, error) {
+	normalizedUnknownVols := make([]drivers.Volume, 0, len(poolVols))
+
+	err := b.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		for _, vol := range poolVols {
+			volUUID := vol.Config()["volatile.uuid"]
+
+			if b.driver.Info().UUIDVolumeNames {
+				// This is likely an indicator that the storage driver's ListVolumes returned volumes with a set name.
+				// We have to skip those volumes as they are not following the protocol.
+				if vol.Name() != "" {
+					logger.Warn("Cannot normalize unknown volume with already set name", logger.Ctx{"pool": b.name, "volume": vol.Name()})
+					continue
+				}
+
+				// Skip custom volumes from drivers using the volume's UUID for their name.
+				// Instead the volume should be attached to any of the instances so it can be
+				// recovered through the respective backup config file.
+				if vol.Type() == drivers.VolumeTypeCustom {
+					continue
+				}
+
+				// Fetch the instance's volume from the DB in case it already exists by using its unique UUID.
+				dbVol, err := tx.GetStoragePoolVolumeWithUUID(ctx, volUUID)
+				if err != nil && !response.IsNotFoundError(err) {
+					return fmt.Errorf("Failed to get storage volume for UUID %q on pool %q: %w", volUUID, b.name, err)
+				}
+
+				newVolName := dbVol.Name
+				dbVolType := VolumeDBTypeToType(dbVol.Type)
+
+				// Reject volumes if their type on storage is different to what is already known in the DB.
+				if dbVolType != vol.Type() {
+					return fmt.Errorf("Volume %q in pool %q has type %q but is already known under type %q", newVolName, b.name, vol.Type(), dbVolType)
+				}
+
+				// Create a new volume struct with the actual name of the instance.
+				// This allows crafting the right mount path for the backup config to check whether or not
+				// it already exists and the instance is currently running.
+				// The new volume name might either be empty (if unknown) or set to the known name from the DB.
+				newVol := b.GetVolume(vol.Type(), vol.ContentType(), newVolName, vol.Config())
+
+				// In case the new volume's name is empty, set a custom mount path based on the volume's UUID.
+				// This ensures when mounting the volume, we are picking a unique path as the actual volume's name is empty.
+				if newVolName == "" {
+					newVol.SetMountCustomPath(drivers.GetVolumeMountPath(b.name, newVol.Type(), volUUID))
+				}
+
+				normalizedUnknownVols = append(normalizedUnknownVols, newVol)
+			} else {
+				// This is likely an indicator that the storage driver's ListVolumes returned volumes without a set name.
+				// We have to skip those volumes as they are not following the protocol.
+				if vol.Name() == "" {
+					logger.Warn("Cannot normalize unknown volume with empty name", logger.Ctx{"pool": b.name, "uuid": volUUID})
+					continue
+				}
+
+				normalizedUnknownVols = append(normalizedUnknownVols, vol)
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return normalizedUnknownVols, nil
+}
+
 // ListUnknownVolumes returns volumes that exist on the storage pool but don't have records in the database.
 // Returns the unknown volumes parsed/generated backup config in a slice (keyed on project name).
 func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]*backupConfig.Config, error) {
@@ -7506,6 +7594,11 @@ func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]
 	poolVols, err := b.driver.ListVolumes()
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting pool volumes: %w", err)
+	}
+
+	poolVols, err = b.normalizeUnknownVolumes(context.TODO(), poolVols)
+	if err != nil {
+		return nil, fmt.Errorf("Failed resolving pool volumes: %w", err)
 	}
 
 	projectVols := make(map[string][]*backupConfig.Config)
@@ -7522,7 +7615,7 @@ func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]
 		case drivers.VolumeTypeVM, drivers.VolumeTypeContainer:
 			err = b.detectUnknownInstanceAndCustomVolumes(&poolVol, projectVols, op)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("Failed to detect unknown instances: %w", err)
 			}
 
 		case drivers.VolumeTypeCustom:
@@ -7531,7 +7624,7 @@ func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]
 			poolVol = b.GetNewVolume(poolVol.Type(), poolVol.ContentType(), poolVol.Name(), poolVol.Config())
 			err = b.detectUnknownCustomVolume(&poolVol, projectVols, op)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("Failed to detect unknown custom volumes: %w", err)
 			}
 
 		case drivers.VolumeTypeBucket:
@@ -7540,12 +7633,47 @@ func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]
 			poolVol = b.GetNewVolume(poolVol.Type(), poolVol.ContentType(), poolVol.Name(), poolVol.Config())
 			err = b.detectUnknownBuckets(&poolVol, projectVols)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("Failed to detect unknown buckets: %w", err)
 			}
 		}
 	}
 
 	return projectVols, nil
+}
+
+// cleanupUnknownVolumeMountPath cleans up the left over mount path using the volume's UUID.
+// In case an unknown volume wasn't known in the DB, we couldn't normalize it to find out its actual name.
+// This caused the volume to be mounted under its UUID (last part of the mount path).
+// After recovery the volume gets mounted under its actual name which would leave an empty directory behind.
+func (b *lxdBackend) cleanupUnknownVolumeMountPath(poolVol *drivers.Volume) error {
+	// Cleanup is only required for volumes which don't have a name.
+	// This is the subset of volumes returned from drivers using UUID's for the volume name
+	// which weren't yet known to LXD before running the recovery.
+	if b.driver.Info().UUIDVolumeNames && poolVol.Name() == "" {
+		mountPath := poolVol.MountPath()
+		mountPathBase := path.Base(mountPath)
+
+		// It looks like the mount path already used the instance's name so skip the cleanup.
+		if mountPathBase != poolVol.Config()["volatile.uuid"] {
+			return nil
+		}
+
+		mountPathEmpty, err := shared.PathIsEmpty(mountPath)
+		if err != nil {
+			return fmt.Errorf("Failed to check if unknown volume's directory %q is empty: %w", mountPath, err)
+		}
+
+		if !mountPathEmpty {
+			return fmt.Errorf("Cannot cleanup unknown volume's directory %q as it's not empty", mountPath)
+		}
+
+		err = os.Remove(mountPath)
+		if err != nil {
+			return fmt.Errorf("Failed to cleanup unknown volume's directory %q: %w", mountPath, err)
+		}
+	}
+
+	return nil
 }
 
 // detectUnknownInstanceAndCustomVolumes parses the given volume's backup config and detects if an instance's volume is unknown.
@@ -7587,9 +7715,20 @@ func (b *lxdBackend) detectUnknownInstanceAndCustomVolumes(vol *drivers.Volume, 
 		if err != nil {
 			return err
 		}
+
+		err = b.cleanupUnknownVolumeMountPath(vol)
+		if err != nil {
+			return fmt.Errorf("Failed cleaning up mount path %q of unknown volume: %w", vol.MountPath(), err)
+		}
 	}
 
 	if backupConf.Instance == nil {
+		// Drivers with UUID based volume names don't populate a name.
+		// Instead return the volume's custom mount path which contains its UUID for reference.
+		if b.driver.Info().UUIDVolumeNames {
+			return fmt.Errorf("Instance on volume path %q has no instance information in its backup file", vol.MountPath())
+		}
+
 		return fmt.Errorf("Instance on volume %q has no instance information in its backup file", vol.Name())
 	}
 
@@ -7984,7 +8123,16 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 
 	// Copy the volume's config so VolumeDBCreate can safely modify the copy if needed.
-	vol := b.GetNewVolume(volType, contentType, volStorageName, volumeConfig)
+	// Don't generate a new UUID as we are importing an existing instance's volume.
+	vol := b.GetVolume(volType, contentType, volStorageName, volumeConfig)
+
+	volConfig := vol.Config()
+
+	// In case the instance got lost on an old LXD which didn't set a volume's UUID,
+	// ensure we set a new one.
+	if volConfig["volatile.uuid"] == "" {
+		volConfig["volatile.uuid"] = uuid.New().String()
+	}
 
 	// Create storage volume database records if in recover mode.
 	if poolVol != nil {
@@ -8011,7 +8159,16 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 
 				// Copy volume config from backup file if present,
 				// so VolumeDBCreate can safely modify the copy if needed.
-				snapVol := b.GetNewVolume(volType, contentType, fullSnapName, poolVolSnap.Config)
+				// Don't generate a new UUID as we are importing an existing instance's snapshot volume.
+				snapVol := b.GetVolume(volType, contentType, fullSnapName, poolVolSnap.Config)
+
+				snapVolConfig := snapVol.Config()
+
+				// See the comment for the instance's root volume above.
+				// The same also applies for its snapshots.
+				if snapVolConfig["volatile.uuid"] == "" {
+					snapVolConfig["volatile.uuid"] = uuid.New().String()
+				}
 
 				// Validate config and create database entry for recovered storage volume.
 				err = VolumeDBCreate(b, inst.Project().Name, fullSnapName, poolVolSnap.Description, volType, true, snapVol.Config(), poolVolSnap.CreatedAt, time.Time{}, contentType, false, true)
