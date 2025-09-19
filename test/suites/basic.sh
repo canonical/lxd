@@ -311,9 +311,8 @@ test_basic_usage() {
   [ ! -d "${LXD_DIR}/snapshots/bar" ]
 
   # Test randomly named container creation
-  lxc launch testimage
-  RDNAME=$(lxc list --format csv --columns n)
-  lxc delete -f "${RDNAME}"
+  RDNAME="$(lxc init --empty --quiet | sed 's/Instance name is: //')"
+  lxc delete "${RDNAME}"
 
   # Test "nonetype" container creation
   wait_for "${LXD_ADDR}" my_curl -X POST --fail-with-body -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/containers" \
