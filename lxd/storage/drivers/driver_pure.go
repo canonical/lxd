@@ -114,6 +114,7 @@ func (d *pure) Info() Info {
 		IOUring:                      true,
 		MountedRoot:                  false,
 		PopulateParentVolumeUUID:     true,
+		UUIDVolumeNames:              true,
 	}
 }
 
