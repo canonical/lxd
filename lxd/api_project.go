@@ -1420,7 +1420,7 @@ func projectValidateConfig(s *state.State, config map[string]string, defaultNetw
 		// ---
 		//  type: string
 		//  defaultdesc: `block`
-		//  shortdesc: Whether to prevent creating instance or volume backups
+		//  shortdesc: When set to `block`, creating instance or volume backups is prevented
 		"restricted.backups": isEitherAllowOrBlock,
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.cluster.groups)
 		// If specified, this option prevents targeting cluster groups other than the provided ones.
@@ -1459,7 +1459,7 @@ func projectValidateConfig(s *state.State, config map[string]string, defaultNetw
 		// ---
 		//  type: string
 		//  defaultdesc: `block`
-		//  shortdesc: Whether to prevent targeting of cluster members
+		//  shortdesc: When set to `block`, targeting of cluster members is prevented
 		"restricted.cluster.target": isEitherAllowOrBlock,
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.containers.interception)
 		// Possible values are `allow`, `block`, or `full`.
@@ -1468,7 +1468,7 @@ func projectValidateConfig(s *state.State, config map[string]string, defaultNetw
 		// ---
 		//  type: string
 		//  defaultdesc: `block`
-		//  shortdesc: Whether to prevent using system call interception options
+		//  shortdesc: When set to `block`, using system call interception options is prevented
 		"restricted.containers.interception": validate.Optional(validate.IsOneOf("allow", "block", "full")),
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.containers.nesting)
 		// Possible values are `allow` or `block`.
@@ -1476,7 +1476,7 @@ func projectValidateConfig(s *state.State, config map[string]string, defaultNetw
 		// ---
 		//  type: string
 		//  defaultdesc: `block`
-		//  shortdesc: Whether to prevent running nested LXD
+		//  shortdesc: When set to `block`, running nested LXD is prevented
 		"restricted.containers.nesting": isEitherAllowOrBlock,
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.containers.lowlevel)
 		// Possible values are `allow` or `block`.
@@ -1484,7 +1484,7 @@ func projectValidateConfig(s *state.State, config map[string]string, defaultNetw
 		// ---
 		//  type: string
 		//  defaultdesc: `block`
-		//  shortdesc: Whether to prevent using low-level container options
+		//  shortdesc: When set to `block`, using low-level container options is prevented
 		"restricted.containers.lowlevel": isEitherAllowOrBlock,
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.containers.privilege)
 		// Possible values are `unprivileged`, `isolated`, and `allow`.
@@ -1503,63 +1503,63 @@ func projectValidateConfig(s *state.State, config map[string]string, defaultNetw
 		// ---
 		//  type: string
 		//  defaultdesc: `block`
-		//  shortdesc: Whether to prevent using low-level VM options
+		//  shortdesc: When set to `block`, using low-level VM options is prevented
 		"restricted.virtual-machines.lowlevel": isEitherAllowOrBlock,
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.devices.unix-char)
 		// Possible values are `allow` or `block`.
 		// ---
 		//  type: string
 		//  defaultdesc: `block`
-		//  shortdesc: Whether to prevent using devices of type `unix-char`
+		//  shortdesc: When set to `block`, using devices of type `unix-char` is prevented
 		"restricted.devices.unix-char": isEitherAllowOrBlock,
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.devices.unix-block)
 		// Possible values are `allow` or `block`.
 		// ---
 		//  type: string
 		//  defaultdesc: `block`
-		//  shortdesc: Whether to prevent using devices of type `unix-block`
+		//  shortdesc: When set to `block`, using devices of type `unix-block` is prevented
 		"restricted.devices.unix-block": isEitherAllowOrBlock,
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.devices.unix-hotplug)
 		// Possible values are `allow` or `block`.
 		// ---
 		//  type: string
 		//  defaultdesc: `block`
-		//  shortdesc: Whether to prevent using devices of type `unix-hotplug`
+		//  shortdesc: When set to `block`, using devices of type `unix-hotplug` is prevented
 		"restricted.devices.unix-hotplug": isEitherAllowOrBlock,
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.devices.infiniband)
 		// Possible values are `allow` or `block`.
 		// ---
 		//  type: string
 		//  defaultdesc: `block`
-		//  shortdesc: Whether to prevent using devices of type `infiniband`
+		//  shortdesc: When set to `block`, using devices of type `infiniband` is prevented
 		"restricted.devices.infiniband": isEitherAllowOrBlock,
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.devices.gpu)
 		// Possible values are `allow` or `block`.
 		// ---
 		//  type: string
 		//  defaultdesc: `block`
-		//  shortdesc: Whether to prevent using devices of type `gpu`
+		//  shortdesc: When set to `block`, using devices of type `gpu` is prevented
 		"restricted.devices.gpu": isEitherAllowOrBlock,
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.devices.usb)
 		// Possible values are `allow` or `block`.
 		// ---
 		//  type: string
 		//  defaultdesc: `block`
-		//  shortdesc: Whether to prevent using devices of type `usb`
+		//  shortdesc: When set to `block`, using devices of type `usb` is prevented
 		"restricted.devices.usb": isEitherAllowOrBlock,
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.devices.pci)
 		// Possible values are `allow` or `block`.
 		// ---
 		//  type: string
 		//  defaultdesc: `block`
-		//  shortdesc: Whether to prevent using devices of type `pci`
+		//  shortdesc: When set to `block`, using devices of type `pci` is prevented
 		"restricted.devices.pci": isEitherAllowOrBlock,
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.devices.proxy)
 		// Possible values are `allow` or `block`.
 		// ---
 		//  type: string
 		//  defaultdesc: `block`
-		//  shortdesc: Whether to prevent using devices of type `proxy`
+		//  shortdesc: When set to `block`, using devices of type `proxy` is prevented
 		"restricted.devices.proxy": isEitherAllowOrBlock,
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.devices.nic)
 		// Possible values are `allow`, `block`, or `managed`.
@@ -1652,7 +1652,7 @@ func projectValidateConfig(s *state.State, config map[string]string, defaultNetw
 		// ---
 		//  type: string
 		//  defaultdesc: `block`
-		//  shortdesc: Whether to prevent creating instance or volume snapshots
+		//  shortdesc: When set to `block`, creating instance or volume snapshots is prevented
 		"restricted.snapshots": isEitherAllowOrBlock,
 	}
 
