@@ -997,10 +997,10 @@ func (d *pure) ListVolumes() ([]Volume, error) {
 		contentType := ContentTypeFS
 		if volType == VolumeTypeCustom && strings.HasSuffix(volName, pureContentTypeSuffixes[ContentTypeISO]) {
 			contentType = ContentTypeISO
-			volName = strings.TrimSuffix(volName, pureContentTypeSuffixes[ContentTypeISO])
+			volName = strings.TrimSuffix(volName, "-"+pureContentTypeSuffixes[ContentTypeISO])
 		} else if volType == VolumeTypeVM || isBlock {
 			contentType = ContentTypeBlock
-			volName = strings.TrimSuffix(volName, pureContentTypeSuffixes[ContentTypeBlock])
+			volName = strings.TrimSuffix(volName, "-"+pureContentTypeSuffixes[ContentTypeBlock])
 		}
 
 		volUUID, err := d.getUUIDFromVolumeName(volName)
