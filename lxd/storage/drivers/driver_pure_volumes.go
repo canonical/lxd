@@ -1010,7 +1010,7 @@ func (d *pure) ListVolumes() ([]Volume, error) {
 		}
 
 		// This is important to allow subsequent operations on the volume struct (e.g. driver's HasVolume) to be able to
-		// resolve the volume's name using the its volatile.uuid.
+		// resolve the volume's name using its volatile.uuid.
 		volConfig := map[string]string{
 			"volatile.uuid": volUUID.String(),
 		}
