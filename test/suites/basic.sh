@@ -765,7 +765,7 @@ EOF
   lxc launch testimage c3 --ephemeral
 
   lxc stop -f c1 c2 c3
-  [ "$(lxc list -f csv -c n)" = "" ]
+  [ "$(lxc list -f csv -c n || echo fail)" = "" ]
 
   # Cleanup
   fingerprint="$(lxc config trust ls --format csv | cut -d, -f4)"

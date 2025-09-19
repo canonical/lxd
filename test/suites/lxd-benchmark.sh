@@ -17,13 +17,13 @@ test_lxd_benchmark_basic(){
   lxd-benchmark init --count "${count}" --report-file "${report_file}" testimage
   [ "$(lxc list -f csv -c n STATUS=stopped | grep -cwF benchmark)" = "${count}" ]
   lxd-benchmark start --report-file "${report_file}"
-  [ "$(lxc list -f csv -c n STATUS=stopped)" = "" ]
+  [ "$(lxc list -f csv -c n STATUS=stopped || echo fail)" = "" ]
   [ "$(lxc list -f csv -c n STATUS=running | grep -cwF benchmark)" = "${count}" ]
   lxd-benchmark stop --report-file "${report_file}"
-  [ "$(lxc list -f csv -c n STATUS=running)" = "" ]
+  [ "$(lxc list -f csv -c n STATUS=running || echo fail)" = "" ]
   [ "$(lxc list -f csv -c n STATUS=stopped | grep -cwF benchmark)" = "${count}" ]
   lxd-benchmark delete --report-file "${report_file}"
-  [ "$(lxc list -f csv -c n)" = "" ]
+  [ "$(lxc list -f csv -c n || echo fail)" = "" ]
 
   # Check the number of lines matches the number of commands + the header line
   cat "${report_file}"

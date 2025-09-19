@@ -187,7 +187,7 @@ _container_devices_disk_char() {
 
 _container_devices_disk_patch() {
   # Ensure no devices are present.
-  [ "$(lxc config device list foo)" = "" ]
+  [ "$(lxc config device list foo || echo fail)" = "" ]
 
   # Ensure a new device is added.
   lxc query -X PATCH /1.0/instances/foo -d '{\"devices\": {\"tmp\": {\"type\": \"disk\", \"source\": \"/etc/os-release\", \"path\": \"/tmp/release\"}}}'
@@ -203,5 +203,5 @@ _container_devices_disk_patch() {
 
   # Ensure the device is removed when patching with a null device.
   lxc query -X PATCH /1.0/instances/foo -d '{\"devices\": {\"tmp\": null }}'
-  [ "$(lxc config device list foo)" = "" ]
+  [ "$(lxc config device list foo || echo fail)" = "" ]
 }
