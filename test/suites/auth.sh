@@ -117,6 +117,9 @@ test_authorization() {
   LXD_CONF2=$(mktemp -d -p "${TEST_DIR}" XXX)
   LXD_CONF="${LXD_CONF2}" gen_cert_and_key "client"
 
+  echo "==> Check that empty client name is not allowed for creating certificate add token."
+  [ "$(LXD_CONF="${LXD_CONF2}" my_curl -X POST -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/certificates" --data "{\"token\": true, \"type\": \"client\"}" | jq -er '.error')" = "Client name must not be empty" ]
+
   # Cannot use the token with the certificates API and the correct error is returned.
   [ "$(LXD_CONF="${LXD_CONF2}" my_curl -X POST -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/certificates" --data "{\"trust_token\": \"${tls_identity_token}\"}" | jq -er '.error')" = "Failed during search for certificate add token operation: TLS Identity token detected (you must update your client)" ]
 
