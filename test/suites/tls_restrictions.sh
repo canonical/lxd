@@ -34,7 +34,7 @@ test_tls_restrictions() {
   lxc config unset user.foo
 
   # Confirm no project visible when none listed
-  [ "$(lxc_remote project list localhost: --format csv)" = "" ]
+  [ "$(lxc_remote project list localhost: --format csv || echo fail)" = "" ]
 
   # Confirm we can still view storage pools
   [ "$(lxc_remote storage list localhost: --format csv | wc -l)" = 1 ]
@@ -73,7 +73,7 @@ test_tls_restrictions() {
   test_image_fingerprint="$(lxc image info testimage --project default | awk '/^Fingerprint/ {print $2}')"
 
   # We can always list images, but there are no public images in the default project now, so the list should be empty.
-  [ "$(lxc_remote image list localhost: --project default --format csv)" = "" ]
+  [ "$(lxc_remote image list localhost: --project default --format csv || echo fail)" = "" ]
   ! lxc_remote image show localhost:testimage --project default || false
 
   # Set the image to public and ensure we can view it.

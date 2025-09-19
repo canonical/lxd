@@ -45,7 +45,7 @@ test_vm_empty() {
   echo "==> Ephemeral cleanup"
   lxc launch --vm --empty --ephemeral v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
   lxc stop -f v1
-  [ "$(lxc list -f csv -c n)" = "" ]
+  [ "$(lxc list -f csv -c n || echo fail)" = "" ]
 
   if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
     # Cleanup custom changes from the default profile
