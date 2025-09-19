@@ -716,7 +716,7 @@ func (d *powerflex) ListVolumes() ([]Volume, error) {
 
 		volUUID, err := d.getUUIDFromVolumeName(volName)
 		if err != nil {
-			d.logger.Warn("Ignoring malformed volume name", logger.Ctx{"name": vol.Name})
+			d.logger.Warn("Ignoring malformed volume name", logger.Ctx{"err": err, "name": vol.Name})
 			continue
 		}
 
