@@ -745,6 +745,21 @@ func (p *pureClient) getVolume(poolName string, volName string) (*pureVolume, er
 	return &resp.Items[0], nil
 }
 
+// getVolumes returns the volumes in the pool with the given name.
+func (p *pureClient) getVolumes(poolName string) ([]pureVolume, error) {
+	var resp pureResponse[pureVolume]
+
+	// The 'pod' object in the response has both id and name.
+	// Use the '.' to reference the nested name in the filter.
+	url := api.NewURL().Path("volumes").WithQuery("filter", "pod.name='"+poolName+"'")
+	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to list volumes in pool %q: %w", poolName, err)
+	}
+
+	return resp.Items, nil
+}
+
 // createVolume creates a new volume in the given storage pool. The volume is created with
 // supplied size in bytes. Upon successful creation, volume's ID is returned.
 func (p *pureClient) createVolume(poolName string, volName string, sizeBytes int64) error {
@@ -1493,7 +1508,7 @@ func (d *pure) getVolumeName(vol Volume) (string, error) {
 		return "", fmt.Errorf(`Failed parsing "volatile.uuid" from volume %q: %w`, vol.name, err)
 	}
 
-	// Remove hypens from the UUID to create a volume name.
+	// Remove hyphens from the UUID to create a volume name.
 	volName := strings.ReplaceAll(volUUID.String(), "-", "")
 
 	// Search for the volume type prefix, and if found, prepend it to the volume name.
@@ -1514,4 +1529,18 @@ func (d *pure) getVolumeName(vol Volume) (string, error) {
 	}
 
 	return volName, nil
+}
+
+// getUUIDFromVolumeName translates the volume's name to the respective UUID.
+// It expects the volume name without any prefix/suffix.
+func (d *pure) getUUIDFromVolumeName(name string) (uuid.UUID, error) {
+	// The UUID library internally handles the UUID without hyphens.
+	// As the Pure volume name uses the UUID's string representation without hyphens,
+	// we can simply parse it in its byte format to get back the original UUID.
+	volUUID, err := uuid.ParseBytes([]byte(name))
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("Failed parsing UUID from volume name %q: %w", name, err)
+	}
+
+	return volUUID, nil
 }
