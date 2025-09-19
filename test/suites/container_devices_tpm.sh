@@ -45,6 +45,12 @@ test_container_devices_tpm() {
   ! lxc exec "${ctName}" -- stat /dev/tpm0 || false
   ! lxc exec "${ctName}" -- stat /dev/tpmrm0 || false
 
+  # Check that no swtpm process is left behind
+  if pgrep -x swtpm; then
+    echo "::error:: 'swtpm' process left behind pointing to invalid cleanup"
+    exit 1
+  fi
+
   # Clean up
   lxc delete -f "${ctName}"
 }
