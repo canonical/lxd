@@ -588,6 +588,7 @@ var ConfigSchema = config.Schema{
 	// ---
 	//  type: bool
 	//  scope: global
+	//  defaultdesc: `false`
 	//  shortdesc: Whether to set `migration.stateful` to `true` for the instances
 	"instances.migration.stateful": {Type: config.Bool, Default: "false"},
 
