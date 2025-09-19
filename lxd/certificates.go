@@ -498,6 +498,10 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(errors.New("Tokens can only be issued for client certificates"))
 		}
 
+		if req.Name == "" {
+			return response.BadRequest(errors.New("Client name must not be empty"))
+		}
+
 		if localHTTPSAddress == "" {
 			return response.BadRequest(errors.New("Can't issue token when server isn't listening on network"))
 		}
