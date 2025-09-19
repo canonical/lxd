@@ -420,7 +420,7 @@ test_basic_usage() {
 
   # Create and start a container
   lxc launch testimage foo
-  lxc list | grep foo | grep RUNNING
+  [ "$(lxc list -f csv -c ns)" = "foo,RUNNING" ]
   lxc stop foo --force
 
   if lxc info | grep -F 'unpriv_binfmt: "true"'; then
