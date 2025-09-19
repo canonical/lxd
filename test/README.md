@@ -49,7 +49,7 @@ test_vm() {
   # Ephemeral cleanup
   lxc launch --vm --empty --ephemeral v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
   lxc stop -f v1
-  [ "$(lxc list -f csv -c n)" = "" ]
+  [ "$(lxc list -f csv -c n || echo fail)" = "" ]
 }
 ```
 
@@ -64,7 +64,7 @@ Good:
   echo "==> Ephemeral cleanup"
   lxc launch --vm --empty --ephemeral v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
   lxc stop -f v1
-  [ "$(lxc list -f csv -c n)" = "" ]
+  [ "$(lxc list -f csv -c n || echo fail)" = "" ]
 ```
 
 This way, debug logs will be easier to read.

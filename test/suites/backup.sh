@@ -1275,14 +1275,14 @@ test_backup_metadata() {
   [ "$(yq -r '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots | length' < "${backup_yaml_path}")" = "1" ]
   lxc storage volume rename "${custom_vol_pool}" foo/snap0 foo/snap00 # test snapshot rename
   [ "$(yq -r '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots.[] | select(.name == "snap00") | .name' < "${backup_yaml_path}")" = "snap00" ]
-  [ "$(yq -r '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots.[] | select(.name == "snap0") | .name' < "${backup_yaml_path}")" = "" ]
+  [ "$(yq -r '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots.[] | select(.name == "snap0") | .name' < "${backup_yaml_path}" || echo fail)" = "" ]
   lxc storage volume rename "${custom_vol_pool}" foo/snap00 foo/snap0
   [ "$(yq -r '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots.[] | select(.name == "snap0") | .name' < "${backup_yaml_path}")" = "snap0" ]
-  [ "$(yq -r '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots.[] | select(.name == "snap00") | .name' < "${backup_yaml_path}")" = "" ]
+  [ "$(yq -r '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots.[] | select(.name == "snap00") | .name' < "${backup_yaml_path}" || echo fail)" = "" ]
   lxc storage volume set "${custom_vol_pool}" foo/snap0 --property description bar # test snapshot update (only description can be updated on snaps)
   [ "$(yq -r '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots.[] | select(.name == "snap0") | .description' < "${backup_yaml_path}")" = "bar" ]
   lxc storage volume unset "${custom_vol_pool}" foo/snap0 --property description
-  [ "$(yq -r '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots.[] | select(.name == "snap0") | .description' < "${backup_yaml_path}")" = "" ]
+  [ "$(yq -r '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots.[] | select(.name == "snap0") | .description' < "${backup_yaml_path}" || echo fail)" = "" ]
 
   lxc stop -f c1
 
