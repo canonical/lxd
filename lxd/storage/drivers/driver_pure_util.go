@@ -1508,7 +1508,7 @@ func (d *pure) getVolumeName(vol Volume) (string, error) {
 		return "", fmt.Errorf(`Failed parsing "volatile.uuid" from volume %q: %w`, vol.name, err)
 	}
 
-	// Remove hypens from the UUID to create a volume name.
+	// Remove hyphens from the UUID to create a volume name.
 	volName := strings.ReplaceAll(volUUID.String(), "-", "")
 
 	// Search for the volume type prefix, and if found, prepend it to the volume name.
