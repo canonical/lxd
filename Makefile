@@ -230,6 +230,16 @@ tics: deps
 	go build -a -x -v ./...
 	CC="cc" CGO_LDFLAGS_ALLOW="(-Wl,-wrap,pthread_create)|(-Wl,-z,now)" go install -v -tags "libsqlite3" -trimpath -a -x -v ./...
 
+.PHONY: check-gomin
+check-gomin:
+	go mod tidy -go=$(GOMIN)
+	@echo "Check the doc mentions the right Go minimum version"
+	$(eval DOC_GOMIN := $(shell sed -n 's/^LXD requires Go \([0-9.]\+\) .*/\1/p' doc/requirements.md))
+	@if [ "$(DOC_GOMIN)" != "$(GOMIN)" ]; then \
+		echo "Please update the Go version in 'doc/requirements.md' to be $(GOMIN) instead of $(DOC_GOMIN)"; \
+		exit 1; \
+	fi
+
 .PHONY: update-gomod
 update-gomod:
 ifneq "$(LXD_OFFLINE)" ""
@@ -244,7 +254,7 @@ endif
 	go get github.com/olekukonko/tablewriter@v0.0.5 # Due to breaking API in later versions
 
 	# Enforce minimum go version
-	go mod tidy -go=$(GOMIN)
+	$(MAKE) check-gomin
 
 	# Use the bundled toolchain that meets the minimum go version
 	go get toolchain@none
@@ -324,7 +334,7 @@ endif
 	@echo "LXD built successfully"
 
 .PHONY: check
-check: default check-unit test-binaries
+check: default check-gomin check-unit test-binaries
 	cd test && ./main.sh
 
 .PHONY: check-unit
