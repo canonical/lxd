@@ -5130,6 +5130,7 @@
 					},
 					{
 						"core.bgp_asn": {
+							"defaultdesc": "`0`",
 							"longdesc": "",
 							"scope": "global",
 							"shortdesc": "BGP Autonomous System Number for the local server",
@@ -5435,6 +5436,7 @@
 					},
 					{
 						"instances.migration.stateful": {
+							"defaultdesc": "`false`",
 							"longdesc": "You can override this setting for relevant instances, either in the instance-specific configuration or through a profile.",
 							"scope": "global",
 							"shortdesc": "Whether to set `migration.stateful` to `true` for the instances",
@@ -5590,6 +5592,7 @@
 					},
 					{
 						"oidc.scopes": {
+							"defaultdesc": "`openid email offline_access profile`",
 							"longdesc": "A list of OpenID Connect scopes to request from the identity provider.\nThis must include the `openid` and `email` scopes.\nThe remaining optional scopes are `offline_access` and `profile`.\nIf you remove the `offline_access` scope, users might be required to log in more frequently.\nIf you remove the `profile` scope, user information may not be displayed in LXD UI (or in `lxc auth identity` commands).\nYou may add additional scopes if this is required by your identity provider, or if necessary for configuration of {ref}`identity provider groups \u003cidentity-provider-groups\u003e`.",
 							"scope": "global",
 							"shortdesc": "Space-separated list of OpenID Connect scopes",

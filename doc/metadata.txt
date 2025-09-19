@@ -4580,6 +4580,7 @@ See {ref}`network-bgp`.
 ```
 
 ```{config:option} core.bgp_asn server-core
+:defaultdesc: "`0`"
 :scope: "global"
 :shortdesc: "BGP Autonomous System Number for the local server"
 :type: "string"
@@ -4848,6 +4849,7 @@ Possible values are `bzip2`, `gzip`, `lzma`, `xz`, or `none`.
 ```
 
 ```{config:option} instances.migration.stateful server-miscellaneous
+:defaultdesc: "`false`"
 :scope: "global"
 :shortdesc: "Whether to set `migration.stateful` to `true` for the instances"
 :type: "bool"
@@ -4989,6 +4991,7 @@ The value of the claim is expected to be a JSON string array.
 ```
 
 ```{config:option} oidc.scopes server-oidc
+:defaultdesc: "`openid email offline_access profile`"
 :scope: "global"
 :shortdesc: "Space-separated list of OpenID Connect scopes"
 :type: "space-delimited string"
