@@ -148,16 +148,13 @@ test_basic_usage() {
 
   # Test container rename
   lxc move foo bar
+  [ "$(lxc list -c n -f csv)" = "bar" ]
 
   # Check volatile.apply_template is altered during rename.
   [ "$(lxc config get bar volatile.apply_template)" = "rename" ]
 
-  [ "$(lxc list -c n | grep -F foo)" = "" ]
-  [ "$(lxc list -c n | grep -F bar)" != "" ]
-
   lxc rename bar foo
-  [ "$(lxc list -c n | grep -F bar)" = "" ]
-  [ "$(lxc list -c n | grep -F foo)" != "" ]
+  [ "$(lxc list -c n -f csv)" = "foo" ]
   lxc rename foo bar
 
   # Test container copy
