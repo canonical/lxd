@@ -42,7 +42,7 @@ var operationsCmd = APIEndpoint{
 	Path:        "operations",
 	MetricsType: entity.TypeOperation,
 
-	Get: APIEndpointAction{Handler: operationsGet, AccessHandler: allowProjectResourceList(false)},
+	Get: APIEndpointAction{Handler: operationsGet, AccessHandler: allowProjectResourceList(true)},
 }
 
 var operationWait = APIEndpoint{
