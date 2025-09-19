@@ -745,6 +745,21 @@ func (p *pureClient) getVolume(poolName string, volName string) (*pureVolume, er
 	return &resp.Items[0], nil
 }
 
+// getVolumes returns the volumes in the pool with the given name.
+func (p *pureClient) getVolumes(poolName string) ([]pureVolume, error) {
+	var resp pureResponse[pureVolume]
+
+	// The 'pod' object in the response has both id and name.
+	// Use the '.' to reference the nested name in the filter.
+	url := api.NewURL().Path("volumes").WithQuery("filter", "pod.name='"+poolName+"'")
+	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to list volumes in pool %q: %w", poolName, err)
+	}
+
+	return resp.Items, nil
+}
+
 // createVolume creates a new volume in the given storage pool. The volume is created with
 // supplied size in bytes. Upon successful creation, volume's ID is returned.
 func (p *pureClient) createVolume(poolName string, volName string, sizeBytes int64) error {
