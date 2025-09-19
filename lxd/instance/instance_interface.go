@@ -92,7 +92,7 @@ type Instance interface {
 	IsPrivileged() bool
 
 	// Snapshots & migration & backups.
-	Restore(source Instance, stateful bool) error
+	Restore(source Instance, stateful bool, diskVolumesMode string) error
 	Snapshot(name string, expiry *time.Time, stateful bool, diskVolumesMode string) error
 	Snapshots() ([]Instance, error)
 	Backups() ([]backup.InstanceBackup, error)
