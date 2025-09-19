@@ -7315,18 +7315,16 @@ func (b *lxdBackend) normalizeUnknownVolumes(ctx context.Context, poolVols []dri
 					return fmt.Errorf("Failed to get storage volume for UUID %q on pool %q: %w", volUUID, b.name, err)
 				}
 
-				newVolName := dbVol.Name
-
 				// Only perform further checks if we were able to get the volume by its UUID.
 				// In this case the name is always non-empty.
 				// The default value of StorageVolumeArgs.Type is 0 (StoragePoolVolumeTypeContainer)
 				// which would lead to wrong checks in case the volume doesn't yet exist in the DB.
-				if newVolName != "" {
+				if dbVol.Name != "" {
 					dbVolType := VolumeDBTypeToType(dbVol.Type)
 
 					// Reject volumes if their type on storage is different to what is already known in the DB.
 					if dbVolType != vol.Type() {
-						return fmt.Errorf("Volume %q in pool %q has type %q but is already known under type %q", newVolName, b.name, vol.Type(), dbVolType)
+						return fmt.Errorf("Volume %q in pool %q has type %q but is already known under type %q", dbVol.Name, b.name, vol.Type(), dbVolType)
 					}
 				}
 
@@ -7334,11 +7332,11 @@ func (b *lxdBackend) normalizeUnknownVolumes(ctx context.Context, poolVols []dri
 				// This allows crafting the right mount path for the backup config to check whether or not
 				// it already exists and the instance is currently running.
 				// The new volume name might either be empty (if unknown) or set to the known name from the DB.
-				newVol := b.GetVolume(vol.Type(), vol.ContentType(), newVolName, vol.Config())
+				newVol := b.GetVolume(vol.Type(), vol.ContentType(), dbVol.Name, vol.Config())
 
 				// In case the new volume's name is empty, set a custom mount path based on the volume's UUID.
 				// This ensures when mounting the volume, we are picking a unique path as the actual volume's name is empty.
-				if newVolName == "" {
+				if dbVol.Name == "" {
 					newVol.SetMountCustomPath(drivers.GetVolumeMountPath(b.name, newVol.Type(), volUUID))
 				}
 
