@@ -7316,11 +7316,18 @@ func (b *lxdBackend) normalizeUnknownVolumes(ctx context.Context, poolVols []dri
 				}
 
 				newVolName := dbVol.Name
-				dbVolType := VolumeDBTypeToType(dbVol.Type)
 
-				// Reject volumes if their type on storage is different to what is already known in the DB.
-				if dbVolType != vol.Type() {
-					return fmt.Errorf("Volume %q in pool %q has type %q but is already known under type %q", newVolName, b.name, vol.Type(), dbVolType)
+				// Only perform further checks if we were able to get the volume by its UUID.
+				// In this case the name is always non-empty.
+				// The default value of StorageVolumeArgs.Type is 0 (StoragePoolVolumeTypeContainer)
+				// which would lead to wrong checks in case the volume doesn't yet exist in the DB.
+				if newVolName != "" {
+					dbVolType := VolumeDBTypeToType(dbVol.Type)
+
+					// Reject volumes if their type on storage is different to what is already known in the DB.
+					if dbVolType != vol.Type() {
+						return fmt.Errorf("Volume %q in pool %q has type %q but is already known under type %q", newVolName, b.name, vol.Type(), dbVolType)
+					}
 				}
 
 				// Create a new volume struct with the actual name of the instance.
