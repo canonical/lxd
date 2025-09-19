@@ -488,12 +488,12 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 
 	localHTTPSAddress := s.LocalConfig.HTTPSAddress()
 
-	// Quick check.
-	if req.Token && req.Certificate != "" {
-		return response.BadRequest(errors.New("Can't use certificate if token is requested"))
-	}
-
+	// Validate request for creating certificate add token.
 	if req.Token {
+		if req.Certificate != "" {
+			return response.BadRequest(errors.New("Can't use certificate if token is requested"))
+		}
+
 		if req.Type != "client" {
 			return response.BadRequest(errors.New("Tokens can only be issued for client certificates"))
 		}
