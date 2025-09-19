@@ -60,5 +60,5 @@ test_warnings() {
 
     # Delete all warnings
     lxc warning delete --all
-    [ -z "$(lxc warning ls --format csv)" ]
+    [ -z "$(lxc warning ls --format csv || echo fail)" ]
 }
