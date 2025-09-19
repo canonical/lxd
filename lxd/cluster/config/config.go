@@ -715,6 +715,7 @@ var ConfigSchema = config.Schema{
 	// ---
 	//  type: space-delimited string
 	//  scope: global
+	//  defaultdesc: `openid email offline_access profile`
 	//  shortdesc: Space-separated list of OpenID Connect scopes
 	"oidc.scopes": {
 		Default: strings.Join([]string{oidc.ScopeOpenID, oidc.ScopeEmail, oidc.ScopeOfflineAccess, oidc.ScopeProfile}, " "),
