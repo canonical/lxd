@@ -1329,7 +1329,7 @@ test_projects_images_volume() {
   lxc project delete foo2
 
   # Removal of the project should clear the setting too
-  [ "$(lxc config get storage.project.foo2.images_volume)" = "" ]
+  [ "$(lxc config get storage.project.foo2.images_volume || echo fail)" = "" ]
 
   # Import the image in the default project and storage, and ensure it's gone after removal
   ensure_import_testimage
