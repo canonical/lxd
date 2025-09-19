@@ -1,7 +1,12 @@
 test_container_devices_tpm() {
   if ! modprobe tpm_vtpm_proxy; then
-    echo "==> SKIP: Required tpm_vtpm_proxy.ko is missing"
-    return
+    if [[ "$(uname -r)" =~ -azure$ ]]; then
+      echo "==> SKIP: Required tpm_vtpm_proxy.ko is missing"
+      return
+    fi
+
+    apt-get install --no-install-recommends -y "linux-modules-extra-$(uname -r)"
+    modprobe tpm_vtpm_proxy
   fi
 
   lxd_backend=$(storage_backend "$LXD_DIR")
