@@ -27,11 +27,11 @@ test_network_acl() {
   lxc network acl delete testacl
   lxc network acl delete testacl --project testproj
   lxc network acl delete testacl2 --project testproj3
-  [ "$(lxc network acl ls -f csv)" = "" ]
-  [ "$(lxc network acl ls -f csv)" = "" ]
-  [ "$(lxc network acl ls -f csv --project testproj)" = "" ]
-  [ "$(lxc network acl ls --project testproj3 -f csv)" = "" ]
-  [ "$(lxc network acl ls --all-projects -f csv)" = "" ]
+  [ "$(lxc network acl ls -f csv || echo fail)" = "" ]
+  [ "$(lxc network acl ls -f csv || echo fail)" = "" ]
+  [ "$(lxc network acl ls -f csv --project testproj || echo fail)" = "" ]
+  [ "$(lxc network acl ls --project testproj3 -f csv || echo fail)" = "" ]
+  [ "$(lxc network acl ls --all-projects -f csv || echo fail)" = "" ]
   lxc project delete testproj
   lxc project delete testproj3
 
@@ -155,7 +155,7 @@ EOF
   [ "$(lxc network acl get testacl2 user.somekey | grep -cwF 'foo')" = 1 ]
   ! lxc network acl set testacl2 non.userkey || false
   lxc network acl unset testacl2 user.somekey
-  [ "$(lxc network acl get testacl2 user.somekey)" = "" ]
+  [ "$(lxc network acl get testacl2 user.somekey || echo fail)" = "" ]
 
   lxc network acl delete testacl2
 }

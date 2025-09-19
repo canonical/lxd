@@ -28,5 +28,5 @@ test_concurrent() {
   done
 
   # Verify no `concurrent-` instances was left behind
-  [ "$(lxc list -f csv -c n concurrent-)" = "" ]
+  [ "$(lxc list -f csv -c n concurrent- || echo fail)" = "" ]
 }

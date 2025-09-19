@@ -35,8 +35,8 @@ test_sql() {
   # Local database schema dump
   SQLITE_DUMP="${TEST_DIR}/dump.db"
   lxd sql local .schema | sqlite3 "${SQLITE_DUMP}"
-  [ "$(sqlite3 "${SQLITE_DUMP}" 'SELECT * FROM schema')" = "" ]
-  [ "$(sqlite3 "${SQLITE_DUMP}" 'SELECT * FROM patches')" = "" ]
+  [ "$(sqlite3 "${SQLITE_DUMP}" 'SELECT * FROM schema' || echo fail)" = "" ]
+  [ "$(sqlite3 "${SQLITE_DUMP}" 'SELECT * FROM patches' || echo fail)" = "" ]
   rm -f "${SQLITE_DUMP}"
 
   # Global database dump
@@ -52,8 +52,8 @@ test_sql() {
   # Global database schema dump
   SQLITE_DUMP="${TEST_DIR}/dump.db"
   lxd sql global .schema | sqlite3 "${SQLITE_DUMP}"
-  [ "$(sqlite3 "${SQLITE_DUMP}" 'SELECT * FROM schema')" = "" ]
-  [ "$(sqlite3 "${SQLITE_DUMP}" 'SELECT * FROM profiles')" = "" ]
+  [ "$(sqlite3 "${SQLITE_DUMP}" 'SELECT * FROM schema' || echo fail)" = "" ]
+  [ "$(sqlite3 "${SQLITE_DUMP}" 'SELECT * FROM profiles' || echo fail)" = "" ]
   rm -f "${SQLITE_DUMP}"
 
   # Sync the global database to disk
