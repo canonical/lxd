@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-09-19 09:24+0200\n"
+"POT-Creation-Date: 2025-09-19 12:09-0600\n"
 "PO-Revision-Date: 2022-03-10 15:09+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Korean <https://hosted.weblate.org/projects/linux-containers/"
@@ -388,7 +388,7 @@ msgid ""
 "### Note that the name is shown but cannot be changed"
 msgstr ""
 
-#: lxc/project.go:290
+#: lxc/project.go:327
 msgid ""
 "### This is a YAML representation of the project.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -591,7 +591,7 @@ msgstr ""
 msgid "Action %q isn't supported by this tool"
 msgstr ""
 
-#: lxc/project.go:108
+#: lxc/project.go:109
 msgid ""
 "Add a NIC device to the default profile connected to the specified network"
 msgstr ""
@@ -612,7 +612,7 @@ msgstr ""
 msgid "Add a network zone record entry"
 msgstr ""
 
-#: lxc/project.go:107
+#: lxc/project.go:108
 msgid "Add a storage pool to be used as the root device in the default profile"
 msgstr ""
 
@@ -894,7 +894,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:153 lxc/init.go:245 lxc/move.go:401 lxc/project.go:169
+#: lxc/copy.go:153 lxc/init.go:245 lxc/move.go:401 lxc/project.go:170
 #, c-format
 msgid "Bad key=value pair: %q"
 msgstr ""
@@ -1221,7 +1221,7 @@ msgstr ""
 msgid "Config key/value to apply to the new instance"
 msgstr ""
 
-#: lxc/project.go:106
+#: lxc/project.go:107
 msgid "Config key/value to apply to the new project"
 msgstr ""
 
@@ -1235,7 +1235,7 @@ msgstr ""
 #: lxc/network_acl.go:716 lxc/network_forward.go:776
 #: lxc/network_load_balancer.go:739 lxc/network_peer.go:698
 #: lxc/network_zone.go:640 lxc/network_zone.go:1333 lxc/profile.go:613
-#: lxc/project.go:372 lxc/storage.go:360 lxc/storage_bucket.go:350
+#: lxc/project.go:409 lxc/storage.go:360 lxc/storage_bucket.go:350
 #: lxc/storage_bucket.go:1144 lxc/storage_volume.go:1180
 #: lxc/storage_volume.go:1212
 #, c-format
@@ -1509,7 +1509,7 @@ msgstr ""
 msgid "Create profiles"
 msgstr ""
 
-#: lxc/project.go:98 lxc/project.go:99
+#: lxc/project.go:99 lxc/project.go:100
 msgid "Create projects"
 msgstr ""
 
@@ -1554,7 +1554,7 @@ msgstr ""
 #: lxc/network_acl.go:173 lxc/network_forward.go:160
 #: lxc/network_load_balancer.go:163 lxc/network_peer.go:150
 #: lxc/network_zone.go:165 lxc/network_zone.go:847 lxc/operation.go:173
-#: lxc/profile.go:763 lxc/project.go:582 lxc/storage.go:724
+#: lxc/profile.go:763 lxc/project.go:619 lxc/storage.go:724
 #: lxc/storage_bucket.go:529 lxc/storage_bucket.go:851
 #: lxc/storage_volume.go:1764
 msgid "DESCRIPTION"
@@ -1660,7 +1660,7 @@ msgstr ""
 msgid "Delete profiles"
 msgstr ""
 
-#: lxc/project.go:198 lxc/project.go:199
+#: lxc/project.go:202 lxc/project.go:203
 msgid "Delete projects"
 msgstr ""
 
@@ -1761,10 +1761,10 @@ msgstr ""
 #: lxc/profile.go:38 lxc/profile.go:113 lxc/profile.go:193 lxc/profile.go:289
 #: lxc/profile.go:371 lxc/profile.go:453 lxc/profile.go:511 lxc/profile.go:647
 #: lxc/profile.go:723 lxc/profile.go:880 lxc/profile.go:973 lxc/profile.go:1033
-#: lxc/profile.go:1120 lxc/profile.go:1184 lxc/project.go:33 lxc/project.go:99
-#: lxc/project.go:199 lxc/project.go:270 lxc/project.go:406 lxc/project.go:480
-#: lxc/project.go:600 lxc/project.go:665 lxc/project.go:751 lxc/project.go:795
-#: lxc/project.go:856 lxc/project.go:923 lxc/publish.go:34 lxc/query.go:35
+#: lxc/profile.go:1120 lxc/profile.go:1184 lxc/project.go:34 lxc/project.go:100
+#: lxc/project.go:203 lxc/project.go:307 lxc/project.go:443 lxc/project.go:517
+#: lxc/project.go:637 lxc/project.go:702 lxc/project.go:788 lxc/project.go:832
+#: lxc/project.go:893 lxc/project.go:960 lxc/publish.go:34 lxc/query.go:35
 #: lxc/rebuild.go:28 lxc/remote.go:38 lxc/remote.go:94 lxc/remote.go:753
 #: lxc/remote.go:791 lxc/remote.go:877 lxc/remote.go:958 lxc/remote.go:1022
 #: lxc/remote.go:1071 lxc/rename.go:21 lxc/restore.go:22 lxc/snapshot.go:32
@@ -1931,7 +1931,7 @@ msgstr ""
 msgid "Display storage pool buckets from all projects"
 msgstr ""
 
-#: lxc/cluster.go:596
+#: lxc/cluster.go:596 lxc/project.go:207
 msgid "Don't require user confirmation for using --force"
 msgstr ""
 
@@ -2046,7 +2046,7 @@ msgstr ""
 msgid "Edit profile configurations as YAML"
 msgstr ""
 
-#: lxc/project.go:269 lxc/project.go:270
+#: lxc/project.go:306 lxc/project.go:307
 msgid "Edit project configurations as YAML"
 msgstr ""
 
@@ -2127,7 +2127,7 @@ msgstr ""
 #: lxc/network_acl.go:544 lxc/network_forward.go:583
 #: lxc/network_load_balancer.go:562 lxc/network_peer.go:524
 #: lxc/network_zone.go:480 lxc/network_zone.go:1166 lxc/profile.go:1100
-#: lxc/project.go:728 lxc/storage.go:813 lxc/storage_bucket.go:623
+#: lxc/project.go:765 lxc/storage.go:813 lxc/storage_bucket.go:623
 #: lxc/storage_volume.go:2197 lxc/storage_volume.go:2235
 #, c-format
 msgid "Error setting properties: %v"
@@ -2141,7 +2141,7 @@ msgstr ""
 #: lxc/cluster.go:460 lxc/network.go:1353 lxc/network_acl.go:538
 #: lxc/network_forward.go:577 lxc/network_load_balancer.go:556
 #: lxc/network_peer.go:518 lxc/network_zone.go:474 lxc/network_zone.go:1160
-#: lxc/profile.go:1094 lxc/project.go:722 lxc/storage.go:807
+#: lxc/profile.go:1094 lxc/project.go:759 lxc/storage.go:807
 #: lxc/storage_bucket.go:617 lxc/storage_volume.go:2191
 #: lxc/storage_volume.go:2229
 #, c-format
@@ -2459,6 +2459,12 @@ msgstr ""
 msgid "Force creating files or directories"
 msgstr ""
 
+#: lxc/project.go:206
+msgid ""
+"Force delete project and its entities (instances, profiles, images, "
+"networks, network ACLs, network zones, storage volumes, and storage buckets)"
+msgstr ""
+
 #: lxc/cluster.go:1314
 msgid "Force evacuation without user confirmation"
 msgstr ""
@@ -2485,6 +2491,16 @@ msgstr ""
 
 #: lxc/main.go:97
 msgid "Force using the local unix socket"
+msgstr ""
+
+#: lxc/project.go:224
+#, c-format
+msgid ""
+"Forcefully removing a project will delete the project and its entities "
+"(instances, profiles, images, networks, network ACLs, network zones, storage "
+"volumes, and storage buckets)\n"
+"\n"
+"Are you really sure you want to force removing %s? (yes/no): "
 msgstr ""
 
 #: lxc/cluster.go:611
@@ -2518,8 +2534,8 @@ msgstr ""
 #: lxc/network.go:1148 lxc/network_acl.go:101 lxc/network_allocations.go:58
 #: lxc/network_forward.go:96 lxc/network_load_balancer.go:100
 #: lxc/network_peer.go:86 lxc/network_zone.go:93 lxc/network_zone.go:789
-#: lxc/operation.go:109 lxc/profile.go:740 lxc/project.go:482
-#: lxc/project.go:925 lxc/remote.go:795 lxc/storage.go:658
+#: lxc/operation.go:109 lxc/profile.go:740 lxc/project.go:519
+#: lxc/project.go:962 lxc/remote.go:795 lxc/storage.go:658
 #: lxc/storage_bucket.go:463 lxc/storage_bucket.go:793
 #: lxc/storage_volume.go:1640 lxc/warning.go:95
 msgid "Format (csv|json|table|yaml|compact)"
@@ -2585,7 +2601,7 @@ msgstr ""
 msgid "Get UEFI variables for instance"
 msgstr ""
 
-#: lxc/project.go:922 lxc/project.go:923
+#: lxc/project.go:959 lxc/project.go:960
 msgid "Get a summary of resource allocations"
 msgstr ""
 
@@ -2633,7 +2649,7 @@ msgstr ""
 msgid "Get the key as a profile property"
 msgstr ""
 
-#: lxc/project.go:410
+#: lxc/project.go:447
 msgid "Get the key as a project property"
 msgstr ""
 
@@ -2697,7 +2713,7 @@ msgstr ""
 msgid "Get values for profile configuration keys"
 msgstr ""
 
-#: lxc/project.go:405 lxc/project.go:406
+#: lxc/project.go:442 lxc/project.go:443
 msgid "Get values for project configuration keys"
 msgstr ""
 
@@ -2791,7 +2807,7 @@ msgstr ""
 msgid "IDENTIFIER"
 msgstr ""
 
-#: lxc/project.go:576
+#: lxc/project.go:613
 msgid "IMAGES"
 msgstr ""
 
@@ -3151,7 +3167,7 @@ msgstr ""
 msgid "LAST USED AT"
 msgstr ""
 
-#: lxc/project.go:1000
+#: lxc/project.go:1037
 msgid "LIMIT"
 msgstr ""
 
@@ -3423,8 +3439,8 @@ msgid ""
 "  f - Base Image Fingerprint (short)\n"
 "  F - Base Image Fingerprint (long)\n"
 "\n"
-"Custom columns are defined with \"[config:|devices:]key[:name][:"
-"maxWidth]\":\n"
+"Custom columns are defined with \"[config:|devices:]key[:name][:maxWidth]"
+"\":\n"
 "  KEY: The (extended) config or devices key to display. If [config:|"
 "devices:] is omitted then it defaults to config key.\n"
 "  NAME: Name to display in the column header.\n"
@@ -3470,7 +3486,7 @@ msgid ""
 "u - Used By"
 msgstr ""
 
-#: lxc/project.go:479 lxc/project.go:480
+#: lxc/project.go:516 lxc/project.go:517
 msgid "List projects"
 msgstr ""
 
@@ -3777,7 +3793,7 @@ msgstr ""
 msgid "Manage profiles"
 msgstr ""
 
-#: lxc/project.go:32 lxc/project.go:33
+#: lxc/project.go:33 lxc/project.go:34
 msgid "Manage projects"
 msgstr ""
 
@@ -3809,8 +3825,8 @@ msgstr ""
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect "
-"\"custom\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect \"custom\" "
+"(user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:37 lxc/remote.go:38
@@ -4026,9 +4042,9 @@ msgstr ""
 msgid "Missing profile name"
 msgstr ""
 
-#: lxc/profile.go:422 lxc/project.go:154 lxc/project.go:236 lxc/project.go:326
-#: lxc/project.go:443 lxc/project.go:632 lxc/project.go:701 lxc/project.go:827
-#: lxc/project.go:956
+#: lxc/profile.go:422 lxc/project.go:155 lxc/project.go:258 lxc/project.go:363
+#: lxc/project.go:480 lxc/project.go:669 lxc/project.go:738 lxc/project.go:864
+#: lxc/project.go:993
 msgid "Missing project name"
 msgstr ""
 
@@ -4152,7 +4168,7 @@ msgstr ""
 #: lxc/cluster.go:1075 lxc/cluster_group.go:510 lxc/config_trust.go:408
 #: lxc/config_trust.go:513 lxc/list.go:571 lxc/network.go:1117
 #: lxc/network_acl.go:172 lxc/network_peer.go:149 lxc/network_zone.go:164
-#: lxc/network_zone.go:846 lxc/profile.go:761 lxc/project.go:575
+#: lxc/network_zone.go:846 lxc/profile.go:761 lxc/project.go:612
 #: lxc/remote.go:853 lxc/storage.go:716 lxc/storage_bucket.go:528
 #: lxc/storage_bucket.go:850 lxc/storage_volume.go:1763
 msgid "NAME"
@@ -4166,11 +4182,11 @@ msgstr ""
 msgid "NETWORK"
 msgstr ""
 
-#: lxc/project.go:581
+#: lxc/project.go:618
 msgid "NETWORK ZONES"
 msgstr ""
 
-#: lxc/project.go:580
+#: lxc/project.go:617
 msgid "NETWORKS"
 msgstr ""
 
@@ -4182,9 +4198,9 @@ msgstr ""
 msgid "NICs:"
 msgstr ""
 
-#: lxc/network.go:1090 lxc/operation.go:155 lxc/project.go:533
-#: lxc/project.go:538 lxc/project.go:543 lxc/project.go:548 lxc/project.go:553
-#: lxc/project.go:558 lxc/remote.go:813 lxc/remote.go:818 lxc/remote.go:823
+#: lxc/network.go:1090 lxc/operation.go:155 lxc/project.go:570
+#: lxc/project.go:575 lxc/project.go:580 lxc/project.go:585 lxc/project.go:590
+#: lxc/project.go:595 lxc/remote.go:813 lxc/remote.go:818 lxc/remote.go:823
 msgid "NO"
 msgstr ""
 
@@ -4485,7 +4501,7 @@ msgstr ""
 msgid "PROCESSES"
 msgstr ""
 
-#: lxc/list.go:574 lxc/project.go:577
+#: lxc/list.go:574 lxc/project.go:614
 msgid "PROFILES"
 msgstr ""
 
@@ -4564,7 +4580,7 @@ msgstr ""
 #: lxc/network_acl.go:717 lxc/network_forward.go:777
 #: lxc/network_load_balancer.go:740 lxc/network_peer.go:699
 #: lxc/network_zone.go:641 lxc/network_zone.go:1334 lxc/profile.go:614
-#: lxc/project.go:373 lxc/storage.go:361 lxc/storage_bucket.go:351
+#: lxc/project.go:410 lxc/storage.go:361 lxc/storage_bucket.go:351
 #: lxc/storage_bucket.go:1145 lxc/storage_volume.go:1181
 #: lxc/storage_volume.go:1213
 msgid "Press enter to open the editor again or ctrl+c to abort change"
@@ -4656,17 +4672,17 @@ msgstr ""
 msgid "Profiles: "
 msgstr ""
 
-#: lxc/project.go:182
+#: lxc/project.go:183
 #, c-format
 msgid "Project %s created"
 msgstr ""
 
-#: lxc/project.go:246
+#: lxc/project.go:283
 #, c-format
 msgid "Project %s deleted"
 msgstr ""
 
-#: lxc/project.go:647
+#: lxc/project.go:684
 #, c-format
 msgid "Project %s renamed to %s"
 msgstr ""
@@ -4813,7 +4829,7 @@ msgstr ""
 msgid "Query virtual machine images"
 msgstr ""
 
-#: lxc/project.go:999
+#: lxc/project.go:1036
 msgid "RESOURCE"
 msgstr ""
 
@@ -4865,7 +4881,7 @@ msgstr ""
 msgid "Remote %s already exists"
 msgstr ""
 
-#: lxc/project.go:890 lxc/remote.go:906 lxc/remote.go:987 lxc/remote.go:1052
+#: lxc/project.go:927 lxc/remote.go:906 lxc/remote.go:987 lxc/remote.go:1052
 #: lxc/remote.go:1100
 #, c-format
 msgid "Remote %s doesn't exist"
@@ -5033,7 +5049,7 @@ msgstr ""
 msgid "Rename profiles"
 msgstr ""
 
-#: lxc/project.go:599 lxc/project.go:600
+#: lxc/project.go:636 lxc/project.go:637
 msgid "Rename projects"
 msgstr ""
 
@@ -5195,7 +5211,7 @@ msgstr ""
 msgid "STATUS"
 msgstr ""
 
-#: lxc/project.go:579
+#: lxc/project.go:616
 msgid "STORAGE BUCKETS"
 msgstr ""
 
@@ -5203,7 +5219,7 @@ msgstr ""
 msgid "STORAGE POOL"
 msgstr ""
 
-#: lxc/project.go:578
+#: lxc/project.go:615
 msgid "STORAGE VOLUMES"
 msgstr ""
 
@@ -5391,11 +5407,11 @@ msgid ""
 "    lxc profile set [<remote>:]<profile> <key> <value>"
 msgstr ""
 
-#: lxc/project.go:664
+#: lxc/project.go:701
 msgid "Set project configuration keys"
 msgstr ""
 
-#: lxc/project.go:665
+#: lxc/project.go:702
 msgid ""
 "Set project configuration keys\n"
 "\n"
@@ -5507,7 +5523,7 @@ msgstr ""
 msgid "Set the key as a profile property"
 msgstr ""
 
-#: lxc/project.go:672
+#: lxc/project.go:709
 msgid "Set the key as a project property"
 msgstr ""
 
@@ -5652,7 +5668,7 @@ msgstr ""
 msgid "Show profile configurations"
 msgstr ""
 
-#: lxc/project.go:794 lxc/project.go:795
+#: lxc/project.go:831 lxc/project.go:832
 msgid "Show project options"
 msgstr ""
 
@@ -5898,7 +5914,7 @@ msgstr ""
 msgid "Swap (peak)"
 msgstr ""
 
-#: lxc/project.go:855 lxc/project.go:856
+#: lxc/project.go:892 lxc/project.go:893
 msgid "Switch the current project"
 msgstr ""
 
@@ -6077,7 +6093,7 @@ msgstr ""
 msgid "The property %q does not exist on the profile %q: %v"
 msgstr ""
 
-#: lxc/project.go:456
+#: lxc/project.go:493
 #, c-format
 msgid "The property %q does not exist on the project %q: %v"
 msgstr ""
@@ -6296,7 +6312,7 @@ msgstr ""
 msgid "Type: %s (ephemeral)"
 msgstr ""
 
-#: lxc/project.go:971
+#: lxc/project.go:1008
 msgid "UNLIMITED"
 msgstr ""
 
@@ -6308,12 +6324,12 @@ msgstr ""
 msgid "URL"
 msgstr ""
 
-#: lxc/project.go:1001 lxc/storage_volume.go:1767
+#: lxc/project.go:1038 lxc/storage_volume.go:1767
 msgid "USAGE"
 msgstr ""
 
 #: lxc/network.go:1123 lxc/network_acl.go:174 lxc/network_allocations.go:23
-#: lxc/network_zone.go:166 lxc/profile.go:764 lxc/project.go:583
+#: lxc/network_zone.go:166 lxc/profile.go:764 lxc/project.go:620
 #: lxc/storage.go:725 lxc/storage_volume.go:1766
 msgid "USED BY"
 msgstr ""
@@ -6440,7 +6456,7 @@ msgstr ""
 msgid "Unset profile configuration keys"
 msgstr ""
 
-#: lxc/project.go:750 lxc/project.go:751
+#: lxc/project.go:787 lxc/project.go:788
 msgid "Unset project configuration keys"
 msgstr ""
 
@@ -6492,7 +6508,7 @@ msgstr ""
 msgid "Unset the key as a profile property"
 msgstr ""
 
-#: lxc/project.go:755
+#: lxc/project.go:792
 msgid "Unset the key as a project property"
 msgstr ""
 
@@ -6577,7 +6593,7 @@ msgstr ""
 msgid "User ID to run the command as (default 0)"
 msgstr ""
 
-#: lxc/cluster.go:630 lxc/delete.go:54
+#: lxc/cluster.go:630 lxc/delete.go:54 lxc/project.go:231
 msgid "User aborted delete operation"
 msgstr ""
 
@@ -6659,9 +6675,9 @@ msgid ""
 "re-initialize the instance if a different image or --empty is not specified."
 msgstr ""
 
-#: lxc/network.go:1092 lxc/operation.go:157 lxc/project.go:535
-#: lxc/project.go:540 lxc/project.go:545 lxc/project.go:550 lxc/project.go:555
-#: lxc/project.go:560 lxc/remote.go:815 lxc/remote.go:820 lxc/remote.go:825
+#: lxc/network.go:1092 lxc/operation.go:157 lxc/project.go:572
+#: lxc/project.go:577 lxc/project.go:582 lxc/project.go:587 lxc/project.go:592
+#: lxc/project.go:597 lxc/remote.go:815 lxc/remote.go:820 lxc/remote.go:825
 msgid "YES"
 msgstr ""
 
@@ -6700,7 +6716,7 @@ msgstr ""
 #: lxc/cluster.go:123 lxc/cluster.go:981 lxc/cluster_group.go:444
 #: lxc/config_trust.go:346 lxc/config_trust.go:429 lxc/monitor.go:32
 #: lxc/network.go:1017 lxc/network_acl.go:95 lxc/network_zone.go:87
-#: lxc/operation.go:104 lxc/profile.go:720 lxc/project.go:477
+#: lxc/operation.go:104 lxc/profile.go:720 lxc/project.go:514
 #: lxc/storage.go:653 lxc/version.go:20 lxc/warning.go:70
 msgid "[<remote>:]"
 msgstr ""
@@ -7243,20 +7259,20 @@ msgstr ""
 msgid "[<remote>:]<profile> [<remote>:]<profile>"
 msgstr ""
 
-#: lxc/project.go:97 lxc/project.go:196 lxc/project.go:268 lxc/project.go:793
-#: lxc/project.go:854 lxc/project.go:921
+#: lxc/project.go:98 lxc/project.go:200 lxc/project.go:305 lxc/project.go:830
+#: lxc/project.go:891 lxc/project.go:958
 msgid "[<remote>:]<project>"
 msgstr ""
 
-#: lxc/project.go:404 lxc/project.go:749
+#: lxc/project.go:441 lxc/project.go:786
 msgid "[<remote>:]<project> <key>"
 msgstr ""
 
-#: lxc/project.go:663
+#: lxc/project.go:700
 msgid "[<remote>:]<project> <key>=<value>..."
 msgstr ""
 
-#: lxc/project.go:597
+#: lxc/project.go:634
 msgid "[<remote>:]<project> <new-name>"
 msgstr ""
 
@@ -7342,7 +7358,7 @@ msgstr ""
 msgid "[[<remote>:]<member>]"
 msgstr ""
 
-#: lxc/project.go:565 lxc/remote.go:844
+#: lxc/project.go:602 lxc/remote.go:844
 msgid "current"
 msgstr ""
 
@@ -7541,8 +7557,8 @@ msgid ""
 "lxc init ubuntu:24.04 v1 --vm -c limits.cpu=4 -c limits.memory=4GiB\n"
 "    Create a virtual machine with 4 vCPUs and 4GiB of RAM\n"
 "\n"
-"lxc init ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,"
-"size=32GiB\n"
+"lxc init ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d "
+"root,size=32GiB\n"
 "    Create a virtual machine with 2 vCPUs, 8GiB of RAM and a root disk of "
 "32GiB"
 msgstr ""
@@ -7570,8 +7586,8 @@ msgstr ""
 
 #: lxc/list.go:123
 msgid ""
-"lxc list -c nFs46,volatile.eth0.hwaddr:MAC,config:image.os,devices:eth0."
-"parent:ETHP\n"
+"lxc list -c "
+"nFs46,volatile.eth0.hwaddr:MAC,config:image.os,devices:eth0.parent:ETHP\n"
 "  Show instances using the \"NAME\", \"BASE IMAGE\", \"STATE\", \"IPV4\", "
 "\"IPV6\" and \"MAC\" columns.\n"
 "  \"BASE IMAGE\", \"MAC\" and \"IMAGE OS\" are custom columns generated from "
@@ -7701,7 +7717,7 @@ msgid ""
 "    Update a profile using the content of profile.yaml"
 msgstr ""
 
-#: lxc/project.go:101
+#: lxc/project.go:102
 msgid ""
 "lxc project create p1\n"
 "\n"
@@ -7709,7 +7725,7 @@ msgid ""
 "    Create a project with configuration from config.yaml"
 msgstr ""
 
-#: lxc/project.go:272
+#: lxc/project.go:309
 msgid ""
 "lxc project edit <project> < project.yaml\n"
 "    Update a project using the content of project.yaml"
@@ -7880,6 +7896,6 @@ msgid "y"
 msgstr ""
 
 #: lxc/cluster.go:629 lxc/delete.go:53 lxc/image.go:997 lxc/image.go:1002
-#: lxc/image.go:1207
+#: lxc/image.go:1207 lxc/project.go:230
 msgid "yes"
 msgstr ""
