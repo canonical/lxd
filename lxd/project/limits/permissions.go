@@ -1102,7 +1102,7 @@ func AllowProjectUpdate(ctx context.Context, globalConfig *clusterConfig.Config,
 	// This is done separately because this may require getting network info from the database.
 	err = checkUplinkUse(ctx, tx, projectName, info.Project.Config)
 	if err != nil {
-		return err
+		return fmt.Errorf("Check project uplink network usage: %w", err)
 	}
 
 	// Check instance restrictions and aggregate limits affected by instance-level values.
