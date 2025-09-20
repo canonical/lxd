@@ -109,6 +109,7 @@ The directory backend should be considered as a last resort option.
 It supports all main LXD features, but is slow and inefficient because it cannot perform instant copies or snapshots.
 Therefore, it constantly copies the instance's full storage.
 
+(storage-drivers-security)=
 ## Security considerations
 
 Currently, the Linux kernel might silently ignore mount options and not apply them when a block-based file system (for example, `ext4`) is already mounted with different mount options.

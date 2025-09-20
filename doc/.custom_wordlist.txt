@@ -207,6 +207,7 @@ Pbit
 PCI
 PCIe
 passthrough
+passthroughs
 peerings
 PFs
 PiB
@@ -336,6 +337,7 @@ URI
 URIs
 userspace
 UUIDs
+USG
 vCPU
 vCPUs
 vGPU
