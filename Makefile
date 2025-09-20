@@ -421,7 +421,9 @@ update-po:
 .PHONY: update-pot
 update-pot:
 ifeq "$(LXD_OFFLINE)" ""
-	(cd / ; go install github.com/snapcore/snapd/i18n/xgettext-go@2.57.1)
+	@# XXX: `go install ...@latest` is almost a noop if already up to date
+	@# Cannot use newer versions (2.58 to 2.72 all failed)
+	go install github.com/snapcore/snapd/i18n/xgettext-go@2.57.6
 endif
 	xgettext-go -o po/$(DOMAIN).pot --add-comments-tag=TRANSLATORS: --sort-output --package-name=$(DOMAIN) --msgid-bugs-address=lxd@lists.canonical.com --keyword=i18n.G --keyword-plural=i18n.NG lxc/*.go lxc/*/*.go
 	if git diff --quiet --ignore-matching-lines='^\s*"POT-Creation-Date: .*\n"' -- po/*.pot; then git checkout -- po/*.pot; fi
