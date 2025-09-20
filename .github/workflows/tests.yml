@@ -114,14 +114,8 @@ jobs:
           sudo chmod o+w {go.mod,go.sum}
           go mod download
 
-      - name: Check compatibility with min Go version
-        run: |
-          set -eux
-          GOMIN="$(sed -n 's/^GOMIN=\([0-9.]\+\)$/\1/p' Makefile)"
-          go mod tidy -go="${GOMIN}"
-
-          DOC_GOMIN="$(sed -n 's/^LXD requires Go \([0-9.]\+\) .*/\1/p' doc/requirements.md)"
-          [ "${GOMIN}" = "${DOC_GOMIN}" ]
+          # Check compatibility with min Go version
+          make check-gomin
 
       - name: Make GOCOVERDIR
         run: |
