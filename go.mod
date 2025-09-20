@@ -2,6 +2,8 @@ module github.com/canonical/lxd
 
 go 1.24.6
 
+replace github.com/dell/goscaleio => github.com/dell/goscaleio v1.20.0
+
 require (
 	github.com/NVIDIA/nvidia-container-toolkit v1.17.8
 	github.com/armon/go-proxyproto v0.1.0
