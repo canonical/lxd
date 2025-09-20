@@ -139,14 +139,14 @@ test_filemanip() {
 
   # Create a new empty file.
   lxc file create filemanip/tmp/create-test
-  [ -z "$(lxc exec filemanip --project=test -- cat /tmp/create-test)" ]
+  [ -z "$(lxc exec filemanip --project=test -- cat /tmp/create-test || echo fail)" ]
 
   # This fails because the parent directory doesn't exist.
   ! lxc file create filemanip/tmp/create-test-dir/foo || false
 
   # Create foo along with the parent directory.
   lxc file create --create-dirs filemanip/tmp/create-test-dir/foo
-  [ -z "$(lxc exec filemanip --project=test -- cat /tmp/create-test-dir/foo)" ]
+  [ -z "$(lxc exec filemanip --project=test -- cat /tmp/create-test-dir/foo || echo fail)" ]
 
   # Create directory using --type flag.
   lxc file create --type=directory filemanip/tmp/create-test-dir/sub-dir

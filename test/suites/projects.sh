@@ -1312,7 +1312,7 @@ test_projects_images_volume() {
 
   # The image should not exist in the default storage, only in the project images volume
   [ ! -e "${LXD_DIR}/images/${fingerprint}" ]
-  [ -z "$(ls -A "${LXD_DIR}/images")" ]
+  [ -z "$(ls -A "${LXD_DIR}/images" || echo fail)" ]
   [ -f "${LXD_DIR}/storage-pools/${pool}/custom/default_vol/images/${fingerprint}" ]
 
   # It should not be possible to change the setting on non-empty projects
@@ -1336,7 +1336,7 @@ test_projects_images_volume() {
   [ -e "${LXD_DIR}/images/${fingerprint}" ]
   lxc image delete testimage
   [ ! -e "${LXD_DIR}/images/${fingerprint}" ]
-  [ -z "$(ls -A "${LXD_DIR}/images")" ]
+  [ -z "$(ls -A "${LXD_DIR}/images" || echo fail)" ]
 
   # It should not be possible to move daemon storage to the same volume
   ! lxc config set storage.images_volume="${pool}/vol" || false
@@ -1349,7 +1349,7 @@ test_projects_images_volume() {
 
   # Delete the image
   lxc image delete --project foo testimage
-  [ -z "$(ls -A "${LXD_DIR}/storage-pools/${pool}/custom/default_vol/images")" ]
+  [ -z "$(ls -A "${LXD_DIR}/storage-pools/${pool}/custom/default_vol/images" || echo fail)" ]
 
   # Clean up
   lxc project delete foo
@@ -1396,7 +1396,7 @@ test_projects_backups_volume() {
 
   # Make sure the backup does not exist in the default storage
   [ -d "${LXD_DIR}/backups/instances" ]
-  [ -z "$(ls -A "${LXD_DIR}/backups/instances")" ]
+  [ -z "$(ls -A "${LXD_DIR}/backups/instances" || echo fail)" ]
 
   # Make sure the backup does exist in the dedicated pool
   [ -d "${LXD_DIR}/storage-pools/${pool}/custom/default_vol/backups/instances" ]
@@ -1408,7 +1408,7 @@ test_projects_backups_volume() {
 
   # Ensure the backup is gone
   [ -d "${LXD_DIR}/storage-pools/${pool}/custom/default_vol/backups/instances" ]
-  [ -z "$(ls -A "${LXD_DIR}/storage-pools/${pool}/custom/default_vol/backups/instances")" ]
+  [ -z "$(ls -A "${LXD_DIR}/storage-pools/${pool}/custom/default_vol/backups/instances" || echo fail)" ]
 
   # Clean up
   lxc project switch default
