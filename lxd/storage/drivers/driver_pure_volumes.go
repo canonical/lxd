@@ -997,20 +997,20 @@ func (d *pure) ListVolumes() ([]Volume, error) {
 		contentType := ContentTypeFS
 		if volType == VolumeTypeCustom && strings.HasSuffix(volName, pureContentTypeSuffixes[ContentTypeISO]) {
 			contentType = ContentTypeISO
-			volName = strings.TrimSuffix(volName, pureContentTypeSuffixes[ContentTypeISO])
+			volName = strings.TrimSuffix(volName, "-"+pureContentTypeSuffixes[ContentTypeISO])
 		} else if volType == VolumeTypeVM || isBlock {
 			contentType = ContentTypeBlock
-			volName = strings.TrimSuffix(volName, pureContentTypeSuffixes[ContentTypeBlock])
+			volName = strings.TrimSuffix(volName, "-"+pureContentTypeSuffixes[ContentTypeBlock])
 		}
 
 		volUUID, err := d.getUUIDFromVolumeName(volName)
 		if err != nil {
-			d.logger.Warn("Ignoring malformed volume name", logger.Ctx{"name": vol.Name})
+			d.logger.Warn("Ignoring malformed volume name", logger.Ctx{"err": err, "name": vol.Name})
 			continue
 		}
 
 		// This is important to allow subsequent operations on the volume struct (e.g. driver's HasVolume) to be able to
-		// resolve the volume's name using the its volatile.uuid.
+		// resolve the volume's name using its volatile.uuid.
 		volConfig := map[string]string{
 			"volatile.uuid": volUUID.String(),
 		}
