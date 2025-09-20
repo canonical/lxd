@@ -274,9 +274,8 @@ update-protobuf:
 
 .PHONY: update-schema
 update-schema:
-ifeq ($(shell command -v goimports),)
-	(cd / ; go install golang.org/x/tools/cmd/goimports@latest)
-endif
+	@# XXX: `go install ...@latest` is almost a noop if already up to date
+	go install golang.org/x/tools/cmd/goimports@latest
 	go build -C lxd/db/generate -v -trimpath -o $(GOPATH)/bin/lxd-generate -tags "$(TAG_SQLITE3)" $(DEBUG)
 	go generate ./...
 	@echo "Code generation completed"
