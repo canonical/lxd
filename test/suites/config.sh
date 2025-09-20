@@ -236,7 +236,7 @@ test_config_profiles() {
   [ "$(lxc config get core.metrics_authentication)" = "false" ]
 
   lxc config unset core.metrics_authentication
-  [ -z "$(lxc config get core.metrics_authentication)" ]
+  [ -z "$(lxc config get core.metrics_authentication || echo fail)" ]
 
   # Validate user.* keys
   ! lxc config set user.⍾ foo || false
