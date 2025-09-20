@@ -283,7 +283,7 @@ update-schema:
 .PHONY: update-api
 update-api:
 ifeq "$(LXD_OFFLINE)" ""
-	(cd / ; go install github.com/go-swagger/go-swagger/cmd/swagger@latest)
+	go install github.com/go-swagger/go-swagger/cmd/swagger@latest
 endif
 	@# Generate spec and exclude package from dependency which causes a 'classifier: unknown swagger annotation "extendee"' error.
 	@# For more details see: https://github.com/go-swagger/go-swagger/issues/2917.
