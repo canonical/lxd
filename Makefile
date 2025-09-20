@@ -235,7 +235,7 @@ check-gomin:
 	go mod tidy -go=$(GOMIN)
 	@echo "Check the doc mentions the right Go minimum version"
 	$(eval DOC_GOMIN := $(shell sed -n 's/^LXD requires Go \([0-9.]\+\) .*/\1/p' doc/requirements.md))
-	@if [ "$(DOC_GOMIN)" != "$(GOMIN)" ]; then \
+	if [ "$(DOC_GOMIN)" != "$(GOMIN)" ]; then \
 		echo "Please update the Go version in 'doc/requirements.md' to be $(GOMIN) instead of $(DOC_GOMIN)"; \
 		exit 1; \
 	fi
@@ -265,8 +265,8 @@ endif
 	if [ -t 0 ] && ! git diff --quiet -- ./go.mod ./go.sum; then \
 		read -rp "Would you like to commit gomod changes (Y/n)? " answer; \
 		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-			git commit -S -sm "gomod: Update dependencies" -- ./go.mod ./go.sum;\
-		fi;\
+			git commit -S -sm "gomod: Update dependencies" -- ./go.mod ./go.sum; \
+		fi; \
 	fi
 
 
@@ -294,8 +294,8 @@ endif
 	if [ -t 0 ] && ! git diff --quiet -- ./doc/rest-api.yaml; then \
 		read -rp "Would you like to commit swagger YAML changes (Y/n)? " answer; \
 		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-			git commit -S -sm "doc/rest-api: Refresh swagger YAML" -- ./doc/rest-api.yaml;\
-		fi;\
+			git commit -S -sm "doc/rest-api: Refresh swagger YAML" -- ./doc/rest-api.yaml; \
+		fi; \
 	fi
 
 .PHONY: update-metadata
@@ -305,8 +305,8 @@ update-metadata: build
 	if [ -t 0 ] && ! git diff --quiet -- ./lxd/metadata/configuration.json ./doc/metadata.txt; then \
 		read -rp "Would you like to commit metadata changes (Y/n)? " answer; \
 		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-			git commit -S -sm "doc: Update metadata" -- ./lxd/metadata/configuration.json ./doc/metadata.txt;\
-		fi;\
+			git commit -S -sm "doc: Update metadata" -- ./lxd/metadata/configuration.json ./doc/metadata.txt; \
+		fi; \
 	fi
 
 .PHONY: update-godeps
@@ -462,7 +462,7 @@ ifeq ($(shell command -v shellcheck),)
 	exit 1
 else
 endif
-	echo "Verify test/lint files are properly named and executable"
+	@echo "Verify test/lint files are properly named and executable"
 	@NOT_EXEC="$(shell find test/lint -type f -not -executable)"; \
 	if [ -n "$$NOT_EXEC" ]; then \
 		echo "lint scripts not executable: $$NOT_EXEC"; \
@@ -481,8 +481,8 @@ update-auth:
 	if [ -t 0 ] && ! git diff --quiet -- ./lxd/auth/; then \
 		read -rp "Would you like to commit auth changes (Y/n)? " answer; \
 		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-			git commit -S -sm "lxd/auth: Update auth" -- ./lxd/auth/;\
-		fi;\
+			git commit -S -sm "lxd/auth: Update auth" -- ./lxd/auth/; \
+		fi; \
 	fi
 
 .PHONY: update-fmt
