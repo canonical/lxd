@@ -229,7 +229,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 }
 
 // projectUsedBy returns a list of URLs for all instances, images, profiles,
-// storage volumes, networks, and acls that use this project.
+// storage volumes, storage buckets, networks, and acls that use this project.
 func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *dbCluster.Project) ([]string, error) {
 	reportedEntityTypes := []entity.Type{
 		entity.TypeInstance,
@@ -238,6 +238,7 @@ func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *dbCluster.Pro
 		entity.TypeStorageVolume,
 		entity.TypeNetwork,
 		entity.TypeNetworkACL,
+		entity.TypeStorageBucket,
 	}
 
 	entityURLs, err := dbCluster.GetEntityURLs(ctx, tx.Tx(), project.Name, reportedEntityTypes...)
@@ -1077,6 +1078,87 @@ func projectNodeConfigDelete(d *Daemon, s *state.State, name string) error {
 	return nil
 }
 
+// doProjectForceDelete handles force deletion of project entities.
+func doProjectForceDelete(ctx context.Context, s *state.State, projectName string) error {
+	// Get the project entities.
+	var usedBy []string
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		project, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
+		if err != nil {
+			return fmt.Errorf("Failed loading project %q: %w", projectName, err)
+		}
+
+		usedBy, err = projectUsedBy(ctx, tx, project)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Parse entity URLs.
+	defaultProfile := api.NewURL().Path(version.APIVersion, "profiles", api.ProjectDefaultName).Project(projectName).String()
+	toDelete := make([]entity.Reference, 0, len(usedBy))
+	for _, u := range usedBy {
+		if u == defaultProfile {
+			continue
+		}
+
+		parsedURL, err := url.Parse(u)
+		if err != nil {
+			return fmt.Errorf("Failed parsing URL %q: %w", u, err)
+		}
+
+		// Build an entity reference directly from the URL.
+		ref, err := entity.ReferenceFromURL(*parsedURL)
+		if err != nil {
+			return err
+		}
+
+		// Skip instances and storage volumes not hosted on this node when a target is specified.
+		// These entities will be deleted by the node they are hosted on when a delete request is a cluster notification.
+		if (ref.EntityType == entity.TypeInstance || ref.EntityType == entity.TypeStorageVolume) && ref.Location != s.ServerName {
+			continue
+		}
+
+		projectSpecific, err := ref.EntityType.RequiresProject()
+		if err != nil {
+			return err
+		}
+
+		// Skip entities that are not project-specific.
+		if !projectSpecific {
+			continue
+		}
+
+		// Early permission check. (entityDeleter).Delete() implementations still perform their own checks, but we should fail fast here to prevent partial deletions.
+		err = s.Authorizer.CheckPermission(ctx, ref.URL(), auth.EntitlementCanDelete)
+		if err != nil {
+			return err
+		}
+
+		toDelete = append(toDelete, ref)
+	}
+
+	// Delete entities.
+	for _, ref := range toDelete {
+		deleter, err := getEntityDeleter(ref.EntityType)
+		if err != nil {
+			return err
+		}
+
+		err = deleter.Delete(ctx, s, ref)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // swagger:operation DELETE /1.0/projects/{name} projects project_delete
 //
 //	Delete the project
@@ -1086,6 +1168,11 @@ func projectNodeConfigDelete(d *Daemon, s *state.State, name string) error {
 //	---
 //	produces:
 //	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: force
+//	    description: Force delete project and its entities
+//	    type: boolean
 //	responses:
 //	  "200":
 //	    $ref: "#/responses/EmptySyncResponse"
@@ -1103,6 +1190,8 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	force := shared.IsTrue(r.FormValue("force"))
+
 	// Quick checks.
 	if name == api.ProjectDefaultName {
 		return response.Forbidden(errors.New("The 'default' project cannot be deleted"))
@@ -1113,8 +1202,15 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// On cluster notification, just clear the node config values and we're done.
+	// On cluster notification, clear the node config values and handle force deletion of local entities (if requested).
 	if requestor.IsClusterNotification() {
+		if force {
+			err = doProjectForceDelete(r.Context(), s, name)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
+
 		err = projectNodeConfigDelete(d, s, name)
 		if err != nil {
 			return response.SmartError(err)
@@ -1123,20 +1219,22 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.EmptySyncResponse
 	}
 
-	// Verify the project is empty.
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		project, err := dbCluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
-			return fmt.Errorf("Fetch project %q: %w", name, err)
+			return fmt.Errorf("Failed loading project %q: %w", name, err)
 		}
 
-		empty, err := projectIsEmpty(ctx, project, tx)
-		if err != nil {
-			return err
-		}
+		if !force {
+			// Verify the project is empty.
+			empty, err := projectIsEmpty(ctx, project, tx)
+			if err != nil {
+				return err
+			}
 
-		if !empty {
-			return errors.New("Only empty projects can be removed")
+			if !empty {
+				return errors.New("Only empty projects can be removed")
+			}
 		}
 
 		return nil
@@ -1145,19 +1243,31 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	if force {
+		// Force delete all project entities from the local node.
+		err = doProjectForceDelete(r.Context(), s, name)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
 	// Clear the project-specific config keys from the local node config.
 	err = projectNodeConfigDelete(d, s, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	// Send notification to other cluster members to update the node schema.
+	// Send notification to other cluster members to update the node schema and handle force deletion (if requested).
 	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
+		if force {
+			return client.ForceDeleteProject(name)
+		}
+
 		return client.DeleteProject(name)
 	})
 	if err != nil {
