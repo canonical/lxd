@@ -439,19 +439,18 @@ build-mo: $(MOFILES)
 
 .PHONY: static-analysis
 static-analysis:
-ifeq ($(shell command -v go-licenses),)
-	(cd / ; go install github.com/google/go-licenses@latest)
+ifeq "$(LXD_OFFLINE)" ""
+	@# XXX: `go install ...@latest` is almost a noop if already up to date
+	go install github.com/google/go-licenses@latest
+
+	@# XXX: if errortype becomes available as a golangci-lint linter, remove this and update golangci-lint config
+	go install fillmore-labs.com/errortype@latest
+
+	@# XXX: if zerolint becomes available as a golangci-lint linter, remove this and update golangci-lint config
+	go install fillmore-labs.com/zerolint@latest
 endif
 ifeq ($(shell command -v golangci-lint),)
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin latest
-endif
-ifeq ($(shell command -v errortype), )
-	# XXX: if errortype becomes available as a golangci-lint linter, remove this and update golangci-lint config
-	(cd / ; go install fillmore-labs.com/errortype@latest)
-endif
-ifeq ($(shell command -v zerolint), )
-	# XXX: if zerolint becomes available as a golangci-lint linter, remove this and update golangci-lint config
-	(cd / ; go install fillmore-labs.com/zerolint@latest)
 endif
 ifneq ($(shell command -v yamllint),)
 	yamllint .github/workflows/*.yml
@@ -459,7 +458,6 @@ endif
 ifeq ($(shell command -v shellcheck),)
 	echo "Please install shellcheck"
 	exit 1
-else
 endif
 	@echo "Verify test/lint files are properly named and executable"
 	@NOT_EXEC="$(shell find test/lint -type f -not -executable)"; \
