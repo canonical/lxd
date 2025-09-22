@@ -111,7 +111,7 @@ test_authorization() {
   BROWSER=curl lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc
 
   ! lxc auth identity group add oidc/test-user@example.com not-found || false # Group not found
-  [ "$(my_curl -X PUT -H 'Content-Type: application/json' --data "{\"groups\":[\"test-group\",\"not-found1\",\"not-found2\"]}" "https://${LXD_ADDR}/1.0/auth/identities/oidc/test-user@example.com" | jq -er '.error')" = 'One or more groups were not found: "not-found1", "not-found2"' ] # Groups not found error (only contains the groups that were not found).
+  [ "$(my_curl -X PUT -H 'Content-Type: application/json' --data '{"groups":["test-group","not-found1","not-found2"]}' "https://${LXD_ADDR}/1.0/auth/identities/oidc/test-user@example.com" | jq -er '.error')" = 'One or more groups were not found: "not-found1", "not-found2"' ] # Groups not found error (only contains the groups that were not found).
   lxc auth identity group add oidc/test-user@example.com test-group # Valid
   lxc auth identity group remove oidc/test-user@example.com test-group
   lxc query /1.0/auth/identities/oidc/test-user@example.com | jq -e '(.groups | length) == 0'
@@ -129,10 +129,10 @@ test_authorization() {
   LXD_CONF="${LXD_CONF2}" gen_cert_and_key "client"
 
   echo "==> Check that empty client name is not allowed for creating certificate add token."
-  [ "$(LXD_CONF="${LXD_CONF2}" my_curl -X POST -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/certificates" --data "{\"token\": true, \"type\": \"client\"}" | jq -er '.error')" = "Client name must not be empty" ]
+  [ "$(LXD_CONF="${LXD_CONF2}" my_curl -X POST -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/certificates" --data '{"token": true, "type": "client"}' | jq -er '.error')" = "Client name must not be empty" ]
 
   # Cannot use the token with the certificates API and the correct error is returned.
-  [ "$(LXD_CONF="${LXD_CONF2}" my_curl -X POST -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/certificates" --data "{\"trust_token\": \"${tls_identity_token}\"}" | jq -er '.error')" = "Failed during search for certificate add token operation: TLS Identity token detected (you must update your client)" ]
+  [ "$(LXD_CONF="${LXD_CONF2}" my_curl -X POST -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/certificates" --data '{"trust_token": "'"${tls_identity_token}"'"}' | jq -er '.error')" = "Failed during search for certificate add token operation: TLS Identity token detected (you must update your client)" ]
 
   # Can use the token with remote add command.
   LXD_CONF="${LXD_CONF2}" lxc remote add tls "${tls_identity_token}"
@@ -313,10 +313,10 @@ fine_grained: true"
   # We could use lxc edit as it accepts stdin input, but replacing the certificate in the yaml was quite complicated.
 
   # This asserts that test-user4 cannot change their own group membership
-  [ "$(LXD_CONF="${LXD_CONF4}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PUT -H 'Content-Type: application/json' --data "{\"tls_certificate\":\"$(awk '{printf "%s\\n", $0}' "${LXD_CONF5}/client.crt")\"}" | jq -r '.error_code')" -eq 403 ]
+  [ "$(LXD_CONF="${LXD_CONF4}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PUT -H 'Content-Type: application/json' --data '{"tls_certificate":"'"$(awk '{printf "%s\\n", $0}' "${LXD_CONF5}/client.crt")"'"}' | jq -r '.error_code')" -eq 403 ]
 
   # This asserts that test-user4 can change their own certificate as long as the groups are unchanged
-  [ "$(LXD_CONF="${LXD_CONF4}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PUT -H 'Content-Type: application/json' --data "{\"tls_certificate\":\"$(awk '{printf "%s\\n", $0}' "${LXD_CONF5}/client.crt")\", \"groups\":[\"test-group\"]}" | jq -r '.status_code')" -eq 200 ]
+  [ "$(LXD_CONF="${LXD_CONF4}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PUT -H 'Content-Type: application/json' --data '{"tls_certificate":"'"$(awk '{printf "%s\\n", $0}' "${LXD_CONF5}/client.crt")"'", "groups":["test-group"]}' | jq -r '.status_code')" -eq 200 ]
 
   # The original certificate is untrusted after the update
   [ "$(LXD_CONF="${LXD_CONF4}" lxc_remote query tls:/1.0 | jq -r '.auth')" = "untrusted" ]
@@ -326,10 +326,10 @@ fine_grained: true"
   [ "$(LXD_CONF="${LXD_CONF5}" lxc_remote query tls:/1.0 | jq -r '.auth')" = "trusted" ]
 
   # Do the same tests with patch. test-user4 cannot change their group membership
-  [ "$(LXD_CONF="${LXD_CONF5}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PATCH -H 'Content-Type: application/json' --data "{\"tls_certificate\":\"$(awk '{printf "%s\\n", $0}' "${LXD_CONF4}/client.crt")\", \"groups\":[\"new-group\"]}" | jq -r '.error_code')" -eq 403 ]
+  [ "$(LXD_CONF="${LXD_CONF5}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PATCH -H 'Content-Type: application/json' --data '{"tls_certificate":"'"$(awk '{printf "%s\\n", $0}' "${LXD_CONF4}/client.crt")"'", "groups":["new-group"]}' | jq -r '.error_code')" -eq 403 ]
 
   # Change the certificate back to the original, using patch. Here no groups are in the request, only the certificate.
-  [ "$(LXD_CONF="${LXD_CONF5}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PATCH -H 'Content-Type: application/json' --data "{\"tls_certificate\":\"$(awk '{printf "%s\\n", $0}' "${LXD_CONF4}/client.crt")\"}" | jq -r '.status_code')" -eq 200 ]
+  [ "$(LXD_CONF="${LXD_CONF5}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PATCH -H 'Content-Type: application/json' --data '{"tls_certificate":"'"$(awk '{printf "%s\\n", $0}' "${LXD_CONF4}/client.crt")"'"}' | jq -r '.status_code')" -eq 200 ]
   [ "$(LXD_CONF="${LXD_CONF4}" lxc_remote query tls:/1.0 | jq -r '.auth')" = "trusted" ]
   [ "$(LXD_CONF="${LXD_CONF5}" lxc_remote query tls:/1.0 | jq -r '.auth')" = "untrusted" ]
 
@@ -602,7 +602,7 @@ fine_grained_authorization() {
   lxc query --wait /1.0/warnings\?recursion=1 | jq -r '.[].uuid' | xargs -n1 lxc warning delete
 
   # Create a global warning (no node and no project)
-  lxc query --wait -X POST -d '{\"type_code\": 0, \"message\": \"authorization warning\"}' /internal/testing/warnings
+  lxc query --wait -X POST -d '{"type_code": 0, "message": "authorization warning"}' /internal/testing/warnings
 
   # Check we are not able to view warnings currently
   ! lxc_remote warning list "${remote}:" || false
