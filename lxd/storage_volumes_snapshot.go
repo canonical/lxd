@@ -215,7 +215,12 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 
 	// Create the snapshot.
 	snapshot := func(op *operations.Operation) error {
-		return details.pool.CreateCustomVolumeSnapshot(effectiveProjectName, details.volumeName, req.Name, req.Description, req.ExpiresAt, op)
+		_, err = details.pool.CreateCustomVolumeSnapshot(effectiveProjectName, details.volumeName, req.Name, req.Description, req.ExpiresAt, op)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}
 
 	resources := map[string][]api.URL{}
@@ -1277,7 +1282,7 @@ func autoCreateCustomVolumeSnapshots(ctx context.Context, s *state.State, volume
 			return fmt.Errorf("Error loading pool for volume %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
 		}
 
-		err = pool.CreateCustomVolumeSnapshot(v.ProjectName, v.Name, snapshotName, v.Description, nil, nil)
+		_, err = pool.CreateCustomVolumeSnapshot(v.ProjectName, v.Name, snapshotName, v.Description, nil, nil)
 		if err != nil {
 			return fmt.Errorf("Error creating snapshot for volume %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
 		}
