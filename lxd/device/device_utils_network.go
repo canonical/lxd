@@ -1059,7 +1059,7 @@ func isIPAvailable(ctx context.Context, address net.IP, parentInterface string) 
 	if !ok {
 		// Set default timeout of 500ms if no deadline context provided.
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, time.Duration(500*time.Millisecond))
+		ctx, cancel = context.WithTimeout(ctx, 500*time.Millisecond)
 		defer cancel()
 		deadline, _ = ctx.Deadline()
 	}
