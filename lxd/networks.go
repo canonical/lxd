@@ -1844,7 +1844,7 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 	if remainingNetworksCount() > 0 {
 		go func() {
 			for {
-				t := time.NewTimer(time.Duration(time.Minute))
+				t := time.NewTimer(time.Minute)
 				s := stateFunc() // Get fresh state in case global config has been updated.
 
 				select {
