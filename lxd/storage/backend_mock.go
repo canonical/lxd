@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/canonical/lxd/lxd/backup"
 	backupConfig "github.com/canonical/lxd/lxd/backup/config"
 	"github.com/canonical/lxd/lxd/instance"
@@ -409,8 +411,8 @@ func (b *mockBackend) ImportCustomVolume(projectName string, poolVol *backupConf
 }
 
 // CreateCustomVolumeSnapshot ...
-func (b *mockBackend) CreateCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, newDescription string, expiryDate *time.Time, op *operations.Operation) error {
-	return nil
+func (b *mockBackend) CreateCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, newDescription string, expiryDate *time.Time, op *operations.Operation) (*uuid.UUID, error) {
+	return nil, nil
 }
 
 // RenameCustomVolumeSnapshot ...
