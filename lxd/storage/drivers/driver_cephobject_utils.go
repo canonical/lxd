@@ -20,7 +20,7 @@ func (d *cephobject) radosgwadmin(ctx context.Context, args ...string) (string, 
 	if !ok {
 		// Set default timeout of 30s if no deadline context provided.
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, time.Duration(30*time.Second))
+		ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 	}
 

@@ -676,7 +676,7 @@ func (d *lvm) Mount() (bool, error) {
 	vgExists, _, _ := d.volumeGroupExists(d.config["lvm.vg_name"])
 	ourMount := !vgExists
 
-	waitDuration := time.Second * time.Duration(5)
+	waitDuration := time.Second * 5
 
 	revert := revert.New()
 	defer revert.Fail()
