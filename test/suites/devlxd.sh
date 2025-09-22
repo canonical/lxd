@@ -250,6 +250,12 @@ test_devlxd_volume_management() {
     # Fail when token is not passed.
     [ "$(lxc exec "${inst}" --project "${project}" -- devlxd-client instance get "${inst}")" = "You must be authenticated" ]
 
+    # Ensure "environment" is not included in the API response for unauthenticated clients.
+    # When using LXD go-client, default values are used for missing fields, so "environment.server_clustered" will be false.
+    [ "$(lxc exec "${inst}" --project "${project}" -- devlxd-client get-state | jq -e '.environment.server_clustered')" = "false" ]
+    # However, "environment" must be missing in the API response.
+    [ "$(lxc exec "${inst}" --project "${project}" -- devlxd-client query GET /1.0 | jq -e '.environment')" = "null" ]
+
     # Fail when a valid identity token is passed, but the identity does not have permissions.
     lxc auth identity create "${authIdentity}"
     token=$(lxc auth identity token issue "${authIdentity}" --quiet)
@@ -265,6 +271,8 @@ test_devlxd_volume_management() {
     lxc auth group permission add "${authGroup}" instance "${inst}" can_view project="${project}"
     lxc auth identity group add "${authIdentity}" "${authGroup}"
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}" | jq -e .name
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client get-state | jq -e '.environment.server_clustered')" = "false" ]
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client query GET /1.0 | jq -e '.environment.server_clustered')" = "false" ]
 
     # Test devLXD authorization (volume management security flag).
     # Fail when the security flag is not set.
