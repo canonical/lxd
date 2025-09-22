@@ -508,7 +508,7 @@ test_clustering_containers() {
   fi
 
   # Create backup and attempt to move container. Move should fail and container should remain on node1.
-  LXD_DIR="${LXD_THREE_DIR}" lxc query -X POST --wait -d '{\"name\":\"foo\"}' /1.0/instances/egg/backups
+  LXD_DIR="${LXD_THREE_DIR}" lxc query -X POST --wait -d '{"name":"foo"}' /1.0/instances/egg/backups
   ! LXD_DIR="${LXD_THREE_DIR}" lxc move egg --target node2 || false
   LXD_DIR="${LXD_THREE_DIR}" lxc info egg | grep -xF "Location: node3"
 
@@ -800,15 +800,15 @@ test_clustering_storage() {
     value=$(echo "${driver_config}" | cut -d'=' -f2-)
 
     # Set member_config to match `spawn_lxd_and_join_cluster` for 'data' and `driver_config` for 'pool1'.
-    member_config="{\"entity\": \"storage-pool\",\"name\":\"pool1\",\"key\":\"${key}\",\"value\":\"${value}\"}"
+    member_config='{"entity": "storage-pool","name":"pool1","key":"'"${key}"'","value":"'"${value}"'"}'
     if [ "${poolDriver}" = "zfs" ] || [ "${poolDriver}" = "btrfs" ] || [ "${poolDriver}" = "lvm" ] ; then
-      member_config="{\"entity\": \"storage-pool\",\"name\":\"data\",\"key\":\"size\",\"value\":\"1GiB\"},${member_config}"
+      member_config='{"entity": "storage-pool","name":"data","key":"size","value":"1GiB"},'"${member_config}"
     fi
 
     # Manually send the join request.
     cert=$(sed ':a;N;$!ba;s/\n/\\n/g' "${LXD_ONE_DIR}/cluster.crt")
     token="$(lxc cluster add node3 --quiet)"
-    op=$(curl --silent --unix-socket "${LXD_THREE_DIR}/unix.socket" --fail-with-body -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d "{\"server_name\":\"node3\",\"enabled\":true,\"member_config\":[${member_config}],\"server_address\":\"100.64.1.103:8443\",\"cluster_address\":\"100.64.1.101:8443\",\"cluster_certificate\":\"${cert}\",\"cluster_password\":\"sekret\"}" | jq -r .operation)
+    op="$(curl --silent --unix-socket "${LXD_THREE_DIR}/unix.socket" --fail-with-body -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d '{"server_name":"node3","enabled":true,"member_config":['"${member_config}"'],"server_address":"100.64.1.103:8443","cluster_address":"100.64.1.101:8443","cluster_certificate":"'"${cert}"'","cluster_password":"sekret"}' | jq -r .operation)"
     curl --silent --unix-socket "${LXD_THREE_DIR}/unix.socket" --fail-with-body "lxd${op}/wait"
 
     # Ensure that node-specific config appears on all nodes,
@@ -1952,16 +1952,16 @@ test_clustering_join_api() {
   # Check a server with the name 'valid' cannot be joined when modifying the token.
   # Therefore replace the valid name in the token with 'none'.
   malicious_token="$(lxc cluster add valid --quiet | base64 -d | jq '.server_name |= "none"' | base64 --wrap=0)"
-  op=$(curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" --fail-with-body -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d "{\"server_name\":\"valid\",\"enabled\":true,\"member_config\":[{\"entity\": \"storage-pool\",\"name\":\"data\",\"key\":\"source\",\"value\":\"\"}],\"server_address\":\"100.64.1.102:8443\",\"cluster_address\":\"100.64.1.101:8443\",\"cluster_certificate\":\"${cert}\",\"cluster_token\":\"${malicious_token}\"}" | jq -r .operation)
+  op="$(curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" --fail-with-body -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d '{"server_name":"valid","enabled":true,"member_config":[{"entity": "storage-pool","name":"data","key":"source","value":""}],"server_address":"100.64.1.102:8443","cluster_address":"100.64.1.101:8443","cluster_certificate":"'"${cert}"'","cluster_token":"'"${malicious_token}"'"}' | jq -r .operation)"
   [ "$(curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" "lxd${op}/wait" | jq '.error_code')" = "403" ]
 
   # Check that the server cannot be joined using a valid token by changing it's name to 'none'.
   token="$(lxc cluster add valid2 --quiet)"
-  [ "$(curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d "{\"server_name\":\"none\",\"enabled\":true,\"member_config\":[{\"entity\": \"storage-pool\",\"name\":\"data\",\"key\":\"source\",\"value\":\"\"}],\"server_address\":\"100.64.1.102:8443\",\"cluster_address\":\"100.64.1.101:8443\",\"cluster_certificate\":\"${cert}\",\"cluster_token\":\"${token}\"}" | jq -r '.error_code')" = "400" ]
+  [ "$(curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d '{"server_name":"none","enabled":true,"member_config":[{"entity": "storage-pool","name":"data","key":"source","value":""}],"server_address":"100.64.1.102:8443","cluster_address":"100.64.1.101:8443","cluster_certificate":"'"${cert}"'","cluster_token":"'"${token}"'"}' | jq -r '.error_code')" = "400" ]
 
   # Check the server can be joined.
   token="$(lxc cluster add node2 --quiet)"
-  op=$(curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" --fail-with-body -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d "{\"server_name\":\"node2\",\"enabled\":true,\"member_config\":[{\"entity\": \"storage-pool\",\"name\":\"data\",\"key\":\"source\",\"value\":\"\"}],\"server_address\":\"100.64.1.102:8443\",\"cluster_address\":\"100.64.1.101:8443\",\"cluster_certificate\":\"${cert}\",\"cluster_token\":\"${token}\"}" | jq -r .operation)
+  op="$(curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" --fail-with-body -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d '{"server_name":"node2","enabled":true,"member_config":[{"entity": "storage-pool","name":"data","key":"source","value":""}],"server_address":"100.64.1.102:8443","cluster_address":"100.64.1.101:8443","cluster_certificate":"'"${cert}"'","cluster_token":"'"${token}"'"}' | jq -r .operation)"
   curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" --fail-with-body "lxd${op}/wait"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -F "message: Fully operational"
@@ -2165,15 +2165,15 @@ test_clustering_metrics() {
   LXD_DIR="${LXD_ONE_DIR}" lxc warning delete --all
 
   # Populate database with dummy warnings and check that each node only counts their own warnings.
-  LXD_DIR="${LXD_ONE_DIR}" lxc query --wait -X POST -d '{\"location\": \"node1\", \"type_code\": 0, \"message\": \"node1 is in a bad mood\"}' /internal/testing/warnings
-  LXD_DIR="${LXD_ONE_DIR}" lxc query --wait -X POST -d '{\"location\": \"node1\", \"type_code\": 1, \"message\": \"node1 is bored\"}' /internal/testing/warnings
-  LXD_DIR="${LXD_ONE_DIR}" lxc query --wait -X POST -d '{\"location\": \"node2\", \"type_code\": 0, \"message\": \"node2 is too cool for this\"}' /internal/testing/warnings
+  LXD_DIR="${LXD_ONE_DIR}" lxc query --wait -X POST -d '{"location": "node1", "type_code": 0, "message": "node1 is in a bad mood"}' /internal/testing/warnings
+  LXD_DIR="${LXD_ONE_DIR}" lxc query --wait -X POST -d '{"location": "node1", "type_code": 1, "message": "node1 is bored"}' /internal/testing/warnings
+  LXD_DIR="${LXD_ONE_DIR}" lxc query --wait -X POST -d '{"location": "node2", "type_code": 0, "message": "node2 is too cool for this"}' /internal/testing/warnings
 
   LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/metrics" | grep -xF "lxd_warnings_total 2"
   LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/metrics" | grep -xF "lxd_warnings_total 1"
 
   # Add a nodeless warning and check if count incremented only on the leader node.
-  LXD_DIR="${LXD_ONE_DIR}" lxc query --wait -X POST -d '{\"type_code\": 0, \"message\": \"nodeless warning\"}' /internal/testing/warnings
+  LXD_DIR="${LXD_ONE_DIR}" lxc query --wait -X POST -d '{"type_code": 0, "message": "nodeless warning"}' /internal/testing/warnings
 
   LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/metrics" | grep -xF "lxd_warnings_total 3"
   LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/metrics" | grep -xF "lxd_warnings_total 1"
@@ -3194,17 +3194,17 @@ test_clustering_failure_domains() {
   # Set failure domains
 
   # shellcheck disable=SC2039
-  printf "roles: [\"database\"]\nfailure_domain: \"az1\"\ngroups: [\"default\"]" | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node1
+  printf 'roles: ["database"]\nfailure_domain: "az1"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node1
   # shellcheck disable=SC2039
-  printf "roles: [\"database\"]\nfailure_domain: \"az2\"\ngroups: [\"default\"]" | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node2
+  printf 'roles: ["database"]\nfailure_domain: "az2"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node2
   # shellcheck disable=SC2039
-  printf "roles: [\"database\"]\nfailure_domain: \"az3\"\ngroups: [\"default\"]" | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node3
+  printf 'roles: ["database"]\nfailure_domain: "az3"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node3
   # shellcheck disable=SC2039
-  printf "roles: []\nfailure_domain: \"az1\"\ngroups: [\"default\"]" | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node4
+  printf 'roles: []\nfailure_domain: "az1"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node4
   # shellcheck disable=SC2039
-  printf "roles: []\nfailure_domain: \"az2\"\ngroups: [\"default\"]" | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node5
+  printf 'roles: []\nfailure_domain: "az2"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node5
   # shellcheck disable=SC2039
-  printf "roles: []\nfailure_domain: \"az3\"\ngroups: [\"default\"]" | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node6
+  printf 'roles: []\nfailure_domain: "az3"\ngroups: ["default"]' | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node6
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -F "failure_domain: az2"
 
@@ -4085,7 +4085,7 @@ EOF
   lxc cluster group delete cluster:yamlgroup
 
   # Try to initialize a cluster group with multiple nodes
-  lxc query cluster:/1.0/cluster/groups -X POST -d '{\"name\":\"multi-node-group\",\"description\":\"\",\"members\":[\"node1\",\"node2\",\"node3\"]}'
+  lxc query cluster:/1.0/cluster/groups -X POST -d '{"name":"multi-node-group","description":"","members":["node1","node2","node3"]}'
 
   # Ensure cluster group created with requested members
   [ "$(lxc query cluster:/1.0/cluster/groups/multi-node-group | jq '.members | length')" -eq 3 ]
