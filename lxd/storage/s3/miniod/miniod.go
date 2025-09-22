@@ -106,7 +106,7 @@ func (p *Process) Stop(ctx context.Context) error {
 	if !ok {
 		// Set default timeout of 5s if no deadline context provided.
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, time.Duration(5*time.Second))
+		ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 	}
 
