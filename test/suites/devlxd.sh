@@ -297,7 +297,7 @@ test_devlxd_volume_management() {
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" "${instType}" "${inst}")" = "Only custom storage volume requests are allowed" ]
 
     # Create a custom storage volume.
-    vol1='{\"name\": \"vol-01\", \"type\": \"custom\", \"config\": {\"size\": \"10MiB\"}}'
+    vol1='{"name": "vol-01", "type": "custom", "config": {"size": "10MiB"}}'
 
     # Create a custom storage volume (fail - insufficient permissions).
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${vol1}")" = "Forbidden" ]
@@ -308,7 +308,7 @@ test_devlxd_volume_management() {
     # Create a custom storage volumes (ok).
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${vol1}"
 
-    vol2='{\"name\": \"vol-02\", \"type\": \"custom\", \"config\": {\"size\": \"10MiB\"}}'
+    vol2='{"name": "vol-02", "type": "custom", "config": {"size": "10MiB"}}'
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${vol2}"
 
     # Fail - already exists.
@@ -320,7 +320,7 @@ test_devlxd_volume_management() {
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" custom vol-02
 
     # Update storage volume.
-    volNew='{\"description\": \"Updated volume\", \"config\": {\"size\": \"20MiB\"}}'
+    volNew='{"description": "Updated volume", "config": {"size": "20MiB"}}'
 
     # Update storage volume (fail - insufficient permissions).
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage update-volume "${pool}" custom vol-01 "${volNew}")" = "Forbidden" ]
@@ -350,12 +350,12 @@ test_devlxd_volume_management() {
     # Attach new device.
     attachReq=$(cat <<EOF
 {
-    \"devices\": {
-        \"vol-01\": {
-            \"type\": \"disk\",
-            \"pool\": \"${pool}\",
-            \"source\": \"vol-01\",
-            \"path\": \"/mnt/vol-01\"
+    "devices": {
+        "vol-01": {
+            "type": "disk",
+            "pool": "${pool}",
+            "source": "vol-01",
+            "path": "/mnt/vol-01"
         }
     }
 }
@@ -371,14 +371,11 @@ EOF
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}" | jq -e -r '.devices."vol-01".source == "vol-01"'
 
     # Detach device.
-    detachReq=$(cat <<EOF
-{
-    \"devices\": {
-        \"vol-01\": null
+    detachReq='{
+    "devices": {
+        "vol-01": null
     }
-}
-EOF
-)
+}'
 
     etag=$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get-etag "${inst}")
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance update "${inst}" "${detachReq}" "${etag}"
