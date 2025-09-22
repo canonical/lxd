@@ -7,32 +7,34 @@ lxc() {
 
 lxc_remote() {
     { set +x; } 2>/dev/null
-    local injected cmd arg
+    local injected arg
+    local cmd_args=()
 
     injected=0
-    # _LXC contains the path to lxc binary, not the shell wrapper function
-    cmd="${_LXC}"
+    # _LXC contains the path to the lxc binary
+    cmd_args+=("${_LXC}")
 
-    # shellcheck disable=SC2048,SC2068
     for arg in "$@"; do
         if [ "${arg}" = "--" ]; then
             injected=1
-            cmd="${cmd} ${CLIENT_DEBUG:-}"
-            [ -n "${LXC_LOCAL}" ] && cmd="${cmd} --force-local"
-            cmd="${cmd} --"
+            [ -n "${CLIENT_DEBUG:-}" ] && cmd_args+=("${CLIENT_DEBUG}")
+            [ -n "${LXC_LOCAL}" ] && cmd_args+=('--force-local')
+            cmd_args+=('--')
         elif [ "${arg}" = "--force-local" ]; then
             continue
         else
-            cmd="${cmd} \"${arg}\""
+            cmd_args+=("${arg}")
         fi
     done
 
     if [ "${injected}" = "0" ]; then
-        cmd="${cmd} ${CLIENT_DEBUG-}"
+        [ -n "${CLIENT_DEBUG:-}" ] && cmd_args+=("${CLIENT_DEBUG}")
     fi
+
     if [ -n "${SHELL_TRACING:-}" ]; then
-        eval "set -x;timeout --foreground 120 ${cmd}"
+        set -x
+        timeout --foreground 120 "${cmd_args[@]}"
     else
-        eval "timeout --foreground 120 ${cmd}"
+        timeout --foreground 120 "${cmd_args[@]}"
     fi
 }
