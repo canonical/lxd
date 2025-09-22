@@ -1343,7 +1343,7 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	op, err := operations.OperationCreate(r.Context(), d.State(), "", req.OpClass, req.OpType, resources, nil, run, nil, onConnect)
+	op, err := operations.OperationCreate(r.Context(), d.State(), request.QueryParam(r, "project"), req.OpClass, req.OpType, resources, nil, run, nil, onConnect)
 	if err != nil {
 		return response.InternalError(err)
 	}
