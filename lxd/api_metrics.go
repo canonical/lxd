@@ -174,7 +174,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 		return getFilteredMetrics(s, r, compress, metricSet)
 	}
 
-	cacheDuration := time.Duration(8) * time.Second
+	cacheDuration := 8 * time.Second
 
 	// Acquire update lock.
 	lockCtx, lockCtxCancel := context.WithTimeout(r.Context(), cacheDuration)

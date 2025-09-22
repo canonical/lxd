@@ -2201,7 +2201,7 @@ func (d *zfs) deactivateVolume(vol Volume) (bool, error) {
 			// Retry more quickly early on.
 			time.Sleep(time.Second * time.Duration(i))
 		} else {
-			time.Sleep(time.Second * time.Duration(5))
+			time.Sleep(time.Second * 5)
 		}
 
 		i++
