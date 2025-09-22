@@ -1,26 +1,12 @@
 test_container_devices_tpm() {
   if ! modprobe tpm_vtpm_proxy; then
-    echo "==> SKIP: Required tpm_vtpm_proxy.ko is missing"
-    return
-  fi
+    if [[ "$(uname -r)" =~ -azure$ ]]; then
+      echo "==> SKIP: Required tpm_vtpm_proxy.ko is missing"
+      return
+    fi
 
-  lxd_backend=$(storage_backend "$LXD_DIR")
-  if [ "${lxd_backend}" = "lvm" ]; then
-    #+ lxc config device rm ct843376 test-dev1
-    #++ timeout --foreground 120 /root/go/bin/lxc config device rm ct843376 test-dev1
-    #Device test-dev1 removed from ct843376
-    #+ lxc exec ct843376 -- stat /dev/tpm0
-    #++ timeout --foreground 120 /root/go/bin/lxc exec ct843376 --force-local -- stat /dev/tpm0
-    #stat: can't stat '/dev/tpm0': No such file or directory
-    #+ lxc exec ct843376 -- stat /dev/tpmrm0
-    #++ timeout --foreground 120 /root/go/bin/lxc exec ct843376 --force-local -- stat /dev/tpmrm0
-    #stat: can't stat '/dev/tpmrm0': No such file or directory
-    #+ lxc delete -f ct843376
-    #++ timeout --foreground 120 /root/go/bin/lxc delete -f ct843376
-    #INFO   [2025-09-14T00:02:59Z] Stopping instance                  action=stop created="2025-09-14 00:02:58.11670028 +0000 UTC" ephemeral=false instance=ct843376 instanceType=container project=default stateful=false used="2025-09-14 00:02:58.916546684 +0000 UTC"
-    #Error: Stopping the instance failed: Failed unmounting instance: Failed to unmount LVM logical volume: Failed to unmount "/tmp/lxd-test.tmp.GyyF/9wL/storage-pools/lxdtest-9wL/containers/ct843376": device or resource busy
-    echo "==> SKIP: known broken test on 'lvm'"
-    return
+    apt-get install --no-install-recommends -y "linux-modules-extra-$(uname -r)"
+    modprobe tpm_vtpm_proxy
   fi
 
   ensure_import_testimage
@@ -39,6 +25,16 @@ test_container_devices_tpm() {
   lxc config device rm "${ctName}" test-dev1
   ! lxc exec "${ctName}" -- stat /dev/tpm0 || false
   ! lxc exec "${ctName}" -- stat /dev/tpmrm0 || false
+
+  # Check that no swtpm process is left behind
+  if pgrep -x swtpm; then
+    echo "::error:: 'swtpm' process left behind pointing to invalid cleanup"
+
+    echo "::info:: Workaround for https://github.com/canonical/lxd/issues/16569"
+    pkill -x swtpm || exit 1
+
+    check_empty "${LXD_DIR}/devices/" || echo "::info::Ignoring device leftovers"
+  fi
 
   # Clean up
   lxc delete -f "${ctName}"
