@@ -16,8 +16,8 @@ test_remote_url() {
     token="$(lxc config trust add --name foo -q)"
     lxc_remote remote add test "${url}" --token "${token}"
     lxc_remote info test:
-    lxc_remote config trust list | awk '/@/ {print $8}' | while read -r line ; do
-      lxc_remote config trust remove "\"${line}\""
+    for fingerprint in $(lxc_remote config trust list -f csv | awk -F, '{print $4}'); do
+      lxc_remote config trust remove "${fingerprint}"
     done
     lxc_remote remote remove test
   done
