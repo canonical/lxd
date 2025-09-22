@@ -95,7 +95,7 @@ func (d *cephobject) CreateBucket(bucket Volume, op *operations.Operation) error
 	storageBucketName := d.radosgwBucketName(bucketName)
 
 	// Must be defined before revert so that its not cancelled by time revert.Fail runs.
-	ctx, ctxCancel := context.WithTimeout(context.TODO(), time.Duration(time.Second*30))
+	ctx, ctxCancel := context.WithTimeout(context.TODO(), time.Second*30)
 	defer ctxCancel()
 
 	revert := revert.New()
