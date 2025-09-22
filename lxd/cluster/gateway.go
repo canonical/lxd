@@ -765,6 +765,7 @@ func (g *Gateway) init(bootstrap bool) error {
 
 		options := []dqlite.Option{
 			dqlite.WithBindAddress(g.bindAddress),
+			dqlite.WithBusyTimeout(time.Duration(time.Second * 5).Milliseconds()),
 		}
 
 		if info.Address == "1" {
