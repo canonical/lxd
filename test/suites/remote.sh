@@ -131,7 +131,7 @@ test_remote_url_with_token() {
   lxc config set core.remote_token_expiry 1S
 
   # Generate new token
-  token="$(lxc config trust add --name foo | tail -n1)"
+  token="$(lxc config trust add --name foo --quiet)"
 
   # Try adding remote. This should succeed.
   lxc_remote remote add test "${token}"
@@ -143,7 +143,7 @@ test_remote_url_with_token() {
   lxc_remote remote rm test
 
   # Generate new token
-  token="$(lxc config trust add --name foo | tail -n1)"
+  token="$(lxc config trust add --name foo --quiet)"
 
   # This will cause the token to expire
   sleep 2
