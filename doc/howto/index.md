@@ -55,6 +55,7 @@ You should also monitor your server or servers and configure them for the expect
 :titlesonly:
 :maxdepth: 1
 Manage the snap </howto/snap>
+Harden security </howto/security_harden>
 /howto/troubleshoot
 Get support </support>
 Contribute to LXD </contributing>

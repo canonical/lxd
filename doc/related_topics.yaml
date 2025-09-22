@@ -30,5 +30,5 @@ storage_exp: "Explanation:\n\n- {ref}`exp-storage`",
 storage_how: "How-to guides:\n\n- {ref}`storage`",
 storage_ref: "Reference:\n\n- {ref}`storage-drivers`",
 security_exp: "Explanation:\n\n- {ref}`exp-security`",
-security_how: "How-to guides:\n\n- {ref}`server-expose`",
+security_how: "How-to guides:\n\n- {ref}`howto-security-harden`\n- {ref}`server-expose`",
 }

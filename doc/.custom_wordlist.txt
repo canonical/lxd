@@ -33,6 +33,8 @@ BPF
 Btrfs
 bugfix
 bugfixes
+CA 
+CAs
 CCLA
 CDI
 CentOS
@@ -207,6 +209,7 @@ Pbit
 PCI
 PCIe
 passthrough
+passthroughs
 peerings
 PFs
 PiB
@@ -336,6 +339,7 @@ URI
 URIs
 userspace
 UUIDs
+USG
 vCPU
 vCPUs
 vGPU
