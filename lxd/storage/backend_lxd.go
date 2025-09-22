@@ -6644,17 +6644,19 @@ func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backupConfi
 }
 
 // CreateCustomVolumeSnapshot creates a snapshot of a custom volume.
-func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, newSnapshotName string, newDescription string, newExpiryDate *time.Time, op *operations.Operation) error {
+// A new UUID is generated for the snapshot and returned upon success.
+// The UUID is used to fill "volatile.attached_volumes" for multi-volume snapshot and restore functionality.
+func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, newSnapshotName string, newDescription string, newExpiryDate *time.Time, op *operations.Operation) (*uuid.UUID, error) {
 	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volName": volName, "newSnapshotName": newSnapshotName, "newDescription": newDescription, "newExpiryDate": newExpiryDate})
 	l.Debug("CreateCustomVolumeSnapshot started")
 	defer l.Debug("CreateCustomVolumeSnapshot finished")
 
 	if shared.IsSnapshot(volName) {
-		return errors.New("Volume does not support snapshots")
+		return nil, errors.New("Volume does not support snapshots")
 	}
 
 	if shared.IsSnapshot(newSnapshotName) {
-		return errors.New("Snapshot name is not a valid snapshot name")
+		return nil, errors.New("Snapshot name is not a valid snapshot name")
 	}
 
 	fullSnapshotName := drivers.GetSnapshotVolumeName(volName, newSnapshotName)
@@ -6662,30 +6664,30 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	// Check snapshot volume doesn't exist already.
 	volume, err := VolumeDBGet(b, projectName, fullSnapshotName, drivers.VolumeTypeCustom)
 	if err != nil && !response.IsNotFoundError(err) {
-		return err
+		return nil, err
 	} else if volume != nil {
-		return api.StatusErrorf(http.StatusConflict, "Snapshot by that name already exists")
+		return nil, api.StatusErrorf(http.StatusConflict, "Snapshot by that name already exists")
 	}
 
 	// Load parent volume information and check it exists.
 	parentVol, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
 	if err != nil {
 		if response.IsNotFoundError(err) {
-			return api.StatusErrorf(http.StatusNotFound, "Parent volume doesn't exist")
+			return nil, api.StatusErrorf(http.StatusNotFound, "Parent volume doesn't exist")
 		}
 
-		return err
+		return nil, err
 	}
 
 	volDBContentType, err := cluster.StoragePoolVolumeContentTypeFromName(parentVol.ContentType)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	contentType := VolumeDBContentTypeToContentType(volDBContentType)
 
 	if contentType != drivers.ContentTypeFS && contentType != drivers.ContentTypeBlock {
-		return fmt.Errorf("Volume of content type %q does not support snapshots", contentType)
+		return nil, fmt.Errorf("Volume of content type %q does not support snapshots", contentType)
 	}
 
 	mountPath := drivers.GetVolumeMountPath(parentVol.Pool, drivers.VolumeType(parentVol.Type), project.StorageVolume(projectName, volName))
@@ -6702,7 +6704,7 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 
 	parentUUID := parentVol.Config["volatile.uuid"]
 	if parentUUID == "" {
-		return fmt.Errorf(`Volume %q is missing the required "volatile.uuid" setting`, parentVol.Name)
+		return nil, fmt.Errorf(`Volume %q is missing the required "volatile.uuid" setting`, parentVol.Name)
 	}
 
 	// Get the volume name on storage.
@@ -6711,6 +6713,12 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 
 	// Set the parent volume's UUID.
 	vol.SetParentUUID(parentUUID)
+
+	// Parse snapshot volume's UUID.
+	snapshotUUID, err := uuid.Parse(vol.Config()["volatile.uuid"])
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing custom volume snapshot UUID: %w", err)
+	}
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -6725,7 +6733,7 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	// Other operations will wait for this one to finish.
 	unlock, err := locking.Lock(context.TODO(), drivers.OperationLockName("CreateCustomVolumeSnapshot", b.name, vol.Type(), contentType, volName))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	defer unlock()
@@ -6736,7 +6744,7 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	if newExpiryDate == nil {
 		expiry, err := shared.GetExpiry(snapshotCreationDate, parentVol.Config["snapshots.expiry"])
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		newExpiryDate = &expiry
@@ -6746,7 +6754,7 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	// Copy volume config from parent.
 	err = VolumeDBCreate(b, projectName, fullSnapshotName, description, drivers.VolumeTypeCustom, true, vol.Config(), snapshotCreationDate, *newExpiryDate, drivers.ContentType(parentVol.ContentType), false, true)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	revert.Add(func() { _ = VolumeDBDelete(b, projectName, fullSnapshotName, drivers.VolumeTypeCustom) })
@@ -6754,7 +6762,7 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	// Create the snapshot on the storage device.
 	err = b.driver.CreateVolumeSnapshot(vol, op)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	revert.Add(func() { _ = b.driver.DeleteVolumeSnapshot(vol, op) })
@@ -6762,7 +6770,7 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeSnapshotCreated.Event(vol, string(vol.Type()), projectName, op, logger.Ctx{"type": vol.Type()}))
 
 	revert.Success()
-	return nil
+	return &snapshotUUID, nil
 }
 
 // RenameCustomVolumeSnapshot renames a custom volume.
