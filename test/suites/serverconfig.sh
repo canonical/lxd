@@ -20,6 +20,9 @@ _server_config_password() {
 
   lxc config unset core.trust_password
   lxc config show | grep -Fv "trust_password"
+
+  # PATCH
+  my_curl -X PATCH "https://${LXD_ADDR}/1.0" -d '{"config":{"core.https_address":"'"${LXD_ADDR}"'"}}' | jq -e '.status == "Success" and .status_code == 200'
 }
 
 _server_config_access() {
@@ -59,7 +62,7 @@ _server_config_storage() {
   pool=$(lxc profile device get default root pool)
 
   lxc init testimage foo
-  lxc query --wait /1.0/containers/foo/backups -X POST -d '{\"expires_at\": \"2100-01-01T10:00:00-05:00\"}'
+  lxc query --wait /1.0/containers/foo/backups -X POST -d '{"expires_at": "2100-01-01T10:00:00-05:00"}'
 
   # Record before
   BACKUPS_BEFORE=$(cd "${LXD_DIR}/backups/" && find . | sort)
