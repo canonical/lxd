@@ -4544,7 +4544,7 @@ func (b *lxdBackend) CreateBucket(projectName string, bucket api.StorageBucketsP
 	}
 
 	// Must be defined before revert so that its not cancelled by time revert.Fail runs.
-	ctx, ctxCancel := context.WithTimeout(context.TODO(), time.Duration(time.Second*30))
+	ctx, ctxCancel := context.WithTimeout(context.TODO(), time.Second*30)
 	defer ctxCancel()
 
 	// Validate config and create database entry for new storage bucket.
@@ -4882,7 +4882,7 @@ func (b *lxdBackend) recoverMinIOKeys(projectName string, bucketName string, op 
 		return nil, err
 	}
 
-	ctx, ctxCancel := context.WithTimeout(b.state.ShutdownCtx, time.Duration(time.Second*30))
+	ctx, ctxCancel := context.WithTimeout(b.state.ShutdownCtx, time.Second*30)
 	defer ctxCancel()
 
 	// Export IAM data (response is ZIP file).
@@ -4969,7 +4969,7 @@ func (b *lxdBackend) CreateBucketKey(projectName string, bucketName string, key 
 	}
 
 	// Must be defined before revert so that its not cancelled by time revert.Fail runs.
-	ctx, ctxCancel := context.WithTimeout(context.TODO(), time.Duration(time.Second*30))
+	ctx, ctxCancel := context.WithTimeout(context.TODO(), time.Second*30)
 	defer ctxCancel()
 
 	revert := revert.New()
@@ -5086,7 +5086,7 @@ func (b *lxdBackend) UpdateBucketKey(projectName string, bucketName string, keyN
 	}
 
 	// Must be defined before revert so that its not cancelled by time revert.Fail runs.
-	ctx, ctxCancel := context.WithTimeout(context.TODO(), time.Duration(time.Second*30))
+	ctx, ctxCancel := context.WithTimeout(context.TODO(), time.Second*30)
 	defer ctxCancel()
 
 	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
@@ -5234,7 +5234,7 @@ func (b *lxdBackend) DeleteBucketKey(projectName string, bucketName string, keyN
 	}
 
 	// Must be defined before revert so that its not cancelled by time revert.Fail runs.
-	ctx, ctxCancel := context.WithTimeout(context.TODO(), time.Duration(time.Second*30))
+	ctx, ctxCancel := context.WithTimeout(context.TODO(), time.Second*30)
 	defer ctxCancel()
 
 	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
