@@ -1168,6 +1168,29 @@ func (c *cmdStorageVolumeEdit) run(cmd *cobra.Command, args []string) error {
 
 	if isSnapshot {
 		for {
+			// 🚨 NEW: Compare original vs edited YAML
+			var origMap, newMap map[string]any
+			_ = yaml.Unmarshal(data, &origMap)     // before editing
+			_ = yaml.Unmarshal(content, &newMap)   // after editing
+
+			// Allowed fields
+			allowed := map[string]bool{
+				"description": true,
+				"expires_at":  true,
+			}
+
+			// Warn only on disallowed fields that actually changed
+			for k, newVal := range newMap {
+				if !allowed[k] {
+					origVal := origMap[k]
+					if fmt.Sprintf("%v", newVal) != fmt.Sprintf("%v", origVal) {
+						fmt.Fprintf(os.Stderr,
+							"Warning: changes to '%s' in the snapshot configuration will not be applied.\n", k)
+					}
+				}
+			}
+
+
 			// Parse the text received from the editor
 			newdata := api.StorageVolumeSnapshotPut{}
 			err = yaml.Unmarshal(content, &newdata)
@@ -2834,19 +2857,16 @@ type cmdStorageVolumeImport struct {
 
 func (c *cmdStorageVolumeImport) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("import", i18n.G("[<remote>:]<pool> <import file> [<volume name>]"))
-	cmd.Short = i18n.G("Import storage volumes")
+	cmd.Use = usage("import", i18n.G("[<remote>:]<pool> <backup file> [<volume name>]"))
+	cmd.Short = i18n.G("Import custom storage volumes")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Import custom volume backups, iso images, or tarballs.`))
+		`Import backups of custom volumes including their snapshots.`))
 	cmd.Example = cli.FormatSection("", i18n.G(
 		`lxc storage volume import default backup0.tar.gz
-		Create a new custom volume using backup0.tar.gz with included snapshots as the source.`))
+		Create a new custom volume using backup0.tar.gz as the source.`))
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.run
-	cmd.Flags().StringVar(&c.flagType, "type", "", i18n.G(`Type of the import file. Valid options are:
-- backup: custom volume backup (default option)
-- iso: iso image, will be imported as iso volume
-- tar: tarball, will be imported as custom filesystem volume`)+"``")
+	cmd.Flags().StringVar(&c.flagType, "type", "", i18n.G("Import type, backup or iso (default \"backup\")")+"``")
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
@@ -2902,29 +2922,21 @@ func (c *cmdStorageVolumeImport) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if c.flagType == "" {
-		// Heuristics for type of import based on the file name suffix.
-		// Backups are technically tar archives, and traditionally backups have been the default type,
-		// so we can't add heuristics for the tar file import.
-		switch {
-		case strings.HasSuffix(file.Name(), ".iso"):
-			// Set type to iso if filename suffix is .iso
+		// Set type to iso if filename suffix is .iso
+		if strings.HasSuffix(file.Name(), ".iso") {
 			c.flagType = "iso"
-		default:
+		} else {
 			c.flagType = "backup"
 		}
 	} else {
 		// Validate type flag
-		if !slices.Contains([]string{"backup", "iso", "tar"}, c.flagType) {
-			return errors.New("Import type needs to be \"backup\", \"iso\" or \"tar\"")
+		if !slices.Contains([]string{"backup", "iso"}, c.flagType) {
+			return errors.New("Import type needs to be \"backup\" or \"iso\"")
 		}
 	}
 
 	if c.flagType == "iso" && volName == "" {
 		return errors.New("Importing ISO images requires a volume name to be set")
-	}
-
-	if c.flagType == "tar" && volName == "" {
-		return errors.New("Importing tar archives requires a volume name to be set")
 	}
 
 	progress := cli.ProgressRenderer{
@@ -2947,12 +2959,9 @@ func (c *cmdStorageVolumeImport) run(cmd *cobra.Command, args []string) error {
 
 	var op lxd.Operation
 
-	switch c.flagType {
-	case "iso":
+	if c.flagType == "iso" {
 		op, err = d.CreateStoragePoolVolumeFromISO(pool, createArgs)
-	case "tar":
-		op, err = d.CreateStoragePoolVolumeFromTarball(pool, createArgs)
-	default:
+	} else {
 		op, err = d.CreateStoragePoolVolumeFromBackup(pool, createArgs)
 	}
 
