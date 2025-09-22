@@ -1291,7 +1291,7 @@ func (n *bridge) startDnsmasq(dnsmasqCmd []string, dnsClustered bool, dnsCluster
 	}
 
 	// Check dnsmasq started OK.
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Millisecond*time.Duration(500)))
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Millisecond*500))
 	_, err = p.Wait(ctx)
 	cancel()
 
