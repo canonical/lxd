@@ -199,7 +199,7 @@ func (c *cmdAgent) startStatusNotifier(ctx context.Context, chConnected <-chan s
 	go func() {
 		defer wg.Done() // Signal to cancel function that we are done.
 
-		ticker := time.NewTicker(time.Duration(time.Second) * 5)
+		ticker := time.NewTicker(time.Second * 5)
 		defer ticker.Stop()
 
 		for {
