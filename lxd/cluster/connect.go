@@ -31,7 +31,7 @@ import (
 func Connect(ctx context.Context, address string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, notify bool) (lxd.InstanceServer, error) {
 	// Wait for a connection to the events API first for non-notify connections.
 	if !notify {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(10)*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		err := EventListenerWait(ctx, address)
 		if err != nil {
