@@ -83,7 +83,7 @@ func TestGetImage(t *testing.T) {
 		id, img, err := tx.GetImage(ctx, "a", cluster.ImageFilter{Project: &project})
 		require.NoError(t, err)
 		assert.True(t, img.Public)
-		assert.NotEqual(t, id, -1)
+		assert.NotEqual(t, -1, id)
 
 		// non-public image with 'default' project
 		err = tx.CreateImage(ctx, project, "abcd2", "x.gz", 16, false, false, "amd64", time.Now(), time.Now(), map[string]string{}, "container", nil)
@@ -101,7 +101,7 @@ func TestGetImage(t *testing.T) {
 		id, img, err = tx.GetImage(ctx, "a", cluster.ImageFilter{Project: &project, Public: &public})
 		require.NoError(t, err)
 		assert.True(t, img.Public)
-		assert.NotEqual(t, id, -1)
+		assert.NotEqual(t, -1, id)
 
 		return nil
 	})

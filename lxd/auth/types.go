@@ -48,6 +48,9 @@ type Authorizer interface {
 	//
 	// Warn: You almost never need this function. You should use GetPermissionChecker instead.
 	GetPermissionCheckerWithoutEffectiveProject(ctx context.Context, entitlement Entitlement, entityType entity.Type) (PermissionChecker, error)
+
+	// GetViewableProjects accepts a list of permissions and returns a list of projects that a member of a group with these permissions is able to view.
+	GetViewableProjects(ctx context.Context, permissions []api.Permission) ([]string, error)
 }
 
 // IsDeniedError returns true if the error is not found or forbidden. This is because the CheckPermission method on
