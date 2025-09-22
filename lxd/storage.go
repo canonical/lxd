@@ -121,7 +121,7 @@ func storageStartup(s *state.State) error {
 	if len(initPools) > 0 {
 		go func() {
 			for {
-				t := time.NewTimer(time.Duration(time.Minute))
+				t := time.NewTimer(time.Minute)
 
 				select {
 				case <-s.ShutdownCtx.Done():

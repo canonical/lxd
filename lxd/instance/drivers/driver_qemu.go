@@ -576,7 +576,7 @@ func (d *qemu) pidWait(timeout time.Duration) bool {
 			return false
 		}
 
-		time.Sleep(time.Millisecond * time.Duration(250))
+		time.Sleep(time.Millisecond * 250)
 	}
 
 	return true
@@ -2369,7 +2369,7 @@ func (d *qemu) deviceDetachPath(deviceName string) error {
 		return err
 	}
 
-	waitDuration := time.Duration(time.Second * time.Duration(10))
+	waitDuration := time.Second * 10
 	waitUntil := time.Now().Add(waitDuration)
 	for {
 		err = monitor.RemoveCharDevice(deviceID)
@@ -2378,7 +2378,7 @@ func (d *qemu) deviceDetachPath(deviceName string) error {
 		}
 
 		if api.StatusErrorCheck(err, http.StatusLocked) {
-			time.Sleep(time.Second * time.Duration(2))
+			time.Sleep(time.Second * 2)
 			continue
 		}
 
@@ -2413,7 +2413,7 @@ func (d *qemu) deviceDetachBlockDevice(deviceName string) error {
 		return err
 	}
 
-	waitDuration := time.Duration(time.Second * time.Duration(10))
+	waitDuration := time.Second * 10
 	waitUntil := time.Now().Add(waitDuration)
 	for {
 		err = monitor.RemoveBlockDevice(blockDevName)
@@ -2426,7 +2426,7 @@ func (d *qemu) deviceDetachBlockDevice(deviceName string) error {
 		}
 
 		if api.StatusErrorCheck(err, http.StatusLocked) {
-			time.Sleep(time.Second * time.Duration(2))
+			time.Sleep(time.Second * 2)
 			continue
 		}
 	}
@@ -2647,7 +2647,7 @@ func (d *qemu) deviceDetachNIC(deviceName string) error {
 
 	if slices.Contains([]string{"pcie", "pci"}, qemuBus) {
 		// Wait until the device is actually removed (or we timeout waiting).
-		waitDuration := time.Duration(time.Second * time.Duration(10))
+		waitDuration := time.Second * 10
 		waitUntil := time.Now().Add(waitDuration)
 		for {
 			devExists, err := monitor.CheckPCIDevice(deviceID)
@@ -2664,7 +2664,7 @@ func (d *qemu) deviceDetachNIC(deviceName string) error {
 			}
 
 			d.logger.Debug("Waiting for NIC device to be detached", logger.Ctx{"device": deviceName})
-			time.Sleep(time.Second * time.Duration(2))
+			time.Sleep(time.Second * 2)
 		}
 	}
 
@@ -2695,7 +2695,7 @@ func (d *qemu) deviceDetachPCI(deviceName string) error {
 
 	if slices.Contains([]string{"pcie", "pci"}, qemuBus) {
 		// Wait until the device is actually removed (or we timeout waiting).
-		waitDuration := time.Duration(time.Second * time.Duration(10))
+		waitDuration := time.Second * 10
 		waitUntil := time.Now().Add(waitDuration)
 		for {
 			devExists, err := monitor.CheckPCIDevice(deviceID)
@@ -2712,7 +2712,7 @@ func (d *qemu) deviceDetachPCI(deviceName string) error {
 			}
 
 			d.logger.Debug("Waiting for PCI device to be detached", logger.Ctx{"device": deviceName})
-			time.Sleep(time.Second * time.Duration(2))
+			time.Sleep(time.Second * 2)
 		}
 	}
 
