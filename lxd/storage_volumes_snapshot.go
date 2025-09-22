@@ -10,6 +10,8 @@ import (
 	"slices"
 	"sync"
 	"time"
+	"io"
+	"bytes"
 
 	"github.com/gorilla/mux"
 
@@ -757,6 +759,38 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		return response.PreconditionFailed(err)
 	}
 
+	// Store the original body for warning check
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	// Check for unsupported fields
+	var rawRequest map[string]interface{}
+	err = json.Unmarshal(bodyBytes, &rawRequest)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	// Supported fields that can be modified
+	supportedFields := map[string]bool{
+		"description": true,
+		"expires_at":  true,
+	}
+
+	// Collect warnings for unsupported fields
+	var warnings []string
+	for field := range rawRequest {
+		if !supportedFields[field] {
+			warningMsg := fmt.Sprintf("changes to '%s' in the snapshot configuration will not be applied", field)
+			warnings = append(warnings, warningMsg)
+		}
+	}
+
+	// Reset the body for the actual decoding
+	r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+
+
 	req := api.StorageVolumeSnapshotPut{}
 
 	err = json.NewDecoder(r.Body).Decode(&req)
@@ -764,7 +798,32 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		return response.BadRequest(err)
 	}
 
-	return doStoragePoolVolumeSnapshotUpdate(s, r, effectiveProjectName, dbVolume.Name, details.volumeType, req)
+	// return doStoragePoolVolumeSnapshotUpdate(s, r, effectiveProjectName, dbVolume.Name, details.volumeType, req)
+
+	// Perform the update
+	updateResp := doStoragePoolVolumeSnapshotUpdate(s, r, effectiveProjectName, dbVolume.Name, details.volumeType, req)
+
+	// If there are warnings, return them in the response
+	if len(warnings) > 0 {
+		// Combine warnings into plain text with newlines
+		logger.Warnf("Snapshot update warning for snapshot '%s': %s", dbVolume.Name, warnings)
+		warningText := ""
+		for _, warning := range warnings {
+			warningText += "Warning: " + warning + "\n"
+		}
+		
+		// Create a manual response with plain text
+		response := response.ManualResponse(func(w http.ResponseWriter) error {
+			w.Header().Set("Content-Type", "text/plain")
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write([]byte(warningText))
+			return err
+		})
+		
+		return response
+	}
+
+	return updateResp
 }
 
 // swagger:operation PATCH /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots/{snapshotName} storage storage_pool_volumes_type_snapshot_patch
