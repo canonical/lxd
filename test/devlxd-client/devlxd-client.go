@@ -306,6 +306,26 @@ func run(args []string) error {
 			return fmt.Errorf("Unknown subcommand: %q\n%w", subcmd, usageErr)
 		}
 
+	case "query":
+		if len(args) < 4 || len(args) > 5 {
+			return fmt.Errorf("Usage: %s query <method> <path> [<body>]", args[0])
+		}
+
+		method := args[2]
+		path := args[3]
+
+		body := ""
+		if len(args) == 5 {
+			body = args[4]
+		}
+
+		resp, _, err := client.RawQuery(method, path, body, "")
+		if err != nil {
+			return err
+		}
+
+		fmt.Println(string(resp.Content))
+		return nil
 	default:
 		key, err := client.GetConfigByKey(os.Args[1])
 		if err != nil {
