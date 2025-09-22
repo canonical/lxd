@@ -48,7 +48,7 @@ test_network() {
   [ "$(lxc network get lxdt$$ ipv6.dhcp.stateful)" = "true" ]
   lxc network unset lxdt$$ ipv6.dhcp.stateful
   [ "$(lxc network get lxdt$$ ipv6.dhcp.stateful || echo fail)" = "" ]
-  lxc query -X PATCH -d "{\\\"config\\\": {\\\"ipv6.dhcp.stateful\\\": \\\"true\\\"}}" /1.0/networks/lxdt$$
+  lxc query -X PATCH -d '{"config": {"ipv6.dhcp.stateful": "true"}}' /1.0/networks/lxdt$$
   [ "$(lxc network get lxdt$$ ipv6.dhcp.stateful)" = "true" ]
 
   # check ipv4.address and ipv6.address can be unset without triggering random subnet generation.
