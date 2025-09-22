@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/canonical/lxd/lxd/backup"
 	backupConfig "github.com/canonical/lxd/lxd/backup/config"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
@@ -131,7 +133,7 @@ type Pool interface {
 	CreateCustomVolumeFromTarball(projectName string, volName string, srcData *os.File, op *operations.Operation) error
 
 	// Custom volume snapshots.
-	CreateCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, newDescription string, newExpiryDate *time.Time, op *operations.Operation) error
+	CreateCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, newDescription string, newExpiryDate *time.Time, op *operations.Operation) (*uuid.UUID, error)
 	RenameCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, op *operations.Operation) error
 	DeleteCustomVolumeSnapshot(projectName string, volName string, op *operations.Operation) error
 	UpdateCustomVolumeSnapshot(projectName string, volName string, newDesc string, newConfig map[string]string, newExpiryDate time.Time, op *operations.Operation) error
