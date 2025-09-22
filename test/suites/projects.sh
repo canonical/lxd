@@ -44,7 +44,7 @@ test_projects_crud() {
   lxc project show bar | grep -xF "description: Bar project"
 
   # Edit the project config via PATCH. Existing key/value pairs should remain or be updated.
-  lxc query -X PATCH -d '{\"config\" : {\"limits.memory\":\"5GiB\",\"features.images\":\"false\"}}' /1.0/projects/bar
+  lxc query -X PATCH -d '{"config" : {"limits.memory":"5GiB","features.images":"false"}}' /1.0/projects/bar
   lxc project show bar | grep -F 'limits.memory: 5GiB'
   lxc project show bar | grep -F 'features.images: "false"'
   lxc project show bar | grep -F 'features.profiles: "true"'
@@ -88,7 +88,7 @@ test_projects_containers() {
   lxc project switch foo
 
   deps/import-busybox --project foo --alias testimage
-  fingerprint="$(lxc image list -c f --format json | jq -r .[0].fingerprint)"
+  fingerprint="$(lxc image list -c f --format json | jq -r ".[0].fingerprint")"
 
   # Add a root device to the default profile of the project
   pool="lxdtest-$(basename "${LXD_DIR}")"
@@ -350,7 +350,7 @@ test_projects_profiles_default() {
 
   # Import an image into the project and grab its fingerprint
   deps/import-busybox --project foo
-  fingerprint="$(lxc image list -c f --format json | jq .[0].fingerprint)"
+  fingerprint="$(lxc image list -c f --format json | jq -r ".[0].fingerprint")"
 
   # Create a container
   lxc init "${fingerprint}" c1 -d "${SMALL_ROOT_DISK}"
@@ -402,7 +402,7 @@ test_projects_images() {
 
   # Import an image into the project and grab its fingerprint
   deps/import-busybox --project foo
-  fingerprint="$(lxc image list -c f --format json | jq .[0].fingerprint)"
+  fingerprint="$(lxc image list -c f --format json | jq -r ".[0].fingerprint")"
 
   # The imported image is not visible in the default project.
   lxc project switch default
@@ -465,7 +465,7 @@ test_projects_images_default() {
   lxc image list | grep -wF testimage
 
   # The image from the default project has correct profile assigned
-  fingerprint="$(lxc image list --format json | jq -r .[0].fingerprint)"
+  fingerprint="$(lxc image list --format json | jq -r ".[0].fingerprint")"
   [ "$(lxc query "/1.0/images/${fingerprint}?project=foo" | jq -r ".profiles[0]")" = "default" ]
 
   # The project can delete images in the default project
@@ -1032,7 +1032,7 @@ run_projects_restrictions() {
   lxc profile device add local:default root disk path="/" pool="${pool}"
 
   deps/import-busybox --project p1 --alias testimage
-  fingerprint="$(lxc image list -c f --format json | jq -r .[0].fingerprint)"
+  fingerprint="$(lxc image list -c f --format json | jq -r ".[0].fingerprint")"
 
   # Add a volume.
   lxc storage volume create "local:${pool}" "v-proj$$"
