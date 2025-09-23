@@ -2012,6 +2012,7 @@ This introduces the storage bucket API. It allows the management of S3 object st
 This updates the storage bucket API to return initial admin credentials at bucket creation time.
 
 ## `metrics_cpu_effective_total`
+
 This introduces a new `lxd_cpu_effective_total` metric to the `/1.0/metrics` API.
 It reports the total number of effective CPUs.
 
@@ -2084,6 +2085,7 @@ This change adds support for storing the creation date and time of storage volum
 This adds the `CreatedAt` field to the `StorageVolume` and `StorageVolumeSnapshot` API types.
 
 ## `cpu_hotplug`
+
 This adds CPU hotplugging for VMs.
 Hotplugging is disabled when using CPU pinning, because this would require hotplugging NUMA devices as well, which is not possible.
 
@@ -2122,6 +2124,7 @@ Adds support for a Starlark scriptlet to be provided to LXD to allow customized 
 The Starlark scriptlet is provided to LXD via the new global configuration option {config:option}`server-miscellaneous:instances.placement.scriptlet`.
 
 ## `storage_pool_source_wipe`
+
 Adds support for a `source.wipe` Boolean on the storage pool, indicating
 that LXD should wipe partition headers off the requested disk rather
 than potentially fail due to pre-existing file systems.
@@ -2143,9 +2146,11 @@ Adds support for instance generation ID. The VM or container generation ID will 
 * {config:option}`instance-volatile:volatile.uuid.generation`
 
 ## `disk_io_cache`
+
 This introduces a new {config:option}`device-disk-device-conf:io.cache` property to disk devices which can be used to override the VM caching behavior.
 
 ## `amd_sev`
+
 Adds support for AMD SEV (Secure Encrypted Virtualization) that can be used to encrypt the memory of a guest VM.
 
 This adds the following new configuration options for SEV encryption:
@@ -2156,15 +2161,18 @@ This adds the following new configuration options for SEV encryption:
 * {config:option}`instance-security:security.sev.session.data` : (string) guest owner's `base64`-encoded session blob
 
 ## `storage_pool_loop_resize`
+
 This allows growing loop file backed storage pools by changing the `size` setting of the pool.
 
 ## `migration_vm_live`
+
 This adds support for performing VM QEMU to QEMU live migration for both shared storage (clustered Ceph) and
 non-shared storage pools.
 
 This also adds the `CRIUType_VM_QEMU` value of `3` for the migration `CRIUType` `protobuf` field.
 
 ## `ovn_nic_nesting`
+
 This adds support for nesting an `ovn` NIC inside another `ovn` NIC on the same instance.
 This allows for an OVN logical switch port to be tunneled inside another OVN NIC using VLAN tagging.
 
@@ -2181,6 +2189,7 @@ This adds the following new configuration keys:
 * {config:option}`server-oidc:oidc.audience`
 
 ## `network_ovn_l3only`
+
 This adds the ability to set an `ovn` network into "layer 3 only" mode.
 This mode can be enabled at IPv4 or IPv6 level using {config:option}`network-ovn-network-conf:ipv4.l3only` and {config:option}`network-ovn-network-conf:ipv6.l3only` configuration options respectively.
 
@@ -2196,6 +2205,7 @@ With this mode enabled the following changes are made to the network:
 This updates the `ovn_nic_acceleration` API extension. The {config:option}`device-nic-ovn-device-conf:acceleration` configuration key for OVN NICs can now takes the value `vdpa` to support Virtual Data Path Acceleration (VDPA).
 
 ## `cluster_healing`
+
 This adds cluster healing which automatically evacuates offline cluster members.
 
 This adds the following new configuration key:
@@ -2207,9 +2217,11 @@ The configuration key takes an integer, and can be disabled by setting it to 0 (
 When the offline cluster member is evacuated, only remote-backed instances will be migrated. Local instances will be ignored as there is no way of migrating them once the cluster member is offline.
 
 ## `instances_state_total`
+
 This extension adds a new `total` field to `InstanceStateDisk` and `InstanceStateMemory`, both part of the instance's state API.
 
 ## `auth_user`
+
 Add current user details to the main API endpoint.
 
 This introduces:
@@ -2218,14 +2230,17 @@ This introduces:
 * `auth_user_method`
 
 ## `security_csm`
+
 Introduce a new {config:option}`instance-security:security.csm` configuration key to control the use of
 `CSM` (Compatibility Support Module) to allow legacy operating systems to
 be run in LXD VMs.
 
 ## `instances_rebuild`
+
 This extension adds the ability to rebuild an instance with the same origin image, alternate image or as empty. A new `POST /1.0/instances/<name>/rebuild?project=<project>` API endpoint has been added as well as a new CLI command [`lxc rebuild`](lxc_rebuild.md).
 
 ## `numa_cpu_placement`
+
 This adds the possibility to place a set of CPUs in a desired set of NUMA nodes.
 
 This adds the following new configuration key:
@@ -2233,11 +2248,13 @@ This adds the following new configuration key:
 * {config:option}`instance-resource-limits:limits.cpu.nodes` : (string) comma-separated list of NUMA node IDs or NUMA node ID ranges to place the CPUs (chosen with a dynamic value of {config:option}`instance-resource-limits:limits.cpu`) in.
 
 ## `custom_volume_iso`
+
 This adds the possibility to import ISO images as custom storage volumes.
 
 This adds the `--type` flag to [`lxc storage volume import`](lxc_storage_volume_import.md).
 
 ## `network_allocations`
+
 This adds the possibility to list a LXD deployment's network allocations.
 
 Through the [`lxc network list-allocations`](lxc_network_list-allocations.md) command and the `--project <PROJECT> | --all-projects` flags,
@@ -2249,6 +2266,7 @@ each `instance`, `network`, `network forward` and `network load-balancer`.
 This allows copying storage volume snapshots to and from remotes.
 
 ## `zfs_delegate`
+
 This implements a new {config:option}`storage-zfs-volume-conf:zfs.delegate` volume Boolean for volumes on a ZFS storage driver.
 When enabled and a suitable system is in use (requires ZFS 2.2 or higher), the ZFS dataset will be delegated to the container, allowing for its use through the `zfs` command line tool.
 
@@ -2258,6 +2276,7 @@ This introduces support for the `all-projects` query parameter for the GET API c
 This parameter allows bypassing the project name filter.
 
 ## `metadata_configuration`
+
 Adds the `GET /1.0/metadata/configuration` API endpoint to retrieve the generated metadata configuration in a JSON format. The JSON structure adopts the structure ```"configs" > `ENTITY` > `ENTITY_SECTION` > "keys" > [<CONFIG_OPTION_0>, <CONFIG_OPTION_1>, ...]```.
 Check the list of {doc}`configuration options </config-options>` to see which configuration options are included.
 
@@ -2295,9 +2314,11 @@ Calling `POST /1.0/storage-pools/<pool>/custom?target=<target>` will copy the cu
 Calling `POST /1.0/storage-pools/<pool>/custom/<volume>?target=<target>` will move the custom volume from the source, specified in the `source` part of the request, to the target.
 
 ## `disk_io_bus`
+
 This introduces a new {config:option}`device-disk-device-conf:io.bus` property to disk devices which can be used to override the bus the disk is attached to.
 
 ## `storage_cephfs_create_missing`
+
 This introduces the configuration keys {config:option}`storage-cephfs-pool-conf:cephfs.create_missing`, {config:option}`storage-cephfs-pool-conf:cephfs.osd_pg_num`, {config:option}`storage-cephfs-pool-conf:cephfs.meta_pool` and {config:option}`storage-cephfs-pool-conf:cephfs.data_pool` to be used when adding a `cephfs` storage pool to instruct LXD to create the necessary entities for the storage pool, if they do not exist.
 
 ## `instance_move_config`
@@ -2306,10 +2327,12 @@ This API extension provides the ability to use flags `--profile`, `--no-profile`
 when moving an instance between projects and/or storage pools.
 
 ## `ovn_ssl_config`
+
 This introduces new server configuration keys to provide the SSL CA and client key pair to access the OVN databases.
 The new configuration keys are {config:option}`server-miscellaneous:network.ovn.ca_cert`, {config:option}`server-miscellaneous:network.ovn.client_cert` and {config:option}`server-miscellaneous:network.ovn.client_key`.
 
 ## `init_preseed_storage_volumes`
+
 This API extension provides the ability to configure storage volumes in preseed init.
 
 ## `metrics_instances_count`
@@ -2533,6 +2556,7 @@ Adds a new {config:option}`device-unix-hotplug-device-conf:ownership.inherit` co
 Adds a new {config:option}`device-unix-hotplug-device-conf:subsystem` configuration option for `unix-hotplug` devices. This adds support for detecting `unix-hotplug` devices by subsystem, and can be used in conjunction with {config:option}`device-unix-hotplug-device-conf:productid` and {config:option}`device-unix-hotplug-device-conf:vendorid`.
 
 ## `storage_ceph_osd_pool_size`
+
 This introduces the configuration keys {config:option}`storage-ceph-pool-conf:ceph.osd.pool_size`, and {config:option}`storage-cephfs-pool-conf:cephfs.osd_pool_size` to be used when adding or updating a `ceph` or `cephfs` storage pool to instruct LXD to create set the replication size for the underlying OSD pools.
 
 ## `network_get_target`
@@ -2686,9 +2710,11 @@ If set, the LXD server will use this value in the OpenID Connect (OIDC) authoriz
 This configuration value is not shared with other LXD clients (such as the LXD CLI).
 
 ## `pci_hotplug`
+
 This adds PCI device hotplugging for VMs.
 
 ## `device_patch_removal`
+
 The `PATCH /1.0/instances/{name}` endpoint allows removing an instance device by setting its value to `null` in the devices map.
 
 ## `ovn_internal_load_balancer`
