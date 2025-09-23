@@ -16,6 +16,7 @@ import (
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxc/config"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/i18n"
 	"github.com/canonical/lxd/shared/logger"
@@ -466,7 +467,12 @@ Or for a virtual machine: lxc launch ubuntu:24.04 --vm`)
 		}
 	}
 
-	// Set the user agent
+	// Set the user agent, indicating that we are able to store cookies.
+	err = version.UserAgentFeatures([]string{api.ClientFeatureCookieJar})
+	if err != nil {
+		return fmt.Errorf("Failed to advertise client features: %w", err)
+	}
+
 	c.conf.UserAgent = version.UserAgent
 
 	// Setup the logger
