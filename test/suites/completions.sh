@@ -1,17 +1,15 @@
 complete() {
-    # Can't use lxc function as it adds other arguments (like the --verbose flag).
-    cmd=$(unset -f lxc; command -v lxc)
+    # Using ${_LXC} to avoid using the lxc function as it adds other arguments (like the --verbose flag).
 
     # Run the completion and remove the last line (the directive), then sort and convert to csv.
-    "${cmd}" __complete "${@}" 2>/dev/null | head -n -1 | sort | paste -sd,
+    "${_LXC}" __complete "${@}" 2>/dev/null | head -n -1 | sort | paste -sd,
 }
 
 completion_directive() {
-  # Can't use lxc function as it adds other arguments (like the --verbose flag).
-  cmd=$(unset -f lxc; command -v lxc)
+    # Using ${_LXC} to avoid using the lxc function as it adds other arguments (like the --verbose flag).
 
-  # Run the completion and get the last line (the directive).
-  "${cmd}" __complete "${@}" 2>/dev/null | tail -n 1
+    # Run the completion and get the last line (the directive).
+    "${_LXC}" __complete "${@}" 2>/dev/null | tail -n 1
 }
 
 test_completions() {
