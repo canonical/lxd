@@ -717,6 +717,51 @@ func (d *common) runHooks(hooks []func() error) error {
 	return nil
 }
 
+// getAttachedVolumeSnapshots finds storage volume snapshots matching the provided UUIDs.
+// Returns volumes that match the UUIDs and validates they are snapshots.
+func (d *common) getAttachedVolumeSnapshots(inst instance.Instance, attachedVolumeUUIDs map[string]string) ([]*db.StorageVolume, error) {
+	if len(attachedVolumeUUIDs) == 0 {
+		return []*db.StorageVolume{}, nil
+	}
+
+	// Convert map values to slice for the database query
+	uuids := make([]string, 0, len(attachedVolumeUUIDs))
+	for _, uuid := range attachedVolumeUUIDs {
+		uuids = append(uuids, uuid)
+	}
+
+	customType := dbCluster.StoragePoolVolumeTypeCustom
+	instanceProject := inst.Project()
+	effectiveProject := project.StorageVolumeProjectFromRecord(&instanceProject, dbCluster.StoragePoolVolumeTypeCustom)
+
+	filter := db.StorageVolumeFilter{
+		Type:    &customType,
+		Project: &effectiveProject,
+		UUIDs:   &uuids,
+	}
+
+	var volumes []*db.StorageVolume
+	err := d.state.DB.Cluster.Transaction(d.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		volumes, err = tx.GetStorageVolumes(ctx, true, filter)
+		if err != nil {
+			return err
+		}
+
+		// Validate that all volumes are snapshots
+		for _, vol := range volumes {
+			_, _, isSnap := api.GetParentAndSnapshotName(vol.Name)
+			if !isSnap {
+				return fmt.Errorf("Volume %q is not a snapshot", vol.Name)
+			}
+		}
+
+		return nil
+	})
+
+	return volumes, err
+}
+
 // getAttachedVolumes returns the list of storage volumes attached to the instance.
 func (d *common) getAttachedVolumes(inst instance.Instance) (volumes []*db.StorageVolume, err error) {
 	// Get attached disk volume devices.
