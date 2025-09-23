@@ -313,14 +313,13 @@ state: <enabled|disabled|logged>
 
 `````
 
-- The `action` property is required.
-- The `state` property defaults to `"enabled"` if unset.
-- The `source` and `destination` properties can be specified as one or more CIDR blocks, IP ranges, or {ref}`selectors <network-acls-selectors>`. If left empty, they match any source or destination. Comma-separate multiple values.
-- If the `protocol` is unset, it matches any protocol.
-- The `"destination_port"` and `"source_port"` properties and `"icmp_code"` and `"icmp_type"` properties are mutually exclusive sets. Although both sets are shown in the same rule above to demonstrate the syntax, they never appear together in practice.
-   - The `"destination_port"` and `"source_port"` properties are only available when the `"protocol"` for the rule is `"tcp"` or `"udp"`.
-   - The [`"icmp_code"`](https://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtml#icmp-parameters-codes) and [`"icmp_type"`](https://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtml#icmp-parameters-types) properties are only available when the `"protocol"` is `"icmp4"` or `"icmp6"`.
-- The `"state"` is `"enabled"` by default. The `"logged"` value is used to {ref}`log traffic <network-acls-log>` to a rule.
+- The **`action`** property is required.
+- The **`source`** and **`destination`** properties can be specified as one or more CIDR blocks, IP ranges, or {ref}`selectors <network-acls-selectors>`. If left empty, they match any source or destination. Comma-separate multiple values.
+- If the **`protocol`** is unset, it matches any protocol.
+- The **`destination_port`** and **`source_port`** properties and **`icmp_code`** and **`icmp_type`** properties are mutually exclusive sets. Although both sets are shown in the same rule above to demonstrate the syntax, they never appear together in practice.
+   - The **`destination_port`** and **`source_port`** properties are only available when the **`protocol`** for the rule is `tcp` or `udp`.
+   - The [**`icmp_code`**](https://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtml#icmp-parameters-codes) and [**`icmp_type`**](https://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtml#icmp-parameters-types) properties are only available when the **`protocol`** is `icmp4` or `icmp6`.
+- The **`state`** is `enabled` by default. The `logged` value is used to {ref}`log traffic <network-acls-log>` to a rule.
 
 For more information, see: {ref}`network-acls-rule-properties`.
 
