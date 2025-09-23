@@ -1186,6 +1186,51 @@ func (d *common) resolveRestoreSnapshots(source instance.Instance, detectSharing
 	return restoreSnapshots, nil
 }
 
+// deleteAttachedVolumeSnapshots deletes the attached volume snapshots for a snapshot instance.
+// When diskVolumesMode is "all-exclusive", it deletes the attached volume snapshots.
+func (d *common) deleteAttachedVolumeSnapshots(snapInst instance.Instance, diskVolumesMode string) error {
+	if diskVolumesMode != api.DiskVolumesModeAllExclusive {
+		return nil
+	}
+
+	// Get attached volume snapshot UUIDs from the snapshot instance.
+	attachedVolumeUUIDs, err := parseAttachedVolumes(snapInst)
+	if err != nil {
+		return nil
+	}
+
+	if len(attachedVolumeUUIDs) == 0 {
+		return nil
+	}
+
+	// Get attached volume snapshots.
+	toDelete, err := d.getAttachedVolumeSnapshots(snapInst, attachedVolumeUUIDs)
+	if err != nil {
+		return err
+	}
+
+	pool, err := storagePools.LoadByInstance(d.state, snapInst)
+	if err != nil {
+		return err
+	}
+
+	// Delete the attached volume snapshots.
+	storageCache := storagePools.NewStorageCache(pool) // Create storage cache for pool lookups.
+	for _, vol := range toDelete {
+		pool, err := storageCache.GetPool(vol.Pool)
+		if err != nil {
+			return err
+		}
+
+		err = pool.DeleteCustomVolumeSnapshot(vol.Project, vol.Name, d.op)
+		if err != nil {
+			return fmt.Errorf("Failed deleting attached volume snapshot %q: %w", vol.Name, err)
+		}
+	}
+
+	return nil
+}
+
 // insertConfigkey function attempts to insert the instance config key into the database. If the insert fails
 // then the database is queried to check whether another query inserted the same key. If the key is still
 // unpopulated then the insert querty is retried until it succeeds or a retry limit is reached.
