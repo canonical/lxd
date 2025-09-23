@@ -1231,6 +1231,27 @@ func (d *common) deleteAttachedVolumeSnapshots(snapInst instance.Instance, diskV
 	return nil
 }
 
+// deleteSnapshotCommon handles the common part of snapshot deletion with multi-volume support.
+func (d *common) deleteSnapshotCommon(inst instance.Instance, diskVolumesMode string) error {
+	if !inst.IsSnapshot() {
+		return errors.New("Instance is not a snapshot")
+	}
+
+	// Delete attached volume snapshots (if requested).
+	err := d.deleteAttachedVolumeSnapshots(inst, diskVolumesMode)
+	if err != nil {
+		return fmt.Errorf("Failed deleting attached volume snapshots: %w", err)
+	}
+
+	// Delete instance snapshot.
+	err = inst.Delete(false)
+	if err != nil {
+		return fmt.Errorf("Failed deleting instance snapshot: %w", err)
+	}
+
+	return nil
+}
+
 // insertConfigkey function attempts to insert the instance config key into the database. If the insert fails
 // then the database is queried to check whether another query inserted the same key. If the key is still
 // unpopulated then the insert querty is retried until it succeeds or a retry limit is reached.
