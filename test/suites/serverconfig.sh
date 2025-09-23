@@ -22,10 +22,10 @@ _server_config_cluster_uuid() {
   lxc config set volatile.uuid="${cluster_uuid}"
 
   # PATCH
-  my_curl -X PATCH "https://${LXD_ADDR}/1.0" -d "{\"config\":{\"core.https_address\":\"${LXD_ADDR}\"}}" | jq -e '.status == "Success" and .status_code == 200'
-  my_curl -X PATCH "https://${LXD_ADDR}/1.0" -d "{\"config\":{\"core.https_address\":\"${LXD_ADDR}\",\"volatile.uuid\":\"\"}}" | jq -e '.error == "The cluster UUID cannot be changed" and .error_code == 400'
-  my_curl -X PATCH "https://${LXD_ADDR}/1.0" -d "{\"config\":{\"core.https_address\":\"${LXD_ADDR}\",\"volatile.uuid\":\"$(uuidgen)\"}}" | jq -e '.error == "The cluster UUID cannot be changed" and .error_code == 400'
-  my_curl -X PATCH "https://${LXD_ADDR}/1.0" -d "{\"config\":{\"core.https_address\":\"${LXD_ADDR}\",\"volatile.uuid\":\"${cluster_uuid}\"}}" | jq -e '.status == "Success" and .status_code == 200'
+  my_curl -X PATCH "https://${LXD_ADDR}/1.0" -d '{"config":{"core.https_address":"'"${LXD_ADDR}"'"}}' | jq -e '.status == "Success" and .status_code == 200'
+  my_curl -X PATCH "https://${LXD_ADDR}/1.0" -d '{"config":{"core.https_address":"'"${LXD_ADDR}"'","volatile.uuid":""}}' | jq -e '.error == "The cluster UUID cannot be changed" and .error_code == 400'
+  my_curl -X PATCH "https://${LXD_ADDR}/1.0" -d '{"config":{"core.https_address":"'"${LXD_ADDR}"'","volatile.uuid":"'"$(uuidgen)"'"}}' | jq -e '.error == "The cluster UUID cannot be changed" and .error_code == 400'
+  my_curl -X PATCH "https://${LXD_ADDR}/1.0" -d '{"config":{"core.https_address":"'"${LXD_ADDR}"'","volatile.uuid":"'"${cluster_uuid}"'"}}' | jq -e '.status == "Success" and .status_code == 200'
 
   # Check that the cluster UUID matches the server UUID
   [ "$(< "${LXD_DIR}/server.uuid")" = "${cluster_uuid}" ]
@@ -80,7 +80,7 @@ _server_config_storage() {
   pool=$(lxc profile device get default root pool)
 
   lxc init testimage foo
-  lxc query --wait /1.0/containers/foo/backups -X POST -d '{\"expires_at\": \"2100-01-01T10:00:00-05:00\"}'
+  lxc query --wait /1.0/containers/foo/backups -X POST -d '{"expires_at": "2100-01-01T10:00:00-05:00"}'
 
   # Record before
   BACKUPS_BEFORE=$(cd "${LXD_DIR}/backups/" && find . | sort)
