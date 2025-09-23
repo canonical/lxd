@@ -1315,22 +1315,31 @@ func (n *bridge) startDnsmasq(dnsmasqCmd []string, dnsClustered bool, dnsCluster
 	return nil
 }
 
-// deleteTunnels deletes any existing tunnel device for bridge.
-func (n *bridge) deleteTunnels() error {
-	// Get a list of interfaces.
-	ifaces, err := net.Interfaces()
+func maybeDeleteLink(linkName string) error {
+	link := &ip.Link{Name: linkName}
+	exists, err := link.Exists()
 	if err != nil {
 		return err
 	}
 
+	if exists {
+		err = link.Delete()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// deleteTunnels deletes any existing tunnel device from slice.
+func (n *bridge) deleteTunnels(tunNames []string) error {
 	// Cleanup any existing tunnel device.
-	for _, iface := range ifaces {
-		if strings.HasPrefix(iface.Name, n.name+"-") {
-			tunLink := &ip.Link{Name: iface.Name}
-			err = tunLink.Delete()
-			if err != nil {
-				return err
-			}
+	for _, tunnel := range tunNames {
+		tunName := n.tunName(tunnel)
+		err := maybeDeleteLink(tunName)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -1347,6 +1356,17 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	revert := revert.New()
 	defer revert.Fail()
+
+	// Cleanup any bridge fan/tunnel devices.
+	revert.Add(func() {
+		err := n.deleteTunnels(getFans(n.config, n.name))
+		n.logger.Error("Failed to cleanup fan interfaces", logger.Ctx{"err": err})
+	})
+
+	revert.Add(func() {
+		err := n.deleteTunnels(getTunnels(n.config))
+		n.logger.Error("Failed to cleanup tunnel interfaces", logger.Ctx{"err": err})
+	})
 
 	// Create directory.
 	networkDir := shared.VarPath("networks", n.name)
@@ -1511,8 +1531,20 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 	}
 
+	// Cleanup any existing fan device.
+	err = n.deleteTunnels(getFans(n.config, n.name))
+	if err != nil {
+		return err
+	}
+
 	// Cleanup any existing tunnel device.
-	err = n.deleteTunnels()
+	err = n.deleteTunnels(getTunnels(n.config))
+	if err != nil {
+		return err
+	}
+
+	// Cleanup any existing dummy mtu device.
+	err = maybeDeleteLink(n.name + "-mtu")
 	if err != nil {
 		return err
 	}
@@ -1907,8 +1939,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	dnsClusteredAddress := ""
 	var overlaySubnet *net.IPNet
 	if n.config["bridge.mode"] == "fan" {
-		tunName := n.name + "-fan"
-
+		tunName := n.tunName("")
 		// Parse the underlay.
 		underlay := n.config["fan.underlay_subnet"]
 		_, underlaySubnet, err := net.ParseCIDR(underlay)
@@ -2091,7 +2122,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		tunProtocol := getConfig("protocol")
 		tunLocal := getConfig("local")
 		tunRemote := getConfig("remote")
-		tunName := fmt.Sprintf("%s-%s", n.name, tunnel)
+		tunName := n.tunName(tunnel)
 
 		// Configure the tunnel.
 		if tunProtocol == "gre" {
@@ -2364,8 +2395,20 @@ func (n *bridge) Stop() error {
 		}
 	}
 
-	// Cleanup any existing tunnel device
-	err = n.deleteTunnels()
+	// Cleanup any existing fan device.
+	err = n.deleteTunnels(getFans(n.config, n.name))
+	if err != nil {
+		return err
+	}
+
+	// Cleanup any existing tunnel device.
+	err = n.deleteTunnels(getTunnels(n.config))
+	if err != nil {
+		return err
+	}
+
+	// Cleanup any existing dummy mtu device.
+	err = maybeDeleteLink(n.name + "-mtu")
 	if err != nil {
 		return err
 	}
@@ -2462,6 +2505,23 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 					if err != nil {
 						return err
 					}
+				}
+			}
+		}
+
+		// Remove fan interfaces.
+		if slices.Contains(changedKeys, "bridge.mode") && oldNetwork.Config["bridge.mode"] == "fan" && n.isRunning() {
+			err = n.deleteTunnels(getFans(oldNetwork.Config, n.name))
+			if err != nil {
+				return err
+			}
+		}
+		// Remove tunnel interfaces.
+		for _, k := range changedKeys {
+			if strings.HasPrefix(k, "tunnel.") && n.isRunning() {
+				err = n.deleteTunnels(getTunnels(oldNetwork.Config))
+				if err != nil {
+					return err
 				}
 			}
 		}
@@ -2620,6 +2680,30 @@ func getTunnels(config map[string]string) []string {
 	}
 
 	return tunnels
+}
+
+// getFans populates slice with bridges with bridge.mode == "fan".
+func getFans(config map[string]string, name string) []string {
+	fans := []string{}
+
+	for k := range config {
+		if !strings.HasPrefix(k, "bridge.mode") {
+			continue
+		}
+
+		fans = append(fans, name)
+	}
+
+	return fans
+}
+
+// tunName builds name of tunnel device.
+func (n *bridge) tunName(tunnel string) string {
+	if n.config["bridge.mode"] == "fan" {
+		return n.name + "-fan"
+	}
+
+	return n.name + "-" + tunnel
 }
 
 // bootRoutesV4 returns a list of IPv4 boot routes on the network's device.
