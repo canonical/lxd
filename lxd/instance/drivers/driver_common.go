@@ -22,6 +22,7 @@ import (
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/device"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/device/nictype"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -712,6 +713,57 @@ func (d *common) runHooks(hooks []func() error) error {
 	}
 
 	return nil
+}
+
+// getAttachedVolumes returns the list of storage volumes attached to the instance.
+func (d *common) getAttachedVolumes(inst instance.Instance) (volumes []*db.StorageVolume, err error) {
+	// Retrieve the instance's root disk volume storage pool.
+	_, rootDiskDevice, err := d.getRootDiskDevice()
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting root disk: %w", err)
+	}
+
+	if rootDiskDevice["pool"] == "" {
+		return nil, errors.New("The instance's root device is missing the pool property")
+	}
+
+	// Load the root disk volume's storage pool.
+	rootDiskPool, err := storagePools.LoadByName(d.state, rootDiskDevice["pool"])
+	if err != nil {
+		return nil, fmt.Errorf("Failed loading storage pool: %w", err)
+	}
+
+	// Create a storage cache for pool lookups.
+	storageCache := storagePools.NewStorageCache(rootDiskPool)
+
+	// Get attached storage volumes.
+	attachedDiskVolumeDevices := d.expandedDevices.Filter(filters.IsCustomVolumeDisk)
+	volumes = make([]*db.StorageVolume, 0, len(attachedDiskVolumeDevices))
+	instanceProject := inst.Project()
+	for name, dev := range attachedDiskVolumeDevices {
+		// Storage cache lookup.
+		pool, err := storageCache.GetPool(dev["pool"])
+		if err != nil {
+			return nil, fmt.Errorf("Failed getting storage pool of device %q: %w", name, err)
+		}
+
+		volName, _, _ := api.GetParentAndSnapshotName(name)
+
+		err = d.state.DB.Cluster.Transaction(d.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+			vol, err := tx.GetStoragePoolVolume(ctx, pool.ID(), instanceProject.Name, dbCluster.StoragePoolVolumeTypeCustom, volName, true)
+			if err != nil {
+				return err
+			}
+
+			volumes = append(volumes, vol)
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return volumes, nil
 }
 
 // snapshotCommon handles the common part of a snapshot.
