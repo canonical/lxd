@@ -316,14 +316,14 @@ test_basic_usage() {
 
   # Test "nonetype" container creation
   wait_for "${LXD_ADDR}" my_curl -X POST --fail-with-body -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/containers" \
-        -d "{\"name\":\"nonetype\",\"source\":{\"type\":\"none\"}}"
+        -d '{"name":"nonetype","source":{"type":"none"}}'
   lxc delete nonetype
 
   # Test "nonetype" container creation with an LXC config
   wait_for "${LXD_ADDR}" my_curl -X POST --fail-with-body -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/containers" \
-        -d "{\"name\":\"configtest\",\"config\":{\"raw.lxc\":\"lxc.hook.clone=/bin/true\"},\"source\":{\"type\":\"none\"}}"
+        -d '{"name":"configtest","config":{"raw.lxc":"lxc.hook.clone=/bin/true"},"source":{"type":"none"}}'
   # shellcheck disable=SC2102
-  [ "$(my_curl "https://${LXD_ADDR}/1.0/containers/configtest" | jq -r .metadata.config[\"raw.lxc\"])" = "lxc.hook.clone=/bin/true" ]
+  [ "$(my_curl "https://${LXD_ADDR}/1.0/containers/configtest" | jq -r '.metadata.config["raw.lxc"]')" = "lxc.hook.clone=/bin/true" ]
   lxc delete configtest
 
   # Test activateifneeded/shutdown
@@ -513,7 +513,7 @@ test_basic_usage() {
   lxc exec foo -- chmod 555 /tmp/edit_test
   echo "new content" | lxc file edit foo/tmp/edit_test
   [ "$(lxc exec foo -- cat /tmp/edit_test)" = "new content" ]
-  [ "$(lxc exec foo -- stat -c \"%u %g %a\" /tmp/edit_test)" = "55 55 555" ]
+  [ "$(lxc exec foo -- stat -c '%u %g %a' /tmp/edit_test)" = "55 55 555" ]
 
   # make sure stdin is chowned to our container root uid (Issue #590)
   [ -t 0 ] && [ -t 1 ] && lxc exec foo -- chown 1000:1000 /proc/self/fd/0
