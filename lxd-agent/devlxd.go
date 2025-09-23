@@ -117,6 +117,12 @@ func devLXDAPIGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
 		return smartResponse(err)
 	}
 
+	if state.Auth == api.AuthUntrusted {
+		// Return limited information for untrusted clients.
+		return okResponse(state.DevLXDGetUntrusted, "json")
+	}
+
+	// Return full information for trusted clients.
 	return okResponse(state, "json")
 }
 
