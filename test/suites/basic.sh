@@ -28,7 +28,7 @@ test_basic_usage() {
   lxc image alias create bar "${sum}"
   lxc image alias list local: | grep -wF foo
   lxc image alias list local: | grep -wF bar
-  !  lxc image alias list local: foo | grep -wF bar || false
+  ! lxc image alias list local: foo | grep -wF bar || false
   lxc image alias list local: "${sum}" | grep -wF foo
   ! lxc image alias list local: non-existent | grep -wF non-existent || false
   lxc image alias delete foo
