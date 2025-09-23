@@ -28,7 +28,7 @@ test_warnings() {
     ensure_import_testimage
 
     # Get image ID from database instead of assuming it
-    image_id=$(lxd sql global 'select image_id from images_aliases where name="testimage"' | grep -Eo '[[:digit:]]+')
+    image_id="$(lxd sql global 'SELECT image_id FROM images_aliases WHERE name="testimage"' | grep -Eo '[[:digit:]]+')"
 
     # Create a warning with entity type "image" and entity ID ${image_id} (the imported testimage)
     lxc query --wait -X POST -d '{"type_code": 0, "message": "global warning", "entity_type": "image", "entity_id": '"${image_id}"'}' /internal/testing/warnings
