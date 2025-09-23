@@ -703,6 +703,48 @@ func (d *common) rebuildCommon(inst instance.Instance, img *api.Image, op *opera
 	return nil
 }
 
+// deleteAttachedVolumeSnapshots deletes the attached volume snapshots for a snapshot instance.
+// When diskVolumesMode is "all-exclusive", it deletes the attached volume snapshots.
+func (d *common) deleteAttachedVolumeSnapshots(snapInst instance.Instance, diskVolumesMode string) error {
+	// Get attached volume snapshot UUIDs from the snapshot instance.
+	var attachedVolumeUUIDs map[string]string
+	err := json.Unmarshal([]byte(snapInst.LocalConfig()["volatile.attached_volumes"]), &attachedVolumeUUIDs)
+	if err != nil {
+		return fmt.Errorf(`Failed parsing snapshot instance "volatile.attached_volumes": %w`, err)
+	}
+
+	if len(attachedVolumeUUIDs) == 0 {
+		return fmt.Errorf("No attached volume snapshots found in snapshot instance %q", snapInst.Name())
+	}
+
+	// Get attached volume snapshots.
+	toDelete, err := d.getAttachedVolumeSnapshots(snapInst, attachedVolumeUUIDs)
+	if err != nil {
+		return fmt.Errorf("Failed getting attached volume snapshots: %w", err)
+	}
+
+	pool, err := d.getStoragePool()
+	if err != nil {
+		return err
+	}
+
+	// Delete the attached volume snapshots.
+	storageCache := storagePools.NewStorageCache(pool) // Create storage cache for pool lookups.
+	for _, vol := range toDelete {
+		pool, err := storageCache.GetPool(vol.Pool)
+		if err != nil {
+			return fmt.Errorf("Failed loading storage pool %q: %w", vol.Pool, err)
+		}
+
+		err = pool.DeleteCustomVolumeSnapshot(vol.Project, vol.Name, d.op)
+		if err != nil {
+			return fmt.Errorf("Failed deleting attached volume snapshot %q: %w", vol.Name, err)
+		}
+	}
+
+	return nil
+}
+
 // deleteCommon handles common delete logic for LXC and QEMU instances.
 //
 // It performs the following shared operations:
