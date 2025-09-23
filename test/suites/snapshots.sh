@@ -116,7 +116,7 @@ EOF
   ! lxc info foo | grep -wF snap3 || false
 
   # no CLI for this, so we use the API directly (rename a snapshot)
-  wait_for "${LXD_ADDR}" my_curl -X POST --fail-with-body -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/containers/foo/snapshots/tester" -d "{\"name\":\"tester2\"}"
+  wait_for "${LXD_ADDR}" my_curl -X POST --fail-with-body -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/containers/foo/snapshots/tester" -d '{"name":"tester2"}'
   # FIXME: make this backend agnostic
   if [ "$lxd_backend" = "dir" ]; then
     [ ! -d "${LXD_DIR}/snapshots/foo/tester" ]
