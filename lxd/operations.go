@@ -158,33 +158,14 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	var body *api.Operation
 
 	// First check if the query is for a local operation from this node
 	op, err := operations.OperationGetInternal(id)
 	if err == nil {
-		// Allow view access if the caller is the requestor.
-		if !requestor.CallerIsEqual(op.Requestor()) {
-			// Otherwise, perform access check based on whether the operation is project specific.
-			operationProject := op.Project()
-			var entityURL *api.URL
-			if operationProject == "" {
-				// If not project specific, this is a server level operation.
-				entityURL = entity.ServerURL()
-			} else {
-				// If project specific, check `can_view_operations` on the operations' project.
-				entityURL = entity.ProjectURL(operationProject)
-			}
-
-			err = s.Authorizer.CheckPermission(r.Context(), entityURL, auth.EntitlementCanViewOperations)
-			if err != nil {
-				return response.SmartError(err)
-			}
+		err := checkOperationViewAccess(r.Context(), op, s.Authorizer, "")
+		if err != nil {
+			return response.SmartError(err)
 		}
 
 		_, body, err = op.Render()
@@ -984,30 +965,9 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 	// First check if the query is for a local operation from this node
 	op, err := operations.OperationGetInternal(id)
 	if err == nil {
-		if secret != "" {
-			// If a secret is provided and it matches the operation, allow access.
-			if op.Metadata()["secret"] != secret {
-				return response.Forbidden(nil)
-			}
-		} else {
-			// Allow view access if the caller is the requestor.
-			if !requestor.CallerIsEqual(op.Requestor()) {
-				// Otherwise, perform access check based on whether the operation is project specific.
-				operationProject := op.Project()
-				var entityURL *api.URL
-				if operationProject == "" {
-					// If not project specific, this is a server level operation.
-					entityURL = entity.ServerURL()
-				} else {
-					// If project specific, check `can_view_operations` on the operations' project.
-					entityURL = entity.ProjectURL(operationProject)
-				}
-
-				err = s.Authorizer.CheckPermission(r.Context(), entityURL, auth.EntitlementCanViewOperations)
-				if err != nil {
-					return response.SmartError(err)
-				}
-			}
+		err := checkOperationViewAccess(r.Context(), op, s.Authorizer, secret)
+		if err != nil {
+			return response.SmartError(err)
 		}
 
 		var ctx context.Context
@@ -1085,6 +1045,42 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.ForwardedResponse(client)
+}
+
+func checkOperationViewAccess(ctx context.Context, op *operations.Operation, authorizer auth.Authorizer, secret string) error {
+	// If a secret is provided and it matches the operation, allow access.
+	if secret != "" && op.Metadata()["secret"] == secret {
+		return nil
+	}
+
+	// There must be a requestor.
+	requestor, err := request.GetRequestor(ctx)
+	if err != nil {
+		return err
+	}
+
+	// The caller must be trusted.
+	if !requestor.IsTrusted() {
+		return api.NewGenericStatusError(http.StatusForbidden)
+	}
+
+	// Allow view access if the caller is the requestor.
+	if requestor.CallerIsEqual(op.Requestor()) {
+		return nil
+	}
+
+	// Otherwise, perform access check based on whether the operation is project specific.
+	operationProject := op.Project()
+	var entityURL *api.URL
+	if operationProject == "" {
+		// If not project specific, this is a server level operation.
+		entityURL = entity.ServerURL()
+	} else {
+		// If project specific, check `can_view_operations` on the operations' project.
+		entityURL = entity.ProjectURL(operationProject)
+	}
+
+	return authorizer.CheckPermission(ctx, entityURL, auth.EntitlementCanViewOperations)
 }
 
 // swagger:operation GET /1.0/operations/{id}/websocket?public operations operation_websocket_get_untrusted
