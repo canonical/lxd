@@ -202,6 +202,7 @@ type InstanceServer interface {
 	RenameInstanceSnapshot(instanceName string, name string, instance api.InstanceSnapshotPost) (op Operation, err error)
 	MigrateInstanceSnapshot(instanceName string, name string, instance api.InstanceSnapshotPost) (op Operation, err error)
 	DeleteInstanceSnapshot(instanceName string, name string) (op Operation, err error)
+	DeleteInstanceSnapshotWithDiskVolumesMode(instanceName string, name string, diskVolumesMode string) (op Operation, err error)
 	UpdateInstanceSnapshot(instanceName string, name string, instance api.InstanceSnapshotPut, ETag string) (op Operation, err error)
 
 	GetInstanceBackupNames(instanceName string) (names []string, err error)

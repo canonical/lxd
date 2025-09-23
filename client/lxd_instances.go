@@ -2296,6 +2296,22 @@ func (r *ProtocolLXD) DeleteInstanceSnapshot(instanceName string, name string) (
 	return op, nil
 }
 
+// DeleteInstanceSnapshotWithDiskVolumesMode requests that LXD deletes the instance snapshot with disk volumes mode.
+func (r *ProtocolLXD) DeleteInstanceSnapshotWithDiskVolumesMode(instanceName string, name string, diskVolumesMode string) (Operation, error) {
+	err := r.CheckExtension("instance_snapshots_multi_volume")
+	if err != nil {
+		return nil, err
+	}
+
+	url := api.NewURL().Path("instances", instanceName, "snapshots", name).WithQuery("disk-volumes", diskVolumesMode)
+	op, _, err := r.queryOperation(http.MethodDelete, url.String(), nil, "", true)
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
+
 // UpdateInstanceSnapshot requests that LXD updates the instance snapshot.
 func (r *ProtocolLXD) UpdateInstanceSnapshot(instanceName string, name string, instance api.InstanceSnapshotPut, ETag string) (Operation, error) {
 	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
