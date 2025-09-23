@@ -1089,6 +1089,9 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance,
 		}
 	}
 
+	// Remove "volatile.attached_volumes" from instance config (only needed for multi-volume snapshot restore).
+	delete(source.LocalConfig(), "volatile.attached_volumes")
+
 	// Restore the configuration.
 	args := db.InstanceArgs{
 		Architecture: source.Architecture(),
