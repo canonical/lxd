@@ -7598,7 +7598,7 @@ func (b *lxdBackend) detectUnknownInstanceAndCustomVolumes(vol *drivers.Volume, 
 		return fmt.Errorf("Instance %q in project %q already has storage DB record", instName, projectName)
 	}
 
-	backupVolConfCache := newBackupConfigCache(b)
+	backupVolConfCache := NewStorageCache(b)
 
 	// Iterate over the custom volumes attached to the instance.
 	for _, customVol := range backupConf.Volumes {
@@ -7609,7 +7609,7 @@ func (b *lxdBackend) detectUnknownInstanceAndCustomVolumes(vol *drivers.Volume, 
 
 		// The custom volume might be located on a different pool.
 		// Therefore try to load the right pool.
-		customVolPool, err := backupVolConfCache.getPool(customVol.Pool)
+		customVolPool, err := backupVolConfCache.GetPool(customVol.Pool)
 		if err != nil {
 			// We don't know the pool which hosts the custom volume. Skip it for now.
 			// At this point we would have to notify the user about the new pool and ask for it to be recovered too.
