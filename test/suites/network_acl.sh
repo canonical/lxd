@@ -62,7 +62,7 @@ EOF
   [ "$(echo "$acl_show_output" | grep -cF 'user.mykey: foo')" = 1 ]
 
   # ACL Patch. Check for merged config and replaced description, ingress and egress fields.
-  lxc query -X PATCH -d "{\\\"config\\\": {\\\"user.myotherkey\\\": \\\"bah\\\"}}" /1.0/network-acls/testacl
+  lxc query -X PATCH -d '{"config": {"user.myotherkey": "bah"}}' /1.0/network-acls/testacl
   acl_show_output=$(lxc network acl show testacl)
   [ "$(echo "$acl_show_output" | grep -cF 'user.mykey: foo')" = 1 ]
   [ "$(echo "$acl_show_output" | grep -cF 'user.myotherkey: bah')" = 1 ]
