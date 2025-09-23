@@ -53,7 +53,7 @@ test_container_devices_nic_p2p() {
   fi
 
   # Check profile custom MTU is applied on host-side on boot.
-  if !  grep -xF "1400" /sys/class/net/"${vethHostName}"/mtu ; then
+  if [ "$(< /sys/class/net/"${vethHostName}"/mtu)" != "1400" ]; then
     echo "host veth mtu invalid"
     false
   fi
@@ -155,7 +155,7 @@ test_container_devices_nic_p2p() {
   fi
 
   # Check profile custom MTU is applied on host-side on hot-removal.
-  if ! grep -xF "1400" /sys/class/net/"${vethHostName}"/mtu ; then
+  if [ "$(< /sys/class/net/"${vethHostName}"/mtu)" != "1400" ]; then
     echo "host veth mtu invalid"
     false
   fi
