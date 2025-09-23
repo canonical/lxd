@@ -22,6 +22,7 @@ import (
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/device"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/device/nictype"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -712,6 +713,43 @@ func (d *common) runHooks(hooks []func() error) error {
 	}
 
 	return nil
+}
+
+// getAttachedVolumes returns the list of storage volumes attached to the instance.
+func (d *common) getAttachedVolumes(inst instance.Instance) (volumes []*db.StorageVolume, err error) {
+	// Get attached disk volume devices.
+	attachedDiskVolumeDevices := deviceConfig.Devices{}
+	for name, dev := range inst.ExpandedDevices() {
+		if filters.IsCustomVolumeDisk(dev) {
+			attachedDiskVolumeDevices[name] = dev
+		}
+	}
+
+	// Get attached storage volumes.
+	volumes = make([]*db.StorageVolume, 0, len(attachedDiskVolumeDevices))
+	for name, dev := range attachedDiskVolumeDevices {
+		pool, err := storagePools.LoadByName(d.state, dev["pool"])
+		if err != nil {
+			return nil, err
+		}
+
+		volName, _, _ := api.GetParentAndSnapshotName(name)
+
+		err = d.state.DB.Cluster.Transaction(d.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+			vol, err := tx.GetStoragePoolVolume(ctx, pool.ID(), inst.Project().Name, dbCluster.StoragePoolVolumeTypeCustom, volName, true)
+			if err != nil {
+				return err
+			}
+
+			volumes = append(volumes, vol)
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return volumes, nil
 }
 
 // snapshotCommon handles the common part of a snapshot.
