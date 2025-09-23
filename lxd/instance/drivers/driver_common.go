@@ -1090,6 +1090,91 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 	return pool, wasRunning, op, nil
 }
 
+// resolveRestoreSnapshots returns a list of snapshot volumes to include in an instance restore.
+// When detectSharing is true, the function will check that the volumes are not shared with other instances.
+func (d *common) resolveRestoreSnapshots(source instance.Instance, detectSharing bool) (restoreSnapshots []*db.StorageVolume, err error) {
+	attachedVolumeUUIDs, err := parseAttachedVolumes(source)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get attached volumes.
+	attachedVolumes, err := d.getAttachedVolumes(source)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting attached volumes: %w", err)
+	}
+
+	// Get attached volume snapshots.
+	restoreSnapshots, err = d.getAttachedVolumeSnapshots(source, attachedVolumeUUIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build map for fast lookups.
+	uuidToVolume := make(map[string]*db.StorageVolume)
+	for _, vol := range restoreSnapshots {
+		uuidToVolume[vol.Config["volatile.uuid"]] = vol
+	}
+
+	var missing []*db.StorageVolume
+	var shared []*db.StorageVolume
+
+	// Check which attached volumes have matching snapshots.
+	for _, v := range attachedVolumes {
+		snapshotUUID, ok := attachedVolumeUUIDs[v.Config["volatile.uuid"]]
+		if !ok {
+			// Skip volumes not included in the source snapshot.
+			continue
+		}
+
+		vol, ok := uuidToVolume[snapshotUUID]
+		if ok {
+			restoreSnapshots = append(restoreSnapshots, vol)
+		} else {
+			missing = append(missing, v)
+		}
+	}
+
+	if detectSharing {
+		instanceProject := source.Project()
+		for _, v := range attachedVolumes {
+			err = storagePools.VolumeUsedByInstanceDevices(d.state, v.Pool, v.Project, &v.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+				parentName, _, _ := api.GetParentAndSnapshotName(source.Name())
+
+				// Skip this instance.
+				if instanceProject.Name == dbInst.Project && parentName == dbInst.Name {
+					return nil
+				}
+
+				shared = append(shared, v)
+
+				return nil
+			})
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	errMsgLines := make([]string, 0, len(missing))
+
+	for _, v := range missing {
+		errMsgLines = append(errMsgLines, v.Name+" (snapshot missing)")
+	}
+
+	if detectSharing {
+		for _, v := range shared {
+			errMsgLines = append(errMsgLines, v.Name+" (volume is shared)")
+		}
+	}
+
+	if len(errMsgLines) > 0 {
+		return nil, errors.New("Cannot restore source volumes for the following devices:\n" + strings.Join(errMsgLines, "\n"))
+	}
+
+	return restoreSnapshots, nil
+}
+
 // insertConfigkey function attempts to insert the instance config key into the database. If the insert fails
 // then the database is queried to check whether another query inserted the same key. If the key is still
 // unpopulated then the insert querty is retried until it succeeds or a retry limit is reached.
