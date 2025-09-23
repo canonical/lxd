@@ -483,7 +483,7 @@ var ConfigSchema = config.Schema{
 	// ---
 	//  type: string
 	//  scope: global
-	//  defaultdesc: no expiry
+	//  defaultdesc: `15d`
 	//  shortdesc: Time after which a remote add token expires
 	"core.remote_token_expiry": {Type: config.String, Validator: validate.Optional(expiryValidator)},
 
