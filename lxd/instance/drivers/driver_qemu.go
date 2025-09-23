@@ -5187,7 +5187,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool, diskVolumesMode 
 
 	d.logger.Info("Restoring instance", ctxMap)
 
-	pool, wasRunning, op, err := d.restoreCommon(d, source)
+	pool, restoreVolumes, wasRunning, op, err := d.restoreCommon(d, source, diskVolumesMode)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -5198,6 +5198,25 @@ func (d *qemu) Restore(source instance.Instance, stateful bool, diskVolumesMode 
 	if err != nil {
 		op.Done(err)
 		return err
+	}
+
+	if diskVolumesMode == api.DiskVolumesModeAllExclusive {
+		storageCache := storagePools.NewStorageCache(pool) // Create storage cache for pool lookups.
+		for _, volume := range restoreVolumes {
+			volName, snapName, _ := api.GetParentAndSnapshotName(volume.Name)
+
+			logger.Debug("Restoring attached volume snapshot", logger.Ctx{"volumeProject": volume.Project, "volumePool": volume.Pool, "volumeName": volName, "snapName": snapName})
+
+			pool, err := storageCache.GetPool(volume.Pool)
+			if err != nil {
+				return err
+			}
+
+			err = pool.RestoreCustomVolume(volume.Project, volName, snapName, d.op)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	d.stateful = stateful
