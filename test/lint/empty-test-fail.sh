@@ -20,7 +20,7 @@ set -o pipefail
 # POSIX:  [ "$(cmd) = "" ]    or  [ -z "$(cmd)" ]
 # bash:  [[ "$(cmd)" == "" ]] or [[ -z "$(cmd)" ]]
 #
-out="$(grep -rE '\[\s+(-z\s+"\$\(.*\)"|"\$\(.*\)"\s+=+\s+["'\'']{2})\s+\]' --exclude="$(basename "${0}")" test/ | grep -Fv ' || echo fail)' || true)"
+out="$(grep -rnE '\[\s+(-z\s+"\$\(.*\)"|"\$\(.*\)"\s+=+\s+["'\'']{2})\s+\]' --exclude="$(basename "${0}")" test/ | grep -Fv ' || echo fail)' || true)"
 if [ "${out}" != '' ] ; then
   # shellcheck disable=SC2016
   echo 'One or more assertions of type [ "$(cmd)" = '' ] require `|| echo fail`'
