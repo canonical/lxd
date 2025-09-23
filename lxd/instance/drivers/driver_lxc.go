@@ -3497,6 +3497,11 @@ func (d *lxc) Delete(force bool) error {
 	return nil
 }
 
+// DeleteSnapshot deletes the snapshot with optional multi-volume support.
+func (d *lxc) DeleteSnapshot(diskVolumesMode string) error {
+	return d.deleteSnapshotCommon(d, diskVolumesMode)
+}
+
 // Delete deletes the instance without creating an operation lock.
 func (d *lxc) delete(force bool) error {
 	ctxMap := logger.Ctx{

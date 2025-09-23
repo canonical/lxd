@@ -6188,6 +6188,11 @@ func (d *qemu) Delete(force bool) error {
 	return nil
 }
 
+// DeleteSnapshot deletes the snapshot with optional multi-volume support.
+func (d *qemu) DeleteSnapshot(diskVolumesMode string) error {
+	return d.deleteSnapshotCommon(d, diskVolumesMode)
+}
+
 // Delete the instance without creating an operation lock.
 func (d *qemu) delete(force bool) error {
 	ctxMap := logger.Ctx{
