@@ -12,8 +12,8 @@ test_storage() {
   storage_volume="${storage_pool}-vol"
 
   # Check for pool name validation
-  ! lxc query -X POST --wait /1.0/storage-pools --data '{\"driver\":\"'"${lxd_backend}"'\"}' || false
-  ! lxc query -X POST --wait /1.0/storage-pools --data '{\"name\":\"-'"${storage_pool}"'\", \"driver\":\"'"${lxd_backend}"'\"}' || false
+  ! lxc query -X POST --wait /1.0/storage-pools --data '{"driver":"'"${lxd_backend}"'"}' || false
+  ! lxc query -X POST --wait /1.0/storage-pools --data '{"name":"-'"${storage_pool}"'", "driver":"'"${lxd_backend}"'"}' || false
   ! lxc storage create "${storage_pool}/" "${lxd_backend}" || false
   ! lxc storage create "${storage_pool} " "${lxd_backend}" || false
   ! lxc storage create ".." "${lxd_backend}" || false
