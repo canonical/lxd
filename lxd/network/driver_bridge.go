@@ -1315,6 +1315,27 @@ func (n *bridge) startDnsmasq(dnsmasqCmd []string, dnsClustered bool, dnsCluster
 	return nil
 }
 
+// deleteTunnels deletes any existing tunnel device for bridge.
+func (n *bridge) deleteTunnels() error {
+	// Get a list of interfaces.
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return err
+	}
+
+	// Cleanup any existing tunnel device.
+	for _, iface := range ifaces {
+		if strings.HasPrefix(iface.Name, n.name+"-") {
+			tunLink := &ip.Link{Name: iface.Name}
+			err = tunLink.Delete()
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // setup restarts the network.
 func (n *bridge) setup(oldConfig map[string]string) error {
 	// If we are in mock mode, just no-op.
@@ -1490,21 +1511,10 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 	}
 
-	// Get a list of interfaces.
-	ifaces, err := net.Interfaces()
+	// Cleanup any existing tunnel device.
+	err = n.deleteTunnels()
 	if err != nil {
 		return err
-	}
-
-	// Cleanup any existing tunnel device.
-	for _, iface := range ifaces {
-		if strings.HasPrefix(iface.Name, n.name+"-") {
-			tunLink := &ip.Link{Name: iface.Name}
-			err = tunLink.Delete()
-			if err != nil {
-				return err
-			}
-		}
 	}
 
 	// Attempt to add a dummy device to the bridge to force the MTU.
@@ -2354,21 +2364,10 @@ func (n *bridge) Stop() error {
 		}
 	}
 
-	// Get a list of interfaces
-	ifaces, err := net.Interfaces()
+	// Cleanup any existing tunnel device
+	err = n.deleteTunnels()
 	if err != nil {
 		return err
-	}
-
-	// Cleanup any existing tunnel device
-	for _, iface := range ifaces {
-		if strings.HasPrefix(iface.Name, n.name+"-") {
-			tunLink := &ip.Link{Name: iface.Name}
-			err = tunLink.Delete()
-			if err != nil {
-				return err
-			}
-		}
 	}
 
 	// Unload apparmor profiles.
