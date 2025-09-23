@@ -171,6 +171,7 @@ type StorageVolumeFilter struct {
 	Project *string
 	Name    *string
 	PoolID  *int64
+	UUIDs   []string
 }
 
 // StorageVolume represents a database storage volume record.
@@ -238,6 +239,27 @@ func (c *ClusterTx) GetStorageVolumes(ctx context.Context, memberSpecific bool, 
 			if filter.Name != nil {
 				qFilters = append(qFilters, "storage_volumes_all.name = ?")
 				args = append(args, *filter.Name)
+			}
+
+			if len(filter.UUIDs) > 0 {
+				// Filtering by UUIDs requires checking both regular volume configs and snapshot configs.
+				uuidParams := query.Params(len(filter.UUIDs))
+				uuidSubquery := `storage_volumes_all.id IN (
+					SELECT storage_volume_id FROM storage_volumes_config 
+					WHERE key = 'volatile.uuid' AND value IN ` + uuidParams + `
+					UNION
+					SELECT storage_volume_snapshot_id FROM storage_volumes_snapshots_config 
+					WHERE key = 'volatile.uuid' AND value IN ` + uuidParams + `
+					)`
+
+				qFilters = append(qFilters, uuidSubquery)
+
+				// Add UUIDs twice (once for each subquery).
+				for range 2 {
+					for _, uuid := range filter.UUIDs {
+						args = append(args, uuid)
+					}
+				}
 			}
 
 			if qFilters == nil {
