@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -34,6 +35,7 @@ import (
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
+	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -757,7 +759,7 @@ func (d *common) getAttachedVolumes(inst instance.Instance) (volumes []*db.Stora
 // inst's "snapshots.expiry"" if expiry is nil, mounts the instance to update
 // backup.yaml, and reverts on error. The snapshot is marked stateful when
 // stateful is true.
-func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *time.Time, stateful bool) error {
+func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *time.Time, stateful bool, diskVolumesMode string) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -804,9 +806,84 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 		return err
 	}
 
+	// Snapshot root disk.
 	err = pool.CreateInstanceSnapshot(snap, inst, d.op)
 	if err != nil {
 		return fmt.Errorf("Create instance snapshot: %w", err)
+	}
+
+	// Snapshot attached disk volumes (if requested).
+	if diskVolumesMode == api.DiskVolumesModeAllExclusive {
+		// Freeze instance for crash-consistent snapshots.
+		if inst.IsRunning() && !inst.IsFrozen() {
+			// Freeze the processes.
+			err = inst.Freeze()
+			if err != nil {
+				return err
+			}
+
+			defer func() { _ = inst.Unfreeze() }()
+
+			// Attempt to sync the filesystem.
+			err = filesystem.SyncFS(inst.Path())
+			if err != nil {
+				d.logger.Warn("Failed to flush writes to instance volume", logger.Ctx{"err": err})
+			}
+		}
+
+		volumes, err := d.getAttachedVolumes(inst)
+		if err != nil {
+			return fmt.Errorf("Failed getting attached volumes: %w", err)
+		}
+
+		// Snapshot attached custom volumes.
+		storageCache := storagePools.NewStorageCache(pool) // Create storage cache for pool lookups.
+		attachedVolumeUUIDs := make(map[string]string)
+		for _, volume := range volumes {
+			logger.Debug("Creating attached volume snapshot", logger.Ctx{"volumeProject": volume.Project, "volumePool": volume.Pool, "volumeName": volume.Name})
+
+			// Use shutdown context as we don't have access to the request context.
+			snapshotName, err := storagePools.VolumeDetermineNextSnapshotName(d.state.ShutdownCtx, d.state, volume.Pool, volume.Name, volume.Config)
+			if err != nil {
+				return err
+			}
+
+			// Attached volume snapshot description.
+			description := "Created alongside " + inst.Type().String() + "/" + inst.Name() + "/" + snapshotName + " in project " + inst.Project().Name
+
+			// Storage cache lookup.
+			pool, err := storageCache.GetPool(volume.Pool)
+			if err != nil {
+				return err
+			}
+
+			expiry := snap.ExpiryDate() // Attached volume snapshots inherit the expiry date of the instance snapshot.
+			snapshotUUID, err := pool.CreateCustomVolumeSnapshot(volume.Project, volume.Name, snapshotName, description, &expiry, d.op)
+			if err != nil {
+				return err
+			}
+
+			// Set attached volume snapshot UUID.
+			// This is used to identify the attached volume snapshots during restore.
+			attachedVolumeUUIDs[volume.Config["volatile.uuid"]] = snapshotUUID.String()
+
+			revert.Add(func() {
+				_ = pool.DeleteCustomVolumeSnapshot(volume.Project, volume.Name+"/"+snapshotName, d.op)
+			})
+		}
+
+		marshalled, err := json.Marshal(attachedVolumeUUIDs)
+		if err != nil {
+			return err
+		}
+
+		// Set "volatile.attached_volumes" to attached volume snapshot UUIDs on the snapshot instance.
+		err = snap.VolatileSet(map[string]string{
+			"volatile.attached_volumes": string(marshalled),
+		})
+		if err != nil {
+			return fmt.Errorf("Failed setting volatile.attached_volumes: %w", err)
+		}
 	}
 
 	revert.Add(func() {
