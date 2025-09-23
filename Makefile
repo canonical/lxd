@@ -239,6 +239,12 @@ check-gomin:
 		echo "Please update the Go version in 'doc/requirements.md' to be $(GOMIN) instead of $(DOC_GOMIN)"; \
 		exit 1; \
 	fi
+	@echo "Check copilot-instructions.md mentions the right Go minimum version"
+	$(eval COPILOT_GOMIN := $(shell sed -n 's/^LXD requires Go \([0-9.]\+\) .*/\1/p' .github/copilot-instructions.md))
+	if [ "$(COPILOT_GOMIN)" != "$(GOMIN)" ]; then \
+		echo "Please update the Go version in '.github/copilot-instructions.md' to be $(GOMIN) instead of $(COPILOT_GOMIN)"; \
+		exit 1; \
+	fi
 
 .PHONY: update-gomod
 update-gomod:
