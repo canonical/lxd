@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -770,8 +771,10 @@ func (d *common) getAttachedVolumes(inst instance.Instance) (volumes []*db.Stora
 // It creates the DB record and snapshots the instance, derives expiry from
 // inst's "snapshots.expiry"" if expiry is nil, mounts the instance to update
 // backup.yaml, and reverts on error. The snapshot is marked stateful when
-// stateful is true.
-func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *time.Time, stateful bool) error {
+// stateful is true. When diskVolumesMode is set to [api.DiskVolumesModeAllExclusive],
+// the instance's attached exclusive volumes are included in a crash-consistent
+// snapshot.
+func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *time.Time, stateful bool, diskVolumesMode string) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -786,6 +789,16 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 		}
 
 		expiry = &instanceSnapshotExpiry
+	}
+
+	// Load attached volumes for multi-volume snapshot (if requested).
+	var attachedVolumes []*db.StorageVolume
+	if diskVolumesMode == api.DiskVolumesModeAllExclusive {
+		var err error
+		attachedVolumes, err = d.getAttachedVolumes(inst)
+		if err != nil {
+			return fmt.Errorf("Failed getting attached volumes: %w", err)
+		}
 	}
 
 	// Setup the arguments.
@@ -813,7 +826,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 	revert.Add(cleanup)
 	defer snapInstOp.Done(err)
 
-	pool, err := storagePools.LoadByInstance(d.state, snap)
+	pool, err := d.getStoragePool()
 	if err != nil {
 		return err
 	}
@@ -849,6 +862,64 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 			logger.Error("Failed to delete snapshot during revert", logger.Ctx{"instance": inst.Name(), "snapshot": snap.Name()})
 		}
 	})
+
+	// Snapshot attached disk volumes.
+	if len(attachedVolumes) > 0 {
+		// Snapshot attached custom volumes.
+		storageCache := storagePools.NewStorageCache(pool) // Create storage cache for pool lookups.
+		attachedVolumeUUIDs := make(map[string]string)
+		instanceProject := inst.Project()
+		instanceType := inst.Type()
+		instanceName := inst.Name()
+		for _, volume := range attachedVolumes {
+			d.logger.Debug("Creating attached volume snapshot", logger.Ctx{"pool": volume.Pool, "volume": volume.Name, "project": volume.Project})
+
+			// Use shutdown context as we don't have access to the request context.
+			snapshotName, err := storagePools.VolumeDetermineNextSnapshotName(d.state.ShutdownCtx, d.state, volume.Pool, volume.Name, volume.Config)
+			if err != nil {
+				return err
+			}
+
+			// Attached volume snapshot description.
+			description := "Created alongside " + instanceType.String() + " " + instanceName + "/" + snapshotName + " in project " + instanceProject.Name
+
+			// Storage cache lookup.
+			pool, err := storageCache.GetPool(volume.Pool)
+			if err != nil {
+				return err
+			}
+
+			expiry := snap.ExpiryDate() // Attached volume snapshots inherit the expiry date of the instance snapshot.
+			snapshotUUID, err := pool.CreateCustomVolumeSnapshot(volume.Project, volume.Name, snapshotName, description, &expiry, d.op)
+			if err != nil {
+				return err
+			}
+
+			// Set attached volume snapshot UUID.
+			// This is used to identify the attached volume snapshots during restore.
+			attachedVolumeUUIDs[volume.Config["volatile.uuid"]] = snapshotUUID.String()
+
+			revert.Add(func() {
+				err := pool.DeleteCustomVolumeSnapshot(volume.Project, volume.Name+"/"+snapshotName, d.op)
+				if err != nil {
+					d.logger.Warn("Failed deleting attached volume snapshot", logger.Ctx{"pool": volume.Pool, "volume": volume.Name, "snapshot": snapshotName, "project": volume.Project, "err": err})
+				}
+			})
+		}
+
+		marshalled, err := json.Marshal(attachedVolumeUUIDs)
+		if err != nil {
+			return err
+		}
+
+		// Set "volatile.attached_volumes" to attached volume snapshot UUIDs on the snapshot instance.
+		err = snap.VolatileSet(map[string]string{
+			"volatile.attached_volumes": string(marshalled),
+		})
+		if err != nil {
+			return fmt.Errorf("Failed setting volatile.attached_volumes: %w", err)
+		}
+	}
 
 	// Mount volume for backup.yaml writing.
 	_, err = pool.MountInstance(inst, d.op)
