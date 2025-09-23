@@ -468,7 +468,7 @@ test_certificate_edit() {
 
   # Try replacing the old certificate with a new one.
   # This should succeed as the user is listed as an admin.
-  my_curl -X PATCH --fail-with-body -H 'Content-Type: application/json' -d "{\"certificate\":\"$(sed ':a;N;$!ba;s/\n/\\n/g' "${LXD_CONF}/client-new.crt")\"}" "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}"
+  my_curl -X PATCH --fail-with-body -H 'Content-Type: application/json' -d '{"certificate":"'"$(sed ':a;N;$!ba;s/\n/\\n/g' "${LXD_CONF}/client-new.crt")"'"}' "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}"
 
   # Record new fingerprint
   FINGERPRINT="$(lxc config trust list --format csv | cut -d, -f4)"
@@ -490,7 +490,7 @@ test_certificate_edit() {
 
   # Try replacing the new certificate with the old one.
   # This should succeed as well as the certificate may be changed.
-  my_curl -X PATCH --fail-with-body -H 'Content-Type: application/json' -d "{\"certificate\":\"$(sed ':a;N;$!ba;s/\n/\\n/g' "${LXD_CONF}/client.crt.bak")\"}" "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}"
+  my_curl -X PATCH --fail-with-body -H 'Content-Type: application/json' -d '{"certificate":"'"$(sed ':a;N;$!ba;s/\n/\\n/g' "${LXD_CONF}/client.crt.bak")"'"}' "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}"
 
   # Move new certificate and key to LXD_CONF.
   mv "${LXD_CONF}/client.crt.bak" "${LXD_CONF}/client.crt"
@@ -502,15 +502,15 @@ test_certificate_edit() {
   # Trying to change other fields should fail as a non-admin.
   ! lxc_remote config trust show "${FINGERPRINT}" | sed -e "s/restricted: true/restricted: false/" | lxc_remote config trust edit localhost:"${FINGERPRINT}" || false
 
-  [ "$(my_curl -X PATCH -H 'Content-Type: application/json' -d "{\"restricted\": false}" "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}" | jq -r '.error_code')" -eq 403 ]
+  [ "$(my_curl -X PATCH -H 'Content-Type: application/json' -d '{"restricted": false}' "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}" | jq -r '.error_code')" -eq 403 ]
 
   ! lxc_remote config trust show "${FINGERPRINT}" | sed -e "s/name:.*/name: bar/" | lxc_remote config trust edit localhost:"${FINGERPRINT}" || false
 
-  [ "$(my_curl -X PATCH -H 'Content-Type: application/json' -d "{\"name\": \"bar\"}" "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}" | jq -r '.error_code')" -eq 403 ]
+  [ "$(my_curl -X PATCH -H 'Content-Type: application/json' -d '{"name": "bar"}' "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}" | jq -r '.error_code')" -eq 403 ]
 
   ! lxc_remote config trust show "${FINGERPRINT}" | sed -e ':a;N;$!ba;s/projects:\n- blah/projects: \[\]/' | lxc_remote config trust edit localhost:"${FINGERPRINT}" || false
 
-  [ "$(my_curl -X PATCH -H 'Content-Type: application/json' -d "{\"projects\": []}" "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}" | jq -r '.error_code')" -eq 403 ]
+  [ "$(my_curl -X PATCH -H 'Content-Type: application/json' -d '{"projects": []}' "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}" | jq -r '.error_code')" -eq 403 ]
 
   # Cleanup
   lxc config trust show "${FINGERPRINT}" | sed -e "s/restricted: true/restricted: false/" | lxc config trust edit "${FINGERPRINT}"
