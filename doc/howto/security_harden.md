@@ -112,7 +112,7 @@ The set of commands to create and use a profile below are provided as an example
 ```bash
 sudo lxc profile create hardened1
 sudo lxc profile set hardened1 limits.cpu=2 limits.memory=4GiB limits.processes=500
-sudo lxc profile set hardened1 security.idmap.isolated=true security.nesting=true
+sudo lxc profile set hardened1 security.idmap.isolated=true security.nesting=false
 sudo lxc profile add <my-container> hardened1
 ```
 
