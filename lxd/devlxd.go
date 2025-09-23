@@ -137,7 +137,7 @@ func devLXDAPIGetHandler(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	resp := api.DevLXDGet{
+	resp := api.DevLXDGetUntrusted{
 		APIVersion:              version.APIVersion,
 		Location:                location,
 		InstanceType:            inst.Type().String(),
@@ -148,7 +148,22 @@ func devLXDAPIGetHandler(d *Daemon, r *http.Request) response.Response {
 		},
 	}
 
-	return response.DevLXDResponse(http.StatusOK, resp, "json")
+	if !requestor.IsTrusted() {
+		// Return early for untrusted clients.
+		return response.DevLXDResponse(http.StatusOK, resp, "json")
+	}
+
+	// Populate environment information for trusted clients.
+	env := api.DevLXDServerEnvironment{
+		ServerClustered: d.serverClustered,
+	}
+
+	trustedResp := api.DevLXDGet{
+		DevLXDGetUntrusted: resp,
+		Environment:        env,
+	}
+
+	return response.DevLXDResponse(http.StatusOK, trustedResp, "json")
 }
 
 func devLXDAPIPatchHandler(d *Daemon, r *http.Request) response.Response {

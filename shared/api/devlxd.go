@@ -22,8 +22,8 @@ type DevLXDPut struct {
 	State string `json:"state" yaml:"state"`
 }
 
-// DevLXDGet represents the server data which is returned as the root of the devlxd API.
-type DevLXDGet struct {
+// DevLXDGetUntrusted represents the server data which is returned as the root of the devlxd API.
+type DevLXDGetUntrusted struct {
 	DevLXDPut `yaml:",inline"`
 
 	// API version number
@@ -48,6 +48,15 @@ type DevLXDGet struct {
 	SupportedStorageDrivers []DevLXDServerStorageDriverInfo `json:"supported_storage_drivers" yaml:"supported_storage_drivers"`
 }
 
+// DevLXDGet represents the server data which is returned as the root of the devlxd API for a trusted client.
+type DevLXDGet struct {
+	DevLXDGetUntrusted `yaml:",inline"`
+
+	// Read-only information about DevLXD server environment.
+	// API extension: devlxd_volume_management
+	Environment DevLXDServerEnvironment `json:"environment" yaml:"environment"`
+}
+
 // DevLXDServerStorageDriverInfo represents the read-only info about a storage driver.
 type DevLXDServerStorageDriverInfo struct {
 	// Name of the driver.
@@ -57,6 +66,14 @@ type DevLXDServerStorageDriverInfo struct {
 	// Whether the driver has remote volumes.
 	// Example: false
 	Remote bool `json:"remote" yaml:"remote"`
+}
+
+// DevLXDServerEnvironment represents the read-only environment fields of a DevLXD server.
+type DevLXDServerEnvironment struct {
+	// Whether the underlying LXD server is part of a cluster.
+	// This information is populated only for trusted clients.
+	// Example: false
+	ServerClustered bool `json:"server_clustered" yaml:"server_clustered"`
 }
 
 // DevLXDUbuntuProGuestTokenResponse contains the expected fields of proAPIGetGuestTokenV1 that must be passed back to
