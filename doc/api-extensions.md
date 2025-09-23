@@ -2075,7 +2075,7 @@ This adds an expiry to cluster join tokens which defaults to 3 hours, but can be
 ## `remote_token_expiry`
 
 This adds an expiry to remote add join tokens.
-It can be set in the {config:option}`server-core:core.remote_token_expiry` configuration key, and default to no expiry.
+It can be set in the {config:option}`server-core:core.remote_token_expiry` configuration key, and defaults to 15 days.
 
 ## `storage_volumes_created_at`
 
