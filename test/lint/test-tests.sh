@@ -65,7 +65,7 @@ fi
 
 # Check for `! cmd_should_fail` missing the needed `|| false` due to how `bash`
 # treats compound commands with `set -e`. Ignore ` || false # comment` with `sed`.
-if grep -rE '^\s*!.+$' --include="*.sh" test/ | sed 's/ \+# .*//' | grep -v '|| false$'; then
+if grep -rnE '^\s*!.+$' --include="*.sh" test/ | sed 's/ \+# .*//' | grep -v '|| false$'; then
     echo "Some tests commands expected to fail (!) are missing the '|| false' fallback (! cmd_should_fail || false)" >&2
     exit 1
 fi
