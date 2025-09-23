@@ -762,6 +762,22 @@ func (d *common) getAttachedVolumeSnapshots(inst instance.Instance, attachedVolu
 	return volumes, err
 }
 
+// parseAttachedVolumes extracts and parses "volatile.attached_volumes", returning a map of attached volume UUIDs to snapshot UUIDs.
+func parseAttachedVolumes(inst instance.Instance) (map[string]string, error) {
+	raw, ok := inst.LocalConfig()["volatile.attached_volumes"]
+	if !ok {
+		return nil, errors.New(`Cannot get attached volumes as "volatile.attached_volumes" is unset`)
+	}
+
+	var attachedVolumeUUIDs map[string]string
+	err := json.Unmarshal([]byte(raw), &attachedVolumeUUIDs)
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing volatile.attached_volumes: %w", err)
+	}
+
+	return attachedVolumeUUIDs, nil
+}
+
 // getAttachedVolumes returns the list of storage volumes attached to the instance.
 func (d *common) getAttachedVolumes(inst instance.Instance) (volumes []*db.StorageVolume, err error) {
 	// Get attached disk volume devices.
