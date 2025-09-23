@@ -1013,16 +1013,27 @@ func (d *common) updateProgress(progress string) {
 // operation lock. The original ephemeral flag is restored on return.
 // It then applies the configuration from the source instance or snapshot to the
 // target instance and updates snapshot metadata.
+// When diskVolumesMode is set to [api.DiskVolumesModeAllExclusive], the instance's
+// attached exclusive volumes are also restored.
 //
 // Returns:
 // - wasRunning: whether the instance was running before restore.
 // - op: the restore operation lock.
 // - err: error, if any.
-func (d *common) restoreCommon(inst instance.Instance, source instance.Instance) (wasRunning bool, op *operationlock.InstanceOperation, err error) {
+func (d *common) restoreCommon(inst instance.Instance, source instance.Instance, diskVolumesMode string) (wasRunning bool, op *operationlock.InstanceOperation, err error) {
 	// Load the storage driver.
 	pool, err := d.getStoragePool()
 	if err != nil {
 		return false, nil, err
+	}
+
+	// Get attached volume snapshots.
+	var restoreVolumes []*db.StorageVolume
+	if diskVolumesMode == api.DiskVolumesModeAllExclusive {
+		restoreVolumes, err = d.resolveRestoreSnapshots(inst, source)
+		if err != nil {
+			return false, nil, err
+		}
 	}
 
 	op, err = operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
@@ -1104,6 +1115,26 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 	if err != nil {
 		op.Done(err)
 		return false, nil, fmt.Errorf("Failed restoring snapshot rootfs: %w", err)
+	}
+
+	// Restore attached volume snapshots.
+	if len(restoreVolumes) > 0 {
+		storageCache := storagePools.NewStorageCache(pool) // Create storage cache for pool lookups.
+		for _, volume := range restoreVolumes {
+			volName, snapName, _ := api.GetParentAndSnapshotName(volume.Name)
+
+			d.logger.Debug("Restoring attached volume snapshot", logger.Ctx{"pool": volume.Pool, "volume": volName, "snapshot": snapName, "project": volume.Project})
+
+			pool, err := storageCache.GetPool(volume.Pool)
+			if err != nil {
+				return false, nil, fmt.Errorf("Failed loading storage pool %q: %w", volume.Pool, err)
+			}
+
+			err = pool.RestoreCustomVolume(volume.Project, volName, snapName, d.op)
+			if err != nil {
+				return false, nil, fmt.Errorf("Failed restoring volume %q snapshot %q: %w", volume.Name, snapName, err)
+			}
+		}
 	}
 
 	return wasRunning, op, nil
