@@ -1006,16 +1006,24 @@ func (d *common) updateProgress(progress string) {
 // - wasRunning: whether the instance was running before restore.
 // - op: the restore operation lock.
 // - err: error, if any.
-func (d *common) restoreCommon(inst instance.Instance, source instance.Instance) (pool storagePools.Pool, wasRunning bool, op *operationlock.InstanceOperation, err error) {
+func (d *common) restoreCommon(inst instance.Instance, source instance.Instance, diskVolumesMode string) (pool storagePools.Pool, restoreVolumes []*db.StorageVolume, wasRunning bool, op *operationlock.InstanceOperation, err error) {
 	// Load the storage driver.
 	pool, err = storagePools.LoadByInstance(d.state, inst)
 	if err != nil {
-		return nil, false, nil, err
+		return nil, nil, false, nil, err
+	}
+
+	// Get attached volume snapshots.
+	if diskVolumesMode == api.DiskVolumesModeAllExclusive {
+		restoreVolumes, err = d.resolveRestoreSnapshots(source, true)
+		if err != nil {
+			return nil, nil, false, nil, err
+		}
 	}
 
 	op, err = operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
 	if err != nil {
-		return nil, false, nil, fmt.Errorf("Failed to create instance restore operation: %w", err)
+		return nil, nil, false, nil, fmt.Errorf("Failed to create instance restore operation: %w", err)
 	}
 
 	// Stop the instance.
@@ -1039,7 +1047,7 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 			err := inst.Update(args, false)
 			if err != nil {
 				op.Done(err)
-				return nil, false, nil, err
+				return nil, nil, false, nil, err
 			}
 
 			// On function return, set the flag back on.
@@ -1056,13 +1064,13 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 		err := inst.Stop(false)
 		if err != nil {
 			op.Done(err)
-			return nil, false, nil, err
+			return nil, nil, false, nil, err
 		}
 
 		// Refresh the operation as that one is now complete.
 		op, err = operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
 		if err != nil {
-			return nil, false, nil, fmt.Errorf("Failed to create instance restore operation: %w", err)
+			return nil, nil, false, nil, fmt.Errorf("Failed to create instance restore operation: %w", err)
 		}
 	}
 
@@ -1084,10 +1092,10 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 	err = inst.Update(args, false)
 	if err != nil {
 		op.Done(err)
-		return nil, false, nil, err
+		return nil, nil, false, nil, err
 	}
 
-	return pool, wasRunning, op, nil
+	return pool, restoreVolumes, wasRunning, op, nil
 }
 
 // resolveRestoreSnapshots returns a list of snapshot volumes to include in an instance restore.
