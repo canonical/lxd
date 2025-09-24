@@ -177,6 +177,8 @@ test_filemanip() {
 }
 
 test_filemanip_req_content_type() {
+  ensure_import_testimage
+
   inst="c-file-push"
 
   lxc launch testimage "${inst}"
