@@ -2,13 +2,12 @@
 
 # Return an available random local port
 local_tcp_port() {
-    cat << EOF | python3
+    exec python3 -c "
 import socket
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind(('127.0.0.1', 0))
 print(s.getsockname()[1])
-s.close()
-EOF
+s.close()"
 }
 
 # Certificate-aware curl wrapper
