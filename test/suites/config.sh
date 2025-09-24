@@ -266,9 +266,13 @@ test_config_profiles() {
 
 
 test_config_edit() {
+    local unbuffer=""
     if ! tty -s; then
-        echo "==> SKIP: test_config_edit requires a terminal"
-        return
+        unbuffer="$(command -v unbuffer)"
+        if [ -z "${unbuffer}" ]; then
+            echo "==> SKIP: test_config_edit requires a terminal or 'unbuffer'"
+            return
+        fi
     fi
 
     lxc init --empty foo
@@ -277,8 +281,7 @@ test_config_edit() {
     [ "$(lxc config get foo --property description)" = "bar" ]
 
     # Check instance name is included in edit screen.
-    cmd=$(unset -f lxc; command -v lxc)
-    output=$(EDITOR="cat" timeout --foreground 120 "${cmd}" config edit foo)
+    output=$(EDITOR="cat" ${unbuffer} timeout --foreground 120 "${_LXC}" config edit foo)
     echo "${output}" | grep -xF "name: foo"
 
     # Check expanded config isn't included in edit screen.
@@ -404,9 +407,13 @@ test_container_metadata() {
 }
 
 test_container_snapshot_config() {
+    local unbuffer=""
     if ! tty -s; then
-        echo "==> SKIP: test_container_snapshot_config requires a terminal"
-        return
+        unbuffer="$(command -v unbuffer)"
+        if [ -z "${unbuffer}" ]; then
+            echo "==> SKIP: test_container_snapshot_config requires a terminal or 'unbuffer'"
+            return
+        fi
     fi
 
     lxc init --empty foo
@@ -428,8 +435,7 @@ test_container_snapshot_config() {
     [ "$(lxc config get foo/snap0 expires_at --property)" = "0001-01-01 00:00:00 +0000 UTC" ]
 
     # Check instance name is included in edit screen.
-    cmd=$(unset -f lxc; command -v lxc)
-    output=$(EDITOR="cat" timeout --foreground 120 "${cmd}" config edit foo/snap0)
+    output=$(EDITOR="cat" ${unbuffer} timeout --foreground 120 "${_LXC}" config edit foo/snap0)
     echo "${output}" | grep -xF "name: snap0"
 
     # Check expanded config isn't included in edit screen.
