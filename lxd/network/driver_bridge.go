@@ -1368,7 +1368,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	}
 
 	// Get a list of tunnels.
-	tunnels := n.getTunnels()
+	tunnels := getTunnels(n.config)
 
 	// Decide the MTU for the bridge interface.
 	if n.config["bridge.mtu"] != "" {
@@ -2604,10 +2604,11 @@ func (n *bridge) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
 	return nil
 }
 
-func (n *bridge) getTunnels() []string {
+// getTunnels returns a slice of tunnels in config.
+func getTunnels(config map[string]string) []string {
 	tunnels := []string{}
 
-	for k := range n.config {
+	for k := range config {
 		if !strings.HasPrefix(k, "tunnel.") {
 			continue
 		}
