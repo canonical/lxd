@@ -45,8 +45,8 @@ func NewStorageCache(p Pool) *storageCache {
 	}
 }
 
-// getPool returns the pool either by loading it from the DB or from the cache (preferred).
-func (s *storageCache) getPool(name string) (Pool, error) {
+// GetPool returns the pool either by loading it from the DB or from the cache (preferred).
+func (s *storageCache) GetPool(name string) (Pool, error) {
 	// Load the pool if it cannot be found.
 	_, ok := s.pools[name]
 	if !ok {
@@ -82,7 +82,7 @@ func (s *storageCache) getVolume(projectName string, poolName string, volName st
 
 	_, ok = s.volumes[poolName][projectName][volName]
 	if !ok {
-		pool, err := s.getPool(poolName)
+		pool, err := s.GetPool(poolName)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to retrieve pool of volume %q in pool %q: %w", volName, poolName, err)
 		}
