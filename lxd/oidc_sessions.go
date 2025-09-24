@@ -5,18 +5,25 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/auth/oidc"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/lxd/task"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -316,4 +323,77 @@ func oidcSessionDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.EmptySyncResponse
+}
+
+// pruneExpiredOIDCSessionsTask runs daily and removes any OIDC sessions whose tokens have expired more than
+// [oidc.SessionCookieExpiryBuffer] ago. The buffer is used so that clients continue to send expired tokens.
+// This allows LXD to continue to access credentials stored in the session data after it expired, allowing us
+// to refresh the session if they are still logged in with the identity provider.
+func pruneExpiredOIDCSessionsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
+	f := func(ctx context.Context) {
+		s := stateFunc()
+
+		leaderInfo, err := s.LeaderInfo()
+		if err != nil {
+			logger.Error("Failed to get leader cluster member address", logger.Ctx{"err": err})
+			return
+		}
+
+		if !leaderInfo.Clustered {
+			return
+		}
+
+		if !leaderInfo.Leader {
+			logger.Debug("Skipping remove orphaned operations task since we're not leader")
+			return
+		}
+
+		opRun := func(op *operations.Operation) error {
+			return s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+				sessions, err := dbCluster.GetAllOIDCSessions(ctx, tx.Tx())
+				if err != nil {
+					return err
+				}
+
+				for _, session := range sessions {
+					if time.Now().UTC().Before(session.ExpiryDate.Add(oidc.SessionCookieExpiryBuffer)) {
+						continue
+					}
+
+					sessionUUID, err := uuid.Parse(session.UUID)
+					if err != nil {
+						logger.Warn("Invalid OIDC session UUID found in database", logger.Ctx{"found_uuid": session.UUID, "database_id": session.ID})
+						continue
+					}
+
+					err = dbCluster.DeleteOIDCSessionByUUID(ctx, tx.Tx(), sessionUUID)
+					if err != nil {
+						logger.Warn("Failed to delete expired OIDC session", logger.Ctx{"uuid": session.UUID, "err": err})
+					}
+				}
+
+				return nil
+			})
+		}
+
+		op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.RemoveExpiredOIDCSessions, nil, nil, opRun, nil, nil)
+		if err != nil {
+			logger.Error("Failed creating remove expired OIDC sessions operation", logger.Ctx{"err": err})
+			return
+		}
+
+		err = op.Start()
+		if err != nil {
+			logger.Error("Failed starting remove expired OIDC sessions operation", logger.Ctx{"err": err})
+			return
+		}
+
+		err = op.Wait(ctx)
+		if err != nil {
+			logger.Error("Failed removing expired OIDC sessions", logger.Ctx{"err": err})
+			return
+		}
+	}
+
+	return f, task.Daily()
 }
