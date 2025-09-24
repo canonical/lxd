@@ -42,8 +42,8 @@ func NewStorageCache(p Pool) *storageCache {
 	}
 }
 
-// getPool returns the pool either by loading it from the DB or from the cache (preferred).
-func (s *storageCache) getPool(name string) (Pool, error) {
+// GetPool returns the pool either by loading it from the DB or from the cache (preferred).
+func (s *storageCache) GetPool(name string) (Pool, error) {
 	// Load the pool if it cannot be found.
 	_, ok := s.pools[name]
 	if !ok {
