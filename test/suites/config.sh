@@ -409,9 +409,7 @@ test_container_snapshot_config() {
         return
     fi
 
-    ensure_import_testimage
-
-    lxc init testimage foo -s "lxdtest-$(basename "${LXD_DIR}")"
+    lxc init --empty foo
     lxc snapshot foo
     [ "$(lxc config get foo/snap0 expires_at --property)" = "0001-01-01 00:00:00 +0000 UTC" ]
 
@@ -437,5 +435,5 @@ test_container_snapshot_config() {
     # Check expanded config isn't included in edit screen.
     ! echo "${output}" | grep -F "expanded" || false
 
-    lxc delete -f foo
+    lxc delete foo
 }
