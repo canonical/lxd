@@ -279,10 +279,10 @@ test_config_edit() {
     # Check instance name is included in edit screen.
     cmd=$(unset -f lxc; command -v lxc)
     output=$(EDITOR="cat" timeout --foreground 120 "${cmd}" config edit foo)
-    echo "${output}" | grep "name: foo"
+    echo "${output}" | grep -xF "name: foo"
 
     # Check expanded config isn't included in edit screen.
-    ! echo "${output}" | grep "expanded" || false
+    ! echo "${output}" | grep -F "expanded" || false
 
     lxc delete foo
 }
@@ -432,10 +432,10 @@ test_container_snapshot_config() {
     # Check instance name is included in edit screen.
     cmd=$(unset -f lxc; command -v lxc)
     output=$(EDITOR="cat" timeout --foreground 120 "${cmd}" config edit foo/snap0)
-    echo "${output}" | grep "name: snap0"
+    echo "${output}" | grep -xF "name: snap0"
 
     # Check expanded config isn't included in edit screen.
-    ! echo "${output}"  | grep "expanded" || false
+    ! echo "${output}" | grep -F "expanded" || false
 
     lxc delete -f foo
 }
