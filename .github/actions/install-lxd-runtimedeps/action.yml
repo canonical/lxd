@@ -74,6 +74,12 @@ runs:
           fi
         fi
 
+        # unbuffer allows to simulate a TTY which is not available in GH action
+        # runners but required by some tests
+        if ! command -v unbuffer >/dev/null; then
+          sudo apt-get install --no-install-recommends -y expect
+        fi
+
         # reclaim some space
         sudo apt-get clean
 
