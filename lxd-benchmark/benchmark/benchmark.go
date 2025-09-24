@@ -26,7 +26,7 @@ func PrintServerInfo(c lxd.ContainerServer) error {
 	fmt.Println("  Server backend:", env.Server)
 	fmt.Println("  Server version:", env.ServerVersion)
 	fmt.Println("  Kernel:", env.Kernel)
-	fmt.Println("  Kernel tecture:", env.KernelArchitecture)
+	fmt.Println("  Kernel architecture:", env.KernelArchitecture)
 	fmt.Println("  Kernel version:", env.KernelVersion)
 	fmt.Println("  Storage backend:", env.Storage)
 	fmt.Println("  Storage version:", env.StorageVersion)
