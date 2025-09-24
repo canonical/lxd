@@ -87,12 +87,28 @@ func Authenticate(token string, subject string, identityCache *identity.Cache) (
 		return nil, err
 	}
 
+	err = verifyToken(token, func() ([]byte, error) {
+		return entry.Secret, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Failed to authenticate bearer token: %w", err)
+	}
+
+	return &request.RequestorArgs{
+		Trusted:  true,
+		Protocol: api.AuthenticationMethodBearer,
+		Username: entry.Identifier,
+	}, nil
+}
+
+// verifyToken verifies that the given token was signed by the key returned by the given key func.
+func verifyToken(token string, keyFunc func() ([]byte, error)) error {
 	// Always use UTC time.
 	timeFunc := func() time.Time {
 		return time.Now().UTC()
 	}
 
-	// Get a parser. We don't need to verify the issuer or audience because we already validated that in `IsRequest`.
+	// Get a parser. We don't need to verify the issuer or audience because we have already inspected the payload to check this.
 	// We do not use a leeway. This is so the expiry is exact. This might cause issues if there is time skew between
 	// cluster members.
 	parser := jwt.NewParser(
@@ -102,19 +118,15 @@ func Authenticate(token string, subject string, identityCache *identity.Cache) (
 	)
 
 	// Use the identity secret as the signing key.
-	keyFunc := func(_ *jwt.Token) (any, error) {
-		return entry.Secret, nil
+	jwtKeyFunc := func(_ *jwt.Token) (any, error) {
+		return keyFunc()
 	}
 
 	// Verify the token.
-	_, err = parser.Parse(token, keyFunc)
+	_, err := parser.Parse(token, jwtKeyFunc)
 	if err != nil {
-		return nil, api.StatusErrorf(http.StatusForbidden, "Token is not valid: %w", err)
+		return api.StatusErrorf(http.StatusForbidden, "Token is not valid: %w", err)
 	}
 
-	return &request.RequestorArgs{
-		Trusted:  true,
-		Protocol: api.AuthenticationMethodBearer,
-		Username: entry.Identifier,
-	}, nil
+	return nil
 }
