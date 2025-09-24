@@ -18,6 +18,7 @@ import (
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 	"github.com/zitadel/oidc/v3/pkg/op"
 
+	"github.com/canonical/lxd/lxd/auth/bearer"
 	"github.com/canonical/lxd/lxd/auth/encryption"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/response"
@@ -209,6 +210,31 @@ func (o *Verifier) authenticateIDToken(w http.ResponseWriter, r *http.Request) (
 	}
 
 	return o.getResultFromClaims(claims, claims.Claims)
+}
+
+// verifySessionToken verifies the given session token. If the token is valid, it returns the session ID and a boolean
+// indicating whether the token was signed by a key derived from an out-of-date cluster secret.
+func (o *Verifier) verifySessionToken(ctx context.Context, sessionToken string) (sessionID *uuid.UUID, staleSigningKey bool, err error) {
+	// Check the cookie contents are as expected. We need to do this to get the session ID, this gives us a session
+	// creation date from which we can determine which cluster secret was used to create the token signing key.
+	sessionID, issuedAt, err := bearer.IsSessionToken(sessionToken, o.clusterUUID)
+	if err != nil {
+		return nil, false, fmt.Errorf("Invalid session token: %w", err)
+	}
+
+	// Find the secret that was used to obtain the signing key.
+	secret, staleSigningKey, err := o.getSecretFromUsedAtTime(ctx, issuedAt.Unix())
+	if err != nil {
+		return nil, false, fmt.Errorf("Failed to get session token signing key: %w", err)
+	}
+
+	// Verify the token.
+	err = bearer.VerifySessionToken(sessionToken, secret.Value, *sessionID)
+	if err != nil {
+		return nil, false, fmt.Errorf("Session token is not valid: %w", err)
+	}
+
+	return sessionID, staleSigningKey, nil
 }
 
 // getResultFromClaims gets an AuthenticationResult from the given rp.SubjectGetter and claim map.
