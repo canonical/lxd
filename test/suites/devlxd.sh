@@ -33,11 +33,10 @@ test_devlxd() {
   lxc config set devlxd security.nesting true
   [ "$(lxc exec devlxd -- devlxd-client security.nesting)" = "Forbidden" ]
 
-  cmd=$(unset -f lxc; command -v lxc)
-  ${cmd} exec devlxd -- devlxd-client monitor-websocket > "${TEST_DIR}/devlxd-websocket.log" &
+  "${_LXC}" exec devlxd -- devlxd-client monitor-websocket > "${TEST_DIR}/devlxd-websocket.log" &
   client_websocket=$!
 
-  ${cmd} exec devlxd -- devlxd-client monitor-stream > "${TEST_DIR}/devlxd-stream.log" &
+  "${_LXC}" exec devlxd -- devlxd-client monitor-stream > "${TEST_DIR}/devlxd-stream.log" &
   client_stream=$!
 
   EXPECTED_MD5="$(md5sum - << EOF
