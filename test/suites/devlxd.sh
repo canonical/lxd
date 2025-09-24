@@ -240,7 +240,7 @@ test_devlxd_volume_management() {
     lxc exec --project "${project}" "${inst}" -- devlxd-client
 
     # Ensure supported storage drivers are included in /1.0 only when volume management security flag is enabled.
-    lxc exec "${inst}" --project "${project}" -- devlxd-client get-state | jq -e '.supported_storage_drivers | length == 0'
+    lxc exec "${inst}" --project "${project}" -- devlxd-client get-state | jq -e '.supported_storage_drivers == []'
     lxc config set "${inst}" --project "${project}" security.devlxd.management.volumes=true
     lxc exec "${inst}" --project "${project}" -- devlxd-client get-state | jq -e '.supported_storage_drivers | length > 0'
     lxc exec "${inst}" --project "${project}" -- devlxd-client get-state | jq -e '.supported_storage_drivers[] | select(.name == "dir") | .remote == false'
@@ -284,7 +284,7 @@ test_devlxd_volume_management() {
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get "${pool}"
 
     # Get storage volumes (ok - custom volumes requested).
-    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage volumes "${pool}" | jq 'length == 0'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage volumes "${pool}" | jq -e '. == []'
 
     # Get storage volume (fail - insufficient permissions).
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" "${instType}" "${inst}")" = "Not Found" ]
@@ -314,7 +314,7 @@ test_devlxd_volume_management() {
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${vol2}")" = "Volume by that name already exists" ]
 
     # Verify created storage volumes.
-    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage volumes "${pool}" | jq 'length == 2'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage volumes "${pool}" | jq -e 'length == 2'
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" custom vol-01
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" custom vol-02
 
@@ -378,7 +378,7 @@ EOF
 
     etag=$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get-etag "${inst}")
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance update "${inst}" "${detachReq}" "${etag}"
-    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}" | jq '.devices' | jq -e 'length == 0'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}" | jq -e '.devices == {}'
 
     # Manage device on a different instance.
     inst2="${inst}-2"
@@ -396,7 +396,7 @@ EOF
 
     etag=$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get-etag "${inst2}")
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance update "${inst2}" "${detachReq}" "${etag}"
-    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst2}" | jq '.devices' | jq -e 'length == 0'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst2}" | jq -e '.devices == {}'
 
     lxc delete "${inst}-2" --project "${project}" --force
 
@@ -415,7 +415,7 @@ EOF
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage delete-volume "${pool}" custom vol-02
 
     # Ensure storage volumes are deleted.
-    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage volumes "${pool}" | jq 'length == 0'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage volumes "${pool}" | jq -e '. == []'
 
     # Cleanup.
     lxc delete "${inst}" --project "${project}" --force
