@@ -161,8 +161,7 @@ test_filemanip() {
   [ "$(lxc exec filemanip --project=test -- readlink /tmp/create-symlink)" = "foo" ]
 
   # Test SFTP functionality.
-  cmd=$(unset -f lxc; command -v lxc)
-  $cmd file mount filemanip --listen=127.0.0.1:2022 --no-auth &
+  "${_LXC}" file mount filemanip --listen=127.0.0.1:2022 --no-auth &
   mountPID=$!
   sleep 1
 
