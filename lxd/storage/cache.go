@@ -24,15 +24,21 @@ type storageCache struct {
 	state   *state.State
 }
 
-// NewStorageCache returns a new instance of the storage cache.
-func NewStorageCache(backend *lxdBackend) *storageCache {
+// NewStorageCache returns a new instance of the storage cache for the provided pool.
+// Returns nil if the provided pool is not of type [*lxdBackend].
+func NewStorageCache(p Pool) *storageCache {
+	pool, ok := p.(*lxdBackend)
+	if !ok {
+		return nil
+	}
+
 	return &storageCache{
 		pools: map[string]Pool{
 			// Initialize the cache with the already existing backend's pool.
-			backend.name: backend,
+			pool.name: pool,
 		},
 		volumes: map[string]map[string]map[string]*backupConfig.Volume{},
-		state:   backend.state,
+		state:   pool.state,
 	}
 }
 
