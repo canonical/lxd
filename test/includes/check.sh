@@ -190,7 +190,9 @@ check_log_order() {
 }
 
 # runsMinimumKernel: check if the running kernel is at least the minimum version.
-runsMinimumKernel() (
+runsMinimumKernel() {
+    local min_version min_major min_minor
+    local running_version running_major running_minor
     min_version="${1}"
     min_major="$(echo "${min_version}" | cut -d. -f1)"
     min_minor="$(echo "${min_version}" | cut -d. -f2)"
@@ -204,4 +206,4 @@ runsMinimumKernel() (
         return 1
     fi
     return 0
-)
+}
