@@ -12,7 +12,7 @@ s.close()"
 
 # Certificate-aware curl wrapper
 my_curl() {
-    CERTNAME="${CERTNAME:-"client"}"
+    local CERTNAME="${CERTNAME:-"client"}"
     curl --insecure --silent --cert "${LXD_CONF}/${CERTNAME}.crt" --key "${LXD_CONF}/${CERTNAME}.key" "$@"
 }
 
