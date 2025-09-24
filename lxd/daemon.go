@@ -2054,6 +2054,9 @@ func (d *Daemon) startClusterTasks() {
 	// Perform automatic evacuation for offline cluster members
 	d.clusterTasks.Add(autoHealClusterTask(d.State))
 
+	// Remove expired OIDC sessions
+	d.clusterTasks.Add(pruneExpiredOIDCSessionsTask(d.State))
+
 	// Start all background tasks
 	d.clusterTasks.Start(d.shutdownCtx)
 }
