@@ -662,6 +662,11 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 		return nil, errors.New("The cluster member hosting the instance is offline")
 	}
 
+	// Make sure that the destination member is not in evacuated state.
+	if newMember.State == db.ClusterMemberStateEvacuated {
+		return nil, errors.New("The destination cluster member is evacuated")
+	}
+
 	// Save the original value of the "volatile.apply_template" config key,
 	// since we'll want to preserve it in the copied instance.
 	origVolatileApplyTemplate := srcInst.LocalConfig()["volatile.apply_template"]
