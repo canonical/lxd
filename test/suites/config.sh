@@ -413,21 +413,21 @@ test_container_snapshot_config() {
 
     lxc init testimage foo -s "lxdtest-$(basename "${LXD_DIR}")"
     lxc snapshot foo
-    lxc config show foo/snap0 | grep -F 'expires_at: 0001-01-01T00:00:00Z'
+    [ "$(lxc config get foo/snap0 expires_at --property)" = "0001-01-01 00:00:00 +0000 UTC" ]
 
     echo 'expires_at: 2100-01-01T00:00:00Z' | lxc config edit foo/snap0
-    lxc config show foo/snap0 | grep -F 'expires_at: 2100-01-01T00:00:00Z'
+    [ "$(lxc config get foo/snap0 expires_at --property)" = "2100-01-01 00:00:00 +0000 UTC" ]
 
     # Remove expiry date using zero time
     echo 'expires_at: 0001-01-01T00:00:00Z' | lxc config edit foo/snap0
-    lxc config show foo/snap0 | grep -F 'expires_at: 0001-01-01T00:00:00Z'
+    [ "$(lxc config get foo/snap0 expires_at --property)" = "0001-01-01 00:00:00 +0000 UTC" ]
 
     echo 'expires_at: 2100-01-01T00:00:00Z' | lxc config edit foo/snap0
-    lxc config show foo/snap0 | grep -F 'expires_at: 2100-01-01T00:00:00Z'
+    [ "$(lxc config get foo/snap0 expires_at --property)" = "2100-01-01 00:00:00 +0000 UTC" ]
 
     # Remove expiry date using empty value
     echo 'expires_at:' | lxc config edit foo/snap0
-    lxc config show foo/snap0 | grep -F 'expires_at: 0001-01-01T00:00:00Z'
+    [ "$(lxc config get foo/snap0 expires_at --property)" = "0001-01-01 00:00:00 +0000 UTC" ]
 
     # Check instance name is included in edit screen.
     cmd=$(unset -f lxc; command -v lxc)
