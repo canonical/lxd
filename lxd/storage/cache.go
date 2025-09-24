@@ -5,8 +5,8 @@ import (
 	"github.com/canonical/lxd/lxd/state"
 )
 
-// backupConfigCache is used to cache pools and volumes during backup config creation.
-type backupConfigCache struct {
+// storageCache is used to cache pools and volumes.
+type storageCache struct {
 	pools map[string]Pool
 	// The volume cache is using the pool as its first dimension.
 	// By default all projects use features.storage.volumes=true which uses the volumes from the individual project.
@@ -24,9 +24,9 @@ type backupConfigCache struct {
 	state   *state.State
 }
 
-// newBackupConfigCache returns a new instance of the backup config cache.
-func newBackupConfigCache(backend *lxdBackend) *backupConfigCache {
-	return &backupConfigCache{
+// newStorageCache returns a new instance of the storage cache.
+func newStorageCache(backend *lxdBackend) *storageCache {
+	return &storageCache{
 		pools: map[string]Pool{
 			// Initialize the cache with the already existing backend's pool.
 			backend.name: backend,
@@ -37,21 +37,21 @@ func newBackupConfigCache(backend *lxdBackend) *backupConfigCache {
 }
 
 // getPool returns the pool either by loading it from the DB or from the cache (preferred).
-func (b *backupConfigCache) getPool(name string) (Pool, error) {
+func (s *storageCache) getPool(name string) (Pool, error) {
 	// Load the pool if it cannot be found.
-	_, ok := b.pools[name]
+	_, ok := s.pools[name]
 	if !ok {
 		var err error
 
 		// Custom volume's pool is not yet in the cache, load it.
-		pool, err := LoadByName(b.state, name)
+		pool, err := LoadByName(s.state, name)
 		if err != nil {
 			return nil, err
 		}
 
 		// Cache the pool.
-		b.pools[name] = pool
+		s.pools[name] = pool
 	}
 
-	return b.pools[name], nil
+	return s.pools[name], nil
 }
