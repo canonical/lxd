@@ -41,6 +41,11 @@ const (
 
 	// cookieNameSession references a cookie that is a JWT containing the session information.
 	cookieNameSession = "session"
+
+	// SessionCookieExpiryBuffer denotes the time taken for a session cookie to expire AFTER the token within the cookie expires.
+	// This buffer is necessary so that clients continue to send the session cookie after the token expires, so that we can
+	// refresh their session by contacting the IdP.
+	SessionCookieExpiryBuffer = time.Hour * 24 * 7
 )
 
 // Verifier holds all information needed to verify and manage OIDC logins and sessions.
