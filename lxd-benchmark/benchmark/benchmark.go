@@ -30,8 +30,8 @@ func PrintServerInfo(c lxd.ContainerServer) error {
 	fmt.Println("  Kernel version:", env.KernelVersion)
 	fmt.Println("  Storage backend:", env.Storage)
 	fmt.Println("  Storage version:", env.StorageVersion)
-	fmt.Println("  Container backend:", env.Driver)
-	fmt.Println("  Container version:", env.DriverVersion)
+	fmt.Println("  Driver backend:", env.Driver)
+	fmt.Println("  Driver version:", env.DriverVersion)
 	fmt.Println("")
 	return nil
 }
