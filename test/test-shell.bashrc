@@ -8,3 +8,6 @@ fi
 if [ -f ~/.bashrc ]; then
     . ~/.bashrc
 fi
+
+# yellow
+export PS1="\[\033[0;33mLXD-TEST\033[0m ${PS1:-\u@\h:\w\$ }\]"
