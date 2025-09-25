@@ -95,6 +95,13 @@ func (r *ProtocolDevLXD) UseTarget(name string) DevLXDServer {
 	}
 }
 
+// UseBearerToken returns a client that will use the provided bearer token for authentication.
+func (r *ProtocolDevLXD) UseBearerToken(bearerToken string) DevLXDServer {
+	server := *r
+	server.bearerToken = bearerToken
+	return &server
+}
+
 // RawQuery allows directly querying the devLXD.
 //
 // This should only be used by internal LXD tools.
