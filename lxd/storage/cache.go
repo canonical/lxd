@@ -8,8 +8,8 @@ import (
 	"github.com/canonical/lxd/lxd/state"
 )
 
-// backupConfigCache is used to cache pools and volumes during backup config creation.
-type backupConfigCache struct {
+// storageCache is used to cache pools and volumes.
+type storageCache struct {
 	pools map[string]Pool
 	// The volume cache is using the pool as its first dimension.
 	// By default all projects use features.storage.volumes=true which uses the volumes from the individual project.
@@ -27,56 +27,62 @@ type backupConfigCache struct {
 	state   *state.State
 }
 
-// newBackupConfigCache returns a new instance of the backup config cache.
-func newBackupConfigCache(backend *lxdBackend) *backupConfigCache {
-	return &backupConfigCache{
+// NewStorageCache returns a new instance of the storage cache for the provided pool.
+// Returns nil if the provided pool is not of type [*lxdBackend].
+func NewStorageCache(p Pool) *storageCache {
+	pool, ok := p.(*lxdBackend)
+	if !ok {
+		return nil
+	}
+
+	return &storageCache{
 		pools: map[string]Pool{
 			// Initialize the cache with the already existing backend's pool.
-			backend.name: backend,
+			pool.name: pool,
 		},
 		volumes: map[string]map[string]map[string]*backupConfig.Volume{},
-		state:   backend.state,
+		state:   pool.state,
 	}
 }
 
-// getPool returns the pool either by loading it from the DB or from the cache (preferred).
-func (b *backupConfigCache) getPool(name string) (Pool, error) {
+// GetPool returns the pool either by loading it from the DB or from the cache (preferred).
+func (s *storageCache) GetPool(name string) (Pool, error) {
 	// Load the pool if it cannot be found.
-	_, ok := b.pools[name]
+	_, ok := s.pools[name]
 	if !ok {
 		var err error
 
 		// Custom volume's pool is not yet in the cache, load it.
-		pool, err := LoadByName(b.state, name)
+		pool, err := LoadByName(s.state, name)
 		if err != nil {
 			return nil, err
 		}
 
 		// Cache the pool.
-		b.pools[name] = pool
+		s.pools[name] = pool
 	}
 
-	return b.pools[name], nil
+	return s.pools[name], nil
 }
 
 // getVolume returns the volume's backup config either by loading it from the DB or from the cache (preferred).
 // If snapshots is true the volume's snapshots are included in the returned backup config.
-func (b *backupConfigCache) getVolume(projectName string, poolName string, volName string, snapshots bool, op *operations.Operation) (*backupConfig.Volume, error) {
+func (s *storageCache) getVolume(projectName string, poolName string, volName string, snapshots bool, op *operations.Operation) (*backupConfig.Volume, error) {
 	// Create pool cache.
-	_, ok := b.volumes[poolName]
+	_, ok := s.volumes[poolName]
 	if !ok {
-		b.volumes[poolName] = map[string]map[string]*backupConfig.Volume{}
+		s.volumes[poolName] = map[string]map[string]*backupConfig.Volume{}
 	}
 
 	// Create project cache.
-	_, ok = b.volumes[poolName][projectName]
+	_, ok = s.volumes[poolName][projectName]
 	if !ok {
-		b.volumes[poolName][projectName] = map[string]*backupConfig.Volume{}
+		s.volumes[poolName][projectName] = map[string]*backupConfig.Volume{}
 	}
 
-	_, ok = b.volumes[poolName][projectName][volName]
+	_, ok = s.volumes[poolName][projectName][volName]
 	if !ok {
-		pool, err := b.getPool(poolName)
+		pool, err := s.GetPool(poolName)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to retrieve pool of volume %q in pool %q: %w", volName, poolName, err)
 		}
@@ -92,8 +98,8 @@ func (b *backupConfigCache) getVolume(projectName string, poolName string, volNa
 		}
 
 		// Cache the volume.
-		b.volumes[poolName][projectName][volName] = vol
+		s.volumes[poolName][projectName][volName] = vol
 	}
 
-	return b.volumes[poolName][projectName][volName], nil
+	return s.volumes[poolName][projectName][volName], nil
 }
