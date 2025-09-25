@@ -18,6 +18,7 @@ import (
 )
 
 var sysDevicesCPU = "/sys/devices/system/cpu"
+var cpuInfoPath = "/proc/cpuinfo"
 
 // GetCPUIsolated returns a slice of IDs corresponding to isolated threads.
 func GetCPUIsolated() []int64 {
@@ -230,9 +231,9 @@ func GetCPU() (*api.ResourcesCPU, error) {
 	dmiVendor, dmiModel, _ := getCPUdmi()
 
 	// Open cpuinfo
-	f, err := os.Open("/proc/cpuinfo")
+	f, err := os.Open(cpuInfoPath)
 	if err != nil {
-		return nil, fmt.Errorf("Failed opening /proc/cpuinfo: %w", err)
+		return nil, fmt.Errorf("Failed opening %q: %w", cpuInfoPath, err)
 	}
 
 	defer func() { _ = f.Close() }()
@@ -249,18 +250,18 @@ func GetCPU() (*api.ResourcesCPU, error) {
 		// Extract cpu index
 		_, value, found := strings.Cut(line, ":")
 		if !found {
-			return nil, errors.New("Failed parsing /proc/cpuinfo: Missing separator")
+			return nil, fmt.Errorf("Failed parsing %q: Missing separator", cpuInfoPath)
 		}
 
 		value = strings.TrimSpace(value)
 		cpuSocket, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("Failed parsing cpu index %q in /proc/cpuinfo: %w", value, err)
+			return nil, fmt.Errorf("Failed parsing cpu index %q in %q: %w", value, cpuInfoPath, err)
 		}
 
 		_, ok := cpuInfoMap[cpuSocket]
 		if ok {
-			return nil, errors.New("Failed parsing /proc/cpuinfo: duplicate CPU block in cpuinfo?")
+			return nil, fmt.Errorf("Failed parsing %q: duplicate CPU block in cpuinfo?", cpuInfoPath)
 		}
 
 		cpuInfo := &cpuInfo{}
@@ -282,7 +283,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			// Get key/value
 			key, value, found := strings.Cut(line, ":")
 			if !found {
-				return nil, errors.New("Failed parsing /proc/cpuinfo: Missing separator")
+				return nil, fmt.Errorf("Failed parsing %q: Missing separator", cpuInfoPath)
 			}
 
 			key = strings.TrimSpace(key)
