@@ -51,14 +51,18 @@ var Load func(s *state.State, args db.InstanceArgs, p api.Project) (Instance, er
 var Create func(s *state.State, args db.InstanceArgs, p api.Project) (Instance, revert.Hook, error)
 
 // ValidConfig validates an instance's config.
-func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanceType instancetype.Type) error {
+func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanceType instancetype.Type, isSnapshot bool) error {
 	if config == nil {
 		return nil
 	}
 
 	for k, v := range config {
 		if instanceType == instancetype.Any && !expanded && strings.HasPrefix(k, instancetype.ConfigVolatilePrefix) {
-			return errors.New("Volatile keys can only be set on instances")
+			if !isSnapshot {
+				return errors.New("Volatile keys can only be set on instances")
+			} else if isSnapshot && !shared.StringHasPrefix(k, instancetype.ConfigVolatileSnapshotKeys...) {
+				return fmt.Errorf("Invalid volatile key %q in snapshot config", k)
+			}
 		}
 
 		if instanceType == instancetype.Any && !expanded && strings.HasPrefix(k, "image.") {
