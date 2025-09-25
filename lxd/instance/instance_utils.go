@@ -741,7 +741,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 	}
 
 	// Validate instance config.
-	err = ValidConfig(s.OS, args.Config, false, args.Type)
+	err = ValidConfig(s.OS, args.Config, false, args.Type, args.Snapshot)
 	if err != nil {
 		return nil, nil, nil, err
 	}
