@@ -104,8 +104,7 @@ test_authorization() {
   ! lxc auth identity group add "tls/${tls_user_fingerprint}" test-group || false # TLS identities cannot be added to groups (yet).
 
   spawn_oidc
-  lxc config set "oidc.issuer=http://127.0.0.1:$(< "${TEST_DIR}/oidc.port")/"
-  lxc config set "oidc.client.id=device"
+  lxc config set "oidc.issuer=http://127.0.0.1:$(< "${TEST_DIR}/oidc.port")/" "oidc.client.id=device"
 
   set_oidc test-user test-user@example.com
   BROWSER=curl lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc
@@ -353,9 +352,7 @@ fine_grained: true"
   rm -r "${LXD_CONF4}"
   rm -r "${LXD_CONF5}"
   rm -r "${LXD_CONF6}"
-  lxc config unset core.remote_token_expiry
-  lxc config unset oidc.issuer
-  lxc config unset oidc.client.id
+  lxc config set core.remote_token_expiry="" oidc.issuer="" oidc.client.id=""
 }
 
 events_filtering() {
