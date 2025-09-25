@@ -7173,7 +7173,7 @@ func (b *lxdBackend) UpdateCustomVolumeBackupFiles(projectName string, volName s
 	l.Debug("UpdateCustomVolumeBackupFiles started")
 	defer l.Debug("UpdateCustomVolumeBackupFiles finished")
 
-	backupVolConfCache := newBackupConfigCache(b)
+	backupVolConfCache := NewStorageCache(b)
 
 	// Update the backup config file of all instances.
 	for _, inst := range instances {
@@ -7187,7 +7187,7 @@ func (b *lxdBackend) UpdateCustomVolumeBackupFiles(projectName string, volName s
 			return err
 		}
 
-		pool, err := backupVolConfCache.getPool(poolName)
+		pool, err := backupVolConfCache.GetPool(poolName)
 		if err != nil {
 			return err
 		}
@@ -7825,7 +7825,7 @@ func (b *lxdBackend) detectUnknownInstanceAndCustomVolumes(vol *drivers.Volume, 
 		return fmt.Errorf("Instance %q in project %q already has storage DB record", instName, projectName)
 	}
 
-	backupVolConfCache := newBackupConfigCache(b)
+	backupVolConfCache := NewStorageCache(b)
 
 	// Iterate over the custom volumes attached to the instance.
 	for _, customVol := range backupConf.Volumes {
@@ -7836,7 +7836,7 @@ func (b *lxdBackend) detectUnknownInstanceAndCustomVolumes(vol *drivers.Volume, 
 
 		// The custom volume might be located on a different pool.
 		// Therefore try to load the right pool.
-		customVolPool, err := backupVolConfCache.getPool(customVol.Pool)
+		customVolPool, err := backupVolConfCache.GetPool(customVol.Pool)
 		if err != nil {
 			// We don't know the pool which hosts the custom volume. Skip it for now.
 			// At this point we would have to notify the user about the new pool and ask for it to be recovered too.
@@ -8695,11 +8695,11 @@ func (b *lxdBackend) getParentVolumeUUID(vol drivers.Volume, projectName string)
 // The caller can decide to use this cache across multiple instances.
 // That is helpful in situations where a custom volume gets updated which causes the backup config files of all
 // instances using this volume to be updated.
-func (b *lxdBackend) GenerateInstanceCustomVolumeBackupConfig(inst instance.Instance, cache *backupConfigCache, snapshots bool, op *operations.Operation) (*backupConfig.Config, error) {
+func (b *lxdBackend) GenerateInstanceCustomVolumeBackupConfig(inst instance.Instance, cache *storageCache, snapshots bool, op *operations.Operation) (*backupConfig.Config, error) {
 	// Setup a cache if not provided.
 	// This will allow caching pool and volume backup configs for the given instance.
 	if cache == nil {
-		cache = newBackupConfigCache(b)
+		cache = NewStorageCache(b)
 	}
 
 	// Get the right project name for the disk device.
@@ -8727,7 +8727,7 @@ func (b *lxdBackend) GenerateInstanceCustomVolumeBackupConfig(inst instance.Inst
 			return nil, err
 		}
 
-		volPool, err := cache.getPool(device["pool"])
+		volPool, err := cache.GetPool(device["pool"])
 		if err != nil {
 			return nil, err
 		}
