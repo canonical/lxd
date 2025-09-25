@@ -3558,14 +3558,14 @@ test_clustering_evacuation() {
 
   # Check instance status
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c s  c1)" = "RUNNING" ]
-  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -L    c1)" != "node1" ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L  c1)" != "node1" ]
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c s  c2)" = "RUNNING" ]
-  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -L    c2)" != "node1" ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L  c2)" != "node1" ]
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c3)" = "STOPPED,node1" ]
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c s  c4)" = "RUNNING" ]
-  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -L    c4)" != "node1" ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L  c4)" != "node1" ]
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c s  c5)" = "STOPPED" ]
-  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -L    c5)" != "node1" ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L  c5)" != "node1" ]
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c6)" = "RUNNING,node2" ]
 
   c1_location="$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L c1)"
