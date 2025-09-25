@@ -1043,13 +1043,7 @@ func projectIsEmpty(ctx context.Context, project *dbCluster.Project, tx *db.Clus
 		return false, err
 	}
 
-	defaultProfile := api.NewURL().Path(version.APIVersion, "profiles", api.ProjectDefaultName).Project(project.Name).String()
-	for _, entry := range usedBy {
-		// Ignore the default profile.
-		if entry == defaultProfile {
-			continue
-		}
-
+	if isProjectInUse(usedBy) {
 		return false, nil
 	}
 
