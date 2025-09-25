@@ -5,7 +5,7 @@ test_devlxd() {
   # Ensure testimage is not set as cached.
   lxd sql global "UPDATE images SET cached=0 WHERE fingerprint=\"${fingerprint}\""
 
-  lxc launch testimage devlxd -c security.devlxd=false
+  lxc launch testimage devlxd -c security.devlxd=false -c boot.autostart=true
 
   ! lxc exec devlxd -- test -S /dev/lxd/sock || false
   lxc config unset devlxd security.devlxd
@@ -120,6 +120,9 @@ EOF
 
   kill -9 "${monitorDevlxdPID}"
   rm "${TEST_DIR}/devlxd.log"
+
+  # Expedite LXD shutdown by forcibly killing the running instance
+  lxc stop -f devlxd
 
   shutdown_lxd "${LXD_DIR}"
   respawn_lxd "${LXD_DIR}" true
