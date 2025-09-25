@@ -169,7 +169,8 @@ EOF
 
   [ "$(lxc list -f csv -c s devlxd)" = "RUNNING" ]
 
-  kill -9 "${monitorDevlxdPID}" || true
+  kill -9 "${monitorDevlxdPID}"
+  rm "${TEST_DIR}/devlxd.log"
 
   shutdown_lxd "${LXD_DIR}"
   respawn_lxd "${LXD_DIR}" true
@@ -199,7 +200,8 @@ EOF
   [ "$(lxc exec devlxd -- devlxd-client devices | jq -r .eth0.hwaddr)" = "${hwaddr}" ]
 
   lxc delete devlxd --force
-  kill -9 "${monitorDevlxdPID}" || true
+  kill -9 "${monitorDevlxdPID}"
+  rm "${TEST_DIR}/devlxd.log"
 
   [ "${MATCH}" = "1" ]
 }
