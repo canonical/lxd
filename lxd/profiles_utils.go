@@ -25,7 +25,7 @@ func doProfileUpdate(ctx context.Context, s *state.State, p api.Project, profile
 	}
 
 	// Quick checks.
-	err = instance.ValidConfig(s.OS, req.Config, false, instancetype.Any)
+	err = instance.ValidConfig(s.OS, req.Config, false, instancetype.Any, false)
 	if err != nil {
 		return err
 	}
