@@ -29,6 +29,9 @@ const (
 // ConfigVolatilePrefix indicates the prefix used for volatile config keys.
 const ConfigVolatilePrefix = "volatile."
 
+// ConfigVolatileSnapshotKeys indicates valid volatile configuration keys for instance snapshots.
+var ConfigVolatileSnapshotKeys = []string{"volatile.attached_volumes"}
+
 // ConfigKeyPrefixesAny indicates valid prefixes for configuration options.
 var ConfigKeyPrefixesAny = []string{"environment.", "user.", "image.", "cloud-init.ssh-keys."}
 
