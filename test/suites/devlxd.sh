@@ -22,11 +22,9 @@ test_devlxd() {
   # No output means the export succeeded.
   [ -z "$(lxc exec devlxd -- devlxd-client image-export "${fingerprint}" || echo fail)" ]
 
-  lxc config set devlxd user.foo bar
+  lxc config set devlxd user.foo=bar user.xyz="bar %s bar"
   [ "$(lxc exec devlxd -- devlxd-client user.foo)" = "bar" ]
-
-  lxc config set devlxd user.foo "bar %s bar"
-  [ "$(lxc exec devlxd -- devlxd-client user.foo)" = "bar %s bar" ]
+  [ "$(lxc exec devlxd -- devlxd-client user.xyz)" = "bar %s bar" ]
 
   # Make sure instance configuration keys are not accessible
   [ "$(lxc exec devlxd -- devlxd-client security.nesting)" = "Forbidden" ]
@@ -81,14 +79,12 @@ EOF
   MATCH=0
 
   for _ in $(seq 10); do
-    lxc config set devlxd user.foo bar
-    lxc config set devlxd security.nesting true
+    lxc config set devlxd user.foo=bar security.nesting=true
 
     true > "${TEST_DIR}/devlxd-websocket.log"
     true > "${TEST_DIR}/devlxd-stream.log"
 
-    lxc config set devlxd user.foo baz
-    lxc config set devlxd security.nesting false
+    lxc config set devlxd user.foo=baz security.nesting=false
     lxc config device add devlxd mnt disk source="${TEST_DIR}" path=/mnt
     lxc config device remove devlxd mnt
 
