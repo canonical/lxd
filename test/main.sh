@@ -240,8 +240,11 @@ cleanup() {
   echo "==> Test result: ${TEST_RESULT}"
 }
 
-if [ -n "${SHELL_TRACING:-}" ]; then
-  set -x
+# Spawn an interactive test shell when invoked as `./main.sh test-shell`.
+# This is useful for quick interactions with LXD and its test suite.
+if [ "${1:-"all"}" = "test-shell" ]; then
+  bash --rcfile test-shell.bashrc || true
+  exit 0
 fi
 
 # Must be set before cleanup()
@@ -352,26 +355,6 @@ if [ -n "${GITHUB_ACTIONS:-}" ]; then
     # build a markdown table with the duration of each test
     echo "Test | Duration (s)" > "${GITHUB_STEP_SUMMARY}"
     echo ":--- | :---" >> "${GITHUB_STEP_SUMMARY}"
-fi
-
-# Spawn an interactive test shell when invoked as `./main.sh test-shell`.
-# This is useful for quick interactions with LXD and its test suite.
-if [ "${1:-"all"}" = "test-shell" ]; then
-  # yellow
-  export PS1="\[\033[0;33mLXD-TEST\033[0m ${PS1:-\u@\h:\w\$ }\]"
-
-  # The `cleanup` handler must run when exiting a `test-shell` session but if the
-  # last command returned non-0 (like `false`), we don't want to output the debug
-  # information accompanying normal failures.
-  #
-  # If a test script runs into an error, the `cleanup` handler will already have
-  # reported the relevant debug info so there is no need to repeat it when exiting
-  # the `test-shell` environment.
-  #
-  # To do so, swallow any error code returned from the interactive \`test-shell\`.
-  bash --rcfile test-shell.bashrc || true
-
-  exit
 fi
 
 # Preflight check
