@@ -161,14 +161,13 @@ func lxcCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.In
 		return nil, nil, fmt.Errorf("Failed to expand config: %w", err)
 	}
 
-	// When not a snapshot, perform full validation.
-	if !args.Snapshot {
-		// Validate expanded config (allows mixed instance types for profiles).
-		err = instance.ValidConfig(s.OS, d.expandedConfig, true, instancetype.Any)
-		if err != nil {
-			return nil, nil, fmt.Errorf("Invalid config: %w", err)
-		}
+	// Validate expanded config (allows mixed instance types for profiles).
+	err = instance.ValidConfig(s.OS, d.expandedConfig, true, instancetype.Any, args.Snapshot)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Invalid config: %w", err)
+	}
 
+	if !args.Snapshot {
 		err = instance.ValidDevices(s, d.project, d.Type(), d.localDevices, d.expandedDevices)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Invalid devices: %w", err)
@@ -3843,7 +3842,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	if userRequested {
 		// Validate the new config
-		err := instance.ValidConfig(d.state.OS, args.Config, false, d.dbType)
+		err := instance.ValidConfig(d.state.OS, args.Config, false, d.dbType, args.Snapshot)
 		if err != nil {
 			return fmt.Errorf("Invalid config: %w", err)
 		}
@@ -4056,7 +4055,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		// Do some validation of the config diff (allows mixed instance types for profiles).
-		err = instance.ValidConfig(d.state.OS, d.expandedConfig, true, instancetype.Any)
+		err = instance.ValidConfig(d.state.OS, d.expandedConfig, true, instancetype.Any, args.Snapshot)
 		if err != nil {
 			return fmt.Errorf("Invalid expanded config: %w", err)
 		}
