@@ -1237,7 +1237,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if !force {
-			// Verify the project is empty.
+			// Verify the project is empty. Skip checking for cached images as these will be deleted below.
 			empty, err := projectIsEmpty(ctx, project, tx, true)
 			if err != nil {
 				return err
@@ -1245,6 +1245,30 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 
 			if !empty {
 				return errors.New("Only empty projects can be removed")
+			}
+		}
+
+		// Prune cached images.
+		cached := true
+		images, err := dbCluster.GetImages(ctx, tx.Tx(), dbCluster.ImageFilter{Project: &project.Name, Cached: &cached})
+		if err != nil {
+			return fmt.Errorf("Failed getting cached images for project %q: %w", name, err)
+		}
+
+		for _, image := range images {
+			op, err := doImageDelete(ctx, s, image.Fingerprint, image.ID, project.Name)
+			if err != nil {
+				return fmt.Errorf("Failed creating delete operation for cached image %q: %w", image.Fingerprint, err)
+			}
+
+			err = op.Start()
+			if err != nil {
+				return fmt.Errorf("Failed starting image delete operation for cached image %q: %w", image.Fingerprint, err)
+			}
+
+			err = op.Wait(context.Background())
+			if err != nil {
+				return fmt.Errorf("Failed deleting cached image %q: %w", image.Fingerprint, err)
 			}
 		}
 
