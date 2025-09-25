@@ -259,6 +259,10 @@ run_test() {
   TEST_UNMET_REQUIREMENT=""
   cwd="${PWD}"
 
+  if [ "${RUN_COUNT:-0}" -ne 0 ] && [ "${LXD_REPEAT_TESTS:-1}" -ne 1 ]; then
+    TEST_CURRENT_DESCRIPTION="${TEST_CURRENT_DESCRIPTION} (${RUN_COUNT}/${LXD_REPEAT_TESTS})"
+  fi
+
   echo "==> TEST BEGIN: ${TEST_CURRENT_DESCRIPTION}"
   START_TIME=$(date +%s)
 
@@ -366,9 +370,16 @@ export LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
 # This must be enough to accomodate the busybox testimage
 export SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
 
-# allow for running a specific set of tests
+# allow for running a specific set of tests possibly multiple times
 if [ "$#" -gt 0 ] && [ "$1" != "all" ] && [ "$1" != "cluster" ] && [ "$1" != "standalone" ]; then
-  run_test "test_${1}"
+  for t in "${@}"; do
+    RUN_COUNT=1
+    while [ "${RUN_COUNT}" -le "${LXD_REPEAT_TESTS:-1}" ]; do
+      run_test "test_${t}"
+      RUN_COUNT="$((RUN_COUNT+1))"
+    done
+    shift
+  done
   # shellcheck disable=SC2034
   TEST_RESULT=success
   exit
