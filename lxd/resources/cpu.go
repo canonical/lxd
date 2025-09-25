@@ -227,9 +227,6 @@ func GetCPU() (*api.ResourcesCPU, error) {
 	cpuSockets := map[int64]*api.ResourcesCPUSocket{}
 	cpuCores := map[int64]map[string]*api.ResourcesCPUCore{}
 
-	// Get the DMI data
-	dmiVendor, dmiModel, _ := getCPUdmi()
-
 	// Open cpuinfo
 	f, err := os.Open(cpuInfoPath)
 	if err != nil {
@@ -314,6 +311,10 @@ func GetCPU() (*api.ResourcesCPU, error) {
 		return nil, fmt.Errorf("Failed listing %q: %w", sysDevicesCPU, err)
 	}
 
+	// DMI data is fetched at most once and reused for all sockets that need it.
+	var dmiVendor, dmiModel string
+	dmiDone := false
+
 	// Process all entries
 	cpu.Total = 0
 	for _, entry := range entries {
@@ -374,12 +375,19 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			}
 
 			// Fill in model/vendor from DMI if missing.
-			if resSocket.Vendor == "" {
-				resSocket.Vendor = dmiVendor
-			}
+			if resSocket.Vendor == "" || resSocket.Name == "" {
+				if !dmiDone {
+					dmiVendor, dmiModel, _ = getCPUdmi()
+					dmiDone = true
+				}
 
-			if resSocket.Name == "" {
-				resSocket.Name = dmiModel
+				if resSocket.Vendor == "" {
+					resSocket.Vendor = dmiVendor
+				}
+
+				if resSocket.Name == "" {
+					resSocket.Name = dmiModel
+				}
 			}
 
 			// Cache information
