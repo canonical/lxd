@@ -239,6 +239,39 @@ check-gomin:
 		echo "Please update the Go version in 'doc/requirements.md' to be $(GOMIN) instead of $(DOC_GOMIN)"; \
 		exit 1; \
 	fi
+	@echo "Check copilot-instructions.md mentions the right Go minimum version"
+	$(eval COPILOT_GOMIN := $(shell sed -n 's/^LXD requires Go \([0-9.]\+\) .*/\1/p' .github/copilot-instructions.md))
+	if [ "$(COPILOT_GOMIN)" != "$(GOMIN)" ]; then \
+		echo "Please update the Go version in '.github/copilot-instructions.md' to be $(GOMIN) instead of $(COPILOT_GOMIN)"; \
+		exit 1; \
+	fi
+
+.PHONY: update-gomin
+update-gomin:
+ifndef NEW_GOMIN
+	@echo "Usage: make update-gomin NEW_GOMIN=1.x.y"
+	@echo "Current Go minimum version: $(GOMIN)"
+	exit 1
+endif
+ifeq "$(GOMIN)" "$(NEW_GOMIN)"
+	@echo "Error: NEW_GOMIN ($(NEW_GOMIN)) is the same as current GOMIN ($(GOMIN))"
+	exit 1
+endif
+	@echo "Updating Go minimum version from $(GOMIN) to $(NEW_GOMIN)"
+	
+	@# Update GOMIN in Makefile
+	sed -i 's/^GOMIN=[0-9.]\+/GOMIN=$(NEW_GOMIN)/' Makefile
+	
+	@# Update doc/requirements.md and .github/copilot-instructions.md
+	sed -i 's/^\(LXD requires Go \)[0-9.]\+ /\1$(NEW_GOMIN) /' doc/requirements.md .github/copilot-instructions.md
+	
+	@echo "Go minimum version updated to $(NEW_GOMIN)"
+	if [ -t 0 ]; then \
+		read -rp "Would you like to commit Go version changes (Y/n)? " answer; \
+		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
+			git commit -S -sm "go: Update Go minimum version to $(NEW_GOMIN)" -- ./Makefile ./doc/requirements.md ./.github/copilot-instructions.md; \
+		fi; \
+	fi
 
 .PHONY: update-gomod
 update-gomod:
