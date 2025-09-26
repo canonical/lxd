@@ -44,6 +44,7 @@ test_devlxd() {
 
   # Create a token with an expiry
   lxc auth identity create devlxd/foo
+  # Note: a shorter expiry sometimes causes `devlxd-client` output garbage leading to parser error in `jq`
   devlxd_token4="$(lxc auth identity token issue devlxd/foo --quiet --expiry 2S)"
 
   # It's initially valid
