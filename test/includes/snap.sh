@@ -21,7 +21,7 @@ download_snap() {
 #
 # 1. acknowledges the assertion
 # 2. install the snap with the name prefix
-# 3. holds the installed snap to prevent refreshes
+# 3. holds (24h) the installed snap to prevent refreshes during test runs
 install_snap() {
     local name="${1}"
     local channel="${2:-"latest/edge"}"
@@ -84,6 +84,6 @@ install_snap() {
         echo "Installing ${name} from cache"
         snap ack "${assert}"
         snap install "${snap}"
-        snap refresh --hold "${name}"
+        snap refresh --hold=24h "${name}"
     )
 }

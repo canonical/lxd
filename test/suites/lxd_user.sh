@@ -1,7 +1,5 @@
 lxc_user() {
-  local cmd
-  cmd="$(unset -f lxc; command -v lxc)"
-  sudo -u nobody -Es -- env LXD_CONF="${USER_TEMPDIR}" "${cmd}" "$@"
+  sudo -u nobody -Es -- env LXD_CONF="${USER_TEMPDIR}" "${_LXC}" "$@"
 }
 
 test_lxd_user() {
