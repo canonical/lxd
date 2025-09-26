@@ -12,8 +12,7 @@ test_oidc() {
 
   # Setup OIDC
   spawn_oidc
-  lxc config set "oidc.issuer=http://127.0.0.1:$(< "${TEST_DIR}/oidc.port")/"
-  lxc config set "oidc.client.id=device"
+  lxc config set "oidc.issuer=http://127.0.0.1:$(< "${TEST_DIR}/oidc.port")/" "oidc.client.id=device"
 
   # Expect this to fail. No user set.
   ! BROWSER=curl lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc || false
@@ -41,6 +40,5 @@ test_oidc() {
   # Cleanup OIDC
   lxc auth identity delete oidc/test-user@example.com
   lxc remote remove oidc
-  lxc config unset oidc.issuer
-  lxc config unset oidc.client.id
+  lxc config set oidc.issuer="" oidc.client.id=""
 }
