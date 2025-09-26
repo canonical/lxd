@@ -5,6 +5,7 @@ The changes below were introduced to the LXD API after the 1.0 API was finalized
 They are all backward compatible and can be detected by client tools by
 looking at the `api_extensions` field in `GET /1.0`.
 
+(extension-storage-zfs-remove-snapshots)=
 ## `storage_zfs_remove_snapshots`
 
 A {config:option}`storage-zfs-volume-conf:zfs.remove_snapshots` daemon configuration key was introduced.
@@ -14,6 +15,7 @@ to remove any needed snapshot when attempting to restore another.
 
 This is needed as ZFS will only let you restore the latest snapshot.
 
+(extension-container-host-shutdown-timeout)=
 ## `container_host_shutdown_timeout`
 
 A {config:option}`instance-boot:boot.host_shutdown_timeout` container configuration key was introduced.
@@ -23,6 +25,7 @@ to stop before killing it.
 
 Its value is only used on clean LXD daemon shutdown. It defaults to 30s.
 
+(extension-container-stop-priority)=
 ## `container_stop_priority`
 
 A {config:option}`instance-boot:boot.stop.priority` container configuration key was introduced.
@@ -33,6 +36,7 @@ Containers will shutdown starting with the highest priority level.
 
 Containers with the same priority will shutdown in parallel.  It defaults to 0.
 
+(extension-container-syscall-filtering)=
 ## `container_syscall_filtering`
 
 A number of new syscalls related container configuration keys were introduced.
@@ -51,6 +55,7 @@ offensive names. They have since been renamed
 longer accepted.
 ```
 
+(extension-auth-pki)=
 ## `auth_pki`
 
 This indicates support for PKI authentication mode.
@@ -59,6 +64,7 @@ In this mode, the client and server both must use certificates issued by the sam
 
 See {ref}`security` for details.
 
+(extension-container-last-used-at)=
 ## `container_last_used_at`
 
 A `last_used_at` field was added to the `GET /1.0/containers/<name>` endpoint.
@@ -68,6 +74,7 @@ It is a timestamp of the last time the container was started.
 If a container has been created but not started yet, `last_used_at` field
 will be `1970-01-01T00:00:00Z`
 
+(extension-etag)=
 ## `etag`
 
 Add support for the ETag header on all relevant endpoints.
@@ -84,16 +91,19 @@ This makes it possible to GET a LXD object, modify it and PUT it without
 risking to hit a race condition where LXD or another client modified the
 object in the meantime.
 
+(extension-patch)=
 ## `patch`
 
 Add support for the HTTP PATCH method.
 
 PATCH allows for partial update of an object in place of PUT.
 
+(extension-usb-devices)=
 ## `usb_devices`
 
 Add support for USB hotplug.
 
+(extension-https-allowed-credentials)=
 ## `https_allowed_credentials`
 
 To use LXD API with all Web Browsers (via SPAs) you must send credentials
@@ -105,22 +115,26 @@ Some browsers like Firefox and Safari can't accept server response without
 `Access-Control-Allow-Credentials: true` header. To ensure that the server will
 return a response with that header, set {config:option}`server-core:core.https_allowed_credentials` to `true`.
 
+(extension-image-compression-algorithm)=
 ## `image_compression_algorithm`
 
 This adds support for a `compression_algorithm` property when creating an image (`POST /1.0/images`).
 
 Setting this property overrides the server default value ({config:option}`server-images:images.compression_algorithm`).
 
+(extension-directory-manipulation)=
 ## `directory_manipulation`
 
 This allows for creating and listing directories via the LXD API, and exports
 the file type via the X-LXD-type header, which can be either `file` or
 `directory` right now.
 
+(extension-container-cpu-time)=
 ## `container_cpu_time`
 
 This adds support for retrieving CPU time for a running container.
 
+(extension-storage-zfs-use-refquota)=
 ## `storage_zfs_use_refquota`
 
 Introduces a new server property {config:option}`storage-zfs-volume-conf:zfs.use_refquota` which instructs LXD
@@ -131,12 +145,14 @@ when being queried about disk utilization.
 This effectively controls whether disk usage by snapshots should be
 considered as part of the container's disk space usage.
 
+(extension-storage-lvm-mount-options)=
 ## `storage_lvm_mount_options`
 
 Adds a new `storage.lvm_mount_options` daemon configuration option
 which defaults to `discard` and allows the user to set addition mount
 options for the file system used by the LVM LV.
 
+(extension-network)=
 ## `network`
 
 Network management API for LXD.
@@ -153,10 +169,12 @@ This includes:
 * `ipv6.address` property on `nic` type devices (when `nictype` is `bridged`)
 * `security.mac_filtering` property on `nic` type devices (when `nictype` is `bridged`)
 
+(extension-profile-usedby)=
 ## `profile_usedby`
 
 Adds a new `used_by` field to profile entries listing the containers that are using it.
 
+(extension-container-push)=
 ## `container_push`
 
 When a container is created in push mode, the client serves as a proxy between
@@ -164,6 +182,7 @@ the source and target server. This is useful in cases where the target server
 is behind a NAT or firewall and cannot directly communicate with the source
 server and operate in pull mode.
 
+(extension-container-exec-recording)=
 ## `container_exec_recording`
 
 Introduces a new Boolean `record-output`, parameter to
@@ -176,6 +195,7 @@ once the command is done running.
 
 That output will expire similarly to other log files, typically after 48 hours.
 
+(extension-certificate-update)=
 ## `certificate_update`
 
 Adds the following to the REST API:
@@ -184,6 +204,7 @@ Adds the following to the REST API:
 * PUT of certificate entries
 * PATCH of certificate entries
 
+(extension-container-exec-signal-handling)=
 ## `container_exec_signal_handling`
 
 Adds support `/1.0/containers/<name>/exec` for forwarding signals sent to the
@@ -191,24 +212,29 @@ client to the processes executing in the container. Currently SIGTERM and
 SIGHUP are forwarded. Further signals that can be forwarded might be added
 later.
 
+(extension-gpu-devices)=
 ## `gpu_devices`
 
 Enables adding GPUs to a container.
 
+(extension-container-image-properties)=
 ## `container_image_properties`
 
 Introduces a new `image` configuration key space. Read-only, includes the properties of the parent image.
 
+(extension-migration-progress)=
 ## `migration_progress`
 
 Transfer progress is now exported as part of the operation, on both sending and receiving ends.
 This shows up as a `fs_progress` attribute in the operation metadata.
 
+(extension-id-map)=
 ## `id_map`
 
 Enables setting the {config:option}`instance-security:security.idmap.isolated`,
 {config:option}`instance-security:security.idmap.size`, and {config:option}`instance-raw:raw.idmap` fields.
 
+(extension-network-firewall-filtering)=
 ## `network_firewall_filtering`
 
 Add two new keys, {config:option}`network-bridge-network-conf:ipv4.firewall` and {config:option}`network-bridge-network-conf:ipv6.firewall` which if set to
@@ -219,10 +245,12 @@ rules will still be added so long as the matching {config:option}`network-bridge
 Rules necessary for `dnsmasq` to work (DHCP/DNS) will always be applied if
 `dnsmasq` is enabled on the bridge.
 
+(extension-network-routes)=
 ## `network_routes`
 
 Introduces {config:option}`network-bridge-network-conf:ipv4.routes` and {config:option}`network-bridge-network-conf:ipv6.routes` which allow routing additional subnets to a LXD bridge.
 
+(extension-storage)=
 ## `storage`
 
 Storage management API for LXD.
@@ -251,26 +279,32 @@ This includes:
 
 * All storage configuration options (see [Storage configuration](storage.md) for details)
 
+(extension-file-delete)=
 ## `file_delete`
 
 Implements `DELETE` in `/1.0/containers/<name>/files`
 
+(extension-file-append)=
 ## `file_append`
 
 Implements the `X-LXD-write` header which can be one of `overwrite` or `append`.
 
+(extension-network-dhcp-expiry)=
 ## `network_dhcp_expiry`
 
 Introduces {config:option}`network-bridge-network-conf:ipv4.dhcp.expiry` and {config:option}`network-bridge-network-conf:ipv6.dhcp.expiry` allowing to set the DHCP lease expiry time.
 
+(extension-storage-lvm-vg-rename)=
 ## `storage_lvm_vg_rename`
 
 Introduces the ability to rename a volume group by setting {config:option}`storage-lvm-pool-conf:lvm.vg_name`.
 
+(extension-storage-lvm-thinpool-rename)=
 ## `storage_lvm_thinpool_rename`
 
 Introduces the ability to rename a thin pool name by setting {config:option}`storage-lvm-pool-conf:lvm.thinpool_name`.
 
+(extension-network-vlan)=
 ## `network_vlan`
 
 This adds a new {config:option}`device-nic-macvlan-device-conf:vlan` property to `macvlan` network devices.
@@ -280,21 +314,25 @@ will look for an existing interface for that VLAN on the host. If one
 can't be found it will create one itself and then use that as the
 macvlan parent.
 
+(extension-image-create-aliases)=
 ## `image_create_aliases`
 
 Adds a new `aliases` field to `POST /1.0/images` allowing for aliases to
 be set at image creation/import time.
 
+(extension-container-stateless-copy)=
 ## `container_stateless_copy`
 
 This introduces a new `live` attribute in `POST /1.0/containers/<name>`.
 Setting it to `false` tells LXD not to attempt running state transfer.
 
+(extension-container-only-migration)=
 ## `container_only_migration`
 
 Introduces a new Boolean `container_only` attribute. When set to `true` only the
 container will be copied or moved.
 
+(extension-storage-zfs-clone-copy)=
 ## `storage_zfs_clone_copy`
 
 Introduces a new Boolean {config:option}`storage-zfs-pool-conf:zfs.clone_copy` property for ZFS storage
@@ -306,6 +344,7 @@ affected pool.
 The default value for this property is `true`, i.e. space-efficient snapshots
 will be used unless explicitly set to `false`.
 
+(extension-unix-device-rename)=
 ## `unix_device_rename`
 
 Introduces the ability to rename the `unix-block`/`unix-char` device inside container by setting `path`,
@@ -315,52 +354,62 @@ If `path` is set without `source` and `major`/`minor` isn't set,
 we should assume that `source` will be the same as `path`.
 So at least one of them must be set.
 
+(extension-storage-rsync-bwlimit)=
 ## `storage_rsync_bwlimit`
 
 When `rsync` has to be invoked to transfer storage entities setting `rsync.bwlimit`
 places an upper limit on the amount of socket I/O allowed.
 
+(extension-network-vxlan-interface)=
 ## `network_vxlan_interface`
 
 This introduces a new {config:option}`network-bridge-network-conf:tunnel.NAME.interface` option for networks.
 
 This key control what host network interface is used for a VXLAN tunnel.
 
+(extension-storage-btrfs-mount-options)=
 ## `storage_btrfs_mount_options`
 
 This introduces the {config:option}`storage-btrfs-pool-conf:btrfs.mount_options` property for Btrfs storage pools.
 
 This key controls what mount options will be used for the Btrfs storage pool.
 
+(extension-entity-description)=
 ## `entity_description`
 
 This adds descriptions to entities like containers, snapshots, networks, storage pools and volumes.
 
+(extension-image-force-refresh)=
 ## `image_force_refresh`
 
 This allows forcing a refresh for an existing image.
 
+(extension-storage-lvm-lv-resizing)=
 ## `storage_lvm_lv_resizing`
 
 This introduces the ability to resize logical volumes by setting the `size`
 property in the containers root disk device.
 
+(extension-id-map-base)=
 ## `id_map_base`
 
 This introduces a new {config:option}`instance-security:security.idmap.base` allowing the user to skip the
 map auto-selection process for isolated containers and specify what host
 UID/GID to use as the base.
 
+(extension-file-symlinks)=
 ## `file_symlinks`
 
 This adds support for transferring symlinks through the file API.
 X-LXD-type can now be `symlink` with the request content being the target path.
 
+(extension-container-push-target)=
 ## `container_push_target`
 
 This adds the `target` field to `POST /1.0/containers/<name>` which can be
 used to have the source LXD host connect to the target during migration.
 
+(extension-network-vlan-physical)=
 ## `network_vlan_physical`
 
 Allows use of {config:option}`network-physical-network-conf:vlan` property with `physical` network devices.
@@ -370,85 +419,103 @@ LXD will look for an existing interface for that `parent` and VLAN on the host.
 If one can't be found it will create one itself.
 Then, LXD will directly attach this interface to the container.
 
+(extension-storage-images-delete)=
 ## `storage_images_delete`
 
 This enabled the storage API to delete storage volumes for images from
 a specific storage pool.
 
+(extension-container-edit-metadata)=
 ## `container_edit_metadata`
 
 This adds support for editing a container `metadata.yaml` and related templates
 via API, by accessing URLs under `/1.0/containers/<name>/metadata`. It can be used
 to edit a container before publishing an image from it.
 
+(extension-container-snapshot-stateful-migration)=
 ## `container_snapshot_stateful_migration`
 
 This enables migrating stateful container snapshots to new containers.
 
+(extension-storage-driver-ceph)=
 ## `storage_driver_ceph`
 
 This adds a Ceph storage driver.
 
+(extension-storage-ceph-user-name)=
 ## `storage_ceph_user_name`
 
 This adds the ability to specify the Ceph user.
 
+(extension-instance-types)=
 ## `instance_types`
 
 This adds the `instance_type` field to the container creation request.
 Its value is expanded to LXD resource limits.
 
+(extension-storage-volatile-initial-source)=
 ## `storage_volatile_initial_source`
 
 This records the actual source passed to LXD during storage pool creation.
 
+(extension-storage-ceph-force-osd-reuse)=
 ## `storage_ceph_force_osd_reuse`
 
 This introduces the `ceph.osd.force_reuse` property for the Ceph storage
 driver. When set to `true` LXD will reuse an OSD storage pool that is already in
 use by another LXD instance.
 
+(extension-storage-block-filesystem-btrfs)=
 ## `storage_block_filesystem_btrfs`
 
 This adds support for Btrfs as a storage volume file system, in addition to `ext4`
 and `xfs`.
 
+(extension-resources)=
 ## `resources`
 
 This adds support for querying a LXD daemon for the system resources it has
 available.
 
+(extension-kernel-limits)=
 ## `kernel_limits`
 
 This adds support for setting process limits such as maximum number of open
 files for the container via `nofile`. The format is `limits.kernel.[limit name]`.
 
+(extension-storage-api-volume-rename)=
 ## `storage_api_volume_rename`
 
 This adds support for renaming custom storage volumes.
 
+(extension-network-sriov)=
 ## `network_sriov`
 
 This adds support for SR-IOV enabled network devices.
 
+(extension-console)=
 ## `console`
 
 This adds support to interact with the container console device and console log.
 
+(extension-restrict-devlxd)=
 ## `restrict_devlxd`
 
 A new {config:option}`instance-security:security.devlxd` container configuration key was introduced.
 The key controls whether the `/dev/lxd` interface is made available to the instance.
 If set to `false`, this effectively prevents the container from interacting with the LXD daemon.
 
+(extension-migration-pre-copy)=
 ## `migration_pre_copy`
 
 This adds support for optimized memory transfer during live migration.
 
+(extension-infiniband)=
 ## `infiniband`
 
 This adds support to use InfiniBand network devices.
 
+(extension-maas-network)=
 ## `maas_network`
 
 This adds support for MAAS network integration.
@@ -456,6 +523,7 @@ This adds support for MAAS network integration.
 When configured at the daemon level, it's then possible to attach a `nic`
 device to a particular MAAS subnet.
 
+(extension-devlxd-events)=
 ## `devlxd_events`
 
 This adds a WebSocket API to the `devlxd` socket.
@@ -463,37 +531,45 @@ This adds a WebSocket API to the `devlxd` socket.
 When connecting to `/1.0/events` over the `devlxd` socket, you will now be
 getting a stream of events over WebSocket.
 
+(extension-proxy)=
 ## `proxy`
 
 This adds a new `proxy` device type to containers, allowing forwarding
 of connections between the host and container.
 
+(extension-network-dhcp-gateway)=
 ## `network_dhcp_gateway`
 
 Introduces a new {config:option}`network-bridge-network-conf:ipv4.dhcp.gateway` network configuration key to set an alternate gateway.
 
+(extension-file-get-symlink)=
 ## `file_get_symlink`
 
 This makes it possible to retrieve symlinks using the file API.
 
+(extension-network-leases)=
 ## `network_leases`
 
 Adds a new `/1.0/networks/NAME/leases` API endpoint to query the lease database on
 bridges which run a LXD-managed DHCP server.
 
+(extension-unix-device-hotplug)=
 ## `unix_device_hotplug`
 
 This adds support for the {config:option}`device-unix-hotplug-device-conf:required` property for Unix devices.
 
+(extension-storage-api-local-volume-handling)=
 ## `storage_api_local_volume_handling`
 
 This add the ability to copy and move custom storage volumes locally in the
 same and between storage pools.
 
+(extension-operation-description)=
 ## `operation_description`
 
 Adds a `description` field to all operations.
 
+(extension-clustering)=
 ## `clustering`
 
 Clustering API for LXD.
@@ -523,25 +599,30 @@ The following existing endpoints have been modified:
 * `POST /1.0/networks` accepts a new `target` query parameter
 * `GET /1.0/networks/<name>` accepts a new `target` query parameter
 
+(extension-event-lifecycle)=
 ## `event_lifecycle`
 
 This adds a new `lifecycle` message type to the events API.
 
+(extension-storage-api-remote-volume-handling)=
 ## `storage_api_remote_volume_handling`
 
 This adds the ability to copy and move custom storage volumes between remote.
 
+(extension-nvidia-runtime)=
 ## `nvidia_runtime`
 
 Adds a {config:option}`instance-nvidia:nvidia.runtime` configuration option for containers, setting this to
 `true` will have the NVIDIA runtime and CUDA libraries passed to the
 container.
 
+(extension-container-mount-propagation)=
 ## `container_mount_propagation`
 
 This adds a new {config:option}`device-disk-device-conf:propagation` option to the disk device type, allowing
 the configuration of kernel mount propagation.
 
+(extension-container-backup)=
 ## `container_backup`
 
 Add container backup support.
@@ -561,6 +642,7 @@ The following existing endpoint has been modified:
 
 * `POST /1.0/containers` accepts the new source type `backup`
 
+(extension-devlxd-images)=
 ## `devlxd_images`
 
 Adds a {config:option}`instance-security:security.devlxd.images` configuration option for containers which
@@ -568,11 +650,13 @@ controls the availability of a `/1.0/images/FINGERPRINT/export` API over
 `devlxd`. This can be used by a container running nested LXD to access raw
 images from the host.
 
+(extension-container-local-cross-pool-handling)=
 ## `container_local_cross_pool_handling`
 
 This enables copying or moving containers between storage pools on the same LXD
 instance.
 
+(extension-proxy-unix)=
 ## `proxy_unix`
 
 Add support for both Unix sockets and abstract Unix sockets in proxy devices.
@@ -586,6 +670,7 @@ Supported connections are now:
 * `TCP <-> UNIX`
 * `UNIX <-> TCP`
 
+(extension-proxy-udp)=
 ## `proxy_udp`
 
 Add support for UDP in proxy devices.
@@ -600,6 +685,7 @@ Supported connections are now:
 * `TCP <-> UDP`
 * `UNIX <-> UDP`
 
+(extension-clustering-join)=
 ## `clustering_join`
 
 This makes `GET /1.0/cluster` return information about which storage pools and
@@ -609,6 +695,7 @@ configuration keys they are required to use when creating them. Likewise the `PU
 storage pools and networks to be automatically created before attempting to join
 a cluster.
 
+(extension-proxy-tcp-udp-multi-port-handling)=
 ## `proxy_tcp_udp_multi_port_handling`
 
 Adds support for forwarding traffic for multiple ports. Forwarding is allowed
@@ -616,6 +703,7 @@ between a range of ports if the port range is equal for source and target
 (for example `1.2.3.4 0-1000 -> 5.6.7.8 1000-2000`) and between a range of source
 ports and a single target port (for example `1.2.3.4 0-1000 -> 5.6.7.8 1000`).
 
+(extension-network-state)=
 ## `network_state`
 
 Adds support for retrieving a network's state.
@@ -624,22 +712,26 @@ This adds the following new endpoint (see [RESTful API](rest-api.md) for details
 
 * `GET /1.0/networks/<name>/state`
 
+(extension-proxy-unix-dac-properties)=
 ## `proxy_unix_dac_properties`
 
 This adds support for GID, UID, and mode properties for non-abstract Unix
 sockets.
 
+(extension-container-protection-delete)=
 ## `container_protection_delete`
 
 Enables setting the {config:option}`instance-security:security.protection.delete` field which prevents containers
 from being deleted if set to `true`. Snapshots are not affected by this setting.
 
+(extension-proxy-priv-drop)=
 ## `proxy_priv_drop`
 
 Adds {config:option}`device-proxy-device-conf:security.uid` and {config:option}`device-proxy-device-conf:security.gid` for the proxy devices, allowing
 privilege dropping and effectively changing the UID/GID used for
 connections to Unix sockets too.
 
+(extension-pprof-http)=
 ## `pprof_http`
 
 This adds a new {config:option}`server-core:core.debug_address` configuration option to start a debugging HTTP server.
@@ -647,24 +739,29 @@ This adds a new {config:option}`server-core:core.debug_address` configuration op
 That server currently includes a `pprof` API and replaces the old
 `cpu-profile`, `memory-profile` and `print-goroutines` debug options.
 
+(extension-proxy-haproxy-protocol)=
 ## `proxy_haproxy_protocol`
 
 Adds a {config:option}`device-proxy-device-conf:proxy_protocol` key to the proxy device which controls the use of the HAProxy PROXY protocol header.
 
+(extension-network-hwaddr)=
 ## `network_hwaddr`
 
 Adds a {config:option}`network-bridge-network-conf:bridge.hwaddr` key to control the MAC address of the bridge.
 
+(extension-proxy-nat)=
 ## `proxy_nat`
 
 This adds optimized UDP/TCP proxying. If the configuration allows, proxying
 will be done via `iptables` instead of proxy devices.
 
+(extension-network-nat-order)=
 ## `network_nat_order`
 
 This introduces the {config:option}`network-bridge-network-conf:ipv4.nat.order` and {config:option}`network-bridge-network-conf:ipv6.nat.order` configuration keys for LXD bridges.
 Those keys control whether to put the LXD rules before or after any pre-existing rules in the chain.
 
+(extension-container-full)=
 ## `container_full`
 
 This introduces a new `recursion=2` mode for `GET /1.0/containers` which allows for the retrieval of
@@ -672,11 +769,13 @@ all container structs, including the state, snapshots and backup structs.
 
 This effectively allows for [`lxc list`](lxc_list.md) to get all it needs in one query.
 
+(extension-backup-compression)=
 ## `backup_compression`
 
 This introduces a new {config:option}`server-miscellaneous:backups.compression_algorithm` configuration key which
 allows configuration of backup compression.
 
+(extension-nvidia-runtime-config)=
 ## `nvidia_runtime_config`
 
 This introduces a few extra configuration keys when using {config:option}`instance-nvidia:nvidia.runtime` and the `libnvidia-container` library.
@@ -686,6 +785,7 @@ Those keys translate pretty much directly to the matching NVIDIA container envir
 * {config:option}`instance-nvidia:nvidia.require.cuda` => `NVIDIA_REQUIRE_CUDA`
 * {config:option}`instance-nvidia:nvidia.require.driver` => `NVIDIA_REQUIRE_DRIVER`
 
+(extension-storage-api-volume-snapshots)=
 ## `storage_api_volume_snapshots`
 
 Add support for storage volume snapshots. They work like container snapshots,
@@ -701,6 +801,7 @@ This adds the following new endpoint (see [RESTful API](rest-api.md) for details
 * `POST /1.0/storage-pools/<pool>/volumes/<type>/<volume>/snapshots/<name>`
 * `DELETE /1.0/storage-pools/<pool>/volumes/<type>/<volume>/snapshots/<name>`
 
+(extension-storage-unmapped)=
 ## `storage_unmapped`
 
 Introduces a new `security.unmapped` Boolean on storage volumes.
@@ -711,6 +812,7 @@ any further idmap tracking and remapping on the volume.
 This can be used to share data between isolated containers after
 attaching it to the container which requires write access.
 
+(extension-projects)=
 ## `projects`
 
 Add a new project API, supporting creation, update and deletion of projects.
@@ -718,11 +820,13 @@ Add a new project API, supporting creation, update and deletion of projects.
 Projects can hold containers, profiles or images at this point and let
 you get a separate view of your LXD resources by switching to it.
 
+(extension-network-vxlan-ttl)=
 ## `network_vxlan_ttl`
 
 This adds a new {config:option}`network-bridge-network-conf:tunnel.NAME.ttl` network configuration option which
 makes it possible to raise the TTL on VXLAN tunnels.
 
+(extension-container-incremental-copy)=
 ## `container_incremental_copy`
 
 This adds support for incremental container copy. When copying a container
@@ -730,29 +834,34 @@ using the `--refresh` flag, only the missing or outdated files will be
 copied over. Should the target container not exist yet, a normal copy operation
 is performed.
 
+(extension-usb-optional-vendorid)=
 ## `usb_optional_vendorid`
 
 As the name implies, the {config:option}`device-unix-usb-device-conf:vendorid` field on USB devices attached to
 containers has now been made optional, allowing for all USB devices to
 be passed to a container (similar to what's done for GPUs).
 
+(extension-snapshot-scheduling)=
 ## `snapshot_scheduling`
 
 This adds support for snapshot scheduling. It introduces three new
 configuration keys: `snapshots.schedule`, `snapshots.schedule.stopped`, and
 `snapshots.pattern`. Snapshots can be created automatically up to every minute.
 
+(extension-snapshots-schedule-aliases)=
 ## `snapshots_schedule_aliases`
 
 Snapshot schedule can be configured by a comma-separated list of schedule aliases.
 Available aliases are `<@hourly> <@daily> <@midnight> <@weekly> <@monthly> <@annually> <@yearly> <@startup>` for instances,
 and `<@hourly> <@daily> <@midnight> <@weekly> <@monthly> <@annually> <@yearly>` for storage volumes.
 
+(extension-container-copy-project)=
 ## `container_copy_project`
 
 Introduces a `project` field to the container source JSON object, allowing for
 copy/move of containers between projects.
 
+(extension-clustering-server-address)=
 ## `clustering_server_address`
 
 This adds support for configuring a server network address which differs from
@@ -766,17 +875,20 @@ use for clustering traffic (the value of `server_address` will be
 automatically copied to the `cluster.https_address` configuration key of the
 joining server).
 
+(extension-clustering-image-replication)=
 ## `clustering_image_replication`
 
 Enable image replication across the nodes in the cluster.
 A new {config:option}`server-cluster:cluster.images_minimal_replica` configuration key was introduced can be used
 to specify to the minimal numbers of nodes for image replication.
 
+(extension-container-protection-shift)=
 ## `container_protection_shift`
 
 Enables setting the {config:option}`instance-security:security.protection.shift` option which prevents containers
 from having their file system shifted.
 
+(extension-snapshot-expiry)=
 ## `snapshot_expiry`
 
 This adds support for snapshot expiration. The task is run minutely. The configuration
@@ -795,33 +907,40 @@ This adds the following new endpoint (see [RESTful API](rest-api.md) for details
 
 * `PUT /1.0/containers/<name>/snapshots/<name>`
 
+(extension-snapshot-expiry-creation)=
 ## `snapshot_expiry_creation`
 
 Adds `expires_at` to container creation, allowing for override of a
 snapshot's expiry at creation time.
 
+(extension-network-leases-location)=
 ## `network_leases_location`
 
 Introduces a `Location` field in the leases list.
 This is used when querying a cluster to show what node a particular
 lease was found on.
 
+(extension-resources-cpu-socket)=
 ## `resources_cpu_socket`
 
 Add Socket field to CPU resources in case we get out of order socket information.
 
+(extension-resources-gpu)=
 ## `resources_gpu`
 
 Add a new GPU struct to the server resources, listing all usable GPUs on the system.
 
+(extension-resources-numa)=
 ## `resources_numa`
 
 Shows the NUMA node for all CPUs and GPUs.
 
+(extension-kernel-features)=
 ## `kernel_features`
 
 Exposes the state of optional kernel features through the server environment.
 
+(extension-id-map-current)=
 ## `id_map_current`
 
 This introduces a new internal {config:option}`instance-volatile:volatile.idmap.current` key which is
@@ -836,60 +955,72 @@ This effectively gives us:
 This is required to implement environments where the on-disk map isn't
 changed but the kernel map is (e.g. `idmapped mounts`).
 
+(extension-event-location)=
 ## `event_location`
 
 Expose the location of the generation of API events.
 
+(extension-storage-api-remote-volume-snapshots)=
 ## `storage_api_remote_volume_snapshots`
 
 This allows migrating storage volumes including their snapshots.
 
+(extension-network-nat-address)=
 ## `network_nat_address`
 
 This introduces the {config:option}`network-bridge-network-conf:ipv4.nat.address` and {config:option}`network-bridge-network-conf:ipv6.nat.address` configuration keys for LXD bridges.
 Those keys control the source address used for outbound traffic from the bridge.
 
+(extension-container-nic-routes)=
 ## `container_nic_routes`
 
 This introduces the {config:option}`device-nic-bridged-device-conf:ipv4.routes` and {config:option}`device-nic-bridged-device-conf:ipv6.routes` properties on `nic` type devices.
 This allows adding static routes on host to container's NIC.
 
+(extension-cluster-internal-copy)=
 ## `cluster_internal_copy`
 
 This makes it possible to do a normal `POST /1.0/containers` to copy a
 container between cluster nodes with LXD internally detecting whether a
 migration is required.
 
+(extension-seccomp-notify)=
 ## `seccomp_notify`
 
 If the kernel supports `seccomp`-based syscall interception LXD can be notified
 by a container that a registered syscall has been performed. LXD can then
 decide to trigger various actions.
 
+(extension-lxc-features)=
 ## `lxc_features`
 
 This introduces the `lxc_features` section output from the [`lxc info`](lxc_info.md) command
 via the `GET /1.0` route. It outputs the result of checks for key features being present in the
 underlying LXC library.
 
+(extension-container-nic-ipvlan)=
 ## `container_nic_ipvlan`
 
 This introduces the `ipvlan` `nic` device type.
 
+(extension-network-vlan-sriov)=
 ## `network_vlan_sriov`
 
 This introduces VLAN ({config:option}`device-nic-sriov-device-conf:vlan`) and MAC filtering ({config:option}`device-nic-sriov-device-conf:security.mac_filtering`) support for SR-IOV devices.
 
+(extension-storage-cephfs)=
 ## `storage_cephfs`
 
 Add support for CephFS as a storage pool driver. This can only be used
 for custom volumes, images and containers should be on Ceph (RBD)
 instead.
 
+(extension-container-nic-ipfilter)=
 ## `container_nic_ipfilter`
 
 This introduces container IP filtering ({config:option}`device-nic-bridged-device-conf:security.ipv4_filtering` and {config:option}`device-nic-bridged-device-conf:security.ipv6_filtering`) support for `bridged` NIC devices.
 
+(extension-resources-v2)=
 ## `resources_v2`
 
 Rework the resources API at `/1.0/resources`, especially:
@@ -911,20 +1042,24 @@ Rework the resources API at `/1.0/resources`, especially:
    * Export device name and node in NVIDIA struct
    * Add SR-IOV VF tracking
 
+(extension-container-exec-user-group-cwd)=
 ## `container_exec_user_group_cwd`
 
 Adds support for specifying `User`, `Group` and `Cwd` during `POST /1.0/containers/NAME/exec`.
 
+(extension-container-syscall-intercept)=
 ## `container_syscall_intercept`
 
 Adds the `security.syscalls.intercept.*` configuration keys to control
 what system calls will be intercepted by LXD and processed with
 elevated permissions.
 
+(extension-container-disk-shift)=
 ## `container_disk_shift`
 
 Adds the {config:option}`device-disk-device-conf:shift` property on `disk` devices which controls the use of the `idmapped mounts` overlay.
 
+(extension-storage-shifted)=
 ## `storage_shifted`
 
 Introduces a new `security.shifted` Boolean on storage volumes.
@@ -935,24 +1070,29 @@ them.
 
 This makes use of `idmapped mounts` as an overlay file system.
 
+(extension-resources-infiniband)=
 ## `resources_infiniband`
 
 Export InfiniBand character device information (`issm`, `umad`, `uverb`) as part of the resources API.
 
+(extension-daemon-storage)=
 ## `daemon_storage`
 
 This introduces two new configuration keys {config:option}`server-miscellaneous:storage.images_volume` and
 {config:option}`server-miscellaneous:storage.backups_volume` to allow for a storage volume on an existing
 pool be used for storing the daemon-wide images and backups artifacts.
 
+(extension-instances)=
 ## `instances`
 
 This introduces the concept of instances, of which currently the only type is `container`.
 
+(extension-image-types)=
 ## `image_types`
 
 This introduces support for a new Type field on images, indicating what type of images they are.
 
+(extension-resources-disk-sata)=
 ## `resources_disk_sata`
 
 Extends the disk resource API struct to include:
@@ -964,25 +1104,30 @@ Extends the disk resource API struct to include:
 * Firmware version
 * Serial number
 
+(extension-clustering-roles)=
 ## `clustering_roles`
 
 This adds a new `roles` attribute to cluster entries, exposing a list of
 roles that the member serves in the cluster.
 
+(extension-images-expiry)=
 ## `images_expiry`
 
 This allows for editing of the expiry date on images.
 
+(extension-resources-network-firmware)=
 ## `resources_network_firmware`
 
 Adds a `FirmwareVersion` field to network card entries.
 
+(extension-backup-compression-algorithm)=
 ## `backup_compression_algorithm`
 
 This adds support for a `compression_algorithm` property when creating a backup (`POST /1.0/containers/<name>/backups`).
 
 Setting this property overrides the server default value ({config:option}`server-miscellaneous:backups.compression_algorithm`).
 
+(extension-ceph-data-pool-name)=
 ## `ceph_data_pool_name`
 
 This adds support for an optional argument ({config:option}`storage-ceph-pool-conf:ceph.osd.data_pool_name`) when creating
@@ -990,6 +1135,7 @@ storage pools using Ceph RBD, when this argument is used the pool will store it'
 actual data in the pool specified with `data_pool_name` while keeping the metadata
 in the pool specified by `pool_name`.
 
+(extension-container-syscall-intercept-mount)=
 ## `container_syscall_intercept_mount`
 
 Adds the {config:option}`instance-security:security.syscalls.intercept.mount`,
@@ -998,76 +1144,93 @@ Adds the {config:option}`instance-security:security.syscalls.intercept.mount`,
 and how the `mount` system call will be intercepted by LXD and processed with
 elevated permissions.
 
+(extension-compression-squashfs)=
 ## `compression_squashfs`
 
 Adds support for importing/exporting of images/backups using SquashFS file system format.
 
+(extension-container-raw-mount)=
 ## `container_raw_mount`
 
 This adds support for passing in raw mount options for disk devices.
 
+(extension-container-nic-routed)=
 ## `container_nic_routed`
 
 This introduces the `routed` `nic` device type.
 
+(extension-container-syscall-intercept-mount-fuse)=
 ## `container_syscall_intercept_mount_fuse`
 
 Adds the {config:option}`instance-security:security.syscalls.intercept.mount.fuse` key. It can be used to
 redirect file-system mounts to their fuse implementation. To this end, set e.g.
 `security.syscalls.intercept.mount.fuse=ext4=fuse2fs`.
 
+(extension-container-disk-ceph)=
 ## `container_disk_ceph`
 
 This allows for existing a Ceph RBD or CephFS to be directly connected to a LXD container.
 
+(extension-virtual-machines)=
 ## `virtual-machines`
 
 Add virtual machine support.
 
+(extension-image-profiles)=
 ## `image_profiles`
 
 Allows a list of profiles to be applied to an image when launching a new container.
 
+(extension-clustering-architecture)=
 ## `clustering_architecture`
 
 This adds a new `architecture` attribute to cluster members which indicates a cluster
 member's architecture.
 
+(extension-resources-disk-id)=
 ## `resources_disk_id`
 
 Add a new `device_id` field in the disk entries on the resources API.
 
+(extension-storage-lvm-stripes)=
 ## `storage_lvm_stripes`
 
 This adds the ability to use LVM stripes on normal volumes and thin pool volumes.
 
+(extension-vm-boot-priority)=
 ## `vm_boot_priority`
 
 Adds a `boot.priority` property on NIC and disk devices to control the boot order.
 
+(extension-unix-hotplug-devices)=
 ## `unix_hotplug_devices`
 
 Adds support for Unix char and block device hotplugging.
 
+(extension-api-filtering)=
 ## `api_filtering`
 
 Adds support for filtering the result of a GET request for instances and images.
 
+(extension-instance-nic-network)=
 ## `instance_nic_network`
 
 Adds support for the `network` property on a NIC device to allow a NIC to be linked to a managed network.
 This allows it to inherit some of the network's settings and allows better validation of IP settings.
 
+(extension-clustering-sizing)=
 ## `clustering_sizing`
 
 Support specifying a custom values for database voters and standbys.
 The new {config:option}`server-cluster:cluster.max_voters` and {config:option}`server-cluster:cluster.max_standby` configuration keys were introduced
 to specify to the ideal number of database voter and standbys.
 
+(extension-firewall-driver)=
 ## `firewall_driver`
 
 Adds the `Firewall` property to the `ServerEnvironment` struct indicating the firewall driver being used.
 
+(extension-storage-lvm-vg-force-reuse)=
 ## `storage_lvm_vg_force_reuse`
 
 Introduces the ability to create a storage pool from an existing non-empty volume group.
@@ -1075,6 +1238,7 @@ This option should be used with care, as LXD can then not guarantee that volume 
 with non-LXD created volumes in the same volume group.
 This could also potentially lead to LXD deleting a non-LXD volume should name conflicts occur.
 
+(extension-container-syscall-intercept-hugetlbfs)=
 ## `container_syscall_intercept_hugetlbfs`
 
 When mount syscall interception is enabled and `hugetlbfs` is specified as an
@@ -1082,6 +1246,7 @@ allowed file system type LXD will mount a separate `hugetlbfs` instance for the
 container with the UID and GID mount options set to the container's root UID
 and GID. This ensures that processes in the container can use huge pages.
 
+(extension-limits-hugepages)=
 ## `limits_hugepages`
 
 This allows to limit the number of huge pages a container can use through the
@@ -1090,6 +1255,7 @@ limiting huge pages is recommended when intercepting the mount syscall for the
 `hugetlbfs` file system to avoid allowing the container to exhaust the host's
 huge pages resources.
 
+(extension-container-nic-routed-gateway)=
 ## `container_nic_routed_gateway`
 
 This introduces the {config:option}`device-nic-routed-device-conf:ipv4.gateway` and {config:option}`device-nic-routed-device-conf:ipv6.gateway` NIC configuration keys that can take a value of either `auto` or
@@ -1098,22 +1264,26 @@ gateway being added inside the container and the same gateway address being adde
 If the value is set to `none` then no default gateway nor will the address be added to the host-side interface.
 This allows multiple routed NIC devices to be added to a container.
 
+(extension-projects-restrictions)=
 ## `projects_restrictions`
 
 This introduces support for the {config:option}`project-restricted:restricted` configuration key on project, which
 can prevent the use of security-sensitive features in a project.
 
+(extension-custom-volume-snapshot-expiry)=
 ## `custom_volume_snapshot_expiry`
 
 This allows custom volume snapshots to expiry.
 Expiry dates can be set individually, or by setting the `snapshots.expiry` configuration key on the parent custom volume which then automatically applies to all created snapshots.
 
+(extension-volume-snapshot-scheduling)=
 ## `volume_snapshot_scheduling`
 
 This adds support for custom volume snapshot scheduling. It introduces two new
 configuration keys: `snapshots.schedule` and
 `snapshots.pattern`. Snapshots can be created automatically up to every minute.
 
+(extension-trust-ca-certificates)=
 ## `trust_ca_certificates`
 
 This allows for checking client certificates trusted by the provided CA (`server.ca`).
@@ -1122,14 +1292,17 @@ If enabled, it will perform the check, and bypass the trusted password if `true`
 An exception will be made if the connecting client certificate is in the provided CRL (`ca.crl`).
 In this case, it will ask for the password.
 
+(extension-snapshot-disk-usage)=
 ## `snapshot_disk_usage`
 
 This adds a new `size` field to the output of `/1.0/instances/<name>/snapshots/<snapshot>` which represents the disk usage of the snapshot.
 
+(extension-clustering-edit-roles)=
 ## `clustering_edit_roles`
 
 This adds a writable endpoint for cluster members, allowing the editing of their roles.
 
+(extension-container-nic-routed-host-address)=
 ## `container_nic_routed_host_address`
 
 This introduces the {config:option}`device-nic-routed-device-conf:ipv4.host_address` and {config:option}`device-nic-routed-device-conf:ipv6.host_address` NIC configuration keys that can be used to control the
@@ -1146,6 +1319,7 @@ The default values are:
 
 This is backward compatible with the previous default behavior.
 
+(extension-container-nic-ipvlan-gateway)=
 ## `container_nic_ipvlan_gateway`
 
 This introduces the {config:option}`device-nic-ipvlan-device-conf:ipv4.gateway` and {config:option}`device-nic-ipvlan-device-conf:ipv6.gateway` NIC configuration keys that can take a value of either `auto` or
@@ -1154,36 +1328,43 @@ gateway being added inside the container and the same gateway address being adde
 If the value is set to `none` then no default gateway nor will the address be added to the host-side interface.
 This allows multiple IPVLAN NIC devices to be added to a container.
 
+(extension-resources-usb-pci)=
 ## `resources_usb_pci`
 
 This adds USB and PCI devices to the output of `/1.0/resources`.
 
+(extension-resources-cpu-threads-numa)=
 ## `resources_cpu_threads_numa`
 
 This indicates that the `numa_node` field is now recorded per-thread
 rather than per core as some hardware apparently puts threads in
 different NUMA domains.
 
+(extension-resources-cpu-core-die)=
 ## `resources_cpu_core_die`
 
 Exposes the `die_id` information on each core.
 
+(extension-api-os)=
 ## `api_os`
 
 This introduces two new fields in `/1.0`, `os` and `os_version`.
 
 Those are taken from the OS-release data on the system.
 
+(extension-container-nic-routed-host-table)=
 ## `container_nic_routed_host_table`
 
 This introduces the {config:option}`device-nic-routed-device-conf:ipv4.host_table` and {config:option}`device-nic-routed-device-conf:ipv6.host_table` NIC configuration keys that can be used to add static routes
 for the instance's IPs to a custom policy routing table by ID.
 
+(extension-container-nic-ipvlan-host-table)=
 ## `container_nic_ipvlan_host_table`
 
 This introduces the {config:option}`device-nic-ipvlan-device-conf:ipv4.host_table` and {config:option}`device-nic-ipvlan-device-conf:ipv6.host_table` NIC configuration keys that can be used to add static routes
 for the instance's IPs to a custom policy routing table by ID.
 
+(extension-container-nic-ipvlan-mode)=
 ## `container_nic_ipvlan_mode`
 
 This introduces the {config:option}`device-nic-ipvlan-device-conf:mode` NIC configuration key that can be used to switch the `ipvlan` mode into either `l2` or `l3s`.
@@ -1194,10 +1375,12 @@ If singular format is used, the default subnet size is taken to be /24 and /64 f
 
 In `l2` mode the {config:option}`device-nic-ipvlan-device-conf:ipv4.gateway` and {config:option}`device-nic-ipvlan-device-conf:ipv6.gateway` keys accept only a singular IP address.
 
+(extension-resources-system)=
 ## `resources_system`
 
 This adds system information to the output of `/1.0/resources`.
 
+(extension-images-push-relay)=
 ## `images_push_relay`
 
 This adds the push and relay modes to image copy.
@@ -1205,20 +1388,24 @@ It also introduces the following new endpoint:
 
 * `POST 1.0/images/<fingerprint>/export`
 
+(extension-network-dns-search)=
 ## `network_dns_search`
 
 This introduces the `dns.search` configuration option on networks.
 
+(extension-container-nic-routed-limits)=
 ## `container_nic_routed_limits`
 
 This introduces {config:option}`device-nic-routed-device-conf:limits.ingress`, {config:option}`device-nic-routed-device-conf:limits.egress` and {config:option}`device-nic-routed-device-conf:limits.max` for routed NICs.
 
+(extension-instance-nic-bridged-vlan)=
 ## `instance_nic_bridged_vlan`
 
 This introduces the {config:option}`device-nic-bridged-device-conf:vlan` and {config:option}`device-nic-bridged-device-conf:vlan.tagged` settings for `bridged` NICs.
 
 `vlan` specifies the non-tagged VLAN to join, and `vlan.tagged` is a comma-delimited list of tagged VLANs to join.
 
+(extension-network-state-bond-bridge)=
 ## `network_state_bond_bridge`
 
 This adds a `bridge` and `bond` section to the `/1.0/networks/NAME/state` API.
@@ -1244,11 +1431,13 @@ Bridge:
 * VLAN filtering
 * Upper devices
 
+(extension-resources-cpu-isolated)=
 ## `resources_cpu_isolated`
 
 Add an `Isolated` property on CPU threads to indicate if the thread is
 physically `Online` but is configured not to accept tasks.
 
+(extension-usedby-consistency)=
 ## `usedby_consistency`
 
 This extension indicates that `UsedBy` should now be consistent with
@@ -1262,16 +1451,19 @@ The 5 entities that have `UsedBy` are:
 * Storage pools
 * Storage volumes
 
+(extension-custom-block-volumes)=
 ## `custom_block_volumes`
 
 This adds support for creating and attaching custom block volumes to instances.
 It introduces the new `--type` flag when creating custom storage volumes, and accepts the values `fs` and `block`.
 
+(extension-clustering-failure-domains)=
 ## `clustering_failure_domains`
 
 This extension adds a new `failure_domain` field to the `PUT /1.0/cluster/<node>` API,
 which can be used to set the failure domain of a node.
 
+(extension-container-syscall-filtering-allow-deny-syntax)=
 ## `container_syscall_filtering_allow_deny_syntax`
 
 A number of new syscalls related container configuration keys were updated.
@@ -1283,10 +1475,12 @@ A number of new syscalls related container configuration keys were updated.
 
 Support for the offensively named variants was removed.
 
+(extension-resources-gpu-mdev)=
 ## `resources_gpu_mdev`
 
 Expose available mediated device profiles and devices in `/1.0/resources`.
 
+(extension-console-vga-type)=
 ## `console_vga_type`
 
 This extends the `/1.0/console` endpoint to take a `?type=` argument, which can
@@ -1296,12 +1490,14 @@ When doing a `POST` to `/1.0/<instance name>/console?type=vga` the data WebSocke
 returned by the operation in the metadata field will be a bidirectional proxy
 attached to a SPICE Unix socket of the target virtual machine.
 
+(extension-projects-limits-disk)=
 ## `projects_limits_disk`
 
 Add {config:option}`project-limits:limits.disk` to the available project configuration keys. If set, it limits
 the total amount of disk space that instances volumes, custom volumes and images
 volumes can use in the project.
 
+(extension-network-type-macvlan)=
 ## `network_type_macvlan`
 
 Adds support for additional network type `macvlan` and adds {config:option}`network-macvlan-network-conf:parent` configuration key for this network type to
@@ -1310,6 +1506,7 @@ specify which parent interface should be used for creating NIC device interfaces
 Also adds {config:option}`device-nic-macvlan-device-conf:network` configuration key support for `macvlan` NICs to allow them to specify the associated network of
 the same type that they should use as the basis for the NIC device.
 
+(extension-network-type-sriov)=
 ## `network_type_sriov`
 
 Adds support for additional network type `sriov` and adds {config:option}`network-sriov-network-conf:parent` configuration key for this network type to
@@ -1318,10 +1515,12 @@ specify which parent interface should be used for creating NIC device interfaces
 Also adds {config:option}`device-nic-sriov-device-conf:network` configuration key support for `sriov` NICs to allow them to specify the associated network of
 the same type that they should use as the basis for the NIC device.
 
+(extension-container-syscall-intercept-bpf-devices)=
 ## `container_syscall_intercept_bpf_devices`
 
 This adds support to intercept the `bpf` syscall in containers. Specifically, it allows to manage device cgroup `bpf` programs.
 
+(extension-network-type-ovn)=
 ## `network_type_ovn`
 
 Adds support for additional network type `ovn` with the ability to specify a `bridge` type network as the `parent`.
@@ -1334,15 +1533,18 @@ Also introduces two new global configuration keys that apply to all `ovn` networ
 * {config:option}`server-miscellaneous:network.ovn.integration_bridge` - the OVS integration bridge to use.
 * {config:option}`server-miscellaneous:network.ovn.northbound_connection` - the OVN northbound database connection string.
 
+(extension-projects-networks)=
 ## `projects_networks`
 
 Adds the {config:option}`project-features:features.networks` configuration key to projects and the ability for a project to hold networks.
 
+(extension-projects-networks-restricted-uplinks)=
 ## `projects_networks_restricted_uplinks`
 
 Adds the {config:option}`project-restricted:restricted.networks.uplinks` project configuration key to indicate (as a comma-delimited list) which networks
 the networks created inside the project can use as their uplink network.
 
+(extension-custom-volume-backup)=
 ## `custom_volume_backup`
 
 Add custom volume backup support.
@@ -1362,6 +1564,7 @@ The following existing endpoint has been modified:
 
 * `POST /1.0/storage-pools/<pool>/<type>/<volume>` accepts the new source type `backup`
 
+(extension-backup-override-name)=
 ## `backup_override_name`
 
 Adds `Name` field to `InstanceBackupArgs` to allow specifying a different instance name when restoring a backup.
@@ -1369,17 +1572,20 @@ Adds `Name` field to `InstanceBackupArgs` to allow specifying a different instan
 Adds `Name` and `PoolName` fields to `StoragePoolVolumeBackupArgs` to allow specifying a different volume name
 when restoring a custom volume backup.
 
+(extension-storage-rsync-compression)=
 ## `storage_rsync_compression`
 
 Adds `rsync.compression` configuration key to storage pools. This key can be used
 to disable compression in `rsync` while migrating storage pools.
 
+(extension-network-type-physical)=
 ## `network_type_physical`
 
 Adds support for additional network type `physical` that can be used as an uplink for `ovn` networks.
 
 The interface specified by {config:option}`network-physical-network-conf:parent` on the `physical` network will be connected to the `ovn` network's gateway.
 
+(extension-network-ovn-external-subnets)=
 ## `network_ovn_external_subnets`
 
 Adds support for `ovn` networks to use external subnets from uplink networks.
@@ -1390,6 +1596,7 @@ allowed to be used in child OVN networks in their {config:option}`device-nic-ovn
 Introduces the {config:option}`project-restricted:restricted.networks.subnets` project setting that specifies which external subnets are allowed to
 be used by OVN networks inside the project (if not set then all routes defined on the uplink network are allowed).
 
+(extension-network-ovn-nat)=
 ## `network_ovn_nat`
 
 Adds support for {config:option}`network-ovn-network-conf:ipv4.nat` and {config:option}`network-ovn-network-conf:ipv6.nat` settings on `ovn` networks.
@@ -1399,6 +1606,7 @@ the subnet, then the appropriate NAT setting will added set to `true`.
 
 If the setting is missing then the value is taken as `false`.
 
+(extension-network-ovn-external-routes-remove)=
 ## `network_ovn_external_routes_remove`
 
 Removes the settings `ipv4.routes.external` and `ipv6.routes.external` from `ovn` networks.
@@ -1406,33 +1614,40 @@ Removes the settings `ipv4.routes.external` and `ipv6.routes.external` from `ovn
 The equivalent settings on the `ovn` NIC type can be used instead for this, rather than having to specify them
 both at the network and NIC level.
 
+(extension-tpm-device-type)=
 ## `tpm_device_type`
 
 This introduces the `tpm` device type.
 
+(extension-storage-zfs-clone-copy-rebase)=
 ## `storage_zfs_clone_copy_rebase`
 
 This introduces `rebase` as a value for {config:option}`storage-zfs-pool-conf:zfs.clone_copy` causing LXD to
 track down any `image` dataset in the ancestry line and then perform
 send/receive on top of that.
 
+(extension-gpu-mdev)=
 ## `gpu_mdev`
 
 This adds support for virtual GPUs (vGPUs). It introduces the {config:option}`device-gpu-mdev-device-conf:mdev` configuration key for GPU devices which takes
 a supported `mdev` type, e.g. `i915-GVTg_V5_4`.
 
+(extension-resources-pci-iommu)=
 ## `resources_pci_iommu`
 
 This adds the `IOMMUGroup` field for PCI entries in the resources API.
 
+(extension-resources-network-usb)=
 ## `resources_network_usb`
 
 Adds the `usb_address` field to the network card entries in the resources API.
 
+(extension-resources-disk-address)=
 ## `resources_disk_address`
 
 Adds the `usb_address` and `pci_address` fields to the disk entries in the resources API.
 
+(extension-network-physical-ovn-ingress-mode)=
 ## `network_physical_ovn_ingress_mode`
 
 Adds {config:option}`network-physical-network-conf:ovn.ingress_mode` setting for `physical` networks.
@@ -1441,12 +1656,14 @@ Sets the method that OVN NIC external IPs will be advertised on uplink network.
 
 Either `l2proxy` (proxy ARP/NDP) or `routed`.
 
+(extension-network-ovn-dhcp)=
 ## `network_ovn_dhcp`
 
 Adds {config:option}`network-ovn-network-conf:ipv4.dhcp` and {config:option}`network-ovn-network-conf:ipv6.dhcp` settings for `ovn` networks.
 
 Allows DHCP (and RA for IPv6) to be disabled. Defaults to on.
 
+(extension-network-physical-routes-anycast)=
 ## `network_physical_routes_anycast`
 
 Adds {config:option}`network-physical-network-conf:ipv4.routes.anycast` and {config:option}`network-physical-network-conf:ipv6.routes.anycast` Boolean settings for `physical` networks. Defaults to `false`.
@@ -1454,11 +1671,13 @@ Adds {config:option}`network-physical-network-conf:ipv4.routes.anycast` and {con
 Allows OVN networks using physical network as uplink to relax external subnet/route overlap detection when used
 with {config:option}`network-physical-network-conf:ovn.ingress_mode` set to `routed`.
 
+(extension-projects-limits-instances)=
 ## `projects_limits_instances`
 
 Adds {config:option}`project-limits:limits.instances` to the available project configuration keys. If set, it
 limits the total number of instances (VMs and containers) that can be used in the project.
 
+(extension-network-state-vlan)=
 ## `network_state_vlan`
 
 This adds a `vlan` section to the `/1.0/networks/NAME/state` API.
@@ -1468,16 +1687,19 @@ Those contain additional state information relevant to VLAN interfaces:
 * `lower_device`
 * `vid`
 
+(extension-instance-nic-bridged-port-isolation)=
 ## `instance_nic_bridged_port_isolation`
 
 This adds the {config:option}`device-nic-bridged-device-conf:security.port_isolation` field for bridged NIC instances.
 
+(extension-instance-bulk-state-change)=
 ## `instance_bulk_state_change`
 
 Adds the following endpoint for bulk state change (see [RESTful API](rest-api.md) for details):
 
 * `PUT /1.0/instances`
 
+(extension-network-gvrp)=
 ## `network_gvrp`
 
 This adds an optional `gvrp` property to `macvlan` and `physical` networks,
@@ -1486,89 +1708,108 @@ and to `ipvlan`, `macvlan`, `routed` and `physical` NIC devices.
 When set, this specifies whether the VLAN should be registered using GARP VLAN
 Registration Protocol. Defaults to `false`.
 
+(extension-instance-pool-move)=
 ## `instance_pool_move`
 
 This adds a `pool` field to the `POST /1.0/instances/NAME` API,
 allowing for easy move of an instance root disk between pools.
 
+(extension-gpu-sriov)=
 ## `gpu_sriov`
 
 This adds support for SR-IOV enabled GPUs.
 It introduces the `sriov` GPU type property.
 
+(extension-pci-device-type)=
 ## `pci_device_type`
 
 This introduces the `pci` device type.
 
+(extension-storage-volume-state)=
 ## `storage_volume_state`
 
 Add new `/1.0/storage-pools/POOL/volumes/VOLUME/state` API endpoint to get usage data on a volume.
 
+(extension-network-acl)=
 ## `network_acl`
 
 This adds the concept of network ACLs to API under the API endpoint prefix `/1.0/network-acls`.
 
+(extension-migration-stateful)=
 ## `migration_stateful`
 
 Add a new {config:option}`instance-migration:migration.stateful` configuration key.
 
+(extension-disk-state-quota)=
 ## `disk_state_quota`
 
 This introduces the {config:option}`device-disk-device-conf:size.state` device configuration key on `disk` devices.
 
+(extension-storage-ceph-features)=
 ## `storage_ceph_features`
 
 Adds a new {config:option}`storage-ceph-pool-conf:ceph.rbd.features` configuration key on storage pools to control the RBD features used for new volumes.
 
+(extension-projects-compression)=
 ## `projects_compression`
 
 Adds new {config:option}`project-specific:backups.compression_algorithm` and {config:option}`project-specific:images.compression_algorithm` configuration keys which
 allows configuration of backup and image compression per-project.
 
+(extension-projects-images-remote-cache-expiry)=
 ## `projects_images_remote_cache_expiry`
 
 Add new {config:option}`server-images:images.remote_cache_expiry` configuration key to projects,
 allowing for set number of days after which an unused cached remote image will be flushed.
 
+(extension-certificate-project)=
 ## `certificate_project`
 
 Adds a new `restricted` property to certificates in the API as well as
 `projects` holding a list of project names that the certificate has
 access to.
 
+(extension-network-ovn-acl)=
 ## `network_ovn_acl`
 
 Adds a new `security.acls` property to OVN networks and OVN NICs, allowing Network ACLs to be applied.
 
+(extension-projects-images-auto-update)=
 ## `projects_images_auto_update`
 
 Adds new {config:option}`server-images:images.auto_update_cached` and {config:option}`server-images:images.auto_update_interval` configuration keys which
 allows configuration of images auto update in projects
 
+(extension-projects-restricted-cluster-target)=
 ## `projects_restricted_cluster_target`
 
 Adds new {config:option}`project-restricted:restricted.cluster.target` configuration key to project which prevent the user from using --target
 to specify what cluster member to place a workload on or the ability to move a workload between members.
 
+(extension-images-default-architecture)=
 ## `images_default_architecture`
 
 Adds new {config:option}`server-images:images.default_architecture` global configuration key and matching per-project key which lets user tell LXD
 what architecture to go with when no specific one is specified as part of the image request.
 
+(extension-network-ovn-acl-defaults)=
 ## `network_ovn_acl_defaults`
 
 Adds new `security.acls.default.{in,e}gress.action` and `security.acls.default.{in,e}gress.logged` configuration keys for
 OVN networks and NICs. This replaces the removed ACL `default.action` and `default.logged` keys.
 
+(extension-gpu-mig)=
 ## `gpu_mig`
 
 This adds support for NVIDIA MIG. It introduces the `mig` GPU type and associated configuration keys.
 
+(extension-project-usage)=
 ## `project_usage`
 
 Adds an API endpoint to get current resource allocations in a project.
 Accessible at API `GET /1.0/projects/<name>/state`.
 
+(extension-network-bridge-acl)=
 ## `network_bridge_acl`
 
 Adds a new {config:option}`network-bridge-network-conf:security.acls` configuration key to `bridge` networks, allowing Network ACLs to be applied.
@@ -1576,6 +1817,7 @@ Adds a new {config:option}`network-bridge-network-conf:security.acls` configurat
 Also adds `security.acls.default.{in,e}gress.action` and `security.acls.default.{in,e}gress.logged` configuration keys for
 specifying the default behavior for unmatched traffic.
 
+(extension-warnings)=
 ## `warnings`
 
 Warning API for LXD.
@@ -1588,20 +1830,24 @@ This includes the following endpoints (see  [Restful API](rest-api.md) for detai
 * `PUT /1.0/warnings/<uuid>`
 * `DELETE /1.0/warnings/<uuid>`
 
+(extension-projects-restricted-backups-and-snapshots)=
 ## `projects_restricted_backups_and_snapshots`
 
 Adds new {config:option}`project-restricted:restricted.backups` and {config:option}`project-restricted:restricted.snapshots` configuration keys to project which
 prevents the user from creation of backups and snapshots.
 
+(extension-clustering-join-token)=
 ## `clustering_join_token`
 
 Adds `POST /1.0/cluster/members` API endpoint for requesting a join token used when adding new cluster members
 without using the trust password.
 
+(extension-clustering-description)=
 ## `clustering_description`
 
 Adds an editable description to the cluster members.
 
+(extension-server-trusted-proxy)=
 ## `server_trusted_proxy`
 
 This introduces support for {config:option}`server-core:core.https_trusted_proxy` which has LXD
@@ -1609,43 +1855,52 @@ parse a HAProxy style connection header on such connections and if
 present, will rewrite the request's source address to that provided by
 the proxy server.
 
+(extension-clustering-update-cert)=
 ## `clustering_update_cert`
 
 Adds `PUT /1.0/cluster/certificate` endpoint for updating the cluster
 certificate across the whole cluster
 
+(extension-storage-api-project)=
 ## `storage_api_project`
 
 This adds support for copy/move custom storage volumes between projects.
 
+(extension-server-instance-driver-operational)=
 ## `server_instance_driver_operational`
 
 This modifies the `driver` output for the `/1.0` endpoint to only include drivers which are actually supported and
 operational on the server (as opposed to being included in LXD but not operational on the server).
 
+(extension-server-supported-storage-drivers)=
 ## `server_supported_storage_drivers`
 
 This adds supported storage driver info to server environment info.
 
+(extension-event-lifecycle-requestor-address)=
 ## `event_lifecycle_requestor_address`
 
 Adds a new address field to `lifecycle` requestor.
 
+(extension-resources-gpu-usb)=
 ## `resources_gpu_usb`
 
 Add a new `USBAddress` (`usb_address`) field to `ResourcesGPUCard` (GPU entries) in the resources API.
 
+(extension-clustering-evacuation)=
 ## `clustering_evacuation`
 
 Adds `POST /1.0/cluster/members/<name>/state` endpoint for evacuating and restoring cluster members.
 It also adds the configuration keys {config:option}`instance-miscellaneous:cluster.evacuate` and {config:option}`instance-volatile:volatile.evacuate.origin` for setting the evacuation method (`auto`, `stop` or `migrate`) and the origin of any migrated instance respectively.
 
+(extension-network-ovn-nat-address)=
 ## `network_ovn_nat_address`
 
 This introduces the {config:option}`network-ovn-network-conf:ipv4.nat.address` and {config:option}`network-ovn-network-conf:ipv6.nat.address` configuration keys for LXD `ovn` networks.
 Those keys control the source address used for outbound traffic from the OVN virtual network.
 These keys can only be specified when the OVN network's uplink network has {config:option}`network-physical-network-conf:ovn.ingress_mode` set to `routed`.
 
+(extension-network-bgp)=
 ## `network_bgp`
 
 This introduces support for LXD acting as a BGP router to advertise
@@ -1673,19 +1928,23 @@ And the following NIC-specific configuration keys (`bridged` NIC type):
 * {config:option}`device-nic-bridged-device-conf:ipv4.routes.external`
 * {config:option}`device-nic-bridged-device-conf:ipv6.routes.external`
 
+(extension-network-forward)=
 ## `network_forward`
 
 This introduces the networking address forward functionality. Allowing for `bridge` and `ovn` networks to define
 external IP addresses that can be forwarded to internal IP(s) inside their respective networks.
 
+(extension-custom-volume-refresh)=
 ## `custom_volume_refresh`
 
 Adds support for refresh during volume migration.
 
+(extension-network-counters-errors-dropped)=
 ## `network_counters_errors_dropped`
 
 This adds the received and sent errors as well as inbound and outbound dropped packets to the network counters.
 
+(extension-metrics)=
 ## `metrics`
 
 This adds metrics to LXD. It returns metrics of running instances using the OpenMetrics format.
@@ -1694,24 +1953,29 @@ This includes the following endpoints:
 
 * `GET /1.0/metrics`
 
+(extension-image-source-project)=
 ## `image_source_project`
 
 Adds a new `project` field to `POST /1.0/images` allowing for the source project
 to be set at image copy time.
 
+(extension-clustering-config)=
 ## `clustering_config`
 
 Adds new `config` property to cluster members with configurable key/value pairs.
 
+(extension-network-peer)=
 ## `network_peer`
 
 This adds network peering to allow traffic to flow between OVN networks without leaving the OVN subsystem.
 
+(extension-linux-sysctl)=
 ## `linux_sysctl`
 
 Adds new `linux.sysctl.*` configuration keys allowing users to modify certain kernel parameters
 within containers.
 
+(extension-network-dns)=
 ## `network_dns`
 
 Introduces a built-in DNS server and zones API to provide DNS records for LXD instances.
@@ -1735,24 +1999,29 @@ A new REST API is also introduced to manage DNS zones:
 * `/1.0/network-zones` (GET, POST)
 * `/1.0/network-zones/<name>` (GET, PUT, PATCH, DELETE)
 
+(extension-ovn-nic-acceleration)=
 ## `ovn_nic_acceleration`
 
 Adds new {config:option}`device-nic-ovn-device-conf:acceleration` configuration key to OVN NICs which can be used for enabling hardware offloading.
 It takes the values `none` or `sriov`.
 
+(extension-certificate-self-renewal)=
 ## `certificate_self_renewal`
 
 This adds support for renewing a client's own trust certificate.
 
+(extension-instance-project-move)=
 ## `instance_project_move`
 
 This adds a `project` field to the `POST /1.0/instances/NAME` API,
 allowing for easy move of an instance between projects.
 
+(extension-storage-volume-project-move)=
 ## `storage_volume_project_move`
 
 This adds support for moving storage volume between projects.
 
+(extension-cloud-init)=
 ## `cloud_init`
 
 This adds a new `cloud-init` configuration key namespace which contains the following keys:
@@ -1763,6 +2032,7 @@ This adds a new `cloud-init` configuration key namespace which contains the foll
 
  It also adds a new endpoint `/1.0/devices` to `devlxd` which shows an instance's devices.
 
+(extension-network-dns-nat)=
 ## `network_dns_nat`
 
 This introduces `network.nat` as a configuration option on network zones (DNS).
@@ -1771,14 +2041,17 @@ It defaults to the current behavior of generating records for all
 instances NICs but if set to `false`, it will instruct LXD to only
 generate records for externally reachable addresses.
 
+(extension-database-leader)=
 ## `database_leader`
 
 Adds new `database-leader` role which is assigned to cluster leader.
 
+(extension-instance-all-projects)=
 ## `instance_all_projects`
 
 This adds support for displaying instances from all projects.
 
+(extension-clustering-groups)=
 ## `clustering_groups`
 
 Add support for grouping cluster members.
@@ -1792,21 +2065,25 @@ This introduces the following new endpoints:
 
 * {config:option}`project-restricted:restricted.cluster.groups`
 
+(extension-ceph-rbd-du)=
 ## `ceph_rbd_du`
 
 Adds a new {config:option}`storage-ceph-pool-conf:ceph.rbd.du` Boolean on Ceph storage pools which allows
 disabling the use of the potentially slow `rbd du` calls.
 
+(extension-instance-get-full)=
 ## `instance_get_full`
 
 This introduces a new `recursion=1` mode for `GET /1.0/instances/{name}` which allows for the retrieval of
 all instance structs, including the state, snapshots and backup structs.
 
+(extension-qemu-metrics)=
 ## `qemu_metrics`
 
 This adds a new {config:option}`instance-security:security.agent.metrics` Boolean which defaults to `true`.
 When set to `false`, it doesn't connect to the `lxd-agent` for metrics and other state information, but relies on stats from QEMU.
 
+(extension-gpu-mig-uuid)=
 ## `gpu_mig_uuid`
 
 Adds support for the new MIG UUID format used by NVIDIA `470+` drivers (for example, `MIG-74c6a31a-fde5-5c61-973b-70e12346c202`),
@@ -1815,20 +2092,24 @@ the `MIG-` prefix can be omitted
 This extension supersedes old `mig.gi` and `mig.ci` parameters which are kept for compatibility with old drivers and
 cannot be set together.
 
+(extension-event-project)=
 ## `event_project`
 
 Expose the project an API event belongs to.
 
+(extension-clustering-evacuation-live)=
 ## `clustering_evacuation_live`
 
 This adds `live-migrate` as a configuration option to {config:option}`instance-miscellaneous:cluster.evacuate`, which forces live-migration
 of instances during cluster evacuation.
 
+(extension-instance-allow-inconsistent-copy)=
 ## `instance_allow_inconsistent_copy`
 
 Adds `allow_inconsistent` field to instance source on `POST /1.0/instances`. If `true`, `rsync` will ignore the
 `Partial transfer due to vanished source files` (code 24) error when creating an instance from a copy.
 
+(extension-network-state-ovn)=
 ## `network_state_ovn`
 
 This adds an `ovn` section to the `/1.0/networks/NAME/state` API which contains additional state information relevant to
@@ -1836,19 +2117,23 @@ OVN networks:
 
 * chassis
 
+(extension-storage-volume-api-filtering)=
 ## `storage_volume_api_filtering`
 
 Adds support for filtering the result of a GET request for storage volumes.
 
+(extension-image-restrictions)=
 ## `image_restrictions`
 
 This extension adds on to the image properties to include image restrictions/host requirements. These requirements
 help determine the compatibility between an instance and the host system.
 
+(extension-storage-zfs-export)=
 ## `storage_zfs_export`
 
 Introduces the ability to disable zpool export when unmounting pool by setting {config:option}`storage-zfs-pool-conf:zfs.export`.
 
+(extension-network-dns-records)=
 ## `network_dns_records`
 
 This extends the network zones (DNS) API to add the ability to create and manage custom records.
@@ -1862,160 +2147,195 @@ This adds:
 * `PATCH /1.0/network-zones/ZONE/records/RECORD`
 * `DELETE /1.0/network-zones/ZONE/records/RECORD`
 
+(extension-storage-zfs-reserve-space)=
 ## `storage_zfs_reserve_space`
 
 Adds ability to set the `reservation`/`refreservation` ZFS property along with `quota`/`refquota`.
 
+(extension-network-acl-log)=
 ## `network_acl_log`
 
 Adds a new `GET /1.0/networks-acls/NAME/log` API to retrieve ACL firewall logs.
 
+(extension-storage-zfs-blocksize)=
 ## `storage_zfs_blocksize`
 
 Introduces a new {config:option}`storage-zfs-volume-conf:zfs.blocksize` property for ZFS storage volumes which allows to set volume block size.
 
+(extension-metrics-cpu-seconds)=
 ## `metrics_cpu_seconds`
 
 This is used to detect whether LXD was fixed to output used CPU time in seconds rather than as milliseconds.
 
+(extension-instance-snapshot-never)=
 ## `instance_snapshot_never`
 
 Adds a `@never` option to `snapshots.schedule` which allows disabling inheritance.
 
+(extension-certificate-token)=
 ## `certificate_token`
 
 This adds token-based certificate addition to the trust store as a safer alternative to a trust password.
 
 It adds the `token` field to `POST /1.0/certificates`.
 
+(extension-instance-nic-routed-neighbor-probe)=
 ## `instance_nic_routed_neighbor_probe`
 
 This adds the ability to disable the `routed` NIC IP neighbor probing for availability on the parent network.
 
 Adds the {config:option}`device-nic-routed-device-conf:ipv4.neighbor_probe` and {config:option}`device-nic-routed-device-conf:ipv6.neighbor_probe` NIC settings. Defaulting to `true` if not specified.
 
+(extension-event-hub)=
 ## `event_hub`
 
 This adds support for `event-hub` cluster member role and the `ServerEventMode` environment field.
 
+(extension-agent-nic-config)=
 ## `agent_nic_config`
 
 If set to `true`, on VM start-up the `lxd-agent` will apply NIC configuration to change the names and MTU of the instance NIC
 devices.
 
+(extension-projects-restricted-intercept)=
 ## `projects_restricted_intercept`
 
 Adds new {config:option}`project-restricted:restricted.containers.interception` configuration key to allow usually safe system call interception options.
 
+(extension-metrics-authentication)=
 ## `metrics_authentication`
 
 Introduces a new {config:option}`server-core:core.metrics_authentication` server configuration option to
 allow for the `/1.0/metrics` endpoint to be generally available without
 client authentication.
 
+(extension-images-target-project)=
 ## `images_target_project`
 
 Adds ability to copy image to a project different from the source.
 
+(extension-cluster-migration-inconsistent-copy)=
 ## `cluster_migration_inconsistent_copy`
 
 Adds `allow_inconsistent` field to `POST /1.0/instances/<name>`. Set to `true` to allow inconsistent copying between cluster
 members.
 
+(extension-cluster-ovn-chassis)=
 ## `cluster_ovn_chassis`
 
 Introduces a new `ovn-chassis` cluster role which allows for specifying what cluster member should act as an OVN chassis.
 
+(extension-container-syscall-intercept-sched-setscheduler)=
 ## `container_syscall_intercept_sched_setscheduler`
 
 Adds the {config:option}`instance-security:security.syscalls.intercept.sched_setscheduler` to allow advanced process priority management in containers.
 
+(extension-storage-lvm-thinpool-metadata-size)=
 ## `storage_lvm_thinpool_metadata_size`
 
 Introduces the ability to specify the thin pool metadata volume size via {config:option}`storage-lvm-pool-conf:lvm.thinpool_metadata_size`.
 
 If this is not specified then the default is to let LVM pick an appropriate thin pool metadata volume size.
 
+(extension-storage-volume-state-total)=
 ## `storage_volume_state_total`
 
 This adds `total` field to the `GET /1.0/storage-pools/{name}/volumes/{type}/{volume}/state` API.
 
+(extension-instance-file-head)=
 ## `instance_file_head`
 
 Implements HEAD on `/1.0/instances/NAME/file`.
 
+(extension-instances-nic-host-name)=
 ## `instances_nic_host_name`
 
 This introduces the {config:option}`server-miscellaneous:instances.nic.host_name` server configuration key that can take a value of either `random` or
 `mac`. The default value for the key if unspecified is `random`. If it is set to random then use the random host interface names.
 If it's set to `mac`, then generate a name in the form `lxd1122334455`.
 
+(extension-image-copy-profile)=
 ## `image_copy_profile`
 
 Adds ability to modify the set of profiles when image is copied.
 
+(extension-container-syscall-intercept-sysinfo)=
 ## `container_syscall_intercept_sysinfo`
 
 Adds the {config:option}`instance-security:security.syscalls.intercept.sysinfo` to allow the `sysinfo` syscall to be populated with cgroup-based resource usage information.
 
+(extension-clustering-evacuation-mode)=
 ## `clustering_evacuation_mode`
 
 This introduces a `mode` field to the evacuation request which allows
 for overriding the evacuation mode traditionally set through
 {config:option}`instance-miscellaneous:cluster.evacuate`.
 
+(extension-resources-pci-vpd)=
 ## `resources_pci_vpd`
 
 Adds a new VPD struct to the PCI resource entries.
 This struct extracts vendor provided data including the full product name and additional key/value configuration pairs.
 
+(extension-qemu-raw-conf)=
 ## `qemu_raw_conf`
 
 Introduces a {config:option}`instance-raw:raw.qemu.conf` configuration key to override select sections of the generated `qemu.conf`.
 
+(extension-storage-cephfs-fscache)=
 ## `storage_cephfs_fscache`
 
 Add support for `fscache`/`cachefilesd` on CephFS pools through a new {config:option}`storage-cephfs-pool-conf:cephfs.fscache` configuration option.
 
+(extension-network-load-balancer)=
 ## `network_load_balancer`
 
 This introduces the networking load balancer functionality. Allowing `ovn` networks to define port(s) on external
 IP addresses that can be forwarded to one or more internal IP(s) inside their respective networks.
 
+(extension-vsock-api)=
 ## `vsock_api`
 
 This introduces a bidirectional `vsock` interface which allows the `lxd-agent` and the LXD server to communicate better.
 
+(extension-instance-ready-state)=
 ## `instance_ready_state`
 
 This introduces a new `Ready` state for instances which can be set using `devlxd`.
 
+(extension-network-bgp-holdtime)=
 ## `network_bgp_holdtime`
 
 This introduces a new `bgp.peers.<name>.holdtime` configuration key to control the BGP hold time for a particular peer.
 
+(extension-storage-volumes-all-projects)=
 ## `storage_volumes_all_projects`
 
 This introduces the ability to list storage volumes from all projects.
 
+(extension-metrics-memory-oom-total)=
 ## `metrics_memory_oom_total`
 
 This introduces a new `lxd_memory_OOM_kills_total` metric to the `/1.0/metrics` API.
 It reports the number of times the out of memory killer (`OOM`) has been triggered.
 
+(extension-storage-buckets)=
 ## `storage_buckets`
 
 This introduces the storage bucket API. It allows the management of S3 object storage buckets for storage pools.
 
+(extension-storage-buckets-create-credentials)=
 ## `storage_buckets_create_credentials`
 
 This updates the storage bucket API to return initial admin credentials at bucket creation time.
 
+(extension-metrics-cpu-effective-total)=
 ## `metrics_cpu_effective_total`
 
 This introduces a new `lxd_cpu_effective_total` metric to the `/1.0/metrics` API.
 It reports the total number of effective CPUs.
 
+(extension-projects-networks-restricted-access)=
 ## `projects_networks_restricted_access`
 
 Adds the {config:option}`project-restricted:restricted.networks.access` project configuration key to indicate (as a comma-delimited list) which networks can be accessed inside the project.
@@ -2027,10 +2347,12 @@ This also introduces a change whereby network access is controlled by the projec
 * If `restricted.devices.nic` is set to `allow`, all networks are accessible (dependent on the `restricted.networks.access` setting).
 * If `restricted.devices.nic` is set to `block`, no networks are accessible.
 
+(extension-storage-buckets-local)=
 ## `storage_buckets_local`
 
 This introduces the ability to use storage buckets on local storage pools by setting the new {config:option}`server-core:core.storage_buckets_address` global configuration setting.
 
+(extension-loki)=
 ## `loki`
 
 This adds support for sending life cycle and logging events to a Loki server.
@@ -2044,6 +2366,7 @@ It adds the following global configuration keys:
 * {config:option}`server-loki:loki.loglevel`: Minimum log level for events sent to the Loki server.
 * {config:option}`server-loki:loki.types`: Types of events which are to be sent to the Loki server (`lifecycle` and/or `logging`).
 
+(extension-acme)=
 ## `acme`
 
 This adds ACME support, which allows [Let's Encrypt](https://letsencrypt.org/) or other ACME services to issue certificates.
@@ -2058,6 +2381,7 @@ It also adds the following endpoint, which is required for the HTTP-01 challenge
 
 * `/.well-known/acme-challenge/<token>`
 
+(extension-internal-metrics)=
 ## `internal_metrics`
 
 This adds internal metrics to the list of metrics.
@@ -2069,26 +2393,31 @@ These include:
 * Go memory stats
 * Number of goroutines
 
+(extension-cluster-join-token-expiry)=
 ## `cluster_join_token_expiry`
 
 This adds an expiry to cluster join tokens which defaults to 3 hours, but can be changed by setting the {config:option}`server-cluster:cluster.join_token_expiry` configuration key.
 
+(extension-remote-token-expiry)=
 ## `remote_token_expiry`
 
 This adds an expiry to remote add join tokens.
 It can be set in the {config:option}`server-core:core.remote_token_expiry` configuration key, and defaults to 15 days.
 
+(extension-storage-volumes-created-at)=
 ## `storage_volumes_created_at`
 
 This change adds support for storing the creation date and time of storage volumes and their snapshots.
 
 This adds the `CreatedAt` field to the `StorageVolume` and `StorageVolumeSnapshot` API types.
 
+(extension-cpu-hotplug)=
 ## `cpu_hotplug`
 
 This adds CPU hotplugging for VMs.
 Hotplugging is disabled when using CPU pinning, because this would require hotplugging NUMA devices as well, which is not possible.
 
+(extension-projects-networks-zones)=
 ## `projects_networks_zones`
 
 This adds support for the {config:option}`project-features:features.networks.zones` project feature, which changes which project network zones are
@@ -2109,20 +2438,24 @@ projects that are referencing that network via one of their forward zones.
 Existing projects that have `features.networks=true` will have `features.networks.zones=true` set automatically,
 but new projects will need to specify this explicitly.
 
+(extension-instance-nic-txqueuelength)=
 ## `instance_nic_txqueuelength`
 
 Adds a `txqueuelen` key to control the `txqueuelen` parameter of the NIC device.
 
+(extension-cluster-member-state)=
 ## `cluster_member_state`
 
 Adds `GET /1.0/cluster/members/<member>/state` API endpoint and associated `ClusterMemberState` API response type.
 
+(extension-storage-pool-source-wipe)=
 ## `storage_pool_source_wipe`
 
 Adds support for a `source.wipe` Boolean on the storage pool, indicating
 that LXD should wipe partition headers off the requested disk rather
 than potentially fail due to pre-existing file systems.
 
+(extension-zfs-block-mode)=
 ## `zfs_block_mode`
 
 This adds support for using ZFS block {spellexception}`filesystem` volumes allowing the use of different file systems on top of ZFS.
@@ -2133,16 +2466,19 @@ This adds the following new configuration options for ZFS storage pools:
 * `volume.block.mount_options`
 * `volume.block.filesystem`
 
+(extension-instance-generation-id)=
 ## `instance_generation_id`
 
 Adds support for instance generation ID. The VM or container generation ID will change whenever the instance's place in time moves backwards. As of now, the generation ID is only exposed through to VM type instances. This allows for the VM guest OS to reinitialize any state it needs to avoid duplicating potential state that has already occurred:
 
 * {config:option}`instance-volatile:volatile.uuid.generation`
 
+(extension-disk-io-cache)=
 ## `disk_io_cache`
 
 This introduces a new {config:option}`device-disk-device-conf:io.cache` property to disk devices which can be used to override the VM caching behavior.
 
+(extension-amd-sev)=
 ## `amd_sev`
 
 Adds support for AMD SEV (Secure Encrypted Virtualization) that can be used to encrypt the memory of a guest VM.
@@ -2154,10 +2490,12 @@ This adds the following new configuration options for SEV encryption:
 * {config:option}`instance-security:security.sev.session.dh` : (string) guest owner's `base64`-encoded Diffie-Hellman key
 * {config:option}`instance-security:security.sev.session.data` : (string) guest owner's `base64`-encoded session blob
 
+(extension-storage-pool-loop-resize)=
 ## `storage_pool_loop_resize`
 
 This allows growing loop file backed storage pools by changing the `size` setting of the pool.
 
+(extension-migration-vm-live)=
 ## `migration_vm_live`
 
 This adds support for performing VM QEMU to QEMU live migration for both shared storage (clustered Ceph) and
@@ -2165,6 +2503,7 @@ non-shared storage pools.
 
 This also adds the `CRIUType_VM_QEMU` value of `3` for the migration `CRIUType` `protobuf` field.
 
+(extension-ovn-nic-nesting)=
 ## `ovn_nic_nesting`
 
 This adds support for nesting an `ovn` NIC inside another `ovn` NIC on the same instance.
@@ -2172,6 +2511,7 @@ This allows for an OVN logical switch port to be tunneled inside another OVN NIC
 
 This feature is configured by specifying the parent NIC name using the {config:option}`device-nic-ovn-device-conf:nested` property and the VLAN ID to use for tunneling with the {config:option}`device-nic-ovn-device-conf:vlan` property.
 
+(extension-oidc)=
 ## `oidc`
 
 This adds support for OpenID Connect (OIDC) authentication.
@@ -2182,6 +2522,7 @@ This adds the following new configuration keys:
 * {config:option}`server-oidc:oidc.client.id`
 * {config:option}`server-oidc:oidc.audience`
 
+(extension-network-ovn-l3only)=
 ## `network_ovn_l3only`
 
 This adds the ability to set an `ovn` network into "layer 3 only" mode.
@@ -2194,10 +2535,12 @@ With this mode enabled the following changes are made to the network:
 * A discard route for the entire internal subnet will be added to the virtual router to prevent packets destined for inactive addresses from escaping to the uplink network.
 * The DHCPv4 server will be configured to indicate that a netmask of 255.255.255.255 be used for instance configuration.
 
+(extension-ovn-nic-acceleration-vdpa)=
 ## `ovn_nic_acceleration_vdpa`
 
 This updates the `ovn_nic_acceleration` API extension. The {config:option}`device-nic-ovn-device-conf:acceleration` configuration key for OVN NICs can now takes the value `vdpa` to support Virtual Data Path Acceleration (VDPA).
 
+(extension-cluster-healing)=
 ## `cluster_healing`
 
 This adds cluster healing which automatically evacuates offline cluster members.
@@ -2210,10 +2553,12 @@ The configuration key takes an integer, and can be disabled by setting it to 0 (
 
 When the offline cluster member is evacuated, only remote-backed instances will be migrated. Local instances will be ignored as there is no way of migrating them once the cluster member is offline.
 
+(extension-instances-state-total)=
 ## `instances_state_total`
 
 This extension adds a new `total` field to `InstanceStateDisk` and `InstanceStateMemory`, both part of the instance's state API.
 
+(extension-auth-user)=
 ## `auth_user`
 
 Add current user details to the main API endpoint.
@@ -2223,16 +2568,19 @@ This introduces:
 * `auth_user_name`
 * `auth_user_method`
 
+(extension-security-csm)=
 ## `security_csm`
 
 Introduce a new {config:option}`instance-security:security.csm` configuration key to control the use of
 `CSM` (Compatibility Support Module) to allow legacy operating systems to
 be run in LXD VMs.
 
+(extension-instances-rebuild)=
 ## `instances_rebuild`
 
 This extension adds the ability to rebuild an instance with the same origin image, alternate image or as empty. A new `POST /1.0/instances/<name>/rebuild?project=<project>` API endpoint has been added as well as a new CLI command [`lxc rebuild`](lxc_rebuild.md).
 
+(extension-numa-cpu-placement)=
 ## `numa_cpu_placement`
 
 This adds the possibility to place a set of CPUs in a desired set of NUMA nodes.
@@ -2241,12 +2589,14 @@ This adds the following new configuration key:
 
 * {config:option}`instance-resource-limits:limits.cpu.nodes` : (string) comma-separated list of NUMA node IDs or NUMA node ID ranges to place the CPUs (chosen with a dynamic value of {config:option}`instance-resource-limits:limits.cpu`) in.
 
+(extension-custom-volume-iso)=
 ## `custom_volume_iso`
 
 This adds the possibility to import ISO images as custom storage volumes.
 
 This adds the `--type` flag to [`lxc storage volume import`](lxc_storage_volume_import.md).
 
+(extension-network-allocations)=
 ## `network_allocations`
 
 This adds the possibility to list a LXD deployment's network allocations.
@@ -2255,37 +2605,45 @@ Through the [`lxc network list-allocations`](lxc_network_list-allocations.md) co
 you can list all the used IP addresses, hardware addresses (for instances), resource URIs and whether it uses NAT for
 each `instance`, `network`, `network forward` and `network load-balancer`.
 
+(extension-storage-api-remote-volume-snapshot-copy)=
 ## `storage_api_remote_volume_snapshot_copy`
 
 This allows copying storage volume snapshots to and from remotes.
 
+(extension-zfs-delegate)=
 ## `zfs_delegate`
 
 This implements a new {config:option}`storage-zfs-volume-conf:zfs.delegate` volume Boolean for volumes on a ZFS storage driver.
 When enabled and a suitable system is in use (requires ZFS 2.2 or higher), the ZFS dataset will be delegated to the container, allowing for its use through the `zfs` command line tool.
 
+(extension-operations-get-query-all-projects)=
 ## `operations_get_query_all_projects`
 
 This introduces support for the `all-projects` query parameter for the GET API calls to both `/1.0/operations` and `/1.0/operations?recursion=1`.
 This parameter allows bypassing the project name filter.
 
+(extension-metadata-configuration)=
 ## `metadata_configuration`
 
 Adds the `GET /1.0/metadata/configuration` API endpoint to retrieve the generated metadata configuration in a JSON format. The JSON structure adopts the structure ```"configs" > `ENTITY` > `ENTITY_SECTION` > "keys" > [<CONFIG_OPTION_0>, <CONFIG_OPTION_1>, ...]```.
 Check the list of {doc}`configuration options </config-options>` to see which configuration options are included.
 
+(extension-syslog-socket)=
 ## `syslog_socket`
 
 This introduces a syslog socket that can receive syslog formatted log messages. These can be viewed in the events API and `lxc monitor`, and can be forwarded to Loki. To enable this feature, set {config:option}`server-core:core.syslog_socket` to `true`.
 
+(extension-event-lifecycle-name-and-project)=
 ## `event_lifecycle_name_and_project`
 
 This adds the fields `Name` and `Project` to `lifecycle` events.
 
+(extension-instances-nic-limits-priority)=
 ## `instances_nic_limits_priority`
 
 This introduces a new per-NIC `limits.priority` option that works with both cgroup1 and cgroup2 unlike the deprecated `limits.network.priority` instance setting, which only worked with cgroup1.
 
+(extension-disk-initial-volume-configuration)=
 ## `disk_initial_volume_configuration`
 
 This API extension provides the capability to set initial volume configurations for instance root devices.
@@ -2295,91 +2653,109 @@ during instance initialization using the `--device` flag.
 Note that these configuration are applied only at the time of instance creation and subsequent modifications have
 no effect on existing devices.
 
+(extension-operation-wait)=
 ## `operation_wait`
 
 This API extension indicates that the `/1.0/operations/{id}/wait` endpoint exists on the server. This indicates to the client
 that the endpoint can be used to wait for an operation to complete rather than waiting for an operation event via the
 `/1.0/events` endpoint.
 
+(extension-cluster-internal-custom-volume-copy)=
 ## `cluster_internal_custom_volume_copy`
 
 This extension adds support for copying and moving custom storage volumes within a cluster with a single API call.
 Calling `POST /1.0/storage-pools/<pool>/custom?target=<target>` will copy the custom volume specified in the `source` part of the request.
 Calling `POST /1.0/storage-pools/<pool>/custom/<volume>?target=<target>` will move the custom volume from the source, specified in the `source` part of the request, to the target.
 
+(extension-disk-io-bus)=
 ## `disk_io_bus`
 
 This introduces a new {config:option}`device-disk-device-conf:io.bus` property to disk devices which can be used to override the bus the disk is attached to.
 
+(extension-storage-cephfs-create-missing)=
 ## `storage_cephfs_create_missing`
 
 This introduces the configuration keys {config:option}`storage-cephfs-pool-conf:cephfs.create_missing`, {config:option}`storage-cephfs-pool-conf:cephfs.osd_pg_num`, {config:option}`storage-cephfs-pool-conf:cephfs.meta_pool` and {config:option}`storage-cephfs-pool-conf:cephfs.data_pool` to be used when adding a `cephfs` storage pool to instruct LXD to create the necessary entities for the storage pool, if they do not exist.
 
+(extension-instance-move-config)=
 ## `instance_move_config`
 
 This API extension provides the ability to use flags `--profile`, `--no-profile`, `--device`, and `--config`
 when moving an instance between projects and/or storage pools.
 
+(extension-ovn-ssl-config)=
 ## `ovn_ssl_config`
 
 This introduces new server configuration keys to provide the SSL CA and client key pair to access the OVN databases.
 The new configuration keys are {config:option}`server-miscellaneous:network.ovn.ca_cert`, {config:option}`server-miscellaneous:network.ovn.client_cert` and {config:option}`server-miscellaneous:network.ovn.client_key`.
 
+(extension-init-preseed-storage-volumes)=
 ## `init_preseed_storage_volumes`
 
 This API extension provides the ability to configure storage volumes in preseed init.
 
+(extension-metrics-instances-count)=
 ## `metrics_instances_count`
 
 This extends the metrics to include the containers and virtual machines counts. Instances are counted irrespective of their state.
 
+(extension-server-instance-type-info)=
 ## `server_instance_type_info`
 
 This API extension enables querying a server's supported instance types.
 When querying the `/1.0` endpoint, a new field named `instance_types` is added to the retrieved data.
 This field indicates which instance types are supported by the server.
 
+(extension-resources-disk-mounted)=
 ## `resources_disk_mounted`
 
 Adds a `mounted` field to disk resources that LXD discovers on the system, reporting whether that disk or partition is
 mounted.
 
+(extension-server-version-lts)=
 ## `server_version_lts`
 
 The API extension adds indication whether the LXD version is an LTS release.
 This is indicated when command `lxc version` is executed or when `/1.0` endpoint is queried.
 
+(extension-oidc-groups-claim)=
 ## `oidc_groups_claim`
 
 This API extension enables setting an {config:option}`server-oidc:oidc.groups.claim` configuration key.
 If OIDC authentication is configured and this claim is set, LXD will request this claim in the scope of OIDC flow.
 The value of the claim will be extracted and might be used to make authorization decisions.
 
+(extension-loki-config-instance)=
 ## `loki_config_instance`
 
 Adds a new {config:option}`server-loki:loki.instance` server configuration key to customize the `instance` field in Loki events.
 This can be used to expose the name of the cluster rather than the individual system name sending
 the event as that's usually already covered by the `location` field.
 
+(extension-storage-volatile-uuid)=
 ## `storage_volatile_uuid`
 
 Adds a new `volatile.uuid` configuration key to all storage volumes, snapshots and buckets.
 This information can be used by storage drivers as a separate identifier besides the name
 when working with volumes.
 
+(extension-import-instance-devices)=
 ## `import_instance_devices`
 
 This API extension provides the ability to use flags `--device` when importing an instance to override instance's devices.
 
+(extension-instances-uefi-vars)=
 ## `instances_uefi_vars`
 
 This API extension indicates that the `/1.0/instances/{name}/uefi-vars` endpoint is supported on the server. This endpoint allows to get the full list of UEFI variables (HTTP method GET) or replace the entire set of UEFI variables (HTTP method PUT).
 
+(extension-instances-migration-stateful)=
 ## `instances_migration_stateful`
 
 This API extension allows newly created VMs to have their {config:option}`instance-migration:migration.stateful` configuration key automatically set
 through the new server-level configuration key {config:option}`server-miscellaneous:instances.migration.stateful`. If `migration.stateful` is already set at the profile or instance level then `instances.migration.stateful` is not applied.
 
+(extension-access-management)=
 ## `access_management`
 
 Adds new APIs under `/1.0/auth` for viewing and managing identities, groups, and permissions.
@@ -2402,34 +2778,41 @@ They must be performed by a sufficiently privileged user, either via Unix socket
 For more information on access control for OIDC clients, see {ref}`fine-grained-authorization`.
 ```
 
+(extension-vm-disk-io-limits)=
 ## `vm_disk_io_limits`
 
 Adds the ability to limit disk I/O for virtual machines.
 
+(extension-storage-volumes-all)=
 ## `storage_volumes_all`
 
 This API extension adds support for listing storage volumes from all storage pools via `/1.0/storage-volumes` or `/1.0/storage-volumes/{type}` to filter by volume type. Also adds a `pool` field to storage volumes.
 
+(extension-instances-files-modify-permissions)=
 ## `instances_files_modify_permissions`
 
 Adds the ability for `POST /1.0/instances/{name}/files` to modify the permissions of files that already exist via the `X-LXD-modify-perm` header.
 
 `X-LXD-modify-perm` should be a comma-separated list of 0 or more of `mode`, `uid`, and `gid`.
 
+(extension-image-restriction-nesting)=
 ## `image_restriction_nesting`
 
 This extension adds a new image restriction, `requirements.nesting` which when `true` indicates that an image cannot be run without nesting.
 
+(extension-container-syscall-intercept-finit-module)=
 ## `container_syscall_intercept_finit_module`
 
 Adds the {config:option}`instance-miscellaneous:linux.kernel_modules.load` container configuration option. If the option is set to `ondemand`, the `finit_modules()` syscall is intercepted and a privileged user in the container's user namespace can load the Linux kernel modules specified in the
 allow list {config:option}`instance-miscellaneous:linux.kernel_modules`.
 
+(extension-device-usb-serial)=
 ## `device_usb_serial`
 
 This adds new configuration keys {config:option}`device-unix-usb-device-conf:serial`, {config:option}`device-unix-usb-device-conf:busnum` and {config:option}`device-unix-usb-device-conf:devnum` for [device type `usb`](devices-usb).
 The feature has been added to make it possible to distinguish between devices with identical {config:option}`device-unix-usb-device-conf:vendorid` and {config:option}`device-unix-usb-device-conf:productid`.
 
+(extension-network-allocate-external-ips)=
 ## `network_allocate_external_ips`
 
 Adds the ability to use an unspecified IPv4 (`0.0.0.0`) or IPv6 (`::`) address in the `listen_address` field of the request body for `POST /1.0/networks/{networkName}/load-balancers` and `POST /1.0/networks/{networkName}/forwards`.
@@ -2437,21 +2820,25 @@ If an unspecified IP address is used, supported drivers will allocate an availab
 Allocation of external IP addresses is currently supported by the OVN network driver.
 The OVN driver will allocate IP addresses from the subnets specified in the uplink network's `ipv4.routes` and `ipv6.routes` configuration options.
 
+(extension-explicit-trust-token)=
 ## `explicit_trust_token`
 
 Adds the ability to explicitly specify a trust token when creating a certificate
 and joining an existing cluster.
 
+(extension-shared-custom-block-volumes)=
 ## `shared_custom_block_volumes`
 
 This adds a configuration key `security.shared` to custom block volumes.
 If unset or `false`, the custom block volume cannot be attached to multiple instances.
 This feature was added to prevent data loss which can happen when custom block volumes are attached to multiple instances at once.
 
+(extension-instance-import-conversion)=
 ## `instance_import_conversion`
 
 Adds the ability to convert images from different formats (e.g. VMDK or QCow2) into RAW image format and import them as LXD instances.
 
+(extension-instance-create-start)=
 ## `instance_create_start`
 
 Adds a `start` field to the `POST /1.0/instances` API which when set
@@ -2459,22 +2846,26 @@ to `true` will have the instance automatically start upon creation.
 
 In this scenario, the creation and startup is part of a single background operation.
 
+(extension-instance-protection-start)=
 ## `instance_protection_start`
 
 Enables setting the {config:option}`instance-security:security.protection.start` field which prevents instances
 from being started if set to `true`.
 
+(extension-devlxd-images-vm)=
 ## `devlxd_images_vm`
 
 Enables the {config:option}`instance-security:security.devlxd.images` configuration option for virtual machines.
 This controls the availability of a `/1.0/images/FINGERPRINT/export` API over `devlxd`.
 This can be used by a virtual machine running LXD to access raw images from the host.
 
+(extension-disk-io-bus-virtio-blk)=
 ## `disk_io_bus_virtio_blk`
 
 Adds a new `virtio-blk` value for `io.bus` on `disk` devices which allows
 for the attached disk to be connected to the `virtio-blk` bus.
 
+(extension-metrics-api-requests)=
 ## `metrics_api_requests`
 
 Adds the following internal metrics:
@@ -2482,12 +2873,14 @@ Adds the following internal metrics:
 * Total completed requests
 * Number of ongoing requests
 
+(extension-projects-limits-disk-pool)=
 ## `projects_limits_disk_pool`
 
 This introduces per-pool project disk limits, introducing a `limits.disk.pool.NAME`
 configuration option to the project limits. When `limits.disk.pool.POOLNAME: 0`
 for a project, the pool is excluded from `lxc storage list` in that project.
 
+(extension-ubuntu-pro-guest-attach)=
 ## `ubuntu_pro_guest_attach`
 
 Adds a new {config:option}`instance-miscellaneous:ubuntu_pro.guest_attach` configuration option for instances.
@@ -2495,11 +2888,13 @@ When set to `on`, if the host has guest attachment enabled, the guest can reques
 
 For more information, see: {ref}`instances-ubuntu-pro-attach`.
 
+(extension-metadata-configuration-entity-types)=
 ## `metadata_configuration_entity_types`
 
 This adds entity type metadata to `GET /1.0/metadata/configuration`.
 The entity type metadata is a JSON object under the `entities` key.
 
+(extension-access-management-tls)=
 ## `access_management_tls`
 
 Expands APIs under `/1.0/auth` to include:
@@ -2521,66 +2916,81 @@ Expands APIs under `/1.0/auth` to include:
   Fine-grained TLS identities may update their own certificate.
   To update the certificate of another identity, the caller must have `can_edit` on the identity.
 
+(extension-network-allocations-ovn-uplink)=
 ## `network_allocations_ovn_uplink`
 
 Includes OVN virtual routers external IPs to `/1.0/network-allocations` responses with the type `uplink`.
 Introduces the `network` field on each allocation, indicating to which network each allocated address belongs.
 And lastly, adds a `project` field on leases, leases can be retrieved via `/1.0/networks/<network>/leases`.
 
+(extension-network-ovn-uplink-vlan)=
 ## `network_ovn_uplink_vlan`
 
 Adds support for using a bridge network with a specified VLAN ID as an OVN uplink.
 
+(extension-state-logical-cpus)=
 ## `state_logical_cpus`
 
 Adds `logical_cpus` field to `GET /1.0/cluster/members/{name}/state` which
 contains the total available logical CPUs available when LXD started.
 
+(extension-vm-limits-cpu-pin-strategy)=
 ## `vm_limits_cpu_pin_strategy`
 
 Adds a new {config:option}`instance-resource-limits:limits.cpu.pin_strategy` configuration option for virtual machines. This option controls the CPU pinning strategy. When set to `none`, CPU auto pinning is disabled. When set to `auto`, CPU auto pinning is enabled.
 
+(extension-gpu-cdi)=
 ## `gpu_cdi`
 
 Adds support for using the Container Device Interface (CDI) specification to configure GPU passthrough in LXD containers. The `id` field of GPU devices now accepts CDI identifiers (for example, `{VENDOR_DOMAIN_NAME}/gpu=gpu{INDEX}`) for containers, in addition to DRM card IDs. This enables GPU passthrough for devices that don't use PCI addressing (like NVIDIA Tegra iGPUs) and provides a more flexible way to identify and configure GPU devices.
 
+(extension-images-all-projects)=
 ## `images_all_projects`
 
 This adds support for listing images across all projects using the `all-projects` parameter in `GET /1.0/images` requests.
 
+(extension-metadata-configuration-scope)=
 ## `metadata_configuration_scope`
 
 This adds scope metadata to `GET /1.0/metadata/configuration`. Options marked with a `global` scope are applied to all cluster members. Options with a `local` scope must be set on a per-member basis.
 
+(extension-unix-device-hotplug-ownership-inherit)=
 ## `unix_device_hotplug_ownership_inherit`
 
 Adds a new {config:option}`device-unix-hotplug-device-conf:ownership.inherit` configuration option for `unix-hotplug` devices. This option controls whether the device inherits ownership (GID and/or UID) from the host. When set to `true` and GID and/or UID are unset, host ownership is inherited. When set to `false`, host ownership is not inherited and ownership can be configured by setting {config:option}`device-unix-hotplug-device-conf:gid` and {config:option}`device-unix-hotplug-device-conf:uid`.
 
+(extension-unix-device-hotplug-subsystem-device-option)=
 ## `unix_device_hotplug_subsystem_device_option`
 
 Adds a new {config:option}`device-unix-hotplug-device-conf:subsystem` configuration option for `unix-hotplug` devices. This adds support for detecting `unix-hotplug` devices by subsystem, and can be used in conjunction with {config:option}`device-unix-hotplug-device-conf:productid` and {config:option}`device-unix-hotplug-device-conf:vendorid`.
 
+(extension-storage-ceph-osd-pool-size)=
 ## `storage_ceph_osd_pool_size`
 
 This introduces the configuration keys {config:option}`storage-ceph-pool-conf:ceph.osd.pool_size`, and {config:option}`storage-cephfs-pool-conf:cephfs.osd_pool_size` to be used when adding or updating a `ceph` or `cephfs` storage pool to instruct LXD to create set the replication size for the underlying OSD pools.
 
+(extension-network-get-target)=
 ## `network_get_target`
 
 Adds optional `target` parameter to `GET /1.0/network`. When target is set, forward the request to the specified cluster member and return the non-managed interfaces from that member.
 
+(extension-network-zones-all-projects)=
 ## `network_zones_all_projects`
 
 This adds support for listing network zones across all projects using the `all-projects` parameter in `GET /1.0/network-zones` requests.
 
+(extension-vm-root-volume-attachment)=
 ## `vm_root_volume_attachment`
 
 Adds support for virtual-machine root volumes and snapshots to be attached to other instances as disk devices. Introduces the `source.type` and `source.snapshot` keys for disk devices.
 
+(extension-projects-limits-uplink-ips)=
 ## `projects_limits_uplink_ips`
 
 Introduces per-project uplink IP limits for each available uplink network, adding `limits.networks.uplink_ips.ipv4.NETWORK_NAME` and `limits.networks.uplink_ips.ipv6.NETWORK_NAME` configuration keys for projects with `features.networks` enabled.
 These keys define the maximum value of IPs made available on a network named NETWORK_NAME to be assigned as uplink IPs for entities inside a certain project. These entities can be other networks, network forwards or load balancers.
 
+(extension-entities-with-entitlements)=
 ## `entities_with_entitlements`
 
 Adds `fine_grained` field to `GET /1.0/auth/identities/current` to indicate if the current identity
@@ -2588,10 +2998,12 @@ interacting with the LXD API is fine-grained (that is, associated permissions ar
 Allows LXD entities to be returned with an `access_entitlements` field if the current identity is fine-grained and the
 GET request to fetch the LXD entities has the `with-access-entitlements=<comma_separated_list_of_candidate_entitlements>` query parameter.
 
+(extension-profiles-all-projects)=
 ## `profiles_all_projects`
 
 This adds support for listing profiles across all projects using the `all-projects` parameter in `GET /1.0/profiles` requests.
 
+(extension-storage-driver-powerflex)=
 ## `storage_driver_powerflex`
 
 Adds a new `powerflex` storage driver which allows the consumption of storage volumes from a Dell PowerFlex storage array using NVMe/TCP and SDC.
@@ -2611,6 +3023,7 @@ The following configuration keys have been added for volumes backed by PowerFlex
 
 1. {config:option}`storage-powerflex-volume-conf:block.type`
 
+(extension-storage-driver-pure)=
 ## `storage_driver_pure`
 
 Adds a new `pure` storage driver which allows the consumption of storage volumes from a Pure Storage storage array using either iSCSI or NVMe/TCP.
@@ -2623,6 +3036,7 @@ The following pool level configuration keys have been added:
 1. {config:option}`storage-pure-pool-conf:pure.mode`
 1. {config:option}`storage-pure-pool-conf:pure.target`
 
+(extension-cloud-init-ssh-keys)=
 ## `cloud_init_ssh_keys`
 
 Adds support for injecting additional SSH public keys into instances through {ref}`cloud-init <instance-options-cloud-init>` without conflicting with any configuration present on {config:option}`instance-cloud-init:cloud-init.vendor-data` or {config:option}`instance-cloud-init:cloud-init.user-data`.
@@ -2631,6 +3045,7 @@ To achieve this, the `cloud-init.ssh-keys.KEYNAME` configuration key is added fo
 
 The value for `cloud-init.ssh-keys.KEYNAME` should be `<user>:<key>`, where `<user>` is the name of the user for whom to inject the key. For `<key>`, provide either the public key or a `cloud-init` import ID for a key hosted elsewhere. Example valid values for `cloud-init.ssh-keys.KEYNAME` are `root:gh:githubUser` or `myUser:ssh-keyAlg base64PublicKey`.
 
+(extension-oidc-scopes)=
 ## `oidc_scopes`
 
 This API extension enables setting an {config:option}`server-oidc:oidc.scopes` configuration key, which accepts a space-separated list of OIDC scopes to request from the identity provider.
@@ -2638,31 +3053,38 @@ This configuration option can be used to request additional scopes that might be
 Additionally, the optional scopes `profile` and `offline_access` can be unset via this setting.
 Note that the `openid` and `email` scopes are always required.
 
+(extension-project-default-network-and-storage)=
 ## `project_default_network_and_storage`
 
 Adds flags --network and --storage. The --network flag adds a network device connected to the specified network to the default profile. The --storage flag adds a root disk device using the specified storage pool to the default profile.
 
+(extension-client-cert-presence)=
 ## `client_cert_presence`
 
 Adds the field `client_certificate` to `GET /1.0` to indicate if the current request has a client certificate in it. This is for informational purposes only and does not affect the behavior of the API.
 
+(extension-clustering-groups-used-by)=
 ## `clustering_groups_used_by`
 
 This API extension adds a `used_by` field to the API response for a {ref}`cluster group <cluster-groups>`.
 Deletion of a cluster group is disallowed if the cluster group is referenced by project configuration (see {config:option}`project-restricted:restricted.cluster.groups`).
 
+(extension-container-bpf-delegation)=
 ## `container_bpf_delegation`
 
 Adds new {config:option}`instance-security:security.delegate_bpf`.* group of options in order to support eBPF delegation using BPF Token mechanism. See {ref}`bpf-delegation-token` for more information.
 
+(extension-override-snapshot-profiles-on-copy)=
 ## `override_snapshot_profiles_on_copy`
 
 This adds a request option to set snapshot's target profile on instance copy to be inherited from target instance.
 
+(extension-resources-device-fs-uuid)=
 ## `resources_device_fs_uuid`
 
 Adds the field `device_fs_uuid` including the respective UUID to each disk and partition indicating whether or not a filesystem is located on the device.
 
+(extension-backup-metadata-version)=
 ## `backup_metadata_version`
 
 Adds the field `version` when exporting instances and custom storage volumes to define the backup file format.
@@ -2677,40 +3099,49 @@ The same applies when exporting a custom storage volume:
 
 `lxc storage volume export pool1 vol1 --export-version 2`
 
+(extension-storage-buckets-all-projects)=
 ## `storage_buckets_all_projects`
 
 This adds support for listing storage buckets across all projects using the `all-projects` parameter in `GET /1.0/storage-pools/POOL/buckets` requests.
 
+(extension-network-acls-all-projects)=
 ## `network_acls_all_projects`
 
 This adds support for listing network ACLs across all projects using the `all-projects` parameter in `GET /1.0/network-acls` requests.
 
+(extension-networks-all-projects)=
 ## `networks_all_projects`
 
 This adds support for listing networks across all projects using the `all-projects` parameter in `GET /1.0/networks` requests.
 
+(extension-clustering-restore-skip-mode)=
 ## `clustering_restore_skip_mode`
 
 Adds a `skip` mode to the restore request. This mode restores a cluster member's status to `ONLINE` without restarting any of its stopped local instances or migrating back instances that were evacuated to other cluster members.
 
+(extension-disk-io-threads-virtiofsd)=
 ## `disk_io_threads_virtiofsd`
 
 Adds the {config:option}`device-disk-device-conf:io.threads` option on `disk` devices which is used to control the `virtiofsd` thread pool size when sharing file systems into VMs. This can help improve I/O performance.
 
+(extension-oidc-client-secret)=
 ## `oidc_client_secret`
 
 This adds support for the {config:option}`server-oidc:oidc.client.secret` configuration key.
 If set, the LXD server will use this value in the OpenID Connect (OIDC) authorization code flow, which is used by LXD UI.
 This configuration value is not shared with other LXD clients (such as the LXD CLI).
 
+(extension-pci-hotplug)=
 ## `pci_hotplug`
 
 This adds PCI device hotplugging for VMs.
 
+(extension-device-patch-removal)=
 ## `device_patch_removal`
 
 The `PATCH /1.0/instances/{name}` endpoint allows removing an instance device by setting its value to `null` in the devices map.
 
+(extension-auth-secrets)=
 ## `auth_secrets`
 
 This adds a new, cluster-wide core secret.
@@ -2719,22 +3150,26 @@ Derived keys are used to encrypt OIDC credential cookies, and will be used for o
 
 The {config:option}`server-core:core.auth_secret_expiry` configuration option can set to define how long a given secret can be used for before it expires.
 
+(extension-daemon-storage-per-project)=
 ## `daemon_storage_per_project`
 
 This introduces two new configuration keys {config:option}`server-miscellaneous:storage.project.{name}.images_volume` and
 {config:option}`server-miscellaneous:storage.project.{name}.backups_volume` per each project to allow for a storage volume on an existing
 pool be used for storing the project-specific images and backups artifacts.
 
+(extension-ovn-internal-load-balancer)=
 ## `ovn_internal_load_balancer`
 
 This introduces support for internal OVN load balancers and network forwards. This approach allows `ovn` networks to define ports on internal IP addresses that can be forwarded to other internal IPs inside their respective networks.
 This change removes the previous limitation on `ovn` networks that load balancers and network forwards could only use external IP addresses to forward to internal IPs.
 
+(extension-auth-bearer-devlxd)=
 ## `auth_bearer_devlxd`
 
 Adds a new `bearer` authentication method and enables authentication to the DevLXD API.
 See {ref}`DevLXD bearer tokens <devlxd-authentication-bearer>`.
 
+(extension-devlxd-volume-management)=
 ## `devlxd_volume_management`
 
 Enables additional DevLXD endpoints for managing custom storage volumes and instance devices when `security.devlxd.management.volumes` is set to true.
@@ -2759,6 +3194,7 @@ Changes to existing DevLXD endpoints:
 
 * `GET /1.0` — Adds a `supported_storage_drivers` field to the response, which is populated when `security.devlxd.management.volumes` is enabled.
 
+(extension-storage-driver-alletra)=
 ## `storage_driver_alletra`
 
 Adds a new `alletra` storage driver for the consumption of storage volumes from an HPE Alletra storage array.
@@ -2773,23 +3209,28 @@ The following pool-level configuration keys have been added:
 1. {config:option}`storage-alletra-pool-conf:alletra.target`
 1. {config:option}`storage-alletra-pool-conf:alletra.mode`
 
+(extension-resources-disk-used-by)=
 ## `resources_disk_used_by`
 
 Adds the field `used_by` to potential storage disk returned by the resources end point to indicate its use by any virtual parent device, e.g. `bcache`.
 
+(extension-ovn-dhcp-ranges)=
 ## `ovn_dhcp_ranges`
 
 This introduces support for the {config:option}`network-ovn-network-conf:ipv4.dhcp.ranges` configuration key for `ovn` networks. This key allows specifying a list of IPv4 ranges
 reserved for dynamic allocation using DHCP.
 
+(extension-operation-requestor)=
 ## `operation_requestor`
 
 This adds a new `requestor` field to operations, which contains information about the caller that initiated the operation.
 
+(extension-import-custom-volume-tar)=
 ## `import_custom_volume_tar`
 
 This adds new option `tar` for parameter `--type` in `POST /1.0/storage-pools/{poolName}/volumes/{type}` API call.
 
+(extension-projects-force-delete)=
 ## `projects_force_delete`
 
 Adds support for force deleting projects and their entities (instances, profiles, images, networks, network ACLs, network zones, storage volumes, and storage buckets) by setting the `force` query parameter on `DELETE /1.0/projects/{name}` requests.
