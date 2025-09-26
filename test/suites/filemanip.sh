@@ -161,8 +161,7 @@ test_filemanip() {
   [ "$(lxc exec filemanip --project=test -- readlink /tmp/create-symlink)" = "foo" ]
 
   # Test SFTP functionality.
-  cmd=$(unset -f lxc; command -v lxc)
-  $cmd file mount filemanip --listen=127.0.0.1:2022 --no-auth &
+  "${_LXC}" file mount filemanip --listen=127.0.0.1:2022 --no-auth &
   mountPID=$!
   sleep 1
 
@@ -171,13 +170,15 @@ test_filemanip() {
   lxc delete filemanip -f
   [ "$output" = "foo" ]
 
-  rm "${TEST_DIR}"/source/baz
-  rm -rf "${TEST_DIR}/dest"
+  rm "${TEST_DIR}"/filemanip
+  rm -rf "${TEST_DIR}/source" "${TEST_DIR}/dest"
   lxc project switch default
   lxc project delete test
 }
 
 test_filemanip_req_content_type() {
+  ensure_import_testimage
+
   inst="c-file-push"
 
   lxc launch testimage "${inst}"
@@ -185,11 +186,8 @@ test_filemanip_req_content_type() {
   # This ensures strings.Reader works correctly with the content-type check.
   # The specific here is that the net/http package will configure the
   # content-length on the request, which in LXD triggers content-type check.
-  (
-    cd lxd-client
-    go run . file-push "${inst}" /tmp/status.txt "success"
-    [ "$(lxc exec "${inst}" -- cat /tmp/status.txt)" = "success" ]
-  )
+  go run -C lxd-client . file-push "${inst}" /tmp/status.txt "success"
+  [ "$(lxc exec "${inst}" -- cat /tmp/status.txt)" = "success" ]
 
   lxc delete "${inst}" --force
 }
