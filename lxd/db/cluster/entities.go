@@ -213,7 +213,7 @@ func (e *EntityRef) scan(scan func(dest ...any) error) error {
 
 	e.EntityType = entityType
 	e.EntityID = entityID
-	e.Reference = ref
+	e.Reference = *ref
 
 	return nil
 }
@@ -385,7 +385,7 @@ func PopulateEntityReferencesFromURLs(ctx context.Context, tx *sql.Tx, entityURL
 
 		entityURLMap[entityURL] = &EntityRef{
 			EntityType: EntityType(entityType),
-			Reference:  ref,
+			Reference:  *ref,
 		}
 
 		// If the given URL is the server url it is valid but there is no need to perform a query for it, the entity
@@ -473,7 +473,7 @@ func GetEntityReferenceFromURL(ctx context.Context, tx *sql.Tx, entityURL *api.U
 
 	entityRef := &EntityRef{
 		EntityType: EntityType(ref.EntityType),
-		Reference:  ref,
+		Reference:  *ref,
 	}
 
 	// If the given URL is the server url it is valid but there is no need to perform a query for it, the entity
