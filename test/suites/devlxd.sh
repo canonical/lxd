@@ -44,13 +44,13 @@ test_devlxd() {
 
   # Create a token with an expiry
   lxc auth identity create devlxd/foo
-  devlxd_token4="$(lxc auth identity token issue devlxd/foo --quiet --expiry 1S)"
+  devlxd_token4="$(lxc auth identity token issue devlxd/foo --quiet --expiry 2S)"
 
   # It's initially valid
   lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token4}" devlxd -- devlxd-client get-state | jq --exit-status '.auth == "trusted"'
 
   # It's not valid after the expiry
-  sleep 2
+  sleep 3
   [ "$(! lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token4}" devlxd -- devlxd-client get-state || false)" = 'Failed to verify bearer token: Token is not valid: token has invalid claims: token is expired' ]
 
   # Clean up
