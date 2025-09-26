@@ -29,8 +29,8 @@ test_tls_restrictions() {
 
   # Confirm client with restricted certificate cannot see server configuration.
   lxc config set user.foo bar
-  [ "$(lxc_remote query localhost:/1.0 | jq '.config | length')" = 0 ]
-  [ "$(lxc_remote query localhost:/1.0 | jq -r '.config."user.foo"')" = "null" ]
+  lxc_remote query localhost:/1.0 | jq --exit-status '.config | length == 0'
+  lxc_remote query localhost:/1.0 | jq --exit-status '.config."user.foo" == null'
   lxc config unset user.foo
 
   # Confirm no project visible when none listed
@@ -67,10 +67,10 @@ test_tls_restrictions() {
 
   # The events for the restricted caller should have only the profile creation lifecycle event because this occurred
   # "blah". The storage volume creation event should not be visible because it occurred in "default".
-  jq -s -e 'length == 1 and .[0].type == "lifecycle" and .[0].metadata.action == "profile-created"' "${monfile_restricted}"
+  jq --exit-status --slurp 'length == 1 and .[0].type == "lifecycle" and .[0].metadata.action == "profile-created"' "${monfile_restricted}"
 
   # Whereas events for the root user will contain both storage volume and profile creation events.
-  jq -s -e 'length == 2 and .[1].metadata.action == "profile-created" and .[0].metadata.action == "storage-volume-created"' "${monfile_root}"
+  jq --exit-status --slurp 'length == 2 and .[1].metadata.action == "profile-created" and .[0].metadata.action == "storage-volume-created"' "${monfile_root}"
 
   # Clean up event filtering checks
   lxc profile delete p1 --project blah
@@ -191,7 +191,7 @@ test_tls_restrictions() {
   lxc_remote network list localhost: --project blah | grep -F "${networkName}"
 
   # The reported project is blah when listing networks with request project set to blah.
-  [ "$(lxc_remote query -X GET "/1.0/networks?project=blah&recursion=1" | jq -r '.[] | select(.name == "'"${networkName}"'") | .project' | grep -cF "blah")" = "1" ]
+  lxc_remote query -X GET "/1.0/networks?project=blah&recursion=1" | jq --exit-status '.[] | select(.name == "'"${networkName}"'") | .project == "blah"'
 
   # The restricted client can't view it via project default.
   ! lxc_remote network show "localhost:${networkName}" --project default || false
@@ -228,7 +228,7 @@ test_tls_restrictions() {
   [ "$(lxc_remote network acl list localhost: --project blah | grep -cF "${networkACLName}")" = "1" ]
 
   # The reported project is blah when listing network ACLs with request project set to blah.
-  [ "$(lxc_remote query -X GET "/1.0/network-acls?project=blah&recursion=1" | jq -r '.[] | select(.name == "'"${networkACLName}"'") | .project' | grep -cF "blah")" = "1" ]
+  lxc_remote query -X GET "/1.0/network-acls?project=blah&recursion=1" | jq --exit-status '.[] | select(.name == "'"${networkACLName}"'") | .project == "blah"'
 
   # The restricted client can't view it via project default.
   ! lxc_remote network acl show "localhost:${networkACLName}" --project default || false
@@ -502,15 +502,15 @@ test_certificate_edit() {
   # Trying to change other fields should fail as a non-admin.
   ! lxc_remote config trust show "${FINGERPRINT}" | sed -e "s/restricted: true/restricted: false/" | lxc_remote config trust edit localhost:"${FINGERPRINT}" || false
 
-  [ "$(my_curl -X PATCH -H 'Content-Type: application/json' -d '{"restricted": false}' "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}" | jq -r '.error_code')" -eq 403 ]
+  my_curl -X PATCH -H 'Content-Type: application/json' -d '{"restricted": false}' "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}" | jq --exit-status '.error_code == 403'
 
   ! lxc_remote config trust show "${FINGERPRINT}" | sed -e "s/name:.*/name: bar/" | lxc_remote config trust edit localhost:"${FINGERPRINT}" || false
 
-  [ "$(my_curl -X PATCH -H 'Content-Type: application/json' -d '{"name": "bar"}' "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}" | jq -r '.error_code')" -eq 403 ]
+  my_curl -X PATCH -H 'Content-Type: application/json' -d '{"name": "bar"}' "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}" | jq --exit-status '.error_code == 403'
 
   ! lxc_remote config trust show "${FINGERPRINT}" | sed -e ':a;N;$!ba;s/projects:\n- blah/projects: \[\]/' | lxc_remote config trust edit localhost:"${FINGERPRINT}" || false
 
-  [ "$(my_curl -X PATCH -H 'Content-Type: application/json' -d '{"projects": []}' "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}" | jq -r '.error_code')" -eq 403 ]
+  my_curl -X PATCH -H 'Content-Type: application/json' -d '{"projects": []}' "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}" | jq --exit-status '.error_code == 403'
 
   # Cleanup
   lxc config trust show "${FINGERPRINT}" | sed -e "s/restricted: true/restricted: false/" | lxc config trust edit "${FINGERPRINT}"
