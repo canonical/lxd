@@ -15,28 +15,28 @@ test_devlxd() {
   ### Test bearer token authentication
 
   # Check that auth is untrusted by default
-  lxc exec devlxd -- devlxd-client get-state | jq -e '.auth == "untrusted"'
+  lxc exec devlxd -- devlxd-client get-state | jq --exit-status '.auth == "untrusted"'
 
   # Create a bearer identity and issue a token
   lxc auth identity create devlxd/foo
   devlxd_token1="$(lxc auth identity token issue devlxd/foo --quiet)"
 
   # Check that the token is valid (devlxd can be called with the token and auth is trusted).
-  lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token1}" devlxd -- devlxd-client get-state | jq -e '.auth == "trusted"'
+  lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token1}" devlxd -- devlxd-client get-state | jq --exit-status '.auth == "trusted"'
 
   # Issue another token, the old token should be invalid (so devlxd calls fail) and the new one valid.
   devlxd_token2="$(lxc auth identity token issue devlxd/foo --quiet)"
   [ "$(! lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token1}" devlxd -- devlxd-client get-state || false)" = 'Failed to verify bearer token: Token is not valid: token signature is invalid: signature is invalid' ]
-  lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token2}" devlxd -- devlxd-client get-state | jq -e '.auth == "trusted"'
+  lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token2}" devlxd -- devlxd-client get-state | jq --exit-status '.auth == "trusted"'
 
   # Revoke the token, it should no longer be valid.
-  subject="$(lxc query /1.0/auth/identities/bearer/foo | jq -r .id)"
+  subject="$(lxc query /1.0/auth/identities/bearer/foo | jq --exit-status --raw-output .id)"
   lxc auth identity token revoke devlxd/foo
   [ "$(! lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token2}" devlxd -- devlxd-client get-state || false)" = "Failed to verify bearer token: Identity \"${subject}\" (bearer) not found" ]
 
   # Issue a new token, it should be valid
   devlxd_token3="$(lxc auth identity token issue devlxd/foo --quiet)"
-  lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token3}" devlxd -- devlxd-client get-state | jq -e '.auth == "trusted"'
+  lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token3}" devlxd -- devlxd-client get-state | jq --exit-status '.auth == "trusted"'
 
   # Delete the identity, the token should no longer be valid.
   lxc auth identity delete devlxd/foo
@@ -47,7 +47,7 @@ test_devlxd() {
   devlxd_token4="$(lxc auth identity token issue devlxd/foo --quiet --expiry 1S)"
 
   # It's initially valid
-  lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token4}" devlxd -- devlxd-client get-state | jq -e '.auth == "trusted"'
+  lxc exec --env DEVLXD_BEARER_TOKEN="${devlxd_token4}" devlxd -- devlxd-client get-state | jq --exit-status '.auth == "trusted"'
 
   # It's not valid after the expiry
   sleep 2
@@ -196,7 +196,7 @@ EOF
 
   # Check device configs are available and that NIC hwaddr is available even if volatile.
   hwaddr=$(lxc config get devlxd volatile.eth0.hwaddr)
-  [ "$(lxc exec devlxd -- devlxd-client devices | jq -r .eth0.hwaddr)" = "${hwaddr}" ]
+  [ "$(lxc exec devlxd -- devlxd-client devices | jq --exit-status --raw-output .eth0.hwaddr)" = "${hwaddr}" ]
 
   lxc delete devlxd --force
   kill -9 "${monitorDevlxdPID}"
@@ -241,10 +241,10 @@ test_devlxd_volume_management() {
     lxc exec --project "${project}" "${inst}" -- devlxd-client
 
     # Ensure supported storage drivers are included in /1.0 only when volume management security flag is enabled.
-    lxc exec "${inst}" --project "${project}" -- devlxd-client get-state | jq -e '.supported_storage_drivers == []'
+    lxc exec "${inst}" --project "${project}" -- devlxd-client get-state | jq --exit-status '.supported_storage_drivers == []'
     lxc config set "${inst}" --project "${project}" security.devlxd.management.volumes=true
-    lxc exec "${inst}" --project "${project}" -- devlxd-client get-state | jq -e '.supported_storage_drivers | length > 0'
-    lxc exec "${inst}" --project "${project}" -- devlxd-client get-state | jq -e '.supported_storage_drivers[] | select(.name == "dir") | .remote == false'
+    lxc exec "${inst}" --project "${project}" -- devlxd-client get-state | jq --exit-status '.supported_storage_drivers | length > 0'
+    lxc exec "${inst}" --project "${project}" -- devlxd-client get-state | jq --exit-status '.supported_storage_drivers[] | select(.name == "dir") | .remote == false'
 
     # Test devLXD authentication (devLXD identity).
     # Fail when token is not passed.
@@ -252,9 +252,9 @@ test_devlxd_volume_management() {
 
     # Ensure "environment" is not included in the API response for unauthenticated clients.
     # When using LXD go-client, default values are used for missing fields, so "environment.server_clustered" will be false.
-    [ "$(lxc exec "${inst}" --project "${project}" -- devlxd-client get-state | jq -e '.environment.server_clustered')" = "false" ]
+    [ "$(lxc exec "${inst}" --project "${project}" -- devlxd-client get-state | jq --exit-status '.environment.server_clustered')" = "false" ]
     # However, "environment" must be missing in the API response.
-    [ "$(lxc exec "${inst}" --project "${project}" -- devlxd-client query GET /1.0 | jq -e '.environment')" = "null" ]
+    [ "$(lxc exec "${inst}" --project "${project}" -- devlxd-client query GET /1.0 | jq --exit-status '.environment')" = "null" ]
 
     # Fail when a valid identity token is passed, but the identity does not have permissions.
     lxc auth identity create "${authIdentity}"
@@ -270,9 +270,9 @@ test_devlxd_volume_management() {
     lxc auth group permission add "${authGroup}" project "${project}" can_view
     lxc auth group permission add "${authGroup}" instance "${inst}" can_view project="${project}"
     lxc auth identity group add "${authIdentity}" "${authGroup}"
-    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}" | jq -e .name
-    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client get-state | jq -e '.environment.server_clustered')" = "false" ]
-    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client query GET /1.0 | jq -e '.environment.server_clustered')" = "false" ]
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}" | jq --exit-status .name
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client get-state | jq --exit-status '.environment.server_clustered')" = "false" ]
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client query GET /1.0 | jq --exit-status '.environment.server_clustered')" = "false" ]
 
     # Test devLXD authorization (volume management security flag).
     # Fail when the security flag is not set.
@@ -285,7 +285,7 @@ test_devlxd_volume_management() {
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get "${pool}"
 
     # Get storage volumes (ok - custom volumes requested).
-    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage volumes "${pool}" | jq -e '. == []'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage volumes "${pool}" | jq --exit-status '. == []'
 
     # Get storage volume (fail - insufficient permissions).
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" "${instType}" "${inst}")" = "Not Found" ]
@@ -315,7 +315,7 @@ test_devlxd_volume_management() {
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${vol2}")" = "Volume by that name already exists" ]
 
     # Verify created storage volumes.
-    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage volumes "${pool}" | jq -e 'length == 2'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage volumes "${pool}" | jq --exit-status 'length == 2'
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" custom vol-01
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" custom vol-02
 
@@ -337,12 +337,12 @@ test_devlxd_volume_management() {
     # Update storage volume (ok - no ETag).
     etag=$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume-etag "${pool}" custom vol-01)
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage update-volume "${pool}" custom vol-01 "${volNew}"
-    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" custom vol-01 | jq -e '.config.size == "20MiB" and .description == "Updated volume"'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" custom vol-01 | jq --exit-status '.config.size == "20MiB" and .description == "Updated volume"'
 
     # Update storage volume (ok - correct ETag).
     etag=$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume-etag "${pool}" custom vol-02)
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage update-volume "${pool}" custom vol-02 "${volNew}" "${etag}"
-    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" custom vol-02 | jq -e '.config.size == "20MiB" and .description == "Updated volume"'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" custom vol-02 | jq --exit-status '.config.size == "20MiB" and .description == "Updated volume"'
 
     # Get instance.
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}"
@@ -368,7 +368,7 @@ EOF
     # Succeed - with edit permission.
     lxc auth group permission add "${authGroup}" instance "${inst}" can_edit project="${project}"
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance update "${inst}" "${attachReq}"
-    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}" | jq -e -r '.devices."vol-01".source == "vol-01"'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}" | jq --exit-status '.devices."vol-01".source == "vol-01"'
 
     # Detach device.
     detachReq='{
@@ -379,7 +379,7 @@ EOF
 
     etag=$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get-etag "${inst}")
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance update "${inst}" "${detachReq}" "${etag}"
-    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}" | jq -e '.devices == {}'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}" | jq --exit-status '.devices == {}'
 
     # Manage device on a different instance.
     inst2="${inst}-2"
@@ -393,11 +393,11 @@ EOF
     lxc auth group permission add "${authGroup}" instance "${inst2}" can_edit project="${project}"
     etag=$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get-etag "${inst2}")
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance update "${inst2}" "${attachReq}" "${etag}"
-    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst2}" | jq -e -r '.devices."vol-01".source == "vol-01"'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst2}" | jq --exit-status '.devices."vol-01".source == "vol-01"'
 
     etag=$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get-etag "${inst2}")
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance update "${inst2}" "${detachReq}" "${etag}"
-    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst2}" | jq -e '.devices == {}'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst2}" | jq --exit-status '.devices == {}'
 
     lxc delete "${inst}-2" --project "${project}" --force
 
@@ -416,7 +416,7 @@ EOF
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage delete-volume "${pool}" custom vol-02
 
     # Ensure storage volumes are deleted.
-    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage volumes "${pool}" | jq -e '. == []'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage volumes "${pool}" | jq --exit-status '. == []'
 
     # Cleanup.
     lxc delete "${inst}" --project "${project}" --force
