@@ -968,7 +968,7 @@ func doProjectForceDelete(ctx context.Context, s *state.State, projectName strin
 			return err
 		}
 
-		toDelete = append(toDelete, ref)
+		toDelete = append(toDelete, *ref)
 	}
 
 	// Sort entities by type to ensure proper deletion order (instances first, then profiles).
