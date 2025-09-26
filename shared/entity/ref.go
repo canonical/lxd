@@ -17,25 +17,25 @@ type Reference struct {
 	url         *api.URL
 }
 
-// NewReference constructs a [Reference] and validates it by attempting to build the canonical URL.
-func NewReference(projectName string, entityType Type, location string, pathArgs ...string) (Reference, error) {
+// NewReference constructs a [*Reference] and validates it by attempting to build the canonical URL.
+func NewReference(projectName string, entityType Type, location string, pathArgs ...string) (*Reference, error) {
 	if entityType == "" {
-		return Reference{}, errors.New("Missing entity type")
+		return nil, errors.New("Missing entity type")
 	}
 
 	url, err := entityType.URL(projectName, location, pathArgs...)
 	if err != nil {
-		return Reference{}, err
+		return nil, err
 	}
 
-	return Reference{EntityType: entityType, ProjectName: projectName, Location: location, PathArgs: slices.Clone(pathArgs), url: url}, nil
+	return &Reference{EntityType: entityType, ProjectName: projectName, Location: location, PathArgs: slices.Clone(pathArgs), url: *url}, nil
 }
 
-// ReferenceFromURL parses a [url.URL] into a [Reference].
-func ReferenceFromURL(u url.URL) (Reference, error) {
+// ReferenceFromURL parses a [url.URL] into a [*Reference].
+func ReferenceFromURL(u url.URL) (*Reference, error) {
 	entityType, projectName, location, pathArgs, err := ParseURL(u)
 	if err != nil {
-		return Reference{}, err
+		return nil, err
 	}
 
 	return NewReference(projectName, entityType, location, pathArgs...)
