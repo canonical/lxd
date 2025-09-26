@@ -18,6 +18,7 @@ import (
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -281,6 +282,30 @@ func (d *common) moveGPTAltHeader(devPath string) error {
 	if err != nil {
 		d.logger.Warn("Skipped moving GPT alternative header to end of disk as sgdisk command not found", logger.Ctx{"dev": devPath})
 		return nil
+	}
+
+	// Our images and VM drives use a 512 bytes sector size.
+	// If the underlying block device uses a different sector size, we need to fake the correct size through a
+	// loop device so sgdisk can correctly re-locate the partition tables.
+	if shared.IsBlockdevPath(devPath) {
+		blockSize, err := block.DiskBlockSize(devPath)
+		if err != nil {
+			return fmt.Errorf("Failed getting block size for %q: %w", devPath, err)
+		}
+
+		if blockSize != 512 {
+			devPath, err = block.LoopDeviceSetupAlign(devPath)
+			if err != nil {
+				return fmt.Errorf("Failed setting up loop device for %q: %w", devPath, err)
+			}
+
+			defer func() {
+				err := loopDeviceAutoDetach(devPath)
+				if err != nil {
+					d.logger.Warn("Failed detaching loop device", logger.Ctx{"dev": devPath, "err": err})
+				}
+			}()
+		}
 	}
 
 	_, err = shared.RunCommandContext(context.TODO(), path, "--move-second-header", devPath)
