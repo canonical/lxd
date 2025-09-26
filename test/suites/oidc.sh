@@ -1,6 +1,4 @@
 test_oidc() {
-  ensure_import_testimage
-
   # shellcheck disable=2153
   ensure_has_localhost_remote "${LXD_ADDR}"
 
