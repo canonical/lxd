@@ -970,7 +970,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("Failed loading project %q: %w", name, err)
 			}
 
-			empty, err := projectIsEmpty(ctx, project, tx)
+			empty, err := projectIsEmpty(ctx, project, tx, false)
 			if err != nil {
 				return err
 			}
@@ -1237,14 +1237,38 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if !force {
-			// Verify the project is empty.
-			empty, err := projectIsEmpty(ctx, project, tx)
+			// Verify the project is empty. Skip checking for cached images as these will be deleted below.
+			empty, err := projectIsEmpty(ctx, project, tx, true)
 			if err != nil {
 				return err
 			}
 
 			if !empty {
 				return errors.New("Only empty projects can be removed")
+			}
+		}
+
+		// Prune cached images.
+		cached := true
+		images, err := dbCluster.GetImages(ctx, tx.Tx(), dbCluster.ImageFilter{Project: &project.Name, Cached: &cached})
+		if err != nil {
+			return fmt.Errorf("Failed getting cached images for project %q: %w", name, err)
+		}
+
+		for _, image := range images {
+			op, err := doImageDelete(ctx, s, image.Fingerprint, image.ID, project.Name)
+			if err != nil {
+				return fmt.Errorf("Failed creating delete operation for cached image %q: %w", image.Fingerprint, err)
+			}
+
+			err = op.Start()
+			if err != nil {
+				return fmt.Errorf("Failed starting image delete operation for cached image %q: %w", image.Fingerprint, err)
+			}
+
+			err = op.Wait(context.Background())
+			if err != nil {
+				return fmt.Errorf("Failed deleting cached image %q: %w", image.Fingerprint, err)
 			}
 		}
 
@@ -1361,10 +1385,43 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 }
 
 // Check if a project is empty.
-func projectIsEmpty(ctx context.Context, project *dbCluster.Project, tx *db.ClusterTx) (bool, error) {
+func projectIsEmpty(ctx context.Context, project *dbCluster.Project, tx *db.ClusterTx, skipCachedImages bool) (bool, error) {
 	usedBy, err := projectUsedBy(ctx, tx, project)
 	if err != nil {
 		return false, err
+	}
+
+	if skipCachedImages {
+		for _, u := range usedBy {
+			parsedURL, err := url.Parse(u)
+			if err != nil {
+				return false, fmt.Errorf("Failed parsing URL %q: %w", u, err)
+			}
+
+			// Build an entity reference directly from the URL.
+			ref, err := entity.ReferenceFromURL(*parsedURL)
+			if err != nil {
+				return false, err
+			}
+
+			// Check for cached images.
+			if ref.EntityType == entity.TypeImage {
+				fingerprint := ref.Name()
+
+				image, err := dbCluster.GetImage(ctx, tx.Tx(), project.Name, fingerprint)
+				if err != nil {
+					return false, err
+				}
+
+				if image.Cached {
+					// Remove cached image from usedBy list.
+					idx := slices.Index(usedBy, u)
+					if idx != -1 {
+						usedBy = slices.Delete(usedBy, idx, idx+1)
+					}
+				}
+			}
+		}
 	}
 
 	if isProjectInUse(usedBy) {
