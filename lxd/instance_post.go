@@ -645,10 +645,6 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 		return nil, errors.New("The destination cluster member is evacuated")
 	}
 
-	// Save the original value of the "volatile.apply_template" config key,
-	// since we'll want to preserve it in the copied instance.
-	origVolatileApplyTemplate := srcInst.LocalConfig()["volatile.apply_template"]
-
 	// Check we can convert the instance to the volume types needed.
 	volType, err := storagePools.InstanceTypeToVolumeType(srcInst.Type())
 	if err != nil {
@@ -812,23 +808,6 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 				err = tx.UpdateInstanceConfig(int(id), map[string]string{"volatile.cluster.group": targetGroupName})
 				if err != nil {
 					return fmt.Errorf(`Failed setting "volatile.cluster.group" config key: %w`, err)
-				}
-			}
-
-			// Restore the original value of "volatile.apply_template".
-			err = tx.DeleteInstanceConfigKey(ctx, id, "volatile.apply_template")
-			if err != nil {
-				return fmt.Errorf("Failed to remove volatile.apply_template config key: %w", err)
-			}
-
-			if origVolatileApplyTemplate != "" {
-				config := map[string]string{
-					"volatile.apply_template": origVolatileApplyTemplate,
-				}
-
-				err = tx.CreateInstanceConfig(ctx, int(id), config)
-				if err != nil {
-					return fmt.Errorf("Failed to set volatile.apply_template config key: %w", err)
 				}
 			}
 
