@@ -54,6 +54,7 @@ Automatic roles are assigned by LXD itself and cannot be modified by the user.
 | `database`            | yes           | Voting member of the distributed database |
 | `database-leader`     | yes           | Current leader of the distributed database |
 | `database-standby`    | yes           | Stand-by (non-voting) member of the distributed database |
+| `database-client`     | no            | Prevents the affected cluster member from being elected as a voter or stand-by |
 | `event-hub`           | no            | Exchange point (hub) for the internal LXD events (requires at least two) |
 | `ovn-chassis`         | no            | Uplink gateway candidate for OVN networks |
 
