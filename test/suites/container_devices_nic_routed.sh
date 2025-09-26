@@ -75,8 +75,7 @@ test_container_devices_nic_routed() {
   lxc config device set "${ctName}" eth0 ipv6.neighbor_probe=false
   lxc start "${ctName}"
   lxc stop "${ctName}" -f
-  lxc config device unset "${ctName}" eth0 ipv4.neighbor_probe
-  lxc config device unset "${ctName}" eth0 ipv6.neighbor_probe
+  lxc config device set "${ctName}" eth0 ipv4.neighbor_probe="" ipv6.neighbor_probe=""
 
   # Check starting routed NIC with unused IPs.
   lxc config device set "${ctName}" eth0 ipv4.address="192.0.2.1${ipRand}" ipv6.address="2001:db8::1${ipRand}" ipv4.routes="192.0.3.0/24" ipv6.routes="2001:db7::/64" mtu=1600
@@ -142,8 +141,7 @@ test_container_devices_nic_routed() {
   lxc stop -f "${ctName}2"
 
   # Check single IPv6 family auto default gateway works.
-  lxc config device unset "${ctName}2" eth0 ipv4.address
-  lxc config device set "${ctName}2" eth0 ipv6.address="2001:db8::2${ipRand}, 2001:db8::3${ipRand}"
+  lxc config device set "${ctName}2" eth0 ipv4.address="" ipv6.address="2001:db8::2${ipRand}, 2001:db8::3${ipRand}"
   lxc start "${ctName}2"
   ! lxc exec "${ctName}2" -- ip r | grep -F "169.254.0.1" || false
   lxc exec "${ctName}2" -- ip -6 r | grep -F "fe80::1"
@@ -173,13 +171,10 @@ test_container_devices_nic_routed() {
   lxc exec "${ctName}2" -- ping -nc2 -i0.1 -W1 "192.0.2.1${ipRand}"
   lxc exec "${ctName}2" -- ping -6 -nc2 -i0.1 -W1 "2001:db8::1${ipRand}"
 
-  lxc stop -f "${ctName}2"
-  lxc stop -f "${ctName}"
+  lxc stop -f "${ctName}" "${ctName}2"
 
   # Check routed ontop of VLAN parent with custom routing tables.
-  lxc config device set "${ctName}" eth0 vlan 1234
-  lxc config device set "${ctName}" eth0 ipv4.host_table=100
-  lxc config device set "${ctName}" eth0 ipv6.host_table=101
+  lxc config device set "${ctName}" eth0 vlan=1234 ipv4.host_table=100 ipv6.host_table=101
   lxc start "${ctName}"
 
   # Check VLAN interface created
@@ -213,9 +208,7 @@ test_container_devices_nic_routed() {
   fi
 
   # Cleanup routed checks
-  lxc delete "${ctName}" -f
-  lxc delete "${ctName}2" -f
-  lxc delete "${ctName}neigh" -f
+  lxc delete -f "${ctName}" "${ctName}2" "${ctName}neigh"
   ip link delete "${ctName}.1234"
   lxc network show "${ctName}"
   lxc network delete "${ctName}"
