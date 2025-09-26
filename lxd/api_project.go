@@ -878,7 +878,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("Failed loading project %q: %w", name, err)
 			}
 
-			empty, err := projectIsEmpty(ctx, project, tx)
+			empty, err := projectIsEmpty(ctx, project, tx, nil)
 			if err != nil {
 				return err
 			}
@@ -1067,7 +1067,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 
 		if !force {
 			// Verify the project is empty.
-			empty, err := projectIsEmpty(ctx, project, tx)
+			empty, err := projectIsEmpty(ctx, project, tx, nil)
 			if err != nil {
 				return err
 			}
