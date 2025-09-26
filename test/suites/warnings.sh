@@ -12,9 +12,8 @@ test_warnings() {
     lxc query --wait -X POST -d '{"type_code": 0, "message": "global warning 2", "project": "default"}' /internal/testing/warnings
 
     # There should be two warnings now.
-    [ "$(lxc query --wait /1.0/warnings | jq 'length')" = "2" ]
-
-    [ "$(lxc query --wait /1.0/warnings\?recursion=1 | jq 'length')" = "2" ]
+    lxc query --wait /1.0/warnings | jq --exit-status 'length == 2'
+    lxc query --wait /1.0/warnings\?recursion=1 | jq --exit-status 'length == 2'
 
     # Invalid query (unknown project)
     ! lxc query --wait -X POST -d '{"type_code": 0, "message": "global warning", "project": "foo"}' /internal/testing/warnings || false
@@ -34,7 +33,7 @@ test_warnings() {
     lxc query --wait -X POST -d '{"type_code": 0, "message": "global warning", "entity_type": "image", "entity_id": '"${image_id}"'}' /internal/testing/warnings
 
     # There should be three warnings now.
-    [ "$(lxc warning list --format json | jq 'length')" = "3" ]
+    lxc warning list --format json | jq --exit-status 'length == 3'
 
     # Test filtering
     curl --silent --get --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/warnings" --data-urlencode "recursion=0" --data-urlencode "filter=status eq new" | jq --exit-status '.metadata | length == 3'
@@ -42,14 +41,14 @@ test_warnings() {
     curl --silent --get --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/warnings" --data-urlencode "recursion=0" --data-urlencode "filter=status eq resolved" | jq --exit-status '.metadata | length == 0'
 
     # Acknowledge a warning
-    uuid=$(lxc warning list --format json | jq -r '.[] | select(.last_message=="global warning 2") | .uuid')
+    uuid="$(lxc warning list --format json | jq --exit-status --raw-output '.[] | select(.last_message=="global warning 2") | .uuid')"
     lxc warning ack "${uuid}"
 
     # This should hide the acknowledged
-    [ "$(lxc warning list --format json | jq 'length')" = "2" ]
+    lxc warning list --format json | jq --exit-status 'length == 2'
 
     # ... unless one uses --all.
-    [ "$(lxc warning list --all --format json | jq 'length')" = "3" ]
+    lxc warning list --all --format json | jq --exit-status 'length == 3'
 
     lxc warning show "${uuid}" | grep -xF "last_message: global warning 2"
 
