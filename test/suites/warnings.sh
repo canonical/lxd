@@ -51,7 +51,7 @@ test_warnings() {
     # ... unless one uses --all.
     [ "$(lxc warning list --all --format json | jq 'length')" = "3" ]
 
-    lxc warning show "${uuid}" | grep "global warning 2"
+    lxc warning show "${uuid}" | grep -xF "last_message: global warning 2"
 
     # Delete warning
     lxc warning rm "${uuid}"
