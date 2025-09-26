@@ -57,7 +57,7 @@ test_devlxd() {
   lxc auth identity delete devlxd/foo
 
   # No secret remains in the database after the identity was deleted
-  [ "$(lxd sql global --format csv 'SELECT * FROM secrets WHERE entity_id' || echo fail)" = "" ]
+  [ "$(lxd sql global --format csv 'SELECT COUNT(*) FROM secrets WHERE entity_id')" = "0" ]
 
   # Try to get a host's private image from devlxd.
   [ "$(lxc exec devlxd -- devlxd-client image-export "${fingerprint}")" = "Forbidden" ]
