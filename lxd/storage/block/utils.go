@@ -261,3 +261,13 @@ func GetDisksByID(filterPrefix string) ([]string, error) {
 
 	return filteredDisks, nil
 }
+
+// LoopDeviceSetupAlign creates a forced 512-byte aligned loop device.
+func LoopDeviceSetupAlign(sourcePath string) (string, error) {
+	out, err := shared.RunCommandContext(context.TODO(), "losetup", "-b", "512", "--find", "--nooverlap", "--show", sourcePath)
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(out), nil
+}
