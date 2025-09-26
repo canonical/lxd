@@ -458,7 +458,6 @@ test_tls_restrictions() {
 }
 
 test_certificate_edit() {
-  ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Generate a certificate
