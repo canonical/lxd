@@ -7530,7 +7530,9 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			})
 		}
 
-		if args.ClusterMoveSourceName != d.name {
+		// Only apply copy template for cross-cluster migrations, not intra-cluster moves.
+		// For intra-cluster moves, preserve the original volatile.apply_template value.
+		if args.ClusterMoveSourceName == "" {
 			err = d.DeferTemplateApply(instance.TemplateTriggerCopy)
 			if err != nil {
 				return err
