@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-09-25 12:37-0600\n"
+"POT-Creation-Date: 2025-09-26 08:35-0600\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Krombel <krombel@krombel.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -1763,12 +1763,12 @@ msgstr "Fehlerhafte Profil URL %s"
 msgid "Create identity provider groups"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/snapshot.go:31
+#: lxc/snapshot.go:32
 #, fuzzy
 msgid "Create instance snapshots"
 msgstr "Herunterfahren des Containers erzwingen."
 
-#: lxc/snapshot.go:32
+#: lxc/snapshot.go:33
 msgid ""
 "Create instance snapshots\n"
 "\n"
@@ -1957,7 +1957,7 @@ msgstr ""
 msgid "Delete instance file templates"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/delete.go:32 lxc/delete.go:33
+#: lxc/delete.go:33 lxc/delete.go:34
 #, fuzzy
 msgid "Delete instances and snapshots"
 msgstr "Herunterfahren des Containers erzwingen."
@@ -2058,7 +2058,7 @@ msgstr ""
 #: lxc/config_template.go:273 lxc/config_template.go:341 lxc/config_trust.go:35
 #: lxc/config_trust.go:88 lxc/config_trust.go:235 lxc/config_trust.go:349
 #: lxc/config_trust.go:431 lxc/config_trust.go:533 lxc/config_trust.go:579
-#: lxc/config_trust.go:650 lxc/console.go:41 lxc/copy.go:43 lxc/delete.go:33
+#: lxc/config_trust.go:650 lxc/console.go:41 lxc/copy.go:43 lxc/delete.go:34
 #: lxc/exec.go:41 lxc/export.go:33 lxc/file.go:89 lxc/file.go:136
 #: lxc/file.go:318 lxc/file.go:371 lxc/file.go:457 lxc/file.go:690
 #: lxc/file.go:1211 lxc/image.go:39 lxc/image.go:160 lxc/image.go:338
@@ -2112,7 +2112,7 @@ msgstr ""
 #: lxc/project.go:867 lxc/project.go:934 lxc/publish.go:34 lxc/query.go:35
 #: lxc/rebuild.go:28 lxc/remote.go:38 lxc/remote.go:94 lxc/remote.go:753
 #: lxc/remote.go:791 lxc/remote.go:877 lxc/remote.go:958 lxc/remote.go:1022
-#: lxc/remote.go:1071 lxc/rename.go:21 lxc/restore.go:22 lxc/snapshot.go:32
+#: lxc/remote.go:1071 lxc/rename.go:21 lxc/restore.go:23 lxc/snapshot.go:33
 #: lxc/storage.go:35 lxc/storage.go:98 lxc/storage.go:204 lxc/storage.go:262
 #: lxc/storage.go:394 lxc/storage.go:476 lxc/storage.go:656 lxc/storage.go:743
 #: lxc/storage.go:845 lxc/storage.go:939 lxc/storage_bucket.go:31
@@ -2251,6 +2251,30 @@ msgstr " Prozessorauslastung:"
 #, fuzzy
 msgid "Disk usage:"
 msgstr " Prozessorauslastung:"
+
+#: lxc/delete.go:40
+msgid ""
+"Disk volumes mode for snapshot deletion. Possible values are \"root\" "
+"(default) and \"all-exclusive\". \"root\" only deletes the instance's root "
+"disk snapshot. \"all-exclusive\" deletes the instance's root disk snapshot "
+"and any exclusively attached volumes (non-shared) snapshots."
+msgstr ""
+
+#: lxc/restore.go:36
+msgid ""
+"Disk volumes mode. Possible values are \"root\" (default) and \"all-"
+"exclusive\". \"root\" only restores the instance's root disk. \"all-"
+"exclusive\" restores the instance's root disk and any exclusively attached "
+"volumes (non-shared) snapshots."
+msgstr ""
+
+#: lxc/snapshot.go:48
+msgid ""
+"Disk volumes mode. Possible values are \"root\" (default) and \"all-"
+"exclusive\". \"root\" only snapshots the instance's root disk. \"all-"
+"exclusive\" snapshots the instance's root disk and any exclusively attached "
+"volumes (non-shared)."
+msgstr ""
 
 #: lxc/info.go:430
 #, fuzzy
@@ -2706,12 +2730,12 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Failed converting token operation to certificate add token: %w"
 msgstr ""
 
-#: lxc/delete.go:174
+#: lxc/delete.go:180
 #, fuzzy, c-format
 msgid "Failed deleting instance %q in project %q: %w"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/delete.go:116
+#: lxc/delete.go:122
 #, fuzzy, c-format
 msgid "Failed deleting instance snapshot %q in project %q: %w"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -2884,7 +2908,7 @@ msgstr ""
 msgid "Force the instance to stop"
 msgstr "Herunterfahren des Containers erzwingen."
 
-#: lxc/delete.go:37
+#: lxc/delete.go:38
 msgid "Force the removal of running instances"
 msgstr ""
 
@@ -3266,7 +3290,7 @@ msgstr ""
 msgid "If the image alias already exists, delete and create a new one"
 msgstr ""
 
-#: lxc/snapshot.go:46 lxc/storage_volume.go:2455
+#: lxc/snapshot.go:47 lxc/storage_volume.go:2455
 msgid "If the snapshot name already exists, delete and create a new one"
 msgstr ""
 
@@ -3276,7 +3300,7 @@ msgid ""
 "lxd init"
 msgstr ""
 
-#: lxc/snapshot.go:45
+#: lxc/snapshot.go:46
 msgid "Ignore any configured auto-expiry for the instance"
 msgstr ""
 
@@ -3471,7 +3495,7 @@ msgstr "Ungültiges Ziel %s"
 msgid "Invalid format: %s"
 msgstr "Ungültiges Ziel %s"
 
-#: lxc/snapshot.go:95
+#: lxc/snapshot.go:97
 #, fuzzy, c-format
 msgid "Invalid instance name: %s"
 msgstr "Ungültige Quelle %s"
@@ -5474,7 +5498,7 @@ msgstr ""
 msgid "Removable: %v"
 msgstr ""
 
-#: lxc/delete.go:49
+#: lxc/delete.go:51
 #, c-format
 msgid "Remove %s (yes/no): "
 msgstr ""
@@ -5656,7 +5680,7 @@ msgstr ""
 msgid "Requested UEFI variable does not exist"
 msgstr ""
 
-#: lxc/delete.go:38
+#: lxc/delete.go:39
 msgid "Require user confirmation"
 msgstr ""
 
@@ -5681,12 +5705,12 @@ msgstr ""
 msgid "Restore cluster member"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
-#: lxc/restore.go:21
+#: lxc/restore.go:22
 #, fuzzy
 msgid "Restore instances from snapshots"
 msgstr "Herunterfahren des Containers erzwingen."
 
-#: lxc/restore.go:22
+#: lxc/restore.go:23
 msgid ""
 "Restore instances from snapshots\n"
 "\n"
@@ -6461,7 +6485,7 @@ msgstr ""
 msgid "Stopping instance failed!"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/delete.go:145
+#: lxc/delete.go:151
 #, fuzzy, c-format
 msgid "Stopping the instance failed: %s"
 msgstr "Anhalten des Containers fehlgeschlagen!"
@@ -6650,7 +6674,7 @@ msgstr "entfernte Instanz %s existiert bereits"
 msgid "The direction argument must be one of: ingress, egress"
 msgstr ""
 
-#: lxc/delete.go:129
+#: lxc/delete.go:135
 msgid "The instance is currently running, stop it first or pass --force"
 msgstr ""
 
@@ -7275,7 +7299,7 @@ msgstr ""
 msgid "User ID to run the command as (default 0)"
 msgstr ""
 
-#: lxc/cluster.go:630 lxc/delete.go:54
+#: lxc/cluster.go:630 lxc/delete.go:56
 msgid "User aborted delete operation"
 msgstr ""
 
@@ -7346,7 +7370,7 @@ msgstr ""
 msgid "Whether or not to only backup the instance (without snapshots)"
 msgstr "Zustand des laufenden Containers sichern oder nicht"
 
-#: lxc/restore.go:34
+#: lxc/restore.go:35
 #, fuzzy
 msgid ""
 "Whether or not to restore the instance's running state from snapshot (if "
@@ -7355,7 +7379,7 @@ msgstr ""
 "Laufenden Zustand des Containers aus dem Sicherungspunkt (falls vorhanden) "
 "wiederherstellen oder nicht"
 
-#: lxc/snapshot.go:44
+#: lxc/snapshot.go:45
 #, fuzzy
 msgid "Whether or not to snapshot the instance's running state"
 msgstr "Zustand des laufenden Containers sichern oder nicht"
@@ -7828,7 +7852,7 @@ msgstr ""
 "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
 "Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
-#: lxc/restore.go:20
+#: lxc/restore.go:21
 #, fuzzy
 msgid "[<remote>:]<instance> <snapshot>"
 msgstr ""
@@ -7847,7 +7871,7 @@ msgstr ""
 "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
 "Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
-#: lxc/snapshot.go:30
+#: lxc/snapshot.go:31
 #, fuzzy
 msgid "[<remote>:]<instance> [<snapshot name>]"
 msgstr ""
@@ -7953,7 +7977,7 @@ msgstr ""
 "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
 "Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
-#: lxc/delete.go:30
+#: lxc/delete.go:31
 #, fuzzy
 msgid ""
 "[<remote>:]<instance>[/<snapshot>] [[<remote>:]<instance>[/<snapshot>]...]"
@@ -9080,7 +9104,7 @@ msgid ""
 "    Delete local instance \"c1\"."
 msgstr ""
 
-#: lxc/snapshot.go:37
+#: lxc/snapshot.go:38
 msgid ""
 "lxc snapshot u1 snap0\n"
 "\tCreate a snapshot of \"u1\" called \"snap0\".\n"
@@ -9090,7 +9114,7 @@ msgid ""
 "\"config.yaml\"."
 msgstr ""
 
-#: lxc/restore.go:26
+#: lxc/restore.go:27
 msgid ""
 "lxc snapshot u1 snap0\n"
 "    Create the snapshot.\n"
@@ -9238,7 +9262,7 @@ msgstr ""
 msgid "y"
 msgstr ""
 
-#: lxc/cluster.go:629 lxc/delete.go:53 lxc/image.go:997 lxc/image.go:1002
+#: lxc/cluster.go:629 lxc/delete.go:55 lxc/image.go:997 lxc/image.go:1002
 #: lxc/image.go:1207
 msgid "yes"
 msgstr ""
