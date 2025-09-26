@@ -1,7 +1,7 @@
 test_authorization() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
-  tls_user_fingerprint="$(lxc config trust list --format json | jq -er '.[0].fingerprint')"
+  tls_user_fingerprint="$(lxc config trust list --format json | jq --exit-status --raw-output '.[0].fingerprint')"
 
   ### GROUP MANAGEMENT ###
   lxc auth group create test-group
@@ -110,10 +110,10 @@ test_authorization() {
   BROWSER=curl lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc
 
   ! lxc auth identity group add oidc/test-user@example.com not-found || false # Group not found
-  [ "$(my_curl -X PUT -H 'Content-Type: application/json' --data '{"groups":["test-group","not-found1","not-found2"]}' "https://${LXD_ADDR}/1.0/auth/identities/oidc/test-user@example.com" | jq -er '.error')" = 'One or more groups were not found: "not-found1", "not-found2"' ] # Groups not found error (only contains the groups that were not found).
+  [ "$(my_curl -X PUT -H 'Content-Type: application/json' --data '{"groups":["test-group","not-found1","not-found2"]}' "https://${LXD_ADDR}/1.0/auth/identities/oidc/test-user@example.com" | jq --exit-status --raw-output '.error')" = 'One or more groups were not found: "not-found1", "not-found2"' ] # Groups not found error (only contains the groups that were not found).
   lxc auth identity group add oidc/test-user@example.com test-group # Valid
   lxc auth identity group remove oidc/test-user@example.com test-group
-  lxc query /1.0/auth/identities/oidc/test-user@example.com | jq -e '.groups | length == 0'
+  lxc query /1.0/auth/identities/oidc/test-user@example.com | jq --exit-status '.groups | length == 0'
   lxc auth identity group add oidc/test-user@example.com test-group
 
   # Test fine-grained TLS identity creation
@@ -128,14 +128,14 @@ test_authorization() {
   LXD_CONF="${LXD_CONF2}" gen_cert_and_key "client"
 
   echo "==> Check that empty client name is not allowed for creating certificate add token."
-  LXD_CONF="${LXD_CONF2}" my_curl -X POST -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/certificates" --data '{"token": true, "type": "client"}' | jq -er '.error == "Client name must not be empty"'
+  LXD_CONF="${LXD_CONF2}" my_curl -X POST -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/certificates" --data '{"token": true, "type": "client"}' | jq --exit-status --raw-output '.error == "Client name must not be empty"'
 
   # Cannot use the token with the certificates API and the correct error is returned.
-  LXD_CONF="${LXD_CONF2}" my_curl -X POST -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/certificates" --data '{"trust_token": "'"${tls_identity_token}"'"}' | jq -er '.error == "Failed during search for certificate add token operation: TLS Identity token detected (you must update your client)"'
+  LXD_CONF="${LXD_CONF2}" my_curl -X POST -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/certificates" --data '{"trust_token": "'"${tls_identity_token}"'"}' | jq --exit-status --raw-output '.error == "Failed during search for certificate add token operation: TLS Identity token detected (you must update your client)"'
 
   # Can use the token with remote add command.
   LXD_CONF="${LXD_CONF2}" lxc remote add tls "${tls_identity_token}"
-  LXD_CONF="${LXD_CONF2}" lxc_remote query tls:/1.0 | jq -e '.auth == "trusted"'
+  LXD_CONF="${LXD_CONF2}" lxc_remote query tls:/1.0 | jq --exit-status '.auth == "trusted"'
 
   # Check a token cannot be used when expired
   lxc config set core.remote_token_expiry=1S
@@ -275,7 +275,7 @@ fine_grained: true"
   ! lxc auth identity list --format csv | grep -F 'test-user@example.com' || false
 
   # When the OIDC identity re-authenticates they should reappear in the database
-  lxc_remote query oidc:/1.0 | jq -e '.auth == "trusted"'
+  lxc_remote query oidc:/1.0 | jq --exit-status '.auth == "trusted"'
   lxc auth identity list --format csv | grep -F 'test-user@example.com'
   lxc_remote auth identity info oidc: | grep -F 'effective_permissions: []'
 
@@ -289,7 +289,7 @@ fine_grained: true"
   ! lxc auth identity list --format csv | grep -F "${tls_identity_fingerprint}" || false
 
   # The TLS identity is not trusted after deletion.
-  LXD_CONF="${LXD_CONF2}" lxc_remote query tls:/1.0 | jq -e '.auth == "untrusted"'
+  LXD_CONF="${LXD_CONF2}" lxc_remote query tls:/1.0 | jq --exit-status '.auth == "untrusted"'
 
   # Check a TLS identity can update their own certificate.
   # First create a new TLS identity and add it to test-group
@@ -312,25 +312,25 @@ fine_grained: true"
   # We could use lxc edit as it accepts stdin input, but replacing the certificate in the yaml was quite complicated.
 
   # This asserts that test-user4 cannot change their own group membership
-  LXD_CONF="${LXD_CONF4}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PUT -H 'Content-Type: application/json' --data '{"tls_certificate":"'"$(awk '{printf "%s\\n", $0}' "${LXD_CONF5}/client.crt")"'"}' | jq -e '.error_code == 403'
+  LXD_CONF="${LXD_CONF4}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PUT -H 'Content-Type: application/json' --data '{"tls_certificate":"'"$(awk '{printf "%s\\n", $0}' "${LXD_CONF5}/client.crt")"'"}' | jq --exit-status '.error_code == 403'
 
   # This asserts that test-user4 can change their own certificate as long as the groups are unchanged
-  LXD_CONF="${LXD_CONF4}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PUT -H 'Content-Type: application/json' --data '{"tls_certificate":"'"$(awk '{printf "%s\\n", $0}' "${LXD_CONF5}/client.crt")"'", "groups":["test-group"]}' | jq -e '.status_code == 200'
+  LXD_CONF="${LXD_CONF4}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PUT -H 'Content-Type: application/json' --data '{"tls_certificate":"'"$(awk '{printf "%s\\n", $0}' "${LXD_CONF5}/client.crt")"'", "groups":["test-group"]}' | jq --exit-status '.status_code == 200'
 
   # The original certificate is untrusted after the update
-  LXD_CONF="${LXD_CONF4}" lxc_remote query tls:/1.0 | jq -e '.auth == "untrusted"'
+  LXD_CONF="${LXD_CONF4}" lxc_remote query tls:/1.0 | jq --exit-status '.auth == "untrusted"'
 
   # Add the remote for the lxc config directory with the other certificates. No token needed as we're already trusted.
   LXD_CONF="${LXD_CONF5}" lxc remote add tls "${LXD_ADDR}" --accept-certificate --auth-type tls
-  LXD_CONF="${LXD_CONF5}" lxc_remote query tls:/1.0 | jq -e '.auth == "trusted"'
+  LXD_CONF="${LXD_CONF5}" lxc_remote query tls:/1.0 | jq --exit-status '.auth == "trusted"'
 
   # Do the same tests with patch. test-user4 cannot change their group membership
-  LXD_CONF="${LXD_CONF5}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PATCH -H 'Content-Type: application/json' --data '{"tls_certificate":"'"$(awk '{printf "%s\\n", $0}' "${LXD_CONF4}/client.crt")"'", "groups":["new-group"]}' | jq -e '.error_code == 403'
+  LXD_CONF="${LXD_CONF5}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PATCH -H 'Content-Type: application/json' --data '{"tls_certificate":"'"$(awk '{printf "%s\\n", $0}' "${LXD_CONF4}/client.crt")"'", "groups":["new-group"]}' | jq --exit-status '.error_code == 403'
 
   # Change the certificate back to the original, using patch. Here no groups are in the request, only the certificate.
-  LXD_CONF="${LXD_CONF5}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PATCH -H 'Content-Type: application/json' --data '{"tls_certificate":"'"$(awk '{printf "%s\\n", $0}' "${LXD_CONF4}/client.crt")"'"}' | jq -e '.status_code == 200'
-  LXD_CONF="${LXD_CONF4}" lxc_remote query tls:/1.0 | jq -e '.auth == "trusted"'
-  LXD_CONF="${LXD_CONF5}" lxc_remote query tls:/1.0 | jq -e '.auth == "untrusted"'
+  LXD_CONF="${LXD_CONF5}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PATCH -H 'Content-Type: application/json' --data '{"tls_certificate":"'"$(awk '{printf "%s\\n", $0}' "${LXD_CONF4}/client.crt")"'"}' | jq --exit-status '.status_code == 200'
+  LXD_CONF="${LXD_CONF4}" lxc_remote query tls:/1.0 | jq --exit-status '.auth == "trusted"'
+  LXD_CONF="${LXD_CONF5}" lxc_remote query tls:/1.0 | jq --exit-status '.auth == "untrusted"'
 
   # Check that an unrestricted client certificate is not fine grained.
   LXD_CONF6=$(mktemp -d -p "${TEST_DIR}" XXX)
@@ -338,7 +338,7 @@ fine_grained: true"
   lxdconf6_fingerprint_short="$(cert_fingerprint "${LXD_CONF6}/unrestricted.crt" | head -c12)"
   lxc config trust add "${LXD_CONF6}/unrestricted.crt"
   lxc config trust show "${lxdconf6_fingerprint_short}" | grep -xF "restricted: false"
-  LXD_CONF="${LXD_CONF6}" CERTNAME=unrestricted my_curl -X GET "https://${LXD_ADDR}/1.0/auth/identities/current" | jq -e '.metadata.fine_grained == false'
+  LXD_CONF="${LXD_CONF6}" CERTNAME=unrestricted my_curl -X GET "https://${LXD_ADDR}/1.0/auth/identities/current" | jq --exit-status '.metadata.fine_grained == false'
   lxc config trust remove "${lxdconf6_fingerprint_short}"
 
   lxc auth identity group add oidc/test-user@example.com test-group
@@ -389,7 +389,7 @@ events_filtering() {
 
   # The file should contain a single "profile-created" lifecycle event because the identity that is monitoring
   # has can_view_events, but is not the same caller that started the operation.
-  jq -s -e 'length == 1 and .[0].type == "lifecycle" and .[0].metadata.action == "profile-created"' "${monfile}"
+  jq --exit-status --slurp 'length == 1 and .[0].type == "lifecycle" and .[0].metadata.action == "profile-created"' "${monfile}"
   lxc profile delete p1
   rm "${monfile}"
   lxc auth group permission remove test-group project default can_view_events
@@ -408,7 +408,7 @@ events_filtering() {
 
   # The file should contain the lifecycle event, because the identity that is monitoring is the same identity that
   # created the profile.
-  jq -s -e 'any(.type == "lifecycle" and .metadata.action == "profile-created")' "${monfile}"
+  jq --exit-status --slurp 'any(.type == "lifecycle" and .metadata.action == "profile-created")' "${monfile}"
   lxc profile delete p1
   rm "${monfile}"
   lxc auth group permission remove test-group project default can_create_profiles
@@ -419,7 +419,7 @@ storage_pool_used_by() {
   remote="${1}"
 
   # test-group must have no permissions to start the test.
-  lxc query /1.0/auth/groups/test-group | jq -e '.permissions == []'
+  lxc query /1.0/auth/groups/test-group | jq --exit-status '.permissions == []'
 
   # Allow the test group to view the default project so that entitlements can be granted against entities within it.
   lxc auth group permission add test-group project default can_view
@@ -429,68 +429,68 @@ storage_pool_used_by() {
 
   # Used-by list should have only the default profile, but in case of any leftover entries from previous tests get a
   # start size for the list and work against that.
-  start_length=$(lxc query "/1.0/storage-pools/${pool_name}" | jq -e '.used_by | length')
+  start_length=$(lxc query "/1.0/storage-pools/${pool_name}" | jq --exit-status '.used_by | length')
 
   # Members of test-group have no permissions, so they should get an empty list.
-  lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq -e '.used_by == []'
+  lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq --exit-status '.used_by == []'
 
   # Launch instance. Should appear in pool used-by list. Members of test-group still can't see anything.
   lxc init --empty c1
-  lxc query "/1.0/storage-pools/${pool_name}" | jq -e ".used_by | length == $((start_length+1))"
-  lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq -e '.used_by == []'
+  lxc query "/1.0/storage-pools/${pool_name}" | jq --exit-status ".used_by | length == $((start_length+1))"
+  lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq --exit-status '.used_by == []'
 
   # Allow members of test-group to view the instance. They should see it in the used-by list.
   lxc auth group permission add test-group instance c1 can_view project=default
-  lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq -e '.used_by | length == 1'
+  lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq --exit-status '.used_by | length == 1'
 
 
   # Take a snapshot. Used-by length should increase. Members of test-group should see the snapshot.
   lxc snapshot c1
-  lxc query "/1.0/storage-pools/${pool_name}" | jq -e ".used_by | length == $((start_length+2))"
-  lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq -e '.used_by | length == 2'
+  lxc query "/1.0/storage-pools/${pool_name}" | jq --exit-status ".used_by | length == $((start_length+2))"
+  lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq --exit-status '.used_by | length == 2'
 
   # Take another snapshot and check again. This is done because filtering used-by lists takes a slightly different code
   # path when it receives multiple URLs of the same entity type.
   lxc snapshot c1
-  lxc query "/1.0/storage-pools/${pool_name}" | jq -e ".used_by | length == $((start_length+3))"
-  lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq -e '.used_by | length == 3'
+  lxc query "/1.0/storage-pools/${pool_name}" | jq --exit-status ".used_by | length == $((start_length+3))"
+  lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq --exit-status '.used_by | length == 3'
 
   # Perform the same checks with storage volume snapshots.
   lxc storage volume create "${pool_name}" vol1
-  lxc query "/1.0/storage-pools/${pool_name}" | jq -e ".used_by | length == $((start_length+4))"
-  lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq -e '.used_by | length == 3'
+  lxc query "/1.0/storage-pools/${pool_name}" | jq --exit-status ".used_by | length == $((start_length+4))"
+  lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq --exit-status '.used_by | length == 3'
 
   lxc auth group permission add test-group storage_volume vol1 can_view project=default pool="${pool_name}" type=custom
-  lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq -e '.used_by | length == 4'
+  lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq --exit-status '.used_by | length == 4'
 
   lxc storage volume snapshot "${pool_name}" vol1
-  lxc query "/1.0/storage-pools/${pool_name}" | jq -e ".used_by | length == $((start_length+5))"
-  lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq -e '.used_by | length == 5'
+  lxc query "/1.0/storage-pools/${pool_name}" | jq --exit-status ".used_by | length == $((start_length+5))"
+  lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq --exit-status '.used_by | length == 5'
 
   lxc storage volume snapshot "${pool_name}" vol1
-  lxc query "/1.0/storage-pools/${pool_name}" | jq -e ".used_by | length == $((start_length+6))"
-  lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq -e '.used_by | length == 6'
+  lxc query "/1.0/storage-pools/${pool_name}" | jq --exit-status ".used_by | length == $((start_length+6))"
+  lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq --exit-status '.used_by | length == 6'
 
   # Remove can_view on the volume and check the volume and snapshots are no longer in the used-by list.
   lxc auth group permission remove test-group storage_volume vol1 can_view project=default pool="${pool_name}" type=custom
-  lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq -e '.used_by | length == 3'
+  lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq --exit-status '.used_by | length == 3'
 
   # Remove can_view on the instance and check the volume and snapshots are no longer in the used-by list.
   lxc auth group permission remove test-group instance c1 can_view project=default
-  lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq -e '.used_by | length == 0'
+  lxc_remote query "${remote}:/1.0/storage-pools/${pool_name}" | jq --exit-status '.used_by | length == 0'
 
   # Clean up storage volume used-by tests.
   lxc auth group permission remove test-group project default can_view
   lxc delete c1 -f
   lxc storage volume delete "${pool_name}" vol1
-  lxc query "/1.0/storage-pools/${pool_name}" | jq -e ".used_by | length == $((start_length))"
+  lxc query "/1.0/storage-pools/${pool_name}" | jq --exit-status ".used_by | length == $((start_length))"
 }
 
 network_used_by() {
   remote="${1}"
 
   # test-group must have no permissions to start the test.
-  lxc query /1.0/auth/groups/test-group | jq -e '.permissions == []'
+  lxc query /1.0/auth/groups/test-group | jq --exit-status '.permissions == []'
 
   # Allow the test group to view the default project so that entitlements can be granted against entities within it.
   lxc auth group permission add test-group project default can_view
@@ -503,27 +503,27 @@ network_used_by() {
   lxc auth group permission add test-group network n1 can_view project=default
 
   # Used-by list should be empty.
-  lxc_remote query "${remote}:/1.0/networks/n1" | jq -e '.used_by == []'
+  lxc_remote query "${remote}:/1.0/networks/n1" | jq --exit-status '.used_by == []'
 
   # Launch instance. Should appear in networks used-by list. Members of test-group still can't see anything.
   lxc init --empty c1 --storage "${pool_name}" --network n1
-  lxc query "/1.0/networks/n1" | jq -e '.used_by | length == 1'
-  lxc_remote query "${remote}:/1.0/networks/n1" | jq -e '.used_by == []'
+  lxc query "/1.0/networks/n1" | jq --exit-status '.used_by | length == 1'
+  lxc_remote query "${remote}:/1.0/networks/n1" | jq --exit-status '.used_by == []'
 
   # Allow members of test-group to view the instance. They should see it in the used-by list.
   lxc auth group permission add test-group instance c1 can_view project=default
-  lxc_remote query "${remote}:/1.0/networks/n1" | jq -e '.used_by | length == 1'
+  lxc_remote query "${remote}:/1.0/networks/n1" | jq --exit-status '.used_by | length == 1'
 
   # Launch instance in another project. Should appear in networks used-by list. Members of test-group still can't see anything.
   lxc project create foo
   lxc init --empty c2 --storage "${pool_name}" --network n1 --project=foo
-  lxc query "/1.0/networks/n1" | jq -e '.used_by | length == 2'
-  lxc_remote query "${remote}:/1.0/networks/n1" | jq -e '.used_by | length == 1'
+  lxc query "/1.0/networks/n1" | jq --exit-status '.used_by | length == 2'
+  lxc_remote query "${remote}:/1.0/networks/n1" | jq --exit-status '.used_by | length == 1'
 
   # Allow members of test-group to view the instance. They should see it in the used-by list.
   lxc auth group permission add test-group project foo can_view
   lxc auth group permission add test-group instance c2 can_view project=foo
-  lxc_remote query "${remote}:/1.0/networks/n1" | jq -e '.used_by | length == 2'
+  lxc_remote query "${remote}:/1.0/networks/n1" | jq --exit-status '.used_by | length == 2'
 
   # Clean up network used-by resources.
   lxc delete c1 -f
@@ -535,7 +535,7 @@ network_used_by() {
 
 fine_grained_authorization() {
   # test-group must have no permissions to start the test.
-  lxc query /1.0/auth/groups/test-group | jq -e '.permissions == []'
+  lxc query /1.0/auth/groups/test-group | jq --exit-status '.permissions == []'
 
   remote="${1}"
 
@@ -597,7 +597,7 @@ fine_grained_authorization() {
 
   echo "==> Checking 'can_view_warnings' entitlement..."
   # Delete previous warnings
-  lxc query --wait /1.0/warnings\?recursion=1 | jq -er '.[].uuid' | xargs -n1 lxc warning delete
+  lxc query --wait /1.0/warnings\?recursion=1 | jq --exit-status --raw-output '.[].uuid' | xargs -n1 lxc warning delete
 
   # Create a global warning (no node and no project)
   lxc query --wait -X POST -d '{"type_code": 0, "message": "authorization warning"}' /internal/testing/warnings
@@ -609,7 +609,7 @@ fine_grained_authorization() {
   lxc auth group permission add test-group server can_view_warnings
 
   # Check we can view the warning we just created.
-  lxc_remote query "${remote}:/1.0/warnings?recursion=1" | jq -er '[.[] | select(.last_message == "authorization warning")] | length == 1'
+  lxc_remote query "${remote}:/1.0/warnings?recursion=1" | jq --exit-status --raw-output '[.[] | select(.last_message == "authorization warning")] | length == 1'
 
   lxc auth group permission remove test-group server can_view_warnings
 
@@ -618,9 +618,9 @@ fine_grained_authorization() {
   lxc config set core.trust_password foo2
   lxc config set loki.auth.password bar2
   lxc_remote query "${remote}:/1.0"
-  lxc_remote query "${remote}:/1.0" | jq -e '.config == null'
-  lxc_remote query "${remote}:/1.0" | jq -e '.config."core.trust_password" == null'
-  lxc_remote query "${remote}:/1.0" | jq -e '.config."loki.auth.password" == null'
+  lxc_remote query "${remote}:/1.0" | jq --exit-status '.config == null'
+  lxc_remote query "${remote}:/1.0" | jq --exit-status '.config."core.trust_password" == null'
+  lxc_remote query "${remote}:/1.0" | jq --exit-status '.config."loki.auth.password" == null'
 
   # Check we are not able to set any server config currently.
   ! lxc_remote config set "${remote}:" core.trust_password foo3 || false
@@ -631,8 +631,8 @@ fine_grained_authorization() {
 
   # Check we can view the server's config.
   # As the core.trust_password is stored as scrypt value together with its hash, we cannot easily compare it against the original value.
-  lxc_remote query "${remote}:/1.0" | jq -e '.config."core.trust_password" = "true"'
-  lxc_remote query "${remote}:/1.0" | jq -e '.config."loki.auth.password" == true'
+  lxc_remote query "${remote}:/1.0" | jq --exit-status '.config."core.trust_password" = "true"'
+  lxc_remote query "${remote}:/1.0" | jq --exit-status '.config."loki.auth.password" == true'
 
   # Check we can modify the server's config.
   lxc_remote config set "${remote}:" core.trust_password foo3
@@ -647,14 +647,14 @@ fine_grained_authorization() {
   # Check we are not able to view any storage pool config currently.
   lxc storage create test-pool dir
   lxc storage set test-pool user.foo bar
-  lxc_remote query "${remote}:/1.0/storage-pools/test-pool" | jq -e '.config == null'
-  lxc_remote query "${remote}:/1.0/storage-pools/test-pool" | jq -e '.config."user.foo" == null'
+  lxc_remote query "${remote}:/1.0/storage-pools/test-pool" | jq --exit-status '.config == null'
+  lxc_remote query "${remote}:/1.0/storage-pools/test-pool" | jq --exit-status '.config."user.foo" == null'
 
   # Add "can_edit" permission to storage pool.
   lxc auth group permission add test-group storage_pool test-pool can_edit
 
   # Check we can view the storage pool's config.
-  lxc_remote query "${remote}:/1.0/storage-pools/test-pool" | jq -e '.config."user.foo" == "bar"'
+  lxc_remote query "${remote}:/1.0/storage-pools/test-pool" | jq --exit-status '.config."user.foo" == "bar"'
 
   lxc auth group permission remove test-group storage_pool test-pool can_edit
   lxc storage delete test-pool
@@ -728,7 +728,7 @@ user_is_server_admin() {
 
   # Should be able to view all managed and unmanaged networks
   host_networks="$(ip a | grep -P '^\d+:' | cut -d' ' -f2 | tr -d ':' | grep -vP '^veth.*' | sort)"
-  lxd_networks="$(lxc_remote query "${remote}:/1.0/networks?recursion=1" | jq -er '.[].name' | sort)"
+  lxd_networks="$(lxc_remote query "${remote}:/1.0/networks?recursion=1" | jq --exit-status --raw-output '.[].name' | sort)"
   [ "${host_networks}" = "${lxd_networks}" ]
 }
 
@@ -873,7 +873,7 @@ auth_project_features() {
   remote="${1}"
 
   # test-group must have no permissions to start the test.
-  lxc query /1.0/auth/groups/test-group | jq -e '.permissions == []'
+  lxc query /1.0/auth/groups/test-group | jq --exit-status '.permissions == []'
 
   # Create project blah
   lxc project create blah
@@ -1365,7 +1365,7 @@ auth_ovn() {
 
 entities_enrichment_with_entitlements() {
   # These tests use jq extensively to perform assertions on API responses. In all cases, this:
-  # 1. Invokes jq with -e so that it exits with a non-zero code when a conditional is not met. (See
+  # 1. Invokes jq with --exit-status so that it exits with a non-zero code when a conditional is not met. (See
   #    https://jqlang.org/manual/#conditionals-and-comparisons)
   # 2. Accesses the .access_entitlements json field.
   # 3. Sorts the array alphabetically.
@@ -1391,9 +1391,9 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission add test-group project default can_view
 
   # Check the created project entitlements given a list of candidate entitlements (some should not be returned, this depends on the privilege of the caller).
-  lxc_remote query "oidc:/1.0/projects/test-project1?with-access-entitlements=can_view,can_edit,can_delete,can_create_instances,can_create_networks" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
-  lxc_remote query "oidc:/1.0/projects/test-project2?with-access-entitlements=can_view,can_edit,can_delete,can_create_instances,can_create_networks" | jq -e '.access_entitlements | sort | @csv == "can_create_instances","can_create_networks","can_view"'
-  lxc_remote query "oidc:/1.0/projects?recursion=1&with-access-entitlements=can_view,can_edit,can_delete,can_create_instances,can_create_networks" | jq -e '
+  lxc_remote query "oidc:/1.0/projects/test-project1?with-access-entitlements=can_view,can_edit,can_delete,can_create_instances,can_create_networks" | jq --exit-status '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
+  lxc_remote query "oidc:/1.0/projects/test-project2?with-access-entitlements=can_view,can_edit,can_delete,can_create_instances,can_create_networks" | jq --exit-status '.access_entitlements | sort | @csv == "can_create_instances","can_create_networks","can_view"'
+  lxc_remote query "oidc:/1.0/projects?recursion=1&with-access-entitlements=can_view,can_edit,can_delete,can_create_instances,can_create_networks" | jq --exit-status '
     all(
       if .name == "test-project1" then
         .access_entitlements | sort | @csv == "\"can_delete\",\"can_edit\",\"can_view\""
@@ -1419,9 +1419,9 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission add test-group instance test-bar operator project=default
 
   # Test instances with multiple levels of recursion to ensure entitlements are reported on instance and expanded instance responses.
-  lxc_remote query "oidc:/1.0/instances/test-foo?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete,can_exec" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
-  lxc_remote query "oidc:/1.0/instances/test-bar?project=default&with-access-entitlements=can_view,can_edit,can_delete,can_exec" | jq -e '.access_entitlements | sort | @csv == "can_exec","can_view"'
-  lxc_remote query "oidc:/1.0/instances?recursion=1&with-access-entitlements=can_view,can_edit,can_delete,can_exec" | jq -e '
+  lxc_remote query "oidc:/1.0/instances/test-foo?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete,can_exec" | jq --exit-status '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
+  lxc_remote query "oidc:/1.0/instances/test-bar?project=default&with-access-entitlements=can_view,can_edit,can_delete,can_exec" | jq --exit-status '.access_entitlements | sort | @csv == "can_exec","can_view"'
+  lxc_remote query "oidc:/1.0/instances?recursion=1&with-access-entitlements=can_view,can_edit,can_delete,can_exec" | jq --exit-status '
     all(
       if .name == "test-foo" then
         .access_entitlements | sort | @csv == "\"can_delete\",\"can_edit\",\"can_view\""
@@ -1432,7 +1432,7 @@ entities_enrichment_with_entitlements() {
       end
     )
   '
-  lxc_remote query "oidc:/1.0/instances?recursion=2&with-access-entitlements=can_view,can_edit,can_delete,can_exec" | jq -e '
+  lxc_remote query "oidc:/1.0/instances?recursion=2&with-access-entitlements=can_view,can_edit,can_delete,can_exec" | jq --exit-status '
     all(
       if .name == "test-foo" then
         .access_entitlements | sort | @csv == "\"can_delete\",\"can_edit\",\"can_view\""
@@ -1452,8 +1452,8 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission add test-group storage_pool "${pool_name}" can_edit
   lxc auth group permission add test-group storage_pool "${pool_name}" can_delete
   lxc auth group permission add test-group storage_pool bar can_edit
-  lxc_remote query "oidc:/1.0/storage-pools/${pool_name}?with-access-entitlements=can_edit,can_delete" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit"'
-  lxc_remote query "oidc:/1.0/storage-pools?recursion=1&with-access-entitlements=can_edit,can_delete" | jq -e --arg pool_name "${pool_name}" '
+  lxc_remote query "oidc:/1.0/storage-pools/${pool_name}?with-access-entitlements=can_edit,can_delete" | jq --exit-status '.access_entitlements | sort | @csv == "can_delete","can_edit"'
+  lxc_remote query "oidc:/1.0/storage-pools?recursion=1&with-access-entitlements=can_edit,can_delete" | jq --exit-status --arg pool_name "${pool_name}" '
     all(
       if .name == $pool_name then
         .access_entitlements | sort | @csv == "\"can_delete\",\"can_edit\""
@@ -1481,9 +1481,9 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission add test-group storage_volume test-volume1 can_edit project=default pool="${pool_name}" type=custom
   lxc auth group permission add test-group storage_volume test-volume1 can_delete project=default pool="${pool_name}" type=custom
   lxc auth group permission add test-group storage_volume test-volume2 can_view project=default pool="${pool_name}" type=custom
-  lxc_remote query "oidc:/1.0/storage-pools/${pool_name}/volumes/custom/test-volume1?project=default&with-access-entitlements=can_view,can_edit,can_delete,can_manage_backups,can_manage_snapshots" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
-  lxc_remote query "oidc:/1.0/storage-pools/${pool_name}/volumes/custom/test-volume2?project=default&with-access-entitlements=can_view,can_edit,can_delete,can_manage_backups,can_manage_snapshots" | jq -e '.access_entitlements | sort | @csv == "\"can_view\""'
-  lxc_remote query "oidc:/1.0/storage-pools/${pool_name}/volumes/custom?recursion=1&with-access-entitlements=can_view,can_edit,can_delete,can_manage_backups,can_manage_snapshots" | jq -e '
+  lxc_remote query "oidc:/1.0/storage-pools/${pool_name}/volumes/custom/test-volume1?project=default&with-access-entitlements=can_view,can_edit,can_delete,can_manage_backups,can_manage_snapshots" | jq --exit-status '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
+  lxc_remote query "oidc:/1.0/storage-pools/${pool_name}/volumes/custom/test-volume2?project=default&with-access-entitlements=can_view,can_edit,can_delete,can_manage_backups,can_manage_snapshots" | jq --exit-status '.access_entitlements | sort | @csv == "\"can_view\""'
+  lxc_remote query "oidc:/1.0/storage-pools/${pool_name}/volumes/custom?recursion=1&with-access-entitlements=can_view,can_edit,can_delete,can_manage_backups,can_manage_snapshots" | jq --exit-status '
     all(
       if .name == "test-volume1" then
         .access_entitlements | sort | @csv == "\"can_delete\",\"can_edit\",\"can_view\""
@@ -1504,9 +1504,9 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission add test-group group test-group2 can_view
   lxc auth group permission add test-group group test-group3 can_view
   lxc auth group permission add test-group group test-group3 can_edit
-  lxc_remote query "oidc:/1.0/auth/groups/test-group2?with-access-entitlements=can_view,can_edit" | jq -e '.access_entitlements | sort | @csv == "\"can_view\""'
-  lxc_remote query "oidc:/1.0/auth/groups/test-group3?with-access-entitlements=can_view,can_edit" | jq -e '.access_entitlements | sort | @csv == "can_edit","can_view"'
-  lxc_remote query "oidc:/1.0/auth/groups?recursion=1&with-access-entitlements=can_view,can_edit" | jq -e '
+  lxc_remote query "oidc:/1.0/auth/groups/test-group2?with-access-entitlements=can_view,can_edit" | jq --exit-status '.access_entitlements | sort | @csv == "\"can_view\""'
+  lxc_remote query "oidc:/1.0/auth/groups/test-group3?with-access-entitlements=can_view,can_edit" | jq --exit-status '.access_entitlements | sort | @csv == "can_edit","can_view"'
+  lxc_remote query "oidc:/1.0/auth/groups?recursion=1&with-access-entitlements=can_view,can_edit" | jq --exit-status '
     all(
       if .name == "test-group" then
         .access_entitlements | sort | @csv == "\"can_view\""
@@ -1534,9 +1534,9 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission add test-group certificate "${test1Fingerprint}" can_view
   lxc auth group permission add test-group certificate "${test2Fingerprint}" can_view
   lxc auth group permission add test-group certificate "${test2Fingerprint}" can_edit
-  lxc_remote query "oidc:/1.0/certificates/${test1Fingerprint}?with-access-entitlements=can_view,can_edit" | jq -e '.access_entitlements | sort | @csv == "\"can_view\""'
-  lxc_remote query "oidc:/1.0/certificates/${test2Fingerprint}?with-access-entitlements=can_view,can_edit" | jq -e '.access_entitlements | sort | @csv == "can_edit","can_view"'
-  lxc_remote query "oidc:/1.0/certificates?recursion=1&with-access-entitlements=can_view,can_edit" | jq -e --arg f1 "$test1Fingerprint" --arg f2 "$test2Fingerprint" '
+  lxc_remote query "oidc:/1.0/certificates/${test1Fingerprint}?with-access-entitlements=can_view,can_edit" | jq --exit-status '.access_entitlements | sort | @csv == "\"can_view\""'
+  lxc_remote query "oidc:/1.0/certificates/${test2Fingerprint}?with-access-entitlements=can_view,can_edit" | jq --exit-status '.access_entitlements | sort | @csv == "can_edit","can_view"'
+  lxc_remote query "oidc:/1.0/certificates?recursion=1&with-access-entitlements=can_view,can_edit" | jq --exit-status --arg f1 "$test1Fingerprint" --arg f2 "$test2Fingerprint" '
     all(
       if .fingerprint == $f1 then
         .access_entitlements | sort | @csv == "\"can_view\""
@@ -1559,9 +1559,9 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission add test-group identity_provider_group test-idp-group3 can_view
   lxc auth group permission add test-group identity_provider_group test-idp-group3 can_edit
   lxc auth group permission add test-group identity_provider_group test-idp-group3 can_delete
-  lxc_remote query "oidc:/1.0/auth/identity-provider-groups/test-idp-group2?with-access-entitlements=can_view,can_edit,can_delete" | jq -e '.access_entitlements | sort | @csv == "\"can_view\""'
-  lxc_remote query "oidc:/1.0/auth/identity-provider-groups/test-idp-group3?with-access-entitlements=can_view,can_edit,can_delete" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
-  lxc_remote query "oidc:/1.0/auth/identity-provider-groups?recursion=1&with-access-entitlements=can_view,can_edit,can_delete" | jq -e '
+  lxc_remote query "oidc:/1.0/auth/identity-provider-groups/test-idp-group2?with-access-entitlements=can_view,can_edit,can_delete" | jq --exit-status '.access_entitlements | sort | @csv == "\"can_view\""'
+  lxc_remote query "oidc:/1.0/auth/identity-provider-groups/test-idp-group3?with-access-entitlements=can_view,can_edit,can_delete" | jq --exit-status '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
+  lxc_remote query "oidc:/1.0/auth/identity-provider-groups?recursion=1&with-access-entitlements=can_view,can_edit,can_delete" | jq --exit-status '
     all(
       if .name == "test-idp-group2" then
         .access_entitlements | sort | @csv == "\"can_view\""
@@ -1578,12 +1578,12 @@ entities_enrichment_with_entitlements() {
 
   # Image
   ensure_import_testimage
-  imgFingerprint="$(lxc query /1.0/images/aliases/testimage | jq -er '.target')"
+  imgFingerprint="$(lxc query /1.0/images/aliases/testimage | jq --exit-status --raw-output '.target')"
   lxc auth group permission add test-group image "${imgFingerprint}" can_view project=default
   lxc auth group permission add test-group image "${imgFingerprint}" can_edit project=default
   lxc auth group permission add test-group image "${imgFingerprint}" can_delete project=default
-  lxc_remote query "oidc:/1.0/images/${imgFingerprint}?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
-  lxc_remote query "oidc:/1.0/images?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete" | jq -e --arg fingerprint "$imgFingerprint" '
+  lxc_remote query "oidc:/1.0/images/${imgFingerprint}?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq --exit-status '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
+  lxc_remote query "oidc:/1.0/images?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete" | jq --exit-status --arg fingerprint "$imgFingerprint" '
     all(
       if .fingerprint == $fingerprint then
         .access_entitlements | sort | @csv == "\"can_delete\",\"can_edit\",\"can_view\""
@@ -1602,9 +1602,9 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission add test-group profile test-profile2 can_view project=default
   lxc auth group permission add test-group profile test-profile2 can_edit project=default
   lxc auth group permission add test-group profile test-profile2 can_delete project=default
-  lxc_remote query "oidc:/1.0/profiles/test-profile1?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -e '.access_entitlements | sort | @csv == "\"can_view\""'
-  lxc_remote query "oidc:/1.0/profiles/test-profile2?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
-  lxc_remote query "oidc:/1.0/profiles?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete" | jq -e '
+  lxc_remote query "oidc:/1.0/profiles/test-profile1?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq --exit-status '.access_entitlements | sort | @csv == "\"can_view\""'
+  lxc_remote query "oidc:/1.0/profiles/test-profile2?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq --exit-status '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
+  lxc_remote query "oidc:/1.0/profiles?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete" | jq --exit-status '
     all(
       if .name == "test-profile1" then
         .access_entitlements | sort | @csv == "\"can_view\""
@@ -1626,9 +1626,9 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission add test-group network test-network2 can_view project=default
   lxc auth group permission add test-group network test-network2 can_edit project=default
   lxc auth group permission add test-group network test-network2 can_delete project=default
-  lxc_remote query "oidc:/1.0/networks/test-network1?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -e '.access_entitlements | sort | @csv == "\"can_view\""'
-  lxc_remote query "oidc:/1.0/networks/test-network2?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
-  lxc_remote query "oidc:/1.0/networks?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete" | jq -e '
+  lxc_remote query "oidc:/1.0/networks/test-network1?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq --exit-status '.access_entitlements | sort | @csv == "\"can_view\""'
+  lxc_remote query "oidc:/1.0/networks/test-network2?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq --exit-status '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
+  lxc_remote query "oidc:/1.0/networks?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete" | jq --exit-status '
     all(
       if .name == "test-network1" then
         .access_entitlements | sort | @csv == "\"can_view\""
@@ -1650,9 +1650,9 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission add test-group network_acl acl2 can_view project=default
   lxc auth group permission add test-group network_acl acl2 can_edit project=default
   lxc auth group permission add test-group network_acl acl2 can_delete project=default
-  lxc_remote query "oidc:/1.0/network-acls/acl1?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -e '.access_entitlements | sort | @csv == "\"can_view\""'
-  lxc_remote query "oidc:/1.0/network-acls/acl2?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
-  lxc_remote query "oidc:/1.0/network-acls?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete" | jq -e '
+  lxc_remote query "oidc:/1.0/network-acls/acl1?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq --exit-status '.access_entitlements | sort | @csv == "\"can_view\""'
+  lxc_remote query "oidc:/1.0/network-acls/acl2?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq --exit-status '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
+  lxc_remote query "oidc:/1.0/network-acls?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete" | jq --exit-status '
     all(
       if .name == "acl1" then
         .access_entitlements | sort | @csv == "\"can_view\""
@@ -1676,9 +1676,9 @@ entities_enrichment_with_entitlements() {
   lxc auth group permission add test-group network_zone zone2 can_view project=default
   lxc auth group permission add test-group network_zone zone2 can_edit project=default
   lxc auth group permission add test-group network_zone zone2 can_delete project=default
-  lxc_remote query "oidc:/1.0/network-zones/zone1?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -e '.access_entitlements | sort | @csv == "\"can_view\""'
-  lxc_remote query "oidc:/1.0/network-zones/zone2?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq -e '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
-  lxc_remote query "oidc:/1.0/network-zones?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete" | jq -e '
+  lxc_remote query "oidc:/1.0/network-zones/zone1?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq --exit-status '.access_entitlements | sort | @csv == "\"can_view\""'
+  lxc_remote query "oidc:/1.0/network-zones/zone2?project=default&with-access-entitlements=can_view,can_edit,can_delete" | jq --exit-status '.access_entitlements | sort | @csv == "can_delete","can_edit","can_view"'
+  lxc_remote query "oidc:/1.0/network-zones?project=default&recursion=1&with-access-entitlements=can_view,can_edit,can_delete" | jq --exit-status '
     all(
       if .name == "zone1" then
         .access_entitlements | sort | @csv == "\"can_view\""
@@ -1697,7 +1697,7 @@ entities_enrichment_with_entitlements() {
 
   # Server
   lxc auth group permission add test-group server admin
-  lxc_remote query "oidc:/1.0?with-access-entitlements=admin,viewer,project_manager" | jq -e '.access_entitlements | sort | @csv == "admin","project_manager","viewer"'
+  lxc_remote query "oidc:/1.0?with-access-entitlements=admin,viewer,project_manager" | jq --exit-status '.access_entitlements | sort | @csv == "admin","project_manager","viewer"'
 
   lxc auth group permission remove test-group server admin
 }
