@@ -403,7 +403,7 @@ test_snap_expiry() {
   [ "$(lxc config get --property c1/snap0 expires_at)" = "0001-01-01 00:00:00 +0000 UTC" ]
 
   # Check the API returns the zero time representation when listing all snapshots in recursive mode.
-  [ "$(lxc query "/1.0/instances/c1?recursion=2" | jq -r '.snapshots[] | select(.name == "snap0") | .expires_at')" = "0001-01-01T00:00:00Z" ]
+  lxc query "/1.0/instances/c1?recursion=2" | jq --exit-status '.snapshots[] | select(.name == "snap0") | .expires_at == "0001-01-01T00:00:00Z"'
 
   lxc config set c1 snapshots.expiry '1d'
   lxc snapshot c1
