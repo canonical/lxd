@@ -31,7 +31,7 @@ wait_for_dad() {
     return
   fi
 
-  while eval "$cmd" | grep -wF "tentative" ; do
+  while eval "$cmd" | grep -wFm1 "tentative" ; do
     sleep 0.1
   done
 }

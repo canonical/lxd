@@ -1,6 +1,4 @@
 test_oidc() {
-  ensure_import_testimage
-
   # shellcheck disable=2153
   ensure_has_localhost_remote "${LXD_ADDR}"
 
@@ -14,8 +12,7 @@ test_oidc() {
 
   # Setup OIDC
   spawn_oidc
-  lxc config set "oidc.issuer=http://127.0.0.1:$(< "${TEST_DIR}/oidc.port")/"
-  lxc config set "oidc.client.id=device"
+  lxc config set "oidc.issuer=http://127.0.0.1:$(< "${TEST_DIR}/oidc.port")/" "oidc.client.id=device"
 
   # Expect this to fail. No user set.
   ! BROWSER=curl lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc || false
@@ -34,8 +31,8 @@ test_oidc() {
   BROWSER=curl lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc
 
   # The user should now be logged in and their email should show in the "auth_user_name" field.
-  [ "$(lxc query oidc:/1.0 | jq -r '.auth')" = "trusted" ]
-  [ "$(lxc query oidc:/1.0 | jq -r '.auth_user_name')" = "test-user@example.com" ]
+  lxc query oidc:/1.0 | jq --exit-status '.auth == "trusted"'
+  lxc query oidc:/1.0 | jq --exit-status '.auth_user_name == "test-user@example.com"'
 
   # OIDC user should be added to identities table.
   [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM identities WHERE type = 5 AND identifier = 'test-user@example.com' AND auth_method = 2")" = 1 ]
@@ -43,6 +40,5 @@ test_oidc() {
   # Cleanup OIDC
   lxc auth identity delete oidc/test-user@example.com
   lxc remote remove oidc
-  lxc config unset oidc.issuer
-  lxc config unset oidc.client.id
+  lxc config set oidc.issuer="" oidc.client.id=""
 }
