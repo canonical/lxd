@@ -302,7 +302,7 @@ run_images_public() {
   query /1.0/images/aliases/foo-img?project=bar | jq -e '.error == "Not Found" and .error_code == 404'
 
   # Get the image fingerprint.
-  fingerprint="$(lxc query /1.0/images/aliases/foo-img?project=foo | jq -r '.target')"
+  fingerprint="$(lxc query /1.0/images/aliases/foo-img?project=foo | jq --exit-status --raw-output '.target')"
 
   # All users see a not found error when getting or exporting the image.
   query "/1.0/images/${fingerprint}?project=foo" | jq -e '.error == "Not Found" and .error_code == 404'
@@ -317,7 +317,7 @@ run_images_public() {
   query /1.0/images/"${fingerprint}"/export?project=bar\&secret=bar | jq -e '.error == "Not Found" and .error_code == 404'
 
   # Get a secret for "default-img" (in the default project).
-  secret="$(lxc -X POST query "/1.0/images/${fingerprint}/secret" | jq -r '.metadata.secret')"
+  secret="$(lxc -X POST query "/1.0/images/${fingerprint}/secret" | jq --exit-status --raw-output '.metadata.secret')"
 
   # All callers can view the image with a valid secret.
   query /1.0/images/"${fingerprint}"?secret="${secret}" | jq -e '.status_code == 200'
@@ -327,7 +327,7 @@ run_images_public() {
   rm "${TEST_DIR}/private.img"
 
   # Get a secret for "foo-img" (in the foo project).
-  secret="$(lxc -X POST query "/1.0/images/${fingerprint}/secret?project=foo" | jq -r '.metadata.secret')"
+  secret="$(lxc -X POST query "/1.0/images/${fingerprint}/secret?project=foo" | jq --exit-status --raw-output '.metadata.secret')"
 
   # All callers can view the image with a valid secret.
   query /1.0/images/"${fingerprint}"?project=foo\&secret="${secret}" | jq -e '.status_code == 200'
@@ -357,19 +357,19 @@ run_images_public() {
   query /1.0/images/aliases/default-img?project=default | jq -e '.status_code == 200'
 
   # All callers can get the image with a prefix of 12 characters or more.
-  query "/1.0/images/%25" | jq -r '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
-  query "/1.0/images/${fingerprint:0:11}" | jq -r '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
-  query "/1.0/images/%25${fingerprint:0:11}" | jq -r '.error == "Image fingerprint prefix must contain only lowercase hexadecimal characters" and .error_code == 400'
-  query "/1.0/images/${fingerprint}abc" | jq -r '.error == "Image fingerprint cannot be longer than 64 characters" and .error_code == 400'
-  query "/1.0/images/${fingerprint:0:12}" | jq -r '.status_code == 200'
-  query "/1.0/images/${fingerprint}" | jq -r '.status_code == 200'
-  query "/1.0/images/${fingerprint}?project=default" | jq -r '.status_code == 200'
+  query "/1.0/images/%25" | jq --exit-status '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
+  query "/1.0/images/${fingerprint:0:11}" | jq --exit-status '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
+  query "/1.0/images/%25${fingerprint:0:11}" | jq --exit-status '.error == "Image fingerprint prefix must contain only lowercase hexadecimal characters" and .error_code == 400'
+  query "/1.0/images/${fingerprint}abc" | jq --exit-status '.error == "Image fingerprint cannot be longer than 64 characters" and .error_code == 400'
+  query "/1.0/images/${fingerprint:0:12}" | jq --exit-status '.status_code == 200'
+  query "/1.0/images/${fingerprint}" | jq --exit-status '.status_code == 200'
+  query "/1.0/images/${fingerprint}?project=default" | jq --exit-status '.status_code == 200'
 
   # All callers can export the public image if using a valid prefix.
-  query "/1.0/images/%25/export" | jq -r '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
-  query "/1.0/images/${fingerprint:0:11}/export" | jq -r '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
-  query "/1.0/images/%25${fingerprint:0:11}/export" | jq -r '.error == "Image fingerprint prefix must contain only lowercase hexadecimal characters" and .error_code == 400'
-  query "/1.0/images/${fingerprint}abc/export" | jq -r '.error == "Image fingerprint cannot be longer than 64 characters" and .error_code == 400'
+  query "/1.0/images/%25/export" | jq --exit-status '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
+  query "/1.0/images/${fingerprint:0:11}/export" | jq --exit-status '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
+  query "/1.0/images/%25${fingerprint:0:11}/export" | jq --exit-status '.error == "Image fingerprint prefix must contain only lowercase hexadecimal characters" and .error_code == 400'
+  query "/1.0/images/${fingerprint}abc/export" | jq --exit-status '.error == "Image fingerprint cannot be longer than 64 characters" and .error_code == 400'
   query "/1.0/images/${fingerprint}/export" -o "${TEST_DIR}/public1.img"
   query "/1.0/images/${fingerprint}/export?project=default" -o "${TEST_DIR}/public2.img"
   query "/1.0/images/${fingerprint:0:12}/export?project=default" -o "${TEST_DIR}/public3.img"
