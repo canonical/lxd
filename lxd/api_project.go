@@ -1180,11 +1180,24 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, &state)
 }
 
-// Check if a project is empty.
-func projectIsEmpty(ctx context.Context, project *dbCluster.Project, tx *db.ClusterTx) (bool, error) {
+// Check if a project is empty. When skipURLs are provided, those entities are ignored when checking if the project is empty.
+func projectIsEmpty(ctx context.Context, project *dbCluster.Project, tx *db.ClusterTx, skipURLs []string) (bool, error) {
 	usedBy, err := projectUsedBy(ctx, tx, project)
 	if err != nil {
 		return false, err
+	}
+
+	if len(skipURLs) > 0 {
+		filtered := make([]string, 0, len(usedBy))
+		for _, u := range usedBy {
+			// Filter out skipURLs.
+			// We use this to skip cached image URLs when checking if a project is empty in [projectDelete].
+			if !slices.Contains(skipURLs, u) {
+				filtered = append(filtered, u)
+			}
+		}
+
+		usedBy = filtered
 	}
 
 	if isProjectInUse(usedBy) {
