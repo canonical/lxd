@@ -527,13 +527,13 @@ test_container_devices_nic_bridged() {
   sleep 2
 
   # Check DHCPv4 lease is released (space before the MAC important to avoid mismatching IPv6 lease).
-  if grep -i " ${ctMAC}" "${LXD_DIR}/networks/${brName}/dnsmasq.leases" ; then
+  if grep -iF " ${ctMAC}" "${LXD_DIR}/networks/${brName}/dnsmasq.leases" ; then
     echo "DHCPv4 lease not released"
     false
   fi
 
   # Check DHCPv6 lease is released.
-  if grep -i " ${ctName}" "${LXD_DIR}/networks/${brName}/dnsmasq.leases" ; then
+  if grep -iF " ${ctName}" "${LXD_DIR}/networks/${brName}/dnsmasq.leases" ; then
     echo "DHCPv6 lease not released"
     false
   fi
