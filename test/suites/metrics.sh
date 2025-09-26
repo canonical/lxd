@@ -156,6 +156,9 @@ test_metrics() {
   wait $!
   [ "$(curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | awk '/^lxd_api_requests_ongoing{entity_type="instance"}/ {print $2}')" -eq "$previous" ]
 
+  lxc config set core.metrics_address="" core.metrics_authentication=""
+  lxc config trust remove "$(cert_fingerprint "${LXD_CONF}/metrics.crt")"
+  lxc config trust remove "$(cert_fingerprint "${LXD_CONF}/metrics-restricted.crt")"
   lxc storage delete broken
   lxc delete -f c1 c2
   lxc delete -f c3 --project foo
