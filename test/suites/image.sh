@@ -11,18 +11,30 @@ test_image_expiry() {
   lxc_remote remote add l1 "${LXD_ADDR}" --accept-certificate --password foo
   lxc_remote remote add l2 "${LXD2_ADDR}" --accept-certificate --password foo
 
-  # Create containers from a remote image in two projects.
+  # Create containers from a remote image in three projects.
   lxc_remote project create l2:p1 -c features.images=true -c features.profiles=false
   lxc_remote init l1:testimage l2:c1 --project default
   lxc_remote project switch l2:p1
   lxc_remote init l1:testimage l2:c2
-  lxc_remote project switch l2:default
+  lxc_remote project create l2:p2 -c features.images=true -c features.profiles=false
+  lxc_remote project switch l2:p2
 
   fp="$(lxc_remote image info testimage | awk '/^Fingerprint/ {print $2}')"
 
-  # Confirm the image is cached
+  echo "Create instance from cached image."
+  lxc_remote init l1:testimage l2:c3
+  lxc_remote delete -f l2:c3
+
+  echo "Confirm the image is cached."
   [ -n "${fp}" ]
   fpbrief=$(echo "${fp}" | cut -c 1-12)
+  lxc_remote image list l2: | grep -wF "${fpbrief}"
+
+  echo "Project can still be deleted since cached images are pruned."
+  lxc_remote project delete l2:p2
+
+  echo "Switch back to default project and confirm image is still cached."
+  lxc_remote project switch l2:default
   lxc_remote image list l2: | grep -wF "${fpbrief}"
 
   # Test modification of image expiry date
