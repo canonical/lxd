@@ -483,6 +483,7 @@ type DevLXDServer interface {
 
 	// Client configuration.
 	UseTarget(name string) (client DevLXDServer)
+	UseBearerToken(bearerToken string) (client DevLXDServer)
 
 	// DevLXD info/state.
 	GetState() (state *api.DevLXDGet, err error)
