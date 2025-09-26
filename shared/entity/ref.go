@@ -14,7 +14,7 @@ type Reference struct {
 	ProjectName string
 	Location    string
 	PathArgs    []string
-	url         *api.URL
+	url         api.URL
 }
 
 // NewReference constructs a [*Reference] and validates it by attempting to build the canonical URL.
@@ -43,7 +43,7 @@ func ReferenceFromURL(u url.URL) (*Reference, error) {
 
 // URL returns an [*api.URL] for this [Reference].
 func (r Reference) URL() *api.URL {
-	return r.url
+	return &r.url
 }
 
 // Name returns the name of the entity, which is the first path argument.
