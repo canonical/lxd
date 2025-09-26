@@ -15027,6 +15027,11 @@ paths:
         delete:
             description: Removes the project.
             operationId: project_delete
+            parameters:
+                - description: Force delete project and its entities
+                  in: query
+                  name: force
+                  type: boolean
             produces:
                 - application/json
             responses:
