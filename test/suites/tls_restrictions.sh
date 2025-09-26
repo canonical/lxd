@@ -521,6 +521,8 @@ test_certificate_edit() {
 }
 
 test_tls_version() {
+  ensure_has_localhost_remote "${LXD_ADDR}"
+
   echo "TLS 1.3 just works"
   my_curl -X GET "https://${LXD_ADDR}"
   my_curl --tlsv1.3 -X GET "https://${LXD_ADDR}"
