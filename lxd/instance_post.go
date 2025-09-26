@@ -815,20 +815,16 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 				}
 			}
 
-			// Restore the original value of "volatile.apply_template".
-			err = tx.DeleteInstanceConfigKey(ctx, id, "volatile.apply_template")
-			if err != nil {
-				return fmt.Errorf("Failed to remove volatile.apply_template config key: %w", err)
-			}
+			// Update "volatile.apply_template".
+			// For intra-cluster moves, the migration receiver preserves the original value,
+			// so we only need to restore it for cross-cluster moves.
+			config := map[string]string{}
+			if srcMigration.clusterMoveSourceName == "" && origVolatileApplyTemplate != "" {
+				config["volatile.apply_template"] = origVolatileApplyTemplate
 
-			if origVolatileApplyTemplate != "" {
-				config := map[string]string{
-					"volatile.apply_template": origVolatileApplyTemplate,
-				}
-
-				err = tx.CreateInstanceConfig(ctx, int(id), config)
+				err = tx.UpdateInstanceConfig(int(id), config)
 				if err != nil {
-					return fmt.Errorf("Failed to set volatile.apply_template config key: %w", err)
+					return fmt.Errorf(`Failed setting "volatile.apply_template" config key: %w`, err)
 				}
 			}
 
