@@ -273,54 +273,54 @@ run_images_public() {
   deps/import-busybox --project foo --alias foo-img
 
   # All callers see an empty list of images in the default project.
-  query /1.0/images | jq -e '(.metadata | length) == 0 and .status_code == 200'
-  query /1.0/images?project=default | jq -e '(.metadata | length) == 0 and .status_code == 200'
-  query /1.0/images?recursion=1 | jq -e '(.metadata | length) == 0 and .status_code == 200'
-  query /1.0/images?recursion=1\&project=default | jq -e '(.metadata | length) == 0 and .status_code == 200'
+  query /1.0/images | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
+  query /1.0/images?project=default | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
+  query /1.0/images?recursion=1 | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
+  query /1.0/images?recursion=1\&project=default | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
 
   if [ -z "${CERT_NAME:-}" ]; then
     # Untrusted callers see a generic 404 for project foo, or a 403 if using "all-projects".
-    query /1.0/images?project=foo | jq -e '.error == "Not Found" and .error_code == 404'
-    query /1.0/images?recursion=1\&project=foo | jq -e '.error == "Not Found" and .error_code == 404'
-    query /1.0/images?project=bar | jq -e '.error == "Not Found" and .error_code == 404'
-    query /1.0/images?recursion=1\&project=bar | jq -e '.error == "Not Found" and .error_code == 404'
-    query /1.0/images?all-projects=true | jq -e '.error == "Untrusted callers may only access public images in the default project" and .error_code == 403'
-    query /1.0/images?recursion=1\&all-projects=true | jq -e '.error == "Untrusted callers may only access public images in the default project" and .error_code == 403'
+    query /1.0/images?project=foo | jq --exit-status '.error == "Not Found" and .error_code == 404'
+    query /1.0/images?recursion=1\&project=foo | jq --exit-status '.error == "Not Found" and .error_code == 404'
+    query /1.0/images?project=bar | jq --exit-status '.error == "Not Found" and .error_code == 404'
+    query /1.0/images?recursion=1\&project=bar | jq --exit-status '.error == "Not Found" and .error_code == 404'
+    query /1.0/images?all-projects=true | jq --exit-status '.error == "Untrusted callers may only access public images in the default project" and .error_code == 403'
+    query /1.0/images?recursion=1\&all-projects=true | jq --exit-status '.error == "Untrusted callers may only access public images in the default project" and .error_code == 403'
   else
     # Restricted and fine-grained TLS clients see an empty list.
-    query /1.0/images?project=foo | jq -e '(.metadata | length) == 0 and .status_code == 200'
-    query /1.0/images?recursion=1\&project=foo  | jq -e '(.metadata | length) == 0 and .status_code == 200'
-    query /1.0/images?project=bar | jq -e '(.metadata | length) == 0 and .status_code == 200'
-    query /1.0/images?recursion=1\&project=bar  | jq -e '(.metadata | length) == 0 and .status_code == 200'
-    query /1.0/images?all-projects=true  | jq -e '(.metadata | length) == 0 and .status_code == 200'
-    query /1.0/images?recursion=1\&all-projects=true  | jq -e '(.metadata | length) == 0 and .status_code == 200'
+    query /1.0/images?project=foo | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
+    query /1.0/images?recursion=1\&project=foo  | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
+    query /1.0/images?project=bar | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
+    query /1.0/images?recursion=1\&project=bar  | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
+    query /1.0/images?all-projects=true  | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
+    query /1.0/images?recursion=1\&all-projects=true  | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
   fi
 
   # All users see a not found error for the aliases.
-  query /1.0/images/aliases/default-img | jq -e '.error == "Not Found" and .error_code == 404'
-  query /1.0/images/aliases/foo-img?project=foo | jq -e '.error == "Not Found" and .error_code == 404'
-  query /1.0/images/aliases/foo-img?project=bar | jq -e '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/aliases/default-img | jq --exit-status '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/aliases/foo-img?project=foo | jq --exit-status '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/aliases/foo-img?project=bar | jq --exit-status '.error == "Not Found" and .error_code == 404'
 
   # Get the image fingerprint.
   fingerprint="$(lxc query /1.0/images/aliases/foo-img?project=foo | jq --exit-status --raw-output '.target')"
 
   # All users see a not found error when getting or exporting the image.
-  query "/1.0/images/${fingerprint}?project=foo" | jq -e '.error == "Not Found" and .error_code == 404'
-  query "/1.0/images/${fingerprint}/export?project=foo" | jq -e '.error == "Not Found" and .error_code == 404'
-  query "/1.0/images/${fingerprint}?project=bar" | jq -e '.error == "Not Found" and .error_code == 404'
-  query "/1.0/images/${fingerprint}/export?project=bar" | jq -e '.error == "Not Found" and .error_code == 404'
+  query "/1.0/images/${fingerprint}?project=foo" | jq --exit-status '.error == "Not Found" and .error_code == 404'
+  query "/1.0/images/${fingerprint}/export?project=foo" | jq --exit-status '.error == "Not Found" and .error_code == 404'
+  query "/1.0/images/${fingerprint}?project=bar" | jq --exit-status '.error == "Not Found" and .error_code == 404'
+  query "/1.0/images/${fingerprint}/export?project=bar" | jq --exit-status '.error == "Not Found" and .error_code == 404'
 
   # No callers can use an invalid secret.
-  query /1.0/images/"${fingerprint}"?project=foo\&secret=bar | jq -e '.error == "Not Found" and .error_code == 404'
-  query /1.0/images/"${fingerprint}"/export?project=foo\&secret=bar | jq -e '.error == "Not Found" and .error_code == 404'
-  query /1.0/images/"${fingerprint}"?project=bar\&secret=bar | jq -e '.error == "Not Found" and .error_code == 404'
-  query /1.0/images/"${fingerprint}"/export?project=bar\&secret=bar | jq -e '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/"${fingerprint}"?project=foo\&secret=bar | jq --exit-status '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/"${fingerprint}"/export?project=foo\&secret=bar | jq --exit-status '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/"${fingerprint}"?project=bar\&secret=bar | jq --exit-status '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/"${fingerprint}"/export?project=bar\&secret=bar | jq --exit-status '.error == "Not Found" and .error_code == 404'
 
   # Get a secret for "default-img" (in the default project).
   secret="$(lxc -X POST query "/1.0/images/${fingerprint}/secret" | jq --exit-status --raw-output '.metadata.secret')"
 
   # All callers can view the image with a valid secret.
-  query /1.0/images/"${fingerprint}"?secret="${secret}" | jq -e '.status_code == 200'
+  query /1.0/images/"${fingerprint}"?secret="${secret}" | jq --exit-status '.status_code == 200'
 
   # All callers can export the image with a valid secret.
   query /1.0/images/"${fingerprint}"/export?secret="${secret}" -o "${TEST_DIR}/private.img"
@@ -330,7 +330,7 @@ run_images_public() {
   secret="$(lxc -X POST query "/1.0/images/${fingerprint}/secret?project=foo" | jq --exit-status --raw-output '.metadata.secret')"
 
   # All callers can view the image with a valid secret.
-  query /1.0/images/"${fingerprint}"?project=foo\&secret="${secret}" | jq -e '.status_code == 200'
+  query /1.0/images/"${fingerprint}"?project=foo\&secret="${secret}" | jq --exit-status '.status_code == 200'
 
   # All callers can export the image with a valid secret.
   query /1.0/images/"${fingerprint}"/export?project=foo\&secret="${secret}" -o "${TEST_DIR}/private.img"
@@ -338,23 +338,23 @@ run_images_public() {
 
   # The secrets do not work 5 seconds after being used.
   sleep 5
-  query /1.0/images/"${fingerprint}"?secret="${secret}" | jq -e '.error == "Not Found" and .error_code == 404'
-  query /1.0/images/"${fingerprint}"/export?secret="${secret}" | jq -e '.error == "Not Found" and .error_code == 404'
-  query /1.0/images/"${fingerprint}"?project=foo\&secret="${secret}" | jq -e '.error == "Not Found" and .error_code == 404'
-  query /1.0/images/"${fingerprint}"/export?project=foo\&secret="${secret}" | jq -e '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/"${fingerprint}"?secret="${secret}" | jq --exit-status '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/"${fingerprint}"/export?secret="${secret}" | jq --exit-status '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/"${fingerprint}"?project=foo\&secret="${secret}" | jq --exit-status '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/"${fingerprint}"/export?project=foo\&secret="${secret}" | jq --exit-status '.error == "Not Found" and .error_code == 404'
 
   # Set the image in the default project to public.
   lxc image show "${fingerprint}" | sed -e "s/public: false/public: true/" | lxc image edit "${fingerprint}"
 
   # All callers can see the public image when listing.
-  query /1.0/images | jq -e '(.metadata | length) == 1 and .status_code == 200'
-  query /1.0/images?project=default | jq -e '(.metadata | length) == 1 and .status_code == 200'
-  query /1.0/images?recursion=1 | jq -e '(.metadata | length) == 1 and .status_code == 200'
-  query /1.0/images?recursion=1\&project=default | jq -e '(.metadata | length) == 1 and .status_code == 200'
+  query /1.0/images | jq --exit-status '(.metadata | length) == 1 and .status_code == 200'
+  query /1.0/images?project=default | jq --exit-status '(.metadata | length) == 1 and .status_code == 200'
+  query /1.0/images?recursion=1 | jq --exit-status '(.metadata | length) == 1 and .status_code == 200'
+  query /1.0/images?recursion=1\&project=default | jq --exit-status '(.metadata | length) == 1 and .status_code == 200'
 
   # All callers can view aliases of public images in the default project.
-  query /1.0/images/aliases/default-img | jq -e '.status_code == 200'
-  query /1.0/images/aliases/default-img?project=default | jq -e '.status_code == 200'
+  query /1.0/images/aliases/default-img | jq --exit-status '.status_code == 200'
+  query /1.0/images/aliases/default-img?project=default | jq --exit-status '.status_code == 200'
 
   # All callers can get the image with a prefix of 12 characters or more.
   query "/1.0/images/%25" | jq --exit-status '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
