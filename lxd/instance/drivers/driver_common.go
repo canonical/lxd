@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -22,6 +23,7 @@ import (
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/device"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/device/nictype"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -33,6 +35,7 @@ import (
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
+	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -714,12 +717,110 @@ func (d *common) runHooks(hooks []func() error) error {
 	return nil
 }
 
+// getAttachedVolumeSnapshots finds storage volume snapshots matching the provided UUIDs.
+// Returns volumes that match the UUIDs and validates they are snapshots.
+func (d *common) getAttachedVolumeSnapshots(inst instance.Instance, attachedVolumeUUIDs map[string]string) ([]*db.StorageVolume, error) {
+	if len(attachedVolumeUUIDs) == 0 {
+		return []*db.StorageVolume{}, nil
+	}
+
+	// Convert map values to slice for the database query
+	uuids := make([]string, 0, len(attachedVolumeUUIDs))
+	for _, uuid := range attachedVolumeUUIDs {
+		uuids = append(uuids, uuid)
+	}
+
+	customType := dbCluster.StoragePoolVolumeTypeCustom
+	instanceProject := inst.Project()
+	effectiveProject := project.StorageVolumeProjectFromRecord(&instanceProject, dbCluster.StoragePoolVolumeTypeCustom)
+
+	filter := db.StorageVolumeFilter{
+		Type:    &customType,
+		Project: &effectiveProject,
+		UUIDs:   &uuids,
+	}
+
+	var volumes []*db.StorageVolume
+	err := d.state.DB.Cluster.Transaction(d.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		volumes, err = tx.GetStorageVolumes(ctx, true, filter)
+		if err != nil {
+			return err
+		}
+
+		// Validate that all volumes are snapshots
+		for _, vol := range volumes {
+			_, _, isSnap := api.GetParentAndSnapshotName(vol.Name)
+			if !isSnap {
+				return fmt.Errorf("Volume %q is not a snapshot", vol.Name)
+			}
+		}
+
+		return nil
+	})
+
+	return volumes, err
+}
+
+// parseAttachedVolumes extracts and parses "volatile.attached_volumes", returning a map of attached volume UUIDs to snapshot UUIDs.
+func parseAttachedVolumes(inst instance.Instance) (map[string]string, error) {
+	raw, ok := inst.LocalConfig()["volatile.attached_volumes"]
+	if !ok {
+		return nil, errors.New(`Cannot get attached volumes as "volatile.attached_volumes" is unset`)
+	}
+
+	var attachedVolumeUUIDs map[string]string
+	err := json.Unmarshal([]byte(raw), &attachedVolumeUUIDs)
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing volatile.attached_volumes: %w", err)
+	}
+
+	return attachedVolumeUUIDs, nil
+}
+
+// getAttachedVolumes returns the list of storage volumes attached to the instance.
+func (d *common) getAttachedVolumes(inst instance.Instance) (volumes []*db.StorageVolume, err error) {
+	// Get attached disk volume devices.
+	attachedDiskVolumeDevices := deviceConfig.Devices{}
+	for name, dev := range inst.ExpandedDevices() {
+		if filters.IsCustomVolumeDisk(dev) {
+			attachedDiskVolumeDevices[name] = dev
+		}
+	}
+
+	// Get attached storage volumes.
+	volumes = make([]*db.StorageVolume, 0, len(attachedDiskVolumeDevices))
+	for name, dev := range attachedDiskVolumeDevices {
+		pool, err := storagePools.LoadByName(d.state, dev["pool"])
+		if err != nil {
+			return nil, err
+		}
+
+		volName, _, _ := api.GetParentAndSnapshotName(name)
+
+		err = d.state.DB.Cluster.Transaction(d.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+			vol, err := tx.GetStoragePoolVolume(ctx, pool.ID(), inst.Project().Name, dbCluster.StoragePoolVolumeTypeCustom, volName, true)
+			if err != nil {
+				return err
+			}
+
+			volumes = append(volumes, vol)
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return volumes, nil
+}
+
 // snapshotCommon handles the common part of a snapshot.
 // It creates the DB record and snapshots the instance, derives expiry from
 // inst's "snapshots.expiry"" if expiry is nil, mounts the instance to update
 // backup.yaml, and reverts on error. The snapshot is marked stateful when
 // stateful is true.
-func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *time.Time, stateful bool) error {
+func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *time.Time, stateful bool, diskVolumesMode string) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -766,9 +867,84 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 		return err
 	}
 
+	// Snapshot root disk.
 	err = pool.CreateInstanceSnapshot(snap, inst, d.op)
 	if err != nil {
 		return fmt.Errorf("Create instance snapshot: %w", err)
+	}
+
+	// Snapshot attached disk volumes (if requested).
+	if diskVolumesMode == api.DiskVolumesModeAllExclusive {
+		// Freeze instance for crash-consistent snapshots.
+		if inst.IsRunning() && !inst.IsFrozen() {
+			// Freeze the processes.
+			err = inst.Freeze()
+			if err != nil {
+				return err
+			}
+
+			defer func() { _ = inst.Unfreeze() }()
+
+			// Attempt to sync the filesystem.
+			err = filesystem.SyncFS(inst.Path())
+			if err != nil {
+				d.logger.Warn("Failed to flush writes to instance volume", logger.Ctx{"err": err})
+			}
+		}
+
+		volumes, err := d.getAttachedVolumes(inst)
+		if err != nil {
+			return fmt.Errorf("Failed getting attached volumes: %w", err)
+		}
+
+		// Snapshot attached custom volumes.
+		storageCache := storagePools.NewStorageCache(pool) // Create storage cache for pool lookups.
+		attachedVolumeUUIDs := make(map[string]string)
+		for _, volume := range volumes {
+			logger.Debug("Creating attached volume snapshot", logger.Ctx{"volumeProject": volume.Project, "volumePool": volume.Pool, "volumeName": volume.Name})
+
+			// Use shutdown context as we don't have access to the request context.
+			snapshotName, err := storagePools.VolumeDetermineNextSnapshotName(d.state.ShutdownCtx, d.state, volume.Pool, volume.Name, volume.Config)
+			if err != nil {
+				return err
+			}
+
+			// Attached volume snapshot description.
+			description := "Created alongside " + inst.Type().String() + "/" + inst.Name() + "/" + snapshotName + " in project " + inst.Project().Name
+
+			// Storage cache lookup.
+			pool, err := storageCache.GetPool(volume.Pool)
+			if err != nil {
+				return err
+			}
+
+			expiry := snap.ExpiryDate() // Attached volume snapshots inherit the expiry date of the instance snapshot.
+			snapshotUUID, err := pool.CreateCustomVolumeSnapshot(volume.Project, volume.Name, snapshotName, description, &expiry, d.op)
+			if err != nil {
+				return err
+			}
+
+			// Set attached volume snapshot UUID.
+			// This is used to identify the attached volume snapshots during restore.
+			attachedVolumeUUIDs[volume.Config["volatile.uuid"]] = snapshotUUID.String()
+
+			revert.Add(func() {
+				_ = pool.DeleteCustomVolumeSnapshot(volume.Project, volume.Name+"/"+snapshotName, d.op)
+			})
+		}
+
+		marshalled, err := json.Marshal(attachedVolumeUUIDs)
+		if err != nil {
+			return err
+		}
+
+		// Set "volatile.attached_volumes" to attached volume snapshot UUIDs on the snapshot instance.
+		err = snap.VolatileSet(map[string]string{
+			"volatile.attached_volumes": string(marshalled),
+		})
+		if err != nil {
+			return fmt.Errorf("Failed setting volatile.attached_volumes: %w", err)
+		}
 	}
 
 	revert.Add(func() {
@@ -830,16 +1006,24 @@ func (d *common) updateProgress(progress string) {
 // - wasRunning: whether the instance was running before restore.
 // - op: the restore operation lock.
 // - err: error, if any.
-func (d *common) restoreCommon(inst instance.Instance, source instance.Instance) (pool storagePools.Pool, wasRunning bool, op *operationlock.InstanceOperation, err error) {
+func (d *common) restoreCommon(inst instance.Instance, source instance.Instance, diskVolumesMode string) (pool storagePools.Pool, restoreVolumes []*db.StorageVolume, wasRunning bool, op *operationlock.InstanceOperation, err error) {
 	// Load the storage driver.
 	pool, err = storagePools.LoadByInstance(d.state, inst)
 	if err != nil {
-		return nil, false, nil, err
+		return nil, nil, false, nil, err
+	}
+
+	// Get attached volume snapshots.
+	if diskVolumesMode == api.DiskVolumesModeAllExclusive {
+		restoreVolumes, err = d.resolveRestoreSnapshots(source, true)
+		if err != nil {
+			return nil, nil, false, nil, err
+		}
 	}
 
 	op, err = operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
 	if err != nil {
-		return nil, false, nil, fmt.Errorf("Failed to create instance restore operation: %w", err)
+		return nil, nil, false, nil, fmt.Errorf("Failed to create instance restore operation: %w", err)
 	}
 
 	// Stop the instance.
@@ -863,7 +1047,7 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 			err := inst.Update(args, false)
 			if err != nil {
 				op.Done(err)
-				return nil, false, nil, err
+				return nil, nil, false, nil, err
 			}
 
 			// On function return, set the flag back on.
@@ -880,15 +1064,18 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 		err := inst.Stop(false)
 		if err != nil {
 			op.Done(err)
-			return nil, false, nil, err
+			return nil, nil, false, nil, err
 		}
 
 		// Refresh the operation as that one is now complete.
 		op, err = operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
 		if err != nil {
-			return nil, false, nil, fmt.Errorf("Failed to create instance restore operation: %w", err)
+			return nil, nil, false, nil, fmt.Errorf("Failed to create instance restore operation: %w", err)
 		}
 	}
+
+	// Remove "volatile.attached_volumes" from instance config (only needed for multi-volume snapshot restore).
+	delete(source.LocalConfig(), "volatile.attached_volumes")
 
 	// Restore the configuration.
 	args := db.InstanceArgs{
@@ -908,10 +1095,161 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 	err = inst.Update(args, false)
 	if err != nil {
 		op.Done(err)
-		return nil, false, nil, err
+		return nil, nil, false, nil, err
 	}
 
-	return pool, wasRunning, op, nil
+	return pool, restoreVolumes, wasRunning, op, nil
+}
+
+// resolveRestoreSnapshots returns a list of snapshot volumes to include in an instance restore.
+// When detectSharing is true, the function will check that the volumes are not shared with other instances.
+func (d *common) resolveRestoreSnapshots(source instance.Instance, detectSharing bool) (restoreSnapshots []*db.StorageVolume, err error) {
+	attachedVolumeUUIDs, err := parseAttachedVolumes(source)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get attached volumes.
+	attachedVolumes, err := d.getAttachedVolumes(source)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting attached volumes: %w", err)
+	}
+
+	// Get attached volume snapshots.
+	restoreSnapshots, err = d.getAttachedVolumeSnapshots(source, attachedVolumeUUIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build map for fast lookups.
+	uuidToVolume := make(map[string]*db.StorageVolume)
+	for _, vol := range restoreSnapshots {
+		uuidToVolume[vol.Config["volatile.uuid"]] = vol
+	}
+
+	var missing []*db.StorageVolume
+	var shared []*db.StorageVolume
+
+	// Check which attached volumes have matching snapshots.
+	for _, v := range attachedVolumes {
+		snapshotUUID, ok := attachedVolumeUUIDs[v.Config["volatile.uuid"]]
+		if !ok {
+			// Skip volumes not included in the source snapshot.
+			continue
+		}
+
+		vol, ok := uuidToVolume[snapshotUUID]
+		if ok {
+			restoreSnapshots = append(restoreSnapshots, vol)
+		} else {
+			missing = append(missing, v)
+		}
+	}
+
+	if detectSharing {
+		instanceProject := source.Project()
+		for _, v := range attachedVolumes {
+			err = storagePools.VolumeUsedByInstanceDevices(d.state, v.Pool, v.Project, &v.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+				parentName, _, _ := api.GetParentAndSnapshotName(source.Name())
+
+				// Skip this instance.
+				if instanceProject.Name == dbInst.Project && parentName == dbInst.Name {
+					return nil
+				}
+
+				shared = append(shared, v)
+
+				return nil
+			})
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	errMsgLines := make([]string, 0, len(missing))
+
+	for _, v := range missing {
+		errMsgLines = append(errMsgLines, v.Name+" (snapshot missing)")
+	}
+
+	if detectSharing {
+		for _, v := range shared {
+			errMsgLines = append(errMsgLines, v.Name+" (volume is shared)")
+		}
+	}
+
+	if len(errMsgLines) > 0 {
+		return nil, errors.New("Cannot restore source volumes for the following devices:\n" + strings.Join(errMsgLines, "\n"))
+	}
+
+	return restoreSnapshots, nil
+}
+
+// deleteAttachedVolumeSnapshots deletes the attached volume snapshots for a snapshot instance.
+// When diskVolumesMode is "all-exclusive", it deletes the attached volume snapshots.
+func (d *common) deleteAttachedVolumeSnapshots(snapInst instance.Instance, diskVolumesMode string) error {
+	if diskVolumesMode != api.DiskVolumesModeAllExclusive {
+		return nil
+	}
+
+	// Get attached volume snapshot UUIDs from the snapshot instance.
+	attachedVolumeUUIDs, err := parseAttachedVolumes(snapInst)
+	if err != nil {
+		return nil
+	}
+
+	if len(attachedVolumeUUIDs) == 0 {
+		return nil
+	}
+
+	// Get attached volume snapshots.
+	toDelete, err := d.getAttachedVolumeSnapshots(snapInst, attachedVolumeUUIDs)
+	if err != nil {
+		return err
+	}
+
+	pool, err := storagePools.LoadByInstance(d.state, snapInst)
+	if err != nil {
+		return err
+	}
+
+	// Delete the attached volume snapshots.
+	storageCache := storagePools.NewStorageCache(pool) // Create storage cache for pool lookups.
+	for _, vol := range toDelete {
+		pool, err := storageCache.GetPool(vol.Pool)
+		if err != nil {
+			return err
+		}
+
+		err = pool.DeleteCustomVolumeSnapshot(vol.Project, vol.Name, d.op)
+		if err != nil {
+			return fmt.Errorf("Failed deleting attached volume snapshot %q: %w", vol.Name, err)
+		}
+	}
+
+	return nil
+}
+
+// deleteSnapshotCommon handles the common part of snapshot deletion with multi-volume support.
+func (d *common) deleteSnapshotCommon(inst instance.Instance, diskVolumesMode string) error {
+	if !inst.IsSnapshot() {
+		return errors.New("Instance is not a snapshot")
+	}
+
+	// Delete attached volume snapshots (if requested).
+	err := d.deleteAttachedVolumeSnapshots(inst, diskVolumesMode)
+	if err != nil {
+		return fmt.Errorf("Failed deleting attached volume snapshots: %w", err)
+	}
+
+	// Delete instance snapshot.
+	err = inst.Delete(false)
+	if err != nil {
+		return fmt.Errorf("Failed deleting instance snapshot: %w", err)
+	}
+
+	return nil
 }
 
 // insertConfigkey function attempts to insert the instance config key into the database. If the insert fails

@@ -343,7 +343,7 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 
 	snapshot := func(op *operations.Operation) error {
 		inst.SetOperation(op)
-		return inst.Snapshot(req.Name, req.ExpiresAt, req.Stateful)
+		return inst.Snapshot(req.Name, req.ExpiresAt, req.Stateful, req.DiskVolumesMode)
 	}
 
 	resources := map[string][]api.URL{}
@@ -799,6 +799,11 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 //	    description: Project name
 //	    type: string
 //	    example: default
+//	  - in: query
+//	    name: disk-volumes
+//	    description: Which disk volumes to include in instance snapshot deletion. Possible values are "root" or "all-exclusive".
+//	    type: string
+//	    example: all-exclusive
 //	responses:
 //	  "202":
 //	    $ref: "#/responses/Operation"
@@ -809,8 +814,13 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func snapshotDelete(s *state.State, r *http.Request, snapInst instance.Instance) response.Response {
+	diskVolumesMode := request.QueryParam(r, "disk-volumes")
+	if diskVolumesMode == "" {
+		diskVolumesMode = api.DiskVolumesModeRoot
+	}
+
 	remove := func(_ *operations.Operation) error {
-		return snapInst.Delete(false)
+		return snapInst.DeleteSnapshot(diskVolumesMode)
 	}
 
 	parentName, snapName, _ := api.GetParentAndSnapshotName(snapInst.Name())

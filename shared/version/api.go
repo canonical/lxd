@@ -464,6 +464,7 @@ var APIExtensions = []string{
 	"operation_requestor",
 	"import_custom_volume_tar",
 	"projects_force_delete",
+	"instance_snapshots_multi_volume",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

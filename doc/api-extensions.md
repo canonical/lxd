@@ -2793,3 +2793,12 @@ This adds new option `tar` for parameter `--type` in `POST /1.0/storage-pools/{p
 ## `projects_force_delete`
 
 Adds support for force deleting projects and their entities (instances, profiles, images, networks, network ACLs, network zones, storage volumes, and storage buckets) by setting the `force` query parameter on `DELETE /1.0/projects/{name}` requests.
+
+(extension-instance-snapshots-multi-volume)=
+## `instance_snapshots_multi_volume`
+
+Enables the creation of a multi-volume snapshot and the restoration of an instance together with its attached volumes, while ensuring crash consistency across volumes.
+
+Adds `DiskVolumesMode` to `POST /1.0/instances/{name}/snapshots` and `RestoreDiskVolumesMode` to `PUT /1.0/instances/{name}` to select which attached volumes are included in snapshots/restores: "root" includes only the instance's root disk; "all-exclusive" includes the root disk and any exclusively attached (non-shared) volumes. Defaults to "root".
+
+This extension also introduces a new volatile configuration key, {config:option}`instance-volatile:volatile.attached_volumes`, in the configuration of supported storage drivers for instance snapshots. This key contains a JSON-serialized map of attached volume UUIDs to the UUIDs of their corresponding snapshots. Example value: `{<volume1-uuid>: <snapshot1-uuid>,<volume2-uuid>: <snapshot2-uuid>}`.

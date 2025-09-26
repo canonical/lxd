@@ -192,7 +192,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 		do = func(_ *operations.Operation) error {
 			defer unlock()
 
-			return instanceSnapRestore(s, projectName, name, configRaw.Restore, configRaw.Stateful)
+			return instanceSnapRestore(s, projectName, name, configRaw)
 		}
 
 		opType = operationtype.SnapshotRestore
@@ -214,8 +214,9 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
-func instanceSnapRestore(s *state.State, projectName string, name string, snap string, stateful bool) error {
+func instanceSnapRestore(s *state.State, projectName string, name string, req api.InstancePut) error {
 	// normalize snapshot name
+	snap := req.Restore
 	if !shared.IsSnapshot(snap) {
 		snap = name + shared.SnapshotDelimiter + snap
 	}
@@ -238,7 +239,7 @@ func instanceSnapRestore(s *state.State, projectName string, name string, snap s
 	// Generate a new `volatile.uuid.generation` to differentiate this instance restored from a snapshot from the original instance.
 	source.LocalConfig()["volatile.uuid.generation"] = uuid.New().String()
 
-	err = inst.Restore(source, stateful)
+	err = inst.Restore(source, req.Stateful, req.RestoreDiskVolumesMode)
 	if err != nil {
 		return err
 	}

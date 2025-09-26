@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-09-25 12:37-0600\n"
+"POT-Creation-Date: 2025-09-26 08:35-0600\n"
 "PO-Revision-Date: 2023-03-10 15:14+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -1740,11 +1740,11 @@ msgstr "プロファイルを作成します"
 msgid "Create identity provider groups"
 msgstr "新たにクラスターグループを作成します"
 
-#: lxc/snapshot.go:31
+#: lxc/snapshot.go:32
 msgid "Create instance snapshots"
 msgstr "インスタンスのスナップショットを作成します"
 
-#: lxc/snapshot.go:32
+#: lxc/snapshot.go:33
 msgid ""
 "Create instance snapshots\n"
 "\n"
@@ -1922,7 +1922,7 @@ msgstr "イメージを削除します"
 msgid "Delete instance file templates"
 msgstr "インスタンスのファイルテンプレートを削除します"
 
-#: lxc/delete.go:32 lxc/delete.go:33
+#: lxc/delete.go:33 lxc/delete.go:34
 msgid "Delete instances and snapshots"
 msgstr "インスタンスとスナップショットを削除します"
 
@@ -2015,7 +2015,7 @@ msgstr "警告を削除します"
 #: lxc/config_template.go:273 lxc/config_template.go:341 lxc/config_trust.go:35
 #: lxc/config_trust.go:88 lxc/config_trust.go:235 lxc/config_trust.go:349
 #: lxc/config_trust.go:431 lxc/config_trust.go:533 lxc/config_trust.go:579
-#: lxc/config_trust.go:650 lxc/console.go:41 lxc/copy.go:43 lxc/delete.go:33
+#: lxc/config_trust.go:650 lxc/console.go:41 lxc/copy.go:43 lxc/delete.go:34
 #: lxc/exec.go:41 lxc/export.go:33 lxc/file.go:89 lxc/file.go:136
 #: lxc/file.go:318 lxc/file.go:371 lxc/file.go:457 lxc/file.go:690
 #: lxc/file.go:1211 lxc/image.go:39 lxc/image.go:160 lxc/image.go:338
@@ -2069,7 +2069,7 @@ msgstr "警告を削除します"
 #: lxc/project.go:867 lxc/project.go:934 lxc/publish.go:34 lxc/query.go:35
 #: lxc/rebuild.go:28 lxc/remote.go:38 lxc/remote.go:94 lxc/remote.go:753
 #: lxc/remote.go:791 lxc/remote.go:877 lxc/remote.go:958 lxc/remote.go:1022
-#: lxc/remote.go:1071 lxc/rename.go:21 lxc/restore.go:22 lxc/snapshot.go:32
+#: lxc/remote.go:1071 lxc/rename.go:21 lxc/restore.go:23 lxc/snapshot.go:33
 #: lxc/storage.go:35 lxc/storage.go:98 lxc/storage.go:204 lxc/storage.go:262
 #: lxc/storage.go:394 lxc/storage.go:476 lxc/storage.go:656 lxc/storage.go:743
 #: lxc/storage.go:845 lxc/storage.go:939 lxc/storage_bucket.go:31
@@ -2201,6 +2201,30 @@ msgstr "ディスク使用量:"
 #: lxc/info.go:529
 msgid "Disk usage:"
 msgstr "ディスク使用量:"
+
+#: lxc/delete.go:40
+msgid ""
+"Disk volumes mode for snapshot deletion. Possible values are \"root\" "
+"(default) and \"all-exclusive\". \"root\" only deletes the instance's root "
+"disk snapshot. \"all-exclusive\" deletes the instance's root disk snapshot "
+"and any exclusively attached volumes (non-shared) snapshots."
+msgstr ""
+
+#: lxc/restore.go:36
+msgid ""
+"Disk volumes mode. Possible values are \"root\" (default) and \"all-"
+"exclusive\". \"root\" only restores the instance's root disk. \"all-"
+"exclusive\" restores the instance's root disk and any exclusively attached "
+"volumes (non-shared) snapshots."
+msgstr ""
+
+#: lxc/snapshot.go:48
+msgid ""
+"Disk volumes mode. Possible values are \"root\" (default) and \"all-"
+"exclusive\". \"root\" only snapshots the instance's root disk. \"all-"
+"exclusive\" snapshots the instance's root disk and any exclusively attached "
+"volumes (non-shared)."
+msgstr ""
 
 #: lxc/info.go:430
 msgid "Disk:"
@@ -2656,12 +2680,12 @@ msgstr "インスタンスの SFTP への接続に失敗しました: %w"
 msgid "Failed converting token operation to certificate add token: %w"
 msgstr "証明書追加トークンのトークン変換操作に失敗しました: %w"
 
-#: lxc/delete.go:174
+#: lxc/delete.go:180
 #, fuzzy, c-format
 msgid "Failed deleting instance %q in project %q: %w"
 msgstr "クライアント %q に対する SFTP インスタンスの接続に失敗しました: %v"
 
-#: lxc/delete.go:116
+#: lxc/delete.go:122
 #, fuzzy, c-format
 msgid "Failed deleting instance snapshot %q in project %q: %w"
 msgstr "インスタンスのスナップショットの存在確認に失敗しました \"%s:%s\": %w"
@@ -2832,7 +2856,7 @@ msgstr "ユーザーの確認なしで強制的に待避させます"
 msgid "Force the instance to stop"
 msgstr "インスタンスを強制停止します"
 
-#: lxc/delete.go:37
+#: lxc/delete.go:38
 msgid "Force the removal of running instances"
 msgstr "稼働中のインスタンスを強制的に削除します"
 
@@ -3219,7 +3243,7 @@ msgstr ""
 "存在するスナップショット名の場合は既存のスナップショットを削除したあとに新し"
 "いスナップショットを作成します"
 
-#: lxc/snapshot.go:46 lxc/storage_volume.go:2455
+#: lxc/snapshot.go:47 lxc/storage_volume.go:2455
 msgid "If the snapshot name already exists, delete and create a new one"
 msgstr ""
 "存在するスナップショット名の場合は既存のスナップショットを削除したあとに新し"
@@ -3231,7 +3255,7 @@ msgid ""
 "lxd init"
 msgstr "初めてこのマシンで LXD を使う場合、lxd init と実行する必要があります"
 
-#: lxc/snapshot.go:45
+#: lxc/snapshot.go:46
 msgid "Ignore any configured auto-expiry for the instance"
 msgstr "設定されている自動でのインスタンスの有効期限設定を無視します"
 
@@ -3429,7 +3453,7 @@ msgstr "クライアントバージョン: %s\n"
 msgid "Invalid format: %s"
 msgstr "不正なフォーマット %s"
 
-#: lxc/snapshot.go:95
+#: lxc/snapshot.go:97
 #, c-format
 msgid "Invalid instance name: %s"
 msgstr "不正なインスタンス名: %s"
@@ -5538,7 +5562,7 @@ msgstr "信頼済みクライアントを削除します"
 msgid "Removable: %v"
 msgstr "リムーバブルディスク: %v"
 
-#: lxc/delete.go:49
+#: lxc/delete.go:51
 #, c-format
 msgid "Remove %s (yes/no): "
 msgstr "%s を消去しますか (yes/no): "
@@ -5704,7 +5728,7 @@ msgstr "クラスターメンバーに join するためのトークンを要求
 msgid "Requested UEFI variable does not exist"
 msgstr ""
 
-#: lxc/delete.go:38
+#: lxc/delete.go:39
 msgid "Require user confirmation"
 msgstr "ユーザの確認を要求する"
 
@@ -5730,11 +5754,11 @@ msgstr ""
 msgid "Restore cluster member"
 msgstr "クラスターメンバーをリストアします"
 
-#: lxc/restore.go:21
+#: lxc/restore.go:22
 msgid "Restore instances from snapshots"
 msgstr "スナップショットからインスタンスをリストアします"
 
-#: lxc/restore.go:22
+#: lxc/restore.go:23
 msgid ""
 "Restore instances from snapshots\n"
 "\n"
@@ -6530,7 +6554,7 @@ msgstr "実行中の場合、インスタンスを停止します"
 msgid "Stopping instance failed!"
 msgstr "インスタンスの停止に失敗しました！"
 
-#: lxc/delete.go:145
+#: lxc/delete.go:151
 #, c-format
 msgid "Stopping the instance failed: %s"
 msgstr "インスタンスの停止に失敗しました: %s"
@@ -6711,7 +6735,7 @@ msgstr "デバイスはすでに存在します"
 msgid "The direction argument must be one of: ingress, egress"
 msgstr "direction 引数は次のいずれかでなければなりません: ingress, egress"
 
-#: lxc/delete.go:129
+#: lxc/delete.go:135
 msgid "The instance is currently running, stop it first or pass --force"
 msgstr "インスタンスは実行中です。先に停止させるか、--force を指定してください"
 
@@ -7344,7 +7368,7 @@ msgstr "使用済: %v"
 msgid "User ID to run the command as (default 0)"
 msgstr "コマンドを実行する際のユーザ ID (UID) (デフォルト 0)"
 
-#: lxc/cluster.go:630 lxc/delete.go:54
+#: lxc/cluster.go:630 lxc/delete.go:56
 msgid "User aborted delete operation"
 msgstr "ユーザが削除操作を中断しました"
 
@@ -7413,7 +7437,7 @@ msgstr "処理が完全に終わるまで待ちます"
 msgid "Whether or not to only backup the instance (without snapshots)"
 msgstr "スナップショットを含めずにインスタンスのみをバックアップするかどうか"
 
-#: lxc/restore.go:34
+#: lxc/restore.go:35
 msgid ""
 "Whether or not to restore the instance's running state from snapshot (if "
 "available)"
@@ -7421,7 +7445,7 @@ msgstr ""
 "スナップショットからインスタンスの稼動状態をリストアするかどうか (取得可能な"
 "場合)"
 
-#: lxc/snapshot.go:44
+#: lxc/snapshot.go:45
 msgid "Whether or not to snapshot the instance's running state"
 msgstr "インスタンスの稼動状態のスナップショットを取得するかどうか"
 
@@ -7690,7 +7714,7 @@ msgstr "[<remote>:]<instance> <profile>"
 msgid "[<remote>:]<instance> <profiles>"
 msgstr "[<remote>:]<instance> <profiles>"
 
-#: lxc/restore.go:20
+#: lxc/restore.go:21
 msgid "[<remote>:]<instance> <snapshot>"
 msgstr "[<remote>:]<instance> <snapshot>"
 
@@ -7699,7 +7723,7 @@ msgstr "[<remote>:]<instance> <snapshot>"
 msgid "[<remote>:]<instance> <template>"
 msgstr "[<remote>:]<instance> <template>"
 
-#: lxc/snapshot.go:30
+#: lxc/snapshot.go:31
 msgid "[<remote>:]<instance> [<snapshot name>]"
 msgstr "[<remote>:]<instance> [<snapshot name>]"
 
@@ -7751,7 +7775,7 @@ msgid "[<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]"
 msgstr ""
 "[<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]"
 
-#: lxc/delete.go:30
+#: lxc/delete.go:31
 msgid ""
 "[<remote>:]<instance>[/<snapshot>] [[<remote>:]<instance>[/<snapshot>]...]"
 msgstr ""
@@ -8714,7 +8738,7 @@ msgstr ""
 "lxc query -X DELETE --wait /1.0/instances/c1\n"
 "    ローカルのインスタンス \"c1\" を削除します。"
 
-#: lxc/snapshot.go:37
+#: lxc/snapshot.go:38
 #, fuzzy
 msgid ""
 "lxc snapshot u1 snap0\n"
@@ -8729,7 +8753,7 @@ msgstr ""
 "lxc init ubuntu:22.04 u1 < config.yaml\n"
 "    config.yaml の設定を使ってインスタンスを作成します"
 
-#: lxc/restore.go:26
+#: lxc/restore.go:27
 msgid ""
 "lxc snapshot u1 snap0\n"
 "    Create the snapshot.\n"
@@ -8913,7 +8937,7 @@ msgstr "ストレージを使用中の"
 msgid "y"
 msgstr "y"
 
-#: lxc/cluster.go:629 lxc/delete.go:53 lxc/image.go:997 lxc/image.go:1002
+#: lxc/cluster.go:629 lxc/delete.go:55 lxc/image.go:997 lxc/image.go:1002
 #: lxc/image.go:1207
 msgid "yes"
 msgstr "yes"

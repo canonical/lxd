@@ -92,8 +92,8 @@ type Instance interface {
 	IsPrivileged() bool
 
 	// Snapshots & migration & backups.
-	Restore(source Instance, stateful bool) error
-	Snapshot(name string, expiry *time.Time, stateful bool) error
+	Restore(source Instance, stateful bool, diskVolumesMode string) error
+	Snapshot(name string, expiry *time.Time, stateful bool, diskVolumesMode string) error
 	Snapshots() ([]Instance, error)
 	Backups() ([]backup.InstanceBackup, error)
 	UpdateBackupFile() error
@@ -103,6 +103,7 @@ type Instance interface {
 	Update(newConfig db.InstanceArgs, userRequested bool) error
 
 	Delete(force bool) error
+	DeleteSnapshot(diskVolumesMode string) error
 	Export(w io.Writer, properties map[string]string, expiration time.Time, tracker *ioprogress.ProgressTracker) (api.ImageMetadata, error)
 
 	// Live configuration.

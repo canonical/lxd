@@ -2232,7 +2232,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	}
 
 	if snapName != "" && expiry != nil {
-		err := d.snapshot(snapName, expiry)
+		err := d.snapshot(snapName, expiry, "")
 		if err != nil {
 			return "", nil, fmt.Errorf("Failed taking startup snapshot: %w", err)
 		}
@@ -3345,15 +3345,15 @@ func (d *lxc) RenderState(hostInterfaces []net.Interface) (*api.InstanceState, e
 }
 
 // snapshot creates a snapshot of the instance.
-func (d *lxc) snapshot(name string, expiry *time.Time) error {
+func (d *lxc) snapshot(name string, expiry *time.Time, diskVolumesMode string) error {
 	// Wait for any file operations to complete to have a more consistent snapshot.
 	d.stopForkfile(false)
 
-	return d.snapshotCommon(d, name, expiry, false)
+	return d.snapshotCommon(d, name, expiry, false, diskVolumesMode)
 }
 
 // Snapshot takes a new snapshot.
-func (d *lxc) Snapshot(name string, expiry *time.Time, stateful bool) error {
+func (d *lxc) Snapshot(name string, expiry *time.Time, stateful bool, diskVolumesMode string) error {
 	if stateful {
 		return api.StatusErrorf(http.StatusBadRequest, "Stateful snapshots are not supported for containers")
 	}
@@ -3365,11 +3365,11 @@ func (d *lxc) Snapshot(name string, expiry *time.Time, stateful bool) error {
 
 	defer unlock()
 
-	return d.snapshot(name, expiry)
+	return d.snapshot(name, expiry, diskVolumesMode)
 }
 
 // Restore restores a snapshot.
-func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
+func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool, diskVolumesMode string) error {
 	if stateful {
 		return api.StatusErrorf(http.StatusBadRequest, "Stateful snapshot restore is not supported for containers")
 	}
@@ -3383,10 +3383,29 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 
 	d.logger.Info("Restoring instance", ctxMap)
 
-	pool, wasRunning, op, err := d.restoreCommon(d, sourceContainer)
+	pool, restoreVolumes, wasRunning, op, err := d.restoreCommon(d, sourceContainer, diskVolumesMode)
 	if err != nil {
 		op.Done(err)
 		return err
+	}
+
+	if diskVolumesMode == api.DiskVolumesModeAllExclusive {
+		storageCache := storagePools.NewStorageCache(pool) // Create storage cache for pool lookups.
+		for _, volume := range restoreVolumes {
+			volName, snapName, _ := api.GetParentAndSnapshotName(volume.Name)
+
+			logger.Debug("Restoring attached volume snapshot", logger.Ctx{"volumeProject": volume.Project, "volumePool": volume.Pool, "volumeName": volName, "snapName": snapName})
+
+			pool, err := storageCache.GetPool(volume.Pool)
+			if err != nil {
+				return err
+			}
+
+			err = pool.RestoreCustomVolume(volume.Project, volName, snapName, d.op)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	// Wait for any file operations to complete.
@@ -3476,6 +3495,11 @@ func (d *lxc) Delete(force bool) error {
 	}
 
 	return nil
+}
+
+// DeleteSnapshot deletes the snapshot with optional multi-volume support.
+func (d *lxc) DeleteSnapshot(diskVolumesMode string) error {
+	return d.deleteSnapshotCommon(d, diskVolumesMode)
 }
 
 // Delete deletes the instance without creating an operation lock.
