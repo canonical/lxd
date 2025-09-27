@@ -178,10 +178,19 @@ test_network_ovn() {
   ! lxc network forward create "${uplink_network}" 10.10.10.200 || false
   ! lxc network forward create "${uplink_network}" fd42:4242:4242:1010::200 || false
 
-  echo "Create an OVN network."
+  echo "==> Create an OVN network with ipv6.address initially disabled."
   lxc network create "${ovn_network}" --type ovn network="${uplink_network}" \
       ipv4.address=10.24.140.1/24 ipv4.nat=true \
-      ipv6.address=fd42:bd85:5f89:5293::1/64 ipv6.nat=true
+      ipv6.address=none
+
+  echo "==> Change the network's ipv4.address to 10.24.140.1/12."
+  lxc network set "${ovn_network}" ipv4.address=10.24.140.1/12
+
+  echo "==> Enable ipv6.address for the network."
+  lxc network set "${ovn_network}" ipv6.address=fd42:bd85:5f89:5293::1/64 ipv6.nat=true
+
+  echo "==> Change the network's ipv4.address back to 10.24.140.1/24."
+  lxc network set "${ovn_network}" ipv4.address=10.24.140.1/24
 
   # Check this created the correct number of entries.
   tables["ACL"]=15
