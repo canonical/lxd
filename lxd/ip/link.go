@@ -388,6 +388,21 @@ func (l *Link) Delete() error {
 	return nil
 }
 
+// Exists check whether the device exists.
+func (l *Link) Exists() (bool, error) {
+	_, err := shared.RunCommandContext(context.TODO(), "ip", "link", "show", "dev", l.Name)
+	if err != nil {
+		status, _ := shared.ExitStatus(err)
+		if status == 1 {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	return true, nil
+}
+
 // BridgeVLANAdd adds a new vlan filter entry.
 func (l *Link) BridgeVLANAdd(vid string, pvid bool, untagged bool, self bool) error {
 	cmd := []string{"vlan", "add", "dev", l.Name, "vid", vid}
