@@ -40,6 +40,27 @@ test_oidc() {
   # OIDC user should be added to identities table.
   [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM identities WHERE type = 5 AND identifier = 'test-user@example.com' AND auth_method = 2")" = 1 ]
 
+  # A session should have been created.
+  [ "$(lxc auth oidc-session list --format csv test-user@example.com | wc -l)" = 1 ]
+
+  # A session cookie should be saved
+  jq -e '."127.0.0.1"."127.0.0.1;/;session" | .Name == "session" and .Path == "/" and .Secure and .HttpOnly and .Persistent and .HostOnly and .Domain == "127.0.0.1" and .SameSite == "SameSite=Strict"' "${LXD_CONF}/jars/oidc"
+
+  # Get the JWT payload.
+  #
+  # Here we're getting the value of the cookie, then getting the payload (middle section - JWTs have three base64
+  # encoded sections delimited by a '.') and decoding it.
+  #
+  # If base64 -d returns an error we ignore it and pipe stderr to /dev/null, this is because the JWT does not contain
+  # "=" padding at the end. When base64 encounters this, it returns what it was able to decode and an error.
+  #
+  # If any of this fails, the payload variable will be empty and the jq assertions below will fail.
+  payload="$(jq -r '."127.0.0.1"."127.0.0.1;/;session".Value' "${LXD_CONF}/jars/oidc" | cut -d. -f2 | base64 -d 2>/dev/null || true)"
+
+  cluster_uuid="$(lxc config get volatile.uuid)"
+  session_uuid="$(lxc auth oidc-session list --format csv test-user@example.com | cut -d, -f3)"
+  jq -e --arg cluster_uuid "${cluster_uuid}" --arg session_uuid "${session_uuid}" '.iss == "lxd:"+$cluster_uuid and .sub == $session_uuid and (.aud | length) == 1 and .aud[0] == "lxd:"+$cluster_uuid' <<< "${payload}"
+
   # Cleanup OIDC
   lxc auth identity delete oidc/test-user@example.com
   lxc remote remove oidc

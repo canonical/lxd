@@ -117,6 +117,26 @@ var updates = map[int]schema.Update{
 	74: updateFromV73,
 	75: updateFromV74,
 	76: updateFromV75,
+	77: updateFromv76,
+}
+
+func updateFromv76(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, `
+CREATE TABLE oidc_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    uuid TEXT NOT NULL,
+    identity_id INTEGER NOT NULL,
+    id_token TEXT NOT NULL,
+    access_token TEXT NOT NULL,
+    refresh_token TEXT NOT NULL,
+    ip TEXT NOT NULL,
+    user_agent TEXT NOT NULL,
+    expiry_date DATETIME NOT NULL,
+    UNIQUE (uuid),
+    FOREIGN KEY (identity_id) REFERENCES identities (id) ON DELETE CASCADE
+);
+`)
+	return err
 }
 
 func updateFromV75(ctx context.Context, tx *sql.Tx) error {

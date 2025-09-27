@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -283,22 +284,34 @@ func (i Identity) X509() (*x509.Certificate, error) {
 
 // OIDCMetadata contains metadata for OIDC identities.
 type OIDCMetadata struct {
-	Subject string `json:"subject"`
+	Subject                string   `json:"subject"`
+	IdentityProviderGroups []string `json:"identity_provider_groups"`
 }
 
-// Subject returns OIDC subject from the identity metadata. The [AuthMethod] of the [Identity] must be [api.AuthenticationMethodOIDC].
-func (i Identity) Subject() (string, error) {
+// Equals returns true if the given [OIDCMetadata] is equal to the receiver.
+func (o OIDCMetadata) Equals(m OIDCMetadata) bool {
+	if o.Subject != m.Subject {
+		return false
+	}
+
+	slices.Sort(o.IdentityProviderGroups)
+	slices.Sort(m.IdentityProviderGroups)
+	return slices.Equal(o.IdentityProviderGroups, m.IdentityProviderGroups)
+}
+
+// OIDCMetadata returns the identity metadata as [OIDCMetadata]. The [AuthMethod] of the [Identity] must be [api.AuthenticationMethodOIDC].
+func (i Identity) OIDCMetadata() (*OIDCMetadata, error) {
 	if i.AuthMethod != api.AuthenticationMethodOIDC {
-		return "", fmt.Errorf("Cannot extract subject from identity: Identity has authentication method %q (%q required)", i.AuthMethod, api.AuthenticationMethodOIDC)
+		return nil, fmt.Errorf("Cannot extract OIDC metadata from identity: Identity has authentication method %q (%q required)", i.AuthMethod, api.AuthenticationMethodOIDC)
 	}
 
 	var metadata OIDCMetadata
 	err := json.Unmarshal([]byte(i.Metadata), &metadata)
 	if err != nil {
-		return "", fmt.Errorf("Failed to unmarshal subject metadata: %w", err)
+		return nil, fmt.Errorf("Failed to unmarshal OIDC metadata: %w", err)
 	}
 
-	return metadata.Subject, nil
+	return &metadata, nil
 }
 
 // PendingTLSMetadata contains metadata for the pending TLS certificate identity type.

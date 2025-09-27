@@ -5639,6 +5639,15 @@
 							"shortdesc": "Space-separated list of OpenID Connect scopes",
 							"type": "space-delimited string"
 						}
+					},
+					{
+						"oidc.session.expiry": {
+							"defaultdesc": "`1w`",
+							"longdesc": "The duration of an OIDC session.\n\nThis configuration option accepts multiple space-separated values of the form `[0-9]+(S|M|H|d|w|m|y)`,\nwhere `S` is seconds, `M` is minutes, `H` is hours, `d` is days, `w` is weeks, `m` is months, and `y` is years.\nFor example, `1d 3H` is 1 day and 3 hours.\n\nThe default value is `1w` (1 week).\nThe minimum value is `1d` (1 day).",
+							"scope": "global",
+							"shortdesc": "The duration of an OIDC session",
+							"type": "string"
+						}
 					}
 				]
 			}

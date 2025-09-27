@@ -4291,6 +4291,48 @@ definitions:
                 x-go-name: Type
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
+    OIDCSession:
+        properties:
+            created_at:
+                description: CreatedAt is when the session was started.
+                example: "2025-09-11T15:14:04+00:00"
+                format: date-time
+                type: string
+                x-go-name: CreatedAt
+            email:
+                description: Email is the email of the user that holds the session.
+                example: jane.doe@example.com
+                type: string
+                x-go-name: Email
+            expires_at:
+                description: ExpiresAt is when the session will expire.
+                example: "2025-09-11T15:14:04+00:00"
+                format: date-time
+                type: string
+                x-go-name: ExpiresAt
+            ip:
+                description: IP is the IP address of the user that holds the session.
+                example: 10.21.242.46
+                type: string
+                x-go-name: IP
+            user_agent:
+                description: UserAgent is the UserAgent of the user that holds the session.
+                example: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36
+                type: string
+                x-go-name: UserAgent
+            username:
+                description: Username is the name of the user that holds the session.
+                example: Jane Doe
+                type: string
+                x-go-name: Username
+            uuid:
+                description: UUID is the session UUID.
+                example: 01993985-7b5d-7a7e-afeb-23e8f6a15cf4
+                type: string
+                x-go-name: UUID
+        title: OIDCSession contains session details for a current login.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
     Operation:
         description: Operation represents a LXD background operation
         properties:
@@ -8420,6 +8462,148 @@ paths:
             summary: Get the groups
             tags:
                 - identity_provider_groups
+    /1.0/auth/oidc-sessions:
+        get:
+            description: Returns a list of OIDC sessions (URLs).
+            operationId: oidc_sessions_get
+            parameters:
+                - description: Email address of user
+                  example: jane.doe@example.com
+                  in: query
+                  name: email
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of endpoints
+                                example: |-
+                                    [
+                                      "/1.0/auth/oidc-sessions/01993cf9-7cf5-7ecb-8946-7736875a8322",
+                                      "/1.0/auth/oidc-sessions/01993cf9-a97e-76ef-9382-4434fee8b469"
+                                    ]
+                                items:
+                                    type: string
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get OIDC session URLs
+            tags:
+                - oidc_sessions
+    /1.0/auth/oidc-sessions/{id}:
+        delete:
+            description: Deletes the OIDC session
+            operationId: oidc_session_delete
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Delete an OIDC session
+            tags:
+                - oidc_sessions
+        get:
+            description: Gets a specific OIDC session.
+            operationId: oidc_session_get
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: ""
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/OIDCSession'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the OIDC session
+            tags:
+                - oidc_sessions
+    /1.0/auth/oidc-sessions?recursion=1:
+        get:
+            description: Returns a list of OIDC sessions.
+            operationId: oidc_sessions_get_recursion1
+            parameters:
+                - description: Email address of user
+                  example: jane.doe@example.com
+                  in: query
+                  name: email
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of auth groups
+                                items:
+                                    $ref: '#/definitions/OIDCSession'
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the OIDC sessions
+            tags:
+                - oidc_sessions
     /1.0/auth/permissions:
         get:
             description: Returns a list of available permissions.

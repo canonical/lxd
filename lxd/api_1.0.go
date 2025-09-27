@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
@@ -23,6 +24,7 @@ import (
 	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	dbOIDC "github.com/canonical/lxd/lxd/db/oidc"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -151,6 +153,8 @@ var api10 = []APIEndpoint{
 	permissionsCmd,
 	storageVolumesCmd,
 	storageVolumesTypeCmd,
+	oidcSessionsCmd,
+	oidcSessionCmd,
 }
 
 // swagger:operation GET /1.0?public server server_get_untrusted
@@ -729,6 +733,51 @@ func validateStorageVolumes(s *state.State, ctx context.Context, nodeValues map[
 	return nil
 }
 
+// validateOIDCSessionExpiry enforces that "oidc.session.expiry" is not greater than "core.auth_secret_expiry".
+//
+// We cannot allow this, otherwise we might encounter OIDC session tokens that ought to be valid, but that we can't verify
+// because they have been signed by a key derived from a core secret that is too old and has been rotated out and deleted.
+func validateOIDCSessionExpiry(config *clusterConfig.Config, requestConfig map[string]string, patch bool) error {
+	coreAuthSecretExpiry := requestConfig["core.auth_secret_expiry"]
+	if coreAuthSecretExpiry == "" {
+		// If value is unset in request. For PATCH it is unchanged, but for PUT it will reset to the default.
+		if patch {
+			coreAuthSecretExpiry = config.AuthSecretExpiry()
+		} else {
+			coreAuthSecretExpiry = "1m"
+		}
+	}
+
+	oidcSessionExpiry := requestConfig["oidc.session.expiry"]
+	if oidcSessionExpiry == "" {
+		// If value is unset in request. For PATCH it is unchanged, but for PUT it will reset to the default.
+		if patch {
+			oidcSessionExpiry = config.OIDCSessionExpiry()
+		} else {
+			oidcSessionExpiry = "1w"
+		}
+	}
+
+	// Calculate expirations with reference to the current time.
+	now := time.Now().UTC()
+	coreAuthSecretExpiryTime, err := shared.GetExpiry(now, coreAuthSecretExpiry)
+	if err != nil {
+		return api.StatusErrorf(http.StatusBadRequest, "Failed to validate core auth secret expiry: %w", err)
+	}
+
+	oidcSessionExpiryTime, err := shared.GetExpiry(now, oidcSessionExpiry)
+	if err != nil {
+		return api.StatusErrorf(http.StatusBadRequest, "Failed to validate oidc session expiry: %w", err)
+	}
+
+	// Check if an OIDC session created now, would expire after a core auth secret created now.
+	if oidcSessionExpiryTime.After(coreAuthSecretExpiryTime) {
+		return api.StatusErrorf(http.StatusBadRequest, "OIDC session expiry %q must not be greater than the auth secret expiry %q", oidcSessionExpiry, coreAuthSecretExpiry)
+	}
+
+	return nil
+}
+
 func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) response.Response {
 	s := d.State()
 
@@ -754,6 +803,14 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	} else if !patch {
 		// If not present, this is allowed for PATCH but not for PUT.
 		return response.BadRequest(errors.New("The cluster UUID cannot be changed"))
+	}
+
+	// Validate the OIDC session expiry is not greater than the core auth secret expiry.
+	// This can't be handled by the config map, as the validation functions don't have access
+	// to other configuration values, so we need to validate here.
+	err := validateOIDCSessionExpiry(d.globalConfig, stringReqConfig, patch)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	// First deal with config specific to the local daemon
@@ -782,7 +839,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	var newNodeConfig *node.Config
 	oldNodeConfig := make(map[string]string)
 
-	err := s.DB.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
+	err = s.DB.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
 		newNodeConfig, err = node.ConfigLoad(ctx, tx)
 		if err != nil {
@@ -1204,7 +1261,8 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 				return util.HTTPClient("", d.proxy)
 			}
 
-			d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, s.CoreAuthSecrets, d.identityCache, httpClientFunc, &oidc.Opts{GroupsClaim: oidcGroupsClaim})
+			sessionHandler := dbOIDC.NewSessionHandler(d.db.Cluster, d.events, d.globalConfig.OIDCSessionExpiry)
+			d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim, d.globalConfig.ClusterUUID(), s.CoreAuthSecrets, httpClientFunc, sessionHandler)
 			if err != nil {
 				return fmt.Errorf("Failed creating verifier: %w", err)
 			}
