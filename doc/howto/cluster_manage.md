@@ -115,9 +115,15 @@ Any instance that you plan to live-migrate must have its {config:option}`instanc
 (cluster-automatic-evacuation)=
 ### Automatic evacuation
 
-If you set the {config:option}`server-cluster:cluster.healing_threshold` configuration to a non-zero value, instances are automatically evacuated if a cluster member goes offline.
+If you set the {config:option}`server-cluster:cluster.healing_threshold` configuration to a non-zero value (in seconds), instances are automatically evacuated if a cluster member goes offline. This behavior, also known as cluster healing, only applies to instances that share storage and do not use any local devices.
 
-When the evacuated server is available again, you must manually restore it.
+When the evacuated cluster member is available again, you must manually {ref}`restore <cluster-restore>` it.
+
+```{warning}
+Enabling automatic evacuation (cluster healing) carries risks if LXD incorrectly deems a cluster member as offline while it is still running workloads. This can happen due to short-lived network issues or high load on a single cluster member, either of which might cause it to briefly stop responding to heartbeat or ICMP packets. This might result in workloads being evacuated to another cluster member while still continuing to run on the original one, which can cause data corruption since they share the same storage.
+
+To avoid triggering evacuation during transient issues, set {config:option}`server-cluster:cluster.healing_threshold` as high as possible within your availability targets.
+```
 
 (cluster-manage-delete-members)=
 ## Delete cluster members
