@@ -112,12 +112,25 @@ If an instance is not suitable for live migration, it will be shut down cleanly 
 Any instance that you plan to live-migrate must have its {config:option}`instance-migration:migration.stateful` configuration option set to `true`. Be aware that this option can only be set while the instance is stopped. Thus, for any instance to have the ability to be live-migrated in the future, this option must be set to `true` ahead of time.
 ```
 
+(cluster-healing)=
 (cluster-automatic-evacuation)=
-### Automatic evacuation
+## Cluster healing
 
-If you set the {config:option}`server-cluster:cluster.healing_threshold` configuration to a non-zero value, instances are automatically evacuated if a cluster member goes offline.
+To enable cluster healing, set the {config:option}`server-cluster:cluster.healing_threshold` configuration to a non-zero value (in seconds). If a cluster member is offline for longer than this threshold, LXD automatically sets its state to "evacuated" and starts its instances on another member. This behavior only applies to instances that use shared storage storage and have no local devices attached.
 
-When the evacuated server is available again, you must manually restore it.
+Syntax:
+
+```bash
+lxc cluster set cluster.healing_threshold <value in seconds>
+```
+
+When the healed cluster member is available again, you must manually {ref}`restore <cluster-restore>` it to remove its "evacuated" state and return instances to it.
+
+```{warning}
+Enabling the cluster healing threshold carries the risk that LXD might incorrectly judge a cluster member as offline while it is still running workloads. Short-lived network issues or temporary high load might cause a cluster member to briefly stop responding to heartbeat or ICMP packets. If a healing threshold is set, LXD might then start that member's instances on another cluster member even though they're still active on the original. Since cluster members share the same storage, this can lead to data corruption.
+
+To reduce the chance of false healing events, set {config:option}`server-cluster:cluster.healing_threshold` as high as possible within your availability targets.
+```
 
 (cluster-manage-delete-members)=
 ## Delete cluster members
