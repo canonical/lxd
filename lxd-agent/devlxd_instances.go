@@ -5,8 +5,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -17,7 +15,7 @@ var devLXDInstanceEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDInstanceGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	instName, err := url.PathUnescape(mux.Vars(r)["name"])
+	instName, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
 		return errorResponse(http.StatusBadRequest, err.Error())
 	}
@@ -38,7 +36,7 @@ func devLXDInstanceGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
 }
 
 func devLXDInstancePatchHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	instName, err := url.PathUnescape(mux.Vars(r)["name"])
+	instName, err := url.PathUnescape(r.PathValue("name"))
 	if err != nil {
 		return errorResponse(http.StatusBadRequest, err.Error())
 	}
