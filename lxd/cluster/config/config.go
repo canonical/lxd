@@ -234,6 +234,13 @@ func (c *Config) OIDCServer() (issuer string, clientID string, clientSecret stri
 	return c.m.GetString("oidc.issuer"), c.m.GetString("oidc.client.id"), c.m.GetString("oidc.client.secret"), strings.Fields(c.m.GetString("oidc.scopes")), c.m.GetString("oidc.audience"), c.m.GetString("oidc.groups.claim")
 }
 
+// OIDCSessionExpiry returns the expiry of an OIDC session. This is separate from OIDCServer as it is passed into the
+// session manager via a function that gets the value as necessary, so we don't need to refresh the [oidc.Verifier] each
+// time this changes.
+func (c *Config) OIDCSessionExpiry() (expiry string) {
+	return c.m.GetString("oidc.session.expiry")
+}
+
 // ClusterHealingThreshold returns the configured healing threshold, i.e. the
 // number of seconds after which an offline node will be evacuated automatically. If the config key
 // is set but its value is lower than cluster.offline_threshold it returns
@@ -756,6 +763,35 @@ var ConfigSchema = config.Schema{
 	//  scope: global
 	//  shortdesc: A claim used for mapping identity provider groups to LXD groups.
 	"oidc.groups.claim": {},
+
+	// lxdmeta:generate(entities=server; group=oidc; key=oidc.session.expiry)
+	// The duration of an OIDC session.
+	//
+	// This configuration option accepts multiple space-separated values of the form `[0-9]+(S|M|H|d|w|m|y)`,
+	// where `S` is seconds, `M` is minutes, `H` is hours, `d` is days, `w` is weeks, `m` is months, and `y` is years.
+	// For example, `1d 3H` is 1 day and 3 hours.
+	//
+	// The default value is `1w` (1 week).
+	// The minimum value is `1d` (1 day).
+	// ---
+	//  type: string
+	//  scope: global
+	//  defaultdesc: `1w`
+	//  shortdesc: The duration of an OIDC session
+	"oidc.session.expiry": {Default: "1w", Validator: func(s string) error {
+		now := time.Now().UTC()
+		exp, err := shared.GetExpiry(now, s)
+		if err != nil {
+			return err
+		}
+
+		if exp.Sub(now) < time.Hour {
+			return errors.New("OIDC session expiry cannot be set to less than one hour")
+		}
+
+		return nil
+	}},
+
 	// OVN networking global keys.
 
 	// lxdmeta:generate(entities=server; group=miscellaneous; key=network.ovn.integration_bridge)
