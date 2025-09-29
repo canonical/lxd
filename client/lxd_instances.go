@@ -2295,14 +2295,26 @@ func (r *ProtocolLXD) MigrateInstanceSnapshot(instanceName string, name string, 
 }
 
 // DeleteInstanceSnapshot requests that LXD deletes the instance snapshot.
-func (r *ProtocolLXD) DeleteInstanceSnapshot(instanceName string, name string) (Operation, error) {
+func (r *ProtocolLXD) DeleteInstanceSnapshot(instanceName string, name string, diskVolumesMode string) (Operation, error) {
 	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
 	if err != nil {
 		return nil, err
 	}
 
+	_, instanceType, _ := strings.Cut(path, "/")
+	u := api.NewURL().Path(instanceType, instanceName, "snapshots", name).WithQuery("disk-volumes", diskVolumesMode)
+
+	if diskVolumesMode == api.DiskVolumesModeAllExclusive {
+		err := r.CheckExtension("instance_snapshots_multi_volume")
+		if err != nil {
+			return nil, err
+		}
+
+		u = u.WithQuery("disk-volumes", diskVolumesMode)
+	}
+
 	// Send the request
-	op, _, err := r.queryOperation(http.MethodDelete, path+"/"+url.PathEscape(instanceName)+"/snapshots/"+url.PathEscape(name), nil, "", true)
+	op, _, err := r.queryOperation(http.MethodDelete, u.String(), nil, "", true)
 	if err != nil {
 		return nil, err
 	}
