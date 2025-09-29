@@ -1,4 +1,5 @@
 github.com/canonical/lxd/client
+github.com/canonical/lxd/lxc/cookiejar
 github.com/canonical/lxd/shared
 github.com/canonical/lxd/shared/api
 github.com/canonical/lxd/shared/cancel
@@ -67,6 +68,7 @@ golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
 golang.org/x/net/internal/socks
 golang.org/x/net/proxy
+golang.org/x/net/publicsuffix
 golang.org/x/oauth2
 golang.org/x/oauth2/clientcredentials
 golang.org/x/oauth2/internal
