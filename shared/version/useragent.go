@@ -1,8 +1,11 @@
 package version
 
 import (
+	"errors"
 	"runtime"
+	"slices"
 	"strings"
+	"unicode"
 
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -58,7 +61,16 @@ func UserAgentStorageBackends(backends []string) {
 }
 
 // UserAgentFeatures updates the list of advertised features.
-func UserAgentFeatures(features []string) {
+func UserAgentFeatures(features []string) error {
+	hasWhiteSpace := func(s string) bool {
+		return strings.ContainsFunc(s, unicode.IsSpace)
+	}
+
+	if slices.ContainsFunc(features, hasWhiteSpace) {
+		return errors.New("User agent features may not contain whitespace")
+	}
+
 	userAgentFeatures = features
 	UserAgent = getUserAgent()
+	return nil
 }
