@@ -130,31 +130,25 @@ func (r *ProtocolLXD) RenameProject(name string, project api.ProjectPost) (Opera
 	return op, nil
 }
 
-// DeleteProject deletes a project.
-func (r *ProtocolLXD) DeleteProject(name string) error {
+// DeleteProject deletes a project. If force is true, the project and its entities are deleted.
+func (r *ProtocolLXD) DeleteProject(name string, force bool) error {
 	err := r.CheckExtension("projects")
 	if err != nil {
 		return err
 	}
 
-	// Send the request
-	_, _, err = r.query(http.MethodDelete, "/projects/"+url.PathEscape(name), nil, "")
-	if err != nil {
-		return err
-	}
+	u := api.NewURL().Path("projects", name)
 
-	return nil
-}
+	if force {
+		err = r.CheckExtension("projects_force_delete")
+		if err != nil {
+			return err
+		}
 
-// ForceDeleteProject force deletes a project and its entities (instances, profiles, images, networks, network ACLs, network zones, and storage volumes).
-func (r *ProtocolLXD) ForceDeleteProject(name string) error {
-	err := r.CheckExtension("projects_force_delete")
-	if err != nil {
-		return err
+		u = u.WithQuery("force", "1")
 	}
 
 	// Send the request
-	u := api.NewURL().Path("projects", name).WithQuery("force", "1")
 	_, _, err = r.query(http.MethodDelete, u.String(), nil, "")
 	if err != nil {
 		return err
