@@ -6,24 +6,23 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/cookiejar"
+	"net/url"
 	"os"
 	"reflect"
 	"unsafe"
-
-	"golang.org/x/net/publicsuffix"
 
 	"github.com/canonical/lxd/shared/api"
 )
 
 // Open opens a new jar at the given location, reading contents from disk if present.
-func Open(filepath string) (*Jar, error) {
-	jar, err := newJar(filepath)
+func Open(filepath string, host string) (*Jar, error) {
+	jar, err := newJar(filepath, host)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to open jar: %w", err)
 	}
 
-	err = jar.openJar()
-	if err != nil {
+	if err := jar.openJar(); 
+	err != nil {
 		return nil, fmt.Errorf("Failed to open jar: %w", err)
 	}
 
@@ -31,14 +30,18 @@ func Open(filepath string) (*Jar, error) {
 }
 
 // newJar creates a new [Jar] but does not attempt to read existing contents of the jar.
-func newJar(filepath string) (*Jar, error) {
-	// Use the default public suffix list.
-	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+func newJar(filepath string, remote string) (*Jar, error) {
+	jar, err := cookiejar.New(&cookiejar.Options{})
 	if err != nil {
 		return nil, fmt.Errorf("Failed to instantiate a cookie jar: %w", err)
 	}
 
-	return &Jar{Jar: jar, filepath: filepath}, nil
+	remoteURL, err := url.Parse(remote)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse remote URL: %w", err)
+	}
+
+	return &Jar{Jar: jar, filepath: filepath, remote: *remoteURL}, nil
 }
 
 // Jar implements [http.CookieJar] by embedding a [*cookiejar.Jar].
@@ -47,6 +50,7 @@ func newJar(filepath string) (*Jar, error) {
 type Jar struct {
 	filepath string
 	*cookiejar.Jar
+	remote url.URL
 }
 
 // openJar opens the jar file and obtains a read lock on it. Then reads the contents into the jar and unlocks the file.
@@ -175,4 +179,15 @@ func (j *Jar) Save() error {
 	}
 
 	return nil
+}
+
+// SetCookies implements [http.CookieJar.SetCookies]. It only accepts cookies from the remote host.
+func (j *Jar) SetCookies(u *url.URL, cookies []*http.Cookie) {
+	// Only accept cookies from the remote host.
+	host := u.Hostname()
+	allowedHost := j.remote.Hostname()
+
+	if host == allowedHost {
+		j.Jar.SetCookies(u, cookies)
+	}
 }
