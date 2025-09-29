@@ -46,9 +46,21 @@ func (r Reference) URL() *api.URL {
 	return &r.url
 }
 
-// Name returns the name of the entity, which is the first path argument.
+// Name returns the name of the entity, which is the last path argument.
 func (r Reference) Name() string {
-	return r.PathArgs[0]
+	// Only the server entity type does not have any path arguments.
+	if r.EntityType == TypeServer {
+		return "server"
+	}
+
+	// The last path argument is always the entity name because URLs go from least specific to most specific.
+	// For example:
+	//   - /1.0/instances/{name}
+	//   - /1.0/projects/{name}
+	//   - /1.0/storage-pools/{pool}/volumes/{type}/{name}
+	//   - /1.0/storage-pools/{pool}/volumes/{type}/{volume}/snapshots/{name}
+	//   - /1.0/storage-pools/{pool}/buckets/{name}
+	return r.PathArgs[len(r.PathArgs)-1]
 }
 
 // GetPathArgs returns the specified number of path parts, if available.
