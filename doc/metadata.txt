@@ -5048,6 +5048,21 @@ If you remove the `profile` scope, user information may not be displayed in LXD 
 You may add additional scopes if this is required by your identity provider, or if necessary for configuration of {ref}`identity provider groups <identity-provider-groups>`.
 ```
 
+```{config:option} oidc.session.expiry server-oidc
+:defaultdesc: "`1w`"
+:scope: "global"
+:shortdesc: "The duration of an OIDC session"
+:type: "string"
+The duration of an OIDC session.
+
+This configuration option accepts multiple space-separated values of the form `[0-9]+(S|M|H|d|w|m|y)`,
+where `S` is seconds, `M` is minutes, `H` is hours, `d` is days, `w` is weeks, `m` is months, and `y` is years.
+For example, `1d 3H` is 1 day and 3 hours.
+
+The default value is `1w` (1 week).
+The minimum value is `1d` (1 day).
+```
+
 <!-- config group server-oidc end -->
 <!-- config group storage-alletra-pool-conf start -->
 ```{config:option} alletra.cpg storage-alletra-pool-conf

@@ -426,6 +426,19 @@ CREATE TABLE "nodes_roles" (
     FOREIGN KEY (node_id) REFERENCES "nodes" (id) ON DELETE CASCADE,
     UNIQUE (node_id, role)
 );
+CREATE TABLE oidc_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    uuid TEXT NOT NULL,
+    identity_id INTEGER NOT NULL,
+    id_token TEXT NOT NULL,
+    access_token TEXT NOT NULL,
+    refresh_token TEXT NOT NULL,
+    ip TEXT NOT NULL,
+    user_agent TEXT NOT NULL,
+    expiry_date DATETIME NOT NULL,
+    UNIQUE (uuid),
+    FOREIGN KEY (identity_id) REFERENCES identities (id) ON DELETE CASCADE
+);
 CREATE TABLE "operations" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     uuid TEXT NOT NULL,
@@ -679,5 +692,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (76, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (77, strftime("%s"))
 `
