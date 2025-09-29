@@ -997,7 +997,7 @@ func doProjectForceDelete(ctx context.Context, s *state.State, projectName strin
 
 		err = deleter.Delete(ctx, s, ref)
 		if err != nil {
-			return fmt.Errorf("Failed deleting %s %q: %w", ref.Name(), ref.EntityType, err)
+			return fmt.Errorf("Failed deleting %s %q: %w", ref.EntityType, ref.Name(), err)
 		}
 	}
 
