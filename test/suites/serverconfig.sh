@@ -5,7 +5,7 @@ test_server_config() {
 
   _server_config_access
   _server_config_storage
-  _server_config_auth_secret
+  _server_config_auth
   _server_config_cluster_uuid
   _server_config_user_microcloud
 
@@ -31,16 +31,33 @@ _server_config_cluster_uuid() {
   [ "$(< "${LXD_DIR}/server.uuid")" = "${cluster_uuid}" ]
 }
 
-_server_config_auth_secret() {
-    # Validate core.auth_secret_expiry cannot be set to less than one day
-    lxc config set core.auth_secret_expiry="1d"
-    ! lxc config set core.auth_secret_expiry='23H 59M 59S' || false
-    lxc config set core.auth_secret_expiry='23H 59M 60S'
-    ! lxc config set core.auth_secret_expiry='1439M 59S' || false
-    lxc config set core.auth_secret_expiry='1439M 60S'
-    ! lxc config set core.auth_secret_expiry='86399S' || false
-    lxc config set core.auth_secret_expiry='86400S'
-    lxc config unset core.auth_secret_expiry
+_server_config_auth() {
+  # Validate oidc.session.expiry cannot be set to less than one hour
+  lxc config set oidc.session.expiry='1H'
+  ! lxc config set oidc.session.expiry='59M 59S' || false
+  lxc config set oidc.session.expiry='59M 60S'
+  ! lxc config set oidc.session.expiry='3599S' || false
+  lxc config set oidc.session.expiry='3600S'
+  lxc config unset oidc.session.expiry
+
+  # Validate core.auth_secret_expiry cannot be set to less than oidc.session.expiry
+  # oidc.session.expiry is currently unset and defaults to one week.
+  lxc config set core.auth_secret_expiry='1w'
+  ! lxc config set core.auth_secret_expiry='6d 23H 59M 59S' || false
+  lxc config set core.auth_secret_expiry='6d 23H 59M 60S'
+  ! lxc config set core.auth_secret_expiry='1439M 59S' || false
+
+  # Lower the oidc session expiry to one hour, then check that the auth secret expiry still
+  # cannot be set to less than one day.
+  lxc config set oidc.session.expiry='1H'
+  lxc config set core.auth_secret_expiry='1d'
+  ! lxc config set core.auth_secret_expiry='23H 59M 59S' || false
+  lxc config set core.auth_secret_expiry='23H 59M 60S'
+  ! lxc config set core.auth_secret_expiry='1439M 59S' || false
+  lxc config set core.auth_secret_expiry='1439M 60S'
+  ! lxc config set core.auth_secret_expiry='86399S' || false
+  lxc config set core.auth_secret_expiry='86400S'
+  lxc config unset core.auth_secret_expiry
 }
 
 _server_config_access() {
