@@ -110,7 +110,7 @@ func (c *cmdSnapshot) run(cmd *cobra.Command, args []string) error {
 	if c.flagReuse && snapname != "" {
 		snap, _, _ := d.GetInstanceSnapshot(name, snapname)
 		if snap != nil {
-			op, err := d.DeleteInstanceSnapshot(name, snapname)
+			op, err := d.DeleteInstanceSnapshot(name, snapname, c.flagDiskVolumes)
 			if err != nil {
 				return err
 			}
