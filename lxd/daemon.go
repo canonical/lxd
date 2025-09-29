@@ -1613,7 +1613,11 @@ func (d *Daemon) init() error {
 
 	// Setup the user-agent.
 	if d.serverClustered {
-		version.UserAgentFeatures([]string{"cluster"})
+		features := []string{"cluster"}
+		err = version.UserAgentFeatures(features)
+		if err != nil {
+			logger.Warn("Failed to configure LXD user agent", logger.Ctx{"err": err, "features": features})
+		}
 	}
 
 	// Apply all patches that need to be run before the cluster config gets loaded.

@@ -483,7 +483,11 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 	}
 
 	// Add the cluster flag from the agent
-	version.UserAgentFeatures([]string{"cluster"})
+	features := []string{"cluster"}
+	err = version.UserAgentFeatures(features)
+	if err != nil {
+		logger.Warn("Failed to configure LXD user agent", logger.Ctx{"err": err, "features": features})
+	}
 
 	return operations.OperationResponse(op)
 }
@@ -866,7 +870,11 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		}
 
 		// Add the cluster flag from the agent
-		version.UserAgentFeatures([]string{"cluster"})
+		features := []string{"cluster"}
+		err = version.UserAgentFeatures(features)
+		if err != nil {
+			logger.Warn("Failed to configure LXD user agent", logger.Ctx{"err": err, "features": features})
+		}
 
 		// Notify the leader of successful join, possibly triggering
 		// role changes.
