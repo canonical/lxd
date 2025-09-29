@@ -3,9 +3,7 @@ test_console() {
 
   ensure_import_testimage
 
-  lxc init testimage cons1
-
-  lxc start cons1
+  lxc launch testimage cons1
 
   # Make sure there's something in the console ringbuffer.
   echo 'some content' | lxc exec cons1 -- tee /dev/console
