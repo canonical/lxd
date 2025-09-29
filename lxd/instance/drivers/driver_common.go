@@ -773,7 +773,12 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 			return err
 		}
 
-		defer func() { _ = inst.Unfreeze() }()
+		defer func() {
+			err = inst.Unfreeze()
+			if err != nil {
+				d.logger.Warn("Failed unfreezing instance after snapshot", logger.Ctx{"err": err})
+			}
+		}()
 	}
 
 	// Snapshot root disk.
