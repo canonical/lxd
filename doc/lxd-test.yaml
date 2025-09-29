@@ -91,6 +91,7 @@ config:
     - dnsmasq-base
     - dosfstools
     - e2fsprogs
+    - expect
     - iptables
     - iputils-ping
     - jq
