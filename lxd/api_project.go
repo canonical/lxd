@@ -1275,11 +1275,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
-		if force {
-			return client.ForceDeleteProject(name)
-		}
-
-		return client.DeleteProject(name)
+		return client.DeleteProject(name, force)
 	})
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to notify other cluster members: %w", err))
