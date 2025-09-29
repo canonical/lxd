@@ -25,9 +25,79 @@ func TestCookieJarSuite(t *testing.T) {
 func (s *cookieJarSuite) SetupTest() {
 	tmpDir := s.T().TempDir()
 	cookieFile := filepath.Join(tmpDir, "cookies.json")
-	j, err := Open(cookieFile)
+	remote := "https://127.0.0.1:8443/"
+	j, err := Open(cookieFile, remote)
 	s.Require().NoError(err)
 	s.j = j
+}
+
+func (s *cookieJarSuite) TestSetCookies() {
+	require := s.Require()
+
+	// --- Domain example ---
+	domainHost := "example.com"
+	uRemote, err := url.Parse("https://" + domainHost)
+	require.NoError(err)
+
+	uSubdomain, err := url.Parse("https://foo." + domainHost)
+	require.NoError(err)
+
+	uOther, err := url.Parse("https://evil.com/")
+	require.NoError(err)
+
+	cookies := []*http.Cookie{
+		{Name: "foo", Value: "bar"},
+	}
+
+	// Should set cookies for remote domain
+	s.j.remoteAddress = *uRemote
+	s.j.SetCookies(uRemote, cookies)
+	got := s.j.Cookies(uRemote)
+	require.Len(got, 1)
+	require.Equal("foo", got[0].Name)
+	require.Equal("bar", got[0].Value)
+
+	// Should not set cookies for subdomain
+	s.j.SetCookies(uSubdomain, cookies)
+	gotSub := s.j.Cookies(uSubdomain)
+	require.Empty(gotSub)
+
+	// Should not set cookies for other domain
+	s.j.SetCookies(uOther, cookies)
+	gotOther := s.j.Cookies(uOther)
+	require.Empty(gotOther)
+
+	// --- IP example ---
+	uIPOther, err := url.Parse("http://192.168.1.1/")
+	require.NoError(err)
+
+	uIPSub, err := url.Parse("http://sub.127.0.0.1:8443/")
+	require.NoError(err)
+
+	ipCookies := []*http.Cookie{
+		{Name: "ipcookie", Value: "123"},
+	}
+
+	// Remote IP URL
+	uIPRemote, err := url.Parse("http://127.0.0.1:8443/")
+	require.NoError(err)
+	s.j.remoteAddress = *uIPRemote
+
+	// Exact IP allowed
+	s.j.SetCookies(uIPRemote, ipCookies)
+	gotIP := s.j.Cookies(uIPRemote)
+	require.Len(gotIP, 1)
+	require.Equal("ipcookie", gotIP[0].Name)
+
+	// Other IP should be rejected
+	s.j.SetCookies(uIPOther, ipCookies)
+	gotIPOther := s.j.Cookies(uIPOther)
+	require.Empty(gotIPOther)
+
+	// Subdomain of IP should be rejected
+	s.j.SetCookies(uIPSub, ipCookies)
+	gotIPSub := s.j.Cookies(uIPSub)
+	require.Empty(gotIPSub)
 }
 
 func (s *cookieJarSuite) TestLocking() {
@@ -86,6 +156,16 @@ func (s *cookieJarSuite) TestJar() {
 			HttpOnly: true,
 			SameSite: http.SameSiteStrictMode,
 		},
+		{
+			Name:   "shouldnotbehere",
+			Value:  "evil",
+			Domain: "evil.com",
+		},
+		{
+			Name:   "shouldalsonotbehere",
+			Value:  "evil",
+			Domain: "1.2.3.4:5678",
+		},
 	}
 
 	// Set cookies on the suite jar.
@@ -105,7 +185,7 @@ func (s *cookieJarSuite) TestJar() {
 	// Try to open a new jar on the write locked file.
 	errCh := make(chan error)
 	go func(ch chan<- error) {
-		_, err = Open(s.j.filepath)
+		_, err = Open(s.j.filepath, s.j.remoteAddress.String())
 		ch <- err
 	}(errCh)
 
@@ -130,7 +210,7 @@ func (s *cookieJarSuite) TestJar() {
 	require.NoError(err)
 
 	// Should open without error.
-	j2, err := Open(s.j.filepath)
+	j2, err := Open(s.j.filepath, s.j.remoteAddress.String())
 	require.NoError(err)
 
 	// Test that the new jar contains the same cookies as the old jar.
