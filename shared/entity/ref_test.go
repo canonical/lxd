@@ -137,6 +137,20 @@ func TestReferenceFromURL(t *testing.T) {
 	}
 }
 
+func BenchmarkReferenceFromURL(b *testing.B) {
+	u, err := url.Parse("/1.0/instances/my-instance?project=proj")
+	if err != nil {
+		b.Fatalf("Failed parsing url: %v", err)
+	}
+
+	for b.Loop() {
+		_, err := ReferenceFromURL(*u)
+		if err != nil {
+			b.Fatalf("ReferenceFromURL failed: %v", err)
+		}
+	}
+}
+
 func TestNewReference(t *testing.T) {
 	tests := []struct {
 		name                 string
@@ -228,6 +242,15 @@ func TestNewReference(t *testing.T) {
 	}
 }
 
+func BenchmarkNewReference(b *testing.B) {
+	for b.Loop() {
+		_, err := NewReference("proj", TypeInstance, "", "my-instance")
+		if err != nil {
+			b.Fatalf("NewReference failed: %v", err)
+		}
+	}
+}
+
 func TestGetPathArgs(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -246,5 +269,17 @@ func TestGetPathArgs(t *testing.T) {
 			ref := Reference{EntityType: TypeInstance, ProjectName: "p", Location: "", PathArgs: tt.pathArgs}
 			assert.Equal(t, tt.expected, ref.GetPathArgs(tt.numParts))
 		})
+	}
+}
+
+func BenchmarkGetPathArgs(b *testing.B) {
+	pathArgs := make([]string, 100)
+	ref := Reference{PathArgs: pathArgs}
+
+	for b.Loop() {
+		args := ref.GetPathArgs(len(pathArgs))
+		if args == nil {
+			b.Fatalf("GetPathArgs failed")
+		}
 	}
 }
