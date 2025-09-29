@@ -766,6 +766,17 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 		return err
 	}
 
+	if pool.Driver().Info().RunningCopyFreeze && inst.IsRunning() && !inst.IsFrozen() {
+		// Freeze the processes.
+		err = inst.Freeze()
+		if err != nil {
+			return err
+		}
+
+		defer func() { _ = inst.Unfreeze() }()
+	}
+
+	// Snapshot root disk.
 	err = pool.CreateInstanceSnapshot(snap, inst, d.op)
 	if err != nil {
 		return fmt.Errorf("Create instance snapshot: %w", err)
