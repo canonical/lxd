@@ -209,7 +209,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			}
 
 			// Setup reverter.
-			revert.Add(func() { _ = d.DeleteProject(project.Name) })
+			revert.Add(func() { _ = d.DeleteProject(project.Name, false) })
 			return nil
 		}
 
