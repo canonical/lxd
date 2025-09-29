@@ -123,33 +123,23 @@ Running LXD and Docker on the same host can cause connectivity issues.
 A common reason for these issues is that Docker sets the global FORWARD policy to `drop`, which prevents LXD from forwarding traffic and thus causes the instances to lose network connectivity.
 See [Docker on a router](https://docs.docker.com/engine/network/packet-filtering-firewalls/#docker-on-a-router) for detailed information.
 
-There are different ways of working around this problem:
-
-Uninstall Docker
-: The easiest way to prevent such issues is to uninstall Docker from the system that runs LXD and restart the system.
-  You can run Docker inside a LXD container or virtual machine instead.
-
-  See [Running Docker inside of a LXD container](https://www.youtube.com/watch?v=_fCSSEyiGro) for detailed information.
+There are multiple ways to work around this problem:
 
 Enable IPv4 forwarding
-: If uninstalling Docker is not an option, enabling IPv4 forwarding before the Docker service starts will prevent Docker from modifying the global FORWARD policy.
-  LXD bridge networks enable this setting normally.
-  However, if LXD starts after Docker, then Docker will already have modified the global FORWARD policy.
+: To prevent Docker from modifying the global FORWARD policy, you can enable IPv4 forwarding *before* the Docker service starts. LXD bridge networks normally enable this setting, but if LXD starts after Docker, then Docker will already have modified the global FORWARD policy.
 
   ```{warning}
-  Enabling IPv4 forwarding can cause your Docker container ports to be reachable from any machine on your local network.
-  Depending on your environment, this might be undesirable.
-  See [local network container access issue](https://github.com/moby/moby/issues/14041) for more information.
+  For Docker versions prior to 28.0, enabling IPv4 forwarding can cause Docker container ports to be reachable from any machine on your local network. This is no longer the case since Docker 28.0. For details, see the [announcement from Docker](https://www.docker.com/blog/docker-engine-28-hardening-container-networking-by-default/).
   ```
 
-  To enable IPv4 forwarding before Docker starts, ensure that the following `sysctl` setting is enabled:
+  Enable IPv4 forwarding with the following `sysctl` setting:
 
       net.ipv4.conf.all.forwarding=1
 
   ```{important}
   You must make this setting persistent across host reboots.
 
-  One way of doing this is to add a file to the `/etc/sysctl.d/` directory using the following commands:
+  One way to ensure this is to add a file in the `/etc/sysctl.d/` directory by running the following commands:
 
       echo "net.ipv4.conf.all.forwarding=1" > /etc/sysctl.d/99-forwarding.conf
       systemctl restart systemd-sysctl
@@ -177,3 +167,9 @@ Allow egress network traffic flows
   You  must make these firewall rules persistent across host reboots.
   How to do this depends on your Linux distribution.
   ```
+
+Uninstall Docker
+: To avoid issues with Docker entirely, uninstall Docker from the system that runs LXD and restart the system.
+  You can run Docker inside a LXD container or virtual machine instead.
+
+  See [Running Docker inside of a LXD container](https://www.youtube.com/watch?v=_fCSSEyiGro) for detailed information.
