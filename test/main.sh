@@ -221,6 +221,13 @@ cleanup() {
   echo "==> Test result: ${TEST_RESULT}"
 }
 
+# Spawn an interactive test shell when invoked as `./main.sh test-shell`.
+# This is useful for quick interactions with LXD and its test suite.
+if [ "${1:-"all"}" = "test-shell" ]; then
+  bash --rcfile test-shell.bashrc || true
+  exit 0
+fi
+
 # Must be set before cleanup()
 TEST_CURRENT=setup
 TEST_CURRENT_DESCRIPTION=setup
@@ -254,6 +261,10 @@ run_test() {
   TEST_CURRENT_DESCRIPTION=${2:-${1#test_}}
   TEST_UNMET_REQUIREMENT=""
   cwd="${PWD}"
+
+  if [ "${RUN_COUNT:-0}" -ne 0 ] && [ "${LXD_REPEAT_TESTS:-1}" -ne 1 ]; then
+    TEST_CURRENT_DESCRIPTION="${TEST_CURRENT_DESCRIPTION} (${RUN_COUNT}/${LXD_REPEAT_TESTS})"
+  fi
 
   echo "==> TEST BEGIN: ${TEST_CURRENT_DESCRIPTION}"
   START_TIME=$(date +%s)
@@ -311,26 +322,6 @@ if [ -n "${GITHUB_ACTIONS:-}" ]; then
     echo ":--- | :---" >> "${GITHUB_STEP_SUMMARY}"
 fi
 
-# Spawn an interactive test shell when invoked as `./main.sh test-shell`.
-# This is useful for quick interactions with LXD and its test suite.
-if [ "${1:-"all"}" = "test-shell" ]; then
-  # yellow
-  export PS1="\[\033[0;33mLXD-TEST\033[0m ${PS1:-\u@\h:\w\$ }\]"
-
-  # The `cleanup` handler must run when exiting a `test-shell` session but if the
-  # last command returned non-0 (like `false`), we don't want to output the debug
-  # information accompanying normal failures.
-  #
-  # If a test script runs into an error, the `cleanup` handler will already have
-  # reported the relevant debug info so there is no need to repeat it when exiting
-  # the `test-shell` environment.
-  #
-  # To do so, swallow any error code returned from the interactive \`test-shell\`.
-  bash --rcfile test-shell.bashrc || true
-
-  exit
-fi
-
 # Preflight check
 if ldd "${_LXC}" | grep -F liblxc; then
     echo "lxc binary must not be linked with liblxc"
@@ -362,9 +353,16 @@ export LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
 # This must be enough to accomodate the busybox testimage
 export SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
 
-# allow for running a specific set of tests
+# allow for running a specific set of tests possibly multiple times
 if [ "$#" -gt 0 ] && [ "$1" != "all" ] && [ "$1" != "cluster" ] && [ "$1" != "standalone" ]; then
-  run_test "test_${1}"
+  for t in "${@}"; do
+    RUN_COUNT=1
+    while [ "${RUN_COUNT}" -le "${LXD_REPEAT_TESTS:-1}" ]; do
+      run_test "test_${t}"
+      RUN_COUNT="$((RUN_COUNT+1))"
+    done
+    shift
+  done
   # shellcheck disable=SC2034
   TEST_RESULT=success
   exit
