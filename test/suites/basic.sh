@@ -42,8 +42,7 @@ test_basic_usage() {
   # Test image list output formats (table & json)
   lxc image list --format table | grep -wF testimage
   lxc image list --format json \
-    | jq '.[]|select(.alias[0].name="testimage")' \
-    | grep -F '"name": "testimage"'
+    | jq --exit-status '.[]|select(.alias[0].name="testimage").aliases | .[] | .name == "testimage"'
 
   # Test image delete
   lxc image delete testimage
