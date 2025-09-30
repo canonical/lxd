@@ -21,7 +21,7 @@ test_clustering_enable() {
     lxc cluster enable node1
 
     # Test the non-recursive mode to list cluster members.
-    [ "$(lxc query /1.0/cluster/members | jq -r '.[0]')" = "/1.0/cluster/members/node1" ]
+    lxc query /1.0/cluster/members | jq --exit-status '.[0] == "/1.0/cluster/members/node1"'
 
     # Test the recursive mode to list cluster members.
     # The command implicitly sets the recursive=1 query paramter.
@@ -527,7 +527,7 @@ test_clustering_containers() {
 
   # For an instance on an offline member, we can get its config but not use recursion nor get instance state.
   LXD_DIR="${LXD_ONE_DIR}" lxc config show foo
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/foo" | jq -r '.status')" = "Error" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/foo" | jq --exit-status '.status == "Error"'
   ! LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/foo?recursion=1" || false
   ! LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/foo/state" || false
 
@@ -4005,10 +4005,10 @@ test_clustering_groups() {
 
   # Initially, there is only the default group
   lxc cluster group show cluster:default
-  [ "$(lxc query cluster:/1.0/cluster/groups | jq 'length')" -eq 1 ]
+  lxc query cluster:/1.0/cluster/groups | jq --exit-status 'length == 1'
 
   # All nodes initially belong to the default group
-  [ "$(lxc query cluster:/1.0/cluster/groups/default | jq '.members | length')" -eq 3 ]
+  lxc query cluster:/1.0/cluster/groups/default | jq --exit-status '.members | length == 3'
 
   # Renaming the default group is not allowed
   ! lxc cluster group rename cluster:default foobar || false
@@ -4027,12 +4027,12 @@ test_clustering_groups() {
 
   # Create new cluster group which should be empty
   lxc cluster group create cluster:foobar
-  [ "$(lxc query cluster:/1.0/cluster/groups/foobar | jq '.members | length')" -eq 0 ]
+  lxc query cluster:/1.0/cluster/groups/foobar | jq --exit-status '.members == []'
 
   # Copy both description and members from default group
   lxc cluster group show cluster:default | lxc cluster group edit cluster:foobar
-  [ "$(lxc query cluster:/1.0/cluster/groups/foobar | jq '.description == "Default cluster group"')" = "true" ]
-  [ "$(lxc query cluster:/1.0/cluster/groups/foobar | jq '.members | length')" -eq 3 ]
+  lxc query cluster:/1.0/cluster/groups/foobar | jq --exit-status '.description == "Default cluster group"'
+  lxc query cluster:/1.0/cluster/groups/foobar | jq --exit-status '.members | length == 3'
 
   # Delete all members from new group
   lxc cluster group remove cluster:node1 foobar
@@ -4041,8 +4041,8 @@ test_clustering_groups() {
 
   # Add second node to new group. Node2 will now belong to both groups.
   lxc cluster group assign cluster:node2 default,foobar
-  [ "$(lxc query cluster:/1.0/cluster/members/node2 | jq 'any(.groups[] == "default"; .)')" = "true" ]
-  [ "$(lxc query cluster:/1.0/cluster/members/node2 | jq 'any(.groups[] == "foobar"; .)')" = "true" ]
+  lxc query cluster:/1.0/cluster/members/node2 | jq --exit-status '.groups | any(. == "default")'
+  lxc query cluster:/1.0/cluster/members/node2 | jq --exit-status '.groups | any(. == "foobar")'
 
   # Deleting the "foobar" group should fail as it still has members
   ! lxc cluster group delete cluster:foobar || false
@@ -4051,26 +4051,26 @@ test_clustering_groups() {
   lxc cluster group remove cluster:node2 default
   lxc query cluster:/1.0/cluster/members/node2
 
-  [ "$(lxc query cluster:/1.0/cluster/members/node2 | jq 'any(.groups[] == "default"; .)')" = "false" ]
-  [ "$(lxc query cluster:/1.0/cluster/members/node2 | jq 'any(.groups[] == "foobar"; .)')" = "true" ]
+  lxc query cluster:/1.0/cluster/members/node2 | jq --exit-status '.groups | all(. != "default")'
+  lxc query cluster:/1.0/cluster/members/node2 | jq --exit-status '.groups | any(. == "foobar")'
 
   # Remove node2 from "foobar" group should fail as node2 is not in any other group
   ! lxc cluster group remove cluster:node2 foobar || false
 
   # Rename group "foobar" to "blah"
   lxc cluster group rename cluster:foobar blah
-  [ "$(lxc query cluster:/1.0/cluster/members/node2 | jq 'any(.groups[] == "blah"; .)')" = "true" ]
+  lxc query cluster:/1.0/cluster/members/node2 | jq --exit-status '.groups | any(. == "blah")'
 
   lxc cluster group create cluster:foobar2
   lxc cluster group assign cluster:node3 default,foobar2
 
   # Create a new group "newgroup"
   lxc cluster group create cluster:newgroup
-  [ "$(lxc query cluster:/1.0/cluster/groups/newgroup | jq '.members | length')" -eq 0 ]
+  lxc query cluster:/1.0/cluster/groups/newgroup | jq --exit-status '.members == []'
 
   # Add node1 to the "newgroup" group
   lxc cluster group add cluster:node1 newgroup
-  [ "$(lxc query cluster:/1.0/cluster/members/node1 | jq 'any(.groups[] == "newgroup"; .)')" = "true" ]
+  lxc query cluster:/1.0/cluster/members/node1 | jq --exit-status '.groups | any(. == "newgroup")'
 
   # remove node1 from "newgroup"
   lxc cluster group remove cluster:node1 newgroup
@@ -4083,7 +4083,7 @@ test_clustering_groups() {
 description: foo
 EOF
 
-  [ "$(lxc query cluster:/1.0/cluster/groups/yamlgroup | jq -r '.description')" = "foo" ]
+  lxc query cluster:/1.0/cluster/groups/yamlgroup | jq --exit-status '.description == "foo"'
   # Delete the cluster group "yamlgroup"
   lxc cluster group delete cluster:yamlgroup
 
@@ -4091,7 +4091,7 @@ EOF
   lxc query cluster:/1.0/cluster/groups -X POST -d '{"name":"multi-node-group","description":"","members":["node1","node2","node3"]}'
 
   # Ensure cluster group created with requested members
-  [ "$(lxc query cluster:/1.0/cluster/groups/multi-node-group | jq '.members | length')" -eq 3 ]
+  lxc query cluster:/1.0/cluster/groups/multi-node-group | jq --exit-status '.members | length == 3'
 
   # Remove nodes and delete cluster group
   lxc cluster group remove cluster:node1 multi-node-group
