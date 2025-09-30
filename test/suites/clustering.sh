@@ -4107,10 +4107,8 @@ EOF
   lxc cluster set cluster:node2 scheduler.instance=group
   lxc cluster set cluster:node3 scheduler.instance=manual
 
-  ensure_import_testimage
-
   # Cluster group "foobar" doesn't exist and should therefore fail
-  ! lxc init testimage cluster:c1 --target=@foobar || false
+  ! lxc init --empty cluster:c1 --target=@foobar || false
 
   # At this stage we have:
   # - node1 in group default accepting all instances
@@ -4118,23 +4116,23 @@ EOF
   # - node3 in group default accepting direct targeting only
 
   # c1 should go to node1
-  lxc init testimage cluster:c1
+  lxc init --empty cluster:c1
   lxc info cluster:c1 | grep -xF "Location: node1"
 
   # c2 should go to node2. Additionally it should be possible to specify the network.
-  lxc init testimage cluster:c2 --target=@blah --network "${bridge}"
+  lxc init --empty cluster:c2 --target=@blah --network "${bridge}"
   lxc info cluster:c2 | grep -xF "Location: node2"
 
   # c3 should go to node2 again. Additionally it should be possible to specify the storage pool.
-  lxc init testimage cluster:c3 --target=@blah --storage data
+  lxc init --empty cluster:c3 --target=@blah --storage data
   lxc info cluster:c3 | grep -xF "Location: node2"
 
   # Direct targeting of node2 should work
-  lxc init testimage cluster:c4 --target=node2
+  lxc init --empty cluster:c4 --target=node2
   lxc info cluster:c4 | grep -xF "Location: node2"
 
   # Direct targeting of node3 should work
-  lxc init testimage cluster:c5 --target=node3
+  lxc init --empty cluster:c5 --target=node3
   lxc info cluster:c5 | grep -xF "Location: node3"
 
   # Clean up
@@ -4147,7 +4145,7 @@ EOF
   lxc project create cluster:buzz -c restricted=true -c restricted.cluster.groups=fizz
 
   # Cannot launch an instance because fizz has no members
-  ! lxc init testimage cluster:c1 --project buzz || false
+  ! lxc init --empty cluster:c1 --project buzz || false
 
   # Group fizz has no members, but it cannot be deleted because it is referenced by project buzz.
   [ "$(lxc_remote query cluster:/1.0/cluster/groups/fizz | jq -r '.used_by | @csv')" = '"/1.0/projects/buzz"' ]
@@ -4184,28 +4182,28 @@ EOF
 
   # Check cannot create instance in restricted project that only allows blah group, when the only member that
   # exists in the blah group also has scheduler.instance=group set (so it must be targeted via group or directly).
-  ! lxc init testimage cluster:c1 --project foo || false
+  ! lxc init --empty cluster:c1 --project foo || false
 
   # Check cannot create instance in restricted project when targeting a member that isn't in the restricted
   # project's allowed cluster groups list.
-  ! lxc init testimage cluster:c1 --project foo --target=node1 || false
-  ! lxc init testimage cluster:c1 --project foo --target=@foobar2 || false
+  ! lxc init --empty cluster:c1 --project foo --target=node1 || false
+  ! lxc init --empty cluster:c1 --project foo --target=@foobar2 || false
 
   # Check can create instance in restricted project when not targeting any specific member, but that it will only
   # be created on members within the project's allowed cluster groups list.
   lxc cluster unset cluster:node2 scheduler.instance
-  lxc init testimage cluster:c1 --project foo
-  lxc init testimage cluster:c2 --project foo
+  lxc init --empty cluster:c1 --project foo
+  lxc init --empty cluster:c2 --project foo
   lxc info cluster:c1 --project foo | grep -xF "Location: node2"
   lxc info cluster:c2 --project foo | grep -xF "Location: node2"
   lxc delete -f c1 c2 --project foo
 
   # Check can specify any member or group when restricted.cluster.groups is empty.
   lxc project unset foo restricted.cluster.groups
-  lxc init testimage cluster:c1 --project foo --target=node1
+  lxc init --empty cluster:c1 --project foo --target=node1
   lxc info cluster:c1 --project foo | grep -xF "Location: node1"
 
-  lxc init testimage cluster:c2 --project foo --target=@blah
+  lxc init --empty cluster:c2 --project foo --target=@blah
   lxc info cluster:c2 --project foo | grep -xF "Location: node2"
 
   lxc delete -f c1 c2 --project foo
