@@ -184,7 +184,7 @@ kill_lxd() {
 
         echo "==> Checking for locked DB tables"
         for table in $(echo .tables | sqlite3 "${daemon_dir}/local.db"); do
-            echo "SELECT * FROM ${table};" | sqlite3 "${daemon_dir}/local.db" >/dev/null
+            echo "SELECT 1 FROM ${table} LIMIT 1;" | sqlite3 "${daemon_dir}/local.db" >/dev/null
         done
 
         # Kill the daemon
