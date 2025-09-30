@@ -756,6 +756,47 @@ EOF
   lxc config trust remove "${fingerprint}"
 }
 
+test_snap_basic_usage_vm() {
+  lxc launch ubuntu-minimal-daily:24.04 v1 --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
+  waitInstanceReady v1
+  lxc list --fast
+
+  echo "==> Check exec operations"
+  lxc exec v1 -- true
+  ! lxc exec v1 -- false || false
+  [ "$(lxc exec v1 -- hostname)" = "v1" ]
+
+  echo "==> Check VM state transitions"
+  [ "$(lxc list -f csv -c s)" = "RUNNING" ]
+  lxc pause v1
+  [ "$(lxc list -f csv -c s)" = "FROZEN" ]
+  ! lxc stop v1 || false
+  [ "$(lxc list -f csv -c s)" = "FROZEN" ]
+  lxc start v1
+  [ "$(lxc list -f csv -c s)" = "RUNNING" ]
+  lxc stop -f v1
+  [ "$(lxc list -f csv -c s)" = "STOPPED" ]
+  lxc delete --force v1
+
+  echo "==> Create a VM suitable for stateful stop/start"
+  lxc launch ubuntu-minimal-daily:24.04 v1 --vm -c migration.stateful=true -c limits.memory=384MiB -d root,size.state=384MiB -d "${SMALL_VM_ROOT_DISK}"
+  waitInstanceReady v1
+
+  echo "==> Stateful stop"
+  INITIAL_BOOT_ID="$(lxc exec v1 -- cat /proc/sys/kernel/random/boot_id)"
+  lxc stop --stateful v1
+  [ "$(lxc list -f csv -c s)" = "STOPPED" ]
+
+  echo "==> Stateful start"
+  lxc start v1
+  # the lxd-agent needs a bit of time to dial back in even when statefully restored
+  waitInstanceReady v1
+  [ "$(lxc exec v1 -- cat /proc/sys/kernel/random/boot_id)" = "${INITIAL_BOOT_ID}" ]
+
+  # Cleanup
+  lxc delete -f v1
+}
+
 test_basic_version() {
   for bin in lxc lxd lxd-agent lxd-benchmark lxd-migrate lxd-user fuidshift; do
     "${bin}" --version
