@@ -219,6 +219,49 @@ The following functions are available to the scriptlet (in addition to those pro
 Field names in the object types are equivalent to the JSON field names in the associated Go types.
 ```
 
+(clusters-high-availability)=
+## High availability
+
+Clusters provide two types of high availability (HA):
+
+- Control plane HA (ensuring that clients can always access the cluster)
+- Data plane HA (ensuring that workloads continue to run)
+
+(clusters-high-availability-control)=
+### High availability of the control plane (client access)
+
+Each cluster member can {ref}`expose an API endpoint <server-expose>` through its {config:option}`server-core:core.https_address`. Through this access point, a remote client can communicate with any cluster member in multiple ways:
+
+- Through the API (see {ref}`authentication` and {ref}`rest-api`)
+- Through the {ref}`LXD web UI client <access-ui>`
+- By setting up {ref}`remote servers <remotes>` for CLI access
+
+Because the cluster database is distributed, access to any member gives you access to the entire control plane. If one server goes down, you can still manage the cluster through the other members. This provides the basis for control plane HA.
+
+The limitation is that on the client side, you must either manually switch to another member's access point if your chosen server is unavailable, or implement your own client-side logic to cycle through a list of access points.
+
+For a single, highly available access point to the control plane, you can add on a routing service that configures a virtual IP. See our how-to guide: {ref}`howto-cluster-vip`.
+
+(clusters-high-availability-data)=
+### High availability of the data plane (workloads)
+
+LXD clusters enable HA of workloads (instances) in multiple ways:
+
+Cluster evacuation
+: Instances can be manually evacuated from one cluster member to another, providing planned high availability during maintenance. This includes live migration for virtual machines. See: {ref}`cluster-evacuate`.
+
+Cluster healing
+: If a cluster member fails and {config:option}`server-cluster:cluster.healing_threshold` is set, it automatically restarts instances on that member on a healthy member of the cluster. See: {ref}`cluster-healing`.
+
+Virtual networking
+: On clusters using {ref}`OVN networking <network-ovn>`, logical switches/routers are distributed across the cluster. This means that instance NICs remain reachable even if the server hosting one OVN chassis goes offline.
+
+Storage redundancy
+: On clusters using Ceph for storage, if a disk or cluster member fails, the data is still available elsewhere in the Ceph cluster.
+
+Shared storage
+: Volumes using the {ref}`Ceph RBD <storage-ceph>` and {ref}`CephFS <storage-cephfs>` storage drivers are accessible from all cluster members. If the member hosting an instance fails, its volumes can be reattached to another member.
+
 ## Related topics
 
 {{clustering_how}}

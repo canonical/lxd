@@ -1,3 +1,4 @@
+(rest-api)=
 # REST API
 
 ```{youtube} https://www.youtube.com/watch?v=YvGbvspXObI
