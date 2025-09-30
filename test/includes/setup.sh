@@ -15,7 +15,7 @@ ensure_import_testimage() {
 
     if [ -e "${LXD_TEST_IMAGE:-}" ]; then
         echo "Importing ${LXD_TEST_IMAGE} test image from disk"
-        lxc image import "${LXD_TEST_IMAGE}" --alias testimage
+        lxc image import --quiet "${LXD_TEST_IMAGE}" --alias testimage
     else
         project="$(lxc project list -f csv | awk '/(current)/ {print $1}')"
         deps/import-busybox --alias testimage --project "$project"
