@@ -192,9 +192,8 @@ kill_lxd() {
 
         sleep 2
 
-        # Cleanup shmounts (needed due to the forceful kill)
-        find "${daemon_dir}" -name shmounts -exec "umount" "-l" "{}" \; >/dev/null 2>&1 || true
-        find "${daemon_dir}" -name devlxd -exec "umount" "-l" "{}" \; >/dev/null 2>&1 || true
+        # Cleanup devlxd and shmounts (needed due to the forceful kill)
+        find "${daemon_dir}" \( -name devlxd -o -name shmounts \) -exec "umount" "-q" "-l" "{}" + || true
 
         check_leftovers="true"
     fi
