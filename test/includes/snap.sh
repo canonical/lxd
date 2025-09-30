@@ -106,3 +106,17 @@ install_snap() {
         snap switch "${name}" --channel="${channel}"
     )
 }
+
+# sideload_lxd_snap: installs the lxd snap and sideloads the lxc, lxd and lxd-agent binaries.
+sideload_lxd_snap() {
+    local channel="${1:-"latest/edge"}"
+    local bin
+    install_snap lxd "${channel}"
+
+    for bin in "${_LXC}" "$(command -v lxd)"; do
+        cp "${bin}" "/var/snap/lxd/common/${bin##*/}.debug"
+    done
+
+    # Use a mount bind as /snap/lxd is readonly
+    mount -o ro,bind "$(command -v lxd-agent)" /snap/lxd/current/bin/lxd-agent
+}
