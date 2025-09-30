@@ -4138,7 +4138,7 @@ EOF
   lxc info cluster:c5 | grep -xF "Location: node3"
 
   # Clean up
-  lxc rm -f c1 c2 c3 c4 c5
+  lxc delete c1 c2 c3 c4 c5
 
   ## Restricted project tests
 
