@@ -33,8 +33,7 @@ lxc_remote() {
 
     if [ -n "${SHELL_TRACING:-}" ]; then
         set -x
-        timeout --foreground 120 "${cmd_args[@]}"
-    else
-        timeout --foreground 120 "${cmd_args[@]}"
     fi
+
+    timeout --foreground 120 "${cmd_args[@]}"
 }
