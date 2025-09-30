@@ -42,6 +42,14 @@ How to recover a cluster:
 :diataxis:Recover a cluster </howto/cluster_recover>
 ```
 
+How to set up a highly available virtual IP for clusters:
+
+```{toctree}
+:titlesonly:
+
+Set up a highly available virtual IP </howto/cluster_vip>
+```
+
 ## Related topics
 
 ```{only} diataxis
