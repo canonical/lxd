@@ -64,4 +64,7 @@ test_sql() {
   lxd sql global .sync
   sqlite3 "${SQLITE_SYNC}" "SELECT * FROM schema" | grep "^1|"
   sqlite3 "${SQLITE_SYNC}" "SELECT * FROM profiles" | grep -F "|Default LXD profile|"
+
+  # Cleanup
+  lxc config unset user.foo
 }
