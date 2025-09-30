@@ -165,15 +165,18 @@ kill_lxd() {
         printf 'config: {}\ndevices: {}' | timeout -k 5 5 lxc profile edit default
 
         echo "==> Deleting all storage pools"
-        for storage_pool in $(lxc query "/1.0/storage-pools?recursion=1" | jq .[].name -r); do
+        path="/1.0/storage-pools"
+        for storage_pool in $(lxc query "${path}" | jq --exit-status --raw-output ".[] | ltrimstr(\"${path}/\")"); do
             # Delete the storage volumes.
-            for volume in $(lxc query "/1.0/storage-pools/${storage_pool}/volumes/custom?recursion=1" | jq .[].name -r); do
+            path="/1.0/storage-pools/${storage_pool}/volumes/custom"
+            for volume in $(lxc query "${path}" | jq --exit-status --raw-output ".[] | ltrimstr(\"${path}/\")"); do
                 echo "==> Deleting storage volume ${volume} on ${storage_pool}"
                 timeout -k 20 20 lxc storage volume delete "${storage_pool}" "${volume}" --force-local || true
             done
 
             # Delete the storage buckets.
-            for bucket in $(lxc query "/1.0/storage-pools/${storage_pool}/buckets?recursion=1" | jq .[].name -r); do
+            path="/1.0/storage-pools/${storage_pool}/buckets"
+            for bucket in $(lxc query "${path}" | jq --exit-status --raw-output ".[] | ltrimstr(\"${path}/\")"); do
                 echo "==> Deleting storage bucket ${bucket} on ${storage_pool}"
                 timeout -k 20 20 lxc storage bucket delete "${storage_pool}" "${bucket}" --force-local || true
             done
