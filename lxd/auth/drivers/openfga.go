@@ -89,6 +89,9 @@ func (e *embeddedOpenFGA) load(ctx context.Context, identityCache *identity.Cach
 		// Enable context propagation to the datastore so that the OpenFGA cache
 		// created for each request can be accessed from our OpenFGA datastore implementation.
 		server.WithContextPropagationToDatastore(true),
+		// Do not limit the number of results returned by calls to ListObjects.
+		// This assumes that there are never more than 10000 of any LXD resource.
+		server.WithListObjectsMaxResults(10_000),
 	}
 
 	e.server, err = server.NewServerWithOpts(openfgaServerOptions...)
