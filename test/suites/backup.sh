@@ -326,7 +326,7 @@ test_bucket_recover() {
     key2_secretKey=$(echo "$key2" | awk '/^Secret key/ { print $3 }')
 
     # Remove bucket from global DB
-    lxd sql global "delete from storage_buckets where name = '${bucketName}'"
+    lxd sql global "DELETE FROM storage_buckets WHERE name = '${bucketName}'"
 
     # Recover bucket
     cat <<EOF | lxd recover
@@ -1051,8 +1051,8 @@ test_backup_export_import_recover() {
     rm "${LXD_DIR}/c1.tar.gz"
 
     # Remove imported instance enteries from database.
-    lxd sql global "delete from instances where name = 'c2'"
-    lxd sql global "delete from storage_volumes where name = 'c2'"
+    lxd sql global "DELETE FROM instances WHERE name = 'c2'"
+    lxd sql global "DELETE FROM storage_volumes WHERE name = 'c2'"
 
     # Recover removed instance.
     cat <<EOF | lxd recover
