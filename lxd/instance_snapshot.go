@@ -279,13 +279,14 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
+	var p *api.Project
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := cluster.GetProject(context.Background(), tx.Tx(), projectName)
 		if err != nil {
 			return err
 		}
 
-		p, err := dbProject.ToAPI(ctx, tx.Tx())
+		p, err = dbProject.ToAPI(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}
@@ -326,6 +327,11 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
+	}
+
+	// When "features.storage.volumes" is disabled, only allow root disk to be snapshotted.
+	if shared.IsFalse(p.Config["features.storage.volumes"]) && req.DiskVolumesMode == api.DiskVolumesModeAllExclusive {
+		return response.BadRequest(errors.New("Project does not have features.storage.volumes enabled"))
 	}
 
 	if req.Name == "" {
