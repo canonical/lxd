@@ -87,6 +87,7 @@ test_image_list_all_aliases() {
     # both aliases are listed if the "aliases" column is included in output
     lxc image list -c L | grep -wF testimage
     lxc image list -c L | grep -wF zzz
+    lxc image alias delete zzz
 }
 
 test_image_list_remotes() {
