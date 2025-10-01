@@ -1735,7 +1735,7 @@ func (c *cmdIdentityProviderGroupCreate) run(cmd *cobra.Command, args []string) 
 	}
 
 	// Create the identity provider group
-	group := api.IdentityProviderGroup{}
+	group := api.IdentityProviderGroupsPost{}
 	group.Name = resource.name
 
 	err = resource.server.CreateIdentityProviderGroup(group)
