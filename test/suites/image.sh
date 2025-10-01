@@ -38,12 +38,12 @@ test_image_expiry() {
 
   for _ in $(seq 20); do
     sleep 1
-    if lxc_remote image list l2: | grep -wF "${fpbrief}"; then
+    if lxc_remote image info l2:"${fpbrief}"; then
       break
     fi
   done
 
-  ! lxc_remote image list l2: | grep -wF "${fpbrief}" || false
+  ! lxc_remote image info l2:"${fpbrief}" || false
 
   # Check image is still in p1 project and has not been expired.
   lxc_remote image list l2: --project p1 | grep -wF "${fpbrief}"
@@ -62,12 +62,12 @@ test_image_expiry() {
 
   for _ in $(seq 20); do
     sleep 1
-    if lxc_remote image list l2: --project p1 | grep -wF "${fpbrief}"; then
+    if lxc_remote image info l2:"${fpbrief}" --project p1; then
       break
     fi
   done
 
-  ! lxc_remote image list l2: --project p1 | grep -wF "${fpbrief}" || false
+  ! lxc_remote image info l2:"${fpbrief}" --project p1 || false
 
   # Cleanup and reset
   lxc_remote delete -f l2:c1
