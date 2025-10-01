@@ -201,20 +201,20 @@ test_projects_copy() {
 test_projects_snapshots() {
   pool="lxdtest-$(basename "${LXD_DIR}")"
 
-  # Create a project and switch to it
+  echo "Create a project and switch to it"
   lxc project create foo
   lxc project switch foo
 
-  # Import an image into the project
+  echo "Import an image into the project"
   deps/import-busybox --project foo --alias testimage
 
-  # Add a root device to the default profile of the project
+  echo "Add a root device to the default profile of the project"
   lxc profile device add default root disk path="/" pool="${pool}"
 
-  # Create a container in the project
+  echo "Create a container in the project"
   lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
 
-  # Create, rename, restore and delete a snapshot
+  echo "Create, rename, restore and delete a snapshot"
   lxc snapshot c1
   lxc info c1 | grep -wF snap0
   lxc config show c1/snap0 | grep -wF BusyBox
@@ -222,13 +222,13 @@ test_projects_snapshots() {
   lxc restore c1 foo
   lxc delete c1/foo
 
-  # Test copies
+  echo "Test copies"
   lxc snapshot c1
   lxc snapshot c1
   lxc copy c1 c2
   lxc delete c2
 
-  # Create a snapshot in this project and another one in the default project
+  echo "Create a snapshot in this project and another one in the default project"
   lxc snapshot c1
 
   lxc project switch default
@@ -237,13 +237,13 @@ test_projects_snapshots() {
   lxc snapshot c1
   lxc delete c1
 
-  # Switch back to the project
+  echo "Switch back to the project"
   lxc project switch foo
 
-  # Delete the container
+  echo "Delete the container"
   lxc delete c1
 
-  # Delete the project
+  echo "Delete the project"
   lxc image delete testimage
   lxc project delete foo
 }
