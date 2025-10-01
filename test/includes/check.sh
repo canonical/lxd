@@ -27,6 +27,8 @@ check_empty() {
 }
 
 check_empty_table() {
+    [ -f "${1}" ] || return 0
+
     # The profiles table will never be empty since the `default` profile cannot
     # be deleted.
     if [ "$2" = 'profiles' ]; then
