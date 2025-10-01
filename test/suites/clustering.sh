@@ -470,13 +470,13 @@ test_clustering_containers() {
   # Create a container on node1 using a snapshot from node2.
   LXD_DIR="${LXD_ONE_DIR}" lxc snapshot foo foo-bak
   LXD_DIR="${LXD_TWO_DIR}" lxc copy foo/foo-bak bar --target node1
-  LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -xF "Location: node1"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L bar)" = "node1" ]
   LXD_DIR="${LXD_THREE_DIR}" lxc delete bar
 
   # Copy the container on node2 to node3, using a client connected to
   # node1.
   LXD_DIR="${LXD_ONE_DIR}" lxc copy foo bar --target node3
-  LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -xF "Location: node3"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L bar)" = "node3" ]
 
   # Move the container on node3 to node1, using a client connected to
   # node2 and a different container name than the original one. The
@@ -484,14 +484,14 @@ test_clustering_containers() {
   apply_template1=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get bar volatile.apply_template)
 
   LXD_DIR="${LXD_TWO_DIR}" lxc move bar egg --target node2
-  LXD_DIR="${LXD_ONE_DIR}" lxc info egg | grep -xF "Location: node2"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L egg)" = "node2" ]
   apply_template2=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
   [ "${apply_template1}" =  "${apply_template2}" ]
 
   # Move back to node3 the container on node1, keeping the same name.
   apply_template1=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
   LXD_DIR="${LXD_TWO_DIR}" lxc move egg --target node3
-  LXD_DIR="${LXD_ONE_DIR}" lxc info egg | grep -xF "Location: node3"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L egg)" = "node3" ]
   apply_template2=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
   [ "${apply_template1}" =  "${apply_template2}" ]
 
@@ -510,7 +510,7 @@ test_clustering_containers() {
   # Create backup and attempt to move container. Move should fail and container should remain on node1.
   LXD_DIR="${LXD_THREE_DIR}" lxc query -X POST --wait -d '{"name":"foo"}' /1.0/instances/egg/backups
   ! LXD_DIR="${LXD_THREE_DIR}" lxc move egg --target node2 || false
-  LXD_DIR="${LXD_THREE_DIR}" lxc info egg | grep -xF "Location: node3"
+  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc list -f csv -c L egg)" = "node3" ]
 
   LXD_DIR="${LXD_THREE_DIR}" lxc delete egg
 
@@ -535,12 +535,12 @@ test_clustering_containers() {
   # on node1 since node2 is offline and both node1 and node3 have zero
   # containers, but node1 has a lower node ID.
   LXD_DIR="${LXD_THREE_DIR}" lxc init --empty bar
-  LXD_DIR="${LXD_THREE_DIR}" lxc info bar | grep -xF "Location: node1"
+  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc list -f csv -c L bar)" = "node1" ]
 
   # Init a container without specifying any target. It will be placed
   # on node3 since node2 is offline and node1 already has a container.
   LXD_DIR="${LXD_THREE_DIR}" lxc init --empty egg
-  LXD_DIR="${LXD_THREE_DIR}" lxc info egg | grep -xF "Location: node3"
+  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc list -f csv -c L egg)" = "node3" ]
 
   LXD_DIR="${LXD_ONE_DIR}" lxc delete egg bar
 
@@ -774,7 +774,7 @@ test_clustering_storage() {
 
     # Move the container to node1
     LXD_DIR="${LXD_TWO_DIR}" lxc move foo --target node1
-    LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -xF "Location: node1"
+    [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L foo)" = "node1" ]
     LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -wF "snap-test"
 
     # Start and stop the container on its new node1 host
@@ -826,7 +826,7 @@ test_clustering_storage() {
   if [ "${poolDriver}" = "ceph" ]; then
     # Move the container to node3, renaming it
     LXD_DIR="${LXD_TWO_DIR}" lxc move foo bar --target node3
-    LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -xF "Location: node3"
+    [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L bar)" = "node3" ]
     LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -wF "snap-test"
 
     # Shutdown node 3, and wait for it to be considered offline.
@@ -836,7 +836,7 @@ test_clustering_storage() {
 
     # Move the container back to node2, even if node3 is offline
     LXD_DIR="${LXD_ONE_DIR}" lxc move bar --target node2
-    LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -xF "Location: node2"
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L bar)" = "node2" ]
     LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -wF "snap-test"
 
     # Start and stop the container on its new node2 host
@@ -4117,23 +4117,23 @@ EOF
 
   # c1 should go to node1
   lxc init --empty cluster:c1
-  lxc info cluster:c1 | grep -xF "Location: node1"
+  [ "$(lxc list -f csv -c L cluster:c1)" = "node1" ]
 
   # c2 should go to node2. Additionally it should be possible to specify the network.
   lxc init --empty cluster:c2 --target=@blah --network "${bridge}"
-  lxc info cluster:c2 | grep -xF "Location: node2"
+  [ "$(lxc list -f csv -c L cluster:c2)" = "node2" ]
 
   # c3 should go to node2 again. Additionally it should be possible to specify the storage pool.
   lxc init --empty cluster:c3 --target=@blah --storage data
-  lxc info cluster:c3 | grep -xF "Location: node2"
+  [ "$(lxc list -f csv -c L cluster:c3)" = "node2" ]
 
   # Direct targeting of node2 should work
   lxc init --empty cluster:c4 --target=node2
-  lxc info cluster:c4 | grep -xF "Location: node2"
+  [ "$(lxc list -f csv -c L cluster:c4)" = "node2" ]
 
   # Direct targeting of node3 should work
   lxc init --empty cluster:c5 --target=node3
-  lxc info cluster:c5 | grep -xF "Location: node3"
+  [ "$(lxc list -f csv -c L cluster:c5)" = "node3" ]
 
   # Clean up
   lxc delete c1 c2 c3 c4 c5
@@ -4194,17 +4194,17 @@ EOF
   lxc cluster unset cluster:node2 scheduler.instance
   lxc init --empty cluster:c1 --project foo
   lxc init --empty cluster:c2 --project foo
-  lxc info cluster:c1 --project foo | grep -xF "Location: node2"
-  lxc info cluster:c2 --project foo | grep -xF "Location: node2"
+  [ "$(lxc list -f csv -c L cluster:c1 --project foo)" = "node2" ]
+  [ "$(lxc list -f csv -c L cluster:c2 --project foo)" = "node2" ]
   lxc delete -f c1 c2 --project foo
 
   # Check can specify any member or group when restricted.cluster.groups is empty.
   lxc project unset foo restricted.cluster.groups
   lxc init --empty cluster:c1 --project foo --target=node1
-  lxc info cluster:c1 --project foo | grep -xF "Location: node1"
+  [ "$(lxc list -f csv -c L cluster:c1 --project foo)" = "node1" ]
 
   lxc init --empty cluster:c2 --project foo --target=@blah
-  lxc info cluster:c2 --project foo | grep -xF "Location: node2"
+  [ "$(lxc list -f csv -c L cluster:c2 --project foo)" = "node2" ]
 
   lxc delete -f c1 c2 --project foo
 
@@ -4278,7 +4278,7 @@ test_clustering_events() {
 
   # c1 should go to node1.
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1 --target=node1
-  LXD_DIR="${LXD_ONE_DIR}" lxc info c1 | grep -xF "Location: node1"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L c1)" = "node1" ]
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c2 --target=node2
 
   LXD_DIR="${LXD_ONE_DIR}" stdbuf -oL lxc monitor --type=lifecycle > "${TEST_DIR}/node1.log" &
