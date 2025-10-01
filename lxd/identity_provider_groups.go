@@ -311,7 +311,7 @@ func getIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 //	    description: Identity provider request
 //	    required: true
 //	    schema:
-//	      $ref: "#/definitions/IdentityProviderGroup"
+//	      $ref: "#/definitions/IdentityProviderGroupsPost"
 //	responses:
 //	  "200":
 //	    $ref: "#/responses/EmptySyncResponse"
@@ -322,7 +322,7 @@ func getIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func createIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
-	var idpGroup api.IdentityProviderGroup
+	var idpGroup api.IdentityProviderGroupsPost
 	err := json.NewDecoder(r.Body).Decode(&idpGroup)
 	if err != nil {
 		return response.BadRequest(fmt.Errorf("Failed to unmarshal request body: %w", err))
