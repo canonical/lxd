@@ -17,6 +17,8 @@ check_dependencies() {
 }
 
 check_empty() {
+    [ -d "${1}" ] || return 0
+
     if [ "$(find "${1}" 2> /dev/null | wc -l)" -gt "1" ]; then
         echo "${1} is not empty, content:"
         find "${1}"
