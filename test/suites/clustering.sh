@@ -3441,15 +3441,15 @@ test_clustering_image_refresh() {
   # Clean up everything
   for project in default foo bar; do
     # shellcheck disable=SC2046
-    LXD_DIR="${LXD_ONE_DIR}" lxc image rm --project "${project}" $(LXD_DIR="${LXD_ONE_DIR}" lxc image ls --format csv --project "${project}" | cut -d, -f2)
+    LXD_DIR="${LXD_ONE_DIR}" lxc delete --project "${project}" $(LXD_DIR="${LXD_ONE_DIR}" lxc list --format csv --columns n --project "${project}")
     # shellcheck disable=SC2046
-    LXD_DIR="${LXD_ONE_DIR}" lxc rm --project "${project}" $(LXD_DIR="${LXD_ONE_DIR}" lxc list --format csv --columns n --project "${project}")
+    LXD_DIR="${LXD_ONE_DIR}" lxc image delete --project "${project}" $(LXD_DIR="${LXD_ONE_DIR}" lxc image list --format csv --project "${project}" | cut -d, -f2)
   done
 
   # shellcheck disable=SC2046
-  LXD_DIR="${LXD_REMOTE_DIR}" lxc image rm $(LXD_DIR="${LXD_REMOTE_DIR}" lxc image ls --format csv | cut -d, -f2)
+  LXD_DIR="${LXD_REMOTE_DIR}" lxc delete $(LXD_DIR="${LXD_REMOTE_DIR}" lxc list --format csv --columns n)
   # shellcheck disable=SC2046
-  LXD_DIR="${LXD_REMOTE_DIR}" lxc rm $(LXD_DIR="${LXD_REMOTE_DIR}" lxc list --format csv --columns n)
+  LXD_DIR="${LXD_REMOTE_DIR}" lxc image delete $(LXD_DIR="${LXD_REMOTE_DIR}" lxc image list --format csv | cut -d, -f2)
 
   LXD_DIR="${LXD_ONE_DIR}" lxc project delete foo
   LXD_DIR="${LXD_ONE_DIR}" lxc project delete bar
