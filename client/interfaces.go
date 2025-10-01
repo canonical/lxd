@@ -461,7 +461,7 @@ type InstanceServer interface {
 	GetIdentityProviderGroupNames() (identityProviderGroupNames []string, err error)
 	GetIdentityProviderGroups() (identityProviderGroups []api.IdentityProviderGroup, err error)
 	GetIdentityProviderGroup(identityProviderGroupName string) (identityProviderGroup *api.IdentityProviderGroup, ETag string, err error)
-	CreateIdentityProviderGroup(identityProviderGroup api.IdentityProviderGroup) error
+	CreateIdentityProviderGroup(identityProviderGroup api.IdentityProviderGroupsPost) error
 	UpdateIdentityProviderGroup(identityProviderGroupName string, identityProviderGroupPut api.IdentityProviderGroupPut, ETag string) error
 	RenameIdentityProviderGroup(identityProviderGroupName string, identityProviderGroupPost api.IdentityProviderGroupPost) error
 	DeleteIdentityProviderGroup(identityProviderGroupName string) error
