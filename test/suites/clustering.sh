@@ -2101,7 +2101,7 @@ test_clustering_projects() {
   LXD_DIR="${LXD_ONE_DIR}" lxc delete c1
 
   # Remove the image file and DB record from node1.
-  LXD_DIR="${LXD_TWO_DIR}" lxd sql global 'delete from images_nodes where node_id = 1'
+  LXD_DIR="${LXD_TWO_DIR}" lxd sql global 'DELETE FROM images_nodes WHERE node_id = 1'
 
   # Check image import from node2 by creating container on node1 in other project.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
