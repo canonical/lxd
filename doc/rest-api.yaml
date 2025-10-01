@@ -969,6 +969,24 @@ definitions:
         title: IdentityProviderGroupPut contains the editable fields of an IdentityProviderGroup.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
+    IdentityProviderGroupsPost:
+        properties:
+            groups:
+                description: Groups are the groups the IdP group resolves to.
+                example:
+                    - foo
+                    - bar
+                items:
+                    type: string
+                type: array
+                x-go-name: Groups
+            name:
+                description: Name is the name of the IdP group.
+                type: string
+                x-go-name: Name
+        title: IdentityProviderGroupsPost is used for creating an IdentityProviderGroup.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
     IdentityPut:
         properties:
             groups:
@@ -8166,7 +8184,7 @@ paths:
                   name: group
                   required: true
                   schema:
-                    $ref: '#/definitions/IdentityProviderGroup'
+                    $ref: '#/definitions/IdentityProviderGroupsPost'
             produces:
                 - application/json
             responses:
