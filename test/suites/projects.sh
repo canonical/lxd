@@ -246,6 +246,33 @@ test_projects_snapshots() {
   # Delete the project
   lxc image delete testimage
   lxc project delete foo
+
+  echo "Create storage volume"
+  lxc storage volume create "${pool}" testvol
+
+  echo "Create project with \"features.storage.volumes\" disabled and switch to it"
+  lxc project create bar -c features.storage.volumes=false
+  lxc project switch bar
+
+  echo "Import an image into the project"
+  deps/import-busybox --project bar --alias testimage
+
+  echo "Add a root device to the default profile of the project"
+  lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")"
+
+  echo "Create a container in the project"
+  lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
+
+  echo "Attach storage volume to the container"
+  lxc storage volume attach "${pool}" testvol c1 /mnt
+
+  echo "Check snapshot fails with disk volumes mode set to all-exclusive"
+  [ "$(lxc snapshot c1 --disk-volumes=all-exclusive 2>&1 | grep -cF "Error: Project does not have features.storage.volumes enabled")" = 1 ]
+
+  echo "Cleanup"
+  lxc storage volume detach "${pool}" testvol c1
+  lxc storage volume delete "${pool}" testvol
+  lxc project delete bar -f
 }
 
 # Use backups in a project.
