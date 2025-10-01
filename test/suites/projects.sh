@@ -199,6 +199,8 @@ test_projects_copy() {
 
 # Use snapshots in a project.
 test_projects_snapshots() {
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+
   # Create a project and switch to it
   lxc project create foo
   lxc project switch foo
@@ -207,7 +209,7 @@ test_projects_snapshots() {
   deps/import-busybox --project foo --alias testimage
 
   # Add a root device to the default profile of the project
-  lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")"
+  lxc profile device add default root disk path="/" pool="${pool}"
 
   # Create a container in the project
   lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
