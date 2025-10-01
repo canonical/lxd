@@ -246,7 +246,7 @@ func (d *common) DeferTemplateApply(trigger instance.TemplateTrigger) error {
 
 	err := d.VolatileSet(map[string]string{"volatile.apply_template": string(trigger)})
 	if err != nil {
-		return fmt.Errorf("Failed to set apply_template volatile key: %w", err)
+		return fmt.Errorf(`Failed setting "volatile.apply_template" key: %w`, err)
 	}
 
 	return nil
