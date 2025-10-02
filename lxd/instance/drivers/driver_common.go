@@ -847,20 +847,19 @@ func (d *common) updateProgress(progress string) {
 // target instance and updates snapshot metadata.
 //
 // Returns:
-// - pool: the instance's storage pool.
 // - wasRunning: whether the instance was running before restore.
 // - op: the restore operation lock.
 // - err: error, if any.
-func (d *common) restoreCommon(inst instance.Instance, source instance.Instance) (pool storagePools.Pool, wasRunning bool, op *operationlock.InstanceOperation, err error) {
+func (d *common) restoreCommon(inst instance.Instance, source instance.Instance) (wasRunning bool, op *operationlock.InstanceOperation, err error) {
 	// Load the storage driver.
-	pool, err = storagePools.LoadByInstance(d.state, inst)
+	pool, err := storagePools.LoadByInstance(d.state, inst)
 	if err != nil {
-		return nil, false, nil, err
+		return false, nil, err
 	}
 
 	op, err = operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
 	if err != nil {
-		return nil, false, nil, fmt.Errorf("Failed to create instance restore operation: %w", err)
+		return false, nil, fmt.Errorf("Failed to create instance restore operation: %w", err)
 	}
 
 	// Stop the instance.
@@ -884,7 +883,7 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 			err := inst.Update(args, false)
 			if err != nil {
 				op.Done(err)
-				return nil, false, nil, err
+				return false, nil, err
 			}
 
 			// On function return, set the flag back on.
@@ -901,13 +900,13 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 		err := inst.Stop(false)
 		if err != nil {
 			op.Done(err)
-			return nil, false, nil, err
+			return false, nil, err
 		}
 
 		// Refresh the operation as that one is now complete.
 		op, err = operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
 		if err != nil {
-			return nil, false, nil, fmt.Errorf("Failed to create instance restore operation: %w", err)
+			return false, nil, fmt.Errorf("Failed to create instance restore operation: %w", err)
 		}
 	}
 
@@ -929,10 +928,17 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 	err = inst.Update(args, false)
 	if err != nil {
 		op.Done(err)
-		return nil, false, nil, err
+		return false, nil, err
 	}
 
-	return pool, wasRunning, op, nil
+	// Restore the rootfs.
+	err = pool.RestoreInstanceSnapshot(inst, source, nil)
+	if err != nil {
+		op.Done(err)
+		return false, nil, fmt.Errorf("Failed to restore snapshot rootfs: %w", err)
+	}
+
+	return wasRunning, op, nil
 }
 
 // insertConfigkey function attempts to insert the instance config key into the database. If the insert fails
