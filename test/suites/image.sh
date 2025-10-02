@@ -41,12 +41,12 @@ test_image_expiry() {
 
   for _ in $(seq 20); do
     sleep 1
-    if lxc_remote image list l2: | grep -wF "${fpbrief}"; then
+    if lxc_remote image info l2:"${fpbrief}"; then
       break
     fi
   done
 
-  ! lxc_remote image list l2: | grep -wF "${fpbrief}" || false
+  ! lxc_remote image info l2:"${fpbrief}" || false
 
   # Check image is still in p1 project and has not been expired.
   lxc_remote image list l2: --project p1 | grep -wF "${fpbrief}"
@@ -65,12 +65,12 @@ test_image_expiry() {
 
   for _ in $(seq 20); do
     sleep 1
-    if lxc_remote image list l2: --project p1 | grep -wF "${fpbrief}"; then
+    if lxc_remote image info l2:"${fpbrief}" --project p1; then
       break
     fi
   done
 
-  ! lxc_remote image list l2: --project p1 | grep -wF "${fpbrief}" || false
+  ! lxc_remote image info l2:"${fpbrief}" --project p1 || false
 
   # Cleanup and reset
   lxc_remote delete -f l2:c1
@@ -90,6 +90,7 @@ test_image_list_all_aliases() {
     # both aliases are listed if the "aliases" column is included in output
     lxc image list -c L | grep -wF testimage
     lxc image list -c L | grep -wF zzz
+    lxc image alias delete zzz
 }
 
 test_image_list_remotes() {
@@ -184,8 +185,8 @@ test_image_refresh() {
 
   if [ "${poolDriver}" != "dir" ]; then
     # Check old storage volume record exists and new one doesn't.
-    lxd sql global 'select name from storage_volumes' | grep "${fp}"
-    ! lxd sql global 'select name from storage_volumes' | grep "${new_fp}" || false
+    lxd sql global 'SELECT name FROM storage_volumes' | grep -F "${fp}"
+    ! lxd sql global 'SELECT name FROM storage_volumes' | grep -F "${new_fp}" || false
   fi
 
   # Refresh image
@@ -196,8 +197,8 @@ test_image_refresh() {
 
   if [ "${poolDriver}" != "dir" ]; then
     # Check old storage volume record has been replaced with new one.
-    ! lxd sql global 'select name from storage_volumes' | grep "${fp}" || false
-    lxd sql global 'select name from storage_volumes' | grep "${new_fp}"
+    ! lxd sql global 'SELECT name FROM storage_volumes' | grep -F "${fp}" || false
+    lxd sql global 'SELECT name FROM storage_volumes' | grep -F "${new_fp}"
   fi
 
   # Cleanup

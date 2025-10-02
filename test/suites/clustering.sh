@@ -21,7 +21,7 @@ test_clustering_enable() {
     lxc cluster enable node1
 
     # Test the non-recursive mode to list cluster members.
-    [ "$(lxc query /1.0/cluster/members | jq -r '.[0]')" = "/1.0/cluster/members/node1" ]
+    lxc query /1.0/cluster/members | jq --exit-status '.[0] == "/1.0/cluster/members/node1"'
 
     # Test the recursive mode to list cluster members.
     # The command implicitly sets the recursive=1 query paramter.
@@ -464,13 +464,13 @@ test_clustering_containers() {
   # Create a container on node1 using a snapshot from node2.
   LXD_DIR="${LXD_ONE_DIR}" lxc snapshot foo foo-bak
   LXD_DIR="${LXD_TWO_DIR}" lxc copy foo/foo-bak bar --target node1
-  LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -xF "Location: node1"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L bar)" = "node1" ]
   LXD_DIR="${LXD_THREE_DIR}" lxc delete bar
 
   # Copy the container on node2 to node3, using a client connected to
   # node1.
   LXD_DIR="${LXD_ONE_DIR}" lxc copy foo bar --target node3
-  LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -xF "Location: node3"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L bar)" = "node3" ]
 
   # Move the container on node3 to node1, using a client connected to
   # node2 and a different container name than the original one. The
@@ -478,14 +478,14 @@ test_clustering_containers() {
   apply_template1=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get bar volatile.apply_template)
 
   LXD_DIR="${LXD_TWO_DIR}" lxc move bar egg --target node2
-  LXD_DIR="${LXD_ONE_DIR}" lxc info egg | grep -xF "Location: node2"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L egg)" = "node2" ]
   apply_template2=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
   [ "${apply_template1}" =  "${apply_template2}" ]
 
   # Move back to node3 the container on node1, keeping the same name.
   apply_template1=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
   LXD_DIR="${LXD_TWO_DIR}" lxc move egg --target node3
-  LXD_DIR="${LXD_ONE_DIR}" lxc info egg | grep -xF "Location: node3"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L egg)" = "node3" ]
   apply_template2=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
   [ "${apply_template1}" =  "${apply_template2}" ]
 
@@ -498,7 +498,7 @@ test_clustering_containers() {
   # Create backup and attempt to move container. Move should fail and container should remain on node1.
   LXD_DIR="${LXD_THREE_DIR}" lxc query -X POST --wait -d '{"name":"foo"}' /1.0/instances/egg/backups
   ! LXD_DIR="${LXD_THREE_DIR}" lxc move egg --target node2 || false
-  LXD_DIR="${LXD_THREE_DIR}" lxc info egg | grep -xF "Location: node3"
+  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc list -f csv -c L egg)" = "node3" ]
 
   LXD_DIR="${LXD_THREE_DIR}" lxc delete egg
 
@@ -515,7 +515,7 @@ test_clustering_containers() {
 
   # For an instance on an offline member, we can get its config but not use recursion nor get instance state.
   LXD_DIR="${LXD_ONE_DIR}" lxc config show foo
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/foo" | jq -r '.status')" = "Error" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/foo" | jq --exit-status '.status == "Error"'
   ! LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/foo?recursion=1" || false
   ! LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/foo/state" || false
 
@@ -523,12 +523,12 @@ test_clustering_containers() {
   # on node1 since node2 is offline and both node1 and node3 have zero
   # containers, but node1 has a lower node ID.
   LXD_DIR="${LXD_THREE_DIR}" lxc init --empty bar
-  LXD_DIR="${LXD_THREE_DIR}" lxc info bar | grep -xF "Location: node1"
+  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc list -f csv -c L bar)" = "node1" ]
 
   # Init a container without specifying any target. It will be placed
   # on node3 since node2 is offline and node1 already has a container.
   LXD_DIR="${LXD_THREE_DIR}" lxc init --empty egg
-  LXD_DIR="${LXD_THREE_DIR}" lxc info egg | grep -xF "Location: node3"
+  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc list -f csv -c L egg)" = "node3" ]
 
   LXD_DIR="${LXD_ONE_DIR}" lxc delete egg bar
 
@@ -779,7 +779,7 @@ test_clustering_storage() {
 
     # Move the container to node1
     LXD_DIR="${LXD_TWO_DIR}" lxc move foo --target node1
-    LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -xF "Location: node1"
+    [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L foo)" = "node1" ]
     LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -wF "snap-test"
 
     # Start and stop the container on its new node1 host
@@ -831,7 +831,7 @@ test_clustering_storage() {
   if [ "${poolDriver}" = "ceph" ]; then
     # Move the container to node3, renaming it
     LXD_DIR="${LXD_TWO_DIR}" lxc move foo bar --target node3
-    LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -xF "Location: node3"
+    [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L bar)" = "node3" ]
     LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -wF "snap-test"
 
     # Shutdown node 3, and wait for it to be considered offline.
@@ -841,7 +841,7 @@ test_clustering_storage() {
 
     # Move the container back to node2, even if node3 is offline
     LXD_DIR="${LXD_ONE_DIR}" lxc move bar --target node2
-    LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -xF "Location: node2"
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L bar)" = "node2" ]
     LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -wF "snap-test"
 
     # Start and stop the container on its new node2 host
@@ -2088,7 +2088,7 @@ test_clustering_projects() {
   LXD_DIR="${LXD_ONE_DIR}" lxc delete c1
 
   # Remove the image file and DB record from node1.
-  LXD_DIR="${LXD_TWO_DIR}" lxd sql global 'delete from images_nodes where node_id = 1'
+  LXD_DIR="${LXD_TWO_DIR}" lxd sql global 'DELETE FROM images_nodes WHERE node_id = 1'
 
   # Check image import from node2 by creating container on node1 in other project.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
@@ -3430,15 +3430,15 @@ test_clustering_image_refresh() {
   # Clean up everything
   for project in default foo bar; do
     # shellcheck disable=SC2046
-    LXD_DIR="${LXD_ONE_DIR}" lxc image rm --project "${project}" $(LXD_DIR="${LXD_ONE_DIR}" lxc image ls --format csv --project "${project}" | cut -d, -f2)
+    LXD_DIR="${LXD_ONE_DIR}" lxc delete --project "${project}" $(LXD_DIR="${LXD_ONE_DIR}" lxc list --format csv --columns n --project "${project}")
     # shellcheck disable=SC2046
-    LXD_DIR="${LXD_ONE_DIR}" lxc rm --project "${project}" $(LXD_DIR="${LXD_ONE_DIR}" lxc list --format csv --columns n --project "${project}")
+    LXD_DIR="${LXD_ONE_DIR}" lxc image delete --project "${project}" $(LXD_DIR="${LXD_ONE_DIR}" lxc image list --format csv --project "${project}" | cut -d, -f2)
   done
 
   # shellcheck disable=SC2046
-  LXD_DIR="${LXD_REMOTE_DIR}" lxc image rm $(LXD_DIR="${LXD_REMOTE_DIR}" lxc image ls --format csv | cut -d, -f2)
+  LXD_DIR="${LXD_REMOTE_DIR}" lxc delete $(LXD_DIR="${LXD_REMOTE_DIR}" lxc list --format csv --columns n)
   # shellcheck disable=SC2046
-  LXD_DIR="${LXD_REMOTE_DIR}" lxc rm $(LXD_DIR="${LXD_REMOTE_DIR}" lxc list --format csv --columns n)
+  LXD_DIR="${LXD_REMOTE_DIR}" lxc image delete $(LXD_DIR="${LXD_REMOTE_DIR}" lxc image list --format csv | cut -d, -f2)
 
   LXD_DIR="${LXD_ONE_DIR}" lxc project delete foo
   LXD_DIR="${LXD_ONE_DIR}" lxc project delete bar
@@ -3995,10 +3995,10 @@ test_clustering_groups() {
 
   # Initially, there is only the default group
   lxc cluster group show cluster:default
-  [ "$(lxc query cluster:/1.0/cluster/groups | jq 'length')" -eq 1 ]
+  lxc query cluster:/1.0/cluster/groups | jq --exit-status 'length == 1'
 
   # All nodes initially belong to the default group
-  [ "$(lxc query cluster:/1.0/cluster/groups/default | jq '.members | length')" -eq 3 ]
+  lxc query cluster:/1.0/cluster/groups/default | jq --exit-status '.members | length == 3'
 
   # Renaming the default group is not allowed
   ! lxc cluster group rename cluster:default foobar || false
@@ -4017,12 +4017,12 @@ test_clustering_groups() {
 
   # Create new cluster group which should be empty
   lxc cluster group create cluster:foobar
-  [ "$(lxc query cluster:/1.0/cluster/groups/foobar | jq '.members | length')" -eq 0 ]
+  lxc query cluster:/1.0/cluster/groups/foobar | jq --exit-status '.members == []'
 
   # Copy both description and members from default group
   lxc cluster group show cluster:default | lxc cluster group edit cluster:foobar
-  [ "$(lxc query cluster:/1.0/cluster/groups/foobar | jq '.description == "Default cluster group"')" = "true" ]
-  [ "$(lxc query cluster:/1.0/cluster/groups/foobar | jq '.members | length')" -eq 3 ]
+  lxc query cluster:/1.0/cluster/groups/foobar | jq --exit-status '.description == "Default cluster group"'
+  lxc query cluster:/1.0/cluster/groups/foobar | jq --exit-status '.members | length == 3'
 
   # Delete all members from new group
   lxc cluster group remove cluster:node1 foobar
@@ -4031,8 +4031,8 @@ test_clustering_groups() {
 
   # Add second node to new group. Node2 will now belong to both groups.
   lxc cluster group assign cluster:node2 default,foobar
-  [ "$(lxc query cluster:/1.0/cluster/members/node2 | jq 'any(.groups[] == "default"; .)')" = "true" ]
-  [ "$(lxc query cluster:/1.0/cluster/members/node2 | jq 'any(.groups[] == "foobar"; .)')" = "true" ]
+  lxc query cluster:/1.0/cluster/members/node2 | jq --exit-status '.groups | any(. == "default")'
+  lxc query cluster:/1.0/cluster/members/node2 | jq --exit-status '.groups | any(. == "foobar")'
 
   # Deleting the "foobar" group should fail as it still has members
   ! lxc cluster group delete cluster:foobar || false
@@ -4041,26 +4041,26 @@ test_clustering_groups() {
   lxc cluster group remove cluster:node2 default
   lxc query cluster:/1.0/cluster/members/node2
 
-  [ "$(lxc query cluster:/1.0/cluster/members/node2 | jq 'any(.groups[] == "default"; .)')" = "false" ]
-  [ "$(lxc query cluster:/1.0/cluster/members/node2 | jq 'any(.groups[] == "foobar"; .)')" = "true" ]
+  lxc query cluster:/1.0/cluster/members/node2 | jq --exit-status '.groups | all(. != "default")'
+  lxc query cluster:/1.0/cluster/members/node2 | jq --exit-status '.groups | any(. == "foobar")'
 
   # Remove node2 from "foobar" group should fail as node2 is not in any other group
   ! lxc cluster group remove cluster:node2 foobar || false
 
   # Rename group "foobar" to "blah"
   lxc cluster group rename cluster:foobar blah
-  [ "$(lxc query cluster:/1.0/cluster/members/node2 | jq 'any(.groups[] == "blah"; .)')" = "true" ]
+  lxc query cluster:/1.0/cluster/members/node2 | jq --exit-status '.groups | any(. == "blah")'
 
   lxc cluster group create cluster:foobar2
   lxc cluster group assign cluster:node3 default,foobar2
 
   # Create a new group "newgroup"
   lxc cluster group create cluster:newgroup
-  [ "$(lxc query cluster:/1.0/cluster/groups/newgroup | jq '.members | length')" -eq 0 ]
+  lxc query cluster:/1.0/cluster/groups/newgroup | jq --exit-status '.members == []'
 
   # Add node1 to the "newgroup" group
   lxc cluster group add cluster:node1 newgroup
-  [ "$(lxc query cluster:/1.0/cluster/members/node1 | jq 'any(.groups[] == "newgroup"; .)')" = "true" ]
+  lxc query cluster:/1.0/cluster/members/node1 | jq --exit-status '.groups | any(. == "newgroup")'
 
   # remove node1 from "newgroup"
   lxc cluster group remove cluster:node1 newgroup
@@ -4073,7 +4073,7 @@ test_clustering_groups() {
 description: foo
 EOF
 
-  [ "$(lxc query cluster:/1.0/cluster/groups/yamlgroup | jq -r '.description')" = "foo" ]
+  lxc query cluster:/1.0/cluster/groups/yamlgroup | jq --exit-status '.description == "foo"'
   # Delete the cluster group "yamlgroup"
   lxc cluster group delete cluster:yamlgroup
 
@@ -4081,7 +4081,7 @@ EOF
   lxc query cluster:/1.0/cluster/groups -X POST -d '{"name":"multi-node-group","description":"","members":["node1","node2","node3"]}'
 
   # Ensure cluster group created with requested members
-  [ "$(lxc query cluster:/1.0/cluster/groups/multi-node-group | jq '.members | length')" -eq 3 ]
+  lxc query cluster:/1.0/cluster/groups/multi-node-group | jq --exit-status '.members | length == 3'
 
   # Remove nodes and delete cluster group
   lxc cluster group remove cluster:node1 multi-node-group
@@ -4097,10 +4097,8 @@ EOF
   lxc cluster set cluster:node2 scheduler.instance=group
   lxc cluster set cluster:node3 scheduler.instance=manual
 
-  ensure_import_testimage
-
   # Cluster group "foobar" doesn't exist and should therefore fail
-  ! lxc init testimage cluster:c1 --target=@foobar || false
+  ! lxc init --empty cluster:c1 --target=@foobar || false
 
   # At this stage we have:
   # - node1 in group default accepting all instances
@@ -4108,27 +4106,27 @@ EOF
   # - node3 in group default accepting direct targeting only
 
   # c1 should go to node1
-  lxc init testimage cluster:c1
-  lxc info cluster:c1 | grep -xF "Location: node1"
+  lxc init --empty cluster:c1
+  [ "$(lxc list -f csv -c L cluster:c1)" = "node1" ]
 
   # c2 should go to node2. Additionally it should be possible to specify the network.
-  lxc init testimage cluster:c2 --target=@blah --network "${bridge}"
-  lxc info cluster:c2 | grep -xF "Location: node2"
+  lxc init --empty cluster:c2 --target=@blah --network "${bridge}"
+  [ "$(lxc list -f csv -c L cluster:c2)" = "node2" ]
 
   # c3 should go to node2 again. Additionally it should be possible to specify the storage pool.
-  lxc init testimage cluster:c3 --target=@blah --storage data
-  lxc info cluster:c3 | grep -xF "Location: node2"
+  lxc init --empty cluster:c3 --target=@blah --storage data
+  [ "$(lxc list -f csv -c L cluster:c3)" = "node2" ]
 
   # Direct targeting of node2 should work
-  lxc init testimage cluster:c4 --target=node2
-  lxc info cluster:c4 | grep -xF "Location: node2"
+  lxc init --empty cluster:c4 --target=node2
+  [ "$(lxc list -f csv -c L cluster:c4)" = "node2" ]
 
   # Direct targeting of node3 should work
-  lxc init testimage cluster:c5 --target=node3
-  lxc info cluster:c5 | grep -xF "Location: node3"
+  lxc init --empty cluster:c5 --target=node3
+  [ "$(lxc list -f csv -c L cluster:c5)" = "node3" ]
 
   # Clean up
-  lxc rm -f c1 c2 c3 c4 c5
+  lxc delete c1 c2 c3 c4 c5
 
   ## Restricted project tests
 
@@ -4137,7 +4135,7 @@ EOF
   lxc project create cluster:buzz -c restricted=true -c restricted.cluster.groups=fizz
 
   # Cannot launch an instance because fizz has no members
-  ! lxc init testimage cluster:c1 --project buzz || false
+  ! lxc init --empty cluster:c1 --project buzz || false
 
   # Group fizz has no members, but it cannot be deleted because it is referenced by project buzz.
   [ "$(lxc_remote query cluster:/1.0/cluster/groups/fizz | jq -r '.used_by | @csv')" = '"/1.0/projects/buzz"' ]
@@ -4174,29 +4172,29 @@ EOF
 
   # Check cannot create instance in restricted project that only allows blah group, when the only member that
   # exists in the blah group also has scheduler.instance=group set (so it must be targeted via group or directly).
-  ! lxc init testimage cluster:c1 --project foo || false
+  ! lxc init --empty cluster:c1 --project foo || false
 
   # Check cannot create instance in restricted project when targeting a member that isn't in the restricted
   # project's allowed cluster groups list.
-  ! lxc init testimage cluster:c1 --project foo --target=node1 || false
-  ! lxc init testimage cluster:c1 --project foo --target=@foobar2 || false
+  ! lxc init --empty cluster:c1 --project foo --target=node1 || false
+  ! lxc init --empty cluster:c1 --project foo --target=@foobar2 || false
 
   # Check can create instance in restricted project when not targeting any specific member, but that it will only
   # be created on members within the project's allowed cluster groups list.
   lxc cluster unset cluster:node2 scheduler.instance
-  lxc init testimage cluster:c1 --project foo
-  lxc init testimage cluster:c2 --project foo
-  lxc info cluster:c1 --project foo | grep -xF "Location: node2"
-  lxc info cluster:c2 --project foo | grep -xF "Location: node2"
+  lxc init --empty cluster:c1 --project foo
+  lxc init --empty cluster:c2 --project foo
+  [ "$(lxc list -f csv -c L cluster:c1 --project foo)" = "node2" ]
+  [ "$(lxc list -f csv -c L cluster:c2 --project foo)" = "node2" ]
   lxc delete -f c1 c2 --project foo
 
   # Check can specify any member or group when restricted.cluster.groups is empty.
   lxc project unset foo restricted.cluster.groups
-  lxc init testimage cluster:c1 --project foo --target=node1
-  lxc info cluster:c1 --project foo | grep -xF "Location: node1"
+  lxc init --empty cluster:c1 --project foo --target=node1
+  [ "$(lxc list -f csv -c L cluster:c1 --project foo)" = "node1" ]
 
-  lxc init testimage cluster:c2 --project foo --target=@blah
-  lxc info cluster:c2 --project foo | grep -xF "Location: node2"
+  lxc init --empty cluster:c2 --project foo --target=@blah
+  [ "$(lxc list -f csv -c L cluster:c2 --project foo)" = "node2" ]
 
   lxc delete -f c1 c2 --project foo
 
@@ -4270,7 +4268,7 @@ test_clustering_events() {
 
   # c1 should go to node1.
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1 --target=node1
-  LXD_DIR="${LXD_ONE_DIR}" lxc info c1 | grep -xF "Location: node1"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L c1)" = "node1" ]
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c2 --target=node2
 
   LXD_DIR="${LXD_ONE_DIR}" stdbuf -oL lxc monitor --type=lifecycle > "${TEST_DIR}/node1.log" &

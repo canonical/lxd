@@ -163,15 +163,18 @@ kill_lxd() {
         printf 'config: {}\ndevices: {}' | timeout -k 5 5 lxc profile edit default
 
         echo "==> Deleting all storage pools"
-        for storage_pool in $(lxc query "/1.0/storage-pools?recursion=1" | jq .[].name -r); do
+        path="/1.0/storage-pools"
+        for storage_pool in $(lxc query "${path}" | jq --exit-status --raw-output ".[] | ltrimstr(\"${path}/\")"); do
             # Delete the storage volumes.
-            for volume in $(lxc query "/1.0/storage-pools/${storage_pool}/volumes/custom?recursion=1" | jq .[].name -r); do
+            path="/1.0/storage-pools/${storage_pool}/volumes/custom"
+            for volume in $(lxc query "${path}" | jq --exit-status --raw-output ".[] | ltrimstr(\"${path}/\")"); do
                 echo "==> Deleting storage volume ${volume} on ${storage_pool}"
                 timeout -k 20 20 lxc storage volume delete "${storage_pool}" "${volume}" --force-local || true
             done
 
             # Delete the storage buckets.
-            for bucket in $(lxc query "/1.0/storage-pools/${storage_pool}/buckets?recursion=1" | jq .[].name -r); do
+            path="/1.0/storage-pools/${storage_pool}/buckets"
+            for bucket in $(lxc query "${path}" | jq --exit-status --raw-output ".[] | ltrimstr(\"${path}/\")"); do
                 echo "==> Deleting storage bucket ${bucket} on ${storage_pool}"
                 timeout -k 20 20 lxc storage bucket delete "${storage_pool}" "${bucket}" --force-local || true
             done
@@ -182,7 +185,7 @@ kill_lxd() {
 
         echo "==> Checking for locked DB tables"
         for table in $(echo .tables | sqlite3 "${daemon_dir}/local.db"); do
-            echo "SELECT * FROM ${table};" | sqlite3 "${daemon_dir}/local.db" >/dev/null
+            echo "SELECT 1 FROM ${table} LIMIT 1;" | sqlite3 "${daemon_dir}/local.db" >/dev/null
         done
 
         # Kill the daemon
@@ -190,9 +193,8 @@ kill_lxd() {
 
         sleep 2
 
-        # Cleanup shmounts (needed due to the forceful kill)
-        find "${daemon_dir}" -name shmounts -exec "umount" "-l" "{}" \; >/dev/null 2>&1 || true
-        find "${daemon_dir}" -name devlxd -exec "umount" "-l" "{}" \; >/dev/null 2>&1 || true
+        # Cleanup devlxd and shmounts (needed due to the forceful kill)
+        find "${daemon_dir}" \( -name devlxd -o -name shmounts \) -exec "umount" "-q" "-l" "{}" + || true
 
         check_leftovers="true"
     fi
