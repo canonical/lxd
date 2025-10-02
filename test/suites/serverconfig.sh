@@ -1,14 +1,10 @@
 test_server_config() {
-  LXD_SERVERCONFIG_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_SERVERCONFIG_DIR}" true
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   _server_config_password
   _server_config_access
   _server_config_storage
   _server_config_user_microcloud
-
-  kill_lxd "${LXD_SERVERCONFIG_DIR}"
 }
 
 _server_config_password() {
@@ -27,7 +23,7 @@ _server_config_password() {
 
 _server_config_access() {
   # test untrusted server GET
-  ! my_curl "https://$(< "${LXD_SERVERCONFIG_DIR}/lxd.addr")/1.0" | grep -wF "environment" || false
+  ! my_curl "https://$(< "${LXD_ADDR}")/1.0" | grep -wF "environment" || false
 
   # test authentication type, only tls is enabled by default
   curl --silent --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0" | jq --exit-status '.metadata.auth_methods | .[] == "tls"'
