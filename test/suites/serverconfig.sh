@@ -56,7 +56,9 @@ _server_config_auth() {
   lxc config set core.auth_secret_expiry='1439M 60S'
   ! lxc config set core.auth_secret_expiry='86399S' || false
   lxc config set core.auth_secret_expiry='86400S'
-  lxc config unset core.auth_secret_expiry
+
+  # Cleanup
+  lxc config set oidc.session.expiry="" core.auth_secret_expiry=""
 }
 
 _server_config_access() {
