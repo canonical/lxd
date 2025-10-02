@@ -30,7 +30,7 @@ _server_config_access() {
   ! my_curl "https://$(< "${LXD_SERVERCONFIG_DIR}/lxd.addr")/1.0" | grep -wF "environment" || false
 
   # test authentication type, only tls is enabled by default
-  [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0" | jq -r '.metadata.auth_methods | .[]')" = "tls" ]
+  curl --silent --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0" | jq --exit-status '.metadata.auth_methods | .[] == "tls"'
 
   # test fetch metadata validation.
   [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -w "%{http_code}" -o /dev/null -H 'Sec-Fetch-Site: same-origin' "lxd/1.0")" = "200" ]
@@ -155,17 +155,17 @@ _server_config_user_microcloud() {
   # Set config key user.microcloud, which is readable by untrusted clients
   lxc config set user.microcloud true
   [ "$(lxc config get user.microcloud)" = "true" ]
-  [ "$(curl "https://${LXD_ADDR}/1.0" --insecure | jq '.metadata.config["user.microcloud"]')" = '"true"' ]
+  curl "https://${LXD_ADDR}/1.0" --insecure | jq --exit-status '.metadata.config["user.microcloud"] == "true"'
 
   # Set config key user.foo, which is not exposed to untrusted clients
   lxc config set user.foo bar
   [ "$(lxc config get user.foo)" = "bar" ]
-  [ "$(curl "https://${LXD_ADDR}/1.0" --insecure | jq '.metadata.config["user.foo"]')" = 'null' ]
+  curl "https://${LXD_ADDR}/1.0" --insecure | jq --exit-status '.metadata.config["user.foo"] == null'
 
   # Unset all config and check it worked
   lxc config set user.microcloud="" user.foo=""
   [ "$(lxc config get user.microcloud || echo fail)" = "" ]
   [ "$(lxc config get user.foo || echo fail)" = "" ]
-  [ "$(curl "https://${LXD_ADDR}/1.0" --insecure | jq '.metadata.config["user.microcloud"]')" = 'null' ]
-  [ "$(curl "https://${LXD_ADDR}/1.0" --insecure | jq '.metadata.config["user.foo"]')" = 'null' ]
+  curl "https://${LXD_ADDR}/1.0" --insecure | jq --exit-status '.metadata.config["user.microcloud"] == null'
+  curl "https://${LXD_ADDR}/1.0" --insecure | jq --exit-status '.metadata.config["user.foo"] == null'
 }
