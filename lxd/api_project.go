@@ -878,7 +878,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("Failed loading project %q: %w", name, err)
 			}
 
-			empty, err := projectIsEmpty(ctx, project, tx, nil)
+			empty, err := projectIsEmpty(ctx, project, tx)
 			if err != nil {
 				return err
 			}
@@ -1079,7 +1079,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Verify the project is empty. Skip checking for cached images as these will be deleted below.
-			empty, err := projectIsEmpty(ctx, project, tx, cachedImageURLs)
+			empty, err := projectIsEmpty(ctx, project, tx, cachedImageURLs...)
 			if err != nil {
 				return err
 			}
@@ -1211,7 +1211,7 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 }
 
 // Check if a project is empty. When skipURLs are provided, those entities are ignored when checking if the project is empty.
-func projectIsEmpty(ctx context.Context, project *dbCluster.Project, tx *db.ClusterTx, skipURLs []string) (bool, error) {
+func projectIsEmpty(ctx context.Context, project *dbCluster.Project, tx *db.ClusterTx, skipURLs ...string) (bool, error) {
 	usedBy, err := projectUsedBy(ctx, tx, project)
 	if err != nil {
 		return false, err
