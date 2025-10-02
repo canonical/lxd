@@ -269,6 +269,15 @@ test_projects_snapshots() {
   echo "Check snapshot fails with disk volumes mode set to all-exclusive"
   [ "$(lxc snapshot c1 --disk-volumes=all-exclusive 2>&1 | grep -cF "Error: Project does not have features.storage.volumes enabled")" = 1 ]
 
+  echo "Create a snapshot with default (root-only) mode"
+  lxc snapshot c1 snap0
+
+  echo "Check restore fails with disk volumes mode set to all-exclusive"
+  [ "$(lxc restore c1 snap0 --disk-volumes=all-exclusive 2>&1 | grep -cF "Error: Project does not have features.storage.volumes enabled")" = 1 ]
+
+  echo "Restore with default (root-only) mode should succeed"
+  lxc restore c1 snap0
+
   echo "Cleanup"
   lxc storage volume detach "${pool}" testvol c1
   lxc storage volume delete "${pool}" testvol
