@@ -14,29 +14,41 @@ test_image_expiry() {
   token="$(LXD_DIR=${LXD2_DIR} lxc config trust add --name foo -q)"
   lxc_remote remote add l2 "${LXD2_ADDR}" --token "${token}"
 
-  # Create containers from a remote image in two projects.
+  echo "Create containers from a remote image in three projects."
   lxc_remote project create l2:p1 -c features.images=true -c features.profiles=false
   lxc_remote init l1:testimage l2:c1 --project default
   lxc_remote project switch l2:p1
   lxc_remote init l1:testimage l2:c2
-  lxc_remote project switch l2:default
+  lxc_remote project create l2:p2 -c features.images=true -c features.profiles=false
+  lxc_remote project switch l2:p2
 
   fp="$(lxc_remote image info testimage | awk '/^Fingerprint/ {print $2}')"
 
-  # Confirm the image is cached
+  echo "Create instance from cached image."
+  lxc_remote init l1:testimage l2:c3
+  lxc_remote delete -f l2:c3
+
+  echo "Confirm the image is cached."
   [ -n "${fp}" ]
   fpbrief=$(echo "${fp}" | cut -c 1-12)
   lxc_remote image list l2: | grep -wF "${fpbrief}"
 
-  # Test modification of image expiry date
+  echo "Project can still be deleted since cached images are pruned."
+  lxc_remote project delete l2:p2
+
+  echo "Switch back to default project and confirm image is still cached."
+  lxc_remote project switch l2:default
+  lxc_remote image list l2: | grep -wF "${fpbrief}"
+
+  echo "Test modification of image expiry date."
   lxc_remote image info "l2:${fp}" | grep "Expires.*never"
   lxc_remote image show "l2:${fp}" | sed "s/expires_at.*/expires_at: 3000-01-01T00:00:00-00:00/" | lxc_remote image edit "l2:${fp}"
   lxc_remote image info "l2:${fp}" | grep "Expires.*3000"
 
-  # Override the upload date for the image record in the default project.
+  echo "Override the upload date for the image record in the default project."
   LXD_DIR="$LXD2_DIR" lxd sql global "UPDATE images SET last_use_date='$(date --rfc-3339=seconds -u -d "2 days ago")' WHERE fingerprint='${fp}' AND project_id = 1" | grep -xF "Rows affected: 1"
 
-  # Trigger the expiry
+  echo "Trigger the expiry."
   lxc_remote config set l2: images.remote_cache_expiry 1
 
   for _ in $(seq 20); do
@@ -48,19 +60,19 @@ test_image_expiry() {
 
   ! lxc_remote image info l2:"${fpbrief}" || false
 
-  # Check image is still in p1 project and has not been expired.
+  echo "Check image is still in p1 project and has not been expired."
   lxc_remote image list l2: --project p1 | grep -wF "${fpbrief}"
 
-  # Test instance can still be created in p1 project.
+  echo "Test instance can still be created in p1 project."
   lxc_remote project switch l2:p1
   lxc_remote init l1:testimage l2:c3
   lxc_remote project switch l2:default
 
-  # Override the upload date for the image record in the p1 project.
+  echo "Override the upload date for the image record in the p1 project."
   LXD_DIR="$LXD2_DIR" lxd sql global "UPDATE images SET last_use_date='$(date --rfc-3339=seconds -u -d "2 days ago")' WHERE fingerprint='${fp}' AND project_id > 1" | grep -xF "Rows affected: 1"
   lxc_remote project set l2:p1 images.remote_cache_expiry=1
 
-  # Trigger the expiry in p1 project by changing global images.remote_cache_expiry.
+  echo "Trigger the expiry in p1 project by changing global images.remote_cache_expiry."
   lxc_remote config unset l2: images.remote_cache_expiry
 
   for _ in $(seq 20); do
@@ -72,7 +84,7 @@ test_image_expiry() {
 
   ! lxc_remote image info l2:"${fpbrief}" --project p1 || false
 
-  # Cleanup and reset
+  echo "Cleanup and reset."
   lxc_remote delete -f l2:c1
   lxc_remote delete -f l2:c2 --project p1
   lxc_remote delete -f l2:c3 --project p1
