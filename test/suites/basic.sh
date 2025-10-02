@@ -48,8 +48,10 @@ test_basic_usage() {
   lxc image delete testimage
 
   # test GET /1.0, since the client always puts to /1.0/
-  my_curl -f -X GET "https://${LXD_ADDR}/1.0"
-  my_curl -f -X GET "https://${LXD_ADDR}/1.0/containers"
+  my_curl --fail --output /dev/null "https://${LXD_ADDR}/1.0"
+  my_curl --fail --output /dev/null "https://${LXD_ADDR}/1.0/containers"
+  my_curl --fail --output /dev/null "https://${LXD_ADDR}/1.0/virtual-machines"
+  my_curl --fail --output /dev/null "https://${LXD_ADDR}/1.0/instances"
 
   # Re-import the image
   mv "${LXD_DIR}/${sum}.tar.xz" "${LXD_DIR}/testimage.tar.xz"
