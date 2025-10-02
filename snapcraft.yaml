@@ -1288,6 +1288,7 @@ parts:
       - -Dexamples=false
       - -Dinstall-init-files=false
       - -Dinstall-state-dirs=false
+      - -Dlibdir="${CRAFT_ARCH_TRIPLET_BUILD_FOR}"
       - -Dman=false
       - -Dmemfd-rexec=false
       - -Dopenssl=false
