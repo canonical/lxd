@@ -133,7 +133,7 @@ test_basic_usage() {
   lxc delete --force c1
 
   # Test list json format
-  lxc list --format json | jq '.[]|select(.name="foo")' | grep '"name": "foo"'
+  lxc list --format json | jq --exit-status '.[] | .name == "foo"'
 
   # Test list with --columns and --fast
   ! lxc list --columns=nsp --fast || false
@@ -322,7 +322,7 @@ test_basic_usage() {
   wait_for "${LXD_ADDR}" my_curl -X POST --fail-with-body -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/containers" \
         -d '{"name":"configtest","config":{"raw.lxc":"lxc.hook.clone=/bin/true"},"source":{"type":"none"}}'
   # shellcheck disable=SC2102
-  [ "$(my_curl "https://${LXD_ADDR}/1.0/containers/configtest" | jq -r '.metadata.config["raw.lxc"]')" = "lxc.hook.clone=/bin/true" ]
+  my_curl "https://${LXD_ADDR}/1.0/containers/configtest" | jq --exit-status '.metadata.config["raw.lxc"] == "lxc.hook.clone=/bin/true"'
   lxc delete configtest
 
   # Test activateifneeded/shutdown
@@ -458,9 +458,9 @@ test_basic_usage() {
 
   # Test last_used_at field is working properly
   lxc init testimage last-used-at-test
-  [ "$(lxc list last-used-at-test --format json | jq -r '.[].last_used_at')" = "1970-01-01T00:00:00Z" ]
+  lxc list last-used-at-test --format json | jq --exit-status '.[].last_used_at == "1970-01-01T00:00:00Z"'
   lxc start last-used-at-test
-  [ "$(lxc list last-used-at-test --format json | jq -r '.[].last_used_at')" != "1970-01-01T00:00:00Z" ]
+  lxc list last-used-at-test --format json | jq --exit-status '.[].last_used_at != "1970-01-01T00:00:00Z"'
   lxc delete last-used-at-test --force
 
   # Test user, group and cwd
@@ -490,8 +490,8 @@ test_basic_usage() {
   lxc profile delete clash
 
   # check that we can get the return code for a non- wait-for-websocket exec
-  op=$(my_curl -X POST --fail-with-body -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/containers/foo/exec" -d '{"command": ["echo", "test"], "environment": {}, "wait-for-websocket": false, "interactive": false}' | jq -r .operation)
-  [ "$(my_curl "https://${LXD_ADDR}${op}/wait" | jq -r .metadata.metadata.return)" != "null" ]
+  op="$(my_curl -X POST --fail-with-body -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/containers/foo/exec" -d '{"command": ["echo", "test"], "environment": {}, "wait-for-websocket": false, "interactive": false}' | jq --exit-status --raw-output .operation)"
+  my_curl "https://${LXD_ADDR}${op}/wait" | jq --exit-status '.metadata.metadata.return != "null"'
 
   # test file transfer
   echo abc > "${LXD_DIR}/in"
@@ -791,24 +791,24 @@ test_basic_version() {
 
 test_server_info() {
   # Ensure server always reports support for containers.
-  lxc query /1.0 | jq -e '.environment.instance_types | contains(["container"])'
+  lxc query /1.0 | jq --exit-status '.environment.instance_types | contains(["container"])'
 
   # Ensure server reports support for VMs if it should test them.
   if [ "${LXD_VM_TESTS:-0}" = "1" ]; then
-    lxc query /1.0 | jq -e '.environment.instance_types | contains(["virtual-machine"])'
+    lxc query /1.0 | jq --exit-status '.environment.instance_types | contains(["virtual-machine"])'
   fi
 
   # Ensure the version number has the format (X.Y.Z for LTSes and X.Y otherwise)
-  if lxc query /1.0 | jq -e '.environment.server_lts == true'; then
-    lxc query /1.0 | jq -re '.environment.server_version' | grep -E '[0-9]+\.[0-9]+\.[0-9]+'
+  if lxc query /1.0 | jq --exit-status '.environment.server_lts == true'; then
+    lxc query /1.0 | jq --exit-status --raw-output '.environment.server_version' | grep -xE '[0-9]+\.[0-9]+\.[0-9]+'
   else
-    lxc query /1.0 | jq -re '.environment.server_version' | grep -xE '[0-9]+\.[0-9]+'
+    lxc query /1.0 | jq --exit-status --raw-output '.environment.server_version' | grep -xE '[0-9]+\.[0-9]+'
   fi
 }
 
 test_duplicate_detection() {
   ensure_import_testimage
-  test_image_fingerprint="$(lxc query /1.0/images/aliases/testimage | jq -r '.target')"
+  test_image_fingerprint="$(lxc query /1.0/images/aliases/testimage | jq --exit-status --raw-output '.target')"
 
   lxc auth group create foo
   [ "$(! "${_LXC}" auth group create foo 2>&1 1>/dev/null)" = 'Error: Authorization group "foo" already exists' ]
