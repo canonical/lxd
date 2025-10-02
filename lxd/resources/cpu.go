@@ -240,7 +240,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 	for cpuInfoScanner.Scan() {
 		line := strings.TrimSpace(cpuInfoScanner.Text())
 		if !strings.HasPrefix(line, "processor") {
-			return nil, fmt.Errorf("Failed to parse /proc/cpuinfo: Unexpected line %q", line)
+			continue
 		}
 
 		// Extract cpu index
