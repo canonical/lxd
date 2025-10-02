@@ -970,7 +970,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("Failed loading project %q: %w", name, err)
 			}
 
-			empty, err := projectIsEmpty(ctx, project, tx)
+			empty, err := projectIsEmpty(ctx, project, tx, nil)
 			if err != nil {
 				return err
 			}
@@ -1236,15 +1236,45 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed loading project %q: %w", name, err)
 		}
 
+		cached := true
+		var cachedImages []dbCluster.Image
 		if !force {
-			// Verify the project is empty.
-			empty, err := projectIsEmpty(ctx, project, tx)
+			cachedImages, err = dbCluster.GetImages(ctx, tx.Tx(), dbCluster.ImageFilter{Project: &project.Name, Cached: &cached})
+			if err != nil {
+				return fmt.Errorf("Failed getting cached images for project %q: %w", name, err)
+			}
+
+			cachedImageURLs := make([]string, 0, len(cachedImages))
+			for _, image := range cachedImages {
+				cachedImageURLs = append(cachedImageURLs, entity.ImageURL(project.Name, image.Fingerprint).String())
+			}
+
+			// Verify the project is empty. Skip checking for cached images as these will be deleted below.
+			empty, err := projectIsEmpty(ctx, project, tx, cachedImageURLs)
 			if err != nil {
 				return err
 			}
 
 			if !empty {
 				return errors.New("Only empty projects can be removed")
+			}
+		}
+
+		// Prune cached images.
+		for _, image := range cachedImages {
+			op, err := doImageDelete(ctx, s, image.Fingerprint, image.ID, project.Name)
+			if err != nil {
+				return fmt.Errorf("Failed creating delete operation for cached image %q: %w", image.Fingerprint, err)
+			}
+
+			err = op.Start()
+			if err != nil {
+				return fmt.Errorf("Failed starting image delete operation for cached image %q: %w", image.Fingerprint, err)
+			}
+
+			err = op.Wait(context.Background())
+			if err != nil {
+				return fmt.Errorf("Failed deleting cached image %q: %w", image.Fingerprint, err)
 			}
 		}
 
@@ -1356,11 +1386,24 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, &state)
 }
 
-// Check if a project is empty.
-func projectIsEmpty(ctx context.Context, project *dbCluster.Project, tx *db.ClusterTx) (bool, error) {
+// Check if a project is empty. When skipURLs are provided, those entities are ignored when checking if the project is empty.
+func projectIsEmpty(ctx context.Context, project *dbCluster.Project, tx *db.ClusterTx, skipURLs []string) (bool, error) {
 	usedBy, err := projectUsedBy(ctx, tx, project)
 	if err != nil {
 		return false, err
+	}
+
+	if len(skipURLs) > 0 {
+		filtered := make([]string, 0, len(usedBy))
+		for _, u := range usedBy {
+			// Filter out skipURLs.
+			// We use this to skip cached image URLs when checking if a project is empty in [projectDelete].
+			if !slices.Contains(skipURLs, u) {
+				filtered = append(filtered, u)
+			}
+		}
+
+		usedBy = filtered
 	}
 
 	if isProjectInUse(usedBy) {
