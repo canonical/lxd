@@ -859,7 +859,7 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 
 	op, err = operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
 	if err != nil {
-		return false, nil, fmt.Errorf("Failed to create instance restore operation: %w", err)
+		return false, nil, fmt.Errorf("Failed creating instance restore operation: %w", err)
 	}
 
 	// Stop the instance.
@@ -891,7 +891,7 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 				args.Ephemeral = ephemeral
 				err = inst.Update(args, false)
 				if err != nil {
-					d.logger.Error("Failed to restore ephemeral flag after restore", logger.Ctx{"err": err})
+					d.logger.Error("Failed restoring ephemeral flag after restore", logger.Ctx{"err": err})
 				}
 			}()
 		}
@@ -906,7 +906,7 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 		// Refresh the operation as that one is now complete.
 		op, err = operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
 		if err != nil {
-			return false, nil, fmt.Errorf("Failed to create instance restore operation: %w", err)
+			return false, nil, fmt.Errorf("Failed creating instance restore operation: %w", err)
 		}
 	}
 
@@ -935,7 +935,7 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 	err = pool.RestoreInstanceSnapshot(inst, source, nil)
 	if err != nil {
 		op.Done(err)
-		return false, nil, fmt.Errorf("Failed to restore snapshot rootfs: %w", err)
+		return false, nil, fmt.Errorf("Failed restoring snapshot rootfs: %w", err)
 	}
 
 	return wasRunning, op, nil
