@@ -7,20 +7,27 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // Schema defines the available keys of a config Map, along with the types
 // and options for their values, expressed using Key objects.
-type Schema map[string]Key
+type Schema struct {
+	sync.RWMutex
+	Types map[string]Key
+}
 
 // Keys returns all keys defined in the schema.
-func (s Schema) Keys() []string {
-	keys := make([]string, len(s))
+func (s *Schema) Keys() []string {
+	s.RLock()
+	keys := make([]string, len(s.Types))
 	i := 0
-	for key := range s {
+	for key := range s.Types {
 		keys[i] = key
 		i++
 	}
+
+	s.RUnlock()
 
 	sort.Strings(keys)
 	return keys
@@ -28,18 +35,23 @@ func (s Schema) Keys() []string {
 
 // Defaults returns a map of all key names in the schema along with their default
 // values.
-func (s Schema) Defaults() map[string]any {
-	values := make(map[string]any, len(s))
-	for name, key := range s {
+func (s *Schema) Defaults() map[string]any {
+	s.RLock()
+	values := make(map[string]any, len(s.Types))
+	for name, key := range s.Types {
 		values[name] = key.Default
 	}
+
+	s.RUnlock()
 
 	return values
 }
 
 // Get the Key associated with the given name, or panic.
-func (s Schema) mustGetKey(name string) Key {
-	key, ok := s[name]
+func (s *Schema) mustGetKey(name string) Key {
+	s.RLock()
+	key, ok := s.Types[name]
+	s.RUnlock()
 	if !ok {
 		panic(fmt.Sprintf("Attempt to access unknown key %q", name))
 	}
@@ -49,7 +61,7 @@ func (s Schema) mustGetKey(name string) Key {
 
 // Assert that the Key with the given name as the given type. Panic if no Key
 // with such name exists, or if it does not match the tiven type.
-func (s Schema) assertKeyType(name string, code Type) {
+func (s *Schema) assertKeyType(name string, code Type) {
 	key := s.mustGetKey(name)
 	if key.Type != code {
 		panic(fmt.Sprintf("Key %q has type code %d, not %d", name, key.Type, code))

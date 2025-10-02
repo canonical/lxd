@@ -816,13 +816,15 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	// First deal with config specific to the local daemon
 	nodeValues := map[string]string{}
 
-	for key := range node.ConfigSchema {
+	node.ConfigSchema.RLock()
+	for key := range node.ConfigSchema.Types {
 		value, ok := stringReqConfig[key]
 		if ok {
 			nodeValues[key] = value
 			delete(stringReqConfig, key)
 		}
 	}
+	node.ConfigSchema.RUnlock()
 
 	// The config load validation has to allow loading of arbitrary per-project `storage.project.{name}` keys,
 	// as the list of projects is stored in the cluster database which is not available at the time when node

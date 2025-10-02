@@ -327,8 +327,10 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 
 	// Extend the node config schema with the project-specific config keys.
 	// Otherwise the node config schema validation will not allow setting of these keys.
-	node.ConfigSchema["storage.project."+project.Name+".images_volume"] = config.Key{}
-	node.ConfigSchema["storage.project."+project.Name+".backups_volume"] = config.Key{}
+	node.ConfigSchema.Lock()
+	node.ConfigSchema.Types["storage.project."+project.Name+".images_volume"] = config.Key{}
+	node.ConfigSchema.Types["storage.project."+project.Name+".backups_volume"] = config.Key{}
+	node.ConfigSchema.Unlock()
 
 	requestor, err := request.GetRequestor(r.Context())
 	if err != nil {
@@ -854,8 +856,10 @@ func projectNodeConfigRename(d *Daemon, ctx context.Context, oldName string, new
 
 	// Extend the node config schema with the new project name config keys.
 	// Otherwise the node config schema validation will not allow setting of these keys.
-	node.ConfigSchema[newImagesVolumeConfig] = config.Key{}
-	node.ConfigSchema[newBackupsVolumeConfig] = config.Key{}
+	node.ConfigSchema.Lock()
+	node.ConfigSchema.Types[newImagesVolumeConfig] = config.Key{}
+	node.ConfigSchema.Types[newBackupsVolumeConfig] = config.Key{}
+	node.ConfigSchema.Unlock()
 
 	// Clear the project-specific config keys from the local node config.
 	err := d.State().DB.Node.Transaction(ctx, func(ctx context.Context, tx *db.NodeTx) error {
@@ -884,8 +888,10 @@ func projectNodeConfigRename(d *Daemon, ctx context.Context, oldName string, new
 	d.globalConfigMu.Unlock()
 
 	// Delete the old configs from schema.
-	delete(node.ConfigSchema, oldImagesVolumeConfig)
-	delete(node.ConfigSchema, oldBackupsVolumeConfig)
+	node.ConfigSchema.Lock()
+	delete(node.ConfigSchema.Types, oldImagesVolumeConfig)
+	delete(node.ConfigSchema.Types, oldBackupsVolumeConfig)
+	node.ConfigSchema.Unlock()
 
 	return nil
 }
@@ -1072,8 +1078,10 @@ func projectNodeConfigDelete(d *Daemon, s *state.State, name string) error {
 	d.globalConfigMu.Unlock()
 
 	// Remove the project-specific config keys from the node config schema.
-	delete(node.ConfigSchema, imagesVolumeConfig)
-	delete(node.ConfigSchema, backupsVolumeConfig)
+	node.ConfigSchema.Lock()
+	delete(node.ConfigSchema.Types, imagesVolumeConfig)
+	delete(node.ConfigSchema.Types, backupsVolumeConfig)
+	node.ConfigSchema.Unlock()
 
 	return nil
 }
