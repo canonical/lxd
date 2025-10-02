@@ -251,10 +251,6 @@ trap cleanup EXIT HUP INT TERM
 # Import all the testsuites
 import_subdir_files suites
 
-if [ -n "${SHELL_TRACING:-}" ]; then
-  set -x
-fi
-
 # Setup test directory
 TEST_DIR="$(mktemp -d -t lxd-test.tmp.XXXX)"
 chmod +x "${TEST_DIR}"
@@ -389,6 +385,10 @@ export SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
 if [ "${1:-"all"}" = "test-shell" ]; then
   bash --rcfile test-shell.bashrc || true
   exit 0
+fi
+
+if [ -n "${SHELL_TRACING:-}" ]; then
+  set -x
 fi
 
 # allow for running a specific set of tests possibly multiple times
