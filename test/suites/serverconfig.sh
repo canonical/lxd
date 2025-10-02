@@ -27,7 +27,7 @@ _server_config_password() {
 
 _server_config_access() {
   # test untrusted server GET
-  ! my_curl -X GET "https://$(cat "${LXD_SERVERCONFIG_DIR}/lxd.addr")/1.0" | grep -wF "environment" || false
+  ! my_curl "https://$(< "${LXD_SERVERCONFIG_DIR}/lxd.addr")/1.0" | grep -wF "environment" || false
 
   # test authentication type, only tls is enabled by default
   [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0" | jq -r '.metadata.auth_methods | .[]')" = "tls" ]
