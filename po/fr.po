@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-09-26 12:10+0100\n"
+"POT-Creation-Date: 2025-10-02 15:37-0600\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Wivik <seb+weblate@zedas.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -615,7 +615,7 @@ msgstr ""
 "###\n"
 "### Notez que le nom est affiché mais ne peut être modifié"
 
-#: lxc/project.go:301
+#: lxc/project.go:294
 #, fuzzy
 msgid ""
 "### This is a YAML representation of the project.\n"
@@ -1547,7 +1547,7 @@ msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
 #: lxc/network_acl.go:716 lxc/network_forward.go:776
 #: lxc/network_load_balancer.go:739 lxc/network_peer.go:698
 #: lxc/network_zone.go:640 lxc/network_zone.go:1333 lxc/profile.go:613
-#: lxc/project.go:383 lxc/storage.go:360 lxc/storage_bucket.go:350
+#: lxc/project.go:376 lxc/storage.go:360 lxc/storage_bucket.go:350
 #: lxc/storage_bucket.go:1144 lxc/storage_volume.go:1180
 #: lxc/storage_volume.go:1212
 #, c-format
@@ -1772,12 +1772,12 @@ msgstr "Créé : %s"
 msgid "Create identity provider groups"
 msgstr "Copie de l'image : %s"
 
-#: lxc/snapshot.go:31
+#: lxc/snapshot.go:32
 #, fuzzy
 msgid "Create instance snapshots"
 msgstr "Copiez le conteneur sans ses instantanés"
 
-#: lxc/snapshot.go:32
+#: lxc/snapshot.go:33
 #, fuzzy
 msgid ""
 "Create instance snapshots\n"
@@ -1913,7 +1913,7 @@ msgstr ""
 #: lxc/network_acl.go:173 lxc/network_forward.go:160
 #: lxc/network_load_balancer.go:163 lxc/network_peer.go:150
 #: lxc/network_zone.go:165 lxc/network_zone.go:847 lxc/operation.go:173
-#: lxc/profile.go:763 lxc/project.go:593 lxc/storage.go:724
+#: lxc/profile.go:763 lxc/project.go:586 lxc/storage.go:724
 #: lxc/storage_bucket.go:529 lxc/storage_bucket.go:851
 #: lxc/storage_volume.go:1764
 msgid "DESCRIPTION"
@@ -1995,7 +1995,7 @@ msgstr "Récupération de l'image : %s"
 msgid "Delete instance file templates"
 msgstr "L'arrêt du conteneur a échoué !"
 
-#: lxc/delete.go:32 lxc/delete.go:33
+#: lxc/delete.go:33 lxc/delete.go:34
 #, fuzzy
 msgid "Delete instances and snapshots"
 msgstr "Forcer le conteneur à s'arrêter"
@@ -2104,7 +2104,7 @@ msgstr ""
 #: lxc/config_template.go:273 lxc/config_template.go:341 lxc/config_trust.go:35
 #: lxc/config_trust.go:88 lxc/config_trust.go:235 lxc/config_trust.go:349
 #: lxc/config_trust.go:431 lxc/config_trust.go:533 lxc/config_trust.go:579
-#: lxc/config_trust.go:650 lxc/console.go:41 lxc/copy.go:43 lxc/delete.go:33
+#: lxc/config_trust.go:650 lxc/console.go:41 lxc/copy.go:43 lxc/delete.go:34
 #: lxc/exec.go:41 lxc/export.go:33 lxc/file.go:89 lxc/file.go:136
 #: lxc/file.go:318 lxc/file.go:371 lxc/file.go:457 lxc/file.go:690
 #: lxc/file.go:1211 lxc/image.go:39 lxc/image.go:160 lxc/image.go:338
@@ -2153,12 +2153,12 @@ msgstr ""
 #: lxc/profile.go:371 lxc/profile.go:453 lxc/profile.go:511 lxc/profile.go:647
 #: lxc/profile.go:723 lxc/profile.go:880 lxc/profile.go:973 lxc/profile.go:1033
 #: lxc/profile.go:1120 lxc/profile.go:1184 lxc/project.go:33 lxc/project.go:99
-#: lxc/project.go:201 lxc/project.go:281 lxc/project.go:417 lxc/project.go:491
-#: lxc/project.go:611 lxc/project.go:676 lxc/project.go:762 lxc/project.go:806
-#: lxc/project.go:867 lxc/project.go:934 lxc/publish.go:34 lxc/query.go:35
+#: lxc/project.go:201 lxc/project.go:274 lxc/project.go:410 lxc/project.go:484
+#: lxc/project.go:604 lxc/project.go:669 lxc/project.go:755 lxc/project.go:799
+#: lxc/project.go:860 lxc/project.go:927 lxc/publish.go:34 lxc/query.go:35
 #: lxc/rebuild.go:28 lxc/remote.go:38 lxc/remote.go:94 lxc/remote.go:753
 #: lxc/remote.go:791 lxc/remote.go:877 lxc/remote.go:958 lxc/remote.go:1023
-#: lxc/remote.go:1072 lxc/rename.go:21 lxc/restore.go:22 lxc/snapshot.go:32
+#: lxc/remote.go:1072 lxc/rename.go:21 lxc/restore.go:23 lxc/snapshot.go:33
 #: lxc/storage.go:35 lxc/storage.go:98 lxc/storage.go:204 lxc/storage.go:262
 #: lxc/storage.go:394 lxc/storage.go:476 lxc/storage.go:656 lxc/storage.go:743
 #: lxc/storage.go:845 lxc/storage.go:939 lxc/storage_bucket.go:31
@@ -2291,6 +2291,30 @@ msgstr "  Disque utilisé :"
 #, fuzzy
 msgid "Disk usage:"
 msgstr "  Disque utilisé :"
+
+#: lxc/delete.go:40
+msgid ""
+"Disk volumes mode for snapshot deletion. Possible values are \"root\" "
+"(default) and \"all-exclusive\". \"root\" only deletes the instance's root "
+"disk volume snapshot. \"all-exclusive\" deletes the instance's root disk "
+"volume snapshot and any exclusively attached volumes (non-shared) snapshots."
+msgstr ""
+
+#: lxc/restore.go:36
+msgid ""
+"Disk volumes mode. Possible values are \"root\" (default) and \"all-"
+"exclusive\". \"root\" only restores the instance's root disk volume. \"all-"
+"exclusive\" restores the instance's root disk and any exclusively attached "
+"volumes (non-shared) snapshots."
+msgstr ""
+
+#: lxc/snapshot.go:48
+msgid ""
+"Disk volumes mode. Possible values are \"root\" (default) and \"all-"
+"exclusive\". \"root\" only snapshots the instance's root disk volume. \"all-"
+"exclusive\" snapshots the instance's root disk and any exclusively attached "
+"volumes (non-shared)."
+msgstr ""
 
 #: lxc/info.go:430
 #, fuzzy
@@ -2472,7 +2496,7 @@ msgstr "Clé de configuration invalide"
 msgid "Edit profile configurations as YAML"
 msgstr ""
 
-#: lxc/project.go:280 lxc/project.go:281
+#: lxc/project.go:273 lxc/project.go:274
 #, fuzzy
 msgid "Edit project configurations as YAML"
 msgstr "Clé de configuration invalide"
@@ -2557,7 +2581,7 @@ msgstr "Récupération de l'image : %s"
 #: lxc/network_acl.go:544 lxc/network_forward.go:583
 #: lxc/network_load_balancer.go:562 lxc/network_peer.go:524
 #: lxc/network_zone.go:480 lxc/network_zone.go:1166 lxc/profile.go:1100
-#: lxc/project.go:739 lxc/storage.go:813 lxc/storage_bucket.go:623
+#: lxc/project.go:732 lxc/storage.go:813 lxc/storage_bucket.go:623
 #: lxc/storage_volume.go:2197 lxc/storage_volume.go:2235
 #, fuzzy, c-format
 msgid "Error setting properties: %v"
@@ -2571,7 +2595,7 @@ msgstr "Récupération de l'image : %s"
 #: lxc/cluster.go:460 lxc/network.go:1353 lxc/network_acl.go:538
 #: lxc/network_forward.go:577 lxc/network_load_balancer.go:556
 #: lxc/network_peer.go:518 lxc/network_zone.go:474 lxc/network_zone.go:1160
-#: lxc/profile.go:1094 lxc/project.go:733 lxc/storage.go:807
+#: lxc/profile.go:1094 lxc/project.go:726 lxc/storage.go:807
 #: lxc/storage_bucket.go:617 lxc/storage_volume.go:2191
 #: lxc/storage_volume.go:2229
 #, c-format
@@ -2763,12 +2787,12 @@ msgstr "Profil à appliquer au nouveau conteneur"
 msgid "Failed converting token operation to certificate add token: %w"
 msgstr ""
 
-#: lxc/delete.go:174
+#: lxc/delete.go:176
 #, fuzzy, c-format
 msgid "Failed deleting instance %q in project %q: %w"
 msgstr "Profil à appliquer au nouveau conteneur"
 
-#: lxc/delete.go:116
+#: lxc/delete.go:118
 #, fuzzy, c-format
 msgid "Failed deleting instance snapshot %q in project %q: %w"
 msgstr "Profil à appliquer au nouveau conteneur"
@@ -2942,7 +2966,7 @@ msgstr "Requérir une confirmation de l'utilisateur"
 msgid "Force the instance to stop"
 msgstr "Forcer le conteneur à s'arrêter"
 
-#: lxc/delete.go:37
+#: lxc/delete.go:38
 #, fuzzy
 msgid "Force the removal of running instances"
 msgstr "Forcer la suppression des conteneurs arrêtés"
@@ -2983,8 +3007,8 @@ msgstr ""
 #: lxc/network_acl.go:101 lxc/network_allocations.go:58
 #: lxc/network_forward.go:96 lxc/network_load_balancer.go:100
 #: lxc/network_peer.go:86 lxc/network_zone.go:93 lxc/network_zone.go:789
-#: lxc/operation.go:109 lxc/profile.go:740 lxc/project.go:493
-#: lxc/project.go:936 lxc/remote.go:795 lxc/storage.go:658
+#: lxc/operation.go:109 lxc/profile.go:740 lxc/project.go:486
+#: lxc/project.go:929 lxc/remote.go:795 lxc/storage.go:658
 #: lxc/storage_bucket.go:463 lxc/storage_bucket.go:793
 #: lxc/storage_volume.go:1640 lxc/warning.go:95
 msgid "Format (csv|json|table|yaml|compact)"
@@ -3051,7 +3075,7 @@ msgstr "Génération d'un certificat client. Ceci peut prendre une minute…"
 msgid "Get UEFI variables for instance"
 msgstr "Création du conteneur"
 
-#: lxc/project.go:933 lxc/project.go:934
+#: lxc/project.go:926 lxc/project.go:927
 msgid "Get a summary of resource allocations"
 msgstr ""
 
@@ -3104,7 +3128,7 @@ msgstr "Clé de configuration invalide"
 msgid "Get the key as a profile property"
 msgstr ""
 
-#: lxc/project.go:421
+#: lxc/project.go:414
 msgid "Get the key as a project property"
 msgstr ""
 
@@ -3182,7 +3206,7 @@ msgstr "Clé de configuration invalide"
 msgid "Get values for profile configuration keys"
 msgstr "Clé de configuration invalide"
 
-#: lxc/project.go:416 lxc/project.go:417
+#: lxc/project.go:409 lxc/project.go:410
 #, fuzzy
 msgid "Get values for project configuration keys"
 msgstr "Clé de configuration invalide"
@@ -3281,7 +3305,7 @@ msgstr ""
 msgid "IDENTIFIER"
 msgstr ""
 
-#: lxc/project.go:587
+#: lxc/project.go:580
 msgid "IMAGES"
 msgstr ""
 
@@ -3329,7 +3353,7 @@ msgstr ""
 msgid "If the image alias already exists, delete and create a new one"
 msgstr ""
 
-#: lxc/snapshot.go:46 lxc/storage_volume.go:2455
+#: lxc/snapshot.go:47 lxc/storage_volume.go:2455
 msgid "If the snapshot name already exists, delete and create a new one"
 msgstr ""
 
@@ -3342,7 +3366,7 @@ msgstr ""
 "Si c'est la première fois que vous lancez LXD, vous devriez aussi lancer : "
 "sudo lxd init"
 
-#: lxc/snapshot.go:45
+#: lxc/snapshot.go:46
 msgid "Ignore any configured auto-expiry for the instance"
 msgstr ""
 
@@ -3542,7 +3566,7 @@ msgstr "Afficher la version du client"
 msgid "Invalid format: %s"
 msgstr "Cible invalide %s"
 
-#: lxc/snapshot.go:95
+#: lxc/snapshot.go:97
 #, fuzzy, c-format
 msgid "Invalid instance name: %s"
 msgstr "Le nom du conteneur est : %s"
@@ -3586,7 +3610,7 @@ msgstr ""
 msgid "Invalid new snapshot name, parent volume must be the same as source"
 msgstr ""
 
-#: lxc/main.go:551
+#: lxc/main.go:555
 #, fuzzy
 msgid "Invalid number of arguments"
 msgstr "nombre d'arguments incorrect pour la sous-comande"
@@ -3661,7 +3685,7 @@ msgstr "DERNIÈRE UTILISATION À"
 msgid "LAST USED AT"
 msgstr "DERNIÈRE UTILISATION À"
 
-#: lxc/project.go:1011
+#: lxc/project.go:1004
 msgid "LIMIT"
 msgstr ""
 
@@ -3951,8 +3975,8 @@ msgid ""
 "  f - Base Image Fingerprint (short)\n"
 "  F - Base Image Fingerprint (long)\n"
 "\n"
-"Custom columns are defined with \"[config:|devices:]key[:name][:"
-"maxWidth]\":\n"
+"Custom columns are defined with \"[config:|devices:]key[:name][:maxWidth]"
+"\":\n"
 "  KEY: The (extended) config or devices key to display. If [config:|"
 "devices:] is omitted then it defaults to config key.\n"
 "  NAME: Name to display in the column header.\n"
@@ -4018,8 +4042,8 @@ msgstr ""
 "Colonnes en mode rapide : nsacPt\n"
 "\n"
 "Exemple :\n"
-"    lxc list -c n,volatile.base_image:\\BASE IMAGE\\:0,s46,volatile.eth0."
-"hwaddr:MAC"
+"    lxc list -c n,volatile.base_image:\\BASE "
+"IMAGE\\:0,s46,volatile.eth0.hwaddr:MAC"
 
 #: lxc/network_allocations.go:51 lxc/network_allocations.go:52
 #, fuzzy
@@ -4060,7 +4084,7 @@ msgid ""
 "u - Used By"
 msgstr ""
 
-#: lxc/project.go:490 lxc/project.go:491
+#: lxc/project.go:483 lxc/project.go:484
 msgid "List projects"
 msgstr ""
 
@@ -4443,8 +4467,8 @@ msgstr "Copie de l'image : %s"
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect "
-"\"custom\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect \"custom\" "
+"(user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:37 lxc/remote.go:38
@@ -4682,9 +4706,9 @@ msgstr "Nom de l'ensemble de stockage"
 msgid "Missing profile name"
 msgstr ""
 
-#: lxc/profile.go:422 lxc/project.go:154 lxc/project.go:240 lxc/project.go:337
-#: lxc/project.go:454 lxc/project.go:643 lxc/project.go:712 lxc/project.go:838
-#: lxc/project.go:967
+#: lxc/profile.go:422 lxc/project.go:154 lxc/project.go:240 lxc/project.go:330
+#: lxc/project.go:447 lxc/project.go:636 lxc/project.go:705 lxc/project.go:831
+#: lxc/project.go:960
 #, fuzzy
 msgid "Missing project name"
 msgstr "Nom de l'ensemble de stockage"
@@ -4826,7 +4850,7 @@ msgstr "Vous devez fournir le nom d'un conteneur pour : "
 #: lxc/cluster.go:1075 lxc/cluster_group.go:510 lxc/config_trust.go:408
 #: lxc/config_trust.go:513 lxc/list.go:571 lxc/network.go:1117
 #: lxc/network_acl.go:172 lxc/network_peer.go:149 lxc/network_zone.go:164
-#: lxc/network_zone.go:846 lxc/profile.go:761 lxc/project.go:586
+#: lxc/network_zone.go:846 lxc/profile.go:761 lxc/project.go:579
 #: lxc/remote.go:853 lxc/storage.go:716 lxc/storage_bucket.go:528
 #: lxc/storage_bucket.go:850 lxc/storage_volume.go:1763
 msgid "NAME"
@@ -4840,11 +4864,11 @@ msgstr ""
 msgid "NETWORK"
 msgstr ""
 
-#: lxc/project.go:592
+#: lxc/project.go:585
 msgid "NETWORK ZONES"
 msgstr ""
 
-#: lxc/project.go:591
+#: lxc/project.go:584
 msgid "NETWORKS"
 msgstr ""
 
@@ -4856,9 +4880,9 @@ msgstr ""
 msgid "NICs:"
 msgstr ""
 
-#: lxc/network.go:1090 lxc/operation.go:155 lxc/project.go:544
-#: lxc/project.go:549 lxc/project.go:554 lxc/project.go:559 lxc/project.go:564
-#: lxc/project.go:569 lxc/remote.go:813 lxc/remote.go:818 lxc/remote.go:823
+#: lxc/network.go:1090 lxc/operation.go:155 lxc/project.go:537
+#: lxc/project.go:542 lxc/project.go:547 lxc/project.go:552 lxc/project.go:557
+#: lxc/project.go:562 lxc/remote.go:813 lxc/remote.go:818 lxc/remote.go:823
 msgid "NO"
 msgstr "NON"
 
@@ -5178,7 +5202,7 @@ msgstr ""
 msgid "PROCESSES"
 msgstr ""
 
-#: lxc/list.go:574 lxc/project.go:588
+#: lxc/list.go:574 lxc/project.go:581
 msgid "PROFILES"
 msgstr "PROFILS"
 
@@ -5262,7 +5286,7 @@ msgstr ""
 #: lxc/network_acl.go:717 lxc/network_forward.go:777
 #: lxc/network_load_balancer.go:740 lxc/network_peer.go:699
 #: lxc/network_zone.go:641 lxc/network_zone.go:1334 lxc/profile.go:614
-#: lxc/project.go:384 lxc/storage.go:361 lxc/storage_bucket.go:351
+#: lxc/project.go:377 lxc/storage.go:361 lxc/storage_bucket.go:351
 #: lxc/storage_bucket.go:1145 lxc/storage_volume.go:1181
 #: lxc/storage_volume.go:1213
 #, fuzzy
@@ -5365,12 +5389,12 @@ msgstr "Profils : %s"
 msgid "Project %s created"
 msgstr "Profil %s créé"
 
-#: lxc/project.go:257
+#: lxc/project.go:250
 #, fuzzy, c-format
 msgid "Project %s deleted"
 msgstr "Profil %s supprimé"
 
-#: lxc/project.go:658
+#: lxc/project.go:651
 #, fuzzy, c-format
 msgid "Project %s renamed to %s"
 msgstr "Profil %s ajouté à %s"
@@ -5520,7 +5544,7 @@ msgstr ""
 msgid "Query virtual machine images"
 msgstr ""
 
-#: lxc/project.go:1010
+#: lxc/project.go:1003
 #, fuzzy
 msgid "RESOURCE"
 msgstr "SOURCE"
@@ -5578,7 +5602,7 @@ msgstr "Récupération de l'image : %s"
 msgid "Remote %s already exists"
 msgstr "le serveur distant %s existe déjà"
 
-#: lxc/project.go:901 lxc/remote.go:906 lxc/remote.go:987 lxc/remote.go:1053
+#: lxc/project.go:894 lxc/remote.go:906 lxc/remote.go:987 lxc/remote.go:1053
 #: lxc/remote.go:1101
 #, fuzzy, c-format
 msgid "Remote %s doesn't exist"
@@ -5621,7 +5645,7 @@ msgstr "Ajouter de nouveaux clients de confiance"
 msgid "Removable: %v"
 msgstr "Serveur distant : %s"
 
-#: lxc/delete.go:49
+#: lxc/delete.go:51
 #, c-format
 msgid "Remove %s (yes/no): "
 msgstr "Supprimer %s (oui/non) : "
@@ -5766,7 +5790,7 @@ msgstr ""
 msgid "Rename profiles"
 msgstr ""
 
-#: lxc/project.go:610 lxc/project.go:611
+#: lxc/project.go:603 lxc/project.go:604
 #, fuzzy
 msgid "Rename projects"
 msgstr "Créé : %s"
@@ -5803,7 +5827,7 @@ msgstr ""
 msgid "Requested UEFI variable does not exist"
 msgstr ""
 
-#: lxc/delete.go:38
+#: lxc/delete.go:39
 msgid "Require user confirmation"
 msgstr "Requérir une confirmation de l'utilisateur"
 
@@ -5829,12 +5853,12 @@ msgstr "Le pendant de `lxc pause` est `lxc start`."
 msgid "Restore cluster member"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#: lxc/restore.go:21
+#: lxc/restore.go:22
 #, fuzzy
 msgid "Restore instances from snapshots"
 msgstr "Forcer le conteneur à s'arrêter"
 
-#: lxc/restore.go:22
+#: lxc/restore.go:23
 #, fuzzy
 msgid ""
 "Restore instances from snapshots\n"
@@ -5958,7 +5982,7 @@ msgstr "STATIQUE"
 msgid "STATUS"
 msgstr "ÉTAT"
 
-#: lxc/project.go:590
+#: lxc/project.go:583
 #, fuzzy
 msgid "STORAGE BUCKETS"
 msgstr "ENSEMBLE DE STOCKAGE"
@@ -5967,7 +5991,7 @@ msgstr "ENSEMBLE DE STOCKAGE"
 msgid "STORAGE POOL"
 msgstr "ENSEMBLE DE STOCKAGE"
 
-#: lxc/project.go:589
+#: lxc/project.go:582
 #, fuzzy
 msgid "STORAGE VOLUMES"
 msgstr "ENSEMBLE DE STOCKAGE"
@@ -6170,12 +6194,12 @@ msgid ""
 "    lxc profile set [<remote>:]<profile> <key> <value>"
 msgstr ""
 
-#: lxc/project.go:675
+#: lxc/project.go:668
 #, fuzzy
 msgid "Set project configuration keys"
 msgstr "Clé de configuration invalide"
 
-#: lxc/project.go:676
+#: lxc/project.go:669
 msgid ""
 "Set project configuration keys\n"
 "\n"
@@ -6298,7 +6322,7 @@ msgstr "Clé de configuration invalide"
 msgid "Set the key as a profile property"
 msgstr ""
 
-#: lxc/project.go:683
+#: lxc/project.go:676
 msgid "Set the key as a project property"
 msgstr ""
 
@@ -6474,7 +6498,7 @@ msgstr "Afficher la configuration étendue"
 msgid "Show profile configurations"
 msgstr "Afficher la configuration étendue"
 
-#: lxc/project.go:805 lxc/project.go:806
+#: lxc/project.go:798 lxc/project.go:799
 #, fuzzy
 msgid "Show project options"
 msgstr "Afficher la configuration étendue"
@@ -6647,7 +6671,7 @@ msgstr "Arrêter le conteneur s'il est en cours d'exécution"
 msgid "Stopping instance failed!"
 msgstr "L'arrêt du conteneur a échoué !"
 
-#: lxc/delete.go:145
+#: lxc/delete.go:147
 #, fuzzy, c-format
 msgid "Stopping the instance failed: %s"
 msgstr "L'arrêt du conteneur a échoué !"
@@ -6739,7 +6763,7 @@ msgstr "Swap (courant)"
 msgid "Swap (peak)"
 msgstr "Swap (pointe)"
 
-#: lxc/project.go:866 lxc/project.go:867
+#: lxc/project.go:859 lxc/project.go:860
 #, fuzzy
 msgid "Switch the current project"
 msgstr "impossible de supprimer le serveur distant par défaut"
@@ -6834,7 +6858,7 @@ msgstr "Le périphérique n'existe pas"
 msgid "The direction argument must be one of: ingress, egress"
 msgstr ""
 
-#: lxc/delete.go:129
+#: lxc/delete.go:131
 #, fuzzy
 msgid "The instance is currently running, stop it first or pass --force"
 msgstr ""
@@ -6930,7 +6954,7 @@ msgstr "Vous devez fournir le nom d'un conteneur pour : "
 msgid "The property %q does not exist on the profile %q: %v"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#: lxc/project.go:467
+#: lxc/project.go:460
 #, fuzzy, c-format
 msgid "The property %q does not exist on the project %q: %v"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
@@ -7158,7 +7182,7 @@ msgstr "Expire : %s"
 msgid "Type: %s (ephemeral)"
 msgstr "Type : éphémère"
 
-#: lxc/project.go:982
+#: lxc/project.go:975
 msgid "UNLIMITED"
 msgstr ""
 
@@ -7170,12 +7194,12 @@ msgstr "DATE DE PUBLICATION"
 msgid "URL"
 msgstr "URL"
 
-#: lxc/project.go:1012 lxc/storage_volume.go:1767
+#: lxc/project.go:1005 lxc/storage_volume.go:1767
 msgid "USAGE"
 msgstr ""
 
 #: lxc/network.go:1123 lxc/network_acl.go:174 lxc/network_allocations.go:23
-#: lxc/network_zone.go:166 lxc/profile.go:764 lxc/project.go:594
+#: lxc/network_zone.go:166 lxc/profile.go:764 lxc/project.go:587
 #: lxc/storage.go:725 lxc/storage_volume.go:1766
 msgid "USED BY"
 msgstr "UTILISÉ PAR"
@@ -7328,7 +7352,7 @@ msgstr "Clé de configuration invalide"
 msgid "Unset profile configuration keys"
 msgstr "Clé de configuration invalide"
 
-#: lxc/project.go:761 lxc/project.go:762
+#: lxc/project.go:754 lxc/project.go:755
 #, fuzzy
 msgid "Unset project configuration keys"
 msgstr "Clé de configuration invalide"
@@ -7390,7 +7414,7 @@ msgstr "Clé de configuration invalide"
 msgid "Unset the key as a profile property"
 msgstr ""
 
-#: lxc/project.go:766
+#: lxc/project.go:759
 msgid "Unset the key as a project property"
 msgstr ""
 
@@ -7480,7 +7504,7 @@ msgstr "Publié : %s"
 msgid "User ID to run the command as (default 0)"
 msgstr ""
 
-#: lxc/cluster.go:630 lxc/delete.go:54
+#: lxc/cluster.go:630 lxc/delete.go:56
 #, fuzzy
 msgid "User aborted delete operation"
 msgstr "L'utilisateur a annulé l'opération de suppression."
@@ -7549,7 +7573,7 @@ msgstr ""
 msgid "Whether or not to only backup the instance (without snapshots)"
 msgstr "Réaliser ou pas l'instantané de l'état de fonctionnement du conteneur"
 
-#: lxc/restore.go:34
+#: lxc/restore.go:35
 #, fuzzy
 msgid ""
 "Whether or not to restore the instance's running state from snapshot (if "
@@ -7558,7 +7582,7 @@ msgstr ""
 "Restaurer ou pas l'état de fonctionnement du conteneur depuis l'instantané "
 "(s'il est disponible)"
 
-#: lxc/snapshot.go:44
+#: lxc/snapshot.go:45
 #, fuzzy
 msgid "Whether or not to snapshot the instance's running state"
 msgstr "Réaliser ou pas l'instantané de l'état de fonctionnement du conteneur"
@@ -7569,9 +7593,9 @@ msgid ""
 "re-initialize the instance if a different image or --empty is not specified."
 msgstr ""
 
-#: lxc/network.go:1092 lxc/operation.go:157 lxc/project.go:546
-#: lxc/project.go:551 lxc/project.go:556 lxc/project.go:561 lxc/project.go:566
-#: lxc/project.go:571 lxc/remote.go:815 lxc/remote.go:820 lxc/remote.go:825
+#: lxc/network.go:1092 lxc/operation.go:157 lxc/project.go:539
+#: lxc/project.go:544 lxc/project.go:549 lxc/project.go:554 lxc/project.go:559
+#: lxc/project.go:564 lxc/remote.go:815 lxc/remote.go:820 lxc/remote.go:825
 msgid "YES"
 msgstr "OUI"
 
@@ -7623,7 +7647,7 @@ msgstr ""
 #: lxc/cluster_group.go:444 lxc/config_trust.go:346 lxc/config_trust.go:429
 #: lxc/monitor.go:32 lxc/network.go:1017 lxc/network_acl.go:95
 #: lxc/network_zone.go:87 lxc/operation.go:104 lxc/profile.go:720
-#: lxc/project.go:488 lxc/storage.go:653 lxc/version.go:20 lxc/warning.go:70
+#: lxc/project.go:481 lxc/storage.go:653 lxc/version.go:20 lxc/warning.go:70
 #, fuzzy
 msgid "[<remote>:]"
 msgstr "Serveur distant : %s"
@@ -8064,7 +8088,7 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/restore.go:20
+#: lxc/restore.go:21
 #, fuzzy
 msgid "[<remote>:]<instance> <snapshot>"
 msgstr ""
@@ -8089,7 +8113,7 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/snapshot.go:30
+#: lxc/snapshot.go:31
 #, fuzzy
 msgid "[<remote>:]<instance> [<snapshot name>]"
 msgstr ""
@@ -8219,7 +8243,7 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/delete.go:30
+#: lxc/delete.go:31
 #, fuzzy
 msgid ""
 "[<remote>:]<instance>[/<snapshot>] [[<remote>:]<instance>[/<snapshot>]...]"
@@ -8800,8 +8824,8 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/project.go:97 lxc/project.go:198 lxc/project.go:279 lxc/project.go:804
-#: lxc/project.go:865 lxc/project.go:932
+#: lxc/project.go:97 lxc/project.go:198 lxc/project.go:272 lxc/project.go:797
+#: lxc/project.go:858 lxc/project.go:925
 #, fuzzy
 msgid "[<remote>:]<project>"
 msgstr ""
@@ -8809,7 +8833,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/project.go:415 lxc/project.go:760
+#: lxc/project.go:408 lxc/project.go:753
 #, fuzzy
 msgid "[<remote>:]<project> <key>"
 msgstr ""
@@ -8817,7 +8841,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/project.go:674
+#: lxc/project.go:667
 #, fuzzy
 msgid "[<remote>:]<project> <key>=<value>..."
 msgstr ""
@@ -8825,7 +8849,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/project.go:608
+#: lxc/project.go:601
 #, fuzzy
 msgid "[<remote>:]<project> <new-name>"
 msgstr ""
@@ -9039,7 +9063,7 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/project.go:576 lxc/remote.go:844
+#: lxc/project.go:569 lxc/remote.go:844
 #, fuzzy
 msgid "current"
 msgstr "Swap (courant)"
@@ -9249,8 +9273,8 @@ msgid ""
 "lxc init ubuntu:24.04 v1 --vm -c limits.cpu=4 -c limits.memory=4GiB\n"
 "    Create a virtual machine with 4 vCPUs and 4GiB of RAM\n"
 "\n"
-"lxc init ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,"
-"size=32GiB\n"
+"lxc init ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d "
+"root,size=32GiB\n"
 "    Create a virtual machine with 2 vCPUs, 8GiB of RAM and a root disk of "
 "32GiB"
 msgstr ""
@@ -9278,8 +9302,8 @@ msgstr ""
 
 #: lxc/list.go:123
 msgid ""
-"lxc list -c nFs46,volatile.eth0.hwaddr:MAC,config:image.os,devices:eth0."
-"parent:ETHP\n"
+"lxc list -c "
+"nFs46,volatile.eth0.hwaddr:MAC,config:image.os,devices:eth0.parent:ETHP\n"
 "  Show instances using the \"NAME\", \"BASE IMAGE\", \"STATE\", \"IPV4\", "
 "\"IPV6\" and \"MAC\" columns.\n"
 "  \"BASE IMAGE\", \"MAC\" and \"IMAGE OS\" are custom columns generated from "
@@ -9429,7 +9453,7 @@ msgid ""
 "    Create a project with configuration from config.yaml"
 msgstr ""
 
-#: lxc/project.go:283
+#: lxc/project.go:276
 msgid ""
 "lxc project edit <project> < project.yaml\n"
 "    Update a project using the content of project.yaml"
@@ -9441,7 +9465,7 @@ msgid ""
 "    Delete local instance \"c1\"."
 msgstr ""
 
-#: lxc/snapshot.go:37
+#: lxc/snapshot.go:38
 msgid ""
 "lxc snapshot u1 snap0\n"
 "\tCreate a snapshot of \"u1\" called \"snap0\".\n"
@@ -9451,7 +9475,7 @@ msgid ""
 "\"config.yaml\"."
 msgstr ""
 
-#: lxc/restore.go:26
+#: lxc/restore.go:27
 msgid ""
 "lxc snapshot u1 snap0\n"
 "    Create the snapshot.\n"
@@ -9600,7 +9624,7 @@ msgstr "utilisé par"
 msgid "y"
 msgstr "o"
 
-#: lxc/cluster.go:629 lxc/delete.go:53 lxc/image.go:997 lxc/image.go:1002
+#: lxc/cluster.go:629 lxc/delete.go:55 lxc/image.go:997 lxc/image.go:1002
 #: lxc/image.go:1207
 msgid "yes"
 msgstr "oui"
@@ -10247,9 +10271,9 @@ msgstr "oui"
 #~ "lxc config trust list "
 #~ "[<remote>:]                                           Lister tous les "
 #~ "certificats de confiance.\n"
-#~ "lxc config trust add [<remote>:] <certfile."
-#~ "crt>                             Ajouter certfile.crt aux hôtes de "
-#~ "confiance.\n"
+#~ "lxc config trust add [<remote>:] "
+#~ "<certfile.crt>                             Ajouter certfile.crt aux hôtes "
+#~ "de confiance.\n"
 #~ "lxc config trust remove [<remote>:] [hostname|"
 #~ "fingerprint]                  Supprimer le certificat des hôtes de "
 #~ "confiance.\n"
@@ -10261,8 +10285,8 @@ msgstr "oui"
 #~ "share/c1 path=opt\n"
 #~ "\n"
 #~ "Pour positionner une clé de configuration dans la configuration lxc :\n"
-#~ "    lxc config set [<remote>:]<container> raw.lxc 'lxc."
-#~ "aa_allow_incomplete = 1'\n"
+#~ "    lxc config set [<remote>:]<container> raw.lxc "
+#~ "'lxc.aa_allow_incomplete = 1'\n"
 #~ "\n"
 #~ "Pour écouter sur le port 8443 en IPv4 et IPv6 (vous pouvez omettre 8443 "
 #~ "c'est la valeur par défaut) :\n"
@@ -10936,8 +10960,8 @@ msgstr "oui"
 #~ "  f - Base Image Fingerprint (short)\n"
 #~ "  F - Base Image Fingerprint (long)\n"
 #~ "\n"
-#~ "Custom columns are defined with \"[config:|devices:]key[:name][:"
-#~ "maxWidth]\":\n"
+#~ "Custom columns are defined with \"[config:|devices:]key[:name][:maxWidth]"
+#~ "\":\n"
 #~ "  KEY: The (extended) config or devices key to display. If [config:|"
 #~ "devices:] is omitted then it defaults to config key.\n"
 #~ "  NAME: Name to display in the column header.\n"
@@ -11003,8 +11027,8 @@ msgstr "oui"
 #~ "Colonnes en mode rapide : nsacPt\n"
 #~ "\n"
 #~ "Exemple :\n"
-#~ "    lxc list -c n,volatile.base_image:\\BASE IMAGE\\:0,s46,volatile.eth0."
-#~ "hwaddr:MAC"
+#~ "    lxc list -c n,volatile.base_image:\\BASE "
+#~ "IMAGE\\:0,s46,volatile.eth0.hwaddr:MAC"
 
 #, fuzzy
 #~ msgid "[<remote>:] <cert>"
