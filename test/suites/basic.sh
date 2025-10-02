@@ -449,11 +449,14 @@ test_basic_usage() {
   fi
 
   # Test freeze/pause
-  lxc freeze foo
+  lxc pause foo
+  [ "$(lxc list -f csv -c s foo)" = "FROZEN" ]
   ! lxc stop foo || false
-  lxc stop -f foo
   lxc start foo
-  lxc freeze foo
+  [ "$(lxc list -f csv -c s foo)" = "RUNNING" ]
+  lxc pause foo
+  [ "$(lxc list -f csv -c s foo)" = "FROZEN" ]
+  lxc stop -f foo
   lxc start foo
 
   # Test instance types
