@@ -17,6 +17,8 @@ check_dependencies() {
 }
 
 check_empty() {
+    [ -d "${1}" ] || return 0
+
     if [ "$(find "${1}" 2> /dev/null | wc -l)" -gt "1" ]; then
         echo "${1} is not empty, content:"
         find "${1}"
@@ -25,10 +27,12 @@ check_empty() {
 }
 
 check_empty_table() {
+    [ -f "${1}" ] || return 0
+
     # The profiles table will never be empty since the `default` profile cannot
     # be deleted.
     if [ "$2" = 'profiles' ]; then
-        if [ -n "$(sqlite3 "${1}" "SELECT * FROM ${2} WHERE name != 'default';")" ]; then
+        if [ -n "$(sqlite3 "${1}" "SELECT 1 FROM ${2} WHERE name != 'default' LIMIT 1;")" ]; then
           echo "DB table ${2} is not empty, content:"
           sqlite3 "${1}" "SELECT * FROM ${2} WHERE name != 'default';"
           return 1
@@ -36,7 +40,7 @@ check_empty_table() {
         return 0
     fi
 
-    if [ -n "$(sqlite3 "${1}" "SELECT * FROM ${2};")" ]; then
+    if [ -n "$(sqlite3 "${1}" "SELECT 1 FROM ${2} LIMIT 1;")" ]; then
         echo "DB table ${2} is not empty, content:"
         sqlite3 "${1}" "SELECT * FROM ${2};"
         return 1

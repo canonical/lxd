@@ -36,7 +36,7 @@ fi
 # XXX: this search pattern is not perfect but should catch most use of
 # `grep -v` at the end of pipelines and when not used inside a shell
 # comparison.
-OUTPUT="$(grep --exclude-dir=lint -rE ' ?\| ?grep -v[^(\|=)]+$' test/ || true)"
+OUTPUT="$(grep --exclude-dir=lint -rE ' ?\| ?grep -v[^(\|=>)]+$' test/ || true)"
 if [ -n "${OUTPUT}" ]; then
     echo "FAIL: unreliable use of 'grep -v' at the end of command pipelines"
     echo "${OUTPUT}"
