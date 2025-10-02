@@ -128,8 +128,7 @@ _server_config_storage() {
   lxc image delete fooimage
 
   # Unset the config and remove the volumes
-  lxc config unset storage.backups_volume
-  lxc config unset storage.images_volume
+  lxc config set storage.backups_volume="" storage.images_volume=""
   lxc storage volume delete "${pool}" backups
   lxc storage volume delete "${pool}" images
 
@@ -164,8 +163,7 @@ _server_config_user_microcloud() {
   [ "$(curl "https://${LXD_ADDR}/1.0" --insecure | jq '.metadata.config["user.foo"]')" = 'null' ]
 
   # Unset all config and check it worked
-  lxc config unset user.microcloud
-  lxc config unset user.foo
+  lxc config set user.microcloud="" user.foo=""
   [ "$(lxc config get user.microcloud || echo fail)" = "" ]
   [ "$(lxc config get user.foo || echo fail)" = "" ]
   [ "$(curl "https://${LXD_ADDR}/1.0" --insecure | jq '.metadata.config["user.microcloud"]')" = 'null' ]
