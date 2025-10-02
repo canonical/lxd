@@ -44,12 +44,7 @@ func (m *Map) Change(changes map[string]string) (map[string]string, error) {
 	m.schema.RLock()
 	values := make(map[string]string, len(m.schema.Types))
 
-	errors := ErrorList{}
 	maps.Copy(values, changes)
-
-	if errors.Len() > 0 {
-		return nil, errors
-	}
 
 	// Any key not explicitly set, is considered unset.
 	for name, key := range m.schema.Types {
