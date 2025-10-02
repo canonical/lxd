@@ -37,7 +37,17 @@ test_vm_empty() {
   lxc start v1
   lxc snapshot v1
   [ "$(lxc list -f csv -c S v1)" = "2" ]
-  lxc delete --force v1
+
+  echo "==> Pause (freeze)/resume"
+  lxc pause v1
+  [ "$(lxc list -f csv -c s v1)" = "FROZEN" ]
+  ! lxc stop v1 || false
+  lxc start v1
+  [ "$(lxc list -f csv -c s v1)" = "RUNNING" ]
+  lxc pause v1
+  [ "$(lxc list -f csv -c s v1)" = "FROZEN" ]
+  lxc stop -f v1
+  lxc delete v1
 
   lxc launch --vm --empty v1 -c limits.memory=1% -d "${SMALL_ROOT_DISK}"
   lxc delete --force v1
