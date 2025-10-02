@@ -4,6 +4,12 @@ if [ -f /etc/profile.d/bash_completion.sh ] && command -v lxc > /dev/null; then
     . <(lxc completion bash)
 fi
 
+# load tab completion for test runner
+if [ -f "$(dirname "${BASH_SOURCE[0]}")/main.sh.bash-completion" ]; then
+    . "$(dirname "${BASH_SOURCE[0]}")/main.sh.bash-completion"
+    echo "Tab completion enabled for ./main.sh (usage: ./main.sh <TAB>)"
+fi
+
 # provide useful aliases like `ll`, etc
 if [ -f ~/.bashrc ]; then
     . ~/.bashrc
