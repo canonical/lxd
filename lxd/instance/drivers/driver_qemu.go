@@ -5187,14 +5187,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool, diskVolumesMode 
 
 	d.logger.Info("Restoring instance", ctxMap)
 
-	pool, wasRunning, op, err := d.restoreCommon(d, source)
-	if err != nil {
-		op.Done(err)
-		return err
-	}
-
-	// Restore the rootfs.
-	err = pool.RestoreInstanceSnapshot(d, source, nil)
+	wasRunning, op, err := d.restoreCommon(d, source)
 	if err != nil {
 		op.Done(err)
 		return err
