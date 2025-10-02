@@ -5187,7 +5187,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool, diskVolumesMode 
 
 	d.logger.Info("Restoring instance", ctxMap)
 
-	wasRunning, op, err := d.restoreCommon(d, source)
+	wasRunning, op, err := d.restoreCommon(d, source, diskVolumesMode)
 	if err != nil {
 		op.Done(err)
 		return err
