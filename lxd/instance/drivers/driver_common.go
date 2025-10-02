@@ -730,7 +730,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 		// Use the snapshot creation date as reference for an exact expiry date.
 		instanceSnapshotExpiry, err := shared.GetExpiry(snapshotCreationDate, inst.ExpandedConfig()["snapshots.expiry"])
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed getting snapshot expiry: %w", err)
 		}
 
 		expiry = &instanceSnapshotExpiry
@@ -784,7 +784,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 	// Snapshot root disk.
 	err = pool.CreateInstanceSnapshot(snap, inst, d.op)
 	if err != nil {
-		return fmt.Errorf("Create instance snapshot: %w", err)
+		return fmt.Errorf("Failed creating instance root volume snapshot: %w", err)
 	}
 
 	revert.Add(func() {
@@ -794,22 +794,27 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 		case *qemu:
 			_ = s.delete(true)
 		default:
-			logger.Error("Failed to delete snapshot during revert", logger.Ctx{"instance": inst.Name(), "snapshot": snap.Name()})
+			d.logger.Error("Failed deleting snapshot during revert", logger.Ctx{"snapshot": snap.Name()})
 		}
 	})
 
 	// Mount volume for backup.yaml writing.
 	_, err = pool.MountInstance(inst, d.op)
 	if err != nil {
-		return fmt.Errorf("Create instance snapshot (mount source): %w", err)
+		return fmt.Errorf("Failed mounting instance root volume for backup file writing during snapshot: %w", err)
 	}
 
-	defer func() { _ = pool.UnmountInstance(inst, d.op) }()
+	defer func() {
+		err := pool.UnmountInstance(inst, d.op)
+		if err != nil {
+			d.logger.Warn("Failed unmounting instance after snapshot", logger.Ctx{"err": err})
+		}
+	}()
 
 	// Attempt to update backup.yaml for instance.
 	err = inst.UpdateBackupFile()
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed updating instance backup file after snapshot: %w", err)
 	}
 
 	revert.Success()
