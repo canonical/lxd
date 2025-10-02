@@ -1065,9 +1065,9 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed loading project %q: %w", name, err)
 		}
 
-		cached := true
 		var cachedImages []dbCluster.Image
 		if !force {
+			cached := true
 			cachedImages, err = dbCluster.GetImages(ctx, tx.Tx(), dbCluster.ImageFilter{Project: &project.Name, Cached: &cached})
 			if err != nil {
 				return fmt.Errorf("Failed getting cached images for project %q: %w", name, err)
