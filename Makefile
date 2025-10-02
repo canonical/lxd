@@ -183,6 +183,7 @@ liblxc:
 			-Dexamples=false \
 			-Dinstall-init-files=false \
 			-Dinstall-state-dirs=false \
+			-Dlibdir="lib/$(ARCH)-linux-gnu" \
 			-Dman=false \
 			-Dmemfd-rexec=false \
 			-Dopenssl=false \
