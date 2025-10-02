@@ -16,7 +16,7 @@ import (
 //
 // Each legal key is declared in a config Schema using a Key object.
 type Map struct {
-	schema Schema
+	schema *Schema
 	values map[string]string // Key/value pairs stored in the map.
 }
 
@@ -26,7 +26,7 @@ type Map struct {
 //
 // If one or more keys fail to be loaded, return an ErrorList describing what
 // went wrong. Non-failing keys are still loaded in the returned Map.
-func Load(schema Schema, values map[string]string) (Map, error) {
+func Load(schema *Schema, values map[string]string) (Map, error) {
 	m := Map{
 		schema: schema,
 	}
@@ -41,7 +41,8 @@ func Load(schema Schema, values map[string]string) (Map, error) {
 // Return a map of key/value pairs that were actually changed. If some keys
 // fail to apply, details are included in the returned ErrorList.
 func (m *Map) Change(changes map[string]string) (map[string]string, error) {
-	values := make(map[string]string, len(m.schema))
+	m.schema.RLock()
+	values := make(map[string]string, len(m.schema.Types))
 
 	errors := ErrorList{}
 	maps.Copy(values, changes)
@@ -51,12 +52,14 @@ func (m *Map) Change(changes map[string]string) (map[string]string, error) {
 	}
 
 	// Any key not explicitly set, is considered unset.
-	for name, key := range m.schema {
+	for name, key := range m.schema.Types {
 		_, ok := values[name]
 		if !ok {
 			values[name] = key.Default
 		}
 	}
+
+	m.schema.RUnlock()
 
 	names, err := m.update(values)
 
@@ -73,8 +76,9 @@ func (m *Map) Change(changes map[string]string) (map[string]string, error) {
 func (m *Map) Dump() map[string]string {
 	values := map[string]string{}
 
+	m.schema.RLock()
 	for name, value := range m.values {
-		key, ok := m.schema[name]
+		key, ok := m.schema.Types[name]
 		if ok {
 			// Schema key
 			value := m.GetRaw(name)
@@ -86,6 +90,8 @@ func (m *Map) Dump() map[string]string {
 			values[name] = value
 		}
 	}
+
+	m.schema.RUnlock()
 
 	return values
 }
@@ -198,7 +204,9 @@ func (m *Map) set(name string, value string, initial bool) (bool, error) {
 		return true, nil
 	}
 
-	key, ok := m.schema[name]
+	m.schema.RLock()
+	key, ok := m.schema.Types[name]
+	m.schema.RUnlock()
 	// Allow free setting of dynamic storage.project.{name} configs
 	if !ok && !IsProjectStorageConfig(name) {
 		return false, errors.New("Unknown key")
