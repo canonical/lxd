@@ -3383,15 +3383,15 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool, diskVolu
 
 	d.logger.Info("Restoring instance", ctxMap)
 
+	// Wait for any file operations to complete.
+	// This is required so we can actually unmount the container and restore its rootfs.
+	d.stopForkfile(false)
+
 	pool, wasRunning, op, err := d.restoreCommon(d, sourceContainer)
 	if err != nil {
 		op.Done(err)
 		return err
 	}
-
-	// Wait for any file operations to complete.
-	// This is required so we can actually unmount the container and restore its rootfs.
-	d.stopForkfile(false)
 
 	// Restore the rootfs.
 	err = pool.RestoreInstanceSnapshot(d, sourceContainer, nil)
