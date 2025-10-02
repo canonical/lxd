@@ -49,8 +49,7 @@ _server_config_auth() {
 
   # Lower the oidc session expiry to one hour, then check that the auth secret expiry still
   # cannot be set to less than one day.
-  lxc config set oidc.session.expiry='1H'
-  lxc config set core.auth_secret_expiry='1d'
+  lxc config set oidc.session.expiry='1H' core.auth_secret_expiry='1d'
   ! lxc config set core.auth_secret_expiry='23H 59M 59S' || false
   lxc config set core.auth_secret_expiry='23H 59M 60S'
   ! lxc config set core.auth_secret_expiry='1439M 59S' || false
@@ -169,14 +168,12 @@ _server_config_storage() {
 
   # Put both storages on the same shared volume
   lxc storage volume create "${pool}" shared
-  lxc config unset storage.backups_volume
-  lxc config unset storage.images_volume
+  lxc config set storage.backups_volume="" storage.images_volume=""
   lxc config set storage.backups_volume "${pool}/shared"
   lxc config set storage.images_volume "${pool}/shared"
 
   # Unset the config and remove the volumes
-  lxc config unset storage.backups_volume
-  lxc config unset storage.images_volume
+  lxc config set storage.backups_volume="" storage.images_volume=""
   lxc storage volume delete "${pool}" backups
   lxc storage volume delete "${pool}" images
   lxc storage volume delete "${pool}" shared
@@ -212,8 +209,7 @@ _server_config_user_microcloud() {
   [ "$(curl "https://${LXD_ADDR}/1.0" --insecure | jq '.metadata.config["user.foo"]')" = 'null' ]
 
   # Unset all config and check it worked
-  lxc config unset user.microcloud
-  lxc config unset user.foo
+  lxc config set user.microcloud="" user.foo=""
   [ "$(lxc config get user.microcloud || echo fail)" = "" ]
   [ "$(lxc config get user.foo || echo fail)" = "" ]
   [ "$(curl "https://${LXD_ADDR}/1.0" --insecure | jq '.metadata.config["user.microcloud"]')" = 'null' ]
