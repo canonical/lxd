@@ -163,9 +163,9 @@ _server_config_storage() {
   lxc stop -f foo
   lxc publish foo --alias fooimage
 
-  # Launch container from published image on custom volume.
+  # Init container from published image on custom volume.
   lxc init fooimage foo2
-  lxc delete -f foo2
+  lxc delete foo2
   lxc image delete fooimage
 
   # Put both storages on the same shared volume
