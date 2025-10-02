@@ -170,12 +170,12 @@ test_basic_usage() {
   gen_cert_and_key client3
 
   # don't allow requests without a cert to get trusted data
-  [ "$(curl -k -s -o /dev/null -w "%{http_code}" -X GET "https://${LXD_ADDR}/1.0/containers/foo")" = "403" ]
+  [ "$(curl -k -s -o /dev/null -w "%{http_code}" "https://${LXD_ADDR}/1.0/containers/foo")" = "403" ]
 
   # Test unprivileged container publish
   lxc publish bar --alias=foo-image prop1=val1
   [ "$(lxc image get-property foo-image prop1)" = "val1" ]
-  ! CERTNAME="client3" my_curl -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" || false
+  ! CERTNAME="client3" my_curl "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" || false
   lxc image delete foo-image
 
   # Test container publish with existing alias
@@ -223,7 +223,7 @@ test_basic_usage() {
   # Test image compression on publish
   lxc publish bar --alias=foo-image-compressed --compression=bzip2 prop=val1
   [ "$(lxc image get-property foo-image-compressed prop)" = "val1" ]
-  ! CERTNAME="client3" my_curl -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" || false
+  ! CERTNAME="client3" my_curl "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" || false
   lxc image delete foo-image-compressed
 
   # Test compression options
@@ -236,7 +236,7 @@ test_basic_usage() {
   lxc init testimage barpriv -p default -p priv
   lxc publish barpriv --alias=foo-image prop1=val1
   [ "$(lxc image get-property foo-image prop1)" = "val1" ]
-  ! CERTNAME="client3" my_curl -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" || false
+  ! CERTNAME="client3" my_curl "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" || false
   lxc image delete foo-image
   lxc delete barpriv
 
@@ -261,7 +261,7 @@ test_basic_usage() {
 
   # Test public images
   lxc publish --public bar --alias=bar-image2
-  CERTNAME="client3" my_curl -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/"
+  CERTNAME="client3" my_curl "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/"
   lxc image delete bar-image2
 
   # Test invalid instance names
