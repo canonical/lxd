@@ -236,6 +236,30 @@ func instanceSnapRestore(s *state.State, projectName string, name string, req ap
 		}
 	}
 
+	// Load the project to validate features.
+	var p *api.Project
+	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		project, err := cluster.GetProject(ctx, tx.Tx(), projectName)
+		if err != nil {
+			return err
+		}
+
+		p, err = project.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// When "features.storage.volumes" is disabled, only allow root disk to be restored.
+	if shared.IsFalse(p.Config["features.storage.volumes"]) && req.RestoreDiskVolumesMode == api.DiskVolumesModeAllExclusive {
+		return errors.New("Project does not have features.storage.volumes enabled")
+	}
+
 	// Generate a new `volatile.uuid.generation` to differentiate this instance restored from a snapshot from the original instance.
 	source.LocalConfig()["volatile.uuid.generation"] = uuid.New().String()
 
