@@ -3387,17 +3387,10 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool, diskVolu
 	// This is required so we can actually unmount the container and restore its rootfs.
 	d.stopForkfile(false)
 
-	pool, wasRunning, op, err := d.restoreCommon(d, sourceContainer)
+	wasRunning, op, err := d.restoreCommon(d, sourceContainer)
 	if err != nil {
 		op.Done(err)
 		return err
-	}
-
-	// Restore the rootfs.
-	err = pool.RestoreInstanceSnapshot(d, sourceContainer, nil)
-	if err != nil {
-		op.Done(err)
-		return fmt.Errorf("Failed to restore snapshot rootfs: %w", err)
 	}
 
 	// Restart the container.
