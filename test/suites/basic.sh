@@ -237,6 +237,11 @@ test_basic_usage() {
   ! CERTNAME="client3" my_curl -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" || false
   lxc image delete foo-image
   lxc delete barpriv
+
+  # make sure that privileged containers are not world-readable
+  lxc init testimage foo2 -p priv -s "lxdtest-$(basename "${LXD_DIR}")"
+  [ "$(stat -L -c "%a" "${LXD_DIR}/containers/foo2")" = "100" ]
+  lxc delete foo2
   lxc profile delete priv
 
   # Test that containers without metadata.yaml are published successfully.
@@ -569,14 +574,6 @@ test_basic_usage() {
   else
     echo "==> SKIP: seccomp tests (seccomp filtering is externally enabled)"
   fi
-
-  # make sure that privileged containers are not world-readable
-  lxc profile create unconfined
-  lxc profile set unconfined security.privileged true
-  lxc init testimage foo2 -p unconfined -s "lxdtest-$(basename "${LXD_DIR}")"
-  [ "$(stat -L -c "%a" "${LXD_DIR}/containers/foo2")" = "100" ]
-  lxc delete foo2
-  lxc profile delete unconfined
 
   # Test boot.host_shutdown_timeout config setting
   lxc init testimage configtest --config boot.host_shutdown_timeout=45
