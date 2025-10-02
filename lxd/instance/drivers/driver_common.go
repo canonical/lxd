@@ -852,7 +852,7 @@ func (d *common) updateProgress(progress string) {
 // - err: error, if any.
 func (d *common) restoreCommon(inst instance.Instance, source instance.Instance) (wasRunning bool, op *operationlock.InstanceOperation, err error) {
 	// Load the storage driver.
-	pool, err := storagePools.LoadByInstance(d.state, inst)
+	pool, err := d.getStoragePool()
 	if err != nil {
 		return false, nil, err
 	}
