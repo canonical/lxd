@@ -835,8 +835,6 @@ test_duplicate_detection() {
   [ "$(! "${_LXC}" snapshot foo snap0 2>&1 1>/dev/null)" = 'Error: Failed creating instance snapshot record "snap0": Snapshot "foo/snap0" already exists' ]
   lxc snapshot foo snap1
   [ "$(! "${_LXC}" rename foo/snap1 foo/snap0 2>&1 1>/dev/null)" = 'Error: Name "foo/snap0" already in use' ]
-  lxc delete foo/snap0
-  lxc delete foo/snap1
   lxc delete foo
 
   lxc network create foo
@@ -917,8 +915,6 @@ test_duplicate_detection() {
   [ "$(! "${_LXC}" storage volume snapshot foo foo snap0 2>&1 1>/dev/null)" = 'Error: Snapshot "snap0" already in use' ]
   lxc storage volume snapshot foo foo snap1
   [ "$(! "${_LXC}" storage volume rename foo foo/snap1 foo/snap0 2>&1 1>/dev/null)" = 'Error: Storage volume snapshot "snap0" already exists for volume "foo"' ]
-  lxc storage volume delete foo foo/snap0
-  lxc storage volume delete foo foo/snap1
   lxc storage volume delete foo foo
   lxc storage delete foo
 }
