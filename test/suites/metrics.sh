@@ -15,6 +15,14 @@ test_metrics() {
   lxc project create foo2 -c features.images=false -c features.profiles=false
   lxc init --empty c4 --project foo2
 
+  if [ "${LXD_VM_TESTS:-0}" = "1" ]; then
+    lxc launch --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
+    lxc init   --vm --empty v2 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
+
+    lxc launch --vm --empty v3 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" --project foo
+    lxc init   --vm --empty v4 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" --project foo2
+  fi
+
   echo "==> c1 metrics should show as the container is running"
   lxc query "/1.0/metrics" | grep -F 'name="c1"'
   lxc query "/1.0/metrics?project=default" | grep -F 'name="c1"'
@@ -27,10 +35,18 @@ test_metrics() {
   lxc query /1.0/metrics | grep -xF 'lxd_instances{project="default",type="container"} 2'
   lxc query /1.0/metrics | grep -xF 'lxd_instances{project="foo",type="container"} 1'
   lxc query /1.0/metrics | grep -xF 'lxd_instances{project="foo2",type="container"} 1'
-  echo "==> Ensure lxd_instances reports VM count properly (0)"
-  lxc query /1.0/metrics | grep -xF 'lxd_instances{project="default",type="virtual-machine"} 0'
-  lxc query /1.0/metrics | grep -xF 'lxd_instances{project="foo",type="virtual-machine"} 0'
-  lxc query /1.0/metrics | grep -xF 'lxd_instances{project="foo2",type="virtual-machine"} 0'
+
+  if [ "${LXD_VM_TESTS:-0}" = "1" ]; then
+    echo "==> Ensure lxd_instances reports VM count properly (0)"
+    lxc query /1.0/metrics | grep -xF 'lxd_instances{project="default",type="virtual-machine"} 2'
+    lxc query /1.0/metrics | grep -xF 'lxd_instances{project="foo",type="virtual-machine"} 1'
+    lxc query /1.0/metrics | grep -xF 'lxd_instances{project="foo2",type="virtual-machine"} 1'
+  else
+    echo "==> Ensure lxd_instances reports VM count properly (0)"
+    lxc query /1.0/metrics | grep -xF 'lxd_instances{project="default",type="virtual-machine"} 0'
+    lxc query /1.0/metrics | grep -xF 'lxd_instances{project="foo",type="virtual-machine"} 0'
+    lxc query /1.0/metrics | grep -xF 'lxd_instances{project="foo2",type="virtual-machine"} 0'
+  fi
 
   echo "==> c3 metrics from another project also show up for non metrics unrestricted certificate"
   lxc query "/1.0/metrics" | grep -F 'name="c3"'
@@ -155,6 +171,13 @@ test_metrics() {
   [ "$(curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | awk '/^lxd_api_requests_ongoing{entity_type="instance"}/ {print $2}')" -eq $((previous+1)) ]
   wait $!
   [ "$(curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | awk '/^lxd_api_requests_ongoing{entity_type="instance"}/ {print $2}')" -eq "$previous" ]
+
+  if [ "${LXD_VM_TESTS:-0}" = "1" ]; then
+    lxc delete -f v1
+    lxc delete v2
+    lxc delete -f v3 --project foo
+    lxc delete v4 --project foo2
+  fi
 
   lxc config set core.metrics_address="" core.metrics_authentication=""
   lxc config trust remove "$(cert_fingerprint "${LXD_CONF}/metrics.crt")"
