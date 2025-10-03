@@ -130,11 +130,13 @@ IPAM
 IPs
 IPv
 IPVLAN
+IPVS
 JIT
 JWT
 jq
 kB
 kbit
+Keepalived
 Keycloak
 KiB
 kibi
@@ -377,3 +379,4 @@ WSAPI
 CPG
 vLUN
 vLUNs
+VRRP
