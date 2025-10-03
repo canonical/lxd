@@ -1093,6 +1093,13 @@ func (r *ProtocolLXD) UpdateInstance(name string, instance api.InstancePut, ETag
 		return nil, err
 	}
 
+	if instance.RestoreDiskVolumesMode == api.DiskVolumesModeAllExclusive {
+		err = r.CheckExtension("instance_snapshots_multi_volume")
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Send the request
 	op, _, err := r.queryOperation(http.MethodPut, path+"/"+url.PathEscape(name), instance, ETag, true)
 	if err != nil {
@@ -1925,6 +1932,13 @@ func (r *ProtocolLXD) CreateInstanceSnapshot(instanceName string, snapshot api.I
 	// Validate the request
 	if snapshot.ExpiresAt != nil {
 		err := r.CheckExtension("snapshot_expiry_creation")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if snapshot.DiskVolumesMode == api.DiskVolumesModeAllExclusive {
+		err = r.CheckExtension("instance_snapshots_multi_volume")
 		if err != nil {
 			return nil, err
 		}
