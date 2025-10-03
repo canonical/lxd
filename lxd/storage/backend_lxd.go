@@ -4005,7 +4005,7 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 				}
 
 				// Delete snapshot instance if listed in the error as one that needs removing.
-				err := snap.Delete(true)
+				err := snap.Delete(true, "")
 				if err != nil {
 					return err
 				}
