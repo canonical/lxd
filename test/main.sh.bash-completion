@@ -15,10 +15,9 @@ _lxd_test_completion() {
 
     # Extract all test function names from main.sh
     # Remove 'test_' prefix and 'run_test test_' wrapper
-    local script_dir
-    script_dir="$(dirname "${BASH_SOURCE[0]}")"
-    if [ ! -f "$script_dir/main.sh" ]; then
-        script_dir="$(pwd)"
+    local script_dir="${MAIN_DIR:-}"
+    if [ -z "${script_dir:-}" ]; then
+        script_dir="$(dirname "${BASH_SOURCE[0]}")"
     fi
 
     local tests
