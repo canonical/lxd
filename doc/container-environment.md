@@ -81,6 +81,21 @@ If LXCFS is present on the host, it is automatically set up for the container.
 This normally results in a number of `/proc` files being overridden through bind-mounts.
 On older kernels, a virtual version of `/sys/fs/cgroup` might also be set up by LXCFS.
 
+(container-runtime-environment-binfmt-misc)=
+### `binfmt_misc`
+
+The `binfmt_misc` kernel feature allows the system to run binaries for foreign architectures by registering interpreters for different binary types. See the [kernel documentation](https://docs.kernel.org/admin-guide/binfmt-misc.html) for more details.
+
+On kernels that lack `binfmt_misc` namespace support, LXD automatically bind-mounts `/proc/sys/fs/binfmt_misc` from the host into the container. This allows containers to use the host's registered binary types.
+
+On kernels with `binfmt_misc` namespace support, unprivileged containers can mount their own isolated `binfmt_misc`. To enable `binfmt_misc` in an unprivileged container, run:
+
+```bash
+mount binfmt_misc -t binfmt_misc /proc/sys/fs/binfmt_misc
+```
+
+The container can now register its own binary types without affecting the host or other containers. This is useful for running foreign architecture binaries within the container.
+
 ## PID1
 
 LXD spawns whatever is located at `/sbin/init` as the initial process of the container (PID 1).
