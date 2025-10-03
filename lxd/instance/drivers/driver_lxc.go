@@ -5211,7 +5211,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 		// Delete the extra local snapshots first.
 		for _, deleteTargetSnapshotIndex := range deleteTargetSnapshotIndexes {
-			err := targetSnapshots[deleteTargetSnapshotIndex].Delete(true)
+			err := targetSnapshots[deleteTargetSnapshotIndex].Delete(true, "")
 			if err != nil {
 				return err
 			}
