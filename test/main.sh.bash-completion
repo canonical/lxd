@@ -32,4 +32,3 @@ _lxd_test_completion() {
 
 # Register completion
 complete -F _lxd_test_completion ./main.sh
-complete -F _lxd_test_completion main.sh
