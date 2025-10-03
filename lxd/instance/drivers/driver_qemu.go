@@ -4903,11 +4903,11 @@ func (d *qemu) pidFilePath() string {
 // pid gets the PID of the running qemu process. Returns 0 if PID file or process not found, and -1 if err non-nil.
 func (d *qemu) pid() (int, error) {
 	pidStr, err := os.ReadFile(d.pidFilePath())
-	if os.IsNotExist(err) {
-		return 0, nil // PID file has gone.
-	}
-
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return 0, nil // PID file has gone.
+		}
+
 		return -1, err
 	}
 
