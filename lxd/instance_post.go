@@ -600,7 +600,7 @@ func instancePostMigration(s *state.State, inst instance.Instance, req api.Insta
 	}
 
 	// Delete original instance.
-	err = inst.Delete(true)
+	err = inst.Delete(true, "")
 	if err != nil {
 		return err
 	}

@@ -816,7 +816,7 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 //	    $ref: "#/responses/InternalServerError"
 func snapshotDelete(s *state.State, r *http.Request, snapInst instance.Instance) response.Response {
 	remove := func(_ *operations.Operation) error {
-		return snapInst.Delete(false)
+		return snapInst.Delete(false, "")
 	}
 
 	parentName, snapName, _ := api.GetParentAndSnapshotName(snapInst.Name())
