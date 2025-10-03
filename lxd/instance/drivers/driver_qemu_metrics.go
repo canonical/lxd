@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -174,13 +173,18 @@ func (d *qemu) getQemuCPUMetrics(monitor *qmp.Monitor) (map[string]metrics.CPUMe
 
 	cpuMetrics := map[string]metrics.CPUMetrics{}
 
-	for i, threadID := range threadIDs {
-		pid, err := os.ReadFile(d.pidFilePath())
-		if err != nil {
-			return nil, err
-		}
+	pid, err := d.pid()
+	if err != nil {
+		return nil, err
+	}
 
-		statFile := filepath.Join("/proc", strings.TrimSpace(string(pid)), "task", strconv.Itoa(threadID), "stat")
+	// A PID of 0 means the process isn't running.
+	if pid < 1 {
+		return nil, fmt.Errorf("Invalid PID %d", pid)
+	}
+
+	for i, threadID := range threadIDs {
+		statFile := fmt.Sprintf("/proc/%d/task/%d/stat", pid, threadID)
 
 		if !shared.PathExists(statFile) {
 			continue
