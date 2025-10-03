@@ -712,7 +712,7 @@ func (d *common) rebuildCommon(inst instance.Instance, img *api.Image, op *opera
 func (d *common) deleteCommon(inst instance.Instance, force bool) error {
 	unlock, err := d.updateBackupFileLock(context.Background())
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed acquiring update backup file lock: %w", err)
 	}
 
 	defer unlock()
@@ -720,7 +720,7 @@ func (d *common) deleteCommon(inst instance.Instance, force bool) error {
 	// Setup a new operation.
 	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionDelete, nil, false, false)
 	if err != nil {
-		return fmt.Errorf("Failed to create instance delete operation: %w", err)
+		return fmt.Errorf("Failed creating instance delete operation: %w", err)
 	}
 
 	defer op.Done(nil)
@@ -759,7 +759,7 @@ func (d *common) deleteCommon(inst instance.Instance, force bool) error {
 		// Update the backup file.
 		err = parent.UpdateBackupFile()
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed updating parent backup file: %w", err)
 		}
 	}
 
