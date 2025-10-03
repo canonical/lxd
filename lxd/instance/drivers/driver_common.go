@@ -748,11 +748,12 @@ func (d *common) deleteAttachedVolumeSnapshots(snapInst instance.Instance, diskV
 // deleteCommon handles common delete logic for LXC and QEMU instances.
 //
 // It performs the following shared operations:
-// - Backup file lock management
-// - Operation lock setup
-// - Running state check
-// - Calls driver-specific delete function
-// - Parent backup file update for snapshots
+// - Backup file lock management.
+// - Operation lock setup.
+// - Running state check.
+// - Calls driver-specific delete function.
+// - Attached volume snapshot deletion for snapshots (if diskVolumesMode is "all-exclusive").
+// - Parent backup file update for snapshots.
 func (d *common) deleteCommon(inst instance.Instance, force bool, diskVolumesMode string) error {
 	unlock, err := d.updateBackupFileLock(context.Background())
 	if err != nil {
@@ -790,8 +791,16 @@ func (d *common) deleteCommon(inst instance.Instance, force bool, diskVolumesMod
 		d.logger.Error("Failed deleting instance")
 	}
 
-	// If dealing with a snapshot, refresh the backup file on the parent.
 	if inst.IsSnapshot() {
+		// Delete attached volume snapshots (if requested).
+		if diskVolumesMode == api.DiskVolumesModeAllExclusive {
+			err = d.deleteAttachedVolumeSnapshots(inst, diskVolumesMode)
+			if err != nil {
+				return fmt.Errorf("Failed deleting attached volume snapshots: %w", err)
+			}
+		}
+
+		// Refresh the backup file on the parent.
 		parentName, _, _ := api.GetParentAndSnapshotName(inst.Name())
 
 		// Load the parent.
