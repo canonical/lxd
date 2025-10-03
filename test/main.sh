@@ -221,13 +221,6 @@ cleanup() {
   echo "==> Test result: ${TEST_RESULT}"
 }
 
-# Spawn an interactive test shell when invoked as `./main.sh test-shell`.
-# This is useful for quick interactions with LXD and its test suite.
-if [ "${1:-"all"}" = "test-shell" ]; then
-  bash --rcfile test-shell.bashrc || true
-  exit 0
-fi
-
 # Must be set before cleanup()
 TEST_CURRENT=setup
 TEST_CURRENT_DESCRIPTION=setup
@@ -238,10 +231,6 @@ trap cleanup EXIT HUP INT TERM
 
 # Import all the testsuites
 import_subdir_files suites
-
-if [ -n "${SHELL_TRACING:-}" ]; then
-  set -x
-fi
 
 # Setup test directory
 TEST_DIR="$(mktemp -d -t lxd-test.tmp.XXXX)"
@@ -352,6 +341,17 @@ export LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
 
 # This must be enough to accomodate the busybox testimage
 export SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
+
+# Spawn an interactive test shell when invoked as `./main.sh test-shell`.
+# This is useful for quick interactions with LXD and its test suite.
+if [ "${1:-"all"}" = "test-shell" ]; then
+  bash --rcfile test-shell.bashrc || true
+  exit 0
+fi
+
+if [ -n "${SHELL_TRACING:-}" ]; then
+  set -x
+fi
 
 # allow for running a specific set of tests possibly multiple times
 if [ "$#" -gt 0 ] && [ "$1" != "all" ] && [ "$1" != "cluster" ] && [ "$1" != "standalone" ]; then
