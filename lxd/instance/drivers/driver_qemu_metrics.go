@@ -12,7 +12,6 @@ import (
 	"github.com/canonical/lxd/lxd/instance/drivers/qmp"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/metrics"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/units"
 )
@@ -186,12 +185,13 @@ func (d *qemu) getQemuCPUMetrics(monitor *qmp.Monitor) (map[string]metrics.CPUMe
 	for i, threadID := range threadIDs {
 		statFile := fmt.Sprintf("/proc/%d/task/%d/stat", pid, threadID)
 
-		if !shared.PathExists(statFile) {
-			continue
-		}
-
 		content, err := os.ReadFile(statFile)
 		if err != nil {
+			// Ignore PID or TID disappearing.
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+
 			return nil, err
 		}
 
