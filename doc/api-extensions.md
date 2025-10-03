@@ -2800,3 +2800,12 @@ Adds session support for OIDC authentication. This enables compatibility with id
 
 When a session expires, LXD will re-verify the login with the identity provider.
 The duration of OIDC sessions defaults to one week and can be configured via the {config:option}`server-oidc:oidc.session.expiry` configuration key.
+
+(extension-instance-snapshots-multi-volume)=
+## `instance_snapshots_multi_volume`
+
+Enables the creation of a multi-volume snapshot and the restoration of an instance together with its attached volumes, while ensuring crash consistency across volumes.
+
+Adds `DiskVolumesMode` to `POST /1.0/instances/{name}/snapshots` and `RestoreDiskVolumesMode` to `PUT /1.0/instances/{name}` to select which attached volumes are included in snapshots/restores: "root" includes only the instance's root disk; "all-exclusive" includes the root disk and any exclusively attached (non-shared) volumes. Defaults to "root".
+
+This extension also introduces a new volatile configuration key, {config:option}`instance-volatile:volatile.attached_volumes`, in the configuration of supported storage drivers for instance snapshots. This key contains a JSON-serialized map of attached volume UUIDs to the UUIDs of their corresponding snapshots. Example value: `{<volume1-uuid>: <snapshot1-uuid>,<volume2-uuid>: <snapshot2-uuid>}`.

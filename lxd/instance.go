@@ -54,7 +54,7 @@ func instanceCreateAsEmpty(s *state.State, args db.InstanceArgs) (instance.Insta
 		return nil, fmt.Errorf("Failed creating instance: %w", err)
 	}
 
-	revert.Add(func() { _ = inst.Delete(true) })
+	revert.Add(func() { _ = inst.Delete(true, "") })
 
 	err = inst.UpdateBackupFile()
 	if err != nil {
@@ -191,7 +191,7 @@ func instanceCreateFromImage(s *state.State, img *api.Image, args db.InstanceArg
 		return fmt.Errorf("Failed creating instance from image: %w", err)
 	}
 
-	revert.Add(func() { _ = inst.Delete(true) })
+	revert.Add(func() { _ = inst.Delete(true, "") })
 
 	err = inst.UpdateBackupFile()
 	if err != nil {
@@ -329,7 +329,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 
 			// Delete extra snapshots first.
 			for _, deleteTargetSnapIndex := range deleteTargetSnapshotIndexes {
-				err := targetSnaps[deleteTargetSnapIndex].Delete(true)
+				err := targetSnaps[deleteTargetSnapIndex].Delete(true, "")
 				if err != nil {
 					return nil, err
 				}
@@ -439,7 +439,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 			return nil, fmt.Errorf("Create instance from copy: %w", err)
 		}
 
-		revert.Add(func() { _ = inst.Delete(true) })
+		revert.Add(func() { _ = inst.Delete(true, "") })
 
 		if opts.applyTemplateTrigger {
 			// Trigger the templates on next start.
@@ -508,7 +508,7 @@ func autoCreateInstanceSnapshots(ctx context.Context, s *state.State, instances 
 			return err
 		}
 
-		err = inst.Snapshot(snapshotName, nil, false)
+		err = inst.Snapshot(snapshotName, nil, false, api.DiskVolumesModeRoot)
 		if err != nil {
 			l.Error("Error creating snapshot", logger.Ctx{"snapshot": snapshotName, "err": err})
 			return err
@@ -533,7 +533,7 @@ func pruneExpiredInstanceSnapshots(ctx context.Context, snapshots []instance.Ins
 			continue // Deletion of this snapshot is already running, skip.
 		}
 
-		err = snapshot.Delete(true)
+		err = snapshot.Delete(true, "")
 		instSnapshotsPruneRunning.Delete(snapshot.ID())
 		if err != nil {
 			return fmt.Errorf("Failed to delete expired instance snapshot %q in project %q: %w", snapshot.Name(), snapshot.Project().Name, err)

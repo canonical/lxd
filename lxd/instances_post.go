@@ -861,7 +861,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		}
 
 		// Clean up created instance if the post hook fails below.
-		runRevert.Add(func() { _ = inst.Delete(true) })
+		runRevert.Add(func() { _ = inst.Delete(true, "") })
 
 		// Run the storage post hook to perform any final actions now that the instance has been created
 		// in the database (this normally includes unmounting volumes that were mounted).

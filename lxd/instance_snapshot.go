@@ -279,13 +279,14 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(errors.New("Invalid instance name"))
 	}
 
+	var p *api.Project
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := cluster.GetProject(context.Background(), tx.Tx(), projectName)
 		if err != nil {
 			return err
 		}
 
-		p, err := dbProject.ToAPI(ctx, tx.Tx())
+		p, err = dbProject.ToAPI(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}
@@ -328,6 +329,11 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	// When "features.storage.volumes" is disabled, only allow root disk to be snapshotted.
+	if shared.IsFalse(p.Config["features.storage.volumes"]) && req.DiskVolumesMode == api.DiskVolumesModeAllExclusive {
+		return response.BadRequest(errors.New("Project does not have features.storage.volumes enabled"))
+	}
+
 	if req.Name == "" {
 		req.Name, err = instance.NextSnapshotName(s, inst, "snap%d")
 		if err != nil {
@@ -343,7 +349,7 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 
 	snapshot := func(op *operations.Operation) error {
 		inst.SetOperation(op)
-		return inst.Snapshot(req.Name, req.ExpiresAt, req.Stateful)
+		return inst.Snapshot(req.Name, req.ExpiresAt, req.Stateful, req.DiskVolumesMode)
 	}
 
 	resources := map[string][]api.URL{}
@@ -799,6 +805,11 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 //	    description: Project name
 //	    type: string
 //	    example: default
+//	  - in: query
+//	    name: disk-volumes
+//	    description: Which disk volumes to include in instance snapshot deletion. Possible values are "root" or "all-exclusive".
+//	    type: string
+//	    example: all-exclusive
 //	responses:
 //	  "202":
 //	    $ref: "#/responses/Operation"
@@ -809,8 +820,13 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func snapshotDelete(s *state.State, r *http.Request, snapInst instance.Instance) response.Response {
+	diskVolumesMode := request.QueryParam(r, "disk-volumes")
+	if diskVolumesMode == "" {
+		diskVolumesMode = api.DiskVolumesModeRoot
+	}
+
 	remove := func(_ *operations.Operation) error {
-		return snapInst.Delete(false)
+		return snapInst.Delete(false, diskVolumesMode)
 	}
 
 	parentName, snapName, _ := api.GetParentAndSnapshotName(snapInst.Name())

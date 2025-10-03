@@ -2337,6 +2337,11 @@ definitions:
                 example: snap0
                 type: string
                 x-go-name: Restore
+            restore_disk_volumes_mode:
+                description: Which disk volumes to restore from an instance snapshot. Possible values are "root" or "all-exclusive".
+                example: all-exclusive
+                type: string
+                x-go-name: RestoreDiskVolumesMode
             stateful:
                 description: Whether the instance currently has saved state on disk
                 example: false
@@ -2486,6 +2491,11 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     InstanceSnapshotsPost:
         properties:
+            disk_volumes_mode:
+                description: Which disk volumes to include in instance snapshot. Possible values are "root" or "all-exclusive".
+                example: all-exclusive
+                type: string
+                x-go-name: DiskVolumesMode
             expires_at:
                 description: When the snapshot expires (gets auto-deleted)
                 example: "2021-03-23T17:38:37.753398689-04:00"
@@ -2991,6 +3001,11 @@ definitions:
                 example: snap0
                 type: string
                 x-go-name: Restore
+            restore_disk_volumes_mode:
+                description: Which disk volumes to restore from an instance snapshot. Possible values are "root" or "all-exclusive".
+                example: all-exclusive
+                type: string
+                x-go-name: RestoreDiskVolumesMode
             source:
                 $ref: '#/definitions/InstanceSource'
             start:
@@ -11974,6 +11989,11 @@ paths:
                   example: default
                   in: query
                   name: project
+                  type: string
+                - description: Which disk volumes to include in instance snapshot deletion. Possible values are "root" or "all-exclusive".
+                  example: all-exclusive
+                  in: query
+                  name: disk-volumes
                   type: string
             produces:
                 - application/json

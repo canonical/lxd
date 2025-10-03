@@ -2232,7 +2232,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	}
 
 	if snapName != "" && expiry != nil {
-		err := d.snapshot(snapName, expiry)
+		err := d.snapshot(snapName, expiry, api.DiskVolumesModeRoot)
 		if err != nil {
 			return "", nil, fmt.Errorf("Failed taking startup snapshot: %w", err)
 		}
@@ -3345,15 +3345,15 @@ func (d *lxc) RenderState(hostInterfaces []net.Interface) (*api.InstanceState, e
 }
 
 // snapshot creates a snapshot of the instance.
-func (d *lxc) snapshot(name string, expiry *time.Time) error {
+func (d *lxc) snapshot(name string, expiry *time.Time, diskVolumesMode string) error {
 	// Wait for any file operations to complete to have a more consistent snapshot.
 	d.stopForkfile(false)
 
-	return d.snapshotCommon(d, name, expiry, false)
+	return d.snapshotCommon(d, name, expiry, false, diskVolumesMode)
 }
 
 // Snapshot takes a new snapshot.
-func (d *lxc) Snapshot(name string, expiry *time.Time, stateful bool) error {
+func (d *lxc) Snapshot(name string, expiry *time.Time, stateful bool, diskVolumesMode string) error {
 	if stateful {
 		return api.StatusErrorf(http.StatusBadRequest, "Stateful snapshots are not supported for containers")
 	}
@@ -3365,11 +3365,11 @@ func (d *lxc) Snapshot(name string, expiry *time.Time, stateful bool) error {
 
 	defer unlock()
 
-	return d.snapshot(name, expiry)
+	return d.snapshot(name, expiry, diskVolumesMode)
 }
 
 // Restore restores a snapshot.
-func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
+func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool, diskVolumesMode string) error {
 	if stateful {
 		return api.StatusErrorf(http.StatusBadRequest, "Stateful snapshot restore is not supported for containers")
 	}
@@ -3383,21 +3383,14 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 
 	d.logger.Info("Restoring instance", ctxMap)
 
-	pool, wasRunning, op, err := d.restoreCommon(d, sourceContainer)
-	if err != nil {
-		op.Done(err)
-		return err
-	}
-
 	// Wait for any file operations to complete.
 	// This is required so we can actually unmount the container and restore its rootfs.
 	d.stopForkfile(false)
 
-	// Restore the rootfs.
-	err = pool.RestoreInstanceSnapshot(d, sourceContainer, nil)
+	wasRunning, op, err := d.restoreCommon(d, sourceContainer, diskVolumesMode)
 	if err != nil {
 		op.Done(err)
-		return fmt.Errorf("Failed to restore snapshot rootfs: %w", err)
+		return err
 	}
 
 	// Restart the container.
@@ -3433,49 +3426,8 @@ func (d *lxc) cleanup() {
 }
 
 // Delete deletes the instance.
-func (d *lxc) Delete(force bool) error {
-	unlock, err := d.updateBackupFileLock(context.Background())
-	if err != nil {
-		return err
-	}
-
-	defer unlock()
-
-	// Setup a new operation.
-	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionDelete, nil, false, false)
-	if err != nil {
-		return fmt.Errorf("Failed to create instance delete operation: %w", err)
-	}
-
-	defer op.Done(nil)
-
-	if d.IsRunning() {
-		return api.StatusErrorf(http.StatusBadRequest, "Instance is running")
-	}
-
-	err = d.delete(force)
-	if err != nil {
-		return err
-	}
-
-	// If dealing with a snapshot, refresh the backup file on the parent.
-	if d.IsSnapshot() {
-		parentName, _, _ := api.GetParentAndSnapshotName(d.name)
-
-		// Load the parent.
-		parent, err := instance.LoadByProjectAndName(d.state, d.project.Name, parentName)
-		if err != nil {
-			return fmt.Errorf("Invalid parent: %w", err)
-		}
-
-		// Update the backup file.
-		err = parent.UpdateBackupFile()
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+func (d *lxc) Delete(force bool, diskVolumesMode string) error {
+	return d.deleteCommon(d, force, diskVolumesMode)
 }
 
 // Delete deletes the instance without creating an operation lock.
@@ -5218,7 +5170,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 		// Delete the extra local snapshots first.
 		for _, deleteTargetSnapshotIndex := range deleteTargetSnapshotIndexes {
-			err := targetSnapshots[deleteTargetSnapshotIndex].Delete(true)
+			err := targetSnapshots[deleteTargetSnapshotIndex].Delete(true, "")
 			if err != nil {
 				return err
 			}

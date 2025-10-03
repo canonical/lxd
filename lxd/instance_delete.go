@@ -111,7 +111,7 @@ func doInstanceDelete(ctx context.Context, s *state.State, name string, projectN
 	}
 
 	rmct := func(op *operations.Operation) error {
-		return inst.Delete(false)
+		return inst.Delete(false, "")
 	}
 
 	resources := map[string][]api.URL{}
