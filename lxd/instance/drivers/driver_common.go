@@ -701,6 +701,71 @@ func (d *common) rebuildCommon(inst instance.Instance, img *api.Image, op *opera
 	return nil
 }
 
+// deleteCommon handles common delete logic for LXC and QEMU instances.
+//
+// It performs the following shared operations:
+// - Backup file lock management
+// - Operation lock setup
+// - Running state check
+// - Calls driver-specific delete function
+// - Parent backup file update for snapshots
+func (d *common) deleteCommon(inst instance.Instance, force bool) error {
+	unlock, err := d.updateBackupFileLock(context.Background())
+	if err != nil {
+		return err
+	}
+
+	defer unlock()
+
+	// Setup a new operation.
+	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionDelete, nil, false, false)
+	if err != nil {
+		return fmt.Errorf("Failed to create instance delete operation: %w", err)
+	}
+
+	defer op.Done(nil)
+
+	if inst.IsRunning() {
+		return api.StatusErrorf(http.StatusBadRequest, "Instance is running")
+	}
+
+	switch s := inst.(type) {
+	case *lxc:
+		err = s.delete(force)
+		if err != nil {
+			return err
+		}
+
+	case *qemu:
+		err = s.delete(force)
+		if err != nil {
+			return err
+		}
+
+	default:
+		d.logger.Error("Failed deleting instance")
+	}
+
+	// If dealing with a snapshot, refresh the backup file on the parent.
+	if inst.IsSnapshot() {
+		parentName, _, _ := api.GetParentAndSnapshotName(inst.Name())
+
+		// Load the parent.
+		parent, err := instance.LoadByProjectAndName(d.state, d.project.Name, parentName)
+		if err != nil {
+			return fmt.Errorf("Invalid parent: %w", err)
+		}
+
+		// Update the backup file.
+		err = parent.UpdateBackupFile()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // runHooks executes the callback functions returned from a function.
 func (d *common) runHooks(hooks []func() error) error {
 	// Run any post start hooks.

@@ -6124,48 +6124,7 @@ func (d *qemu) init() error {
 
 // Delete the instance.
 func (d *qemu) Delete(force bool) error {
-	unlock, err := d.updateBackupFileLock(context.Background())
-	if err != nil {
-		return err
-	}
-
-	defer unlock()
-
-	// Setup a new operation.
-	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionDelete, nil, false, false)
-	if err != nil {
-		return fmt.Errorf("Failed to create instance delete operation: %w", err)
-	}
-
-	defer op.Done(nil)
-
-	if d.IsRunning() {
-		return api.StatusErrorf(http.StatusBadRequest, "Instance is running")
-	}
-
-	err = d.delete(force)
-	if err != nil {
-		return err
-	}
-
-	// If dealing with a snapshot, refresh the backup file on the parent.
-	if d.IsSnapshot() {
-		parentName, _, _ := api.GetParentAndSnapshotName(d.name)
-
-		// Load the parent.
-		parent, err := instance.LoadByProjectAndName(d.state, d.project.Name, parentName)
-		if err != nil {
-			return fmt.Errorf("Invalid parent: %w", err)
-		}
-
-		// Update the backup file.
-		err = parent.UpdateBackupFile()
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return d.deleteCommon(d, force)
 }
 
 // Delete the instance without creating an operation lock.
