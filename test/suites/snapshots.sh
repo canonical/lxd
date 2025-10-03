@@ -505,10 +505,10 @@ snapshot_restore_description() {
   echo "Setting description to: ${test_description}"
   temp_yaml=$(mktemp)
   lxc config show "${instance_name}" > "${temp_yaml}"
-  
+
   sed -i "/^description:/d" "${temp_yaml}"  # Remove existing description if any
   sed -i "1a description: ${test_description}" "${temp_yaml}"
-  
+
   # Apply the configuration using config edit
   lxc config edit "${instance_name}" < "${temp_yaml}" 
   rm -f "${temp_yaml}"
@@ -535,19 +535,19 @@ snapshot_restore_description() {
   echo "==> Creating snapshot"
 
   lxc snapshot "${instance_name}" "test-snap"
-  
+
   if ! lxc info "${instance_name}" | grep "test-snap" > /dev/null; then
     echo "ERROR: Snapshot creation failed"
     lxc delete -f "${instance_name}"
     return 1
-  fi 
+  fi
 
   echo "Snapshot created successfully"
 
   # Modify Description After Snapshot Taken (to test that restore reverts this)
 
   echo "==> Modifying configuration to test restore"
-  
+
   temp_yaml_modified=$(mktemp)
   lxc config show "${instance_name}" > "${temp_yaml_modified}"
   sed -i "/^description:/d" "${temp_yaml_modified}"
@@ -566,7 +566,7 @@ snapshot_restore_description() {
   # Restore
 
   echo "==> Restoring from snapshot"
-  
+
   lxc restore "${instance_name}" "test-snap"
   echo "Restoration completed"
 
@@ -575,7 +575,7 @@ snapshot_restore_description() {
   echo "==> Verifying description after restore"
 
   restored_description=$(lxc config show "${instance_name}" | grep "^description:" | cut -d' ' -f2-)
-  
+
   if [ -z "${restored_description}" ]; then
     echo "ERROR: Description is empty or missing after snapshot restore!"
     echo "Current config:"
@@ -598,5 +598,4 @@ snapshot_restore_description() {
 
   echo "==> Cleaning up"
   lxc delete -f "${instance_name}"
-
 }
