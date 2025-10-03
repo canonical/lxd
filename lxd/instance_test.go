@@ -254,7 +254,7 @@ func (suite *containerTestSuite) TestContainer_IsPrivileged_Privileged() {
 	suite.Req.NoError(err)
 	op.Done(nil)
 	suite.Req.True(c.IsPrivileged(), "This container should be privileged.")
-	suite.Req.NoError(c.Delete(true, ""), "Failed to delete the container.")
+	suite.Req.NoError(c.Delete(true, ""), "Failed deleting the container.")
 }
 
 func (suite *containerTestSuite) TestContainer_AddRoutedNicValidation() {
@@ -340,7 +340,7 @@ func (suite *containerTestSuite) TestContainer_IsPrivileged_Unprivileged() {
 	suite.Req.NoError(err)
 	op.Done(nil)
 	suite.Req.False(c.IsPrivileged(), "This container should be unprivileged.")
-	suite.Req.NoError(c.Delete(true, ""), "Failed to delete the container.")
+	suite.Req.NoError(c.Delete(true, ""), "Failed deleting the container.")
 }
 
 func (suite *containerTestSuite) TestContainer_Rename() {
