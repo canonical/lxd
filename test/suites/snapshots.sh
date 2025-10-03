@@ -484,10 +484,18 @@ test_snap_restore_preserves_description() {
 
 snapshot_restore_description() {
   local pool="$1"
-  local instance_name="test-description-restore-$(date +%s)"
-  local test_description="test_instance_created_$(date +%s)"
+  local instance_name
+  local test_description
+  local temp_yaml
+  local original_description
+  local temp_yaml_modified
+  local modified_description
+  local restored_description
 
   ensure_import_testimage
+  
+  instance_name="test-description-restore-$(date +%s)"
+  test_description="test_instance_created_$(date +%s)"
 
   echo "==> Testing snapshot restore preserves instance description"
   
@@ -495,7 +503,7 @@ snapshot_restore_description() {
   lxc launch ubuntu:24.04 "${instance_name}"
 
   echo "Setting description to: ${test_description}"
-  local temp_yaml=$(mktemp)
+  temp_yaml=$(mktemp)
   lxc config show "${instance_name}" > "${temp_yaml}"
   
   sed -i "/^description:/d" "${temp_yaml}"  # Remove existing description if any
@@ -513,7 +521,7 @@ snapshot_restore_description() {
     return 1
   fi
 
-  local original_description=$(lxc config show "${instance_name}" | grep "^description:" | cut -d' ' -f2-)
+  original_description=$(lxc config show "${instance_name}" | grep "^description:" | cut -d' ' -f2-)
   if [ "${original_description}" != "${test_description}" ]; then
     echo "ERROR: Description extraction failed. Expected: '${test_description}', Got: '${original_description}'"
     lxc delete -f "${instance_name}"
@@ -540,14 +548,13 @@ snapshot_restore_description() {
 
   echo "==> Modifying configuration to test restore"
   
-  local temp_yaml_modified=$(mktemp)
+  temp_yaml_modified=$(mktemp)
   lxc config show "${instance_name}" > "${temp_yaml_modified}"
   sed -i "/^description:/d" "${temp_yaml_modified}"
-  cat "${temp_yaml_modified}" | lxc config edit "${instance_name}"
+  lxc config edit "${instance_name}" < "${temp_yaml_modified}"
   rm -f "${temp_yaml_modified}"
 
-  local modified_description=$(lxc config show "${instance_name}" | grep "^description:" | cut -d' ' -f2-)
-  
+  modified_description=$(lxc config show "${instance_name}" | grep "^description:" | cut -d' ' -f2-)
   if $modified_description != ""; then
     echo "ERROR: Failed to remove description for test"
     lxc delete -f "${instance_name}"
@@ -567,7 +574,7 @@ snapshot_restore_description() {
 
   echo "==> Verifying description after restore"
 
-  local restored_description=$(lxc config show "${instance_name}" | grep "^description:" | cut -d' ' -f2-)
+  restored_description=$(lxc config show "${instance_name}" | grep "^description:" | cut -d' ' -f2-)
   
   if [ -z "${restored_description}" ]; then
     echo "ERROR: Description is empty or missing after snapshot restore!"
