@@ -476,3 +476,120 @@ test_snap_fail() {
 
   lxc delete --force c1
 }
+
+test_snap_restore_preserves_description() {
+  # Test that instance description is preserved after snapshot restore
+  snapshot_restore_description "lxdtest-$(basename "${LXD_DIR}")"
+}
+
+snapshot_restore_description() {
+  local pool="$1"
+  local instance_name="test-description-restore-$(date +%s)"
+  local test_description="test_instance_created_$(date +%s)"
+
+  ensure_import_testimage
+
+  echo "==> Testing snapshot restore preserves instance description"
+  
+  # Create instance and set description
+  lxc launch ubuntu:24.04 "${instance_name}"
+
+  echo "Setting description to: ${test_description}"
+  local temp_yaml=$(mktemp)
+  lxc config show "${instance_name}" > "${temp_yaml}"
+  
+  sed -i "/^description:/d" "${temp_yaml}"  # Remove existing description if any
+  sed -i "1a description: ${test_description}" "${temp_yaml}"
+  
+  # Apply the configuration using config edit
+  cat "${temp_yaml}" | lxc config edit "${instance_name}"
+  rm -f "${temp_yaml}"
+  echo "==> Verifying description before snapshot"
+
+  # Verify description is set correctly
+  if ! lxc config show "${instance_name}" | grep -q "description: ${test_description}"; then
+    echo "ERROR: Description not set correctly before snapshot"
+    lxc delete -f "${instance_name}"
+    return 1
+  fi
+
+  local original_description=$(lxc config show "${instance_name}" | grep "^description:" | cut -d' ' -f2-)
+  if [ "${original_description}" != "${test_description}" ]; then
+    echo "ERROR: Description extraction failed. Expected: '${test_description}', Got: '${original_description}'"
+    lxc delete -f "${instance_name}"
+    return 1
+  fi
+
+  echo "Description verified before snapshot: ${original_description}"
+
+  # Create Snapshot
+
+  echo "==> Creating snapshot"
+
+  lxc snapshot "${instance_name}" "test-snap"
+  
+  if ! lxc info "${instance_name}" | grep -q "test-snap"; then
+    echo "ERROR: Snapshot creation failed"
+    lxc delete -f "${instance_name}"
+    return 1
+  fi 
+
+  echo "Snapshot created successfully"
+
+  # Modify Description After Snapshot Taken (to test that restore reverts this)
+
+  echo "==> Modifying configuration to test restore"
+  
+  local temp_yaml_modified=$(mktemp)
+  lxc config show "${instance_name}" > "${temp_yaml_modified}"
+  sed -i "/^description:/d" "${temp_yaml_modified}"
+  cat "${temp_yaml_modified}" | lxc config edit "${instance_name}"
+  rm -f "${temp_yaml_modified}"
+
+  local modified_description=$(lxc config show "${instance_name}" | grep "^description:" | cut -d' ' -f2-)
+  
+  if $modified_description != ""; then
+    echo "ERROR: Failed to remove description for test"
+    lxc delete -f "${instance_name}"
+    return 1
+  fi
+
+  echo "Configuration modified for testing (description removed)"
+
+  # Restore
+
+  echo "==> Restoring from snapshot"
+  
+  lxc restore "${instance_name}" "test-snap"
+  echo "Restoration completed"
+
+  # Verifying Description After Restore
+
+  echo "==> Verifying description after restore"
+
+  local restored_description=$(lxc config show "${instance_name}" | grep "^description:" | cut -d' ' -f2-)
+  
+  if [ -z "${restored_description}" ]; then
+    echo "ERROR: Description is empty or missing after snapshot restore!"
+    echo "Current config:"
+    lxc config show "${instance_name}"
+    lxc delete -f "${instance_name}"
+    return 1
+  fi
+
+  if [ "${restored_description}" != "${test_description}" ]; then
+    echo "ERROR: Description not preserved after snapshot restore!"
+    echo "Expected: '${test_description}'"
+    echo "Got: '${restored_description}'"
+    lxc delete -f "${instance_name}"
+    return 1
+  fi
+
+  echo "Description successfully preserved after restore: ${restored_description}"
+
+  # Clean up
+
+  echo "==> Cleaning up"
+  lxc delete -f "${instance_name}"
+
+}
