@@ -510,7 +510,7 @@ snapshot_restore_description() {
   sed -i "1a description: ${test_description}" "${temp_yaml}"
   
   # Apply the configuration using config edit
-  cat "${temp_yaml}" | lxc config edit "${instance_name}"
+  lxc config edit "${instance_name}" < "${temp_yaml}" 
   rm -f "${temp_yaml}"
   echo "==> Verifying description before snapshot"
 
