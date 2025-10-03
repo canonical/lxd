@@ -135,6 +135,7 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 				return err
 			}
 		}
+
 		return nil
 	}
 
