@@ -197,6 +197,10 @@ func (d *qemu) getQemuCPUMetrics(monitor *qmp.Monitor) (map[string]metrics.CPUMe
 
 		fields := strings.Fields(string(content))
 
+		if len(fields) < 43 {
+			return nil, fmt.Errorf("Expected at least 43 fields in %q, got %d", statFile, len(fields))
+		}
+
 		stats := metrics.CPUMetrics{}
 
 		stats.SecondsUser, err = strconv.ParseFloat(fields[13], 64)
