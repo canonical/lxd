@@ -11,13 +11,18 @@ import (
 
 // If the givne values contain invalid keys, they are ignored.
 func TestSafeLoad_IgnoreInvalidKeys(t *testing.T) {
-	schema := config.Schema{"bar": {}}
+	schema := config.Schema{
+		Types: map[string]config.Key{
+			"bar": {},
+		},
+	}
+
 	values := map[string]string{
 		"foo": "garbage",
 		"bar": "x",
 	}
 
-	m, err := config.SafeLoad(schema, values)
+	m, err := config.SafeLoad(&schema, values)
 	require.NoError(t, err)
 
 	assert.Equal(t, map[string]string{"bar": "x"}, m.Dump())

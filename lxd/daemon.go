@@ -1639,10 +1639,13 @@ func (d *Daemon) init() error {
 			return fmt.Errorf("Failed to get project names: %w", err)
 		}
 
+		node.ConfigSchema.Lock()
 		for _, project := range projects {
-			node.ConfigSchema["storage.project."+project+".images_volume"] = config.Key{}
-			node.ConfigSchema["storage.project."+project+".backups_volume"] = config.Key{}
+			node.ConfigSchema.Types["storage.project."+project+".images_volume"] = config.Key{}
+			node.ConfigSchema.Types["storage.project."+project+".backups_volume"] = config.Key{}
 		}
+
+		node.ConfigSchema.Unlock()
 
 		return nil
 	})

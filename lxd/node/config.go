@@ -28,7 +28,7 @@ func ConfigLoad(ctx context.Context, tx *db.NodeTx) (*Config, error) {
 		return nil, fmt.Errorf("Cannot fetch node config from database: %w", err)
 	}
 
-	m, err := config.SafeLoad(ConfigSchema, values)
+	m, err := config.SafeLoad(&ConfigSchema, values)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to load node config: %w", err)
 	}
@@ -178,136 +178,138 @@ func (c *Config) update(values map[string]string) (map[string]string, error) {
 
 // ConfigSchema defines available server configuration keys.
 var ConfigSchema = config.Schema{
-	// Network address for this LXD server
+	Types: map[string]config.Key{
+		// Network address for this LXD server
 
-	// lxdmeta:generate(entities=server; group=core; key=core.https_address)
-	// See {ref}`server-expose`.
-	// ---
-	//  type: string
-	//  scope: local
-	//  shortdesc: Address to bind for the remote API (HTTPS)
-	"core.https_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
+		// lxdmeta:generate(entities=server; group=core; key=core.https_address)
+		// See {ref}`server-expose`.
+		// ---
+		//  type: string
+		//  scope: local
+		//  shortdesc: Address to bind for the remote API (HTTPS)
+		"core.https_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
 
-	// Network address for cluster communication
+		// Network address for cluster communication
 
-	// lxdmeta:generate(entities=server; group=cluster; key=cluster.https_address)
-	// See {ref}`cluster-https-address`.
-	// ---
-	//  type: string
-	//  scope: local
-	//  shortdesc: Address to use for clustering traffic
-	"cluster.https_address": {Validator: validate.Optional(validate.IsListenAddress(true, false, false))},
+		// lxdmeta:generate(entities=server; group=cluster; key=cluster.https_address)
+		// See {ref}`cluster-https-address`.
+		// ---
+		//  type: string
+		//  scope: local
+		//  shortdesc: Address to use for clustering traffic
+		"cluster.https_address": {Validator: validate.Optional(validate.IsListenAddress(true, false, false))},
 
-	// Network address for the BGP server
+		// Network address for the BGP server
 
-	// lxdmeta:generate(entities=server; group=core; key=core.bgp_address)
-	// See {ref}`network-bgp`.
-	// ---
-	//  type: string
-	//  scope: local
-	//  shortdesc: Address to bind the BGP server to
-	"core.bgp_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
+		// lxdmeta:generate(entities=server; group=core; key=core.bgp_address)
+		// See {ref}`network-bgp`.
+		// ---
+		//  type: string
+		//  scope: local
+		//  shortdesc: Address to bind the BGP server to
+		"core.bgp_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
 
-	// Unique router ID for the BGP server
+		// Unique router ID for the BGP server
 
-	// lxdmeta:generate(entities=server; group=core; key=core.bgp_routerid)
-	// The identifier must be formatted as an IPv4 address.
-	// ---
-	//  type: string
-	//  scope: local
-	//  shortdesc: A unique identifier for the BGP server
-	"core.bgp_routerid": {Validator: validate.Optional(validate.IsNetworkAddressV4)},
+		// lxdmeta:generate(entities=server; group=core; key=core.bgp_routerid)
+		// The identifier must be formatted as an IPv4 address.
+		// ---
+		//  type: string
+		//  scope: local
+		//  shortdesc: A unique identifier for the BGP server
+		"core.bgp_routerid": {Validator: validate.Optional(validate.IsNetworkAddressV4)},
 
-	// Network address for the debug server
+		// Network address for the debug server
 
-	// lxdmeta:generate(entities=server; group=core; key=core.debug_address)
-	//
-	// ---
-	//  type: string
-	//  scope: local
-	//  shortdesc: Address to bind the [`pprof`](https://pkg.go.dev/net/http/pprof) debug server to (HTTP)
-	"core.debug_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
+		// lxdmeta:generate(entities=server; group=core; key=core.debug_address)
+		//
+		// ---
+		//  type: string
+		//  scope: local
+		//  shortdesc: Address to bind the [`pprof`](https://pkg.go.dev/net/http/pprof) debug server to (HTTP)
+		"core.debug_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
 
-	// Network address for the DNS server
+		// Network address for the DNS server
 
-	// lxdmeta:generate(entities=server; group=core; key=core.dns_address)
-	// See {ref}`network-dns-server`.
-	// ---
-	//  type: string
-	//  scope: local
-	//  shortdesc: Address to bind the authoritative DNS server to
-	"core.dns_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
+		// lxdmeta:generate(entities=server; group=core; key=core.dns_address)
+		// See {ref}`network-dns-server`.
+		// ---
+		//  type: string
+		//  scope: local
+		//  shortdesc: Address to bind the authoritative DNS server to
+		"core.dns_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
 
-	// Network address for the metrics server
+		// Network address for the metrics server
 
-	// lxdmeta:generate(entities=server; group=core; key=core.metrics_address)
-	// See {ref}`metrics`.
-	// ---
-	//  type: string
-	//  scope: local
-	//  shortdesc: Address to bind the metrics server to (HTTPS)
-	"core.metrics_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
+		// lxdmeta:generate(entities=server; group=core; key=core.metrics_address)
+		// See {ref}`metrics`.
+		// ---
+		//  type: string
+		//  scope: local
+		//  shortdesc: Address to bind the metrics server to (HTTPS)
+		"core.metrics_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
 
-	// Network address for the storage buckets server
+		// Network address for the storage buckets server
 
-	// lxdmeta:generate(entities=server; group=core; key=core.storage_buckets_address)
-	// See {ref}`howto-storage-buckets`.
-	// ---
-	//  type: string
-	//  scope: local
-	//  shortdesc: Address to bind the storage object server to (HTTPS)
-	"core.storage_buckets_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
+		// lxdmeta:generate(entities=server; group=core; key=core.storage_buckets_address)
+		// See {ref}`howto-storage-buckets`.
+		// ---
+		//  type: string
+		//  scope: local
+		//  shortdesc: Address to bind the storage object server to (HTTPS)
+		"core.storage_buckets_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
 
-	// Syslog socket
+		// Syslog socket
 
-	// lxdmeta:generate(entities=server; group=core; key=core.syslog_socket)
-	// Set this option to `true` to enable the syslog unixgram socket to receive log messages from external processes.
-	// ---
-	//  type: bool
-	//  scope: local
-	//  defaultdesc: `false`
-	//  shortdesc: Whether to enable the syslog unixgram socket listener
-	"core.syslog_socket": {Validator: validate.Optional(validate.IsBool), Type: config.Bool},
+		// lxdmeta:generate(entities=server; group=core; key=core.syslog_socket)
+		// Set this option to `true` to enable the syslog unixgram socket to receive log messages from external processes.
+		// ---
+		//  type: bool
+		//  scope: local
+		//  defaultdesc: `false`
+		//  shortdesc: Whether to enable the syslog unixgram socket listener
+		"core.syslog_socket": {Validator: validate.Optional(validate.IsBool), Type: config.Bool},
 
-	// MAAS machine this LXD instance is associated with
+		// MAAS machine this LXD instance is associated with
 
-	// lxdmeta:generate(entities=server; group=miscellaneous; key=maas.machine)
-	//
-	// ---
-	//  type: string
-	//  scope: local
-	//  defaultdesc: host name
-	//  shortdesc: Name of this LXD host in MAAS
-	"maas.machine": {},
+		// lxdmeta:generate(entities=server; group=miscellaneous; key=maas.machine)
+		//
+		// ---
+		//  type: string
+		//  scope: local
+		//  defaultdesc: host name
+		//  shortdesc: Name of this LXD host in MAAS
+		"maas.machine": {},
 
-	// Storage volumes to store backups/images on
+		// Storage volumes to store backups/images on
 
-	// lxdmeta:generate(entities=server; group=miscellaneous; key=storage.backups_volume)
-	// Specify the volume using the syntax `POOL/VOLUME`.
-	// ---
-	//  type: string
-	//  scope: local
-	//  shortdesc: Volume to use to store backup tarballs
-	"storage.backups_volume": {},
-	// lxdmeta:generate(entities=server; group=miscellaneous; key=storage.images_volume)
-	// Specify the volume using the syntax `POOL/VOLUME`.
-	// ---
-	//  type: string
-	//  scope: local
-	//  shortdesc: Volume to use to store the image tarballs
-	"storage.images_volume": {},
+		// lxdmeta:generate(entities=server; group=miscellaneous; key=storage.backups_volume)
+		// Specify the volume using the syntax `POOL/VOLUME`.
+		// ---
+		//  type: string
+		//  scope: local
+		//  shortdesc: Volume to use to store backup tarballs
+		"storage.backups_volume": {},
+		// lxdmeta:generate(entities=server; group=miscellaneous; key=storage.images_volume)
+		// Specify the volume using the syntax `POOL/VOLUME`.
+		// ---
+		//  type: string
+		//  scope: local
+		//  shortdesc: Volume to use to store the image tarballs
+		"storage.images_volume": {},
 
-	// lxdmeta:generate(entities=server; group=miscellaneous; key=storage.project.{name}.backups_volume)
-	// Specify the volume using the syntax `POOL/VOLUME`.
-	// ---
-	//  type: string
-	//  scope: local
-	//  shortdesc: Volume to use to store project-specific backup tarballs
+		// lxdmeta:generate(entities=server; group=miscellaneous; key=storage.project.{name}.backups_volume)
+		// Specify the volume using the syntax `POOL/VOLUME`.
+		// ---
+		//  type: string
+		//  scope: local
+		//  shortdesc: Volume to use to store project-specific backup tarballs
 
-	// lxdmeta:generate(entities=server; group=miscellaneous; key=storage.project.{name}.images_volume)
-	// Specify the volume using the syntax `POOL/VOLUME`.
-	// ---
-	//  type: string
-	//  scope: local
-	//  shortdesc: Volume to use to store project-specific image tarballs
+		// lxdmeta:generate(entities=server; group=miscellaneous; key=storage.project.{name}.images_volume)
+		// Specify the volume using the syntax `POOL/VOLUME`.
+		// ---
+		//  type: string
+		//  scope: local
+		//  shortdesc: Volume to use to store project-specific image tarballs
+	},
 }

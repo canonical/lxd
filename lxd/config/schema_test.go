@@ -10,8 +10,10 @@ import (
 
 func TestSchema_Defaults(t *testing.T) {
 	schema := config.Schema{
-		"foo": {},
-		"bar": {Default: "x"},
+		Types: map[string]config.Key{
+			"foo": {},
+			"bar": {Default: "x"},
+		},
 	}
 
 	values := map[string]any{"foo": "", "bar": "x"}
@@ -20,8 +22,10 @@ func TestSchema_Defaults(t *testing.T) {
 
 func TestSchema_Keys(t *testing.T) {
 	schema := config.Schema{
-		"foo": {},
-		"bar": {Default: "x"},
+		Types: map[string]config.Key{
+			"foo": {},
+			"bar": {Default: "x"},
+		},
 	}
 
 	keys := []string{"bar", "foo"}

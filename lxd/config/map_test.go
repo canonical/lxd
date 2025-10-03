@@ -14,9 +14,11 @@ import (
 // Loading a config Map initializes it with the given values.
 func TestLoad(t *testing.T) {
 	schema := config.Schema{
-		"foo": {},
-		"bar": {Setter: failingSetter},
-		"egg": {Type: config.Bool},
+		Types: map[string]config.Key{
+			"foo": {},
+			"bar": {Setter: failingSetter},
+			"egg": {Type: config.Bool},
+		},
 	}
 
 	cases := []struct {
@@ -48,7 +50,7 @@ func TestLoad(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			m, err := config.Load(schema, c.values)
+			m, err := config.Load(&schema, c.values)
 			require.NoError(t, err)
 
 			for name, value := range c.result {
@@ -63,25 +65,33 @@ func TestLoad(t *testing.T) {
 func TestLoad_Error(t *testing.T) {
 	var cases = []struct {
 		title   string
-		schema  config.Schema     // Test schema to use
+		schema  *config.Schema    // Test schema to use
 		values  map[string]string // Initial values
 		message string            // Expected error message
 	}{
 		{
 			`schema has no key with the given name`,
-			config.Schema{},
+			&config.Schema{},
 			map[string]string{"bar": ""},
 			`Cannot set "bar" to "": Unknown key`,
 		},
 		{
 			`validation fails`,
-			config.Schema{"foo": {Type: config.Bool}},
+			&config.Schema{
+				Types: map[string]config.Key{
+					"foo": {Type: config.Bool},
+				},
+			},
 			map[string]string{"foo": "yyy"},
 			`Cannot set "foo" to "yyy": Invalid boolean`,
 		},
 		{
 			`only the first of multiple errors is shown (in key name order)`,
-			config.Schema{"foo": {Type: config.Bool}},
+			&config.Schema{
+				Types: map[string]config.Key{
+					"foo": {Type: config.Bool},
+				},
+			},
 			map[string]string{"foo": "yyy", "bar": ""},
 			`Cannot set "bar" to "": Unknown key (and 1 more errors)`,
 		},
@@ -98,10 +108,12 @@ func TestLoad_Error(t *testing.T) {
 // Changing a config Map mutates the initial values.
 func TestChange(t *testing.T) {
 	schema := config.Schema{
-		"foo": {},
-		"bar": {Setter: upperCase},
-		"egg": {Type: config.Bool},
-		"yuk": {Type: config.Bool, Default: "true"},
+		Types: map[string]config.Key{
+			"foo": {},
+			"bar": {Setter: upperCase},
+			"egg": {Type: config.Bool},
+			"yuk": {Type: config.Bool, Default: "true"},
+		},
 	}
 
 	values := map[string]string{ // Initial values
@@ -143,7 +155,7 @@ func TestChange(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			m, err := config.Load(schema, values)
+			m, err := config.Load(&schema, values)
 			require.NoError(t, err)
 
 			_, err = m.Change(c.values)
@@ -159,8 +171,10 @@ func TestChange(t *testing.T) {
 // A map of changed key/value pairs is returned.
 func TestMap_ChangeReturnsChangedKeys(t *testing.T) {
 	schema := config.Schema{
-		"foo": {Type: config.Bool},
-		"bar": {Default: "egg"},
+		Types: map[string]config.Key{
+			"foo": {Type: config.Bool},
+			"bar": {Default: "egg"},
+		},
 	}
 
 	values := map[string]string{"foo": "true"} // Initial values
@@ -199,7 +213,7 @@ func TestMap_ChangeReturnsChangedKeys(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			m, err := config.Load(schema, values)
+			m, err := config.Load(&schema, values)
 			assert.NoError(t, err)
 
 			changed, err := m.Change(c.changes)
@@ -213,8 +227,10 @@ func TestMap_ChangeReturnsChangedKeys(t *testing.T) {
 // returned.
 func TestMap_ChangeError(t *testing.T) {
 	schema := config.Schema{
-		"foo": {Type: config.Bool},
-		"egg": {Setter: failingSetter},
+		Types: map[string]config.Key{
+			"foo": {Type: config.Bool},
+			"egg": {Setter: failingSetter},
+		},
 	}
 
 	var cases = []struct {
@@ -241,7 +257,7 @@ func TestMap_ChangeError(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.message, func(t *testing.T) {
-			m, err := config.Load(schema, nil)
+			m, err := config.Load(&schema, nil)
 			assert.NoError(t, err)
 
 			_, err = m.Change(c.changes)
@@ -253,8 +269,10 @@ func TestMap_ChangeError(t *testing.T) {
 // A Map dump contains only values that differ from their default.
 func TestMap_Dump(t *testing.T) {
 	schema := config.Schema{
-		"foo": {},
-		"bar": {Default: "x"},
+		Types: map[string]config.Key{
+			"foo": {},
+			"bar": {Default: "x"},
+		},
 	}
 
 	values := map[string]string{
@@ -262,7 +280,7 @@ func TestMap_Dump(t *testing.T) {
 		"bar": "x",
 	}
 
-	m, err := config.Load(schema, values)
+	m, err := config.Load(&schema, values)
 	assert.NoError(t, err)
 
 	dump := map[string]string{
@@ -275,9 +293,11 @@ func TestMap_Dump(t *testing.T) {
 // The various GetXXX methods return typed values.
 func TestMap_Getters(t *testing.T) {
 	schema := config.Schema{
-		"foo": {},
-		"bar": {Type: config.Bool},
-		"egg": {Type: config.Int64},
+		Types: map[string]config.Key{
+			"foo": {},
+			"bar": {Type: config.Bool},
+			"egg": {Type: config.Int64},
+		},
 	}
 
 	values := map[string]string{
@@ -286,7 +306,7 @@ func TestMap_Getters(t *testing.T) {
 		"egg": "123",
 	}
 
-	m, err := config.Load(schema, values)
+	m, err := config.Load(&schema, values)
 	assert.NoError(t, err)
 
 	assert.Equal(t, "hello", m.GetString("foo"))
@@ -298,11 +318,13 @@ func TestMap_Getters(t *testing.T) {
 // type.
 func TestMap_GettersPanic(t *testing.T) {
 	schema := config.Schema{
-		"foo": {},
-		"bar": {Type: config.Bool},
+		Types: map[string]config.Key{
+			"foo": {},
+			"bar": {Type: config.Bool},
+		},
 	}
 
-	m, err := config.Load(schema, nil)
+	m, err := config.Load(&schema, nil)
 	assert.NoError(t, err)
 
 	assert.Panics(t, func() { m.GetRaw("egg") })
