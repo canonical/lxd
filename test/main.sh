@@ -500,6 +500,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_shutdown "lxd shutdown sequence"
     run_test test_snapshots "container snapshots"
     run_test test_snap_restore "snapshot restores"
+    run_test test_snap_restore_preserves_description "snapshot preserves description"
     run_test test_snap_expiry "snapshot expiry"
     run_test test_snap_schedule "snapshot scheduling"
     run_test test_snap_volume_db_recovery "snapshot volume database record recovery"
