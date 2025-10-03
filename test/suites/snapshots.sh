@@ -515,7 +515,7 @@ snapshot_restore_description() {
   echo "==> Verifying description before snapshot"
 
   # Verify description is set correctly
-  if ! lxc config show "${instance_name}" | grep -q "description: ${test_description}"; then
+  if ! lxc config show "${instance_name}" | grep "description: ${test_description}" > /dev/null; then
     echo "ERROR: Description not set correctly before snapshot"
     lxc delete -f "${instance_name}"
     return 1
@@ -536,7 +536,7 @@ snapshot_restore_description() {
 
   lxc snapshot "${instance_name}" "test-snap"
   
-  if ! lxc info "${instance_name}" | grep -q "test-snap"; then
+  if ! lxc info "${instance_name}" | grep "test-snap" > /dev/null; then
     echo "ERROR: Snapshot creation failed"
     lxc delete -f "${instance_name}"
     return 1
