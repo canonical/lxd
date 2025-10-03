@@ -6117,7 +6117,7 @@ func (d *qemu) init() error {
 }
 
 // Delete the instance.
-func (d *qemu) Delete(force bool) error {
+func (d *qemu) Delete(force bool, diskVolumesMode string) error {
 	unlock, err := d.updateBackupFileLock(context.Background())
 	if err != nil {
 		return err
