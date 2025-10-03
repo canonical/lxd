@@ -73,6 +73,9 @@ test_exec_exit_code() {
   lxc exec x1 -- false || exitCode=$?
   [ "${exitCode:-0}" -eq 1 ]
 
+  lxc exec x1 -- /root || exitCode=$?
+  [ "${exitCode:-0}" -eq 126 ]
+
   lxc exec x1 -- invalid-command || exitCode=$?
   [ "${exitCode:-0}" -eq 127 ]
 
