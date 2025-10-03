@@ -15,14 +15,13 @@ _lxd_test_completion() {
 
     # Extract all test function names from main.sh
     # Remove 'test_' prefix and 'run_test test_' wrapper
-    local script_dir
-    script_dir="$(dirname "${BASH_SOURCE[0]}")"
-    if [ ! -f "$script_dir/main.sh" ]; then
-        script_dir="$(pwd)"
+    local script_dir="${MAIN_DIR:-}"
+    if [ -z "${script_dir:-}" ]; then
+        script_dir="$(dirname "${BASH_SOURCE[0]}")"
     fi
 
     local tests
-    tests=$(grep -oP 'run_test test_\K[a-z_]+' "$script_dir/main.sh" 2>/dev/null | sort -u)
+    tests="$(grep -ohP '^test_\K[a-zA-Z0-9_]+' "${script_dir}/suites/"*.sh | sort -u)"
 
     # Combine keywords and tests
     local completions="$keywords $tests"
@@ -32,4 +31,3 @@ _lxd_test_completion() {
 
 # Register completion
 complete -F _lxd_test_completion ./main.sh
-complete -F _lxd_test_completion main.sh
