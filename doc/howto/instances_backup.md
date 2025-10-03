@@ -308,6 +308,13 @@ Remember to delete the backup when you don't need it anymore:
 
 See [`POST /1.0/instances/{name}/backups`](swagger:/instances/instance_backups_post), [`GET /1.0/instances/{name}/backups/{backup}/export`](swagger:/instances/instance_backup_export), and [`DELETE /1.0/instances/{name}/backups/{backup}`](swagger:/instances/instance_backup_delete) for more information.
 ````
+````{group-tab} UI
+From the instance detail page, click {guilabel}`Export`.
+
+Modify the default settings if necessary, then export the instance.
+
+Download will start automatically once the export is ready.
+````
 `````
 
 (instances-backup-import-instance)=
@@ -337,6 +344,17 @@ If an instance with that name already (or still) exists in the specified storage
 In this case, delete the existing instance before importing the backup.
 
 See [`POST /1.0/instances`](swagger:/instances/instances_post) for more information.
+```
+```{group-tab} UI
+To import an export file, go to the instance list and click {guilabel}`Create instance`.
+
+From the resulting modal, upload the instance file.
+The instance name and description fields are optional. If you don’t specify the instance name, the name of the export file is used, appended with `-tar-import`.
+
+Click {guilabel}`Choose file`.
+Select the export file, then click {guilabel}`Upload and create`.
+
+The newly created instance will appear in the instance list.
 ```
 ````
 
