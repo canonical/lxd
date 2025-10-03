@@ -110,13 +110,13 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 				defer wg.Done()
 				client, err := Connect(context.Background(), member.Address, networkCert, serverCert, true)
 				if err != nil {
-					errs[i] = fmt.Errorf("Failed to connect to peer %s at %s: %w", member.Name, member.Address, err)
+					errs[i] = fmt.Errorf("Failed connecting to cluster member %q at %q: %w", member.Name, member.Address, err)
 					return
 				}
 
 				err = hook(member, client)
 				if err != nil {
-					errs[i] = fmt.Errorf("Failed to notify peer %s at %s: %w", member.Name, member.Address, err)
+					errs[i] = fmt.Errorf("Failed notifying cluster member %q at %q: %w", member.Name, member.Address, err)
 				}
 			}(i, member)
 		}
