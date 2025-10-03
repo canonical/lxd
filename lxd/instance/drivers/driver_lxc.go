@@ -3426,7 +3426,7 @@ func (d *lxc) cleanup() {
 }
 
 // Delete deletes the instance.
-func (d *lxc) Delete(force bool) error {
+func (d *lxc) Delete(force bool, diskVolumesMode string) error {
 	unlock, err := d.updateBackupFileLock(context.Background())
 	if err != nil {
 		return err
