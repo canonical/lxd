@@ -21,7 +21,7 @@ _lxd_test_completion() {
     fi
 
     local tests
-    tests=$(grep -oP 'run_test test_\K[a-z_]+' "$script_dir/main.sh" 2>/dev/null | sort -u)
+    tests="$(grep -ohP '^test_\K[a-z_]+' "${script_dir}/suites/"*.sh | sort -u)"
 
     # Combine keywords and tests
     local completions="$keywords $tests"
