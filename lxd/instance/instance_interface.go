@@ -102,7 +102,7 @@ type Instance interface {
 	Rename(newName string, applyTemplateTrigger bool) error
 	Update(newConfig db.InstanceArgs, userRequested bool) error
 
-	Delete(force bool) error
+	Delete(force bool, diskVolumesMode string) error
 	Export(w io.Writer, properties map[string]string, expiration time.Time, tracker *ioprogress.ProgressTracker) (api.ImageMetadata, error)
 
 	// Live configuration.
