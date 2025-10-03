@@ -16,6 +16,11 @@ test_metrics() {
   lxc init --empty c4 --project foo2
 
   if [ "${LXD_VM_TESTS:-0}" = "1" ]; then
+    if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
+      echo "Using migration.stateful to force 9p config drive thus avoiding the old/incompatible virtiofsd"
+      lxc profile set default migration.stateful=true
+    fi
+
     lxc launch --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
     lxc init   --vm --empty v2 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
 
@@ -177,6 +182,11 @@ test_metrics() {
     lxc delete v2
     lxc delete -f v3 --project foo
     lxc delete v4 --project foo2
+
+    if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
+      # Cleanup custom changes from the default profile
+      lxc profile unset default migration.stateful
+    fi
   fi
 
   lxc config set core.metrics_address="" core.metrics_authentication=""
