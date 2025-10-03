@@ -1,0 +1,35 @@
+#!/bin/bash
+# Bash completion for test/main.sh
+#
+# To enable tab completion for the test runner, source this file:
+#   source test/main.sh.bash-completion
+#
+# Or add it to your ~/.bashrc:
+#   echo 'source ~/git/lxd/test/main.sh.bash-completion' >> ~/.bashrc
+
+_lxd_test_completion() {
+    local cur="${COMP_WORDS[COMP_CWORD]}"
+
+    # Special keywords
+    local keywords="all cluster standalone test-shell"
+
+    # Extract all test function names from main.sh
+    # Remove 'test_' prefix and 'run_test test_' wrapper
+    local script_dir
+    script_dir="$(dirname "${BASH_SOURCE[0]}")"
+    if [ ! -f "$script_dir/main.sh" ]; then
+        script_dir="$(pwd)"
+    fi
+
+    local tests
+    tests=$(grep -oP 'run_test test_\K[a-z_]+' "$script_dir/main.sh" 2>/dev/null | sort -u)
+
+    # Combine keywords and tests
+    local completions="$keywords $tests"
+
+    mapfile -t COMPREPLY < <(compgen -W "$completions" -- "$cur")
+}
+
+# Register completion
+complete -F _lxd_test_completion ./main.sh
+complete -F _lxd_test_completion main.sh
