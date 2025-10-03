@@ -537,7 +537,10 @@ func (n *physical) Update(newNetwork api.NetworkPut, targetNode string, clientTy
 	// Define a function which reverts everything.
 	revert.Add(func() {
 		// Reset changes to all nodes and database.
-		_ = n.update(oldNetwork, targetNode, clientType)
+		err := n.update(oldNetwork, targetNode, clientType)
+		if err != nil {
+			n.logger.Warn("Failed reverting network update", logger.Ctx{"err": err})
+		}
 	})
 
 	// Apply changes to all nodes and databse.
