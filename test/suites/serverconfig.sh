@@ -1,6 +1,4 @@
 test_server_config() {
-  LXD_SERVERCONFIG_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_SERVERCONFIG_DIR}" true
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   _server_config_access
@@ -8,8 +6,6 @@ test_server_config() {
   _server_config_auth
   _server_config_cluster_uuid
   _server_config_user_microcloud
-
-  kill_lxd "${LXD_SERVERCONFIG_DIR}"
 }
 
 _server_config_cluster_uuid() {
@@ -49,23 +45,24 @@ _server_config_auth() {
 
   # Lower the oidc session expiry to one hour, then check that the auth secret expiry still
   # cannot be set to less than one day.
-  lxc config set oidc.session.expiry='1H'
-  lxc config set core.auth_secret_expiry='1d'
+  lxc config set oidc.session.expiry='1H' core.auth_secret_expiry='1d'
   ! lxc config set core.auth_secret_expiry='23H 59M 59S' || false
   lxc config set core.auth_secret_expiry='23H 59M 60S'
   ! lxc config set core.auth_secret_expiry='1439M 59S' || false
   lxc config set core.auth_secret_expiry='1439M 60S'
   ! lxc config set core.auth_secret_expiry='86399S' || false
   lxc config set core.auth_secret_expiry='86400S'
-  lxc config unset core.auth_secret_expiry
+
+  # Cleanup
+  lxc config set oidc.session.expiry="" core.auth_secret_expiry=""
 }
 
 _server_config_access() {
   # test untrusted server GET
-  ! my_curl -X GET "https://$(< "${LXD_SERVERCONFIG_DIR}/lxd.addr")/1.0" | grep -wF "environment" || false
+  ! my_curl "https://$(< "${LXD_ADDR}")/1.0" | grep -wF "environment" || false
 
   # test authentication type, only tls is enabled by default
-  [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0" | jq -r '.metadata.auth_methods | .[]')" = "tls" ]
+  curl --silent --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0" | jq --exit-status '.metadata.auth_methods | .[] == "tls"'
 
   # test fetch metadata validation.
   [ "$(curl --silent --unix-socket "$LXD_DIR/unix.socket" -w "%{http_code}" -o /dev/null -H 'Sec-Fetch-Site: same-origin' "lxd/1.0")" = "200" ]
@@ -162,21 +159,19 @@ _server_config_storage() {
   lxc stop -f foo
   lxc publish foo --alias fooimage
 
-  # Launch container from published image on custom volume.
+  # Init container from published image on custom volume.
   lxc init fooimage foo2
-  lxc delete -f foo2
+  lxc delete foo2
   lxc image delete fooimage
 
   # Put both storages on the same shared volume
   lxc storage volume create "${pool}" shared
-  lxc config unset storage.backups_volume
-  lxc config unset storage.images_volume
+  lxc config set storage.backups_volume="" storage.images_volume=""
   lxc config set storage.backups_volume "${pool}/shared"
   lxc config set storage.images_volume "${pool}/shared"
 
   # Unset the config and remove the volumes
-  lxc config unset storage.backups_volume
-  lxc config unset storage.images_volume
+  lxc config set storage.backups_volume="" storage.images_volume=""
   lxc storage volume delete "${pool}" backups
   lxc storage volume delete "${pool}" images
   lxc storage volume delete "${pool}" shared
@@ -204,18 +199,16 @@ _server_config_user_microcloud() {
   # Set config key user.microcloud, which is readable by untrusted clients
   lxc config set user.microcloud true
   [ "$(lxc config get user.microcloud)" = "true" ]
-  [ "$(curl "https://${LXD_ADDR}/1.0" --insecure | jq '.metadata.config["user.microcloud"]')" = '"true"' ]
+  curl --silent --insecure "https://${LXD_ADDR}/1.0" | jq --exit-status '.metadata.config["user.microcloud"] == "true"'
 
   # Set config key user.foo, which is not exposed to untrusted clients
   lxc config set user.foo bar
   [ "$(lxc config get user.foo)" = "bar" ]
-  [ "$(curl "https://${LXD_ADDR}/1.0" --insecure | jq '.metadata.config["user.foo"]')" = 'null' ]
+  curl --silent --insecure "https://${LXD_ADDR}/1.0" | jq --exit-status '.metadata.config["user.foo"] == null'
 
   # Unset all config and check it worked
-  lxc config unset user.microcloud
-  lxc config unset user.foo
+  lxc config set user.microcloud="" user.foo=""
   [ "$(lxc config get user.microcloud || echo fail)" = "" ]
   [ "$(lxc config get user.foo || echo fail)" = "" ]
-  [ "$(curl "https://${LXD_ADDR}/1.0" --insecure | jq '.metadata.config["user.microcloud"]')" = 'null' ]
-  [ "$(curl "https://${LXD_ADDR}/1.0" --insecure | jq '.metadata.config["user.foo"]')" = 'null' ]
+  curl --silent --insecure "https://${LXD_ADDR}/1.0" | jq --exit-status '.metadata.config == null'
 }
