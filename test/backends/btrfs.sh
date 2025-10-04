@@ -8,7 +8,7 @@ btrfs_configure() {
   local LXD_DIR="${1}"
   local POOL_NAME="${2:-"lxdtest-${LXD_DIR##*/}"}" # Use the last part of the LXD_DIR as pool name
 
-  lxc storage create "${POOL_NAME}" btrfs size=1GiB
+  lxc storage create "${POOL_NAME}" btrfs size="${DEFAULT_POOL_SIZE}"
   lxc profile device add default root disk path="/" pool="${POOL_NAME}"
 
   echo "==> Configuring btrfs backend in ${LXD_DIR}"
