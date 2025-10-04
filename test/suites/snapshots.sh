@@ -149,7 +149,7 @@ EOF
   [ ! -d "${LXD_DIR}/containers/foosnap1" ]
 }
 
-test_snap_restore() {
+test_snapshot_restore() {
   snap_restore "lxdtest-$(basename "${LXD_DIR}")"
 
   if [ "$(storage_backend "$LXD_DIR")" = "lvm" ]; then
@@ -393,7 +393,7 @@ restore_and_compare_fs() {
   fi
 }
 
-test_snap_expiry() {
+test_snapshot_expiry() {
   local lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
 
@@ -427,7 +427,7 @@ test_snap_expiry() {
   lxc delete c1 c2
 }
 
-test_snap_schedule() {
+test_snapshot_schedule() {
   local lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
 
@@ -452,7 +452,7 @@ test_snap_schedule() {
   lxc delete -f c1 c2 c3 c4 c5
 }
 
-test_snap_volume_db_recovery() {
+test_snapshot_volume_db_recovery() {
   local lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
 
@@ -476,12 +476,12 @@ test_snap_volume_db_recovery() {
   lxc delete -f c1
 }
 
-test_snap_fail() {
+test_snapshot_fail() {
   local lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
 
   if [ "${lxd_backend}" != "zfs" ]; then
-    echo "==> SKIP: test_snap_fail only supports 'zfs', not ${lxd_backend}"
+    echo "==> SKIP: test_snapshot_fail only supports 'zfs', not ${lxd_backend}"
     return
   fi
 
