@@ -388,6 +388,24 @@ export LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
 # This must be enough to accomodate the busybox testimage
 export SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
 
+# This must be enough to accomodate the ubuntu-minimal-daily:24.04 image
+export SMALLEST_VM_ROOT_DISK="3584MiB"
+export SMALL_VM_ROOT_DISK="${SMALL_VM_ROOT_DISK:-"root,size=${SMALLEST_VM_ROOT_DISK}"}"
+
+# Spawn an interactive test shell when invoked as `./main.sh test-shell`.
+# This is useful for quick interactions with LXD and its test suite.
+if [ "${1:-"all"}" = "test-shell" ]; then
+  bash --rcfile test-shell.bashrc || true
+  TEST_CURRENT="test-shell"
+  TEST_CURRENT_DESCRIPTION="n/a"
+  TEST_RESULT=success
+  exit 0
+fi
+
+if [ -n "${SHELL_TRACING:-}" ]; then
+  set -x
+fi
+
 # allow for running a specific set of tests possibly multiple times
 if [ "$#" -gt 0 ] && [ "$1" != "all" ] && [ "$1" != "cluster" ] && [ "$1" != "standalone" ]; then
   for t in "${@}"; do
