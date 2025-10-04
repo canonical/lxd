@@ -28,9 +28,7 @@ github.com/muhlemmer/gu
 github.com/pkg/sftp
 github.com/pkg/sftp/internal/encoding/ssh/filexfer
 github.com/pkg/sftp/internal/encoding/ssh/filexfer/openssh
-github.com/pkg/xattr
 github.com/sirupsen/logrus
-github.com/sirupsen/logrus/hooks/syslog
 github.com/sirupsen/logrus/hooks/writer
 github.com/zitadel/logging
 github.com/zitadel/oidc/v3/internal/otel
@@ -68,11 +66,11 @@ golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
 golang.org/x/net/internal/socks
 golang.org/x/net/proxy
-golang.org/x/net/publicsuffix
 golang.org/x/oauth2
 golang.org/x/oauth2/clientcredentials
 golang.org/x/oauth2/internal
 golang.org/x/sys/unix
+golang.org/x/term
 golang.org/x/text/cases
 golang.org/x/text/internal
 golang.org/x/text/internal/language
@@ -92,7 +90,6 @@ vendor/golang.org/x/net/http/httpguts
 vendor/golang.org/x/net/http/httpproxy
 vendor/golang.org/x/net/http2/hpack
 vendor/golang.org/x/net/idna
-vendor/golang.org/x/sys/cpu
 vendor/golang.org/x/text/secure/bidirule
 vendor/golang.org/x/text/transform
 vendor/golang.org/x/text/unicode/bidi
