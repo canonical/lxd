@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -13,7 +12,6 @@ import (
 	"github.com/canonical/lxd/lxd/instance/drivers/qmp"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/metrics"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/units"
 )
@@ -174,24 +172,34 @@ func (d *qemu) getQemuCPUMetrics(monitor *qmp.Monitor) (map[string]metrics.CPUMe
 
 	cpuMetrics := map[string]metrics.CPUMetrics{}
 
+	pid, err := d.pid()
+	if err != nil {
+		return nil, err
+	}
+
+	// A PID of 0 means the process isn't running.
+	if pid < 1 {
+		return nil, fmt.Errorf("Invalid PID %d", pid)
+	}
+
 	for i, threadID := range threadIDs {
-		pid, err := os.ReadFile(d.pidFilePath())
-		if err != nil {
-			return nil, err
-		}
-
-		statFile := filepath.Join("/proc", strings.TrimSpace(string(pid)), "task", strconv.Itoa(threadID), "stat")
-
-		if !shared.PathExists(statFile) {
-			continue
-		}
+		statFile := fmt.Sprintf("/proc/%d/task/%d/stat", pid, threadID)
 
 		content, err := os.ReadFile(statFile)
 		if err != nil {
+			// Ignore PID or TID disappearing.
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+
 			return nil, err
 		}
 
 		fields := strings.Fields(string(content))
+
+		if len(fields) < 43 {
+			return nil, fmt.Errorf("Expected at least 43 fields in %q, got %d", statFile, len(fields))
+		}
 
 		stats := metrics.CPUMetrics{}
 
