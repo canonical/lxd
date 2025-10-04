@@ -6,7 +6,7 @@ btrfs_setup() {
 
 btrfs_configure() {
   local LXD_DIR="${1}"
-  local POOL_NAME="lxdtest-${LXD_DIR##*/}" # Use the last part of the LXD_DIR as pool name
+  local POOL_NAME="${2:-"lxdtest-${LXD_DIR##*/}"}" # Use the last part of the LXD_DIR as pool name
 
   lxc storage create "${POOL_NAME}" btrfs size=1GiB
   lxc profile device add default root disk path="/" pool="${POOL_NAME}"
