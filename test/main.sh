@@ -427,7 +427,7 @@ if [ -n "${SHELL_TRACING:-}" ]; then
 fi
 
 # allow for running a specific set of tests possibly multiple times
-if [ "$#" -gt 0 ] && [ "$1" != "all" ] && [ "$1" != "cluster" ] && [ "$1" != "standalone" ]; then
+if [ "$#" -gt 0 ] && [ "$1" != "all" ] && [ "$1" != "cluster" ] && [ "$1" != "snap" ] && [ "$1" != "standalone" ]; then
   for t in "${@}"; do
     RUN_COUNT=1
     while [ "${RUN_COUNT}" -le "${LXD_REPEAT_TESTS:-1}" ]; do
@@ -441,7 +441,7 @@ if [ "$#" -gt 0 ] && [ "$1" != "all" ] && [ "$1" != "cluster" ] && [ "$1" != "st
   exit
 fi
 
-if [ "${1:-"all"}" != "standalone" ]; then
+if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_enable "clustering enable"
     run_test test_clustering_edit_configuration "clustering config edit"
     run_test test_clustering_membership "clustering membership"
@@ -485,7 +485,7 @@ if [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_waitready "clustering waitready"
 fi
 
-if [ "${1:-"all"}" != "cluster" ]; then
+if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "cluster" ]; then
     run_test test_concurrent "concurrent startup"
     run_test test_concurrent_exec "concurrent exec"
     run_test test_database_restore "database restore"
@@ -639,6 +639,14 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_syslog_socket "Syslog socket"
     run_test test_lxd_user "lxd user"
     run_test test_waitready "waitready"
+fi
+
+if [ "${1:-"all"}" != "cluster" ] && [ "${1:-"all"}" != "standalone" ]; then
+    run_test test_snap_basic_usage_vm "snap basic usage VM"
+    run_test test_snap_console_vm "snap console VM"
+    run_test test_snap_devlxd_vm "snap devlxd VM"
+    run_test test_snap_lxd_user "snap lxd-user"
+    run_test test_snap_storage_volume_attach_vm "snap attaching storage volumes to VMs"
 fi
 
 # shellcheck disable=SC2034
