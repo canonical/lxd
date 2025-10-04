@@ -10,7 +10,7 @@ lvm_configure() {
 
   echo "==> Configuring lvm backend in ${LXD_DIR}"
 
-  lxc storage create "${POOL_NAME}" lvm volume.size=25MiB size=1GiB
+  lxc storage create "${POOL_NAME}" lvm volume.size="${DEFAULT_VOLUME_SIZE}" size="${DEFAULT_POOL_SIZE}"
   lxc profile device add default root disk path="/" pool="${POOL_NAME}"
 }
 
