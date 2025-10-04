@@ -282,7 +282,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: ["cluster", "standalone"]
+        suite: ["cluster", "standalone", "snap"]
         backend: ["dir", "btrfs", "lvm", "zfs", "ceph", "random"]
 
     steps:
