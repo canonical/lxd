@@ -574,14 +574,14 @@ func validatePoolCommonRules() map[string]func(string) error {
 		// ---
 		//  type: string
 		//  shortdesc: Existing CephFS file system or file system path to use
-		//  scope: local
+		//  scope: global
 
 		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=source)
 		//
 		// ---
 		//  type: string
 		//  shortdesc: Existing OSD storage pool to use
-		//  scope: local
+		//  scope: global
 
 		// lxdmeta:generate(entities=storage-dir; group=pool-conf; key=source)
 		//
