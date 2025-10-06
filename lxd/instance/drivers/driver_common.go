@@ -1026,7 +1026,6 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 		attachedVolumeUUIDs := make(map[string]string)
 		instanceProject := inst.Project()
 		instanceType := inst.Type()
-		instanceName := inst.Name()
 		for _, volume := range attachedVolumes {
 			// Skip ISO volumes (snapshots not supported).
 			if volume.ContentType == dbCluster.StoragePoolVolumeContentTypeNameISO {
@@ -1042,7 +1041,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 			}
 
 			// Attached volume snapshot description.
-			description := "Created alongside " + instanceType.String() + " " + instanceName + "/" + snapshotName + " in project " + instanceProject.Name
+			description := "Created alongside " + instanceType.String() + " " + snap.Name() + " snapshot in project " + instanceProject.Name
 
 			// Storage cache lookup.
 			pool, err := storageCache.GetPool(volume.Pool)
