@@ -1161,5 +1161,5 @@ test_backup_metadata() {
   rm -rf "${tmpDir}/backup" "${tmpDir}/vol1.tar.gz"
   lxc storage volume delete "${poolName}" vol1
 
-  rm -rf "${tmpDir}"
+  rmdir "${tmpDir}"
 }
