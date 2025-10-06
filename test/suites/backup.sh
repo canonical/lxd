@@ -1232,51 +1232,51 @@ test_backup_metadata() {
   cat "${backup_yaml_path}"
 
   # Test the containers backup config contains the latest format.
-  [ "$(yq -r '.snapshots | length' < "${backup_yaml_path}")" = "1" ]
-  [ "$(yq -r .version < "${backup_yaml_path}")" = "${highest_version}" ]
-  [ "$(yq -r '.volumes | length' < "${backup_yaml_path}")" = "2" ]
-  [ "$(yq -r '.volumes.[0].snapshots | length' < "${backup_yaml_path}")" = "1" ]
-  [ "$(yq -r '.volumes.[1].snapshots | length' < "${backup_yaml_path}")" = "1" ]
-  [ "$(yq -r '.pools | length' < "${backup_yaml_path}")" = "2" ]
+  yq --exit-status '.snapshots | length == 1' < "${backup_yaml_path}"
+  yq --exit-status '.version == '"${highest_version}"'' < "${backup_yaml_path}"
+  yq --exit-status '.volumes | length == 2' < "${backup_yaml_path}"
+  yq --exit-status '.volumes.[0].snapshots | length == 1' < "${backup_yaml_path}"
+  yq --exit-status '.volumes.[1].snapshots | length == 1' < "${backup_yaml_path}"
+  yq --exit-status '.pools | length == 2' < "${backup_yaml_path}"
 
   # Test attaching the same vol a second time doesn't increase it's appearance in the backup config.
   lxc storage volume attach "${custom_vol_pool}" foo c1 foo2 /mnt2
   lxc query "/1.0/instances/c1" | jq --exit-status '.expanded_devices | map(select(.type=="disk")) | length == 3'
-  [ "$(yq -r '.volumes | length' < "${backup_yaml_path}")" = "2" ]
-  [ "$(yq -r '.volumes.[0].snapshots | length' < "${backup_yaml_path}")" = "1" ]
-  [ "$(yq -r '.volumes.[1].snapshots | length' < "${backup_yaml_path}")" = "1" ]
-  [ "$(yq -r '.pools | length' < "${backup_yaml_path}")" = "2" ]
+  yq --exit-status '.volumes | length == 2' < "${backup_yaml_path}"
+  yq --exit-status '.volumes.[0].snapshots | length == 1' < "${backup_yaml_path}"
+  yq --exit-status '.volumes.[1].snapshots | length == 1' < "${backup_yaml_path}"
+  yq --exit-status '.pools | length == 2' < "${backup_yaml_path}"
   lxc storage volume detach "${custom_vol_pool}" foo c1 foo2
 
   # Test custom volume changes are reflected in the config file.
   lxc storage volume set "${custom_vol_pool}" foo user.foo bar # test volume config update
-  [ "$(yq -r '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .config."user.foo"' < "${backup_yaml_path}")" = "bar" ]
+  yq --exit-status '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .config."user.foo" == "bar"' < "${backup_yaml_path}"
   lxc storage volume unset "${custom_vol_pool}" foo user.foo
-  [ "$(yq -r '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .config."user.foo"' < "${backup_yaml_path}")" = "null" ]
-  [ "$(yq -r '.volumes | length' < "${backup_yaml_path}")" = "2" ]
-  [ "$(yq -r '.pools | length' < "${backup_yaml_path}")" = "2" ]
+  yq --exit-status '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .config."user.foo" == null' < "${backup_yaml_path}"
+  yq --exit-status '.volumes | length == 2' < "${backup_yaml_path}"
+  yq --exit-status '.pools | length == 2' < "${backup_yaml_path}"
   lxc storage volume detach "${custom_vol_pool}" foo c1 # test detaching/attaching vol and its effects on the list of vols and pools
-  [ "$(yq -r '.volumes | length' < "${backup_yaml_path}")" = "1" ]
-  [ "$(yq -r '.pools | length' < "${backup_yaml_path}")" = "1" ]
+  yq --exit-status '.volumes | length == 1' < "${backup_yaml_path}"
+  yq --exit-status '.pools | length == 1' < "${backup_yaml_path}"
   lxc storage volume attach "${custom_vol_pool}" foo c1 path=/mnt
-  [ "$(yq -r '.volumes | length' < "${backup_yaml_path}")" = "2" ]
-  [ "$(yq -r '.pools | length' < "${backup_yaml_path}")" = "2" ]
+  yq --exit-status '.volumes | length == 2' < "${backup_yaml_path}"
+  yq --exit-status '.pools | length == 2' < "${backup_yaml_path}"
 
   # Test custom volume snapshots changes are reflected in the config file.
   lxc storage volume snapshot "${custom_vol_pool}" foo # test snapshot creation
-  [ "$(yq -r '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots | length' < "${backup_yaml_path}")" = "2" ]
+  yq --exit-status '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots | length == 2' < "${backup_yaml_path}"
   lxc storage volume rm "${custom_vol_pool}" foo/snap1
-  [ "$(yq -r '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots | length' < "${backup_yaml_path}")" = "1" ]
+  yq --exit-status '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots | length == 1' < "${backup_yaml_path}"
   lxc storage volume rename "${custom_vol_pool}" foo/snap0 foo/snap00 # test snapshot rename
-  [ "$(yq -r '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots.[] | select(.name == "snap00") | .name' < "${backup_yaml_path}")" = "snap00" ]
-  [ "$(yq -r '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots.[] | select(.name == "snap0") | .name' < "${backup_yaml_path}" || echo fail)" = "" ]
+  yq --exit-status '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots.[] | select(.name == "snap00") | .name == "snap00"' < "${backup_yaml_path}"
+  ! yq --exit-status '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots.[] | select(.name == "snap0")' < "${backup_yaml_path}" || false
   lxc storage volume rename "${custom_vol_pool}" foo/snap00 foo/snap0
-  [ "$(yq -r '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots.[] | select(.name == "snap0") | .name' < "${backup_yaml_path}")" = "snap0" ]
-  [ "$(yq -r '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots.[] | select(.name == "snap00") | .name' < "${backup_yaml_path}" || echo fail)" = "" ]
+  yq --exit-status '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots.[] | select(.name == "snap0") | .name == "snap0"' < "${backup_yaml_path}"
+  ! yq --exit-status '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots.[] | select(.name == "snap00")' < "${backup_yaml_path}" || false
   lxc storage volume set "${custom_vol_pool}" foo/snap0 --property description bar # test snapshot update (only description can be updated on snaps)
-  [ "$(yq -r '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots.[] | select(.name == "snap0") | .description' < "${backup_yaml_path}")" = "bar" ]
+  yq --exit-status '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots.[] | select(.name == "snap0") | .description == "bar"' < "${backup_yaml_path}"
   lxc storage volume unset "${custom_vol_pool}" foo/snap0 --property description
-  [ "$(yq -r '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots.[] | select(.name == "snap0") | .description' < "${backup_yaml_path}" || echo fail)" = "" ]
+  yq --exit-status '.volumes.[] | select(.name == "foo" and .pool == "'"${custom_vol_pool}"'") | .snapshots.[] | select(.name == "snap0") | .description == ""' < "${backup_yaml_path}"
 
   lxc stop -f c1
 
@@ -1321,12 +1321,11 @@ test_backup_metadata() {
   tar -xzf "${tmpDir}/vol1.tar.gz" -C "${tmpDir}" --occurrence=1 backup/index.yaml
 
   cat "${tmpDir}/backup/index.yaml"
-  [ "$(yq '.snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
-  [ "$(yq .config.version < "${tmpDir}/backup/index.yaml")" = "${highest_version}" ]
-  [ "$(yq .config.instance < "${tmpDir}/backup/index.yaml")" = "null" ]
-  [ "$(yq '.config.volumes | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
-  [ "$(yq '.config.volumes.[0].snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
-  [ "$(yq '.config.pools | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
+  yq --exit-status '.config.version == '"${highest_version}"'' < "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.instance == null' < "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.volumes | length == 1' < "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.volumes.[0].snapshots | length == 1' < "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.pools | length == 1' < "${tmpDir}/backup/index.yaml"
 
   rm -rf "${tmpDir}/backup" "${tmpDir}/vol1.tar.gz"
 
@@ -1336,11 +1335,11 @@ test_backup_metadata() {
   tar -xzf "${tmpDir}/vol1.tar.gz" -C "${tmpDir}" --occurrence=1 backup/index.yaml
 
   cat "${tmpDir}/backup/index.yaml"
-  [ "$(yq '.snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
-  [ "$(yq .config.version < "${tmpDir}/backup/index.yaml")" = "null" ]
-  [ "$(yq .config.container < "${tmpDir}/backup/index.yaml")" = "null" ]
-  [ "$(yq .config.volume < "${tmpDir}/backup/index.yaml")" != "null" ]
-  [ "$(yq '.config.volume_snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
+  yq --exit-status '.snapshots | length == 1' < "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.version == null' < "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.container == null' < "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.volume != null' < "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.volume_snapshots | length == 1' < "${tmpDir}/backup/index.yaml"
 
   rm -rf "${tmpDir}/backup" "${tmpDir}/vol1.tar.gz"
   lxc storage volume delete "${poolName}" vol1
