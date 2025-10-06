@@ -1120,7 +1120,7 @@ auth_project_features() {
 
   # Create a network in the default project.
   networkName="net$$"
-  lxc network create "${networkName}" --project default
+  lxc network create "${networkName}" --project default ipv4.address=192.0.2.1/24 ipv6.address=2001:db8:1:2::1/64
 
   # Create instances in the default project and in the blah project that use the network.
   ensure_import_testimage
@@ -1346,7 +1346,7 @@ auth_ovn() {
   lxc auth group permission add test-group network "${uplink_network}" can_view project=default
 
   echo "Create an OVN network as the fine-grained identity and check access."
-  lxc network create "${remote}:my-network" --type ovn --project foo network="${uplink_network}"
+  lxc network create "${remote}:my-network" --type ovn --project foo network="${uplink_network}" ipv4.address=192.0.2.1/24 ipv6.address=2001:db8:1:2::1/64
   [ "$(lxc network list -f csv "${remote}:" --project foo | wc -l)" = 1 ]
   [ "$(lxc network list -f csv "${remote}:" --all-projects | wc -l)" = 2 ] # ovn network + uplink
 
