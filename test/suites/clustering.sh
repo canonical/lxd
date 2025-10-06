@@ -515,7 +515,7 @@ test_clustering_containers() {
   LXD_DIR="${LXD_THREE_DIR}" lxc delete egg
 
   # Delete the network now, since we're going to shutdown node2 and it
-  # won't be possible afterwise.
+  # won't be possible afterward.
   LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}"
 
   # Shutdown node 2, wait for it to be considered offline, and list
