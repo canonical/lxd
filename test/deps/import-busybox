@@ -277,12 +277,12 @@ user.foo: {{ config_get("user.foo", "_unset_") }}
             target_tarball_rootfs.close()
 
         # Compress the tarball
-        r = subprocess.call([xz, "-9", destination_tar])
+        r = subprocess.call([xz, "-1", destination_tar])
         if r:
             raise Exception("Failed to compress: %s" % destination_tar)
 
         if split:
-            r = subprocess.call([xz, "-9", destination_tar_rootfs])
+            r = subprocess.call([xz, "-1", destination_tar_rootfs])
             if r:
                 raise Exception("Failed to compress: %s" % destination_tar_rootfs)
             return destination_tar + ".xz", destination_tar_rootfs + ".xz"
