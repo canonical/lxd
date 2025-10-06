@@ -23,8 +23,7 @@ test_storage_volume_snapshots() {
   lxc launch testimage c1 -s "${storage_pool}"
   lxc storage volume attach "${storage_pool}" "${storage_volume}" c1 /mnt
   # Create file on volume
-  echo foobar > "${TEST_DIR}/testfile"
-  lxc file push "${TEST_DIR}/testfile" c1/mnt/testfile
+  echo foobar | lxc file push --quiet - c1/mnt/testfile
 
   # Validate file
   lxc exec c1 -- test -f /mnt/testfile
