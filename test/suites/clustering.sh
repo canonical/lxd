@@ -523,7 +523,7 @@ test_clustering_containers() {
   LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 11
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   sleep 12
-  LXD_DIR="${LXD_ONE_DIR}" lxc list --fast | grep -wF foo | grep -wF ERROR
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c ns)" = "foo,ERROR" ]
 
   # For an instance on an offline member, we can get its config but not use recursion nor get instance state.
   LXD_DIR="${LXD_ONE_DIR}" lxc config show foo
