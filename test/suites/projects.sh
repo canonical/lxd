@@ -1334,8 +1334,7 @@ test_projects_force_delete() {
     lxc network create foonet --type ovn --project foo network="${uplink_network}" ipv4.address=192.0.2.1/24 ipv6.address=2001:db8:1:2::1/64
 
     echo "Add NIC to profile in project."
-    (
-      cat <<EOF
+    lxc profile edit profile1 --project foo << EOF
 config: {}
 description: ""
 devices:
@@ -1346,7 +1345,6 @@ devices:
 name: default
 used_by:
 EOF
-  ) | lxc profile edit profile1 --project foo
   fi
 
   echo "Check that regular delete fails on non-empty project."
