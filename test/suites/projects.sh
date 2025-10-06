@@ -1325,12 +1325,10 @@ test_projects_force_delete() {
     lxc network create "${uplink_network}" --type=physical parent=dummy0
 
     echo "Set OVN ranges."
-    lxc network set "${uplink_network}" ipv4.ovn.ranges=192.0.2.100-192.0.2.254
-    lxc network set "${uplink_network}" ipv6.ovn.ranges=2001:db8:1:2::100-2001:db8:1:2::254
+    lxc network set "${uplink_network}" ipv4.ovn.ranges=192.0.2.100-192.0.2.254 ipv6.ovn.ranges=2001:db8:1:2::100-2001:db8:1:2::254
 
     echo "Set IP routes that include OVN ranges."
-    lxc network set "${uplink_network}" ipv4.routes=192.0.2.0/24
-    lxc network set "${uplink_network}" ipv6.routes=2001:db8:1:2::/64
+    lxc network set "${uplink_network}" ipv4.routes=192.0.2.0/24 ipv6.routes=2001:db8:1:2::/64
 
     echo "Create OVN network in project."
     lxc network create foonet --type ovn --project foo network="${uplink_network}"
