@@ -1,16 +1,5 @@
 # Test API filtering.
 test_filtering() {
-  local LXD_DIR
-
-  LXD_FILTERING_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-
-  spawn_lxd "${LXD_FILTERING_DIR}" true
-
-  (
-    set -e
-    # shellcheck disable=SC2034,SC2030
-    LXD_DIR="${LXD_FILTERING_DIR}"
-
     ensure_import_testimage
 
     lxc init testimage c1
@@ -28,7 +17,4 @@ test_filtering() {
 
     lxc delete c1
     lxc delete c2
-  )
-
-  kill_lxd "${LXD_FILTERING_DIR}"
 }
