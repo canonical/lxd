@@ -87,7 +87,7 @@ test_projects_containers() {
   lxc project create foo
   lxc project switch foo
 
-  deps/import-busybox --project foo --alias testimage
+  ensure_import_testimage foo
   fingerprint="$(lxc image list -c f --format json | jq -r ".[0].fingerprint")"
 
   # Add a root device to the default profile of the project
@@ -206,7 +206,7 @@ test_projects_snapshots() {
   lxc project switch foo
 
   echo "Import an image into the project"
-  deps/import-busybox --project foo --alias testimage
+  ensure_import_testimage foo
 
   echo "Add a root device to the default profile of the project"
   lxc profile device add default root disk path="/" pool="${pool}"
@@ -255,7 +255,7 @@ test_projects_snapshots() {
   lxc project switch bar
 
   echo "Import an image into the project"
-  deps/import-busybox --project bar --alias testimage
+  ensure_import_testimage bar
 
   echo "Add a root device to the default profile of the project"
   lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")"
@@ -387,7 +387,7 @@ test_projects_profiles_default() {
   lxc project switch foo
 
   # Import an image into the project and grab its fingerprint
-  deps/import-busybox --project foo
+  ensure_import_testimage foo
   fingerprint="$(lxc image list -c f --format json | jq -r ".[0].fingerprint")"
 
   # Create a container
@@ -439,7 +439,7 @@ test_projects_images() {
   lxc project switch foo
 
   # Import an image into the project and grab its fingerprint
-  deps/import-busybox --project foo
+  ensure_import_testimage foo
   fingerprint="$(lxc image list -c f --format json | jq -r ".[0].fingerprint")"
 
   # The imported image is not visible in the default project.
@@ -572,7 +572,7 @@ test_projects_network() {
   lxc project switch foo
 
   # Import an image into the project
-  deps/import-busybox --project foo --alias testimage
+  ensure_import_testimage foo
 
   # Add a root device to the default profile of the project
   lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")"
@@ -844,7 +844,7 @@ test_projects_limits() {
     lxc project switch p1
 
     LXD_REMOTE_ADDR=$(< "${LXD_REMOTE_DIR}/lxd.addr")
-    (LXD_DIR=${LXD_REMOTE_DIR} deps/import-busybox --alias remoteimage --template start --public)
+    LXD_DIR=${LXD_REMOTE_DIR} deps/import-busybox --alias remoteimage --template start --public
 
     token="$(LXD_DIR=${LXD_REMOTE_DIR} lxc config trust add --name foo -q)"
     lxc remote add l2 "${LXD_REMOTE_ADDR}" --token "${token}"
@@ -1070,7 +1070,7 @@ run_projects_restrictions() {
   pool="lxdtest-$(basename "${LXD_DIR}")"
   lxc profile device add local:default root disk path="/" pool="${pool}"
 
-  deps/import-busybox --project p1 --alias testimage
+  ensure_import_testimage p1
   fingerprint="$(lxc image list -c f --format json | jq -r ".[0].fingerprint")"
 
   # Add a volume.
@@ -1257,7 +1257,7 @@ test_projects_usage() {
   lxc profile device set default root size=48MiB --project test-usage
 
   # Spin up a container
-  deps/import-busybox --project test-usage --alias testimage
+  ensure_import_testimage test-usage
   lxc init testimage c1 --project test-usage
   lxc project info test-usage
 
@@ -1289,7 +1289,7 @@ EOF
     limits.memory=512MiB
 
   lxc profile device set default root size=300MiB --project test-project-yaml
-  deps/import-busybox --project test-project-yaml --alias testimage
+  ensure_import_testimage test-project-yaml
 
   lxc init testimage c1 --project test-project-yaml -d "${SMALL_ROOT_DISK}"
   lxc init testimage c2 --project test-project-yaml -d "${SMALL_ROOT_DISK}"
@@ -1488,7 +1488,7 @@ test_projects_force_delete() {
   lxc profile create profile1 --project foo
 
   echo "Add image to project."
-  deps/import-busybox --project foo --alias testimage
+  ensure_import_testimage foo
 
   uplink_network="uplink$$"
   if ovn_enabled; then
