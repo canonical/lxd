@@ -4617,7 +4617,7 @@ test_clustering_projects_force_delete() {
   LXD_DIR="${LXD_ONE_DIR}" lxc profile create profile1 --project foo
 
   echo "Add image to project."
-  LXD_DIR="${LXD_ONE_DIR}" deps/import-busybox --project foo --alias testimage
+  LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage foo
 
   echo "Create instance in project on node1."
   LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c1 --project foo --target node1 -s pool1
