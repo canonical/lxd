@@ -297,6 +297,13 @@ EOF
 }
 
 test_bucket_recover() {
+  local lxd_backend
+  lxd_backend=$(storage_backend "$LXD_DIR")
+  if [ "${lxd_backend}" = "ceph" ]; then
+    export TEST_UNMET_REQUIREMENT="ceph does not support storage buckets"
+    return
+  fi
+
   if ! command -v "minio" >/dev/null 2>&1; then
     echo "==> SKIP: Skip bucket recovery test due to missing minio"
     return
@@ -306,13 +313,7 @@ test_bucket_recover() {
     set -e
 
     poolName=$(lxc profile device get default root pool)
-    poolDriver=$(lxc storage show "${poolName}" | awk '/^driver:/ {print $2}')
     bucketName="bucket123"
-
-    # Skip ceph driver - ceph does not support storage buckets
-    if [ "${poolDriver}" = "ceph" ]; then
-      return 0
-    fi
 
     # Create storage bucket
     lxc storage bucket create "${poolName}" "${bucketName}"
