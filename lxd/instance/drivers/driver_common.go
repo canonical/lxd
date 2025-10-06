@@ -713,10 +713,6 @@ func (d *common) deleteAttachedVolumeSnapshots(snapInst instance.Instance, diskV
 		return fmt.Errorf(`Failed parsing snapshot instance "volatile.attached_volumes": %w`, err)
 	}
 
-	if len(attachedVolumeUUIDs) == 0 {
-		return fmt.Errorf("No attached volume snapshots found in snapshot instance %q", snapInst.Name())
-	}
-
 	// Get attached volume snapshots.
 	toDelete, err := d.getAttachedVolumeSnapshots(snapInst, attachedVolumeUUIDs)
 	if err != nil {
@@ -738,7 +734,7 @@ func (d *common) deleteAttachedVolumeSnapshots(snapInst instance.Instance, diskV
 
 		err = pool.DeleteCustomVolumeSnapshot(vol.Project, vol.Name, d.op)
 		if err != nil {
-			return fmt.Errorf("Failed deleting attached volume snapshot %q: %w", vol.Name, err)
+			return fmt.Errorf("Failed deleting attached volume %q snapshot in storage pool %q: %w", vol.Name, vol.Pool, err)
 		}
 	}
 
@@ -774,6 +770,14 @@ func (d *common) deleteCommon(inst instance.Instance, force bool, diskVolumesMod
 		return api.StatusErrorf(http.StatusBadRequest, "Instance is running")
 	}
 
+	parentName, _, _ := api.GetParentAndSnapshotName(inst.Name())
+
+	// Load the parent for backup file refresh.
+	parent, err := instance.LoadByProjectAndName(d.state, d.project.Name, parentName)
+	if err != nil {
+		return fmt.Errorf("Invalid parent: %w", err)
+	}
+
 	switch s := inst.(type) {
 	case *lxc:
 		err = s.delete(force)
@@ -798,15 +802,6 @@ func (d *common) deleteCommon(inst instance.Instance, force bool, diskVolumesMod
 			if err != nil {
 				return fmt.Errorf("Failed deleting attached volume snapshots: %w", err)
 			}
-		}
-
-		// Refresh the backup file on the parent.
-		parentName, _, _ := api.GetParentAndSnapshotName(inst.Name())
-
-		// Load the parent.
-		parent, err := instance.LoadByProjectAndName(d.state, d.project.Name, parentName)
-		if err != nil {
-			return fmt.Errorf("Invalid parent: %w", err)
 		}
 
 		// Update the backup file.
@@ -1000,7 +995,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 		}
 
 		defer func() {
-			err = inst.Unfreeze()
+			err := inst.Unfreeze()
 			if err != nil {
 				d.logger.Warn("Failed unfreezing instance after snapshot", logger.Ctx{"err": err})
 			}
@@ -1031,8 +1026,12 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 		attachedVolumeUUIDs := make(map[string]string)
 		instanceProject := inst.Project()
 		instanceType := inst.Type()
-		instanceName := inst.Name()
 		for _, volume := range attachedVolumes {
+			// Skip ISO volumes (snapshots not supported).
+			if volume.ContentType == dbCluster.StoragePoolVolumeContentTypeNameISO {
+				continue
+			}
+
 			d.logger.Debug("Creating attached volume snapshot", logger.Ctx{"pool": volume.Pool, "volume": volume.Name, "project": volume.Project})
 
 			// Use shutdown context as we don't have access to the request context.
@@ -1042,7 +1041,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 			}
 
 			// Attached volume snapshot description.
-			description := "Created alongside " + instanceType.String() + " " + instanceName + "/" + snapshotName + " in project " + instanceProject.Name
+			description := "Created alongside " + instanceType.String() + " " + snap.Name() + " snapshot in project " + instanceProject.Name
 
 			// Storage cache lookup.
 			pool, err := storageCache.GetPool(volume.Pool)
@@ -1053,7 +1052,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 			expiry := snap.ExpiryDate() // Attached volume snapshots inherit the expiry date of the instance snapshot.
 			snapshotUUID, err := pool.CreateCustomVolumeSnapshot(volume.Project, volume.Name, snapshotName, description, &expiry, d.op)
 			if err != nil {
-				return err
+				return fmt.Errorf("Failed creating attached volume %q snapshot %q in storage pool %q: %w", volume.Name, snapshotName, volume.Pool, err)
 			}
 
 			// Set attached volume snapshot UUID.
@@ -1251,7 +1250,7 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance,
 
 			err = pool.RestoreCustomVolume(volume.Project, volName, snapName, d.op)
 			if err != nil {
-				return false, nil, fmt.Errorf("Failed restoring volume %q snapshot %q: %w", volume.Name, snapName, err)
+				return false, nil, fmt.Errorf("Failed restoring volume %q snapshot %q in storage pool %q: %w", volume.Name, snapName, volume.Pool, err)
 			}
 		}
 	}
