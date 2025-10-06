@@ -1346,5 +1346,5 @@ test_backup_metadata() {
   lxc storage volume delete "${custom_vol_pool}" foo
   lxc storage delete "${custom_vol_pool}"
 
-  rm -rf "${tmpDir}"
+  rmdir "${tmpDir}"
 }
