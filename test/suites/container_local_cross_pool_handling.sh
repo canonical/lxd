@@ -67,7 +67,7 @@ test_container_local_cross_pool_handling() {
         # Check volatile.apply_template is altered during copy.
         [ "$(lxc config get c2 volatile.apply_template)" = "copy" ]
         lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" container/c2
-        lxc delete -f c2
+        lxc delete c2
         lxc move c1 c2 -s "lxdtest-$(basename "${LXD_DIR}")-${driver}1"
 
         # Check volatile.apply_template is not altered during move and rename.
@@ -79,7 +79,7 @@ test_container_local_cross_pool_handling() {
         lxc move c2 -s "${originalPool}"
         [ "$(lxc config get c2 volatile.apply_template)" = "create" ]
         lxc storage volume show "${originalPool}" container/c2
-        lxc delete -f c2
+        lxc delete c2
 
         lxc init testimage c1
         lxc snapshot c1
@@ -88,13 +88,13 @@ test_container_local_cross_pool_handling() {
         lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" container/c2
         ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" container/c2/snap0 || false
         ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" container/c2/snap1 || false
-        lxc delete -f c2
+        lxc delete c2
         lxc move c1 c2 -s "lxdtest-$(basename "${LXD_DIR}")-${driver}1" --instance-only
         ! lxc info c1 || false
         lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" container/c2
         ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" container/c2/snap0 || false
         ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" container/c2/snap1 || false
-        lxc delete -f c2
+        lxc delete c2
 
         lxc init testimage c1
         lxc snapshot c1
@@ -103,13 +103,13 @@ test_container_local_cross_pool_handling() {
         lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" container/c2
         lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" container/c2/snap0
         lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" container/c2/snap1
-        lxc delete -f c2
+        lxc delete c2
         lxc move c1 c2 -s "lxdtest-$(basename "${LXD_DIR}")-${driver}1"
         ! lxc info c1 || false
         lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" container/c2
         lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" container/c2/snap0
         lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" container/c2/snap1
-        lxc delete -f c2
+        lxc delete c2
       fi
     done
 
