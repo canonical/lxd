@@ -355,12 +355,11 @@ test_backup_import() {
 }
 
 _backup_import_with_project() {
-  project="default"
+  project="${1:-"default"}"
   pool="lxdtest-$(basename "${LXD_DIR}")"
 
-  if [ "$#" -ne 0 ]; then
-    # Create a projects
-    project="$1"
+  if [ "${project}" != "default" ]; then
+    # Create 2 projects
     lxc project create "$project"
     lxc project create "$project-b"
     lxc project switch "$project"
@@ -371,9 +370,9 @@ _backup_import_with_project() {
     # Add a root device to the default profile of the project
     lxc profile device add default root disk path="/" pool="${pool}"
     lxc profile device add default root disk path="/" pool="${pool}" --project "$project-b"
+  else
+    ensure_import_testimage
   fi
-
-  ensure_import_testimage
 
   lxc launch testimage c1 -d "${SMALL_ROOT_DISK}"
   lxc launch testimage c2 -d "${SMALL_ROOT_DISK}"
@@ -539,10 +538,10 @@ _backup_import_with_project() {
   # Cleanup exported tarballs
   rm -f "${LXD_DIR}"/c*.tar.gz
 
-  if [ "$#" -ne 0 ]; then
-    lxc image rm testimage
-    lxc image rm testimage --project "$project-b"
+  if [ "${project}" != "default" ]; then
     lxc project switch default
+    lxc image rm testimage --project "$project"
+    lxc image rm testimage --project "$project-b"
     lxc project delete "$project"
     lxc project delete "$project-b"
   fi
@@ -554,15 +553,13 @@ test_backup_export() {
 }
 
 _backup_export_with_project() {
-  project="default"
+  project="${1:-"default"}"
 
-  if [ "$#" -ne 0 ]; then
+  if [ "${project}" != "default" ]; then
     # Create a project
     project="$1"
     lxc project create "$project"
     lxc project switch "$project"
-
-    ensure_import_testimage "${project}"
 
     # Add a root device to the default profile of the project
     pool="lxdtest-$(basename "${LXD_DIR}")"
@@ -634,9 +631,9 @@ _backup_export_with_project() {
   # Cleanup exported tarballs
   rm -f "${LXD_DIR}"/c*.tar.gz
 
-  if [ "$#" -ne 0 ]; then
-    lxc image rm testimage
+  if [ "${project}" != "default" ]; then
     lxc project switch default
+    lxc image rm testimage --project "$project"
     lxc project delete "$project"
   fi
 }
@@ -701,7 +698,7 @@ _backup_volume_export_with_project() {
   custom_vol_pool="$2"
 
   if [ "${project}" != "default" ]; then
-    # Create a project.
+    # Create projects.
     lxc project create "$project"
     lxc project create "$project-b"
     lxc project switch "$project"
