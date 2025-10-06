@@ -5,9 +5,7 @@ test_network_acl() {
   firewallDriver=$(lxc info | awk -F ":" '/firewall:/{gsub(/ /, "", $0); print $2}')
   netName=lxdt$$
 
-  lxc network create "${netName}" \
-        ipv4.address=192.0.2.1/24 \
-        ipv6.address=fd42:4242:4242:1010::1/64
+  lxc network create "${netName}" ipv4.address=192.0.2.1/24 ipv6.address=fd42:4242:4242:1010::1/64
 
   # Check basic ACL creation, listing, deletion and project namespacing support.
   ! lxc network acl create 192.168.1.1 || false # Don't allow non-hostname compatible names.
