@@ -29,7 +29,7 @@ test_tls_restrictions() {
 
   # Confirm client with restricted certificate cannot see server configuration.
   lxc config set user.foo bar
-  lxc_remote query localhost:/1.0 | jq --exit-status '.config | length == 0'
+  lxc_remote query localhost:/1.0 | jq --exit-status '.config == null'
   lxc_remote query localhost:/1.0 | jq --exit-status '.config."user.foo" == null'
   lxc config unset user.foo
 
