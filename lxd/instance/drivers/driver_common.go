@@ -713,10 +713,6 @@ func (d *common) deleteAttachedVolumeSnapshots(snapInst instance.Instance, diskV
 		return fmt.Errorf(`Failed parsing snapshot instance "volatile.attached_volumes": %w`, err)
 	}
 
-	if len(attachedVolumeUUIDs) == 0 {
-		return fmt.Errorf("No attached volume snapshots found in snapshot instance %q", snapInst.Name())
-	}
-
 	// Get attached volume snapshots.
 	toDelete, err := d.getAttachedVolumeSnapshots(snapInst, attachedVolumeUUIDs)
 	if err != nil {
