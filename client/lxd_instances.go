@@ -2301,7 +2301,7 @@ func (r *ProtocolLXD) DeleteInstanceSnapshot(instanceName string, name string, d
 		return nil, err
 	}
 
-	_, instanceType, _ := strings.Cut(path, "/")
+	instanceType := strings.TrimPrefix(path, "/")
 	u := api.NewURL().Path(instanceType, instanceName, "snapshots", name).WithQuery("disk-volumes", diskVolumesMode)
 
 	if diskVolumesMode == api.DiskVolumesModeAllExclusive {
