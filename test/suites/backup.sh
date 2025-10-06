@@ -1152,11 +1152,11 @@ test_backup_metadata() {
   tar -xzf "${tmpDir}/vol1.tar.gz" -C "${tmpDir}" --occurrence=1 backup/index.yaml
 
   cat "${tmpDir}/backup/index.yaml"
-  [ "$(yq '.snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
-  [ "$(yq .config.version < "${tmpDir}/backup/index.yaml")" = "null" ]
-  [ "$(yq .config.container < "${tmpDir}/backup/index.yaml")" = "null" ]
-  [ "$(yq .config.volume < "${tmpDir}/backup/index.yaml")" != "null" ]
-  [ "$(yq '.config.volume_snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
+  yq --exit-status '.snapshots | length == 1' < "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.version == null' < "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.container == null' < "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.volume != null' < "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.volume_snapshots | length == 1' < "${tmpDir}/backup/index.yaml"
 
   rm -rf "${tmpDir}/backup" "${tmpDir}/vol1.tar.gz"
   lxc storage volume delete "${poolName}" vol1
