@@ -202,8 +202,8 @@ test_clustering_membership() {
 
   # Configuration keys can be changed on any node.
   LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.offline_threshold 11
-  LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F 'cluster.offline_threshold: "11"'
-  LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -F 'cluster.offline_threshold: "11"'
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get cluster.offline_threshold)" = "11" ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc config get cluster.offline_threshold)" = "11" ]
 
   # The preseeded network bridge exists on all nodes.
   ns1_pid="$(< "${TEST_DIR}/ns/${ns1}/PID")"
