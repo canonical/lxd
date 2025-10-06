@@ -1198,7 +1198,7 @@ test_clustering_network() {
   # Create new partially created network and check we can fix it.
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node1
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node2
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" ipv4.address=192.0.2.1/24 ipv6.address=2001:db8::1/64|| false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" ipv4.address=192.0.2.1/24 ipv6.address=2001:db8::1/64 || false  # Fails due to NIC conflict but will set ipv{4,6}.address
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep -F status: | grep -wF Errored # Check has errored status.
   nsenter -n -t "${LXD_PID1}" -- ip link delete "${net}" # Remove conflicting interface.
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" ipv4.dhcp=false || false # Check supplying global config on re-create is blocked.
@@ -1206,7 +1206,7 @@ test_clustering_network() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep -F status: | grep -wF Created # Check is created after fix.
   nsenter -n -t "${LXD_PID1}" -- ip -details link show "${net}" | grep bridge # Check bridge exists.
   nsenter -n -t "${LXD_PID2}" -- ip -details link show "${net}" | grep bridge # Check bridge exists.
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" || false # Check re-create is blocked after success.
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" ipv4.address=192.0.2.1/24 ipv6.address=2001:db8::1/64 || false # Check re-create is blocked after success.
 
   # Check both nodes marked created.
 [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node1'")" = "node1,1" ]
