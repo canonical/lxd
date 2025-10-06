@@ -734,7 +734,7 @@ func (d *common) deleteAttachedVolumeSnapshots(snapInst instance.Instance, diskV
 
 		err = pool.DeleteCustomVolumeSnapshot(vol.Project, vol.Name, d.op)
 		if err != nil {
-			return fmt.Errorf("Failed deleting attached volume snapshot %q: %w", vol.Name, err)
+			return fmt.Errorf("Failed deleting attached volume %q snapshot in storage pool %q: %w", vol.Name, vol.Pool, err)
 		}
 	}
 
@@ -1246,7 +1246,7 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance,
 
 			err = pool.RestoreCustomVolume(volume.Project, volName, snapName, d.op)
 			if err != nil {
-				return false, nil, fmt.Errorf("Failed restoring volume %q snapshot %q: %w", volume.Name, snapName, err)
+				return false, nil, fmt.Errorf("Failed restoring volume %q snapshot %q in storage pool %q: %w", volume.Name, snapName, volume.Pool, err)
 			}
 		}
 	}
