@@ -11,7 +11,7 @@ test_container_local_cross_pool_handling() {
     ensure_import_testimage
 
     brName="lxdt$$"
-    lxc network create "${brName}"
+    lxc network create "${brName}" ipv4.address=192.0.2.1/24 ipv6.address=2001:db8:1:2::1/64
 
     if storage_backend_available "btrfs"; then
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-btrfs" btrfs size=1GiB
