@@ -139,3 +139,239 @@ git clone https://github.com/canonical/lxd-csi-driver
 cd lxd-csi-driver
 kubectl apply -f deploy/
 ```
+
+(howto-storage-csi-usage)=
+## Usage examples
+
+This section provides practical examples of configuring StorageClass and PersistentVolumeClaim (PVC) resources when using the LXD CSI driver.
+
+The examples cover:
+
++ Creating different types of storage classes,
++ Defining volume claims that request storage from those classes,
++ Demonstrating how different Kubernetes resources consume the volumes.
+
+(howto-storage-csi-usage-storageclass)=
+### StorageClass configuration
+
+The following example demonstrates how to configure a Kubernetes StorageClass that uses the LXD CSI driver for provisioning volumes.
+
+In the StorageClass, the fields `provisioner` and `parameters.storagePool` are required.
+The first specifies the name of the LXD CSI driver, which defaults to `lxd.csi.canonical.com`, and the second references a target storage pool where the driver will create volumes.
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: lxd-csi-fs
+provisioner: lxd.csi.canonical.com  # Name of the LXD CSI driver.
+parameters:
+  storagePool: my-lxd-pool          # Name of the target LXD storage pool.
+```
+
+(howto-storage-csi-usage-storageclass-default)=
+#### Default StorageClass
+
+The default StorageClass is used when `storageClass` is not explicitly set in the PVC configuration.
+You can mark a Kubernetes StorageClass as the default by setting the `storageclass.kubernetes.io/is-default-class: "true"` annotation.
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: lxd-csi-sc
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: lxd.csi.canonical.com
+parameters:
+  storagePool: my-lxd-pool
+```
+
+(howto-storage-csi-usage-storageclass-volume-binding)=
+#### Immediate volume binding
+
+By default, volume binding is set to `WaitForFirstConsumer`, which delays volume creation until the Pod is scheduled.
+Setting the volume binding mode to `Immediate` instructs Kubernetes to provision the volume as soon as the PVC is created.
+
+```{admonition} Immediate binding with local storage volumes
+:class: warning
+When using {ref}`local <storage-drivers-local>` storage volumes, the immediate volume binding mode can cause the Pod to be scheduled on a node without access to the volume, leaving the Pod in a `Pending` state.
+```
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: lxd-csi-immediate
+provisioner: lxd.csi.canonical.com
+volumeBindingMode: Immediate        # Default is "WaitForFirstConsumer"
+parameters:
+  storagePool: my-lxd-pool
+```
+
+(howto-storage-csi-usage-storageclass-volume-reclaim)=
+#### Prevent volume deletion
+
+By default, the volume is deleted when its PVC is removed.
+Setting the reclaim policy to `Retain` prevents the CSI driver from deleting the underlying LXD volume, allowing for manual cleanup or data recovery later.
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: lxd-csi-retain
+provisioner: lxd.csi.canonical.com
+reclaimPolicy: Retain               # Default is "Delete"
+parameters:
+  storagePool: my-lxd-pool
+```
+
+(howto-storage-csi-usage-storageclass-helm)=
+#### Configure StorageClass using Helm chart
+
+The LXD CSI Helm chart allows defining multiple storage classes as part of the deployment.
+Each entry in the `storageClasses` list must include at least `name` and `storagePool`.
+
+```yaml
+# values.yaml
+storageClasses:
+- name: lxd-csi-fs         # Name of the StorageClass (required).
+  storagePool: my-pool     # Name of the target LXD storage pool (required).
+- name: lxd-csi-fs-retain
+  storagePool: my-pool
+  reclaimPolicy: Retain
+```
+
+(howto-storage-csi-usage-pvc)=
+### PersistentVolumeClaim configuration
+
+A PVC requests a storage volume from a StorageClass.
+Specify the access modes, volume size (capacity), and volume mode.
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: app-data
+spec:
+  accessModes:
+    - ReadWriteOnce             # Allowed storage volume access modes.
+  storageClassName: lxd-csi-sc  # Storage class name.
+  resources:
+    requests:
+      storage: 10Gi             # Storage volume size.
+  volumeMode: Filesystem        # Storage volume mode (content type in LXD terminology). Can be "Filesystem" or "Block".
+```
+
+(howto-storage-csi-usage-pvc-access-modes)=
+#### Access modes
+
+[Access modes &#8599;](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes) define how a volume can be mounted by Pods.
+
+Access mode        | Supported drivers                                                                              | Description
+-------------------|------------------------------------------------------------------------------------------------|------------
+`ReadWriteOnce`    | {ref}`storage-drivers-local`, {ref}`storage-drivers-remote`, and {ref}`storage-drivers-shared` | Mounted as read-write by a single node. Multiple Pods on that node can share it.
+`ReadWriteOncePod` | {ref}`storage-drivers-local`, {ref}`storage-drivers-remote`, and {ref}`storage-drivers-shared` | Mounted as read-write by a single Pod on a single node.
+`ReadOnlyMany`     | {ref}`storage-drivers-shared`                                                                  | Mounted as read-only by many Pods across nodes.
+`ReadWriteMany`    | {ref}`storage-drivers-shared`                                                                  | Mounted as read-write by many Pods across nodes.
+
+(howto-storage-csi-usage-example)=
+### End-to-end examples
+
+(howto-storage-csi-usage-example-deployment)=
+#### Referencing PVC in Deployment
+
+This pattern is used when multiple Pods share the same persistent volume.
+The PVC is created first and then referenced by name in the Deployment.
+
+Each replica mounts the same volume, which is only safe when:
+
++ the volume's access mode allows multi-node access (`ReadWriteMany`, `ReadOnlyMany`), or
++ the Deployment has a single replica (`replicas: 1`), as shown below.
+
+```yaml
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: app-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: lxd-csi-sc
+  resources:
+    requests:
+      storage: 10Gi
+  volumeMode: Filesystem
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+spec:
+  replicas: 1 # Use a single replica for non-shared storage volumes.
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+        - name: app
+          image: nginx:stable
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/nginx/html
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: app-data  # References PVC named "app-data".
+```
+
+(howto-storage-csi-usage-example-statefulset)=
+#### Referencing PVC in StatefulSet
+
+This pattern is used when each Pod requires its own persistent volume.
+The `volumeClaimTemplates` section dynamically creates a PVC per Pod (e.g. `data-app-0`, `data-app-1`, `data-app-2`).
+This ensures each Pod retains its volume through restarts and rescheduling.
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: app
+spec:
+  serviceName: app
+  replicas: 3
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+        - name: app
+          image: nginx:stable
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/nginx/html
+  volumeClaimTemplates:
+    # PVC template used for each replica in a stateful set.
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: lxd-csi-sc
+        resources:
+          requests:
+            storage: 5Gi
+```
