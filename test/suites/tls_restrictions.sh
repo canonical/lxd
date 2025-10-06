@@ -296,7 +296,7 @@ test_tls_restrictions() {
 
   # Create a network in the default project.
   networkName="net$$"
-  lxc network create "${networkName}" --project default
+  lxc network create "${networkName}" --project default ipv4.address=192.0.2.1/24 ipv6.address=2001:db8:1:2::1/64
 
   # Create instances in the default project and in the blah project that use the network
   ensure_import_testimage
