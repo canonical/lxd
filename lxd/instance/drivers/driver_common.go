@@ -1028,6 +1028,11 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 		instanceType := inst.Type()
 		instanceName := inst.Name()
 		for _, volume := range attachedVolumes {
+			// Skip ISO volumes (snapshots not supported).
+			if volume.ContentType == dbCluster.StoragePoolVolumeContentTypeNameISO {
+				continue
+			}
+
 			d.logger.Debug("Creating attached volume snapshot", logger.Ctx{"pool": volume.Pool, "volume": volume.Name, "project": volume.Project})
 
 			// Use shutdown context as we don't have access to the request context.
