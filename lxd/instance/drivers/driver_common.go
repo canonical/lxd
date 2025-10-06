@@ -774,6 +774,14 @@ func (d *common) deleteCommon(inst instance.Instance, force bool, diskVolumesMod
 		return api.StatusErrorf(http.StatusBadRequest, "Instance is running")
 	}
 
+	parentName, _, _ := api.GetParentAndSnapshotName(inst.Name())
+
+	// Load the parent for backup file refresh.
+	parent, err := instance.LoadByProjectAndName(d.state, d.project.Name, parentName)
+	if err != nil {
+		return fmt.Errorf("Invalid parent: %w", err)
+	}
+
 	switch s := inst.(type) {
 	case *lxc:
 		err = s.delete(force)
@@ -798,15 +806,6 @@ func (d *common) deleteCommon(inst instance.Instance, force bool, diskVolumesMod
 			if err != nil {
 				return fmt.Errorf("Failed deleting attached volume snapshots: %w", err)
 			}
-		}
-
-		// Refresh the backup file on the parent.
-		parentName, _, _ := api.GetParentAndSnapshotName(inst.Name())
-
-		// Load the parent.
-		parent, err := instance.LoadByProjectAndName(d.state, d.project.Name, parentName)
-		if err != nil {
-			return fmt.Errorf("Invalid parent: %w", err)
 		}
 
 		// Update the backup file.
