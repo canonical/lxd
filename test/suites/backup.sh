@@ -368,8 +368,8 @@ _backup_import_with_project() {
     lxc project create "$project-b"
     lxc project switch "$project"
 
-    deps/import-busybox --project "$project" --alias testimage
-    deps/import-busybox --project "$project-b" --alias testimage
+    ensure_import_testimage "${project}"
+    ensure_import_testimage "${project}-b"
 
     # Add a root device to the default profile of the project
     lxc profile device add default root disk path="/" pool="${pool}"
@@ -565,7 +565,7 @@ _backup_export_with_project() {
     lxc project create "$project"
     lxc project switch "$project"
 
-    deps/import-busybox --project "$project" --alias testimage
+    ensure_import_testimage "${project}"
 
     # Add a root device to the default profile of the project
     pool="lxdtest-$(basename "${LXD_DIR}")"
@@ -709,8 +709,8 @@ _backup_volume_export_with_project() {
     lxc project create "$project-b"
     lxc project switch "$project"
 
-    deps/import-busybox --project "$project" --alias testimage
-    deps/import-busybox --project "$project-b" --alias testimage
+    ensure_import_testimage "${project}"
+    ensure_import_testimage "${project}-b"
 
     # Add a root device to the default profile of the project.
     lxc profile device add default root disk path="/" pool="${pool}"
