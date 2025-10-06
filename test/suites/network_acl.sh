@@ -48,22 +48,22 @@ ingress:
 config:
   user.mykey: foo
 EOF
-  acl_show_output=$(lxc network acl show testacl)
-  [ "$(echo "$acl_show_output" | grep -cF 'description: Test ACL')" = 1 ]
-  [ "$(echo "$acl_show_output" | grep -cF 'action: allow')" = 1 ]
-  [ "$(echo "$acl_show_output" | grep -cF 'source: 192.168.1.1/32')" = 1 ]
-  [ "$(echo "$acl_show_output" | grep -cF 'destination: 192.168.1.2/32')" = 1 ]
-  [ "$(echo "$acl_show_output" | grep -cF 'destination_port: "22"')" = 1 ]
-  [ "$(echo "$acl_show_output" | grep -cF 'user.mykey: foo')" = 1 ]
+  acl_show_output="$(lxc network acl list -f json | jq --exit-status '.[] | select(.name == "testacl")')"
+  jq --exit-status '.description == "Test ACL"' <<< "${acl_show_output}"
+  jq --exit-status '.ingress[0].action == "allow"' <<< "${acl_show_output}"
+  jq --exit-status '.ingress[0].source == "192.168.1.1/32"' <<< "${acl_show_output}"
+  jq --exit-status '.ingress[0].destination == "192.168.1.2/32"' <<< "${acl_show_output}"
+  jq --exit-status '.ingress[0].destination_port == "22"' <<< "${acl_show_output}"
+  jq --exit-status '.config["user.mykey"] == "foo"' <<< "${acl_show_output}"
 
   # ACL Patch. Check for merged config and replaced description, ingress and egress fields.
   lxc query -X PATCH -d '{"config": {"user.myotherkey": "bah"}}' /1.0/network-acls/testacl
-  acl_show_output=$(lxc network acl show testacl)
-  [ "$(echo "$acl_show_output" | grep -cF 'user.mykey: foo')" = 1 ]
-  [ "$(echo "$acl_show_output" | grep -cF 'user.myotherkey: bah')" = 1 ]
-  [ "$(echo "$acl_show_output" | grep -cF 'description: ""')" = 1 ]
-  [ "$(echo "$acl_show_output" | grep -cF 'ingress: []')" = 1 ]
-  [ "$(echo "$acl_show_output" | grep -cF 'egress: []')" = 1 ]
+  acl_show_output="$(lxc network acl list -f json | jq --exit-status '.[] | select(.name == "testacl")')"
+  jq --exit-status '.config["user.mykey"] == "foo"' <<< "${acl_show_output}"
+  jq --exit-status '.config["user.myotherkey"] == "bah"' <<< "${acl_show_output}"
+  jq --exit-status '.description == ""' <<< "${acl_show_output}"
+  jq --exit-status '.ingress == []' <<< "${acl_show_output}"
+  jq --exit-status '.egress == []' <<< "${acl_show_output}"
 
   # ACL edit from stdin.
   lxc network acl edit testacl << EOF
