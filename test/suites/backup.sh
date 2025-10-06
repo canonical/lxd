@@ -663,7 +663,7 @@ test_backup_rename() {
   lxc query -X POST --wait -d '{"name":"foo"}' /1.0/instances/c1/backups
 
   # All backups should be listed
-  [ "$(lxc query /1.0/instances/c1/backups | jq -r '.[]')" = "/1.0/instances/c1/backups/foo" ]
+  lxc query /1.0/instances/c1/backups | jq --exit-status '.[] == "/1.0/instances/c1/backups/foo"'
 
   # The specific backup should exist
   lxc query /1.0/instances/c1/backups/foo
@@ -672,7 +672,7 @@ test_backup_rename() {
   lxc mv c1 c2
 
   # All backups should be listed
-  [ "$(lxc query /1.0/instances/c2/backups | jq -r '.[]')" = "/1.0/instances/c2/backups/foo" ]
+  lxc query /1.0/instances/c2/backups | jq --exit-status '.[] == "/1.0/instances/c2/backups/foo"'
 
   # The specific backup should exist
   lxc query /1.0/instances/c2/backups/foo
@@ -937,7 +937,7 @@ test_backup_volume_rename_delete() {
 
   # All backups should be listed.
   lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups
-  lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups | jq .'[0]' | grep storage-pools/"${pool}"/volumes/custom/vol1/backups/foo
+  lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups | jq --exit-status '.[0] == "/1.0/storage-pools/'"${pool}"'/volumes/custom/vol1/backups/foo"'
 
   # The specific backup should exist.
   lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups/foo
@@ -956,7 +956,7 @@ test_backup_volume_rename_delete() {
   lxc storage volume rename "${pool}" vol1 vol2
 
   # All backups should be listed.
-  lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol2/backups | jq .'[0]' | grep storage-pools/"${pool}"/volumes/custom/vol2/backups/foo
+  lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol2/backups | jq --exit-status '.[0] == "/1.0/storage-pools/'"${pool}"'/volumes/custom/vol2/backups/foo"'
 
   # The specific backup should exist.
   lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol2/backups/foo
@@ -969,7 +969,7 @@ test_backup_volume_rename_delete() {
 
   # Rename backup itself and check its renamed in DB and on disk.
   lxc query -X POST --wait -d '{"name":"foo2"}' /1.0/storage-pools/"${pool}"/volumes/custom/vol2/backups/foo
-  lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol2/backups | jq .'[0]' | grep storage-pools/"${pool}"/volumes/custom/vol2/backups/foo2
+  lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol2/backups | jq --exit-status '.[0] == "/1.0/storage-pools/'"${pool}"'/volumes/custom/vol2/backups/foo2"'
   stat "${LXD_DIR}"/backups/custom/"${pool}"/default_vol2/foo2
   ! stat "${LXD_DIR}"/backups/custom/"${pool}"/default_vol2/foo || false
 
@@ -1015,14 +1015,14 @@ test_backup_volume_expiry() {
   lxc query -X POST -d '{}' /1.0/storage-pools/"${poolName}"/volumes/custom/vol1/backups
 
   # Check that both backups are listed.
-  [ "$(lxc query /1.0/storage-pools/"${poolName}"/volumes/custom/vol1/backups | jq '.[]' | wc -l)" -eq 2 ]
+  lxc query /1.0/storage-pools/"${poolName}"/volumes/custom/vol1/backups | jq --exit-status 'length == 2'
 
   # Restart LXD which will trigger the task which removes expired volume backups.
   shutdown_lxd "${LXD_DIR}"
   respawn_lxd "${LXD_DIR}" true
 
   # Check that there's only one backup remaining.
-  [ "$(lxc query /1.0/storage-pools/"${poolName}"/volumes/custom/vol1/backups | jq '.[]' | wc -l)" -eq 1 ]
+  lxc query /1.0/storage-pools/"${poolName}"/volumes/custom/vol1/backups | jq --exit-status 'length == 1'
 
   # Cleanup.
   lxc storage volume delete "${poolName}" vol1
@@ -1074,7 +1074,7 @@ test_backup_export_import_instance_only() {
   lxc snapshot c1
 
   # Verify the original instance has snapshots.
-  [ "$(lxc query "/1.0/storage-pools/${poolName}/volumes/container/c1/snapshots" | jq -r 'length')" = "1" ]
+  lxc query "/1.0/storage-pools/${poolName}/volumes/container/c1/snapshots" | jq --exit-status 'length == 1'
 
   # Export the instance and remove it.
   lxc export c1 "${LXD_DIR}/c1.tar.gz" --instance-only
@@ -1084,7 +1084,7 @@ test_backup_export_import_instance_only() {
   lxc import "${LXD_DIR}/c1.tar.gz"
 
   # Verify imported instance has no snapshots.
-  [ "$(lxc query "/1.0/storage-pools/${poolName}/volumes/container/c1/snapshots" | jq -r 'length')" = "0" ]
+  lxc query "/1.0/storage-pools/${poolName}/volumes/container/c1/snapshots" | jq --exit-status '. == []'
 
   rm "${LXD_DIR}/c1.tar.gz"
   lxc delete c1
@@ -1094,8 +1094,8 @@ test_backup_metadata() {
   ensure_import_testimage
 
   # Fetch the least and most recent supported backup metadata version from the range.
-  lowest_version=$(lxc query /1.0 | jq -r .environment.backup_metadata_version_range[0])
-  highest_version=$(lxc query /1.0 | jq -r .environment.backup_metadata_version_range[1])
+  lowest_version="$(lxc query /1.0 | jq --exit-status --raw-output '.environment.backup_metadata_version_range[0]')"
+  highest_version="$(lxc query /1.0 | jq --exit-status --raw-output '.environment.backup_metadata_version_range[1]')"
 
   [ "$lowest_version" = "1" ]
   [ "$highest_version" = "2" ]
