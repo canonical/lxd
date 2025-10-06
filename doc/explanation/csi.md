@@ -164,3 +164,16 @@ It shows the interactions between the Kubernetes control plane, the LXD CSI driv
 
 When the Pod and PVC are deleted, these steps run in reverse order.
 The volume is unpublished, detached from the node, and finally deleted from the LXD storage pool.
+
+(exp-csi-security)=
+## Security
+
+The LXD CSI driver relies on the {ref}`DevLXD APIs <dev-lxd>` for volume management.
+These APIs are disabled by default and must be explicitly enabled on each instance that is hosting a Kubernetes node through the {config:option}`instance-security:security.devlxd` and {config:option}`instance-security:security.devlxd.management.volumes` configuration options.
+
+DevLXD enforces project-level isolation, allowing access to LXD entities only within a project where an invoked instance is running.
+As a result, each Kubernetes cluster must run inside a single LXD {ref}`project <exp-projects>`.
+
+Operations that require elevated permissions (such as creating or attaching volumes) use token-based authentication.
+The token, stored as a Kubernetes Secret, identifies the caller and is checked by LXD’s {ref}`fine-grained-authorization` system.
+Ownership of volumes, snapshots, and devices is tracked in the LXD configuration and ensures the identity can later manage only entities it has previously created.
