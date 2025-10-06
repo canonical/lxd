@@ -31,7 +31,7 @@ test_network_acl() {
   lxc project delete testproj3
 
   # ACL creation from stdin.
-  cat <<EOF | lxc network acl create testacl
+  lxc network acl create testacl << EOF
 description: Test ACL
 egress: []
 ingress:
@@ -66,7 +66,7 @@ EOF
   [ "$(echo "$acl_show_output" | grep -cF 'egress: []')" = 1 ]
 
   # ACL edit from stdin.
-  cat <<EOF | lxc network acl edit testacl
+  lxc network acl edit testacl << EOF
 description: Test ACL updated
 egress: []
 ingress:
