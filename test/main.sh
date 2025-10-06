@@ -102,6 +102,14 @@ if [ -z "${LXD_TEST_IMAGE:-}" ]; then
       echo "The testsuite requires ${BUSYBOX} to be a static binary"
       exit 1
   fi
+
+  # Cache the busybox testimage for reuse
+  deps/import-busybox --save-image
+
+  # Avoid `.tar.xz` extension that may conflict with some tests
+  mv busybox.tar.xz busybox.tar.xz.cache
+  export LXD_TEST_IMAGE="busybox.tar.xz.cache"
+  echo "==> Saving testimage for reuse (${LXD_TEST_IMAGE})"
 fi
 
 # find the path to lxc binary, not the shell wrapper function
@@ -383,14 +391,6 @@ if [ "$#" -gt 0 ] && [ "$1" != "all" ] && [ "$1" != "cluster" ] && [ "$1" != "st
   # shellcheck disable=SC2034
   TEST_RESULT=success
   exit
-else
-  # Since we are executing more than one test, cache the busybox testimage for reuse
-  deps/import-busybox --save-image
-
-  # Avoid `.tar.xz` extension that may conflict with some tests
-  mv busybox.tar.xz busybox.tar.xz.cache
-  export LXD_TEST_IMAGE="busybox.tar.xz.cache"
-  echo "==> Saving testimage for reuse (${LXD_TEST_IMAGE})"
 fi
 
 if [ "${1:-"all"}" != "standalone" ]; then
