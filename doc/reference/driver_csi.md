@@ -85,3 +85,35 @@ Key                                                | Type   | Default           
 `storageClasses[].volumeBindingMode`               | string | `WaitForFirstConsumer`                                  | Volume binding mode (`Immediate`, `WaitForFirstConsumer`)
 `storageClasses[].reclaimPolicy`                   | string | `Delete`                                                | Volume reclaim policy (`Delete`, `Retain`)
 `storageClasses[].annotations`                     | object | `{}`                                                    | Additional storage class annotations
+
+(ref-csi-versioning)=
+## Versioning
+
+The LXD CSI driver follows Semantic Versioning independently of LXD releases, starting at `0.0.1`.
+
+Tag type | Format                     | Example  | Description
+-------- | -------------------------- | -------- | -----------
+Patch    | `v<major>.<minor>.<patch>` | `v1.2.3` | Bugfix release. Each patch within the same minor version provides the same set of features.
+Minor    | `v<major>.<minor>`         | `v4.5`   | Feature release. Adds new features in a backward-compatible way within the major version. Features may be deprecated, but remain usable.
+Major    | `v<major>`                 | `v6`     | Breaking release. May include breaking changes and may raise minimum LXD version.
+
+(ref-csi-versioning-compatibility)=
+### Compatibility
+
+For any major driver version `≥1`, the minimum supported LXD version is fixed.
+Updates within that major version remain compatible with that LXD version (or newer) until the driver version reaches end-of-life (EOL).
+
+On the other hand, Kubernetes versions receive roughly one year of patch support.
+The LXD CSI driver only supports Kubernetes versions that are themselves supported upstream.
+When a Kubernetes version reaches end of life, it is no longer supported by the driver.
+
+CSI Version | Min. LXD Version | Min. Kubernetes Version | EOL
+----------- | ---------------- | ----------------------- | ---
+`1`         | `6.6`            | `v1.31`                 | N/A
+
+(ref-csi-versioning-exceptions)=
+### Special versions
+
+- All versions before the first major release (`<1.0.0`) make no guarantees. Behavior may change even in patch releases.
+- Versions with non-semantic tags (e.g. `latest-edge`) or with pre-release identifiers (e.g. `v1.2.3-edge`) are considered unstable and should be used only for testing.
+- Version `0.0.0` is reserved for unstable builds where semantic versioning is required (e.g. `v0.0.0-latest-edge` is latest Helm chart release).
