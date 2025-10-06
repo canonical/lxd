@@ -50,7 +50,7 @@ require (
 	golang.org/x/sys v0.36.0
 	golang.org/x/term v0.35.0
 	golang.org/x/text v0.29.0
-	google.golang.org/protobuf v1.36.9
+	google.golang.org/protobuf v1.36.10
 	gopkg.in/juju/environschema.v1 v1.0.1
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 	gopkg.in/yaml.v2 v2.4.0
