@@ -92,7 +92,7 @@ EOF
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep '^expires_at: 0001-01-01T00:00:00Z'
 
   # Check the API returns the zero time representation when listing all snapshots in recursive mode.
-  [ "$(lxc query "/1.0/storage-pools/${storage_pool}/volumes/custom/${storage_volume}/snapshots?recursion=2" | jq -r '.[] | select(.name == "'"${storage_volume}/snap0"'") | .expires_at')" = "0001-01-01T00:00:00Z" ]
+  lxc query "/1.0/storage-pools/${storage_pool}/volumes/custom/${storage_volume}/snapshots?recursion=2" | jq --exit-status '.[] | select(.name == "'"${storage_volume}/snap0"'") | .expires_at == "0001-01-01T00:00:00Z"'
 
   lxc storage volume set "${storage_pool}" "${storage_volume}" snapshots.expiry '1d'
   lxc storage volume snapshot "${storage_pool}" "${storage_volume}"
@@ -261,13 +261,13 @@ EOF
   # Check snapshot volume only copy.
   ! lxc storage volume copy "${storage_pool}/vol1/snap0" "${storage_pool}/vol2" --volume-only || false
   lxc storage volume copy "${storage_pool}/vol1" "${storage_pool}/vol2" --volume-only
-  [ "$(lxc query "/1.0/storage-pools/${storage_pool}/volumes/custom/vol2/snapshots" | jq "length == 0")" = "true" ]
+  lxc query "/1.0/storage-pools/${storage_pool}/volumes/custom/vol2/snapshots" | jq --exit-status ". == []"
   lxc storage volume delete "${storage_pool}" "vol2"
 
   # Check snapshot volume only copy (remote).
   ! lxc storage volume copy "${storage_pool}/vol1/snap0" "localhost:${storage_pool}/vol2" --volume-only || false
   lxc storage volume copy "${storage_pool}/vol1" "localhost:${storage_pool}/vol2" --volume-only
-  [ "$(lxc query "/1.0/storage-pools/${storage_pool}/volumes/custom/vol2/snapshots" | jq "length == 0")" = "true" ]
+  lxc query "/1.0/storage-pools/${storage_pool}/volumes/custom/vol2/snapshots" | jq --exit-status ". == []"
   lxc storage volume delete "${storage_pool}" "vol2"
 
   # Check snapshot refresh.
@@ -283,12 +283,12 @@ EOF
   # Check snapshot copy between projects.
   lxc project create project1
   lxc storage volume copy "${storage_pool}/vol1/snap0" "${storage_pool}/vol1" --target-project project1
-  [ "$(lxc query "/1.0/storage-pools/${storage_pool}/volumes?project=project1" | jq "length == 1")" = "true" ]
+  lxc query "/1.0/storage-pools/${storage_pool}/volumes?project=project1" | jq --exit-status "length == 1"
   lxc storage volume delete "${storage_pool}" "vol1" --project project1
 
   # Check snapshot copy between projects (remote).
   lxc storage volume copy "${storage_pool}/vol1/snap0" "localhost:${storage_pool}/vol1" --target-project project1
-  [ "$(lxc query "/1.0/storage-pools/${storage_pool}/volumes?project=project1" | jq "length == 1")" = "true" ]
+  lxc query "/1.0/storage-pools/${storage_pool}/volumes?project=project1" | jq --exit-status "length == 1"
   lxc storage volume delete "${storage_pool}" "vol1" --project project1
   lxc storage volume delete "${storage_pool}" "vol1"
 
