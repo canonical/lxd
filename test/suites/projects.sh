@@ -844,7 +844,7 @@ test_projects_limits() {
     lxc project switch p1
 
     LXD_REMOTE_ADDR=$(< "${LXD_REMOTE_DIR}/lxd.addr")
-    (LXD_DIR=${LXD_REMOTE_DIR} deps/import-busybox --alias remoteimage --template start --public)
+    LXD_DIR=${LXD_REMOTE_DIR} deps/import-busybox --alias remoteimage --template start --public
 
     token="$(LXD_DIR=${LXD_REMOTE_DIR} lxc config trust add --name foo -q)"
     lxc remote add l2 "${LXD_REMOTE_ADDR}" --token "${token}"
