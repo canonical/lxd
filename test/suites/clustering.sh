@@ -195,10 +195,12 @@ test_clustering_membership() {
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
 
   # Neither server certificate can be deleted
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc config trust remove "$(cert_fingerprint "${LXD_ONE_DIR}/server.crt")" || false
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc config trust remove "$(cert_fingerprint "${LXD_ONE_DIR}/server.crt")" || false
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc config trust remove "$(cert_fingerprint "${LXD_TWO_DIR}/server.crt")" || false
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc config trust remove "$(cert_fingerprint "${LXD_TWO_DIR}/server.crt")" || false
+  LXD_ONE_FINGERPRINT="$(cert_fingerprint "${LXD_ONE_DIR}/server.crt")"
+  LXD_TWO_FINGERPRINT="$(cert_fingerprint "${LXD_TWO_DIR}/server.crt")"
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc config trust remove "${LXD_ONE_FINGERPRINT}" || false
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc config trust remove "${LXD_ONE_FINGERPRINT}" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc config trust remove "${LXD_TWO_FINGERPRINT}" || false
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc config trust remove "${LXD_TWO_FINGERPRINT}" || false
 
   # Configuration keys can be changed on any node.
   LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.offline_threshold 11
