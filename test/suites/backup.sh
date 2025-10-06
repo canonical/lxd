@@ -674,7 +674,7 @@ test_backup_rename() {
   # The old backup should not exist
   ! lxc query /1.0/instances/c1/backups/foo || false
 
-  lxc delete --force c2
+  lxc delete c2
 }
 
 test_backup_volume_export() {
