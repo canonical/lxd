@@ -130,3 +130,37 @@ The PV therefore serves as the Kubernetes-side representation of the LXD volume.
 When a volume is attached to a node, Kubernetes creates a [VolumeAttachment &#8599;](https://kubernetes.io/docs/reference/kubernetes-api/config-and-storage-resources/volume-attachment-v1/) object to track the relationship between a volume and the node.
 The `external-attacher` sidecar watches these objects and invokes the driver's controller to attach or detach the volume as needed.
 With the LXD CSI driver, this attaches or detaches the LXD volume to the target LXD instance.
+
+(exp-csi-lifecycle)=
+## Life cycle
+
+```{figure} /images/csi/lifecycle.svg
+:width: 100%
+:alt: LXD CSI driver life cycle
+```
+
+The diagram above illustrates how a Pod with a PersistentVolumeClaim (PVC) progresses through the CSI volume life cycle.
+It shows the interactions between the Kubernetes control plane, the LXD CSI driver, and the LXD storage backend.
+
+1. An administrator creates a Pod that references a PVC.
+
+1. The Kubernetes scheduler assigns the Pod to a specific worker node.
+
+1. The `external-provisioner` sidecar requests volume creation from the CSI controller. If the volume is successfully created, the external-attacher similarly requests the volume to be attached to the previously selected node.
+
+1. The request is authorized by the DevLXD API, which verifies that the desired operation is allowed to be executed on a particular LXD entity.
+
+1. Upon successful authorization, the request is forwarded to the main LXD API.
+
+1. The LXD API creates the requested volume in the configured storage pool.
+
+1. The volume is attached to the node where the Pod was previously scheduled.
+
+1. Kubelet invokes the CSI node service requesting the attached volume to be mounted into the Pod.
+
+1. The node service bind-mounts the volume into the Pod.
+
+1. With the volume mounted and available, Kubelet starts the Pod’s containers.
+
+When the Pod and PVC are deleted, these steps run in reverse order.
+The volume is unpublished, detached from the node, and finally deleted from the LXD storage pool.
