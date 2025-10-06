@@ -1048,7 +1048,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 			expiry := snap.ExpiryDate() // Attached volume snapshots inherit the expiry date of the instance snapshot.
 			snapshotUUID, err := pool.CreateCustomVolumeSnapshot(volume.Project, volume.Name, snapshotName, description, &expiry, d.op)
 			if err != nil {
-				return err
+				return fmt.Errorf("Failed creating attached volume %q snapshot %q in storage pool %q: %w", volume.Name, snapshotName, volume.Pool, err)
 			}
 
 			// Set attached volume snapshot UUID.
