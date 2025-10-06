@@ -500,7 +500,8 @@ snapshot_restore_description() {
   echo "==> Testing snapshot restore preserves instance description"
 
   # Create instance and set description
-  lxc launch ubuntu:24.04 "${instance_name}"
+  lxc init testimage "${instance_name}" -d "${SMALL_ROOT_DISK}"
+  lxc start "${instance_name}"
 
   echo "Setting description to: ${test_description}"
   temp_yaml=$(mktemp)
