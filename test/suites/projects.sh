@@ -1331,7 +1331,7 @@ test_projects_force_delete() {
     lxc network set "${uplink_network}" ipv4.routes=192.0.2.0/24 ipv6.routes=2001:db8:1:2::/64
 
     echo "Create OVN network in project."
-    lxc network create foonet --type ovn --project foo network="${uplink_network}"
+    lxc network create foonet --type ovn --project foo network="${uplink_network}" ipv4.address=192.0.2.1/24 ipv6.address=2001:db8:1:2::1/64
 
     echo "Add NIC to profile in project."
     (
