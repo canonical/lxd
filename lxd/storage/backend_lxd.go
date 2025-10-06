@@ -3695,17 +3695,9 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 
 	revert.Add(func() { _ = VolumeDBDelete(b, inst.Project().Name, inst.Name(), volType) })
 
-	// Some driver backing stores require that running instances be frozen during snapshot.
-	if b.driver.Info().RunningCopyFreeze && src.IsRunning() && !src.IsFrozen() {
-		// Freeze the processes.
-		err = src.Freeze()
-		if err != nil {
-			return err
-		}
-
-		defer func() { _ = src.Unfreeze() }()
-
-		// Attempt to sync the filesystem.
+	// Attempt to sync the filesystem before taking the snapshot.
+	// If RunningCopyFreeze is false for the driver in use, it means the driver syncs the volume on snapshot, so we don't have to do it here.
+	if b.driver.Info().RunningCopyFreeze {
 		err = filesystem.SyncFS(src.Path())
 		if err != nil {
 			l.Warn("Failed to flush writes to instance volume", logger.Ctx{"err": err})
@@ -4013,7 +4005,7 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 				}
 
 				// Delete snapshot instance if listed in the error as one that needs removing.
-				err := snap.Delete(true)
+				err := snap.Delete(true, "")
 				if err != nil {
 					return err
 				}

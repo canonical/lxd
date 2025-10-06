@@ -431,6 +431,16 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	//  shortdesc: Template hook
 	"volatile.apply_template": validate.IsAny,
 
+	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.attached_volumes)
+	// JSON-serialized map of attached volume UUIDs to the UUIDs of their corresponding
+	// snapshots, created as part of a multi-volume snapshot.
+	//
+	// ---
+	//   type: string
+	//   shortdesc: JSON-serialized map of attached volume UUIDs to the UUIDs of their corresponding snapshots.
+	//   condition: snapshot
+	"volatile.attached_volumes": validate.IsAny,
+
 	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.base_image)
 	// The hash of the image that the instance was created from (empty if the instance was not created from an image).
 	// ---

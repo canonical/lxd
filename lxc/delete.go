@@ -23,6 +23,7 @@ type cmdDelete struct {
 	flagForce          bool
 	flagForceProtected bool
 	flagInteractive    bool
+	flagDiskVolumes    string
 }
 
 func (c *cmdDelete) command() *cobra.Command {
@@ -36,6 +37,7 @@ func (c *cmdDelete) command() *cobra.Command {
 	cmd.RunE = c.run
 	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Force the removal of running instances"))
 	cmd.Flags().BoolVarP(&c.flagInteractive, "interactive", "i", false, i18n.G("Require user confirmation"))
+	cmd.Flags().StringVar(&c.flagDiskVolumes, "disk-volumes", "", i18n.G(`Disk volumes mode for snapshot deletion. Possible values are "root" (default) and "all-exclusive". "root" only deletes the instance's root disk volume snapshot. "all-exclusive" deletes the instance's root disk volume snapshot and any exclusively attached volumes (non-shared) snapshots.`))
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return c.global.cmpInstancesAction(toComplete, "delete", c.flagForce)
@@ -64,7 +66,7 @@ func (c *cmdDelete) doDelete(d lxd.InstanceServer, name string) error {
 	if shared.IsSnapshot(name) {
 		// Snapshot delete
 		fields := strings.SplitN(name, shared.SnapshotDelimiter, 2)
-		op, err = d.DeleteInstanceSnapshot(fields[0], fields[1])
+		op, err = d.DeleteInstanceSnapshot(fields[0], fields[1], c.flagDiskVolumes)
 	} else {
 		// Instance delete
 		op, err = d.DeleteInstance(name)
