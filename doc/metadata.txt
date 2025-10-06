@@ -5496,7 +5496,7 @@ This option specifies whether to use RBD `du` to obtain disk usage data for stop
 ```
 
 ```{config:option} source storage-ceph-pool-conf
-:scope: "local"
+:scope: "global"
 :shortdesc: "Existing OSD storage pool to use"
 :type: "string"
 
@@ -5712,7 +5712,7 @@ when creating an OSD pool.
 ```
 
 ```{config:option} source storage-cephfs-pool-conf
-:scope: "local"
+:scope: "global"
 :shortdesc: "Existing CephFS file system or file system path to use"
 :type: "string"
 

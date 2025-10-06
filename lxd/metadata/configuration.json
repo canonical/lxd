@@ -6116,7 +6116,7 @@
 					{
 						"source": {
 							"longdesc": "",
-							"scope": "local",
+							"scope": "global",
 							"shortdesc": "Existing OSD storage pool to use",
 							"type": "string"
 						}
@@ -6344,7 +6344,7 @@
 					{
 						"source": {
 							"longdesc": "",
-							"scope": "local",
+							"scope": "global",
 							"shortdesc": "Existing CephFS file system or file system path to use",
 							"type": "string"
 						}
