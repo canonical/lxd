@@ -556,8 +556,9 @@ test_snap_multi_volume() {
 
   echo "Check deleting multi-volume snapshot also deletes attached volume snapshots when requested."
   lxc snapshot c1 c1-snap3 --disk-volumes=all-exclusive
+  lxc storage volume list -f csv | grep -F "Created alongside container c1/c1-snap3 snapshot in project default"
   lxc delete c1/c1-snap3 --disk-volumes=all-exclusive
-  ! lxc storage volume list -f csv | grep -F "Created alongside container/c1/c1-snap3 in project default" || false
+  ! lxc storage volume list -f csv | grep -F "Created alongside container c1/c1-snap3 snapshot in project default" || false
 
   # Cleanup.
   lxc delete c1 -f
