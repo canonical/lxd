@@ -1,7 +1,4 @@
 test_network_acl() {
-  ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
-
   firewallDriver=$(lxc info | awk -F ":" '/firewall:/{gsub(/ /, "", $0); print $2}')
   netName=lxdt$$
 
