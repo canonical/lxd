@@ -201,7 +201,7 @@ type InstanceServer interface {
 	CopyInstanceSnapshot(source InstanceServer, instanceName string, snapshot api.InstanceSnapshot, args *InstanceSnapshotCopyArgs) (op RemoteOperation, err error)
 	RenameInstanceSnapshot(instanceName string, name string, instance api.InstanceSnapshotPost) (op Operation, err error)
 	MigrateInstanceSnapshot(instanceName string, name string, instance api.InstanceSnapshotPost) (op Operation, err error)
-	DeleteInstanceSnapshot(instanceName string, name string) (op Operation, err error)
+	DeleteInstanceSnapshot(instanceName string, name string, diskVolumesMode string) (op Operation, err error)
 	UpdateInstanceSnapshot(instanceName string, name string, instance api.InstanceSnapshotPut, ETag string) (op Operation, err error)
 
 	GetInstanceBackupNames(instanceName string) (names []string, err error)

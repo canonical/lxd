@@ -172,6 +172,16 @@ type InstancePostTarget struct {
 	Websockets map[string]string `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 }
 
+const (
+	// DiskVolumesModeRoot represents the "root" disk volumes mode.
+	// This mode performs an action on the root disk only.
+	DiskVolumesModeRoot = "root"
+
+	// DiskVolumesModeAllExclusive represents the "all-exclusive" disk volumes mode.
+	// This mode performs an action on the root disk and all exclusive (non-shared) disk volumes.
+	DiskVolumesModeAllExclusive = "all-exclusive"
+)
+
 // InstancePut represents the modifiable fields of a LXD instance.
 //
 // swagger:model
@@ -201,6 +211,12 @@ type InstancePut struct {
 	// If set, instance will be restored to the provided snapshot name
 	// Example: snap0
 	Restore string `json:"restore,omitempty" yaml:"restore,omitempty"`
+
+	// Which disk volumes to restore from an instance snapshot. Possible values are "root" or "all-exclusive".
+	// Example: all-exclusive
+	//
+	// API extension: instance_snapshot_multi_volume
+	RestoreDiskVolumesMode string `json:"restore_disk_volumes_mode,omitempty" yaml:"restore_disk_volumes_mode,omitempty"`
 
 	// Whether the instance currently has saved state on disk
 	// Example: false
