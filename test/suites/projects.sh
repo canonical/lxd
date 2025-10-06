@@ -1317,6 +1317,9 @@ test_projects_force_delete() {
     echo "Create OVN uplink network."
     setup_ovn
 
+    # Cleanup any leftover from previous run
+    ip link delete dummy0 || true
+
     echo "Create a dummy physical network for use as an uplink."
     ip link add dummy0 type dummy
     lxc network create "${uplink_network}" --type=physical parent=dummy0
