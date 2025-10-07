@@ -7,10 +7,11 @@ ceph_setup() {
 ceph_configure() {
   local LXD_DIR="${1}"
   local POOL_NAME="${2:-"lxdtest-${LXD_DIR##*/}"}" # Use the last part of the LXD_DIR as pool name
+  local VOL_SIZE="${3:-"24MiB"}"
 
   echo "==> Configuring CEPH backend in ${LXD_DIR}"
 
-  lxc storage create "${POOL_NAME}" ceph volume.size=25MiB ceph.osd.pg_num=8
+  lxc storage create "${POOL_NAME}" ceph volume.size="${VOL_SIZE}" ceph.osd.pg_num=8
   lxc profile device add default root disk path="/" pool="${POOL_NAME}"
 }
 
