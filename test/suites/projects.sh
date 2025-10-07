@@ -1495,24 +1495,24 @@ test_projects_force_delete() {
     echo "Create OVN uplink network."
     setup_ovn
 
+    # Cleanup any leftover from previous run
+    ip link delete dummy0 || true
+
     echo "Create a dummy physical network for use as an uplink."
     ip link add dummy0 type dummy
     lxc network create "${uplink_network}" --type=physical parent=dummy0
 
     echo "Set OVN ranges."
-    lxc network set "${uplink_network}" ipv4.ovn.ranges=192.0.2.100-192.0.2.254
-    lxc network set "${uplink_network}" ipv6.ovn.ranges=2001:db8:1:2::100-2001:db8:1:2::254
+    lxc network set "${uplink_network}" ipv4.ovn.ranges=192.0.2.100-192.0.2.254 ipv6.ovn.ranges=2001:db8:1:2::100-2001:db8:1:2::254
 
     echo "Set IP routes that include OVN ranges."
-    lxc network set "${uplink_network}" ipv4.routes=192.0.2.0/24
-    lxc network set "${uplink_network}" ipv6.routes=2001:db8:1:2::/64
+    lxc network set "${uplink_network}" ipv4.routes=192.0.2.0/24 ipv6.routes=2001:db8:1:2::/64
 
     echo "Create OVN network in project."
-    lxc network create foonet --type ovn --project foo network="${uplink_network}"
+    lxc network create foonet --type ovn --project foo network="${uplink_network}" ipv4.address=192.0.2.1/24 ipv6.address=2001:db8:1:2::1/64
 
     echo "Add NIC to profile in project."
-    (
-      cat <<EOF
+    lxc profile edit profile1 --project foo << EOF
 config: {}
 description: ""
 devices:
@@ -1523,7 +1523,6 @@ devices:
 name: default
 used_by:
 EOF
-  ) | lxc profile edit profile1 --project foo
   fi
 
   echo "Check that regular delete fails on non-empty project."

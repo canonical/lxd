@@ -1,13 +1,8 @@
 test_network_acl() {
-  ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
-
   firewallDriver=$(lxc info | awk -F ":" '/firewall:/{gsub(/ /, "", $0); print $2}')
   netName=lxdt$$
 
-  lxc network create "${netName}" \
-        ipv4.address=192.0.2.1/24 \
-        ipv6.address=fd42:4242:4242:1010::1/64
+  lxc network create "${netName}" ipv4.address=192.0.2.1/24 ipv6.address=fd42:4242:4242:1010::1/64
 
   # Check basic ACL creation, listing, deletion and project namespacing support.
   ! lxc network acl create 192.168.1.1 || false # Don't allow non-hostname compatible names.
@@ -36,7 +31,7 @@ test_network_acl() {
   lxc project delete testproj3
 
   # ACL creation from stdin.
-  cat <<EOF | lxc network acl create testacl
+  lxc network acl create testacl << EOF
 description: Test ACL
 egress: []
 ingress:
@@ -53,25 +48,25 @@ ingress:
 config:
   user.mykey: foo
 EOF
-  acl_show_output=$(lxc network acl show testacl)
-  [ "$(echo "$acl_show_output" | grep -cF 'description: Test ACL')" = 1 ]
-  [ "$(echo "$acl_show_output" | grep -cF 'action: allow')" = 1 ]
-  [ "$(echo "$acl_show_output" | grep -cF 'source: 192.168.1.1/32')" = 1 ]
-  [ "$(echo "$acl_show_output" | grep -cF 'destination: 192.168.1.2/32')" = 1 ]
-  [ "$(echo "$acl_show_output" | grep -cF 'destination_port: "22"')" = 1 ]
-  [ "$(echo "$acl_show_output" | grep -cF 'user.mykey: foo')" = 1 ]
+  acl_show_output="$(lxc network acl list -f json | jq --exit-status '.[] | select(.name == "testacl")')"
+  jq --exit-status '.description == "Test ACL"' <<< "${acl_show_output}"
+  jq --exit-status '.ingress[0].action == "allow"' <<< "${acl_show_output}"
+  jq --exit-status '.ingress[0].source == "192.168.1.1/32"' <<< "${acl_show_output}"
+  jq --exit-status '.ingress[0].destination == "192.168.1.2/32"' <<< "${acl_show_output}"
+  jq --exit-status '.ingress[0].destination_port == "22"' <<< "${acl_show_output}"
+  jq --exit-status '.config["user.mykey"] == "foo"' <<< "${acl_show_output}"
 
   # ACL Patch. Check for merged config and replaced description, ingress and egress fields.
   lxc query -X PATCH -d '{"config": {"user.myotherkey": "bah"}}' /1.0/network-acls/testacl
-  acl_show_output=$(lxc network acl show testacl)
-  [ "$(echo "$acl_show_output" | grep -cF 'user.mykey: foo')" = 1 ]
-  [ "$(echo "$acl_show_output" | grep -cF 'user.myotherkey: bah')" = 1 ]
-  [ "$(echo "$acl_show_output" | grep -cF 'description: ""')" = 1 ]
-  [ "$(echo "$acl_show_output" | grep -cF 'ingress: []')" = 1 ]
-  [ "$(echo "$acl_show_output" | grep -cF 'egress: []')" = 1 ]
+  acl_show_output="$(lxc network acl list -f json | jq --exit-status '.[] | select(.name == "testacl")')"
+  jq --exit-status '.config["user.mykey"] == "foo"' <<< "${acl_show_output}"
+  jq --exit-status '.config["user.myotherkey"] == "bah"' <<< "${acl_show_output}"
+  jq --exit-status '.description == ""' <<< "${acl_show_output}"
+  jq --exit-status '.ingress == []' <<< "${acl_show_output}"
+  jq --exit-status '.egress == []' <<< "${acl_show_output}"
 
   # ACL edit from stdin.
-  cat <<EOF | lxc network acl edit testacl
+  lxc network acl edit testacl << EOF
 description: Test ACL updated
 egress: []
 ingress:

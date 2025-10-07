@@ -29,7 +29,7 @@ test_tls_restrictions() {
 
   # Confirm client with restricted certificate cannot see server configuration.
   lxc config set user.foo bar
-  lxc_remote query localhost:/1.0 | jq --exit-status '.config | length == 0'
+  lxc_remote query localhost:/1.0 | jq --exit-status '.config == null'
   lxc_remote query localhost:/1.0 | jq --exit-status '.config."user.foo" == null'
   lxc config unset user.foo
 
@@ -296,7 +296,7 @@ test_tls_restrictions() {
 
   # Create a network in the default project.
   networkName="net$$"
-  lxc network create "${networkName}" --project default
+  lxc network create "${networkName}" --project default ipv4.address=192.0.2.1/24 ipv6.address=2001:db8:1:2::1/64
 
   # Create instances in the default project and in the blah project that use the network
   ensure_import_testimage
@@ -523,18 +523,18 @@ test_tls_version() {
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   echo "TLS 1.3 just works"
-  my_curl -X GET "https://${LXD_ADDR}"
-  my_curl --tlsv1.3 -X GET "https://${LXD_ADDR}"
+  my_curl "https://${LXD_ADDR}"
+  my_curl --tlsv1.3 "https://${LXD_ADDR}"
 
   echo "TLS 1.3 with various ciphersuites"
   for cipher in TLS_AES_256_GCM_SHA384 TLS_CHACHA20_POLY1305_SHA256 TLS_AES_128_GCM_SHA256; do
     echo "Testing TLS 1.3: ${cipher}"
-    my_curl --tlsv1.3 --tls13-ciphers "${cipher}" -X GET "https://${LXD_ADDR}"
+    my_curl --tlsv1.3 --tls13-ciphers "${cipher}" "https://${LXD_ADDR}"
   done
 
   echo "TLS 1.2 is refused with a protocol version error"
-  ! my_curl --tls-max 1.2 -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" || false
+  ! my_curl --tls-max 1.2 "https://${LXD_ADDR}" -w "%{errormsg}\n" || false
   # rc=35: SSL connect error. The SSL handshaking failed.
-  CURL_ERR="$(my_curl --tls-max 1.2 -X GET "https://${LXD_ADDR}" -w "%{errormsg}\n" || [ "${?}" = 35 ])"
+  CURL_ERR="$(my_curl --tls-max 1.2 "https://${LXD_ADDR}" -w "%{errormsg}\n" || [ "${?}" = 35 ])"
   echo "${CURL_ERR}" | grep -F "alert protocol version"
 }

@@ -38,7 +38,7 @@ test_warnings() {
     # Test filtering
     curl --silent --get --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/warnings" --data-urlencode "recursion=0" --data-urlencode "filter=status eq new" | jq --exit-status '.metadata | length == 3'
 
-    curl --silent --get --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/warnings" --data-urlencode "recursion=0" --data-urlencode "filter=status eq resolved" | jq --exit-status '.metadata | length == 0'
+    curl --silent --get --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/warnings" --data-urlencode "recursion=0" --data-urlencode "filter=status eq resolved" | jq --exit-status '.metadata == null'
 
     # Acknowledge a warning
     uuid="$(lxc warning list --format json | jq --exit-status --raw-output '.[] | select(.last_message=="global warning 2") | .uuid')"

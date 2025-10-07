@@ -1,34 +1,17 @@
 # Test API filtering.
 test_filtering() {
-  local LXD_DIR
+    echo "===> Instance filtering"
+    lxc init --empty c1
+    lxc init --empty c2
+    curl --silent --get --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/instances" --data-urlencode "recursion=0" --data-urlencode "filter=name eq c1" | jq --exit-status ".metadata | length == 1"
+    curl --silent --get --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/instances" --data-urlencode "recursion=1" --data-urlencode "filter=name eq c1" | jq --exit-status ".metadata | length == 1"
+    curl --silent --get --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/instances" --data-urlencode "recursion=2" --data-urlencode "filter=name eq c1" | jq --exit-status ".metadata | length == 1"
 
-  LXD_FILTERING_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-
-  spawn_lxd "${LXD_FILTERING_DIR}" true
-
-  (
-    set -e
-    # shellcheck disable=SC2034,SC2030
-    LXD_DIR="${LXD_FILTERING_DIR}"
-
+    echo "===> Image filtering"
     ensure_import_testimage
+    curl --silent --get --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/images" --data-urlencode "recursion=0" --data-urlencode "filter=properties.os eq BusyBox" | jq --exit-status ".metadata | length == 1"
+    curl --silent --get --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/images" --data-urlencode "recursion=1" --data-urlencode "filter=properties.os eq Ubuntu" | jq --exit-status ".metadata == []"
 
-    lxc init testimage c1
-    lxc init testimage c2
-
-    [ "$(curl -G --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/instances" --data-urlencode "recursion=0" --data-urlencode "filter=name eq c1" | jq ".metadata | length")" = "1" ]
-
-    [ "$(curl -G --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/instances" --data-urlencode "recursion=1" --data-urlencode "filter=name eq c1" | jq ".metadata | length")" = "1" ]
-
-    [ "$(curl -G --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/instances" --data-urlencode "recursion=2" --data-urlencode "filter=name eq c1" | jq ".metadata | length")" = "1" ]
-
-    [ "$(curl -G --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/images" --data-urlencode "recursion=0" --data-urlencode "filter=properties.os eq BusyBox" | jq ".metadata | length")" = "1" ]
-
-    [ "$(curl -G --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/images" --data-urlencode "recursion=1" --data-urlencode "filter=properties.os eq Ubuntu" | jq ".metadata | length")" = "0" ]
-
-    lxc delete c1
-    lxc delete c2
-  )
-
-  kill_lxd "${LXD_FILTERING_DIR}"
+    # Cleanup
+    lxc delete c1 c2
 }
