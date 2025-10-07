@@ -55,25 +55,27 @@ install_snap() {
             snap="${assert/%.assert/.snap}"
         fi
 
-        # Check if we're already in a recursive call by looking at the call stack
-        local recursive_call=false
-        local i
-        for ((i=1; i<${#FUNCNAME[@]}; i++)); do
-            if [[ "${FUNCNAME[${i}]}" == "install_snap" ]]; then
-                recursive_call=true
-                break
-            fi
-        done
-
         # If files are missing and we're not in a recursive call
-        if { [ -z "${assert}" ] || ! [ -e "${snap}" ]; } && [ "${recursive_call}" = "false" ]; then
-            echo "Opportunistically downloading ${name} before installation"
-            if download_snap "${name}" "${channel}"; then
-                install_snap "${name}" "${channel}"
-                return
-            else
-                echo "Error: Failed to download ${name} from channel ${channel}" >&2
-                exit 1
+        if [ -z "${assert}" ] || ! [ -e "${snap}" ]; then
+            # Check if we're already in a recursive call by looking at the call stack
+            local recursive_call=false
+            local i
+            for ((i=1; i<${#FUNCNAME[@]}; i++)); do
+                if [[ "${FUNCNAME[${i}]}" == "install_snap" ]]; then
+                    recursive_call=true
+                    break
+                fi
+            done
+
+            if [ "${recursive_call}" = "false" ]; then
+              echo "Opportunistically downloading ${name} before installation"
+              if download_snap "${name}" "${channel}"; then
+                  install_snap "${name}" "${channel}"
+                  return
+              else
+                  echo "Error: Failed to download ${name} from channel ${channel}" >&2
+                  exit 1
+              fi
             fi
         fi
 
