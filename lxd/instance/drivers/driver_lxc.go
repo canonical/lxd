@@ -1877,7 +1877,7 @@ func (d *lxc) handleIdmappedStorage() (idmap.IdmapStorageType, *idmap.IdmapSet, 
 }
 
 // Start functions.
-func (d *lxc) startCommon() (string, []func() error, error) {
+func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 	postStartHooks := []func() error{}
 
 	revert := revert.New()
@@ -1886,12 +1886,12 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	// Load the go-lxc struct
 	cc, err := d.initLXC(true)
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed loading go-lxc: %w", err)
+		return nil, "", nil, fmt.Errorf("Failed loading go-lxc: %w", err)
 	}
 
 	// Ensure cgroup v1 configuration is set appropriately with the image using systemd
 	if d.localConfig["image.requirements.cgroup"] == "v1" && !shared.PathExists("/sys/fs/cgroup/systemd") {
-		return "", nil, errors.New("The image used by this instance requires a CGroupV1 host system")
+		return nil, "", nil, errors.New("The image used by this instance requires a CGroupV1 host system")
 	}
 
 	// Load any required kernel modules
@@ -1902,7 +1902,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 			module = strings.TrimPrefix(module, " ")
 			err := util.LoadModule(module)
 			if err != nil {
-				return "", nil, fmt.Errorf("Failed to load kernel module '%s': %w", module, err)
+				return nil, "", nil, fmt.Errorf("Failed to load kernel module '%s': %w", module, err)
 			}
 		}
 	}
@@ -1913,7 +1913,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		_ = os.Remove(logfile + ".old")
 		err := os.Rename(logfile, logfile+".old")
 		if err != nil && !os.IsNotExist(err) {
-			return "", nil, err
+			return nil, "", nil, err
 		}
 	}
 
@@ -1925,7 +1925,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	// Mount instance root volume.
 	mountInfo, err := d.mount()
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 
 	// Handle post hooks.
@@ -1944,7 +1944,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 
 	idmapType, nextIdmap, err := d.handleIdmappedStorage()
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed to handle idmapped storage: %w", err)
+		return nil, "", nil, fmt.Errorf("Failed to handle idmapped storage: %w", err)
 	}
 
 	var idmapBytes []byte
@@ -1953,21 +1953,21 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	} else {
 		idmapBytes, err = json.Marshal(nextIdmap.Idmap)
 		if err != nil {
-			return "", nil, err
+			return nil, "", nil, err
 		}
 	}
 
 	if d.localConfig["volatile.idmap.current"] != string(idmapBytes) {
 		err = d.VolatileSet(map[string]string{"volatile.idmap.current": string(idmapBytes)})
 		if err != nil {
-			return "", nil, fmt.Errorf("Set volatile.idmap.current config key on container %q (id %d): %w", d.name, d.id, err)
+			return nil, "", nil, fmt.Errorf("Set volatile.idmap.current config key on container %q (id %d): %w", d.name, d.id, err)
 		}
 	}
 
 	// Generate the Seccomp profile
 	err = seccomp.CreateProfile(d.state, d)
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 
 	// Cleanup any existing leftover devices
@@ -1977,17 +1977,17 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	// Create any missing directories.
 	err = os.MkdirAll(d.LogPath(), 0700)
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 
 	err = os.MkdirAll(d.DevicesPath(), 0711)
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 
 	err = os.MkdirAll(d.ShmountsPath(), 0711)
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 
 	volatileSet := make(map[string]string)
@@ -2009,7 +2009,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	// Apply any volatile changes that need to be made.
 	err = d.VolatileSet(volatileSet)
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed setting volatile keys: %w", err)
+		return nil, "", nil, fmt.Errorf("Failed setting volatile keys: %w", err)
 	}
 
 	// Create the devices
@@ -2029,13 +2029,13 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 				continue // Skip unsupported device (allows for mixed instance type profiles).
 			}
 
-			return "", nil, fmt.Errorf("Failed start validation for device %q: %w", entry.Name, err)
+			return nil, "", nil, fmt.Errorf("Failed start validation for device %q: %w", entry.Name, err)
 		}
 
 		// Run pre-start of check all devices before starting any device to avoid expensive revert.
 		err = dev.PreStartCheck()
 		if err != nil {
-			return "", nil, fmt.Errorf("Failed pre-start check for device %q: %w", dev.Name(), err)
+			return nil, "", nil, fmt.Errorf("Failed pre-start check for device %q: %w", dev.Name(), err)
 		}
 
 		startDevices = append(startDevices, dev)
@@ -2048,7 +2048,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		// Start the device.
 		runConf, err := d.deviceStart(dev, false)
 		if err != nil {
-			return "", nil, fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
+			return nil, "", nil, fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
 		}
 
 		// Stop device on failure to setup container.
@@ -2072,26 +2072,26 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 			// Get an absolute path for the rootfs (avoid constantly traversing the symlink).
 			absoluteRootfs, err := filepath.EvalSymlinks(runConf.RootFS.Path)
 			if err != nil {
-				return "", nil, fmt.Errorf("Unable to resolve container rootfs: %w", err)
+				return nil, "", nil, fmt.Errorf("Unable to resolve container rootfs: %w", err)
 			}
 
 			rootfsPath := "dir:" + absoluteRootfs
 			err = lxcSetConfigItem(cc, "lxc.rootfs.path", rootfsPath)
 			if err != nil {
-				return "", nil, fmt.Errorf("Failed to setup device rootfs %q: %w", dev.Name(), err)
+				return nil, "", nil, fmt.Errorf("Failed to setup device rootfs %q: %w", dev.Name(), err)
 			}
 
 			if len(runConf.RootFS.Opts) > 0 {
 				err = lxcSetConfigItem(cc, "lxc.rootfs.options", strings.Join(runConf.RootFS.Opts, ","))
 				if err != nil {
-					return "", nil, fmt.Errorf("Failed to setup device rootfs %q: %w", dev.Name(), err)
+					return nil, "", nil, fmt.Errorf("Failed to setup device rootfs %q: %w", dev.Name(), err)
 				}
 			}
 
 			if !d.IsPrivileged() && idmapType == idmap.IdmapStorageIdmapped {
 				err = lxcSetConfigItem(cc, "lxc.rootfs.options", "idmap=container")
 				if err != nil {
-					return "", nil, fmt.Errorf("Failed to set \"idmap=container\" rootfs option: %w", err)
+					return nil, "", nil, fmt.Errorf("Failed to set \"idmap=container\" rootfs option: %w", err)
 				}
 			}
 		}
@@ -2110,7 +2110,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 				}
 
 				if err != nil {
-					return "", nil, fmt.Errorf("Failed to setup device cgroup %q: %w", dev.Name(), err)
+					return nil, "", nil, fmt.Errorf("Failed to setup device cgroup %q: %w", dev.Name(), err)
 				}
 			}
 		}
@@ -2120,7 +2120,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 			for _, mount := range runConf.Mounts {
 				pathSource, isPath := mount.DevSource.(deviceConfig.DevSourcePath)
 				if mount.DevSource != nil && !isPath {
-					return "", nil, fmt.Errorf("Device source for device %q was not a host path (was %T)", mount.DevName, mount.DevSource)
+					return nil, "", nil, fmt.Errorf("Device source for device %q was not a host path (was %T)", mount.DevName, mount.DevSource)
 				}
 
 				mntOptions := strings.Join(mount.Opts, ",")
@@ -2130,14 +2130,14 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 					case idmap.IdmapStorageIdmapped:
 						mntOptions = strings.Join([]string{mntOptions, "idmap=container"}, ",")
 					case idmap.IdmapStorageNone:
-						return "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), errors.New("idmapping abilities are required but aren't supported on system"))
+						return nil, "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), errors.New("idmapping abilities are required but aren't supported on system"))
 					}
 				}
 
 				mntVal := shared.EscapePathFstab(pathSource.Path) + " " + shared.EscapePathFstab(mount.TargetPath) + " " + mount.FSType + " " + mntOptions + " " + fmt.Sprint(mount.Freq, " ", mount.PassNo)
 				err = lxcSetConfigItem(cc, "lxc.mount.entry", mntVal)
 				if err != nil {
-					return "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), err)
+					return nil, "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), err)
 				}
 			}
 		}
@@ -2150,7 +2150,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 			for _, nicItem := range runConf.NetworkInterface {
 				err = lxcSetConfigItem(cc, "lxc.net."+strconv.Itoa(nicID)+"."+nicItem.Key, nicItem.Value)
 				if err != nil {
-					return "", nil, fmt.Errorf("Failed to setup device network interface %q: %w", dev.Name(), err)
+					return nil, "", nil, fmt.Errorf("Failed to setup device network interface %q: %w", dev.Name(), err)
 				}
 			}
 		}
@@ -2178,21 +2178,21 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	if len(nvidiaDevices) > 0 {
 		err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_VISIBLE_DEVICES="+strings.Join(nvidiaDevices, ","))
 		if err != nil {
-			return "", nil, fmt.Errorf("Unable to set NVIDIA_VISIBLE_DEVICES in LXC environment: %w", err)
+			return nil, "", nil, fmt.Errorf("Unable to set NVIDIA_VISIBLE_DEVICES in LXC environment: %w", err)
 		}
 	}
 
 	if len(cdiConfigFiles) > 0 {
 		err = lxcSetConfigItem(cc, "lxc.hook.mount", d.state.OS.ExecPath+" callhook "+shared.VarPath("")+" "+strconv.Quote(d.Project().Name)+" "+strconv.Quote(d.Name())+" startmountns --devicesRootFolder "+d.DevicesPath()+" "+strings.Join(cdiConfigFiles, " "))
 		if err != nil {
-			return "", nil, fmt.Errorf("Unable to set the startmountns callhook to process CDI hooks files (%q) for instance %q in project %q: %w", strings.Join(cdiConfigFiles, ","), d.Name(), d.Project().Name, err)
+			return nil, "", nil, fmt.Errorf("Unable to set the startmountns callhook to process CDI hooks files (%q) for instance %q in project %q: %w", strings.Join(cdiConfigFiles, ","), d.Name(), d.Project().Name, err)
 		}
 	}
 
 	// Load the LXC raw config.
 	err = d.loadRawLXCConfig(cc)
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 
 	// Generate the LXC config
@@ -2200,13 +2200,13 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	err = cc.SaveConfigFile(configPath)
 	if err != nil {
 		_ = os.Remove(configPath)
-		return "", nil, err
+		return nil, "", nil, err
 	}
 
 	// Set ownership to match container root
 	currentIdmapset, err := d.CurrentIdmap()
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 
 	uid := int64(0)
@@ -2216,13 +2216,13 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 
 	err = os.Chown(d.Path(), int(uid), 0)
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 
 	// We only need traversal by root in the container
 	err = os.Chmod(d.Path(), 0100)
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 
 	// If starting stateless, wipe state
@@ -2233,13 +2233,13 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	// Snapshot if needed.
 	snapName, expiry, err := d.getStartupSnapNameAndExpiry(d)
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed getting startup snapshot info: %w", err)
+		return nil, "", nil, fmt.Errorf("Failed getting startup snapshot info: %w", err)
 	}
 
 	if snapName != "" && expiry != nil {
 		err := d.snapshot(snapName, expiry, false)
 		if err != nil {
-			return "", nil, fmt.Errorf("Failed taking startup snapshot: %w", err)
+			return nil, "", nil, fmt.Errorf("Failed taking startup snapshot: %w", err)
 		}
 	}
 
@@ -2248,11 +2248,12 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	// can be used for instance cleanup.
 	err = d.UpdateBackupFile()
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 
+	cleanup := revert.Clone().Fail
 	revert.Success()
-	return configPath, postStartHooks, nil
+	return cleanup, configPath, postStartHooks, nil
 }
 
 // detachInterfaceRename enters the container's network namespace and moves the named interface
@@ -2393,7 +2394,7 @@ func (d *lxc) Start(stateful bool) error {
 	}
 
 	// Run the shared start code.
-	configPath, postStartHooks, err := d.startCommon()
+	cleanupInstanceDevices, configPath, postStartHooks, err := d.startCommon()
 	if err != nil {
 		op.Done(err)
 		return err
@@ -2438,6 +2439,23 @@ func (d *lxc) Start(stateful bool) error {
 		}
 
 		d.logger.Error("Failed starting instance", ctxMap)
+
+		// Use this context timeout to wait for potential stop operation to complete in case instance start fails.
+		// If run, stop operation will inherit the current operation lock.
+		// The stop operation will never run if forkstart fails too early and does not attempt to start container.
+		// In that case, the context will timeout and op.Wait() will return a "context deadline exceeded" error.
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+
+		stopErr := op.Wait(ctx)
+		if stopErr != nil {
+			d.logger.Warn("Failed running instance stop hooks after failed start", ctxMap, logger.Ctx{"err": stopErr})
+
+			if errors.Is(stopErr, context.DeadlineExceeded) {
+				// Clean up instance devices because stop hooks likely have not run.
+				cleanupInstanceDevices()
+			}
+		}
 
 		// Return the actual error
 		op.Done(err)
