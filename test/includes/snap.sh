@@ -69,7 +69,8 @@ install_snap() {
         if { [ -z "${assert}" ] || ! [ -e "${snap}" ]; } && [ "${recursive_call}" = "false" ]; then
             echo "Opportunistically downloading ${name} before installation"
             if download_snap "${name}" "${channel}"; then
-                exec install_snap "${name}" "${channel}"
+                install_snap "${name}" "${channel}"
+                return
             else
                 echo "Error: Failed to download ${name} from channel ${channel}" >&2
                 exit 1
