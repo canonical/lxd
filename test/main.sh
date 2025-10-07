@@ -299,6 +299,16 @@ run_test() {
   fi
 
   if [ "${skip}" = false ]; then
+
+    if [[ "${TEST_CURRENT}" =~ ^test_snap_.*$ ]]; then
+      [ -e "/snap/lxd/current" ] || spawn_lxd_snap
+
+      # For snap based tests, the lxc and lxc_remote functions MUST not be used
+      unset -f lxc lxc_remote
+    elif [ -e "/snap/lxd/current" ]; then
+      kill_lxd_snap
+    fi
+
     # If there is '_vm' in the test name, then VM tests are expected to be run.
     # If LXD_VM_TESTS=1, then VM tests can be run.
     if [[ "${TEST_CURRENT}" =~ ^test_.*_vm.*$ ]] && [ "${LXD_VM_TESTS:-0}" = "0" ]; then
