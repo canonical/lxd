@@ -451,9 +451,9 @@ test_snap_volume_db_recovery() {
   lxc snapshot c1
   lxc start c1
   lxc stop -f c1
-  lxd sql global 'DELETE FROM storage_volumes_snapshots'                               # Remove volume snapshot DB records.
+  lxd sql global 'DELETE FROM storage_volumes_snapshots' # Remove volume snapshot DB records.
   lxd sql local 'DELETE FROM  patches WHERE name = "storage_missing_snapshot_records"' # Clear patch indicator.
-  ! lxc start c1 || false                                                              # Shouldn't be able to start as backup.yaml generation checks for DB consistency.
+  ! lxc start c1 || false # Shouldn't be able to start as backup.yaml generation checks for DB consistency.
   lxd shutdown
   respawn_lxd "${LXD_DIR}" true
   lxc storage volume show "${poolName}" container/c1/snap0 | grep "Auto repaired"
