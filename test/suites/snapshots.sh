@@ -182,6 +182,10 @@ snap_restore() {
 
   ## prepare snap0
   lxc launch testimage bar -d "${SMALL_ROOT_DISK}"
+
+  # set description
+  lxc config set bar --property description="test_description_snap0"
+
   echo snap0 > state
   lxc file push state bar/root/state
   lxc file push state bar/root/file_only_in_snap0
@@ -256,6 +260,13 @@ snap_restore() {
       false
     fi
 
+    # Check container description is restored
+    description=$(lxc config get bar --property description)
+    if [ "${description}" != "test_description_snap0" ]; then
+      echo "Description didn't match expected value after restore"
+      false
+    fi
+
     # Check storage volume has been restored (user.foo=snap0)
     [ "$(lxc storage volume get "${pool}" container/bar user.foo)" = "snap0" ]
   fi
@@ -301,8 +312,8 @@ snap_restore() {
   # Check config value in snapshot has been restored
   cpus=$(lxc config get bar limits.cpu)
   if [ "${cpus}" != "1" ]; then
-   echo "==> config didn't match expected value after restore (${cpus})"
-   false
+    echo "==> config didn't match expected value after restore (${cpus})"
+    false
   fi
 
   # Check storage volume has been restored (user.foo=snap0)
@@ -440,9 +451,9 @@ test_snap_volume_db_recovery() {
   lxc snapshot c1
   lxc start c1
   lxc stop -f c1
-  lxd sql global 'DELETE FROM storage_volumes_snapshots' # Remove volume snapshot DB records.
+  lxd sql global 'DELETE FROM storage_volumes_snapshots'                               # Remove volume snapshot DB records.
   lxd sql local 'DELETE FROM  patches WHERE name = "storage_missing_snapshot_records"' # Clear patch indicator.
-  ! lxc start c1 || false # Shouldn't be able to start as backup.yaml generation checks for DB consistency.
+  ! lxc start c1 || false                                                              # Shouldn't be able to start as backup.yaml generation checks for DB consistency.
   lxd shutdown
   respawn_lxd "${LXD_DIR}" true
   lxc storage volume show "${poolName}" container/c1/snap0 | grep "Auto repaired"
