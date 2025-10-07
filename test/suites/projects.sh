@@ -57,6 +57,7 @@ test_projects_crud() {
   ! lxc project rename bar foo || false
 
   lxc project switch foo
+  lxc project list -f csv | grep -F "foo (current),"
 
   # Turning off the profiles feature makes the project see the default profile
   # from the default project.
