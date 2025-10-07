@@ -88,8 +88,8 @@ test_projects_containers() {
   lxc project create foo
   lxc project switch foo
 
-  ensure_import_testimage foo
-  fingerprint="$(lxc image list -c f --format json | jq -r ".[0].fingerprint")"
+  ensure_import_testimage
+  fingerprint="$(lxc image list -f csv -c F testimage)"
 
   # Add a root device to the default profile of the project
   pool="lxdtest-$(basename "${LXD_DIR}")"
