@@ -9,8 +9,6 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -18,23 +16,21 @@ import (
 )
 
 func restServer(tlsConfig *tls.Config, cert *x509.Certificate, d *Daemon) *http.Server {
-	mux := mux.NewRouter()
-	mux.StrictSlash(false) // Don't redirect to URL with trailing slash.
-	mux.UseEncodedPath()   // Allow encoded values in path segments.
+	router := http.NewServeMux()
 
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = response.SyncResponse(true, []string{"/1.0"}).Render(w, r)
 	})
 
 	for _, c := range api10 {
-		createCmd(mux, "1.0", c, cert, d)
+		createCmd(router, "1.0", c, cert, d)
 	}
 
-	return &http.Server{Handler: mux, TLSConfig: tlsConfig}
+	return &http.Server{Handler: router, TLSConfig: tlsConfig}
 }
 
-func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Certificate, d *Daemon) {
+func createCmd(restAPI *http.ServeMux, version string, c APIEndpoint, cert *x509.Certificate, d *Daemon) {
 	var uri string
 	if c.Path == "" {
 		uri = "/" + version
@@ -42,7 +38,7 @@ func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Ce
 		uri = "/" + version + "/" + c.Path
 	}
 
-	route := restAPI.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
+	restAPI.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
 		if !authenticate(r, cert) {
@@ -101,12 +97,6 @@ func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Ce
 			}
 		}
 	})
-
-	// If the endpoint has a canonical name then record it so it can be used to build URLS
-	// and accessed in the context of the request by the handler function.
-	if c.Name != "" {
-		route.Name(c.Name)
-	}
 }
 
 func authenticate(r *http.Request, cert *x509.Certificate) bool {

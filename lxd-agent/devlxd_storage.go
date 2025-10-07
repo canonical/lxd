@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -17,7 +15,7 @@ var devLXDStoragePoolEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDStoragePoolGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	poolName, err := url.PathUnescape(r.PathValue("pool"))
 	if err != nil {
 		return errorResponse(http.StatusBadRequest, err.Error())
 	}
@@ -50,7 +48,7 @@ var devLXDStoragePoolVolumesTypeEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDStoragePoolVolumesGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	poolName, err := url.PathUnescape(r.PathValue("pool"))
 	if err != nil {
 		return errorResponse(http.StatusBadRequest, err.Error())
 	}
@@ -72,12 +70,12 @@ func devLXDStoragePoolVolumesGetHandler(d *Daemon, r *http.Request) *devLXDRespo
 }
 
 func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	poolName, err := url.PathUnescape(r.PathValue("pool"))
 	if err != nil {
 		return errorResponse(http.StatusBadRequest, err.Error())
 	}
 
-	volType, err := url.PathUnescape(mux.Vars(r)["type"])
+	volType, err := url.PathUnescape(r.PathValue("type"))
 	if err != nil {
 		return errorResponse(http.StatusBadRequest, err.Error())
 	}
@@ -116,17 +114,17 @@ var devLXDStoragePoolVolumeTypeEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDStoragePoolVolumeGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	poolName, err := url.PathUnescape(r.PathValue("pool"))
 	if err != nil {
 		return errorResponse(http.StatusBadRequest, err.Error())
 	}
 
-	volType, err := url.PathUnescape(mux.Vars(r)["type"])
+	volType, err := url.PathUnescape(r.PathValue("type"))
 	if err != nil {
 		return errorResponse(http.StatusBadRequest, err.Error())
 	}
 
-	volName, err := url.PathUnescape(mux.Vars(r)["volume"])
+	volName, err := url.PathUnescape(r.PathValue("volume"))
 	if err != nil {
 		return errorResponse(http.StatusBadRequest, err.Error())
 	}
@@ -148,17 +146,17 @@ func devLXDStoragePoolVolumeGetHandler(d *Daemon, r *http.Request) *devLXDRespon
 }
 
 func devLXDStoragePoolVolumePutHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	poolName, err := url.PathUnescape(r.PathValue("pool"))
 	if err != nil {
 		return errorResponse(http.StatusBadRequest, err.Error())
 	}
 
-	volType, err := url.PathUnescape(mux.Vars(r)["type"])
+	volType, err := url.PathUnescape(r.PathValue("type"))
 	if err != nil {
 		return errorResponse(http.StatusBadRequest, err.Error())
 	}
 
-	volName, err := url.PathUnescape(mux.Vars(r)["volume"])
+	volName, err := url.PathUnescape(r.PathValue("volume"))
 	if err != nil {
 		return errorResponse(http.StatusBadRequest, err.Error())
 	}
@@ -188,17 +186,17 @@ func devLXDStoragePoolVolumePutHandler(d *Daemon, r *http.Request) *devLXDRespon
 }
 
 func devLXDStoragePoolVolumeDeleteHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	poolName, err := url.PathUnescape(r.PathValue("pool"))
 	if err != nil {
 		return errorResponse(http.StatusBadRequest, err.Error())
 	}
 
-	volType, err := url.PathUnescape(mux.Vars(r)["type"])
+	volType, err := url.PathUnescape(r.PathValue("type"))
 	if err != nil {
 		return errorResponse(http.StatusBadRequest, err.Error())
 	}
 
-	volName, err := url.PathUnescape(mux.Vars(r)["volume"])
+	volName, err := url.PathUnescape(r.PathValue("volume"))
 	if err != nil {
 		return errorResponse(http.StatusBadRequest, err.Error())
 	}
