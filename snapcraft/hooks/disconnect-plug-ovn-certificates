@@ -38,8 +38,8 @@ if [ -e "/etc/.lxd_generated" ]; then
   ovn_builtin=$(get_bool "$(snapctl get ovn.builtin)")
   if [ "${ovn_builtin:-"false"}" = "true" ]; then
       mkdir -p "${SNAP_COMMON}/ovn"
-      ln -s "${SNAP_COMMON}/ovn" /etc/ovn
+      ln -snf "${SNAP_COMMON}/ovn" /etc/ovn
   else
-      ln -s /var/lib/snapd/hostfs/etc/ovn /etc/ovn
+      ln -snf /var/lib/snapd/hostfs/etc/ovn /etc/ovn
   fi
 fi
