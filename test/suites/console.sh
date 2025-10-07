@@ -47,5 +47,6 @@ EOF
   # Retrieve on-disk representation of the console ringbuffer.
   lxc console cons1 --show-log | grep 'some more content'
 
-  lxc delete --force cons1
+  # Cleanup
+  lxc delete cons1
 }

@@ -195,15 +195,17 @@ test_clustering_membership() {
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
 
   # Neither server certificate can be deleted
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc config trust remove "$(cert_fingerprint "${LXD_ONE_DIR}/server.crt")" || false
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc config trust remove "$(cert_fingerprint "${LXD_ONE_DIR}/server.crt")" || false
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc config trust remove "$(cert_fingerprint "${LXD_TWO_DIR}/server.crt")" || false
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc config trust remove "$(cert_fingerprint "${LXD_TWO_DIR}/server.crt")" || false
+  LXD_ONE_FINGERPRINT="$(cert_fingerprint "${LXD_ONE_DIR}/server.crt")"
+  LXD_TWO_FINGERPRINT="$(cert_fingerprint "${LXD_TWO_DIR}/server.crt")"
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc config trust remove "${LXD_ONE_FINGERPRINT}" || false
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc config trust remove "${LXD_ONE_FINGERPRINT}" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc config trust remove "${LXD_TWO_FINGERPRINT}" || false
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc config trust remove "${LXD_TWO_FINGERPRINT}" || false
 
   # Configuration keys can be changed on any node.
   LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.offline_threshold 11
-  LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F 'cluster.offline_threshold: "11"'
-  LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -F 'cluster.offline_threshold: "11"'
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get cluster.offline_threshold)" = "11" ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc config get cluster.offline_threshold)" = "11" ]
 
   # The preseeded network bridge exists on all nodes.
   ns1_pid="$(< "${TEST_DIR}/ns/${ns1}/PID")"
@@ -503,7 +505,7 @@ test_clustering_containers() {
   LXD_DIR="${LXD_THREE_DIR}" lxc delete egg
 
   # Delete the network now, since we're going to shutdown node2 and it
-  # won't be possible afterwise.
+  # won't be possible afterward.
   LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}"
 
   # Shutdown node 2, wait for it to be considered offline, and list
@@ -511,7 +513,7 @@ test_clustering_containers() {
   LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 11
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   sleep 12
-  LXD_DIR="${LXD_ONE_DIR}" lxc list --fast | grep -wF foo | grep -wF ERROR
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c ns)" = "foo,ERROR" ]
 
   # For an instance on an offline member, we can get its config but not use recursion nor get instance state.
   LXD_DIR="${LXD_ONE_DIR}" lxc config show foo
@@ -813,7 +815,7 @@ test_clustering_storage() {
     # Manually send the join request.
     cert=$(sed ':a;N;$!ba;s/\n/\\n/g' "${LXD_ONE_DIR}/cluster.crt")
     token="$(lxc cluster add node3 --quiet)"
-    op="$(curl --silent --unix-socket "${LXD_THREE_DIR}/unix.socket" --fail-with-body -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d '{"server_name":"node3","enabled":true,"member_config":['"${member_config}"'],"server_address":"100.64.1.103:8443","cluster_address":"100.64.1.101:8443","cluster_certificate":"'"${cert}"'","cluster_token":"'"${token}"'"}' | jq -r .operation)"
+    op="$(curl --silent --unix-socket "${LXD_THREE_DIR}/unix.socket" --fail-with-body -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d '{"server_name":"node3","enabled":true,"member_config":['"${member_config}"'],"server_address":"100.64.1.103:8443","cluster_address":"100.64.1.101:8443","cluster_certificate":"'"${cert}"'","cluster_token":"'"${token}"'"}' | jq --exit-status --raw-output '.operation')"
     curl --silent --unix-socket "${LXD_THREE_DIR}/unix.socket" --fail-with-body "lxd${op}/wait"
 
     # Ensure that node-specific config appears on all nodes,
@@ -1201,7 +1203,7 @@ test_clustering_network() {
   # Create new partially created network and check we can fix it.
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node1
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node2
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" ipv4.address=192.0.2.1/24 ipv6.address=2001:db8::1/64|| false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" ipv4.address=192.0.2.1/24 ipv6.address=2001:db8::1/64 || false  # Fails due to NIC conflict but will set ipv{4,6}.address
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep -F status: | grep -wF Errored # Check has errored status.
   nsenter -n -t "${LXD_PID1}" -- ip link delete "${net}" # Remove conflicting interface.
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" ipv4.dhcp=false || false # Check supplying global config on re-create is blocked.
@@ -1209,7 +1211,7 @@ test_clustering_network() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep -F status: | grep -wF Created # Check is created after fix.
   nsenter -n -t "${LXD_PID1}" -- ip -details link show "${net}" | grep bridge # Check bridge exists.
   nsenter -n -t "${LXD_PID2}" -- ip -details link show "${net}" | grep bridge # Check bridge exists.
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" || false # Check re-create is blocked after success.
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" ipv4.address=192.0.2.1/24 ipv6.address=2001:db8::1/64 || false # Check re-create is blocked after success.
 
   # Check both nodes marked created.
 [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node1'")" = "node1,1" ]
@@ -1956,17 +1958,17 @@ test_clustering_join_api() {
 
   # Check a server with the name 'valid' cannot be joined when modifying the token.
   # Therefore replace the valid name in the token with 'none'.
-  malicious_token="$(lxc cluster add valid --quiet | base64 -d | jq '.server_name |= "none"' | base64 --wrap=0)"
-  op="$(curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" --fail-with-body -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d '{"server_name":"valid","enabled":true,"member_config":[{"entity": "storage-pool","name":"data","key":"source","value":""}],"server_address":"100.64.1.102:8443","cluster_address":"100.64.1.101:8443","cluster_certificate":"'"${cert}"'","cluster_token":"'"${malicious_token}"'"}' | jq -r .operation)"
-  [ "$(curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" "lxd${op}/wait" | jq '.error_code')" = "403" ]
+  malicious_token="$(lxc cluster add valid --quiet | base64 -d | jq --exit-status '.server_name |= "none"' | base64 --wrap=0)"
+  op="$(curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" --fail-with-body -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d '{"server_name":"valid","enabled":true,"member_config":[{"entity": "storage-pool","name":"data","key":"source","value":""}],"server_address":"100.64.1.102:8443","cluster_address":"100.64.1.101:8443","cluster_certificate":"'"${cert}"'","cluster_token":"'"${malicious_token}"'"}' | jq --exit-status --raw-output '.operation')"
+  curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" "lxd${op}/wait" | jq --exit-status '.error_code == 403'
 
   # Check that the server cannot be joined using a valid token by changing it's name to 'none'.
   token="$(lxc cluster add valid2 --quiet)"
-  [ "$(curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d '{"server_name":"none","enabled":true,"member_config":[{"entity": "storage-pool","name":"data","key":"source","value":""}],"server_address":"100.64.1.102:8443","cluster_address":"100.64.1.101:8443","cluster_certificate":"'"${cert}"'","cluster_token":"'"${token}"'"}' | jq -r '.error_code')" = "400" ]
+  curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d '{"server_name":"none","enabled":true,"member_config":[{"entity": "storage-pool","name":"data","key":"source","value":""}],"server_address":"100.64.1.102:8443","cluster_address":"100.64.1.101:8443","cluster_certificate":"'"${cert}"'","cluster_token":"'"${token}"'"}' | jq --exit-status '.error_code == 400'
 
   # Check the server can be joined.
   token="$(lxc cluster add node2 --quiet)"
-  op="$(curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" --fail-with-body -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d '{"server_name":"node2","enabled":true,"member_config":[{"entity": "storage-pool","name":"data","key":"source","value":""}],"server_address":"100.64.1.102:8443","cluster_address":"100.64.1.101:8443","cluster_certificate":"'"${cert}"'","cluster_token":"'"${token}"'"}' | jq -r .operation)"
+  op="$(curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" --fail-with-body -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d '{"server_name":"node2","enabled":true,"member_config":[{"entity": "storage-pool","name":"data","key":"source","value":""}],"server_address":"100.64.1.102:8443","cluster_address":"100.64.1.101:8443","cluster_certificate":"'"${cert}"'","cluster_token":"'"${token}"'"}' | jq --exit-status --raw-output '.operation')"
   curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" --fail-with-body "lxd${op}/wait"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -F "message: Fully operational"
@@ -2166,7 +2168,7 @@ test_clustering_metrics() {
   LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/metrics" | grep -xF "lxd_warnings_total 1"
 
   # Acknowledge/resolve a warning and check if the count decremented on the node relative to the resolved warning.
-  uuid=$(LXD_DIR="${LXD_ONE_DIR}" lxc warning list --format json | jq -r '.[] | select(.last_message=="node1 is bored") | .uuid')
+  uuid=$(LXD_DIR="${LXD_ONE_DIR}" lxc warning list --format json | jq --exit-status --raw-output '.[] | select(.last_message=="node1 is bored") | .uuid')
   LXD_DIR="${LXD_ONE_DIR}" lxc warning ack "${uuid}"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/metrics" | grep -xF "lxd_warnings_total 2"
@@ -4138,7 +4140,7 @@ EOF
   ! lxc init --empty cluster:c1 --project buzz || false
 
   # Group fizz has no members, but it cannot be deleted because it is referenced by project buzz.
-  [ "$(lxc_remote query cluster:/1.0/cluster/groups/fizz | jq -r '.used_by | @csv')" = '"/1.0/projects/buzz"' ]
+  lxc_remote query cluster:/1.0/cluster/groups/fizz | jq --exit-status '.used_by | .[] == "/1.0/projects/buzz"'
   ! lxc cluster group delete cluster:fizz || false
 
   # Restricted certificate does not see project fizz in cluster group used by URLs
@@ -4146,7 +4148,7 @@ EOF
   LXD_CONF1=$(mktemp -d -p "${TEST_DIR}" XXX)
   LXD_CONF="${LXD_CONF1}" gen_cert_and_key "client"
   LXD_CONF="${LXD_CONF1}" lxc remote add cluster_remote "${token1}"
-  [ "$(LXD_CONF="${LXD_CONF1}" lxc_remote query cluster_remote:/1.0/cluster/groups/fizz | jq -r '.used_by | length')" = 0 ]
+  LXD_CONF="${LXD_CONF1}" lxc_remote query cluster_remote:/1.0/cluster/groups/fizz | jq --exit-status '.used_by == []'
 
   # Fine-grained TLS identity does not see project fizz in cluster group used by URLs unless any groups it is a member of
   # have can_view on the project.
@@ -4155,9 +4157,9 @@ EOF
   LXD_CONF2=$(mktemp -d -p "${TEST_DIR}" XXX)
   LXD_CONF="${LXD_CONF2}" gen_cert_and_key "client"
   LXD_CONF="${LXD_CONF2}" lxc remote add cluster_remote "${token2}"
-  [ "$(LXD_CONF="${LXD_CONF2}" lxc_remote query cluster_remote:/1.0/cluster/groups/fizz | jq -r '.used_by | length')" = 0 ]
+  LXD_CONF="${LXD_CONF2}" lxc_remote query cluster_remote:/1.0/cluster/groups/fizz | jq --exit-status '.used_by == []'
   lxc auth group permission add cluster:test-group project buzz can_view
-  [ "$(LXD_CONF="${LXD_CONF2}" lxc_remote query cluster_remote:/1.0/cluster/groups/fizz | jq -r '.used_by | @csv')" = '"/1.0/projects/buzz"' ]
+  LXD_CONF="${LXD_CONF2}" lxc_remote query cluster_remote:/1.0/cluster/groups/fizz | jq --exit-status '.used_by | .[] == "/1.0/projects/buzz"'
 
   # Clean up.
   lxc config trust remove "cluster:$(cert_fingerprint "${LXD_CONF1}/client.crt")"

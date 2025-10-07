@@ -132,6 +132,7 @@ test_image_import_dir() {
     rm -rf "$image" unpacked
 
     lxc image export "$fingerprint"
+    lxc image delete "${fingerprint}"
     local exported
     exported="${fingerprint}.tar.xz"
 
