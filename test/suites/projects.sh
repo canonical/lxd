@@ -79,7 +79,7 @@ test_projects_crud() {
   lxc project delete bar
 
   # We're back to the default project
-  lxc project list | grep -F "default (current)"
+  lxc project list -f csv | grep -F "default (current),"
 }
 
 # Use containers in a project.
