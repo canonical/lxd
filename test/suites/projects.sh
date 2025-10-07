@@ -469,7 +469,7 @@ test_projects_images_default() {
 
   # The image from the default project has correct profile assigned
   fingerprint="$(lxc image list -f csv -c F testimage)"
-  [ "$(lxc query "/1.0/images/${fingerprint}?project=foo" | jq -r ".profiles[0]")" = "default" ]
+  lxc query "/1.0/images/${fingerprint}?project=foo" | jq --exit-status '.profiles[0] == "default"'
 
   # The project can delete images in the default project
   lxc image delete testimage
@@ -481,8 +481,8 @@ test_projects_images_default() {
   lxc image list | grep -wF foo-image
 
   # Correct profile assigned to images from another project
-  fingerprint="$(lxc image list --format json | jq -r '.[] | select(.aliases[0].name == "foo-image") | .fingerprint')"
-  [ "$(lxc query "/1.0/images/${fingerprint}?project=bar" | jq -r ".profiles[0]")" = "default" ]
+  fingerprint="$(lxc image list --format json | jq --exit-status --raw-output '.[] | select(.aliases[0].name == "foo-image") | .fingerprint')"
+  lxc query "/1.0/images/${fingerprint}?project=bar" | jq --exit-status '.profiles[0] == "default"'
 
   lxc image delete foo-image
 
