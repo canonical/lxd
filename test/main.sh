@@ -126,6 +126,9 @@ if [ "${USER:-'root'}" != "root" ]; then
   exit 1
 fi
 
+# Set ulimit to ensure core dump is outputted.
+ulimit -c unlimited
+
 if [ -n "${LXD_LOGS:-}" ] && [ ! -d "${LXD_LOGS}" ]; then
   echo "Your LXD_LOGS path doesn't exist: ${LXD_LOGS}"
   exit 1
