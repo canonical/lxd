@@ -382,13 +382,12 @@ lxd_shutdown_restart() {
 # create_instances creates a specified number of instances in the background.
 # The instance are called i1, i2, i3, etc.
 create_instances() {
-  local n="$1"  # Number of instances to create.
+  local n="${1}"  # Number of instances to create.
 
-  for i in $(seq 1 "$n"); do
-    echo "Creating instance i$i..."
-    lxc launch testimage "i${i}" -d "${SMALL_ROOT_DISK}"
+  for i in $(seq "${n}"); do
+    echo "Creating instance i${i}..."
+    lxc launch --quiet testimage "i${i}" -d "${SMALL_ROOT_DISK}"
   done
 
   echo "All instances created successfully."
-  return 0
 }
