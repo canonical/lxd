@@ -111,6 +111,46 @@ func (b *lxdBackend) ValidateName(value string) error {
 	return nil
 }
 
+func (b *lxdBackend) ValidateSource(source string) error {
+	var poolNodeConfig map[int64]map[string]map[string]string
+
+	err := b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		stateCreated := db.StoragePoolCreated
+		pools, _, err := tx.GetStoragePools(ctx, &stateCreated)
+		if err != nil {
+			return fmt.Errorf("Failed loading storage pools: %w", err)
+		}
+
+		for poolID, pool := range pools {
+			nodeConfig, err := tx.GetStoragePoolNodeConfigs(ctx, poolID)
+			if err != nil {
+				return fmt.Errorf("Failed loading config for storage pool %q: %w", pool.Name, err)
+			}
+
+			poolNodeConfig[poolID] = nodeConfig
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	if source != "" {
+		for _, nodeConfig := range poolNodeConfig {
+			for node, config := range nodeConfig {
+				if config["source"] == source && b.state.ServerName == node {
+					return fmt.Errorf("Cannot use source %q for pool %q as it's already in use on %q", source, b.name, node)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // Validate storage pool config.
 func (b *lxdBackend) Validate(config map[string]string) error {
 	return b.Driver().Validate(config)
@@ -166,6 +206,49 @@ func (b *lxdBackend) Driver() drivers.Driver {
 // optimized migration.
 func (b *lxdBackend) MigrationTypes(contentType drivers.ContentType, refresh bool, copySnapshots bool) []migration.Type {
 	return b.driver.MigrationTypes(contentType, refresh, copySnapshots)
+}
+
+// isValidPool checks if the present pool doesn't violate existing pools and fulfills all the criteria.
+func (b *lxdBackend) isValidPool() error {
+	var poolNodeConfig map[int64]map[string]map[string]string
+
+	err := b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		stateCreated := db.StoragePoolCreated
+		pools, _, err := tx.GetStoragePools(ctx, &stateCreated)
+		if err != nil {
+			return fmt.Errorf("Failed loading storage pools: %w", err)
+		}
+
+		for poolID, pool := range pools {
+			nodeConfig, err := tx.GetStoragePoolNodeConfigs(ctx, poolID)
+			if err != nil {
+				return fmt.Errorf("Failed loading config for storage pool %q: %w", pool.Name, err)
+			}
+
+			poolNodeConfig[poolID] = nodeConfig
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	poolSource := b.db.Config["source"]
+
+	if poolSource != "" && !b.driver.Info().Remote {
+		for _, nodeConfig := range poolNodeConfig {
+			for node, config := range nodeConfig {
+				if config["source"] == poolSource {
+					return fmt.Errorf("Cannot use source %q for pool %q as it's already in use on %q", poolSource, b.name, node)
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // Create creates the storage pool layout on the storage device.
