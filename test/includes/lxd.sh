@@ -255,17 +255,15 @@ kill_lxd() {
 shutdown_lxd() {
     # LXD_DIR is local here because since $(lxc) is actually a function, it
     # overwrites the environment and we would lose LXD_DIR's value otherwise.
+    local LXD_DIR="${1}"
+    shift
 
-    local LXD_DIR
-
-    daemon_dir=${1}
-    # shellcheck disable=2034
-    LXD_DIR=${daemon_dir}
-    daemon_pid=$(< "${daemon_dir}/lxd.pid")
-    echo "==> Shutting down LXD at ${daemon_dir} (${daemon_pid})"
+    local LXD_PID
+    LXD_PID=$(< "${LXD_DIR}/lxd.pid")
+    echo "==> Shutting down LXD at ${LXD_DIR} (${LXD_PID})"
 
     # Shutting down the daemon
-    lxd shutdown || kill -9 "${daemon_pid}" 2>/dev/null || true
+    lxd shutdown || kill -9 "${LXD_PID}" 2>/dev/null || true
 
     # Wait for any cleanup activity that might be happening right
     # after the websocket is closed.
