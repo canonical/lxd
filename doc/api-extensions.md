@@ -2818,3 +2818,17 @@ This introduces two new volatile VM configuration keys:
 
 * {config:option}`instance-volatile:volatile.<name>.bus` - records the bus number for the device.
 * {config:option}`instance-volatile:volatile.bus.mode` - records whether "persistent" mode is being used for a VM.
+
+(extension-instance-placement-groups)=
+## `instance_placement_groups`
+
+Placement groups define how instances are scheduled across cluster members according to a configurable placement policy (`spread` or `compact`) and rigor (`strict` or `permissive`). They can be referenced in instance and profile configuration through the {config:option}`instance-placement:placement.group` key to control placement behavior during instance creation and migration.
+
+New API endpoints:
+
+1. `GET /1.0/placement-groups` — List all placement groups
+1. `POST /1.0/placement-groups` — Create a new placement group
+1. `GET /1.0/placement-groups/{name}` — Retrieve details for a specific placement group
+1. `PUT /1.0/placement-groups/{name}` — Replace a placement group definition
+1. `PATCH /1.0/placement-groups/{name}` — Update selected properties of a placement group
+1. `DELETE /1.0/placement-groups/{name}` — Delete a placement group
