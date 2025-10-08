@@ -118,6 +118,30 @@ var updates = map[int]schema.Update{
 	75: updateFromV74,
 	76: updateFromV75,
 	77: updateFromv76,
+	78: updateFromv77,
+}
+
+func updateFromv77(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, `
+CREATE TABLE placement_groups (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    project_id INTEGER NOT NULL,
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
+    UNIQUE (project_id, name)
+);
+
+CREATE TABLE placement_groups_config (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	placement_group_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT,
+	UNIQUE (placement_group_id, key),
+	FOREIGN KEY (placement_group_id) REFERENCES placement_groups (id) ON DELETE CASCADE
+);
+`)
+	return err
 }
 
 func updateFromv76(ctx context.Context, tx *sql.Tx) error {

@@ -449,6 +449,22 @@ CREATE TABLE "operations" (
     FOREIGN KEY (node_id) REFERENCES "nodes" (id) ON DELETE CASCADE,
     FOREIGN KEY (project_id) REFERENCES "projects" (id) ON DELETE CASCADE
 );
+CREATE TABLE placement_groups (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    project_id INTEGER NOT NULL,
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
+    UNIQUE (project_id, name)
+);
+CREATE TABLE placement_groups_config (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	placement_group_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT,
+	UNIQUE (placement_group_id, key),
+	FOREIGN KEY (placement_group_id) REFERENCES placement_groups (id) ON DELETE CASCADE
+);
 CREATE TABLE "profiles" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
@@ -692,5 +708,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (77, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (78, strftime("%s"))
 `
