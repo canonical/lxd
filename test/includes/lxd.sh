@@ -4,21 +4,17 @@ spawn_lxd() {
     { set +x; } 2>/dev/null
     # LXD_DIR is local here because since $(lxc) is actually a function, it
     # overwrites the environment and we would lose LXD_DIR's value otherwise.
-
-    local LXD_DIR lxddir lxd_backend
-
-    lxddir=${1}
+    local LXD_DIR="${1}"
     shift
-    chmod +x "${lxddir}"
+    chmod +x "${LXD_DIR}"
 
-    storage=${1}
+    local storage="${1}"
     shift
 
     # shellcheck disable=SC2153
+    local lxd_backend="${LXD_BACKEND}"
     if [ "$LXD_BACKEND" = "random" ]; then
         lxd_backend="$(random_storage_backend)"
-    else
-        lxd_backend="$LXD_BACKEND"
     fi
 
     if [ "${lxd_backend}" = "ceph" ] && [ -z "${LXD_CEPH_CLUSTER:-}" ]; then
@@ -27,33 +23,33 @@ spawn_lxd() {
     fi
 
     # setup storage
-    "$lxd_backend"_setup "${lxddir}"
-    echo "$lxd_backend" > "${lxddir}/lxd.backend"
+    "$lxd_backend"_setup "${LXD_DIR}"
+    echo "$lxd_backend" > "${LXD_DIR}/lxd.backend"
 
-    echo "==> Spawning lxd in ${lxddir}"
+    echo "==> Spawning lxd in ${LXD_DIR}"
 
     if [ "${LXD_NETNS}" = "" ]; then
-        LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${SERVER_DEBUG-}" "$@" 2>&1 &
+        lxd --logfile "${LXD_DIR}/lxd.log" "${SERVER_DEBUG-}" "$@" 2>&1 &
     else
         # shellcheck disable=SC2153
         read -r pid < "${TEST_DIR}/ns/${LXD_NETNS}/PID"
-        LXD_DIR="${lxddir}" nsenter -n -m -t "${pid}" lxd --logfile "${lxddir}/lxd.log" "${SERVER_DEBUG-}" "$@" 2>&1 &
+        nsenter -n -m -t "${pid}" lxd --logfile "${LXD_DIR}/lxd.log" "${SERVER_DEBUG-}" "$@" 2>&1 &
     fi
-    LXD_PID=$!
-    echo "${LXD_PID}" > "${lxddir}/lxd.pid"
+    local LXD_PID=$!
+    echo "${LXD_PID}" > "${LXD_DIR}/lxd.pid"
     # shellcheck disable=SC2153
-    echo "${lxddir}" >> "${TEST_DIR}/daemons"
+    echo "${LXD_DIR}" >> "${TEST_DIR}/daemons"
     echo "==> Spawned LXD (PID is ${LXD_PID})"
 
     echo "==> Confirming lxd is responsive (PID is ${LXD_PID})"
-    LXD_DIR="${lxddir}" lxd waitready --timeout=300 || (echo "Killing PID ${LXD_PID}" ; kill -9 "${LXD_PID}" ; false)
+    lxd waitready --timeout=300 || (echo "Killing PID ${LXD_PID}" ; kill -9 "${LXD_PID}" ; false)
 
     if [ "${LXD_NETNS}" = "" ]; then
         echo "==> Binding to network"
         for _ in $(seq 10); do
             addr="127.0.0.1:$(local_tcp_port)"
-            LXD_DIR="${lxddir}" lxc config set core.https_address "${addr}" || continue
-            echo "${addr}" > "${lxddir}/lxd.addr"
+            lxc config set core.https_address "${addr}" || continue
+            echo "${addr}" > "${LXD_DIR}/lxd.addr"
             echo "==> Bound to ${addr}"
             break
         done
@@ -67,12 +63,12 @@ spawn_lxd() {
 
     if [ "${LXD_NETNS}" = "" ]; then
         echo "==> Setting up networking"
-        LXD_DIR="${lxddir}" lxc profile device add default eth0 nic nictype=p2p name=eth0
+        lxc profile device add default eth0 nic nictype=p2p name=eth0
     fi
 
     if [ "${storage}" = true ]; then
         echo "==> Configuring storage backend"
-        "$lxd_backend"_configure "${lxddir}"
+        "$lxd_backend"_configure "${LXD_DIR}"
     fi
 }
 
