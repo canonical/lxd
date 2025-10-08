@@ -81,6 +81,18 @@ Check the list of API extensions to see if a feature is available in your versio
 /restapi_landing
 ```
 
+(reference-csi)=
+## The LXD CSI driver reference
+
+Find reference information about the LXD Container Storage Interface (CSI) driver, used to integrate LXD storage backends with Kubernetes.
+
+```{toctree}
+:titlesonly:
+:maxdepth: 1
+
+/reference/driver_csi
+```
+
 (reference-manpages)=
 ## Man pages
 
