@@ -971,6 +971,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 		Stateful:     stateful,
 		ExpiryDate:   *expiry,
 		CreationDate: snapshotCreationDate,
+		Description:  inst.Description(),
 	}
 
 	// Create the snapshot.
