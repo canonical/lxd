@@ -21,7 +21,7 @@ spawn_lxd() {
         lxd_backend="$LXD_BACKEND"
     fi
 
-    if [ "${LXD_BACKEND}" = "ceph" ] && [ -z "${LXD_CEPH_CLUSTER:-}" ]; then
+    if [ "${lxd_backend}" = "ceph" ] && [ -z "${LXD_CEPH_CLUSTER:-}" ]; then
         echo "A cluster name must be specified when using the CEPH driver." >&2
         exit 1
     fi
