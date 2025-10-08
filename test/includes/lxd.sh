@@ -343,12 +343,11 @@ cleanup_lxds() {
 }
 
 lxd_shutdown_restart() {
-    local scenario LXD_DIR
-    scenario=${1}
-    LXD_DIR=${2}
+    local scenario="${1}"
+    local LXD_PID
 
-    daemon_pid=$(< "${LXD_DIR}/lxd.pid")
-    echo "==> Shutting down LXD at ${LXD_DIR} (${daemon_pid})"
+    LXD_PID=$(< "${LXD_DIR}/lxd.pid")
+    echo "==> Shutting down LXD at ${LXD_DIR} (${LXD_PID})"
 
     local logfile="${scenario}.log"
     echo "Starting LXD log capture in $logfile using lxc monitor..."
@@ -358,16 +357,16 @@ lxd_shutdown_restart() {
     # Give monitor a moment to connect
     sleep 2
     echo "Monitor PID: $monitor_pid"
-    echo "LXD daemon PID: $daemon_pid"
+    echo "LXD daemon PID: $LXD_PID"
     echo "Starting LXD shutdown sequence..."
-    if ! kill -SIGPWR "$daemon_pid" 2>/dev/null; then
+    if ! kill -SIGPWR "$LXD_PID" 2>/dev/null; then
         echo "Failed to signal LXD to shutdown" | tee -a "$logfile"
         return 1
     fi
 
     echo "Waiting for LXD to shutdown gracefully..." | tee -a "$logfile"
     for _ in $(seq 540); do
-        if ! kill -0 "$daemon_pid" 2>/dev/null; then
+        if ! kill -0 "${LXD_PID}" 2>/dev/null; then
             # The monitor process will terminate once LXD exits
             wait "${monitor_pid}" || true
             break
