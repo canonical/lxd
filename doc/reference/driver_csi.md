@@ -117,3 +117,9 @@ CSI Version | Min. LXD Version | Min. Kubernetes Version | EOL
 - All versions before the first major release (`<1.0.0`) make no guarantees. Behavior may change even in patch releases.
 - Versions with non-semantic tags (e.g. `latest-edge`) or with pre-release identifiers (e.g. `v1.2.3-edge`) are considered unstable and should be used only for testing.
 - Version `0.0.0` is reserved for unstable builds where semantic versioning is required (e.g. `v0.0.0-latest-edge` is latest Helm chart release).
+
+## Related topics
+
+{{csi_exp}}
+
+{{csi_how}}

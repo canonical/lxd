@@ -177,3 +177,9 @@ As a result, each Kubernetes cluster must run inside a single LXD {ref}`project 
 Operations that require elevated permissions (such as creating or attaching volumes) use token-based authentication.
 The token, stored as a Kubernetes Secret, identifies the caller and is checked by LXD’s {ref}`fine-grained-authorization` system.
 Ownership of volumes, snapshots, and devices is tracked in the LXD configuration and ensures the identity can later manage only entities it has previously created.
+
+## Related topics
+
+{{csi_how}}
+
+{{csi_ref}}
