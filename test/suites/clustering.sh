@@ -733,9 +733,9 @@ test_clustering_storage() {
 
   # Create the storage pool
   if [ "${poolDriver}" = "lvm" ]; then
-      LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}" volume.size=25MiB
+      LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}" volume.size="${DEFAULT_VOLUME_SIZE}"
   elif [ "${poolDriver}" = "ceph" ]; then
-      LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}" volume.size=25MiB ceph.osd.pg_num=16
+      LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}" volume.size="${DEFAULT_VOLUME_SIZE}" ceph.osd.pg_num=16
   else
       LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${poolDriver}"
   fi
