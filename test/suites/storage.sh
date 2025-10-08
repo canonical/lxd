@@ -294,16 +294,16 @@ EOF
       # Create lvm pool.
       configure_loop_device loop_file_3 loop_device_3
       # shellcheck disable=SC2154
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool6" lvm source="${loop_device_3}" volume.size=25MiB
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool6" lvm source="${loop_device_3}" volume.size=24MiB
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool6"
 
       # Ensure that source.wipe allows the device to be reused
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool6" lvm source="${loop_device_3}" source.wipe=true volume.size=25MiB
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool6" lvm source="${loop_device_3}" source.wipe=true volume.size=24MiB
 
       configure_loop_device loop_file_5 loop_device_5
       # Should fail if vg does not exist, since we have no way of knowing where
       # to create the vg without a block device path set.
-      ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool10" lvm source=test_vg_1 volume.size=25MiB || false
+      ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool10" lvm source=test_vg_1 volume.size=24MiB || false
       # shellcheck disable=SC2154
       deconfigure_loop_device "${loop_file_5}" "${loop_device_5}"
 
@@ -312,23 +312,23 @@ EOF
       pvcreate "${loop_device_6}"
       vgcreate "lxdtest-$(basename "${LXD_DIR}")-pool11-test_vg_2" "${loop_device_6}"
       # Reuse existing volume group "test_vg_2" on existing physical volume.
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool11" lvm source="lxdtest-$(basename "${LXD_DIR}")-pool11-test_vg_2" volume.size=25MiB
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool11" lvm source="lxdtest-$(basename "${LXD_DIR}")-pool11-test_vg_2" volume.size=24MiB
 
       configure_loop_device loop_file_7 loop_device_7
       # shellcheck disable=SC2154
       pvcreate "${loop_device_7}"
       vgcreate "lxdtest-$(basename "${LXD_DIR}")-pool12-test_vg_3" "${loop_device_7}"
       # Reuse existing volume group "test_vg_3" on existing physical volume.
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool12" lvm source="lxdtest-$(basename "${LXD_DIR}")-pool12-test_vg_3" volume.size=25MiB
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool12" lvm source="lxdtest-$(basename "${LXD_DIR}")-pool12-test_vg_3" volume.size=24MiB
 
       configure_loop_device loop_file_8 loop_device_8
       # shellcheck disable=SC2154
       # Create new volume group "test_vg_4".
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool13" lvm source="${loop_device_8}" lvm.vg_name="lxdtest-$(basename "${LXD_DIR}")-pool13-test_vg_4" volume.size=25MiB
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool13" lvm source="${loop_device_8}" lvm.vg_name="lxdtest-$(basename "${LXD_DIR}")-pool13-test_vg_4" volume.size=24MiB
 
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool14" lvm volume.size=25MiB
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool14" lvm volume.size=24MiB
 
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" lvm lvm.use_thinpool=false volume.size=25MiB
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" lvm lvm.use_thinpool=false volume.size=24MiB
 
       # Test that no invalid lvm storage pool configuration keys can be set.
       ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-lvm-pool-config" lvm volume.zfs.remove_snapshots=true || false
@@ -343,7 +343,7 @@ EOF
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool18" lvm size=256MiB
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool19" lvm volume.block.filesystem=ext4
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool20" lvm volume.block.mount_options=discard
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool21" lvm volume.size=25MiB
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool21" lvm volume.size=24MiB
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool22" lvm lvm.use_thinpool=true
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool23" lvm lvm.use_thinpool=true lvm.thinpool_name="lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config"
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool24" lvm rsync.bwlimit=1024
@@ -498,10 +498,10 @@ EOF
       lxc launch testimage c12pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6" -d "${SMALL_ROOT_DISK}"
       [ "$(lxc list -f csv -c b c12pool6)" = "lxdtest-$(basename "${LXD_DIR}")-pool6" ]
       # grow lv
-      lxc config device set c12pool6 root size 30MiB
+      lxc config device set c12pool6 root size 28MiB
       lxc restart c12pool6 --force
       # shrink lv
-      lxc config device set c12pool6 root size 25MiB
+      lxc config device set c12pool6 root size 24MiB
       lxc restart c12pool6 --force
 
       lxc init --empty c10pool11 -s "lxdtest-$(basename "${LXD_DIR}")-pool11" -d "${SMALL_ROOT_DISK}"
@@ -890,7 +890,7 @@ EOF
   rootMinKiB1="13800"
   rootMaxKiB1="23000"
 
-  QUOTA2="25MiB"
+  QUOTA2="24MiB"
   rootMinKiB2="18900"
   rootMaxKiB2="28000"
 
