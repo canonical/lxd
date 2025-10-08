@@ -284,10 +284,9 @@ shutdown_lxd() {
 
 wait_for() {
     local addr op
-
-    addr=${1}
+    addr="${1}"
     shift
-    op=$("$@" | jq -r .operation)
+    op="$("$@" | jq --exit-status --raw-output '.operation')"
     my_curl "https://${addr}${op}/wait"
 }
 
