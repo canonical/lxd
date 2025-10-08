@@ -11,6 +11,7 @@ AppArmor
 ARMv
 ARP
 ASN
+attacher
 Auth
 AXFR
 backend
@@ -33,7 +34,7 @@ BPF
 Btrfs
 bugfix
 bugfixes
-CA 
+CA
 CAs
 CCLA
 CDI
@@ -52,6 +53,7 @@ CIDR
 COPR
 CPUs
 CRIU
+CRD
 CRL
 cron
 cryptographic
@@ -60,6 +62,7 @@ CSI
 CSM
 CSV
 CUDA
+DaemonSet
 dataset
 dGPU
 DCO
@@ -141,9 +144,12 @@ Keycloak
 KiB
 kibi
 Kibit
+Kubelet
+Kubelets
 KVM
 libbpf
 Libera
+liveness
 LogCLI
 lookups
 LoongArch
@@ -213,6 +219,10 @@ PCIe
 passthrough
 passthroughs
 peerings
+PersistentVolume
+PersistentVolumes
+PersistentVolumeClaim
+PersistentVolumeClaims
 PFs
 PiB
 Pibit
@@ -225,9 +235,16 @@ PowerFlex
 preconfigured
 prepended
 preseed
+provision
+provisioner
+provisioning
 proxied
 proxying
 PTS
+PV
+PVs
+PVC
+PVCs
 qdisc
 qdiscs
 QEMU
@@ -248,6 +265,8 @@ RGW
 RHEL
 rollout
 rootfs
+RPC
+RPCs
 RSA
 runtime
 SATA
@@ -284,9 +303,12 @@ SSL
 SSO
 Starlark
 stateful
+StatefulSet
 stderr
 stdin
 stdout
+StorageClass
+StorageClasses
 STP
 struct
 structs
@@ -318,6 +340,8 @@ Tibit
 TinyPNG
 TLS
 tmpfs
+toleration
+tolerations
 toolchain
 topologies
 TPM
@@ -357,6 +381,9 @@ VLAN
 VLANs
 VMs
 VM's
+VolumeAttachment
+VolumeAttachments
+VolumeSnapshot
 VPD
 VPN
 VRAM
