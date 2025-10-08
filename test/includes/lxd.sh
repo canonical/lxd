@@ -102,6 +102,20 @@ respawn_lxd() {
     fi
 }
 
+kill_lxd_snap() {
+    # Ensure no LXD snap gets in the way
+    snap remove --purge lxd
+
+    # Restore LXD_DIR to its previous value
+    if [ "${LXD_DIR_NON_SNAP:-}" != "" ]; then
+        LXD_DIR="${LXD_DIR_NON_SNAP}"
+    fi
+
+    # Reinstate the lxc and lxc_remote functions
+    # shellcheck source=test/includes/lxc.sh
+    . "${MAIN_DIR}/includes/lxc.sh"
+}
+
 kill_lxd() {
     # LXD_DIR is local here because since $(lxc) is actually a function, it
     # overwrites the environment and we would lose LXD_DIR's value otherwise.
