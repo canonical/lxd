@@ -35,10 +35,10 @@ test_migration() {
     # shellcheck disable=2153
     storage_pool1="lxdtest-$(basename "${LXD_DIR}")-non-thinpool-lvm-migration"
     storage_pool2="lxdtest-$(basename "${LXD2_DIR}")-non-thinpool-lvm-migration"
-    lxc_remote storage create l1:"$storage_pool1" lvm lvm.use_thinpool=false size=1GiB volume.size=25MiB
+    lxc_remote storage create l1:"$storage_pool1" lvm lvm.use_thinpool=false size=1GiB volume.size="${DEFAULT_VOLUME_SIZE}"
     lxc_remote profile device set l1:default root pool "$storage_pool1"
 
-    lxc_remote storage create l2:"$storage_pool2" lvm lvm.use_thinpool=false size=1GiB volume.size=25MiB
+    lxc_remote storage create l2:"$storage_pool2" lvm lvm.use_thinpool=false size=1GiB volume.size="${DEFAULT_VOLUME_SIZE}"
     lxc_remote profile device set l2:default root pool "$storage_pool2"
 
     migration "$LXD2_DIR"
