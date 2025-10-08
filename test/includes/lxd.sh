@@ -284,6 +284,23 @@ wait_for() {
     my_curl "https://${addr}${op}/wait"
 }
 
+# waitInstanceReady: waits for the instance to be ready (processes count > 0).
+waitInstanceReady() {
+    local instName="${1}"
+    local instProj="${2:-}"
+    local i
+
+    for i in $(seq "${MAX_WAIT_SECONDS:-120}"); do
+        if lxc query "/1.0/instances/${instName}/state?project=${instProj}" | jq --exit-status '.processes | select(. > 0)'; then
+            return 0
+        fi
+        sleep 1
+    done
+
+    echo "Instance ${instName} (${instProj:-current}) not ready after ${i}s"
+    return 1
+}
+
 wipe() {
     if command -v btrfs >/dev/null 2>&1; then
         rm -Rf "${1}" 2>/dev/null || true
