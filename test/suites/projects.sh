@@ -57,6 +57,7 @@ test_projects_crud() {
   ! lxc project rename bar foo || false
 
   lxc project switch foo
+  lxc project list -f csv | grep -F "foo (current),"
 
   # Turning off the profiles feature makes the project see the default profile
   # from the default project.
@@ -78,7 +79,7 @@ test_projects_crud() {
   lxc project delete bar
 
   # We're back to the default project
-  lxc project list | grep -F "default (current)"
+  lxc project list -f csv | grep -F "default (current),"
 }
 
 # Use containers in a project.
@@ -87,8 +88,8 @@ test_projects_containers() {
   lxc project create foo
   lxc project switch foo
 
-  ensure_import_testimage foo
-  fingerprint="$(lxc image list -c f --format json | jq -r ".[0].fingerprint")"
+  ensure_import_testimage
+  fingerprint="$(lxc image list -f csv -c F testimage)"
 
   # Add a root device to the default profile of the project
   pool="lxdtest-$(basename "${LXD_DIR}")"
@@ -387,8 +388,8 @@ test_projects_profiles_default() {
   lxc project switch foo
 
   # Import an image into the project and grab its fingerprint
-  ensure_import_testimage foo
-  fingerprint="$(lxc image list -c f --format json | jq -r ".[0].fingerprint")"
+  ensure_import_testimage
+  fingerprint="$(lxc image list -f csv -c F testimage)"
 
   # Create a container
   lxc init "${fingerprint}" c1 -d "${SMALL_ROOT_DISK}"
@@ -439,8 +440,8 @@ test_projects_images() {
   lxc project switch foo
 
   # Import an image into the project and grab its fingerprint
-  ensure_import_testimage foo
-  fingerprint="$(lxc image list -c f --format json | jq -r ".[0].fingerprint")"
+  ensure_import_testimage
+  fingerprint="$(lxc image list -f csv -c F testimage)"
 
   # The imported image is not visible in the default project.
   lxc project switch default
@@ -503,8 +504,8 @@ test_projects_images_default() {
   lxc image list | grep -wF testimage
 
   # The image from the default project has correct profile assigned
-  fingerprint="$(lxc image list --format json | jq -r ".[0].fingerprint")"
-  [ "$(lxc query "/1.0/images/${fingerprint}?project=foo" | jq -r ".profiles[0]")" = "default" ]
+  fingerprint="$(lxc image list -f csv -c F testimage)"
+  lxc query "/1.0/images/${fingerprint}?project=foo" | jq --exit-status '.profiles[0] == "default"'
 
   # The project can delete images in the default project
   lxc image delete testimage
@@ -516,8 +517,8 @@ test_projects_images_default() {
   lxc image list | grep -wF foo-image
 
   # Correct profile assigned to images from another project
-  fingerprint="$(lxc image list --format json | jq -r '.[] | select(.aliases[0].name == "foo-image") | .fingerprint')"
-  [ "$(lxc query "/1.0/images/${fingerprint}?project=bar" | jq -r ".profiles[0]")" = "default" ]
+  fingerprint="$(lxc image list --format json | jq --exit-status --raw-output '.[] | select(.aliases[0].name == "foo-image") | .fingerprint')"
+  lxc query "/1.0/images/${fingerprint}?project=bar" | jq --exit-status '.profiles[0] == "default"'
 
   lxc image delete foo-image
 
@@ -1070,8 +1071,8 @@ run_projects_restrictions() {
   pool="lxdtest-$(basename "${LXD_DIR}")"
   lxc profile device add local:default root disk path="/" pool="${pool}"
 
-  ensure_import_testimage p1
-  fingerprint="$(lxc image list -c f --format json | jq -r ".[0].fingerprint")"
+  ensure_import_testimage
+  fingerprint="$(lxc image list -f csv -c F testimage)"
 
   # Add a volume.
   lxc storage volume create "local:${pool}" "v-proj$$"

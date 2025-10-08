@@ -6,7 +6,7 @@ lvm_setup() {
 
 lvm_configure() {
   local LXD_DIR="${1}"
-  local POOL_NAME="lxdtest-${LXD_DIR##*/}" # Use the last part of the LXD_DIR as pool name
+  local POOL_NAME="${2:-"lxdtest-${LXD_DIR##*/}"}" # Use the last part of the LXD_DIR as pool name
 
   echo "==> Configuring lvm backend in ${LXD_DIR}"
 
