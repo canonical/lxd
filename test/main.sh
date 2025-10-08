@@ -384,6 +384,9 @@ export SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
 # This is useful for quick interactions with LXD and its test suite.
 if [ "${1:-"all"}" = "test-shell" ]; then
   bash --rcfile test-shell.bashrc || true
+  TEST_CURRENT="test-shell"
+  TEST_CURRENT_DESCRIPTION="n/a"
+  TEST_RESULT=success
   exit 0
 fi
 
