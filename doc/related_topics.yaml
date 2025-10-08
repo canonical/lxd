@@ -31,4 +31,7 @@ storage_how: "How-to guides:\n\n- {ref}`storage`",
 storage_ref: "Reference:\n\n- {ref}`storage-drivers`",
 security_exp: "Explanation:\n\n- {ref}`exp-security`",
 security_how: "How-to guides:\n\n- {ref}`howto-security-harden`\n- {ref}`server-expose`",
+csi_ref: "Reference:\n\n- {ref}`ref-csi`",
+csi_exp: "Explanation:\n\n- {ref}`exp-csi`",
+csi_how: "How-to guides:\n\n- {ref}`howto-storage-csi`",
 }

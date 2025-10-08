@@ -352,3 +352,9 @@ spec:
           requests:
             storage: 5Gi
 ```
+
+## Related topics
+
+{{csi_exp}}
+
+{{csi_ref}}
