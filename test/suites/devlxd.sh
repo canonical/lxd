@@ -157,3 +157,71 @@ EOF
 
   [ "${MATCH}" = "1" ]
 }
+
+test_snap_devlxd_vm() {
+  lxc launch ubuntu-minimal-daily:24.04 v1 --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
+  waitInstanceReady v1
+
+  echo "==> Check that devlxd is enabled by default and works"
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0 | jq
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/devices | jq
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/config | jq
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data | grep -F 'instance-id:'
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data | grep -F 'local-hostname:'
+
+  # Run sync before forcefully restarting the VM otherwise the filesystem will be corrupted.
+  lxc exec v1 -- "sync"
+  lxc restart -f v1
+  waitInstanceReady v1
+
+  echo "==> Check that devlxd is working after a restart"
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0 | jq
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/devices | jq
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/config | jq
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data | grep -F 'instance-id:'
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data | grep -F 'local-hostname:'
+
+  echo "==> Check that devlxd is not working once disabled"
+  lxc config set v1 security.devlxd false
+  ! lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0 || false
+
+  echo "==> Check that devlxd can be enabled live"
+  lxc config set v1 security.devlxd true
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0 | jq
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/devices | jq
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/config | jq
+
+  echo "==> Ensure that the output metadata is in correct format"
+  META_DATA="$(lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data)"
+  [ "$(grep -cxE 'instance-id: [^ ]{36}|local-hostname: v1' <<< "${META_DATA}" || echo fail)" = "2" ]
+  [ "$(wc -l <<< "${META_DATA}" || echo fail)" = "2" ]
+
+  echo "==> Test cloud-init user-data"
+  # Ensure the header is preserved and the output value is not escaped.
+  cloudInitUserData='#cloud-config
+package_update: false
+package_upgrade: false
+runcmd:
+- echo test'
+
+  lxc config set v1 cloud-init.user-data "${cloudInitUserData}"
+  out="$(lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock lxd/1.0/config/cloud-init.user-data)"
+  [ "${out}" = "${cloudInitUserData}" ]
+  lxc config unset v1 cloud-init.user-data
+
+  echo "===> Test instance Ready state"
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock -X PATCH -d '{"state":"Ready"}' http://custom.socket/1.0
+  [ "$(lxc config get v1 volatile.last_state.ready)" = "true" ]
+
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock -X PATCH -d '{"state":"Started"}' http://custom.socket/1.0
+  [ "$(lxc config get v1 volatile.last_state.ready)" = "false" ]
+
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock -X PATCH -d '{"state":"Ready"}' http://custom.socket/1.0
+  [ "$(lxc config get v1 volatile.last_state.ready)" = "true" ]
+  lxc stop -f v1
+  [ "$(lxc config get v1 volatile.last_state.ready)" = "false" ]
+
+  # TODO: add nested virt part from lxd-ci test
+
+  lxc delete v1
+}
