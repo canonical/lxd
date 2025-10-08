@@ -2473,7 +2473,7 @@ func (d *lxc) Start(stateful bool) error {
 		return err
 	}
 
-	if op.Action() == "start" {
+	if op.Action() == operationlock.ActionStart {
 		d.logger.Info("Started instance", ctxMap)
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStarted.Event(d, nil))
 	}
