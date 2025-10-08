@@ -182,6 +182,10 @@ snap_restore() {
 
   ## prepare snap0
   lxc launch testimage bar -d "${SMALL_ROOT_DISK}"
+
+  ## set description
+  lxc config set bar --property description="test_description_snap0"
+
   echo snap0 > state
   lxc file push state bar/root/state
   lxc file push state bar/root/file_only_in_snap0
@@ -255,6 +259,10 @@ snap_restore() {
       echo "==> config didn't match expected value after restore (${cpus})"
       false
     fi
+
+    # Check container description is restored
+    description=$(lxc config get bar --property description)
+    [ "${description}" = "test_description_snap0" ]
 
     # Check storage volume has been restored (user.foo=snap0)
     [ "$(lxc storage volume get "${pool}" container/bar user.foo)" = "snap0" ]
