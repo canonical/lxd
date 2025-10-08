@@ -8,7 +8,7 @@ test_shutdown() {
     echo "Expected behavior: LXD should shutdown without any issues."
     echo "----------------------------------------------------------"
 
-    lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
+    lxd_shutdown_restart "${scenario_name}"
 
     echo "LXD restarted started successfully."
     rm "$scenario_name.log"
@@ -25,7 +25,7 @@ test_shutdown() {
         exit 1
     fi
 
-    lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
+    lxd_shutdown_restart "${scenario_name}"
 
     # Check the logs for expected messages that should be shown in the LXD shutdown sequence.
     # The order of the expected messages does not matter.
@@ -81,7 +81,7 @@ test_shutdown() {
     sleep 1
     # Initiate the LXD shutdown sequence.
     # This call should block until before the global timeout is reached.
-    lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
+    lxd_shutdown_restart "${scenario_name}"
 
     # Check the logs for expected messages that should be shown in the LXD shutdown sequence.
     # The order of the expected messages does not matter.
@@ -150,7 +150,7 @@ test_shutdown() {
     sleep 1
     # Initiate the LXD shutdown sequence.
     # This call should block until before the global timeout is reached.
-    lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
+    lxd_shutdown_restart "${scenario_name}"
 
     # Check the logs for expected messages that should be shown in the LXD shutdown sequence.
     # The order of the expected messages does not matter.
@@ -230,7 +230,7 @@ test_shutdown() {
     done
 
     sleep 1
-    lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
+    lxd_shutdown_restart "${scenario_name}"
 
     expected_msgs=(
         'Starting shutdown sequence'
@@ -339,7 +339,7 @@ test_shutdown() {
     pids="$pids $!"
 
     sleep 1
-    lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
+    lxd_shutdown_restart "${scenario_name}"
 
     expected_msgs=(
         'Starting shutdown sequence'
@@ -435,7 +435,7 @@ test_shutdown() {
     pids="$pids $!"
 
     sleep 1
-    lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
+    lxd_shutdown_restart "${scenario_name}"
 
     expected_msgs=(
         'Starting shutdown sequence'
@@ -533,7 +533,7 @@ test_shutdown() {
     pids="$pids $!"
 
     sleep 1
-    lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
+    lxd_shutdown_restart "${scenario_name}"
 
     expected_msgs=(
         'Starting shutdown sequence'
@@ -637,7 +637,7 @@ test_shutdown() {
     pids="$pids $!"
 
     sleep 1
-    lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
+    lxd_shutdown_restart "${scenario_name}"
 
     expected_msgs=(
         'Starting shutdown sequence'
