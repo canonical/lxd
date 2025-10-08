@@ -54,7 +54,12 @@ runs:
           # External repos using this action won't have access to the `test/includes/snap.sh` file
           # so install directly from the store instead.
           if [ -e test/includes/snap.sh ]; then
-            sudo --preserve-env=SNAP_CACHE_DIR bash -c ". test/includes/snap.sh; install_snap core24 latest/stable; install_snap microceph \"${SNAP_CHANNEL}\""
+            sudo --preserve-env=SNAP_CACHE_DIR bash -c "
+              . test/includes/snap.sh; \
+              install_snap snapd latest/candidate; \
+              install_snap core24 latest/stable; \
+              install_snap microceph \"${SNAP_CHANNEL}\"; \
+            "
           else
             sudo snap install microceph --channel="${SNAP_CHANNEL}"
           fi
