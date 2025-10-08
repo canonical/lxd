@@ -1043,7 +1043,7 @@ EOF
     elif [ "${lxd_backend}" = "lvm" ]; then
       actual_size="$(lvs --noheadings --nosuffix --units b --options='lv_size' "lxdtest-$(basename "${LXD_DIR}")/LXDThinPool")"
     elif [ "${lxd_backend}" = "zfs" ]; then
-      actual_size="$(zpool list -Hp "${pool_name}" | awk '{print $2}')"
+      actual_size="$(zpool list -Hpo size "${pool_name}")"
     fi
 
     # Check that pool size is within the expected range
@@ -1065,7 +1065,7 @@ EOF
     elif [ "${lxd_backend}" = "lvm" ]; then
       actual_size="$(lvs --noheadings --nosuffix --units b --options='lv_size' "lxdtest-$(basename "${LXD_DIR}")/LXDThinPool")"
     elif [ "${lxd_backend}" = "zfs" ]; then
-      actual_size="$(zpool list -Hp "${pool_name}" | awk '{print $2}')"
+      actual_size="$(zpool list -Hpo size "${pool_name}")"
     fi
 
     # Check that pool size is within the expected range
