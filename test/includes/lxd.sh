@@ -32,9 +32,6 @@ spawn_lxd() {
 
     echo "==> Spawning lxd in ${lxddir}"
 
-    # Set ulimit to ensure core dump is outputted.
-    ulimit -c unlimited
-
     if [ "${LXD_NETNS}" = "" ]; then
         LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${SERVER_DEBUG-}" "$@" 2>&1 &
     else
