@@ -105,23 +105,21 @@ respawn_lxd() {
 kill_lxd() {
     # LXD_DIR is local here because since $(lxc) is actually a function, it
     # overwrites the environment and we would lose LXD_DIR's value otherwise.
-
-    local LXD_DIR daemon_dir daemon_pid check_leftovers lxd_backend
-
-    daemon_dir=${1}
-    LXD_DIR=${daemon_dir}
+    local LXD_DIR="${1}"
+    shift
 
     # Check if already killed
-    if [ ! -f "${daemon_dir}/lxd.pid" ]; then
+    if [ ! -f "${LXD_DIR}/lxd.pid" ]; then
       return
     fi
 
-    daemon_pid=$(< "${daemon_dir}/lxd.pid")
+    local LXD_PID lxd_backend check_leftovers
+    LXD_PID=$(< "${LXD_DIR}/lxd.pid")
     check_leftovers="false"
-    lxd_backend=$(storage_backend "$daemon_dir")
-    echo "==> Killing LXD at ${daemon_dir} (${daemon_pid})"
+    lxd_backend="$(storage_backend "${LXD_DIR}")"
+    echo "==> Killing LXD at ${LXD_DIR} (${LXD_PID})"
 
-    if [ -e "${daemon_dir}/unix.socket" ]; then
+    if [ -e "${LXD_DIR}/unix.socket" ]; then
         # Delete all containers
         echo "==> Deleting all instances"
         for instance in $(timeout -k 2 2 lxc list --force-local --format csv --columns n); do
@@ -175,83 +173,83 @@ kill_lxd() {
         done
 
         echo "==> Checking for locked DB tables"
-        for table in $(echo .tables | sqlite3 "${daemon_dir}/local.db"); do
-            echo "SELECT 1 FROM ${table} LIMIT 1;" | sqlite3 "${daemon_dir}/local.db" >/dev/null
+        for table in $(echo .tables | sqlite3 "${LXD_DIR}/local.db"); do
+            echo "SELECT 1 FROM ${table} LIMIT 1;" | sqlite3 "${LXD_DIR}/local.db" >/dev/null
         done
 
         # Kill the daemon
-        timeout -k 30 30 lxd shutdown || kill -9 "${daemon_pid}" 2>/dev/null || true
+        timeout -k 30 30 lxd shutdown || kill -9 "${LXD_PID}" 2>/dev/null || true
 
         sleep 2
 
         # Cleanup devlxd and shmounts (needed due to the forceful kill)
-        find "${daemon_dir}" \( -name devlxd -o -name shmounts \) -exec "umount" "-q" "-l" "{}" + || true
+        find "${LXD_DIR}" \( -name devlxd -o -name shmounts \) -exec "umount" "-q" "-l" "{}" + || true
 
         check_leftovers="true"
     fi
 
     # If SERVER_DEBUG is set, check for panics in the daemon logs
     if [ -n "${SERVER_DEBUG:-}" ]; then
-      "${MAIN_DIR}/deps/panic-checker" "${daemon_dir}/lxd.log"
+      "${MAIN_DIR}/deps/panic-checker" "${LXD_DIR}/lxd.log"
     fi
 
     if [ -n "${LXD_LOGS:-}" ]; then
         echo "==> Copying the logs"
-        mkdir -p "${LXD_LOGS}/${daemon_pid}"
-        cp -R "${daemon_dir}/logs/" "${LXD_LOGS}/${daemon_pid}/"
-        cp "${daemon_dir}/lxd.log" "${LXD_LOGS}/${daemon_pid}/"
+        mkdir -p "${LXD_LOGS}/${LXD_PID}"
+        cp -R "${LXD_DIR}/logs/" "${LXD_LOGS}/${LXD_PID}/"
+        cp "${LXD_DIR}/lxd.log" "${LXD_LOGS}/${LXD_PID}/"
     fi
 
     if [ "${check_leftovers}" = "true" ]; then
         echo "==> Checking for leftover files"
-        rm -f "${daemon_dir}/containers/lxc-monitord.log"
+        rm -f "${LXD_DIR}/containers/lxc-monitord.log"
 
         # Support AppArmor policy cache directory
-        apparmor_cache_dir="$(apparmor_parser --cache-loc "${daemon_dir}"/security/apparmor/cache --print-cache-dir)"
+        apparmor_cache_dir="$(apparmor_parser --cache-loc "${LXD_DIR}"/security/apparmor/cache --print-cache-dir)"
         rm -f "${apparmor_cache_dir}/.features"
-        check_empty "${daemon_dir}/containers/"
-        check_empty "${daemon_dir}/devices/"
-        check_empty "${daemon_dir}/images/"
+        check_empty "${LXD_DIR}/containers/"
+        check_empty "${LXD_DIR}/devices/"
+        check_empty "${LXD_DIR}/images/"
         # FIXME: Once container logging rework is done, uncomment
-        # check_empty "${daemon_dir}/logs/"
+        # check_empty "${LXD_DIR}/logs/"
         check_empty "${apparmor_cache_dir}"
-        check_empty "${daemon_dir}/security/apparmor/profiles/"
-        check_empty "${daemon_dir}/security/seccomp/"
-        check_empty "${daemon_dir}/shmounts/"
-        check_empty "${daemon_dir}/snapshots/"
+        check_empty "${LXD_DIR}/security/apparmor/profiles/"
+        check_empty "${LXD_DIR}/security/seccomp/"
+        check_empty "${LXD_DIR}/shmounts/"
+        check_empty "${LXD_DIR}/snapshots/"
 
         echo "==> Checking for leftover DB entries"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "images"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "images_aliases"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "images_nodes"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "images_properties"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "images_source"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "instances"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "instances_config"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "instances_devices"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "instances_devices_config"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "instances_profiles"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "networks"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "networks_config"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "profiles"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "profiles_config"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "profiles_devices"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "profiles_devices_config"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "storage_pools"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "storage_pools_config"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "storage_pools_nodes"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "storage_volumes"
-        check_empty_table "${daemon_dir}/database/global/db.bin" "storage_volumes_config"
+        check_empty_table "${LXD_DIR}/database/global/db.bin" "images"
+        check_empty_table "${LXD_DIR}/database/global/db.bin" "images_aliases"
+        check_empty_table "${LXD_DIR}/database/global/db.bin" "images_nodes"
+        check_empty_table "${LXD_DIR}/database/global/db.bin" "images_properties"
+        check_empty_table "${LXD_DIR}/database/global/db.bin" "images_source"
+        check_empty_table "${LXD_DIR}/database/global/db.bin" "instances"
+        check_empty_table "${LXD_DIR}/database/global/db.bin" "instances_config"
+        check_empty_table "${LXD_DIR}/database/global/db.bin" "instances_devices"
+        check_empty_table "${LXD_DIR}/database/global/db.bin" "instances_devices_config"
+        check_empty_table "${LXD_DIR}/database/global/db.bin" "instances_profiles"
+        check_empty_table "${LXD_DIR}/database/global/db.bin" "networks"
+        check_empty_table "${LXD_DIR}/database/global/db.bin" "networks_config"
+        check_empty_table "${LXD_DIR}/database/global/db.bin" "profiles"
+        check_empty_table "${LXD_DIR}/database/global/db.bin" "profiles_config"
+        check_empty_table "${LXD_DIR}/database/global/db.bin" "profiles_devices"
+        check_empty_table "${LXD_DIR}/database/global/db.bin" "profiles_devices_config"
+        check_empty_table "${LXD_DIR}/database/global/db.bin" "storage_pools"
+        check_empty_table "${LXD_DIR}/database/global/db.bin" "storage_pools_config"
+        check_empty_table "${LXD_DIR}/database/global/db.bin" "storage_pools_nodes"
+        check_empty_table "${LXD_DIR}/database/global/db.bin" "storage_volumes"
+        check_empty_table "${LXD_DIR}/database/global/db.bin" "storage_volumes_config"
     fi
 
     # teardown storage
-    "$lxd_backend"_teardown "${daemon_dir}"
+    "$lxd_backend"_teardown "${LXD_DIR}"
 
     # Wipe the daemon directory
-    wipe "${daemon_dir}"
+    wipe "${LXD_DIR}"
 
     # Remove the daemon from the list
-    sed "\\|^${daemon_dir}|d" -i "${TEST_DIR}/daemons"
+    sed "\\|^${LXD_DIR}|d" -i "${TEST_DIR}/daemons"
 }
 
 shutdown_lxd() {
