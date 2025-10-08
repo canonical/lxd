@@ -696,17 +696,17 @@ test_container_devices_nic_bridged() {
   # Test interface naming scheme.
   lxc init testimage -d "${SMALL_ROOT_DISK}" test-naming
   lxc start test-naming
-  lxc query "/1.0/instances/test-naming/state" | jq -r .network.eth0.host_name | grep ^veth
+  lxc query "/1.0/instances/test-naming/state" | jq --exit-status '.network.eth0.host_name | startswith("veth")'
   lxc stop -f test-naming
 
   lxc config set instances.nic.host_name random
   lxc start test-naming
-  lxc query "/1.0/instances/test-naming/state" | jq -r .network.eth0.host_name | grep ^veth
+  lxc query "/1.0/instances/test-naming/state" | jq --exit-status '.network.eth0.host_name | startswith("veth")'
   lxc stop -f test-naming
 
   lxc config set instances.nic.host_name mac
   lxc start test-naming
-  lxc query "/1.0/instances/test-naming/state" | jq -r .network.eth0.host_name | grep ^lxd
+  lxc query "/1.0/instances/test-naming/state" | jq --exit-status '.network.eth0.host_name | startswith("lxd")'
   lxc stop -f test-naming
 
   lxc config unset instances.nic.host_name
