@@ -150,6 +150,10 @@ dqlite:
 		echo "Retrieving dqlite from ${DQLITE_BRANCH} branch"; \
 		git clone --depth=1 --branch "${DQLITE_BRANCH}" "https://github.com/canonical/dqlite" "$(DQLITE_PATH)"; \
 	elif [ -e "$(DQLITE_PATH)/.git" ]; then \
+		if [ "$(shell git -C "$(DQLITE_PATH)" branch --show-current)" = "master" ]; then \
+			echo "Update your local checkout of dqlite to use the 'main' branch instead of the 'master'"; \
+			exit 1; \
+		fi; \
 		echo "Updating existing dqlite branch"; \
 		git -C "$(DQLITE_PATH)" pull; \
 	fi
