@@ -1,6 +1,13 @@
 name: Download minio/mc
 description: Download minio/mc binaries and cache them using GitHub's default cache eviction policy (currently 7 days)
 
+inputs:
+  prime-cache-only:
+    description: 'Set to true to only populate cache on miss without restoring files. When false (default), cache will be restored if available.'
+    default: false
+    required: false
+    type: boolean
+
 runs:
   using: composite
   steps:
@@ -27,6 +34,10 @@ runs:
           /home/runner/go/bin/minio
           /home/runner/go/bin/mc
         key: ${{ steps.minio-cache-key.outputs.KEY }}
+        # Some jobs only want to prime the cache if not populated already.
+        # Those jobs don't need the files otherwise so they should not restore
+        # from the cache.
+        lookup-only: ${{ inputs.prime-cache-only }}
 
     - name: Download minio/mc
       if: ${{ steps.cache-minio.outputs.cache-hit != 'true' }}
