@@ -7,19 +7,42 @@ relatedlinks: "[Benchmarking&#32;LXD&#32;storage&#32;drivers&#32;-&#32;YouTube](
 
 LXD supports the following storage drivers for storing images, instances and custom volumes:
 
+(storage-drivers-local)=
 ```{toctree}
+:caption: Local
 :maxdepth: 1
 
+storage_dir
 storage_btrfs
-storage_cephfs
-storage_cephobject
+storage_lvm
+storage_zfs
+```
+
+(storage-drivers-remote)=
+```{toctree}
+:caption: Remote
+:maxdepth: 1
+
 storage_ceph
 storage_powerflex
 storage_pure
 storage_alletra
-storage_dir
-storage_lvm
-storage_zfs
+```
+
+(storage-drivers-shared)=
+```{toctree}
+:caption: Shared
+:maxdepth: 1
+
+storage_cephfs
+```
+
+(storage-drivers-objectonly)=
+```{toctree}
+:caption: Object only
+:maxdepth: 1
+
+storage_cephobject
 ```
 
 See the corresponding pages for driver-specific information and configuration options.
