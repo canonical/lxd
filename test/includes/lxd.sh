@@ -336,6 +336,11 @@ kill_lxd() {
 
     # Remove the daemon from the list
     sed "\\|^${LXD_DIR}|d" -i "${TEST_DIR}/daemons"
+
+    # If this is the snap, extra steps are needed
+    if [ "${LXD_DIR}" = "/var/snap/lxd/common/lxd" ]; then
+      kill_lxd_snap
+    fi
 }
 
 shutdown_lxd() {
