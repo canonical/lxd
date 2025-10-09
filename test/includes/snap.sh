@@ -30,10 +30,23 @@ install_snap() {
     local cache_dir="${SNAP_CACHE_DIR:-${HOME}/snap-cache}"
     local dir="${cache_dir}/${name}/${channel/\//-}"
 
-    if snap list "${name}" >/dev/null 2>&1; then
-        echo "Snap ${name} is already installed"
-        return 0
-    fi
+    # Use process substitution (< <(...)) to avoid running the 'while' loop in
+    # a subshell, which ensures 'return 0' can exit the install_snap function.
+    local track
+    while read -r _ _ _ track _ _ _; do
+        # Ignore header
+        [ "${track}" = "Tracking" ] && continue
+
+        # If the snap was installed from a local file (track="-") or the one
+        # requested, nothing left to do
+        if [ "${track}" = "-" ] || [ "${track}" = "${channel}" ]; then
+            return 0
+        fi
+
+        # The snap is installed but from the wrong track so proceed with the
+        # installation
+        break
+    done < <(snap list "${name}" 2>/dev/null)
 
     [ -d "${dir}" ] || mkdir -p "${dir}"
     (
@@ -90,5 +103,6 @@ install_snap() {
         snap ack "${assert}"
         snap install "${snap}"
         snap refresh --hold=24h "${name}"
+        snap switch "${name}" --channel="${channel}"
     )
 }
