@@ -229,6 +229,25 @@ func (d profileDeleter) Delete(ctx context.Context, s *state.State, ref entity.R
 	return nil
 }
 
+type placementGroupDeleter struct{}
+
+// Delete deletes a placement group.
+func (d placementGroupDeleter) Delete(ctx context.Context, s *state.State, ref entity.Reference) error {
+	name := ref.Name()
+
+	err := s.Authorizer.CheckPermission(ctx, ref.URL(), auth.EntitlementCanDelete)
+	if err != nil {
+		return err
+	}
+
+	err = doPlacementGroupDelete(ctx, s, name, ref.ProjectName)
+	if err != nil {
+		return fmt.Errorf("Failed deleting placement group %q: %w", name, err)
+	}
+
+	return nil
+}
+
 // getEntityDeleter returns a deleter implementation for the given entity type.
 func getEntityDeleter(t entity.Type) (entityDeleter, error) {
 	switch t {
@@ -248,6 +267,8 @@ func getEntityDeleter(t entity.Type) (entityDeleter, error) {
 		return storageBucketDeleter{}, nil
 	case entity.TypeProfile:
 		return profileDeleter{}, nil
+	case entity.TypePlacementGroup:
+		return placementGroupDeleter{}, nil
 	default:
 		return nil, fmt.Errorf("Unsupported entity type %q", t)
 	}
