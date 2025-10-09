@@ -1,7 +1,7 @@
 (howto-cluster-vip)=
 # How to set up a highly available virtual IP for clusters
 
-This page describes how to enhance the high availability (HA) of the control plane for an LXD cluster, through setting up a virtual IP (VIP) as a single access point.
+This page describes how to enhance the high availability (HA) of the control plane for a LXD cluster, through setting up a virtual IP (VIP) as a single access point.
 
 By {ref}`exposing cluster members to the network <server-expose>` and configuring them as {ref}`remote servers <remotes>` on a client machine, you can control the cluster over the network. This provides high availability: if one cluster member becomes unavailable, you can access the cluster through another.
 
@@ -12,13 +12,17 @@ For more information about HA in LXD clusters, including both the control and da
 (howto-cluster-vip-keepalived)=
 ## Use Keepalived
 
-While VRRP is implemented by various tools, [**Keepalived**](https://keepalived.org/doc/) is the most commonly used implementation in Linux environments. The VIP configured with Keepalived routes to only one cluster member at any given time (called the `MASTER`), and Keepalived performs regular checks to reassign the VIP to another member (a `BACKUP`) if the `MASTER` fails to respond.
+While VRRP is implemented by various tools, [**Keepalived**](https://keepalived.org/doc/) is the most commonly used implementation in Linux environments. The VIP configured with Keepalived is only active on one cluster member at a given time (called the `MASTER`), and Keepalived performs regular checks to reassign the VIP to another member (a `BACKUP`) if the `MASTER` fails to respond.
 
 To install Keepalived, run the following commands on each cluster member:
 
 ```bash
 sudo apt update
-sudo apt -y install keepalived
+sudo apt -y install keepalived --no-install-recommends
+```
+
+```{tip}
+The `--no-install-recommends` flag prevents `apt` from installing the `ipvsadm` package, which is only needed if you're using {ref}`the IPVS load balancing feature <howto-cluster-vip-load-balancing>` of Keepalived. If you intend to use this feature, run the above command without `--no-install-recommends`.
 ```
 
 The configuration file for Keepalived is typically stored at `/etc/keepalived/keepalived.conf`. You must create a configuration file for each cluster member, with one member set with `state MASTER` and the rest with `state BACKUP`.
