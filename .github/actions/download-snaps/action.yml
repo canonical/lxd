@@ -2,6 +2,11 @@ name: Download snap dependencies
 description: Download snaps and their assertion files for "offline" installation and cache them for the day
 
 inputs:
+  prime-cache-only:
+    description: 'Set to true to only populate cache on miss without restoring files. When false (default), cache will be restored if available.'
+    default: false
+    required: false
+    type: boolean
   snap-cache-dir:
     description: Where to save the snap dependencies
     required: true
@@ -33,6 +38,10 @@ runs:
         key: ${{ steps.snaps-cache-key.outputs.KEY }}
         restore-keys: |
           - ${{ steps.snaps-cache-key.outputs.FALLBACK_KEY }}
+        # Some jobs only want to prime the cache if not populated already.
+        # Those jobs don't need the files otherwise so they should not restore
+        # from the cache.
+        lookup-only: ${{ inputs.prime-cache-only }}
 
     - name: Download snaps
       if: ${{ steps.cache-snaps.outputs.cache-hit != 'true' }}
