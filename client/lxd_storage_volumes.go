@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -57,27 +56,7 @@ func (r *ProtocolLXD) GetStoragePoolVolumeNamesAllProjects(pool string) (map[str
 		return nil, err
 	}
 
-	names := make(map[string][]string)
-	for _, urlString := range urls {
-		resourceURL, err := url.Parse(urlString)
-		if err != nil {
-			return nil, fmt.Errorf("Could not parse unexpected URL %q: %w", urlString, err)
-		}
-
-		project := resourceURL.Query().Get("project")
-		if project == "" {
-			project = "default"
-		}
-
-		_, after, found := strings.Cut(resourceURL.Path, u.URL.Path+"/")
-		if !found {
-			return nil, fmt.Errorf("Unexpected URL path %q", resourceURL)
-		}
-
-		names[project] = append(names[project], after)
-	}
-
-	return names, nil
+	return urlsToResourceNamesAllProjects(u.String(), urls...)
 }
 
 // GetStoragePoolVolumes returns a list of StorageVolume entries for the provided pool.
