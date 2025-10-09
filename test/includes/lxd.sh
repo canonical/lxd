@@ -128,9 +128,9 @@ kill_lxd() {
         done
 
         # Delete all images
-        echo "==> Deleting all images"
-        for image in $(timeout -k 2 2 lxc image list --force-local --format csv --columns f); do
-            timeout -k 10 10 lxc image delete "${image}" --force-local || true
+        echo "==> Deleting all images from all projects"
+        timeout -k 2 2 lxc image list --force-local --format csv --columns Fe | sed 's/,/ /g' | while read -r image project; do
+            timeout -k 10 10 lxc image delete "${image}" --project "${project}" --force-local || true
         done
 
         # Delete all profiles
