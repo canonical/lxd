@@ -237,15 +237,16 @@ jobs:
           retention-days: 1
         if: env.GOCOVERDIR != ''
 
-      # In code-tests, this action warms the cache for the system-tests job
-      - name: Download snap dependencies
+      - name: Prime cache with snap dependencies
         uses: ./.github/actions/download-snaps
         with:
+          prime-cache-only: true
           snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
 
-      # In code-tests, this action warms the cache for the system-tests job
-      - name: Download minio/mc
+      - name: Prime cache with minio/mc
         uses: ./.github/actions/download-minio
+        with:
+          prime-cache-only: true
 
       - name: Upload system test dependencies
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
