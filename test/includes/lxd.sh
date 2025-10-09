@@ -76,29 +76,25 @@ respawn_lxd() {
     { set +x; } 2>/dev/null
     # LXD_DIR is local here because since $(lxc) is actually a function, it
     # overwrites the environment and we would lose LXD_DIR's value otherwise.
-
-    local LXD_DIR
-
-    lxddir=${1}
+    local LXD_DIR="${1}"
+    shift
+    local wait="${1}"
     shift
 
-    wait=${1}
-    shift
-
-    echo "==> Spawning lxd in ${lxddir}"
+    echo "==> Spawning lxd in ${LXD_DIR}"
     if [ "${LXD_NETNS}" = "" ]; then
-        LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${SERVER_DEBUG-}" "$@" 2>&1 &
+        lxd --logfile "${LXD_DIR}/lxd.log" "${SERVER_DEBUG-}" "$@" 2>&1 &
     else
         read -r pid < "${TEST_DIR}/ns/${LXD_NETNS}/PID"
-        LXD_DIR="${lxddir}" nsenter -n -m -t "${pid}" lxd --logfile "${lxddir}/lxd.log" "${SERVER_DEBUG-}" "$@" 2>&1 &
+        nsenter -n -m -t "${pid}" lxd --logfile "${LXD_DIR}/lxd.log" "${SERVER_DEBUG-}" "$@" 2>&1 &
     fi
     LXD_PID=$!
-    echo "${LXD_PID}" > "${lxddir}/lxd.pid"
+    echo "${LXD_PID}" > "${LXD_DIR}/lxd.pid"
     echo "==> Spawned LXD (PID is ${LXD_PID})"
 
     if [ "${wait}" = true ]; then
         echo "==> Confirming lxd is responsive (PID is ${LXD_PID})"
-        LXD_DIR="${lxddir}" lxd waitready --timeout=300 || (echo "Killing PID ${LXD_PID}" ; kill -9 "${LXD_PID}" ; false)
+        lxd waitready --timeout=300 || (echo "Killing PID ${LXD_PID}" ; kill -9 "${LXD_PID}" ; false)
     fi
 
     if [ -n "${SHELL_TRACING:-}" ]; then
