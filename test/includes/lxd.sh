@@ -318,6 +318,7 @@ panic_checker() {
   [ -s "${test_dir}/daemons" ] || return
 
   while read -r daemon_dir; do
+    [ -s "${daemon_dir}/lxd.log" ] || continue
     "${MAIN_DIR}/deps/panic-checker" "${daemon_dir}/lxd.log"
   done < "${test_dir}/daemons"
 }
