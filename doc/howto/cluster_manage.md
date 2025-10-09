@@ -116,7 +116,7 @@ Any instance that you plan to live-migrate must have its {config:option}`instanc
 (cluster-automatic-evacuation)=
 ## Cluster healing
 
-To enable cluster healing, set the {config:option}`server-cluster:cluster.healing_threshold` configuration to a non-zero value (in seconds). If a cluster member is offline for longer than this threshold, LXD automatically sets its state to "evacuated" and starts its instances on another member. This behavior only applies to instances that use shared storage storage and have no local devices attached.
+To enable cluster healing, set the {config:option}`server-cluster:cluster.healing_threshold` configuration to a non-zero value (in seconds). If a cluster member is offline for longer than this threshold, LXD automatically sets its state to "evacuated" and starts its instances on another member. This behavior only applies to instances that use shared storage and have no local devices attached.
 
 Syntax:
 
