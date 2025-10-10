@@ -5,7 +5,12 @@ test_waitready() {
   storage_pool="lxdtest-$(basename "${LXD_DIR}")-pool"
   br_name="lxdt$$"
 
-  lxc storage create "${storage_pool}" "${lxd_backend}"
+  if [ "${lxd_backend}" = "lvm" ]; then
+    lxc storage create "${storage_pool}" "${lxd_backend}" volume.size=24MiB size=1GiB
+  else
+    lxc storage create "${storage_pool}" "${lxd_backend}"
+  fi
+
   lxc network create "${br_name}" ipv4.address=none ipv6.address=none
 
   echo "==> Corrupt the network by setting an invalid external interface"
