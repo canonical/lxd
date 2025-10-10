@@ -257,13 +257,13 @@ ifeq "$(GOMIN)" "$(NEW_GOMIN)"
 	exit 1
 endif
 	@echo "Updating Go minimum version from $(GOMIN) to $(NEW_GOMIN)"
-	
+
 	@# Update GOMIN in Makefile
 	sed -i 's/^GOMIN=[0-9.]\+/GOMIN=$(NEW_GOMIN)/' Makefile
-	
+
 	@# Update doc/requirements.md and .github/copilot-instructions.md
 	sed -i 's/^\(LXD requires Go \)[0-9.]\+ /\1$(NEW_GOMIN) /' doc/requirements.md .github/copilot-instructions.md
-	
+
 	@echo "Go minimum version updated to $(NEW_GOMIN)"
 	if [ -t 0 ]; then \
 		read -rp "Would you like to commit Go version changes (Y/n)? " answer; \
