@@ -95,6 +95,8 @@ func (c *cmdForkstart) run(cmd *cobra.Command, args []string) error {
 	err = d.Start()
 	if err != nil {
 		// Wait for container to be stopped if the start failed.
+		// This is to ensure that container has transitioned from
+		// STOPPING state into STOPPED and has triggered stop hooks to execute.
 		_ = d.Wait(liblxc.STOPPED, time.Minute)
 	}
 
