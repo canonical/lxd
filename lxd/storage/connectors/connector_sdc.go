@@ -3,10 +3,14 @@ package connectors
 import (
 	"context"
 	"errors"
-
-	"github.com/dell/goscaleio"
+	"os"
 
 	"github.com/canonical/lxd/shared/revert"
+)
+
+const (
+	// SDCDevicePath represents the SDC device once the respective kernel module is loaded.
+	SDCDevicePath = "/dev/scini"
 )
 
 var _ Connector = &connectorSDC{}
@@ -25,10 +29,21 @@ func (c *connectorSDC) Version() (string, error) {
 	return "", nil
 }
 
+// drvCfgIsSDCInstalled checks if the SDC kernel module is loaded.
+func (c *connectorSDC) drvCfgIsSDCInstalled() bool {
+	// Check to see if the SDC device is available.
+	info, err := os.Stat(SDCDevicePath)
+	if err != nil {
+		return false
+	}
+
+	return !info.IsDir()
+}
+
 // LoadModules checks if the respective SDC kernel module got already loaded outside of LXD.
 // It doesn't try to load the module as LXD doesn't have any control over it.
 func (c *connectorSDC) LoadModules() error {
-	ok := goscaleio.DrvCfgIsSDCInstalled()
+	ok := c.drvCfgIsSDCInstalled()
 	if !ok {
 		return errors.New("SDC kernel module is not loaded")
 	}
