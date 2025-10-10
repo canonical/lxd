@@ -299,8 +299,14 @@ run_test() {
   fi
 
   if [ "${skip}" = false ]; then
-    # Run test.
-    ${TEST_CURRENT}
+    # If there is '_vm' in the test name, then VM tests are expected to be run.
+    # If LXD_VM_TESTS=1, then VM tests can be run.
+    if [[ "${TEST_CURRENT}" =~ ^test_.*_vm.*$ ]] && [ "${LXD_VM_TESTS:-0}" = "0" ]; then
+      export TEST_UNMET_REQUIREMENT="LXD_VM_TESTS=1 is required"
+    else
+      # Run test.
+      ${TEST_CURRENT}
+    fi
 
     # Check whether test was skipped due to unmet requirements, and if so check if the test is required and fail.
     if [ -n "${TEST_UNMET_REQUIREMENT}" ]; then
