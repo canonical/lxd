@@ -9,6 +9,11 @@ import (
 	"github.com/canonical/lxd/shared/revert"
 )
 
+const (
+	// SDCDevicePath represents the SDC device once the respective kernel module is loaded.
+	SDCDevicePath = "/dev/scini"
+)
+
 var _ Connector = &connectorSDC{}
 
 type connectorSDC struct {
