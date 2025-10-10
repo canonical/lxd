@@ -3,7 +3,7 @@ test_storage_volume_recover() {
   spawn_lxd "${LXD_IMPORT_DIR}" true
 
   poolName=$(lxc profile device get default root pool)
-  poolDriver=$(lxc storage show "${poolName}" | awk '/^driver:/ {print $2}')
+  poolDriver="$(storage_backend "${LXD_IMPORT_DIR}")"
 
   if [ "${poolDriver}" = "pure" ]; then
     echo "==> SKIP: Storage driver does not support recovery"
@@ -88,7 +88,7 @@ test_container_recover() {
     ensure_import_testimage
 
     poolName=$(lxc profile device get default root pool)
-    poolDriver=$(lxc storage show "${poolName}" | awk '/^driver:/ {print $2}')
+    poolDriver="$(storage_backend "$LXD_DIR")"
 
     lxc storage set "${poolName}" user.foo=bah
     lxc project create test -c features.images=false -c features.profiles=true -c features.storage.volumes=true
