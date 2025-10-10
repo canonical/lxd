@@ -121,7 +121,7 @@ func (d *powerflex) FillConfig() error {
 	}
 
 	// Try to discover the PowerFlex operation mode.
-	// First try if the NVMe/TCP kernel modules can be loaed.
+	// First try if the NVMe/TCP kernel modules can be loaded.
 	// Second try if the SDC kernel module is setup.
 	if d.config["powerflex.mode"] == "" {
 		// Create temporary connector to check if NVMe/TCP kernel modules can be loaded.
