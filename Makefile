@@ -263,13 +263,13 @@ ifeq "$(GOMIN)" "$(NEW_GOMIN)"
 	exit 1
 endif
 	@echo "Updating Go minimum version from $(GOMIN) to $(NEW_GOMIN)"
-	
+
 	@# Update GOMIN in Makefile
 	sed -i 's/^GOMIN=[0-9.]\+/GOMIN=$(NEW_GOMIN)/' Makefile
-	
+
 	@# Update doc/requirements.md and .github/copilot-instructions.md
 	sed -i 's/^\(LXD requires Go \)[0-9.]\+ /\1$(NEW_GOMIN) /' doc/requirements.md .github/copilot-instructions.md
-	
+
 	@echo "Go minimum version updated to $(NEW_GOMIN)"
 	if [ -t 0 ]; then \
 		read -rp "Would you like to commit Go version changes (Y/n)? " answer; \
@@ -291,7 +291,6 @@ endif
 	go get github.com/gorilla/websocket@v1.5.1 # Due to riscv64 crashes in LP
 	go get tags.cncf.io/container-device-interface@v0.8.1 # Due to incompat with nvidia-container-toolkit
 	go get github.com/olekukonko/tablewriter@v0.0.5 # Due to breaking API in later versions
-	go get github.com/dell/goscaleio@v1.20.0 # Due to v1.21.0 requiring Go >= 1.25
 
 	# Enforce minimum go version
 	$(MAKE) check-gomin
