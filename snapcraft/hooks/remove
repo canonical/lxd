@@ -25,4 +25,12 @@ if [ -e "${SYSTEMD_OVERRIDE_DIR}/lxd-shutdown.conf" ]; then
     nsenter -t 1 -m systemctl daemon-reload || true
 fi
 
+# Remove sysctl override snippet
+SYSCTL_OVERRIDE_DIR="/var/lib/snapd/hostfs/run/sysctl.d"
+if [ -e "${SYSCTL_OVERRIDE_DIR}/zz-lxd.conf" ]; then
+    rm "${SYSCTL_OVERRIDE_DIR}/zz-lxd.conf" || true
+    rmdir --ignore-fail-on-non-empty "${SYSCTL_OVERRIDE_DIR}"
+    nsenter -t 1 -m systemctl restart systemd-sysctl.service || true
+fi
+
 exit 0
