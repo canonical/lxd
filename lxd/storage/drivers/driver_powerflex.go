@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/dell/goscaleio"
-
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/connectors"
@@ -132,9 +130,15 @@ func (d *powerflex) FillConfig() error {
 			return err
 		}
 
+		// Create temporary connector to check if SDC kernel module is loaded.
+		sdcConnector, err := connectors.NewConnector(connectors.TypeSDC, "")
+		if err != nil {
+			return err
+		}
+
 		if nvmeConnector.LoadModules() == nil {
 			d.config["powerflex.mode"] = connectors.TypeNVME
-		} else if goscaleio.DrvCfgIsSDCInstalled() {
+		} else if sdcConnector.LoadModules() == nil {
 			d.config["powerflex.mode"] = connectors.TypeSDC
 		} else {
 			// Fail if no PowerFlex mode can be discovered.
