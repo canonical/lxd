@@ -2,13 +2,10 @@ module github.com/canonical/lxd
 
 go 1.24.6
 
-replace github.com/dell/goscaleio => github.com/dell/goscaleio v1.20.0
-
 require (
 	github.com/NVIDIA/nvidia-container-toolkit v1.17.8
 	github.com/armon/go-proxyproto v0.1.0
 	github.com/canonical/go-dqlite/v3 v3.0.3
-	github.com/dell/goscaleio v1.20.0
 	github.com/digitalocean/go-qemu v0.0.0-20250212194115-ee9b0668d242
 	github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e
 	github.com/dustinkirkland/golang-petname v0.0.0-20240428194347-eebcea082ee0
