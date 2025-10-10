@@ -892,8 +892,7 @@ EOF
     lxc launch testimage quota2
     lxc restart -f quota2
 
-    lxc init testimage quota3
-    lxc start quota3
+    lxc launch testimage quota3
 
     lxc profile device set default root size "${QUOTA2}"
 
