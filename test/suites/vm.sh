@@ -1,9 +1,4 @@
 test_vm_empty() {
-  if [ "${LXD_VM_TESTS:-0}" = "0" ]; then
-    echo "==> SKIP: VM tests are disabled"
-    return
-  fi
-
   if [ "${LXD_TMPFS:-0}" = "1" ] && ! runsMinimumKernel 6.6; then
     echo "==> SKIP: QEMU requires direct-io support which requires a kernel >= 6.6 for tmpfs support (LXD_TMPFS=${LXD_TMPFS})"
     return
