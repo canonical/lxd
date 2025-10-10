@@ -5,16 +5,20 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
+	"unsafe"
 
-	"github.com/dell/goscaleio"
 	"github.com/google/uuid"
 
 	"github.com/canonical/lxd/lxd/storage/block"
@@ -772,12 +776,50 @@ func (d *powerflex) client() *powerFlexClient {
 	return d.httpClient
 }
 
+// drvCfgQueryGUID returns the GUID of the locally installed SDC.
+func (d *powerflex) drvCfgQueryGUID() (string, error) {
+	f, err := os.Open(filepath.Clean(connectors.SDCDevicePath))
+	if err != nil {
+		return "", err
+	}
+
+	defer f.Close()
+
+	// See https://github.com/dell/goscaleio/blob/main/drv_cfg.go#L224.
+	// Omit the leading and following bit operations as they are 0 anyway.
+	opCode := uintptr(('a' << 8) | 14)
+
+	var buf powerFlexSDCIOCTLGUID
+	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, f.Fd(), opCode, uintptr(unsafe.Pointer(&buf)))
+	if errno != 0 {
+		return "", fmt.Errorf("Failed to query SDC GUID: %w", err)
+	}
+
+	rc, err := strconv.ParseInt(hex.EncodeToString(buf.rc[0:1]), 16, 64)
+	if err != nil {
+		return "", fmt.Errorf("Failed to parse SDC GUID response code: %w", err)
+	}
+
+	if rc != 65 {
+		return "", fmt.Errorf("Request to query SDC GUID failed with %d", rc)
+	}
+
+	g := hex.EncodeToString(buf.uuid[:len(buf.uuid)])
+	u, err := uuid.Parse(g)
+	if err != nil {
+		return "", fmt.Errorf("Failed to parse SDC GUID: %w", err)
+	}
+
+	discoveredGUID := strings.ToUpper(u.String())
+	return discoveredGUID, nil
+}
+
 // getHostGUID returns the SDC GUID.
 // The GUID is unique for a single host.
 // Cache the GUID as it never changes for a single host.
 func (d *powerflex) getHostGUID() (string, error) {
 	if d.sdcGUID == "" {
-		guid, err := goscaleio.DrvCfgQueryGUID()
+		guid, err := d.drvCfgQueryGUID()
 		if err != nil {
 			return "", fmt.Errorf("Failed to query SDC GUID: %w", err)
 		}
