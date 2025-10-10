@@ -921,12 +921,10 @@ EOF
     fi
 
     lxc restart -f quota1
-    if [ "$lxd_backend" = "zfs" ]; then
-      rootSizeKiB=$(lxc exec quota1 -- df -P / | tail -n1 | awk '{print $2}')
-      if [ "$rootSizeKiB" -gt "$rootOrigMaxSizeKiB" ] || [ "$rootSizeKiB" -lt "$rootOrigMinSizeKiB" ] ; then
-        echo "original root size not restored"
-        false
-      fi
+    rootSizeKiB=$(lxc exec quota1 -- df -P / | tail -n1 | awk '{print $2}')
+    if [ "$rootSizeKiB" -gt "$rootOrigMaxSizeKiB" ] || [ "$rootSizeKiB" -lt "$rootOrigMinSizeKiB" ] ; then
+      echo "original root size not restored"
+      false
     fi
 
     # Cleanup
