@@ -92,7 +92,7 @@ teardown_clustering_netns() {
   local nsbridge="br$$"
   local ns veth1 pid
 
-  [ ! -d "${TEST_DIR}/ns/" ] && return
+  [ -d "${TEST_DIR}/ns/" ] || return
 
   # shellcheck disable=SC2045
   for ns in $(ls -1 "${TEST_DIR}/ns/"); do
