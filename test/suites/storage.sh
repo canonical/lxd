@@ -861,19 +861,16 @@ EOF
     fi
 
     lxc launch testimage quota2
-    lxc stop -f quota2
-    lxc start quota2
+    lxc restart -f quota2
 
     lxc init testimage quota3
     lxc start quota3
 
     lxc profile device set default root size "${QUOTA2}"
 
-    lxc stop -f quota1
-    lxc start quota1
+    lxc restart -f quota1
 
-    lxc stop -f quota2
-    lxc start quota2
+    lxc restart -f quota2
     if [ "$lxd_backend" != "btrfs" ]; then
       rootSizeKiB=$(lxc exec quota2 -- df -P / | tail -n1 | awk '{print $2}')
       if [ "$rootSizeKiB" -gt "$rootMaxKiB2" ] || [ "$rootSizeKiB" -lt "$rootMinKiB2" ] ; then
@@ -882,8 +879,7 @@ EOF
       fi
     fi
 
-    lxc stop -f quota3
-    lxc start quota3
+    lxc restart -f quota3
 
     lxc profile device unset default root size
 
@@ -896,8 +892,7 @@ EOF
       fi
     fi
 
-    lxc stop -f quota1
-    lxc start quota1
+    lxc restart -f quota1
     if [ "$lxd_backend" = "zfs" ]; then
       rootSizeKiB=$(lxc exec quota1 -- df -P / | tail -n1 | awk '{print $2}')
       if [ "$rootSizeKiB" -gt "$rootOrigMaxSizeKiB" ] || [ "$rootSizeKiB" -lt "$rootOrigMinSizeKiB" ] ; then
