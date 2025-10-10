@@ -13,6 +13,7 @@ The following options are available:
 - [`cloud-init` configuration](instance-options-cloud-init)
 - {ref}`instance-options-limits`
 - {ref}`instance-options-migration`
+- {ref}`instance-options-placement`
 - {ref}`instance-options-nvidia`
 - {ref}`instance-options-raw`
 - {ref}`instance-options-security`
@@ -226,6 +227,19 @@ The following instance options control the behavior if the instance is {ref}`mov
     :start-after: <!-- config group instance-migration start -->
     :end-before: <!-- config group instance-migration end -->
 ```
+
+(instance-options-placement)=
+## Placement options
+
+The following instance option controls the placement of instances in a cluster:
+
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
+    :start-after: <!-- config group instance-placement start -->
+    :end-before: <!-- config group instance-placement end -->
+```
+
+See {ref}`cluster-placement-groups` for more information about placement groups.
 
 (instance-options-nvidia)=
 ## NVIDIA and CUDA configuration
