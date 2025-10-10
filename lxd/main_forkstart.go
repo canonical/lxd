@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	liblxc "github.com/lxc/go-lxc"
 	"github.com/spf13/cobra"
@@ -91,5 +92,11 @@ func (c *cmdForkstart) run(cmd *cobra.Command, args []string) error {
 		_ = unix.Dup3(int(logFile.Fd()), 2, 0)
 	}
 
-	return d.Start()
+	err = d.Start()
+	if err != nil {
+		// Wait for container to be stopped if the start failed.
+		_ = d.Wait(liblxc.STOPPED, time.Minute)
+	}
+
+	return err
 }
