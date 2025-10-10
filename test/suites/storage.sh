@@ -935,9 +935,8 @@ EOF
     lxc stop -f quota3
     lxc start quota3
 
-    lxc delete -f quota1
-    lxc delete -f quota2
-    lxc delete -f quota3
+    # Cleanup
+    lxc delete -f quota1 quota2 quota3
   fi
 
   if [ "${lxd_backend}" = "btrfs" ]; then
