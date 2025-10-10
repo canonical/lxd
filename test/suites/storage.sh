@@ -929,12 +929,6 @@ EOF
       fi
     fi
 
-    lxc stop -f quota2
-    lxc start quota2
-
-    lxc stop -f quota3
-    lxc start quota3
-
     # Cleanup
     lxc delete -f quota1 quota2 quota3
   fi
