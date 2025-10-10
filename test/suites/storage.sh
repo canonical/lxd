@@ -853,35 +853,11 @@ EOF
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15"
       vgremove -ff "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" || true
 
-      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool16"
-      vgremove -ff "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool16" || true
-
-      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool17"
-      vgremove -ff "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool17" || true
-
-      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool18"
-      vgremove -ff "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool18" || true
-
-      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool19"
-      vgremove -ff "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool19" || true
-
-      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool20"
-      vgremove -ff "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool20" || true
-
-      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool21"
-      vgremove -ff "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool21" || true
-
-      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool22"
-      vgremove -ff "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool22" || true
-
-      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool23"
-      vgremove -ff "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool23" || true
-
-      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool24"
-      vgremove -ff "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool24" || true
-
-      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool25"
-      vgremove -ff "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool25" || true
+      # Delete all the '-valid-lvm-pool-config-poolXY' pools
+      for index in $(seq 16 26); do
+        lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool${index}"
+        vgremove -ff "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool${index}" || true
+      done
     fi
   )
 
