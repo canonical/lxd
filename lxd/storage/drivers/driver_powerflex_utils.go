@@ -44,6 +44,13 @@ const powerFlexVolumeThick powerFlexVolumeType = "ThickProvisioned"
 
 const powerFlexSnapshotRW powerFlexSnapshotMode = "ReadWrite"
 
+type powerFlexSDCIOCTLGUID struct {
+	rc         [8]byte
+	uuid       [16]byte
+	netIDMagic uint32
+	netIDTime  uint32
+}
+
 // powerFlexVolTypePrefixes maps volume type to storage volume name prefix.
 // Use smallest possible prefixes since PowerFlex volume names are limited to 31 characters.
 var powerFlexVolTypePrefixes = map[VolumeType]string{
