@@ -334,7 +334,7 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
  * This function takes a container or snapshot from the local image server and
  * exports it as an image.
  */
-func imgPostInstanceInfo(s *state.State, req api.ImagesPost, op *operations.Operation, projectName string, builddir string, budget int64) (*api.Image, error) {
+func imgPostInstanceInfo(s *state.State, req api.ImagesPost, op *operations.Operation, projectName string, imageProject string, builddir string, budget int64) (*api.Image, error) {
 	info := api.Image{}
 	info.Properties = map[string]string{}
 
@@ -517,7 +517,7 @@ func imgPostInstanceInfo(s *state.State, req api.ImagesPost, op *operations.Oper
 	info.CreatedAt = time.Now().UTC()
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		_, _, err = tx.GetImage(ctx, info.Fingerprint, dbCluster.ImageFilter{Project: &projectName})
+		_, _, err = tx.GetImage(ctx, info.Fingerprint, dbCluster.ImageFilter{Project: &imageProject})
 
 		return err
 	})
@@ -530,7 +530,9 @@ func imgPostInstanceInfo(s *state.State, req api.ImagesPost, op *operations.Oper
 	}
 
 	/* rename the file to the expected name so our caller can use it */
-	finalName := filepath.Join(s.ImagesStoragePath(projectName), info.Fingerprint)
+	finalName := filepath.Join(s.ImagesStoragePath(imageProject), info.Fingerprint)
+
+	// TODO: check if there's special case for default project images.
 	err = shared.FileMove(imageFile.Name(), finalName)
 	if err != nil {
 		return nil, err
@@ -541,7 +543,7 @@ func imgPostInstanceInfo(s *state.State, req api.ImagesPost, op *operations.Oper
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Create the database entry
-		return tx.CreateImage(ctx, c.Project().Name, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type, nil)
+		return tx.CreateImage(ctx, imageProject, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type, nil)
 	})
 	if err != nil {
 		return nil, err
@@ -550,7 +552,7 @@ func imgPostInstanceInfo(s *state.State, req api.ImagesPost, op *operations.Oper
 	return &info, nil
 }
 
-func imgPostRemoteInfo(ctx context.Context, s *state.State, req api.ImagesPost, op *operations.Operation, project string, budget int64) (*api.Image, error) {
+func imgPostRemoteInfo(ctx context.Context, s *state.State, req api.ImagesPost, op *operations.Operation, profileProject string, imageProject string, budget int64) (*api.Image, error) {
 	var err error
 	var hash string
 
@@ -571,7 +573,7 @@ func imgPostRemoteInfo(ctx context.Context, s *state.State, req api.ImagesPost, 
 		Type:              req.Source.ImageType,
 		AutoUpdate:        req.AutoUpdate,
 		Public:            req.Public,
-		ProjectName:       project,
+		ProjectName:       imageProject,
 		Budget:            budget,
 		SourceProjectName: req.Source.Project,
 		UserRequested:     true,
@@ -583,7 +585,7 @@ func imgPostRemoteInfo(ctx context.Context, s *state.State, req api.ImagesPost, 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var id int
 
-		id, info, err = tx.GetImage(ctx, info.Fingerprint, dbCluster.ImageFilter{Project: &project})
+		id, info, err = tx.GetImage(ctx, info.Fingerprint, dbCluster.ImageFilter{Project: &imageProject})
 		if err != nil {
 			return err
 		}
@@ -599,7 +601,7 @@ func imgPostRemoteInfo(ctx context.Context, s *state.State, req api.ImagesPost, 
 		profileIDs := make([]int64, len(req.Profiles))
 
 		for i, profile := range req.Profiles {
-			profileID, _, err := tx.GetProfile(ctx, project, profile)
+			profileID, _, err := tx.GetProfile(ctx, profileProject, profile)
 			if response.IsNotFoundError(err) {
 				return fmt.Errorf("Profile '%s' doesn't exist", profile)
 			} else if err != nil {
@@ -611,7 +613,7 @@ func imgPostRemoteInfo(ctx context.Context, s *state.State, req api.ImagesPost, 
 
 		// Update the DB record if needed
 		if req.Public || req.AutoUpdate || req.Filename != "" || len(req.Properties) > 0 || len(req.Profiles) > 0 {
-			err := tx.UpdateImage(ctx, id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, project, profileIDs)
+			err := tx.UpdateImage(ctx, id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, imageProject, profileIDs)
 			if err != nil {
 				return err
 			}
@@ -626,7 +628,7 @@ func imgPostRemoteInfo(ctx context.Context, s *state.State, req api.ImagesPost, 
 	return info, nil
 }
 
-func imgPostURLInfo(ctx context.Context, s *state.State, req api.ImagesPost, op *operations.Operation, project string, budget int64) (*api.Image, error) {
+func imgPostURLInfo(ctx context.Context, s *state.State, req api.ImagesPost, op *operations.Operation, imageProject string, budget int64) (*api.Image, error) {
 	var err error
 
 	if req.Source.URL == "" {
@@ -680,7 +682,7 @@ func imgPostURLInfo(ctx context.Context, s *state.State, req api.ImagesPost, op 
 		Alias:         hash,
 		AutoUpdate:    req.AutoUpdate,
 		Public:        req.Public,
-		ProjectName:   project,
+		ProjectName:   imageProject,
 		Budget:        budget,
 		UserRequested: true,
 	})
@@ -691,7 +693,7 @@ func imgPostURLInfo(ctx context.Context, s *state.State, req api.ImagesPost, op 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var id int
 
-		id, info, err = tx.GetImage(ctx, info.Fingerprint, dbCluster.ImageFilter{Project: &project})
+		id, info, err = tx.GetImage(ctx, info.Fingerprint, dbCluster.ImageFilter{Project: &imageProject})
 		if err != nil {
 			return err
 		}
@@ -1130,10 +1132,16 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 
 	// Load the project entry so we have a valid project name.
 	var dbProject *dbCluster.Project
+	var projectConfig map[string]string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err = dbCluster.GetProject(ctx, tx.Tx(), projectName)
 		if err != nil {
 			return fmt.Errorf("Failed loading project %q: %w", projectName, err)
+		}
+
+		projectConfig, err = dbCluster.GetProjectConfig(ctx, tx.Tx(), projectName)
+		if err != nil {
+			return fmt.Errorf("Failed loading config for project %q: %w", projectName, err)
 		}
 
 		return nil
@@ -1291,17 +1299,33 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			/* Processing image upload */
 			info, err = getImgPostInfo(s, r, builddir, dbProject.Name, post, imageMetadata)
 		} else {
+			// Project to associate image with.
+			imageProject := dbProject.Name
+
+			// If "features.images" is disabled for the project, associate the image with the "default" project.
+			if shared.IsFalse(projectConfig["features.images"]) {
+				imageProject = api.ProjectDefaultName
+			}
+
+			// Project to associate profiles with.
+			profileProject := dbProject.Name
+
+			// If "features.profiles" is disabled for the project, associate the profiles with the "default" project.
+			if shared.IsFalse(projectConfig["features.profiles"]) {
+				profileProject = api.ProjectDefaultName
+			}
+
 			switch req.Source.Type {
 			case api.SourceTypeImage:
 				/* Processing image copy from remote */
-				info, err = imgPostRemoteInfo(r.Context(), s, req, op, dbProject.Name, budget)
+				info, err = imgPostRemoteInfo(r.Context(), s, req, op, profileProject, imageProject, budget)
 			case "url":
 				/* Processing image copy from URL */
-				info, err = imgPostURLInfo(r.Context(), s, req, op, dbProject.Name, budget)
+				info, err = imgPostURLInfo(r.Context(), s, req, op, imageProject, budget)
 			default:
 				/* Processing image creation from container */
 				imagePublishLock.Lock()
-				info, err = imgPostInstanceInfo(s, req, op, dbProject.Name, builddir, budget)
+				info, err = imgPostInstanceInfo(s, req, op, dbProject.Name, imageProject, builddir, budget)
 				imagePublishLock.Unlock()
 			}
 		}
