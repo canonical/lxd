@@ -5,13 +5,16 @@ if [ -z "${GOPATH:-}" ] && command -v go >/dev/null; then
     GOPATH="$(go env GOPATH)"
 fi
 
+if [ -n "${GOPATH:-}" ]; then
+    # Add GOPATH/bin to PATH if not there already
+    [[ "${PATH}" != *"${GOPATH}/bin"* ]] && export "PATH=${GOPATH}/bin:${PATH}"
+fi
+
 # Avoid accidental re-execution
 if [ -n "${LXD_INSPECT_INPROGRESS:-}" ]; then
     echo "Refusing to run tests from inside a LXD_INSPECT session" >&2
     exit 1
 fi
-
-[ -n "${GOPATH:-}" ] && export "PATH=${GOPATH}/bin:${PATH}"
 
 # Don't translate lxc output for parsing in it in tests.
 export LC_ALL="C"
