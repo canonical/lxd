@@ -1,7 +1,7 @@
 # Test helper for clustering
 
 setup_clustering_bridge() {
-  name="br$$"
+  local name="br$$"
 
   echo "==> Setup clustering bridge ${name}"
 
@@ -13,22 +13,22 @@ setup_clustering_bridge() {
 }
 
 teardown_clustering_bridge() {
-  name="br$$"
+  local name="br$$"
 
-  if [ -e "/sys/class/net/${name}" ]; then
-      echo "==> Teardown clustering bridge ${name}"
-      echo 0 > /proc/sys/net/ipv4/ip_forward
-      iptables -w -t nat -D POSTROUTING -s 100.64.0.0/16 -d 0.0.0.0/0 -j MASQUERADE
-      ip link del dev "${name}"
-  fi
+  [ -e "/sys/class/net/${name}" ] || return
+
+  echo "==> Teardown clustering bridge ${name}"
+  echo 0 > /proc/sys/net/ipv4/ip_forward
+  iptables -w -t nat -D POSTROUTING -s 100.64.0.0/16 -d 0.0.0.0/0 -j MASQUERADE
+  ip link del dev "${name}"
 }
 
 setup_clustering_netns() {
-  id="${1}"
+  local id="${1}"
   shift
 
-  prefix="lxd$$"
-  ns="${prefix}${id}"
+  local prefix="lxd$$"
+  local ns="${prefix}${id}"
 
   echo "==> Setup clustering netns ${ns}"
 
@@ -65,14 +65,15 @@ sleep 300&
 echo \$! > "${TEST_DIR}/ns/${ns}/PID"
 EOF
 
-  veth1="v${ns}1"
-  veth2="v${ns}2"
+  local veth1="v${ns}1"
+  local veth2="v${ns}2"
+  local nspid
   nspid=$(< "${TEST_DIR}/ns/${ns}/PID")
 
   ip link add "${veth1}" type veth peer name "${veth2}"
   ip link set "${veth2}" netns "${nspid}"
 
-  nsbridge="br$$"
+  local nsbridge="br$$"
   ip link set dev "${veth1}" master "${nsbridge}" up
   cat << EOF | nsenter -n -m -t "${nspid}" /bin/sh
 set -e
@@ -87,8 +88,9 @@ EOF
 }
 
 teardown_clustering_netns() {
-  prefix="lxd$$"
-  nsbridge="br$$"
+  local prefix="lxd$$"
+  local nsbridge="br$$"
+  local ns veth1 pid
 
   [ ! -d "${TEST_DIR}/ns/" ] && return
 
@@ -111,8 +113,8 @@ teardown_clustering_netns() {
 
 spawn_lxd_and_bootstrap_cluster() {
   local LXD_NETNS
-
   set -e
+
   ns="${1}"
   bridge="${2}"
   LXD_DIR="${3}"
@@ -200,8 +202,8 @@ EOF
 
 spawn_lxd_and_join_cluster() {
   local LXD_NETNS
-
   set -e
+
   ns="${1}"
   bridge="${2}"
   cert="${3}"
@@ -387,9 +389,9 @@ EOF
 respawn_lxd_cluster_member() {
   # shellcheck disable=SC2034
   local LXD_NETNS
-
   set -e
-  ns="${1}"
+
+  local ns="${1}"
   LXD_DIR="${2}"
 
   LXD_NETNS="${ns}" respawn_lxd "${LXD_DIR}" true
