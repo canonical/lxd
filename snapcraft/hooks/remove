@@ -18,7 +18,7 @@ done
 nsenter -t 1 -m systemctl stop snap.lxd.workaround >/dev/null 2>&1 || true
 
 # Remove systemd override snippet
-SYSTEMD_OVERRIDE_DIR="/run/systemd/system/snap.lxd.daemon.service.d"
+SYSTEMD_OVERRIDE_DIR="/var/lib/snapd/hostfs/run/systemd/system/snap.lxd.daemon.service.d"
 if [ -e "${SYSTEMD_OVERRIDE_DIR}/lxd-shutdown.conf" ]; then
     rm "${SYSTEMD_OVERRIDE_DIR}/lxd-shutdown.conf" || true
     rmdir --ignore-fail-on-non-empty "${SYSTEMD_OVERRIDE_DIR}"
