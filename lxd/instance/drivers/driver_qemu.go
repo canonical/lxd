@@ -3,6 +3,7 @@ package drivers
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"compress/gzip"
 	"context"
 	"crypto/tls"
@@ -3633,6 +3634,8 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 	// Setup a bus allocator for use with generating QEMU pre-boot config file.
 	volatileSet := make(map[string]string)
+	lastBusName := ""                      // Use to detect when the main bus name changes from bus.allocate().
+	lastBusNum := qemuPCIDeviceIDStart - 1 // Initialise to last built-in device bus number.
 	busAllocate := func(deviceName string, enableMultifunction bool) (busName string, busAddress string, multifunction bool, err error) {
 		multifunctionGroup := busFunctionGroupNone
 		if enableMultifunction {
@@ -3644,11 +3647,16 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 			d.logger.Debug("Using bus to plug device into", logger.Ctx{"device": deviceName, "busType": bus.name, "bus": busName})
 
 			if bus.name == "pcie" {
+				if lastBusName != busName {
+					lastBusName = busName
+					lastBusNum++ // Increment bus number when bus name changes.
+				}
+
 				// Only PCIe supports hotplugging and needs to store the bus order number in volatile.
 				volatileKey := "volatile." + deviceName + busDeviceVolatileSuffix
 				busNum := strings.TrimPrefix(busName, busDevicePortPrefix)
 				if d.localConfig[volatileKey] != busNum {
-					volatileSet[volatileKey] = strings.TrimPrefix(busName, busDevicePortPrefix)
+					volatileSet[volatileKey] = busNum
 				}
 			}
 		}
@@ -3656,11 +3664,39 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		return busName, busAddress, multifunction, nil
 	}
 
+	// Sort run configs by bus order (putting devices with no bus order after those with a bus order whilst
+	// retaining their current ordering within those devices).
+	slices.SortStableFunc(devConfs, func(a, b *deviceConfig.RunConfig) int {
+		if a.BusNum == 0 && b.BusNum > 0 {
+			return 1
+		} else if a.BusNum > 0 && b.BusNum == 0 {
+			return -1
+		}
+
+		return cmp.Compare(a.BusNum, b.BusNum)
+	})
+
+	// Number of spare hotplug ports to allocate.
+	// Could go negative by the time its used (below) if there are gaps in the bus numbers.
+	spareHotplugPorts := 8
+
 	// These devices are sorted so that NICs are added first to ensure that the first NIC can use the 5th
 	// PCIe bus port and will be consistently named enp5s0 for compatibility with network configuration in our
 	// existing VM images. Even on non-PCIe busses having NICs first means that their names won't change when
 	// other devices are added.
 	for _, runConf := range devConfs {
+		if bus.name == "pcie" && runConf.BusNum > lastBusNum {
+			// If device has an existing persistent bus number that is higher than current number,
+			// then allocate spare hotplug ports to fill any gap in the bus number sequence.
+			// Decrement any allocated ports against the spare hotplug count so less are added at end.
+			for i := lastBusNum + 1; i < runConf.BusNum; i++ {
+				busName, _, _ := bus.allocate(busFunctionGroupNone)
+				lastBusNum++        // Increment bus number when bus name changes.
+				spareHotplugPorts-- // Reduce the number of spare hotplug ports we add at end.
+				d.logger.Debug("Allocating empty bus device", logger.Ctx{"bus": busName})
+			}
+		}
+
 		// Add drive devices.
 		if len(runConf.Mounts) > 0 {
 			for _, drive := range runConf.Mounts {
@@ -3750,9 +3786,10 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		}
 	}
 
-	// Allocate 8 PCI slots for hotplug devices.
-	for range 8 {
-		bus.allocate(busFunctionGroupNone)
+	// Allocate remaining empty PCIe slots for hotplug devices.
+	for range spareHotplugPorts {
+		busName, _, _ := bus.allocate(busFunctionGroupNone)
+		d.logger.Debug("Allocating empty bus device", logger.Ctx{"bus": busName})
 	}
 
 	// process any user-specified overrides
