@@ -1,6 +1,4 @@
 test_console() {
-  echo "==> API extension console"
-
   ensure_import_testimage
 
   lxc launch testimage cons1
