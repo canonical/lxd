@@ -37,6 +37,7 @@ type MountInfo struct {
 // Type represents a LXD storage pool type.
 type Type interface {
 	ValidateName(name string) error
+	ValidateSource(source string) error
 	Validate(config map[string]string) error
 }
 

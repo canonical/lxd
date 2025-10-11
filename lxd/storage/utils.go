@@ -613,6 +613,7 @@ func validatePoolCommonRules() map[string]func(string) error {
 		//  shortdesc: Whether to wipe the block device before creating the pool
 		//  scope: local
 		"source.wipe":             validate.Optional(validate.IsBool),
+		"source.reuse":            validate.Optional(validate.IsBool),
 		"volatile.initial_source": validate.IsAny,
 		// lxdmeta:generate(entities=storage-dir,storage-lvm,storage-powerflex,storage-pure,storage-alletra; group=pool-conf; key=rsync.bwlimit)
 		// When `rsync` must be used to transfer storage entities, this option specifies the upper limit

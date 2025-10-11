@@ -63,6 +63,15 @@ func storagePoolValidate(s *state.State, poolName string, driverName string, con
 		return err
 	}
 
+	poolSource := config["source"]
+
+	if poolSource != "" {
+		err = poolType.ValidateSource(poolSource)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
