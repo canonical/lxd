@@ -31,6 +31,14 @@ How to export and move custom storage volumes:
 :diataxis:Move or copy a volume </howto/storage_move_volume>
 ```
 
+How to integrate LXD storage backends with Kubernetes:
+
+```{toctree}
+:titlesonly:
+
+Use the LXD CSI driver with Kubernetes </howto/storage_csi>
+```
+
 ## Related topics
 
 ```{only} diataxis
