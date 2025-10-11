@@ -9,6 +9,7 @@ pure_setup() {
 pure_configure() {
   local LXD_DIR="${1}"
   local POOL_NAME="${2:-"lxdtest-${LXD_DIR##*/}"}" # Use the last part of the LXD_DIR as pool name
+  local VOL_SIZE="${3:-"24MiB"}"
 
   echo "==> Configuring Pure Storage backend in ${LXD_DIR}"
 
@@ -18,7 +19,7 @@ pure_configure() {
     pure.gateway.verify="${PURE_GATEWAY_VERIFY:-true}" \
     pure.api.token="${PURE_API_TOKEN}" \
     pure.mode="${PURE_MODE:-nvme}" \
-    volume.size=25MiB
+    volume.size="${VOL_SIZE}"
 
   # Add the storage pool to the default profile.
   lxc profile device add default root disk path="/" pool="${POOL_NAME}"

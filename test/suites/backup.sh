@@ -3,7 +3,7 @@ test_storage_volume_recover() {
   spawn_lxd "${LXD_IMPORT_DIR}" true
 
   poolName=$(lxc profile device get default root pool)
-  poolDriver=$(lxc storage show "${poolName}" | awk '/^driver:/ {print $2}')
+  poolDriver="$(storage_backend "${LXD_IMPORT_DIR}")"
 
   if [ "${poolDriver}" = "pure" ]; then
     echo "==> SKIP: Storage driver does not support recovery"
@@ -74,11 +74,16 @@ test_storage_volume_recover_by_container() {
   spawn_lxd "${LXD_IMPORT_DIR}" true
 
   poolName=$(lxc profile device get default root pool)
-  poolDriver=$(lxc storage show "${poolName}" | awk '/^driver:/ {print $2}')
+  poolDriver="$(storage_backend "${LXD_IMPORT_DIR}")"
 
   # Create another storage pool.
   poolName2="${poolName}-2"
-  lxc storage create "${poolName2}" "${poolDriver}"
+  if [ "${poolDriver}" = "lvm" ]; then
+    lxc storage create "${poolName2}" "${poolDriver}" volume.size=24MiB size=1GiB
+  else
+    lxc storage create "${poolName2}" "${poolDriver}"
+  fi
+
 
   # Create container.
   ensure_import_testimage
@@ -207,7 +212,7 @@ test_container_recover() {
     ensure_import_testimage
 
     poolName=$(lxc profile device get default root pool)
-    poolDriver=$(lxc storage show "${poolName}" | awk '/^driver:/ {print $2}')
+    poolDriver="$(storage_backend "$LXD_DIR")"
 
     lxc storage set "${poolName}" user.foo=bah
     lxc project create test -c features.images=false -c features.profiles=true -c features.storage.volumes=true
@@ -802,7 +807,7 @@ test_backup_volume_export() {
 
   if [ "$lxd_backend" = "ceph" ] && [ -n "${LXD_CEPH_CEPHFS:-}" ]; then
     custom_vol_pool="lxdtest-$(basename "${LXD_DIR}")-cephfs"
-    lxc storage create "${custom_vol_pool}" cephfs source="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")-cephfs"
+    lxc storage create "${custom_vol_pool}" cephfs source="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")-cephfs" volume.size=24MiB
 
     _backup_volume_export_with_project default "${custom_vol_pool}"
     _backup_volume_export_with_project fooproject "${custom_vol_pool}"

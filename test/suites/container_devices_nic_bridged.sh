@@ -688,30 +688,22 @@ test_container_devices_nic_bridged() {
   lxc config device set "${ctName}" eth0 ipv6.address="2001:db8::2"
 
   # Test port isolation.
-  if bridge link set help 2>&1 | grep -wF isolated ; then
-    lxc config device set "${ctName}" eth0 security.port_isolation true
-    lxc start "${ctName}"
-    bridge -d link show dev "${vethHostName}" | grep -F "isolated on"
-    lxc stop -f "${ctName}"
-  else
-    echo "bridge command doesn't support port isolation, skipping port isolation checks"
-  fi
+  lxc config device set "${ctName}" eth0 security.port_isolation true
+  lxc start "${ctName}"
+  bridge -d link show dev "${vethHostName}" | grep -F "isolated on"
+  lxc stop -f "${ctName}"
 
   # Test interface naming scheme.
-  lxc init testimage -d "${SMALL_ROOT_DISK}" test-naming
-  lxc start test-naming
-  lxc query "/1.0/instances/test-naming/state" | jq -r .network.eth0.host_name | grep ^veth
-  lxc stop -f test-naming
+  lxc launch testimage -d "${SMALL_ROOT_DISK}" test-naming
+  lxc query "/1.0/instances/test-naming/state" | jq --exit-status '.network.eth0.host_name | startswith("veth")'
 
   lxc config set instances.nic.host_name random
-  lxc start test-naming
-  lxc query "/1.0/instances/test-naming/state" | jq -r .network.eth0.host_name | grep ^veth
-  lxc stop -f test-naming
+  lxc restart -f test-naming
+  lxc query "/1.0/instances/test-naming/state" | jq --exit-status '.network.eth0.host_name | startswith("veth")'
 
   lxc config set instances.nic.host_name mac
-  lxc start test-naming
-  lxc query "/1.0/instances/test-naming/state" | jq -r .network.eth0.host_name | grep ^lxd
-  lxc stop -f test-naming
+  lxc restart -f test-naming
+  lxc query "/1.0/instances/test-naming/state" | jq --exit-status '.network.eth0.host_name | startswith("lxd")'
 
   lxc config unset instances.nic.host_name
   lxc delete -f test-naming

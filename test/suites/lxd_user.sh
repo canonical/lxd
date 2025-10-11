@@ -38,3 +38,34 @@ test_lxd_user() {
 
   LXD_DIR="${bakLxdDir}"
 }
+
+snap_lxc_user() {
+    sudo -Hu testuser LXD_DIR=/var/snap/lxd/common/lxd-user lxc "${@}"
+}
+
+test_snap_lxd_user() {
+  # Create testuser account
+  if [ "$(id -u testuser)" != 5000 ]; then
+    useradd --create-home testuser --groups lxd --uid 5000
+  fi
+
+  echo "==> Access the lxd-user daemon from a regular user"
+  snap_lxc_user project list
+
+  # Manually register the lxd-user daemon instance so that it can be cleaned up on failure
+  local LXD_USER_DIR="/var/snap/lxd/common/lxd-user"
+  pgrep -x lxd-user > "${LXD_USER_DIR}/lxd.pid"
+  touch "${LXD_USER_DIR}/lxd.log"
+  echo "${LXD_USER_DIR}" >> "${TEST_DIR}/daemons"
+  # lxd-user uses the same storage pool as the system daemon
+  storage_backend "${LXD_DIR}" > "${LXD_USER_DIR}/lxd.backend"
+
+  echo "==> Check the user project was created"
+  snap_lxc_user project list -f csv | grep '^user-5000.*,"User restricted project for ""testuser"" (5000)",'
+  fingerprint="$(snap_lxc_user config trust list -f json | jq --exit-status --raw-output '.[] | select(.name == "lxd-user-5000") | .fingerprint')"
+  snap_lxc_user query /1.0 | jq --exit-status '.auth_user_method == "tls" and .auth_user_name == "'"${fingerprint}"'"'
+
+  # Cleanup
+  lxc project delete user-5000
+  userdel --remove --force testuser 2>/dev/null || true
+}

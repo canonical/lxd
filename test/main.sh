@@ -5,13 +5,16 @@ if [ -z "${GOPATH:-}" ] && command -v go >/dev/null; then
     GOPATH="$(go env GOPATH)"
 fi
 
+if [ -n "${GOPATH:-}" ]; then
+    # Add GOPATH/bin to PATH if not there already
+    [[ "${PATH}" != *"${GOPATH}/bin"* ]] && export "PATH=${GOPATH}/bin:${PATH}"
+fi
+
 # Avoid accidental re-execution
 if [ -n "${LXD_INSPECT_INPROGRESS:-}" ]; then
     echo "Refusing to run tests from inside a LXD_INSPECT session" >&2
     exit 1
 fi
-
-[ -n "${GOPATH:-}" ] && export "PATH=${GOPATH}/bin:${PATH}"
 
 # Don't translate lxc output for parsing in it in tests.
 export LC_ALL="C"
@@ -121,6 +124,9 @@ if [ "${USER:-'root'}" != "root" ]; then
   echo "The testsuite must be run as root." >&2
   exit 1
 fi
+
+# Set ulimit to ensure core dump is outputted.
+ulimit -c unlimited
 
 if [ -n "${LXD_LOGS:-}" ] && [ ! -d "${LXD_LOGS}" ]; then
   echo "Your LXD_LOGS path doesn't exist: ${LXD_LOGS}"
@@ -280,8 +286,24 @@ run_test() {
   fi
 
   if [ "${skip}" = false ]; then
-    # Run test.
-    ${TEST_CURRENT}
+
+    if [[ "${TEST_CURRENT}" =~ ^test_snap_.*$ ]]; then
+      [ -e "/snap/lxd/current" ] || spawn_lxd_snap
+
+      # For snap based tests, the lxc and lxc_remote functions MUST not be used
+      unset -f lxc lxc_remote
+    elif [ -e "/snap/lxd/current" ]; then
+      kill_lxd_snap
+    fi
+
+    # If there is '_vm' in the test name, then VM tests are expected to be run.
+    # If LXD_VM_TESTS=1, then VM tests can be run.
+    if [[ "${TEST_CURRENT}" =~ ^test_.*_vm.*$ ]] && [ "${LXD_VM_TESTS:-0}" = "0" ]; then
+      export TEST_UNMET_REQUIREMENT="LXD_VM_TESTS=1 is required"
+    else
+      # Run test.
+      ${TEST_CURRENT}
+    fi
 
     # Check whether test was skipped due to unmet requirements, and if so check if the test is required and fail.
     if [ -n "${TEST_UNMET_REQUIREMENT}" ]; then
@@ -350,10 +372,17 @@ export LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
 # This must be enough to accomodate the busybox testimage
 export SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
 
+# This must be enough to accomodate the ubuntu-minimal-daily:24.04 image
+export SMALLEST_VM_ROOT_DISK="3584MiB"
+export SMALL_VM_ROOT_DISK="${SMALL_VM_ROOT_DISK:-"root,size=${SMALLEST_VM_ROOT_DISK}"}"
+
 # Spawn an interactive test shell when invoked as `./main.sh test-shell`.
 # This is useful for quick interactions with LXD and its test suite.
 if [ "${1:-"all"}" = "test-shell" ]; then
   bash --rcfile test-shell.bashrc || true
+  TEST_CURRENT="test-shell"
+  TEST_CURRENT_DESCRIPTION="n/a"
+  TEST_RESULT=success
   exit 0
 fi
 
@@ -362,7 +391,7 @@ if [ -n "${SHELL_TRACING:-}" ]; then
 fi
 
 # allow for running a specific set of tests possibly multiple times
-if [ "$#" -gt 0 ] && [ "$1" != "all" ] && [ "$1" != "cluster" ] && [ "$1" != "standalone" ]; then
+if [ "$#" -gt 0 ] && [ "$1" != "all" ] && [ "$1" != "cluster" ] && [ "$1" != "snap" ] && [ "$1" != "standalone" ]; then
   for t in "${@}"; do
     RUN_COUNT=1
     while [ "${RUN_COUNT}" -le "${LXD_REPEAT_TESTS:-1}" ]; do
@@ -376,7 +405,7 @@ if [ "$#" -gt 0 ] && [ "$1" != "all" ] && [ "$1" != "cluster" ] && [ "$1" != "st
   exit
 fi
 
-if [ "${1:-"all"}" != "standalone" ]; then
+if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_enable "clustering enable"
     run_test test_clustering_edit_configuration "clustering config edit"
     run_test test_clustering_membership "clustering membership"
@@ -419,7 +448,7 @@ if [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_waitready "clustering waitready"
 fi
 
-if [ "${1:-"all"}" != "cluster" ]; then
+if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "cluster" ]; then
     run_test test_concurrent "concurrent startup"
     run_test test_concurrent_exec "concurrent exec"
     run_test test_database_restore "database restore"
@@ -577,6 +606,15 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_syslog_socket "Syslog socket"
     run_test test_lxd_user "lxd user"
     run_test test_waitready "waitready"
+fi
+
+if [ "${1:-"all"}" != "cluster" ] && [ "${1:-"all"}" != "standalone" ]; then
+    run_test test_snap_basic_usage_vm "snap basic usage VM"
+    run_test test_snap_console_vm "snap console VM"
+    run_test test_snap_devlxd_vm "snap devlxd VM"
+    run_test test_snap_lxd_user "snap lxd-user"
+    run_test test_snap_vm_empty "snap empty VM"
+    run_test test_snap_storage_volume_attach_vm "snap attaching storage volumes to VMs"
 fi
 
 # shellcheck disable=SC2034
