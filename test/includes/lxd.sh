@@ -135,12 +135,13 @@ kill_lxd() {
         done < <(timeout -k 2 2 lxc image list --force-local --all-projects --format csv --columns Fe)
 
         # Delete all profiles
-        echo "==> Deleting all profiles"
-        for profile in $(timeout -k 2 2 lxc profile list --force-local --format csv --columns n); do
+        echo "==> Deleting all profiles from all projects"
+        while IFS=, read -r profile project; do
             # default cannot be deleted.
             [ "${profile}" = "default" ] && continue
-            timeout -k 10 10 lxc profile delete "${profile}" --force-local || true
-        done
+            echo "   ⛔ Deleting profile ${profile} from project ${project}"
+            timeout -k 10 10 lxc profile delete "${profile}" --project "${project}" --force-local || true
+        done < <(timeout -k 2 2 lxc profile list --force-local --all-projects --format csv --columns ne)
 
         # Delete all networks
         echo "==> Deleting all managed networks"
