@@ -122,10 +122,10 @@ kill_lxd() {
     if [ -e "${LXD_DIR}/unix.socket" ]; then
         # Delete all containers
         echo "==> Deleting all instances from all projects"
-        timeout -k 2 2 lxc list --force-local --all-projects --format csv --columns ne | sed 's/,/ /g' | while read -r instance project; do
-            echo "==> Deleting instance ${instance} from project ${project}"
+        while IFS=, read -r instance project; do
+            echo "   ⛔ instance ${instance} from project ${project}"
             timeout -k 10 10 lxc delete "${instance}" --project "${project}" --force-local -f || true
-        done
+        done < <(timeout -k 2 2 lxc list --force-local --all-projects --format csv --columns ne)
 
         # Delete all images
         echo "==> Deleting all images from all projects"
