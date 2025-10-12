@@ -87,7 +87,7 @@ fi
 
 echo "==> Checking test dependencies"
 if ! check_dependencies devlxd-client fuidshift mini-oidc sysinfo; then
-  ( cd .. && make test-binaries )
+  make -C "${MAIN_DIR}/.." test-binaries
 fi
 
 # If no test image is specified, busybox-static will be needed by test/deps/import-busybox
