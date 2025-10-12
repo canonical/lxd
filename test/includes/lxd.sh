@@ -150,7 +150,7 @@ kill_lxd() {
         # Clear config of the default profile since the profile itself cannot
         # be deleted.
         echo "==> Clearing config of default profile"
-        printf 'config: {}\ndevices: {}' | timeout -k 5 5 lxc profile edit default
+        echo -ne 'config: {}\ndevices: {}' | timeout -k 5 5 lxc profile edit default
 
         echo "==> Deleting all storage pools"
         path="/1.0/storage-pools"
