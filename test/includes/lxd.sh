@@ -158,25 +158,25 @@ kill_lxd() {
         echo -ne 'config: {}\ndevices: {}' | timeout -k 5 5 lxc profile edit default
 
         echo "==> Deleting all storage pools"
-        path="/1.0/storage-pools"
-        for storage_pool in $(lxc query "${path}" | jq --exit-status --raw-output ".[] | ltrimstr(\"${path}/\")"); do
+        while read -r storage_pool; do
             # Delete the storage volumes.
             path="/1.0/storage-pools/${storage_pool}/volumes/custom"
-            for volume in $(lxc query "${path}" | jq --exit-status --raw-output ".[] | ltrimstr(\"${path}/\")"); do
-                echo "==> Deleting storage volume ${volume} on ${storage_pool}"
+            while read -r volume; do
+                echo "   ⛔ Deleting storage volume ${volume} on ${storage_pool}"
                 timeout -k 20 20 lxc storage volume delete "${storage_pool}" "${volume}" --force-local || true
-            done
+            done < <(lxc query "${path}" | jq --exit-status --raw-output ".[] | ltrimstr(\"${path}/\")")
 
             # Delete the storage buckets.
             path="/1.0/storage-pools/${storage_pool}/buckets"
-            for bucket in $(lxc query "${path}" | jq --exit-status --raw-output ".[] | ltrimstr(\"${path}/\")"); do
-                echo "==> Deleting storage bucket ${bucket} on ${storage_pool}"
+            while read -r bucket; do
+                echo "   ⛔ Deleting storage bucket ${bucket} on ${storage_pool}"
                 timeout -k 20 20 lxc storage bucket delete "${storage_pool}" "${bucket}" --force-local || true
-            done
+            done < <(lxc query "${path}" | jq --exit-status --raw-output ".[] | ltrimstr(\"${path}/\")")
 
             ## Delete the storage pool.
+            echo "   ⛔ Deleting storage pool ${storage_pool}"
             timeout -k 20 20 lxc storage delete "${storage_pool}" --force-local || true
-        done
+        done < <(lxc query /1.0/storage-pools | jq --exit-status --raw-output ".[] | ltrimstr(\"/1.0/storage-pools/\")")
 
         echo "==> Checking for locked DB tables"
         for table in $(echo .tables | sqlite3 "${LXD_DIR}/local.db"); do
