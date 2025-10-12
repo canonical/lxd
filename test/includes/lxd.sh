@@ -179,9 +179,9 @@ kill_lxd() {
         done < <(lxc query /1.0/storage-pools | jq --exit-status --raw-output ".[] | ltrimstr(\"/1.0/storage-pools/\")")
 
         echo "==> Checking for locked DB tables"
-        for table in $(echo .tables | sqlite3 "${LXD_DIR}/local.db"); do
+        while read -r table; do
             echo "SELECT 1 FROM ${table} LIMIT 1;" | sqlite3 "${LXD_DIR}/local.db" >/dev/null
-        done
+        done < <(echo .tables | sqlite3 "${LXD_DIR}/local.db")
 
         # Kill the daemon
         timeout -k 30 30 lxd shutdown || kill -9 "${LXD_PID}" 2>/dev/null || true
