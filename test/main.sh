@@ -73,6 +73,7 @@ if [ "${PWD}" != "$(dirname "${0}")" ]; then
     cd "$(dirname "${0}")"
 fi
 MAIN_DIR="${PWD}"
+readonly MAIN_DIR
 export MAIN_DIR
 import_subdir_files includes
 
