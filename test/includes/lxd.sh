@@ -144,10 +144,13 @@ kill_lxd() {
         done < <(timeout -k 2 2 lxc profile list --force-local --all-projects --format csv --columns ne)
 
         # Delete all networks
-        echo "==> Deleting all managed networks"
-        for network in $(timeout -k 2 2 lxc network list --force-local --format csv | awk -F, '{if ($3 == "YES") {print $1}}'); do
-            timeout -k 10 10 lxc network delete "${network}" --force-local || true
-        done
+        echo "==> Deleting all managed networks from all projects"
+        while IFS=, read -r project network _ managed _; do
+            # Only delete managed networks.
+            [ "${managed}" != "YES" ] && continue
+            echo "   ⛔ Deleting network ${network} from project ${project}"
+            timeout -k 10 10 lxc network delete "${network}" --project "${project}" --force-local || true
+        done < <(timeout -k 2 2 lxc network list --all-projects --force-local --format csv)
 
         # Clear config of the default profile since the profile itself cannot
         # be deleted.
