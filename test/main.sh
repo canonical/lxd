@@ -134,6 +134,10 @@ if [ -n "${LXD_LOGS:-}" ] && [ ! -d "${LXD_LOGS}" ]; then
   exit 1
 fi
 
+# Default sizes to be used with storage pools
+export DEFAULT_VOLUME_SIZE="24MiB"
+export DEFAULT_POOL_SIZE="3GiB"
+
 echo "==> Available storage backends: $(available_storage_backends | sort)"
 if [ "$LXD_BACKEND" != "random" ] && ! storage_backend_available "$LXD_BACKEND"; then
   if [ "${LXD_BACKEND}" = "ceph" ] && [ -z "${LXD_CEPH_CLUSTER:-}" ]; then
