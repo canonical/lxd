@@ -2624,6 +2624,12 @@ The template with the given name is triggered upon next startup.
 The hash of the image that the instance was created from (empty if the instance was not created from an image).
 ```
 
+```{config:option} volatile.bus.mode instance-volatile
+:shortdesc: "Device bus allocation mode"
+:type: "string"
+Set to `persistent` when persistent bus allocation mode is enabled.
+```
+
 ```{config:option} volatile.cloud-init.instance-id instance-volatile
 :shortdesc: "`instance-id` (UUID) exposed to `cloud-init`"
 :type: "string"

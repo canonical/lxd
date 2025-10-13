@@ -2930,6 +2930,13 @@
 						}
 					},
 					{
+						"volatile.bus.mode": {
+							"longdesc": "Set to `persistent` when persistent bus allocation mode is enabled.",
+							"shortdesc": "Device bus allocation mode",
+							"type": "string"
+						}
+					},
+					{
 						"volatile.cloud-init.instance-id": {
 							"longdesc": "",
 							"shortdesc": "`instance-id` (UUID) exposed to `cloud-init`",
