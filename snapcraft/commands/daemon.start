@@ -458,7 +458,7 @@ manage_apparmor_restrictions() {
     # sysctl override snippet
     SYSCTL_FILE="/var/lib/snapd/hostfs/run/sysctl.d/zz-lxd.conf"
 
-    # Check if sysctl settings need to be altered
+    # Check if sysctl settings need to be altered and always write the override snippet
     if [ "${apparmor_unprivileged_restrictions_disable:-"true"}" = "true" ]; then
         KEY_USERNS="kernel.apparmor_restrict_unprivileged_userns"
         KEY_UNCONFINED="kernel.apparmor_restrict_unprivileged_unconfined"
@@ -469,15 +469,17 @@ manage_apparmor_restrictions() {
         if [ "$(sysctl -n -e "${KEY_USERNS}")" = "1" ]; then
             echo "==> Disabling Apparmor unprivileged userns mediation"
             sysctl -w -e "${KEY_USERNS}=0"
-            echo "${KEY_USERNS} = 0" >> "${tmpf}"
         fi
+        # the "-" prefix avoids any failure or warning if the key is not supported
+        echo "-${KEY_USERNS} = 0" >> "${tmpf}"
 
         # unconfined restriction
         if [ "$(sysctl -n -e "${KEY_UNCONFINED}")" = "1" ]; then
             echo "==> Disabling Apparmor unprivileged unconfined mediation"
             sysctl -w -e "${KEY_UNCONFINED}=0"
-            echo "${KEY_UNCONFINED} = 0" >> "${tmpf}"
         fi
+        # the "-" prefix avoids any failure or warning if the key is not supported
+        echo "-${KEY_UNCONFINED} = 0" >> "${tmpf}"
 
         # Save the overrides in a snippet file if content differs or any file is missing
         if ! cmp --quiet "${tmpf}" "${SYSCTL_FILE}"; then
