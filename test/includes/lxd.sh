@@ -269,7 +269,9 @@ kill_lxd() {
         sleep 2
 
         # Cleanup devlxd and shmounts (needed due to the forceful kill)
-        find "${LXD_DIR}" \( -name devlxd -o -name shmounts \) -exec "umount" "-q" "-l" "{}" + || true
+        # Only try to unmount things on the same filesystem as LXD_DIR and only if they are directories.
+        # This is to avoid stepping on the snap symlink that appears to be dangling from the host's point of view.
+        find "${LXD_DIR}" -type d -xdev \( -name devlxd -o -name shmounts \) -exec "umount" "-q" "-l" "{}" + || true
 
         check_leftovers="true"
     fi
