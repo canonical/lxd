@@ -1175,6 +1175,13 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	//  shortdesc: Whether to regenerate VM NVRAM the next time the instance starts
 	"volatile.apply_nvram": validate.Optional(validate.IsBool),
 
+	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.bus.mode)
+	// Set to `persistent` when persistent bus allocation mode is enabled.
+	// ---
+	//  type: string
+	//  shortdesc: Device bus allocation mode
+	"volatile.bus.mode": validate.Optional(validate.IsOneOf("persistent")),
+
 	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.vsock_id)
 	//
 	// ---
