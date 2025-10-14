@@ -881,6 +881,11 @@ func (c *ClusterTx) UpdateNetwork(ctx context.Context, project string, name, des
 	return nil
 }
 
+// UpdateNetworkDescription updates only the description of the network.
+func (c *ClusterTx) UpdateNetworkDescription(networkID int64, description string) error {
+	return updateNetworkDescription(c.tx, networkID, description)
+}
+
 // Update the description of the network with the given ID.
 func updateNetworkDescription(tx *sql.Tx, id int64, description string) error {
 	_, err := tx.Exec("UPDATE networks SET description=? WHERE id=?", description, id)
