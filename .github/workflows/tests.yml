@@ -295,6 +295,13 @@ jobs:
       - name: Reclaim some memory
         uses: ./.github/actions/reclaim-memory
 
+      - name: Reclaim disk space
+        uses: ./.github/actions/reclaim-disk-space
+        # The standalone test group consumes a lot of disk space so make some room.
+        # Exclude 'ceph' as it uses the ephemeral disk those `rm -rf` can sometimes
+        # take ~2 minutes on slow runners so only do that where needed.
+        if: ${{ matrix.suite == 'standalone' && matrix.backend != 'ceph' }}
+
       - name: Purge LXD snap
         # TODO: drop this when moving away from `ubuntu-22.04` runners to `ubuntu-24.04`
         run: |
