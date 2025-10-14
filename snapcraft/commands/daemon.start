@@ -483,6 +483,7 @@ manage_apparmor_restrictions() {
 
         # Save the overrides in a snippet file if content differs or any file is missing
         if ! cmp --quiet "${tmpf}" "${SYSCTL_FILE}"; then
+            chmod a+r "${tmpf}"
             mv "${tmpf}" "${SYSCTL_FILE}"
         else
             rm "${tmpf}"
