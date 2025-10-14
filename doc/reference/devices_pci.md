@@ -7,7 +7,6 @@
 
 ```{note}
 The `pci` device type is supported for VMs.
-It does not support hotplugging.
 ```
 
 PCI devices are used to pass raw PCI devices from the host into a virtual machine.
