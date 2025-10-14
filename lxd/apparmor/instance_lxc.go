@@ -68,6 +68,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   deny /proc/kcore rwklx,
   deny /proc/sysrq-trigger rwklx,
   deny /proc/acpi/** rwklx,
+  deny /proc/sys/fs/** wklx,
 
   # Handle securityfs (access handled separately)
   mount fstype=securityfs -> /sys/kernel/security/,
@@ -326,21 +327,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   mount options=(rw,move) /sys?*{,/**},
 
   # Block dangerous paths under /proc/sys
-  deny /proc/sys/[^fkn]*{,/**} wklx,
-  deny /proc/sys/f[^s]*{,/**} wklx,
-  deny /proc/sys/fs/[^b]*{,/**} wklx,
-  deny /proc/sys/fs/b[^i]*{,/**} wklx,
-  deny /proc/sys/fs/bi[^n]*{,/**} wklx,
-  deny /proc/sys/fs/bin[^f]*{,/**} wklx,
-  deny /proc/sys/fs/binf[^m]*{,/**} wklx,
-  deny /proc/sys/fs/binfm[^t]*{,/**} wklx,
-  deny /proc/sys/fs/binfmt[^_]*{,/**} wklx,
-  deny /proc/sys/fs/binfmt_[^m]*{,/**} wklx,
-  deny /proc/sys/fs/binfmt_m[^i]*{,/**} wklx,
-  deny /proc/sys/fs/binfmt_mi[^s]*{,/**} wklx,
-  deny /proc/sys/fs/binfmt_mis[^c]*{,/**} wklx,
-  deny /proc/sys/fs/binfmt_misc?*{,/**} wklx,
-  deny /proc/sys/fs?*{,/**} wklx,
+  deny /proc/sys/[^kn]*{,/**} wklx,
   deny /proc/sys/k[^e]*{,/**} wklx,
   deny /proc/sys/ke[^r]*{,/**} wklx,
   deny /proc/sys/ker[^n]*{,/**} wklx,
@@ -379,7 +366,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   deny /proc/sys/net?*{,/**} wklx,
 
   # Block dangerous paths under /sys
-  deny /sys/[^cdf]*{,/**} wklx,
+  deny /sys/[^fdck]*{,/**} wklx,
   deny /sys/c[^l]*{,/**} wklx,
   deny /sys/cl[^a]*{,/**} wklx,
   deny /sys/cla[^s]*{,/**} wklx,
@@ -409,7 +396,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   deny /sys/devices/virtual?*{,/**} wklx,
   deny /sys/devices?*{,/**} wklx,
   deny /sys/f[^s]*{,/**} wklx,
-  deny /sys/fs/[^bc]*{,/**} wklx,
+  deny /sys/fs/[^cb]*{,/**} wklx,
   deny /sys/fs/b[^p]*{,/**} wklx,
   deny /sys/fs/bp[^f]*{,/**} wklx,
   deny /sys/fs/bpf?*{,/**} wklx,
