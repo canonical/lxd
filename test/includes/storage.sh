@@ -40,7 +40,7 @@ random_storage_backend() {
 
 # Return the storage backend being used by a LXD instance
 storage_backend() {
-    read -r backend < "$1/lxd.backend" && echo "${backend}"
+    echo "$(< "${1}/lxd.backend")"
 }
 
 # Return a list of available storage backends

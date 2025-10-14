@@ -1,7 +1,12 @@
 # lxc command completion
-if [ -f /etc/profile.d/bash_completion.sh ] && command -v lxc > /dev/null; then
+if [ -f /etc/profile.d/bash_completion.sh ]; then
     . /etc/profile.d/bash_completion.sh
-    . <(lxc completion bash)
+
+    if [ -n "${_LXC:-}" ]; then
+      . <("${_LXC}" completion bash)
+    elif command -v lxc >/dev/null; then
+      . <(lxc completion bash)
+    fi
 fi
 
 # load tab completion for test runner

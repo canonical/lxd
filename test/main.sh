@@ -5,13 +5,16 @@ if [ -z "${GOPATH:-}" ] && command -v go >/dev/null; then
     GOPATH="$(go env GOPATH)"
 fi
 
+if [ -n "${GOPATH:-}" ]; then
+    # Add GOPATH/bin to PATH if not there already
+    [[ "${PATH}" != *"${GOPATH}/bin"* ]] && export "PATH=${GOPATH}/bin:${PATH}"
+fi
+
 # Avoid accidental re-execution
 if [ -n "${LXD_INSPECT_INPROGRESS:-}" ]; then
     echo "Refusing to run tests from inside a LXD_INSPECT session" >&2
     exit 1
 fi
-
-[ -n "${GOPATH:-}" ] && export "PATH=${GOPATH}/bin:${PATH}"
 
 # Don't translate lxc output for parsing in it in tests.
 export LC_ALL="C"
@@ -70,6 +73,7 @@ if [ "${PWD}" != "$(dirname "${0}")" ]; then
     cd "$(dirname "${0}")"
 fi
 MAIN_DIR="${PWD}"
+readonly MAIN_DIR
 export MAIN_DIR
 import_subdir_files includes
 
@@ -87,7 +91,7 @@ fi
 
 echo "==> Checking test dependencies"
 if ! check_dependencies devlxd-client fuidshift mini-oidc sysinfo; then
-  ( cd .. && make test-binaries )
+  make -C "${MAIN_DIR}/.." test-binaries
 fi
 
 # If no test image is specified, busybox-static will be needed by test/deps/import-busybox
@@ -122,10 +126,17 @@ if [ "${USER:-'root'}" != "root" ]; then
   exit 1
 fi
 
+# Set ulimit to ensure core dump is outputted.
+ulimit -c unlimited
+
 if [ -n "${LXD_LOGS:-}" ] && [ ! -d "${LXD_LOGS}" ]; then
   echo "Your LXD_LOGS path doesn't exist: ${LXD_LOGS}"
   exit 1
 fi
+
+# Default sizes to be used with storage pools
+export DEFAULT_VOLUME_SIZE="24MiB"
+export DEFAULT_POOL_SIZE="3GiB"
 
 echo "==> Available storage backends: $(available_storage_backends | sort)"
 if [ "$LXD_BACKEND" != "random" ] && ! storage_backend_available "$LXD_BACKEND"; then
@@ -280,8 +291,14 @@ run_test() {
   fi
 
   if [ "${skip}" = false ]; then
-    # Run test.
-    ${TEST_CURRENT}
+    # If there is '_vm' in the test name, then VM tests are expected to be run.
+    # If LXD_VM_TESTS=1, then VM tests can be run.
+    if [[ "${TEST_CURRENT}" =~ ^test_.*_vm.*$ ]] && [ "${LXD_VM_TESTS:-0}" = "0" ]; then
+      export TEST_UNMET_REQUIREMENT="LXD_VM_TESTS=1 is required"
+    else
+      # Run test.
+      ${TEST_CURRENT}
+    fi
 
     # Check whether test was skipped due to unmet requirements, and if so check if the test is required and fail.
     if [ -n "${TEST_UNMET_REQUIREMENT}" ]; then
@@ -325,23 +342,26 @@ if ldd "${_LXC}" | grep -F liblxc; then
     exit 1
 fi
 
-if [ "${LXD_TMPFS:-0}" = "1" ]; then
-  mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=7G
+# Only spawn a new LXD if not done yet.
+if [ -z "${LXD_DIR:-}" ]; then
+    if [ "${LXD_TMPFS:-0}" = "1" ]; then
+      mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=7G
+    fi
+
+    mkdir -p "${TEST_DIR}/dev"
+    mount -t tmpfs none "${TEST_DIR}"/dev
+    export LXD_DEVMONITOR_DIR="${TEST_DIR}/dev"
+
+    LXD_CONF=$(mktemp -d -p "${TEST_DIR}" XXX)
+    export LXD_CONF
+
+    LXD_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+    export LXD_DIR
+    chmod +x "${LXD_DIR}"
+    spawn_lxd "${LXD_DIR}" true
+    LXD_ADDR=$(< "${LXD_DIR}/lxd.addr")
+    export LXD_ADDR
 fi
-
-mkdir -p "${TEST_DIR}/dev"
-mount -t tmpfs none "${TEST_DIR}"/dev
-export LXD_DEVMONITOR_DIR="${TEST_DIR}/dev"
-
-LXD_CONF=$(mktemp -d -p "${TEST_DIR}" XXX)
-export LXD_CONF
-
-LXD_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-export LXD_DIR
-chmod +x "${LXD_DIR}"
-spawn_lxd "${LXD_DIR}" true
-LXD_ADDR=$(< "${LXD_DIR}/lxd.addr")
-export LXD_ADDR
 
 export LXD_SKIP_TESTS="${LXD_SKIP_TESTS:-}"
 
@@ -350,10 +370,17 @@ export LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
 # This must be enough to accomodate the busybox testimage
 export SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
 
+# This must be enough to accomodate the ubuntu-minimal-daily:24.04 image
+export SMALLEST_VM_ROOT_DISK="3584MiB"
+export SMALL_VM_ROOT_DISK="${SMALL_VM_ROOT_DISK:-"root,size=${SMALLEST_VM_ROOT_DISK}"}"
+
 # Spawn an interactive test shell when invoked as `./main.sh test-shell`.
 # This is useful for quick interactions with LXD and its test suite.
 if [ "${1:-"all"}" = "test-shell" ]; then
   bash --rcfile test-shell.bashrc || true
+  TEST_CURRENT="test-shell"
+  TEST_CURRENT_DESCRIPTION="n/a"
+  TEST_RESULT=success
   exit 0
 fi
 

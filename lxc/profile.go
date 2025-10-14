@@ -732,6 +732,7 @@ Default column layout is: ndu
 Column shorthand chars:
 n - Profile Name
 d - Description
+e - Project
 u - Used By`))
 
 	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultProfileColumns, i18n.G("Columns")+"``")

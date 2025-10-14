@@ -6,7 +6,7 @@ test_snapshots() {
     pool="lxdtest-$(basename "${LXD_DIR}")-non-thinpool-lvm-snapshots"
 
     # Test that non-thinpool lvm backends work fine with snaphots.
-    lxc storage create "${pool}" lvm lvm.use_thinpool=false volume.size=25MiB
+    lxc storage create "${pool}" lvm lvm.use_thinpool=false volume.size="${DEFAULT_VOLUME_SIZE}"
     lxc profile device set default root pool "${pool}"
 
     snapshots "${pool}"
@@ -156,7 +156,7 @@ test_snapshot_restore() {
     pool="lxdtest-$(basename "${LXD_DIR}")-non-thinpool-lvm-snap-restore"
 
     # Test that non-thinpool lvm backends work fine with snaphots.
-    lxc storage create "${pool}" lvm lvm.use_thinpool=false volume.size=25MiB
+    lxc storage create "${pool}" lvm lvm.use_thinpool=false volume.size="${DEFAULT_VOLUME_SIZE}"
     lxc profile device set default root pool "${pool}"
 
     snap_restore "${pool}"
