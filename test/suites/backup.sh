@@ -78,12 +78,11 @@ test_storage_volume_recover_by_container() {
 
   # Create another storage pool.
   poolName2="${poolName}-2"
-  if [ "${poolDriver}" = "lvm" ]; then
-    lxc storage create "${poolName2}" "${poolDriver}" volume.size=24MiB size=1GiB
+  if [ "${poolDriver}" = "btrfs" ] || [ "${poolDriver}" = "ceph" ] || [ "${poolDriver}" = "lvm" ] || [ "${poolDriver}" = "zfs" ]; then
+    lxc storage create "${poolName2}" "${poolDriver}" volume.size="${DEFAULT_VOLUME_SIZE}" size=1GiB
   else
     lxc storage create "${poolName2}" "${poolDriver}"
   fi
-
 
   # Create container.
   ensure_import_testimage
