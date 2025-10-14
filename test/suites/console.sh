@@ -1,9 +1,10 @@
 test_console() {
-  echo "==> API extension console"
-
   ensure_import_testimage
 
   lxc launch testimage cons1
+
+  # The VGA console is only available for VMs
+  ! lxc console --type vga cons1 || false
 
   # Simulate console interactions with 'expect' and use 'tr' and 'grep' to
   # filter out leaked (control) chars. To debug, use 'expect -d'.

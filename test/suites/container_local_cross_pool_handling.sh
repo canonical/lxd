@@ -18,13 +18,13 @@ test_container_local_cross_pool_handling() {
     fi
 
     if storage_backend_available "ceph"; then
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-ceph" ceph volume.size=25MiB ceph.osd.pg_num=16
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-ceph" ceph volume.size="${DEFAULT_VOLUME_SIZE}" ceph.osd.pg_num=16
     fi
 
     lxc storage create "lxdtest-$(basename "${LXD_DIR}")-dir" dir
 
     if storage_backend_available "lvm"; then
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-lvm" lvm volume.size=25MiB
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-lvm" lvm volume.size="${DEFAULT_VOLUME_SIZE}"
     fi
 
     if storage_backend_available "zfs"; then
@@ -40,11 +40,11 @@ test_container_local_cross_pool_handling() {
         fi
 
         if [ "$driver" = "ceph" ]; then
-          pool_opts="volume.size=25MiB ceph.osd.pg_num=16"
+          pool_opts="volume.size=${DEFAULT_VOLUME_SIZE} ceph.osd.pg_num=16"
         fi
 
         if [ "$driver" = "lvm" ]; then
-          pool_opts="volume.size=25MiB"
+          pool_opts="volume.size=${DEFAULT_VOLUME_SIZE}"
         fi
 
         if [ -n "${pool_opts}" ]; then
