@@ -188,7 +188,7 @@ EOF
   # Cleanup
   lxc storage volume delete "${poolName}" vol1
   lxc storage volume delete "${poolName2}" vol2
-  lxc delete -f c1
+  lxc delete c1
   lxc storage delete "${poolName2}"
   shutdown_lxd "${LXD_IMPORT_DIR}"
 }
