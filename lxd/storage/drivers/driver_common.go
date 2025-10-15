@@ -204,6 +204,21 @@ func (d *common) validateVolume(vol Volume, driverRules map[string]func(value st
 	return nil
 }
 
+// SourceIdentifier returns a driver specific identifier for the configured source.
+// How a storage pools actual source is configured depends on the driver.
+// But the driver is capable of resolving the source using the provided config keys
+// and returns an identifier which uniquely describes the underlying source.
+func (d *common) SourceIdentifier() (string, error) {
+	return "", ErrNotSupported
+}
+
+// ValidateSource validates the provided config keys can be used to specify the underlying source.
+// The validation of the source is split into its own driver level function to allow being
+// called when creating new pools but also when importing/reusing existing sources.
+func (d *common) ValidateSource() error {
+	return ErrNotSupported
+}
+
 // MigrationTypes returns the type of transfer methods to be used when doing migrations between pools
 // in preference order.
 func (d *common) MigrationTypes(contentType ContentType, refresh bool, copySnapshots bool) []migration.Type {
