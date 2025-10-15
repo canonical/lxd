@@ -126,6 +126,16 @@ func (d *ceph) FillConfig() error {
 		d.config["ceph.osd.pool_size"] = strconv.Itoa(defaultSize)
 	}
 
+	// Use an existing OSD pool.
+	if d.config["source"] != "" {
+		d.config["ceph.osd.pool_name"] = d.config["source"]
+	}
+
+	if d.config["ceph.osd.pool_name"] == "" {
+		d.config["ceph.osd.pool_name"] = d.name
+		d.config["source"] = d.name
+	}
+
 	return nil
 }
 
@@ -151,16 +161,6 @@ func (d *ceph) Create() error {
 	// Quick check.
 	if d.config["source"] != "" && d.config["ceph.osd.pool_name"] != "" && d.config["source"] != d.config["ceph.osd.pool_name"] {
 		return errors.New(`The "source" and "ceph.osd.pool_name" property must not differ for Ceph OSD storage pools`)
-	}
-
-	// Use an existing OSD pool.
-	if d.config["source"] != "" {
-		d.config["ceph.osd.pool_name"] = d.config["source"]
-	}
-
-	if d.config["ceph.osd.pool_name"] == "" {
-		d.config["ceph.osd.pool_name"] = d.name
-		d.config["source"] = d.name
 	}
 
 	placeholderVol := d.getPlaceholderVolume()
