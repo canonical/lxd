@@ -398,3 +398,77 @@ run_images_public() {
   lxc project delete foo
   lxc image delete "${fingerprint}"
 }
+
+test_image_cached() {
+  echo "==> Test that images are being cached consistently between projects."
+
+  echo "==> Create a new instance in the default project with a remote image that is not stored locally."
+  lxc init images:alpine/edge c1
+
+  local fingerprint
+  fingerprint="$(lxc config get c1 volatile.base_image)"
+
+  echo "==> Delete the instance."
+  lxc delete c1
+
+  echo "==> Check that the locally saved image is marked as cached."
+  lxc image info "${fingerprint}" | grep -xF "Cached: yes"
+
+  echo "==> Explicitly copy the same remote image to local storage."
+  lxc image copy images:alpine/edge local:
+
+  echo "==> Check that the locally saved image is now marked as non-cached."
+  lxc image info "${fingerprint}" | grep -xF "Cached: no"
+
+  echo "==> Delete the local image."
+  lxc image delete "${fingerprint}"
+
+  echo "==> Create a new project p1. It has features.images=true by default."
+  defaultPoolName="$(lxc storage show "$(lxc profile device get default root pool)" | awk '/^name:/ {print $2}')"
+  lxc project create --storage "${defaultPoolName}" p1
+
+  echo "==> Switch to project p1."
+  lxc project switch p1
+
+  echo "==> Create a new instance in the p1 project with a remote image that is not stored locally."
+  lxc init images:alpine/edge c1
+
+  echo "==> Delete the instance."
+  lxc delete c1
+
+  echo "==> Check that the locally saved image is marked as cached."
+  lxc image info "${fingerprint}" | grep -xF "Cached: yes"
+
+  echo "==> Explicitly copy the same remote image to local storage."
+  lxc image copy images:alpine/edge local:
+
+  echo "==> Check that the locally saved image is now marked as non-cached."
+  lxc image info "${fingerprint}" | grep -xF "Cached: no"
+
+  echo "==> Delete the local image."
+  lxc image delete "${fingerprint}"
+
+  echo "==> Set features.images=false for project p1."
+  lxc project set p1 features.images=false
+
+  echo "==> Create a new instance in the p1 project with a remote image that is not stored locally."
+  lxc init images:alpine/edge c1
+
+  echo "==> Delete the instance."
+  lxc delete c1
+
+  echo "==> Check that the locally saved image is marked as cached."
+  lxc image info "${fingerprint}" | grep -xF "Cached: yes"
+
+  echo "==> Explicitly copy the same remote image to local storage."
+  lxc image copy images:alpine/edge local:
+
+  echo "==> Check that the locally saved image is now marked as non-cached."
+  lxc image info "${fingerprint}" | grep -xF "Cached: no"
+
+  echo "==> Delete the local image."
+  lxc image delete "${fingerprint}"
+
+  echo "==> Delete the project."
+  lxc project delete p1
+}
