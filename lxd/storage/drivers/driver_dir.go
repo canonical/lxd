@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -64,14 +65,18 @@ func (d *dir) FillConfig() error {
 	return nil
 }
 
-// Create is called during pool creation and is effectively using an empty driver struct.
-// WARNING: The Create() function cannot rely on any of the struct attributes being set.
-func (d *dir) Create() error {
-	err := d.FillConfig()
-	if err != nil {
-		return err
+// SourceIdentifier returns the underlying source.
+func (d *dir) SourceIdentifier() (string, error) {
+	source := d.config["source"]
+	if source != "" {
+		return source, nil
 	}
 
+	return "", errors.New("Cannot derive identifier from empty source")
+}
+
+// ValidateSource checks whether the required config keys are valid to access the underlying source.
+func (d *dir) ValidateSource() error {
 	sourcePath := shared.HostPath(d.config["source"])
 
 	if !shared.PathExists(sourcePath) {
@@ -83,6 +88,14 @@ func (d *dir) Create() error {
 	if strings.HasPrefix(cleanSource, shared.VarPath()) && cleanSource != GetPoolMountPath(d.name) {
 		return fmt.Errorf("Source path %q is within the LXD directory", cleanSource)
 	}
+
+	return nil
+}
+
+// Create is called during pool creation and is effectively using an empty driver struct.
+// WARNING: The Create() function cannot rely on any of the struct attributes being set.
+func (d *dir) Create() error {
+	sourcePath := shared.HostPath(d.config["source"])
 
 	// Check that the path is currently empty.
 	isEmpty, err := shared.PathIsEmpty(sourcePath)
