@@ -116,6 +116,66 @@ func (b *lxdBackend) Validate(config map[string]string) error {
 	return b.Driver().Validate(config)
 }
 
+// validateSource checks whether or not the provided underlying source (based on the config) can be used.
+func (b *lxdBackend) validateSource() error {
+	// First let the source be validated by the driver itself.
+	err := b.Driver().ValidateSource()
+	if err != nil {
+		return fmt.Errorf("Failed to validate source: %w", err)
+	}
+
+	// Second check if the same source is already used by any storage pool on this node.
+	sourceIdentifier, err := b.Driver().SourceIdentifier()
+	if err != nil {
+		return err
+	}
+
+	var poolNames []string
+
+	// Fetch the node local config of each storage pool.
+	err = b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		poolNames, err = tx.GetCreatedStoragePoolNames(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed loading config for storage pools on %q: %w", b.state.ServerName, err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, poolName := range poolNames {
+		// Skip ourselves.
+		if poolName == b.name {
+			continue
+		}
+
+		pool, err := LoadByName(b.state, poolName)
+		if err != nil {
+			return fmt.Errorf("Failed loading storage pool %q: %w", poolName, err)
+		}
+
+		// Skip pools with other drivers.
+		if pool.Driver().Info().Name != b.db.Driver {
+			continue
+		}
+
+		existingSourceIdentifier, err := pool.Driver().SourceIdentifier()
+		if err != nil {
+			return err
+		}
+
+		if existingSourceIdentifier == sourceIdentifier {
+			return fmt.Errorf("Cannot use source as it's already in use by pool %q", pool.Name())
+		}
+	}
+
+	return nil
+}
+
 // Status returns the storage pool status.
 func (b *lxdBackend) Status() string {
 	return b.db.Status
