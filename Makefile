@@ -45,12 +45,12 @@ export CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 default: all
 
 .PHONY: all
-all: client lxd lxd-agent lxd-migrate test-binaries
+all: client lxd lxd-agent lxd-metadata lxd-migrate test-binaries
 
 .PHONY: build
 build: lxd
 .PHONY: lxd
-lxd: lxd-metadata
+lxd:
 ifeq "$(TAG_SQLITE3)" ""
 	@echo "Missing dqlite, run \"make deps\" to setup."
 	exit 1
@@ -288,7 +288,7 @@ endif
 	fi
 
 .PHONY: update-metadata
-update-metadata: build
+update-metadata: lxd-metadata
 	@echo "Generating golang documentation metadata"
 	$(GOPATH)/bin/lxd-metadata . --json ./lxd/metadata/configuration.json --txt ./doc/metadata.txt --substitution-db ./doc/substitutions.yaml
 	if [ -t 0 ] && ! git diff --quiet -- ./lxd/metadata/configuration.json ./doc/metadata.txt; then \
