@@ -23,4 +23,9 @@ chmod 0711 "${SNAP_COMMON}/lxd-user/"
 cd "${SNAP_COMMON}/lxd-user/"
 
 # Run lxd-user
-exec lxd-user
+LXD_USER="lxd-user"
+if [ -x "${SNAP_COMMON}/lxd-user.debug" ]; then
+    LXD_USER="${SNAP_COMMON}/lxd-user.debug"
+fi
+
+exec "${LXD_USER}" "$@"
