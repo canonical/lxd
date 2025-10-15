@@ -118,17 +118,23 @@ func (d *cephfs) FillConfig() error {
 	return nil
 }
 
-// Create is called during pool creation and is effectively using an empty driver struct.
-// WARNING: The Create() function cannot rely on any of the struct attributes being set.
-func (d *cephfs) Create() error {
-	revert := revert.New()
-	defer revert.Fail()
-
-	err := d.FillConfig()
-	if err != nil {
-		return err
+// SourceIdentifier returns a combined string consisting of the cluster and pool name.
+func (d *cephfs) SourceIdentifier() (string, error) {
+	cluster := d.config["cephfs.cluster_name"]
+	if cluster == "" {
+		return "", errors.New("Cannot derive identifier from empty cluster name")
 	}
 
+	source := d.config["source"]
+	if source == "" {
+		return "", errors.New("Cannot derive identifier from empty pool name")
+	}
+
+	return cluster + "-" + source, nil
+}
+
+// ValidateSource checks whether the required config keys are set to access the remote source.
+func (d *cephfs) ValidateSource() error {
 	// Config validation.
 	if d.config["source"] == "" {
 		return errors.New("Missing required source name/path")
@@ -137,6 +143,15 @@ func (d *cephfs) Create() error {
 	if d.config["cephfs.path"] != "" && d.config["cephfs.path"] != d.config["source"] {
 		return errors.New("cephfs.path must match the source")
 	}
+
+	return nil
+}
+
+// Create is called during pool creation and is effectively using an empty driver struct.
+// WARNING: The Create() function cannot rely on any of the struct attributes being set.
+func (d *cephfs) Create() error {
+	revert := revert.New()
+	defer revert.Fail()
 
 	d.config["cephfs.path"] = d.config["source"]
 
