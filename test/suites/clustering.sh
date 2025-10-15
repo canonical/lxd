@@ -1134,9 +1134,20 @@ test_clustering_network() {
   # The bridge.external_interfaces config key is not legal for the final network creation
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" bridge.external_interfaces=foo || false
 
-  # Create the network
-  LXD_DIR="${LXD_TWO_DIR}" lxc network create "${net}" ipv4.address=none ipv6.address=none
+  # Since the lxc create command cannot create a network with a description, create a network with a description using the API.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query -X POST /1.0/networks --data "{
+    \"name\": \"${net}\",
+    \"type\": \"bridge\",
+    \"description\": \"bar\",
+    \"config\": {
+      \"ipv4.address\": \"none\",
+      \"ipv6.address\": \"none\"
+    }
+  }"
+
+  # Verify network is now created with description
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep -F status: | grep -wF Created
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc network get --property "${net}" description)" = "bar" ]
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" --target node2 | grep -F status: | grep -wF Created
 
   # FIXME: rename the network is not supported with clustering
