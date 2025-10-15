@@ -1662,12 +1662,25 @@ func CheckTargetGroup(ctx context.Context, tx *db.ClusterTx, p *api.Project, gro
 	return nil
 }
 
+// TargetDetect returns either target node or group based on the provided prefix:
+// An invocation with `target=h1` returns "h1", "" and `target=@g1` returns "", "g1".
+func TargetDetect(target string) (targetNode string, targetGroup string) {
+	after, found := strings.CutPrefix(target, instancetype.TargetClusterGroupPrefix)
+	if found {
+		targetGroup = after
+	} else {
+		targetNode = target
+	}
+
+	return targetNode, targetGroup
+}
+
 // CheckTarget checks if the given cluster target (member or group) is allowed.
 // If target is a cluster member and is found in allMembers it returns the resolved node information object.
 // If target is a cluster group it returns the cluster group name.
 // In case of error, neither node information nor cluster group name gets returned.
 func CheckTarget(ctx context.Context, authorizer auth.Authorizer, tx *db.ClusterTx, p *api.Project, target string, allMembers []db.NodeInfo) (*db.NodeInfo, string, error) {
-	targetMemberName, targetGroupName := shared.TargetDetect(target)
+	targetMemberName, targetGroupName := TargetDetect(target)
 
 	// Check manual cluster member targeting restrictions.
 	err := CheckClusterTargetRestriction(ctx, authorizer, p, target)
