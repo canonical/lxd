@@ -412,6 +412,9 @@ export SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
 export SMALLEST_VM_ROOT_DISK="3584MiB"
 export SMALL_VM_ROOT_DISK="${SMALL_VM_ROOT_DISK:-"root,size=${SMALLEST_VM_ROOT_DISK}"}"
 
+# Create GOCOVERDIR if needed
+[ -n "${GOCOVERDIR:-}" ] && mkdir -p "${GOCOVERDIR}"
+
 # Spawn an interactive test shell when invoked as `./main.sh test-shell`.
 # This is useful for quick interactions with LXD and its test suite.
 if [ "${1:-"all"}" = "test-shell" ]; then
