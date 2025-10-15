@@ -111,6 +111,30 @@ func (d *lvm) FillConfig() error {
 		d.config["lvm.thinpool_name"] = lvmThinpoolDefaultName
 	}
 
+	defaultSource := loopFilePath(d.name)
+
+	if d.config["source"] == "" || d.config["source"] == defaultSource {
+		if d.config["lvm.vg_name"] == "" {
+			d.config["lvm.vg_name"] = d.name
+		}
+
+		// Pick a default size of the loop file if not specified.
+		if d.config["size"] == "" {
+			defaultSize, err := loopFileSizeDefault()
+			if err != nil {
+				return err
+			}
+
+			d.config["size"] = strconv.FormatUint(defaultSize, 10) + "GiB"
+		}
+	} else if filepath.IsAbs(d.config["source"]) {
+		if d.config["lvm.vg_name"] == "" {
+			d.config["lvm.vg_name"] = d.name
+		}
+	} else if d.config["source"] != "" {
+		d.config["lvm.vg_name"] = d.config["source"]
+	}
+
 	return nil
 }
 
@@ -139,19 +163,6 @@ func (d *lvm) Create() error {
 
 		// We are using a LXD internal loopback file.
 		d.config["source"] = defaultSource
-		if d.config["lvm.vg_name"] == "" {
-			d.config["lvm.vg_name"] = d.name
-		}
-
-		// Pick a default size of the loop file if not specified.
-		if d.config["size"] == "" {
-			defaultSize, err := loopFileSizeDefault()
-			if err != nil {
-				return err
-			}
-
-			d.config["size"] = strconv.FormatUint(defaultSize, 10) + "GiB"
-		}
 
 		size, err := units.ParseByteSizeString(d.config["size"])
 		if err != nil {
@@ -206,10 +217,6 @@ func (d *lvm) Create() error {
 			return errors.New("Cannot specify size when using an existing physical device for non-thin pool")
 		}
 
-		if d.config["lvm.vg_name"] == "" {
-			d.config["lvm.vg_name"] = d.name
-		}
-
 		d.config["source"] = d.config["lvm.vg_name"]
 
 		if !shared.IsBlockdevPath(srcPath) {
@@ -254,8 +261,6 @@ func (d *lvm) Create() error {
 		if d.config["lvm.vg_name"] != "" && d.config["lvm.vg_name"] != d.config["source"] {
 			return errors.New("Invalid combination of source and lvm.vg_name properties")
 		}
-
-		d.config["lvm.vg_name"] = d.config["source"]
 
 		// Check the volume group already exists.
 		vgExists, vgTags, err = d.volumeGroupExists(d.config["lvm.vg_name"])
