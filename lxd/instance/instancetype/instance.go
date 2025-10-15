@@ -29,6 +29,9 @@ const (
 // ConfigVolatilePrefix indicates the prefix used for volatile config keys.
 const ConfigVolatilePrefix = "volatile."
 
+// TargetClusterGroupPrefix indicates the prefix used for target cluster group names.
+const TargetClusterGroupPrefix = "@"
+
 // ConfigKeyPrefixesAny indicates valid prefixes for configuration options.
 var ConfigKeyPrefixesAny = []string{"environment.", "user.", "image.", "cloud-init.ssh-keys."}
 
