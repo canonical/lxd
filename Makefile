@@ -15,6 +15,13 @@ GOMIN=1.25.4
 GOTOOLCHAIN=local
 export GOTOOLCHAIN
 GOCOVERDIR ?= $(shell go env GOCOVERDIR)
+ifeq "$(GOCOVERDIR)" ""
+	COVER=
+	COVER_TEST=
+else
+	COVER=-cover
+	COVER_TEST=-test.gocoverdir="$(GOCOVERDIR)"
+endif
 ARCH ?= $(shell uname -m)
 DQLITE_BRANCH=lts-1.17.x
 LIBLXC_BRANCH=stable-6.0
@@ -48,95 +55,48 @@ ifeq "$(TAG_SQLITE3)" ""
 	@echo "Missing dqlite, run \"make deps\" to setup."
 	exit 1
 endif
-
-ifeq "$(GOCOVERDIR)" ""
-	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" -trimpath $(DEBUG) ./lxd
-	CGO_ENABLED=0 go install -v -tags netgo -trimpath $(DEBUG) ./lxd-user ./lxd-benchmark
-else
-	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" -trimpath -cover $(DEBUG) ./lxd
-	CGO_ENABLED=0 go install -v -tags netgo -trimpath -cover $(DEBUG) ./lxd-user ./lxd-benchmark
-endif
-
-	@echo "LXD built successfully"
+	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" -trimpath $(COVER) $(DEBUG) ./lxd
+	CGO_ENABLED=0 go install -v -tags netgo -trimpath $(COVER) $(DEBUG) ./lxd-user ./lxd-benchmark
+	@echo "$@ built successfully"
 
 .PHONY: client
 client:
-ifeq "$(GOCOVERDIR)" ""
-	go install -v -trimpath $(DEBUG) ./lxc
-else
-	go install -v -trimpath -cover $(DEBUG) ./lxc
-endif
-
-	@echo "LXD client built successfully"
+	go install -v -trimpath $(COVER) $(DEBUG) ./lxc
+	@echo "LXD $@ built successfully"
 
 .PHONY: lxd-agent
 lxd-agent:
-ifeq "$(GOCOVERDIR)" ""
-	CGO_ENABLED=0 go install -v -trimpath -tags agent,netgo ./lxd-agent
-else
-	CGO_ENABLED=0 go install -v -trimpath -cover -tags agent,netgo ./lxd-agent
-endif
-
-	@echo "LXD agent built successfully"
+	CGO_ENABLED=0 go install -v -trimpath $(COVER) -tags agent,netgo ./lxd-agent
+	@echo "$@ built successfully"
 
 .PHONY: lxd-metadata
 lxd-metadata:
-ifeq "$(GOCOVERDIR)" ""
-	CGO_ENABLED=0 go install -v -trimpath -tags lxd-metadata ./lxd/lxd-metadata
-else
-	CGO_ENABLED=0 go install -v -trimpath -cover -tags lxd-metadata ./lxd/lxd-metadata
-endif
-
-	@echo "LXD metadata built successfully"
+	CGO_ENABLED=0 go install -v -trimpath $(COVER) -tags lxd-metadata ./lxd/lxd-metadata
+	@echo "$@ built successfully"
 
 .PHONY: lxd-migrate
 lxd-migrate:
-ifeq "$(GOCOVERDIR)" ""
-	CGO_ENABLED=0 go install -v -trimpath -tags netgo ./lxd-migrate
-else
-	CGO_ENABLED=0 go install -v -trimpath -cover -tags netgo ./lxd-migrate
-endif
-
-	@echo "LXD-MIGRATE built successfully"
+	CGO_ENABLED=0 go install -v -trimpath $(COVER) -tags netgo ./lxd-migrate
+	@echo "$@ built successfully"
 
 .PHONY: devlxd-client
 devlxd-client:
-ifeq "$(GOCOVERDIR)" ""
-	CGO_ENABLED=0 go install -C test -v -trimpath -buildvcs=false -tags netgo ./devlxd-client
-else
-	CGO_ENABLED=0 go install -C test -v -trimpath -buildvcs=false -cover -tags netgo ./devlxd-client
-endif
-
+	CGO_ENABLED=0 go install -C test -v -trimpath -buildvcs=false $(COVER) -tags netgo ./devlxd-client
 	@echo "$@ built successfully"
 
 .PHONY: fuidshift
 fuidshift:
-ifeq "$(GOCOVERDIR)" ""
-	go install -v -trimpath -buildvcs=false ./fuidshift
-else
-	go install -v -trimpath -buildvcs=false -cover ./fuidshift
-endif
-
+	go install -v -trimpath -buildvcs=false $(COVER) ./fuidshift
 	@echo "$@ built successfully"
 
 .PHONY: mini-oidc
 mini-oidc:
-ifeq "$(GOCOVERDIR)" ""
-	go install -C test -v -trimpath -buildvcs=false ./mini-oidc
-else
-	go install -C test -v -trimpath -buildvcs=false -cover ./mini-oidc
-endif
-
+	go install -C test -v -trimpath -buildvcs=false $(COVER) ./mini-oidc
 	@echo "$@ built successfully"
 
 .PHONY: sysinfo
 sysinfo:
-ifeq "$(GOCOVERDIR)" ""
-	go install -C test -v -trimpath -buildvcs=false ./syscall/sysinfo
-else
-	go install -C test -v -trimpath -buildvcs=false -cover ./syscall/sysinfo
-endif
-
+	go install -C test -v -trimpath -buildvcs=false $(COVER) ./syscall/sysinfo
 	@echo "$@ built successfully"
 
 .PHONY: test-binaries
@@ -370,11 +330,7 @@ check: default check-gomin check-unit test-binaries
 
 .PHONY: check-unit
 check-unit:
-ifeq "$(GOCOVERDIR)" ""
-	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -mod=readonly -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
-else
-	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -mod=readonly -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./... -cover -test.gocoverdir="$(GOCOVERDIR)"
-endif
+	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -mod=readonly -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./... $(COVER) $(COVER_TEST)
 
 .PHONY: dist
 dist:
