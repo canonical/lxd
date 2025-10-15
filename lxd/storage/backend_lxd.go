@@ -264,6 +264,23 @@ func (b *lxdBackend) Create(clientType request.ClientType, op *operations.Operat
 
 	revert.Add(func() { _ = os.RemoveAll(path) })
 
+	// Fill in the missing config.
+	// This is required before asking the driver for further source validation.
+	// The storage driver also expects the missing config to be present
+	// before trying to create or mount the actual storage pool.
+	err = b.Driver().FillConfig()
+	if err != nil {
+		return err
+	}
+
+	// Validate source.
+	// Ensure this is executed after creating the pool's storage path.
+	// Some drivers like dir expect the directory to be present for source validation.
+	err = b.validateSource()
+	if err != nil {
+		return err
+	}
+
 	if b.driver.Info().Remote && clientType != request.ClientTypeNormal {
 		if !b.driver.Info().MountedRoot {
 			// Create the directory structure.
