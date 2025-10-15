@@ -86,8 +86,7 @@ test_storage_volume_recover_by_container() {
 
 
   # Create container.
-  ensure_import_testimage
-  lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
+  lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
 
   # Snapshot the instance to allow checking also the snapshot recovery.
   lxc snapshot c1
@@ -188,7 +187,7 @@ EOF
   # Cleanup
   lxc storage volume delete "${poolName}" vol1
   lxc storage volume delete "${poolName2}" vol2
-  lxc delete -f c1
+  lxc delete c1
   lxc storage delete "${poolName2}"
   shutdown_lxd "${LXD_IMPORT_DIR}"
 }
