@@ -34,6 +34,7 @@ type Driver interface {
 
 	// Export struct details.
 	Name() string
+	SourceIdentifier() (string, error)
 	Config() map[string]string
 	Logger() logger.Logger
 
