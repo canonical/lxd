@@ -129,6 +129,8 @@ When the healed cluster member is available again, you must manually {ref}`resto
 ```{warning}
 Enabling the cluster healing threshold carries the risk that LXD might incorrectly judge a cluster member as offline while it is still running workloads. Short-lived network issues or temporary high load might cause a cluster member to briefly stop responding to heartbeat or ICMP packets. If a healing threshold is set, LXD might then start that member's instances on another cluster member even though they're still active on the original. Since cluster members share the same storage, this can lead to data corruption.
 
+To avoid this, it's critical to ensure that any server marked as offline is actually offline and not still running instances. You can automate this by monitoring for `cluster-member-healed` events and shutting off the affected server through its remote power interface, such as a Baseboard Management Controller (BMC) or Power Distribution Unit (PDU).
+
 To reduce the chance of false healing events, set {config:option}`server-cluster:cluster.healing_threshold` as high as possible within your availability targets.
 ```
 
