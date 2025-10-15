@@ -3683,7 +3683,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 		busName, busAddress, multifunction = bus.allocate(multifunctionGroup)
 		if busName != "" {
-			d.logger.Debug("Using bus to plug device into", logger.Ctx{"device": deviceName, "busType": bus.name, "bus": busName})
+			d.logger.Debug("Plugging device into bus", logger.Ctx{"device": deviceName, "busType": bus.name, "bus": busName})
 
 			if bus.name == "pcie" {
 				if lastBusName != busName {
