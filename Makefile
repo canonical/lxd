@@ -48,7 +48,7 @@ default: all
 build: lxd
 
 .PHONY: all
-all: client lxd lxd-agent lxd-metadata lxd-migrate test-binaries
+all: client lxd lxd-agent lxd-metadata lxd-migrate lxd-user test-binaries
 
 .PHONY: lxd
 lxd:
@@ -57,7 +57,12 @@ ifeq "$(TAG_SQLITE3)" ""
 	exit 1
 endif
 	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" -trimpath $(COVER) $(DEBUG) ./lxd
-	CGO_ENABLED=0 go install -v -tags netgo -trimpath $(COVER) $(DEBUG) ./lxd-user ./lxd-benchmark
+	CGO_ENABLED=0 go install -v -tags netgo -trimpath $(COVER) $(DEBUG) ./lxd-benchmark
+	@echo "$@ built successfully"
+
+.PHONY: lxd-user
+lxd-user:
+	CGO_ENABLED=0 go install -v -tags netgo -trimpath $(COVER) $(DEBUG) ./lxd-user
 	@echo "$@ built successfully"
 
 .PHONY: client
