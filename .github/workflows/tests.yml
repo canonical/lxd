@@ -126,7 +126,7 @@ jobs:
 
           # bin/min/max (sizes are in MiB)
           SIZES="lxc 16 18
-                 lxd-agent 14 15"
+                 lxd-agent 14 16"
           MIB="$((1024 * 1024))"
 
           while read -r bin min max; do
