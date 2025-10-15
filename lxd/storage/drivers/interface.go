@@ -49,6 +49,7 @@ type Driver interface {
 	Unmount() (bool, error)
 	GetResources() (*api.ResourcesStoragePool, error)
 	Validate(config map[string]string) error
+	ValidateSource() error
 	Update(changedConfig map[string]string) error
 	ApplyPatch(name string) error
 
