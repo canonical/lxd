@@ -86,6 +86,7 @@ type DiskLimits struct {
 
 // RunConfig represents run-time config used for device setup/cleanup.
 type RunConfig struct {
+	BusNum           uint8            // Allocated bus number for the device.
 	RootFS           RootFSEntryItem  // RootFS to setup.
 	NetworkInterface []RunConfigItem  // Network interface configuration settings.
 	CGroups          []RunConfigItem  // Cgroup rules to setup.
