@@ -93,6 +93,7 @@ readonly test_group_image=(
     "image_list_remotes"
     "image_prefer_cached"
     "image_refresh"
+    "image_cached"
     "images_public"
     "projects_images"
     "projects_images_default"
