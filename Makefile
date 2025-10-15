@@ -44,11 +44,12 @@ export CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 .PHONY: default
 default: all
 
+.PHONY: build
+build: lxd
+
 .PHONY: all
 all: client lxd lxd-agent lxd-metadata lxd-migrate test-binaries
 
-.PHONY: build
-build: lxd
 .PHONY: lxd
 lxd:
 ifeq "$(TAG_SQLITE3)" ""
