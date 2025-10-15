@@ -71,8 +71,6 @@ type evacuateOpts struct {
 	op              *operations.Operation
 }
 
-var targetGroupPrefix = "@"
-
 var clusterCmd = APIEndpoint{
 	Path:        "cluster",
 	MetricsType: entity.TypeClusterMember,
@@ -367,8 +365,8 @@ func clusterPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(errors.New("ServerName must be empty when disabling clustering"))
 	}
 
-	if req.ServerName != "" && strings.HasPrefix(req.ServerName, targetGroupPrefix) {
-		return response.BadRequest(fmt.Errorf("ServerName may not start with %q", targetGroupPrefix))
+	if req.ServerName != "" && strings.HasPrefix(req.ServerName, instancetype.TargetClusterGroupPrefix) {
+		return response.BadRequest(fmt.Errorf("ServerName may not start with %q", instancetype.TargetClusterGroupPrefix))
 	}
 
 	if req.ServerName == "none" {
