@@ -3353,6 +3353,8 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 				l.Warn("No migration target available for instance")
 				continue
 			}
+
+			return err
 		}
 
 		// Start migrating the instance.
