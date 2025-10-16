@@ -1380,6 +1380,15 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 		if strings.HasSuffix(key, ".last_state.ready") {
 			return validate.IsBool, nil
 		}
+
+		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.bus)
+		// Persistent VM bus number.
+		// ---
+		//  type: integer
+		//  shortdesc: Persistent VM bus number
+		if strings.HasSuffix(key, ".bus") {
+			return validate.IsUint8, nil
+		}
 	}
 
 	if (instanceType == Any || instanceType == Container) && strings.HasPrefix(key, "linux.sysctl.") {
