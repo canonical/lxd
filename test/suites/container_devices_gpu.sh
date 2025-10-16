@@ -21,7 +21,7 @@ test_container_devices_gpu() {
   startMountCount=$(lxc exec "${ctName}" -- mount | wc -l)
   startDevCount=$(find "${LXD_DIR}"/devices/"${ctName}" -type c | wc -l)
   lxc config device add "${ctName}" gpu-basic gpu mode=0600 id=0
-  lxc exec "${ctName}" -- mount | grep "/dev/dri/card0"
+  lxc exec "${ctName}" -- mount | grep -wF "/dev/dri/card0"
   [ "$(lxc exec "${ctName}" -- stat -c '%a' /dev/dri/card0)" = "600" ]
   [ "$(stat -c '%a' "${LXD_DIR}"/devices/"${ctName}"/unix.gpu--basic.dev-dri-card0)" = "600" ]
   lxc config device remove "${ctName}" gpu-basic
@@ -63,19 +63,19 @@ test_container_devices_gpu() {
   # Check the Nvidia specific devices are mounted correctly.
   lxc config device add "${ctName}" gpu-nvidia gpu mode=0600
 
-  lxc exec "${ctName}" -- mount | grep /dev/nvidia0
+  lxc exec "${ctName}" -- mount | grep -wF /dev/nvidia0
   [ "$(stat -c '%a' "${LXD_DIR}"/devices/"${ctName}"/unix.gpu--nvidia.dev-dri-card0)" = "600" ]
 
-  lxc exec "${ctName}" -- mount | grep /dev/nvidia-modeset
+  lxc exec "${ctName}" -- mount | grep -wF /dev/nvidia-modeset
   [ "$(stat -c '%a' "${LXD_DIR}"/devices/"${ctName}"/unix.gpu--nvidia.dev-nvidia--modeset)" = "600" ]
 
-  lxc exec "${ctName}" -- mount | grep /dev/nvidia-uvm
+  lxc exec "${ctName}" -- mount | grep -wF /dev/nvidia-uvm
   [ "$(stat -c '%a' "${LXD_DIR}"/devices/"${ctName}"/unix.gpu--nvidia.dev-nvidia--uvm)" = "600" ]
 
-  lxc exec "${ctName}" -- mount | grep /dev/nvidia-uvm-tools
+  lxc exec "${ctName}" -- mount | grep -wF /dev/nvidia-uvm-tools
   [ "$(stat -c '%a' "${LXD_DIR}"/devices/"${ctName}"/unix.gpu--nvidia.dev-nvidia--uvm--tools)" = "600" ]
 
-  lxc exec "${ctName}" -- mount | grep /dev/nvidiactl
+  lxc exec "${ctName}" -- mount | grep -wF /dev/nvidiactl
   [ "$(stat -c '%a' "${LXD_DIR}"/devices/"${ctName}"/unix.gpu--nvidia.dev-nvidiactl)" = "600" ]
 
   lxc config device remove "${ctName}" gpu-nvidia
@@ -84,7 +84,7 @@ test_container_devices_gpu() {
   lxc stop -f "${ctName}"
   lxc config set "${ctName}" nvidia.runtime true
   lxc start "${ctName}"
-  nvidiaMountCount=$(lxc exec "${ctName}" -- mount | grep -c nvidia)
+  nvidiaMountCount="$(lxc exec "${ctName}" -- mount | grep -cF nvidia)"
   if [ "$nvidiaMountCount" != "16" ]; then
     echo "nvidia runtime mounts invalid"
     false
