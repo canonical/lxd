@@ -93,7 +93,7 @@ struct ifaddrs_ctx {
 
 static void netns_freeifaddrs(struct netns_ifaddrs *ifp)
 {
-	struct netns_ifaddrs *n;
+	struct netns_ifaddrs *n = NULL;
 
 	while (ifp) {
 		n = ifp->ifa_next;
@@ -105,7 +105,7 @@ static void netns_freeifaddrs(struct netns_ifaddrs *ifp)
 static void copy_addr(struct sockaddr **r, int af, union sockany *sa,
 		      void *addr, size_t addrlen, int ifindex)
 {
-	uint8_t *dst;
+	uint8_t *dst = NULL;
 	size_t len;
 
 	switch (af) {
@@ -171,8 +171,8 @@ static void copy_lladdr(struct sockaddr **r, union sockany *sa, void *addr,
 
 static int nl_msg_to_ifaddr(void *pctx, bool *netnsid_aware, struct nlmsghdr *h)
 {
-	struct ifaddrs_storage *ifs, *ifs0;
-	struct rtattr *rta;
+	struct ifaddrs_storage *ifs, *ifs0 = NULL;
+	struct rtattr *rta = NULL;
 	int stats_len = 0;
 	struct ifinfomsg *ifi = __NLMSG_DATA(h);
 	struct ifaddrmsg *ifa = __NLMSG_DATA(h);
@@ -346,10 +346,10 @@ static int __netlink_recv(int fd, unsigned int seq, int type, int af,
 			  void *ctx)
 {
 	int r, property, ret;
-	char *buf;
-	struct nlmsghdr *hdr;
-	struct ifinfomsg *ifi_msg;
-	struct ifaddrmsg *ifa_msg;
+	char *buf = NULL;
+	struct nlmsghdr *hdr = NULL;
+	struct ifinfomsg *ifi_msg = NULL;
+	struct ifaddrmsg *ifa_msg = NULL;
 	union {
 		uint8_t buf[8192];
 		struct {
@@ -464,7 +464,7 @@ __unused static int netns_getifaddrs(struct netns_ifaddrs **ifap,
 				     __s32 netns_id, bool *netnsid_aware)
 {
 	int r, saved_errno;
-	struct ifaddrs_ctx _ctx;
+	struct ifaddrs_ctx _ctx = {0};
 	struct ifaddrs_ctx *ctx = &_ctx;
 
 	memset(ctx, 0, sizeof *ctx);
