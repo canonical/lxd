@@ -2756,3 +2756,12 @@ This adds new option `tar` for parameter `--type` in `POST /1.0/storage-pools/{p
 ## `projects_force_delete`
 
 Adds support for force deleting projects and their entities (instances, profiles, images, networks, network ACLs, network zones, storage volumes, and storage buckets) by setting the `force` query parameter on `DELETE /1.0/projects/{name}` requests.
+
+## `vm_persistent_bus`
+
+Adds support for persistently recording VM PCIe bus allocations in volatile configuration keys.
+
+This introduces two new volatile VM configuration keys:
+
+* {config:option}`instance-volatile:volatile.<name>.bus` - records the bus number for the device.
+* {config:option}`instance-volatile:volatile.bus.mode` - records whether "persistent" mode is being used for a VM.
