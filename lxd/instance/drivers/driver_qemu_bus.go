@@ -2,6 +2,8 @@ package drivers
 
 import (
 	"fmt"
+
+	"github.com/canonical/lxd/shared/revert"
 )
 
 const busFunctionGroupNone = ""           // Add a non multi-function port.
@@ -12,7 +14,7 @@ const busDeviceVolatileSuffix = ".bus"    // Suffix used for volatile device bus
 
 // busAllocator is a function signature used for allocating PCI(e) slots in QEMU.
 // There are different implementations for pre-start QEMU config file generation and for hotplugging of devices.
-type busAllocator func(deviceName string, enableMultifunction bool) (busName string, busAddress string, multi bool, err error)
+type busAllocator func(deviceName string, enableMultifunction bool) (cleanup revert.Hook, busName string, busAddress string, multi bool, err error)
 
 type qemuBusEntry struct {
 	bridgeDev int // Device number on the root bridge.
