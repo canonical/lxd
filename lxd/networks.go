@@ -765,6 +765,12 @@ func networksPostCluster(ctx context.Context, s *state.State, projectName string
 			return err
 		}
 
+		// Update only the description of the network.
+		err = tx.UpdateNetworkDescription(networkID, req.Description)
+		if err != nil {
+			return err
+		}
+
 		// Insert the global config keys.
 		err = tx.CreateNetworkConfig(networkID, 0, req.Config)
 		if err != nil {
