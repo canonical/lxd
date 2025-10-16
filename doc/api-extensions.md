@@ -2809,3 +2809,12 @@ Enables the creation of a multi-volume snapshot and the restoration of an instan
 Adds `DiskVolumesMode` to `POST /1.0/instances/{name}/snapshots` and `RestoreDiskVolumesMode` to `PUT /1.0/instances/{name}` to select which attached volumes are included in snapshots/restores: "root" includes only the instance's root disk; "all-exclusive" includes the root disk and any exclusively attached (non-shared) volumes. Defaults to "root".
 
 This extension also introduces a new volatile configuration key, {config:option}`instance-volatile:volatile.attached_volumes`, in the configuration of supported storage drivers for instance snapshots. This key contains a JSON-serialized map of attached volume UUIDs to the UUIDs of their corresponding snapshots. Example value: `{<volume1-uuid>: <snapshot1-uuid>,<volume2-uuid>: <snapshot2-uuid>}`.
+
+## `vm_persistent_bus`
+
+Adds support for persistently recording VM PCIe bus allocations in volatile configuration keys.
+
+This introduces two new volatile VM configuration keys:
+
+* {config:option}`instance-volatile:volatile.<name>.bus` - records the bus number for the device.
+* {config:option}`instance-volatile:volatile.bus.mode` - records whether "persistent" mode is being used for a VM.
