@@ -4045,15 +4045,22 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, busName string, busAllocate 
 		}
 	}
 
+	reverter := revert.New()
+	defer reverter.Fail()
+
 	// If there is a virtiofsd socket path setup the virtio-fs share.
 	if virtiofsdSockPath != "" {
 		if !shared.PathExists(virtiofsdSockPath) {
 			return fmt.Errorf("virtiofsd socket path %q doesn't exist", virtiofsdSockPath)
 		}
 
-		devBus, devAddr, multi, err := busAllocate(driveConf.DevName, true)
+		busCleanup, devBus, devAddr, multi, err := busAllocate(driveConf.DevName, true)
 		if err != nil {
 			return fmt.Errorf("Failed allocating bus for virtiofs disk device %q: %w", driveConf.DevName, err)
+		}
+
+		if busCleanup != nil {
+			reverter.Add(busCleanup)
 		}
 
 		shortPath, err := d.shortenedFilePath(virtiofsdSockPath, fdFiles)
@@ -4078,9 +4085,13 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, busName string, busAllocate 
 	}
 
 	// Add 9p share config.
-	devBus, devAddr, multi, err := busAllocate(driveConf.DevName, true)
+	busCleanup, devBus, devAddr, multi, err := busAllocate(driveConf.DevName, true)
 	if err != nil {
 		return fmt.Errorf("Failed allocating bus for 9p disk device %q: %w", driveConf.DevName, err)
+	}
+
+	if busCleanup != nil {
+		reverter.Add(busCleanup)
 	}
 
 	fdSource, ok := driveConf.DevSource.(deviceConfig.DevSourceFD)
@@ -4105,6 +4116,7 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, busName string, busAllocate 
 	}
 	*cfg = append(*cfg, qemuDriveDir(&driveDir9pOpts)...)
 
+	reverter.Success()
 	return nil
 }
 
