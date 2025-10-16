@@ -6248,11 +6248,10 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 			return err
 		}
 
-		if changedConfig["security.shifted"] != "" {
-			// Confirm that no running instances are using it when changing shifted state.
-			if inst.IsRunning() && changedConfig["security.shifted"] != "" {
-				return errors.New("Cannot modify shifting with running instances using the volume")
-			}
+		_, ok := changedConfig["security.shifted"]
+		// Confirm that no running instances are using it when changing shifted state.
+		if ok && inst.IsRunning() {
+			return errors.New("Cannot modify shifting with running instances using the volume")
 		}
 
 		instances = append(instances, inst)
@@ -6269,12 +6268,14 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 		}
 
 		// Check that the volume's block.filesystem property isn't being changed.
-		if changedConfig["block.filesystem"] != "" {
+		_, ok := changedConfig["block.filesystem"]
+		if ok {
 			return errors.New(`Custom volume "block.filesystem" property cannot be changed`)
 		}
 
 		// Check that the volume's volatile.uuid property isn't being changed.
-		if changedConfig["volatile.uuid"] != "" {
+		_, ok = changedConfig["volatile.uuid"]
+		if ok {
 			return errors.New(`Custom volume "volatile.uuid" property cannot be changed`)
 		}
 
