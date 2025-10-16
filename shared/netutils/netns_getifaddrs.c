@@ -229,7 +229,7 @@ static int nl_msg_to_ifaddr(void *pctx, bool *netnsid_aware, struct nlmsghdr *h)
 		}
 	}
 
-	ifs = calloc(1, sizeof(struct ifaddrs_storage) + stats_len);
+	ifs = calloc(1, sizeof(struct ifaddrs_storage) + (size_t)stats_len);
 	if (!ifs) {
 		errno = ENOMEM;
 		return -1;
