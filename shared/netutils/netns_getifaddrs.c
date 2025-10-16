@@ -511,8 +511,6 @@ __unused static int netns_getifaddrs(struct netns_ifaddrs **ifap,
 	struct ifaddrs_ctx _ctx = {0};
 	struct ifaddrs_ctx *ctx = &_ctx;
 
-	memset(ctx, 0, sizeof *ctx);
-
 	r = __rtnl_enumerate(AF_UNSPEC, AF_UNSPEC, netns_id, netnsid_aware,
 			     nl_msg_to_ifaddr, ctx);
 	saved_errno = errno;
