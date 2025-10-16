@@ -9313,7 +9313,7 @@ func (d *qemu) deviceAttachUSB(usbConf deviceConfig.USBDeviceItem) error {
 
 	err = monHook(monitor)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed setting up device via monitor: %w", err)
 	}
 
 	return nil
