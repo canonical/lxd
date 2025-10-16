@@ -1,6 +1,5 @@
 test_container_move() {
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   lxd_backend=$(storage_backend "$LXD_DIR")
   pool=$(lxc profile device get default root pool)
