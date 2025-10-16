@@ -557,6 +557,10 @@ EOF
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool6" custom/c10pool6 c10pool6 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6 c10pool6 testDevice
 
+      # Test that modifying the block.filesystem is blocked.
+      ! lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6 block.filesystem ext4 || false
+      ! lxc storage volume unset "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6 block.filesystem || false
+
       lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool6" c12pool6 size=120MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool6" c12pool6 c12pool6 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool6" c12pool6 c12pool6 testDevice2 /opt || false
