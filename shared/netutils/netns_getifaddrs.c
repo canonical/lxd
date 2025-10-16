@@ -236,7 +236,7 @@ static int nl_msg_to_ifaddr(void *pctx, bool *netnsid_aware, struct nlmsghdr *h)
 	}
 
 	if (h->nlmsg_type == RTM_NEWLINK) {
-		ifs->index = ifi->ifi_index;
+		ifs->index = (unsigned int)ifi->ifi_index;
 		ifs->ifa.ifa_ifindex = ifi->ifi_index;
 		ifs->ifa.ifa_flags = ifi->ifi_flags;
 
