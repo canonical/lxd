@@ -192,7 +192,7 @@ static void copy_lladdr(struct sockaddr **r, union sockany *sa, void *addr,
 	sa->ll.sll_family = AF_PACKET;
 	sa->ll.sll_ifindex = ifindex;
 	sa->ll.sll_hatype = hatype;
-	sa->ll.sll_halen = addrlen;
+	sa->ll.sll_halen = (unsigned char)addrlen;
 
 	memcpy(sa->ll.sll_addr, addr, addrlen);
 
