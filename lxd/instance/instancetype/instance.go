@@ -1271,7 +1271,7 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 		}
 
 		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.host_name)
-		//
+		// Network device name on the host.
 		// ---
 		//  type: string
 		//  shortdesc: Network device name on the host
