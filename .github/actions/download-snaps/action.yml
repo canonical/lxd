@@ -37,7 +37,7 @@ runs:
         path: ${{ inputs.snap-cache-dir }}
         key: ${{ steps.snaps-cache-key.outputs.KEY }}
         restore-keys: |
-          - ${{ steps.snaps-cache-key.outputs.FALLBACK_KEY }}
+          ${{ steps.snaps-cache-key.outputs.FALLBACK_KEY }}
         # Some jobs only want to prime the cache if not populated already.
         # Those jobs don't need the files otherwise so they should not restore
         # from the cache.
