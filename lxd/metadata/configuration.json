@@ -2832,15 +2832,22 @@
 						}
 					},
 					{
+						"volatile.\u003cname\u003e.bus": {
+							"longdesc": "Persistent VM bus number.",
+							"shortdesc": "Persistent VM bus number",
+							"type": "integer"
+						}
+					},
+					{
 						"volatile.\u003cname\u003e.ceph_rbd": {
-							"longdesc": "",
+							"longdesc": "RBD device path for Ceph disk devices.",
 							"shortdesc": "RBD device path for Ceph disk devices",
 							"type": "string"
 						}
 					},
 					{
 						"volatile.\u003cname\u003e.host_name": {
-							"longdesc": "",
+							"longdesc": "Network device name on the host.",
 							"shortdesc": "Network device name on the host",
 							"type": "string"
 						}
@@ -2856,7 +2863,7 @@
 						"volatile.\u003cname\u003e.last_state.created": {
 							"longdesc": "Possible values are `true` or `false`.",
 							"shortdesc": "Whether the network device physical device was created",
-							"type": "string"
+							"type": "bool"
 						}
 					},
 					{

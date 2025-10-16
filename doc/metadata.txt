@@ -2540,16 +2540,22 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 The disk quota is applied the next time the instance starts.
 ```
 
+```{config:option} volatile.<name>.bus instance-volatile
+:shortdesc: "Persistent VM bus number"
+:type: "integer"
+Persistent VM bus number.
+```
+
 ```{config:option} volatile.<name>.ceph_rbd instance-volatile
 :shortdesc: "RBD device path for Ceph disk devices"
 :type: "string"
-
+RBD device path for Ceph disk devices.
 ```
 
 ```{config:option} volatile.<name>.host_name instance-volatile
 :shortdesc: "Network device name on the host"
 :type: "string"
-
+Network device name on the host.
 ```
 
 ```{config:option} volatile.<name>.hwaddr instance-volatile
@@ -2560,7 +2566,7 @@ The network device MAC address is used when no `hwaddr` property is set on the d
 
 ```{config:option} volatile.<name>.last_state.created instance-volatile
 :shortdesc: "Whether the network device physical device was created"
-:type: "string"
+:type: "bool"
 Possible values are `true` or `false`.
 ```
 
