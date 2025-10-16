@@ -656,7 +656,7 @@ func imgPostRemoteInfo(ctx context.Context, s *state.State, req api.ImagesPost, 
 
 		// Update the DB record if needed
 		if req.Public || req.AutoUpdate || req.Filename != "" || len(req.Properties) > 0 || len(req.Profiles) > 0 {
-			err := tx.UpdateImage(ctx, id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, imageProject, profileIDs)
+			err := tx.UpdateImage(ctx, id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, profileIDs)
 			if err != nil {
 				return err
 			}
@@ -745,7 +745,7 @@ func imgPostURLInfo(ctx context.Context, s *state.State, req api.ImagesPost, op 
 		maps.Copy(info.Properties, req.Properties)
 
 		if req.Public || req.AutoUpdate || req.Filename != "" || len(req.Properties) > 0 {
-			err := tx.UpdateImage(ctx, id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, "", nil)
+			err := tx.UpdateImage(ctx, id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, nil)
 			if err != nil {
 				return err
 			}
@@ -3570,7 +3570,7 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 			profileIDs = append(profileIDs, otherProfileIDs...)
 		}
 
-		return tx.UpdateImage(ctx, details.imageID, details.image.Filename, details.image.Size, req.Public, req.AutoUpdate, details.image.Architecture, details.image.CreatedAt, details.image.ExpiresAt, req.Properties, imageProject, profileIDs)
+		return tx.UpdateImage(ctx, details.imageID, details.image.Filename, details.image.Size, req.Public, req.AutoUpdate, details.image.Architecture, details.image.CreatedAt, details.image.ExpiresAt, req.Properties, profileIDs)
 	})
 	if err != nil {
 		if response.IsNotFoundError(err) {
@@ -3684,7 +3684,7 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return tx.UpdateImage(ctx, details.imageID, details.image.Filename, details.image.Size, details.image.Public, details.image.AutoUpdate, details.image.Architecture, details.image.CreatedAt, details.image.ExpiresAt, details.image.Properties, "", nil)
+		return tx.UpdateImage(ctx, details.imageID, details.image.Filename, details.image.Size, details.image.Public, details.image.AutoUpdate, details.image.Architecture, details.image.CreatedAt, details.image.ExpiresAt, details.image.Properties, nil)
 	})
 	if err != nil {
 		return response.SmartError(err)
