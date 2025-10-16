@@ -9,6 +9,8 @@ test_migration() {
     return
   fi
 
+  ensure_import_testimage
+
   LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   spawn_lxd "${LXD2_DIR}" true
   LXD2_ADDR=$(< "${LXD2_DIR}/lxd.addr")
@@ -97,7 +99,6 @@ migration() {
   lxd2_dir="$1"
   lxd_backend=$(storage_backend "$LXD_DIR")
   lxd2_backend=$(storage_backend "$lxd2_dir")
-  ensure_import_testimage
 
   lxc_remote init testimage nonlive
   # test moving snapshots
