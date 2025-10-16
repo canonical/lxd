@@ -1338,7 +1338,7 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 		}
 
 		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.ceph_rbd)
-		//
+		// RBD device path for Ceph disk devices.
 		// ---
 		//  type: string
 		//  shortdesc: RBD device path for Ceph disk devices
