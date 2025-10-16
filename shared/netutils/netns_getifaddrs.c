@@ -551,7 +551,7 @@ __unused static char *get_packet_address(struct sockaddr *sockaddr_ptr,
 		int ret;
 
 		ret = snprintf(slider, buflen, "%02x%s", m[i], (i + 1) < n ? ":" : "");
-		if (ret < 0 || (size_t)ret >= buflen) {
+		if ((ret < 0) || ((size_t)ret >= buflen)) {
 			return NULL;
 		}
 
