@@ -6215,6 +6215,26 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 		return nil
 	}
 
+	_, ok := changedConfig["security.shifted"]
+	if ok {
+		err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &curVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, _ []string) error {
+			inst, err := instance.Load(b.state, dbInst, project)
+			if err != nil {
+				return err
+			}
+
+			// Confirm that no running instances are using it when changing shifted state.
+			if inst.IsRunning() {
+				return errors.New("Cannot modify shifting with running instances using the volume")
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+
 	if len(changedConfig) != 0 {
 		// Forbid changing the config for ISO custom volumes as they are read-only.
 		if contentType == drivers.ContentTypeISO {
@@ -6222,12 +6242,14 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 		}
 
 		// Check that the volume's block.filesystem property isn't being changed.
-		if changedConfig["block.filesystem"] != "" {
+		_, ok := changedConfig["block.filesystem"]
+		if ok {
 			return errors.New(`Custom volume "block.filesystem" property cannot be changed`)
 		}
 
 		// Check that the volume's volatile.uuid property isn't being changed.
-		if changedConfig["volatile.uuid"] != "" {
+		_, ok = changedConfig["volatile.uuid"]
+		if ok {
 			return errors.New(`Custom volume "volatile.uuid" property cannot be changed`)
 		}
 
