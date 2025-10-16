@@ -1355,21 +1355,21 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 			return validate.IsAny, nil
 		}
 
-		// lxdmeta:generate(entities=network-physical; group=volatile; key=volatile.last_state.usb.bus)
+		// lxdmeta:generate(entities=network-physical; group=volatile; key=volatile.<name>.last_state.usb.bus)
 		//
 		// --
 		//  type: string
 		//  shortdesc: USB Bus Number
-		if strings.HasSuffix(key, ".bus") {
+		if strings.HasSuffix(key, ".last_state.usb.bus") {
 			return validate.IsAny, nil
 		}
 
-		// lxdmeta:generate(entities=network-physical; group=volatile; key=volatile.last_state.usb.device)
+		// lxdmeta:generate(entities=network-physical; group=volatile; key=volatile.<name>.last_state.usb.device)
 		//
 		// --
 		//  type: string
 		//  shortdesc: USB Device Number
-		if strings.HasSuffix(key, ".device") {
+		if strings.HasSuffix(key, ".last_state.usb.device") {
 			return validate.IsAny, nil
 		}
 
