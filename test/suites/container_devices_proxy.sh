@@ -14,6 +14,9 @@ test_container_devices_proxy() {
 }
 
 container_devices_proxy_validation() {
+  echo "====> Testing proxy validation"
+
+  # Setup
   HOST_TCP_PORT=$(local_tcp_port)
   lxc launch testimage proxyTester
 
