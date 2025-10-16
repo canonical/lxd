@@ -4496,9 +4496,6 @@ func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]i
 // addNetDevConfig adds the qemu config required for adding a network device.
 // The qemuDev map is expected to be preconfigured with the settings for an existing port to use for the device.
 func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootIndexes map[string]int, nicConfig []deviceConfig.RunConfigItem) (monitorHook, error) {
-	reverter := revert.New()
-	defer reverter.Fail()
-
 	var devName, nicName, devHwaddr, pciSlotName, pciIOMMUGroup, vDPADevName, vhostVDPAPath, maxVQP, mtu, name string
 	for _, nicItem := range nicConfig {
 		switch nicItem.Key {
@@ -4534,10 +4531,15 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 
 	qemuDev := make(map[string]any)
 
+	var busCleanup revert.Hook
+
 	// PCIe and PCI require a port device name to hotplug the NIC into.
 	if slices.Contains([]string{"pcie", "pci"}, busName) {
 		// Allocate a device port.
-		devBus, devAddr, multi, err := busAllocate(devName, false)
+		var devBus, devAddr string
+		var multi bool
+		var err error
+		busCleanup, devBus, devAddr, multi, err = busAllocate(devName, false)
 		if err != nil {
 			return nil, fmt.Errorf("Failed allocating bus for NIC device %q: %w", devName, err)
 		}
@@ -4584,6 +4586,10 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 		return func(m *qmp.Monitor) error {
 			reverter := revert.New()
 			defer reverter.Fail()
+
+			if busCleanup != nil {
+				reverter.Add(busCleanup)
+			}
 
 			cpus, err := m.QueryCPUs()
 			if err != nil {
@@ -4739,6 +4745,10 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 			reverter := revert.New()
 			defer reverter.Fail()
 
+			if busCleanup != nil {
+				reverter.Add(busCleanup)
+			}
+
 			vdpaDevFile, err := os.OpenFile(vhostVDPAPath, os.O_RDWR, 0)
 			if err != nil {
 				return fmt.Errorf("Error opening vDPA device file %q: %w", vdpaDevFile.Name(), err)
@@ -4791,35 +4801,43 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 			return nil
 		}
 	} else if pciSlotName != "" {
-		// Detect physical passthrough device.
-		if slices.Contains([]string{"pcie", "pci"}, busName) {
-			qemuDev["driver"] = "vfio-pci"
-		} else if busName == "ccw" {
-			qemuDev["driver"] = "vfio-ccw"
-		}
-
-		qemuDev["host"] = pciSlotName
-
-		if d.state.OS.UnprivUser != "" {
-			if pciIOMMUGroup == "" {
-				return nil, errors.New("No PCI IOMMU group supplied")
-			}
-
-			vfioGroupFile := "/dev/vfio/" + pciIOMMUGroup
-			err := os.Chown(vfioGroupFile, int(d.state.OS.UnprivUID), -1)
-			if err != nil {
-				return nil, fmt.Errorf("Failed to chown vfio group device %q: %w", vfioGroupFile, err)
-			}
-
-			reverter.Add(func() { _ = os.Chown(vfioGroupFile, 0, -1) })
-		}
-
 		monHook = func(m *qmp.Monitor) error {
+			reverter := revert.New()
+			defer reverter.Fail()
+
+			if busCleanup != nil {
+				reverter.Add(busCleanup)
+			}
+
+			// Detect physical passthrough device.
+			if slices.Contains([]string{"pcie", "pci"}, busName) {
+				qemuDev["driver"] = "vfio-pci"
+			} else if busName == "ccw" {
+				qemuDev["driver"] = "vfio-ccw"
+			}
+
+			qemuDev["host"] = pciSlotName
+
+			if d.state.OS.UnprivUser != "" {
+				if pciIOMMUGroup == "" {
+					return errors.New("No PCI IOMMU group supplied")
+				}
+
+				vfioGroupFile := "/dev/vfio/" + pciIOMMUGroup
+				err := os.Chown(vfioGroupFile, int(d.state.OS.UnprivUID), -1)
+				if err != nil {
+					return fmt.Errorf("Failed to chown vfio group device %q: %w", vfioGroupFile, err)
+				}
+
+				reverter.Add(func() { _ = os.Chown(vfioGroupFile, 0, -1) })
+			}
+
 			err := m.AddNIC(nil, qemuDev)
 			if err != nil {
 				return fmt.Errorf("Failed setting up device %q: %w", devName, err)
 			}
 
+			reverter.Success()
 			return nil
 		}
 	}
@@ -4828,7 +4846,6 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 		return nil, errors.New("Unrecognised device type")
 	}
 
-	reverter.Success()
 	return monHook, nil
 }
 
