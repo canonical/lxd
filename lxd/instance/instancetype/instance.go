@@ -1356,7 +1356,7 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 		}
 
 		// lxdmeta:generate(entities=network-physical; group=volatile; key=volatile.<name>.last_state.usb.bus)
-		//
+		// USB Bus Number.
 		// --
 		//  type: string
 		//  shortdesc: USB Bus Number
