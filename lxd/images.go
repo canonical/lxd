@@ -5195,3 +5195,32 @@ func createTokenResponse(s *state.State, r *http.Request, projectName string, fi
 
 	return operations.OperationResponse(op)
 }
+
+// getProfileIDsFromOtherProjects finds profile IDs from other projects that have names included in the given list of profile names.
+func getProfileIDsFromOtherProjects(ctx context.Context, tx *db.ClusterTx, currentProject string, profileNames []string) ([]int64, error) {
+	projects, err := dbCluster.GetProjectNames(ctx, tx.Tx())
+	if err != nil {
+		return nil, fmt.Errorf("Failed to load project names: %w", err)
+	}
+
+	profileIDs := make([]int64, 0)
+
+	for _, projectName := range projects {
+		if projectName == currentProject {
+			continue
+		}
+
+		profiles, err := dbCluster.GetProfiles(ctx, tx.Tx(), dbCluster.ProfileFilter{Project: &projectName})
+		if err != nil {
+			return nil, fmt.Errorf("Failed to load profiles for project %q: %w", projectName, err)
+		}
+
+		for _, profile := range profiles {
+			if slices.Contains(profileNames, profile.Name) {
+				profileIDs = append(profileIDs, int64(profile.ID))
+			}
+		}
+	}
+
+	return profileIDs, nil
+}
