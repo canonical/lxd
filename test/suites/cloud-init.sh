@@ -2,7 +2,7 @@ test_cloud_init() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  lxc init testimage c1
+  lxc init --empty c1
   ID1=$(lxc config get c1 volatile.cloud-init.instance-id)
   [ -n "${ID1}" ]
 
