@@ -32,6 +32,7 @@ Key                                                | Type   | Default           
 `driver.imagePullSecrets`                          | list   | `[]`                                                    | LXD CSI image pull secrets
 `driver.tokenSecretName`                           | string | `lxd-csi-secret`                                        | Name of the secret containing DevLXD bearer token in `token` field
 `driver.fsGroupPolicy`                             | string | `File`                                                  | Controls Kubernetes `fsGroup` behavior for the driver (`None`, `ReadWriteOnceWithFSType`, `File`)
+`driver.volumeNamePrefix`                          | string | `csi`                                                   | Prefix used for LXD volume names. Resulting volume name is in format `<prefix>-<uuid>`.
 `rbac.create`                                      | bool   | `true`                                                  | Create RBAC resources allowing LXD CSI access to relevant Kubernetes objects
 `controller.name`                                  | string | `lxd-csi-controller`                                    | Controller Deployment name
 `controller.replicas`                              | int    | `1`                                                     | Controller Deployment replicas. When deployed in multiple replicas, the preferred affinity is configured in an attempt to distribute Pods across multiple nodes.

@@ -75,6 +75,7 @@ Alongside the controller run the CSI controller sidecars, helper containers main
 
 - `external-provisioner`: watches PVCs and PVs and invokes volume creation or deletion.
 - `external-attacher`: watches VolumeAttachment objects and invokes volume attachment or detachment.
+- `livenessprobe`:  exposes an HTTP `/healthz` endpoint used by the Kubelet as a liveness probe to monitor the health of the CSI driver.
 
 Leader election ensures that only one replica of the controller sidecars is active at a time.
 
@@ -92,7 +93,7 @@ On every worker node, the [Kubelet &#8599;](https://kubernetes.io/docs/concepts/
 The CSI node service runs as a DaemonSet on every worker node and implements the node-side RPCs of the CSI specification.
 It bind-mounts volumes into Pods when requested and cleans up mount points when Pods are deleted.
 
-Supporting the node service are the node CSI sidecars, most notably the node-driver-registrar, which registers the plugin with Kubelet so that it can receive volume operations.
+Supporting the node service are the node CSI sidecars, most notably the `node-driver-registrar`, which registers the plugin with Kubelet so that it can receive volume operations.
 
 The node service also communicates with the local DevLXD API socket to determine which LXD cluster member the node is running on.
 This information is used to configure topology constraints, ensuring that the Kubernetes scheduler only places Pods on nodes that can access the required volumes, since local volumes created on one cluster member cannot be attached to another.
