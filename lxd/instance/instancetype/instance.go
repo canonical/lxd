@@ -1400,6 +1400,15 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 			return validate.IsBool, nil
 		}
 
+		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.bus)
+		// Persistent VM bus number.
+		// ---
+		//  type: integer
+		//  shortdesc: Persistent VM bus number
+		if strings.HasSuffix(key, ".bus") {
+			return validate.IsUint8, nil
+		}
+
 		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.devlxd.owner)
 		// ID of the DevLXD identity that owns the device. It is used by DevLXD to restrict
 		// access of an identity to devices that were created by that identity.
