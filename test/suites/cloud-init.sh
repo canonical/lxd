@@ -26,7 +26,7 @@ test_cloud_init() {
   ID6=$(lxc config get c1 volatile.cloud-init.instance-id)
   [ -n "${ID6}" ] && [ "${ID6}" != "${ID5}" ]
 
-  lxc delete -f c1 c2
+  lxc delete c1 c2
 
   lxc launch testimage devlxd
   lxc file push --quiet "$(command -v devlxd-client)" devlxd/bin/
