@@ -59,3 +59,14 @@ When you're ready to move your LXD setup to production, you should read up on th
 /explanation/security
 /explanation/bpf
 ```
+
+(explanation-csi)=
+## The LXD CSI driver
+
+The LXD CSI driver is an open source implementation of the Container Storage Interface (CSI) that integrates LXD storage backends with Kubernetes.
+
+```{toctree}
+:titlesonly:
+
+/explanation/csi
+```

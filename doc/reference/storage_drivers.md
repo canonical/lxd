@@ -5,24 +5,65 @@ relatedlinks: "[Benchmarking&#32;LXD&#32;storage&#32;drivers&#32;-&#32;YouTube](
 (storage-drivers)=
 # Storage drivers
 
-LXD supports the following storage drivers for storing images, instances and custom volumes:
+LXD supports several storage drivers for storing images, instances and custom volumes.
+
+Storage drivers are divided into subgroups based on their accessibility.
+See the corresponding pages for driver-specific information and configuration options.
+
+(storage-drivers-local)=
+## Local volumes
+
+A local volume resides on the storage pool of a single LXD server and is only accessible to instances running on that server.
+In a cluster, other members cannot access local volumes directly.
 
 ```{toctree}
 :maxdepth: 1
 
-storage_btrfs
-storage_cephfs
-storage_cephobject
-storage_ceph
-storage_powerflex
-storage_pure
-storage_alletra
 storage_dir
+storage_btrfs
 storage_lvm
 storage_zfs
 ```
 
-See the corresponding pages for driver-specific information and configuration options.
+(storage-drivers-remote)=
+## Remote volumes
+
+A remote volume is stored on a storage backend that supports cluster-wide access.
+These volumes can be attached or detached from any instance in the cluster, but they cannot be accessed concurrently by multiple instances.
+
+```{toctree}
+:maxdepth: 1
+
+storage_ceph
+storage_powerflex
+storage_pure
+storage_alletra
+```
+
+(storage-drivers-shared)=
+## Shared volumes
+
+A shared filesystem volume can be mounted concurrently by multiple instances, allowing them to read and write simultaneously.
+Like remote volumes, shared volumes are accessible cluster-wide.
+
+```{toctree}
+:maxdepth: 1
+
+storage_cephfs
+```
+
+(storage-drivers-objectonly)=
+## Object storage
+
+Object storage provides access to data over HTTP(S).
+It stores data as discrete objects within buckets, making it ideal for unstructured data such as backups, images, and logs.
+Unlike volumes, object storage is not mounted to instances but accessed through APIs.
+
+```{toctree}
+:maxdepth: 1
+
+storage_cephobject
+```
 
 (storage-drivers-features)=
 ## Feature comparison
