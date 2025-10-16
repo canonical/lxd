@@ -181,11 +181,10 @@ static int nl_msg_to_ifaddr(void *pctx, bool *netnsid_aware, struct nlmsghdr *h)
 	if (h->nlmsg_type == RTM_NEWLINK) {
 		for (rta = __NLMSG_RTA(h, sizeof(*ifi)); __NLMSG_RTAOK(rta, h);
 		     rta = __RTA_NEXT(rta)) {
-			if (rta->rta_type != IFLA_STATS64)
-				continue;
-
-			stats_len = __RTA_DATALEN(rta);
-			break;
+			if (rta->rta_type == IFLA_STATS64) {
+				stats_len = __RTA_DATALEN(rta);
+				break;
+			}
 		}
 	} else {
 		for (ifs0 = ctx->hash[ifa->ifa_index % IFADDRS_HASH_SIZE]; ifs0;
