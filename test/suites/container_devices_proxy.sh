@@ -1,6 +1,5 @@
 test_container_devices_proxy() {
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   container_devices_proxy_validation
   container_devices_proxy_tcp
