@@ -1346,7 +1346,12 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 			return validate.IsAny, nil
 		}
 
-		if strings.HasSuffix(key, ".driver") {
+		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.last_state.pci.driver)
+		//
+		// --
+		//  type: string
+		//  shortdesc: Name of driver device was using on host
+		if strings.HasSuffix(key, ".last_state.pci.driver") {
 			return validate.IsAny, nil
 		}
 
