@@ -2256,19 +2256,22 @@ func (d *qemu) getPCISlotCount() (pciSlots uint8, err error) {
 }
 
 // busAllocatePCIeHotplug provides a busAllocator implementation for hotplugging PCIe devices.
-func (d *qemu) busAllocatePCIeHotplug(deviceName string, _ bool) (busName string, busAddress string, multifunction bool, err error) {
+func (d *qemu) busAllocatePCIeHotplug(deviceName string, _ bool) (cleanup revert.Hook, busName string, busAddress string, multifunction bool, err error) {
 	if d.localConfig["volatile.bus.mode"] != qemuBusModePersistent {
 		return d.busAllocatePCIeHotplugLegacy(deviceName, false)
 	}
 
+	reverter := revert.New()
+	defer reverter.Fail()
+
 	// Get current PCI slot count from QEMU.
 	pciSlotCount, err := d.getPCISlotCount()
 	if err != nil {
-		return "", "", false, fmt.Errorf("Failed to get PCI slot count: %w", err)
+		return nil, "", "", false, fmt.Errorf("Failed to get PCI slot count: %w", err)
 	}
 
 	if pciSlotCount == 0 {
-		return "", "", false, errors.New("No PCIe slots available for hotplugging")
+		return nil, "", "", false, errors.New("No PCIe slots available for hotplugging")
 	}
 
 	firstFunctionAddress := "00.0" // The address of the first function on the port.
@@ -2284,7 +2287,7 @@ func (d *qemu) busAllocatePCIeHotplug(deviceName string, _ bool) (busName string
 
 		busNum, err := strconv.ParseUint(busNumStr, 10, 8)
 		if err != nil {
-			return "", "", false, fmt.Errorf("Failed parsing volatile key %q: %w", deviceVolatileKey, err)
+			return nil, "", "", false, fmt.Errorf("Failed parsing volatile key %q: %w", deviceVolatileKey, err)
 		}
 
 		// Re-use existing PCIe port if its currently assigned to the device.
@@ -2293,7 +2296,9 @@ func (d *qemu) busAllocatePCIeHotplug(deviceName string, _ bool) (busName string
 			busName = busDevicePortPrefix + busNumStr
 			d.logger.Debug("Hotplugging device into bus (reuse)", logger.Ctx{"device": deviceName, "busType": "pcie", "bus": busName})
 
-			return busName, firstFunctionAddress, false, nil
+			cleanup := reverter.Clone().Fail
+			reverter.Success()
+			return cleanup, busName, firstFunctionAddress, false, nil
 		}
 
 		if busNum > 0 {
@@ -2313,21 +2318,23 @@ func (d *qemu) busAllocatePCIeHotplug(deviceName string, _ bool) (busName string
 		deviceVolatileKey := "volatile." + deviceName + busDeviceVolatileSuffix
 		err = d.VolatileSet(map[string]string{deviceVolatileKey: busNum})
 		if err != nil {
-			return "", "", false, fmt.Errorf("Failed setting volatile keys: %w", err)
+			return nil, "", "", false, fmt.Errorf("Failed setting volatile keys: %w", err)
 		}
 
 		busName = busDevicePortPrefix + busNum
 		d.logger.Debug("Hotplugging device into bus", logger.Ctx{"device": deviceName, "busType": "pcie", "bus": busName})
 
-		return busName, firstFunctionAddress, false, nil
+		cleanup := reverter.Clone().Fail
+		reverter.Success()
+		return cleanup, busName, firstFunctionAddress, false, nil
 	}
 
-	return "", "", false, errors.New("No unused PCIe ports available for hotplugging")
+	return nil, "", "", false, errors.New("No unused PCIe ports available for hotplugging")
 }
 
 // busAllocatePCIeHotplugLegacy provides a busAllocator implementation for hotplugging PCIe devices using the
 // legacy sorted device ordering method.
-func (d *qemu) busAllocatePCIeHotplugLegacy(deviceName string, _ bool) (busName string, busAddress string, multifunction bool, err error) {
+func (d *qemu) busAllocatePCIeHotplugLegacy(deviceName string, _ bool) (cleanup revert.Hook, busName string, busAddress string, multifunction bool, err error) {
 	pciDevID := qemuPCIDeviceIDStart
 
 	// Iterate through all the instance devices in the same sorted order as is used when allocating the
@@ -2346,7 +2353,7 @@ func (d *qemu) busAllocatePCIeHotplugLegacy(deviceName string, _ bool) (busName 
 
 	d.logger.Debug("Hotplugging device into bus (legacy)", logger.Ctx{"device": deviceName, "busType": "pcie", "bus": busName})
 
-	return busName, busAddress, false, nil
+	return nil, busName, busAddress, false, nil
 }
 
 func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) {
