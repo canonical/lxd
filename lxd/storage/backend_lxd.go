@@ -111,6 +111,46 @@ func (b *lxdBackend) ValidateName(value string) error {
 	return nil
 }
 
+func (b *lxdBackend) ValidateSource(source string) error {
+	var poolNodeConfig map[int64]map[string]map[string]string
+
+	err := b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		stateCreated := db.StoragePoolCreated
+		pools, _, err := tx.GetStoragePools(ctx, &stateCreated)
+		if err != nil {
+			return fmt.Errorf("Failed loading storage pools: %w", err)
+		}
+
+		for poolID, pool := range pools {
+			nodeConfig, err := tx.GetStoragePoolNodeConfigs(ctx, poolID)
+			if err != nil {
+				return fmt.Errorf("Failed loading config for storage pool %q: %w", pool.Name, err)
+			}
+
+			poolNodeConfig[poolID] = nodeConfig
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	if source != "" {
+		for _, nodeConfig := range poolNodeConfig {
+			for node, config := range nodeConfig {
+				if config["source"] == source && b.state.ServerName == node {
+					return fmt.Errorf("Cannot use source %q for pool %q as it's already in use on %q", source, b.name, node)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // Validate storage pool config.
 func (b *lxdBackend) Validate(config map[string]string) error {
 	return b.Driver().Validate(config)
@@ -168,6 +208,49 @@ func (b *lxdBackend) MigrationTypes(contentType drivers.ContentType, refresh boo
 	return b.driver.MigrationTypes(contentType, refresh, copySnapshots)
 }
 
+// isValidPool checks if the present pool doesn't violate existing pools and fulfills all the criteria.
+func (b *lxdBackend) isValidPool() error {
+	var poolNodeConfig map[int64]map[string]map[string]string
+
+	err := b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		stateCreated := db.StoragePoolCreated
+		pools, _, err := tx.GetStoragePools(ctx, &stateCreated)
+		if err != nil {
+			return fmt.Errorf("Failed loading storage pools: %w", err)
+		}
+
+		for poolID, pool := range pools {
+			nodeConfig, err := tx.GetStoragePoolNodeConfigs(ctx, poolID)
+			if err != nil {
+				return fmt.Errorf("Failed loading config for storage pool %q: %w", pool.Name, err)
+			}
+
+			poolNodeConfig[poolID] = nodeConfig
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	poolSource := b.db.Config["source"]
+
+	if poolSource != "" && !b.driver.Info().Remote {
+		for _, nodeConfig := range poolNodeConfig {
+			for node, config := range nodeConfig {
+				if config["source"] == poolSource {
+					return fmt.Errorf("Cannot use source %q for pool %q as it's already in use on %q", poolSource, b.name, node)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // Create creates the storage pool layout on the storage device.
 // localOnly is used for clustering where only a single node should do remote storage setup.
 func (b *lxdBackend) Create(clientType request.ClientType, op *operations.Operation) error {
@@ -192,17 +275,21 @@ func (b *lxdBackend) Create(clientType request.ClientType, op *operations.Operat
 
 	path := drivers.GetPoolMountPath(b.name)
 
+	reuseSource := shared.IsTrue(b.db.Config["source.reuse"])
+
 	if shared.IsDir(path) {
-		return fmt.Errorf("Storage pool directory %q already exists", path)
-	}
+		if !reuseSource {
+			return fmt.Errorf("Storage pool directory %q already exists", path)
+		}
+	} else {
+		// Create the storage path.
+		err = os.MkdirAll(path, 0711)
+		if err != nil {
+			return fmt.Errorf("Failed to create storage pool directory %q: %w", path, err)
+		}
 
-	// Create the storage path.
-	err = os.MkdirAll(path, 0711)
-	if err != nil {
-		return fmt.Errorf("Failed to create storage pool directory %q: %w", path, err)
+		revert.Add(func() { _ = os.RemoveAll(path) })
 	}
-
-	revert.Add(func() { _ = os.RemoveAll(path) })
 
 	if b.driver.Info().Remote && clientType != request.ClientTypeNormal {
 		if !b.driver.Info().MountedRoot {
@@ -218,30 +305,49 @@ func (b *lxdBackend) Create(clientType request.ClientType, op *operations.Operat
 		return nil
 	}
 
-	// Create the storage pool on the storage device.
-	err = b.driver.Create()
-	if err != nil {
-		return err
+	poolExists := false
+
+	// Check if we can already mount the pool before we have created it.
+	// This is an indicator to check whether the pool already exists on storage.
+	// If it doesn't, then try to create it and perform the mount a second time.
+	if reuseSource {
+		ourMount, err := b.driver.Mount()
+		if err == nil {
+			poolExists = true
+		}
+
+		// Unmount the pool if we have mounted it as part of probing for its existence.
+		if ourMount {
+			defer func() { _, _ = b.driver.Unmount() }()
+		}
 	}
 
-	revert.Add(func() { _ = b.driver.Delete(op) })
+	if !poolExists {
+		// Create the storage pool on the storage device.
+		err = b.driver.Create()
+		if err != nil {
+			return err
+		}
 
-	// Mount the storage pool.
-	ourMount, err := b.driver.Mount()
-	if err != nil {
-		return err
-	}
+		revert.Add(func() { _ = b.driver.Delete(op) })
 
-	// We expect the caller of create to mount the pool if needed, so we should unmount after
-	// storage struct has been created.
-	if ourMount {
-		defer func() { _, _ = b.driver.Unmount() }()
-	}
+		// Mount the storage pool.
+		ourMount, err := b.driver.Mount()
+		if err != nil {
+			return err
+		}
 
-	// Create the directory structure.
-	err = b.createStorageStructure(path)
-	if err != nil {
-		return err
+		// We expect the caller of create to mount the pool if needed, so we should unmount after
+		// storage struct has been created.
+		if ourMount {
+			defer func() { _, _ = b.driver.Unmount() }()
+		}
+
+		// Create the directory structure.
+		err = b.createStorageStructure(path)
+		if err != nil {
+			return err
+		}
 	}
 
 	revert.Success()
