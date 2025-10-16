@@ -1,4 +1,6 @@
 test_container_devices_unix() {
+  ensure_import_testimage
+
   lxdFSMonitorDriver=${LXD_FSMONITOR_DRIVER:-}
 
   shutdown_lxd "${LXD_DIR}"
@@ -38,7 +40,6 @@ _container_devices_unix() {
     false
   fi
 
-  ensure_import_testimage
   ctName="ct$$"
   lxc launch testimage "${ctName}"
 
