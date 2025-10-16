@@ -112,6 +112,7 @@ EOF
 
   # Check if the volume's UUID can be modified
   ! lxc storage volume set "$storage_pool" "$storage_volume" volatile.uuid "2d94c537-5eff-4751-95b1-6a1b7d11f849" || false
+  ! lxc storage volume unset "$storage_pool" "$storage_volume" volatile.uuid || false
 
   lxc storage volume delete "$storage_pool" "$storage_volume"
 
