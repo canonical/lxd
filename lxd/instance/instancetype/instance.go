@@ -1291,10 +1291,10 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.last_state.created)
 		// Possible values are `true` or `false`.
 		// ---
-		//  type: string
+		//  type: bool
 		//  shortdesc: Whether the network device physical device was created
 		if strings.HasSuffix(key, ".created") {
-			return validate.IsAny, nil
+			return validate.Optional(validate.IsBool), nil
 		}
 
 		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.last_state.vf.id)
