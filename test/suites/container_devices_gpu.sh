@@ -22,8 +22,8 @@ test_container_devices_gpu() {
   startDevCount=$(find "${LXD_DIR}"/devices/"${ctName}" -type c | wc -l)
   lxc config device add "${ctName}" gpu-basic gpu mode=0600 id=0
   lxc exec "${ctName}" -- mount | grep "/dev/dri/card0"
-  lxc exec "${ctName}" -- stat -c '%a' /dev/dri/card0 | grep 600
-  stat -c '%a' "${LXD_DIR}"/devices/"${ctName}"/unix.gpu--basic.dev-dri-card0 | grep 600
+  [ "$(lxc exec "${ctName}" -- stat -c '%a' /dev/dri/card0)" = "600" ]
+  [ "$(stat -c '%a' "${LXD_DIR}"/devices/"${ctName}"/unix.gpu--basic.dev-dri-card0)" = "600" ]
   lxc config device remove "${ctName}" gpu-basic
   endMountCount=$(lxc exec "${ctName}" -- mount | wc -l)
   endDevCount=$(find "${LXD_DIR}"/devices/"${ctName}" -type c | wc -l)
@@ -43,7 +43,7 @@ test_container_devices_gpu() {
 
   # Check default create mode is 0660.
   lxc config device add "${ctName}" gpu-default gpu
-  lxc exec "${ctName}" -- stat -c '%a' /dev/dri/card0 | grep 660
+  [ "$(lxc exec "${ctName}" -- stat -c '%a' /dev/dri/card0)" = "660" ]
   lxc config device remove "${ctName}" gpu-default
 
   # Check if nvidia GPU exists.
@@ -64,19 +64,19 @@ test_container_devices_gpu() {
   lxc config device add "${ctName}" gpu-nvidia gpu mode=0600
 
   lxc exec "${ctName}" -- mount | grep /dev/nvidia0
-  stat -c '%a' "${LXD_DIR}"/devices/"${ctName}"/unix.gpu--nvidia.dev-dri-card0 | grep 600
+  [ "$(stat -c '%a' "${LXD_DIR}"/devices/"${ctName}"/unix.gpu--nvidia.dev-dri-card0)" = "600" ]
 
   lxc exec "${ctName}" -- mount | grep /dev/nvidia-modeset
-  stat -c '%a' "${LXD_DIR}"/devices/"${ctName}"/unix.gpu--nvidia.dev-nvidia--modeset | grep 600
+  [ "$(stat -c '%a' "${LXD_DIR}"/devices/"${ctName}"/unix.gpu--nvidia.dev-nvidia--modeset)" = "600" ]
 
   lxc exec "${ctName}" -- mount | grep /dev/nvidia-uvm
-  stat -c '%a' "${LXD_DIR}"/devices/"${ctName}"/unix.gpu--nvidia.dev-nvidia--uvm | grep 600
+  [ "$(stat -c '%a' "${LXD_DIR}"/devices/"${ctName}"/unix.gpu--nvidia.dev-nvidia--uvm)" = "600" ]
 
   lxc exec "${ctName}" -- mount | grep /dev/nvidia-uvm-tools
-  stat -c '%a' "${LXD_DIR}"/devices/"${ctName}"/unix.gpu--nvidia.dev-nvidia--uvm--tools | grep 600
+  [ "$(stat -c '%a' "${LXD_DIR}"/devices/"${ctName}"/unix.gpu--nvidia.dev-nvidia--uvm--tools)" = "600" ]
 
   lxc exec "${ctName}" -- mount | grep /dev/nvidiactl
-  stat -c '%a' "${LXD_DIR}"/devices/"${ctName}"/unix.gpu--nvidia.dev-nvidiactl | grep 600
+  [ "$(stat -c '%a' "${LXD_DIR}"/devices/"${ctName}"/unix.gpu--nvidia.dev-nvidiactl)" = "600" ]
 
   lxc config device remove "${ctName}" gpu-nvidia
 
