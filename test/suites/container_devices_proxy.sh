@@ -1,4 +1,7 @@
 test_container_devices_proxy() {
+  ensure_import_testimage
+  ensure_has_localhost_remote "${LXD_ADDR}"
+
   container_devices_proxy_validation
   container_devices_proxy_tcp
   container_devices_proxy_tcp_unix
@@ -11,8 +14,6 @@ test_container_devices_proxy() {
 }
 
 container_devices_proxy_validation() {
-  ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
   HOST_TCP_PORT=$(local_tcp_port)
   lxc launch testimage proxyTester
 
@@ -61,8 +62,6 @@ container_devices_proxy_validation() {
 
 container_devices_proxy_tcp() {
   echo "====> Testing tcp proxying"
-  ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Setup
   MESSAGE="Proxy device test string: tcp"
@@ -289,8 +288,6 @@ container_devices_proxy_tcp() {
 
 container_devices_proxy_unix() {
   echo "====> Testing unix proxying"
-  ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Setup
   MESSAGE="Proxy device test string: unix"
@@ -382,8 +379,6 @@ container_devices_proxy_unix() {
 
 container_devices_proxy_tcp_unix() {
   echo "====> Testing tcp to unix proxying"
-  ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Setup
   MESSAGE="Proxy device test string: tcp -> unix"
@@ -461,8 +456,6 @@ container_devices_proxy_tcp_unix() {
 
 container_devices_proxy_unix_tcp() {
   echo "====> Testing unix to tcp proxying"
-  ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Setup
   MESSAGE="Proxy device test string: unix -> tcp"
@@ -529,8 +522,6 @@ container_devices_proxy_unix_tcp() {
 
 container_devices_proxy_udp() {
   echo "====> Testing udp proxying"
-  ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Setup
   MESSAGE="Proxy device test string: udp"
@@ -591,8 +582,6 @@ container_devices_proxy_udp() {
 
 container_devices_proxy_unix_udp() {
   echo "====> Testing unix to udp proxying"
-  ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Setup
   MESSAGE="Proxy device test string: unix -> udp"
@@ -659,8 +648,6 @@ container_devices_proxy_unix_udp() {
 
 container_devices_proxy_tcp_udp() {
   echo "====> Testing tcp to udp proxying"
-  ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Setup
   MESSAGE="Proxy device test string: tcp -> udp"
@@ -721,8 +708,6 @@ container_devices_proxy_tcp_udp() {
 
 container_devices_proxy_with_overlapping_forward_net() {
   echo "====> Testing proxy creation with overlapping network forward"
-  ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   netName="testnet"
 
