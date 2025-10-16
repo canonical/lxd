@@ -466,6 +466,7 @@ var APIExtensions = []string{
 	"projects_force_delete",
 	"auth_oidc_sessions",
 	"instance_snapshots_multi_volume",
+	"vm_persistent_bus",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
