@@ -188,11 +188,15 @@ static int nl_msg_to_ifaddr(void *pctx, bool *netnsid_aware, struct nlmsghdr *h)
 		}
 	} else {
 		for (ifs0 = ctx->hash[ifa->ifa_index % IFADDRS_HASH_SIZE]; ifs0;
-		     ifs0 = ifs0->hash_next)
-			if (ifs0->index == ifa->ifa_index)
+		     ifs0 = ifs0->hash_next) {
+			if (ifs0->index == ifa->ifa_index) {
 				break;
-		if (!ifs0)
+			}
+		}
+
+		if (!ifs0) {
 			return 0;
+		}
 	}
 
 	ifs = calloc(1, sizeof(struct ifaddrs_storage) + stats_len);
@@ -239,10 +243,11 @@ static int nl_msg_to_ifaddr(void *pctx, bool *netnsid_aware, struct nlmsghdr *h)
 				*netnsid_aware = true;
 				break;
 			case IFLA_LINK:
-				if (__RTA_DATALEN(rta))
+				if (__RTA_DATALEN(rta)) {
 					memcpy(&ifs->ifa.ifa_ifindex_peer,
 						__RTA_DATA(rta),
 						__RTA_DATALEN(rta));
+					}
 				break;
 			}
 		}
@@ -265,18 +270,19 @@ static int nl_msg_to_ifaddr(void *pctx, bool *netnsid_aware, struct nlmsghdr *h)
 				// If ifa_addr is already set we, received an
 				// IFA_LOCAL before so treat this as destination
 				// address.
-				if (ifs->ifa.ifa_addr)
+				if (ifs->ifa.ifa_addr) {
 					copy_addr(&ifs->ifa.__ifa_dstaddr,
 						  ifa->ifa_family, &ifs->ifu,
 						  __RTA_DATA(rta),
 						  __RTA_DATALEN(rta),
 						  ifa->ifa_index);
-				else
+				} else {
 					copy_addr(&ifs->ifa.ifa_addr,
 						  ifa->ifa_family, &ifs->addr,
 						  __RTA_DATA(rta),
 						  __RTA_DATALEN(rta),
 						  ifa->ifa_index);
+					}
 				break;
 			case IFA_BROADCAST:
 				copy_addr(&ifs->ifa.__ifa_broadaddr,
@@ -320,11 +326,13 @@ static int nl_msg_to_ifaddr(void *pctx, bool *netnsid_aware, struct nlmsghdr *h)
 	}
 
 	if (ifs->ifa.ifa_name) {
-		if (!ctx->first)
+		if (!ctx->first) {
 			ctx->first = ifs;
+		}
 
-		if (ctx->last)
+		if (ctx->last) {
 			ctx->last->ifa.ifa_next = &ifs->ifa;
+		}
 
 		ctx->last = ifs;
 	} else {
@@ -392,22 +400,26 @@ static int __netlink_recv(int fd, unsigned int seq, int type, int af,
 	hdr->nlmsg_pid = 0;
 	hdr->nlmsg_seq = seq;
 
-	if (netns_id >= 0)
+	if (netns_id >= 0) {
 		addattr(hdr, 1024, property, &netns_id, sizeof(netns_id));
+	}
 
 	r = __netlink_send(fd, hdr);
-	if (r < 0)
+	if (r < 0) {
 		return -1;
+	}
 
 	for (;;) {
 		r = recv(fd, u.buf, sizeof(u.buf), MSG_DONTWAIT);
-		if (r <= 0)
+		if (r <= 0) {
 			return -1;
+		}
 
 		for (hdr = &u.reply; __NLMSG_OK(hdr, (void *)&u.buf[r]);
 		     hdr = __NLMSG_NEXT(hdr)) {
-			if (hdr->nlmsg_type == NLMSG_DONE)
+			if (hdr->nlmsg_type == NLMSG_DONE) {
 				return 0;
+			}
 
 			if (hdr->nlmsg_type == NLMSG_ERROR) {
 				errno = EINVAL;
@@ -415,8 +427,9 @@ static int __netlink_recv(int fd, unsigned int seq, int type, int af,
 			}
 
 			ret = cb(ctx, netnsid_aware, hdr);
-			if (ret)
+			if (ret) {
 				return ret;
+			}
 		}
 	}
 }
@@ -430,8 +443,9 @@ static int __rtnl_enumerate(int link_af, int addr_af, __s32 netns_id,
 	bool getaddr_netnsid_aware = false, getlink_netnsid_aware = false;
 
 	fd = socket(PF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, NETLINK_ROUTE);
-	if (fd < 0)
+	if (fd < 0) {
 		return -1;
+	}
 
 	r = setsockopt(fd, SOL_NETLINK, NETLINK_GET_STRICT_CHK, &(int){1},
 		       sizeof(int));
@@ -451,10 +465,11 @@ static int __rtnl_enumerate(int link_af, int addr_af, __s32 netns_id,
 	close(fd);
 	errno = saved_errno;
 
-	if (getaddr_netnsid_aware && getlink_netnsid_aware)
+	if (getaddr_netnsid_aware && getlink_netnsid_aware) {
 		*netnsid_aware = true;
-	else
+	} else {
 		*netnsid_aware = false;
+	}
 
 	return r;
 }
@@ -471,10 +486,11 @@ __unused static int netns_getifaddrs(struct netns_ifaddrs **ifap,
 	r = __rtnl_enumerate(AF_UNSPEC, AF_UNSPEC, netns_id, netnsid_aware,
 			     nl_msg_to_ifaddr, ctx);
 	saved_errno = errno;
-	if (r < 0)
+	if (r < 0) {
 		netns_freeifaddrs(&ctx->first->ifa);
-	else
+	} else {
 		*ifap = &ctx->first->ifa;
+	}
 	errno = saved_errno;
 
 	return r;
@@ -483,11 +499,13 @@ __unused static int netns_getifaddrs(struct netns_ifaddrs **ifap,
 // Get a pointer to the address structure from a sockaddr.
 __unused static void *get_addr_ptr(struct sockaddr *sockaddr_ptr)
 {
-	if (sockaddr_ptr->sa_family == AF_INET)
+	if (sockaddr_ptr->sa_family == AF_INET) {
 		return &((struct sockaddr_in *)sockaddr_ptr)->sin_addr;
+	}
 
-	if (sockaddr_ptr->sa_family == AF_INET6)
+	if (sockaddr_ptr->sa_family == AF_INET6) {
 		return &((struct sockaddr_in6 *)sockaddr_ptr)->sin6_addr;
+	}
 
 	return NULL;
 }
@@ -503,8 +521,9 @@ __unused static char *get_packet_address(struct sockaddr *sockaddr_ptr,
 		int ret;
 
 		ret = snprintf(slider, buflen, "%02x%s", m[i], (i + 1) < n ? ":" : "");
-		if (ret < 0 || (size_t)ret >= buflen)
+		if (ret < 0 || (size_t)ret >= buflen) {
 			return NULL;
+		}
 
 		buflen -= ret;
 		slider = (slider + ret);
