@@ -131,6 +131,10 @@ func (d *btrfs) FillConfig() error {
 
 	// Store the provided source as we are likely to be mangling it.
 	d.config["volatile.initial_source"] = d.config["source"]
+	if d.config["volatile.initial_source"] == "" || d.config["volatile.initial_source"] == loopPath {
+		// Create a loop based pool.
+		d.config["source"] = loopPath
+	}
 
 	// Set the block device's UUID in case it already has one.
 	// This allows to recover the pools configuration without actually
@@ -160,9 +164,6 @@ func (d *btrfs) Create() error {
 
 	loopPath := loopFilePath(d.name)
 	if d.config["volatile.initial_source"] == "" || d.config["volatile.initial_source"] == loopPath {
-		// Create a loop based pool.
-		d.config["source"] = loopPath
-
 		// Create the loop file itself.
 		size, err := units.ParseByteSizeString(d.config["size"])
 		if err != nil {
