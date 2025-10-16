@@ -175,7 +175,7 @@ static void gen_netmask(struct sockaddr **r, int af, union sockany *sa,
 
 	i = prefixlen / 8;
 
-	memset(addr, 0xff, i);
+	memset(addr, 0xff, (size_t)i);
 
 	if ((size_t)i < sizeof(addr))
 		addr[i++] = 0xff << (8 - (prefixlen % 8));
