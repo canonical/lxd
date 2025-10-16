@@ -2271,28 +2271,29 @@ func (d *qemu) busAllocatePCIeHotplug(deviceName string, _ bool) (busName string
 		return "", "", false, errors.New("No PCIe slots available for hotplugging")
 	}
 
-	deviceVolatileKey := "volatile." + deviceName + busDeviceVolatileSuffix
 	firstFunctionAddress := "00.0" // The address of the first function on the port.
 
 	// Identify used PCIe slots based on device volatile keys.
 	usedSlots := make(map[uint8]struct{})
-	for k, v := range d.localConfig {
-		if !strings.HasPrefix(k, "volatile.") || !strings.HasSuffix(k, busDeviceVolatileSuffix) {
-			continue
+	for eDevName := range d.expandedDevices {
+		deviceVolatileKey := "volatile." + eDevName + busDeviceVolatileSuffix
+		busNumStr := d.localConfig[deviceVolatileKey]
+		if busNumStr == "" {
+			continue // Skip devices without existing persistent bus number.
+		}
+
+		busNum, err := strconv.ParseUint(busNumStr, 10, 8)
+		if err != nil {
+			return "", "", false, fmt.Errorf("Failed parsing volatile key %q: %w", deviceVolatileKey, err)
 		}
 
 		// Re-use existing PCIe port if its currently assigned to the device.
 		// This occurs when an existing device's settings are changed and the device is hotplugged again.
-		if k == deviceVolatileKey {
-			busName = busDevicePortPrefix + v
+		if eDevName == deviceName {
+			busName = busDevicePortPrefix + busNumStr
 			d.logger.Debug("Hotplugging device into bus (reuse)", logger.Ctx{"device": deviceName, "busType": "pcie", "bus": busName})
 
 			return busName, firstFunctionAddress, false, nil
-		}
-
-		busNum, err := strconv.ParseUint(v, 10, 8)
-		if err != nil {
-			return "", "", false, fmt.Errorf("Failed parsing volatile key %q: %w", k, err)
 		}
 
 		if busNum > 0 {
@@ -2309,6 +2310,7 @@ func (d *qemu) busAllocatePCIeHotplug(deviceName string, _ bool) (busName string
 		}
 
 		busNum := strconv.FormatUint(uint64(i), 10)
+		deviceVolatileKey := "volatile." + deviceName + busDeviceVolatileSuffix
 		err = d.VolatileSet(map[string]string{deviceVolatileKey: busNum})
 		if err != nil {
 			return "", "", false, fmt.Errorf("Failed setting volatile keys: %w", err)
