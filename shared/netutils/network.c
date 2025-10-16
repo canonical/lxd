@@ -1,3 +1,34 @@
+/*------------------------------------------------------------------------------
+|
+|                                   C Module
+|
+|-------------------------------------------------------------------------------
+|
+| Filename   : network.c
+| Description: Low-level netlink socket utilities for network operations
+|              Provides helper macros and functions for netlink socket
+|              communication, including netlink socket creation and lifecycle
+|              management, sending and receiving netlink messages, rtnetlink
+|              attribute parsing, and namespace ID resolution. Implements
+|              core netlink protocol handling for querying and managing
+|              network namespaces and their associated network interfaces.
+|
+| Copyright  : Copyright (C) Canonical Ltd.
+|
+| This program is free software: you can redistribute it and/or modify
+| it under the terms of the GNU Affero General Public License as
+| published by the Free Software Foundation, either version 3 of the
+| License, or (at your option) any later version.
+|
+| This program is distributed in the hope that it will be useful,
+| but WITHOUT ANY WARRANTY; without even the implied warranty of
+| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+| GNU Affero General Public License for more details.
+|
+| You should have received a copy of the GNU Affero General Public License
+| along with this program.  If not, see <https://www.gnu.org/licenses/>.
+|-------------------------------------------------------------------------------
+*/
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE 1

@@ -1,3 +1,35 @@
+/*------------------------------------------------------------------------------
+|
+|                                   C Module
+|
+|-------------------------------------------------------------------------------
+|
+| Filename   : unixfd.c
+| Description: Unix domain socket file descriptor passing utilities
+|              Provides functions for sending and receiving file descriptors
+|              over Unix domain sockets using ancillary data (control messages).
+|              Implements flexible file descriptor exchange with support for
+|              variable descriptor counts, message validation, and error
+|              handling for mismatched descriptor expectations. Enables
+|              inter-process communication of file descriptors between
+|              processes over abstract namespace sockets.
+|
+| Copyright  : Copyright (C) Canonical Ltd.
+|
+| This program is free software: you can redistribute it and/or modify
+| it under the terms of the GNU Affero General Public License as
+| published by the Free Software Foundation, either version 3 of the
+| License, or (at your option) any later version.
+|
+| This program is distributed in the hope that it will be useful,
+| but WITHOUT ANY WARRANTY; without even the implied warranty of
+| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+| GNU Affero General Public License for more details.
+|
+| You should have received a copy of the GNU Affero General Public License
+| along with this program.  If not, see <https://www.gnu.org/licenses/>.
+|-------------------------------------------------------------------------------
+*/
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE 1
