@@ -29,7 +29,7 @@ runs:
           /home/runner/go/bin/liblxc
         key: ${{ steps.deps-cache-key.outputs.KEY }}
         restore-keys: |
-          - ${{ steps.deps-cache-key.outputs.FALLBACK_KEY }}
+          ${{ steps.deps-cache-key.outputs.FALLBACK_KEY }}
 
     - name: Build LXD dependencies
       if: ${{ steps.cache-deps.outputs.cache-hit != 'true' }}
