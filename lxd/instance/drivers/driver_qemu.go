@@ -3688,7 +3688,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 	// busAllocate allocates the next slot and records it into pending volatile for PCIe devices if needed.
 	// This function should be called in the correct order to maintain a device's persistent bus order.
-	busAllocate := func(deviceName string, enableMultifunction bool) (busName string, busAddress string, multifunction bool, err error) {
+	busAllocate := func(deviceName string, enableMultifunction bool) (cleanup revert.Hook, busName string, busAddress string, multifunction bool, err error) {
 		multifunctionGroup := busFunctionGroupNone
 		if enableMultifunction {
 			multifunctionGroup = "lxd_" + deviceName
@@ -3713,7 +3713,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 			}
 		}
 
-		return busName, busAddress, multifunction, nil
+		return nil, busName, busAddress, multifunction, nil
 	}
 
 	// Sort run configs by bus order (putting devices with no bus order after those with a bus order whilst
