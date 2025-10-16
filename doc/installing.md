@@ -219,6 +219,7 @@ sudo apt install \
     libtool \
     libudev-dev \
     libuv1-dev \
+    xfslibs-dev \
     make \
     meson \
     ninja-build \
