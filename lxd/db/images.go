@@ -584,7 +584,9 @@ func (c *ClusterTx) UnsetImageCached(ctx context.Context, projectName string, fi
 }
 
 // UpdateImage updates the image with the given ID.
-func (c *ClusterTx) UpdateImage(ctx context.Context, id int, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string, project string, profileIDs []int64) error {
+// If profileIDs parameter is nil, profile associations will not be updated for the image.
+// If profileIDs parameter is not nil, profile associations will be completely overwritten by the new values.
+func (c *ClusterTx) UpdateImage(ctx context.Context, id int, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string, profileIDs []int64) error {
 	arch, err := osarch.ArchitectureId(architecture)
 	if err != nil {
 		arch = 0
@@ -623,27 +625,15 @@ func (c *ClusterTx) UpdateImage(ctx context.Context, id int, fname string, sz in
 		}
 	}
 
-	if project != "" && profileIDs != nil {
-		enabled, err := cluster.ProjectHasProfiles(ctx, c.tx, project)
+	if profileIDs != nil {
+		// Delete all profile associations from all projects for this image.
+		q := `DELETE FROM images_profiles WHERE image_id = ?`
+		_, err = c.tx.ExecContext(ctx, q, id)
 		if err != nil {
 			return err
 		}
 
-		if !enabled {
-			project = "default"
-		}
-
-		q := `DELETE FROM images_profiles
-				WHERE image_id = ? AND profile_id IN (
-					SELECT profiles.id FROM profiles
-					JOIN projects ON profiles.project_id = projects.id
-					WHERE projects.name = ?
-				)`
-		_, err = c.tx.ExecContext(ctx, q, id, project)
-		if err != nil {
-			return err
-		}
-
+		// Save new profile associations for this image.
 		sql = `INSERT INTO images_profiles (image_id, profile_id) VALUES (?, ?)`
 		for _, profileID := range profileIDs {
 			_, err = c.tx.ExecContext(ctx, sql, id, profileID)
