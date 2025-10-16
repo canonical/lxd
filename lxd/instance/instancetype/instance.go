@@ -1347,7 +1347,7 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 		}
 
 		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.last_state.pci.driver)
-		//
+		// Name of driver device was using on host.
 		// --
 		//  type: string
 		//  shortdesc: Name of driver device was using on host
