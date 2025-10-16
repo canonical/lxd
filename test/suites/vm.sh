@@ -37,15 +37,16 @@ test_vm_empty() {
   lxc snapshot v1
   [ "$(lxc list -f csv -c S v1)" = "2" ]
 
-  echo "==> Pause (freeze)/resume"
-  lxc pause v1
-  [ "$(lxc list -f csv -c s v1)" = "FROZEN" ]
-  ! lxc stop v1 || false
-  lxc start v1
+  echo "==> Check VM state transitions"
   [ "$(lxc list -f csv -c s v1)" = "RUNNING" ]
   lxc pause v1
   [ "$(lxc list -f csv -c s v1)" = "FROZEN" ]
+  ! lxc stop v1 || false
+  [ "$(lxc list -f csv -c s v1)" = "FROZEN" ]
+  lxc start v1
+  [ "$(lxc list -f csv -c s v1)" = "RUNNING" ]
   lxc stop -f v1
+  [ "$(lxc list -f csv -c s v1)" = "STOPPED" ]
   lxc delete v1
 
   echo "==> Percentage memory limits"
