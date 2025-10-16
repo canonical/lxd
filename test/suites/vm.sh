@@ -9,6 +9,10 @@ test_vm_empty() {
     lxc profile set default migration.stateful=true
   fi
 
+  echo "==> Test randomly named VM creation"
+  RDNAME="$(lxc init --vm --empty --quiet -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" | sed 's/Instance name is: //')"
+  lxc delete "${RDNAME}"
+
   echo "==> Invalid VM names"
   ! lxc init --vm --empty ".." -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" || false
   # Escaping `\` multiple times due to `lxc` wrapper script munging the first layer
