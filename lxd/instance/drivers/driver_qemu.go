@@ -4958,7 +4958,7 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, busName string, busAllocate bu
 		return true
 	}()
 
-	devBus, devAddr, multi, err := busAllocate(devName, true)
+	_, devBus, devAddr, multi, err := busAllocate(devName, true)
 	if err != nil {
 		return fmt.Errorf("Failed allocating bus for GPU device %q: %w", devName, err)
 	}
@@ -5004,7 +5004,7 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, busName string, busAllocate bu
 			// Match any VFs that are related to the GPU device (but not the GPU device itself).
 			if strings.HasPrefix(iommuSlotName, prefix) && iommuSlotName != pciSlotName {
 				// Add VF device without VGA mode to qemu config.
-				devBus, devAddr, multi, err := busAllocate(devName, true)
+				_, devBus, devAddr, multi, err := busAllocate(devName, true)
 				if err != nil {
 					return fmt.Errorf("Failed allocating bus for GPU VF device %q: %w", devName, err)
 				}
