@@ -5195,3 +5195,34 @@ func createTokenResponse(s *state.State, r *http.Request, projectName string, fi
 
 	return operations.OperationResponse(op)
 }
+
+// resolveProfileIDs finds profile IDs in other projects matching the given names.
+// It searches the "default" project and all projects where "features.images" is false.
+func resolveProfileIDs(ctx context.Context, tx *db.ClusterTx, currentProject string, targetNames []string) ([]int64, error) {
+	// Get the "default" project and all projects with "features.images=false".
+	candidateProjects, err := dbCluster.GetProjectsSharingDefaultImages(ctx, tx.Tx())
+	if err != nil {
+		return nil, fmt.Errorf("Failed to load project names: %w", err)
+	}
+
+	// Filter out the current project to avoid SQL constraint violation when adding duplicate profile IDs.
+	searchableProjects := make([]string, 0, len(candidateProjects))
+	for _, projectName := range candidateProjects {
+		if projectName != currentProject {
+			searchableProjects = append(searchableProjects, projectName)
+		}
+	}
+
+	// If no projects remain after filtering (e.g. currentProject is the only candidate), return early.
+	if len(searchableProjects) == 0 {
+		return []int64{}, nil
+	}
+
+	// Fetch matching profile IDs.
+	matchingIDs, err := dbCluster.GetProfileIDsByProjectAndName(ctx, tx.Tx(), searchableProjects, targetNames)
+	if err != nil {
+		return nil, fmt.Errorf("Failed resolving profile IDs: %w", err)
+	}
+
+	return matchingIDs, nil
+}
