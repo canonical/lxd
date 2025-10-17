@@ -302,6 +302,7 @@ parts:
       - liblz4-dev
       - libsqlite3-dev
       - libuv1-dev
+      - xfslibs-dev
     organize:
       usr/bin/: bin/
       usr/lib/: lib/
