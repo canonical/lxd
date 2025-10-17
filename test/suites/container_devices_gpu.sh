@@ -1,22 +1,21 @@
 test_container_devices_gpu() {
-  ensure_import_testimage
-
   ctName="ct$$"
 
   # Check basic GPU validation.
-  lxc init testimage "${ctName}"
+  lxc init --empty "${ctName}"
   ! lxc config device add "${ctName}" gpu-basic gpu id=foo || false
   ! lxc config device add "${ctName}" gpu-basic gpu id=foo.com/gpu=0 || false
   lxc config device add "${ctName}" gpu-basic gpu id=nvidia.com/gpu=0
   lxc config device remove "${ctName}" gpu-basic
+  lxc delete "${ctName}"
 
   if [ ! -c /dev/dri/card0 ]; then
     echo "==> SKIP: No /dev/dri/card0 device found"
-    lxc delete --force "${ctName}"
     return
   fi
 
-  lxc start "${ctName}"
+  ensure_import_testimage
+  lxc launch testimage "${ctName}"
 
   # Check adding all cards creates the correct device mounts and cleans up on removal.
   startMountCount=$(lxc exec "${ctName}" -- mount | wc -l)
