@@ -51,3 +51,19 @@ EOF
   # Cleanup
   lxc delete cons1
 }
+
+test_snap_console_vm() {
+  lxc launch ubuntu-minimal-daily:24.04 v1 --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
+  waitInstanceReady v1
+
+  # The VGA console is available for VMs
+  echo "===> Check VGA console address"
+  OUTPUT="$(timeout --foreground --signal KILL 0.1 lxc console --type vga v1 || true)"
+  echo "${OUTPUT}" | grep -F "spice+unix:///"
+
+  # 'lxc console --show-log' is only available for containers
+  ! lxc console v1 --show-log || false
+
+  # Cleanup
+  lxc delete --force v1
+}
