@@ -590,6 +590,7 @@ if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "cluster" ]; then
     run_test test_template "file templating"
     run_test test_pki "PKI mode"
     run_test test_devlxd "/dev/lxd"
+    run_test test_devlxd_vm "/dev/lxd VM"
     run_test test_fuidshift "fuidshift"
     run_test test_migration "migration"
     run_test test_fdleak "fd leak"
@@ -647,7 +648,6 @@ fi
 if [ "${1:-"all"}" != "cluster" ] && [ "${1:-"all"}" != "standalone" ]; then
     run_test test_snap_basic_usage_vm "snap basic usage VM"
     run_test test_snap_console_vm "snap console VM"
-    run_test test_snap_devlxd_vm "snap devlxd VM"
     run_test test_snap_lxd_user "snap lxd-user"
     run_test test_snap_storage_volume_attach_vm "snap attaching storage volumes to VMs"
 fi
