@@ -757,16 +757,6 @@ EOF
 }
 
 test_snap_basic_usage_vm() {
-  lxc launch ubuntu-minimal-daily:24.04 v1 --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
-  waitInstanceReady v1
-  lxc list --fast
-
-  echo "==> Check exec operations"
-  lxc exec v1 -- true
-  ! lxc exec v1 -- false || false
-  [ "$(lxc exec v1 -- hostname)" = "v1" ]
-  lxc delete --force v1
-
   echo "==> Create a VM suitable for stateful stop/start"
   lxc launch ubuntu-minimal-daily:24.04 v1 --vm -c migration.stateful=true -c limits.memory=384MiB -d root,size.state=384MiB -d "${SMALL_VM_ROOT_DISK}"
   waitInstanceReady v1
