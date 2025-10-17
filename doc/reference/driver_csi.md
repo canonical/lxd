@@ -86,6 +86,7 @@ Key                                                | Type   | Default           
 `storageClasses[].volumeBindingMode`               | string | `WaitForFirstConsumer`                                  | Volume binding mode (`Immediate`, `WaitForFirstConsumer`)
 `storageClasses[].reclaimPolicy`                   | string | `Delete`                                                | Volume reclaim policy (`Delete`, `Retain`)
 `storageClasses[].annotations`                     | object | `{}`                                                    | Additional storage class annotations
+`storageClasses[].allowVolumeExpansion`            | bool   | `true`                                                  | Whether to allow volume expansion once the volume is created.
 
 (ref-csi-versioning)=
 ## Versioning
