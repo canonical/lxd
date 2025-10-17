@@ -67,7 +67,7 @@ func (r *ProtocolDevLXD) UpdateStoragePoolVolume(poolName string, volType string
 	url := api.NewURL().Path("storage-pools", poolName, "volumes", volType, volName).URL
 	r.setURLQueryAttributes(&url)
 
-	_, _, err := r.query(http.MethodPut, url.String(), vol, etag)
+	_, _, err := r.query(http.MethodPatch, url.String(), vol, etag)
 	if err != nil {
 		return err
 	}
