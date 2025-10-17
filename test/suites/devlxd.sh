@@ -158,7 +158,7 @@ EOF
   [ "${MATCH}" = "1" ]
 }
 
-test_snap_devlxd_vm() {
+test_devlxd_vm() {
   lxc launch ubuntu-minimal-daily:24.04 v1 --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
   waitInstanceReady v1
 
