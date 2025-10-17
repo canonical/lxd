@@ -2666,6 +2666,12 @@ Set to `persistent` when persistent bus allocation mode is enabled.
 
 ```
 
+```{config:option} volatile.cluster.group instance-volatile
+:shortdesc: "The target cluster group"
+:type: "string"
+The target cluster group at instance creation or migration time. This is used during scheduling events such as evacuation to ensure the instance is placed correctly.
+```
+
 ```{config:option} volatile.evacuate.origin instance-volatile
 :shortdesc: "The origin of the evacuated instance"
 :type: "string"
