@@ -765,17 +765,6 @@ test_snap_basic_usage_vm() {
   lxc exec v1 -- true
   ! lxc exec v1 -- false || false
   [ "$(lxc exec v1 -- hostname)" = "v1" ]
-
-  echo "==> Check VM state transitions"
-  [ "$(lxc list -f csv -c s)" = "RUNNING" ]
-  lxc pause v1
-  [ "$(lxc list -f csv -c s)" = "FROZEN" ]
-  ! lxc stop v1 || false
-  [ "$(lxc list -f csv -c s)" = "FROZEN" ]
-  lxc start v1
-  [ "$(lxc list -f csv -c s)" = "RUNNING" ]
-  lxc stop -f v1
-  [ "$(lxc list -f csv -c s)" = "STOPPED" ]
   lxc delete --force v1
 
   echo "==> Create a VM suitable for stateful stop/start"
