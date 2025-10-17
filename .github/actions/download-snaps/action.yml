@@ -66,5 +66,6 @@ runs:
         # Seed the snap dependencies cache
         download_snap snapd "latest/candidate"
         download_snap core24 "latest/stable"
+        download_snap lxd
         download_snap microceph
         download_snap microovn

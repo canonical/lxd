@@ -1,5 +1,71 @@
 # LXD-related test helpers.
 
+spawn_lxd_snap() {
+    { set +x; } 2>/dev/null
+    # Install the snap and sideload the binaries
+    if ! [ -e /var/snap/lxd/common/lxd.debug ]; then
+      sideload_lxd_snap
+    fi
+
+    # Ensure LXD_DIR always points to the snap common dir
+    LXD_DIR_NON_SNAP="${LXD_DIR}"
+    LXD_DIR="/var/snap/lxd/common/lxd"
+
+    # For snap based tests, the lxc and lxc_remote functions MUST NOT be used
+    unset -f lxc lxc_remote
+
+    # shellcheck disable=SC2153
+    local lxd_backend="${LXD_BACKEND}"
+    if [ "$LXD_BACKEND" = "random" ]; then
+        lxd_backend="$(random_storage_backend)"
+    fi
+
+    if [ "${lxd_backend}" = "ceph" ] && [ -z "${LXD_CEPH_CLUSTER:-}" ]; then
+        echo "A cluster name must be specified when using the CEPH driver." >&2
+        exit 1
+    fi
+
+    # setup storage
+    "$lxd_backend"_setup "${LXD_DIR}" "${lxd_backend}-snap"
+    echo "$lxd_backend" > "${LXD_DIR}/lxd.backend"
+
+    echo "==> Starting lxd snap"
+
+    systemctl start snap.lxd.daemon.service
+    echo "==> Started lxd snap"
+
+    echo "==> Confirming lxd snap is responsive"
+    lxd waitready --timeout=300
+
+    # XXX: the lxd snap needs some time to spawn lxd and have a valid PID file
+    #      so wait till after `lxd waitready` to read the PID file and register
+    #      the daemon.
+    local LXD_PID
+    LXD_PID="$(< "${LXD_DIR}/../lxd.pid")"
+    # XXX: the lxd snap stores lxd PID in a different location so create a symlink
+    #      to the expected location.
+    ln -sf "${LXD_DIR}/../lxd.pid" "${LXD_DIR}/lxd.pid"
+    # XXX: the lxd snap stores lxd logs in a different location so create a symlink
+    #      to the expected location.
+    ln -sf "${LXD_DIR}/logs/lxd.log" "${LXD_DIR}/lxd.log"
+    # shellcheck disable=SC2153
+    echo "${LXD_DIR}" >> "${TEST_DIR}/daemons"
+    echo "==> Started lxd snap (PID is ${LXD_PID})"
+
+    echo "==> Binding to network"
+    lxc config set core.https_address "127.0.0.1:8443"
+
+    if [ -n "${SHELL_TRACING:-}" ]; then
+        set -x
+    fi
+
+    echo "==> Setting up networking"
+    lxc profile device add default eth0 nic nictype=p2p name=eth0
+
+    echo "==> Configuring storage backend"
+    "$lxd_backend"_configure "${LXD_DIR}" "${lxd_backend}-snap" "${SMALLEST_VM_ROOT_DISK}"
+}
+
 spawn_lxd() {
     { set +x; } 2>/dev/null
     # LXD_DIR is local here because since $(lxc) is actually a function, it
@@ -100,6 +166,20 @@ respawn_lxd() {
     fi
 }
 
+kill_lxd_snap() {
+    # Ensure no LXD snap gets in the way
+    snap remove --purge lxd
+
+    # Restore LXD_DIR to its previous value
+    if [ "${LXD_DIR_NON_SNAP:-}" != "" ]; then
+        LXD_DIR="${LXD_DIR_NON_SNAP}"
+    fi
+
+    # Reinstate the lxc and lxc_remote functions
+    # shellcheck source=test/includes/lxc.sh
+    . "${MAIN_DIR}/includes/lxc.sh"
+}
+
 kill_lxd() {
     # LXD_DIR is local here because since $(lxc) is actually a function, it
     # overwrites the environment and we would lose LXD_DIR's value otherwise.
@@ -187,7 +267,9 @@ kill_lxd() {
         sleep 2
 
         # Cleanup devlxd and shmounts (needed due to the forceful kill)
-        find "${LXD_DIR}" \( -name devlxd -o -name shmounts \) -exec "umount" "-q" "-l" "{}" + || true
+        # Only try to unmount things on the same filesystem as LXD_DIR and only if they are directories.
+        # This is to avoid stepping on the snap symlink that appears to be dangling from the host's point of view.
+        find "${LXD_DIR}" -type d -xdev \( -name devlxd -o -name shmounts \) -exec "umount" "-q" "-l" "{}" + || true
 
         check_leftovers="true"
     fi
@@ -254,6 +336,11 @@ kill_lxd() {
 
     # Remove the daemon from the list
     sed "\\|^${LXD_DIR}|d" -i "${TEST_DIR}/daemons"
+
+    # If this is the snap, extra steps are needed
+    if [ "${LXD_DIR}" = "/var/snap/lxd/common/lxd" ]; then
+      kill_lxd_snap
+    fi
 }
 
 shutdown_lxd() {
@@ -280,6 +367,23 @@ wait_for() {
     shift
     op="$("$@" | jq --exit-status --raw-output '.operation')"
     my_curl "https://${addr}${op}/wait"
+}
+
+# waitInstanceReady: waits for the instance to be ready (processes count > 0).
+waitInstanceReady() {
+    local instName="${1}"
+    local instProj="${2:-}"
+    local i
+
+    for i in $(seq "${MAX_WAIT_SECONDS:-120}"); do
+        if lxc query "/1.0/instances/${instName}/state?project=${instProj}" | jq --exit-status '.processes | select(. > 0)'; then
+            return 0
+        fi
+        sleep 1
+    done
+
+    echo "Instance ${instName} (${instProj:-current}) not ready after ${i}s"
+    return 1
 }
 
 wipe() {
