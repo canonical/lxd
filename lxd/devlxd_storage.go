@@ -293,6 +293,7 @@ func devLXDStoragePoolVolumeGet(ctx context.Context, d *Daemon, target string, p
 		Description: vol.Description,
 		Pool:        vol.Pool,
 		Type:        vol.Type,
+		ContentType: vol.ContentType,
 		Config:      vol.Config,
 		Location:    vol.Location,
 	}
