@@ -37,6 +37,15 @@ runs:
       run: |
         set -eux
 
+        # It's possible to get here despite doing a cache-hit because when one
+        # of the restore-keys is used as fallback, the outputs.cache-hit is set
+        # to false. As such, check if the directories are present and if so,
+        # bail out early.
+        if [ -n "$(ls -A "/home/runner/go/bin/dqlite/")" ] && [ -n "$(ls -A "/home/runner/go/bin/liblxc/")" ]; then
+          echo "==> SKIP building as dqlite and liblxc deps were restored from fallback key"
+          exit 0
+        fi
+
         # Build from unpacked dist tarball.
         cd /home/runner/work/lxd/lxd-test
         make deps
