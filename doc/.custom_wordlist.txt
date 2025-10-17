@@ -31,6 +31,7 @@ bootable
 bpffs
 BPFFS
 BPF
+BMC
 Btrfs
 bugfix
 bugfixes
@@ -216,6 +217,7 @@ OVS
 Pbit
 PCI
 PCIe
+PDU
 passthrough
 passthroughs
 peerings
