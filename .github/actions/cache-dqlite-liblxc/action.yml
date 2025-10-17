@@ -42,7 +42,7 @@ runs:
         make deps
 
         # Include dqlite libs in dependencies for system tests.
-        mkdir /home/runner/go/bin/dqlite
+        mkdir -p /home/runner/go/bin/dqlite
         mv /home/runner/work/lxd/lxd-test/vendor/dqlite/include /home/runner/go/bin/dqlite/include
         mv /home/runner/work/lxd/lxd-test/vendor/dqlite/.libs /home/runner/go/bin/dqlite/libs
 
