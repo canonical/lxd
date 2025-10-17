@@ -343,8 +343,7 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 		}
 
 		if meta["download_progress"] != progress.Text {
-			meta["download_progress"] = progress.Text
-			_ = op.UpdateMetadata(meta)
+			_ = op.ExtendMetadata(map[string]any{"download_progress": progress.Text})
 		}
 	}
 

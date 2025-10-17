@@ -256,10 +256,7 @@ func MatchTypes(offer *MigrationHeader, fallbackType MigrationFSType, ourTypes [
 }
 
 func progressWrapperRender(op *operations.Operation, key string, description string, progressInt int64, speedInt int64) {
-	meta := op.Metadata()
-	if meta == nil {
-		meta = make(map[string]any)
-	}
+	meta := map[string]any{}
 
 	progress := fmt.Sprintf("%s (%s/s)", units.GetByteSizeString(progressInt, 2), units.GetByteSizeString(speedInt, 2))
 	if description != "" {
@@ -268,7 +265,7 @@ func progressWrapperRender(op *operations.Operation, key string, description str
 
 	if meta[key] != progress {
 		meta[key] = progress
-		_ = op.UpdateMetadata(meta)
+		_ = op.ExtendMetadata(meta)
 	}
 }
 

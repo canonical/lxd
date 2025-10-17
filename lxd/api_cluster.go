@@ -58,7 +58,7 @@ import (
 )
 
 type evacuateStopFunc func(inst instance.Instance) error
-type evacuateMigrateFunc func(ctx context.Context, s *state.State, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, metadata map[string]any, op *operations.Operation) error
+type evacuateMigrateFunc func(ctx context.Context, s *state.State, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, op *operations.Operation) error
 
 type evacuateOpts struct {
 	s               *state.State
@@ -3110,7 +3110,7 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 			return nil
 		}
 
-		migrateFunc := func(ctx context.Context, s *state.State, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, metadata map[string]any, op *operations.Operation) error {
+		migrateFunc := func(ctx context.Context, s *state.State, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, op *operations.Operation) error {
 			// Migrate the instance.
 			req := api.InstancePost{
 				Name: inst.Name(),
@@ -3134,9 +3134,8 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 
 			dest = dest.UseProject(inst.Project().Name)
 
-			if metadata != nil && op != nil {
-				metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project().Name)
-				_ = op.UpdateMetadata(metadata)
+			if op != nil {
+				_ = op.ExtendMetadata(map[string]any{"evacuation_progress": fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project().Name)})
 			}
 
 			startOp, err := dest.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "start"}, "")
@@ -3282,8 +3281,6 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 		return errors.New("Missing migration callback function")
 	}
 
-	metadata := make(map[string]any)
-
 	for _, inst := range opts.instances {
 		instProject := inst.Project()
 		l := logger.AddContext(logger.Ctx{"project": instProject.Name, "instance": inst.Name()})
@@ -3311,8 +3308,7 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 		// Stop the instance if needed.
 		isRunning := inst.IsRunning()
 		if opts.stopInstance != nil && isRunning && (!migrate || !live) {
-			metadata["evacuation_progress"] = fmt.Sprintf("Stopping %q in project %q", inst.Name(), instProject.Name)
-			_ = opts.op.UpdateMetadata(metadata)
+			_ = opts.op.ExtendMetadata(map[string]any{"evacuation_progress": fmt.Sprintf("Stopping %q in project %q", inst.Name(), instProject.Name)})
 
 			err := opts.stopInstance(inst)
 			if err != nil {
@@ -3358,8 +3354,7 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 		}
 
 		// Start migrating the instance.
-		metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q to %q", inst.Name(), instProject.Name, targetMemberInfo.Name)
-		_ = opts.op.UpdateMetadata(metadata)
+		_ = opts.op.ExtendMetadata(map[string]any{"evacuation_progress": fmt.Sprintf("Migrating %q in project %q to %q", inst.Name(), instProject.Name, targetMemberInfo.Name)})
 
 		// Set origin server (but skip if already set as that suggests more than one server being evacuated).
 		if inst.LocalConfig()["volatile.evacuate.origin"] == "" {
@@ -3367,7 +3362,7 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 		}
 
 		start := isRunning || instanceShouldAutoStart(inst)
-		err = opts.migrateInstance(ctx, opts.s, inst, targetMemberInfo, live, start, metadata, opts.op)
+		err = opts.migrateInstance(ctx, opts.s, inst, targetMemberInfo, live, start, opts.op)
 		if err != nil {
 			return err
 		}
@@ -3451,8 +3446,6 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 		var source lxd.InstanceServer
 		var sourceNode db.NodeInfo
 
-		metadata := make(map[string]any)
-
 		// Restore the networks.
 		err = networkStartup(d.State, true)
 		if err != nil {
@@ -3473,8 +3466,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 				}
 
 				// Start the instance.
-				metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project().Name)
-				_ = op.UpdateMetadata(metadata)
+				_ = op.ExtendMetadata(map[string]any{"evacuation_progress": fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project().Name)})
 
 				err = inst.Start(false)
 				if err != nil {
@@ -3489,8 +3481,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 				// Check if live-migratable.
 				_, live := inst.CanMigrate()
 
-				metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q from %q", inst.Name(), inst.Project().Name, inst.Location())
-				_ = op.UpdateMetadata(metadata)
+				_ = op.ExtendMetadata(map[string]any{"evacuation_progress": fmt.Sprintf("Migrating %q in project %q from %q", inst.Name(), inst.Project().Name, inst.Location())})
 
 				err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 					sourceNode, err = tx.GetNodeByName(ctx, inst.Location())
@@ -3518,8 +3509,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 
 				isRunning := apiInst.StatusCode == api.Running
 				if isRunning && !live {
-					metadata["evacuation_progress"] = fmt.Sprintf("Stopping %q in project %q", inst.Name(), inst.Project().Name)
-					_ = op.UpdateMetadata(metadata)
+					_ = op.ExtendMetadata(map[string]any{"evacuation_progress": fmt.Sprintf("Stopping %q in project %q", inst.Name(), inst.Project().Name)})
 
 					timeout := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
 					val, err := strconv.Atoi(timeout)
@@ -3600,8 +3590,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 					continue
 				}
 
-				metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project().Name)
-				_ = op.UpdateMetadata(metadata)
+				_ = op.ExtendMetadata(map[string]any{"evacuation_progress": fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project().Name)})
 
 				err = inst.Start(false)
 				if err != nil {
@@ -4564,7 +4553,7 @@ func healClusterMember(s *state.State, gateway *cluster.Gateway, op *operations.
 	logger.Info("Starting cluster healing", logger.Ctx{"member": name})
 	defer logger.Info("Completed cluster healing", logger.Ctx{"member": name})
 
-	migrateFunc := func(ctx context.Context, s *state.State, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, metadata map[string]any, op *operations.Operation) error {
+	migrateFunc := func(ctx context.Context, s *state.State, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, op *operations.Operation) error {
 		// This returns an error if the instance's storage pool is local.
 		// Since we only care about remote backed instances, this can be ignored and return nil instead.
 		poolName, err := inst.StoragePool()
