@@ -512,3 +512,61 @@ create_instances() {
 
   echo "All instances created successfully."
 }
+
+# Returns true if Go coverage collection is enabled (GOCOVERDIR is set).
+coverage_enabled() {
+  [ -n "${GOCOVERDIR:-}" ]
+}
+
+# Setup LXD agent to collect Go coverage data inside instances.
+# If coverage is not enabled, this is a no-op.
+# It leverages cloud-init to setup the environment variable for the lxd-agent service.
+setup_lxd_agent_gocoverage() {
+  coverage_enabled || return 0
+
+  local instance="${1}"
+  echo "==> Setting up LXD agent coverage gathering inside the ${instance} VM"
+
+  # Mount the host's GOCOVERDIR into the instance.
+  lxc config device add "${instance}" gocoverdir disk source="${GOCOVERDIR}" path="${GOCOVERDIR}"
+
+  # The GOCOVERDIR variable is set for use by test binaries like devlxd-client.
+  lxc config set "${instance}" environment.GOCOVERDIR="${GOCOVERDIR}"
+
+  # The GOCOVERDIR variable is passed to lxd-agent via a systemd drop-in.
+  lxc file push --quiet --create-dirs - "${instance}"/etc/systemd/system/lxd-agent.service.d/env.conf << EOF
+[Service]
+Environment="GOCOVERDIR=${GOCOVERDIR}"
+EOF
+  lxc exec "${instance}" -- systemctl daemon-reload
+
+  # Restarting lxd-agent is expected to abruptly terminate the lxc exec session,
+  # so expect failure.
+  ! lxc exec "${instance}" -- systemctl restart lxd-agent.service || false
+
+  # Restarting the lxd-agent isn't instantaneous, so wait for it to be ready again.
+  waitInstanceReady "${instance}"
+}
+
+# Teardown LXD agent Go coverage setup.
+# If coverage is not enabled, this is a no-op.
+teardown_lxd_agent_gocoverage() {
+  coverage_enabled || return 0
+
+  local instance="${1}"
+  echo "==> Tearing down LXD agent coverage gathering inside the ${instance} VM"
+
+  lxc file delete "${instance}"/etc/systemd/system/lxd-agent.service.d/env.conf
+  lxc exec "${instance}" -- systemctl daemon-reload
+
+  # Restarting lxd-agent is expected to abruptly terminate the lxc exec session,
+  # so expect failure.
+  ! lxc exec "${instance}" -- systemctl restart lxd-agent.service || false
+
+  # Remove the GOCOVERDIR environment variable and device.
+  lxc config unset "${instance}" environment.GOCOVERDIR
+  lxc config device remove "${instance}" gocoverdir
+
+  # Restarting the lxd-agent isn't instantaneous, so wait for it to be ready again.
+  waitInstanceReady "${instance}"
+}
