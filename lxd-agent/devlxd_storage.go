@@ -109,7 +109,7 @@ func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) *devLXDResp
 var devLXDStoragePoolVolumeTypeEndpoint = devLXDAPIEndpoint{
 	Path:   "storage-pools/{pool}/volumes/{type}/{volume}",
 	Get:    devLXDAPIEndpointAction{Handler: devLXDStoragePoolVolumeGetHandler},
-	Put:    devLXDAPIEndpointAction{Handler: devLXDStoragePoolVolumePutHandler},
+	Patch:  devLXDAPIEndpointAction{Handler: devLXDStoragePoolVolumePatchHandler},
 	Delete: devLXDAPIEndpointAction{Handler: devLXDStoragePoolVolumeDeleteHandler},
 }
 
@@ -145,7 +145,7 @@ func devLXDStoragePoolVolumeGetHandler(d *Daemon, r *http.Request) *devLXDRespon
 	return okResponseETag(vol, "json", etag)
 }
 
-func devLXDStoragePoolVolumePutHandler(d *Daemon, r *http.Request) *devLXDResponse {
+func devLXDStoragePoolVolumePatchHandler(d *Daemon, r *http.Request) *devLXDResponse {
 	poolName, err := url.PathUnescape(r.PathValue("pool"))
 	if err != nil {
 		return errorResponse(http.StatusBadRequest, err.Error())
