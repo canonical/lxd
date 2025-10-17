@@ -3264,8 +3264,10 @@ func evacuateClusterMember(ctx context.Context, s *state.State, gateway *cluster
 		return err
 	}
 
-	// Evacuate networks too.
-	networkStop(s, true)
+	// Evacuate networks too, but not during healing.
+	if mode != "heal" {
+		networkStop(s, true)
+	}
 
 	revert.Success()
 
