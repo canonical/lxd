@@ -83,6 +83,7 @@ EOF
 
   # Check if the volume's UUID can be modified
   ! lxc storage volume set "$storage_pool" "$storage_volume" volatile.uuid "2d94c537-5eff-4751-95b1-6a1b7d11f849" || false
+  ! lxc storage volume unset "$storage_pool" "$storage_volume" volatile.uuid || false
 
   lxc storage volume delete "$storage_pool" "$storage_volume"
 
@@ -526,6 +527,10 @@ EOF
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool6" custom/c10pool6 c10pool6 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool6" custom/c10pool6 c10pool6 testDevice2 /opt || false
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6 c10pool6 testDevice
+
+      # Test that modifying the block.filesystem is blocked.
+      ! lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6 block.filesystem ext4 || false
+      ! lxc storage volume unset "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6 block.filesystem || false
 
       lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool6" c12pool6 size=120MiB
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool6" c12pool6 c12pool6 testDevice /opt

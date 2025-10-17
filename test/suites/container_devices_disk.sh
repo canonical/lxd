@@ -83,6 +83,10 @@ _container_devices_disk_shift() {
   lxc config device add foo-isol1 shifted disk pool="${POOL}" source=foo-shift path=/mnt
   lxc config device add foo-isol2 shifted disk pool="${POOL}" source=foo-shift path=/mnt
 
+  # Cannot modify security.shifted when the instance is running.
+  ! lxc storage volume set "${POOL}" foo-shift security.shifted=false || false
+  ! lxc storage volume unset "${POOL}" foo-shift security.shifted || false
+
   lxc exec foo -- touch /mnt/a
   lxc exec foo -- chown 123:456 /mnt/a
 
