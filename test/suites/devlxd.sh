@@ -174,6 +174,8 @@ test_devlxd_vm() {
   lxc launch ubuntu-minimal-daily:24.04 v1 --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
   waitInstanceReady v1
 
+  setup_lxd_agent_gocoverage v1
+
   echo "==> Check that devlxd is enabled by default and works"
   lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0 | jq
   lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/devices | jq
@@ -230,6 +232,11 @@ runcmd:
 
   lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock -X PATCH -d '{"state":"Ready"}' http://custom.socket/1.0
   [ "$(lxc config get v1 volatile.last_state.ready)" = "true" ]
+
+  # If gathering coverage data, the lxd-agent.service needs to be stopped
+  # cleanly to allow the coverage file to be flushed.
+  teardown_lxd_agent_gocoverage v1
+
   lxc stop -f v1
   [ "$(lxc config get v1 volatile.last_state.ready)" = "false" ]
 
