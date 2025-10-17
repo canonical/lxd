@@ -51,6 +51,15 @@ runs:
       run: |
         set -eux
 
+        # It's possible to get here despite doing a cache-hit because when one
+        # of the restore-keys is used as fallback, the outputs.cache-hit is set
+        # to false. As such, check if the directory is present and if so,
+        # bail out early.
+        if [ -n "$(ls -A "${SNAP_CACHE_DIR}")" ]; then
+          echo "==> SKIP downloading snaps as they were restored from fallback key"
+          exit 0
+        fi
+
         # XXX: Only needed here because other jobs interact with snapd much later (in terms of uptime)
         # workaround for https://bugs.launchpad.net/snapd/+bug/2104066
         sudo mkdir -p /etc/systemd/system/snapd.service.d
