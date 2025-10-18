@@ -54,7 +54,8 @@ test_snap_lxd_user() {
 
   # Manually register the lxd-user daemon instance so that it can be cleaned up on failure
   local LXD_USER_DIR="/var/snap/lxd/common/lxd-user"
-  pgrep -x lxd-user > "${LXD_USER_DIR}/lxd.pid"
+  # Due to sideloading, the lxd-user daemon proc name is lxd-user.debug
+  pgrep -x lxd-user.debug > "${LXD_USER_DIR}/lxd.pid"
   touch "${LXD_USER_DIR}/lxd.log"
   echo "${LXD_USER_DIR}" >> "${TEST_DIR}/daemons"
   # lxd-user uses the same storage pool as the system daemon
