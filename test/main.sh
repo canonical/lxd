@@ -383,7 +383,7 @@ fi
 # Only spawn a new LXD if not done yet.
 if [ -z "${LXD_DIR:-}" ]; then
     if [ "${LXD_TMPFS:-0}" = "1" ]; then
-      mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=7G
+      mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=8G
     fi
 
     mkdir -p "${TEST_DIR}/dev"
