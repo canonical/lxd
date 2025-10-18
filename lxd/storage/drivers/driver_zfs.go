@@ -249,6 +249,44 @@ func (d *zfs) FillConfig() error {
 	return nil
 }
 
+// SourceIdentifier returns the underlying source.
+func (d *zfs) SourceIdentifier() (string, error) {
+	poolName := d.config["zfs.pool_name"]
+	if poolName != "" {
+		return poolName, nil
+	}
+
+	return "", errors.New("Cannot derive identifier from empty pool name")
+}
+
+// ValidateSource checks whether the required config keys are valid to access the underlying source.
+func (d *zfs) ValidateSource() error {
+	loopPath := loopFilePath(d.name)
+	if d.config["source"] == "" || d.config["source"] == loopPath {
+		// Validate pool_name.
+		if strings.Contains(d.config["zfs.pool_name"], "/") {
+			return errors.New("zfs.pool_name can't point to a dataset when source isn't set")
+		}
+	} else if filepath.IsAbs(d.config["source"]) {
+		// Handle existing block devices.
+		if !shared.IsBlockdevPath(d.config["source"]) {
+			return errors.New("Custom loop file locations are not supported")
+		}
+
+		// Validate pool_name.
+		if strings.Contains(d.config["zfs.pool_name"], "/") {
+			return errors.New("zfs.pool_name can't point to a dataset when source isn't set")
+		}
+	} else {
+		// Validate pool_name.
+		if d.config["zfs.pool_name"] != d.config["source"] {
+			return errors.New("The source must match zfs.pool_name if specified")
+		}
+	}
+
+	return nil
+}
+
 // Create is called during pool creation and is effectively using an empty driver struct.
 // WARNING: The Create() function cannot rely on any of the struct attributes being set.
 func (d *zfs) Create() error {
@@ -258,18 +296,8 @@ func (d *zfs) Create() error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	err := d.FillConfig()
-	if err != nil {
-		return err
-	}
-
 	loopPath := loopFilePath(d.name)
 	if d.config["source"] == "" || d.config["source"] == loopPath {
-		// Validate pool_name.
-		if strings.Contains(d.config["zfs.pool_name"], "/") {
-			return errors.New("zfs.pool_name can't point to a dataset when source isn't set")
-		}
-
 		// Create the loop file itself.
 		size, err := units.ParseByteSizeString(d.config["size"])
 		if err != nil {
@@ -297,16 +325,6 @@ func (d *zfs) Create() error {
 			}
 		}
 	} else if filepath.IsAbs(d.config["source"]) {
-		// Handle existing block devices.
-		if !shared.IsBlockdevPath(d.config["source"]) {
-			return errors.New("Custom loop file locations are not supported")
-		}
-
-		// Validate pool_name.
-		if strings.Contains(d.config["zfs.pool_name"], "/") {
-			return errors.New("zfs.pool_name can't point to a dataset when source isn't set")
-		}
-
 		// Wipe if requested.
 		if shared.IsTrue(d.config["source.wipe"]) {
 			err := wipeBlockHeaders(d.config["source"])
@@ -340,11 +358,6 @@ func (d *zfs) Create() error {
 		// We don't need to keep the original source path around for import.
 		d.config["source"] = d.config["zfs.pool_name"]
 	} else {
-		// Validate pool_name.
-		if d.config["zfs.pool_name"] != d.config["source"] {
-			return errors.New("The source must match zfs.pool_name if specified")
-		}
-
 		if strings.Contains(d.config["zfs.pool_name"], "/") {
 			// Handle a dataset.
 			exists, err := d.datasetExists(d.config["zfs.pool_name"])
@@ -380,7 +393,7 @@ func (d *zfs) Create() error {
 	revert.Add(func() { _ = d.Delete(nil) })
 
 	// Apply our default configuration.
-	err = d.ensureInitialDatasets(false)
+	err := d.ensureInitialDatasets(false)
 	if err != nil {
 		return err
 	}

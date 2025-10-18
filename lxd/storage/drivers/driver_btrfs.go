@@ -131,6 +131,10 @@ func (d *btrfs) FillConfig() error {
 
 	// Store the provided source as we are likely to be mangling it.
 	d.config["volatile.initial_source"] = d.config["source"]
+	if d.config["volatile.initial_source"] == "" || d.config["volatile.initial_source"] == loopPath {
+		// Create a loop based pool.
+		d.config["source"] = loopPath
+	}
 
 	// Set the block device's UUID in case it already has one.
 	// This allows to recover the pools configuration without actually
@@ -147,22 +151,29 @@ func (d *btrfs) FillConfig() error {
 	return nil
 }
 
+// SourceIdentifier returns the underlying source.
+func (d *btrfs) SourceIdentifier() (string, error) {
+	source := d.config["source"]
+	if source != "" {
+		return source, nil
+	}
+
+	return "", errors.New("Cannot derive identifier from empty source")
+}
+
+// ValidateSource checks whether the required config keys are valid to access the underlying source.
+func (d *btrfs) ValidateSource() error {
+	return nil
+}
+
 // Create is called during pool creation and is effectively using an empty driver struct.
 // WARNING: The Create() function cannot rely on any of the struct attributes being set.
 func (d *btrfs) Create() error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	err := d.FillConfig()
-	if err != nil {
-		return err
-	}
-
 	loopPath := loopFilePath(d.name)
 	if d.config["volatile.initial_source"] == "" || d.config["volatile.initial_source"] == loopPath {
-		// Create a loop based pool.
-		d.config["source"] = loopPath
-
 		// Create the loop file itself.
 		size, err := units.ParseByteSizeString(d.config["size"])
 		if err != nil {

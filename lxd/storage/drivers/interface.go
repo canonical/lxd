@@ -34,6 +34,7 @@ type Driver interface {
 
 	// Export struct details.
 	Name() string
+	SourceIdentifier() (string, error)
 	Config() map[string]string
 	Logger() logger.Logger
 
@@ -48,6 +49,7 @@ type Driver interface {
 	Unmount() (bool, error)
 	GetResources() (*api.ResourcesStoragePool, error)
 	Validate(config map[string]string) error
+	ValidateSource() error
 	Update(changedConfig map[string]string) error
 	ApplyPatch(name string) error
 
