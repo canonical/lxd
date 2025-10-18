@@ -9,6 +9,10 @@ test_vm_empty() {
     lxc profile set default migration.stateful=true
   fi
 
+  echo "==> Test randomly named VM creation"
+  RDNAME="$(lxc init --vm --empty --quiet -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" | sed 's/Instance name is: //')"
+  lxc delete "${RDNAME}"
+
   echo "==> Invalid VM names"
   ! lxc init --vm --empty ".." -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" || false
   # Escaping `\` multiple times due to `lxc` wrapper script munging the first layer
@@ -33,15 +37,16 @@ test_vm_empty() {
   lxc snapshot v1
   [ "$(lxc list -f csv -c S v1)" = "2" ]
 
-  echo "==> Pause (freeze)/resume"
-  lxc pause v1
-  [ "$(lxc list -f csv -c s v1)" = "FROZEN" ]
-  ! lxc stop v1 || false
-  lxc start v1
+  echo "==> Check VM state transitions"
   [ "$(lxc list -f csv -c s v1)" = "RUNNING" ]
   lxc pause v1
   [ "$(lxc list -f csv -c s v1)" = "FROZEN" ]
+  ! lxc stop v1 || false
+  [ "$(lxc list -f csv -c s v1)" = "FROZEN" ]
+  lxc start v1
+  [ "$(lxc list -f csv -c s v1)" = "RUNNING" ]
   lxc stop -f v1
+  [ "$(lxc list -f csv -c s v1)" = "STOPPED" ]
   lxc delete v1
 
   echo "==> Percentage memory limits"

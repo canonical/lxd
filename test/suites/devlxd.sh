@@ -432,7 +432,12 @@ EOF
   fi
 }
 
-test_snap_devlxd_vm() {
+test_devlxd_vm() {
+  if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
+    echo "Using migration.stateful to force 9p config drive thus avoiding the old/incompatible virtiofsd"
+    lxc profile set default migration.stateful=true
+  fi
+
   lxc launch ubuntu-minimal-daily:24.04 v1 --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
   waitInstanceReady v1
 
@@ -497,5 +502,12 @@ runcmd:
 
   # TODO: add nested virt part from lxd-ci test
 
+  # Cleanup
+  lxc image delete "$(lxc config get v1 volatile.base_image)"
   lxc delete v1
+
+  if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
+    # Cleanup custom changes from the default profile
+    lxc profile unset default migration.stateful
+  fi
 }
