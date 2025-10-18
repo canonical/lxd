@@ -1,6 +1,6 @@
 test_container_devices_none() {
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
+
   ctName="ct$$"
   lxc launch testimage "${ctName}"
 
