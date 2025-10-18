@@ -55,12 +55,15 @@ available_storage_backends() {
 
     storage_backends="btrfs zfs"
 
-    if ! uname -r | grep -- -kvm$ >/dev/null; then
-        # the -kvm kernel flavor is missing CONFIG_DM_THIN_PROVISIONING needed for lvm thin pools
+    if uname -r | grep -- '-kvm$' >/dev/null; then
+        echo "The -kvm kernel flavor is missing CONFIG_DM_THIN_PROVISIONING needed for lvm thin pools, lvm backend won't be available" >&2
+    else
         storage_backends="${storage_backends} lvm"
     fi
 
-    if [ -n "${LXD_CEPH_CLUSTER:-}" ]; then
+    if [ -z "${LXD_CEPH_CLUSTER:-}" ]; then
+        echo "The ceph backend won't be available because LXD_CEPH_CLUSTER is not set" >&2
+    else
         storage_backends="${storage_backends} ceph"
     fi
 
