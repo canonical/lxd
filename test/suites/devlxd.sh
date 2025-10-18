@@ -223,5 +223,7 @@ runcmd:
 
   # TODO: add nested virt part from lxd-ci test
 
+  # Cleanup
+  lxc image delete "$(lxc config get v1 volatile.base_image)"
   lxc delete v1
 }
