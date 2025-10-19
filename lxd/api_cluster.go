@@ -3979,6 +3979,15 @@ func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Name %q already in use", req.Name)
 		}
 
+		usedBy, err := clusterGroupUsedBy(r.Context(), s, tx, name, true)
+		if err != nil {
+			return err
+		}
+
+		if len(usedBy) > 0 {
+			return api.StatusErrorf(http.StatusBadRequest, "Cluster group is currently in use")
+		}
+
 		// Rename the cluster group.
 		err = dbCluster.RenameClusterGroup(ctx, tx.Tx(), name, req.Name)
 		if err != nil {
@@ -4339,7 +4348,7 @@ func clusterGroupDelete(d *Daemon, r *http.Request) response.Response {
 			return api.StatusErrorf(http.StatusBadRequest, "Only empty cluster groups can be removed")
 		}
 
-		usedBy, err := dbCluster.GetClusterGroupUsedBy(ctx, tx.Tx(), name)
+		usedBy, err := clusterGroupUsedBy(r.Context(), s, tx, name, true)
 		if err != nil {
 			return err
 		}
