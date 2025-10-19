@@ -300,6 +300,23 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		targetGroupName = after
 	}
 
+	// Unset "volatile.cluster.group" if the instance is manually moved to a cluster member.
+	if targetMemberInfo != nil && targetGroupName == "" {
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			if inst.LocalConfig()["volatile.cluster.group"] != "" {
+				err = tx.DeleteInstanceConfigKey(ctx, int64(inst.ID()), "volatile.cluster.group")
+				if err != nil {
+					return fmt.Errorf(`Failed removing "volatile.cluster.group" config key: %w`, err)
+				}
+			}
+
+			return nil
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
 	if req.Migration {
 		// Server-side instance migration.
 		if req.Pool != "" || req.Project != "" {
