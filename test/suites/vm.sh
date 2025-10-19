@@ -1,3 +1,16 @@
+_secureboot_csm_boot() {
+  echo "==> Secure boot and CSM combinations"
+  # CSM requires secureboot to be disabled.
+  ! lxc launch --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" --config security.csm=true || false
+  lxc config set v1 security.secureboot=false
+  lxc start v1
+  lxc stop -f v1
+  # CSM with secureboot should refuse to start.
+  lxc config set v1 security.secureboot=true
+  ! lxc start v1 || false
+  lxc delete -f v1
+}
+
 test_vm_empty() {
   if [ "${LXD_TMPFS:-0}" = "1" ] && ! runsMinimumKernel 6.6; then
     echo "==> SKIP: QEMU requires direct-io support which requires a kernel >= 6.6 for tmpfs support (LXD_TMPFS=${LXD_TMPFS})"
@@ -97,6 +110,8 @@ test_vm_empty() {
   fi
 
   lxc delete --force v1
+
+  _secureboot_csm_boot
 
   echo "==> Ephemeral cleanup"
   lxc launch --vm --empty --ephemeral v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
