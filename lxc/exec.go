@@ -11,7 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/spf13/cobra"
 
-	"github.com/canonical/lxd/client"
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/i18n"
@@ -120,6 +120,22 @@ func (c *cmdExec) run(cmd *cobra.Command, args []string) error {
 	remote, name, err := conf.ParseRemote(args[0])
 	if err != nil {
 		return err
+	}
+
+	// Check security privilege of instance, warn about privileged instance
+	resources, err := c.global.ParseServers(remote)
+	if err != nil {
+		return err
+	}
+	resource := resources[0]
+	resp, _, err := resource.server.GetInstance(name)
+	if err != nil {
+		return err
+	}
+	value := resp.Config["security.privileged"]
+	if value == "true" {
+		logger.Warnf("%s is a privileged instance (security.privileged: true), so snapd/systemd won't work on noble. "+
+			"To fix this, please consider using LXD VMs if you need privileged security.", name)
 	}
 
 	d, err := conf.GetInstanceServer(remote)
