@@ -118,12 +118,24 @@ runs:
               # MicroCeph does not accept partitions directly.
               # See: https://github.com/canonical/microceph/issues/251
               disk="$(sudo losetup --find --nooverlap --direct-io=on --show "${ephemeral_disk}${i}")"
-              sudo microceph disk add "${disk}"
+
+              # Retry logic for "microceph disk add" that can fail due to partitions not being ready
+              # Error: unable to list system disks: Failed to find "/dev/disk/by-id/scsi-36...9e-part1": lstat /dev/disk/by-id/scsi-36...9e-part1: no such file or directory
+              for attempt in 1 2 3; do
+                if sudo microceph disk add "${disk}"; then
+                  break # Success, exit retry loop
+                elif [ "${attempt}" -lt 3 ]; then
+                  echo "WARN: \"microceph disk add ${disk}\" failed, retrying (${attempt}/3)"
+                  sleep 1
+                else
+                  echo "FAIL: \"microceph disk add ${disk}\" failed ${attempt} times"
+                  exit 1
+                fi
+              done
             done
           else
               sudo microceph disk add --wipe "${ephemeral_disk}"
           fi
-
 
           sudo rm -rf /etc/ceph
           sudo ln -s /var/snap/microceph/current/conf/ /etc/ceph
