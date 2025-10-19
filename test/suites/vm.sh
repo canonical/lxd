@@ -131,3 +131,8 @@ test_vm_empty() {
   ! lxc start v1 || false
   lxc delete v1
 }
+
+test_snap_vm_empty() {
+  # useful to test snap provided CSM BIOS
+  _secureboot_csm_boot
+}
