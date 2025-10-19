@@ -648,6 +648,7 @@ fi
 if [ "${1:-"all"}" != "cluster" ] && [ "${1:-"all"}" != "standalone" ]; then
     run_test test_snap_basic_usage_vm "snap basic usage VM"
     run_test test_snap_console_vm "snap console VM"
+    run_test test_snap_vm_empty "snap empty VM"
     run_test test_snap_lxd_user "snap lxd-user"
     run_test test_snap_storage_volume_attach_vm "snap attaching storage volumes to VMs"
 fi
