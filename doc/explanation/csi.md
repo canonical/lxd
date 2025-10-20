@@ -75,6 +75,7 @@ Alongside the controller run the CSI controller sidecars, helper containers main
 
 - `external-provisioner`: watches PVCs and PVs and invokes volume creation or deletion.
 - `external-attacher`: watches VolumeAttachment objects and invokes volume attachment or detachment.
+- `external-resizer`: watches for PVC updates and triggers volume expansion when user requests more storage on a PVC object.
 - `livenessprobe`:  exposes an HTTP `/healthz` endpoint used by the Kubelet as a liveness probe to monitor the health of the CSI driver.
 
 Leader election ensures that only one replica of the controller sidecars is active at a time.
