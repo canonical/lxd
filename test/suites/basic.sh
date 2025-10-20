@@ -757,8 +757,10 @@ EOF
 }
 
 test_snap_basic_usage_vm() {
+  ensure_import_ubuntu_vm_image
+
   echo "==> Create a VM suitable for stateful stop/start"
-  lxc launch ubuntu-minimal-daily:24.04 v1 --vm -c migration.stateful=true -c limits.memory=384MiB -d root,size.state=384MiB -d "${SMALL_VM_ROOT_DISK}"
+  lxc launch ubuntu-vm v1 --vm -c migration.stateful=true -c limits.memory=384MiB -d root,size.state=384MiB -d "${SMALL_VM_ROOT_DISK}"
   waitInstanceReady v1
 
   echo "==> Stateful stop"
