@@ -1941,6 +1941,17 @@ The specified version expression is used to set `libnvidia-container NVIDIA_REQU
 ```
 
 <!-- config group instance-nvidia end -->
+<!-- config group instance-placement start -->
+```{config:option} placement.group instance-placement
+:liveupdate: "yes"
+:shortdesc: "Placement group controlling instance scheduling"
+:type: "string"
+Specifies the placement group that determines where this instance is scheduled within the cluster.
+The placement group defines the placement policy (e.g. spread or compact) and rigor (e.g. strict or permissive)
+used to determine eligible cluster members during LXD scheduling events.
+```
+
+<!-- config group instance-placement end -->
 <!-- config group instance-raw start -->
 ```{config:option} raw.apparmor instance-raw
 :liveupdate: "yes"
@@ -4125,6 +4136,35 @@ The only supported keys are `user.*` custom keys.
 ```
 
 <!-- config group network-zone-record-properties end -->
+<!-- config group placement-group-placement-group start -->
+```{config:option} policy placement-group-placement-group
+:required: "yes"
+:shortdesc: "Instance placement policy"
+:type: "string"
+Determines whether instances are spread across cluster members or
+compacted onto the same cluster member(s).
+
+Possible values are `spread` and `compact`.
+See {ref}`clustering-instance-placement` for more information.
+```
+
+```{config:option} rigor placement-group-placement-group
+:required: "yes"
+:shortdesc: "Enforcement level of the placement policy"
+:type: "string"
+Determines whether the policy is strictly enforced or allows fallback.
+
+Possible values are `strict` and `permissive`.
+See {ref}`clustering-instance-placement` for more information.
+```
+
+```{config:option} user.* placement-group-placement-group
+:shortdesc: "Free form user key/value storage"
+:type: "string"
+User keys can be used in search.
+```
+
+<!-- config group placement-group-placement-group end -->
 <!-- config group project-features start -->
 ```{config:option} features.images project-features
 :defaultdesc: "`false`"
@@ -7089,6 +7129,18 @@ using the `zfs` command in the container.
 
 
 <!-- entity group network_zone end -->
+<!-- entity group placement_group start -->
+`can_edit`
+: Grants permission to edit the placement group.
+
+`can_delete`
+: Grants permission to delete the placement group.
+
+`can_view`
+: Grants permission to view the placement group.
+
+
+<!-- entity group placement_group end -->
 <!-- entity group profile start -->
 `can_edit`
 : Grants permission to edit the profile.
@@ -7254,6 +7306,21 @@ using the `zfs` command in the container.
 
 `can_delete_storage_buckets`
 : Grants permission to delete storage buckets.
+
+`placement_group_manager`
+: Grants permission to create, view, edit, and delete all placement groups belonging to the project.
+
+`can_create_placement_groups`
+: Grants permission to create placement groups.
+
+`can_view_placement_groups`
+: Grants permission to view placement groups.
+
+`can_edit_placement_groups`
+: Grants permission to edit placement groups.
+
+`can_delete_placement_groups`
+: Grants permission to delete placement groups.
 
 `can_view_operations`
 : Grants permission to view operations relating to the project.
