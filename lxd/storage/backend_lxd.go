@@ -6206,7 +6206,7 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 	defer l.Debug("UpdateCustomVolume finished")
 
 	if shared.IsSnapshot(volName) {
-		return errors.New("Volume name cannot be a snapshot")
+		return api.NewStatusError(http.StatusBadRequest, "Volume name cannot be a snapshot")
 	}
 
 	// Get the volume name on storage.
@@ -6251,7 +6251,7 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 		_, ok := changedConfig["security.shifted"]
 		// Confirm that no running instances are using it when changing shifted state.
 		if ok && inst.IsRunning() {
-			return errors.New("Cannot modify shifting with running instances using the volume")
+			return api.NewStatusError(http.StatusBadRequest, "Cannot modify shifting with running instances using the volume")
 		}
 
 		instances = append(instances, inst)
@@ -6264,19 +6264,19 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 	if len(changedConfig) != 0 {
 		// Forbid changing the config for ISO custom volumes as they are read-only.
 		if contentType == drivers.ContentTypeISO {
-			return errors.New("Custom ISO volume config cannot be changed")
+			return api.NewStatusError(http.StatusBadRequest, "Custom ISO volume config cannot be changed")
 		}
 
 		// Check that the volume's block.filesystem property isn't being changed.
 		_, ok := changedConfig["block.filesystem"]
 		if ok {
-			return errors.New(`Custom volume "block.filesystem" property cannot be changed`)
+			return api.NewStatusError(http.StatusBadRequest, `Custom volume "block.filesystem" property cannot be changed`)
 		}
 
 		// Check that the volume's volatile.uuid property isn't being changed.
 		_, ok = changedConfig["volatile.uuid"]
 		if ok {
-			return errors.New(`Custom volume "volatile.uuid" property cannot be changed`)
+			return api.NewStatusError(http.StatusBadRequest, `Custom volume "volatile.uuid" property cannot be changed`)
 		}
 
 		sharedVolume, ok := changedConfig["security.shared"]
