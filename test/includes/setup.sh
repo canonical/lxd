@@ -9,20 +9,21 @@ ensure_has_localhost_remote() {
 
 ensure_import_testimage() {
     local project="${1:-}"
+    local alias="testimage"
 
     # Using `--project ""` causes `lxc` to interact with the current project.
-    if lxc image alias list -f csv --project "${project}" testimage | grep -wF "testimage" >/dev/null; then
+    if lxc image alias list -f csv --project "${project}" "${alias}" | grep "^${alias}," >/dev/null; then
         return
     fi
 
     if [ -e "${LXD_TEST_IMAGE:-}" ]; then
         echo "Importing ${LXD_TEST_IMAGE} test image from disk"
-        lxc image import --quiet "${LXD_TEST_IMAGE}" --alias testimage --project "${project}"
+        lxc image import --quiet "${LXD_TEST_IMAGE}" --alias "${alias}" --project "${project}"
     else
         if [ "${project:-}" = "" ]; then
           project="$(lxc project list -f csv | awk '/(current)/ {print $1}')"
         fi
-        deps/import-busybox --alias testimage --project "${project}"
+        deps/import-busybox --alias "${alias}" --project "${project}"
     fi
 }
 
