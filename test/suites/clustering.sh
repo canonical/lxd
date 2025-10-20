@@ -3586,6 +3586,7 @@ test_clustering_image_refresh() {
 test_clustering_evacuation() {
   local LXD_DIR
 
+  echo "Create cluster with 3 nodes"
   setup_clustering_bridge
   prefix="lxd$$"
   bridge="${prefix}"
@@ -3600,7 +3601,7 @@ test_clustering_evacuation() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${poolDriver}"
 
-  # The state of the preseeded storage pool shows up as CREATED
+  echo "Check the state of the preseeded storage pool shows up as CREATED"
   LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF data | grep -wF CREATED
 
   # Add a newline at the end of each line. YAML has weird rules.
@@ -3618,13 +3619,13 @@ test_clustering_evacuation() {
   ns3="${prefix}3"
   spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${LXD_ONE_DIR}" "${poolDriver}"
 
-  # Create local pool
+  echo "Create local pool"
   LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir --target node1
   LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir --target node2
   LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir --target node3
   LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir
 
-  # Create local storage volume
+  echo "Create local storage volume"
   LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create pool1 vol1
 
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
@@ -3656,24 +3657,24 @@ test_clustering_evacuation() {
   # For debugging
   LXD_DIR="${LXD_TWO_DIR}" lxc list -c nsL
 
-  # Move c7 to node1 (outside target cluster group "foo") to test "volatile.cluster.group" handling post-evacuation.
+  echo 'Move c7 to node1 (outside target cluster group "foo") to test "volatile.cluster.group" handling post-evacuation.'
   # Expected: Instance should be evacuated to node3 (only node in group "foo") during evacuation.
   LXD_DIR="${LXD_TWO_DIR}" lxc move c7 --target=node1
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c7)" = "STOPPED,node1" ]
 
-  # Evacuate first node
+  echo "Evacuate first node"
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster evacuate node1 --force
 
-  # Ensure the node is evacuated
+  echo "Ensure the node is evacuated"
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -F "status: Evacuated"
 
   # For debugging
   LXD_DIR="${LXD_TWO_DIR}" lxc list -c nsL
 
-  # Check "volatile.cluster.group" (initial target cluster group) is respected.
+  echo 'Check "volatile.cluster.group" (initial target cluster group) is respected.'
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c7)" = "STOPPED,node3" ]
 
-  # Check instance status
+  echo "Check status and location of all instances post-evacuation."
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c s  c1)" = "RUNNING" ]
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L  c1)" != "node1" ]
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c s  c2)" = "RUNNING" ]
@@ -3692,17 +3693,17 @@ test_clustering_evacuation() {
   c6_location="$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L c6)"
   c7_location="$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L c7)"
 
-  echo "==> Check that instance migration to an evacuated node is not allowed."
+  echo "Verify that instance migration to an evacuated node is not allowed."
   [[ "$(LXD_DIR="${LXD_TWO_DIR}" lxc move c5 --target=node1 2>&1)" == *"Error: The destination cluster member is evacuated"* ]]
 
-  # Restore first node with "skip" mode.
+  echo 'Restore first node with "skip" mode.'
   # "skip" mode restores cluster member status without starting instances or migrating back evacuated instances.
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster restore node1 --action=skip --force
 
-  # Ensure the node is restored
+  echo 'Ensure the node is restored'
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -xF "status: Online"
 
-  # Verify that instances remain in their evacuated state/location
+  echo 'Verify that instances remain in their evacuated state/location'
   # c1 should stay on the node it was migrated to
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c1)" = "RUNNING,${c1_location}" ]
   # c2 should stay on the node it was migrated to
@@ -3719,22 +3720,22 @@ test_clustering_evacuation() {
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c7)" = "STOPPED,${c7_location}" ]
 
   # Now test a full restore for comparison
-  # Evacuate node1 again
+  echo 'Evacuate node1 again'
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster evacuate node1 --force
 
-  # Ensure instances cannot be created on the evacuated node
+  echo 'Ensure instances cannot be created on the evacuated node'
   ! LXD_DIR="${LXD_TWO_DIR}" lxc init --empty c8 --target=node1 || false
 
-  # Ensure the node is evacuated
+  echo 'Ensure the node is evacuated'
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -xF "status: Evacuated"
 
-  # Restore first node (without "skip" mode)
+  echo 'Restore first node (without "skip" mode)'
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster restore node1 --force
 
   # For debugging
   LXD_DIR="${LXD_TWO_DIR}" lxc list
 
-  # Ensure the instances were moved back to the origin
+  echo 'Ensure the instances were moved back to the origin'
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c1)" = "RUNNING,node1" ]
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c2)" = "RUNNING,node1" ]
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c3)" = "RUNNING,node1" ]
@@ -3743,11 +3744,11 @@ test_clustering_evacuation() {
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c6)" = "RUNNING,node2" ]
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c7)" = "STOPPED,node1" ]
 
-  # Move c7 to @default to check "volatile.cluster.group" is updated.
+  echo 'Move c7 to @default to check "volatile.cluster.group" is updated.'
   LXD_DIR="${LXD_TWO_DIR}" lxc move c7 --target=@default
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get c7 volatile.cluster.group)" = "default" ]
 
-  # Clean up
+  echo 'Clean up'
   LXD_DIR="${LXD_TWO_DIR}" lxc delete -f c1 c2 c3 c4 c5 c6 c7
   LXD_DIR="${LXD_TWO_DIR}" lxc image delete testimage
 
