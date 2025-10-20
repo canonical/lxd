@@ -26,6 +26,31 @@ ensure_import_testimage() {
     fi
 }
 
+# download_test_images: downloads external test images and stores them in the cache directory.
+download_test_images() {
+    local distro="noble"
+    local dir="${IMAGE_CACHE_DIR:-${HOME}/image-cache}"
+    local base_url="https://cloud-images.ubuntu.com/daily/server/minimal/daily/${distro}/current"
+
+    [ -d "${dir}" ] || mkdir -p "${dir}"
+    (
+        set -eux
+        cd "${dir}"
+        # Delete any image older than 1 day
+        find . -type f -mtime +1 -delete
+
+        local arch
+        arch="$(dpkg --print-architecture || echo "amd64")"
+
+        # For containers: .squashfs (rootfs) and the -lxd.tar.xz (metadata) files are needed.
+        # For VMs: .img (primary disk) and the -lxd.tar.xz (metadata) files are needed.
+        exec curl --show-error --silent --retry 3 --retry-delay 5 \
+          --continue-at - "${base_url}/${distro}-minimal-cloudimg-${arch}-lxd.tar.xz" --output "ubuntu.metadata" \
+          --continue-at - "${base_url}/${distro}-minimal-cloudimg-${arch}.squashfs"   --output "ubuntu.squashfs" \
+          --continue-at - "${base_url}/${distro}-minimal-cloudimg-${arch}.img"        --output "ubuntu.img"
+    )
+}
+
 install_tools() {
     local pkg="${1}"
 
