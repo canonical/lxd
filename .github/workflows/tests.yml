@@ -732,7 +732,7 @@ jobs:
           set -eux
           cd lxd-ui
           dotrun &
-          curl --head --fail --retry-delay 2 --retry 100 --retry-connrefused --insecure https://localhost:${{ env.PORT }}
+          curl --head --fail --retry-delay 2 --retry 100 --retry-connrefused --insecure https://localhost:${PORT}
 
       - name: Setup LXD
         shell: bash
