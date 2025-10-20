@@ -91,7 +91,7 @@ runs:
           sudo microceph.ceph osd crush rule rm replicated_rule
           sudo microceph.ceph osd crush rule create-replicated replicated default osd
           for flag in nosnaptrim nobackfill norebalance norecover noscrub nodeep-scrub; do
-              sudo microceph.ceph osd set $flag
+              sudo microceph.ceph osd set "${flag}"
           done
 
           # If there is more than one OSD, set up partitions.
