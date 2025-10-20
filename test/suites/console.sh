@@ -53,7 +53,9 @@ EOF
 }
 
 test_snap_console_vm() {
-  lxc launch ubuntu-minimal-daily:24.04 v1 --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
+  ensure_import_ubuntu_vm_image
+
+  lxc launch ubuntu-vm v1 --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
   waitInstanceReady v1
 
   # The VGA console is available for VMs
