@@ -2,7 +2,7 @@ test_cloud_init() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  lxc init testimage c1
+  lxc init --empty c1
   ID1=$(lxc config get c1 volatile.cloud-init.instance-id)
   [ -n "${ID1}" ]
 
@@ -26,7 +26,7 @@ test_cloud_init() {
   ID6=$(lxc config get c1 volatile.cloud-init.instance-id)
   [ -n "${ID6}" ] && [ "${ID6}" != "${ID5}" ]
 
-  lxc delete -f c1 c2
+  lxc delete c1 c2
 
   lxc launch testimage devlxd
   lxc file push --quiet "$(command -v devlxd-client)" devlxd/bin/
