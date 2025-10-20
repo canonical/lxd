@@ -226,6 +226,25 @@ parameters:
   storagePool: my-lxd-pool
 ```
 
+#### Volume expansion
+
+Volume expansion can be enabled through StorageClass configuration.
+When enabled, storage volume capacity can be increased once the volume is created.
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: lxd-csi-retain
+provisioner: lxd.csi.canonical.com
+allowVolumeExpansion: true          # Default is "false".
+parameters:
+  storagePool: my-lxd-pool
+```
+
+For filesystem volumes, expansion is performed online and does not require shutting down any Pod using the PVC.
+Block volumes, however, only support offline expansion, meaning the Pod consuming the volume must be stopped before the volume’s capacity can be increased.
+
 (howto-storage-csi-usage-storageclass-helm)=
 #### Configure StorageClass using Helm chart
 
@@ -235,11 +254,12 @@ Each entry in the `storageClasses` list must include at least `name` and `storag
 ```yaml
 # values.yaml
 storageClasses:
-- name: lxd-csi-fs         # Name of the StorageClass (required).
-  storagePool: my-pool     # Name of the target LXD storage pool (required).
+- name: lxd-csi-fs            # (required) Name of the StorageClass.
+  storagePool: my-pool        # (required) Name of the target LXD storage pool.
 - name: lxd-csi-fs-retain
   storagePool: my-pool
-  reclaimPolicy: Retain
+  reclaimPolicy: Retain       # (optional) Reclaim policy for released volume. Defaults to "Delete".
+  allowVolumeExpansion: true  # (optional) Whether to allow volume expansion. Defaults to "true".
 ```
 
 (howto-storage-csi-usage-pvc)=
