@@ -15,6 +15,7 @@ Flag               | Default                 | Description
 `--endpoint`       | `unix:///tmp/csi.sock`  | Internal CSI Unix socket path
 `--devLXDEndpoint` | `unix:///dev/lxd/sock`  | DevLXD Unix socket path
 `--nodeID`         | `""`                    | Kubernetes node ID
+`--controller`     | `false`                 | Run as controller server
 
 (ref-csi-helm)=
 ## Helm chart
