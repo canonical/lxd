@@ -798,14 +798,9 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 				return fmt.Errorf("Failed updating cluster member to %q for instance %q: %w", newMember.Name, newInstName, err)
 			}
 
-			id, err := dbCluster.GetInstanceID(ctx, tx.Tx(), projectName, newInstName)
-			if err != nil {
-				return fmt.Errorf("Failed to get ID of moved instance: %w", err)
-			}
-
 			// Set the cluster group record if needed.
 			if targetGroupName != "" {
-				err = tx.UpdateInstanceConfig(int(id), map[string]string{"volatile.cluster.group": targetGroupName})
+				err = tx.UpdateInstanceConfig(srcInst.ID(), map[string]string{"volatile.cluster.group": targetGroupName})
 				if err != nil {
 					return fmt.Errorf(`Failed setting "volatile.cluster.group" config key: %w`, err)
 				}
