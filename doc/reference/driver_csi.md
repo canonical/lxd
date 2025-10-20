@@ -56,6 +56,10 @@ Key                                                | Type   | Default           
 `controller.csiAttacher.image.tag`                 | string | Chart release dependent                                 | CSI attacher image tag
 `controller.csiAttacher.image.pullPolicy`          | string | `IfNotPresent`                                          | CSI attacher image pull policy
 `controller.csiAttacher.resources`                 | object | `{}`                                                    | CSI attacher resource limits and requests
+`controller.csiResizer.image.repository`           | string | `registry.k8s.io/sig-storage/csi-resizer`               | CSI resizer image
+`controller.csiResizer.image.tag`                  | string | Chart release dependent                                 | CSI resizer image tag
+`controller.csiResizer.image.pullPolicy`           | string | `IfNotPresent`                                          | CSI resizer image pull policy
+`controller.csiResizer.resources`                  | object | `{}`                                                    | CSI resizer resource limits and requests
 `controller.csiLivenessProbe.image.repository`     | string | `registry.k8s.io/sig-storage/livenessprobe`             | CSI liveness probe image
 `controller.csiLivenessProbe.image.tag`            | string | Chart release dependent                                 | CSI liveness probe image tag
 `controller.csiLivenessProbe.image.pullPolicy`     | string | `IfNotPresent`                                          | CSI liveness probe image pull policy
