@@ -27,6 +27,42 @@ ensure_import_testimage() {
     fi
 }
 
+# XXX: do not use directly, use ensure_import_ubuntu_image or ensure_import_ubuntu_vm_image instead.
+_import_ubuntu_image() {
+    local alias="ubuntu"
+    local data_file="ubuntu.squashfs"
+    if [ "${1:-}" = "--vm" ]; then
+        shift
+        alias="ubuntu-vm"
+        data_file="ubuntu.img"
+    fi
+    local project="${1:-}"
+
+    # Using `--project ""` causes `lxc` to interact with the current project.
+    if lxc image alias list -f csv --project "${project}" "${alias}" | grep "^${alias}," >/dev/null; then
+        return
+    fi
+
+    local dir="${IMAGE_CACHE_DIR:-${HOME}/image-cache}"
+    if [ ! -d "${dir}" ] || [ -z "$(ls -A "${dir}" || echo fail)" ]; then
+        echo "Downloading ubuntu test images to cache"
+        download_test_images
+    fi
+
+    echo "Importing ${alias} test image from cache"
+    lxc image import --quiet "${dir}/ubuntu.metadata" "${dir}/${data_file}" --alias "${alias}" --project "${project}"
+}
+
+# ensure_import_ubuntu_image: imports the ubuntu (container) test image if not already present.
+ensure_import_ubuntu_image() {
+    _import_ubuntu_image "$@"
+}
+
+# ensure_import_ubuntu_vm_image: imports the ubuntu-vm test image if not already present.
+ensure_import_ubuntu_vm_image() {
+    _import_ubuntu_image --vm "$@"
+}
+
 # download_test_images: downloads external test images and stores them in the cache directory.
 download_test_images() {
     local distro="noble"
