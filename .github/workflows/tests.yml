@@ -543,58 +543,61 @@ jobs:
       - name: Build static lxc
         env:
           CGO_ENABLED: 0
-          EXTRAS: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '-ldflags "-s -w"' }}
+          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
         run: |
           set -eux
           # Using `go env -w` to avoid dealing with setting variables on Windows
           go env -w GOARCH=arm64
-          go build ${{ env.EXTRAS }} -o trimpath -o bin/lxc.aarch64 ./lxc
+          go build -ldflags "-s -w" -trimpath -o bin/lxc.aarch64 ${COVER} ./lxc
           go env -w GOARCH=amd64
-          go build ${{ env.EXTRAS }} -o trimpath -o bin/lxc.x86_64 ./lxc
+          go build -ldflags "-s -w" -trimpath -o bin/lxc.x86_64 ${COVER} ./lxc
 
       - name: Build static lxd-benchmark
         if: runner.os == 'Linux'
         env:
           CGO_ENABLED: 0
-          EXTRAS: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '-ldflags "-s -w"' }}
+          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
         run: |
           set -eux
-          GOARCH=amd64 go build ${{ env.EXTRAS }} -o trimpath -o bin/lxd-benchmark.x86_64 ./lxd-benchmark
-          GOARCH=arm64 go build ${{ env.EXTRAS }} -o trimpath -o bin/lxd-benchmark.aarch64 ./lxd-benchmark
+          GOARCH=amd64 go build -ldflags "-s -w" -trimpath -o bin/lxd-benchmark.x86_64 ${COVER} ./lxd-benchmark
+          GOARCH=arm64 go build -ldflags "-s -w" -trimpath -o bin/lxd-benchmark.aarch64 ${COVER} ./lxd-benchmark
 
       - name: Build static lxd-migrate
         if: runner.os == 'Linux'
         env:
           CGO_ENABLED: 0
-          EXTRAS: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '-ldflags "-s -w"' }}
+          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
         run: |
           set -eux
-          GOARCH=amd64 go build ${{ env.EXTRAS }} -o trimpath -o bin/lxd-migrate.x86_64 ./lxd-migrate
-          GOARCH=arm64 go build ${{ env.EXTRAS }} -o trimpath -o bin/lxd-migrate.aarch64 ./lxd-migrate
+          GOARCH=amd64 go build -ldflags "-s -w" -trimpath -o bin/lxd-migrate.x86_64 ${COVER} ./lxd-migrate
+          GOARCH=arm64 go build -ldflags "-s -w" -trimpath -o bin/lxd-migrate.aarch64 ${COVER} ./lxd-migrate
 
       - name: Unit tests (client)
         env:
           CGO_ENABLED: 0
-          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover -test.gocoverdir="${GOCOVERDIR}"' || '' }}
+          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
+          COVER_TEST: ${{ ( env.GOCOVERDIR != '' ) && '-test.gocoverdir="${GOCOVERDIR}"' || '' }}
         run: |
           set -eux
-          go test -mod=readonly -v ./client/... ${{ env.COVER }}
+          go test -mod=readonly -v ./client/... ${COVER} ${COVER_TEST}
 
       - name: Unit tests (lxc)
         env:
           CGO_ENABLED: 0
-          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover -test.gocoverdir="${GOCOVERDIR}"' || '' }}
+          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
+          COVER_TEST: ${{ ( env.GOCOVERDIR != '' ) && '-test.gocoverdir="${GOCOVERDIR}"' || '' }}
         run: |
           set -eux
-          go test -mod=readonly -v ./lxc/... ${{ env.COVER }}
+          go test -mod=readonly -v ./lxc/... ${COVER} ${COVER_TEST}
 
       - name: Unit tests (shared)
         env:
           CGO_ENABLED: 0
-          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover -test.gocoverdir="${GOCOVERDIR}"' || '' }}
+          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
+          COVER_TEST: ${{ ( env.GOCOVERDIR != '' ) && '-test.gocoverdir="${GOCOVERDIR}"' || '' }}
         run: |
           set -eux
-          go test -mod=readonly -v ./shared/... ${{ env.COVER }}
+          go test -mod=readonly -v ./shared/... ${COVER} ${COVER_TEST}
 
       - name: Upload coverage data
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
