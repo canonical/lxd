@@ -819,7 +819,7 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 
 		err = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Update instance DB record to indicate its location on the new cluster member.
-			err = tx.UpdateInstanceNode(ctx, projectName, srcInstName, newInstName, newMember.Name, srcPool.ID(), volDBType)
+			err = tx.UpdateInstanceNode(ctx, projectName, srcInstName, newInstName, srcInst.ID(), newMember.Name, srcPool.ID(), volDBType)
 			if err != nil {
 				return fmt.Errorf("Failed updating cluster member to %q for instance %q: %w", newMember.Name, newInstName, err)
 			}
@@ -931,7 +931,7 @@ func instancePostClusteringMigrateWithRemoteStorage(s *state.State, srcPool stor
 
 		// Re-link the database entries against the new member name.
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			err := tx.UpdateInstanceNode(ctx, projectName, srcInstName, srcInstName, newMember.Name, srcPool.ID(), volDBType)
+			err := tx.UpdateInstanceNode(ctx, projectName, srcInstName, srcInstName, srcInst.ID(), newMember.Name, srcPool.ID(), volDBType)
 			if err != nil {
 				return fmt.Errorf("Failed updating cluster member to %q for instance %q: %w", newMember.Name, srcInstName, err)
 			}
