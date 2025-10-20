@@ -1422,7 +1422,7 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 		//  type: integer
 		//  shortdesc: Persistent VM bus number
 		if strings.HasSuffix(key, ".bus") {
-			return validate.IsUint8, nil
+			return validate.Optional(validate.IsUint8), nil
 		}
 
 		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.devlxd.owner)
