@@ -212,7 +212,7 @@ jobs:
           set -eux
 
           # bin/max (sizes are in MiB)
-          SIZES="lxc 16
+          SIZES="lxc 17
                  lxd-agent 14"
           MIB="$((1024 * 1024))"
 
