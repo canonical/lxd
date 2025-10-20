@@ -4267,6 +4267,9 @@ EOF
   [ "$(lxc config get cluster:c2 volatile.cluster.group)" = "blah" ]
   [ "$(lxc config get cluster:c3 volatile.cluster.group)" = "blah" ]
 
+  echo 'Verify that instances with "volatile.cluster.group" are reported in used_by for the blah group'
+  lxc_remote query cluster:/1.0/cluster/groups/blah | jq --exit-status '.used_by | contains(["/1.0/instances/c2?project=default", "/1.0/instances/c3?project=default"])'
+
   # Clean up
   lxc delete c1 c2 c3 c4 c5
 
@@ -4341,8 +4344,13 @@ EOF
   # Check "volatile.cluster.group" is set correctly.
   [ "$(lxc config get cluster:c2 --project foo volatile.cluster.group)" = "blah" ]
 
-  lxc delete -f c1 c2 --project foo
+  echo 'Re-set "restricted.cluster.groups" so we can verify both project and instance are in used_by'
+  lxc project set foo restricted.cluster.groups=blah
 
+  echo 'Verify that both project foo and instance c2 with "volatile.cluster.group" are reported in used_by'
+  lxc_remote query cluster:/1.0/cluster/groups/blah | jq --exit-status '.used_by | contains(["/1.0/instances/c2?project=foo", "/1.0/projects/foo"])'
+
+  lxc delete -f c1 c2 --project foo
   lxc project delete foo
 
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
