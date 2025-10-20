@@ -1,3 +1,16 @@
+_secureboot_csm_boot() {
+  echo "==> Secure boot and CSM combinations"
+  # CSM requires secureboot to be disabled.
+  ! lxc launch --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" --config security.csm=true || false
+  lxc config set v1 security.secureboot=false
+  lxc start v1
+  lxc stop -f v1
+  # CSM with secureboot should refuse to start.
+  lxc config set v1 security.secureboot=true
+  ! lxc start v1 || false
+  lxc delete -f v1
+}
+
 test_vm_empty() {
   if [ "${LXD_TMPFS:-0}" = "1" ] && ! runsMinimumKernel 6.6; then
     echo "==> SKIP: QEMU requires direct-io support which requires a kernel >= 6.6 for tmpfs support (LXD_TMPFS=${LXD_TMPFS})"
@@ -8,6 +21,10 @@ test_vm_empty() {
     echo "Using migration.stateful to force 9p config drive thus avoiding the old/incompatible virtiofsd"
     lxc profile set default migration.stateful=true
   fi
+
+  echo "==> Test randomly named VM creation"
+  RDNAME="$(lxc init --vm --empty --quiet -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" | sed 's/Instance name is: //')"
+  lxc delete "${RDNAME}"
 
   echo "==> Invalid VM names"
   ! lxc init --vm --empty ".." -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" || false
@@ -33,15 +50,16 @@ test_vm_empty() {
   lxc snapshot v1
   [ "$(lxc list -f csv -c S v1)" = "2" ]
 
-  echo "==> Pause (freeze)/resume"
-  lxc pause v1
-  [ "$(lxc list -f csv -c s v1)" = "FROZEN" ]
-  ! lxc stop v1 || false
-  lxc start v1
+  echo "==> Check VM state transitions"
   [ "$(lxc list -f csv -c s v1)" = "RUNNING" ]
   lxc pause v1
   [ "$(lxc list -f csv -c s v1)" = "FROZEN" ]
+  ! lxc stop v1 || false
+  [ "$(lxc list -f csv -c s v1)" = "FROZEN" ]
+  lxc start v1
+  [ "$(lxc list -f csv -c s v1)" = "RUNNING" ]
   lxc stop -f v1
+  [ "$(lxc list -f csv -c s v1)" = "STOPPED" ]
   lxc delete v1
 
   echo "==> Percentage memory limits"
@@ -93,6 +111,8 @@ test_vm_empty() {
 
   lxc delete --force v1
 
+  _secureboot_csm_boot
+
   echo "==> Ephemeral cleanup"
   lxc launch --vm --empty --ephemeral v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
   lxc stop -f v1
@@ -110,4 +130,9 @@ test_vm_empty() {
   # Attempting to mount a single file as a disk device is not supported for VMs; this should fail at start time.
   ! lxc start v1 || false
   lxc delete v1
+}
+
+test_snap_vm_empty() {
+  # useful to test snap provided CSM BIOS
+  _secureboot_csm_boot
 }

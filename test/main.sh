@@ -355,7 +355,7 @@ fi
 # Only spawn a new LXD if not done yet.
 if [ -z "${LXD_DIR:-}" ]; then
     if [ "${LXD_TMPFS:-0}" = "1" ]; then
-      mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=7G
+      mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=8G
     fi
 
     mkdir -p "${TEST_DIR}/dev"
@@ -563,6 +563,7 @@ if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "cluster" ]; then
     run_test test_template "file templating"
     run_test test_pki "PKI mode"
     run_test test_devlxd "/dev/lxd"
+    run_test test_devlxd_vm "/dev/lxd VM"
     run_test test_devlxd_volume_management "devLXD volume management"
     run_test test_fuidshift "fuidshift"
     run_test test_migration "migration"
@@ -622,7 +623,7 @@ fi
 if [ "${1:-"all"}" != "cluster" ] && [ "${1:-"all"}" != "standalone" ]; then
     run_test test_snap_basic_usage_vm "snap basic usage VM"
     run_test test_snap_console_vm "snap console VM"
-    run_test test_snap_devlxd_vm "snap devlxd VM"
+    run_test test_snap_vm_empty "snap empty VM"
     run_test test_snap_lxd_user "snap lxd-user"
     run_test test_snap_storage_volume_attach_vm "snap attaching storage volumes to VMs"
 fi
