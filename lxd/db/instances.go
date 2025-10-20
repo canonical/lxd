@@ -667,13 +667,8 @@ func (c *ClusterTx) InstancesToInstanceArgs(ctx context.Context, fillProfiles bo
 
 // UpdateInstanceNode changes the name of an instance and the cluster member hosting it.
 // It's meant to be used when moving a non-running instance backed by ceph from one cluster node to another.
-func (c *ClusterTx) UpdateInstanceNode(ctx context.Context, project string, oldName string, newName string, newMemberName string, poolID int64, volumeType cluster.StoragePoolVolumeType) error {
+func (c *ClusterTx) UpdateInstanceNode(ctx context.Context, project string, oldName string, newName string, instanceID int, newMemberName string, poolID int64, volumeType cluster.StoragePoolVolumeType) error {
 	// Update the name of the instance and its snapshots, and the member ID they are associated with.
-	instanceID, err := cluster.GetInstanceID(ctx, c.tx, project, oldName)
-	if err != nil {
-		return fmt.Errorf("Failed to get instance's ID: %w", err)
-	}
-
 	member, err := c.GetNodeByName(ctx, newMemberName)
 	if err != nil {
 		return fmt.Errorf("Failed to get new member %q info: %w", newMemberName, err)
