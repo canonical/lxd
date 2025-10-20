@@ -6285,6 +6285,10 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 		if !userOnly {
 			err = b.driver.UpdateVolume(curVol, changedConfig)
 			if err != nil {
+				if errors.Is(err, drivers.ErrInUse) {
+					return api.StatusErrorf(http.StatusLocked, "%w", err)
+				}
+
 				return err
 			}
 		}
