@@ -8,7 +8,7 @@ test_image_auto_update() {
   spawn_lxd "${LXD2_DIR}" true
   LXD2_ADDR=$(< "${LXD2_DIR}/lxd.addr")
 
-  (LXD_DIR=${LXD2_DIR} deps/import-busybox --alias testimage --public)
+  LXD_DIR=${LXD2_DIR} deps/import-busybox --alias testimage --public
   fp1="$(LXD_DIR=${LXD2_DIR} lxc image info testimage | awk '/^Fingerprint/ {print $2}')"
 
   lxc remote add l2 "${LXD2_ADDR}" --accept-certificate --password foo
@@ -22,8 +22,8 @@ test_image_auto_update() {
   # Delete the first image from the remote store and replace it with a
   # new one with a different fingerprint (passing "--template create"
   # will do that).
-  (LXD_DIR=${LXD2_DIR} lxc image delete testimage)
-  (LXD_DIR=${LXD2_DIR} deps/import-busybox --alias testimage --public --template create)
+  LXD_DIR=${LXD2_DIR} lxc image delete testimage
+  LXD_DIR=${LXD2_DIR} deps/import-busybox --alias testimage --public --template create
   fp2="$(LXD_DIR=${LXD2_DIR} lxc image info testimage | awk '/^Fingerprint/ {print $2}')"
   [ "${fp1}" != "${fp2}" ]
 
