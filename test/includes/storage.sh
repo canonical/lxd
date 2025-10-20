@@ -211,3 +211,29 @@ delete_object_storage_pool() {
     deconfigure_loop_device "${loop_file}" "${loop_device}"
   fi
 }
+
+# setup_swap: create a temporary swapfile for CI usage but only if there is no existing swap.
+setup_swap() {
+    if [ "$(swapon --noheading --raw)" != "" ]; then
+        # Swap detected, nothing to do
+        return
+    fi
+
+    SIZE="${1:-1G}"
+    LXD_CI_SWAPFILE="$(mktemp --tmpdir lxd-ci.swapfile.XXXXXXX)"
+    fallocate -l "${SIZE}" "${LXD_CI_SWAPFILE}"
+    chmod 0000 "${LXD_CI_SWAPFILE}"
+    mkswap "${LXD_CI_SWAPFILE}"
+    swapon "${LXD_CI_SWAPFILE}"
+    export LXD_CI_SWAPFILE
+}
+
+# teardown_swap: deactivate and remove any swapfile created by setup_swap
+teardown_swap() {
+    if [ -z "${LXD_CI_SWAPFILE:-}" ]; then
+        return
+    fi
+
+    swapoff "${LXD_CI_SWAPFILE}"
+    rm "${LXD_CI_SWAPFILE}"
+}
