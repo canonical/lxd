@@ -4271,6 +4271,9 @@ EOF
   echo 'Verify that instances with "volatile.cluster.group" are reported in used_by for the blah group'
   lxc_remote query cluster:/1.0/cluster/groups/blah | jq --exit-status '.used_by | contains(["/1.0/instances/c2?project=default", "/1.0/instances/c3?project=default"])'
 
+  echo "Check deleting an in use cluster group fails"
+  ! lxc cluster group delete blah || false
+
   echo 'Clean up for restricted project tests'
   lxc delete c1 c2 c3 c4 c5
 
