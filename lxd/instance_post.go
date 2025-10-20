@@ -10,6 +10,7 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/gorilla/mux"
 
@@ -293,6 +294,11 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	var targetGroupName string
+	if strings.HasPrefix(target, instancetype.TargetClusterGroupPrefix) {
+		targetGroupName = target
+	}
+
 	if req.Migration {
 		// Server-side instance migration.
 		if req.Pool != "" || req.Project != "" {
@@ -337,7 +343,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			run := func(op *operations.Operation) error {
-				return migrateInstance(r.Context(), s, inst, targetMemberInfo.Name, req, op)
+				return migrateInstance(r.Context(), s, inst, targetMemberInfo.Name, targetGroupName, req, op)
 			}
 
 			resources := map[string][]api.URL{}
@@ -625,7 +631,7 @@ func instancePostMigration(s *state.State, inst instance.Instance, req api.Insta
 
 // Migrate an instance to another cluster node (supports both local and remote storage).
 // Source and target members must be online.
-func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, srcMember db.NodeInfo, newMember db.NodeInfo, stateful bool, allowInconsistent bool) (func(op *operations.Operation) error, error) {
+func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, srcMember db.NodeInfo, newMember db.NodeInfo, targetGroupName string, stateful bool, allowInconsistent bool) (func(op *operations.Operation) error, error) {
 	srcMemberOffline := srcMember.IsOffline(s.GlobalConfig.OfflineThreshold())
 
 	// Make sure that the source member is online if we end up being called from another member after a
@@ -638,10 +644,6 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 	if newMember.State == db.ClusterMemberStateEvacuated {
 		return nil, errors.New("The destination cluster member is evacuated")
 	}
-
-	// Save the original value of the "volatile.apply_template" config key,
-	// since we'll want to preserve it in the copied instance.
-	origVolatileApplyTemplate := srcInst.LocalConfig()["volatile.apply_template"]
 
 	// Check we can convert the instance to the volume types needed.
 	volType, err := storagePools.InstanceTypeToVolumeType(srcInst.Type())
@@ -796,25 +798,16 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 				return fmt.Errorf("Failed updating cluster member to %q for instance %q: %w", newMember.Name, newInstName, err)
 			}
 
-			// Restore the original value of "volatile.apply_template".
 			id, err := dbCluster.GetInstanceID(ctx, tx.Tx(), projectName, newInstName)
 			if err != nil {
 				return fmt.Errorf("Failed to get ID of moved instance: %w", err)
 			}
 
-			err = tx.DeleteInstanceConfigKey(ctx, id, "volatile.apply_template")
-			if err != nil {
-				return fmt.Errorf("Failed to remove volatile.apply_template config key: %w", err)
-			}
-
-			if origVolatileApplyTemplate != "" {
-				config := map[string]string{
-					"volatile.apply_template": origVolatileApplyTemplate,
-				}
-
-				err = tx.CreateInstanceConfig(ctx, int(id), config)
+			// Set the cluster group record if needed.
+			if targetGroupName != "" {
+				err = tx.UpdateInstanceConfig(int(id), map[string]string{"volatile.cluster.group": targetGroupName})
 				if err != nil {
-					return fmt.Errorf("Failed to set volatile.apply_template config key: %w", err)
+					return fmt.Errorf(`Failed setting "volatile.cluster.group" config key: %w`, err)
 				}
 			}
 
@@ -875,7 +868,7 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 
 // instancePostClusteringMigrateWithRemoteStorage handles moving a remote shared storage instance from a source member that is offline.
 // This function must be run on the target cluster member to move the instance to.
-func instancePostClusteringMigrateWithRemoteStorage(s *state.State, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, newMember db.NodeInfo) (func(op *operations.Operation) error, error) {
+func instancePostClusteringMigrateWithRemoteStorage(s *state.State, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, newMember db.NodeInfo, targetGroupName string) (func(op *operations.Operation) error, error) {
 	// Sense checks to avoid unexpected behaviour.
 	if !srcPool.Driver().Info().Remote {
 		return nil, errors.New("Source instance's storage pool is not remote shared storage")
@@ -933,13 +926,21 @@ func instancePostClusteringMigrateWithRemoteStorage(s *state.State, srcPool stor
 			return fmt.Errorf("Failed creating mount point of instance on target node: %w", err)
 		}
 
+		// Record the cluster group record if needed.
+		if targetGroupName != "" {
+			err = srcInst.VolatileSet(map[string]string{"volatile.cluster.group": targetGroupName})
+			if err != nil {
+				return err
+			}
+		}
+
 		return nil
 	}
 
 	return run, nil
 }
 
-func migrateInstance(ctx context.Context, s *state.State, inst instance.Instance, targetNode string, req api.InstancePost, op *operations.Operation) error {
+func migrateInstance(ctx context.Context, s *state.State, inst instance.Instance, targetNode string, targetGroupName string, req api.InstancePost, op *operations.Operation) error {
 	// If target isn't the same as the instance's location.
 	if targetNode == inst.Location() {
 		return errors.New("Target must be different than instance's current location")
@@ -975,7 +976,7 @@ func migrateInstance(ctx context.Context, s *state.State, inst instance.Instance
 
 	// Only use instancePostClusteringMigrateWithRemoteStorage when source member is offline and storage location is remote.
 	if srcMember.IsOffline(s.GlobalConfig.OfflineThreshold()) && srcPool.Driver().Info().Remote {
-		f, err := instancePostClusteringMigrateWithRemoteStorage(s, srcPool, inst, req.Name, newMember)
+		f, err := instancePostClusteringMigrateWithRemoteStorage(s, srcPool, inst, req.Name, newMember, targetGroupName)
 		if err != nil {
 			return err
 		}
@@ -983,7 +984,7 @@ func migrateInstance(ctx context.Context, s *state.State, inst instance.Instance
 		return f(op)
 	}
 
-	f, err := instancePostClusteringMigrate(ctx, s, srcPool, inst, req.Name, srcMember, newMember, req.Live, req.AllowInconsistent)
+	f, err := instancePostClusteringMigrate(ctx, s, srcPool, inst, req.Name, srcMember, newMember, targetGroupName, req.Live, req.AllowInconsistent)
 	if err != nil {
 		return err
 	}

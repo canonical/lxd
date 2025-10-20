@@ -29,6 +29,9 @@ const (
 // ConfigVolatilePrefix indicates the prefix used for volatile config keys.
 const ConfigVolatilePrefix = "volatile."
 
+// TargetClusterGroupPrefix indicates the prefix used for target cluster group names.
+const TargetClusterGroupPrefix = "@"
+
 // ConfigKeyPrefixesAny indicates valid prefixes for configuration options.
 var ConfigKeyPrefixesAny = []string{"environment.", "user.", "image.", "cloud-init.ssh-keys."}
 
@@ -461,6 +464,19 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	//  type: string
 	//  shortdesc: The origin of the evacuated instance
 	"volatile.evacuate.origin": validate.IsAny,
+
+	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.cluster.group)
+	// The target cluster group at instance creation or migration time. This is used during scheduling events such as evacuation to ensure the instance is placed correctly.
+	// ---
+	// type: string
+	// shortdesc: The target cluster group
+	"volatile.cluster.group": func(value string) error {
+		if !strings.HasPrefix(value, TargetClusterGroupPrefix) {
+			return fmt.Errorf("Missing %q prefix", TargetClusterGroupPrefix)
+		}
+
+		return nil
+	},
 
 	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.last_state.power)
 	//
