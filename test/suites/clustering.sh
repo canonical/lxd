@@ -3651,16 +3651,16 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster group create foo
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster group assign node3 default,foo
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c7 --target=@foo
+  echo 'Create c7 on node1 and manually set "volatile.cluster.group" to "foo" to test evacuation respects the group constraint.'
+  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c7 --target=node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set c7 volatile.cluster.group foo
   [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc config get c7 volatile.cluster.group)" = "foo" ]
+  # "volatile.cluster.group" is only checked during scheduling events (creation, migration, evacuation).
+  # Expected: c7 created on node1.
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c7)" = "STOPPED,node1" ]
 
   # For debugging
   LXD_DIR="${LXD_TWO_DIR}" lxc list -c nsL
-
-  echo 'Move c7 to node1 (outside target cluster group "foo") to test "volatile.cluster.group" handling post-evacuation.'
-  # Expected: Instance should be evacuated to node3 (only node in group "foo") during evacuation.
-  LXD_DIR="${LXD_TWO_DIR}" lxc move c7 --target=node1
-  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c7)" = "STOPPED,node1" ]
 
   echo "Evacuate first node"
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster evacuate node1 --force
@@ -3671,7 +3671,7 @@ test_clustering_evacuation() {
   # For debugging
   LXD_DIR="${LXD_TWO_DIR}" lxc list -c nsL
 
-  echo 'Check "volatile.cluster.group" (initial target cluster group) is respected.'
+  echo 'Check c7 respects "volatile.cluster.group" and evacuates to the "foo" group (node3).'
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c7)" = "STOPPED,node3" ]
 
   echo "Check status and location of all instances post-evacuation."
@@ -3733,7 +3733,7 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster restore node1 --force
 
   # For debugging
-  LXD_DIR="${LXD_TWO_DIR}" lxc list
+  LXD_DIR="${LXD_TWO_DIR}" lxc list -c nsL
 
   echo 'Ensure the instances were moved back to the origin'
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c1)" = "RUNNING,node1" ]
@@ -3747,6 +3747,13 @@ test_clustering_evacuation() {
   echo 'Move c7 to @default to check "volatile.cluster.group" is updated.'
   LXD_DIR="${LXD_TWO_DIR}" lxc move c7 --target=@default
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get c7 volatile.cluster.group)" = "default" ]
+
+  echo 'Move c7 to verify "volatile.cluster.group" is cleared when moving to an explicit node outside the group.'
+  LXD_DIR="${LXD_TWO_DIR}" lxc move c7 --target=node1
+
+  echo 'Verify c7 is on the target node and "volatile.cluster.group" is cleared'
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L c7)" = "node1" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get c7 volatile.cluster.group || echo fail)" = "" ]
 
   echo 'Clean up'
   LXD_DIR="${LXD_TWO_DIR}" lxc delete -f c1 c2 c3 c4 c5 c6 c7
