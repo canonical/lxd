@@ -2975,6 +2975,13 @@
 						}
 					},
 					{
+						"volatile.cluster.group": {
+							"longdesc": "The target cluster group at instance creation or migration time. This is used during scheduling events such as evacuation to ensure the instance is placed correctly.",
+							"shortdesc": "The target cluster group",
+							"type": "string"
+						}
+					},
+					{
 						"volatile.evacuate.origin": {
 							"longdesc": "The cluster member that the instance lived on before evacuation.",
 							"shortdesc": "The origin of the evacuated instance",

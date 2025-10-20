@@ -3546,8 +3546,19 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c6 --target=node2
   LXD_DIR="${LXD_ONE_DIR}" lxc config set c6 boot.host_shutdown_timeout=1
 
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group create foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster group assign node3 default,foo
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c7 --target=@foo
+  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc config get c7 volatile.cluster.group)" = "@foo" ]
+
   # For debugging
   LXD_DIR="${LXD_TWO_DIR}" lxc list -c nsL
+
+  # Move c7 to node1 (outside target cluster group "foo") to test "volatile.cluster.group" handling post-evacuation.
+  # Expected: Instance should be evacuated to node3 (only node in group "foo") during evacuation.
+  LXD_DIR="${LXD_TWO_DIR}" lxc move c7 --target=node1
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c7)" = "STOPPED,node1" ]
 
   # Evacuate first node
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster evacuate node1 --force
@@ -3557,6 +3568,9 @@ test_clustering_evacuation() {
 
   # For debugging
   LXD_DIR="${LXD_TWO_DIR}" lxc list -c nsL
+
+  # Check "volatile.cluster.group" (initial target cluster group) is respected.
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c7)" = "STOPPED,node3" ]
 
   # Check instance status
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c s  c1)" = "RUNNING" ]
@@ -3574,6 +3588,8 @@ test_clustering_evacuation() {
   c2_location="$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L c2)"
   c4_location="$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L c4)"
   c5_location="$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L c5)"
+  c6_location="$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L c6)"
+  c7_location="$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L c7)"
 
   echo "==> Check that instance migration to an evacuated node is not allowed."
   [[ "$(LXD_DIR="${LXD_TWO_DIR}" lxc move c5 --target=node1 2>&1)" == *"Error: The destination cluster member is evacuated"* ]]
@@ -3597,14 +3613,16 @@ test_clustering_evacuation() {
   # c5 should remain stopped on the node it was migrated to
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c5)" = "STOPPED,${c5_location}" ]
   # c6 should stay on the node it was already on
-  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c6)" = "RUNNING,node2" ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c6)" = "RUNNING,${c6_location}" ]
+  # c7 should stay on the node it was already on
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c7)" = "STOPPED,${c7_location}" ]
 
   # Now test a full restore for comparison
   # Evacuate node1 again
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster evacuate node1 --force
 
   # Ensure instances cannot be created on the evacuated node
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc init --empty c7 --target=node1 || false
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc init --empty c8 --target=node1 || false
 
   # Ensure the node is evacuated
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -xF "status: Evacuated"
@@ -3622,9 +3640,14 @@ test_clustering_evacuation() {
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c4)" = "RUNNING,node1" ]
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c5)" = "STOPPED,node1" ]
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c6)" = "RUNNING,node2" ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c sL c7)" = "STOPPED,node1" ]
+
+  # Move c7 to @default to check "volatile.cluster.group" is updated.
+  LXD_DIR="${LXD_TWO_DIR}" lxc move c7 --target=@default
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get c7 volatile.cluster.group)" = "@default" ]
 
   # Clean up
-  LXD_DIR="${LXD_TWO_DIR}" lxc delete -f c1 c2 c3 c4 c5 c6
+  LXD_DIR="${LXD_TWO_DIR}" lxc delete -f c1 c2 c3 c4 c5 c6 c7
   LXD_DIR="${LXD_TWO_DIR}" lxc image delete testimage
 
   printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
@@ -4138,6 +4161,11 @@ EOF
   lxc init --empty cluster:c5 --target=node3
   [ "$(lxc list -f csv -c L cluster:c5)" = "node3" ]
 
+  # Check "volatile.cluster.group" is set correctly.
+  [ "$(lxc config get cluster:c1 volatile.cluster.group || echo fail)" = "" ]
+  [ "$(lxc config get cluster:c2 volatile.cluster.group)" = "@blah" ]
+  [ "$(lxc config get cluster:c3 volatile.cluster.group)" = "@blah" ]
+
   # Clean up
   lxc delete c1 c2 c3 c4 c5
 
@@ -4208,6 +4236,9 @@ EOF
 
   lxc init --empty cluster:c2 --project foo --target=@blah
   [ "$(lxc list -f csv -c L cluster:c2 --project foo)" = "node2" ]
+
+  # Check "volatile.cluster.group" is set correctly.
+  [ "$(lxc config get cluster:c2 --project foo volatile.cluster.group)" = "@blah" ]
 
   lxc delete -f c1 c2 --project foo
 
