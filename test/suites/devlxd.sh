@@ -171,7 +171,9 @@ test_devlxd_vm() {
     lxc storage set "${pool}" volume.size "${SMALLEST_VM_ROOT_DISK}"
   fi
 
-  lxc launch ubuntu-minimal-daily:24.04 v1 --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
+  ensure_import_ubuntu_vm_image
+
+  lxc launch ubuntu-vm v1 --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
   waitInstanceReady v1
 
   setup_lxd_agent_gocoverage v1
