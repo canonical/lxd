@@ -390,10 +390,10 @@ github.com/opencontainers/selinux v1.9.1 h1:b4VPEF3O5JLZgdTDBmGepaaIbAo0GqoF6EBR
 github.com/opencontainers/selinux v1.9.1/go.mod h1:2i0OySw99QjzBBQByd1Gr9gSjvuho1lHsJxIJ3gGbJI=
 github.com/openfga/api/proto v0.0.0-20250909173124-0ac19aac54f2 h1:C0ZsNwvnOos+K2bbMDmX2++DDzjCGd8dLa8ZZaGB5ys=
 github.com/openfga/api/proto v0.0.0-20250909173124-0ac19aac54f2/go.mod h1:XDX4qYNBUM2Rsa2AbKPh+oocZc2zgme+EF2fFC6amVU=
-github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20250919191407-efa08b02a76a h1:mwpFZZdH4B6hHDGuQjkvebkp8+eLEi63nZ8XniGTyvo=
-github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20250919191407-efa08b02a76a/go.mod h1:BG26d1Fk4GSg0wMj60TRJ6Pe4ka2WQ33akhO+mzt3t0=
-github.com/openfga/openfga v1.10.2 h1:7dw9AatGYuhNTs0e5zsAaetIzV8sePbAeaBai5ibvZs=
-github.com/openfga/openfga v1.10.2/go.mod h1:MKj5ySH4vxIbsaIT94pEPTD3w3BnQ4tv7a7aQFGJ2SQ=
+github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20251003203216-7c0d09a1cc5a h1:UCvuqu+vedXSZvWovoArBFCStLc74WFyKvbkHsqECEw=
+github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20251003203216-7c0d09a1cc5a/go.mod h1:BG26d1Fk4GSg0wMj60TRJ6Pe4ka2WQ33akhO+mzt3t0=
+github.com/openfga/openfga v1.10.3 h1:BDvwXaMP1rVwog4QhMWc19h3ZZz6gFJvXOY1n9lyfGs=
+github.com/openfga/openfga v1.10.3/go.mod h1:vlc3ZACDBfyjxR6emLjSiGF+AOPXMIZ9E72yy8Nt1V4=
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
 github.com/osrg/gobgp/v3 v3.37.0 h1:+ObuOdvj7G7nxrT0fKFta+EAupdWf/q1WzbXydr8IOY=
 github.com/osrg/gobgp/v3 v3.37.0/go.mod h1:kVHVFy1/fyZHJ8P32+ctvPeJogn9qKwa1YCeMRXXrP0=
