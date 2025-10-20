@@ -60,6 +60,7 @@ jobs:
         with:
           # A non-shallow clone is needed for the Differential ShellCheck
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Require GHA pinning
         uses: ./.github/actions/require-gha-pinning
@@ -288,6 +289,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          persist-credentials: false
 
       - name: Tune disk performance
         uses: ./.github/actions/tune-disk-performance
@@ -420,6 +423,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          persist-credentials: false
 
       - name: Tune disk performance
         uses: ./.github/actions/tune-disk-performance
@@ -514,6 +519,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          persist-credentials: false
 
       - name: Install Go
         uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
@@ -623,6 +630,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          persist-credentials: false
 
       - name: Tune disk performance
         uses: ./.github/actions/tune-disk-performance
@@ -633,6 +642,7 @@ jobs:
           repository: 'canonical/lxd-ui'
           ref: main
           path: lxd-ui
+          persist-credentials: false
 
       - name: Install Dotrun
         run: sudo pip3 install dotrun
@@ -811,6 +821,7 @@ jobs:
         with:
           # A non-shallow clone is needed for the sitemap generation
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Install Go
         uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
@@ -872,6 +883,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          persist-credentials: false
 
       - name: Install Go
         uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
@@ -922,6 +935,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          persist-credentials: false
 
       - uses: ./.github/actions/lp-snap-build
         with:
