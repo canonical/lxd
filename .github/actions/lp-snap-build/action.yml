@@ -57,10 +57,11 @@ runs:
       run: |
         # Depends on Go being available which is the case in the GitHub Actions environment
         set -eux
+
+        GOBIN="$(mktemp -d)"
+        export GOBIN
         go install github.com/canonical/lxd-ci/lxd-snapcraft@latest
 
-        # Update system PATH to add ~/go/bin if needed
-        echo "${PATH}"
-        if ! echo "${PATH}" | grep -qF '/go/bin:'; then
-          echo "$(go env GOPATH)/bin" >> "${GITHUB_PATH}"
-        fi
+        # Move the binary into its final location in PATH
+        sudo mv "${GOBIN}/lxd-snapcraft" /usr/local/bin/
+        rmdir "${GOBIN}"
