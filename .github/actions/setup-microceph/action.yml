@@ -66,6 +66,9 @@ runs:
 
     - name: Configure MicroCeph snap
       shell: bash
+      env:
+        STEPS_FREE_EPHEMERAL_DISK_OUTPUTS_EPHEMERAL_DISK: ${{ steps.free_ephemeral_disk.outputs.ephemeral_disk }}
+        INPUTS_OSD_COUNT: ${{ inputs.osd-count }}
       run: |
           set -eux
 
@@ -79,7 +82,7 @@ runs:
           }
           trap cleanup ERR HUP INT TERM
 
-          ephemeral_disk="${{ steps.free_ephemeral_disk.outputs.ephemeral_disk }}"
+          ephemeral_disk="${STEPS_FREE_EPHEMERAL_DISK_OUTPUTS_EPHEMERAL_DISK}"
           sudo microceph cluster bootstrap
           sudo microceph.ceph config set global mon_allow_pool_size_one true
           sudo microceph.ceph config set global mon_allow_pool_delete true
@@ -92,14 +95,14 @@ runs:
           done
 
           # If there is more than one OSD, set up partitions.
-          if [ ${{ inputs.osd-count }} -gt 1 ]; then
+          if [ "${INPUTS_OSD_COUNT}" -gt 1 ]; then
             sudo blkdiscard "${ephemeral_disk}" --force
             sudo parted "${ephemeral_disk}" --script mklabel gpt
 
-            for i in $(seq 1 "${{ inputs.osd-count }}"); do
+            for i in $(seq 1 "${INPUTS_OSD_COUNT}"); do
               # Create equal sized partitions for each OSD.
-              min="$(( (${i}-1) *  100 / ${{ inputs.osd-count }} ))"
-              max="$(( ${i} * 100 / ${{ inputs.osd-count }} ))"
+              min="$(( (i-1) *  100 / INPUTS_OSD_COUNT ))"
+              max="$(( i * 100 / INPUTS_OSD_COUNT ))"
               sudo parted "${ephemeral_disk}" --align optimal --script mkpart primary "${min}%" "${max}%"
             done
 
@@ -110,11 +113,11 @@ runs:
             disk_name="$(basename "${ephemeral_disk}")"
             for _ in 1 2 3; do
               parts="$(grep -cwE "${disk_name}[0-9]+$" /proc/partitions)"
-              [ "${parts}" -ge "${{ inputs.osd-count }}" ] && break
+              [ "${parts}" -ge "${INPUTS_OSD_COUNT}" ] && break
               sleep 1
             done
 
-            for i in $(seq 1 "${{ inputs.osd-count }}"); do
+            for i in $(seq 1 "${INPUTS_OSD_COUNT}"); do
               # MicroCeph does not accept partitions directly.
               # See: https://github.com/canonical/microceph/issues/251
               disk="$(sudo losetup --find --nooverlap --direct-io=on --show "${ephemeral_disk}${i}")"
