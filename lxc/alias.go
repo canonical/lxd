@@ -356,3 +356,28 @@ func (c *cmdAliasImport) readAndParseAliases(filename string) (map[string]string
 	return newAliases, nil
 }
 
+// importAliases imports new aliases into configuration.
+func (c *cmdAliasImport) importAliases(conf *config.Config, newAliases map[string]string) (importedCount, skippedCount, overwrittenCount int) {
+	for alias, target := range newAliases {
+		existingTarget, exists := conf.Aliases[alias]
+		if exists {
+			if c.flagOverwrite {
+				// Overwrite existing alias
+				conf.Aliases[alias] = target
+				overwrittenCount++
+				logger.Infof("Overwritten alias %s: %s -> %s", alias, existingTarget, target)
+			} else {
+				// Skip existing alias (no overwrite)
+				skippedCount++
+				logger.Infof("Skipped existing alias %s (use --overwrite to replace)", alias)
+			}
+		} else {
+			// Add new alias
+			conf.Aliases[alias] = target
+			importedCount++
+			logger.Infof("Added new alias %s -> %s", alias, target)
+		}
+	}
+	return importedCount, skippedCount, overwrittenCount
+}
+
