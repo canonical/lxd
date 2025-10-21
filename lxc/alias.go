@@ -39,6 +39,10 @@ func (c *cmdAlias) command() *cobra.Command {
 	aliasRemoveCmd := cmdAliasRemove{global: c.global, alias: c}
 	cmd.AddCommand(aliasRemoveCmd.command())
 
+	// Import
+	aliasImportCmd := cmdAliasImport{global: c.global, alias: c}
+	cmd.AddCommand(aliasImportCmd.command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
@@ -245,3 +249,38 @@ func (c *cmdAliasRemove) run(cmd *cobra.Command, args []string) error {
 	// Save the config
 	return conf.SaveConfig(c.global.confPath)
 }
+
+// Import.
+type cmdAliasImport struct {
+	global *cmdGlobal
+	alias  *cmdAlias
+
+	flagFormat    string
+	flagOverwrite bool
+}
+
+// Command is a method of the cmdAliasImport structure. It configures and returns a cobra.Command object.
+// This command enables import of the file which holds aliases.
+func (c *cmdAliasImport) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("import", i18n.G("<file>"))
+	cmd.Short = i18n.G("Import aliases from file")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Import aliases from YAML, JSON, or CSV file`))
+	cmd.Example = cli.FormatSection("", i18n.G(`
+lxc alias import aliases.yml
+	Import aliases from YAML file.
+
+lxc alias import aliases.json --overwrite
+	Import aliases from JSON file, overwriting existing ones.
+
+lxc alias import aliases.csv --format=csv
+	Import aliases from CSV file with explicit format.`))
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "auto", i18n.G("Format (auto|yaml|json|csv)")+"``")
+	cmd.Flags().BoolVarP(&c.flagOverwrite, "overwrite", "", false, i18n.G("Overwrite existing aliases"))
+
+	cmd.RunE = c.run
+
+	return cmd
+}
+
