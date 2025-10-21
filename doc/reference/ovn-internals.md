@@ -2,6 +2,7 @@
 relatedlinks: "[Data&#32;centre&#32;networking&#58;&#32;What&#32;is&#32;OVN&#63;](https://ubuntu.com/blog/data-centre-networking-what-is-ovn), [OVN&#32;architectural&#32;overview](https://manpages.ubuntu.com/manpages/noble/man7/ovn-architecture.7.html), [OVN&#32;northbound&#32;database&#32;schema&#32;documentation](https://manpages.ubuntu.com/manpages/noble/en/man5/ovn-nb.5.html), [OVN&#32;southbound&#32;database&#32;schema&#32;documentation](https://manpages.ubuntu.com/manpages/noble/en/man5/ovn-sb.5.html)"
 ---
 
+(ref-ovn-internals)=
 # OVN implementation
 
 Open Virtual Networks (OVN) is an open source Software Defined Network (SDN) solution.
@@ -26,15 +27,17 @@ For more detailed documentation on OVN itself, please see:
 This section outlines the OVN concepts that we use in LXD.
 These are usually represented in tables in the OVN northbound database.
 
+(ref-ovn-internals-chassis)=
 ### Chassis
-A chassis is where traffic physically ingresses into or egresses out of the virtual network.
-In LXD, there will usually be one chassis per cluster member.
-If LXD is configured to use OVN networking, then all members *can* be used as OVN chassis.
 
-```{note}
-If any cluster members have the role `ovn-chassis`, only those members are represented as chassis in the chassis group table (see below).
-If no members have the role, all cluster members are added to the chassis group.
-```
+A chassis is where traffic physically ingresses into or egresses out of the virtual network. In LXD, there will usually be one chassis per cluster member. If LXD is configured to use OVN networking, then all members *can* be used as OVN chassis.
+
+(ref-ovn-internals-chassis-group)=
+### Chassis group
+
+A chassis group is an indirection between physical chassis and the virtual networks that use them. Each LXD OVN network has one chassis group. This allows us to, for example, set chassis priority on a per-network basis so that not all ingress/egress occurs on a single cluster member.
+
+If any cluster members are assigned the {ref}`member role <clustering-member-roles>` of `ovn-chassis`, only those members are added to the chassis group. If none are assigned the `ovn-chassis` role, all members are added to the chassis group.
 
 ### Open vSwitch (OVS) Bridge
 OVS bridges are used to connect virtual networks to physical ones and vice-versa.
@@ -44,11 +47,6 @@ For each LXD cluster member there are two OVS bridges:
 
 - The provider bridge. This is used when connecting the uplink network on the host to the external switch inside each OVN network.
 - The integration bridge. This is used when connecting instances to the internal switch inside each OVN network.
-
-### Chassis group
-A chassis group is an indirection between physical chassis and the virtual networks that use them.
-Each LXD OVN network has one chassis group.
-This allows us to, for example, set chassis priority on a per-network basis so that not all ingress/egress is happening on a single cluster member.
 
 ### OVN underlay
 The OVN underlay is the means by which networks are virtualized across cluster members.
