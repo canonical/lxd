@@ -430,7 +430,14 @@ test_network_ovn() {
   ! lxc network unset "${uplink_network}" ipv4.routes || false
   ! lxc network unset "${uplink_network}" ipv6.routes || false
 
-  echo "Create a backend for each load balancer."
+  echo "Check that target address for load balancer backend cannot be a network address."
+  ! lxc network load-balancer backend add "${ovn_network}" 192.0.2.1 test-backend 10.24.140.0 80 || false
+  ! lxc network load-balancer backend add "${ovn_network}" 2001:db8:1:2::1 test-backend fd42:bd85:5f89:5293:: 80 || false
+
+  echo "Check that target address for load balancer backend cannot be a broadcast address."
+  ! lxc network load-balancer backend add "${ovn_network}" 192.0.2.1 test-backend 10.24.140.255 80 || false
+
+  echo "Create a valid backend for each load balancer."
   lxc network load-balancer backend add "${ovn_network}" 192.0.2.1 c1-backend "${c1_ipv4_address}" 80
   lxc network load-balancer backend add "${ovn_network}" 2001:db8:1:2::1 c1-backend "${c1_ipv6_address}" 80
   lxc network load-balancer backend add "${ovn_network}" "${volatile_ip4}" c1-backend "${c1_ipv4_address}" 162
@@ -505,7 +512,14 @@ test_network_ovn() {
   lxc network forward delete "${ovn_network}" 10.24.140.10
   lxc network forward delete "${ovn_network}" fd42:bd85:5f89:5293::10
 
-  echo "Create a backend for each internal load balancer."
+  echo "Check that target address for internal load balancer backend cannot be a network address."
+  ! lxc network load-balancer backend add "${ovn_network}" 10.24.140.20 test-backend 10.24.140.0 80 || false
+  ! lxc network load-balancer backend add "${ovn_network}" fd42:bd85:5f89:5293::20 test-backend fd42:bd85:5f89:5293:: 80 || false
+
+  echo "Check that target address for internal load balancer backend cannot be a broadcast address."
+  ! lxc network load-balancer backend add "${ovn_network}" 10.24.140.20 test-backend 10.24.140.255 80 || false
+
+  echo "Create a valid backend for each internal load balancer."
   lxc network load-balancer backend add "${ovn_network}" 10.24.140.20 c1-backend "${c1_ipv4_address}" 80
   lxc network load-balancer backend add "${ovn_network}" fd42:bd85:5f89:5293::20 c1-backend "${c1_ipv6_address}" 80
 
