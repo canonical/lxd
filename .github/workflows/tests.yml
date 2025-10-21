@@ -17,6 +17,22 @@ on:
         required: true
         type: boolean
         default: true
+      ubuntu-releases:
+        description: Ubuntu releases to run the tests against. In JSON format, i.e. '["22.04", "24.04"]'.
+        type: choice
+        default: '["24.04"]'
+        options:
+          - '["22.04", "24.04"]'
+          - '["22.04"]'
+          - '["24.04"]'
+      snap-risk:
+        description: Snap risk level, `edge`, `candidate` or `stable`
+        type: choice
+        default: 'edge'
+        options:
+          - 'edge'
+          - 'candidate'
+          - 'stable'
       tmate-debug:
         description: Use tmate debugging session on integration test failure.
         type: boolean
@@ -409,6 +425,279 @@ jobs:
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: coverage-${{ matrix.suite }}-${{ matrix.backend }}
+          path: ${{env.GOCOVERDIR}}
+          retention-days: 1
+        if: env.GOCOVERDIR != ''
+
+      - name: Tmate debugging session
+        if: ${{ failure() && inputs.tmate-debug }}
+        timeout-minutes: 30
+        uses: mxschmitt/action-tmate@7b6a61a73bbb9793cb80ad69b8dd8ac19261834c # v3.22
+        with:
+          # Never allow public SSH access
+          limit-access-to-actor: true
+
+  snap-tests:
+    if: github.event_name != 'schedule' || github.repository == 'canonical/lxd'
+    needs: code-tests
+    env:
+      BRANCH_NAME: ${{ github.ref_name }}
+      SNAP_RISK: ${{ inputs.snap-risk }}
+      SNAP_TRACK: "latest"
+    name: Snap (${{ matrix.test }} - ${{ matrix.os }})
+    runs-on: ubuntu-${{ matrix.os }}
+    # avoid runaway test burning 6 hours of CI
+    timeout-minutes: 60
+    permissions:
+      # need that to manipulate caches
+      actions: write
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.ubuntu-releases || '["24.04"]') }}
+        test:
+          - cgroup
+          - cloud-init
+          - cluster
+          - container
+          - container-copy
+          - container-nesting
+          - conversion
+          - cpu-vm
+          - devlxd-container
+          - devlxd-vm
+          - efi-vars-editor-vm
+          - lxd-installer
+          - lxd-user
+          - interception
+          - network-bridge-firewall
+          - network-ovn ovn:deb
+          - network-ovn ovn:latest/edge
+          - network-routed
+          - pylxd
+          - qemu-external-vm
+          - snapd
+          - storage-buckets
+          - storage-disks-vm
+          - storage-metadata
+          - storage-vm btrfs
+          - storage-vm ceph
+          - storage-vm dir
+          - storage-vm lvm
+          - storage-vm lvm-thin
+          - storage-vm zfs
+          - storage-volumes-vm
+          - tpm-vm
+          # Skip UI tests as they are unreliable and similar ones are done
+          # against the non-snap daemon
+          #- ui chromium
+          #- ui firefox
+          - vm
+          - vm-migration
+          - vm-nesting
+        exclude:
+          # some tests are not worth testing on specific OSes
+          - os: 22.04
+            test: lxd-installer
+          - os: 22.04
+            test: qemu-external-vm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
+      - name: Tune disk performance
+        uses: ./.github/actions/tune-disk-performance
+
+      - name: Checkout lxd-ci
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          repository: 'canonical/lxd-ci'
+          ref: main
+          path: lxd-ci
+          persist-credentials: false
+
+      - name: Reclaim some memory
+        uses: ./.github/actions/reclaim-memory
+
+      - name: Reclaim disk space
+        if: ${{ matrix.test == 'conversion' || startsWith(matrix.test, 'storage-') || matrix.test == 'vm-nesting' }}
+        uses: ./.github/actions/reclaim-disk-space
+
+      - name: Remove docker
+        uses: ./.github/actions/disable-docker
+
+      - name: "Disable br_netfilter"
+        run: |
+          set -eux
+          # XXX: br_netfilter causes subtle issues by subjecting internal
+          #      bridge traffic to NAT/MASQUERADING and IP filtering. This
+          #      modules is not normally loaded on stock Ubuntu installs but it
+          #      is on GHA runners.
+          if lsmod | grep -qw ^br_netfilter; then
+            sudo modprobe -r br_netfilter
+          fi
+
+      # Restore the cache warmed in code-tests job
+      - name: Build or restore dqlite/liblxc dependencies
+        uses: ./.github/actions/cache-dqlite-liblxc
+
+      # Restore the cache warmed in code-tests job
+      - name: Download external test images
+        uses: ./.github/actions/download-images
+        with:
+          image-cache-dir: ${{ env.IMAGE_CACHE_DIR }}
+
+      # Restore the cache warmed in code-tests job
+      - name: Download snap dependencies
+        uses: ./.github/actions/download-snaps
+        with:
+          snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
+
+      # Restore the cache warmed in code-tests job
+      - name: Download minio/mc
+        uses: ./.github/actions/download-minio
+
+      - name: Download system test dependencies
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: system-test-deps
+          merge-multiple: true
+          path: /home/runner/go/bin
+
+      - name: Set exec perms on LXD binaries
+        run: |
+          set -eux
+          ls -lR /home/runner/go/bin/
+          chmod uog+x /home/runner/go/bin/*
+
+      - name: Get Date
+        id: get-date
+        if: ${{ matrix.test == 'qemu-external-vm' }}
+        run: |
+          echo "date=$(/bin/date -u "+%Y%m%d")" >> $GITHUB_OUTPUT
+        shell: bash
+
+      # for simplicity, just use one cache directory
+      # and make it valid for one day
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        id: cache-restore
+        if: ${{ matrix.test == 'qemu-external-vm' }}
+        with:
+          path: /home/runner/work/cache
+          key: cache-${{ steps.get-date.outputs.date }}
+
+      - name: Setup MicroCeph
+        if: ${{ matrix.test == 'conversion' || matrix.test == 'storage-buckets' || matrix.test == 'storage-vm ceph' || matrix.test == 'storage-volumes-vm' }}
+        uses: ./.github/actions/setup-microceph
+        with:
+          osd-count: 3
+          snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
+
+      - name: Setup MicroOVN
+        uses: ./.github/actions/setup-microovn
+        with:
+          snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
+
+      - name: Make GOCOVERDIR
+        run: |
+          set -eux
+          mkdir -p coverage
+          cd coverage
+          echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
+        if: env.GOCOVERAGE == 'true'
+
+      - name: Snap track selection
+        run: |
+          set -eux
+          if [[ "${BRANCH_NAME}" =~ ^stable- ]]; then
+            SNAP_TRACK="${BRANCH_NAME#stable-}"
+            echo "SNAP_TRACK=${SNAP_TRACK}" >> "${GITHUB_ENV}"
+          fi
+
+      - name: Adapt lxd-ci test for sideloading and coverage collection
+        working-directory: './lxd-ci'
+        run: |
+          set -eux
+
+          # Avoid lxd-installer getting in the way
+          sudo rm -f /usr/sbin/lxd /usr/sbin/lxc
+
+          cat << EOF > /tmp/install_lxd.sh
+          # install_lxd replacement that sideloads the built snap and enables coverage collection
+          install_lxd() (
+            # Ensure our custom binaries are found first
+            export PATH="/home/runner/go/bin:${PATH}"
+
+            sideload_lxd_snap "${SNAP_TRACK}/${SNAP_RISK}"
+            gocoverage_lxd_snap
+          )
+          EOF
+
+          # Add snap helpers from the main repo
+          sed -i '1 r ../test/includes/snap.sh' bin/helpers
+          # Replace the install_lxd helper
+          sed -i '/^# install_lxd:/,/^)$/d' bin/helpers
+          cat /tmp/install_lxd.sh >> bin/helpers
+          rm -f /tmp/install_lxd.sh
+
+          cat bin/helpers
+
+      - name: ${{ matrix.test }}
+        working-directory: './lxd-ci'
+        run: |
+          set -eux
+
+          # XXX: prevent accidental usage of `images:` in CI test jobs.
+          #      All tests should be done using officially supported images.
+          echo '127.0.0.1 images.lxd.canonical.com' | sudo tee /etc/hosts
+
+          TEST_SCRIPT="$(echo ${{ matrix.test }} | cut -d " " -f 1)"
+          EXTRA_ARGS="$(echo ${{ matrix.test }} | cut -d " " -f 2- --only-delimited)"
+          if [ "${TEST_SCRIPT}" = "cluster" ]; then
+            dst_track="${SNAP_TRACK}/${SNAP_RISK}"
+            src_track="${SNAP_TRACK}/stable"
+            EXTRA_ARGS="${EXTRA_ARGS:-3} ${src_track} ${dst_track}"
+          elif [ "${TEST_SCRIPT}" = "network-ovn" ]; then
+            if [ -n "${EXTRA_ARGS}" ]; then
+              # Strip the `ovn:` prefix
+              export OVN_SOURCE="${EXTRA_ARGS##ovn:}"
+              EXTRA_ARGS=""
+            fi
+          fi
+
+          sudo --preserve-env=GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,OVN_SOURCE ./bin/local-run "tests/${TEST_SCRIPT}" "${SNAP_TRACK}/${SNAP_RISK}" ${EXTRA_ARGS:-}
+
+      # always update cache as we have our own logic of
+      # cache invalidation and updates in addition to a date check
+      - name: Delete previous cache
+        if: ${{ steps.cache-restore.outputs.cache-hit }}
+        continue-on-error: true
+        run: |
+          gh cache delete "cache-${{ steps.get-date.outputs.date }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        if: ${{ matrix.test == 'qemu-external-vm' }}
+        with:
+          path: /home/runner/work/cache
+          key: cache-${{ steps.get-date.outputs.date }}
+
+      - name: Upload ${{ matrix.test }} test reports
+        if: ${{ always() && startsWith(matrix.test, 'ui ') }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: test-report-${{ matrix.test }}-lxd-${{ env.SNAP_TRACK }}-${{ env.SNAP_RISK }}-os-${{ matrix.os }}
+          path: lxd-ui/test-results
+          retention-days: 1
+
+      - name: Upload coverage data
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-${{ matrix.test }}-${{ matrix.os }}
           path: ${{env.GOCOVERDIR}}
           retention-days: 1
         if: env.GOCOVERDIR != ''
