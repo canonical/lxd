@@ -381,3 +381,19 @@ func (c *cmdAliasImport) importAliases(conf *config.Config, newAliases map[strin
 	return importedCount, skippedCount, overwrittenCount
 }
 
+// logCurrentAliases logs current aliases for debugging.
+func (c *cmdAliasImport) logCurrentAliases(conf *config.Config) {
+	logger.Debugf("Current aliases count before import: %d\n", len(conf.Aliases))
+	for alias, target := range conf.Aliases {
+		logger.Debugf("Current alias %s -> %s\n", alias, target)
+	}
+}
+
+// logFinalAliases logs final aliases for debugging.
+func (c *cmdAliasImport) logFinalAliases(conf *config.Config) {
+	logger.Debugf("Final aliases count: %d", len(conf.Aliases))
+	for alias, target := range conf.Aliases {
+		logger.Debugf("Final alias: %s -> %s", alias, target)
+	}
+}
+
