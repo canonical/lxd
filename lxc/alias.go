@@ -413,3 +413,71 @@ func getFormatFromExtension(filename string) string {
 	}
 }
 
+// parseAliases parses aliases from different formats.
+func parseAliases(data []byte, format string) (map[string]string, error) {
+	switch format {
+	case "yaml":
+		return parseYAMLAliases(data)
+	case "json":
+		return parseJSONAliases(data)
+	case "csv":
+		return parseCSVAliases(data)
+	default:
+		return nil, fmt.Errorf(i18n.G("unsupported format: %s"), format)
+	}
+}
+
+// parseYAMLAliases parses aliases from YAML format.
+func parseYAMLAliases(data []byte) (map[string]string, error) {
+	var config struct {
+		Aliases map[string]string `yaml:"aliases"`
+	}
+
+	err := yaml.Unmarshal(data, &config)
+	if err != nil {
+		return nil, err
+	}
+
+	return config.Aliases, nil
+}
+
+// parseJSONAliases parses aliases from JSON format.
+func parseJSONAliases(data []byte) (map[string]string, error) {
+	var config struct {
+		Aliases map[string]string `json:"aliases"`
+	}
+
+	err := json.Unmarshal(data, &config)
+	if err != nil {
+		return nil, err
+	}
+
+	return config.Aliases, nil
+}
+
+// parseCSVAliases parses aliases from CSV format.
+func parseCSVAliases(data []byte) (map[string]string, error) {
+	reader := csv.NewReader(strings.NewReader(string(data)))
+	records, err := reader.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(records) == 0 {
+		return nil, fmt.Errorf("%s", i18n.G("empty csv file"))
+	}
+
+	aliases := make(map[string]string)
+	for i := 1; i < len(records); i++ {
+		if len(records[i]) >= 2 {
+			alias := strings.Trim(records[i][0], ",")
+			target := strings.Trim(records[i][1], ",")
+			if alias != "" && target != "" {
+				aliases[alias] = target
+			}
+		}
+	}
+
+	return aliases, nil
+}
+
