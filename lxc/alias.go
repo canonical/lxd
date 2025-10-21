@@ -1,13 +1,21 @@
 package main
 
 import (
+	"encoding/csv"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/spf13/cobra"
+	"go.yaml.in/yaml/v2"
 
+	"github.com/canonical/lxd/lxc/config"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/i18n"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 type cmdAlias struct {
@@ -480,4 +488,3 @@ func parseCSVAliases(data []byte) (map[string]string, error) {
 
 	return aliases, nil
 }
-
