@@ -1348,18 +1348,18 @@ func (d *common) canMigrate(inst instance.Instance) (migrate bool, live bool) {
 	config := d.ExpandedConfig()
 	val, ok := config["cluster.evacuate"]
 	if !ok {
-		val = "auto"
+		val = api.ClusterEvacuateModeAuto
 	}
 
-	if val == "migrate" {
+	if val == api.ClusterEvacuateModeMigrate {
 		return true, false
 	}
 
-	if val == "live-migrate" {
+	if val == api.ClusterEvacuateModeLiveMigrate {
 		return true, true
 	}
 
-	if val == "stop" {
+	if val == api.ClusterEvacuateModeStop {
 		return false, false
 	}
 
