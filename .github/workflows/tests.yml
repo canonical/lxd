@@ -60,6 +60,7 @@ jobs:
         with:
           # A non-shallow clone is needed for the Differential ShellCheck
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Require GHA pinning
         uses: ./.github/actions/require-gha-pinning
@@ -288,6 +289,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
 
       - name: Tune disk performance
         uses: ./.github/actions/tune-disk-performance
@@ -410,6 +413,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
 
       - name: Tune disk performance
         uses: ./.github/actions/tune-disk-performance
@@ -504,6 +509,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
 
       - name: Install Go
         uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
@@ -526,58 +533,61 @@ jobs:
       - name: Build static lxc
         env:
           CGO_ENABLED: 0
-          EXTRAS: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '-ldflags "-s -w"' }}
+          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
         run: |
           set -eux
           # Using `go env -w` to avoid dealing with setting variables on Windows
           go env -w GOARCH=arm64
-          go build ${{ env.EXTRAS }} -o trimpath -o bin/lxc.aarch64 ./lxc
+          go build -ldflags "-s -w" -trimpath -o bin/lxc.aarch64 ${COVER} ./lxc
           go env -w GOARCH=amd64
-          go build ${{ env.EXTRAS }} -o trimpath -o bin/lxc.x86_64 ./lxc
+          go build -ldflags "-s -w" -trimpath -o bin/lxc.x86_64 ${COVER} ./lxc
 
       - name: Build static lxd-benchmark
         if: runner.os == 'Linux'
         env:
           CGO_ENABLED: 0
-          EXTRAS: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '-ldflags "-s -w"' }}
+          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
         run: |
           set -eux
-          GOARCH=amd64 go build ${{ env.EXTRAS }} -o trimpath -o bin/lxd-benchmark.x86_64 ./lxd-benchmark
-          GOARCH=arm64 go build ${{ env.EXTRAS }} -o trimpath -o bin/lxd-benchmark.aarch64 ./lxd-benchmark
+          GOARCH=amd64 go build -ldflags "-s -w" -trimpath -o bin/lxd-benchmark.x86_64 ${COVER} ./lxd-benchmark
+          GOARCH=arm64 go build -ldflags "-s -w" -trimpath -o bin/lxd-benchmark.aarch64 ${COVER} ./lxd-benchmark
 
       - name: Build static lxd-migrate
         if: runner.os == 'Linux'
         env:
           CGO_ENABLED: 0
-          EXTRAS: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '-ldflags "-s -w"' }}
+          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
         run: |
           set -eux
-          GOARCH=amd64 go build ${{ env.EXTRAS }} -o trimpath -o bin/lxd-migrate.x86_64 ./lxd-migrate
-          GOARCH=arm64 go build ${{ env.EXTRAS }} -o trimpath -o bin/lxd-migrate.aarch64 ./lxd-migrate
+          GOARCH=amd64 go build -ldflags "-s -w" -trimpath -o bin/lxd-migrate.x86_64 ${COVER} ./lxd-migrate
+          GOARCH=arm64 go build -ldflags "-s -w" -trimpath -o bin/lxd-migrate.aarch64 ${COVER} ./lxd-migrate
 
       - name: Unit tests (client)
         env:
           CGO_ENABLED: 0
-          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover -test.gocoverdir="${GOCOVERDIR}"' || '' }}
+          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
+          COVER_TEST: ${{ ( env.GOCOVERDIR != '' ) && '-test.gocoverdir="${GOCOVERDIR}"' || '' }}
         run: |
           set -eux
-          go test -mod=readonly -v ./client/... ${{ env.COVER }}
+          go test -mod=readonly -v ./client/... ${COVER} ${COVER_TEST}
 
       - name: Unit tests (lxc)
         env:
           CGO_ENABLED: 0
-          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover -test.gocoverdir="${GOCOVERDIR}"' || '' }}
+          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
+          COVER_TEST: ${{ ( env.GOCOVERDIR != '' ) && '-test.gocoverdir="${GOCOVERDIR}"' || '' }}
         run: |
           set -eux
-          go test -mod=readonly -v ./lxc/... ${{ env.COVER }}
+          go test -mod=readonly -v ./lxc/... ${COVER} ${COVER_TEST}
 
       - name: Unit tests (shared)
         env:
           CGO_ENABLED: 0
-          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover -test.gocoverdir="${GOCOVERDIR}"' || '' }}
+          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
+          COVER_TEST: ${{ ( env.GOCOVERDIR != '' ) && '-test.gocoverdir="${GOCOVERDIR}"' || '' }}
         run: |
           set -eux
-          go test -mod=readonly -v ./shared/... ${{ env.COVER }}
+          go test -mod=readonly -v ./shared/... ${COVER} ${COVER_TEST}
 
       - name: Upload coverage data
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -613,6 +623,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
 
       - name: Tune disk performance
         uses: ./.github/actions/tune-disk-performance
@@ -623,6 +635,7 @@ jobs:
           repository: 'canonical/lxd-ui'
           ref: main
           path: lxd-ui
+          persist-credentials: false
 
       - name: Install Dotrun
         run: sudo pip3 install dotrun
@@ -712,7 +725,7 @@ jobs:
           set -eux
           cd lxd-ui
           dotrun &
-          curl --head --fail --retry-delay 2 --retry 100 --retry-connrefused --insecure https://localhost:${{ env.PORT }}
+          curl --head --fail --retry-delay 2 --retry 100 --retry-connrefused --insecure https://localhost:${PORT}
 
       - name: Setup LXD
         shell: bash
@@ -801,6 +814,7 @@ jobs:
         with:
           # A non-shallow clone is needed for the sitemap generation
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Install Go
         uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
@@ -862,6 +876,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
 
       - name: Install Go
         uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
@@ -912,6 +928,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
 
       - uses: ./.github/actions/lp-snap-build
         with:

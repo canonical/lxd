@@ -22,11 +22,13 @@ runs:
   steps:
     - name: Setup Launchpad SSH access
       shell: bash
+      env:
+        INPUTS_SSH_KEY: ${{ inputs.ssh-key }}
       run: |
         set -eux
         mkdir -m 0700 -p ~/.ssh/
         ssh-agent -a "${SSH_AUTH_SOCK}" > /dev/null
-        ssh-add - <<< "${{ inputs.ssh-key }}"
+        ssh-add - <<< "${INPUTS_SSH_KEY}"
         ssh-add -L > ~/.ssh/id_ed25519.pub
         # In ephemeral environments like GitHub Action runners, relying on TOFU isn't providing any security
         # so require the key obtained by `ssh-keyscan` to match the expected hash from https://help.launchpad.net/SSHFingerprints
@@ -55,10 +57,11 @@ runs:
       run: |
         # Depends on Go being available which is the case in the GitHub Actions environment
         set -eux
+
+        GOBIN="$(mktemp -d)"
+        export GOBIN
         go install github.com/canonical/lxd-ci/lxd-snapcraft@latest
 
-        # Update system PATH to add ~/go/bin if needed
-        echo "${PATH}"
-        if ! echo "${PATH}" | grep -qF '/go/bin:'; then
-          echo "$(go env GOPATH)/bin" >> "${GITHUB_PATH}"
-        fi
+        # Move the binary into its final location in PATH
+        sudo mv "${GOBIN}/lxd-snapcraft" /usr/local/bin/
+        rmdir "${GOBIN}"
