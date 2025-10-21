@@ -234,7 +234,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	//  defaultdesc: `auto`
 	//  liveupdate: no
 	//  shortdesc: What to do when evacuating the instance
-	"cluster.evacuate": validate.Optional(validate.IsOneOf("auto", "migrate", "live-migrate", "stop")),
+	"cluster.evacuate": validate.Optional(validate.IsOneOf(api.ClusterEvacuateModeAuto, api.ClusterEvacuateModeMigrate, api.ClusterEvacuateModeLiveMigrate, api.ClusterEvacuateModeStop)),
 
 	// lxdmeta:generate(entities=instance; group=resource-limits; key=limits.cpu)
 	// A number or a specific range of CPUs to expose to the instance.
