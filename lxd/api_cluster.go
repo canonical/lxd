@@ -3801,6 +3801,12 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 					return err
 				}
 
+				usedBy, err := clusterGroupUsedBy(ctx, s, tx, clusterGroup.Name, false)
+				if err != nil {
+					return err
+				}
+
+				apiClusterGroup.UsedBy = usedBy
 				apiClusterGroups = append(apiClusterGroups, apiClusterGroup)
 			}
 		} else {
@@ -3894,6 +3900,12 @@ func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
+		usedBy, err := clusterGroupUsedBy(ctx, s, tx, name, false)
+		if err != nil {
+			return err
+		}
+
+		apiGroup.UsedBy = usedBy
 		return nil
 	})
 	if err != nil {
