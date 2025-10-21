@@ -284,3 +284,48 @@ lxc alias import aliases.csv --format=csv
 	return cmd
 }
 
+// Run is a method of the cmdAliasImport structure that executes the actual operation of the alias import command.
+// It takes as input as the name of the alis file to be imported and updates the global configuration file to reflect this change.
+func (c *cmdAliasImport) run(cmd *cobra.Command, args []string) error {
+	conf := c.global.conf
+
+	// Quick checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
+	if exit {
+		return err
+	}
+
+	filename := args[0]
+
+	// Debug: show current aliases before import
+	c.logCurrentAliases(conf)
+
+	// Read and parse file
+	newAliases, err := c.readAndParseAliases(filename)
+	if err != nil {
+		return err
+	}
+
+	// Import Aliases
+	importedCount, skippedCount, overwrittenCount := c.importAliases(conf, newAliases)
+
+	// Debug show final aliases
+	c.logFinalAliases(conf)
+
+	// Debug show what has been parsed
+	logger.Debugf("Parsed %d aliases from file\n", len(newAliases))
+	for alias, target := range newAliases {
+		logger.Debugf("New alias: %s -> %s\n", alias, target)
+	}
+
+	// Save config
+	err = conf.SaveConfig(c.global.confPath)
+	if err != nil {
+		return fmt.Errorf(i18n.G("Failed to save config: %v"), err)
+	}
+
+	// Report results
+	fmt.Printf(i18n.G("Imported: %d, Skipped: %d, Overwritten: %d aliases\n"), importedCount, skippedCount, overwrittenCount)
+	return nil
+}
+
