@@ -5990,6 +5990,15 @@
 						}
 					},
 					{
+						"ceph.osd.force_reuse": {
+							"defaultdesc": "`false`",
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "Whether to allow reuse of an existing OSD storage pool already used by LXD",
+							"type": "bool"
+						}
+					},
+					{
 						"ceph.osd.pg_num": {
 							"defaultdesc": "`32`",
 							"longdesc": "",
