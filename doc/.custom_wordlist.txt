@@ -34,7 +34,7 @@ BMC
 Btrfs
 bugfix
 bugfixes
-CA 
+CA
 CAs
 CCLA
 CDI
@@ -133,6 +133,7 @@ IPVLAN
 IPVS
 JIT
 JWT
+journaling
 jq
 kB
 kbit
@@ -249,6 +250,7 @@ RGW
 RHEL
 rollout
 rootfs
+RCG
 RSA
 runtime
 SATA
