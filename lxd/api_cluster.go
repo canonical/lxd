@@ -3265,13 +3265,13 @@ func evacuateClusterMember(ctx context.Context, s *state.State, gateway *cluster
 	}
 
 	// Evacuate networks too, but not during healing.
-	if mode != "heal" {
+	if mode != api.ClusterEvacuateModeHeal {
 		networkStop(s, true)
 	}
 
 	revert.Success()
 
-	if mode != "heal" {
+	if mode != api.ClusterEvacuateModeHeal {
 		s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterMemberEvacuated.Event(name, op.EventLifecycleRequestor(), nil))
 	}
 
@@ -3293,13 +3293,13 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 		// Apply overrides.
 		if opts.mode != "" {
 			switch opts.mode {
-			case "stop":
+			case api.ClusterEvacuateModeStop:
 				migrate = false
 				live = false
-			case "migrate":
+			case api.ClusterEvacuateModeMigrate:
 				migrate = true
 				live = false
-			case "live-migrate":
+			case api.ClusterEvacuateModeLiveMigrate:
 				migrate = true
 				live = true
 			default:
@@ -3387,7 +3387,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 	skipInstances := false
 	if mode != "" {
 		switch mode {
-		case "skip":
+		case api.ClusterRestoreModeSkip:
 			skipInstances = true
 		default:
 			return response.BadRequest(fmt.Errorf("Invalid mode: %q", mode))
@@ -4618,7 +4618,7 @@ func healClusterMember(s *state.State, gateway *cluster.Gateway, op *operations.
 		return nil
 	}
 
-	err := evacuateClusterMember(context.Background(), s, gateway, op, name, "heal", nil, migrateFunc)
+	err := evacuateClusterMember(context.Background(), s, gateway, op, name, api.ClusterEvacuateModeHeal, nil, migrateFunc)
 	if err != nil {
 		logger.Error("Failed healing cluster member", logger.Ctx{"member": name, "err": err})
 		return err
