@@ -11,7 +11,7 @@ download_snap() {
         cd "${dir}"
         # Delete any revs older than 1 day
         find . -type f -mtime +1 \( -name "${name}_*.snap" -o -name "${name}_*.assert" \) -delete
-        snap download "${name}" --channel="${channel}" --cohort="+"
+        exec snap download "${name}" --channel="${channel}" --cohort="+"
     )
 }
 

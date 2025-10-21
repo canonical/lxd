@@ -11,21 +11,83 @@ ensure_has_localhost_remote() {
 
 ensure_import_testimage() {
     local project="${1:-}"
+    local alias="testimage"
 
     # Using `--project ""` causes `lxc` to interact with the current project.
-    if lxc image alias list -f csv --project "${project}" testimage | grep -wF "testimage" >/dev/null; then
+    if lxc image alias list -f csv --project "${project}" "${alias}" | grep "^${alias}," >/dev/null; then
         return
     fi
 
     if [ -e "${LXD_TEST_IMAGE:-}" ]; then
         echo "Importing ${LXD_TEST_IMAGE} test image from disk"
-        lxc image import --quiet "${LXD_TEST_IMAGE}" --alias testimage --project "${project}"
+        lxc image import --quiet "${LXD_TEST_IMAGE}" --alias "${alias}" --project "${project}"
     else
         if [ "${project:-}" = "" ]; then
           project="$(lxc project list -f csv | awk '/(current)/ {print $1}')"
         fi
-        deps/import-busybox --alias testimage --project "${project}"
+        deps/import-busybox --alias "${alias}" --project "${project}"
     fi
+}
+
+# XXX: do not use directly, use ensure_import_ubuntu_image or ensure_import_ubuntu_vm_image instead.
+_import_ubuntu_image() {
+    local alias="ubuntu"
+    local data_file="ubuntu.squashfs"
+    if [ "${1:-}" = "--vm" ]; then
+        shift
+        alias="ubuntu-vm"
+        data_file="ubuntu.img"
+    fi
+    local project="${1:-}"
+
+    # Using `--project ""` causes `lxc` to interact with the current project.
+    if lxc image alias list -f csv --project "${project}" "${alias}" | grep "^${alias}," >/dev/null; then
+        return
+    fi
+
+    local dir="${IMAGE_CACHE_DIR:-${HOME}/image-cache}"
+    if [ ! -d "${dir}" ] || [ -z "$(ls -A "${dir}" || echo fail)" ]; then
+        echo "Downloading ubuntu test images to cache"
+        download_test_images
+    fi
+
+    echo "Importing ${alias} test image from cache"
+    lxc image import --quiet "${dir}/ubuntu.metadata" "${dir}/${data_file}" --alias "${alias}" --project "${project}"
+}
+
+# ensure_import_ubuntu_image: imports the ubuntu (container) test image if not already present.
+ensure_import_ubuntu_image() {
+    _import_ubuntu_image "$@"
+}
+
+# ensure_import_ubuntu_vm_image: imports the ubuntu-vm test image if not already present.
+ensure_import_ubuntu_vm_image() {
+    _import_ubuntu_image --vm "$@"
+}
+
+# download_test_images: downloads external test images and stores them in the cache directory.
+download_test_images() {
+    local distro="noble"
+    local dir="${IMAGE_CACHE_DIR:-${HOME}/image-cache}"
+    local base_url="https://cloud-images.ubuntu.com/daily/server/minimal/daily/${distro}/current"
+
+    [ -d "${dir}" ] || mkdir -p "${dir}"
+    (
+        set -eux
+        cd "${dir}"
+        # Delete any image older than 1 day
+        find . -type f -mtime +1 -delete
+
+        local arch
+        arch="$(dpkg --print-architecture || echo "amd64")"
+
+        # For containers: .squashfs (rootfs) and the -lxd.tar.xz (metadata) files are needed.
+        # For VMs: .img (primary disk) and the -lxd.tar.xz (metadata) files are needed.
+        exec curl --show-error --silent --retry 3 --retry-delay 5 \
+          --continue-at - "${base_url}/${distro}-minimal-cloudimg-${arch}-lxd.tar.xz" --output "ubuntu.metadata" \
+          --continue-at - "${base_url}/${distro}-minimal-cloudimg-${arch}.squashfs"   --output "ubuntu.squashfs" \
+          --continue-at - "${base_url}/${distro}-minimal-cloudimg-${arch}.img"        --output "ubuntu.img"
+    )
 }
 
 install_tools() {

@@ -28,6 +28,7 @@ env:
   LXD_REQUIRED_TESTS: "storage_buckets,network_ovn"
   GOCOVERAGE: ${{ ( ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.repository == 'canonical/lxd' ) && 'true' || 'false' }}
   GOCOVERDIR: ''  # Later set to the fully qualified path if needed
+  IMAGE_CACHE_DIR: "/home/runner/image-cache"
   SNAP_CACHE_DIR: "/home/runner/snap-cache"
 
 permissions:
@@ -238,6 +239,12 @@ jobs:
           retention-days: 1
         if: env.GOCOVERDIR != ''
 
+      - name: Prime cache with external test images
+        uses: ./.github/actions/download-images
+        with:
+          prime-cache-only: true
+          image-cache-dir: ${{ env.IMAGE_CACHE_DIR }}
+
       - name: Prime cache with snap dependencies
         uses: ./.github/actions/download-snaps
         with:
@@ -318,6 +325,12 @@ jobs:
       # Restore the cache warmed in code-tests job
       - name: Build or restore dqlite/liblxc dependencies
         uses: ./.github/actions/cache-dqlite-liblxc
+
+      # Restore the cache warmed in code-tests job
+      - name: Download external test images
+        uses: ./.github/actions/download-images
+        with:
+          image-cache-dir: ${{ env.IMAGE_CACHE_DIR }}
 
       # Restore the cache warmed in code-tests job
       - name: Download snap dependencies
