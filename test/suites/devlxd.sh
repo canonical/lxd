@@ -477,6 +477,42 @@ EOF
     # Ensure storage volumes are deleted.
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage volumes "${pool}" | jq --exit-status '. == []'
 
+    # Test block volumes (VMs only).
+    if [ "${instType}" = "virtual-machine" ]; then
+      # Create a custom block volume.
+      volBlock='{"name": "block-vol", "type": "custom", "content_type": "block", "config": {"size": "10MiB"}}'
+      lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${volBlock}"
+
+      # Attach block volume to the instance.
+      attachReq=$(cat <<EOF
+{
+    "devices": {
+        "block-vol": {
+            "type": "disk",
+            "pool": "${pool}",
+            "source": "block-vol"
+        }
+    }
+}
+EOF
+)
+
+      lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance update "${inst}" "${attachReq}"
+      lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}" | jq --exit-status '.devices."block-vol".source == "block-vol"'
+
+      # Try increasing block volume size while the volume is attached to a running VM (in use).
+      # Ensure the returned status code is 423 (StatusLocked).
+      patchReq='{"config": {"size": "20MiB"}}'
+      [ "$(lxc exec "${inst}" --project "${project}" -- curl -s -o /dev/null -w "%{http_code}" --unix-socket /dev/lxd/sock -H "Authorization: Bearer ${token}" -X PATCH "lxd/1.0/storage-pools/${pool}/volumes/custom/block-vol" -d "${patchReq}")" = "423" ]
+
+      # Detach device.
+      detachReq='{"devices": {"block-vol": null}}'
+      lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance update "${inst}" "${detachReq}"
+
+      # Delete volume.
+      lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage delete-volume "${pool}" custom block-vol
+    fi
+
     # Cleanup.
     lxc image delete "$(lxc config get "${inst}" volatile.base_image --project "${project}")" --project "${project}"
     lxc delete "${inst}" --project "${project}" --force
