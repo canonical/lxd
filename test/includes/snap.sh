@@ -113,7 +113,7 @@ sideload_lxd_snap() {
     local bin
     install_snap lxd "${channel}"
 
-    for bin in "${_LXC}" "$(command -v lxd)" "$(command -v lxd-user)"; do
+    for bin in "${_LXC:-$(command -v lxc)}" "$(command -v lxd)" "$(command -v lxd-user)"; do
         cp "${bin}" "/var/snap/lxd/common/${bin##*/}.debug"
     done
 
