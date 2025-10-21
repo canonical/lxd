@@ -114,7 +114,9 @@ test_snap_storage_volume_attach_vm() {
   lxc storage volume create "${pool}" vol2 size=1MiB
   lxc storage volume create "${pool}" vol3 size=1MiB --type block
 
-  lxc init ubuntu-minimal-daily:24.04 v1 --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
+  ensure_import_ubuntu_vm_image
+
+  lxc init ubuntu-vm v1 --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
   lxc storage volume attach "${pool}" vol1 v1
   lxc start v1
   waitInstanceReady v1
