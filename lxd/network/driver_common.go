@@ -1378,6 +1378,14 @@ func (n *common) loadBalancerValidate(listenAddress net.IP, forward api.NetworkL
 			return nil, fmt.Errorf("Target address is not within the network subnet for backend %q", backendSpec.Name)
 		}
 
+		if targetIsIP4 && IPIsBroadcast(netSubnet, targetAddress) {
+			return nil, errors.New("Target address cannot be a broadcast address")
+		}
+
+		if targetAddress.Equal(netSubnet.IP) {
+			return nil, errors.New("Target address cannot be a network address")
+		}
+
 		// Check valid target port(s) supplied.
 		target := forwardTarget{
 			address: targetAddress,
