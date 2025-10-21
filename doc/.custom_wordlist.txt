@@ -137,6 +137,7 @@ IPVLAN
 IPVS
 JIT
 JWT
+journaling
 jq
 kB
 kbit
@@ -267,6 +268,7 @@ RGW
 RHEL
 rollout
 rootfs
+RCG
 RPC
 RPCs
 RSA
