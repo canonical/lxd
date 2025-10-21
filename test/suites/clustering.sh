@@ -1332,6 +1332,103 @@ test_clustering_network() {
   kill_lxd "${LXD_TWO_DIR}"
 }
 
+test_clustering_heal_networks_stop() {
+  echo "==> Test: cluster healing does not shut down networks on the leader node when evacuating an offline member"
+  # Regression test for https://github.com/canonical/lxd/issues/16642.
+  local LXD_DIR
+
+  echo "Create a cluster with 3 nodes"
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # Add a newline at the end of each line. YAML has weird rules.
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  # Spawn a second node
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
+
+  # Spawn a third node
+  setup_clustering_netns 3
+  LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns3="${prefix}3"
+  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${LXD_ONE_DIR}"
+
+  echo "Create bridge network to start BGP listener on"
+  bgpbr="${prefix}bgpbr"
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${bgpbr}" --target node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${bgpbr}" --target node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${bgpbr}" --target node3
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${bgpbr}" ipv4.address=100.64.2.1/24 ipv6.address=fd42:4242:4242:2021::1/64
+  bgpIP=$(LXD_DIR="${LXD_ONE_DIR}" lxc network get "${bgpbr}" ipv4.address | cut -d/ -f1)
+
+  echo "Create bridge network on all nodes"
+  net="${prefix}net"
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node3
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" ipv4.address=192.0.2.1/24 ipv6.address=fd42:4242:4242:1010::1/64
+
+  echo "Verify the network exists on all nodes"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc network list -f csv | grep -c "${net}")" = "1" ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc network list -f csv | grep -c "${net}")" = "1" ]
+  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc network list -f csv | grep -c "${net}")" = "1" ]
+
+  echo "Create network forward"
+  LXD_DIR="${LXD_ONE_DIR}" lxc network forward create "${net}" 198.51.100.1
+
+  echo "Check forward is exported via BGP prefixes"
+  LXD_DIR="${LXD_ONE_DIR}" lxc query /internal/testing/bgp | grep -F "198.51.100.1/32"
+
+  echo "Enable the BGP listener"
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set core.bgp_address="${bgpIP}:8874" core.bgp_asn=65536 core.bgp_routerid="${bgpIP}"
+
+  echo "Verify the prefix is exported on the leader before triggering healing"
+  LXD_DIR="${LXD_ONE_DIR}" lxc query /internal/testing/bgp # For debugging
+  LXD_DIR="${LXD_ONE_DIR}" lxc query /internal/testing/bgp | grep -F "198.51.100.1/32"
+
+  echo "Set a low offline threshold so the member is marked offline quickly"
+  LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.offline_threshold 11
+
+  echo "Set the healing threshold to automatically heal offline members"
+  LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.healing_threshold 1
+
+  echo "Stop node2 (a non-leader member) to trigger healing"
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  kill_lxd "${LXD_TWO_DIR}"
+
+  echo "Wait for the member to be detected as offline and healing to kick in"
+  sleep 45
+
+  echo "Verify BGP prefix is still exported on the leader after healing"
+  # Expected: after healing, the leader should still be exporting the forward prefix
+  LXD_DIR="${LXD_ONE_DIR}" lxc query /internal/testing/bgp # For debugging
+  LXD_DIR="${LXD_ONE_DIR}" lxc query /internal/testing/bgp | grep -F "198.51.100.1/32"
+
+  echo "Clean up"
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_THREE_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_THREE_DIR}"
+}
+
 # Perform an upgrade of a 2-member cluster, then a join a third member and
 # perform one more upgrade
 test_clustering_upgrade() {
