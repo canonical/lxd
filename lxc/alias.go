@@ -397,3 +397,19 @@ func (c *cmdAliasImport) logFinalAliases(conf *config.Config) {
 	}
 }
 
+// getFormatFrom extension determines fotmat from file extension only.
+func getFormatFromExtension(filename string) string {
+	extension := strings.ToLower(filepath.Ext(filename))
+	switch extension {
+	case ".yml", ".yaml":
+		return "yaml"
+	case ".json":
+		return "json"
+	case ".csv":
+		return "csv"
+	default:
+		// Default to YAML for unknown extensions
+		return "yaml"
+	}
+}
+
