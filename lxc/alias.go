@@ -329,3 +329,30 @@ func (c *cmdAliasImport) run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// readAndParseAliases reads the file and parses aliases based on format.
+func (c *cmdAliasImport) readAndParseAliases(filename string) (map[string]string, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf(i18n.G("Failed to read file: %v"), err)
+	}
+
+	format := c.flagFormat
+	if format == "auto" {
+		format = getFormatFromExtension(filename)
+	}
+
+	logger.Debugf("Using format: %s\n", format)
+
+	newAliases, err := parseAliases(data, format)
+	if err != nil {
+		return nil, fmt.Errorf(i18n.G("Failed to parse %s file: %v"), format, err)
+	}
+
+	logger.Debugf("Parsed %d aliases from file", len(newAliases))
+	for alias, target := range newAliases {
+		logger.Debugf("New alias: %s -> %s", alias, target)
+	}
+
+	return newAliases, nil
+}
+
