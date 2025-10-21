@@ -150,9 +150,9 @@ test_completions() {
     [ "$(complete config set localhost: m)" = 'maas.' ]
     [ "$(complete config set localhost: maas.)" = 'maas.api.,maas.machine=' ]
     [ "$(complete config set localhost: maas.api.)" = 'maas.api.key=,maas.api.url=' ]
-    [ "$(complete config set c1 '')" = 'boot.,cloud-init.,cluster.,environment.,limits.,linux.,migration.,nvidia.,raw.,security.,snapshots.,ubuntu_pro.,user.' ]
+    [ "$(complete config set c1 '')" = 'boot.,cloud-init.,cluster.,environment.,limits.,linux.,migration.,nvidia.,placement.,raw.,security.,snapshots.,ubuntu_pro.,user.' ]
     [ "$(complete config set c1 l)" = 'limits.,linux.' ]
-    [ "$(complete config set localhost:c1 '')" = 'boot.,cloud-init.,cluster.,environment.,limits.,linux.,migration.,nvidia.,raw.,security.,snapshots.,ubuntu_pro.,user.' ]
+    [ "$(complete config set localhost:c1 '')" = 'boot.,cloud-init.,cluster.,environment.,limits.,linux.,migration.,nvidia.,placement.,raw.,security.,snapshots.,ubuntu_pro.,user.' ]
     [ "$(complete config set c1 limits.)" = 'limits.cpu.,limits.cpu=,limits.disk.,limits.hugepages.,limits.kernel.,limits.memory.,limits.memory=,limits.processes=' ]
     [ "$(complete config set c1 migration.)" = 'migration.incremental.' ] # No .stateful because c1 is not a VM.
     [ "$(complete config get '')" = 'acme.,backups.,c1,c2,cluster.,core.,images.,instances.,localhost:,loki.,maas.,network.,oidc.,storage.,user.' ]
@@ -162,9 +162,9 @@ test_completions() {
     [ "$(complete config get localhost: m)" = 'maas.' ]
     [ "$(complete config get localhost: maas.)" = 'maas.api.,maas.machine' ]
     [ "$(complete config get localhost: maas.api.)" = 'maas.api.key,maas.api.url' ]
-    [ "$(complete config get c1 '')" = 'boot.,cloud-init.,cluster.,environment.,limits.,linux.,migration.,nvidia.,raw.,security.,snapshots.,ubuntu_pro.,user.' ]
+    [ "$(complete config get c1 '')" = 'boot.,cloud-init.,cluster.,environment.,limits.,linux.,migration.,nvidia.,placement.,raw.,security.,snapshots.,ubuntu_pro.,user.' ]
     [ "$(complete config get c1 l)" = 'limits.,linux.' ]
-    [ "$(complete config get localhost:c1 '')" = 'boot.,cloud-init.,cluster.,environment.,limits.,linux.,migration.,nvidia.,raw.,security.,snapshots.,ubuntu_pro.,user.' ]
+    [ "$(complete config get localhost:c1 '')" = 'boot.,cloud-init.,cluster.,environment.,limits.,linux.,migration.,nvidia.,placement.,raw.,security.,snapshots.,ubuntu_pro.,user.' ]
     [ "$(complete config get c1 limits.)" = 'limits.cpu,limits.cpu.,limits.disk.,limits.hugepages.,limits.kernel.,limits.memory,limits.memory.,limits.processes' ]
     lxc config set user.foo=bar
     [ "$(complete config unset '')" = 'c1,c2,core.https_address,localhost:,user.foo' ]
