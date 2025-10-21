@@ -4559,3 +4559,38 @@ func healClusterMember(s *state.State, gateway *cluster.Gateway, op *operations.
 	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterMemberHealed.Event(name, op.EventLifecycleRequestor(), nil))
 	return nil
 }
+
+// clusterGroupUsedBy returns the list of resource URLs that reference the cluster group.
+// The returned slice contains project URLs (for projects whose "restricted.cluster.groups" configuration includes the group) and instance URLs (for instances whose config contains the group in the "volatile.cluster.group" key).
+// If firstOnly is true then search stops at first result.
+func clusterGroupUsedBy(ctx context.Context, s *state.State, tx *db.ClusterTx, name string, firstOnly bool) ([]string, error) {
+	var usedBy []string
+	var err error
+
+	usedBy, err = dbCluster.GetProjectsUsingRestrictedClusterGroups(ctx, tx.Tx(), name)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(usedBy) > 0 && firstOnly {
+		return usedBy, nil
+	}
+
+	err = tx.InstanceList(ctx, func(inst db.InstanceArgs, p api.Project) error {
+		// Check if instance references cluster group in "volatile.cluster.group" config key.
+		if inst.Config["volatile.cluster.group"] == name {
+			usedBy = append(usedBy, entity.InstanceURL(inst.Project, inst.Name).String())
+
+			if firstOnly {
+				return db.ErrListStop
+			}
+		}
+
+		return nil
+	})
+	if err != nil && err != db.ErrListStop {
+		return nil, fmt.Errorf("Failed getting instances: %w", err)
+	}
+
+	return usedBy, nil
+}
