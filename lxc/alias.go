@@ -315,3 +315,165 @@ func (c *cmdAliasExport) run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// getExportFilename determines the export filename.
+func (c *cmdAliasExport) getExportFilename(args []string) string {
+	// If no filename provided, generate default with timestamp
+	if len(args) == 0 {
+		timestamp := time.Now().Format("20060102_150405")
+		extension := getDefaultExtension(c.flagFormat)
+		return fmt.Sprintf("lxc_aliases_%s.%s", timestamp, extension)
+	}
+	// Ensure the provided filename has the correct extension for the specified format
+	return c.ensureCorrectExtension(args[0])
+}
+
+// ensureCorrectExtension ensures the filename has the correct extension for the export format.
+func (c *cmdAliasExport) ensureCorrectExtension(filename string) string {
+	desiredExtension := "." + getDefaultExtension(c.flagFormat)
+	currentExtension := filepath.Ext(filename)
+
+	// If filename has no extension, add the desired one
+	if currentExtension == "" {
+		return filename + desiredExtension
+	}
+
+	// If filename has a different extension than the format, replace it
+	currentExtension = strings.ToLower(currentExtension)
+	desiredExtension = strings.ToLower(desiredExtension)
+
+	if currentExtension != desiredExtension {
+		// Remove current extension and add desired one
+		filename = strings.TrimSuffix(filename, currentExtension) + desiredExtension
+		fmt.Printf(i18n.G("Adjusted filename extension to match format: %s"), filename)
+	}
+
+	return filename
+}
+
+// exportAliases exports aliases to a file in the specified format.
+func (c *cmdAliasExport) exportAliases(aliases map[string]string, filename string) (int, error) {
+	// Determine format
+	format := c.flagFormat
+	if format == "auto" {
+		format = getFormatFromExtension(filename)
+	}
+
+	logger.Debugf("Exporting %d aliases to %s in %s format", len(aliases), filename, format)
+
+	// Generate export data
+	data, err := c.generateExportData(aliases, format)
+	if err != nil {
+		return 0, err
+	}
+
+	// Write to file
+	err = os.WriteFile(filename, data, 0644)
+	if err != nil {
+		return 0, fmt.Errorf(i18n.G("Failed to write file %s: %v"), filename, err)
+	}
+
+	return len(aliases), nil
+}
+
+// generateExportData generates the export data ni the specified format.
+func (c *cmdAliasExport) generateExportData(aliases map[string]string, format string) ([]byte, error) {
+	switch format {
+	case "yaml":
+		return c.exportToYAML(aliases)
+	case "json":
+		return c.exportToJSON(aliases)
+	case "csv":
+		return c.exportToCSV(aliases)
+	default:
+		return nil, fmt.Errorf(i18n.G("Unsupported export format: %s"), format)
+	}
+}
+
+// exportToYAML export aliases to YAML format.
+func (c *cmdAliasExport) exportToYAML(aliases map[string]string) ([]byte, error) {
+	config := struct {
+		Aliases map[string]string `yaml:"aliases"`
+	}{
+		Aliases: aliases,
+	}
+
+	return yaml.Marshal(&config)
+}
+
+// exportToJSON exports aliases to JSON format.
+func (c *cmdAliasExport) exportToJSON(aliases map[string]string) ([]byte, error) {
+	config := struct {
+		Aliases map[string]string `json:"aliases"`
+	}{
+		Aliases: aliases,
+	}
+
+	data, err := json.MarshalIndent(&config, "", "	")
+	if err != nil {
+		return nil, err
+	}
+
+	// Append newline for proper JSON formatting
+	return append(data, '\n'), nil
+}
+
+// exportToCSV export aliases to CSV format.
+func (c *cmdAliasExport) exportToCSV(aliases map[string]string) ([]byte, error) {
+	var buffer bytes.Buffer
+	writer := csv.NewWriter(&buffer)
+
+	// Write header
+	err := writer.Write([]string{"alias", "command"})
+	if err != nil {
+		return nil, err
+	}
+
+	// Write aliases
+	for alias, command := range aliases {
+		err := writer.Write([]string{alias, command})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	writer.Flush()
+	return buffer.Bytes(), writer.Error()
+}
+
+// logCurrentAliases logs current aliases for debugging.
+func (c *cmdAliasExport) logCurrentAliases(conf *config.Config) {
+	logger.Debugf("Current aliases count: %d", len(conf.Aliases))
+	for alias, target := range conf.Aliases {
+		logger.Debugf("Current alias: %s -> %s", alias, target)
+	}
+}
+
+// getDefaultExtension returns the default file extension for a format.
+func getDefaultExtension(format string) string {
+	switch format {
+	case "yaml":
+		return "yaml"
+	case "json":
+		return "json"
+	case "csv":
+		return "csv"
+	default:
+		return "yaml"
+	}
+}
+
+// getFormatFrom extension determines format from file extension only.
+func getFormatFromExtension(filename string) string {
+	extension := strings.ToLower(filepath.Ext(filename))
+	switch extension {
+	case ".yml", ".yaml":
+		return "yaml"
+	case ".json":
+		return "json"
+	case ".csv":
+		return "csv"
+	default:
+		// Default to YAML for unknown extensions
+		return "yaml"
+	}
+}
