@@ -99,6 +99,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 		"security.acls.default.ingress.logged",
 		"security.acls.default.egress.logged",
 		"acceleration",
+		"acceleration.parent",
 		"nested",
 		"vlan",
 	}
