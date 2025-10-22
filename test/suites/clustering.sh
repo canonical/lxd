@@ -3651,7 +3651,7 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster group assign node3 default,foo
 
   LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c7 --target=@foo
-  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc config get c7 volatile.cluster.group)" = "@foo" ]
+  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc config get c7 volatile.cluster.group)" = "foo" ]
 
   # For debugging
   LXD_DIR="${LXD_TWO_DIR}" lxc list -c nsL
@@ -3745,7 +3745,7 @@ test_clustering_evacuation() {
 
   # Move c7 to @default to check "volatile.cluster.group" is updated.
   LXD_DIR="${LXD_TWO_DIR}" lxc move c7 --target=@default
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get c7 volatile.cluster.group)" = "@default" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get c7 volatile.cluster.group)" = "default" ]
 
   # Clean up
   LXD_DIR="${LXD_TWO_DIR}" lxc delete -f c1 c2 c3 c4 c5 c6 c7
@@ -4264,8 +4264,8 @@ EOF
 
   # Check "volatile.cluster.group" is set correctly.
   [ "$(lxc config get cluster:c1 volatile.cluster.group || echo fail)" = "" ]
-  [ "$(lxc config get cluster:c2 volatile.cluster.group)" = "@blah" ]
-  [ "$(lxc config get cluster:c3 volatile.cluster.group)" = "@blah" ]
+  [ "$(lxc config get cluster:c2 volatile.cluster.group)" = "blah" ]
+  [ "$(lxc config get cluster:c3 volatile.cluster.group)" = "blah" ]
 
   # Clean up
   lxc delete c1 c2 c3 c4 c5
@@ -4339,7 +4339,7 @@ EOF
   [ "$(lxc list -f csv -c L cluster:c2 --project foo)" = "node2" ]
 
   # Check "volatile.cluster.group" is set correctly.
-  [ "$(lxc config get cluster:c2 --project foo volatile.cluster.group)" = "@blah" ]
+  [ "$(lxc config get cluster:c2 --project foo volatile.cluster.group)" = "blah" ]
 
   lxc delete -f c1 c2 --project foo
 
