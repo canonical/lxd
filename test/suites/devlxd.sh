@@ -187,6 +187,13 @@ test_devlxd_vm() {
 
   # Run sync before forcefully restarting the VM otherwise the filesystem will be corrupted.
   lxc exec v1 -- "sync"
+
+  # Coverage data requires clean shutdown
+  if coverage_enabled; then
+    # Killing the communication channel is bound to cause an error
+    ! lxc exec v1 -- systemctl stop --no-block lxd-agent.service || false
+  fi
+
   lxc restart -f v1
   waitInstanceReady v1
 
