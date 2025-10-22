@@ -4469,69 +4469,8 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, gateway *c
 
 func autoHealClusterTask(stateFunc func() *state.State, gateway *cluster.Gateway) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		s := stateFunc()
-
-		healingThreshold := s.GlobalConfig.ClusterHealingThreshold()
-		if healingThreshold == 0 {
-			return // Skip healing if it's disabled.
-		}
-
-		leaderInfo, err := s.LeaderInfo()
+		op, err := autoHealCluster(ctx, stateFunc(), gateway)
 		if err != nil {
-			logger.Error("Failed to determine cluster leader", logger.Ctx{"err": err})
-			return
-		}
-
-		if !leaderInfo.Clustered || !leaderInfo.Leader {
-			return // Skip healing if not cluster leader.
-		}
-
-		var offlineMembers []db.NodeInfo
-		{
-			var members []db.NodeInfo
-			err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-				members, err = tx.GetNodes(ctx)
-				if err != nil {
-					return fmt.Errorf("Failed getting cluster members: %w", err)
-				}
-
-				return nil
-			})
-			if err != nil {
-				logger.Error("Failed healing cluster instances", logger.Ctx{"err": err})
-				return
-			}
-
-			for _, member := range members {
-				// Ignore members which have been evacuated, and those which haven't exceeded the
-				// healing offline trigger threshold.
-				if member.State == db.ClusterMemberStateEvacuated || !member.IsOffline(healingThreshold) {
-					continue
-				}
-
-				offlineMembers = append(offlineMembers, member)
-			}
-		}
-
-		if len(offlineMembers) == 0 {
-			return // Skip healing if there are no cluster members to evacuate.
-		}
-
-		opRun := func(op *operations.Operation) error {
-			for _, member := range offlineMembers {
-				err := healClusterMember(s, gateway, op, member.Name)
-				if err != nil {
-					logger.Error("Failed healing cluster instances", logger.Ctx{"err": err})
-					return err
-				}
-			}
-
-			return nil
-		}
-
-		op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.ClusterHeal, nil, nil, opRun, nil, nil)
-		if err != nil {
-			logger.Error("Failed creating cluster instances heal operation", logger.Ctx{"err": err})
 			return
 		}
 
@@ -4549,6 +4488,71 @@ func autoHealClusterTask(stateFunc func() *state.State, gateway *cluster.Gateway
 	}
 
 	return f, task.Every(time.Minute)
+}
+
+func autoHealCluster(ctx context.Context, s *state.State, gateway *cluster.Gateway) (*operations.Operation, error) {
+	healingThreshold := s.GlobalConfig.ClusterHealingThreshold()
+	if healingThreshold == 0 {
+		return nil, errors.New("Skipping healing cluster instances as cluster healing is disabled")
+	}
+
+	leaderInfo, err := s.LeaderInfo()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to determine cluster leader: %w", err)
+	}
+
+	if !leaderInfo.Clustered || !leaderInfo.Leader {
+		return nil, errors.New("Skipping healing cluster instances on non-leader member")
+	}
+
+	var offlineMembers []db.NodeInfo
+	{
+		var members []db.NodeInfo
+		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			members, err = tx.GetNodes(ctx)
+			if err != nil {
+				return fmt.Errorf("Failed getting cluster members: %w", err)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return nil, fmt.Errorf("Failed healing cluster instances: %w", err)
+		}
+
+		for _, member := range members {
+			// Ignore members which have been evacuated, and those which haven't exceeded the
+			// healing offline trigger threshold.
+			if member.State == db.ClusterMemberStateEvacuated || !member.IsOffline(healingThreshold) {
+				continue
+			}
+
+			offlineMembers = append(offlineMembers, member)
+		}
+	}
+
+	if len(offlineMembers) == 0 {
+		return nil, errors.New("Skipping healing cluster instances as there are no cluster members to evacuate")
+	}
+
+	opRun := func(op *operations.Operation) error {
+		for _, member := range offlineMembers {
+			err := healClusterMember(s, gateway, op, member.Name)
+			if err != nil {
+				logger.Error("Failed healing cluster instances", logger.Ctx{"err": err})
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.ClusterHeal, nil, nil, opRun, nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("Failed creating cluster instances heal operation: %w", err)
+	}
+
+	return op, nil
 }
 
 func healClusterMember(s *state.State, gateway *cluster.Gateway, op *operations.Operation, name string) error {
