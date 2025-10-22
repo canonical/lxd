@@ -520,15 +520,22 @@ coverage_enabled() {
 
 # Setup LXD agent to collect Go coverage data inside instances.
 # If coverage is not enabled, this is a no-op.
-# It leverages cloud-init to setup the environment variable for the lxd-agent service.
 setup_lxd_agent_gocoverage() {
   coverage_enabled || return 0
 
   local instance="${1}"
   echo "==> Setting up LXD agent coverage gathering inside the ${instance} VM"
 
-  # Mount the host's GOCOVERDIR into the instance.
-  lxc config device add "${instance}" gocoverdir disk source="${GOCOVERDIR}" path="${GOCOVERDIR}"
+  # Ubuntu 22.04 currently requires running with `migration.stateful=true` to
+  # avoid incompatibilities with `virtiofsd` and force a fallback to `9p`. This
+  # in turn prevents mounting host directories into the instance. As a
+  # workaround, the coverage files will be copied using `lxc file`.
+  if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
+    lxc exec "${instance}" -- mkdir -p "${GOCOVERDIR}"
+  else
+    # Mount the host's GOCOVERDIR into the instance.
+    lxc config device add "${instance}" gocoverdir disk source="${GOCOVERDIR}" path="${GOCOVERDIR}"
+  fi
 
   # The GOCOVERDIR variable is set for use by test binaries like devlxd-client.
   lxc config set "${instance}" environment.GOCOVERDIR="${GOCOVERDIR}"
@@ -542,10 +549,13 @@ EOF
 
   # Restarting lxd-agent is expected to abruptly terminate the lxc exec session,
   # so expect failure.
-  ! lxc exec "${instance}" -- systemctl restart lxd-agent.service || false
+  ! lxc exec "${instance}" -- systemctl restart --no-block lxd-agent.service || false
 
   # Restarting the lxd-agent isn't instantaneous, so wait for it to be ready again.
   waitInstanceReady "${instance}"
+
+  # Give lxd-agent a moment to start up properly.
+  sleep 1
 }
 
 # Teardown LXD agent Go coverage setup.
@@ -563,10 +573,29 @@ teardown_lxd_agent_gocoverage() {
   # so expect failure.
   ! lxc exec "${instance}" -- systemctl restart lxd-agent.service || false
 
-  # Remove the GOCOVERDIR environment variable and device.
+  # Unset the GOCOVERDIR environment variable.
   lxc config unset "${instance}" environment.GOCOVERDIR
-  lxc config device remove "${instance}" gocoverdir
 
   # Restarting the lxd-agent isn't instantaneous, so wait for it to be ready again.
   waitInstanceReady "${instance}"
+
+  # Copy the coverage files out of the instance or remove the shared dir.
+  if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
+    # Wait a bit for `lxc file pull` to succeed.
+    local i
+    for i in 1 2 3; do
+        lxc file pull --quiet "${instance}/etc/hostname" - && break
+        sleep "${i}"
+    done
+
+    # A temporary directory is needed as `lxc file pull` complains if the host dir already exists
+    # even when using `--create-dirs | -p`, see https://github.com/canonical/lxd/issues/16794
+    local instance_coverdir
+    instance_coverdir="$(mktemp -d)"
+    lxc file pull --quiet --recursive "${instance}${GOCOVERDIR}" "${instance_coverdir}/"
+    mv "${instance_coverdir}/$(basename "${GOCOVERDIR}")/"* "${GOCOVERDIR}/"
+    rmdir "${instance_coverdir}/$(basename "${GOCOVERDIR}")" "${instance_coverdir}"
+  else
+    lxc config device remove "${instance}" gocoverdir
+  fi
 }
