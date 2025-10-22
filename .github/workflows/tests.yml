@@ -589,28 +589,28 @@ jobs:
         env:
           CGO_ENABLED: 0
           COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
-          COVER_TEST: ${{ ( env.GOCOVERDIR != '' ) && '-test.gocoverdir="${GOCOVERDIR}"' || '' }}
         run: |
           set -eux
-          go test -mod=readonly -v ./client/... ${COVER} ${COVER_TEST}
+          [ -n "${COVER}" ] && COVER="${COVER} -test.gocoverdir=${GOCOVERDIR}"
+          go test -mod=readonly -v ./client/... ${COVER}
 
       - name: Unit tests (lxc)
         env:
           CGO_ENABLED: 0
           COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
-          COVER_TEST: ${{ ( env.GOCOVERDIR != '' ) && '-test.gocoverdir="${GOCOVERDIR}"' || '' }}
         run: |
           set -eux
-          go test -mod=readonly -v ./lxc/... ${COVER} ${COVER_TEST}
+          [ -n "${COVER}" ] && COVER="${COVER} -test.gocoverdir=${GOCOVERDIR}"
+          go test -mod=readonly -v ./lxc/... ${COVER}
 
       - name: Unit tests (shared)
         env:
           CGO_ENABLED: 0
           COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
-          COVER_TEST: ${{ ( env.GOCOVERDIR != '' ) && '-test.gocoverdir="${GOCOVERDIR}"' || '' }}
         run: |
           set -eux
-          go test -mod=readonly -v ./shared/... ${COVER} ${COVER_TEST}
+          [ -n "${COVER}" ] && COVER="${COVER} -test.gocoverdir=${GOCOVERDIR}"
+          go test -mod=readonly -v ./shared/... ${COVER}
 
       - name: Upload coverage data
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
