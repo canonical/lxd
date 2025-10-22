@@ -39,6 +39,10 @@ func (c *cmdAlias) command() *cobra.Command {
 	aliasRemoveCmd := cmdAliasRemove{global: c.global, alias: c}
 	cmd.AddCommand(aliasRemoveCmd.command())
 
+	// Export
+	aliasExportCmd := cmdAliasExport{global: c.global, alias: c}
+	cmd.AddCommand(aliasExportCmd.command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
@@ -245,3 +249,69 @@ func (c *cmdAliasRemove) run(cmd *cobra.Command, args []string) error {
 	// Save the config
 	return conf.SaveConfig(c.global.confPath)
 }
+
+// Export.
+type cmdAliasExport struct {
+	global *cmdGlobal
+	alias  *cmdAlias
+
+	flagFormat string
+}
+
+// Command is a method of the cmdAliasExport structure. It configures and returns a cobra.Command object.
+// This command enables export of aliases to a file.
+func (c *cmdAliasExport) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("export", i18n.G("[<file>]"))
+	cmd.Short = i18n.G("Export aliases to file")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Export aliases to YAML, JSON, or CSV file`))
+	cmd.Example = cli.FormatSection("", i18n.G(`
+lxc alias export
+Export aliases to default file in current directory.
+
+lxc alias export aliases.yml
+    Export aliases to specific file in current directory.
+
+lxc alias export /path/to/aliases.yml
+    Export aliases to absolute path.
+
+lxc alias export ../backups/aliases.yml
+    Export aliases to relative path.
+
+lxc alias export ~/backups/aliases.json
+    Export aliases to home directory.`))
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "auto", i18n.G("Format(yaml|json|csv)")+"``")
+
+	cmd.RunE = c.run
+
+	return cmd
+}
+
+// Run is a method of the cmdAliasExport structure that executes the actual operation of the alias export command.
+// It exports aliases to a file in the specified format.
+func (c *cmdAliasExport) run(cmd *cobra.Command, args []string) error {
+	conf := c.global.conf
+
+	// Quick checks
+	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
+	if exit {
+		return err
+	}
+
+	// Determine filename
+	filename := c.getExportFilename(args)
+
+	// Debug: show current aliases before export
+	c.logCurrentAliases(conf)
+
+	// Export aliases
+	exportedCount, err := c.exportAliases(conf.Aliases, filename)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf(i18n.G("Exported %d aliases to %s\n"), exportedCount, filename)
+	return nil
+}
+
