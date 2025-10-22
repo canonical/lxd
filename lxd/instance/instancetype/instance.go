@@ -470,13 +470,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	// ---
 	// type: string
 	// shortdesc: The target cluster group
-	"volatile.cluster.group": func(value string) error {
-		if !strings.HasPrefix(value, TargetClusterGroupPrefix) {
-			return fmt.Errorf("Missing %q prefix", TargetClusterGroupPrefix)
-		}
-
-		return nil
-	},
+	"volatile.cluster.group": validate.Optional(validate.IsClusterGroupName),
 
 	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.last_state.power)
 	//
