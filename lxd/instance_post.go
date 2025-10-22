@@ -295,8 +295,9 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var targetGroupName string
-	if strings.HasPrefix(target, instancetype.TargetClusterGroupPrefix) {
-		targetGroupName = target
+	after, ok := strings.CutPrefix(target, instancetype.TargetClusterGroupPrefix)
+	if ok {
+		targetGroupName = after
 	}
 
 	if req.Migration {
