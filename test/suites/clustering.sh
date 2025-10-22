@@ -1395,18 +1395,23 @@ test_clustering_heal_networks_stop() {
   LXD_DIR="${LXD_ONE_DIR}" lxc query /internal/testing/bgp # For debugging
   LXD_DIR="${LXD_ONE_DIR}" lxc query /internal/testing/bgp | grep -F "198.51.100.1/32"
 
-  echo "Set a low offline threshold so the member is marked offline quickly"
+  echo "Set offline threshold"
   LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.offline_threshold 11
 
-  echo "Set the healing threshold to automatically heal offline members"
-  LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.healing_threshold 1
+  # Cluster healing will be triggered using the /internal/testing/cluster/heal endpoint.
+  # "cluster.healing_threshold" must be set.
+  echo "Enable cluster healing"
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.healing_threshold 11
 
-  echo "Kill node2 (a non-leader member) to trigger healing"
+  echo "Kill node2 (a non-leader member)"
   rm -f "${LXD_TWO_DIR}/unix.socket"
   kill_lxd "${LXD_TWO_DIR}"
 
-  echo "Wait for the member to be detected as offline and healing to kick in"
-  sleep 45
+  echo "Wait for node2 to be marked offline"
+  sleep 11
+
+  echo "Trigger cluster healing"
+  LXD_DIR="${LXD_ONE_DIR}" lxc query -X POST --raw --wait /internal/testing/cluster/heal
 
   echo "Verify BGP prefix is still exported on the leader after healing"
   # Expected: after healing, the leader should still be exporting the forward prefix
