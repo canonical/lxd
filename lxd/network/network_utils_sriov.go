@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -378,40 +377,55 @@ func SRIOVGetSwitchAndPFID(parentDev string) (string, int, error) {
 // To do this it first looks at the ports on the OVS bridge specified and identifies which ones are PF ports in
 // switchdev mode. It then tries to find a free VF on that PF and the representor port associated to the VF ID.
 // It returns the PF name, representor port name, VF name, and VF ID.
-func SRIOVFindFreeVFAndRepresentor(state *state.State, ovsBridgeName string) (port string, representorPort string, vfName string, vfID int, err error) {
+func SRIOVFindFreeVFAndRepresentor(state *state.State, ovsBridgeName string, accelerationParent string) (port string, representorPort string, vfName string, vfID int, err error) {
 	nics, err := os.ReadDir(sysClassNet)
 	if err != nil {
 		return "", "", "", -1, fmt.Errorf("Failed to read directory %q: %w", sysClassNet, err)
 	}
 
-	ovs := openvswitch.NewOVS()
+	var ports []string
+	if accelerationParent == "" {
+		ovs := openvswitch.NewOVS()
 
-	// Get all ports on the integration bridge.
-	ports, err := ovs.BridgePortList(ovsBridgeName)
-	if err != nil {
-		return "", "", "", -1, fmt.Errorf("Failed to get port list: %w", err)
+		// Get all ports on the integration bridge.
+		ports, err = ovs.BridgePortList(ovsBridgeName)
+		if err != nil {
+			return "", "", "", -1, fmt.Errorf("Failed to get port list: %w", err)
+		}
+	} else {
+		ports = []string{accelerationParent}
 	}
 
 	// Iterate through the list of ports and identify the PFs by trying to locate a VF (virtual function).
 	for _, port := range ports {
 		physSwitchID, pfID, err := SRIOVGetSwitchAndPFID(port)
 		if err != nil {
+			if accelerationParent != "" {
+				return "", "", "", -1, fmt.Errorf("Failed getting switch and PF ID for %q: %w", accelerationParent, err)
+			}
+
 			continue
 		}
 
 		vfName, vfID, err := SRIOVFindFreeVirtualFunction(state, port)
 		if err != nil {
+			if accelerationParent != "" {
+				return "", "", "", -1, fmt.Errorf("Failed finding free VF on %q: %w", accelerationParent, err)
+			}
+
 			continue
 		}
 
 		// Track down the representor port. The number of representor ports depends on the number of enabled VFs.
 		// All representor ports have the same phys_switch_id as a PF connected to the same switch, and there may be
 		// multiple PFs on one switch.
-		representorPort := SRIOVFindRepresentorPort(nics, string(physSwitchID), pfID, vfID)
+		representorPort := SRIOVFindRepresentorPort(nics, physSwitchID, pfID, vfID)
 		if representorPort != "" {
 			return port, representorPort, vfName, vfID, nil
+		} else if accelerationParent != "" {
+			return "", "", "", -1, fmt.Errorf("Failed finding representor port for VF %q on %q", vfName, accelerationParent)
 		}
 	}
 
-	return "", "", "", -1, errors.New("No free virtual function and representor port found")
+	return "", "", "", -1, fmt.Errorf("No free virtual function and representor port found when scanning PFs connected to OVS integration bridge %q", ovsBridgeName)
 }
