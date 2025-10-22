@@ -362,6 +362,13 @@ test_network_ovn() {
   [ "$(lxc exec c1 -- nslookup "${c1_ipv6_address}" 10.10.10.1 | grep -cF c1.lxd)" = 1 ]
   [ "$(lxc exec c1 -- nslookup "${c1_ipv6_address}" fd42:4242:4242:1010::1 | grep -cF c1.lxd)" = 1 ]
 
+  echo "Check that default target address of a network forward cannot be a network address."
+  ! lxc network forward create "${ovn_network}" 192.0.2.1 target_address=10.24.140.0 || false
+  ! lxc network forward create "${ovn_network}" 2001:db8:1:2::1 target_address=fd42:bd85:5f89:5293:: || false
+
+  echo "Check that default target address of a network forward cannot be a broadcast address."
+  ! lxc network forward create "${ovn_network}" 192.0.2.1 target_address=10.24.140.255 || false
+
   echo "Create a couple of forwards without a target address."
   lxc network forward create "${ovn_network}" 192.0.2.1
   lxc network forward create "${ovn_network}" 2001:db8:1:2::1
@@ -385,6 +392,13 @@ test_network_ovn() {
   echo "Check that removing IP routes on uplink for existing OVN forwards fails."
   ! lxc network unset "${uplink_network}" ipv4.routes || false
   ! lxc network unset "${uplink_network}" ipv6.routes || false
+
+  echo "Check that the target address of a network forward cannot be a network address."
+  ! lxc network forward port add "${ovn_network}" 192.0.2.1 tcp 80 10.24.140.0 80 || false
+  ! lxc network forward port add "${ovn_network}" 2001:db8:1:2::1 tcp 80 fd42:bd85:5f89:5293:: 80 || false
+
+  echo "Check that the target address of a network forward cannot be a broadcast address."
+  ! lxc network forward port add "${ovn_network}" 192.0.2.1 tcp 80 10.24.140.255 80 || false
 
   echo "Configure ports for the forwards."
   lxc network forward port add "${ovn_network}" 192.0.2.1 tcp 80 "${c1_ipv4_address}" 80
@@ -416,7 +430,14 @@ test_network_ovn() {
   ! lxc network unset "${uplink_network}" ipv4.routes || false
   ! lxc network unset "${uplink_network}" ipv6.routes || false
 
-  echo "Create a backend for each load balancer."
+  echo "Check that target address for load balancer backend cannot be a network address."
+  ! lxc network load-balancer backend add "${ovn_network}" 192.0.2.1 test-backend 10.24.140.0 80 || false
+  ! lxc network load-balancer backend add "${ovn_network}" 2001:db8:1:2::1 test-backend fd42:bd85:5f89:5293:: 80 || false
+
+  echo "Check that target address for load balancer backend cannot be a broadcast address."
+  ! lxc network load-balancer backend add "${ovn_network}" 192.0.2.1 test-backend 10.24.140.255 80 || false
+
+  echo "Create a valid backend for each load balancer."
   lxc network load-balancer backend add "${ovn_network}" 192.0.2.1 c1-backend "${c1_ipv4_address}" 80
   lxc network load-balancer backend add "${ovn_network}" 2001:db8:1:2::1 c1-backend "${c1_ipv6_address}" 80
   lxc network load-balancer backend add "${ovn_network}" "${volatile_ip4}" c1-backend "${c1_ipv4_address}" 162
@@ -451,6 +472,13 @@ test_network_ovn() {
   ! lxc network load-balancer create "${ovn_network}" "${c1_ipv4_address}" || false
   ! lxc network load-balancer create "${ovn_network}" "${c1_ipv6_address}" || false
 
+  echo "Check that default target address of an internal forward cannot be a network address."
+  ! lxc network forward create "${ovn_network}" 10.24.140.10 target_address=10.24.140.0 || false
+  ! lxc network forward create "${ovn_network}" fd42:bd85:5f89:5293::10 target_address=fd42:bd85:5f89:5293:: || false
+
+  echo "Check that default target address of an internal forward cannot be a broadcast address."
+  ! lxc network forward create "${ovn_network}" 10.24.140.10 target_address=10.24.140.255 || false
+
   echo "Create internal forwards with a listen address that is an internal OVN IP."
   lxc network forward create "${ovn_network}" 10.24.140.10
   lxc network forward create "${ovn_network}" fd42:bd85:5f89:5293::10
@@ -469,6 +497,13 @@ test_network_ovn() {
   ! lxc network load-balancer create "${ovn_network}" fd42:bd85:5f89:5293::10 || false
   ! lxc network load-balancer create "${ovn_network}" fd42:bd85:5f89:5293::20 || false
 
+  echo "Check that the target address of an internal forward cannot be a network address."
+  ! lxc network forward port add "${ovn_network}" 10.24.140.10 tcp 80 10.24.140.0 80 || false
+  ! lxc network forward port add "${ovn_network}" fd42:bd85:5f89:5293::10 tcp 80 fd42:bd85:5f89:5293:: 80 || false
+
+  echo "Check that the target address of an internal forward cannot be a broadcast address."
+  ! lxc network forward port add "${ovn_network}" 10.24.140.10 tcp 80 10.24.140.255 80 || false
+
   echo "Configure ports for internal forwards."
   lxc network forward port add "${ovn_network}" 10.24.140.10 tcp 80 "${c1_ipv4_address}" 80
   lxc network forward port add "${ovn_network}" fd42:bd85:5f89:5293::10 tcp 80 "${c1_ipv6_address}" 80
@@ -477,7 +512,14 @@ test_network_ovn() {
   lxc network forward delete "${ovn_network}" 10.24.140.10
   lxc network forward delete "${ovn_network}" fd42:bd85:5f89:5293::10
 
-  echo "Create a backend for each internal load balancer."
+  echo "Check that target address for internal load balancer backend cannot be a network address."
+  ! lxc network load-balancer backend add "${ovn_network}" 10.24.140.20 test-backend 10.24.140.0 80 || false
+  ! lxc network load-balancer backend add "${ovn_network}" fd42:bd85:5f89:5293::20 test-backend fd42:bd85:5f89:5293:: 80 || false
+
+  echo "Check that target address for internal load balancer backend cannot be a broadcast address."
+  ! lxc network load-balancer backend add "${ovn_network}" 10.24.140.20 test-backend 10.24.140.255 80 || false
+
+  echo "Create a valid backend for each internal load balancer."
   lxc network load-balancer backend add "${ovn_network}" 10.24.140.20 c1-backend "${c1_ipv4_address}" 80
   lxc network load-balancer backend add "${ovn_network}" fd42:bd85:5f89:5293::20 c1-backend "${c1_ipv6_address}" 80
 
