@@ -1401,9 +1401,7 @@ test_clustering_heal_networks_stop() {
   echo "Set the healing threshold to automatically heal offline members"
   LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.healing_threshold 1
 
-  echo "Stop node2 (a non-leader member) to trigger healing"
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  sleep 0.5
+  echo "Kill node2 (a non-leader member) to trigger healing"
   rm -f "${LXD_TWO_DIR}/unix.socket"
   kill_lxd "${LXD_TWO_DIR}"
 
