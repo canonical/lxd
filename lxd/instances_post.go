@@ -1351,7 +1351,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 	// Record the cluster group as a volatile config key if present.
 	if !clusterNotification && targetGroupName != "" {
-		req.Config["volatile.cluster.group"] = instancetype.TargetClusterGroupPrefix + targetGroupName
+		req.Config["volatile.cluster.group"] = targetGroupName
 	}
 
 	if targetMemberInfo != nil && targetMemberInfo.Address != "" && targetMemberInfo.Name != s.ServerName {
