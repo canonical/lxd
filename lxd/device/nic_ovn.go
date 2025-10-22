@@ -558,17 +558,17 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 
 			// Find free VF exclusively.
 			network.SRIOVVirtualFunctionMutex.Lock()
-			vfParent, vfRepresentor, vfDev, vfID, err := network.SRIOVFindFreeVFAndRepresentor(d.state, integrationBridge)
+			vfParent, vfRepresentor, vfDev, vfID, err := network.SRIOVFindFreeVFAndRepresentor(d.state, integrationBridge, d.config["acceleration.parent"])
 			if err != nil {
 				network.SRIOVVirtualFunctionMutex.Unlock()
-				return nil, fmt.Errorf("Failed finding a suitable free virtual function on %q: %w", integrationBridge, err)
+				return nil, fmt.Errorf("Failed allocating acceleration VF: %w", err)
 			}
 
 			// Claim the SR-IOV virtual function (VF) on the parent (PF) and get the PCI information.
 			vfPCIDev, pciIOMMUGroup, err = networkSRIOVSetupVF(d.deviceCommon, vfParent, vfDev, vfID, false, saveData)
 			if err != nil {
 				network.SRIOVVirtualFunctionMutex.Unlock()
-				return nil, fmt.Errorf("Failed setting up VF: %w", err)
+				return nil, fmt.Errorf("Failed setting up acceleration VF: %w", err)
 			}
 
 			revert.Add(func() {
@@ -610,17 +610,17 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 
 			// Find free VF exclusively.
 			network.SRIOVVirtualFunctionMutex.Lock()
-			vfParent, vfRepresentor, vfDev, vfID, err := network.SRIOVFindFreeVFAndRepresentor(d.state, integrationBridge)
+			vfParent, vfRepresentor, vfDev, vfID, err := network.SRIOVFindFreeVFAndRepresentor(d.state, integrationBridge, d.config["acceleration.parent"])
 			if err != nil {
 				network.SRIOVVirtualFunctionMutex.Unlock()
-				return nil, fmt.Errorf("Failed finding a suitable free virtual function on %q: %w", integrationBridge, err)
+				return nil, fmt.Errorf("Failed allocating acceleration VF: %w", err)
 			}
 
 			// Claim the SR-IOV virtual function (VF) on the parent (PF) and get the PCI information.
 			vfPCIDev, pciIOMMUGroup, err = networkSRIOVSetupVF(d.deviceCommon, vfParent, vfDev, vfID, false, saveData)
 			if err != nil {
 				network.SRIOVVirtualFunctionMutex.Unlock()
-				return nil, err
+				return nil, fmt.Errorf("Failed setting up acceleration VF: %w", err)
 			}
 
 			revert.Add(func() {
