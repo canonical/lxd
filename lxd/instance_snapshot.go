@@ -396,11 +396,6 @@ func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	snapshotName, err = url.QueryUnescape(snapshotName)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	snapInst, err := instance.LoadByProjectAndName(s, projectName, instName+shared.SnapshotDelimiter+snapshotName)
 	if err != nil {
 		return response.SmartError(err)
