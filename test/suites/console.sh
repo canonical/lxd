@@ -52,7 +52,11 @@ EOF
   lxc delete cons1
 }
 
-test_snap_console_vm() {
+test_console_vm() {
+  if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
+    echo "Using migration.stateful to force 9p config drive thus avoiding the old/incompatible virtiofsd"
+    lxc profile set default migration.stateful=true
+  fi
   ensure_import_ubuntu_vm_image
 
   lxc launch ubuntu-vm v1 --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
@@ -68,4 +72,9 @@ test_snap_console_vm() {
 
   # Cleanup
   lxc delete --force v1
+
+  if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
+    # Cleanup custom changes from the default profile
+    lxc profile unset default migration.stateful
+  fi
 }
