@@ -273,6 +273,7 @@ sudo apt install \
     dnsmasq-base \
     dosfstools \
     e2fsprogs \
+    expect \
     iputils-ping \
     jq \
     netcat-openbsd \
