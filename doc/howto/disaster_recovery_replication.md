@@ -1,147 +1,158 @@
 (disaster-recovery-replication)=
-# How to recover with storage replication
+# How to perform disaster recovery with storage replication
 
-It might happen that your single LXD server or all members of a cluster go offline or become unreachable.
-In such a disaster it is helpful to have another deployment of LXD running in a different location which
-can take over running the already existing workload.
+To enable disaster recovery, set up a secondary LXD deployment in a different location that can take over running workloads if a non-clustered LXD server or an entire cluster goes offline or becomes unreachable.
 
-If such an incident happens, we want to rely on the storage layer that all the instances and custom volumes
-got replicated to our backup location.
-We can then consolidate the storage layer and perform recovery of the resources to make them available to
-our LXD deployment in the backup location (see {ref}`disaster-recovery`).
-This requires not only two individual deployments of LXD, but also the configuration of storage replication
-for the respective storage array.
+If such an incident occurs, you can rely on the storage layer that replicates all instances and custom volumes to the secondary location. You can then consolidate the storage layer and recover the resources to make them available to
+your secondary deployment (see {ref}`disaster-recovery`).
 
-```{note}
-Recovery with storage replication is only possible with remote {ref}`storage-drivers` which support volume recovery (see {ref}`storage-drivers-features`).
-Configuring the replication on the storage array is out of scope for LXD and highly dependent on
-how replication is materialized by each of the vendors.
+This requires not only two separate LXD deployments, but also storage replication configuration for the respective storage array.
 
-This how-to guide mainly covers the steps performed on LXD and mentions the necessary requirements
-on the storage array where applicable.
+```{admonition} When this applies
+:class: note
+Recovery with storage replication is only possible when using remote {ref}`storage-drivers` which support volume recovery (see {ref}`storage-drivers-features`). Configuring replication on the storage array is out of scope for LXD and highly dependent on
+how each vendor implements replication.
+
+This how-to guide focuses on the steps performed within LXD and mentions storage array requirements where applicable.
 ```
 
-In this how-to we assume a primary and secondary LXD deployment. On both the primary and secondary location
-there exists an individual storage array. The LXD on the primary location gets configured to only interact with the primary storage array.
-The LXD on the secondary location gets configured to only interact with the secondary storage array.
-Both LXD deployments are operated independently of each other.
+In this guide, we assume two LXD deployments: a primary and a secondary. Each deployment is configured to use only its own co-located storage array, and both operate independently.
 
-## Ensure entities on both locations
+(disaster-recovery-replication-entities)=
+## Set up entities at each location
 
-(disaster-recovery-replication-setup-storage-pool)=
+Before you can set up storage replication, you must set up the required {ref}`entities <explanation-entities>` at each location.
+
+(disaster-recovery-replication-entities-pool)=
 ### Storage pool
 
-Before we setup any replication on either of the storage arrays, we have to ensure that both the LXD on the primary and secondary location
-have a storage pool on the underlying storage array which can be leveraged later for replication.
+Ensure that both the primary and secondary LXD deployments have a storage pool on their respective storage arrays that can later be used for replication.
 
-If you don't already have the respective storage pool created on any of the locations, see {ref}`storage-create-pool`.
+If you need to create a storage pool at either location, see: {ref}`storage-create-pool`.
 
+(disaster-recovery-replication-entities-other)=
 ### Networks and profiles
 
-There could be other entities like networks and profiles which you might also want to setup upfront on the secondary location so that in case
-of disaster you can concentrate on recovering the volumes.
+You might also want to set up other entities, such as {ref}`networks <networks>` and {ref}`profiles <profiles>`, in advance on the secondary location. This way, in the event of a disaster, you can focus on recovering the volumes.
 
-When performing {ref}`disaster-recovery` after a disaster, LXD will check if the required entities are present and notify in case something is missing.
-The recovery won't create these entities.
+When performing {ref}`disaster-recovery`, LXD checks if the required entities are present and notifies you if anything is missing. The recovery does not create these entities.
 
 (disaster-recovery-replication-setup)=
-## Setup replication on the storage array
+## Set up storage replication
 
-The replication has to be setup outside of LXD based on the specific concepts and constructs applied by the storage vendor.
-In the following list you can find steps published by some of the storage vendors:
+Replication must be configured outside of LXD, according to the concepts and constructs by the storage vendor.
+
+The following links lead to replication setup guides published by various storage vendors:
 
 * Ceph RBD: [RBD mirroring](https://docs.ceph.com/en/reef/rbd/rbd-mirroring/)
 * Dell PowerFlex: [Introduction to Replication](https://infohub.delltechnologies.com/en-us/t/dell-powerflex-introduction-to-replication/)
 * Pure Storage: [Replication](https://support.purestorage.com/category/m_replication)
 
-After configuring the connection between both the primary and secondary storage array, follow the steps outlined by the
-storage vendor on how to setup the actual replication of volumes.
-Some vendors like Dell use a concept called replication consistency group (RCG) which allows replicating a group of volumes consistently.
-Such a RCG can contain an instances volume together with all of its attached custom volumes.
-Other vendors might use similar or different concepts.
+Once you have configured the connection between the primary and secondary storage arrays, follow the relevant storage vendor's steps to set up the actual replication of volumes.
 
+Some vendors (such as Dell) use a concept called replication consistency group (RCG), which allows consistent replication of a group of volumes. An RCG can contain an instance's volume along with all of its attached custom volumes. Other vendors might use different concepts.
+
+(disaster-recovery-replication-limitations)=
 ### Known storage array limitations
 
-Consider the following limitations by storage array when setting up replication:
+When setting up replication, consider the following limitations:
 
+(disaster-recovery-replication-limitations-powerflex)=
 #### PowerFlex
 
 Cannot replicate and recover volumes with snapshots
-: In PowerFlex a volume's snapshot appears as its own volume but is still logically connected to its parent volume (vTree).
-  When replicating a volume inside a RCG its snapshots won't get replicated which causes inconsistencies on the secondary location.
-  A volume's snapshot can be replicated but will be placed inside a new vTree loosing the logical relation to its parent volume.
-  During recovery LXD notices this inconsistency and raises an error.
+: In {ref}`PowerFlex <storage-powerflex>`, a volume's snapshot appears as its own volume but is still logically connected to its parent volume (vTree).
+  When replicating a volume inside a RCG, its snapshots are not replicated; this causes inconsistencies on the secondary location.
+  A volume's snapshot can be replicated but will be placed inside a new vTree, losing the logical relation to its parent volume.
+  During recovery, LXD notices this inconsistency and raises an error.
 
+(disaster-recovery-replication-cephrdb)=
 #### Ceph RBD
 
 Cannot use journaling mode
-: Mirroring can be configured using either journaling or snapshot mode.
-  Only the latter is supported together with LXD as the volumes need to be mapped to the host for read access during recovery which might
-  not be possible due to missing kernel features.
+: On {ref}`Ceph RBD <storage-ceph>` storage arrays, it's possible to configure mirroring using either journaling or snapshot mode.
+  However, with LXD, only snapshot mode is supported. This is because the volumes need to be mapped to the host for read access during recovery, which might not be possible due to missing kernel features.
 
+(disaster-recovery-replication-verify)=
 ## Verify replication
 
-After configuring the replication check whether the volumes are successfully replicated to the secondary location.
+After setting up storage replication, confirm that the primary location's volumes are successfully replicated to the secondary location.
 
-```{important}
-For a potential recovery it's essential that the replication is running consistently.
-It's recommended to check this regularly.
-As soon as the primary location experiences an outage you might not be able anymore to recover data which wasn't yet replicated to the secondary location.
+```{admonition} Check replication regularly
+:class: important
+
+For recovery, it's essential that replication is running consistently, so be sure to check this regularly. If the replication fails to run, you are at risk of losing data whenever the primary location experiences an outage.
 ```
 
+(disaster-recovery-replication-promote)=
 ## Promote secondary location after disaster
 
-In case the primary location went down the secondary location can be promoted to the new source of truth.
-However it depends on the storage vendor how to promote the secondary storage array.
-See the guides linked in {ref}`disaster-recovery-replication-setup` for the necessary steps based on the used storage array.
+If the primary location becomes unreachable, the secondary location can be promoted to become the new source of truth. The method to promote the secondary storage array depends on the storage vendor. For links to vendor guides, see: {ref}`disaster-recovery-replication-setup`.
 
-```{important}
-Promoting the secondary array might cause data loss in case there is non-replicated data left on the primary location.
-Consult the storage vendors documentation for further information.
+```{admonition} Potential data loss
+:class: important
+
+If there is non-replicated data remaining on the primary location, promoting the secondary array might cause some data loss. Consult the {ref}`storage vendor's documentation <disaster-recovery-replication-setup>` for further information.
 ```
 
+(disaster-recovery-replication-recover)=
 ## Recover resources
 
-Once the secondary storage array is promoted, we can start recovering the workload.
-For this run the steps outlined in {ref}`disaster-recovery` on the secondary LXD deployment.
-When being asked which pools should be scanned for unknown volumes, make sure to select the storage pool which was configured during the replication setup.
+After the secondary storage array has been promoted, you can start recovering the workload. Run the steps in {ref}`disaster-recovery` on the secondary LXD deployment.
 
-The instances and custom storage volumes are now present on the secondary LXD.
-Using `lxc start` you can now bring backup up instances which were originally running on the primary LXD.
+When prompted to choose the pools to scan for unknown volumes, select the storage pool that was configured during the replication setup.
 
+The instances and custom storage volumes are then recovered on the secondary LXD deployment. Use `lxc start` to bring up the instances that were originally running on the primary deployment.
+
+(disaster-recovery-replication-add-pool)=
 ### Add missing pool
 
-In case the LXD pool on the secondary site was only created in storage but not in LXD as outlined in {ref}`disaster-recovery-replication-setup-storage-pool`, you have to recover it first.
+If the LXD storage pool at the secondary location exists only in the storage array and has not yet been created in LXD (as described in {ref}`disaster-recovery-replication-entities-pool`), you must recover it first.
 
-Use the `lxc storage create` command to add the storage pool. This works for both single and clustered LXD deployments.
+Use the `lxc storage create` command to add the storage pool. This works for both single and clustered LXD deployments. For more information, see: {ref}`storage-create-pool`.
 
+(disaster-recovery-replication-add-pool-cephrbd)=
 #### Reuse Ceph RBD pool
 
-LXD's Ceph RBD driver uses a so called placeholder volume to occupy the storage pool and make sure that the same storage pool isn't used more than once.
-In case of replication this can be ignored as we have to reuse the replicated pool at the secondary location.
-Therefore we need to set {config:option}`storage-ceph-pool-conf:ceph.osd.force_reuse` to allow ignoring the placeholder volume in case it also got replicated to the secondary location.
+LXD's {ref}`Ceph RBD driver <storage-ceph>` uses a _placeholder_ volume to reserve the storage pool and ensure it isn't used more than once. For replication, this behavior can be ignored because the replicated pool must be reused at the secondary location. To allow this, set {config:option}`storage-ceph-pool-conf:ceph.osd.force_reuse` to ignore the placeholder volume if it was also replicated to the secondary location.
 
-When creating the storage pool in a LXD cluster make sure to add the `ceph.osd.force_reuse=true` setting when running the final storage pool creation command. The setting doesn't need to be provided when preparing the storage pool on each of the cluster members.
+When creating the storage pool in a LXD cluster, make sure to add the `ceph.osd.force_reuse=true` setting in the final storage pool creation command. You do not need to include this setting when preparing the storage pool on individual cluster members.
 
-## Demote secondary and return to primary location
+(disaster-recovery-replication-failback)=
+## Demote secondary and fail back to primary location
 
-Once the primary location is back online, the storage layer ensures there won't be any data inconsistency as the secondary storage array
-now acts as the source of truth and doesn't anymore receive updates from the primary storage array.
-As long as this doesn't get changed, the running instances (and custom volumes) on the secondary location are protected.
+Once the primary location is back online, the storage layer ensures data consistency because the secondary storage array
+now acts as the source of truth and no longer receives updates from the primary array. As long as this replication flow is not reversed, the running instances and custom volumes on the secondary location are protected.
 
-```{note}
-There is still the possibility for collisions in the network in case the primary location comes back up and LXD starts up any instances.
-This is out of scope for storage replication but proper measures have to be put into place to prevent conflicts.
+```{admonition} Risk of network conflicts
+:class: warning
+Network collisions might occur if the primary location comes back online and LXD automatically starts up any instances. This issue is outside the scope of storage replication, but you must place appropriate measures to prevent such conflicts.
 ```
 
-Switching back service to the primary location can be performed in two ways. For both of them the operations on the storage layer are identical
-but choosing the right option depends on what has happened to the instances and custom volumes on the secondary location:
+Service failback to the primary location can be performed in two ways. In both cases, the operations on the storage layer are identical, but the correct approach depends on the state of the instances and custom volumes on the secondary location:
 
-1. Shutdown the resources on the secondary location and bring them back up on the primary
-   This requires no modifications have been done to the configuration of both the instances and volumes on the secondary location after they got recovered. Those changes aren't known to the database of the primary LXD and might cause side effects.
+1. Shut down the resources on the secondary location and bring them back up on the primary
+   This approach requires that the configuration of the recovered instances and volumes on the secondary location has not been modified in any way. Any modifications would not be reflected in the database of the primary LXD deployment and might cause unexpected side effects.
 
-1. Setup a fresh deployment of LXD on the primary location and redo the steps outlined in {ref}`disaster-recovery`.
-   This repeats the same steps performed for the actual disaster recovery but in this case the other way around.
+1. Set up a fresh deployment of LXD on the primary location and repeat the steps outlined in {ref}`disaster-recovery`.
+   This approach repeats the same process performed for the initial disaster recovery, but in reverse.
 
-After deciding for an approach, demote the storage array on the secondary location and promote the primary location. Refer to {ref}`disaster-recovery-replication-setup` how this can be performed for each of the storage arrays.
-In a final step either bring up the instances using `lxc start` or recover them first and make them again known to the primary LXD before starting them up again.
+After choosing an approach, demote the storage array at the secondary location and promote the array at the primary location. Refer to {ref}`disaster-recovery-replication-setup` for details on how to perform these actions.
+
+Finally, either bring up the instances on the primary deployment using `lxc start`, or recover them first to make them known again to the primary deployment before starting them.
+
+## Related topics
+
+How-to guides:
+
+- {ref}`disaster-recovery`
+- {ref}`cluster-recover`
+- {ref}`storage`
+
+Explanation:
+
+- {ref}`exp-storage`
+
+Reference:
+
+- {ref}`storage-drivers`

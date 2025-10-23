@@ -91,6 +91,7 @@ ES
 ESA
 ESM
 ETag
+failback
 failover
 filesystem
 firmware
