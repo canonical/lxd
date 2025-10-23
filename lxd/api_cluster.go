@@ -4349,42 +4349,6 @@ func clusterGroupDelete(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-func clusterGroupValidateName(name string) error {
-	if name == "" {
-		return errors.New("No name provided")
-	}
-
-	if name == "*" {
-		return errors.New("Reserved cluster group name")
-	}
-
-	if name == "." || name == ".." {
-		return fmt.Errorf("Invalid cluster group name %q", name)
-	}
-
-	if strings.Contains(name, "\\") {
-		return errors.New("Cluster group names may not contain back slashes")
-	}
-
-	if strings.Contains(name, "/") {
-		return errors.New("Cluster group names may not contain slashes")
-	}
-
-	if strings.Contains(name, " ") {
-		return errors.New("Cluster group names may not contain spaces")
-	}
-
-	if strings.Contains(name, "_") {
-		return errors.New("Cluster group names may not contain underscores")
-	}
-
-	if strings.Contains(name, "'") || strings.Contains(name, `"`) {
-		return errors.New("Cluster group names may not contain quotes")
-	}
-
-	return nil
-}
-
 func evacuateClusterSelectTarget(ctx context.Context, s *state.State, inst instance.Instance) (*db.NodeInfo, error) {
 	var targetMemberInfo *db.NodeInfo
 	var candidateMembers []db.NodeInfo
