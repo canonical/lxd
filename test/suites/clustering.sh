@@ -1404,8 +1404,7 @@ test_clustering_heal_networks_stop() {
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.healing_threshold 11
 
   echo "Kill node2 (a non-leader member)"
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  kill_lxd "${LXD_TWO_DIR}"
+  kill -9 "$(< "${LXD_TWO_DIR}/lxd.pid")"
 
   echo "Wait for node2 to be marked offline"
   sleep 11
@@ -1423,12 +1422,14 @@ test_clustering_heal_networks_stop() {
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   sleep 0.5
   rm -f "${LXD_THREE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
   rm -f "${LXD_ONE_DIR}/unix.socket"
 
   teardown_clustering_netns
   teardown_clustering_bridge
 
   kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
 }
 
