@@ -28,3 +28,8 @@
 .tmp/doc/howto/access_ui.md:31: MD029 Ordered list item prefix
 .tmp/doc/howto/import_machines_to_instances.md:128: MD034 Bare URL used
 .tmp/doc/howto/import_machines_to_instances.md:232: MD034 Bare URL used
+.tmp/doc/howto/disaster_recovery_replication.md:162: MD004 Unordered list style
+.tmp/doc/howto/disaster_recovery_replication.md:163: MD004 Unordered list style
+.tmp/doc/howto/disaster_recovery_replication.md:164: MD004 Unordered list style
+.tmp/doc/howto/disaster_recovery_replication.md:168: MD004 Unordered list style
+.tmp/doc/howto/disaster_recovery_replication.md:172: MD004 Unordered list style
