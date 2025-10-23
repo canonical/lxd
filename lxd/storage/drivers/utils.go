@@ -820,7 +820,7 @@ func loopFileSizeDefault() (uint64, error) {
 	if gibAvailable > 30 {
 		return 30, nil // Default to no more than 30GiB.
 	} else if gibAvailable > 5 {
-		return gibAvailable / 5, nil // Use 20% of free space otherwise.
+		return max(gibAvailable/5, 5), nil // Use at least 5GiB or 20% of free space otherwise.
 	} else if gibAvailable == 5 {
 		return gibAvailable, nil // Need at least 5GiB free.
 	}
