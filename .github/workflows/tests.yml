@@ -409,7 +409,19 @@ jobs:
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
           cd test
           export PATH="$PATH:/snap/microovn/current/commands"
+
+          # Check if there are existing coredumps
+          if [ -n "$(ls -A /var/crash/)" ]; then
+            echo "WARNING: coredumps found before running the system tests"
+          fi
+
           sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,LXD_VERBOSE,LXD_VM_TESTS,LXD_REPEAT_TESTS,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OVN_NB_CONNECTION,LXD_OVN_NB_CLIENT_CRT_FILE,LXD_OVN_NB_CLIENT_KEY_FILE,LXD_OVN_NB_CA_CRT_FILE,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,GOTRACEBACK,LXD_TMPFS LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
+
+          # Check if coredumps were collected during the test run
+          if [ -n "$(ls -A /var/crash/core-*.gz 2>/dev/null)" ]; then
+            echo "Found coredumps after running the system tests"
+            exit 1
+          fi
 
       - name: Upload crash dumps
         if: always()
