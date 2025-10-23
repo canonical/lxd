@@ -226,16 +226,36 @@ test_devlxd_volume_management() {
   ensure_import_testimage
 
   if [ "${LXD_VM_TESTS:-0}" != "0" ]; then
-    ensure_import_ubuntu_vm_image
-    instTypes="${instTypes} virtual-machine"
+    # XXX: Jammy runner needs migration.stateful.
+    # Once this is no longer needed, also remove all conditional checks related to "isJammyRunner".
+    isJammyRunner=$(grep -qxF 'VERSION_ID="22.04"' /etc/os-release && echo "true" || echo "false")
+
+    if [ "${isJammyRunner}" = "true" ]; then
+      echo "Using migration.stateful to force 9p config drive thus avoiding the old/incompatible virtiofsd"
+      lxc profile set default migration.stateful=true --project "${project}"
+
+      # When migration.stateful is enabled, we can attach only block volumes from shared storage pools.
+      if [ "${poolDriver}" = "ceph" ]; then
+        instTypes="${instTypes} virtual-machine"
+        ensure_import_ubuntu_vm_image
+      fi
+    else
+      instTypes="${instTypes} virtual-machine"
+      ensure_import_ubuntu_vm_image
+    fi
   fi
 
   for instType in $instTypes; do
     inst="${instPrefix}-${instType}"
 
+    # XXX: Required to mitigate the issue where FS cannot be mounted in VMs with migration.stateful.
+    useBlockVol="false"
     image="testimage"
     opts="--storage ${pool}"
     if [ "${instType}" = "virtual-machine" ]; then
+        if [ "${isJammyRunner}" = "true" ]; then
+          useBlockVol="true"
+        fi
         image="ubuntu-vm"
         opts="$opts --vm --config limits.memory=384MiB --device ${SMALL_VM_ROOT_DISK}"
     fi
@@ -305,7 +325,21 @@ test_devlxd_volume_management() {
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" "${instType}" "${inst}")" = "Only custom storage volume requests are allowed" ]
 
     # Create a custom storage volume.
-    vol1='{"name": "vol-01", "type": "custom", "config": {"size": "10MiB"}}'
+    volOpts=""
+    if [ "${useBlockVol}" = "true" ]; then
+      volOpts=', "content_type": "block"'
+    fi
+
+    vol1=$(cat <<EOF
+{
+    "name": "vol-01",
+    "type": "custom",
+    "config": {
+        "size": "10MiB"
+    }${volOpts}
+}
+EOF
+)
 
     # Create a custom storage volume (fail - insufficient permissions).
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${vol1}")" = "Forbidden" ]
@@ -316,7 +350,17 @@ test_devlxd_volume_management() {
     # Create a custom storage volumes (ok).
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${vol1}"
 
-    vol2='{"name": "vol-02", "type": "custom", "config": {"size": "10MiB"}}'
+    vol2=$(cat <<EOF
+{
+    "name": "vol-02",
+    "type": "custom",
+    "config": {
+        "size": "10MiB"
+    }${volOpts}
+}
+EOF
+)
+
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${vol2}"
 
     # Fail - already exists.
@@ -356,14 +400,19 @@ test_devlxd_volume_management() {
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}"
 
     # Attach new device.
+    attachOpts=', "path": "/mnt/vol-01"'
+    if [ "${useBlockVol}" = "true" ]; then
+      attachOpts=""
+    fi
+
     attachReq=$(cat <<EOF
 {
     "devices": {
         "vol-01": {
             "type": "disk",
             "pool": "${pool}",
-            "source": "vol-01",
-            "path": "/mnt/vol-01"
+            "source": "vol-01"
+            ${attachOpts}
         }
     }
 }
@@ -391,7 +440,9 @@ EOF
 
     # Manage device on a different instance.
     inst2="${inst}-2"
-    lxc launch testimage "${inst2}" --project "${project}" --storage "${pool}"
+
+    # shellcheck disable=SC2086 # Variable "opts" must not be quoted, we want word splitting.
+    lxc init "${image}" "${inst2}" --project "${project}" $opts
 
     # Fail - missing permission.
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst2}")" = "Not Found" ]
