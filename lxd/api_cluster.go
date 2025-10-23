@@ -3659,7 +3659,7 @@ func clusterGroupsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Quick checks.
-	err = clusterGroupValidateName(req.Name)
+	err = validate.IsClusterGroupName(req.Name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -3971,7 +3971,7 @@ func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Quick checks.
-	err = clusterGroupValidateName(name)
+	err = validate.IsClusterGroupName(name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
