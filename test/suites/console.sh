@@ -60,13 +60,14 @@ test_console_vm() {
 
   lxc launch --empty v1 --vm -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
 
+  # 'lxc console --show-log' is only available for containers
+  ! lxc console v1 --show-log || false
+
   # The VGA console is available for VMs
   echo "===> Check VGA console address"
   OUTPUT="$(timeout --foreground --signal KILL 0.1 lxc console --type vga v1 || true)"
   echo "${OUTPUT}" | grep -F "spice+unix:///"
 
-  # 'lxc console --show-log' is only available for containers
-  ! lxc console v1 --show-log || false
 
   # Cleanup
   lxc delete --force v1
