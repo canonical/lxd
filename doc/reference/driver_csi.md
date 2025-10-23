@@ -16,6 +16,7 @@ Flag               | Default                 | Description
 `--devLXDEndpoint` | `unix:///dev/lxd/sock`  | DevLXD Unix socket path
 `--nodeID`         | `""`                    | Kubernetes node ID
 `--controller`     | `false`                 | Run as controller server
+`--version`        |                         | Print version and exit
 
 (ref-csi-helm)=
 ## Helm chart
