@@ -65,12 +65,26 @@ test_console_vm() {
 
   # The VGA console is available for VMs
   echo "===> Check VGA console address"
-  OUTPUT="$(timeout --foreground --signal KILL 0.1 lxc console --type vga v1 || true)"
-  echo "${OUTPUT}" | grep -F "spice+unix:///"
+  OUTPUT="$(mktemp -p "${TEST_DIR}" console_output.XXX)"
+  lxc console --type vga v1 > "${OUTPUT}" &
+  CONSOLE_PID=$!
+  sleep 0.1
+  grep -F "spice+unix:///" < "${OUTPUT}"
 
+  SPICE_UNIX_SOCKET="$(sed -n '/spice+unix/ s|^\s\+spice+unix://|| p' < "${OUTPUT}")"
+  [ -S "${SPICE_UNIX_SOCKET}" ]
+
+  echo "===> Test SPICE socket connectivity"
+  # This will cause the `lxc console --type vga` command to exit once connected
+  nc -zvU "${SPICE_UNIX_SOCKET}"
+
+  echo "===> Verify console command has exited and cleaned up the socket"
+  wait "${CONSOLE_PID}" || true
+  ! [ -e "${SPICE_UNIX_SOCKET}" ] || false
 
   # Cleanup
   lxc delete --force v1
+  rm "${OUTPUT}"
 
   if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
     # Cleanup custom changes from the default profile
