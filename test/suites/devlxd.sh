@@ -173,7 +173,9 @@ test_devlxd_vm() {
 
   ensure_import_ubuntu_vm_image
 
-  lxc launch ubuntu-vm v1 --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
+  lxc init ubuntu-vm v1 --vm -c agent.nic_config=true -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
+  lxc config device add v1 a-nic nic nictype=p2p name=a-nic mtu=1400
+  lxc start v1
   waitInstanceReady v1
 
   setup_lxd_agent_gocoverage v1
@@ -196,6 +198,13 @@ test_devlxd_vm() {
 
   lxc restart -f v1
   waitInstanceReady v1
+
+  echo "==> Confirm agent.nic_config applied the NIC configuration"
+  lxc exec v1 -- ip link show a-nic | grep -wF "mtu 1400"
+
+  echo "==> Remove the NIC"
+  lxc config device remove v1 a-nic
+  ! lxc exec v1 -- ip link show a-nic || false
 
   echo "==> Check that devlxd is working after a restart"
   lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0 | jq
