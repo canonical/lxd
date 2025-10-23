@@ -57,10 +57,8 @@ test_console_vm() {
     echo "Using migration.stateful to force 9p config drive thus avoiding the old/incompatible virtiofsd"
     lxc profile set default migration.stateful=true
   fi
-  ensure_import_ubuntu_vm_image
 
-  lxc launch ubuntu-vm v1 --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
-  waitInstanceReady v1
+  lxc launch --empty v1 --vm -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
 
   # The VGA console is available for VMs
   echo "===> Check VGA console address"
