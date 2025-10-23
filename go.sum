@@ -14,8 +14,8 @@ github.com/NVIDIA/go-nvlib v0.8.0 h1:vorMvnsJYvZaxiluSXFd+fIFeQFPWSiSjNPiJyvDs0c
 github.com/NVIDIA/go-nvlib v0.8.0/go.mod h1:bV+OEgjJCbFXf5T8c082mVPFuiF+gKwf9CMT7DWGUBI=
 github.com/NVIDIA/go-nvml v0.13.0-1 h1:OLX8Jq3dONuPOQPC7rndB6+iDmDakw0XTYgzMxObkEw=
 github.com/NVIDIA/go-nvml v0.13.0-1/go.mod h1:+KNA7c7gIBH7SKSJ1ntlwkfN80zdx8ovl4hrK3LmPt4=
-github.com/NVIDIA/nvidia-container-toolkit v1.17.8 h1:ndE23TKvQBicsZT88mzZudygn6JNOe6+UsIgqk6gGvw=
-github.com/NVIDIA/nvidia-container-toolkit v1.17.8/go.mod h1:khOgMW80+g8eX/1zPlO4demLShHht9I0YEm8ngcPgwk=
+github.com/NVIDIA/nvidia-container-toolkit v1.17.9 h1:+taSi7ASYo+g8QMpBU7wKEg8O8IdaRiOwBwQQIEBbIg=
+github.com/NVIDIA/nvidia-container-toolkit v1.17.9/go.mod h1:khOgMW80+g8eX/1zPlO4demLShHht9I0YEm8ngcPgwk=
 github.com/Rican7/retry v0.3.1 h1:scY4IbO8swckzoA/11HgBwaZRJEyY9vaNJshcdhp1Mc=
 github.com/Rican7/retry v0.3.1/go.mod h1:CxSDrhAyXmTMeEuRAnArMu1FHu48vtfjLREWqVl7Vw0=
 github.com/Yiling-J/theine-go v0.6.2 h1:1GeoXeQ0O0AUkiwj2S9Jc0Mzx+hpqzmqsJ4kIC4M9AY=
