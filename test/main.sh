@@ -584,6 +584,7 @@ if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "cluster" ]; then
     run_test test_resources_bcache "resources bcache"
     run_test test_kernel_limits "kernel limits"
     run_test test_console "console"
+    run_test test_console_vm "console VM"
     run_test test_query "query"
     run_test test_storage_local_volume_handling "storage local volume handling"
     run_test test_backup_import "backup import"
@@ -613,7 +614,6 @@ fi
 
 if [ "${1:-"all"}" != "cluster" ] && [ "${1:-"all"}" != "standalone" ]; then
     run_test test_snap_basic_usage_vm "snap basic usage VM"
-    run_test test_snap_console_vm "snap console VM"
     run_test test_snap_vm_empty "snap empty VM"
     run_test test_snap_lxd_user "snap lxd-user"
     run_test test_snap_storage_volume_attach_vm "snap attaching storage volumes to VMs"
