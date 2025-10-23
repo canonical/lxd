@@ -11,7 +11,7 @@ Storage drivers are divided into subgroups based on their accessibility.
 See the corresponding pages for driver-specific information and configuration options.
 
 (storage-drivers-local)=
-## Local volumes
+## Local
 
 A local volume resides on the storage pool of a single LXD server and is only accessible to instances running on that server.
 In a cluster, other members cannot access local volumes directly.
@@ -26,7 +26,7 @@ storage_zfs
 ```
 
 (storage-drivers-remote)=
-## Remote volumes
+## Remote
 
 A remote volume is stored on a storage backend that supports cluster-wide access.
 These volumes can be attached or detached from any instance in the cluster, but they cannot be accessed concurrently by multiple instances.
@@ -41,7 +41,7 @@ storage_alletra
 ```
 
 (storage-drivers-shared)=
-## Shared volumes
+## Shared
 
 A shared filesystem volume can be mounted concurrently by multiple instances, allowing them to read and write simultaneously.
 Like remote volumes, shared volumes are accessible cluster-wide.
