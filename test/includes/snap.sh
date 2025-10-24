@@ -113,10 +113,25 @@ sideload_lxd_snap() {
     local bin
     install_snap lxd "${channel}"
 
-    for bin in "${_LXC}" "$(command -v lxd)" "$(command -v lxd-user)"; do
+    for bin in "${_LXC:-$(command -v lxc)}" "$(command -v lxd)" "$(command -v lxd-user)"; do
         cp "${bin}" "/var/snap/lxd/common/${bin##*/}.debug"
     done
 
     # Use a mount bind as /snap/lxd is readonly
     mount -o ro,bind "$(command -v lxd-agent)" /snap/lxd/current/bin/lxd-agent
+}
+
+# gocoverage_lxd_snap sets up the LXD snap to collect Go coverage data.
+# If coverage is not enabled, any existing setup is removed.
+gocoverage_lxd_snap() {
+    local systemd_override_dir="/etc/systemd/system/snap.lxd.daemon.service.d"
+    local systemd_override_file="${systemd_override_dir}/env.conf"
+    if [ -n "${GOCOVERDIR:-}" ]; then
+        mkdir -p "${systemd_override_dir}"
+        echo -e "[Service]\nEnvironment=\"GOCOVERDIR=/var/lib/snapd/hostfs/${GOCOVERDIR}\"" > "${systemd_override_file}"
+        systemctl daemon-reload
+    elif [ -e "${systemd_override_file}" ]; then
+        rm "${systemd_override_file}"
+        systemctl daemon-reload
+    fi
 }
