@@ -64,7 +64,7 @@ var imagesCmd = APIEndpoint{
 	Path:        "images",
 	MetricsType: entity.TypeImage,
 
-	Get:  APIEndpointAction{Handler: imagesGet, AllowUntrusted: true},
+	Get:  APIEndpointAction{Handler: imagesGet, AllowUntrusted: true, AccessHandler: imagesGetAccessHandler},
 	Post: APIEndpointAction{Handler: imagesPost, AllowUntrusted: true, ContentTypes: []string{"application/json", "application/octet-stream", "multipart/form-data"}},
 }
 
@@ -193,6 +193,37 @@ func addImageDetailsToRequestContext(s *state.State, r *http.Request) error {
 	})
 
 	return nil
+}
+
+func imagesGetAccessHandler(d *Daemon, r *http.Request) response.Response {
+	projectName, allProjects, err := request.ProjectParams(r)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Regardless of trust status, if the request is for the default project then we allow it. This is to return public images.
+	if !allProjects && projectName == api.ProjectDefaultName {
+		return response.EmptySyncResponse
+	}
+
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// An untrusted caller has attempted to list images in a non-default project, or to use the all-projects parameter.
+	// Reject immediately.
+	if !requestor.IsTrusted() {
+		if allProjects {
+			return response.Forbidden(errors.New("Untrusted callers may only access public images in the default project"))
+		}
+
+		return response.NotFound(nil)
+	}
+
+	// The caller is trusted and is listing resources in a non-default project (or using all-projects).
+	// Use the same access handler as is used for listing any project specific entity type.
+	return allowProjectResourceList(false)(d, r)
 }
 
 func imageAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
@@ -1825,19 +1856,8 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 
 	trusted := requestor.IsTrusted()
 
-	// Untrusted callers can't request images from all projects or projects other than default.
-	if !trusted {
-		if allProjects {
-			return response.Forbidden(errors.New("Untrusted callers may only access public images in the default project"))
-		}
-
-		if projectName != api.ProjectDefaultName {
-			return response.NotFound(nil)
-		}
-	}
-
 	s := d.State()
-	if !allProjects && trusted {
+	if !allProjects && trusted && projectName != api.ProjectDefaultName {
 		var effectiveProjectName string
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
