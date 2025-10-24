@@ -229,6 +229,70 @@ func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) response.Re
 		},
 	}
 
+	// Configure volume source, if provided in the request.
+	if vol.Source.Type != "" {
+		// Validate source type.
+		if vol.Source.Type != api.SourceTypeCopy {
+			return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusBadRequest, "Invalid source type %q: Only source type %q is supported", vol.Source.Type, api.SourceTypeCopy))
+		}
+
+		if vol.Source.Name == "" {
+			return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusBadRequest, "Source volume name must be provided when source is configured"))
+		}
+
+		// Fetch a source volume.
+		sourceVol := api.StorageVolume{}
+
+		sourceURL := api.NewURL().Path("1.0", "storage-pools", vol.Source.Pool, "volumes", "custom", vol.Source.Name).Project(projectName)
+		if vol.Source.Location != "" {
+			sourceURL = sourceURL.WithQuery("target", vol.Source.Location)
+		}
+
+		req, err := lxd.NewRequestWithContext(r.Context(), http.MethodGet, sourceURL.String(), nil, "")
+		if err != nil {
+			return response.DevLXDErrorResponse(err)
+		}
+
+		// Set path variables for the request, required when populating the request using volume details.
+		// Source volume is not part of the original request URL.
+		req = mux.SetURLVars(req, map[string]string{
+			"volumeName": vol.Source.Name,
+			"poolName":   vol.Source.Pool,
+			"type":       "custom",
+		})
+
+		// Populate request context with source volume details.
+		err = addStoragePoolVolumeDetailsToRequestContext(d.State(), req)
+		if err != nil {
+			if api.StatusErrorCheck(err, http.StatusNotFound) {
+				return response.DevLXDErrorResponse(api.NewStatusError(http.StatusNotFound, "Source volume not found"))
+			}
+
+			return response.DevLXDErrorResponse(err)
+		}
+
+		resp := storagePoolVolumeGet(d, req)
+		_, err = response.NewResponseCapture(req).RenderToStruct(resp, &sourceVol)
+		if err != nil {
+			return response.DevLXDErrorResponse(err)
+		}
+
+		// Ensure the source volume is owned by the caller.
+		if !isDevLXDVolumeOwner(sourceVol.Config, identity.Identifier) {
+			return response.DevLXDErrorResponse(api.NewStatusError(http.StatusNotFound, "Source volume not found"))
+		}
+
+		// Configure source for the new volume.
+		reqBody.Source = api.StorageVolumeSource{
+			Name:     vol.Source.Name,
+			Type:     vol.Source.Type,
+			Pool:     vol.Source.Pool,
+			Location: vol.Source.Location,
+			// Always use instance project because cross-project volume copies are not allowed.
+			Project: projectName,
+		}
+	}
+
 	url := api.NewURL().Path("1.0", "storage-pools", poolName, "volumes", volType).Project(projectName).WithQuery("recursion", "1")
 	target := r.URL.Query().Get("target")
 	if target != "" {
