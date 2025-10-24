@@ -45,6 +45,9 @@ assert_project_operations_count() {
 test_get_operations() {
   ensure_import_testimage
 
+  ! lxc operation list --project nonexistent || false
+  lxc operation list --project default
+
   proj1="op-proj1"
   proj2="op-proj2"
 
