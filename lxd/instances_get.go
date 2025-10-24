@@ -273,6 +273,11 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 				filteredProjects = append(filteredProjects, project.Name)
 			}
 		} else {
+			_, err = dbCluster.GetProjectID(ctx, tx.Tx(), projectName)
+			if err != nil {
+				return fmt.Errorf("Failed to get project: %w", err)
+			}
+
 			filteredProjects = []string{projectName}
 		}
 
