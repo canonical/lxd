@@ -34,7 +34,7 @@ How to back up your server and recover from failure:
 
 :diataxis:Back up a server </backup>
 :diataxis:Recover instances </howto/disaster_recovery>
-:diataxis:Recover with storage replication </howto/disaster_recovery_replication>
+Disaster recovery with storage replication </howto/disaster_recovery_replication>
 ```
 
 ## Related topics
