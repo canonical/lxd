@@ -539,6 +539,7 @@ type DevLXDServer interface {
 
 	// DevLXD operations.
 	GetOperationWait(uuid string, timeout int) (*api.DevLXDOperation, string, error)
+	DeleteOperation(uuid string) error
 
 	// DevLXD Ubuntu Pro.
 	GetUbuntuPro() (*api.DevLXDUbuntuProSettings, error)
