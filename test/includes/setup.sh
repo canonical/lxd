@@ -88,6 +88,23 @@ download_test_images() {
     )
 }
 
+# download_virtiofsd: copies or downloads the virtiofsd binary to the expected location.
+download_virtiofsd() {
+    local dir="${1:-/usr/lib/qemu}"
+    [ -d "${dir}" ] || mkdir -p "${dir}"
+
+    # If virtiofsd is already present in PATH move it to the expected location. Otherwise,
+    # download the virtiofsd binary from the latest GitLab CI build artifacts
+    if command -v virtiofsd >/dev/null && [ "$(command -v virtiofsd)" != "${dir}/virtiofsd" ]; then
+        mv "$(command -v virtiofsd)" "${dir}/virtiofsd"
+    else
+        curl --show-error --silent --retry 3 --retry-delay 5 --location \
+             --continue-at - "https://gitlab.com/virtio-fs/virtiofsd/-/jobs/artifacts/main/raw/target/$(uname -m)-unknown-linux-musl/release/virtiofsd?job=publish" --output "${dir}/virtiofsd"
+    fi
+
+    chmod +x "${dir}/virtiofsd"
+}
+
 install_tools() {
     local pkg="${1}"
 
