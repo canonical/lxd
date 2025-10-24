@@ -92,6 +92,9 @@ check_dependencies lxd lxc curl busybox dnsmasq expect iptables jq nc ping pytho
 if [ "${LXD_VM_TESTS:-0}" = "1" ]; then
   check_dependencies qemu-img "qemu-system-$(uname -m)" sgdisk
 fi
+if ! check_dependencies minio mc; then
+  download_minio
+fi
 
 echo "==> Checking test dependencies"
 if ! check_dependencies devlxd-client fuidshift mini-oidc sysinfo; then
