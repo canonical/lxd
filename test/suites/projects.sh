@@ -84,6 +84,9 @@ test_projects_crud() {
 
 # Use containers in a project.
 test_projects_containers() {
+  lxc list --project default
+  ! lxc list --project nonexistent || false
+
   # Create a project and switch to it
   lxc project create foo
   lxc project switch foo
@@ -286,6 +289,9 @@ test_projects_backups() {
 
 # Use private profiles in a project.
 test_projects_profiles() {
+  lxc profile list --project default
+  ! lxc profile list --project nonexistent || false
+
   # Create a project and switch to it
   lxc project create foo
   lxc project switch foo
@@ -399,6 +405,11 @@ test_projects_profiles_default() {
 
 # Use private images in a project.
 test_projects_images() {
+  lxc image list --project default
+  ! lxc image list --project nonexistent || false
+  lxc image alias list --project default
+  ! lxc image alias list --project nonexistent || false
+
   # Create a project and switch to it
   lxc project create foo
   lxc project switch foo
@@ -493,6 +504,14 @@ test_projects_images_default() {
 # Interaction between projects and storage pools.
 test_projects_storage() {
   pool="lxdtest-$(basename "${LXD_DIR}")"
+  lxd_backend=$(storage_backend "$LXD_DIR")
+
+  lxc storage volume list "${pool}" --project default
+  ! lxc storage volume list "${pool}" --project nonexistent || false
+  if [ "${lxd_backend}" != "ceph" ]; then
+    lxc storage bucket list "${pool}" --project default
+    ! lxc storage bucket list "${pool}" --project nonexistent || false
+  fi
 
   lxc storage volume create "${pool}" vol
 
@@ -529,6 +548,13 @@ test_projects_storage() {
 
 # Interaction between projects and networks.
 test_projects_network() {
+  lxc network list --project default
+  ! lxc network list --project nonexistent || false
+  lxc network zone list --project default
+  ! lxc network zone list --project nonexistent || false
+  lxc network acl list --project default
+  ! lxc network acl list --project nonexistent || false
+
   # Standard bridge with random subnet and a bunch of options
   network="lxdt$$"
   lxc network create "${network}" ipv4.address=none ipv6.address=none

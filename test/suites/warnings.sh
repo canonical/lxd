@@ -2,6 +2,9 @@ test_warnings() {
     # Delete previous warnings
     lxc warning delete --all
 
+    # Ensure that listing warnings in a project that doesn't exist fails
+    ! lxc warning list --project nonexistent || false
+
     # Create a global warning (no node and no project)
     lxc query --wait -X POST -d '{"type_code": 0, "message": "global warning"}' /internal/testing/warnings
 
