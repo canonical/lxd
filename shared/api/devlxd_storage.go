@@ -75,4 +75,26 @@ type DevLXDStorageVolumesPost struct {
 	// Volume content type (filesystem or block)
 	// Example: filesystem
 	ContentType string `json:"content_type" yaml:"content_type"`
+
+	// Volume to use as a base for the new volume.
+	Source DevLXDStorageVolumeSource `json:"source" yaml:"source"`
+}
+
+// DevLXDStorageVolumeSource represents the source for a new storage volume.
+type DevLXDStorageVolumeSource struct {
+	// Source volume name.
+	// Example: foo
+	Name string `json:"name" yaml:"name"`
+
+	// Source type. Currently, only "copy" is supported.
+	// Example: copy
+	Type string `json:"type" yaml:"type"`
+
+	// Source storage pool.
+	// Example: local
+	Pool string `json:"pool" yaml:"pool"`
+
+	// Name of the cluster member where the volume is located.
+	// Example: member01
+	Location string `json:"location" yaml:"location"`
 }
