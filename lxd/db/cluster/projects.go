@@ -118,15 +118,16 @@ SELECT projects_config.value
 
 // GetProjectConfig is a helper to return a config of a project.
 func GetProjectConfig(ctx context.Context, tx *sql.Tx, projectName string) (map[string]string, error) {
-	stmt := `
-	SELECT projects_config.key, projects_config.value
-	  FROM projects_config
-	  JOIN projects ON projects.id=projects_config.project_id
-	 WHERE projects.name=?
+	projectID, err := GetProjectID(ctx, tx, projectName)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to load project: %w", err)
+	}
+
+	stmt := `SELECT projects_config.key, projects_config.value FROM projects_config WHERE projects_config.project_id = ?
 	`
 
 	result := make(map[string]string)
-	err := query.Scan(ctx, tx, stmt, func(scan func(dest ...any) error) error {
+	err = query.Scan(ctx, tx, stmt, func(scan func(dest ...any) error) error {
 		var key, value string
 		err := scan(&key, &value)
 		if err != nil {
@@ -135,7 +136,7 @@ func GetProjectConfig(ctx context.Context, tx *sql.Tx, projectName string) (map[
 
 		result[key] = value
 		return nil
-	}, projectName)
+	}, projectID)
 	if err != nil {
 		return nil, err
 	}
