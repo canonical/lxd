@@ -272,6 +272,11 @@ jobs:
         with:
           prime-cache-only: true
 
+      - name: Prime cache with virtiofsd
+        uses: ./.github/actions/download-virtiofsd
+        with:
+          prime-cache-only: true
+
       - name: Upload system test dependencies
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -283,6 +288,7 @@ jobs:
             /home/runner/go/bin/fuidshift
             /home/runner/go/bin/mini-oidc
             /home/runner/go/bin/sysinfo
+            /home/runner/go/bin/virtiofsd
           retention-days: 1
 
   system-tests:
