@@ -16,7 +16,9 @@ test_completions() {
     ensure_import_testimage
     ensure_has_localhost_remote "${LXD_ADDR}"
 
-    # 'remote'
+    echo "==> Checking completions for lxc commands..."
+
+    echo '  remote'
     [ "$(complete remote remove '')" = 'localhost' ] # Only non-static remotes may be removed
     [ "$(complete remote remove u || echo fail)" = '' ]
     [ "$(complete remote remove l)" = 'localhost' ]
@@ -43,7 +45,7 @@ test_completions() {
     [ "$(complete list l)" = 'local:' ]
     lxc remote switch local
 
-    # top level (instance) commands
+    echo '  top level (instance) commands'
     lxc init --empty c1
     lxc launch testimage c2
     lxc snapshot c1
@@ -122,7 +124,7 @@ test_completions() {
     [ "$(complete start '')" = 'c1,localhost:' ] # Only c1 not running
     [ "$(complete stop '')" = 'c2,localhost:' ] # Only c2 running
 
-    # 'file'
+    echo '  file'
     [ "$(complete file create '')" = 'c1/,c2/,localhost:' ]
     [ "$(complete file delete '')" = 'c1/,c2/,localhost:' ]
     [ "$(complete file edit '')" = 'c1/,c2/,localhost:' ]
@@ -141,7 +143,7 @@ test_completions() {
       rm -rf "${file_wd}"
     )
 
-    # 'config'
+    echo '  config'
     [ "$(complete config show '')" = 'c1,c2,localhost:' ]
     [ "$(complete config set '')" = 'acme.,backups.,c1,c2,cluster.,core.,images.,instances.,localhost:,loki.,maas.,network.,oidc.,storage.,user.' ]
     [ "$(complete config set n)" = 'network.' ]
@@ -150,9 +152,9 @@ test_completions() {
     [ "$(complete config set localhost: m)" = 'maas.' ]
     [ "$(complete config set localhost: maas.)" = 'maas.api.,maas.machine=' ]
     [ "$(complete config set localhost: maas.api.)" = 'maas.api.key=,maas.api.url=' ]
-    [ "$(complete config set c1 '')" = 'boot.,cloud-init.,cluster.,environment.,limits.,linux.,migration.,nvidia.,raw.,security.,snapshots.,ubuntu_pro.,user.' ]
+    [ "$(complete config set c1 '')" = 'boot.,cloud-init.,cluster.,environment.,limits.,linux.,migration.,nvidia.,placement.,raw.,security.,snapshots.,ubuntu_pro.,user.' ]
     [ "$(complete config set c1 l)" = 'limits.,linux.' ]
-    [ "$(complete config set localhost:c1 '')" = 'boot.,cloud-init.,cluster.,environment.,limits.,linux.,migration.,nvidia.,raw.,security.,snapshots.,ubuntu_pro.,user.' ]
+    [ "$(complete config set localhost:c1 '')" = 'boot.,cloud-init.,cluster.,environment.,limits.,linux.,migration.,nvidia.,placement.,raw.,security.,snapshots.,ubuntu_pro.,user.' ]
     [ "$(complete config set c1 limits.)" = 'limits.cpu.,limits.cpu=,limits.disk.,limits.hugepages.,limits.kernel.,limits.memory.,limits.memory=,limits.processes=' ]
     [ "$(complete config set c1 migration.)" = 'migration.incremental.' ] # No .stateful because c1 is not a VM.
     [ "$(complete config get '')" = 'acme.,backups.,c1,c2,cluster.,core.,images.,instances.,localhost:,loki.,maas.,network.,oidc.,storage.,user.' ]
@@ -162,9 +164,9 @@ test_completions() {
     [ "$(complete config get localhost: m)" = 'maas.' ]
     [ "$(complete config get localhost: maas.)" = 'maas.api.,maas.machine' ]
     [ "$(complete config get localhost: maas.api.)" = 'maas.api.key,maas.api.url' ]
-    [ "$(complete config get c1 '')" = 'boot.,cloud-init.,cluster.,environment.,limits.,linux.,migration.,nvidia.,raw.,security.,snapshots.,ubuntu_pro.,user.' ]
+    [ "$(complete config get c1 '')" = 'boot.,cloud-init.,cluster.,environment.,limits.,linux.,migration.,nvidia.,placement.,raw.,security.,snapshots.,ubuntu_pro.,user.' ]
     [ "$(complete config get c1 l)" = 'limits.,linux.' ]
-    [ "$(complete config get localhost:c1 '')" = 'boot.,cloud-init.,cluster.,environment.,limits.,linux.,migration.,nvidia.,raw.,security.,snapshots.,ubuntu_pro.,user.' ]
+    [ "$(complete config get localhost:c1 '')" = 'boot.,cloud-init.,cluster.,environment.,limits.,linux.,migration.,nvidia.,placement.,raw.,security.,snapshots.,ubuntu_pro.,user.' ]
     [ "$(complete config get c1 limits.)" = 'limits.cpu,limits.cpu.,limits.disk.,limits.hugepages.,limits.kernel.,limits.memory,limits.memory.,limits.processes' ]
     lxc config set user.foo=bar
     [ "$(complete config unset '')" = 'c1,c2,core.https_address,localhost:,user.foo' ]
@@ -180,7 +182,7 @@ test_completions() {
     lxc config unset c1 user.foo
     lxc config unset user.foo
 
-    # 'config device'
+    echo '  config device'
     [ "$(complete config device add '')" = 'c1,c2,localhost:' ]
     [ "$(complete config device add c)" = 'c1,c2' ]
     [ "$(complete config device add l)" = 'localhost:' ]
@@ -272,7 +274,7 @@ test_completions() {
     [ "$(complete profile device unset localhost:)" = 'localhost:default' ]
     [ "$(complete profile device unset default '')" = 'eth0,root' ]
 
-    # 'image'
+    echo '  image'
     [ "$(complete image copy '')" = "images:,localhost:,testimage,ubuntu-daily:,ubuntu-minimal-daily:,ubuntu-minimal:,ubuntu:" ]
     [ "$(complete image copy l)" = 'localhost:' ]
     [ "$(complete image copy u)" = 'ubuntu-daily:,ubuntu-minimal-daily:,ubuntu-minimal:,ubuntu:' ]
@@ -357,7 +359,7 @@ test_completions() {
     [ "$(complete image refresh localhost:)" = "localhost:${testimage_fingerprint_prefix}" ]
     [ "$(complete image refresh localhost:testimage '')" = "${testimage_fingerprint_prefix},localhost:" ]
 
-    # 'image alias'
+    echo '  image alias'
     lxc image alias create testimage "${testimage_fingerprint}"
     [ "$(complete image alias create '')" = 'localhost:' ]
     [ "$(complete image alias create foo '')" = "${testimage_fingerprint}" ]

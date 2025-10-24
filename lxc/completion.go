@@ -79,6 +79,9 @@ var topLevelInstanceServerResourceNameFuncs = map[string]func(server lxd.Instanc
 	"network_zone": func(server lxd.InstanceServer) ([]string, error) {
 		return server.GetNetworkZoneNames()
 	},
+	"placement_group": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetPlacementGroupNames()
+	},
 	"profile": func(server lxd.InstanceServer) ([]string, error) {
 		return server.GetProfileNames()
 	},
@@ -1254,6 +1257,30 @@ func (g *cmdGlobal) cmpProjectConfigs(projectName string) ([]string, cobra.Shell
 
 	configs := make([]string, 0, len(project.Config))
 	for c := range project.Config {
+		configs = append(configs, c)
+	}
+
+	return configs, cobra.ShellCompDirectiveNoFileComp
+}
+
+// cmpPlacementGroupConfigs provides shell completion for placement group configs.
+// It takes a placement group name and returns a list of placement group configs along with a shell completion directive.
+func (g *cmdGlobal) cmpPlacementGroupConfigs(placementGroupName string) ([]string, cobra.ShellCompDirective) {
+	resources, err := g.ParseServers(placementGroupName)
+	if err != nil || len(resources) == 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	placementGroup, _, err := client.GetPlacementGroup(resource.name)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	configs := make([]string, 0, len(placementGroup.Config))
+	for c := range placementGroup.Config {
 		configs = append(configs, c)
 	}
 

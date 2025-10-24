@@ -155,6 +155,8 @@ var api10 = []APIEndpoint{
 	storageVolumesTypeCmd,
 	oidcSessionsCmd,
 	oidcSessionCmd,
+	placementGroupsCmd,
+	placementGroupCmd,
 }
 
 // swagger:operation GET /1.0?public server server_get_untrusted

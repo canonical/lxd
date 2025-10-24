@@ -27,6 +27,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instance/operationlock"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/placement"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
@@ -1087,6 +1088,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	var candidateMembers []db.NodeInfo
 	var targetMemberInfo *db.NodeInfo
 	var targetGroupName string
+	var placementGroupName string
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		target := request.QueryParam(r, "target")
@@ -1244,6 +1246,11 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			logger.Debug("No name provided for new instance, using auto-generated name", logger.Ctx{"project": targetProjectName, "instance": req.Name})
 		}
 
+		err = instancetype.ValidName(req.Name, false)
+		if err != nil {
+			return err
+		}
+
 		if s.ServerClustered && !clusterNotification && targetMemberInfo == nil {
 			architectures, err := instance.SuitableArchitectures(ctx, s, tx, targetProjectName, sourceInst, sourceImageRef, req)
 			if err != nil {
@@ -1276,6 +1283,40 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return err
 			}
+
+			expandedConfig := instancetype.ExpandInstanceConfig(s.GlobalConfig.Dump(), req.Config, profiles)
+
+			// Check if instance is using a placement group.
+			placementGroupName = expandedConfig["placement.group"]
+			if placementGroupName == "" {
+				targetMemberInfo, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
+				return err
+			}
+
+			placementGroup, err := dbCluster.GetPlacementGroup(ctx, tx.Tx(), placementGroupName, targetProject.Name)
+			if err != nil {
+				return err
+			}
+
+			apiPlacementGroup, err := placementGroup.ToAPI(ctx, tx.Tx())
+			if err != nil {
+				return err
+			}
+
+			filteredCandidates, err := placement.Filter(ctx, tx, candidateMembers, *apiPlacementGroup, false)
+			if err != nil {
+				return err
+			}
+
+			// Early return if only a single candidate.
+			if len(filteredCandidates) == 1 {
+				targetMemberInfo = &filteredCandidates[0]
+				return nil
+			}
+
+			// Use filtered candidates to pick the node with least instances.
+			targetMemberInfo, err = tx.GetNodeWithLeastInstances(ctx, filteredCandidates)
+			return err
 		}
 
 		if !clusterNotification {
@@ -1293,16 +1334,42 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = instancetype.ValidName(req.Name, false)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
 	if s.ServerClustered && !clusterNotification && targetMemberInfo == nil {
+		expandedConfig := instancetype.ExpandInstanceConfig(s.GlobalConfig.Dump(), req.Config, profiles)
+
 		// If no target member was selected yet, pick the member with the least number of instances.
 		if targetMemberInfo == nil {
 			err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-				targetMemberInfo, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
+				// Check if instance is using a placement group.
+				placementGroupName := expandedConfig["placement.group"]
+				if placementGroupName == "" {
+					targetMemberInfo, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
+					return err
+				}
+
+				placementGroup, err := dbCluster.GetPlacementGroup(ctx, tx.Tx(), placementGroupName, targetProject.Name)
+				if err != nil {
+					return err
+				}
+
+				apiPlacementGroup, err := placementGroup.ToAPI(ctx, tx.Tx())
+				if err != nil {
+					return err
+				}
+
+				filteredCandidates, err := placement.Filter(ctx, tx, candidateMembers, *apiPlacementGroup, false)
+				if err != nil {
+					return err
+				}
+
+				// Early return if only a single candidate.
+				if len(filteredCandidates) == 1 {
+					targetMemberInfo = &filteredCandidates[0]
+					return nil
+				}
+
+				// Use filtered candidates to pick the node with least instances.
+				targetMemberInfo, err = tx.GetNodeWithLeastInstances(ctx, filteredCandidates)
 				return err
 			})
 			if err != nil {
@@ -1312,7 +1379,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Record the cluster group as a volatile config key if present.
-	if !clusterNotification && targetGroupName != "" {
+	if !clusterNotification && placementGroupName == "" && targetGroupName != "" {
 		req.Config["volatile.cluster.group"] = targetGroupName
 	}
 

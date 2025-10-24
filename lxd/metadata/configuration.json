@@ -2217,6 +2217,18 @@
 					}
 				]
 			},
+			"placement": {
+				"keys": [
+					{
+						"placement.group": {
+							"liveupdate": "yes",
+							"longdesc": "Specifies the placement group that determines where this instance is scheduled within the cluster.\nThe placement group defines the placement policy (e.g. spread or compact) and rigor (e.g. strict or permissive)\nused to determine eligible cluster members during LXD scheduling events.",
+							"shortdesc": "Placement group controlling instance scheduling",
+							"type": "string"
+						}
+					}
+				]
+			},
 			"raw": {
 				"keys": [
 					{
@@ -4643,6 +4655,35 @@
 							"longdesc": "",
 							"required": "yes",
 							"shortdesc": "Unique name of the record",
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"placement-group": {
+			"placement-group": {
+				"keys": [
+					{
+						"policy": {
+							"longdesc": "Determines whether instances are spread across cluster members or\ncompacted onto the same cluster member(s).\n\nPossible values are `spread` and `compact`.\nSee {ref}`clustering-instance-placement` for more information.",
+							"required": "\"yes\"",
+							"shortdesc": "Instance placement policy",
+							"type": "string"
+						}
+					},
+					{
+						"rigor": {
+							"longdesc": "Determines whether the policy is strictly enforced or allows fallback.\n\nPossible values are `strict` and `permissive`.\nSee {ref}`clustering-instance-placement` for more information.",
+							"required": "\"yes\"",
+							"shortdesc": "Enforcement level of the placement policy",
+							"type": "string"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "User keys can be used in search.",
+							"shortdesc": "Free form user key/value storage",
 							"type": "string"
 						}
 					}
@@ -7855,6 +7896,23 @@
 				}
 			]
 		},
+		"placement_group": {
+			"project_specific": true,
+			"entitlements": [
+				{
+					"name": "can_edit",
+					"description": "Grants permission to edit the placement group."
+				},
+				{
+					"name": "can_delete",
+					"description": "Grants permission to delete the placement group."
+				},
+				{
+					"name": "can_view",
+					"description": "Grants permission to view the placement group."
+				}
+			]
+		},
 		"profile": {
 			"project_specific": true,
 			"entitlements": [
@@ -8078,6 +8136,26 @@
 				{
 					"name": "can_delete_storage_buckets",
 					"description": "Grants permission to delete storage buckets."
+				},
+				{
+					"name": "placement_group_manager",
+					"description": "Grants permission to create, view, edit, and delete all placement groups belonging to the project."
+				},
+				{
+					"name": "can_create_placement_groups",
+					"description": "Grants permission to create placement groups."
+				},
+				{
+					"name": "can_view_placement_groups",
+					"description": "Grants permission to view placement groups."
+				},
+				{
+					"name": "can_edit_placement_groups",
+					"description": "Grants permission to edit placement groups."
+				},
+				{
+					"name": "can_delete_placement_groups",
+					"description": "Grants permission to delete placement groups."
 				},
 				{
 					"name": "can_view_operations",

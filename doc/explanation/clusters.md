@@ -159,6 +159,16 @@ However, you can control this behavior with the {config:option}`cluster-cluster:
    - The instance is targeted to live on this cluster member.
    - The instance is targeted to live on a member of a cluster group that the cluster member is a part of, and the cluster member has the lowest number of instances compared to the other members of the cluster group.
 
+(exp-clusters-placement)=
+### Placement groups
+
+Placement groups provide declarative control over how instances are distributed across cluster members.
+They define both a **policy** (how instances should be distributed) and a **rigor** (how strictly the policy is enforced).
+
+Placement groups are project-scoped resources, which means different projects can have placement groups with the same name without conflict.
+
+See {ref}`cluster-placement-groups` for usage instructions and {ref}`ref-placement-groups` for reference documentation.
+
 (clusters-high-availability)=
 ## High availability
 
