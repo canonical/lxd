@@ -467,6 +467,7 @@ var APIExtensions = []string{
 	"auth_oidc_sessions",
 	"instance_snapshots_multi_volume",
 	"vm_persistent_bus",
+	"ovn_nic_acceleration_parent",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
