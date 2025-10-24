@@ -16,6 +16,11 @@ var devLXDOperationWaitEndpoint = APIEndpoint{
 	Get:  APIEndpointAction{Handler: devLXDOperationsWaitHandler, AccessHandler: allowDevLXDAuthenticated},
 }
 
+var devLXDOperationEndpoint = APIEndpoint{
+	Path:   "operations/{id}",
+	Delete: APIEndpointAction{Handler: devLXDOperationDeleteHandler, AccessHandler: allowDevLXDAuthenticated},
+}
+
 func devLXDOperationsWaitHandler(d *Daemon, r *http.Request) response.Response {
 	inst, err := getInstanceFromContextAndCheckSecurityFlags(r.Context(), devLXDSecurityKey)
 	if err != nil {
@@ -57,4 +62,30 @@ func devLXDOperationsWaitHandler(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.DevLXDResponse(http.StatusOK, respOp, "json")
+}
+
+func devLXDOperationDeleteHandler(d *Daemon, r *http.Request) response.Response {
+	inst, err := getInstanceFromContextAndCheckSecurityFlags(r.Context(), devLXDSecurityKey)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	// Allow access only to the project where current instance is running.
+	projectName := inst.Project().Name
+	opID := mux.Vars(r)["id"]
+
+	// Delete the operation.
+	url := api.NewURL().Path("1.0", "operations", opID).Project(projectName)
+	req, err := lxd.NewRequestWithContext(r.Context(), http.MethodDelete, url.String(), nil, "")
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	resp := operationDelete(d, req)
+	err = response.NewResponseCapture(req).Render(resp)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	return response.DevLXDResponse(http.StatusOK, "", "raw")
 }
