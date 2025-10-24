@@ -3643,7 +3643,7 @@ func clusterGroupsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Quick checks.
-	err = clusterGroupValidateName(req.Name)
+	err = validate.IsClusterGroupName(req.Name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -3801,6 +3801,12 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 					return err
 				}
 
+				usedBy, err := clusterGroupUsedBy(ctx, s, tx, clusterGroup.Name, false)
+				if err != nil {
+					return err
+				}
+
+				apiClusterGroup.UsedBy = usedBy
 				apiClusterGroups = append(apiClusterGroups, apiClusterGroup)
 			}
 		} else {
@@ -3894,6 +3900,12 @@ func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
+		usedBy, err := clusterGroupUsedBy(ctx, s, tx, name, false)
+		if err != nil {
+			return err
+		}
+
+		apiGroup.UsedBy = usedBy
 		return nil
 	})
 	if err != nil {
@@ -3955,7 +3967,7 @@ func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Quick checks.
-	err = clusterGroupValidateName(name)
+	err = validate.IsClusterGroupName(name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -3965,6 +3977,15 @@ func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
 		_, err = dbCluster.GetClusterGroup(ctx, tx.Tx(), req.Name)
 		if err == nil {
 			return fmt.Errorf("Name %q already in use", req.Name)
+		}
+
+		usedBy, err := clusterGroupUsedBy(r.Context(), s, tx, name, true)
+		if err != nil {
+			return err
+		}
+
+		if len(usedBy) > 0 {
+			return api.StatusErrorf(http.StatusBadRequest, "Cluster group is currently in use")
 		}
 
 		// Rename the cluster group.
@@ -4327,7 +4348,7 @@ func clusterGroupDelete(d *Daemon, r *http.Request) response.Response {
 			return api.StatusErrorf(http.StatusBadRequest, "Only empty cluster groups can be removed")
 		}
 
-		usedBy, err := dbCluster.GetClusterGroupUsedBy(ctx, tx.Tx(), name)
+		usedBy, err := clusterGroupUsedBy(r.Context(), s, tx, name, true)
 		if err != nil {
 			return err
 		}
@@ -4347,42 +4368,6 @@ func clusterGroupDelete(d *Daemon, r *http.Request) response.Response {
 	s.Events.SendLifecycle(name, lifecycle.ClusterGroupDeleted.Event(name, requestor, nil))
 
 	return response.EmptySyncResponse
-}
-
-func clusterGroupValidateName(name string) error {
-	if name == "" {
-		return errors.New("No name provided")
-	}
-
-	if name == "*" {
-		return errors.New("Reserved cluster group name")
-	}
-
-	if name == "." || name == ".." {
-		return fmt.Errorf("Invalid cluster group name %q", name)
-	}
-
-	if strings.Contains(name, "\\") {
-		return errors.New("Cluster group names may not contain back slashes")
-	}
-
-	if strings.Contains(name, "/") {
-		return errors.New("Cluster group names may not contain slashes")
-	}
-
-	if strings.Contains(name, " ") {
-		return errors.New("Cluster group names may not contain spaces")
-	}
-
-	if strings.Contains(name, "_") {
-		return errors.New("Cluster group names may not contain underscores")
-	}
-
-	if strings.Contains(name, "'") || strings.Contains(name, `"`) {
-		return errors.New("Cluster group names may not contain quotes")
-	}
-
-	return nil
 }
 
 func evacuateClusterSelectTarget(ctx context.Context, s *state.State, inst instance.Instance) (*db.NodeInfo, error) {
@@ -4594,4 +4579,39 @@ func healClusterMember(s *state.State, gateway *cluster.Gateway, op *operations.
 
 	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterMemberHealed.Event(name, op.EventLifecycleRequestor(), nil))
 	return nil
+}
+
+// clusterGroupUsedBy returns the list of resource URLs that reference the cluster group.
+// The returned slice contains project URLs (for projects whose "restricted.cluster.groups" configuration includes the group) and instance URLs (for instances whose config contains the group in the "volatile.cluster.group" key).
+// If firstOnly is true then search stops at first result.
+func clusterGroupUsedBy(ctx context.Context, s *state.State, tx *db.ClusterTx, name string, firstOnly bool) ([]string, error) {
+	var usedBy []string
+	var err error
+
+	usedBy, err = dbCluster.GetProjectsUsingRestrictedClusterGroups(ctx, tx.Tx(), name)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(usedBy) > 0 && firstOnly {
+		return usedBy, nil
+	}
+
+	err = tx.InstanceList(ctx, func(inst db.InstanceArgs, p api.Project) error {
+		// Check if instance references cluster group in "volatile.cluster.group" config key.
+		if inst.Config["volatile.cluster.group"] == name {
+			usedBy = append(usedBy, entity.InstanceURL(inst.Project, inst.Name).String())
+
+			if firstOnly {
+				return db.ErrListStop
+			}
+		}
+
+		return nil
+	})
+	if err != nil && err != db.ErrListStop {
+		return nil, fmt.Errorf("Failed getting instances: %w", err)
+	}
+
+	return usedBy, nil
 }
