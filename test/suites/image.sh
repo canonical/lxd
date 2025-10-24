@@ -293,21 +293,32 @@ run_images_public() {
   query /1.0/images?recursion=1\&project=default | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
 
   if [ -z "${CERT_NAME:-}" ]; then
-    # Untrusted callers see a generic 404 for project foo, or a 403 if using "all-projects".
+    # Untrusted callers see a generic 404 for non-default projects, or a 403 if using "all-projects".
     query /1.0/images?project=foo | jq --exit-status '.error == "Not Found" and .error_code == 404'
     query /1.0/images?recursion=1\&project=foo | jq --exit-status '.error == "Not Found" and .error_code == 404'
     query /1.0/images?project=bar | jq --exit-status '.error == "Not Found" and .error_code == 404'
     query /1.0/images?recursion=1\&project=bar | jq --exit-status '.error == "Not Found" and .error_code == 404'
     query /1.0/images?all-projects=true | jq --exit-status '.error == "Untrusted callers may only access public images in the default project" and .error_code == 403'
     query /1.0/images?recursion=1\&all-projects=true | jq --exit-status '.error == "Untrusted callers may only access public images in the default project" and .error_code == 403'
+  elif [ "${CERT_NAME}" = "restricted" ]; then
+    # Restricted TLS clients without access to any projects see a 403 for non-default projects, and a 403 if using all-projects.
+    query /1.0/images?project=foo | jq --exit-status '.error == "Certificate is restricted" and .error_code == 403'
+    query /1.0/images?recursion=1\&project=foo  | jq --exit-status '.error == "Certificate is restricted" and .error_code == 403'
+    query /1.0/images?project=bar | jq --exit-status '.error == "Certificate is restricted" and .error_code == 403'
+    query /1.0/images?recursion=1\&project=bar  | jq --exit-status '.error == "Certificate is restricted" and .error_code == 403'
+    query /1.0/images?all-projects=true  | jq --exit-status '.error == "Certificate is restricted" and .error_code == 403'
+    query /1.0/images?recursion=1\&all-projects=true  | jq --exit-status '.error == "Certificate is restricted" and .error_code == 403'
+  elif [ "${CERT_NAME}" = "fine-grained" ]; then
+    # Fine-grained identities with no permissions see a generic 404 for non-default projects, and a 200 with an empty list if using "all-projects".
+    query /1.0/images?project=foo | jq --exit-status '.error == "Not Found" and .error_code == 404'
+    query /1.0/images?recursion=1\&project=foo | jq --exit-status '.error == "Not Found" and .error_code == 404'
+    query /1.0/images?project=bar | jq --exit-status '.error == "Not Found" and .error_code == 404'
+    query /1.0/images?recursion=1\&project=bar | jq --exit-status '.error == "Not Found" and .error_code == 404'
+    query /1.0/images?all-projects=true | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
+    query /1.0/images?recursion=1\&all-projects=true | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
   else
-    # Restricted and fine-grained TLS clients see an empty list.
-    query /1.0/images?project=foo | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
-    query /1.0/images?recursion=1\&project=foo  | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
-    query /1.0/images?project=bar | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
-    query /1.0/images?recursion=1\&project=bar  | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
-    query /1.0/images?all-projects=true  | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
-    query /1.0/images?recursion=1\&all-projects=true  | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
+      echo "Unexpected certificate name: ${CERT_NAME}"
+      false
   fi
 
   # All users see a not found error for the aliases.
