@@ -81,7 +81,9 @@ test_tls_restrictions() {
   # The restricted caller is able to list operations for all projects, but this is filtered to only show operations they have access to.
   lxd_websocket_operation foo 1s &
   lxd_websocket_operation bar 1s blah &
+  sleep 0.1
   [ "$(lxc operation list --all-projects -f csv | grep -Fc 'Executing command')" = 2 ] # Two exec operations exist
+  sleep 0.1
   [ "$(lxc_remote operation list localhost: --all-projects -f csv | wc -l)" = 1 ] # Restricted caller can only view the one in project blah
 
   # Validate restricted view
