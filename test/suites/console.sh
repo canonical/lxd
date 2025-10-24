@@ -53,11 +53,6 @@ EOF
 }
 
 test_console_vm() {
-  if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
-    echo "Using migration.stateful to force 9p config drive thus avoiding the old/incompatible virtiofsd"
-    lxc profile set default migration.stateful=true
-  fi
-
   lxc launch --empty v1 --vm -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
 
   # 'lxc console --show-log' is only available for containers
@@ -85,9 +80,4 @@ test_console_vm() {
   # Cleanup
   lxc delete --force v1
   rm "${OUTPUT}"
-
-  if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
-    # Cleanup custom changes from the default profile
-    lxc profile unset default migration.stateful
-  fi
 }
