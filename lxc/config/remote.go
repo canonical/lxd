@@ -359,7 +359,7 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 				}
 			}
 
-			jar, err := cookiejar.Open(c.CookiesPath(name))
+			jar, err := cookiejar.Open(c.CookiesPath(name), remote.Addr)
 			if err != nil {
 				return nil, err
 			}
