@@ -77,14 +77,14 @@ download_test_images() {
         find . -type f -mtime +1 -delete
 
         local arch
-        arch="$(dpkg --print-architecture || echo "amd64")"
+        arch="${ARCH:-$(dpkg --print-architecture || echo "amd64")}"
 
         # For containers: .squashfs (rootfs) and the -lxd.tar.xz (metadata) files are needed.
         # For VMs: .img (primary disk) and the -lxd.tar.xz (metadata) files are needed.
         exec curl --show-error --silent --retry 3 --retry-delay 5 \
-          --continue-at - "${base_url}/${distro}-minimal-cloudimg-${arch}-lxd.tar.xz" --output "ubuntu.metadata" \
-          --continue-at - "${base_url}/${distro}-minimal-cloudimg-${arch}.squashfs"   --output "ubuntu.squashfs" \
-          --continue-at - "${base_url}/${distro}-minimal-cloudimg-${arch}.img"        --output "ubuntu.img"
+          --continue-at - "${base_url}/${distro}-minimal-cloudimg-${ARCH}-lxd.tar.xz" --output "ubuntu.metadata" \
+          --continue-at - "${base_url}/${distro}-minimal-cloudimg-${ARCH}.squashfs"   --output "ubuntu.squashfs" \
+          --continue-at - "${base_url}/${distro}-minimal-cloudimg-${ARCH}.img"        --output "ubuntu.img"
     )
 }
 
