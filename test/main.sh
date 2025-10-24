@@ -27,6 +27,10 @@ if [ -z "${NO_PROXY:-}" ]; then
   export NO_PROXY="127.0.0.1"
 fi
 
+# Detect architecture name for later use
+ARCH="$(dpkg --print-architecture || echo "amd64")"
+export ARCH
+
 export CLIENT_DEBUG=""
 export SERVER_DEBUG=""
 export SHELL_TRACING=""
@@ -87,6 +91,9 @@ echo "==> Checking for dependencies"
 check_dependencies lxd lxc curl busybox dnsmasq expect iptables jq nc ping python3 yq git s3cmd sqlite3 rsync shuf setfacl setfattr socat swtpm dig tar2sqfs unsquashfs xz
 if [ "${LXD_VM_TESTS:-0}" = "1" ]; then
   check_dependencies qemu-img "qemu-system-$(uname -m)" sgdisk
+fi
+if ! check_dependencies minio mc; then
+  download_minio
 fi
 
 echo "==> Checking test dependencies"

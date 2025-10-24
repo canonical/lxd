@@ -79,7 +79,7 @@ download_test_images() {
         find . -type f -mtime +1 -delete
 
         local arch
-        arch="$(dpkg --print-architecture || echo "amd64")"
+        arch="${ARCH:-$(dpkg --print-architecture || echo "amd64")}"
 
         # For containers: .squashfs (rootfs) and the -lxd.tar.xz (metadata) files are needed.
         # For VMs: .img (primary disk) and the -lxd.tar.xz (metadata) files are needed.
@@ -88,6 +88,21 @@ download_test_images() {
           --continue-at - "${base_url}/${distro}-minimal-cloudimg-${arch}.squashfs"   --output "ubuntu.squashfs" \
           --continue-at - "${base_url}/${distro}-minimal-cloudimg-${arch}.img"        --output "ubuntu.img"
     )
+}
+
+# download_minio: downloads minio server and mc client binaries to GOPATH/bin or /usr/local/bin.
+download_minio() {
+    local arch dir
+    dir="${GOPATH:-${HOME}/go}/bin"
+    mkdir -p "${dir}"
+
+    arch="${ARCH:-$(dpkg --print-architecture || echo "amd64")}"
+
+    # Download minio and mc binaries
+    curl --show-error --silent --retry 3 --retry-delay 5 \
+        --continue-at - "https://dl.min.io/server/minio/release/linux-${arch}/minio" --output "${dir}/minio" \
+        --continue-at - "https://dl.min.io/client/mc/release/linux-${arch}/mc"       --output "${dir}/mc"
+    chmod +x "${dir}/minio" "${dir}/mc"
 }
 
 install_tools() {
