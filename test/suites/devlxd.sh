@@ -192,8 +192,9 @@ test_devlxd_vm() {
 
   # Coverage data requires clean shutdown
   if coverage_enabled; then
-    # Killing the communication channel is bound to cause an error
-    ! lxc exec v1 -- systemctl stop --no-block lxd-agent.service || false
+    # Errors are possible if the service is stopped before the exec completes
+    # as it kills the communication channel
+    lxc exec v1 -- systemctl stop --no-block lxd-agent.service || true
   fi
 
   lxc restart -f v1
