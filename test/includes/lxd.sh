@@ -26,16 +26,7 @@ spawn_lxd_snap() {
     fi
 
     # Pass GOCOVERDIR to snap
-    local systemd_override_dir="/etc/systemd/system/snap.lxd.daemon.service.d"
-    local systemd_override_file="${systemd_override_dir}/env.conf"
-    if [ "${GOCOVERDIR:-}" != "" ]; then
-        mkdir -p "${systemd_override_dir}"
-        echo -e "[Service]\nEnvironment=\"GOCOVERDIR=/var/lib/snapd/hostfs/${GOCOVERDIR}\"" > "${systemd_override_file}"
-        systemctl daemon-reload
-    elif [ -e "${systemd_override_file}" ]; then
-        rm "${systemd_override_file}"
-        systemctl daemon-reload
-    fi
+    gocoverage_lxd_snap
 
     # setup storage
     "$lxd_backend"_setup "${LXD_DIR}" "${lxd_backend}-snap"
