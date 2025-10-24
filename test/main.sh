@@ -27,6 +27,10 @@ if [ -z "${NO_PROXY:-}" ]; then
   export NO_PROXY="127.0.0.1"
 fi
 
+# Detect architecture name for later use
+ARCH="$(dpkg --print-architecture || echo "amd64")"
+export ARCH
+
 export CLIENT_DEBUG=""
 export SERVER_DEBUG=""
 export SHELL_TRACING=""
