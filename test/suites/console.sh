@@ -52,20 +52,42 @@ EOF
   lxc delete cons1
 }
 
-test_snap_console_vm() {
-  ensure_import_ubuntu_vm_image
+test_console_vm() {
+  if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
+    echo "Using migration.stateful to force 9p config drive thus avoiding the old/incompatible virtiofsd"
+    lxc profile set default migration.stateful=true
+  fi
 
-  lxc launch ubuntu-vm v1 --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
-  waitInstanceReady v1
-
-  # The VGA console is available for VMs
-  echo "===> Check VGA console address"
-  OUTPUT="$(timeout --foreground --signal KILL 0.1 lxc console --type vga v1 || true)"
-  echo "${OUTPUT}" | grep -F "spice+unix:///"
+  lxc launch --empty v1 --vm -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
 
   # 'lxc console --show-log' is only available for containers
   ! lxc console v1 --show-log || false
 
+  # The VGA console is available for VMs
+  echo "===> Check VGA console address"
+  OUTPUT="$(mktemp -p "${TEST_DIR}" console_output.XXX)"
+  lxc console --type vga v1 > "${OUTPUT}" &
+  CONSOLE_PID=$!
+  sleep 0.1
+  grep -F "spice+unix:///" < "${OUTPUT}"
+
+  SPICE_UNIX_SOCKET="$(sed -n '/spice+unix/ s|^\s\+spice+unix://|| p' < "${OUTPUT}")"
+  [ -S "${SPICE_UNIX_SOCKET}" ]
+
+  echo "===> Test SPICE socket connectivity"
+  # This will cause the `lxc console --type vga` command to exit once connected
+  nc -zvU "${SPICE_UNIX_SOCKET}"
+
+  echo "===> Verify console command has exited and cleaned up the socket"
+  wait "${CONSOLE_PID}" || true
+  ! [ -e "${SPICE_UNIX_SOCKET}" ] || false
+
   # Cleanup
   lxc delete --force v1
+  rm "${OUTPUT}"
+
+  if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
+    # Cleanup custom changes from the default profile
+    lxc profile unset default migration.stateful
+  fi
 }
