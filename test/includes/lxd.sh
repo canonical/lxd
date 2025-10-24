@@ -539,8 +539,8 @@ EOF
   lxc exec "${instance}" -- systemctl daemon-reload
 
   # Restarting lxd-agent is expected to abruptly terminate the lxc exec session,
-  # so expect failure.
-  ! lxc exec "${instance}" -- systemctl restart --no-block lxd-agent.service || false
+  # so a failure is possible and harmless.
+  lxc exec "${instance}" -- systemctl restart --no-block lxd-agent.service || true
 
   # Restarting the lxd-agent isn't instantaneous, so wait for it to be ready again.
   waitInstanceReady "${instance}"
