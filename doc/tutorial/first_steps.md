@@ -22,27 +22,39 @@ The MicroCloud setup process installs and initializes LXD. Thus, you can skip th
 (tutorial-install)=
 ## Install LXD using snap
 
-This section of the tutorial assumes that you have the `snap` packaging system available on your system, which is the recommended way to use LXD.
-
-If you use a Linux distribution that does not support `snap`, see {ref}`installing-other` and skip to the next section of this tutorial.
-
-**LXD snap installation requirements**
-
-- The LXD snap must be [available for your Linux distribution](https://snapcraft.io/lxd#distros).
-- The [`snapd` daemon](https://snapcraft.io/docs/installing-snapd) must be installed.
-
-The `snapd` daemon that manages snap packages comes pre-installed on many distributions by default. To confirm whether it is available on your system, run:
+This section of the tutorial assumes that you have the `snap` packaging system available on your system, which is the recommended way to install and update LXD. To confirm whether it is available on your system, run:
 
 ```bash
 snap version
 ```
 
-If you see an error message indicating that `snap` is not installed, visit the [Snap installation documentation](https://snapcraft.io/docs/installing-snapd) and follow the instructions there to install it.
+If `snap` is installed, you will see output similar to this:
 
-Once you have confirmed that `snap` is available on your system, use it to install LXD:
+```{terminal}
+:input: snap version
+:user: your-user
+:host: host-system
+
+snap          2.72
+snapd         2.72
+series        16
+ubuntu        24.04
+kernel        6.14.0-33-generic
+architecture  amd64
+```
+
+To install LXD using `snap`, run:
 
 ```bash
 sudo snap install lxd
+```
+
+```{admonition} If snap is not installed or not supported
+:class: note
+
+If you see an error message indicating that `snap` is not installed, visit the [Snap installation documentation](https://snapcraft.io/docs/installing-snapd) and follow the instructions there to install it.
+
+If you use a Linux distribution that does not support `snap`, see {ref}`installing-other` to install LXD by other means if possible, then skip to the {ref}`next section <tutorial-adduser>` of this tutorial.
 ```
 
 ### If the LXD snap is already installed
@@ -103,17 +115,20 @@ Run:
 lxd init --minimal
 ```
 
-If this command results in an error, your group membership might not have taken effect. In this case, close and re-open your terminal, then try again.
+If this command results in an error message, your group membership might not have taken effect. In this case, close and re-open your terminal, then try again.
 
-The `lxd init` command can be run again later to update the options. Once you have learned more about LXD, you might want to tune the {ref}`initialization options <initialize>` according to your own preferences, or learn how to {ref}`use a preseed file <initialize-preseed>` to initialize LXD. For now, the minimal configuration is sufficient.
+If you do not see any message when running this command, that means it has succeeded. Congratulations! You have successfully installed and initialized LXD. Continue on to learn how to use some of LXD's core features.
 
-(tutorial-types)=
-## Containers and virtual machines
+```{admonition} About the initialization options
+:class: tip
 
-LXD supports two instance types: containers and virtual machines. LXD containers are faster and more lightweight than virtual machines, but share the host system's OS kernel. Virtual machines use their own kernel. For more information about these instance types, see {ref}`containers-and-vms`.
+The `lxd init` command can be run again later to update the options. Once you have learned more about LXD, you might want to tune the {ref}`initialization options <initialize>` according to your own preferences, or learn how to {ref}`use a preseed file <initialize-preseed>` to initialize LXD from a saved set of options. For now, the minimal configuration is sufficient.
+```
 
 (tutorial-virtualization)=
-### Confirm virtualization support
+## Confirm virtualization support
+
+LXD supports two instance types: containers and virtual machines. LXD containers are faster and more lightweight than virtual machines, but share the host system's OS kernel. Virtual machines use their own kernel. For more information about these instance types, see {ref}`containers-and-vms`.
 
 For LXD virtual machines, your host system must be capable of KVM virtualization. To test for this, run:
 
@@ -125,6 +140,8 @@ If your host system is capable of KVM virtualization, you should see `virtual-ma
 
 ```{terminal}
 :input: lxc info | grep -FA2 'instance_types'
+:user: your-user
+:host: host-system
 
 instance_types:
        - container
@@ -148,6 +165,12 @@ By default, LXD is exposed through a Unix socket only and is not accessible over
 
 ```bash
 lxc config set core.https_address [::1]:8443
+```
+
+Confirm that the `core.https_address` is set to `[::1]:8443`:
+
+```bash
+lxc config get core.https_address
 ```
 
 ### Set up UI access
