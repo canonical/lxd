@@ -173,4 +173,12 @@ install_instance_drivers() {
         # Verify that the newly installed tools provided the needed binaries
         check_dependencies qemu-img "qemu-system-${UNAME}" sgdisk /usr/lib/qemu/virtiofsd
     fi
+
+    # While virtiofsd is present in 22.04's QEMU, it is too old to work properly with LXD so
+    # download a more recent version.
+    if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
+        download_virtiofsd "/usr/lib/qemu"
+
+        check_dependencies /usr/lib/qemu/virtiofsd
+    fi
 }
