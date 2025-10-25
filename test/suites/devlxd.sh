@@ -226,36 +226,17 @@ test_devlxd_volume_management() {
   ensure_import_testimage
 
   if [ "${LXD_VM_TESTS:-0}" != "0" ]; then
-    # XXX: Jammy runner needs migration.stateful.
-    # Once this is no longer needed, also remove all conditional checks related to "isJammyRunner".
-    isJammyRunner=$(grep -qxF 'VERSION_ID="22.04"' /etc/os-release && echo "true" || echo "false")
-
-    if [ "${isJammyRunner}" = "true" ]; then
-      echo "Using migration.stateful to force 9p config drive thus avoiding the old/incompatible virtiofsd"
-      lxc profile set default migration.stateful=true --project "${project}"
-
-      # When migration.stateful is enabled, we can attach only block volumes from shared storage pools.
-      if [ "${poolDriver}" = "ceph" ]; then
-        instTypes="${instTypes} virtual-machine"
-        ensure_import_ubuntu_vm_image
-      fi
-    else
-      instTypes="${instTypes} virtual-machine"
-      ensure_import_ubuntu_vm_image
-    fi
+    instTypes="${instTypes} virtual-machine"
+    ensure_import_ubuntu_vm_image
   fi
 
   for instType in $instTypes; do
     inst="${instPrefix}-${instType}"
 
     # XXX: Required to mitigate the issue where FS cannot be mounted in VMs with migration.stateful.
-    useBlockVol="false"
     image="testimage"
     opts="--storage ${pool}"
     if [ "${instType}" = "virtual-machine" ]; then
-        if [ "${isJammyRunner}" = "true" ]; then
-          useBlockVol="true"
-        fi
         image="ubuntu-vm"
         opts="$opts --vm --config limits.memory=384MiB --device ${SMALL_VM_ROOT_DISK}"
     fi
@@ -325,10 +306,6 @@ test_devlxd_volume_management() {
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" "${instType}" "${inst}")" = "Only custom storage volume requests are allowed" ]
 
     # Create a custom storage volume.
-    volOpts=""
-    if [ "${useBlockVol}" = "true" ]; then
-      volOpts=', "content_type": "block"'
-    fi
 
     vol1=$(cat <<EOF
 {
@@ -336,7 +313,7 @@ test_devlxd_volume_management() {
     "type": "custom",
     "config": {
         "size": "10MiB"
-    }${volOpts}
+    }
 }
 EOF
 )
@@ -356,7 +333,7 @@ EOF
     "type": "custom",
     "config": {
         "size": "10MiB"
-    }${volOpts}
+    }
 }
 EOF
 )
@@ -400,19 +377,14 @@ EOF
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}"
 
     # Attach new device.
-    attachOpts=', "path": "/mnt/vol-01"'
-    if [ "${useBlockVol}" = "true" ]; then
-      attachOpts=""
-    fi
-
     attachReq=$(cat <<EOF
 {
     "devices": {
         "vol-01": {
             "type": "disk",
             "pool": "${pool}",
-            "source": "vol-01"
-            ${attachOpts}
+            "source": "vol-01",
+            "path": "/mnt/vol-01"
         }
     }
 }
@@ -528,11 +500,6 @@ EOF
 }
 
 test_devlxd_vm() {
-  if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
-    echo "Using migration.stateful to force 9p config drive thus avoiding the old/incompatible virtiofsd"
-    lxc profile set default migration.stateful=true
-  fi
-
   pool="lxdtest-$(basename "${LXD_DIR}")"
   orig_volume_size="$(lxc storage get "${pool}" volume.size)"
   if [ -n "${orig_volume_size:-}" ]; then
@@ -636,10 +603,5 @@ runcmd:
   if [ -n "${orig_volume_size:-}" ]; then
     echo "==> Restore the volume.size"
     lxc storage set "${pool}" volume.size "${orig_volume_size}"
-  fi
-
-  if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
-    # Cleanup custom changes from the default profile
-    lxc profile unset default migration.stateful
   fi
 }
