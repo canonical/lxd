@@ -1,13 +1,21 @@
 package main
 
 import (
+	"encoding/csv"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/spf13/cobra"
+	"go.yaml.in/yaml/v2"
 
+	"github.com/canonical/lxd/lxc/config"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/i18n"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 type cmdAlias struct {
@@ -38,6 +46,10 @@ func (c *cmdAlias) command() *cobra.Command {
 	// Remove
 	aliasRemoveCmd := cmdAliasRemove{global: c.global, alias: c}
 	cmd.AddCommand(aliasRemoveCmd.command())
+
+	// Import
+	aliasImportCmd := cmdAliasImport{global: c.global, alias: c}
+	cmd.AddCommand(aliasImportCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -244,4 +256,235 @@ func (c *cmdAliasRemove) run(cmd *cobra.Command, args []string) error {
 
 	// Save the config
 	return conf.SaveConfig(c.global.confPath)
+}
+
+// Import.
+type cmdAliasImport struct {
+	global *cmdGlobal
+	alias  *cmdAlias
+
+	flagFormat    string
+	flagOverwrite bool
+}
+
+// Command is a method of the cmdAliasImport structure. It configures and returns a cobra.Command object.
+// This command enables import of the file which holds aliases.
+func (c *cmdAliasImport) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("import", i18n.G("<file>"))
+	cmd.Short = i18n.G("Import aliases from file")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Import aliases from YAML, JSON, or CSV file`))
+	cmd.Example = cli.FormatSection("", i18n.G(`
+lxc alias import aliases.yml
+	Import aliases from YAML file.
+
+lxc alias import aliases.json --overwrite
+	Import aliases from JSON file, overwriting existing ones.
+
+lxc alias import aliases.csv --format=csv
+	Import aliases from CSV file with explicit format.`))
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "auto", i18n.G("Format (auto|yaml|json|csv)")+"``")
+	cmd.Flags().BoolVarP(&c.flagOverwrite, "overwrite", "", false, i18n.G("Overwrite existing aliases"))
+
+	cmd.RunE = c.run
+
+	return cmd
+}
+
+// Run is a method of the cmdAliasImport structure that executes the actual operation of the alias import command.
+// It takes as input as the name of the alis file to be imported and updates the global configuration file to reflect this change.
+func (c *cmdAliasImport) run(cmd *cobra.Command, args []string) error {
+	conf := c.global.conf
+
+	// Quick checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
+	if exit {
+		return err
+	}
+
+	filename := args[0]
+
+	// Debug: show current aliases before import
+	c.logCurrentAliases(conf)
+
+	// Read and parse file
+	newAliases, err := c.readAndParseAliases(filename)
+	if err != nil {
+		return err
+	}
+
+	// Import Aliases
+	importedCount, skippedCount, overwrittenCount := c.importAliases(conf, newAliases)
+
+	// Debug show final aliases
+	c.logFinalAliases(conf)
+
+	// Debug show what has been parsed
+	logger.Debugf("Parsed %d aliases from file\n", len(newAliases))
+	for alias, target := range newAliases {
+		logger.Debugf("New alias: %s -> %s\n", alias, target)
+	}
+
+	// Save config
+	err = conf.SaveConfig(c.global.confPath)
+	if err != nil {
+		return fmt.Errorf(i18n.G("Failed to save config: %v"), err)
+	}
+
+	// Report results
+	fmt.Printf(i18n.G("Imported: %d, Skipped: %d, Overwritten: %d aliases\n"), importedCount, skippedCount, overwrittenCount)
+	return nil
+}
+
+// readAndParseAliases reads the file and parses aliases based on format.
+func (c *cmdAliasImport) readAndParseAliases(filename string) (map[string]string, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf(i18n.G("Failed to read file: %v"), err)
+	}
+
+	format := c.flagFormat
+	if format == "auto" {
+		format = getFormatFromExtension(filename)
+	}
+
+	logger.Debugf("Using format: %s\n", format)
+
+	newAliases, err := parseAliases(data, format)
+	if err != nil {
+		return nil, fmt.Errorf(i18n.G("Failed to parse %s file: %v"), format, err)
+	}
+
+	logger.Debugf("Parsed %d aliases from file", len(newAliases))
+	for alias, target := range newAliases {
+		logger.Debugf("New alias: %s -> %s", alias, target)
+	}
+
+	return newAliases, nil
+}
+
+// importAliases imports new aliases into configuration.
+func (c *cmdAliasImport) importAliases(conf *config.Config, newAliases map[string]string) (importedCount, skippedCount, overwrittenCount int) {
+	for alias, target := range newAliases {
+		existingTarget, exists := conf.Aliases[alias]
+		if exists {
+			if c.flagOverwrite {
+				// Overwrite existing alias
+				conf.Aliases[alias] = target
+				overwrittenCount++
+				logger.Infof("Overwritten alias %s: %s -> %s", alias, existingTarget, target)
+			} else {
+				// Skip existing alias (no overwrite)
+				skippedCount++
+				logger.Infof("Skipped existing alias %s (use --overwrite to replace)", alias)
+			}
+		} else {
+			// Add new alias
+			conf.Aliases[alias] = target
+			importedCount++
+			logger.Infof("Added new alias %s -> %s", alias, target)
+		}
+	}
+	return importedCount, skippedCount, overwrittenCount
+}
+
+// logCurrentAliases logs current aliases for debugging.
+func (c *cmdAliasImport) logCurrentAliases(conf *config.Config) {
+	logger.Debugf("Current aliases count before import: %d\n", len(conf.Aliases))
+	for alias, target := range conf.Aliases {
+		logger.Debugf("Current alias %s -> %s\n", alias, target)
+	}
+}
+
+// logFinalAliases logs final aliases for debugging.
+func (c *cmdAliasImport) logFinalAliases(conf *config.Config) {
+	logger.Debugf("Final aliases count: %d", len(conf.Aliases))
+	for alias, target := range conf.Aliases {
+		logger.Debugf("Final alias: %s -> %s", alias, target)
+	}
+}
+
+// getFormatFrom extension determines fotmat from file extension only.
+func getFormatFromExtension(filename string) string {
+	extension := strings.ToLower(filepath.Ext(filename))
+	switch extension {
+	case ".yml", ".yaml":
+		return "yaml"
+	case ".json":
+		return "json"
+	case ".csv":
+		return "csv"
+	default:
+		// Default to YAML for unknown extensions
+		return "yaml"
+	}
+}
+
+// parseAliases parses aliases from different formats.
+func parseAliases(data []byte, format string) (map[string]string, error) {
+	switch format {
+	case "yaml":
+		return parseYAMLAliases(data)
+	case "json":
+		return parseJSONAliases(data)
+	case "csv":
+		return parseCSVAliases(data)
+	default:
+		return nil, fmt.Errorf(i18n.G("unsupported format: %s"), format)
+	}
+}
+
+// parseYAMLAliases parses aliases from YAML format.
+func parseYAMLAliases(data []byte) (map[string]string, error) {
+	var config struct {
+		Aliases map[string]string `yaml:"aliases"`
+	}
+
+	err := yaml.Unmarshal(data, &config)
+	if err != nil {
+		return nil, err
+	}
+
+	return config.Aliases, nil
+}
+
+// parseJSONAliases parses aliases from JSON format.
+func parseJSONAliases(data []byte) (map[string]string, error) {
+	var config struct {
+		Aliases map[string]string `json:"aliases"`
+	}
+
+	err := json.Unmarshal(data, &config)
+	if err != nil {
+		return nil, err
+	}
+
+	return config.Aliases, nil
+}
+
+// parseCSVAliases parses aliases from CSV format.
+func parseCSVAliases(data []byte) (map[string]string, error) {
+	reader := csv.NewReader(strings.NewReader(string(data)))
+	records, err := reader.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(records) == 0 {
+		return nil, fmt.Errorf("%s", i18n.G("empty csv file"))
+	}
+
+	aliases := make(map[string]string)
+	for i := 1; i < len(records); i++ {
+		if len(records[i]) >= 2 {
+			alias := strings.Trim(records[i][0], ",")
+			target := strings.Trim(records[i][1], ",")
+			if alias != "" && target != "" {
+				aliases[alias] = target
+			}
+		}
+	}
+
+	return aliases, nil
 }
