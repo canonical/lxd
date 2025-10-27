@@ -16300,6 +16300,8 @@ paths:
                     $ref: '#/responses/Forbidden'
                 "412":
                     $ref: '#/responses/PreconditionFailed'
+                "423":
+                    $ref: '#/responses/StatusLocked'
                 "500":
                     $ref: '#/responses/InternalServerError'
             summary: Partially update the storage volume
@@ -16380,6 +16382,8 @@ paths:
                     $ref: '#/responses/Forbidden'
                 "412":
                     $ref: '#/responses/PreconditionFailed'
+                "423":
+                    $ref: '#/responses/StatusLocked'
                 "500":
                     $ref: '#/responses/InternalServerError'
             summary: Update the storage volume
@@ -17783,6 +17787,24 @@ responses:
                     x-go-name: Error
                 error_code:
                     example: 412
+                    format: int64
+                    type: integer
+                    x-go-name: ErrorCode
+                type:
+                    example: error
+                    type: string
+                    x-go-name: Type
+            type: object
+    StatusLocked:
+        description: Status Locked
+        schema:
+            properties:
+                error:
+                    example: status locked
+                    type: string
+                    x-go-name: Error
+                error_code:
+                    example: 423
                     format: int64
                     type: integer
                     x-go-name: ErrorCode
