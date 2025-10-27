@@ -10,13 +10,13 @@ import (
 type Entitlement string
 
 const (
-	// EntitlementCanView is the "can_view" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypeProfile, entity.TypeProject, entity.TypeStorageBucket, entity.TypeStorageVolume.
+	// EntitlementCanView is the "can_view" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypePlacementGroup, entity.TypeProfile, entity.TypeProject, entity.TypeStorageBucket, entity.TypeStorageVolume.
 	EntitlementCanView Entitlement = "can_view"
 
-	// EntitlementCanEdit is the "can_edit" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypeProfile, entity.TypeProject, entity.TypeServer, entity.TypeStorageBucket, entity.TypeStoragePool, entity.TypeStorageVolume.
+	// EntitlementCanEdit is the "can_edit" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypePlacementGroup, entity.TypeProfile, entity.TypeProject, entity.TypeServer, entity.TypeStorageBucket, entity.TypeStoragePool, entity.TypeStorageVolume.
 	EntitlementCanEdit Entitlement = "can_edit"
 
-	// EntitlementCanDelete is the "can_delete" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypeProfile, entity.TypeProject, entity.TypeStorageBucket, entity.TypeStoragePool, entity.TypeStorageVolume.
+	// EntitlementCanDelete is the "can_delete" entitlement. It applies to the following entities: entity.TypeCertificate, entity.TypeAuthGroup, entity.TypeIdentity, entity.TypeIdentityProviderGroup, entity.TypeImage, entity.TypeImageAlias, entity.TypeInstance, entity.TypeNetwork, entity.TypeNetworkACL, entity.TypeNetworkZone, entity.TypePlacementGroup, entity.TypeProfile, entity.TypeProject, entity.TypeStorageBucket, entity.TypeStoragePool, entity.TypeStorageVolume.
 	EntitlementCanDelete Entitlement = "can_delete"
 
 	// EntitlementAdmin is the "admin" entitlement. It applies to the following entities: entity.TypeServer.
@@ -256,6 +256,21 @@ const (
 	// EntitlementCanDeleteStorageBuckets is the "can_delete_storage_buckets" entitlement. It applies to the following entities: entity.TypeProject.
 	EntitlementCanDeleteStorageBuckets Entitlement = "can_delete_storage_buckets"
 
+	// EntitlementPlacementGroupManager is the "placement_group_manager" entitlement. It applies to the following entities: entity.TypeProject.
+	EntitlementPlacementGroupManager Entitlement = "placement_group_manager"
+
+	// EntitlementCanCreatePlacementGroups is the "can_create_placement_groups" entitlement. It applies to the following entities: entity.TypeProject.
+	EntitlementCanCreatePlacementGroups Entitlement = "can_create_placement_groups"
+
+	// EntitlementCanViewPlacementGroups is the "can_view_placement_groups" entitlement. It applies to the following entities: entity.TypeProject.
+	EntitlementCanViewPlacementGroups Entitlement = "can_view_placement_groups"
+
+	// EntitlementCanEditPlacementGroups is the "can_edit_placement_groups" entitlement. It applies to the following entities: entity.TypeProject.
+	EntitlementCanEditPlacementGroups Entitlement = "can_edit_placement_groups"
+
+	// EntitlementCanDeletePlacementGroups is the "can_delete_placement_groups" entitlement. It applies to the following entities: entity.TypeProject.
+	EntitlementCanDeletePlacementGroups Entitlement = "can_delete_placement_groups"
+
 	// EntitlementUser is the "user" entitlement. It applies to the following entities: entity.TypeInstance.
 	EntitlementUser Entitlement = "user"
 
@@ -380,6 +395,14 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		// Grants permission to view the network zone.
 		EntitlementCanView,
 	},
+	entity.TypePlacementGroup: {
+		// Grants permission to edit the placement group.
+		EntitlementCanEdit,
+		// Grants permission to delete the placement group.
+		EntitlementCanDelete,
+		// Grants permission to view the placement group.
+		EntitlementCanView,
+	},
 	entity.TypeProfile: {
 		// Grants permission to edit the profile.
 		EntitlementCanEdit,
@@ -491,6 +514,16 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanEditStorageBuckets,
 		// Grants permission to delete storage buckets.
 		EntitlementCanDeleteStorageBuckets,
+		// Grants permission to create, view, edit, and delete all placement groups belonging to the project.
+		EntitlementPlacementGroupManager,
+		// Grants permission to create placement groups.
+		EntitlementCanCreatePlacementGroups,
+		// Grants permission to view placement groups.
+		EntitlementCanViewPlacementGroups,
+		// Grants permission to edit placement groups.
+		EntitlementCanEditPlacementGroups,
+		// Grants permission to delete placement groups.
+		EntitlementCanDeletePlacementGroups,
 		// Grants permission to view operations relating to the project.
 		EntitlementCanViewOperations,
 		// Grants permission to view life cycle events relating to the project.
