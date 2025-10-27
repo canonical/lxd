@@ -349,22 +349,24 @@ type PFSwitchDevPort struct {
 
 // SRIOVGetSwitchAndPFID returns the physical switch ID and PF id.
 func SRIOVGetSwitchAndPFID(parentDev string) (*PFSwitchDevPort, error) {
-	physPortName, err := os.ReadFile(filepath.Join(sysClassNet, parentDev, "phys_port_name"))
+	physPortNameRaw, err := os.ReadFile(filepath.Join(sysClassNet, parentDev, "phys_port_name"))
 	if err != nil {
-		return nil, err // Skip non-physical ports.
+		return nil, fmt.Errorf("Failed getting physical port name: %w", err)
 	}
+
+	physPortName := string(physPortNameRaw)
 
 	// Check the port is a physical port and not an existing representor port connected to the bridge
 	// but belonging to a physical device. This avoids trying to find a free VF repeatedly for the same
 	// PF by mistakenly considering an existing representor ported connected to the bridge as a PF.
-	if strings.HasPrefix(string(physPortName), "pf") || !strings.HasPrefix(string(physPortName), "p") {
-		return nil, fmt.Errorf("Not a physical port: %s", string(physPortName))
+	if strings.HasPrefix(physPortName, "pf") || !strings.HasPrefix(physPortName, "p") {
+		return nil, fmt.Errorf("Not a physical port: %s", physPortName)
 	}
 
 	var pfID int
-	_, err = fmt.Sscanf(string(physPortName), "p%d", &pfID)
+	_, err = fmt.Sscanf(physPortName, "p%d", &pfID)
 	if err != nil {
-		return nil, fmt.Errorf("Not a PF: %s.", string(physPortName)) // Skip non-PF interfaces.
+		return nil, fmt.Errorf("Not a PF: %s.", physPortName)
 	}
 
 	// Check if switchdev is enabled on physical port.
