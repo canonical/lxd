@@ -14885,6 +14885,290 @@ paths:
             summary: Get the operations
             tags:
                 - operations
+    /1.0/placement-groups:
+        get:
+            description: Returns a list of placement groups (URLs).
+            operationId: placement_groups_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Retrieve placement groups from all projects
+                  example: true
+                  in: query
+                  name: all-projects
+                  type: boolean
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of endpoints
+                                example: |-
+                                    [
+                                      "/1.0/placement-groups/group1",
+                                      "/1.0/placement-groups/group2"
+                                    ]
+                                items:
+                                    type: string
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the placement groups
+            tags:
+                - placement-groups
+        post:
+            consumes:
+                - application/json
+            description: Creates a new placement group.
+            operationId: placement_groups_post
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: The new placement group
+                  in: body
+                  name: placementGroup
+                  required: true
+                  schema:
+                    $ref: '#/definitions/PlacementGroupsPost'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Add a placement group
+            tags:
+                - placement-groups
+    /1.0/placement-groups/{name}:
+        delete:
+            description: Removes the placement group.
+            operationId: placement_group_delete
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Delete the placement group
+            tags:
+                - placement-groups
+        get:
+            description: Gets a specific placement group.
+            operationId: placement_group_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: zone
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/PlacementGroup'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the placement group
+            tags:
+                - placement-groups
+        patch:
+            consumes:
+                - application/json
+            description: Updates a subset of the placement group configuration.
+            operationId: placement_group_patch
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: placement group
+                  in: body
+                  name: placement group
+                  required: true
+                  schema:
+                    $ref: '#/definitions/PlacementGroupPut'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "412":
+                    $ref: '#/responses/PreconditionFailed'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Partially update the placement group
+            tags:
+                - placement-groups
+        post:
+            description: Renames the placement group.
+            operationId: placement_group_post
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Rename a placement group
+            tags:
+                - placement-groups
+        put:
+            consumes:
+                - application/json
+            description: Updates the entire placement group.
+            operationId: placement_group_put
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: placement group
+                  in: body
+                  name: placement group
+                  required: true
+                  schema:
+                    $ref: '#/definitions/PlacementGroupPut'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "412":
+                    $ref: '#/responses/PreconditionFailed'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Update the placement group
+            tags:
+                - placement-groups
+    /1.0/placement-groups?recursion=1:
+        get:
+            description: Returns a list of placement groups (structs).
+            operationId: placement_groups_get_recursion1
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Retrieve placement groups from all projects
+                  example: true
+                  in: query
+                  name: all-projects
+                  type: boolean
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of placement groups
+                                items:
+                                    $ref: '#/definitions/PlacementGroup'
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the placement groups
+            tags:
+                - placement-groups
     /1.0/profiles:
         get:
             description: Returns a list of profiles (URLs).

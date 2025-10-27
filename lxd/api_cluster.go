@@ -37,6 +37,7 @@ import (
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/placement"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
@@ -4381,20 +4382,10 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, inst insta
 			return fmt.Errorf("Failed getting cluster members: %w", err)
 		}
 
-		// Filter candidates by group if needed.
-		_, group := limits.TargetDetect(inst.LocalConfig()["volatile.cluster.group"])
-		if group != "" {
-			newMembers := make([]db.NodeInfo, 0, len(allMembers))
-			for _, member := range allMembers {
-				if !slices.Contains(member.Groups, group) {
-					continue
-				}
-
-				newMembers = append(newMembers, member)
-			}
-
-			allMembers = newMembers
-		}
+		// Placement groups and cluster group targets are mutually exclusive, with placement groups taking precedence.
+		// If an instance previously had a cluster group target but now has a placement group, "volatile.cluster.group" is cleared.
+		_, clusterGroupName := limits.TargetDetect(inst.LocalConfig()["volatile.cluster.group"])
+		placementGroupName, ok := inst.ExpandedConfig()["placement.group"]
 
 		instProject := inst.Project()
 		clusterGroupsAllowed := limits.GetRestrictedClusterGroups(&instProject)
@@ -4405,9 +4396,61 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, inst insta
 			return err
 		}
 
+		if ok {
+			// Clear "volatile.cluster.group".
+			if clusterGroupName != "" {
+				err = tx.DeleteInstanceConfigKey(ctx, int64(inst.ID()), "volatile.cluster.group")
+				if err != nil {
+					return fmt.Errorf(`Failed removing "volatile.cluster.group" config key: %w`, err)
+				}
+			}
+
+			// Filter candidates by placement group.
+			placementGroup, err := dbCluster.GetPlacementGroup(ctx, tx.Tx(), placementGroupName, inst.Project().Name)
+			if err != nil {
+				return err
+			}
+
+			apiPlacementGroup, err := placementGroup.ToAPI(ctx, tx.Tx())
+			if err != nil {
+				return err
+			}
+
+			filteredCandidates, err := placement.Filter(ctx, tx, candidateMembers, *apiPlacementGroup, true)
+			if err != nil {
+				// If no candidates remain due to placement constraints, signal not found so caller can skip instance during evacuation.
+				if api.StatusErrorCheck(err, http.StatusConflict) {
+					return api.StatusErrorf(http.StatusNotFound, "No eligible target cluster members after applying placement group %q", placementGroup.Name)
+				}
+
+				return err
+			}
+
+			// If placement group filtering returns candidates, use them.
+			if len(filteredCandidates) > 0 {
+				candidateMembers = filteredCandidates
+			}
+		} else if clusterGroupName != "" {
+			// Filter candidates by cluster group.
+			newMembers := make([]db.NodeInfo, 0, len(candidateMembers))
+			for _, member := range candidateMembers {
+				if !slices.Contains(member.Groups, clusterGroupName) {
+					continue
+				}
+
+				newMembers = append(newMembers, member)
+			}
+
+			candidateMembers = newMembers
+		}
+
 		// Find the least loaded cluster member which supports the instance's architecture.
 		targetMemberInfo, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
-		return err
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
 	if err != nil {
 		return nil, err

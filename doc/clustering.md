@@ -30,6 +30,7 @@ How to work with a cluster:
 
 :diataxis:Manage instances </howto/cluster_manage_instance>
 :diataxis:Set up cluster groups </howto/cluster_groups>
+:diataxis:Use placement groups </howto/cluster_placement_groups>
 ```
 
 ```{only} diataxis
@@ -69,5 +70,7 @@ Set up a highly available virtual IP </howto/cluster_vip>
 :topical:Configure storage </howto/cluster_config_storage>
 :topical:Configure networks </howto/cluster_config_networks>
 :topical:Set up cluster groups </howto/cluster_groups>
+:topical:Use placement groups </howto/cluster_placement_groups>
 :topical:/reference/cluster_member_config
+:topical:/reference/placement_groups
 ```

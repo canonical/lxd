@@ -308,6 +308,16 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 		return nil
 	},
 
+	// lxdmeta:generate(entities=instance; group=placement; key=placement.group)
+	// Specifies the placement group that determines where this instance is scheduled within the cluster.
+	// The placement group defines the placement policy (e.g. spread or compact) and rigor (e.g. strict or permissive)
+	// used to determine eligible cluster members during LXD scheduling events.
+	// ---
+	// type: string
+	// liveupdate: yes
+	// shortdesc: Placement group controlling instance scheduling
+	"placement.group": validate.IsDeviceName,
+
 	// Caller is responsible for full validation of any raw.* value.
 
 	// lxdmeta:generate(entities=instance; group=raw; key=raw.apparmor)

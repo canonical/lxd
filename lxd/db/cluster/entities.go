@@ -109,6 +109,7 @@ var entityTypes = map[entity.Type]entityTypeDBInfo{
 	entity.TypeIdentity:              entityTypeIdentity{},
 	entity.TypeAuthGroup:             entityTypeAuthGroup{},
 	entity.TypeIdentityProviderGroup: entityTypeIdentityProviderGroup{},
+	entity.TypePlacementGroup:        entityTypePlacementGroup{},
 }
 
 const (
@@ -138,6 +139,7 @@ const (
 	entityTypeCodeAuthGroup             int64 = 22
 	entityTypeCodeIdentityProviderGroup int64 = 23
 	entityTypeCodeIdentity              int64 = 24
+	entityTypeCodePlacementGroup        int64 = 25
 )
 
 var entityTypeByCode = map[int64]EntityType{
