@@ -99,6 +99,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 		"security.acls.default.ingress.logged",
 		"security.acls.default.egress.logged",
 		"acceleration",
+		"acceleration.parent",
 		"nested",
 		"vlan",
 	}
@@ -740,23 +741,38 @@ func (d *nicOVN) setupAcceleration(saveData map[string]string) (cleanup revert.H
 	network.SRIOVVirtualFunctionMutex.Lock()
 	defer network.SRIOVVirtualFunctionMutex.Unlock()
 
-	// Get all ports on the integration bridge.
-	ports, err := ovs.BridgePortList(d.state.GlobalConfig.NetworkOVNIntegrationBridge())
-	if err != nil {
-		return nil, "", "", nil, 0, nil, fmt.Errorf("Failed to get OVS integration bridge port list: %w", err)
-	}
+	if d.config["acceleration.parent"] != "" {
+		for _, port := range shared.SplitNTrimSpace(d.config["acceleration.parent"], ",", -1, true) {
+			pf, err := network.SRIOVGetSwitchAndPFID(port)
+			if err != nil {
+				return nil, "", "", nil, 0, nil, fmt.Errorf("Failed getting switch and PF ID for port %q: %w", port, err)
+			}
 
-	for _, port := range ports {
-		pf, err := network.SRIOVGetSwitchAndPFID(port)
-		if err != nil {
-			continue
+			pfCandidates = append(pfCandidates, *pf)
 		}
 
-		pfCandidates = append(pfCandidates, *pf)
-	}
+		if len(pfCandidates) < 1 {
+			return nil, "", "", nil, 0, nil, errors.New(`No PF candidates specified in "acceleration.parent"`)
+		}
+	} else {
+		// Get all ports on the integration bridge.
+		ports, err := ovs.BridgePortList(d.state.GlobalConfig.NetworkOVNIntegrationBridge())
+		if err != nil {
+			return nil, "", "", nil, 0, nil, fmt.Errorf("Failed to get OVS integration bridge port list: %w", err)
+		}
 
-	if len(pfCandidates) < 1 {
-		return nil, "", "", nil, 0, nil, errors.New(`No PF candidates connected to OVS integration bridge. Add PFs to integration bridge or specify via "acceleration.parent"`)
+		for _, port := range ports {
+			pf, err := network.SRIOVGetSwitchAndPFID(port)
+			if err != nil {
+				continue
+			}
+
+			pfCandidates = append(pfCandidates, *pf)
+		}
+
+		if len(pfCandidates) < 1 {
+			return nil, "", "", nil, 0, nil, errors.New(`No PF candidates connected to OVS integration bridge. Add PFs to integration bridge or specify via "acceleration.parent"`)
+		}
 	}
 
 	vfParent, vfRepresentor, vfDev, vfID, err := network.SRIOVFindFreeVFAndRepresentor(d.state, pfCandidates)
