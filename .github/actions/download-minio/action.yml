@@ -47,12 +47,6 @@ runs:
       run: |
         set -eux
 
-        DIR="/home/runner/go/bin"
-        mkdir -p "${DIR}"
-        # Download minio ready to include in dependencies for system tests.
-        curl -sSfL "https://dl.min.io/server/minio/release/linux-${ARCH}/minio" --output "${DIR}/minio"
-        chmod +x "${DIR}/minio"
+        . test/includes/setup.sh
 
-        # Also grab the latest minio client to maintain compatibility with the server.
-        curl -sSfL "https://dl.min.io/client/mc/release/linux-${ARCH}/mc" --output "${DIR}/mc"
-        chmod +x "${DIR}/mc"
+        download_minio
