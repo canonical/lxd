@@ -69,7 +69,8 @@ func (r *ProtocolDevLXD) GetOperationWait(uuid string, timeout int) (*api.DevLXD
 
 // DeleteOperation deletes (cancels) a running operation.
 func (r *ProtocolDevLXD) DeleteOperation(uuid string) error {
-	_, _, err := r.query(http.MethodDelete, "/operations/"+url.PathEscape(uuid), nil, "")
+	url := api.NewURL().Path("operations", url.PathEscape(uuid))
+	_, _, err := r.query(http.MethodDelete, url.String(), nil, "")
 	if err != nil {
 		return err
 	}
