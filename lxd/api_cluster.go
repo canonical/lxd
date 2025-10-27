@@ -4383,7 +4383,6 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, inst insta
 		}
 
 		// Placement groups and cluster group targets are mutually exclusive, with placement groups taking precedence.
-		// If an instance previously had a cluster group target but now has a placement group, "volatile.cluster.group" is cleared.
 		_, clusterGroupName := limits.TargetDetect(inst.LocalConfig()["volatile.cluster.group"])
 		placementGroupName, ok := inst.ExpandedConfig()["placement.group"]
 
@@ -4397,14 +4396,6 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, inst insta
 		}
 
 		if ok {
-			// Clear "volatile.cluster.group".
-			if clusterGroupName != "" {
-				err = tx.DeleteInstanceConfigKey(ctx, int64(inst.ID()), "volatile.cluster.group")
-				if err != nil {
-					return fmt.Errorf(`Failed removing "volatile.cluster.group" config key: %w`, err)
-				}
-			}
-
 			// Filter candidates by placement group.
 			placementGroup, err := dbCluster.GetPlacementGroup(ctx, tx.Tx(), placementGroupName, inst.Project().Name)
 			if err != nil {
