@@ -4445,8 +4445,13 @@ EOF
   [ "$(lxc config get cluster:c2 volatile.cluster.group)" = "blah" ]
   [ "$(lxc config get cluster:c3 volatile.cluster.group)" = "blah" ]
 
+  echo 'Setting a "placement.group" on an instance should clear "volatile.cluster.group"'
+  lxc placement-group create pg-test policy=spread rigor=permissive
+  lxc config set cluster:c2 placement.group=pg-test
+  [ "$(lxc config get cluster:c2 volatile.cluster.group || echo fail)" = "" ]
+
   echo 'Verify that instances with "volatile.cluster.group" are reported in used_by for the blah group'
-  lxc_remote query cluster:/1.0/cluster/groups/blah | jq --exit-status '.used_by | contains(["/1.0/instances/c2", "/1.0/instances/c3"])'
+  lxc_remote query cluster:/1.0/cluster/groups/blah | jq --exit-status '.used_by | .[] == "/1.0/instances/c3"'
 
   echo "Check deleting an in use cluster group fails"
   ! lxc cluster group delete blah || false
