@@ -2832,3 +2832,13 @@ New API endpoints:
 1. `PUT /1.0/placement-groups/{name}` — Replace a placement group definition
 1. `PATCH /1.0/placement-groups/{name}` — Update selected properties of a placement group
 1. `DELETE /1.0/placement-groups/{name}` — Delete a placement group
+
+## `ovn_nic_acceleration_parent`
+
+Adds support for specifying the OVN NIC acceleration parent physical function interface to allocate virtual functions from.
+
+This avoids the need for adding the physical function interface to the OVN integration bridge.
+
+This introduces a new `ovn` NIC configuration key:
+
+* {config:option}`device-nic-ovn-device-conf:acceleration.parent` - Comma separated list of physical function (PF) interfaces to allocate virtual functions (VFs) from for hardware offloading.
