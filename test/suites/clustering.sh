@@ -3903,11 +3903,9 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_ONE_DIR}" lxc init testimage evac-4b -c placement.group=pg-evac-spread-strict -c cluster.evacuate=migrate --target node1
   LXD_DIR="${LXD_ONE_DIR}" lxc init testimage evac-4c -c placement.group=pg-evac-spread-strict -c cluster.evacuate=migrate --target node1
 
-  echo "Verify creating a 4th instance with spread/strict fails due to insufficient nodes"
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc init testimage evac-4d -c placement.group=pg-evac-spread-strict -c cluster.evacuate=migrate || false
-
   echo "Evacuating..."
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --force
+  LXD_DIR="${LXD_ONE_DIR}" lxc list # For debugging
 
   echo "Verify instances evacuated (with fallback behavior during evacuation)"
   node1_count=0
@@ -3917,6 +3915,9 @@ test_clustering_evacuation() {
   echo "Instances successfully evacuated from node1: ${node1_count}/3"
   # We only expect 2 instances to evacuate (spread/strict has 2 nodes available excluding evacuated node)
   [ "${node1_count}" = "2" ]
+
+  echo "Verify creating a 4th instance with spread/strict fails due to insufficient nodes"
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc init testimage evac-4d -c placement.group=pg-evac-spread-strict -c cluster.evacuate=migrate || false
 
   echo "Cleaning up..."
   LXD_DIR="${LXD_ONE_DIR}" lxc delete evac-4a evac-4b evac-4c --force
