@@ -1340,7 +1340,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		// If no target member was selected yet, pick the member with the least number of instances.
 		if targetMemberInfo == nil {
 			err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-				targetMemberInfo, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
+				targetMemberInfo, err = instancesPostSelectClusterMember(ctx, tx, candidateMembers)
 				return err
 			})
 			if err != nil {
@@ -1387,6 +1387,11 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	default:
 		return response.BadRequest(fmt.Errorf("Unknown source type %s", req.Source.Type))
 	}
+}
+
+// instancesPostSelectClusterMember determines which cluster member to use for placing an instance during creation or migration.
+func instancesPostSelectClusterMember(ctx context.Context, tx *db.ClusterTx, candidateMembers []db.NodeInfo) (*db.NodeInfo, error) {
+	return tx.GetNodeWithLeastInstances(ctx, candidateMembers)
 }
 
 func instanceFindStoragePool(s *state.State, projectName string, req *api.InstancesPost) (storagePool string, storagePoolProfile string, localRootDiskDeviceKey string, localRootDiskDevice map[string]string, resp response.Response) {
