@@ -905,8 +905,8 @@
 					},
 					{
 						"acceleration.parent": {
-							"longdesc": "Comma separated list of physical function (PF) interfaces to allocate virtual functions (VFs) from for hardware acceleration.\nIf this is not specified, and `acceleration` is enabled then all PFs connected to the OVS integration bridge are scanned for a free VF.\nSee {ref}`devices-nic-hw-acceleration` for more information.",
-							"managed": "no",
+							"longdesc": "Comma separated list of physical function (PF) interfaces to allocate virtual functions (VFs) from for hardware acceleration when {config:option}`device-nic-ovn-device-conf:acceleration` is enabled.\nIn {config:option}`project-restricted:restricted` projects, it can only be used when {config:option}`project-restricted:restricted.virtual-machines.lowlevel` or {config:option}`project-restricted:restricted.containers.lowlevel` is set to `allow`.\nIf this is not specified, and {config:option}`device-nic-ovn-device-conf:acceleration` is enabled then all PFs connected to the OVS integration bridge are scanned for a free VF.\nSee {ref}`devices-nic-hw-acceleration` for more information.",
+							"managed": "yes",
 							"shortdesc": "Physical function interfaces to allocate virtual functions from for hardware acceleration",
 							"type": "string"
 						}
@@ -4018,6 +4018,13 @@
 		"network-ovn": {
 			"network-conf": {
 				"keys": [
+					{
+						"acceleration.parent": {
+							"longdesc": "Comma separated list of physical function (PF) interfaces to allocate virtual functions (VFs) from for hardware acceleration when {config:option}`device-nic-ovn-device-conf:acceleration` is enabled.\nSee {ref}`devices-nic-hw-acceleration` for more information.",
+							"shortdesc": "Physical function interfaces to allocate virtual functions from for hardware acceleration",
+							"type": "string"
+						}
+					},
 					{
 						"bridge.hwaddr": {
 							"longdesc": "",

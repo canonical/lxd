@@ -800,11 +800,12 @@ See {ref}`devices-nic-hw-acceleration` for more information.
 ```
 
 ```{config:option} acceleration.parent device-nic-ovn-device-conf
-:managed: "no"
+:managed: "yes"
 :shortdesc: "Physical function interfaces to allocate virtual functions from for hardware acceleration"
 :type: "string"
-Comma separated list of physical function (PF) interfaces to allocate virtual functions (VFs) from for hardware acceleration.
-If this is not specified, and `acceleration` is enabled then all PFs connected to the OVS integration bridge are scanned for a free VF.
+Comma separated list of physical function (PF) interfaces to allocate virtual functions (VFs) from for hardware acceleration when {config:option}`device-nic-ovn-device-conf:acceleration` is enabled.
+In {config:option}`project-restricted:restricted` projects, it can only be used when {config:option}`project-restricted:restricted.virtual-machines.lowlevel` or {config:option}`project-restricted:restricted.containers.lowlevel` is set to `allow`.
+If this is not specified, and {config:option}`device-nic-ovn-device-conf:acceleration` is enabled then all PFs connected to the OVS integration bridge are scanned for a free VF.
 See {ref}`devices-nic-hw-acceleration` for more information.
 ```
 
@@ -3579,6 +3580,13 @@ This option specifies whether to register the VLAN using the GARP VLAN Registrat
 
 <!-- config group network-macvlan-network-conf end -->
 <!-- config group network-ovn-network-conf start -->
+```{config:option} acceleration.parent network-ovn-network-conf
+:shortdesc: "Physical function interfaces to allocate virtual functions from for hardware acceleration"
+:type: "string"
+Comma separated list of physical function (PF) interfaces to allocate virtual functions (VFs) from for hardware acceleration when {config:option}`device-nic-ovn-device-conf:acceleration` is enabled.
+See {ref}`devices-nic-hw-acceleration` for more information.
+```
+
 ```{config:option} bridge.hwaddr network-ovn-network-conf
 :shortdesc: "MAC address for the bridge"
 :type: "string"
