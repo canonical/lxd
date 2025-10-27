@@ -2128,6 +2128,8 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "412":
 //	    $ref: "#/responses/PreconditionFailed"
+//	  "423":
+//	    $ref: "#/responses/StatusLocked"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
@@ -2279,6 +2281,8 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "412":
 //	    $ref: "#/responses/PreconditionFailed"
+//	  "423":
+//	    $ref: "#/responses/StatusLocked"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
