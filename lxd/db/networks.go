@@ -965,4 +965,5 @@ var NodeSpecificNetworkConfig = []string{
 	"bgp.ipv6.nexthop",
 	"bridge.external_interfaces",
 	"parent",
+	"acceleration.parent",
 }
