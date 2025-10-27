@@ -20,7 +20,7 @@ Dynamic provisioning      | &#x2713;        | {ref}`storage-drivers-local`, {ref
 Filesystem volumes        | &#x2713;        | {ref}`storage-drivers-local`, {ref}`storage-drivers-remote`, and {ref}`storage-drivers-shared` | Supported when the driver provides filesystem volumes.
 Shared filesystem volumes | - (coming-soon) | {ref}`storage-drivers-shared`                                                                  | Allows attaching storage volume to multiple nodes simultaneously (through the use of volume access modes `ReadWriteMany` and `ReadOnlyMany`).
 Block volumes             | &#x2713;        | {ref}`storage-drivers-local` and {ref}`storage-drivers-remote`                                 | Supported when the driver provides block volumes.
-Volume expansion          | - (coming-soon) | {ref}`storage-drivers-local`, {ref}`storage-drivers-remote`, and {ref}`storage-drivers-shared` | Allows increasing the storage volume capacity. Block volumes can be expanded only while offline (detached), whereas filesystem volumes can be expanded while online (attached).
+Volume expansion          | &#x2713;        | {ref}`storage-drivers-local`, {ref}`storage-drivers-remote`, and {ref}`storage-drivers-shared` | Allows increasing the storage volume capacity. Block volumes can be expanded only while offline (detached), whereas filesystem volumes can be expanded while online (attached).
 Volume snapshots          | - (coming-soon) | {ref}`storage-drivers-local`, {ref}`storage-drivers-remote`, and {ref}`storage-drivers-shared` | Allows creating storage volume snapshots. This also requires VolumeSnapshot custom resource definition (CRD).
 Cloning                   | - (coming-soon) | {ref}`storage-drivers-local`, {ref}`storage-drivers-remote`, and {ref}`storage-drivers-shared` | Allows using existing storage volume as a source for a new one.
 Topology-aware scheduling | &#x2713;        | {ref}`storage-drivers-local`                                                                   | Access to local volumes is by default restricted to nodes on the same LXD cluster member. The driver sets topology constraints accordingly so the scheduler can place Pods on compatible nodes.
@@ -75,6 +75,7 @@ Alongside the controller run the CSI controller sidecars, helper containers main
 
 - `external-provisioner`: watches PVCs and PVs and invokes volume creation or deletion.
 - `external-attacher`: watches VolumeAttachment objects and invokes volume attachment or detachment.
+- `external-resizer`: watches for PVC updates and triggers volume expansion when user requests more storage on a PVC object.
 - `livenessprobe`:  exposes an HTTP `/healthz` endpoint used by the Kubelet as a liveness probe to monitor the health of the CSI driver.
 
 Leader election ensures that only one replica of the controller sidecars is active at a time.

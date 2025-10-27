@@ -264,6 +264,7 @@ RDP
 README
 reconfiguring
 requestor
+resizer
 RESTful
 RGW
 RHEL
