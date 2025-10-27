@@ -1,6 +1,7 @@
 package lxd
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/canonical/lxd/shared/api"
@@ -54,12 +55,33 @@ func (r *ProtocolDevLXD) CreateStoragePoolVolume(poolName string, vol api.DevLXD
 	url := api.NewURL().Path("storage-pools", poolName, "volumes", vol.Type).URL
 	r.setURLQueryAttributes(&url)
 
+	if vol.Source.Type != "" {
+		return errors.New("Volume source type is not supported for this method: Either remove volume source or use appropriate method")
+	}
+
 	_, _, err := r.query(http.MethodPost, url.String(), vol, "")
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// CreateStoragePoolVolumeFromSource creates a new storage volume in a given storage pool from the configured source.
+func (r *ProtocolDevLXD) CreateStoragePoolVolumeFromSource(poolName string, vol api.DevLXDStorageVolumesPost) (Operation, error) {
+	url := api.NewURL().Path("storage-pools", poolName, "volumes", vol.Type).URL
+	r.setURLQueryAttributes(&url)
+
+	if vol.Source.Type == "" {
+		return nil, errors.New("Volume source type is not set")
+	}
+
+	op, _, err := r.queryOperation(http.MethodPost, url.String(), vol, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // UpdateStoragePoolVolume updates an existing storage volume in a given storage pool.
