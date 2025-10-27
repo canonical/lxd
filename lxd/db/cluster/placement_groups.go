@@ -121,16 +121,6 @@ func GetPlacementGroupConfig(ctx context.Context, tx *sql.Tx, placementGroupID i
 	}, placementGroupID)
 }
 
-// ToAPIBase populates base fields of the [PlacementGroup] into an [api.PlacementGroup] without querying for any additional data.
-// This is so that additional fields can be populated elsewhere when performing bulk queries.
-func (p PlacementGroup) ToAPIBase() api.PlacementGroup {
-	return api.PlacementGroup{
-		Name:        p.Name,
-		Description: p.Description,
-		Project:     p.Project,
-	}
-}
-
 // ToAPI converts the [PlacementGroup] to an [api.PlacementGroup], querying for extra data as necessary.
 func (p *PlacementGroup) ToAPI(ctx context.Context, tx *sql.Tx) (*api.PlacementGroup, error) {
 	// Get config
