@@ -3904,7 +3904,7 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_ONE_DIR}" lxc init testimage evac-4c -c placement.group=pg-evac-spread-strict -c cluster.evacuate=migrate --target node1
 
   echo "Verify creating a 4th instance with spread/strict fails due to insufficient nodes"
-  ! LXD_DIR="${LXD_ONE_DIR}" ! lxc init testimage evac-4d -c placement.group=pg-evac-spread-strict -c cluster.evacuate=migrate || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc init testimage evac-4d -c placement.group=pg-evac-spread-strict -c cluster.evacuate=migrate || false
 
   echo "Evacuating..."
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --force
