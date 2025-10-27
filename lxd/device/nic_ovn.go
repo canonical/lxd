@@ -764,7 +764,7 @@ func (d *nicOVN) setupAcceleration(saveData map[string]string) (cleanup revert.H
 		for _, port := range ports {
 			pf, err := network.SRIOVGetSwitchAndPFID(port)
 			if err != nil {
-				continue
+				continue // Skip non-PF ports.
 			}
 
 			pfCandidates = append(pfCandidates, *pf)
