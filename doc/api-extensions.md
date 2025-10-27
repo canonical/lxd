@@ -2765,3 +2765,13 @@ This introduces two new volatile VM configuration keys:
 
 * {config:option}`instance-volatile:volatile.<name>.bus` - records the bus number for the device.
 * {config:option}`instance-volatile:volatile.bus.mode` - records whether "persistent" mode is being used for a VM.
+
+## `ovn_nic_acceleration_parent`
+
+Adds support for specifying the OVN NIC acceleration parent physical function interface to allocate virtual functions from.
+
+This avoids the need for adding the physical function interface to the OVN integration bridge.
+
+This introduces a new `ovn` NIC configuration key:
+
+* {config:option}`device-nic-ovn-device-conf:acceleration.parent` - Comma separated list of physical function (PF) interfaces to allocate virtual functions (VFs) from for hardware offloading.

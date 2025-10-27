@@ -462,6 +462,7 @@ var APIExtensions = []string{
 	"import_custom_volume_tar",
 	"projects_force_delete",
 	"vm_persistent_bus",
+	"ovn_nic_acceleration_parent",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
