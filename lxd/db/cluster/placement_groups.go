@@ -139,12 +139,12 @@ func (p *PlacementGroup) ToAPI(ctx context.Context, tx *sql.Tx) (*api.PlacementG
 		return nil, fmt.Errorf("Failed getting placement group config: %w", err)
 	}
 
-	}
-
-	apiPlacementGroup := p.ToAPIBase()
-	apiPlacementGroup.Config = config
-
-	return &apiPlacementGroup, nil
+	return &api.PlacementGroup{
+		Name:        p.Name,
+		Description: p.Description,
+		Project:     p.Project,
+		Config:      config,
+	}, nil
 }
 
 // GetPlacementGroupUsedBy returns a list of URLs of all instances and profiles that reference placement groups matching the provided [PlacementGroupFilter].
