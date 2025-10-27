@@ -341,37 +341,50 @@ func SRIOVFindRepresentorPort(nicEntries []fs.DirEntry, pfSwitchID string, pfID 
 	return ""
 }
 
+// PFSwitchDevPort represents info about a Physical Function SwitchDev port.
+type PFSwitchDevPort struct {
+	Name     string
+	SwitchID string
+	PFID     int
+}
+
 // SRIOVGetSwitchAndPFID returns the physical switch ID and PF id.
-func SRIOVGetSwitchAndPFID(parentDev string) (string, int, error) {
+func SRIOVGetSwitchAndPFID(parentDev string) (*PFSwitchDevPort, error) {
 	physPortName, err := os.ReadFile(filepath.Join(sysClassNet, parentDev, "phys_port_name"))
 	if err != nil {
-		return "", -1, err // Skip non-physical ports.
+		return nil, err // Skip non-physical ports.
 	}
 
 	// Check the port is a physical port and not an existing representor port connected to the bridge
 	// but belonging to a physical device. This avoids trying to find a free VF repeatedly for the same
 	// PF by mistakenly considering an existing representor ported connected to the bridge as a PF.
 	if strings.HasPrefix(string(physPortName), "pf") || !strings.HasPrefix(string(physPortName), "p") {
-		return "", -1, fmt.Errorf("Not a physical port: %s", string(physPortName))
+		return nil, fmt.Errorf("Not a physical port: %s", string(physPortName))
 	}
 
 	var pfID int
 	_, err = fmt.Sscanf(string(physPortName), "p%d", &pfID)
 	if err != nil {
-		return "", -1, fmt.Errorf("Not a PF: %s.", string(physPortName)) // Skip non-PF interfaces.
+		return nil, fmt.Errorf("Not a PF: %s.", string(physPortName)) // Skip non-PF interfaces.
 	}
 
 	// Check if switchdev is enabled on physical port.
 	if !SRIOVSwitchdevEnabled(parentDev) {
-		return "", -1, fmt.Errorf("Not a switchdev capable device: %s", parentDev)
+		return nil, fmt.Errorf("Not a switchdev capable device: %s", parentDev)
 	}
 
 	physSwitchID, err := os.ReadFile(filepath.Join(sysClassNet, parentDev, "phys_switch_id"))
 	if err != nil {
-		return "", -1, fmt.Errorf("Unable to get phys_switch_id: %w", err)
+		return nil, fmt.Errorf("Unable to get phys_switch_id: %w", err)
 	}
 
-	return string(physSwitchID), pfID, nil
+	pf := PFSwitchDevPort{
+		Name:     parentDev,
+		SwitchID: string(physSwitchID),
+		PFID:     pfID,
+	}
+
+	return &pf, nil
 }
 
 // SRIOVFindFreeVFAndRepresentor tries to find a free SR-IOV virtual function of a PF connected to an OVS bridge.
