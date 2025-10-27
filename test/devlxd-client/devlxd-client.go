@@ -216,6 +216,15 @@ func run(args []string) error {
 				return err
 			}
 
+			if vol.Source.Type != "" {
+				op, err := client.CreateStoragePoolVolumeFromSource(poolName, vol)
+				if err != nil {
+					return err
+				}
+
+				return op.Wait()
+			}
+
 			return client.CreateStoragePoolVolume(poolName, vol)
 		case "update-volume":
 			if len(args) < 7 || len(args) > 8 {
