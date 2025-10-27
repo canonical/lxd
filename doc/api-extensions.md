@@ -1737,7 +1737,7 @@ A new REST API is also introduced to manage DNS zones:
 
 ## `ovn_nic_acceleration`
 
-Adds new {config:option}`device-nic-ovn-device-conf:acceleration` configuration key to OVN NICs which can be used for enabling hardware offloading.
+Adds new {config:option}`device-nic-ovn-device-conf:acceleration` configuration key to OVN NICs which can be used for enabling hardware acceleration.
 It takes the values `none` or `sriov`.
 
 ## `certificate_self_renewal`
