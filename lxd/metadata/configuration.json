@@ -899,15 +899,15 @@
 							"defaultdesc": "`none`",
 							"longdesc": "Possible values are `none`, `sriov`, or `vdpa`.\nSee {ref}`devices-nic-hw-acceleration` for more information.",
 							"managed": "no",
-							"shortdesc": "Enable hardware offloading",
+							"shortdesc": "Enable hardware acceleration",
 							"type": "string"
 						}
 					},
 					{
 						"acceleration.parent": {
-							"longdesc": "Comma separated list of physical function (PF) interfaces to allocate virtual functions (VFs) from for hardware offloading.\nIf this is not specified, and `acceleration` is enabled then all PFs connected to the OVS integration bridge are scanned for a free VF.\nSee {ref}`devices-nic-hw-acceleration` for more information.",
+							"longdesc": "Comma separated list of physical function (PF) interfaces to allocate virtual functions (VFs) from for hardware acceleration.\nIf this is not specified, and `acceleration` is enabled then all PFs connected to the OVS integration bridge are scanned for a free VF.\nSee {ref}`devices-nic-hw-acceleration` for more information.",
 							"managed": "no",
-							"shortdesc": "Physical function parent interface to allocate virtual functions from for hardware offloading",
+							"shortdesc": "Physical function interfaces to allocate virtual functions from for hardware acceleration",
 							"type": "string"
 						}
 					},
