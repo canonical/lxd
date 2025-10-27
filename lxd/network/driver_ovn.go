@@ -403,6 +403,13 @@ func (n *ovn) Validate(config map[string]string) error {
 		//  type: string
 		//  shortdesc: Uplink network to use for external network access
 		"network": validate.IsAny,
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=acceleration.parent)
+		// Comma separated list of physical function (PF) interfaces to allocate virtual functions (VFs) from for hardware acceleration when {config:option}`device-nic-ovn-device-conf:acceleration` is enabled.
+		// See {ref}`devices-nic-hw-acceleration` for more information.
+		// ---
+		//  type: string
+		//  shortdesc: Physical function interfaces to allocate virtual functions from for hardware acceleration
+		"acceleration.parent": validate.Optional(validate.IsListOf(validate.IsInterfaceName)),
 		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=bridge.hwaddr)
 		//
 		// ---
