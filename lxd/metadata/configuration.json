@@ -904,6 +904,14 @@
 						}
 					},
 					{
+						"acceleration.parent": {
+							"longdesc": "Comma separated list of physical function (PF) interfaces to allocate virtual functions (VFs) from for hardware offloading.\nIf this is not specified, and `acceleration` is enabled then all PFs connected to the OVS integration bridge are scanned for a free VF.\nSee {ref}`devices-nic-hw-acceleration` for more information.",
+							"managed": "no",
+							"shortdesc": "Physical function parent interface to allocate virtual functions from for hardware offloading",
+							"type": "string"
+						}
+					},
+					{
 						"boot.priority": {
 							"longdesc": "A higher value for this option means that the VM boots first.",
 							"managed": "no",
