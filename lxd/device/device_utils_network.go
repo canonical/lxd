@@ -701,7 +701,7 @@ func networkSRIOVSetupVF(d deviceCommon, vfParent string, vfDevice string, vfID 
 	// Retrieve VF settings from parent device.
 	vfInfo, err := networkSRIOVParentVFInfo(vfParent, vfID)
 	if err != nil {
-		return vfPCIDev, 0, err
+		return nil, 0, fmt.Errorf("Failed getting VF %d info from %q: %w", vfID, vfParent, err)
 	}
 
 	revert := revert.New()
