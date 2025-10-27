@@ -4478,6 +4478,14 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 	}
 
+	// If the instance is now assigned to a "placement.group", remove any previous "volatile.cluster.group".
+	// This ensures the placement group takes precedence and avoids stale cluster group targeting during evacuation.
+	if d.expandedConfig["placement.group"] != "" {
+		if oldLocalConfig["volatile.cluster.group"] != "" {
+			delete(d.localConfig, "volatile.cluster.group")
+		}
+	}
+
 	// Finally, apply the changes to the database
 	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Snapshots should update only their descriptions and expiry date.
