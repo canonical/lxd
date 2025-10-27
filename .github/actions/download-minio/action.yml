@@ -47,6 +47,6 @@ runs:
       run: |
         set -eux
 
-        . test/includes/setup.sh
+        . "${GITHUB_ACTION_PATH}/minio.sh"
 
         download_minio
