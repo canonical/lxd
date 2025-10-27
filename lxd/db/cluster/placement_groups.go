@@ -139,14 +139,9 @@ func (p *PlacementGroup) ToAPI(ctx context.Context, tx *sql.Tx) (*api.PlacementG
 		return nil, fmt.Errorf("Failed getting placement group config: %w", err)
 	}
 
-	// Get used by
-	usedBy, err := GetPlacementGroupUsedBy(ctx, tx, PlacementGroupFilter{Project: &p.Project, Name: &p.Name}, false)
-	if err != nil {
-		return nil, err
 	}
 
 	apiPlacementGroup := p.ToAPIBase()
-	apiPlacementGroup.UsedBy = usedBy
 	apiPlacementGroup.Config = config
 
 	return &apiPlacementGroup, nil
