@@ -3,7 +3,7 @@ module github.com/canonical/lxd
 go 1.25.3
 
 require (
-	github.com/NVIDIA/nvidia-container-toolkit v1.17.9
+	github.com/NVIDIA/nvidia-container-toolkit v1.18.0
 	github.com/armon/go-proxyproto v0.1.0
 	github.com/canonical/go-dqlite/v3 v3.0.3
 	github.com/digitalocean/go-qemu v0.0.0-20250212194115-ee9b0668d242
@@ -63,7 +63,7 @@ require (
 	google.golang.org/protobuf v1.36.10
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
-	tags.cncf.io/container-device-interface v0.8.1
+	tags.cncf.io/container-device-interface v1.0.1
 	tags.cncf.io/container-device-interface/specs-go v1.0.0
 )
 
