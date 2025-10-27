@@ -799,6 +799,15 @@ Possible values are `none`, `sriov`, or `vdpa`.
 See {ref}`devices-nic-hw-acceleration` for more information.
 ```
 
+```{config:option} acceleration.parent device-nic-ovn-device-conf
+:managed: "no"
+:shortdesc: "Physical function parent interface to allocate virtual functions from for hardware offloading"
+:type: "string"
+Comma separated list of physical function (PF) interfaces to allocate virtual functions (VFs) from for hardware offloading.
+If this is not specified, and `acceleration` is enabled then all PFs connected to the OVS integration bridge are scanned for a free VF.
+See {ref}`devices-nic-hw-acceleration` for more information.
+```
+
 ```{config:option} boot.priority device-nic-ovn-device-conf
 :managed: "no"
 :shortdesc: "Boot priority for VMs"
