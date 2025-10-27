@@ -4594,7 +4594,7 @@ func clusterGroupUsedBy(ctx context.Context, s *state.State, tx *db.ClusterTx, n
 	}
 
 	if len(usedBy) > 0 && firstOnly {
-		return usedBy, nil
+		return usedBy[:1], nil
 	}
 
 	err = tx.InstanceList(ctx, func(inst db.InstanceArgs, p api.Project) error {
