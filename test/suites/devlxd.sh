@@ -305,7 +305,7 @@ test_devlxd_volume_management() {
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" "${instType}" "${inst}")" = "Only custom storage volume requests are allowed" ]
 
     # Create a custom storage volume.
-    vol1='{"name": "vol-01", "type": "custom", "config": {"size": "10MiB"}}'
+    vol1='{"name": "vol-01", "type": "custom", "config": {"size": "8MiB"}}'
 
     # Create a custom storage volume (fail - insufficient permissions).
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${vol1}")" = "Forbidden" ]
@@ -316,7 +316,7 @@ test_devlxd_volume_management() {
     # Create a custom storage volumes (ok).
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${vol1}"
 
-    vol2='{"name": "vol-02", "type": "custom", "config": {"size": "10MiB"}}'
+    vol2='{"name": "vol-02", "type": "custom", "config": {"size": "8MiB"}}'
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${vol2}"
 
     # Fail - already exists.
@@ -328,7 +328,7 @@ test_devlxd_volume_management() {
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" custom vol-02
 
     # Update storage volume.
-    volNew='{"description": "Updated volume", "config": {"size": "20MiB"}}'
+    volNew='{"description": "Updated volume", "config": {"size": "12MiB"}}'
 
     # Update storage volume (fail - insufficient permissions).
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage update-volume "${pool}" custom vol-01 "${volNew}")" = "Forbidden" ]
@@ -345,12 +345,12 @@ test_devlxd_volume_management() {
     # Update storage volume (ok - no ETag).
     etag=$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume-etag "${pool}" custom vol-01)
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage update-volume "${pool}" custom vol-01 "${volNew}"
-    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" custom vol-01 | jq --exit-status '.config.size == "20MiB" and .description == "Updated volume"'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" custom vol-01 | jq --exit-status '.config.size == "12MiB" and .description == "Updated volume"'
 
     # Update storage volume (ok - correct ETag).
     etag=$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume-etag "${pool}" custom vol-02)
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage update-volume "${pool}" custom vol-02 "${volNew}" "${etag}"
-    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" custom vol-02 | jq --exit-status '.config.size == "20MiB" and .description == "Updated volume"'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" custom vol-02 | jq --exit-status '.config.size == "12MiB" and .description == "Updated volume"'
 
     # Get instance.
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}"
@@ -430,7 +430,7 @@ EOF
     # Test block volumes (VMs only).
     if [ "${instType}" = "virtual-machine" ]; then
       # Create a custom block volume.
-      volBlock='{"name": "block-vol", "type": "custom", "content_type": "block", "config": {"size": "10MiB"}}'
+      volBlock='{"name": "block-vol", "type": "custom", "content_type": "block", "config": {"size": "8MiB"}}'
       lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${volBlock}"
 
       # Attach block volume to the instance.
@@ -452,7 +452,7 @@ EOF
 
       # Try increasing block volume size while the volume is attached to a running VM (in use).
       # Ensure the returned status code is 423 (StatusLocked).
-      patchReq='{"config": {"size": "20MiB"}}'
+      patchReq='{"config": {"size": "12MiB"}}'
       [ "$(lxc exec "${inst}" --project "${project}" -- curl -s -o /dev/null -w "%{http_code}" --unix-socket /dev/lxd/sock -H "Authorization: Bearer ${token}" -X PATCH "lxd/1.0/storage-pools/${pool}/volumes/custom/block-vol" -d "${patchReq}")" = "423" ]
 
       # Detach device.
