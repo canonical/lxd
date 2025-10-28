@@ -4446,7 +4446,7 @@ EOF
   [ "$(lxc config get cluster:c3 volatile.cluster.group)" = "blah" ]
 
   echo 'Verify that instances with "volatile.cluster.group" are reported in used_by for the blah group'
-  lxc_remote query cluster:/1.0/cluster/groups/blah | jq --exit-status '.used_by | contains(["/1.0/instances/c2?project=default", "/1.0/instances/c3?project=default"])'
+  lxc_remote query cluster:/1.0/cluster/groups/blah | jq --exit-status '.used_by | contains(["/1.0/instances/c2", "/1.0/instances/c3"])'
 
   echo "Check deleting an in use cluster group fails"
   ! lxc cluster group delete blah || false
