@@ -159,11 +159,6 @@ EOF
 }
 
 test_devlxd_vm() {
-  if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
-    echo "Using migration.stateful to force 9p config drive thus avoiding the old/incompatible virtiofsd"
-    lxc profile set default migration.stateful=true
-  fi
-
   pool="lxdtest-$(basename "${LXD_DIR}")"
   orig_volume_size="$(lxc storage get "${pool}" volume.size)"
   if [ -n "${orig_volume_size:-}" ]; then
@@ -267,10 +262,5 @@ runcmd:
   if [ -n "${orig_volume_size:-}" ]; then
     echo "==> Restore the volume.size"
     lxc storage set "${pool}" volume.size "${orig_volume_size}"
-  fi
-
-  if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
-    # Cleanup custom changes from the default profile
-    lxc profile unset default migration.stateful
   fi
 }
