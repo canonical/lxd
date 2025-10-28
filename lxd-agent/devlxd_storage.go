@@ -70,12 +70,7 @@ func devLXDStoragePoolVolumesGetHandler(d *Daemon, r *http.Request) *devLXDRespo
 }
 
 func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	poolName, err := url.PathUnescape(r.PathValue("pool"))
-	if err != nil {
-		return errorResponse(http.StatusBadRequest, err.Error())
-	}
-
-	volType, err := url.PathUnescape(r.PathValue("type"))
+	poolName, volType, _, err := extractVolumeParams(r)
 	if err != nil {
 		return errorResponse(http.StatusBadRequest, err.Error())
 	}
@@ -114,17 +109,7 @@ var devLXDStoragePoolVolumeTypeEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDStoragePoolVolumeGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	poolName, err := url.PathUnescape(r.PathValue("pool"))
-	if err != nil {
-		return errorResponse(http.StatusBadRequest, err.Error())
-	}
-
-	volType, err := url.PathUnescape(r.PathValue("type"))
-	if err != nil {
-		return errorResponse(http.StatusBadRequest, err.Error())
-	}
-
-	volName, err := url.PathUnescape(r.PathValue("volume"))
+	poolName, volType, volName, err := extractVolumeParams(r)
 	if err != nil {
 		return errorResponse(http.StatusBadRequest, err.Error())
 	}
@@ -146,17 +131,7 @@ func devLXDStoragePoolVolumeGetHandler(d *Daemon, r *http.Request) *devLXDRespon
 }
 
 func devLXDStoragePoolVolumePatchHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	poolName, err := url.PathUnescape(r.PathValue("pool"))
-	if err != nil {
-		return errorResponse(http.StatusBadRequest, err.Error())
-	}
-
-	volType, err := url.PathUnescape(r.PathValue("type"))
-	if err != nil {
-		return errorResponse(http.StatusBadRequest, err.Error())
-	}
-
-	volName, err := url.PathUnescape(r.PathValue("volume"))
+	poolName, volType, volName, err := extractVolumeParams(r)
 	if err != nil {
 		return errorResponse(http.StatusBadRequest, err.Error())
 	}
@@ -186,17 +161,7 @@ func devLXDStoragePoolVolumePatchHandler(d *Daemon, r *http.Request) *devLXDResp
 }
 
 func devLXDStoragePoolVolumeDeleteHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	poolName, err := url.PathUnescape(r.PathValue("pool"))
-	if err != nil {
-		return errorResponse(http.StatusBadRequest, err.Error())
-	}
-
-	volType, err := url.PathUnescape(r.PathValue("type"))
-	if err != nil {
-		return errorResponse(http.StatusBadRequest, err.Error())
-	}
-
-	volName, err := url.PathUnescape(r.PathValue("volume"))
+	poolName, volType, volName, err := extractVolumeParams(r)
 	if err != nil {
 		return errorResponse(http.StatusBadRequest, err.Error())
 	}
@@ -215,4 +180,24 @@ func devLXDStoragePoolVolumeDeleteHandler(d *Daemon, r *http.Request) *devLXDRes
 	}
 
 	return okResponse(op.Get(), "json")
+}
+
+// extractVolumeParams extracts the pool name, volume type and volume name from the request URL.
+func extractVolumeParams(r *http.Request) (poolName string, volType string, volName string, err error) {
+	poolName, err = url.PathUnescape(r.PathValue("pool"))
+	if err != nil {
+		return "", "", "", err
+	}
+
+	volType, err = url.PathUnescape(r.PathValue("type"))
+	if err != nil {
+		return "", "", "", err
+	}
+
+	volName, err = url.PathUnescape(r.PathValue("volume"))
+	if err != nil {
+		return "", "", "", err
+	}
+
+	return poolName, volType, volName, nil
 }
