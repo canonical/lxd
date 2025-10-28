@@ -221,7 +221,7 @@ func placementGroupsGet(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
-			apiGroup.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, usedBy)
+			apiGroup.UsedBy = usedBy
 			apiGroups = append(apiGroups, apiGroup)
 			entitlementReportingMap[u] = apiGroup
 		}
@@ -234,6 +234,10 @@ func placementGroupsGet(d *Daemon, r *http.Request) response.Response {
 
 	if !recursion {
 		return response.SyncResponse(true, placementGroupURLs)
+	}
+
+	for _, pg := range apiGroups {
+		pg.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, pg.UsedBy)
 	}
 
 	if len(withEntitlements) > 0 {
