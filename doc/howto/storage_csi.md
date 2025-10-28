@@ -284,6 +284,32 @@ Access mode        | Supported drivers                                          
 `ReadOnlyMany`     | {ref}`storage-drivers-shared`                                                                  | Mounted as read-only by many Pods across nodes.
 `ReadWriteMany`    | {ref}`storage-drivers-shared`                                                                  | Mounted as read-write by many Pods across nodes.
 
+(howto-storage-csi-usage-pvc-cloning)=
+#### Volume cloning
+
+[Volume cloning &#8599;](https://kubernetes.io/docs/concepts/storage/volume-pvc-datasource/) allows you to create a new PVC from an existing one.
+The source and target PVCs must have the same `volumeMode`, and the target’s requested size must be equal to or larger than the source. Also note that Kubernetes allows volumes to be cloned only within the same namespace.
+
+To create a clone, reference the source PVC under the `dataSource` field, as shown below:
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: app-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: lxd-csi-sc
+  resources:
+    requests:
+      storage: 10Gi             # Must be equal to or larger than the size of the source volume.
+  volumeMode: Filesystem        # Must match the source volume mode.
+  dataSource:
+    kind: PersistentVolumeClaim
+    name: pvc-1                 # Name of the source PVC.
+```
+
 (howto-storage-csi-usage-example)=
 ### End-to-end examples
 
