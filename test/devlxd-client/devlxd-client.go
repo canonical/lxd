@@ -258,6 +258,83 @@ func run(args []string) error {
 			volName := args[5]
 
 			return client.DeleteStoragePoolVolume(poolName, volType, volName)
+		case "snapshots":
+			if len(args) != 6 {
+				return fmt.Errorf("Usage: %s storage snapshots <poolName> <volType> <volName>", args[0])
+			}
+
+			poolName := args[3]
+			volType := args[4]
+			volName := args[5]
+
+			vols, err := client.GetStoragePoolVolumeSnapshots(poolName, volType, volName)
+			if err != nil {
+				return err
+			}
+
+			return printPrettyJSON(vols)
+		case "get-snapshot":
+			if len(args) != 7 {
+				return fmt.Errorf("Usage: %s storage get-snapshot <poolName> <volType> <volName> <snapName>", args[0])
+			}
+
+			poolName := args[3]
+			volType := args[4]
+			volName := args[5]
+			snapName := args[6]
+
+			vol, _, err := client.GetStoragePoolVolumeSnapshot(poolName, volType, volName, snapName)
+			if err != nil {
+				return err
+			}
+
+			return printPrettyJSON(vol)
+		case "create-snapshot":
+			if len(args) != 7 {
+				return fmt.Errorf("Usage: %s storage create-snapshot <poolName> <volType> <volName> <snapshot>", args[0])
+			}
+
+			poolName := args[3]
+			volType := args[4]
+			volName := args[5]
+			snapData := args[6]
+
+			snapshot := api.DevLXDStorageVolumeSnapshotsPost{}
+			err := json.Unmarshal([]byte(snapData), &snapshot)
+			if err != nil {
+				return err
+			}
+
+			op, err := client.CreateStoragePoolVolumeSnapshot(poolName, volType, volName, snapshot)
+			if err == nil {
+				err = op.Wait()
+			}
+
+			if err != nil {
+				return err
+			}
+
+			return nil
+		case "delete-snapshot":
+			if len(args) != 7 {
+				return fmt.Errorf("Usage: %s storage delete-snapshot <poolName> <volType> <volName> <snapName>", args[0])
+			}
+
+			poolName := args[3]
+			volType := args[4]
+			volName := args[5]
+			snapName := args[6]
+
+			op, err := client.DeleteStoragePoolVolumeSnapshot(poolName, volType, volName, snapName)
+			if err == nil {
+				err = op.Wait()
+			}
+
+			if err != nil {
+				return err
+			}
+
+			return nil
 		default:
 			return fmt.Errorf("Unknown subcommand: %q\n%w", subcmd, usageErr)
 		}
