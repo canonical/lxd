@@ -197,7 +197,7 @@ EOF
 
   # Check device configs are available and that NIC hwaddr is available even if volatile.
   hwaddr=$(lxc config get devlxd volatile.eth0.hwaddr)
-  [ "$(lxc exec devlxd -- devlxd-client devices | jq --exit-status --raw-output .eth0.hwaddr)" = "${hwaddr}" ]
+  lxc exec devlxd -- devlxd-client devices | jq --exit-status ".eth0.hwaddr == \"${hwaddr}\""
 
   lxc delete devlxd --force
   kill -9 "${monitorDevlxdPID}"
@@ -260,9 +260,9 @@ test_devlxd_volume_management() {
 
     # Ensure "environment" is not included in the API response for unauthenticated clients.
     # When using LXD go-client, default values are used for missing fields, so "environment.server_clustered" will be false.
-    [ "$(lxc exec "${inst}" --project "${project}" -- devlxd-client get-state | jq --exit-status '.environment.server_clustered')" = "false" ]
+    lxc exec "${inst}" --project "${project}" -- devlxd-client get-state | jq --exit-status '.environment.server_clustered == false'
     # However, "environment" must be missing in the API response.
-    [ "$(lxc exec "${inst}" --project "${project}" -- devlxd-client query GET /1.0 | jq --exit-status '.environment')" = "null" ]
+    lxc exec "${inst}" --project "${project}" -- devlxd-client query GET /1.0 | jq --exit-status '.environment == null'
 
     # Fail when a valid identity token is passed, but the identity does not have permissions.
     lxc auth identity create "${authIdentity}"
@@ -279,8 +279,8 @@ test_devlxd_volume_management() {
     lxc auth group permission add "${authGroup}" instance "${inst}" can_view project="${project}"
     lxc auth identity group add "${authIdentity}" "${authGroup}"
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}" | jq --exit-status .name
-    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client get-state | jq --exit-status '.environment.server_clustered')" = "false" ]
-    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client query GET /1.0 | jq --exit-status '.environment.server_clustered')" = "false" ]
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client get-state | jq --exit-status '.environment.server_clustered == false'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client query GET /1.0 | jq --exit-status '.environment.server_clustered == false'
 
     # Test devLXD authorization (volume management security flag).
     # Fail when the security flag is not set.
