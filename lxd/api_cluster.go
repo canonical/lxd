@@ -4643,7 +4643,16 @@ func clusterGroupUsedBy(ctx context.Context, s *state.State, tx *db.ClusterTx, n
 	err = tx.InstanceList(ctx, func(inst db.InstanceArgs, p api.Project) error {
 		// Check if instance references cluster group in "volatile.cluster.group" config key.
 		if inst.Config["volatile.cluster.group"] == name {
-			usedBy = append(usedBy, entity.InstanceURL(inst.Project, inst.Name).String())
+			u := entity.InstanceURL(inst.Project, inst.Name)
+
+			// Omit the project query parameter if it is the default project.
+			if u.Query().Get("project") == api.ProjectDefaultName {
+				q := u.Query()
+				q.Del("project")
+				u.RawQuery = q.Encode()
+			}
+
+			usedBy = append(usedBy, u.String())
 
 			if firstOnly {
 				return db.ErrListStop
