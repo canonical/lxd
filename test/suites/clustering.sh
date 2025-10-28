@@ -5054,11 +5054,19 @@ test_clustering_placement_groups() {
   LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c1 -c placement.group=pg-spread-strict
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c s c1)" = "STOPPED" ]
 
+  echo "Verify placement group reports the instance in used_by"
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/placement-groups/pg-spread-strict" | jq --exit-status '.used_by | .[] == "/1.0/instances/c1"'
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/placement-groups/pg-spread-strict?recursion=1" | jq --exit-status '.used_by | .[] == "/1.0/instances/c1"'
+
   echo "==> Test spread/strict: second instance should be on different node"
   node1=$(LXD_DIR="${LXD_ONE_DIR}" lxc list c1 -f csv -c L)
   LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c2 -c placement.group=pg-spread-strict
   node2=$(LXD_DIR="${LXD_ONE_DIR}" lxc list c2 -f csv -c L)
   [ "${node1}" != "${node2}" ]
+
+  echo "Verify placement group used_by contains both instances"
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/placement-groups/pg-spread-strict" | jq --exit-status '.used_by | contains(["/1.0/instances/c1", "/1.0/instances/c2"])'
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/placement-groups/pg-spread-strict?recursion=1" | jq --exit-status '.used_by | contains(["/1.0/instances/c1", "/1.0/instances/c2"])'
 
   echo "==> Test spread/strict: add instances to all 5 nodes"
   LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c3 -c placement.group=pg-spread-strict
@@ -5144,12 +5152,16 @@ test_clustering_placement_groups() {
   LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2
 
   echo "==> Test placement groups are project-specific"
-  LXD_DIR="${LXD_ONE_DIR}" lxc project create test-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc project create test-project -c features.images=false -c features.profiles=false
   LXD_DIR="${LXD_ONE_DIR}" lxc project switch test-project
 
   # Same name in different project should work
   LXD_DIR="${LXD_ONE_DIR}" lxc placement-group create pg-spread-strict policy=spread rigor=strict
   LXD_DIR="${LXD_ONE_DIR}" lxc placement-group list | grep pg-spread-strict
+
+  # Check used_by
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c1 -c placement.group=pg-spread-strict
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/placement-groups/pg-spread-strict?project=test-project" | jq --exit-status '.used_by | .[] == "/1.0/instances/c1?project=test-project"'
 
   # Switch back to default
   LXD_DIR="${LXD_ONE_DIR}" lxc project switch default
