@@ -96,9 +96,6 @@ func ForwardedOperationResponse(project string, op *api.Operation) response.Resp
 // Render builds forwardedOperationResponse and writes it to http.ResponseWriter.
 func (r *forwardedOperationResponse) Render(w http.ResponseWriter, req *http.Request) error {
 	url := "/" + version.APIVersion + "/operations/" + r.op.ID
-	if r.project != "" {
-		url += "?project=" + r.project
-	}
 
 	body := api.ResponseRaw{
 		Type:       api.AsyncResponse,
