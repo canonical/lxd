@@ -391,6 +391,7 @@ EOF
 
     # Manage device on a different instance.
     inst2="${inst}-2"
+    # Use a container for the second instance as it is faster.
     lxc launch testimage "${inst2}" --project "${project}" --storage "${pool}"
 
     # Fail - missing permission.
@@ -463,7 +464,9 @@ EOF
     fi
 
     # Cleanup.
-    lxc image delete "$(lxc config get "${inst}" volatile.base_image --project "${project}")" --project "${project}"
+    if [ "${instType}" = "virtual-machine" ]; then
+      lxc image delete "$(lxc config get "${inst}" volatile.base_image --project "${project}")" --project "${project}"
+    fi
     lxc delete "${inst}" --project "${project}" --force
     lxc auth identity delete "${authIdentity}"
     lxc auth group delete "${authGroup}"
