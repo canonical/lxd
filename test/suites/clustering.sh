@@ -3762,6 +3762,84 @@ test_clustering_evacuation() {
   LXD_NETNS=
 }
 
+test_clustering_evacuation_restore_operations() {
+  local LXD_DIR
+
+  echo "Create cluster with 2 nodes"
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  # The random storage backend is not supported in clustering tests,
+  # since we need to have the same storage driver on all nodes, so use the driver chosen for the standalone pool.
+  poolDriver=$(lxc storage show "$(lxc profile device get default root pool)" | awk '/^driver:/ {print $2}')
+
+  # Spawn first node
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${poolDriver}"
+
+  # Add a newline at the end of each line. YAML has weird rules.
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  # Spawn a second node
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}" "${poolDriver}"
+
+  LXD_DIR="${LXD_ONE_DIR}"
+  ensure_import_testimage
+
+  echo "Launch 3 containers on node1"
+  for c in c{1..3}; do lxc launch testimage "${c}" --target node1; done
+
+  echo "Start node1 evacuation in background"
+  lxc cluster evacuate node1 --quiet --force &
+  evac_pid=$!
+  sleep 1 # Wait a bit for the operation to start
+
+  echo "Check restore fails while evacuation operation in progress"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc cluster restore node1 --force 2>&1)" = "Error: Failed updating cluster member state: Cannot restore \"node1\" while an evacuate operation is in progress" ]
+
+  echo "Wait for all containers to be evacuated"
+  wait "${evac_pid}"
+
+  echo "Verify all containers are no longer on node1 and have been evacuated to node2"
+  for c in c{1..3}; do
+    [ "$(lxc list -f csv -c L "${c}")" = "node2" ]
+  done
+
+  echo "Start node1 restore in background"
+  lxc cluster restore node1 --quiet --force &
+  restore_pid=$!
+  sleep 1 # Wait a bit for the operation to start
+
+  echo "Check evacuation fails while restore operation in progress"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc cluster evacuate node1 --force 2>&1)" = "Error: Failed updating cluster member state: Cannot evacuate \"node1\" while a restore operation is in progress" ]
+
+  echo "Wait for all containers to be restored to node1"
+  wait "${restore_pid}"
+
+  echo "Verify all containers are no longer on node2 and have been restored to node1"
+  for c in c{1..3}; do
+    [ "$(lxc list -f csv -c L "${c}")" = "node1" ]
+  done
+
+  echo "Clean up"
+  lxc delete c{1..3} --force
+  lxc network delete "${bridge}"
+
+  shutdown_lxd "${LXD_ONE_DIR}"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+}
+
 test_clustering_edit_configuration() {
   local LXD_DIR
 
