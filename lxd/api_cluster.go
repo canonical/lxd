@@ -3079,6 +3079,17 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 
 	switch req.Action {
 	case "evacuate":
+		ops, err := operationsGetByType(r.Context(), s, "", operationtype.ClusterMemberRestore)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		for _, op := range ops {
+			if op.Location == name && !op.StatusCode.IsFinal() {
+				return response.BadRequest(fmt.Errorf("Cannot evacuate %q while a restore operation is in progress", name))
+			}
+		}
+
 		stopFunc := func(inst instance.Instance) error {
 			l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 
