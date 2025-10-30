@@ -27,20 +27,20 @@ func coalesceErrors(local bool, errs map[string]error) error {
 		return nil
 	}
 
-	var errorMsg string
+	var errorMsg strings.Builder
 	if local {
-		errorMsg += "The following instances failed to update state:\n"
+		errorMsg.WriteString("The following instances failed to update state:\n")
 	}
 
 	for instName, err := range errs {
 		if local {
-			errorMsg += fmt.Sprintf(" - Instance: %s: %v\n", instName, err)
+			errorMsg.WriteString(fmt.Sprintf(" - Instance: %s: %v\n", instName, err))
 		} else {
-			errorMsg += strings.TrimSpace(fmt.Sprintf("%v\n", err))
+			errorMsg.WriteString(strings.TrimSpace(fmt.Sprintf("%v\n", err)))
 		}
 	}
 
-	return errors.New(errorMsg)
+	return errors.New(errorMsg.String())
 }
 
 // swagger:operation PUT /1.0/instances instances instances_put
