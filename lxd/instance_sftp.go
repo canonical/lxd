@@ -148,9 +148,7 @@ func (r *sftpServeResponse) Render(w http.ResponseWriter, req *http.Request) err
 	})
 
 	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		_, err := io.Copy(remoteConn, r.instConn)
 		if err != nil {
 			if ctx.Err() == nil {
@@ -159,7 +157,7 @@ func (r *sftpServeResponse) Render(w http.ResponseWriter, req *http.Request) err
 		}
 		cancel()               // Cancel context first so when remoteConn is closed it doesn't cause a warning.
 		_ = remoteConn.Close() // Trigger the cancellation of the io.Copy reading from remoteConn.
-	}()
+	})
 
 	_, err = io.Copy(r.instConn, remoteConn)
 	if err != nil {
