@@ -70,12 +70,14 @@ func Parse(s string, op OperatorSet) (*ClauseSet, error) {
 			return nil, errors.New("clause has no value")
 		}
 
-		value := parts[index]
+		var value strings.Builder
+		value.WriteString(parts[index])
 
 		// support strings with spaces that are quoted
 		for _, symbol := range op.Quote {
-			if strings.HasPrefix(value, symbol) {
-				value = value[1:]
+			if strings.HasPrefix(parts[index], symbol) {
+				value.Reset()
+				value.WriteString(parts[index][1:])
 				for {
 					index++
 					if index == len(parts) {
@@ -86,15 +88,15 @@ func Parse(s string, op OperatorSet) (*ClauseSet, error) {
 						break
 					}
 
-					value += " " + parts[index]
+					value.WriteString(" " + parts[index])
 				}
 
 				end := parts[index]
-				value += " " + end[0:len(end)-1]
+				value.WriteString(" " + end[0:len(end)-1])
 			}
 		}
 
-		clause.Value = value
+		clause.Value = value.String()
 		index++
 
 		clause.PrevLogical = prevLogical
