@@ -286,8 +286,7 @@ func (c *cmdList) listInstances(d lxd.InstanceServer, instances []api.Instance, 
 		cInfoWg := sync.WaitGroup{}
 
 		for range threads {
-			cInfoWg.Add(1)
-			go func() {
+			cInfoWg.Go(func() {
 				for {
 					cName, more := <-cInfoQueue
 					if !more {
@@ -303,9 +302,7 @@ func (c *cmdList) listInstances(d lxd.InstanceServer, instances []api.Instance, 
 					cInfo = append(cInfo, *state)
 					cInfoLock.Unlock()
 				}
-
-				cInfoWg.Done()
-			}()
+			})
 		}
 
 		for _, info := range instances {
@@ -329,8 +326,7 @@ func (c *cmdList) listInstances(d lxd.InstanceServer, instances []api.Instance, 
 	cSnapshotsWg := sync.WaitGroup{}
 
 	for range threads {
-		cStatesWg.Add(1)
-		go func() {
+		cStatesWg.Go(func() {
 			for {
 				cName, more := <-cStatesQueue
 				if !more {
@@ -346,12 +342,9 @@ func (c *cmdList) listInstances(d lxd.InstanceServer, instances []api.Instance, 
 				cStates[cName] = state
 				cStatesLock.Unlock()
 			}
+		})
 
-			cStatesWg.Done()
-		}()
-
-		cSnapshotsWg.Add(1)
-		go func() {
+		cSnapshotsWg.Go(func() {
 			for {
 				cName, more := <-cSnapshotsQueue
 				if !more {
@@ -367,9 +360,7 @@ func (c *cmdList) listInstances(d lxd.InstanceServer, instances []api.Instance, 
 				cSnapshots[cName] = snaps
 				cSnapshotsLock.Unlock()
 			}
-
-			cSnapshotsWg.Done()
-		}()
+		})
 	}
 
 	for _, inst := range instances {
