@@ -90,6 +90,23 @@ download_test_images() {
     )
 }
 
+# download_virtiofsd: copies or downloads the virtiofsd binary to the expected location.
+download_virtiofsd() {
+    local dir="${1:-/usr/lib/qemu}"
+    [ -d "${dir}" ] || mkdir -p "${dir}"
+
+    # If virtiofsd is already present in PATH move it to the expected location. Otherwise,
+    # download the virtiofsd binary from the latest GitLab CI build artifacts
+    if command -v virtiofsd >/dev/null && [ "$(command -v virtiofsd)" != "${dir}/virtiofsd" ]; then
+        mv "$(command -v virtiofsd)" "${dir}/virtiofsd"
+    else
+        curl --show-error --silent --retry 3 --retry-delay 5 --location \
+             --continue-at - "https://gitlab.com/virtio-fs/virtiofsd/-/jobs/artifacts/main/raw/target/$(uname -m)-unknown-linux-musl/release/virtiofsd?job=publish" --output "${dir}/virtiofsd"
+    fi
+
+    chmod +x "${dir}/virtiofsd"
+}
+
 install_tools() {
     local pkg="${1}"
 
@@ -156,6 +173,14 @@ install_instance_drivers() {
         fi
 
         # Verify that the newly installed tools provided the needed binaries
-        check_dependencies qemu-img "qemu-system-${UNAME}" sgdisk /usr/lib/qemu/virtiofsd
+        check_dependencies qemu-img "qemu-system-${UNAME}" sgdisk /usr/lib/qemu/virtiofsd make-bcache
+    fi
+
+    # While virtiofsd is present in 22.04's QEMU, it is too old to work properly with LXD so
+    # download a more recent version.
+    if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
+        download_virtiofsd "/usr/lib/qemu"
+
+        check_dependencies /usr/lib/qemu/virtiofsd
     fi
 }
