@@ -59,24 +59,24 @@ func activeFilters(kind string) []string {
 // Return an expression evaluating if a filter should be used (based on active
 // criteria).
 func activeCriteria(filter []string, ignoredFilter []string) string {
-	expr := ""
+	var expr strings.Builder
 	for i, name := range filter {
 		if i > 0 {
-			expr += " && "
+			expr.WriteString(" && ")
 		}
 
-		expr += "filter." + name + " != nil"
+		expr.WriteString("filter." + name + " != nil")
 	}
 
 	for _, name := range ignoredFilter {
-		if len(expr) > 0 {
-			expr += " && "
+		if expr.Len() > 0 {
+			expr.WriteString(" && ")
 		}
 
-		expr += "filter." + name + " == nil"
+		expr.WriteString("filter." + name + " == nil")
 	}
 
-	return expr
+	return expr.String()
 }
 
 // Return the code for a "dest" function, to be passed as parameter to
