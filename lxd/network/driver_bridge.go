@@ -3797,14 +3797,11 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 		leasesCh := make(chan api.NetworkLease)
 
 		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			for lease := range leasesCh {
 				leases = append(leases, lease)
 			}
-
-			wg.Done()
-		}()
+		})
 
 		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 			memberLeases, err := client.GetNetworkLeases(n.name)
