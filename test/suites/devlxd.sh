@@ -197,7 +197,7 @@ EOF
 
   # Check device configs are available and that NIC hwaddr is available even if volatile.
   hwaddr=$(lxc config get devlxd volatile.eth0.hwaddr)
-  [ "$(lxc exec devlxd -- devlxd-client devices | jq --exit-status --raw-output .eth0.hwaddr)" = "${hwaddr}" ]
+  lxc exec devlxd -- devlxd-client devices | jq --exit-status ".eth0.hwaddr == \"${hwaddr}\""
 
   lxc delete devlxd --force
   kill -9 "${monitorDevlxdPID}"
@@ -226,36 +226,16 @@ test_devlxd_volume_management() {
   ensure_import_testimage
 
   if [ "${LXD_VM_TESTS:-0}" != "0" ]; then
-    # XXX: Jammy runner needs migration.stateful.
-    # Once this is no longer needed, also remove all conditional checks related to "isJammyRunner".
-    isJammyRunner=$(grep -qxF 'VERSION_ID="22.04"' /etc/os-release && echo "true" || echo "false")
-
-    if [ "${isJammyRunner}" = "true" ]; then
-      echo "Using migration.stateful to force 9p config drive thus avoiding the old/incompatible virtiofsd"
-      lxc profile set default migration.stateful=true --project "${project}"
-
-      # When migration.stateful is enabled, we can attach only block volumes from shared storage pools.
-      if [ "${poolDriver}" = "ceph" ]; then
-        instTypes="${instTypes} virtual-machine"
-        ensure_import_ubuntu_vm_image
-      fi
-    else
-      instTypes="${instTypes} virtual-machine"
-      ensure_import_ubuntu_vm_image
-    fi
+    ensure_import_ubuntu_vm_image
+    instTypes="${instTypes} virtual-machine"
   fi
 
   for instType in $instTypes; do
     inst="${instPrefix}-${instType}"
 
-    # XXX: Required to mitigate the issue where FS cannot be mounted in VMs with migration.stateful.
-    useBlockVol="false"
     image="testimage"
     opts="--storage ${pool}"
     if [ "${instType}" = "virtual-machine" ]; then
-        if [ "${isJammyRunner}" = "true" ]; then
-          useBlockVol="true"
-        fi
         image="ubuntu-vm"
         opts="$opts --vm --config limits.memory=384MiB --device ${SMALL_VM_ROOT_DISK}"
     fi
@@ -280,9 +260,9 @@ test_devlxd_volume_management() {
 
     # Ensure "environment" is not included in the API response for unauthenticated clients.
     # When using LXD go-client, default values are used for missing fields, so "environment.server_clustered" will be false.
-    [ "$(lxc exec "${inst}" --project "${project}" -- devlxd-client get-state | jq --exit-status '.environment.server_clustered')" = "false" ]
+    lxc exec "${inst}" --project "${project}" -- devlxd-client get-state | jq --exit-status '.environment.server_clustered == false'
     # However, "environment" must be missing in the API response.
-    [ "$(lxc exec "${inst}" --project "${project}" -- devlxd-client query GET /1.0 | jq --exit-status '.environment')" = "null" ]
+    lxc exec "${inst}" --project "${project}" -- devlxd-client query GET /1.0 | jq --exit-status '.environment == null'
 
     # Fail when a valid identity token is passed, but the identity does not have permissions.
     lxc auth identity create "${authIdentity}"
@@ -299,8 +279,8 @@ test_devlxd_volume_management() {
     lxc auth group permission add "${authGroup}" instance "${inst}" can_view project="${project}"
     lxc auth identity group add "${authIdentity}" "${authGroup}"
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}" | jq --exit-status .name
-    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client get-state | jq --exit-status '.environment.server_clustered')" = "false" ]
-    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client query GET /1.0 | jq --exit-status '.environment.server_clustered')" = "false" ]
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client get-state | jq --exit-status '.environment.server_clustered == false'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client query GET /1.0 | jq --exit-status '.environment.server_clustered == false'
 
     # Test devLXD authorization (volume management security flag).
     # Fail when the security flag is not set.
@@ -325,21 +305,7 @@ test_devlxd_volume_management() {
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" "${instType}" "${inst}")" = "Only custom storage volume requests are allowed" ]
 
     # Create a custom storage volume.
-    volOpts=""
-    if [ "${useBlockVol}" = "true" ]; then
-      volOpts=', "content_type": "block"'
-    fi
-
-    vol1=$(cat <<EOF
-{
-    "name": "vol-01",
-    "type": "custom",
-    "config": {
-        "size": "10MiB"
-    }${volOpts}
-}
-EOF
-)
+    vol1='{"name": "vol-01", "type": "custom", "config": {"size": "8MiB"}}'
 
     # Create a custom storage volume (fail - insufficient permissions).
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${vol1}")" = "Forbidden" ]
@@ -350,17 +316,7 @@ EOF
     # Create a custom storage volumes (ok).
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${vol1}"
 
-    vol2=$(cat <<EOF
-{
-    "name": "vol-02",
-    "type": "custom",
-    "config": {
-        "size": "10MiB"
-    }${volOpts}
-}
-EOF
-)
-
+    vol2='{"name": "vol-02", "type": "custom", "config": {"size": "8MiB"}}'
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${vol2}"
 
     # Fail - already exists.
@@ -372,7 +328,7 @@ EOF
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" custom vol-02
 
     # Update storage volume.
-    volNew='{"description": "Updated volume", "config": {"size": "20MiB"}}'
+    volNew='{"description": "Updated volume", "config": {"size": "12MiB"}}'
 
     # Update storage volume (fail - insufficient permissions).
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage update-volume "${pool}" custom vol-01 "${volNew}")" = "Forbidden" ]
@@ -389,30 +345,25 @@ EOF
     # Update storage volume (ok - no ETag).
     etag=$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume-etag "${pool}" custom vol-01)
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage update-volume "${pool}" custom vol-01 "${volNew}"
-    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" custom vol-01 | jq --exit-status '.config.size == "20MiB" and .description == "Updated volume"'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" custom vol-01 | jq --exit-status '.config.size == "12MiB" and .description == "Updated volume"'
 
     # Update storage volume (ok - correct ETag).
     etag=$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume-etag "${pool}" custom vol-02)
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage update-volume "${pool}" custom vol-02 "${volNew}" "${etag}"
-    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" custom vol-02 | jq --exit-status '.config.size == "20MiB" and .description == "Updated volume"'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" custom vol-02 | jq --exit-status '.config.size == "12MiB" and .description == "Updated volume"'
 
     # Get instance.
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}"
 
     # Attach new device.
-    attachOpts=', "path": "/mnt/vol-01"'
-    if [ "${useBlockVol}" = "true" ]; then
-      attachOpts=""
-    fi
-
     attachReq=$(cat <<EOF
 {
     "devices": {
         "vol-01": {
             "type": "disk",
             "pool": "${pool}",
-            "source": "vol-01"
-            ${attachOpts}
+            "source": "vol-01",
+            "path": "/mnt/vol-01"
         }
     }
 }
@@ -440,9 +391,8 @@ EOF
 
     # Manage device on a different instance.
     inst2="${inst}-2"
-
-    # shellcheck disable=SC2086 # Variable "opts" must not be quoted, we want word splitting.
-    lxc init "${image}" "${inst2}" --project "${project}" $opts
+    # Use a container for the second instance as it is faster.
+    lxc launch testimage "${inst2}" --project "${project}" --storage "${pool}"
 
     # Fail - missing permission.
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst2}")" = "Not Found" ]
@@ -458,7 +408,7 @@ EOF
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance update "${inst2}" "${detachReq}" "${etag}"
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst2}" | jq --exit-status '.devices == {}'
 
-    lxc delete "${inst}-2" --project "${project}" --force
+    lxc delete "${inst2}" --project "${project}" --force
 
     # Delete storage volume (fail - insufficient permissions).
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage delete-volume "${pool}" "${instType}" "${inst}")" = "Forbidden" ]
@@ -480,7 +430,7 @@ EOF
     # Test block volumes (VMs only).
     if [ "${instType}" = "virtual-machine" ]; then
       # Create a custom block volume.
-      volBlock='{"name": "block-vol", "type": "custom", "content_type": "block", "config": {"size": "10MiB"}}'
+      volBlock='{"name": "block-vol", "type": "custom", "content_type": "block", "config": {"size": "8MiB"}}'
       lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${volBlock}"
 
       # Attach block volume to the instance.
@@ -502,7 +452,7 @@ EOF
 
       # Try increasing block volume size while the volume is attached to a running VM (in use).
       # Ensure the returned status code is 423 (StatusLocked).
-      patchReq='{"config": {"size": "20MiB"}}'
+      patchReq='{"config": {"size": "12MiB"}}'
       [ "$(lxc exec "${inst}" --project "${project}" -- curl -s -o /dev/null -w "%{http_code}" --unix-socket /dev/lxd/sock -H "Authorization: Bearer ${token}" -X PATCH "lxd/1.0/storage-pools/${pool}/volumes/custom/block-vol" -d "${patchReq}")" = "423" ]
 
       # Detach device.
@@ -514,7 +464,9 @@ EOF
     fi
 
     # Cleanup.
-    lxc image delete "$(lxc config get "${inst}" volatile.base_image --project "${project}")" --project "${project}"
+    if [ "${instType}" = "virtual-machine" ]; then
+      lxc image delete "$(lxc config get "${inst}" volatile.base_image --project "${project}")" --project "${project}"
+    fi
     lxc delete "${inst}" --project "${project}" --force
     lxc auth identity delete "${authIdentity}"
     lxc auth group delete "${authGroup}"
@@ -528,11 +480,6 @@ EOF
 }
 
 test_devlxd_vm() {
-  if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
-    echo "Using migration.stateful to force 9p config drive thus avoiding the old/incompatible virtiofsd"
-    lxc profile set default migration.stateful=true
-  fi
-
   pool="lxdtest-$(basename "${LXD_DIR}")"
   orig_volume_size="$(lxc storage get "${pool}" volume.size)"
   if [ -n "${orig_volume_size:-}" ]; then
@@ -636,10 +583,5 @@ runcmd:
   if [ -n "${orig_volume_size:-}" ]; then
     echo "==> Restore the volume.size"
     lxc storage set "${pool}" volume.size "${orig_volume_size}"
-  fi
-
-  if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
-    # Cleanup custom changes from the default profile
-    lxc profile unset default migration.stateful
   fi
 }
