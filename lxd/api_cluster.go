@@ -3124,7 +3124,7 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 				Live: live,
 			}
 
-			err := migrateInstance(ctx, s, inst, targetMemberInfo.Name, "", req, op)
+			err := migrateInstance(ctx, s, inst, targetMemberInfo.Name, "", req, nil, op)
 			if err != nil {
 				return fmt.Errorf("Failed migrating instance %q in project %q: %w", inst.Name(), inst.Project().Name, err)
 			}
