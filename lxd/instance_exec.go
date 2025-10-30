@@ -305,10 +305,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 	})
 
 	// Now that process has started, we can start the control handler.
-	wgEOF.Add(1)
-	go func() {
-		defer wgEOF.Done()
-
+	wgEOF.Go(func() {
 		<-s.waitControlConnected.Done() // Indicates control connection has started or command has ended.
 
 		s.connsLock.Lock()
@@ -390,14 +387,11 @@ func (s *execWs) Do(op *operations.Operation) error {
 				}
 			}
 		}
-	}()
+	})
 
 	// Now that process has started, we can start the mirroring of the process channels and websockets.
 	if s.req.Interactive {
-		wgEOF.Add(1)
-		go func() {
-			defer wgEOF.Done()
-
+		wgEOF.Go(func() {
 			var readErr, writeErr error
 			l.Debug("Exec mirror websocket started", logger.Ctx{"number": 0})
 			defer func() {
@@ -421,7 +415,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 			readErr = <-readDone
 			writeErr = <-writeDone
 			_ = conn.Close()
-		}()
+		})
 	} else {
 		wgEOF.Add(len(ttys) - 1)
 		for i := range ttys {
