@@ -142,11 +142,17 @@ If you prefer to use the LXD UI, expand and follow the steps below.
 
 ````{dropdown} View steps to enable the LXD UI
 
-1. By default, LXD is exposed through a Unix socket only and is not accessible over HTTPS. To access and manage LXD through a web browser using HTTPS, we must set the {config:option}`server-core:core.https_address` server configuration option. Run:
+### Expose the LXD server to the local network
+
+By default, LXD is exposed through a Unix socket only and is not accessible over HTTPS. To access and manage LXD through a web browser using HTTPS, we must set the {config:option}`server-core:core.https_address` server configuration option. We will use the local network by configuring this to the IPv6 loopback address `[::1]` and port 8443. Run:
 
 ```bash
-lxc config set core.https_address :8443
+lxc config set core.https_address [::1]:8443
 ```
+
+### Set up UI access
+
+Go to this URL in your browser: [`https://localhost:8443`](https://localhost:8443)
 
 ```{include} ../howto/access_ui.md
 :start-after: <!-- Include start access UI -->
@@ -154,7 +160,7 @@ lxc config set core.https_address :8443
 ```
 ````
 
-Most of the following sections include sets of tabs. When the `UI` tab is available, use the instructions in that tab.
+As you continue on with this tutorial, notice that many of the following sections include sets of tabs. When the `UI` tab is available, you can now use the instructions in that tab.
 
 (tutorial-create-instances)=
 ## Create instances
@@ -284,7 +290,7 @@ Open the form to create a new instance. Name it `ubuntu-desktop`.
 
 Browse for its image, and filter by variant `desktop` to find the Ubuntu 24.04 LTS desktop image. Note that its {guilabel}`Source` is `LXD Images`, meaning that it uses the remote [`images:`](https://images.lxd.canonical.com/) server. Select this image.
 
-Next, go to {guilabel}`Advanced` > {guilabel}`Resource limits` and set the {guilabel}`Memory limit` to 4 GiB.
+In the submenu, go to {guilabel}`Resource limits` and override the {guilabel}`Memory limit` to 4 GiB.
 
 Finally, click {guilabel}`Create and start` to start the VM.
 
