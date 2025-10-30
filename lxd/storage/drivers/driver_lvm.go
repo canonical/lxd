@@ -62,7 +62,8 @@ func (d *lvm) load() error {
 		}
 
 		lines := strings.Split(output, "\n")
-		for idx, line := range lines {
+		versionParts := make([]string, 0, len(lines))
+		for _, line := range lines {
 			fields := strings.SplitAfterN(line, ":", 2)
 			if len(fields) < 2 {
 				continue
@@ -72,12 +73,10 @@ func (d *lvm) load() error {
 				continue
 			}
 
-			if idx > 0 {
-				lvmVersion += " / "
-			}
-
-			lvmVersion += strings.TrimSpace(fields[1])
+			versionParts = append(versionParts, strings.TrimSpace(fields[1]))
 		}
+
+		lvmVersion = strings.Join(versionParts, " / ")
 	}
 
 	lvmLoaded = true
