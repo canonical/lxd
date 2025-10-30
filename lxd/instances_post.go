@@ -1357,7 +1357,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		opAPI := op.Get()
-		return operations.ForwardedOperationResponse(targetProjectName, &opAPI)
+		return operations.ForwardedOperationResponse(&opAPI)
 	}
 
 	switch req.Source.Type {
