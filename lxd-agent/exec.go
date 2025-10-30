@@ -371,10 +371,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 	l := logger.AddContext(logger.Ctx{"PID": cmd.Process.Pid, "interactive": s.interactive})
 	l.Debug("Instance process started")
 
-	wgEOF.Add(1)
-	go func() {
-		defer wgEOF.Done()
-
+	wgEOF.Go(func() {
 		l.Debug("Exec control handler started")
 		defer l.Debug("Exec control handler finished")
 
@@ -453,13 +450,10 @@ func (s *execWs) Do(op *operations.Operation) error {
 				l.Info("Forwarded signal", logger.Ctx{"signal": command.Signal})
 			}
 		}
-	}()
+	})
 
 	if s.interactive {
-		wgEOF.Add(1)
-		go func() {
-			defer wgEOF.Done()
-
+		wgEOF.Go(func() {
 			l.Debug("Exec mirror websocket started", logger.Ctx{"number": 0})
 			defer l.Debug("Exec mirror websocket finished", logger.Ctx{"number": 0})
 
@@ -472,7 +466,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 			<-readDone
 			<-writeDone
 			_ = conn.Close()
-		}()
+		})
 	} else {
 		wgEOF.Add(len(ttys) - 1)
 		for i := range ttys {
