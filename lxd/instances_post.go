@@ -1247,6 +1247,17 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
+		// Check that the name isn't already in use.
+		// We skip this check for copy with refresh and intra-cluster moves as in those cases the instance already exists.
+		if !req.Source.Refresh && !clusterNotification && req.Source.Source == "" {
+			existingID, err := tx.GetInstanceID(ctx, targetProjectName, req.Name)
+			if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+				return fmt.Errorf("Failed checking for existing instance: %w", err)
+			} else if existingID > 0 {
+				return api.StatusErrorf(http.StatusConflict, "Instance %q already exists", req.Name)
+			}
+		}
+
 		if s.ServerClustered && !clusterNotification && targetMemberInfo == nil {
 			architectures, err := instance.SuitableArchitectures(ctx, s, tx, targetProjectName, sourceInst, sourceImageRef, req)
 			if err != nil {
