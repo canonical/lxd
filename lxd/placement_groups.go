@@ -216,7 +216,12 @@ func placementGroupsGet(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
-			apiGroup.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, apiGroup.UsedBy)
+			usedBy, err := cluster.GetPlacementGroupUsedBy(ctx, tx.Tx(), cluster.PlacementGroupFilter{Project: &placementGroup.Project, Name: &placementGroup.Name}, false)
+			if err != nil {
+				return err
+			}
+
+			apiGroup.UsedBy = usedBy
 			apiGroups = append(apiGroups, apiGroup)
 			entitlementReportingMap[u] = apiGroup
 		}
@@ -229,6 +234,10 @@ func placementGroupsGet(d *Daemon, r *http.Request) response.Response {
 
 	if !recursion {
 		return response.SyncResponse(true, placementGroupURLs)
+	}
+
+	for _, pg := range apiGroups {
+		pg.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, pg.UsedBy)
 	}
 
 	if len(withEntitlements) > 0 {
@@ -458,6 +467,13 @@ func placementGroupGet(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return err
 		}
+
+		usedBy, err := cluster.GetPlacementGroupUsedBy(ctx, tx.Tx(), cluster.PlacementGroupFilter{Project: &placementGroup.Project, Name: &placementGroup.Name}, false)
+		if err != nil {
+			return err
+		}
+
+		placementGroup.UsedBy = usedBy
 
 		return nil
 	})

@@ -456,6 +456,9 @@ func (s *filteringSuite) TestFilter() {
 		},
 	}
 
+	// Prepare a placement group cache to avoid reloading the same group repeatedly.
+	pgCache := NewCache()
+
 	for i, tt := range tests {
 		s.T().Logf("Case %d: %s", i, tt.name)
 		if tt.caseSetup != nil {
@@ -463,8 +466,8 @@ func (s *filteringSuite) TestFilter() {
 		}
 
 		_ = testCluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-			// Fetch the placement group from the database to get the full object with ID.
-			placementGroup, err := cluster.GetPlacementGroup(ctx, tx.Tx(), tt.args.placementGroup.Name, tt.args.placementGroup.Project)
+			// Fetch the placement group to get the full object with ID.
+			placementGroup, err := pgCache.Get(ctx, tx, tt.args.placementGroup.Name, tt.args.placementGroup.Project)
 			if err != nil {
 				return err
 			}

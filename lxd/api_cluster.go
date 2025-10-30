@@ -3286,6 +3286,9 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 		return errors.New("Missing migration callback function")
 	}
 
+	// Prepare a placement group cache to avoid reloading the same group repeatedly.
+	pgCache := placement.NewCache()
+
 	for _, inst := range opts.instances {
 		instProject := inst.Project()
 		l := logger.AddContext(logger.Ctx{"project": instProject.Name, "instance": inst.Name()})
@@ -3327,7 +3330,7 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 		}
 
 		// Find a new location for the instance.
-		targetMemberInfo, err := evacuateClusterSelectTarget(ctx, opts.s, inst)
+		targetMemberInfo, err := evacuateClusterSelectTarget(ctx, opts.s, inst, pgCache)
 		if err != nil {
 			if api.StatusErrorCheck(err, http.StatusNotFound) {
 				// Skip migration if no target is available.
@@ -4371,7 +4374,7 @@ func clusterGroupDelete(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-func evacuateClusterSelectTarget(ctx context.Context, s *state.State, inst instance.Instance) (*db.NodeInfo, error) {
+func evacuateClusterSelectTarget(ctx context.Context, s *state.State, inst instance.Instance, pgCache *placement.Cache) (*db.NodeInfo, error) {
 	var targetMemberInfo *db.NodeInfo
 	var candidateMembers []db.NodeInfo
 
@@ -4383,7 +4386,6 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, inst insta
 		}
 
 		// Placement groups and cluster group targets are mutually exclusive, with placement groups taking precedence.
-		// If an instance previously had a cluster group target but now has a placement group, "volatile.cluster.group" is cleared.
 		_, clusterGroupName := limits.TargetDetect(inst.LocalConfig()["volatile.cluster.group"])
 		placementGroupName, ok := inst.ExpandedConfig()["placement.group"]
 
@@ -4397,16 +4399,8 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, inst insta
 		}
 
 		if ok {
-			// Clear "volatile.cluster.group".
-			if clusterGroupName != "" {
-				err = tx.DeleteInstanceConfigKey(ctx, int64(inst.ID()), "volatile.cluster.group")
-				if err != nil {
-					return fmt.Errorf(`Failed removing "volatile.cluster.group" config key: %w`, err)
-				}
-			}
-
 			// Filter candidates by placement group.
-			placementGroup, err := dbCluster.GetPlacementGroup(ctx, tx.Tx(), placementGroupName, inst.Project().Name)
+			placementGroup, err := pgCache.Get(ctx, tx, placementGroupName, inst.Project().Name)
 			if err != nil {
 				return err
 			}

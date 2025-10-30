@@ -121,16 +121,6 @@ func GetPlacementGroupConfig(ctx context.Context, tx *sql.Tx, placementGroupID i
 	}, placementGroupID)
 }
 
-// ToAPIBase populates base fields of the [PlacementGroup] into an [api.PlacementGroup] without querying for any additional data.
-// This is so that additional fields can be populated elsewhere when performing bulk queries.
-func (p PlacementGroup) ToAPIBase() api.PlacementGroup {
-	return api.PlacementGroup{
-		Name:        p.Name,
-		Description: p.Description,
-		Project:     p.Project,
-	}
-}
-
 // ToAPI converts the [PlacementGroup] to an [api.PlacementGroup], querying for extra data as necessary.
 func (p *PlacementGroup) ToAPI(ctx context.Context, tx *sql.Tx) (*api.PlacementGroup, error) {
 	// Get config
@@ -139,17 +129,12 @@ func (p *PlacementGroup) ToAPI(ctx context.Context, tx *sql.Tx) (*api.PlacementG
 		return nil, fmt.Errorf("Failed getting placement group config: %w", err)
 	}
 
-	// Get used by
-	usedBy, err := GetPlacementGroupUsedBy(ctx, tx, PlacementGroupFilter{Project: &p.Project, Name: &p.Name}, false)
-	if err != nil {
-		return nil, err
-	}
-
-	apiPlacementGroup := p.ToAPIBase()
-	apiPlacementGroup.UsedBy = usedBy
-	apiPlacementGroup.Config = config
-
-	return &apiPlacementGroup, nil
+	return &api.PlacementGroup{
+		Name:        p.Name,
+		Description: p.Description,
+		Project:     p.Project,
+		Config:      config,
+	}, nil
 }
 
 // GetPlacementGroupUsedBy returns a list of URLs of all instances and profiles that reference placement groups matching the provided [PlacementGroupFilter].

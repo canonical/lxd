@@ -3903,11 +3903,9 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_ONE_DIR}" lxc init testimage evac-4b -c placement.group=pg-evac-spread-strict -c cluster.evacuate=migrate --target node1
   LXD_DIR="${LXD_ONE_DIR}" lxc init testimage evac-4c -c placement.group=pg-evac-spread-strict -c cluster.evacuate=migrate --target node1
 
-  echo "Verify creating a 4th instance with spread/strict fails due to insufficient nodes"
-  ! LXD_DIR="${LXD_ONE_DIR}" ! lxc init testimage evac-4d -c placement.group=pg-evac-spread-strict -c cluster.evacuate=migrate || false
-
   echo "Evacuating..."
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --force
+  LXD_DIR="${LXD_ONE_DIR}" lxc list # For debugging
 
   echo "Verify instances evacuated (with fallback behavior during evacuation)"
   node1_count=0
@@ -3917,6 +3915,9 @@ test_clustering_evacuation() {
   echo "Instances successfully evacuated from node1: ${node1_count}/3"
   # We only expect 2 instances to evacuate (spread/strict has 2 nodes available excluding evacuated node)
   [ "${node1_count}" = "2" ]
+
+  echo "Verify creating a 4th instance with spread/strict fails due to insufficient nodes"
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc init testimage evac-4d -c placement.group=pg-evac-spread-strict -c cluster.evacuate=migrate || false
 
   echo "Cleaning up..."
   LXD_DIR="${LXD_ONE_DIR}" lxc delete evac-4a evac-4b evac-4c --force
@@ -4445,8 +4446,13 @@ EOF
   [ "$(lxc config get cluster:c2 volatile.cluster.group)" = "blah" ]
   [ "$(lxc config get cluster:c3 volatile.cluster.group)" = "blah" ]
 
+  echo 'Setting a "placement.group" on an instance should clear "volatile.cluster.group"'
+  lxc placement-group create pg-test policy=spread rigor=permissive
+  lxc config set cluster:c2 placement.group=pg-test
+  [ "$(lxc config get cluster:c2 volatile.cluster.group || echo fail)" = "" ]
+
   echo 'Verify that instances with "volatile.cluster.group" are reported in used_by for the blah group'
-  lxc_remote query cluster:/1.0/cluster/groups/blah | jq --exit-status '.used_by | contains(["/1.0/instances/c2", "/1.0/instances/c3"])'
+  lxc_remote query cluster:/1.0/cluster/groups/blah | jq --exit-status '.used_by | .[] == "/1.0/instances/c3"'
 
   echo "Check deleting an in use cluster group fails"
   ! lxc cluster group delete blah || false
@@ -5048,11 +5054,19 @@ test_clustering_placement_groups() {
   LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c1 -c placement.group=pg-spread-strict
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c s c1)" = "STOPPED" ]
 
+  echo "Verify placement group reports the instance in used_by"
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/placement-groups/pg-spread-strict" | jq --exit-status '.used_by | .[] == "/1.0/instances/c1"'
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/placement-groups/pg-spread-strict?recursion=1" | jq --exit-status '.used_by | .[] == "/1.0/instances/c1"'
+
   echo "==> Test spread/strict: second instance should be on different node"
   node1=$(LXD_DIR="${LXD_ONE_DIR}" lxc list c1 -f csv -c L)
   LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c2 -c placement.group=pg-spread-strict
   node2=$(LXD_DIR="${LXD_ONE_DIR}" lxc list c2 -f csv -c L)
   [ "${node1}" != "${node2}" ]
+
+  echo "Verify placement group used_by contains both instances"
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/placement-groups/pg-spread-strict" | jq --exit-status '.used_by | contains(["/1.0/instances/c1", "/1.0/instances/c2"])'
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/placement-groups/pg-spread-strict?recursion=1" | jq --exit-status '.used_by | contains(["/1.0/instances/c1", "/1.0/instances/c2"])'
 
   echo "==> Test spread/strict: add instances to all 5 nodes"
   LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c3 -c placement.group=pg-spread-strict
@@ -5138,12 +5152,16 @@ test_clustering_placement_groups() {
   LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2
 
   echo "==> Test placement groups are project-specific"
-  LXD_DIR="${LXD_ONE_DIR}" lxc project create test-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc project create test-project -c features.images=false -c features.profiles=false
   LXD_DIR="${LXD_ONE_DIR}" lxc project switch test-project
 
   # Same name in different project should work
   LXD_DIR="${LXD_ONE_DIR}" lxc placement-group create pg-spread-strict policy=spread rigor=strict
   LXD_DIR="${LXD_ONE_DIR}" lxc placement-group list | grep pg-spread-strict
+
+  # Check used_by
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c1 -c placement.group=pg-spread-strict
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/placement-groups/pg-spread-strict?project=test-project" | jq --exit-status '.used_by | .[] == "/1.0/instances/c1?project=test-project"'
 
   # Switch back to default
   LXD_DIR="${LXD_ONE_DIR}" lxc project switch default
