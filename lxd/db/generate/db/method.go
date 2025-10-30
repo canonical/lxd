@@ -264,20 +264,20 @@ func (m *Method) getMany(buf *file.Buffer) error {
 			}
 
 			buf.L("%s %s {", branch, activeCriteria(filter, ignoredFilters[i]))
-			var args string
+			var args strings.Builder
 			for _, name := range filter {
 				for _, field := range mapping.Fields {
 					if name == field.Name && shared.IsTrue(field.Config.Get("marshal")) {
 						buf.L("marshaledFilter%s, err := query.Marshal(filter.%s)", name, name)
 						m.ifErrNotNil(buf, true, "nil", "err")
-						args += "marshaledFilter" + name + ","
+						args.WriteString("marshaledFilter" + name + ",")
 					} else if name == field.Name {
-						args += "filter." + name + ","
+						args.WriteString("filter." + name + ",")
 					}
 				}
 			}
 
-			buf.L("args = append(args, []any{%s}...)", args)
+			buf.L("args = append(args, []any{%s}...)", args.String())
 			buf.L("if len(filters) == 1 {")
 			if m.db == "" {
 				buf.L("sqlStmt, err = Stmt(tx, %s)", stmtCodeVar(m.entity, "objects", filter...))
@@ -710,25 +710,25 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		buf.L("}")
 		buf.N()
 		buf.L("queryStr := fmt.Sprintf(%s, fillParent...)", stmtLocal)
-		createParams := ""
+		var createParams strings.Builder
 		columnFields := mapping.ColumnFields("ID")
 		if mapping.Type == ReferenceTable {
 			buf.L("for _, object := range objects {")
 		}
 
 		for i, field := range columnFields {
-			createParams += "object." + field.Name
+			createParams.WriteString("object." + field.Name)
 			if i < len(columnFields) {
-				createParams += ", "
+				createParams.WriteString(", ")
 			}
 		}
 
 		refFields := mapping.RefFields()
 		if len(refFields) == 0 {
-			buf.L("_, err := tx.ExecContext(ctx, queryStr, %s)", createParams)
+			buf.L("_, err := tx.ExecContext(ctx, queryStr, %s)", createParams.String())
 			m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Insert failed for \"%%s_%s\" table: %%w", parent, err)`, lex.Plural(m.entity)))
 		} else {
-			buf.L("result, err := tx.ExecContext(ctx, queryStr, %s)", createParams)
+			buf.L("result, err := tx.ExecContext(ctx, queryStr, %s)", createParams.String())
 			m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Insert failed for \"%%s_%s\" table: %%w", parent, err)`, lex.Plural(m.entity)))
 			buf.L("id, err := result.LastInsertId()")
 			m.ifErrNotNil(buf, true, "fmt.Errorf(\"Failed to fetch ID: %w\", err)")
