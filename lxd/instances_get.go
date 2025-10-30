@@ -433,9 +433,7 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 			queue := make(chan db.Instance, threads)
 
 			for range threads {
-				wg.Add(1)
-
-				go func() {
+				wg.Go(func() {
 					for {
 						dbInst, more := <-queue
 						if !more {
@@ -465,9 +463,7 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 							resultFullListAppend(c)
 						}
 					}
-
-					wg.Done()
-				}()
+				})
 			}
 
 			for _, inst := range instances {
