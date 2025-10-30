@@ -146,11 +146,11 @@ func instanceProfileGenerate(sysOS *sys.OS, inst instance) error {
 // instanceProfile generates the AppArmor profile template from the given instance.
 func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 	// Prepare raw.apparmor.
-	rawContent := ""
+	var rawContent strings.Builder
 	rawApparmor, ok := inst.ExpandedConfig()["raw.apparmor"]
 	if ok {
 		for line := range strings.SplitSeq(strings.Trim(rawApparmor, "\n"), "\n") {
-			rawContent += "  " + line + "\n"
+			rawContent.WriteString("  " + line + "\n")
 		}
 	}
 
@@ -184,7 +184,7 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 			"name":                      InstanceProfileName(inst),
 			"namespace":                 InstanceNamespaceName(inst),
 			"nesting":                   shared.IsTrue(inst.ExpandedConfig()["security.nesting"]),
-			"raw":                       rawContent,
+			"raw":                       rawContent.String(),
 			"unprivileged":              shared.IsFalseOrEmpty(inst.ExpandedConfig()["security.privileged"]) || sysOS.RunningInUserNS,
 		})
 		if err != nil {
@@ -229,7 +229,7 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 			"logPath":           inst.LogPath(),
 			"name":              InstanceProfileName(inst),
 			"path":              path,
-			"raw":               rawContent,
+			"raw":               rawContent.String(),
 			"rootPath":          rootPath,
 			"snap":              shared.InSnap(),
 			"userns":            sysOS.RunningInUserNS,
