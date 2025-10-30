@@ -774,7 +774,8 @@ test_projects_limits() {
   lxc profile device set default root size=100MiB
   lxc config device add c2 root disk path="/" pool="${pool}" size=50MiB
 
-  if [ "${LXD_BACKEND}" = "lvm" ]; then
+  lxd_backend=$(storage_backend "$LXD_DIR")
+  if [ "${lxd_backend}" = "lvm" ]; then
     # Can't set the project's disk limit because not all volumes have
     # the "size" config defined.
     pool1="lxdtest1-$(basename "${LXD_DIR}")"
@@ -824,7 +825,7 @@ test_projects_limits() {
   # Run the following part of the test only against the dir or zfs backend,
   # since it on other backends it requires resize the rootfs to a value which is
   # too small for resize2fs.
-  if [ "${LXD_BACKEND}" = "dir" ] || [ "${LXD_BACKEND}" = "zfs" ]; then
+  if [ "${lxd_backend}" = "dir" ] || [ "${lxd_backend}" = "zfs" ]; then
     # Add a remote LXD to be used as image server.
     local LXD_REMOTE_DIR
     LXD_REMOTE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
@@ -889,7 +890,7 @@ test_projects_limits() {
   lxc project switch default
   lxc project delete p1
 
-  if [ "${LXD_BACKEND}" = "dir" ] || [ "${LXD_BACKEND}" = "zfs" ]; then
+  if [ "${lxd_backend}" = "dir" ] || [ "${lxd_backend}" = "zfs" ]; then
     lxc remote remove l2
     kill_lxd "$LXD_REMOTE_DIR"
   fi
