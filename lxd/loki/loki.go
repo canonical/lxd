@@ -330,14 +330,16 @@ func (c *Client) HandleEvent(event api.Event) {
 			}
 		}
 
-		messagePrefix := ""
+		var line strings.Builder
 
 		// Add the remaining context as the message prefix.
 		for k, v := range context {
-			messagePrefix += k + `="` + v + `" `
+			line.WriteString(k + `="` + v + `" `)
 		}
 
-		entry.Line = messagePrefix + lifecycleEvent.Action
+		line.WriteString(lifecycleEvent.Action)
+
+		entry.Line = line.String()
 	case api.EventTypeLogging, api.EventTypeOVN:
 		logEvent := api.EventLogging{}
 

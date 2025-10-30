@@ -111,7 +111,7 @@ func (m *MetricSet) String() string {
 
 		for _, sample := range m.set[metricType] {
 			firstLabel := true
-			labels := ""
+			var labels strings.Builder
 			labelNames := make([]string, 0, len(sample.Labels))
 
 			// Add and sort labels if there are any
@@ -123,17 +123,17 @@ func (m *MetricSet) String() string {
 
 			for _, labelName := range labelNames {
 				if !firstLabel {
-					labels += ","
+					labels.WriteString(",")
 				}
 
-				labels += labelName + `="` + sample.Labels[labelName] + `"`
+				labels.WriteString(labelName + `="` + sample.Labels[labelName] + `"`)
 				firstLabel = false
 			}
 
 			valueStr := strconv.FormatFloat(sample.Value, 'g', -1, 64)
 
-			if labels != "" {
-				_, err = out.WriteString(MetricNames[metricType] + "{" + labels + "} " + valueStr + "\n")
+			if labels.Len() > 0 {
+				_, err = out.WriteString(MetricNames[metricType] + "{" + labels.String() + "} " + valueStr + "\n")
 			} else {
 				_, err = out.WriteString(MetricNames[metricType] + " " + valueStr + "\n")
 			}

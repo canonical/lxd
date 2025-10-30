@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
@@ -147,12 +148,13 @@ func doProfileUpdate(ctx context.Context, s *state.State, p api.Project, profile
 	}
 
 	if len(failures) != 0 {
-		msg := "The following instances failed to update (profile change still saved):\n"
+		var msg strings.Builder
+		msg.WriteString("The following instances failed to update (profile change still saved):\n")
 		for inst, err := range failures {
-			msg += fmt.Sprintf(" - Project: %s, Instance: %s: %v\n", inst.Project, inst.Name, err)
+			msg.WriteString(fmt.Sprintf(" - Project: %s, Instance: %s: %v\n", inst.Project, inst.Name, err))
 		}
 
-		return errors.New(msg)
+		return errors.New(msg.String())
 	}
 
 	return nil
@@ -192,12 +194,13 @@ func doProfileUpdateCluster(ctx context.Context, s *state.State, projectName str
 	}
 
 	if len(failures) != 0 {
-		msg := "The following instances failed to update (profile change still saved):\n"
+		var msg strings.Builder
+		msg.WriteString("The following instances failed to update (profile change still saved):\n")
 		for inst, err := range failures {
-			msg += fmt.Sprintf(" - Project: %s, Instance: %s: %v\n", inst.Project, inst.Name, err)
+			msg.WriteString(fmt.Sprintf(" - Project: %s, Instance: %s: %v\n", inst.Project, inst.Name, err))
 		}
 
-		return errors.New(msg)
+		return errors.New(msg.String())
 	}
 
 	return nil

@@ -4,6 +4,7 @@ package shared
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -212,7 +213,7 @@ func Uname() (*Utsname, error) {
 
 func intArrayToString(arr any) string {
 	slice := reflect.ValueOf(arr)
-	s := ""
+	var s bytes.Buffer
 	for i := range slice.Len() {
 		val := slice.Index(i)
 		valInt := int64(-1)
@@ -232,10 +233,10 @@ func intArrayToString(arr any) string {
 			break
 		}
 
-		s += string(byte(valInt))
+		s.WriteByte(byte(valInt))
 	}
 
-	return s
+	return s.String()
 }
 
 // DeviceTotalMemory returns the total memory of the device by reading /proc/meminfo.
