@@ -1194,7 +1194,7 @@ func IPIsBroadcast(subnet *net.IPNet, address net.IP) bool {
 	}
 
 	broadcast := make(net.IP, net.IPv4len)
-	for i := 0; i < net.IPv4len; i++ {
+	for i := range net.IPv4len {
 		broadcast[i] = networkIPv4[i] | ^mask[i]
 	}
 
