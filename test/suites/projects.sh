@@ -84,6 +84,9 @@ test_projects_crud() {
 
 # Use containers in a project.
 test_projects_containers() {
+  lxc list --project default
+  ! lxc list --project nonexistent || false
+
   # Create a project and switch to it
   lxc project create foo
   lxc project switch foo
@@ -322,6 +325,9 @@ test_projects_backups() {
 
 # Use private profiles in a project.
 test_projects_profiles() {
+  lxc profile list --project default
+  ! lxc profile list --project nonexistent || false
+
   # Create a project and switch to it
   lxc project create foo
   lxc project switch foo
@@ -435,6 +441,11 @@ test_projects_profiles_default() {
 
 # Use private images in a project.
 test_projects_images() {
+  lxc image list --project default
+  ! lxc image list --project nonexistent || false
+  lxc image alias list --project default
+  ! lxc image alias list --project nonexistent || false
+
   # Create a project and switch to it
   lxc project create foo
   lxc project switch foo
@@ -529,6 +540,14 @@ test_projects_images_default() {
 # Interaction between projects and storage pools.
 test_projects_storage() {
   pool="lxdtest-$(basename "${LXD_DIR}")"
+  lxd_backend=$(storage_backend "$LXD_DIR")
+
+  lxc storage volume list "${pool}" --project default
+  ! lxc storage volume list "${pool}" --project nonexistent || false
+  if [ "${lxd_backend}" != "ceph" ]; then
+    lxc storage bucket list "${pool}" --project default
+    ! lxc storage bucket list "${pool}" --project nonexistent || false
+  fi
 
   lxc storage volume create "${pool}" vol
 
@@ -565,6 +584,13 @@ test_projects_storage() {
 
 # Interaction between projects and networks.
 test_projects_network() {
+  lxc network list --project default
+  ! lxc network list --project nonexistent || false
+  lxc network zone list --project default
+  ! lxc network zone list --project nonexistent || false
+  lxc network acl list --project default
+  ! lxc network acl list --project nonexistent || false
+
   # Standard bridge with random subnet and a bunch of options
   network="lxdt$$"
   lxc network create "${network}" ipv4.address=none ipv6.address=none
@@ -784,7 +810,8 @@ test_projects_limits() {
   lxc profile device set default root size=100MiB
   lxc config device add c2 root disk path="/" pool="${pool}" size=50MiB
 
-  if [ "${LXD_BACKEND}" = "lvm" ]; then
+  lxd_backend=$(storage_backend "$LXD_DIR")
+  if [ "${lxd_backend}" = "lvm" ]; then
     # Can't set the project's disk limit because not all volumes have
     # the "size" config defined.
     pool1="lxdtest1-$(basename "${LXD_DIR}")"
@@ -834,7 +861,7 @@ test_projects_limits() {
   # Run the following part of the test only against the dir or zfs backend,
   # since it on other backends it requires resize the rootfs to a value which is
   # too small for resize2fs.
-  if [ "${LXD_BACKEND}" = "dir" ] || [ "${LXD_BACKEND}" = "zfs" ]; then
+  if [ "${lxd_backend}" = "dir" ] || [ "${lxd_backend}" = "zfs" ]; then
     # Add a remote LXD to be used as image server.
     local LXD_REMOTE_DIR
     LXD_REMOTE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
@@ -900,7 +927,7 @@ test_projects_limits() {
   lxc project switch default
   lxc project delete p1
 
-  if [ "${LXD_BACKEND}" = "dir" ] || [ "${LXD_BACKEND}" = "zfs" ]; then
+  if [ "${lxd_backend}" = "dir" ] || [ "${lxd_backend}" = "zfs" ]; then
     lxc remote remove l2
     kill_lxd "$LXD_REMOTE_DIR"
   fi
@@ -1324,7 +1351,8 @@ test_projects_images_volume() {
 
   lxc project create foo
 
-  if [ "${LXD_BACKEND}" = "ceph" ]; then
+  lxd_backend=$(storage_backend "$LXD_DIR")
+  if [ "${lxd_backend}" = "ceph" ]; then
     # This won't work on ceph because it's not a multi-node storage
     ! lxc config set storage.project.foo.images_volume="${pool}/vol" || false
     # Clean up
@@ -1405,7 +1433,8 @@ test_projects_backups_volume() {
 
   lxc project create foo
 
-  if [ "${LXD_BACKEND}" = "ceph" ]; then
+  lxd_backend=$(storage_backend "$LXD_DIR")
+  if [ "${lxd_backend}" = "ceph" ]; then
     # This won't work on ceph because it's not a multi-node storage
     ! lxc config set storage.project.foo.backups_volume="${pool}/vol" || false
     # Clean up
