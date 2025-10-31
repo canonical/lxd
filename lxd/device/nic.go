@@ -32,7 +32,7 @@ func nicValidationRules(requiredFields []string, optionalFields []string, instCo
 		//  type: string
 		//  managed: yes
 		//  shortdesc: Physical function interfaces to allocate virtual functions from for hardware acceleration
-		"acceleration.parent": validate.IsAny,
+		"acceleration.parent": validate.Optional(validate.IsListOf(validate.IsInterfaceName)),
 		// lxdmeta:generate(entities=device-nic-{bridged+macvlan+sriov+physical+ovn}; group=device-conf; key=name)
 		//
 		// ---
