@@ -245,11 +245,7 @@ func createFromMigration(ctx context.Context, s *state.State, projectName string
 
 	// Decide if this is an internal cluster move request.
 	var clusterMoveSourceName string
-	if isClusterNotification {
-		if req.Source.Source == "" {
-			return response.BadRequest(errors.New("Source instance name must be provided for cluster member move"))
-		}
-
+	if isClusterNotification && req.Source.Source != "" {
 		clusterMoveSourceName = req.Source.Source
 	}
 
