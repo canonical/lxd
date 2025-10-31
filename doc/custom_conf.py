@@ -171,7 +171,7 @@ else:
 linkcheck_ignore = [
     'https://127.0.0.1:8443',
     'https://127.0.0.1:8443/1.0',
-    'https://localhost:8443'
+    'https://localhost:8443',
     'https://web.libera.chat/#lxd',
     'http://localhost:8000',
     'http://localhost:8080',
