@@ -716,11 +716,22 @@ jobs:
           path: lxd-ui/test-results
           retention-days: 1
 
+      - name: Sanitize Artifact Name
+        id: sanitize
+        env:
+          TEST: ${{ matrix.test }}
+          OS: ${{ matrix.os }}
+        run: |
+          set -eux
+          # Turn "coverage-network-ovn ovn:latest/edge-24.04" into "coverage-network-ovn_ovn-latest-edge-24.04"
+          SANITIZED_NAME="$(echo "coverage-${TEST}-${OS}" | tr ': /' '-_-')"
+          echo "ARTIFACT_NAME=${SANITIZED_NAME}" >> $GITHUB_ENV
+
       - name: Upload coverage data
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: coverage-${{ matrix.test }}-${{ matrix.os }}
-          path: ${{env.GOCOVERDIR}}
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ env.GOCOVERDIR }}
           retention-days: 1
         if: env.GOCOVERDIR != ''
 
