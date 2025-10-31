@@ -211,9 +211,13 @@ EOF
   lxc move cluster:c2 --target @foobar1
   lxc move cluster:c3 --target node1
 
+  echo "c4 can be migrated from local cluster to remote cluster"
+  lxc init --empty c4
+  lxc move c4 cluster:c5 --target node1
+
   # Cleanup
   lxc remote remove cluster
-  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 c3
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 c3 c5
   LXD_DIR="${LXD_ONE_DIR}" lxc auth group delete instance-movers
   LXD_DIR="${LXD_ONE_DIR}" lxc auth identity delete tls/test
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
