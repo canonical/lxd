@@ -199,7 +199,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		return nil
 	}
 
-	// Check that if network proeperty is set that conflicting keys are not present.
+	// Check that if network property is set that conflicting keys are not present.
 	if d.config["network"] != "" {
 		requiredFields = append(requiredFields, "network")
 		inheritKeys := []string{"maas.subnet.ipv4", "maas.subnet.ipv6"}
