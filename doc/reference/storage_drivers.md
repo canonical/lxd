@@ -82,6 +82,7 @@ Optimized backup (import/export)            | ❌        | ✅   | ❌     | ✅
 Copy on write                               | ❌        | ✅   | ✅     | ✅     | ✅       | ✅     | ➖          | ✅              | ✅          | ✅
 Block based                                 | ❌        | ❌   | ✅     | ❌      | ✅      | ❌     | ➖          | ✅              | ✅          | ✅
 Instant cloning                             | ❌        | ✅   | ✅     | ✅     | ✅       | ✅     | ➖          | ❌              | ✅          | ❌
+idmapped mounts                             | ❌        | ✅   | ❌     | ✅     | ❌       | ✅     | ➖          | ❌              | ❌          | ❌
 Storage driver usable inside a container    | ✅        | ✅   | ❌     | ✅[^4] | ❌       | ➖     | ➖          | ❌              | ❌          | ❌
 Restore from older snapshots (not latest)   | ✅        | ✅   | ✅     | ❌      | ✅      | ✅     | ➖          | ✅              | ✅          | ✅
 Storage quotas                              | ✅[^5]    | ✅   | ✅     | ✅     | ✅       | ✅     | ✅          | ✅              | ✅          | ✅
