@@ -55,7 +55,7 @@ func (d *nicMACVLAN) validateConfig(instConf instance.ConfigReader) error {
 		"gvrp",
 	}
 
-	// Check that if network proeperty is set that conflicting keys are not present.
+	// Check that if network property is set that conflicting keys are not present.
 	if d.config["network"] != "" {
 		requiredFields = append(requiredFields, "network")
 		inheritKeys := []string{"mtu", "vlan", "maas.subnet.ipv4", "maas.subnet.ipv6", "gvrp"}
