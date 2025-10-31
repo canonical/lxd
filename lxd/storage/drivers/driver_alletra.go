@@ -219,14 +219,28 @@ func (d *alletra) Validate(config map[string]string) error {
 	return nil
 }
 
-// Create is called during pool creation and is effectively using an empty driver struct.
-// WARNING: The Create() function cannot rely on any of the struct attributes being set.
-func (d *alletra) Create() error {
-	err := d.FillConfig()
-	if err != nil {
-		return err
+// SourceIdentifier returns a combined string consisting of the WSAPI address, CPG and volume set name.
+// We might want to use a volume sets ID, same as we do with pool ID for PowerFlex and Pure.
+func (d *alletra) SourceIdentifier() (string, error) {
+	wsapi := d.config["alletra.wsapi"]
+	if wsapi == "" {
+		return "", errors.New("Cannot derive identifier from empty WSAPI address")
 	}
 
+	cpg := d.config["alletra.cpg"]
+	if cpg == "" {
+		return "", errors.New("Cannot derive identifier from empty CPG name")
+	}
+
+	if d.name == "" {
+		return "", errors.New("Cannot derive identifier from empty volume set name")
+	}
+
+	return strings.Join([]string{wsapi, cpg, d.name}, "-"), nil
+}
+
+// ValidateSource checks whether the required config keys are set to access the remote source.
+func (d *alletra) ValidateSource() error {
 	// Validate both pool and gateway here and return an error if they are not set.
 	// Since those aren't any cluster member specific keys the general validation
 	// rules allow empty strings in order to create the pending storage pools.
@@ -242,7 +256,13 @@ func (d *alletra) Create() error {
 		return errors.New("The alletra.user.password cannot be empty")
 	}
 
-	err = d.client().CreateVolumeSet(d.name)
+	return nil
+}
+
+// Create is called during pool creation and is effectively using an empty driver struct.
+// WARNING: The Create() function cannot rely on any of the struct attributes being set.
+func (d *alletra) Create() error {
+	err := d.client().CreateVolumeSet(d.name)
 	if err != nil {
 		return err
 	}

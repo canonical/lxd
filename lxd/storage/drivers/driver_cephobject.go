@@ -157,6 +157,21 @@ func (d *cephobject) FillConfig() error {
 		d.config["cephobject.user.name"] = CephDefaultUser
 	}
 
+	return nil
+}
+
+// SourceIdentifier returns a string consisting of the RadosGW endpoint.
+func (d *cephobject) SourceIdentifier() (string, error) {
+	endpoint := d.config["cephobject.radosgw.endpoint"]
+	if endpoint != "" {
+		return endpoint, nil
+	}
+
+	return "", errors.New("Cannot derive identifier from empty endpoint")
+}
+
+// ValidateSource checks whether the required config keys are set to access the remote source.
+func (d *cephobject) ValidateSource() error {
 	if d.config["cephobject.radosgw.endpoint"] == "" {
 		return errors.New(`"cephobject.radosgw.endpoint" option is required`)
 	}
@@ -167,11 +182,6 @@ func (d *cephobject) FillConfig() error {
 // Create is called during pool creation and is effectively using an empty driver struct.
 // WARNING: The Create() function cannot rely on any of the struct attributes being set.
 func (d *cephobject) Create() error {
-	err := d.FillConfig()
-	if err != nil {
-		return err
-	}
-
 	// Check if there is an existing cephobjectRadosgwAdminUser user.
 	adminUserInfo, _, err := d.radosgwadminGetUser(context.TODO(), cephobjectRadosgwAdminUser)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
