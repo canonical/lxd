@@ -17,11 +17,6 @@ test_vm_empty() {
     return
   fi
 
-  if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
-    echo "Using migration.stateful to force 9p config drive thus avoiding the old/incompatible virtiofsd"
-    lxc profile set default migration.stateful=true
-  fi
-
   echo "==> Test randomly named VM creation"
   RDNAME="$(lxc init --vm --empty --quiet -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" | sed 's/Instance name is: //')"
   lxc delete "${RDNAME}"
@@ -118,12 +113,6 @@ test_vm_empty() {
   lxc stop -f v1
   [ "$(lxc list -f csv -c n || echo fail)" = "" ]
 
-  if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
-    # Cleanup custom changes from the default profile
-    lxc profile unset default migration.stateful
-  fi
-
-  # This check must be run after unsetting "migration.stateful" to workaround 9p limitations; shared filesystems are incompatible.
   echo "==> Disk mounts"
   lxc init --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
   lxc config device add v1 char disk source=/dev/zero path=/dev/zero
