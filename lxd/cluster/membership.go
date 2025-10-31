@@ -700,11 +700,9 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 	var wg sync.WaitGroup
 
 	// Refresh local event listeners.
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		EventsUpdateListeners(state.Endpoints, state.DB.Cluster, state.ServerCert, hbState.Members, state.Events.Inject)
-		wg.Done()
-	}()
+	})
 
 	// Notify all other members of the change in membership.
 	logger.Info("Sending member change notification heartbeat to all members", logger.Ctx{"local": localClusterAddress})
