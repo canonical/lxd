@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"os/signal"
@@ -196,8 +198,6 @@ func (c *cmdAgent) startStatusNotifier(ctx context.Context, chConnected <-chan s
 	}
 
 	wg.Go(func() {
-		// Signal to cancel function that we are done.
-
 		ticker := time.NewTicker(time.Second * 5)
 		defer ticker.Stop()
 
@@ -219,18 +219,20 @@ func (c *cmdAgent) startStatusNotifier(ctx context.Context, chConnected <-chan s
 
 // writeStatus writes a status code to the vserial ring buffer used to detect agent status on host.
 func (c *cmdAgent) writeStatus(status string) error {
-	if shared.PathExists("/dev/virtio-ports/com.canonical.lxd") {
-		vSerial, err := os.OpenFile("/dev/virtio-ports/com.canonical.lxd", os.O_RDWR, 0600)
-		if err != nil {
-			return err
+	vSerial, err := os.OpenFile("/dev/virtio-ports/com.canonical.lxd", os.O_RDWR, 0600)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
 		}
 
-		defer vSerial.Close()
+		return err
+	}
 
-		_, err = vSerial.Write([]byte(status + "\n"))
-		if err != nil {
-			return err
-		}
+	defer vSerial.Close()
+
+	_, err = vSerial.Write([]byte(status + "\n"))
+	if err != nil {
+		return err
 	}
 
 	return nil
