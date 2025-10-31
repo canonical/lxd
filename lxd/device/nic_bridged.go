@@ -199,11 +199,11 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		return nil
 	}
 
-	// Check that if network proeperty is set that conflicting keys are not present.
+	// Check that if network property is set that conflicting keys are not present.
 	if d.config["network"] != "" {
 		requiredFields = append(requiredFields, "network")
-
-		bannedKeys := []string{"nictype", "parent", "mtu", "maas.subnet.ipv4", "maas.subnet.ipv6"}
+		inheritKeys := []string{"maas.subnet.ipv4", "maas.subnet.ipv6"}
+		bannedKeys := append(inheritKeys, "nictype", "parent", "mtu")
 		for _, bannedKey := range bannedKeys {
 			if d.config[bannedKey] != "" {
 				return fmt.Errorf("Cannot use %q property in conjunction with %q property", bannedKey, "network")
@@ -235,7 +235,6 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		}
 
 		// Copy certain keys verbatim from the network's settings.
-		inheritKeys := []string{"maas.subnet.ipv4", "maas.subnet.ipv6"}
 		for _, inheritKey := range inheritKeys {
 			_, found := netConfig[inheritKey]
 			if found {
