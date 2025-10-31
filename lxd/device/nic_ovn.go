@@ -139,6 +139,21 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 	d.network = ovnNet // Stored loaded network for use by other functions.
 	netConfig := d.network.Config()
 
+	// Copy certain keys verbatim from the network's settings.
+	inheritKeys := []string{"acceleration.parent"}
+	for _, inheritKey := range inheritKeys {
+		// Unlike other NIC types, OVN NICs always require a `network` setting, so the inherited keys are
+		// only applied from the network definition if not explicitly set on the NIC device itself.
+		if d.config[inheritKey] != "" {
+			continue
+		}
+
+		_, found := netConfig[inheritKey]
+		if found {
+			d.config[inheritKey] = netConfig[inheritKey]
+		}
+	}
+
 	if d.config["ipv4.address"] != "" {
 		// Check that DHCPv4 is enabled on parent network (needed to use static assigned IPs).
 		if n.DHCPv4Subnet() == nil {
