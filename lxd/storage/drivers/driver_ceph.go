@@ -126,6 +126,40 @@ func (d *ceph) FillConfig() error {
 		d.config["ceph.osd.pool_size"] = strconv.Itoa(defaultSize)
 	}
 
+	// Use an existing OSD pool.
+	if d.config["source"] != "" {
+		d.config["ceph.osd.pool_name"] = d.config["source"]
+	}
+
+	if d.config["ceph.osd.pool_name"] == "" {
+		d.config["ceph.osd.pool_name"] = d.name
+		d.config["source"] = d.name
+	}
+
+	return nil
+}
+
+// SourceIdentifier returns a combined string consisting of the cluster and pool name.
+func (d *ceph) SourceIdentifier() (string, error) {
+	cluster := d.config["ceph.cluster_name"]
+	if cluster == "" {
+		return "", errors.New("Cannot derive identifier from empty cluster name")
+	}
+
+	pool := d.config["ceph.osd.pool_name"]
+	if pool == "" {
+		return "", errors.New("Cannot derive identifier from empty pool name")
+	}
+
+	return cluster + "-" + pool, nil
+}
+
+// ValidateSource checks whether the required config keys are set to access the remote source.
+func (d *ceph) ValidateSource() error {
+	if d.config["source"] != "" && d.config["ceph.osd.pool_name"] != "" && d.config["source"] != d.config["ceph.osd.pool_name"] {
+		return errors.New(`The "source" and "ceph.osd.pool_name" property must not differ for Ceph OSD storage pools`)
+	}
+
 	return nil
 }
 
@@ -137,30 +171,10 @@ func (d *ceph) Create() error {
 
 	d.config["volatile.initial_source"] = d.config["source"]
 
-	err := d.FillConfig()
-	if err != nil {
-		return err
-	}
-
 	// Validate.
-	_, err = units.ParseByteSizeString(d.config["ceph.osd.pg_num"])
+	_, err := units.ParseByteSizeString(d.config["ceph.osd.pg_num"])
 	if err != nil {
 		return err
-	}
-
-	// Quick check.
-	if d.config["source"] != "" && d.config["ceph.osd.pool_name"] != "" && d.config["source"] != d.config["ceph.osd.pool_name"] {
-		return errors.New(`The "source" and "ceph.osd.pool_name" property must not differ for Ceph OSD storage pools`)
-	}
-
-	// Use an existing OSD pool.
-	if d.config["source"] != "" {
-		d.config["ceph.osd.pool_name"] = d.config["source"]
-	}
-
-	if d.config["ceph.osd.pool_name"] == "" {
-		d.config["ceph.osd.pool_name"] = d.name
-		d.config["source"] = d.name
 	}
 
 	placeholderVol := d.getPlaceholderVolume()

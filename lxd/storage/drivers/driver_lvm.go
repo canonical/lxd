@@ -111,6 +111,81 @@ func (d *lvm) FillConfig() error {
 		d.config["lvm.thinpool_name"] = lvmThinpoolDefaultName
 	}
 
+	defaultSource := loopFilePath(d.name)
+
+	if d.config["source"] == "" || d.config["source"] == defaultSource {
+		if d.config["lvm.vg_name"] == "" {
+			d.config["lvm.vg_name"] = d.name
+		}
+
+		// Pick a default size of the loop file if not specified.
+		if d.config["size"] == "" {
+			defaultSize, err := loopFileSizeDefault()
+			if err != nil {
+				return err
+			}
+
+			d.config["size"] = strconv.FormatUint(defaultSize, 10) + "GiB"
+		}
+	} else if filepath.IsAbs(d.config["source"]) {
+		if d.config["lvm.vg_name"] == "" {
+			d.config["lvm.vg_name"] = d.name
+		}
+	} else if d.config["source"] != "" {
+		d.config["lvm.vg_name"] = d.config["source"]
+	}
+
+	return nil
+}
+
+// SourceIdentifier returns the underlying source consisting of the volume group name.
+func (d *lvm) SourceIdentifier() (string, error) {
+	vgName := d.config["lvm.vg_name"]
+	if vgName != "" {
+		return vgName, nil
+	}
+
+	return "", errors.New("Cannot derive identifier from empty volume group name")
+}
+
+// ValidateSource checks whether the required config keys are valid to access the underlying source.
+func (d *lvm) ValidateSource() error {
+	// This is an internal error condition which should never be hit.
+	if d.config["lvm.vg_name"] == "" {
+		return errors.New("No name for volume group detected")
+	}
+
+	defaultSource := loopFilePath(d.name)
+
+	if d.config["source"] == "" || d.config["source"] == defaultSource {
+		if shared.PathExists(d.config["source"]) {
+			return fmt.Errorf("Source file location %q already exists", d.config["source"])
+		}
+	} else if filepath.IsAbs(d.config["source"]) {
+		// Size is invalid as the physical device is already sized.
+		if d.config["size"] != "" && !d.usesThinpool() {
+			return errors.New("Cannot specify size when using an existing physical device for non-thin pool")
+		}
+
+		// We are using an existing physical device.
+		srcPath := shared.HostPath(d.config["source"])
+
+		if !shared.IsBlockdevPath(srcPath) {
+			return errors.New("Custom loop file locations are not supported")
+		}
+	} else if d.config["source"] != "" {
+		// Size is invalid as the volume group is already sized.
+		if d.config["size"] != "" && !d.usesThinpool() {
+			return errors.New("Cannot specify size when using an existing volume group for non-thin pool")
+		}
+
+		if d.config["lvm.vg_name"] != "" && d.config["lvm.vg_name"] != d.config["source"] {
+			return errors.New("Invalid combination of source and lvm.vg_name properties")
+		}
+	} else {
+		return errors.New("Invalid source property")
+	}
+
 	return nil
 }
 
@@ -127,11 +202,6 @@ func (d *lvm) Create() error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	err = d.FillConfig()
-	if err != nil {
-		return err
-	}
-
 	var usingLoopFile bool
 
 	if d.config["source"] == "" || d.config["source"] == defaultSource {
@@ -139,27 +209,10 @@ func (d *lvm) Create() error {
 
 		// We are using a LXD internal loopback file.
 		d.config["source"] = defaultSource
-		if d.config["lvm.vg_name"] == "" {
-			d.config["lvm.vg_name"] = d.name
-		}
-
-		// Pick a default size of the loop file if not specified.
-		if d.config["size"] == "" {
-			defaultSize, err := loopFileSizeDefault()
-			if err != nil {
-				return err
-			}
-
-			d.config["size"] = strconv.FormatUint(defaultSize, 10) + "GiB"
-		}
 
 		size, err := units.ParseByteSizeString(d.config["size"])
 		if err != nil {
 			return err
-		}
-
-		if shared.PathExists(d.config["source"]) {
-			return fmt.Errorf("Source file location %q already exists", d.config["source"])
 		}
 
 		err = ensureSparseFile(d.config["source"], size)
@@ -201,26 +254,13 @@ func (d *lvm) Create() error {
 		// We are using an existing physical device.
 		srcPath := shared.HostPath(d.config["source"])
 
-		// Size is invalid as the physical device is already sized.
-		if d.config["size"] != "" && !d.usesThinpool() {
-			return errors.New("Cannot specify size when using an existing physical device for non-thin pool")
-		}
-
-		if d.config["lvm.vg_name"] == "" {
-			d.config["lvm.vg_name"] = d.name
-		}
-
 		d.config["source"] = d.config["lvm.vg_name"]
-
-		if !shared.IsBlockdevPath(srcPath) {
-			return errors.New("Custom loop file locations are not supported")
-		}
 
 		// Wipe if requested.
 		if shared.IsTrue(d.config["source.wipe"]) {
 			err := wipeBlockHeaders(srcPath)
 			if err != nil {
-				return fmt.Errorf("Failed to wipe headers from disk %q: %w", d.config["source"], err)
+				return fmt.Errorf("Failed to wipe headers from disk %q: %w", srcPath, err)
 			}
 
 			d.config["source.wipe"] = ""
@@ -246,17 +286,6 @@ func (d *lvm) Create() error {
 		// We are using an existing volume group, so physical must exist already.
 		pvExists = true
 
-		// Size is invalid as the volume group is already sized.
-		if d.config["size"] != "" && !d.usesThinpool() {
-			return errors.New("Cannot specify size when using an existing volume group for non-thin pool")
-		}
-
-		if d.config["lvm.vg_name"] != "" && d.config["lvm.vg_name"] != d.config["source"] {
-			return errors.New("Invalid combination of source and lvm.vg_name properties")
-		}
-
-		d.config["lvm.vg_name"] = d.config["source"]
-
 		// Check the volume group already exists.
 		vgExists, vgTags, err = d.volumeGroupExists(d.config["lvm.vg_name"])
 		if err != nil {
@@ -268,11 +297,6 @@ func (d *lvm) Create() error {
 		}
 	} else {
 		return errors.New("Invalid source property")
-	}
-
-	// This is an internal error condition which should never be hit.
-	if d.config["lvm.vg_name"] == "" {
-		return errors.New("No name for volume group detected")
 	}
 
 	// Used to track the result of checking whether the thin pool exists during the existing volume group empty

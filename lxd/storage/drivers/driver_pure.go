@@ -210,17 +210,25 @@ func (d *pure) Validate(config map[string]string) error {
 	return nil
 }
 
-// Create is called during pool creation and is effectively using an empty driver struct.
-// WARNING: The Create() function cannot rely on any of the struct attributes being set.
-func (d *pure) Create() error {
-	err := d.FillConfig()
+// SourceIdentifier returns a combined string consisting of the pool ID.
+// The underlying storage pool might not exist.
+// In this case the name of the pool is returned instead as a temporary identifier.
+func (d *pure) SourceIdentifier() (string, error) {
+	pool, err := d.client().getStoragePool(d.name)
 	if err != nil {
-		return err
+		// Pool does not yet exist, simply return its name instead.
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return d.name, nil
+		}
+
+		return "", fmt.Errorf("Cannot derive identifier from pool: %w", err)
 	}
 
-	revert := revert.New()
-	defer revert.Fail()
+	return pool.ID, nil
+}
 
+// ValidateSource checks whether the required config keys are set to access the remote source.
+func (d *pure) ValidateSource() error {
 	// Validate required Pure Storage configuration keys and return an error if they are
 	// not set. Since those keys are not cluster member specific, the general validation
 	// rules allow empty strings in order to create the pending storage pools.
@@ -231,6 +239,15 @@ func (d *pure) Create() error {
 	if d.config["pure.api.token"] == "" {
 		return errors.New("The pure.api.token cannot be empty")
 	}
+
+	return nil
+}
+
+// Create is called during pool creation and is effectively using an empty driver struct.
+// WARNING: The Create() function cannot rely on any of the struct attributes being set.
+func (d *pure) Create() error {
+	revert := revert.New()
+	defer revert.Fail()
 
 	poolSizeBytes, err := units.ParseByteSizeString(d.config["size"])
 	if err != nil {

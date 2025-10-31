@@ -154,14 +154,20 @@ func (d *powerflex) FillConfig() error {
 	return nil
 }
 
-// Create is called during pool creation and is effectively using an empty driver struct.
-// WARNING: The Create() function cannot rely on any of the struct attributes being set.
-func (d *powerflex) Create() error {
-	err := d.FillConfig()
+// SourceIdentifier returns a combined string consisting of the pool ID.
+// The underlying storage pool always has to exist as the PowerFlex driver does
+// not create a new pool on the storage array.
+func (d *powerflex) SourceIdentifier() (string, error) {
+	pool, err := d.resolvePool()
 	if err != nil {
-		return err
+		return "", fmt.Errorf("Cannot derive identifier from pool: %w", err)
 	}
 
+	return pool.ID, nil
+}
+
+// ValidateSource checks whether the required config keys are set to access the remote source.
+func (d *powerflex) ValidateSource() error {
 	// Validate both pool and gateway here and return an error if they are not set.
 	// Since those aren't any cluster member specific keys the general validation
 	// rules allow empty strings in order to create the pending storage pools.
@@ -180,6 +186,12 @@ func (d *powerflex) Create() error {
 		}
 	}
 
+	return nil
+}
+
+// Create is called during pool creation and is effectively using an empty driver struct.
+// WARNING: The Create() function cannot rely on any of the struct attributes being set.
+func (d *powerflex) Create() error {
 	return nil
 }
 
