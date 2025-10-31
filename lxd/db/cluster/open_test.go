@@ -83,7 +83,7 @@ func TestEnsureSchema_ClusterNotUpgradable(t *testing.T) {
 				addNode(t, db, "2", schema+1, apiExtensions-1)
 			},
 			0,
-			"Failed to ensure schema: Cluster members have inconsistent versions",
+			"Failed ensuring schema: Cluster members have inconsistent versions",
 		},
 	}
 
