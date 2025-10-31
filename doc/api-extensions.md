@@ -2772,6 +2772,6 @@ Adds support for specifying the OVN NIC acceleration physical function interface
 
 This avoids the need for adding physical function interfaces to the OVN integration bridge.
 
-This introduces a new `ovn` NIC configuration key:
+This introduces a new `ovn` network and `ovn` NIC configuration key:
 
-* {config:option}`device-nic-ovn-device-conf:acceleration.parent` - Comma separated list of physical function (PF) interfaces to allocate virtual functions (VFs) from for hardware acceleration.
+* {config:option}`device-nic-ovn-device-conf:acceleration.parent` - Comma separated list of physical function (PF) interfaces to allocate virtual functions (VFs) from for hardware acceleration when {config:option}`device-nic-ovn-device-conf:acceleration` is enabled.
