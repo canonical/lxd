@@ -544,6 +544,16 @@ func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profi
 				allowContainerLowLevel = true
 			}
 
+			// Add check for valid usage of acceleration.parent setting.
+			devicesChecks["nic"] = append(devicesChecks["nic"], func(device map[string]string) error {
+				_, accelerationParentUsed := device["acceleration.parent"]
+				if accelerationParentUsed && !allowContainerLowLevel {
+					return errors.New(`Use of low-level "acceleration.parent" NIC option forbidden`)
+				}
+
+				return nil
+			})
+
 		case "restricted.containers.privilege":
 			containerConfigChecks["security.privileged"] = func(instanceValue string) error {
 				if restrictionValue != "allow" && shared.IsTrue(instanceValue) {
@@ -571,6 +581,16 @@ func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profi
 				_, ioThreadsUsed := device["io.threads"]
 				if ioThreadsUsed && !allowVMLowLevel {
 					return errors.New(`Use of low-level "io.threads" disk option forbidden`)
+				}
+
+				return nil
+			})
+
+			// Add check for valid usage of acceleration.parent setting.
+			devicesChecks["nic"] = append(devicesChecks["nic"], func(device map[string]string) error {
+				_, accelerationParentUsed := device["acceleration.parent"]
+				if accelerationParentUsed && !allowVMLowLevel {
+					return errors.New(`Use of low-level "acceleration.parent" NIC option forbidden`)
 				}
 
 				return nil
