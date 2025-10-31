@@ -453,6 +453,7 @@ if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_failure_domains "clustering failure domains"
     run_test test_clustering_image_refresh "clustering image refresh"
     run_test test_clustering_evacuation "clustering evacuation"
+    run_test test_clustering_evacuation_restore_operations "clustering evacuation/restore operations"
     run_test test_clustering_move "clustering move"
     run_test test_clustering_remove_members "clustering config remove members"
     run_test test_clustering_autotarget "clustering autotarget member"
