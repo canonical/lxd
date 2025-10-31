@@ -173,6 +173,11 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filters := []cluster.WarningFilter{}
 		if projectName != "" {
+			_, err := cluster.GetProjectID(ctx, tx.Tx(), projectName)
+			if err != nil {
+				return fmt.Errorf("Failed to get project: %w", err)
+			}
+
 			filter := cluster.WarningFilter{Project: &projectName}
 			filters = append(filters, filter)
 		}
