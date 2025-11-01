@@ -121,6 +121,7 @@ HWE
 ICMP
 idmap
 idmapped
+Idmapped
 idmaps
 IdP
 iGPU
