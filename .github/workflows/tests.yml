@@ -817,15 +817,15 @@ jobs:
 
       - name: Install dependencies
         run: |
-          go install github.com/axw/gocov/gocov@latest
-          go install github.com/AlekSi/gocov-xml@latest
+          go install github.com/tebeka/go-coverage-cobertura@latest
           go install honnef.co/go/tools/cmd/staticcheck@latest
 
       - name: Convert coverage files
         run: |
+          # Merge all coverage data files into a single profile
           go tool covdata textfmt -i="${GOCOVERDIR}" -o "${GOCOVERDIR}"/coverage.out
-          gocov convert "${GOCOVERDIR}"/coverage.out > "${GOCOVERDIR}"/coverage.json
-          gocov-xml < "${GOCOVERDIR}"/coverage.json > "${GOCOVERDIR}"/coverage-go.xml
+          # Convert the standard Go coverprofile to Cobertura XML
+          go-coverage-cobertura < "${GOCOVERDIR}"/coverage.out > "${GOCOVERDIR}"/coverage-go.xml
 
       - name: Run TICS
         uses: tiobe/tics-github-action@b9861e16fd5d38624516fcd3e49e233c133ebaf3 # v3.5.0
