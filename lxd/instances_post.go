@@ -91,6 +91,19 @@ func createFromImage(ctx context.Context, s *state.State, p api.Project, profile
 		return response.BadRequest(err)
 	}
 
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// Check that the name isn't already in use.
+		existingID, _ := tx.GetInstanceID(ctx, p.Name, req.Name)
+		if existingID > 0 {
+			return api.StatusErrorf(http.StatusConflict, "Instance %q already exists", req.Name)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	run := func(op *operations.Operation) error {
 		devices := deviceConfig.NewDevices(req.Devices)
 
