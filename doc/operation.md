@@ -7,13 +7,11 @@ The following how-to guides cover common operations related to the LXD server:
 
 ```{filtered-toctree}
 :titlesonly:
+:maxdepth: 1
 
-:diataxis:Expose LXD to the network </howto/server_expose>
-:diataxis:Configure the LXD server </howto/server_configure>
-:diataxis:Configure OIDC authentication with Auth0 </howto/oidc_auth0>
-:diataxis:Configure OIDC authentication with Ory Hydra </howto/oidc_ory>
-:diataxis:Configure OIDC authentication with Keycloak </howto/oidc_keycloak>
-:diataxis:Configure OIDC authentication with Microsoft Entra ID </howto/oidc_entra_id>
+Expose LXD to the network </howto/server_expose>
+Configure the LXD server </howto/server_configure>
+Configure single sign-on with OIDC </howto/oidc>
 ```
 
 ```{only} diataxis
