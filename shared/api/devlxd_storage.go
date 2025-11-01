@@ -75,4 +75,57 @@ type DevLXDStorageVolumesPost struct {
 	// Volume content type (filesystem or block)
 	// Example: filesystem
 	ContentType string `json:"content_type" yaml:"content_type"`
+
+	// Volume to use as a base for the new volume.
+	Source DevLXDStorageVolumeSource `json:"source" yaml:"source"`
+}
+
+// DevLXDStorageVolumeSource represents the source for a new storage volume.
+type DevLXDStorageVolumeSource struct {
+	// Source volume name.
+	// Example: foo
+	Name string `json:"name" yaml:"name"`
+
+	// Source type. Currently, only "copy" is supported.
+	// Example: copy
+	Type string `json:"type" yaml:"type"`
+
+	// Source storage pool.
+	// Example: local
+	Pool string `json:"pool" yaml:"pool"`
+
+	// Name of the cluster member where the volume is located.
+	// Example: member01
+	Location string `json:"location" yaml:"location"`
+}
+
+// DevLXDStorageVolumeSnapshot represents a LXD storage volume snapshot.
+type DevLXDStorageVolumeSnapshot struct {
+	// Snapshot name
+	// Example: snap0
+	Name string `json:"name" yaml:"name"`
+
+	// Description of the storage volume
+	// Example: My custom volume
+	Description string `json:"description" yaml:"description"`
+
+	// The content type (filesystem or block)
+	// Example: filesystem
+	ContentType string `json:"content_type" yaml:"content_type"`
+
+	// Storage volume configuration map (refer to doc/storage.md)
+	// Example: {"zfs.remove_snapshots": "true", "size": "50GiB"}
+	Config map[string]string `json:"config" yaml:"config"`
+}
+
+// DevLXDStorageVolumeSnapshotsPost represents the fields available for
+// a new LXD storage volume snapshot.
+type DevLXDStorageVolumeSnapshotsPost struct {
+	// Snapshot name
+	// Example: snap0
+	Name string `json:"name" yaml:"name"`
+
+	// Description of the storage volume snapshot
+	// Example: My custom snapshot
+	Description string `json:"description" yaml:"description"`
 }

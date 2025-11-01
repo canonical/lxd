@@ -534,8 +534,19 @@ type DevLXDServer interface {
 	GetStoragePoolVolumes(poolName string) (vols []api.DevLXDStorageVolume, err error)
 	GetStoragePoolVolume(poolName string, volType string, volName string) (vol *api.DevLXDStorageVolume, ETag string, err error)
 	CreateStoragePoolVolume(poolName string, vol api.DevLXDStorageVolumesPost) error
+	CreateStoragePoolVolumeFromSource(poolName string, vol api.DevLXDStorageVolumesPost) (Operation, error)
 	UpdateStoragePoolVolume(poolName string, volType string, volName string, vol api.DevLXDStorageVolumePut, ETag string) error
 	DeleteStoragePoolVolume(poolName string, volType string, volName string) error
+
+	// DevLXD storage volume snapshots.
+	GetStoragePoolVolumeSnapshots(poolName string, volType string, volName string) (snapshots []api.DevLXDStorageVolumeSnapshot, err error)
+	GetStoragePoolVolumeSnapshot(poolName string, volType string, volName string, snapshotName string) (snapshot *api.DevLXDStorageVolumeSnapshot, ETag string, err error)
+	CreateStoragePoolVolumeSnapshot(poolName string, volType string, volName string, snapshot api.DevLXDStorageVolumeSnapshotsPost) (op Operation, err error)
+	DeleteStoragePoolVolumeSnapshot(poolName string, volType string, volName string, snapshotName string) (op Operation, err error)
+
+	// DevLXD operations.
+	GetOperationWait(uuid string, timeout int) (*api.DevLXDOperation, string, error)
+	DeleteOperation(uuid string) error
 
 	// DevLXD Ubuntu Pro.
 	GetUbuntuPro() (*api.DevLXDUbuntuProSettings, error)
