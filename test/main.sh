@@ -314,8 +314,20 @@ run_test() {
     if [[ "${TEST_CURRENT}" =~ ^test_.*_vm.*$ ]] && [ "${LXD_VM_TESTS:-0}" = "0" ]; then
       export TEST_UNMET_REQUIREMENT="LXD_VM_TESTS=1 is required"
     else
+      # Check for any core dump before running the test
+      if ! check_empty /var/crash/; then
+        echo "==> CORE: coredumps found before running the test"
+        false
+      fi
+
       # Run test.
       ${TEST_CURRENT}
+
+      # Check for any core dump after running the test
+      if ! check_empty /var/crash/; then
+        echo "==> CORE: coredumps found after running the test"
+        false
+      fi
     fi
 
     # Check whether test was skipped due to unmet requirements, and if so check if the test is required and fail.
