@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -98,9 +99,28 @@ func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) *devLXDResp
 	client = client.UseTarget(r.URL.Query().Get("target"))
 	defer client.Disconnect()
 
-	err = client.CreateStoragePoolVolume(poolName, vol)
+	var op lxd.Operation
+
+	if vol.Source.Type != "" {
+		op, err = client.CreateStoragePoolVolumeFromSource(poolName, vol)
+	} else {
+		err = client.CreateStoragePoolVolume(poolName, vol)
+	}
+
 	if err != nil {
 		return smartResponse(err)
+	}
+
+	if op != nil {
+		// Return DevLXD operation response.
+		respOp := api.DevLXDOperation{
+			ID:         op.Get().ID,
+			Status:     op.Get().Status,
+			StatusCode: op.Get().StatusCode,
+			Err:        op.Get().Err,
+		}
+
+		return okResponse(respOp, "json")
 	}
 
 	return okResponse("", "raw")
