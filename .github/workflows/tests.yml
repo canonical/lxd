@@ -412,7 +412,6 @@ jobs:
 
       - name: "Run system tests (${{ matrix.suite }}, ${{ matrix.backend }})"
         run: |
-          echo '|/bin/sh -c $@ -- eval exec gzip --fast > /var/crash/core-%e.%p.gz' | sudo tee /proc/sys/kernel/core_pattern
           set -eux
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
