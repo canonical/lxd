@@ -377,6 +377,7 @@ test_clustering_membership() {
 test_clustering_containers() {
   local LXD_DIR
 
+  echo "Create cluster with 3 nodes."
   setup_clustering_bridge
   prefix="lxd$$"
   bridge="${prefix}"
@@ -401,26 +402,26 @@ test_clustering_containers() {
   ns3="${prefix}3"
   spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${LXD_ONE_DIR}"
 
-  # Init a container on node2, using a client connected to node1
+  echo "Init a container on node2, using a client connected to node1."
   LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
   LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 testimage foo
 
-  # The container is visible through both nodes
+  echo "The container is visible through both nodes."
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c nsL)" = "foo,STOPPED,node2" ]
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c nsL)" = "foo,STOPPED,node2" ]
 
-  # Start the container via node1
+  echo "Start the container via node1."
   LXD_DIR="${LXD_ONE_DIR}" lxc start foo
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c s foo)" = "RUNNING" ]
   LXD_DIR="${LXD_ONE_DIR}" lxc list --fast | grep -wF foo | grep -wF RUNNING
 
-  # Trying to delete a node which has container results in an error
+  echo "Trying to delete a node which has container results in an error."
   ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node2 || false
 
-  # Exec a command in the container via node1
+  echo "Exec a command in the container via node1."
   LXD_DIR="${LXD_ONE_DIR}" lxc exec foo -- ls / | grep -xF proc
 
-  # Pull, push and delete files from the container via node1
+  echo "Pull, push and delete files from the container via node1."
   ! LXD_DIR="${LXD_ONE_DIR}" lxc file pull foo/non-existing-file "${TEST_DIR}/non-existing-file" || false
   mkdir "${TEST_DIR}/hello-world"
   echo "hello world" > "${TEST_DIR}/hello-world/text"
@@ -437,49 +438,46 @@ test_clustering_containers() {
   LXD_DIR="${LXD_ONE_DIR}" lxc file delete foo/hello-world/text
   ! LXD_DIR="${LXD_ONE_DIR}" lxc file pull foo/hello-world/text "${TEST_DIR}/hello-world-text" || false
 
-  # Stop the container via node1
+  echo "Stop the container via node1."
   LXD_DIR="${LXD_ONE_DIR}" lxc stop foo --force
 
-  # Rename the container via node1
+  echo "Rename the container via node1."
   LXD_DIR="${LXD_ONE_DIR}" lxc rename foo foo2
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c n)" = "foo2" ]
   LXD_DIR="${LXD_ONE_DIR}" lxc rename foo2 foo
 
-  # Show lxc.log via node1
+  echo "Show lxc.log via node1."
   LXD_DIR="${LXD_ONE_DIR}" lxc info --show-log foo | grep -xF 'Log:'
 
-  # Create, rename and delete a snapshot of the container via node1
+  echo "Create, rename and delete a snapshot of the container via node1."
   LXD_DIR="${LXD_ONE_DIR}" lxc snapshot foo foo-bak
   LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -wF foo-bak
   LXD_DIR="${LXD_ONE_DIR}" lxc rename foo/foo-bak foo/foo-bak-2
   LXD_DIR="${LXD_ONE_DIR}" lxc delete foo/foo-bak-2
   ! LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -wF foo-bak-2 || false
 
-  # Export from node1 the image that was imported on node2
+  echo "Export from node1 the image that was imported on node2."
   LXD_DIR="${LXD_ONE_DIR}" lxc image export testimage "${TEST_DIR}/testimage"
   rm "${TEST_DIR}/testimage.tar.xz"
 
-  # Create a container on node1 using the image that was stored on
-  # node2.
+  echo "Create a container on node1 using the image that was stored on node2."
   LXD_DIR="${LXD_TWO_DIR}" lxc launch --target node1 testimage bar
   LXD_DIR="${LXD_TWO_DIR}" lxc stop bar --force
   LXD_DIR="${LXD_ONE_DIR}" lxc delete bar
   ! LXD_DIR="${LXD_TWO_DIR}" lxc list -c n | grep -wF bar || false
 
-  # Create a container on node1 using a snapshot from node2.
+  echo "Create a container on node1 using a snapshot from node2."
   LXD_DIR="${LXD_ONE_DIR}" lxc snapshot foo foo-bak
   LXD_DIR="${LXD_TWO_DIR}" lxc copy foo/foo-bak bar --target node1
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L bar)" = "node1" ]
   LXD_DIR="${LXD_THREE_DIR}" lxc delete bar
 
-  # Copy the container on node2 to node3, using a client connected to
-  # node1.
+  echo "Copy the container on node2 to node3, using a client connected to node1."
   LXD_DIR="${LXD_ONE_DIR}" lxc copy foo bar --target node3
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L bar)" = "node3" ]
 
-  # Move the container on node3 to node1, using a client connected to
-  # node2 and a different container name than the original one. The
-  # volatile.apply_template config key is preserved.
+  echo "Move the container on node3 to node1, using a client connected to node2 and a different container name than the original one."
+  echo "Verify volatile.apply_template config key is preserved."
   apply_template1=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get bar volatile.apply_template)
 
   LXD_DIR="${LXD_TWO_DIR}" lxc move bar egg --target node2
@@ -487,51 +485,46 @@ test_clustering_containers() {
   apply_template2=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
   [ "${apply_template1}" =  "${apply_template2}" ]
 
-  # Move back to node3 the container on node1, keeping the same name.
+  echo "Move back to node3 the container on node1, keeping the same name."
   apply_template1=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
   LXD_DIR="${LXD_TWO_DIR}" lxc move egg --target node3
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L egg)" = "node3" ]
   apply_template2=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
   [ "${apply_template1}" =  "${apply_template2}" ]
 
-  # Live migration is not supported for containers.
+  echo "Live migration is not supported for containers."
   LXD_DIR="${LXD_TWO_DIR}" lxc start egg
   ! LXD_DIR="${LXD_TWO_DIR}" lxc move egg --target node1 || false
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c sL egg)" = "RUNNING,node3" ]
   LXD_DIR="${LXD_TWO_DIR}" lxc stop -f egg
 
-  # Create backup and attempt to move container. Move should fail and container should remain on node1.
+  echo "Create backup and attempt to move container. Move should fail and container should remain on node1."
   LXD_DIR="${LXD_THREE_DIR}" lxc query -X POST --wait -d '{"name":"foo"}' /1.0/instances/egg/backups
   ! LXD_DIR="${LXD_THREE_DIR}" lxc move egg --target node2 || false
   [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc list -f csv -c L egg)" = "node3" ]
 
   LXD_DIR="${LXD_THREE_DIR}" lxc delete egg
 
-  # Delete the network now, since we're going to shutdown node2 and it
-  # won't be possible afterward.
+  echo "Delete the network now, since we're going to shutdown node2 and it won't be possible afterward."
   LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}"
 
-  # Shutdown node 2, wait for it to be considered offline, and list
-  # containers.
+  echo "Shutdown node 2, wait for it to be considered offline, and list containers."
   LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 11
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   sleep 12
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c ns)" = "foo,ERROR" ]
 
-  # For an instance on an offline member, we can get its config but not use recursion nor get instance state.
+  echo "For an instance on an offline member, we can get its config but not use recursion nor get instance state."
   LXD_DIR="${LXD_ONE_DIR}" lxc config show foo
   LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/foo" | jq --exit-status '.status == "Error"'
   ! LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/foo?recursion=1" || false
   ! LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/foo/state" || false
 
-  # Init a container without specifying any target. It will be placed
-  # on node1 since node2 is offline and both node1 and node3 have zero
-  # containers, but node1 has a lower node ID.
+  echo "Init a container without specifying any target. It will be placed on node1 since node2 is offline and both node1 and node3 have zero containers, but node1 has a lower node ID."
   LXD_DIR="${LXD_THREE_DIR}" lxc init --empty bar
   [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc list -f csv -c L bar)" = "node1" ]
 
-  # Init a container without specifying any target. It will be placed
-  # on node3 since node2 is offline and node1 already has a container.
+  echo "Init a container without specifying any target. It will be placed on node3 since node2 is offline and node1 already has a container."
   LXD_DIR="${LXD_THREE_DIR}" lxc init --empty egg
   [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc list -f csv -c L egg)" = "node3" ]
 
