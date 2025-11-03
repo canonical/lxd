@@ -1811,7 +1811,7 @@ func storageVolumePostClusteringMigrate(s *state.State, r *http.Request, srcPool
 		}
 
 		// Request pull mode migration on destination.
-		err = dest.CreateStoragePoolVolume(newPoolName, api.StorageVolumesPost{
+		createOp, err := dest.CreateStoragePoolVolume(newPoolName, api.StorageVolumesPost{
 			Name: newVolumeName,
 			Type: "custom",
 			Source: api.StorageVolumeSource{
@@ -1825,6 +1825,10 @@ func storageVolumePostClusteringMigrate(s *state.State, r *http.Request, srcPool
 				Project:     newProjectName,
 			},
 		})
+		if err == nil {
+			err = createOp.Wait()
+		}
+
 		if err != nil {
 			return fmt.Errorf("Failed requesting instance create on destination: %w", err)
 		}

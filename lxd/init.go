@@ -286,7 +286,11 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 
 		if err != nil {
 			// Create the storage volume if it doesn't exist.
-			err := d.UseProject(storageVolume.Project).CreateStoragePoolVolume(storageVolume.Pool, storageVolume.StorageVolumesPost)
+			op, err := d.UseProject(storageVolume.Project).CreateStoragePoolVolume(storageVolume.Pool, storageVolume.StorageVolumesPost)
+			if err == nil {
+				err = op.Wait()
+			}
+
 			if err != nil {
 				return fmt.Errorf("Failed to create storage volume %q in project %q on pool %q: %w", storageVolume.Name, storageVolume.Project, storageVolume.Pool, err)
 			}
