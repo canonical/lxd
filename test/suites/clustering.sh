@@ -3770,7 +3770,7 @@ test_clustering_evacuation() {
   c7_location="$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L c7)"
 
   echo "Verify that instance migration to an evacuated node is not allowed."
-  [[ "$(LXD_DIR="${LXD_TWO_DIR}" lxc move c5 --target=node1 2>&1)" == *"Error: The destination cluster member is evacuated"* ]]
+  [[ "$(LXD_DIR="${LXD_TWO_DIR}" lxc move c5 --target=node1 2>&1)" == *"Error: Migration operation failure: The destination cluster member is evacuated"* ]]
 
   echo 'Restore first node with "skip" mode.'
   # "skip" mode restores cluster member status without starting instances or migrating back evacuated instances.
