@@ -254,7 +254,7 @@ func (c *cmdMove) run(cmd *cobra.Command, args []string) error {
 	del.flagForceProtected = true
 	err = del.run(cmd, args[:1])
 	if err != nil {
-		return fmt.Errorf("Failed to delete original instance after copying it: %w", err)
+		return fmt.Errorf("Failed deleting original instance after copying it: %w", err)
 	}
 
 	return nil
@@ -289,7 +289,7 @@ func (c *cmdMove) moveInstance(sourceResource string, destResource string, state
 	// Connect to the source host.
 	source, err := conf.GetInstanceServer(sourceRemote)
 	if err != nil {
-		return fmt.Errorf(i18n.G("Failed to connect to cluster member: %w"), err)
+		return fmt.Errorf(i18n.G("Failed connecting to cluster member: %w"), err)
 	}
 
 	if !source.IsClustered() && c.flagTarget != "" {
