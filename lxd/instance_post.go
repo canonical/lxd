@@ -124,7 +124,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		// Load source node.
 		sourceAddress, err := tx.GetNodeAddressOfInstance(ctx, projectName, name, instanceType)
 		if err != nil {
-			return fmt.Errorf("Failed to get address of instance's member: %w", err)
+			return fmt.Errorf("Failed getting address of instance's member: %w", err)
 		}
 
 		if sourceAddress == "" {
@@ -135,7 +135,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 		sourceMemberInfo, err := tx.GetNodeByAddress(ctx, sourceAddress)
 		if err != nil {
-			return fmt.Errorf("Failed to get source member for %q: %w", sourceAddress, err)
+			return fmt.Errorf("Failed getting source member for %q: %w", sourceAddress, err)
 		}
 
 		sourceNodeOffline = sourceMemberInfo.IsOffline(s.GlobalConfig.OfflineThreshold())
@@ -387,7 +387,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 					return err
 				})
 				if err != nil {
-					err = fmt.Errorf("Failed to fetch instance's backups: %w", err)
+					err = fmt.Errorf("Failed fetching instance's backups: %w", err)
 					return response.SmartError(err)
 				}
 
@@ -697,7 +697,7 @@ func instancePostMigration(ctx context.Context, s *state.State, inst instance.In
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to copy instance permissions: %w", err)
+		return fmt.Errorf("Failed copying instance permissions: %w", err)
 	}
 
 	// Delete original instance.
@@ -785,7 +785,7 @@ func instancePostClusteringMigrate(ctx context.Context, s *state.State, srcPool 
 		// cluster members.
 		dest, err := cluster.Connect(ctx, newMember.Address, networkCert, s.ServerCert(), true)
 		if err != nil {
-			return fmt.Errorf("Failed to connect to destination server %q: %w", newMember.Address, err)
+			return fmt.Errorf("Failed connecting to destination server %q: %w", newMember.Address, err)
 		}
 
 		dest = dest.UseTarget(newMember.Name).UseProject(targetProject)
@@ -1030,7 +1030,7 @@ func instancePostClusteringMigrateWithRemoteStorage(s *state.State, srcPool stor
 			return nil
 		})
 		if err != nil {
-			return fmt.Errorf("Failed to relink instance database data: %w", err)
+			return fmt.Errorf("Failed relinking instance database data: %w", err)
 		}
 
 		if srcInstName != finalName {
