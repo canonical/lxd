@@ -703,7 +703,11 @@ func (c *cmdStorageVolumeCreate) run(cmd *cobra.Command, args []string) error {
 		client = client.UseTarget(c.storage.flagTarget)
 	}
 
-	err = client.CreateStoragePoolVolume(resource.name, vol)
+	op, err := client.CreateStoragePoolVolume(resource.name, vol)
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return err
 	}
