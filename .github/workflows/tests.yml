@@ -549,7 +549,9 @@ jobs:
         uses: ./.github/actions/reclaim-memory
 
       - name: Reclaim disk space
-        if: ${{ matrix.test == 'conversion' || startsWith(matrix.test, 'storage-') || matrix.test == 'vm-nesting' }}
+        # This can take multiple minutes if the runner is busy/slow so only run it when/where absolutely needed.
+        # Storage tests need it except when using ceph as it uses the ephemeral disk.
+        if: ${{ matrix.test == 'conversion' || matrix.test == 'vm-nesting' || (startsWith(matrix.test, 'storage-') && !contains(matrix.test, ' ceph')) }}
         uses: ./.github/actions/reclaim-disk-space
 
       - name: Remove docker
