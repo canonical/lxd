@@ -184,9 +184,7 @@ func instanceBackupsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if !recursion {
-			url := fmt.Sprintf("/%s/instances/%s/backups/%s",
-				version.APIVersion, cname, backupName)
-			resultString = append(resultString, url)
+			resultString = append(resultString, api.NewURL().Path(version.APIVersion, "instances", cname, "backups", backupName).String())
 		} else {
 			render := backup.Render()
 			resultMap = append(resultMap, render)

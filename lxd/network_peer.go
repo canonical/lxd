@@ -196,7 +196,7 @@ func networkPeersGet(d *Daemon, r *http.Request) response.Response {
 
 	peerURLs := make([]string, 0, len(peerNames))
 	for _, peerName := range peerNames {
-		peerURLs = append(peerURLs, fmt.Sprintf("/%s/networks/%s/peers/%s", version.APIVersion, url.PathEscape(n.Name()), url.PathEscape(peerName)))
+		peerURLs = append(peerURLs, api.NewURL().Path(version.APIVersion, "networks", n.Name(), "peers", peerName).String())
 	}
 
 	return response.SyncResponse(true, peerURLs)
