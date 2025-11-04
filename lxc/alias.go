@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -47,6 +49,10 @@ func (c *cmdAlias) command() *cobra.Command {
 	// Import
 	aliasImportCmd := cmdAliasImport{global: c.global, alias: c}
 	cmd.AddCommand(aliasImportCmd.command())
+
+	// Export
+	aliasExportCmd := cmdAliasExport{global: c.global, alias: c}
+	cmd.AddCommand(aliasExportCmd.command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -477,5 +483,213 @@ func (c *cmdAliasImport) logFinalAliases(conf *config.Config) {
 	logger.Debugf("Final aliases count: %d", len(conf.Aliases))
 	for alias, target := range conf.Aliases {
 		logger.Debugf("Final alias: %s -> %s", alias, target)
+	}
+}
+
+// Export.
+type cmdAliasExport struct {
+	global *cmdGlobal
+	alias  *cmdAlias
+
+	flagFormat string
+	parsers    *ParserRegistry
+}
+
+// Command is a method of the cmdAliasExport structure. It configures and returns a cobra.Command object.
+// This command enables export of aliases to file.
+func (c *cmdAliasExport) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("export", i18n.G("[<file>]"))
+	cmd.Short = i18n.G("Export aliases to file")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Export aliases to YAML, JSON, or CSV file
+
+If file is "-", aliases are written to stdout.`))
+	cmd.Example = cli.FormatSection("", i18n.G(`
+lxc alias export
+	Export aliases to default file ni current directory.
+
+lxc alias export -
+		Export aliases to stdout.
+
+lxc alias export aliases.json --format=json
+    Export aliases as JSON to aliases.json.
+
+lxc alias export aliases.2025_10_22
+    Export aliases to file with custom extension (defaults to YAML).
+
+lxc alias export aliases.txt --format=json
+    Export aliases as JSON to aliases.txt.json.`))
+
+	// Initialize parser registry
+	registry, formatNames := GetFormatNames()
+	formatOptions := "auto|" + strings.Join(formatNames, "|")
+	formatFlagUsage := i18n.G("Format") + " (" + formatOptions + ")``"
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "auto", formatFlagUsage)
+	cmd.RunE = c.run
+	c.parsers = registry
+
+	return cmd
+}
+
+// Run is a method of the cmdAliasExport structure that executes the actual operation of the alias export command.
+// It exports aliases to a file in the specified format.
+func (c *cmdAliasExport) run(cmd *cobra.Command, args []string) error {
+	conf := c.global.conf
+
+	// Quick checks
+	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
+	if exit {
+		return err
+	}
+
+	// Determine filename and outpu type
+	filename := ""
+	useStdout := false
+
+	if len(args) == 0 {
+		// No filename provided, generate default.
+		filename = c.generateDefaultFilename()
+	} else if args[0] == "-" {
+		// Use stdout.
+		useStdout = true
+	} else {
+		filename = args[0]
+	}
+
+	// Debug: show current aliases before export
+	c.logCurrentAliases(conf)
+
+	// Export aliases
+	exportedCount, finalFilename, err := c.exportAliases(conf.Aliases, filename, useStdout)
+	if err != nil {
+		return err
+	}
+
+	if !useStdout {
+		fmt.Printf(i18n.G("Exported %d aliases to %s\n"), exportedCount, finalFilename)
+	}
+
+	return nil
+}
+
+// generateDefaultFilename generates a default filename with timestamp.
+func (c *cmdAliasExport) generateDefaultFilename() string {
+	timestamp := time.Now().Format("20060102_150405")
+	format := c.determineFinalFormat("")
+	extension := c.getExtensionForFormat(format)
+	return fmt.Sprintf("lxc_aliases_%s.%s", timestamp, extension)
+}
+
+// determineFinalFormat determines the final format to use for export.
+func (c *cmdAliasExport) determineFinalFormat(filename string) string {
+	// If format explicitly specified, use it.
+	if c.flagFormat != "auto" {
+		return c.flagFormat
+	}
+
+	// If no filename, default to YAML
+	if filename == "" {
+		return "yaml"
+	}
+
+	// Try to detect format from file name extension
+	parser := c.parsers.GetParserByExtension(filename)
+	if parser != nil {
+		return parser.Name()
+	}
+
+	// Default to YAML for unknown extensions
+	return "yaml"
+}
+
+// getExtensionForFormat returns the file extension for a format.
+func (c *cmdAliasExport) getExtensionForFormat(format string) string {
+	parser := c.parsers.GetParser(format)
+	if parser != nil {
+		return parser.Name()
+	}
+
+	return "yaml" // fallback
+}
+
+// exportAliases exports aliases to a file or stdout in the specified format.
+func (c *cmdAliasExport) exportAliases(aliases map[string]string, filename string, useStdout bool) (int, string, error) {
+	// Determine final filename and format
+	finalFormat := c.determineFinalFormat(filename)
+	finalFilename := filename
+
+	// Adjust filename if not using stdout and format doesn't match extension
+	if !useStdout {
+		finalFilename = c.adjustFilenameForFormat(filename, finalFormat)
+	}
+
+	logger.Infof("Exporting %d aliases in %s format to %s", len(aliases), finalFormat, finalFilename)
+
+	// Get the appropriate parser
+	parser := c.parsers.GetParser(finalFormat)
+	if parser == nil {
+		return 0, "", fmt.Errorf(i18n.G("unsupported export format: %s"), finalFormat)
+	}
+
+	// Generarte export data
+	data, err := parser.Serialize(aliases)
+	if err != nil {
+		return 0, "", fmt.Errorf(i18n.G("failed to serialize aliases: %v"), err)
+	}
+
+	// Write to file or stdout
+	if useStdout {
+		_, err = os.Stdout.Write(data)
+	} else {
+		err = os.WriteFile(finalFilename, data, 0644)
+	}
+
+	if err != nil {
+		return 0, "", fmt.Errorf(i18n.G("failed to write output: %v"), err)
+	}
+
+	return len(aliases), finalFilename, nil
+}
+
+// adjustFilenameForFormat adjusts the filename to match the export format.
+func (c *cmdAliasExport) adjustFilenameForFormat(filename, format string) string {
+	desiredExtension := "." + c.getExtensionForFormat(format)
+	currentExtension := filepath.Ext(filename)
+
+	// If no current extension, append desired extension
+	if currentExtension == "" {
+		return filename + desiredExtension
+	}
+
+	// Check if current extensionmatches the format
+	currentExtension = strings.ToLower(currentExtension)
+	desiredExtension = strings.ToLower(desiredExtension)
+
+	// Special handling for YAML format - both .yml and .yaml are valid
+	if format == "yaml" {
+		// If current extension is a valid YAML extension
+		if currentExtension == ".yml" || currentExtension == ".yaml" {
+			// Keep the original filename with its existing YAML extension
+			return filename
+		}
+	}
+
+	// For other formats, check if extensions match exactly
+	if currentExtension == desiredExtension {
+		return filename
+	}
+
+	// Extensions don't match, append desired extension
+	newFilename := filename + desiredExtension
+	logger.Debugf("Appending format extension: %s -> %s", filename, newFilename)
+	return newFilename
+}
+
+// logCurrentAliases logs current aliases for debugging.
+func (c *cmdAliasExport) logCurrentAliases(conf *config.Config) {
+	logger.Debugf("Current aliases count: %d", len(conf.Aliases))
+	for alias, target := range conf.Aliases {
+		logger.Debugf("Current alias: %s -> %s", alias, target)
 	}
 }
