@@ -410,6 +410,14 @@ jobs:
           echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
         if: env.GOCOVERAGE == 'true'
 
+      - name: Sanitize Artifact Name
+        id: sanitize
+        env:
+          ID: ${{ matrix.suite }}-${{ matrix.backend }}
+        run: |
+          set -eux
+          echo "artifact_name=$(echo "${ID}" | tr ': /' '-_-')" >> "${GITHUB_OUTPUT}"
+
       - name: "Run system tests (${{ matrix.suite }}, ${{ matrix.backend }})"
         run: |
           set -eux
@@ -430,27 +438,16 @@ jobs:
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: crash-dumps-${{ matrix.suite }}-${{ matrix.backend }}
+          name: crash-dumps-${{ steps.sanitize.outputs.artifact_name }}
           path: |
             /var/crash/core-*
           retention-days: 5
           if-no-files-found: ignore
 
-      - name: Sanitize Artifact Name
-        id: sanitize
-        env:
-          SUITE: ${{ matrix.suite }}
-          BACKEND: ${{ matrix.backend }}
-        run: |
-          set -eux
-          # Turn "coverage-network-ovn ovn:latest/edge-24.04" into "coverage-network-ovn_ovn-latest-edge-24.04"
-          SANITIZED_NAME="$(echo "coverage-${SUITE}-${BACKEND}" | tr ': /' '-_-')"
-          echo "ARTIFACT_NAME=${SANITIZED_NAME}" >> $GITHUB_ENV
-
       - name: Upload coverage data
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: ${{ env.ARTIFACT_NAME }}
+          name: coverage-${{ steps.sanitize.outputs.artifact_name }}
           path: ${{ env.GOCOVERDIR }}
           retention-days: 1
         if: env.GOCOVERDIR != ''
@@ -637,6 +634,14 @@ jobs:
           echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
         if: env.GOCOVERAGE == 'true'
 
+      - name: Sanitize Artifact Name
+        id: sanitize
+        env:
+          ID: ${{ matrix.test }}-${{ matrix.os }}
+        run: |
+          set -eux
+          echo "artifact_name=$(echo "${ID}" | tr ': /' '-_-')" >> "${GITHUB_OUTPUT}"
+
       - name: Snap track selection
         run: |
           set -eux
@@ -722,21 +727,20 @@ jobs:
           path: lxd-ui/test-results
           retention-days: 1
 
-      - name: Sanitize Artifact Name
-        id: sanitize
-        env:
-          TEST: ${{ matrix.test }}
-          OS: ${{ matrix.os }}
-        run: |
-          set -eux
-          # Turn "coverage-network-ovn ovn:latest/edge-24.04" into "coverage-network-ovn_ovn-latest-edge-24.04"
-          SANITIZED_NAME="$(echo "coverage-${TEST}-${OS}" | tr ': /' '-_-')"
-          echo "ARTIFACT_NAME=${SANITIZED_NAME}" >> $GITHUB_ENV
+      - name: Upload crash dumps
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: crash-dumps-${{ steps.sanitize.outputs.artifact_name }}
+          path: |
+            /var/crash/core-*
+          retention-days: 5
+          if-no-files-found: ignore
 
       - name: Upload coverage data
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: ${{ env.ARTIFACT_NAME }}
+          name: coverage-${{ steps.sanitize.outputs.artifact_name }}
           path: ${{ env.GOCOVERDIR }}
           retention-days: 1
         if: env.GOCOVERDIR != ''
