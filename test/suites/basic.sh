@@ -844,7 +844,7 @@ test_duplicate_detection() {
   [ "$(! "${_LXC}" image alias create testimage "${test_image_fingerprint}" 2>&1 1>/dev/null)" = 'Error: Alias "testimage" already exists' ]
 
   lxc init foo --empty
-  [ "$(! "${_LXC}" init foo --empty 2>&1 1>/dev/null)" = 'Error: Failed creating instance record: Instance "foo" already exists' ]
+  [ "$(! "${_LXC}" init foo --empty 2>&1 1>/dev/null)" = 'Error: Instance "foo" already exists' ]
   lxc init bar --empty
   [ "$(! "${_LXC}" rename bar foo 2>&1 1>/dev/null)" = 'Error: Name "foo" already in use' ]
   lxc delete bar
