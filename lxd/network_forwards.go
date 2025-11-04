@@ -196,7 +196,7 @@ func networkForwardsGet(d *Daemon, r *http.Request) response.Response {
 
 	forwardURLs := make([]string, 0, len(listenAddresses))
 	for _, listenAddress := range listenAddresses {
-		forwardURLs = append(forwardURLs, fmt.Sprintf("/%s/networks/%s/forwards/%s", version.APIVersion, url.PathEscape(n.Name()), url.PathEscape(listenAddress)))
+		forwardURLs = append(forwardURLs, api.NewURL().Path(version.APIVersion, "networks", n.Name(), "forwards", listenAddress).String())
 	}
 
 	return response.SyncResponse(true, forwardURLs)
