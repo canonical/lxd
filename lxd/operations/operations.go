@@ -146,7 +146,7 @@ func OperationCreate(ctx context.Context, s *state.State, projectName string, op
 	op.createdAt = time.Now()
 	op.updatedAt = op.createdAt
 	op.status = api.Pending
-	op.url = "/" + version.APIVersion + "/operations/" + op.id
+	op.url = api.NewURL().Path(version.APIVersion, "operations", op.id).String()
 	op.resources = opResources
 	op.finished = cancel.New()
 	op.state = s
