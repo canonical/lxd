@@ -18,6 +18,7 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
@@ -177,7 +178,7 @@ func instanceLogsGet(d *Daemon, r *http.Request) response.Response {
 			continue
 		}
 
-		result = append(result, "/"+version.APIVersion+"/instances/"+name+"/logs/"+f.Name())
+		result = append(result, api.NewURL().Path(version.APIVersion, "instances", name, "logs", f.Name()).String())
 	}
 
 	return response.SyncResponse(true, result)
@@ -460,7 +461,7 @@ func instanceExecOutputsGet(d *Daemon, r *http.Request) response.Response {
 			continue
 		}
 
-		result = append(result, "/"+version.APIVersion+"/instances/"+name+"/logs/exec-output/"+f.Name())
+		result = append(result, api.NewURL().Path(version.APIVersion, "instances", name, "logs", "exec-output", f.Name()).String())
 	}
 
 	return response.SyncResponse(true, result)

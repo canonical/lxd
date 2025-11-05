@@ -723,8 +723,8 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 
 			// Update metadata with the right URLs.
 			metadata["output"] = shared.Jmap{
-				"1": fmt.Sprintf("/%s/instances/%s/logs/exec-output/%s", version.APIVersion, inst.Name(), filepath.Base(stdout.Name())),
-				"2": fmt.Sprintf("/%s/instances/%s/logs/exec-output/%s", version.APIVersion, inst.Name(), filepath.Base(stderr.Name())),
+				"1": api.NewURL().Path(version.APIVersion, "instances", inst.Name(), "logs", "exec-output", filepath.Base(stdout.Name())).String(),
+				"2": api.NewURL().Path(version.APIVersion, "instances", inst.Name(), "logs", "exec-output", filepath.Base(stderr.Name())).String(),
 			}
 		}
 
