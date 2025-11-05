@@ -823,12 +823,15 @@ jobs:
 
       - name: Install dependencies
         run: |
+          set -eux
           go install github.com/boumenot/gocover-cobertura@latest
           go install honnef.co/go/tools/cmd/staticcheck@latest
 
       - name: Convert coverage files
         run: |
+          set -eux
           go tool covdata textfmt -i="${GOCOVERDIR}" -o "${GOCOVERDIR}"/coverage.out
+          head "${GOCOVERDIR}"/coverage.out
           gocover-cobertura < "${GOCOVERDIR}"/coverage.out > "${GOCOVERDIR}"/coverage-go.xml
 
       - name: Run TICS
