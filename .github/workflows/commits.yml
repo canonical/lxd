@@ -11,8 +11,8 @@ permissions:
 
 jobs:
   commits:
-    name: Branch target
-    runs-on: ubuntu-latest
+    name: Branch target and CLA
+    runs-on: ubuntu-slim
     steps:
       - name: Check branch target
         env:
