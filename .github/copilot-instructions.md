@@ -95,6 +95,10 @@ The CI pipeline (`.github/workflows/tests.yml`) runs:
 
 ### Validation Steps Before Committing
 
+Please note that the below validation steps may produce artifacts or modify files (e.g., formatting). Ensure to review any changes after running these checks.
+
+Additionally, some checks may fail and leave behind temporary files; please clean these up as needed (i.e. if the produced files are not needed for your changes).
+
 1. **Run static analysis:**
    ```bash
    make static-analysis
