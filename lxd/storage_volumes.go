@@ -1183,7 +1183,7 @@ func clusterCopyCustomVolumeInternal(s *state.State, r *http.Request, sourceAddr
 	req.Source.Type = api.SourceTypeMigration
 	req.Source.Certificate = string(s.Endpoints.NetworkCert().PublicKey())
 	req.Source.Mode = "pull"
-	req.Source.Operation = "https://" + sourceAddress + "/" + version.APIVersion + "/operations/" + opAPI.ID
+	req.Source.Operation = "https://" + sourceAddress + api.NewURL().Path(version.APIVersion, "operations", opAPI.ID).String()
 	req.Source.Websockets = websockets
 	req.Source.Project = ""
 

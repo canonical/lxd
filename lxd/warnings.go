@@ -214,7 +214,7 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		for _, w := range filters {
-			url := "/" + version.APIVersion + "/warnings/" + w.UUID
+			url := api.NewURL().Path(version.APIVersion, "warnings", w.UUID).String()
 			resultList = append(resultList, url)
 		}
 

@@ -1538,7 +1538,7 @@ func clusterCopyContainerInternal(ctx context.Context, s *state.State, source in
 	req.Source.Type = api.SourceTypeMigration
 	req.Source.Certificate = string(s.Endpoints.NetworkCert().PublicKey())
 	req.Source.Mode = "pull"
-	req.Source.Operation = fmt.Sprintf("https://%s/%s/operations/%s", nodeAddress, version.APIVersion, opAPI.ID)
+	req.Source.Operation = "https://" + nodeAddress + api.NewURL().Path(version.APIVersion, "operations", opAPI.ID).String()
 	req.Source.Websockets = websockets
 	req.Source.Source = ""
 	req.Source.Project = ""
