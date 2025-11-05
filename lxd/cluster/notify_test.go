@@ -3,7 +3,6 @@ package cluster_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -303,7 +302,7 @@ func newRestServer(name string, cert *shared.CertInfo) *httptest.Server {
 		_ = util.WriteJSON(w, api.ResponseRaw{Metadata: metadata}, nil)
 	})
 
-	mux.HandleFunc(fmt.Sprintf("/1.0/cluster/members/%s/state", name), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(api.NewURL().Path("1.0", "cluster", "members", name, "state").String(), func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		metadata := api.ClusterMemberState{
 			SysInfo: api.ClusterMemberSysInfo{

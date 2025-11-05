@@ -93,7 +93,7 @@ func ForwardedOperationResponse(op *api.Operation) response.Response {
 
 // Render builds forwardedOperationResponse and writes it to http.ResponseWriter.
 func (r *forwardedOperationResponse) Render(w http.ResponseWriter, req *http.Request) error {
-	url := "/" + version.APIVersion + "/operations/" + r.op.ID
+	url := api.NewURL().Path(version.APIVersion, "operations", r.op.ID).String()
 
 	body := api.ResponseRaw{
 		Type:       api.AsyncResponse,
