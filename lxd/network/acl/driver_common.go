@@ -129,33 +129,13 @@ func (d *common) usedBy(firstOnly bool) ([]string, error) {
 	err := UsedBy(d.state, d.projectName, func(ctx context.Context, tx *db.ClusterTx, _ []string, usageType any, _ string, _ map[string]string) error {
 		switch u := usageType.(type) {
 		case db.InstanceArgs:
-			uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, u.Name)
-			if u.Project != api.ProjectDefaultName {
-				uri += "?project=" + u.Project
-			}
-
-			usedBy = append(usedBy, uri)
+			usedBy = append(usedBy, api.NewURL().Path(version.APIVersion, "instances", u.Name).Project(u.Project).String())
 		case *api.Network:
-			uri := fmt.Sprintf("/%s/networks/%s", version.APIVersion, u.Name)
-			if d.projectName != api.ProjectDefaultName {
-				uri += "?project=" + d.projectName
-			}
-
-			usedBy = append(usedBy, uri)
+			usedBy = append(usedBy, api.NewURL().Path(version.APIVersion, "networks", u.Name).Project(d.projectName).String())
 		case dbCluster.Profile:
-			uri := fmt.Sprintf("/%s/profiles/%s", version.APIVersion, u.Name)
-			if u.Project != api.ProjectDefaultName {
-				uri += "?project=" + u.Project
-			}
-
-			usedBy = append(usedBy, uri)
+			usedBy = append(usedBy, api.NewURL().Path(version.APIVersion, "profiles", u.Name).Project(u.Project).String())
 		case *api.NetworkACL:
-			uri := fmt.Sprintf("/%s/network-acls/%s", version.APIVersion, u.Name)
-			if d.projectName != api.ProjectDefaultName {
-				uri += "?project=" + d.projectName
-			}
-
-			usedBy = append(usedBy, uri)
+			usedBy = append(usedBy, api.NewURL().Path(version.APIVersion, "network-acls", u.Name).Project(d.projectName).String())
 		default:
 			return fmt.Errorf("Unrecognised usage type %T", u)
 		}
