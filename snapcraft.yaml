@@ -44,7 +44,7 @@ description: |-
    - daemon.verbose: Increase logging to verbose level [default=false]
    - db.trace: Enable dqlite trace logging (very verbose) [default=false]
    - lvm.external: Use the system's LVM tools [default=false]
-   - lxcfs.pidfd: Start per-container process tracking [default=false]
+   - lxcfs.pidfd: Start per-container process tracking [default=true]
    - lxcfs.loadavg: Start tracking per-container load average [default=false]
    - lxcfs.cfs: Consider CPU shares for CPU usage [default=false]
    - lxcfs.debug: Increase logging to debug level [default=false]
