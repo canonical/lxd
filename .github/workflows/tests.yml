@@ -836,8 +836,11 @@ jobs:
           set -eux
           go tool covdata textfmt -i="${GOCOVERDIR}" -o "${GOCOVERDIR}"/coverage.out
           head "${GOCOVERDIR}"/coverage.out
-          # Convert to Cobertura XML format, ignoring generated i18n file and validate_no_cgo.go
-          gocover-cobertura -tags=libsqlite3 -ignore-gen-files -ignore-files '^github\.com/canonical/lxd/shared/i18n/i18n\.go$|validate_no_cgo\.go$' -f "${GOCOVERDIR}"/coverage.out -o "${GOCOVERDIR}"/coverage-go.xml
+          # Convert to Cobertura XML format.
+          # We need to ignore generated files and files not included in builds because gocover-cobertura tries to reconcile differences between files included in coverage and source.
+          # The grep finds files with "//go:build !linux || !cgo" patterns, sed prepends module path and escapes dots for regex matching.
+          ignore_files=$(git grep -lE '^//go:build !.*linux \|\| !cgo$' '*.go' | sed 's|^|^github.com/canonical/lxd/|; s/\./\\\./g' | paste -sd '|')
+          gocover-cobertura -tags=libsqlite3 -ignore-gen-files -ignore-files "${ignore_files}" -f "${GOCOVERDIR}"/coverage.out -o "${GOCOVERDIR}"/coverage-go.xml
 
       - name: Run TICS
         uses: tiobe/tics-github-action@768de18bedf164ee461bc9ef5e2f2fa1a20b122a # v3.7.0
