@@ -2,17 +2,15 @@
 set -eu
 
 # Re-exec outside of apparmor confinement
-if [ -d /sys/kernel/security/apparmor ]; then
-  label="$(cat /proc/self/attr/current 2>/dev/null)"
-  if [ "$label" != "unconfined" ] && [ -n "${label##*(unconfined)}" ]; then
-    if ! aa-exec --help >/dev/null 2>&1; then
-        echo "The LXD snap was unable to run aa-exec, this usually indicates a LXD sideload." >&2
-        echo "When sideloading, make sure to manually connect all interfaces." >&2
-        exit 0
-    fi
-
-    exec aa-exec -p unconfined -- "$0" "$@" || true
+label="$(cat /proc/self/attr/current 2>/dev/null || echo "unconfined")"
+if [ "${label}" != "unconfined" ] && [ -n "${label##*(unconfined)}" ]; then
+  if ! aa-exec --help >/dev/null 2>&1; then
+      echo "The LXD snap was unable to run aa-exec, this usually indicates a LXD sideload." >&2
+      echo "When sideloading, make sure to manually connect all interfaces." >&2
+      exit 0
   fi
+
+  exec aa-exec -p unconfined -- "$0" "$@" || true
 fi
 
 # shellcheck disable=SC2155
