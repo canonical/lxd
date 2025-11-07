@@ -103,7 +103,7 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 
 		size, err := shared.DownloadFileHash(context.TODO(), &httpClient, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, hash, sha256.New(), target)
 		if err != nil {
-			// Handle cancelation
+			// Handle cancellation
 			if err.Error() == "net/http: request canceled" {
 				return -1, err
 			}

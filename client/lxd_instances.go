@@ -536,7 +536,7 @@ func (r *ProtocolLXD) GetInstanceFull(name string) (*api.InstanceFull, string, e
 	instance := api.InstanceFull{}
 
 	if r.CheckExtension("instance_get_full") != nil {
-		// Backware compatibility.
+		// Backward compatibility.
 		ct, _, err := r.GetInstance(name)
 		if err != nil {
 			return nil, "", err

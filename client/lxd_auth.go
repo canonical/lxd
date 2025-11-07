@@ -230,7 +230,7 @@ func (r *ProtocolLXD) GetIdentity(authenticationMethod string, nameOrIdentifier 
 	return &identity, etag, nil
 }
 
-// GetCurrentIdentityInfo returns the identity of the requestor. The response includes contextual information that is
+// GetCurrentIdentityInfo returns the identity of the requester. The response includes contextual information that is
 // used for authorization.
 func (r *ProtocolLXD) GetCurrentIdentityInfo() (*api.IdentityInfo, string, error) {
 	err := r.CheckExtension("access_management")
