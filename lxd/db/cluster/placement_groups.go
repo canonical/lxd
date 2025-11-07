@@ -50,10 +50,9 @@ type PlacementGroup struct {
 
 // PlacementGroupFilter contains fields that can be used to filter results when getting placement groups.
 type PlacementGroupFilter struct {
-	ID              *int
-	Project         *string
-	Name            *string
-	ExcludeMemberID *int64
+	ID      *int // Used to exclude placement group instances on the source cluster member during evacuation.
+	Project *string
+	Name    *string
 }
 
 // CreatePlacementGroupConfig creates config for a new placement group with the given ID.
@@ -225,9 +224,10 @@ AND COALESCE(
   (SELECT profiles_config.value FROM instances_profiles JOIN profiles ON instances_profiles.profile_id = profiles.id JOIN profiles_config ON profiles.id = profiles_config.profile_id WHERE instances_profiles.instance_id = instances.id AND profiles_config.key = 'placement.group' ORDER BY instances_profiles.apply_order DESC LIMIT 1)
 ) = ?`
 
-	if filter.ExcludeMemberID != nil {
+	// Exclude member ID if specified.
+	if filter.ID != nil {
 		q += " AND instances.node_id != ?"
-		args = append(args, *filter.ExcludeMemberID)
+		args = append(args, *filter.ID)
 	}
 
 	result := make(map[int][]int)
