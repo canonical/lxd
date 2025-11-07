@@ -117,11 +117,11 @@ var updates = map[int]schema.Update{
 	74: updateFromV73,
 	75: updateFromV74,
 	76: updateFromV75,
-	77: updateFromv76,
-	78: updateFromv77,
+	77: updateFromV76,
+	78: updateFromV77,
 }
 
-func updateFromv77(ctx context.Context, tx *sql.Tx) error {
+func updateFromV77(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.ExecContext(ctx, `
 CREATE TABLE placement_groups (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -144,7 +144,7 @@ CREATE TABLE placement_groups_config (
 	return err
 }
 
-func updateFromv76(ctx context.Context, tx *sql.Tx) error {
+func updateFromV76(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.ExecContext(ctx, `
 CREATE TABLE oidc_sessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
