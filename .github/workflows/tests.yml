@@ -845,7 +845,7 @@ jobs:
           # Convert to Cobertura XML format.
           # We need to ignore generated files and files not included in builds because gocover-cobertura tries to reconcile differences between files included in coverage and source.
           # The grep finds files with "//go:build !linux || !cgo" patterns, sed prepends module path and escapes dots for regex matching.
-          ignore_files=$(git grep -lE '^//go:build !.*linux \|\| !cgo$' '*.go' | sed 's|^|^github.com/canonical/lxd/|; s/\./\\\./g' | paste -sd '|')
+          ignore_files=$(git grep -lE '^//go:build !.*linux' '*.go' | sed 's|^|^github.com/canonical/lxd/|; s/\./\\\./g' | paste -sd '|')
           gocover-cobertura -tags=libsqlite3 -ignore-gen-files -ignore-files "${ignore_files}" -f "${GOCOVERDIR}"/coverage.out -o "${GOCOVERDIR}"/coverage-go.xml
 
       - name: Run TICS
