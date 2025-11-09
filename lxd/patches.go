@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -83,6 +84,7 @@ var patches = []patch{
 	{name: "storage_unset_invalid_block_settings", stage: patchPostDaemonStorage, run: patchStorageUnsetInvalidBlockSettings},
 	{name: "storage_move_custom_iso_block_volumes_v2", stage: patchPostDaemonStorage, run: patchStorageRenameCustomISOBlockVolumesV2},
 	{name: "storage_unset_invalid_block_settings_v2", stage: patchPostDaemonStorage, run: patchStorageUnsetInvalidBlockSettingsV2},
+	{name: "pool_fix_default_permissions", stage: patchPostDaemonStorage, run: patchDefaultStoragePermissions},
 }
 
 type patch struct {
@@ -1247,6 +1249,36 @@ DELETE FROM storage_volumes_config
 	AND storage_volumes_config.key IN ("block.filesystem", "block.mount_options")
 	`)
 	return err
+}
+
+// patchDefaultStoragePermissions re-applies the default modes to all storage pools.
+func patchDefaultStoragePermissions(_ string, d *Daemon) error {
+	s := d.State()
+
+	pools, err := s.DB.Cluster.GetStoragePoolNames()
+	if err != nil {
+		// Skip the rest of the patch if no storage pools were found.
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return nil
+		}
+
+		return fmt.Errorf("Failed getting storage pool names: %w", err)
+	}
+
+	for _, pool := range pools {
+		for _, volEntry := range storageDrivers.BaseDirectories {
+			for _, volDir := range volEntry.Paths {
+				path := storageDrivers.GetPoolMountPath(pool) + "/" + volDir
+
+				err := os.Chmod(path, volEntry.Mode)
+				if err != nil && !errors.Is(err, fs.ErrNotExist) {
+					return fmt.Errorf("Failed to set directory mode %q: %w", path, err)
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // Patches end here
