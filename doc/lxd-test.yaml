@@ -61,6 +61,7 @@ config:
     - libacl1-dev
     - libapparmor-dev
     - libcap-dev
+    - liblz4-dev
     - libseccomp-dev
     - libsqlite3-dev
     - libtool
