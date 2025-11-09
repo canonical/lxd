@@ -109,6 +109,7 @@ var patches = []patch{
 	{name: "storage_update_powerflex_snapshot_prefix", stage: patchPostDaemonStorage, run: patchUpdatePowerFlexSnapshotPrefix},
 	{name: "config_remove_instances_placement_scriptlet", stage: patchPreLoadClusterConfig, run: patchRemoveInstancesPlacementScriptlet},
 	{name: "event_entitlement_rename", stage: patchPreLoadClusterConfig, run: patchEventEntitlementNames},
+	{name: "pool_fix_default_permissions", stage: patchPostDaemonStorage, run: patchDefaultStoragePermissions},
 }
 
 type patch struct {
@@ -1803,6 +1804,45 @@ func patchEventEntitlementNames(name string, d *Daemon) error {
 
 		return nil
 	})
+}
+
+// patchDefaultStoragePermissions re-applies the default modes to all storage pools.
+func patchDefaultStoragePermissions(_ string, d *Daemon) error {
+	s := d.State()
+
+	var pools []string
+
+	err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		// Get all storage pool names.
+		pools, err = tx.GetStoragePoolNames(ctx)
+
+		return err
+	})
+	if err != nil {
+		// Skip the rest of the patch if no storage pools were found.
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return nil
+		}
+
+		return fmt.Errorf("Failed getting storage pool names: %w", err)
+	}
+
+	for _, pool := range pools {
+		for _, volEntry := range storageDrivers.BaseDirectories {
+			for _, volDir := range volEntry.Paths {
+				path := storageDrivers.GetPoolMountPath(pool) + "/" + volDir
+
+				err := os.Chmod(path, volEntry.Mode)
+				if err != nil && !errors.Is(err, fs.ErrNotExist) {
+					return fmt.Errorf("Failed to set directory mode %q: %w", path, err)
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // Patches end here
