@@ -58,12 +58,17 @@ const ContentTypeBlock = ContentType("block")
 // VolumePostHook function returned from a storage action that should be run later to complete the action.
 type VolumePostHook func(vol Volume) error
 
+type baseDirectory struct {
+	Paths []string
+	Mode  os.FileMode
+}
+
 // BaseDirectories maps volume types to the expected directories.
-var BaseDirectories = map[VolumeType][]string{
-	VolumeTypeContainer: {"containers", "containers-snapshots"},
-	VolumeTypeCustom:    {"custom", "custom-snapshots"},
-	VolumeTypeImage:     {"images"},
-	VolumeTypeVM:        {"virtual-machines", "virtual-machines-snapshots"},
+var BaseDirectories = map[VolumeType]baseDirectory{
+	VolumeTypeContainer: {Paths: []string{"containers", "containers-snapshots"}, Mode: 0o711},
+	VolumeTypeCustom:    {Paths: []string{"custom", "custom-snapshots"}, Mode: 0o700},
+	VolumeTypeImage:     {Paths: []string{"images"}, Mode: 0o700},
+	VolumeTypeVM:        {Paths: []string{"virtual-machines", "virtual-machines-snapshots"}, Mode: 0o700},
 }
 
 // Volume represents a storage volume, and provides functions to mount and unmount it.

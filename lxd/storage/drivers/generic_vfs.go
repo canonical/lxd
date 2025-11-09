@@ -1003,12 +1003,12 @@ func genericVFSListVolumes(d Driver) ([]Volume, error) {
 	poolMountPath := GetPoolMountPath(poolName)
 
 	for _, volType := range d.Info().VolumeTypes {
-		if len(BaseDirectories[volType]) < 1 {
+		if len(BaseDirectories[volType].Paths) < 1 {
 			return nil, fmt.Errorf("Cannot get base directory name for volume type %q", volType)
 		}
 
-		volTypePath := filepath.Join(poolMountPath, BaseDirectories[volType][0])
-		ents, err := ioutil.ReadDir(volTypePath)
+		volTypePath := filepath.Join(poolMountPath, BaseDirectories[volType].Paths[0])
+		ents, err := os.ReadDir(volTypePath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to list directory %q for volume type %q", volTypePath, volType)
 		}
