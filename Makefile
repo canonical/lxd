@@ -133,6 +133,13 @@ dqlite:
 		./configure --enable-build-raft && \
 		make -j
 
+ifneq ($(shell command -v ldd),)
+	# verify that libdqlite.so is linked against some critically important libs
+	ldd "$(DQLITE_PATH)/.libs/libdqlite.so" | grep -wE 'liblz4|libsqlite3|libuv'
+	[ "$$(ldd "$(DQLITE_PATH)/.libs/libdqlite.so" | grep -cwE 'liblz4|libsqlite3|libuv')" = "3" ]
+	@echo "OK: libdqlite .so link check passed"
+endif
+
 .PHONY: liblxc
 liblxc:
 	# lxc/liblxc
