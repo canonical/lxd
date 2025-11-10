@@ -2842,3 +2842,17 @@ This avoids the need for adding physical function interfaces to the OVN integrat
 This introduces a new `ovn` network and `ovn` NIC configuration key:
 
 * {config:option}`device-nic-ovn-device-conf:acceleration.parent` - Comma separated list of physical function (PF) interfaces to allocate virtual functions (VFs) from for hardware acceleration when {config:option}`device-nic-ovn-device-conf:acceleration` is enabled.
+
+## `storage_and_profile_operations`
+
+Certain storage and profile endpoints that were previously synchronous now return an operation and behave asynchronously.
+
+Newer LXD Go clients detect the presence of this API extension. When it is available, the client receives an operation object directly from the LXD server.
+If the extension is not present, the server response is wrapped in a completed operation, allowing the caller to handle it as an operation while lacking a retrievable operation ID.
+
+Older LXD Go clients are incompatible with servers that include this extension.
+Instead of returning a successful response, they will receive an operation response.
+
+Endpoints converted to asynchronous behavior:
+
+* `POST /storage-pools/<pool>/volumes/<type>` - Create storage volume
