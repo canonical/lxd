@@ -58,7 +58,7 @@ func (s *OS) initDirs() error {
 	for _, dir := range dirs {
 		err := os.Mkdir(dir.path, dir.mode)
 		if err != nil {
-			if !os.IsExist(err) {
+			if !errors.Is(err, fs.ErrExist) {
 				return fmt.Errorf("Failed to init dir %q: %w", dir.path, err)
 			}
 
