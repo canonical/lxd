@@ -546,6 +546,7 @@ if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "cluster" ]; then
     run_test test_container_syscall_interception "container syscall interception"
     run_test test_security "security features"
     run_test test_security_protection "container protection"
+    run_test test_apparmor "apparmor restrictions"
     run_test test_image_expiry "image expiry"
     run_test test_image_list_all_aliases "image list all aliases"
     run_test test_image_list_remotes "image list of simplestream remotes"
@@ -649,6 +650,7 @@ if [ "${1:-"all"}" != "cluster" ] && [ "${1:-"all"}" != "standalone" ]; then
     run_test test_snap_vm_empty "snap empty VM"
     run_test test_snap_lxd_user "snap lxd-user"
     run_test test_snap_storage_volume_attach_vm "snap attaching storage volumes to VMs"
+    run_test test_snap_apparmor "snap apparmor restrictions"
 fi
 
 # shellcheck disable=SC2034
