@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"io/fs"
 	"maps"
 	"net/http"
 	"net/url"
@@ -562,7 +563,7 @@ func FileCopy(source string, dest string) error {
 
 	d, err := os.Create(dest)
 	if err != nil {
-		if !os.IsExist(err) {
+		if !errors.Is(err, fs.ErrExist) {
 			return err
 		}
 
