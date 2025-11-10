@@ -216,7 +216,12 @@ func run(args []string) error {
 				return err
 			}
 
-			return client.CreateStoragePoolVolume(poolName, vol)
+			op, err := client.CreateStoragePoolVolume(poolName, vol)
+			if err != nil {
+				return err
+			}
+
+			return op.WaitContext(context.Background())
 		case "update-volume":
 			if len(args) < 7 || len(args) > 8 {
 				return fmt.Errorf("Usage: %s storage update-volume <poolName> <volType> <volName> <vol> [<etag>]", args[0])
