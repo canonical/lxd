@@ -20,6 +20,26 @@ test_storage() {
 
   lxc storage volume create "$storage_pool" "$storage_volume"
 
+  # Test storage directory permissions
+
+  # Verify storage pool directory permissions match BaseDirectories expectations.
+  # We expect:
+  # - containers, containers-snapshots -> 0711
+  # - custom, custom-snapshots -> 0700
+  # - images -> 0700
+  # - virtual-machines, virtual-machines-snapshots -> 0700
+  pool_path="${LXD_DIR}/storage-pools/${storage_pool}"
+
+  # POSIX sh compatible expected modes list. Use space-separated entries of the form "dir:mode".
+  expected_modes="containers:711 containers-snapshots:711 custom:700 custom-snapshots:700 images:700 virtual-machines:700 virtual-machines-snapshots:700"
+
+  for entry in ${expected_modes}; do
+    dir=${entry%%:*}
+    want=${entry#*:}
+    mode=$(stat -c %a "${pool_path}/${dir}")
+    [ "${mode}" = "${want}" ]
+  done
+
   # Test setting description on a storage volume
   lxc storage volume show "$storage_pool" "$storage_volume" | sed 's/^description:.*/description: bar/' | lxc storage volume edit "$storage_pool" "$storage_volume"
   lxc storage volume show "$storage_pool" "$storage_volume" | grep -q 'description: bar'
