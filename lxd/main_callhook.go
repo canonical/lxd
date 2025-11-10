@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -114,7 +115,7 @@ func applyCDIHooksToContainer(devicesRootFolder string, hooksFilePath string) er
 		// Create the symlink
 		err = os.Symlink(absTarget, filepath.Join(containerRootFSMount, symlink.Link))
 		if err != nil {
-			if !os.IsExist(err) {
+			if !errors.Is(err, fs.ErrExist) {
 				return fmt.Errorf("Failed to create the CDI symlink: %w\n", err)
 			}
 
