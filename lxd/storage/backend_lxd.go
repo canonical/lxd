@@ -7240,7 +7240,7 @@ func (b *lxdBackend) createStorageStructure(path string) error {
 		for _, name := range drivers.BaseDirectories[volType].Paths {
 			path := filepath.Join(path, name)
 			err := os.MkdirAll(path, drivers.BaseDirectories[volType].Mode)
-			if err != nil && !os.IsExist(err) {
+			if err != nil && !errors.Is(err, fs.ErrExist) {
 				return fmt.Errorf("Failed to create directory %q: %w", path, err)
 			}
 		}
