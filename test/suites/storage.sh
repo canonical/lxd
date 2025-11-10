@@ -28,6 +28,35 @@ test_storage() {
 
   lxc storage volume create "$storage_pool" "$storage_volume" size=1MiB
 
+  # Test storage directory permissions
+
+  # Verify storage pool directory permissions match BaseDirectories expectations.
+  # We expect:
+  # - containers, containers-snapshots -> 0711
+  # - buckets -> 0711
+  # - custom, custom-snapshots -> 0700
+  # - images -> 0700
+  # - virtual-machines, virtual-machines-snapshots -> 0700
+  pool_path="${LXD_DIR}/storage-pools/${storage_pool}"
+
+  declare -A expected_modes
+  expected_modes[containers]=711
+  expected_modes[containers-snapshots]=711
+  if [ "${lxd_backend}" != "ceph" ] && [ "${lxd_backend}" != "pure" ]; then
+      expected_modes[buckets]=711 # Buckets are not supported on ceph and pure backends.
+  fi
+  expected_modes[custom]=700
+  expected_modes[custom-snapshots]=700
+  expected_modes[images]=700
+  expected_modes[virtual-machines]=700
+  expected_modes[virtual-machines-snapshots]=700
+
+  for dir in "${!expected_modes[@]}"; do
+    want="${expected_modes[$dir]}"
+    mode=$(stat -c %a "${pool_path}/${dir}")
+    [ "${mode}" = "${want}" ]
+  done
+
   # Test setting description on a storage volume
   lxc storage volume show "$storage_pool" "$storage_volume" | sed 's/^description:.*/description: bar/' | lxc storage volume edit "$storage_pool" "$storage_volume"
   [ "$(lxc storage volume get "$storage_pool" "$storage_volume" -p description)" = "bar" ]
