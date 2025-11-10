@@ -65,7 +65,7 @@ type baseDirectory struct {
 
 // BaseDirectories maps volume types to the expected directories.
 var BaseDirectories = map[VolumeType]baseDirectory{
-	VolumeTypeContainer: {Paths: []string{"containers", "containers-snapshots"}, Mode: 0o711},
+	VolumeTypeContainer: {Paths: []string{"containers", "containers-snapshots"}, Mode: 0o711}, // Containers may be run as non-root, so 0700 won't work, however as containers have their own sub-directory with correct ownership that is 0100 this is OK.
 	VolumeTypeCustom:    {Paths: []string{"custom", "custom-snapshots"}, Mode: 0o700},
 	VolumeTypeImage:     {Paths: []string{"images"}, Mode: 0o700},
 	VolumeTypeVM:        {Paths: []string{"virtual-machines", "virtual-machines-snapshots"}, Mode: 0o700},
