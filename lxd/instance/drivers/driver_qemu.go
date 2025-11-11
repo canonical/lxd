@@ -3795,10 +3795,12 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 		// Add PCI device.
 		if len(runConf.PCIDevice) > 0 {
-			err = d.addPCIDevConfig(&cfg, bus.name, busAllocate, runConf.PCIDevice)
+			monHook, err := d.addPCIDevConfig(bus.name, busAllocate, runConf.PCIDevice)
 			if err != nil {
 				return "", nil, err
 			}
+
+			monHooks = append(monHooks, monHook)
 		}
 
 		// Add USB devices.
