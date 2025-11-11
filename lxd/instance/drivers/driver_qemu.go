@@ -4691,17 +4691,17 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 	// Detect MACVTAP interface types and figure out which tap device is being used.
 	// This is so we can open a file handle to the tap device and pass it to the qemu process.
 	if shared.PathExists("/sys/class/net/" + nicName + "/macvtap") {
-		content, err := os.ReadFile("/sys/class/net/" + nicName + "/ifindex")
-		if err != nil {
-			return nil, fmt.Errorf("Error getting tap device ifindex: %w", err)
-		}
-
-		ifindex, err := strconv.Atoi(strings.TrimSpace(string(content)))
-		if err != nil {
-			return nil, fmt.Errorf("Error parsing tap device ifindex: %w", err)
-		}
-
 		devFile := func() (*os.File, error) {
+			content, err := os.ReadFile("/sys/class/net/" + nicName + "/ifindex")
+			if err != nil {
+				return nil, fmt.Errorf("Error getting tap device ifindex: %w", err)
+			}
+
+			ifindex, err := strconv.Atoi(strings.TrimSpace(string(content)))
+			if err != nil {
+				return nil, fmt.Errorf("Error parsing tap device ifindex: %w", err)
+			}
+
 			return os.OpenFile(fmt.Sprintf("/dev/tap%d", ifindex), os.O_RDWR, 0)
 		}
 
