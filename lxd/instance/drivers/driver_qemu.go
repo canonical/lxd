@@ -2213,7 +2213,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 
 			// Attach PCI to running instance.
 			if len(runConf.PCIDevice) > 0 {
-				err = d.deviceAttachPCI(dev.Name(), runConf.PCIDevice)
+				err = d.deviceAttachPCI(runConf.PCIDevice)
 				if err != nil {
 					return nil, err
 				}
