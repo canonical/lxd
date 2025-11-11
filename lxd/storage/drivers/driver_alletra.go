@@ -220,7 +220,6 @@ func (d *alletra) Validate(config map[string]string) error {
 }
 
 // SourceIdentifier returns a combined string consisting of the WSAPI address, CPG and volume set name.
-// We might want to use a volume sets ID, same as we do with pool ID for PowerFlex and Pure.
 func (d *alletra) SourceIdentifier() (string, error) {
 	wsapi := d.config["alletra.wsapi"]
 	if wsapi == "" {
