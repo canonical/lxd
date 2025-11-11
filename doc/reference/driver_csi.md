@@ -97,13 +97,17 @@ Key                                                | Type   | Default           
 (ref-csi-versioning)=
 ## Versioning
 
-The LXD CSI driver follows Semantic Versioning independently of LXD releases, starting at `0.0.1`.
+The LXD CSI driver follows Semantic Versioning independently of LXD releases, starting at `v0.0.1`.
 
 Tag type | Format                     | Example  | Description
 -------- | -------------------------- | -------- | -----------
 Patch    | `v<major>.<minor>.<patch>` | `v1.2.3` | Bugfix release. Each patch within the same minor version provides the same set of features.
 Minor    | `v<major>.<minor>`         | `v4.5`   | Feature release. Adds new features in a backward-compatible way within the major version. Features may be deprecated, but remain usable.
 Major    | `v<major>`                 | `v6`     | Breaking release. May include breaking changes and may raise minimum LXD version.
+
+Whenever a new stable LXD CSI version is released, it includes three tags.
+For example, version `v1.2.3` is tagged with its fixed tag `v1.2.3`, as well as floating tags `v1` and `v1.2` until the next release.
+This allows users to either pin to a specific version or track the latest stable version for a given major or minor release.
 
 (ref-csi-versioning-compatibility)=
 ### Compatibility
@@ -117,14 +121,14 @@ When a Kubernetes version reaches end of life, it is no longer supported by the 
 
 CSI Version | Min. LXD Version | Min. Kubernetes Version | EOL
 ----------- | ---------------- | ----------------------- | ---
-`1`         | `6.6`            | `v1.31`                 | N/A
+`v1`        | `6.6`            | `v1.31`                 | N/A
 
 (ref-csi-versioning-exceptions)=
 ### Special versions
 
-- All versions before the first major release (`<1.0.0`) make no guarantees. Behavior may change even in patch releases.
+- All versions before the first major release (`< v1.0.0`) make no guarantees. Behavior may change even in patch releases.
 - Versions with non-semantic tags (e.g. `latest-edge`) or with pre-release identifiers (e.g. `v1.2.3-edge`) are considered unstable and should be used only for testing.
-- Version `0.0.0` is reserved for unstable builds where semantic versioning is required (e.g. `v0.0.0-latest-edge` is latest Helm chart release).
+- Certain non-semantic tags are prefixed with `v0` to satisfy versioning requirements. For example, the Helm chart `v0-latest-edge` represents the latest Helm chart release.
 
 ## Related topics
 
