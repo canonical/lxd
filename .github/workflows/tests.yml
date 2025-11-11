@@ -489,6 +489,7 @@ jobs:
           - cpu-vm
           - devlxd-container
           - devlxd-vm
+          - docker
           - efi-vars-editor-vm
           - lxd-installer
           - lxd-user
