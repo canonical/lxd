@@ -2378,6 +2378,13 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 		return "", fmt.Errorf("Failed to open device socket file %q: %w", virtiofsdSockPath, err)
 	}
 
+	defer func() {
+		err := socketFile.Close()
+		if err != nil {
+			d.logger.Warn("Failed closing device socket file", logger.Ctx{"device": deviceName, "file": virtiofsdSockPath, "err": err})
+		}
+	}()
+
 	shortPath := fmt.Sprintf("/dev/fd/%d", socketFile.Fd())
 
 	addr, err := net.ResolveUnixAddr("unix", shortPath)
