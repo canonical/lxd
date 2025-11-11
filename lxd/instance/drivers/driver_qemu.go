@@ -2594,69 +2594,26 @@ func (d *qemu) deviceAttachNIC(netIF []deviceConfig.RunConfigItem) error {
 }
 
 // deviceAttachPCI live attaches a generic PCI device to the instance.
-func (d *qemu) deviceAttachPCI(deviceName string, pciConfig []deviceConfig.RunConfigItem) error {
+func (d *qemu) deviceAttachPCI(pciConfig []deviceConfig.RunConfigItem) error {
+	_, qemuBus, err := d.qemuArchConfig(d.architecture)
+	if err != nil {
+		return err
+	}
+
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
 		return err
 	}
 
-	// Get the device config.
-	var devName, pciSlotName, pciIOMMUGroup string
-	for _, pciItem := range pciConfig {
-		switch pciItem.Key {
-		case "devName":
-			devName = pciItem.Value
-		case "pciSlotName":
-			pciSlotName = pciItem.Value
-		case "pciIOMMUGroup":
-			pciIOMMUGroup = pciItem.Value
-		default:
-			return errors.New("Unexpected PCI configuration key: " + pciItem.Key)
-		}
-	}
-
-	// PCIe and PCI require a port device name to hotplug the device into.
-	_, qemuBus, err := d.qemuArchConfig(d.architecture)
+	monHook, err := d.addPCIDevConfig(qemuBus, d.busAllocatePCIeHotplug, pciConfig)
 	if err != nil {
 		return err
 	}
 
-	if !slices.Contains([]string{"pcie", "pci"}, qemuBus) {
-		return errors.New("Attempting PCI passthrough on a non-PCI system")
-	}
-
-	// Try to get a PCI address for hotplugging.
-	busName, busAddr, _, err := d.busAllocatePCIeHotplug(deviceName, false)
+	err = monHook(monitor)
 	if err != nil {
-		return err
-	}
-
-	escapedDeviceName := filesystem.PathNameEncode(devName)
-
-	qemuDev := map[string]any{
-		"driver": "vfio-pci",
-		"bus":    busName,
-		"addr":   busAddr,
-		"id":     qemuDeviceIDPrefix + escapedDeviceName,
-		"host":   pciSlotName,
-	}
-
-	if d.state.OS.UnprivUser != "" {
-		if pciIOMMUGroup == "" {
-			return errors.New("No PCI IOMMU group supplied")
-		}
-
-		vfioGroupFile := "/dev/vfio/" + pciIOMMUGroup
-		err := os.Chown(vfioGroupFile, int(d.state.OS.UnprivUID), -1)
-		if err != nil {
-			return fmt.Errorf("Failed to chown vfio group device %q: %w", vfioGroupFile, err)
-		}
-	}
-
-	err = monitor.AddDevice(qemuDev)
-	if err != nil {
-		return fmt.Errorf("Failed setting up device %q: %w", devName, err)
+		return fmt.Errorf("Failed setting up device via monitor: %w", err)
 	}
 
 	return nil
