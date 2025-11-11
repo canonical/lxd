@@ -154,16 +154,29 @@ func (d *powerflex) FillConfig() error {
 	return nil
 }
 
-// SourceIdentifier returns a combined string consisting of the pool ID.
-// The underlying storage pool always has to exist as the PowerFlex driver does
-// not create a new pool on the storage array.
+// SourceIdentifier returns a combined string consisting of the gateway address, protection domain and pool name.
+// One PowerFlex cluster can have multiple protection domains with the same pool name.
+// Therefore the identifier also contains the name of the protection domain.
 func (d *powerflex) SourceIdentifier() (string, error) {
-	pool, err := d.resolvePool()
-	if err != nil {
-		return "", fmt.Errorf("Cannot derive identifier from pool: %w", err)
+	gateway := d.config["powerflex.gateway"]
+	if gateway == "" {
+		return "", errors.New("Cannot derive identifier from empty gateway address")
 	}
 
-	return pool.ID, nil
+	// When creating the pool you can either specify powerflex.pool using the pool's ID
+	// or by setting powerflex.domain and powerflex.pool to their names to allow the lookup.
+	// In case of the latter we have to first resolve the pool.
+	pool, err := d.resolvePool()
+	if err != nil {
+		return "", err
+	}
+
+	domain, err := d.client().getProtectionDomain(pool.ProtectionDomainID)
+	if err != nil {
+		return "", err
+	}
+
+	return strings.Join([]string{gateway, domain.Name, pool.Name}, "-"), nil
 }
 
 // ValidateSource checks whether the required config keys are set to access the remote source.
