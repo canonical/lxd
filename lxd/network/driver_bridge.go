@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -2592,7 +2591,7 @@ func (n *bridge) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
 	}
 
 	// If current list is same as cluster list, nothing to do.
-	if err == nil && reflect.DeepEqual(curList, addresses) {
+	if err == nil && slices.Equal(curList, addresses) {
 		return nil
 	}
 
