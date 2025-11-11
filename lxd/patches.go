@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -98,6 +99,7 @@ var patches = []patch{
 	{name: "entity_type_identity_certificate_split", stage: patchPreLoadClusterConfig, run: patchSplitIdentityCertificateEntityTypes},
 	{name: "storage_unset_powerflex_sdt_setting", stage: patchPostDaemonStorage, run: patchUnsetPowerFlexSDTSetting},
 	{name: "oidc_groups_claim_scope", stage: patchPreLoadClusterConfig, run: patchOIDCGroupsClaimScope},
+	{name: "pool_fix_default_permissions", stage: patchPostDaemonStorage, run: patchDefaultStoragePermissions},
 }
 
 type patch struct {
@@ -1466,6 +1468,45 @@ func patchOIDCGroupsClaimScope(_ string, d *Daemon) error {
 	})
 	if err != nil {
 		return fmt.Errorf("Failed to configure oidc.groups.claim as an OIDC scope: %w", err)
+	}
+
+	return nil
+}
+
+// patchDefaultStoragePermissions re-applies the default modes to all storage pools.
+func patchDefaultStoragePermissions(_ string, d *Daemon) error {
+	s := d.State()
+
+	var pools []string
+
+	err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		// Get all storage pool names.
+		pools, err = tx.GetStoragePoolNames(ctx)
+
+		return err
+	})
+	if err != nil {
+		// Skip the rest of the patch if no storage pools were found.
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return nil
+		}
+
+		return fmt.Errorf("Failed getting storage pool names: %w", err)
+	}
+
+	for _, pool := range pools {
+		for _, volEntry := range storageDrivers.BaseDirectories {
+			for _, volDir := range volEntry.Paths {
+				path := storageDrivers.GetPoolMountPath(pool) + "/" + volDir
+
+				err := os.Chmod(path, volEntry.Mode)
+				if err != nil && !errors.Is(err, fs.ErrNotExist) {
+					return fmt.Errorf("Failed to set directory mode %q: %w", path, err)
+				}
+			}
+		}
 	}
 
 	return nil
