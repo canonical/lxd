@@ -108,7 +108,7 @@ You can deploy the LXD CSI using Helm chart:
 
 ```sh
 helm install lxd-csi-driver oci://ghcr.io/canonical/charts/lxd-csi-driver \
-  --version v0.0.0-latest-edge \
+  --version v0 \
   --namespace lxd-csi
 ```
 
@@ -122,7 +122,7 @@ You can tweak the chart to create your desired storage classes, set resource lim
 To get available values, fetch the chart's default values:
 
 ```sh
-helm show values oci://ghcr.io/canonical/charts/lxd-csi-driver --version v0.0.0-latest-edge > values.yaml
+helm show values oci://ghcr.io/canonical/charts/lxd-csi-driver --version v0 > values.yaml
 ```
 
 ```{tip}
