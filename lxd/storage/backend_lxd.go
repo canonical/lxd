@@ -3570,9 +3570,9 @@ func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotNa
 
 func (b *lxdBackend) createStorageStructure(path string) error {
 	for _, volType := range b.driver.Info().VolumeTypes {
-		for _, name := range drivers.BaseDirectories[volType] {
+		for _, name := range drivers.BaseDirectories[volType].Paths {
 			path := filepath.Join(path, name)
-			err := os.MkdirAll(path, 0711)
+			err := os.MkdirAll(path, drivers.BaseDirectories[volType].Mode)
 			if err != nil && !os.IsExist(err) {
 				return errors.Wrapf(err, "Failed to create directory %q", path)
 			}

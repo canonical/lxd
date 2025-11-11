@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -120,6 +121,7 @@ var patches = []patch{
 	{name: "db_nodes_autoinc", stage: patchPreDaemonStorage, run: patchDBNodesAutoInc},
 	{name: "clustering_server_cert_trust", stage: patchPreDaemonStorage, run: patchClusteringServerCertTrust},
 	{name: "dnsmasq_entries_include_device_name", stage: patchPostDaemonStorage, run: patchDnsmasqEntriesIncludeDeviceName},
+	{name: "pool_fix_default_permissions", stage: patchPostDaemonStorage, run: patchDefaultStoragePermissions},
 }
 
 type patch struct {
@@ -3842,6 +3844,34 @@ func patchNetworkClearBridgeVolatileHwaddr(name string, d *Daemon) error {
 			err = d.cluster.UpdateNetwork(net.Name, net.Description, net.Config)
 			if err != nil {
 				return errors.Wrapf(err, "Failed updating network %q for network_clear_bridge_volatile_hwaddr patch", networkName)
+			}
+		}
+	}
+
+	return nil
+}
+
+// patchDefaultStoragePermissions re-applies the default modes to all storage pools.
+func patchDefaultStoragePermissions(_ string, d *Daemon) error {
+	pools, err := d.cluster.GetStoragePoolNames()
+	if err != nil {
+		// Skip the rest of the patch if no storage pools were found.
+		if errors.Is(err, db.ErrNoSuchObject) {
+			return nil
+		}
+
+		return fmt.Errorf("Failed getting storage pool names: %w", err)
+	}
+
+	for _, pool := range pools {
+		for _, volEntry := range storageDrivers.BaseDirectories {
+			for _, volDir := range volEntry.Paths {
+				path := storageDrivers.GetPoolMountPath(pool) + "/" + volDir
+
+				err := os.Chmod(path, volEntry.Mode)
+				if err != nil && !errors.Is(err, fs.ErrNotExist) {
+					return fmt.Errorf("Failed to set directory mode %q: %w", path, err)
+				}
 			}
 		}
 	}
