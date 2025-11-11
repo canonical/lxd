@@ -210,21 +210,18 @@ func (d *pure) Validate(config map[string]string) error {
 	return nil
 }
 
-// SourceIdentifier returns a combined string consisting of the pool ID.
-// The underlying storage pool might not exist.
-// In this case the name of the pool is returned instead as a temporary identifier.
+// SourceIdentifier returns a combined string consisting of the gateway and pool name.
 func (d *pure) SourceIdentifier() (string, error) {
-	pool, err := d.client().getStoragePool(d.name)
-	if err != nil {
-		// Pool does not yet exist, simply return its name instead.
-		if api.StatusErrorCheck(err, http.StatusNotFound) {
-			return d.name, nil
-		}
-
-		return "", fmt.Errorf("Cannot derive identifier from pool: %w", err)
+	gateway := d.config["pure.gateway"]
+	if gateway == "" {
+		return "", errors.New("Cannot derive identifier from empty gateway address")
 	}
 
-	return pool.ID, nil
+	if d.name == "" {
+		return "", errors.New("Cannot derive identifier from empty pool name")
+	}
+
+	return gateway + "-" + d.name, nil
 }
 
 // ValidateSource checks whether the required config keys are set to access the remote source.
