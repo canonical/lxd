@@ -4889,35 +4889,73 @@ func (d *qemu) writeNICDevConfig(mtuStr string, devName string, nicName string, 
 }
 
 // addPCIDevConfig adds the qemu config required for adding a raw PCI device.
-func (d *qemu) addPCIDevConfig(cfg *[]cfgSection, busName string, busAllocate busAllocator, pciConfig []deviceConfig.RunConfigItem) error {
-	var devName, pciSlotName string
+func (d *qemu) addPCIDevConfig(busName string, busAllocate busAllocator, pciConfig []deviceConfig.RunConfigItem) (monitorHook, error) {
+	var devName, pciSlotName, pciIOMMUGroup string
 	for _, pciItem := range pciConfig {
 		switch pciItem.Key {
 		case "devName":
 			devName = pciItem.Value
 		case "pciSlotName":
 			pciSlotName = pciItem.Value
+		case "pciIOMMUGroup":
+			pciIOMMUGroup = pciItem.Value
+		default:
+			return nil, errors.New("Unexpected PCI configuration key: " + pciItem.Key)
 		}
 	}
 
-	devBus, devAddr, multi, err := busAllocate(devName, false)
+	if !slices.Contains([]string{"pcie", "pci"}, busName) {
+		return nil, errors.New("Attempting PCI passthrough on a non-PCI system")
+	}
+
+	// Try to get a PCI address for hotplugging.
+	busCleanup, devBus, devAddr, multi, err := busAllocate(devName, false)
 	if err != nil {
-		return fmt.Errorf("Failed allocating bus for PCI device %q: %w", devName, err)
+		return nil, fmt.Errorf("Failed allocating bus for PCI device %q: %w", devName, err)
 	}
 
-	pciPhysicalOpts := qemuPCIPhysicalOpts{
-		dev: qemuDevOpts{
-			busName:       busName,
-			devBus:        devBus,
-			devAddr:       devAddr,
-			multifunction: multi,
-		},
-		devName:     devName,
-		pciSlotName: pciSlotName,
+	escapedDeviceName := filesystem.PathNameEncode(devName)
+	qemuDev := map[string]any{
+		"driver":        "vfio-pci",
+		"bus":           devBus,
+		"addr":          devAddr,
+		"id":            qemuDeviceIDPrefix + escapedDeviceName,
+		"host":          pciSlotName,
+		"multifunction": multi,
 	}
-	*cfg = append(*cfg, qemuPCIPhysical(&pciPhysicalOpts)...)
 
-	return nil
+	monHook := func(m *qmp.Monitor) error {
+		reverter := revert.New()
+		defer reverter.Fail()
+
+		if busCleanup != nil {
+			reverter.Add(busCleanup)
+		}
+
+		if d.state.OS.UnprivUser != "" {
+			if pciIOMMUGroup == "" {
+				return errors.New("No PCI IOMMU group supplied")
+			}
+
+			vfioGroupFile := "/dev/vfio/" + pciIOMMUGroup
+			err := os.Chown(vfioGroupFile, int(d.state.OS.UnprivUID), -1)
+			if err != nil {
+				return fmt.Errorf("Failed to chown vfio group device %q: %w", vfioGroupFile, err)
+			}
+
+			reverter.Add(func() { _ = os.Chown(vfioGroupFile, 0, -1) })
+		}
+
+		err = m.AddDevice(qemuDev)
+		if err != nil {
+			return fmt.Errorf("Failed setting up device %q: %w", devName, err)
+		}
+
+		reverter.Success()
+		return nil
+	}
+
+	return monHook, nil
 }
 
 // addGPUDevConfig adds the qemu config required for adding a GPU device.
