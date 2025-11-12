@@ -307,7 +307,10 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 
 			// Setup reverter.
 			revert.Add(func() {
-				_ = d.UseProject(storageVolume.Project).UpdateStoragePoolVolume(storageVolume.Pool, currentStorageVolume.Type, currentStorageVolume.Name, currentStorageVolume.Writable(), "")
+				op, err := d.UseProject(storageVolume.Project).UpdateStoragePoolVolume(storageVolume.Pool, currentStorageVolume.Type, currentStorageVolume.Name, currentStorageVolume.Writable(), "")
+				if err == nil {
+					_ = op.Wait()
+				}
 			})
 
 			// Prepare the update.
@@ -326,7 +329,11 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			maps.Copy(newStorageVolume.Config, storageVolume.Config)
 
 			// Apply it.
-			err = d.UseProject(storageVolume.Project).UpdateStoragePoolVolume(storageVolume.Pool, storageVolume.Type, currentStorageVolume.Name, newStorageVolume, etag)
+			op, err := d.UseProject(storageVolume.Project).UpdateStoragePoolVolume(storageVolume.Pool, storageVolume.Type, currentStorageVolume.Name, newStorageVolume, etag)
+			if err == nil {
+				err = op.Wait()
+			}
+
 			if err != nil {
 				return fmt.Errorf("Failed to update storage volume %q in project %q: %w", storageVolume.Name, storageVolume.Project, err)
 			}
