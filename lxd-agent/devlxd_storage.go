@@ -98,12 +98,12 @@ func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) *devLXDResp
 	client = client.UseTarget(r.URL.Query().Get("target"))
 	defer client.Disconnect()
 
-	err = client.CreateStoragePoolVolume(poolName, vol)
+	op, err := client.CreateStoragePoolVolume(poolName, vol)
 	if err != nil {
 		return smartResponse(err)
 	}
 
-	return okResponse("", "raw")
+	return okResponse(op.Get(), "json")
 }
 
 var devLXDStoragePoolVolumeTypeEndpoint = devLXDAPIEndpoint{
