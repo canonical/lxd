@@ -98,8 +98,14 @@ download_virtiofsd() {
     if command -v virtiofsd >/dev/null && [ "$(command -v virtiofsd)" != "${dir}/virtiofsd" ]; then
         mv "$(command -v virtiofsd)" "${dir}/virtiofsd"
     else
+        # Pin virtiofsd at v1.13.2 to workaround a seccomp denial affecting latest builds
+        # see https://gitlab.com/virtio-fs/virtiofsd/-/merge_requests/300#note_2885217238
+        ZIP="$(mktemp)"
         curl --show-error --silent --retry 3 --retry-delay 5 --location \
-             --continue-at - "https://gitlab.com/virtio-fs/virtiofsd/-/jobs/artifacts/main/raw/target/$(uname -m)-unknown-linux-musl/release/virtiofsd?job=publish" --output "${dir}/virtiofsd"
+             --continue-at - "https://gitlab.com/-/project/21523468/uploads/0298165d4cd2c73ca444a8c0f6a9ecc7/virtiofsd-v1.13.2.zip" --output "${ZIP}"
+
+        unzip -p "${ZIP}" > "${dir}/virtiofsd"
+        rm -f "${ZIP}"
     fi
 
     chmod +x "${dir}/virtiofsd"
