@@ -129,17 +129,6 @@ helm show values oci://ghcr.io/canonical/charts/lxd-csi-driver --version v0 > va
 Use the `--values` flag with Helm commands to apply your modified values file.
 ```
 
-(howto-storage-csi-deploy-manual)=
-### Deploy the CSI driver using manifests
-
-Alternatively, you can deploy the LXD CSI controller and node servers from manifests that can be found in the [deploy](https://github.com/canonical/lxd-csi-driver/tree/main/deploy) directory of the LXD CSI Driver GitHub repository.
-
-```sh
-git clone https://github.com/canonical/lxd-csi-driver
-cd lxd-csi-driver
-kubectl apply -f deploy/
-```
-
 (howto-storage-csi-usage)=
 ## Usage examples
 
