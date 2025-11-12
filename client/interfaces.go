@@ -541,7 +541,7 @@ type DevLXDServer interface {
 	GetStoragePoolVolumes(poolName string) (vols []api.DevLXDStorageVolume, err error)
 	GetStoragePoolVolume(poolName string, volType string, volName string) (vol *api.DevLXDStorageVolume, ETag string, err error)
 	CreateStoragePoolVolume(poolName string, vol api.DevLXDStorageVolumesPost) (DevLXDOperation, error)
-	UpdateStoragePoolVolume(poolName string, volType string, volName string, vol api.DevLXDStorageVolumePut, ETag string) error
+	UpdateStoragePoolVolume(poolName string, volType string, volName string, vol api.DevLXDStorageVolumePut, ETag string) (DevLXDOperation, error)
 	DeleteStoragePoolVolume(poolName string, volType string, volName string) error
 
 	// DevLXD operations.
