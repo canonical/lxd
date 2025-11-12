@@ -17,6 +17,11 @@ on:
         required: true
         type: boolean
         default: true
+      coverage:
+        description: Whether to enable Go coverage collection
+        required: true
+        type: boolean
+        default: false
       ubuntu-releases:
         description: Ubuntu releases to run the tests against. In JSON format, i.e. '["22.04", "24.04"]'.
         type: choice
@@ -42,7 +47,7 @@ on:
 
 env:
   LXD_REQUIRED_TESTS: "storage_buckets,network_ovn"
-  GOCOVERAGE: ${{ ( ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.repository == 'canonical/lxd' ) && 'true' || 'false' }}
+  GOCOVERAGE: ${{ (( github.event_name == 'workflow_dispatch' && github.event.inputs.coverage == 'true' ) || ( github.event_name == 'schedule' && github.repository == 'canonical/lxd' )) && 'true' || 'false' }}
   GOCOVERDIR: ''  # Later set to the fully qualified path if needed
   IMAGE_CACHE_DIR: "/home/runner/image-cache"
   SNAP_CACHE_DIR: "/home/runner/snap-cache"
