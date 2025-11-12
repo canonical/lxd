@@ -7,6 +7,7 @@ import (
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/shared/entity"
@@ -177,7 +178,11 @@ func (d storageVolumeDeleter) Delete(ctx context.Context, s *state.State, ref en
 		return err
 	}
 
-	err = doStoragePoolVolumeDelete(ctx, s, name, volTypeCode, pool, ref.ProjectName, ref.ProjectName)
+	// Use an empty operation for this sync response to pass the requestor
+	op := &operations.Operation{}
+	op.SetRequestor(ctx)
+
+	err = doStoragePoolVolumeDelete(ctx, s, name, volTypeCode, pool, ref.ProjectName, ref.ProjectName, op)
 	if err != nil {
 		return fmt.Errorf("Failed deleting storage volume %q: %w", name, err)
 	}
