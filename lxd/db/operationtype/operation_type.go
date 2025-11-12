@@ -79,6 +79,7 @@ const (
 	RemoveExpiredOIDCSessions
 	ProfileUpdate
 	VolumeUpdate
+	VolumeDelete
 )
 
 // Description return a human-readable description of the operation type.
@@ -152,6 +153,8 @@ func (t Type) Description() string {
 		return "Creating storage volume"
 	case VolumeUpdate:
 		return "Updating storage volume"
+	case VolumeDelete:
+		return "Deleting storage volume"
 	case VolumeMigrate:
 		return "Migrating storage volume"
 	case VolumeMove:
