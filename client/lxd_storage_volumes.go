@@ -873,20 +873,30 @@ func (r *ProtocolLXD) UpdateStoragePoolVolume(pool string, volType string, name 
 }
 
 // DeleteStoragePoolVolume deletes a storage pool.
-func (r *ProtocolLXD) DeleteStoragePoolVolume(pool string, volType string, name string) error {
+func (r *ProtocolLXD) DeleteStoragePoolVolume(pool string, volType string, name string) (Operation, error) {
 	err := r.CheckExtension("storage")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	var op Operation
 
 	// Send the request
-	path := "/storage-pools/" + url.PathEscape(pool) + "/volumes/" + url.PathEscape(volType) + "/" + url.PathEscape(name)
-	_, _, err = r.query(http.MethodDelete, path, nil, "")
+	path := api.NewURL().Path("storage-pools", pool, "volumes", volType, name)
+	err = r.CheckExtension("storage_and_profile_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodDelete, path.String(), nil, "")
+	} else {
+		op, _, err = r.queryOperation(http.MethodDelete, path.String(), nil, "", true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // RenameStoragePoolVolume renames a storage volume.
