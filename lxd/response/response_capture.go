@@ -104,3 +104,24 @@ func (rc *responseCapture) RenderToStruct(resp Response, target any) (etag strin
 
 	return etag, nil
 }
+
+// RenderToOperation renders the response into an operation.
+func (rc *responseCapture) RenderToOperation(resp Response) (operation *api.Operation, err error) {
+	err = resp.Render(rc, rc.request)
+	if err != nil {
+		return nil, err
+	}
+
+	apiResp, _, err := rc.ToAPIResponse()
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the operation from metadata.
+	op, err := apiResp.MetadataAsOperation()
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
