@@ -8,6 +8,7 @@ import (
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 )
 
@@ -297,7 +298,14 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 
 			// Setup reverter.
 			revert.Add(func() {
-				_ = d.UseProject(storageVolume.Project).DeleteStoragePoolVolume(storageVolume.Pool, storageVolume.Type, storageVolume.Name)
+				op, err := d.UseProject(storageVolume.Project).DeleteStoragePoolVolume(storageVolume.Pool, storageVolume.Type, storageVolume.Name)
+				if err == nil {
+					err = op.Wait()
+				}
+
+				if err != nil {
+					logger.Warn("Failed to revert creation of storage volume", logger.Ctx{"project": storageVolume.Project, "pool": storageVolume.Pool, "volume": storageVolume.Name, "err": err})
+				}
 			})
 		} else {
 			// Quick check.
