@@ -34,6 +34,13 @@ type RemoteOperation interface {
 	Wait() (err error)
 }
 
+// The DevLXDOperation type is a DevLXD representation of a LXD [Operation].
+type DevLXDOperation interface {
+	Get() (op api.DevLXDOperation)
+	Cancel() (err error)
+	WaitContext(ctx context.Context) error
+}
+
 // The Server type represents a generic read-only server.
 type Server interface {
 	GetConnectionInfo() (info *ConnectionInfo, err error)
@@ -536,6 +543,10 @@ type DevLXDServer interface {
 	CreateStoragePoolVolume(poolName string, vol api.DevLXDStorageVolumesPost) error
 	UpdateStoragePoolVolume(poolName string, volType string, volName string, vol api.DevLXDStorageVolumePut, ETag string) error
 	DeleteStoragePoolVolume(poolName string, volType string, volName string) error
+
+	// DevLXD operations.
+	GetOperationWait(uuid string, timeout int) (*api.DevLXDOperation, string, error)
+	DeleteOperation(uuid string) error
 
 	// DevLXD Ubuntu Pro.
 	GetUbuntuPro() (*api.DevLXDUbuntuProSettings, error)
