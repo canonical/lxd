@@ -209,10 +209,10 @@ func devLXDStoragePoolVolumeDeleteHandler(d *Daemon, r *http.Request) *devLXDRes
 	client = client.UseTarget(r.URL.Query().Get("target"))
 	defer client.Disconnect()
 
-	err = client.DeleteStoragePoolVolume(poolName, volType, volName)
+	op, err := client.DeleteStoragePoolVolume(poolName, volType, volName)
 	if err != nil {
 		return smartResponse(err)
 	}
 
-	return okResponse("", "raw")
+	return okResponse(op.Get(), "json")
 }
