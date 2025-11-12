@@ -34,6 +34,13 @@ type RemoteOperation interface {
 	Wait() (err error)
 }
 
+// The DevLXDOperation type is a DevLXD representation of a LXD [Operation].
+type DevLXDOperation interface {
+	Get() (op api.DevLXDOperation)
+	Cancel() (err error)
+	WaitContext(ctx context.Context) error
+}
+
 // The Server type represents a generic read-only server.
 type Server interface {
 	GetConnectionInfo() (info *ConnectionInfo, err error)
