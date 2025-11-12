@@ -177,7 +177,17 @@ func (d storageVolumeDeleter) Delete(ctx context.Context, s *state.State, ref en
 		return err
 	}
 
-	err = doStoragePoolVolumeDelete(ctx, s, name, volTypeCode, pool, ref.ProjectName, ref.ProjectName)
+	op, err := doStoragePoolVolumeDelete(ctx, s, name, volTypeCode, pool, ref.ProjectName, ref.ProjectName)
+	if err != nil {
+		return fmt.Errorf("Failed deleting storage volume %q: %w", name, err)
+	}
+
+	err = op.Start()
+	if err != nil {
+		return fmt.Errorf("Failed starting storage volume delete operation: %w", err)
+	}
+
+	err = op.Wait(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed deleting storage volume %q: %w", name, err)
 	}
