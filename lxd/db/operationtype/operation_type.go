@@ -78,6 +78,7 @@ const (
 	ClusterHeal
 	RemoveExpiredOIDCSessions
 	ProfileUpdate
+	VolumeDelete
 )
 
 // Description return a human-readable description of the operation type.
@@ -149,6 +150,8 @@ func (t Type) Description() string {
 		return "Copying storage volume"
 	case VolumeCreate:
 		return "Creating storage volume"
+	case VolumeDelete:
+		return "Deleting storage volume"
 	case VolumeMigrate:
 		return "Migrating storage volume"
 	case VolumeMove:
