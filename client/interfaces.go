@@ -542,7 +542,7 @@ type DevLXDServer interface {
 	GetStoragePoolVolume(poolName string, volType string, volName string) (vol *api.DevLXDStorageVolume, ETag string, err error)
 	CreateStoragePoolVolume(poolName string, vol api.DevLXDStorageVolumesPost) (DevLXDOperation, error)
 	UpdateStoragePoolVolume(poolName string, volType string, volName string, vol api.DevLXDStorageVolumePut, ETag string) (DevLXDOperation, error)
-	DeleteStoragePoolVolume(poolName string, volType string, volName string) error
+	DeleteStoragePoolVolume(poolName string, volType string, volName string) (DevLXDOperation, error)
 
 	// DevLXD operations.
 	GetOperationWait(uuid string, timeout int) (*api.DevLXDOperation, string, error)

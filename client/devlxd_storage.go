@@ -76,14 +76,14 @@ func (r *ProtocolDevLXD) UpdateStoragePoolVolume(poolName string, volType string
 }
 
 // DeleteStoragePoolVolume deletes a storage volume from a given storage pool.
-func (r *ProtocolDevLXD) DeleteStoragePoolVolume(poolName string, volType string, volName string) error {
+func (r *ProtocolDevLXD) DeleteStoragePoolVolume(poolName string, volType string, volName string) (DevLXDOperation, error) {
 	url := api.NewURL().Path("storage-pools", poolName, "volumes", volType, volName).URL
 	r.setURLQueryAttributes(&url)
 
-	_, _, err := r.query(http.MethodDelete, url.String(), nil, "")
+	op, _, err := r.queryOperation(http.MethodDelete, url.String(), nil, "")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return op, nil
 }
