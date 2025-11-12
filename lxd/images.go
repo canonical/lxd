@@ -2314,7 +2314,11 @@ func distributeImage(ctx context.Context, s *state.State, nodes []db.NodeInfo, o
 					logger.Error("Failed creating new image in storage pool", logger.Ctx{"err": err, "remote": node.Address, "pool": poolName, "fingerprint": newImage.Fingerprint})
 				}
 
-				err = client.DeleteStoragePoolVolume(poolName, "image", oldFingerprint)
+				op, err := client.DeleteStoragePoolVolume(poolName, "image", oldFingerprint)
+				if err == nil {
+					err = op.WaitContext(s.ShutdownCtx)
+				}
+
 				if err != nil {
 					logger.Error("Failed deleting old image from storage pool", logger.Ctx{"err": err, "remote": node.Address, "pool": poolName, "fingerprint": oldFingerprint})
 				}
