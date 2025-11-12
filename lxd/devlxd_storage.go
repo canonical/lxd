@@ -503,12 +503,12 @@ func devLXDStoragePoolVolumeDeleteHandler(d *Daemon, r *http.Request) response.R
 	}
 
 	resp := storagePoolVolumeDelete(d, req)
-	err = response.NewResponseCapture(req).Render(resp)
+	op, err := response.NewResponseCapture(req).RenderToOperation(resp)
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
 
-	return response.DevLXDResponse(http.StatusOK, "", "raw")
+	return response.DevLXDOperationResponse(*op)
 }
 
 // isDevLXDVolumeOwner checks whether the given storage volume is owned by the specified identity ID.
