@@ -2858,3 +2858,5 @@ Endpoints converted to asynchronous behavior:
 * `POST /storage-pools/<pool>/volumes/<type>` - Create storage volume
 * `PUT /storage-pools/<pool>/volumes/<type>/<vol>/snapshots/<snap>` - Update storage volume snapshot
 * `PATCH /storage-pools/<pool>/volumes/<type>/<vol>/snapshots/<snap>` - Patch storage volume snapshot
+* `PUT /1.0/profiles/{name}` - Update profile
+* `PATCH /1.0/profiles/{name}` - Patch profile
