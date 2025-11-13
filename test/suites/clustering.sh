@@ -5314,6 +5314,10 @@ test_clustering_placement_groups() {
 }
 
 test_clustering_recovery() {
+  # TODO: Make it work using the new source.reuse in this PR
+  # TODO: Rebase the commit that adds source.reuse and add comment etc.
+  # TODO: Add API extension
+
   local LXD_DIR
 
   setup_clustering_bridge
