@@ -46,8 +46,8 @@ runs:
       run: |
         set -eux
 
-        if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
-          echo "::notice::actions/download-virtiofsd should not be used on 22.04, use the apt package 'virtiofsd' instead."
+        if ! grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
+          echo "::notice::actions/download-virtiofsd should only be used on 22.04, use the apt package 'virtiofsd' instead."
         fi
 
         . test/includes/setup.sh
