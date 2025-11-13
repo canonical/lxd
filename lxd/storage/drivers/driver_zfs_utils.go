@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -170,6 +171,60 @@ func (d *zfs) getClones(dataset string) ([]string, error) {
 	}
 
 	return clones, nil
+}
+
+func (d *zfs) getPools() ([]string, error) {
+	out, err := shared.RunCommandContext(context.TODO(), "zpool", "list", "-H", "-o", "name")
+	if err != nil {
+		return nil, fmt.Errorf("Failed listing all pools: %w", err)
+	}
+
+	pools := []string{}
+	for line := range strings.SplitSeq(out, "\n") {
+		if line == "" {
+			continue
+		}
+
+		pools = append(pools, strings.TrimSpace(line))
+	}
+
+	return pools, nil
+}
+
+// poolUsingParentDevice returns the name of the pool which uses the given device as a vdev.
+// In case the device isn't used an empty string is returned.
+func (d *zfs) poolUsingParentDevice(devPath string) (string, error) {
+	pools, err := d.getPools()
+	if err != nil {
+		return "", err
+	}
+
+	// Support various device paths (/dev/disk/by-*) by following to the actual device path.
+	resolvedHostPath := shared.HostPathFollow(devPath)
+
+	for _, pool := range pools {
+		// Returns the vdev's actual physical device path (without /dev/disk/by-path).
+		// In case it's a loop device '-' is returned.
+		out, err := shared.RunCommandContext(context.TODO(), "zpool", "get", "physpath", pool, "all-vdevs", "-H", "-o", "value")
+		if err != nil {
+			return "", fmt.Errorf("Failed getting all vdevs of pool %q: %w", pool, err)
+		}
+
+		for line := range strings.SplitSeq(out, "\n") {
+			if line == "" || line == "-" {
+				continue
+			}
+
+			// Resolve the path to allow comparison.
+			resolvedHostPathCandidate := shared.HostPathFollow(filepath.Join("/dev/disk/by-path", line))
+
+			if resolvedHostPath == resolvedHostPathCandidate {
+				return pool, nil
+			}
+		}
+	}
+
+	return "", nil
 }
 
 func (d *zfs) getDatasets(dataset string, types string) ([]string, error) {
