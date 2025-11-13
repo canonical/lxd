@@ -1867,9 +1867,10 @@ func (d *lxc) handleIdmappedStorage() (idmap.IdmapStorageType, *idmap.IdmapSet, 
 		jsonDiskIdmap = string(idmapBytes)
 	}
 
-	err = d.VolatileSet(map[string]string{"volatile.last_state.idmap": jsonDiskIdmap})
+	volatileKey := "volatile.last_state.idmap"
+	err = d.VolatileSet(map[string]string{volatileKey: jsonDiskIdmap})
 	if err != nil {
-		return idmap.IdmapStorageNone, nextIdmap, fmt.Errorf("Set volatile.last_state.idmap config key on container %q (id %d): %w", d.name, d.id, err)
+		return idmap.IdmapStorageNone, nextIdmap, fmt.Errorf("Failed setting config key %q: %w", volatileKey, err)
 	}
 
 	d.updateProgress("")
@@ -1958,9 +1959,10 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 	}
 
 	if d.localConfig["volatile.idmap.current"] != string(idmapBytes) {
-		err = d.VolatileSet(map[string]string{"volatile.idmap.current": string(idmapBytes)})
+		volatileKey := "volatile.idmap.current"
+		err = d.VolatileSet(map[string]string{volatileKey: string(idmapBytes)})
 		if err != nil {
-			return nil, "", nil, fmt.Errorf("Set volatile.idmap.current config key on container %q (id %d): %w", d.name, d.id, err)
+			return nil, "", nil, fmt.Errorf("Failed setting config key %q: %w", volatileKey, err)
 		}
 	}
 
@@ -2009,7 +2011,7 @@ func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 	// Apply any volatile changes that need to be made.
 	err = d.VolatileSet(volatileSet)
 	if err != nil {
-		return nil, "", nil, fmt.Errorf("Failed setting volatile keys: %w", err)
+		return nil, "", nil, err
 	}
 
 	// Create the devices
@@ -5825,9 +5827,10 @@ func (d *lxc) resetContainerDiskIdmap(srcIdmap *idmap.IdmapSet) error {
 		}
 
 		d.logger.Debug("Setting new volatile.last_state.idmap from source instance", logger.Ctx{"sourceIdmap": srcIdmap})
-		err := d.VolatileSet(map[string]string{"volatile.last_state.idmap": jsonIdmap})
+		volatileKey := "volatile.last_state.idmap"
+		err := d.VolatileSet(map[string]string{volatileKey: jsonIdmap})
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed setting config key %q: %w", volatileKey, err)
 		}
 	}
 
