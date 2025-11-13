@@ -129,7 +129,18 @@ func (d *lvm) FillConfig() error {
 		}
 	} else if filepath.IsAbs(d.config["source"]) {
 		if d.config["lvm.vg_name"] == "" {
-			d.config["lvm.vg_name"] = d.name
+			// It might be that the source is already configured as physical volume inside a volume group.
+			// In this case resolve the corresponding volume group.
+			volumeGroup, err := d.volumeGroupUsingPhysicalVolume(d.config["source"])
+			if err != nil {
+				return err
+			}
+
+			if volumeGroup != "" {
+				d.config["lvm.vg_name"] = volumeGroup
+			} else {
+				d.config["lvm.vg_name"] = d.name
+			}
 		}
 	} else if d.config["source"] != "" {
 		d.config["lvm.vg_name"] = d.config["source"]
