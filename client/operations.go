@@ -375,3 +375,53 @@ func (op *remoteOperation) Wait() error {
 
 	return op.err
 }
+
+// noopOperation represents a non-operation LXD response as an operation. This is mainly used for endpoints
+// were initially synchronous but later changed to asynchronous and are still supposed to return an operation
+// but don't actually perform any asynchronous processing.
+type noopOperation struct{}
+
+// Get returns an empty API operation struct.
+func (op noopOperation) Get() api.Operation {
+	return api.Operation{
+		ID:         "",
+		Class:      api.OperationClassTask,
+		Status:     "OK",
+		StatusCode: api.Success,
+	}
+}
+
+// GetWebsocket returns a raw websocket connection from the operation.
+func (op noopOperation) GetWebsocket(secret string) (*websocket.Conn, error) {
+	return nil, errors.New("Cannot get websocket, operation does not support websockets")
+}
+
+// Refresh is a no-op.
+func (op noopOperation) Refresh() error {
+	return nil
+}
+
+// Cancel is a no-op for DummyOperation.
+func (op noopOperation) Cancel() error {
+	return nil
+}
+
+// Wait is a no-op.
+func (op noopOperation) Wait() error {
+	return nil
+}
+
+// WaitContext is a no-op.
+func (op noopOperation) WaitContext(ctx context.Context) error {
+	return nil
+}
+
+// AddHandler returns an error because noopOperation does not support event listeners.
+func (op noopOperation) AddHandler(function func(api.Operation)) (*EventTarget, error) {
+	return nil, errors.New("Cannot add handler, client operation does not support event listeners")
+}
+
+// RemoveHandler removes a function to be called whenever an event is received.
+func (op noopOperation) RemoveHandler(target *EventTarget) error {
+	return errors.New("Cannot remove handler, client operation does not support event listeners")
+}

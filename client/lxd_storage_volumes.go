@@ -251,20 +251,30 @@ func (r *ProtocolLXD) GetStoragePoolVolumeState(pool string, volType string, nam
 }
 
 // CreateStoragePoolVolume defines a new storage volume.
-func (r *ProtocolLXD) CreateStoragePoolVolume(pool string, volume api.StorageVolumesPost) error {
+func (r *ProtocolLXD) CreateStoragePoolVolume(pool string, volume api.StorageVolumesPost) (Operation, error) {
 	err := r.CheckExtension("storage")
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	var op Operation
 
 	// Send the request
-	path := "/storage-pools/" + url.PathEscape(pool) + "/volumes/" + url.PathEscape(volume.Type)
-	_, _, err = r.query(http.MethodPost, path, volume, "")
+	path := api.NewURL().Path("storage-pools", url.PathEscape(pool), "volumes", url.PathEscape(volume.Type))
+	err = r.CheckExtension("storage_and_profile_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPost, path.String(), volume, "")
+	} else {
+		op, _, err = r.queryOperation(http.MethodPost, path.String(), volume, "", true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // CreateStoragePoolVolumeSnapshot defines a new storage volume.

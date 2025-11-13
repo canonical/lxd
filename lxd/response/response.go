@@ -152,6 +152,22 @@ func DevLXDResponseETag(code int, content any, contentType string, etag string) 
 	}
 }
 
+// DevLXDOperationResponse converts [api.Operation] into [api.DevLXDOperation] and returns it as devLXDResponse.
+func DevLXDOperationResponse(op api.Operation) Response {
+	respOp := api.DevLXDOperation{
+		ID:         op.ID,
+		Status:     op.Status,
+		StatusCode: op.StatusCode,
+		Err:        op.Err,
+	}
+
+	return &devLXDResponse{
+		code:        http.StatusOK,
+		content:     respOp,
+		contentType: "json",
+	}
+}
+
 // Sync response.
 type syncResponse struct {
 	success   bool
