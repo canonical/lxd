@@ -469,6 +469,7 @@ var APIExtensions = []string{
 	"vm_persistent_bus",
 	"instance_placement_groups",
 	"ovn_nic_acceleration_parent",
+	"storage_and_profile_operations",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

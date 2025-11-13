@@ -944,8 +944,6 @@ func filterVolumes(volumes []*db.StorageVolume, clauses *filter.ClauseSet, allPr
 //	    schema:
 //	      $ref: "#/definitions/StorageVolumesPost"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
 //	  "202":
 //	    $ref: "#/responses/Operation"
 //	  "400":
@@ -986,8 +984,6 @@ func filterVolumes(volumes []*db.StorageVolume, clauses *filter.ClauseSet, allPr
 //	    schema:
 //	      $ref: "#/definitions/StorageVolumesPost"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
 //	  "202":
 //	    $ref: "#/responses/Operation"
 //	  "400":
@@ -1259,16 +1255,6 @@ func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName st
 		}
 
 		return pool.CreateCustomVolumeFromCopy(projectName, srcProjectName, req.Name, req.Description, req.Config, req.Source.Pool, req.Source.Name, !req.Source.VolumeOnly, op)
-	}
-
-	// If no source name supplied then this a volume create operation.
-	if req.Source.Name == "" {
-		err := run(nil)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		return response.EmptySyncResponse
 	}
 
 	// Volume copy operations potentially take a long time, so run as an async operation.
@@ -1825,7 +1811,7 @@ func storageVolumePostClusteringMigrate(s *state.State, r *http.Request, srcPool
 		}
 
 		// Request pull mode migration on destination.
-		err = dest.CreateStoragePoolVolume(newPoolName, api.StorageVolumesPost{
+		createOp, err := dest.CreateStoragePoolVolume(newPoolName, api.StorageVolumesPost{
 			Name: newVolumeName,
 			Type: "custom",
 			Source: api.StorageVolumeSource{
@@ -1839,6 +1825,10 @@ func storageVolumePostClusteringMigrate(s *state.State, r *http.Request, srcPool
 				Project:     newProjectName,
 			},
 		})
+		if err == nil {
+			err = createOp.Wait()
+		}
+
 		if err != nil {
 			return fmt.Errorf("Failed requesting instance create on destination: %w", err)
 		}

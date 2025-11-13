@@ -387,7 +387,7 @@ type InstanceServer interface {
 	GetStoragePoolVolumesWithFilterAllProjects(pool string, filters []string) (volumes []api.StorageVolume, err error)
 	GetStoragePoolVolume(pool string, volType string, name string) (volume *api.StorageVolume, ETag string, err error)
 	GetStoragePoolVolumeState(pool string, volType string, name string) (state *api.StorageVolumeState, err error)
-	CreateStoragePoolVolume(pool string, volume api.StorageVolumesPost) (err error)
+	CreateStoragePoolVolume(pool string, volume api.StorageVolumesPost) (op Operation, err error)
 	UpdateStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePut, ETag string) (err error)
 	DeleteStoragePoolVolume(pool string, volType string, name string) (err error)
 	RenameStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePost) (err error)
@@ -540,7 +540,7 @@ type DevLXDServer interface {
 	// DevLXD storage volumes.
 	GetStoragePoolVolumes(poolName string) (vols []api.DevLXDStorageVolume, err error)
 	GetStoragePoolVolume(poolName string, volType string, volName string) (vol *api.DevLXDStorageVolume, ETag string, err error)
-	CreateStoragePoolVolume(poolName string, vol api.DevLXDStorageVolumesPost) error
+	CreateStoragePoolVolume(poolName string, vol api.DevLXDStorageVolumesPost) (DevLXDOperation, error)
 	UpdateStoragePoolVolume(poolName string, volType string, volName string, vol api.DevLXDStorageVolumePut, ETag string) error
 	DeleteStoragePoolVolume(poolName string, volType string, volName string) error
 

@@ -241,12 +241,12 @@ func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) response.Re
 	}
 
 	resp := storagePoolVolumesPost(d, req)
-	err = response.NewResponseCapture(req).Render(resp)
+	op, err := response.NewResponseCapture(req).RenderToOperation(resp)
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
 
-	return response.DevLXDResponse(http.StatusOK, "", "raw")
+	return response.DevLXDOperationResponse(*op)
 }
 
 // devLXDStoragePoolVolumeGet is a helper function that retrieves information about the specified
