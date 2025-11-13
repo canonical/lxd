@@ -4062,13 +4062,20 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, busName string, busAllocate 
 	}
 
 	// Add 9p share config.
-	busCleanup, devBus, devAddr, multi, err := busAllocate(driveConf.DevName, true)
-	if err != nil {
-		return fmt.Errorf("Failed allocating bus for 9p disk device %q: %w", driveConf.DevName, err)
-	}
+	var busCleanup revert.Hook
+	var devBus, devAddr string
+	var multi bool
+	var err error
 
-	if busCleanup != nil {
-		reverter.Add(busCleanup)
+	if busName == "pcie" || busName == "pci" {
+		busCleanup, devBus, devAddr, multi, err = busAllocate(driveConf.DevName, true)
+		if err != nil {
+			return fmt.Errorf("Failed allocating bus for 9p disk device %q: %w", driveConf.DevName, err)
+		}
+
+		if busCleanup != nil {
+			reverter.Add(busCleanup)
+		}
 	}
 
 	fdSource, ok := driveConf.DevSource.(deviceConfig.DevSourceFD)
