@@ -2320,6 +2320,13 @@ func (d *qemu) busAllocatePCIeHotplug(deviceName string, _ bool) (cleanup revert
 			return nil, "", "", false, fmt.Errorf("Failed setting config key %q: %w", deviceVolatileKey, err)
 		}
 
+		reverter.Add(func() {
+			err := d.VolatileSet(map[string]string{deviceVolatileKey: ""})
+			if err != nil {
+				d.logger.Warn("Failed clearing config key", logger.Ctx{"key": deviceVolatileKey, "err": err})
+			}
+		})
+
 		busName = busDevicePortPrefix + busNum
 		d.logger.Debug("Hotplugging device into bus", logger.Ctx{"device": deviceName, "busType": "pcie", "bus": busName})
 
