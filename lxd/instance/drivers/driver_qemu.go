@@ -3650,8 +3650,8 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 	// Setup a bus allocator for use with generating QEMU pre-boot config file.
 	volatileSet := make(map[string]string)
-	if d.localConfig["volatile.bus.mode"] == "" {
-		volatileSet["volatile.bus.mode"] = qemuBusModePersistent
+	if d.localConfig["volatile.bus.mode"] == "" && bus.name == "pcie" {
+		volatileSet["volatile.bus.mode"] = qemuBusModePersistent // Enable persistent mode for PCIe bus.
 	}
 
 	lastBusName := ""                      // Use to detect when the main bus name changes from bus.allocate().
@@ -3660,6 +3660,10 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 	// busAllocate allocates the next slot and records it into pending volatile for PCIe devices if needed.
 	// This function should be called in the correct order to maintain a device's persistent bus order.
 	busAllocate := func(deviceName string, enableMultifunction bool) (cleanup revert.Hook, busName string, busAddress string, multifunction bool, err error) {
+		if bus.name != "pci" && bus.name != "pcie" {
+			return nil, "", "", false, fmt.Errorf("Bus allocation not supported for bus type %q", bus.name)
+		}
+
 		multifunctionGroup := busFunctionGroupNone
 		if enableMultifunction {
 			multifunctionGroup = "lxd_" + deviceName
