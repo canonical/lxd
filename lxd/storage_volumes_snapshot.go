@@ -884,40 +884,36 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 	return doStoragePoolVolumeSnapshotUpdate(s, r, effectiveProjectName, dbVolume.Name, details.volumeType, req)
 }
 
-func doStoragePoolVolumeSnapshotUpdate(s *state.State, r *http.Request, projectName string, volName string, volumeType dbCluster.StoragePoolVolumeType, req api.StorageVolumeSnapshotPut) response.Response {
+func doStoragePoolVolumeSnapshotUpdate(ctx context.Context, s *state.State, projectName string, volName string, volumeType dbCluster.StoragePoolVolumeType, req api.StorageVolumeSnapshotPut, op *operations.Operation) error {
 	expiry := time.Time{}
 	if req.ExpiresAt != nil {
 		expiry = *req.ExpiresAt
 	}
 
-	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
+	details, err := request.GetContextValue[storageVolumeDetails](ctx, ctxStorageVolumeDetails)
 	if err != nil {
-		return response.SmartError(err)
+		return err
 	}
-
-	// Use an empty operation for this sync response to pass the requestor
-	op := &operations.Operation{}
-	op.SetRequestor(r.Context())
 
 	// Update the database.
 	if volumeType == dbCluster.StoragePoolVolumeTypeCustom {
 		err = details.pool.UpdateCustomVolumeSnapshot(projectName, volName, req.Description, nil, expiry, op)
 		if err != nil {
-			return response.SmartError(err)
+			return err
 		}
 	} else {
 		inst, err := instance.LoadByProjectAndName(s, projectName, volName)
 		if err != nil {
-			return response.SmartError(err)
+			return err
 		}
 
 		err = details.pool.UpdateInstanceSnapshot(inst, req.Description, nil, op)
 		if err != nil {
-			return response.SmartError(err)
+			return err
 		}
 	}
 
-	return response.EmptySyncResponse
+	return nil
 }
 
 // swagger:operation DELETE /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots/{snapshotName} storage storage_pool_volumes_type_snapshot_delete
