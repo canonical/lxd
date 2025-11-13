@@ -244,9 +244,10 @@ func (d *common) DeferTemplateApply(trigger instance.TemplateTrigger) error {
 		return nil
 	}
 
-	err := d.VolatileSet(map[string]string{"volatile.apply_template": string(trigger)})
+	volatileKey := "volatile.apply_template"
+	err := d.VolatileSet(map[string]string{volatileKey: string(trigger)})
 	if err != nil {
-		return fmt.Errorf(`Failed setting "volatile.apply_template" key: %w`, err)
+		return fmt.Errorf("Failed setting config key %q: %w", volatileKey, err)
 	}
 
 	return nil
@@ -349,7 +350,7 @@ func (d *common) VolatileSet(changes map[string]string) error {
 		}
 
 		if err != nil {
-			return fmt.Errorf("Failed to set volatile config: %w", err)
+			return fmt.Errorf("Failed setting volatile config: %w", err)
 		}
 	}
 
