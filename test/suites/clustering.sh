@@ -5209,8 +5209,19 @@ test_clustering_placement_groups() {
   node2=$(LXD_DIR="${LXD_ONE_DIR}" lxc list c2 -f csv -c L)
   [ "${node1}" = "node2" ] && [ "${node2}" = "node2" ]
 
+  echo "==> Test compact/strict: picks member with most instances"
+  echo "Manually place an instance on node3 to create split placement"
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c3 -c placement.group=pg-compact-strict --target node3
+  node3=$(LXD_DIR="${LXD_ONE_DIR}" lxc list c3 -f csv -c L)
+  [ "${node3}" = "node3" ]
+
+  echo "New instance should go to node2 (2 instances) not node3 (1 instance)"
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c4 -c placement.group=pg-compact-strict
+  node4=$(LXD_DIR="${LXD_ONE_DIR}" lxc list c4 -f csv -c L)
+  [ "${node4}" = "node2" ]
+
   # Clean up
-  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 c3 c4
 
   echo "==> Test compact/permissive: initial placement"
   LXD_DIR="${LXD_ONE_DIR}" lxc placement-group create pg-compact-permissive policy=compact rigor=permissive
@@ -5223,8 +5234,19 @@ test_clustering_placement_groups() {
   node2=$(LXD_DIR="${LXD_ONE_DIR}" lxc list c2 -f csv -c L)
   [ "${node1}" = "${node2}" ]
 
+  echo "==> Test compact/permissive: picks member with most instances"
+  echo "Manually place an instance on different node to create split placement"
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c3 -c placement.group=pg-compact-permissive --target node3
+  node3=$(LXD_DIR="${LXD_ONE_DIR}" lxc list c3 -f csv -c L)
+  [ "${node3}" = "node3" ]
+
+  echo "New instance should prefer node with most instances (node1/2) over node3"
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c4 -c placement.group=pg-compact-permissive
+  node4=$(LXD_DIR="${LXD_ONE_DIR}" lxc list c4 -f csv -c L)
+  [ "${node4}" = "${node1}" ]
+
   # Clean up
-  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 c3 c4
 
   echo "==> Test placement groups are project-specific"
   LXD_DIR="${LXD_ONE_DIR}" lxc project create test-project -c features.images=false -c features.profiles=false
