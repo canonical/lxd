@@ -19,10 +19,12 @@ import (
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/operationtype"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
+	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
@@ -584,8 +586,8 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 //	    schema:
 //	      $ref: "#/definitions/ProfilePut"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -607,6 +609,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	requestProjectName := request.ProjectParam(r)
 	clusterNotification := requestor.IsClusterNotification()
 
 	if clusterNotification {
@@ -618,8 +621,16 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(err)
 		}
 
-		err = doProfileUpdateCluster(r.Context(), s, details.effectiveProject.Name, details.profileName, old)
-		return response.SmartError(err)
+		run := func(op *operations.Operation) error {
+			return doProfileUpdateCluster(s.ShutdownCtx, s, details.effectiveProject.Name, details.profileName, old)
+		}
+
+		op, err := operations.OperationCreate(r.Context(), s, requestProjectName, operations.OperationClassTask, operationtype.ProfileUpdate, nil, nil, run, nil, nil)
+		if err != nil {
+			return response.InternalError(err)
+		}
+
+		return operations.OperationResponse(op)
 	}
 
 	var profile *api.Profile
@@ -654,26 +665,42 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	err = doProfileUpdate(r.Context(), s, details.effectiveProject, details.profileName, profile, req)
+	run := func(op *operations.Operation) error {
+		err = doProfileUpdate(s.ShutdownCtx, s, details.effectiveProject, details.profileName, profile, req)
 
-	if err == nil && !clusterNotification {
-		// Notify all other nodes. If a node is down, it will be ignored.
-		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
-		if err != nil {
-			return response.SmartError(err)
+		if err == nil && !clusterNotification {
+			// Notify all other nodes. If a node is down, it will be ignored.
+			notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+			if err != nil {
+				return err
+			}
+
+			err = notifier(func(_ db.NodeInfo, client lxd.InstanceServer) error {
+				return client.UseProject(details.effectiveProject.Name).UpdateProfile(details.profileName, profile.Writable(), "")
+			})
+			if err != nil {
+				return err
+			}
 		}
 
-		err = notifier(func(_ db.NodeInfo, client lxd.InstanceServer) error {
-			return client.UseProject(details.effectiveProject.Name).UpdateProfile(details.profileName, profile.Writable(), "")
-		})
+		s.Events.SendLifecycle(details.effectiveProject.Name, lifecycle.ProfileUpdated.Event(details.profileName, details.effectiveProject.Name, requestor.EventLifecycleRequestor(), nil))
+
 		if err != nil {
-			return response.SmartError(err)
+			return err
 		}
+
+		return nil
 	}
 
-	s.Events.SendLifecycle(details.effectiveProject.Name, lifecycle.ProfileUpdated.Event(details.profileName, details.effectiveProject.Name, requestor.EventLifecycleRequestor(), nil))
+	resources := map[string][]api.URL{}
+	resources["profiles"] = []api.URL{*api.NewURL().Path(version.APIVersion, "profiles", details.profileName)}
 
-	return response.SmartError(err)
+	op, err := operations.OperationCreate(r.Context(), s, requestProjectName, operations.OperationClassTask, operationtype.ProfileUpdate, resources, nil, run, nil, nil)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // swagger:operation PATCH /1.0/profiles/{name} profiles profile_patch
