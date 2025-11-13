@@ -64,7 +64,7 @@ func (rc *responseCapture) ToAPIResponse() (*api.Response, string, error) {
 
 	// Handle errors.
 	if response.Type == api.ErrorResponse {
-		return nil, "", api.NewStatusError(rc.statusCode, response.Error)
+		return nil, "", api.NewStatusError(response.Code, response.Error)
 	}
 
 	return &response, etag, nil
