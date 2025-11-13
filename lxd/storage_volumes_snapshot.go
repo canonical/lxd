@@ -692,8 +692,8 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 //	    schema:
 //	      $ref: "#/definitions/StorageVolumeSnapshotPut"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -769,7 +769,19 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		return response.BadRequest(err)
 	}
 
-	return doStoragePoolVolumeSnapshotUpdate(s, r, effectiveProjectName, dbVolume.Name, details.volumeType, req)
+	run := func(op *operations.Operation) error {
+		return doStoragePoolVolumeSnapshotUpdate(r.Context(), s, effectiveProjectName, dbVolume.Name, details.volumeType, req, op)
+	}
+
+	resources := map[string][]api.URL{}
+	resources["storage_volume_snapshots"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", snapshotName)}
+
+	op, err := operations.OperationCreate(r.Context(), s, request.ProjectParam(r), operations.OperationClassTask, operationtype.VolumeSnapshotUpdate, resources, nil, run, nil, nil)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // swagger:operation PATCH /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots/{snapshotName} storage storage_pool_volumes_type_snapshot_patch
@@ -801,8 +813,8 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 //	    schema:
 //	      $ref: "#/definitions/StorageVolumeSnapshotPut"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -881,43 +893,51 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 		return response.BadRequest(err)
 	}
 
-	return doStoragePoolVolumeSnapshotUpdate(s, r, effectiveProjectName, dbVolume.Name, details.volumeType, req)
+	run := func(op *operations.Operation) error {
+		return doStoragePoolVolumeSnapshotUpdate(r.Context(), s, effectiveProjectName, dbVolume.Name, details.volumeType, req, op)
+	}
+
+	resources := map[string][]api.URL{}
+	resources["storage_volume_snapshots"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "snapshots", snapshotName)}
+
+	op, err := operations.OperationCreate(r.Context(), s, request.ProjectParam(r), operations.OperationClassTask, operationtype.VolumeSnapshotUpdate, resources, nil, run, nil, nil)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
-func doStoragePoolVolumeSnapshotUpdate(s *state.State, r *http.Request, projectName string, volName string, volumeType dbCluster.StoragePoolVolumeType, req api.StorageVolumeSnapshotPut) response.Response {
+func doStoragePoolVolumeSnapshotUpdate(ctx context.Context, s *state.State, projectName string, volName string, volumeType dbCluster.StoragePoolVolumeType, req api.StorageVolumeSnapshotPut, op *operations.Operation) error {
 	expiry := time.Time{}
 	if req.ExpiresAt != nil {
 		expiry = *req.ExpiresAt
 	}
 
-	details, err := request.GetContextValue[storageVolumeDetails](r.Context(), ctxStorageVolumeDetails)
+	details, err := request.GetContextValue[storageVolumeDetails](ctx, ctxStorageVolumeDetails)
 	if err != nil {
-		return response.SmartError(err)
+		return err
 	}
-
-	// Use an empty operation for this sync response to pass the requestor
-	op := &operations.Operation{}
-	op.SetRequestor(r.Context())
 
 	// Update the database.
 	if volumeType == dbCluster.StoragePoolVolumeTypeCustom {
 		err = details.pool.UpdateCustomVolumeSnapshot(projectName, volName, req.Description, nil, expiry, op)
 		if err != nil {
-			return response.SmartError(err)
+			return err
 		}
 	} else {
 		inst, err := instance.LoadByProjectAndName(s, projectName, volName)
 		if err != nil {
-			return response.SmartError(err)
+			return err
 		}
 
 		err = details.pool.UpdateInstanceSnapshot(inst, req.Description, nil, op)
 		if err != nil {
-			return response.SmartError(err)
+			return err
 		}
 	}
 
-	return response.EmptySyncResponse
+	return nil
 }
 
 // swagger:operation DELETE /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots/{snapshotName} storage storage_pool_volumes_type_snapshot_delete
