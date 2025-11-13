@@ -2306,6 +2306,8 @@ func (d *qemu) busAllocatePCIeHotplug(deviceName string, _ bool) (cleanup revert
 		}
 	}
 
+	deviceVolatileKey := "volatile." + deviceName + busDeviceVolatileSuffix
+
 	// Find an unused PCIe slot by iterating through the available slots and checking against the used slots.
 	for i := qemuPCIDeviceIDStart; i < pciSlotCount; i++ {
 		_, used := usedSlots[i]
@@ -2314,7 +2316,6 @@ func (d *qemu) busAllocatePCIeHotplug(deviceName string, _ bool) (cleanup revert
 		}
 
 		busNum := strconv.FormatUint(uint64(i), 10)
-		deviceVolatileKey := "volatile." + deviceName + busDeviceVolatileSuffix
 		err = d.VolatileSet(map[string]string{deviceVolatileKey: busNum})
 		if err != nil {
 			return nil, "", "", false, fmt.Errorf("Failed setting config key %q: %w", deviceVolatileKey, err)
