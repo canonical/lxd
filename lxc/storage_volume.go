@@ -1114,12 +1114,12 @@ func (c *cmdStorageVolumeEdit) run(cmd *cobra.Command, args []string) error {
 				return err
 			}
 
-			err := client.UpdateStoragePoolVolumeSnapshot(resource.name, volType, fields[0], fields[1], newdata, "")
+			op, err := client.UpdateStoragePoolVolumeSnapshot(resource.name, volType, fields[0], fields[1], newdata, "")
 			if err != nil {
 				return err
 			}
 
-			return nil
+			return op.Wait()
 		}
 
 		newdata := api.StorageVolumePut{}
@@ -1176,7 +1176,11 @@ func (c *cmdStorageVolumeEdit) run(cmd *cobra.Command, args []string) error {
 			newdata := api.StorageVolumeSnapshotPut{}
 			err = yaml.Unmarshal(content, &newdata)
 			if err == nil {
-				err = client.UpdateStoragePoolVolumeSnapshot(resource.name, volType, fields[0], fields[1], newdata, etag)
+				var op lxd.Operation
+				op, err = client.UpdateStoragePoolVolumeSnapshot(resource.name, volType, fields[0], fields[1], newdata, etag)
+				if err == nil {
+					err = op.Wait()
+				}
 			}
 
 			// Respawn the editor
@@ -2202,12 +2206,12 @@ func (c *cmdStorageVolumeSet) run(cmd *cobra.Command, args []string) error {
 				}
 			}
 
-			err = client.UpdateStoragePoolVolumeSnapshot(resource.name, volType, fields[0], fields[1], writable, etag)
+			op, err := client.UpdateStoragePoolVolumeSnapshot(resource.name, volType, fields[0], fields[1], writable, etag)
 			if err != nil {
 				return err
 			}
 
-			return nil
+			return op.Wait()
 		}
 
 		return errors.New(i18n.G("Snapshots are read-only and can't have their configuration changed"))
