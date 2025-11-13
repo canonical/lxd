@@ -1305,7 +1305,6 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	// Apply any volatile changes that need to be made.
 	err = d.VolatileSet(volatileSet)
 	if err != nil {
-		err = fmt.Errorf("Failed setting volatile keys: %w", err)
 		op.Done(err)
 		return err
 	}
@@ -2307,6 +2306,8 @@ func (d *qemu) busAllocatePCIeHotplug(deviceName string, _ bool) (cleanup revert
 		}
 	}
 
+	deviceVolatileKey := "volatile." + deviceName + busDeviceVolatileSuffix
+
 	// Find an unused PCIe slot by iterating through the available slots and checking against the used slots.
 	for i := qemuPCIDeviceIDStart; i < pciSlotCount; i++ {
 		_, used := usedSlots[i]
@@ -2315,11 +2316,17 @@ func (d *qemu) busAllocatePCIeHotplug(deviceName string, _ bool) (cleanup revert
 		}
 
 		busNum := strconv.FormatUint(uint64(i), 10)
-		deviceVolatileKey := "volatile." + deviceName + busDeviceVolatileSuffix
 		err = d.VolatileSet(map[string]string{deviceVolatileKey: busNum})
 		if err != nil {
-			return nil, "", "", false, fmt.Errorf("Failed setting volatile keys: %w", err)
+			return nil, "", "", false, fmt.Errorf("Failed setting config key %q: %w", deviceVolatileKey, err)
 		}
+
+		reverter.Add(func() {
+			err := d.VolatileSet(map[string]string{deviceVolatileKey: ""})
+			if err != nil {
+				d.logger.Warn("Failed clearing config key", logger.Ctx{"key": deviceVolatileKey, "err": err})
+			}
+		})
 
 		busName = busDevicePortPrefix + busNum
 		d.logger.Debug("Hotplugging device into bus", logger.Ctx{"device": deviceName, "busType": "pcie", "bus": busName})
@@ -3790,7 +3797,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 	if len(volatileSet) > 0 {
 		err = d.VolatileSet(volatileSet)
 		if err != nil {
-			return "", nil, fmt.Errorf("Failed setting device volatile keys: %w", err)
+			return "", nil, err
 		}
 	}
 
@@ -4650,17 +4657,26 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 	// Detect MACVTAP interface types and figure out which tap device is being used.
 	// This is so we can open a file handle to the tap device and pass it to the qemu process.
 	if shared.PathExists("/sys/class/net/" + nicName + "/macvtap") {
+		reverter := revert.New()
+		defer reverter.Fail()
+
+		if busCleanup != nil {
+			reverter.Add(busCleanup)
+		}
+
+		content, err := os.ReadFile("/sys/class/net/" + nicName + "/ifindex")
+		if err != nil {
+			return nil, fmt.Errorf("Error getting tap device ifindex: %w", err)
+		}
+
+		ifindex, err := strconv.Atoi(strings.TrimSpace(string(content)))
+		if err != nil {
+			return nil, fmt.Errorf("Error parsing tap device ifindex: %w", err)
+		}
+
+		reverter.Success()
+
 		devFile := func() (*os.File, error) {
-			content, err := os.ReadFile("/sys/class/net/" + nicName + "/ifindex")
-			if err != nil {
-				return nil, fmt.Errorf("Error getting tap device ifindex: %w", err)
-			}
-
-			ifindex, err := strconv.Atoi(strings.TrimSpace(string(content)))
-			if err != nil {
-				return nil, fmt.Errorf("Error parsing tap device ifindex: %w", err)
-			}
-
 			return os.OpenFile(fmt.Sprintf("/dev/tap%d", ifindex), os.O_RDWR, 0)
 		}
 
