@@ -2875,3 +2875,12 @@ Endpoints converted to asynchronous behavior:
 * `PATCH /storage-pools/{pool}/volumes/{type}/{vol}/snapshots/{snap}` - Patch storage volume snapshot
 * `PUT /1.0/profiles/{name}` - Update profile
 * `PATCH /1.0/profiles/{name}` - Patch profile
+
+## `storage_source_recover`
+
+As part of the recovery process it might be necessary to recover existing storage pools previously created by LXD.
+
+Before this was only partially possible for some of the drivers (e.g. by using `lvm.vg.force_reuse`), but not directly supported.
+The new pool `source.recover` configuration key can be set per cluster member to allow reuse of an existing pool `source`.
+What it does not allow is reusing the same source for multiple storage pools.
+The LVM storage driver has the specific `lvm.vg.force_reuse` configuration key for this purpose.
