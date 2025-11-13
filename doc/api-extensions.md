@@ -2856,3 +2856,11 @@ Instead of returning a successful response, they will receive an operation respo
 Endpoints converted to asynchronous behavior:
 
 * `POST /storage-pools/<pool>/volumes/<type>` - Create storage volume
+
+## `storage_source_reuse`
+
+As part of the recovery process it might be necessary to reuse already existing remote storage pools or physical drives when creating
+a new storage pool in LXD.
+
+Previously this was only possible for some of the drivers (e.g. Ceph RBD's `ceph.osd.force_reuse`).
+The new pool level `source.reuse` config key can be set per node to allow reuse of an existing `source`.
