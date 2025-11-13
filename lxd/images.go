@@ -2757,9 +2757,8 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 			}
 		}
 
-		// Get all cached images across all projects and store them keyed on fingerprint.
-		cached := true
-		images, err := dbCluster.GetImages(ctx, tx.Tx(), dbCluster.ImageFilter{Cached: &cached})
+		// Get images across all projects and store them keyed on fingerprint.
+		images, err := dbCluster.GetImages(ctx, tx.Tx())
 		if err != nil {
 			return fmt.Errorf("Failed getting images: %w", err)
 		}
@@ -2787,9 +2786,17 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 		deleteAtStorage := make(map[string]bool)
 		for _, dbImage := range dbImages {
 			projectImagesStorageVolume := s.LocalConfig.StorageImagesVolume(dbImage.Project)
+
+			if !dbImage.Cached {
+				// Prevent image files from being deleted because the fingerprint is referenced by
+				// a non-cached image.
+				deleteAtStorage[projectImagesStorageVolume] = false
+				continue // Skip because non-cached images must not be pruned.
+			}
+
 			_, imageSeenInThisStoragePreviously := deleteAtStorage[projectImagesStorageVolume]
 			if !imageSeenInThisStoragePreviously {
-				// First record of image in this project, candidate for deletion.
+				// First record of a cached image in this project, candidate for image files deletion.
 				deleteAtStorage[projectImagesStorageVolume] = true
 			}
 
