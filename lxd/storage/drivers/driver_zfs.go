@@ -231,7 +231,16 @@ func (d *zfs) FillConfig() error {
 	} else if filepath.IsAbs(d.config["source"]) {
 		// Set default pool_name.
 		if d.config["zfs.pool_name"] == "" {
-			d.config["zfs.pool_name"] = d.name
+			pool, err := d.poolUsingParentDevice(d.config["source"])
+			if err != nil {
+				return err
+			}
+
+			if pool != "" {
+				d.config["zfs.pool_name"] = pool
+			} else {
+				d.config["zfs.pool_name"] = d.name
+			}
 		}
 
 		// Unset size property since it's irrelevant.
