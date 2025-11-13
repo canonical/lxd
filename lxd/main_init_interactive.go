@@ -290,6 +290,20 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, server *api.Server) err
 				}
 
 				cluster.MemberConfig[i].Value = configValue
+
+				if config.Key == "source" {
+					configValue, err := c.global.asker.AskBool("Are you recovering an existing source? (yes/no) [default=no]: ", "no")
+					if err != nil {
+						return err
+					}
+
+					cluster.MemberConfig = append(cluster.MemberConfig, api.ClusterMemberConfigKey{
+						Entity: config.Entity,
+						Name:   config.Name,
+						Key:    "source.recover",
+						Value:  strconv.FormatBool(configValue),
+					})
+				}
 			}
 
 			config.Cluster.MemberConfig = cluster.MemberConfig
