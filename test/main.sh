@@ -467,6 +467,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_container_syscall_interception "container syscall interception"
     run_test test_security "security features"
     run_test test_security_protection "container protection"
+    run_test test_apparmor "apparmor restrictions"
     run_test test_image_expiry "image expiry"
     run_test test_image_list_all_aliases "image list all aliases"
     run_test test_image_list_remotes "image list of simplestream remotes"
