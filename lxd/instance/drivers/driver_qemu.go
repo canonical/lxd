@@ -1305,7 +1305,6 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	// Apply any volatile changes that need to be made.
 	err = d.VolatileSet(volatileSet)
 	if err != nil {
-		err = fmt.Errorf("Failed setting volatile keys: %w", err)
 		op.Done(err)
 		return err
 	}
@@ -2318,7 +2317,7 @@ func (d *qemu) busAllocatePCIeHotplug(deviceName string, _ bool) (cleanup revert
 		deviceVolatileKey := "volatile." + deviceName + busDeviceVolatileSuffix
 		err = d.VolatileSet(map[string]string{deviceVolatileKey: busNum})
 		if err != nil {
-			return nil, "", "", false, fmt.Errorf("Failed setting volatile keys: %w", err)
+			return nil, "", "", false, fmt.Errorf("Failed setting config key %q: %w", deviceVolatileKey, err)
 		}
 
 		busName = busDevicePortPrefix + busNum
@@ -3790,7 +3789,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 	if len(volatileSet) > 0 {
 		err = d.VolatileSet(volatileSet)
 		if err != nil {
-			return "", nil, fmt.Errorf("Failed setting device volatile keys: %w", err)
+			return "", nil, err
 		}
 	}
 
