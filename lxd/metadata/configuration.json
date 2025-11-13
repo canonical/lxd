@@ -5989,6 +5989,15 @@
 						}
 					},
 					{
+						"source.reuse": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to `true` to reuse an existing `source`\nwhich might already contain volumes.",
+							"scope": "local",
+							"shortdesc": "Whether to reuse an existing `source`",
+							"type": "bool"
+						}
+					},
+					{
 						"source.wipe": {
 							"defaultdesc": "`false`",
 							"longdesc": "Set this option to `true` to wipe the block device specified in `source`\nprior to creating the storage pool.",
@@ -6205,6 +6214,15 @@
 							"scope": "local",
 							"shortdesc": "Existing OSD storage pool to use",
 							"type": "string"
+						}
+					},
+					{
+						"source.reuse": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to `true` to reuse an existing `source`\nwhich might already contain volumes.",
+							"scope": "local",
+							"shortdesc": "Whether to reuse an existing `source`",
+							"type": "bool"
 						}
 					},
 					{
@@ -6436,6 +6454,15 @@
 						}
 					},
 					{
+						"source.reuse": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to `true` to reuse an existing `source`\nwhich might already contain volumes.",
+							"scope": "local",
+							"shortdesc": "Whether to reuse an existing `source`",
+							"type": "bool"
+						}
+					},
+					{
 						"volatile.pool.pristine": {
 							"defaultdesc": "`true`",
 							"longdesc": "",
@@ -6640,6 +6667,15 @@
 							"scope": "local",
 							"shortdesc": "Path to an existing directory",
 							"type": "string"
+						}
+					},
+					{
+						"source.reuse": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to `true` to reuse an existing `source`\nwhich might already contain volumes.",
+							"scope": "local",
+							"shortdesc": "Whether to reuse an existing `source`",
+							"type": "bool"
 						}
 					}
 				]
@@ -6848,6 +6884,15 @@
 							"scope": "local",
 							"shortdesc": "Path to an existing block device, loop file, or LVM volume group",
 							"type": "string"
+						}
+					},
+					{
+						"source.reuse": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to `true` to reuse an existing `source`\nwhich might already contain volumes.",
+							"scope": "local",
+							"shortdesc": "Whether to reuse an existing `source`",
+							"type": "bool"
 						}
 					},
 					{
@@ -7479,6 +7524,15 @@
 							"scope": "local",
 							"shortdesc": "Path to an existing block device, loop file, or ZFS dataset/pool",
 							"type": "string"
+						}
+					},
+					{
+						"source.reuse": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to `true` to reuse an existing `source`\nwhich might already contain volumes.",
+							"scope": "local",
+							"shortdesc": "Whether to reuse an existing `source`",
+							"type": "bool"
 						}
 					},
 					{

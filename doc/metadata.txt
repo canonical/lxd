@@ -5381,6 +5381,15 @@ with a minimum of 5 GiB and a maximum of 30 GiB.
 
 ```
 
+```{config:option} source.reuse storage-btrfs-pool-conf
+:defaultdesc: "`false`"
+:scope: "local"
+:shortdesc: "Whether to reuse an existing `source`"
+:type: "bool"
+Set this option to `true` to reuse an existing `source`
+which might already contain volumes.
+```
+
 ```{config:option} source.wipe storage-btrfs-pool-conf
 :defaultdesc: "`false`"
 :scope: "local"
@@ -5583,6 +5592,15 @@ This option specifies whether to use RBD `du` to obtain disk usage data for stop
 :shortdesc: "Existing OSD storage pool to use"
 :type: "string"
 
+```
+
+```{config:option} source.reuse storage-ceph-pool-conf
+:defaultdesc: "`false`"
+:scope: "local"
+:shortdesc: "Whether to reuse an existing `source`"
+:type: "bool"
+Set this option to `true` to reuse an existing `source`
+which might already contain volumes.
 ```
 
 ```{config:option} volatile.pool.pristine storage-ceph-pool-conf
@@ -5801,6 +5819,15 @@ when creating an OSD pool.
 
 ```
 
+```{config:option} source.reuse storage-cephfs-pool-conf
+:defaultdesc: "`false`"
+:scope: "local"
+:shortdesc: "Whether to reuse an existing `source`"
+:type: "bool"
+Set this option to `true` to reuse an existing `source`
+which might already contain volumes.
+```
+
 ```{config:option} volatile.pool.pristine storage-cephfs-pool-conf
 :defaultdesc: "`true`"
 :scope: "global"
@@ -5985,6 +6012,15 @@ to be placed on the socket I/O.
 :shortdesc: "Path to an existing directory"
 :type: "string"
 
+```
+
+```{config:option} source.reuse storage-dir-pool-conf
+:defaultdesc: "`false`"
+:scope: "local"
+:shortdesc: "Whether to reuse an existing `source`"
+:type: "bool"
+Set this option to `true` to reuse an existing `source`
+which might already contain volumes.
 ```
 
 <!-- config group storage-dir-pool-conf end -->
@@ -6181,6 +6217,15 @@ with a minimum of 5 GiB and a maximum of 30 GiB.
 :shortdesc: "Path to an existing block device, loop file, or LVM volume group"
 :type: "string"
 
+```
+
+```{config:option} source.reuse storage-lvm-pool-conf
+:defaultdesc: "`false`"
+:scope: "local"
+:shortdesc: "Whether to reuse an existing `source`"
+:type: "bool"
+Set this option to `true` to reuse an existing `source`
+which might already contain volumes.
 ```
 
 ```{config:option} source.wipe storage-lvm-pool-conf
@@ -6777,6 +6822,15 @@ with a minimum of 5 GiB and a maximum of 30 GiB.
 :shortdesc: "Path to an existing block device, loop file, or ZFS dataset/pool"
 :type: "string"
 
+```
+
+```{config:option} source.reuse storage-zfs-pool-conf
+:defaultdesc: "`false`"
+:scope: "local"
+:shortdesc: "Whether to reuse an existing `source`"
+:type: "bool"
+Set this option to `true` to reuse an existing `source`
+which might already contain volumes.
 ```
 
 ```{config:option} source.wipe storage-zfs-pool-conf
