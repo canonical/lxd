@@ -95,8 +95,8 @@ func (d *lvm) isLVMNotFoundExitError(err error) bool {
 	return false
 }
 
-// pysicalVolumeExists checks if an LVM Physical Volume exists.
-func (d *lvm) pysicalVolumeExists(pvName string) (bool, error) {
+// physicalVolumeExists checks if an LVM Physical Volume exists.
+func (d *lvm) physicalVolumeExists(pvName string) (bool, error) {
 	_, err := shared.RunCommandContext(context.TODO(), "pvs", "--noheadings", "-o", "pv_name", pvName)
 	if err != nil {
 		if d.isLVMNotFoundExitError(err) {
