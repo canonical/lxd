@@ -1887,36 +1887,40 @@ func storagePoolVolumeTypePostRename(s *state.State, r *http.Request, poolName s
 		return response.SmartError(err)
 	}
 
-	revert := revert.New()
-	defer revert.Fail()
+	run := func(op *operations.Operation) error {
+		revert := revert.New()
+		defer revert.Fail()
 
-	// Use an empty operation for this sync response to pass the requestor
-	op := &operations.Operation{}
-	op.SetRequestor(r.Context())
+		err = pool.RenameCustomVolume(projectName, vol.Name, req.Name, op)
+		if err != nil {
+			return err
+		}
 
-	err = pool.RenameCustomVolume(projectName, vol.Name, req.Name, op)
-	if err != nil {
-		return response.SmartError(err)
+		revert.Add(func() {
+			_ = pool.RenameCustomVolume(projectName, req.Name, vol.Name, op)
+		})
+
+		// Update devices using the volume in instances and profiles.
+		// Perform this operation after the actual rename of the volume.
+		// This ensures the database entries are up to date.
+		_, err := storagePoolVolumeUpdateUsers(s.ShutdownCtx, s, projectName, pool.Name(), vol, pool.Name(), &newVol)
+		if err != nil {
+			return err
+		}
+
+		revert.Success()
+		return nil
 	}
 
-	revert.Add(func() {
-		_ = pool.RenameCustomVolume(projectName, req.Name, vol.Name, op)
-	})
+	resources := map[string][]api.URL{}
+	resources["storage_volumes"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", pool.Name(), "volumes", cluster.StoragePoolVolumeTypeNameCustom, req.Name).Project(projectName)}
 
-	// Update devices using the volume in instances and profiles.
-	// Perform this operation after the actual rename of the volume.
-	// This ensures the database entries are up to date.
-	cleanup, err := storagePoolVolumeUpdateUsers(r.Context(), s, projectName, pool.Name(), vol, pool.Name(), &newVol)
+	op, err := operations.OperationCreate(r.Context(), s, request.ProjectParam(r), operations.OperationClassTask, operationtype.VolumeMove, resources, nil, run, nil, nil)
 	if err != nil {
-		return response.SmartError(err)
+		return response.InternalError(err)
 	}
 
-	revert.Add(cleanup)
-
-	u := api.NewURL().Path(version.APIVersion, "storage-pools", pool.Name(), "volumes", cluster.StoragePoolVolumeTypeNameCustom, req.Name).Project(projectName)
-
-	revert.Success()
-	return response.SyncResponseLocation(true, nil, u.String())
+	return operations.OperationResponse(op)
 }
 
 // storagePoolVolumeTypePostMove handles volume move type POST requests.
