@@ -493,7 +493,8 @@ jobs:
           - network-ovn ovn:deb
           - network-ovn ovn:latest/edge
           - network-routed
-          - pylxd
+          # XXX: Skip pylxd tests until https://github.com/canonical/pylxd/pull/677 is merged.
+          #- pylxd
           - qemu-external-vm
           - snapd
           - storage-buckets
