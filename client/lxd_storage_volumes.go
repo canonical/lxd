@@ -890,21 +890,31 @@ func (r *ProtocolLXD) DeleteStoragePoolVolume(pool string, volType string, name 
 }
 
 // RenameStoragePoolVolume renames a storage volume.
-func (r *ProtocolLXD) RenameStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePost) error {
+func (r *ProtocolLXD) RenameStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePost) (Operation, error) {
 	err := r.CheckExtension("storage_api_volume_rename")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	path := "/storage-pools/" + url.PathEscape(pool) + "/volumes/" + url.PathEscape(volType) + "/" + url.PathEscape(name)
+	path := api.NewURL().Path("storage-pools", pool, "volumes", volType, name)
+
+	var op Operation
 
 	// Send the request
-	_, _, err = r.query(http.MethodPost, path, volume, "")
+	err = r.CheckExtension("storage_and_profile_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPost, path.String(), volume, "")
+	} else {
+		op, _, err = r.queryOperation(http.MethodPost, path.String(), volume, "", true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // GetStoragePoolVolumeBackupNames returns a list of volume backup names.
