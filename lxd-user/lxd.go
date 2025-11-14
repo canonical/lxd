@@ -133,7 +133,11 @@ func lxdInitialConfiguration(client lxd.InstanceServer) error {
 	}
 
 	// Update the default profile.
-	err = client.UpdateProfile("default", profile.Writable(), profileEtag)
+	op, err := client.UpdateProfile("default", profile.Writable(), profileEtag)
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return fmt.Errorf("Failed to update default profile: %w", err)
 	}
@@ -253,7 +257,7 @@ func lxdSetupUser(uid uint32) error {
 	}
 
 	// Setup default profile.
-	err = client.UseProject(projectName).UpdateProfile("default", api.ProfilePut{
+	op, err := client.UseProject(projectName).UpdateProfile("default", api.ProfilePut{
 		Description: "Default LXD profile",
 		Config: map[string]string{
 			"raw.idmap": fmt.Sprintf("uid %s %s\ngid %s %s", pw[2], pw[2], pw[3], pw[3]),
@@ -271,6 +275,10 @@ func lxdSetupUser(uid uint32) error {
 			},
 		},
 	}, "")
+	if err == nil {
+		err = op.Wait()
+	}
+
 	if err != nil {
 		return fmt.Errorf("Unable to update the default profile: %w", err)
 	}
