@@ -2099,7 +2099,12 @@ func (c *cmdStorageVolumeRename) run(cmd *cobra.Command, args []string) error {
 		client = client.UseTarget(c.storage.flagTarget)
 	}
 
-	err = client.RenameStoragePoolVolume(resource.name, volType, volName, vol)
+	op, err := client.RenameStoragePoolVolume(resource.name, volType, volName, vol)
+	if err != nil {
+		return err
+	}
+
+	err = op.Wait()
 	if err != nil {
 		return err
 	}
