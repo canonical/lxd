@@ -110,12 +110,12 @@ func profileDeviceAdd(client lxd.InstanceServer, name string, devName string, de
 	// Add the device to the instance
 	profile.Devices[devName] = dev
 
-	err = client.UpdateProfile(name, profile.Writable(), profileEtag)
+	op, err := client.UpdateProfile(name, profile.Writable(), profileEtag)
 	if err != nil {
 		return err
 	}
 
-	return nil
+	return op.Wait()
 }
 
 // parseDeviceOverrides parses device overrides of the form "<deviceName>,<key>=<value>" into a device map.
