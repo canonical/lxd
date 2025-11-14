@@ -1008,12 +1008,12 @@ func (c *cmdStorageVolumeDetachProfile) run(cmd *cobra.Command, args []string) e
 
 	// Remove the device
 	delete(profile.Devices, devName)
-	err = resource.server.UpdateProfile(args[2], profile.Writable(), etag)
+	op, err := resource.server.UpdateProfile(args[2], profile.Writable(), etag)
 	if err != nil {
 		return err
 	}
 
-	return nil
+	return op.Wait()
 }
 
 // Edit.

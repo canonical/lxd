@@ -249,7 +249,12 @@ func (c *cmdConfigDeviceAdd) run(cmd *cobra.Command, args []string) error {
 
 		profile.Devices[devname] = device
 
-		err = resource.server.UpdateProfile(resource.name, profile.Writable(), etag)
+		op, err := resource.server.UpdateProfile(resource.name, profile.Writable(), etag)
+		if err != nil {
+			return err
+		}
+
+		err = op.Wait()
 		if err != nil {
 			return err
 		}
@@ -638,7 +643,12 @@ func (c *cmdConfigDeviceRemove) run(cmd *cobra.Command, args []string) error {
 			delete(profile.Devices, devname)
 		}
 
-		err = resource.server.UpdateProfile(resource.name, profile.Writable(), etag)
+		op, err := resource.server.UpdateProfile(resource.name, profile.Writable(), etag)
+		if err != nil {
+			return err
+		}
+
+		err = op.Wait()
 		if err != nil {
 			return err
 		}
@@ -774,7 +784,12 @@ func (c *cmdConfigDeviceSet) run(cmd *cobra.Command, args []string) error {
 
 		profile.Devices[devname] = dev
 
-		err = resource.server.UpdateProfile(resource.name, profile.Writable(), etag)
+		op, err := resource.server.UpdateProfile(resource.name, profile.Writable(), etag)
+		if err != nil {
+			return err
+		}
+
+		err = op.Wait()
 		if err != nil {
 			return err
 		}

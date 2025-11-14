@@ -77,6 +77,7 @@ const (
 	RemoveExpiredTokens
 	ClusterHeal
 	RemoveExpiredOIDCSessions
+	ProfileUpdate
 )
 
 // Description return a human-readable description of the operation type.
@@ -120,6 +121,8 @@ func (t Type) Description() string {
 		return "Restarting instance"
 	case InstanceRebuild:
 		return "Rebuilding instance"
+	case ProfileUpdate:
+		return "Updating profile"
 	case CommandExec:
 		return "Executing command"
 	case SnapshotCreate:
