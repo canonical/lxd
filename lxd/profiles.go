@@ -676,7 +676,12 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 			}
 
 			err = notifier(func(_ db.NodeInfo, client lxd.InstanceServer) error {
-				return client.UseProject(details.effectiveProject.Name).UpdateProfile(details.profileName, profile.Writable(), "")
+				op, err := client.UseProject(details.effectiveProject.Name).UpdateProfile(details.profileName, profile.Writable(), "")
+				if err != nil {
+					return err
+				}
+
+				return op.WaitContext(s.ShutdownCtx)
 			})
 			if err != nil {
 				return err
