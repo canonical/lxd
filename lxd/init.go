@@ -382,7 +382,12 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			}
 
 			// Setup reverter.
-			revert.Add(func() { _ = d.UpdateProfile(currentProfile.Name, currentProfile.Writable(), "") })
+			revert.Add(func() {
+				op, err := d.UpdateProfile(currentProfile.Name, currentProfile.Writable(), "")
+				if err == nil {
+					_ = op.Wait()
+				}
+			})
 
 			// Prepare the update.
 			newProfile := api.ProfilePut{}
@@ -413,7 +418,11 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 			}
 
 			// Apply it.
-			err = d.UpdateProfile(currentProfile.Name, newProfile, etag)
+			op, err := d.UpdateProfile(currentProfile.Name, newProfile, etag)
+			if err == nil {
+				err = op.Wait()
+			}
+
 			if err != nil {
 				return fmt.Errorf("Failed to update profile %q: %w", profile.Name, err)
 			}
