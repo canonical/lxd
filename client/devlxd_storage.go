@@ -63,16 +63,16 @@ func (r *ProtocolDevLXD) CreateStoragePoolVolume(poolName string, vol api.DevLXD
 }
 
 // UpdateStoragePoolVolume updates an existing storage volume in a given storage pool.
-func (r *ProtocolDevLXD) UpdateStoragePoolVolume(poolName string, volType string, volName string, vol api.DevLXDStorageVolumePut, etag string) error {
+func (r *ProtocolDevLXD) UpdateStoragePoolVolume(poolName string, volType string, volName string, vol api.DevLXDStorageVolumePut, etag string) (DevLXDOperation, error) {
 	url := api.NewURL().Path("storage-pools", poolName, "volumes", volType, volName).URL
 	r.setURLQueryAttributes(&url)
 
-	_, _, err := r.query(http.MethodPatch, url.String(), vol, etag)
+	op, _, err := r.queryOperation(http.MethodPatch, url.String(), vol, etag)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return op, nil
 }
 
 // DeleteStoragePoolVolume deletes a storage volume from a given storage pool.

@@ -388,7 +388,7 @@ type InstanceServer interface {
 	GetStoragePoolVolume(pool string, volType string, name string) (volume *api.StorageVolume, ETag string, err error)
 	GetStoragePoolVolumeState(pool string, volType string, name string) (state *api.StorageVolumeState, err error)
 	CreateStoragePoolVolume(pool string, volume api.StorageVolumesPost) (op Operation, err error)
-	UpdateStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePut, ETag string) (err error)
+	UpdateStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePut, ETag string) (op Operation, err error)
 	DeleteStoragePoolVolume(pool string, volType string, name string) (err error)
 	RenameStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePost) (err error)
 	CopyStoragePoolVolume(pool string, source InstanceServer, sourcePool string, volume api.StorageVolume, args *StoragePoolVolumeCopyArgs) (op RemoteOperation, err error)
@@ -541,7 +541,7 @@ type DevLXDServer interface {
 	GetStoragePoolVolumes(poolName string) (vols []api.DevLXDStorageVolume, err error)
 	GetStoragePoolVolume(poolName string, volType string, volName string) (vol *api.DevLXDStorageVolume, ETag string, err error)
 	CreateStoragePoolVolume(poolName string, vol api.DevLXDStorageVolumesPost) (DevLXDOperation, error)
-	UpdateStoragePoolVolume(poolName string, volType string, volName string, vol api.DevLXDStorageVolumePut, ETag string) error
+	UpdateStoragePoolVolume(poolName string, volType string, volName string, vol api.DevLXDStorageVolumePut, ETag string) (DevLXDOperation, error)
 	DeleteStoragePoolVolume(poolName string, volType string, volName string) error
 
 	// DevLXD operations.

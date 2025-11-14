@@ -177,12 +177,12 @@ func devLXDStoragePoolVolumePatchHandler(d *Daemon, r *http.Request) *devLXDResp
 	client = client.UseTarget(r.URL.Query().Get("target"))
 	defer client.Disconnect()
 
-	err = client.UpdateStoragePoolVolume(poolName, volType, volName, vol, etag)
+	op, err := client.UpdateStoragePoolVolume(poolName, volType, volName, vol, etag)
 	if err != nil {
 		return smartResponse(err)
 	}
 
-	return okResponse("", "raw")
+	return okResponse(op.Get(), "json")
 }
 
 func devLXDStoragePoolVolumeDeleteHandler(d *Daemon, r *http.Request) *devLXDResponse {

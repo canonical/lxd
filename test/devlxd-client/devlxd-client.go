@@ -243,7 +243,12 @@ func run(args []string) error {
 				return err
 			}
 
-			return client.UpdateStoragePoolVolume(poolName, volType, volName, vol, etag)
+			op, err := client.UpdateStoragePoolVolume(poolName, volType, volName, vol, etag)
+			if err != nil {
+				return err
+			}
+
+			return op.WaitContext(context.Background())
 		case "delete-volume":
 			if len(args) != 6 {
 				return fmt.Errorf("Usage: %s storage delete-volume <poolName> <volType> <volName>", args[0])
