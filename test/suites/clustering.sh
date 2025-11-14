@@ -5198,16 +5198,16 @@ test_clustering_placement_groups() {
   # Clean up
   LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 c3 c4 c5 c6
 
-  echo "==> Test compact/strict: initial placement"
+  echo "==> Test compact/strict: initial placement using node2 as target member"
   LXD_DIR="${LXD_ONE_DIR}" lxc placement-group create pg-compact-strict policy=compact rigor=strict
-  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c1 -c placement.group=pg-compact-strict
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c1 -c placement.group=pg-compact-strict --target node2
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c s c1)" = "STOPPED" ]
 
   echo "==> Test compact/strict: second instance on same node"
   node1=$(LXD_DIR="${LXD_ONE_DIR}" lxc list c1 -f csv -c L)
   LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c2 -c placement.group=pg-compact-strict
   node2=$(LXD_DIR="${LXD_ONE_DIR}" lxc list c2 -f csv -c L)
-  [ "${node1}" = "${node2}" ]
+  [ "${node1}" = "node2" ] && [ "${node2}" = "node2" ]
 
   # Clean up
   LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2
