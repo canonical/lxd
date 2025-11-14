@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-11-13 10:19+0000\n"
+"POT-Creation-Date: 2025-11-14 00:18+0000\n"
 "PO-Revision-Date: 2023-03-10 15:14+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -588,7 +588,7 @@ msgid ""
 "### - /1.0/profiles/p1\n"
 msgstr ""
 
-#: lxc/profile.go:531
+#: lxc/profile.go:537
 msgid ""
 "### This is a YAML representation of the profile.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -694,7 +694,7 @@ msgstr "%s はディレクトリではありません"
 msgid "'%s' isn't a supported file type"
 msgstr "'%s' はサポートされないタイプのファイルです"
 
-#: lxc/cluster_group.go:156 lxc/profile.go:265
+#: lxc/cluster_group.go:156 lxc/profile.go:266
 msgid "(none)"
 msgstr "(none)"
 
@@ -966,7 +966,7 @@ msgstr "フォワードにポートを追加します"
 msgid "Add ports to a load balancer"
 msgstr "ロードバランサーにポートを追加します"
 
-#: lxc/profile.go:112 lxc/profile.go:113
+#: lxc/profile.go:113 lxc/profile.go:114
 msgid "Add profiles to instances"
 msgstr "インスタンスにプロファイルを追加します"
 
@@ -1061,7 +1061,7 @@ msgstr "VMを要求しましたが、イメージタイプがコンテナです"
 msgid "Assign sets of groups to cluster members"
 msgstr "クラスターメンバーにグループの組を割り当てます"
 
-#: lxc/profile.go:192 lxc/profile.go:193
+#: lxc/profile.go:193 lxc/profile.go:194
 msgid "Assign sets of profiles to instances"
 msgstr "インスタンスにプロファイルを割り当てます"
 
@@ -1488,7 +1488,7 @@ msgstr ""
 msgid "Clustering enabled"
 msgstr "クラスタリングが有効になりました"
 
-#: lxc/image.go:1118 lxc/list.go:133 lxc/profile.go:738
+#: lxc/image.go:1118 lxc/list.go:133 lxc/profile.go:753
 #: lxc/storage_volume.go:1629 lxc/warning.go:94
 msgid "Columns"
 msgstr "カラムレイアウト"
@@ -1540,7 +1540,7 @@ msgstr "移動先のインスタンスに適用するキー/値の設定"
 #: lxc/network_acl.go:716 lxc/network_forward.go:776
 #: lxc/network_load_balancer.go:739 lxc/network_peer.go:698
 #: lxc/network_zone.go:640 lxc/network_zone.go:1333 lxc/placement_group.go:455
-#: lxc/profile.go:613 lxc/project.go:376 lxc/storage.go:360
+#: lxc/profile.go:628 lxc/project.go:376 lxc/storage.go:360
 #: lxc/storage_bucket.go:350 lxc/storage_bucket.go:1144
 #: lxc/storage_volume.go:1188 lxc/storage_volume.go:1220
 #, c-format
@@ -1621,11 +1621,11 @@ msgstr ""
 "\n"
 "すべての LXD バージョンとの互換性のため、pull 転送モードがデフォルトです。\n"
 
-#: lxc/config_device.go:483 lxc/config_device.go:484
+#: lxc/config_device.go:488 lxc/config_device.go:489
 msgid "Copy profile inherited devices and override configuration keys"
 msgstr "プロファイルに継承されたデバイスをコピーし、設定キーを上書きします"
 
-#: lxc/profile.go:288 lxc/profile.go:289
+#: lxc/profile.go:289 lxc/profile.go:290
 msgid "Copy profiles"
 msgstr "プロファイルをコピーします"
 
@@ -1641,7 +1641,7 @@ msgstr "インスタンスをコピーします。スナップショットはコ
 msgid "Copy the volume without its snapshots"
 msgstr "ボリュームをコピーします (スナップショットはコピーしません)"
 
-#: lxc/copy.go:64 lxc/image.go:172 lxc/move.go:69 lxc/profile.go:291
+#: lxc/copy.go:64 lxc/image.go:172 lxc/move.go:69 lxc/profile.go:292
 #: lxc/storage_volume.go:403
 msgid "Copy to a project different from the source"
 msgstr "コピー／移動元とは異なるプロジェクトにコピーします"
@@ -1840,7 +1840,7 @@ msgstr "新たにネットワークを作成します"
 msgid "Create new placement groups"
 msgstr "クラスターグループを作成します"
 
-#: lxc/profile.go:370 lxc/profile.go:371
+#: lxc/profile.go:376 lxc/profile.go:377
 msgid "Create profiles"
 msgstr "プロファイルを作成します"
 
@@ -1889,7 +1889,7 @@ msgstr "DEFAULT TARGET ADDRESS"
 #: lxc/network_acl.go:173 lxc/network_forward.go:160
 #: lxc/network_load_balancer.go:163 lxc/network_peer.go:150
 #: lxc/network_zone.go:165 lxc/network_zone.go:847 lxc/operation.go:173
-#: lxc/placement_group.go:165 lxc/profile.go:764 lxc/project.go:586
+#: lxc/placement_group.go:165 lxc/profile.go:779 lxc/project.go:586
 #: lxc/storage.go:724 lxc/storage_bucket.go:529 lxc/storage_bucket.go:851
 #: lxc/storage_volume.go:1772
 msgid "DESCRIPTION"
@@ -2008,7 +2008,7 @@ msgstr "ネットワークを削除します"
 msgid "Delete placement groups"
 msgstr "プロファイルを削除します"
 
-#: lxc/profile.go:452 lxc/profile.go:453
+#: lxc/profile.go:458 lxc/profile.go:459
 msgid "Delete profiles"
 msgstr "プロファイルを削除します"
 
@@ -2062,9 +2062,9 @@ msgstr ""
 #: lxc/config.go:578 lxc/config.go:793 lxc/config.go:925 lxc/config.go:996
 #: lxc/config.go:1036 lxc/config.go:1091 lxc/config.go:1182 lxc/config.go:1213
 #: lxc/config.go:1267 lxc/config_device.go:26 lxc/config_device.go:173
-#: lxc/config_device.go:304 lxc/config_device.go:401 lxc/config_device.go:484
-#: lxc/config_device.go:580 lxc/config_device.go:696 lxc/config_device.go:703
-#: lxc/config_device.go:832 lxc/config_device.go:923 lxc/config_metadata.go:28
+#: lxc/config_device.go:309 lxc/config_device.go:406 lxc/config_device.go:489
+#: lxc/config_device.go:585 lxc/config_device.go:706 lxc/config_device.go:713
+#: lxc/config_device.go:847 lxc/config_device.go:938 lxc/config_metadata.go:28
 #: lxc/config_metadata.go:56 lxc/config_metadata.go:189
 #: lxc/config_template.go:28 lxc/config_template.go:68
 #: lxc/config_template.go:119 lxc/config_template.go:173
@@ -2120,11 +2120,11 @@ msgstr ""
 #: lxc/placement_group.go:188 lxc/placement_group.go:251
 #: lxc/placement_group.go:355 lxc/placement_group.go:487
 #: lxc/placement_group.go:547 lxc/placement_group.go:614
-#: lxc/placement_group.go:656 lxc/placement_group.go:713 lxc/profile.go:38
-#: lxc/profile.go:113 lxc/profile.go:193 lxc/profile.go:289 lxc/profile.go:371
-#: lxc/profile.go:453 lxc/profile.go:511 lxc/profile.go:647 lxc/profile.go:723
-#: lxc/profile.go:881 lxc/profile.go:974 lxc/profile.go:1034
-#: lxc/profile.go:1121 lxc/profile.go:1185 lxc/project.go:33 lxc/project.go:99
+#: lxc/placement_group.go:656 lxc/placement_group.go:713 lxc/profile.go:39
+#: lxc/profile.go:114 lxc/profile.go:194 lxc/profile.go:290 lxc/profile.go:377
+#: lxc/profile.go:459 lxc/profile.go:517 lxc/profile.go:662 lxc/profile.go:738
+#: lxc/profile.go:896 lxc/profile.go:989 lxc/profile.go:1049
+#: lxc/profile.go:1141 lxc/profile.go:1205 lxc/project.go:33 lxc/project.go:99
 #: lxc/project.go:201 lxc/project.go:274 lxc/project.go:410 lxc/project.go:484
 #: lxc/project.go:604 lxc/project.go:669 lxc/project.go:755 lxc/project.go:799
 #: lxc/project.go:860 lxc/project.go:927 lxc/publish.go:34 lxc/query.go:35
@@ -2185,17 +2185,17 @@ msgstr "インスタンスからストレージボリュームを取り外しま
 msgid "Detach storage volumes from profiles"
 msgstr "プロファイルからストレージボリュームを取り外します"
 
-#: lxc/config_device.go:281
+#: lxc/config_device.go:286
 #, c-format
 msgid "Device %s added to %s"
 msgstr "デバイス %s が %s に追加されました"
 
-#: lxc/config_device.go:556
+#: lxc/config_device.go:561
 #, c-format
 msgid "Device %s overridden for %s"
 msgstr "デバイス %s が %s で上書きされました"
 
-#: lxc/config_device.go:677
+#: lxc/config_device.go:687
 #, c-format
 msgid "Device %s removed from %s"
 msgstr "デバイス %s が %s から削除されました"
@@ -2205,12 +2205,12 @@ msgstr "デバイス %s が %s から削除されました"
 msgid "Device already exists: %s"
 msgstr "デバイスは既に存在します: %s"
 
-#: lxc/config_device.go:363 lxc/config_device.go:377 lxc/config_device.go:635
-#: lxc/config_device.go:656 lxc/config_device.go:770 lxc/config_device.go:791
+#: lxc/config_device.go:368 lxc/config_device.go:382 lxc/config_device.go:640
+#: lxc/config_device.go:666 lxc/config_device.go:780 lxc/config_device.go:806
 msgid "Device doesn't exist"
 msgstr "デバイスが存在しません"
 
-#: lxc/config_device.go:659
+#: lxc/config_device.go:669
 msgid ""
 "Device from profile(s) cannot be removed from individual instance. Override "
 "device or modify profile instead"
@@ -2218,7 +2218,7 @@ msgstr ""
 "プロファイルのデバイスは個々のインスタンスでは削除できません。デバイスを上書"
 "きするかプロファイルを変更してください"
 
-#: lxc/config_device.go:380
+#: lxc/config_device.go:385
 msgid "Device from profile(s) cannot be retrieved for individual instance"
 msgstr "プロファイルのデバイスは個々のインスタンスでは取得できません"
 
@@ -2329,7 +2329,7 @@ msgstr "すべてのプロジェクトのインスタンスを表示します"
 msgid "Display placement groups from all projects"
 msgstr "すべてのプロジェクトのインスタンスを表示します"
 
-#: lxc/profile.go:742
+#: lxc/profile.go:757
 #, fuzzy
 msgid "Display profiles from all projects"
 msgstr "すべてのプロジェクトのインスタンスを表示します"
@@ -2465,7 +2465,7 @@ msgstr "ネットワークゾーンレコードをYAMLで編集します"
 msgid "Edit placement group configurations as YAML"
 msgstr "信頼済みクライアント設定をYAMLで編集します"
 
-#: lxc/profile.go:510 lxc/profile.go:511
+#: lxc/profile.go:516 lxc/profile.go:517
 msgid "Edit profile configurations as YAML"
 msgstr "プロファイル設定をYAMLで編集します"
 
@@ -2493,7 +2493,7 @@ msgstr "ストレージボリュームの設定をYAMLで編集します"
 msgid "Edit trust configurations as YAML"
 msgstr "信頼済みクライアント設定をYAMLで編集します"
 
-#: lxc/image.go:1162 lxc/list.go:611 lxc/profile.go:780
+#: lxc/image.go:1162 lxc/list.go:611 lxc/profile.go:795
 #: lxc/storage_volume.go:1806 lxc/warning.go:237
 #, c-format
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
@@ -2561,7 +2561,7 @@ msgstr "イメージの取得中: %s"
 #: lxc/cluster.go:466 lxc/config.go:683 lxc/config.go:715 lxc/network.go:1359
 #: lxc/network_acl.go:544 lxc/network_forward.go:583
 #: lxc/network_load_balancer.go:562 lxc/network_peer.go:524
-#: lxc/network_zone.go:480 lxc/network_zone.go:1166 lxc/profile.go:1101
+#: lxc/network_zone.go:480 lxc/network_zone.go:1166 lxc/profile.go:1116
 #: lxc/project.go:732 lxc/storage.go:813 lxc/storage_bucket.go:623
 #: lxc/storage_volume.go:2205 lxc/storage_volume.go:2243
 #, fuzzy, c-format
@@ -2576,7 +2576,7 @@ msgstr "イメージのプロパティを削除します"
 #: lxc/cluster.go:460 lxc/network.go:1353 lxc/network_acl.go:538
 #: lxc/network_forward.go:577 lxc/network_load_balancer.go:556
 #: lxc/network_peer.go:518 lxc/network_zone.go:474 lxc/network_zone.go:1160
-#: lxc/profile.go:1095 lxc/project.go:726 lxc/storage.go:807
+#: lxc/profile.go:1110 lxc/project.go:726 lxc/storage.go:807
 #: lxc/storage_bucket.go:617 lxc/storage_volume.go:2199
 #: lxc/storage_volume.go:2237
 #, c-format
@@ -2991,7 +2991,7 @@ msgstr ""
 #: lxc/network_acl.go:101 lxc/network_allocations.go:58
 #: lxc/network_forward.go:96 lxc/network_load_balancer.go:100
 #: lxc/network_peer.go:86 lxc/network_zone.go:93 lxc/network_zone.go:789
-#: lxc/operation.go:109 lxc/placement_group.go:92 lxc/profile.go:741
+#: lxc/operation.go:109 lxc/placement_group.go:92 lxc/profile.go:756
 #: lxc/project.go:486 lxc/project.go:929 lxc/remote.go:795 lxc/storage.go:658
 #: lxc/storage_bucket.go:463 lxc/storage_bucket.go:793
 #: lxc/storage_volume.go:1648 lxc/warning.go:95
@@ -3109,7 +3109,7 @@ msgstr "新たにネットワークゾーンレコードを作成します"
 msgid "Get the key as a network zone record property"
 msgstr "ネットワークゾーンレコードエントリを削除します"
 
-#: lxc/profile.go:652
+#: lxc/profile.go:667
 msgid "Get the key as a profile property"
 msgstr ""
 
@@ -3140,7 +3140,7 @@ msgstr ""
 msgid "Get values for cluster member configuration keys"
 msgstr "クラスターメンバーの設定値を取得します"
 
-#: lxc/config_device.go:303 lxc/config_device.go:304
+#: lxc/config_device.go:308 lxc/config_device.go:309
 msgid "Get values for device configuration keys"
 msgstr "デバイスの設定値を取得します"
 
@@ -3181,7 +3181,7 @@ msgstr "ネットワークゾーンレコードの設定値を取得します"
 msgid "Get values for placement group configuration keys"
 msgstr "プロファイルの設定値を取得します"
 
-#: lxc/profile.go:646 lxc/profile.go:647
+#: lxc/profile.go:661 lxc/profile.go:662
 msgid "Get values for profile configuration keys"
 msgstr "プロファイルの設定値を取得します"
 
@@ -3898,7 +3898,7 @@ msgstr ""
 "    u - アップロード日\n"
 "    t - タイプ"
 
-#: lxc/config_device.go:400 lxc/config_device.go:401
+#: lxc/config_device.go:405 lxc/config_device.go:406
 msgid "List instance devices"
 msgstr "インスタンスのデバイスを一覧表示します"
 
@@ -4090,11 +4090,11 @@ msgstr "すべてのプロジェクトのインスタンスを表示します"
 msgid "List permissions"
 msgstr "プロファイルを一覧表示します"
 
-#: lxc/profile.go:722
+#: lxc/profile.go:737
 msgid "List profiles"
 msgstr "プロファイルを一覧表示します"
 
-#: lxc/profile.go:723
+#: lxc/profile.go:738
 #, fuzzy
 msgid ""
 "List profiles\n"
@@ -4495,7 +4495,7 @@ msgstr "プロファイルを管理します"
 msgid "Manage placement groups"
 msgstr "クラスタグループを管理します"
 
-#: lxc/profile.go:37 lxc/profile.go:38
+#: lxc/profile.go:38 lxc/profile.go:39
 msgid "Manage profiles"
 msgstr "プロファイルを管理します"
 
@@ -4664,8 +4664,8 @@ msgstr "クラスターグループ名がありません"
 #: lxc/config_metadata.go:112 lxc/config_metadata.go:221
 #: lxc/config_template.go:100 lxc/config_template.go:155
 #: lxc/config_template.go:209 lxc/config_template.go:306
-#: lxc/config_template.go:377 lxc/profile.go:154 lxc/profile.go:240
-#: lxc/profile.go:922 lxc/rebuild.go:73
+#: lxc/config_template.go:377 lxc/profile.go:155 lxc/profile.go:241
+#: lxc/profile.go:937 lxc/rebuild.go:73
 msgid "Missing instance name"
 msgstr "インスタンス名を指定する必要があります"
 
@@ -4685,9 +4685,9 @@ msgstr "鍵の名前を指定する必要があります"
 msgid "Missing listen address"
 msgstr "リッスンアドレスを指定する必要があります"
 
-#: lxc/config_device.go:215 lxc/config_device.go:348 lxc/config_device.go:442
-#: lxc/config_device.go:510 lxc/config_device.go:622 lxc/config_device.go:751
-#: lxc/config_device.go:874
+#: lxc/config_device.go:215 lxc/config_device.go:353 lxc/config_device.go:447
+#: lxc/config_device.go:515 lxc/config_device.go:627 lxc/config_device.go:761
+#: lxc/config_device.go:889
 msgid "Missing name"
 msgstr "名前を指定する必要があります"
 
@@ -4759,12 +4759,12 @@ msgstr "クラスターグループ名がありません"
 msgid "Missing pool name"
 msgstr "ストレージプール名を指定する必要があります"
 
-#: lxc/profile.go:485 lxc/profile.go:567 lxc/profile.go:685 lxc/profile.go:1006
-#: lxc/profile.go:1074 lxc/profile.go:1153
+#: lxc/profile.go:491 lxc/profile.go:573 lxc/profile.go:700 lxc/profile.go:1021
+#: lxc/profile.go:1089 lxc/profile.go:1173
 msgid "Missing profile name"
 msgstr "プロファイル名を指定する必要があります"
 
-#: lxc/profile.go:422 lxc/project.go:154 lxc/project.go:240 lxc/project.go:330
+#: lxc/profile.go:428 lxc/project.go:154 lxc/project.go:240 lxc/project.go:330
 #: lxc/project.go:447 lxc/project.go:636 lxc/project.go:705 lxc/project.go:831
 #: lxc/project.go:960
 msgid "Missing project name"
@@ -4775,7 +4775,7 @@ msgstr "プロジェクト名を指定する必要があります"
 msgid "Missing session ID"
 msgstr "リッスンアドレスを指定する必要があります"
 
-#: lxc/profile.go:328
+#: lxc/profile.go:329
 msgid "Missing source profile name"
 msgstr "コピー元のプロファイル名を指定する必要があります"
 
@@ -4913,7 +4913,7 @@ msgstr "インスタンス名を指定する必要があります: "
 #: lxc/cluster.go:1075 lxc/cluster_group.go:510 lxc/config_trust.go:408
 #: lxc/config_trust.go:513 lxc/list.go:562 lxc/network.go:1117
 #: lxc/network_acl.go:172 lxc/network_peer.go:149 lxc/network_zone.go:164
-#: lxc/network_zone.go:846 lxc/placement_group.go:164 lxc/profile.go:762
+#: lxc/network_zone.go:846 lxc/placement_group.go:164 lxc/profile.go:777
 #: lxc/project.go:579 lxc/remote.go:853 lxc/storage.go:716
 #: lxc/storage_bucket.go:528 lxc/storage_bucket.go:850
 #: lxc/storage_volume.go:1771
@@ -5155,7 +5155,7 @@ msgstr "コピー元のボリュームに対するストレージプールが指
 msgid "No storage pool for target volume specified"
 msgstr "コピー先のボリュームに対するストレージプールが指定されていません"
 
-#: lxc/config_device.go:226 lxc/config_device.go:534
+#: lxc/config_device.go:226 lxc/config_device.go:539
 #, c-format
 msgid "No value found in %q"
 msgstr "%q に設定する値が指定されていません"
@@ -5212,7 +5212,7 @@ msgstr "バックグラウンド操作 %s を削除しました"
 msgid "Optimized Storage"
 msgstr "最適化されたストレージ"
 
-#: lxc/config_device.go:794
+#: lxc/config_device.go:809
 msgid "Override device or modify profile instead"
 msgstr ""
 
@@ -5263,7 +5263,7 @@ msgid "PROFILES"
 msgstr "PROFILES"
 
 #: lxc/image.go:1141 lxc/list.go:556 lxc/network.go:1128 lxc/network_acl.go:178
-#: lxc/network_zone.go:170 lxc/placement_group.go:172 lxc/profile.go:763
+#: lxc/network_zone.go:170 lxc/placement_group.go:172 lxc/profile.go:778
 #: lxc/storage_bucket.go:537 lxc/storage_volume.go:1796 lxc/warning.go:214
 msgid "PROJECT"
 msgstr "PROJECT"
@@ -5353,7 +5353,7 @@ msgstr "終了するには ctrl+c を押してください"
 #: lxc/network_acl.go:717 lxc/network_forward.go:777
 #: lxc/network_load_balancer.go:740 lxc/network_peer.go:699
 #: lxc/network_zone.go:641 lxc/network_zone.go:1334 lxc/placement_group.go:456
-#: lxc/profile.go:614 lxc/project.go:377 lxc/storage.go:361
+#: lxc/profile.go:629 lxc/project.go:377 lxc/storage.go:361
 #: lxc/storage_bucket.go:351 lxc/storage_bucket.go:1145
 #: lxc/storage_volume.go:1189 lxc/storage_volume.go:1221
 msgid "Press enter to open the editor again or ctrl+c to abort change"
@@ -5392,32 +5392,32 @@ msgstr "エイリアスの処理が失敗しました: %s"
 msgid "Product: %v (%v)"
 msgstr "製品名: %v (%v)"
 
-#: lxc/profile.go:176
+#: lxc/profile.go:177
 #, c-format
 msgid "Profile %s added to %s"
 msgstr "プロファイル %s が %s に追加されました"
 
-#: lxc/profile.go:436
+#: lxc/profile.go:442
 #, c-format
 msgid "Profile %s created"
 msgstr "プロファイル %s を作成しました"
 
-#: lxc/profile.go:495
+#: lxc/profile.go:501
 #, c-format
 msgid "Profile %s deleted"
 msgstr "プロファイル %s を削除しました"
 
-#: lxc/profile.go:932
+#: lxc/profile.go:947
 #, c-format
 msgid "Profile %s isn't currently applied to %s"
 msgstr "プロファイル %s は %s に適用されていません"
 
-#: lxc/profile.go:957
+#: lxc/profile.go:972
 #, c-format
 msgid "Profile %s removed from %s"
 msgstr "プロファイル %s が %s から削除されました"
 
-#: lxc/profile.go:1016
+#: lxc/profile.go:1031
 #, c-format
 msgid "Profile %s renamed to %s"
 msgstr "プロファイル名 %s を %s に変更しました"
@@ -5434,7 +5434,7 @@ msgstr "新しいインスタンスに適用するプロファイル"
 msgid "Profile to apply to the target instance"
 msgstr "移動先のインスタンスに適用するプロファイル"
 
-#: lxc/profile.go:269
+#: lxc/profile.go:270
 #, c-format
 msgid "Profiles %s applied to %s"
 msgstr "プロファイル %s が %s に追加されました"
@@ -5762,7 +5762,7 @@ msgstr "ロードバランサーからバックエンドを削除します"
 msgid "Remove entries from a network zone record"
 msgstr "ネットワークゾーンレコードからエントリを削除します"
 
-#: lxc/config_device.go:579 lxc/config_device.go:580
+#: lxc/config_device.go:584 lxc/config_device.go:585
 msgid "Remove instance devices"
 msgstr "インスタンスのデバイスを削除します"
 
@@ -5783,7 +5783,7 @@ msgstr "フォワードからポートを削除します"
 msgid "Remove ports from a load balancer"
 msgstr "ロードバランサーからポートを削除します"
 
-#: lxc/profile.go:880 lxc/profile.go:881
+#: lxc/profile.go:895 lxc/profile.go:896
 msgid "Remove profiles from instances"
 msgstr "インスタンスからプロファイルを削除します"
 
@@ -5848,7 +5848,7 @@ msgstr "ネットワーク名を変更します"
 msgid "Rename placement groups"
 msgstr "リモートサーバ名を変更します"
 
-#: lxc/profile.go:973 lxc/profile.go:974
+#: lxc/profile.go:988 lxc/profile.go:989
 msgid "Rename profiles"
 msgstr "プロファイル名を変更します"
 
@@ -6088,11 +6088,11 @@ msgstr "クラスターメンバーの設定を行います"
 msgid "Set authentication user when using SSH SFTP listener"
 msgstr "SSH SFTP リスナーを使う際の認証ユーザーを設定する"
 
-#: lxc/config_device.go:693
+#: lxc/config_device.go:703
 msgid "Set device configuration keys"
 msgstr "デバイスの設定項目を設定します"
 
-#: lxc/config_device.go:696
+#: lxc/config_device.go:706
 msgid ""
 "Set device configuration keys\n"
 "\n"
@@ -6105,7 +6105,7 @@ msgstr ""
 "後方互換性のため、単一の設定を行う場合は次の形式でも設定できます:\n"
 "    lxc config device set [<remote>:]<instance> <device> <key> <value>"
 
-#: lxc/config_device.go:703
+#: lxc/config_device.go:713
 msgid ""
 "Set device configuration keys\n"
 "\n"
@@ -6264,11 +6264,11 @@ msgstr ""
 "後方互換性のため、単一の設定を行う場合は次の形式でも設定できます:\n"
 "    lxc profile set [<remote>:]<profile> <key> <value>"
 
-#: lxc/profile.go:1033
+#: lxc/profile.go:1048
 msgid "Set profile configuration keys"
 msgstr "プロファイルの設定項目を設定します"
 
-#: lxc/profile.go:1034
+#: lxc/profile.go:1049
 msgid ""
 "Set profile configuration keys\n"
 "\n"
@@ -6419,7 +6419,7 @@ msgstr "新たにネットワークゾーンレコードを作成します"
 msgid "Set the key as a network zone record property"
 msgstr "ネットワークゾーンレコードエントリを削除します"
 
-#: lxc/profile.go:1041
+#: lxc/profile.go:1056
 msgid "Set the key as a profile property"
 msgstr ""
 
@@ -6491,7 +6491,7 @@ msgstr "バックグラウンド操作の詳細を表示します"
 msgid "Show events from all projects"
 msgstr "すべてのプロジェクトのイベントを表示します"
 
-#: lxc/config_device.go:831 lxc/config_device.go:832
+#: lxc/config_device.go:846 lxc/config_device.go:847
 msgid "Show full device configuration"
 msgstr "デバイスの設定をすべて表示します"
 
@@ -6583,7 +6583,7 @@ msgstr "ネットワークゾーンレコードの設定を表示します"
 msgid "Show placement group configurations"
 msgstr "信頼済みクライアントの設定を表示します"
 
-#: lxc/profile.go:1120 lxc/profile.go:1121
+#: lxc/profile.go:1140 lxc/profile.go:1141
 msgid "Show profile configurations"
 msgstr "プロファイルの設定を表示します"
 
@@ -6918,7 +6918,7 @@ msgstr "--target-project と --target は同時に指定できません"
 msgid "The destination LXD server is not clustered"
 msgstr "移動先の LXD サーバはクラスタに属していません"
 
-#: lxc/config_device.go:247 lxc/config_device.go:264 lxc/config_device.go:522
+#: lxc/config_device.go:247 lxc/config_device.go:269 lxc/config_device.go:527
 msgid "The device already exists"
 msgstr "デバイスはすでに存在します"
 
@@ -6960,7 +6960,7 @@ msgid "The local image '%q' couldn't be found, trying '%q:' instead."
 msgstr ""
 "ローカルイメージ '%s' が見つかりません。代わりに '%s:' を試してみてください。"
 
-#: lxc/config_device.go:527
+#: lxc/config_device.go:532
 msgid "The profile device doesn't exist"
 msgstr "プロファイルのデバイスが存在しません"
 
@@ -7014,7 +7014,7 @@ msgstr "設定 %q はクラスタメンバー %q には存在しません"
 msgid "The property %q does not exist on the network zone record %q: %v"
 msgstr "設定 %q はクラスタメンバー %q には存在しません"
 
-#: lxc/profile.go:698
+#: lxc/profile.go:713
 #, fuzzy, c-format
 msgid "The property %q does not exist on the profile %q: %v"
 msgstr "設定 %q はクラスタメンバー %q には存在しません"
@@ -7281,7 +7281,7 @@ msgid "USAGE"
 msgstr "USAGE"
 
 #: lxc/network.go:1123 lxc/network_acl.go:174 lxc/network_allocations.go:23
-#: lxc/network_zone.go:166 lxc/placement_group.go:168 lxc/profile.go:765
+#: lxc/network_zone.go:166 lxc/placement_group.go:168 lxc/profile.go:780
 #: lxc/project.go:587 lxc/storage.go:725 lxc/storage_volume.go:1774
 msgid "USED BY"
 msgstr "USED BY"
@@ -7323,7 +7323,7 @@ msgstr "未知の証明書タイプ %q"
 msgid "Unknown channel type for client %q: %s"
 msgstr "クライアント %q の未知のチャンネルタイプ: %s"
 
-#: lxc/image.go:1168 lxc/list.go:620 lxc/profile.go:786
+#: lxc/image.go:1168 lxc/list.go:620 lxc/profile.go:801
 #: lxc/storage_volume.go:1812 lxc/warning.go:243
 #, c-format
 msgid "Unknown column shorthand char '%c' in '%s'"
@@ -7362,7 +7362,7 @@ msgstr "クラスターメンバーの設定を削除します"
 msgid "Unset all profiles on the target instance"
 msgstr "移動先のインスタンスのすべてのプロファイルを削除します"
 
-#: lxc/config_device.go:922 lxc/config_device.go:923
+#: lxc/config_device.go:937 lxc/config_device.go:938
 msgid "Unset device configuration keys"
 msgstr "デバイスの設定を削除します"
 
@@ -7419,7 +7419,7 @@ msgstr "ネットワークゾーンレコードの設定を削除します"
 msgid "Unset placement group configuration keys"
 msgstr "プロファイルの設定を削除します"
 
-#: lxc/profile.go:1184 lxc/profile.go:1185
+#: lxc/profile.go:1204 lxc/profile.go:1205
 msgid "Unset profile configuration keys"
 msgstr "プロファイルの設定を削除します"
 
@@ -7477,7 +7477,7 @@ msgstr "新たにネットワークゾーンレコードを作成します"
 msgid "Unset the key as a network zone record property"
 msgstr "ネットワークゾーンレコードエントリを削除します"
 
-#: lxc/profile.go:1189
+#: lxc/profile.go:1209
 msgid "Unset the key as a profile property"
 msgstr ""
 
@@ -7528,7 +7528,7 @@ msgid ""
 msgstr ""
 "入力ファイルから読み込んだ PEM 証明書と鍵でクラスター証明書を更新します。"
 
-#: lxc/profile.go:292
+#: lxc/profile.go:293
 #, fuzzy
 msgid "Update the target profile from the source if it already exists"
 msgstr "コピー元の全てのプロファイルがターゲットに存在しません"
@@ -7707,7 +7707,7 @@ msgstr "[<remote:>]<pool> <volume> <profile> [<device name>] [<path>]"
 #: lxc/cluster_group.go:444 lxc/config_trust.go:346 lxc/config_trust.go:429
 #: lxc/monitor.go:32 lxc/network.go:1017 lxc/network_acl.go:95
 #: lxc/network_zone.go:87 lxc/operation.go:104 lxc/placement_group.go:86
-#: lxc/profile.go:720 lxc/project.go:481 lxc/storage.go:653 lxc/version.go:20
+#: lxc/profile.go:735 lxc/project.go:481 lxc/storage.go:653 lxc/version.go:20
 #: lxc/warning.go:70
 msgid "[<remote>:]"
 msgstr "[<remote>:]"
@@ -7876,17 +7876,17 @@ msgstr "[<remote>:]<image> [<target>]"
 msgid "[<remote>:]<image> [[<remote>:]<image>...]"
 msgstr "[<remote>:]<image> [[<remote>:]<image>...]"
 
-#: lxc/config.go:1211 lxc/config.go:1265 lxc/config_device.go:404
-#: lxc/config_device.go:826 lxc/config_metadata.go:54
+#: lxc/config.go:1211 lxc/config.go:1265 lxc/config_device.go:409
+#: lxc/config_device.go:841 lxc/config_metadata.go:54
 #: lxc/config_metadata.go:187 lxc/config_template.go:271 lxc/console.go:39
 msgid "[<remote>:]<instance>"
 msgstr "[<remote>:]<instance>"
 
-#: lxc/config_device.go:298 lxc/config_device.go:917
+#: lxc/config_device.go:303 lxc/config_device.go:932
 msgid "[<remote>:]<instance> <device> <key>"
 msgstr "[<remote>:]<instance> <device> <key>"
 
-#: lxc/config_device.go:695
+#: lxc/config_device.go:705
 msgid "[<remote>:]<instance> <device> <key>=<value>..."
 msgstr "[<remote>:]<instance> <device> <key>=<value>..."
 
@@ -7894,7 +7894,7 @@ msgstr "[<remote>:]<instance> <device> <key>=<value>..."
 msgid "[<remote>:]<instance> <device> <type> [key=value...]"
 msgstr "[<remote>:]<instance> <device> <type> [key=value...]"
 
-#: lxc/config_device.go:482
+#: lxc/config_device.go:487
 msgid "[<remote>:]<instance> <device> [key=value...]"
 msgstr "[<remote>:]<instance> <device> [key=value...]"
 
@@ -7908,15 +7908,15 @@ msgstr "[<remote>:][<instance>] <key>"
 msgid "[<remote>:]<instance> <key>=<value>..."
 msgstr "[<remote>:][<instance>] <key>=<value>..."
 
-#: lxc/config_device.go:573
+#: lxc/config_device.go:578
 msgid "[<remote>:]<instance> <name>..."
 msgstr "[<remote>:]<instance> <name>..."
 
-#: lxc/profile.go:111 lxc/profile.go:879
+#: lxc/profile.go:112 lxc/profile.go:894
 msgid "[<remote>:]<instance> <profile>"
 msgstr "[<remote>:]<instance> <profile>"
 
-#: lxc/profile.go:190
+#: lxc/profile.go:191
 msgid "[<remote>:]<instance> <profiles>"
 msgstr "[<remote>:]<instance> <profiles>"
 
@@ -8271,16 +8271,16 @@ msgstr "[<remote>:]<pool>/<volume> [<remote>:]<pool>/<volume>"
 msgid "[<remote>:]<pool>/<volume>[/<snapshot>] [<remote>:]<pool>/<volume>"
 msgstr "[<remote>:]<pool>/<volume>[/<snapshot>] [<remote>:]<pool>/<volume>"
 
-#: lxc/config_device.go:406 lxc/config_device.go:828 lxc/profile.go:369
-#: lxc/profile.go:450 lxc/profile.go:509 lxc/profile.go:1119
+#: lxc/config_device.go:411 lxc/config_device.go:843 lxc/profile.go:375
+#: lxc/profile.go:456 lxc/profile.go:515 lxc/profile.go:1139
 msgid "[<remote>:]<profile>"
 msgstr "[<remote>:]<profile>"
 
-#: lxc/config_device.go:300 lxc/config_device.go:919
+#: lxc/config_device.go:305 lxc/config_device.go:934
 msgid "[<remote>:]<profile> <device> <key>"
 msgstr "[<remote>:]<profile> <device> <key>"
 
-#: lxc/config_device.go:702
+#: lxc/config_device.go:712
 msgid "[<remote>:]<profile> <device> <key>=<value>..."
 msgstr "[<remote>:]<profile> <device> <key>=<value>..."
 
@@ -8288,24 +8288,24 @@ msgstr "[<remote>:]<profile> <device> <key>=<value>..."
 msgid "[<remote>:]<profile> <device> <type> [key=value...]"
 msgstr "[<remote>:]<profile> <device> <type> [key=value...]"
 
-#: lxc/profile.go:645 lxc/profile.go:1183
+#: lxc/profile.go:660 lxc/profile.go:1203
 msgid "[<remote>:]<profile> <key>"
 msgstr "[<remote>:]<profile> <key>"
 
-#: lxc/profile.go:1032
+#: lxc/profile.go:1047
 #, fuzzy
 msgid "[<remote>:]<profile> <key>=<value>..."
 msgstr "[<remote>:]<profile> <key><value>..."
 
-#: lxc/config_device.go:575
+#: lxc/config_device.go:580
 msgid "[<remote>:]<profile> <name>..."
 msgstr "[<remote>:]<profile> <name>..."
 
-#: lxc/profile.go:971
+#: lxc/profile.go:986
 msgid "[<remote>:]<profile> <new-name>"
 msgstr "[<remote>:]<profile> <new-name>"
 
-#: lxc/profile.go:286
+#: lxc/profile.go:287
 msgid "[<remote>:]<profile> [<remote>:]<profile>"
 msgstr "[<remote>:]<profile> [<remote>:]<profile>"
 
@@ -8905,7 +8905,7 @@ msgstr ""
 "lxc init ubuntu:22.04 u1 < config.yaml\n"
 "    config.yaml の設定を使ってインスタンスを作成します"
 
-#: lxc/profile.go:195
+#: lxc/profile.go:196
 msgid ""
 "lxc profile assign foo default,bar\n"
 "    Set the profiles for \"foo\" to \"default\" and \"bar\".\n"
@@ -8926,7 +8926,7 @@ msgstr ""
 "lxc profile assign foo ''\n"
 "    \"foo\" からすべてのプロファイルを削除します。"
 
-#: lxc/profile.go:373
+#: lxc/profile.go:379
 #, fuzzy
 msgid ""
 "lxc profile create p1\n"
@@ -8958,7 +8958,7 @@ msgstr ""
 "    some-pool 上の some-volume ボリュームをインスタンスの /opt にマウントしま"
 "す。"
 
-#: lxc/profile.go:513
+#: lxc/profile.go:519
 msgid ""
 "lxc profile edit <profile> < profile.yaml\n"
 "    Update a profile using the content of profile.yaml"
