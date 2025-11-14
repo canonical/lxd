@@ -336,7 +336,7 @@ type InstanceServer interface {
 	GetProfiles() (profiles []api.Profile, err error)
 	GetProfile(name string) (profile *api.Profile, ETag string, err error)
 	CreateProfile(profile api.ProfilesPost) (err error)
-	UpdateProfile(name string, profile api.ProfilePut, ETag string) (err error)
+	UpdateProfile(name string, profile api.ProfilePut, ETag string) (op Operation, err error)
 	RenameProfile(name string, profile api.ProfilePost) (err error)
 	DeleteProfile(name string) (err error)
 

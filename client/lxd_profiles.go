@@ -78,14 +78,26 @@ func (r *ProtocolLXD) CreateProfile(profile api.ProfilesPost) error {
 }
 
 // UpdateProfile updates the profile to match the provided Profile struct.
-func (r *ProtocolLXD) UpdateProfile(name string, profile api.ProfilePut, ETag string) error {
+func (r *ProtocolLXD) UpdateProfile(name string, profile api.ProfilePut, ETag string) (Operation, error) {
+	path := api.NewURL().Path("profiles", name)
+
+	var op Operation
+
 	// Send the request
-	_, _, err := r.query(http.MethodPut, "/profiles/"+url.PathEscape(name), profile, ETag)
+	err := r.CheckExtension("storage_and_profile_operations")
 	if err != nil {
-		return err
+		// Fallback to older behavior without operations.
+		op = noopOperation{}
+		_, _, err = r.query(http.MethodPut, path.String(), profile, ETag)
+	} else {
+		op, _, err = r.queryOperation(http.MethodPut, path.String(), profile, ETag, true)
 	}
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // RenameProfile renames an existing profile entry.
