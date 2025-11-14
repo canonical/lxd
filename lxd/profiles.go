@@ -727,8 +727,8 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 //	    schema:
 //	      $ref: "#/definitions/ProfilePut"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -821,10 +821,21 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(details.effectiveProject.Name, lifecycle.ProfileUpdated.Event(details.profileName, details.effectiveProject.Name, requestor, nil))
+	run := func(op *operations.Operation) error {
+		requestor := request.CreateRequestor(r.Context())
+		s.Events.SendLifecycle(details.effectiveProject.Name, lifecycle.ProfileUpdated.Event(details.profileName, details.effectiveProject.Name, requestor, nil))
+		return doProfileUpdate(s.ShutdownCtx, s, details.effectiveProject, details.profileName, profile, req)
+	}
 
-	return response.SmartError(doProfileUpdate(r.Context(), s, details.effectiveProject, details.profileName, profile, req))
+	resources := map[string][]api.URL{}
+	resources["profiles"] = []api.URL{*api.NewURL().Path(version.APIVersion, "profiles", details.profileName)}
+
+	op, err := operations.OperationCreate(r.Context(), s, request.ProjectParam(r), operations.OperationClassTask, operationtype.ProfileUpdate, resources, nil, run, nil, nil)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // swagger:operation POST /1.0/profiles/{name} profiles profile_post
