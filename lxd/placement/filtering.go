@@ -95,21 +95,24 @@ func getCompliantMembers(policy string, rigor string, candidates []db.NodeInfo, 
 
 	case policy == api.PlacementPolicyCompact && rigor == api.PlacementRigorStrict:
 		// Compact + Strict: Place all instances on the same cluster member.
-		// The first instance determines the cluster member.
+		// The member with the most instances determines the cluster member.
 		if len(memberToInst) == 0 {
 			// No instances yet.
 			// All candidates are valid (first instance determines the member).
 			return candidates, nil
 		}
 
-		// Find which member has instances from this placement group.
+		// Find which member has the most instances from this placement group.
 		var targetMemberID int
-		for memberID := range memberToInst {
-			targetMemberID = memberID
-			break // All instances should be on same member in compact+strict.
+		maxInstances := -1
+		for memberID, instances := range memberToInst {
+			if len(instances) > maxInstances {
+				maxInstances = len(instances)
+				targetMemberID = memberID
+			}
 		}
 
-		// Filter candidates to only include the node that already has instances.
+		// Filter candidates to only include the node with the most instances.
 		for _, c := range candidates {
 			if int(c.ID) == targetMemberID {
 				compliantCandidates = append(compliantCandidates, c)
@@ -131,11 +134,14 @@ func getCompliantMembers(policy string, rigor string, candidates []db.NodeInfo, 
 			return candidates, nil
 		}
 
-		// Find which member has instances from this placement group.
+		// Find which member has the most instances from this placement group.
 		var preferredMemberID int
-		for memberID := range memberToInst {
-			preferredMemberID = memberID
-			break // All instances should be on same member ideally.
+		maxInstances := -1
+		for memberID, instances := range memberToInst {
+			if len(instances) > maxInstances {
+				maxInstances = len(instances)
+				preferredMemberID = memberID
+			}
 		}
 
 		// Check if preferred member is in candidates.

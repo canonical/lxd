@@ -356,11 +356,17 @@ When you create an instance with a placement group:
 
 **Strict compact**
 : Places all instances on the same cluster member
+: When instances already exist, new instances are placed on the member with the most instances from the placement group
 : Fails if the preferred member is unavailable
 
 **Permissive compact**
 : Prefers to place all instances on the same cluster member
+: When instances already exist, new instances are placed on the member with the most instances from the placement group
 : Allows fallback to other members if the preferred member is unavailable
+
+```{note}
+If instances in a compact placement group are distributed across multiple members (for example, due to manual placement with `--target`), LXD will prefer the member with the most instances from that placement group when placing new instances.
+```
 
 ### During cluster evacuation
 

@@ -372,6 +372,64 @@ func (s *filteringSuite) TestFilter() {
 				})
 			},
 		},
+		{
+			name: "compact/strict: picks member with most instances",
+			caseSetup: func() {
+				_ = testCluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+					// Create 3 instances on member01.
+					for i := 1; i <= 3; i++ {
+						instanceID, err := cluster.CreateInstance(ctx, tx.Tx(), cluster.Instance{
+							Name:    fmt.Sprintf("c%d", i),
+							Node:    "member01",
+							Project: "default",
+							Type:    instancetype.Container,
+						})
+						s.Require().NoError(err)
+
+						err = cluster.CreateInstanceConfig(ctx, tx.Tx(), instanceID, map[string]string{
+							"placement.group": "pg-compact-strict",
+						})
+						s.Require().NoError(err)
+					}
+
+					// Create 1 instance on member02.
+					instanceID, err := cluster.CreateInstance(ctx, tx.Tx(), cluster.Instance{
+						Name:    "c4",
+						Node:    "member02",
+						Project: "default",
+						Type:    instancetype.Container,
+					})
+					s.Require().NoError(err)
+
+					err = cluster.CreateInstanceConfig(ctx, tx.Tx(), instanceID, map[string]string{
+						"placement.group": "pg-compact-strict",
+					})
+					s.Require().NoError(err)
+
+					return nil
+				})
+			},
+			args: args{
+				candidates: candidates,
+				project:    "default",
+				placementGroup: cluster.PlacementGroup{
+					Project:     "default",
+					Name:        "pg-compact-strict",
+					Description: "Compact strict placement group",
+				},
+			},
+			want:    candidatesOnly("member01"), // member01 has 3 instances vs member02 with 1.
+			wantErr: false,
+			caseTearDown: func() {
+				_ = testCluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+					_ = cluster.DeleteInstance(ctx, tx.Tx(), "default", "c1")
+					_ = cluster.DeleteInstance(ctx, tx.Tx(), "default", "c2")
+					_ = cluster.DeleteInstance(ctx, tx.Tx(), "default", "c3")
+					_ = cluster.DeleteInstance(ctx, tx.Tx(), "default", "c4")
+					return nil
+				})
+			},
+		},
 
 		// Policy: compact
 		// Rigor: permissive
@@ -453,6 +511,64 @@ func (s *filteringSuite) TestFilter() {
 			},
 			want:    candidatesWithout("member02"), // All other candidates.
 			wantErr: false,
+		},
+		{
+			name: "compact/permissive: picks member with most instances",
+			caseSetup: func() {
+				_ = testCluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+					// Create 2 more instances on member02 (now has 3 total).
+					for i := 2; i <= 3; i++ {
+						instanceID, err := cluster.CreateInstance(ctx, tx.Tx(), cluster.Instance{
+							Name:    fmt.Sprintf("c%d", i),
+							Node:    "member02",
+							Project: "default",
+							Type:    instancetype.Container,
+						})
+						s.Require().NoError(err)
+
+						err = cluster.CreateInstanceConfig(ctx, tx.Tx(), instanceID, map[string]string{
+							"placement.group": "pg-compact-permissive",
+						})
+						s.Require().NoError(err)
+					}
+
+					// Create 1 instance on member04.
+					instanceID, err := cluster.CreateInstance(ctx, tx.Tx(), cluster.Instance{
+						Name:    "c4",
+						Node:    "member04",
+						Project: "default",
+						Type:    instancetype.Container,
+					})
+					s.Require().NoError(err)
+
+					err = cluster.CreateInstanceConfig(ctx, tx.Tx(), instanceID, map[string]string{
+						"placement.group": "pg-compact-permissive",
+					})
+					s.Require().NoError(err)
+
+					return nil
+				})
+			},
+			args: args{
+				candidates: candidates,
+				project:    "default",
+				placementGroup: cluster.PlacementGroup{
+					Project:     "default",
+					Name:        "pg-compact-permissive",
+					Description: "Compact permissive placement group",
+				},
+			},
+			want:    candidatesOnly("member02"), // member02 has 3 instances vs member04 with 1.
+			wantErr: false,
+			caseTearDown: func() {
+				_ = testCluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+					_ = cluster.DeleteInstance(ctx, tx.Tx(), "default", "c1")
+					_ = cluster.DeleteInstance(ctx, tx.Tx(), "default", "c2")
+					_ = cluster.DeleteInstance(ctx, tx.Tx(), "default", "c3")
+					_ = cluster.DeleteInstance(ctx, tx.Tx(), "default", "c4")
+					return nil
+				})
+			},
 		},
 	}
 
