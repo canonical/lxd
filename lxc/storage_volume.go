@@ -593,7 +593,11 @@ func (c *cmdStorageVolumeCopy) run(cmd *cobra.Command, args []string) error {
 		if srcIsSnapshot {
 			_, err = srcServer.DeleteStoragePoolVolumeSnapshot(srcVolPool, srcVol.Type, srcVolParentName, srcVolSnapName)
 		} else {
-			err = srcServer.DeleteStoragePoolVolume(srcVolPool, srcVol.Type, srcVolName)
+			var op lxd.Operation
+			op, err = srcServer.DeleteStoragePoolVolume(srcVolPool, srcVol.Type, srcVolName)
+			if err == nil {
+				err = op.Wait()
+			}
 		}
 
 		if err != nil {
@@ -780,24 +784,23 @@ func (c *cmdStorageVolumeDelete) run(cmd *cobra.Command, args []string) error {
 		client = client.UseTarget(c.storage.flagTarget)
 	}
 
+	var op lxd.Operation
+
 	fields := strings.SplitN(volName, "/", 2)
 	if len(fields) == 2 {
 		// Delete the snapshot
-		op, err := client.DeleteStoragePoolVolumeSnapshot(resource.name, volType, fields[0], fields[1])
-		if err != nil {
-			return err
-		}
-
-		err = op.Wait()
-		if err != nil {
-			return err
-		}
+		op, err = client.DeleteStoragePoolVolumeSnapshot(resource.name, volType, fields[0], fields[1])
 	} else {
 		// Delete the volume
-		err := client.DeleteStoragePoolVolume(resource.name, volType, volName)
-		if err != nil {
-			return err
-		}
+		op, err = client.DeleteStoragePoolVolume(resource.name, volType, volName)
+	}
+
+	if err == nil {
+		err = op.Wait()
+	}
+
+	if err != nil {
+		return err
 	}
 
 	if !c.global.flagQuiet {

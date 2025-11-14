@@ -297,7 +297,10 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 
 			// Setup reverter.
 			revert.Add(func() {
-				_ = d.UseProject(storageVolume.Project).DeleteStoragePoolVolume(storageVolume.Pool, storageVolume.Type, storageVolume.Name)
+				op, err := d.UseProject(storageVolume.Project).DeleteStoragePoolVolume(storageVolume.Pool, storageVolume.Type, storageVolume.Name)
+				if err == nil {
+					_ = op.Wait()
+				}
 			})
 		} else {
 			// Quick check.
