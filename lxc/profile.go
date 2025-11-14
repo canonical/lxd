@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v2"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -344,7 +345,11 @@ func (c *cmdProfileCopy) run(cmd *cobra.Command, args []string) error {
 
 	// Refresh the profile if requested.
 	if c.flagRefresh {
-		err := dest.server.UpdateProfile(dest.name, profile.Writable(), "")
+		op, err := dest.server.UpdateProfile(dest.name, profile.Writable(), "")
+		if err == nil {
+			err = op.Wait()
+		}
+
 		if err == nil || !api.StatusErrorCheck(err, http.StatusNotFound) {
 			return err
 		}
@@ -580,7 +585,12 @@ func (c *cmdProfileEdit) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return resource.server.UpdateProfile(resource.name, newdata, "")
+		op, err := resource.server.UpdateProfile(resource.name, newdata, "")
+		if err != nil {
+			return err
+		}
+
+		return op.Wait()
 	}
 
 	// Extract the current value
@@ -605,7 +615,11 @@ func (c *cmdProfileEdit) run(cmd *cobra.Command, args []string) error {
 		newdata := api.ProfilePut{}
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
-			err = resource.server.UpdateProfile(resource.name, newdata, etag)
+			var op lxd.Operation
+			op, err = resource.server.UpdateProfile(resource.name, newdata, etag)
+			if err == nil {
+				err = op.Wait()
+			}
 		}
 
 		// Respawn the editor
@@ -1105,7 +1119,12 @@ func (c *cmdProfileSet) run(cmd *cobra.Command, args []string) error {
 		maps.Copy(writable.Config, keys)
 	}
 
-	return resource.server.UpdateProfile(resource.name, writable, etag)
+	op, err := resource.server.UpdateProfile(resource.name, writable, etag)
+	if err != nil {
+		return err
+	}
+
+	return op.Wait()
 }
 
 // Show.
