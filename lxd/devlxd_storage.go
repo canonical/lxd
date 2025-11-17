@@ -397,12 +397,12 @@ func devLXDStoragePoolVolumePutHandler(d *Daemon, r *http.Request) response.Resp
 		resp = storagePoolVolumePut(d, req)
 	}
 
-	err = response.NewResponseCapture(req).Render(resp)
+	op, err := response.NewResponseCapture(req).RenderToOperation(resp)
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
 
-	return response.DevLXDResponse(http.StatusOK, "", "raw")
+	return response.DevLXDOperationResponse(*op)
 }
 
 // devLXDStoragePoolVolumeDeleteHandler deletes the specified custom storage volume if it is owned by the caller.

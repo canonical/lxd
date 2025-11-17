@@ -1128,7 +1128,12 @@ func (c *cmdStorageVolumeEdit) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return client.UpdateStoragePoolVolume(resource.name, volType, volName, newdata, "")
+		op, err := client.UpdateStoragePoolVolume(resource.name, volType, volName, newdata, "")
+		if err != nil {
+			return err
+		}
+
+		return op.Wait()
 	}
 
 	// If a target was specified, create the volume on the given member.
@@ -1212,7 +1217,15 @@ func (c *cmdStorageVolumeEdit) run(cmd *cobra.Command, args []string) error {
 		newdata := api.StorageVolume{}
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
-			err = client.UpdateStoragePoolVolume(resource.name, volType, volName, newdata.Writable(), etag)
+			op, err := client.UpdateStoragePoolVolume(resource.name, volType, volName, newdata.Writable(), etag)
+			if err != nil {
+				return err
+			}
+
+			err = op.Wait()
+			if err != nil {
+				return err
+			}
 		}
 
 		// Respawn the editor
@@ -2248,12 +2261,12 @@ func (c *cmdStorageVolumeSet) run(cmd *cobra.Command, args []string) error {
 		maps.Copy(writable.Config, keys)
 	}
 
-	err = client.UpdateStoragePoolVolume(resource.name, vol.Type, vol.Name, writable, etag)
+	op, err := client.UpdateStoragePoolVolume(resource.name, vol.Type, vol.Name, writable, etag)
 	if err != nil {
 		return err
 	}
 
-	return nil
+	return op.Wait()
 }
 
 // Show.
@@ -2651,7 +2664,12 @@ func (c *cmdStorageVolumeRestore) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return client.UpdateStoragePoolVolume(resource.name, "custom", args[1], req, etag)
+	op, err := client.UpdateStoragePoolVolume(resource.name, "custom", args[1], req, etag)
+	if err != nil {
+		return err
+	}
+
+	return op.Wait()
 }
 
 // Export.

@@ -453,7 +453,8 @@ EOF
       # Try increasing block volume size while the volume is attached to a running VM (in use).
       # Ensure the returned status code is 423 (StatusLocked).
       patchReq='{"config": {"size": "12MiB"}}'
-      [ "$(lxc exec "${inst}" --project "${project}" -- curl -s -o /dev/null -w "%{http_code}" --unix-socket /dev/lxd/sock -H "Authorization: Bearer ${token}" -X PATCH "lxd/1.0/storage-pools/${pool}/volumes/custom/block-vol" -d "${patchReq}")" = "423" ]
+      opID="$(lxc exec "${inst}" --project "${project}" -- curl -s --unix-socket /dev/lxd/sock -H "Authorization: Bearer ${token}" -X PATCH "lxd/1.0/storage-pools/${pool}/volumes/custom/block-vol" -d "${patchReq}" | jq -r .id)"
+      [ "$(lxc exec "${inst}" --project "${project}" -- curl -s -o /dev/null -w "%{http_code}" --unix-socket /dev/lxd/sock -H "Authorization: Bearer ${token}" -X GET "lxd/1.0/operations/${opID}/wait?timeout=5" -d "${patchReq}")" = "423" ]
 
       # Detach device.
       detachReq='{"devices": {"block-vol": null}}'

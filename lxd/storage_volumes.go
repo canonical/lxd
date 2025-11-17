@@ -2110,8 +2110,8 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 //	    schema:
 //	      $ref: "#/definitions/StorageVolumePut"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -2175,63 +2175,68 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Use an empty operation for this sync response to pass the requestor
-	op := &operations.Operation{}
-	op.SetRequestor(r.Context())
-
-	switch details.volumeType {
-	case cluster.StoragePoolVolumeTypeCustom:
-		// Restore custom volume from snapshot if requested. This should occur first
-		// before applying config changes so that changes are applied to the
-		// restored volume.
-		if req.Restore != "" {
-			err = details.pool.RestoreCustomVolume(effectiveProjectName, dbVolume.Name, req.Restore, op)
-			if err != nil {
-				return response.SmartError(err)
-			}
-		}
-
-		// Handle custom volume update requests.
-		// Only apply changes during a snapshot restore if a non-nil config is supplied to avoid clearing
-		// the volume's config if only restoring snapshot.
-		if req.Config != nil || req.Restore == "" {
-			// Possibly check if project limits are honored.
-			err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-				return limits.AllowVolumeUpdate(ctx, s.GlobalConfig, tx, effectiveProjectName, details.volumeName, req, dbVolume.Config)
-			})
-			if err != nil {
-				return response.SmartError(err)
+	run := func(op *operations.Operation) error {
+		switch details.volumeType {
+		case cluster.StoragePoolVolumeTypeCustom:
+			// Restore custom volume from snapshot if requested. This should occur first
+			// before applying config changes so that changes are applied to the
+			// restored volume.
+			if req.Restore != "" {
+				err = details.pool.RestoreCustomVolume(effectiveProjectName, dbVolume.Name, req.Restore, op)
+				if err != nil {
+					return err
+				}
 			}
 
-			err = details.pool.UpdateCustomVolume(effectiveProjectName, dbVolume.Name, req.Description, req.Config, op)
-			if err != nil {
-				return response.SmartError(err)
+			// Handle custom volume update requests.
+			// Only apply changes during a snapshot restore if a non-nil config is supplied to avoid clearing
+			// the volume's config if only restoring snapshot.
+			if req.Config != nil || req.Restore == "" {
+				// Possibly check if project limits are honored.
+				err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+					return limits.AllowVolumeUpdate(ctx, s.GlobalConfig, tx, effectiveProjectName, details.volumeName, req, dbVolume.Config)
+				})
+				if err != nil {
+					return err
+				}
+
+				err = details.pool.UpdateCustomVolume(effectiveProjectName, dbVolume.Name, req.Description, req.Config, op)
+				if err != nil {
+					return err
+				}
 			}
-		}
-	case cluster.StoragePoolVolumeTypeContainer, cluster.StoragePoolVolumeTypeVM:
-		inst, err := instance.LoadByProjectAndName(s, effectiveProjectName, dbVolume.Name)
-		if err != nil {
-			return response.SmartError(err)
+		case cluster.StoragePoolVolumeTypeContainer, cluster.StoragePoolVolumeTypeVM:
+			inst, err := instance.LoadByProjectAndName(s, effectiveProjectName, dbVolume.Name)
+			if err != nil {
+				return err
+			}
+
+			// Handle instance volume update requests.
+			err = details.pool.UpdateInstance(inst, req.Description, req.Config, op)
+			if err != nil {
+				return err
+			}
+
+		case cluster.StoragePoolVolumeTypeImage:
+			// Handle image update requests.
+			err = details.pool.UpdateImage(dbVolume.Name, req.Description, req.Config, op)
+			if err != nil {
+				return err
+			}
+
+		default:
+			return errors.New("Invalid volume type")
 		}
 
-		// Handle instance volume update requests.
-		err = details.pool.UpdateInstance(inst, req.Description, req.Config, op)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-	case cluster.StoragePoolVolumeTypeImage:
-		// Handle image update requests.
-		err = details.pool.UpdateImage(dbVolume.Name, req.Description, req.Config, op)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-	default:
-		return response.SmartError(errors.New("Invalid volume type"))
+		return nil
 	}
 
-	return response.EmptySyncResponse
+	op, err := operations.OperationCreate(r.Context(), s, request.ProjectParam(r), operations.OperationClassTask, operationtype.VolumeUpdate, nil, nil, run, nil, nil)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // swagger:operation PATCH /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName} storage storage_pool_volume_type_patch
@@ -2263,8 +2268,8 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 //	    schema:
 //	      $ref: "#/definitions/StorageVolumePut"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -2344,16 +2349,16 @@ func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	// Use an empty operation for this sync response to pass the requestor
-	op := &operations.Operation{}
-	op.SetRequestor(r.Context())
-
-	err = details.pool.UpdateCustomVolume(effectiveProjectName, dbVolume.Name, req.Description, req.Config, op)
-	if err != nil {
-		return response.SmartError(err)
+	run := func(op *operations.Operation) error {
+		return details.pool.UpdateCustomVolume(effectiveProjectName, dbVolume.Name, req.Description, req.Config, op)
 	}
 
-	return response.EmptySyncResponse
+	op, err := operations.OperationCreate(r.Context(), s, request.ProjectParam(r), operations.OperationClassTask, operationtype.VolumeUpdate, nil, nil, run, nil, nil)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // swagger:operation DELETE /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName} storage storage_pool_volume_type_delete
