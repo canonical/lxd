@@ -840,6 +840,7 @@ jobs:
       - name: Convert coverage files
         run: |
           set -eux
+          go tool covdata percent -i="${GOCOVERDIR}"
           go tool covdata textfmt -i="${GOCOVERDIR}" -o "${GOCOVERDIR}"/coverage.out
           head "${GOCOVERDIR}"/coverage.out
           # Convert to Cobertura XML format.
