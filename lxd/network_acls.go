@@ -230,9 +230,9 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 			} else {
 				var netACL acl.NetworkACL
 				if !allProjects {
-					netACL, err = acl.LoadByName(s, effectiveProjectName, aclName)
+					netACL, err = acl.LoadByName(r.Context(), s, effectiveProjectName, aclName)
 				} else {
-					netACL, err = acl.LoadByName(s, projectName, aclName)
+					netACL, err = acl.LoadByName(r.Context(), s, projectName, aclName)
 				}
 
 				if err != nil {
@@ -312,17 +312,17 @@ func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	_, err = acl.LoadByName(s, projectName, req.Name)
+	_, err = acl.LoadByName(r.Context(), s, projectName, req.Name)
 	if err == nil {
 		return response.BadRequest(errors.New("The network ACL already exists"))
 	}
 
-	err = acl.Create(s, projectName, &req)
+	err = acl.Create(r.Context(), s, projectName, &req)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	netACL, err := acl.LoadByName(s, projectName, req.Name)
+	netACL, err := acl.LoadByName(r.Context(), s, projectName, req.Name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -380,12 +380,12 @@ func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 
 // doNetworkACLDelete deletes the named network ACL in the given project.
 func doNetworkACLDelete(ctx context.Context, s *state.State, aclName string, projectName string) error {
-	netACL, err := acl.LoadByName(s, projectName, aclName)
+	netACL, err := acl.LoadByName(ctx, s, projectName, aclName)
 	if err != nil {
 		return err
 	}
 
-	err = netACL.Delete()
+	err = netACL.Delete(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed deleting network ACL %q: %w", aclName, err)
 	}
@@ -453,7 +453,7 @@ func networkACLGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	netACL, err := acl.LoadByName(s, projectName, aclName)
+	netACL, err := acl.LoadByName(r.Context(), s, projectName, aclName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -558,7 +558,7 @@ func networkACLPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the existing Network ACL.
-	netACL, err := acl.LoadByName(s, projectName, aclName)
+	netACL, err := acl.LoadByName(r.Context(), s, projectName, aclName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -593,7 +593,7 @@ func networkACLPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = netACL.Update(&req, requestor.ClientType())
+	err = netACL.Update(r.Context(), &req, requestor.ClientType())
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -657,12 +657,12 @@ func networkACLPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the existing Network ACL.
-	netACL, err := acl.LoadByName(s, projectName, aclName)
+	netACL, err := acl.LoadByName(r.Context(), s, projectName, aclName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	err = netACL.Rename(req.Name)
+	err = netACL.Rename(r.Context(), req.Name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -713,7 +713,7 @@ func networkACLLogGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	netACL, err := acl.LoadByName(s, projectName, aclName)
+	netACL, err := acl.LoadByName(r.Context(), s, projectName, aclName)
 	if err != nil {
 		return response.SmartError(err)
 	}
