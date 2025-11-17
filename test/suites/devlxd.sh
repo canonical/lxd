@@ -410,6 +410,44 @@ EOF
 
     lxc delete "${inst2}" --project "${project}" --force
 
+    # Use existing volume owned by the identity as a source for the new volume.
+    vol3=$(cat <<EOF
+{
+    "name": "vol-03",
+    "type": "custom",
+    "pool": "${pool}",
+    "source": {
+        "name": "vol-01",
+        "pool": "${pool}",
+        "type": "copy"
+    }
+}
+EOF
+)
+
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${vol3}"
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" custom vol-03
+
+    # Ensure creating a volume from a source volume not owned by the identity fails.
+    lxc storage volume create "${pool}" unowned size=8MiB
+
+    volUnownedSource=$(cat <<EOF
+{
+    "name": "vol-unowned",
+    "type": "custom",
+    "pool": "${pool}",
+    "source": {
+        "name": "unowned",
+        "pool": "${pool}",
+        "type": "copy"
+    }
+}
+EOF
+)
+
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${volUnownedSource}")" = "Source volume not found" ]
+    lxc storage volume delete "${pool}" unowned
+
     # Delete storage volume (fail - insufficient permissions).
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage delete-volume "${pool}" "${instType}" "${inst}")" = "Forbidden" ]
 
@@ -423,6 +461,7 @@ EOF
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage delete-volume "${pool}" custom non-existing-volume)" = "Storage volume not found" ]
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage delete-volume "${pool}" custom vol-01
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage delete-volume "${pool}" custom vol-02
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage delete-volume "${pool}" custom vol-03
 
     # Ensure storage volumes are deleted.
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage volumes "${pool}" | jq --exit-status '. == []'
