@@ -470,7 +470,7 @@ jobs:
     needs: code-tests
     env:
       BRANCH_NAME: ${{ github.ref_name }}
-      SNAP_RISK: ${{ inputs.snap-risk }}
+      SNAP_RISK: ${{ inputs.snap-risk || 'edge' }}
       SNAP_TRACK: "latest"
     name: Snap (${{ matrix.test }} - ${{ matrix.os }})
     runs-on: ubuntu-${{ matrix.os }}
