@@ -3650,8 +3650,8 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 	// Setup a bus allocator for use with generating QEMU pre-boot config file.
 	volatileSet := make(map[string]string)
-	if d.localConfig["volatile.bus.mode"] == "" {
-		volatileSet["volatile.bus.mode"] = qemuBusModePersistent
+	if d.localConfig["volatile.bus.mode"] == "" && bus.name == "pcie" {
+		volatileSet["volatile.bus.mode"] = qemuBusModePersistent // Enable persistent mode for PCIe bus.
 	}
 
 	lastBusName := ""                      // Use to detect when the main bus name changes from bus.allocate().
@@ -3660,6 +3660,10 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 	// busAllocate allocates the next slot and records it into pending volatile for PCIe devices if needed.
 	// This function should be called in the correct order to maintain a device's persistent bus order.
 	busAllocate := func(deviceName string, enableMultifunction bool) (cleanup revert.Hook, busName string, busAddress string, multifunction bool, err error) {
+		if bus.name != "pci" && bus.name != "pcie" {
+			return nil, "", "", false, fmt.Errorf("Bus allocation not supported for bus type %q", bus.name)
+		}
+
 		multifunctionGroup := busFunctionGroupNone
 		if enableMultifunction {
 			multifunctionGroup = "lxd_" + deviceName
@@ -4018,6 +4022,8 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, busName string, busAllocate 
 		}
 	}
 
+	shouldBusAllocate := busName == "pcie" || busName == "pci"
+
 	reverter := revert.New()
 	defer reverter.Fail()
 
@@ -4027,15 +4033,6 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, busName string, busAllocate 
 			return fmt.Errorf("virtiofsd socket path %q doesn't exist", virtiofsdSockPath)
 		}
 
-		busCleanup, devBus, devAddr, multi, err := busAllocate(driveConf.DevName, true)
-		if err != nil {
-			return fmt.Errorf("Failed allocating bus for virtiofs disk device %q: %w", driveConf.DevName, err)
-		}
-
-		if busCleanup != nil {
-			reverter.Add(busCleanup)
-		}
-
 		shortPath, err := d.shortenedFilePath(virtiofsdSockPath, fdFiles)
 		if err != nil {
 			return err
@@ -4043,30 +4040,34 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, busName string, busAllocate 
 
 		// Add virtio-fs device as this will be preferred over 9p.
 		driveDirVirtioOpts := qemuDriveDirOpts{
-			dev: qemuDevOpts{
-				busName:       busName,
-				devBus:        devBus,
-				devAddr:       devAddr,
-				multifunction: multi,
-			},
 			devName:  driveConf.DevName,
 			mountTag: mountTag,
 			path:     shortPath,
 			protocol: "virtio-fs",
 		}
+
+		if shouldBusAllocate {
+			busCleanup, devBus, devAddr, multi, err := busAllocate(driveConf.DevName, true)
+			if err != nil {
+				return fmt.Errorf("Failed allocating bus for virtiofs disk device %q: %w", driveConf.DevName, err)
+			}
+
+			if busCleanup != nil {
+				reverter.Add(busCleanup)
+			}
+
+			driveDirVirtioOpts.dev = qemuDevOpts{
+				devBus:        devBus,
+				devAddr:       devAddr,
+				multifunction: multi,
+			}
+		}
+
+		driveDirVirtioOpts.dev.busName = busName
 		*cfg = append(*cfg, qemuDriveDir(&driveDirVirtioOpts)...)
 	}
 
 	// Add 9p share config.
-	busCleanup, devBus, devAddr, multi, err := busAllocate(driveConf.DevName, true)
-	if err != nil {
-		return fmt.Errorf("Failed allocating bus for 9p disk device %q: %w", driveConf.DevName, err)
-	}
-
-	if busCleanup != nil {
-		reverter.Add(busCleanup)
-	}
-
 	fdSource, ok := driveConf.DevSource.(deviceConfig.DevSourceFD)
 	if !ok {
 		return fmt.Errorf("Drive config for %q was not a file descriptor", driveConf.DevName)
@@ -4075,18 +4076,31 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, busName string, busAllocate 
 	proxyFD := d.addFileDescriptor(fdFiles, os.NewFile(fdSource.FD, driveConf.DevName))
 
 	driveDir9pOpts := qemuDriveDirOpts{
-		dev: qemuDevOpts{
-			busName:       busName,
-			devBus:        devBus,
-			devAddr:       devAddr,
-			multifunction: multi,
-		},
 		devName:  driveConf.DevName,
 		mountTag: mountTag,
 		proxyFD:  proxyFD, // Pass by file descriptor
 		readonly: readonly,
 		protocol: "9p",
 	}
+
+	if shouldBusAllocate {
+		busCleanup, devBus, devAddr, multi, err := busAllocate(driveConf.DevName, true)
+		if err != nil {
+			return fmt.Errorf("Failed allocating bus for 9p disk device %q: %w", driveConf.DevName, err)
+		}
+
+		if busCleanup != nil {
+			reverter.Add(busCleanup)
+		}
+
+		driveDir9pOpts.dev = qemuDevOpts{
+			devBus:        devBus,
+			devAddr:       devAddr,
+			multifunction: multi,
+		}
+	}
+
+	driveDir9pOpts.dev.busName = busName
 	*cfg = append(*cfg, qemuDriveDir(&driveDir9pOpts)...)
 
 	reverter.Success()
