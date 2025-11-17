@@ -9,7 +9,8 @@ import (
 	"strings"
 )
 
-// ChrootLoader is a pong2 compatible file loader which restricts all accesses to a directory.
+// ChrootLoader is a pongo2 compatible file loader which restricts all accesses to a directory.
+// Implements [pongo2.TemplateLoader].
 type ChrootLoader struct {
 	Path string
 }
