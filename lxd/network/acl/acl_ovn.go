@@ -86,13 +86,13 @@ func OVNIntSwitchRouterPortName(networkID int64) openvswitch.OVNSwitchPort {
 // of the database and applied. For each network provided in aclNets, the network specific port group for each ACL
 // is checked for existence (it is created & applies network specific ACL rules if not).
 // Returns a revert fail function that can be used to undo this function if a subsequent step fails.
-func OVNEnsureACLs(s *state.State, l logger.Logger, client *openvswitch.OVN, aclProjectName string, aclNameIDs map[string]int64, aclNets map[string]NetworkACLUsage, aclNames []string, reapplyRules bool) (revert.Hook, error) {
+func OVNEnsureACLs(ctx context.Context, s *state.State, l logger.Logger, client *openvswitch.OVN, aclProjectName string, aclNameIDs map[string]int64, aclNets map[string]NetworkACLUsage, aclNames []string, reapplyRules bool) (revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
 	var err error
 	var projectID int64
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		projectID, err = cluster.GetProjectID(ctx, tx.Tx(), aclProjectName)
 		if err != nil {
 			return fmt.Errorf("Failed getting project ID for project %q: %w", aclProjectName, err)
@@ -140,7 +140,7 @@ func OVNEnsureACLs(s *state.State, l logger.Logger, client *openvswitch.OVN, acl
 		if portGroupUUID == "" {
 			var aclInfo *api.NetworkACL
 
-			err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 				// Load the config we'll need to create the port group with ACL rules.
 				_, aclInfo, err = tx.GetNetworkACL(ctx, aclProjectName, aclName)
 
@@ -175,7 +175,7 @@ func OVNEnsureACLs(s *state.State, l logger.Logger, client *openvswitch.OVN, acl
 			// the default rule we add. We also need to reapply the rules if we are adding any
 			// new per-ACL-per-network port groups.
 			if reapplyRules || !portGroupHasACLs || len(addACLNets) > 0 {
-				err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 					_, aclInfo, err = tx.GetNetworkACL(ctx, aclProjectName, aclName)
 
 					return err
@@ -761,12 +761,12 @@ func OVNApplyNetworkBaselineRules(client *openvswitch.OVN, switchName openvswitc
 // The combination of ignoring the specifified usage type and explicit keep ACLs allows the caller to ensure that
 // the desired ACLs are considered unused by the usage type even if the referring config has not yet been removed
 // from the database.
-func OVNPortGroupDeleteIfUnused(s *state.State, l logger.Logger, client *openvswitch.OVN, aclProjectName string, ignoreUsageType any, ignoreUsageNicName string, keepACLs ...string) error {
+func OVNPortGroupDeleteIfUnused(ctx context.Context, s *state.State, l logger.Logger, client *openvswitch.OVN, aclProjectName string, ignoreUsageType any, ignoreUsageNicName string, keepACLs ...string) error {
 	var aclNameIDs map[string]int64
 	var aclNames []string
 	var projectID int64
 
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		// Get map of ACL names to DB IDs (used for generating OVN port group names).
@@ -837,7 +837,7 @@ func OVNPortGroupDeleteIfUnused(s *state.State, l logger.Logger, client *openvsw
 	// Find alls ACLs that are either directly referred to by OVN entities (networks, instance/profile NICs)
 	// or indirectly by being referred to by a ruleset of another ACL that is itself in use by OVN entities.
 	// For the indirectly referred to ACLs, store a list of the ACLs that are referring to it.
-	err = UsedBy(s, aclProjectName, func(ctx context.Context, tx *db.ClusterTx, matchedACLNames []string, usageType any, nicName string, nicConfig map[string]string) error {
+	err = UsedBy(ctx, s, aclProjectName, func(ctx context.Context, tx *db.ClusterTx, matchedACLNames []string, usageType any, nicName string, nicConfig map[string]string) error {
 		switch u := usageType.(type) {
 		case db.InstanceArgs:
 			ignoreInst, isIgnoreInst := ignoreUsageType.(instance.Instance)

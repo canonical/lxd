@@ -9,11 +9,10 @@ import (
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/logger"
 )
 
 // FirewallApplyACLRules applies ACL rules to network firewall.
-func FirewallApplyACLRules(s *state.State, logger logger.Logger, aclProjectName string, aclNet NetworkACLUsage) error {
+func FirewallApplyACLRules(ctx context.Context, s *state.State, aclProjectName string, aclNet NetworkACLUsage) error {
 	var dropRules []firewallDrivers.ACLRule
 	var rejectRules []firewallDrivers.ACLRule
 	var allowRules []firewallDrivers.ACLRule
@@ -64,7 +63,7 @@ func FirewallApplyACLRules(s *state.State, logger logger.Logger, aclProjectName 
 	for _, aclName := range shared.SplitNTrimSpace(aclNet.Config["security.acls"], ",", -1, true) {
 		var aclInfo *api.NetworkACL
 
-		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 
 			_, aclInfo, err = tx.GetNetworkACL(ctx, aclProjectName, aclName)
