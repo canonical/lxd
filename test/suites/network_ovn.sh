@@ -420,6 +420,12 @@ test_network_ovn() {
   lxc network load-balancer create "${ovn_network}" 2001:db8:1:2::1
   [ "$(ovn-nbctl list load_balancer | grep -cF name)" = 0 ]
 
+  echo "List load balancers."
+  lxc network load-balancer list "${ovn_network}"
+
+  echo "Check that a load balancer with an invalid listen address cannot be created."
+  ! lxc network load-balancer create "${ovn_network}" not-a-ip || false
+
   echo "Create a load balancer with a listener on volatile.network.ipv4.address."
   lxc network load-balancer create "${ovn_network}" "${volatile_ip4}"
 
