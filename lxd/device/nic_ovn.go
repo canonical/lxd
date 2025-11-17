@@ -290,7 +290,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 
 	// Check Security ACLs exist.
 	if d.config["security.acls"] != "" {
-		err = acl.Exists(d.state, networkProjectName, shared.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)...)
+		err = acl.Exists(context.TODO(), d.state, networkProjectName, shared.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)...)
 		if err != nil {
 			return err
 		}
@@ -914,7 +914,7 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 				return fmt.Errorf("Failed to get OVN client: %w", err)
 			}
 
-			err = acl.OVNPortGroupDeleteIfUnused(d.state, d.logger, client, d.network.Project(), d.inst, d.name, newACLs...)
+			err = acl.OVNPortGroupDeleteIfUnused(context.TODO(), d.state, d.logger, client, d.network.Project(), d.inst, d.name, newACLs...)
 			if err != nil {
 				return fmt.Errorf("Failed removing unused OVN port groups: %w", err)
 			}
@@ -1096,7 +1096,7 @@ func (d *nicOVN) Remove() error {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
 
-		err = acl.OVNPortGroupDeleteIfUnused(d.state, d.logger, client, d.network.Project(), d.inst, d.name)
+		err = acl.OVNPortGroupDeleteIfUnused(context.TODO(), d.state, d.logger, client, d.network.Project(), d.inst, d.name)
 		if err != nil {
 			return fmt.Errorf("Failed removing unused OVN port groups: %w", err)
 		}
