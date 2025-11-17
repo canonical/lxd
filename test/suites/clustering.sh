@@ -814,6 +814,9 @@ test_clustering_storage() {
   fi
   LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep -F status: | grep -wF Created
 
+  # Add the new pool to the default profile
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk pool=pool1 path=/
+
   # The 'source' config key is omitted when showing the cluster
   # configuration, and included when showing the node-specific one.
   ! LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep -wF source || false
@@ -983,6 +986,7 @@ test_clustering_storage() {
   fi
 
   # Delete the storage pool
+  printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
   LXD_DIR="${LXD_ONE_DIR}" lxc storage delete pool1
   ! LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF pool1 || false
 
