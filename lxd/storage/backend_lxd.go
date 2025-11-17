@@ -143,7 +143,7 @@ func (b *lxdBackend) validateSource() error {
 
 		return nil
 	})
-	if err != nil {
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 		return err
 	}
 
