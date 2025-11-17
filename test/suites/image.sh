@@ -81,10 +81,55 @@ test_image_expiry() {
 
   ! lxc_remote image info l2:"${fpbrief}" --project p1 || false
 
-  echo "Cleanup and reset."
+  echo "==> Clean up instances."
   lxc_remote delete -f l2:c1
   lxc_remote delete -f l2:c2 --project p1
   lxc_remote delete -f l2:c3 --project p1
+
+  echo "==> Copy remote image to a local store in project p1. It should be marked non-cached."
+  lxc_remote image copy l1:testimage l2: --target-project p1
+
+  echo "==> Check that the locally saved image in project p1 is marked as non-cached."
+  lxc_remote image info l2:"${fp}" --project p1 | grep -xF "Cached: no"
+
+  echo "==> Create a new instance in the default project with a remote image. It should be cached."
+  lxc_remote init l1:testimage l2:c1
+
+  echo "==> Check that the locally saved image in default project is marked as cached."
+  lxc_remote image info l2:"${fp}" | grep -xF "Cached: yes"
+
+  echo "==> Check that the image file exists locally."
+  ls -l "${LXD2_DIR}/images/${fp}"
+
+  echo "==> Update last_use_date for both images to Jan 1, 2000."
+  LXD_DIR="$LXD2_DIR" lxd sql global "UPDATE images SET last_use_date = '2000-01-01T00:00:00Z'" | grep -xF "Rows affected: 2"
+
+  echo "==> Trigger the expiry. Image in the default project should get pruned, but image in project p1 should remain."
+  lxc_remote config set l2: images.remote_cache_expiry 1
+
+  for _ in $(seq 20); do
+    sleep 1
+    if lxc_remote image info l2:"${fpbrief}"; then
+      break
+    fi
+  done
+
+  echo "==> Check that image in the default project was deleted."
+  ! lxc_remote image info l2:"${fpbrief}" || false
+
+  echo "==> Check that image in project p1 still exists."
+  lxc_remote image info l2:"${fpbrief}" --project p1
+
+  echo "==> Check that the image file still exists locally because it is used by image in project p1."
+  ls -l "${LXD2_DIR}/images/${fp}"
+
+  echo "==> Create an instance in project p1 using locally saved image."
+  lxc_remote init l2:"${fpbrief}" l2:c2 --project p1
+
+  echo "==> Cleanup and reset."
+  lxc_remote delete -f l2:c1
+  lxc_remote delete -f l2:c2 --project p1
+  lxc_remote image delete l2:"${fpbrief}" --project p1
   lxc_remote project delete l2:p1
   lxc_remote remote remove l1
   lxc_remote remote remove l2
