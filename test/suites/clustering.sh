@@ -596,6 +596,79 @@ test_clustering_storage() {
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,storage_pools_nodes.state FROM nodes JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id JOIN storage_pools ON storage_pools.id = storage_pools_nodes.storage_pool_id WHERE storage_pools.name = 'data' AND nodes.name = 'node1'")" = "node1,1" ]
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,storage_pools_nodes.state FROM nodes JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id JOIN storage_pools ON storage_pools.id = storage_pools_nodes.storage_pool_id WHERE storage_pools.name = 'data' AND nodes.name = 'node2'")" = "node2,1" ]
 
+  if [ "${poolDriver}" != "ceph" ]; then
+    # Create a volume on node1
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create data web
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume list data | grep -F web | grep -wF node1
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume list data | grep -F web | grep -wF node1
+
+    # Since the volume name is unique to node1, it's possible to show, rename,
+    # get the volume without specifying the --target parameter.
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show data web | grep -F "location: node1"
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume rename data web webbaz
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename data webbaz web
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume get data web size
+
+    # Create another volume on node2 with the same name of the one on
+    # node1.
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create --target node2 data web
+
+    # Trying to show, rename or delete the web volume without --target
+    # fails, because it's not unique.
+    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show data web || false
+    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename data web webbaz || false
+    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete data web || false
+
+    LXD_DIR="${LXD_TWO_DIR}" lxc init --empty c1 --target node1
+    LXD_DIR="${LXD_TWO_DIR}" lxc init --empty c2 --target node2
+    LXD_DIR="${LXD_TWO_DIR}" lxc init --empty c3 --target node2
+
+    LXD_DIR="${LXD_TWO_DIR}" lxc config device add c1 web disk pool=data source=web path=/mnt/web
+    LXD_DIR="${LXD_TWO_DIR}" lxc config device add c2 web disk pool=data source=web path=/mnt/web
+
+    # Specifying the --target parameter shows the proper volume.
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node1 data web | grep -F "location: node1"
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node2 data web | grep -F "location: node2"
+
+    # Rename updates the disk devices that refer to the disk.
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename --target node1 data web webbaz
+
+    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc config device get c1 web source)" = "webbaz" ]
+    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc config device get c2 web source)" = "web" ]
+
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename --target node2 data web webbaz
+
+    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc config device get c1 web source)" = "webbaz" ]
+    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc config device get c2 web source)" = "webbaz" ]
+
+    LXD_DIR="${LXD_TWO_DIR}" lxc config device remove c1 web
+
+    # Renaming a local storage volume when attached via profile succeeds.
+    LXD_DIR="${LXD_TWO_DIR}" lxc profile create stovol-webbaz
+    LXD_DIR="${LXD_TWO_DIR}" lxc profile device add stovol-webbaz webbaz disk pool=data source=webbaz path=/mnt/web
+
+    LXD_DIR="${LXD_TWO_DIR}" lxc profile add c3 stovol-webbaz # c2 and c3 both have webbaz attached
+
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename --target node2 data webbaz webbaz2
+    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc profile device get stovol-webbaz webbaz source)" = "webbaz2" ]
+    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc config device get c2 web source)" = "webbaz2" ]
+
+    LXD_DIR="${LXD_TWO_DIR}" lxc profile remove c3 stovol-webbaz
+    LXD_DIR="${LXD_TWO_DIR}" lxc profile delete stovol-webbaz
+
+    # Clean up.
+    LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 c2 c3
+
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete --target node2 data webbaz2
+
+    # Since now there's only one volume in the pool left named webbaz,
+    # it's possible to delete it without specifying --target.
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete data webbaz
+  fi
+
+  printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage delete data
+
   # Trying to pass config values other than 'source' results in an error
   ! LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir source=/foo size=123 --target node1 || false
 
@@ -912,79 +985,6 @@ test_clustering_storage() {
   # Delete the storage pool
   LXD_DIR="${LXD_ONE_DIR}" lxc storage delete pool1
   ! LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF pool1 || false
-
-  if [ "${poolDriver}" != "ceph" ]; then
-    # Create a volume on node1
-    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create data web
-    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume list data | grep -F web | grep -wF node1
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume list data | grep -F web | grep -wF node1
-
-    # Since the volume name is unique to node1, it's possible to show, rename,
-    # get the volume without specifying the --target parameter.
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show data web | grep -F "location: node1"
-    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume rename data web webbaz
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename data webbaz web
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume get data web size
-
-    # Create another volume on node2 with the same name of the one on
-    # node1.
-    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create --target node2 data web
-
-    # Trying to show, rename or delete the web volume without --target
-    # fails, because it's not unique.
-    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show data web || false
-    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename data web webbaz || false
-    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete data web || false
-
-    LXD_DIR="${LXD_TWO_DIR}" lxc init --empty c1 --target node1
-    LXD_DIR="${LXD_TWO_DIR}" lxc init --empty c2 --target node2
-    LXD_DIR="${LXD_TWO_DIR}" lxc init --empty c3 --target node2
-
-    LXD_DIR="${LXD_TWO_DIR}" lxc config device add c1 web disk pool=data source=web path=/mnt/web
-    LXD_DIR="${LXD_TWO_DIR}" lxc config device add c2 web disk pool=data source=web path=/mnt/web
-
-    # Specifying the --target parameter shows the proper volume.
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node1 data web | grep -F "location: node1"
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node2 data web | grep -F "location: node2"
-
-    # Rename updates the disk devices that refer to the disk.
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename --target node1 data web webbaz
-
-    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc config device get c1 web source)" = "webbaz" ]
-    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc config device get c2 web source)" = "web" ]
-
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename --target node2 data web webbaz
-
-    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc config device get c1 web source)" = "webbaz" ]
-    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc config device get c2 web source)" = "webbaz" ]
-
-    LXD_DIR="${LXD_TWO_DIR}" lxc config device remove c1 web
-
-    # Renaming a local storage volume when attached via profile succeeds.
-    LXD_DIR="${LXD_TWO_DIR}" lxc profile create stovol-webbaz
-    LXD_DIR="${LXD_TWO_DIR}" lxc profile device add stovol-webbaz webbaz disk pool=data source=webbaz path=/mnt/web
-
-    LXD_DIR="${LXD_TWO_DIR}" lxc profile add c3 stovol-webbaz # c2 and c3 both have webbaz attached
-
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename --target node2 data webbaz webbaz2
-    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc profile device get stovol-webbaz webbaz source)" = "webbaz2" ]
-    [ "$(LXD_DIR=${LXD_TWO_DIR} lxc config device get c2 web source)" = "webbaz2" ]
-
-    LXD_DIR="${LXD_TWO_DIR}" lxc profile remove c3 stovol-webbaz
-    LXD_DIR="${LXD_TWO_DIR}" lxc profile delete stovol-webbaz
-
-    # Clean up.
-    LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 c2 c3
-
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete --target node2 data webbaz2
-
-    # Since now there's only one volume in the pool left named webbaz,
-    # it's possible to delete it without specifying --target.
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete data webbaz
-  fi
-
-  printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage delete data
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
