@@ -5122,14 +5122,11 @@ test_clustering_placement_groups() {
   ns5="${prefix}5"
   spawn_lxd_and_join_cluster "${ns5}" "${bridge}" "${cert}" 5 1 "${LXD_FIVE_DIR}" "${LXD_ONE_DIR}"
 
-  echo "Import test image on all members"
-  LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
-
   echo "==> Test spread/strict: initial placement"
   LXD_DIR="${LXD_ONE_DIR}" lxc placement-group create pg-spread-strict policy=spread rigor=strict
 
   echo "Create first instance (any node)"
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c1 -c placement.group=pg-spread-strict
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c1 -c placement.group=pg-spread-strict
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c s c1)" = "STOPPED" ]
 
   echo "Verify placement group reports the instance in used_by"
@@ -5138,7 +5135,7 @@ test_clustering_placement_groups() {
 
   echo "==> Test spread/strict: second instance should be on different node"
   node1=$(LXD_DIR="${LXD_ONE_DIR}" lxc list c1 -f csv -c L)
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c2 -c placement.group=pg-spread-strict
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c2 -c placement.group=pg-spread-strict
   node2=$(LXD_DIR="${LXD_ONE_DIR}" lxc list c2 -f csv -c L)
   [ "${node1}" != "${node2}" ]
 
@@ -5147,23 +5144,23 @@ test_clustering_placement_groups() {
   LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/placement-groups/pg-spread-strict?recursion=1" | jq --exit-status '.used_by | contains(["/1.0/instances/c1", "/1.0/instances/c2"])'
 
   echo "==> Test spread/strict: add instances to all 5 nodes"
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c3 -c placement.group=pg-spread-strict
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c4 -c placement.group=pg-spread-strict
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c5 -c placement.group=pg-spread-strict
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c3 -c placement.group=pg-spread-strict
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c4 -c placement.group=pg-spread-strict
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c5 -c placement.group=pg-spread-strict
 
   echo "Verify all 5 instances are on different nodes"
   nodes=$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c nL | grep "^c[1-5]," | cut -d, -f2 | sort | uniq | wc -l)
   [ "${nodes}" = "5" ]
 
   echo "==> Test spread/strict: instance creation should fail with all members occupied"
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c6 -c placement.group=pg-spread-strict || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c6 -c placement.group=pg-spread-strict || false
 
   # Clean up for next test
   LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 c3 c4 c5
 
   echo "==> Test spread/permissive: initial placement"
   LXD_DIR="${LXD_ONE_DIR}" lxc placement-group create pg-spread-permissive policy=spread rigor=permissive
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c1 -c placement.group=pg-spread-permissive
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c1 -c placement.group=pg-spread-permissive
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c s c1)" = "STOPPED" ]
 
   echo "==> Test spread/permissive: prefer nodes with minimum instances"
@@ -5172,7 +5169,7 @@ test_clustering_placement_groups() {
 
   echo "Create instance on first node"
   node1=$(LXD_DIR="${LXD_ONE_DIR}" lxc list c1 -f csv -c L)
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c2 -c placement.group=pg-spread-permissive --target "${node1}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c2 -c placement.group=pg-spread-permissive --target "${node1}"
 
   echo "Create pair of instances on second node"
   for node in node1 node2 node3 node4 node5; do
@@ -5181,8 +5178,8 @@ test_clustering_placement_groups() {
       break
     fi
   done
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c3 -c placement.group=pg-spread-permissive --target "${node2}"
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c4 -c placement.group=pg-spread-permissive --target "${node2}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c3 -c placement.group=pg-spread-permissive --target "${node2}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c4 -c placement.group=pg-spread-permissive --target "${node2}"
 
   echo "Create instance on third node"
   for node in node1 node2 node3 node4 node5; do
@@ -5191,43 +5188,65 @@ test_clustering_placement_groups() {
       break
     fi
   done
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c5 -c placement.group=pg-spread-permissive --target "${node3}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c5 -c placement.group=pg-spread-permissive --target "${node3}"
 
   echo "Verify next instance goes to a node with 0 instances (node4 or node5)"
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c6 -c placement.group=pg-spread-permissive
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c6 -c placement.group=pg-spread-permissive
   node6=$(LXD_DIR="${LXD_ONE_DIR}" lxc list c6 -f csv -c L)
   [ "${node6}" != "${node1}" ] && [ "${node6}" != "${node2}" ] && [ "${node6}" != "${node3}" ]
 
   # Clean up
   LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 c3 c4 c5 c6
 
-  echo "==> Test compact/strict: initial placement"
+  echo "==> Test compact/strict: initial placement using node2 as target member"
   LXD_DIR="${LXD_ONE_DIR}" lxc placement-group create pg-compact-strict policy=compact rigor=strict
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c1 -c placement.group=pg-compact-strict
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c1 -c placement.group=pg-compact-strict --target node2
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c s c1)" = "STOPPED" ]
 
   echo "==> Test compact/strict: second instance on same node"
   node1=$(LXD_DIR="${LXD_ONE_DIR}" lxc list c1 -f csv -c L)
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c2 -c placement.group=pg-compact-strict
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c2 -c placement.group=pg-compact-strict
   node2=$(LXD_DIR="${LXD_ONE_DIR}" lxc list c2 -f csv -c L)
-  [ "${node1}" = "${node2}" ]
+  [ "${node1}" = "node2" ] && [ "${node2}" = "node2" ]
+
+  echo "==> Test compact/strict: picks member with most instances"
+  echo "Manually place an instance on node3 to create split placement"
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c3 -c placement.group=pg-compact-strict --target node3
+  node3=$(LXD_DIR="${LXD_ONE_DIR}" lxc list c3 -f csv -c L)
+  [ "${node3}" = "node3" ]
+
+  echo "New instance should go to node2 (2 instances) not node3 (1 instance)"
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c4 -c placement.group=pg-compact-strict
+  node4=$(LXD_DIR="${LXD_ONE_DIR}" lxc list c4 -f csv -c L)
+  [ "${node4}" = "node2" ]
 
   # Clean up
-  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 c3 c4
 
   echo "==> Test compact/permissive: initial placement"
   LXD_DIR="${LXD_ONE_DIR}" lxc placement-group create pg-compact-permissive policy=compact rigor=permissive
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c1 -c placement.group=pg-compact-permissive
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c1 -c placement.group=pg-compact-permissive
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c s c1)" = "STOPPED" ]
 
   echo "==> Test compact/permissive: prefer same node"
   node1=$(LXD_DIR="${LXD_ONE_DIR}" lxc list c1 -f csv -c L)
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c2 -c placement.group=pg-compact-permissive
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c2 -c placement.group=pg-compact-permissive
   node2=$(LXD_DIR="${LXD_ONE_DIR}" lxc list c2 -f csv -c L)
   [ "${node1}" = "${node2}" ]
 
+  echo "==> Test compact/permissive: picks member with most instances"
+  echo "Manually place an instance on different node to create split placement"
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c3 -c placement.group=pg-compact-permissive --target node3
+  node3=$(LXD_DIR="${LXD_ONE_DIR}" lxc list c3 -f csv -c L)
+  [ "${node3}" = "node3" ]
+
+  echo "New instance should prefer node with most instances (node1/2) over node3"
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c4 -c placement.group=pg-compact-permissive
+  node4=$(LXD_DIR="${LXD_ONE_DIR}" lxc list c4 -f csv -c L)
+  [ "${node4}" = "${node1}" ]
+
   # Clean up
-  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 c3 c4
 
   echo "==> Test placement groups are project-specific"
   LXD_DIR="${LXD_ONE_DIR}" lxc project create test-project -c features.images=false -c features.profiles=false
