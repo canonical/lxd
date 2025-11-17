@@ -25,10 +25,10 @@ type NetworkACL interface {
 
 	// Internal validation.
 	validateName(name string) error
-	validateConfig(config *api.NetworkACLPut) error
+	validateConfig(ctx context.Context, config *api.NetworkACLPut) error
 
 	// Modifications.
-	Update(config *api.NetworkACLPut, clientType request.ClientType) error
-	Rename(newName string) error
-	Delete() error
+	Update(ctx context.Context, config *api.NetworkACLPut, clientType request.ClientType) error
+	Rename(ctx context.Context, newName string) error
+	Delete(ctx context.Context) error
 }
