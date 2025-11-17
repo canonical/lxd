@@ -669,6 +669,9 @@ test_clustering_storage() {
   printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
   LXD_DIR="${LXD_TWO_DIR}" lxc storage delete data
 
+  # Ensure there are no left over storage pools in the preseeded cluster.
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc storage list -f json | jq length)" = "0" ]
+
   # Trying to pass config values other than 'source' results in an error
   ! LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir source=/foo size=123 --target node1 || false
 
