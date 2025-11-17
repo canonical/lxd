@@ -1024,28 +1024,23 @@ parts:
   virtiofsd:
     plugin: nil
     stage-packages:
-      - to armhf: []
-      - else:
+      - to amd64:
         - virtiofsd
     organize:
       usr/libexec/: bin/
     prime:
       - bin/virtiofsd*
     override-stage: |-
-      [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
+      [ "$(uname -m)" != "x86_64" ] && exit 0
       craftctl default
     override-prime: |-
-      [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
+      [ "$(uname -m)" != "x86_64" ] && exit 0
       craftctl default
     override-pull: |-
-      [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
+      [ "$(uname -m)" != "x86_64" ] && exit 0
       craftctl default
     override-build: |-
-      [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
+      [ "$(uname -m)" != "x86_64" ] && exit 0
       craftctl default
 
   xfs:
