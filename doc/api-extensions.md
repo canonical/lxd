@@ -2856,6 +2856,8 @@ Instead of returning a successful response, they will receive an operation respo
 Endpoints converted to asynchronous behavior:
 
 * `POST /storage-pools/<pool>/volumes/<type>` - Create storage volume
+* `PUT /storage-pools/<pool>/volumes/<type>/<vol>` - Update storage volume
+* `PATCH /storage-pools/<pool>/volumes/<type>/<vol>` - Patch storage volume
 * `PUT /storage-pools/<pool>/volumes/<type>/<vol>/snapshots/<snap>` - Update storage volume snapshot
 * `PATCH /storage-pools/<pool>/volumes/<type>/<vol>/snapshots/<snap>` - Patch storage volume snapshot
 * `PUT /1.0/profiles/{name}` - Update profile
