@@ -2139,13 +2139,13 @@ func (d *zfs) activateVolume(vol Volume) (bool, string, error) {
 		}
 
 		// Wait a second to give udev a chance to kick in.
-		// We've seen that on Linux kerrnel 6.9+ (ZFS 2.2.5+) with commit
+		// We've seen that on Linux kernel 6.9+ (ZFS 2.2.5+) with commit
 		// https://github.com/openzfs/zfs/commit/c24a039042ef846940adae8e1dd1fc33cbb1f147
 		// there is a significant delay between setting volmode=dev and the device
 		// actually appearing.
 		// The problem here is that single:
 		// zfs set volmode=dev <vol>
-		// operation produces several uevents, because it always remove an existing disk device
+		// operation produces several uevents, because it always removes an existing disk device
 		// and then creates a new one:
 		// https://github.com/openzfs/zfs/blob/ca960ce56ce1bfe207e4d80ba6e5ab67ea41b32f/module/zfs/zvol.c#L1470
 		// systemd-udevd processes that correctly, but it takes much more time until we get a stable
