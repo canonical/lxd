@@ -390,7 +390,7 @@ type InstanceServer interface {
 	CreateStoragePoolVolume(pool string, volume api.StorageVolumesPost) (op Operation, err error)
 	UpdateStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePut, ETag string) (op Operation, err error)
 	DeleteStoragePoolVolume(pool string, volType string, name string) (err error)
-	RenameStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePost) (err error)
+	RenameStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePost) (op Operation, err error)
 	CopyStoragePoolVolume(pool string, source InstanceServer, sourcePool string, volume api.StorageVolume, args *StoragePoolVolumeCopyArgs) (op RemoteOperation, err error)
 	MoveStoragePoolVolume(pool string, source InstanceServer, sourcePool string, volume api.StorageVolume, args *StoragePoolVolumeMoveArgs) (op RemoteOperation, err error)
 	MigrateStoragePoolVolume(pool string, volume api.StorageVolumePost) (op Operation, err error)
