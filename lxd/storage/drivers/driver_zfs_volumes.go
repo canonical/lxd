@@ -2138,6 +2138,20 @@ func (d *zfs) activateVolume(vol Volume) (bool, string, error) {
 			return false, "", err
 		}
 
+		// Wait a second to give udev a chance to kick in.
+		// We've seen that on Linux kernel 6.9+ (ZFS 2.2.5+) with commit
+		// https://github.com/openzfs/zfs/commit/c24a039042ef846940adae8e1dd1fc33cbb1f147
+		// there is a significant delay between setting volmode=dev and the device
+		// actually appearing.
+		// The problem here is that single:
+		// zfs set volmode=dev <vol>
+		// operation produces several uevents, because it always removes an existing disk device
+		// and then creates a new one:
+		// https://github.com/openzfs/zfs/blob/ca960ce56ce1bfe207e4d80ba6e5ab67ea41b32f/module/zfs/zvol.c#L1470
+		// systemd-udevd processes that correctly, but it takes much more time until we get a stable
+		// state when block device symlinks are created and ready to use.
+		time.Sleep(1 * time.Second)
+
 		activated = true
 		d.logger.Debug("Activated ZFS volume", logger.Ctx{"volName": vol.Name(), "dev": dataset})
 	}
@@ -3146,8 +3160,8 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 					}
 				}()
 
-				// Wait half a second to give udev a chance to kick in.
-				time.Sleep(500 * time.Millisecond)
+				// Wait a second to give udev a chance to kick in.
+				time.Sleep(1 * time.Second)
 
 				d.logger.Debug("Activated ZFS volume", logger.Ctx{"dev": dataset})
 
