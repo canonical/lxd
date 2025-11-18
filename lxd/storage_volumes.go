@@ -2386,8 +2386,8 @@ func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 //	    type: string
 //	    example: lxd01
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -2422,39 +2422,41 @@ func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
+	requestProjectName := request.ProjectParam(r)
+
 	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	err = doStoragePoolVolumeDelete(r.Context(), s, details.volumeName, details.volumeType, details.pool, request.ProjectParam(r), effectiveProjectName)
+	op, err := doStoragePoolVolumeDelete(r.Context(), s, details.volumeName, details.volumeType, details.pool, requestProjectName, effectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	return response.EmptySyncResponse
+	return operations.OperationResponse(op)
 }
 
 // doStoragePoolVolumeDelete deletes a storage volume in the given project and pool.
-func doStoragePoolVolumeDelete(ctx context.Context, s *state.State, name string, volType cluster.StoragePoolVolumeType, pool storagePools.Pool, requestProjectName string, effectiveProjectName string) error {
+func doStoragePoolVolumeDelete(ctx context.Context, s *state.State, name string, volType cluster.StoragePoolVolumeType, pool storagePools.Pool, requestProjectName string, effectiveProjectName string) (*operations.Operation, error) {
 	if volType != cluster.StoragePoolVolumeTypeCustom && volType != cluster.StoragePoolVolumeTypeImage {
-		return api.StatusErrorf(http.StatusBadRequest, "Storage volumes of type %q cannot be deleted directly", volType.String())
+		return nil, api.StatusErrorf(http.StatusBadRequest, "Storage volumes of type %q cannot be deleted directly", volType.String())
 	}
 
 	// Get the storage volume.
 	var dbVolume *db.StorageVolume
 	var err error
-	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		dbVolume, err = tx.GetStoragePoolVolume(ctx, pool.ID(), effectiveProjectName, volType, name, true)
 		return err
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	volumeUsedBy, err := storagePoolVolumeUsedByGet(s, requestProjectName, dbVolume)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// isImageURL checks whether the provided usedByURL represents an image resource for the fingerprint.
@@ -2470,26 +2472,30 @@ func doStoragePoolVolumeDelete(ctx context.Context, s *state.State, name string,
 
 	if len(volumeUsedBy) > 0 {
 		if len(volumeUsedBy) != 1 || volType != cluster.StoragePoolVolumeTypeImage || !isImageURL(volumeUsedBy[0], dbVolume.Name) {
-			return api.NewStatusError(http.StatusBadRequest, "The storage volume is still in use")
+			return nil, api.NewStatusError(http.StatusBadRequest, "The storage volume is still in use")
 		}
 	}
 
-	// Use an empty operation for this sync response to pass the requestor
-	op := &operations.Operation{}
-	op.SetRequestor(ctx)
-
-	switch volType {
-	case cluster.StoragePoolVolumeTypeCustom:
-		err = pool.DeleteCustomVolume(effectiveProjectName, name, op)
-	case cluster.StoragePoolVolumeTypeImage:
-		err = pool.DeleteImage(name, op)
+	run := func(op *operations.Operation) error {
+		switch volType {
+		case cluster.StoragePoolVolumeTypeCustom:
+			return pool.DeleteCustomVolume(effectiveProjectName, name, op)
+		case cluster.StoragePoolVolumeTypeImage:
+			return pool.DeleteImage(name, op)
+		default:
+			return api.StatusErrorf(http.StatusBadRequest, "Storage volumes of type %q cannot be deleted directly", volType.String())
+		}
 	}
 
+	resources := map[string][]api.URL{}
+	resources["storage_volumes"] = []api.URL{*api.NewURL().Path(version.APIVersion, "storage-pools", pool.Name(), "volumes", volType.String(), name)}
+
+	op, err := operations.OperationCreate(ctx, s, requestProjectName, operations.OperationClassTask, operationtype.VolumeDelete, resources, nil, run, nil, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return op, nil
 }
 
 func createStoragePoolVolumeFromISO(s *state.State, r *http.Request, requestProjectName string, projectName string, data io.Reader, pool string, volName string) response.Response {
