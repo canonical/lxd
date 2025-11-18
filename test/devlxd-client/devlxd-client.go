@@ -258,7 +258,12 @@ func run(args []string) error {
 			volType := args[4]
 			volName := args[5]
 
-			return client.DeleteStoragePoolVolume(poolName, volType, volName)
+			op, err := client.DeleteStoragePoolVolume(poolName, volType, volName)
+			if err != nil {
+				return err
+			}
+
+			return op.WaitContext(context.Background())
 		default:
 			return fmt.Errorf("Unknown subcommand: %q\n%w", subcmd, usageErr)
 		}
