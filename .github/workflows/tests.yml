@@ -75,7 +75,7 @@ jobs:
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
     if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
     name: Code
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -311,7 +311,7 @@ jobs:
       GOTRACEBACK: "crash"
     if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
     name: System
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: code-tests
     strategy:
       fail-fast: false
@@ -964,7 +964,7 @@ jobs:
 
   ui-e2e-tests:
     name: UI e2e tests
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [code-tests, documentation]
     if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
     env:
