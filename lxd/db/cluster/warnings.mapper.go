@@ -102,12 +102,6 @@ SELECT warnings.id FROM warnings
   WHERE warnings.uuid = ?
 `)
 
-// warningColumns returns a string of column names to be used with a SELECT statement for the entity.
-// Use this function when building statements to retrieve database entries matching the Warning entity.
-func warningColumns() string {
-	return "warnings.id, coalesce(nodes.name, '') AS node, coalesce(projects.name, '') AS project, coalesce(warnings.entity_type_code, -1), coalesce(warnings.entity_id, -1), warnings.uuid, warnings.type_code, warnings.status, warnings.first_seen_date, warnings.last_seen_date, warnings.updated_date, warnings.last_message, warnings.count"
-}
-
 // getWarnings can be used to run handwritten sql.Stmts to return a slice of objects.
 func getWarnings(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Warning, error) {
 	objects := make([]Warning, 0)

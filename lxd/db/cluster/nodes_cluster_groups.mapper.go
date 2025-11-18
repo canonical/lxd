@@ -37,12 +37,6 @@ var nodeClusterGroupDeleteByGroupID = RegisterStmt(`
 DELETE FROM nodes_cluster_groups WHERE group_id = ?
 `)
 
-// nodeClusterGroupColumns returns a string of column names to be used with a SELECT statement for the entity.
-// Use this function when building statements to retrieve database entries matching the NodeClusterGroup entity.
-func nodeClusterGroupColumns() string {
-	return "nodes_clusters_groups.group_id, nodes.name AS node"
-}
-
 // getNodeClusterGroups can be used to run handwritten sql.Stmts to return a slice of objects.
 func getNodeClusterGroups(ctx context.Context, stmt *sql.Stmt, args ...any) ([]NodeClusterGroup, error) {
 	objects := make([]NodeClusterGroup, 0)

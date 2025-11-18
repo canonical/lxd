@@ -195,12 +195,6 @@ UPDATE instances
  WHERE id = ?
 `)
 
-// instanceColumns returns a string of column names to be used with a SELECT statement for the entity.
-// Use this function when building statements to retrieve database entries matching the Instance entity.
-func instanceColumns() string {
-	return "instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date"
-}
-
 // getInstances can be used to run handwritten sql.Stmts to return a slice of objects.
 func getInstances(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Instance, error) {
 	objects := make([]Instance, 0)

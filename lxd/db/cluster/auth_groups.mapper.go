@@ -62,12 +62,6 @@ var authGroupRename = RegisterStmt(`
 UPDATE auth_groups SET name = ? WHERE name = ?
 `)
 
-// authGroupColumns returns a string of column names to be used with a SELECT statement for the entity.
-// Use this function when building statements to retrieve database entries matching the AuthGroup entity.
-func authGroupColumns() string {
-	return "auths_groups.id, auths_groups.name, auths_groups.description"
-}
-
 // getAuthGroups can be used to run handwritten sql.Stmts to return a slice of objects.
 func getAuthGroups(ctx context.Context, stmt *sql.Stmt, args ...any) ([]AuthGroup, error) {
 	objects := make([]AuthGroup, 0)
