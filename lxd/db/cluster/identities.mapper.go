@@ -90,12 +90,6 @@ UPDATE identities
  WHERE id = ?
 `)
 
-// identityColumns returns a string of column names to be used with a SELECT statement for the entity.
-// Use this function when building statements to retrieve database entries matching the Identity entity.
-func identityColumns() string {
-	return "identity.id, identity.auth_method, identity.type, identity.identifier, identity.name, identity.metadata"
-}
-
 // getIdentitys can be used to run handwritten sql.Stmts to return a slice of objects.
 func getIdentitys(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Identity, error) {
 	objects := make([]Identity, 0)
