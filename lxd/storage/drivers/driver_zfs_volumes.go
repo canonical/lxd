@@ -14,7 +14,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
+	"unsafe"
 
 	"github.com/google/uuid"
 	"golang.org/x/sys/unix"
@@ -23,6 +25,7 @@ import (
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instancewriter"
+	"github.com/canonical/lxd/lxd/linux"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
@@ -1922,63 +1925,90 @@ func (d *zfs) tryGetVolumeDiskPathFromDataset(ctx context.Context, dataset strin
 }
 
 func (d *zfs) getVolumeDiskPathFromDataset(dataset string) (string, error) {
-	// Shortcut for udev.
-	// If the udev link exists, resolve it and confirm it's a block device
-	// before returning it. Chasing the symlink to the actual device node
-	// (`/dev/zdX`) ensures consistency with the "slow path" where `zvol_id` is
-	// invoked directly.
-	devPath, err := os.Readlink("/dev/zvol/" + dataset)
-	if err == nil {
-		// devPath is relative to /dev/zvol, so extract the last part
-		// it looks like `../../../zd0` and we need to turn that into `/dev/zd0`.
-		lastSlashIndex := strings.LastIndex(devPath, "/")
-		if lastSlashIndex != -1 {
-			devPath = "/dev" + devPath[lastSlashIndex:]
+	// Read all the top-level /dev entries.
+	entries, err := os.ReadDir("/dev/")
+	if err != nil {
+		return "", err
+	}
 
-			// If the udev link exists and is a block device, return it.
-			sb, err := os.Stat(devPath)
-			if err == nil && shared.IsBlockdev(sb.Mode()) {
-				return devPath, nil
+	// Filter only the relevant ZFS entries.
+	zfsEntries := make([]os.DirEntry, 0, len(entries))
+	for _, entry := range entries {
+		// Skip non-ZFS entries.
+		if !strings.HasPrefix(entry.Name(), "zd") {
+			continue
+		}
+
+		// Skip partitions.
+		if strings.Contains(entry.Name(), "p") {
+			continue
+		}
+
+		zfsEntries = append(zfsEntries, entry)
+	}
+
+	// Sort by reverse creation date.
+	slices.SortFunc(zfsEntries, func(a os.DirEntry, b os.DirEntry) int {
+		var (
+			aCreate time.Time
+			bCreate time.Time
+		)
+
+		aInfo, _ := a.Info()
+		if aInfo != nil {
+			stat, ok := aInfo.Sys().(*syscall.Stat_t)
+
+			if ok {
+				aCreate = time.Unix(int64(stat.Ctim.Sec), int64(stat.Ctim.Nsec))
 			}
 		}
-	}
 
-	// Locate zvol_id.
-	zvolid := "/lib/udev/zvol_id"
-	if !shared.PathExists(zvolid) {
-		zvolid, err = exec.LookPath("zvol_id")
+		bInfo, _ := b.Info()
+		if bInfo != nil {
+			stat, ok := bInfo.Sys().(*syscall.Stat_t)
+
+			if ok {
+				bCreate = time.Unix(int64(stat.Ctim.Sec), int64(stat.Ctim.Nsec))
+			}
+		}
+
+		if aCreate.Equal(bCreate) {
+			return 0
+		}
+
+		if aCreate.Before(bCreate) {
+			return 1
+		}
+
+		return -1
+	})
+
+	zfsDataset := func(devPath string) string {
+		// Open the device.
+		r, err := os.OpenFile(devPath, unix.O_RDONLY|unix.O_CLOEXEC, 0)
 		if err != nil {
-			return "", err
+			return ""
 		}
+
+		defer func() { _ = r.Close() }()
+
+		// Perform the BLKZNAME ioctl.
+		buf := [256]byte{}
+		_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(r.Fd()), linux.IoctlBlkZname, uintptr(unsafe.Pointer(&buf)))
+		if errno != 0 {
+			return ""
+		}
+
+		return string(bytes.Trim(buf[:], "\x00"))
 	}
 
-	// List all the device nodes.
-	entries, err := os.ReadDir("/dev")
-	if err != nil {
-		return "", fmt.Errorf("Failed to read /dev: %w", err)
-	}
+	// Check each entry for a dataset match.
+	for _, entry := range zfsEntries {
+		// Check if it's our dataset.
+		zfsDev := "/dev/" + entry.Name()
 
-	for _, entry := range entries {
-		entryName := entry.Name()
-
-		// Ignore non-zvol devices.
-		if !strings.HasPrefix(entryName, "zd") {
-			continue
-		}
-
-		if strings.Contains(entryName, "p") {
-			continue
-		}
-
-		// Resolve the dataset path.
-		entryPath := "/dev/" + entryName
-		output, err := shared.RunCommandContext(context.TODO(), zvolid, entryPath)
-		if err != nil {
-			continue
-		}
-
-		if strings.TrimSpace(output) == dataset && shared.IsBlockdevPath(entryPath) {
-			return entryPath, nil
+		if zfsDataset(zfsDev) == dataset {
+			return zfsDev, nil
 		}
 	}
 
