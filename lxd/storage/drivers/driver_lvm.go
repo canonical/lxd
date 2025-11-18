@@ -336,20 +336,13 @@ func (d *lvm) Create() error {
 			empty = true
 		}
 
-		// Skip the in use checks if the force reuse option is enabled. This allows a storage pool to be
-		// backed by an existing non-empty volume group. Note: This option should be used with care, as LXD
-		// can then not guarantee that volume name conflicts won't occur with non-LXD created volumes in
-		// the same volume group. This could also potentially lead to LXD deleting a non-LXD volume should
-		// name conflicts occur.
-		if shared.IsFalseOrEmpty(d.config["lvm.vg.force_reuse"]) {
-			if !empty {
-				return fmt.Errorf("Volume group %q is not empty", d.config["lvm.vg_name"])
-			}
+		if !empty {
+			return fmt.Errorf("Volume group %q is not empty", d.config["lvm.vg_name"])
+		}
 
-			// Check the tags on the volume group to check it is not already being used by LXD.
-			if slices.Contains(vgTags, lvmVgPoolMarker) {
-				return fmt.Errorf("Volume group %q is already used by LXD", d.config["lvm.vg_name"])
-			}
+		// Check the tags on the volume group to check it is not already being used by LXD.
+		if slices.Contains(vgTags, lvmVgPoolMarker) {
+			return fmt.Errorf("Volume group %q is already used by LXD", d.config["lvm.vg_name"])
 		}
 	} else {
 		// Create physical volume if doesn't exist.
@@ -438,7 +431,7 @@ func (d *lvm) Delete(op *operations.Operation) error {
 	}
 
 	removeVg := false
-	if vgExists && shared.IsFalseOrEmpty(d.config["lvm.vg.force_reuse"]) {
+	if vgExists {
 		// Count normal and thin volumes.
 		lvCount, err := d.countLogicalVolumes(d.config["lvm.vg_name"])
 		if err != nil {
@@ -573,14 +566,6 @@ func (d *lvm) Validate(config map[string]string) error {
 		//  shortdesc: Whether the storage pool uses a thin pool for logical volumes
 		//  scope: global
 		"lvm.use_thinpool": validate.Optional(validate.IsBool),
-		// lxdmeta:generate(entities=storage-lvm; group=pool-conf; key=lvm.vg.force_reuse)
-		//
-		// ---
-		//  type: bool
-		//  defaultdesc: `false`
-		//  shortdesc: Force using an existing non-empty volume group
-		//  scope: global
-		"lvm.vg.force_reuse": validate.Optional(validate.IsBool),
 	}
 
 	err := d.validatePool(config, rules, d.commonVolumeRules())
