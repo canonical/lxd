@@ -144,14 +144,14 @@ Finally, either bring up the instances on the primary deployment using `lxc star
 
 How-to guides:
 
-- {ref}`disaster-recovery`
-- {ref}`cluster-recover`
-- {ref}`storage`
+* {ref}`disaster-recovery`
+* {ref}`cluster-recover`
+* {ref}`storage`
 
 Explanation:
 
-- {ref}`exp-storage`
+* {ref}`exp-storage`
 
 Reference:
 
-- {ref}`storage-drivers`
+* {ref}`storage-drivers`
