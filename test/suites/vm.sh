@@ -84,7 +84,7 @@ test_vm_empty() {
 
   # Check hotplugging block volume.
   poolName=$(lxc profile device get default root pool)
-  poolDriver=$(lxc storage show "$(lxc profile device get default root pool)" | awk '/^driver:/ {print $2}')
+  poolDriver=$(lxc storage show "${poolName}" | awk '/^driver:/ {print $2}')
 
   if [ "$(lxc config get --expanded v1 migration.stateful || echo fail)" = "" ] || [ "${poolDriver}" = "ceph" ]; then
     # Check using PCIe based virtio-blk when using shared storage or migration.stateful disabled.
