@@ -839,7 +839,6 @@ parts:
       - --enable-vhost-kernel
       - --enable-vhost-net
       - --enable-vhost-user
-      - --enable-virtfs
       - --firmwarepath=/snap/lxd/current/share/qemu/
       - --localstatedir=/var/
       - --disable-install-blobs # Ubuntu sources don't have the ROM blobs in them.
@@ -928,7 +927,6 @@ parts:
       - bin/mkisofs*
       - bin/qemu-system-*
       - bin/qemu-img*
-      - bin/virtfs-proxy-helper*
       - lib/*/libatomic.so*
       - lib/*/libmagic*so*
       - lib/*/libnuma*so*
