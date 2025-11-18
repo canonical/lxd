@@ -834,8 +834,8 @@ jobs:
       - name: Install dependencies
         run: |
           set -eux
-          go install github.com/axw/gocov/gocov@latest
-          go install github.com/AlekSi/gocov-xml@latest
+          go install github.com/afunix/gocov/gocov@latest
+          go install github.com/b-dean/gocov-xml@v1.2.1-bdd.0 # XXX: Using this repo is a temporary workaround until https://github.com/AlekSi/gocov-xml/pull/20 is merged. See https://github.com/AlekSi/gocov-xml/pull/20#issuecomment-3275134132 for more details.
           go install honnef.co/go/tools/cmd/staticcheck@latest
 
       - name: Convert coverage files
