@@ -37,12 +37,6 @@ var identityProjectDeleteByIdentityID = RegisterStmt(`
 DELETE FROM identities_projects WHERE identity_id = ?
 `)
 
-// identityProjectColumns returns a string of column names to be used with a SELECT statement for the entity.
-// Use this function when building statements to retrieve database entries matching the IdentityProject entity.
-func identityProjectColumns() string {
-	return "identity_projects.identity_id, identity_projects.project_id"
-}
-
 // getIdentityProjects can be used to run handwritten sql.Stmts to return a slice of objects.
 func getIdentityProjects(ctx context.Context, stmt *sql.Stmt, args ...any) ([]IdentityProject, error) {
 	objects := make([]IdentityProject, 0)

@@ -73,12 +73,6 @@ var instanceSnapshotDeleteByProjectAndInstanceAndName = RegisterStmt(`
 DELETE FROM instances_snapshots WHERE instance_id = (SELECT instances.id FROM instances JOIN projects ON instances.project_id = projects.id WHERE projects.name = ? AND instances.name = ?) AND name = ?
 `)
 
-// instanceSnapshotColumns returns a string of column names to be used with a SELECT statement for the entity.
-// Use this function when building statements to retrieve database entries matching the InstanceSnapshot entity.
-func instanceSnapshotColumns() string {
-	return "instances_snapshots.id, projects.name AS project, instances.name AS instance, instances_snapshots.name, instances_snapshots.creation_date, instances_snapshots.stateful, coalesce(instances_snapshots.description, ''), instances_snapshots.expiry_date"
-}
-
 // getInstanceSnapshots can be used to run handwritten sql.Stmts to return a slice of objects.
 func getInstanceSnapshots(ctx context.Context, stmt *sql.Stmt, args ...any) ([]InstanceSnapshot, error) {
 	objects := make([]InstanceSnapshot, 0)

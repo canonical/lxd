@@ -62,12 +62,6 @@ var projectDeleteByName = RegisterStmt(`
 DELETE FROM projects WHERE name = ?
 `)
 
-// projectColumns returns a string of column names to be used with a SELECT statement for the entity.
-// Use this function when building statements to retrieve database entries matching the Project entity.
-func projectColumns() string {
-	return "projects.id, projects.description, projects.name"
-}
-
 // getProjects can be used to run handwritten sql.Stmts to return a slice of objects.
 func getProjects(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Project, error) {
 	objects := make([]Project, 0)
