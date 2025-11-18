@@ -104,12 +104,6 @@ func GetProfileID(ctx context.Context, tx *sql.Tx, project string, name string) 
 	return id, nil
 }
 
-// profileColumns returns a string of column names to be used with a SELECT statement for the entity.
-// Use this function when building statements to retrieve database entries matching the Profile entity.
-func profileColumns() string {
-	return "profiles.id, profiles.project_id, projects.name AS project, profiles.name, coalesce(profiles.description, '')"
-}
-
 // getProfiles can be used to run handwritten sql.Stmts to return a slice of objects.
 func getProfiles(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Profile, error) {
 	objects := make([]Profile, 0)

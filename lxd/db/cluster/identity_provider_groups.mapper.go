@@ -62,12 +62,6 @@ var identityProviderGroupRename = RegisterStmt(`
 UPDATE identity_provider_groups SET name = ? WHERE name = ?
 `)
 
-// identityProviderGroupColumns returns a string of column names to be used with a SELECT statement for the entity.
-// Use this function when building statements to retrieve database entries matching the IdentityProviderGroup entity.
-func identityProviderGroupColumns() string {
-	return "identity_providers_groups.id, identity_providers_groups.name"
-}
-
 // getIdentityProviderGroups can be used to run handwritten sql.Stmts to return a slice of objects.
 func getIdentityProviderGroups(ctx context.Context, stmt *sql.Stmt, args ...any) ([]IdentityProviderGroup, error) {
 	objects := make([]IdentityProviderGroup, 0)

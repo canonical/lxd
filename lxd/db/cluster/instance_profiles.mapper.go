@@ -78,12 +78,6 @@ func GetProfileInstances(ctx context.Context, tx *sql.Tx, profileID int) ([]Inst
 	return result, nil
 }
 
-// instanceProfileColumns returns a string of column names to be used with a SELECT statement for the entity.
-// Use this function when building statements to retrieve database entries matching the InstanceProfile entity.
-func instanceProfileColumns() string {
-	return "instances_profiles.instance_id, instances_profiles.profile_id, instances_profiles.apply_order"
-}
-
 // getInstanceProfiles can be used to run handwritten sql.Stmts to return a slice of objects.
 func getInstanceProfiles(ctx context.Context, stmt *sql.Stmt, args ...any) ([]InstanceProfile, error) {
 	objects := make([]InstanceProfile, 0)

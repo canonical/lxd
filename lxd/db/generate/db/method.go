@@ -1530,23 +1530,6 @@ func (m *Method) getManyTemplateFuncs(buf *file.Buffer, mapping *Mapping) error 
 	}
 
 	tableName := mapping.TableName(m.entity, m.config["table"])
-	// Create a function to get the column names to use with SELECT statements for the entity.
-	buf.L("// %sColumns returns a string of column names to be used with a SELECT statement for the entity.", lex.Minuscule(mapping.Name))
-	buf.L("// Use this function when building statements to retrieve database entries matching the %s entity.", mapping.Name)
-	buf.L("func %sColumns() string {", lex.Minuscule(mapping.Name))
-	columns := make([]string, len(mapping.Fields))
-	for i, field := range mapping.Fields {
-		column, err := field.SelectColumn(mapping, tableName)
-		if err != nil {
-			return err
-		}
-
-		columns[i] = column
-	}
-
-	buf.L("return \"%s\"", strings.Join(columns, ", "))
-	buf.L("}")
-	buf.N()
 
 	// Create a function supporting prepared statements.
 	buf.L("// get%s can be used to run handwritten sql.Stmts to return a slice of objects.", lex.Plural(mapping.Name))

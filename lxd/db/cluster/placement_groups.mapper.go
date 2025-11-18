@@ -74,12 +74,6 @@ var placementGroupRename = RegisterStmt(`
 UPDATE placement_groups SET name = ? WHERE name = ? AND project_id = (SELECT projects.id FROM projects WHERE projects.name = ?)
 `)
 
-// placementGroupColumns returns a string of column names to be used with a SELECT statement for the entity.
-// Use this function when building statements to retrieve database entries matching the PlacementGroup entity.
-func placementGroupColumns() string {
-	return "placements_groups.id, placements_groups.name, projects.name AS project, coalesce(placements_groups.description, '')"
-}
-
 // getPlacementGroups can be used to run handwritten sql.Stmts to return a slice of objects.
 func getPlacementGroups(ctx context.Context, stmt *sql.Stmt, args ...any) ([]PlacementGroup, error) {
 	objects := make([]PlacementGroup, 0)
