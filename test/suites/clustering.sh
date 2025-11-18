@@ -3145,6 +3145,75 @@ test_clustering_rebalance() {
   kill_lxd "${LXD_FOUR_DIR}"
 }
 
+test_clustering_rebalance_remove_leader() {
+  local LXD_DIR
+
+  echo "Create two node cluster"
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # Add a newline at the end of each line. YAML has weird rules.
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  # Spawn a second node
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
+
+  echo "Verify clustering enabled on both nodes"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -F node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -F node2
+
+  # Wait for cluster to stabilize and role rebalancing to complete
+  echo "Waiting for both nodes to have database role..."
+  for _ in $(seq 10); do
+    if LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -F "database: true" && \
+       LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -F "database: true"; then
+      break
+    fi
+    sleep 0.5
+  done
+
+  echo "Verify we have two database nodes"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -F "database: true"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -F "database: true"
+
+  echo "Remove the leader node from the cluster"
+  # When a leader removes itself, clusterPutDisable() is called, which in turn calls ReplaceDaemon().
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node1 --force --yes
+
+  echo "Wait for node1 daemon to restart after removal"
+  # The daemon restarts itself after cluster removal via ReplaceDaemon()
+  LXD_DIR="${LXD_ONE_DIR}" lxd waitready --timeout=30
+
+  echo "Verify node1 is still functional with clustering disabled"
+  LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F "server_clustered: false"
+
+  echo "Verify node2 is still clustered and is now the only member"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list # For debugging
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list -f csv | wc -l)" = "1" ]
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node2 | grep -F "database: true"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  echo "Clean up"
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+}
+
 # Recover a cluster where a raft node was removed from the nodes table but not
 # from the raft configuration.
 test_clustering_remove_raft_node() {
