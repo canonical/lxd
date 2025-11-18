@@ -46,7 +46,6 @@ The following links lead to replication setup guides published by various storag
 
 * Ceph RBD: [RBD mirroring](https://docs.ceph.com/en/reef/rbd/rbd-mirroring/)
 * Dell PowerFlex: [Introduction to Replication](https://infohub.delltechnologies.com/en-us/t/dell-powerflex-introduction-to-replication/)
-* Pure Storage: [Replication](https://support.purestorage.com/category/m_replication)
 
 Once you have configured the connection between the primary and secondary storage arrays, follow the relevant storage vendor's steps to set up the actual replication of volumes.
 
