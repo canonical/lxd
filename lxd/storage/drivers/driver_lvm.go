@@ -140,6 +140,12 @@ func (d *lvm) FillConfig() error {
 
 // SourceIdentifier returns the underlying source consisting of the volume group name.
 func (d *lvm) SourceIdentifier() (string, error) {
+	// Return an empty identifier in case the volume group should be force reused.
+	// This indicates the backend to skip further source verification.
+	if shared.IsTrue(d.config["lvm.vg.force_reuse"]) {
+		return "", nil
+	}
+
 	vgName := d.config["lvm.vg_name"]
 	if vgName != "" {
 		return vgName, nil
