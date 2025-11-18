@@ -918,7 +918,6 @@ parts:
       usr/local/share/: share/
       usr/share/qemu/kvmvapic.bin: share/qemu/
       usr/share/qemu/s390-ccw.img: share/qemu/
-      usr/share/qemu/s390-netboot.img: share/qemu/
       usr/share/qemu/slof.bin: share/qemu/
       usr/share/seabios/bios-256k.bin: share/qemu/
       usr/share/seabios/vgabios-*: share/qemu/
@@ -940,7 +939,6 @@ parts:
       - share/qemu/efi-virtio.rom
       - share/qemu/kvmvapic.bin
       - share/qemu/s390-ccw.img
-      - share/qemu/s390-netboot.img
       - share/qemu/slof.bin
       - share/qemu/vgabios-bochs-display.bin
       - share/qemu/vgabios-qxl.bin
