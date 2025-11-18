@@ -900,12 +900,6 @@ parts:
       # Apply patches from Ubuntu sources.
       QUILT_PATCHES=debian/patches quilt push -a
 
-      # Apply custom patches
-      # These patches enable more accurate error message returned in case of CPU registers mismatches.
-      # This is backported from QEMU v9.2.2.
-      patch -p1 < "${CRAFT_PROJECT_DIR}/patches/qemu-0001-kvm-Allow-kvm_arch_get-put_registers-to-accept-Error.patch"
-      patch -p1 < "${CRAFT_PROJECT_DIR}/patches/qemu-0002-target-i386-kvm-Report-which-action-failed-in-kvm_ar.patch"
-
       sed -i "s/^unset target_list$/target_list=\"${QEMUARCH}-softmmu\"/" configure
       sed -i 's#libseccomp_minver=".*#libseccomp_minver="0.0"#g' configure
 
