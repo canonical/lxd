@@ -455,6 +455,7 @@ if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_ha "clustering high availability"
     run_test test_clustering_handover "clustering handover"
     run_test test_clustering_rebalance "clustering rebalance"
+    run_test test_clustering_rebalance_remove_leader "clustering rebalance remove leader"
     run_test test_clustering_remove_raft_node "clustering remove raft node"
     run_test test_clustering_failure_domains "clustering failure domains"
     run_test test_clustering_image_refresh "clustering image refresh"
