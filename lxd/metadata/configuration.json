@@ -6138,15 +6138,6 @@
 						}
 					},
 					{
-						"ceph.osd.force_reuse": {
-							"defaultdesc": "`false`",
-							"longdesc": "",
-							"scope": "global",
-							"shortdesc": "Whether to allow reuse of an existing OSD storage pool already used by LXD",
-							"type": "bool"
-						}
-					},
-					{
 						"ceph.osd.pg_num": {
 							"defaultdesc": "`32`",
 							"longdesc": "",
@@ -6830,15 +6821,6 @@
 							"longdesc": "",
 							"scope": "global",
 							"shortdesc": "Whether the storage pool uses a thin pool for logical volumes",
-							"type": "bool"
-						}
-					},
-					{
-						"lvm.vg.force_reuse": {
-							"defaultdesc": "`false`",
-							"longdesc": "",
-							"scope": "global",
-							"shortdesc": "Force using an existing non-empty volume group",
 							"type": "bool"
 						}
 					},
