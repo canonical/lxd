@@ -254,7 +254,7 @@ func (d *ceph) Create() error {
 		}
 
 		if volExists {
-			return fmt.Errorf("Pool '%s' in cluster '%s' seems to be in use by another LXD instance", d.config["ceph.osd.pool_name"], d.config["ceph.cluster_name"])
+			return fmt.Errorf("Pool %q in cluster %q seems to be in use by another LXD instance", d.config["ceph.osd.pool_name"], d.config["ceph.cluster_name"])
 		}
 
 		// Create placeholder storage volume. Other LXD instances will use this to detect whether this osd
