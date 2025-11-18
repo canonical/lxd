@@ -301,6 +301,12 @@ EOF
       # Ensure that source.wipe allows the device to be reused
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool6" lvm source="${loop_device_3}" source.wipe=true volume.size="${DEFAULT_VOLUME_SIZE}"
 
+      # Ensure that lvm.vg.force_reuse allows the existing volume group to be reused.
+      # The name of the volume group is the same as the pool created in the step before.
+      ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool6-reuse" lvm source="lxdtest-$(basename "${LXD_DIR}")-pool6" || false
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool6-reuse" lvm source="lxdtest-$(basename "${LXD_DIR}")-pool6" lvm.vg.force_reuse=true
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool6-reuse"
+
       configure_loop_device loop_file_5 loop_device_5
       # Should fail if vg does not exist, since we have no way of knowing where
       # to create the vg without a block device path set.
