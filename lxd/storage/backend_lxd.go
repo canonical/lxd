@@ -130,6 +130,12 @@ func (b *lxdBackend) validateSource() error {
 		return err
 	}
 
+	// The driver decided to skip further source verification by returning an empty identifier.
+	// Skip comparing it against the identifier from other storage pools of the same type.
+	if sourceIdentifier == "" {
+		return nil
+	}
+
 	var poolNames []string
 
 	// Fetch the node local config of each storage pool.
