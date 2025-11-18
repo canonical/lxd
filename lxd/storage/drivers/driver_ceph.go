@@ -254,23 +254,17 @@ func (d *ceph) Create() error {
 		}
 
 		if volExists {
-			// ceph.osd.force_reuse is deprecated and should not be used. OSD pools are a logical
-			// construct there is no good reason not to create one for dedicated use by LXD.
-			if shared.IsFalseOrEmpty(d.config["ceph.osd.force_reuse"]) {
-				return fmt.Errorf("Pool %q in cluster %q seems to be in use by another LXD instance", d.config["ceph.osd.pool_name"], d.config["ceph.cluster_name"])
-			}
-
-			d.config["volatile.pool.pristine"] = "false"
-		} else {
-			// Create placeholder storage volume. Other LXD instances will use this to detect whether this osd
-			// pool is already in use by another LXD instance.
-			err := d.rbdCreateVolume(placeholderVol, "0")
-			if err != nil {
-				return err
-			}
-
-			d.config["volatile.pool.pristine"] = "true"
+			return fmt.Errorf("Pool %q in cluster %q seems to be in use by another LXD instance", d.config["ceph.osd.pool_name"], d.config["ceph.cluster_name"])
 		}
+
+		// Create placeholder storage volume. Other LXD instances will use this to detect whether this osd
+		// pool is already in use by another LXD instance.
+		err = d.rbdCreateVolume(placeholderVol, "0")
+		if err != nil {
+			return err
+		}
+
+		d.config["volatile.pool.pristine"] = "true"
 
 		// Use existing OSD pool.
 		msg, err := shared.RunCommandContext(d.state.ShutdownCtx, "ceph",
@@ -353,14 +347,6 @@ func (d *ceph) Validate(config map[string]string) error {
 		//  shortdesc: Name of the Ceph cluster in which to create new storage pools
 		//  scope: global
 		"ceph.cluster_name": validate.IsAny,
-		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.osd.force_reuse)
-		//
-		// ---
-		//  type: bool
-		//  defaultdesc: `false`
-		//  shortdesc: Whether to allow reuse of an existing OSD storage pool already used by LXD
-		//  scope: global
-		"ceph.osd.force_reuse": validate.Optional(validate.IsBool), // Deprecated, should not be used.
 		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.osd.pg_num)
 		//
 		// ---
