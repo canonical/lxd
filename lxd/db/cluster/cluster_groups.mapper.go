@@ -55,12 +55,6 @@ UPDATE cluster_groups
  WHERE id = ?
 `)
 
-// clusterGroupColumns returns a string of column names to be used with a SELECT statement for the entity.
-// Use this function when building statements to retrieve database entries matching the ClusterGroup entity.
-func clusterGroupColumns() string {
-	return "clusters_groups.id, clusters_groups.name, coalesce(clusters_groups.description, '')"
-}
-
 // getClusterGroups can be used to run handwritten sql.Stmts to return a slice of objects.
 func getClusterGroups(ctx context.Context, stmt *sql.Stmt, args ...any) ([]ClusterGroup, error) {
 	objects := make([]ClusterGroup, 0)

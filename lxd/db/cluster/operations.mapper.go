@@ -62,12 +62,6 @@ var operationDeleteByNodeID = RegisterStmt(`
 DELETE FROM operations WHERE node_id = ?
 `)
 
-// operationColumns returns a string of column names to be used with a SELECT statement for the entity.
-// Use this function when building statements to retrieve database entries matching the Operation entity.
-func operationColumns() string {
-	return "operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type"
-}
-
 // getOperations can be used to run handwritten sql.Stmts to return a slice of objects.
 func getOperations(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Operation, error) {
 	objects := make([]Operation, 0)

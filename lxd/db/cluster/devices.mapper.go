@@ -26,12 +26,6 @@ const deviceCreate = `INSERT INTO %s_devices (%s_id, name, type)
 
 const deviceDelete = `DELETE FROM %s_devices WHERE %s_id = ?`
 
-// deviceColumns returns a string of column names to be used with a SELECT statement for the entity.
-// Use this function when building statements to retrieve database entries matching the Device entity.
-func deviceColumns() string {
-	return "%s_devices.id, %s_devices.%s_id, %s_devices.name, %s_devices.type, %s_devices.config"
-}
-
 // getDevices can be used to run handwritten sql.Stmts to return a slice of objects.
 func getDevices(ctx context.Context, stmt *sql.Stmt, parent string, args ...any) ([]Device, error) {
 	objects := make([]Device, 0)

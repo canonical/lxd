@@ -26,12 +26,6 @@ const configCreate = `INSERT INTO %s_config (%s_id, key, value)
 
 const configDelete = `DELETE FROM %s_config WHERE %s_id = ?`
 
-// configColumns returns a string of column names to be used with a SELECT statement for the entity.
-// Use this function when building statements to retrieve database entries matching the Config entity.
-func configColumns() string {
-	return "%s_config.id, %s_config.%s_id, %s_config.key, %s_config.value"
-}
-
 // getConfig can be used to run handwritten sql.Stmts to return a slice of objects.
 func getConfig(ctx context.Context, stmt *sql.Stmt, parent string, args ...any) ([]Config, error) {
 	objects := make([]Config, 0)
