@@ -538,7 +538,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	clientType := requestor.ClientType()
 
 	if requestor.IsClusterNotification() {
-		n, err := network.LoadByName(s, projectName, req.Name)
+		n, err := network.LoadByName(r.Context(), s, projectName, req.Name)
 		if err != nil {
 			return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 		}
@@ -626,7 +626,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 				return response.SmartError(err)
 			}
 
-			n, err := network.LoadByName(s, projectName, req.Name)
+			n, err := network.LoadByName(r.Context(), s, projectName, req.Name)
 			if err != nil {
 				return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 			}
@@ -652,7 +652,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 
 	// Populate default config unless joining a cluster.
 	if clientType != request.ClientTypeJoiner {
-		err = netType.FillConfig(req.Config)
+		err = netType.FillConfig(r.Context(), req.Config)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -674,7 +674,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		})
 	})
 
-	n, err := network.LoadByName(s, projectName, req.Name)
+	n, err := network.LoadByName(r.Context(), s, projectName, req.Name)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -760,7 +760,7 @@ func networksPostCluster(ctx context.Context, s *state.State, projectName string
 		}
 
 		// Add default values if we are inserting global config for first time.
-		err = netType.FillConfig(req.Config)
+		err = netType.FillConfig(ctx, req.Config)
 		if err != nil {
 			return err
 		}
@@ -795,7 +795,7 @@ func networksPostCluster(ctx context.Context, s *state.State, projectName string
 	}
 
 	// Load the network from the database for the local member.
-	n, err := network.LoadByName(s, projectName, req.Name)
+	n, err := network.LoadByName(ctx, s, projectName, req.Name)
 	if err != nil {
 		return fmt.Errorf("Failed loading network: %w", err)
 	}
@@ -872,7 +872,7 @@ func doNetworksCreate(ctx context.Context, s *state.State, n network.Network, cl
 	if clientType != request.ClientTypeJoiner {
 		// Validate so that when run on a cluster node the full config (including node specific config)
 		// is checked.
-		err := n.Validate(n.Config())
+		err := n.Validate(ctx, n.Config())
 		if err != nil {
 			return err
 		}
@@ -884,17 +884,17 @@ func doNetworksCreate(ctx context.Context, s *state.State, n network.Network, cl
 	}
 
 	// Run initial creation setup for the network driver.
-	err := n.Create(clientType)
+	err := n.Create(ctx, clientType)
 	if err != nil {
 		return err
 	}
 
-	revert.Add(func() { _ = n.Delete(clientType) })
+	revert.Add(func() { _ = n.Delete(ctx, clientType) })
 
 	// Only start networks when not doing a cluster pre-join phase (this ensures that networks are only started
 	// once the node has fully joined the clustered database and has consistent config with rest of the nodes).
 	if clientType != request.ClientTypeJoiner {
-		err = n.Start()
+		err = n.Start(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed starting network: %w", err)
 		}
@@ -1014,7 +1014,7 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, requestProject
 	}
 
 	// Get some information.
-	n, err := network.LoadByName(s, effectiveProjectName, networkName)
+	n, err := network.LoadByName(r.Context(), s, effectiveProjectName, networkName)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 		return api.Network{}, fmt.Errorf("Failed loading network: %w", err)
 	}
@@ -1090,7 +1090,7 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, requestProject
 			networkID = n.ID()
 		}
 
-		usedBy, err := network.UsedBy(s, effectiveProjectName, networkID, apiNet.Name, apiNet.Type, false)
+		usedBy, err := network.UsedBy(r.Context(), s, effectiveProjectName, networkID, apiNet.Name, apiNet.Type, false)
 		if err != nil {
 			return api.Network{}, err
 		}
@@ -1159,7 +1159,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 // doNetworkDelete deletes the named network in the given project.
 func doNetworkDelete(ctx context.Context, s *state.State, name string, effectiveProjectName string, requestProjectConfig map[string]string) error {
 	// Get the existing network.
-	n, err := network.LoadByName(s, effectiveProjectName, name)
+	n, err := network.LoadByName(ctx, s, effectiveProjectName, name)
 	if err != nil {
 		return fmt.Errorf("Failed loading network: %w", err)
 	}
@@ -1177,7 +1177,7 @@ func doNetworkDelete(ctx context.Context, s *state.State, name string, effective
 	clusterNotification := requestor.IsClusterNotification()
 	if !clusterNotification {
 		// Quick checks.
-		inUse, err := n.IsUsed()
+		inUse, err := n.IsUsed(ctx)
 		if err != nil {
 			return err
 		}
@@ -1188,7 +1188,7 @@ func doNetworkDelete(ctx context.Context, s *state.State, name string, effective
 	}
 
 	if n.LocalStatus() != api.NetworkStatusPending {
-		err = n.Delete(requestor.ClientType())
+		err = n.Delete(ctx, requestor.ClientType())
 		if err != nil {
 			return fmt.Errorf("Failed to delete network: %w", err)
 		}
@@ -1294,7 +1294,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the existing network.
-	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
+	n, err := network.LoadByName(r.Context(), s, effectiveProjectName, details.networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -1319,7 +1319,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check network isn't in use.
-	inUse, err := n.IsUsed()
+	inUse, err := n.IsUsed(r.Context())
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed checking network in use: %w", err))
 	}
@@ -1345,7 +1345,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Rename it.
-	err = n.Rename(req.Name)
+	err = n.Rename(r.Context(), req.Name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1417,7 +1417,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the existing network.
-	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
+	n, err := network.LoadByName(r.Context(), s, effectiveProjectName, details.networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -1486,7 +1486,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	response := doNetworkUpdate(n, req, targetNode, requestor.ClientType(), r.Method, s.ServerClustered)
+	response := doNetworkUpdate(r.Context(), n, req, targetNode, requestor.ClientType(), r.Method, s.ServerClustered)
 
 	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkUpdated.Event(n, requestor.EventLifecycleRequestor(), nil))
 
@@ -1538,7 +1538,7 @@ func networkPatch(d *Daemon, r *http.Request) response.Response {
 
 // doNetworkUpdate loads the current local network config, merges with the requested network config, validates
 // and applies the changes. Will also notify other cluster nodes of non-node specific config if needed.
-func doNetworkUpdate(n network.Network, req api.NetworkPut, targetNode string, clientType request.ClientType, httpMethod string, clustered bool) response.Response {
+func doNetworkUpdate(ctx context.Context, n network.Network, req api.NetworkPut, targetNode string, clientType request.ClientType, httpMethod string, clustered bool) response.Response {
 	if req.Config == nil {
 		req.Config = map[string]string{}
 	}
@@ -1566,13 +1566,13 @@ func doNetworkUpdate(n network.Network, req api.NetworkPut, targetNode string, c
 	}
 
 	// Validate the merged configuration.
-	err := n.Validate(req.Config)
+	err := n.Validate(ctx, req.Config)
 	if err != nil {
 		return response.BadRequest(err)
 	}
 
 	// Apply the new configuration (will also notify other cluster nodes if needed).
-	err = n.Update(req, targetNode, clientType)
+	err = n.Update(ctx, req, targetNode, clientType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1642,7 +1642,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Attempt to load the network.
-	n, err := network.LoadByName(s, projectName, networkName)
+	n, err := network.LoadByName(r.Context(), s, projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -1657,7 +1657,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	leases, err := n.Leases(reqProject.Name, requestor.ClientType())
+	leases, err := n.Leases(r.Context(), reqProject.Name, requestor.ClientType())
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1680,12 +1680,12 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 
 	loadedNetworks := make(map[network.ProjectNetwork]network.Network)
 
-	initNetwork := func(s *state.State, n network.Network, priority int) error {
-		err = n.Start()
+	initNetwork := func(ctx context.Context, s *state.State, n network.Network, priority int) error {
+		err = n.Start(ctx)
 		if err != nil {
 			err = fmt.Errorf("Failed starting network: %w", err)
 
-			_ = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+			_ = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 				return tx.UpsertWarningLocalNode(ctx, n.Project(), entity.TypeNetwork, int(n.ID()), warningtype.NetworkUnvailable, err.Error())
 			})
 
@@ -1707,12 +1707,12 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 		return nil
 	}
 
-	restoreNetwork := func(n network.Network, priority int) error {
+	restoreNetwork := func(ctx context.Context, n network.Network, priority int) error {
 		if n.LocalStatus() != api.NetworkStatusCreated {
 			return fmt.Errorf("Cannot restore network %q when not in created state", n.Name())
 		}
 
-		err = n.Restore()
+		err = n.Restore(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed restoring network: %w", err)
 		}
@@ -1728,7 +1728,7 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 		return nil
 	}
 
-	loadAndStartupNetwork := func(s *state.State, pn network.ProjectNetwork, priority int, firstPass bool, restoreOnly bool) error {
+	loadAndStartupNetwork := func(ctx context.Context, s *state.State, pn network.ProjectNetwork, priority int, firstPass bool, restoreOnly bool) error {
 		var err error
 		var n network.Network
 
@@ -1736,7 +1736,7 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 			// Check if network already loaded from during first pass phase.
 			n = loadedNetworks[pn]
 		} else {
-			n, err = network.LoadByName(s, pn.ProjectName, pn.NetworkName)
+			n, err = network.LoadByName(ctx, s, pn.ProjectName, pn.NetworkName)
 			if err != nil {
 				if api.StatusErrorCheck(err, http.StatusNotFound) {
 					// Network has been deleted since we began trying to start it so delete
@@ -1751,7 +1751,7 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 		}
 
 		netConfig := n.Config()
-		err = n.Validate(netConfig)
+		err = n.Validate(ctx, netConfig)
 		if err != nil {
 			return fmt.Errorf("Failed validating: %w", err)
 		}
@@ -1776,10 +1776,10 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 		// When restoring a network don't enter the initNetwork function and simply run the network's Restore.
 		// The init takes care of e.g. clearing warnings related to the overall start of the network.
 		if restoreOnly {
-			return restoreNetwork(n, priority)
+			return restoreNetwork(ctx, n, priority)
 		}
 
-		return initNetwork(s, n, priority)
+		return initNetwork(ctx, s, n, priority)
 	}
 
 	remainingNetworksCount := func() int {
@@ -1827,7 +1827,7 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 		// Try initializing networks in priority order.
 		for priority := range startNetworks {
 			for pn := range startNetworks[priority] {
-				err := loadAndStartupNetwork(s, pn, priority, true, restoreOnly)
+				err := loadAndStartupNetwork(s.ShutdownCtx, s, pn, priority, true, restoreOnly)
 				if err != nil {
 					// When restoring a network the operation is not allowed to fail.
 					// The network is already started at this stage which might have taken multiple retries.
@@ -1865,7 +1865,7 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 					// Try initializing networks in priority order.
 					for priority := range startNetworks {
 						for pn := range startNetworks[priority] {
-							err := loadAndStartupNetwork(s, pn, priority, false, restoreOnly)
+							err := loadAndStartupNetwork(s.ShutdownCtx, s, pn, priority, false, restoreOnly)
 							if err != nil {
 								logger.Error("Failed initializing network", logger.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
 
@@ -1952,7 +1952,7 @@ func networkStop(s *state.State, evacuateOnly bool) {
 
 		// Bring them all down.
 		for _, name := range networks {
-			n, err := network.LoadByName(s, projectName, name)
+			n, err := network.LoadByName(context.TODO(), s, projectName, name)
 			if err != nil {
 				logger.Error("Failed shutting down network, couldn't load network", logger.Ctx{"network": name, "project": projectName, "err": err})
 				continue
@@ -1964,9 +1964,9 @@ func networkStop(s *state.State, evacuateOnly bool) {
 					continue
 				}
 
-				err = n.Evacuate()
+				err = n.Evacuate(context.TODO())
 			} else {
-				err = n.Stop()
+				err = n.Stop(context.TODO())
 			}
 
 			if err != nil {
@@ -2006,7 +2006,7 @@ func networkRestartOVN(s *state.State) error {
 
 		for _, networkName := range networkNames {
 			// Load the network struct.
-			n, err := network.LoadByName(s, projectName, networkName)
+			n, err := network.LoadByName(s.ShutdownCtx, s, projectName, networkName)
 			if err != nil {
 				return fmt.Errorf("Failed to load network %q in project %q: %w", networkName, projectName, err)
 			}
@@ -2017,7 +2017,7 @@ func networkRestartOVN(s *state.State) error {
 			}
 
 			// Restart the network.
-			err = n.Start()
+			err = n.Start(s.ShutdownCtx)
 			if err != nil {
 				return fmt.Errorf("Failed to restart network %q in project %q: %w", networkName, projectName, err)
 			}
@@ -2092,7 +2092,7 @@ func networkStateGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(s, projectName, networkName)
+	n, err := network.LoadByName(r.Context(), s, projectName, networkName)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -2104,7 +2104,7 @@ func networkStateGet(d *Daemon, r *http.Request) response.Response {
 
 	var state *api.NetworkState
 	if n != nil {
-		state, err = n.State()
+		state, err = n.State(r.Context())
 		if err != nil {
 			return response.SmartError(err)
 		}
