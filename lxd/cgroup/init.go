@@ -17,17 +17,17 @@ var cgControllers = map[string]Backend{}
 var cgNamespace bool
 
 // Layout determines the cgroup layout on this system.
-type Layout int
+type Layout string
 
 const (
 	// CgroupsDisabled indicates that cgroups are not supported.
-	CgroupsDisabled Layout = iota
+	CgroupsDisabled Layout = "disabled"
 	// CgroupsUnified indicates that this is a pure cgroup2 layout.
-	CgroupsUnified
+	CgroupsUnified Layout = "cgroup2"
 	// CgroupsHybrid indicates that this is a mixed cgroup1 and cgroup2 layout.
-	CgroupsHybrid
+	CgroupsHybrid Layout = "hybrid"
 	// CgroupsLegacy indicates that this is a pure cgroup1 layout.
-	CgroupsLegacy
+	CgroupsLegacy Layout = "legacy"
 )
 
 var cgLayout Layout
@@ -48,22 +48,6 @@ func GetInfo() Info {
 	info.Layout = cgLayout
 
 	return info
-}
-
-// Mode returns the cgroup layout name.
-func (info *Info) Mode() string {
-	switch info.Layout {
-	case CgroupsDisabled:
-		return "disabled"
-	case CgroupsUnified:
-		return "cgroup2"
-	case CgroupsHybrid:
-		return "hybrid"
-	case CgroupsLegacy:
-		return "legacy"
-	}
-
-	return "unknown"
 }
 
 // Resource is a generic type used to abstract resource control features
