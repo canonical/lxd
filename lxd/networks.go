@@ -1075,7 +1075,7 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, requestProject
 		apiNet.Type = "bond"
 	} else {
 		ovs := openvswitch.NewOVS()
-		exists, _ := ovs.BridgeExists(apiNet.Name)
+		exists, _ := ovs.BridgeExists(r.Context(), apiNet.Name)
 		if exists {
 			apiNet.Type = "bridge"
 		} else {
