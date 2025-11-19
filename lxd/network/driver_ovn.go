@@ -3220,7 +3220,7 @@ func (n *ovn) Start(ctx context.Context) error {
 	var chassisEnabled bool
 	err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the project ID.
-		projectID, err = dbCluster.GetProjectID(context.Background(), tx.Tx(), n.project)
+		projectID, err = dbCluster.GetProjectID(ctx, tx.Tx(), n.project)
 		if err != nil {
 			return err
 		}
