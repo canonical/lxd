@@ -397,10 +397,10 @@ export LXD_SKIP_TESTS="${LXD_SKIP_TESTS:-}"
 
 export LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
 
-# This must be enough to accomodate the busybox testimage
+# This must be enough to accommodate the busybox testimage
 export SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
 
-# This must be enough to accomodate the ubuntu-minimal-daily:24.04 image
+# This must be enough to accommodate the ubuntu-minimal-daily:24.04 image
 export SMALLEST_VM_ROOT_DISK="3584MiB"
 export SMALL_VM_ROOT_DISK="${SMALL_VM_ROOT_DISK:-"root,size=${SMALLEST_VM_ROOT_DISK}"}"
 
@@ -503,7 +503,6 @@ if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "cluster" ]; then
     run_test test_remote_url_with_token "remote token handling"
     run_test test_remote_admin "remote administration"
     run_test test_remote_usage "remote usage"
-    run_test test_vm_empty "Empty VM"
     run_test test_projects_default "default project"
     run_test test_projects_copy "copy/move between projects"
     run_test test_projects_crud "projects CRUD operations"
@@ -647,6 +646,8 @@ if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "cluster" ]; then
 fi
 
 if [ "${1:-"all"}" != "cluster" ] && [ "${1:-"all"}" != "standalone" ]; then
+    run_test test_vm_empty "Empty VM"
+    run_test test_vm_pcie_bus "VM PCIe bus numbers"
     run_test test_snap_basic_usage_vm "snap basic usage VM"
     run_test test_snap_vm_empty "snap empty VM"
     run_test test_snap_lxd_user "snap lxd-user"
