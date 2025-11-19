@@ -78,6 +78,8 @@ var apiDevLXD = []APIEndpoint{
 	devLXDStoragePoolVolumeTypeEndpoint,
 	devLXDStoragePoolVolumesEndpoint,
 	devLXDStoragePoolVolumesTypeEndpoint,
+	devLXDStoragePoolVolumeSnapshotEndpoint,
+	devLXDStoragePoolVolumeSnapshotsEndpoint,
 	devLXDUbuntuProEndpoint,
 	devLXDUbuntuProTokenEndpoint,
 }
