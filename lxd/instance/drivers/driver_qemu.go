@@ -5621,7 +5621,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 	}
 
 	// Update lease files.
-	err = network.UpdateDNSMasqStatic(d.state, "")
+	err = network.UpdateDNSMasqStatic(context.TODO(), d.state, "")
 	if err != nil {
 		return err
 	}

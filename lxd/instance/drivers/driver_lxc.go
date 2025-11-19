@@ -3717,7 +3717,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 	d.cConfig = false
 
 	// Update lease files.
-	err = network.UpdateDNSMasqStatic(d.state, "")
+	err = network.UpdateDNSMasqStatic(context.TODO(), d.state, "")
 	if err != nil {
 		return err
 	}
