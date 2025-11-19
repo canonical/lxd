@@ -1,6 +1,7 @@
 package device
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -80,7 +81,7 @@ func (d *infinibandSRIOV) startContainer() (*deviceConfig.RunConfig, error) {
 	delete(ibDevs, d.config["parent"])
 
 	// Load any interfaces already allocated to other devices.
-	reservedDevices, err := network.SRIOVGetHostDevicesInUse(d.state)
+	reservedDevices, err := network.SRIOVGetHostDevicesInUse(context.TODO(), d.state)
 	if err != nil {
 		return nil, err
 	}
