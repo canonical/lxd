@@ -1284,13 +1284,13 @@ func (n *bridge) startDnsmasq(ctx context.Context, dnsmasqCmd []string, dnsClust
 	}
 
 	// Start dnsmasq.
-	err = p.Start(context.Background())
+	err = p.Start(n.state.ShutdownCtx)
 	if err != nil {
 		return fmt.Errorf("Failed to run: %s %s: %w", command, strings.Join(dnsmasqCmd, " "), err)
 	}
 
 	// Check dnsmasq started OK.
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Millisecond*500))
+	ctx, cancel := context.WithDeadline(n.state.ShutdownCtx, time.Now().Add(time.Millisecond*500))
 	_, err = p.Wait(ctx)
 	cancel()
 
@@ -2518,7 +2518,7 @@ func (n *bridge) spawnForkDNS(listenAddress string) error {
 	// Apply AppArmor profile.
 	p.SetApparmor(apparmor.ForkdnsProfileName(n))
 
-	err = p.Start(context.Background())
+	err = p.Start(n.state.ShutdownCtx)
 	if err != nil {
 		return fmt.Errorf("Failed to run: %s %s: %w", command, strings.Join(forkdnsargs, " "), err)
 	}
