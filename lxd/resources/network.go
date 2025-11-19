@@ -10,7 +10,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/jaypipes/pcidb"
 	"golang.org/x/sys/unix"
@@ -528,11 +527,11 @@ func getNativeBridgeState(bridgePath string, name string) *api.NetworkStateBridg
 
 // Fetch OVS bridge information.
 // Returns nil if interface is not an OVS bridge.
-func getOVSBridgeState(name string) *api.NetworkStateBridge {
+func getOVSBridgeState(ctx context.Context, name string) *api.NetworkStateBridge {
 	ovs := openvswitch.NewOVS()
 	isOVSBridge := false
 	if ovs.Installed() {
-		isOVSBridge, _ = ovs.BridgeExists(name)
+		isOVSBridge, _ = ovs.BridgeExists(ctx, name)
 	}
 
 	if !isOVSBridge {
@@ -540,8 +539,6 @@ func getOVSBridgeState(name string) *api.NetworkStateBridge {
 	}
 
 	bridge := api.NetworkStateBridge{}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
-	defer cancel()
 
 	// Bridge ID
 	strValue, err := ovs.GenerateOVSBridgeID(ctx, name)
@@ -574,7 +571,7 @@ func getOVSBridgeState(name string) *api.NetworkStateBridge {
 	}
 
 	// Upper devices
-	entries, err := ovs.BridgePortList(name)
+	entries, err := ovs.BridgePortList(ctx, name)
 	if err == nil {
 		bridge.UpperDevices = append(bridge.UpperDevices, entries...)
 	}
@@ -704,7 +701,7 @@ func GetNetworkState(name string) (*api.NetworkState, error) {
 	if pathExists(bridgePath) {
 		network.Bridge = getNativeBridgeState(bridgePath, name)
 	} else {
-		network.Bridge = getOVSBridgeState(name)
+		network.Bridge = getOVSBridgeState(context.TODO(), name)
 	}
 
 	// Populate VLAN details.
