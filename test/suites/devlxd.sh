@@ -519,6 +519,108 @@ EOF
   fi
 }
 
+test_devlxd_volume_management_snapshots() {
+  local testName="devlxd-volume-mgmt"
+
+  local instPrefix="${testName}"
+  local pool="${testName}"
+  local project="${testName}"
+  local authGroup="${testName}-group"
+  local authIdentity="devlxd/${testName}-identity"
+
+  poolDriver="$(storage_backend "$LXD_DIR")"
+  lxc storage create "${pool}" "${poolDriver}"
+
+  if [ "${project}" != "default" ]; then
+    lxc project create "${project}" --config features.images=false
+  fi
+
+  local instTypes="container"
+  ensure_import_testimage
+
+  if [ "${LXD_VM_TESTS:-0}" != "0" ]; then
+    instTypes="${instTypes} virtual-machine"
+    ensure_import_ubuntu_vm_image
+  fi
+
+  for instType in $instTypes; do
+    inst="${instPrefix}-${instType}"
+
+    image="testimage"
+    opts="--storage ${pool} --config security.devlxd.management.volumes=true"
+    if [ "${instType}" = "virtual-machine" ]; then
+        image="ubuntu-vm"
+        opts="$opts --vm --config limits.memory=384MiB --device ${SMALL_VM_ROOT_DISK}"
+    fi
+
+    # shellcheck disable=SC2086 # Variable "opts" must not be quoted, we want word splitting.
+    lxc launch "${image}" "${inst}" $opts --project "${project}"
+    waitInstanceReady "${inst}" "${project}"
+
+    # Install devlxd-client and make sure it works.
+    lxc file push --project "${project}" --quiet "$(command -v devlxd-client)" "${inst}/bin/"
+    lxc exec --project "${project}" "${inst}" -- devlxd-client
+
+    # Create identity with all volume management permissions.
+    lxc auth group create "${authGroup}"
+    lxc auth identity create "${authIdentity}" --group "${authGroup}"
+    token=$(lxc auth identity token issue "${authIdentity}" --quiet)
+
+    # Grant permissions.
+    lxc auth group permission add "${authGroup}" project "${project}" can_view
+    lxc auth group permission add "${authGroup}" project "${project}" storage_volume_manager
+
+    # Create a custom storage volume.
+    vol1='{
+    "name": "vol-01",
+    "type": "custom",
+    "config": {
+        "size": "8MiB"
+    }
+}'
+
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${vol1}"
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-volume "${pool}" custom vol-01
+
+    # Create snapshots with custom and auto-generated names.
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-snapshot "${pool}" custom vol-01 "{}"
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-snapshot "${pool}" custom vol-01 '{"name": "my-snap"}'
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-snapshot "${pool}" custom non-existing "{}")" = "Storage volume not found" ]
+
+    # Fetch snapshots.
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-snapshot "${pool}" custom vol-01 snap0
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-snapshot "${pool}" custom vol-01 my-snap
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage get-snapshot "${pool}" custom vol-01 non-existing)" = "Storage volume not found" ]
+
+    # List snapshots.
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage snapshots "${pool}" custom vol-01 | jq --exit-status 'length == 2'
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage snapshots "${pool}" custom non-existing)" = "Storage volume not found" ]
+
+    # Delete snapshots.
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage delete-snapshot "${pool}" custom vol-01 my-snap
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage snapshots "${pool}" custom vol-01 | jq --exit-status 'length == 1'
+
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage delete-snapshot "${pool}" custom vol-01 snap0
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage snapshots "${pool}" custom vol-01 | jq --exit-status 'length == 0'
+
+    # Delete storage volume.
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage delete-volume "${pool}" custom vol-01
+
+    # Cleanup.
+    imageFingerprint="$(lxc config get "${inst}" volatile.base_image --project "${project}")"
+    lxc delete "${inst}" --project "${project}" --force
+    lxc image delete "${imageFingerprint}" --project "${project}"
+    lxc auth identity delete "${authIdentity}"
+    lxc auth group delete "${authGroup}"
+  done
+
+  # Cleanup.
+  lxc storage delete "${pool}"
+  if [ "${project}" != "default" ]; then
+      lxc project delete "${project}"
+  fi
+}
+
 test_devlxd_vm() {
   pool="lxdtest-$(basename "${LXD_DIR}")"
   orig_volume_size="$(lxc storage get "${pool}" volume.size)"
