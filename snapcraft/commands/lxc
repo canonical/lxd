@@ -1,12 +1,6 @@
 #!/bin/sh
 set -eu
 
-# Re-exec outside of apparmor confinement
-label="$(cat /proc/self/attr/current 2>/dev/null || echo "unconfined")"
-if [ "${label}" != "unconfined" ] && [ -n "${label##*(unconfined)}" ]; then
-  exec aa-exec -p unconfined -- "$0" "$@"
-fi
-
 # Fill SNAP_REAL_HOME if missing
 if [ -z "${SNAP_REAL_HOME:-""}" ]; then
     SNAP_REAL_HOME="${HOME}"
@@ -44,6 +38,11 @@ export PATH="/run/bin:${PATH}"
 LXC="${SNAP}/bin/lxc"
 if [ -x "${SNAP_COMMON}/lxc.debug" ]; then
     LXC="${SNAP_COMMON}/lxc.debug"
+fi
+
+# Run lxc itself outside of apparmor confinement
+if [ -d /sys/kernel/security/apparmor ]; then
+  exec /usr/bin/aa-exec -p unconfined -- "${LXC}" "$@"
 fi
 
 # Run lxc itself
