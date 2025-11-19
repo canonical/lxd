@@ -1333,7 +1333,7 @@ func (d *Daemon) init() error {
 
 	dbWarnings = append(dbWarnings, d.os.CGInfo.Warnings()...)
 
-	logger.Infof(" - cgroup layout: %s", d.os.CGInfo.Mode())
+	logger.Infof(" - cgroup layout: %s", d.os.CGInfo.Layout)
 
 	for _, w := range dbWarnings {
 		logger.Warnf(" - %s, %s", warningtype.TypeNames[warningtype.Type(w.TypeCode)], w.LastMessage)
