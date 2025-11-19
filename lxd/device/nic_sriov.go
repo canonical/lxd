@@ -1,6 +1,7 @@
 package device
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -64,7 +65,7 @@ func (d *nicSRIOV) validateConfig(instConf instance.ConfigReader) error {
 		// If network property is specified, lookup network settings and apply them to the device's config.
 		// api.ProjectDefaultName is used here as macvlan networks don't support projects.
 		var err error
-		d.network, err = network.LoadByName(d.state, api.ProjectDefaultName, d.config["network"])
+		d.network, err = network.LoadByName(context.TODO(), d.state, api.ProjectDefaultName, d.config["network"])
 		if err != nil {
 			return fmt.Errorf("Error loading network config for %q: %w", d.config["network"], err)
 		}
@@ -158,7 +159,7 @@ func (d *nicSRIOV) Start() (*deviceConfig.RunConfig, error) {
 
 	// Find free VF exclusively.
 	network.SRIOVVirtualFunctionMutex.Lock()
-	vfDev, vfID, err := network.SRIOVFindFreeVirtualFunction(d.state, d.config["parent"])
+	vfDev, vfID, err := network.SRIOVFindFreeVirtualFunction(context.TODO(), d.state, d.config["parent"])
 	if err != nil {
 		network.SRIOVVirtualFunctionMutex.Unlock()
 		return nil, err

@@ -212,7 +212,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 
 		// Load managed network. api.ProjectDefaultName is used here as bridge networks don't support projects.
 		var err error
-		d.network, err = network.LoadByName(d.state, api.ProjectDefaultName, d.config["network"])
+		d.network, err = network.LoadByName(context.TODO(), d.state, api.ProjectDefaultName, d.config["network"])
 		if err != nil {
 			return fmt.Errorf("Error loading network config for %q: %w", d.config["network"], err)
 		}
@@ -247,7 +247,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 
 		// Check if parent is a managed network.
 		// api.ProjectDefaultName is used here as bridge networks don't support projects.
-		d.network, _ = network.LoadByName(d.state, api.ProjectDefaultName, d.config["parent"])
+		d.network, _ = network.LoadByName(context.TODO(), d.state, api.ProjectDefaultName, d.config["parent"])
 		if d.network != nil {
 			// Validate NIC settings with managed network.
 			err := checkWithManagedNetwork(d.network)
@@ -381,7 +381,7 @@ func (d *nicBridged) checkAddressConflict() error {
 	}
 
 	// Bridge networks are always in the default project.
-	return network.UsedByInstanceDevices(d.state, api.ProjectDefaultName, networkName, "bridge", func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
+	return network.UsedByInstanceDevices(context.TODO(), d.state, api.ProjectDefaultName, networkName, "bridge", func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 		// Skip our own device. This avoids triggering duplicate device errors during
 		// updates or when making temporary copies of our instance during migrations.
 		sameLogicalInstance := instance.IsSameLogicalInstance(d.inst, &inst)
@@ -584,12 +584,12 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	revert.Add(r)
 
 	// Attach host side veth interface to bridge.
-	err = network.AttachInterface(d.config["parent"], saveData["host_name"])
+	err = network.AttachInterface(context.TODO(), d.config["parent"], saveData["host_name"])
 	if err != nil {
 		return nil, err
 	}
 
-	revert.Add(func() { _ = network.DetachInterface(d.config["parent"], saveData["host_name"]) })
+	revert.Add(func() { _ = network.DetachInterface(context.TODO(), d.config["parent"], saveData["host_name"]) })
 
 	// Attempt to disable router advertisement acceptance.
 	err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", saveData["host_name"]), "0")
@@ -848,7 +848,7 @@ func (d *nicBridged) postStop() error {
 
 	if d.config["host_name"] != "" && network.InterfaceExists(d.config["host_name"]) {
 		// Detach host-side end of veth pair from bridge (required for openvswitch particularly).
-		err := network.DetachInterface(bridgeName, d.config["host_name"])
+		err := network.DetachInterface(context.TODO(), bridgeName, d.config["host_name"])
 		if err != nil {
 			return fmt.Errorf("Failed to detach interface %q from %q: %w", d.config["host_name"], bridgeName, err)
 		}

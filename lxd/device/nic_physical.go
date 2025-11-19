@@ -1,6 +1,7 @@
 package device
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -64,7 +65,7 @@ func (d *nicPhysical) validateConfig(instConf instance.ConfigReader) error {
 		// If network property is specified, lookup network settings and apply them to the device's config.
 		// api.ProjectDefaultName is used here as physical networks don't support projects.
 		var err error
-		d.network, err = network.LoadByName(d.state, api.ProjectDefaultName, d.config["network"])
+		d.network, err = network.LoadByName(context.TODO(), d.state, api.ProjectDefaultName, d.config["network"])
 		if err != nil {
 			return fmt.Errorf("Error loading network config for %q: %w", d.config["network"], err)
 		}
