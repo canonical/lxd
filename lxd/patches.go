@@ -219,7 +219,7 @@ func selectedPatchClusterMember(s *state.State) (bool, error) {
 // Patches begin here
 
 func patchDnsmasqEntriesIncludeDeviceName(name string, d *Daemon) error {
-	err := network.UpdateDNSMasqStatic(d.State(), "")
+	err := network.UpdateDNSMasqStatic(d.shutdownCtx, d.State(), "")
 	if err != nil {
 		return err
 	}
