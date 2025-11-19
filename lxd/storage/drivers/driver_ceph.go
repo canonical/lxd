@@ -141,12 +141,6 @@ func (d *ceph) FillConfig() error {
 
 // SourceIdentifier returns a combined string consisting of the cluster and pool name.
 func (d *ceph) SourceIdentifier() (string, error) {
-	// Return an empty identifier in case the pool should be force reused.
-	// This indicates the backend to skip further source verification.
-	if shared.IsTrue(d.config["ceph.osd.force_reuse"]) {
-		return "", nil
-	}
-
 	cluster := d.config["ceph.cluster_name"]
 	if cluster == "" {
 		return "", errors.New("Cannot derive identifier from empty cluster name")
