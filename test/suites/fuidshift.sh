@@ -1,4 +1,7 @@
 _common_fuidshift() {
+  # show help when no argument is provided
+  fuidshift > /dev/null
+
   # test some bad arguments
   ! fuidshift /tmp -t b:0 > /dev/null 2>&1 || false
   ! fuidshift /tmp -t x:0:0:0 > /dev/null 2>&1 || false
@@ -37,6 +40,9 @@ _nonroot_fuidshift() {
 }
 
 _root_fuidshift() {
+  # error out due to needing root
+  ! sudo -u nobody "$(command -v fuidshift)" my-dir/ b:0:100000:65536 u:10000:1000:1 || false
+
   _nonroot_fuidshift
 
   # Todo - test ranges
