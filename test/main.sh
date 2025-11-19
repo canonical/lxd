@@ -397,8 +397,15 @@ export LXD_SKIP_TESTS="${LXD_SKIP_TESTS:-}"
 
 export LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
 
-# This must be enough to accomodate the busybox testimage
+# This must be enough to accommodate the busybox testimage
 export SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
+
+# This must be enough to accommodate the ubuntu-minimal-daily:24.04 image
+export SMALLEST_VM_ROOT_DISK="3584MiB"
+export SMALL_VM_ROOT_DISK="${SMALL_VM_ROOT_DISK:-"root,size=${SMALLEST_VM_ROOT_DISK}"}"
+
+# Create GOCOVERDIR if needed
+[ -n "${GOCOVERDIR:-}" ] && mkdir -p "${GOCOVERDIR}"
 
 # Spawn an interactive test shell when invoked as `./main.sh test-shell`.
 # This is useful for quick interactions with LXD and its test suite.
