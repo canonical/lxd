@@ -1586,7 +1586,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	if len(fwClearIPVersions) > 0 {
 		n.logger.Debug("Clearing firewall")
-		err = n.state.Firewall.NetworkClear(n.name, false, fwClearIPVersions)
+		err = n.state.Firewall.NetworkClear(context.TODO(), n.name, false, fwClearIPVersions)
 		if err != nil {
 			return fmt.Errorf("Failed clearing firewall: %w", err)
 		}
@@ -2254,7 +2254,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	// Setup firewall.
 	n.logger.Debug("Setting up firewall")
-	err = n.state.Firewall.NetworkSetup(n.name, ipv4Address, ipv6Address, fwOpts)
+	err = n.state.Firewall.NetworkSetup(context.TODO(), n.name, ipv4Address, ipv6Address, fwOpts)
 	if err != nil {
 		return fmt.Errorf("Failed to setup firewall: %w", err)
 	}
@@ -2347,7 +2347,7 @@ func (n *bridge) Stop() error {
 
 	if len(fwClearIPVersions) > 0 {
 		n.logger.Debug("Deleting firewall")
-		err := n.state.Firewall.NetworkClear(n.name, true, fwClearIPVersions)
+		err := n.state.Firewall.NetworkClear(context.TODO(), n.name, true, fwClearIPVersions)
 		if err != nil {
 			return fmt.Errorf("Failed deleting firewall: %w", err)
 		}
@@ -3591,7 +3591,7 @@ func (n *bridge) forwardSetupFirewall() error {
 		}
 	}
 
-	err = n.state.Firewall.NetworkApplyForwards(n.name, fwForwards)
+	err = n.state.Firewall.NetworkApplyForwards(context.TODO(), n.name, fwForwards)
 	if err != nil {
 		return fmt.Errorf("Failed applying firewall address forwards: %w", err)
 	}
