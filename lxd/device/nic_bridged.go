@@ -1598,7 +1598,7 @@ func (d *nicBridged) setupOVSBridgePortVLANs(hostName string) error {
 		// Order is important here, as vlan_mode is set to "access", assuming that vlan.tagged is not used.
 		// If vlan.tagged is specified, then we expect it to also change the vlan_mode as needed.
 		if d.config["vlan"] != "none" {
-			err := ovs.BridgePortSet(hostName, "vlan_mode=access", "tag="+string(d.config["vlan"]))
+			err := ovs.BridgePortSet(context.TODO(), hostName, "vlan_mode=access", "tag="+string(d.config["vlan"]))
 			if err != nil {
 				return err
 			}
@@ -1628,7 +1628,7 @@ func (d *nicBridged) setupOVSBridgePortVLANs(hostName string) error {
 		// Also set the vlan_mode as needed from above.
 		// Must come after the PortSet command used for setting "vlan" mode above so that the correct
 		// vlan_mode is retained.
-		err = ovs.BridgePortSet(hostName, "vlan_mode="+vlanMode, "trunks="+strings.Join(vlanIDs, ","))
+		err = ovs.BridgePortSet(context.TODO(), hostName, "vlan_mode="+vlanMode, "trunks="+strings.Join(vlanIDs, ","))
 		if err != nil {
 			return err
 		}
