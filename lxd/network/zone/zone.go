@@ -385,7 +385,7 @@ func (d *zone) Content(ctx context.Context) (*strings.Builder, error) {
 			}
 
 			// Load the network.
-			n, err := network.LoadByName(d.state, netProjectName, netInfo.Name)
+			n, err := network.LoadByName(ctx, d.state, netProjectName, netInfo.Name)
 			if err != nil {
 				return nil, err
 			}
@@ -457,7 +457,7 @@ func (d *zone) Content(ctx context.Context) (*strings.Builder, error) {
 					}
 
 					// Load the leases for the forward zone project.
-					leases, err := n.Leases(forwardZoneProjectName, request.ClientTypeNormal)
+					leases, err := n.Leases(ctx, forwardZoneProjectName, request.ClientTypeNormal)
 					if err != nil {
 						return nil, err
 					}
@@ -477,7 +477,7 @@ func (d *zone) Content(ctx context.Context) (*strings.Builder, error) {
 				}
 			} else {
 				// Load the leases in the forward zone's project.
-				leases, err := n.Leases(d.projectName, request.ClientTypeNormal)
+				leases, err := n.Leases(ctx, d.projectName, request.ClientTypeNormal)
 				if err != nil {
 					return nil, err
 				}
