@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -65,7 +66,7 @@ func AttachInterface(bridgeName string, devName string) error {
 		}
 	} else {
 		ovs := openvswitch.NewOVS()
-		err := ovs.BridgePortAdd(bridgeName, devName, true)
+		err := ovs.BridgePortAdd(context.TODO(), bridgeName, devName, true)
 		if err != nil {
 			return err
 		}
@@ -84,7 +85,7 @@ func DetachInterface(bridgeName string, devName string) error {
 		}
 	} else {
 		ovs := openvswitch.NewOVS()
-		err := ovs.BridgePortDelete(bridgeName, devName)
+		err := ovs.BridgePortDelete(context.TODO(), bridgeName, devName)
 		if err != nil {
 			return err
 		}
