@@ -453,7 +453,6 @@ var APIExtensions = []string{
 	"oidc_client_secret",
 	"pci_hotplug",
 	"device_patch_removal",
-	"auth_secrets",
 	"daemon_storage_per_project",
 	"ovn_internal_load_balancer",
 	"auth_bearer_devlxd",

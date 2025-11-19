@@ -2711,14 +2711,6 @@ This adds PCI device hotplugging for VMs.
 
 The `PATCH /1.0/instances/{name}` endpoint allows removing an instance device by setting its value to `null` in the devices map.
 
-## `auth_secrets`
-
-This adds a new, cluster-wide core secret.
-All encryption keys are derived from the core secret using a random salt.
-Derived keys are used to encrypt OIDC credential cookies, and will be used for other general encryption purposes in the future.
-
-The {config:option}`server-core:core.auth_secret_expiry` configuration option can set to define how long a given secret can be used for before it expires.
-
 ## `daemon_storage_per_project`
 
 This introduces two new configuration keys {config:option}`server-miscellaneous:storage.project.{name}.images_volume` and
@@ -2800,6 +2792,10 @@ Adds session support for OIDC authentication. This enables compatibility with id
 
 When a session expires, LXD will re-verify the login with the identity provider.
 The duration of OIDC sessions defaults to one week and can be configured via the {config:option}`server-oidc:oidc.session.expiry` configuration key.
+
+Verification of an OIDC session depends on a new, cluster-wide core secret.
+The OIDC session expiry can never be greater than the expiry of the core secret.
+The {config:option}`server-core:core.auth_secret_expiry` configuration option can set to define how long a given secret can be used for before it expires.
 
 (extension-instance-snapshots-multi-volume)=
 ## `instance_snapshots_multi_volume`
