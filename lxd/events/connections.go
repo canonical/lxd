@@ -253,6 +253,9 @@ func (e *simpleListenerConnection) Reader(ctx context.Context, recvFunc EventHan
 
 // WriteJSON sends a JSON event to the simple connection.
 func (e *simpleListenerConnection) WriteJSON(event any) error {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+
 	err := json.NewEncoder(e.rwc).Encode(event)
 	if err != nil {
 		return err
