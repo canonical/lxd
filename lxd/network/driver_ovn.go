@@ -4935,6 +4935,7 @@ func (n *ovn) allocateUplinkAddress(ctx context.Context, listenIPAddress net.IP)
 			ipVersion = 6
 		}
 
+		// Enforce a 5 second time limit on auto allocation.
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
