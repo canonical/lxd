@@ -23,4 +23,10 @@ For full instructions on updating or upgrading LXD via its [snap package](https:
 (ref-release-notes-releases)=
 ## Releases
 
+```{toctree}
+:titlesonly:
+
+LXD 6.6 </reference/release-notes/release-notes-6.6>
+```
+
 For older release notes, see [our Discourse forum](https://discourse.ubuntu.com/tags/c/lxd/126/release).
