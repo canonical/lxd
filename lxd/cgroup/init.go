@@ -104,123 +104,14 @@ const (
 	Pids
 )
 
-// SupportsVersion indicates whether or not a given cgroup resource is
-// controllable and in which type of cgroup filesystem.
-func (info *Info) SupportsVersion(resource Resource) (Backend, bool) {
-	switch resource {
-	case Blkio:
-		val, ok := cgControllers["blkio"]
-		if ok {
-			return val, ok
-		}
-
-		val, ok = cgControllers["io"]
-		if ok {
-			return val, ok
-		}
-
-		return Unavailable, false
-	case BlkioWeight:
-		val, ok := cgControllers["blkio.weight"]
-		if ok {
-			return val, ok
-		}
-
-		val, ok = cgControllers["io"]
-		if ok {
-			return val, ok
-		}
-
-		return Unavailable, false
-	case CPU:
-		val, ok := cgControllers["cpu"]
-		return val, ok
-	case CPUAcct:
-		val, ok := cgControllers["cpuacct"]
-		if ok {
-			return val, ok
-		}
-
-		val, ok = cgControllers["cpu"]
-		if ok {
-			return val, ok
-		}
-
-		return Unavailable, false
-	case CPUSet:
-		val, ok := cgControllers["cpuset"]
-		return val, ok
-	case Devices:
-		val, ok := cgControllers["devices"]
-		return val, ok
-	case Freezer:
-		val, ok := cgControllers["freezer"]
-		return val, ok
-	case Hugetlb:
-		val, ok := cgControllers["hugetlb"]
-		return val, ok
-	case Memory:
-		val, ok := cgControllers["memory"]
-		return val, ok
-	case MemoryMaxUsage:
-		val, ok := cgControllers["memory.max_usage_in_bytes"]
-		return val, ok
-	case MemorySwap:
-		val, ok := cgControllers["memory.memsw.limit_in_bytes"]
-		if ok {
-			return val, ok
-		}
-
-		val, ok = cgControllers["memory.swap.max"]
-		if ok {
-			return val, ok
-		}
-
-		return Unavailable, false
-	case MemorySwapMaxUsage:
-		val, ok := cgControllers["memory.memsw.max_usage_in_bytes"]
-		if ok {
-			return val, ok
-		}
-
-		return Unavailable, false
-	case MemorySwapUsage:
-		val, ok := cgControllers["memory.memsw.usage_in_bytes"]
-		if ok {
-			return val, ok
-		}
-
-		val, ok = cgControllers["memory.swap.current"]
-		if ok {
-			return val, ok
-		}
-
-		return Unavailable, false
-	case MemorySwappiness:
-		val, ok := cgControllers["memory.swappiness"]
-		if ok {
-			return val, ok
-		}
-
-		return Unavailable, false
-	case NetPrio:
-		val, ok := cgControllers["net_prio"]
-		return val, ok
-	case Pids:
-		val, ok := cgControllers["pids"]
-		if ok {
-			return val, ok
-		}
-
-		return Unavailable, false
-	}
-
-	return Unavailable, false
-}
-
 // Supports indicates whether or not a given resource is controllable.
 func (info *Info) Supports(resource Resource, cgroup *CGroup) bool {
-	val, ok := info.SupportsVersion(resource)
+	keys, ok := resourceMap[resource]
+	if !ok {
+		return false
+	}
+
+	val, ok := supportsVersion(keys)
 	if val == V2 && cgroup != nil && !cgroup.UnifiedCapable {
 		ok = false
 	}
