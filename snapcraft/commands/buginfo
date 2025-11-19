@@ -2,9 +2,11 @@
 set -u
 
 # Re-exec outside of apparmor confinement
-label="$(cat /proc/self/attr/current 2>/dev/null || echo "unconfined")"
-if [ "${label}" != "unconfined" ] && [ -n "${label##*(unconfined)}" ]; then
-  exec aa-exec -p unconfined -- "$0" "$@"
+if [ -d /sys/kernel/security/apparmor ]; then
+  label="$(cat /proc/self/attr/current 2>/dev/null)"
+  if [ "$label" != "unconfined" ] && [ -n "${label##*(unconfined)}" ]; then
+    exec aa-exec -p unconfined -- "$0" "$@"
+  fi
 fi
 
 # Check that we're root
