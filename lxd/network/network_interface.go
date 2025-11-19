@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"net"
 
 	"github.com/canonical/lxd/lxd/cluster"
@@ -13,7 +14,7 @@ import (
 
 // Type represents a LXD network driver type.
 type Type interface {
-	FillConfig(config map[string]string) error
+	FillConfig(ctx context.Context, config map[string]string) error
 	Info() Info
 	ValidateName(name string) error
 	Type() string
@@ -28,7 +29,7 @@ type Network interface {
 	init(state *state.State, id int64, projectName string, netInfo *api.Network, netNodes map[int64]db.NetworkNode)
 
 	// Config.
-	Validate(config map[string]string) error
+	Validate(ctx context.Context, config map[string]string) error
 	ID() int64
 	Name() string
 	Project() string
@@ -37,7 +38,7 @@ type Network interface {
 	LocalStatus() string
 	Config() map[string]string
 	Locations() []string
-	IsUsed() (bool, error)
+	IsUsed(ctx context.Context) (bool, error)
 	IsManaged() bool
 	DHCPv4Subnet() *net.IPNet
 	DHCPv6Subnet() *net.IPNet
@@ -45,34 +46,34 @@ type Network interface {
 	DHCPv6Ranges() []shared.IPRange
 
 	// Actions.
-	Create(clientType request.ClientType) error
-	Start() error
-	Stop() error
-	Evacuate() error
-	Restore() error
-	Rename(name string) error
-	Update(newNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error
-	HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error
-	Delete(clientType request.ClientType) error
-	handleDependencyChange(netName string, netConfig map[string]string, changedKeys []string) error
+	Create(ctx context.Context, clientType request.ClientType) error
+	Start(ctx context.Context) error
+	Stop(ctx context.Context) error
+	Evacuate(ctx context.Context) error
+	Restore(ctx context.Context) error
+	Rename(ctx context.Context, name string) error
+	Update(ctx context.Context, newNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error
+	HandleHeartbeat(ctx context.Context, heartbeatData *cluster.APIHeartbeat) error
+	Delete(ctx context.Context, clientType request.ClientType) error
+	handleDependencyChange(ctx context.Context, netName string, netConfig map[string]string, changedKeys []string) error
 
 	// Status.
-	State() (*api.NetworkState, error)
-	Leases(projectName string, clientType request.ClientType) ([]api.NetworkLease, error)
+	State(ctx context.Context) (*api.NetworkState, error)
+	Leases(ctx context.Context, projectName string, clientType request.ClientType) ([]api.NetworkLease, error)
 
 	// Address Forwards.
-	ForwardCreate(forward api.NetworkForwardsPost, clientType request.ClientType) (net.IP, error)
-	ForwardUpdate(listenAddress string, newForward api.NetworkForwardPut, clientType request.ClientType) error
-	ForwardDelete(listenAddress string, clientType request.ClientType) error
+	ForwardCreate(ctx context.Context, forward api.NetworkForwardsPost, clientType request.ClientType) (net.IP, error)
+	ForwardUpdate(ctx context.Context, listenAddress string, newForward api.NetworkForwardPut, clientType request.ClientType) error
+	ForwardDelete(ctx context.Context, listenAddress string, clientType request.ClientType) error
 
 	// Load Balancers.
-	LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clientType request.ClientType) (net.IP, error)
-	LoadBalancerUpdate(listenAddress string, newLoadBalancer api.NetworkLoadBalancerPut, clientType request.ClientType) error
-	LoadBalancerDelete(listenAddress string, clientType request.ClientType) error
+	LoadBalancerCreate(ctx context.Context, loadBalancer api.NetworkLoadBalancersPost, clientType request.ClientType) (net.IP, error)
+	LoadBalancerUpdate(ctx context.Context, listenAddress string, newLoadBalancer api.NetworkLoadBalancerPut, clientType request.ClientType) error
+	LoadBalancerDelete(ctx context.Context, listenAddress string, clientType request.ClientType) error
 
 	// Peerings.
-	PeerCreate(forward api.NetworkPeersPost) error
-	PeerUpdate(peerName string, newPeer api.NetworkPeerPut) error
-	PeerDelete(peerName string) error
-	PeerUsedBy(peerName string) ([]string, error)
+	PeerCreate(ctx context.Context, forward api.NetworkPeersPost) error
+	PeerUpdate(ctx context.Context, peerName string, newPeer api.NetworkPeerPut) error
+	PeerDelete(ctx context.Context, peerName string) error
+	PeerUsedBy(ctx context.Context, peerName string) ([]string, error)
 }

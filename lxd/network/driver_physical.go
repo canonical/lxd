@@ -32,7 +32,7 @@ func (n *physical) DBType() db.NetworkType {
 }
 
 // Validate network config.
-func (n *physical) Validate(config map[string]string) error {
+func (n *physical) Validate(ctx context.Context, config map[string]string) error {
 	rules := map[string]func(value string) error{
 		// lxdmeta:generate(entities=network-physical; group=network-conf; key=parent)
 		//
@@ -222,7 +222,7 @@ func (n *physical) Validate(config map[string]string) error {
 
 	// Check that ipv4.routes and ipv6.routes contain the routes for existing OVN network
 	// forwards and load balancers.
-	err = n.validateRoutes(config)
+	err = n.validateRoutes(ctx, config)
 	if err != nil {
 		return err
 	}
@@ -232,12 +232,12 @@ func (n *physical) Validate(config map[string]string) error {
 
 // checkParentUse checks if parent is already in use by another network or instance device.
 // Returns an error if parent is already in use or the check has failed.
-func (n *physical) checkParentUse(ourConfig map[string]string) error {
+func (n *physical) checkParentUse(ctx context.Context, ourConfig map[string]string) error {
 	var err error
 	var projectNetworks map[string]map[int64]api.Network // All managed networks across all projects.
 	var nodesNetworksParent map[int64]map[string]string  // Node IDs mapped to networks and their node-specific parent.
 
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get all managed networks across all projects.
 		// If in clustered mode, returned network configs are for the current node.
 		projectNetworks, err = tx.GetCreatedNetworks(ctx)
@@ -305,12 +305,12 @@ func (n *physical) checkParentUse(ourConfig map[string]string) error {
 
 // Create checks whether the referenced parent interface is used by other networks or instance devices, as we
 // need to have exclusive access to the interface.
-func (n *physical) Create(clientType request.ClientType) error {
+func (n *physical) Create(ctx context.Context, clientType request.ClientType) error {
 	n.logger.Debug("Create", logger.Ctx{"clientType": clientType, "config": n.config})
 
 	// We only need to check in the database once, not on every clustered node.
 	if clientType == request.ClientTypeNormal {
-		err := n.checkParentUse(n.config)
+		err := n.checkParentUse(ctx, n.config)
 		if err != nil {
 			return err
 		}
@@ -320,23 +320,23 @@ func (n *physical) Create(clientType request.ClientType) error {
 }
 
 // Delete deletes a network.
-func (n *physical) Delete(clientType request.ClientType) error {
+func (n *physical) Delete(ctx context.Context, clientType request.ClientType) error {
 	n.logger.Debug("Delete", logger.Ctx{"clientType": clientType})
 
-	err := n.Stop()
+	err := n.Stop(ctx)
 	if err != nil {
 		return err
 	}
 
-	return n.delete()
+	return n.delete(ctx)
 }
 
 // Rename renames a network.
-func (n *physical) Rename(newName string) error {
+func (n *physical) Rename(ctx context.Context, newName string) error {
 	n.logger.Debug("Rename", logger.Ctx{"newName": newName})
 
 	// Rename common steps.
-	err := n.rename(newName)
+	err := n.rename(ctx, newName)
 	if err != nil {
 		return err
 	}
@@ -345,7 +345,7 @@ func (n *physical) Rename(newName string) error {
 }
 
 // Start sets up some global configuration.
-func (n *physical) Start() error {
+func (n *physical) Start(ctx context.Context) error {
 	n.logger.Debug("Start")
 
 	revert := revert.New()
@@ -353,7 +353,7 @@ func (n *physical) Start() error {
 
 	revert.Add(func() { n.setUnavailable() })
 
-	err := n.setup(nil)
+	err := n.setup(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -366,7 +366,7 @@ func (n *physical) Start() error {
 	return nil
 }
 
-func (n *physical) setup(oldConfig map[string]string) error {
+func (n *physical) setup(ctx context.Context, oldConfig map[string]string) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -403,7 +403,7 @@ func (n *physical) setup(oldConfig map[string]string) error {
 	// so it can be removed on stop. This way we won't overwrite the setting on LXD restart.
 	if shared.IsFalseOrEmpty(n.config["volatile.last_state.created"]) {
 		n.config["volatile.last_state.created"] = strconv.FormatBool(created)
-		err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.UpdateNetwork(ctx, n.project, n.name, n.description, n.config)
 		})
 		if err != nil {
@@ -415,7 +415,7 @@ func (n *physical) setup(oldConfig map[string]string) error {
 
 	// Setup BGP.
 	if !nodeEvacuated {
-		err = n.bgpSetup(oldConfig)
+		err = n.bgpSetup(ctx, oldConfig)
 		if err != nil {
 			return err
 		}
@@ -426,7 +426,7 @@ func (n *physical) setup(oldConfig map[string]string) error {
 }
 
 // Stop stops is a no-op.
-func (n *physical) Stop() error {
+func (n *physical) Stop(ctx context.Context) error {
 	n.logger.Debug("Stop")
 
 	// Clear BGP.
@@ -457,7 +457,7 @@ func (n *physical) Stop() error {
 
 	// Remove last state config.
 	delete(n.config, "volatile.last_state.created")
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.UpdateNetwork(ctx, n.project, n.name, n.description, n.config)
 	})
 	if err != nil {
@@ -468,7 +468,7 @@ func (n *physical) Stop() error {
 }
 
 // Evacuate the network by clearing BGP.
-func (n *physical) Evacuate() error {
+func (n *physical) Evacuate(ctx context.Context) error {
 	n.logger.Debug("Evacuate")
 
 	// Clear BGP.
@@ -476,16 +476,16 @@ func (n *physical) Evacuate() error {
 }
 
 // Restore the network by setting up BGP.
-func (n *physical) Restore() error {
+func (n *physical) Restore(ctx context.Context) error {
 	n.logger.Debug("Restore")
 
 	// Setup BGP.
-	return n.bgpSetup(nil)
+	return n.bgpSetup(ctx, nil)
 }
 
 // Update updates the network. Accepts notification boolean indicating if this update request is coming from a
 // cluster notification, in which case do not update the database, just apply local changes needed.
-func (n *physical) Update(newNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error {
+func (n *physical) Update(ctx context.Context, newNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error {
 	n.logger.Debug("Update", logger.Ctx{"clientType": clientType, "newNetwork": newNetwork})
 
 	dbUpdateNeeded, changedKeys, oldNetwork, err := n.configChanged(newNetwork)
@@ -501,7 +501,7 @@ func (n *physical) Update(newNetwork api.NetworkPut, targetNode string, clientTy
 	// pending, then don't apply the new settings to the node, just to the database record (ready for the
 	// actual global create request to be initiated).
 	if n.Status() == api.NetworkStatusPending || n.LocalStatus() == api.NetworkStatusPending {
-		return n.update(newNetwork, targetNode, clientType)
+		return n.update(ctx, newNetwork, targetNode, clientType)
 	}
 
 	revert := revert.New()
@@ -512,12 +512,12 @@ func (n *physical) Update(newNetwork api.NetworkPut, targetNode string, clientTy
 	// We only need to check in the database once, not on every clustered node.
 	if clientType == request.ClientTypeNormal {
 		if hostNameChanged {
-			isUsed, err := n.IsUsed()
+			isUsed, err := n.IsUsed(ctx)
 			if isUsed || err != nil {
 				return errors.New("Cannot update network parent interface when in use")
 			}
 
-			err = n.checkParentUse(newNetwork.Config)
+			err = n.checkParentUse(ctx, newNetwork.Config)
 			if err != nil {
 				return err
 			}
@@ -525,7 +525,7 @@ func (n *physical) Update(newNetwork api.NetworkPut, targetNode string, clientTy
 	}
 
 	if hostNameChanged {
-		err = n.Stop()
+		err = n.Stop(ctx)
 		if err != nil {
 			return err
 		}
@@ -537,25 +537,25 @@ func (n *physical) Update(newNetwork api.NetworkPut, targetNode string, clientTy
 	// Define a function which reverts everything.
 	revert.Add(func() {
 		// Reset changes to all nodes and database.
-		err := n.update(oldNetwork, targetNode, clientType)
+		err := n.update(ctx, oldNetwork, targetNode, clientType)
 		if err != nil {
 			n.logger.Warn("Failed reverting network update", logger.Ctx{"err": err})
 		}
 	})
 
 	// Apply changes to all nodes and databse.
-	err = n.update(newNetwork, targetNode, clientType)
+	err = n.update(ctx, newNetwork, targetNode, clientType)
 	if err != nil {
 		return err
 	}
 
 	if !hostNameChanged {
-		err = n.setup(oldNetwork.Config)
+		err = n.setup(ctx, oldNetwork.Config)
 		if err != nil {
 			return err
 		}
 	} else {
-		err = n.setup(nil)
+		err = n.setup(ctx, nil)
 		if err != nil {
 			return err
 		}
@@ -567,7 +567,7 @@ func (n *physical) Update(newNetwork api.NetworkPut, targetNode string, clientTy
 	// Do this after the network has been successfully updated so that a failure to notify a dependent network
 	// doesn't prevent the network itself from being updated.
 	if clientType == request.ClientTypeNormal && len(changedKeys) > 0 {
-		n.notifyDependentNetworks(changedKeys)
+		n.notifyDependentNetworks(ctx, changedKeys)
 	}
 
 	return nil
@@ -594,7 +594,7 @@ func (n *physical) DHCPv6Subnet() *net.IPNet {
 }
 
 // State returns the api.NetworkState for the network.
-func (n *physical) State() (*api.NetworkState, error) {
+func (n *physical) State(ctx context.Context) (*api.NetworkState, error) {
 	if !n.IsManaged() {
 		return resources.GetNetworkState(n.name)
 	}

@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/canonical/lxd/lxd/db"
@@ -22,7 +23,7 @@ func (n *sriov) DBType() db.NetworkType {
 }
 
 // Validate network config.
-func (n *sriov) Validate(config map[string]string) error {
+func (n *sriov) Validate(ctx context.Context, config map[string]string) error {
 	rules := map[string]func(value string) error{
 		// lxdmeta:generate(entities=network-sriov; group=network-conf; key=parent)
 		//
@@ -79,18 +80,18 @@ func (n *sriov) Validate(config map[string]string) error {
 }
 
 // Delete deletes a network.
-func (n *sriov) Delete(clientType request.ClientType) error {
+func (n *sriov) Delete(ctx context.Context, clientType request.ClientType) error {
 	n.logger.Debug("Delete", logger.Ctx{"clientType": clientType})
 
-	return n.delete()
+	return n.delete(ctx)
 }
 
 // Rename renames a network.
-func (n *sriov) Rename(newName string) error {
+func (n *sriov) Rename(ctx context.Context, newName string) error {
 	n.logger.Debug("Rename", logger.Ctx{"newName": newName})
 
 	// Rename common steps.
-	err := n.rename(newName)
+	err := n.rename(ctx, newName)
 	if err != nil {
 		return err
 	}
@@ -99,7 +100,7 @@ func (n *sriov) Rename(newName string) error {
 }
 
 // Start starts is a no-op.
-func (n *sriov) Start() error {
+func (n *sriov) Start(context.Context) error {
 	n.logger.Debug("Start")
 
 	revert := revert.New()
@@ -120,7 +121,7 @@ func (n *sriov) Start() error {
 }
 
 // Stop stops is a no-op.
-func (n *sriov) Stop() error {
+func (n *sriov) Stop(ctx context.Context) error {
 	n.logger.Debug("Stop")
 
 	return nil
@@ -128,7 +129,7 @@ func (n *sriov) Stop() error {
 
 // Update updates the network. Accepts notification boolean indicating if this update request is coming from a
 // cluster notification, in which case do not update the database, just apply local changes needed.
-func (n *sriov) Update(newNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error {
+func (n *sriov) Update(ctx context.Context, newNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error {
 	n.logger.Debug("Update", logger.Ctx{"clientType": clientType, "newNetwork": newNetwork})
 
 	dbUpdateNeeded, _, oldNetwork, err := n.configChanged(newNetwork)
@@ -144,7 +145,7 @@ func (n *sriov) Update(newNetwork api.NetworkPut, targetNode string, clientType 
 	// pending, then don't apply the new settings to the node, just to the database record (ready for the
 	// actual global create request to be initiated).
 	if n.Status() == api.NetworkStatusPending || n.LocalStatus() == api.NetworkStatusPending {
-		return n.update(newNetwork, targetNode, clientType)
+		return n.update(ctx, newNetwork, targetNode, clientType)
 	}
 
 	revert := revert.New()
@@ -153,11 +154,11 @@ func (n *sriov) Update(newNetwork api.NetworkPut, targetNode string, clientType 
 	// Define a function which reverts everything.
 	revert.Add(func() {
 		// Reset changes to all nodes and database.
-		_ = n.update(oldNetwork, targetNode, clientType)
+		_ = n.update(ctx, oldNetwork, targetNode, clientType)
 	})
 
 	// Apply changes to all nodes and databse.
-	err = n.update(newNetwork, targetNode, clientType)
+	err = n.update(ctx, newNetwork, targetNode, clientType)
 	if err != nil {
 		return err
 	}

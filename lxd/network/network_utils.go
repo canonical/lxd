@@ -83,12 +83,12 @@ func MACDevName(mac net.HardwareAddr) string {
 
 // UsedByInstanceDevices looks for instance NIC devices using the network and runs the supplied usageFunc for each.
 // Accepts optional filter arguments to specify a subset of instances.
-func UsedByInstanceDevices(s *state.State, networkProjectName string, networkName string, networkType string, usageFunc func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error, filters ...cluster.InstanceFilter) error {
+func UsedByInstanceDevices(ctx context.Context, s *state.State, networkProjectName string, networkName string, networkType string, usageFunc func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error, filters ...cluster.InstanceFilter) error {
 	// Get the instances.
 	projects := map[string]api.Project{}
 	var instances []db.InstanceArgs
 
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.InstanceList(ctx, func(inst db.InstanceArgs, p api.Project) error {
 			projects[inst.Project] = p
 			instances = append(instances, inst)
@@ -129,7 +129,7 @@ func UsedByInstanceDevices(s *state.State, networkProjectName string, networkNam
 
 // UsedBy returns list of API resources using network. Accepts firstOnly argument to indicate that only the first
 // resource using network should be returned. This can help to quickly check if the network is in use.
-func UsedBy(s *state.State, networkProjectName string, networkID int64, networkName string, networkType string, firstOnly bool) ([]string, error) {
+func UsedBy(ctx context.Context, s *state.State, networkProjectName string, networkID int64, networkName string, networkType string, firstOnly bool) ([]string, error) {
 	var err error
 	var usedBy []string
 
@@ -137,7 +137,7 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 	if networkID > 0 {
 		var peers map[int64]*api.NetworkPeer
 
-		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			peers, err = tx.GetNetworkPeers(ctx, networkID)
 
 			return err
@@ -163,7 +163,7 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 		// Get all managed networks across all projects.
 		var projectNetworks map[string]map[int64]api.Network
 
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			projectNetworks, err = tx.GetCreatedNetworks(ctx)
 			return err
 		})
@@ -191,7 +191,7 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 	}
 
 	// Look for profiles. Next cheapest to do.
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get all profiles
 		profiles, err := cluster.GetProfiles(ctx, tx.Tx())
 		if err != nil {
@@ -241,7 +241,7 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 	}
 
 	// Check if any instance devices use this network.
-	err = UsedByInstanceDevices(s, networkProjectName, networkName, networkType, func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
+	err = UsedByInstanceDevices(ctx, s, networkProjectName, networkName, networkType, func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 		usedBy = append(usedBy, api.NewURL().Path(version.APIVersion, "instances", inst.Name).Project(inst.Project).String())
 
 		if firstOnly {
@@ -404,7 +404,7 @@ func DefaultGatewaySubnetV4() (*net.IPNet, string, error) {
 }
 
 // UpdateDNSMasqStatic rebuilds the DNSMasq static allocations.
-func UpdateDNSMasqStatic(s *state.State, networkName string) error {
+func UpdateDNSMasqStatic(ctx context.Context, s *state.State, networkName string) error {
 	// We don't want to race with ourselves here.
 	dnsmasq.ConfigMutex.Lock()
 	defer dnsmasq.ConfigMutex.Unlock()
@@ -414,7 +414,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 	if networkName == "" {
 		var err error
 
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			// Pass api.ProjectDefaultName here, as currently dnsmasq (bridged) networks do not support projects.
 			networks, err = tx.GetNetworks(ctx, api.ProjectDefaultName)
 
@@ -500,7 +500,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 		}
 
 		// Pass api.ProjectDefaultName here, as currently dnsmasq (bridged) networks do not support projects.
-		n, err := LoadByName(s, api.ProjectDefaultName, network)
+		n, err := LoadByName(ctx, s, api.ProjectDefaultName, network)
 		if err != nil {
 			return fmt.Errorf("Failed to load network %q in project %q for dnsmasq update: %w", api.ProjectDefaultName, network, err)
 		}
@@ -606,7 +606,7 @@ func ForkdnsServersList(networkName string) ([]string, error) {
 	return servers, nil
 }
 
-func randomSubnetV4() (string, error) {
+func randomSubnetV4(ctx context.Context) (string, error) {
 	for range 100 {
 		cidr := fmt.Sprintf("10.%d.%d.1/24", rand.Intn(255), rand.Intn(255))
 		_, subnet, err := net.ParseCIDR(cidr)
@@ -618,7 +618,7 @@ func randomSubnetV4() (string, error) {
 			continue
 		}
 
-		if pingSubnet(subnet) {
+		if pingSubnet(ctx, subnet) {
 			continue
 		}
 
@@ -628,7 +628,7 @@ func randomSubnetV4() (string, error) {
 	return "", errors.New("Failed to automatically find an unused IPv4 subnet, manual configuration required")
 }
 
-func randomSubnetV6() (string, error) {
+func randomSubnetV6(ctx context.Context) (string, error) {
 	for range 100 {
 		cidr := fmt.Sprintf("fd42:%x:%x:%x::1/64", rand.Intn(65535), rand.Intn(65535), rand.Intn(65535))
 		_, subnet, err := net.ParseCIDR(cidr)
@@ -640,7 +640,7 @@ func randomSubnetV6() (string, error) {
 			continue
 		}
 
-		if pingSubnet(subnet) {
+		if pingSubnet(ctx, subnet) {
 			continue
 		}
 
@@ -867,7 +867,7 @@ func pingIP(ctx context.Context, ip net.IP) error {
 	return err
 }
 
-func pingSubnet(subnet *net.IPNet) bool {
+func pingSubnet(ctx context.Context, subnet *net.IPNet) bool {
 	var fail bool
 	var failLock sync.Mutex
 	var wgChecks sync.WaitGroup
@@ -875,7 +875,7 @@ func pingSubnet(subnet *net.IPNet) bool {
 	ping := func(ip net.IP) {
 		defer wgChecks.Done()
 
-		if pingIP(context.TODO(), ip) != nil {
+		if pingIP(ctx, ip) != nil {
 			return
 		}
 

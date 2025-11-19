@@ -57,7 +57,7 @@ func IsNativeBridge(bridgeName string) bool {
 }
 
 // AttachInterface attaches an interface to a bridge.
-func AttachInterface(bridgeName string, devName string) error {
+func AttachInterface(ctx context.Context, bridgeName string, devName string) error {
 	if IsNativeBridge(bridgeName) {
 		link := &ip.Link{Name: devName}
 		err := link.SetMaster(bridgeName)
@@ -66,7 +66,7 @@ func AttachInterface(bridgeName string, devName string) error {
 		}
 	} else {
 		ovs := openvswitch.NewOVS()
-		err := ovs.BridgePortAdd(context.TODO(), bridgeName, devName, true)
+		err := ovs.BridgePortAdd(ctx, bridgeName, devName, true)
 		if err != nil {
 			return err
 		}
@@ -76,7 +76,7 @@ func AttachInterface(bridgeName string, devName string) error {
 }
 
 // DetachInterface detaches an interface from a bridge.
-func DetachInterface(bridgeName string, devName string) error {
+func DetachInterface(ctx context.Context, bridgeName string, devName string) error {
 	if IsNativeBridge(bridgeName) {
 		link := &ip.Link{Name: devName}
 		err := link.SetNoMaster()
@@ -85,7 +85,7 @@ func DetachInterface(bridgeName string, devName string) error {
 		}
 	} else {
 		ovs := openvswitch.NewOVS()
-		err := ovs.BridgePortDelete(context.TODO(), bridgeName, devName)
+		err := ovs.BridgePortDelete(ctx, bridgeName, devName)
 		if err != nil {
 			return err
 		}
