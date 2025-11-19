@@ -108,7 +108,7 @@ func FirewallApplyACLRules(ctx context.Context, s *state.State, aclProjectName s
 		LogName:   logPrefix + "-ingress",
 	})
 
-	return s.Firewall.NetworkApplyACLRules(aclNet.Name, rules)
+	return s.Firewall.NetworkApplyACLRules(ctx, aclNet.Name, rules)
 }
 
 // firewallACLDefaults returns the action and logging mode to use for the specified direction's default rule.

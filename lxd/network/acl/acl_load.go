@@ -48,7 +48,7 @@ func Create(ctx context.Context, s *state.State, projectName string, aclInfo *ap
 		return err
 	}
 
-	err = acl.validateConfig(context.TODO(), &aclInfo.NetworkACLPut)
+	err = acl.validateConfig(ctx, &aclInfo.NetworkACLPut)
 	if err != nil {
 		return err
 	}
