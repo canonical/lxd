@@ -14,12 +14,12 @@ import (
 )
 
 // LoadByName loads and initialises a Network zone from the database by name.
-func LoadByName(s *state.State, name string) (NetworkZone, error) {
+func LoadByName(ctx context.Context, s *state.State, name string) (NetworkZone, error) {
 	var id int64
 	var projectName string
 	var zoneInfo *api.NetworkZone
 
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		id, projectName, zoneInfo, err = tx.GetNetworkZone(ctx, name)
@@ -37,11 +37,11 @@ func LoadByName(s *state.State, name string) (NetworkZone, error) {
 }
 
 // LoadByNameAndProject loads and initialises a Network zone from the database by project and name.
-func LoadByNameAndProject(s *state.State, projectName string, name string) (NetworkZone, error) {
+func LoadByNameAndProject(ctx context.Context, s *state.State, projectName string, name string) (NetworkZone, error) {
 	var id int64
 	var zoneInfo *api.NetworkZone
 
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		id, zoneInfo, err = tx.GetNetworkZoneByProject(ctx, projectName, name)
@@ -59,7 +59,7 @@ func LoadByNameAndProject(s *state.State, projectName string, name string) (Netw
 }
 
 // Create validates supplied record and creates new Network zone record in the database.
-func Create(s *state.State, projectName string, zoneInfo *api.NetworkZonesPost) error {
+func Create(ctx context.Context, s *state.State, projectName string, zoneInfo *api.NetworkZonesPost) error {
 	var zone NetworkZone = &zone{}
 	zone.init(s, -1, projectName, nil)
 
@@ -75,7 +75,7 @@ func Create(s *state.State, projectName string, zoneInfo *api.NetworkZonesPost) 
 
 	// Load the project.
 	var p *api.Project
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		project, err := cluster.GetProject(ctx, tx.Tx(), projectName)
 		if err != nil {
 			return err
@@ -106,7 +106,7 @@ func Create(s *state.State, projectName string, zoneInfo *api.NetworkZonesPost) 
 		}
 	}
 
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Insert DB record.
 		_, err = tx.CreateNetworkZone(ctx, projectName, zoneInfo)
 
@@ -127,10 +127,10 @@ func Create(s *state.State, projectName string, zoneInfo *api.NetworkZonesPost) 
 
 // Exists checks the zone name(s) provided exists.
 // If multiple names are provided, also checks that duplicate names aren't specified in the list.
-func Exists(s *state.State, name ...string) error {
+func Exists(ctx context.Context, s *state.State, name ...string) error {
 	checkedzoneNames := make(map[string]struct{}, len(name))
 
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		for _, zoneName := range name {
 			_, _, _, err := tx.GetNetworkZone(ctx, zoneName)
 			if err != nil {
