@@ -18,7 +18,7 @@ type NetworkACL interface {
 	Project() string
 	Info() *api.NetworkACL
 	Etag() []any
-	UsedBy() ([]string, error)
+	UsedBy(ctx context.Context) ([]string, error)
 
 	// GetLog.
 	GetLog(ctx context.Context, clientType request.ClientType) (string, error)

@@ -158,13 +158,13 @@ func (d *common) usedBy(ctx context.Context, firstOnly bool) ([]string, error) {
 }
 
 // UsedBy returns a list of API endpoints referencing this ACL.
-func (d *common) UsedBy() ([]string, error) {
-	return d.usedBy(context.TODO(), false)
+func (d *common) UsedBy(ctx context.Context) ([]string, error) {
+	return d.usedBy(ctx, false)
 }
 
 // isUsed returns whether or not the ACL is in use.
-func (d *common) isUsed() (bool, error) {
-	usedBy, err := d.usedBy(context.TODO(), true)
+func (d *common) isUsed(ctx context.Context) (bool, error) {
+	usedBy, err := d.usedBy(ctx, true)
 	if err != nil {
 		return false, err
 	}
@@ -559,7 +559,7 @@ func (d *common) validatePorts(ports []string) error {
 
 // Update applies the supplied config to the ACL.
 func (d *common) Update(ctx context.Context, config *api.NetworkACLPut, clientType request.ClientType) error {
-	err := d.validateConfig(context.TODO(), config)
+	err := d.validateConfig(ctx, config)
 	if err != nil {
 		return err
 	}
@@ -595,7 +595,7 @@ func (d *common) Update(ctx context.Context, config *api.NetworkACLPut, clientTy
 
 	// Get a list of networks that are using this ACL (either directly or indirectly via a NIC).
 	aclNets := map[string]NetworkACLUsage{}
-	err = NetworkUsage(context.TODO(), d.state, d.projectName, []string{d.info.Name}, aclNets)
+	err = NetworkUsage(ctx, d.state, d.projectName, []string{d.info.Name}, aclNets)
 	if err != nil {
 		return fmt.Errorf("Failed getting ACL network usage: %w", err)
 	}
@@ -688,7 +688,7 @@ func (d *common) Rename(ctx context.Context, newName string) error {
 		return errors.New("An ACL by that name exists already")
 	}
 
-	isUsed, err := d.isUsed()
+	isUsed, err := d.isUsed(ctx)
 	if err != nil {
 		return err
 	}
@@ -717,7 +717,7 @@ func (d *common) Rename(ctx context.Context, newName string) error {
 
 // Delete deletes the ACL.
 func (d *common) Delete(ctx context.Context) error {
-	isUsed, err := d.isUsed()
+	isUsed, err := d.isUsed(ctx)
 	if err != nil {
 		return err
 	}
