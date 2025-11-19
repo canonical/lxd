@@ -1,3 +1,9 @@
+---
+myst:
+  html_meta:
+    description: Configure LXD to authenticate using Entra ID via OpenID Connect (OIDC) in your tenant.
+---
+
 (oidc-entra-id)=
 # How to configure authentication with Entra ID
 
