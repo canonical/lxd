@@ -27,7 +27,6 @@ type authorizer interface {
 // Opts is used as part of the LoadAuthorizer function so that only the relevant configuration fields are passed into a
 // particular driver.
 type Opts struct {
-	config           map[string]any
 	openfgaDatastore storage.OpenFGADatastore
 }
 
