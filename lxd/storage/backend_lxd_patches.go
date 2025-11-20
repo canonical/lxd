@@ -204,7 +204,7 @@ func patchBucketNames(b *lxdBackend) error {
 	}
 
 	// Get list of volumes.
-	volumes, err := b.driver.ListVolumes()
+	volumes, err := b.driver.ListVolumes(context.TODO())
 	if err != nil {
 		return err
 	}
@@ -224,7 +224,7 @@ func patchBucketNames(b *lxdBackend) error {
 		newVolumeName := project.StorageVolume(bucket.Project, bucket.Name)
 
 		// Rename volume.
-		err := b.driver.RenameVolume(v, newVolumeName, nil)
+		err := b.driver.RenameVolume(context.TODO(), v, newVolumeName, nil)
 		if err != nil {
 			return err
 		}
