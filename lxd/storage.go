@@ -239,7 +239,7 @@ func storagePoolDriversCacheUpdate(ctx context.Context, s *state.State) {
 	usedDrivers := map[string]string{}
 
 	// Get the driver info.
-	info := storageDrivers.SupportedDrivers(s)
+	info := storageDrivers.SupportedDrivers(context.TODO(), s)
 	supportedDrivers := make([]api.ServerStorageDriverInfo, 0, len(info))
 
 	for _, entry := range info {
