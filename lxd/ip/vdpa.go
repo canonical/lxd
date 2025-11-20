@@ -90,19 +90,6 @@ type VDPADev struct {
 	VhostVDPA *VhostVDPA
 }
 
-// ParseAttributes parses the attributes of a netlink message for a vDPA management device.
-func (d *MgmtVDPADev) parseAttributes(attrs []syscall.NetlinkRouteAttr) error {
-	for _, attr := range attrs {
-		switch attr.Attr.Type {
-		case vDPAAttrMgmtDevBusName:
-			d.BusName = string(attr.Value[:len(attr.Value)-1])
-		case vDPAAttrMgmtDevDevName:
-			d.DevName = string(attr.Value[:len(attr.Value)-1])
-		}
-	}
-	return nil
-}
-
 // getVhostVDPADevInPath returns the VhostVDPA found in the provided parent device's path.
 func getVhostVDPADevInPath(parentPath string) (*VhostVDPA, error) {
 	fd, err := os.Open(parentPath)
