@@ -232,26 +232,6 @@ func newNetlinkAttribute(attrType int, data any) (*nl.RtAttr, error) {
 	}
 }
 
-// parseMgmtVDPADevList parses a list of vDPA management device netlink messages.
-func parseMgmtVDPADevList(msgs [][]byte) ([]*MgmtVDPADev, error) {
-	devices := make([]*MgmtVDPADev, 0, len(msgs))
-	for _, m := range msgs {
-		attrs, err := nl.ParseRouteAttr(m[nl.SizeofGenlmsg:])
-		if err != nil {
-			return nil, fmt.Errorf("Could not parse Netlink vDPA management device route attributes : %v", err)
-		}
-
-		dev := &MgmtVDPADev{}
-		if err = dev.parseAttributes(attrs); err != nil {
-			return nil, err
-		}
-
-		devices = append(devices, dev)
-	}
-
-	return devices, nil
-}
-
 // parseVDPADevList parses a list of vDPA device netlink messages.
 func parseVDPADevList(msgs [][]byte) ([]*VDPADev, error) {
 	devices := make([]*VDPADev, 0, len(msgs))
