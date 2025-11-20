@@ -188,18 +188,11 @@ test_clustering_waitready() {
 
   # Cleanup.
   nsenter -m -n -t "${ns1_pid}" -- ip link del foo
-  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_THREE_DIR}/unix.socket"
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
-
-  teardown_clustering_netns
-  teardown_clustering_bridge
 
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 }
