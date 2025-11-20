@@ -252,21 +252,6 @@ func parseVDPADevList(msgs [][]byte) ([]*VDPADev, error) {
 	return devices, nil
 }
 
-// ListVDPAMgmtDevices returns the list of all vDPA management devices.
-func ListVDPAMgmtDevices() ([]*MgmtVDPADev, error) {
-	resp, err := runVDPANetlinkCmd(vDPACmdMgmtDevGet, syscall.NLM_F_DUMP, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	mgtmDevs, err := parseMgmtVDPADevList(resp)
-	if err != nil {
-		return nil, err
-	}
-
-	return mgtmDevs, nil
-}
-
 // ListVDPADevices returns the list of all vDPA devices.
 func ListVDPADevices() ([]*VDPADev, error) {
 	resp, err := runVDPANetlinkCmd(vDPACmdDevGet, syscall.NLM_F_DUMP, nil)
