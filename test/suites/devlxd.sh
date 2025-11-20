@@ -520,7 +520,7 @@ EOF
 }
 
 test_devlxd_volume_management_snapshots() {
-  local testName="devlxd-volume-mgmt"
+  local testName="devlxd-snapshot-mgmt"
 
   local instPrefix="${testName}"
   local pool="${testName}"
