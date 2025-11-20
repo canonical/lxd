@@ -265,7 +265,16 @@ kill_lxd() {
             echo "SELECT 1 FROM ${table} LIMIT 1;" | sqlite3 "${LXD_DIR}/local.db" >/dev/null
         done < <(echo .tables | sqlite3 "${LXD_DIR}/local.db")
 
-        # Kill the daemon
+        # Remove the daemon from the cluster.
+        if [ "$(lxc info | yq -r .environment.server_clustered)" = "true" ]; then
+            # Remove the current member only in case there are more than this member left in the cluster.
+            if [ "$(lxc cluster ls -f json | jq length)" -gt 1 ]; then
+                timeout -k 30 30 lxc cluster remove "$(lxc info | yq -r .environment.server_name)" --yes || true
+            fi
+        fi
+
+        # Kill the daemon.
+        # When trying to shutdown a removed cluster member, the request might fail so it will kill the daemon right away.
         timeout -k 30 30 lxd shutdown || kill -9 "${LXD_PID}" 2>/dev/null || true
 
         sleep 2
