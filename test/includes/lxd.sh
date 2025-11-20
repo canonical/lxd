@@ -244,7 +244,8 @@ kill_lxd() {
             path="/1.0/storage-pools/${storage_pool}/volumes/custom"
             while read -r volume; do
                 echo "   ⛔ Deleting storage volume ${volume} on ${storage_pool}"
-                timeout -k 20 20 lxc storage volume delete "${storage_pool}" "${volume}" --force-local || true
+                # Use query as the returned volume names might contain query parameters like "target=".
+                timeout -k 20 20 lxc query -X DELETE "${path}/${volume}" --force-local --wait || true
             done < <(lxc query "${path}" | jq --exit-status --raw-output ".[] | ltrimstr(\"${path}/\")")
 
             # Delete the storage buckets.
