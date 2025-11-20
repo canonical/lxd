@@ -264,11 +264,6 @@ func (o *OVN) getNorthboundDB() string {
 	return o.nbDBAddr
 }
 
-// SetSouthboundDBAddress sets the address that runs the OVN northbound databases.
-func (o *OVN) SetSouthboundDBAddress(addr string) {
-	o.sbDBAddr = addr
-}
-
 // getSouthboundDB returns connection string to use for northbound database.
 func (o *OVN) getSouthboundDB() string {
 	if o.sbDBAddr == "" {
