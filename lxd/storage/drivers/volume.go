@@ -209,8 +209,8 @@ func (v Volume) mountLockName() string {
 }
 
 // MountLock attempts to lock the mount lock for the volume and returns the UnlockFunc.
-func (v Volume) MountLock() (locking.UnlockFunc, error) {
-	return locking.Lock(context.TODO(), v.mountLockName())
+func (v Volume) MountLock(ctx context.Context) (locking.UnlockFunc, error) {
+	return locking.Lock(ctx, v.mountLockName())
 }
 
 // MountRefCountIncrement increments the mount ref counter for the volume and returns the new value.
@@ -287,15 +287,15 @@ func (v Volume) EnsureMountPath() error {
 
 // MountTask runs the supplied task after mounting the volume if needed. If the volume was mounted
 // for this then it is unmounted when the task finishes.
-func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) error, op *operations.Operation) error {
+func (v Volume) MountTask(ctx context.Context, task func(mountPath string, op *operations.Operation) error, op *operations.Operation) error {
 	// If the volume is a snapshot then call the snapshot specific mount/unmount functions as
 	// these will mount the snapshot read only.
 	var err error
 
 	if v.IsSnapshot() {
-		err = v.driver.MountVolumeSnapshot(v, op)
+		err = v.driver.MountVolumeSnapshot(ctx, v, op)
 	} else {
-		err = v.driver.MountVolume(v, op)
+		err = v.driver.MountVolume(ctx, v, op)
 	}
 
 	if err != nil {
@@ -306,9 +306,9 @@ func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) 
 
 	// Try and unmount, even on task error.
 	if v.IsSnapshot() {
-		_, err = v.driver.UnmountVolumeSnapshot(v, op)
+		_, err = v.driver.UnmountVolumeSnapshot(ctx, v, op)
 	} else {
-		_, err = v.driver.UnmountVolume(v, false, op)
+		_, err = v.driver.UnmountVolume(ctx, v, false, op)
 	}
 
 	// Return task error if failed.
@@ -327,26 +327,26 @@ func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) 
 // UnmountTask runs the supplied task after unmounting the volume if needed.
 // If the volume was unmounted for this then it is mounted when the task finishes.
 // keepBlockDev indicates if backing block device should be not be deactivated if volume is unmounted.
-func (v Volume) UnmountTask(task func(op *operations.Operation) error, keepBlockDev bool, op *operations.Operation) error {
+func (v Volume) UnmountTask(ctx context.Context, task func(op *operations.Operation) error, keepBlockDev bool, op *operations.Operation) error {
 	// If the volume is a snapshot then call the snapshot specific mount/unmount functions as
 	// these will mount the snapshot read only.
 	if v.IsSnapshot() {
-		ourUnmount, err := v.driver.UnmountVolumeSnapshot(v, op)
+		ourUnmount, err := v.driver.UnmountVolumeSnapshot(ctx, v, op)
 		if err != nil {
 			return err
 		}
 
 		if ourUnmount {
-			defer func() { _ = v.driver.MountVolumeSnapshot(v, op) }()
+			defer func() { _ = v.driver.MountVolumeSnapshot(context.Background(), v, op) }()
 		}
 	} else {
-		ourUnmount, err := v.driver.UnmountVolume(v, keepBlockDev, op)
+		ourUnmount, err := v.driver.UnmountVolume(ctx, v, keepBlockDev, op)
 		if err != nil {
 			return err
 		}
 
 		if ourUnmount {
-			defer func() { _ = v.driver.MountVolume(v, op) }()
+			defer func() { _ = v.driver.MountVolume(context.Background(), v, op) }()
 		}
 	}
 
@@ -354,12 +354,12 @@ func (v Volume) UnmountTask(task func(op *operations.Operation) error, keepBlock
 }
 
 // Snapshots returns a list of snapshots for the volume (in no particular order).
-func (v Volume) Snapshots(op *operations.Operation) ([]Volume, error) {
+func (v Volume) Snapshots(ctx context.Context, op *operations.Operation) ([]Volume, error) {
 	if v.IsSnapshot() {
 		return nil, errors.New("Volume is a snapshot")
 	}
 
-	snapshots, err := v.driver.VolumeSnapshots(v, op)
+	snapshots, err := v.driver.VolumeSnapshots(ctx, v, op)
 	if err != nil {
 		return nil, err
 	}
@@ -434,8 +434,8 @@ func (v Volume) NewVMBlockFilesystemVolume() Volume {
 }
 
 // SetQuota calls SetVolumeQuota on the Volume's driver.
-func (v Volume) SetQuota(size string, allowUnsafeResize bool, op *operations.Operation) error {
-	return v.driver.SetVolumeQuota(v, size, allowUnsafeResize, op)
+func (v Volume) SetQuota(ctx context.Context, size string, allowUnsafeResize bool, op *operations.Operation) error {
+	return v.driver.SetVolumeQuota(ctx, v, size, allowUnsafeResize, op)
 }
 
 // SetConfigSize sets the size config property on the Volume (does not resize volume).
@@ -499,7 +499,7 @@ func (v Volume) ConfigSize() string {
 // ConfigSizeFromSource derives the volume size to use for a new volume when copying from a source volume.
 // Where possible (if the source volume has a volatile.rootfs.size property), it checks that the source volume
 // isn't larger than the volume's "size" setting and the pool's "volume.size" setting.
-func (v Volume) ConfigSizeFromSource(srcVol Volume) (string, error) {
+func (v Volume) ConfigSizeFromSource(ctx context.Context, srcVol Volume) (string, error) {
 	// If source is not an image, then only use volume specified size. This is so the pool volume size isn't
 	// taken into account for non-image volume copies.
 	if srcVol.volType != VolumeTypeImage {
@@ -534,7 +534,7 @@ func (v Volume) ConfigSizeFromSource(srcVol Volume) (string, error) {
 		// directly usable with the same size setting without also rounding for this check.
 		// Because we are not altering the actual size returned to use for the new volume, this will not
 		// affect storage drivers that do not use rounding.
-		volSizeBytes = v.driver.roundVolumeBlockSizeBytes(v, volSizeBytes)
+		volSizeBytes = v.driver.roundVolumeBlockSizeBytes(ctx, v, volSizeBytes)
 
 		// The volume/pool specified size is smaller than image minimum size. We must not continue as
 		// these specified sizes provide protection against unpacking a massive image and filling the pool.

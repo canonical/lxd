@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -24,7 +25,7 @@ import (
 
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied
 // filler function.
-func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
+func (d *dir) CreateVolume(ctx context.Context, vol Volume, filler *VolumeFiller, op *operations.Operation) error {
 	volPath := vol.MountPath()
 
 	revert := revert.New()
@@ -46,13 +47,13 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 	rootBlockPath := ""
 	if IsContentBlock(vol.contentType) {
 		// We expect the filler to copy the VM image into this path.
-		rootBlockPath, err = d.GetVolumeDiskPath(vol)
+		rootBlockPath, err = d.GetVolumeDiskPath(ctx, vol)
 		if err != nil {
 			return err
 		}
 	} else if vol.volType != VolumeTypeBucket {
 		// Filesystem quotas only used with non-block volume types.
-		revertFunc, err := d.setupInitialQuota(vol)
+		revertFunc, err := d.setupInitialQuota(ctx, vol)
 		if err != nil {
 			return err
 		}
@@ -63,7 +64,7 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 	}
 
 	// Run the volume filler function if supplied.
-	err = d.runFiller(vol, rootBlockPath, filler, false)
+	err = d.runFiller(ctx, vol, rootBlockPath, filler, false)
 	if err != nil {
 		return err
 	}
@@ -80,14 +81,14 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 
 		// Ignore ErrCannotBeShrunk when setting size this just means the filler run above has needed to
 		// increase the volume size beyond the default block volume size.
-		_, err = ensureVolumeBlockFile(vol, rootBlockPath, sizeBytes, false)
+		_, err = ensureVolumeBlockFile(ctx, vol, rootBlockPath, sizeBytes, false)
 		if err != nil && !errors.Is(err, ErrCannotBeShrunk) {
 			return err
 		}
 
 		// Move the GPT alt header to end of disk if needed and if filler specified.
 		if vol.IsVMBlock() && filler != nil && filler.Fill != nil {
-			err = d.moveGPTAltHeader(rootBlockPath)
+			err = d.moveGPTAltHeader(ctx, rootBlockPath)
 			if err != nil {
 				return err
 			}
@@ -99,9 +100,9 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 }
 
 // CreateVolumeFromBackup restores a backup tarball onto the storage device.
-func (d *dir) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
+func (d *dir) CreateVolumeFromBackup(ctx context.Context, vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
 	// Run the generic backup unpacker
-	postHook, revertHook, err := genericVFSBackupUnpack(d.withoutGetVolID(), d.state, vol, srcBackup.Snapshots, srcData, op)
+	postHook, revertHook, err := genericVFSBackupUnpack(ctx, d.withoutGetVolID(ctx), d.state, vol, srcBackup.Snapshots, srcData, op)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -120,7 +121,7 @@ func (d *dir) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcD
 			revert := revert.New()
 			defer revert.Fail()
 
-			revertQuota, err := d.setupInitialQuota(vol)
+			revertQuota, err := d.setupInitialQuota(ctx, vol)
 			if err != nil {
 				return err
 			}
@@ -138,12 +139,12 @@ func (d *dir) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcD
 }
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
-func (d *dir) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error {
+func (d *dir) CreateVolumeFromCopy(ctx context.Context, vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error {
 	var srcSnapshots []string
 
 	if len(vol.Snapshots) > 0 && !srcVol.IsSnapshot() {
 		// Get the list of snapshots from the source.
-		allSrcSnapshots, err := srcVol.Volume.Snapshots(op)
+		allSrcSnapshots, err := srcVol.Volume.Snapshots(ctx, op)
 		if err != nil {
 			return err
 		}
@@ -155,26 +156,26 @@ func (d *dir) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 	}
 
 	// Run the generic copy.
-	_, err := genericVFSCopyVolume(d, d.setupInitialQuota, vol, srcVol, srcSnapshots, false, allowInconsistent, op)
+	_, err := genericVFSCopyVolume(ctx, d, d.setupInitialQuota, vol, srcVol, srcSnapshots, false, allowInconsistent, op)
 	return err
 }
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
-func (d *dir) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
-	_, err := genericVFSCreateVolumeFromMigration(d, d.setupInitialQuota, vol, conn, volTargetArgs, preFiller, op)
+func (d *dir) CreateVolumeFromMigration(ctx context.Context, vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
+	_, err := genericVFSCreateVolumeFromMigration(ctx, d, d.setupInitialQuota, vol, conn, volTargetArgs, preFiller, op)
 	return err
 }
 
 // RefreshVolume provides same-pool volume and specific snapshots syncing functionality.
-func (d *dir) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) error {
-	_, err := genericVFSCopyVolume(d, d.setupInitialQuota, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
+func (d *dir) RefreshVolume(ctx context.Context, vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) error {
+	_, err := genericVFSCopyVolume(ctx, d, d.setupInitialQuota, vol, srcVol, refreshSnapshots, true, allowInconsistent, op)
 	return err
 }
 
 // DeleteVolume deletes a volume of the storage device. If any snapshots of the volume remain then
 // this function will return an error.
-func (d *dir) DeleteVolume(vol Volume, op *operations.Operation) error {
-	snapshots, err := d.VolumeSnapshots(vol, op)
+func (d *dir) DeleteVolume(ctx context.Context, vol Volume, op *operations.Operation) error {
+	snapshots, err := d.VolumeSnapshots(ctx, vol, op)
 	if err != nil {
 		return err
 	}
@@ -191,14 +192,14 @@ func (d *dir) DeleteVolume(vol Volume, op *operations.Operation) error {
 	}
 
 	// Remove the volume from the storage device.
-	err = forceRemoveAll(volPath)
+	err = forceRemoveAll(ctx, volPath)
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("Failed to remove '%s': %w", volPath, err)
 	}
 
 	// Get the volume ID for the volume, which is used to remove project quota.
 	if vol.Type() != VolumeTypeBucket {
-		volID, err := d.getVolID(vol.volType, vol.name)
+		volID, err := d.getVolID(ctx, vol.volType, vol.name)
 		if err != nil {
 			return err
 		}
@@ -221,7 +222,7 @@ func (d *dir) DeleteVolume(vol Volume, op *operations.Operation) error {
 }
 
 // HasVolume indicates whether a specific volume exists on the storage pool.
-func (d *dir) HasVolume(vol Volume) (bool, error) {
+func (d *dir) HasVolume(ctx context.Context, vol Volume) (bool, error) {
 	return genericVFSHasVolume(vol)
 }
 
@@ -244,7 +245,7 @@ func (d *dir) FillVolumeConfig(vol Volume) error {
 }
 
 // ValidateVolume validates the supplied volume config. Optionally removes invalid keys from the volume's config.
-func (d *dir) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
+func (d *dir) ValidateVolume(ctx context.Context, vol Volume, removeUnknownKeys bool) error {
 	err := d.validateVolume(vol, nil, removeUnknownKeys)
 	if err != nil {
 		return err
@@ -258,10 +259,10 @@ func (d *dir) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 }
 
 // UpdateVolume applies config changes to the volume.
-func (d *dir) UpdateVolume(vol Volume, changedConfig map[string]string) error {
+func (d *dir) UpdateVolume(ctx context.Context, vol Volume, changedConfig map[string]string) error {
 	newSize, sizeChanged := changedConfig["size"]
 	if sizeChanged {
-		err := d.SetVolumeQuota(vol, newSize, false, nil)
+		err := d.SetVolumeQuota(ctx, vol, newSize, false, nil)
 		if err != nil {
 			return err
 		}
@@ -271,7 +272,7 @@ func (d *dir) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 }
 
 // GetVolumeUsage returns the disk space used by the volume.
-func (d *dir) GetVolumeUsage(vol Volume) (int64, error) {
+func (d *dir) GetVolumeUsage(ctx context.Context, vol Volume) (int64, error) {
 	// Snapshot usage not supported for Dir.
 	if vol.IsSnapshot() {
 		return -1, ErrNotSupported
@@ -284,7 +285,7 @@ func (d *dir) GetVolumeUsage(vol Volume) (int64, error) {
 	}
 
 	// Get the volume ID for the volume to access quota.
-	volID, err := d.getVolID(vol.volType, vol.name)
+	volID, err := d.getVolID(ctx, vol.volType, vol.name)
 	if err != nil {
 		return -1, err
 	}
@@ -302,7 +303,7 @@ func (d *dir) GetVolumeUsage(vol Volume) (int64, error) {
 
 // SetVolumeQuota applies a size limit on volume.
 // Does nothing if supplied with an empty/zero size for block volumes, and for filesystem volumes removes quota.
-func (d *dir) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
+func (d *dir) SetVolumeQuota(ctx context.Context, vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
 	// Convert to bytes.
 	sizeBytes, err := units.ParseByteSizeString(size)
 	if err != nil {
@@ -316,12 +317,12 @@ func (d *dir) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 			return nil
 		}
 
-		rootBlockPath, err := d.GetVolumeDiskPath(vol)
+		rootBlockPath, err := d.GetVolumeDiskPath(ctx, vol)
 		if err != nil {
 			return err
 		}
 
-		resized, err := ensureVolumeBlockFile(vol, rootBlockPath, sizeBytes, allowUnsafeResize)
+		resized, err := ensureVolumeBlockFile(ctx, vol, rootBlockPath, sizeBytes, allowUnsafeResize)
 		if err != nil {
 			return err
 		}
@@ -330,7 +331,7 @@ func (d *dir) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 		// unsafe resize mode as it is expected the caller will do all necessary post resize actions
 		// themselves).
 		if vol.IsVMBlock() && resized && !allowUnsafeResize {
-			err = d.moveGPTAltHeader(rootBlockPath)
+			err = d.moveGPTAltHeader(ctx, rootBlockPath)
 			if err != nil {
 				return err
 			}
@@ -339,7 +340,7 @@ func (d *dir) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 		return nil
 	} else if vol.Type() != VolumeTypeBucket {
 		// For non-VM block volumes, set filesystem quota.
-		volID, err := d.getVolID(vol.volType, vol.name)
+		volID, err := d.getVolID(ctx, vol.volType, vol.name)
 		if err != nil {
 			return err
 		}
@@ -365,18 +366,18 @@ func (d *dir) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 }
 
 // GetVolumeDiskPath returns the location of a disk volume.
-func (d *dir) GetVolumeDiskPath(vol Volume) (string, error) {
+func (d *dir) GetVolumeDiskPath(ctx context.Context, vol Volume) (string, error) {
 	return genericVFSGetVolumeDiskPath(vol)
 }
 
 // ListVolumes returns a list of LXD volumes in storage pool.
-func (d *dir) ListVolumes() ([]Volume, error) {
+func (d *dir) ListVolumes(context.Context) ([]Volume, error) {
 	return genericVFSListVolumes(d)
 }
 
 // MountVolume simulates mounting a volume.
-func (d *dir) MountVolume(vol Volume, op *operations.Operation) error {
-	unlock, err := vol.MountLock()
+func (d *dir) MountVolume(ctx context.Context, vol Volume, op *operations.Operation) error {
+	unlock, err := vol.MountLock(ctx)
 	if err != nil {
 		return err
 	}
@@ -398,8 +399,8 @@ func (d *dir) MountVolume(vol Volume, op *operations.Operation) error {
 
 // UnmountVolume simulates unmounting a volume.
 // As driver doesn't have volumes to unmount it returns false indicating the volume was already unmounted.
-func (d *dir) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
-	unlock, err := vol.MountLock()
+func (d *dir) UnmountVolume(ctx context.Context, vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
+	unlock, err := vol.MountLock(ctx)
 	if err != nil {
 		return false, err
 	}
@@ -416,23 +417,23 @@ func (d *dir) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 }
 
 // RenameVolume renames a volume and its snapshots.
-func (d *dir) RenameVolume(vol Volume, newVolName string, op *operations.Operation) error {
+func (d *dir) RenameVolume(ctx context.Context, vol Volume, newVolName string, op *operations.Operation) error {
 	return genericVFSRenameVolume(d, vol, newVolName, op)
 }
 
 // MigrateVolume sends a volume for migration.
-func (d *dir) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
-	return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
+func (d *dir) MigrateVolume(ctx context.Context, vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
+	return genericVFSMigrateVolume(ctx, d, d.state, vol, conn, volSrcArgs, op)
 }
 
 // BackupVolume copies a volume (and optionally its snapshots) to a specified target path.
 // This driver does not support optimized backups.
-func (d *dir) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
-	return genericVFSBackupVolume(d, vol, tarWriter, snapshots, op)
+func (d *dir) BackupVolume(ctx context.Context, vol VolumeCopy, projectName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
+	return genericVFSBackupVolume(ctx, d, vol, tarWriter, snapshots, op)
 }
 
 // CreateVolumeSnapshot creates a snapshot of a volume.
-func (d *dir) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+func (d *dir) CreateVolumeSnapshot(ctx context.Context, snapVol Volume, op *operations.Operation) error {
 	parentName, _, _ := api.GetParentAndSnapshotName(snapVol.name)
 
 	// Create snapshot directory.
@@ -467,12 +468,12 @@ func (d *dir) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 
 	if snapVol.IsVMBlock() || (snapVol.contentType == ContentTypeBlock && snapVol.volType == VolumeTypeCustom) {
 		parentVol := NewVolume(d, d.name, snapVol.volType, snapVol.contentType, parentName, nil, d.config)
-		srcDevPath, err := d.GetVolumeDiskPath(parentVol)
+		srcDevPath, err := d.GetVolumeDiskPath(ctx, parentVol)
 		if err != nil {
 			return err
 		}
 
-		targetDevPath, err := d.GetVolumeDiskPath(snapVol)
+		targetDevPath, err := d.GetVolumeDiskPath(ctx, snapVol)
 		if err != nil {
 			return err
 		}
@@ -484,7 +485,7 @@ func (d *dir) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 			return err
 		}
 
-		err = copyDevice(srcDevPath, targetDevPath)
+		err = copyDevice(srcDevPath, ctx, targetDevPath)
 		if err != nil {
 			return err
 		}
@@ -496,11 +497,11 @@ func (d *dir) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 
 // DeleteVolumeSnapshot removes a snapshot from the storage device. The volName and snapshotName
 // must be bare names and should not be in the format "volume/snapshot".
-func (d *dir) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+func (d *dir) DeleteVolumeSnapshot(ctx context.Context, snapVol Volume, op *operations.Operation) error {
 	snapPath := snapVol.MountPath()
 
 	// Remove the snapshot from the storage device.
-	err := forceRemoveAll(snapPath)
+	err := forceRemoveAll(ctx, snapPath)
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("Failed to remove '%s': %w", snapPath, err)
 	}
@@ -517,8 +518,8 @@ func (d *dir) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 }
 
 // MountVolumeSnapshot sets up a read-only mount on top of the snapshot to avoid accidental modifications.
-func (d *dir) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
-	unlock, err := snapVol.MountLock()
+func (d *dir) MountVolumeSnapshot(ctx context.Context, snapVol Volume, op *operations.Operation) error {
+	unlock, err := snapVol.MountLock(ctx)
 	if err != nil {
 		return err
 	}
@@ -536,7 +537,7 @@ func (d *dir) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 		}
 	}
 
-	_, err = mountReadOnly(snapPath, snapPath)
+	_, err = mountReadOnly(ctx, snapPath, snapPath)
 	if err != nil {
 		return err
 	}
@@ -546,8 +547,8 @@ func (d *dir) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 }
 
 // UnmountVolumeSnapshot removes the read-only mount placed on top of a snapshot.
-func (d *dir) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
-	unlock, err := snapVol.MountLock()
+func (d *dir) UnmountVolumeSnapshot(ctx context.Context, snapVol Volume, op *operations.Operation) (bool, error) {
+	unlock, err := snapVol.MountLock(ctx)
 	if err != nil {
 		return false, err
 	}
@@ -572,12 +573,12 @@ func (d *dir) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 }
 
 // VolumeSnapshots returns a list of snapshots for the volume (in no particular order).
-func (d *dir) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
+func (d *dir) VolumeSnapshots(ctx context.Context, vol Volume, op *operations.Operation) ([]string, error) {
 	return genericVFSVolumeSnapshots(d, vol, op)
 }
 
 // RestoreVolume restores a volume from a snapshot.
-func (d *dir) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation) error {
+func (d *dir) RestoreVolume(ctx context.Context, vol Volume, snapVol Volume, op *operations.Operation) error {
 	_, snapshotName, _ := api.GetParentAndSnapshotName(snapVol.name)
 	snapVol, err := vol.NewSnapshot(snapshotName)
 	if err != nil {
@@ -608,12 +609,12 @@ func (d *dir) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation
 
 	// Restore block volume.
 	if vol.IsVMBlock() || (vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom) {
-		srcDevPath, err := d.GetVolumeDiskPath(snapVol)
+		srcDevPath, err := d.GetVolumeDiskPath(ctx, snapVol)
 		if err != nil {
 			return err
 		}
 
-		targetDevPath, err := d.GetVolumeDiskPath(vol)
+		targetDevPath, err := d.GetVolumeDiskPath(ctx, vol)
 		if err != nil {
 			return err
 		}
@@ -625,7 +626,7 @@ func (d *dir) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation
 			return err
 		}
 
-		err = copyDevice(srcDevPath, targetDevPath)
+		err = copyDevice(srcDevPath, ctx, targetDevPath)
 		if err != nil {
 			return err
 		}
@@ -635,6 +636,6 @@ func (d *dir) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation
 }
 
 // RenameVolumeSnapshot renames a volume snapshot.
-func (d *dir) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op *operations.Operation) error {
+func (d *dir) RenameVolumeSnapshot(ctx context.Context, snapVol Volume, newSnapshotName string, op *operations.Operation) error {
 	return genericVFSRenameVolumeSnapshot(d, snapVol, newSnapshotName, op)
 }

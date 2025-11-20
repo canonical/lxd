@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -11,18 +12,18 @@ import (
 )
 
 // withoutGetVolID returns a copy of this struct but with a volIDFunc which will cause quotas to be skipped.
-func (d *dir) withoutGetVolID() Driver {
+func (d *dir) withoutGetVolID(ctx context.Context) Driver {
 	newDriver := &dir{}
-	getVolID := func(volType VolumeType, volName string) (int64, error) { return volIDQuotaSkip, nil }
+	getVolID := func(ctx context.Context, volType VolumeType, volName string) (int64, error) { return volIDQuotaSkip, nil }
 	newDriver.init(d.state, d.name, d.config, d.logger, getVolID, d.commonRules)
-	_ = newDriver.load()
+	_ = newDriver.load(ctx)
 
 	return newDriver
 }
 
 // setupInitialQuota enables quota on a new volume and sets with an initial quota from config.
 // Returns a revert fail function that can be used to undo this function if a subsequent step fails.
-func (d *dir) setupInitialQuota(vol Volume) (revert.Hook, error) {
+func (d *dir) setupInitialQuota(ctx context.Context, vol Volume) (revert.Hook, error) {
 	if vol.IsVMBlock() {
 		return nil, nil
 	}
@@ -30,7 +31,7 @@ func (d *dir) setupInitialQuota(vol Volume) (revert.Hook, error) {
 	volPath := vol.MountPath()
 
 	// Get the volume ID for the new volume, which is used to set project quota.
-	volID, err := d.getVolID(vol.volType, vol.name)
+	volID, err := d.getVolID(ctx, vol.volType, vol.name)
 	if err != nil {
 		return nil, err
 	}

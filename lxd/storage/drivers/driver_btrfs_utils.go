@@ -97,10 +97,10 @@ func (d *btrfs) isSubvolume(path string) bool {
 	return true
 }
 
-func (d *btrfs) hasSubvolumes(path string) (bool, error) {
+func (d *btrfs) hasSubvolumes(ctx context.Context, path string) (bool, error) {
 	var stdout strings.Builder
 
-	err := shared.RunCommandWithFds(d.state.ShutdownCtx, nil, &stdout, "btrfs", "subvolume", "list", "-o", path)
+	err := shared.RunCommandWithFds(ctx, nil, &stdout, "btrfs", "subvolume", "list", "-o", path)
 	if err != nil {
 		return false, err
 	}
@@ -108,7 +108,7 @@ func (d *btrfs) hasSubvolumes(path string) (bool, error) {
 	return stdout.Len() > 0, nil
 }
 
-func (d *btrfs) getSubvolumes(path string) ([]string, error) {
+func (d *btrfs) getSubvolumes(ctx context.Context, path string) ([]string, error) {
 	// Make sure the path has a trailing slash.
 	if !strings.HasSuffix(path, "/") {
 		path = path + "/"
@@ -153,7 +153,7 @@ func (d *btrfs) getSubvolumes(path string) ([]string, error) {
 		// If not running inside a nested container we can use "btrfs subvolume list" to get subvolumes which is more
 		// performant than walking the directory tree.
 		var stdout bytes.Buffer
-		err := shared.RunCommandWithFds(d.state.ShutdownCtx, nil, &stdout, "btrfs", "subvolume", "list", poolMountPath)
+		err := shared.RunCommandWithFds(ctx, nil, &stdout, "btrfs", "subvolume", "list", poolMountPath)
 		if err != nil {
 			return nil, err
 		}
@@ -181,13 +181,13 @@ func (d *btrfs) getSubvolumes(path string) ([]string, error) {
 
 // snapshotSubvolume creates a snapshot of the specified path at the dest supplied. If recursion is true and
 // sub volumes are found below the path then they are created at the relative location in dest.
-func (d *btrfs) snapshotSubvolume(path string, dest string, recursion bool) (revert.Hook, error) {
+func (d *btrfs) snapshotSubvolume(ctx context.Context, path string, dest string, recursion bool) (revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
 	// Single subvolume creation.
 	snapshot := func(path string, dest string) error {
-		_, err := shared.RunCommandContext(context.TODO(), "btrfs", "subvolume", "snapshot", path, dest)
+		_, err := shared.RunCommandContext(ctx, "btrfs", "subvolume", "snapshot", path, dest)
 		if err != nil {
 			return err
 		}
@@ -195,7 +195,7 @@ func (d *btrfs) snapshotSubvolume(path string, dest string, recursion bool) (rev
 		revert.Add(func() {
 			// Don't delete recursive since there already is a revert hook
 			// for each subvolume that got created.
-			_ = d.deleteSubvolume(dest, false)
+			_ = d.deleteSubvolume(context.Background(), dest, false)
 		})
 
 		return nil
@@ -210,7 +210,7 @@ func (d *btrfs) snapshotSubvolume(path string, dest string, recursion bool) (rev
 	// Now snapshot all subvolumes of the root.
 	if recursion {
 		// Get the subvolumes list.
-		subSubVols, err := d.getSubvolumes(path)
+		subSubVols, err := d.getSubvolumes(ctx, path)
 		if err != nil {
 			return nil, err
 		}
@@ -235,13 +235,13 @@ func (d *btrfs) snapshotSubvolume(path string, dest string, recursion bool) (rev
 	return cleanup, nil
 }
 
-func (d *btrfs) deleteSubvolume(rootPath string, recursion bool) error {
+func (d *btrfs) deleteSubvolume(ctx context.Context, rootPath string, recursion bool) error {
 	// Single subvolume deletion.
 	destroy := func(path string) error {
 		// Attempt (but don't fail on) to delete any qgroup on the subvolume.
-		qgroup, _, err := d.getQGroup(path)
+		qgroup, _, err := d.getQGroup(ctx, path)
 		if err == nil {
-			_, _ = shared.RunCommandContext(context.TODO(), "btrfs", "qgroup", "destroy", qgroup, path)
+			_, _ = shared.RunCommandContext(ctx, "btrfs", "qgroup", "destroy", qgroup, path)
 		}
 
 		// Temporarily change ownership & mode to help with nesting.
@@ -249,13 +249,13 @@ func (d *btrfs) deleteSubvolume(rootPath string, recursion bool) error {
 		_ = os.Chown(path, 0, 0)
 
 		// Delete the subvolume itself.
-		_, err = shared.RunCommandContext(context.TODO(), "btrfs", "subvolume", "delete", path)
+		_, err = shared.RunCommandContext(ctx, "btrfs", "subvolume", "delete", path)
 
 		return err
 	}
 
 	// Try and ensure volume is writable to possibility of destroy failing.
-	err := d.setSubvolumeReadonlyProperty(rootPath, false)
+	err := d.setSubvolumeReadonlyProperty(ctx, rootPath, false)
 	if err != nil {
 		d.logger.Warn("Failed setting subvolume writable", logger.Ctx{"path": rootPath, "err": err})
 	}
@@ -271,7 +271,7 @@ func (d *btrfs) deleteSubvolume(rootPath string, recursion bool) error {
 	// Delete subsubvols as recursion enabled.
 
 	// Get the subvolumes list.
-	subSubVols, err := d.getSubvolumes(rootPath)
+	subSubVols, err := d.getSubvolumes(ctx, rootPath)
 	if err != nil {
 		return err
 	}
@@ -280,7 +280,7 @@ func (d *btrfs) deleteSubvolume(rootPath string, recursion bool) error {
 	sort.Sort(sort.StringSlice(subSubVols))
 	for _, subSubVol := range subSubVols {
 		subSubVolPath := filepath.Join(rootPath, subSubVol)
-		err = d.setSubvolumeReadonlyProperty(subSubVolPath, false)
+		err = d.setSubvolumeReadonlyProperty(ctx, subSubVolPath, false)
 		if err != nil {
 			d.logger.Warn("Failed setting subvolume writable", logger.Ctx{"path": subSubVolPath, "err": err})
 		}
@@ -305,9 +305,9 @@ func (d *btrfs) deleteSubvolume(rootPath string, recursion bool) error {
 	return nil
 }
 
-func (d *btrfs) getQGroup(path string) (string, int64, error) {
+func (d *btrfs) getQGroup(ctx context.Context, path string) (string, int64, error) {
 	// Try to get the qgroup details.
-	output, err := shared.RunCommandContext(context.TODO(), "btrfs", "qgroup", "show", "-e", "-f", "--raw", path)
+	output, err := shared.RunCommandContext(ctx, "btrfs", "qgroup", "show", "-e", "-f", "--raw", path)
 	if err != nil {
 		return "", -1, errBtrfsNoQuota
 	}
@@ -393,7 +393,7 @@ func (d *btrfs) sendSubvolume(path string, parent string, conn io.ReadWriteClose
 }
 
 // setSubvolumeReadonlyProperty sets the readonly property on the subvolume to true or false.
-func (d *btrfs) setSubvolumeReadonlyProperty(path string, readonly bool) error {
+func (d *btrfs) setSubvolumeReadonlyProperty(ctx context.Context, path string, readonly bool) error {
 	// Silently ignore requests to set subvolume readonly property if running in a user namespace as we won't
 	// be able to change it if it is readonly already, and making it readonly will mean we cannot undo it.
 	if d.state.OS.RunningInUserNS {
@@ -407,7 +407,7 @@ func (d *btrfs) setSubvolumeReadonlyProperty(path string, readonly bool) error {
 
 	args = append(args, "-ts", path, "ro", strconv.FormatBool(readonly))
 
-	_, err := shared.RunCommandContext(context.TODO(), "btrfs", args...)
+	_, err := shared.RunCommandContext(ctx, "btrfs", args...)
 	return err
 }
 
@@ -422,14 +422,14 @@ type BTRFSSubVolume struct {
 
 // getSubvolumesMetaData retrieves subvolume meta data with paths relative to the root volume.
 // The first item in the returned list is the root subvolume itself.
-func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
+func (d *btrfs) getSubvolumesMetaData(ctx context.Context, vol Volume) ([]BTRFSSubVolume, error) {
 	snapName := ""
 	if vol.IsSnapshot() {
 		_, snapName, _ = api.GetParentAndSnapshotName(vol.name)
 	}
 
 	// Find any subvolumes in volume.
-	subVolPaths, err := d.getSubvolumes(vol.MountPath())
+	subVolPaths, err := d.getSubvolumes(ctx, vol.MountPath())
 	if err != nil {
 		return nil, err
 	}
@@ -441,7 +441,7 @@ func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
 	subVols = append(subVols, BTRFSSubVolume{
 		Snapshot: snapName,
 		Path:     string(filepath.Separator),
-		Readonly: btrfsSubVolumeIsRo(vol.MountPath()),
+		Readonly: btrfsSubVolumeIsRo(ctx, vol.MountPath()),
 	})
 
 	// Add any subvolumes under the root subvolume with relative path to root.
@@ -449,7 +449,7 @@ func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
 		subVols = append(subVols, BTRFSSubVolume{
 			Snapshot: snapName,
 			Path:     string(filepath.Separator) + subVolPath,
-			Readonly: btrfsSubVolumeIsRo(filepath.Join(vol.MountPath(), subVolPath)),
+			Readonly: btrfsSubVolumeIsRo(ctx, filepath.Join(vol.MountPath(), subVolPath)),
 		})
 	}
 
@@ -459,7 +459,7 @@ func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
 
 	if !d.state.OS.RunningInUserNS {
 		// List all subvolumes in the given filesystem with their UUIDs and received UUIDs.
-		err = shared.RunCommandWithFds(d.state.ShutdownCtx, nil, &stdout, "btrfs", "subvolume", "list", "-u", "-R", poolMountPath)
+		err = shared.RunCommandWithFds(ctx, nil, &stdout, "btrfs", "subvolume", "list", "-u", "-R", poolMountPath)
 		if err != nil {
 			return nil, err
 		}
@@ -491,13 +491,13 @@ func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
 	return subVols, nil
 }
 
-func (d *btrfs) getSubVolumeReceivedUUID(vol Volume) (string, error) {
+func (d *btrfs) getSubVolumeReceivedUUID(ctx context.Context, vol Volume) (string, error) {
 	stdout := strings.Builder{}
 
 	poolMountPath := GetPoolMountPath(vol.pool)
 
 	// List all subvolumes in the given filesystem with their UUIDs.
-	err := shared.RunCommandWithFds(d.state.ShutdownCtx, nil, &stdout, "btrfs", "subvolume", "list", "-R", poolMountPath)
+	err := shared.RunCommandWithFds(ctx, nil, &stdout, "btrfs", "subvolume", "list", "-R", poolMountPath)
 	if err != nil {
 		return "", err
 	}
@@ -531,7 +531,7 @@ type BTRFSMetaDataHeader struct {
 // however in circumstances where the volume being scanned is itself a snapshot, the returned metadata will
 // not report the volume as readonly or as being a snapshot, as the expectation is that this volume will be
 // restored on the target system as a normal volume and not a snapshot.
-func (d *btrfs) restorationHeader(vol Volume, snapshots []string) (*BTRFSMetaDataHeader, error) {
+func (d *btrfs) restorationHeader(ctx context.Context, vol Volume, snapshots []string) (*BTRFSMetaDataHeader, error) {
 	var migrationHeader BTRFSMetaDataHeader
 
 	// Add snapshots to volumes list.
@@ -539,7 +539,7 @@ func (d *btrfs) restorationHeader(vol Volume, snapshots []string) (*BTRFSMetaDat
 		snapVol, _ := vol.NewSnapshot(snapName)
 
 		// Add snapshot root volume to volumes list.
-		subVols, err := d.getSubvolumesMetaData(snapVol)
+		subVols, err := d.getSubvolumesMetaData(ctx, snapVol)
 		if err != nil {
 			return nil, err
 		}
@@ -548,7 +548,7 @@ func (d *btrfs) restorationHeader(vol Volume, snapshots []string) (*BTRFSMetaDat
 	}
 
 	// Add main root volume to volumes list.
-	subVols, err := d.getSubvolumesMetaData(vol)
+	subVols, err := d.getSubvolumesMetaData(ctx, vol)
 	if err != nil {
 		return nil, err
 	}
@@ -604,7 +604,7 @@ func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker, mountPath string) (*B
 }
 
 // receiveSubVolume receives a subvolume from an io.Reader into the receivePath and returns the path to the received subvolume.
-func (d *btrfs) receiveSubVolume(r io.Reader, receivePath string, tracker *ioprogress.ProgressTracker) (string, error) {
+func (d *btrfs) receiveSubVolume(ctx context.Context, r io.Reader, receivePath string, tracker *ioprogress.ProgressTracker) (string, error) {
 	files, err := os.ReadDir(receivePath)
 	if err != nil {
 		return "", fmt.Errorf("Failed listing contents of %q: %w", receivePath, err)
@@ -619,7 +619,7 @@ func (d *btrfs) receiveSubVolume(r io.Reader, receivePath string, tracker *iopro
 		}
 	}
 
-	err = shared.RunCommandWithFds(d.state.ShutdownCtx, stdin, nil, "btrfs", "receive", "-e", receivePath)
+	err = shared.RunCommandWithFds(ctx, stdin, nil, "btrfs", "receive", "-e", receivePath)
 	if err != nil {
 		return "", err
 	}

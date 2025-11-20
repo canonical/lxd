@@ -48,13 +48,13 @@ type pure struct {
 }
 
 // load is used initialize the driver. It should be used only once.
-func (d *pure) load() error {
+func (d *pure) load(ctx context.Context) error {
 	// Done if previously loaded.
 	if pureLoaded {
 		return nil
 	}
 
-	versions := connectors.GetSupportedVersions(context.TODO(), pureSupportedConnectors)
+	versions := connectors.GetSupportedVersions(ctx, pureSupportedConnectors)
 	pureVersion = strings.Join(versions, " / ")
 	pureLoaded = true
 
@@ -120,7 +120,7 @@ func (d *pure) Info() Info {
 }
 
 // FillConfig populates the storage pool's configuration file with the default values.
-func (d *pure) FillConfig() error {
+func (d *pure) FillConfig(context.Context) error {
 	// Use NVMe by default.
 	if d.config["pure.mode"] == "" {
 		d.config["pure.mode"] = connectors.TypeNVME
@@ -243,7 +243,7 @@ func (d *pure) ValidateSource() error {
 
 // Create is called during pool creation and is effectively using an empty driver struct.
 // WARNING: The Create() function cannot rely on any of the struct attributes being set.
-func (d *pure) Create() error {
+func (d *pure) Create(context.Context) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -266,7 +266,7 @@ func (d *pure) Create() error {
 }
 
 // Update applies any driver changes required from a configuration change.
-func (d *pure) Update(changedConfig map[string]string) error {
+func (d *pure) Update(ctx context.Context, changedConfig map[string]string) error {
 	newPoolSizeBytes, err := units.ParseByteSizeString(changedConfig["size"])
 	if err != nil {
 		return fmt.Errorf("Failed to parse storage size: %w", err)
@@ -288,7 +288,7 @@ func (d *pure) Update(changedConfig map[string]string) error {
 }
 
 // Delete removes the storage pool (Pure Storage pod).
-func (d *pure) Delete(op *operations.Operation) error {
+func (d *pure) Delete(ctx context.Context, op *operations.Operation) error {
 	// First delete the storage pool on Pure Storage.
 	err := d.client().deleteStoragePool(d.name)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
@@ -305,19 +305,19 @@ func (d *pure) Delete(op *operations.Operation) error {
 }
 
 // Mount mounts the storage pool.
-func (d *pure) Mount() (bool, error) {
+func (d *pure) Mount(context.Context) (bool, error) {
 	// Nothing to do here.
 	return true, nil
 }
 
 // Unmount unmounts the storage pool.
-func (d *pure) Unmount() (bool, error) {
+func (d *pure) Unmount(context.Context) (bool, error) {
 	// Nothing to do here.
 	return true, nil
 }
 
 // GetResources returns the pool resource usage information.
-func (d *pure) GetResources() (*api.ResourcesStoragePool, error) {
+func (d *pure) GetResources(context.Context) (*api.ResourcesStoragePool, error) {
 	pool, err := d.client().getStoragePool(d.name)
 	if err != nil {
 		return nil, err
@@ -398,7 +398,7 @@ func (d *pure) MigrationTypes(contentType ContentType, refresh bool, copySnapsho
 // roundVolumeBlockSizeBytes rounds the given size (in bytes) up to the next
 // multiple of 512 bytes, which is the minimum allocation unit on Pure Storage.
 // It also enforces a minimum volume size of 1 MiB.
-func (d *pure) roundVolumeBlockSizeBytes(_ Volume, sizeBytes int64) int64 {
+func (d *pure) roundVolumeBlockSizeBytes(ctx context.Context, vol Volume, sizeBytes int64) int64 {
 	if sizeBytes < pureMinVolumeSizeBytes {
 		return pureMinVolumeSizeBytes
 	}

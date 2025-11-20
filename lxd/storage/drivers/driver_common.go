@@ -29,14 +29,14 @@ import (
 type common struct {
 	name        string
 	config      map[string]string
-	getVolID    func(volType VolumeType, volName string) (int64, error)
+	getVolID    func(ctx context.Context, volType VolumeType, volName string) (int64, error)
 	commonRules *Validators
 	state       *state.State
 	logger      logger.Logger
-	patches     map[string]func() error
+	patches     map[string]func(ctx context.Context) error
 }
 
-func (d *common) init(state *state.State, name string, config map[string]string, logger logger.Logger, volIDFunc func(volType VolumeType, volName string) (int64, error), commonRules *Validators) {
+func (d *common) init(state *state.State, name string, config map[string]string, logger logger.Logger, volIDFunc func(ctx context.Context, volType VolumeType, volName string) (int64, error), commonRules *Validators) {
 	d.name = name
 	d.config = config
 	d.getVolID = volIDFunc
@@ -266,7 +266,7 @@ func (d *common) Config() map[string]string {
 }
 
 // ApplyPatch looks for a suitable patch and runs it.
-func (d *common) ApplyPatch(name string) error {
+func (d *common) ApplyPatch(ctx context.Context, name string) error {
 	if d.patches == nil {
 		return fmt.Errorf("The patch mechanism isn't implemented on pool %q", d.name)
 	}
@@ -282,7 +282,7 @@ func (d *common) ApplyPatch(name string) error {
 		return nil
 	}
 
-	return patch()
+	return patch(ctx)
 }
 
 // moveGPTAltHeader moves the GPT alternative header to the end of the disk device supplied.
@@ -292,7 +292,7 @@ func (d *common) ApplyPatch(name string) error {
 // what partition structure (if any) the disk should have. However we do attempt to move the GPT alternative
 // header where possible so that the backup header is where it is expected in case of any corruption with the
 // primary header.
-func (d *common) moveGPTAltHeader(devPath string) error {
+func (d *common) moveGPTAltHeader(ctx context.Context, devPath string) error {
 	path, err := exec.LookPath("sgdisk")
 	if err != nil {
 		d.logger.Warn("Skipped moving GPT alternative header to end of disk as sgdisk command not found", logger.Ctx{"dev": devPath})
@@ -309,13 +309,13 @@ func (d *common) moveGPTAltHeader(devPath string) error {
 		}
 
 		if blockSize != 512 {
-			devPath, err = block.LoopDeviceSetupAlign(context.TODO(), devPath)
+			devPath, err = block.LoopDeviceSetupAlign(ctx, devPath)
 			if err != nil {
 				return fmt.Errorf("Failed setting up loop device for %q: %w", devPath, err)
 			}
 
 			defer func() {
-				err := loopDeviceAutoDetach(devPath)
+				err := loopDeviceAutoDetach(ctx, devPath)
 				if err != nil {
 					d.logger.Warn("Failed detaching loop device", logger.Ctx{"dev": devPath, "err": err})
 				}
@@ -323,7 +323,7 @@ func (d *common) moveGPTAltHeader(devPath string) error {
 		}
 	}
 
-	_, err = shared.RunCommandContext(context.TODO(), path, "--move-second-header", devPath)
+	_, err = shared.RunCommandContext(ctx, path, "--move-second-header", devPath)
 	if err == nil {
 		d.logger.Debug("Moved GPT alternative header to end of disk", logger.Ctx{"dev": devPath})
 		return nil
@@ -346,13 +346,13 @@ func (d *common) moveGPTAltHeader(devPath string) error {
 }
 
 // runFiller runs the supplied filler, and setting the returned volume size back into filler.
-func (d *common) runFiller(vol Volume, devPath string, filler *VolumeFiller, allowUnsafeResize bool) error {
+func (d *common) runFiller(ctx context.Context, vol Volume, devPath string, filler *VolumeFiller, allowUnsafeResize bool) error {
 	if filler == nil || filler.Fill == nil {
 		return nil
 	}
 
 	vol.driver.Logger().Debug("Running filler function", logger.Ctx{"dev": devPath, "path": vol.MountPath()})
-	volSize, err := filler.Fill(vol, devPath, allowUnsafeResize)
+	volSize, err := filler.Fill(ctx, vol, devPath, allowUnsafeResize)
 	if err != nil {
 		return err
 	}
@@ -363,37 +363,37 @@ func (d *common) runFiller(vol Volume, devPath string, filler *VolumeFiller, all
 }
 
 // CreateVolume creates a new storage volume on disk.
-func (d *common) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
+func (d *common) CreateVolume(ctx context.Context, vol Volume, filler *VolumeFiller, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
 // CreateVolumeFromBackup re-creates a volume from its exported state.
-func (d *common) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
+func (d *common) CreateVolumeFromBackup(ctx context.Context, vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
 	return nil, nil, ErrNotSupported
 }
 
 // CreateVolumeFromCopy copies an existing storage volume (with or without snapshots) into a new volume.
-func (d *common) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error {
+func (d *common) CreateVolumeFromCopy(ctx context.Context, vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
 // CreateVolumeFromMigration creates a new volume (with or without snapshots) from a migration data stream.
-func (d *common) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
+func (d *common) CreateVolumeFromMigration(ctx context.Context, vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
 // RefreshVolume updates an existing volume to match the state of another.
-func (d *common) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) error {
+func (d *common) RefreshVolume(ctx context.Context, vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
 // DeleteVolume destroys the on-disk state of a volume.
-func (d *common) DeleteVolume(vol Volume, op *operations.Operation) error {
+func (d *common) DeleteVolume(ctx context.Context, vol Volume, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
 // HasVolume indicates whether a specific volume exists on the storage pool.
-func (d *common) HasVolume(vol Volume) (bool, error) {
+func (d *common) HasVolume(ctx context.Context, vol Volume) (bool, error) {
 	return false, ErrNotSupported
 }
 
@@ -403,95 +403,95 @@ func (d *common) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 }
 
 // UpdateVolume applies the driver specific changes of a volume configuration change.
-func (d *common) UpdateVolume(vol Volume, changedConfig map[string]string) error {
+func (d *common) UpdateVolume(ctx context.Context, vol Volume, changedConfig map[string]string) error {
 	return ErrNotSupported
 }
 
 // GetVolumeUsage returns the disk space usage of a volume.
-func (d *common) GetVolumeUsage(vol Volume) (int64, error) {
+func (d *common) GetVolumeUsage(ctx context.Context, vol Volume) (int64, error) {
 	return -1, ErrNotSupported
 }
 
 // SetVolumeQuota applies a size limit on volume.
-func (d *common) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
+func (d *common) SetVolumeQuota(ctx context.Context, vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
 // GetVolumeDiskPath returns the location of a root disk block device.
-func (d *common) GetVolumeDiskPath(vol Volume) (string, error) {
+func (d *common) GetVolumeDiskPath(ctx context.Context, vol Volume) (string, error) {
 	return "", ErrNotSupported
 }
 
 // ListVolumes returns a list of LXD volumes in storage pool.
-func (d *common) ListVolumes() ([]Volume, error) {
+func (d *common) ListVolumes(context.Context) ([]Volume, error) {
 	return nil, ErrNotSupported
 }
 
 // MountVolume sets up the volume for use.
-func (d *common) MountVolume(vol Volume, op *operations.Operation) error {
+func (d *common) MountVolume(ctx context.Context, vol Volume, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
 // UnmountVolume clears any runtime state for the volume.
 // As driver doesn't have volumes to unmount it returns false indicating the volume was already unmounted.
-func (d *common) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
+func (d *common) UnmountVolume(ctx context.Context, vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
 	return false, ErrNotSupported
 }
 
 // CanDelegateVolume checks whether the volume can be delegated.
-func (d *common) CanDelegateVolume(vol Volume) bool {
+func (d *common) CanDelegateVolume(ctx context.Context, vol Volume) bool {
 	return false
 }
 
 // DelegateVolume delegates a volume.
-func (d *common) DelegateVolume(vol Volume, pid int) error {
+func (d *common) DelegateVolume(ctx context.Context, vol Volume, pid int) error {
 	return nil
 }
 
 // RenameVolume renames the volume and all related filesystem entries.
-func (d *common) RenameVolume(vol Volume, newVolName string, op *operations.Operation) error {
+func (d *common) RenameVolume(ctx context.Context, vol Volume, newName string, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
 // MigrateVolume streams the volume (with or without snapshots).
-func (d *common) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
+func (d *common) MigrateVolume(ctx context.Context, vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
 // BackupVolume creates an exported version of a volume.
-func (d *common) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
+func (d *common) BackupVolume(ctx context.Context, vol VolumeCopy, projectName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
 // CreateVolumeSnapshot creates a new snapshot.
-func (d *common) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+func (d *common) CreateVolumeSnapshot(ctx context.Context, snapVol Volume, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
 // DeleteVolumeSnapshot deletes a snapshot.
-func (d *common) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+func (d *common) DeleteVolumeSnapshot(ctx context.Context, snapVol Volume, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
 // MountVolumeSnapshot makes the snapshot available for use.
-func (d *common) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+func (d *common) MountVolumeSnapshot(ctx context.Context, snapVol Volume, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
 // UnmountVolumeSnapshot clears any runtime state for the snapshot.
-func (d *common) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+func (d *common) UnmountVolumeSnapshot(ctx context.Context, snapVol Volume, op *operations.Operation) (bool, error) {
 	return false, ErrNotSupported
 }
 
 // VolumeSnapshots returns a list of snapshots for the volume (in no particular order).
-func (d *common) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
+func (d *common) VolumeSnapshots(ctx context.Context, vol Volume, op *operations.Operation) ([]string, error) {
 	return nil, ErrNotSupported
 }
 
 // CheckVolumeSnapshots checks that the volume's snapshots, according to the storage driver, match those provided.
-func (d *common) CheckVolumeSnapshots(vol Volume, snapVols []Volume, op *operations.Operation) error {
+func (d *common) CheckVolumeSnapshots(ctx context.Context, vol Volume, snapVols []Volume, op *operations.Operation) error {
 	// Use the volume's driver reference to pick the actual method as implemented by the driver.
-	storageSnapshotNames, err := vol.driver.VolumeSnapshots(vol, op)
+	storageSnapshotNames, err := vol.driver.VolumeSnapshots(ctx, vol, op)
 	if err != nil {
 		return err
 	}
@@ -521,12 +521,12 @@ func (d *common) CheckVolumeSnapshots(vol Volume, snapVols []Volume, op *operati
 }
 
 // RestoreVolume resets a volume to its snapshotted state.
-func (d *common) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation) error {
+func (d *common) RestoreVolume(ctx context.Context, vol Volume, snapVol Volume, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
 // RenameVolumeSnapshot renames a snapshot.
-func (d *common) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op *operations.Operation) error {
+func (d *common) RenameVolumeSnapshot(ctx context.Context, snapVol Volume, newSnapshotName string, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
@@ -555,17 +555,17 @@ func (d *common) GetBucketURL(bucketName string) *url.URL {
 }
 
 // CreateBucket creates a new bucket.
-func (d *common) CreateBucket(bucket Volume, op *operations.Operation) error {
+func (d *common) CreateBucket(ctx context.Context, bucket Volume, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
 // DeleteBucket deletes an existing bucket.
-func (d *common) DeleteBucket(bucket Volume, op *operations.Operation) error {
+func (d *common) DeleteBucket(ctx context.Context, bucket Volume, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
 // UpdateBucket updates an existing bucket.
-func (d *common) UpdateBucket(bucket Volume, changedConfig map[string]string) error {
+func (d *common) UpdateBucket(ctx context.Context, bucket Volume, changedConfig map[string]string) error {
 	return ErrNotSupported
 }
 
@@ -584,23 +584,23 @@ func (d *common) ValidateBucketKey(keyName string, creds S3Credentials, roleName
 }
 
 // CreateBucketKey create bucket key.
-func (d *common) CreateBucketKey(bucket Volume, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error) {
+func (d *common) CreateBucketKey(ctx context.Context, bucket Volume, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error) {
 	return nil, ErrNotSupported
 }
 
 // UpdateBucketKey updates bucket key.
-func (d *common) UpdateBucketKey(bucket Volume, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error) {
+func (d *common) UpdateBucketKey(ctx context.Context, bucket Volume, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error) {
 	return nil, ErrNotSupported
 }
 
 // DeleteBucketKey deletes the bucket key.
-func (d *common) DeleteBucketKey(bucket Volume, keyName string, op *operations.Operation) error {
+func (d *common) DeleteBucketKey(ctx context.Context, bucket Volume, keyName string, op *operations.Operation) error {
 	return nil
 }
 
 // roundVolumeBlockSizeBytes returns sizeBytes rounded up to the next multiple
 // of MinBlockBoundary.
-func (d *common) roundVolumeBlockSizeBytes(vol Volume, sizeBytes int64) int64 {
+func (d *common) roundVolumeBlockSizeBytes(ctx context.Context, vol Volume, sizeBytes int64) int64 {
 	// QEMU requires image files to be in traditional storage block boundaries.
 	// We use 8k here to ensure our images are compatible with all of our backend drivers.
 	return roundAbove(MinBlockBoundary, sizeBytes)
@@ -611,13 +611,13 @@ func (d *common) isBlockBacked(vol Volume) bool {
 }
 
 // filesystemFreeze syncs and freezes a filesystem and returns an unfreeze function on success.
-func (d *common) filesystemFreeze(path string) (func() error, error) {
+func (d *common) filesystemFreeze(ctx context.Context, path string) (func() error, error) {
 	err := filesystem.SyncFS(path)
 	if err != nil {
 		return nil, fmt.Errorf("Failed syncing filesystem %q: %w", path, err)
 	}
 
-	_, err = shared.RunCommandContext(context.TODO(), "fsfreeze", "--freeze", path)
+	_, err = shared.RunCommandContext(ctx, "fsfreeze", "--freeze", path)
 	if err != nil {
 		return nil, fmt.Errorf("Failed freezing filesystem %q: %w", path, err)
 	}
@@ -625,7 +625,7 @@ func (d *common) filesystemFreeze(path string) (func() error, error) {
 	d.logger.Info("Filesystem frozen", logger.Ctx{"path": path})
 
 	unfreezeFS := func() error {
-		_, err := shared.RunCommandContext(context.TODO(), "fsfreeze", "--unfreeze", path)
+		_, err := shared.RunCommandContext(ctx, "fsfreeze", "--unfreeze", path)
 		if err != nil {
 			return fmt.Errorf("Failed unfreezing filesystem %q: %w", path, err)
 		}
