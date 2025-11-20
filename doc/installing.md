@@ -80,6 +80,9 @@ Afterward, apply the change to your current shell session by running:
 newgrp lxd
 ```
 
+This only applies to the current shell.
+You will need to log out and log back in again for the change to appear in a new terminal.
+
 <!-- Include end newgrp -->
 
 For more information, see the {ref}`installing-manage-access` section below.
