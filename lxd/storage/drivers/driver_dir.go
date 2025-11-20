@@ -21,9 +21,9 @@ type dir struct {
 }
 
 // load is used to run one-time action per-driver rather than per-pool.
-func (d *dir) load() error {
+func (d *dir) load(ctx context.Context) error {
 	// Register the patches.
-	d.patches = map[string]func() error{
+	d.patches = map[string]func(context.Context) error{
 		"storage_lvm_skipactivation":                         nil,
 		"storage_missing_snapshot_records":                   nil,
 		"storage_delete_old_snapshot_records":                nil,
@@ -56,7 +56,7 @@ func (d *dir) Info() Info {
 }
 
 // FillConfig populates the storage pool's configuration file with the default values.
-func (d *dir) FillConfig() error {
+func (d *dir) FillConfig(context.Context) error {
 	// Set default source if missing.
 	if d.config["source"] == "" {
 		d.config["source"] = GetPoolMountPath(d.name)
@@ -94,7 +94,7 @@ func (d *dir) ValidateSource() error {
 
 // Create is called during pool creation and is effectively using an empty driver struct.
 // WARNING: The Create() function cannot rely on any of the struct attributes being set.
-func (d *dir) Create() error {
+func (d *dir) Create(context.Context) error {
 	sourcePath := shared.HostPath(d.config["source"])
 
 	// Check that the path is currently empty.
@@ -126,7 +126,7 @@ func (d *dir) Create() error {
 }
 
 // Delete removes the storage pool from the storage device.
-func (d *dir) Delete(op *operations.Operation) error {
+func (d *dir) Delete(ctx context.Context, op *operations.Operation) error {
 	// On delete, wipe everything in the directory.
 	err := wipeDirectory(GetPoolMountPath(d.name))
 	if err != nil {
@@ -134,7 +134,7 @@ func (d *dir) Delete(op *operations.Operation) error {
 	}
 
 	// Unmount the path.
-	_, err = d.Unmount()
+	_, err = d.Unmount(ctx)
 	if err != nil {
 		return err
 	}
@@ -148,12 +148,12 @@ func (d *dir) Validate(config map[string]string) error {
 }
 
 // Update applies any driver changes required from a configuration change.
-func (d *dir) Update(changedConfig map[string]string) error {
+func (d *dir) Update(ctx context.Context, changedConfig map[string]string) error {
 	return nil
 }
 
 // Mount mounts the storage pool.
-func (d *dir) Mount() (bool, error) {
+func (d *dir) Mount(ctx context.Context) (bool, error) {
 	path := GetPoolMountPath(d.name)
 	sourcePath := shared.HostPath(d.config["source"])
 
@@ -168,7 +168,7 @@ func (d *dir) Mount() (bool, error) {
 	}
 
 	// Setup the bind-mount.
-	err := TryMount(context.TODO(), sourcePath, path, "none", unix.MS_BIND, "")
+	err := TryMount(ctx, sourcePath, path, "none", unix.MS_BIND, "")
 	if err != nil {
 		return false, err
 	}
@@ -177,7 +177,7 @@ func (d *dir) Mount() (bool, error) {
 }
 
 // Unmount unmounts the storage pool.
-func (d *dir) Unmount() (bool, error) {
+func (d *dir) Unmount(context.Context) (bool, error) {
 	path := GetPoolMountPath(d.name)
 
 	// Check if we're dealing with an external mount.
@@ -190,6 +190,6 @@ func (d *dir) Unmount() (bool, error) {
 }
 
 // GetResources returns the pool resource usage information.
-func (d *dir) GetResources() (*api.ResourcesStoragePool, error) {
+func (d *dir) GetResources(context.Context) (*api.ResourcesStoragePool, error) {
 	return genericVFSGetResources(d)
 }

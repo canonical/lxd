@@ -105,7 +105,7 @@ func Test_Volume_ConfigSizeFromSource(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		size, err := test.vol.ConfigSizeFromSource(test.srcVol)
+		size, err := test.vol.ConfigSizeFromSource(t.Context(), test.srcVol)
 		assert.Equal(t, test.size, size)
 		assert.Equal(t, test.err, err)
 	}

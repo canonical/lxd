@@ -153,7 +153,7 @@ func (d *alletra) ensureHost() (hostName string, cleanup revert.Hook, err error)
 }
 
 // mapVolume maps the given volume onto this host.
-func (d *alletra) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
+func (d *alletra) mapVolume(ctx context.Context, vol Volume) (cleanup revert.Hook, err error) {
 	reverter := revert.New()
 	defer reverter.Fail()
 
@@ -167,7 +167,7 @@ func (d *alletra) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 		return nil, err
 	}
 
-	unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
+	unlock, err := remoteVolumeMapLock(ctx, connector.Type(), d.Info().Name)
 	if err != nil {
 		return nil, err
 	}
@@ -198,13 +198,13 @@ func (d *alletra) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 	}
 
 	// Find the array's qualified name for the configured mode.
-	targetQN, targetAddrs, err := d.getTarget()
+	targetQN, targetAddrs, err := d.getTarget(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	// Connect to the array or do a rescan to get a new volumes mapped.
-	connReverter, err := connector.Connect(d.state.ShutdownCtx, targetQN, targetAddrs...)
+	connReverter, err := connector.Connect(ctx, targetQN, targetAddrs...)
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +219,7 @@ func (d *alletra) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 	outerReverter := revert.New()
 	if connCreated {
 		outerReverter.Add(func() {
-			err := d.unmapVolume(vol)
+			err := d.unmapVolume(ctx, vol)
 			if err != nil {
 				d.logger.Warn("unmapVolume failed on error path", logger.Ctx{"err": err})
 			}
@@ -236,7 +236,7 @@ func (d *alletra) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 }
 
 // unmapVolume unmaps the given volume from this host.
-func (d *alletra) unmapVolume(vol Volume) error {
+func (d *alletra) unmapVolume(ctx context.Context, vol Volume) error {
 	connector, err := d.connector()
 	if err != nil {
 		return err
@@ -247,7 +247,7 @@ func (d *alletra) unmapVolume(vol Volume) error {
 		return err
 	}
 
-	unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
+	unlock, err := remoteVolumeMapLock(ctx, connector.Type(), d.Info().Name)
 	if err != nil {
 		return err
 	}
@@ -265,7 +265,7 @@ func (d *alletra) unmapVolume(vol Volume) error {
 	}
 
 	// Get a path of a block device we want to unmap.
-	volumePath, _, _ := d.getMappedDevPath(vol, false)
+	volumePath, _, _ := d.getMappedDevPath(ctx, vol, false)
 
 	// When iSCSI volume is disconnected from the host, the device will remain on the system.
 	//
@@ -295,7 +295,7 @@ func (d *alletra) unmapVolume(vol Volume) error {
 
 		devName := filepath.Base(volumePath)
 		if strings.HasPrefix(devName, "dm-") {
-			_, err := shared.RunCommandContext(d.state.ShutdownCtx, "multipath", "-f", volumePath)
+			_, err := shared.RunCommandContext(ctx, "multipath", "-f", volumePath)
 			if err != nil {
 				return fmt.Errorf("Failed to unmap volume %q: Failed to remove multipath device %q: %w", vol.name, devName, err)
 			}
@@ -308,7 +308,7 @@ func (d *alletra) unmapVolume(vol Volume) error {
 		}
 
 		// Wait until the volume has disappeared.
-		ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 30*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 
 		if !block.WaitDiskDeviceGone(ctx, volumePath) {
@@ -328,7 +328,7 @@ func (d *alletra) unmapVolume(vol Volume) error {
 	// When NVMe/TCP volume is disconnected from the host, the device automatically disappears.
 	if volumePath != "" && connector.Type() == connectors.TypeNVME {
 		// Wait until the volume has disappeared.
-		ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 30*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 
 		if !block.WaitDiskDeviceGone(ctx, volumePath) {
@@ -345,7 +345,7 @@ func (d *alletra) unmapVolume(vol Volume) error {
 	// and remove the host from HPE storage.
 	if len(mappings) == 0 {
 		// Find the array's qualified name for the configured mode.
-		targetQN, _, err := d.getTarget()
+		targetQN, _, err := d.getTarget(ctx)
 		if err != nil {
 			return err
 		}
@@ -375,7 +375,7 @@ func (d *alletra) unmapVolume(vol Volume) error {
 
 // getMappedDevPath returns the local device path for the given volume.
 // Indicate with mapVolume if the volume should get mapped to the system if it isn't present.
-func (d *alletra) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook, error) {
+func (d *alletra) getMappedDevPath(ctx context.Context, vol Volume, mapVolume bool) (string, revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -385,7 +385,7 @@ func (d *alletra) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.H
 	}
 
 	if mapVolume {
-		cleanup, err := d.mapVolume(vol)
+		cleanup, err := d.mapVolume(ctx, vol)
 		if err != nil {
 			return "", nil, err
 		}
@@ -434,7 +434,7 @@ func (d *alletra) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.H
 	var devicePath string
 	if mapVolume {
 		// Wait until the disk device is mapped to the host.
-		devicePath, err = block.WaitDiskDevicePath(d.state.ShutdownCtx, diskPrefix, diskPathFilter)
+		devicePath, err = block.WaitDiskDevicePath(ctx, diskPrefix, diskPathFilter)
 	} else {
 		// Expect device to be already mapped.
 		devicePath, err = block.GetDiskDevicePath(diskPrefix, diskPathFilter)
@@ -450,9 +450,9 @@ func (d *alletra) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.H
 }
 
 // GetVolumeDiskPath returns the location of a root disk block device.
-func (d *alletra) GetVolumeDiskPath(vol Volume) (string, error) {
+func (d *alletra) GetVolumeDiskPath(ctx context.Context, vol Volume) (string, error) {
 	if vol.IsVMBlock() || (vol.volType == VolumeTypeCustom && IsContentBlock(vol.contentType)) {
-		devPath, _, err := d.getMappedDevPath(vol, false)
+		devPath, _, err := d.getMappedDevPath(ctx, vol, false)
 		return devPath, err
 	}
 
@@ -460,18 +460,18 @@ func (d *alletra) GetVolumeDiskPath(vol Volume) (string, error) {
 }
 
 // MountVolume mounts a volume and increments ref counter. Please call UnmountVolume() when done with the volume.
-func (d *alletra) MountVolume(vol Volume, op *operations.Operation) error {
-	return mountVolume(d, vol, d.getMappedDevPath, op)
+func (d *alletra) MountVolume(ctx context.Context, vol Volume, op *operations.Operation) error {
+	return mountVolume(ctx, d, vol, d.getMappedDevPath, op)
 }
 
 // UnmountVolume simulates unmounting a volume.
 // keepBlockDev indicates if backing block device should not be unmapped if volume is unmounted.
-func (d *alletra) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
-	return unmountVolume(d, vol, keepBlockDev, d.getMappedDevPath, d.unmapVolume, op)
+func (d *alletra) UnmountVolume(ctx context.Context, vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
+	return unmountVolume(ctx, d, vol, keepBlockDev, d.getMappedDevPath, d.unmapVolume, op)
 }
 
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied filler function.
-func (d *alletra) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
+func (d *alletra) CreateVolume(ctx context.Context, vol Volume, filler *VolumeFiller, op *operations.Operation) error {
 	client := d.client()
 
 	revert := revert.New()
@@ -502,7 +502,7 @@ func (d *alletra) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.
 
 	volumeFilesystem := vol.ConfigBlockFilesystem()
 	if vol.contentType == ContentTypeFS {
-		devPath, cleanup, err := d.getMappedDevPath(vol, true)
+		devPath, cleanup, err := d.getMappedDevPath(ctx, vol, true)
 		if err != nil {
 			return err
 		}
@@ -519,20 +519,20 @@ func (d *alletra) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
 
-		err := d.CreateVolume(fsVol, nil, op)
+		err := d.CreateVolume(ctx, fsVol, nil, op)
 		if err != nil {
 			return err
 		}
 
 		revert.Add(func() {
-			err := d.DeleteVolume(fsVol, op)
+			err := d.DeleteVolume(ctx, fsVol, nil)
 			if err != nil {
 				d.logger.Warn("DeleteVolume failed on error path", logger.Ctx{"err": err})
 			}
 		})
 	}
 
-	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+	err = vol.MountTask(ctx, func(mountPath string, op *operations.Operation) error {
 		// Run the volume filler function if supplied.
 		if filler != nil && filler.Fill != nil {
 			var err error
@@ -540,7 +540,7 @@ func (d *alletra) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.
 
 			if IsContentBlock(vol.contentType) {
 				// Get the device path.
-				devPath, err = d.GetVolumeDiskPath(vol)
+				devPath, err = d.GetVolumeDiskPath(ctx, vol)
 				if err != nil {
 					return err
 				}
@@ -562,14 +562,14 @@ func (d *alletra) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.
 			}
 
 			// Run the filler.
-			err = d.runFiller(vol, devPath, filler, allowUnsafeResize)
+			err = d.runFiller(ctx, vol, devPath, filler, allowUnsafeResize)
 			if err != nil {
 				return err
 			}
 
 			// Move the GPT alt header to end of disk if needed.
 			if vol.IsVMBlock() {
-				err = d.moveGPTAltHeader(devPath)
+				err = d.moveGPTAltHeader(ctx, devPath)
 				if err != nil {
 					return err
 				}
@@ -596,17 +596,17 @@ func (d *alletra) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.
 }
 
 // CreateVolumeFromBackup re-creates a volume from its exported state.
-func (d *alletra) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
-	return genericVFSBackupUnpack(d, d.state, vol, srcBackup.Snapshots, srcData, op)
+func (d *alletra) CreateVolumeFromBackup(ctx context.Context, vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
+	return genericVFSBackupUnpack(ctx, d, d.state, vol, srcBackup.Snapshots, srcData, op)
 }
 
 // BackupVolume creates an exported version of a volume.
-func (d *alletra) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
-	return genericVFSBackupVolume(d, vol, tarWriter, snapshots, op)
+func (d *alletra) BackupVolume(ctx context.Context, vol VolumeCopy, projectName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
+	return genericVFSBackupVolume(ctx, d, vol, tarWriter, snapshots, op)
 }
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
-func (d *alletra) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error {
+func (d *alletra) CreateVolumeFromCopy(ctx context.Context, vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, op *operations.Operation) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -615,7 +615,7 @@ func (d *alletra) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowI
 	postCreateTasks := func(v Volume) error {
 		if vol.contentType == ContentTypeFS {
 			// Mount the volume and ensure the permissions are set correctly inside the mounted volume.
-			err := v.MountTask(func(_ string, _ *operations.Operation) error {
+			err := v.MountTask(ctx, func(_ string, _ *operations.Operation) error {
 				return v.EnsureMountPath()
 			}, op)
 			if err != nil {
@@ -624,7 +624,7 @@ func (d *alletra) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowI
 		}
 
 		// Resize volume to the size specified.
-		err := d.SetVolumeQuota(v, v.config["size"], false, op)
+		err := d.SetVolumeQuota(ctx, v, v.config["size"], false, op)
 		if err != nil {
 			return err
 		}
@@ -652,13 +652,13 @@ func (d *alletra) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowI
 		fsVol.SetParentUUID(vol.parentUUID)
 		srcFSVol.SetParentUUID(srcVol.parentUUID)
 
-		err := d.CreateVolumeFromCopy(fsVol, srcFSVol, false, op)
+		err := d.CreateVolumeFromCopy(ctx, fsVol, srcFSVol, false, op)
 		if err != nil {
 			return err
 		}
 
 		revert.Add(func() {
-			err := d.DeleteVolume(fsVol.Volume, op)
+			err := d.DeleteVolume(ctx, fsVol.Volume, nil)
 			if err != nil {
 				d.logger.Warn("DeleteVolume failed on error path", logger.Ctx{"err": err})
 			}
@@ -740,7 +740,7 @@ func (d *alletra) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowI
 			}
 
 			// Copy the snapshot on the destination volume.
-			err = d.client().CreateVolumePhysicalCopy(d.state.ShutdownCtx, poolName, srcSnapshotName, volName)
+			err = d.client().CreateVolumePhysicalCopy(ctx, poolName, srcSnapshotName, volName)
 			if err != nil {
 				return fmt.Errorf("Failed copying snapshot %q: %w", snapshot.name, err)
 			}
@@ -751,14 +751,14 @@ func (d *alletra) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowI
 			// Create snapshot from a new volume (that was created from the source snapshot).
 			// However, do not create VM's filesystem volume snapshot, as filesystem volume is
 			// copied before block volume.
-			err = d.createVolumeSnapshot(snapshot, false, op)
+			err = d.createVolumeSnapshot(ctx, snapshot, false, op)
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	err = d.client().CreateVolumePhysicalCopy(d.state.ShutdownCtx, poolName, srcVolName, volName)
+	err = d.client().CreateVolumePhysicalCopy(ctx, poolName, srcVolName, volName)
 	if err != nil {
 		return err
 	}
@@ -773,7 +773,7 @@ func (d *alletra) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowI
 }
 
 // RefreshVolume updates an existing volume to match the state of another.
-func (d *alletra) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) error {
+func (d *alletra) RefreshVolume(ctx context.Context, vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -793,7 +793,7 @@ func (d *alletra) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapsh
 		fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume(), fsVolSnapshots...)
 		srcFSVol := NewVolumeCopy(srcVol.NewVMBlockFilesystemVolume(), srcFsVolSnapshots...)
 
-		cleanup, err := d.refreshVolume(fsVol, srcFSVol, refreshSnapshots, allowInconsistent, op)
+		cleanup, err := d.refreshVolume(ctx, fsVol, srcFSVol, refreshSnapshots, allowInconsistent, op)
 		if err != nil {
 			return err
 		}
@@ -801,7 +801,7 @@ func (d *alletra) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapsh
 		revert.Add(cleanup)
 	}
 
-	cleanup, err := d.refreshVolume(vol, srcVol, refreshSnapshots, allowInconsistent, op)
+	cleanup, err := d.refreshVolume(ctx, vol, srcVol, refreshSnapshots, allowInconsistent, op)
 	if err != nil {
 		return err
 	}
@@ -815,7 +815,7 @@ func (d *alletra) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapsh
 // refreshVolume updates an existing volume to match the state of another. For VMs, this function
 // refreshes either block or filesystem volume, depending on the volume type. Therefore, the caller
 // needs to ensure it is called twice - once for each volume type.
-func (d *alletra) refreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) (revert.Hook, error) {
+func (d *alletra) refreshVolume(ctx context.Context, vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, op *operations.Operation) (revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -824,7 +824,7 @@ func (d *alletra) refreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapsh
 	postCreateTasks := func(v Volume) error {
 		if vol.contentType == ContentTypeFS {
 			// Mount the volume and ensure the permissions are set correctly inside the mounted volume.
-			err := v.MountTask(func(_ string, _ *operations.Operation) error {
+			err := v.MountTask(ctx, func(_ string, _ *operations.Operation) error {
 				return v.EnsureMountPath()
 			}, op)
 			if err != nil {
@@ -833,7 +833,7 @@ func (d *alletra) refreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapsh
 		}
 
 		// Resize volume to the size specified.
-		err := d.SetVolumeQuota(v, v.config["size"], false, op)
+		err := d.SetVolumeQuota(ctx, v, v.config["size"], false, op)
 		if err != nil {
 			return err
 		}
@@ -873,7 +873,7 @@ func (d *alletra) refreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapsh
 
 	revert.Add(func() {
 		// Restore destination volume from reverter snapshot and remove the snapshot afterwards.
-		err := d.client().RestoreVolumeSnapshot(d.state.ShutdownCtx, vol.pool, volName, reverterSnapshotName)
+		err := d.client().RestoreVolumeSnapshot(ctx, vol.pool, volName, reverterSnapshotName)
 		if err != nil {
 			d.logger.Warn("RestoreVolumeSnapshot API call failed on error path", logger.Ctx{"err": err})
 		}
@@ -921,7 +921,7 @@ func (d *alletra) refreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapsh
 			}
 
 			// Overwrite existing destination volume with snapshot.
-			err = d.client().CreateVolumePhysicalCopy(d.state.ShutdownCtx, poolName, srcSnapshotName, volName)
+			err = d.client().CreateVolumePhysicalCopy(ctx, poolName, srcSnapshotName, volName)
 			if err != nil {
 				return nil, err
 			}
@@ -931,13 +931,13 @@ func (d *alletra) refreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapsh
 
 			// Create snapshot of a new volume. Do not copy VM's filesystem volume snapshot,
 			// as FS volumes are already copied by this point.
-			err = d.createVolumeSnapshot(snapshot, false, op)
+			err = d.createVolumeSnapshot(ctx, snapshot, false, op)
 			if err != nil {
 				return nil, err
 			}
 
 			revert.Add(func() {
-				err := d.DeleteVolumeSnapshot(snapshot, op)
+				err := d.DeleteVolumeSnapshot(ctx, snapshot, op)
 				if err != nil {
 					d.logger.Warn("DeleteVolumeSnapshot failed on error path", logger.Ctx{"err": err})
 				}
@@ -955,7 +955,7 @@ func (d *alletra) refreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapsh
 	}
 
 	// Finally, copy the source volume (or snapshot) into destination volume snapshots.
-	err = d.client().CreateVolumePhysicalCopy(d.state.ShutdownCtx, poolName, srcVolName, volName)
+	err = d.client().CreateVolumePhysicalCopy(ctx, poolName, srcVolName, volName)
 	if err != nil {
 		return nil, err
 	}
@@ -980,17 +980,17 @@ func (d *alletra) refreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapsh
 }
 
 // MigrateVolume sends a volume for migration.
-func (d *alletra) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
+func (d *alletra) MigrateVolume(ctx context.Context, vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
 	// When performing a cluster member move don't do anything on the source member.
 	if volSrcArgs.ClusterMove {
 		return nil
 	}
 
-	return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
+	return genericVFSMigrateVolume(ctx, d, d.state, vol, conn, volSrcArgs, op)
 }
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
-func (d *alletra) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
+func (d *alletra) CreateVolumeFromMigration(ctx context.Context, vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
 	// When performing a cluster member move prepare the volumes on the target side.
 	if volTargetArgs.ClusterMoveSourceName != "" {
 		err := vol.EnsureMountPath()
@@ -1000,7 +1000,7 @@ func (d *alletra) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteClo
 
 		if vol.IsVMBlock() {
 			fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume())
-			err := d.CreateVolumeFromMigration(fsVol, conn, volTargetArgs, preFiller, op)
+			err := d.CreateVolumeFromMigration(ctx, fsVol, conn, volTargetArgs, preFiller, op)
 			if err != nil {
 				return err
 			}
@@ -1009,13 +1009,13 @@ func (d *alletra) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteClo
 		return nil
 	}
 
-	_, err := genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
+	_, err := genericVFSCreateVolumeFromMigration(ctx, d, nil, vol, conn, volTargetArgs, preFiller, op)
 	return err
 }
 
 // DeleteVolume deletes the volume and all associated snapshots.
-func (d *alletra) DeleteVolume(vol Volume, op *operations.Operation) error {
-	volExists, err := d.HasVolume(vol)
+func (d *alletra) DeleteVolume(ctx context.Context, vol Volume, op *operations.Operation) error {
+	volExists, err := d.HasVolume(ctx, vol)
 	if err != nil {
 		return err
 	}
@@ -1065,7 +1065,7 @@ func (d *alletra) DeleteVolume(vol Volume, op *operations.Operation) error {
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
 
-		err := d.DeleteVolume(fsVol, op)
+		err := d.DeleteVolume(ctx, fsVol, nil)
 		if err != nil {
 			return err
 		}
@@ -1089,7 +1089,7 @@ func (d *alletra) DeleteVolume(vol Volume, op *operations.Operation) error {
 }
 
 // HasVolume indicates whether a specific volume exists on the storage pool.
-func (d *alletra) HasVolume(vol Volume) (bool, error) {
+func (d *alletra) HasVolume(ctx context.Context, vol Volume) (bool, error) {
 	volName, err := d.getVolumeName(vol)
 	if err != nil {
 		return false, err
@@ -1130,7 +1130,7 @@ func (d *alletra) HasVolume(vol Volume) (bool, error) {
 }
 
 // RenameVolume renames a volume and its snapshots.
-func (d *alletra) RenameVolume(vol Volume, newVolName string, op *operations.Operation) error {
+func (d *alletra) RenameVolume(ctx context.Context, vol Volume, newName string, op *operations.Operation) error {
 	// Renaming a volume won't change an actual name of the volume on the storage array side.
 	return nil
 }
@@ -1210,7 +1210,7 @@ func (d *alletra) FillVolumeConfig(vol Volume) error {
 }
 
 // ValidateVolume validates the supplied volume config.
-func (d *alletra) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
+func (d *alletra) ValidateVolume(ctx context.Context, vol Volume, removeUnknownKeys bool) error {
 	// When creating volumes from ISO images, round its size to the next multiple of 256MiB.
 	if vol.ContentType() == ContentTypeISO {
 		sizeBytes, err := units.ParseByteSizeString(vol.ConfigSize())
@@ -1250,10 +1250,10 @@ func (d *alletra) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 }
 
 // UpdateVolume applies config changes to the volume.
-func (d *alletra) UpdateVolume(vol Volume, changedConfig map[string]string) error {
+func (d *alletra) UpdateVolume(ctx context.Context, vol Volume, changedConfig map[string]string) error {
 	newSize, sizeChanged := changedConfig["size"]
 	if sizeChanged {
-		err := d.SetVolumeQuota(vol, newSize, false, nil)
+		err := d.SetVolumeQuota(ctx, vol, newSize, false, nil)
 		if err != nil {
 			return err
 		}
@@ -1263,7 +1263,7 @@ func (d *alletra) UpdateVolume(vol Volume, changedConfig map[string]string) erro
 }
 
 // GetVolumeUsage returns the disk space used by the volume.
-func (d *alletra) GetVolumeUsage(vol Volume) (int64, error) {
+func (d *alletra) GetVolumeUsage(ctx context.Context, vol Volume) (int64, error) {
 	// If mounted, use the filesystem stats for pretty accurate usage information.
 	if vol.contentType == ContentTypeFS && filesystem.IsMountPoint(vol.MountPath()) {
 		var stat unix.Statfs_t
@@ -1291,7 +1291,7 @@ func (d *alletra) GetVolumeUsage(vol Volume) (int64, error) {
 
 // SetVolumeQuota applies a size limit on volume.
 // Does nothing if supplied with an empty/zero size.
-func (d *alletra) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
+func (d *alletra) SetVolumeQuota(ctx context.Context, vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
 	// Convert to bytes.
 	sizeBytes, err := units.ParseByteSizeString(size)
 	if err != nil {
@@ -1341,14 +1341,14 @@ func (d *alletra) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool
 				return err
 			}
 
-			devPath, cleanup, err := d.getMappedDevPath(vol, true)
+			devPath, cleanup, err := d.getMappedDevPath(ctx, vol, true)
 			if err != nil {
 				return err
 			}
 
 			defer cleanup()
 
-			err = block.RefreshDiskDeviceSize(d.state.ShutdownCtx, devPath)
+			err = block.RefreshDiskDeviceSize(ctx, devPath)
 			if err != nil {
 				return fmt.Errorf("Failed refreshing volume %q size: %w", vol.name, err)
 			}
@@ -1357,13 +1357,13 @@ func (d *alletra) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool
 			// In case SetVolumeQuota is called on an already mapped volume,
 			// it might take some time until the actual size of the device is reflected on the host.
 			// This is for example the case when creating a volume and the filler performs a resize in case the image exceeds the volume's size.
-			err = block.WaitDiskDeviceResize(d.state.ShutdownCtx, devPath, sizeBytes)
+			err = block.WaitDiskDeviceResize(ctx, devPath, sizeBytes)
 			if err != nil {
 				return fmt.Errorf("Failed waiting for volume %q to change its size: %w", vol.name, err)
 			}
 
 			// Grow the filesystem to fill block device.
-			err = growFileSystem(fsType, devPath, vol)
+			err = growFileSystem(ctx, fsType, devPath, vol)
 			if err != nil {
 				return err
 			}
@@ -1384,19 +1384,19 @@ func (d *alletra) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool
 			return err
 		}
 
-		devPath, cleanup, err := d.getMappedDevPath(vol, true)
+		devPath, cleanup, err := d.getMappedDevPath(ctx, vol, true)
 		if err != nil {
 			return err
 		}
 
 		defer cleanup()
 
-		err = block.RefreshDiskDeviceSize(d.state.ShutdownCtx, devPath)
+		err = block.RefreshDiskDeviceSize(ctx, devPath)
 		if err != nil {
 			return fmt.Errorf("Failed refreshing volume %q size: %w", vol.name, err)
 		}
 
-		err = block.WaitDiskDeviceResize(d.state.ShutdownCtx, devPath, sizeBytes)
+		err = block.WaitDiskDeviceResize(ctx, devPath, sizeBytes)
 		if err != nil {
 			return fmt.Errorf("Failed waiting for volume %q to change its size: %w", vol.name, err)
 		}
@@ -1404,7 +1404,7 @@ func (d *alletra) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool
 		// Move the VM GPT alt header to end of disk if needed (not needed in unsafe resize mode as it is
 		// expected the caller will do all necessary post resize actions themselves).
 		if vol.IsVMBlock() && !allowUnsafeResize {
-			err = d.moveGPTAltHeader(devPath)
+			err = d.moveGPTAltHeader(ctx, devPath)
 			if err != nil {
 				return err
 			}
@@ -1415,13 +1415,13 @@ func (d *alletra) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool
 }
 
 // CreateVolumeSnapshot creates a snapshot of a volume.
-func (d *alletra) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
-	return d.createVolumeSnapshot(snapVol, true, op)
+func (d *alletra) CreateVolumeSnapshot(ctx context.Context, snapVol Volume, op *operations.Operation) error {
+	return d.createVolumeSnapshot(ctx, snapVol, true, op)
 }
 
 // createVolumeSnapshot creates a snapshot of a volume. If snapshotVMfilesystem is false, a VM's filesystem volume
 // is not copied.
-func (d *alletra) createVolumeSnapshot(snapVol Volume, snapshotVMfilesystem bool, op *operations.Operation) error {
+func (d *alletra) createVolumeSnapshot(ctx context.Context, snapVol Volume, snapshotVMfilesystem bool, op *operations.Operation) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -1433,7 +1433,7 @@ func (d *alletra) createVolumeSnapshot(snapVol Volume, snapshotVMfilesystem bool
 		// could still be busy), as we do not guarantee the consistency of a snapshot. This is costly but
 		// try to ensure that all cached data has been committed to disk. If we don't then the snapshot
 		// of the underlying filesystem can be inconsistent or, in the worst case, empty.
-		unfreezeFS, err := d.filesystemFreeze(sourcePath)
+		unfreezeFS, err := d.filesystemFreeze(ctx, sourcePath)
 		if err == nil {
 			defer func() {
 				err := unfreezeFS()
@@ -1472,7 +1472,7 @@ func (d *alletra) createVolumeSnapshot(snapVol Volume, snapshotVMfilesystem bool
 	}
 
 	revert.Add(func() {
-		err := d.DeleteVolumeSnapshot(snapVol, op)
+		err := d.DeleteVolumeSnapshot(ctx, snapVol, op)
 		if err != nil {
 			d.logger.Warn("DeleteVolumeSnapshot failed on error path", logger.Ctx{"err": err})
 		}
@@ -1486,13 +1486,13 @@ func (d *alletra) createVolumeSnapshot(snapVol Volume, snapshotVMfilesystem bool
 		// Set the parent volume's UUID.
 		fsVol.SetParentUUID(snapVol.parentUUID)
 
-		err := d.CreateVolumeSnapshot(fsVol, op)
+		err := d.CreateVolumeSnapshot(ctx, fsVol, op)
 		if err != nil {
 			return err
 		}
 
 		revert.Add(func() {
-			err := d.DeleteVolumeSnapshot(fsVol, op)
+			err := d.DeleteVolumeSnapshot(ctx, fsVol, op)
 			if err != nil {
 				d.logger.Warn("DeleteVolumeSnapshot failed on error path", logger.Ctx{"err": err})
 			}
@@ -1505,7 +1505,7 @@ func (d *alletra) createVolumeSnapshot(snapVol Volume, snapshotVMfilesystem bool
 
 // DeleteVolumeSnapshot removes a snapshot from the storage device. The volName and snapshotName
 // must be bare names and should not be in the format "volume/snapshot".
-func (d *alletra) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+func (d *alletra) DeleteVolumeSnapshot(ctx context.Context, snapVol Volume, op *operations.Operation) error {
 	parentVol := snapVol.GetParent()
 	parentVolName, err := d.getVolumeName(parentVol)
 	if err != nil {
@@ -1548,7 +1548,7 @@ func (d *alletra) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation)
 		fsVol := snapVol.NewVMBlockFilesystemVolume()
 		fsVol.SetParentUUID(snapVol.parentUUID)
 
-		err := d.DeleteVolumeSnapshot(fsVol, op)
+		err := d.DeleteVolumeSnapshot(ctx, fsVol, op)
 		if err != nil {
 			return err
 		}
@@ -1558,23 +1558,23 @@ func (d *alletra) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation)
 }
 
 // RenameVolumeSnapshot renames a volume snapshot.
-func (d *alletra) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op *operations.Operation) error {
+func (d *alletra) RenameVolumeSnapshot(ctx context.Context, snapVol Volume, newSnapshotName string, op *operations.Operation) error {
 	// Renaming a volume snapshot won't change an actual name of the HPE Alletra volume snapshot.
 	return nil
 }
 
 // MountVolumeSnapshot sets up a read-only mount on top of the snapshot to avoid accidental modifications.
-func (d *alletra) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
-	return mountVolume(d, snapVol, d.getMappedDevPath, op)
+func (d *alletra) MountVolumeSnapshot(ctx context.Context, snapVol Volume, op *operations.Operation) error {
+	return mountVolume(ctx, d, snapVol, d.getMappedDevPath, op)
 }
 
 // UnmountVolumeSnapshot removes the read-only mount placed on top of a snapshot.
-func (d *alletra) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
-	return unmountVolume(d, snapVol, false, d.getMappedDevPath, d.unmapVolume, op)
+func (d *alletra) UnmountVolumeSnapshot(ctx context.Context, snapVol Volume, op *operations.Operation) (bool, error) {
+	return unmountVolume(ctx, d, snapVol, false, d.getMappedDevPath, d.unmapVolume, op)
 }
 
 // ListVolumes returns a list of LXD volumes in storage pool.
-func (d *alletra) ListVolumes() ([]Volume, error) {
+func (d *alletra) ListVolumes(context.Context) ([]Volume, error) {
 	// The reason for having this method to always return an empty array
 	// is that we can't really get this information from a storage array.
 	// Particularly, we need to know the original volume name, but we don't
@@ -1584,7 +1584,7 @@ func (d *alletra) ListVolumes() ([]Volume, error) {
 }
 
 // VolumeSnapshots returns a list of HPE Alletra storage snapshot names for the given volume (in no particular order).
-func (d *alletra) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
+func (d *alletra) VolumeSnapshots(ctx context.Context, vol Volume, op *operations.Operation) ([]string, error) {
 	volName, err := d.getVolumeName(vol)
 	if err != nil {
 		return nil, err
@@ -1609,8 +1609,8 @@ func (d *alletra) VolumeSnapshots(vol Volume, op *operations.Operation) ([]strin
 
 // CheckVolumeSnapshots checks that the volume's snapshots, according to the storage driver,
 // match those provided.
-func (d *alletra) CheckVolumeSnapshots(vol Volume, snapVols []Volume, op *operations.Operation) error {
-	storageSnapshotNames, err := vol.driver.VolumeSnapshots(vol, op)
+func (d *alletra) CheckVolumeSnapshots(ctx context.Context, vol Volume, snapVols []Volume, op *operations.Operation) error {
+	storageSnapshotNames, err := vol.driver.VolumeSnapshots(ctx, vol, op)
 	if err != nil {
 		return err
 	}
@@ -1631,15 +1631,15 @@ func (d *alletra) CheckVolumeSnapshots(vol Volume, snapVols []Volume, op *operat
 }
 
 // RestoreVolume restores a volume from a snapshot.
-func (d *alletra) RestoreVolume(vol Volume, snapVol Volume, op *operations.Operation) error {
-	ourUnmount, err := d.UnmountVolume(vol, false, op)
+func (d *alletra) RestoreVolume(ctx context.Context, vol Volume, snapVol Volume, op *operations.Operation) error {
+	ourUnmount, err := d.UnmountVolume(ctx, vol, false, op)
 	if err != nil {
 		return err
 	}
 
 	if ourUnmount {
 		defer func() {
-			err := d.MountVolume(vol, op)
+			err := d.MountVolume(ctx, vol, op)
 			if err != nil {
 				d.logger.Warn("MountVolume failed on error path", logger.Ctx{"err": err})
 			}
@@ -1657,7 +1657,7 @@ func (d *alletra) RestoreVolume(vol Volume, snapVol Volume, op *operations.Opera
 	}
 
 	// Overwrite existing volume by copying the given snapshot content into it.
-	err = d.client().RestoreVolumeSnapshot(d.state.ShutdownCtx, vol.pool, volName, snapVolName)
+	err = d.client().RestoreVolumeSnapshot(ctx, vol.pool, volName, snapVolName)
 	if err != nil {
 		return err
 	}
@@ -1669,7 +1669,7 @@ func (d *alletra) RestoreVolume(vol Volume, snapVol Volume, op *operations.Opera
 		snapFSVol := snapVol.NewVMBlockFilesystemVolume()
 		snapFSVol.SetParentUUID(snapVol.parentUUID)
 
-		err := d.RestoreVolume(fsVol, snapFSVol, op)
+		err := d.RestoreVolume(ctx, fsVol, snapFSVol, op)
 		if err != nil {
 			return err
 		}
