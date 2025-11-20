@@ -255,11 +255,6 @@ type OVN struct {
 	sslClientKey  string
 }
 
-// SetNorthboundDBAddress sets the address that runs the OVN northbound databases.
-func (o *OVN) SetNorthboundDBAddress(addr string) {
-	o.nbDBAddr = addr
-}
-
 // getNorthboundDB returns connection string to use for northbound database.
 func (o *OVN) getNorthboundDB() string {
 	if o.nbDBAddr == "" {
