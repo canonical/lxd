@@ -111,8 +111,8 @@ func DiskBlockSize(path string) (uint32, error) {
 
 // DiskFSUUID returns the UUID of a filesystem on the device.
 // An empty string is returned in case of a pristine disk.
-func DiskFSUUID(pathName string) (string, error) {
-	uuid, err := shared.RunCommandContext(context.TODO(), "blkid", "-s", "UUID", "-o", "value", pathName)
+func DiskFSUUID(ctx context.Context, pathName string) (string, error) {
+	uuid, err := shared.RunCommandContext(ctx, "blkid", "-s", "UUID", "-o", "value", pathName)
 	if err != nil {
 		runErr, ok := err.(shared.RunError)
 		if ok {
@@ -277,8 +277,8 @@ func GetDisksByID(filterPrefix string) ([]string, error) {
 }
 
 // LoopDeviceSetupAlign creates a forced 512-byte aligned loop device.
-func LoopDeviceSetupAlign(sourcePath string) (string, error) {
-	out, err := shared.RunCommandContext(context.TODO(), "losetup", "-b", "512", "--find", "--nooverlap", "--show", sourcePath)
+func LoopDeviceSetupAlign(ctx context.Context, sourcePath string) (string, error) {
+	out, err := shared.RunCommandContext(ctx, "losetup", "-b", "512", "--find", "--nooverlap", "--show", sourcePath)
 	if err != nil {
 		return "", err
 	}
