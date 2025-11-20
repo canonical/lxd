@@ -63,8 +63,8 @@ func (p *Process) AdminUser() string {
 }
 
 // AdminClient returns admin client for the minio process.
-func (p *Process) AdminClient() (*minioAdmin, error) {
-	adminClient, err := NewAdminClient(p.url.Host, p.username, p.password)
+func (p *Process) AdminClient(ctx context.Context) (*minioAdmin, error) {
+	adminClient, err := NewAdminClient(ctx, p.url.Host, p.username, p.password)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func (p *Process) Stop(ctx context.Context) error {
 		return nil
 	}
 
-	spawnUnlock, err := locking.Lock(context.TODO(), minioLockPrefix+p.bucketName)
+	spawnUnlock, err := locking.Lock(ctx, minioLockPrefix+p.bucketName)
 	if err != nil {
 		return err
 	}
@@ -110,7 +110,7 @@ func (p *Process) Stop(ctx context.Context) error {
 		defer cancel()
 	}
 
-	adminClient, err := p.AdminClient()
+	adminClient, err := p.AdminClient(ctx)
 	if err != nil {
 		return err
 	}
@@ -145,7 +145,7 @@ func (p *Process) WaitReady(ctx context.Context) error {
 
 			return err
 		default:
-			adminClient, err := p.AdminClient()
+			adminClient, err := p.AdminClient(ctx)
 			if adminClient != nil {
 				_, err = adminClient.GetConfig(ctx)
 				if err == nil {
@@ -163,11 +163,11 @@ var miniosMu sync.Mutex
 var minios = make(map[string]*Process)
 
 // EnsureRunning starts a MinIO process for the bucket (if not already running) and returns running Process.
-func EnsureRunning(s *state.State, bucketVol storageDrivers.Volume) (*Process, error) {
+func EnsureRunning(ctx context.Context, s *state.State, bucketVol storageDrivers.Volume) (*Process, error) {
 	bucketName := bucketVol.Name()
 
 	// Prevent concurrent spawning of same bucket.
-	spawnUnlock, err := locking.Lock(context.TODO(), minioLockPrefix+bucketName)
+	spawnUnlock, err := locking.Lock(ctx, minioLockPrefix+bucketName)
 	if err != nil {
 		return nil, err
 	}
@@ -355,7 +355,7 @@ func EnsureRunning(s *state.State, bucketVol storageDrivers.Volume) (*Process, e
 				if lastTransactionCount == minioProc.transactions {
 					// No transactions since last loop, stop the service.
 					l.Debug("Stopping MinIO bucket due to inactivity")
-					_ = minioProc.Stop(context.Background())
+					_ = minioProc.Stop(ctx)
 					return
 				}
 
@@ -370,9 +370,9 @@ func EnsureRunning(s *state.State, bucketVol storageDrivers.Volume) (*Process, e
 }
 
 // Get returns an existing MinIO process if it exists.
-func Get(bucketName string) (*Process, error) {
+func Get(ctx context.Context, bucketName string) (*Process, error) {
 	// Wait for any ongoing spawn of the bucket process to finish.
-	spawnUnlock, err := locking.Lock(context.TODO(), minioLockPrefix+bucketName)
+	spawnUnlock, err := locking.Lock(ctx, minioLockPrefix+bucketName)
 	if err != nil {
 		return nil, err
 	}
@@ -409,6 +409,7 @@ func StopAll() {
 	if len(minioProcs) > 0 {
 		logger.Info("Stopping MinIO processes")
 		for _, minioProc := range minios {
+			// Use a background context here. We don't want a partial stop if the context is cancelled.
 			_ = minioProc.Stop(context.Background())
 		}
 	}
