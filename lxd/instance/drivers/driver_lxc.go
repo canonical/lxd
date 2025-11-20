@@ -1825,7 +1825,7 @@ func (d *lxc) handleIdmappedStorage() (idmap.IdmapStorageType, *idmap.IdmapSet, 
 		case "zfs":
 			err = diskIdmap.UnshiftRootfs(d.RootfsPath(), storageDrivers.ShiftZFSSkipper)
 		case "btrfs":
-			err = storageDrivers.UnshiftBtrfsRootfs(d.RootfsPath(), diskIdmap)
+			err = storageDrivers.UnshiftBtrfsRootfs(context.TODO(), d.RootfsPath(), diskIdmap)
 		default:
 			err = diskIdmap.UnshiftRootfs(d.RootfsPath(), nil)
 		}
@@ -1845,7 +1845,7 @@ func (d *lxc) handleIdmappedStorage() (idmap.IdmapStorageType, *idmap.IdmapSet, 
 		case "zfs":
 			err = nextIdmap.ShiftRootfs(d.RootfsPath(), storageDrivers.ShiftZFSSkipper)
 		case "btrfs":
-			err = storageDrivers.ShiftBtrfsRootfs(d.RootfsPath(), nextIdmap)
+			err = storageDrivers.ShiftBtrfsRootfs(context.TODO(), d.RootfsPath(), nextIdmap)
 		default:
 			err = nextIdmap.ShiftRootfs(d.RootfsPath(), nil)
 		}
