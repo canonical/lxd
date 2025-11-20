@@ -25,7 +25,7 @@ func (c *connectorSDC) Type() string {
 }
 
 // Version returns an empty string and no error.
-func (c *connectorSDC) Version() (string, error) {
+func (c *connectorSDC) Version(context.Context) (string, error) {
 	return "", nil
 }
 

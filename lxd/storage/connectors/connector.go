@@ -37,7 +37,7 @@ type session struct {
 // appropriate storage subsystem.
 type Connector interface {
 	Type() string
-	Version() (string, error)
+	Version(ctx context.Context) (string, error)
 	QualifiedName() (string, error)
 	LoadModules() error
 	Connect(ctx context.Context, targetQN string, targetAddrs ...string) (revert.Hook, error)
@@ -80,7 +80,7 @@ func NewConnector(connectorType string, serverUUID string) (Connector, error) {
 // GetSupportedVersions returns the versions for the given connector types
 // ignoring those that produce an error when version is being retrieved
 // (e.g. due to a missing required tools).
-func GetSupportedVersions(connectorTypes []string) []string {
+func GetSupportedVersions(ctx context.Context, connectorTypes []string) []string {
 	versions := make([]string, 0, len(connectorTypes))
 
 	// Iterate over the provided connector types, and extract
@@ -91,7 +91,7 @@ func GetSupportedVersions(connectorTypes []string) []string {
 			continue
 		}
 
-		version, _ := connector.Version()
+		version, _ := connector.Version(ctx)
 		if version != "" {
 			versions = append(versions, version)
 		}

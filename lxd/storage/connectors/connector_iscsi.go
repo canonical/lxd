@@ -48,10 +48,10 @@ func (c *connectorISCSI) Type() string {
 }
 
 // Version returns the version of the iSCSI CLI (iscsiadm).
-func (c *connectorISCSI) Version() (string, error) {
+func (c *connectorISCSI) Version(ctx context.Context) (string, error) {
 	// Detect and record the version of the iSCSI CLI.
 	// It will fail if the "iscsiadm" is not installed on the host.
-	out, err := shared.RunCommandContext(context.Background(), "iscsiadm", "--version")
+	out, err := shared.RunCommandContext(ctx, "iscsiadm", "--version")
 	if err != nil {
 		return "", fmt.Errorf("Failed to get iscsiadm version: %w", err)
 	}
