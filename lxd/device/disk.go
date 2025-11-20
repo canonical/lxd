@@ -641,7 +641,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 					initialConfig,
 					d.pool.Driver().Config())
 
-				err = d.pool.Driver().ValidateVolume(vol, true)
+				err = d.pool.Driver().ValidateVolume(context.TODO(), vol, true)
 				if err != nil {
 					return fmt.Errorf("Invalid initial device configuration: %v", err)
 				}
@@ -1760,7 +1760,7 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 	if dbVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock || dbVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameISO {
 		volume := d.pool.GetVolume(volumeType, storageDrivers.ContentType(dbVolume.ContentType), volStorageName, dbVolume.Config)
 
-		srcPath, err = d.pool.Driver().GetVolumeDiskPath(volume)
+		srcPath, err = d.pool.Driver().GetVolumeDiskPath(context.TODO(), volume)
 		if err != nil {
 			return nil, "", nil, fmt.Errorf("Failed to get disk path: %w", err)
 		}
