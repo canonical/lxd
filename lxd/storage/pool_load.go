@@ -22,9 +22,9 @@ const PoolIDTemporary = -1
 // them to lookup the volume ID for a specific volume type and volume name. This function is tied
 // to the Pool ID that it is generated for, meaning the storage drivers do not need to know the ID
 // of the pool they belong to, or do they need access to the database.
-func volIDFuncMake(state *state.State, poolID int64) func(volType drivers.VolumeType, volName string) (int64, error) {
+func volIDFuncMake(state *state.State, poolID int64) func(ctx context.Context, volType drivers.VolumeType, volName string) (int64, error) {
 	// Return a function to retrieve a volume ID for a volume Name for use in driver.
-	return func(volType drivers.VolumeType, volName string) (int64, error) {
+	return func(ctx context.Context, volType drivers.VolumeType, volName string) (int64, error) {
 		volTypeID, err := VolumeTypeToDBType(volType)
 		if err != nil {
 			return -1, err
@@ -48,7 +48,7 @@ func volIDFuncMake(state *state.State, poolID int64) func(volType drivers.Volume
 
 		// Get the storage volume.
 		var dbVolume *db.StorageVolume
-		err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			dbVolume, err = tx.GetStoragePoolVolume(ctx, poolID, projectName, volTypeID, volName, true)
 			return err
 		})
@@ -78,7 +78,7 @@ func NewTemporary(state *state.State, info *api.StoragePool) (Pool, error) {
 		pool.name = info.Name
 		pool.state = state
 		pool.logger = logger.AddContext(logger.Ctx{"driver": "mock", "pool": pool.name})
-		driver, err := drivers.Load(state, "mock", "", nil, pool.logger, nil, nil)
+		driver, err := drivers.Load(context.TODO(), state, "mock", "", nil, pool.logger, nil, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -98,7 +98,7 @@ func NewTemporary(state *state.State, info *api.StoragePool) (Pool, error) {
 	logger := logger.AddContext(logger.Ctx{"driver": info.Driver, "pool": info.Name})
 
 	// Load the storage driver.
-	driver, err := drivers.Load(state, info.Driver, info.Name, info.Config, logger, volIDFuncMake(state, poolID), commonRules())
+	driver, err := drivers.Load(context.TODO(), state, info.Driver, info.Name, info.Config, logger, volIDFuncMake(state, poolID), commonRules())
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func NewTemporary(state *state.State, info *api.StoragePool) (Pool, error) {
 func LoadByType(state *state.State, driverType string) (Type, error) {
 	logger := logger.AddContext(logger.Ctx{"driver": driverType})
 
-	driver, err := drivers.Load(state, driverType, "", nil, logger, nil, commonRules())
+	driver, err := drivers.Load(context.TODO(), state, driverType, "", nil, logger, nil, commonRules())
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +146,7 @@ func LoadByRecord(s *state.State, poolID int64, poolInfo api.StoragePool, poolMe
 	logger := logger.AddContext(logger.Ctx{"driver": poolInfo.Driver, "pool": poolInfo.Name})
 
 	// Load the storage driver.
-	driver, err := drivers.Load(s, poolInfo.Driver, poolInfo.Name, poolInfo.Config, logger, volIDFuncMake(s, poolID), commonRules())
+	driver, err := drivers.Load(context.TODO(), s, poolInfo.Driver, poolInfo.Name, poolInfo.Config, logger, volIDFuncMake(s, poolID), commonRules())
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func LoadByName(s *state.State, name string) (Pool, error) {
 		pool.name = name
 		pool.state = s
 		pool.logger = logger.AddContext(logger.Ctx{"driver": "mock", "pool": pool.name})
-		driver, err := drivers.Load(s, "mock", "", nil, pool.logger, nil, nil)
+		driver, err := drivers.Load(context.TODO(), s, "mock", "", nil, pool.logger, nil, nil)
 		if err != nil {
 			return nil, err
 		}

@@ -251,7 +251,7 @@ func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDesc
 	}
 
 	// Validate config.
-	err = pool.Driver().ValidateVolume(vol, removeUnknownKeys)
+	err = pool.Driver().ValidateVolume(context.TODO(), vol, removeUnknownKeys)
 	if err != nil {
 		return err
 	}
@@ -382,7 +382,7 @@ func BucketDBCreate(ctx context.Context, pool Pool, projectName string, memberSp
 	}
 
 	// Validate bucket volume config.
-	err = pool.Driver().ValidateVolume(bucketVol, false)
+	err = pool.Driver().ValidateVolume(context.TODO(), bucketVol, false)
 	if err != nil {
 		return -1, err
 	}
@@ -770,7 +770,7 @@ func ImageUnpack(s *state.State, projectName string, imageFile string, vol drive
 		imgVol := drivers.NewVolume(nil, "", drivers.VolumeTypeImage, drivers.ContentTypeBlock, "", imgVolConfig, nil)
 
 		l.Debug("Checking image unpack size")
-		newVolSize, err := vol.ConfigSizeFromSource(imgVol)
+		newVolSize, err := vol.ConfigSizeFromSource(context.TODO(), imgVol)
 		if err != nil {
 			return -1, err
 		}
@@ -785,7 +785,7 @@ func ImageUnpack(s *state.State, projectName string, imageFile string, vol drive
 			// increase the target volume's size.
 			if volSizeBytes < imgVirtualSize {
 				l.Debug("Increasing volume size", logger.Ctx{"imgPath": imgPath, "dstPath": dstPath, "oldSize": volSizeBytes, "newSize": newVolSize, "allowUnsafeResize": allowUnsafeResize})
-				err = vol.SetQuota(newVolSize, allowUnsafeResize, nil)
+				err = vol.SetQuota(context.TODO(), newVolSize, allowUnsafeResize, nil)
 				if err != nil {
 					return -1, fmt.Errorf("Error increasing volume size: %w", err)
 				}
