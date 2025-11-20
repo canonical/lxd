@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -47,7 +48,7 @@ func (d *alletra) load() error {
 		return nil
 	}
 
-	versions := connectors.GetSupportedVersions(alletraSupportedConnectors)
+	versions := connectors.GetSupportedVersions(context.TODO(), alletraSupportedConnectors)
 	alletraVersion = strings.Join(versions, " / ")
 	alletraLoaded = true
 

@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -57,7 +58,7 @@ func (d *powerflex) load() error {
 		return nil
 	}
 
-	versions := connectors.GetSupportedVersions(powerflexSupportedConnectors)
+	versions := connectors.GetSupportedVersions(context.TODO(), powerflexSupportedConnectors)
 	powerFlexVersion = strings.Join(versions, " / ")
 	powerFlexLoaded = true
 
