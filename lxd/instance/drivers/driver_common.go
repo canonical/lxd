@@ -905,7 +905,7 @@ func (d *common) getAttachedVolumes(inst instance.Instance) (volumes []*db.Stora
 			return nil, fmt.Errorf("Failed getting storage pool of device %q: %w", name, err)
 		}
 
-		volName, _, _ := api.GetParentAndSnapshotName(name)
+		volName, _, _ := api.GetParentAndSnapshotName(dev["source"])
 
 		err = d.state.DB.Cluster.Transaction(d.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 			vol, err := tx.GetStoragePoolVolume(ctx, pool.ID(), instanceProject.Name, dbCluster.StoragePoolVolumeTypeCustom, volName, true)
