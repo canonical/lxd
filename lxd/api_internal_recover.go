@@ -285,7 +285,7 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 			}
 
 			// Populate configuration with default values.
-			err := pool.Driver().FillConfig()
+			err := pool.Driver().FillConfig(context.TODO())
 			if err != nil {
 				return response.SmartError(fmt.Errorf("Failed to evaluate the default configuration values for unknown pool %q: %w", p.Name, err))
 			}
