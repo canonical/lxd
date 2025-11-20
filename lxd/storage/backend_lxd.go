@@ -4758,7 +4758,7 @@ func (b *lxdBackend) UpdateBucket(projectName string, bucketName string, bucket 
 	if len(changedConfig) > 0 && !userOnly {
 		if memberSpecific {
 			// Stop MinIO process if running so volume can be resized if needed.
-			minioProc, err := miniod.Get(curBucketVol.Name())
+			minioProc, err := miniod.Get(context.TODO(), curBucketVol.Name())
 			if err != nil {
 				return err
 			}
@@ -4827,7 +4827,7 @@ func (b *lxdBackend) DeleteBucket(projectName string, bucketName string, op *ope
 		// Handle common MinIO implementation for local storage drivers.
 
 		// Stop MinIO process if running.
-		minioProc, err := miniod.Get(bucketVolName)
+		minioProc, err := miniod.Get(context.TODO(), bucketVolName)
 		if err != nil {
 			return err
 		}
@@ -4952,7 +4952,7 @@ func (b *lxdBackend) recoverMinIOKeys(projectName string, bucketName string, op 
 	}
 
 	// Initialize minio client object.
-	adminClient, err := minioProc.AdminClient()
+	adminClient, err := minioProc.AdminClient(context.TODO())
 	if err != nil {
 		return nil, err
 	}
@@ -5091,7 +5091,7 @@ func (b *lxdBackend) CreateBucketKey(projectName string, bucketName string, key 
 			return nil, err
 		}
 
-		adminClient, err := minioProc.AdminClient()
+		adminClient, err := minioProc.AdminClient(context.TODO())
 		if err != nil {
 			return nil, err
 		}
@@ -5235,7 +5235,7 @@ func (b *lxdBackend) UpdateBucketKey(projectName string, bucketName string, keyN
 			return err
 		}
 
-		adminClient, err := minioProc.AdminClient()
+		adminClient, err := minioProc.AdminClient(context.TODO())
 		if err != nil {
 			return err
 		}
@@ -5342,7 +5342,7 @@ func (b *lxdBackend) DeleteBucketKey(projectName string, bucketName string, keyN
 			return err
 		}
 
-		adminClient, err := minioProc.AdminClient()
+		adminClient, err := minioProc.AdminClient(context.TODO())
 		if err != nil {
 			return err
 		}
@@ -5398,7 +5398,7 @@ func (b *lxdBackend) ActivateBucket(projectName string, bucketName string, _ *op
 	bucketVolName := project.StorageVolume(projectName, bucketName)
 	bucketVol := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketVolName, bucket.Config)
 
-	return miniod.EnsureRunning(b.state, bucketVol)
+	return miniod.EnsureRunning(context.TODO(), b.state, bucketVol)
 }
 
 // GetBucketURL returns S3 URL for bucket.
