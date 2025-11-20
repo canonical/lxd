@@ -453,16 +453,6 @@ func begin(db *sql.DB) (*sql.Tx, error) {
 	return nil, errors.New("DB is locked")
 }
 
-// TxCommit commits the given transaction.
-func TxCommit(tx *sql.Tx) error {
-	err := tx.Commit()
-	if err == nil || err == sql.ErrTxDone { // Ignore duplicate commits/rollbacks
-		return nil
-	}
-
-	return err
-}
-
 // DqliteLatestSegment returns the latest segment ID in the global database.
 func DqliteLatestSegment() (string, error) {
 	dir := shared.VarPath("database", "global")
