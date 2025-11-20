@@ -1,17 +1,9 @@
 package lex
 
-import (
-	"fmt"
-)
-
 // VarDecl holds information about a variable declaration.
 type VarDecl struct {
 	Name string
 	Expr string
-}
-
-func (d VarDecl) String() string {
-	return fmt.Sprintf("%s %s", d.Name, d.Expr)
 }
 
 // MethodSignature holds information about a method signature.
