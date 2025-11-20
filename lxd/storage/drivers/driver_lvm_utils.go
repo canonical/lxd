@@ -378,7 +378,7 @@ func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeT
 		}
 	} else if !d.usesThinpool() {
 		// Make sure we get an empty LV.
-		err := block.ClearBlock(volDevPath, 0)
+		err := block.ClearBlock(context.TODO(), volDevPath, 0)
 		if err != nil {
 			return fmt.Errorf("Error clearing LVM logical volume: %w", err)
 		}

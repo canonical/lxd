@@ -579,7 +579,7 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 		// On thick pools, discard the blocks in the additional space when the volume is grown.
 		if needsClearing {
 			// Discard blocks from the end of the old volume's size.
-			err := block.ClearBlock(volDevPath, oldSizeBytes)
+			err := block.ClearBlock(context.TODO(), volDevPath, oldSizeBytes)
 			if err != nil {
 				return err
 			}
