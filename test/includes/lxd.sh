@@ -252,7 +252,7 @@ kill_lxd() {
             path="/1.0/storage-pools/${storage_pool}/buckets"
             while read -r bucket; do
                 echo "   ⛔ Deleting storage bucket ${bucket} on ${storage_pool}"
-                timeout -k 20 20 lxc storage bucket delete "${storage_pool}" "${bucket}" --force-local || true
+                timeout -k 20 20 lxc query -X DELETE "${path}/${bucket}" --force-local --wait || true
             done < <(lxc query "${path}" | jq --exit-status --raw-output ".[] | ltrimstr(\"${path}/\")")
 
             ## Delete the storage pool.
