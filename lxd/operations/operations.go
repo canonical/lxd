@@ -55,16 +55,6 @@ func Init(d bool) {
 	debug = d
 }
 
-// Lock locks the operations mutex.
-func Lock() {
-	operationsLock.Lock()
-}
-
-// Unlock unlocks the operations mutex.
-func Unlock() {
-	operationsLock.Unlock()
-}
-
 // Clone returns a clone of the internal operations map containing references to the actual operations.
 func Clone() map[string]*Operation {
 	operationsLock.Lock()
