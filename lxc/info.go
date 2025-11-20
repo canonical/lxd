@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -642,6 +643,50 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, name string, showLog bool) 
 				row = append(row, "NO")
 			}
 
+			// Display attached volume snapshots
+			var attachedVolumeSnapshots string
+			if snap.Config["volatile.attached_volumes"] != "" {
+				// Parse the JSON map of volume UUID -> snapshot UUID
+				var attachedVolumeUUIDs map[string]string
+				err := json.Unmarshal([]byte(snap.Config["volatile.attached_volumes"]), &attachedVolumeUUIDs)
+				if err != nil {
+					return fmt.Errorf(`Failed parsing "volatile.uuid" from snapshot %q: %w`, snap.Name, err)
+				}
+
+				// Find the volume names and snapshot names from the UUIDs
+				volumeSnapshotNames := make([]string, 0, len(attachedVolumeUUIDs))
+				for volUUID, snapUUID := range attachedVolumeUUIDs {
+					for _, dev := range snap.Devices {
+						if dev["type"] == "disk" && dev["pool"] != "" && dev["source"] != "" {
+							volume, _, err := d.GetStoragePoolVolume(dev["pool"], "custom", dev["source"])
+							if err != nil {
+								return err
+							}
+
+							if volume.Config["volatile.uuid"] == volUUID {
+								snapshots, err := d.GetStoragePoolVolumeSnapshots(dev["pool"], "custom", dev["source"])
+								if err != nil {
+									return err
+								}
+
+								for _, volSnap := range snapshots {
+									if volSnap.Config["volatile.uuid"] == snapUUID {
+										volumeSnapshotNames = append(volumeSnapshotNames, volSnap.Name)
+										break
+									}
+								}
+
+								break
+							}
+						}
+					}
+
+					attachedVolumeSnapshots = strings.Join(volumeSnapshotNames, "\n")
+				}
+
+				row = append(row, attachedVolumeSnapshots)
+			}
+
 			firstSnapshot = false
 			snapData = append(snapData, row)
 		}
@@ -651,6 +696,7 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, name string, showLog bool) 
 			i18n.G("Taken at"),
 			i18n.G("Expires at"),
 			i18n.G("Stateful"),
+			i18n.G("Attached volume snapshots"),
 		}
 
 		_ = cli.RenderTable(cli.TableFormatTable, snapHeader, snapData, inst.Snapshots)
