@@ -269,28 +269,6 @@ func progressWrapperRender(op *operations.Operation, key string, description str
 	}
 }
 
-// ProgressReader reports the read progress.
-func ProgressReader(op *operations.Operation, key string, description string) func(io.ReadCloser) io.ReadCloser {
-	return func(reader io.ReadCloser) io.ReadCloser {
-		if op == nil {
-			return reader
-		}
-
-		progress := func(progressInt int64, speedInt int64) {
-			progressWrapperRender(op, key, description, progressInt, speedInt)
-		}
-
-		readPipe := &ioprogress.ProgressReader{
-			ReadCloser: reader,
-			Tracker: &ioprogress.ProgressTracker{
-				Handler: progress,
-			},
-		}
-
-		return readPipe
-	}
-}
-
 // ProgressWriter reports the write progress.
 func ProgressWriter(op *operations.Operation, key string, description string) func(io.WriteCloser) io.WriteCloser {
 	return func(writer io.WriteCloser) io.WriteCloser {
