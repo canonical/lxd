@@ -1165,16 +1165,6 @@ func InterfaceExists(nic string) bool {
 	return false
 }
 
-// IPInSlice returns true if slice has IP element.
-func IPInSlice(key net.IP, list []net.IP) bool {
-	for _, entry := range list {
-		if entry.Equal(key) {
-			return true
-		}
-	}
-	return false
-}
-
 // IPIsBroadcast returns true if the IP address is the broadcast address of the given IPv4 subnet.
 func IPIsBroadcast(subnet *net.IPNet, address net.IP) bool {
 	if subnet == nil || address == nil {
