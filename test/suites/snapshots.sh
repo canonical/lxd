@@ -568,6 +568,14 @@ test_snapshot_multi_volume() {
   lxc delete c1/c1-snap3 --disk-volumes=all-exclusive
   ! lxc storage volume list -f csv | grep -F "Created alongside container c1/c1-snap3 snapshot in project default" || false
 
+  echo "Check snapshotting with custom device name."
+  lxc storage volume create "${poolName}" vol-custom-name
+  lxc storage volume attach "${poolName}" vol-custom-name c1 custom-device-name /mnt/custom-name
+  lxc snapshot c1 c1-snap-custom --disk-volumes=all-exclusive
+  lxc delete c1/c1-snap-custom
+  lxc storage volume detach "${poolName}" vol-custom-name c1
+  lxc storage volume delete "${poolName}" vol-custom-name
+
   # Cleanup.
   lxc delete c1 -f
   lxc storage volume delete "${poolName}" shared
