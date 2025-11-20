@@ -2663,6 +2663,7 @@ This adds a request option to set snapshot's target profile on instance copy to 
 
 Adds the field `device_fs_uuid` including the respective UUID to each disk and partition indicating whether or not a filesystem is located on the device.
 
+(extension-backup-metadataversion)=
 ## `backup_metadata_version`
 
 Adds the field `version` when exporting instances and custom storage volumes to define the backup file format.
@@ -2711,22 +2712,26 @@ This adds PCI device hotplugging for VMs.
 
 The `PATCH /1.0/instances/{name}` endpoint allows removing an instance device by setting its value to `null` in the devices map.
 
+(extension-daemon-storage-per-project)=
 ## `daemon_storage_per_project`
 
 This introduces two new configuration keys {config:option}`server-miscellaneous:storage.project.{name}.images_volume` and
 {config:option}`server-miscellaneous:storage.project.{name}.backups_volume` per each project to allow for a storage volume on an existing
 pool be used for storing the project-specific images and backups artifacts.
 
+(extension-ovn-internal-load-balancer)=
 ## `ovn_internal_load_balancer`
 
 This introduces support for internal OVN load balancers and network forwards. This approach allows `ovn` networks to define ports on internal IP addresses that can be forwarded to other internal IPs inside their respective networks.
 This change removes the previous limitation on `ovn` networks that load balancers and network forwards could only use external IP addresses to forward to internal IPs.
 
+(extension-auth-bearer-devlxd)=
 ## `auth_bearer_devlxd`
 
 Adds a new `bearer` authentication method and enables authentication to the DevLXD API.
 See {ref}`DevLXD bearer tokens <devlxd-authentication-bearer>`.
 
+(extension-devlxd-volume-management)=
 ## `devlxd_volume_management`
 
 Enables additional DevLXD endpoints for managing custom storage volumes and instance devices when `security.devlxd.management.volumes` is set to true.
@@ -2751,6 +2756,7 @@ Changes to existing DevLXD endpoints:
 
 * `GET /1.0` — Adds a `supported_storage_drivers` field to the response, which is populated when `security.devlxd.management.volumes` is enabled.
 
+(extension-storage-driver-alletra)=
 ## `storage_driver_alletra`
 
 Adds a new `alletra` storage driver for the consumption of storage volumes from an HPE Alletra storage array.
@@ -2765,27 +2771,33 @@ The following pool-level configuration keys have been added:
 1. {config:option}`storage-alletra-pool-conf:alletra.target`
 1. {config:option}`storage-alletra-pool-conf:alletra.mode`
 
+(extension-resources-disk-used-by)=
 ## `resources_disk_used_by`
 
 Adds the field `used_by` to potential storage disk returned by the resources end point to indicate its use by any virtual parent device, e.g. `bcache`.
 
+(extension-ovn-dhcp-ranges)=
 ## `ovn_dhcp_ranges`
 
 This introduces support for the {config:option}`network-ovn-network-conf:ipv4.dhcp.ranges` configuration key for `ovn` networks. This key allows specifying a list of IPv4 ranges
 reserved for dynamic allocation using DHCP.
 
+(extension-operation-requestor)=
 ## `operation_requestor`
 
 This adds a new `requestor` field to operations, which contains information about the caller that initiated the operation.
 
+(extension-import-custom-volume-tar)=
 ## `import_custom_volume_tar`
 
 This adds new option `tar` for parameter `--type` in `POST /1.0/storage-pools/{poolName}/volumes/{type}` API call.
 
+(extension-projects-force-delete)=
 ## `projects_force_delete`
 
 Adds support for force deleting projects and their entities (instances, profiles, images, networks, network ACLs, network zones, storage volumes, and storage buckets) by setting the `force` query parameter on `DELETE /1.0/projects/{name}` requests.
 
+(extension-auth-oidc-sessions)=
 ## `auth_oidc_sessions`
 
 Adds session support for OIDC authentication. This enables compatibility with identity providers that issue opaque access tokens.
@@ -2806,6 +2818,7 @@ Adds `DiskVolumesMode` to `POST /1.0/instances/{name}/snapshots` and `RestoreDis
 
 This extension also introduces a new volatile configuration key, {config:option}`instance-volatile:volatile.attached_volumes`, in the configuration of supported storage drivers for instance snapshots. This key contains a JSON-serialized map of attached volume UUIDs to the UUIDs of their corresponding snapshots. Example value: `{<volume1-uuid>: <snapshot1-uuid>,<volume2-uuid>: <snapshot2-uuid>}`.
 
+(extension-vm-persistent-bus)=
 ## `vm_persistent_bus`
 
 Adds support for persistently recording VM PCIe bus allocations in volatile configuration keys.
@@ -2829,6 +2842,7 @@ New API endpoints:
 1. `PATCH /1.0/placement-groups/{name}` — Update selected properties of a placement group
 1. `DELETE /1.0/placement-groups/{name}` — Delete a placement group
 
+(extension-ovn-nic-acceleration-parent)=
 ## `ovn_nic_acceleration_parent`
 
 Adds support for specifying the OVN NIC acceleration physical function interfaces to allocate virtual functions from.
@@ -2839,6 +2853,7 @@ This introduces a new `ovn` network and `ovn` NIC configuration key:
 
 * {config:option}`device-nic-ovn-device-conf:acceleration.parent` - Comma separated list of physical function (PF) interfaces to allocate virtual functions (VFs) from for hardware acceleration when {config:option}`device-nic-ovn-device-conf:acceleration` is enabled.
 
+(extension-storage-and-profile-operations)=
 ## `storage_and_profile_operations`
 
 Certain storage and profile endpoints that were previously synchronous now return an operation and behave asynchronously.
