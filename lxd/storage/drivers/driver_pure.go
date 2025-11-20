@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -53,7 +54,7 @@ func (d *pure) load() error {
 		return nil
 	}
 
-	versions := connectors.GetSupportedVersions(pureSupportedConnectors)
+	versions := connectors.GetSupportedVersions(context.TODO(), pureSupportedConnectors)
 	pureVersion = strings.Join(versions, " / ")
 	pureLoaded = true
 
