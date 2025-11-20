@@ -162,18 +162,11 @@ test_clustering_move() {
   LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 c3 c5
   LXD_DIR="${LXD_ONE_DIR}" lxc auth group delete instance-movers
   LXD_DIR="${LXD_ONE_DIR}" lxc auth identity delete tls/test
-  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_THREE_DIR}/unix.socket"
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
-
-  teardown_clustering_netns
-  teardown_clustering_bridge
 
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 }
