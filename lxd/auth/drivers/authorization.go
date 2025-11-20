@@ -31,13 +31,6 @@ type Opts struct {
 	openfgaDatastore storage.OpenFGADatastore
 }
 
-// WithConfig can be passed into LoadAuthorizer to pass in driver specific configuration.
-func WithConfig(c map[string]any) func(*Opts) {
-	return func(o *Opts) {
-		o.config = c
-	}
-}
-
 // WithOpenFGADatastore should be passed into LoadAuthorizer when using the embedded openfga driver.
 func WithOpenFGADatastore(store storage.OpenFGADatastore) func(*Opts) {
 	return func(o *Opts) {
