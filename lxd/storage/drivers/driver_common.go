@@ -309,7 +309,7 @@ func (d *common) moveGPTAltHeader(devPath string) error {
 		}
 
 		if blockSize != 512 {
-			devPath, err = block.LoopDeviceSetupAlign(devPath)
+			devPath, err = block.LoopDeviceSetupAlign(context.TODO(), devPath)
 			if err != nil {
 				return fmt.Errorf("Failed setting up loop device for %q: %w", devPath, err)
 			}

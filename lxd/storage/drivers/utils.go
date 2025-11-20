@@ -240,7 +240,7 @@ func tryExists(ctx context.Context, path string) bool {
 // fsUUID returns the filesystem UUID for the given block path.
 // error is returned if the given block device exists but has no UUID.
 func fsUUID(path string) (string, error) {
-	val, err := block.DiskFSUUID(path)
+	val, err := block.DiskFSUUID(context.TODO(), path)
 	if err != nil {
 		return "", err
 	}
