@@ -245,7 +245,7 @@ func EnsureRunning(ctx context.Context, s *state.State, bucketVol storageDrivers
 
 	// Launch minio process in background.
 	go func() {
-		err := bucketVol.MountTask(func(mountPath string, op *operations.Operation) error {
+		err := bucketVol.MountTask(ctx, func(mountPath string, op *operations.Operation) error {
 			l.Debug("MinIO bucket starting")
 
 			newDirMode := os.ModeDir | os.FileMode(0700)
