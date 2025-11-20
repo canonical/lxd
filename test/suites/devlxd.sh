@@ -523,13 +523,11 @@ test_devlxd_volume_management_snapshots() {
   local testName="devlxd-snapshot-mgmt"
 
   local instPrefix="${testName}"
-  local pool="${testName}"
   local project="${testName}"
   local authGroup="${testName}-group"
   local authIdentity="devlxd/${testName}-identity"
 
-  poolDriver="$(storage_backend "$LXD_DIR")"
-  lxc storage create "${pool}" "${poolDriver}"
+  pool=$(lxc profile device get default root pool)
 
   if [ "${project}" != "default" ]; then
     lxc project create "${project}" --config features.images=false
@@ -551,6 +549,12 @@ test_devlxd_volume_management_snapshots() {
     if [ "${instType}" = "virtual-machine" ]; then
         image="ubuntu-vm"
         opts="$opts --vm --config limits.memory=384MiB --device ${SMALL_VM_ROOT_DISK}"
+
+        orig_volume_size="$(lxc storage get "${pool}" volume.size)"
+        if [ -n "${orig_volume_size:-}" ]; then
+          echo "==> Override the volume.size to accommodate a large VM"
+          lxc storage set "${pool}" volume.size "${SMALLEST_VM_ROOT_DISK}"
+        fi
     fi
 
     # shellcheck disable=SC2086 # Variable "opts" must not be quoted, we want word splitting.
@@ -690,10 +694,14 @@ EOF
     lxc image delete "${imageFingerprint}" --project "${project}"
     lxc auth identity delete "${authIdentity}"
     lxc auth group delete "${authGroup}"
+
+    if [ -n "${orig_volume_size:-}" ]; then
+      echo "==> Restore the volume.size"
+      lxc storage set "${pool}" volume.size "${orig_volume_size}"
+    fi
   done
 
   # Cleanup.
-  lxc storage delete "${pool}"
   if [ "${project}" != "default" ]; then
       lxc project delete "${project}"
   fi
