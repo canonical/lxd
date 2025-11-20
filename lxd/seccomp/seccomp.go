@@ -2664,22 +2664,6 @@ func lxcSupportSeccompNotify(state *state.State) error {
 	return nil
 }
 
-// MountSyscallFilter creates a mount syscall filter from the config.
-func MountSyscallFilter(config map[string]string) []string {
-	fs := []string{}
-
-	if shared.IsFalseOrEmpty(config["security.syscalls.intercept.mount"]) {
-		return fs
-	}
-
-	fsAllowed := strings.Split(config["security.syscalls.intercept.mount.allowed"], ",")
-	if len(fsAllowed) > 0 && fsAllowed[0] != "" {
-		fs = append(fs, fsAllowed...)
-	}
-
-	return fs
-}
-
 // SyscallInterceptMountFilter creates a new mount syscall interception filter.
 func SyscallInterceptMountFilter(config map[string]string) (map[string]string, error) {
 	if shared.IsFalseOrEmpty(config["security.syscalls.intercept.mount"]) {
