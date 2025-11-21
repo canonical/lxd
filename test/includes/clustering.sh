@@ -158,7 +158,7 @@ EOF
       cat >> "${LXD_DIR}/preseed.yaml" <<EOF
   config:
     size: 1GiB
-    zfs.pool_name: lxdtest-$(basename "${TEST_DIR}")-${ns}
+    zfs.pool_name: lxdtest-$(basename "${LXD_DIR}")-${ns}
 EOF
     fi
     if [ "${driver}" = "lvm" ]; then
@@ -166,13 +166,13 @@ EOF
   config:
     volume.size: 25MiB
     size: 1GiB
-    lvm.vg_name: lxdtest-$(basename "${TEST_DIR}")-${ns}
+    lvm.vg_name: lxdtest-$(basename "${LXD_DIR}")-${ns}
 EOF
     fi
     if [ "${driver}" = "ceph" ]; then
       cat >> "${LXD_DIR}/preseed.yaml" <<EOF
   config:
-    source: lxdtest-$(basename "${TEST_DIR}")
+    source: lxdtest-$(basename "${LXD_DIR}")
     volume.size: 25MiB
     ceph.osd.pg_num: 16
 EOF
