@@ -18,7 +18,7 @@ func TestTransaction_BeginError(t *testing.T) {
 	err := db.Close()
 	require.NoError(t, err)
 
-	err = query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error { return nil })
+	err = query.Transaction(context.TODO(), db, false, func(ctx context.Context, tx *sql.Tx) error { return nil })
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Failed to begin transaction")
 }
@@ -27,7 +27,7 @@ func TestTransaction_BeginError(t *testing.T) {
 func TestTransaction_FunctionError(t *testing.T) {
 	db := newDB(t)
 
-	err := query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
+	err := query.Transaction(context.TODO(), db, false, func(ctx context.Context, tx *sql.Tx) error {
 		_, err := tx.Exec("CREATE TABLE test (id INTEGER)")
 		assert.NoError(t, err)
 		return errors.New("boom")
