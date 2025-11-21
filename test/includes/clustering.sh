@@ -272,7 +272,7 @@ EOF
   - entity: storage-pool
     name: data
     key: zfs.pool_name
-    value: lxdtest-$(basename "${TEST_DIR}")-${ns}
+    value: lxdtest-$(basename "${LXD_DIR}")-${ns}
 EOF
       fi
       if [ "${driver}" = "lvm" ]; then
@@ -280,7 +280,7 @@ EOF
   - entity: storage-pool
     name: data
     key: lvm.vg_name
-    value: lxdtest-$(basename "${TEST_DIR}")-${ns}
+    value: lxdtest-$(basename "${LXD_DIR}")-${ns}
 EOF
       fi
       # shellcheck disable=SC2235
