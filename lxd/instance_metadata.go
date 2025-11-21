@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -100,17 +101,17 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Start the storage if needed
-	pool, err := storagePools.LoadByInstance(s, c)
+	pool, err := storagePools.LoadByInstance(r.Context(), s, c)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	_, err = storagePools.InstanceMount(pool, c, nil)
+	_, err = storagePools.InstanceMount(r.Context(), pool, c, nil)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	defer func() { _ = storagePools.InstanceUnmount(pool, c, nil) }()
+	defer func() { _ = storagePools.InstanceUnmount(context.Background(), pool, c, nil) }()
 
 	// If missing, just return empty result
 	metadataPath := filepath.Join(c.Path(), "metadata.yaml")
@@ -212,17 +213,17 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Start the storage if needed.
-	pool, err := storagePools.LoadByInstance(s, inst)
+	pool, err := storagePools.LoadByInstance(r.Context(), s, inst)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	_, err = storagePools.InstanceMount(pool, inst, nil)
+	_, err = storagePools.InstanceMount(r.Context(), pool, inst, nil)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	defer func() { _ = storagePools.InstanceUnmount(pool, inst, nil) }()
+	defer func() { _ = storagePools.InstanceUnmount(context.Background(), pool, inst, nil) }()
 
 	// Read the existing data.
 	metadataPath := filepath.Join(inst.Path(), "metadata.yaml")
@@ -339,17 +340,17 @@ func instanceMetadataPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Start the storage if needed.
-	pool, err := storagePools.LoadByInstance(s, inst)
+	pool, err := storagePools.LoadByInstance(r.Context(), s, inst)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	_, err = storagePools.InstanceMount(pool, inst, nil)
+	_, err = storagePools.InstanceMount(r.Context(), pool, inst, nil)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	defer func() { _ = storagePools.InstanceUnmount(pool, inst, nil) }()
+	defer func() { _ = storagePools.InstanceUnmount(context.Background(), pool, inst, nil) }()
 
 	return doInstanceMetadataUpdate(s, inst, metadata, r)
 }
@@ -456,17 +457,17 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 	}
 
 	// Start the storage if needed
-	pool, err := storagePools.LoadByInstance(s, c)
+	pool, err := storagePools.LoadByInstance(r.Context(), s, c)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	_, err = storagePools.InstanceMount(pool, c, nil)
+	_, err = storagePools.InstanceMount(r.Context(), pool, c, nil)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	defer func() { _ = storagePools.InstanceUnmount(pool, c, nil) }()
+	defer func() { _ = storagePools.InstanceUnmount(context.Background(), pool, c, nil) }()
 
 	// Look at the request
 	templateName := r.FormValue("path")
@@ -608,17 +609,17 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 	}
 
 	// Start the storage if needed
-	pool, err := storagePools.LoadByInstance(s, c)
+	pool, err := storagePools.LoadByInstance(r.Context(), s, c)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	_, err = storagePools.InstanceMount(pool, c, nil)
+	_, err = storagePools.InstanceMount(r.Context(), pool, c, nil)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	defer func() { _ = storagePools.InstanceUnmount(pool, c, nil) }()
+	defer func() { _ = storagePools.InstanceUnmount(context.Background(), pool, c, nil) }()
 
 	// Look at the request
 	templateName := r.FormValue("path")
@@ -728,17 +729,17 @@ func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Respon
 	}
 
 	// Start the storage if needed
-	pool, err := storagePools.LoadByInstance(s, c)
+	pool, err := storagePools.LoadByInstance(r.Context(), s, c)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	_, err = storagePools.InstanceMount(pool, c, nil)
+	_, err = storagePools.InstanceMount(r.Context(), pool, c, nil)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	defer func() { _ = storagePools.InstanceUnmount(pool, c, nil) }()
+	defer func() { _ = storagePools.InstanceUnmount(context.Background(), pool, c, nil) }()
 
 	// Look at the request
 	templateName := r.FormValue("path")

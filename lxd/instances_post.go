@@ -272,7 +272,7 @@ func createFromMigration(ctx context.Context, s *state.State, projectName string
 	instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly //nolint:staticcheck,unused
 
 	if inst == nil {
-		_, err := storagePools.LoadByName(s, storagePool)
+		_, err := storagePools.LoadByName(ctx, s, storagePool)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -408,7 +408,7 @@ func createFromConversion(ctx context.Context, s *state.State, projectName strin
 	revert := revert.New()
 	defer revert.Fail()
 
-	_, err = storagePools.LoadByName(s, storagePool)
+	_, err = storagePools.LoadByName(ctx, s, storagePool)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -825,7 +825,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		defer func() { _ = backupFile.Close() }()
 		defer runRevert.Fail()
 
-		pool, err := storagePools.LoadByName(s, bInfo.Pool)
+		pool, err := storagePools.LoadByName(context.TODO(), s, bInfo.Pool)
 		if err != nil {
 			return err
 		}
@@ -840,7 +840,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		// a post hook that can be run once the instance has been created in the database to run any
 		// storage layer finalisations, and a revert hook that can be run if the instance database load
 		// process fails that will remove anything created thus far.
-		postHook, revertHook, err := pool.CreateInstanceFromBackup(*bInfo, backupFile, nil)
+		postHook, revertHook, err := pool.CreateInstanceFromBackup(context.TODO(), *bInfo, backupFile, nil)
 		if err != nil {
 			return fmt.Errorf("Create instance from backup: %w", err)
 		}

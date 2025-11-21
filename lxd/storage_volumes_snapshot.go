@@ -151,7 +151,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Check that this isn't a restricted volume
-	used, err := storagePools.VolumeUsedByDaemon(s, details.pool.Name(), details.volumeName)
+	used, err := storagePools.VolumeUsedByDaemon(r.Context(), s, details.pool.Name(), details.volumeName)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -215,7 +215,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 
 	// Create the snapshot.
 	snapshot := func(op *operations.Operation) error {
-		_, err = details.pool.CreateCustomVolumeSnapshot(effectiveProjectName, details.volumeName, req.Name, req.Description, req.ExpiresAt, op)
+		_, err = details.pool.CreateCustomVolumeSnapshot(context.TODO(), effectiveProjectName, details.volumeName, req.Name, req.Description, req.ExpiresAt, op)
 		if err != nil {
 			return err
 		}
@@ -539,7 +539,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 
 	// Rename the snapshot.
 	snapshotRename := func(op *operations.Operation) error {
-		return details.pool.RenameCustomVolumeSnapshot(effectiveProjectName, fullSnapshotName, req.Name, op)
+		return details.pool.RenameCustomVolumeSnapshot(context.TODO(), effectiveProjectName, fullSnapshotName, req.Name, op)
 	}
 
 	resources := map[string][]api.URL{}
@@ -916,7 +916,7 @@ func doStoragePoolVolumeSnapshotUpdate(ctx context.Context, s *state.State, pool
 
 	// Update the database.
 	if volumeType == dbCluster.StoragePoolVolumeTypeCustom {
-		err := pool.UpdateCustomVolumeSnapshot(projectName, volName, req.Description, nil, expiry, op)
+		err := pool.UpdateCustomVolumeSnapshot(ctx, projectName, volName, req.Description, nil, expiry, op)
 		if err != nil {
 			return err
 		}
@@ -926,7 +926,7 @@ func doStoragePoolVolumeSnapshotUpdate(ctx context.Context, s *state.State, pool
 			return err
 		}
 
-		err = pool.UpdateInstanceSnapshot(inst, req.Description, nil, op)
+		err = pool.UpdateInstanceSnapshot(ctx, inst, req.Description, nil, op)
 		if err != nil {
 			return err
 		}
@@ -1006,7 +1006,7 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	fullSnapshotName := fmt.Sprintf("%s/%s", details.volumeName, snapshotName)
 
 	snapshotDelete := func(op *operations.Operation) error {
-		return details.pool.DeleteCustomVolumeSnapshot(effectiveProjectName, fullSnapshotName, op)
+		return details.pool.DeleteCustomVolumeSnapshot(context.TODO(), effectiveProjectName, fullSnapshotName, op)
 	}
 
 	resources := map[string][]api.URL{}
@@ -1263,13 +1263,13 @@ func pruneExpiredCustomVolumeSnapshots(ctx context.Context, s *state.State, expi
 			continue // Deletion of this snapshot is already running, skip.
 		}
 
-		pool, err := storagePools.LoadByName(s, v.PoolName)
+		pool, err := storagePools.LoadByName(ctx, s, v.PoolName)
 		if err != nil {
 			customVolSnapshotsPruneRunning.Delete(v.ID)
 			return fmt.Errorf("Error loading pool for volume snapshot %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
 		}
 
-		err = pool.DeleteCustomVolumeSnapshot(v.ProjectName, v.Name, nil)
+		err = pool.DeleteCustomVolumeSnapshot(ctx, v.ProjectName, v.Name, nil)
 		customVolSnapshotsPruneRunning.Delete(v.ID)
 		if err != nil {
 			return fmt.Errorf("Error deleting custom volume snapshot %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
@@ -1292,12 +1292,12 @@ func autoCreateCustomVolumeSnapshots(ctx context.Context, s *state.State, volume
 			return fmt.Errorf("Error retrieving next snapshot name for volume %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
 		}
 
-		pool, err := storagePools.LoadByName(s, v.PoolName)
+		pool, err := storagePools.LoadByName(ctx, s, v.PoolName)
 		if err != nil {
 			return fmt.Errorf("Error loading pool for volume %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
 		}
 
-		_, err = pool.CreateCustomVolumeSnapshot(v.ProjectName, v.Name, snapshotName, v.Description, nil, nil)
+		_, err = pool.CreateCustomVolumeSnapshot(ctx, v.ProjectName, v.Name, snapshotName, v.Description, nil, nil)
 		if err != nil {
 			return fmt.Errorf("Error creating snapshot for volume %q (project %q, pool %q): %w", v.Name, v.ProjectName, v.PoolName, err)
 		}

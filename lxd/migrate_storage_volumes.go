@@ -93,12 +93,12 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 
 	var poolMigrationTypes []migration.Type
 
-	pool, err := storagePools.LoadByName(state, poolName)
+	pool, err := storagePools.LoadByName(context.TODO(), state, poolName)
 	if err != nil {
 		return err
 	}
 
-	srcConfig, err := pool.GenerateCustomVolumeBackupConfig(projectName, volName, !s.volumeOnly, migrateOp)
+	srcConfig, err := pool.GenerateCustomVolumeBackupConfig(context.TODO(), projectName, volName, !s.volumeOnly, migrateOp)
 	if err != nil {
 		return fmt.Errorf("Failed generating migration config of volume %q in pool %q and project %q: %w", volName, poolName, projectName, err)
 	}
@@ -190,7 +190,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 		return err
 	}
 
-	err = pool.MigrateCustomVolume(projectName, fsConn, volSourceArgs, migrateOp)
+	err = pool.MigrateCustomVolume(context.TODO(), projectName, fsConn, volSourceArgs, migrateOp)
 	if err != nil {
 		s.sendControl(err)
 		return err
@@ -285,7 +285,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 	// The function that will be executed to receive the sender's migration data.
 	var myTarget func(conn io.ReadWriteCloser, op *operations.Operation, args migrationSinkArgs) error
 
-	pool, err := storagePools.LoadByName(state, poolName)
+	pool, err := storagePools.LoadByName(context.TODO(), state, poolName)
 	if err != nil {
 		return err
 	}
@@ -346,7 +346,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 			}
 		}
 
-		return pool.CreateCustomVolumeFromMigration(projectName, conn, volTargetArgs, op)
+		return pool.CreateCustomVolumeFromMigration(context.TODO(), projectName, conn, volTargetArgs, op)
 	}
 
 	if c.refresh {
@@ -361,7 +361,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 		}
 
 		// Get existing snapshots on the local target.
-		targetSnapshots, err := storagePools.VolumeDBSnapshotsGet(pool, projectName, req.Name, storageDrivers.VolumeTypeCustom)
+		targetSnapshots, err := storagePools.VolumeDBSnapshotsGet(context.TODO(), pool, projectName, req.Name, storageDrivers.VolumeTypeCustom)
 		if err != nil {
 			c.sendControl(err)
 			return err
@@ -388,7 +388,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 
 		// Delete the extra local snapshots first.
 		for _, deleteTargetSnapshotIndex := range deleteTargetSnapshotIndexes {
-			err := pool.DeleteCustomVolumeSnapshot(projectName, targetSnapshots[deleteTargetSnapshotIndex].Name, op)
+			err := pool.DeleteCustomVolumeSnapshot(context.TODO(), projectName, targetSnapshots[deleteTargetSnapshotIndex].Name, op)
 			if err != nil {
 				c.sendControl(err)
 				return err

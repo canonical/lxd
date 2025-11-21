@@ -46,7 +46,7 @@ func storagePoolDBCreate(ctx context.Context, s *state.State, poolName string, p
 }
 
 func storagePoolValidate(s *state.State, poolName string, driverName string, config map[string]string) error {
-	poolType, err := storagePools.LoadByType(s, driverName)
+	poolType, err := storagePools.LoadByType(context.TODO(), s, driverName)
 	if err != nil {
 		return err
 	}
@@ -99,7 +99,7 @@ func storagePoolCreateLocal(ctx context.Context, state *state.State, poolID int6
 	defer revert.Fail()
 
 	// Load pool record.
-	pool, err := storagePools.LoadByName(state, req.Name)
+	pool, err := storagePools.LoadByName(ctx, state, req.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -111,15 +111,15 @@ func storagePoolCreateLocal(ctx context.Context, state *state.State, poolID int6
 	}
 
 	// Create the pool.
-	err = pool.Create(clientType, nil)
+	err = pool.Create(ctx, clientType, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	revert.Add(func() { _ = pool.Delete(clientType, nil) })
+	revert.Add(func() { _ = pool.Delete(context.Background(), clientType, nil) })
 
 	// Mount the pool.
-	_, err = pool.Mount()
+	_, err = pool.Mount(ctx)
 	if err != nil {
 		return nil, err
 	}

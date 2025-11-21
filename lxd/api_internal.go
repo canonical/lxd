@@ -809,7 +809,7 @@ func internalImportFromBackup(ctx context.Context, s *state.State, projectName s
 	}
 
 	// Try to retrieve the storage pool the instance supposedly lives on.
-	pool, err := storagePools.LoadByName(s, instancePoolName)
+	pool, err := storagePools.LoadByName(ctx, s, instancePoolName)
 	if response.IsNotFoundError(err) {
 		// Create the storage pool db entry if it doesn't exist.
 		_, err = storagePoolDBCreate(ctx, s, instancePoolName, "", rootVolPool.Driver, rootVolPool.Config)
@@ -817,7 +817,7 @@ func internalImportFromBackup(ctx context.Context, s *state.State, projectName s
 			return fmt.Errorf("Create storage pool database entry: %w", err)
 		}
 
-		pool, err = storagePools.LoadByName(s, instancePoolName)
+		pool, err = storagePools.LoadByName(ctx, s, instancePoolName)
 		if err != nil {
 			return fmt.Errorf("Load storage pool database entry: %w", err)
 		}
@@ -834,7 +834,7 @@ func internalImportFromBackup(ctx context.Context, s *state.State, projectName s
 	}
 
 	// Check snapshots are consistent.
-	existingSnapshots, err := pool.CheckInstanceBackupFileSnapshots(backupConf, projectName, nil)
+	existingSnapshots, err := pool.CheckInstanceBackupFileSnapshots(ctx, backupConf, projectName, nil)
 	if err != nil {
 		return fmt.Errorf("Failed checking snapshots: %w", err)
 	}

@@ -1187,7 +1187,7 @@ func clusterCopyCustomVolumeInternal(s *state.State, r *http.Request, sourceAddr
 }
 
 func doCustomVolumeRefresh(s *state.State, r *http.Request, requestProjectName string, projectName string, poolName string, req *api.StorageVolumesPost) response.Response {
-	pool, err := storagePools.LoadByName(s, poolName)
+	pool, err := storagePools.LoadByName(r.Context(), s, poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1208,7 +1208,7 @@ func doCustomVolumeRefresh(s *state.State, r *http.Request, requestProjectName s
 			return errors.New("No source volume name supplied")
 		}
 
-		err = pool.RefreshCustomVolume(projectName, srcProjectName, req.Name, req.Description, req.Config, req.Source.Pool, req.Source.Name, !req.Source.VolumeOnly, op)
+		err = pool.RefreshCustomVolume(context.TODO(), projectName, srcProjectName, req.Name, req.Description, req.Config, req.Source.Pool, req.Source.Name, !req.Source.VolumeOnly, op)
 		if err != nil {
 			return err
 		}
@@ -1226,7 +1226,7 @@ func doCustomVolumeRefresh(s *state.State, r *http.Request, requestProjectName s
 }
 
 func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName string, projectName string, poolName string, req *api.StorageVolumesPost) response.Response {
-	pool, err := storagePools.LoadByName(s, poolName)
+	pool, err := storagePools.LoadByName(r.Context(), s, poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1248,10 +1248,10 @@ func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName st
 
 	run := func(op *operations.Operation) error {
 		if req.Source.Name == "" {
-			return pool.CreateCustomVolume(projectName, req.Name, req.Description, req.Config, contentType, op)
+			return pool.CreateCustomVolume(op.Context(), projectName, req.Name, req.Description, req.Config, contentType, op)
 		}
 
-		return pool.CreateCustomVolumeFromCopy(projectName, srcProjectName, req.Name, req.Description, req.Config, req.Source.Pool, req.Source.Name, !req.Source.VolumeOnly, op)
+		return pool.CreateCustomVolumeFromCopy(context.TODO(), projectName, srcProjectName, req.Name, req.Description, req.Config, req.Source.Pool, req.Source.Name, !req.Source.VolumeOnly, op)
 	}
 
 	// Volume copy operations potentially take a long time, so run as an async operation.
@@ -1640,7 +1640,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check if the daemon itself is using it.
-	used, err := storagePools.VolumeUsedByDaemon(s, details.pool.Name(), details.volumeName)
+	used, err := storagePools.VolumeUsedByDaemon(r.Context(), s, details.pool.Name(), details.volumeName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1674,7 +1674,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check if a running instance is using it.
-	err = storagePools.VolumeUsedByInstanceDevices(s, details.pool.Name(), effectiveProjectName, &dbVolume.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+	err = storagePools.VolumeUsedByInstanceDevices(r.Context(), s, details.pool.Name(), effectiveProjectName, &dbVolume.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
 		inst, err := instance.Load(s, dbInst, project)
 		if err != nil {
 			return err
@@ -1726,7 +1726,7 @@ func migrateStorageVolume(s *state.State, r *http.Request, sourceVolumeName stri
 		return err
 	}
 
-	srcPool, err := storagePools.LoadByName(s, sourcePoolName)
+	srcPool, err := storagePools.LoadByName(r.Context(), s, sourcePoolName)
 	if err != nil {
 		return fmt.Errorf("Failed loading storage volume storage pool: %w", err)
 	}
@@ -1779,7 +1779,7 @@ func storageVolumePostClusteringMigrate(s *state.State, r *http.Request, srcPool
 				return err
 			}
 
-			err = srcPool.DeleteCustomVolume(srcProjectName, srcVolumeName, op)
+			err = srcPool.DeleteCustomVolume(r.Context(), srcProjectName, srcVolumeName, op)
 			if err != nil {
 				return err
 			}
@@ -1879,7 +1879,7 @@ func storagePoolVolumeTypePostRename(s *state.State, r *http.Request, poolName s
 	newVol := *vol
 	newVol.Name = req.Name
 
-	pool, err := storagePools.LoadByName(s, poolName)
+	pool, err := storagePools.LoadByName(r.Context(), s, poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1888,13 +1888,13 @@ func storagePoolVolumeTypePostRename(s *state.State, r *http.Request, poolName s
 		revert := revert.New()
 		defer revert.Fail()
 
-		err = pool.RenameCustomVolume(projectName, vol.Name, req.Name, op)
+		err = pool.RenameCustomVolume(context.TODO(), projectName, vol.Name, req.Name, op)
 		if err != nil {
 			return err
 		}
 
 		revert.Add(func() {
-			_ = pool.RenameCustomVolume(projectName, req.Name, vol.Name, op)
+			_ = pool.RenameCustomVolume(context.Background(), projectName, req.Name, vol.Name, op)
 		})
 
 		// Update devices using the volume in instances and profiles.
@@ -1925,12 +1925,12 @@ func storagePoolVolumeTypePostMove(s *state.State, r *http.Request, poolName str
 	newVol := *vol
 	newVol.Name = req.Name
 
-	pool, err := storagePools.LoadByName(s, poolName)
+	pool, err := storagePools.LoadByName(r.Context(), s, poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	newPool, err := storagePools.LoadByName(s, req.Pool)
+	newPool, err := storagePools.LoadByName(r.Context(), s, req.Pool)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1949,12 +1949,12 @@ func storagePoolVolumeTypePostMove(s *state.State, r *http.Request, poolName str
 
 		// Provide empty description and nil config to instruct CreateCustomVolumeFromCopy to copy it
 		// from source volume.
-		err = newPool.CreateCustomVolumeFromCopy(projectName, requestProjectName, newVol.Name, "", nil, pool.Name(), vol.Name, true, op)
+		err = newPool.CreateCustomVolumeFromCopy(context.TODO(), projectName, requestProjectName, newVol.Name, "", nil, pool.Name(), vol.Name, true, op)
 		if err != nil {
 			return err
 		}
 
-		err = pool.DeleteCustomVolume(requestProjectName, vol.Name, op)
+		err = pool.DeleteCustomVolume(context.TODO(), requestProjectName, vol.Name, op)
 		if err != nil {
 			return err
 		}
@@ -2183,7 +2183,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 			// before applying config changes so that changes are applied to the
 			// restored volume.
 			if req.Restore != "" {
-				err = details.pool.RestoreCustomVolume(effectiveProjectName, dbVolume.Name, req.Restore, op)
+				err = details.pool.RestoreCustomVolume(context.TODO(), effectiveProjectName, dbVolume.Name, req.Restore, op)
 				if err != nil {
 					return err
 				}
@@ -2201,7 +2201,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 					return err
 				}
 
-				err = details.pool.UpdateCustomVolume(effectiveProjectName, dbVolume.Name, req.Description, req.Config, op)
+				err = details.pool.UpdateCustomVolume(context.TODO(), effectiveProjectName, dbVolume.Name, req.Description, req.Config, op)
 				if err != nil {
 					return err
 				}
@@ -2213,14 +2213,14 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Handle instance volume update requests.
-			err = details.pool.UpdateInstance(inst, req.Description, req.Config, op)
+			err = details.pool.UpdateInstance(context.TODO(), inst, req.Description, req.Config, op)
 			if err != nil {
 				return err
 			}
 
 		case cluster.StoragePoolVolumeTypeImage:
 			// Handle image update requests.
-			err = details.pool.UpdateImage(dbVolume.Name, req.Description, req.Config, op)
+			err = details.pool.UpdateImage(context.TODO(), dbVolume.Name, req.Description, req.Config, op)
 			if err != nil {
 				return err
 			}
@@ -2351,7 +2351,7 @@ func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	run := func(op *operations.Operation) error {
-		return details.pool.UpdateCustomVolume(effectiveProjectName, dbVolume.Name, req.Description, req.Config, op)
+		return details.pool.UpdateCustomVolume(context.TODO(), effectiveProjectName, dbVolume.Name, req.Description, req.Config, op)
 	}
 
 	op, err := operations.OperationCreate(r.Context(), s, request.ProjectParam(r), operations.OperationClassTask, operationtype.VolumeUpdate, nil, nil, run, nil, nil)
@@ -2476,9 +2476,9 @@ func doStoragePoolVolumeDelete(ctx context.Context, s *state.State, name string,
 	run := func(op *operations.Operation) error {
 		switch volType {
 		case cluster.StoragePoolVolumeTypeCustom:
-			return pool.DeleteCustomVolume(effectiveProjectName, name, op)
+			return pool.DeleteCustomVolume(context.TODO(), effectiveProjectName, name, op)
 		case cluster.StoragePoolVolumeTypeImage:
-			return pool.DeleteImage(name, op)
+			return pool.DeleteImage(context.TODO(), name, op)
 		default:
 			return api.StatusErrorf(http.StatusBadRequest, "Storage volumes of type %q cannot be deleted directly", volType.String())
 		}
@@ -2533,13 +2533,13 @@ func createStoragePoolVolumeFromISO(s *state.State, r *http.Request, requestProj
 		defer func() { _ = isoFile.Close() }()
 		defer runRevert.Fail()
 
-		pool, err := storagePools.LoadByName(s, pool)
+		pool, err := storagePools.LoadByName(context.TODO(), s, pool)
 		if err != nil {
 			return err
 		}
 
 		// Dump ISO to storage.
-		err = pool.CreateCustomVolumeFromISO(projectName, volName, isoFile, size, op)
+		err = pool.CreateCustomVolumeFromISO(context.TODO(), projectName, volName, isoFile, size, op)
 		if err != nil {
 			return fmt.Errorf("Failed creating custom volume from ISO: %w", err)
 		}
@@ -2585,13 +2585,13 @@ func createStoragePoolVolumeFromTarball(s *state.State, r *http.Request, request
 	run := func(op *operations.Operation) error {
 		defer func() { _ = os.Remove(tarFile.Name()) }()
 
-		pool, err := storagePools.LoadByName(s, poolName)
+		pool, err := storagePools.LoadByName(context.TODO(), s, poolName)
 		if err != nil {
 			return err
 		}
 
 		// Dump tarball to storage.
-		err = pool.CreateCustomVolumeFromTarball(projectName, volName, tarFile, op)
+		err = pool.CreateCustomVolumeFromTarball(context.TODO(), projectName, volName, tarFile, op)
 		if err != nil {
 			return fmt.Errorf("Failed creating custom volume from tar archive: %w", err)
 		}
@@ -2745,7 +2745,7 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 		defer func() { _ = backupFile.Close() }()
 		defer runRevert.Fail()
 
-		pool, err := storagePools.LoadByName(s, bInfo.Pool)
+		pool, err := storagePools.LoadByName(context.TODO(), s, bInfo.Pool)
 		if err != nil {
 			return err
 		}
@@ -2756,7 +2756,7 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 		}
 
 		// Dump tarball to storage.
-		err = pool.CreateCustomVolumeFromBackup(*bInfo, backupFile, nil)
+		err = pool.CreateCustomVolumeFromBackup(context.TODO(), *bInfo, backupFile, nil)
 		if err != nil {
 			return fmt.Errorf("Create custom volume from backup: %w", err)
 		}
@@ -2857,7 +2857,7 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 	// Load the storage pool containing the volume. This is required by the access handler as all remote volumes
 	// do not have a location (regardless of whether the caller used a target parameter to send the request to a
 	// particular member).
-	storagePool, err := storagePools.LoadByName(s, poolName)
+	storagePool, err := storagePools.LoadByName(r.Context(), s, poolName)
 	if err != nil {
 		return err
 	}
@@ -2946,7 +2946,7 @@ func getRemoteVolumeNodeInfo(ctx context.Context, s *state.State, poolName strin
 	// whether it is exclusively attached to remote instance, and if so then we need to forward the request to
 	// the node where it is currently used. This avoids conflicting with another member when using it locally.
 	if dbVolume != nil {
-		remoteInstance, err := storagePools.VolumeUsedByExclusiveRemoteInstancesWithProfiles(s, poolName, projectName, &dbVolume.StorageVolume)
+		remoteInstance, err := storagePools.VolumeUsedByExclusiveRemoteInstancesWithProfiles(ctx, s, poolName, projectName, &dbVolume.StorageVolume)
 		if err != nil {
 			return nil, fmt.Errorf("Failed checking if volume %q is available: %w", volumeName, err)
 		}

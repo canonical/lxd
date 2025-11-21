@@ -29,7 +29,7 @@ func storagePoolVolumeUpdateUsers(ctx context.Context, s *state.State, projectNa
 	var instancesNewDevices []config.Devices
 
 	// Get all instances that are using the volume with a local (non-expanded) device.
-	err := storagePools.VolumeUsedByInstanceDevices(s, oldPoolName, projectName, oldVol, false, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+	err := storagePools.VolumeUsedByInstanceDevices(ctx, s, oldPoolName, projectName, oldVol, false, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
 		inst, err := instance.Load(s, dbInst, project)
 		if err != nil {
 			return err
@@ -86,7 +86,7 @@ func storagePoolVolumeUpdateUsers(ctx context.Context, s *state.State, projectNa
 	}
 
 	// Update all profiles that are using the volume with a device.
-	err = storagePools.VolumeUsedByProfileDevices(s, oldPoolName, projectName, oldVol, func(profileID int64, profile api.Profile, p api.Project, usedByDevices []string) error {
+	err = storagePools.VolumeUsedByProfileDevices(ctx, s, oldPoolName, projectName, oldVol, func(profileID int64, profile api.Profile, p api.Project, usedByDevices []string) error {
 		newDevices := make(map[string]map[string]string, len(profile.Devices))
 
 		for devName, dev := range profile.Devices {
@@ -157,7 +157,7 @@ func storagePoolVolumeUsedByGet(s *state.State, requestProjectName string, vol *
 	}
 
 	// Check if the daemon itself is using it.
-	used, err := storagePools.VolumeUsedByDaemon(s, vol.Pool, vol.Name)
+	used, err := storagePools.VolumeUsedByDaemon(context.TODO(), s, vol.Pool, vol.Name)
 	if err != nil {
 		return []string{}, err
 	}
@@ -171,7 +171,7 @@ func storagePoolVolumeUsedByGet(s *state.State, requestProjectName string, vol *
 
 	// Pass false to expandDevices, as we only want to see instances directly using a volume, rather than their
 	// profiles using a volume.
-	err = storagePools.VolumeUsedByInstanceDevices(s, vol.Pool, vol.Project, &vol.StorageVolume, false, func(inst db.InstanceArgs, _ api.Project, _ []string) error {
+	err = storagePools.VolumeUsedByInstanceDevices(context.TODO(), s, vol.Pool, vol.Project, &vol.StorageVolume, false, func(inst db.InstanceArgs, _ api.Project, _ []string) error {
 		volumeUsedBy = append(volumeUsedBy, api.NewURL().Path(version.APIVersion, "instances", inst.Name).Project(inst.Project).String())
 		return nil
 	})
@@ -179,7 +179,7 @@ func storagePoolVolumeUsedByGet(s *state.State, requestProjectName string, vol *
 		return []string{}, err
 	}
 
-	err = storagePools.VolumeUsedByProfileDevices(s, vol.Pool, requestProjectName, &vol.StorageVolume, func(_ int64, profile api.Profile, p api.Project, _ []string) error {
+	err = storagePools.VolumeUsedByProfileDevices(context.TODO(), s, vol.Pool, requestProjectName, &vol.StorageVolume, func(_ int64, profile api.Profile, p api.Project, _ []string) error {
 		volumeUsedBy = append(volumeUsedBy, api.NewURL().Path(version.APIVersion, "profiles", profile.Name).Project(p.Name).String())
 		return nil
 	})

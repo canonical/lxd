@@ -44,12 +44,12 @@ func instanceCreateAsEmpty(s *state.State, args db.InstanceArgs) (instance.Insta
 	revert.Add(cleanup)
 	defer instOp.Done(err)
 
-	pool, err := storagePools.LoadByInstance(s, inst)
+	pool, err := storagePools.LoadByInstance(context.TODO(), s, inst)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
 
-	err = pool.CreateInstance(inst, nil)
+	err = pool.CreateInstance(context.TODO(), inst, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating instance: %w", err)
 	}
@@ -172,7 +172,7 @@ func instanceCreateFromImage(s *state.State, img *api.Image, args db.InstanceArg
 		return err
 	}
 
-	pool, err := storagePools.LoadByInstance(s, inst)
+	pool, err := storagePools.LoadByInstance(context.TODO(), s, inst)
 	if err != nil {
 		return fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
@@ -186,7 +186,7 @@ func instanceCreateFromImage(s *state.State, img *api.Image, args db.InstanceArg
 
 	defer unlock()
 
-	err = pool.CreateInstanceFromImage(inst, img.Fingerprint, op)
+	err = pool.CreateInstanceFromImage(context.TODO(), inst, img.Fingerprint, op)
 	if err != nil {
 		return fmt.Errorf("Failed creating instance from image: %w", err)
 	}
@@ -423,18 +423,18 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 	}
 
 	// Copy the storage volume.
-	pool, err := storagePools.LoadByInstance(s, inst)
+	pool, err := storagePools.LoadByInstance(context.TODO(), s, inst)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
 
 	if opts.refresh {
-		err = pool.RefreshInstance(inst, opts.sourceInstance, snapshots, opts.allowInconsistent, op)
+		err = pool.RefreshInstance(context.TODO(), inst, opts.sourceInstance, snapshots, opts.allowInconsistent, op)
 		if err != nil {
 			return nil, fmt.Errorf("Refresh instance: %w", err)
 		}
 	} else {
-		err = pool.CreateInstanceFromCopy(inst, opts.sourceInstance, !opts.instanceOnly, opts.allowInconsistent, op)
+		err = pool.CreateInstanceFromCopy(context.TODO(), inst, opts.sourceInstance, !opts.instanceOnly, opts.allowInconsistent, op)
 		if err != nil {
 			return nil, fmt.Errorf("Create instance from copy: %w", err)
 		}
