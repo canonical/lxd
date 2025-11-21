@@ -39,7 +39,7 @@ type Node struct {
 }
 
 // Transactor is used to run transactions against the cluster database.
-type Transactor func(ctx context.Context, f func(context.Context, *ClusterTx) error) error
+type Transactor func(ctx context.Context, immediate bool, f func(context.Context, *ClusterTx) error) error
 
 // OpenNode creates a new Node object.
 //
