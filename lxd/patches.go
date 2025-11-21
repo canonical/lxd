@@ -786,7 +786,7 @@ func patchMoveBackupsInstances(name string, d *Daemon) error {
 }
 
 func patchGenericStorage(name string, d *Daemon) error {
-	return storagePools.Patch(d.State(), name)
+	return storagePools.Patch(d.shutdownCtx, d.State(), name)
 }
 
 func patchGenericNetwork(f func(name string, d *Daemon) error) func(name string, d *Daemon) error {
@@ -915,7 +915,7 @@ func patchZfsSetContentTypeUserProperty(name string, d *Daemon) error {
 
 	for poolName, volumes := range customPoolVolumes {
 		// Load storage pool.
-		p, err := storagePools.LoadByName(s, poolName)
+		p, err := storagePools.LoadByName(s.ShutdownCtx, s, poolName)
 		if err != nil {
 			return fmt.Errorf("Failed loading pool %q: %w", poolName, err)
 		}
@@ -1269,7 +1269,7 @@ func patchStorageRenameCustomISOBlockVolumesV2(name string, d *Daemon) error {
 
 	for poolName, volumes := range customPoolVolumes {
 		// Load storage pool.
-		p, err := storagePools.LoadByName(s, poolName)
+		p, err := storagePools.LoadByName(s.ShutdownCtx, s, poolName)
 		if err != nil {
 			return fmt.Errorf("Failed loading pool %q: %w", poolName, err)
 		}
@@ -1724,7 +1724,7 @@ func patchUpdatePowerFlexSnapshotPrefix(_ string, d *Daemon) error {
 
 	// Iterate over the pools, volumes and snapshots.
 	for poolName, volumesSnapshots := range poolVolumesSnapshots {
-		p, err := storagePools.LoadByName(s, poolName)
+		p, err := storagePools.LoadByName(s.ShutdownCtx, s, poolName)
 		if err != nil {
 			return fmt.Errorf("Failed loading pool %q: %w", poolName, err)
 		}

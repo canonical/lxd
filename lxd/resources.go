@@ -146,12 +146,12 @@ func storagePoolResourcesGet(d *Daemon, r *http.Request) response.Response {
 
 	var res *api.ResourcesStoragePool
 
-	pool, err := storagePools.LoadByName(s, poolName)
+	pool, err := storagePools.LoadByName(r.Context(), s, poolName)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	res, err = pool.GetResources()
+	res, err = pool.GetResources(r.Context())
 	if err != nil {
 		return response.InternalError(err)
 	}

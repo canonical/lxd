@@ -178,7 +178,7 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 	poolName, err := c.StoragePool()
 	suite.Req.NoError(err)
 
-	pool, err := storagePools.LoadByName(state, poolName)
+	pool, err := storagePools.LoadByName(suite.T().Context(), state, poolName)
 	suite.Req.NoError(err)
 
 	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {

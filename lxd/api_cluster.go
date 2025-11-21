@@ -3131,7 +3131,7 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 				Live: live,
 			}
 
-			err := migrateInstance(r.Context(), s, inst, targetMemberInfo.Name, "", req, op)
+			err := migrateInstance(ctx, s, inst, targetMemberInfo.Name, "", req, op)
 			if err != nil {
 				return fmt.Errorf("Failed migrating instance %q in project %q: %w", inst.Name(), inst.Project().Name, err)
 			}
@@ -4579,7 +4579,7 @@ func healClusterMember(s *state.State, gateway *cluster.Gateway, op *operations.
 			return err
 		}
 
-		pool, err := storagePools.LoadByName(s, poolName)
+		pool, err := storagePools.LoadByName(ctx, s, poolName)
 		if err != nil {
 			return fmt.Errorf("Failed loading storage pool %q: %w", poolName, err)
 		}

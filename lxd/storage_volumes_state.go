@@ -119,7 +119,7 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 	}
 
 	// Load the storage pool.
-	pool, err := storagePools.LoadByName(s, poolName)
+	pool, err := storagePools.LoadByName(r.Context(), s, poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -128,7 +128,7 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 	var usage *storagePools.VolumeUsage
 	if volumeType == cluster.StoragePoolVolumeTypeCustom {
 		// Custom volumes.
-		usage, err = pool.GetCustomVolumeUsage(projectName, volumeName)
+		usage, err = pool.GetCustomVolumeUsage(r.Context(), projectName, volumeName)
 		if err != nil && err != storageDrivers.ErrNotSupported {
 			return response.SmartError(err)
 		}
@@ -148,7 +148,7 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 			return response.SmartError(err)
 		}
 
-		usage, err = pool.GetInstanceUsage(inst)
+		usage, err = pool.GetInstanceUsage(r.Context(), inst)
 		if err != nil && err != storageDrivers.ErrNotSupported {
 			return response.SmartError(err)
 		}
