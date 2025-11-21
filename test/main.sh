@@ -438,50 +438,95 @@ fi
 
 if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_enable "clustering enable"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_edit_configuration "clustering config edit"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_membership "clustering membership"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_containers "clustering containers"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_storage "clustering storage"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_storage_single_node "clustering storage single node"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_network "clustering network"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_publish "clustering publish"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_profiles "clustering profiles"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_projects_force_delete "clustering projects force delete"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_join_api "clustering join api"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_shutdown_nodes "clustering shutdown"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_projects "clustering projects"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_metrics "clustering metrics"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_update_cert "clustering update cert"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_update_cert_reversion "clustering update cert reversion"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_update_cert_token "clustering update cert token"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_address "clustering address"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_image_replication "clustering image replication"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_dns "clustering DNS"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_fan "clustering FAN"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_recover "clustering recovery"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_ha "clustering high availability"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_handover "clustering handover"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_rebalance "clustering rebalance"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_rebalance_remove_leader "clustering rebalance remove leader"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_remove_raft_node "clustering remove raft node"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_failure_domains "clustering failure domains"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_image_refresh "clustering image refresh"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_evacuation "clustering evacuation"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_evacuation_restore_operations "clustering evacuation/restore operations"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_move "clustering move"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_remove_members "clustering config remove members"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_autotarget "clustering autotarget member"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_upgrade "clustering upgrade"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_upgrade_large "clustering upgrade_large"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_downgrade "clustering downgrade"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_groups "clustering groups"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_events "clustering events"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_uuid "clustering uuid"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_trust_add "clustering trust add"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_waitready "clustering waitready"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_heal_networks_stop "clustering heal networks stop"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_placement_groups "clustering placement groups"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
     run_test test_clustering_recovery "clustering recovery"
+    if [ "${LXD_BACKEND}" = "zfs" ]; then zpool list; fi
 fi
 
 if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "cluster" ]; then
