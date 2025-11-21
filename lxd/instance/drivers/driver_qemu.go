@@ -280,7 +280,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.I
 	}
 
 	// Initialize the storage pool.
-	d.storagePool, err = storagePools.LoadByName(d.state, rootDiskDevice["pool"])
+	d.storagePool, err = storagePools.LoadByName(context.TODO(), d.state, rootDiskDevice["pool"])
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed loading storage pool: %w", err)
 	}
@@ -455,7 +455,7 @@ func (d *qemu) mount() (*storagePools.MountInfo, error) {
 	}
 
 	if d.IsSnapshot() {
-		mountInfo, err := pool.MountInstanceSnapshot(d, nil)
+		mountInfo, err := pool.MountInstanceSnapshot(context.TODO(), d, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -463,7 +463,7 @@ func (d *qemu) mount() (*storagePools.MountInfo, error) {
 		return mountInfo, nil
 	}
 
-	mountInfo, err := pool.MountInstance(d, nil)
+	mountInfo, err := pool.MountInstance(context.TODO(), d, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -478,7 +478,7 @@ func (d *qemu) unmount() error {
 		return err
 	}
 
-	err = pool.UnmountInstance(d, nil)
+	err = pool.UnmountInstance(context.TODO(), d, nil)
 	if err != nil {
 		return err
 	}
@@ -5502,19 +5502,19 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 	// Clean things up.
 	d.cleanup()
 
-	pool, err := storagePools.LoadByInstance(d.state, d)
+	pool, err := storagePools.LoadByInstance(context.TODO(), d.state, d)
 	if err != nil {
 		return fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
 
 	if d.IsSnapshot() {
 		_, newSnapName, _ := api.GetParentAndSnapshotName(newName)
-		err = pool.RenameInstanceSnapshot(d, newSnapName, nil)
+		err = pool.RenameInstanceSnapshot(context.TODO(), d, newSnapName, nil)
 		if err != nil {
 			return fmt.Errorf("Rename instance snapshot: %w", err)
 		}
 	} else {
-		err = pool.RenameInstance(d, newName, nil)
+		err = pool.RenameInstance(context.TODO(), d, newName, nil)
 		if err != nil {
 			return fmt.Errorf("Rename instance: %w", err)
 		}
@@ -5656,7 +5656,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 // from a VM when the root disk device has security.shared=true OR it is not
 // attached to any other VMs.
 func allowRemoveSecurityProtectionStart(state *state.State, poolName string, volumeName string, proj *api.Project) error {
-	pool, err := storagePools.LoadByName(state, poolName)
+	pool, err := storagePools.LoadByName(context.TODO(), state, poolName)
 	if err != nil {
 		return err
 	}
@@ -5676,7 +5676,7 @@ func allowRemoveSecurityProtectionStart(state *state.State, poolName string, vol
 	if shared.IsFalseOrEmpty(dbVolume.Config["security.shared"]) {
 		// Only check instances here, as a VM root volume cannot be part of a profile
 		// when not using security.shared
-		err := storagePools.VolumeUsedByInstanceDevices(state, pool.Name(), volumeProject, &dbVolume.StorageVolume, true, func(inst db.InstanceArgs, _ api.Project, _ []string) error {
+		err := storagePools.VolumeUsedByInstanceDevices(context.TODO(), state, pool.Name(), volumeProject, &dbVolume.StorageVolume, true, func(inst db.InstanceArgs, _ api.Project, _ []string) error {
 			// The volume is always attached to its instance
 			if proj.Name == inst.Project && volumeName == inst.Name {
 				return nil
@@ -6421,7 +6421,7 @@ func (d *qemu) delete(force bool) error {
 	} else if pool != nil {
 		if d.IsSnapshot() {
 			// Remove snapshot volume and database record.
-			err = pool.DeleteInstanceSnapshot(d, nil)
+			err = pool.DeleteInstanceSnapshot(context.TODO(), d, nil)
 			if err != nil {
 				return err
 			}
@@ -6435,7 +6435,7 @@ func (d *qemu) delete(force bool) error {
 			}
 
 			// Remove the storage volume and database records.
-			err = pool.DeleteInstance(d, nil)
+			err = pool.DeleteInstance(context.TODO(), d, nil)
 			if err != nil {
 				return err
 			}
@@ -6801,7 +6801,7 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 		return err
 	}
 
-	pool, err := storagePools.LoadByInstance(d.state, d)
+	pool, err := storagePools.LoadByInstance(context.TODO(), d.state, d)
 	if err != nil {
 		err := fmt.Errorf("Failed loading instance: %w", err)
 		op.Done(err)
@@ -6828,7 +6828,7 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	offerHeader.IndexHeaderVersion = &indexHeaderVersion
 
 	// For VMs, send block device size hint in offer header so that target can create the volume the same size.
-	blockSize, err := storagePools.InstanceDiskBlockSize(pool, d, d.op)
+	blockSize, err := storagePools.InstanceDiskBlockSize(context.TODO(), pool, d, d.op)
 	if err != nil {
 		err := fmt.Errorf("Failed getting source disk size: %w", err)
 		op.Done(err)
@@ -6838,7 +6838,7 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	d.logger.Debug("Set migration offer volume size", logger.Ctx{"blockSize": blockSize})
 	offerHeader.VolumeSize = &blockSize
 
-	srcConfig, err := pool.GenerateInstanceBackupConfig(d, args.Snapshots, nil, d.op)
+	srcConfig, err := pool.GenerateInstanceBackupConfig(context.TODO(), d, args.Snapshots, nil, d.op)
 	if err != nil {
 		err := fmt.Errorf("Failed generating instance migration config: %w", err)
 		op.Done(err)
@@ -7013,7 +7013,7 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 				}
 			}
 
-			err = pool.MigrateInstance(d, filesystemConn, volSourceArgs, d.op)
+			err = pool.MigrateInstance(context.TODO(), d, filesystemConn, volSourceArgs, d.op)
 			if err != nil {
 				return err
 			}
@@ -7185,7 +7185,7 @@ func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName str
 	// We enable AllowInconsistent mode as this allows for transferring the VM storage whilst it is running
 	// and the snapshot we took earlier is designed to provide consistency anyway.
 	volSourceArgs.AllowInconsistent = true
-	err = pool.MigrateInstance(d, filesystemConn, volSourceArgs, d.op)
+	err = pool.MigrateInstance(context.TODO(), d, filesystemConn, volSourceArgs, d.op)
 	if err != nil {
 		return err
 	}
@@ -7203,7 +7203,7 @@ func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName str
 		diskPool, ok := diskPools[poolName]
 		if !ok {
 			// Load the pool for the disk.
-			diskPool, err = storagePools.LoadByName(d.state, poolName)
+			diskPool, err = storagePools.LoadByName(context.TODO(), d.state, poolName)
 			if err != nil {
 				return fmt.Errorf("Failed loading storage pool: %w", err)
 			}
@@ -7438,13 +7438,13 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		}
 
 		// Initialize the storage pool cache.
-		d.storagePool, err = storagePools.LoadByName(d.state, rootDiskDevice["pool"])
+		d.storagePool, err = storagePools.LoadByName(context.TODO(), d.state, rootDiskDevice["pool"])
 		if err != nil {
 			return fmt.Errorf("Failed loading storage pool: %w", err)
 		}
 	}
 
-	pool, err := storagePools.LoadByInstance(d.state, d)
+	pool, err := storagePools.LoadByInstance(context.TODO(), d.state, d)
 	if err != nil {
 		return err
 	}
@@ -7705,7 +7705,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			}
 		}
 
-		err = pool.CreateInstanceFromMigration(d, filesystemConn, volTargetArgs, d.op)
+		err = pool.CreateInstanceFromMigration(context.TODO(), d, filesystemConn, volTargetArgs, d.op)
 		if err != nil {
 			return fmt.Errorf("Failed creating instance on target: %w", err)
 		}
@@ -7723,7 +7723,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			diskPool, ok := diskPools[poolName]
 			if !ok {
 				// Load the pool for the disk.
-				diskPool, err = storagePools.LoadByName(d.state, poolName)
+				diskPool, err = storagePools.LoadByName(context.TODO(), d.state, poolName)
 				if err != nil {
 					return fmt.Errorf("Failed loading storage pool: %w", err)
 				}
@@ -7764,10 +7764,10 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 				for k := range snapshots {
 					// Delete the snapshots in reverse order.
 					k = snapshotCount - 1 - k
-					_ = pool.DeleteInstanceSnapshot(snapshots[k], nil)
+					_ = pool.DeleteInstanceSnapshot(context.TODO(), snapshots[k], nil)
 				}
 
-				_ = pool.DeleteInstance(d, nil)
+				_ = pool.DeleteInstance(context.TODO(), d, nil)
 			})
 		}
 
@@ -7872,7 +7872,7 @@ func (d *qemu) ConversionReceive(args instance.ConversionReceiveArgs) error {
 		return err
 	}
 
-	pool, err := storagePools.LoadByInstance(d.state, d)
+	pool, err := storagePools.LoadByInstance(context.TODO(), d.state, d)
 	if err != nil {
 		return err
 	}
@@ -7890,7 +7890,7 @@ func (d *qemu) ConversionReceive(args instance.ConversionReceiveArgs) error {
 		ConversionOptions: args.ConversionOptions, // Non-nil options indicate image conversion.
 	}
 
-	err = pool.CreateInstanceFromConversion(d, filesystemConn, volTargetArgs, d.op)
+	err = pool.CreateInstanceFromConversion(context.TODO(), d, filesystemConn, volTargetArgs, d.op)
 	if err != nil {
 		return fmt.Errorf("Failed creating instance on target: %w", err)
 	}
@@ -8364,7 +8364,7 @@ func (d *qemu) diskState() (map[string]api.InstanceStateDisk, error) {
 		return nil, err
 	}
 
-	usage, err := pool.GetInstanceUsage(d)
+	usage, err := pool.GetInstanceUsage(context.TODO(), d)
 	if err != nil {
 		return nil, err
 	}
@@ -8749,13 +8749,13 @@ func (d *qemu) UpdateBackupFile() error {
 		return err
 	}
 
-	volBackupConf, err := pool.GenerateInstanceCustomVolumeBackupConfig(d, nil, true, nil)
+	volBackupConf, err := pool.GenerateInstanceCustomVolumeBackupConfig(context.TODO(), d, nil, true, nil)
 	if err != nil {
 		return fmt.Errorf("Failed generating instance custom volume config: %w", err)
 	}
 
 	// Use the global metadata version.
-	return pool.UpdateInstanceBackupFile(d, true, volBackupConf, config.DefaultMetadataVersion, nil)
+	return pool.UpdateInstanceBackupFile(context.TODO(), d, true, volBackupConf, config.DefaultMetadataVersion, nil)
 }
 
 type cpuTopology struct {
