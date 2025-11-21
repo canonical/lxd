@@ -158,7 +158,7 @@ func Bootstrap(state *state.State, gateway *Gateway, serverName string) error {
 		// lock and makes the Go SQL pooling system invalidate the old
 		// connection, so new queries will be executed over the new network
 		// connection.
-		err = t(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = t(context.TODO(), false, func(ctx context.Context, tx *db.ClusterTx) error {
 			_, err = tx.GetNodes(ctx)
 			if err != nil {
 				return fmt.Errorf("Failed getting cluster members: %w", err)
@@ -519,7 +519,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 		// network connection. Also, update the storage_pools and networks
 		// tables with our local configuration.
 		logger.Info("Migrate local data to cluster database")
-		err = t(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = t(context.TODO(), false, func(ctx context.Context, tx *db.ClusterTx) error {
 			node, err := tx.GetPendingNodeByAddress(ctx, localClusterAddress)
 			if err != nil {
 				return fmt.Errorf("Failed to get ID of joining node: %w", err)

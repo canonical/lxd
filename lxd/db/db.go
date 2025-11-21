@@ -109,7 +109,7 @@ func (n *Node) DqliteDir() string {
 // node-level database, otherwise they are rolled back.
 func (n *Node) Transaction(ctx context.Context, f func(context.Context, *NodeTx) error) error {
 	nodeTx := &NodeTx{}
-	return query.Transaction(ctx, n.db, func(ctx context.Context, tx *sql.Tx) error {
+	return query.Transaction(ctx, n.db, false, func(ctx context.Context, tx *sql.Tx) error {
 		nodeTx.tx = tx
 		return f(ctx, nodeTx)
 	})
@@ -204,7 +204,7 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 
 	if dump != nil {
 		logger.Info("Migrating data from local to global database")
-		err := query.Transaction(closingCtx, db, func(ctx context.Context, tx *sql.Tx) error {
+		err := query.Transaction(closingCtx, db, false, func(ctx context.Context, tx *sql.Tx) error {
 			return importPreClusteringData(tx, dump)
 		})
 		if err != nil {
@@ -377,7 +377,7 @@ func (c *Cluster) RunExclusive(f func(t Transactor) error) error {
 	}
 }
 
-func (c *Cluster) transaction(ctx context.Context, f func(context.Context, *ClusterTx) error) error {
+func (c *Cluster) transaction(ctx context.Context, immediate bool, f func(context.Context, *ClusterTx) error) error {
 	clusterTx := &ClusterTx{
 		nodeID: c.nodeID,
 	}
@@ -388,13 +388,13 @@ func (c *Cluster) transaction(ctx context.Context, f func(context.Context, *Clus
 			return f(ctx, clusterTx)
 		}
 
-		err := query.Transaction(ctx, c.db, txFunc)
+		err := query.Transaction(ctx, c.db, immediate, txFunc)
 		if err != nil && errors.Is(err, context.DeadlineExceeded) {
 			// If the query timed out it likely means that the leader has abruptly become unreachable.
 			// Now that this query has been cancelled, a leader election should have taken place by now.
 			// So let's retry the transaction once more in case the global database is now available again.
 			logger.Warn("Transaction timed out. Retrying once", logger.Ctx{"member": c.nodeID, "err": err})
-			return query.Transaction(ctx, c.db, txFunc)
+			return query.Transaction(ctx, c.db, false, txFunc)
 		}
 
 		return err

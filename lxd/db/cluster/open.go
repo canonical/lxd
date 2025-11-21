@@ -157,7 +157,7 @@ func EnsureSchema(db *sql.DB, address string, dir string, serverUUID string) err
 			return fmt.Errorf("Failed ensuring schema: %w", err)
 		}
 
-		err = query.Transaction(ctx, db, func(ctx context.Context, tx *sql.Tx) error {
+		err = query.Transaction(ctx, db, false, func(ctx context.Context, tx *sql.Tx) error {
 			return applyTriggers(ctx, tx)
 		})
 		if err != nil {
@@ -179,7 +179,7 @@ func EnsureSchema(db *sql.DB, address string, dir string, serverUUID string) err
 			return err
 		}
 
-		err = query.Transaction(context.TODO(), db, func(_ context.Context, tx *sql.Tx) error {
+		err = query.Transaction(context.TODO(), db, false, func(_ context.Context, tx *sql.Tx) error {
 			stmt := `
 INSERT INTO nodes(id, name, address, schema, api_extensions, arch, description) VALUES(1, 'none', '0.0.0.0', ?, ?, ?, '')
 `
