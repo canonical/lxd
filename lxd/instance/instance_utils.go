@@ -798,7 +798,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 	var dbInst cluster.Instance
 	var p *api.Project
 
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.WriteTransaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		proj, err := cluster.GetProject(ctx, tx.Tx(), args.Project)
 		if err != nil {
 			return err

@@ -4489,7 +4489,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Finally, apply the changes to the database
-	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = d.state.DB.Cluster.WriteTransaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Snapshots should update only their descriptions and expiry date.
 		if d.IsSnapshot() {
 			return tx.UpdateInstanceSnapshot(d.id, d.description, d.expiryDate)
