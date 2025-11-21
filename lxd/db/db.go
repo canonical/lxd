@@ -335,7 +335,20 @@ func (c *Cluster) GetNodeID() int64 {
 func (c *Cluster) Transaction(ctx context.Context, f func(context.Context, *ClusterTx) error) error {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.transaction(ctx, f)
+	return c.transaction(ctx, false, f)
+}
+
+// WriteTransaction creates a new immediate ClusterTx object and transactionally executes the
+// cluster database interactions invoked by the given function. If the function
+// returns no error, all database changes are committed to the cluster database
+// database, otherwise they are rolled back.
+//
+// If EnterExclusive has been called before, calling Transaction will block
+// until ExitExclusive has been called as well to release the lock.
+func (c *Cluster) WriteTransaction(ctx context.Context, f func(context.Context, *ClusterTx) error) error {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.transaction(ctx, true, f)
 }
 
 // RunExclusive acquires a lock on the cluster db and calls f.
