@@ -181,33 +181,33 @@ type InstanceStateNetworkAddress struct {
 type InstanceStateNetworkCounters struct {
 	// Number of bytes received
 	// Example: 192021
-	BytesReceived int64 `json:"bytes_received" yaml:"bytes_received"`
+	BytesReceived uint64 `json:"bytes_received" yaml:"bytes_received"`
 
 	// Number of bytes sent
 	// Example: 10888579
-	BytesSent int64 `json:"bytes_sent" yaml:"bytes_sent"`
+	BytesSent uint64 `json:"bytes_sent" yaml:"bytes_sent"`
 
 	// Number of packets received
 	// Example: 1748
-	PacketsReceived int64 `json:"packets_received" yaml:"packets_received"`
+	PacketsReceived uint64 `json:"packets_received" yaml:"packets_received"`
 
 	// Number of packets sent
 	// Example: 964
-	PacketsSent int64 `json:"packets_sent" yaml:"packets_sent"`
+	PacketsSent uint64 `json:"packets_sent" yaml:"packets_sent"`
 
 	// Number of errors received
 	// Example: 14
-	ErrorsReceived int64 `json:"errors_received" yaml:"errors_received"`
+	ErrorsReceived uint64 `json:"errors_received" yaml:"errors_received"`
 
 	// Number of errors sent
 	// Example: 41
-	ErrorsSent int64 `json:"errors_sent" yaml:"errors_sent"`
+	ErrorsSent uint64 `json:"errors_sent" yaml:"errors_sent"`
 
 	// Number of outbound packets dropped
 	// Example: 541
-	PacketsDroppedOutbound int64 `json:"packets_dropped_outbound" yaml:"packets_dropped_outbound"`
+	PacketsDroppedOutbound uint64 `json:"packets_dropped_outbound" yaml:"packets_dropped_outbound"`
 
 	// Number of inbound packets dropped
 	// Example: 179
-	PacketsDroppedInbound int64 `json:"packets_dropped_inbound" yaml:"packets_dropped_inbound"`
+	PacketsDroppedInbound uint64 `json:"packets_dropped_inbound" yaml:"packets_dropped_inbound"`
 }

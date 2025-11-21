@@ -155,9 +155,13 @@ func ParseBitSizeString(input string) (int64, error) {
 	return handleOverflow(valueInt, multiplicator)
 }
 
+type integer interface {
+	~int64 | ~uint64
+}
+
 // GetByteSizeString takes a number of bytes and precision and returns a
 // human representation of the amount of data.
-func GetByteSizeString(input int64, precision uint) string {
+func GetByteSizeString[T integer](input T, precision uint) string {
 	if input < 1000 {
 		return fmt.Sprintf("%dB", input)
 	}
@@ -176,7 +180,7 @@ func GetByteSizeString(input int64, precision uint) string {
 
 // GetByteSizeStringIEC takes a number of bytes and precision and returns a
 // human representation of the amount of data using IEC units.
-func GetByteSizeStringIEC(input int64, precision uint) string {
+func GetByteSizeStringIEC[T integer](input T, precision uint) string {
 	if input < 1024 {
 		return fmt.Sprintf("%dB", input)
 	}
