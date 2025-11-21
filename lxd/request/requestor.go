@@ -361,3 +361,13 @@ func GetRequestor(ctx context.Context) (*Requestor, error) {
 
 	return r, nil
 }
+
+// CopyRequestor returns a new context derived from the "out" context that contains the Requestor from the "in" context.
+func CopyRequestor(inCtx context.Context, outCtx context.Context) (context.Context, error) {
+	r, err := GetRequestor(inCtx)
+	if err != nil {
+		return nil, err
+	}
+
+	return context.WithValue(outCtx, ctxRequestor, r), nil
+}
