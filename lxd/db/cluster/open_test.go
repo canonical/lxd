@@ -187,7 +187,7 @@ CREATE TABLE schema (
 
 // Add a new node with the given address, schema version and number of api extensions.
 func addNode(t *testing.T, db *sql.DB, address string, schema int, apiExtensions int) {
-	err := query.Transaction(context.TODO(), db, func(_ context.Context, tx *sql.Tx) error {
+	err := query.Transaction(context.TODO(), db, false, func(_ context.Context, tx *sql.Tx) error {
 		stmt := `
 INSERT INTO nodes(name, address, schema, api_extensions, arch, description) VALUES (?, ?, ?, ?, ?, '')
 `
@@ -201,7 +201,7 @@ INSERT INTO nodes(name, address, schema, api_extensions, arch, description) VALU
 // Assert that the node with the given address has the given schema version and API
 // extensions number.
 func assertNode(t *testing.T, db *sql.DB, address string, schema int, apiExtensions int) {
-	err := query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
+	err := query.Transaction(context.TODO(), db, false, func(ctx context.Context, tx *sql.Tx) error {
 		where := "address=? AND schema=? AND api_extensions=?"
 		n, err := query.Count(ctx, tx, "nodes", where, address, schema, apiExtensions)
 		assert.Equal(t, 1, n, "node does not have expected version")
