@@ -1229,10 +1229,10 @@ func autoRemoveOrphanedOperationsTask(stateFunc func() *state.State) (task.Func,
 		}
 
 		opRun := func(op *operations.Operation) error {
-			return autoRemoveOrphanedOperations(ctx, s)
+			return autoRemoveOrphanedOperations(op.Context(), s)
 		}
 
-		op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.RemoveOrphanedOperations, nil, nil, opRun, nil, nil)
+		op, err := operations.OperationCreate(ctx, s, "", operations.OperationClassTask, operationtype.RemoveOrphanedOperations, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed creating remove orphaned operations operation", logger.Ctx{"err": err})
 			return

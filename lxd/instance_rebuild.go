@@ -142,7 +142,7 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if req.Source.Server != "" {
-			sourceImage, err = ensureDownloadedImageFitWithinBudget(r.Context(), s, op, *targetProject, sourceImageRef, req.Source, inst.Type().String())
+			sourceImage, err = ensureDownloadedImageFitWithinBudget(op.Context(), s, op, *targetProject, sourceImageRef, req.Source, inst.Type().String())
 			if err != nil {
 				return err
 			}
@@ -152,7 +152,7 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 			return errors.New("Image not provided for instance rebuild")
 		}
 
-		return instanceRebuildFromImage(r.Context(), s, inst, sourceImage, op)
+		return instanceRebuildFromImage(op.Context(), s, inst, sourceImage, op)
 	}
 
 	resources := map[string][]api.URL{}
