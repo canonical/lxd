@@ -242,19 +242,19 @@ type NetworkStateAddress struct {
 type NetworkStateCounters struct {
 	// Number of bytes received
 	// Example: 250542118
-	BytesReceived int64 `json:"bytes_received" yaml:"bytes_received"`
+	BytesReceived uint64 `json:"bytes_received" yaml:"bytes_received"`
 
 	// Number of bytes sent
 	// Example: 17524040140
-	BytesSent int64 `json:"bytes_sent" yaml:"bytes_sent"`
+	BytesSent uint64 `json:"bytes_sent" yaml:"bytes_sent"`
 
 	// Number of packets received
 	// Example: 1182515
-	PacketsReceived int64 `json:"packets_received" yaml:"packets_received"`
+	PacketsReceived uint64 `json:"packets_received" yaml:"packets_received"`
 
 	// Number of packets sent
 	// Example: 1567934
-	PacketsSent int64 `json:"packets_sent" yaml:"packets_sent"`
+	PacketsSent uint64 `json:"packets_sent" yaml:"packets_sent"`
 }
 
 // NetworkStateBond represents bond specific state

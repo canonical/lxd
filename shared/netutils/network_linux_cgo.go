@@ -186,14 +186,14 @@ func NetnsGetifaddrs(initPID int32, hostInterfaces []net.Interface) (map[string]
 		}
 
 		if addr.ifa_stats_type == C.IFLA_STATS64 {
-			addNetwork.Counters.BytesReceived = int64(addr.ifa_stats64.rx_bytes)
-			addNetwork.Counters.BytesSent = int64(addr.ifa_stats64.tx_bytes)
-			addNetwork.Counters.PacketsReceived = int64(addr.ifa_stats64.rx_packets)
-			addNetwork.Counters.PacketsSent = int64(addr.ifa_stats64.tx_packets)
-			addNetwork.Counters.ErrorsReceived = int64(addr.ifa_stats64.rx_errors)
-			addNetwork.Counters.ErrorsSent = int64(addr.ifa_stats64.tx_errors)
-			addNetwork.Counters.PacketsDroppedInbound = int64(addr.ifa_stats64.rx_dropped)
-			addNetwork.Counters.PacketsDroppedOutbound = int64(addr.ifa_stats64.tx_dropped)
+			addNetwork.Counters.BytesReceived = uint64(addr.ifa_stats64.rx_bytes)
+			addNetwork.Counters.BytesSent = uint64(addr.ifa_stats64.tx_bytes)
+			addNetwork.Counters.PacketsReceived = uint64(addr.ifa_stats64.rx_packets)
+			addNetwork.Counters.PacketsSent = uint64(addr.ifa_stats64.tx_packets)
+			addNetwork.Counters.ErrorsReceived = uint64(addr.ifa_stats64.rx_errors)
+			addNetwork.Counters.ErrorsSent = uint64(addr.ifa_stats64.tx_errors)
+			addNetwork.Counters.PacketsDroppedInbound = uint64(addr.ifa_stats64.rx_dropped)
+			addNetwork.Counters.PacketsDroppedOutbound = uint64(addr.ifa_stats64.tx_dropped)
 		}
 
 		ifName := C.GoString(addr.ifa_name)
