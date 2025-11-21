@@ -54,14 +54,14 @@ func (d *qemu) getQemuMetrics() (*metrics.MetricSet, error) {
 
 		for name, state := range networkState {
 			out.Network[name] = metrics.NetworkMetrics{
-				ReceiveBytes:    uint64(state.Counters.BytesReceived),
-				ReceiveDrop:     uint64(state.Counters.PacketsDroppedInbound),
-				ReceiveErrors:   uint64(state.Counters.ErrorsReceived),
-				ReceivePackets:  uint64(state.Counters.PacketsReceived),
-				TransmitBytes:   uint64(state.Counters.BytesSent),
-				TransmitDrop:    uint64(state.Counters.PacketsDroppedOutbound),
-				TransmitErrors:  uint64(state.Counters.ErrorsSent),
-				TransmitPackets: uint64(state.Counters.PacketsSent),
+				ReceiveBytes:    state.Counters.BytesReceived,
+				ReceiveDrop:     state.Counters.PacketsDroppedInbound,
+				ReceiveErrors:   state.Counters.ErrorsReceived,
+				ReceivePackets:  state.Counters.PacketsReceived,
+				TransmitBytes:   state.Counters.BytesSent,
+				TransmitDrop:    state.Counters.PacketsDroppedOutbound,
+				TransmitErrors:  state.Counters.ErrorsSent,
+				TransmitPackets: state.Counters.PacketsSent,
 			}
 		}
 	}

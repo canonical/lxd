@@ -789,22 +789,22 @@ func GetNetworkCounters(name string) (*api.NetworkStateCounters, error) {
 			continue
 		}
 
-		rxBytes, err := strconv.ParseInt(fields[1], 10, 64)
+		rxBytes, err := strconv.ParseUint(fields[1], 10, 64)
 		if err != nil {
 			return nil, err
 		}
 
-		rxPackets, err := strconv.ParseInt(fields[2], 10, 64)
+		rxPackets, err := strconv.ParseUint(fields[2], 10, 64)
 		if err != nil {
 			return nil, err
 		}
 
-		txBytes, err := strconv.ParseInt(fields[9], 10, 64)
+		txBytes, err := strconv.ParseUint(fields[9], 10, 64)
 		if err != nil {
 			return nil, err
 		}
 
-		txPackets, err := strconv.ParseInt(fields[10], 10, 64)
+		txPackets, err := strconv.ParseUint(fields[10], 10, 64)
 		if err != nil {
 			return nil, err
 		}
