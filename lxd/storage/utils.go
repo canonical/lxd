@@ -165,7 +165,7 @@ func VolumeDBContentTypeToContentType(volDBType cluster.StoragePoolVolumeContent
 }
 
 // VolumeDBGet loads a volume from the database.
-func VolumeDBGet(pool Pool, projectName string, volumeName string, volumeType drivers.VolumeType) (*db.StorageVolume, error) {
+func VolumeDBGet(ctx context.Context, pool Pool, projectName string, volumeName string, volumeType drivers.VolumeType) (*db.StorageVolume, error) {
 	p, ok := pool.(*lxdBackend)
 	if !ok {
 		return nil, errors.New("Pool is not a lxdBackend")
@@ -178,7 +178,7 @@ func VolumeDBGet(pool Pool, projectName string, volumeName string, volumeType dr
 
 	// Get the storage volume.
 	var dbVolume *db.StorageVolume
-	err = p.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = p.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		dbVolume, err = tx.GetStoragePoolVolume(ctx, pool.ID(), projectName, volDBType, volumeName, true)
 		if err != nil {
 			if response.IsNotFoundError(err) {
@@ -200,7 +200,7 @@ func VolumeDBGet(pool Pool, projectName string, volumeName string, volumeType dr
 // VolumeDBCreate creates a volume in the database.
 // If volumeConfig is supplied, it is modified with any driver level default config options (if not set).
 // If removeUnknownKeys is true, any unknown config keys are removed from volumeConfig rather than failing.
-func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDescription string, volumeType drivers.VolumeType, snapshot bool, volumeConfig map[string]string, creationDate time.Time, expiryDate time.Time, contentType drivers.ContentType, removeUnknownKeys bool, hasSource bool) error {
+func VolumeDBCreate(ctx context.Context, pool Pool, projectName string, volumeName string, volumeDescription string, volumeType drivers.VolumeType, snapshot bool, volumeConfig map[string]string, creationDate time.Time, expiryDate time.Time, contentType drivers.ContentType, removeUnknownKeys bool, hasSource bool) error {
 	p, ok := pool.(*lxdBackend)
 	if !ok {
 		return errors.New("Pool is not a lxdBackend")
@@ -251,12 +251,12 @@ func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDesc
 	}
 
 	// Validate config.
-	err = pool.Driver().ValidateVolume(context.TODO(), vol, removeUnknownKeys)
+	err = pool.Driver().ValidateVolume(ctx, vol, removeUnknownKeys)
 	if err != nil {
 		return err
 	}
 
-	err = p.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = p.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Create the database entry for the storage volume.
 		if snapshot {
 			_, err = tx.CreateStorageVolumeSnapshot(ctx, projectName, volumeName, volumeDescription, volDBType, pool.ID(), vol.Config(), creationDate, expiryDate)
@@ -274,7 +274,7 @@ func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDesc
 }
 
 // VolumeDBDelete deletes a volume from the database.
-func VolumeDBDelete(pool Pool, projectName string, volumeName string, volumeType drivers.VolumeType) error {
+func VolumeDBDelete(ctx context.Context, pool Pool, projectName string, volumeName string, volumeType drivers.VolumeType) error {
 	p, ok := pool.(*lxdBackend)
 	if !ok {
 		return errors.New("Pool is not a lxdBackend")
@@ -286,7 +286,7 @@ func VolumeDBDelete(pool Pool, projectName string, volumeName string, volumeType
 		return err
 	}
 
-	err = p.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = p.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.RemoveStoragePoolVolume(ctx, projectName, volumeName, volDBType, pool.ID())
 	})
 	if err != nil && !response.IsNotFoundError(err) {
@@ -297,7 +297,7 @@ func VolumeDBDelete(pool Pool, projectName string, volumeName string, volumeType
 }
 
 // VolumeDBSnapshotsGet loads a list of snapshots volumes from the database.
-func VolumeDBSnapshotsGet(pool Pool, projectName string, volume string, volumeType drivers.VolumeType) ([]db.StorageVolumeArgs, error) {
+func VolumeDBSnapshotsGet(ctx context.Context, pool Pool, projectName string, volume string, volumeType drivers.VolumeType) ([]db.StorageVolumeArgs, error) {
 	p, ok := pool.(*lxdBackend)
 	if !ok {
 		return nil, errors.New("Pool is not a lxdBackend")
@@ -310,7 +310,7 @@ func VolumeDBSnapshotsGet(pool Pool, projectName string, volume string, volumeTy
 
 	var snapshots []db.StorageVolumeArgs
 
-	err = p.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = p.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		snapshots, err = tx.GetLocalStoragePoolVolumeSnapshotsWithType(ctx, projectName, volume, volDBType, pool.ID())
 
 		return err
@@ -323,7 +323,7 @@ func VolumeDBSnapshotsGet(pool Pool, projectName string, volume string, volumeTy
 }
 
 // BucketDBGet loads a bucket from the database.
-func BucketDBGet(pool Pool, projectName string, bucketName string, memberSpecific bool) (*db.StorageBucket, error) {
+func BucketDBGet(ctx context.Context, pool Pool, projectName string, bucketName string, memberSpecific bool) (*db.StorageBucket, error) {
 	p, ok := pool.(*lxdBackend)
 	if !ok {
 		return nil, errors.New("Pool is not a lxdBackend")
@@ -333,7 +333,7 @@ func BucketDBGet(pool Pool, projectName string, bucketName string, memberSpecifi
 	var bucket *db.StorageBucket
 
 	// Get the storage bucket.
-	err = p.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = p.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		bucket, err = tx.GetStoragePoolBucket(ctx, pool.ID(), projectName, memberSpecific, bucketName)
 		if err != nil {
 			if response.IsNotFoundError(err) {
@@ -382,7 +382,7 @@ func BucketDBCreate(ctx context.Context, pool Pool, projectName string, memberSp
 	}
 
 	// Validate bucket volume config.
-	err = pool.Driver().ValidateVolume(context.TODO(), bucketVol, false)
+	err = pool.Driver().ValidateVolume(ctx, bucketVol, false)
 	if err != nil {
 		return -1, err
 	}
@@ -694,7 +694,7 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 // VM Format A: Separate metadata tarball and root qcow2 file.
 //   - Unpack metadata tarball into mountPath.
 //   - Check rootBlockPath is a file and convert qcow2 file into raw format in rootBlockPath.
-func ImageUnpack(s *state.State, projectName string, imageFile string, vol drivers.Volume, destBlockFile string, allowUnsafeResize bool, tracker *ioprogress.ProgressTracker) (int64, error) {
+func ImageUnpack(ctx context.Context, s *state.State, projectName string, imageFile string, vol drivers.Volume, destBlockFile string, allowUnsafeResize bool, tracker *ioprogress.ProgressTracker) (int64, error) {
 	l := logger.Log.AddContext(logger.Ctx{"imageFile": imageFile, "volName": vol.Name()})
 	l.Info("Image unpack started")
 	defer l.Info("Image unpack stopped")
@@ -770,7 +770,7 @@ func ImageUnpack(s *state.State, projectName string, imageFile string, vol drive
 		imgVol := drivers.NewVolume(nil, "", drivers.VolumeTypeImage, drivers.ContentTypeBlock, "", imgVolConfig, nil)
 
 		l.Debug("Checking image unpack size")
-		newVolSize, err := vol.ConfigSizeFromSource(context.TODO(), imgVol)
+		newVolSize, err := vol.ConfigSizeFromSource(ctx, imgVol)
 		if err != nil {
 			return -1, err
 		}
@@ -785,7 +785,7 @@ func ImageUnpack(s *state.State, projectName string, imageFile string, vol drive
 			// increase the target volume's size.
 			if volSizeBytes < imgVirtualSize {
 				l.Debug("Increasing volume size", logger.Ctx{"imgPath": imgPath, "dstPath": dstPath, "oldSize": volSizeBytes, "newSize": newVolSize, "allowUnsafeResize": allowUnsafeResize})
-				err = vol.SetQuota(context.TODO(), newVolSize, allowUnsafeResize, nil)
+				err = vol.SetQuota(ctx, newVolSize, allowUnsafeResize, nil)
 				if err != nil {
 					return -1, fmt.Errorf("Error increasing volume size: %w", err)
 				}
@@ -983,7 +983,7 @@ func volumeIsUsedByDevice(vol api.StorageVolume, instanceType instancetype.Type,
 // VolumeUsedByProfileDevices finds profiles using a volume and passes them to profileFunc for evaluation.
 // The profileFunc is provided with a profile config, project config and a list of device names that are using
 // the volume.
-func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName string, vol *api.StorageVolume, profileFunc func(profileID int64, profile api.Profile, project api.Project, usedByDevices []string) error) error {
+func VolumeUsedByProfileDevices(ctx context.Context, s *state.State, poolName string, projectName string, vol *api.StorageVolume, profileFunc func(profileID int64, profile api.Profile, project api.Project, usedByDevices []string) error) error {
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := cluster.StoragePoolVolumeTypeFromName(vol.Type)
 	if err != nil {
@@ -994,7 +994,7 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 	var profileIDs []int64
 	var profileProjects []*api.Project
 	// Retrieve required info from the database in single transaction for performance.
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		projects, err := cluster.GetProjects(ctx, tx.Tx())
 		if err != nil {
 			return fmt.Errorf("Failed loading projects: %w", err)
@@ -1090,14 +1090,14 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 // is returned immediately. The instanceFunc is executed during a DB transaction, so DB queries are not permitted.
 // The instanceFunc is provided with a instance config, project config, instance's profiles and a list of device
 // names that are using the volume.
-func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName string, vol *api.StorageVolume, expandDevices bool, instanceFunc func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error) error {
+func VolumeUsedByInstanceDevices(ctx context.Context, s *state.State, poolName string, projectName string, vol *api.StorageVolume, expandDevices bool, instanceFunc func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error) error {
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := cluster.StoragePoolVolumeTypeFromName(vol.Type)
 	if err != nil {
 		return err
 	}
 
-	return s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	return s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.InstanceList(ctx, func(inst db.InstanceArgs, p api.Project) error {
 			// If the volume has a specific cluster member which is different than the instance then skip as
 			// instance cannot be using this volume.
@@ -1151,8 +1151,8 @@ func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName st
 
 // VolumeUsedByExclusiveRemoteInstancesWithProfiles checks if custom volume is exclusively attached to a remote
 // instance. Returns the remote instance that has the volume exclusively attached. Returns nil if volume available.
-func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName string, projectName string, vol *api.StorageVolume) (*db.InstanceArgs, error) {
-	pool, err := LoadByName(s, poolName)
+func VolumeUsedByExclusiveRemoteInstancesWithProfiles(ctx context.Context, s *state.State, poolName string, projectName string, vol *api.StorageVolume) (*db.InstanceArgs, error) {
+	pool, err := LoadByName(ctx, s, poolName)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading storage pool %q: %w", poolName, err)
 	}
@@ -1166,7 +1166,7 @@ func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName s
 
 	// Find if volume is attached to a remote instance.
 	var remoteInstance *db.InstanceArgs
-	err = VolumeUsedByInstanceDevices(s, poolName, projectName, vol, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+	err = VolumeUsedByInstanceDevices(ctx, s, poolName, projectName, vol, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
 		if dbInst.Node != s.ServerName {
 			remoteInstance = &dbInst
 			return db.ErrListStop // Stop the search, this volume is attached to a remote instance.
@@ -1182,10 +1182,10 @@ func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName s
 }
 
 // VolumeUsedByDaemon indicates whether the volume is used by daemon storage.
-func VolumeUsedByDaemon(s *state.State, poolName string, volumeName string) (bool, error) {
+func VolumeUsedByDaemon(ctx context.Context, s *state.State, poolName string, volumeName string) (bool, error) {
 	var nodeConfig *node.Config
 	var err error
-	err = s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+	err = s.DB.Node.Transaction(ctx, func(ctx context.Context, tx *db.NodeTx) error {
 		nodeConfig, err = node.ConfigLoad(ctx, tx)
 		return err
 	})
@@ -1221,19 +1221,19 @@ func FallbackMigrationType(contentType drivers.ContentType) migration.MigrationF
 
 // RenderSnapshotUsage can be used as an optional argument to Instance.Render() to return snapshot usage.
 // As this is a relatively expensive operation it is provided as an optional feature rather than on by default.
-func RenderSnapshotUsage(s *state.State, snapInst instance.Instance) func(response any) error {
+func RenderSnapshotUsage(ctx context.Context, s *state.State, snapInst instance.Instance) func(response any) error {
 	return func(response any) error {
 		apiRes, ok := response.(*api.InstanceSnapshot)
 		if !ok {
 			return nil
 		}
 
-		pool, err := LoadByInstance(s, snapInst)
+		pool, err := LoadByInstance(ctx, s, snapInst)
 		if err == nil {
 			// It is important that the snapshot not be mounted here as mounting a snapshot can trigger a very
 			// expensive filesystem UUID regeneration, so we rely on the driver implementation to get the info
 			// we are requesting as cheaply as possible.
-			volumeState, err := pool.GetInstanceUsage(snapInst)
+			volumeState, err := pool.GetInstanceUsage(ctx, snapInst)
 			if err == nil {
 				apiRes.Size = volumeState.Used
 			}
@@ -1245,17 +1245,17 @@ func RenderSnapshotUsage(s *state.State, snapInst instance.Instance) func(respon
 
 // InstanceMount mounts an instance's storage volume (if not already mounted).
 // Please call InstanceUnmount when finished.
-func InstanceMount(pool Pool, inst instance.Instance, op *operations.Operation) (*MountInfo, error) {
+func InstanceMount(ctx context.Context, pool Pool, inst instance.Instance, op *operations.Operation) (*MountInfo, error) {
 	var err error
 	var mountInfo *MountInfo
 
 	if inst.IsSnapshot() {
-		mountInfo, err = pool.MountInstanceSnapshot(inst, op)
+		mountInfo, err = pool.MountInstanceSnapshot(ctx, inst, op)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		mountInfo, err = pool.MountInstance(inst, op)
+		mountInfo, err = pool.MountInstance(ctx, inst, op)
 		if err != nil {
 			return nil, err
 		}
@@ -1265,13 +1265,13 @@ func InstanceMount(pool Pool, inst instance.Instance, op *operations.Operation) 
 }
 
 // InstanceUnmount unmounts an instance's storage volume (if not in use).
-func InstanceUnmount(pool Pool, inst instance.Instance, op *operations.Operation) error {
+func InstanceUnmount(ctx context.Context, pool Pool, inst instance.Instance, op *operations.Operation) error {
 	var err error
 
 	if inst.IsSnapshot() {
-		err = pool.UnmountInstanceSnapshot(inst, op)
+		err = pool.UnmountInstanceSnapshot(ctx, inst, op)
 	} else {
-		err = pool.UnmountInstance(inst, op)
+		err = pool.UnmountInstance(ctx, inst, op)
 	}
 
 	return err
@@ -1279,13 +1279,13 @@ func InstanceUnmount(pool Pool, inst instance.Instance, op *operations.Operation
 
 // InstanceDiskBlockSize returns the block device size for the instance's disk.
 // This will mount the instance if not already mounted and will unmount at the end if needed.
-func InstanceDiskBlockSize(pool Pool, inst instance.Instance, op *operations.Operation) (int64, error) {
-	mountInfo, err := InstanceMount(pool, inst, op)
+func InstanceDiskBlockSize(ctx context.Context, pool Pool, inst instance.Instance, op *operations.Operation) (int64, error) {
+	mountInfo, err := InstanceMount(ctx, pool, inst, op)
 	if err != nil {
 		return -1, err
 	}
 
-	defer func() { _ = InstanceUnmount(pool, inst, op) }()
+	defer func() { _ = InstanceUnmount(context.Background(), pool, inst, op) }()
 
 	devSource, isPath := mountInfo.DevSource.(deviceConfig.DevSourcePath)
 
