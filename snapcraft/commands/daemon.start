@@ -458,6 +458,9 @@ manage_apparmor_restrictions() {
     # sysctl override snippet
     SYSCTL_FILE="/var/lib/snapd/hostfs/run/sysctl.d/zz-lxd.conf"
 
+    # Nothing to do if Apparmor is NOT active
+    [ -d /sys/kernel/security/apparmor ] || return
+
     # Check if sysctl settings need to be altered and always write the override snippet
     if [ "${apparmor_unprivileged_restrictions_disable:-"true"}" = "true" ]; then
         KEY_USERNS="kernel.apparmor_restrict_unprivileged_userns"
