@@ -183,7 +183,7 @@ func (d *disk) checkBlockVolSharing(instanceType instancetype.Type, projectName 
 		return errors.New("Cannot add block volume to profiles if security.shared is false or unset")
 	}
 
-	return storagePools.VolumeUsedByInstanceDevices(d.state, d.pool.Name(), projectName, volume, true, func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+	return storagePools.VolumeUsedByInstanceDevices(context.TODO(), d.state, d.pool.Name(), projectName, volume, true, func(inst db.InstanceArgs, project api.Project, usedByDevices []string) error {
 		// Don't count the current instance.
 		if d.inst != nil && d.inst.Project().Name == inst.Project && d.inst.Name() == inst.Name {
 			return nil
@@ -527,7 +527,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 
 		// Check if validating an instance or a custom storage volume attached to a profile.
 		if (d.inst != nil && !d.inst.IsSnapshot()) || (d.inst == nil && instConf.Type() == instancetype.Any && !filters.IsRootDisk(d.config)) {
-			d.pool, err = storagePools.LoadByName(d.state, d.config["pool"])
+			d.pool, err = storagePools.LoadByName(context.TODO(), d.state, d.config["pool"])
 			if err != nil {
 				return fmt.Errorf("Failed to get storage pool %q: %w", d.config["pool"], err)
 			}
@@ -580,7 +580,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 			// Custom volume validation.
 			if dbCustomVolume != nil {
 				// Check storage volume is available to mount on this cluster member.
-				remoteInstance, err := storagePools.VolumeUsedByExclusiveRemoteInstancesWithProfiles(d.state, d.config["pool"], storageProjectName, &dbCustomVolume.StorageVolume)
+				remoteInstance, err := storagePools.VolumeUsedByExclusiveRemoteInstancesWithProfiles(context.TODO(), d.state, d.config["pool"], storageProjectName, &dbCustomVolume.StorageVolume)
 				if err != nil {
 					return fmt.Errorf("Failed checking if custom volume is exclusively attached to another instance: %w", err)
 				}
@@ -752,13 +752,13 @@ func (d *disk) Register() error {
 	d.logger.Debug("Initialising mounted disk ref counter")
 
 	if d.config["path"] == "/" {
-		pool, err := storagePools.LoadByInstance(d.state, d.inst)
+		pool, err := storagePools.LoadByInstance(context.TODO(), d.state, d.inst)
 		if err != nil {
 			return err
 		}
 
 		// Try to mount the volume that should already be mounted to reinitialise the ref counter.
-		_, err = pool.MountInstance(d.inst, nil)
+		_, err = pool.MountInstance(context.TODO(), d.inst, nil)
 		if err != nil {
 			return err
 		}
@@ -779,16 +779,16 @@ func (d *disk) Register() error {
 			}
 
 			if d.config["source.snapshot"] != "" {
-				_, err = d.pool.MountInstanceSnapshot(diskInst, nil)
+				_, err = d.pool.MountInstanceSnapshot(context.TODO(), diskInst, nil)
 			} else {
-				_, err = d.pool.MountInstance(diskInst, nil)
+				_, err = d.pool.MountInstance(context.TODO(), diskInst, nil)
 			}
 
 			if err != nil {
 				return err
 			}
 		} else {
-			_, err = d.pool.MountCustomVolume(storageProjectName, volumeName, nil)
+			_, err = d.pool.MountCustomVolume(context.TODO(), storageProjectName, volumeName, nil)
 			if err != nil {
 				return fmt.Errorf(`Failed mounting storage volume "%s/%s": %w`, dbVolumeType, volumeName, err)
 			}
@@ -1561,22 +1561,22 @@ func (d *disk) applyQuota(remount bool) error {
 	newSize := d.inst.ExpandedDevices()[rootDisk]["size"]
 	newMigrationSize := d.inst.ExpandedDevices()[rootDisk]["size.state"]
 
-	pool, err := storagePools.LoadByInstance(d.state, d.inst)
+	pool, err := storagePools.LoadByInstance(context.TODO(), d.state, d.inst)
 	if err != nil {
 		return err
 	}
 
 	if remount {
-		err := pool.UnmountInstance(d.inst, nil)
+		err := pool.UnmountInstance(context.TODO(), d.inst, nil)
 		if err != nil {
 			return err
 		}
 	}
 
-	quotaErr := pool.SetInstanceQuota(d.inst, newSize, newMigrationSize, nil)
+	quotaErr := pool.SetInstanceQuota(context.TODO(), d.inst, newSize, newMigrationSize, nil)
 
 	if remount {
-		_, err = pool.MountInstance(d.inst, nil)
+		_, err = pool.MountInstance(context.TODO(), d.inst, nil)
 	}
 
 	// Return quota set error if failed.
@@ -1703,9 +1703,9 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 		}
 
 		if d.config["source.snapshot"] != "" {
-			mountInfo, err = d.pool.MountInstanceSnapshot(diskInst, nil)
+			mountInfo, err = d.pool.MountInstanceSnapshot(context.TODO(), diskInst, nil)
 		} else {
-			mountInfo, err = d.pool.MountInstance(diskInst, nil)
+			mountInfo, err = d.pool.MountInstance(context.TODO(), diskInst, nil)
 		}
 
 		if err != nil {
@@ -1714,18 +1714,18 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 
 		revert.Add(func() {
 			if d.config["source.snapshot"] != "" {
-				_ = d.pool.UnmountInstanceSnapshot(diskInst, nil)
+				_ = d.pool.UnmountInstanceSnapshot(context.TODO(), diskInst, nil)
 			} else {
-				_ = d.pool.UnmountInstance(diskInst, nil)
+				_ = d.pool.UnmountInstance(context.TODO(), diskInst, nil)
 			}
 		})
 	} else {
-		mountInfo, err = d.pool.MountCustomVolume(storageProjectName, volumeName, nil)
+		mountInfo, err = d.pool.MountCustomVolume(context.TODO(), storageProjectName, volumeName, nil)
 		if err != nil {
 			return nil, "", nil, fmt.Errorf(`Failed mounting storage volume "%s/%s" from storage pool %q: %w`, dbVolumeType, volumeName, d.pool.Name(), err)
 		}
 
-		revert.Add(func() { _, _ = d.pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
+		revert.Add(func() { _, _ = d.pool.UnmountCustomVolume(context.TODO(), storageProjectName, volumeName, nil) })
 	}
 
 	var dbVolume *db.StorageVolume
@@ -2032,7 +2032,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 
 		if shared.IsFalseOrEmpty(poolVolumePut.Config["security.shifted"]) {
 			volumeUsedBy := []instance.Instance{}
-			err = storagePools.VolumeUsedByInstanceDevices(d.state, poolName, projectName, &dbVolume.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+			err = storagePools.VolumeUsedByInstanceDevices(context.TODO(), d.state, poolName, projectName, &dbVolume.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
 				inst, err := instance.Load(d.state, dbInst, project)
 				if err != nil {
 					return err
@@ -2218,12 +2218,12 @@ func (d *disk) postStop() error {
 			}
 
 			if d.config["source.snapshot"] != "" {
-				err = d.pool.UnmountInstanceSnapshot(diskInst, nil)
+				err = d.pool.UnmountInstanceSnapshot(context.TODO(), diskInst, nil)
 			} else {
-				err = d.pool.UnmountInstance(diskInst, nil)
+				err = d.pool.UnmountInstance(context.TODO(), diskInst, nil)
 			}
 		} else {
-			_, err = d.pool.UnmountCustomVolume(storageProjectName, volumeName, nil)
+			_, err = d.pool.UnmountCustomVolume(context.TODO(), storageProjectName, volumeName, nil)
 		}
 
 		if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
@@ -2697,17 +2697,17 @@ func (d *disk) cephCreds() (clusterName string, userName string) {
 func (d *disk) Remove() error {
 	// Remove the config.iso file for cloud-init config drives.
 	if d.config["source"] == diskSourceCloudInit {
-		pool, err := storagePools.LoadByInstance(d.state, d.inst)
+		pool, err := storagePools.LoadByInstance(context.TODO(), d.state, d.inst)
 		if err != nil {
 			return err
 		}
 
-		_, err = pool.MountInstance(d.inst, nil)
+		_, err = pool.MountInstance(context.TODO(), d.inst, nil)
 		if err != nil {
 			return err
 		}
 
-		defer func() { _ = pool.UnmountInstance(d.inst, nil) }()
+		defer func() { _ = pool.UnmountInstance(context.TODO(), d.inst, nil) }()
 
 		isoPath := filepath.Join(d.inst.Path(), "config.iso")
 		err = os.Remove(isoPath)
