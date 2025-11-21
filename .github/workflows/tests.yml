@@ -1203,16 +1203,16 @@ jobs:
           sudo apt-get install aspell aspell-en
           sudo snap install mdl
 
-      - name: Run markdown linter
-        run: |
-          set -eux
-          make doc-lint
-
       - name: Build docs (Sphinx)
         run: |
           set -eux
           make doc
           if [ -s doc/.sphinx/warnings.txt ]; then cat doc/.sphinx/warnings.txt; exit 1; fi
+
+      - name: Run markdown linter
+        run: |
+          set -eux
+          make doc-lint
 
       - name: Run spell checker
         run: |
