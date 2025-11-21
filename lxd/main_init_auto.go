@@ -18,11 +18,11 @@ import (
 func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServer, server *api.Server) (*api.InitPreseed, error) {
 	// Quick checks.
 	if c.flagStorageBackend != "" && !slices.Contains(storageDrivers.AllDriverNames(), c.flagStorageBackend) {
-		return nil, fmt.Errorf("The requested backend '%s' isn't supported by lxd init", c.flagStorageBackend)
+		return nil, fmt.Errorf("The requested backend %q isn't supported by lxd init", c.flagStorageBackend)
 	}
 
 	if c.flagStorageBackend != "" && !slices.Contains(util.AvailableStorageDrivers(server.Environment.StorageSupportedDrivers, util.PoolTypeAny), c.flagStorageBackend) {
-		return nil, fmt.Errorf("The requested backend '%s' isn't available on your system (missing tools)", c.flagStorageBackend)
+		return nil, fmt.Errorf("The requested backend %q isn't available on your system (missing tools or incompatible kernel module)", c.flagStorageBackend)
 	}
 
 	if c.flagStorageBackend == "dir" || c.flagStorageBackend == "" {
