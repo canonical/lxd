@@ -622,7 +622,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		}
 
 		run := func(op *operations.Operation) error {
-			return doProfileUpdateCluster(s.ShutdownCtx, s, details.effectiveProject.Name, details.profileName, old)
+			return doProfileUpdateCluster(op.Context(), s, details.effectiveProject.Name, details.profileName, old)
 		}
 
 		op, err := operations.OperationCreate(r.Context(), s, requestProjectName, operations.OperationClassTask, operationtype.ProfileUpdate, nil, nil, run, nil, nil)
@@ -666,7 +666,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	run := func(op *operations.Operation) error {
-		err = doProfileUpdate(s.ShutdownCtx, s, details.effectiveProject, details.profileName, profile, req)
+		err = doProfileUpdate(op.Context(), s, details.effectiveProject, details.profileName, profile, req)
 
 		if err == nil && !clusterNotification {
 			// Notify all other nodes. If a node is down, it will be ignored.
@@ -676,12 +676,12 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 			}
 
 			err = notifier(func(_ db.NodeInfo, client lxd.InstanceServer) error {
-				op, err := client.UseProject(details.effectiveProject.Name).UpdateProfile(details.profileName, profile.Writable(), "")
+				notifyOp, err := client.UseProject(details.effectiveProject.Name).UpdateProfile(details.profileName, profile.Writable(), "")
 				if err != nil {
 					return err
 				}
 
-				return op.WaitContext(s.ShutdownCtx)
+				return notifyOp.WaitContext(op.Context())
 			})
 			if err != nil {
 				return err
@@ -827,7 +827,7 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	run := func(op *operations.Operation) error {
-		requestor := request.CreateRequestor(r.Context())
+		requestor := request.CreateRequestor(op.Context())
 		s.Events.SendLifecycle(details.effectiveProject.Name, lifecycle.ProfileUpdated.Event(details.profileName, details.effectiveProject.Name, requestor, nil))
 		return doProfileUpdate(s.ShutdownCtx, s, details.effectiveProject, details.profileName, profile, req)
 	}

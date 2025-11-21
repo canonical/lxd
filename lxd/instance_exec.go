@@ -240,7 +240,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 		stderr = ttys[execWSStderr]
 	}
 
-	waitAttachedChildIsDead, markAttachedChildIsDead := context.WithCancel(context.Background())
+	waitAttachedChildIsDead, markAttachedChildIsDead := context.WithCancel(op.Context())
 	var wgEOF sync.WaitGroup
 
 	// Define a function to clean up TTYs and sockets when done.

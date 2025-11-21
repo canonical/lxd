@@ -108,7 +108,7 @@ func autoRenewCertificate(ctx context.Context, d *Daemon, force bool) error {
 				ClusterCertificateKey: string(newCert.PrivateKey),
 			}
 
-			err = updateClusterCertificate(s.ShutdownCtx, s, d.gateway, nil, req)
+			err = updateClusterCertificate(op.Context(), s, d.gateway, nil, req)
 			if err != nil {
 				return err
 			}
@@ -131,7 +131,7 @@ func autoRenewCertificate(ctx context.Context, d *Daemon, force bool) error {
 		return nil
 	}
 
-	op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.RenewServerCertificate, nil, nil, opRun, nil, nil)
+	op, err := operations.OperationCreate(ctx, s, "", operations.OperationClassTask, operationtype.RenewServerCertificate, nil, nil, opRun, nil, nil)
 	if err != nil {
 		logger.Error("Failed creating renew server certificate operation", logger.Ctx{"err": err})
 		return err

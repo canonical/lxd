@@ -1248,9 +1248,6 @@ func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName st
 
 	run := func(op *operations.Operation) error {
 		if req.Source.Name == "" {
-			// Use an empty operation for this sync response to pass the requestor
-			op := &operations.Operation{}
-			op.SetRequestor(r.Context())
 			return pool.CreateCustomVolume(projectName, req.Name, req.Description, req.Config, contentType, op)
 		}
 
@@ -1903,7 +1900,7 @@ func storagePoolVolumeTypePostRename(s *state.State, r *http.Request, poolName s
 		// Update devices using the volume in instances and profiles.
 		// Perform this operation after the actual rename of the volume.
 		// This ensures the database entries are up to date.
-		_, err := storagePoolVolumeUpdateUsers(s.ShutdownCtx, s, projectName, pool.Name(), vol, pool.Name(), &newVol)
+		_, err := storagePoolVolumeUpdateUsers(op.Context(), s, projectName, pool.Name(), vol, pool.Name(), &newVol)
 		if err != nil {
 			return err
 		}
@@ -1943,7 +1940,7 @@ func storagePoolVolumeTypePostMove(s *state.State, r *http.Request, poolName str
 		defer revert.Fail()
 
 		// Update devices using the volume in instances and profiles.
-		cleanup, err := storagePoolVolumeUpdateUsers(context.TODO(), s, requestProjectName, pool.Name(), vol, newPool.Name(), &newVol)
+		cleanup, err := storagePoolVolumeUpdateUsers(op.Context(), s, requestProjectName, pool.Name(), vol, newPool.Name(), &newVol)
 		if err != nil {
 			return err
 		}
@@ -2197,7 +2194,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 			// the volume's config if only restoring snapshot.
 			if req.Config != nil || req.Restore == "" {
 				// Possibly check if project limits are honored.
-				err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+				err = s.DB.Cluster.Transaction(op.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 					return limits.AllowVolumeUpdate(ctx, s.GlobalConfig, tx, effectiveProjectName, details.volumeName, req, dbVolume.Config)
 				})
 				if err != nil {
