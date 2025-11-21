@@ -663,19 +663,19 @@ func (d *common) rebuildCommon(inst instance.Instance, img *api.Image, op *opera
 		return err
 	}
 
-	err = pool.DeleteInstance(inst, op)
+	err = pool.DeleteInstance(context.TODO(), inst, op)
 	if err != nil {
 		return err
 	}
 
 	// Rebuild as empty if there is no image provided.
 	if img == nil {
-		err = pool.CreateInstance(inst, nil)
+		err = pool.CreateInstance(context.TODO(), inst, nil)
 		if err != nil {
 			return err
 		}
 	} else {
-		err = pool.CreateInstanceFromImage(inst, img.Fingerprint, op)
+		err = pool.CreateInstanceFromImage(context.TODO(), inst, img.Fingerprint, op)
 		if err != nil {
 			return err
 		}
@@ -728,12 +728,12 @@ func (d *common) deleteAttachedVolumeSnapshots(snapInst instance.Instance, diskV
 	// Delete the attached volume snapshots.
 	storageCache := storagePools.NewStorageCache(pool) // Create storage cache for pool lookups.
 	for _, vol := range toDelete {
-		pool, err := storageCache.GetPool(vol.Pool)
+		pool, err := storageCache.GetPool(context.TODO(), vol.Pool)
 		if err != nil {
 			return fmt.Errorf("Failed loading storage pool %q: %w", vol.Pool, err)
 		}
 
-		err = pool.DeleteCustomVolumeSnapshot(vol.Project, vol.Name, d.op)
+		err = pool.DeleteCustomVolumeSnapshot(context.TODO(), vol.Project, vol.Name, d.op)
 		if err != nil {
 			return fmt.Errorf("Failed deleting attached volume %q snapshot in storage pool %q: %w", vol.Name, vol.Pool, err)
 		}
@@ -893,7 +893,7 @@ func (d *common) getAttachedVolumes(inst instance.Instance) (volumes []*db.Stora
 	}
 
 	// Load the root disk volume's storage pool.
-	rootDiskPool, err := storagePools.LoadByName(d.state, rootDiskDevice["pool"])
+	rootDiskPool, err := storagePools.LoadByName(context.TODO(), d.state, rootDiskDevice["pool"])
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading storage pool: %w", err)
 	}
@@ -907,7 +907,7 @@ func (d *common) getAttachedVolumes(inst instance.Instance) (volumes []*db.Stora
 	instanceProject := inst.Project()
 	for name, dev := range attachedDiskVolumeDevices {
 		// Storage cache lookup.
-		pool, err := storageCache.GetPool(dev["pool"])
+		pool, err := storageCache.GetPool(context.TODO(), dev["pool"])
 		if err != nil {
 			return nil, fmt.Errorf("Failed getting storage pool of device %q: %w", name, err)
 		}
@@ -1012,7 +1012,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 	}
 
 	// Snapshot root disk.
-	err = pool.CreateInstanceSnapshot(snap, inst, d.op)
+	err = pool.CreateInstanceSnapshot(context.TODO(), snap, inst, d.op)
 	if err != nil {
 		return fmt.Errorf("Failed creating instance root volume snapshot: %w", err)
 	}
@@ -1053,13 +1053,13 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 			description := "Created alongside " + instanceType.String() + " " + snap.Name() + " snapshot in project " + instanceProject.Name
 
 			// Storage cache lookup.
-			pool, err := storageCache.GetPool(volume.Pool)
+			pool, err := storageCache.GetPool(context.TODO(), volume.Pool)
 			if err != nil {
 				return err
 			}
 
 			expiry := snap.ExpiryDate() // Attached volume snapshots inherit the expiry date of the instance snapshot.
-			snapshotUUID, err := pool.CreateCustomVolumeSnapshot(volume.Project, volume.Name, snapshotName, description, &expiry, d.op)
+			snapshotUUID, err := pool.CreateCustomVolumeSnapshot(context.TODO(), volume.Project, volume.Name, snapshotName, description, &expiry, d.op)
 			if err != nil {
 				return fmt.Errorf("Failed creating attached volume %q snapshot %q in storage pool %q: %w", volume.Name, snapshotName, volume.Pool, err)
 			}
@@ -1069,7 +1069,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 			attachedVolumeUUIDs[volume.Config["volatile.uuid"]] = snapshotUUID.String()
 
 			revert.Add(func() {
-				err := pool.DeleteCustomVolumeSnapshot(volume.Project, volume.Name+"/"+snapshotName, d.op)
+				err := pool.DeleteCustomVolumeSnapshot(context.TODO(), volume.Project, volume.Name+"/"+snapshotName, d.op)
 				if err != nil {
 					d.logger.Warn("Failed deleting attached volume snapshot", logger.Ctx{"pool": volume.Pool, "volume": volume.Name, "snapshot": snapshotName, "project": volume.Project, "err": err})
 				}
@@ -1091,13 +1091,13 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 	}
 
 	// Mount volume for backup.yaml writing.
-	_, err = pool.MountInstance(inst, d.op)
+	_, err = pool.MountInstance(context.TODO(), inst, d.op)
 	if err != nil {
 		return fmt.Errorf("Failed mounting instance root volume for backup file writing during snapshot: %w", err)
 	}
 
 	defer func() {
-		err := pool.UnmountInstance(inst, d.op)
+		err := pool.UnmountInstance(context.TODO(), inst, d.op)
 		if err != nil {
 			d.logger.Warn("Failed unmounting instance after snapshot", logger.Ctx{"err": err})
 		}
@@ -1237,7 +1237,7 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance,
 	}
 
 	// Restore the rootfs.
-	err = pool.RestoreInstanceSnapshot(inst, source, nil)
+	err = pool.RestoreInstanceSnapshot(context.TODO(), inst, source, nil)
 	if err != nil {
 		op.Done(err)
 		return false, nil, fmt.Errorf("Failed restoring snapshot rootfs: %w", err)
@@ -1251,12 +1251,12 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance,
 
 			d.logger.Debug("Restoring attached volume snapshot", logger.Ctx{"pool": volume.Pool, "volume": volName, "snapshot": snapName, "project": volume.Project})
 
-			pool, err := storageCache.GetPool(volume.Pool)
+			pool, err := storageCache.GetPool(context.TODO(), volume.Pool)
 			if err != nil {
 				return false, nil, fmt.Errorf("Failed loading storage pool %q: %w", volume.Pool, err)
 			}
 
-			err = pool.RestoreCustomVolume(volume.Project, volName, snapName, d.op)
+			err = pool.RestoreCustomVolume(context.TODO(), volume.Project, volName, snapName, d.op)
 			if err != nil {
 				return false, nil, fmt.Errorf("Failed restoring volume %q snapshot %q in storage pool %q: %w", volume.Name, snapName, volume.Pool, err)
 			}
@@ -1310,7 +1310,7 @@ func (d *common) resolveRestoreSnapshots(inst instance.Instance, source instance
 	// Detect shared volumes.
 	// This is required because currently the only supported disk volumes mode is "all-exclusive".
 	for _, v := range attachedVolumes {
-		err = storagePools.VolumeUsedByInstanceDevices(d.state, v.Pool, v.Project, &v.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+		err = storagePools.VolumeUsedByInstanceDevices(context.TODO(), d.state, v.Pool, v.Project, &v.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
 			// Skip this instance.
 			if instance.IsSameLogicalInstance(inst, &dbInst) {
 				return nil
@@ -1897,7 +1897,7 @@ func (d *common) getStoragePool() (storagePools.Pool, error) {
 		return nil, err
 	}
 
-	pool, err := storagePools.LoadByName(d.state, poolName)
+	pool, err := storagePools.LoadByName(context.TODO(), d.state, poolName)
 	if err != nil {
 		return nil, err
 	}
@@ -2313,14 +2313,14 @@ func (d *common) checkRootVolumeNotInUse() error {
 		return err
 	}
 
-	err = storagePools.VolumeUsedByProfileDevices(d.state, storagePool.Name(), d.Project().Name, &rootVolume.StorageVolume, func(_ int64, _ api.Profile, _ api.Project, _ []string) error {
+	err = storagePools.VolumeUsedByProfileDevices(context.TODO(), d.state, storagePool.Name(), d.Project().Name, &rootVolume.StorageVolume, func(_ int64, _ api.Profile, _ api.Project, _ []string) error {
 		return fmt.Errorf(`"%s/%s" is attached to a profile`, rootVolume.Type, rootVolume.Name)
 	})
 	if err != nil {
 		return err
 	}
 
-	err = storagePools.VolumeUsedByInstanceDevices(d.state, storagePool.Name(), d.Project().Name, &rootVolume.StorageVolume, false, func(inst db.InstanceArgs, _ api.Project, _ []string) error {
+	err = storagePools.VolumeUsedByInstanceDevices(context.TODO(), d.state, storagePool.Name(), d.Project().Name, &rootVolume.StorageVolume, false, func(inst db.InstanceArgs, _ api.Project, _ []string) error {
 		if inst.Name == d.Name() && inst.Project == d.Project().Name {
 			return nil
 		}

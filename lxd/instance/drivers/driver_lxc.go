@@ -185,7 +185,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.In
 	}
 
 	// Initialize the storage pool.
-	d.storagePool, err = storagePools.LoadByName(d.state, rootDiskDevice["pool"])
+	d.storagePool, err = storagePools.LoadByName(context.TODO(), d.state, rootDiskDevice["pool"])
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed loading storage pool: %w", err)
 	}
@@ -3481,13 +3481,13 @@ func (d *lxc) delete(force bool) error {
 		return err
 	}
 
-	pool, err := storagePools.LoadByInstance(d.state, d)
+	pool, err := storagePools.LoadByInstance(context.TODO(), d.state, d)
 	if err != nil && !response.IsNotFoundError(err) {
 		return err
 	} else if pool != nil {
 		if d.IsSnapshot() {
 			// Remove snapshot volume and database record.
-			err = pool.DeleteInstanceSnapshot(d, nil)
+			err = pool.DeleteInstanceSnapshot(context.TODO(), d, nil)
 			if err != nil {
 				return err
 			}
@@ -3501,7 +3501,7 @@ func (d *lxc) delete(force bool) error {
 			}
 
 			// Remove the storage volume and database records.
-			err = pool.DeleteInstance(d, nil)
+			err = pool.DeleteInstance(context.TODO(), d, nil)
 			if err != nil {
 				return err
 			}
@@ -3592,19 +3592,19 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 	// Clean things up.
 	d.cleanup()
 
-	pool, err := storagePools.LoadByInstance(d.state, d)
+	pool, err := storagePools.LoadByInstance(context.TODO(), d.state, d)
 	if err != nil {
 		return fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
 
 	if d.IsSnapshot() {
 		_, newSnapName, _ := api.GetParentAndSnapshotName(newName)
-		err = pool.RenameInstanceSnapshot(d, newSnapName, nil)
+		err = pool.RenameInstanceSnapshot(context.TODO(), d, newSnapName, nil)
 		if err != nil {
 			return fmt.Errorf("Rename instance snapshot: %w", err)
 		}
 	} else {
-		err = pool.RenameInstance(d, newName, nil)
+		err = pool.RenameInstance(context.TODO(), d, newName, nil)
 		if err != nil {
 			return fmt.Errorf("Rename instance: %w", err)
 		}
@@ -4852,7 +4852,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 		return err
 	}
 
-	pool, err := storagePools.LoadByInstance(d.state, d)
+	pool, err := storagePools.LoadByInstance(context.TODO(), d.state, d)
 	if err != nil {
 		err := fmt.Errorf("Failed loading instance: %w", err)
 		op.Done(err)
@@ -4898,7 +4898,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 		}
 	}
 
-	srcConfig, err := pool.GenerateInstanceBackupConfig(d, args.Snapshots, nil, d.op)
+	srcConfig, err := pool.GenerateInstanceBackupConfig(context.TODO(), d, args.Snapshots, nil, d.op)
 	if err != nil {
 		err := fmt.Errorf("Failed generating instance migration config: %w", err)
 		op.Done(err)
@@ -5033,7 +5033,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 
 		d.logger.Debug("Starting storage migration phase")
 
-		err = pool.MigrateInstance(d, filesystemConn, volSourceArgs, d.op)
+		err = pool.MigrateInstance(context.TODO(), d, filesystemConn, volSourceArgs, d.op)
 		if err != nil {
 			return err
 		}
@@ -5050,7 +5050,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 			volSourceArgs.Snapshots = nil
 			rootVol.Snapshots = nil
 
-			err = pool.MigrateInstance(d, filesystemConn, volSourceArgs, d.op)
+			err = pool.MigrateInstance(context.TODO(), d, filesystemConn, volSourceArgs, d.op)
 			if err != nil {
 				return err
 			}
@@ -5161,13 +5161,13 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		}
 
 		// Initialize the storage pool cache.
-		d.storagePool, err = storagePools.LoadByName(d.state, rootDiskDevice["pool"])
+		d.storagePool, err = storagePools.LoadByName(context.TODO(), d.state, rootDiskDevice["pool"])
 		if err != nil {
 			return fmt.Errorf("Failed loading storage pool: %w", err)
 		}
 	}
 
-	pool, err := storagePools.LoadByInstance(d.state, d)
+	pool, err := storagePools.LoadByInstance(context.TODO(), d.state, d)
 	if err != nil {
 		return err
 	}
@@ -5428,7 +5428,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			}
 		}
 
-		err = pool.CreateInstanceFromMigration(d, filesystemConn, volTargetArgs, d.op)
+		err = pool.CreateInstanceFromMigration(context.TODO(), d, filesystemConn, volTargetArgs, d.op)
 		if err != nil {
 			return fmt.Errorf("Failed creating instance on target: %w", err)
 		}
@@ -5444,10 +5444,10 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 				for k := range snapshots {
 					// Delete the snapshots in reverse order.
 					k = snapshotCount - 1 - k
-					_ = pool.DeleteInstanceSnapshot(snapshots[k], nil)
+					_ = pool.DeleteInstanceSnapshot(context.TODO(), snapshots[k], nil)
 				}
 
-				_ = pool.DeleteInstance(d, nil)
+				_ = pool.DeleteInstance(context.TODO(), d, nil)
 			})
 		}
 
@@ -5536,7 +5536,7 @@ func (d *lxc) ConversionReceive(args instance.ConversionReceiveArgs) error {
 		return err
 	}
 
-	pool, err := storagePools.LoadByInstance(d.state, d)
+	pool, err := storagePools.LoadByInstance(context.TODO(), d.state, d)
 	if err != nil {
 		return err
 	}
@@ -5559,7 +5559,7 @@ func (d *lxc) ConversionReceive(args instance.ConversionReceiveArgs) error {
 		ConversionOptions: nil,                 // Containers do not support conversion options.
 	}
 
-	err = pool.CreateInstanceFromConversion(d, filesystemConn, volTargetArgs, d.op)
+	err = pool.CreateInstanceFromConversion(context.TODO(), d, filesystemConn, volTargetArgs, d.op)
 	if err != nil {
 		return fmt.Errorf("Failed creating instance on target: %w", err)
 	}
@@ -6275,13 +6275,13 @@ func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 		var usage *storagePools.VolumeUsage
 
 		if dev.Config["path"] == "/" {
-			pool, err := storagePools.LoadByInstance(d.state, d)
+			pool, err := storagePools.LoadByInstance(context.TODO(), d.state, d)
 			if err != nil {
 				d.logger.Error("Error loading storage pool", logger.Ctx{"err": err})
 				continue
 			}
 
-			usage, err = pool.GetInstanceUsage(d)
+			usage, err = pool.GetInstanceUsage(context.TODO(), d)
 			if err != nil {
 				if !errors.Is(err, storageDrivers.ErrNotSupported) {
 					d.logger.Info("Unable to get disk usage", logger.Ctx{"err": err})
@@ -6290,13 +6290,13 @@ func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 				continue
 			}
 		} else if dev.Config["pool"] != "" {
-			pool, err := storagePools.LoadByName(d.state, dev.Config["pool"])
+			pool, err := storagePools.LoadByName(context.TODO(), d.state, dev.Config["pool"])
 			if err != nil {
 				d.logger.Error("Error loading storage pool", logger.Ctx{"poolName": dev.Config["pool"], "err": err})
 				continue
 			}
 
-			usage, err = pool.GetCustomVolumeUsage(d.Project().Name, dev.Config["source"])
+			usage, err = pool.GetCustomVolumeUsage(context.TODO(), d.Project().Name, dev.Config["source"])
 			if err != nil {
 				if !errors.Is(err, storageDrivers.ErrNotSupported) {
 					d.logger.Info("Unable to get volume usage", logger.Ctx{"volume": dev.Config["source"], "err": err})
@@ -6513,7 +6513,7 @@ func (d *lxc) mount() (*storagePools.MountInfo, error) {
 	}
 
 	if d.IsSnapshot() {
-		mountInfo, err := pool.MountInstanceSnapshot(d, nil)
+		mountInfo, err := pool.MountInstanceSnapshot(context.TODO(), d, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -6521,7 +6521,7 @@ func (d *lxc) mount() (*storagePools.MountInfo, error) {
 		return mountInfo, nil
 	}
 
-	mountInfo, err := pool.MountInstance(d, nil)
+	mountInfo, err := pool.MountInstance(context.TODO(), d, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -6537,7 +6537,7 @@ func (d *lxc) unmount() error {
 	}
 
 	if d.IsSnapshot() {
-		err = pool.UnmountInstanceSnapshot(d, nil)
+		err = pool.UnmountInstanceSnapshot(context.TODO(), d, nil)
 		if err != nil {
 			return err
 		}
@@ -6545,7 +6545,7 @@ func (d *lxc) unmount() error {
 		return nil
 	}
 
-	err = pool.UnmountInstance(d, nil)
+	err = pool.UnmountInstance(context.TODO(), d, nil)
 	if err != nil {
 		return err
 	}
@@ -7245,13 +7245,13 @@ func (d *lxc) UpdateBackupFile() error {
 		return err
 	}
 
-	volBackupConf, err := pool.GenerateInstanceCustomVolumeBackupConfig(d, nil, true, nil)
+	volBackupConf, err := pool.GenerateInstanceCustomVolumeBackupConfig(context.TODO(), d, nil, true, nil)
 	if err != nil {
 		return fmt.Errorf("Failed generating instance custom volume config: %w", err)
 	}
 
 	// Use the global metadata version.
-	return pool.UpdateInstanceBackupFile(d, true, volBackupConf, config.DefaultMetadataVersion, nil)
+	return pool.UpdateInstanceBackupFile(context.TODO(), d, true, volBackupConf, config.DefaultMetadataVersion, nil)
 }
 
 // Info returns "lxc" and the currently loaded version of LXC.
