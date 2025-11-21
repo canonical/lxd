@@ -390,14 +390,14 @@ func getNetworkMetrics() (map[string]metrics.NetworkMetrics, error) {
 	for dev, state := range networkState() {
 		stats := metrics.NetworkMetrics{}
 
-		stats.ReceiveBytes = uint64(state.Counters.BytesReceived)
-		stats.ReceiveDrop = uint64(state.Counters.PacketsDroppedInbound)
-		stats.ReceiveErrors = uint64(state.Counters.ErrorsReceived)
-		stats.ReceivePackets = uint64(state.Counters.PacketsReceived)
-		stats.TransmitBytes = uint64(state.Counters.BytesSent)
-		stats.TransmitDrop = uint64(state.Counters.PacketsDroppedOutbound)
-		stats.TransmitErrors = uint64(state.Counters.ErrorsSent)
-		stats.TransmitPackets = uint64(state.Counters.PacketsSent)
+		stats.ReceiveBytes = state.Counters.BytesReceived
+		stats.ReceiveDrop = state.Counters.PacketsDroppedInbound
+		stats.ReceiveErrors = state.Counters.ErrorsReceived
+		stats.ReceivePackets = state.Counters.PacketsReceived
+		stats.TransmitBytes = state.Counters.BytesSent
+		stats.TransmitDrop = state.Counters.PacketsDroppedOutbound
+		stats.TransmitErrors = state.Counters.ErrorsSent
+		stats.TransmitPackets = state.Counters.PacketsSent
 
 		out[dev] = stats
 	}
