@@ -14,7 +14,10 @@ import (
 // withoutGetVolID returns a copy of this struct but with a volIDFunc which will cause quotas to be skipped.
 func (d *dir) withoutGetVolID(ctx context.Context) Driver {
 	newDriver := &dir{}
-	getVolID := func(ctx context.Context, volType VolumeType, volName string) (int64, error) { return volIDQuotaSkip, nil }
+	getVolID := func(ctx context.Context, volType VolumeType, volName string) (int64, error) {
+		return volIDQuotaSkip, nil
+	}
+
 	newDriver.init(d.state, d.name, d.config, d.logger, getVolID, d.commonRules)
 	_ = newDriver.load(ctx)
 

@@ -651,7 +651,9 @@ func (d *ceph) createVolumeFromMigration(ctx context.Context, vol VolumeCopy, co
 
 			// Ensure to cleanup the snapshot on the target volume in case of error.
 			// When retrying the migration there shouldn't be any left over snapshot from before.
-			revert.Add(func() { _, _ = d.deleteVolumeSnapshot(context.Background(), vol.Volume, "snapshot_"+targetSnapshotName) })
+			revert.Add(func() {
+				_, _ = d.deleteVolumeSnapshot(context.Background(), vol.Volume, "snapshot_"+targetSnapshotName)
+			})
 		}
 	}
 
@@ -904,7 +906,9 @@ func (d *ceph) refreshVolume(ctx context.Context, vol VolumeCopy, srcVol VolumeC
 
 			// Ensure to cleanup the snapshot on the target volume in case of error.
 			// When retrying the refresh there shouldn't be any left over snapshot from before.
-			revert.Add(func() { _, _ = d.deleteVolumeSnapshot(context.Background(), vol.Volume, "snapshot_"+sourceSnapshotName) })
+			revert.Add(func() {
+				_, _ = d.deleteVolumeSnapshot(context.Background(), vol.Volume, "snapshot_"+sourceSnapshotName)
+			})
 		}
 	}
 
