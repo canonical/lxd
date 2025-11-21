@@ -44,9 +44,22 @@ objects:
 	# provide a decoded version of objects.inv to the UI
 	. .sphinx/venv/bin/activate ; cd _build; python3 -m sphinx.ext.intersphinx 'objects.inv' > objects.inv.txt
 
-.PHONY: lint
-lint:
-	.sphinx/.markdownlint/doc-lint.sh
+.PHONY: pymarkdownlnt-install
+pymarkdownlnt-install:
+	. .sphinx/venv/bin/activate; test -d .sphinx/venv/lib/python*/site-packages/pymarkdown || pip install pymarkdownlnt
+
+.PHONY: lint lint-md
+lint lint-md: pymarkdownlnt-install
+	@echo "Running Markdown linting..."
+	@. .sphinx/venv/bin/activate; \
+	pymarkdownlnt --config .sphinx/.pymarkdown.json scan \
+		--recurse \
+		--exclude=./.sphinx \
+		--exclude=./_build \
+		--exclude=./reference/manpages/lxc \
+		. \
+	&& echo "Passed" \
+	|| (echo "Failed"; exit 1)
 
 .PHONY: html
 html:
