@@ -341,26 +341,6 @@ test_clustering_membership() {
   # Unset join_token_expiry which will set it to the default value of 3h
   LXD_DIR="${LXD_ONE_DIR}" lxc config unset cluster.join_token_expiry
 
-  LXD_DIR="${LXD_NINE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_EIGHT_DIR}" lxd shutdown
-  LXD_DIR="${LXD_SIX_DIR}" lxd shutdown
-  LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_NINE_DIR}/unix.socket"
-  rm -f "${LXD_EIGHT_DIR}/unix.socket"
-  rm -f "${LXD_SIX_DIR}/unix.socket"
-  rm -f "${LXD_FIVE_DIR}/unix.socket"
-  rm -f "${LXD_FOUR_DIR}/unix.socket"
-  rm -f "${LXD_THREE_DIR}/unix.socket"
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
-
-  teardown_clustering_netns
-  teardown_clustering_bridge
-
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
@@ -369,6 +349,9 @@ test_clustering_membership() {
   kill_lxd "${LXD_SIX_DIR}"
   kill_lxd "${LXD_EIGHT_DIR}"
   kill_lxd "${LXD_NINE_DIR}"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 }
 
 test_clustering_containers() {
@@ -534,19 +517,12 @@ test_clustering_containers() {
 
   LXD_DIR="${LXD_ONE_DIR}" lxc delete egg bar
 
-  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_THREE_DIR}/unix.socket"
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
-
-  teardown_clustering_netns
-  teardown_clustering_bridge
-
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 }
 
 test_clustering_storage() {
@@ -998,20 +974,14 @@ test_clustering_storage() {
   LXD_DIR="${LXD_ONE_DIR}" lxc storage delete pool1
   ! LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF pool1 || false
 
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
-
-  teardown_clustering_netns
-  teardown_clustering_bridge
-
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   if [ -n "${LXD_THREE_DIR:-}" ]; then
     kill_lxd "${LXD_THREE_DIR}"
   fi
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 }
 
 # On a single-node cluster storage pools can be created either with the
@@ -1077,14 +1047,11 @@ test_clustering_storage_single_node() {
 
   printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
   LXD_DIR="${LXD_ONE_DIR}" lxc storage delete data
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  kill_lxd "${LXD_ONE_DIR}"
 
   teardown_clustering_netns
   teardown_clustering_bridge
-
-  kill_lxd "${LXD_ONE_DIR}"
 }
 
 test_clustering_network() {
@@ -1331,17 +1298,11 @@ test_clustering_network() {
   nsenter -n -t "${LXD_PID2}" -- ip link delete i2
   nsenter -n -t "${LXD_PID2}" -- ip link delete i1
 
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
 
   teardown_clustering_netns
   teardown_clustering_bridge
-
-  kill_lxd "${LXD_ONE_DIR}"
-  kill_lxd "${LXD_TWO_DIR}"
 }
 
 test_clustering_heal_networks_stop() {
@@ -1430,19 +1391,13 @@ test_clustering_heal_networks_stop() {
   LXD_DIR="${LXD_ONE_DIR}" lxc query /internal/testing/bgp | grep -F "198.51.100.1/32"
 
   echo "Clean up"
-  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_THREE_DIR}/unix.socket"
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
-
-  teardown_clustering_netns
-  teardown_clustering_bridge
 
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 }
 
 # Perform an upgrade of a 2-member cluster, then a join a third member and
@@ -1522,20 +1477,12 @@ test_clustering_upgrade() {
   # The cluster is again operational
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -c "Fully operational")" -eq 3 ]
 
-  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_THREE_DIR}/unix.socket"
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
-
-  teardown_clustering_netns
-  teardown_clustering_bridge
-
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 }
 
 # Perform a downgrade of a 2-member cluster, then a join a third member and perform one more downgrade.
@@ -1609,20 +1556,12 @@ test_clustering_downgrade() {
   # The cluster is again operational.
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -c "Fully operational")" -eq 3 ]
 
-  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_THREE_DIR}/unix.socket"
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
-
-  teardown_clustering_netns
-  teardown_clustering_bridge
-
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 }
 
 # Perform an upgrade of an 8-member cluster.
@@ -1663,20 +1602,12 @@ test_clustering_upgrade_large() {
   LXD_DIR="${LXD_ONE_DIR}" lxd waitready --timeout=10
   ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wF "OFFLINE" || false
 
-  for i in $(seq "${N}" -1 1); do
-    LXD_DIR="${LXD_CLUSTER_DIR}/${i}" lxd shutdown
-  done
-  sleep 0.5
   for i in $(seq "${N}"); do
-    rm -f "${LXD_CLUSTER_DIR}/${i}/unix.socket"
+    kill_lxd "${LXD_CLUSTER_DIR}/${i}"
   done
 
   teardown_clustering_netns
   teardown_clustering_bridge
-
-  for i in $(seq "${N}"); do
-    kill_lxd "${LXD_CLUSTER_DIR}/${i}"
-  done
 }
 
 test_clustering_publish() {
@@ -1715,17 +1646,11 @@ test_clustering_publish() {
   LXD_DIR="${LXD_ONE_DIR}" lxc publish foo/backup --alias=foo-backup-image
   LXD_DIR="${LXD_ONE_DIR}" lxc image show foo-backup-image | grep -F "public: false"
 
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
 
   teardown_clustering_netns
   teardown_clustering_bridge
-
-  kill_lxd "${LXD_ONE_DIR}"
-  kill_lxd "${LXD_TWO_DIR}"
 }
 
 test_clustering_profiles() {
@@ -1787,17 +1712,11 @@ EOF
   LXD_DIR="${LXD_TWO_DIR}" lxc stop c1 --force
   LXD_DIR="${LXD_ONE_DIR}" lxc stop c2 --force
 
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
 
   teardown_clustering_netns
   teardown_clustering_bridge
-
-  kill_lxd "${LXD_ONE_DIR}"
-  kill_lxd "${LXD_TWO_DIR}"
 }
 
 test_clustering_update_cert() {
@@ -1862,17 +1781,11 @@ test_clustering_update_cert() {
   LXD_DIR="${LXD_ONE_DIR}" lxc info --target node2 | grep -F "server_name: node2"
   LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -F "server_name: node1"
 
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
 
   teardown_clustering_netns
   teardown_clustering_bridge
-
-  kill_lxd "${LXD_ONE_DIR}"
-  kill_lxd "${LXD_TWO_DIR}"
 }
 
 test_clustering_update_cert_reversion() {
@@ -1951,17 +1864,11 @@ test_clustering_update_cert_reversion() {
 
   LXD_DIR="${LXD_ONE_DIR}" lxc warning list | grep -F "Unable to update cluster certificate"
 
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
 
   teardown_clustering_netns
   teardown_clustering_bridge
-
-  kill_lxd "${LXD_ONE_DIR}"
-  kill_lxd "${LXD_TWO_DIR}"
 }
 
 test_clustering_update_cert_token() {
@@ -2039,17 +1946,11 @@ test_clustering_update_cert_token() {
   lxc cluster list cluster:
   lxc remote remove cluster
 
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
 
   teardown_clustering_netns
   teardown_clustering_bridge
-
-  kill_lxd "${LXD_ONE_DIR}"
-  kill_lxd "${LXD_TWO_DIR}"
 }
 
 test_clustering_join_api() {
@@ -2092,17 +1993,11 @@ test_clustering_join_api() {
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -F "message: Fully operational"
 
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_ONE_DIR}"
 
   teardown_clustering_netns
   teardown_clustering_bridge
-
-  kill_lxd "${LXD_TWO_DIR}"
-  kill_lxd "${LXD_ONE_DIR}"
 }
 
 test_clustering_shutdown_nodes() {
@@ -2165,12 +2060,12 @@ test_clustering_shutdown_nodes() {
   # Container foo shouldn't be running anymore
   [ ! -e "/proc/${instance_pid}" ]
 
-  teardown_clustering_netns
-  teardown_clustering_bridge
-
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 }
 
 test_clustering_projects() {
@@ -2218,17 +2113,11 @@ test_clustering_projects() {
 
   LXD_DIR="${LXD_ONE_DIR}" lxc project switch default
 
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
 
   teardown_clustering_netns
   teardown_clustering_bridge
-
-  kill_lxd "${LXD_ONE_DIR}"
-  kill_lxd "${LXD_TWO_DIR}"
 }
 
 test_clustering_metrics() {
@@ -2296,17 +2185,11 @@ test_clustering_metrics() {
   LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1 stopped c2
   LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
 
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
 
   teardown_clustering_netns
   teardown_clustering_bridge
-
-  kill_lxd "${LXD_ONE_DIR}"
-  kill_lxd "${LXD_TWO_DIR}"
 }
 
 test_clustering_address() {
@@ -2369,19 +2252,13 @@ test_clustering_address() {
 
   LXD_DIR="${LXD_TWO_DIR}" lxc delete c1
 
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
-
   lxc remote remove cluster
-
-  teardown_clustering_netns
-  teardown_clustering_bridge
 
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 }
 
 test_clustering_image_replication() {
@@ -2540,20 +2417,12 @@ test_clustering_image_replication() {
   LXD_DIR="${LXD_TWO_DIR}" lxc config unset storage.images_volume
   LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete data images
 
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_ONE_DIR}/unix.socket"
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_THREE_DIR}/unix.socket"
-
-  teardown_clustering_netns
-  teardown_clustering_bridge
-
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 }
 
 test_clustering_dns() {
@@ -2710,17 +2579,12 @@ test_clustering_fan() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${fanbridge}"
 
   echo "Tearing down cluster"
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
-
-  teardown_clustering_netns
-  teardown_clustering_bridge
 
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 }
 
 test_clustering_recover() {
@@ -2786,18 +2650,12 @@ test_clustering_recover() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node2 --force --yes
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node3 --force --yes
 
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_THREE_DIR}/unix.socket"
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
-
-  teardown_clustering_netns
-  teardown_clustering_bridge
-
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 }
 
 # Putting HAproxy in front of a cluster allows to use a single address to access
@@ -2918,15 +2776,11 @@ test_clustering_ha() {
   stop_haproxy
   sed -i '/^127\.1\.2\.3/ d' /etc/hosts
 
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_TWO_DIR}/unix.socket"
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
 
   teardown_clustering_netns
   teardown_clustering_bridge
-
-  kill_lxd "${LXD_ONE_DIR}"
-  kill_lxd "${LXD_TWO_DIR}"
 
   # Restore the original state of the system
   if [ "${FOUND_RADOSGW}" = "true" ]; then
@@ -3030,22 +2884,13 @@ test_clustering_handover() {
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
 
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_ONE_DIR}/unix.socket"
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_THREE_DIR}/unix.socket"
-  rm -f "${LXD_FOUR_DIR}/unix.socket"
-
-  teardown_clustering_netns
-  teardown_clustering_bridge
-
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
   kill_lxd "${LXD_FOUR_DIR}"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 }
 
 # If a voter node crashes and is detected as offline, its role is migrated to a
@@ -3114,23 +2959,13 @@ test_clustering_rebalance() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF "status: Online"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF "database: true"
 
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_ONE_DIR}/unix.socket"
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_THREE_DIR}/unix.socket"
-  rm -f "${LXD_FOUR_DIR}/unix.socket"
-
-  teardown_clustering_netns
-  teardown_clustering_bridge
-
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
   kill_lxd "${LXD_FOUR_DIR}"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 }
 
 test_clustering_rebalance_remove_leader() {
@@ -3189,17 +3024,13 @@ test_clustering_rebalance_remove_leader() {
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list -f csv | wc -l)" = "1" ]
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node2 | grep -F "database: true"
 
-  teardown_clustering_netns
-  teardown_clustering_bridge
-
   echo "Clean up"
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_ONE_DIR}/unix.socket"
-  rm -f "${LXD_TWO_DIR}/unix.socket"
+
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 }
 
 # Recover a cluster where a raft node was removed from the nodes table but not
@@ -3303,22 +3134,14 @@ test_clustering_remove_raft_node() {
   # The second node is gone from the raft_nodes_table.
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT COUNT(*) FROM raft_nodes WHERE address = '100.64.1.102:8443'")" = 0 ]
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT COUNT(*) FROM raft_nodes")" = 3 ]
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_ONE_DIR}/unix.socket"
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_THREE_DIR}/unix.socket"
-  rm -f "${LXD_FOUR_DIR}/unix.socket"
-
-  teardown_clustering_netns
-  teardown_clustering_bridge
 
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
   kill_lxd "${LXD_FOUR_DIR}"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 }
 
 test_clustering_failure_domains() {
@@ -3394,28 +3217,15 @@ test_clustering_failure_domains() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF "database: false"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node5 | grep -xF "database: true"
 
-  LXD_DIR="${LXD_SIX_DIR}" lxd shutdown
-  LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
-  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_SIX_DIR}/unix.socket"
-  rm -f "${LXD_FIVE_DIR}/unix.socket"
-  rm -f "${LXD_FOUR_DIR}/unix.socket"
-  rm -f "${LXD_THREE_DIR}/unix.socket"
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
-
-  teardown_clustering_netns
-  teardown_clustering_bridge
-
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
   kill_lxd "${LXD_FOUR_DIR}"
   kill_lxd "${LXD_FIVE_DIR}"
   kill_lxd "${LXD_SIX_DIR}"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 }
 
 test_clustering_image_refresh() {
@@ -3635,23 +3445,13 @@ test_clustering_image_refresh() {
   printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
   LXD_DIR="${LXD_ONE_DIR}" lxc storage delete data
 
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_REMOTE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_ONE_DIR}/unix.socket"
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_THREE_DIR}/unix.socket"
-  rm -f "${LXD_REMOTE_DIR}/unix.socket"
-
-  teardown_clustering_netns
-  teardown_clustering_bridge
-
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
   kill_lxd "${LXD_REMOTE_DIR}"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 
   lxc remote rm cluster
 
@@ -4009,20 +3809,12 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_ONE_DIR}" lxc storage delete data
 
   # Shut down cluster
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_ONE_DIR}/unix.socket"
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_THREE_DIR}/unix.socket"
-
-  teardown_clustering_netns
-  teardown_clustering_bridge
-
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 
   # shellcheck disable=SC2034
   LXD_NETNS=
@@ -4097,13 +3889,10 @@ test_clustering_evacuation_restore_operations() {
   lxc delete c{1..3} --force
   lxc network delete "${bridge}"
 
-  shutdown_lxd "${LXD_ONE_DIR}"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
+  kill_lxd "${LXD_ONE_DIR}"
 
   teardown_clustering_netns
   teardown_clustering_bridge
-
-  kill_lxd "${LXD_ONE_DIR}"
 }
 
 test_clustering_edit_configuration() {
@@ -4225,33 +4014,15 @@ test_clustering_edit_configuration() {
   ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -F "No heartbeat" || false
 
   # Clean up
-  shutdown_lxd "${LXD_ONE_DIR}"
-  shutdown_lxd "${LXD_TWO_DIR}"
-  shutdown_lxd "${LXD_THREE_DIR}"
-  shutdown_lxd "${LXD_FOUR_DIR}"
-
-  # Force-kill the last two to prevent leadership loss.
-  daemon_pid=$(< "${LXD_FIVE_DIR}/lxd.pid")
-  kill -9 "${daemon_pid}" 2>/dev/null || true
-  daemon_pid=$(< "${LXD_SIX_DIR}/lxd.pid")
-  kill -9 "${daemon_pid}" 2>/dev/null || true
-
-  rm -f "${LXD_ONE_DIR}/unix.socket"
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_THREE_DIR}/unix.socket"
-  rm -f "${LXD_FOUR_DIR}/unix.socket"
-  rm -f "${LXD_FIVE_DIR}/unix.socket"
-  rm -f "${LXD_SIX_DIR}/unix.socket"
-
-  teardown_clustering_netns
-  teardown_clustering_bridge
-
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
   kill_lxd "${LXD_FOUR_DIR}"
   kill_lxd "${LXD_FIVE_DIR}"
   kill_lxd "${LXD_SIX_DIR}"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 }
 
 test_clustering_remove_members() {
@@ -4355,26 +4126,6 @@ test_clustering_remove_members() {
   LXD_DIR="${LXD_SEVEN_DIR}" lxc info --target node6 | grep -F "server_name: node6"
 
   # Clean up
-  shutdown_lxd "${LXD_ONE_DIR}"
-  shutdown_lxd "${LXD_TWO_DIR}"
-  shutdown_lxd "${LXD_THREE_DIR}"
-  shutdown_lxd "${LXD_FOUR_DIR}"
-  shutdown_lxd "${LXD_FIVE_DIR}"
-  shutdown_lxd "${LXD_SIX_DIR}"
-  shutdown_lxd "${LXD_SEVEN_DIR}"
-
-  rm -f "${LXD_ONE_DIR}/unix.socket"
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_THREE_DIR}/unix.socket"
-  rm -f "${LXD_FOUR_DIR}/unix.socket"
-  rm -f "${LXD_FIVE_DIR}/unix.socket"
-  rm -f "${LXD_SIX_DIR}/unix.socket"
-  rm -f "${LXD_SEVEN_DIR}/unix.socket"
-
-
-  teardown_clustering_netns
-  teardown_clustering_bridge
-
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
@@ -4382,6 +4133,9 @@ test_clustering_remove_members() {
   kill_lxd "${LXD_FIVE_DIR}"
   kill_lxd "${LXD_SIX_DIR}"
   kill_lxd "${LXD_SEVEN_DIR}"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 }
 
 test_clustering_autotarget() {
@@ -4419,17 +4173,11 @@ test_clustering_autotarget() {
   lxc init --empty c2
   [ "$(lxc list -f csv -c nL c2)" = "c2,node2" ]
 
-  shutdown_lxd "${LXD_ONE_DIR}"
-  shutdown_lxd "${LXD_TWO_DIR}"
-  sleep 0.5
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
 
   teardown_clustering_netns
   teardown_clustering_bridge
-
-  kill_lxd "${LXD_ONE_DIR}"
-  kill_lxd "${LXD_TWO_DIR}"
 }
 
 test_clustering_groups() {
@@ -4691,20 +4439,12 @@ EOF
   lxc delete -f c1 c2 --project foo
   lxc project delete foo
 
-  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_THREE_DIR}/unix.socket"
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
-
-  teardown_clustering_netns
-  teardown_clustering_bridge
-
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 
   lxc remote rm cluster
 }
@@ -4887,24 +4627,15 @@ test_clustering_events() {
   LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1
   LXD_DIR="${LXD_TWO_DIR}" lxc delete -f c2
   LXD_DIR="${LXD_THREE_DIR}" lxc delete -f c3
-  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_FIVE_DIR}/unix.socket"
-  rm -f "${LXD_FOUR_DIR}/unix.socket"
-  rm -f "${LXD_THREE_DIR}/unix.socket"
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
-
-  teardown_clustering_netns
-  teardown_clustering_bridge
 
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
   kill_lxd "${LXD_FOUR_DIR}"
   kill_lxd "${LXD_FIVE_DIR}"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 }
 
 test_clustering_uuid() {
@@ -4944,17 +4675,12 @@ test_clustering_uuid() {
 
   # cleanup
   LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 -f
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
-
-  teardown_clustering_netns
-  teardown_clustering_bridge
 
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 }
 
 test_clustering_trust_add() {
@@ -5037,17 +4763,11 @@ test_clustering_trust_add() {
   # Unset token expiry
   lxc config unset core.remote_token_expiry
 
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
 
   teardown_clustering_netns
   teardown_clustering_bridge
-
-  kill_lxd "${LXD_ONE_DIR}"
-  kill_lxd "${LXD_TWO_DIR}"
 }
 
 test_clustering_projects_force_delete() {
@@ -5145,17 +4865,11 @@ test_clustering_projects_force_delete() {
   [ "${INSTANCES_BEFORE}" = "${INSTANCES_AFTER_NODE2}" ]
 
   # Clean up cluster
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
 
   teardown_clustering_netns
   teardown_clustering_bridge
-
-  kill_lxd "${LXD_ONE_DIR}"
-  kill_lxd "${LXD_TWO_DIR}"
 }
 
 test_clustering_placement_groups() {
@@ -5386,24 +5100,13 @@ test_clustering_placement_groups() {
   LXD_DIR="${LXD_ONE_DIR}" lxc placement-group delete pg-spread-permissive
   LXD_DIR="${LXD_ONE_DIR}" lxc placement-group delete pg-compact-strict
   LXD_DIR="${LXD_ONE_DIR}" lxc placement-group delete pg-compact-permissive
-  LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
-  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 0.5
-  rm -f "${LXD_FIVE_DIR}/unix.socket"
-  rm -f "${LXD_FOUR_DIR}/unix.socket"
-  rm -f "${LXD_THREE_DIR}/unix.socket"
-  rm -f "${LXD_TWO_DIR}/unix.socket"
-  rm -f "${LXD_ONE_DIR}/unix.socket"
-
-  teardown_clustering_netns
-  teardown_clustering_bridge
 
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
   kill_lxd "${LXD_FOUR_DIR}"
   kill_lxd "${LXD_FIVE_DIR}"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 }

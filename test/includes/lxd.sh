@@ -244,14 +244,15 @@ kill_lxd() {
             path="/1.0/storage-pools/${storage_pool}/volumes/custom"
             while read -r volume; do
                 echo "   ⛔ Deleting storage volume ${volume} on ${storage_pool}"
-                timeout -k 20 20 lxc storage volume delete "${storage_pool}" "${volume}" --force-local || true
+                # Use query as the returned volume names might contain query parameters like "target=".
+                timeout -k 20 20 lxc query -X DELETE "${path}/${volume}" --force-local --wait || true
             done < <(lxc query "${path}" | jq --exit-status --raw-output ".[] | ltrimstr(\"${path}/\")")
 
             # Delete the storage buckets.
             path="/1.0/storage-pools/${storage_pool}/buckets"
             while read -r bucket; do
                 echo "   ⛔ Deleting storage bucket ${bucket} on ${storage_pool}"
-                timeout -k 20 20 lxc storage bucket delete "${storage_pool}" "${bucket}" --force-local || true
+                timeout -k 20 20 lxc query -X DELETE "${path}/${bucket}" --force-local --wait || true
             done < <(lxc query "${path}" | jq --exit-status --raw-output ".[] | ltrimstr(\"${path}/\")")
 
             ## Delete the storage pool.
@@ -264,7 +265,16 @@ kill_lxd() {
             echo "SELECT 1 FROM ${table} LIMIT 1;" | sqlite3 "${LXD_DIR}/local.db" >/dev/null
         done < <(echo .tables | sqlite3 "${LXD_DIR}/local.db")
 
-        # Kill the daemon
+        # Remove the daemon from the cluster.
+        if [ "$(lxc info | yq -r .environment.server_clustered)" = "true" ]; then
+            # Remove the current member only in case there are more than this member left in the cluster.
+            if [ "$(lxc cluster ls -f json | jq length)" -gt 1 ]; then
+                timeout -k 30 30 lxc cluster remove "$(lxc info | yq -r .environment.server_name)" --yes || true
+            fi
+        fi
+
+        # Kill the daemon.
+        # When trying to shutdown a removed cluster member, the request might fail so it will kill the daemon right away.
         timeout -k 30 30 lxd shutdown || kill -9 "${LXD_PID}" 2>/dev/null || true
 
         sleep 2
