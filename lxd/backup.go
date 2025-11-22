@@ -306,12 +306,12 @@ func pruneExpiredBackupsTask(stateFunc func() *state.State) (task.Func, task.Sch
 		s := stateFunc()
 
 		opRun := func(op *operations.Operation) error {
-			err := pruneExpiredInstanceBackups(ctx, s)
+			err := pruneExpiredInstanceBackups(op.Context(), s)
 			if err != nil {
 				return fmt.Errorf("Failed pruning expired instance backups: %w", err)
 			}
 
-			err = pruneExpiredStorageVolumeBackups(ctx, s)
+			err = pruneExpiredStorageVolumeBackups(op.Context(), s)
 			if err != nil {
 				return fmt.Errorf("Failed pruning expired storage volume backups: %w", err)
 			}
@@ -319,7 +319,7 @@ func pruneExpiredBackupsTask(stateFunc func() *state.State) (task.Func, task.Sch
 			return nil
 		}
 
-		op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.BackupsExpire, nil, nil, opRun, nil, nil)
+		op, err := operations.OperationCreate(ctx, s, "", operations.OperationClassTask, operationtype.BackupsExpire, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed creating expired backups operation", logger.Ctx{"err": err})
 			return
