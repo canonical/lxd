@@ -5989,6 +5989,15 @@
 						}
 					},
 					{
+						"source.reuse": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to `true` to reuse an existing `source`\nwhich might already contain volumes.",
+							"scope": "local",
+							"shortdesc": "Whether to reuse an existing `source`",
+							"type": "bool"
+						}
+					},
+					{
 						"source.wipe": {
 							"defaultdesc": "`false`",
 							"longdesc": "Set this option to `true` to wipe the block device specified in `source`\nprior to creating the storage pool.",
@@ -6129,15 +6138,6 @@
 						}
 					},
 					{
-						"ceph.osd.force_reuse": {
-							"defaultdesc": "`false`",
-							"longdesc": "",
-							"scope": "global",
-							"shortdesc": "Whether to allow reuse of an existing OSD storage pool already used by LXD",
-							"type": "bool"
-						}
-					},
-					{
 						"ceph.osd.pg_num": {
 							"defaultdesc": "`32`",
 							"longdesc": "",
@@ -6205,6 +6205,15 @@
 							"scope": "local",
 							"shortdesc": "Existing OSD storage pool to use",
 							"type": "string"
+						}
+					},
+					{
+						"source.reuse": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to `true` to reuse an existing `source`\nwhich might already contain volumes.",
+							"scope": "local",
+							"shortdesc": "Whether to reuse an existing `source`",
+							"type": "bool"
 						}
 					},
 					{
@@ -6436,6 +6445,15 @@
 						}
 					},
 					{
+						"source.reuse": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to `true` to reuse an existing `source`\nwhich might already contain volumes.",
+							"scope": "local",
+							"shortdesc": "Whether to reuse an existing `source`",
+							"type": "bool"
+						}
+					},
+					{
 						"volatile.pool.pristine": {
 							"defaultdesc": "`true`",
 							"longdesc": "",
@@ -6641,6 +6659,15 @@
 							"shortdesc": "Path to an existing directory",
 							"type": "string"
 						}
+					},
+					{
+						"source.reuse": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to `true` to reuse an existing `source`\nwhich might already contain volumes.",
+							"scope": "local",
+							"shortdesc": "Whether to reuse an existing `source`",
+							"type": "bool"
+						}
 					}
 				]
 			},
@@ -6798,15 +6825,6 @@
 						}
 					},
 					{
-						"lvm.vg.force_reuse": {
-							"defaultdesc": "`false`",
-							"longdesc": "",
-							"scope": "global",
-							"shortdesc": "Force using an existing non-empty volume group",
-							"type": "bool"
-						}
-					},
-					{
 						"lvm.vg_name": {
 							"defaultdesc": "name of the pool",
 							"longdesc": "",
@@ -6848,6 +6866,15 @@
 							"scope": "local",
 							"shortdesc": "Path to an existing block device, loop file, or LVM volume group",
 							"type": "string"
+						}
+					},
+					{
+						"source.reuse": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to `true` to reuse an existing `source`\nwhich might already contain volumes.",
+							"scope": "local",
+							"shortdesc": "Whether to reuse an existing `source`",
+							"type": "bool"
 						}
 					},
 					{
@@ -7479,6 +7506,15 @@
 							"scope": "local",
 							"shortdesc": "Path to an existing block device, loop file, or ZFS dataset/pool",
 							"type": "string"
+						}
+					},
+					{
+						"source.reuse": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to `true` to reuse an existing `source`\nwhich might already contain volumes.",
+							"scope": "local",
+							"shortdesc": "Whether to reuse an existing `source`",
+							"type": "bool"
 						}
 					},
 					{

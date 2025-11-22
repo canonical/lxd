@@ -4098,12 +4098,15 @@ test_clustering_evacuation_restore_operations() {
   lxc network delete "${bridge}"
 
   shutdown_lxd "${LXD_ONE_DIR}"
+  shutdown_lxd "${LXD_TWO_DIR}"
   rm -f "${LXD_ONE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
 
   teardown_clustering_netns
   teardown_clustering_bridge
 
   kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
 }
 
 test_clustering_edit_configuration() {
@@ -5406,4 +5409,111 @@ test_clustering_placement_groups() {
   kill_lxd "${LXD_THREE_DIR}"
   kill_lxd "${LXD_FOUR_DIR}"
   kill_lxd "${LXD_FIVE_DIR}"
+}
+
+test_clustering_recovery() {
+  local LXD_DIR
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  # The random storage backend is not supported in clustering tests,
+  # since we need to have the same storage driver on all nodes, so use the driver chosen for the standalone pool.
+  pool_driver=$(lxc storage show "$(lxc profile device get default root pool)" | awk '/^driver:/ {print $2}')
+
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${pool_driver}"
+
+  # Add a newline at the end of each line. YAML has weird rules.
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  # Spawn a second node.
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}" "${pool_driver}"
+
+  # Spawn a third node using a custom loop device outside of LXD's directory.
+  configure_loop_device loop_file_1 loop_device_1
+  # shellcheck disable=SC2154
+  source="${loop_device_1}"
+  if [ "${pool_driver}" = "dir" ]; then
+    # The dir driver is special as it requires the source to be a directory.
+    mkfs.ext4 "${source}"
+    mkdir -p "${TEST_DIR}/pools/data"
+    mount "${source}" "${TEST_DIR}/pools/data"
+    source="${TEST_DIR}/pools/data"
+  fi
+  setup_clustering_netns 3
+  LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns3="${prefix}3"
+  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${LXD_ONE_DIR}" "${pool_driver}" 8443 "${source}"
+
+  # Create an instance and custom volume on the third node's data pool.
+  ensure_import_testimage
+  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c1 -s data --target node3
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create data vol1 --target node3 size=32MiB
+
+  # Kill the third cluster member.
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_THREE_DIR}/unix.socket"
+  kill_lxd "${LXD_THREE_DIR}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node3 --force --yes
+
+  # When using remote storage the instance and custom volume won't disappear together with the cluster member.
+  if [ "${pool_driver}" != "ceph" ]; then
+    # Check that both the instance and custom volume are gone.
+    ! LXD_DIR="${LXD_ONE_DIR}" lxc config show c1 || false
+    ! LXD_DIR="${LXD_ONE_DIR}" lxc storage volume show data vol1 || false
+  fi
+
+  # Recreate the third cluster member.
+  if [ "${pool_driver}" = "zfs" ]; then
+    # Use the name of the existing ZFS pool as source which allows the creation of the pool by reusing the existing ZFS pool.
+    source="lxdtest-$(basename "${LXD_THREE_DIR}")-${ns3}"
+  fi
+  ns3="${prefix}3"
+  # Recreate the original directory of the third cluster member.
+  # We reuse the name (path) to ensure the same name of the underlying storage artifacts.
+  mkdir -p "${LXD_THREE_DIR}"
+  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${LXD_ONE_DIR}" "${pool_driver}" 8443 "${source}" true
+
+  # No need to recover the instance and custom volume when using remote storage.
+  if [ "${pool_driver}" != "ceph" ]; then
+    # Recover instance and custom volume from the third node's data pool.
+    LXD_DIR="${LXD_THREE_DIR}" cat <<EOF | lxd recover
+yes
+yes
+EOF
+  fi
+
+  # Confirm that both the instance and custom volume were recovered.
+  lxc config show c1
+  lxc storage volume show data vol1
+
+  # Cleanup.
+  if [ "${pool_driver}" = "dir" ]; then
+    umount "${TEST_DIR}/pools/data"
+    rm -rf "${TEST_DIR}/pools/data"
+  fi
+  sed -i "\\|^${loop_device_1}|d" "${TEST_DIR}/loops"
+  losetup -d "${loop_device_1}"
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_THREE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_THREE_DIR}"
 }

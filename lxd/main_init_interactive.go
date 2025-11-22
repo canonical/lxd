@@ -269,15 +269,29 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, server *api.Server) err
 			}
 
 			for i, config := range cluster.MemberConfig {
-				question := "Choose " + config.Description + ": "
+				question := fmt.Sprintf("Choose %s [default=%s]: ", config.Description, config.Value)
 
 				// Allow for empty values.
-				configValue, err := c.global.asker.AskString(question, "", validate.Optional())
+				configValue, err := c.global.asker.AskString(question, config.Value, validate.Optional())
 				if err != nil {
 					return err
 				}
 
 				cluster.MemberConfig[i].Value = configValue
+
+				if config.Key == "source" {
+					configValue, err := c.global.asker.AskBool("Are you reusing an existing source? (yes/no) [default=no]: ", "no")
+					if err != nil {
+						return err
+					}
+
+					cluster.MemberConfig = append(cluster.MemberConfig, api.ClusterMemberConfigKey{
+						Entity: config.Entity,
+						Name:   config.Name,
+						Key:    "source.reuse",
+						Value:  strconv.FormatBool(configValue),
+					})
+				}
 			}
 
 			config.Cluster.MemberConfig = cluster.MemberConfig
