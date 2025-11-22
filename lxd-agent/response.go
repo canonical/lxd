@@ -50,18 +50,6 @@ func (r *devLXDResponse) Render(w http.ResponseWriter, req *http.Request) error 
 	return err
 }
 
-func (r *devLXDResponse) String() string {
-	if r.hook != nil {
-		return "unknown"
-	}
-
-	if r.code == http.StatusOK {
-		return "success"
-	}
-
-	return "failure"
-}
-
 func errorResponse(code int, msg string) *devLXDResponse {
 	return &devLXDResponse{
 		content: msg,

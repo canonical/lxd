@@ -90,19 +90,6 @@ type VDPADev struct {
 	VhostVDPA *VhostVDPA
 }
 
-// ParseAttributes parses the attributes of a netlink message for a vDPA management device.
-func (d *MgmtVDPADev) parseAttributes(attrs []syscall.NetlinkRouteAttr) error {
-	for _, attr := range attrs {
-		switch attr.Attr.Type {
-		case vDPAAttrMgmtDevBusName:
-			d.BusName = string(attr.Value[:len(attr.Value)-1])
-		case vDPAAttrMgmtDevDevName:
-			d.DevName = string(attr.Value[:len(attr.Value)-1])
-		}
-	}
-	return nil
-}
-
 // getVhostVDPADevInPath returns the VhostVDPA found in the provided parent device's path.
 func getVhostVDPADevInPath(parentPath string) (*VhostVDPA, error) {
 	fd, err := os.Open(parentPath)
@@ -245,26 +232,6 @@ func newNetlinkAttribute(attrType int, data any) (*nl.RtAttr, error) {
 	}
 }
 
-// parseMgmtVDPADevList parses a list of vDPA management device netlink messages.
-func parseMgmtVDPADevList(msgs [][]byte) ([]*MgmtVDPADev, error) {
-	devices := make([]*MgmtVDPADev, 0, len(msgs))
-	for _, m := range msgs {
-		attrs, err := nl.ParseRouteAttr(m[nl.SizeofGenlmsg:])
-		if err != nil {
-			return nil, fmt.Errorf("Could not parse Netlink vDPA management device route attributes : %v", err)
-		}
-
-		dev := &MgmtVDPADev{}
-		if err = dev.parseAttributes(attrs); err != nil {
-			return nil, err
-		}
-
-		devices = append(devices, dev)
-	}
-
-	return devices, nil
-}
-
 // parseVDPADevList parses a list of vDPA device netlink messages.
 func parseVDPADevList(msgs [][]byte) ([]*VDPADev, error) {
 	devices := make([]*VDPADev, 0, len(msgs))
@@ -283,21 +250,6 @@ func parseVDPADevList(msgs [][]byte) ([]*VDPADev, error) {
 	}
 
 	return devices, nil
-}
-
-// ListVDPAMgmtDevices returns the list of all vDPA management devices.
-func ListVDPAMgmtDevices() ([]*MgmtVDPADev, error) {
-	resp, err := runVDPANetlinkCmd(vDPACmdMgmtDevGet, syscall.NLM_F_DUMP, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	mgtmDevs, err := parseMgmtVDPADevList(resp)
-	if err != nil {
-		return nil, err
-	}
-
-	return mgtmDevs, nil
 }
 
 // ListVDPADevices returns the list of all vDPA devices.

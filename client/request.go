@@ -8,11 +8,6 @@ import (
 	"net/http"
 )
 
-// NewRequest creates a new HTTP request with the specified method, URL, data, and ETag.
-func NewRequest(method string, url string, data any, ETag string) (*http.Request, error) {
-	return NewRequestWithContext(context.Background(), method, url, data, ETag)
-}
-
 // NewRequestWithContext creates a new HTTP request with the specified method, URL, data, and ETag.
 func NewRequestWithContext(ctx context.Context, method string, url string, data any, ETag string) (*http.Request, error) {
 	var req *http.Request

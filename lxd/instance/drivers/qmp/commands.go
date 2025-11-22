@@ -996,22 +996,6 @@ func (m *Monitor) BlockJobComplete(deviceNodeName string) error {
 	return nil
 }
 
-// Eject ejects a removable drive.
-func (m *Monitor) Eject(id string) error {
-	var args struct {
-		ID string `json:"id"`
-	}
-
-	args.ID = id
-
-	err := m.run("eject", args, nil)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // SetBlockThrottle applies an I/O limit on a disk.
 func (m *Monitor) SetBlockThrottle(id string, bytesRead int, bytesWrite int, iopsRead int, iopsWrite int) error {
 	var args struct {

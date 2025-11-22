@@ -115,38 +115,6 @@ func FiltersFromStmt(pkg *packages.Package, kind string, entity string, filters 
 	return stmtFilters, ignoredFilters
 }
 
-// RefFiltersFromStmt parses all filtering statement defined for the given entity reference.
-func RefFiltersFromStmt(pkg *packages.Package, entity string, ref string, filters []*Field) (stmtFilters [][]string, ignoredFilters [][]string) {
-	objects := GetVars(pkg)
-	stmtFilters = [][]string{}
-
-	prefix := lex.Minuscule(lex.Camel(entity)) + lex.Capital(ref) + "RefBy"
-
-	for name := range objects {
-		if !strings.HasPrefix(name, prefix) {
-			continue
-		}
-
-		rest := name[len(prefix):]
-		stmtFilters = append(stmtFilters, strings.Split(rest, "And"))
-	}
-
-	stmtFilters = sortFilters(stmtFilters)
-	ignoredFilters = [][]string{}
-
-	for _, filterGroup := range stmtFilters {
-		ignoredFilterGroup := []string{}
-		for _, filter := range filters {
-			if !slices.Contains(filterGroup, filter.Name) {
-				ignoredFilterGroup = append(ignoredFilterGroup, filter.Name)
-			}
-		}
-		ignoredFilters = append(ignoredFilters, ignoredFilterGroup)
-	}
-
-	return stmtFilters, ignoredFilters
-}
-
 func sortFilters(filters [][]string) [][]string {
 	sort.Slice(filters, func(i, j int) bool {
 		n1 := len(filters[i])
