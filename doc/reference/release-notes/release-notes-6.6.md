@@ -160,6 +160,48 @@ A new field `used_by` was added to disks in the resources API to indicate its po
 
 - API extension: {ref}`extension-resources-disk-used-by`
 
+## UI updates
+
+This release includes several improvements and new features in the LXD UI.
+
+### SSH key generation during instance creation
+
+The UI now supports generating SSH key pairs during instance creation, making it easier to configure instance access without relying on external tools.
+
+### Bulk operations: View details
+
+Bulk actions now include an expanded {guilabel}`View details` interface, allowing you to inspect aggregated information and per-item results when managing multiple resources at once.
+For example, when performing bulk instance deletion or bulk instance start, the UI now shows which instances succeeded, which failed, and any associated messages for each item.
+
+### Mobile experience improvements
+
+Mobile-focused UI refinements improve navigation, responsiveness, and readability across smaller screens.
+
+### Login project selection in settings
+
+A new login project setting is available in the {guilabel}`Settings`.
+The selected project is stored in `localStorage`, ensuring the UI restores your working context on return.
+
+### HPE storage driver support
+
+The UI now includes configuration and management support for the {guilabel}`HPE Alletra` storage driver, enabling pool and volume interaction for environments using this backend.
+
+### Saved terminal connection defaults
+
+Users can now save terminal connection defaults as an instance user key, allowing persistent preferences for how the terminal connects to instances.
+
+### ACL support on instances and profiles
+
+{guilabel}`ACLs` can now be added directly on {guilabel}`Instances` and {guilabel}`Profiles`, not just at the network level, enabling more granular access control configuration directly.
+
+### MTU and VLAN support for physical networks
+
+Physical network configuration forms now include {guilabel}`MTU` and {guilabel}`VLAN Id` fields, enabling more complete network definition from within the UI.
+
+### Project configuration: restricted backups
+
+The {guilabel}`Configuration` screen now exposes the {guilabel}`Instance` option to restrict backup creation on a project.
+
 (ref-release-notes-6.6-bugfixes)=
 ## Bug fixes
 
