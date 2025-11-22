@@ -202,7 +202,7 @@ func (d Nftables) hostVersion() (*version.DottedVersion, error) {
 }
 
 // networkSetupForwardingPolicy allows forwarding dependent on boolean argument.
-func (d Nftables) networkSetupForwardingPolicy(networkName string, ip4Allow *bool, ip6Allow *bool) error {
+func (d Nftables) networkSetupForwardingPolicy(ctx context.Context, networkName string, ip4Allow *bool, ip6Allow *bool) error {
 	tplFields := map[string]any{
 		"namespace":      nftablesNamespace,
 		"chainSeparator": nftablesChainSeparator,
@@ -230,7 +230,7 @@ func (d Nftables) networkSetupForwardingPolicy(networkName string, ip4Allow *boo
 		tplFields["ip6Action"] = ip6Action
 	}
 
-	err := d.applyNftConfig(nftablesNetForwardingPolicy, tplFields)
+	err := d.applyNftConfig(ctx, nftablesNetForwardingPolicy, tplFields)
 	if err != nil {
 		return fmt.Errorf("Failed adding forwarding policy rules for network %q (%s): %w", networkName, tplFields["family"], err)
 	}
@@ -241,7 +241,7 @@ func (d Nftables) networkSetupForwardingPolicy(networkName string, ip4Allow *boo
 // networkSetupOutboundNAT configures outbound NAT.
 // If srcIP is non-nil then SNAT is used with the specified address, otherwise MASQUERADE mode is used.
 // Append mode is always on and so the append argument is ignored.
-func (d Nftables) networkSetupOutboundNAT(networkName string, SNATV4 *SNATOpts, SNATV6 *SNATOpts) error {
+func (d Nftables) networkSetupOutboundNAT(ctx context.Context, networkName string, SNATV4 *SNATOpts, SNATV6 *SNATOpts) error {
 	rules := make(map[string]*SNATOpts, 0)
 
 	tplFields := map[string]any{
@@ -262,7 +262,7 @@ func (d Nftables) networkSetupOutboundNAT(networkName string, SNATV4 *SNATOpts, 
 
 	tplFields["rules"] = rules
 
-	err := d.applyNftConfig(nftablesNetOutboundNAT, tplFields)
+	err := d.applyNftConfig(ctx, nftablesNetOutboundNAT, tplFields)
 	if err != nil {
 		return fmt.Errorf("Failed adding outbound NAT rules for network %q (%s): %w", networkName, tplFields["family"], err)
 	}
@@ -272,7 +272,7 @@ func (d Nftables) networkSetupOutboundNAT(networkName string, SNATV4 *SNATOpts, 
 
 // networkSetupICMPDHCPDNSAccess sets up basic nftables overrides for ICMP, DHCP and DNS.
 // This should be called with at least one of (ip4Address, ip6Address) != nil.
-func (d Nftables) networkSetupICMPDHCPDNSAccess(networkName string, ip4Address net.IP, ip6Address net.IP) error {
+func (d Nftables) networkSetupICMPDHCPDNSAccess(ctx context.Context, networkName string, ip4Address net.IP, ip6Address net.IP) error {
 	tplFields := map[string]any{
 		"namespace":      nftablesNamespace,
 		"chainSeparator": nftablesChainSeparator,
@@ -282,7 +282,7 @@ func (d Nftables) networkSetupICMPDHCPDNSAccess(networkName string, ip4Address n
 		"family":         "inet",
 	}
 
-	err := d.applyNftConfig(nftablesNetICMPDHCPDNS, tplFields)
+	err := d.applyNftConfig(ctx, nftablesNetICMPDHCPDNS, tplFields)
 	if err != nil {
 		return fmt.Errorf("Failed adding ICMP, DHCP and DNS access rules for network %q (%s): %w", networkName, tplFields["family"], err)
 	}
@@ -290,7 +290,7 @@ func (d Nftables) networkSetupICMPDHCPDNSAccess(networkName string, ip4Address n
 	return nil
 }
 
-func (d Nftables) networkSetupACLChainAndJumpRules(networkName string) error {
+func (d Nftables) networkSetupACLChainAndJumpRules(ctx context.Context, networkName string) error {
 	tplFields := map[string]any{
 		"namespace":      nftablesNamespace,
 		"chainSeparator": nftablesChainSeparator,
@@ -304,7 +304,7 @@ func (d Nftables) networkSetupACLChainAndJumpRules(networkName string) error {
 		return fmt.Errorf("Failed running %q template: %w", nftablesNetACLSetup.Name(), err)
 	}
 
-	err = shared.RunCommandWithFds(context.TODO(), strings.NewReader(config.String()), nil, "nft", "-f", "-")
+	err = shared.RunCommandWithFds(ctx, strings.NewReader(config.String()), nil, "nft", "-f", "-")
 	if err != nil {
 		return err
 	}
@@ -313,17 +313,17 @@ func (d Nftables) networkSetupACLChainAndJumpRules(networkName string) error {
 }
 
 // NetworkSetup configure network firewall.
-func (d Nftables) NetworkSetup(networkName string, ip4Address net.IP, ip6Address net.IP, opts Opts) error {
+func (d Nftables) NetworkSetup(ctx context.Context, networkName string, ip4Address net.IP, ip6Address net.IP, opts Opts) error {
 	// Do this first before adding other network rules, so jump to ACL rules come first.
 	if opts.ACL {
-		err := d.networkSetupACLChainAndJumpRules(networkName)
+		err := d.networkSetupACLChainAndJumpRules(ctx, networkName)
 		if err != nil {
 			return err
 		}
 	}
 
 	if opts.SNATV4 != nil || opts.SNATV6 != nil {
-		err := d.networkSetupOutboundNAT(networkName, opts.SNATV4, opts.SNATV6)
+		err := d.networkSetupOutboundNAT(ctx, networkName, opts.SNATV4, opts.SNATV6)
 		if err != nil {
 			return err
 		}
@@ -348,12 +348,12 @@ func (d Nftables) NetworkSetup(networkName string, ip4Address net.IP, ip6Address
 			ip6ForwardingAllow = &opts.FeaturesV6.ForwardingAllow
 		}
 
-		err := d.networkSetupForwardingPolicy(networkName, ip4ForwardingAllow, ip6ForwardingAllow)
+		err := d.networkSetupForwardingPolicy(ctx, networkName, ip4ForwardingAllow, ip6ForwardingAllow)
 		if err != nil {
 			return err
 		}
 
-		err = d.networkSetupICMPDHCPDNSAccess(networkName, ip4Address, ip6Address)
+		err = d.networkSetupICMPDHCPDNSAccess(ctx, networkName, ip4Address, ip6Address)
 		if err != nil {
 			return err
 		}
@@ -364,7 +364,7 @@ func (d Nftables) NetworkSetup(networkName string, ip4Address net.IP, ip6Address
 
 // NetworkClear removes the LXD network related chains.
 // The delete and ipeVersions arguments have no effect for nftables driver.
-func (d Nftables) NetworkClear(networkName string, _ bool, _ []uint) error {
+func (d Nftables) NetworkClear(ctx context.Context, networkName string, _ bool, _ []uint) error {
 	removeChains := []string{
 		"fwd", "pstrt", "in", "out", // Chains used for network operation rules.
 		"aclin", "aclout", "aclfwd", "acl", // Chains used by ACL rules.
@@ -374,7 +374,7 @@ func (d Nftables) NetworkClear(networkName string, _ bool, _ []uint) error {
 
 	// Remove chains created by network rules.
 	// Remove from ip and ip6 tables to ensure cleanup for instances started before we moved to inet table
-	err := d.removeChains([]string{"inet", "ip", "ip6", "netdev"}, networkName, removeChains...)
+	err := d.removeChains(ctx, []string{"inet", "ip", "ip6", "netdev"}, networkName, removeChains...)
 	if err != nil {
 		return fmt.Errorf("Failed clearing nftables rules for network %q: %w", networkName, err)
 	}
@@ -388,7 +388,7 @@ func (d Nftables) instanceDeviceLabel(projectName, instanceName, deviceName stri
 }
 
 // InstanceSetupBridgeFilter sets up the filter rules to apply bridged device IP filtering.
-func (d Nftables) InstanceSetupBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, IPv4Nets []*net.IPNet, IPv6Nets []*net.IPNet, parentManaged bool) error {
+func (d Nftables) InstanceSetupBridgeFilter(ctx context.Context, projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, IPv4Nets []*net.IPNet, IPv6Nets []*net.IPNet, parentManaged bool) error {
 	deviceLabel := d.instanceDeviceLabel(projectName, instanceName, deviceName)
 
 	mac, err := net.ParseMAC(hwAddr)
@@ -443,7 +443,7 @@ func (d Nftables) InstanceSetupBridgeFilter(projectName string, instanceName str
 	tplFields["ipv4Nets"] = ipv4Nets
 	tplFields["ipv6Nets"] = ipv6Nets
 
-	err = d.applyNftConfig(nftablesInstanceBridgeFilter, tplFields)
+	err = d.applyNftConfig(ctx, nftablesInstanceBridgeFilter, tplFields)
 	if err != nil {
 		return fmt.Errorf("Failed adding bridge filter rules for instance device %q (%s): %w", deviceLabel, tplFields["family"], err)
 	}
@@ -452,11 +452,11 @@ func (d Nftables) InstanceSetupBridgeFilter(projectName string, instanceName str
 }
 
 // InstanceClearBridgeFilter removes any filter rules that were added to apply bridged device IP filtering.
-func (d Nftables) InstanceClearBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, _ []*net.IPNet, _ []*net.IPNet) error {
+func (d Nftables) InstanceClearBridgeFilter(ctx context.Context, projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, _ []*net.IPNet, _ []*net.IPNet) error {
 	deviceLabel := d.instanceDeviceLabel(projectName, instanceName, deviceName)
 
 	// Remove chains created by bridge filter rules.
-	err := d.removeChains([]string{"bridge"}, deviceLabel, "in", "fwd")
+	err := d.removeChains(ctx, []string{"bridge"}, deviceLabel, "in", "fwd")
 	if err != nil {
 		return fmt.Errorf("Failed clearing bridge filter rules for instance device %q: %w", deviceLabel, err)
 	}
@@ -465,7 +465,7 @@ func (d Nftables) InstanceClearBridgeFilter(projectName string, instanceName str
 }
 
 // InstanceSetupProxyNAT creates DNAT rules for proxy devices.
-func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string, deviceName string, forward *AddressForward) error {
+func (d Nftables) InstanceSetupProxyNAT(ctx context.Context, projectName string, instanceName string, deviceName string, forward *AddressForward) error {
 	if forward.ListenAddress == nil {
 		return errors.New("Listen address is required")
 	}
@@ -546,7 +546,7 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 		return fmt.Errorf("Failed running %q template: %w", nftablesNetProxyNAT.Name(), err)
 	}
 
-	err = shared.RunCommandWithFds(context.TODO(), strings.NewReader(config.String()), nil, "nft", "-f", "-")
+	err = shared.RunCommandWithFds(ctx, strings.NewReader(config.String()), nil, "nft", "-f", "-")
 	if err != nil {
 		return err
 	}
@@ -555,11 +555,11 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 }
 
 // InstanceClearProxyNAT remove DNAT rules for proxy devices.
-func (d Nftables) InstanceClearProxyNAT(projectName string, instanceName string, deviceName string) error {
+func (d Nftables) InstanceClearProxyNAT(ctx context.Context, projectName string, instanceName string, deviceName string) error {
 	deviceLabel := d.instanceDeviceLabel(projectName, instanceName, deviceName)
 
 	// Remove from ip and ip6 tables to ensure cleanup for instances started before we moved to inet table.
-	err := d.removeChains([]string{"inet", "ip", "ip6"}, deviceLabel, "out", "prert", "pstrt")
+	err := d.removeChains(ctx, []string{"inet", "ip", "ip6"}, deviceLabel, "out", "prert", "pstrt")
 	if err != nil {
 		return fmt.Errorf("Failed clearing proxy rules for instance device %q: %w", deviceLabel, err)
 	}
@@ -569,7 +569,7 @@ func (d Nftables) InstanceClearProxyNAT(projectName string, instanceName string,
 
 // applyNftConfig loads the specified config template and then applies it to the common template before sending to
 // the nft command to be atomically applied to the system.
-func (d Nftables) applyNftConfig(tpl *template.Template, tplFields map[string]any) error {
+func (d Nftables) applyNftConfig(ctx context.Context, tpl *template.Template, tplFields map[string]any) error {
 	// Load the specified template into the common template's parse tree under the nftableContentTemplate
 	// name so that the nftableContentTemplate template can use it with the generic name.
 	_, err := nftablesCommonTable.AddParseTree(nftablesContentTemplate, tpl.Tree)
@@ -583,7 +583,7 @@ func (d Nftables) applyNftConfig(tpl *template.Template, tplFields map[string]an
 		return fmt.Errorf("Failed running %q template: %w", tpl.Name(), err)
 	}
 
-	err = shared.RunCommandWithFds(context.TODO(), strings.NewReader(config.String()), nil, "nft", "-f", "-")
+	err = shared.RunCommandWithFds(ctx, strings.NewReader(config.String()), nil, "nft", "-f", "-")
 	if err != nil {
 		return fmt.Errorf("Failed apply nftables config: %w", err)
 	}
@@ -593,7 +593,7 @@ func (d Nftables) applyNftConfig(tpl *template.Template, tplFields map[string]an
 
 // removeChains removes the specified chains from the specified families.
 // If not empty, chain suffix is appended to each chain name, separated with "_".
-func (d Nftables) removeChains(families []string, chainSuffix string, chains ...string) error {
+func (d Nftables) removeChains(ctx context.Context, families []string, chainSuffix string, chains ...string) error {
 	ruleset, err := d.nftParseRuleset()
 	if err != nil {
 		return err
@@ -624,7 +624,7 @@ func (d Nftables) removeChains(families []string, chainSuffix string, chains ...
 			continue
 		}
 
-		_, err = shared.RunCommandContext(context.TODO(), "nft", "flush", "chain", item.Family, nftablesNamespace, item.Name, ";", "delete", "chain", item.Family, nftablesNamespace, item.Name)
+		_, err = shared.RunCommandContext(ctx, "nft", "flush", "chain", item.Family, nftablesNamespace, item.Name, ";", "delete", "chain", item.Family, nftablesNamespace, item.Name)
 		if err != nil {
 			return fmt.Errorf("Failed deleting nftables chain %q (%s): %w", item.Name, item.Family, err)
 		}
@@ -634,7 +634,7 @@ func (d Nftables) removeChains(families []string, chainSuffix string, chains ...
 }
 
 // InstanceSetupRPFilter activates reverse path filtering for the specified instance device on the host interface.
-func (d Nftables) InstanceSetupRPFilter(projectName string, instanceName string, deviceName string, hostName string) error {
+func (d Nftables) InstanceSetupRPFilter(ctx context.Context, projectName string, instanceName string, deviceName string, hostName string) error {
 	deviceLabel := d.instanceDeviceLabel(projectName, instanceName, deviceName)
 	tplFields := map[string]any{
 		"namespace":      nftablesNamespace,
@@ -644,7 +644,7 @@ func (d Nftables) InstanceSetupRPFilter(projectName string, instanceName string,
 		"family":         "inet",
 	}
 
-	err := d.applyNftConfig(nftablesInstanceRPFilter, tplFields)
+	err := d.applyNftConfig(ctx, nftablesInstanceRPFilter, tplFields)
 	if err != nil {
 		return fmt.Errorf("Failed adding reverse path filter rules for instance device %q (%s): %w", deviceLabel, tplFields["family"], err)
 	}
@@ -653,11 +653,11 @@ func (d Nftables) InstanceSetupRPFilter(projectName string, instanceName string,
 }
 
 // InstanceClearRPFilter removes reverse path filtering for the specified instance device on the host interface.
-func (d Nftables) InstanceClearRPFilter(projectName string, instanceName string, deviceName string) error {
+func (d Nftables) InstanceClearRPFilter(ctx context.Context, projectName string, instanceName string, deviceName string) error {
 	deviceLabel := d.instanceDeviceLabel(projectName, instanceName, deviceName)
 
 	// Remove from ip and ip6 tables to ensure cleanup for instances started before we moved to inet table.
-	err := d.removeChains([]string{"inet", "ip", "ip6"}, deviceLabel, "prert")
+	err := d.removeChains(ctx, []string{"inet", "ip", "ip6"}, deviceLabel, "prert")
 	if err != nil {
 		return fmt.Errorf("Failed clearing reverse path filter rules for instance device %q: %w", deviceLabel, err)
 	}
@@ -666,7 +666,7 @@ func (d Nftables) InstanceClearRPFilter(projectName string, instanceName string,
 }
 
 // InstanceSetupNetPrio activates setting of skb->priority for the specified instance device on the host interface.
-func (d Nftables) InstanceSetupNetPrio(projectName string, instanceName string, deviceName string, netPrio uint32) error {
+func (d Nftables) InstanceSetupNetPrio(ctx context.Context, projectName string, instanceName string, deviceName string, netPrio uint32) error {
 	deviceLabel := d.instanceDeviceLabel(projectName, instanceName, deviceName)
 	tplFields := map[string]any{
 		"namespace":      nftablesNamespace,
@@ -677,7 +677,7 @@ func (d Nftables) InstanceSetupNetPrio(projectName string, instanceName string, 
 		"netPrio":        netPrio,
 	}
 
-	err := d.applyNftConfig(nftablesInstanceNetPrio, tplFields)
+	err := d.applyNftConfig(ctx, nftablesInstanceNetPrio, tplFields)
 	if err != nil {
 		return fmt.Errorf("Failed adding netprio rules for instance device %q: %w", deviceLabel, err)
 	}
@@ -686,7 +686,7 @@ func (d Nftables) InstanceSetupNetPrio(projectName string, instanceName string, 
 }
 
 // InstanceClearNetPrio removes setting of skb->priority for the specified instance device on the host interface.
-func (d Nftables) InstanceClearNetPrio(projectName string, instanceName string, deviceName string) error {
+func (d Nftables) InstanceClearNetPrio(ctx context.Context, projectName string, instanceName string, deviceName string) error {
 	if deviceName == "" {
 		return fmt.Errorf("Failed clearing netprio rules for instance %q in project %q: device name is empty", instanceName, projectName)
 	}
@@ -694,7 +694,7 @@ func (d Nftables) InstanceClearNetPrio(projectName string, instanceName string, 
 	deviceLabel := d.instanceDeviceLabel(projectName, instanceName, deviceName)
 	chainLabel := "netprio" + nftablesChainSeparator + deviceLabel
 
-	err := d.removeChains([]string{"netdev"}, chainLabel, "egress")
+	err := d.removeChains(ctx, []string{"netdev"}, chainLabel, "egress")
 	if err != nil {
 		return fmt.Errorf("Failed clearing netprio rules for instance device %q: %w", deviceLabel, err)
 	}
@@ -703,7 +703,7 @@ func (d Nftables) InstanceClearNetPrio(projectName string, instanceName string, 
 }
 
 // NetworkApplyACLRules applies ACL rules to the existing firewall chains.
-func (d Nftables) NetworkApplyACLRules(networkName string, rules []ACLRule) error {
+func (d Nftables) NetworkApplyACLRules(ctx context.Context, networkName string, rules []ACLRule) error {
 	nftRules := make([]string, 0)
 	for _, rule := range rules {
 		// First try generating rules with IPv4 or IP agnostic criteria.
@@ -748,7 +748,7 @@ func (d Nftables) NetworkApplyACLRules(networkName string, rules []ACLRule) erro
 		return fmt.Errorf("Failed running %q template: %w", nftablesNetACLRules.Name(), err)
 	}
 
-	err = shared.RunCommandWithFds(context.TODO(), strings.NewReader(config.String()), nil, "nft", "-f", "-")
+	err = shared.RunCommandWithFds(ctx, strings.NewReader(config.String()), nil, "nft", "-f", "-")
 	if err != nil {
 		return err
 	}
@@ -957,7 +957,7 @@ func (d Nftables) aclRulePortToACLMatch(direction string, portCriteria ...string
 }
 
 // NetworkApplyForwards apply network address forward rules to firewall.
-func (d Nftables) NetworkApplyForwards(networkName string, rules []AddressForward) error {
+func (d Nftables) NetworkApplyForwards(ctx context.Context, networkName string, rules []AddressForward) error {
 	var dnatRules []map[string]any
 	var snatRules []map[string]any
 
@@ -1076,12 +1076,12 @@ func (d Nftables) NetworkApplyForwards(networkName string, rules []AddressForwar
 			return fmt.Errorf("Failed running %q template: %w", nftablesNetProxyNAT.Name(), err)
 		}
 
-		err = shared.RunCommandWithFds(context.TODO(), strings.NewReader(config.String()), nil, "nft", "-f", "-")
+		err = shared.RunCommandWithFds(ctx, strings.NewReader(config.String()), nil, "nft", "-f", "-")
 		if err != nil {
 			return err
 		}
 	} else {
-		err := d.removeChains([]string{"inet", "ip", "ip6"}, networkName, "fwdprert", "fwdout", "fwdpstrt")
+		err := d.removeChains(ctx, []string{"inet", "ip", "ip6"}, networkName, "fwdprert", "fwdout", "fwdpstrt")
 		if err != nil {
 			return fmt.Errorf("Failed clearing nftables forward rules for network %q: %w", networkName, err)
 		}
