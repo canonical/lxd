@@ -191,10 +191,58 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	rdr1 := io.NopCloser(bytes.NewBuffer(body))
+	rdr2 := io.NopCloser(bytes.NewBuffer(body))
+
+	reqRaw := shared.Jmap{}
+	err = json.NewDecoder(rdr1).Decode(&reqRaw)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	req := api.InstancePost{}
+	err = json.NewDecoder(rdr2).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	// Check if stateful indicator supplied and default to true if not (for backward compatibility).
+	_, err = reqRaw.GetBool("live")
+	if err != nil {
+		req.Live = true
+	}
+
+	// If new instance name not supplied, assume it will be keeping its current name.
+	if req.Name == "" {
+		req.Name = inst.Name()
+	}
+
+	// Check the new instance name is valid.
+	err = instancetype.ValidName(req.Name, false)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	var targetGroupName string
+	after, ok := strings.CutPrefix(target, instancetype.TargetClusterGroupPrefix)
+	if ok {
+		targetGroupName = after
+	}
+
+	targetProjectName := req.Project
+	if targetProjectName == "" {
+		targetProjectName = inst.Project().Name
+	}
+
 	// Run the cluster placement after potentially forwarding the request to another member.
 	if target != "" && s.ServerClustered {
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			p, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
+			p, err := dbCluster.GetProject(ctx, tx.Tx(), targetProjectName)
 			if err != nil {
 				return err
 			}
@@ -208,8 +256,6 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return fmt.Errorf("Failed getting cluster members: %w", err)
 			}
-
-			var targetGroupName string
 
 			targetMemberInfo, targetGroupName, err = limits.CheckTarget(ctx, s.Authorizer, tx, targetProject, target, allMembers)
 			if err != nil {
@@ -255,49 +301,6 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		if targetMemberInfo.IsOffline(s.GlobalConfig.OfflineThreshold()) {
 			return response.BadRequest(errors.New("Target cluster member is offline"))
 		}
-	}
-
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		return response.InternalError(err)
-	}
-
-	rdr1 := io.NopCloser(bytes.NewBuffer(body))
-	rdr2 := io.NopCloser(bytes.NewBuffer(body))
-
-	reqRaw := shared.Jmap{}
-	err = json.NewDecoder(rdr1).Decode(&reqRaw)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
-	req := api.InstancePost{}
-	err = json.NewDecoder(rdr2).Decode(&req)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
-	// Check if stateful indicator supplied and default to true if not (for backward compatibility).
-	_, err = reqRaw.GetBool("live")
-	if err != nil {
-		req.Live = true
-	}
-
-	// If new instance name not supplied, assume it will be keeping its current name.
-	if req.Name == "" {
-		req.Name = inst.Name()
-	}
-
-	// Check the new instance name is valid.
-	err = instancetype.ValidName(req.Name, false)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
-	var targetGroupName string
-	after, ok := strings.CutPrefix(target, instancetype.TargetClusterGroupPrefix)
-	if ok {
-		targetGroupName = after
 	}
 
 	// Unset "volatile.cluster.group" if the instance is manually moved to a cluster member.
