@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"net/http"
@@ -26,7 +27,7 @@ func (n *macvlan) DBType() db.NetworkType {
 }
 
 // State returns the network state.
-func (n *macvlan) State() (*api.NetworkState, error) {
+func (n *macvlan) State(ctx context.Context) (*api.NetworkState, error) {
 	parentState, err := resources.GetNetworkState(GetHostDevice(n.config["parent"], n.config["vlan"]))
 	if err != nil {
 		// If the parent is not found, return a response indicating the network is unavailable.
@@ -73,7 +74,7 @@ func (n *macvlan) State() (*api.NetworkState, error) {
 }
 
 // Validate network config.
-func (n *macvlan) Validate(config map[string]string) error {
+func (n *macvlan) Validate(ctx context.Context, config map[string]string) error {
 	rules := map[string]func(value string) error{
 		// lxdmeta:generate(entities=network-macvlan; group=network-conf; key=parent)
 		//
@@ -138,18 +139,18 @@ func (n *macvlan) Validate(config map[string]string) error {
 }
 
 // Delete deletes a network.
-func (n *macvlan) Delete(clientType request.ClientType) error {
+func (n *macvlan) Delete(ctx context.Context, clientType request.ClientType) error {
 	n.logger.Debug("Delete", logger.Ctx{"clientType": clientType})
 
-	return n.delete()
+	return n.delete(ctx)
 }
 
 // Rename renames a network.
-func (n *macvlan) Rename(newName string) error {
+func (n *macvlan) Rename(ctx context.Context, newName string) error {
 	n.logger.Debug("Rename", logger.Ctx{"newName": newName})
 
 	// Rename common steps.
-	err := n.rename(newName)
+	err := n.rename(ctx, newName)
 	if err != nil {
 		return err
 	}
@@ -158,7 +159,7 @@ func (n *macvlan) Rename(newName string) error {
 }
 
 // Start starts is a no-op.
-func (n *macvlan) Start() error {
+func (n *macvlan) Start(context.Context) error {
 	n.logger.Debug("Start")
 
 	revert := revert.New()
@@ -179,7 +180,7 @@ func (n *macvlan) Start() error {
 }
 
 // Stop stops is a no-op.
-func (n *macvlan) Stop() error {
+func (n *macvlan) Stop(ctx context.Context) error {
 	n.logger.Debug("Stop")
 
 	return nil
@@ -187,7 +188,7 @@ func (n *macvlan) Stop() error {
 
 // Update updates the network. Accepts notification boolean indicating if this update request is coming from a
 // cluster notification, in which case do not update the database, just apply local changes needed.
-func (n *macvlan) Update(newNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error {
+func (n *macvlan) Update(ctx context.Context, newNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error {
 	n.logger.Debug("Update", logger.Ctx{"clientType": clientType, "newNetwork": newNetwork})
 
 	dbUpdateNeeded, _, oldNetwork, err := n.configChanged(newNetwork)
@@ -203,7 +204,7 @@ func (n *macvlan) Update(newNetwork api.NetworkPut, targetNode string, clientTyp
 	// pending, then don't apply the new settings to the node, just to the database record (ready for the
 	// actual global create request to be initiated).
 	if n.Status() == api.NetworkStatusPending || n.LocalStatus() == api.NetworkStatusPending {
-		return n.update(newNetwork, targetNode, clientType)
+		return n.update(ctx, newNetwork, targetNode, clientType)
 	}
 
 	revert := revert.New()
@@ -212,11 +213,11 @@ func (n *macvlan) Update(newNetwork api.NetworkPut, targetNode string, clientTyp
 	// Define a function which reverts everything.
 	revert.Add(func() {
 		// Reset changes to all nodes and database.
-		_ = n.update(oldNetwork, targetNode, clientType)
+		_ = n.update(ctx, oldNetwork, targetNode, clientType)
 	})
 
 	// Apply changes to all nodes and databse.
-	err = n.update(newNetwork, targetNode, clientType)
+	err = n.update(ctx, newNetwork, targetNode, clientType)
 	if err != nil {
 		return err
 	}

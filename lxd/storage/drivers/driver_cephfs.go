@@ -27,9 +27,9 @@ type cephfs struct {
 }
 
 // load is used to run one-time action per-driver rather than per-pool.
-func (d *cephfs) load() error {
+func (d *cephfs) load(ctx context.Context) error {
 	// Register the patches.
-	d.patches = map[string]func() error{
+	d.patches = map[string]func(ctx context.Context) error{
 		"storage_lvm_skipactivation":                         nil,
 		"storage_missing_snapshot_records":                   nil,
 		"storage_delete_old_snapshot_records":                nil,
@@ -52,7 +52,7 @@ func (d *cephfs) load() error {
 
 	// Detect and record the version.
 	if cephfsVersion == "" {
-		out, err := shared.RunCommandContext(d.state.ShutdownCtx, "rbd", "--version")
+		out, err := shared.RunCommandContext(ctx, "rbd", "--version")
 		if err != nil {
 			return err
 		}
@@ -97,7 +97,7 @@ func (d *cephfs) Info() Info {
 }
 
 // FillConfig populates the storage pool's configuration file with the default values.
-func (d *cephfs) FillConfig() error {
+func (d *cephfs) FillConfig(context.Context) error {
 	if d.config["cephfs.cluster_name"] == "" {
 		d.config["cephfs.cluster_name"] = CephDefaultCluster
 	}
@@ -149,7 +149,7 @@ func (d *cephfs) ValidateSource() error {
 
 // Create is called during pool creation and is effectively using an empty driver struct.
 // WARNING: The Create() function cannot rely on any of the struct attributes being set.
-func (d *cephfs) Create() error {
+func (d *cephfs) Create(ctx context.Context) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -164,7 +164,7 @@ func (d *cephfs) Create() error {
 	}
 
 	// If the filesystem already exists, disallow keys associated to creating the filesystem.
-	fsExists, err := d.fsExists(d.config["cephfs.cluster_name"], d.config["cephfs.user.name"], fsName)
+	fsExists, err := d.fsExists(ctx, d.config["cephfs.cluster_name"], d.config["cephfs.user.name"], fsName)
 	if err != nil {
 		return fmt.Errorf("Failed to check if %q CephFS exists: %w", fsName, err)
 	}
@@ -196,14 +196,14 @@ func (d *cephfs) Create() error {
 				return fmt.Errorf("Missing required key %q for creating cephfs osd pool", key)
 			}
 
-			osdPoolExists, err := d.osdPoolExists(d.config["cephfs.cluster_name"], d.config["cephfs.user.name"], pool)
+			osdPoolExists, err := d.osdPoolExists(ctx, d.config["cephfs.cluster_name"], d.config["cephfs.user.name"], pool)
 			if err != nil {
 				return fmt.Errorf("Failed to check if %q OSD Pool exists: %w", pool, err)
 			}
 
 			if !osdPoolExists {
 				// Create new osd pool.
-				_, err := shared.RunCommandContext(d.state.ShutdownCtx, "ceph",
+				_, err := shared.RunCommandContext(ctx, "ceph",
 					"--name", "client."+d.config["cephfs.user.name"],
 					"--cluster", d.config["cephfs.cluster_name"],
 					"osd",
@@ -218,7 +218,7 @@ func (d *cephfs) Create() error {
 
 				revert.Add(func() {
 					// Delete the OSD pool.
-					_, _ = shared.RunCommandContext(d.state.ShutdownCtx, "ceph",
+					_, _ = shared.RunCommandContext(context.Background(), "ceph",
 						"--name", "client."+d.config["cephfs.user.name"],
 						"--cluster", d.config["cephfs.cluster_name"],
 						"osd",
@@ -254,7 +254,7 @@ func (d *cephfs) Create() error {
 		}
 
 		// Create the filesystem.
-		_, err := shared.RunCommandContext(d.state.ShutdownCtx, "ceph",
+		_, err := shared.RunCommandContext(ctx, "ceph",
 			"--name", "client."+d.config["cephfs.user.name"],
 			"--cluster", d.config["cephfs.cluster_name"],
 			"fs",
@@ -269,7 +269,7 @@ func (d *cephfs) Create() error {
 
 		revert.Add(func() {
 			// Set the FS to fail so that we can remove it.
-			_, _ = shared.RunCommandContext(d.state.ShutdownCtx, "ceph",
+			_, _ = shared.RunCommandContext(context.Background(), "ceph",
 				"--name", "client."+d.config["cephfs.user.name"],
 				"--cluster", d.config["cephfs.cluster_name"],
 				"fs",
@@ -278,7 +278,7 @@ func (d *cephfs) Create() error {
 			)
 
 			// Delete the FS.
-			_, _ = shared.RunCommandContext(d.state.ShutdownCtx, "ceph",
+			_, _ = shared.RunCommandContext(ctx, "ceph",
 				"--name", "client."+d.config["cephfs.user.name"],
 				"--cluster", d.config["cephfs.cluster_name"],
 				"fs",
@@ -317,7 +317,7 @@ func (d *cephfs) Create() error {
 
 	// Mount the pool.
 	srcPath := strings.Join(monAddresses, ",") + ":/"
-	err = TryMount(context.TODO(), srcPath, mountPoint, "ceph", 0, d.getMountOptions(d.config["cephfs.user.name"], userSecret, fsName))
+	err = TryMount(ctx, srcPath, mountPoint, "ceph", 0, d.getMountOptions(d.config["cephfs.user.name"], userSecret, fsName))
 	if err != nil {
 		return err
 	}
@@ -342,7 +342,7 @@ func (d *cephfs) Create() error {
 }
 
 // Delete clears any local and remote data related to this driver instance.
-func (d *cephfs) Delete(op *operations.Operation) error {
+func (d *cephfs) Delete(ctx context.Context, op *operations.Operation) error {
 	// Parse the namespace / path.
 	fields := strings.SplitN(d.config["cephfs.path"], "/", 2)
 	fsName := fields[0]
@@ -378,7 +378,7 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 
 	// Mount the pool.
 	srcPath := strings.Join(monAddresses, ",") + ":/"
-	err = TryMount(context.TODO(), srcPath, mountPoint, "ceph", 0, d.getMountOptions(d.config["cephfs.user.name"], userSecret, fsName))
+	err = TryMount(ctx, srcPath, mountPoint, "ceph", 0, d.getMountOptions(d.config["cephfs.user.name"], userSecret, fsName))
 	if err != nil {
 		return err
 	}
@@ -403,7 +403,7 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 	}
 
 	// Make sure the existing pool is unmounted.
-	_, err = d.Unmount()
+	_, err = d.Unmount(ctx)
 	if err != nil {
 		return err
 	}
@@ -512,7 +512,7 @@ func (d *cephfs) Validate(config map[string]string) error {
 }
 
 // Update applies any driver changes required from a configuration change.
-func (d *cephfs) Update(changedConfig map[string]string) error {
+func (d *cephfs) Update(ctx context.Context, changedConfig map[string]string) error {
 	newSize, changed := changedConfig["cephfs.osd_pool_size"]
 	if changed {
 		for _, poolName := range []string{d.config["cephfs.meta_pool"], d.config["cephfs.data_pool"]} {
@@ -540,7 +540,7 @@ func (d *cephfs) Update(changedConfig map[string]string) error {
 }
 
 // Mount brings up the driver and sets it up to be used.
-func (d *cephfs) Mount() (bool, error) {
+func (d *cephfs) Mount(ctx context.Context) (bool, error) {
 	// Check if already mounted.
 	if filesystem.IsMountPoint(GetPoolMountPath(d.name)) {
 		return false, nil
@@ -568,7 +568,7 @@ func (d *cephfs) Mount() (bool, error) {
 
 	// Mount the pool.
 	srcPath := strings.Join(monAddresses, ",") + ":/" + fsPath
-	err = TryMount(context.TODO(), srcPath, GetPoolMountPath(d.name), "ceph", 0, options)
+	err = TryMount(ctx, srcPath, GetPoolMountPath(d.name), "ceph", 0, options)
 	if err != nil {
 		return false, err
 	}
@@ -577,12 +577,12 @@ func (d *cephfs) Mount() (bool, error) {
 }
 
 // Unmount clears any of the runtime state of the driver.
-func (d *cephfs) Unmount() (bool, error) {
+func (d *cephfs) Unmount(context.Context) (bool, error) {
 	return forceUnmount(GetPoolMountPath(d.name))
 }
 
 // GetResources returns the pool resource usage information.
-func (d *cephfs) GetResources() (*api.ResourcesStoragePool, error) {
+func (d *cephfs) GetResources(context.Context) (*api.ResourcesStoragePool, error) {
 	return genericVFSGetResources(d)
 }
 

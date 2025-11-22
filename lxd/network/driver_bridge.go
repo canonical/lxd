@@ -99,7 +99,7 @@ func (n *bridge) checkClusterWideMACSafe(config map[string]string) error {
 }
 
 // FillConfig fills requested config with any default values.
-func (n *bridge) FillConfig(config map[string]string) error {
+func (n *bridge) FillConfig(ctx context.Context, config map[string]string) error {
 	// Set some default values where needed.
 	if config["bridge.mode"] == "fan" {
 		if config["fan.underlay_subnet"] == "" {
@@ -132,7 +132,7 @@ func (n *bridge) FillConfig(config map[string]string) error {
 	}
 
 	// Now replace any "auto" keys with generated values.
-	err := n.populateAutoConfig(config)
+	err := n.populateAutoConfig(ctx, config)
 	if err != nil {
 		return fmt.Errorf("Failed generating auto config: %w", err)
 	}
@@ -141,12 +141,12 @@ func (n *bridge) FillConfig(config map[string]string) error {
 }
 
 // populateAutoConfig replaces "auto" in config with generated values.
-func (n *bridge) populateAutoConfig(config map[string]string) error {
+func (n *bridge) populateAutoConfig(ctx context.Context, config map[string]string) error {
 	changedConfig := false
 
 	// Now populate "auto" values where needed.
 	if config["ipv4.address"] == "auto" {
-		subnet, err := randomSubnetV4()
+		subnet, err := randomSubnetV4(ctx)
 		if err != nil {
 			return err
 		}
@@ -156,7 +156,7 @@ func (n *bridge) populateAutoConfig(config map[string]string) error {
 	}
 
 	if config["ipv6.address"] == "auto" {
-		subnet, err := randomSubnetV6()
+		subnet, err := randomSubnetV6(ctx)
 		if err != nil {
 			return err
 		}
@@ -177,7 +177,7 @@ func (n *bridge) populateAutoConfig(config map[string]string) error {
 
 	// Re-validate config if changed.
 	if changedConfig && n.state != nil {
-		return n.Validate(config)
+		return n.Validate(ctx, config)
 	}
 
 	return nil
@@ -195,7 +195,7 @@ func (n *bridge) ValidateName(name string) error {
 }
 
 // Validate network config.
-func (n *bridge) Validate(config map[string]string) error {
+func (n *bridge) Validate(ctx context.Context, config map[string]string) error {
 	// Build driver specific rules dynamically.
 	rules := map[string]func(value string) error{
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=bgp.peers.NAME.address)
@@ -792,14 +792,14 @@ func (n *bridge) Validate(config map[string]string) error {
 	// Perform composite key checks after per-key validation.
 
 	// Validate DNS zone names.
-	err = n.validateZoneNames(config)
+	err = n.validateZoneNames(ctx, config)
 	if err != nil {
 		return err
 	}
 
 	// Check that ipv4.routes and ipv6.routes contain the routes for existing OVN network
 	// forwards and load balancers.
-	err = n.validateRoutes(config)
+	err = n.validateRoutes(ctx, config)
 	if err != nil {
 		return err
 	}
@@ -931,7 +931,7 @@ func (n *bridge) Validate(config map[string]string) error {
 
 	// Check Security ACLs are supported and exist.
 	if config["security.acls"] != "" {
-		err = acl.Exists(n.state, n.Project(), shared.SplitNTrimSpace(config["security.acls"], ",", -1, true)...)
+		err = acl.Exists(ctx, n.state, n.Project(), shared.SplitNTrimSpace(config["security.acls"], ",", -1, true)...)
 		if err != nil {
 			return err
 		}
@@ -941,7 +941,7 @@ func (n *bridge) Validate(config map[string]string) error {
 }
 
 // Create checks whether the bridge interface name is used already.
-func (n *bridge) Create(clientType request.ClientType) error {
+func (n *bridge) Create(ctx context.Context, clientType request.ClientType) error {
 	n.logger.Debug("Create", logger.Ctx{"clientType": clientType, "config": n.config})
 
 	if InterfaceExists(n.name) {
@@ -957,11 +957,11 @@ func (n *bridge) isRunning() bool {
 }
 
 // Delete deletes a network.
-func (n *bridge) Delete(clientType request.ClientType) error {
+func (n *bridge) Delete(ctx context.Context, clientType request.ClientType) error {
 	n.logger.Debug("Delete", logger.Ctx{"clientType": clientType})
 
 	if n.isRunning() {
-		err := n.Stop()
+		err := n.Stop(ctx)
 		if err != nil {
 			return err
 		}
@@ -973,11 +973,11 @@ func (n *bridge) Delete(clientType request.ClientType) error {
 		return err
 	}
 
-	return n.delete()
+	return n.delete(ctx)
 }
 
 // Rename renames a network.
-func (n *bridge) Rename(newName string) error {
+func (n *bridge) Rename(ctx context.Context, newName string) error {
 	n.logger.Debug("Rename", logger.Ctx{"newName": newName})
 
 	// Reject known bad names that might cause problem when dealing with paths.
@@ -992,7 +992,7 @@ func (n *bridge) Rename(newName string) error {
 
 	// Bring the network down.
 	if n.isRunning() {
-		err := n.Stop()
+		err := n.Stop(ctx)
 		if err != nil {
 			return err
 		}
@@ -1008,13 +1008,13 @@ func (n *bridge) Rename(newName string) error {
 	}
 
 	// Rename common steps.
-	err = n.rename(newName)
+	err = n.rename(ctx, newName)
 	if err != nil {
 		return err
 	}
 
 	// Bring the network up.
-	err = n.Start()
+	err = n.Start(ctx)
 	if err != nil {
 		return err
 	}
@@ -1023,7 +1023,7 @@ func (n *bridge) Rename(newName string) error {
 }
 
 // Start starts the network.
-func (n *bridge) Start() error {
+func (n *bridge) Start(ctx context.Context) error {
 	n.logger.Debug("Start")
 
 	revert := revert.New()
@@ -1031,7 +1031,7 @@ func (n *bridge) Start() error {
 
 	revert.Add(func() { n.setUnavailable() })
 
-	err := n.setup(nil)
+	err := n.setup(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -1199,7 +1199,7 @@ func (n *bridge) addDnsmasqFanArgs(args []string, address string, fanMTU uint32)
 	return args, nil
 }
 
-func (n *bridge) startDnsmasq(dnsmasqCmd []string, dnsClustered bool, dnsClusteredAddress string, overlaySubnet *net.IPNet) error {
+func (n *bridge) startDnsmasq(ctx context.Context, dnsmasqCmd []string, dnsClustered bool, dnsClusteredAddress string, overlaySubnet *net.IPNet) error {
 	// Setup the dnsmasq domain.
 	dnsDomain := n.config["dns.domain"]
 	if dnsDomain == "" {
@@ -1251,7 +1251,7 @@ func (n *bridge) startDnsmasq(dnsmasqCmd []string, dnsClustered bool, dnsCluster
 	}
 
 	// Update the static leases.
-	err = UpdateDNSMasqStatic(n.state, n.name)
+	err = UpdateDNSMasqStatic(ctx, n.state, n.name)
 	if err != nil {
 		return err
 	}
@@ -1275,7 +1275,7 @@ func (n *bridge) startDnsmasq(dnsmasqCmd []string, dnsClustered bool, dnsCluster
 	} else {
 		n.logger.Warn("Skipping AppArmor for dnsmasq due to raw.dnsmasq being set", logger.Ctx{"name": n.name})
 
-		err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.UpsertWarningLocalNode(ctx, n.project, entity.TypeNetwork, int(n.id), warningtype.AppArmorDisabledDueToRawDnsmasq, "")
 		})
 		if err != nil {
@@ -1284,13 +1284,13 @@ func (n *bridge) startDnsmasq(dnsmasqCmd []string, dnsClustered bool, dnsCluster
 	}
 
 	// Start dnsmasq.
-	err = p.Start(context.Background())
+	err = p.Start(n.state.ShutdownCtx)
 	if err != nil {
 		return fmt.Errorf("Failed to run: %s %s: %w", command, strings.Join(dnsmasqCmd, " "), err)
 	}
 
 	// Check dnsmasq started OK.
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Millisecond*500))
+	ctx, cancel := context.WithDeadline(n.state.ShutdownCtx, time.Now().Add(time.Millisecond*500))
 	_, err = p.Wait(ctx)
 	cancel()
 
@@ -1315,7 +1315,7 @@ func (n *bridge) startDnsmasq(dnsmasqCmd []string, dnsClustered bool, dnsCluster
 }
 
 // setup restarts the network.
-func (n *bridge) setup(oldConfig map[string]string) error {
+func (n *bridge) setup(ctx context.Context, oldConfig map[string]string) error {
 	// If we are in mock mode, just no-op.
 	if n.state.OS.MockMode {
 		return nil
@@ -1422,12 +1422,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 			// Add and configure the interface in one operation to reduce the number of executions and
 			// to avoid systemd-udevd from applying the default MACAddressPolicy=persistent policy.
-			err := ovs.BridgeAdd(n.name, false, bridge.Address, bridge.MTU)
+			err := ovs.BridgeAdd(ctx, n.name, false, bridge.Address, bridge.MTU)
 			if err != nil {
 				return err
 			}
 
-			revert.Add(func() { _ = ovs.BridgeDelete(n.name) })
+			revert.Add(func() { _ = ovs.BridgeDelete(ctx, n.name) })
 		} else {
 			// Add and configure the interface in one operation to reduce the number of executions and
 			// to avoid systemd-udevd from applying the default MACAddressPolicy=persistent policy.
@@ -1520,7 +1520,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			revert.Add(func() { _ = dummy.Delete() })
 			err = dummy.SetUp()
 			if err == nil {
-				_ = AttachInterface(n.name, n.name+"-mtu")
+				_ = AttachInterface(ctx, n.name, n.name+"-mtu")
 			}
 		}
 	}
@@ -1566,7 +1566,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				return errors.New("Only unconfigured network interfaces can be bridged")
 			}
 
-			err = AttachInterface(n.name, entry)
+			err = AttachInterface(ctx, n.name, entry)
 			if err != nil {
 				return err
 			}
@@ -1586,7 +1586,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	if len(fwClearIPVersions) > 0 {
 		n.logger.Debug("Clearing firewall")
-		err = n.state.Firewall.NetworkClear(n.name, false, fwClearIPVersions)
+		err = n.state.Firewall.NetworkClear(ctx, n.name, false, fwClearIPVersions)
 		if err != nil {
 			return fmt.Errorf("Failed clearing firewall: %w", err)
 		}
@@ -1778,7 +1778,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 		if subnetSize < 64 {
 			n.logger.Warn("IPv6 networks with a prefix larger than 64 aren't properly supported by dnsmasq")
-			err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 				return tx.UpsertWarningLocalNode(ctx, n.project, entity.TypeNetwork, int(n.id), warningtype.LargerIPv6PrefixThanSupported, "")
 			})
 			if err != nil {
@@ -2024,7 +2024,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				return err
 			}
 
-			err = AttachInterface(n.name, tunName)
+			err = AttachInterface(ctx, n.name, tunName)
 			if err != nil {
 				return err
 			}
@@ -2160,7 +2160,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Bridge it and bring up.
-		err = AttachInterface(n.name, tunName)
+		err = AttachInterface(ctx, n.name, tunName)
 		if err != nil {
 			return err
 		}
@@ -2203,7 +2203,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	// Configure dnsmasq.
 	if n.UsesDNSMasq() {
-		err = n.startDnsmasq(dnsmasqCmd, dnsClustered, dnsClusteredAddress, overlaySubnet)
+		err = n.startDnsmasq(ctx, dnsmasqCmd, dnsClustered, dnsClusteredAddress, overlaySubnet)
 		if err != nil {
 			return err
 		}
@@ -2254,7 +2254,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	// Setup firewall.
 	n.logger.Debug("Setting up firewall")
-	err = n.state.Firewall.NetworkSetup(n.name, ipv4Address, ipv6Address, fwOpts)
+	err = n.state.Firewall.NetworkSetup(ctx, n.name, ipv4Address, ipv6Address, fwOpts)
 	if err != nil {
 		return fmt.Errorf("Failed to setup firewall: %w", err)
 	}
@@ -2268,14 +2268,14 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		n.logger.Debug("Applying up firewall ACLs")
-		err = acl.FirewallApplyACLRules(n.state, n.logger, n.Project(), aclNet)
+		err = acl.FirewallApplyACLRules(ctx, n.state, n.Project(), aclNet)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Setup network address forwards.
-	err = n.forwardSetupFirewall()
+	err = n.forwardSetupFirewall(ctx)
 	if err != nil {
 		return err
 	}
@@ -2284,7 +2284,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	// Setup BGP.
 	if !nodeEvacuated {
-		err = n.bgpSetup(oldConfig)
+		err = n.bgpSetup(ctx, oldConfig)
 		if err != nil {
 			return err
 		}
@@ -2295,7 +2295,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 }
 
 // Stop stops the network.
-func (n *bridge) Stop() error {
+func (n *bridge) Stop(ctx context.Context) error {
 	n.logger.Debug("Stop")
 
 	if !n.isRunning() {
@@ -2322,7 +2322,7 @@ func (n *bridge) Stop() error {
 	// Destroy the bridge interface
 	if n.config["bridge.driver"] == "openvswitch" {
 		ovs := openvswitch.NewOVS()
-		err := ovs.BridgeDelete(n.name)
+		err := ovs.BridgeDelete(ctx, n.name)
 		if err != nil {
 			return err
 		}
@@ -2347,7 +2347,7 @@ func (n *bridge) Stop() error {
 
 	if len(fwClearIPVersions) > 0 {
 		n.logger.Debug("Deleting firewall")
-		err := n.state.Firewall.NetworkClear(n.name, true, fwClearIPVersions)
+		err := n.state.Firewall.NetworkClear(ctx, n.name, true, fwClearIPVersions)
 		if err != nil {
 			return fmt.Errorf("Failed deleting firewall: %w", err)
 		}
@@ -2380,7 +2380,7 @@ func (n *bridge) Stop() error {
 }
 
 // Evacuate the network by clearing BGP.
-func (n *bridge) Evacuate() error {
+func (n *bridge) Evacuate(ctx context.Context) error {
 	n.logger.Debug("Evacuate")
 
 	// Clear BGP.
@@ -2388,19 +2388,19 @@ func (n *bridge) Evacuate() error {
 }
 
 // Restore the network by setting up BGP.
-func (n *bridge) Restore() error {
+func (n *bridge) Restore(ctx context.Context) error {
 	n.logger.Debug("Restore")
 
 	// Setup BGP.
-	return n.bgpSetup(nil)
+	return n.bgpSetup(ctx, nil)
 }
 
 // Update updates the network. Accepts notification boolean indicating if this update request is coming from a
 // cluster notification, in which case do not update the database, just apply local changes needed.
-func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error {
+func (n *bridge) Update(ctx context.Context, newNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error {
 	n.logger.Debug("Update", logger.Ctx{"clientType": clientType, "newNetwork": newNetwork})
 
-	err := n.populateAutoConfig(newNetwork.Config)
+	err := n.populateAutoConfig(ctx, newNetwork.Config)
 	if err != nil {
 		return fmt.Errorf("Failed generating auto config: %w", err)
 	}
@@ -2418,7 +2418,7 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 	// pending, then don't apply the new settings to the node, just to the database record (ready for the
 	// actual global create request to be initiated).
 	if n.Status() == api.NetworkStatusPending || n.LocalStatus() == api.NetworkStatusPending {
-		return n.update(newNetwork, targetNode, clientType)
+		return n.update(ctx, newNetwork, targetNode, clientType)
 	}
 
 	revert := revert.New()
@@ -2429,15 +2429,15 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 		// Define a function which reverts everything.
 		revert.Add(func() {
 			// Reset changes to all nodes and database.
-			_ = n.update(oldNetwork, targetNode, clientType)
+			_ = n.update(ctx, oldNetwork, targetNode, clientType)
 
 			// Reset any change that was made to local bridge.
-			_ = n.setup(newNetwork.Config)
+			_ = n.setup(ctx, newNetwork.Config)
 		})
 
 		// Bring the bridge down entirely if the driver has changed.
 		if slices.Contains(changedKeys, "bridge.driver") && n.isRunning() {
-			err = n.Stop()
+			err = n.Stop(ctx)
 			if err != nil {
 				return err
 			}
@@ -2458,7 +2458,7 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 				}
 
 				if !slices.Contains(devices, dev) && InterfaceExists(dev) {
-					err = DetachInterface(n.name, dev)
+					err = DetachInterface(ctx, n.name, dev)
 					if err != nil {
 						return err
 					}
@@ -2468,14 +2468,14 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 	}
 
 	// Apply changes to all nodes and database.
-	err = n.update(newNetwork, targetNode, clientType)
+	err = n.update(ctx, newNetwork, targetNode, clientType)
 	if err != nil {
 		return err
 	}
 
 	// Restart the network if needed.
 	if len(changedKeys) > 0 {
-		err = n.setup(oldNetwork.Config)
+		err = n.setup(ctx, oldNetwork.Config)
 		if err != nil {
 			return err
 		}
@@ -2518,7 +2518,7 @@ func (n *bridge) spawnForkDNS(listenAddress string) error {
 	// Apply AppArmor profile.
 	p.SetApparmor(apparmor.ForkdnsProfileName(n))
 
-	err = p.Start(context.Background())
+	err = p.Start(n.state.ShutdownCtx)
 	if err != nil {
 		return fmt.Errorf("Failed to run: %s %s: %w", command, strings.Join(forkdnsargs, " "), err)
 	}
@@ -2539,7 +2539,7 @@ func (n *bridge) spawnForkDNS(listenAddress string) error {
 
 // HandleHeartbeat refreshes forkdns servers. Retrieves the IPv4 address of each cluster node (excluding ourselves)
 // for this network. It then updates the forkdns server list file if there are changes.
-func (n *bridge) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
+func (n *bridge) HandleHeartbeat(ctx context.Context, heartbeatData *cluster.APIHeartbeat) error {
 	// Make sure forkdns has been setup.
 	if !shared.PathExists(shared.VarPath("networks", n.name, "forkdns.pid")) {
 		return nil
@@ -2562,7 +2562,7 @@ func (n *bridge) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
 			continue
 		}
 
-		client, err := cluster.Connect(context.Background(), node.Address, networkCert, n.state.ServerCert(), true)
+		client, err := cluster.Connect(n.state.ShutdownCtx, node.Address, networkCert, n.state.ServerCert(), true)
 		if err != nil {
 			return err
 		}
@@ -3037,10 +3037,10 @@ func (n *bridge) bridgeNetworkExternalSubnets(bridgeProjectNetworks map[string][
 
 // bridgedNICExternalRoutes returns a list of external routes currently used by bridged NICs that are connected to
 // networks specified.
-func (n *bridge) bridgedNICExternalRoutes(bridgeProjectNetworks map[string][]*api.Network) ([]externalSubnetUsage, error) {
+func (n *bridge) bridgedNICExternalRoutes(ctx context.Context, bridgeProjectNetworks map[string][]*api.Network) ([]externalSubnetUsage, error) {
 	externalRoutes := make([]externalSubnetUsage, 0)
 
-	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.InstanceList(ctx, func(inst db.InstanceArgs, p api.Project) error {
 			// Get the instance's effective network project name.
 			instNetworkProject := project.NetworkProjectFromRecord(&p)
@@ -3098,13 +3098,13 @@ func (n *bridge) bridgedNICExternalRoutes(bridgeProjectNetworks map[string][]*ap
 
 // getExternalSubnetInUse returns information about usage of external subnets by bridge networks (and NICs
 // connected to them) on this member.
-func (n *bridge) getExternalSubnetInUse() ([]externalSubnetUsage, error) {
+func (n *bridge) getExternalSubnetInUse(ctx context.Context) ([]externalSubnetUsage, error) {
 	var err error
 	var projectNetworks map[string]map[int64]api.Network
 	var projectNetworksForwardsOnUplink map[string]map[int64][]string
 	var externalSubnets []externalSubnetUsage
 
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get all managed networks across all projects.
 		projectNetworks, err = tx.GetCreatedNetworks(ctx)
 		if err != nil {
@@ -3138,7 +3138,7 @@ func (n *bridge) getExternalSubnetInUse() ([]externalSubnetUsage, error) {
 	}
 
 	// Get external routes configured on bridged NICs.
-	bridgedNICExternalRoutes, err := n.bridgedNICExternalRoutes(bridgeProjectNetworks)
+	bridgedNICExternalRoutes, err := n.bridgedNICExternalRoutes(ctx, bridgeProjectNetworks)
 	if err != nil {
 		return nil, err
 	}
@@ -3146,7 +3146,7 @@ func (n *bridge) getExternalSubnetInUse() ([]externalSubnetUsage, error) {
 	externalSubnets = append(externalSubnets, bridgeNetworkExternalSubnets...)
 	externalSubnets = append(externalSubnets, bridgedNICExternalRoutes...)
 
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Detect if there are any conflicting proxy devices on all instances with the to be created network forward
 		return tx.InstanceList(ctx, func(inst db.InstanceArgs, p api.Project) error {
 			devices := instancetype.ExpandInstanceDevices(inst.Devices, inst.Profiles)
@@ -3219,7 +3219,7 @@ func (n *bridge) forwardValidate(listenAddress net.IP, forward api.NetworkForwar
 }
 
 // ForwardCreate creates a network forward.
-func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType request.ClientType) (net.IP, error) {
+func (n *bridge) ForwardCreate(ctx context.Context, forward api.NetworkForwardsPost, clientType request.ClientType) (net.IP, error) {
 	memberSpecific := true // bridge supports per-member forwards.
 
 	// Convert listen address to subnet so we can check its valid and can be used.
@@ -3232,7 +3232,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 		return nil, api.StatusErrorf(http.StatusNotImplemented, "Automatic listen address allocation not supported for drivers of type %q", n.netType)
 	}
 
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Check if there is an existing forward using the same listen address.
 		_, _, err := tx.GetNetworkForward(ctx, n.ID(), memberSpecific, forward.ListenAddress)
 
@@ -3247,7 +3247,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 		return nil, err
 	}
 
-	externalSubnetsInUse, err := n.getExternalSubnetInUse()
+	externalSubnetsInUse, err := n.getExternalSubnetInUse(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -3286,7 +3286,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 
 	var forwardID int64
 
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Create forward DB record.
 		forwardID, err = tx.CreateNetworkForward(ctx, n.ID(), memberSpecific, &forward)
 
@@ -3297,14 +3297,14 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 	}
 
 	revert.Add(func() {
-		_ = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		_ = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.DeleteNetworkForward(ctx, n.ID(), forwardID)
 		})
-		_ = n.forwardSetupFirewall()
-		_ = n.forwardBGPSetupPrefixes()
+		_ = n.forwardSetupFirewall(ctx)
+		_ = n.forwardBGPSetupPrefixes(ctx)
 	})
 
-	err = n.forwardSetupFirewall()
+	err = n.forwardSetupFirewall(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -3326,7 +3326,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 		if brNetfilterEnabled {
 			var listenAddresses map[int64]string
 
-			err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err := n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 				listenAddresses, err = tx.GetNetworkForwardListenAddresses(ctx, n.ID(), true)
 
 				return err
@@ -3339,7 +3339,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 			if len(listenAddresses) <= 1 {
 				filter := dbCluster.InstanceFilter{Node: &n.state.ServerName}
 
-				err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 					return tx.InstanceList(ctx, func(inst db.InstanceArgs, p api.Project) error {
 						// Get the instance's effective network project name.
 						instNetworkProject := project.NetworkProjectFromRecord(&p)
@@ -3385,7 +3385,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 	}
 
 	// Refresh exported BGP prefixes on local member.
-	err = n.forwardBGPSetupPrefixes()
+	err = n.forwardBGPSetupPrefixes(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
@@ -3395,13 +3395,13 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 }
 
 // ForwardUpdate updates a network forward.
-func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, clientType request.ClientType) error {
+func (n *bridge) ForwardUpdate(ctx context.Context, listenAddress string, req api.NetworkForwardPut, clientType request.ClientType) error {
 	memberSpecific := true // bridge supports per-member forwards.
 
 	var curForwardID int64
 	var curForward *api.NetworkForward
 
-	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		curForwardID, curForward, err = tx.GetNetworkForward(ctx, n.ID(), memberSpecific, listenAddress)
@@ -3441,7 +3441,7 @@ func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, 
 	revert := revert.New()
 	defer revert.Fail()
 
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.UpdateNetworkForward(ctx, n.ID(), curForwardID, newForward.Writable())
 	})
 	if err != nil {
@@ -3449,14 +3449,14 @@ func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, 
 	}
 
 	revert.Add(func() {
-		_ = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		_ = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.UpdateNetworkForward(ctx, n.ID(), curForwardID, curForward.Writable())
 		})
-		_ = n.forwardSetupFirewall()
-		_ = n.forwardBGPSetupPrefixes()
+		_ = n.forwardSetupFirewall(ctx)
+		_ = n.forwardBGPSetupPrefixes(ctx)
 	})
 
-	err = n.forwardSetupFirewall()
+	err = n.forwardSetupFirewall(ctx)
 	if err != nil {
 		return err
 	}
@@ -3466,12 +3466,12 @@ func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, 
 }
 
 // ForwardDelete deletes a network forward.
-func (n *bridge) ForwardDelete(listenAddress string, clientType request.ClientType) error {
+func (n *bridge) ForwardDelete(ctx context.Context, listenAddress string, clientType request.ClientType) error {
 	memberSpecific := true // bridge supports per-member forwards.
 	var forwardID int64
 	var forward *api.NetworkForward
 
-	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		forwardID, forward, err = tx.GetNetworkForward(ctx, n.ID(), memberSpecific, listenAddress)
@@ -3485,7 +3485,7 @@ func (n *bridge) ForwardDelete(listenAddress string, clientType request.ClientTy
 	revert := revert.New()
 	defer revert.Fail()
 
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.DeleteNetworkForward(ctx, n.ID(), forwardID)
 	})
 	if err != nil {
@@ -3498,23 +3498,23 @@ func (n *bridge) ForwardDelete(listenAddress string, clientType request.ClientTy
 			ListenAddress:     forward.ListenAddress,
 		}
 
-		_ = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		_ = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			_, _ = tx.CreateNetworkForward(ctx, n.ID(), memberSpecific, &newForward)
 
 			return nil
 		})
 
-		_ = n.forwardSetupFirewall()
-		_ = n.forwardBGPSetupPrefixes()
+		_ = n.forwardSetupFirewall(ctx)
+		_ = n.forwardBGPSetupPrefixes(ctx)
 	})
 
-	err = n.forwardSetupFirewall()
+	err = n.forwardSetupFirewall(ctx)
 	if err != nil {
 		return err
 	}
 
 	// Refresh exported BGP prefixes on local member.
-	err = n.forwardBGPSetupPrefixes()
+	err = n.forwardBGPSetupPrefixes(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
@@ -3524,12 +3524,12 @@ func (n *bridge) ForwardDelete(listenAddress string, clientType request.ClientTy
 }
 
 // forwardSetupFirewall applies all network address forwards defined for this network and this member.
-func (n *bridge) forwardSetupFirewall() error {
+func (n *bridge) forwardSetupFirewall(ctx context.Context) error {
 	memberSpecific := true // Get all forwards for this cluster member.
 
 	var forwards map[int64]*api.NetworkForward
 
-	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		forwards, err = tx.GetNetworkForwards(ctx, n.ID(), memberSpecific)
@@ -3574,7 +3574,7 @@ func (n *bridge) forwardSetupFirewall() error {
 				brNetfilterWarning = true
 				msg := fmt.Sprintf("IPv%d bridge netfilter not enabled. Instances using the bridge will not be able to connect to the forward listen IPs", ipVersion)
 				n.logger.Warn(msg, logger.Ctx{"err": err})
-				err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 					return tx.UpsertWarningLocalNode(ctx, n.project, entity.TypeNetwork, int(n.id), warningtype.ProxyBridgeNetfilterNotEnabled, fmt.Sprintf("%s: %v", msg, err))
 				})
 				if err != nil {
@@ -3591,7 +3591,7 @@ func (n *bridge) forwardSetupFirewall() error {
 		}
 	}
 
-	err = n.state.Firewall.NetworkApplyForwards(n.name, fwForwards)
+	err = n.state.Firewall.NetworkApplyForwards(ctx, n.name, fwForwards)
 	if err != nil {
 		return fmt.Errorf("Failed applying firewall address forwards: %w", err)
 	}
@@ -3602,7 +3602,7 @@ func (n *bridge) forwardSetupFirewall() error {
 // Leases returns a list of leases for the bridged network. It will reach out to other cluster members as needed.
 // The projectName passed here refers to the initial project from the API request which may differ from the network's project.
 // If projectName is empty, get leases from all projects.
-func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]api.NetworkLease, error) {
+func (n *bridge) Leases(ctx context.Context, projectName string, clientType request.ClientType) ([]api.NetworkLease, error) {
 	var err error
 	var projectMacs []string
 	instanceProjects := make(map[string]string)
@@ -3626,7 +3626,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 
 			// Include downstream OVN routers using the network as an uplink.
 			var projectNetworks map[string]map[int64]api.Network
-			err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 				projectNetworks, err = tx.GetCreatedNetworks(ctx)
 				return err
 			})
@@ -3663,7 +3663,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 			filter = dbCluster.InstanceFilter{Project: &projectName}
 		}
 
-		err = UsedByInstanceDevices(n.state, n.Project(), n.Name(), n.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
+		err = UsedByInstanceDevices(ctx, n.state, n.Project(), n.Name(), n.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 			// Fill in the hwaddr from volatile.
 			if nicConfig["hwaddr"] == "" {
 				nicConfig["hwaddr"] = inst.Config[fmt.Sprintf("volatile.%s.hwaddr", nicName)]

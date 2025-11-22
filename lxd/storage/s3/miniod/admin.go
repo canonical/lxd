@@ -56,7 +56,7 @@ type configJSON struct {
 const minioAlias = "lxd-minio"
 
 // NewAdminClient returns a new AdminClient, and assigns the given credentials to an alias, and returns an `mc` client for that alias.
-func NewAdminClient(url string, username string, password string) (*minioAdmin, error) {
+func NewAdminClient(ctx context.Context, url string, username string, password string) (*minioAdmin, error) {
 	configDir := shared.VarPath("minio")
 
 	m := &minioAdmin{
@@ -67,7 +67,7 @@ func NewAdminClient(url string, username string, password string) (*minioAdmin, 
 
 	args := m.commonArgs
 	args = append(args, "alias", "set", m.alias, api.NewURL().Scheme("http").Host(url).String(), username, password)
-	_, err := shared.RunCommandContext(context.TODO(), "mc", args...)
+	_, err := shared.RunCommandContext(ctx, "mc", args...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to set MinIO client alias: %w", err)
 	}

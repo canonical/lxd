@@ -1026,12 +1026,12 @@ func imageCreateInPool(s *state.State, info *api.Image, storagePool string, proj
 		return errors.New("No storage pool specified")
 	}
 
-	pool, err := storagePools.LoadByName(s, storagePool)
+	pool, err := storagePools.LoadByName(context.TODO(), s, storagePool)
 	if err != nil {
 		return err
 	}
 
-	err = pool.EnsureImage(info.Fingerprint, nil, projectName)
+	err = pool.EnsureImage(context.TODO(), info.Fingerprint, nil, projectName)
 	if err != nil {
 		return err
 	}
@@ -2517,13 +2517,13 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 
 		// If we do have optimized pools, make sure we remove the volumes associated with the image.
 		if poolName != "" {
-			pool, err := storagePools.LoadByName(s, poolName)
+			pool, err := storagePools.LoadByName(ctx, s, poolName)
 			if err != nil {
 				logger.Error("Error loading storage pool to delete image", logger.Ctx{"err": err, "pool": poolName, "fingerprint": fingerprint})
 				continue
 			}
 
-			err = pool.DeleteImage(fingerprint, op)
+			err = pool.DeleteImage(ctx, fingerprint, op)
 			if err != nil {
 				logger.Error("Error deleting image from storage pool", logger.Ctx{"err": err, "pool": pool.Name(), "fingerprint": fingerprint})
 				continue
@@ -2613,7 +2613,7 @@ func pruneLeftoverImages(s *state.State) {
 		}
 
 		// Load the pool.
-		pool, err := storagePools.LoadByName(s, poolName)
+		pool, err := storagePools.LoadByName(context.TODO(), s, poolName)
 		if err != nil {
 			return false, err
 		}
@@ -2884,12 +2884,12 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 		}
 
 		for _, poolName := range poolNames {
-			pool, err := storagePools.LoadByName(s, poolName)
+			pool, err := storagePools.LoadByName(ctx, s, poolName)
 			if err != nil {
 				return fmt.Errorf("Error loading storage pool %q to delete image volume %q: %w", poolName, fingerprint, err)
 			}
 
-			err = pool.DeleteImage(fingerprint, op)
+			err = pool.DeleteImage(ctx, fingerprint, op)
 			if err != nil {
 				return fmt.Errorf("Error deleting image volume %q from storage pool %q: %w", fingerprint, pool.Name(), err)
 			}
@@ -3067,14 +3067,14 @@ func doImageDelete(ctx context.Context, s *state.State, fingerprint string, imag
 		}
 
 		for _, poolName := range poolNames {
-			pool, err := storagePools.LoadByName(s, poolName)
+			pool, err := storagePools.LoadByName(ctx, s, poolName)
 			if err != nil {
 				return fmt.Errorf("Error loading storage pool %q to delete image %q: %w", poolName, fingerprint, err)
 			}
 
 			// Only perform the deletion of remote volumes on the server handling the request.
 			if !isClusterNotification || !pool.Driver().Info().Remote {
-				err = pool.DeleteImage(fingerprint, op)
+				err = pool.DeleteImage(ctx, fingerprint, op)
 				if err != nil {
 					return fmt.Errorf("Error deleting image %q from storage pool %q: %w", fingerprint, pool.Name(), err)
 				}

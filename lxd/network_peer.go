@@ -147,7 +147,7 @@ func networkPeersGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
+	n, err := network.LoadByName(r.Context(), s, effectiveProjectName, details.networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -175,7 +175,7 @@ func networkPeersGet(d *Daemon, r *http.Request) response.Response {
 
 		peers := make([]*api.NetworkPeer, 0, len(records))
 		for _, record := range records {
-			record.UsedBy, _ = n.PeerUsedBy(record.Name)
+			record.UsedBy, _ = n.PeerUsedBy(r.Context(), record.Name)
 			record.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, record.UsedBy)
 			peers = append(peers, record)
 		}
@@ -262,7 +262,7 @@ func networkPeersPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
+	n, err := network.LoadByName(r.Context(), s, effectiveProjectName, details.networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -276,7 +276,7 @@ func networkPeersPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Network driver %q does not support peering", n.Type()))
 	}
 
-	err = n.PeerCreate(req)
+	err = n.PeerCreate(r.Context(), req)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed creating peer: %w", err))
 	}
@@ -330,7 +330,7 @@ func networkPeerDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
+	n, err := network.LoadByName(r.Context(), s, effectiveProjectName, details.networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -349,7 +349,7 @@ func networkPeerDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = n.PeerDelete(peerName)
+	err = n.PeerDelete(r.Context(), peerName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed deleting peer: %w", err))
 	}
@@ -418,7 +418,7 @@ func networkPeerGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
+	n, err := network.LoadByName(r.Context(), s, effectiveProjectName, details.networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -448,7 +448,7 @@ func networkPeerGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	peer.UsedBy, _ = n.PeerUsedBy(peer.Name)
+	peer.UsedBy, _ = n.PeerUsedBy(r.Context(), peer.Name)
 	peer.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, peer.UsedBy)
 
 	return response.SyncResponseETag(true, peer, peer.Etag())
@@ -542,7 +542,7 @@ func networkPeerPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
+	n, err := network.LoadByName(r.Context(), s, effectiveProjectName, details.networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -568,7 +568,7 @@ func networkPeerPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	err = n.PeerUpdate(peerName, req)
+	err = n.PeerUpdate(r.Context(), peerName, req)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed updating peer: %w", err))
 	}

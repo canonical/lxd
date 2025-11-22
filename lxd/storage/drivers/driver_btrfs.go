@@ -32,9 +32,9 @@ type btrfs struct {
 }
 
 // load is used to run one-time action per-driver rather than per-pool.
-func (d *btrfs) load() error {
+func (d *btrfs) load(ctx context.Context) error {
 	// Register the patches.
-	d.patches = map[string]func() error{
+	d.patches = map[string]func(ctx context.Context) error{
 		"storage_lvm_skipactivation":                         nil,
 		"storage_missing_snapshot_records":                   nil,
 		"storage_delete_old_snapshot_records":                nil,
@@ -57,7 +57,7 @@ func (d *btrfs) load() error {
 
 	// Detect and record the version.
 	if btrfsVersion == "" {
-		out, err := shared.RunCommandContext(context.TODO(), "btrfs", "version")
+		out, err := shared.RunCommandContext(ctx, "btrfs", "version")
 		if err != nil {
 			return err
 		}
@@ -112,7 +112,7 @@ func (d *btrfs) Info() Info {
 }
 
 // FillConfig populates the storage pool's configuration file with the default values.
-func (d *btrfs) FillConfig() error {
+func (d *btrfs) FillConfig(ctx context.Context) error {
 	loopPath := loopFilePath(d.name)
 	if d.config["source"] == "" || d.config["source"] == loopPath {
 		// Pick a default size of the loop file if not specified.
@@ -142,7 +142,7 @@ func (d *btrfs) FillConfig() error {
 	// Downstream functions should use `volatile.initial_source` to ensure
 	// they are using the path instead of the volume's UUID.
 	if shared.IsBlockdevPath(d.config["source"]) {
-		devUUID, err := fsUUID(d.config["source"])
+		devUUID, err := fsUUID(ctx, d.config["source"])
 		if err == nil {
 			d.config["source"] = devUUID
 		}
@@ -168,7 +168,7 @@ func (d *btrfs) ValidateSource() error {
 
 // Create is called during pool creation and is effectively using an empty driver struct.
 // WARNING: The Create() function cannot rely on any of the struct attributes being set.
-func (d *btrfs) Create() error {
+func (d *btrfs) Create(ctx context.Context) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -214,7 +214,7 @@ func (d *btrfs) Create() error {
 		}
 
 		// Record the UUID as the source.
-		devUUID, err := fsUUID(d.config["volatile.initial_source"])
+		devUUID, err := fsUUID(ctx, d.config["volatile.initial_source"])
 		if err != nil {
 			return err
 		}
@@ -222,7 +222,7 @@ func (d *btrfs) Create() error {
 		// Confirm that the symlink is appearing (give it 10s).
 		// In case of timeout it falls back to using the volume's path
 		// instead of its UUID.
-		ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 10*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 
 		if tryExists(ctx, "/dev/disk/by-uuid/"+devUUID) {
@@ -235,7 +235,7 @@ func (d *btrfs) Create() error {
 		hostPath := shared.HostPath(d.config["source"])
 		if d.isSubvolume(hostPath) {
 			// Existing btrfs subvolume.
-			hasSubvolumes, err := d.hasSubvolumes(hostPath)
+			hasSubvolumes, err := d.hasSubvolumes(ctx, hostPath)
 			if err != nil {
 				return fmt.Errorf("Could not determine if existing btrfs subvolume is empty: %w", err)
 			}
@@ -274,7 +274,7 @@ func (d *btrfs) Create() error {
 			}
 
 			// Create the subvolume.
-			_, err := shared.RunCommandContext(context.TODO(), "btrfs", "subvolume", "create", hostPath)
+			_, err := shared.RunCommandContext(ctx, "btrfs", "subvolume", "create", hostPath)
 			if err != nil {
 				return err
 			}
@@ -288,7 +288,7 @@ func (d *btrfs) Create() error {
 }
 
 // Delete removes the storage pool from the storage device.
-func (d *btrfs) Delete(op *operations.Operation) error {
+func (d *btrfs) Delete(ctx context.Context, op *operations.Operation) error {
 	// If the user completely destroyed it, call it done.
 	if !shared.PathExists(GetPoolMountPath(d.name)) {
 		return nil
@@ -306,7 +306,7 @@ func (d *btrfs) Delete(op *operations.Operation) error {
 				continue
 			}
 
-			err := d.deleteSubvolume(path, true)
+			err := d.deleteSubvolume(ctx, path, true)
 			if err != nil {
 				return fmt.Errorf("Failed deleting btrfs subvolume %q", path)
 			}
@@ -321,14 +321,14 @@ func (d *btrfs) Delete(op *operations.Operation) error {
 	}
 
 	// Unmount the path.
-	_, err = d.Unmount()
+	_, err = d.Unmount(ctx)
 	if err != nil {
 		return err
 	}
 
 	// If the pool path is a subvolume itself, delete it.
 	if d.isSubvolume(mountPath) {
-		err := d.deleteSubvolume(mountPath, false)
+		err := d.deleteSubvolume(ctx, mountPath, false)
 		if err != nil {
 			return err
 		}
@@ -368,7 +368,7 @@ func (d *btrfs) Validate(config map[string]string) error {
 }
 
 // Update applies any driver changes required from a configuration change.
-func (d *btrfs) Update(changedConfig map[string]string) error {
+func (d *btrfs) Update(ctx context.Context, changedConfig map[string]string) error {
 	// We only care about btrfs.mount_options.
 	val, ok := changedConfig["btrfs.mount_options"]
 	if ok {
@@ -382,7 +382,7 @@ func (d *btrfs) Update(changedConfig map[string]string) error {
 		mntFlags, mntOptions := filesystem.ResolveMountOptions(strings.Split(d.getMountOptions(), ","))
 		mntFlags |= unix.MS_REMOUNT
 
-		err := TryMount(context.TODO(), "", GetPoolMountPath(d.name), "none", mntFlags, mntOptions)
+		err := TryMount(ctx, "", GetPoolMountPath(d.name), "none", mntFlags, mntOptions)
 		if err != nil {
 			return err
 		}
@@ -412,19 +412,19 @@ func (d *btrfs) Update(changedConfig map[string]string) error {
 			return err
 		}
 
-		loopDevPath, err := loopDeviceSetup(loopPath)
+		loopDevPath, err := loopDeviceSetup(ctx, loopPath)
 		if err != nil {
 			return err
 		}
 
-		defer func() { _ = loopDeviceAutoDetach(loopDevPath) }()
+		defer func() { _ = loopDeviceAutoDetach(ctx, loopDevPath) }()
 
-		err = loopDeviceSetCapacity(loopDevPath)
+		err = loopDeviceSetCapacity(ctx, loopDevPath)
 		if err != nil {
 			return err
 		}
 
-		_, err = shared.RunCommandContext(context.TODO(), "btrfs", "filesystem", "resize", "max", GetPoolMountPath(d.name))
+		_, err = shared.RunCommandContext(ctx, "btrfs", "filesystem", "resize", "max", GetPoolMountPath(d.name))
 		if err != nil {
 			return err
 		}
@@ -434,7 +434,7 @@ func (d *btrfs) Update(changedConfig map[string]string) error {
 }
 
 // Mount mounts the storage pool.
-func (d *btrfs) Mount() (bool, error) {
+func (d *btrfs) Mount(ctx context.Context) (bool, error) {
 	// Check if already mounted.
 	if filesystem.IsMountPoint(GetPoolMountPath(d.name)) {
 		return false, nil
@@ -448,12 +448,12 @@ func (d *btrfs) Mount() (bool, error) {
 	mntDst := GetPoolMountPath(d.name)
 	mntFilesystem := "btrfs"
 	if d.config["source"] == loopPath {
-		mntSrc, err = loopDeviceSetup(d.config["source"])
+		mntSrc, err = loopDeviceSetup(ctx, d.config["source"])
 		if err != nil {
 			return false, err
 		}
 
-		defer func() { _ = loopDeviceAutoDetach(mntSrc) }()
+		defer func() { _ = loopDeviceAutoDetach(ctx, mntSrc) }()
 	} else if filepath.IsAbs(d.config["source"]) {
 		// Bring up an existing device or path.
 		mntSrc = shared.HostPath(d.config["source"])
@@ -477,7 +477,7 @@ func (d *btrfs) Mount() (bool, error) {
 	// Handle bind-mounts first.
 	if mntFilesystem == "none" {
 		// Setup the bind-mount itself.
-		err := TryMount(context.TODO(), mntSrc, mntDst, mntFilesystem, unix.MS_BIND, "")
+		err := TryMount(ctx, mntSrc, mntDst, mntFilesystem, unix.MS_BIND, "")
 		if err != nil {
 			return false, err
 		}
@@ -489,7 +489,7 @@ func (d *btrfs) Mount() (bool, error) {
 
 		// Now apply the custom options.
 		mntFlags |= unix.MS_REMOUNT
-		err = TryMount(context.TODO(), "", mntDst, mntFilesystem, mntFlags, mntOptions)
+		err = TryMount(ctx, "", mntDst, mntFilesystem, mntFlags, mntOptions)
 		if err != nil {
 			return false, err
 		}
@@ -498,7 +498,7 @@ func (d *btrfs) Mount() (bool, error) {
 	}
 
 	// Handle traditional mounts.
-	err = TryMount(context.TODO(), mntSrc, mntDst, mntFilesystem, mntFlags, mntOptions)
+	err = TryMount(ctx, mntSrc, mntDst, mntFilesystem, mntFlags, mntOptions)
 	if err != nil {
 		return false, err
 	}
@@ -507,7 +507,7 @@ func (d *btrfs) Mount() (bool, error) {
 }
 
 // Unmount unmounts the storage pool.
-func (d *btrfs) Unmount() (bool, error) {
+func (d *btrfs) Unmount(context.Context) (bool, error) {
 	// Unmount the pool.
 	ourUnmount, err := forceUnmount(GetPoolMountPath(d.name))
 	if err != nil {
@@ -518,7 +518,7 @@ func (d *btrfs) Unmount() (bool, error) {
 }
 
 // GetResources returns the pool resource usage information.
-func (d *btrfs) GetResources() (*api.ResourcesStoragePool, error) {
+func (d *btrfs) GetResources(context.Context) (*api.ResourcesStoragePool, error) {
 	return genericVFSGetResources(d)
 }
 

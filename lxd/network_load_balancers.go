@@ -147,7 +147,7 @@ func networkLoadBalancersGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
+	n, err := network.LoadByName(r.Context(), s, effectiveProjectName, details.networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -263,7 +263,7 @@ func networkLoadBalancersPost(d *Daemon, r *http.Request) response.Response {
 
 	req.Normalise() // So we handle the request in normalised/canonical form.
 
-	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
+	n, err := network.LoadByName(r.Context(), s, effectiveProjectName, details.networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -282,7 +282,7 @@ func networkLoadBalancersPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	listenAddress, err := n.LoadBalancerCreate(req, requestor.ClientType())
+	listenAddress, err := n.LoadBalancerCreate(r.Context(), req, requestor.ClientType())
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed creating load balancer: %w", err))
 	}
@@ -336,7 +336,7 @@ func networkLoadBalancerDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
+	n, err := network.LoadByName(r.Context(), s, effectiveProjectName, details.networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -360,7 +360,7 @@ func networkLoadBalancerDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = n.LoadBalancerDelete(listenAddress, requestor.ClientType())
+	err = n.LoadBalancerDelete(r.Context(), listenAddress, requestor.ClientType())
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed deleting load balancer: %w", err))
 	}
@@ -429,7 +429,7 @@ func networkLoadBalancerGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
+	n, err := network.LoadByName(r.Context(), s, effectiveProjectName, details.networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -553,7 +553,7 @@ func networkLoadBalancerPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(s, effectiveProjectName, details.networkName)
+	n, err := network.LoadByName(r.Context(), s, effectiveProjectName, details.networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -623,7 +623,7 @@ func networkLoadBalancerPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = n.LoadBalancerUpdate(listenAddress, req, requestor.ClientType())
+	err = n.LoadBalancerUpdate(r.Context(), listenAddress, req, requestor.ClientType())
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed updating load balancer: %w", err))
 	}

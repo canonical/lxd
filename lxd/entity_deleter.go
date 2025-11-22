@@ -167,7 +167,7 @@ func (d storageVolumeDeleter) Delete(ctx context.Context, s *state.State, ref en
 		return err
 	}
 
-	pool, err := storagePools.LoadByName(s, poolName)
+	pool, err := storagePools.LoadByName(ctx, s, poolName)
 	if err != nil {
 		return fmt.Errorf("Failed loading pool %q: %w", poolName, err)
 	}
@@ -207,7 +207,7 @@ func (d storageBucketDeleter) Delete(ctx context.Context, s *state.State, ref en
 		return err
 	}
 
-	pool, err := storagePools.LoadByName(s, poolName)
+	pool, err := storagePools.LoadByName(ctx, s, poolName)
 	if err != nil {
 		return fmt.Errorf("Failed loading pool %q: %w", poolName, err)
 	}

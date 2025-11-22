@@ -26,9 +26,9 @@ type cephobject struct {
 }
 
 // load is used to run one-time action per-driver rather than per-pool.
-func (d *cephobject) load() error {
+func (d *cephobject) load(ctx context.Context) error {
 	// Register the patches.
-	d.patches = map[string]func() error{
+	d.patches = map[string]func(ctx context.Context) error{
 		"storage_lvm_skipactivation":                         nil,
 		"storage_missing_snapshot_records":                   nil,
 		"storage_delete_old_snapshot_records":                nil,
@@ -51,7 +51,7 @@ func (d *cephobject) load() error {
 
 	// Detect and record the version.
 	if cephobjectVersion == "" {
-		out, err := shared.RunCommandContext(d.state.ShutdownCtx, "radosgw-admin", "--version")
+		out, err := shared.RunCommandContext(ctx, "radosgw-admin", "--version")
 		if err != nil {
 			return err
 		}
@@ -148,7 +148,7 @@ func (d *cephobject) Validate(config map[string]string) error {
 }
 
 // FillConfig populates the storage pool's configuration file with the default values.
-func (d *cephobject) FillConfig() error {
+func (d *cephobject) FillConfig(context.Context) error {
 	if d.config["cephobject.cluster_name"] == "" {
 		d.config["cephobject.cluster_name"] = CephDefaultCluster
 	}
@@ -181,16 +181,16 @@ func (d *cephobject) ValidateSource() error {
 
 // Create is called during pool creation and is effectively using an empty driver struct.
 // WARNING: The Create() function cannot rely on any of the struct attributes being set.
-func (d *cephobject) Create() error {
+func (d *cephobject) Create(ctx context.Context) error {
 	// Check if there is an existing cephobjectRadosgwAdminUser user.
-	adminUserInfo, _, err := d.radosgwadminGetUser(context.TODO(), cephobjectRadosgwAdminUser)
+	adminUserInfo, _, err := d.radosgwadminGetUser(ctx, cephobjectRadosgwAdminUser)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 		return fmt.Errorf("Failed getting admin user %q: %w", cephobjectRadosgwAdminUser, err)
 	}
 
 	// Create missing cephobjectRadosgwAdminUser user.
 	if adminUserInfo == nil {
-		_, err = d.radosgwadminUserAdd(context.TODO(), cephobjectRadosgwAdminUser, 0)
+		_, err = d.radosgwadminUserAdd(ctx, cephobjectRadosgwAdminUser, 0)
 		if err != nil {
 			return fmt.Errorf("Failed added admin user %q: %w", cephobjectRadosgwAdminUser, err)
 		}
@@ -202,9 +202,9 @@ func (d *cephobject) Create() error {
 }
 
 // Delete clears any local and remote data related to this driver instance.
-func (d *cephobject) Delete(op *operations.Operation) error {
+func (d *cephobject) Delete(ctx context.Context, op *operations.Operation) error {
 	if shared.IsTrue(d.config["volatile.pool.pristine"]) {
-		err := d.radosgwadminUserDelete(context.TODO(), cephobjectRadosgwAdminUser)
+		err := d.radosgwadminUserDelete(ctx, cephobjectRadosgwAdminUser)
 		if err != nil {
 			return fmt.Errorf("Failed deleting admin user %q: %w", cephobjectRadosgwAdminUser, err)
 		}
@@ -214,10 +214,10 @@ func (d *cephobject) Delete(op *operations.Operation) error {
 }
 
 // Update applies any driver changes required from a configuration change.
-func (d *cephobject) Update(changedConfig map[string]string) error {
+func (d *cephobject) Update(ctx context.Context, changedConfig map[string]string) error {
 	_, prefixChanged := changedConfig["cephobject.bucket.name_prefix"]
 	if prefixChanged {
-		buckets, err := d.radosgwadminBucketList(context.TODO())
+		buckets, err := d.radosgwadminBucketList(ctx)
 		if err != nil {
 			return err
 		}
@@ -233,17 +233,17 @@ func (d *cephobject) Update(changedConfig map[string]string) error {
 }
 
 // Mount brings up the driver and sets it up to be used.
-func (d *cephobject) Mount() (bool, error) {
+func (d *cephobject) Mount(context.Context) (bool, error) {
 	return false, nil
 }
 
 // Unmount clears any of the runtime state of the driver.
-func (d *cephobject) Unmount() (bool, error) {
+func (d *cephobject) Unmount(context.Context) (bool, error) {
 	return false, nil
 }
 
 // GetResources returns the pool resource usage information.
-func (d *cephobject) GetResources() (*api.ResourcesStoragePool, error) {
+func (d *cephobject) GetResources(context.Context) (*api.ResourcesStoragePool, error) {
 	return &api.ResourcesStoragePool{}, nil
 }
 

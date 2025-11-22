@@ -296,7 +296,7 @@ func storageBucketsServer(d *Daemon) *http.Server {
 				return
 			}
 
-			pool, err := storagePools.LoadByName(s, bucket.PoolName)
+			pool, err := storagePools.LoadByName(r.Context(), s, bucket.PoolName)
 			if err != nil {
 				errResult := s3.Error{Code: s3.ErrorCodeInternalError, Message: err.Error()}
 				errResult.Response(w)
@@ -304,7 +304,7 @@ func storageBucketsServer(d *Daemon) *http.Server {
 				return
 			}
 
-			minioProc, err := pool.ActivateBucket(bucket.Project, bucket.Name, nil)
+			minioProc, err := pool.ActivateBucket(r.Context(), bucket.Project, bucket.Name, nil)
 			if err != nil {
 				errResult := s3.Error{Code: s3.ErrorCodeInternalError, Message: err.Error()}
 				errResult.Response(w)
@@ -376,7 +376,7 @@ func storageBucketsServer(d *Daemon) *http.Server {
 			return
 		}
 
-		pool, err := storagePools.LoadByName(s, bucket.PoolName)
+		pool, err := storagePools.LoadByName(r.Context(), s, bucket.PoolName)
 		if err != nil {
 			errResult := s3.Error{Code: s3.ErrorCodeInternalError, Message: err.Error()}
 			errResult.Response(w)
@@ -384,7 +384,7 @@ func storageBucketsServer(d *Daemon) *http.Server {
 			return
 		}
 
-		minioProc, err := pool.ActivateBucket(bucket.Project, bucket.Name, nil)
+		minioProc, err := pool.ActivateBucket(r.Context(), bucket.Project, bucket.Name, nil)
 		if err != nil {
 			errResult := s3.Error{Code: s3.ErrorCodeInternalError, Message: err.Error()}
 			errResult.Response(w)

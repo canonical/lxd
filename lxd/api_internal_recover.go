@@ -258,7 +258,7 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 
 	// Iterate the pools finding unknown volumes and perform validation.
 	for _, p := range userPools {
-		pool, err := storagePools.LoadByName(s, p.Name)
+		pool, err := storagePools.LoadByName(ctx, s, p.Name)
 		if err != nil {
 			if !response.IsNotFoundError(err) {
 				return response.SmartError(fmt.Errorf("Failed loading existing pool %q: %w", p.Name, err))
@@ -279,13 +279,13 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 
 			poolInfo.SetWritable(p.StoragePoolPut)
 
-			pool, err = storagePools.NewTemporary(s, &poolInfo)
+			pool, err = storagePools.NewTemporary(ctx, s, &poolInfo)
 			if err != nil {
 				return response.SmartError(fmt.Errorf("Failed to initialise unknown pool %q: %w", p.Name, err))
 			}
 
 			// Populate configuration with default values.
-			err := pool.Driver().FillConfig()
+			err := pool.Driver().FillConfig(context.TODO())
 			if err != nil {
 				return response.SmartError(fmt.Errorf("Failed to evaluate the default configuration values for unknown pool %q: %w", p.Name, err))
 			}
@@ -300,7 +300,7 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 		pools[p.Name] = pool
 
 		// Try to mount the pool.
-		ourMount, err := pool.Mount()
+		ourMount, err := pool.Mount(ctx)
 		if err != nil {
 			return response.SmartError(fmt.Errorf("Failed mounting pool %q: %w", pool.Name(), err))
 		}
@@ -312,18 +312,18 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 			defer func() {
 				cleanupPool := pools[pool.Name()]
 				if cleanupPool != nil && cleanupPool.ID() == storagePools.PoolIDTemporary {
-					_, _ = cleanupPool.Unmount()
+					_, _ = cleanupPool.Unmount(context.Background())
 				}
 			}()
 
 			revert.Add(func() {
 				cleanupPool := pools[pool.Name()]
-				_, _ = cleanupPool.Unmount() // Defer won't do it if record exists, so unmount on failure.
+				_, _ = cleanupPool.Unmount(context.Background()) // Defer won't do it if record exists, so unmount on failure.
 			})
 		}
 
 		// Get list of unknown volumes on pool.
-		poolProjectVols, err := pool.ListUnknownVolumes(nil)
+		poolProjectVols, err := pool.ListUnknownVolumes(ctx, nil)
 		if err != nil {
 			if errors.Is(err, storageDrivers.ErrNotSupported) {
 				continue // Ignore unsupported storage drivers.
@@ -522,7 +522,7 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 
 			logger.Debug("Marked storage pool local status as created", logger.Ctx{"pool": pool.Name()})
 
-			newPool, err := storagePools.LoadByName(s, pool.Name())
+			newPool, err := storagePools.LoadByName(ctx, s, pool.Name())
 			if err != nil {
 				return response.SmartError(fmt.Errorf("Failed loading created storage pool %q: %w", pool.Name(), err))
 			}
@@ -559,7 +559,7 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 				}
 
 				// Import custom volume and any snapshots.
-				cleanup, err := pool.ImportCustomVolume(customStorageProjectName, poolVol, nil)
+				cleanup, err := pool.ImportCustomVolume(ctx, customStorageProjectName, poolVol, nil)
 				if err != nil {
 					return response.SmartError(fmt.Errorf("Failed importing custom volume %q in project %q: %w", rootVol.Name, projectName, err))
 				}
@@ -575,7 +575,7 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 				}
 
 				// Import bucket.
-				cleanup, err := pool.ImportBucket(projectName, poolVol, nil)
+				cleanup, err := pool.ImportBucket(ctx, projectName, poolVol, nil)
 				if err != nil {
 					return response.SmartError(fmt.Errorf("Failed importing bucket %q in project %q: %w", poolVol.Bucket.Name, projectName, err))
 				}
@@ -640,7 +640,7 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 				}
 
 				// Recreate instance mount path and symlinks (must come after snapshot recovery).
-				cleanup, err = pool.ImportInstance(inst, poolVol, nil)
+				cleanup, err = pool.ImportInstance(ctx, inst, poolVol, nil)
 				if err != nil {
 					return response.SmartError(fmt.Errorf("Failed importing instance %q in project %q: %w", poolVol.Instance.Name, projectName, err))
 				}
@@ -651,7 +651,7 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 				// opportunity to reinitialise the quota based on the new storage volume's DB ID).
 				_, rootConfig, err := instancetype.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
 				if err == nil {
-					err = pool.SetInstanceQuota(inst, rootConfig["size"], rootConfig["size.state"], nil)
+					err = pool.SetInstanceQuota(ctx, inst, rootConfig["size"], rootConfig["size.state"], nil)
 					if err != nil {
 						return response.SmartError(fmt.Errorf("Failed reinitializing root disk quota %q for instance %q in project %q: %w", rootConfig["size"], poolVol.Instance.Name, projectName, err))
 					}

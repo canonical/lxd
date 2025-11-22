@@ -22,9 +22,9 @@ const PoolIDTemporary = -1
 // them to lookup the volume ID for a specific volume type and volume name. This function is tied
 // to the Pool ID that it is generated for, meaning the storage drivers do not need to know the ID
 // of the pool they belong to, or do they need access to the database.
-func volIDFuncMake(state *state.State, poolID int64) func(volType drivers.VolumeType, volName string) (int64, error) {
+func volIDFuncMake(state *state.State, poolID int64) func(ctx context.Context, volType drivers.VolumeType, volName string) (int64, error) {
 	// Return a function to retrieve a volume ID for a volume Name for use in driver.
-	return func(volType drivers.VolumeType, volName string) (int64, error) {
+	return func(ctx context.Context, volType drivers.VolumeType, volName string) (int64, error) {
 		volTypeID, err := VolumeTypeToDBType(volType)
 		if err != nil {
 			return -1, err
@@ -48,7 +48,7 @@ func volIDFuncMake(state *state.State, poolID int64) func(volType drivers.Volume
 
 		// Get the storage volume.
 		var dbVolume *db.StorageVolume
-		err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			dbVolume, err = tx.GetStoragePoolVolume(ctx, poolID, projectName, volTypeID, volName, true)
 			return err
 		})
@@ -71,14 +71,14 @@ func commonRules() *drivers.Validators {
 // NewTemporary instantiates a temporary pool from config supplied and returns a Pool interface.
 // Not all functionality will be available due to the lack of Pool ID.
 // If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned.
-func NewTemporary(state *state.State, info *api.StoragePool) (Pool, error) {
+func NewTemporary(ctx context.Context, state *state.State, info *api.StoragePool) (Pool, error) {
 	// Handle mock requests.
 	if state.OS.MockMode {
 		pool := mockBackend{}
 		pool.name = info.Name
 		pool.state = state
 		pool.logger = logger.AddContext(logger.Ctx{"driver": "mock", "pool": pool.name})
-		driver, err := drivers.Load(state, "mock", "", nil, pool.logger, nil, nil)
+		driver, err := drivers.Load(ctx, state, "mock", "", nil, pool.logger, nil, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -98,7 +98,7 @@ func NewTemporary(state *state.State, info *api.StoragePool) (Pool, error) {
 	logger := logger.AddContext(logger.Ctx{"driver": info.Driver, "pool": info.Name})
 
 	// Load the storage driver.
-	driver, err := drivers.Load(state, info.Driver, info.Name, info.Config, logger, volIDFuncMake(state, poolID), commonRules())
+	driver, err := drivers.Load(ctx, state, info.Driver, info.Name, info.Config, logger, volIDFuncMake(state, poolID), commonRules())
 	if err != nil {
 		return nil, err
 	}
@@ -117,10 +117,10 @@ func NewTemporary(state *state.State, info *api.StoragePool) (Pool, error) {
 }
 
 // LoadByType loads a network by driver type.
-func LoadByType(state *state.State, driverType string) (Type, error) {
+func LoadByType(ctx context.Context, state *state.State, driverType string) (Type, error) {
 	logger := logger.AddContext(logger.Ctx{"driver": driverType})
 
-	driver, err := drivers.Load(state, driverType, "", nil, logger, nil, commonRules())
+	driver, err := drivers.Load(ctx, state, driverType, "", nil, logger, nil, commonRules())
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +137,7 @@ func LoadByType(state *state.State, driverType string) (Type, error) {
 
 // LoadByRecord instantiates a pool from its record and returns a Pool interface.
 // If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned.
-func LoadByRecord(s *state.State, poolID int64, poolInfo api.StoragePool, poolMembers map[int64]db.StoragePoolNode) (Pool, error) {
+func LoadByRecord(ctx context.Context, s *state.State, poolID int64, poolInfo api.StoragePool, poolMembers map[int64]db.StoragePoolNode) (Pool, error) {
 	// Ensure a config map exists.
 	if poolInfo.Config == nil {
 		poolInfo.Config = map[string]string{}
@@ -146,7 +146,7 @@ func LoadByRecord(s *state.State, poolID int64, poolInfo api.StoragePool, poolMe
 	logger := logger.AddContext(logger.Ctx{"driver": poolInfo.Driver, "pool": poolInfo.Name})
 
 	// Load the storage driver.
-	driver, err := drivers.Load(s, poolInfo.Driver, poolInfo.Name, poolInfo.Config, logger, volIDFuncMake(s, poolID), commonRules())
+	driver, err := drivers.Load(ctx, s, poolInfo.Driver, poolInfo.Name, poolInfo.Config, logger, volIDFuncMake(s, poolID), commonRules())
 	if err != nil {
 		return nil, err
 	}
@@ -166,14 +166,14 @@ func LoadByRecord(s *state.State, poolID int64, poolInfo api.StoragePool, poolMe
 
 // LoadByName retrieves the pool from the database by its name and returns a Pool interface.
 // If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned.
-func LoadByName(s *state.State, name string) (Pool, error) {
+func LoadByName(ctx context.Context, s *state.State, name string) (Pool, error) {
 	// Handle mock requests.
 	if s.OS.MockMode {
 		pool := mockBackend{}
 		pool.name = name
 		pool.state = s
 		pool.logger = logger.AddContext(logger.Ctx{"driver": "mock", "pool": pool.name})
-		driver, err := drivers.Load(s, "mock", "", nil, pool.logger, nil, nil)
+		driver, err := drivers.Load(ctx, s, "mock", "", nil, pool.logger, nil, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -187,7 +187,7 @@ func LoadByName(s *state.State, name string) (Pool, error) {
 	var dbPool *api.StoragePool
 	var poolNodes map[int64]db.StoragePoolNode
 
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		// Load the database record.
@@ -199,19 +199,19 @@ func LoadByName(s *state.State, name string) (Pool, error) {
 		return nil, err
 	}
 
-	return LoadByRecord(s, poolID, *dbPool, poolNodes)
+	return LoadByRecord(ctx, s, poolID, *dbPool, poolNodes)
 }
 
 // LoadByInstance retrieves the pool from the database using the instance's pool.
 // If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned. If the pool's
 // driver does not support the instance's type then drivers.ErrNotSupported is returned.
-func LoadByInstance(s *state.State, inst instance.Instance) (Pool, error) {
+func LoadByInstance(ctx context.Context, s *state.State, inst instance.Instance) (Pool, error) {
 	poolName, err := inst.StoragePool()
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting instance storage pool name: %w", err)
 	}
 
-	pool, err := LoadByName(s, poolName)
+	pool, err := LoadByName(ctx, s, poolName)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading storage pool %q: %w", poolName, err)
 	}
@@ -241,7 +241,7 @@ func IsAvailable(poolName string) bool {
 
 // Patch applies specified patch to all storage pools.
 // All storage pools must be available locally before any storage pools are patched.
-func Patch(s *state.State, patchName string) error {
+func Patch(ctx context.Context, s *state.State, patchName string) error {
 	unavailablePoolsMu.Lock()
 
 	if len(unavailablePools) > 0 {
@@ -258,7 +258,7 @@ func Patch(s *state.State, patchName string) error {
 
 	var pools []string
 
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		// Load all the pools.
@@ -275,12 +275,12 @@ func Patch(s *state.State, patchName string) error {
 	}
 
 	for _, poolName := range pools {
-		pool, err := LoadByName(s, poolName)
+		pool, err := LoadByName(ctx, s, poolName)
 		if err != nil {
 			return fmt.Errorf("Failed loading storage pool %q: %w", poolName, err)
 		}
 
-		err = pool.ApplyPatch(patchName)
+		err = pool.ApplyPatch(ctx, patchName)
 		if err != nil {
 			return fmt.Errorf("Failed applying patch to pool %q: %w", poolName, err)
 		}
