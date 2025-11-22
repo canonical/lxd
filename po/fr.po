@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-11-17 14:48+0000\n"
+"POT-Creation-Date: 2025-11-18 09:30-0800\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Wivik <seb+weblate@zedas.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -762,6 +762,11 @@ msgstr "--project ne peut pas être utilisé avec la commande query"
 msgid "--refresh can only be used with instances"
 msgstr "--refresh ne peut être utilisé qu'avec des instances"
 
+#: lxc/move.go:296
+#, fuzzy
+msgid "--target can only be used with clusters"
+msgstr "--target ne peut pas être utilisé avec des instances"
+
 #: lxc/config.go:211 lxc/config.go:482 lxc/config.go:657 lxc/config.go:864
 #: lxc/info.go:461
 msgid "--target cannot be used with instances"
@@ -1202,7 +1207,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:153 lxc/init.go:245 lxc/move.go:401 lxc/placement_group.go:313
+#: lxc/copy.go:153 lxc/init.go:245 lxc/move.go:342 lxc/placement_group.go:313
 #: lxc/placement_group.go:323 lxc/project.go:169
 #, fuzzy, c-format
 msgid "Bad key=value pair: %q"
@@ -1310,7 +1315,7 @@ msgstr "Créé : %s"
 msgid "Caches:"
 msgstr "Créé : %s"
 
-#: lxc/move.go:136
+#: lxc/move.go:135
 msgid "Can't override configuration or profiles in local rename"
 msgstr ""
 
@@ -1474,7 +1479,7 @@ msgstr "Périphérique %s retiré de %s"
 
 #: lxc/config.go:147 lxc/config.go:439 lxc/config.go:590 lxc/config.go:797
 #: lxc/config.go:928 lxc/copy.go:63 lxc/info.go:45 lxc/init.go:65
-#: lxc/move.go:68 lxc/network.go:338 lxc/network.go:809 lxc/network.go:890
+#: lxc/move.go:67 lxc/network.go:338 lxc/network.go:809 lxc/network.go:890
 #: lxc/network.go:1025 lxc/network.go:1291 lxc/network.go:1382
 #: lxc/network.go:1454 lxc/network_forward.go:185 lxc/network_forward.go:267
 #: lxc/network_forward.go:508 lxc/network_forward.go:658
@@ -1562,7 +1567,7 @@ msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
 msgid "Config key/value to apply to the new project"
 msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
 
-#: lxc/move.go:60
+#: lxc/move.go:59
 #, fuzzy
 msgid "Config key/value to apply to the target instance"
 msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
@@ -1594,7 +1599,7 @@ msgstr "État : %s"
 msgid "Control: %s (%s)"
 msgstr ""
 
-#: lxc/move.go:66
+#: lxc/move.go:65
 #, fuzzy
 msgid "Copy a stateful instance as stateless"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
@@ -1663,7 +1668,7 @@ msgstr "Copiez le conteneur sans ses instantanés"
 msgid "Copy the volume without its snapshots"
 msgstr "Copiez le conteneur sans ses instantanés"
 
-#: lxc/copy.go:64 lxc/image.go:172 lxc/move.go:69 lxc/profile.go:292
+#: lxc/copy.go:64 lxc/image.go:172 lxc/move.go:68 lxc/profile.go:292
 #: lxc/storage_volume.go:403
 msgid "Copy to a project different from the source"
 msgstr ""
@@ -2150,7 +2155,7 @@ msgstr ""
 #: lxc/image_alias.go:60 lxc/image_alias.go:124 lxc/image_alias.go:177
 #: lxc/image_alias.go:288 lxc/import.go:29 lxc/info.go:33 lxc/init.go:44
 #: lxc/launch.go:24 lxc/list.go:50 lxc/main.go:86 lxc/manpage.go:22
-#: lxc/monitor.go:34 lxc/move.go:39 lxc/network.go:36 lxc/network.go:139
+#: lxc/monitor.go:34 lxc/move.go:38 lxc/network.go:36 lxc/network.go:139
 #: lxc/network.go:241 lxc/network.go:331 lxc/network.go:418 lxc/network.go:476
 #: lxc/network.go:573 lxc/network.go:670 lxc/network.go:806 lxc/network.go:887
 #: lxc/network.go:1020 lxc/network.go:1146 lxc/network.go:1225
@@ -2339,11 +2344,10 @@ msgstr "  Disque utilisé :"
 
 #: lxc/delete.go:40
 msgid ""
-"Disk volumes mode for snapshot deletion. Possible values are "
-"\"root\" (default) and \"all-exclusive\". \"root\" only deletes the "
-"instance's root disk volume snapshot. \"all-exclusive\" deletes the "
-"instance's root disk volume snapshot and any exclusively attached volumes "
-"(non-shared) snapshots."
+"Disk volumes mode for snapshot deletion. Possible values are \"root\" "
+"(default) and \"all-exclusive\". \"root\" only deletes the instance's root "
+"disk volume snapshot. \"all-exclusive\" deletes the instance's root disk "
+"volume snapshot and any exclusively attached volumes (non-shared) snapshots."
 msgstr ""
 
 #: lxc/restore.go:36
@@ -2828,6 +2832,11 @@ msgstr "Profil à appliquer au nouveau conteneur"
 msgid "Failed checking instance snapshot exists \"%s:%s\": %w"
 msgstr "Profil à appliquer au nouveau conteneur"
 
+#: lxc/move.go:292
+#, fuzzy, c-format
+msgid "Failed connecting to cluster member: %w"
+msgstr "Profil à appliquer au nouveau conteneur"
+
 #: lxc/file.go:1545
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
@@ -2907,11 +2916,6 @@ msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 #, fuzzy, c-format
 msgid "Failed to close server cert file %q: %w"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
-
-#: lxc/move.go:312 lxc/move.go:388
-#, fuzzy, c-format
-msgid "Failed to connect to cluster member: %w"
-msgstr "Profil à appliquer au nouveau conteneur"
 
 #: lxc/remote.go:247
 #, fuzzy, c-format
@@ -3435,7 +3439,7 @@ msgstr ""
 msgid "Ignore any configured auto-expiry for the storage volume"
 msgstr ""
 
-#: lxc/copy.go:67 lxc/move.go:70
+#: lxc/copy.go:67 lxc/move.go:69
 msgid "Ignore copy errors for volatile files"
 msgstr ""
 
@@ -3658,12 +3662,12 @@ msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
 msgstr ""
 
-#: lxc/move.go:154 lxc/storage_volume.go:2066
+#: lxc/move.go:153 lxc/storage_volume.go:2066
 #, fuzzy
 msgid "Invalid new snapshot name"
 msgstr "'/' n'est pas autorisé dans le nom d'un instantané"
 
-#: lxc/move.go:150
+#: lxc/move.go:149
 msgid "Invalid new snapshot name, parent must be the same as source"
 msgstr ""
 
@@ -4046,8 +4050,8 @@ msgid ""
 "  f - Base Image Fingerprint (short)\n"
 "  F - Base Image Fingerprint (long)\n"
 "\n"
-"Custom columns are defined with \"[config:|devices:]key[:name][:"
-"maxWidth]\":\n"
+"Custom columns are defined with \"[config:|devices:]key[:name][:maxWidth]"
+"\":\n"
 "  KEY: The (extended) config or devices key to display. If [config:|"
 "devices:] is omitted then it defaults to config key.\n"
 "  NAME: Name to display in the column header.\n"
@@ -4113,8 +4117,8 @@ msgstr ""
 "Colonnes en mode rapide : nsacPt\n"
 "\n"
 "Exemple :\n"
-"    lxc list -c n,volatile.base_image:\\BASE IMAGE\\:0,s46,volatile.eth0."
-"hwaddr:MAC"
+"    lxc list -c n,volatile.base_image:\\BASE "
+"IMAGE\\:0,s46,volatile.eth0.hwaddr:MAC"
 
 #: lxc/network_allocations.go:51 lxc/network_allocations.go:52
 #, fuzzy
@@ -4544,8 +4548,8 @@ msgstr "Copie de l'image : %s"
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect "
-"\"custom\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect \"custom\" "
+"(user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:37 lxc/remote.go:38
@@ -4619,12 +4623,12 @@ msgstr "  Mémoire utilisée :"
 msgid "Memory:"
 msgstr "  Mémoire utilisée :"
 
-#: lxc/move.go:330 lxc/move.go:450
+#: lxc/move.go:376
 #, fuzzy, c-format
 msgid "Migration API failure: %w"
 msgstr "Échec lors de la migration vers l'hôte source: %s"
 
-#: lxc/move.go:355 lxc/move.go:455
+#: lxc/move.go:395
 #, fuzzy, c-format
 msgid "Migration operation failure: %w"
 msgstr "Échec lors de la migration vers l'hôte source: %s"
@@ -4874,12 +4878,12 @@ msgstr "Création du conteneur"
 msgid "Mounted: %v"
 msgstr "Publié : %s"
 
-#: lxc/move.go:38
+#: lxc/move.go:37
 #, fuzzy
 msgid "Move instances within or in between LXD servers"
 msgstr "Forcer le conteneur à s'arrêter"
 
-#: lxc/move.go:39
+#: lxc/move.go:38
 msgid ""
 "Move instances within or in between LXD servers\n"
 "\n"
@@ -4900,7 +4904,7 @@ msgstr ""
 msgid "Move storage volumes between pools"
 msgstr "Copie de l'image : %s"
 
-#: lxc/move.go:64
+#: lxc/move.go:63
 #, fuzzy
 msgid "Move the instance without its snapshots"
 msgstr "Forcer le conteneur à s'arrêter"
@@ -5129,7 +5133,7 @@ msgstr "Nouvel alias à définir sur la cible"
 msgid "New aliases to add to the image"
 msgstr "Nouvel alias à définir sur la cible"
 
-#: lxc/copy.go:56 lxc/import.go:37 lxc/init.go:60 lxc/move.go:61
+#: lxc/copy.go:56 lxc/import.go:37 lxc/init.go:60 lxc/move.go:60
 #, fuzzy
 msgid "New key/value to apply to a specific device"
 msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
@@ -5469,7 +5473,7 @@ msgstr "Profil à appliquer au nouveau conteneur"
 msgid "Profile to apply to the new instance"
 msgstr "Profil à appliquer au nouveau conteneur"
 
-#: lxc/move.go:62
+#: lxc/move.go:61
 #, fuzzy
 msgid "Profile to apply to the target instance"
 msgstr "Profil à appliquer au nouveau conteneur"
@@ -6849,7 +6853,7 @@ msgstr "Le réseau %s a été supprimé"
 msgid "Storage pool %s pending on member %s"
 msgstr "Le réseau %s a été créé"
 
-#: lxc/copy.go:62 lxc/import.go:36 lxc/init.go:63 lxc/move.go:67
+#: lxc/copy.go:62 lxc/import.go:36 lxc/init.go:63 lxc/move.go:66
 msgid "Storage pool name"
 msgstr "Nom de l'ensemble de stockage"
 
@@ -6959,32 +6963,8 @@ msgid ""
 "trust token"
 msgstr ""
 
-#: lxc/move.go:187
-msgid "The --instance-only flag can't be used with --target"
-msgstr ""
-
-#: lxc/move.go:225 lxc/move.go:246
-msgid "The --mode flag can't be used with --storage or --target-project"
-msgstr ""
-
-#: lxc/move.go:199
-msgid "The --mode flag can't be used with --target"
-msgstr ""
-
 #: lxc/console.go:134
 msgid "The --show-log flag is only supported for by 'console' output type"
-msgstr ""
-
-#: lxc/move.go:191
-msgid "The --storage flag can't be used with --target"
-msgstr ""
-
-#: lxc/move.go:195
-msgid "The --target-project flag can't be used with --target"
-msgstr ""
-
-#: lxc/move.go:211
-msgid "The destination LXD server is not clustered"
 msgstr ""
 
 #: lxc/config_device.go:247 lxc/config_device.go:269 lxc/config_device.go:527
@@ -7131,10 +7111,6 @@ msgstr ""
 msgid "The server doesn't support setting the metadata format version"
 msgstr ""
 
-#: lxc/move.go:317
-msgid "The source LXD server is not clustered"
-msgstr ""
-
 #: lxc/network.go:546 lxc/network.go:643 lxc/storage_volume.go:905
 #: lxc/storage_volume.go:1009
 msgid "The specified device doesn't exist"
@@ -7248,7 +7224,7 @@ msgstr ""
 msgid "Transfer mode. One of pull, push or relay"
 msgstr ""
 
-#: lxc/move.go:65
+#: lxc/move.go:64
 msgid "Transfer mode. One of pull, push or relay."
 msgstr ""
 
@@ -7257,7 +7233,7 @@ msgstr ""
 msgid "Transferring image: %s"
 msgstr "Transfert de l'image : %s"
 
-#: lxc/copy.go:390 lxc/move.go:335
+#: lxc/copy.go:390 lxc/move.go:381
 #, fuzzy, c-format
 msgid "Transferring instance: %s"
 msgstr "Transfert de l'image : %s"
@@ -7416,7 +7392,7 @@ msgstr "tous les profils de la source n'existent pas sur la cible"
 msgid "Unset a cluster member's configuration keys"
 msgstr "Clé de configuration invalide"
 
-#: lxc/move.go:63
+#: lxc/move.go:62
 #, fuzzy
 msgid "Unset all profiles on the target instance"
 msgstr "tous les profils de la source n'existent pas sur la cible"
@@ -7756,7 +7732,7 @@ msgstr "impossible de copier vers le même nom de conteneur"
 msgid "You must specify a destination instance name"
 msgstr "vous devez spécifier un nom de conteneur source"
 
-#: lxc/copy.go:99 lxc/move.go:301 lxc/move.go:377
+#: lxc/copy.go:99 lxc/move.go:281
 #, fuzzy
 msgid "You must specify a source instance name"
 msgstr "vous devez spécifier un nom de conteneur source"
@@ -8375,7 +8351,7 @@ msgstr ""
 "lxc publish [<remote>:]<container>[/<snapshot>] [<remote>:] [--"
 "alias=ALIAS...] [prop-key=prop-value...]"
 
-#: lxc/move.go:36
+#: lxc/move.go:35
 #, fuzzy
 msgid "[<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]"
 msgstr ""
@@ -9462,8 +9438,8 @@ msgid ""
 "lxc init ubuntu:24.04 v1 --vm -c limits.cpu=4 -c limits.memory=4GiB\n"
 "    Create a virtual machine with 4 vCPUs and 4GiB of RAM\n"
 "\n"
-"lxc init ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,"
-"size=32GiB\n"
+"lxc init ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d "
+"root,size=32GiB\n"
 "    Create a virtual machine with 2 vCPUs, 8GiB of RAM and a root disk of "
 "32GiB"
 msgstr ""
@@ -9491,8 +9467,8 @@ msgstr ""
 
 #: lxc/list.go:123
 msgid ""
-"lxc list -c nFs46,volatile.eth0.hwaddr:MAC,config:image.os,devices:eth0."
-"parent:ETHP\n"
+"lxc list -c "
+"nFs46,volatile.eth0.hwaddr:MAC,config:image.os,devices:eth0.parent:ETHP\n"
 "  Show instances using the \"NAME\", \"BASE IMAGE\", \"STATE\", \"IPV4\", "
 "\"IPV6\" and \"MAC\" columns.\n"
 "  \"BASE IMAGE\", \"MAC\" and \"IMAGE OS\" are custom columns generated from "
@@ -9515,7 +9491,7 @@ msgid ""
 "    Only show lifecycle events."
 msgstr ""
 
-#: lxc/move.go:49
+#: lxc/move.go:48
 #, fuzzy
 msgid ""
 "lxc move [<remote>:]<source instance> [<remote>:][<destination instance>] [--"
@@ -10470,9 +10446,9 @@ msgstr "oui"
 #~ "lxc config trust list "
 #~ "[<remote>:]                                           Lister tous les "
 #~ "certificats de confiance.\n"
-#~ "lxc config trust add [<remote>:] <certfile."
-#~ "crt>                             Ajouter certfile.crt aux hôtes de "
-#~ "confiance.\n"
+#~ "lxc config trust add [<remote>:] "
+#~ "<certfile.crt>                             Ajouter certfile.crt aux hôtes "
+#~ "de confiance.\n"
 #~ "lxc config trust remove [<remote>:] [hostname|"
 #~ "fingerprint]                  Supprimer le certificat des hôtes de "
 #~ "confiance.\n"
@@ -10484,8 +10460,8 @@ msgstr "oui"
 #~ "share/c1 path=opt\n"
 #~ "\n"
 #~ "Pour positionner une clé de configuration dans la configuration lxc :\n"
-#~ "    lxc config set [<remote>:]<container> raw.lxc 'lxc."
-#~ "aa_allow_incomplete = 1'\n"
+#~ "    lxc config set [<remote>:]<container> raw.lxc "
+#~ "'lxc.aa_allow_incomplete = 1'\n"
 #~ "\n"
 #~ "Pour écouter sur le port 8443 en IPv4 et IPv6 (vous pouvez omettre 8443 "
 #~ "c'est la valeur par défaut) :\n"
@@ -11159,8 +11135,8 @@ msgstr "oui"
 #~ "  f - Base Image Fingerprint (short)\n"
 #~ "  F - Base Image Fingerprint (long)\n"
 #~ "\n"
-#~ "Custom columns are defined with \"[config:|devices:]key[:name][:"
-#~ "maxWidth]\":\n"
+#~ "Custom columns are defined with \"[config:|devices:]key[:name][:maxWidth]"
+#~ "\":\n"
 #~ "  KEY: The (extended) config or devices key to display. If [config:|"
 #~ "devices:] is omitted then it defaults to config key.\n"
 #~ "  NAME: Name to display in the column header.\n"
@@ -11226,8 +11202,8 @@ msgstr "oui"
 #~ "Colonnes en mode rapide : nsacPt\n"
 #~ "\n"
 #~ "Exemple :\n"
-#~ "    lxc list -c n,volatile.base_image:\\BASE IMAGE\\:0,s46,volatile.eth0."
-#~ "hwaddr:MAC"
+#~ "    lxc list -c n,volatile.base_image:\\BASE "
+#~ "IMAGE\\:0,s46,volatile.eth0.hwaddr:MAC"
 
 #, fuzzy
 #~ msgid "[<remote>:] <cert>"
