@@ -37,11 +37,11 @@ import (
 type ovnNet interface {
 	network.Network
 
-	InstanceDevicePortValidateExternalRoutes(deviceInstance instance.Instance, deviceName string, externalRoutes []*net.IPNet) error
-	InstanceDevicePortAdd(instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error
-	InstanceDevicePortStart(opts *network.OVNInstanceNICSetupOpts, securityACLsRemove []string) (openvswitch.OVNSwitchPort, error)
-	InstanceDevicePortRemove(instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error
-	InstanceDevicePortIPs(instanceUUID string, deviceName string) ([]net.IP, error)
+	InstanceDevicePortValidateExternalRoutes(ctx context.Context, deviceInstance instance.Instance, deviceName string, externalRoutes []*net.IPNet) error
+	InstanceDevicePortAdd(ctx context.Context, instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error
+	InstanceDevicePortStart(ctx context.Context, opts *network.OVNInstanceNICSetupOpts, securityACLsRemove []string) (openvswitch.OVNSwitchPort, error)
+	InstanceDevicePortRemove(ctx context.Context, instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error
+	InstanceDevicePortIPs(ctx context.Context, instanceUUID string, deviceName string) ([]net.IP, error)
 }
 
 type nicOVN struct {
@@ -111,7 +111,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	// Lookup network settings and apply them to the device's config.
-	n, err := network.LoadByName(d.state, networkProjectName, d.config["network"])
+	n, err := network.LoadByName(context.TODO(), d.state, networkProjectName, d.config["network"])
 	if err != nil {
 		return fmt.Errorf("Error loading network config for %q: %w", d.config["network"], err)
 	}
@@ -282,7 +282,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	if len(externalRoutes) > 0 {
-		err = d.network.InstanceDevicePortValidateExternalRoutes(d.inst, d.name, externalRoutes)
+		err = d.network.InstanceDevicePortValidateExternalRoutes(context.TODO(), d.inst, d.name, externalRoutes)
 		if err != nil {
 			return err
 		}
@@ -290,7 +290,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 
 	// Check Security ACLs exist.
 	if d.config["security.acls"] != "" {
-		err = acl.Exists(d.state, networkProjectName, shared.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)...)
+		err = acl.Exists(context.TODO(), d.state, networkProjectName, shared.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)...)
 		if err != nil {
 			return err
 		}
@@ -402,7 +402,7 @@ func (d *nicOVN) checkAddressConflict() error {
 	}
 
 	// Check if any instance devices use this network.
-	return network.UsedByInstanceDevices(d.state, d.network.Project(), d.network.Name(), d.network.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
+	return network.UsedByInstanceDevices(context.TODO(), d.state, d.network.Project(), d.network.Name(), d.network.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 		// Skip our own device. This avoids triggering duplicate device errors during
 		// updates or when making temporary copies of our instance during migrations.
 		sameLogicalInstance := instance.IsSameLogicalInstance(d.inst, &inst)
@@ -467,13 +467,13 @@ func (d *nicOVN) Add() error {
 		return fmt.Errorf("Failed to load uplink network %q: %w", uplinkNetworkName, err)
 	}
 
-	err = d.network.InstanceDevicePortAdd(d.inst.LocalConfig()["volatile.uuid"], d.name, d.config)
+	err = d.network.InstanceDevicePortAdd(context.TODO(), d.inst.LocalConfig()["volatile.uuid"], d.name, d.config)
 	if err != nil {
 		return err
 	}
 
 	// Add new OVN logical switch port for instance.
-	_, err = d.network.InstanceDevicePortStart(&network.OVNInstanceNICSetupOpts{
+	_, err = d.network.InstanceDevicePortStart(context.TODO(), &network.OVNInstanceNICSetupOpts{
 		InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
 		DNSName:      d.inst.Name(),
 		DeviceName:   d.name,
@@ -602,7 +602,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	networkVethFillFromVolatile(d.config, saveData)
 
 	// Add new OVN logical switch port for instance.
-	logicalPortName, err := d.network.InstanceDevicePortStart(&network.OVNInstanceNICSetupOpts{
+	logicalPortName, err := d.network.InstanceDevicePortStart(context.TODO(), &network.OVNInstanceNICSetupOpts{
 		InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
 		DNSName:      d.inst.Name(),
 		DeviceName:   d.name,
@@ -627,19 +627,19 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 
 	// Get local chassis ID for chassis group.
 	ovs := openvswitch.NewOVS()
-	chassisID, err := ovs.ChassisID()
+	chassisID, err := ovs.ChassisID(context.TODO())
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting OVS Chassis ID: %w", err)
 	}
 
-	ovnClient, err := openvswitch.NewOVN(d.state.GlobalConfig.NetworkOVNNorthboundConnection(), d.state.GlobalConfig.NetworkOVNSSL)
+	ovnClient, err := openvswitch.NewOVN(context.TODO(), d.state.GlobalConfig.NetworkOVNNorthboundConnection(), d.state.GlobalConfig.NetworkOVNSSL)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get OVN client: %w", err)
 	}
 
 	// Add post start hook for setting logical switch port chassis once instance has been started.
 	runConf.PostHooks = append(runConf.PostHooks, func() error {
-		err := ovnClient.LogicalSwitchPortOptionsSet(logicalPortName, map[string]string{"requested-chassis": chassisID})
+		err := ovnClient.LogicalSwitchPortOptionsSet(context.TODO(), logicalPortName, map[string]string{"requested-chassis": chassisID})
 		if err != nil {
 			return fmt.Errorf("Failed setting logical switch port chassis ID: %w", err)
 		}
@@ -721,7 +721,7 @@ func (d *nicOVN) setupAcceleration(saveData map[string]string) (cleanup revert.H
 	}
 
 	ovs := openvswitch.NewOVS()
-	if !ovs.HardwareOffloadingEnabled() {
+	if !ovs.HardwareOffloadingEnabled(context.TODO()) {
 		return nil, "", "", nil, 0, nil, errors.New("OVN NIC acceleration requires hardware offloading to be enabled in OVS")
 	}
 
@@ -758,7 +758,7 @@ func (d *nicOVN) setupAcceleration(saveData map[string]string) (cleanup revert.H
 
 	if d.config["acceleration.parent"] != "" {
 		for _, port := range shared.SplitNTrimSpace(d.config["acceleration.parent"], ",", -1, true) {
-			pf, err := network.SRIOVGetSwitchAndPFID(port)
+			pf, err := network.SRIOVGetSwitchAndPFID(context.TODO(), port)
 			if err != nil {
 				return nil, "", "", nil, 0, nil, fmt.Errorf("Failed getting switch and PF ID for port %q: %w", port, err)
 			}
@@ -771,13 +771,13 @@ func (d *nicOVN) setupAcceleration(saveData map[string]string) (cleanup revert.H
 		}
 	} else {
 		// Get all ports on the integration bridge.
-		ports, err := ovs.BridgePortList(d.state.GlobalConfig.NetworkOVNIntegrationBridge())
+		ports, err := ovs.BridgePortList(context.TODO(), d.state.GlobalConfig.NetworkOVNIntegrationBridge())
 		if err != nil {
 			return nil, "", "", nil, 0, nil, fmt.Errorf("Failed to get OVS integration bridge port list: %w", err)
 		}
 
 		for _, port := range ports {
-			pf, err := network.SRIOVGetSwitchAndPFID(port)
+			pf, err := network.SRIOVGetSwitchAndPFID(context.TODO(), port)
 			if err != nil {
 				continue // Skip non-PF ports.
 			}
@@ -790,7 +790,7 @@ func (d *nicOVN) setupAcceleration(saveData map[string]string) (cleanup revert.H
 		}
 	}
 
-	vfParent, vfRepresentor, vfDev, vfID, err := network.SRIOVFindFreeVFAndRepresentor(d.state, pfCandidates)
+	vfParent, vfRepresentor, vfDev, vfID, err := network.SRIOVFindFreeVFAndRepresentor(context.TODO(), d.state, pfCandidates)
 	if err != nil {
 		pfCandidateNames := make([]string, 0, len(pfCandidates))
 		for _, pf := range pfCandidates {
@@ -896,7 +896,7 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 			}
 
 			// Update OVN logical switch port for instance.
-			_, err = d.network.InstanceDevicePortStart(&network.OVNInstanceNICSetupOpts{
+			_, err = d.network.InstanceDevicePortStart(context.TODO(), &network.OVNInstanceNICSetupOpts{
 				InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
 				DNSName:      d.inst.Name(),
 				DeviceName:   d.name,
@@ -909,12 +909,12 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 		}
 
 		if len(removedACLs) > 0 {
-			client, err := openvswitch.NewOVN(d.state.GlobalConfig.NetworkOVNNorthboundConnection(), d.state.GlobalConfig.NetworkOVNSSL)
+			client, err := openvswitch.NewOVN(context.TODO(), d.state.GlobalConfig.NetworkOVNNorthboundConnection(), d.state.GlobalConfig.NetworkOVNSSL)
 			if err != nil {
 				return fmt.Errorf("Failed to get OVN client: %w", err)
 			}
 
-			err = acl.OVNPortGroupDeleteIfUnused(d.state, d.logger, client, d.network.Project(), d.inst, d.name, newACLs...)
+			err = acl.OVNPortGroupDeleteIfUnused(context.TODO(), d.state, d.logger, client, d.network.Project(), d.inst, d.name, newACLs...)
 			if err != nil {
 				return fmt.Errorf("Failed removing unused OVN port groups: %w", err)
 			}
@@ -936,7 +936,7 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 }
 
 func (d *nicOVN) findRepresentorPort(volatile map[string]string) (string, error) {
-	pf, err := network.SRIOVGetSwitchAndPFID(volatile["last_state.vf.parent"])
+	pf, err := network.SRIOVGetSwitchAndPFID(context.TODO(), volatile["last_state.vf.parent"])
 	if err != nil {
 		return "", fmt.Errorf("Failed finding physical parent switch and PF ID to release representor port: %w", err)
 	}
@@ -990,7 +990,7 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 		integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
 
 		// Detach host-side end of veth pair from OVS integration bridge.
-		err = ovs.BridgePortDelete(integrationBridge, integrationBridgeNICName)
+		err = ovs.BridgePortDelete(context.TODO(), integrationBridge, integrationBridgeNICName)
 		if err != nil {
 			// Don't fail here as we want the postStop hook to run to clean up the local veth pair.
 			d.logger.Error("Failed detaching interface from OVS integration bridge", logger.Ctx{"interface": integrationBridgeNICName, "bridge": integrationBridge, "err": err})
@@ -1091,18 +1091,18 @@ func (d *nicOVN) Remove() error {
 	// Check for port groups that will become unused (and need deleting) as this NIC is deleted.
 	securityACLs := shared.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)
 	if len(securityACLs) > 0 {
-		client, err := openvswitch.NewOVN(d.state.GlobalConfig.NetworkOVNNorthboundConnection(), d.state.GlobalConfig.NetworkOVNSSL)
+		client, err := openvswitch.NewOVN(context.TODO(), d.state.GlobalConfig.NetworkOVNNorthboundConnection(), d.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
 
-		err = acl.OVNPortGroupDeleteIfUnused(d.state, d.logger, client, d.network.Project(), d.inst, d.name)
+		err = acl.OVNPortGroupDeleteIfUnused(context.TODO(), d.state, d.logger, client, d.network.Project(), d.inst, d.name)
 		if err != nil {
 			return fmt.Errorf("Failed removing unused OVN port groups: %w", err)
 		}
 	}
 
-	return d.network.InstanceDevicePortRemove(d.inst.LocalConfig()["volatile.uuid"], d.name, d.config)
+	return d.network.InstanceDevicePortRemove(context.TODO(), d.inst.LocalConfig()["volatile.uuid"], d.name, d.config)
 }
 
 // State gets the state of an OVN NIC by querying the OVN Northbound logical switch port record.
@@ -1132,7 +1132,7 @@ func (d *nicOVN) State() (*api.InstanceStateNetwork, error) {
 	// OVN only supports dynamic IP allocation if neither IPv4 or IPv6 are statically set.
 	if d.config["ipv4.address"] == "" && d.config["ipv6.address"] == "" {
 		instanceUUID := d.inst.LocalConfig()["volatile.uuid"]
-		devIPs, err := d.network.InstanceDevicePortIPs(instanceUUID, d.name)
+		devIPs, err := d.network.InstanceDevicePortIPs(context.TODO(), instanceUUID, d.name)
 		if err == nil {
 			for _, devIP := range devIPs {
 				family := "inet"
@@ -1257,15 +1257,15 @@ func (d *nicOVN) setupHostNIC(hostName string, ovnPortName openvswitch.OVNSwitch
 	integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
 
 	ovs := openvswitch.NewOVS()
-	err = ovs.BridgePortAdd(integrationBridge, hostName, true)
+	err = ovs.BridgePortAdd(context.TODO(), integrationBridge, hostName, true)
 	if err != nil {
 		return nil, err
 	}
 
-	revert.Add(func() { _ = ovs.BridgePortDelete(integrationBridge, hostName) })
+	revert.Add(func() { _ = ovs.BridgePortDelete(context.TODO(), integrationBridge, hostName) })
 
 	// Link OVS port to OVN logical port.
-	err = ovs.InterfaceAssociateOVNSwitchPort(hostName, ovnPortName)
+	err = ovs.InterfaceAssociateOVNSwitchPort(context.TODO(), hostName, ovnPortName)
 	if err != nil {
 		return nil, err
 	}

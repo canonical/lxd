@@ -16,9 +16,9 @@ import (
 
 var networkOVNChassis *bool
 
-func networkAutoAttach(cluster *db.Cluster, devName string) error {
+func networkAutoAttach(s *state.State, devName string) error {
 	var networkName string
-	_ = cluster.Transaction(context.TODO(), func(ctx context.Context, c *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, c *db.ClusterTx) error {
 		_, dbInfo, err := c.GetNetworkWithInterface(ctx, devName)
 		if err != nil {
 			if !api.StatusErrorCheck(err, http.StatusNotFound) {
@@ -31,9 +31,12 @@ func networkAutoAttach(cluster *db.Cluster, devName string) error {
 		networkName = dbInfo.Name
 		return nil
 	})
+	if err != nil {
+		return err
+	}
 
 	if networkName != "" {
-		return network.AttachInterface(networkName, devName)
+		return network.AttachInterface(s.ShutdownCtx, networkName, devName)
 	}
 
 	return nil
@@ -59,14 +62,14 @@ func networkUpdateForkdnsServersTask(s *state.State, heartbeatData *cluster.APIH
 	}
 
 	for _, name := range networks {
-		n, err := network.LoadByName(s, projectName, name)
+		n, err := network.LoadByName(s.ShutdownCtx, s, projectName, name)
 		if err != nil {
 			logger.Errorf("Failed to load network %q from project %q for heartbeat", name, projectName)
 			continue
 		}
 
 		if n.Type() == "bridge" && n.Config()["bridge.mode"] == "fan" {
-			err := n.HandleHeartbeat(heartbeatData)
+			err := n.HandleHeartbeat(s.ShutdownCtx, heartbeatData)
 			if err != nil {
 				return err
 			}
