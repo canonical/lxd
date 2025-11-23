@@ -529,6 +529,7 @@ test_snapshot_multi_volume() {
 
   echo "Check multi-volume snapshot."
   lxc snapshot c1 c1-snap2 --disk-volumes=all-exclusive
+  lxc info c1 # For debugging.
 
   # Remove created files.
   lxc exec c1 -- rm /mnt/shared/snap2 /mnt/non-shared/snap2 snap2
