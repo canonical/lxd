@@ -4947,3 +4947,91 @@ test_clustering_projects_force_delete() {
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
 }
+
+test_clustering_force_removal() {
+  local LXD_DIR
+
+  echo "Create cluster with 3 members."
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # Add a newline at the end of each line. YAML has weird rules.
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  # Spawn a second node
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
+
+  # Spawn a third node.
+  setup_clustering_netns 3
+  LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns3="${prefix}3"
+  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${LXD_ONE_DIR}"
+
+  # Spawn an instance on the third node.
+  LXD_DIR="${LXD_THREE_DIR}" ensure_import_testimage
+  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage foo --target node3
+
+  # Spawn another instance on another node using the same name.
+  # This allows checking that the force removal doesn't accidentally clean too much.
+  LXD_DIR="${LXD_ONE_DIR}" lxc project create foo
+  LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage foo --storage data --target node2 --project foo
+
+  # Create custom volumes in both projects with the same name.
+  # This allows checking that the force removal doesn't accidentally clean too much.
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create data foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create data foo --project foo
+
+  # Check the instances and volumes exist.
+  LXD_DIR="${LXD_ONE_DIR}" lxc config show foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc config show foo --project foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume show data foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume show data foo --project foo
+
+  # Check there are entries in the DB
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT COUNT(*) FROM instances WHERE name = "foo"')" = 2 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT COUNT(*) FROM storage_volumes WHERE name = "foo"')" = 4 ]
+
+  # Force remove the third node.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node3 --force --yes
+
+  # Check the instance on the removed node is gone.
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc config show foo || false
+
+  # Check the other instance and volumes still exist.
+  LXD_DIR="${LXD_ONE_DIR}" lxc config show foo --project foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume show data foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume show data foo --project foo
+
+  # Check there are no traces of the removed instance left in the DB.
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT COUNT(*) FROM instances WHERE name = "foo"')" = 1 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT COUNT(*) FROM storage_volumes WHERE name = "foo"')" = 3 ]
+
+  # Clean up.
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete data foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc project delete foo --force
+
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_THREE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_THREE_DIR}"
+}
