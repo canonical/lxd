@@ -931,7 +931,7 @@ func (n *bridge) Validate(config map[string]string) error {
 
 	// Check Security ACLs are supported and exist.
 	if config["security.acls"] != "" {
-		err = acl.Exists(n.state, n.Project(), shared.SplitNTrimSpace(config["security.acls"], ",", -1, true)...)
+		err = acl.Exists(context.TODO(), n.state, n.Project(), shared.SplitNTrimSpace(config["security.acls"], ",", -1, true)...)
 		if err != nil {
 			return err
 		}
@@ -2268,7 +2268,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		n.logger.Debug("Applying up firewall ACLs")
-		err = acl.FirewallApplyACLRules(n.state, n.logger, n.Project(), aclNet)
+		err = acl.FirewallApplyACLRules(context.TODO(), n.state, n.Project(), aclNet)
 		if err != nil {
 			return err
 		}
