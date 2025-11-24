@@ -21,6 +21,7 @@ endif
 ARCH ?= $(shell uname -m)
 DQLITE_BRANCH=main
 LIBLXC_BRANCH=main
+OVN_MINVER=23.03.0
 
 ifneq "$(wildcard vendor)" ""
 	DEPS_PATH=$(CURDIR)/vendor
@@ -286,6 +287,18 @@ endif
 	@echo "Dependencies updated"
 	@./scripts/check-and-commit.sh "go.mod go.sum" "go: Update dependencies"
 
+
+.PHONY: update-ovsdb
+update-ovsdb:
+	go install github.com/ovn-kubernetes/libovsdb/cmd/modelgen@main
+
+	rm -Rf lxd/network/ovn/schema
+	mkdir lxd/network/ovn/schema
+	curl -s https://raw.githubusercontent.com/ovn-org/ovn/v$(OVN_MINVER)/ovn-nb.ovsschema -o lxd/network/ovn/schema/ovn-nb.json
+	curl -s https://raw.githubusercontent.com/ovn-org/ovn/v$(OVN_MINVER)/ovn-sb.ovsschema -o lxd/network/ovn/schema/ovn-sb.json
+	modelgen -o lxd/network/ovn/schema/ovn-nb lxd/network/ovn/schema/ovn-nb.json
+	modelgen -o lxd/network/ovn/schema/ovn-sb lxd/network/ovn/schema/ovn-sb.json
+	rm lxd/network/ovn/schema/*.json
 
 .PHONY: update-protobuf
 update-protobuf:
