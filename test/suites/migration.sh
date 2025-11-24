@@ -541,7 +541,7 @@ migration() {
   lxc_remote storage volume delete l2:dir vol1
 
   # Test VM Migration.
-  if [ "${LXD_VM_TESTS:-0}" = "0" ]; then
+  if [ "${LXD_VM_TESTS}" = "0" ]; then
     echo "==> SKIP: VM tests are disabled"
   elif [ "${LXD_TMPFS:-0}" = "1" ] && ! runsMinimumKernel 6.6; then
     echo "==> SKIP: QEMU requires direct-io support which requires a kernel >= 6.6 for tmpfs support (LXD_TMPFS=${LXD_TMPFS})"
