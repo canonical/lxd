@@ -238,6 +238,9 @@ test_clustering_membership() {
   ns5="${prefix}5"
   spawn_lxd_and_join_cluster "${ns5}" "${bridge}" "${cert}" 5 4 "${LXD_FIVE_DIR}"
 
+  # Wait a bit for raft roles to update.
+  sleep 5
+
   # List all nodes, using clients points to different nodes and
   # checking which are database nodes and which are database-standby nodes.
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list
