@@ -163,17 +163,17 @@ func (d Xtables) networkForwardIPTablesComment(networkName string) string {
 // networkSetupNICFilteringChain creates the NIC filtering chain if it doesn't exist, and adds the jump rules to
 // the INPUT and FORWARD filter chains. Must be called after networkSetupForwardingPolicy so that the rules are
 // prepended before the default fowarding policy rules.
-func (d Xtables) networkSetupNICFilteringChain(networkName string, ipVersion uint) error {
+func (d Xtables) networkSetupNICFilteringChain(ctx context.Context, networkName string, ipVersion uint) error {
 	chain := iptablesChainNICFilterPrefix + "_" + networkName
 
 	// Create the NIC filter chain if it doesn't exist.
-	exists, _, err := d.iptablesChainExists(ipVersion, "filter", chain)
+	exists, _, err := d.iptablesChainExists(ctx, ipVersion, "filter", chain)
 	if err != nil {
 		return err
 	}
 
 	if !exists {
-		err = d.iptablesChainCreate(ipVersion, "filter", chain)
+		err = d.iptablesChainCreate(ctx, ipVersion, "filter", chain)
 		if err != nil {
 			return err
 		}
@@ -194,18 +194,18 @@ func (d Xtables) networkSetupNICFilteringChain(networkName string, ipVersion uin
 }
 
 // networkSetupACLFilteringChains creates any missing ACL chains and adds jump rules.
-func (d Xtables) networkSetupACLFilteringChains(networkName string) error {
+func (d Xtables) networkSetupACLFilteringChains(ctx context.Context, networkName string) error {
 	chain := iptablesChainACLFilterPrefix + "_" + networkName
 
 	for _, ipVersion := range []uint{4, 6} {
 		// Create the ACL filter chain if it doesn't exist.
-		exists, _, err := d.iptablesChainExists(ipVersion, "filter", chain)
+		exists, _, err := d.iptablesChainExists(ctx, ipVersion, "filter", chain)
 		if err != nil {
 			return err
 		}
 
 		if !exists {
-			err = d.iptablesChainCreate(ipVersion, "filter", chain)
+			err = d.iptablesChainCreate(ctx, ipVersion, "filter", chain)
 			if err != nil {
 				return err
 			}
@@ -452,7 +452,7 @@ func (d Xtables) networkSetupDHCPv4Checksum(networkName string) error {
 }
 
 // NetworkSetup configure network firewall.
-func (d Xtables) NetworkSetup(networkName string, ipv4Address net.IP, ipv6Address net.IP, opts Opts) error {
+func (d Xtables) NetworkSetup(ctx context.Context, networkName string, ipv4Address net.IP, ipv6Address net.IP, opts Opts) error {
 	if opts.SNATV4 != nil {
 		err := d.networkSetupOutboundNAT(networkName, opts.SNATV4.Subnet, opts.SNATV4.SNATAddress, opts.SNATV4.Append)
 		if err != nil {
@@ -502,7 +502,7 @@ func (d Xtables) NetworkSetup(networkName string, ipv4Address net.IP, ipv6Addres
 
 	if opts.ACL {
 		// Needs to be after networkSetupForwardingPolicy but before networkSetupNICFilteringChain.
-		err := d.networkSetupACLFilteringChains(networkName)
+		err := d.networkSetupACLFilteringChains(ctx, networkName)
 		if err != nil {
 			return err
 		}
@@ -512,7 +512,7 @@ func (d Xtables) NetworkSetup(networkName string, ipv4Address net.IP, ipv6Addres
 		// Setup NIC filtering chain. This must come after networkSetupForwardingPolicy so that the jump
 		// rules prepended to the INPUT and FORWARD chains are processed before the default forwarding
 		// policy rules.
-		err := d.networkSetupNICFilteringChain(networkName, 6)
+		err := d.networkSetupNICFilteringChain(ctx, networkName, 6)
 		if err != nil {
 			return err
 		}
@@ -522,7 +522,7 @@ func (d Xtables) NetworkSetup(networkName string, ipv4Address net.IP, ipv6Addres
 }
 
 // NetworkApplyACLRules applies ACL rules to the existing firewall chains.
-func (d Xtables) NetworkApplyACLRules(networkName string, rules []ACLRule) error {
+func (d Xtables) NetworkApplyACLRules(ctx context.Context, networkName string, rules []ACLRule) error {
 	chain := iptablesChainACLFilterPrefix + "_" + networkName
 
 	// Parse rules for both IP families before applying either family of rules.
@@ -556,20 +556,20 @@ func (d Xtables) NetworkApplyACLRules(networkName string, rules []ACLRule) error
 
 	applyACLRules := func(cmd string, iptRules [][]string) error {
 		// Attempt to flush chain in table.
-		_, err := shared.RunCommandContext(context.TODO(), cmd, "-w", "-t", "filter", "-F", chain)
+		_, err := shared.RunCommandContext(ctx, cmd, "-w", "-t", "filter", "-F", chain)
 		if err != nil {
 			return fmt.Errorf("Failed flushing %q chain %q in table %q: %w", cmd, chain, "filter", err)
 		}
 
 		// Allow connection tracking.
-		_, err = shared.RunCommandContext(context.TODO(), cmd, "-w", "-t", "filter", "-A", chain, "-m", "state", "--state", "ESTABLISHED,RELATED", "-j", "ACCEPT")
+		_, err = shared.RunCommandContext(ctx, cmd, "-w", "-t", "filter", "-A", chain, "-m", "state", "--state", "ESTABLISHED,RELATED", "-j", "ACCEPT")
 		if err != nil {
 			return fmt.Errorf("Failed adding connection tracking rules to %q chain %q in table %q: %w", cmd, chain, "filter", err)
 		}
 
 		// Add rules to chain in table.
 		for _, iptRule := range iptRules {
-			_, err := shared.RunCommandContext(context.TODO(), cmd, append([]string{"-w", "-t", "filter", "-A", chain}, iptRule...)...)
+			_, err := shared.RunCommandContext(ctx, cmd, append([]string{"-w", "-t", "filter", "-A", chain}, iptRule...)...)
 			if err != nil {
 				return fmt.Errorf("Failed adding rule to %q chain %q in table %q: %w", cmd, chain, "filter", err)
 			}
@@ -761,7 +761,7 @@ func (d Xtables) aclRulePortToACLMatch(direction string, portCriteria ...string)
 
 // NetworkClear removes network rules from filter, mangle and nat tables.
 // If delete is true then network-specific chains are also removed.
-func (d Xtables) NetworkClear(networkName string, remove bool, ipVersions []uint) error {
+func (d Xtables) NetworkClear(ctx context.Context, networkName string, remove bool, ipVersions []uint) error {
 	comments := []string{
 		d.networkIPTablesComment(networkName),
 		d.networkForwardIPTablesComment(networkName),
@@ -776,13 +776,13 @@ func (d Xtables) NetworkClear(networkName string, remove bool, ipVersions []uint
 
 		// Remove ACL chain and rules.
 		aclFilterChain := iptablesChainACLFilterPrefix + "_" + networkName
-		exists, hasRules, err := d.iptablesChainExists(ipVersion, "filter", aclFilterChain)
+		exists, hasRules, err := d.iptablesChainExists(ctx, ipVersion, "filter", aclFilterChain)
 		if err != nil {
 			return err
 		}
 
 		if exists {
-			err = d.iptablesChainDelete(ipVersion, "filter", aclFilterChain, hasRules)
+			err = d.iptablesChainDelete(ctx, ipVersion, "filter", aclFilterChain, hasRules)
 			if err != nil {
 				return err
 			}
@@ -792,13 +792,13 @@ func (d Xtables) NetworkClear(networkName string, remove bool, ipVersions []uint
 		if remove {
 			// Remove the NIC filter chain if it exists.
 			nicFilterChain := iptablesChainNICFilterPrefix + "_" + networkName
-			exists, hasRules, err := d.iptablesChainExists(ipVersion, "filter", nicFilterChain)
+			exists, hasRules, err := d.iptablesChainExists(ctx, ipVersion, "filter", nicFilterChain)
 			if err != nil {
 				return err
 			}
 
 			if exists {
-				err = d.iptablesChainDelete(ipVersion, "filter", nicFilterChain, hasRules)
+				err = d.iptablesChainDelete(ctx, ipVersion, "filter", nicFilterChain, hasRules)
 				if err != nil {
 					return err
 				}
@@ -818,14 +818,14 @@ func (d Xtables) instanceDeviceIPTablesComment(projectName string, instanceName 
 // If the parent bridge is managed by LXD then parentManaged argument should be true so that the rules added can
 // use the iptablesChainACLFilterPrefix chain. If not they are added to the main filter chains directly (which only
 // works for unmanaged bridges because those don't support ACLs).
-func (d Xtables) InstanceSetupBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, IPv4Nets []*net.IPNet, IPv6Nets []*net.IPNet, parentManaged bool) error {
+func (d Xtables) InstanceSetupBridgeFilter(ctx context.Context, projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, IPv4Nets []*net.IPNet, IPv6Nets []*net.IPNet, parentManaged bool) error {
 	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
 
 	rules := d.generateFilterEbtablesRules(hostName, hwAddr, IPv4Nets, IPv6Nets)
 
 	ebtablesMu.Lock()
 	for _, rule := range rules {
-		_, err := shared.RunCommandContext(context.TODO(), rule[0], rule[1:]...)
+		_, err := shared.RunCommandContext(ctx, rule[0], rule[1:]...)
 		if err != nil {
 			ebtablesMu.Unlock()
 			return err
@@ -854,7 +854,7 @@ func (d Xtables) InstanceSetupBridgeFilter(projectName string, instanceName stri
 }
 
 // InstanceClearBridgeFilter removes any filter rules that were added to apply bridged device IP filtering.
-func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, IPv4Nets []*net.IPNet, IPv6Nets []*net.IPNet) error {
+func (d Xtables) InstanceClearBridgeFilter(ctx context.Context, projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, IPv4Nets []*net.IPNet, IPv6Nets []*net.IPNet) error {
 	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
 
 	// Get a list of rules that we would have applied on instance start.
@@ -863,7 +863,7 @@ func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName stri
 	ebtablesMu.Lock()
 
 	// Get a current list of rules active on the host.
-	out, err := shared.RunCommandContext(context.TODO(), "ebtables", "-L", "--Lmac2", "--Lx")
+	out, err := shared.RunCommandContext(ctx, "ebtables", "-L", "--Lmac2", "--Lx")
 	if err != nil {
 		ebtablesMu.Unlock()
 		return fmt.Errorf("Failed to get a list of network filters to for %q: %w", deviceName, err)
@@ -889,7 +889,7 @@ func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName stri
 
 			// If we get this far, then the current host rule matches one of our LXD
 			// rules, so we should run the modified command to delete it.
-			_, err = shared.RunCommandContext(context.TODO(), fields[0], fields[1:]...)
+			_, err = shared.RunCommandContext(ctx, fields[0], fields[1:]...)
 			if err != nil {
 				errs = append(errs, err)
 			}
@@ -912,7 +912,7 @@ func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName stri
 }
 
 // InstanceSetupProxyNAT creates DNAT rules for proxy devices.
-func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, deviceName string, forward *AddressForward) error {
+func (d Xtables) InstanceSetupProxyNAT(ctx context.Context, projectName string, instanceName string, deviceName string, forward *AddressForward) error {
 	if forward.ListenAddress == nil {
 		return errors.New("Listen address is required")
 	}
@@ -942,7 +942,7 @@ func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, 
 
 	revert := revert.New()
 	defer revert.Fail()
-	revert.Add(func() { _ = d.InstanceClearProxyNAT(projectName, instanceName, deviceName) })
+	revert.Add(func() { _ = d.InstanceClearProxyNAT(ctx, projectName, instanceName, deviceName) })
 
 	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
 
@@ -991,7 +991,7 @@ func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, 
 }
 
 // InstanceClearProxyNAT remove DNAT rules for proxy devices.
-func (d Xtables) InstanceClearProxyNAT(projectName string, instanceName string, deviceName string) error {
+func (d Xtables) InstanceClearProxyNAT(ctx context.Context, projectName string, instanceName string, deviceName string) error {
 	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
 	errs := []error{}
 
@@ -1340,7 +1340,7 @@ func (d Xtables) iptablesClear(ipVersion uint, comments []string, fromTables ...
 }
 
 // InstanceSetupRPFilter activates reverse path filtering for the specified instance device on the host interface.
-func (d Xtables) InstanceSetupRPFilter(projectName string, instanceName string, deviceName string, hostName string) error {
+func (d Xtables) InstanceSetupRPFilter(ctx context.Context, projectName string, instanceName string, deviceName string, hostName string) error {
 	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName) + " rpfilter"
 	args := []string{
 		"-m", "rpfilter",
@@ -1367,7 +1367,7 @@ func (d Xtables) InstanceSetupRPFilter(projectName string, instanceName string, 
 }
 
 // InstanceClearRPFilter removes reverse path filtering for the specified instance device on the host interface.
-func (d Xtables) InstanceClearRPFilter(projectName string, instanceName string, deviceName string) error {
+func (d Xtables) InstanceClearRPFilter(ctx context.Context, projectName string, instanceName string, deviceName string) error {
 	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName) + " rpfilter"
 	errs := []error{}
 
@@ -1386,7 +1386,7 @@ func (d Xtables) InstanceClearRPFilter(projectName string, instanceName string, 
 }
 
 // InstanceSetupNetPrio activates setting of skb->priority for the specified instance device on the host interface.
-func (d Xtables) InstanceSetupNetPrio(projectName string, instanceName string, deviceName string, netPrio uint32) error {
+func (d Xtables) InstanceSetupNetPrio(ctx context.Context, projectName string, instanceName string, deviceName string, netPrio uint32) error {
 	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName) + " netprio"
 	class := fmt.Sprintf("%x:%x", uint16(uint32(netPrio)>>16), uint16(uint32(netPrio)&0xFFFF))
 	args := []string{
@@ -1413,7 +1413,7 @@ func (d Xtables) InstanceSetupNetPrio(projectName string, instanceName string, d
 }
 
 // InstanceClearNetPrio removes setting of skb->priority for the specified instance device on the host interface.
-func (d Xtables) InstanceClearNetPrio(projectName string, instanceName string, deviceName string) error {
+func (d Xtables) InstanceClearNetPrio(ctx context.Context, projectName string, instanceName string, deviceName string) error {
 	if deviceName == "" {
 		return fmt.Errorf("Failed clearing netprio rules for instance %q in project %q: device name is empty", instanceName, projectName)
 	}
@@ -1436,7 +1436,7 @@ func (d Xtables) InstanceClearNetPrio(projectName string, instanceName string, d
 }
 
 // iptablesChainExists checks whether a chain exists in a table, and whether it has any rules.
-func (d Xtables) iptablesChainExists(ipVersion uint, table string, chain string) (exists, hasRules bool, err error) {
+func (d Xtables) iptablesChainExists(ctx context.Context, ipVersion uint, table string, chain string) (exists, hasRules bool, err error) {
 	var cmd string
 	switch ipVersion {
 	case 4:
@@ -1453,7 +1453,7 @@ func (d Xtables) iptablesChainExists(ipVersion uint, table string, chain string)
 	}
 
 	// Attempt to dump the rules of the chain, if this fails then chain doesn't exist.
-	rules, err := shared.RunCommandContext(context.TODO(), cmd, "-w", "-t", table, "-S", chain)
+	rules, err := shared.RunCommandContext(ctx, cmd, "-w", "-t", table, "-S", chain)
 	if err != nil {
 		return false, false, nil
 	}
@@ -1468,7 +1468,7 @@ func (d Xtables) iptablesChainExists(ipVersion uint, table string, chain string)
 }
 
 // iptablesChainCreate creates a chain in a table.
-func (d Xtables) iptablesChainCreate(ipVersion uint, table string, chain string) error {
+func (d Xtables) iptablesChainCreate(ctx context.Context, ipVersion uint, table string, chain string) error {
 	var cmd string
 	switch ipVersion {
 	case 4:
@@ -1480,7 +1480,7 @@ func (d Xtables) iptablesChainCreate(ipVersion uint, table string, chain string)
 	}
 
 	// Attempt to create chain in table.
-	_, err := shared.RunCommandContext(context.TODO(), cmd, "-w", "-t", table, "-N", chain)
+	_, err := shared.RunCommandContext(ctx, cmd, "-w", "-t", table, "-N", chain)
 	if err != nil {
 		return fmt.Errorf("Failed creating %q chain %q in table %q: %w", cmd, chain, table, err)
 	}
@@ -1489,7 +1489,7 @@ func (d Xtables) iptablesChainCreate(ipVersion uint, table string, chain string)
 }
 
 // iptablesChainDelete deletes a chain in a table.
-func (d Xtables) iptablesChainDelete(ipVersion uint, table string, chain string, flushFirst bool) error {
+func (d Xtables) iptablesChainDelete(ctx context.Context, ipVersion uint, table string, chain string, flushFirst bool) error {
 	var cmd string
 	switch ipVersion {
 	case 4:
@@ -1502,14 +1502,14 @@ func (d Xtables) iptablesChainDelete(ipVersion uint, table string, chain string,
 
 	// Attempt to flush rules from chain in table.
 	if flushFirst {
-		_, err := shared.RunCommandContext(context.TODO(), cmd, "-w", "-t", table, "-F", chain)
+		_, err := shared.RunCommandContext(ctx, cmd, "-w", "-t", table, "-F", chain)
 		if err != nil {
 			return fmt.Errorf("Failed flushing %q chain %q in table %q: %w", cmd, chain, table, err)
 		}
 	}
 
 	// Attempt to delete chain in table.
-	_, err := shared.RunCommandContext(context.TODO(), cmd, "-w", "-t", table, "-X", chain)
+	_, err := shared.RunCommandContext(ctx, cmd, "-w", "-t", table, "-X", chain)
 	if err != nil {
 		return fmt.Errorf("Failed deleting %q chain %q in table %q: %w", cmd, chain, table, err)
 	}
@@ -1518,7 +1518,7 @@ func (d Xtables) iptablesChainDelete(ipVersion uint, table string, chain string,
 }
 
 // NetworkApplyForwards apply network address forward rules to firewall.
-func (d Xtables) NetworkApplyForwards(networkName string, rules []AddressForward) error {
+func (d Xtables) NetworkApplyForwards(ctx context.Context, networkName string, rules []AddressForward) error {
 	// Validate all rules first.
 	for i, rule := range rules {
 		if rule.ListenAddress == nil {

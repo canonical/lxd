@@ -1038,7 +1038,7 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 	// Remove filters for static MAC and IPs (if specified above).
 	// This covers the case when filtering is used with an unmanaged bridge.
 	d.logger.Debug("Clearing instance firewall static filters", logger.Ctx{"parent": m["parent"], "host_name": m["host_name"], "hwaddr": m["hwaddr"], "IPv4Nets": IPv4Nets, "IPv6Nets": IPv6Nets})
-	err = d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project().Name, d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], IPv4Nets, IPv6Nets)
+	err = d.state.Firewall.InstanceClearBridgeFilter(context.TODO(), d.inst.Project().Name, d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], IPv4Nets, IPv6Nets)
 	if err != nil {
 		d.logger.Error("Failed to remove static IP network filters", logger.Ctx{"err": err})
 	}
@@ -1046,7 +1046,7 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 	// If allowedIPNets returned nil for IPv4 or IPv6, it is possible that total protocol blocking was set up
 	// because the device has a managed parent network with DHCP disabled. Pass in empty slices to catch this case.
 	d.logger.Debug("Clearing instance total protocol filters", logger.Ctx{"parent": m["parent"], "host_name": m["host_name"], "hwaddr": m["hwaddr"], "IPv4Nets": IPv4Nets, "IPv6Nets": IPv6Nets})
-	err = d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project().Name, d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], make([]*net.IPNet, 0), make([]*net.IPNet, 0))
+	err = d.state.Firewall.InstanceClearBridgeFilter(context.TODO(), d.inst.Project().Name, d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], make([]*net.IPNet, 0), make([]*net.IPNet, 0))
 	if err != nil {
 		d.logger.Error("Failed to remove total protocol network filters", logger.Ctx{"err": err})
 	}
@@ -1086,7 +1086,7 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 	}
 
 	d.logger.Debug("Clearing instance firewall dynamic filters", logger.Ctx{"parent": m["parent"], "host_name": m["host_name"], "hwaddr": m["hwaddr"], "ipv4": IPv4Alloc.IP, "ipv6": IPv6Alloc.IP})
-	err = d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project().Name, d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], IPv4AllocNets, IPv6AllocNets)
+	err = d.state.Firewall.InstanceClearBridgeFilter(context.TODO(), d.inst.Project().Name, d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], IPv4AllocNets, IPv6AllocNets)
 	if err != nil {
 		logger.Errorf("Failed to remove DHCP network assigned filters  for %q: %v", d.name, err)
 	}
@@ -1183,7 +1183,7 @@ func (d *nicBridged) setFilters() (err error) {
 		return err
 	}
 
-	err = d.state.Firewall.InstanceSetupBridgeFilter(d.inst.Project().Name, d.inst.Name(), d.name, d.config["parent"], d.config["host_name"], d.config["hwaddr"], IPv4Nets, IPv6Nets, d.network != nil)
+	err = d.state.Firewall.InstanceSetupBridgeFilter(context.TODO(), d.inst.Project().Name, d.inst.Name(), d.name, d.config["parent"], d.config["host_name"], d.config["hwaddr"], IPv4Nets, IPv6Nets, d.network != nil)
 	if err != nil {
 		return err
 	}
@@ -1598,7 +1598,7 @@ func (d *nicBridged) setupOVSBridgePortVLANs(hostName string) error {
 		// Order is important here, as vlan_mode is set to "access", assuming that vlan.tagged is not used.
 		// If vlan.tagged is specified, then we expect it to also change the vlan_mode as needed.
 		if d.config["vlan"] != "none" {
-			err := ovs.BridgePortSet(hostName, "vlan_mode=access", "tag="+string(d.config["vlan"]))
+			err := ovs.BridgePortSet(context.TODO(), hostName, "vlan_mode=access", "tag="+string(d.config["vlan"]))
 			if err != nil {
 				return err
 			}
@@ -1628,7 +1628,7 @@ func (d *nicBridged) setupOVSBridgePortVLANs(hostName string) error {
 		// Also set the vlan_mode as needed from above.
 		// Must come after the PortSet command used for setting "vlan" mode above so that the correct
 		// vlan_mode is retained.
-		err = ovs.BridgePortSet(hostName, "vlan_mode="+vlanMode, "trunks="+strings.Join(vlanIDs, ","))
+		err = ovs.BridgePortSet(context.TODO(), hostName, "vlan_mode="+vlanMode, "trunks="+strings.Join(vlanIDs, ","))
 		if err != nil {
 			return err
 		}

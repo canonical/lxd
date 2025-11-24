@@ -931,7 +931,7 @@ func (n *bridge) Validate(config map[string]string) error {
 
 	// Check Security ACLs are supported and exist.
 	if config["security.acls"] != "" {
-		err = acl.Exists(n.state, n.Project(), shared.SplitNTrimSpace(config["security.acls"], ",", -1, true)...)
+		err = acl.Exists(context.TODO(), n.state, n.Project(), shared.SplitNTrimSpace(config["security.acls"], ",", -1, true)...)
 		if err != nil {
 			return err
 		}
@@ -1422,12 +1422,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 			// Add and configure the interface in one operation to reduce the number of executions and
 			// to avoid systemd-udevd from applying the default MACAddressPolicy=persistent policy.
-			err := ovs.BridgeAdd(n.name, false, bridge.Address, bridge.MTU)
+			err := ovs.BridgeAdd(context.TODO(), n.name, false, bridge.Address, bridge.MTU)
 			if err != nil {
 				return err
 			}
 
-			revert.Add(func() { _ = ovs.BridgeDelete(n.name) })
+			revert.Add(func() { _ = ovs.BridgeDelete(context.TODO(), n.name) })
 		} else {
 			// Add and configure the interface in one operation to reduce the number of executions and
 			// to avoid systemd-udevd from applying the default MACAddressPolicy=persistent policy.
@@ -1586,7 +1586,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	if len(fwClearIPVersions) > 0 {
 		n.logger.Debug("Clearing firewall")
-		err = n.state.Firewall.NetworkClear(n.name, false, fwClearIPVersions)
+		err = n.state.Firewall.NetworkClear(context.TODO(), n.name, false, fwClearIPVersions)
 		if err != nil {
 			return fmt.Errorf("Failed clearing firewall: %w", err)
 		}
@@ -2254,7 +2254,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	// Setup firewall.
 	n.logger.Debug("Setting up firewall")
-	err = n.state.Firewall.NetworkSetup(n.name, ipv4Address, ipv6Address, fwOpts)
+	err = n.state.Firewall.NetworkSetup(context.TODO(), n.name, ipv4Address, ipv6Address, fwOpts)
 	if err != nil {
 		return fmt.Errorf("Failed to setup firewall: %w", err)
 	}
@@ -2268,7 +2268,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		n.logger.Debug("Applying up firewall ACLs")
-		err = acl.FirewallApplyACLRules(n.state, n.logger, n.Project(), aclNet)
+		err = acl.FirewallApplyACLRules(context.TODO(), n.state, n.Project(), aclNet)
 		if err != nil {
 			return err
 		}
@@ -2322,7 +2322,7 @@ func (n *bridge) Stop() error {
 	// Destroy the bridge interface
 	if n.config["bridge.driver"] == "openvswitch" {
 		ovs := openvswitch.NewOVS()
-		err := ovs.BridgeDelete(n.name)
+		err := ovs.BridgeDelete(context.TODO(), n.name)
 		if err != nil {
 			return err
 		}
@@ -2347,7 +2347,7 @@ func (n *bridge) Stop() error {
 
 	if len(fwClearIPVersions) > 0 {
 		n.logger.Debug("Deleting firewall")
-		err := n.state.Firewall.NetworkClear(n.name, true, fwClearIPVersions)
+		err := n.state.Firewall.NetworkClear(context.TODO(), n.name, true, fwClearIPVersions)
 		if err != nil {
 			return fmt.Errorf("Failed deleting firewall: %w", err)
 		}
@@ -3591,7 +3591,7 @@ func (n *bridge) forwardSetupFirewall() error {
 		}
 	}
 
-	err = n.state.Firewall.NetworkApplyForwards(n.name, fwForwards)
+	err = n.state.Firewall.NetworkApplyForwards(context.TODO(), n.name, fwForwards)
 	if err != nil {
 		return fmt.Errorf("Failed applying firewall address forwards: %w", err)
 	}
