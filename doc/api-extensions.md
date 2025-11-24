@@ -3657,3 +3657,10 @@ Creating a public cluster link is a two-phase process:
 A new `ClusterLinkCertificate` response type is introduced, containing the certificate fingerprint and PEM-encoded certificate returned by the first request.
 
 Public cluster links cannot be used by {ref}`replicators <exp-replicators>` or as a project's `replica.cluster`, since replication requires the remote cluster to authenticate the connection. Both reject a public link at configuration time.
+
+(extension-durable-operations)=
+## `durable_operations`
+
+Introduces new operation class for durable operations.
+Durable operations are restarted on the DQLite raft leader if the member that is running the operation fails to respond to heartbeats.
+If the leader was running the operation and goes offline, the operation is restarted on the newly elected leader.
