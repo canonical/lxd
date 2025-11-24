@@ -119,6 +119,59 @@ var updates = map[int]schema.Update{
 	76: updateFromV75,
 	77: updateFromV76,
 	78: updateFromV77,
+	79: updateFromV78,
+}
+
+func updateFromV78(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, `
+-- Add the new columns without the FOREIGN KEY constraint.
+ALTER TABLE operations ADD COLUMN description TEXT;
+ALTER TABLE operations ADD COLUMN requestor_protocol TEXT;
+ALTER TABLE operations ADD COLUMN identity_id INTEGER;
+ALTER TABLE operations ADD COLUMN class INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE operations ADD COLUMN created_at DATETIME NOT NULL DEFAULT 0;
+ALTER TABLE operations ADD COLUMN status INTEGER;
+
+-- Create the new version of the operations table with the FOREIGN KEY constraint.
+CREATE TABLE operations_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    uuid TEXT NOT NULL,
+    node_id INTEGER NOT NULL,
+    type INTEGER NOT NULL DEFAULT 0,
+    project_id INTEGER,
+    description TEXT,
+    requestor_protocol TEXT,
+    identity_id INTEGER,
+    class INTEGER NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT 0,
+    status INTEGER,
+    UNIQUE (uuid),
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+    FOREIGN KEY (identity_id) REFERENCES identities (id) ON DELETE CASCADE
+);
+INSERT INTO operations_new SELECT * FROM operations;
+
+-- Drop the old table and rename the new one.
+DROP TABLE operations;
+ALTER TABLE operations_new RENAME TO operations;
+
+CREATE TABLE operation_resources (
+	operation_id INTEGER PRIMARY KEY NOT NULL,
+	resource TEXT NOT NULL,
+    entity_type INTEGER NOT NULL,
+    entity_id INTEGER NOT NULL,
+    FOREIGN KEY (operation_id) REFERENCES operations (id) ON DELETE CASCADE,
+    UNIQUE (resource)
+);
+
+CREATE TABLE operation_metadata (
+	operation_id INTEGER PRIMARY KEY NOT NULL,
+	data TEXT NOT NULL,
+    FOREIGN KEY (operation_id) REFERENCES operations (id) ON DELETE CASCADE
+);
+`)
+	return err
 }
 
 func updateFromV77(ctx context.Context, tx *sql.Tx) error {
