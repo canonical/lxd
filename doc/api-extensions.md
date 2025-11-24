@@ -2933,3 +2933,8 @@ See {ref}`LXD bearer tokens <authentication-bearer>`.
 
 This introduces support for the {config:option}`instance-resource-limits:limits.max_bus_ports` configuration key for virtual machines. This option controls the maximum allowed number of user configurable devices requiring a dedicated PCI/PCIe port for a virtual machine.
 This number includes both the devices attached before the instance start and the devices hotplugged at runtime.
+
+(extension-durable-operations)=
+## `durable_operations`
+
+Introduces new operation class for durable operations. Durable operations are guaranteed to run on a different node if the node running the operation previously goes offline.
