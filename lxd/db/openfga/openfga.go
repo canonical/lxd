@@ -209,9 +209,9 @@ func (o *openfgaStore) Read(ctx context.Context, s string, key storage.ReadFilte
 // Implementation:
 //   - The tuples that this method is meant to return have been passed in contextually. So validate the input matches
 //     what is expected and return nil.
-func (o *openfgaStore) ReadUserTuple(ctx context.Context, store string, tk *openfgav1.TupleKey, options storage.ReadUserTupleOptions) (*openfgav1.Tuple, error) {
+func (o *openfgaStore) ReadUserTuple(ctx context.Context, store string, filter storage.ReadUserTupleFilter, options storage.ReadUserTupleOptions) (*openfgav1.Tuple, error) {
 	// Expect the User field to be present.
-	user := tk.GetUser()
+	user := filter.User
 	if user == "" {
 		return nil, errors.New("ReadUserTuple: User field of tuple key must be provided")
 	}
