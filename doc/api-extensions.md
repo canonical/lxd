@@ -2986,3 +2986,8 @@ Clients must include any target values that should remain on the destination aft
 
 This introduces a new `recursion=2` mode for `GET /1.0/operations` which allows for the retrieval of
 parent and child relationships between operations. The parent and child operations are now also listed by `GET /1.0/operations/{id}` endpoint with `recursion=1`.
+
+(extension-durable-operations)=
+## `durable_operations`
+
+Introduces new operation class for durable operations. Durable operations are guaranteed to run on a different node if the node running the operation previously goes offline.
