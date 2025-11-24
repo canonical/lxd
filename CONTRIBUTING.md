@@ -42,6 +42,7 @@ Use separate commits for different types of changes:
 | **CLI changes**      | Files in `lxc/`                                  | `lxc/<command>: Change XYZ`         | 
 | **LXD daemon**       | Files in `lxd/`                                  | `lxd/<package>: Add support for XYZ`|
 | **Tests**            | Files in `tests/`                                | `tests: Add test for XYZ`           |
+| **GitHub**            | Files in `.github/`                                | `github: Update XYZ`           |
 
 Depending on complexity, large changes might be further split into smaller, logical commits. This commit structure facilitates the review process and simplifies backporting fixes to stable branches.
 
