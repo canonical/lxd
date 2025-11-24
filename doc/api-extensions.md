@@ -2875,3 +2875,8 @@ Endpoints converted to asynchronous behavior:
 * `PATCH /storage-pools/{pool}/volumes/{type}/{vol}/snapshots/{snap}` - Patch storage volume snapshot
 * `PUT /1.0/profiles/{name}` - Update profile
 * `PATCH /1.0/profiles/{name}` - Patch profile
+
+(extension-durable-workflows)=
+## `durable_workflows`
+
+Introduces new operation class for durable operations. Durable operations are guaranteed to run on a different node if the node running the operation previously gets offline.
