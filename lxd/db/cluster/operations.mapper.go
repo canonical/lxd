@@ -19,14 +19,14 @@ import (
 var _ = api.ServerEnvironment{}
 
 var operationObjects = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
+SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type, operations.description, operations.requestor_protocol, operations.identity_id, operations.class, operations.created_at, operations.status
   FROM operations
   JOIN nodes ON operations.node_id = nodes.id
   ORDER BY operations.id, operations.uuid
 `)
 
 var operationObjectsByNodeID = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
+SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type, operations.description, operations.requestor_protocol, operations.identity_id, operations.class, operations.created_at, operations.status
   FROM operations
   JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.node_id = ? )
@@ -34,7 +34,7 @@ SELECT operations.id, operations.uuid, nodes.address AS node_address, operations
 `)
 
 var operationObjectsByID = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
+SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type, operations.description, operations.requestor_protocol, operations.identity_id, operations.class, operations.created_at, operations.status
   FROM operations
   JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.id = ? )
@@ -42,7 +42,7 @@ SELECT operations.id, operations.uuid, nodes.address AS node_address, operations
 `)
 
 var operationObjectsByUUID = RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
+SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type, operations.description, operations.requestor_protocol, operations.identity_id, operations.class, operations.created_at, operations.status
   FROM operations
   JOIN nodes ON operations.node_id = nodes.id
   WHERE ( operations.uuid = ? )
@@ -50,8 +50,8 @@ SELECT operations.id, operations.uuid, nodes.address AS node_address, operations
 `)
 
 var operationCreateOrReplace = RegisterStmt(`
-INSERT OR REPLACE INTO operations (uuid, project_id, node_id, type)
- VALUES (?, ?, ?, ?)
+INSERT OR REPLACE INTO operations (uuid, project_id, node_id, type, description, requestor_protocol, identity_id, class, created_at, status)
+ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `)
 
 var operationDeleteByUUID = RegisterStmt(`
@@ -68,7 +68,7 @@ func getOperations(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Operatio
 
 	dest := func(scan func(dest ...any) error) error {
 		o := Operation{}
-		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.ProjectID, &o.NodeID, &o.Type)
+		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.ProjectID, &o.NodeID, &o.Type, &o.Description, &o.RequestorProtocol, &o.IdentityID, &o.Class, &o.CreatedAt, &o.Status)
 		if err != nil {
 			return err
 		}
@@ -92,7 +92,7 @@ func getOperationsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) 
 
 	dest := func(scan func(dest ...any) error) error {
 		o := Operation{}
-		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.ProjectID, &o.NodeID, &o.Type)
+		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.ProjectID, &o.NodeID, &o.Type, &o.Description, &o.RequestorProtocol, &o.IdentityID, &o.Class, &o.CreatedAt, &o.Status)
 		if err != nil {
 			return err
 		}
@@ -228,13 +228,19 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 // CreateOrReplaceOperation adds a new operation to the database.
 // generator: operation CreateOrReplace
 func CreateOrReplaceOperation(ctx context.Context, tx *sql.Tx, object Operation) (int64, error) {
-	args := make([]any, 4)
+	args := make([]any, 10)
 
 	// Populate the statement arguments.
 	args[0] = object.UUID
 	args[1] = object.ProjectID
 	args[2] = object.NodeID
 	args[3] = object.Type
+	args[4] = object.Description
+	args[5] = object.RequestorProtocol
+	args[6] = object.IdentityID
+	args[7] = object.Class
+	args[8] = object.CreatedAt
+	args[9] = object.Status
 
 	// Prepared statement to use.
 	stmt, err := Stmt(tx, operationCreateOrReplace)
