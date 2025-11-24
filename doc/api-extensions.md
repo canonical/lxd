@@ -3625,3 +3625,9 @@ In addition a new endpoint [`GET /1.0/networks/{networkName}/load-balancer-pools
 ## `operation_child_count`
 
 Adds a `child_count` field to the `Operation` struct, indicating the number of child operations. This allows clients to determine whether an operation has children without requiring `recursion=2`.
+
+(extension-durable-operations)=
+## `durable_operations`
+
+Introduces new operation class for durable operations.
+Durable operations are rescheduled on the {ref}`Dqlite leader <dqlite-internals-lxd-cluster-roles>` if the member that was initially running the operation goes offline.
