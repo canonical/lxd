@@ -19,9 +19,12 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 
 	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		opInfo := cluster.Operation{
-			Reference: op.id,
-			Type:      opType,
-			NodeID:    tx.GetNodeID(),
+			Reference:   op.id,
+			Type:        opType,
+			NodeID:      tx.GetNodeID(),
+			Description: op.description,
+			Class:       (int64)(op.class),
+			CreatedAt:   op.createdAt,
 		}
 
 		if op.projectName != "" {
@@ -31,6 +34,19 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 			}
 
 			opInfo.ProjectID = &projectID
+		}
+
+		if op.requestor != nil {
+			opInfo.RequestorProtocol = op.requestor.CallerProtocol()
+			callerIdentity := op.requestor.CallerIdentity()
+			if callerIdentity != nil {
+				identityID, err := cluster.GetIdentityID(ctx, tx.Tx(), cluster.AuthMethod(callerIdentity.AuthenticationMethod), callerIdentity.Identifier)
+				if err != nil {
+					return fmt.Errorf("Failed adding %q Operation %s to database: %w", opType.Description(), op.id, err)
+				}
+
+				opInfo.RequestorIdentityID = &identityID
+			}
 		}
 
 		_, err := cluster.CreateOrReplaceOperation(ctx, tx.Tx(), opInfo)

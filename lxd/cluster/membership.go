@@ -594,9 +594,15 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 			// Migrate outstanding operations.
 			for _, operation := range operations {
 				op := cluster.Operation{
-					Reference: operation.Reference,
-					Type:      operation.Type,
-					NodeID:    tx.GetNodeID(),
+					Reference:           operation.Reference,
+					Type:                operation.Type,
+					NodeID:              tx.GetNodeID(),
+					Description:         operation.Description,
+					RequestorProtocol:   operation.RequestorProtocol,
+					RequestorIdentityID: operation.RequestorIdentityID,
+					EntityID:            operation.EntityID,
+					Class:               operation.Class,
+					CreatedAt:           operation.CreatedAt,
 				}
 
 				_, err := cluster.CreateOrReplaceOperation(ctx, tx.Tx(), op)
