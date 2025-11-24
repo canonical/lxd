@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-        "POT-Creation-Date: 2025-11-24 10:23+0000\n"
+        "POT-Creation-Date: 2025-11-24 11:38+0000\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -122,7 +122,7 @@ msgid   "### This is a YAML representation of the configuration.\n"
         "### Note that the name is shown but cannot be changed"
 msgstr  ""
 
-#: lxc/auth.go:1148
+#: lxc/auth.go:1161
 msgid   "### This is a YAML representation of the group.\n"
         "### Any line starting with a '# will be ignored.\n"
         "###\n"
@@ -146,7 +146,7 @@ msgid   "### This is a YAML representation of the group.\n"
         "### Any line starting with a '# will be ignored.\n"
         "###\n"
         "### NOTE: All group information is shown but only the description and permissions can be modified.\n"
-        "### \n"
+        "###\n"
         "### name: my-first-group\n"
         "### description: My first group.\n"
         "### permissions:\n"
@@ -163,7 +163,7 @@ msgid   "### This is a YAML representation of the group.\n"
         "### - operations\n"
 msgstr  ""
 
-#: lxc/auth.go:1807
+#: lxc/auth.go:1820
 msgid   "### This is a YAML representation of the identity provider group.\n"
         "### Any line starting with a '# will be ignored.\n"
         "###\n"
@@ -523,7 +523,7 @@ msgstr  ""
 msgid   "AUTH TYPE"
 msgstr  ""
 
-#: lxc/auth.go:994
+#: lxc/auth.go:1007
 msgid   "AUTHENTICATION METHOD"
 msgstr  ""
 
@@ -565,11 +565,11 @@ msgstr  ""
 msgid   "Add a cluster member to a cluster group"
 msgstr  ""
 
-#: lxc/auth.go:1343 lxc/auth.go:1344
+#: lxc/auth.go:1356 lxc/auth.go:1357
 msgid   "Add a group to an identity"
 msgstr  ""
 
-#: lxc/auth.go:2096 lxc/auth.go:2097
+#: lxc/auth.go:2109 lxc/auth.go:2110
 msgid   "Add a group to an identity provider group"
 msgstr  ""
 
@@ -1275,12 +1275,12 @@ msgstr  ""
 msgid   "Could not find certificate key file path: %s"
 msgstr  ""
 
-#: lxc/auth.go:305 lxc/auth.go:1882
+#: lxc/auth.go:305 lxc/auth.go:1895
 #, c-format
 msgid   "Could not parse group: %s"
 msgstr  ""
 
-#: lxc/auth.go:1231
+#: lxc/auth.go:1244
 #, c-format
 msgid   "Could not parse identity: %s"
 msgstr  ""
@@ -1309,7 +1309,7 @@ msgstr  ""
 msgid   "Couldn't find a matching entry"
 msgstr  ""
 
-#: lxc/auth.go:799
+#: lxc/auth.go:812
 msgid   "Create a TLS identity"
 msgstr  ""
 
@@ -1329,7 +1329,7 @@ msgstr  ""
 msgid   "Create an empty instance"
 msgstr  ""
 
-#: lxc/auth.go:798
+#: lxc/auth.go:811
 msgid   "Create an identity"
 msgstr  ""
 
@@ -1349,7 +1349,7 @@ msgstr  ""
 msgid   "Create groups"
 msgstr  ""
 
-#: lxc/auth.go:1693 lxc/auth.go:1694
+#: lxc/auth.go:1706 lxc/auth.go:1707
 msgid   "Create identity provider groups"
 msgstr  ""
 
@@ -1492,7 +1492,7 @@ msgstr  ""
 msgid   "Delete all warnings"
 msgstr  ""
 
-#: lxc/auth.go:1262 lxc/auth.go:1263
+#: lxc/auth.go:1275 lxc/auth.go:1276
 msgid   "Delete an identity"
 msgstr  ""
 
@@ -1504,7 +1504,7 @@ msgstr  ""
 msgid   "Delete groups"
 msgstr  ""
 
-#: lxc/auth.go:1745 lxc/auth.go:1746
+#: lxc/auth.go:1758 lxc/auth.go:1759
 msgid   "Delete identity provider groups"
 msgstr  ""
 
@@ -1580,7 +1580,7 @@ msgstr  ""
 msgid   "Delete warning"
 msgstr  ""
 
-#: lxc/action.go:33 lxc/action.go:58 lxc/action.go:84 lxc/action.go:111 lxc/alias.go:23 lxc/alias.go:60 lxc/alias.go:110 lxc/alias.go:159 lxc/alias.go:214 lxc/auth.go:37 lxc/auth.go:66 lxc/auth.go:105 lxc/auth.go:159 lxc/auth.go:208 lxc/auth.go:337 lxc/auth.go:397 lxc/auth.go:446 lxc/auth.go:498 lxc/auth.go:521 lxc/auth.go:580 lxc/auth.go:759 lxc/auth.go:799 lxc/auth.go:946 lxc/auth.go:1014 lxc/auth.go:1074 lxc/auth.go:1136 lxc/auth.go:1263 lxc/auth.go:1320 lxc/auth.go:1344 lxc/auth.go:1396 lxc/auth.go:1452 lxc/auth.go:1474 lxc/auth.go:1656 lxc/auth.go:1694 lxc/auth.go:1746 lxc/auth.go:1795 lxc/auth.go:1914 lxc/auth.go:1974 lxc/auth.go:2023 lxc/auth.go:2074 lxc/auth.go:2097 lxc/auth.go:2150 lxc/cluster.go:33 lxc/cluster.go:126 lxc/cluster.go:218 lxc/cluster.go:275 lxc/cluster.go:334 lxc/cluster.go:407 lxc/cluster.go:489 lxc/cluster.go:533 lxc/cluster.go:591 lxc/cluster.go:682 lxc/cluster.go:776 lxc/cluster.go:899 lxc/cluster.go:983 lxc/cluster.go:1093 lxc/cluster.go:1181 lxc/cluster.go:1305 lxc/cluster.go:1342 lxc/cluster_group.go:33 lxc/cluster_group.go:87 lxc/cluster_group.go:177 lxc/cluster_group.go:263 lxc/cluster_group.go:323 lxc/cluster_group.go:447 lxc/cluster_group.go:529 lxc/cluster_group.go:619 lxc/cluster_group.go:675 lxc/cluster_group.go:737 lxc/cluster_role.go:25 lxc/cluster_role.go:52 lxc/cluster_role.go:116 lxc/config.go:33 lxc/config.go:141 lxc/config.go:434 lxc/config.go:578 lxc/config.go:796 lxc/config.go:928 lxc/config.go:999 lxc/config.go:1039 lxc/config.go:1094 lxc/config.go:1185 lxc/config.go:1216 lxc/config.go:1270 lxc/config_device.go:26 lxc/config_device.go:173 lxc/config_device.go:304 lxc/config_device.go:401 lxc/config_device.go:484 lxc/config_device.go:580 lxc/config_device.go:696 lxc/config_device.go:703 lxc/config_device.go:832 lxc/config_device.go:923 lxc/config_metadata.go:28 lxc/config_metadata.go:56 lxc/config_metadata.go:189 lxc/config_template.go:28 lxc/config_template.go:68 lxc/config_template.go:119 lxc/config_template.go:173 lxc/config_template.go:273 lxc/config_template.go:341 lxc/config_trust.go:35 lxc/config_trust.go:88 lxc/config_trust.go:235 lxc/config_trust.go:349 lxc/config_trust.go:431 lxc/config_trust.go:533 lxc/config_trust.go:579 lxc/config_trust.go:650 lxc/console.go:41 lxc/copy.go:43 lxc/delete.go:33 lxc/exec.go:41 lxc/export.go:33 lxc/file.go:89 lxc/file.go:136 lxc/file.go:318 lxc/file.go:371 lxc/file.go:457 lxc/file.go:690 lxc/file.go:1211 lxc/image.go:39 lxc/image.go:160 lxc/image.go:338 lxc/image.go:397 lxc/image.go:526 lxc/image.go:698 lxc/image.go:949 lxc/image.go:1092 lxc/image.go:1452 lxc/image.go:1547 lxc/image.go:1613 lxc/image.go:1677 lxc/image.go:1740 lxc/image_alias.go:24 lxc/image_alias.go:60 lxc/image_alias.go:124 lxc/image_alias.go:177 lxc/image_alias.go:288 lxc/import.go:29 lxc/info.go:33 lxc/init.go:44 lxc/launch.go:24 lxc/list.go:50 lxc/main.go:85 lxc/manpage.go:22 lxc/monitor.go:34 lxc/move.go:39 lxc/network.go:36 lxc/network.go:139 lxc/network.go:241 lxc/network.go:331 lxc/network.go:418 lxc/network.go:476 lxc/network.go:573 lxc/network.go:670 lxc/network.go:806 lxc/network.go:887 lxc/network.go:1020 lxc/network.go:1146 lxc/network.go:1225 lxc/network.go:1285 lxc/network.go:1379 lxc/network.go:1451 lxc/network_acl.go:32 lxc/network_acl.go:98 lxc/network_acl.go:194 lxc/network_acl.go:255 lxc/network_acl.go:311 lxc/network_acl.go:384 lxc/network_acl.go:481 lxc/network_acl.go:567 lxc/network_acl.go:610 lxc/network_acl.go:749 lxc/network_acl.go:806 lxc/network_acl.go:863 lxc/network_acl.go:878 lxc/network_acl.go:1016 lxc/network_allocations.go:52 lxc/network_forward.go:36 lxc/network_forward.go:93 lxc/network_forward.go:182 lxc/network_forward.go:259 lxc/network_forward.go:415 lxc/network_forward.go:500 lxc/network_forward.go:608 lxc/network_forward.go:655 lxc/network_forward.go:809 lxc/network_forward.go:883 lxc/network_forward.go:898 lxc/network_forward.go:983 lxc/network_load_balancer.go:36 lxc/network_load_balancer.go:97 lxc/network_load_balancer.go:184 lxc/network_load_balancer.go:261 lxc/network_load_balancer.go:411 lxc/network_load_balancer.go:479 lxc/network_load_balancer.go:587 lxc/network_load_balancer.go:617 lxc/network_load_balancer.go:772 lxc/network_load_balancer.go:845 lxc/network_load_balancer.go:860 lxc/network_load_balancer.go:936 lxc/network_load_balancer.go:1034 lxc/network_load_balancer.go:1049 lxc/network_load_balancer.go:1122 lxc/network_peer.go:30 lxc/network_peer.go:83 lxc/network_peer.go:168 lxc/network_peer.go:237 lxc/network_peer.go:362 lxc/network_peer.go:447 lxc/network_peer.go:547 lxc/network_peer.go:594 lxc/network_peer.go:731 lxc/network_zone.go:32 lxc/network_zone.go:90 lxc/network_zone.go:186 lxc/network_zone.go:249 lxc/network_zone.go:322 lxc/network_zone.go:417 lxc/network_zone.go:503 lxc/network_zone.go:546 lxc/network_zone.go:673 lxc/network_zone.go:729 lxc/network_zone.go:786 lxc/network_zone.go:864 lxc/network_zone.go:928 lxc/network_zone.go:1004 lxc/network_zone.go:1102 lxc/network_zone.go:1189 lxc/network_zone.go:1236 lxc/network_zone.go:1366 lxc/network_zone.go:1427 lxc/network_zone.go:1442 lxc/network_zone.go:1500 lxc/operation.go:25 lxc/operation.go:57 lxc/operation.go:107 lxc/operation.go:194 lxc/profile.go:38 lxc/profile.go:113 lxc/profile.go:193 lxc/profile.go:289 lxc/profile.go:371 lxc/profile.go:453 lxc/profile.go:511 lxc/profile.go:647 lxc/profile.go:723 lxc/profile.go:880 lxc/profile.go:973 lxc/profile.go:1033 lxc/profile.go:1120 lxc/profile.go:1184 lxc/project.go:33 lxc/project.go:99 lxc/project.go:199 lxc/project.go:270 lxc/project.go:406 lxc/project.go:480 lxc/project.go:600 lxc/project.go:665 lxc/project.go:751 lxc/project.go:795 lxc/project.go:856 lxc/project.go:923 lxc/publish.go:34 lxc/query.go:35 lxc/rebuild.go:28 lxc/remote.go:38 lxc/remote.go:94 lxc/remote.go:754 lxc/remote.go:792 lxc/remote.go:878 lxc/remote.go:959 lxc/remote.go:1023 lxc/remote.go:1072 lxc/rename.go:21 lxc/restore.go:22 lxc/snapshot.go:32 lxc/storage.go:35 lxc/storage.go:98 lxc/storage.go:204 lxc/storage.go:262 lxc/storage.go:394 lxc/storage.go:476 lxc/storage.go:656 lxc/storage.go:743 lxc/storage.go:845 lxc/storage.go:939 lxc/storage_bucket.go:31 lxc/storage_bucket.go:85 lxc/storage_bucket.go:190 lxc/storage_bucket.go:251 lxc/storage_bucket.go:384 lxc/storage_bucket.go:462 lxc/storage_bucket.go:556 lxc/storage_bucket.go:648 lxc/storage_bucket.go:717 lxc/storage_bucket.go:751 lxc/storage_bucket.go:792 lxc/storage_bucket.go:871 lxc/storage_bucket.go:977 lxc/storage_bucket.go:1041 lxc/storage_bucket.go:1176 lxc/storage_volume.go:67 lxc/storage_volume.go:240 lxc/storage_volume.go:315 lxc/storage_volume.go:396 lxc/storage_volume.go:621 lxc/storage_volume.go:730 lxc/storage_volume.go:817 lxc/storage_volume.go:922 lxc/storage_volume.go:1026 lxc/storage_volume.go:1247 lxc/storage_volume.go:1378 lxc/storage_volume.go:1539 lxc/storage_volume.go:1623 lxc/storage_volume.go:1876 lxc/storage_volume.go:1979 lxc/storage_volume.go:2106 lxc/storage_volume.go:2262 lxc/storage_volume.go:2383 lxc/storage_volume.go:2445 lxc/storage_volume.go:2581 lxc/storage_volume.go:2665 lxc/storage_volume.go:2839 lxc/version.go:22 lxc/warning.go:31 lxc/warning.go:73 lxc/warning.go:264 lxc/warning.go:305 lxc/warning.go:359
+#: lxc/action.go:33 lxc/action.go:58 lxc/action.go:84 lxc/action.go:111 lxc/alias.go:23 lxc/alias.go:60 lxc/alias.go:110 lxc/alias.go:159 lxc/alias.go:214 lxc/auth.go:37 lxc/auth.go:66 lxc/auth.go:105 lxc/auth.go:159 lxc/auth.go:208 lxc/auth.go:337 lxc/auth.go:397 lxc/auth.go:446 lxc/auth.go:498 lxc/auth.go:521 lxc/auth.go:580 lxc/auth.go:772 lxc/auth.go:812 lxc/auth.go:959 lxc/auth.go:1027 lxc/auth.go:1087 lxc/auth.go:1149 lxc/auth.go:1276 lxc/auth.go:1333 lxc/auth.go:1357 lxc/auth.go:1409 lxc/auth.go:1465 lxc/auth.go:1487 lxc/auth.go:1669 lxc/auth.go:1707 lxc/auth.go:1759 lxc/auth.go:1808 lxc/auth.go:1927 lxc/auth.go:1987 lxc/auth.go:2036 lxc/auth.go:2087 lxc/auth.go:2110 lxc/auth.go:2163 lxc/cluster.go:33 lxc/cluster.go:126 lxc/cluster.go:218 lxc/cluster.go:275 lxc/cluster.go:334 lxc/cluster.go:407 lxc/cluster.go:489 lxc/cluster.go:533 lxc/cluster.go:591 lxc/cluster.go:682 lxc/cluster.go:776 lxc/cluster.go:899 lxc/cluster.go:983 lxc/cluster.go:1093 lxc/cluster.go:1181 lxc/cluster.go:1305 lxc/cluster.go:1342 lxc/cluster_group.go:33 lxc/cluster_group.go:87 lxc/cluster_group.go:177 lxc/cluster_group.go:263 lxc/cluster_group.go:323 lxc/cluster_group.go:447 lxc/cluster_group.go:529 lxc/cluster_group.go:619 lxc/cluster_group.go:675 lxc/cluster_group.go:737 lxc/cluster_role.go:25 lxc/cluster_role.go:52 lxc/cluster_role.go:116 lxc/config.go:33 lxc/config.go:141 lxc/config.go:434 lxc/config.go:578 lxc/config.go:796 lxc/config.go:928 lxc/config.go:999 lxc/config.go:1039 lxc/config.go:1094 lxc/config.go:1185 lxc/config.go:1216 lxc/config.go:1270 lxc/config_device.go:26 lxc/config_device.go:173 lxc/config_device.go:304 lxc/config_device.go:401 lxc/config_device.go:484 lxc/config_device.go:580 lxc/config_device.go:696 lxc/config_device.go:703 lxc/config_device.go:832 lxc/config_device.go:923 lxc/config_metadata.go:28 lxc/config_metadata.go:56 lxc/config_metadata.go:189 lxc/config_template.go:28 lxc/config_template.go:68 lxc/config_template.go:119 lxc/config_template.go:173 lxc/config_template.go:273 lxc/config_template.go:341 lxc/config_trust.go:35 lxc/config_trust.go:88 lxc/config_trust.go:235 lxc/config_trust.go:349 lxc/config_trust.go:431 lxc/config_trust.go:533 lxc/config_trust.go:579 lxc/config_trust.go:650 lxc/console.go:41 lxc/copy.go:43 lxc/delete.go:33 lxc/exec.go:41 lxc/export.go:33 lxc/file.go:89 lxc/file.go:136 lxc/file.go:318 lxc/file.go:371 lxc/file.go:457 lxc/file.go:690 lxc/file.go:1211 lxc/image.go:39 lxc/image.go:160 lxc/image.go:338 lxc/image.go:397 lxc/image.go:526 lxc/image.go:698 lxc/image.go:949 lxc/image.go:1092 lxc/image.go:1452 lxc/image.go:1547 lxc/image.go:1613 lxc/image.go:1677 lxc/image.go:1740 lxc/image_alias.go:24 lxc/image_alias.go:60 lxc/image_alias.go:124 lxc/image_alias.go:177 lxc/image_alias.go:288 lxc/import.go:29 lxc/info.go:33 lxc/init.go:44 lxc/launch.go:24 lxc/list.go:50 lxc/main.go:85 lxc/manpage.go:22 lxc/monitor.go:34 lxc/move.go:39 lxc/network.go:36 lxc/network.go:139 lxc/network.go:241 lxc/network.go:331 lxc/network.go:418 lxc/network.go:476 lxc/network.go:573 lxc/network.go:670 lxc/network.go:806 lxc/network.go:887 lxc/network.go:1020 lxc/network.go:1146 lxc/network.go:1225 lxc/network.go:1285 lxc/network.go:1379 lxc/network.go:1451 lxc/network_acl.go:32 lxc/network_acl.go:98 lxc/network_acl.go:194 lxc/network_acl.go:255 lxc/network_acl.go:311 lxc/network_acl.go:384 lxc/network_acl.go:481 lxc/network_acl.go:567 lxc/network_acl.go:610 lxc/network_acl.go:749 lxc/network_acl.go:806 lxc/network_acl.go:863 lxc/network_acl.go:878 lxc/network_acl.go:1016 lxc/network_allocations.go:52 lxc/network_forward.go:36 lxc/network_forward.go:93 lxc/network_forward.go:182 lxc/network_forward.go:259 lxc/network_forward.go:415 lxc/network_forward.go:500 lxc/network_forward.go:608 lxc/network_forward.go:655 lxc/network_forward.go:809 lxc/network_forward.go:883 lxc/network_forward.go:898 lxc/network_forward.go:983 lxc/network_load_balancer.go:36 lxc/network_load_balancer.go:97 lxc/network_load_balancer.go:184 lxc/network_load_balancer.go:261 lxc/network_load_balancer.go:411 lxc/network_load_balancer.go:479 lxc/network_load_balancer.go:587 lxc/network_load_balancer.go:617 lxc/network_load_balancer.go:772 lxc/network_load_balancer.go:845 lxc/network_load_balancer.go:860 lxc/network_load_balancer.go:936 lxc/network_load_balancer.go:1034 lxc/network_load_balancer.go:1049 lxc/network_load_balancer.go:1122 lxc/network_peer.go:30 lxc/network_peer.go:83 lxc/network_peer.go:168 lxc/network_peer.go:237 lxc/network_peer.go:362 lxc/network_peer.go:447 lxc/network_peer.go:547 lxc/network_peer.go:594 lxc/network_peer.go:731 lxc/network_zone.go:32 lxc/network_zone.go:90 lxc/network_zone.go:186 lxc/network_zone.go:249 lxc/network_zone.go:322 lxc/network_zone.go:417 lxc/network_zone.go:503 lxc/network_zone.go:546 lxc/network_zone.go:673 lxc/network_zone.go:729 lxc/network_zone.go:786 lxc/network_zone.go:864 lxc/network_zone.go:928 lxc/network_zone.go:1004 lxc/network_zone.go:1102 lxc/network_zone.go:1189 lxc/network_zone.go:1236 lxc/network_zone.go:1366 lxc/network_zone.go:1427 lxc/network_zone.go:1442 lxc/network_zone.go:1500 lxc/operation.go:25 lxc/operation.go:57 lxc/operation.go:107 lxc/operation.go:194 lxc/profile.go:38 lxc/profile.go:113 lxc/profile.go:193 lxc/profile.go:289 lxc/profile.go:371 lxc/profile.go:453 lxc/profile.go:511 lxc/profile.go:647 lxc/profile.go:723 lxc/profile.go:880 lxc/profile.go:973 lxc/profile.go:1033 lxc/profile.go:1120 lxc/profile.go:1184 lxc/project.go:33 lxc/project.go:99 lxc/project.go:199 lxc/project.go:270 lxc/project.go:406 lxc/project.go:480 lxc/project.go:600 lxc/project.go:665 lxc/project.go:751 lxc/project.go:795 lxc/project.go:856 lxc/project.go:923 lxc/publish.go:34 lxc/query.go:35 lxc/rebuild.go:28 lxc/remote.go:38 lxc/remote.go:94 lxc/remote.go:754 lxc/remote.go:792 lxc/remote.go:878 lxc/remote.go:959 lxc/remote.go:1023 lxc/remote.go:1072 lxc/rename.go:21 lxc/restore.go:22 lxc/snapshot.go:32 lxc/storage.go:35 lxc/storage.go:98 lxc/storage.go:204 lxc/storage.go:262 lxc/storage.go:394 lxc/storage.go:476 lxc/storage.go:656 lxc/storage.go:743 lxc/storage.go:845 lxc/storage.go:939 lxc/storage_bucket.go:31 lxc/storage_bucket.go:85 lxc/storage_bucket.go:190 lxc/storage_bucket.go:251 lxc/storage_bucket.go:384 lxc/storage_bucket.go:462 lxc/storage_bucket.go:556 lxc/storage_bucket.go:648 lxc/storage_bucket.go:717 lxc/storage_bucket.go:751 lxc/storage_bucket.go:792 lxc/storage_bucket.go:871 lxc/storage_bucket.go:977 lxc/storage_bucket.go:1041 lxc/storage_bucket.go:1176 lxc/storage_volume.go:67 lxc/storage_volume.go:240 lxc/storage_volume.go:315 lxc/storage_volume.go:396 lxc/storage_volume.go:621 lxc/storage_volume.go:730 lxc/storage_volume.go:817 lxc/storage_volume.go:922 lxc/storage_volume.go:1026 lxc/storage_volume.go:1247 lxc/storage_volume.go:1378 lxc/storage_volume.go:1539 lxc/storage_volume.go:1623 lxc/storage_volume.go:1876 lxc/storage_volume.go:1979 lxc/storage_volume.go:2106 lxc/storage_volume.go:2262 lxc/storage_volume.go:2383 lxc/storage_volume.go:2445 lxc/storage_volume.go:2581 lxc/storage_volume.go:2665 lxc/storage_volume.go:2839 lxc/version.go:22 lxc/warning.go:31 lxc/warning.go:73 lxc/warning.go:264 lxc/warning.go:305 lxc/warning.go:359
 msgid   "Description"
 msgstr  ""
 
@@ -1654,7 +1654,7 @@ msgstr  ""
 msgid   "Directory import is not available on this platform"
 msgstr  ""
 
-#: lxc/exec.go:61
+#: lxc/exec.go:72
 msgid   "Directory to run the command in (default /root)"
 msgstr  ""
 
@@ -1662,11 +1662,11 @@ msgstr  ""
 msgid   "Disable authentication when using SSH SFTP listener"
 msgstr  ""
 
-#: lxc/exec.go:57
+#: lxc/exec.go:68
 msgid   "Disable pseudo-terminal allocation"
 msgstr  ""
 
-#: lxc/exec.go:58
+#: lxc/exec.go:69
 msgid   "Disable stdin (reads from /dev/null)"
 msgstr  ""
 
@@ -1760,7 +1760,7 @@ msgstr  ""
 msgid   "Edit a cluster group"
 msgstr  ""
 
-#: lxc/auth.go:1135 lxc/auth.go:1136
+#: lxc/auth.go:1148 lxc/auth.go:1149
 msgid   "Edit an identity as YAML"
 msgstr  ""
 
@@ -1776,7 +1776,7 @@ msgstr  ""
 msgid   "Edit groups as YAML"
 msgstr  ""
 
-#: lxc/auth.go:1794 lxc/auth.go:1795
+#: lxc/auth.go:1807 lxc/auth.go:1808
 msgid   "Edit identity provider groups as YAML"
 msgstr  ""
 
@@ -1881,7 +1881,7 @@ msgstr  ""
 msgid   "Entry TTL"
 msgstr  ""
 
-#: lxc/exec.go:54
+#: lxc/exec.go:65
 msgid   "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr  ""
 
@@ -1959,6 +1959,17 @@ msgid   "Execute commands in instances\n"
         "executable, passing the shell commands as arguments, for example:\n"
         "\n"
         "  lxc exec <instance> -- sh -c \"cd /tmp && pwd\"\n"
+        "\n"
+        "For interactive sessions, a convenient 'shell' alias is provided to\n"
+        "spawn a login shell inside the instance:\n"
+        "\n"
+        "  lxc shell <instance>\n"
+        "\n"
+        "This 'shell' alias is a shorthand for:\n"
+        "\n"
+        "  lxc exec <instance> -- su -l\n"
+        "\n"
+        "Note: due to using 'su -l', most environment variables will be reset.\n"
         "\n"
         "Mode defaults to non-interactive, interactive mode is selected if both stdin AND stdout are terminals (stderr is ignored)."
 msgstr  ""
@@ -2211,7 +2222,7 @@ msgstr  ""
 msgid   "Force evacuation without user confirmation"
 msgstr  ""
 
-#: lxc/exec.go:56
+#: lxc/exec.go:67
 msgid   "Force pseudo-terminal allocation"
 msgstr  ""
 
@@ -2254,7 +2265,7 @@ msgid   "Forcefully removing a server from the cluster should only be done as a 
         "Are you really sure you want to force removing %s? (yes/no): "
 msgstr  ""
 
-#: lxc/alias.go:112 lxc/auth.go:341 lxc/auth.go:950 lxc/auth.go:1918 lxc/cluster.go:128 lxc/cluster.go:984 lxc/cluster_group.go:449 lxc/config_template.go:275 lxc/config_trust.go:351 lxc/config_trust.go:433 lxc/image.go:1119 lxc/image_alias.go:182 lxc/list.go:134 lxc/network.go:1024 lxc/network.go:1148 lxc/network_acl.go:101 lxc/network_allocations.go:58 lxc/network_forward.go:96 lxc/network_load_balancer.go:100 lxc/network_peer.go:86 lxc/network_zone.go:93 lxc/network_zone.go:789 lxc/operation.go:109 lxc/profile.go:740 lxc/project.go:482 lxc/project.go:925 lxc/remote.go:796 lxc/storage.go:658 lxc/storage_bucket.go:463 lxc/storage_bucket.go:793 lxc/storage_volume.go:1640 lxc/warning.go:95
+#: lxc/alias.go:112 lxc/auth.go:341 lxc/auth.go:963 lxc/auth.go:1931 lxc/cluster.go:128 lxc/cluster.go:984 lxc/cluster_group.go:449 lxc/config_template.go:275 lxc/config_trust.go:351 lxc/config_trust.go:433 lxc/image.go:1119 lxc/image_alias.go:182 lxc/list.go:134 lxc/network.go:1024 lxc/network.go:1148 lxc/network_acl.go:101 lxc/network_allocations.go:58 lxc/network_forward.go:96 lxc/network_load_balancer.go:100 lxc/network_peer.go:86 lxc/network_zone.go:93 lxc/network_zone.go:789 lxc/operation.go:109 lxc/profile.go:740 lxc/project.go:482 lxc/project.go:925 lxc/remote.go:796 lxc/storage.go:658 lxc/storage_bucket.go:463 lxc/storage_bucket.go:793 lxc/storage_volume.go:1640 lxc/warning.go:95
 msgid   "Format (csv|json|table|yaml|compact)"
 msgstr  ""
 
@@ -2302,7 +2313,7 @@ msgstr  ""
 msgid   "GPUs:"
 msgstr  ""
 
-#: lxc/auth.go:998 lxc/auth.go:1958
+#: lxc/auth.go:1011 lxc/auth.go:1971
 msgid   "GROUPS"
 msgstr  ""
 
@@ -2461,12 +2472,12 @@ msgstr  ""
 msgid   "Group %s deleted"
 msgstr  ""
 
-#: lxc/auth.go:431 lxc/auth.go:2008
+#: lxc/auth.go:431 lxc/auth.go:2021
 #, c-format
 msgid   "Group %s renamed to %s"
 msgstr  ""
 
-#: lxc/exec.go:60
+#: lxc/exec.go:71
 msgid   "Group ID to run the command as (default 0)"
 msgstr  ""
 
@@ -2520,7 +2531,7 @@ msgstr  ""
 msgid   "ID: %s"
 msgstr  ""
 
-#: lxc/auth.go:997
+#: lxc/auth.go:1010
 msgid   "IDENTIFIER"
 msgstr  ""
 
@@ -2552,12 +2563,12 @@ msgstr  ""
 msgid   "ISSUE DATE"
 msgstr  ""
 
-#: lxc/auth.go:1730
+#: lxc/auth.go:1743
 #, c-format
 msgid   "Identity provider group %s created"
 msgstr  ""
 
-#: lxc/auth.go:1780
+#: lxc/auth.go:1793
 #, c-format
 msgid   "Identity provider group %s deleted"
 msgstr  ""
@@ -2682,7 +2693,7 @@ msgstr  ""
 msgid   "Input data"
 msgstr  ""
 
-#: lxc/auth.go:1451 lxc/auth.go:1452
+#: lxc/auth.go:1464 lxc/auth.go:1465
 msgid   "Inspect permissions"
 msgstr  ""
 
@@ -2994,11 +3005,11 @@ msgstr  ""
 msgid   "List groups"
 msgstr  ""
 
-#: lxc/auth.go:945 lxc/auth.go:946
+#: lxc/auth.go:958 lxc/auth.go:959
 msgid   "List identities"
 msgstr  ""
 
-#: lxc/auth.go:1913 lxc/auth.go:1914
+#: lxc/auth.go:1926 lxc/auth.go:1927
 msgid   "List identity provider groups"
 msgstr  ""
 
@@ -3142,7 +3153,7 @@ msgstr  ""
 msgid   "List operations from all projects"
 msgstr  ""
 
-#: lxc/auth.go:1473 lxc/auth.go:1474
+#: lxc/auth.go:1486 lxc/auth.go:1487
 msgid   "List permissions"
 msgstr  ""
 
@@ -3323,7 +3334,7 @@ msgstr  ""
 msgid   "Make the image public (accessible to unauthenticated clients as well)"
 msgstr  ""
 
-#: lxc/auth.go:741
+#: lxc/auth.go:737
 msgid   "Malformed argument, expected `[<remote>:]<type>/<name>`, got "
 msgstr  ""
 
@@ -3355,19 +3366,19 @@ msgstr  ""
 msgid   "Manage files in instances"
 msgstr  ""
 
-#: lxc/auth.go:65 lxc/auth.go:66 lxc/auth.go:1655 lxc/auth.go:1656
+#: lxc/auth.go:65 lxc/auth.go:66 lxc/auth.go:1668 lxc/auth.go:1669
 msgid   "Manage groups"
 msgstr  ""
 
-#: lxc/auth.go:1319 lxc/auth.go:1320
+#: lxc/auth.go:1332 lxc/auth.go:1333
 msgid   "Manage groups for the identity"
 msgstr  ""
 
-#: lxc/auth.go:758 lxc/auth.go:759
+#: lxc/auth.go:771 lxc/auth.go:772
 msgid   "Manage identities"
 msgstr  ""
 
-#: lxc/auth.go:2073 lxc/auth.go:2074
+#: lxc/auth.go:2086 lxc/auth.go:2087
 msgid   "Manage identity provider group mappings"
 msgstr  ""
 
@@ -3595,15 +3606,15 @@ msgstr  ""
 msgid   "Missing cluster member name"
 msgstr  ""
 
-#: lxc/auth.go:129 lxc/auth.go:183 lxc/auth.go:259 lxc/auth.go:421 lxc/auth.go:470 lxc/auth.go:545 lxc/auth.go:604 lxc/auth.go:2047
+#: lxc/auth.go:129 lxc/auth.go:183 lxc/auth.go:259 lxc/auth.go:421 lxc/auth.go:470 lxc/auth.go:545 lxc/auth.go:604 lxc/auth.go:2060
 msgid   "Missing group name"
 msgstr  ""
 
-#: lxc/auth.go:1717 lxc/auth.go:1770 lxc/auth.go:1836 lxc/auth.go:1998
+#: lxc/auth.go:1730 lxc/auth.go:1783 lxc/auth.go:1849 lxc/auth.go:2011
 msgid   "Missing identity provider group name"
 msgstr  ""
 
-#: lxc/auth.go:2121 lxc/auth.go:2174
+#: lxc/auth.go:2134 lxc/auth.go:2187
 msgid   "Missing identity provider group name argument"
 msgstr  ""
 
@@ -3764,7 +3775,7 @@ msgstr  ""
 msgid   "Must supply instance name for: "
 msgstr  ""
 
-#: lxc/auth.go:380 lxc/auth.go:996 lxc/auth.go:1957 lxc/cluster.go:195 lxc/cluster.go:1075 lxc/cluster_group.go:510 lxc/config_trust.go:408 lxc/config_trust.go:513 lxc/list.go:571 lxc/network.go:1117 lxc/network_acl.go:172 lxc/network_peer.go:149 lxc/network_zone.go:164 lxc/network_zone.go:846 lxc/profile.go:761 lxc/project.go:575 lxc/remote.go:854 lxc/storage.go:716 lxc/storage_bucket.go:528 lxc/storage_bucket.go:850 lxc/storage_volume.go:1763
+#: lxc/auth.go:380 lxc/auth.go:1009 lxc/auth.go:1970 lxc/cluster.go:195 lxc/cluster.go:1075 lxc/cluster_group.go:510 lxc/config_trust.go:408 lxc/config_trust.go:513 lxc/list.go:571 lxc/network.go:1117 lxc/network_acl.go:172 lxc/network_peer.go:149 lxc/network_zone.go:164 lxc/network_zone.go:846 lxc/profile.go:761 lxc/project.go:575 lxc/remote.go:854 lxc/storage.go:716 lxc/storage_bucket.go:528 lxc/storage_bucket.go:850 lxc/storage_volume.go:1763
 msgid   "NAME"
 msgstr  ""
 
@@ -4056,7 +4067,7 @@ msgstr  ""
 msgid   "Override the source project"
 msgstr  ""
 
-#: lxc/exec.go:55
+#: lxc/exec.go:66
 msgid   "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr  ""
 
@@ -4160,7 +4171,7 @@ msgstr  ""
 msgid   "Press ctrl+c to finish"
 msgstr  ""
 
-#: lxc/auth.go:306 lxc/auth.go:1232 lxc/auth.go:1883 lxc/cluster.go:866 lxc/cluster_group.go:405 lxc/config.go:323 lxc/config.go:398 lxc/config.go:1384 lxc/config_metadata.go:157 lxc/config_template.go:239 lxc/config_trust.go:314 lxc/image.go:493 lxc/network.go:773 lxc/network_acl.go:717 lxc/network_forward.go:777 lxc/network_load_balancer.go:740 lxc/network_peer.go:699 lxc/network_zone.go:641 lxc/network_zone.go:1334 lxc/profile.go:614 lxc/project.go:373 lxc/storage.go:361 lxc/storage_bucket.go:351 lxc/storage_bucket.go:1145 lxc/storage_volume.go:1181 lxc/storage_volume.go:1213
+#: lxc/auth.go:306 lxc/auth.go:1245 lxc/auth.go:1896 lxc/cluster.go:866 lxc/cluster_group.go:405 lxc/config.go:323 lxc/config.go:398 lxc/config.go:1384 lxc/config_metadata.go:157 lxc/config_template.go:239 lxc/config_trust.go:314 lxc/image.go:493 lxc/network.go:773 lxc/network_acl.go:717 lxc/network_forward.go:777 lxc/network_load_balancer.go:740 lxc/network_peer.go:699 lxc/network_zone.go:641 lxc/network_zone.go:1334 lxc/profile.go:614 lxc/project.go:373 lxc/storage.go:361 lxc/storage_bucket.go:351 lxc/storage_bucket.go:1145 lxc/storage_volume.go:1181 lxc/storage_volume.go:1213
 msgid   "Press enter to open the editor again or ctrl+c to abort change"
 msgstr  ""
 
@@ -4489,7 +4500,7 @@ msgstr  ""
 msgid   "Remove %s (yes/no): "
 msgstr  ""
 
-#: lxc/auth.go:2149 lxc/auth.go:2150
+#: lxc/auth.go:2162 lxc/auth.go:2163
 msgid   "Remove a LXD group from an identity provider group"
 msgstr  ""
 
@@ -4497,7 +4508,7 @@ msgstr  ""
 msgid   "Remove a cluster member from a cluster group"
 msgstr  ""
 
-#: lxc/auth.go:1395 lxc/auth.go:1396
+#: lxc/auth.go:1408 lxc/auth.go:1409
 msgid   "Remove a group from an identity"
 msgstr  ""
 
@@ -4589,7 +4600,7 @@ msgstr  ""
 msgid   "Rename groups"
 msgstr  ""
 
-#: lxc/auth.go:1973 lxc/auth.go:1974
+#: lxc/auth.go:1986 lxc/auth.go:1987
 msgid   "Rename identity provider groups"
 msgstr  ""
 
@@ -5075,7 +5086,7 @@ msgstr  ""
 msgid   "Show all information messages"
 msgstr  ""
 
-#: lxc/auth.go:2022 lxc/auth.go:2023
+#: lxc/auth.go:2035 lxc/auth.go:2036
 msgid   "Show an identity provider group"
 msgstr  ""
 
@@ -5107,7 +5118,7 @@ msgstr  ""
 msgid   "Show group configurations"
 msgstr  ""
 
-#: lxc/auth.go:1014
+#: lxc/auth.go:1027
 msgid   "Show identity configurations\n"
         "\n"
         "The argument must be a concatenation of the authentication method and either the\n"
@@ -5208,12 +5219,12 @@ msgstr  ""
 msgid   "Show storage volume state information"
 msgstr  ""
 
-#: lxc/auth.go:1074
+#: lxc/auth.go:1087
 msgid   "Show the current identity\n"
         "\n"
         "This command will display permissions for the current user.\n"
         "This includes contextual information, such as effective groups and permissions\n"
-        "that are granted via identity provider group mappings. \n"
+        "that are granted via identity provider group mappings.\n"
 msgstr  ""
 
 #: lxc/remote.go:753 lxc/remote.go:754
@@ -5444,12 +5455,12 @@ msgstr  ""
 msgid   "TARGET"
 msgstr  ""
 
-#: lxc/auth.go:904
+#: lxc/auth.go:917
 #, c-format
 msgid   "TLS identity %q (%s) pending identity token:"
 msgstr  ""
 
-#: lxc/auth.go:930
+#: lxc/auth.go:943
 #, c-format
 msgid   "TLS identity %q created with fingerprint %q"
 msgstr  ""
@@ -5458,7 +5469,7 @@ msgstr  ""
 msgid   "TOKEN"
 msgstr  ""
 
-#: lxc/auth.go:995 lxc/config_trust.go:407 lxc/image.go:1148 lxc/image_alias.go:269 lxc/list.go:577 lxc/network.go:1118 lxc/network.go:1204 lxc/network_allocations.go:26 lxc/operation.go:172 lxc/storage_volume.go:1762 lxc/warning.go:217
+#: lxc/auth.go:1008 lxc/config_trust.go:407 lxc/image.go:1148 lxc/image_alias.go:269 lxc/list.go:577 lxc/network.go:1118 lxc/network.go:1204 lxc/network_allocations.go:26 lxc/operation.go:172 lxc/storage_volume.go:1762 lxc/warning.go:217
 msgid   "TYPE"
 msgstr  ""
 
@@ -6068,7 +6079,7 @@ msgstr  ""
 msgid   "Used: %v"
 msgstr  ""
 
-#: lxc/exec.go:59
+#: lxc/exec.go:70
 msgid   "User ID to run the command as (default 0)"
 msgstr  ""
 
@@ -6112,11 +6123,11 @@ msgstr  ""
 msgid   "Verb: %s (%s)"
 msgstr  ""
 
-#: lxc/auth.go:1013
+#: lxc/auth.go:1026
 msgid   "View an identity"
 msgstr  ""
 
-#: lxc/auth.go:1073
+#: lxc/auth.go:1086
 msgid   "View the current identity"
 msgstr  ""
 
@@ -6153,11 +6164,11 @@ msgstr  ""
 msgid   "YES"
 msgstr  ""
 
-#: lxc/exec.go:101
+#: lxc/exec.go:112
 msgid   "You can't pass -t and -T at the same time"
 msgstr  ""
 
-#: lxc/exec.go:105
+#: lxc/exec.go:116
 msgid   "You can't pass -t or -T at the same time as --mode"
 msgstr  ""
 
@@ -6181,7 +6192,7 @@ msgstr  ""
 msgid   "[<remote:>]<pool> [<type>/]<volume>[/<snapshot>] <profile> [<device name>] [<path>]"
 msgstr  ""
 
-#: lxc/auth.go:334 lxc/auth.go:943 lxc/auth.go:1072 lxc/auth.go:1911 lxc/cluster.go:123 lxc/cluster.go:981 lxc/cluster_group.go:444 lxc/config_trust.go:346 lxc/config_trust.go:429 lxc/monitor.go:32 lxc/network.go:1017 lxc/network_acl.go:95 lxc/network_zone.go:87 lxc/operation.go:104 lxc/profile.go:720 lxc/project.go:477 lxc/storage.go:653 lxc/version.go:20 lxc/warning.go:70
+#: lxc/auth.go:334 lxc/auth.go:956 lxc/auth.go:1085 lxc/auth.go:1924 lxc/cluster.go:123 lxc/cluster.go:981 lxc/cluster_group.go:444 lxc/config_trust.go:346 lxc/config_trust.go:429 lxc/monitor.go:32 lxc/network.go:1017 lxc/network_acl.go:95 lxc/network_zone.go:87 lxc/operation.go:104 lxc/profile.go:720 lxc/project.go:477 lxc/storage.go:653 lxc/version.go:20 lxc/warning.go:70
 msgid   "[<remote>:]"
 msgstr  ""
 
@@ -6209,7 +6220,7 @@ msgstr  ""
 msgid   "[<remote>:] [<filters>...]"
 msgstr  ""
 
-#: lxc/auth.go:1472
+#: lxc/auth.go:1485
 msgid   "[<remote>:] [project=<project_name>] [entity_type=<entity_type>]"
 msgstr  ""
 
@@ -6273,7 +6284,7 @@ msgstr  ""
 msgid   "[<remote>:]<fingerprint>"
 msgstr  ""
 
-#: lxc/auth.go:103 lxc/auth.go:156 lxc/auth.go:206 lxc/auth.go:444 lxc/auth.go:1134 lxc/auth.go:1692 lxc/cluster_group.go:175 lxc/cluster_group.go:260 lxc/cluster_group.go:321 lxc/cluster_group.go:673
+#: lxc/auth.go:103 lxc/auth.go:156 lxc/auth.go:206 lxc/auth.go:444 lxc/auth.go:1147 lxc/auth.go:1705 lxc/cluster_group.go:175 lxc/cluster_group.go:260 lxc/cluster_group.go:321 lxc/cluster_group.go:673
 msgid   "[<remote>:]<group>"
 msgstr  ""
 
@@ -6289,15 +6300,15 @@ msgstr  ""
 msgid   "[<remote>:]<group> <new_name>"
 msgstr  ""
 
-#: lxc/auth.go:1743 lxc/auth.go:1793 lxc/auth.go:2021
+#: lxc/auth.go:1756 lxc/auth.go:1806 lxc/auth.go:2034
 msgid   "[<remote>:]<identity_provider_group>"
 msgstr  ""
 
-#: lxc/auth.go:2095 lxc/auth.go:2148
+#: lxc/auth.go:2108 lxc/auth.go:2161
 msgid   "[<remote>:]<identity_provider_group> <group>"
 msgstr  ""
 
-#: lxc/auth.go:1971
+#: lxc/auth.go:1984
 msgid   "[<remote>:]<identity_provider_group> <new_name>"
 msgstr  ""
 
@@ -6705,15 +6716,15 @@ msgstr  ""
 msgid   "[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
 msgstr  ""
 
-#: lxc/auth.go:797
+#: lxc/auth.go:810
 msgid   "[<remote>:]<type>/<name> [<path to PEM encoded certificate>] [[--group <group_name>]]"
 msgstr  ""
 
-#: lxc/auth.go:1012 lxc/auth.go:1260
+#: lxc/auth.go:1025 lxc/auth.go:1273
 msgid   "[<remote>:]<type>/<name_or_identifier>"
 msgstr  ""
 
-#: lxc/auth.go:1342 lxc/auth.go:1394
+#: lxc/auth.go:1355 lxc/auth.go:1407
 msgid   "[<remote>:]<type>/<name_or_identifier> <group>"
 msgstr  ""
 
@@ -6826,12 +6837,12 @@ msgid   "lxc auth group edit <group> < group.yaml\n"
         "   Update a group using the content of group.yaml"
 msgstr  ""
 
-#: lxc/auth.go:1138
+#: lxc/auth.go:1151
 msgid   "lxc auth identity edit <type>/<name_or_identifier> < identity.yaml\n"
         "   Update an identity using the content of identity.yaml"
 msgstr  ""
 
-#: lxc/auth.go:1797
+#: lxc/auth.go:1810
 msgid   "lxc auth identity-provider-group edit <identity_provider_group> < identity-provider-group.yaml\n"
         "   Update an identity provider group using the content of identity-provider-group.yaml"
 msgstr  ""
