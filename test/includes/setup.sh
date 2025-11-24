@@ -145,7 +145,7 @@ install_storage_driver_tools() {
 
 install_instance_drivers() {
     # ATM, only VMs require some extra tooling
-    if [ "${LXD_VM_TESTS:-0}" = "0" ]; then
+    if [ "${LXD_VM_TESTS:-1}" = "0" ]; then
         return
     fi
 
