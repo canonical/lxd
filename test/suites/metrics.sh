@@ -15,7 +15,7 @@ test_metrics() {
   lxc project create foo2 -c features.images=false -c features.profiles=false
   lxc init --empty c4 --project foo2
 
-  if [ "${LXD_VM_TESTS:-0}" = "1" ]; then
+  if [ "${LXD_VM_TESTS}" = "1" ]; then
     lxc launch --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
     lxc init   --vm --empty v2 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
 
@@ -36,7 +36,7 @@ test_metrics() {
   lxc query /1.0/metrics | grep -xF 'lxd_instances{project="foo",type="container"} 1'
   lxc query /1.0/metrics | grep -xF 'lxd_instances{project="foo2",type="container"} 1'
 
-  if [ "${LXD_VM_TESTS:-0}" = "1" ]; then
+  if [ "${LXD_VM_TESTS}" = "1" ]; then
     echo "==> Ensure lxd_instances reports VM count properly (0)"
     lxc query /1.0/metrics | grep -xF 'lxd_instances{project="default",type="virtual-machine"} 2'
     lxc query /1.0/metrics | grep -xF 'lxd_instances{project="foo",type="virtual-machine"} 1'
@@ -172,7 +172,7 @@ test_metrics() {
   wait $!
   [ "$(curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | awk '/^lxd_api_requests_ongoing{entity_type="instance"}/ {print $2}')" -eq "$previous" ]
 
-  if [ "${LXD_VM_TESTS:-0}" = "1" ]; then
+  if [ "${LXD_VM_TESTS}" = "1" ]; then
     lxc delete -f v1
     lxc delete v2
     lxc delete -f v3 --project foo
