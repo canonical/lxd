@@ -31,6 +31,9 @@ fi
 ARCH="$(dpkg --print-architecture || echo "amd64")"
 export ARCH
 
+LXD_VM_TESTS="${LXD_VM_TESTS:-1}"
+export LXD_VM_TESTS
+
 export CLIENT_DEBUG=""
 export SERVER_DEBUG=""
 export SHELL_TRACING=""
@@ -89,7 +92,7 @@ install_instance_drivers
 
 echo "==> Checking for dependencies"
 check_dependencies lxd lxc curl busybox dnsmasq expect iptables jq nc ping python3 yq git s3cmd sqlite3 rsync shuf setfacl setfattr socat swtpm dig tar2sqfs unsquashfs xz
-if [ "${LXD_VM_TESTS:-0}" = "1" ]; then
+if [ "${LXD_VM_TESTS}" = "1" ]; then
   check_dependencies qemu-img "qemu-system-$(uname -m)" sgdisk
 fi
 if ! check_dependencies minio mc; then
@@ -311,8 +314,8 @@ run_test() {
 
     # If there is '_vm' in the test name, then VM tests are expected to be run.
     # If LXD_VM_TESTS=1, then VM tests can be run.
-    if [[ "${TEST_CURRENT}" =~ ^test_.*_vm.*$ ]] && [ "${LXD_VM_TESTS:-0}" = "0" ]; then
-      export TEST_UNMET_REQUIREMENT="LXD_VM_TESTS=1 is required"
+    if [[ "${TEST_CURRENT}" =~ ^test_.*_vm.*$ ]] && [ "${LXD_VM_TESTS}" = "0" ]; then
+      export TEST_UNMET_REQUIREMENT="VM test currently disabled due to LXD_VM_TESTS=0"
     else
       # Check for any core dump before running the test
       if ! check_empty /var/crash/; then
