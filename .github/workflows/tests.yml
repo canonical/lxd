@@ -503,7 +503,7 @@ jobs:
           gocov-xml < "${GOCOVERDIR}"/coverage.json > "${GOCOVERDIR}"/coverage-go.xml
 
       - name: Run TICS
-        uses: tiobe/tics-github-action@427ef84d84bf35e39235d61406f414811bb99ce9 # v3.6.0
+        uses: tiobe/tics-github-action@768de18bedf164ee461bc9ef5e2f2fa1a20b122a # v3.7.0
         with:
           mode: qserver
           project: LXD
