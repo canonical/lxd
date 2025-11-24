@@ -3004,3 +3004,8 @@ For more information, see {ref}`dqlite-internals-lxd-cluster-roles` and {ref}`cl
 ## `bulk_operations`
 
 Adds a `recursion=2` mode to `GET /1.0/operations`, enabling retrieval of parent-child relationships between operations. The parent-child operations are now also returned by the `GET /1.0/operations/{id}` endpoint when `recursion=1` is specified.
+
+(extension-durable-operations)=
+## `durable_operations`
+
+Introduces new operation class for durable operations. Durable operations are guaranteed to run on a different node if the node running the operation previously goes offline.

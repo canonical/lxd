@@ -481,6 +481,7 @@ var APIExtensions = []string{
 	"instance_refresh_config",
 	"clustering_control_plane",
 	"bulk_operations",
+	"durable_operations",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
