@@ -569,6 +569,7 @@ test_devlxd_volume_management_snapshots() {
     # Grant permissions.
     lxc auth group permission add "${authGroup}" project "${project}" can_view
     lxc auth group permission add "${authGroup}" project "${project}" storage_volume_manager
+    lxc auth group permission add "${authGroup}" project "${project}" instance_manager
 
     # Create a custom storage volume.
     vol1='{
@@ -596,7 +597,83 @@ test_devlxd_volume_management_snapshots() {
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage snapshots "${pool}" custom vol-01 | jq --exit-status 'length == 2'
     [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage snapshots "${pool}" custom non-existing)" = "Storage volume not found" ]
 
+    # Test volume creation from a snapshot.
+    attachReq=$(cat <<EOF
+{
+    "devices": {
+        "vol-01": {
+            "type": "disk",
+            "pool": "${pool}",
+            "source": "vol-01",
+            "path": "/mnt/vol-01"
+        }
+    }
+}
+EOF
+)
+
+    # Attach vol-01 to the instance.
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance update "${inst}" "${attachReq}"
+
+    # Write some data to the volume.
+    echo "initial-content" | lxc file push --project "${project}" - "${inst}/mnt/vol-01/test.txt"
+    [ "$(lxc exec "${inst}" --project "${project}" -- cat /mnt/vol-01/test.txt)" = "initial-content" ]
+
+    # Make snapshot.
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-snapshot "${pool}" custom vol-01 '{"name": "snapXX"}'
+
+    # Modify data on the volume.
+    echo "modified-content" | lxc file push --project "${project}" - "${inst}/mnt/vol-01/test.txt"
+    [ "$(lxc exec "${inst}" --project "${project}" -- cat /mnt/vol-01/test.txt)" = "modified-content" ]
+
+    # Use existing snapshot as a source for the new volume.
+    volFromSnapshot=$(cat <<EOF
+{
+    "name": "vol-from-snapshot",
+    "type": "custom",
+    "pool": "${pool}",
+    "source": {
+        "name": "vol-01/snapXX",
+        "pool": "${pool}",
+        "type": "copy"
+    }
+}
+EOF
+)
+
+    # Create new volume from snapshot.
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage create-volume "${pool}" "${volFromSnapshot}"
+
+    attachReq=$(cat <<EOF
+{
+    "devices": {
+        "vol-from-snapshot": {
+            "type": "disk",
+            "pool": "${pool}",
+            "source": "vol-from-snapshot",
+            "path": "/mnt/vol"
+        }
+    }
+}
+EOF
+)
+
+    # Attach copied volume to the instance.
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance update "${inst}" "${attachReq}"
+
+    # Read data from the volume.
+    [ "$(lxc file pull --project "${project}" "${inst}/mnt/vol/test.txt" -)" = "initial-content" ]
+
+    # Detach copied volume from the instance.
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance update "${inst}" '{"devices":{"vol-from-snapshot": null}}'
+
+    # Detach vol-01 from the instance.
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance update "${inst}" '{"devices": {"vol-01": null}}'
+
     # Delete snapshots.
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage delete-snapshot "${pool}" custom vol-01 snapXX
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage snapshots "${pool}" custom vol-01 | jq --exit-status 'length == 2'
+
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage delete-snapshot "${pool}" custom vol-01 my-snap
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage snapshots "${pool}" custom vol-01 | jq --exit-status 'length == 1'
 
@@ -605,6 +682,7 @@ test_devlxd_volume_management_snapshots() {
 
     # Delete storage volume.
     lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage delete-volume "${pool}" custom vol-01
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage delete-volume "${pool}" custom vol-from-snapshot
 
     # Cleanup.
     imageFingerprint="$(lxc config get "${inst}" volatile.base_image --project "${project}")"
