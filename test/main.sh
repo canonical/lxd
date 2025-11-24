@@ -557,6 +557,7 @@ if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "cluster" ]; then
     run_test test_image_refresh "image refresh"
     run_test test_image_acl "image acl"
     run_test test_images_public "public images"
+    run_test test_image_cached
     run_test test_cloud_init "cloud-init"
     run_test test_exec "exec"
     run_test test_exec_exit_code "exec exit code"
