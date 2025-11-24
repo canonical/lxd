@@ -439,16 +439,43 @@ CREATE TABLE oidc_sessions (
     UNIQUE (uuid),
     FOREIGN KEY (identity_id) REFERENCES identities (id) ON DELETE CASCADE
 );
-CREATE TABLE "operations" (
+CREATE TABLE operations (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     uuid TEXT NOT NULL,
-    node_id TEXT NOT NULL,
+    node_id INTEGER NOT NULL,
     type INTEGER NOT NULL DEFAULT 0,
     project_id INTEGER,
+    requestor_protocol INTEGER,
+    requestor_identity_id INTEGER,
+    entity_id INTEGER NOT NULL DEFAULT 0,
+    metadata TEXT NOT NULL,
+    class INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT 0,
+    updated_at DATETIME NOT NULL DEFAULT 0,
+    inputs TEXT NOT NULL,
+    status_code INTEGER NOT NULL DEFAULT 100,
+    error TEXT NOT NULL,
+    conflict_reference TEXT NOT NULL,
+    parent INTEGER,
+    stage INTEGER NOT NULL DEFAULT 0,
     UNIQUE (uuid),
-    FOREIGN KEY (node_id) REFERENCES "nodes" (id) ON DELETE CASCADE,
-    FOREIGN KEY (project_id) REFERENCES "projects" (id) ON DELETE CASCADE
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
+    FOREIGN KEY (requestor_identity_id) REFERENCES identities (id) ON DELETE CASCADE,
+    FOREIGN KEY (parent) REFERENCES operations (id) ON DELETE CASCADE
 );
+CREATE UNIQUE INDEX operations_conflict_reference ON operations (conflict_reference)
+    WHERE conflict_reference != ""
+    AND status_code IN (103,104);
+CREATE TABLE operations_resources (
+    operation_id INTEGER NOT NULL,
+	entity_id INTEGER NOT NULL,
+	entity_type INTEGER NOT NULL,
+	FOREIGN KEY (operation_id) REFERENCES operations (id) ON DELETE CASCADE,
+	PRIMARY KEY (entity_type,
+    entity_id,
+    operation_id)
+) WITHOUT ROWID;
 CREATE TABLE placement_groups (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
@@ -708,5 +735,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (78, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (79, strftime("%s"))
 `
