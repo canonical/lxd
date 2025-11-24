@@ -595,9 +595,20 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 			for _, operation := range operations {
 				nodeID := tx.GetNodeID()
 				op := cluster.Operation{
-					Reference: operation.Reference,
-					Type:      operation.Type,
-					NodeID:    &nodeID,
+					Reference:           operation.Reference,
+					ProjectID:           operation.ProjectID,
+					NodeID:              &nodeID,
+					Type:                operation.Type,
+					RequestorProtocol:   operation.RequestorProtocol,
+					RequestorIdentityID: operation.RequestorIdentityID,
+					EntityID:            operation.EntityID,
+					Class:               operation.Class,
+					CreatedAt:           operation.CreatedAt,
+					UpdatedAt:           operation.UpdatedAt,
+					Inputs:              operation.Inputs,
+					Status:              operation.Status,
+					Error:               operation.Error,
+					Stage:               operation.Stage,
 				}
 
 				_, err := cluster.CreateOrReplaceOperation(ctx, tx.Tx(), op)
