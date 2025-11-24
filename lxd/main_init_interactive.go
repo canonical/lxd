@@ -13,8 +13,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/sys/unix"
 	"go.yaml.in/yaml/v2"
+	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/cluster"
