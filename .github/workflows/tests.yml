@@ -231,7 +231,7 @@ jobs:
       #      useful feedback in the PR through github-code-scanning bot
       - name: Run golangci-lint
         if: github.event_name == 'pull_request' || github.event_name == 'schedule'
-        uses: golangci/golangci-lint-action@0a35821d5c230e903fcfe077583637dea1b27b47 # v8
+        uses: golangci/golangci-lint-action@e7fa5ac41e1cf5b7d48e45e42232ce7ada589601 # v8
 
       - name: Run static analysis
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.static-analysis == 'true' }}
