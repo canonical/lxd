@@ -43,7 +43,7 @@ The currently supported LTS releases are 5.21._z_ and 5.0._z_.
 (ref-releases-feature)=
 ### Feature releases
 
-Feature releases are pushed out more often and contain the newest features and bugfixes. Since they are less tested than LTS releases, they are **not recommended for production use**.
+Feature releases are pushed out more often and contain the newest features and bugfixes. Due to their frequent changes to the {ref}`API <rest-api>` and {ref}`database <database>`, they are **not recommended for production use**.
 
 These releases follow the format _x.y_, and they never include a point number _z_. Currently, feature releases for LXD are numbered {{current_feature_track}}._y_, with _y_ incrementing for each new release. Every two years, the latest feature release becomes an LTS release.
 
