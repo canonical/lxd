@@ -3639,3 +3639,9 @@ New configuration options on the load balancer pool are added to further customi
 * {config:option}`network-load-balancer-pool-properties:healthcheck.failure_count`
 
 In addition a new endpoint [`GET /1.0/networks/{networkName}/load-balancer-pools/{poolName}/state`](swagger:/network-load-balancer-pools/network_load_balancer_pool_state_get) is added which returns the health check status for all instances in the pool.
+
+(extension-durable-operations)=
+## `durable_operations`
+
+Introduces new operation class for durable operations.
+Durable operations are rescheduled on the {ref}`Dqlite leader <dqlite-internals-lxd-cluster-roles>` if the member that was initially running the operation goes offline.
