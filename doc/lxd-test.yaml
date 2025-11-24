@@ -31,8 +31,6 @@ config:
     runcmd:
     # Speeds up testing and avoid problem with virtiofs
     - echo "LXD_TMPFS=1" >> /etc/environment
-    # Enable (nested) VM tests
-    - echo "LXD_VM_TESTS=1" >> /etc/environment
     # Disable lxd-installer
     - chmod -x /usr/sbin/lxc /usr/sbin/lxd
     # Disable needrestart
