@@ -30,7 +30,7 @@ Name                           | Default                   | Description
 `LXD_IB_SRIOV_PARENT`          | ""                        | Enables Infiniband SR-IOV tests using the specified parent device
 `LXD_NIC_BRIDGED_DRIVER`       | ""                        | Specifies bridged NIC driver for tests (either native or openvswitch, defaults to native)
 `LXD_REQUIRED_TESTS`           | ""                        | Space-delimited list of test names that must not be skipped if their prerequisites are not met
-`LXD_VM_TESTS`                 | 0                         | Enables tests using VMs and the on-demand installation of the needed tools
+`LXD_VM_TESTS`                 | 1                         | Enables tests using VMs and the on-demand installation of the needed tools
 
 # Recommendations
 
