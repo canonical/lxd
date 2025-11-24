@@ -1568,7 +1568,7 @@ func identityPut(authenticationMethod string) func(d *Daemon, r *http.Request) r
 			return response.BadRequest(fmt.Errorf("Failed to unmarshal request body: %w", err))
 		}
 
-		if identityType.AuthenticationMethod() == api.AuthenticationMethodTLS && identityType.IsPending() && identityPut.TLSCertificate != "" {
+		if identityPut.TLSCertificate != "" && (identityType.AuthenticationMethod() != api.AuthenticationMethodTLS || identityType.IsPending()) {
 			return response.BadRequest(fmt.Errorf("Cannot update certificate for identities of type %q", id.Type))
 		}
 
@@ -1801,7 +1801,7 @@ func identityPatch(authenticationMethod string) func(d *Daemon, r *http.Request)
 			return response.BadRequest(fmt.Errorf("Failed to unmarshal request body: %w", err))
 		}
 
-		if identityType.AuthenticationMethod() == api.AuthenticationMethodTLS && identityType.IsPending() && identityPut.TLSCertificate != "" {
+		if identityPut.TLSCertificate != "" && (identityType.AuthenticationMethod() != api.AuthenticationMethodTLS || identityType.IsPending()) {
 			return response.BadRequest(fmt.Errorf("Cannot update certificate for identities of type %q", id.Type))
 		}
 
