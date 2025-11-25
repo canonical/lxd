@@ -119,8 +119,8 @@ install_packages() {
 install_tools() {
     local pkg="${1}"
 
-    if ! check_dependencies "${pkg}" && command -v apt-get >/dev/null; then
-        apt-get install --no-install-recommends -y "${pkg}"
+    if ! check_dependencies "${pkg}"; then
+        install_packages "${pkg}"
     fi
 
     check_dependencies "${pkg}"
@@ -145,8 +145,8 @@ install_storage_driver_tools() {
             ;;
         esac
 
-        if [ -n "${pkg}" ] && command -v apt-get >/dev/null; then
-            apt-get install --no-install-recommends -y "${pkg}"
+        if [ -n "${pkg}" ]; then
+            install_packages "${pkg}"
 
             # Verify that the newly installed tools made the storage backend available
             is_backend_available "${LXD_BACKEND}"
@@ -173,12 +173,12 @@ install_instance_drivers() {
         exit 1
     fi
 
-    if ! check_dependencies qemu-img "qemu-system-${UNAME}" sgdisk make-bcache /usr/lib/qemu/virtiofsd && command -v apt-get >/dev/null; then
+    if ! check_dependencies qemu-img "qemu-system-${UNAME}" sgdisk make-bcache /usr/lib/qemu/virtiofsd; then
         # On 22.04, QEMU comes with spice modules and virtiofsd
         if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
-            apt-get install --no-install-recommends -y gdisk ovmf qemu-block-extra "${QEMU_SYSTEM}" qemu-utils bcache-tools
+            install_packages gdisk ovmf qemu-block-extra "${QEMU_SYSTEM}" qemu-utils bcache-tools
         else
-            apt-get install --no-install-recommends -y gdisk ovmf qemu-block-extra "${QEMU_SYSTEM}" qemu-utils qemu-system-modules-spice virtiofsd bcache-tools
+            install_packages gdisk ovmf qemu-block-extra "${QEMU_SYSTEM}" qemu-utils qemu-system-modules-spice virtiofsd bcache-tools
         fi
 
         # Verify that the newly installed tools provided the needed binaries
