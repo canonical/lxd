@@ -282,7 +282,7 @@ endif
 	if [ -t 0 ] && ! git diff --quiet -- ./go.mod ./go.sum; then \
 		read -rp "Would you like to commit gomod changes (Y/n)? " answer; \
 		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-			git commit -S -sm "gomod: Update dependencies" -- ./go.mod ./go.sum; \
+			git commit -S -sm "go: Update dependencies" -- ./go.mod ./go.sum; \
 		fi; \
 	fi
 
@@ -430,7 +430,7 @@ update-po:
 	if [ -t 0 ] && ! git diff --quiet -- po/*.po; then \
 		read -rp "Would you like to commit i18n changes (Y/n)? " answer; \
 			if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-				git commit -S -sm "i18n: Update translations." -- po/*.po; \
+				git commit -S -sm "i18n: Update translations" -- po/*.po; \
 			fi; \
 	fi
 
@@ -446,7 +446,7 @@ endif
 	if [ -t 0 ] && ! git diff --quiet --ignore-matching-lines='^\s*"POT-Creation-Date: .*\n"' -- po/*.pot; then \
 		read -rp "Would you like to commit i18n template changes (Y/n)? " answer; \
 			if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-				git commit -S -sm "i18n: Update translation templates." -- po/*.pot; \
+				git commit -S -sm "i18n: Update translation templates" -- po/*.pot; \
 			fi; \
 	fi
 
