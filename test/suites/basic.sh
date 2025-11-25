@@ -799,7 +799,7 @@ test_server_info() {
   lxc query /1.0 | jq --exit-status '.environment.instance_types | contains(["container"])'
 
   # Ensure server reports support for VMs if it should test them.
-  if [ "${LXD_VM_TESTS:-0}" = "1" ]; then
+  if [ "${LXD_VM_TESTS}" = "1" ]; then
     lxc query /1.0 | jq --exit-status '.environment.instance_types | contains(["virtual-machine"])'
   fi
 
