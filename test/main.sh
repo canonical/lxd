@@ -67,9 +67,6 @@ fi
 # shellcheck disable=SC2034
 LXD_NETNS=""
 
-# Record tests durations info
-declare -A durations
-
 import_subdir_files() {
     test "$1"
     local file
@@ -247,6 +244,15 @@ cleanup() {
     rm -rf "${TEST_DIR}"
   fi
 
+  # build a markdown table with the duration of each test
+  (
+    echo "Test | Duration (s)"
+    echo ":--- | :---"
+    for t in "${!durations[@]}"; do
+        echo "${t} | ${durations[$t]}"
+    done
+  ) > "${GITHUB_STEP_SUMMARY:-"/dev/stdout"}"
+
   echo ""
   echo ""
   if [ "${TEST_RESULT}" != "success" ]; then
@@ -259,6 +265,9 @@ cleanup() {
 TEST_CURRENT=setup
 # shellcheck disable=SC2034
 TEST_RESULT=failure
+
+# Record tests durations info
+declare -A durations
 
 trap cleanup EXIT HUP INT TERM
 
@@ -355,22 +364,12 @@ run_test() {
 
   END_TIME=$(date +%s)
   DURATION=$((END_TIME-START_TIME))
+  durations["${TEST_CURRENT#test_}"]="${DURATION}"
   cd "${cwd}"
 
   # output duration in blue
   echo -e "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION} (\033[0;34m${DURATION}s\033[0m)"
-
-  if [ -n "${GITHUB_ACTIONS:-}" ]; then
-      # strip the "test_" prefix to save the shorten test name along with its duration
-      echo "${TEST_CURRENT#test_}|${DURATION}" >> "${GITHUB_STEP_SUMMARY}"
-  fi
 }
-
-if [ -n "${GITHUB_ACTIONS:-}" ]; then
-    # build a markdown table with the duration of each test
-    echo "Test | Duration (s)" > "${GITHUB_STEP_SUMMARY}"
-    echo ":--- | :---" >> "${GITHUB_STEP_SUMMARY}"
-fi
 
 # Preflight check
 if ldd "${_LXC}" | grep -F liblxc; then
