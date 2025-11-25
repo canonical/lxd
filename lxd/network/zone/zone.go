@@ -91,12 +91,12 @@ func (d *zone) networkUsesZone(netConfig map[string]string) bool {
 
 // usedBy returns a list of API endpoints referencing this zone.
 // If firstOnly is true then search stops at first result.
-func (d *zone) usedBy(firstOnly bool) ([]string, error) {
+func (d *zone) usedBy(ctx context.Context, firstOnly bool) ([]string, error) {
 	usedBy := []string{}
 
 	var networkNames []string
 
-	err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := d.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		// Find networks using the zone.
@@ -131,13 +131,13 @@ func (d *zone) usedBy(firstOnly bool) ([]string, error) {
 }
 
 // UsedBy returns a list of API endpoints referencing this zone.
-func (d *zone) UsedBy() ([]string, error) {
-	return d.usedBy(false)
+func (d *zone) UsedBy(ctx context.Context) ([]string, error) {
+	return d.usedBy(ctx, false)
 }
 
 // isUsed returns whether or not the zone is in use.
-func (d *zone) isUsed() (bool, error) {
-	usedBy, err := d.usedBy(true)
+func (d *zone) isUsed(ctx context.Context) (bool, error) {
+	usedBy, err := d.usedBy(ctx, true)
 	if err != nil {
 		return false, err
 	}
@@ -267,7 +267,7 @@ func (d *zone) validateConfigMap(zoneConfig map[string]string, rules map[string]
 }
 
 // Update applies the supplied config to the zone.
-func (d *zone) Update(config *api.NetworkZonePut, clientType request.ClientType) error {
+func (d *zone) Update(ctx context.Context, config *api.NetworkZonePut, clientType request.ClientType) error {
 	err := d.validateConfig(config)
 	if err != nil {
 		return err
@@ -321,8 +321,8 @@ func (d *zone) Update(config *api.NetworkZonePut, clientType request.ClientType)
 }
 
 // Delete deletes the zone.
-func (d *zone) Delete() error {
-	isUsed, err := d.isUsed()
+func (d *zone) Delete(ctx context.Context) error {
+	isUsed, err := d.isUsed(ctx)
 	if err != nil {
 		return err
 	}
@@ -331,7 +331,7 @@ func (d *zone) Delete() error {
 		return errors.New("Cannot delete a zone that is in use")
 	}
 
-	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = d.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Delete the database record.
 		err = tx.DeleteNetworkZone(ctx, d.id)
 
@@ -351,7 +351,7 @@ func (d *zone) Delete() error {
 }
 
 // Content returns the DNS zone content.
-func (d *zone) Content() (*strings.Builder, error) {
+func (d *zone) Content(ctx context.Context) (*strings.Builder, error) {
 	var err error
 	records := []map[string]string{}
 
@@ -361,7 +361,7 @@ func (d *zone) Content() (*strings.Builder, error) {
 	// Get all managed networks across all projects.
 	var projectNetworks map[string]map[int64]api.Network
 	var zoneProjects map[string]string
-	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = d.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		projectNetworks, err = tx.GetCreatedNetworks(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed to load all networks: %w", err)
@@ -385,7 +385,7 @@ func (d *zone) Content() (*strings.Builder, error) {
 			}
 
 			// Load the network.
-			n, err := network.LoadByName(d.state, netProjectName, netInfo.Name)
+			n, err := network.LoadByName(ctx, d.state, netProjectName, netInfo.Name)
 			if err != nil {
 				return nil, err
 			}
@@ -457,7 +457,7 @@ func (d *zone) Content() (*strings.Builder, error) {
 					}
 
 					// Load the leases for the forward zone project.
-					leases, err := n.Leases(forwardZoneProjectName, request.ClientTypeNormal)
+					leases, err := n.Leases(ctx, forwardZoneProjectName, request.ClientTypeNormal)
 					if err != nil {
 						return nil, err
 					}
@@ -477,7 +477,7 @@ func (d *zone) Content() (*strings.Builder, error) {
 				}
 			} else {
 				// Load the leases in the forward zone's project.
-				leases, err := n.Leases(d.projectName, request.ClientTypeNormal)
+				leases, err := n.Leases(ctx, d.projectName, request.ClientTypeNormal)
 				if err != nil {
 					return nil, err
 				}
@@ -499,7 +499,7 @@ func (d *zone) Content() (*strings.Builder, error) {
 	}
 
 	// Add the extra records.
-	extraRecords, err := d.GetRecords()
+	extraRecords, err := d.GetRecords(ctx)
 	if err != nil {
 		return nil, err
 	}

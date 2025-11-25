@@ -206,7 +206,7 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
-			render, _, err := snap.Render(storagePools.RenderSnapshotUsage(s, snap))
+			render, _, err := snap.Render(storagePools.RenderSnapshotUsage(r.Context(), s, snap))
 			if err != nil {
 				continue
 			}
@@ -603,8 +603,8 @@ func snapshotPut(s *state.State, r *http.Request, snapInst instance.Instance) re
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
-func snapshotGet(s *state.State, _ *http.Request, snapInst instance.Instance) response.Response {
-	render, _, err := snapInst.Render(storagePools.RenderSnapshotUsage(s, snapInst))
+func snapshotGet(s *state.State, r *http.Request, snapInst instance.Instance) response.Response {
+	render, _, err := snapInst.Render(storagePools.RenderSnapshotUsage(r.Context(), s, snapInst))
 	if err != nil {
 		return response.SmartError(err)
 	}

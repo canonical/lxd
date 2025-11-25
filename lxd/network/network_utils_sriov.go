@@ -35,14 +35,14 @@ var sysClassNet = "/sys/class/net"
 
 // SRIOVGetHostDevicesInUse returns a map of host device names that have been used by devices in other instances
 // and networks on the local member. Used when selecting physical and SR-IOV VF devices to avoid conflicts.
-func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
+func SRIOVGetHostDevicesInUse(ctx context.Context, s *state.State) (map[string]struct{}, error) {
 	sriovReservedDevicesMutex.Lock()
 	defer sriovReservedDevicesMutex.Unlock()
 
 	var err error
 	var projectNetworks map[string]map[int64]api.Network
 
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get all managed networks across all projects.
 		projectNetworks, err = tx.GetCreatedNetworks(ctx)
 		if err != nil {
@@ -59,7 +59,7 @@ func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 	reservedDevices := map[string]struct{}{}
 
 	// Check if any instances are using the VF device.
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.InstanceList(ctx, func(dbInst db.InstanceArgs, p api.Project) error {
 			// Expand configs so we take into account profile devices.
 			var globalConfigDump map[string]string
@@ -107,8 +107,8 @@ func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 
 // SRIOVFindFreeVirtualFunction looks on the specified parent device for an unused virtual function.
 // Returns the name of the interface and virtual function index ID if found, error if not.
-func SRIOVFindFreeVirtualFunction(s *state.State, parentDev string) (string, int, error) {
-	reservedDevices, err := SRIOVGetHostDevicesInUse(s)
+func SRIOVFindFreeVirtualFunction(ctx context.Context, s *state.State, parentDev string) (string, int, error) {
+	reservedDevices, err := SRIOVGetHostDevicesInUse(ctx, s)
 	if err != nil {
 		return "", -1, fmt.Errorf("Failed getting in use device list: %w", err)
 	}
@@ -275,7 +275,7 @@ func SRIOVGetVFDevicePCISlot(parentDev string, vfID string) (pci.Device, error) 
 }
 
 // SRIOVSwitchdevEnabled returns true if switchdev mode is enabled on the given device.
-func SRIOVSwitchdevEnabled(deviceName string) bool {
+func SRIOVSwitchdevEnabled(ctx context.Context, deviceName string) bool {
 	var buf bytes.Buffer
 
 	ueventFile := fmt.Sprintf("%s/%s/device/uevent", sysClassNet, deviceName)
@@ -287,7 +287,7 @@ func SRIOVSwitchdevEnabled(deviceName string) bool {
 
 	slotName := "pci/" + pciDev.SlotName
 
-	err = shared.RunCommandWithFds(context.TODO(), nil, &buf, "devlink", "-j", "dev", "eswitch", "show", slotName)
+	err = shared.RunCommandWithFds(ctx, nil, &buf, "devlink", "-j", "dev", "eswitch", "show", slotName)
 	if err != nil {
 		return false
 	}
@@ -348,7 +348,7 @@ type PFSwitchDevPort struct {
 }
 
 // SRIOVGetSwitchAndPFID returns the physical switch ID and PF id.
-func SRIOVGetSwitchAndPFID(parentDev string) (*PFSwitchDevPort, error) {
+func SRIOVGetSwitchAndPFID(ctx context.Context, parentDev string) (*PFSwitchDevPort, error) {
 	physPortNameRaw, err := os.ReadFile(filepath.Join(sysClassNet, parentDev, "phys_port_name"))
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting physical port name: %w", err)
@@ -370,7 +370,7 @@ func SRIOVGetSwitchAndPFID(parentDev string) (*PFSwitchDevPort, error) {
 	}
 
 	// Check if switchdev is enabled on physical port.
-	if !SRIOVSwitchdevEnabled(parentDev) {
+	if !SRIOVSwitchdevEnabled(ctx, parentDev) {
 		return nil, fmt.Errorf("Not a switchdev capable device: %s", parentDev)
 	}
 
@@ -392,7 +392,7 @@ func SRIOVGetSwitchAndPFID(parentDev string) (*PFSwitchDevPort, error) {
 // To do this it first looks at the ports on the OVS bridge specified and identifies which ones are PF ports in
 // switchdev mode. It then tries to find a free VF on that PF and the representor port associated to the VF ID.
 // It returns the PF name, representor port name, VF name, and VF ID.
-func SRIOVFindFreeVFAndRepresentor(state *state.State, pfPorts []PFSwitchDevPort) (vfParent string, representorPort string, vfName string, vfID int, err error) {
+func SRIOVFindFreeVFAndRepresentor(ctx context.Context, state *state.State, pfPorts []PFSwitchDevPort) (vfParent string, representorPort string, vfName string, vfID int, err error) {
 	nics, err := os.ReadDir(sysClassNet)
 	if err != nil {
 		return "", "", "", -1, fmt.Errorf("Failed to read directory %q: %w", sysClassNet, err)
@@ -400,7 +400,7 @@ func SRIOVFindFreeVFAndRepresentor(state *state.State, pfPorts []PFSwitchDevPort
 
 	// Iterate through the list of ports and identify the PFs by trying to locate a VF (virtual function).
 	for _, pfPort := range pfPorts {
-		vfName, vfID, err := SRIOVFindFreeVirtualFunction(state, pfPort.Name)
+		vfName, vfID, err := SRIOVFindFreeVirtualFunction(ctx, state, pfPort.Name)
 		if err != nil {
 			continue
 		}

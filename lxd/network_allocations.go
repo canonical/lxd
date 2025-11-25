@@ -176,7 +176,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
-			n, err := network.LoadByName(s, projectName, networkName)
+			n, err := network.LoadByName(r.Context(), s, projectName, networkName)
 			if err != nil {
 				return response.SmartError(fmt.Errorf("Failed loading network %q in project %q: %w", networkName, projectName, err))
 			}
@@ -198,7 +198,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 				})
 			}
 
-			leases, err := n.Leases("", request.ClientTypeNormal)
+			leases, err := n.Leases(r.Context(), "", request.ClientTypeNormal)
 			if err != nil && !errors.Is(err, network.ErrNotImplemented) {
 				return response.SmartError(fmt.Errorf("Failed getting leases for network %q: %w", networkName, err))
 			}

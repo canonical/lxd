@@ -3,6 +3,7 @@ package resources
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -365,7 +366,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 				partition.Size = partitionSize * 512
 
 				// Pull device filesystem UUID information.
-				partition.DeviceFSUUID, err = block.DiskFSUUID(filepath.Join("/dev", subEntryName))
+				partition.DeviceFSUUID, err = block.DiskFSUUID(context.TODO(), filepath.Join("/dev", subEntryName))
 				if err != nil {
 					return nil, err
 				}
@@ -434,7 +435,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			}
 
 			// Pull device filesystem UUID information.
-			disk.DeviceFSUUID, err = block.DiskFSUUID(filepath.Join("/dev", entryName))
+			disk.DeviceFSUUID, err = block.DiskFSUUID(context.TODO(), filepath.Join("/dev", entryName))
 			if err != nil {
 				return nil, err
 			}

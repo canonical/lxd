@@ -109,7 +109,7 @@ func (n *ovn) Info() Info {
 }
 
 // State returns the network state.
-func (n *ovn) State() (*api.NetworkState, error) {
+func (n *ovn) State(ctx context.Context) (*api.NetworkState, error) {
 	var addresses []api.NetworkStateAddress
 	IPv4Net, err := ParseIPCIDRToNet(n.config["ipv4.address"])
 	if err == nil {
@@ -133,14 +133,14 @@ func (n *ovn) State() (*api.NetworkState, error) {
 		})
 	}
 
-	client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+	client, err := openvswitch.NewOVN(ctx, n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 	if err != nil {
 		return nil, err
 	}
 
 	hwaddr, ok := n.config["bridge.hwaddr"]
 	if !ok {
-		hwaddr, err = client.GetHardwareAddress(n.getRouterExtPortName())
+		hwaddr, err = client.GetHardwareAddress(ctx, n.getRouterExtPortName())
 		if err != nil {
 			return nil, err
 		}
@@ -153,7 +153,7 @@ func (n *ovn) State() (*api.NetworkState, error) {
 	if n.config[ovnVolatileUplinkIPv4] != "" || n.config[ovnVolatileUplinkIPv6] != "" {
 		routerExtPortName := n.getRouterExtPortName()
 
-		chassis, err = client.GetLogicalRouterPortActiveChassisHostname(routerExtPortName)
+		chassis, err = client.GetLogicalRouterPortActiveChassisHostname(ctx, routerExtPortName)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get active chassis for logical router port %q: %w", routerExtPortName, err)
 		}
@@ -350,12 +350,12 @@ func (n *ovn) validateExternalSubnet(uplinkRoutes []*net.IPNet, projectRestricte
 
 // getExternalSubnetInUse returns information about usage of external subnets by networks and NICs connected to,
 // or used by, the specified uplinkNetworkName.
-func (n *ovn) getExternalSubnetInUse(uplinkNetworkName string) ([]externalSubnetUsage, error) {
+func (n *ovn) getExternalSubnetInUse(ctx context.Context, uplinkNetworkName string) ([]externalSubnetUsage, error) {
 	var err error
 	var projectNetworks map[string]map[int64]api.Network
 	var externalSubnets []externalSubnetUsage
 
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get all managed networks across all projects.
 		projectNetworks, err = tx.GetCreatedNetworks(ctx)
 		if err != nil {
@@ -383,7 +383,7 @@ func (n *ovn) getExternalSubnetInUse(uplinkNetworkName string) ([]externalSubnet
 	}
 
 	// Get external routes configured on OVN NICs using networks that use our uplink.
-	ovnNICExternalRoutes, err := n.ovnNICExternalRoutes(ovnProjectNetworksWithOurUplink)
+	ovnNICExternalRoutes, err := n.ovnNICExternalRoutes(ctx, ovnProjectNetworksWithOurUplink)
 	if err != nil {
 		return nil, err
 	}
@@ -395,7 +395,7 @@ func (n *ovn) getExternalSubnetInUse(uplinkNetworkName string) ([]externalSubnet
 }
 
 // Validate network config.
-func (n *ovn) Validate(config map[string]string) error {
+func (n *ovn) Validate(ctx context.Context, config map[string]string) error {
 	rules := map[string]func(value string) error{
 		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=network)
 		//
@@ -624,7 +624,7 @@ func (n *ovn) Validate(config map[string]string) error {
 	// Perform composite key checks after per-key validation.
 
 	// Validate DNS zone names.
-	err = n.validateZoneNames(config)
+	err = n.validateZoneNames(ctx, config)
 	if err != nil {
 		return err
 	}
@@ -784,7 +784,7 @@ func (n *ovn) Validate(config map[string]string) error {
 	}
 
 	if len(externalSubnets) > 0 || len(externalSNATSubnets) > 0 {
-		externalSubnetsInUse, err := n.getExternalSubnetInUse(config["network"])
+		externalSubnetsInUse, err := n.getExternalSubnetInUse(ctx, config["network"])
 		if err != nil {
 			return err
 		}
@@ -913,7 +913,7 @@ func (n *ovn) Validate(config map[string]string) error {
 
 	// Check Security ACLs exist.
 	if config["security.acls"] != "" {
-		err = acl.Exists(n.state, n.project, shared.SplitNTrimSpace(config["security.acls"], ",", -1, true)...)
+		err = acl.Exists(ctx, n.state, n.project, shared.SplitNTrimSpace(config["security.acls"], ",", -1, true)...)
 		if err != nil {
 			return err
 		}
@@ -944,7 +944,7 @@ func (n *ovn) getBridgeMTU() uint32 {
 }
 
 // getUnderlayInfo returns the MTU for the underlay network interface and the enscapsulation IP for OVN tunnels.
-func (n *ovn) getUnderlayInfo() (uint32, net.IP, error) {
+func (n *ovn) getUnderlayInfo(ctx context.Context) (uint32, net.IP, error) {
 	// findMTUFromIP searches all interfaces on the host looking for one that has specified IP.
 	findMTUFromIP := func(findIP net.IP) (uint32, error) {
 		// Look for interface that has the OVN enscapsulation IP assigned.
@@ -980,7 +980,7 @@ func (n *ovn) getUnderlayInfo() (uint32, net.IP, error) {
 	}
 
 	ovs := openvswitch.NewOVS()
-	encapIP, err := ovs.OVNEncapIP()
+	encapIP, err := ovs.OVNEncapIP(ctx)
 	if err != nil {
 		return 0, nil, fmt.Errorf("Failed getting OVN enscapsulation IP from OVS: %w", err)
 	}
@@ -996,9 +996,9 @@ func (n *ovn) getUnderlayInfo() (uint32, net.IP, error) {
 // getOptimalBridgeMTU returns the MTU that can be used for the bridge and instance devices based on the MTU value
 // of the OVN underlay network interface. This assumes that the OVN tunnel mechanism used is geneve and that the
 // same underlying network settings (MTU and encapsulation IP family) are used on all OVN nodes.
-func (n *ovn) getOptimalBridgeMTU() (uint32, error) {
+func (n *ovn) getOptimalBridgeMTU(ctx context.Context) (uint32, error) {
 	// Get underlay MTU and encapsulation IP.
-	underlayMTU, encapIP, err := n.getUnderlayInfo()
+	underlayMTU, encapIP, err := n.getUnderlayInfo(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("Failed getting OVN underlay info: %w", err)
 	}
@@ -1183,7 +1183,7 @@ func (n *ovn) getLogicalRouterPeerPortName(peerNetworkID int64) openvswitch.OVNR
 }
 
 // getUplinkGatewayUsage returns information about usage of external subnets by the uplink's gateways.
-func (n *ovn) getUplinkGatewayUsage() ([]externalSubnetUsage, error) {
+func (n *ovn) getUplinkGatewayUsage(ctx context.Context) ([]externalSubnetUsage, error) {
 	var uplinkNetwork *api.Network
 	var err error
 
@@ -1192,7 +1192,7 @@ func (n *ovn) getUplinkGatewayUsage() ([]externalSubnetUsage, error) {
 		return nil, fmt.Errorf(`OVN network %q is missing "network" config option`, n.name)
 	}
 
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		_, uplinkNetwork, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, uplinkName)
 		return err
 	})
@@ -1256,18 +1256,18 @@ func (n *ovn) getUplinkGatewayUsage() ([]externalSubnetUsage, error) {
 
 // setupUplinkPort initialises the uplink connection. Returns the derived ovnUplinkVars settings used
 // during the initial creation of the logical network.
-func (n *ovn) setupUplinkPort(routerMAC net.HardwareAddr) (*ovnUplinkVars, error) {
+func (n *ovn) setupUplinkPort(ctx context.Context, routerMAC net.HardwareAddr) (*ovnUplinkVars, error) {
 	// Uplink network must be in default project.
-	uplinkNet, err := LoadByName(n.state, api.ProjectDefaultName, n.config["network"])
+	uplinkNet, err := LoadByName(ctx, n.state, api.ProjectDefaultName, n.config["network"])
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading uplink network %q: %w", n.config["network"], err)
 	}
 
 	switch uplinkNet.Type() {
 	case "bridge":
-		return n.setupUplinkPortBridge(uplinkNet, routerMAC)
+		return n.setupUplinkPortBridge(ctx, uplinkNet, routerMAC)
 	case "physical":
-		return n.setupUplinkPortPhysical(uplinkNet, routerMAC)
+		return n.setupUplinkPortPhysical(ctx, uplinkNet, routerMAC)
 	}
 
 	return nil, fmt.Errorf("Failed setting up uplink port, network type %q unsupported as OVN uplink", uplinkNet.Type())
@@ -1275,7 +1275,7 @@ func (n *ovn) setupUplinkPort(routerMAC net.HardwareAddr) (*ovnUplinkVars, error
 
 // setupUplinkPortBridge allocates external IPs on the uplink bridge.
 // Returns the derived ovnUplinkVars settings.
-func (n *ovn) setupUplinkPortBridge(uplinkNet Network, routerMAC net.HardwareAddr) (*ovnUplinkVars, error) {
+func (n *ovn) setupUplinkPortBridge(ctx context.Context, uplinkNet Network, routerMAC net.HardwareAddr) (*ovnUplinkVars, error) {
 	bridgeNet, ok := uplinkNet.(*bridge)
 	if !ok {
 		return nil, errors.New("Network is not bridge type")
@@ -1286,7 +1286,7 @@ func (n *ovn) setupUplinkPortBridge(uplinkNet Network, routerMAC net.HardwareAdd
 		return nil, fmt.Errorf("Network %q is not suitable for use as OVN uplink: %w", bridgeNet.name, err)
 	}
 
-	v, err := n.allocateUplinkPortIPs(uplinkNet, routerMAC)
+	v, err := n.allocateUplinkPortIPs(ctx, uplinkNet, routerMAC)
 	if err != nil {
 		return nil, fmt.Errorf("Failed allocating uplink port IPs on network %q: %w", uplinkNet.Name(), err)
 	}
@@ -1296,8 +1296,8 @@ func (n *ovn) setupUplinkPortBridge(uplinkNet Network, routerMAC net.HardwareAdd
 
 // setupUplinkPortPhysical allocates external IPs on the uplink network.
 // Returns the derived ovnUplinkVars settings.
-func (n *ovn) setupUplinkPortPhysical(uplinkNet Network, routerMAC net.HardwareAddr) (*ovnUplinkVars, error) {
-	v, err := n.allocateUplinkPortIPs(uplinkNet, routerMAC)
+func (n *ovn) setupUplinkPortPhysical(ctx context.Context, uplinkNet Network, routerMAC net.HardwareAddr) (*ovnUplinkVars, error) {
+	v, err := n.allocateUplinkPortIPs(ctx, uplinkNet, routerMAC)
 	if err != nil {
 		return nil, fmt.Errorf("Failed allocating uplink port IPs on network %q: %w", uplinkNet.Name(), err)
 	}
@@ -1307,7 +1307,7 @@ func (n *ovn) setupUplinkPortPhysical(uplinkNet Network, routerMAC net.HardwareA
 
 // allocateUplinkPortIPs attempts to find a free IP in the uplink network's OVN ranges and then stores it in
 // ovnVolatileUplinkIPv4 and ovnVolatileUplinkIPv6 config keys on this network. Returns ovnUplinkVars settings.
-func (n *ovn) allocateUplinkPortIPs(uplinkNet Network, routerMAC net.HardwareAddr) (*ovnUplinkVars, error) {
+func (n *ovn) allocateUplinkPortIPs(ctx context.Context, uplinkNet Network, routerMAC net.HardwareAddr) (*ovnUplinkVars, error) {
 	v := &ovnUplinkVars{}
 
 	uplinkNetConf := uplinkNet.Config()
@@ -1398,7 +1398,7 @@ func (n *ovn) allocateUplinkPortIPs(uplinkNet Network, routerMAC net.HardwareAdd
 
 	// Decide whether we need to allocate new IP(s) and go to the expense of retrieving all allocated IPs.
 	if (allocatingIPV4) || (allocatingIPV6) {
-		err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			allAllocatedIPv4, allAllocatedIPv6, err := n.uplinkAllAllocatedIPs(ctx, tx, uplinkNet.Name())
 			if err != nil {
 				return fmt.Errorf("Failed to get all allocated IPs for uplink: %w", err)
@@ -1573,16 +1573,16 @@ func (n *ovn) uplinkAllocateIP(ipRanges []*shared.IPRange, allAllocated []net.IP
 }
 
 // startUplinkPort performs any network start up logic needed to connect the uplink connection to OVN.
-func (n *ovn) startUplinkPort() error {
+func (n *ovn) startUplinkPort(ctx context.Context) error {
 	// Uplink network must be in default project.
-	uplinkNet, err := LoadByName(n.state, api.ProjectDefaultName, n.config["network"])
+	uplinkNet, err := LoadByName(ctx, n.state, api.ProjectDefaultName, n.config["network"])
 	if err != nil {
 		return fmt.Errorf("Failed loading uplink network %q: %w", n.config["network"], err)
 	}
 
 	// Lock uplink network so that if multiple OVN networks are trying to connect to the same uplink we don't
 	// race each other setting up the connection.
-	unlock, err := locking.Lock(context.TODO(), n.uplinkOperationLockName(uplinkNet))
+	unlock, err := locking.Lock(ctx, n.uplinkOperationLockName(uplinkNet))
 	if err != nil {
 		return err
 	}
@@ -1591,9 +1591,9 @@ func (n *ovn) startUplinkPort() error {
 
 	switch uplinkNet.Type() {
 	case "bridge":
-		return n.startUplinkPortBridge(uplinkNet)
+		return n.startUplinkPortBridge(ctx, uplinkNet)
 	case "physical":
-		return n.startUplinkPortPhysical(uplinkNet)
+		return n.startUplinkPortPhysical(ctx, uplinkNet)
 	}
 
 	return fmt.Errorf("Failed starting uplink port, network type %q unsupported as OVN uplink", uplinkNet.Type())
@@ -1617,16 +1617,16 @@ func (n *ovn) uplinkPortBridgeVars(uplinkNet Network) *ovnUplinkPortBridgeVars {
 
 // startUplinkPortBridge creates veth pair (if doesn't exist), creates OVS bridge (if doesn't exist) and
 // connects veth pair to uplink bridge and OVS bridge.
-func (n *ovn) startUplinkPortBridge(uplinkNet Network) error {
+func (n *ovn) startUplinkPortBridge(ctx context.Context, uplinkNet Network) error {
 	if uplinkNet.Config()["bridge.driver"] != "openvswitch" {
-		return n.startUplinkPortBridgeNative(uplinkNet, uplinkNet.Name())
+		return n.startUplinkPortBridgeNative(ctx, uplinkNet, uplinkNet.Name())
 	}
 
-	return n.startUplinkPortBridgeOVS(uplinkNet, uplinkNet.Name())
+	return n.startUplinkPortBridgeOVS(ctx, uplinkNet, uplinkNet.Name())
 }
 
 // startUplinkPortBridgeNative connects an OVN logical router to an uplink native bridge.
-func (n *ovn) startUplinkPortBridgeNative(uplinkNet Network, bridgeDevice string) error {
+func (n *ovn) startUplinkPortBridgeNative(ctx context.Context, uplinkNet Network, bridgeDevice string) error {
 	// Do this after gaining lock so that on failure we revert before release locking.
 	revert := revert.New()
 	defer revert.Fail()
@@ -1724,45 +1724,45 @@ func (n *ovn) startUplinkPortBridgeNative(uplinkNet Network, bridgeDevice string
 
 	// Create uplink OVS bridge if needed.
 	ovs := openvswitch.NewOVS()
-	err = ovs.BridgeAdd(vars.ovsBridge, true, nil, 0)
+	err = ovs.BridgeAdd(ctx, vars.ovsBridge, true, nil, 0)
 	if err != nil {
 		return fmt.Errorf("Failed to create uplink OVS bridge %q: %w", vars.ovsBridge, err)
 	}
 
 	// Connect OVS end veth interface to OVS bridge.
-	err = ovs.BridgePortAdd(vars.ovsBridge, vars.ovsEnd, true)
+	err = ovs.BridgePortAdd(ctx, vars.ovsBridge, vars.ovsEnd, true)
 	if err != nil {
 		return fmt.Errorf("Failed to connect uplink veth interface %q to uplink OVS bridge %q: %w", vars.ovsEnd, vars.ovsBridge, err)
 	}
 
 	// Associate OVS bridge to logical OVN provider.
-	err = ovs.OVNBridgeMappingAdd(vars.ovsBridge, uplinkNet.Name())
+	err = ovs.OVNBridgeMappingAdd(ctx, vars.ovsBridge, uplinkNet.Name())
 	if err != nil {
 		return fmt.Errorf("Failed to associate uplink OVS bridge %q to OVN provider %q: %w", vars.ovsBridge, uplinkNet.Name(), err)
 	}
 
 	// Attempt to learn uplink MAC.
-	n.pingOVNRouter()
+	n.pingOVNRouter(ctx)
 
 	revert.Success()
 	return nil
 }
 
 // startUplinkPortBridgeOVS connects an OVN logical router to an uplink OVS bridge.
-func (n *ovn) startUplinkPortBridgeOVS(uplinkNet Network, bridgeDevice string) error {
+func (n *ovn) startUplinkPortBridgeOVS(ctx context.Context, uplinkNet Network, bridgeDevice string) error {
 	// Do this after gaining lock so that on failure we revert before release locking.
 	revert := revert.New()
 	defer revert.Fail()
 
 	// If uplink is an openvswitch bridge, have OVN logical provider connect directly to it.
 	ovs := openvswitch.NewOVS()
-	err := ovs.OVNBridgeMappingAdd(bridgeDevice, uplinkNet.Name())
+	err := ovs.OVNBridgeMappingAdd(ctx, bridgeDevice, uplinkNet.Name())
 	if err != nil {
 		return fmt.Errorf("Failed to associate uplink OVS bridge %q to OVN provider %q: %w", bridgeDevice, uplinkNet.Name(), err)
 	}
 
 	// Attempt to learn uplink MAC.
-	n.pingOVNRouter()
+	n.pingOVNRouter(ctx)
 
 	revert.Success()
 	return nil
@@ -1770,7 +1770,7 @@ func (n *ovn) startUplinkPortBridgeOVS(uplinkNet Network, bridgeDevice string) e
 
 // pingOVNRouter pings the OVN router's external IP addresses to attempt to trigger MAC learning on uplink.
 // This is to work around a bug in some versions of OVN.
-func (n *ovn) pingOVNRouter() {
+func (n *ovn) pingOVNRouter(ctx context.Context) {
 	var ips []net.IP
 
 	for _, key := range []string{ovnVolatileUplinkIPv4, ovnVolatileUplinkIPv6} {
@@ -1796,7 +1796,7 @@ func (n *ovn) pingOVNRouter() {
 
 			// Try several attempts as it can take a few seconds for the network to come up.
 			for range 5 {
-				err = pingIP(context.TODO(), ip)
+				err = pingIP(ctx, ip)
 				if err == nil {
 					n.logger.Debug("OVN router external IP address reachable", logger.Ctx{"ip": ip.String()})
 					return
@@ -1813,7 +1813,7 @@ func (n *ovn) pingOVNRouter() {
 }
 
 // startUplinkPortPhysical creates OVS bridge (if doesn't exist) and connects uplink interface to the OVS bridge.
-func (n *ovn) startUplinkPortPhysical(uplinkNet Network) error {
+func (n *ovn) startUplinkPortPhysical(ctx context.Context, uplinkNet Network) error {
 	// Do this after gaining lock so that on failure we revert before release locking.
 	revert := revert.New()
 	defer revert.Fail()
@@ -1827,19 +1827,19 @@ func (n *ovn) startUplinkPortPhysical(uplinkNet Network) error {
 
 	// Detect if uplink interface is a native bridge.
 	if IsNativeBridge(uplinkHostName) {
-		return n.startUplinkPortBridgeNative(uplinkNet, uplinkHostName)
+		return n.startUplinkPortBridgeNative(ctx, uplinkNet, uplinkHostName)
 	}
 
 	// Handle case where uplink interface is bridge and VLAN is specified.
 	if IsNativeBridge(uplinkConfig["parent"]) && uplinkConfig["vlan"] != "" {
-		return n.startUplinkPortBridgeNative(uplinkNet, uplinkConfig["parent"])
+		return n.startUplinkPortBridgeNative(ctx, uplinkNet, uplinkConfig["parent"])
 	}
 
 	// Detect if uplink interface is a OVS bridge.
 	ovs := openvswitch.NewOVS()
-	isOVSBridge, _ := ovs.BridgeExists(uplinkHostName)
+	isOVSBridge, _ := ovs.BridgeExists(ctx, uplinkHostName)
 	if isOVSBridge {
-		return n.startUplinkPortBridgeOVS(uplinkNet, uplinkHostName)
+		return n.startUplinkPortBridgeOVS(ctx, uplinkNet, uplinkHostName)
 	}
 
 	// If uplink is a normal physical interface, then use a separate OVS bridge and connect uplink to it.
@@ -1865,19 +1865,19 @@ func (n *ovn) startUplinkPortPhysical(uplinkNet Network) error {
 	}
 
 	// Create uplink OVS bridge if needed.
-	err = ovs.BridgeAdd(vars.ovsBridge, true, nil, 0)
+	err = ovs.BridgeAdd(ctx, vars.ovsBridge, true, nil, 0)
 	if err != nil {
 		return fmt.Errorf("Failed to create uplink OVS bridge %q: %w", vars.ovsBridge, err)
 	}
 
 	// Connect OVS end veth interface to OVS bridge.
-	err = ovs.BridgePortAdd(vars.ovsBridge, uplinkHostName, true)
+	err = ovs.BridgePortAdd(ctx, vars.ovsBridge, uplinkHostName, true)
 	if err != nil {
 		return fmt.Errorf("Failed to connect uplink interface %q to uplink OVS bridge %q: %w", uplinkHostName, vars.ovsBridge, err)
 	}
 
 	// Associate OVS bridge to logical OVN provider.
-	err = ovs.OVNBridgeMappingAdd(vars.ovsBridge, uplinkNet.Name())
+	err = ovs.OVNBridgeMappingAdd(ctx, vars.ovsBridge, uplinkNet.Name())
 	if err != nil {
 		return fmt.Errorf("Failed to associate uplink OVS bridge %q to OVN provider %q: %w", vars.ovsBridge, uplinkNet.Name(), err)
 	}
@@ -1890,19 +1890,19 @@ func (n *ovn) startUplinkPortPhysical(uplinkNet Network) error {
 	}
 
 	// Attempt to learn uplink MAC.
-	n.pingOVNRouter()
+	n.pingOVNRouter(ctx)
 
 	revert.Success()
 	return nil
 }
 
 // checkUplinkUse checks if uplink network is used by another OVN network.
-func (n *ovn) checkUplinkUse() (bool, error) {
+func (n *ovn) checkUplinkUse(ctx context.Context) (bool, error) {
 	// Get all managed networks across all projects.
 	var err error
 	var projectNetworks map[string]map[int64]api.Network
 
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		projectNetworks, err = tx.GetCreatedNetworks(ctx)
 		return err
 	})
@@ -1927,16 +1927,16 @@ func (n *ovn) checkUplinkUse() (bool, error) {
 }
 
 // deleteUplinkPort deletes the uplink connection.
-func (n *ovn) deleteUplinkPort() error {
+func (n *ovn) deleteUplinkPort(ctx context.Context) error {
 	// Uplink network must be in default project.
 	if n.config["network"] != "" {
-		uplinkNet, err := LoadByName(n.state, api.ProjectDefaultName, n.config["network"])
+		uplinkNet, err := LoadByName(ctx, n.state, api.ProjectDefaultName, n.config["network"])
 		if err != nil {
 			return fmt.Errorf("Failed loading uplink network %q: %w", n.config["network"], err)
 		}
 
 		// Lock uplink network so we don't race each other networks using the OVS uplink bridge.
-		unlock, err := locking.Lock(context.TODO(), n.uplinkOperationLockName(uplinkNet))
+		unlock, err := locking.Lock(ctx, n.uplinkOperationLockName(uplinkNet))
 		if err != nil {
 			return err
 		}
@@ -1945,9 +1945,9 @@ func (n *ovn) deleteUplinkPort() error {
 
 		switch uplinkNet.Type() {
 		case "bridge":
-			return n.deleteUplinkPortBridge(uplinkNet)
+			return n.deleteUplinkPortBridge(ctx, uplinkNet)
 		case "physical":
-			return n.deleteUplinkPortPhysical(uplinkNet)
+			return n.deleteUplinkPortPhysical(ctx, uplinkNet)
 		}
 
 		return fmt.Errorf("Failed deleting uplink port, network type %q unsupported as OVN uplink", uplinkNet.Type())
@@ -1957,21 +1957,21 @@ func (n *ovn) deleteUplinkPort() error {
 }
 
 // deleteUplinkPortBridge disconnects the uplink port from the bridge and performs any cleanup.
-func (n *ovn) deleteUplinkPortBridge(uplinkNet Network) error {
+func (n *ovn) deleteUplinkPortBridge(ctx context.Context, uplinkNet Network) error {
 	if uplinkNet.Config()["bridge.driver"] != "openvswitch" {
-		return n.deleteUplinkPortBridgeNative(uplinkNet)
+		return n.deleteUplinkPortBridgeNative(ctx, uplinkNet)
 	}
 
-	return n.deleteUplinkPortBridgeOVS(uplinkNet, uplinkNet.Name())
+	return n.deleteUplinkPortBridgeOVS(ctx, uplinkNet, uplinkNet.Name())
 }
 
 // deleteUplinkPortBridge deletes uplink OVS bridge, OVN bridge mappings and veth interfaces if not in use.
-func (n *ovn) deleteUplinkPortBridgeNative(uplinkNet Network) error {
+func (n *ovn) deleteUplinkPortBridgeNative(ctx context.Context, uplinkNet Network) error {
 	// Check OVS uplink bridge exists, if it does, check whether the uplink network is in use.
 	removeVeths := false
 	vars := n.uplinkPortBridgeVars(uplinkNet)
 	if InterfaceExists(vars.ovsBridge) {
-		uplinkUsed, err := n.checkUplinkUse()
+		uplinkUsed, err := n.checkUplinkUse(ctx)
 		if err != nil {
 			return err
 		}
@@ -1981,12 +1981,12 @@ func (n *ovn) deleteUplinkPortBridgeNative(uplinkNet Network) error {
 			removeVeths = true
 
 			ovs := openvswitch.NewOVS()
-			err = ovs.OVNBridgeMappingDelete(vars.ovsBridge, uplinkNet.Name())
+			err = ovs.OVNBridgeMappingDelete(ctx, vars.ovsBridge, uplinkNet.Name())
 			if err != nil {
 				return err
 			}
 
-			err = ovs.BridgeDelete(vars.ovsBridge)
+			err = ovs.BridgeDelete(ctx, vars.ovsBridge)
 			if err != nil {
 				return err
 			}
@@ -2018,8 +2018,8 @@ func (n *ovn) deleteUplinkPortBridgeNative(uplinkNet Network) error {
 }
 
 // deleteUplinkPortBridge deletes OVN bridge mappings if not in use.
-func (n *ovn) deleteUplinkPortBridgeOVS(uplinkNet Network, ovsBridge string) error {
-	uplinkUsed, err := n.checkUplinkUse()
+func (n *ovn) deleteUplinkPortBridgeOVS(ctx context.Context, uplinkNet Network, ovsBridge string) error {
+	uplinkUsed, err := n.checkUplinkUse(ctx)
 	if err != nil {
 		return err
 	}
@@ -2027,7 +2027,7 @@ func (n *ovn) deleteUplinkPortBridgeOVS(uplinkNet Network, ovsBridge string) err
 	// Remove uplink OVS bridge mapping if not in use by other OVN networks.
 	if !uplinkUsed {
 		ovs := openvswitch.NewOVS()
-		err = ovs.OVNBridgeMappingDelete(ovsBridge, uplinkNet.Name())
+		err = ovs.OVNBridgeMappingDelete(ctx, ovsBridge, uplinkNet.Name())
 		if err != nil {
 			return err
 		}
@@ -2037,20 +2037,20 @@ func (n *ovn) deleteUplinkPortBridgeOVS(uplinkNet Network, ovsBridge string) err
 }
 
 // deleteUplinkPortPhysical deletes uplink OVS bridge and OVN bridge mappings if not in use.
-func (n *ovn) deleteUplinkPortPhysical(uplinkNet Network) error {
+func (n *ovn) deleteUplinkPortPhysical(ctx context.Context, uplinkNet Network) error {
 	uplinkConfig := uplinkNet.Config()
 	uplinkHostName := GetHostDevice(uplinkConfig["parent"], uplinkConfig["vlan"])
 
 	// Detect if uplink interface is a native bridge.
 	if IsNativeBridge(uplinkHostName) || (IsNativeBridge(uplinkConfig["parent"]) && uplinkConfig["vlan"] != "") {
-		return n.deleteUplinkPortBridgeNative(uplinkNet)
+		return n.deleteUplinkPortBridgeNative(ctx, uplinkNet)
 	}
 
 	// Detect if uplink interface is a OVS bridge.
 	ovs := openvswitch.NewOVS()
-	isOVSBridge, _ := ovs.BridgeExists(uplinkHostName)
+	isOVSBridge, _ := ovs.BridgeExists(ctx, uplinkHostName)
 	if isOVSBridge {
-		return n.deleteUplinkPortBridgeOVS(uplinkNet, uplinkHostName)
+		return n.deleteUplinkPortBridgeOVS(ctx, uplinkNet, uplinkHostName)
 	}
 
 	// Otherwise if uplink is normal physical interface, attempt cleanup of OVS bridge.
@@ -2059,7 +2059,7 @@ func (n *ovn) deleteUplinkPortPhysical(uplinkNet Network) error {
 	releaseIF := false
 	vars := n.uplinkPortBridgeVars(uplinkNet)
 	if InterfaceExists(vars.ovsBridge) {
-		uplinkUsed, err := n.checkUplinkUse()
+		uplinkUsed, err := n.checkUplinkUse(ctx)
 		if err != nil {
 			return err
 		}
@@ -2069,12 +2069,12 @@ func (n *ovn) deleteUplinkPortPhysical(uplinkNet Network) error {
 			releaseIF = true
 
 			ovs := openvswitch.NewOVS()
-			err = ovs.OVNBridgeMappingDelete(vars.ovsBridge, uplinkNet.Name())
+			err = ovs.OVNBridgeMappingDelete(ctx, vars.ovsBridge, uplinkNet.Name())
 			if err != nil {
 				return err
 			}
 
-			err = ovs.BridgeDelete(vars.ovsBridge)
+			err = ovs.BridgeDelete(ctx, vars.ovsBridge)
 			if err != nil {
 				return err
 			}
@@ -2096,7 +2096,7 @@ func (n *ovn) deleteUplinkPortPhysical(uplinkNet Network) error {
 }
 
 // FillConfig fills requested config with any default values.
-func (n *ovn) FillConfig(config map[string]string) error {
+func (n *ovn) FillConfig(ctx context.Context, config map[string]string) error {
 	if config["ipv4.address"] == "" {
 		config["ipv4.address"] = "auto"
 	}
@@ -2109,7 +2109,7 @@ func (n *ovn) FillConfig(config map[string]string) error {
 	}
 
 	// Now replace any "auto" keys with generated values.
-	err := n.populateAutoConfig(config)
+	err := n.populateAutoConfig(ctx, config)
 	if err != nil {
 		return fmt.Errorf("Failed generating auto config: %w", err)
 	}
@@ -2118,11 +2118,11 @@ func (n *ovn) FillConfig(config map[string]string) error {
 }
 
 // populateAutoConfig replaces "auto" in config with generated values.
-func (n *ovn) populateAutoConfig(config map[string]string) error {
+func (n *ovn) populateAutoConfig(ctx context.Context, config map[string]string) error {
 	changedConfig := false
 
 	if config["ipv4.address"] == "auto" {
-		subnet, err := randomSubnetV4()
+		subnet, err := randomSubnetV4(ctx)
 		if err != nil {
 			return err
 		}
@@ -2137,7 +2137,7 @@ func (n *ovn) populateAutoConfig(config map[string]string) error {
 	}
 
 	if config["ipv6.address"] == "auto" {
-		subnet, err := randomSubnetV6()
+		subnet, err := randomSubnetV6(ctx)
 		if err != nil {
 			return err
 		}
@@ -2153,19 +2153,19 @@ func (n *ovn) populateAutoConfig(config map[string]string) error {
 
 	// Re-validate config if changed.
 	if changedConfig && n.state != nil {
-		return n.Validate(config)
+		return n.Validate(ctx, config)
 	}
 
 	return nil
 }
 
 // Create sets up network in OVN Northbound database.
-func (n *ovn) Create(clientType request.ClientType) error {
+func (n *ovn) Create(ctx context.Context, clientType request.ClientType) error {
 	n.logger.Debug("Create", logger.Ctx{"clientType": clientType, "config": n.config})
 
 	// We only need to setup the OVN Northbound database once, not on every clustered node.
 	if clientType == request.ClientTypeNormal {
-		err := n.setup(false)
+		err := n.setup(ctx, false)
 		if err != nil {
 			return err
 		}
@@ -2243,7 +2243,7 @@ func (n *ovn) getDHCPv4Reservations() ([]shared.IPRange, error) {
 	return dhcpReserveIPv4s, nil
 }
 
-func (n *ovn) setup(update bool) error {
+func (n *ovn) setup(ctx context.Context, update bool) error {
 	// If we are in mock mode, just no-op.
 	if n.state.OS.MockMode {
 		return nil
@@ -2254,7 +2254,7 @@ func (n *ovn) setup(update bool) error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+	client, err := openvswitch.NewOVN(ctx, n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 	if err != nil {
 		return fmt.Errorf("Failed to get OVN client: %w", err)
 	}
@@ -2270,7 +2270,7 @@ func (n *ovn) setup(update bool) error {
 	var projectID int64
 	var uplinkNetwork string
 
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		project, err := dbCluster.GetProject(ctx, tx.Tx(), n.project)
 		if err != nil {
 			return err
@@ -2304,7 +2304,7 @@ func (n *ovn) setup(update bool) error {
 	bridgeMTU := n.getBridgeMTU()
 	if bridgeMTU == 0 {
 		// If no manual bridge MTU specified, derive it from the underlay network.
-		bridgeMTU, err = n.getOptimalBridgeMTU()
+		bridgeMTU, err = n.getOptimalBridgeMTU(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed getting optimal bridge MTU: %w", err)
 		}
@@ -2323,7 +2323,7 @@ func (n *ovn) setup(update bool) error {
 	if len(updatedConfig) > 0 {
 		maps.Copy(n.config, updatedConfig)
 
-		err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			err = tx.UpdateNetwork(ctx, n.project, n.name, n.description, n.config)
 			if err != nil {
 				return fmt.Errorf("Failed saving updated network config: %w", err)
@@ -2343,7 +2343,7 @@ func (n *ovn) setup(update bool) error {
 	}
 
 	// Setup uplink port (do this first to check uplink is suitable).
-	uplinkNet, err := n.setupUplinkPort(routerMAC)
+	uplinkNet, err := n.setupUplinkPort(ctx, routerMAC)
 	if err != nil {
 		return err
 	}
@@ -2374,23 +2374,23 @@ func (n *ovn) setup(update bool) error {
 	}
 
 	// Create chassis group.
-	err = client.ChassisGroupAdd(n.getChassisGroupName(), update)
+	err = client.ChassisGroupAdd(ctx, n.getChassisGroupName(), update)
 	if err != nil {
 		return err
 	}
 
 	if !update {
-		revert.Add(func() { _ = client.ChassisGroupDelete(n.getChassisGroupName()) })
+		revert.Add(func() { _ = client.ChassisGroupDelete(ctx, n.getChassisGroupName()) })
 	}
 
 	// Create logical router.
-	err = client.LogicalRouterAdd(n.getRouterName(), update)
+	err = client.LogicalRouterAdd(ctx, n.getRouterName(), update)
 	if err != nil {
 		return fmt.Errorf("Failed adding router: %w", err)
 	}
 
 	if !update {
-		revert.Add(func() { _ = client.LogicalRouterDelete(n.getRouterName()) })
+		revert.Add(func() { _ = client.LogicalRouterDelete(ctx, n.getRouterName()) })
 	}
 
 	// Configure logical router.
@@ -2412,57 +2412,57 @@ func (n *ovn) setup(update bool) error {
 	}
 
 	if len(extRouterIPs) > 0 {
-		err = client.LogicalSwitchAdd(n.getExtSwitchName(), update)
+		err = client.LogicalSwitchAdd(ctx, n.getExtSwitchName(), update)
 		if err != nil {
 			return fmt.Errorf("Failed adding external switch: %w", err)
 		}
 
 		if !update {
-			revert.Add(func() { _ = client.LogicalSwitchDelete(n.getExtSwitchName()) })
+			revert.Add(func() { _ = client.LogicalSwitchDelete(ctx, n.getExtSwitchName()) })
 		}
 
 		// Create external router port.
-		err = client.LogicalRouterPortAdd(n.getRouterName(), n.getRouterExtPortName(), routerMAC, bridgeMTU, extRouterIPs, update)
+		err = client.LogicalRouterPortAdd(ctx, n.getRouterName(), n.getRouterExtPortName(), routerMAC, bridgeMTU, extRouterIPs, update)
 		if err != nil {
 			return fmt.Errorf("Failed adding external router port: %w", err)
 		}
 
 		if !update {
-			revert.Add(func() { _ = client.LogicalRouterPortDelete(n.getRouterExtPortName()) })
+			revert.Add(func() { _ = client.LogicalRouterPortDelete(ctx, n.getRouterExtPortName()) })
 		}
 
 		// Associate external router port to chassis group.
-		err = client.LogicalRouterPortLinkChassisGroup(n.getRouterExtPortName(), n.getChassisGroupName())
+		err = client.LogicalRouterPortLinkChassisGroup(ctx, n.getRouterExtPortName(), n.getChassisGroupName())
 		if err != nil {
 			return fmt.Errorf("Failed linking external router port to chassis group: %w", err)
 		}
 
 		// Create external switch port and link to router port.
-		err = client.LogicalSwitchPortAdd(n.getExtSwitchName(), n.getExtSwitchRouterPortName(), nil, update)
+		err = client.LogicalSwitchPortAdd(ctx, n.getExtSwitchName(), n.getExtSwitchRouterPortName(), nil, update)
 		if err != nil {
 			return fmt.Errorf("Failed adding external switch router port: %w", err)
 		}
 
 		if !update {
-			revert.Add(func() { _ = client.LogicalSwitchPortDelete(n.getExtSwitchRouterPortName()) })
+			revert.Add(func() { _ = client.LogicalSwitchPortDelete(ctx, n.getExtSwitchRouterPortName()) })
 		}
 
-		err = client.LogicalSwitchPortLinkRouter(n.getExtSwitchRouterPortName(), n.getRouterExtPortName())
+		err = client.LogicalSwitchPortLinkRouter(ctx, n.getExtSwitchRouterPortName(), n.getRouterExtPortName())
 		if err != nil {
 			return fmt.Errorf("Failed linking external router port to external switch port: %w", err)
 		}
 
 		// Create external switch port and link to external provider network.
-		err = client.LogicalSwitchPortAdd(n.getExtSwitchName(), n.getExtSwitchProviderPortName(), nil, update)
+		err = client.LogicalSwitchPortAdd(ctx, n.getExtSwitchName(), n.getExtSwitchProviderPortName(), nil, update)
 		if err != nil {
 			return fmt.Errorf("Failed adding external switch provider port: %w", err)
 		}
 
 		if !update {
-			revert.Add(func() { _ = client.LogicalSwitchPortDelete(n.getExtSwitchProviderPortName()) })
+			revert.Add(func() { _ = client.LogicalSwitchPortDelete(ctx, n.getExtSwitchProviderPortName()) })
 		}
 
-		err = client.LogicalSwitchPortLinkProviderNetwork(n.getExtSwitchProviderPortName(), uplinkNet.extSwitchProviderName)
+		err = client.LogicalSwitchPortLinkProviderNetwork(ctx, n.getExtSwitchProviderPortName(), uplinkNet.extSwitchProviderName)
 		if err != nil {
 			return fmt.Errorf("Failed linking external switch provider port to external provider network: %w", err)
 		}
@@ -2470,7 +2470,7 @@ func (n *ovn) setup(update bool) error {
 		// Remove any existing SNAT rules on update. As currently these are only defined from the network
 		// config rather than from any instance NIC config, so we can re-create the active config below.
 		if update {
-			err = client.LogicalRouterSNATDeleteAll(n.getRouterName())
+			err = client.LogicalRouterSNATDeleteAll(ctx, n.getRouterName())
 			if err != nil {
 				return fmt.Errorf("Failed removing existing router SNAT rules: %w", err)
 			}
@@ -2487,7 +2487,7 @@ func (n *ovn) setup(update bool) error {
 				}
 			}
 
-			err = client.LogicalRouterSNATAdd(n.getRouterName(), routerIntPortIPv4Net, snatIP, update)
+			err = client.LogicalRouterSNATAdd(ctx, n.getRouterName(), routerIntPortIPv4Net, snatIP, update)
 			if err != nil {
 				return fmt.Errorf("Failed adding router IPv4 SNAT rule: %w", err)
 			}
@@ -2503,7 +2503,7 @@ func (n *ovn) setup(update bool) error {
 				}
 			}
 
-			err = client.LogicalRouterSNATAdd(n.getRouterName(), routerIntPortIPv6Net, snatIP, update)
+			err = client.LogicalRouterSNATAdd(ctx, n.getRouterName(), routerIntPortIPv6Net, snatIP, update)
 			if err != nil {
 				return fmt.Errorf("Failed adding router IPv6 SNAT rule: %w", err)
 			}
@@ -2562,14 +2562,14 @@ func (n *ovn) setup(update bool) error {
 		}
 
 		if len(deleteRoutes) > 0 {
-			err = client.LogicalRouterRouteDelete(n.getRouterName(), deleteRoutes...)
+			err = client.LogicalRouterRouteDelete(ctx, n.getRouterName(), deleteRoutes...)
 			if err != nil {
 				return fmt.Errorf("Failed removing default routes: %w", err)
 			}
 		}
 
 		if len(defaultRoutes) > 0 {
-			err = client.LogicalRouterRouteAdd(n.getRouterName(), update, defaultRoutes...)
+			err = client.LogicalRouterRouteAdd(ctx, n.getRouterName(), update, defaultRoutes...)
 			if err != nil {
 				return fmt.Errorf("Failed adding default routes: %w", err)
 			}
@@ -2615,17 +2615,17 @@ func (n *ovn) setup(update bool) error {
 	}
 
 	// Create internal logical switch if not updating.
-	err = client.LogicalSwitchAdd(n.getIntSwitchName(), update)
+	err = client.LogicalSwitchAdd(ctx, n.getIntSwitchName(), update)
 	if err != nil {
 		return fmt.Errorf("Failed adding internal switch: %w", err)
 	}
 
 	if !update {
-		revert.Add(func() { _ = client.LogicalSwitchDelete(n.getIntSwitchName()) })
+		revert.Add(func() { _ = client.LogicalSwitchDelete(ctx, n.getIntSwitchName()) })
 	}
 
 	// Setup IP allocation config on logical switch.
-	err = client.LogicalSwitchSetIPAllocation(n.getIntSwitchName(), &openvswitch.OVNIPAllocationOpts{
+	err = client.LogicalSwitchSetIPAllocation(ctx, n.getIntSwitchName(), &openvswitch.OVNIPAllocationOpts{
 		PrefixIPv4:  routerIntPortIPv4Net,
 		PrefixIPv6:  routerIntPortIPv6Net,
 		ExcludeIPv4: dhcpReserveIPv4s,
@@ -2636,33 +2636,33 @@ func (n *ovn) setup(update bool) error {
 
 	// Create internal switch address sets and add subnets to address set.
 	if update {
-		err = client.AddressSetAdd(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), intSubnets...)
+		err = client.AddressSetAdd(ctx, acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), intSubnets...)
 		if err != nil {
 			return fmt.Errorf("Failed adding internal subnet address set entries: %w", err)
 		}
 	} else {
-		err = client.AddressSetCreate(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), intSubnets...)
+		err = client.AddressSetCreate(ctx, acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), intSubnets...)
 		if err != nil {
 			return fmt.Errorf("Failed creating internal subnet address set entries: %w", err)
 		}
 
-		revert.Add(func() { _ = client.AddressSetDelete(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID())) })
+		revert.Add(func() { _ = client.AddressSetDelete(ctx, acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID())) })
 	}
 
 	// Apply router security policy.
-	err = n.logicalRouterPolicySetup(client)
+	err = n.logicalRouterPolicySetup(ctx, client)
 	if err != nil {
 		return fmt.Errorf("Failed applying router security policy: %w", err)
 	}
 
 	// Create internal router port.
-	err = client.LogicalRouterPortAdd(n.getRouterName(), n.getRouterIntPortName(), routerMAC, bridgeMTU, intRouterIPs, update)
+	err = client.LogicalRouterPortAdd(ctx, n.getRouterName(), n.getRouterIntPortName(), routerMAC, bridgeMTU, intRouterIPs, update)
 	if err != nil {
 		return fmt.Errorf("Failed adding internal router port: %w", err)
 	}
 
 	if !update {
-		revert.Add(func() { _ = client.LogicalRouterPortDelete(n.getRouterIntPortName()) })
+		revert.Add(func() { _ = client.LogicalRouterPortDelete(ctx, n.getRouterIntPortName()) })
 	}
 
 	// Configure DHCP option sets.
@@ -2672,7 +2672,7 @@ func (n *ovn) setup(update bool) error {
 
 	if update {
 		// Find first existing DHCP options set for IPv4 and IPv6 and update them instead of adding sets.
-		existingOpts, err := client.LogicalSwitchDHCPOptionsGet(n.getIntSwitchName())
+		existingOpts, err := client.LogicalSwitchDHCPOptionsGet(ctx, n.getIntSwitchName())
 		if err != nil {
 			return fmt.Errorf("Failed getting existing DHCP settings for internal switch: %w", err)
 		}
@@ -2701,7 +2701,7 @@ func (n *ovn) setup(update bool) error {
 		}
 
 		if len(deleteDHCPRecords) > 0 {
-			err = client.LogicalSwitchDHCPOptionsDelete(n.getIntSwitchName(), deleteDHCPRecords...)
+			err = client.LogicalSwitchDHCPOptionsDelete(ctx, n.getIntSwitchName(), deleteDHCPRecords...)
 			if err != nil {
 				return fmt.Errorf("Failed deleting existing DHCP settings for internal switch: %w", err)
 			}
@@ -2716,7 +2716,7 @@ func (n *ovn) setup(update bool) error {
 			dhcpV4Netmask = "255.255.255.255"
 		}
 
-		err = client.LogicalSwitchDHCPv4OptionsSet(n.getIntSwitchName(), dhcpv4UUID, dhcpV4Subnet, &openvswitch.OVNDHCPv4Opts{
+		err = client.LogicalSwitchDHCPv4OptionsSet(ctx, n.getIntSwitchName(), dhcpv4UUID, dhcpV4Subnet, &openvswitch.OVNDHCPv4Opts{
 			ServerID:           routerIntPortIPv4,
 			ServerMAC:          routerMAC,
 			Router:             routerIntPortIPv4,
@@ -2733,7 +2733,7 @@ func (n *ovn) setup(update bool) error {
 
 	// Create DHCPv6 options for internal switch.
 	if dhcpV6Subnet != nil {
-		err = client.LogicalSwitchDHCPv6OptionsSet(n.getIntSwitchName(), dhcpv6UUID, dhcpV6Subnet, &openvswitch.OVNDHCPv6Opts{
+		err = client.LogicalSwitchDHCPv6OptionsSet(ctx, n.getIntSwitchName(), dhcpv6UUID, dhcpV6Subnet, &openvswitch.OVNDHCPv6Opts{
 			ServerID:           routerMAC,
 			RecursiveDNSServer: uplinkNet.dnsIPv6,
 			DNSSearchList:      n.getDNSSearchList(),
@@ -2758,7 +2758,7 @@ func (n *ovn) setup(update bool) error {
 			recursiveDNSServer = uplinkNet.dnsIPv6[0] // OVN only supports 1 RA DNS server.
 		}
 
-		err = client.LogicalRouterPortSetIPv6Advertisements(n.getRouterIntPortName(), &openvswitch.OVNIPv6RAOpts{
+		err = client.LogicalRouterPortSetIPv6Advertisements(ctx, n.getRouterIntPortName(), &openvswitch.OVNIPv6RAOpts{
 			AddressMode:        adressMode,
 			SendPeriodic:       true,
 			DNSSearchList:      n.getDNSSearchList(),
@@ -2774,35 +2774,35 @@ func (n *ovn) setup(update bool) error {
 			return fmt.Errorf("Failed setting internal router port IPv6 advertisement settings: %w", err)
 		}
 	} else {
-		err = client.LogicalRouterPortDeleteIPv6Advertisements(n.getRouterIntPortName())
+		err = client.LogicalRouterPortDeleteIPv6Advertisements(ctx, n.getRouterIntPortName())
 		if err != nil {
 			return fmt.Errorf("Failed removing internal router port IPv6 advertisement settings: %w", err)
 		}
 	}
 
 	// Create internal switch port and link to router port.
-	err = client.LogicalSwitchPortAdd(n.getIntSwitchName(), n.getIntSwitchRouterPortName(), nil, update)
+	err = client.LogicalSwitchPortAdd(ctx, n.getIntSwitchName(), n.getIntSwitchRouterPortName(), nil, update)
 	if err != nil {
 		return fmt.Errorf("Failed adding internal switch router port: %w", err)
 	}
 
 	if !update {
-		revert.Add(func() { _ = client.LogicalSwitchPortDelete(n.getIntSwitchRouterPortName()) })
+		revert.Add(func() { _ = client.LogicalSwitchPortDelete(ctx, n.getIntSwitchRouterPortName()) })
 	}
 
-	err = client.LogicalSwitchPortLinkRouter(n.getIntSwitchRouterPortName(), n.getRouterIntPortName())
+	err = client.LogicalSwitchPortLinkRouter(ctx, n.getIntSwitchRouterPortName(), n.getRouterIntPortName())
 	if err != nil {
 		return fmt.Errorf("Failed linking internal router port to internal switch port: %w", err)
 	}
 
 	// Apply baseline ACL rules to internal logical switch.
-	err = acl.OVNApplyNetworkBaselineRules(client, n.getIntSwitchName(), n.getIntSwitchRouterPortName(), intRouterIPs, append(uplinkNet.dnsIPv4, uplinkNet.dnsIPv6...))
+	err = acl.OVNApplyNetworkBaselineRules(ctx, client, n.getIntSwitchName(), n.getIntSwitchRouterPortName(), intRouterIPs, append(uplinkNet.dnsIPv4, uplinkNet.dnsIPv6...))
 	if err != nil {
 		return fmt.Errorf("Failed applying baseline ACL rules to internal switch: %w", err)
 	}
 
 	// Create network port group if needed.
-	err = n.ensureNetworkPortGroup(projectID)
+	err = n.ensureNetworkPortGroup(ctx, projectID)
 	if err != nil {
 		return fmt.Errorf("Failed to setup network port group: %w", err)
 	}
@@ -2812,7 +2812,7 @@ func (n *ovn) setup(update bool) error {
 	if len(securityACLS) > 0 {
 		var aclNameIDs map[string]int64
 
-		err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 
 			// Get map of ACL names to DB IDs (used for generating OVN port group names).
@@ -2829,7 +2829,7 @@ func (n *ovn) setup(update bool) error {
 			n.Name(): {Name: n.Name(), Type: n.Type(), ID: n.ID(), Config: n.Config()},
 		}
 
-		cleanup, err := acl.OVNEnsureACLs(n.state, n.logger, client, n.Project(), aclNameIDs, aclNets, securityACLS, false)
+		cleanup, err := acl.OVNEnsureACLs(ctx, n.state, n.logger, client, n.Project(), aclNameIDs, aclNets, securityACLS, false)
 		if err != nil {
 			return fmt.Errorf("Failed ensuring security ACLs are configured in OVN for network: %w", err)
 		}
@@ -2845,7 +2845,7 @@ func (n *ovn) setup(update bool) error {
 // Optionally excludePeers takes a list of peer network IDs to exclude from the router policy. This is useful
 // when removing a peer connection as it allows the security policy to be removed from OVN for that peer before the
 // peer connection has been removed from the database.
-func (n *ovn) logicalRouterPolicySetup(client *openvswitch.OVN, excludePeers ...int64) error {
+func (n *ovn) logicalRouterPolicySetup(ctx context.Context, client *openvswitch.OVN, excludePeers ...int64) error {
 	extRouterPort := n.getRouterExtPortName()
 	intRouterPort := n.getRouterIntPortName()
 	addrSetPrefix := acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID())
@@ -2877,7 +2877,7 @@ func (n *ovn) logicalRouterPolicySetup(client *openvswitch.OVN, excludePeers ...
 	// Add rules to drop inbound traffic arriving on external uplink port from peer connection addresses.
 	// This prevents source address spoofing of peer connection routes from the external network, which in
 	// turn allows us to use the peer connection's address set for referencing traffic from the peer in ACL.
-	err := n.forPeers(func(targetOVNNet *ovn) error {
+	err := n.forPeers(ctx, func(targetOVNNet *ovn) error {
 		if slices.Contains(excludePeers, targetOVNNet.ID()) {
 			return nil // Don't setup rules for this peer network connection.
 		}
@@ -2902,20 +2902,20 @@ func (n *ovn) logicalRouterPolicySetup(client *openvswitch.OVN, excludePeers ...
 		return err
 	}
 
-	return client.LogicalRouterPolicyApply(n.getRouterName(), policies...)
+	return client.LogicalRouterPolicyApply(ctx, n.getRouterName(), policies...)
 }
 
 // ensureNetworkPortGroup ensures that the network level port group (used for classifying NICs connected to this
 // network as internal) exists.
-func (n *ovn) ensureNetworkPortGroup(projectID int64) error {
-	client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+func (n *ovn) ensureNetworkPortGroup(ctx context.Context, projectID int64) error {
+	client, err := openvswitch.NewOVN(ctx, n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 	if err != nil {
 		return fmt.Errorf("Failed to get OVN client: %w", err)
 	}
 
 	// Create port group (if needed) for NICs to classify as internal.
 	intPortGroupName := acl.OVNIntSwitchPortGroupName(n.ID())
-	intPortGroupUUID, _, err := client.PortGroupInfo(intPortGroupName)
+	intPortGroupUUID, _, err := client.PortGroupInfo(ctx, intPortGroupName)
 	if err != nil {
 		return fmt.Errorf("Failed getting port group UUID for network %q setup: %w", n.Name(), err)
 	}
@@ -2923,7 +2923,7 @@ func (n *ovn) ensureNetworkPortGroup(projectID int64) error {
 	if intPortGroupUUID == "" {
 		// Create internal port group and associate it with the logical switch, so that it will be
 		// removed when the logical switch is removed.
-		err = client.PortGroupAdd(projectID, intPortGroupName, "", n.getIntSwitchName())
+		err = client.PortGroupAdd(ctx, projectID, intPortGroupName, "", n.getIntSwitchName())
 		if err != nil {
 			return fmt.Errorf("Failed creating port group %q for network %q setup: %w", intPortGroupName, n.Name(), err)
 		}
@@ -2935,15 +2935,15 @@ func (n *ovn) ensureNetworkPortGroup(projectID int64) error {
 // addChassisGroupEntry adds an entry for the local OVS chassis to the OVN logical network's chassis group.
 // The chassis priority value is a stable-random value derived from chassis group name and node ID. This is so we
 // don't end up using the same chassis for the primary uplink chassis for all OVN networks in a cluster.
-func (n *ovn) addChassisGroupEntry() error {
-	client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+func (n *ovn) addChassisGroupEntry(ctx context.Context) error {
+	client, err := openvswitch.NewOVN(ctx, n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 	if err != nil {
 		return fmt.Errorf("Failed to get OVN client: %w", err)
 	}
 
 	// Get local chassis ID for chassis group.
 	ovs := openvswitch.NewOVS()
-	chassisID, err := ovs.ChassisID()
+	chassisID, err := ovs.ChassisID(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed getting OVS Chassis ID: %w", err)
 	}
@@ -2960,7 +2960,7 @@ func (n *ovn) addChassisGroupEntry() error {
 	// Get all members in cluster.
 	ourMemberID := int(n.state.DB.Cluster.GetNodeID())
 	var memberIDs []int
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		members, err := tx.GetNodes(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed getting cluster members for adding chassis group entry: %w", err)
@@ -2989,7 +2989,7 @@ func (n *ovn) addChassisGroupEntry() error {
 		}
 	}
 
-	err = client.ChassisGroupChassisAdd(chassisGroupName, chassisID, priority)
+	err = client.ChassisGroupChassisAdd(ctx, chassisGroupName, chassisID, priority)
 	if err != nil {
 		return fmt.Errorf("Failed adding OVS chassis %q with priority %d to chassis group %q: %w", chassisID, priority, chassisGroupName, err)
 	}
@@ -3000,20 +3000,20 @@ func (n *ovn) addChassisGroupEntry() error {
 }
 
 // deleteChassisGroupEntry deletes an entry for the local OVS chassis from the OVN logical network's chassis group.
-func (n *ovn) deleteChassisGroupEntry() error {
-	client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+func (n *ovn) deleteChassisGroupEntry(ctx context.Context) error {
+	client, err := openvswitch.NewOVN(ctx, n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 	if err != nil {
 		return fmt.Errorf("Failed to get OVN client: %w", err)
 	}
 
 	// Remove local chassis from chassis group.
 	ovs := openvswitch.NewOVS()
-	chassisID, err := ovs.ChassisID()
+	chassisID, err := ovs.ChassisID(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed getting OVS Chassis ID: %w", err)
 	}
 
-	err = client.ChassisGroupChassisDelete(n.getChassisGroupName(), chassisID)
+	err = client.ChassisGroupChassisDelete(ctx, n.getChassisGroupName(), chassisID)
 	if err != nil {
 		return fmt.Errorf("Failed deleting OVS chassis %q from chassis group %q: %w", chassisID, n.getChassisGroupName(), err)
 	}
@@ -3022,67 +3022,67 @@ func (n *ovn) deleteChassisGroupEntry() error {
 }
 
 // Delete deletes a network.
-func (n *ovn) Delete(clientType request.ClientType) error {
+func (n *ovn) Delete(ctx context.Context, clientType request.ClientType) error {
 	n.logger.Debug("Delete", logger.Ctx{"clientType": clientType})
 
-	err := n.Stop()
+	err := n.Stop(ctx)
 	if err != nil {
 		return err
 	}
 
 	if clientType == request.ClientTypeNormal {
-		client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+		client, err := openvswitch.NewOVN(ctx, n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
 
-		err = client.LogicalRouterDelete(n.getRouterName())
+		err = client.LogicalRouterDelete(ctx, n.getRouterName())
 		if err != nil {
 			return err
 		}
 
-		err = client.LogicalSwitchDelete(n.getExtSwitchName())
+		err = client.LogicalSwitchDelete(ctx, n.getExtSwitchName())
 		if err != nil {
 			return err
 		}
 
-		err = client.LogicalSwitchDelete(n.getIntSwitchName())
+		err = client.LogicalSwitchDelete(ctx, n.getIntSwitchName())
 		if err != nil {
 			return err
 		}
 
-		err = client.AddressSetDelete(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()))
+		err = client.AddressSetDelete(ctx, acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()))
 		if err != nil {
 			return err
 		}
 
-		err = client.LogicalRouterPortDelete(n.getRouterExtPortName())
+		err = client.LogicalRouterPortDelete(ctx, n.getRouterExtPortName())
 		if err != nil {
 			return err
 		}
 
-		err = client.LogicalRouterPortDelete(n.getRouterIntPortName())
+		err = client.LogicalRouterPortDelete(ctx, n.getRouterIntPortName())
 		if err != nil {
 			return err
 		}
 
-		err = client.LogicalSwitchPortDelete(n.getExtSwitchRouterPortName())
+		err = client.LogicalSwitchPortDelete(ctx, n.getExtSwitchRouterPortName())
 		if err != nil {
 			return err
 		}
 
-		err = client.LogicalSwitchPortDelete(n.getExtSwitchProviderPortName())
+		err = client.LogicalSwitchPortDelete(ctx, n.getExtSwitchProviderPortName())
 		if err != nil {
 			return err
 		}
 
-		err = client.LogicalSwitchPortDelete(n.getIntSwitchRouterPortName())
+		err = client.LogicalSwitchPortDelete(ctx, n.getIntSwitchRouterPortName())
 		if err != nil {
 			return err
 		}
 
 		// Must be done after logical router removal.
-		err = client.ChassisGroupDelete(n.getChassisGroupName())
+		err = client.ChassisGroupDelete(ctx, n.getChassisGroupName())
 		if err != nil {
 			return err
 		}
@@ -3090,7 +3090,7 @@ func (n *ovn) Delete(clientType request.ClientType) error {
 		// Check for port groups that will become unused (and need deleting) as this network is deleted.
 		securityACLs := shared.SplitNTrimSpace(n.config["security.acls"], ",", -1, true)
 		if len(securityACLs) > 0 {
-			err = acl.OVNPortGroupDeleteIfUnused(n.state, n.logger, client, n.project, &api.Network{Name: n.name}, "")
+			err = acl.OVNPortGroupDeleteIfUnused(ctx, n.state, n.logger, client, n.project, &api.Network{Name: n.name}, "")
 			if err != nil {
 				return fmt.Errorf("Failed removing unused OVN port groups: %w", err)
 			}
@@ -3102,7 +3102,7 @@ func (n *ovn) Delete(clientType request.ClientType) error {
 		var forwardListenAddresses map[int64]string
 		var loadBalancerListenAddresses map[int64]string
 
-		err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			forwardListenAddresses, err = tx.GetNetworkForwardListenAddresses(ctx, n.ID(), memberSpecific)
 			if err != nil {
 				return fmt.Errorf("Failed loading network forwards: %w", err)
@@ -3128,21 +3128,21 @@ func (n *ovn) Delete(clientType request.ClientType) error {
 			loadBalancers = append(loadBalancers, n.getLoadBalancerName(listenAddress))
 		}
 
-		err = client.LoadBalancerDelete(loadBalancers...)
+		err = client.LoadBalancerDelete(ctx, loadBalancers...)
 		if err != nil {
 			return fmt.Errorf("Failed deleting network forwards and load balancers: %w", err)
 		}
 	}
 
-	return n.delete()
+	return n.delete(ctx)
 }
 
 // Rename renames a network.
-func (n *ovn) Rename(newName string) error {
+func (n *ovn) Rename(ctx context.Context, newName string) error {
 	n.logger.Debug("Rename", logger.Ctx{"newName": newName})
 
 	// Rename common steps.
-	err := n.rename(newName)
+	err := n.rename(ctx, newName)
 	if err != nil {
 		return err
 	}
@@ -3189,19 +3189,19 @@ func (n *ovn) chassisEnabled(ctx context.Context, tx *db.ClusterTx) (bool, error
 // In case the chassis is enabled for the host, add a new entry.
 // But only perform this action if the node is not evacuated.
 // Otherwise ensure there isn't any group entry setup.
-func (n *ovn) setupChassis(chassisEnabled bool, nodeEvacuated bool) error {
+func (n *ovn) setupChassis(ctx context.Context, chassisEnabled bool, nodeEvacuated bool) error {
 	// Handle chassis groups.
 	if chassisEnabled && !nodeEvacuated {
 		// Add local member's OVS chassis ID to logical chassis group.
-		return n.addChassisGroupEntry()
+		return n.addChassisGroupEntry(ctx)
 	}
 
 	// Make sure we don't have a group entry.
-	return n.deleteChassisGroupEntry()
+	return n.deleteChassisGroupEntry(ctx)
 }
 
 // Start starts adds the local OVS chassis ID to the OVN chass group and starts the local OVS uplink port.
-func (n *ovn) Start() error {
+func (n *ovn) Start(ctx context.Context) error {
 	n.logger.Debug("Start")
 
 	revert := revert.New()
@@ -3218,9 +3218,9 @@ func (n *ovn) Start() error {
 
 	var projectID int64
 	var chassisEnabled bool
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the project ID.
-		projectID, err = dbCluster.GetProjectID(context.Background(), tx.Tx(), n.project)
+		projectID, err = dbCluster.GetProjectID(ctx, tx.Tx(), n.project)
 		if err != nil {
 			return err
 		}
@@ -3234,7 +3234,7 @@ func (n *ovn) Start() error {
 	}
 
 	// Ensure network level port group exists.
-	err = n.ensureNetworkPortGroup(projectID)
+	err = n.ensureNetworkPortGroup(ctx, projectID)
 	if err != nil {
 		return err
 	}
@@ -3242,19 +3242,19 @@ func (n *ovn) Start() error {
 	nodeEvacuated := n.state.DB.Cluster.LocalNodeIsEvacuated()
 
 	// Handle chassis groups.
-	err = n.setupChassis(chassisEnabled, nodeEvacuated)
+	err = n.setupChassis(ctx, chassisEnabled, nodeEvacuated)
 	if err != nil {
 		return err
 	}
 
-	err = n.startUplinkPort()
+	err = n.startUplinkPort(ctx)
 	if err != nil {
 		return err
 	}
 
 	// Setup BGP.
 	if !nodeEvacuated {
-		err = n.bgpSetup(nil)
+		err = n.bgpSetup(ctx, nil)
 		if err != nil {
 			return err
 		}
@@ -3270,17 +3270,17 @@ func (n *ovn) Start() error {
 
 // Stop deletes the local OVS uplink port (if unused) and deletes the local OVS chassis ID from the
 // OVN chassis group.
-func (n *ovn) Stop() error {
+func (n *ovn) Stop(ctx context.Context) error {
 	n.logger.Debug("Stop")
 
 	// Delete local OVS chassis ID from logical OVN HA chassis group.
-	err := n.deleteChassisGroupEntry()
+	err := n.deleteChassisGroupEntry(ctx)
 	if err != nil {
 		return err
 	}
 
 	// Delete local uplink port if not used by other OVN networks.
-	err = n.deleteUplinkPort()
+	err = n.deleteUplinkPort(ctx)
 	if err != nil {
 		return err
 	}
@@ -3295,11 +3295,11 @@ func (n *ovn) Stop() error {
 }
 
 // Evacuate the network by removing the chassis and clearing BGP.
-func (n *ovn) Evacuate() error {
+func (n *ovn) Evacuate(ctx context.Context) error {
 	n.logger.Debug("Evacuate")
 
 	// Delete local OVS chassis ID from logical OVN HA chassis group.
-	err := n.deleteChassisGroupEntry()
+	err := n.deleteChassisGroupEntry(ctx)
 	if err != nil {
 		return err
 	}
@@ -3309,13 +3309,13 @@ func (n *ovn) Evacuate() error {
 }
 
 // Restore the network by setting up the chassis and BGP.
-func (n *ovn) Restore() error {
+func (n *ovn) Restore(ctx context.Context) error {
 	n.logger.Debug("Restore")
 
 	var err error
 	var chassisEnabled bool
 
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Check if we should enable the chassis.
 		chassisEnabled, err = n.chassisEnabled(ctx, tx)
 		return err
@@ -3325,13 +3325,13 @@ func (n *ovn) Restore() error {
 	}
 
 	// Handle chassis groups.
-	err = n.setupChassis(chassisEnabled, false)
+	err = n.setupChassis(ctx, chassisEnabled, false)
 	if err != nil {
 		return err
 	}
 
 	// Setup BGP.
-	return n.bgpSetup(nil)
+	return n.bgpSetup(ctx, nil)
 }
 
 // instanceNICGetRoutes returns list of routes defined in nicConfig.
@@ -3356,10 +3356,10 @@ func (n *ovn) instanceNICGetRoutes(nicConfig map[string]string) []net.IPNet {
 
 // Update updates the network. Accepts notification boolean indicating if this update request is coming from a
 // cluster notification, in which case do not update the database, just apply local changes needed.
-func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error {
+func (n *ovn) Update(ctx context.Context, newNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error {
 	n.logger.Debug("Update", logger.Ctx{"clientType": clientType, "newNetwork": newNetwork})
 
-	err := n.populateAutoConfig(newNetwork.Config)
+	err := n.populateAutoConfig(ctx, newNetwork.Config)
 	if err != nil {
 		return fmt.Errorf("Failed generating auto config: %w", err)
 	}
@@ -3391,7 +3391,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 	// pending, then don't apply the new settings to the node, just to the database record (ready for the
 	// actual global create request to be initiated).
 	if n.Status() == api.NetworkStatusPending || n.LocalStatus() == api.NetworkStatusPending {
-		return n.update(newNetwork, targetNode, clientType)
+		return n.update(ctx, newNetwork, targetNode, clientType)
 	}
 
 	revert := revert.New()
@@ -3400,19 +3400,19 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 	// Define a function which reverts everything.
 	revert.Add(func() {
 		// Reset changes to all nodes and database.
-		_ = n.update(oldNetwork, targetNode, clientType)
+		_ = n.update(ctx, oldNetwork, targetNode, clientType)
 
 		// Reset any change that was made to logical network.
 		if clientType == request.ClientTypeNormal {
-			_ = n.setup(true)
+			_ = n.setup(ctx, true)
 		}
 
-		_ = n.Start()
+		_ = n.Start(ctx)
 	})
 
 	// Stop network before new config applied if uplink network is changing.
 	if slices.Contains(changedKeys, "network") {
-		err = n.Stop()
+		err = n.Stop(ctx)
 		if err != nil {
 			return err
 		}
@@ -3423,14 +3423,14 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 	}
 
 	// Apply changes to all nodes and database.
-	err = n.update(newNetwork, targetNode, clientType)
+	err = n.update(ctx, newNetwork, targetNode, clientType)
 	if err != nil {
 		return err
 	}
 
 	// Re-setup the logical network after config applied if needed.
 	if len(changedKeys) > 0 && clientType == request.ClientTypeNormal {
-		err = n.setup(true)
+		err = n.setup(ctx, true)
 		if err != nil {
 			return err
 		}
@@ -3463,7 +3463,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 
 		var aclNameIDs map[string]int64
 
-		err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			// Get map of ACL names to DB IDs (used for generating OVN port group names).
 			aclNameIDs, err = tx.GetNetworkACLIDsByNames(ctx, n.Project())
 
@@ -3476,13 +3476,13 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 		addChangeSet := map[openvswitch.OVNPortGroup][]openvswitch.OVNSwitchPortUUID{}
 		removeChangeSet := map[openvswitch.OVNPortGroup][]openvswitch.OVNSwitchPortUUID{}
 
-		client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+		client, err := openvswitch.NewOVN(ctx, n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
 
 		// Get list of active switch ports (avoids repeated querying of OVN NB).
-		activePorts, err := client.LogicalSwitchPorts(n.getIntSwitchName())
+		activePorts, err := client.LogicalSwitchPorts(ctx, n.getIntSwitchName())
 		if err != nil {
 			return fmt.Errorf("Failed getting active ports: %w", err)
 		}
@@ -3492,7 +3492,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 		var localNICRoutes []net.IPNet
 
 		// Apply ACL changes to running instance NICs that use this network.
-		err = UsedByInstanceDevices(n.state, n.Project(), n.Name(), n.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
+		err = UsedByInstanceDevices(ctx, n.state, n.Project(), n.Name(), n.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 			nicACLs := shared.SplitNTrimSpace(nicConfig["security.acls"], ",", -1, true)
 
 			// Get logical port UUID and name.
@@ -3542,7 +3542,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 				// If there are no ACLs being applied to the NIC (either from network or NIC) then
 				// we should remove the default rule from the NIC.
 				if len(newACLs) <= 0 && len(nicACLs) <= 0 {
-					err = client.PortGroupPortClearACLRules(acl.OVNIntSwitchPortGroupName(n.ID()), instancePortName)
+					err = client.PortGroupPortClearACLRules(ctx, acl.OVNIntSwitchPortGroupName(n.ID()), instancePortName)
 					if err != nil {
 						return fmt.Errorf("Failed clearing OVN default ACL rules for instance NIC: %w", err)
 					}
@@ -3572,7 +3572,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 						egressAction, egressLogged := n.instanceDeviceACLDefaults(nicConfig, "egress")
 
 						logPrefix := fmt.Sprintf("%s-%s", inst.Config["volatile.uuid"], nicName)
-						err = acl.OVNApplyInstanceNICDefaultRules(client, acl.OVNIntSwitchPortGroupName(n.ID()), logPrefix, instancePortName, ingressAction, ingressLogged, egressAction, egressLogged)
+						err = acl.OVNApplyInstanceNICDefaultRules(ctx, client, acl.OVNIntSwitchPortGroupName(n.ID()), logPrefix, instancePortName, ingressAction, ingressLogged, egressAction, egressLogged)
 						if err != nil {
 							return fmt.Errorf("Failed applying OVN default ACL rules for instance NIC: %w", err)
 						}
@@ -3594,7 +3594,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 		// Apply add/remove changesets.
 		if len(addChangeSet) > 0 || len(removeChangeSet) > 0 {
 			n.logger.Debug("Applying ACL port group member change sets")
-			err = client.PortGroupMemberChange(addChangeSet, removeChangeSet)
+			err = client.PortGroupMemberChange(ctx, addChangeSet, removeChangeSet)
 			if err != nil {
 				return fmt.Errorf("Failed applying OVN port group member change sets for instance NIC: %w", err)
 			}
@@ -3602,14 +3602,14 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 
 		// Check if any of the removed ACLs should have any unused port groups deleted.
 		if len(removedACLs) > 0 {
-			err = acl.OVNPortGroupDeleteIfUnused(n.state, n.logger, client, n.project, &api.Network{Name: n.name}, "", newACLs...)
+			err = acl.OVNPortGroupDeleteIfUnused(ctx, n.state, n.logger, client, n.project, &api.Network{Name: n.name}, "", newACLs...)
 			if err != nil {
 				return fmt.Errorf("Failed removing unused OVN port groups: %w", err)
 			}
 		}
 
 		// Ensure all active NIC routes are present in internal switch's address set.
-		err = client.AddressSetAdd(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), localNICRoutes...)
+		err = client.AddressSetAdd(ctx, acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), localNICRoutes...)
 		if err != nil {
 			return fmt.Errorf("Failed adding active NIC routes to switch address set: %w", err)
 		}
@@ -3621,7 +3621,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 				rebuildPeers = true
 				_, oldRouterIntPortIPNet, _ := net.ParseCIDR(oldNetwork.Config[key])
 				if oldRouterIntPortIPNet != nil {
-					err = client.AddressSetRemove(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), *oldRouterIntPortIPNet)
+					err = client.AddressSetRemove(ctx, acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), *oldRouterIntPortIPNet)
 					if err != nil {
 						return fmt.Errorf("Failed removing old network subnet %q from switch address set: %w", oldRouterIntPortIPNet.String(), err)
 					}
@@ -3636,8 +3636,8 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 				return err
 			}
 
-			err = n.forPeers(func(targetOVNNet *ovn) error {
-				err = n.peerSetup(client, targetOVNNet, *opts)
+			err = n.forPeers(ctx, func(targetOVNNet *ovn) error {
+				err = n.peerSetup(ctx, client, targetOVNNet, *opts)
 				if err != nil {
 					return err
 				}
@@ -3652,13 +3652,13 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 
 	// If uplink network is changing, start network after config applied.
 	if slices.Contains(changedKeys, "network") {
-		err = n.Start()
+		err = n.Start(ctx)
 		if err != nil {
 			return err
 		}
 	} else {
 		// Setup BGP.
-		err = n.bgpSetup(oldNetwork.Config)
+		err = n.bgpSetup(ctx, oldNetwork.Config)
 		if err != nil {
 			return err
 		}
@@ -3701,11 +3701,11 @@ func (n *ovn) instanceDevicePortRoutesParse(deviceConfig map[string]string) (int
 }
 
 // InstanceDevicePortValidateExternalRoutes validates the external routes for an OVN instance port.
-func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.Instance, deviceName string, portExternalRoutes []*net.IPNet) error {
+func (n *ovn) InstanceDevicePortValidateExternalRoutes(ctx context.Context, deviceInstance instance.Instance, deviceName string, portExternalRoutes []*net.IPNet) error {
 	var p *api.Project
 	var uplink *api.Network
 
-	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		// Get uplink routes.
@@ -3735,7 +3735,7 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 	}
 
 	// Load the project to get uplink network restrictions.
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		project, err := dbCluster.GetProject(ctx, tx.Tx(), n.project)
 		if err != nil {
 			return err
@@ -3749,7 +3749,7 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 		return fmt.Errorf("Failed to load network restrictions from project %q: %w", n.project, err)
 	}
 
-	externalSubnetsInUse, err := n.getExternalSubnetInUse(n.config["network"])
+	externalSubnetsInUse, err := n.getExternalSubnetInUse(ctx, n.config["network"])
 	if err != nil {
 		return err
 	}
@@ -3814,23 +3814,23 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 
 // InstanceDevicePortAdd adds empty DNS record (to indicate port has been added) and any DHCP reservations for
 // instance device port.
-func (n *ovn) InstanceDevicePortAdd(instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error {
+func (n *ovn) InstanceDevicePortAdd(ctx context.Context, instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error {
 	instancePortName := n.getInstanceDevicePortName(instanceUUID, deviceName)
 
 	revert := revert.New()
 	defer revert.Fail()
 
-	client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+	client, err := openvswitch.NewOVN(ctx, n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 	if err != nil {
 		return fmt.Errorf("Failed to get OVN client: %w", err)
 	}
 
-	dnsUUID, err := client.LogicalSwitchPortSetDNS(n.getIntSwitchName(), instancePortName, "", nil)
+	dnsUUID, err := client.LogicalSwitchPortSetDNS(ctx, n.getIntSwitchName(), instancePortName, "", nil)
 	if err != nil {
 		return fmt.Errorf("Failed adding DNS record: %w", err)
 	}
 
-	revert.Add(func() { _ = client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), dnsUUID, true) })
+	revert.Add(func() { _ = client.LogicalSwitchPortDeleteDNS(ctx, n.getIntSwitchName(), dnsUUID, true) })
 
 	revert.Success()
 	return nil
@@ -3839,7 +3839,7 @@ func (n *ovn) InstanceDevicePortAdd(instanceUUID string, deviceName string, devi
 // InstanceDevicePortStart sets up an instance device port to the internal logical switch.
 // Accepts a list of ACLs being removed from the NIC device (if called as part of a NIC update).
 // Returns the logical switch port name.
-func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACLsRemove []string) (openvswitch.OVNSwitchPort, error) {
+func (n *ovn) InstanceDevicePortStart(ctx context.Context, opts *OVNInstanceNICSetupOpts, securityACLsRemove []string) (openvswitch.OVNSwitchPort, error) {
 	if opts.InstanceUUID == "" {
 		return "", errors.New("Instance UUID is required")
 	}
@@ -3863,7 +3863,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 	revert := revert.New()
 	defer revert.Fail()
 
-	client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+	client, err := openvswitch.NewOVN(ctx, n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 	if err != nil {
 		return "", fmt.Errorf("Failed to get OVN client: %w", err)
 	}
@@ -3917,7 +3917,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 
 		if dhcpv4Subnet != nil || dhcpv6Subnet != nil {
 			// Find existing DHCP options set for IPv4 and IPv6 and update them instead of adding sets.
-			existingOpts, err := client.LogicalSwitchDHCPOptionsGet(n.getIntSwitchName())
+			existingOpts, err := client.LogicalSwitchDHCPOptionsGet(ctx, n.getIntSwitchName())
 			if err != nil {
 				return "", fmt.Errorf("Failed getting existing DHCP settings for internal switch: %w", err)
 			}
@@ -3971,7 +3971,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		// Add port with mayExist set to true, so that if instance port exists, we don't fail and continue below
 		// to configure the port as needed. This is required because the port is created when the NIC is added, but
 		// we need to ensure it is present at start up as well in case it was deleted since the NIC was added.
-		err = client.LogicalSwitchPortAdd(n.getIntSwitchName(), instancePortName, &openvswitch.OVNSwitchPortOpts{
+		err = client.LogicalSwitchPortAdd(ctx, n.getIntSwitchName(), instancePortName, &openvswitch.OVNSwitchPortOpts{
 			DHCPv4OptsID: dhcpV4ID,
 			DHCPv6OptsID: dhcpv6ID,
 			MAC:          mac,
@@ -3985,7 +3985,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 			return "", err
 		}
 
-		revert.Add(func() { _ = client.LogicalSwitchPortDelete(instancePortName) })
+		revert.Add(func() { _ = client.LogicalSwitchPortDelete(ctx, instancePortName) })
 	}
 
 	// Add DNS records for port's IPs, and retrieve the IP addresses used.
@@ -4018,7 +4018,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 
 		// Retry a few times in case port has not yet allocated dynamic IPs.
 		for range 5 {
-			dynamicIPs, err = client.LogicalSwitchPortDynamicIPs(instancePortName)
+			dynamicIPs, err = client.LogicalSwitchPortDynamicIPs(ctx, instancePortName)
 			if err != nil {
 				return "", err
 			}
@@ -4042,12 +4042,12 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 	}
 
 	dnsName := fmt.Sprintf("%s.%s", opts.DNSName, n.getDomainName())
-	dnsUUID, err := client.LogicalSwitchPortSetDNS(n.getIntSwitchName(), instancePortName, dnsName, dnsIPs)
+	dnsUUID, err := client.LogicalSwitchPortSetDNS(ctx, n.getIntSwitchName(), instancePortName, dnsName, dnsIPs)
 	if err != nil {
 		return "", fmt.Errorf("Failed setting DNS for %q: %w", dnsName, err)
 	}
 
-	revert.Add(func() { _ = client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), dnsUUID, false) })
+	revert.Add(func() { _ = client.LogicalSwitchPortDeleteDNS(ctx, n.getIntSwitchName(), dnsUUID, false) })
 
 	// Publish NIC's IPs on uplink network if NAT is disabled and using l2proxy ingress mode on uplink.
 	if slices.Contains([]string{"l2proxy", ""}, opts.UplinkConfig["ovn.ingress_mode"]) {
@@ -4070,12 +4070,12 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 				continue // No qualifying target IP from DNS records.
 			}
 
-			err = client.LogicalRouterDNATSNATAdd(n.getRouterName(), ip, ip, true, true)
+			err = client.LogicalRouterDNATSNATAdd(ctx, n.getRouterName(), ip, ip, true, true)
 			if err != nil {
 				return "", err
 			}
 
-			revert.Add(func() { _ = client.LogicalRouterDNATSNATDelete(n.getRouterName(), ip) })
+			revert.Add(func() { _ = client.LogicalRouterDNATSNATDelete(ctx, n.getRouterName(), ip) })
 		}
 	}
 
@@ -4134,12 +4134,12 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		// DNAT doesn't support whole subnets.
 		if slices.Contains([]string{"l2proxy", ""}, opts.UplinkConfig["ovn.ingress_mode"]) {
 			err = SubnetIterate(externalRoute, func(ip net.IP) error {
-				err = client.LogicalRouterDNATSNATAdd(n.getRouterName(), ip, ip, true, true)
+				err = client.LogicalRouterDNATSNATAdd(ctx, n.getRouterName(), ip, ip, true, true)
 				if err != nil {
 					return err
 				}
 
-				revert.Add(func() { _ = client.LogicalRouterDNATSNATDelete(n.getRouterName(), ip) })
+				revert.Add(func() { _ = client.LogicalRouterDNATSNATDelete(ctx, n.getRouterName(), ip) })
 
 				return nil
 			})
@@ -4151,7 +4151,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 
 	if len(routes) > 0 {
 		// Add routes to local router.
-		err = client.LogicalRouterRouteAdd(n.getRouterName(), true, routes...)
+		err = client.LogicalRouterRouteAdd(ctx, n.getRouterName(), true, routes...)
 		if err != nil {
 			return "", err
 		}
@@ -4161,16 +4161,16 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 			routePrefixes = append(routePrefixes, route.Prefix)
 		}
 
-		revert.Add(func() { _ = client.LogicalRouterRouteDelete(n.getRouterName(), routePrefixes...) })
+		revert.Add(func() { _ = client.LogicalRouterRouteDelete(ctx, n.getRouterName(), routePrefixes...) })
 
 		// Add routes to internal switch's address set for ACL usage.
-		err = client.AddressSetAdd(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), routePrefixes...)
+		err = client.AddressSetAdd(ctx, acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), routePrefixes...)
 		if err != nil {
 			return "", fmt.Errorf("Failed adding switch address set entries: %w", err)
 		}
 
 		revert.Add(func() {
-			_ = client.AddressSetRemove(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), routePrefixes...)
+			_ = client.AddressSetRemove(ctx, acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), routePrefixes...)
 		})
 
 		routerIntPortIPv4, _, err := n.parseRouterIntPortIPv4Net()
@@ -4184,7 +4184,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		}
 
 		// Add routes to peer routers, and security policies for each peer port on local router.
-		err = n.forPeers(func(targetOVNNet *ovn) error {
+		err = n.forPeers(ctx, func(targetOVNNet *ovn) error {
 			targetRouterName := targetOVNNet.getRouterName()
 			targetRouterPort := targetOVNNet.getLogicalRouterPeerPortName(n.ID())
 			targetRouterRoutes := make([]openvswitch.OVNRouterRoute, 0, len(routes))
@@ -4205,12 +4205,12 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 				})
 			}
 
-			err = client.LogicalRouterRouteAdd(targetRouterName, true, targetRouterRoutes...)
+			err = client.LogicalRouterRouteAdd(ctx, targetRouterName, true, targetRouterRoutes...)
 			if err != nil {
 				return fmt.Errorf("Failed adding static routes to peer network %q in project %q: %w", targetOVNNet.Name(), targetOVNNet.Project(), err)
 			}
 
-			revert.Add(func() { _ = client.LogicalRouterRouteDelete(targetRouterName, routePrefixes...) })
+			revert.Add(func() { _ = client.LogicalRouterRouteDelete(ctx, targetRouterName, routePrefixes...) })
 
 			return nil
 		})
@@ -4234,7 +4234,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 	removeChangeSet := map[openvswitch.OVNPortGroup][]openvswitch.OVNSwitchPortUUID{}
 
 	// Get logical port UUID.
-	portUUID, err := client.LogicalSwitchPortUUID(instancePortName)
+	portUUID, err := client.LogicalSwitchPortUUID(ctx, instancePortName)
 	if err != nil || portUUID == "" {
 		return "", fmt.Errorf("Failed getting logical port UUID for security ACL removal: %w", err)
 	}
@@ -4246,7 +4246,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 	if len(nicACLNames) > 0 || len(securityACLsRemove) > 0 {
 		var aclNameIDs map[string]int64
 
-		err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			// Get map of ACL names to DB IDs (used for generating OVN port group names).
 			aclNameIDs, err = tx.GetNetworkACLIDsByNames(ctx, n.Project())
 
@@ -4263,7 +4263,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 				n.Name(): {Name: n.Name(), Type: n.Type(), ID: n.ID(), Config: n.Config()},
 			}
 
-			cleanup, err := acl.OVNEnsureACLs(n.state, n.logger, client, n.Project(), aclNameIDs, aclNets, nicACLNames, false)
+			cleanup, err := acl.OVNEnsureACLs(ctx, n.state, n.logger, client, n.Project(), aclNameIDs, aclNets, nicACLNames, false)
 			if err != nil {
 				return "", fmt.Errorf("Failed ensuring security ACLs are configured in OVN for instance: %w", err)
 			}
@@ -4307,7 +4307,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 	// be populated even if no ACLs being applied, because the NIC port needs to be added to the network level
 	// port group.
 	n.logger.Debug("Applying instance NIC port group member change sets")
-	err = client.PortGroupMemberChange(addChangeSet, removeChangeSet)
+	err = client.PortGroupMemberChange(ctx, addChangeSet, removeChangeSet)
 	if err != nil {
 		return "", fmt.Errorf("Failed applying OVN port group member change sets for instance NIC: %w", err)
 	}
@@ -4318,14 +4318,14 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		egressAction, egressLogged := n.instanceDeviceACLDefaults(opts.DeviceConfig, "egress")
 
 		logPrefix := fmt.Sprintf("%s-%s", opts.InstanceUUID, opts.DeviceName)
-		err = acl.OVNApplyInstanceNICDefaultRules(client, acl.OVNIntSwitchPortGroupName(n.ID()), logPrefix, instancePortName, ingressAction, ingressLogged, egressAction, egressLogged)
+		err = acl.OVNApplyInstanceNICDefaultRules(ctx, client, acl.OVNIntSwitchPortGroupName(n.ID()), logPrefix, instancePortName, ingressAction, ingressLogged, egressAction, egressLogged)
 		if err != nil {
 			return "", fmt.Errorf("Failed applying OVN default ACL rules for instance NIC: %w", err)
 		}
 
 		n.logger.Debug("Set NIC default rule", logger.Ctx{"port": instancePortName, "ingressAction": ingressAction, "ingressLogged": ingressLogged, "egressAction": egressAction, "egressLogged": egressLogged})
 	} else {
-		err = client.PortGroupPortClearACLRules(acl.OVNIntSwitchPortGroupName(n.ID()), instancePortName)
+		err = client.PortGroupPortClearACLRules(ctx, acl.OVNIntSwitchPortGroupName(n.ID()), instancePortName)
 		if err != nil {
 			return "", fmt.Errorf("Failed clearing OVN default ACL rules for instance NIC: %w", err)
 		}
@@ -4359,19 +4359,19 @@ func (n *ovn) instanceDeviceACLDefaults(deviceConfig deviceConfig.Device, direct
 }
 
 // InstanceDevicePortIPs returns the allocated IPs for a device port.
-func (n *ovn) InstanceDevicePortIPs(instanceUUID string, deviceName string) ([]net.IP, error) {
+func (n *ovn) InstanceDevicePortIPs(ctx context.Context, instanceUUID string, deviceName string) ([]net.IP, error) {
 	if instanceUUID == "" {
 		return nil, errors.New("Instance UUID is required")
 	}
 
-	client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+	client, err := openvswitch.NewOVN(ctx, n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get OVN client: %w", err)
 	}
 
 	instancePortName := n.getInstanceDevicePortName(instanceUUID, deviceName)
 
-	devIPs, err := client.LogicalSwitchPortIPs(instancePortName)
+	devIPs, err := client.LogicalSwitchPortIPs(ctx, instancePortName)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get OVN switch port IPs: %w", err)
 	}
@@ -4382,15 +4382,15 @@ func (n *ovn) InstanceDevicePortIPs(instanceUUID string, deviceName string) ([]n
 // InstanceDevicePortRemove unregisters the NIC device in the OVN database by removing the DNS entry that should
 // have been created during InstanceDevicePortAdd(). If the DNS record exists at remove time then this indicates
 // the NIC device was successfully added and this function also clears any DHCP reservations for the NIC's IPs.
-func (n *ovn) InstanceDevicePortRemove(instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error {
+func (n *ovn) InstanceDevicePortRemove(ctx context.Context, instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error {
 	instancePortName := n.getInstanceDevicePortName(instanceUUID, deviceName)
 
-	client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+	client, err := openvswitch.NewOVN(ctx, n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 	if err != nil {
 		return fmt.Errorf("Failed to get OVN client: %w", err)
 	}
 
-	portLocation, err := client.LogicalSwitchPortLocationGet(instancePortName)
+	portLocation, err := client.LogicalSwitchPortLocationGet(ctx, instancePortName)
 	if err != nil {
 		return fmt.Errorf("Failed getting instance switch port options: %w", err)
 	}
@@ -4409,7 +4409,7 @@ func (n *ovn) InstanceDevicePortRemove(instanceUUID string, deviceName string, d
 
 	var uplink *api.Network
 
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Load uplink network config.
 		_, uplink, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, n.config["network"])
 
@@ -4420,13 +4420,13 @@ func (n *ovn) InstanceDevicePortRemove(instanceUUID string, deviceName string, d
 	}
 
 	// Get DNS records.
-	dnsUUID, dnsIPs, err := client.LogicalSwitchPortGetDNS(instancePortName)
+	dnsUUID, dnsIPs, err := client.LogicalSwitchPortGetDNS(ctx, instancePortName)
 	if err != nil {
 		return err
 	}
 
 	// Cleanup logical switch port and associated config.
-	err = client.LogicalSwitchPortCleanup(instancePortName, n.getIntSwitchName(), acl.OVNIntSwitchPortGroupName(n.ID()), dnsUUID)
+	err = client.LogicalSwitchPortCleanup(ctx, instancePortName, n.getIntSwitchName(), acl.OVNIntSwitchPortGroupName(n.ID()), dnsUUID)
 	if err != nil {
 		return err
 	}
@@ -4471,21 +4471,21 @@ func (n *ovn) InstanceDevicePortRemove(instanceUUID string, deviceName string, d
 
 	if len(removeRoutes) > 0 {
 		// Delete routes from local router.
-		err = client.LogicalRouterRouteDelete(n.getRouterName(), removeRoutes...)
+		err = client.LogicalRouterRouteDelete(ctx, n.getRouterName(), removeRoutes...)
 		if err != nil {
 			return err
 		}
 
 		// Delete routes from switch address set.
-		err = client.AddressSetRemove(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), removeRoutes...)
+		err = client.AddressSetRemove(ctx, acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), removeRoutes...)
 		if err != nil {
 			return fmt.Errorf("Failed deleting switch address set entries: %w", err)
 		}
 
 		// Delete routes from peer routers.
-		err = n.forPeers(func(targetOVNNet *ovn) error {
+		err = n.forPeers(ctx, func(targetOVNNet *ovn) error {
 			targetRouterName := targetOVNNet.getRouterName()
-			err = client.LogicalRouterRouteDelete(targetRouterName, removeRoutes...)
+			err = client.LogicalRouterRouteDelete(ctx, targetRouterName, removeRoutes...)
 			if err != nil {
 				return fmt.Errorf("Failed deleting static routes from peer network %q in project %q: %w", targetOVNNet.Name(), targetOVNNet.Project(), err)
 			}
@@ -4498,7 +4498,7 @@ func (n *ovn) InstanceDevicePortRemove(instanceUUID string, deviceName string, d
 	}
 
 	if len(removeNATIPs) > 0 {
-		err = client.LogicalRouterDNATSNATDelete(n.getRouterName(), removeNATIPs...)
+		err = client.LogicalRouterDNATSNATDelete(ctx, n.getRouterName(), removeNATIPs...)
 		if err != nil {
 			return err
 		}
@@ -4509,7 +4509,7 @@ func (n *ovn) InstanceDevicePortRemove(instanceUUID string, deviceName string, d
 
 	// Remove DNS record if exists.
 	if dnsUUID != "" {
-		err = client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), dnsUUID, true)
+		err = client.LogicalSwitchPortDeleteDNS(ctx, n.getIntSwitchName(), dnsUUID, true)
 		if err != nil {
 			return fmt.Errorf("Failed deleting DNS record: %w", err)
 		}
@@ -4628,10 +4628,10 @@ func (n *ovn) ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink map[stri
 
 // ovnNICExternalRoutes returns a list of external routes currently used by OVN NICs that are connected to OVN
 // networks that share the same uplink as this network uses.
-func (n *ovn) ovnNICExternalRoutes(ovnProjectNetworksWithOurUplink map[string][]*api.Network) ([]externalSubnetUsage, error) {
+func (n *ovn) ovnNICExternalRoutes(ctx context.Context, ovnProjectNetworksWithOurUplink map[string][]*api.Network) ([]externalSubnetUsage, error) {
 	externalRoutes := make([]externalSubnetUsage, 0)
 
-	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.InstanceList(ctx, func(inst db.InstanceArgs, p api.Project) error {
 			// Get the instance's effective network project name.
 			instNetworkProject := project.NetworkProjectFromRecord(&p)
@@ -4717,14 +4717,14 @@ func (n *ovn) uplinkHasIngressRoutedAnycastIPv6(uplink *api.Network) bool {
 }
 
 // handleDependencyChange applies changes from uplink network if specific watched keys have changed.
-func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]string, changedKeys []string) error {
+func (n *ovn) handleDependencyChange(ctx context.Context, uplinkName string, uplinkConfig map[string]string, changedKeys []string) error {
 	// Detect changes that need to be applied to the network.
 	for _, k := range []string{"dns.nameservers"} {
 		if slices.Contains(changedKeys, k) {
 			n.logger.Debug("Applying changes from uplink network", logger.Ctx{"uplink": uplinkName})
 
 			// Re-setup logical network in order to apply uplink changes.
-			err := n.setup(true)
+			err := n.setup(ctx, true)
 			if err != nil {
 				return err
 			}
@@ -4737,21 +4737,21 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 	if slices.Contains(changedKeys, "ovn.ingress_mode") {
 		n.logger.Debug("Applying ingress mode changes from uplink network to instance NICs", logger.Ctx{"uplink": uplinkName})
 
-		client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+		client, err := openvswitch.NewOVN(ctx, n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
 
 		if slices.Contains([]string{"l2proxy", ""}, uplinkConfig["ovn.ingress_mode"]) {
 			// Get list of active switch ports (avoids repeated querying of OVN NB).
-			activePorts, err := client.LogicalSwitchPorts(n.getIntSwitchName())
+			activePorts, err := client.LogicalSwitchPorts(ctx, n.getIntSwitchName())
 			if err != nil {
 				return fmt.Errorf("Failed getting active ports: %w", err)
 			}
 
 			// Find all instance NICs that use this network, and re-add the logical OVN instance port.
 			// This will restore the l2proxy DNAT_AND_SNAT rules.
-			err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 				return tx.InstanceList(ctx, func(inst db.InstanceArgs, p api.Project) error {
 					// Get the instance's effective network project name.
 					instNetworkProject := project.NetworkProjectFromRecord(&p)
@@ -4786,7 +4786,7 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 
 						// Re-add logical switch port to apply the l2proxy DNAT_AND_SNAT rules.
 						n.logger.Debug("Re-adding instance OVN NIC port to apply ingress mode changes", logger.Ctx{"project": inst.Project, "instance": inst.Name, "device": devName})
-						_, err = n.InstanceDevicePortStart(&OVNInstanceNICSetupOpts{
+						_, err = n.InstanceDevicePortStart(ctx, &OVNInstanceNICSetupOpts{
 							InstanceUUID: instanceUUID,
 							DNSName:      inst.Name,
 							DeviceName:   devName,
@@ -4808,7 +4808,7 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 		} else {
 			// Remove all DNAT_AND_SNAT rules if not using l2proxy ingress mode, as currently we only
 			// use DNAT_AND_SNAT rules for this feature so it is safe to do.
-			err = client.LogicalRouterDNATSNATDeleteAll(n.getRouterName())
+			err = client.LogicalRouterDNATSNATDeleteAll(ctx, n.getRouterName())
 			if err != nil {
 				return fmt.Errorf("Failed deleting instance NIC ingress mode l2proxy rules: %w", err)
 			}
@@ -4863,7 +4863,7 @@ func (n *ovn) forwardFlattenVIPs(listenAddress net.IP, defaultTargetAddress net.
 
 // allocateUplinkAddress performs common steps between creating network forwards and load balancers.
 // This includes validating the provided listen address or auto-allocating one if needed.
-func (n *ovn) allocateUplinkAddress(listenIPAddress net.IP) (net.IP, error) {
+func (n *ovn) allocateUplinkAddress(ctx context.Context, listenIPAddress net.IP) (net.IP, error) {
 	// Load the project to get uplink network restrictions.
 	var p *api.Project
 	var uplink *api.Network
@@ -4913,12 +4913,12 @@ func (n *ovn) allocateUplinkAddress(listenIPAddress net.IP) (net.IP, error) {
 		return nil, fmt.Errorf("Project quota for uplink IPs on network %q is exhausted", uplink.Name)
 	}
 
-	externalSubnetsInUse, err := n.getExternalSubnetInUse(n.config["network"])
+	externalSubnetsInUse, err := n.getExternalSubnetInUse(ctx, n.config["network"])
 	if err != nil {
 		return nil, err
 	}
 
-	gatewaysInUse, err := n.getUplinkGatewayUsage()
+	gatewaysInUse, err := n.getUplinkGatewayUsage(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -4935,6 +4935,7 @@ func (n *ovn) allocateUplinkAddress(listenIPAddress net.IP) (net.IP, error) {
 			ipVersion = 6
 		}
 
+		// Enforce a 5 second time limit on auto allocation.
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
@@ -4947,7 +4948,7 @@ func (n *ovn) allocateUplinkAddress(listenIPAddress net.IP) (net.IP, error) {
 	}
 
 	// Check if the listen address is an internal OVN IP and validate accordingly.
-	isInternalAddr, err := n.checkInternalAddressNotInUse(listenIPAddress)
+	isInternalAddr, err := n.checkInternalAddressNotInUse(ctx, listenIPAddress)
 	if err != nil {
 		return nil, err
 	} else if isInternalAddr {
@@ -4981,8 +4982,8 @@ func (n *ovn) allocateUplinkAddress(listenIPAddress net.IP) (net.IP, error) {
 }
 
 // forwardValidate validates the forward request.
-func (n *ovn) forwardValidate(listenAddress net.IP, forward api.NetworkForwardPut) ([]*forwardPortMap, error) {
-	err := n.checkAddressNotInOVNRange(listenAddress)
+func (n *ovn) forwardValidate(ctx context.Context, listenAddress net.IP, forward api.NetworkForwardPut) ([]*forwardPortMap, error) {
+	err := n.checkAddressNotInOVNRange(ctx, listenAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -4991,7 +4992,7 @@ func (n *ovn) forwardValidate(listenAddress net.IP, forward api.NetworkForwardPu
 }
 
 // ForwardCreate creates a network forward.
-func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.ClientType) (net.IP, error) {
+func (n *ovn) ForwardCreate(ctx context.Context, forward api.NetworkForwardsPost, clientType request.ClientType) (net.IP, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -5006,7 +5007,7 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 	if clientType == request.ClientTypeNormal {
 		memberSpecific := false // OVN doesn't support per-member forwards.
 
-		listenIPAddress, err = n.allocateUplinkAddress(listenIPAddress)
+		listenIPAddress, err = n.allocateUplinkAddress(ctx, listenIPAddress)
 		if err != nil {
 			return nil, err
 		}
@@ -5014,19 +5015,19 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 		// If address was automatically allocated, update the forward's listen address.
 		forward.ListenAddress = listenIPAddress.String()
 
-		portMaps, err := n.forwardValidate(listenIPAddress, forward.NetworkForwardPut)
+		portMaps, err := n.forwardValidate(ctx, listenIPAddress, forward.NetworkForwardPut)
 		if err != nil {
 			return nil, err
 		}
 
-		client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+		client, err := openvswitch.NewOVN(ctx, n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get OVN client: %w", err)
 		}
 
 		var forwardID int64
 
-		err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			// Create forward DB record.
 			forwardID, err = tx.CreateNetworkForward(ctx, n.ID(), memberSpecific, &forward)
 
@@ -5037,17 +5038,17 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 		}
 
 		revert.Add(func() {
-			_ = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			_ = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 				return tx.DeleteNetworkForward(ctx, n.ID(), forwardID)
 			})
 
-			_ = client.LoadBalancerDelete(n.getLoadBalancerName(forward.ListenAddress))
-			_ = n.forwardBGPSetupPrefixes()
+			_ = client.LoadBalancerDelete(ctx, n.getLoadBalancerName(forward.ListenAddress))
+			_ = n.forwardBGPSetupPrefixes(ctx)
 		})
 
 		vips := n.forwardFlattenVIPs(net.ParseIP(forward.ListenAddress), net.ParseIP(forward.Config["target_address"]), portMaps)
 
-		err = client.LoadBalancerApply(n.getLoadBalancerName(forward.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
+		err = client.LoadBalancerApply(ctx, n.getLoadBalancerName(forward.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
 		if err != nil {
 			return nil, fmt.Errorf("Failed applying OVN load balancer: %w", err)
 		}
@@ -5067,7 +5068,7 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 	}
 
 	// Refresh exported BGP prefixes on local member.
-	err = n.forwardBGPSetupPrefixes()
+	err = n.forwardBGPSetupPrefixes(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
@@ -5077,7 +5078,7 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 }
 
 // ForwardUpdate updates a network forward.
-func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, clientType request.ClientType) error {
+func (n *ovn) ForwardUpdate(ctx context.Context, listenAddress string, req api.NetworkForwardPut, clientType request.ClientType) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -5087,7 +5088,7 @@ func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, cli
 		var curForwardID int64
 		var curForward *api.NetworkForward
 
-		err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 
 			curForwardID, curForward, err = tx.GetNetworkForward(ctx, n.ID(), memberSpecific, listenAddress)
@@ -5098,7 +5099,7 @@ func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, cli
 			return err
 		}
 
-		portMaps, err := n.forwardValidate(net.ParseIP(curForward.ListenAddress), req)
+		portMaps, err := n.forwardValidate(ctx, net.ParseIP(curForward.ListenAddress), req)
 		if err != nil {
 			return err
 		}
@@ -5123,28 +5124,28 @@ func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, cli
 			return nil // Nothing has changed.
 		}
 
-		client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+		client, err := openvswitch.NewOVN(ctx, n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
 
 		vips := n.forwardFlattenVIPs(net.ParseIP(newForward.ListenAddress), net.ParseIP(newForward.Config["target_address"]), portMaps)
-		err = client.LoadBalancerApply(n.getLoadBalancerName(newForward.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
+		err = client.LoadBalancerApply(ctx, n.getLoadBalancerName(newForward.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
 		if err != nil {
 			return fmt.Errorf("Failed applying OVN load balancer: %w", err)
 		}
 
 		revert.Add(func() {
 			// Apply old settings to OVN on failure.
-			portMaps, err := n.forwardValidate(net.ParseIP(curForward.ListenAddress), curForward.Writable())
+			portMaps, err := n.forwardValidate(ctx, net.ParseIP(curForward.ListenAddress), curForward.Writable())
 			if err == nil {
 				vips := n.forwardFlattenVIPs(net.ParseIP(curForward.ListenAddress), net.ParseIP(curForward.Config["target_address"]), portMaps)
-				_ = client.LoadBalancerApply(n.getLoadBalancerName(curForward.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
-				_ = n.forwardBGPSetupPrefixes()
+				_ = client.LoadBalancerApply(ctx, n.getLoadBalancerName(curForward.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
+				_ = n.forwardBGPSetupPrefixes(ctx)
 			}
 		})
 
-		err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.UpdateNetworkForward(ctx, n.ID(), curForwardID, newForward.Writable())
 		})
 		if err != nil {
@@ -5152,7 +5153,7 @@ func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, cli
 		}
 
 		revert.Add(func() {
-			_ = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			_ = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 				return tx.UpdateNetworkForward(ctx, n.ID(), curForwardID, curForward.Writable())
 			})
 		})
@@ -5172,7 +5173,7 @@ func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, cli
 	}
 
 	// Refresh exported BGP prefixes on local member.
-	err := n.forwardBGPSetupPrefixes()
+	err := n.forwardBGPSetupPrefixes(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
@@ -5182,14 +5183,14 @@ func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, cli
 }
 
 // ForwardDelete deletes a network forward.
-func (n *ovn) ForwardDelete(listenAddress string, clientType request.ClientType) error {
+func (n *ovn) ForwardDelete(ctx context.Context, listenAddress string, clientType request.ClientType) error {
 	if clientType == request.ClientTypeNormal {
 		memberSpecific := false // OVN doesn't support per-member forwards.
 
 		var forwardID int64
 		var forward *api.NetworkForward
 
-		err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 
 			forwardID, forward, err = tx.GetNetworkForward(ctx, n.ID(), memberSpecific, listenAddress)
@@ -5200,17 +5201,17 @@ func (n *ovn) ForwardDelete(listenAddress string, clientType request.ClientType)
 			return err
 		}
 
-		client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+		client, err := openvswitch.NewOVN(ctx, n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
 
-		err = client.LoadBalancerDelete(n.getLoadBalancerName(forward.ListenAddress))
+		err = client.LoadBalancerDelete(ctx, n.getLoadBalancerName(forward.ListenAddress))
 		if err != nil {
 			return fmt.Errorf("Failed deleting OVN load balancer: %w", err)
 		}
 
-		err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.DeleteNetworkForward(ctx, n.ID(), forwardID)
 		})
 		if err != nil {
@@ -5232,7 +5233,7 @@ func (n *ovn) ForwardDelete(listenAddress string, clientType request.ClientType)
 	}
 
 	// Refresh exported BGP prefixes on local member.
-	err := n.forwardBGPSetupPrefixes()
+	err := n.forwardBGPSetupPrefixes(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
@@ -5279,8 +5280,8 @@ func (n *ovn) loadBalancerFlattenVIPs(listenAddress net.IP, portMaps []*loadBala
 }
 
 // loadBalancerValidate validates the load balancer request.
-func (n *ovn) loadBalancerValidate(listenAddress net.IP, forward api.NetworkLoadBalancerPut) ([]*loadBalancerPortMap, error) {
-	err := n.checkAddressNotInOVNRange(listenAddress)
+func (n *ovn) loadBalancerValidate(ctx context.Context, listenAddress net.IP, forward api.NetworkLoadBalancerPut) ([]*loadBalancerPortMap, error) {
+	err := n.checkAddressNotInOVNRange(ctx, listenAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -5289,7 +5290,7 @@ func (n *ovn) loadBalancerValidate(listenAddress net.IP, forward api.NetworkLoad
 }
 
 // LoadBalancerCreate creates a network load balancer.
-func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clientType request.ClientType) (net.IP, error) {
+func (n *ovn) LoadBalancerCreate(ctx context.Context, loadBalancer api.NetworkLoadBalancersPost, clientType request.ClientType) (net.IP, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -5304,7 +5305,7 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 	if clientType == request.ClientTypeNormal {
 		memberSpecific := false // OVN doesn't support per-member load balancers.
 
-		listenIPAddress, err = n.allocateUplinkAddress(listenIPAddress)
+		listenIPAddress, err = n.allocateUplinkAddress(ctx, listenIPAddress)
 		if err != nil {
 			return nil, err
 		}
@@ -5312,19 +5313,19 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 		// If address was automatically allocated, update the load balancer's listen address.
 		loadBalancer.ListenAddress = listenIPAddress.String()
 
-		portMaps, err := n.loadBalancerValidate(listenIPAddress, loadBalancer.NetworkLoadBalancerPut)
+		portMaps, err := n.loadBalancerValidate(ctx, listenIPAddress, loadBalancer.NetworkLoadBalancerPut)
 		if err != nil {
 			return nil, err
 		}
 
-		client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+		client, err := openvswitch.NewOVN(ctx, n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get OVN client: %w", err)
 		}
 
 		var loadBalancerID int64
 
-		err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			// Create load balancer DB record.
 			loadBalancerID, err = tx.CreateNetworkLoadBalancer(ctx, n.ID(), memberSpecific, &loadBalancer)
 
@@ -5335,17 +5336,17 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 		}
 
 		revert.Add(func() {
-			_ = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			_ = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 				return tx.DeleteNetworkLoadBalancer(ctx, n.ID(), loadBalancerID)
 			})
 
-			_ = client.LoadBalancerDelete(n.getLoadBalancerName(loadBalancer.ListenAddress))
-			_ = n.loadBalancerBGPSetupPrefixes()
+			_ = client.LoadBalancerDelete(ctx, n.getLoadBalancerName(loadBalancer.ListenAddress))
+			_ = n.loadBalancerBGPSetupPrefixes(ctx)
 		})
 
 		vips := n.loadBalancerFlattenVIPs(net.ParseIP(loadBalancer.ListenAddress), portMaps)
 
-		err = client.LoadBalancerApply(n.getLoadBalancerName(loadBalancer.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
+		err = client.LoadBalancerApply(ctx, n.getLoadBalancerName(loadBalancer.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
 		if err != nil {
 			return nil, fmt.Errorf("Failed applying OVN load balancer: %w", err)
 		}
@@ -5365,7 +5366,7 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 	}
 
 	// Refresh exported BGP prefixes on local member.
-	err = n.loadBalancerBGPSetupPrefixes()
+	err = n.loadBalancerBGPSetupPrefixes(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("Failed applying BGP prefixes for load balancers: %w", err)
 	}
@@ -5375,7 +5376,7 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 }
 
 // LoadBalancerUpdate updates a network load balancer.
-func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalancerPut, clientType request.ClientType) error {
+func (n *ovn) LoadBalancerUpdate(ctx context.Context, listenAddress string, req api.NetworkLoadBalancerPut, clientType request.ClientType) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -5385,7 +5386,7 @@ func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalanc
 		var curLoadBalancerID int64
 		var curLoadBalancer *api.NetworkLoadBalancer
 
-		err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 
 			curLoadBalancerID, curLoadBalancer, err = tx.GetNetworkLoadBalancer(ctx, n.ID(), memberSpecific, listenAddress)
@@ -5396,7 +5397,7 @@ func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalanc
 			return err
 		}
 
-		portMaps, err := n.loadBalancerValidate(net.ParseIP(curLoadBalancer.ListenAddress), req)
+		portMaps, err := n.loadBalancerValidate(ctx, net.ParseIP(curLoadBalancer.ListenAddress), req)
 		if err != nil {
 			return err
 		}
@@ -5421,29 +5422,29 @@ func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalanc
 			return nil // Nothing has changed.
 		}
 
-		client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+		client, err := openvswitch.NewOVN(ctx, n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
 
 		vips := n.loadBalancerFlattenVIPs(net.ParseIP(newLoadBalancer.ListenAddress), portMaps)
 
-		err = client.LoadBalancerApply(n.getLoadBalancerName(newLoadBalancer.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
+		err = client.LoadBalancerApply(ctx, n.getLoadBalancerName(newLoadBalancer.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
 		if err != nil {
 			return fmt.Errorf("Failed applying OVN load balancer: %w", err)
 		}
 
 		revert.Add(func() {
 			// Apply old settings to OVN on failure.
-			portMaps, err := n.loadBalancerValidate(net.ParseIP(curLoadBalancer.ListenAddress), curLoadBalancer.Writable())
+			portMaps, err := n.loadBalancerValidate(ctx, net.ParseIP(curLoadBalancer.ListenAddress), curLoadBalancer.Writable())
 			if err == nil {
 				vips := n.loadBalancerFlattenVIPs(net.ParseIP(curLoadBalancer.ListenAddress), portMaps)
-				_ = client.LoadBalancerApply(n.getLoadBalancerName(curLoadBalancer.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
-				_ = n.forwardBGPSetupPrefixes()
+				_ = client.LoadBalancerApply(ctx, n.getLoadBalancerName(curLoadBalancer.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
+				_ = n.forwardBGPSetupPrefixes(ctx)
 			}
 		})
 
-		err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.UpdateNetworkLoadBalancer(ctx, n.ID(), curLoadBalancerID, newLoadBalancer.Writable())
 		})
 		if err != nil {
@@ -5451,7 +5452,7 @@ func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalanc
 		}
 
 		revert.Add(func() {
-			_ = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			_ = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 				return tx.UpdateNetworkLoadBalancer(ctx, n.ID(), curLoadBalancerID, curLoadBalancer.Writable())
 			})
 		})
@@ -5471,7 +5472,7 @@ func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalanc
 	}
 
 	// Refresh exported BGP prefixes on local member.
-	err := n.loadBalancerBGPSetupPrefixes()
+	err := n.loadBalancerBGPSetupPrefixes(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed applying BGP prefixes for load balancers: %w", err)
 	}
@@ -5481,14 +5482,14 @@ func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalanc
 }
 
 // LoadBalancerDelete deletes a network load balancer.
-func (n *ovn) LoadBalancerDelete(listenAddress string, clientType request.ClientType) error {
+func (n *ovn) LoadBalancerDelete(ctx context.Context, listenAddress string, clientType request.ClientType) error {
 	if clientType == request.ClientTypeNormal {
 		memberSpecific := false // OVN doesn't support per-member forwards.
 
 		var loadBalancerID int64
 		var forward *api.NetworkLoadBalancer
 
-		err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 
 			loadBalancerID, forward, err = tx.GetNetworkLoadBalancer(ctx, n.ID(), memberSpecific, listenAddress)
@@ -5499,17 +5500,17 @@ func (n *ovn) LoadBalancerDelete(listenAddress string, clientType request.Client
 			return err
 		}
 
-		client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+		client, err := openvswitch.NewOVN(ctx, n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
 
-		err = client.LoadBalancerDelete(n.getLoadBalancerName(forward.ListenAddress))
+		err = client.LoadBalancerDelete(ctx, n.getLoadBalancerName(forward.ListenAddress))
 		if err != nil {
 			return fmt.Errorf("Failed deleting OVN load balancer: %w", err)
 		}
 
-		err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.DeleteNetworkLoadBalancer(ctx, n.ID(), loadBalancerID)
 		})
 		if err != nil {
@@ -5531,7 +5532,7 @@ func (n *ovn) LoadBalancerDelete(listenAddress string, clientType request.Client
 	}
 
 	// Refresh exported BGP prefixes on local member.
-	err := n.loadBalancerBGPSetupPrefixes()
+	err := n.loadBalancerBGPSetupPrefixes(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
@@ -5541,7 +5542,7 @@ func (n *ovn) LoadBalancerDelete(listenAddress string, clientType request.Client
 
 // Leases returns a list of leases for the OVN network. Those are directly extracted from the OVN database.
 // If projectName is empty, get leases from all projects.
-func (n *ovn) Leases(projectName string, clientType request.ClientType) ([]api.NetworkLease, error) {
+func (n *ovn) Leases(ctx context.Context, projectName string, clientType request.ClientType) ([]api.NetworkLease, error) {
 	var err error
 	leases := []api.NetworkLease{}
 
@@ -5567,14 +5568,14 @@ func (n *ovn) Leases(projectName string, clientType request.ClientType) ([]api.N
 		filter = dbCluster.InstanceFilter{Project: &projectName}
 	}
 
-	err = UsedByInstanceDevices(n.state, n.Project(), n.Name(), n.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
+	err = UsedByInstanceDevices(ctx, n.state, n.Project(), n.Name(), n.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 		// Get the instance UUID needed for OVN port name generation.
 		instanceUUID := inst.Config["volatile.uuid"]
 		if instanceUUID == "" {
 			return nil
 		}
 
-		devIPs, err := n.InstanceDevicePortIPs(instanceUUID, nicName)
+		devIPs, err := n.InstanceDevicePortIPs(ctx, instanceUUID, nicName)
 		if err != nil {
 			return nil // There is likely no active port and so no leases.
 		}
@@ -5614,7 +5615,7 @@ func (n *ovn) Leases(projectName string, clientType request.ClientType) ([]api.N
 }
 
 // PeerCreate creates a network peering.
-func (n *ovn) PeerCreate(peer api.NetworkPeersPost) error {
+func (n *ovn) PeerCreate(ctx context.Context, peer api.NetworkPeersPost) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -5632,7 +5633,7 @@ func (n *ovn) PeerCreate(peer api.NetworkPeersPost) error {
 
 	var peers map[int64]*api.NetworkPeer
 
-	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		// Check if there is an existing peer using the same name, or whether there is already a peering (in any
@@ -5664,7 +5665,7 @@ func (n *ovn) PeerCreate(peer api.NetworkPeersPost) error {
 	var peerID int64
 	var mutualExists bool
 
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error { // Create peer DB record.
+	err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error { // Create peer DB record.
 		peerID, mutualExists, err = tx.CreateNetworkPeer(ctx, n.ID(), &peer)
 
 		return err
@@ -5680,7 +5681,7 @@ func (n *ovn) PeerCreate(peer api.NetworkPeersPost) error {
 	if mutualExists {
 		var peerInfo *api.NetworkPeer
 
-		err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			// Load peering to get mutual peering info.
 			_, peerInfo, err = tx.GetNetworkPeer(ctx, n.ID(), peer.Name)
 
@@ -5694,19 +5695,19 @@ func (n *ovn) PeerCreate(peer api.NetworkPeersPost) error {
 			return fmt.Errorf("Only peerings in %q state can be setup", api.NetworkStatusCreated)
 		}
 
-		client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+		client, err := openvswitch.NewOVN(ctx, n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
 
 		// Apply router security policies.
 		// Should have been done during network setup, but ensure its done here anyway.
-		err = n.logicalRouterPolicySetup(client)
+		err = n.logicalRouterPolicySetup(ctx, client)
 		if err != nil {
 			return fmt.Errorf("Failed applying local router security policy: %w", err)
 		}
 
-		activeLocalNICPorts, err := client.LogicalSwitchPorts(n.getIntSwitchName())
+		activeLocalNICPorts, err := client.LogicalSwitchPorts(ctx, n.getIntSwitchName())
 		if err != nil {
 			return fmt.Errorf("Failed getting active NIC ports: %w", err)
 		}
@@ -5714,7 +5715,7 @@ func (n *ovn) PeerCreate(peer api.NetworkPeersPost) error {
 		var localNICRoutes []net.IPNet
 
 		// Get routes on instance NICs connected to local network to be added as routes to target network.
-		err = UsedByInstanceDevices(n.state, n.Project(), n.Name(), n.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
+		err = UsedByInstanceDevices(ctx, n.state, n.Project(), n.Name(), n.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 			instancePortName := n.getInstanceDevicePortName(inst.Config["volatile.uuid"], nicName)
 			_, found := activeLocalNICPorts[instancePortName]
 			if !found {
@@ -5729,7 +5730,7 @@ func (n *ovn) PeerCreate(peer api.NetworkPeersPost) error {
 			return fmt.Errorf("Failed getting instance NIC routes on local network: %w", err)
 		}
 
-		targetNet, err := LoadByName(n.state, peer.TargetProject, peer.TargetNetwork)
+		targetNet, err := LoadByName(ctx, n.state, peer.TargetProject, peer.TargetNetwork)
 		if err != nil {
 			return fmt.Errorf("Failed loading target network: %w", err)
 		}
@@ -5745,12 +5746,12 @@ func (n *ovn) PeerCreate(peer api.NetworkPeersPost) error {
 		}
 
 		// Ensure local subnets and all active NIC routes are present in internal switch's address set.
-		err = client.AddressSetAdd(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), opts.TargetRouterRoutes...)
+		err = client.AddressSetAdd(ctx, acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), opts.TargetRouterRoutes...)
 		if err != nil {
 			return fmt.Errorf("Failed adding active NIC routes to switch address set: %w", err)
 		}
 
-		err = n.peerSetup(client, targetOVNNet, *opts)
+		err = n.peerSetup(ctx, client, targetOVNNet, *opts)
 		if err != nil {
 			return err
 		}
@@ -5809,7 +5810,7 @@ func (n *ovn) peerGetLocalOpts(localNICRoutes []net.IPNet) (*openvswitch.OVNRout
 
 // peerSetup applies the network peering configuration to both networks.
 // Accepts an OVN client, a target OVN network, and a set of OVNRouterPeering options pre-filled with local config.
-func (n *ovn) peerSetup(client *openvswitch.OVN, targetOVNNet *ovn, opts openvswitch.OVNRouterPeering) error {
+func (n *ovn) peerSetup(ctx context.Context, client *openvswitch.OVN, targetOVNNet *ovn, opts openvswitch.OVNRouterPeering) error {
 	targetRouterMAC, err := targetOVNNet.getRouterMAC()
 	if err != nil {
 		return fmt.Errorf("Failed getting target router MAC address: %w", err)
@@ -5852,13 +5853,13 @@ func (n *ovn) peerSetup(client *openvswitch.OVN, targetOVNNet *ovn, opts openvsw
 	}
 
 	// Get list of active switch ports (avoids repeated querying of OVN NB).
-	activeTargetNICPorts, err := client.LogicalSwitchPorts(targetOVNNet.getIntSwitchName())
+	activeTargetNICPorts, err := client.LogicalSwitchPorts(ctx, targetOVNNet.getIntSwitchName())
 	if err != nil {
 		return fmt.Errorf("Failed getting active NIC ports: %w", err)
 	}
 
 	// Get routes on instance NICs connected to target network to be added as routes to local network.
-	err = UsedByInstanceDevices(n.state, targetOVNNet.Project(), targetOVNNet.Name(), targetOVNNet.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
+	err = UsedByInstanceDevices(ctx, n.state, targetOVNNet.Project(), targetOVNNet.Name(), targetOVNNet.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 		instancePortName := targetOVNNet.getInstanceDevicePortName(inst.Config["volatile.uuid"], nicName)
 		_, found := activeTargetNICPorts[instancePortName]
 		if !found {
@@ -5874,17 +5875,17 @@ func (n *ovn) peerSetup(client *openvswitch.OVN, targetOVNNet *ovn, opts openvsw
 	}
 
 	// Ensure routes are added to target switch address sets.
-	err = client.AddressSetAdd(acl.OVNIntSwitchPortGroupAddressSetPrefix(targetOVNNet.ID()), opts.LocalRouterRoutes...)
+	err = client.AddressSetAdd(ctx, acl.OVNIntSwitchPortGroupAddressSetPrefix(targetOVNNet.ID()), opts.LocalRouterRoutes...)
 	if err != nil {
 		return fmt.Errorf("Failed adding target swith subnet address set entries: %w", err)
 	}
 
-	err = targetOVNNet.logicalRouterPolicySetup(client)
+	err = targetOVNNet.logicalRouterPolicySetup(ctx, client)
 	if err != nil {
 		return fmt.Errorf("Failed applying target router security policy: %w", err)
 	}
 
-	err = client.LogicalRouterPeeringApply(opts)
+	err = client.LogicalRouterPeeringApply(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("Failed applying OVN network peering: %w", err)
 	}
@@ -5893,14 +5894,14 @@ func (n *ovn) peerSetup(client *openvswitch.OVN, targetOVNNet *ovn, opts openvsw
 }
 
 // PeerUpdate updates a network peering.
-func (n *ovn) PeerUpdate(peerName string, req api.NetworkPeerPut) error {
+func (n *ovn) PeerUpdate(ctx context.Context, peerName string, req api.NetworkPeerPut) error {
 	revert := revert.New()
 	defer revert.Fail()
 
 	var curPeerID int64
 	var curPeer *api.NetworkPeer
 
-	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		curPeerID, curPeer, err = tx.GetNetworkPeer(ctx, n.ID(), peerName)
@@ -5936,7 +5937,7 @@ func (n *ovn) PeerUpdate(peerName string, req api.NetworkPeerPut) error {
 		return nil // Nothing has changed.
 	}
 
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.UpdateNetworkPeer(ctx, n.ID(), curPeerID, newPeer.Writable())
 	})
 	if err != nil {
@@ -5948,11 +5949,11 @@ func (n *ovn) PeerUpdate(peerName string, req api.NetworkPeerPut) error {
 }
 
 // PeerDelete deletes a network peering.
-func (n *ovn) PeerDelete(peerName string) error {
+func (n *ovn) PeerDelete(ctx context.Context, peerName string) error {
 	var peerID int64
 	var peer *api.NetworkPeer
 
-	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		peerID, peer, err = tx.GetNetworkPeer(ctx, n.ID(), peerName)
@@ -5963,7 +5964,7 @@ func (n *ovn) PeerDelete(peerName string) error {
 		return err
 	}
 
-	isUsed, err := n.peerIsUsed(peer.Name)
+	isUsed, err := n.peerIsUsed(ctx, peer.Name)
 	if err != nil {
 		return err
 	}
@@ -5973,7 +5974,7 @@ func (n *ovn) PeerDelete(peerName string) error {
 	}
 
 	if peer.Status == api.NetworkStatusCreated {
-		targetNet, err := LoadByName(n.state, peer.TargetProject, peer.TargetNetwork)
+		targetNet, err := LoadByName(ctx, n.state, peer.TargetProject, peer.TargetNetwork)
 		if err != nil {
 			return fmt.Errorf("Failed loading target network: %w", err)
 		}
@@ -5990,22 +5991,22 @@ func (n *ovn) PeerDelete(peerName string) error {
 			TargetRouterPort: targetOVNNet.getLogicalRouterPeerPortName(n.ID()),
 		}
 
-		client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+		client, err := openvswitch.NewOVN(ctx, n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
 
-		err = client.LogicalRouterPeeringDelete(opts)
+		err = client.LogicalRouterPeeringDelete(ctx, opts)
 		if err != nil {
 			return fmt.Errorf("Failed deleting OVN network peering: %w", err)
 		}
 
-		err = n.logicalRouterPolicySetup(client, targetOVNNet.ID())
+		err = n.logicalRouterPolicySetup(ctx, client, targetOVNNet.ID())
 		if err != nil {
 			return fmt.Errorf("Failed applying local router security policy: %w", err)
 		}
 
-		err = targetOVNNet.logicalRouterPolicySetup(client, n.ID())
+		err = targetOVNNet.logicalRouterPolicySetup(ctx, client, n.ID())
 		if err != nil {
 			return fmt.Errorf("Failed applying target router security policy: %w", err)
 		}
@@ -6020,10 +6021,10 @@ func (n *ovn) PeerDelete(peerName string) error {
 }
 
 // forPeers runs f for each target peer network that this network is connected to.
-func (n *ovn) forPeers(f func(targetOVNNet *ovn) error) error {
+func (n *ovn) forPeers(ctx context.Context, f func(targetOVNNet *ovn) error) error {
 	var peers map[int64]*api.NetworkPeer
 
-	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		peers, err = tx.GetNetworkPeers(ctx, n.ID())
@@ -6039,7 +6040,7 @@ func (n *ovn) forPeers(f func(targetOVNNet *ovn) error) error {
 			continue
 		}
 
-		targetNet, err := LoadByName(n.state, peer.TargetProject, peer.TargetNetwork)
+		targetNet, err := LoadByName(ctx, n.state, peer.TargetProject, peer.TargetNetwork)
 		if err != nil {
 			return fmt.Errorf("Failed loading target network: %w", err)
 		}
@@ -6083,7 +6084,7 @@ func (n *ovn) checkAddressNotInUse(netip *net.IPNet, externalSubnetsInUse []exte
 // forwards, NICs, or OVN gateway.
 // Returns a bool specifying whether the address is an internal OVN IP, and an error if the check could not be performed or the IP address
 // is already in use internally.
-func (n *ovn) checkInternalAddressNotInUse(listenAddress net.IP) (isInternal bool, err error) {
+func (n *ovn) checkInternalAddressNotInUse(ctx context.Context, listenAddress net.IP) (isInternal bool, err error) {
 	if listenAddress == nil {
 		return false, errors.New("Invalid listen address")
 	}
@@ -6117,7 +6118,7 @@ func (n *ovn) checkInternalAddressNotInUse(listenAddress net.IP) (isInternal boo
 
 	var forwards, loadBalancers map[int64]string
 
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		forwards, err = tx.GetNetworkForwardListenAddresses(ctx, n.id, false)
 		if err != nil {
 			return fmt.Errorf("Failed to get listen addresses of network forwards on network %q: %w", n.name, err)
@@ -6145,12 +6146,12 @@ func (n *ovn) checkInternalAddressNotInUse(listenAddress net.IP) (isInternal boo
 		}
 	}
 
-	ovnClient, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+	ovnClient, err := openvswitch.NewOVN(ctx, n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 	if err != nil {
 		return true, fmt.Errorf("Failed to get OVN client: %w", err)
 	}
 
-	ovnSwitchPortIPs, err := ovnClient.LogicalSwitchIPs(n.getIntSwitchName())
+	ovnSwitchPortIPs, err := ovnClient.LogicalSwitchIPs(ctx, n.getIntSwitchName())
 	if err != nil {
 		return true, fmt.Errorf("Failed to get OVN logical switch IPs: %w", err)
 	}
@@ -6172,7 +6173,7 @@ func (n *ovn) checkInternalAddressNotInUse(listenAddress net.IP) (isInternal boo
 // that is the same as volatile network address of the current network.
 // Returns an error if the check could not be performed or the IP address
 // overlaps with OVN ranges.
-func (n *ovn) checkAddressNotInOVNRange(addr net.IP) error {
+func (n *ovn) checkAddressNotInOVNRange(ctx context.Context, addr net.IP) error {
 	if addr == nil {
 		return errors.New("Invalid listen address")
 	}
@@ -6206,7 +6207,7 @@ func (n *ovn) checkAddressNotInOVNRange(addr net.IP) error {
 	var err error
 
 	// Get uplink network config.
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Uplink has to be in the "default" project.
 		_, uplink, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, uplinkName)
 

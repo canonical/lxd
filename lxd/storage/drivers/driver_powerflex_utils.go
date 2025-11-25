@@ -833,7 +833,7 @@ func (d *powerflex) getHostGUID() (string, error) {
 // getNVMeTargetQN discovers the targetQN used for the given addresses.
 // The targetQN is unqiue per PowerFlex storage pool.
 // Cache the targetQN as it doesn't change throughout the lifetime of the storage pool.
-func (d *powerflex) getNVMeTargetQN(targetAddresses ...string) (string, error) {
+func (d *powerflex) getNVMeTargetQN(ctx context.Context, targetAddresses ...string) (string, error) {
 	if d.nvmeTargetQN == "" {
 		connector, err := d.connector()
 		if err != nil {
@@ -841,7 +841,7 @@ func (d *powerflex) getNVMeTargetQN(targetAddresses ...string) (string, error) {
 		}
 
 		// The discovery log from the first reachable target address is returned.
-		discoveryLogRecords, err := connector.Discover(d.state.ShutdownCtx, targetAddresses...)
+		discoveryLogRecords, err := connector.Discover(ctx, targetAddresses...)
 		if err != nil {
 			return "", fmt.Errorf("Failed to discover SDT NQN: %w", err)
 		}
@@ -987,7 +987,7 @@ func (d *powerflex) deleteNVMeHost() error {
 }
 
 // mapVolume maps the given volume onto this host.
-func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
+func (d *powerflex) mapVolume(ctx context.Context, vol Volume) (revert.Hook, error) {
 	var hostID string
 
 	reverter := revert.New()
@@ -1000,7 +1000,7 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 
 	switch d.config["powerflex.mode"] {
 	case connectors.TypeNVME:
-		unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
+		unlock, err := remoteVolumeMapLock(ctx, connector.Type(), d.Info().Name)
 		if err != nil {
 			return nil, err
 		}
@@ -1070,7 +1070,7 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 		}
 
 		// Discover the SDT's targetQN from any of the addresses.
-		targetQN, err := d.getNVMeTargetQN(targetAddresses...)
+		targetQN, err := d.getNVMeTargetQN(ctx, targetAddresses...)
 		if err != nil {
 			return nil, err
 		}
@@ -1079,7 +1079,7 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 		// In case of NVMe/TCP, we have to connect after the first mapping was established,
 		// as PowerFlex does not offer any discovery log entries until a volume gets mapped
 		// to the host.
-		cleanup, err = connector.Connect(d.state.ShutdownCtx, targetQN, targetAddresses...)
+		cleanup, err = connector.Connect(ctx, targetQN, targetAddresses...)
 		if err != nil {
 			return nil, err
 		}
@@ -1093,7 +1093,7 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 	outerReverter := revert.New()
 
 	if !mapped {
-		outerReverter.Add(func() { _ = d.unmapVolume(vol) })
+		outerReverter.Add(func() { _ = d.unmapVolume(context.Background(), vol) })
 	}
 
 	// Add the cleanup hooks of the connection attempt to the outer reverter.
@@ -1110,12 +1110,12 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 
 // getMappedDevPath returns the local device path for the given volume.
 // Indicate with mapVolume if the volume should get mapped to the system if it isn't present.
-func (d *powerflex) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook, error) {
+func (d *powerflex) getMappedDevPath(ctx context.Context, vol Volume, mapVolume bool) (string, revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
 	if mapVolume {
-		cleanup, err := d.mapVolume(vol)
+		cleanup, err := d.mapVolume(ctx, vol)
 		if err != nil {
 			return "", nil, err
 		}
@@ -1148,7 +1148,7 @@ func (d *powerflex) getMappedDevPath(vol Volume, mapVolume bool) (string, revert
 	var devicePath string
 	if mapVolume {
 		// Wait for the device path to appear as the volume has been just mapped to the host.
-		devicePath, err = block.WaitDiskDevicePath(d.state.ShutdownCtx, prefix, devicePathFilter)
+		devicePath, err = block.WaitDiskDevicePath(ctx, prefix, devicePathFilter)
 	} else {
 		// Get the the device path without waiting.
 		devicePath, err = block.GetDiskDevicePath(prefix, devicePathFilter)
@@ -1164,7 +1164,7 @@ func (d *powerflex) getMappedDevPath(vol Volume, mapVolume bool) (string, revert
 }
 
 // unmapVolume unmaps the given volume from this host.
-func (d *powerflex) unmapVolume(vol Volume) error {
+func (d *powerflex) unmapVolume(ctx context.Context, vol Volume) error {
 	connector, err := d.connector()
 	if err != nil {
 		return err
@@ -1194,7 +1194,7 @@ func (d *powerflex) unmapVolume(vol Volume) error {
 			return err
 		}
 
-		unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
+		unlock, err := remoteVolumeMapLock(ctx, connector.Type(), d.Info().Name)
 		if err != nil {
 			return err
 		}
@@ -1218,10 +1218,10 @@ func (d *powerflex) unmapVolume(vol Volume) error {
 	}
 
 	// Wait until the volume has disappeared.
-	ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	volumePath, _, _ := d.getMappedDevPath(vol, false)
+	volumePath, _, _ := d.getMappedDevPath(ctx, vol, false)
 	if volumePath != "" && !block.WaitDiskDeviceGone(ctx, volumePath) {
 		return fmt.Errorf("Timeout whilst waiting for PowerFlex volume to disappear: %q", vol.name)
 	}
@@ -1241,7 +1241,7 @@ func (d *powerflex) unmapVolume(vol Volume) error {
 				return err
 			}
 
-			targetQN, err := d.getNVMeTargetQN(targetAddresses...)
+			targetQN, err := d.getNVMeTargetQN(ctx, targetAddresses...)
 			if err != nil {
 				return err
 			}

@@ -196,7 +196,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 		if !recursion {
 			resultString = append(resultString, api.NewURL().Path(version.APIVersion, "storage-pools", poolName).String())
 		} else {
-			pool, err := storagePools.LoadByName(s, poolName)
+			pool, err := storagePools.LoadByName(r.Context(), s, poolName)
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -668,7 +668,7 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the existing storage pool.
-	pool, err := storagePools.LoadByName(s, poolName)
+	pool, err := storagePools.LoadByName(r.Context(), s, poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -767,7 +767,7 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the existing storage pool.
-	pool, err := storagePools.LoadByName(s, poolName)
+	pool, err := storagePools.LoadByName(r.Context(), s, poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -948,7 +948,7 @@ func doStoragePoolUpdate(s *state.State, pool storagePools.Pool, req api.Storage
 		}
 	}
 
-	err = pool.Update(clientType, req.Description, req.Config, nil)
+	err = pool.Update(context.TODO(), clientType, req.Description, req.Config, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -988,7 +988,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	pool, err := storagePools.LoadByName(s, poolName)
+	pool, err := storagePools.LoadByName(r.Context(), s, poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1003,7 +1003,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	var notifier cluster.Notifier
 	if !clusterNotification {
 		// Quick checks.
-		inUse, err := pool.IsUsed()
+		inUse, err := pool.IsUsed(r.Context())
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -1048,7 +1048,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		for _, removeImgFingerprint := range removeImgFingerprints {
-			err = pool.DeleteImage(removeImgFingerprint, nil)
+			err = pool.DeleteImage(r.Context(), removeImgFingerprint, nil)
 			if err != nil {
 				return response.InternalError(fmt.Errorf("Error deleting image %q from storage pool %q: %w", removeImgFingerprint, pool.Name(), err))
 			}
@@ -1056,7 +1056,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if pool.LocalStatus() != api.StoragePoolStatusPending {
-		err = pool.Delete(clientType, nil)
+		err = pool.Delete(r.Context(), clientType, nil)
 		if err != nil {
 			return response.InternalError(err)
 		}

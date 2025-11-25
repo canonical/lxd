@@ -1,6 +1,8 @@
 package drivers
 
 import (
+	"context"
+
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/logger"
 )
@@ -25,7 +27,7 @@ type Validators struct {
 }
 
 // Load returns a Driver for an existing low-level storage pool.
-func Load(state *state.State, driverName string, name string, config map[string]string, logger logger.Logger, volIDFunc func(volType VolumeType, volName string) (int64, error), commonRules *Validators) (Driver, error) {
+func Load(ctx context.Context, state *state.State, driverName string, name string, config map[string]string, logger logger.Logger, volIDFunc func(ctx context.Context, volType VolumeType, volName string) (int64, error), commonRules *Validators) (Driver, error) {
 	var driverFunc func() driver
 
 	// Locate the driver loader.
@@ -43,7 +45,7 @@ func Load(state *state.State, driverName string, name string, config map[string]
 	d := driverFunc()
 	d.init(state, name, config, logger, volIDFunc, commonRules)
 
-	err := d.load()
+	err := d.load(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -64,11 +66,11 @@ func DefaultVMBlockFilesystemSize(driverName string) (string, error) {
 
 // SupportedDrivers returns a list of supported storage drivers by loading each storage driver and running its
 // compatibility inspection process. This can take a long time if a driver is not supported.
-func SupportedDrivers(s *state.State) []Info {
+func SupportedDrivers(ctx context.Context, s *state.State) []Info {
 	supportedDrivers := make([]Info, 0, len(drivers))
 
 	for driverName := range drivers {
-		driver, err := Load(s, driverName, "", nil, nil, nil, nil)
+		driver, err := Load(ctx, s, driverName, "", nil, nil, nil, nil)
 		if err != nil {
 			continue
 		}
