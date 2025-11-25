@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -204,6 +205,10 @@ func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 	fields := strings.SplitN(resource.name, "/", 2)
 	isSnapshot := len(fields) == 2
 
+	// Get editable fields for snapshots.
+	snapshotEditableFieldsMsg := func(v api.InstanceSnapshotPut) string {
+		return "Only " + formatFieldList(getEditableYAMLFields(v)) + " field(s) can be modified for instance snapshots"
+	}
 	// Edit the config
 	if resource.name != "" {
 		// Quick checks.
@@ -250,37 +255,35 @@ func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 
 		var data []byte
 		var etag string
+		var snapshotInstance *api.InstanceSnapshot
+		var instance *api.Instance
 
 		// Extract the current value
 		if isSnapshot {
-			var inst *api.InstanceSnapshot
-
-			inst, etag, err = resource.server.GetInstanceSnapshot(fields[0], fields[1])
+			snapshotInstance, etag, err = resource.server.GetInstanceSnapshot(fields[0], fields[1])
 			if err != nil {
 				return err
 			}
 
 			// Empty expanded config so it isn't shown in edit screen (relies on omitempty tag).
-			inst.ExpandedConfig = nil
-			inst.ExpandedDevices = nil
+			snapshotInstance.ExpandedConfig = nil
+			snapshotInstance.ExpandedDevices = nil
 
-			data, err = yaml.Marshal(&inst)
+			data, err = yaml.Marshal(&snapshotInstance)
 			if err != nil {
 				return err
 			}
 		} else {
-			var inst *api.Instance
-
-			inst, etag, err = resource.server.GetInstance(resource.name)
+			instance, etag, err = resource.server.GetInstance(resource.name)
 			if err != nil {
 				return err
 			}
 
 			// Empty expanded config so it isn't shown in edit screen (relies on omitempty tag).
-			inst.ExpandedConfig = nil
-			inst.ExpandedDevices = nil
+			instance.ExpandedConfig = nil
+			instance.ExpandedDevices = nil
 
-			data, err = yaml.Marshal(&inst)
+			data, err = yaml.Marshal(&instance)
 			if err != nil {
 				return err
 			}
@@ -293,35 +296,36 @@ func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 		}
 
 		for {
-			// Parse the text received from the editor
+			// Parse the text received from the editor.
 			if isSnapshot {
-				newdata := api.InstanceSnapshotPut{}
+				// Parse the text received from the editor.
+				newdata := api.InstanceSnapshot{}
 				err = yaml.Unmarshal(content, &newdata)
-				if err == nil {
-					var op lxd.Operation
-					op, err = resource.server.UpdateInstanceSnapshot(fields[0], fields[1],
-						newdata, etag)
-					if err == nil {
-						err = op.Wait()
-					}
+				if err != nil {
+					return err
 				}
-			} else {
-				newdata := api.InstancePut{}
-				err = yaml.Unmarshal(content, &newdata)
-				if err == nil {
-					var op lxd.Operation
-					op, err = resource.server.UpdateInstance(resource.name, newdata, etag)
-					if err == nil {
-						err = op.Wait()
-					}
-				}
-			}
 
-			// Respawn the editor
-			if err != nil {
-				fmt.Fprintf(os.Stderr, i18n.G("Config parsing error: %s")+"\n", err)
+				// Validation: Check if user tried to modify read-only properties.
+				// Create a copy of the original snapshot with only writable properties changed.
+				expectedSnapshot := *snapshotInstance
+				expectedSnapshot.SetWritable(newdata.Writable())
+
+				// Compare if the user tried to modify anything beyond writable fields.
+				if !reflect.DeepEqual(newdata, expectedSnapshot) {
+					return errors.New(snapshotEditableFieldsMsg(newdata.Writable()))
+				}
+
+				var op lxd.Operation
+				op, err = resource.server.UpdateInstanceSnapshot(fields[0], fields[1], newdata.Writable(), etag)
+				if err == nil {
+					err = op.Wait()
+					if err == nil {
+						break
+					}
+				}
+
+				// Respawn the editor for any error condition.
 				fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
-
 				_, err := os.Stdin.Read(make([]byte, 1))
 				if err != nil {
 					return err
@@ -331,11 +335,34 @@ func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 				if err != nil {
 					return err
 				}
+			} else {
+				// Parse the text received from the editor.
+				newdata := api.Instance{}
+				err = yaml.Unmarshal(content, &newdata)
+				if err != nil {
+					return err
+				}
 
-				continue
+				op, err := resource.server.UpdateInstance(resource.name, newdata.Writable(), etag)
+				if err == nil {
+					err = op.Wait()
+					if err == nil {
+						break
+					}
+				}
+
+				// Respawn the editor for any error condition.
+				fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
+				_, err = os.Stdin.Read(make([]byte, 1))
+				if err != nil {
+					return err
+				}
+
+				content, err = shared.TextEditor("", content)
+				if err != nil {
+					return err
+				}
 			}
-
-			break
 		}
 
 		return nil
@@ -394,7 +421,7 @@ func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 
 		// Respawn the editor
 		if err != nil {
-			fmt.Fprintf(os.Stderr, i18n.G("Config parsing error: %s")+"\n", err)
+			fmt.Fprintf(os.Stderr, "Config parsing error: %s\n", err)
 			fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
 
 			_, err := os.Stdin.Read(make([]byte, 1))
