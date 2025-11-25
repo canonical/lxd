@@ -39,10 +39,11 @@ Use separate commits for different types of changes:
 | **Documentation**    | Files in `doc/`                                  | `doc: Update XYZ`                   |
 | **API structure**    | Files in `shared/api/`                           | `shared/api: Add XYZ`               |
 | **Go client package**| Files in `client/`                               | `client: Add XYZ`                   |
-| **CLI changes**      | Files in `lxc/`                                  | `lxc/<command>: Change XYZ`         | 
+| **CLI changes**      | Files in `lxc/`                                  | `lxc/<command>: Change XYZ`         |
 | **LXD daemon**       | Files in `lxd/`                                  | `lxd/<package>: Add support for XYZ`|
 | **Tests**            | Files in `tests/`                                | `tests: Add test for XYZ`           |
-| **GitHub**            | Files in `.github/`                                | `github: Update XYZ`           |
+| **GitHub**           | Files in `.github/`                              | `github: Update XYZ`                |
+| **Makefile**         | `Makefile`                                       | `Makefile: Update XYZ`              |
 
 Depending on complexity, large changes might be further split into smaller, logical commits. This commit structure facilitates the review process and simplifies backporting fixes to stable branches.
 
