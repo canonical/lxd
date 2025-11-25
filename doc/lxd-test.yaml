@@ -51,6 +51,7 @@ config:
     packages:
     # dev comfort
     - bash-completion
+    - nano
     - vim
     # build deps
     - autoconf
