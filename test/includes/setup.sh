@@ -105,6 +105,15 @@ download_virtiofsd() {
     chmod +x "${dir}/virtiofsd"
 }
 
+install_packages() {
+    if ! command -v apt-get >/dev/null; then
+        echo "apt-get not found, cannot install packages"
+        exit 1
+    fi
+
+    sudo apt-get install --no-install-recommends -y "$@"
+}
+
 install_tools() {
     local pkg="${1}"
 
