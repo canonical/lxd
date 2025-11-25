@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -15,6 +16,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/i18n"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/termios"
 )
 
@@ -221,14 +223,81 @@ func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 			var op lxd.Operation
 
 			if isSnapshot {
+				// For snapshots, we need to parse and validate the input
 				newdata := api.InstanceSnapshotPut{}
-
 				err = yaml.Unmarshal(contents, &newdata)
 				if err != nil {
 					return err
 				}
 
-				op, err = resource.server.UpdateInstanceSnapshot(fields[0], fields[1], newdata, "")
+				// Get the current snapshot data for validation
+				snapshotInstance, etag, err := resource.server.GetInstanceSnapshot(fields[0], fields[1])
+				if err != nil {
+					return err
+				}
+
+				// Create a temporary snapshot to validate the changes
+				var check api.InstanceSnapshot
+				err = yaml.Unmarshal(contents, &check)
+				if err != nil {
+					return fmt.Errorf(i18n.G("Failed to parse edited content: %w"), err)
+				}
+
+				// Use reflection to compare all fields except ExpiresAt
+				originalVal := reflect.ValueOf(*snapshotInstance)
+				checkVal := reflect.ValueOf(check)
+
+				isValid := true
+				for i := 0; i < originalVal.NumField(); i++ {
+					fieldName := originalVal.Type().Field(i).Name
+
+					// Skip the ExpiresAt field as it's allowed to change
+					if fieldName == "ExpiresAt" {
+						continue
+					}
+
+					// Get the field values
+					originalField := originalVal.Field(i)
+					checkField := checkVal.Field(i)
+
+					// Skip invalid fields
+					if !originalField.IsValid() || !checkField.IsValid() {
+						continue
+					}
+
+					// Special handling for maps, slices, and pointers that might be nil/empty in user input but populated in the original
+					if originalField.Kind() == reflect.Map || originalField.Kind() == reflect.Slice || originalField.Kind() == reflect.Pointer {
+						// If the original has data but user input is empty/nil, that's acceptable because the user might have omitted those fields in the YAML
+						if (originalField.Len() > 0 || (originalField.Kind() == reflect.Pointer && !originalField.IsNil())) && checkField.IsZero() {
+							// Original has data but user input is empty/zero, this is acceptable because YAML unmarshaling omits fields that aren't in the input
+							continue
+						}
+
+						// If both have data, they must match
+						if !originalField.IsZero() && !checkField.IsZero() {
+							if !reflect.DeepEqual(originalField.Interface(), checkField.Interface()) {
+								logger.Debugf("FIELD %s DIFFERS: Original: %+v, Check: %+v", fieldName, originalField.Interface(), checkField.Interface())
+								isValid = false
+								break
+							}
+						}
+						// If both are empty, that's also acceptable
+						continue
+					}
+
+					// For non-collection types, use regular comparison but be lenient with zero values. If the user input has a zero value but original has non-zero, that's acceptable
+					if !checkField.IsZero() && !reflect.DeepEqual(originalField.Interface(), checkField.Interface()) {
+						logger.Debugf("FIELD %s DIFFERS: Original: %+v, Check: %+v", fieldName, originalField.Interface(), checkField.Interface())
+						isValid = false
+						break
+					}
+				}
+
+				if !isValid {
+					return fmt.Errorf("%s", i18n.G("Only 'expires_at' field can be modified for instance snapshots"))
+				}
+
+				op, err = resource.server.UpdateInstanceSnapshot(fields[0], fields[1], newdata, etag)
 				if err != nil {
 					return err
 				}
@@ -250,37 +319,35 @@ func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 
 		var data []byte
 		var etag string
+		var snapshotInstance *api.InstanceSnapshot
+		var instance *api.Instance
 
 		// Extract the current value
 		if isSnapshot {
-			var inst *api.InstanceSnapshot
-
-			inst, etag, err = resource.server.GetInstanceSnapshot(fields[0], fields[1])
+			snapshotInstance, etag, err = resource.server.GetInstanceSnapshot(fields[0], fields[1])
 			if err != nil {
 				return err
 			}
 
 			// Empty expanded config so it isn't shown in edit screen (relies on omitempty tag).
-			inst.ExpandedConfig = nil
-			inst.ExpandedDevices = nil
+			snapshotInstance.ExpandedConfig = nil
+			snapshotInstance.ExpandedDevices = nil
 
-			data, err = yaml.Marshal(&inst)
+			data, err = yaml.Marshal(&snapshotInstance)
 			if err != nil {
 				return err
 			}
 		} else {
-			var inst *api.Instance
-
-			inst, etag, err = resource.server.GetInstance(resource.name)
+			instance, etag, err = resource.server.GetInstance(resource.name)
 			if err != nil {
 				return err
 			}
 
 			// Empty expanded config so it isn't shown in edit screen (relies on omitempty tag).
-			inst.ExpandedConfig = nil
-			inst.ExpandedDevices = nil
+			instance.ExpandedConfig = nil
+			instance.ExpandedDevices = nil
 
-			data, err = yaml.Marshal(&inst)
+			data, err = yaml.Marshal(&instance)
 			if err != nil {
 				return err
 			}
@@ -298,11 +365,103 @@ func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 				newdata := api.InstanceSnapshotPut{}
 				err = yaml.Unmarshal(content, &newdata)
 				if err == nil {
+					// Check if user tried to modify read-only fields for snapshots
+					var check api.InstanceSnapshot
+					err = yaml.Unmarshal(content, &check)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, i18n.G("Failed to parse edited content: %s")+"\n", err)
+						fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
+						_, err := os.Stdin.Read(make([]byte, 1))
+						if err != nil {
+							return err
+						}
+
+						content, err = shared.TextEditor("", content)
+						if err != nil {
+							return err
+						}
+
+						continue
+					}
+
+					// Get the current snapshot data for validation
+					snapshotInstance, etag, err := resource.server.GetInstanceSnapshot(fields[0], fields[1])
+					if err != nil {
+						return err
+					}
+
+					// Use reflection to compare all fields except ExpiresAt
+					originalVal := reflect.ValueOf(*snapshotInstance)
+					checkVal := reflect.ValueOf(check)
+
+					isValid := true
+					for i := 0; i < originalVal.NumField(); i++ {
+						fieldName := originalVal.Type().Field(i).Name
+
+						// Skip the ExpiresAt field as it's allowed to change
+						if fieldName == "ExpiresAt" {
+							continue
+						}
+
+						// Get the field values
+						originalField := originalVal.Field(i)
+						checkField := checkVal.Field(i)
+
+						// Skip invalid fields
+						if !originalField.IsValid() || !checkField.IsValid() {
+							continue
+						}
+
+						// Special handling for maps, slices, and pointers that might be nil/empty in user input but populated in the original
+						if originalField.Kind() == reflect.Map || originalField.Kind() == reflect.Slice || originalField.Kind() == reflect.Pointer {
+							// If the original has data but user input is empty/nil, that's acceptable because the user might have omitted those fields in the YAML
+							if (originalField.Len() > 0 || (originalField.Kind() == reflect.Pointer && !originalField.IsNil())) && checkField.IsZero() {
+								// Original has data but user input is empty/zero, this is acceptable because YAML unmarshaling omits fields that aren't in the input
+								continue
+							}
+
+							// If both have data, they must match
+							if !originalField.IsZero() && !checkField.IsZero() {
+								if !reflect.DeepEqual(originalField.Interface(), checkField.Interface()) {
+									logger.Debugf("FIELD %s DIFFERS: Original: %+v, Check: %+v", fieldName, originalField.Interface(), checkField.Interface())
+									isValid = false
+									break
+								}
+							}
+							// If both are empty, that's also acceptable
+							continue
+						}
+
+						// For non-collection types, use regular comparison but be lenient with zero values
+						if !checkField.IsZero() && !reflect.DeepEqual(originalField.Interface(), checkField.Interface()) {
+							logger.Debugf("FIELD %s DIFFERS: Original: %+v, Check: %+v", fieldName, originalField.Interface(), checkField.Interface())
+							isValid = false
+							break
+						}
+					}
+
+					if !isValid {
+						fmt.Fprintf(os.Stderr, "%s", i18n.G("Error: Only 'expires_at' field can be modified for instance snapshots")+"\n")
+						fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
+
+						_, err := os.Stdin.Read(make([]byte, 1))
+						if err != nil {
+							return err
+						}
+
+						content, err = shared.TextEditor("", content)
+						if err != nil {
+							return err
+						}
+
+						continue
+					}
+
 					var op lxd.Operation
 					op, err = resource.server.UpdateInstanceSnapshot(fields[0], fields[1],
 						newdata, etag)
 					if err == nil {
-						err = op.Wait()
+						return op.Wait()
 					}
 				}
 			} else {
@@ -312,7 +471,7 @@ func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 					var op lxd.Operation
 					op, err = resource.server.UpdateInstance(resource.name, newdata, etag)
 					if err == nil {
-						err = op.Wait()
+						return op.Wait()
 					}
 				}
 			}
