@@ -310,7 +310,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: ["cluster", "standalone", "snap"]
+        group:
+          - "cluster"
+          - "cluster_storage"
+          - "instance"
+          - "image"
+          - "network"
+          - "standalone_storage"
         backend: ["dir", "btrfs", "lvm", "zfs", "ceph", "random"]
 
     steps:
@@ -392,12 +398,12 @@ jobs:
       - name: Sanitize Artifact Name
         id: sanitize
         env:
-          ID: ${{ matrix.suite }}-${{ matrix.backend }}
+          ID: ${{ matrix.group }}-${{ matrix.backend }}
         run: |
           set -eux
           echo "artifact_name=$(echo "${ID}" | tr ': /' '-_-')" >> "${GITHUB_OUTPUT}"
 
-      - name: "Run system tests (${{ matrix.suite }}, ${{ matrix.backend }})"
+      - name: "Run system tests (${{ matrix.group }}, ${{ matrix.backend }})"
         run: |
           set -eux
           chmod +x ~
@@ -411,7 +417,7 @@ jobs:
             sudo rm /var/crash/*
           fi
 
-          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,LXD_VERBOSE,LXD_REPEAT_TESTS,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OVN_NB_CONNECTION,LXD_OVN_NB_CLIENT_CRT_FILE,LXD_OVN_NB_CLIENT_KEY_FILE,LXD_OVN_NB_CA_CRT_FILE,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,GOTRACEBACK,LXD_TMPFS LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
+          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,LXD_VERBOSE,LXD_REPEAT_TESTS,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OVN_NB_CONNECTION,LXD_OVN_NB_CLIENT_CRT_FILE,LXD_OVN_NB_CLIENT_KEY_FILE,LXD_OVN_NB_CA_CRT_FILE,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,GOTRACEBACK,LXD_TMPFS LXD_BACKEND=${{ matrix.backend }} ./main.sh group:${{ matrix.group }}
 
       - name: Upload crash dumps
         if: always()
