@@ -349,6 +349,29 @@ fine_grained: true"
   LXD_CONF="${LXD_CONF6}" CERTNAME=unrestricted my_curl -X GET "https://${LXD_ADDR}/1.0/auth/identities/current" | jq --exit-status '.metadata.fine_grained == false'
   lxc config trust remove "${lxdconf6_fingerprint_short}"
 
+  # Check that it is not possible to send a certificate in the request body to update an OIDC or bearer identity.
+  LXD_CONF7=$(mktemp -d -p "${TEST_DIR}" XXX)
+  LXD_CONF="${LXD_CONF7}" gen_cert_and_key "client"
+  conf7_cert="$(awk '{printf "%s\\n", $0}' "${LXD_CONF7}/client.crt")"
+  lxc auth identity create devlxd/test-bearer
+
+  # As an admin
+  ! lxc query -X PUT /1.0/auth/identities/bearer/test-bearer -d "{\"tls_certificate\":\"${conf7_cert}\",\"name\":\" \",\"identifier\":\"test-user@example.com\"}" || false
+  [ "$("${_LXC}" query -X PUT /1.0/auth/identities/bearer/test-bearer -d "{\"tls_certificate\":\"${conf7_cert}\",\"name\":\" \",\"identifier\":\"test-user@example.com\"}"  2>&1 >/dev/null)" = 'Error: Cannot update certificate for identities of type "DevLXD token bearer"' ]
+  ! lxc query -X PATCH /1.0/auth/identities/bearer/test-bearer -d "{\"tls_certificate\":\"${conf7_cert}\"}" || false
+  [ "$("${_LXC}" query -X PATCH /1.0/auth/identities/bearer/test-bearer -d "{\"tls_certificate\":\"${conf7_cert}\"}" 2>&1 >/dev/null)" = 'Error: Cannot update certificate for identities of type "DevLXD token bearer"' ]
+  ! lxc query -X PUT /1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${conf7_cert}\",\"name\":\" \",\"identifier\":\"test-user@example.com\"}" || false
+  [ "$("${_LXC}" query -X PUT /1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${conf7_cert}\",\"name\":\" \",\"identifier\":\"test-user@example.com\"}"  2>&1 >/dev/null)" = 'Error: Cannot update certificate for identities of type "OIDC client"' ]
+  ! lxc query -X PATCH /1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${conf7_cert}\"}" || false
+  [ "$("${_LXC}" query -X PATCH /1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${conf7_cert}\"}" 2>&1 >/dev/null)" = 'Error: Cannot update certificate for identities of type "OIDC client"' ]
+
+  # Or the OIDC identity (can't test the bearer identity as they can't authenticate to the main API yet)
+  ! lxc query -X PUT oidc:/1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${conf7_cert}\",\"name\":\" \",\"identifier\":\"test-user@example.com\"}" || false
+  [ "$("${_LXC}" query -X PUT oidc:/1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${conf7_cert}\",\"name\":\" \",\"identifier\":\"test-user@example.com\"}"  2>&1 >/dev/null)" = 'Error: Forbidden' ]
+  ! lxc query -X PATCH oidc:/1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${conf7_cert}\"}" || false
+  [ "$("${_LXC}" query -X PATCH oidc:/1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${conf7_cert}\"}" 2>&1 >/dev/null)" = 'Error: Forbidden' ]
+
+  lxc auth identity delete devlxd/test-bearer
   lxc auth identity group add oidc/test-user@example.com test-group
 
   # Cleanup
@@ -360,6 +383,7 @@ fine_grained: true"
   rm -r "${LXD_CONF4}"
   rm -r "${LXD_CONF5}"
   rm -r "${LXD_CONF6}"
+  rm -r "${LXD_CONF7}"
   lxc config set core.remote_token_expiry="" oidc.issuer="" oidc.client.id=""
 }
 
