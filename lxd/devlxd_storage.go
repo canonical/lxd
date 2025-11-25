@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/gorilla/mux"
 
@@ -248,14 +249,17 @@ func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) response.Re
 			return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusBadRequest, "Invalid source type %q: Only source type %q is supported", vol.Source.Type, api.SourceTypeCopy))
 		}
 
-		if vol.Source.Name == "" {
+		// Extract source volume name.
+		// If snapshot is provided as source, we ensure the snapshot's volume is owned by the caller.
+		sourceVolName, _, _ := strings.Cut(vol.Source.Name, "/")
+		if sourceVolName == "" {
 			return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusBadRequest, "Source volume name must be provided when source is configured"))
 		}
 
 		// Fetch a source volume.
 		sourceVol := api.StorageVolume{}
 
-		sourceURL := api.NewURL().Path("1.0", "storage-pools", vol.Source.Pool, "volumes", "custom", vol.Source.Name).Project(projectName)
+		sourceURL := api.NewURL().Path("1.0", "storage-pools", vol.Source.Pool, "volumes", "custom", sourceVolName).Project(projectName)
 		if vol.Source.Location != "" {
 			sourceURL = sourceURL.WithQuery("target", vol.Source.Location)
 		}
@@ -268,7 +272,7 @@ func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) response.Re
 		// Set path variables for the request, required when populating the request using volume details.
 		// Source volume is not part of the original request URL.
 		req = mux.SetURLVars(req, map[string]string{
-			"volumeName": vol.Source.Name,
+			"volumeName": sourceVolName,
 			"poolName":   vol.Source.Pool,
 			"type":       "custom",
 		})
