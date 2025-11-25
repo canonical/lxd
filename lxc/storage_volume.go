@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"reflect"
 	"slices"
 	"sort"
 	"strconv"
@@ -1103,7 +1104,12 @@ func (c *cmdStorageVolumeEdit) run(cmd *cobra.Command, args []string) error {
 		isSnapshot = true
 	}
 
-	// If stdin isn't a terminal, read text from it
+	// Get editable fields for snapshots.
+	snapshotEditableFieldsMsg := func(v api.StorageVolumeSnapshotPut) string {
+		return "Only " + formatFieldList(getEditableYAMLFields(v)) + " field(s) can be modified for snapshot volumes"
+	}
+
+	// If stdin isn't a terminal, read text from it.
 	if !termios.IsTerminal(getStdinFd()) {
 		contents, err := io.ReadAll(os.Stdin)
 		if err != nil {
@@ -1149,7 +1155,7 @@ func (c *cmdStorageVolumeEdit) run(cmd *cobra.Command, args []string) error {
 	var vol *api.StorageVolume
 	etag := ""
 	if isSnapshot {
-		// Extract the current value
+		// Extract the current value.
 		snapVol, etag, err = client.GetStoragePoolVolumeSnapshot(resource.name, volType, fields[0], fields[1])
 		if err != nil {
 			return err
@@ -1160,7 +1166,7 @@ func (c *cmdStorageVolumeEdit) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	} else {
-		// Extract the current value
+		// Extract the current value.
 		vol, etag, err = client.GetStoragePoolVolume(resource.name, volType, volName)
 		if err != nil {
 			return err
@@ -1180,62 +1186,34 @@ func (c *cmdStorageVolumeEdit) run(cmd *cobra.Command, args []string) error {
 
 	if isSnapshot {
 		for {
-			// Parse the text received from the editor
-			newdata := api.StorageVolumeSnapshotPut{}
+			// Parse the text received from the editor.
+			newdata := api.StorageVolumeSnapshot{}
 			err = yaml.Unmarshal(content, &newdata)
+			if err != nil {
+				return err
+			}
+
+			// Validation: Check if user tried to modify read-only properties.
+			// Create a copy of the original snapshot with only writable properties changed.
+			expectedVol := *snapVol
+			expectedVol.SetWritable(newdata.Writable())
+
+			// Compare if the user tried to modify anything beyond writable fields.
+			if !reflect.DeepEqual(newdata, expectedVol) {
+				return errors.New(snapshotEditableFieldsMsg(newdata.Writable()))
+			}
+
+			var op lxd.Operation
+			op, err = client.UpdateStoragePoolVolumeSnapshot(resource.name, volType, fields[0], fields[1], newdata.Writable(), etag)
 			if err == nil {
-				var op lxd.Operation
-				op, err = client.UpdateStoragePoolVolumeSnapshot(resource.name, volType, fields[0], fields[1], newdata, etag)
+				err = op.Wait()
 				if err == nil {
-					err = op.Wait()
+					break
 				}
 			}
 
-			// Respawn the editor
-			if err != nil {
-				fmt.Fprintf(os.Stderr, i18n.G("Config parsing error: %s")+"\n", err)
-				fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
-
-				_, err := os.Stdin.Read(make([]byte, 1))
-				if err != nil {
-					return err
-				}
-
-				content, err = shared.TextEditor("", content)
-				if err != nil {
-					return err
-				}
-
-				continue
-			}
-
-			break
-		}
-
-		return nil
-	}
-
-	for {
-		// Parse the text received from the editor
-		newdata := api.StorageVolume{}
-		err = yaml.Unmarshal(content, &newdata)
-		if err == nil {
-			op, err := client.UpdateStoragePoolVolume(resource.name, volType, volName, newdata.Writable(), etag)
-			if err != nil {
-				return err
-			}
-
-			err = op.Wait()
-			if err != nil {
-				return err
-			}
-		}
-
-		// Respawn the editor
-		if err != nil {
-			fmt.Fprintf(os.Stderr, i18n.G("Config parsing error: %s")+"\n", err)
-			fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
-
+			// Respawn the editor for any error condition.
+			fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
 			_, err := os.Stdin.Read(make([]byte, 1))
 			if err != nil {
 				return err
@@ -1245,11 +1223,38 @@ func (c *cmdStorageVolumeEdit) run(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
-
-			continue
 		}
 
-		break
+		return nil
+	}
+
+	for {
+		// Parse the text received from the editor.
+		newdata := api.StorageVolume{}
+		err = yaml.Unmarshal(content, &newdata)
+		if err != nil {
+			return err
+		}
+
+		op, err := client.UpdateStoragePoolVolume(resource.name, volType, volName, newdata.Writable(), etag)
+		if err == nil {
+			err = op.Wait()
+			if err == nil {
+				break
+			}
+		}
+
+		// Respawn the editor for any error condition.
+		fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
+		_, err = os.Stdin.Read(make([]byte, 1))
+		if err != nil {
+			return err
+		}
+
+		content, err = shared.TextEditor("", content)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
