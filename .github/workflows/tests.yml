@@ -212,7 +212,7 @@ jobs:
           set -eux
 
           # bin/max (sizes are in MiB)
-          SIZES="lxc 17
+          SIZES="lxc 16
                  lxd-agent 14"
           MIB="$((1024 * 1024))"
 
@@ -257,8 +257,8 @@ jobs:
       # XXX: `make static-analysis` also run golangci-lint but this one provides
       #      useful feedback in the PR through github-code-scanning bot
       - name: Run golangci-lint
-        if: github.event_name == 'pull_request'
-        uses: golangci/golangci-lint-action@e7fa5ac41e1cf5b7d48e45e42232ce7ada589601 # v8
+        if: github.event_name == 'pull_request' || github.event_name == 'schedule'
+        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
 
       - name: Run static analysis
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.static-analysis == 'true' }}
@@ -671,7 +671,7 @@ jobs:
 
       - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install Playwright Browsers
         run: |
@@ -754,7 +754,6 @@ jobs:
           lxc profile device add default eth0 nic network=local-network
           lxc config set core.https_address "[::]:8443"
           lxc config set cluster.https_address "127.0.0.1"
-          lxc cluster enable local
           lxc config set user.show_permissions=true
           lxc config trust add lxd-ui/keys/lxd-ui.crt
 
@@ -794,7 +793,7 @@ jobs:
           export PATH="/home/runner/go/bin:$PATH"
           export CI=true
           export DISABLE_VM_TESTS=true
-          npx playwright test --project "chromium:lxd-${TARGET:-latest-edge}"
+          npx playwright test --project "chromium:lxd-${TARGET:-latest-edge}:unclustered"
 
       - name: Upload lxd-ui test artifacts
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0

@@ -811,7 +811,7 @@ test_projects_limits() {
     spawn_lxd "${LXD_REMOTE_DIR}" true
     lxc project switch p1
 
-    LXD_REMOTE_ADDR=$(cat "${LXD_REMOTE_DIR}/lxd.addr")
+    LXD_REMOTE_ADDR=$(< "${LXD_REMOTE_DIR}/lxd.addr")
     (LXD_DIR=${LXD_REMOTE_DIR} deps/import-busybox --alias remoteimage --template start --public)
 
     lxc remote add l2 "${LXD_REMOTE_ADDR}" --accept-certificate --password foo
@@ -1177,6 +1177,24 @@ run_projects_restrictions() {
   ! lxc config set local:c1 security.syscalls.intercept.mount.allow=ext4 || false
 
   lxc delete c1
+
+  echo "==> Check that restricted.* options are not checked during project update if restricted=false."
+
+  echo "==> Set project restricted=false."
+  lxc project set local:p1 restricted=false
+  echo "==> Set project restricted.virtual-machines.lowlevel=block."
+  lxc project set local:p1 restricted.virtual-machines.lowlevel=block
+
+  echo "==> Create an instance and mount a disk device to it with io.threads=4."
+  lxc init --vm --empty v1
+  # Device is allowed to use `io.threads` despite `restricted.virtual-machines.lowlevel=block` because `restricted!=true`.
+  lxc config device add v1 foo disk source=/mnt path=/mnt io.threads=4
+
+  echo "==> Check that project update succeeds."
+  lxc project set local:p1 restricted.virtual-machines.lowlevel=allow
+
+  echo "==> Clean up the instance."
+  lxc delete v1
 
   lxc image delete testimage
 

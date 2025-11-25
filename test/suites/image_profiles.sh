@@ -1,11 +1,11 @@
 _image_nil_profile_list() {
   # Launch container with default profile list and check its profiles
   ensure_import_testimage
-  lxc launch testimage c1
+  lxc init testimage c1
   [ "$(lxc list -f json c1 | jq -r '.[0].profiles | join(" ")')" = "default" ]
 
   # Cleanup
-  lxc delete c1 -f
+  lxc delete c1
   lxc image delete testimage
 }
 
@@ -19,12 +19,12 @@ _image_empty_profile_list() {
   ! lxc image show testimage | grep -xF -- '- default' || false
 
   # Launch the container and check its profiles
-  storage=$(lxc storage list | grep "^| " | tail -n 1 | cut -d' ' -f2)
-  lxc launch testimage c1 -s "$storage"
+  storage="$(lxc storage list -f csv | tail -n1 | cut -d, -f1)"
+  lxc init testimage c1 -s "$storage"
   [ "$(lxc list -f json c1 | jq -r '.[0].profiles | join(" ")')" = "" ]
 
   # Cleanup
-  lxc delete c1 -f
+  lxc delete c1
   lxc image delete testimage
 }
 
@@ -43,13 +43,13 @@ _image_alternate_profile_list() {
   ! lxc image show testimage | grep -xF -- '- default' || false
 
   # Launch the container and check its profiles
-  storage=$(lxc storage list | grep "^| " | tail -n 1 | cut -d' ' -f2)
+  storage="$(lxc storage list -f csv | tail -n1 | cut -d, -f1)"
   lxc profile device add p1 root disk path=/ pool="$storage"
-  lxc launch testimage c1
+  lxc init testimage c1
   [ "$(lxc list -f json c1 | jq -r '.[0].profiles | join(" ")')" = "p1 p2 p3" ]
 
   # Cleanup
-  lxc delete c1 -f
+  lxc delete c1
   lxc profile delete p1
   lxc profile delete p2
   lxc profile delete p3
@@ -66,7 +66,7 @@ test_profiles_project_default() {
 test_profiles_project_images_profiles() {
   lxc project create project1
   lxc project switch project1
-  storage=$(lxc storage list | grep "^| " | tail -n 1 | cut -d' ' -f2)
+  storage="$(lxc storage list -f csv | tail -n1 | cut -d, -f1)"
   lxc profile device add default root disk path=/ pool="$storage"
 
   _image_nil_profile_list
@@ -93,7 +93,7 @@ test_profiles_project_images() {
 test_profiles_project_profiles() {
   lxc project create project1 -c features.images=false
   lxc project switch project1
-  storage=$(lxc storage list | grep "^| " | tail -n 1 | cut -d' ' -f2)
+  storage="$(lxc storage list -f csv | tail -n1 | cut -d, -f1)"
   lxc profile device add default root disk path=/ pool="$storage"
 
   _image_nil_profile_list

@@ -11,7 +11,7 @@ test_migration() {
 
   LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   spawn_lxd "${LXD2_DIR}" true
-  LXD2_ADDR=$(cat "${LXD2_DIR}/lxd.addr")
+  LXD2_ADDR=$(< "${LXD2_DIR}/lxd.addr")
 
   if command -v criu >/dev/null; then
     # workaround for kernel/criu
@@ -304,14 +304,14 @@ migration() {
   lxc_remote copy l1:c1 l2:c2 --refresh
   lxc_remote start l2:c2
   lxc_remote file pull l2:c2/root/testfile1 .
-  [ "$(cat testfile1)" = "test" ]
+  [ "$(< testfile1)" = "test" ]
   rm testfile1
   lxc_remote stop -f l2:c2
 
   # Change the files modification time by adding one nanosecond.
   # Perform the change on the test runner since the busybox instances `touch` doesn't support setting nanoseconds.
   lxc_remote start l1:c1
-  c1_pid="$(lxc_remote query l1:/1.0/instances/c1?recursion=1 | jq -r .state.pid)"
+  c1_pid="$(lxc_remote list -f csv -c p l1:c1)"
   mtime_old="$(stat -c %y "/proc/${c1_pid}/root/root/testfile1")"
   mtime_old_ns="$(date -d "$mtime_old" +%N | sed 's/^0*//')"
 
@@ -325,7 +325,7 @@ migration() {
 
   # Change the modification time.
   lxc_remote start l1:c1
-  c1_pid="$(lxc_remote query l1:/1.0/instances/c1?recursion=1 | jq -r .state.pid)"
+  c1_pid="$(lxc_remote list -f csv -c p l1:c1)"
   touch -m -d "$mtime_new" "/proc/${c1_pid}/root/root/testfile1"
   lxc_remote stop -f l1:c1
 
@@ -333,16 +333,16 @@ migration() {
   # Check if the file got refreshed to a different remote.
   lxc_remote copy l1:c1 l2:c2 --refresh
   lxc_remote start l1:c1 l2:c2
-  c1_pid="$(lxc_remote query l1:/1.0/instances/c1?recursion=1 | jq -r .state.pid)"
-  c2_pid="$(lxc_remote query l2:/1.0/instances/c2?recursion=1 | jq -r .state.pid)"
+  c1_pid="$(lxc_remote list -f csv -c p l1:c1)"
+  c2_pid="$(lxc_remote list -f csv -c p l2:c2)"
   [ "$(stat "/proc/${c1_pid}/root/root/testfile1" -c %y)" = "$(stat "/proc/${c2_pid}/root/root/testfile1" -c %y)" ]
   lxc_remote stop -f l1:c1 l2:c2
 
   # Check if the file got refreshed locally.
   lxc_remote copy l1:c1 l1:c2 --refresh
   lxc_remote start l1:c1 l1:c2
-  c1_pid="$(lxc_remote query l1:/1.0/instances/c1?recursion=1 | jq -r .state.pid)"
-  c2_pid="$(lxc_remote query l1:/1.0/instances/c2?recursion=1 | jq -r .state.pid)"
+  c1_pid="$(lxc_remote list -f csv -c p l1:c1)"
+  c2_pid="$(lxc_remote list -f csv -c p l1:c2)"
   [ "$(stat "/proc/${c1_pid}/root/root/testfile1" -c %y)" = "$(stat "/proc/${c2_pid}/root/root/testfile1" -c %y)" ]
   lxc_remote rm -f l1:c2
   lxc_remote stop -f l1:c1

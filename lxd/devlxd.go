@@ -40,37 +40,21 @@ const (
 	devLXDSecurityImagesKey DevLXDSecurityKey = "security.devlxd.images"
 )
 
-// devLXDAPIHandlerFunc is a function that handles requests to the DevLXD API.
-type devLXDAPIHandlerFunc func(*Daemon, *http.Request) response.Response
-
-// hoistFunc is a function that wraps the incoming requests, retrieves the targeted instance, and passes
-// it to the handler.
-type hoistFunc func(*Daemon, *http.Request, devLXDAPIHandlerFunc) response.Response
-
-// devLXDAPIEndpointAction represents an action on an devLXD API endpoint.
-type devLXDAPIEndpointAction struct {
-	Handler devLXDAPIHandlerFunc
+// devLXDAPIAuthenticator is an interface that abstracts the authentication mechanism used to
+// authenticate the instance making the /dev/lxd request.
+type devLXDAuthenticator interface {
+	IsVsock() bool
+	AuthenticateInstance(*Daemon, *http.Request) (instance.Instance, error)
 }
 
-// devLXDAPIEndpoint represents a URL in devLXD API.
-type devLXDAPIEndpoint struct {
-	Name   string // Name for this endpoint.
-	Path   string // Path pattern for this endpoint
-	Get    devLXDAPIEndpointAction
-	Head   devLXDAPIEndpointAction
-	Put    devLXDAPIEndpointAction
-	Post   devLXDAPIEndpointAction
-	Delete devLXDAPIEndpointAction
-	Patch  devLXDAPIEndpointAction
-}
-
-var apiDevLXD = []devLXDAPIEndpoint{
+var apiDevLXD = []APIEndpoint{
 	{
 		Path: "/",
-		Get: devLXDAPIEndpointAction{
+		Get: APIEndpointAction{
 			Handler: func(d *Daemon, r *http.Request) response.Response {
 				return response.DevLXDResponse(http.StatusOK, []string{"/1.0"}, "json")
 			},
+			AllowUntrusted: true,
 		},
 	},
 	devLXD10Endpoint,
@@ -84,10 +68,10 @@ var apiDevLXD = []devLXDAPIEndpoint{
 	devLXDUbuntuProTokenEndpoint,
 }
 
-var devLXD10Endpoint = devLXDAPIEndpoint{
+var devLXD10Endpoint = APIEndpoint{
 	Path:  "",
-	Get:   devLXDAPIEndpointAction{Handler: devLXDAPIGetHandler},
-	Patch: devLXDAPIEndpointAction{Handler: devLXDAPIPatchHandler},
+	Get:   APIEndpointAction{Handler: devLXDAPIGetHandler, AllowUntrusted: true},
+	Patch: APIEndpointAction{Handler: devLXDAPIPatchHandler, AllowUntrusted: true},
 }
 
 func devLXDAPIGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -162,9 +146,9 @@ func devLXDAPIPatchHandler(d *Daemon, r *http.Request) response.Response {
 	return response.DevLXDResponse(http.StatusOK, "", "raw")
 }
 
-var devLXDConfigEndpoint = devLXDAPIEndpoint{
+var devLXDConfigEndpoint = APIEndpoint{
 	Path: "config",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDConfigGetHandler},
+	Get:  APIEndpointAction{Handler: devLXDConfigGetHandler, AllowUntrusted: true},
 }
 
 func devLXDConfigGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -213,9 +197,9 @@ func devLXDConfigGetHandler(d *Daemon, r *http.Request) response.Response {
 	return response.DevLXDResponse(http.StatusOK, filtered, "json")
 }
 
-var devLXDConfigKeyEndpoint = devLXDAPIEndpoint{
+var devLXDConfigKeyEndpoint = APIEndpoint{
 	Path: "config/{key}",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDConfigKeyGetHandler},
+	Get:  APIEndpointAction{Handler: devLXDConfigKeyGetHandler, AllowUntrusted: true},
 }
 
 func devLXDConfigKeyGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -259,9 +243,9 @@ func devLXDConfigKeyGetHandler(d *Daemon, r *http.Request) response.Response {
 	return response.DevLXDResponse(http.StatusOK, value, "raw")
 }
 
-var devLXDImageExportEndpoint = devLXDAPIEndpoint{
+var devLXDImageExportEndpoint = APIEndpoint{
 	Path: "images/{fingerprint}/export",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDImageExportHandler},
+	Get:  APIEndpointAction{Handler: devLXDImageExportHandler, AllowUntrusted: true},
 }
 
 // devLXDImageExportHandler returns a file response containing the image files. The requested fingerprint must match
@@ -323,9 +307,9 @@ func devLXDImageExportHandler(d *Daemon, r *http.Request) response.Response {
 	return imageExportFiles(r.Context(), s, imgInfo, projectName)
 }
 
-var devLXDMetadataEndpoint = devLXDAPIEndpoint{
+var devLXDMetadataEndpoint = APIEndpoint{
 	Path: "meta-data",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDMetadataGetHandler},
+	Get:  APIEndpointAction{Handler: devLXDMetadataGetHandler, AllowUntrusted: true},
 }
 
 func devLXDMetadataGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -339,9 +323,9 @@ func devLXDMetadataGetHandler(d *Daemon, r *http.Request) response.Response {
 	return response.DevLXDResponse(http.StatusOK, resp, "raw")
 }
 
-var devLXDEventsEndpoint = devLXDAPIEndpoint{
+var devLXDEventsEndpoint = APIEndpoint{
 	Path: "events",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDEventsGetHandler},
+	Get:  APIEndpointAction{Handler: devLXDEventsGetHandler, AllowUntrusted: true},
 }
 
 func devLXDEventsGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -405,9 +389,9 @@ func devLXDEventsGetHandler(d *Daemon, r *http.Request) response.Response {
 	})
 }
 
-var devLXDDevicesEndpoint = devLXDAPIEndpoint{
+var devLXDDevicesEndpoint = APIEndpoint{
 	Path: "devices",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDDevicesGetHandler},
+	Get:  APIEndpointAction{Handler: devLXDDevicesGetHandler, AllowUntrusted: true},
 }
 
 func devLXDDevicesGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -430,9 +414,9 @@ func devLXDDevicesGetHandler(d *Daemon, r *http.Request) response.Response {
 	return response.DevLXDResponse(http.StatusOK, inst.ExpandedDevices(), "json")
 }
 
-var devLXDUbuntuProEndpoint = devLXDAPIEndpoint{
+var devLXDUbuntuProEndpoint = APIEndpoint{
 	Path: "ubuntu-pro",
-	Get:  devLXDAPIEndpointAction{Handler: devLXDUbuntuProGetHandler},
+	Get:  APIEndpointAction{Handler: devLXDUbuntuProGetHandler, AllowUntrusted: true},
 }
 
 func devLXDUbuntuProGetHandler(d *Daemon, r *http.Request) response.Response {
@@ -447,9 +431,9 @@ func devLXDUbuntuProGetHandler(d *Daemon, r *http.Request) response.Response {
 	return response.DevLXDResponse(http.StatusOK, settings, "json")
 }
 
-var devLXDUbuntuProTokenEndpoint = devLXDAPIEndpoint{
+var devLXDUbuntuProTokenEndpoint = APIEndpoint{
 	Path: "ubuntu-pro/token",
-	Post: devLXDAPIEndpointAction{Handler: devLXDUbuntuProTokenPostHandler},
+	Post: APIEndpointAction{Handler: devLXDUbuntuProTokenPostHandler, AllowUntrusted: true},
 }
 
 func devLXDUbuntuProTokenPostHandler(d *Daemon, r *http.Request) response.Response {
@@ -468,18 +452,18 @@ func devLXDUbuntuProTokenPostHandler(d *Daemon, r *http.Request) response.Respon
 	return response.DevLXDResponse(http.StatusOK, tokenJSON, "json")
 }
 
-func devLXDAPI(d *Daemon, f hoistFunc, isVsock bool) http.Handler {
+func devLXDAPI(d *Daemon, authenticator devLXDAuthenticator) http.Handler {
 	m := mux.NewRouter()
 	m.UseEncodedPath() // Allow encoded values in path segments.
 
 	for _, handler := range apiDevLXD {
-		registerDevLXDEndpoint(d, m, "1.0", handler, f, isVsock)
+		registerDevLXDEndpoint(d, m, "1.0", handler, authenticator)
 	}
 
 	return m
 }
 
-func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string, ep devLXDAPIEndpoint, f hoistFunc, isVsock bool) {
+func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string, ep APIEndpoint, authenticator devLXDAuthenticator) {
 	uri := ep.Path
 	if uri != "/" {
 		uri = path.Join("/", apiVersion, ep.Path)
@@ -487,19 +471,34 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 
 	// Function that handles the request by calling the appropriate handler.
 	handleFunc := func(w http.ResponseWriter, r *http.Request) {
-		// Set devLXD auth method to identify this request as coming from the /dev/lxd socket.
-		err := request.SetRequestor(r, d.identityCache, request.RequestorArgs{Protocol: request.ProtocolDevLXD})
+		var requestor request.RequestorArgs
+
+		// Indicate whether the devLXD is being accessed over vsock. This allowes the handler
+		// to determine the correct response type. The responses over vsock are always
+		// in api.Response format, while the responses over Unix socket are in devLXDResponse format.
+		request.SetContextValue(r, request.CtxDevLXDOverVsock, authenticator.IsVsock())
+
+		// Set [request.ProtocolDevLXD] by default identify this request as coming from the /dev/lxd socket.
+		requestor.Protocol = request.ProtocolDevLXD
+
+		// Always set [request.ProtocolDevLXD] to identify this request as coming from the /dev/lxd socket.
+		requestor.Protocol = request.ProtocolDevLXD
+
+		err := request.SetRequestor(r, d.identityCache, requestor)
 		if err != nil {
 			_ = response.DevLXDErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "%v", err)).Render(w, r)
 			return
 		}
 
-		// Indicate whether the devLXD is being accessed over vsock. This allowes the handler
-		// to determine the correct response type. The responses over vsock are always
-		// in api.Response format, while the responses over Unix socket are in devLXDResponse format.
-		request.SetContextValue(r, request.CtxDevLXDOverVsock, isVsock)
+		inst, err := authenticator.AuthenticateInstance(d, r)
+		if err != nil {
+			_ = response.DevLXDErrorResponse(err).Render(w, r)
+			return
+		}
 
-		handleRequest := func(action devLXDAPIEndpointAction) (resp response.Response) {
+		request.SetContextValue(r, request.CtxDevLXDInstance, inst)
+
+		handleRequest := func(action APIEndpointAction) (resp response.Response) {
 			// Handle panic in the handler.
 			defer func() {
 				err := recover()
@@ -514,7 +513,25 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 				return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusNotImplemented))
 			}
 
-			return f(d, r, action.Handler)
+			// All API endpoint acctions should either have an access handler or allow untrusted requests.
+			if action.AccessHandler == nil && !action.AllowUntrusted {
+				return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "Access handler not defined for %s %s", r.Method, r.URL.RequestURI()))
+			}
+
+			// If the request is not trusted, only call the handler if the action allows it.
+			if !requestor.Trusted && !action.AllowUntrusted {
+				return response.DevLXDErrorResponse(api.NewStatusError(http.StatusForbidden, "You must be authenticated"))
+			}
+
+			// Call the access handler if there is one.
+			if action.AccessHandler != nil {
+				resp := action.AccessHandler(d, r)
+				if resp != response.EmptySyncResponse {
+					return resp
+				}
+			}
+
+			return action.Handler(d, r)
 		}
 
 		var resp response.Response

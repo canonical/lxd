@@ -8,7 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"runtime"
 	"slices"
+	"strconv"
 
 	"github.com/oklog/ulid/v2"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
@@ -272,13 +274,22 @@ func (e *embeddedOpenFGA) checkPermission(ctx context.Context, entityURL *api.UR
 			return api.NewGenericStatusError(http.StatusNotFound)
 		}
 
-		// Attempt to extract the internal error. This allows bubbling errors up from the OpenFGA datastore implementation.
+		errLogCtx := logger.Ctx{"err": err}
+
+		// Attempt to extract the internal OpenFGA error for logging only, so that errors from the OpenFGA datastore implementation are logged (if any).
 		// (Otherwise we just get "rpc error (4000): Internal Server Error" or similar which isn't useful).
 		var openFGAInternalError openFGAErrors.InternalError
 		if errors.As(err, &openFGAInternalError) {
-			err = openFGAInternalError.Unwrap()
+			errLogCtx["err"] = openFGAInternalError.Unwrap()
 		}
 
+		// Add the callsite to the log context. This gets the file and line number where `[auth.Authorizer].CheckPermission` was called.
+		_, file, line, ok := runtime.Caller(2)
+		if ok {
+			errLogCtx["callsite"] = file + ":" + strconv.Itoa(line)
+		}
+
+		l.Error("Failed to check OpenFGA relation", errLogCtx)
 		return fmt.Errorf("Failed to check OpenFGA relation: %w", err)
 	}
 
@@ -452,13 +463,22 @@ func (e *embeddedOpenFGA) getPermissionChecker(ctx context.Context, entitlement 
 	l.Debug("Listing related objects for user")
 	resp, err := e.server.ListObjects(ctx, req)
 	if err != nil {
-		// Attempt to extract the internal error. This allows bubbling errors up from the OpenFGA datastore implementation.
+		errLogCtx := logger.Ctx{"err": err}
+
+		// Attempt to extract the internal OpenFGA error for logging only, so that errors from the OpenFGA datastore implementation are logged (if any).
 		// (Otherwise we just get "rpc error (4000): Internal Server Error" or similar which isn't useful).
 		var openFGAInternalError openFGAErrors.InternalError
 		if errors.As(err, &openFGAInternalError) {
-			err = openFGAInternalError.Unwrap()
+			errLogCtx["err"] = openFGAInternalError.Unwrap()
 		}
 
+		// Add the callsite to the log context. This gets the file and line number where `[auth.Authorizer].GetPermissionChecker` was called.
+		_, file, line, ok := runtime.Caller(2)
+		if ok {
+			errLogCtx["callsite"] = file + ":" + strconv.Itoa(line)
+		}
+
+		l.Error("Failed to list OpenFGA Objects", errLogCtx)
 		return nil, fmt.Errorf("Failed to list OpenFGA objects of type %q with entitlement %q for user %q: %w", entityType.String(), entitlement, id.Identifier, err)
 	}
 

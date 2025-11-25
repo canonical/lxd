@@ -232,7 +232,7 @@ func (n *ovn) projectRestrictedSubnets(p *api.Project, uplinkNetworkName string)
 	return projectRestrictedSubnets, nil
 }
 
-func (n *ovn) randomExternalAddress(ctx context.Context, ipVersion int, uplinkRoutes []*net.IPNet, projectRestrictedSubnets []*net.IPNet, validator func(*net.IPNet) (bool, error)) (net.IP, error) {
+func (n *ovn) randomExternalAddress(ctx context.Context, ipVersion int, uplinkRoutes []*net.IPNet, projectRestrictedSubnets []*net.IPNet, externalSubnetsInUse []externalSubnetUsage, validator func(*net.IPNet, []externalSubnetUsage) (bool, error)) (net.IP, error) {
 	// Ensure a sensible deadline is set.
 	_, hasDeadline := ctx.Deadline()
 	var cancel context.CancelFunc = func() {}
@@ -285,7 +285,7 @@ func (n *ovn) randomExternalAddress(ctx context.Context, ipVersion int, uplinkRo
 				return false, err
 			}
 
-			return validator(ipnet)
+			return validator(ipnet, externalSubnetsInUse)
 		})
 
 		subnetCtxCancel()
@@ -1164,6 +1164,78 @@ func (n *ovn) getLoadBalancerName(listenAddress string) openvswitch.OVNLoadBalan
 // getLogicalRouterPeerPortName returns OVN logical router port name to use for a peer connection.
 func (n *ovn) getLogicalRouterPeerPortName(peerNetworkID int64) openvswitch.OVNRouterPort {
 	return openvswitch.OVNRouterPort(fmt.Sprintf("%s-lrp-peer-net%d", n.getRouterName(), peerNetworkID))
+}
+
+// getUplinkGatewayUsage returns information about usage of external subnets by the uplink's gateways.
+func (n *ovn) getUplinkGatewayUsage() ([]externalSubnetUsage, error) {
+	var uplinkNetwork *api.Network
+	var err error
+
+	uplinkName := n.config["network"]
+	if uplinkName == "" {
+		return nil, fmt.Errorf(`OVN network %q is missing "network" config option`, n.name)
+	}
+
+	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		_, uplinkNetwork, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, uplinkName)
+		return err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Failed to load uplink network: %w", err)
+	}
+
+	if uplinkNetwork == nil {
+		return nil, errors.New("Failed to load uplink network")
+	}
+
+	uplinkPhysicalIP4GatewayKey := "ipv4.gateway"        // Uses CIDR notation.
+	uplinkPhysicalIP6GatewayKey := "ipv6.gateway"        // Uses CIDR notation.
+	uplinkBridgeIP4AddrKey := "ipv4.address"             // Uses CIDR notation.
+	uplinkBridgeIP6AddrKey := "ipv6.address"             // Uses CIDR notation.
+	uplinkBridgeIP4DHCPGatewayKey := "ipv4.dhcp.gateway" // Uses bare IP.
+
+	subnetsInUse := make([]externalSubnetUsage, 0, 5)
+
+	// Parse IPs in CIDR notation and record usage.
+	for _, key := range []string{uplinkPhysicalIP4GatewayKey, uplinkPhysicalIP6GatewayKey, uplinkBridgeIP4AddrKey, uplinkBridgeIP6AddrKey} {
+		if uplinkNetwork.Config[key] != "" {
+			bareIP, _, _ := strings.Cut(uplinkNetwork.Config[key], "/")
+
+			ipToParse := bareIP + "/32"
+			if strings.Contains(bareIP, ":") {
+				ipToParse = bareIP + "/128"
+			}
+
+			ipNet, err := ParseIPCIDRToNet(ipToParse)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to parse IP address: %w", err)
+			}
+
+			subnetsInUse = append(subnetsInUse, externalSubnetUsage{
+				subnet:         *ipNet,
+				networkProject: uplinkNetwork.Project,
+				networkName:    uplinkNetwork.Name,
+				usageType:      subnetUsageGateway,
+			})
+		}
+	}
+
+	// Parse ipv4.dhcp.gateway as bare IP and record usage.
+	if uplinkNetwork.Config[uplinkBridgeIP4DHCPGatewayKey] != "" {
+		ipNet, err := ParseIPToNet(uplinkNetwork.Config[uplinkBridgeIP4DHCPGatewayKey])
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse IP address: %w", err)
+		}
+
+		subnetsInUse = append(subnetsInUse, externalSubnetUsage{
+			subnet:         *ipNet,
+			networkProject: uplinkNetwork.Project,
+			networkName:    uplinkNetwork.Name,
+			usageType:      subnetUsageGateway,
+		})
+	}
+
+	return subnetsInUse, nil
 }
 
 // setupUplinkPort initialises the uplink connection. Returns the derived ovnUplinkVars settings used
@@ -4802,6 +4874,18 @@ func (n *ovn) allocateUplinkAddress(listenIPAddress net.IP) (net.IP, error) {
 		return nil, fmt.Errorf("Project quota for uplink IPs on network %q is exhausted", uplink.Name)
 	}
 
+	externalSubnetsInUse, err := n.getExternalSubnetInUse(n.config["network"])
+	if err != nil {
+		return nil, err
+	}
+
+	gatewaysInUse, err := n.getUplinkGatewayUsage()
+	if err != nil {
+		return nil, err
+	}
+
+	externalSubnetsInUse = append(externalSubnetsInUse, gatewaysInUse...)
+
 	// We're auto-allocating the external IP address if the given listen address is unspecified.
 	if listenIPAddress.IsUnspecified() {
 		// Retrieve the raw address from listenAddressNet.
@@ -4815,7 +4899,7 @@ func (n *ovn) allocateUplinkAddress(listenIPAddress net.IP) (net.IP, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		listenIPAddress, err = n.randomExternalAddress(ctx, ipVersion, uplinkRoutes, projectRestrictedSubnets, n.checkAddressNotInUse)
+		listenIPAddress, err = n.randomExternalAddress(ctx, ipVersion, uplinkRoutes, projectRestrictedSubnets, externalSubnetsInUse, n.checkAddressNotInUse)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to allocate an IPv%d address: %w", ipVersion, err)
 		}
@@ -4845,7 +4929,7 @@ func (n *ovn) allocateUplinkAddress(listenIPAddress net.IP) (net.IP, error) {
 		return nil, err
 	}
 
-	isValid, err := n.checkAddressNotInUse(listenAddressNet)
+	isValid, err := n.checkAddressNotInUse(listenAddressNet, externalSubnetsInUse)
 	if err != nil {
 		return nil, err
 	} else if !isValid {
@@ -5937,12 +6021,7 @@ func (n *ovn) forPeers(f func(targetOVNNet *ovn) error) error {
 
 // checkAddressNotInUse checks that a given network subnet does not fall within
 // any existing OVN network external subnets on the same uplink.
-func (n *ovn) checkAddressNotInUse(netip *net.IPNet) (bool, error) {
-	externalSubnetsInUse, err := n.getExternalSubnetInUse(n.config["network"])
-	if err != nil {
-		return false, err
-	}
-
+func (n *ovn) checkAddressNotInUse(netip *net.IPNet, externalSubnetsInUse []externalSubnetUsage) (bool, error) {
 	for _, externalSubnetUser := range externalSubnetsInUse {
 		// Check if usage is from our own network.
 		if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {

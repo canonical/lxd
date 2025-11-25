@@ -230,7 +230,7 @@ test_remote_usage() {
   local LXD2_DIR LXD2_ADDR
   LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   spawn_lxd "${LXD2_DIR}" true
-  LXD2_ADDR=$(cat "${LXD2_DIR}/lxd.addr")
+  LXD2_ADDR=$(< "${LXD2_DIR}/lxd.addr")
 
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
