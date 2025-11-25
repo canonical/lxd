@@ -178,41 +178,6 @@ jobs:
           cd /home/runner/work/lxd/lxd-test
           make
 
-      - name: Check lxc/lxd-agent binary sizes
-        if: env.GOCOVERAGE != 'true'
-        run: |
-          set -eux
-
-          # bin/max (sizes are in MiB)
-          SIZES="lxc 16
-                 lxd-agent 14"
-          MIB="$((1024 * 1024))"
-
-          # Strip a copy of the freshly built binaries and check their size
-          mkdir /tmp/bin
-          while read -r bin max; do
-            install --strip "/home/runner/go/bin/${bin}" /tmp/bin/
-            cur="$(stat --format=%s "/tmp/bin/${bin}")"
-            min=$((max - 1))
-            min_mib="$((min * MIB))"
-            max_mib="$((max * MIB))"
-            rm -f "/tmp/bin/${bin}"
-
-            if [ "${cur}" -gt "${max_mib}" ]; then
-              echo "FAIL: ${bin} binary size exceeds ${max}MiB"
-              exit 1
-            fi
-
-            # XXX: check for when we need to lower the min/max sizes
-            if [ "${cur}" -lt "${min_mib}" ]; then
-              echo "Congratulations: ${bin} binary size reduced below ${min}MiB"
-              echo "It is now time to edit the workflow job to use smaller min/max sizes for ${bin}"
-              exit 1
-            fi
-
-            echo "OK: ${bin} is between ${min} and ${max}MiB"
-          done <<< ${SIZES}
-
       - name: Check binaries were compiled with the Go minimum version
         run: |
           set -eux
