@@ -55,6 +55,42 @@ snapshots() {
   # Check if the snapshot's UUID can be modified
   ! lxc storage volume set "${pool}" container/foo/snap0 volatile.uuid "2d94c537-5eff-4751-95b1-6a1b7d11f849" || false
 
+  # Check snapshot configuration editing
+  # name property editing should fail with specific error message
+  ! lxc config show foo/snap0 | sed 's/^name:.*/name: invalid-name/' | lxc config edit foo/snap0 2>&1 | grep -F "Field 'name' cannot be modified" || false
+
+  # architecture property editing should fail with specific error message
+  ! lxc config show foo/snap0 | sed 's/^architecture:.*/architecture: arm64/' | lxc config edit foo/snap0 2>&1 | grep -F "Field 'architecture' cannot be modified" || false
+
+  # config property editing should fail with specific error message
+  ! lxc config show foo/snap0 | sed 's/^config:.*/config: {}/' | lxc config edit foo/snap0 2>&1 | grep -F "Field 'config' cannot be modified" || false
+
+  # devices property editing should fail with specific error message
+  ! lxc config show foo/snap0 | sed 's/^devices:.*/devices: {}/' | lxc config edit foo/snap0 2>&1 | grep -F "Field 'devices' cannot be modified" || false
+
+  # ephemeral property editing should fail with specific error message
+  ! lxc config show foo/snap0 | sed 's/^ephemeral:.*/ephemeral: true/' | lxc config edit foo/snap0 2>&1 | grep -F "Field 'ephemeral' cannot be modified" || false
+
+  # profiles property editing should fail with specific error message
+  ! lxc config show foo/snap0 | sed 's/^profiles:.*/profiles: []/' | lxc config edit foo/snap0 2>&1 | grep -F "Field 'profiles' cannot be modified" || false
+
+  # stateful property editing should fail with specific error message
+  ! lxc config show foo/snap0 | sed 's/^stateful:.*/stateful: true/' | lxc config edit foo/snap0 2>&1 | grep -F "Field 'stateful' cannot be modified" || false
+
+  # created_at property editing should fail with specific error message
+  ! lxc config show foo/snap0 | sed 's/^created_at:.*/created_at: 2024-01-01T00:00:00Z/' | lxc config edit foo/snap0 2>&1 | grep -F "Field 'created_at' cannot be modified" || false
+
+  # last_used_at property editing should fail with specific error message
+  ! lxc config show foo/snap0 | sed 's/^last_used_at:.*/last_used_at: 2024-01-01T00:00:00Z/' | lxc config edit foo/snap0 2>&1 | grep -F "Field 'last_used_at' cannot be modified" || false
+
+  # Test general error message when only expires_at is editable
+  ! lxc config show foo/snap0 | sed 's/^name:.*/name: test-invalid/' | lxc config edit foo/snap0 2>&1 | grep -F "Only 'expires_at' field can be modified for instance snapshots" || false
+
+  # expires_at property editing should succeed
+  expiry_date=$(date -u -d '+1 day' '+%Y-%m-%dT%H:%M:%SZ')
+  lxc config show foo/snap0 | sed "s/^expires_at:.*/expires_at: ${expiry_date}/" | lxc config edit foo/snap0
+  lxc config show foo/snap0 | grep "expires_at: ${expiry_date}"
+
   lxc snapshot foo
   # FIXME: make this backend agnostic
   if [ "$lxd_backend" = "dir" ]; then
