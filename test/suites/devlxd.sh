@@ -225,7 +225,7 @@ test_devlxd_volume_management() {
   local instTypes="container"
   ensure_import_testimage
 
-  if [ "${LXD_VM_TESTS:-0}" != "0" ]; then
+  if [ "${LXD_VM_TESTS}" != "0" ]; then
     ensure_import_ubuntu_vm_image
     instTypes="${instTypes} virtual-machine"
   fi
@@ -538,7 +538,7 @@ test_devlxd_volume_management_snapshots() {
   local instTypes="container"
   ensure_import_testimage
 
-  if [ "${LXD_VM_TESTS:-0}" != "0" ]; then
+  if [ "${LXD_VM_TESTS}" != "0" ]; then
     instTypes="${instTypes} virtual-machine"
     ensure_import_ubuntu_vm_image
   fi
