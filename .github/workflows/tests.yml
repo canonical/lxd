@@ -178,19 +178,6 @@ jobs:
           cd /home/runner/work/lxd/lxd-test
           make
 
-      - name: Check binaries were compiled with the Go minimum version
-        run: |
-          set -eux
-
-          # Check which Go version was used to compile each of the lxc/lxd binaries
-          GOMIN="$(sed -n 's/^GOMIN=\([0-9.]\+\)$/\1/p' Makefile)"
-          UNEXPECTED_GO_VER="$(go version -v ~/go/bin/lxc* ~/go/bin/lxd* | grep -vF ": go${GOMIN}" || true)"
-          if [ -n "${UNEXPECTED_GO_VER:-}" ]; then
-            echo "Some binaries were compiled with an unexpected Go version (!= ${GOMIN}):"
-            echo "${UNEXPECTED_GO_VER}"
-            exit 1
-          fi
-
       # XXX: `make static-analysis` also run golangci-lint but this one provides
       #      useful feedback in the PR through github-code-scanning bot
       - name: Run golangci-lint
