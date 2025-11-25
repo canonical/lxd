@@ -214,7 +214,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 			urlToProject[u] = p
 		}
 
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeProject, withEntitlements, urlToProject)
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeProject, withEntitlements, urlToProject)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -348,6 +348,10 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	})
 	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusConflict) {
+			return response.Conflict(fmt.Errorf("Project %q already exists", project.Name))
+		}
+
 		return response.SmartError(fmt.Errorf("Failed creating project %q: %w", project.Name, err))
 	}
 
@@ -475,7 +479,7 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeProject, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ProjectURL(name): project})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeProject, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ProjectURL(name): project})
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -693,6 +697,13 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 	return projectChange(r.Context(), s, project, req)
 }
 
+// isProjectInUse checks if a project is in use by any instances, images, profiles, storage volumes, etc.
+// Only use by a default profile is allowed in an empty project.
+func isProjectInUse(projectUsedBy []string) bool {
+	usedByLen := len(projectUsedBy)
+	return usedByLen > 1 || (usedByLen == 1 && !strings.Contains(projectUsedBy[0], "/profiles/default"))
+}
+
 // Common logic between PUT and PATCH.
 func projectChange(ctx context.Context, s *state.State, project *api.Project, req api.ProjectPut) response.Response {
 	// Make a list of config keys that have changed.
@@ -726,9 +737,7 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 		}
 
 		// Consider the project empty if it is only used by the default profile.
-		usedByLen := len(project.UsedBy)
-		projectInUse := usedByLen > 1 || (usedByLen == 1 && !strings.Contains(project.UsedBy[0], "/profiles/default"))
-		if projectInUse {
+		if isProjectInUse(project.UsedBy) {
 			// Check if feature is allowed to be changed.
 			for _, featureChanged := range featuresChanged {
 				// If feature is currently enabled, and it is being changed in the request, it
@@ -753,7 +762,7 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 	}
 
 	// Update the database entry.
-	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		err := limits.AllowProjectUpdate(ctx, s.GlobalConfig, tx, project.Name, req.Config, configChanged)
 		if err != nil {
 			return err

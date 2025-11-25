@@ -7,25 +7,18 @@ test_storage_profiles() {
     set -e
     # shellcheck disable=2030
     LXD_DIR="${LXD_STORAGE_DIR}"
+    lxd_backend="$(storage_backend "$LXD_DIR")"
 
-    HAS_ZFS="dir"
-    if command -v zfs >/dev/null 2>&1; then
-      HAS_ZFS="zfs"
+    other_backend="btrfs"
+    if [ "${lxd_backend}" = "${other_backend}" ]; then
+      other_backend="dir"
     fi
 
-    HAS_BTRFS="dir"
-    if command -v btrfs >/dev/null 2>&1; then
-      HAS_BTRFS="btrfs"
-    fi
+    # Create a pool with the default backend.
+    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" "${lxd_backend}"
 
-    # shellcheck disable=SC1009
-    # Create loop file zfs pool.
-    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" "${HAS_ZFS}"
-
-    # Create loop file btrfs pool.
-    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool2" "${HAS_BTRFS}"
-
-    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool4" dir
+    # Create another pool with a different backend.
+    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool2" "${other_backend}"
 
     # Set default storage pool for image import.
     lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")-pool1"

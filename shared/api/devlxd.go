@@ -6,8 +6,8 @@ import (
 
 // DevLXDResponse represents the response from the devLXD API.
 type DevLXDResponse struct {
-	Content    []byte `json:"content" yaml:"content"`
-	StatusCode int    `json:"status_code" yaml:"status_code"`
+	Content    json.RawMessage `json:"content" yaml:"content"`
+	StatusCode int             `json:"status_code" yaml:"status_code"`
 }
 
 // ContentAsStruct unmarshals the response content.
@@ -24,7 +24,7 @@ type DevLXDPut struct {
 
 // DevLXDGet represents the server data which is returned as the root of the devlxd API.
 type DevLXDGet struct {
-	DevLXDPut
+	DevLXDPut `yaml:",inline"`
 
 	// API version number
 	// Example: 1.0

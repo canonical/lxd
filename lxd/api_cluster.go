@@ -3747,6 +3747,10 @@ func clusterGroupsPost(d *Daemon, r *http.Request) response.Response {
 
 		_, err := dbCluster.CreateClusterGroup(ctx, tx.Tx(), obj)
 		if err != nil {
+			if api.StatusErrorCheck(err, http.StatusConflict) {
+				return api.StatusErrorf(http.StatusConflict, "Cluster group %q already exists", req.Name)
+			}
+
 			return err
 		}
 
@@ -4127,6 +4131,27 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
+		members, err := tx.GetClusterGroupNodes(ctx, name)
+		if err != nil {
+			return err
+		}
+
+		// Every member must belong to at least one group.
+		for _, oldMember := range members {
+			// On removing member, ensure it is in at least one other group.
+			if !slices.Contains(req.Members, oldMember) {
+				// Get all cluster groups this member belongs to.
+				groups, err := tx.GetClusterGroupsWithNode(ctx, oldMember)
+				if err != nil {
+					return err
+				}
+
+				if len(groups) == 1 {
+					return fmt.Errorf("Cannot remove %q from group as member needs to belong to at least one group", oldMember)
+				}
+			}
+		}
+
 		obj := dbCluster.ClusterGroup{
 			Name:        group.Name,
 			Description: req.Description,
@@ -4137,30 +4162,15 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		members, err := tx.GetClusterGroupNodes(ctx, name)
-		if err != nil {
-			return err
-		}
-
 		// skipMembers is a list of members which already belong to the group.
 		skipMembers := []string{}
 
 		for _, oldMember := range members {
 			if !slices.Contains(req.Members, oldMember) {
-				// Get all cluster groups this member belongs to.
-				groups, err := tx.GetClusterGroupsWithNode(ctx, oldMember)
+				// Remove member from this group. It belongs to at least one other group per the check above.
+				err = tx.RemoveNodeFromClusterGroup(ctx, name, oldMember)
 				if err != nil {
 					return err
-				}
-
-				// Note that members who only belong to this group will not be removed from it.
-				// That is because each member needs to belong to at least one group.
-				if len(groups) > 1 {
-					// Remove member from this group as it belongs to at least one other group.
-					err = tx.RemoveNodeFromClusterGroup(ctx, name, oldMember)
-					if err != nil {
-						return err
-					}
 				}
 			} else {
 				skipMembers = append(skipMembers, oldMember)
@@ -4328,7 +4338,7 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 
 				// Cluster member cannot be removed from the group as it doesn't belong to any other.
 				if len(groups) == 1 {
-					return fmt.Errorf("Cannot remove %s from group as member needs to belong to at least one group", oldMember)
+					return fmt.Errorf("Cannot remove %q from group as member needs to belong to at least one group", oldMember)
 				}
 
 				// Remove member from this group as it belongs to at least one other group.

@@ -242,8 +242,12 @@ func RenameClusterGroup(ctx context.Context, tx *sql.Tx, name string, to string)
 		return fmt.Errorf("Failed to get \"clusterGroupRename\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(to, name)
+	result, err := stmt.ExecContext(ctx, to, name)
 	if err != nil {
+		if query.IsConflictErr(err) {
+			return api.NewStatusError(http.StatusConflict, "A \"clusters_groups\" entry already exists with this name")
+		}
+
 		return fmt.Errorf("Rename ClusterGroup failed: %w", err)
 	}
 
@@ -262,16 +266,6 @@ func RenameClusterGroup(ctx context.Context, tx *sql.Tx, name string, to string)
 // CreateClusterGroup adds a new cluster_group to the database.
 // generator: cluster_group Create
 func CreateClusterGroup(ctx context.Context, tx *sql.Tx, object ClusterGroup) (int64, error) {
-	// Check if a cluster_group with the same key exists.
-	exists, err := ClusterGroupExists(ctx, tx, object.Name)
-	if err != nil {
-		return -1, fmt.Errorf("Failed to check for duplicates: %w", err)
-	}
-
-	if exists {
-		return -1, api.StatusErrorf(http.StatusConflict, "This \"clusters_groups\" entry already exists")
-	}
-
 	args := make([]any, 2)
 
 	// Populate the statement arguments.
@@ -285,8 +279,12 @@ func CreateClusterGroup(ctx context.Context, tx *sql.Tx, object ClusterGroup) (i
 	}
 
 	// Execute the statement.
-	result, err := stmt.Exec(args...)
+	result, err := stmt.ExecContext(ctx, args...)
 	if err != nil {
+		if query.IsConflictErr(err) {
+			return -1, api.NewStatusError(http.StatusConflict, "This \"clusters_groups\" entry already exists")
+		}
+
 		return -1, fmt.Errorf("Failed to create \"clusters_groups\" entry: %w", err)
 	}
 
@@ -311,8 +309,12 @@ func UpdateClusterGroup(ctx context.Context, tx *sql.Tx, name string, object Clu
 		return fmt.Errorf("Failed to get \"clusterGroupUpdate\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(object.Name, object.Description, id)
+	result, err := stmt.ExecContext(ctx, object.Name, object.Description, id)
 	if err != nil {
+		if query.IsConflictErr(err) {
+			return api.NewStatusError(http.StatusConflict, "A \"clusters_groups\" entry already exists with these properties")
+		}
+
 		return fmt.Errorf("Update \"clusters_groups\" entry failed: %w", err)
 	}
 
@@ -336,7 +338,7 @@ func DeleteClusterGroup(ctx context.Context, tx *sql.Tx, name string) error {
 		return fmt.Errorf("Failed to get \"clusterGroupDeleteByName\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(name)
+	result, err := stmt.ExecContext(ctx, name)
 	if err != nil {
 		return fmt.Errorf("Delete \"clusters_groups\": %w", err)
 	}

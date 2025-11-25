@@ -23,9 +23,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
+	"go.yaml.in/yaml/v2"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sys/unix"
-	"gopkg.in/yaml.v2"
 
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/backup"
@@ -6756,6 +6756,13 @@ func (b *lxdBackend) RenameCustomVolumeSnapshot(projectName, volName string, new
 		return errors.New("Invalid new snapshot name")
 	}
 
+	// Check if a snapshot already exists with the same name
+	_, err := VolumeDBGet(b, projectName, drivers.GetSnapshotVolumeName(parentName, newSnapshotName), drivers.VolumeTypeCustom)
+	if err == nil {
+		return api.StatusErrorf(http.StatusConflict, "Storage volume snapshot %q already exists for volume %q", newSnapshotName, parentName)
+	}
+
+	// Fetch the snapshot vol.
 	volume, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
 	if err != nil {
 		return err
@@ -7303,14 +7310,98 @@ func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]
 // backup stored on it. It then runs a series of consistency checks that compare the contents of the backup file to
 // the state of the volume on disk, and if all checks out, it adds the parsed backup file contents to projectVols.
 func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVols map[string][]*backupConfig.Config, op *operations.Operation) error {
+	backupYamlPath := filepath.Join(vol.MountPath(), "backup.yaml")
+	var backupConf *backupConfig.Config
+	var err error
+
+	// If the instance is running, it should already be mounted, so check if the backup file
+	// is already accessible, and if so parse it directly, without disturbing the mount count.
+	// It is important to not always run the volume's MountTask.
+	// In a situation in which the instance is still running, but the DB was lost and the LXD daemon was restarted,
+	// the mount's ref counter is lost and not restored on start up.
+	// That means when running MountTask, it won't interfere with the running instance, but as there
+	// aren't anymore traces of the original mount, it will try to unmount the volume as the ref counter
+	// will be zero at the end of MountTask.
+	if shared.PathExists(backupYamlPath) {
+		backupConf, err = backup.ParseConfigYamlFile(backupYamlPath)
+		if err != nil {
+			return fmt.Errorf("Failed parsing backup file %q: %w", backupYamlPath, err)
+		}
+	} else {
+		// If backup file not accessible, we take this to mean the instance isn't running
+		// and so we need to mount the volume to access the backup file and then unmount.
+		// This will also create the mount path if needed.
+		err = vol.MountTask(func(_ string, _ *operations.Operation) error {
+			backupConf, err = backup.ParseConfigYamlFile(backupYamlPath)
+			if err != nil {
+				return fmt.Errorf("Failed parsing backup file %q: %w", backupYamlPath, err)
+			}
+
+			return nil
+		}, op)
+		if err != nil {
+			return err
+		}
+	}
+
+	if backupConf.Instance == nil {
+		return fmt.Errorf("Instance on volume %q has no instance information in its backup file", vol.Name())
+	}
+
+	instName := backupConf.Instance.Name
+	projectName := backupConf.Instance.Project
+
+	// Run some consistency checks on the backup file contents.
+	if backupConf.Pools != nil {
+		rootVolPool, err := backupConf.RootVolumePool()
+		if err != nil {
+			return fmt.Errorf("Failed getting the root volume's pool: %w", err)
+		}
+
+		if rootVolPool.Name != b.name {
+			return fmt.Errorf("Instance %q in project %q has pool name mismatch in its backup file (%q doesn't match's pool's %q)", instName, projectName, rootVolPool.Name, b.name)
+		}
+
+		if rootVolPool.Driver != b.Driver().Info().Name {
+			return fmt.Errorf("Instance %q in project %q has pool driver mismatch in its backup file (%q doesn't match's pool's %q)", instName, projectName, rootVolPool.Driver, b.Driver().Name())
+		}
+	}
+
 	volType := vol.Type()
 
-	projectName, instName := project.InstanceParts(vol.Name())
+	apiInstType, err := VolumeTypeToAPIInstanceType(volType)
+	if err != nil {
+		return fmt.Errorf("Failed checking instance type for instance %q in project %q: %w", instName, projectName, err)
+	}
+
+	if apiInstType != api.InstanceType(backupConf.Instance.Type) {
+		return fmt.Errorf("Instance %q in project %q has a different instance type in its backup file (%q)", instName, projectName, backupConf.Instance.Type)
+	}
+
+	rootVol, err := backupConf.RootVolume()
+	if err != nil {
+		return fmt.Errorf("Instance %q in project %q has no volume information in its backup file: %w", instName, projectName, err)
+	}
+
+	if instName != rootVol.Name {
+		return fmt.Errorf("Instance %q in project %q has a different volume name in its backup file (%q)", instName, projectName, rootVol.Name)
+	}
+
+	instVolDBType, err := cluster.StoragePoolVolumeTypeFromName(rootVol.Type)
+	if err != nil {
+		return fmt.Errorf("Failed checking instance volume type for instance %q in project %q: %w", instName, projectName, err)
+	}
+
+	instVolType := VolumeDBTypeToType(instVolDBType)
+
+	if volType != instVolType {
+		return fmt.Errorf("Instance %q in project %q has a different volume type in its backup file (%q)", instName, projectName, rootVol.Type)
+	}
 
 	var instID int
 	var instSnapshots []string
 
-	err := b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		// Check if an entry for the instance already exists in the DB.
@@ -7345,93 +7436,6 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 		return fmt.Errorf("Instance %q in project %q already has storage DB record", instName, projectName)
 	}
 
-	backupYamlPath := filepath.Join(vol.MountPath(), "backup.yaml")
-	var backupConf *backupConfig.Config
-
-	// If the instance is running, it should already be mounted, so check if the backup file
-	// is already accessible, and if so parse it directly, without disturbing the mount count.
-	if shared.PathExists(backupYamlPath) {
-		backupConf, err = backup.ParseConfigYamlFile(backupYamlPath)
-		if err != nil {
-			return fmt.Errorf("Failed parsing backup file %q: %w", backupYamlPath, err)
-		}
-	} else {
-		// If backup file not accessible, we take this to mean the instance isn't running
-		// and so we need to mount the volume to access the backup file and then unmount.
-		// This will also create the mount path if needed.
-		err = vol.MountTask(func(_ string, _ *operations.Operation) error {
-			backupConf, err = backup.ParseConfigYamlFile(backupYamlPath)
-			if err != nil {
-				return fmt.Errorf("Failed parsing backup file %q: %w", backupYamlPath, err)
-			}
-
-			return nil
-		}, op)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Run some consistency checks on the backup file contents.
-	if backupConf.Pools != nil {
-		rootVolPool, err := backupConf.RootVolumePool()
-		if err != nil {
-			return fmt.Errorf("Failed getting the root volume's pool: %w", err)
-		}
-
-		if rootVolPool.Name != b.name {
-			return fmt.Errorf("Instance %q in project %q has pool name mismatch in its backup file (%q doesn't match's pool's %q)", instName, projectName, rootVolPool.Name, b.name)
-		}
-
-		if rootVolPool.Driver != b.Driver().Info().Name {
-			return fmt.Errorf("Instance %q in project %q has pool driver mismatch in its backup file (%q doesn't match's pool's %q)", instName, projectName, rootVolPool.Driver, b.Driver().Name())
-		}
-	}
-
-	if backupConf.Instance == nil {
-		return fmt.Errorf("Instance %q in project %q has no instance information in its backup file", instName, projectName)
-	}
-
-	if instName != backupConf.Instance.Name {
-		return fmt.Errorf("Instance %q in project %q has a different instance name in its backup file (%q)", instName, projectName, backupConf.Instance.Name)
-	}
-
-	apiInstType, err := VolumeTypeToAPIInstanceType(volType)
-	if err != nil {
-		return fmt.Errorf("Failed checking instance type for instance %q in project %q: %w", instName, projectName, err)
-	}
-
-	if apiInstType != api.InstanceType(backupConf.Instance.Type) {
-		return fmt.Errorf("Instance %q in project %q has a different instance type in its backup file (%q)", instName, projectName, backupConf.Instance.Type)
-	}
-
-	rootVol, err := backupConf.RootVolume()
-	if err != nil {
-		return fmt.Errorf("Instance %q in project %q has no volume information in its backup file: %w", instName, projectName, err)
-	}
-
-	if instName != rootVol.Name {
-		return fmt.Errorf("Instance %q in project %q has a different volume name in its backup file (%q)", instName, projectName, rootVol.Name)
-	}
-
-	instVolDBType, err := cluster.StoragePoolVolumeTypeFromName(rootVol.Type)
-	if err != nil {
-		return fmt.Errorf("Failed checking instance volume type for instance %q in project %q: %w", instName, projectName, err)
-	}
-
-	instVolType := VolumeDBTypeToType(instVolDBType)
-
-	if volType != instVolType {
-		return fmt.Errorf("Instance %q in project %q has a different volume type in its backup file (%q)", instName, projectName, rootVol.Type)
-	}
-
-	// Add to volume to unknown volumes list for the project.
-	if projectVols[projectName] == nil {
-		projectVols[projectName] = []*backupConfig.Config{backupConf}
-	} else {
-		projectVols[projectName] = append(projectVols[projectName], backupConf)
-	}
-
 	// Check snapshots are consistent between storage layer and backup config file.
 	_, err = b.CheckInstanceBackupFileSnapshots(backupConf, projectName, nil)
 	if err != nil {
@@ -7455,6 +7459,13 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 		} else if volume != nil {
 			return fmt.Errorf("Instance %q snapshot %q in project %q already has storage DB record", instName, snapshot.Name, projectName)
 		}
+	}
+
+	// Add to volume to unknown volumes list for the project.
+	if projectVols[projectName] == nil {
+		projectVols[projectName] = []*backupConfig.Config{backupConf}
+	} else {
+		projectVols[projectName] = append(projectVols[projectName], backupConf)
 	}
 
 	return nil
@@ -7871,6 +7882,12 @@ func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName strin
 	l.Debug("CreateCustomVolumeFromISO started")
 	defer l.Debug("CreateCustomVolumeFromISO finished")
 
+	// Validate the name of the volume as this could be malicious.
+	err := drivers.ValidVolumeName(volName)
+	if err != nil {
+		return fmt.Errorf("Invalid volume name %q: %w", volName, err)
+	}
+
 	// Check whether we are allowed to create volumes.
 	req := api.StorageVolumesPost{
 		Name: volName,
@@ -7881,7 +7898,7 @@ func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName strin
 		},
 	}
 
-	err := b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+	err = b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		return limits.AllowVolumeCreation(ctx, b.state.GlobalConfig, tx, projectName, b.name, req)
 	})
 	if err != nil {
@@ -7902,7 +7919,7 @@ func (b *lxdBackend) CreateCustomVolumeFromISO(projectName string, volName strin
 	}
 
 	if volExists {
-		return errors.New("Cannot create volume, already exists on target storage")
+		return fmt.Errorf("Cannot create volume %q, volume already exists on storage pool %q", volName, b.name)
 	}
 
 	// Validate config and create database entry for new storage volume.
@@ -8005,6 +8022,15 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 	volStorageName := project.StorageVolume(srcBackup.Project, srcBackup.Name)
 
 	vol := b.GetNewVolume(drivers.VolumeTypeCustom, drivers.ContentType(customVol.ContentType), volStorageName, customVol.Config)
+
+	volExists, err := b.driver.HasVolume(vol)
+	if err != nil {
+		return err
+	}
+
+	if volExists {
+		return fmt.Errorf("Cannot create volume %q, volume already exists on storage pool %q", srcBackup.Name, b.name)
+	}
 
 	// Validate config and create database entry for new storage volume.
 	// Strip unsupported config keys (in case the export was made from a different type of storage pool).

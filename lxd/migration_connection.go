@@ -98,8 +98,8 @@ func (c *migrationConn) AcceptIncoming(r *http.Request, w http.ResponseWriter) e
 	}
 
 	// Set TCP timeout options.
-	remoteTCP, _ := tcp.ExtractConn(c.conn.UnderlyingConn())
-	if remoteTCP != nil {
+	remoteTCP, err := tcp.ExtractConn(c.conn.NetConn())
+	if err == nil && remoteTCP != nil {
 		err = tcp.SetTimeouts(remoteTCP, 0)
 		if err != nil {
 			logger.Warn("Failed setting TCP timeouts on incoming websocket connection", logger.Ctx{"err": err})

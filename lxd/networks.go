@@ -104,9 +104,7 @@ func addNetworkDetailsToRequestContext(s *state.State, r *http.Request) error {
 		return fmt.Errorf("Failed to check project %q network feature: %w", requestProjectName, err)
 	}
 
-	info := request.GetContextInfo(r.Context())
-	info.EffectiveProjectName = effectiveProjectName
-
+	request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	request.SetContextValue(r, ctxNetworkDetails, networkDetails{
 		networkName:    networkName,
 		requestProject: *requestProject,
@@ -263,14 +261,16 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	reqInfo := request.GetContextInfo(r.Context())
+	var effectiveProjectName string
 	var reqProject *api.Project
 	if !allProjects {
 		// Project specific requests require an effective project, when "features.networks" is enabled this is the requested project, otherwise it is the default project.
-		reqInfo.EffectiveProjectName, reqProject, err = project.NetworkProject(s.DB.Cluster, requestProjectName)
+		effectiveProjectName, reqProject, err = project.NetworkProject(s.DB.Cluster, requestProjectName)
 		if err != nil {
 			return response.SmartError(err)
 		}
+
+		request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	}
 
 	recursion := util.IsRecursionRequest(r)
@@ -305,7 +305,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 			}
 		} else {
 			// Get list of managed networks (that may or may not have network interfaces on the host).
-			networkNames, err := tx.GetNetworks(ctx, reqInfo.EffectiveProjectName)
+			networkNames, err := tx.GetNetworks(ctx, effectiveProjectName)
 			if err != nil {
 				return err
 			}
@@ -321,7 +321,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 
 	// Get list of actual network interfaces on the host if the effective project is default and the caller has permission.
 	var getUnmanagedNetworks bool
-	if reqInfo.EffectiveProjectName == api.ProjectDefaultName || allProjects {
+	if effectiveProjectName == api.ProjectDefaultName || allProjects {
 		err := s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanViewUnmanagedNetworks)
 		if err == nil {
 			getUnmanagedNetworks = true
@@ -398,7 +398,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeNetwork, withEntitlements, urlToNetwork)
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeNetwork, withEntitlements, urlToNetwork)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -979,7 +979,7 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeNetwork, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.NetworkURL(details.requestProject.Name, details.networkName): &n})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeNetwork, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.NetworkURL(details.requestProject.Name, details.networkName): &n})
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -994,11 +994,10 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 // If the network being requested is a managed network and allNodes is true then node specific config is removed.
 // Otherwise if allNodes is false then the network's local status is returned.
 func doNetworkGet(s *state.State, r *http.Request, allNodes bool, requestProjectName string, reqProjectConfig map[string]string, networkName string) (api.Network, error) {
-	// Effective project may not be set if getting networks for all projects.
-	effectiveProjectName := requestProjectName
-	reqInfo := request.GetContextInfo(r.Context())
-	if reqInfo != nil && reqInfo.EffectiveProjectName != "" {
-		effectiveProjectName = reqInfo.EffectiveProjectName
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		// Effective project may not be set if getting networks for all projects.
+		effectiveProjectName = requestProjectName
 	}
 
 	// Ignore veth pairs (for performance reasons).
@@ -1131,10 +1130,9 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, requestProject
 func networkDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	var effectiveProjectName string
-	reqInfo := request.GetContextInfo(r.Context())
-	if reqInfo != nil {
-		effectiveProjectName = reqInfo.EffectiveProjectName
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
@@ -1258,10 +1256,9 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(errors.New("Renaming clustered network not supported"))
 	}
 
-	var effectiveProjectName string
-	reqInfo := request.GetContextInfo(r.Context())
-	if reqInfo != nil {
-		effectiveProjectName = reqInfo.EffectiveProjectName
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
@@ -1390,10 +1387,9 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	var effectiveProjectName string
-	reqInfo := request.GetContextInfo(r.Context())
-	if reqInfo != nil {
-		effectiveProjectName = reqInfo.EffectiveProjectName
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)

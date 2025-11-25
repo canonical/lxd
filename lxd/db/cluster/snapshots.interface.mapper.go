@@ -29,10 +29,6 @@ type InstanceSnapshotGenerated interface {
 	// generator: instance_snapshot ID
 	GetInstanceSnapshotID(ctx context.Context, tx *sql.Tx, project string, instance string, name string) (int64, error)
 
-	// InstanceSnapshotExists checks if a instance_snapshot with the given key exists.
-	// generator: instance_snapshot Exists
-	InstanceSnapshotExists(ctx context.Context, tx *sql.Tx, project string, instance string, name string) (bool, error)
-
 	// CreateInstanceSnapshotConfig adds new instance_snapshot Config to the database.
 	// generator: instance_snapshot Create
 	CreateInstanceSnapshotConfig(ctx context.Context, tx *sql.Tx, instanceSnapshotID int64, config map[string]string) error

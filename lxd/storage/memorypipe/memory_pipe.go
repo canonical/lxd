@@ -103,7 +103,7 @@ func (p *pipe) Close() error {
 // NewPipePair returns a pair of io.ReadWriterCloser pipes that are connected together such that
 // writes to one will appear as reads on the other and vice versa. Calling Close() on one end will
 // indicate to the other end that the session has ended.
-func NewPipePair(ctx context.Context) (io.ReadWriteCloser, io.ReadWriteCloser) {
+func NewPipePair(ctx context.Context) (reader io.ReadWriteCloser, writer io.ReadWriteCloser) {
 	aEnd := &pipe{
 		ch:  make(chan msg, bufferSize),
 		ctx: ctx,

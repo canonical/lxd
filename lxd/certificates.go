@@ -185,7 +185,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if len(withEntitlements) > 0 {
-			err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeCertificate, withEntitlements, urlToCertificate)
+			err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeCertificate, withEntitlements, urlToCertificate)
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -529,14 +529,14 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		userCanCreateCertificates = true
 	}
 
-	reqInfo := request.GetContextInfo(r.Context())
-	if reqInfo == nil {
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
 		return response.SmartError(errors.New("Failed to get authentication status: Missing request context info"))
 	}
 
 	// If caller is already trusted and the trust token is provided, we validate the token and cancel
 	// the corresponding token operation.
-	if reqInfo.Trusted && req.TrustToken != "" {
+	if requestor.IsTrusted() && req.TrustToken != "" {
 		// Decode the trust token.
 		joinToken, err := shared.CertificateTokenDecode(req.TrustToken)
 		if err != nil {
@@ -557,7 +557,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// If caller is already trusted and does not have permission to create certificates, they cannot create more certificates.
-	if reqInfo.Trusted && !userCanCreateCertificates && req.Certificate == "" && !req.Token {
+	if requestor.IsTrusted() && !userCanCreateCertificates && req.Certificate == "" && !req.Token {
 		return response.BadRequest(errors.New("Client is already trusted"))
 	}
 
@@ -833,7 +833,7 @@ func certificateGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeCertificate, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.CertificateURL(cert.Fingerprint): cert})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeCertificate, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.CertificateURL(cert.Fingerprint): cert})
 		if err != nil {
 			return response.SmartError(err)
 		}

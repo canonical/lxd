@@ -96,11 +96,11 @@ EOF
 
     # Add remote using the correct token.
     # This should work because the client certificate is signed by the CA.
-    token="$(lxc config trust add --name foo -q)"
+    token="$(lxc config trust add --name bar -q)"
     lxc_remote remote add pki-lxd "${LXD5_ADDR}" --token "${token}"
 
     # Should have trust store entry because `core.trust_ca_certificates` is disabled.
-    lxc_remote config trust list pki-lxd: --format csv | grep -F "client,foo,unrestricted,$(printf '%.12s' "${fingerprint}")"
+    lxc_remote config trust list pki-lxd: --format csv | grep -F "client,bar,unrestricted,$(printf '%.12s' "${fingerprint}")"
     [ "$(lxc config trust list --format csv | wc -l)" = 2 ]
 
     # The certificate was not restricted, so should be able to view server config
@@ -127,7 +127,7 @@ EOF
     [ "$(lxc config trust list --format csv | wc -l)" = 1 ]
 
     # The certificate is now revoked, we shouldn't be able to re-add it.
-    token="$(lxc config trust add --name foo -q)"
+    token="$(lxc config trust add --name snap -q)"
     ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --token "${token}" || false
     [ "$(lxc config trust list --format csv | wc -l)" = 1 ]
 
@@ -145,11 +145,11 @@ EOF
 
     # Add remote using the correct token (restricted).
     # This should work because the client certificate is signed by the CA.
-    token="$(lxc config trust add --name foo --quiet --restricted)"
+    token="$(lxc config trust add --name baz --quiet --restricted)"
     lxc_remote remote add pki-lxd "${LXD5_ADDR}" --token "${token}"
 
     # Should have a trust store entry because `core.trust_ca_certificates` is disabled.
-    lxc_remote config trust list pki-lxd: --format csv | grep -F "client,foo,restricted,$(printf '%.12s' "${fingerprint}")"
+    lxc_remote config trust list pki-lxd: --format csv | grep -F "client,baz,restricted,$(printf '%.12s' "${fingerprint}")"
     [ "$(lxc config trust list --format csv | wc -l)" = 2 ]
 
     # The certificate was restricted, so should not be able to view server config
@@ -186,7 +186,7 @@ EOF
     lxc config unset core.trust_ca_certificates
 
     # The certificate is now revoked, we shouldn't be able to re-add it.
-    token="$(lxc config trust add --name foo -q)"
+    token="$(lxc config trust add --name crackle -q)"
     ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --token "${token}" || false
     [ "$(lxc config trust list --format csv | wc -l)" = 1 ]
 
@@ -204,11 +204,11 @@ EOF
 
     # Add remote using the correct token.
     # This should work because the client certificate is signed by the CA.
-    token="$(lxc auth identity create tls/foo --quiet)"
+    token="$(lxc auth identity create tls/fizz --quiet)"
     lxc_remote remote add pki-lxd "${LXD5_ADDR}" --token "${token}"
 
     # Should be shown in `identity list` because `core.trust_ca_certificates` is disabled.
-    lxc_remote auth identity list pki-lxd: --format csv | grep -F "tls,Client certificate,foo,${fingerprint}"
+    lxc_remote auth identity list pki-lxd: --format csv | grep -F "tls,Client certificate,fizz,${fingerprint}"
 
     # Should not be shown `lxc config trust list` because it is a fine-grained identity that can't be managed via this subcommand.
     [ "$(lxc config trust list --format csv | wc -l)" = 1 ]
@@ -245,15 +245,15 @@ EOF
     lxc config unset core.trust_ca_certificates
 
     # The certificate is now revoked, we can create a pending identity.
-    token="$(lxc auth identity create tls/bar --quiet)"
-    lxc auth identity list --format csv | grep -F 'tls,Client certificate (pending),bar'
+    token="$(lxc auth identity create tls/buzz --quiet)"
+    lxc auth identity list --format csv | grep -F 'tls,Client certificate (pending),buzz'
     # But adding the remote will not work
     ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --token "${token}" || false
     # And the identity should still be pending.
-    lxc auth identity list --format csv | grep -F 'tls,Client certificate (pending),bar'
+    lxc auth identity list --format csv | grep -F 'tls,Client certificate (pending),buzz'
 
     # The pending TLS identity can be deleted
-    lxc auth identity delete tls/bar
+    lxc auth identity delete tls/buzz
 
     ### CA signed certificate with `core.trust_ca_certificates` enabled.
 
@@ -332,7 +332,7 @@ EOF
 
     # Try adding a remote using a revoked client certificate, and the correct token.
     # This should fail, and the revoked certificate should not be added to the trust store.
-    token="$(lxc config trust add --name foo -q)"
+    token="$(lxc config trust add --name spam -q)"
     ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --token "${token}" || false
     [ "$(lxc config trust list --format csv | wc -l)" = 1 ]
 
@@ -356,7 +356,7 @@ EOF
 
     # Try adding a remote using a revoked client certificate, and the correct token.
     # This should fail, and the revoked certificate should not be added to the trust store.
-    token="$(lxc config trust add --name foo -q)"
+    token="$(lxc config trust add --name ham -q)"
     ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --token "${token}" || false
     [ "$(lxc config trust list --format csv | wc -l)" = 1 ]
 
@@ -366,11 +366,11 @@ EOF
     [ "$(lxc config trust list --format csv | wc -l)" = 1 ]
 
     # The revoked certificate is not valid when an identity token is used either.
-    token="$(lxc auth identity create tls/bar --quiet)"
-    lxc auth identity list --format csv | grep -F 'tls,Client certificate (pending),bar'
+    token="$(lxc auth identity create tls/pop --quiet)"
+    lxc auth identity list --format csv | grep -F 'tls,Client certificate (pending),pop'
     ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --token "${token}" || false
-    lxc auth identity list --format csv | grep -F 'tls,Client certificate (pending),bar'
-    lxc auth identity delete tls/bar
+    lxc auth identity list --format csv | grep -F 'tls,Client certificate (pending),pop'
+    lxc auth identity delete tls/pop
 
     # Try adding a remote using a revoked client certificate, and an incorrect token.
     # This should fail, as if the certificate is revoked and token is wrong then no access should be allowed.

@@ -774,10 +774,19 @@ EOF
 }
 
 test_basic_version() {
-  # XXX: add `fuidshift` to the list
-  for bin in lxc lxd lxd-agent lxd-benchmark lxd-migrate lxd-user; do
+  for bin in lxc lxd lxd-agent lxd-benchmark lxd-migrate lxd-user fuidshift; do
     "${bin}" --version
     "${bin}" --help
+  done
+
+  # lxd subcommands
+  for sub in activateifneeded callhook import init manpage migratedump netcat recover shutdown sql version waitready cluster; do
+      lxd "${sub}" --help
+  done
+
+  # lxd fork subcommands, except for: forkcoresched forkexec forkproxy forksyscall forkuevent
+  for sub in forkconsole forkdns forkfile forklimits forkmigrate forksyscallgo forkmount forknet forkstart forkzfs; do
+      lxd "${sub}" --help
   done
 }
 
@@ -796,4 +805,128 @@ test_server_info() {
   else
     lxc query /1.0 | jq -re '.environment.server_version' | grep -xE '[0-9]+\.[0-9]+'
   fi
+}
+
+test_duplicate_detection() {
+  ensure_import_testimage
+  test_image_fingerprint="$(lxc query /1.0/images/aliases/testimage | jq -r '.target')"
+
+  lxc auth group create foo
+  [ "$(! "${_LXC}" auth group create foo 2>&1 1>/dev/null)" = 'Error: Authorization group "foo" already exists' ]
+  lxc auth group create bar
+  [ "$(! "${_LXC}" auth group rename bar foo 2>&1 1>/dev/null)" = 'Error: Authorization group "foo" already exists' ]
+  lxc auth group delete foo
+  lxc auth group delete bar
+
+  lxc auth identity-provider-group create foo
+  [ "$(! "${_LXC}" auth identity-provider-group create foo 2>&1 1>/dev/null)" = 'Error: Identity provider group "foo" already exists' ]
+  lxc auth identity-provider-group create bar
+  [ "$(! "${_LXC}" auth identity-provider-group rename bar foo 2>&1 1>/dev/null)" = 'Error: Identity provider group "foo" already exists' ]
+  lxc auth identity-provider-group delete foo
+  lxc auth identity-provider-group delete bar
+
+  lxc auth identity create tls/foo
+  [ "$(! "${_LXC}" auth identity create tls/foo 2>&1 1>/dev/null)" = 'Error: An identity with name "foo" already exists' ]
+  lxc auth identity delete tls/foo
+
+  lxc project create foo
+  [ "$(! "${_LXC}" project create foo 2>&1 1>/dev/null)" = 'Error: Project "foo" already exists' ]
+  lxc project create bar
+  [ "$(! "${_LXC}" project rename bar foo 2>&1 1>/dev/null)" = 'Error: A project named "foo" already exists' ]
+  lxc project delete foo
+  lxc project delete bar
+
+  [ "$(! "${_LXC}" image alias create testimage "${test_image_fingerprint}" 2>&1 1>/dev/null)" = 'Error: Alias "testimage" already exists' ]
+
+  lxc init foo --empty
+  [ "$(! "${_LXC}" init foo --empty 2>&1 1>/dev/null)" = 'Error: Failed creating instance record: Instance "foo" already exists' ]
+  lxc init bar --empty
+  [ "$(! "${_LXC}" rename bar foo 2>&1 1>/dev/null)" = 'Error: Name "foo" already in use' ]
+  lxc delete bar
+
+  lxc snapshot foo snap0
+  [ "$(! "${_LXC}" snapshot foo snap0 2>&1 1>/dev/null)" = 'Error: Failed creating instance snapshot record "snap0": Snapshot "foo/snap0" already exists' ]
+  lxc snapshot foo snap1
+  [ "$(! "${_LXC}" rename foo/snap1 foo/snap0 2>&1 1>/dev/null)" = 'Error: Name "foo/snap0" already in use' ]
+  lxc delete foo/snap0
+  lxc delete foo/snap1
+  lxc delete foo
+
+  lxc network create foo
+  [ "$(! "${_LXC}" network create foo 2>&1 1>/dev/null)" = 'Error: The network already exists' ]
+  lxc network create bar
+  [ "$(! "${_LXC}" network rename bar foo 2>&1 1>/dev/null)" = 'Error: Network "foo" already exists' ]
+  lxc network delete bar
+
+  lxc network acl create foo
+  [ "$(! "${_LXC}" network acl create foo 2>&1 1>/dev/null)" = 'Error: The network ACL already exists' ]
+  lxc network acl create bar
+  [ "$(! "${_LXC}" network acl rename bar foo 2>&1 1>/dev/null)" = 'Error: An ACL by that name exists already' ]
+  lxc network acl delete foo
+  lxc network acl delete bar
+
+  lxc network zone create foo
+  [ "$(! "${_LXC}" network zone create foo 2>&1 1>/dev/null)" = 'Error: The network zone already exists' ]
+  lxc network zone delete foo
+
+  lxc network forward create foo 10.1.1.1
+  [ "$(! "${_LXC}" network forward create foo 10.1.1.1 2>&1 1>/dev/null)" = 'Error: Failed creating forward: A forward for that listen address already exists' ]
+  lxc network forward delete foo 10.1.1.1
+  lxc network delete foo
+
+  if ovn_enabled; then
+    setup_ovn
+    uplink_network="uplink$$"
+    ip link add dummy0 type dummy
+    lxc network create "${uplink_network}" --type=physical parent=dummy0
+    lxc network set "${uplink_network}" ipv4.ovn.ranges=192.0.2.100-192.0.2.254
+    lxc network set "${uplink_network}" ipv6.ovn.ranges=2001:db8:1:2::100-2001:db8:1:2::254
+    lxc network set "${uplink_network}" ipv4.routes=192.0.2.0/24
+    lxc network set "${uplink_network}" ipv6.routes=2001:db8:1:2::/64
+    lxc network create foo-ovn --type ovn network="${uplink_network}"
+
+    lxc network load-balancer create foo-ovn 192.0.2.10
+    [ "$(! "${_LXC}" network load-balancer create foo-ovn 192.0.2.10 2>&1 1>/dev/null)" = 'Error: Failed creating load balancer: Listen address "192.0.2.10" overlaps with another network or NIC' ]
+    lxc network load-balancer delete foo-ovn 192.0.2.10
+
+    lxc network create foo-ovn2 --type ovn network="${uplink_network}"
+    lxc network peer create foo-ovn foo foo-ovn2
+    [ "$(! "${_LXC}" network peer create foo-ovn foo foo-ovn2 2>&1 1>/dev/null)" = 'Error: Failed creating peer: A peer for that name already exists' ]
+    lxc network peer delete foo-ovn foo
+
+    lxc network delete foo-ovn
+    lxc network delete foo-ovn2
+    lxc network delete "${uplink_network}"
+    ip link delete dummy0
+    unset_ovn_configuration
+  fi
+
+  lxc profile create foo
+  [ "$(! "${_LXC}" profile create foo 2>&1 1>/dev/null)" = 'Error: Error inserting "foo" into database: The profile already exists' ]
+  lxc profile create bar
+  [ "$(! "${_LXC}" profile rename bar foo 2>&1 1>/dev/null)" = 'Error: Name "foo" already in use' ]
+  lxc profile delete foo
+  lxc profile delete bar
+
+  lxc storage create foo dir
+  [ "$(! "${_LXC}" storage create foo dir 2>&1 1>/dev/null)" = 'Error: Storage pool "foo" already exists' ]
+
+  lxc storage bucket create foo foo
+  [ "$(! "${_LXC}" storage bucket create foo foo 2>&1 1>/dev/null)" = 'Error: Failed creating storage bucket: Failed inserting storage bucket "foo" for project "default" in pool "foo" into database: A bucket for that name already exists' ]
+  lxc storage bucket delete foo foo
+
+  lxc storage volume create foo foo
+  [ "$(! "${_LXC}" storage volume create foo foo 2>&1 1>/dev/null)" = 'Error: Volume by that name already exists' ]
+  lxc storage volume create foo bar
+  [ "$(! "${_LXC}" storage volume rename foo bar foo 2>&1 1>/dev/null)" = 'Error: Volume by that name already exists' ]
+  lxc storage volume delete foo bar
+
+  lxc storage volume snapshot foo foo snap0
+  [ "$(! "${_LXC}" storage volume snapshot foo foo snap0 2>&1 1>/dev/null)" = 'Error: Snapshot "snap0" already in use' ]
+  lxc storage volume snapshot foo foo snap1
+  [ "$(! "${_LXC}" storage volume rename foo foo/snap1 foo/snap0 2>&1 1>/dev/null)" = 'Error: Storage volume snapshot "snap0" already exists for volume "foo"' ]
+  lxc storage volume delete foo foo/snap0
+  lxc storage volume delete foo foo/snap1
+  lxc storage volume delete foo foo
+  lxc storage delete foo
 }

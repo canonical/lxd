@@ -185,7 +185,7 @@ test_clustering_membership() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -269,10 +269,10 @@ test_clustering_membership() {
 
   # Gracefully remove a node and check trust certificate is removed.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep node4
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT count(*) FROM identities WHERE type = 3 and name = "node4"')" = 1 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT COUNT(*) FROM identities WHERE type = 3 and name = "node4"')" = 1 ]
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster remove node4
   ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep node4 || false
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT count(*) FROM identities WHERE type = 3 and name = "node4"')" = 0 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT COUNT(*) FROM identities WHERE type = 3 and name = "node4"')" = 0 ]
 
   # The node isn't clustered anymore.
   ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster list || false
@@ -387,7 +387,7 @@ test_clustering_containers() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -581,7 +581,7 @@ test_clustering_storage() {
   # The state of the preseeded storage pool shows up as CREATED
   LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF data | grep -wF CREATED
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -1095,7 +1095,7 @@ test_clustering_network() {
   # The state of the preseeded network shows up as CREATED
   LXD_DIR="${LXD_ONE_DIR}" lxc network list | grep -F "${bridge}" | grep -wF CREATED
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Create a project with restricted.networks.subnets set to check the default networks are created before projects
@@ -1343,7 +1343,7 @@ test_clustering_upgrade() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -1435,7 +1435,7 @@ test_clustering_downgrade() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -1525,7 +1525,7 @@ test_clustering_upgrade_large() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   for i in $(seq 2 "${N}"); do
@@ -1574,7 +1574,7 @@ test_clustering_publish() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -1623,7 +1623,7 @@ test_clustering_profiles() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -1723,7 +1723,7 @@ test_clustering_update_cert() {
   ! cmp -s "${LXD_ONE_DIR}/cluster.crt" "${cert_path}" || false
   ! cmp -s "${LXD_ONE_DIR}/cluster.key" "${key_path}" || false
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -1798,7 +1798,7 @@ test_clustering_update_cert_reversion() {
   ! cmp -s "${LXD_ONE_DIR}/cluster.crt" "${cert_path}" || false
   ! cmp -s "${LXD_ONE_DIR}/cluster.key" "${key_path}" || false
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -1887,7 +1887,7 @@ test_clustering_update_cert_token() {
   ! cmp -s "${LXD_ONE_DIR}/cluster.crt" "${cert_path}" || false
   ! cmp -s "${LXD_ONE_DIR}/cluster.key" "${key_path}" || false
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -2017,7 +2017,7 @@ test_clustering_shutdown_nodes() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -2085,7 +2085,7 @@ test_clustering_projects() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -2143,7 +2143,7 @@ test_clustering_metrics() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -2233,7 +2233,7 @@ test_clustering_address() {
   lxc remote add cluster --password sekret --accept-certificate "${url}"
   lxc storage list cluster: | grep -F data
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node using a custom cluster port
@@ -2296,7 +2296,7 @@ test_clustering_image_replication() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -2553,7 +2553,7 @@ test_clustering_fan() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -2636,7 +2636,7 @@ test_clustering_recover() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -2700,6 +2700,140 @@ test_clustering_recover() {
   kill_lxd "${LXD_THREE_DIR}"
 }
 
+# Putting HAproxy in front of a cluster allows to use a single address to access
+# the cluster, filter out some bogus/spam/malicious requests without terminating
+# TLS and while preserving the original client IP addresses.
+test_clustering_ha() {
+  local LXD_DIR
+  local successes
+  local failures
+  local FOUND_RADOSGW
+
+  # Workaround radosgw binding port 80
+  FOUND_RADOSGW="false"
+  if command -v microceph >/dev/null && ss --no-header -nltp 'sport inet:80' | grep -wF radosgw >/dev/null; then
+    FOUND_RADOSGW="true"
+    microceph disable rgw
+  fi
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # Add a newline at the end of each line. YAML has weird rules.
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  # Spawn a second node
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
+
+  echo "Get IP:port of all cluster members"
+  LXD_ONE_ADDR="$(LXD_DIR="${LXD_ONE_DIR}" lxc config get core.https_address)"
+  LXD_TWO_ADDR="$(LXD_DIR="${LXD_TWO_DIR}" lxc config get core.https_address)"
+
+  # Extract host and port of the first member
+  LXD_ONE_HOST="$(echo "${LXD_ONE_ADDR}" | cut -d: -f1)"
+  LXD_ONE_PORT="$(echo "${LXD_ONE_ADDR}" | cut -d: -f2)"
+
+  echo "Configure HAproxy"
+  HOSTNAME="$(hostname)"
+  PROXY_PROTOCOL="true"
+  CONN_RATE="20"
+  setup_haproxy
+  configure_haproxy "${HOSTNAME}" "${PROXY_PROTOCOL}" "${CONN_RATE}" "${LXD_ONE_ADDR}" "${LXD_TWO_ADDR}" > /etc/haproxy/haproxy.cfg
+  start_haproxy
+
+  # Add a host entry for the HAproxy frontend address
+  echo "127.1.2.3 ${HOSTNAME}" >> /etc/hosts
+
+  echo "Get a remote add token"
+  token="$(LXD_DIR="${LXD_ONE_DIR}" lxc config trust add --name foo --quiet)"
+
+  if [ "${PROXY_PROTOCOL}" = "true" ]; then
+    echo "Check that the communication fails due to using the PROXY protocol while LXD does not expect it"
+    ! lxc remote add ha-cluster "https://${HOSTNAME}:443" --token "${token}" || false
+
+    echo "Configure LXD to accept the PROXY protocol from HAproxy's address"
+    HAPROXY_ADDR="$(ip route get "${LXD_ONE_HOST}" | sed -n '/src/ s/.* src \([^ ]\+\) .*/\1/p')"
+    LXD_DIR="${LXD_ONE_DIR}" lxc config set core.https_trusted_proxy "${HAPROXY_ADDR}"
+  fi
+
+  echo "Add a remote going through the HAproxy"
+  lxc remote add ha-cluster "https://${HOSTNAME}:443" --token "${token}"
+
+  echo "Test connectivity through the HAproxy"
+  lxc cluster list ha-cluster:
+
+  echo "Test the HTTP listener for ACME support"
+  # Wrong vhost
+  [ "$(curl -s -o /dev/null -w "%{http_code}" "http://localhost/.well-known/acme-challenge/")" = "403" ]
+  # Wrong path
+  [ "$(curl -s -o /dev/null -w "%{http_code}" "http://${HOSTNAME}/.well-known/foo-bar")" = "403" ]
+  # Valid path
+  [ "$(curl -s -o /dev/null -w "%{http_code}" "http://${HOSTNAME}/.well-known/acme-challenge/")" = "301" ]
+  [ "$(curl -s -o /dev/null -w "%{redirect_url}" "http://${HOSTNAME}/.well-known/acme-challenge/")" = "https://${HOSTNAME}/.well-known/acme-challenge/" ]
+
+  echo "Verify direct connectivity to a member that will later be removed"
+  nc -zv "${LXD_ONE_HOST}" "${LXD_ONE_PORT}"
+
+  echo "Remove one of the cluster members"
+  lxc cluster remove ha-cluster:node1 --yes
+  sleep 0.5
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+  ! nc -zv "${LXD_ONE_HOST}" "${LXD_ONE_PORT}" || false
+
+  # Allow time for dqlite to reshuffle roles.
+  sleep 0.5
+
+  echo "Verify that remaining members are able to serve requests"
+  lxc cluster list ha-cluster:
+
+  echo "Test rate limit is enforced and some connections are rejected"
+  successes=0
+  failures=0
+  for i in $(seq "$((CONN_RATE + 5))"); do
+    echo "Connection attempt (${i})"
+    if lxc query ha-cluster:/ >/dev/null; then
+      successes="$((successes+1))"
+    else
+      failures="$((failures+1))"
+    fi
+  done
+
+  echo "Successes: ${successes}, Failures: ${failures}"
+  [ "${successes}" -ge 1 ]
+  [ "${failures}" -ge 10 ]
+
+  echo "Cleanup"
+  lxc remote remove ha-cluster
+
+  stop_haproxy
+  sed -i '/^127\.1\.2\.3/ d' /etc/hosts
+
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+
+  # Restore the original state of the system
+  if [ "${FOUND_RADOSGW}" = "true" ]; then
+    microceph enable rgw
+  fi
+}
+
 # When a voter cluster member is shutdown, its role gets transferred to a spare
 # node.
 test_clustering_handover() {
@@ -2717,7 +2851,7 @@ test_clustering_handover() {
 
   echo "Launched member 1"
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -2829,7 +2963,7 @@ test_clustering_rebalance() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -2913,7 +3047,7 @@ test_clustering_remove_raft_node() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -2982,8 +3116,8 @@ test_clustering_remove_raft_node() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -xF -- "- database"
 
   # The second node is still in the raft_nodes table.
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT count(*) FROM raft_nodes WHERE address = '100.64.1.102:8443'")" = 1 ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT count(*) FROM raft_nodes")" = 4 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT COUNT(*) FROM raft_nodes WHERE address = '100.64.1.102:8443'")" = 1 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT COUNT(*) FROM raft_nodes")" = 4 ]
 
   # Force removing the raft node.
   LXD_DIR="${LXD_ONE_DIR}" lxd cluster remove-raft-node -q "100.64.1.102"
@@ -2998,8 +3132,8 @@ test_clustering_remove_raft_node() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -xF -- "- database"
 
   # The second node is gone from the raft_nodes_table.
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT count(*) FROM raft_nodes WHERE address = '100.64.1.102:8443'")" = 0 ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT count(*) FROM raft_nodes")" = 3 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT COUNT(*) FROM raft_nodes WHERE address = '100.64.1.102:8443'")" = 0 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql local --format csv "SELECT COUNT(*) FROM raft_nodes")" = 3 ]
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
@@ -3030,7 +3164,7 @@ test_clustering_failure_domains() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -3138,7 +3272,7 @@ test_clustering_image_refresh() {
   # The state of the preseeded storage pool shows up as CREATED
   LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF data | grep -wF CREATED
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -3212,9 +3346,9 @@ test_clustering_image_refresh() {
   if [ "${poolDriver}" != "dir" ]; then
     # Check image storage volume records exist.
     if [ "${poolDriver}" = "ceph" ]; then
-      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 1 ]
+      [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 1 ]
     else
-      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 3 ]
+      [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 3 ]
     fi
   fi
 
@@ -3244,11 +3378,11 @@ test_clustering_image_refresh() {
   if [ "${poolDriver}" != "dir" ]; then
     # Check image storage volume records actually removed from relevant members and replaced with new fingerprint.
     if [ "${poolDriver}" = "ceph" ]; then
-      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 0 ]
-      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name = '${new_fingerprint}'")" = 1 ]
+      [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 0 ]
+      [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM storage_volumes WHERE name = '${new_fingerprint}'")" = 1 ]
     else
-      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 1 ]
-      [ "$(lxd sql global --format csv "SELECT count(*) FROM storage_volumes WHERE name = '${new_fingerprint}'")" = 2 ]
+      [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM storage_volumes WHERE name = '${old_fingerprint}'")" = 1 ]
+      [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM storage_volumes WHERE name = '${new_fingerprint}'")" = 2 ]
     fi
   fi
 
@@ -3257,11 +3391,11 @@ test_clustering_image_refresh() {
   # Also, it should only show 1 entry for the old image and 2 entries
   # for the new one.
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="foo"')" = "${old_fingerprint}" ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint = '${old_fingerprint}'")" = 1 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM images WHERE fingerprint = '${old_fingerprint}'")" = 1 ]
 
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="default"')" = "${new_fingerprint}" ]
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="bar"')" = "${new_fingerprint}" ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint = '${new_fingerprint}'")" = 2 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM images WHERE fingerprint = '${new_fingerprint}'")" = 2 ]
 
   pids=""
 
@@ -3279,11 +3413,11 @@ test_clustering_image_refresh() {
   done
 
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="foo"')" = "${old_fingerprint}" ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint = '${old_fingerprint}'")" = 1 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM images WHERE fingerprint = '${old_fingerprint}'")" = 1 ]
 
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="default"')" = "${new_fingerprint}" ]
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="bar"')" = "${new_fingerprint}" ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint = '${new_fingerprint}'")" = 2 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM images WHERE fingerprint = '${new_fingerprint}'")" = 2 ]
 
   # Modify public testimage
   dd if=/dev/urandom count=32 | LXD_DIR="${LXD_REMOTE_DIR}" lxc file push - c1/foo
@@ -3307,11 +3441,11 @@ test_clustering_image_refresh() {
   pids=""
 
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="foo"')" = "${old_fingerprint}" ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint = '${old_fingerprint}'")" = 1 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM images WHERE fingerprint = '${old_fingerprint}'")" = 1 ]
 
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="default"')" = "${new_fingerprint}" ]
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="bar"')" = "${new_fingerprint}" ]
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM images WHERE fingerprint = '${new_fingerprint}'")" = 2 ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM images WHERE fingerprint = '${new_fingerprint}'")" = 2 ]
 
   # Clean up everything
   for project in default foo bar; do
@@ -3375,7 +3509,7 @@ test_clustering_evacuation() {
   # The state of the preseeded storage pool shows up as CREATED
   LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -wF data | grep -wF CREATED
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -3553,7 +3687,7 @@ test_clustering_edit_configuration() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -3701,7 +3835,7 @@ test_clustering_remove_members() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -3830,7 +3964,7 @@ test_clustering_autotarget() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -3878,7 +4012,7 @@ test_clustering_groups() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
-  # Add a newline at the end of each line. YAML as weird rules..
+  # Add a newline at the end of each line. YAML has weird rules.
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
   # Spawn a second node
@@ -3909,6 +4043,14 @@ test_clustering_groups() {
   # Nodes need to belong to at least one group, removing it from the default group should therefore fail
   ! lxc cluster group remove cluster:node1 default || false
 
+  # Check duplicates cannot be created
+  lxc cluster group create cluster:foo
+  [ "$(! "${_LXC}" cluster group create cluster:foo 2>&1 1>/dev/null)" = 'Error: Cluster group "foo" already exists' ]
+  lxc cluster group create cluster:bar
+  [ "$(! "${_LXC}" cluster group rename cluster:bar foo 2>&1 1>/dev/null)" = 'Error: Name "foo" already in use' ]
+  lxc cluster group delete cluster:foo
+  lxc cluster group delete cluster:bar
+
   # Create new cluster group which should be empty
   lxc cluster group create cluster:foobar
   [ "$(lxc query cluster:/1.0/cluster/groups/foobar | jq '.members | length')" -eq 0 ]
@@ -3937,6 +4079,9 @@ test_clustering_groups() {
 
   [ "$(lxc query cluster:/1.0/cluster/members/node2 | jq 'any(.groups[] == "default"; .)')" = "false" ]
   [ "$(lxc query cluster:/1.0/cluster/members/node2 | jq 'any(.groups[] == "foobar"; .)')" = "true" ]
+
+  # Remove node2 from "foobar" group should fail as node2 is not in any other group
+  ! lxc cluster group remove cluster:node2 foobar || false
 
   # Rename group "foobar" to "blah"
   lxc cluster group rename cluster:foobar blah

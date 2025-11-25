@@ -53,6 +53,10 @@ var powerFlexVolTypePrefixes = map[VolumeType]string{
 	VolumeTypeCustom:    "u",
 }
 
+// powerFlexSnapshotPrefix is a prefix used ONLY for actual PowerFlex snapshots of a volume.
+// It is NOT used for snapshots made when copying a volume with powerflex.snapshot_copy=true.
+var powerFlexSnapshotPrefix = "s"
+
 // powerFlexError contains arbitrary error responses from PowerFlex.
 // The maps values can be of various types.
 // Reading of the actual values is performed by specific receiver
@@ -491,6 +495,20 @@ func (p *powerFlexClient) overwriteVolume(volumeID string, snapshotID string) er
 	return nil
 }
 
+// renameVolume renames the volume behind volumeID to newName.
+func (p *powerFlexClient) renameVolume(volumeID string, newName string) error {
+	body := map[string]any{
+		"newName": newName,
+	}
+
+	err := p.requestAuthenticated(http.MethodPost, "/api/instances/Volume::"+volumeID+"/action/setVolumeName", body, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to rename volume: %q: %w", volumeID, err)
+	}
+
+	return nil
+}
+
 // createVolumeSnapshot creates a new volume snapshot under the given systemID for the volume behind volumeID.
 // The accessMode can be either ReadWrite or ReadOnly.
 // The returned string represents the ID of the snapshot.
@@ -922,7 +940,7 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 
 	switch d.config["powerflex.mode"] {
 	case connectors.TypeNVME:
-		unlock, err := remoteVolumeMapLock(connector.Type(), "powerflex")
+		unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
 		if err != nil {
 			return nil, err
 		}
@@ -1116,7 +1134,7 @@ func (d *powerflex) unmapVolume(vol Volume) error {
 			return err
 		}
 
-		unlock, err := remoteVolumeMapLock(connector.Type(), "powerflex")
+		unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
 		if err != nil {
 			return err
 		}
@@ -1254,5 +1272,15 @@ func (d *powerflex) getVolumeName(vol Volume) (string, error) {
 		volumeTypePrefix = volumeTypePrefix + "_"
 	}
 
-	return volumeTypePrefix + volName + suffix, nil
+	volName = volumeTypePrefix + volName + suffix
+
+	// If volume is snapshot, prepend snapshot prefix to its name.
+	// This allows differentiating between snapshots which actually belong to its parent volume
+	// and snapshots which were being created as part of copying a volume using powerflex.snapshot_copy.
+	// The latter are snapshots of the original volume stand on their own and don't use the snapshot prefix.
+	if vol.IsSnapshot() {
+		volName = powerFlexSnapshotPrefix + volName
+	}
+
+	return volName, nil
 }

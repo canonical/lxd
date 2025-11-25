@@ -264,20 +264,20 @@ func (m *Method) getMany(buf *file.Buffer) error {
 			}
 
 			buf.L("%s %s {", branch, activeCriteria(filter, ignoredFilters[i]))
-			var args string
+			var args strings.Builder
 			for _, name := range filter {
 				for _, field := range mapping.Fields {
 					if name == field.Name && shared.IsTrue(field.Config.Get("marshal")) {
 						buf.L("marshaledFilter%s, err := query.Marshal(filter.%s)", name, name)
 						m.ifErrNotNil(buf, true, "nil", "err")
-						args += "marshaledFilter" + name + ","
+						args.WriteString("marshaledFilter" + name + ",")
 					} else if name == field.Name {
-						args += "filter." + name + ","
+						args.WriteString("filter." + name + ",")
 					}
 				}
 			}
 
-			buf.L("args = append(args, []any{%s}...)", args)
+			buf.L("args = append(args, []any{%s}...)", args.String())
 			buf.L("if len(filters) == 1 {")
 			if m.db == "" {
 				buf.L("sqlStmt, err = Stmt(tx, %s)", stmtCodeVar(m.entity, "objects", filter...))
@@ -710,25 +710,25 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		buf.L("}")
 		buf.N()
 		buf.L("queryStr := fmt.Sprintf(%s, fillParent...)", stmtLocal)
-		createParams := ""
+		var createParams strings.Builder
 		columnFields := mapping.ColumnFields("ID")
 		if mapping.Type == ReferenceTable {
 			buf.L("for _, object := range objects {")
 		}
 
 		for i, field := range columnFields {
-			createParams += "object." + field.Name
+			createParams.WriteString("object." + field.Name)
 			if i < len(columnFields) {
-				createParams += ", "
+				createParams.WriteString(", ")
 			}
 		}
 
 		refFields := mapping.RefFields()
 		if len(refFields) == 0 {
-			buf.L("_, err := tx.ExecContext(ctx, queryStr, %s)", createParams)
+			buf.L("_, err := tx.ExecContext(ctx, queryStr, %s)", createParams.String())
 			m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Insert failed for \"%%s_%s\" table: %%w", parent, err)`, lex.Plural(m.entity)))
 		} else {
-			buf.L("result, err := tx.ExecContext(ctx, queryStr, %s)", createParams)
+			buf.L("result, err := tx.ExecContext(ctx, queryStr, %s)", createParams.String())
 			m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Insert failed for \"%%s_%s\" table: %%w", parent, err)`, lex.Plural(m.entity)))
 			buf.L("id, err := result.LastInsertId()")
 			m.ifErrNotNil(buf, true, "fmt.Errorf(\"Failed to fetch ID: %w\", err)")
@@ -741,18 +741,8 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		}
 
 		kind := "create"
-		if mapping.Type != AssociationTable {
-			if replace {
-				kind = "create_or_replace"
-			} else {
-				buf.L("// Check if a %s with the same key exists.", m.entity)
-				buf.L("exists, err := %sExists(ctx, tx, %s)", lex.Camel(m.entity), strings.Join(nkParams, ", "))
-				m.ifErrNotNil(buf, true, "-1", "fmt.Errorf(\"Failed to check for duplicates: %w\", err)")
-				buf.L("if exists {")
-				buf.L(`        return -1, api.StatusErrorf(http.StatusConflict, "This \"%s\" entry already exists")`, entityTable(m.entity, m.config["table"]))
-				buf.L("}")
-				buf.N()
-			}
+		if mapping.Type != AssociationTable && replace {
+			kind = "create_or_replace"
 		}
 
 		if mapping.Type == AssociationTable {
@@ -786,13 +776,20 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		if mapping.Type == AssociationTable {
 			m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, kind)))
 			buf.L("// Execute the statement. ")
-			buf.L("_, err = stmt.Exec(args...)")
+			buf.L("_, err = stmt.ExecContext(ctx, args...)")
 			m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Failed to create \"%s\" entry: %%w", err)`, entityTable(m.entity, m.config["table"])))
 		} else {
 			m.ifErrNotNil(buf, true, "-1", fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, kind)))
 			buf.L("// Execute the statement. ")
-			buf.L("result, err := stmt.Exec(args...)")
-			m.ifErrNotNil(buf, true, "-1", fmt.Sprintf(`fmt.Errorf("Failed to create \"%s\" entry: %%w", err)`, entityTable(m.entity, m.config["table"])))
+			buf.L("result, err := stmt.ExecContext(ctx, args...)")
+			buf.L("if err != nil {")
+			buf.L("    if query.IsConflictErr(err) {")
+			buf.L(`        return -1, api.NewStatusError(http.StatusConflict, "This \"%s\" entry already exists")`, entityTable(m.entity, m.config["table"]))
+			buf.L("    }")
+			buf.N()
+			buf.L(`return -1, fmt.Errorf("Failed to create \"%s\" entry: %%w", err)`, entityTable(m.entity, m.config["table"]))
+			buf.L("}")
+			buf.N()
 			buf.L("id, err := result.LastInsertId()")
 			m.ifErrNotNil(buf, true, "-1", fmt.Sprintf(`fmt.Errorf("Failed to fetch \"%s\" entry ID: %%w", err)`, entityTable(m.entity, m.config["table"])))
 		}
@@ -934,8 +931,15 @@ func (m *Method) rename(buf *file.Buffer) error {
 		}
 	}
 
-	buf.L("result, err := stmt.Exec(to, %s)", mapping.FieldParamsMarshal(nk))
-	m.ifErrNotNil(buf, true, fmt.Sprintf("fmt.Errorf(\"Rename %s failed: %%w\", err)", mapping.Name))
+	buf.L("result, err := stmt.ExecContext(ctx, to, %s)", mapping.FieldParamsMarshal(nk))
+	buf.L("if err != nil {")
+	buf.L("    if query.IsConflictErr(err) {")
+	buf.L(`        return api.NewStatusError(http.StatusConflict, "A \"%s\" entry already exists with this name")`, entityTable(m.entity, m.config["table"]))
+	buf.L("    }")
+	buf.N()
+	buf.L(`return fmt.Errorf("Rename %s failed: %%w", err)`, mapping.Name)
+	buf.L("}")
+	buf.N()
 	buf.L("n, err := result.RowsAffected()")
 	m.ifErrNotNil(buf, true, "fmt.Errorf(\"Fetch affected rows failed: %w\", err)")
 	buf.L("if n != 1 {")
@@ -1060,8 +1064,15 @@ func (m *Method) update(buf *file.Buffer) error {
 			}
 		}
 
-		buf.L("result, err := stmt.Exec(%s)", strings.Join(params, ", ")+", id")
-		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Update \"%s\" entry failed: %%w", err)`, entityTable(m.entity, m.config["table"])))
+		buf.L("result, err := stmt.ExecContext(ctx, %s)", strings.Join(params, ", ")+", id")
+		buf.L("if err != nil {")
+		buf.L("    if query.IsConflictErr(err) {")
+		buf.L(`        return api.NewStatusError(http.StatusConflict, "A \"%s\" entry already exists with these properties")`, entityTable(m.entity, m.config["table"]))
+		buf.L("    }")
+		buf.N()
+		buf.L(`return fmt.Errorf("Update \"%s\" entry failed: %%w", err)`, entityTable(m.entity, m.config["table"]))
+		buf.L("}")
+		buf.N()
 		buf.L("n, err := result.RowsAffected()")
 		m.ifErrNotNil(buf, true, "fmt.Errorf(\"Fetch affected rows: %w\", err)")
 		buf.L("if n != 1 {")
@@ -1149,7 +1160,7 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 		}
 
 		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, "delete", m.config["struct"]+"ID")))
-		buf.L("result, err := stmt.Exec(int(%sID))", lex.Minuscule(m.config["struct"]))
+		buf.L("result, err := stmt.ExecContext(ctx, int(%sID))", lex.Minuscule(m.config["struct"]))
 		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Delete \"%s\" entry failed: %%w", err)`, entityTable(m.entity, m.config["table"])))
 	case ReferenceTable, MapTable:
 		stmtVar := stmtCodeVar(m.entity, "delete")
@@ -1179,7 +1190,7 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 		}
 
 		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, "delete", FieldNames(activeFilters)...)))
-		buf.L("result, err := stmt.Exec(%s)", mapping.FieldParamsMarshal(activeFilters))
+		buf.L("result, err := stmt.ExecContext(ctx, %s)", mapping.FieldParamsMarshal(activeFilters))
 		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Delete \"%s\": %%w", err)`, entityTable(m.entity, m.config["table"])))
 	}
 

@@ -1,6 +1,8 @@
 package ip
 
 import (
+	"context"
+
 	"github.com/canonical/lxd/shared"
 )
 
@@ -32,7 +34,7 @@ func (qdisc *Qdisc) mainCmd() []string {
 // Add adds qdisc to a node.
 func (qdisc *Qdisc) Add() error {
 	cmd := qdisc.mainCmd()
-	_, err := shared.RunCommand("tc", cmd...)
+	_, err := shared.RunCommandContext(context.TODO(), "tc", cmd...)
 	if err != nil {
 		return err
 	}
@@ -51,7 +53,7 @@ func (qdisc *Qdisc) Delete() error {
 		cmd = append(cmd, "ingress")
 	}
 
-	_, err := shared.RunCommand("tc", cmd...)
+	_, err := shared.RunCommandContext(context.TODO(), "tc", cmd...)
 	if err != nil {
 		return err
 	}
@@ -74,7 +76,7 @@ func (qdisc *QdiscHTB) Add() error {
 		cmd = append(cmd, "default", qdisc.Default)
 	}
 
-	_, err := shared.RunCommand("tc", cmd...)
+	_, err := shared.RunCommandContext(context.TODO(), "tc", cmd...)
 	if err != nil {
 		return err
 	}

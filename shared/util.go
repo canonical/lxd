@@ -797,11 +797,6 @@ func IsFalseOrEmpty(value string) bool {
 	return value == "" || IsFalse(value)
 }
 
-// IsUserConfig returns true if the key starts with the prefix "user.".
-func IsUserConfig(key string) bool {
-	return strings.HasPrefix(key, "user.")
-}
-
 // StringMapHasStringKey returns true if any of the supplied keys are present in the map.
 func StringMapHasStringKey(m map[string]string, keys ...string) bool {
 	for _, k := range keys {

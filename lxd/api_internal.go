@@ -1047,8 +1047,8 @@ func internalImportFromBackup(ctx context.Context, s *state.State, projectName s
 // device will be added, if the root disk config in the current profiles matches the effective backup.yaml config.
 func internalImportRootDevicePopulate(instancePoolName string, localDevices map[string]map[string]string, expandedDevices map[string]map[string]string, profiles []api.Profile) {
 	// First, check if localDevices from backup.yaml has a root disk.
-	rootName, _, _ := instancetype.GetRootDiskDevice(localDevices)
-	if rootName != "" {
+	rootName, _, err := instancetype.GetRootDiskDevice(localDevices)
+	if err == nil && rootName != "" {
 		localDevices[rootName]["pool"] = instancePoolName
 
 		return // Local root disk device has been set to target pool.

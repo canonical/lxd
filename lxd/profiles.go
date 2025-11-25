@@ -78,9 +78,7 @@ func addProfileDetailsToRequestContext(s *state.State, r *http.Request) error {
 		return fmt.Errorf("Failed to check project %q profile feature: %w", requestProjectName, err)
 	}
 
-	reqInfo := request.GetContextInfo(r.Context())
-	reqInfo.EffectiveProjectName = effectiveProject.Name
-
+	request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProject.Name)
 	request.SetContextValue(r, ctxProfileDetails, profileDetails{
 		profileName:      profileName,
 		effectiveProject: *effectiveProject,
@@ -223,14 +221,15 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	reqInfo := request.GetContextInfo(r.Context())
+	var effectiveProjectName string
 	if !allProjects {
 		p, err := project.ProfileProject(s.DB.Cluster, requestProjectName)
 		if err != nil {
 			return response.SmartError(err)
 		}
 
-		reqInfo.EffectiveProjectName = p.Name
+		effectiveProjectName = p.Name
+		request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	}
 
 	recursion := util.IsRecursionRequest(r)
@@ -251,7 +250,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 		var profiles []dbCluster.Profile
 		if !allProjects {
 			filter := dbCluster.ProfileFilter{
-				Project: &reqInfo.EffectiveProjectName,
+				Project: &effectiveProjectName,
 			}
 
 			profiles, err = dbCluster.GetProfiles(ctx, tx.Tx(), filter)
@@ -320,7 +319,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeProfile, withEntitlements, urlToProfile)
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeProfile, withEntitlements, urlToProfile)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -551,7 +550,7 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 	resp.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, resp.UsedBy)
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeProfile, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ProfileURL(details.effectiveProject.Name, details.profileName): resp})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeProfile, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ProfileURL(details.effectiveProject.Name, details.profileName): resp})
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -616,7 +615,6 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var id int64
 	var profile *api.Profile
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -629,8 +627,6 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return err
 		}
-
-		id = int64(current.ID)
 
 		return nil
 	})
@@ -651,7 +647,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	err = doProfileUpdate(r.Context(), s, details.effectiveProject, details.profileName, id, profile, req)
+	err = doProfileUpdate(r.Context(), s, details.effectiveProject, details.profileName, profile, req)
 
 	if err == nil && !isClusterNotification(r) {
 		// Notify all other nodes. If a node is down, it will be ignored.
@@ -716,7 +712,6 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var id int64
 	var profile *api.Profile
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -729,8 +724,6 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return err
 		}
-
-		id = int64(current.ID)
 
 		return nil
 	})
@@ -798,7 +791,7 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 	requestor := request.CreateRequestor(r.Context())
 	s.Events.SendLifecycle(details.effectiveProject.Name, lifecycle.ProfileUpdated.Event(details.profileName, details.effectiveProject.Name, requestor, nil))
 
-	return response.SmartError(doProfileUpdate(r.Context(), s, details.effectiveProject, details.profileName, id, profile, req))
+	return response.SmartError(doProfileUpdate(r.Context(), s, details.effectiveProject, details.profileName, profile, req))
 }
 
 // swagger:operation POST /1.0/profiles/{name} profiles profile_post

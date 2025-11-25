@@ -2,6 +2,7 @@ github.com/armon/go-proxyproto
 github.com/canonical/lxd/client
 github.com/canonical/lxd/lxd-agent/api
 github.com/canonical/lxd/lxd/auth
+github.com/canonical/lxd/lxd/certificate
 github.com/canonical/lxd/lxd/db/operationtype
 github.com/canonical/lxd/lxd/device/config
 github.com/canonical/lxd/lxd/device/filters
@@ -90,6 +91,7 @@ go.opentelemetry.io/otel/trace
 go.opentelemetry.io/otel/trace/embedded
 go.opentelemetry.io/otel/trace/internal/telemetry
 go.opentelemetry.io/otel/trace/noop
+go.yaml.in/yaml/v2
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/chacha20
 golang.org/x/crypto/curve25519
@@ -115,7 +117,6 @@ golang.org/x/text/internal/tag
 golang.org/x/text/language
 golang.org/x/text/transform
 golang.org/x/text/unicode/norm
-gopkg.in/yaml.v2
 vendor/golang.org/x/crypto/chacha20
 vendor/golang.org/x/crypto/chacha20poly1305
 vendor/golang.org/x/crypto/cryptobyte

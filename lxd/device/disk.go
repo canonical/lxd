@@ -381,6 +381,8 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		"boot.priority": validate.Optional(validate.IsUint32),
 		// lxdmeta:generate(entities=device-disk; group=device-conf; key=path)
 		// This option specifies the path inside the container where the disk will be mounted.
+		// For containers, this option allows mounting filesystem disk devices, as well as specific paths and individual files within those devices.
+		// For VMs, this option allows mounting filesystem disk devices and paths within them. Mounting individual files is not supported.
 		// ---
 		//  type: string
 		//  required: yes
@@ -420,6 +422,10 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	err := d.config.Validate(rules)
 	if err != nil {
 		return err
+	}
+
+	if instConf.Type() == instancetype.Container && d.config["io.threads"] != "" {
+		return errors.New("IO threads configuration cannot be applied to containers")
 	}
 
 	if instConf.Type() == instancetype.Container && d.config["io.bus"] != "" {
@@ -1371,6 +1377,11 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				f, err := d.localSourceOpen(pathSource.Path)
 				if err != nil {
 					return nil, err
+				}
+
+				// Forbid mounting files to FS paths.
+				if d.config["path"] != "" {
+					return nil, errors.New("File mounting to filesystem paths is not supported for virtual machines")
 				}
 
 				revert.Add(func() { _ = f.Close() })

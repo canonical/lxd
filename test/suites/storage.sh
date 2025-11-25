@@ -301,7 +301,6 @@ EOF
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool6" lvm source="${loop_device_3}" source.wipe=true volume.size=25MiB
 
       configure_loop_device loop_file_5 loop_device_5
-      # shellcheck disable=SC2154
       # Should fail if vg does not exist, since we have no way of knowing where
       # to create the vg without a block device path set.
       ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool10" lvm source=test_vg_1 volume.size=25MiB || false

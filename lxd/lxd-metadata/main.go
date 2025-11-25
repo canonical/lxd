@@ -19,19 +19,19 @@ var rootCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) != 1 {
-			log.Fatal("Please provide a path to the project")
+			log.Fatal("Please provide a path to the project") //nolint:revive
 		}
 
 		path := args[0]
 		_, err := parse(path, jsonOutput, exclude, substitutionDBPath)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal(err) //nolint:revive
 		}
 
 		if txtOutput != "" {
 			err = writeDocFile(jsonOutput, txtOutput)
 			if err != nil {
-				log.Fatal(err)
+				log.Fatal(err) //nolint:revive
 			}
 		}
 	},

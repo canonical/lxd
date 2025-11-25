@@ -159,84 +159,130 @@ To enable this feature, set the following server configuration:
 - {config:option}`server-acme:acme.agree_tos`: Must be set to `true` to agree to the ACME service's terms of service.
 - {config:option}`server-acme:acme.ca_url`: The directory URL of the ACME service. By default, LXD uses "Let's Encrypt".
 
-For this feature to work, LXD must be reachable from port 80.
-This can be achieved by using a reverse proxy such as [HAProxy](http://www.haproxy.org/).
+LXD currently only supports the [`HTTP-01 challenge`](https://letsencrypt.org/docs/challenge-types/#http-01-challenge), which requires handling incoming HTTP requests on port 80.
+This can be achieved by using a reverse proxy such as [HAProxy](https://www.haproxy.org/).
 
-Here's a minimal HAProxy configuration that uses `lxd.example.net` as the domain.
+The HAProxy configuration example below uses `lxd.example.net` as the domain.
 After the certificate has been issued, LXD will be reachable from `https://lxd.example.net/`.
+It applies filtering to minimize the amount of undesired traffic coming from the internet reaching the protected LXD cluster.
 
 ```
-# Global configuration
+# HAProxy
 global
   log /dev/log local0
+  log /dev/log local1 notice
   chroot /var/lib/haproxy
   stats socket /run/haproxy/admin.sock mode 660 level admin
   stats timeout 30s
   user haproxy
   group haproxy
   daemon
-  ssl-default-bind-options ssl-min-ver TLSv1.2
-  tune.ssl.default-dh-param 2048
   maxconn 100000
 
-# Default settings
 defaults
   mode tcp
+  log global
+  option tcplog
+  option dontlognull
   timeout connect 5s
   timeout client 30s
   timeout client-fin 30s
-  timeout server 120s
-  timeout tunnel 6h
+  timeout server 30s
+  timeout tunnel 300s
   timeout http-request 5s
+  timeout check 5s
   maxconn 80000
 
-# Default backend - Return HTTP 301 (TLS upgrade)
-backend http-301
+# Frontend for HTTP traffic - HTTP mode for ACME challenges redirection
+frontend http_frontend
+  bind *:80
   mode http
+  option httplog
+
+  # ACME challenges are very low traffic even with MPIC
+  # (Multi-Perspective Issuance Corroboration) validation.
+  maxconn 32
+
+  # Only redirect ACME challenges for known hosts to HTTPS
+  http-request deny unless { hdr(host) lxd.example.com }
+  http-request deny unless { path_beg /.well-known/acme-challenge/ }
   redirect scheme https code 301
 
-# Default backend - Return HTTP 403
-backend http-403
-  mode http
-  http-request deny deny_status 403
+# Frontend for HTTPS traffic - TCP mode with SNI inspection
+frontend https_frontend
+  bind *:443
 
-# HTTP dispatcher
-frontend http-dispatcher
-  bind :80
-  mode http
-
-  # Backend selection
+  # TCP request inspection for SNI and client filtering
   tcp-request inspect-delay 5s
 
-  # Dispatch
-  default_backend http-403
-  use_backend http-301 if { hdr(host) -i lxd.example.net }
+  # Extract SNI from TLS handshake
+  tcp-request content capture req.ssl_sni len 64
 
-# SNI dispatcher
-frontend sni-dispatcher
-  bind :443
-  mode tcp
-
-  # Backend selection
-  tcp-request inspect-delay 5s
-
-  # require TLS
+  # Reject unwanted traffic
+  # non-TLS
   tcp-request content reject unless { req.ssl_hello_type 1 }
 
-  # Dispatch
-  default_backend http-403
-  use_backend lxd-nodes if { req.ssl_sni -i lxd.example.net }
+  # for unknown SNI hosts
+  tcp-request content reject unless { req.ssl_sni lxd.example.com }
 
-# LXD nodes
-backend lxd-nodes
-  mode tcp
+  # using too old TLS version
+  # TLS 1.3 (SSL version 3.4) but it is hard to distinguish TLS 1.2
+  # from 1.3 as TLS 1.3 tries to masquerade as a resumed TLS 1.2
+  # connection to work around broken middleboxes. Reject anything
+  # older than TLS 1.2.
+  # See https://datatracker.ietf.org/doc/html/rfc8446#appendix-D.4
+  tcp-request content reject if { req.ssl_ver lt 3.3 }
 
+  # Rate limiting for LXD traffic (that passed above checks)
+  stick-table type ip size 100k expire 30s store conn_rate(10s)
+  tcp-request content track-sc0 src
+  tcp-request content reject if { sc_conn_rate(0) gt 50 }
+
+  # Route to backend
+  default_backend lxd_cluster_tcp
+
+# Additional frontend for LXD management on different port (optional)
+frontend lxd_management
+  bind *:8443
+
+  # Network restrictions (only allow trusted networks)
+  tcp-request connection reject unless { src 192.0.2.0/24 }
+
+  # Route to backend
+  default_backend lxd_cluster_tcp
+
+# Backend for LXD cluster (TCP mode with TLS passthrough)
+backend lxd_cluster_tcp
+  balance roundrobin
+
+  # Sticky sessions based on TLS session ID (extracted from handshake)
+  stick-table type binary len 32 size 30k expire 30m
+  acl clienthello req_ssl_hello_type 1
+  acl serverhello rep_ssl_hello_type 2
+  # use tcp content accepts to detects ssl client and server hello.
+  tcp-request inspect-delay 5s
+  tcp-request content accept if clienthello
+  # no timeout on response inspect delay by default.
+  tcp-response content accept if serverhello
+  # SSL session ID (SSLID) may be present on a client or server hello.
+  # Its length is coded on 1 byte at offset 43 and its value starts
+  # at offset 44.
+  # Match and learn on request if client hello.
+  stick on payload_lv(43,1) if clienthello
+  # Learn on response if server hello.
+  stick store-response payload_lv(43,1) if serverhello
+
+  # Health checks using simple TCP connect
   option tcp-check
 
-  # Multiple servers should be listed when running a cluster
-  server lxd-node01 1.2.3.4:8443 check
-  server lxd-node02 1.2.3.5:8443 check
-  server lxd-node03 1.2.3.6:8443 check
+  # Failed connections will be redispatched to another cluster member
+  option redispatch
+
+  # LXD cluster members with PROXY protocol and core.https_trusted_proxy
+  server lxd-1 1.2.3.4:8443 check send-proxy
+  server lxd-2 1.2.3.5:8443 check send-proxy
+  server lxd-3 1.2.3.6:8443 check send-proxy
+# EOF
 ```
 
 ## Failure scenarios

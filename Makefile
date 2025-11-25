@@ -11,7 +11,7 @@ GOPATH ?= $(shell go env GOPATH)
 CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 SPHINXENV=doc/.sphinx/venv/bin/activate
 SPHINXPIPPATH=doc/.sphinx/venv/bin/pip
-GOMIN=1.24.5
+GOMIN=1.25.4
 GOTOOLCHAIN=local
 export GOTOOLCHAIN
 GOCOVERDIR ?= $(shell go env GOCOVERDIR)
@@ -98,6 +98,50 @@ else
 endif
 
 	@echo "LXD-MIGRATE built successfully"
+
+.PHONY: devlxd-client
+devlxd-client:
+ifeq "$(GOCOVERDIR)" ""
+	CGO_ENABLED=0 go install -C test -v -trimpath -buildvcs=false -tags netgo ./devlxd-client
+else
+	CGO_ENABLED=0 go install -C test -v -trimpath -buildvcs=false -cover -tags netgo ./devlxd-client
+endif
+
+	@echo "$@ built successfully"
+
+.PHONY: fuidshift
+fuidshift:
+ifeq "$(GOCOVERDIR)" ""
+	go install -v -trimpath -buildvcs=false ./fuidshift
+else
+	go install -v -trimpath -buildvcs=false -cover ./fuidshift
+endif
+
+	@echo "$@ built successfully"
+
+.PHONY: mini-oidc
+mini-oidc:
+ifeq "$(GOCOVERDIR)" ""
+	go install -C test -v -trimpath -buildvcs=false ./mini-oidc
+else
+	go install -C test -v -trimpath -buildvcs=false -cover ./mini-oidc
+endif
+
+	@echo "$@ built successfully"
+
+.PHONY: sysinfo
+sysinfo:
+ifeq "$(GOCOVERDIR)" ""
+	go install -C test -v -trimpath -buildvcs=false ./syscall/sysinfo
+else
+	go install -C test -v -trimpath -buildvcs=false -cover ./syscall/sysinfo
+endif
+
+	@echo "$@ built successfully"
+
+.PHONY: test-binaries
+test-binaries: devlxd-client fuidshift mini-oidc sysinfo
+	@echo "$@ built successfully"
 
 .PHONY: dqlite
 dqlite:
@@ -281,7 +325,7 @@ endif
 	@echo "LXD built successfully"
 
 .PHONY: check
-check: default check-unit
+check: default check-unit test-binaries
 	cd test && ./main.sh
 
 .PHONY: check-unit
@@ -390,6 +434,14 @@ ifeq ($(shell command -v go-licenses),)
 endif
 ifeq ($(shell command -v golangci-lint),)
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin latest
+endif
+ifeq ($(shell command -v errortype), )
+	# XXX: if errortype becomes available as a golangci-lint linter, remove this and update golangci-lint config
+	(cd / ; go install fillmore-labs.com/errortype@latest)
+endif
+ifeq ($(shell command -v zerolint), )
+	# XXX: if zerolint becomes available as a golangci-lint linter, remove this and update golangci-lint config
+	(cd / ; go install fillmore-labs.com/zerolint@latest)
 endif
 ifneq ($(shell command -v yamllint),)
 	yamllint .github/workflows/*.yml

@@ -17,6 +17,10 @@ on:
         required: true
         type: boolean
         default: true
+      tmate-debug:
+        description: Use tmate debugging session on integration test failure.
+        type: boolean
+        default: false
   schedule:
     - cron: '0 0 * * *'  # Test TICS daily
 
@@ -53,7 +57,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
-          # A non-shallow clone is needed for the Differential ShellCheck and golangci-lint
+          # A non-shallow clone is needed for the Differential ShellCheck
           fetch-depth: 0
 
       - name: Require GHA pinning
@@ -200,6 +204,7 @@ jobs:
           # Build from unpacked dist tarball.
           cd /home/runner/work/lxd/lxd-test
           make
+          make test-binaries
 
       - name: Check lxc/lxd-agent binary sizes
         if: env.GOCOVERAGE != 'true'
@@ -207,7 +212,7 @@ jobs:
           set -eux
 
           # bin/max (sizes are in MiB)
-          SIZES="lxc 16
+          SIZES="lxc 17
                  lxd-agent 14"
           MIB="$((1024 * 1024))"
 
@@ -253,9 +258,7 @@ jobs:
       #      useful feedback in the PR through github-code-scanning bot
       - name: Run golangci-lint
         if: github.event_name == 'pull_request'
-        uses: golangci/golangci-lint-action@0a35821d5c230e903fcfe077583637dea1b27b47 # v8
-        with:
-          args: --timeout=5m --new --new-from-rev=${{ github.event.pull_request.base.sha }} --whole-files
+        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
 
       - name: Run static analysis
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.static-analysis == 'true' }}
@@ -298,6 +301,10 @@ jobs:
             /home/runner/go/bin/minio
             /home/runner/go/bin/dqlite
             /home/runner/go/bin/liblxc
+            /home/runner/go/bin/devlxd-client
+            /home/runner/go/bin/fuidshift
+            /home/runner/go/bin/mini-oidc
+            /home/runner/go/bin/sysinfo
           retention-days: 1
 
   system-tests:
@@ -419,6 +426,14 @@ jobs:
           retention-days: 1
         if: env.GOCOVERDIR != ''
 
+      - name: Tmate debugging session
+        if: ${{ failure() && inputs.tmate-debug }}
+        timeout-minutes: 30
+        uses: mxschmitt/action-tmate@7b6a61a73bbb9793cb80ad69b8dd8ac19261834c # v3.22
+        with:
+          # Never allow public SSH access
+          limit-access-to-actor: true
+
   tics:
     name: Tiobe TICS
     runs-on: ubuntu-24.04
@@ -429,6 +444,7 @@ jobs:
       LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
       LD_RUN_PATH: "/home/runner/go/bin/dqlite/libs/"
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
+      GOTOOLCHAIN: "local"
     if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
     steps:
       - name: Checkout
@@ -439,12 +455,6 @@ jobs:
 
       - name: Reclaim some memory
         uses: ./.github/actions/reclaim-memory
-
-      - name: Purge LXD snap
-        # TODO: drop this when moving away from `ubuntu-22.04` runners to `ubuntu-24.04`
-        run: |
-          set -eux
-          sudo snap remove --purge lxd || true
 
       - name: Remove docker
         uses: ./.github/actions/disable-docker
@@ -736,22 +746,24 @@ jobs:
         run: |
           set -eux
           export PATH="/home/runner/go/bin:$PATH"
-          sudo -E lxc storage create default zfs
-          sudo -E lxc profile device add default root disk path=/ pool=default
-          sudo -E lxc network create local-network
-          sudo -E lxc profile device add default eth0 nic network=local-network
-          sudo -E lxc config set core.https_address "[::]:8443"
-          sudo -E lxc config set cluster.https_address "127.0.0.1"
-          sudo -E lxc cluster enable local
-          sudo -E lxc config set user.show_permissions=true
-          sudo -E lxc config trust add lxd-ui/keys/lxd-ui.crt
+          sudo chown $USER /var/lib/lxd/unix.socket
+          sudo ln -s /home/runner/go/bin/lxc /usr/bin/lxc
+          lxc storage create default zfs
+          lxc profile device add default root disk path=/ pool=default
+          lxc network create local-network
+          lxc profile device add default eth0 nic network=local-network
+          lxc config set core.https_address "[::]:8443"
+          lxc config set cluster.https_address "127.0.0.1"
+          lxc cluster enable local
+          lxc config set user.show_permissions=true
+          lxc config trust add lxd-ui/keys/lxd-ui.crt
 
       - name: Setup for LXD-UI tests
         shell: bash
         run: |
           set -eux
           export PATH="/home/runner/go/bin:$PATH"
-          sudo -E ./lxd-ui/tests/scripts/setup_test
+          ./lxd-ui/tests/scripts/setup_test
 
       - name: Test basic LXD functionality
         shell: bash
@@ -760,12 +772,12 @@ jobs:
           export PATH="/home/runner/go/bin:$PATH"
 
           # launch a test instance
-          sudo -E ./test/deps/import-busybox --alias testimage
-          sudo -E lxc launch testimage --quiet c1 -d root,size=32MiB || { sudo -E lxc info --show-log c1; false; }
+          ./test/deps/import-busybox --alias testimage
+          lxc launch testimage --quiet c1 -d root,size=32MiB || { lxc info --show-log c1; false; }
 
           # cleanup
-          sudo -E lxc delete -f c1
-          sudo -E lxc image delete testimage
+          lxc delete -f c1
+          lxc image delete testimage
 
       - name: Run Playwright tests
         env:
@@ -779,7 +791,6 @@ jobs:
           set -eux
           cd lxd-ui
           sudo chown $USER -R /home/runner/.config
-          sudo chown $USER /var/lib/lxd/unix.socket
           export PATH="/home/runner/go/bin:$PATH"
           export CI=true
           export DISABLE_VM_TESTS=true

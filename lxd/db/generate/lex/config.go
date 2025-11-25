@@ -7,12 +7,12 @@ import (
 
 // KeyValue extracts the key and value encoded in the given string and
 // separated by '=' (foo=bar -> foo, bar).
-func KeyValue(s string) (string, string, error) {
-	parts := strings.Split(s, "=")
+func KeyValue(s string) (key string, value string, err error) {
+	key, value, found := strings.Cut(s, "=")
 
-	if len(parts) != 2 {
+	if !found {
 		return "", "", fmt.Errorf("The token %q is not a key/value pair", s)
 	}
 
-	return parts[0], parts[1], nil
+	return key, value, nil
 }

@@ -515,7 +515,7 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 			urlToInstance[u] = res
 		}
 
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeInstance, withEntitlements, urlToInstance)
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeInstance, withEntitlements, urlToInstance)
 		if err != nil {
 			return response.SmartError(err)
 		}

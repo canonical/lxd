@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 
@@ -263,7 +264,7 @@ func (c *ClusterTx) GetNetworkLoadBalancerListenAddresses(ctx context.Context, n
 }
 
 // GetProjectNetworkLoadBalancerListenAddressesByUplink returns map of Network Load Balancer Listen Addresses
-// that belong to networks connected to the specified uplinkNetworkName.
+// that belong to networks connected to the specified uplinkNetworkName. Listen addresses that are internal OVN IPs are omitted.
 // Returns a map keyed on project name and network name containing a slice of listen addresses.
 func (c *ClusterTx) GetProjectNetworkLoadBalancerListenAddressesByUplink(ctx context.Context, uplinkNetworkName string, memberSpecific bool) (map[string]map[string][]string, error) {
 	q := strings.Builder{}
@@ -276,13 +277,18 @@ func (c *ClusterTx) GetProjectNetworkLoadBalancerListenAddressesByUplink(ctx con
 	SELECT
 		projects.name,
 		networks.name,
-		networks_load_balancers.listen_address
+		networks.type,
+		networks_load_balancers.listen_address,
+		nc_ipv4.value AS ipv4_address,
+		nc_ipv6.value AS ipv6_address
 	FROM networks_load_balancers
-	JOIN networks on networks.id = networks_load_balancers.network_id
-	JOIN networks_config on networks.id = networks_config.network_id
+	JOIN networks ON networks.id = networks_load_balancers.network_id
 	JOIN projects ON projects.id = networks.project_id
+	JOIN networks_config AS nc_filter on networks.id = nc_filter.network_id
+	LEFT JOIN networks_config AS nc_ipv4 ON networks.id = nc_ipv4.network_id AND nc_ipv4.key = 'ipv4.address'
+	LEFT JOIN networks_config AS nc_ipv6 ON networks.id = nc_ipv6.network_id AND nc_ipv6.key = 'ipv6.address'
 	WHERE (
-		(networks_config.key = "network" AND networks_config.value = ?1)
+		(nc_filter.key = "network" AND nc_filter.value = ?1)
 		OR (projects.name = "default" AND networks.name = ?1)
 	)
 	`)
@@ -299,11 +305,37 @@ func (c *ClusterTx) GetProjectNetworkLoadBalancerListenAddressesByUplink(ctx con
 	err := query.Scan(ctx, c.Tx(), q.String(), func(scan func(dest ...any) error) error {
 		var projectName string
 		var networkName string
+		var networkType NetworkType
 		var listenAddress string
+		var networkIP4Address string
+		var networkIP6Address string
 
-		err := scan(&projectName, &networkName, &listenAddress)
+		err := scan(&projectName, &networkName, &networkType, &listenAddress, &networkIP4Address, &networkIP6Address)
 		if err != nil {
 			return err
+		}
+
+		// Skip listen addresses that are internal OVN IPs.
+		if networkType == NetworkTypeOVN {
+			listenAddrIP := net.ParseIP(listenAddress)
+			listenAddrIsIP4 := listenAddrIP.To4() != nil
+
+			var netSubnet *net.IPNet
+			var err error
+
+			if listenAddrIsIP4 && networkIP4Address != "" {
+				_, netSubnet, err = net.ParseCIDR(networkIP4Address)
+			} else if !listenAddrIsIP4 && networkIP6Address != "" {
+				_, netSubnet, err = net.ParseCIDR(networkIP6Address)
+			}
+
+			if err != nil {
+				return err
+			}
+
+			if netSubnet != nil && netSubnet.Contains(listenAddrIP) {
+				return nil
+			}
 		}
 
 		if loadBalancers[projectName] == nil {

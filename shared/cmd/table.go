@@ -10,7 +10,7 @@ import (
 	"slices"
 
 	"github.com/olekukonko/tablewriter"
-	"gopkg.in/yaml.v2"
+	"go.yaml.in/yaml/v2"
 
 	"github.com/canonical/lxd/shared/i18n"
 )

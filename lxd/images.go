@@ -29,7 +29,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/kballard/go-shellquote"
-	"gopkg.in/yaml.v2"
+	"go.yaml.in/yaml/v2"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
@@ -185,14 +185,12 @@ func addImageDetailsToRequestContext(s *state.State, r *http.Request) error {
 		return fmt.Errorf("Failed to check project %q image feature: %w", requestProjectName, err)
 	}
 
+	request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	request.SetContextValue(r, ctxImageDetails, imageDetails{
 		imageFingerprintPrefix: imageFingerprintPrefix,
 		imageID:                imageID,
 		image:                  *image,
 	})
-
-	reqInfo := request.GetContextInfo(r.Context())
-	reqInfo.EffectiveProjectName = effectiveProjectName
 
 	return nil
 }
@@ -239,9 +237,7 @@ func imageAliasAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *ht
 			return response.SmartError(err)
 		}
 
-		reqInfo := request.GetContextInfo(r.Context())
-		reqInfo.EffectiveProjectName = effectiveProjectName
-
+		request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 		err = s.Authorizer.CheckPermission(r.Context(), entity.ImageAliasURL(requestProjectName, imageAliasName), entitlement)
 		if err != nil {
 			return response.SmartError(err)
@@ -1807,7 +1803,12 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	trusted := auth.IsTrusted(r.Context())
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	trusted := requestor.IsTrusted()
 
 	// Untrusted callers can't request images from all projects or projects other than default.
 	if !trusted {
@@ -1822,9 +1823,9 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 
 	s := d.State()
 	if !allProjects && trusted {
-		reqInfo := request.GetContextInfo(r.Context())
+		var effectiveProjectName string
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			reqInfo.EffectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
+			effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
 			return err
 		})
 		if err != nil {
@@ -1836,6 +1837,8 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 
 			return response.SmartError(err)
 		}
+
+		request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	}
 
 	// If the caller is not trusted, we only want to list public images in the default project.
@@ -1882,7 +1885,7 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 			urlToImage[entity.ImageURL(image.Project, image.Fingerprint)] = image
 		}
 
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeImage, withEntitlements, urlToImage)
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeImage, withEntitlements, urlToImage)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -3177,7 +3180,12 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	trusted := auth.IsTrusted(r.Context())
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	trusted := requestor.IsTrusted()
 	secret := r.FormValue("secret")
 
 	// Unauthenticated clients that do not provide a secret may only view public images.
@@ -3231,9 +3239,7 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 			userCanViewImage = true
 		} else {
 			// Otherwise perform an access check with the full image fingerprint.
-			reqInfo := request.GetContextInfo(r.Context())
-			reqInfo.EffectiveProjectName = effectiveProjectName
-
+			request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 			err = s.Authorizer.CheckPermission(r.Context(), entity.ImageURL(projectName, info.Fingerprint), auth.EntitlementCanView)
 			if err != nil && !auth.IsDeniedError(err) {
 				return response.SmartError(err)
@@ -3249,7 +3255,7 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeImage, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ImageURL(projectName, fingerprint): info})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeImage, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ImageURL(projectName, fingerprint): info})
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -3659,9 +3665,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	reqInfo := request.GetContextInfo(r.Context())
-	reqInfo.EffectiveProjectName = effectiveProjectName
-
+	request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeImageAlias)
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed to get a permission checker: %w", err))
@@ -3711,7 +3715,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeImageAlias, withEntitlements, urlToImageAlias)
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeImageAlias, withEntitlements, urlToImageAlias)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -3825,10 +3829,7 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	// Set `userCanViewImageAlias` to true only when the caller is authenticated and can view the alias.
 	// We don't abort the request if this is false because the image alias may be for a public image.
 	var userCanViewImageAlias bool
-
-	reqInfo := request.GetContextInfo(r.Context())
-	reqInfo.EffectiveProjectName = effectiveProjectName
-
+	request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	err = s.Authorizer.CheckPermission(r.Context(), entity.ImageAliasURL(projectName, name), auth.EntitlementCanView)
 	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
@@ -3851,7 +3852,7 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeImageAlias, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ImageAliasURL(projectName, name): &alias})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeImageAlias, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ImageAliasURL(projectName, name): &alias})
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -4259,7 +4260,13 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 
 	// Verify the auth method in the request context to determine if the request comes from the /dev/lxd socket.
 	secret := r.FormValue("secret")
-	trusted := auth.IsTrusted(r.Context())
+
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	trusted := requestor.IsTrusted()
 
 	// Unauthenticated remote clients that do not provide a secret may only view public images.
 	// For devlxd, we allow querying for private images. We'll subsequently perform additional access checks.
@@ -4313,9 +4320,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 			userCanViewImage = true
 		} else {
 			// Otherwise perform an access check with the full image fingerprint.
-			reqInfo := request.GetContextInfo(r.Context())
-			reqInfo.EffectiveProjectName = effectiveProjectName
-
+			request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 			err = s.Authorizer.CheckPermission(r.Context(), entity.ImageURL(projectName, imgInfo.Fingerprint), auth.EntitlementCanView)
 			if err != nil && !auth.IsDeniedError(err) {
 				return response.SmartError(err)

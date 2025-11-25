@@ -9,13 +9,12 @@ version: 2
 build:
   os: ubuntu-24.04
   tools:
-    golang: "1.23"
+    golang: "1.24"
     python: "3.12"
   jobs:
     pre_install:
       - pip install gitpython pyyaml
       - cd doc && python3 .sphinx/build_requirements.py
-      - git fetch --unshallow || true
     pre_build:
       - go build -ldflags "-s -w" -o trimpath -o lxc.bin ./lxc
 

@@ -512,6 +512,10 @@ func (g *cmdGlobal) cmpServerAllKeys(remote string, suffix string, toComplete st
 	for _, field := range server {
 		for _, keyMap := range field.Keys {
 			for key := range keyMap {
+				if strings.HasPrefix(key, "volatile") {
+					continue
+				}
+
 				appendOption(key)
 			}
 		}
@@ -535,6 +539,10 @@ func (g *cmdGlobal) cmpServerSetKeys(remote string, toComplete string) ([]string
 
 	results := make([]string, 0, len(server.Config))
 	for k := range server.Config {
+		if strings.HasPrefix(k, "volatile") {
+			continue
+		}
+
 		if strings.HasPrefix(k, toComplete) {
 			results = append(results, k)
 		}

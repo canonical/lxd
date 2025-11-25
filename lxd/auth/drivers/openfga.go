@@ -156,43 +156,43 @@ func (e *embeddedOpenFGA) checkPermission(ctx context.Context, entityURL *api.UR
 
 	logCtx := logger.Ctx{"entity_url": entityURL.String(), "entitlement": entitlement}
 
+	requestor, err := request.GetRequestor(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed to check permission: %w", err)
+	}
+
 	// Untrusted requests are denied.
-	if !auth.IsTrusted(ctx) {
+	if !requestor.IsTrusted() {
 		return api.NewGenericStatusError(http.StatusForbidden)
 	}
 
-	isRoot, err := auth.IsServerAdmin(ctx, e.identityCache)
-	if err != nil {
-		return fmt.Errorf("Failed to check caller privilege: %w", err)
-	}
-
 	// Cluster or unix socket requests have admin permission.
-	if isRoot {
+	if requestor.IsAdmin() {
 		return nil
 	}
 
-	id, err := auth.GetIdentityFromCtx(ctx, e.identityCache)
-	if err != nil {
-		return fmt.Errorf("Failed to get caller identity: %w", err)
+	id := requestor.CallerIdentity()
+	if id == nil {
+		return errors.New("No identity is set in the request details")
 	}
 
 	logCtx["username"] = id.Identifier
 	logCtx["protocol"] = id.AuthenticationMethod
 	l := e.logger.AddContext(logCtx)
 
+	identityType, err := identity.New(id.IdentityType)
+	if err != nil {
+		return err
+	}
+
 	// If the identity type does not use fine-grained auth use the TLS driver instead.
-	if !identity.IsFineGrainedIdentityType(id.IdentityType) {
+	if !identityType.IsFineGrained() {
 		return e.tlsAuthorizer.CheckPermission(ctx, entityURL, entitlement)
 	}
 
 	// Combine the users LXD groups with any mappings that have come from the IDP.
 	groups := id.Groups
-	idpGroups, err := auth.GetIdentityProviderGroupsFromCtx(ctx)
-	if err != nil {
-		return fmt.Errorf("Failed to get caller identity provider groups: %w", err)
-	}
-
-	for _, idpGroup := range idpGroups {
+	for _, idpGroup := range requestor.CallerIdentityProviderGroups() {
 		lxdGroups, err := e.identityCache.GetIdentityProviderGroupMapping(idpGroup)
 		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 			return fmt.Errorf("Failed to get identity provider group mapping for group %q: %w", idpGroup, err)
@@ -211,9 +211,9 @@ func (e *embeddedOpenFGA) checkPermission(ctx context.Context, entityURL *api.UR
 		// The project in the given URL may be for a project that does not have a feature enabled, in this case the auth check
 		// will fail because the resource doesn't actually exist in that project. To correct this, we use the effective project from
 		// the request context if present.
-		reqInfo := request.GetContextInfo(ctx)
-		if reqInfo.EffectiveProjectName != "" {
-			projectName = reqInfo.EffectiveProjectName
+		effectiveProject, _ := request.GetContextValue[string](ctx, request.CtxEffectiveProjectName)
+		if effectiveProject != "" {
+			projectName = effectiveProject
 		}
 	}
 
@@ -363,43 +363,43 @@ func (e *embeddedOpenFGA) getPermissionChecker(ctx context.Context, entitlement 
 		return nil, fmt.Errorf("Failed to get a permission checker: %w", err)
 	}
 
+	requestor, err := request.GetRequestor(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get a permission checker: %w", err)
+	}
+
 	// Untrusted requests are denied.
-	if !auth.IsTrusted(ctx) {
+	if !requestor.IsTrusted() {
 		return allowFunc(false), nil
 	}
 
-	isRoot, err := auth.IsServerAdmin(ctx, e.identityCache)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to check caller privilege: %w", err)
-	}
-
 	// Cluster or unix socket requests have admin permission.
-	if isRoot {
+	if requestor.IsAdmin() {
 		return allowFunc(true), nil
 	}
 
-	id, err := auth.GetIdentityFromCtx(ctx, e.identityCache)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get caller identity: %w", err)
+	id := requestor.CallerIdentity()
+	if id == nil {
+		return nil, errors.New("No identity is set in the request details")
 	}
 
 	logCtx["username"] = id.Identifier
 	logCtx["protocol"] = id.AuthenticationMethod
 	l := e.logger.AddContext(logCtx)
 
+	identityType, err := identity.New(id.IdentityType)
+	if err != nil {
+		return nil, err
+	}
+
 	// If the identity type does not use fine-grained auth, use the TLS driver instead.
-	if !identity.IsFineGrainedIdentityType(id.IdentityType) {
+	if !identityType.IsFineGrained() {
 		return e.tlsAuthorizer.GetPermissionChecker(ctx, entitlement, entityType)
 	}
 
 	// Combine the users LXD groups with any mappings that have come from the IDP.
 	groups := id.Groups
-	idpGroups, err := auth.GetIdentityProviderGroupsFromCtx(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get caller identity provider groups: %w", err)
-	}
-
-	for _, idpGroup := range idpGroups {
+	for _, idpGroup := range requestor.CallerIdentityProviderGroups() {
 		lxdGroups, err := e.identityCache.GetIdentityProviderGroupMapping(idpGroup)
 		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 			return nil, fmt.Errorf("Failed to get identity provider group mapping for group %q: %w", idpGroup, err)
@@ -482,9 +482,9 @@ func (e *embeddedOpenFGA) getPermissionChecker(ctx context.Context, entitlement 
 			// The project in the given URL may be for a project that does not have a feature enabled, in this case the auth check
 			// will fail because the resource doesn't actually exist in that project. To correct this, we use the effective project from
 			// the request context if present.
-			reqInfo := request.GetContextInfo(ctx)
-			if reqInfo.EffectiveProjectName != "" {
-				projectName = reqInfo.EffectiveProjectName
+			effectiveProject, _ := request.GetContextValue[string](ctx, request.CtxEffectiveProjectName)
+			if effectiveProject != "" {
+				projectName = effectiveProject
 			}
 		}
 

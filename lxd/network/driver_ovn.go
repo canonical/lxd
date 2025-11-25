@@ -4823,6 +4823,15 @@ func (n *ovn) allocateUplinkAddress(listenIPAddress net.IP) (net.IP, error) {
 		return listenIPAddress, nil
 	}
 
+	// Check if the listen address is an internal OVN IP and validate accordingly.
+	isInternalAddr, err := n.checkInternalAddressNotInUse(listenIPAddress)
+	if err != nil {
+		return nil, err
+	} else if isInternalAddr {
+		// Listen address is an internal OVN IP and is safe to allocate at this point.
+		return listenIPAddress, nil
+	}
+
 	// Use subnet instead of address to use validateExternalSubnet.
 	listenAddressNet, err := ParseIPToNet(listenIPAddress.String())
 	if err != nil {
@@ -5946,6 +5955,94 @@ func (n *ovn) checkAddressNotInUse(netip *net.IPNet) (bool, error) {
 
 		if SubnetContains(&externalSubnetUser.subnet, netip) || SubnetContains(netip, &externalSubnetUser.subnet) {
 			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+// checkInternalAddressNotInUse checks that a given internal OVN IP is not already in use by existing load balancers,
+// forwards, NICs, or OVN gateway.
+// Returns a bool specifying whether the address is an internal OVN IP, and an error if the check could not be performed or the IP address
+// is already in use internally.
+func (n *ovn) checkInternalAddressNotInUse(listenAddress net.IP) (isInternal bool, err error) {
+	if listenAddress == nil {
+		return false, errors.New("Invalid listen address")
+	}
+
+	addrIsIP4 := listenAddress.To4() != nil
+
+	netIPKey := "ipv4.address"
+	if !addrIsIP4 {
+		netIPKey = "ipv6.address"
+	}
+
+	netIPAddress := n.config[netIPKey]
+	if netIPAddress == "" {
+		return false, fmt.Errorf("OVN network %q is missing %q config option", n.name, netIPKey)
+	}
+
+	netIP, netSubnet, err := net.ParseCIDR(netIPAddress)
+	if err != nil {
+		return false, err
+	}
+
+	if netSubnet == nil || !netSubnet.Contains(listenAddress) {
+		// Listen address is not an internal OVN IP, therefore, it is not used internally.
+		return false, nil
+	}
+
+	// Check that the listen address is not taken by the OVN gateway.
+	if netIP.Equal(listenAddress) {
+		return true, fmt.Errorf("Listen address %q is already in use by %q of network %q", listenAddress, netIPKey, n.name)
+	}
+
+	var forwards, loadBalancers map[int64]string
+
+	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		forwards, err = tx.GetNetworkForwardListenAddresses(ctx, n.id, false)
+		if err != nil {
+			return fmt.Errorf("Failed to get listen addresses of network forwards on network %q: %w", n.name, err)
+		}
+
+		loadBalancers, err = tx.GetNetworkLoadBalancerListenAddresses(ctx, n.id, false)
+		if err != nil {
+			return fmt.Errorf("Failed to get listed addresses of load balancers on network %q: %w", n.name, err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return true, err
+	}
+
+	// Check that the listen address is not taken by existing forwards and load balancers.
+	for _, listenAddresses := range []map[int64]string{forwards, loadBalancers} {
+		for _, ip := range listenAddresses {
+			netIP := net.ParseIP(ip)
+
+			if netIP.Equal(listenAddress) {
+				return true, fmt.Errorf("Listen address %q is already in use", listenAddress)
+			}
+		}
+	}
+
+	ovnClient, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+	if err != nil {
+		return true, fmt.Errorf("Failed to get OVN client: %w", err)
+	}
+
+	ovnSwitchPortIPs, err := ovnClient.LogicalSwitchIPs(n.getIntSwitchName())
+	if err != nil {
+		return true, fmt.Errorf("Failed to get OVN logical switch IPs: %w", err)
+	}
+
+	// Check that the listen address is not taken by any instance NICs.
+	for _, ips := range ovnSwitchPortIPs {
+		for _, ip := range ips {
+			if ip.Equal(listenAddress) {
+				return true, fmt.Errorf("Listen address %q is already in use by instance NIC", listenAddress)
+			}
 		}
 	}
 

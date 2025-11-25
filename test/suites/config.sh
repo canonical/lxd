@@ -41,7 +41,7 @@ _unix_devs() {
 }
 
 _ensure_fs_unmounted() {
-  if lxc exec foo -- stat /mnt/hello; then
+  if lxc exec foo -- mountpoint /mnt/hello; then
     echo "device should have been removed; $*"
     false
   fi

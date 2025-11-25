@@ -1,7 +1,6 @@
 package instance
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"database/sql"
@@ -205,13 +204,13 @@ func lxcParseRawLXC(line string) (key string, val string, err error) {
 	}
 
 	// Ensure the format is valid
-	membs := strings.SplitN(line, "=", 2)
-	if len(membs) != 2 {
+	key, val, ok := strings.Cut(line, "=")
+	if !ok {
 		return "", "", fmt.Errorf("Invalid raw.lxc line: %s", line)
 	}
 
-	key = strings.ToLower(strings.Trim(membs[0], " \t"))
-	val = strings.Trim(membs[1], " \t")
+	key = strings.ToLower(strings.Trim(key, " \t"))
+	val = strings.Trim(val, " \t")
 	return key, val, nil
 }
 
@@ -250,23 +249,6 @@ func lxcValidConfig(rawLxc string) error {
 			return errors.New(`Process limits should be set via ` +
 				`"limits.kernel.[limit name]" and not ` +
 				`directly via "lxc.prlimit.[limit name]"`)
-		}
-
-		networkKeyPrefix := "lxc.net."
-		if strings.HasPrefix(key, networkKeyPrefix) {
-			fields := strings.Split(key, ".")
-
-			// lxc.net.X.ipv4.address or lxc.net.X.ipv6.address
-			if len(fields) == 5 && slices.Contains([]string{"ipv4", "ipv6"}, fields[3]) && fields[4] == "address" {
-				continue
-			}
-
-			// lxc.net.X.ipv4.gateway or lxc.net.X.ipv6.gateway
-			if len(fields) == 5 && slices.Contains([]string{"ipv4", "ipv6"}, fields[3]) && fields[4] == "gateway" {
-				continue
-			}
-
-			return fmt.Errorf("Only interface-specific ipv4/ipv6 %s keys are allowed", networkKeyPrefix)
 		}
 	}
 
@@ -453,22 +435,24 @@ func LoadFromBackup(s *state.State, projectName string, instancePath string) (In
 
 // DeviceNextInterfaceHWAddr generates a random MAC address.
 func DeviceNextInterfaceHWAddr() (string, error) {
-	// Generate a new random MAC address using the usual prefix
-	ret := bytes.Buffer{}
-	for _, c := range "00:16:3e:xx:xx:xx" {
-		if c == 'x' {
-			c, err := rand.Int(rand.Reader, big.NewInt(16))
-			if err != nil {
-				return "", err
-			}
+	const prefix = "00:16:3e"
+	buf := make([]byte, 0, 17)
 
-			ret.WriteString(fmt.Sprintf("%x", c.Int64()))
-		} else {
-			ret.WriteString(string(c))
+	// Add the fixed prefix
+	buf = append(buf, prefix...)
+
+	// Append 3 random bytes
+	for range 3 {
+		rb, err := rand.Int(rand.Reader, big.NewInt(256))
+		if err != nil {
+			return "", err
 		}
+
+		buf = append(buf, ':')
+		buf = append(buf, fmt.Sprintf("%02x", rb.Int64())...)
 	}
 
-	return ret.String(), nil
+	return string(buf), nil
 }
 
 // BackupLoadByName load an instance backup from the database.
@@ -957,7 +941,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 				thing = "Snapshot"
 			}
 
-			return nil, nil, nil, fmt.Errorf("%s %q already exists", thing, args.Name)
+			return nil, nil, nil, api.StatusErrorf(http.StatusConflict, "%s %q already exists", thing, args.Name)
 		}
 
 		return nil, nil, nil, err

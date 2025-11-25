@@ -13,7 +13,7 @@ func ParseRawIdmap(value string) ([]IdmapEntry, error) {
 	getRange := func(r string) (int64, int64, error) {
 		entries := strings.Split(r, "-")
 		if len(entries) > 2 {
-			return -1, -1, fmt.Errorf("Invalid ID Map range %q", r)
+			return -1, -1, fmt.Errorf("Invalid ID map range %q", r)
 		}
 
 		base, err := strconv.ParseInt(entries[0], 10, 64)

@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
+	"go.yaml.in/yaml/v2"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared"
@@ -507,105 +507,105 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, name string, showLog bool) 
 		fmt.Printf("  "+i18n.G("Processes: %d")+"\n", inst.State.Processes)
 
 		// Disk usage
-		diskUsage := ""
-		diskTotal := ""
+		var diskUsage strings.Builder
+		var diskTotal strings.Builder
 		if inst.State.Disk != nil {
 			for entry, disk := range inst.State.Disk {
 				// Only show usage when supported.
 				if disk.Usage != -1 {
-					diskUsage += fmt.Sprintf("    %s: %s\n", entry, units.GetByteSizeStringIEC(disk.Usage, 2))
+					diskUsage.WriteString(fmt.Sprintf("    %s: %s\n", entry, units.GetByteSizeStringIEC(disk.Usage, 2)))
 				}
 			}
 
 			for entry, disk := range inst.State.Disk {
 				// Only show total for disks that are bounded within the pool.
 				if disk.Total != -1 {
-					diskTotal += fmt.Sprintf("    %s: %s\n", entry, units.GetByteSizeStringIEC(disk.Usage, 2))
+					diskTotal.WriteString(fmt.Sprintf("    %s: %s\n", entry, units.GetByteSizeStringIEC(disk.Usage, 2)))
 				}
 			}
 		}
 
-		if diskUsage != "" {
-			fmt.Printf("  %s\n%s", i18n.G("Disk usage:"), diskUsage)
+		if diskUsage.Len() > 0 {
+			fmt.Printf("  %s\n%s", i18n.G("Disk usage:"), diskUsage.String())
 		}
 
-		if diskTotal != "" {
-			fmt.Printf("  %s\n%s", i18n.G("Disk total:"), diskTotal)
+		if diskTotal.Len() > 0 {
+			fmt.Printf("  %s\n%s", i18n.G("Disk total:"), diskTotal.String())
 		}
 
 		// CPU usage
-		cpuInfo := ""
+		var cpuInfo strings.Builder
 		if inst.State.CPU.Usage != 0 {
-			cpuInfo += fmt.Sprintf("    %s: %v\n", i18n.G("CPU usage (in seconds)"), inst.State.CPU.Usage/1000000000)
+			cpuInfo.WriteString(fmt.Sprintf("    %s: %v\n", i18n.G("CPU usage (in seconds)"), inst.State.CPU.Usage/1000000000))
 		}
 
-		if cpuInfo != "" {
+		if cpuInfo.Len() > 0 {
 			fmt.Printf("  %s\n", i18n.G("CPU usage:"))
-			fmt.Print(cpuInfo)
+			fmt.Print(cpuInfo.String())
 		}
 
 		// Memory usage
-		memoryInfo := ""
+		var memoryInfo strings.Builder
 		if inst.State.Memory.Usage != 0 {
-			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Memory (current)"), units.GetByteSizeStringIEC(inst.State.Memory.Usage, 2))
+			memoryInfo.WriteString(fmt.Sprintf("    %s: %s\n", i18n.G("Memory (current)"), units.GetByteSizeStringIEC(inst.State.Memory.Usage, 2)))
 		}
 
 		if inst.State.Memory.UsagePeak != 0 {
-			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Memory (peak)"), units.GetByteSizeStringIEC(inst.State.Memory.UsagePeak, 2))
+			memoryInfo.WriteString(fmt.Sprintf("    %s: %s\n", i18n.G("Memory (peak)"), units.GetByteSizeStringIEC(inst.State.Memory.UsagePeak, 2)))
 		}
 
 		if inst.State.Memory.SwapUsage != 0 {
-			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Swap (current)"), units.GetByteSizeStringIEC(inst.State.Memory.SwapUsage, 2))
+			memoryInfo.WriteString(fmt.Sprintf("    %s: %s\n", i18n.G("Swap (current)"), units.GetByteSizeStringIEC(inst.State.Memory.SwapUsage, 2)))
 		}
 
 		if inst.State.Memory.SwapUsagePeak != 0 {
-			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Swap (peak)"), units.GetByteSizeStringIEC(inst.State.Memory.SwapUsagePeak, 2))
+			memoryInfo.WriteString(fmt.Sprintf("    %s: %s\n", i18n.G("Swap (peak)"), units.GetByteSizeStringIEC(inst.State.Memory.SwapUsagePeak, 2)))
 		}
 
-		if memoryInfo != "" {
+		if memoryInfo.Len() > 0 {
 			fmt.Printf("  %s\n", i18n.G("Memory usage:"))
-			fmt.Print(memoryInfo)
+			fmt.Print(memoryInfo.String())
 		}
 
 		// Network usage and IP info
-		networkInfo := ""
+		var networkInfo strings.Builder
 		if inst.State.Network != nil {
 			for netName, net := range inst.State.Network {
-				networkInfo += fmt.Sprintf("    %s:\n", netName)
-				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Type"), net.Type)
-				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("State"), strings.ToUpper(net.State))
+				networkInfo.WriteString(fmt.Sprintf("    %s:\n", netName))
+				networkInfo.WriteString(fmt.Sprintf("      %s: %s\n", i18n.G("Type"), net.Type))
+				networkInfo.WriteString(fmt.Sprintf("      %s: %s\n", i18n.G("State"), strings.ToUpper(net.State)))
 				if net.HostName != "" {
-					networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Host interface"), net.HostName)
+					networkInfo.WriteString(fmt.Sprintf("      %s: %s\n", i18n.G("Host interface"), net.HostName))
 				}
 
 				if net.Hwaddr != "" {
-					networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("MAC address"), net.Hwaddr)
+					networkInfo.WriteString(fmt.Sprintf("      %s: %s\n", i18n.G("MAC address"), net.Hwaddr))
 				}
 
 				if net.Mtu != 0 {
-					networkInfo += fmt.Sprintf("      %s: %d\n", i18n.G("MTU"), net.Mtu)
+					networkInfo.WriteString(fmt.Sprintf("      %s: %d\n", i18n.G("MTU"), net.Mtu))
 				}
 
-				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Bytes received"), units.GetByteSizeString(net.Counters.BytesReceived, 2))
-				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Bytes sent"), units.GetByteSizeString(net.Counters.BytesSent, 2))
-				networkInfo += fmt.Sprintf("      %s: %d\n", i18n.G("Packets received"), net.Counters.PacketsReceived)
-				networkInfo += fmt.Sprintf("      %s: %d\n", i18n.G("Packets sent"), net.Counters.PacketsSent)
+				networkInfo.WriteString(fmt.Sprintf("      %s: %s\n", i18n.G("Bytes received"), units.GetByteSizeString(net.Counters.BytesReceived, 2)))
+				networkInfo.WriteString(fmt.Sprintf("      %s: %s\n", i18n.G("Bytes sent"), units.GetByteSizeString(net.Counters.BytesSent, 2)))
+				networkInfo.WriteString(fmt.Sprintf("      %s: %d\n", i18n.G("Packets received"), net.Counters.PacketsReceived))
+				networkInfo.WriteString(fmt.Sprintf("      %s: %d\n", i18n.G("Packets sent"), net.Counters.PacketsSent))
 
-				networkInfo += fmt.Sprintf("      %s:\n", i18n.G("IP addresses"))
+				networkInfo.WriteString(fmt.Sprintf("      %s:\n", i18n.G("IP addresses")))
 
 				for _, addr := range net.Addresses {
 					if addr.Family == "inet" {
-						networkInfo += fmt.Sprintf("        %s:  %s/%s (%s)\n", addr.Family, addr.Address, addr.Netmask, addr.Scope)
+						networkInfo.WriteString(fmt.Sprintf("        %s:  %s/%s (%s)\n", addr.Family, addr.Address, addr.Netmask, addr.Scope))
 					} else {
-						networkInfo += fmt.Sprintf("        %s: %s/%s (%s)\n", addr.Family, addr.Address, addr.Netmask, addr.Scope)
+						networkInfo.WriteString(fmt.Sprintf("        %s: %s/%s (%s)\n", addr.Family, addr.Address, addr.Netmask, addr.Scope))
 					}
 				}
 			}
 		}
 
-		if networkInfo != "" {
+		if networkInfo.Len() > 0 {
 			fmt.Printf("  %s\n", i18n.G("Network usage:"))
-			fmt.Print(networkInfo)
+			fmt.Print(networkInfo.String())
 		}
 	}
 

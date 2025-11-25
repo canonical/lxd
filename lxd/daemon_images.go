@@ -622,14 +622,14 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 
 	l.Info("Image downloaded")
 
-	var requestor *api.EventLifecycleRequestor
+	var lifecycleRequestor *api.EventLifecycleRequestor
 	if op != nil {
-		requestor = op.Requestor()
-	} else if request.IsRequestContext(ctx) {
-		requestor = request.CreateRequestor(ctx)
+		lifecycleRequestor = op.Requestor()
+	} else {
+		lifecycleRequestor = request.CreateRequestor(ctx)
 	}
 
-	s.Events.SendLifecycle(args.ProjectName, lifecycle.ImageCreated.Event(info.Fingerprint, args.ProjectName, requestor, logger.Ctx{"type": info.Type}))
+	s.Events.SendLifecycle(args.ProjectName, lifecycle.ImageCreated.Event(info.Fingerprint, args.ProjectName, lifecycleRequestor, logger.Ctx{"type": info.Type}))
 
 	return info, nil
 }

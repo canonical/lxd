@@ -396,7 +396,7 @@ func DeleteWarning(ctx context.Context, tx *sql.Tx, uuid string) error {
 		return fmt.Errorf("Failed to get \"warningDeleteByUUID\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(uuid)
+	result, err := stmt.ExecContext(ctx, uuid)
 	if err != nil {
 		return fmt.Errorf("Delete \"warnings\": %w", err)
 	}
@@ -423,7 +423,7 @@ func DeleteWarnings(ctx context.Context, tx *sql.Tx, entityType EntityType, enti
 		return fmt.Errorf("Failed to get \"warningDeleteByEntityTypeAndEntityID\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(entityType, entityID)
+	result, err := stmt.ExecContext(ctx, entityType, entityID)
 	if err != nil {
 		return fmt.Errorf("Delete \"warnings\": %w", err)
 	}

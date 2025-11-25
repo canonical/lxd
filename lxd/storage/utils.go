@@ -500,7 +500,7 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 
 	// security.shifted and security.unmapped are only relevant for custom filesystem volumes.
 	if vol == nil || (vol.Type() == drivers.VolumeTypeCustom && vol.ContentType() == drivers.ContentTypeFS) {
-		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=security.shifted)
+		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex,storage-pure; group=volume-conf; key=security.shifted)
 		// Enabling this option allows attaching the volume to multiple isolated instances.
 		// ---
 		//  type: bool
@@ -509,7 +509,7 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		//  shortdesc: Enable ID shifting overlay
 		//  scope: global
 		rules["security.shifted"] = validate.Optional(validate.IsBool)
-		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=security.unmapped)
+		// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex,storage-pure; group=volume-conf; key=security.unmapped)
 		//
 		// ---
 		//  type: bool
@@ -522,7 +522,7 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 
 	// security.shared guards virtual-machine and custom block volumes.
 	if vol == nil || ((vol.Type() == drivers.VolumeTypeCustom || vol.Type() == drivers.VolumeTypeVM) && vol.ContentType() == drivers.ContentTypeBlock) {
-		// lxdmeta:generate(entities=storage-btrfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=security.shared)
+		// lxdmeta:generate(entities=storage-btrfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex,storage-pure; group=volume-conf; key=security.shared)
 		// Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
 		//
 		// ---
@@ -604,7 +604,7 @@ func validatePoolCommonRules() map[string]func(string) error {
 		//  scope: local
 		"source.wipe":             validate.Optional(validate.IsBool),
 		"volatile.initial_source": validate.IsAny,
-		// lxdmeta:generate(entities=storage-dir,storage-lvm,storage-powerflex; group=pool-conf; key=rsync.bwlimit)
+		// lxdmeta:generate(entities=storage-dir,storage-lvm,storage-powerflex,storage-pure; group=pool-conf; key=rsync.bwlimit)
 		// When `rsync` must be used to transfer storage entities, this option specifies the upper limit
 		// to be placed on the socket I/O.
 		// ---
@@ -613,7 +613,7 @@ func validatePoolCommonRules() map[string]func(string) error {
 		//  shortdesc: Upper limit on the socket I/O for `rsync`
 		//  scope: global
 		"rsync.bwlimit": validate.Optional(validate.IsSize),
-		// lxdmeta:generate(entities=storage-dir,storage-lvm,storage-powerflex; group=pool-conf; key=rsync.compression)
+		// lxdmeta:generate(entities=storage-dir,storage-lvm,storage-powerflex,storage-pure; group=pool-conf; key=rsync.compression)
 		//
 		// ---
 		//  type: bool
@@ -635,14 +635,14 @@ func validatePoolCommonRules() map[string]func(string) error {
 func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error {
 	rules := poolAndVolumeCommonRules(&vol)
 
-	// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=volatile.idmap.last)
+	// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex,storage-pure; group=volume-conf; key=volatile.idmap.last)
 	//
 	// ---
 	//   type: string
 	//   shortdesc: JSON-serialized UID/GID map that has been applied to the volume
 	//   condition: filesystem
 
-	// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex; group=volume-conf; key=volatile.idmap.next)
+	// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex,storage-pure; group=volume-conf; key=volatile.idmap.next)
 	//
 	// ---
 	//   type: string

@@ -104,21 +104,6 @@ func GetProfileID(ctx context.Context, tx *sql.Tx, project string, name string) 
 	return id, nil
 }
 
-// ProfileExists checks if a profile with the given key exists.
-// generator: profile Exists
-func ProfileExists(ctx context.Context, tx *sql.Tx, project string, name string) (bool, error) {
-	_, err := GetProfileID(ctx, tx, project, name)
-	if err != nil {
-		if api.StatusErrorCheck(err, http.StatusNotFound) {
-			return false, nil
-		}
-
-		return false, err
-	}
-
-	return true, nil
-}
-
 // profileColumns returns a string of column names to be used with a SELECT statement for the entity.
 // Use this function when building statements to retrieve database entries matching the Profile entity.
 func profileColumns() string {
@@ -374,16 +359,6 @@ func GetProfile(ctx context.Context, tx *sql.Tx, project string, name string) (*
 // CreateProfile adds a new profile to the database.
 // generator: profile Create
 func CreateProfile(ctx context.Context, tx *sql.Tx, object Profile) (int64, error) {
-	// Check if a profile with the same key exists.
-	exists, err := ProfileExists(ctx, tx, object.Project, object.Name)
-	if err != nil {
-		return -1, fmt.Errorf("Failed to check for duplicates: %w", err)
-	}
-
-	if exists {
-		return -1, api.StatusErrorf(http.StatusConflict, "This \"profiles\" entry already exists")
-	}
-
 	args := make([]any, 3)
 
 	// Populate the statement arguments.
@@ -398,8 +373,12 @@ func CreateProfile(ctx context.Context, tx *sql.Tx, object Profile) (int64, erro
 	}
 
 	// Execute the statement.
-	result, err := stmt.Exec(args...)
+	result, err := stmt.ExecContext(ctx, args...)
 	if err != nil {
+		if query.IsConflictErr(err) {
+			return -1, api.NewStatusError(http.StatusConflict, "This \"profiles\" entry already exists")
+		}
+
 		return -1, fmt.Errorf("Failed to create \"profiles\" entry: %w", err)
 	}
 
@@ -456,8 +435,12 @@ func RenameProfile(ctx context.Context, tx *sql.Tx, project string, name string,
 		return fmt.Errorf("Failed to get \"profileRename\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(to, project, name)
+	result, err := stmt.ExecContext(ctx, to, project, name)
 	if err != nil {
+		if query.IsConflictErr(err) {
+			return api.NewStatusError(http.StatusConflict, "A \"profiles\" entry already exists with this name")
+		}
+
 		return fmt.Errorf("Rename Profile failed: %w", err)
 	}
 
@@ -486,8 +469,12 @@ func UpdateProfile(ctx context.Context, tx *sql.Tx, project string, name string,
 		return fmt.Errorf("Failed to get \"profileUpdate\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(object.Project, object.Name, object.Description, id)
+	result, err := stmt.ExecContext(ctx, object.Project, object.Name, object.Description, id)
 	if err != nil {
+		if query.IsConflictErr(err) {
+			return api.NewStatusError(http.StatusConflict, "A \"profiles\" entry already exists with these properties")
+		}
+
 		return fmt.Errorf("Update \"profiles\" entry failed: %w", err)
 	}
 
@@ -533,7 +520,7 @@ func DeleteProfile(ctx context.Context, tx *sql.Tx, project string, name string)
 		return fmt.Errorf("Failed to get \"profileDeleteByProjectAndName\" prepared statement: %w", err)
 	}
 
-	result, err := stmt.Exec(project, name)
+	result, err := stmt.ExecContext(ctx, project, name)
 	if err != nil {
 		return fmt.Errorf("Delete \"profiles\": %w", err)
 	}

@@ -1,6 +1,6 @@
 module github.com/canonical/lxd
 
-go 1.24.5
+go 1.25.4
 
 require (
 	github.com/NVIDIA/nvidia-container-toolkit v1.18.0
@@ -53,6 +53,7 @@ require (
 	github.com/zitadel/oidc/v3 v3.45.0
 	go.starlark.net v0.0.0-20250906160240-bf296ed553ea
 	go.uber.org/zap v1.27.0
+	go.yaml.in/yaml/v2 v2.4.3
 	golang.org/x/crypto v0.43.0
 	golang.org/x/oauth2 v0.32.0
 	golang.org/x/sync v0.18.0
@@ -62,7 +63,6 @@ require (
 	golang.org/x/tools v0.38.0
 	google.golang.org/protobuf v1.36.10
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
-	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/utils v0.0.0-20250820121507-0af2bda4dd1d
 	tags.cncf.io/container-device-interface v1.0.1
 	tags.cncf.io/container-device-interface/specs-go v1.0.0
@@ -160,7 +160,6 @@ require (
 	go.opentelemetry.io/proto/otlp v1.8.0 // indirect
 	go.uber.org/mock v0.6.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621 // indirect
 	golang.org/x/mod v0.29.0 // indirect
@@ -170,6 +169,7 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251022142026-3a174f9686a8 // indirect
 	google.golang.org/grpc v1.76.0 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )

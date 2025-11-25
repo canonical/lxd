@@ -124,7 +124,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 
 	// Preseed mode
 	if c.flagPreseed {
-		config, err = c.RunPreseed(cmd, args, d)
+		config, err = c.runPreseed()
 		if err != nil {
 			return err
 		}

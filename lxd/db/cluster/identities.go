@@ -47,7 +47,6 @@ import (
 //go:generate mapper method -i -e identity GetMany
 //go:generate mapper method -i -e identity GetOne
 //go:generate mapper method -i -e identity ID struct=Identity
-//go:generate mapper method -i -e identity Exists struct=Identity
 //go:generate mapper method -i -e identity Create struct=Identity
 //go:generate mapper method -i -e identity DeleteOne-by-AuthMethod-and-Identifier
 //go:generate mapper method -i -e identity DeleteMany-by-Name-and-Type
@@ -57,9 +56,9 @@ import (
 
 // AuthMethod is a database representation of an authentication method.
 //
-// AuthMethod is defined on string so that API constants can be converted by casting. The sql.Scanner and
-// driver.Valuer interfaces are implemented on this type such that the string constants are converted into their int64
-// counterparts as they are written to the database, or converted back into an AuthMethod as they are read from the
+// AuthMethod is defined on string so that API constants can be converted by casting. The [sql.Scanner] and
+// [driver.Valuer] interfaces are implemented on this type such that the string constants are converted into their int64
+// counterparts as they are written to the database, or converted back into an [AuthMethod] as they are read from the
 // database. It is not possible to read/write an invalid authentication methods from/to the database when using this type.
 type AuthMethod string
 
@@ -68,27 +67,30 @@ const (
 	authMethodOIDC int64 = 2
 )
 
-// ScanInteger implements [query.IntegerScanner] for AuthMethod. This simplifies the Scan implementation.
+// authMethodCodeToText maps the database code for an authentication method to it's string representation.
+var authMethodCodeToText = map[int64]string{
+	authMethodTLS:  api.AuthenticationMethodTLS,
+	authMethodOIDC: api.AuthenticationMethodOIDC,
+}
+
+// ScanInteger implements [query.IntegerScanner] for [AuthMethod]. This simplifies the Scan implementation.
 func (a *AuthMethod) ScanInteger(authMethodCode int64) error {
-	switch authMethodCode {
-	case authMethodTLS:
-		*a = api.AuthenticationMethodTLS
-	case authMethodOIDC:
-		*a = api.AuthenticationMethodOIDC
-	default:
+	text, ok := authMethodCodeToText[authMethodCode]
+	if !ok {
 		return fmt.Errorf("Unknown authentication method `%d`", authMethodCode)
 	}
 
+	*a = AuthMethod(text)
 	return nil
 }
 
-// Scan implements sql.Scanner for AuthMethod. This converts the integer value back into the correct API constant or
+// Scan implements [sql.Scanner] for [AuthMethod]. This converts the integer value back into the correct API constant or
 // returns an error.
 func (a *AuthMethod) Scan(value any) error {
 	return query.ScanValue(value, a, false)
 }
 
-// Value implements driver.Valuer for AuthMethod. This converts the API constant into an integer or throws an error.
+// Value implements [driver.Valuer] for [AuthMethod]. This converts the API constant into an integer or throws an error.
 func (a AuthMethod) Value() (driver.Value, error) {
 	switch a {
 	case api.AuthenticationMethodTLS:
@@ -102,77 +104,38 @@ func (a AuthMethod) Value() (driver.Value, error) {
 
 // IdentityType indicates the type of the identity.
 //
-// IdentityType is defined on string so that API constants can be converted by casting. The sql.Scanner and
-// driver.Valuer interfaces are implemented on this type such that the string constants are converted into their int64
-// counterparts as they are written to the database, or converted back into an IdentityType as they are read from the
+// IdentityType is defined on string so that API constants can be converted by casting. The [sql.Scanner] and
+// [driver.Valuer] interfaces are implemented on this type such that the string constants are converted into their int64
+// counterparts as they are written to the database, or converted back into an [IdentityType] as they are read from the
 // database. It is not possible to read/write an invalid identity types from/to the database when using this type.
 type IdentityType string
 
-const (
-	identityTypeCertificateClientRestricted    int64 = 1
-	identityTypeCertificateClientUnrestricted  int64 = 2
-	identityTypeCertificateServer              int64 = 3
-	identityTypeCertificateMetricsRestricted   int64 = 4
-	identityTypeOIDCClient                     int64 = 5
-	identityTypeCertificateMetricsUnrestricted int64 = 6
-	identityTypeCertificateClient              int64 = 7
-	identityTypeCertificateClientPending       int64 = 8
-)
-
-// ScanInteger implements [query.IntegerScanner] for IdentityType. This simplifies the Scan implementation.
+// ScanInteger implements [query.IntegerScanner] for [IdentityType]. This simplifies the Scan implementation.
 func (i *IdentityType) ScanInteger(identityTypeCode int64) error {
-	switch identityTypeCode {
-	case identityTypeCertificateClientRestricted:
-		*i = api.IdentityTypeCertificateClientRestricted
-	case identityTypeCertificateClientUnrestricted:
-		*i = api.IdentityTypeCertificateClientUnrestricted
-	case identityTypeCertificateServer:
-		*i = api.IdentityTypeCertificateServer
-	case identityTypeCertificateMetricsRestricted:
-		*i = api.IdentityTypeCertificateMetricsRestricted
-	case identityTypeCertificateMetricsUnrestricted:
-		*i = api.IdentityTypeCertificateMetricsUnrestricted
-	case identityTypeOIDCClient:
-		*i = api.IdentityTypeOIDCClient
-	case identityTypeCertificateClient:
-		*i = api.IdentityTypeCertificateClient
-	case identityTypeCertificateClientPending:
-		*i = api.IdentityTypeCertificateClientPending
-	default:
-		return fmt.Errorf("Unknown identity type `%d`", identityTypeCode)
+	idType, err := identity.NewFromCode(identityTypeCode)
+	if err != nil {
+		return err
 	}
+
+	*i = IdentityType(idType.Name())
 
 	return nil
 }
 
-// Scan implements sql.Scanner for IdentityType. This converts the integer value back into the correct API constant or
+// Scan implements [sql.Scanner] for [IdentityType]. This converts the integer value back into the correct API constant or
 // returns an error.
 func (i *IdentityType) Scan(value any) error {
 	return query.ScanValue(value, i, false)
 }
 
-// Value implements driver.Valuer for IdentityType. This converts the API constant into an integer or throws an error.
+// Value implements [driver.Valuer] for [IdentityType]. This converts the API constant into an integer or throws an error.
 func (i IdentityType) Value() (driver.Value, error) {
-	switch i {
-	case api.IdentityTypeCertificateClientRestricted:
-		return identityTypeCertificateClientRestricted, nil
-	case api.IdentityTypeCertificateClientUnrestricted:
-		return identityTypeCertificateClientUnrestricted, nil
-	case api.IdentityTypeCertificateServer:
-		return identityTypeCertificateServer, nil
-	case api.IdentityTypeCertificateMetricsRestricted:
-		return identityTypeCertificateMetricsRestricted, nil
-	case api.IdentityTypeCertificateMetricsUnrestricted:
-		return identityTypeCertificateMetricsUnrestricted, nil
-	case api.IdentityTypeOIDCClient:
-		return identityTypeOIDCClient, nil
-	case api.IdentityTypeCertificateClient:
-		return identityTypeCertificateClient, nil
-	case api.IdentityTypeCertificateClientPending:
-		return identityTypeCertificateClientPending, nil
+	idType, err := identity.New(string(i))
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, fmt.Errorf("Invalid identity type %q", i)
+	return idType.Code(), nil
 }
 
 // ActiveType returns the active version of the identity type.
@@ -187,20 +150,17 @@ func (i IdentityType) ActiveType() (IdentityType, error) {
 
 // toCertificateAPIType returns the API equivalent type.
 func (i IdentityType) toCertificateType() (certificate.Type, error) {
-	switch i {
-	case api.IdentityTypeCertificateClientRestricted:
-		return certificate.TypeClient, nil
-	case api.IdentityTypeCertificateClientUnrestricted:
-		return certificate.TypeClient, nil
-	case api.IdentityTypeCertificateServer:
-		return certificate.TypeServer, nil
-	case api.IdentityTypeCertificateMetricsRestricted:
-		return certificate.TypeMetrics, nil
-	case api.IdentityTypeCertificateMetricsUnrestricted:
-		return certificate.TypeMetrics, nil
+	idType, err := identity.New(string(i))
+	if err != nil {
+		return -1, err
 	}
 
-	return -1, fmt.Errorf("Identity type %q is not a certificate", i)
+	certType, err := idType.LegacyCertificateType()
+	if err != nil {
+		return -1, fmt.Errorf("Identity type %q is not a certificate", i)
+	}
+
+	return certType, nil
 }
 
 // Identity is a database representation of any authenticated party.
@@ -227,7 +187,7 @@ type CertificateMetadata struct {
 	Certificate string `json:"cert"`
 }
 
-// X509 returns an x509.Certificate from the CertificateMetadata.
+// X509 returns an [x509.Certificate] from the [CertificateMetadata].
 func (c CertificateMetadata) X509() (*x509.Certificate, error) {
 	certBlock, _ := pem.Decode([]byte(c.Certificate))
 	if certBlock == nil {
@@ -242,9 +202,9 @@ func (c CertificateMetadata) X509() (*x509.Certificate, error) {
 	return cert, nil
 }
 
-// ToCertificate converts an Identity to a Certificate.
+// ToCertificate converts an [Identity] to a [Certificate].
 func (i Identity) ToCertificate() (*Certificate, error) {
-	identityType, err := i.Type.toCertificateType()
+	certificateType, err := i.Type.toCertificateType()
 	if err != nil {
 		return nil, fmt.Errorf("Failed converting identity type to certificate type: %w", err)
 	}
@@ -255,10 +215,12 @@ func (i Identity) ToCertificate() (*Certificate, error) {
 		return nil, fmt.Errorf("Failed to unmarshal certificate identity metadata: %w", err)
 	}
 
-	isRestricted, err := identity.IsRestrictedIdentityType(string(i.Type))
+	identityType, err := identity.New(string(i.Type))
 	if err != nil {
 		return nil, fmt.Errorf("Failed to check restricted status of identity: %w", err)
 	}
+
+	isRestricted := !identityType.IsAdmin()
 
 	// Metrics certificates can be both restricted and unrestricted.
 	// But an unrestricted metrics certificate has still less permissions as an unrestricted client certificate.
@@ -270,7 +232,7 @@ func (i Identity) ToCertificate() (*Certificate, error) {
 	c := &Certificate{
 		ID:          i.ID,
 		Fingerprint: i.Identifier,
-		Type:        identityType,
+		Type:        certificateType,
 		Name:        i.Name,
 		Certificate: metadata.Certificate,
 		Restricted:  isRestricted,
@@ -279,20 +241,25 @@ func (i Identity) ToCertificate() (*Certificate, error) {
 	return c, nil
 }
 
-// CertificateMetadata returns the metadata associated with the identity as CertificateMetadata. It fails if the
-// authentication method is not api.AuthentictionMethodTLS or if the type is api.IdentityTypeClientCertificatePending,
+// CertificateMetadata returns the metadata associated with the identity as [CertificateMetadata]. It fails if the
+// authentication method is not [api.AuthentictionMethodTLS] or if the type is [api.IdentityTypeClientCertificatePending],
 // as they do not have metadata of this type.
 func (i Identity) CertificateMetadata() (*CertificateMetadata, error) {
 	if i.AuthMethod != api.AuthenticationMethodTLS {
 		return nil, fmt.Errorf("Cannot get certificate metadata: Identity has authentication method %q (%q required)", i.AuthMethod, api.AuthenticationMethodTLS)
 	}
 
-	if i.Type == api.IdentityTypeCertificateClientPending {
+	identityType, err := identity.New(string(i.Type))
+	if err != nil {
+		return nil, err
+	}
+
+	if identityType.IsPending() {
 		return nil, errors.New("Cannot get certificate metadata: Identity is pending")
 	}
 
 	var metadata CertificateMetadata
-	err := json.Unmarshal([]byte(i.Metadata), &metadata)
+	err = json.Unmarshal([]byte(i.Metadata), &metadata)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to unmarshal certificate identity metadata: %w", err)
 	}
@@ -300,7 +267,7 @@ func (i Identity) CertificateMetadata() (*CertificateMetadata, error) {
 	return &metadata, nil
 }
 
-// X509 returns an x509.Certificate from the identity metadata. The AuthMethod of the Identity must be api.AuthenticationMethodTLS.
+// X509 returns an [x509.Certificate] from the identity metadata. The [AuthMethod] of the [Identity] must be [api.AuthenticationMethodTLS].
 func (i Identity) X509() (*x509.Certificate, error) {
 	metadata, err := i.CertificateMetadata()
 	if err != nil {
@@ -315,7 +282,7 @@ type OIDCMetadata struct {
 	Subject string `json:"subject"`
 }
 
-// Subject returns OIDC subject from the identity metadata. The AuthMethod of the Identity must be api.AuthenticationMethodOIDC.
+// Subject returns OIDC subject from the identity metadata. The [AuthMethod] of the [Identity] must be [api.AuthenticationMethodOIDC].
 func (i Identity) Subject() (string, error) {
 	if i.AuthMethod != api.AuthenticationMethodOIDC {
 		return "", fmt.Errorf("Cannot extract subject from identity: Identity has authentication method %q (%q required)", i.AuthMethod, api.AuthenticationMethodOIDC)
@@ -338,12 +305,17 @@ type PendingTLSMetadata struct {
 
 // PendingTLSMetadata returns the pending TLS identity metadata.
 func (i Identity) PendingTLSMetadata() (*PendingTLSMetadata, error) {
-	if i.Type != api.IdentityTypeCertificateClientPending {
+	identityType, err := identity.New(string(i.Type))
+	if err != nil {
+		return nil, err
+	}
+
+	if !identityType.IsPending() {
 		return nil, api.StatusErrorf(http.StatusBadRequest, "Cannot extract pending %q TLS identity secret: Identity is not pending", i.Type)
 	}
 
 	var metadata PendingTLSMetadata
-	err := json.Unmarshal([]byte(i.Metadata), &metadata)
+	err = json.Unmarshal([]byte(i.Metadata), &metadata)
 	if err != nil {
 		return nil, api.StatusErrorf(http.StatusInternalServerError, "Failed to unmarshal pending TLS identity metadata: %w", err)
 	}
@@ -351,7 +323,7 @@ func (i Identity) PendingTLSMetadata() (*PendingTLSMetadata, error) {
 	return &metadata, nil
 }
 
-// ToAPI converts an Identity to an api.Identity, executing database queries as necessary.
+// ToAPI converts an [Identity] to an [api.Identity], executing database queries as necessary.
 func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.PermissionChecker) (*api.Identity, error) {
 	groups, err := GetAuthGroupsByIdentityID(ctx, tx, i.ID)
 	if err != nil {
@@ -365,8 +337,13 @@ func (i *Identity) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.Perm
 		}
 	}
 
+	identityType, err := identity.New(string(i.Type))
+	if err != nil {
+		return nil, err
+	}
+
 	var tlsCertificate string
-	if i.AuthMethod == api.AuthenticationMethodTLS && i.Type != api.IdentityTypeCertificateClientPending {
+	if i.AuthMethod == api.AuthenticationMethodTLS && !identityType.IsPending() {
 		metadata, err := i.CertificateMetadata()
 		if err != nil {
 			return nil, err
@@ -430,17 +407,26 @@ func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, 
 	return nil
 }
 
-var getPendingTLSIdentityByTokenSecretStmt = fmt.Sprintf(`
-SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
-	FROM identities
-	WHERE identities.type = %d
-	AND json_extract(identities.metadata, '$.secret') = ?
-`, identityTypeCertificateClientPending)
+var pendingIdentityTypes = func() (result []int64) {
+	for _, t := range identity.Types() {
+		if t.IsPending() {
+			result = append(result, t.Code())
+		}
+	}
 
-// GetPendingTLSIdentityByTokenSecret gets a single identity of type identityTypeCertificateClientPending with the given
-// secret in its metadata. If no pending identity is found, an api.StatusError is returned with http.StatusNotFound.
+	return result
+}
+
+// GetPendingTLSIdentityByTokenSecret gets a single identity of type [api.IdentityTypeCertificateClientPending] with the given secret in its metadata.
+// If no pending identity is found, an [api.StatusError] is returned with [http.StatusNotFound].
 func GetPendingTLSIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret string) (*Identity, error) {
-	identities, err := getIdentitysRaw(ctx, tx, getPendingTLSIdentityByTokenSecretStmt, secret)
+	stmt := fmt.Sprintf(`
+	SELECT identities.id, identities.auth_method, identities.type, identities.identifier, identities.name, identities.metadata
+	FROM identities
+	WHERE identities.type IN %s
+	AND json_extract(identities.metadata, '$.secret') = ?`, query.IntParams(pendingIdentityTypes()...))
+
+	identities, err := getIdentitysRaw(ctx, tx, stmt, secret)
 	if err != nil {
 		return nil, err
 	}
@@ -514,7 +500,7 @@ JOIN identities_auth_groups ON auth_groups.id = identities_auth_groups.auth_grou
 
 // GetIdentityByNameOrIdentifier attempts to get an identity by the authentication method and identifier. If that fails
 // it will try to use the nameOrID argument as a name and will return the result only if the query matches a single Identity.
-// It will return an api.StatusError with http.StatusNotFound if none are found or http.StatusBadRequest if multiple are found.
+// It will return an [api.StatusError] with [http.StatusNotFound] if none are found or [http.StatusBadRequest] if multiple are found.
 func GetIdentityByNameOrIdentifier(ctx context.Context, tx *sql.Tx, authenticationMethod string, nameOrID string) (*Identity, error) {
 	id, err := GetIdentity(ctx, tx, AuthMethod(authenticationMethod), nameOrID)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {

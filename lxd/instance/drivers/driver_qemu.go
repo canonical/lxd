@@ -32,10 +32,10 @@ import (
 	"github.com/kballard/go-shellquote"
 	"github.com/mdlayher/vsock"
 	"github.com/pkg/sftp"
+	"go.yaml.in/yaml/v2"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/proto"
-	"gopkg.in/yaml.v2"
 
 	"github.com/canonical/lxd/client"
 	agentAPI "github.com/canonical/lxd/lxd-agent/api"
@@ -2159,7 +2159,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 		if instanceRunning {
 			// Attach NIC to running instance.
 			if len(runConf.NetworkInterface) > 0 {
-				err = d.deviceAttachNIC(dev.Name(), runConf.NetworkInterface)
+				err = d.deviceAttachNIC(runConf.NetworkInterface)
 				if err != nil {
 					return nil, err
 				}
@@ -2430,7 +2430,7 @@ func (d *qemu) deviceDetachBlockDevice(deviceName string) error {
 }
 
 // deviceAttachNIC live attaches a NIC device to the instance.
-func (d *qemu) deviceAttachNIC(deviceName string, netIF []deviceConfig.RunConfigItem) error {
+func (d *qemu) deviceAttachNIC(netIF []deviceConfig.RunConfigItem) error {
 	devName := ""
 	for _, dev := range netIF {
 		if dev.Key == "link" {

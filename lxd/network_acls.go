@@ -173,8 +173,7 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// If the request is project specific, then set effective project name in the request context so that the authorizer can generate the correct URL.
-		reqInfo := request.GetContextInfo(r.Context())
-		reqInfo.EffectiveProjectName = effectiveProjectName
+		request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	}
 
 	recursion := util.IsRecursionRequest(r)
@@ -255,7 +254,7 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeNetworkACL, withEntitlements, urlToNetworkACL)
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeNetworkACL, withEntitlements, urlToNetworkACL)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -456,7 +455,7 @@ func networkACLGet(d *Daemon, r *http.Request) response.Response {
 
 	info.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, info.UsedBy)
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, s.IdentityCache, entity.TypeNetworkACL, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.NetworkACLURL(projectName, aclName): info})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeNetworkACL, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.NetworkACLURL(projectName, aclName): info})
 		if err != nil {
 			return response.SmartError(err)
 		}

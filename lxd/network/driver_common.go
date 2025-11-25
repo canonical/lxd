@@ -16,6 +16,7 @@ import (
 	"github.com/canonical/lxd/lxd/bgp"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/cluster/request"
+	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/network/acl"
@@ -123,7 +124,7 @@ func (n *common) validationRules() map[string]func(string) error {
 }
 
 // validate a network config against common rules and optional driver specific rules.
-func (n *common) validate(config map[string]string, driverRules map[string]func(value string) error) error {
+func (n *common) validate(networkConfig map[string]string, driverRules map[string]func(value string) error) error {
 	checkedFields := map[string]struct{}{}
 
 	// Get rules common for all drivers.
@@ -135,21 +136,21 @@ func (n *common) validate(config map[string]string, driverRules map[string]func(
 	// Run the validator against each field.
 	for k, validator := range rules {
 		checkedFields[k] = struct{}{} // Mark field as checked.
-		err := validator(config[k])
+		err := validator(networkConfig[k])
 		if err != nil {
 			return fmt.Errorf("Invalid value for network %q option %q: %w", n.name, k, err)
 		}
 	}
 
 	// Look for any unchecked fields, as these are unknown fields and validation should fail.
-	for k := range config {
+	for k := range networkConfig {
 		_, checked := checkedFields[k]
 		if checked {
 			continue
 		}
 
 		// User keys are not validated.
-		if shared.IsUserConfig(k) {
+		if config.IsUserConfig(k) {
 			continue
 		}
 
@@ -317,6 +318,11 @@ func (n *common) ValidateName(name string) error {
 
 	if strings.Contains(name, ":") {
 		return fmt.Errorf("Cannot contain %q", ":")
+	}
+
+	// Defend against path traversal attacks.
+	if !shared.IsFileName(name) {
+		return fmt.Errorf("Invalid name %q, may not contain slashes or consecutive dots", name)
 	}
 
 	return nil
@@ -561,14 +567,17 @@ func (n *common) configChanged(newNetwork api.NetworkPut) (bool, []string, api.N
 
 // rename the network directory, update database record and update internal variables.
 func (n *common) rename(newName string) error {
+	oldNamePath := shared.VarPath("networks", n.name)
+	newNamePath := shared.VarPath("networks", newName)
+
 	// Clear new directory if exists.
-	if shared.PathExists(shared.VarPath("networks", newName)) {
-		_ = os.RemoveAll(shared.VarPath("networks", newName))
+	if shared.PathExists(newNamePath) {
+		_ = os.RemoveAll(newNamePath)
 	}
 
 	// Rename directory to new name.
-	if shared.PathExists(shared.VarPath("networks", n.name)) {
-		err := os.Rename(shared.VarPath("networks", n.name), shared.VarPath("networks", newName))
+	if shared.PathExists(oldNamePath) {
+		err := os.Rename(oldNamePath, newNamePath)
 		if err != nil {
 			return err
 		}
@@ -995,7 +1004,7 @@ func (n *common) forwardValidate(listenAddress net.IP, forward api.NetworkForwar
 		}
 
 		// User keys are not validated.
-		if shared.IsUserConfig(k) {
+		if config.IsUserConfig(k) {
 			continue
 		}
 
@@ -1307,7 +1316,7 @@ func (n *common) loadBalancerValidate(listenAddress net.IP, forward api.NetworkL
 	// Look for any unknown config fields.
 	for k := range forward.Config {
 		// User keys are not validated.
-		if shared.IsUserConfig(k) {
+		if config.IsUserConfig(k) {
 			continue
 		}
 
@@ -1561,7 +1570,7 @@ func (n *common) peerValidate(peerName string, peer *api.NetworkPeerPut) error {
 		}
 
 		// User keys are not validated.
-		if shared.IsUserConfig(k) {
+		if config.IsUserConfig(k) {
 			continue
 		}
 

@@ -17,10 +17,6 @@ type ProjectGenerated interface {
 	// generator: project GetOne
 	GetProject(ctx context.Context, tx *sql.Tx, name string) (*Project, error)
 
-	// ProjectExists checks if a project with the given key exists.
-	// generator: project Exists
-	ProjectExists(ctx context.Context, tx *sql.Tx, name string) (bool, error)
-
 	// CreateProjectConfig adds new project Config to the database.
 	// generator: project Create
 	CreateProjectConfig(ctx context.Context, tx *sql.Tx, projectID int64, config map[string]string) error

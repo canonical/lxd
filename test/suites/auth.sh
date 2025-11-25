@@ -76,7 +76,7 @@ test_authorization() {
   # Test permission is removed automatically when instance is removed.
   lxc auth group permission add test-group instance c1 can_exec project=default # Valid
   lxc rm c1 --force
-  [ "$(lxd sql global --format csv "SELECT count(*) FROM auth_groups_permissions WHERE entitlement = 'can_exec'")" = 0 ] # Permission should be removed when instance is removed.
+  [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM auth_groups_permissions WHERE entitlement = 'can_exec'")" = 0 ] # Permission should be removed when instance is removed.
 
   # Network permissions
   ! lxc auth group permission add test-group network n1 can_view project=default || false # Not found
@@ -104,6 +104,12 @@ test_authorization() {
   lxc auth identity group add oidc/test-user@example.com test-group # Valid
 
   # Test fine-grained TLS identity creation
+
+  # Cannot create identities that are not tls
+  ! lxc auth identity create oidc/jane.doe@example.com || false
+  ! lxc auth identity create foo/bar || false
+
+  # Get a token
   tls_identity_token="$(lxc auth identity create tls/test-user --quiet --group test-group)"
   LXD_CONF2=$(mktemp -d -p "${TEST_DIR}" XXX)
   LXD_CONF="${LXD_CONF2}" gen_cert_and_key "client"
@@ -225,6 +231,10 @@ fine_grained: true"
   storage_pool_used_by "oidc"
   LXD_CONF="${LXD_CONF2}" storage_pool_used_by "tls"
 
+  # Check network used-by URLs
+  network_used_by "oidc"
+  LXD_CONF="${LXD_CONF2}" network_used_by "tls"
+
   # Perform access checks
   fine_grained_authorization "oidc"
   LXD_CONF="${LXD_CONF2}" fine_grained_authorization "tls"
@@ -270,6 +280,11 @@ fine_grained: true"
   token="$(lxc auth identity create tls/test-user4 --quiet)"
   LXD_CONF="${LXD_CONF4}" lxc_remote remote add tls "${token}"
   lxc auth identity group add tls/test-user4 test-group
+
+  # Pending TLS identity can be added to groups.
+  lxc auth identity create tls/foobar
+  lxc auth identity group add tls/foobar test-group
+  lxc auth identity delete tls/foobar
 
   # Create another certificate to update to
   LXD_CONF5=$(mktemp -d -p "${TEST_DIR}" XXX)
@@ -388,6 +403,48 @@ storage_pool_used_by() {
   lxc delete c1 -f
   lxc storage volume delete "${pool_name}" vol1
   [ "$(lxc query "/1.0/storage-pools/${pool_name}" | jq '.used_by | length')" -eq $((start_length)) ]
+}
+
+network_used_by() {
+  remote="${1}"
+
+  # test-group must have no permissions to start the test.
+  [ "$(lxc query /1.0/auth/groups/test-group | jq '.permissions | length')" -eq 0 ]
+
+  # Test storage pool
+  pool_name="$(lxc storage list -f csv | cut -d, -f1)"
+
+  # Test network for used-by filtering
+  lxc network create n1
+  lxc auth group permission add test-group network n1 can_view project=default
+
+  # Used-by list should be empty.
+  [ "$(lxc_remote query "${remote}:/1.0/networks/n1" | jq '.used_by | length')" -eq 0 ]
+
+  # Launch instance. Should appear in networks used-by list. Members of test-group still can't see anything.
+  lxc init --empty c1 --storage "${pool_name}" --network n1
+  [ "$(lxc query "/1.0/networks/n1" | jq '.used_by | length')" -eq 1 ]
+  [ "$(lxc_remote query "${remote}:/1.0/networks/n1" | jq '.used_by | length')" -eq 0 ]
+
+  # Allow members of test-group to view the instance. They should see it in the used-by list.
+  lxc auth group permission add test-group instance c1 can_view project=default
+  [ "$(lxc_remote query "${remote}:/1.0/networks/n1" | jq '.used_by | length')" -eq 1 ]
+
+  # Launch instance in another project. Should appear in networks used-by list. Members of test-group still can't see anything.
+  lxc project create foo
+  lxc init --empty c2 --storage "${pool_name}" --network n1 --project=foo
+  [ "$(lxc query "/1.0/networks/n1" | jq '.used_by | length')" -eq 2 ]
+  [ "$(lxc_remote query "${remote}:/1.0/networks/n1" | jq '.used_by | length')" -eq 1 ]
+
+  # Allow members of test-group to view the instance. They should see it in the used-by list.
+  lxc auth group permission add test-group instance c2 can_view project=foo
+  [ "$(lxc_remote query "${remote}:/1.0/networks/n1" | jq '.used_by | length')" -eq 2 ]
+
+  # Clean up network used-by resources.
+  lxc delete c1 -f
+  lxc delete c2 --project foo -f
+  lxc project delete foo
+  lxc network delete n1
 }
 
 fine_grained_authorization() {

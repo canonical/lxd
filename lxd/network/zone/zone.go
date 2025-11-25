@@ -13,6 +13,7 @@ import (
 	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/cluster/request"
+	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/response"
@@ -235,27 +236,27 @@ func (d *zone) validateConfig(info *api.NetworkZonePut) error {
 }
 
 // validateConfigMap checks zone config map against rules.
-func (d *zone) validateConfigMap(config map[string]string, rules map[string]func(value string) error) error {
+func (d *zone) validateConfigMap(zoneConfig map[string]string, rules map[string]func(value string) error) error {
 	checkedFields := map[string]struct{}{}
 
 	// Run the validator against each field.
 	for k, validator := range rules {
 		checkedFields[k] = struct{}{} // Mark field as checked.
-		err := validator(config[k])
+		err := validator(zoneConfig[k])
 		if err != nil {
 			return fmt.Errorf("Invalid value for config option %q: %w", k, err)
 		}
 	}
 
 	// Look for any unchecked fields, as these are unknown fields and validation should fail.
-	for k := range config {
+	for k := range zoneConfig {
 		_, checked := checkedFields[k]
 		if checked {
 			continue
 		}
 
 		// User keys are not validated.
-		if shared.IsUserConfig(k) {
+		if config.IsUserConfig(k) {
 			continue
 		}
 

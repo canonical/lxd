@@ -31,10 +31,10 @@ import (
 	"github.com/gorilla/websocket"
 	liblxc "github.com/lxc/go-lxc"
 	"github.com/pkg/sftp"
+	yaml "go.yaml.in/yaml/v2"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/proto"
-	yaml "gopkg.in/yaml.v2"
 
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/backup/config"
@@ -1282,8 +1282,8 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 	return cc, err
 }
 
-var idmappedStorageMap map[unix.Fsid]idmap.IdmapStorageType = map[unix.Fsid]idmap.IdmapStorageType{}
-var idmappedStorageMapString map[string]idmap.IdmapStorageType = map[string]idmap.IdmapStorageType{}
+var idmappedStorageMap = map[unix.Fsid]idmap.IdmapStorageType{}
+var idmappedStorageMapString = map[string]idmap.IdmapStorageType{}
 var idmappedStorageMapLock sync.Mutex
 
 // IdmappedStorage determines if the container can use idmapped mounts.
@@ -1694,12 +1694,12 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 					return fmt.Errorf("Error unmounting the device path inside container: %s", err)
 				}
 
-				err = files.Remove(relativeTargetPath)
-				if err != nil {
-					// Only warn here and don't fail as removing a directory
-					// mount may fail if there was already files inside
-					// directory before it was mouted over preventing delete.
-					d.logger.Warn("Could not remove the device path inside container", logger.Ctx{"err": err})
+				// Only remove mountpoints created in /dev.
+				if strings.HasPrefix(mount.TargetPath, "dev/") {
+					err = files.Remove(relativeTargetPath)
+					if err != nil {
+						d.logger.Warn("Could not remove the device path inside container", logger.Ctx{"err": err, "path": relativeTargetPath})
+					}
 				}
 			}
 
@@ -3226,7 +3226,7 @@ func (d *lxc) Unfreeze() error {
 
 	err = cc.Unfreeze()
 	if err != nil {
-		d.logger.Error("Failed unfreezing container", ctxMap)
+		return fmt.Errorf("Failed unfreezing container: %w", err)
 	}
 
 	d.logger.Info("Unfroze container", ctxMap)
@@ -8502,7 +8502,11 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 
 	for scanner.Scan() {
 		fields := strings.Fields(scanner.Text())
+		if len(fields) < 3 {
+			continue
+		}
 
+		// /proc/mounts' format is documented in `man 5 fstab`.
 		mountMap[fields[0]] = mountInfo{Mountpoint: fields[1], FSType: fields[2]}
 	}
 

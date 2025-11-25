@@ -113,11 +113,17 @@ _container_devices_unix() {
   [ "$(lxc exec "${ctName}" -- stat -c '%F %a %t %T' /tmp/testdev)" = "${deviceTypeDesc} 660 0 0" ]
   [ "$(stat -c '%F %a %t %T' "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev)" = "${deviceTypeDesc} 660 0 0" ]
 
+  # Check removal of mount point devices created in /dev.
+  lxc config device add "${ctName}" test-dev5 disk source=/dev/zero path=/dev/test
+  lxc config device remove "${ctName}" test-dev5
+  ! lxc exec "${ctName}" -- mount | grep -F "/dev/test" || false
+  ! lxc exec "${ctName}" -- test -e /dev/test || false
+
   # Remove host side device and check it is dynamically removed from instance.
   rm "${testDev}"
   sleep 1
   ! lxc exec "${ctName}" -- mount | grep -F "/tmp/testdev" || false
-  ! lxc exec "${ctName}" -- test -e /tmp/testdev || false
+  lxc exec "${ctName}" -- test -e /tmp/testdev
   ! test -e "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev || false
 
   # Leave instance running, restart LXD, then add device back to check LXD start time inotify works.
@@ -135,7 +141,7 @@ _container_devices_unix() {
   ls -la "${TEST_DIR}"
   lxc config device set "${ctName}" test-dev-dynamic source="${testDevSubDir}"
   ! lxc exec "${ctName}" -- mount | grep -F "/tmp/testdev" || false
-  ! lxc exec "${ctName}" -- test -e /tmp/testdev || false
+  lxc exec "${ctName}" -- test -e /tmp/testdev
   ! test -e "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev || false
 
   mkdir "${testDev}"
@@ -148,14 +154,10 @@ _container_devices_unix() {
   # Cleanup.
   rm -rvf "${testDev}"
 
-  # XXX with fanotify removing the testDev directory does not reflect in the instance
-  # so skip it until https://github.com/canonical/lxd/issues/15894 is addressed
-  if [ "${LXD_FSMONITOR_DRIVER}" != "fanotify" ]; then
-    sleep 1
-    ! lxc exec "${ctName}" -- mount | grep -F "/tmp/testdev" || false
-    ! lxc exec "${ctName}" -- test -e /tmp/testdev || false
-    ! test -e "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev || false
-  fi
+  sleep 1
+  ! lxc exec "${ctName}" -- mount | grep -F "/tmp/testdev" || false
+  lxc exec "${ctName}" -- test -e /tmp/testdev
+  ! test -e "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev || false
 
   lxc delete -f "${ctName}"
 
@@ -179,7 +181,7 @@ _container_devices_unix() {
   rm "${testDev}"
   sleep 1
   ! lxc exec "${ctName}2" -- mount | grep -F "/tmp/testdev2" || false
-  ! lxc exec "${ctName}2" -- test -e /tmp/testdev2 || false
+  lxc exec "${ctName}2" -- test -e /tmp/testdev2
   ! test -e "${LXD_DIR}"/devices/"${ctName}"2/unix.test--dev--dynamic.tmp-testdev2 || false
   lxc delete -f "${ctName}1"
   lxc delete -f "${ctName}2"

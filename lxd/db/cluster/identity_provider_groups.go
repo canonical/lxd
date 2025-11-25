@@ -27,11 +27,8 @@ import (
 //
 //go:generate mapper method -i -e identity_provider_group GetMany
 //go:generate mapper method -i -e identity_provider_group GetOne
-//go:generate mapper method -i -e identity_provider_group ID
-//go:generate mapper method -i -e identity_provider_group Exists
 //go:generate mapper method -i -e identity_provider_group Create
 //go:generate mapper method -i -e identity_provider_group DeleteOne-by-Name
-//go:generate mapper method -i -e identity_provider_group Update
 //go:generate mapper method -i -e identity_provider_group Rename
 //go:generate goimports -w identity_provider_groups.mapper.go
 //go:generate goimports -w identity_provider_groups.interface.mapper.go

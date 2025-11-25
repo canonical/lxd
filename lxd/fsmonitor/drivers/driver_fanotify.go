@@ -184,36 +184,10 @@ func (d *fanotify) getEvents(ctx context.Context, mountFd int) {
 
 		fh := unix.NewFileHandle(fhInfo.Type, fileHandle)
 
-		fd, err := unix.OpenByHandleAt(mountFd, fh, 0)
-		if err != nil {
-			errno, ok := err.(unix.Errno)
-			if ctx.Err() == nil && ok && errno != unix.ESTALE {
-				d.logger.Error("Failed to open file", logger.Ctx{"err": err})
-			}
-
-			continue
-		}
-
-		unix.CloseOnExec(fd)
-
-		// Determine the directory of the created or deleted file.
-		target, err := os.Readlink(fmt.Sprintf("/proc/self/fd/%d", fd))
-		if err != nil {
-			d.logger.Error("Failed to read symlink", logger.Ctx{"err": err})
-			continue
-		}
-
-		_ = unix.Close(fd)
-
-		// If the target file has been deleted, the returned value might contain a " (deleted)" suffix.
-		// This needs to be removed.
-		target = strings.TrimSuffix(target, " (deleted)")
-
 		// The file handle is followed by a null terminated string that identifies the
 		// created/deleted directory entry name.
+		// Read it now so we can use it whether or not [OpenByHandleAt] succeeds.
 		sb := strings.Builder{}
-		sb.WriteString(target + "/")
-
 		for {
 			b, err := rd.ReadByte()
 			if err != nil || b == 0 {
@@ -226,7 +200,65 @@ func (d *fanotify) getEvents(ctx context.Context, mountFd int) {
 			}
 		}
 
-		eventPath := filepath.Clean(sb.String())
+		name := sb.String()
+
+		fd, err := unix.OpenByHandleAt(mountFd, fh, 0)
+		if err != nil {
+			// If the handle can't be opened (e.g. ESTALE because the fs entry was removed),
+			// attempt a dispatch using the entry name.
+			errno, ok := err.(unix.Errno)
+			if ctx.Err() == nil && ok && errno != unix.ESTALE {
+				d.logger.Error("Failed to open file", logger.Ctx{"err": err})
+			}
+
+			action, err := d.toFSMonitorEvent(event.Mask)
+			if err != nil {
+				d.logger.Warn("Failed to match fanotify event, skipping", logger.Ctx{"err": err})
+				continue
+			}
+
+			candidate := filepath.Clean(filepath.Join(d.prefixPath, name))
+
+			d.mu.Lock()
+			for path := range d.watches {
+				if path != candidate && filepath.Base(path) != name {
+					continue
+				}
+
+				for identifier, f := range d.watches[path] {
+					ret := f(path, action)
+					if !ret {
+						delete(d.watches[path], identifier)
+
+						if len(d.watches[path]) == 0 {
+							delete(d.watches, path)
+						}
+					}
+				}
+			}
+			d.mu.Unlock()
+
+			continue
+		}
+
+		unix.CloseOnExec(fd)
+
+		// Determine the directory of the created or deleted file.
+		target, err := os.Readlink(fmt.Sprintf("/proc/self/fd/%d", fd))
+		if err != nil {
+			d.logger.Error("Failed to read symlink", logger.Ctx{"err": err})
+			_ = unix.Close(fd)
+			continue
+		}
+
+		_ = unix.Close(fd)
+
+		// If the target file has been deleted, the returned value might contain a " (deleted)" suffix.
+		// This needs to be removed.
+		target = strings.TrimSuffix(target, " (deleted)")
+
+		// Build the full event path from the resolved directory and the entry name.
+		eventPath := filepath.Clean(filepath.Join(target, name))
 
 		// Check whether there's a watch on a specific file or directory.
 		d.mu.Lock()

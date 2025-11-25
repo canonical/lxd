@@ -375,6 +375,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_authorization "Authorization"
     run_test test_certificate_edit "Certificate edit"
     run_test test_basic_usage "basic usage"
+    run_test test_duplicate_detection "duplicate detection"
     run_test test_basic_version "basic version"
     run_test test_server_info "server info"
     run_test test_remote_url "remote url handling"
@@ -405,6 +406,7 @@ if [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_dns "clustering DNS"
     run_test test_clustering_fan "clustering FAN"
     run_test test_clustering_recover "clustering recovery"
+    run_test test_clustering_ha "clustering high availability"
     run_test test_clustering_handover "clustering handover"
     run_test test_clustering_rebalance "clustering rebalance"
     run_test test_clustering_remove_raft_node "clustering remove raft node"
@@ -427,6 +429,8 @@ if [ "${1:-"all"}" != "standalone" ]; then
 fi
 
 if [ "${1:-"all"}" != "cluster" ]; then
+    run_test test_concurrent "concurrent startup"
+    run_test test_concurrent_exec "concurrent exec"
     run_test test_projects_default "default project"
     run_test test_projects_copy "copy/move between projects"
     run_test test_projects_crud "projects CRUD operations"
@@ -547,8 +551,6 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_backup_export_import_recover "backup export, import, and recovery"
     run_test test_container_local_cross_pool_handling "container local cross pool handling"
     run_test test_incremental_copy "incremental container copy"
-    run_test test_concurrent_exec "concurrent exec"
-    run_test test_concurrent "concurrent startup"
     run_test test_profiles_project_default "profiles in default project"
     run_test test_profiles_project_images_profiles "profiles in project with images and profiles enabled"
     run_test test_profiles_project_images "profiles in project with images enabled and profiles disabled"

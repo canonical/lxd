@@ -16,7 +16,9 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/network/openvswitch"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/validate"
 )
 
 var sysClassNet = "/sys/class/net"
@@ -583,8 +585,9 @@ func getOVSBridgeState(name string) *api.NetworkStateBridge {
 // GetNetworkState returns the OS configuration for the network interface.
 func GetNetworkState(name string) (*api.NetworkState, error) {
 	// Reject known bad names that might cause problem when dealing with paths.
-	if strings.Contains(name, "/") || strings.Contains(name, "\\") || strings.Contains(name, "..") {
-		return nil, api.StatusErrorf(http.StatusBadRequest, "Invalid network interface name: %q", name)
+	err := validate.IsInterfaceName(name)
+	if err != nil {
+		return nil, api.StatusErrorf(http.StatusBadRequest, "Invalid network interface name %q: %v", name, err)
 	}
 
 	// Get some information
@@ -625,40 +628,24 @@ func GetNetworkState(name string) (*api.NetworkState, error) {
 	addrs, err := netIf.Addrs()
 	if err == nil {
 		for _, addr := range addrs {
-			fields := strings.SplitN(addr.String(), "/", 2)
-			if len(fields) != 2 {
+			address, netmask, found := strings.Cut(addr.String(), "/")
+			if !found {
 				continue
 			}
 
 			family := "inet"
-			if strings.Contains(fields[0], ":") {
+			if strings.Contains(address, ":") {
 				family = "inet6"
 			}
 
-			scope := "global"
-			if strings.HasPrefix(fields[0], "127") {
-				scope = "local"
+			networkAddress := api.NetworkStateAddress{
+				Family:  family,
+				Address: address,
+				Netmask: netmask,
+				Scope:   shared.GetIPScope(address),
 			}
 
-			if fields[0] == "::1" {
-				scope = "local"
-			}
-
-			if strings.HasPrefix(fields[0], "169.254") {
-				scope = "link"
-			}
-
-			if strings.HasPrefix(fields[0], "fe80:") {
-				scope = "link"
-			}
-
-			address := api.NetworkStateAddress{}
-			address.Family = family
-			address.Address = fields[0]
-			address.Netmask = fields[1]
-			address.Scope = scope
-
-			network.Addresses = append(network.Addresses, address)
+			network.Addresses = append(network.Addresses, networkAddress)
 		}
 	}
 
@@ -790,15 +777,15 @@ func GetNetworkCounters(name string) (*api.NetworkStateCounters, error) {
 		return nil, err
 	}
 
+	// A sample line:
+	// eth0: 1024 0 0 0 0 0 0 0 2048 0 0 0 0 0 0 0
 	for line := range strings.SplitSeq(string(content), "\n") {
 		fields := strings.Fields(line)
-
 		if len(fields) != 17 {
 			continue
 		}
 
-		intName := strings.TrimSuffix(fields[0], ":")
-		if intName != name {
+		if fields[0] != name+":" {
 			continue
 		}
 

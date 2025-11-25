@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/cluster/request"
+	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/network/openvswitch"
@@ -259,27 +260,27 @@ func (d *common) validateConfig(info *api.NetworkACLPut) error {
 }
 
 // validateConfigMap checks ACL config map against rules.
-func (d *common) validateConfigMap(config map[string]string, rules map[string]func(value string) error) error {
+func (d *common) validateConfigMap(aclConfig map[string]string, rules map[string]func(value string) error) error {
 	checkedFields := map[string]struct{}{}
 
 	// Run the validator against each field.
 	for k, validator := range rules {
 		checkedFields[k] = struct{}{} // Mark field as checked.
-		err := validator(config[k])
+		err := validator(aclConfig[k])
 		if err != nil {
 			return fmt.Errorf("Invalid value for config option %q: %w", k, err)
 		}
 	}
 
 	// Look for any unchecked fields, as these are unknown fields and validation should fail.
-	for k := range config {
+	for k := range aclConfig {
 		_, checked := checkedFields[k]
 		if checked {
 			continue
 		}
 
 		// User keys are not validated.
-		if shared.IsUserConfig(k) {
+		if config.IsUserConfig(k) {
 			continue
 		}
 

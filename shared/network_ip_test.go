@@ -140,6 +140,49 @@ func Example_ipRangesOverlap() {
 	// Range1: 10.1.1.8-10.1.1.9, Range2: 10.1.1.4, overlapped: false
 }
 
+func TestGetIPScope(t *testing.T) {
+	tests := []struct {
+		ip       string
+		expected string
+	}{
+		{
+			ip:       "169.254.183.5",
+			expected: "link",
+		},
+		{
+			ip:       "fe80::1",
+			expected: "link",
+		},
+		{
+			ip:       "192.0.2.1",
+			expected: "global",
+		},
+		{
+			ip:       "::1",
+			expected: "local",
+		},
+		{
+			ip:       "127.0.0.1",
+			expected: "local",
+		},
+		{
+			ip:       "127::db8::1",
+			expected: "global",
+		},
+		{
+			ip:       "2001:db8::1",
+			expected: "global",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.ip, func(t *testing.T) {
+			scope := GetIPScope(test.ip)
+			assert.Equal(t, test.expected, scope, "Expected scope to match")
+		})
+	}
+}
+
 func TestParseNetworks(t *testing.T) {
 	testCases := []struct {
 		name       string
