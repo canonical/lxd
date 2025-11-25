@@ -90,6 +90,15 @@ EOF
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | sed '/^expires_at:/d' | lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0"
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep '^expires_at: 0001-01-01T00:00:00Z'
 
+  # name property editing should fail
+  ! lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | sed 's/^name:.*/name: invalid-name/' | lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0" || false
+
+  # content_type property editing should fail
+  ! lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | sed 's/^content_type:.*/content_type: invalid-content/' | lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0" || false
+
+  # config property editing should fail
+  ! lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | sed 's/^config:.*/config: {}/' | lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0" || false
+
   # Check the API returns the zero time representation when listing all snapshots in recursive mode.
   lxc query "/1.0/storage-pools/${storage_pool}/volumes/custom/${storage_volume}/snapshots?recursion=2" | jq --exit-status '.[] | select(.name == "'"${storage_volume}/snap0"'") | .expires_at == "0001-01-01T00:00:00Z"'
 
