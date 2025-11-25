@@ -90,6 +90,54 @@ EOF
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | sed '/^expires_at:/d' | lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0"
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep '^expires_at: 0001-01-01T00:00:00Z'
 
+  # Test storage volume snapshot editing.
+  # Only description and expires_at can be modified.
+
+  tmp_yaml=$(mktemp)
+  ERROR_MSG="Error: Only \"description\" and \"expires_at\" field(s) can be modified for snapshot volumes"
+
+  # Test non editable properties.
+  for field in name content_type config; do
+    lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" > "$tmp_yaml"
+    case $field in
+      config)
+        sed -i "s/^${field}:.*/${field}: {}/" "$tmp_yaml"
+        ;;
+      *)
+        sed -i "s/^${field}:.*/${field}: invalid-${field}/" "$tmp_yaml"
+        ;;
+    esac
+
+    ! lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0" < "$tmp_yaml" 2>&1 | grep -xF "$ERROR_MSG" || false
+  done
+
+  # Test editable properties.
+  # 1. description.
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" > "$tmp_yaml"
+  sed -i 's/^description:.*/description: "Updated description"/' "$tmp_yaml"
+  lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0" <<EOF
+$(cat "$tmp_yaml")
+EOF
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep -xF "description: Updated description"
+
+  # 2. expires_at.
+  expiry_date=$(date -u -d '+1 day' '+%Y-%m-%dT%H:%M:%SZ')
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" > "$tmp_yaml"
+  sed -i "s/^expires_at:.*/expires_at: ${expiry_date}/" "$tmp_yaml"
+  lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0" <<EOF
+$(cat "$tmp_yaml")
+EOF
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep -xF "expires_at: ${expiry_date}"
+
+  # Reset expires_at property.
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" > "$tmp_yaml"
+  sed -i '/^expires_at:/d' "$tmp_yaml"  # expires_at satırını sil
+  lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0" <<EOF
+  $(cat "$tmp_yaml")
+EOF
+
+  rm -f "$tmp_yaml"
+
   # Check the API returns the zero time representation when listing all snapshots in recursive mode.
   lxc query "/1.0/storage-pools/${storage_pool}/volumes/custom/${storage_volume}/snapshots?recursion=2" | jq --exit-status '.[] | select(.name == "'"${storage_volume}/snap0"'") | .expires_at == "0001-01-01T00:00:00Z"'
 
