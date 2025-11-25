@@ -5,7 +5,7 @@ test_container_devices_tpm() {
       return
     fi
 
-    apt-get install --no-install-recommends -y "linux-modules-extra-$(uname -r)"
+    install_packages "linux-modules-extra-$(uname -r)"
     modprobe tpm_vtpm_proxy
   fi
 
