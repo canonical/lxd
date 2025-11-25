@@ -44,6 +44,48 @@ type simpleListenerConnection struct {
 	lock sync.Mutex
 }
 
+// readerCommon implements the common reader logic for stream and simple connections.
+func readerCommon(ctx context.Context, lock *sync.Mutex, rc io.ReadCloser) {
+	ctx, cancelFunc := context.WithCancel(ctx)
+
+	closeFunc := func() {
+		lock.Lock()
+		defer lock.Unlock()
+
+		if ctx.Err() != nil {
+			return
+		}
+
+		err := rc.Close()
+		if err != nil {
+			logger.Warn("Failed closing connection", logger.Ctx{"err": err})
+		}
+
+		cancelFunc()
+	}
+
+	defer closeFunc()
+
+	// Start reader from client.
+	go func() {
+		defer closeFunc()
+
+		buf := make([]byte, 1)
+
+		// This is used to determine whether the client has terminated.
+		_, err := rc.Read(buf)
+		if err != nil && errors.Is(err, io.EOF) {
+			return
+		}
+	}()
+
+	if ctx.Err() != nil {
+		return
+	}
+
+	<-ctx.Done()
+}
+
 // NewWebsocketListenerConnection returns a new websocket listener connection.
 func NewWebsocketListenerConnection(connection *websocket.Conn) EventListenerConnection {
 	return &websockListenerConnection{
@@ -171,44 +213,7 @@ X-Content-Type-Options: nosniff
 
 // Reader for the stream connection.
 func (e *streamListenerConnection) Reader(ctx context.Context, recvFunc EventHandler) {
-	ctx, cancelFunc := context.WithCancel(ctx)
-
-	closer := func() {
-		e.lock.Lock()
-		defer e.lock.Unlock()
-
-		if ctx.Err() != nil {
-			return
-		}
-
-		err := e.Close()
-		if err != nil {
-			logger.Warn("Failed closing connection", logger.Ctx{"err": err})
-		}
-
-		cancelFunc()
-	}
-
-	defer closer()
-
-	// Start reader from client.
-	go func() {
-		defer closer()
-
-		buf := make([]byte, 1)
-
-		// This is used to determine whether the client has terminated.
-		_, err := e.Read(buf)
-		if err != nil && errors.Is(err, io.EOF) {
-			return
-		}
-	}()
-
-	if ctx.Err() != nil {
-		return
-	}
-
-	<-ctx.Done()
+	readerCommon(ctx, &e.lock, e.Conn)
 }
 
 // WriteJSON sends a JSON event to the stream connection.
@@ -243,48 +248,14 @@ func NewSimpleListenerConnection(rwc io.ReadWriteCloser) EventListenerConnection
 
 // Reader for the simple connection.
 func (e *simpleListenerConnection) Reader(ctx context.Context, recvFunc EventHandler) {
-	ctx, cancelFunc := context.WithCancel(ctx)
-
-	closer := func() {
-		e.lock.Lock()
-		defer e.lock.Unlock()
-
-		if ctx.Err() != nil {
-			return
-		}
-
-		err := e.Close()
-		if err != nil {
-			logger.Warn("Failed closing connection", logger.Ctx{"err": err})
-		}
-
-		cancelFunc()
-	}
-
-	defer closer()
-
-	// Start reader from client.
-	go func() {
-		defer closer()
-
-		buf := make([]byte, 1)
-
-		// This is used to determine whether the client has terminated.
-		_, err := e.rwc.Read(buf)
-		if err != nil && errors.Is(err, io.EOF) {
-			return
-		}
-	}()
-
-	if ctx.Err() != nil {
-		return
-	}
-
-	<-ctx.Done()
+	readerCommon(ctx, &e.lock, e.rwc)
 }
 
 // WriteJSON sends a JSON event to the simple connection.
 func (e *simpleListenerConnection) WriteJSON(event any) error {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+
 	err := json.NewEncoder(e.rwc).Encode(event)
 	if err != nil {
 		return err
