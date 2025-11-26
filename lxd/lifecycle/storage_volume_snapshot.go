@@ -25,7 +25,7 @@ func (a StorageVolumeSnapshotAction) Event(v volume, volumeType string, projectN
 
 	var requestor *api.EventLifecycleRequestor
 	if op != nil {
-		requestor = op.Requestor()
+		requestor = op.EventLifecycleRequestor()
 	}
 
 	return api.EventLifecycle{

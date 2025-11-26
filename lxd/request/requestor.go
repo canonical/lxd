@@ -46,8 +46,16 @@ type Requestor struct {
 	forwardedUsername               string
 	forwardedProtocol               string
 	forwardedIdentityProviderGroups []string
+	clientType                      ClientType
 	identity                        *identity.CacheEntry
 	identityType                    identity.Type
+}
+
+// IsClusterNotification returns true if this an API request coming from a
+// cluster node that is notifying us of some user-initiated API request that
+// needs some action to be taken on this node as well.
+func (r *Requestor) IsClusterNotification() bool {
+	return r.ClientType() == ClientTypeNotifier
 }
 
 // IsTrusted returns true if the caller is authenticated and false otherwise.
@@ -104,6 +112,11 @@ func (r *Requestor) CallerIdentityProviderGroups() []string {
 	return r.identityProviderGroups
 }
 
+// ClientType returns the client type, which is derived from the "User-Agent" request header.
+func (r *Requestor) ClientType() ClientType {
+	return r.clientType
+}
+
 // EventLifecycleRequestor returns an api.EventLifecycleRequestor representing the original caller.
 func (r *Requestor) EventLifecycleRequestor() *api.EventLifecycleRequestor {
 	return &api.EventLifecycleRequestor{
@@ -111,6 +124,15 @@ func (r *Requestor) EventLifecycleRequestor() *api.EventLifecycleRequestor {
 		Protocol: r.CallerProtocol(),
 		Address:  r.OriginAddress(),
 	}
+}
+
+// CallerIsEqual returns true if the given Requestor is the same caller as this Requestor.
+func (r *Requestor) CallerIsEqual(requestor *Requestor) bool {
+	if requestor == nil {
+		return false
+	}
+
+	return requestor.CallerUsername() == r.CallerUsername() && requestor.CallerProtocol() == r.CallerProtocol()
 }
 
 // CallerIdentity returns the identity.CacheEntry for the caller. It may be nil (e.g. if the protocol is ProtocolUnix).
@@ -254,12 +276,21 @@ func (r *Requestor) setIdentity(cache *identity.Cache) error {
 // SetRequestor validates the given RequestorArgs against the request, then populates the additional fields
 // that requestor contains and sets a requestor in the context.
 func SetRequestor(req *http.Request, identityCache *identity.Cache, args RequestorArgs) error {
+	clientType := userAgentClientType(req.Header.Get("User-Agent"))
+
+	// Cluster notification with wrong certificate.
+	if clientType != ClientTypeNormal && !slices.Contains([]string{ProtocolCluster, ProtocolUnix}, args.Protocol) {
+		// XXX: We allow ProtocolUnix because initDataNodeApply() in lxd/init.go uses a local client to join a cluster. initDataNodeApply() is used by 'lxd init' and PUT /1.0/cluster.
+		return errors.New("Cluster notification isn't using trusted server certificate")
+	}
+
 	r := &Requestor{
 		trusted:                args.Trusted,
 		originAddress:          req.RemoteAddr,
 		username:               args.Username,
 		protocol:               args.Protocol,
 		identityProviderGroups: args.IdentityProviderGroups,
+		clientType:             clientType,
 	}
 
 	err := r.setForwardingDetails(req)

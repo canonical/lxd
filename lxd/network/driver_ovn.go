@@ -21,7 +21,6 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/cluster"
-	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
@@ -32,6 +31,7 @@ import (
 	"github.com/canonical/lxd/lxd/network/acl"
 	"github.com/canonical/lxd/lxd/network/openvswitch"
 	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -440,6 +440,15 @@ func (n *ovn) Validate(config map[string]string) error {
 		//  defaultdesc: `true`
 		//  shortdesc: Whether to allocate IPv4 addresses using DHCP
 		"ipv4.dhcp": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=ipv4.dhcp.ranges)
+		// Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.
+		// ---
+		//  type: string
+		//  condition: IPv4 DHCP
+		//  defaultdesc: all addresses
+		//  shortdesc: IPv4 ranges to use for DHCP
+		//  scope: global
+		"ipv4.dhcp.ranges": validate.Optional(validate.IsListOf(validate.IsNetworkRangeV4)),
 		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=ipv6.address)
 		// Use CIDR notation.
 		//
@@ -2188,9 +2197,9 @@ func (n *ovn) validateUplinkNetwork(ctx context.Context, tx *db.ClusterTx, p *ap
 	return "", errors.New(`Option "network" is required`)
 }
 
-// getDHCPv4Reservations returns list of DHCP IPv4 reservations for this network.
+// getDHCPv4Reservations returns a list of DHCP IPv4 reservations for this network.
 func (n *ovn) getDHCPv4Reservations() ([]shared.IPRange, error) {
-	routerIntPortIPv4, _, err := n.parseRouterIntPortIPv4Net()
+	routerIntPortIPv4, ipv4Net, err := n.parseRouterIntPortIPv4Net()
 	if err != nil {
 		return nil, fmt.Errorf("Failed parsing router's internal port IPv4 Net for DHCP reservation: %w", err)
 	}
@@ -2198,7 +2207,30 @@ func (n *ovn) getDHCPv4Reservations() ([]shared.IPRange, error) {
 	var dhcpReserveIPv4s []shared.IPRange
 
 	if routerIntPortIPv4 != nil {
-		dhcpReserveIPv4s = []shared.IPRange{{Start: routerIntPortIPv4}}
+		if n.config["ipv4.dhcp.ranges"] == "" {
+			dhcpReserveIPv4s = []shared.IPRange{{Start: routerIntPortIPv4}}
+		} else {
+			allowedNets := []*net.IPNet{n.DHCPv4Subnet()}
+			dhcpRanges, err := shared.ParseIPRanges(n.config["ipv4.dhcp.ranges"], allowedNets...)
+			if err != nil {
+				return nil, err
+			}
+
+			// Get the list of IP ranges that are "outside" of the "ipv4.dhcp.ranges".
+			// This is needed because we want to write these IPs into the "exclude_ips"
+			// field on the OVN network to prevent DHCP from using them.
+			reservedIPs, err := complementRangesIP4(dhcpRanges, ipv4Net)
+			if err != nil {
+				return nil, err
+			}
+
+			dhcpReserveIPv4s = append(dhcpReserveIPv4s, reservedIPs...)
+
+			// Add the router IP in the reserved IP list, if it is not there yet.
+			if !ipInRanges(routerIntPortIPv4, dhcpReserveIPv4s) {
+				dhcpReserveIPv4s = append(dhcpReserveIPv4s, shared.IPRange{Start: routerIntPortIPv4})
+			}
+		}
 	}
 
 	return dhcpReserveIPv4s, nil
@@ -2274,7 +2306,7 @@ func (n *ovn) setup(update bool) error {
 		updatedConfig["bridge.mtu"] = strconv.FormatUint(uint64(bridgeMTU), 10)
 	}
 
-	// Get a list of all NICs connected to this network that have static DHCP IPv4 reservations.
+	// Get a list of all reserved IPv4 addresses that must not be used by the network's DHCP.
 	dhcpReserveIPv4s, err := n.getDHCPv4Reservations()
 	if err != nil {
 		return fmt.Errorf("Failed getting DHCPv4 IP reservations: %w", err)
@@ -3335,11 +3367,11 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 	}
 
 	// Check that the uplink volatile IPs haven't been removed incorrectly.
-	for _, ipVersion := range []int{4, 6} {
-		networkAddrKey := "ipv" + strconv.Itoa(ipVersion) + ".address"
+	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
+		networkAddrKey := keyPrefix + ".address"
 		uplinkAddrKey := ovnVolatileUplinkIPv4
 
-		if ipVersion == 6 {
+		if keyPrefix == "ipv6" {
 			uplinkAddrKey = ovnVolatileUplinkIPv6
 		}
 

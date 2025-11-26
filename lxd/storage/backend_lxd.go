@@ -30,7 +30,6 @@ import (
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/backup"
 	backupConfig "github.com/canonical/lxd/lxd/backup/config"
-	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/device/config"
@@ -43,6 +42,7 @@ import (
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/project/limits"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/rsync"
 	"github.com/canonical/lxd/lxd/state"
@@ -1003,10 +1003,12 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 
 				fsVol := vol.NewVMBlockFilesystemVolume()
 				err := b.driver.SetVolumeQuota(fsVol, vmStateSize, allowUnsafeResize, op)
-				if errors.Is(err, drivers.ErrCannotBeShrunk) {
+				if err != nil {
+					if !errors.Is(err, drivers.ErrCannotBeShrunk) {
+						return fmt.Errorf("Failed applying filesystem volume quota to root disk: %w", err)
+					}
+
 					l.Warn("Could not apply VM filesystem volume quota from root disk config as restored volume cannot be shrunk", logger.Ctx{"size": vmStateSize})
-				} else if err != nil {
-					return fmt.Errorf("Failed applying filesystem volume quota to root disk: %w", err)
 				}
 			}
 		}
@@ -2116,7 +2118,11 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 		// So we unpack the image directly into a new volume rather than use the optimized snapsot.
 		// This is slower but allows for individual volumes to be created from an image that are smaller
 		// than the pool's volume settings.
-		if errors.Is(err, drivers.ErrCannotBeShrunk) {
+		if err != nil {
+			if !errors.Is(err, drivers.ErrCannotBeShrunk) {
+				return err
+			}
+
 			l.Debug("Cached image volume is larger than new volume and cannot be shrunk, creating non-optimized volume")
 
 			volFiller := drivers.VolumeFiller{
@@ -2128,8 +2134,6 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 			if err != nil {
 				return err
 			}
-		} else if err != nil {
-			return err
 		}
 	}
 
@@ -4244,26 +4248,28 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 			// driver should make no changes, and if not then attempt to resize it to the new policy.
 			l.Debug("Setting image volume size", logger.Ctx{"size": imgVol.ConfigSize()})
 			err = b.driver.SetVolumeQuota(imgVol, imgVol.ConfigSize(), false, op)
-			if errors.Is(err, drivers.ErrCannotBeShrunk) || errors.Is(err, drivers.ErrNotSupported) {
-				// If the driver cannot resize the existing image volume to the new policy size
-				// then delete the image volume and try to recreate using the new policy settings.
-				l.Debug("Volume size of pool has changed since cached image volume created and cached volume cannot be resized, regenerating image volume")
-				err = b.DeleteImage(image.Fingerprint, op)
-				if err != nil {
-					return err
-				}
-
-				// Reset img volume variables as we just deleted the old one.
-				// Since the old volume has been removed, ensure the new volume
-				// is instantiated with its own UUID.
-				imgDBVol = nil
-				imgVol = b.GetNewVolume(drivers.VolumeTypeImage, contentType, image.Fingerprint, nil)
-			} else if err != nil {
-				return err
-			} else {
+			if err == nil {
 				// We already have a valid volume at the correct size, just return.
 				return nil
 			}
+
+			if !errors.Is(err, drivers.ErrCannotBeShrunk) && !errors.Is(err, drivers.ErrNotSupported) {
+				return err
+			}
+
+			// If the driver cannot resize the existing image volume to the new policy size
+			// then delete the image volume and try to recreate using the new policy settings.
+			l.Debug("Volume size of pool has changed since cached image volume created and cached volume cannot be resized, regenerating image volume")
+			err = b.DeleteImage(image.Fingerprint, op)
+			if err != nil {
+				return err
+			}
+
+			// Reset img volume variables as we just deleted the old one.
+			// Since the old volume has been removed, ensure the new volume
+			// is instantiated with its own UUID.
+			imgDBVol = nil
+			imgVol = b.GetNewVolume(drivers.VolumeTypeImage, contentType, image.Fingerprint, nil)
 		} else {
 			// We have an unrecorded on-disk volume, assume it's a partial unpack and delete it.
 			// This can occur if LXD process exits unexpectedly during an image unpack or if the

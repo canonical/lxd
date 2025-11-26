@@ -2,19 +2,19 @@ test_network() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  lxc init testimage nettest
-
   # Test DNS resolution of instance names
   lxc network create lxdt$$
-  lxc launch testimage 0abc -n lxdt$$
-  lxc launch testimage def0 -n lxdt$$
+  lxc launch testimage 0abc -d "${SMALL_ROOT_DISK}" -n lxdt$$
+  lxc launch testimage def0 -d "${SMALL_ROOT_DISK}" -n lxdt$$
   v4_addr="$(lxc network get lxdt$$ ipv4.address | cut -d/ -f1)"
   sleep 2
   dig @"${v4_addr}" 0abc.lxd
   dig @"${v4_addr}" def0.lxd
-  lxc delete -f 0abc
-  lxc delete -f def0
+  lxc delete -f 0abc def0
   lxc network delete lxdt$$
+
+  # Cleanup any leftover from previous run
+  ip link delete dummy0 || true
 
   # Check that we return bridge informatin for ovs bridges
   systemctl start openvswitch-switch
@@ -98,29 +98,30 @@ test_network() {
 
   lxc network delete lxdt$$
 
+  lxc init testimage nettest
   # Configured bridge with static assignment
   lxc network create lxdt$$ dns.domain=test dns.mode=managed ipv6.dhcp.stateful=true
   lxc network attach lxdt$$ nettest eth0
   v4_addr="$(lxc network get lxdt$$ ipv4.address | cut -d/ -f1)0"
   v6_addr="$(lxc network get lxdt$$ ipv6.address | cut -d/ -f1)00"
-  lxc config device set nettest eth0 ipv4.address "${v4_addr}"
-  lxc config device set nettest eth0 ipv6.address "${v6_addr}"
+  lxc config device set nettest eth0 ipv4.address="${v4_addr}" ipv6.address="${v6_addr}"
   grep -q "${v4_addr}.*nettest" "${LXD_DIR}/networks/lxdt$$/dnsmasq.hosts/nettest.eth0"
   grep -q "${v6_addr}.*nettest" "${LXD_DIR}/networks/lxdt$$/dnsmasq.hosts/nettest.eth0"
   lxc start nettest
 
   # Create new project with an instance with ipv[46] for the next tests.
   lxc project create foo -c features.networks=false -c features.images=false -c features.profiles=false
-  lxc launch testimage outsider -n lxdt$$ --project foo
+  lxc launch testimage outsider -d "${SMALL_ROOT_DISK}" -n lxdt$$ --project foo
   v4_addr_foo="$(lxc network get lxdt$$ ipv4.address | cut -d/ -f1)1"
   v6_addr_foo="$(lxc network get lxdt$$ ipv6.address | cut -d/ -f1)01"
-  lxc config device set outsider eth0 ipv4.address "${v4_addr_foo}" --project foo
-  lxc config device set outsider eth0 ipv6.address "${v6_addr_foo}" --project foo
+  lxc config device set outsider eth0 ipv4.address="${v4_addr_foo}" ipv6.address="${v6_addr_foo}" --project foo
 
-  lxc network list-leases lxdt$$ | grep -wF STATIC | grep -F "${v4_addr}"
-  lxc network list-leases lxdt$$ | grep -wF STATIC | grep -F "${v6_addr}"
-  lxc network list-leases lxdt$$ --project foo | grep -wF STATIC | grep -F "${v4_addr_foo}"
-  lxc network list-leases lxdt$$ --project foo | grep -wF STATIC | grep -F "${v6_addr_foo}"
+  list_leases="$(lxc network list-leases -f csv lxdt$$)"
+  grep -F ",${v4_addr},STATIC" <<< "${list_leases}"
+  grep -F ",${v6_addr},STATIC" <<< "${list_leases}"
+  list_leases="$(lxc network list-leases -f csv lxdt$$ --project foo)"
+  grep -F ",${v4_addr_foo},STATIC" <<< "${list_leases}"
+  grep -F ",${v6_addr_foo},STATIC" <<< "${list_leases}"
 
   # Request DHCPv6 lease (if udhcpc6 is in busybox image).
   busyboxUdhcpc6=1
@@ -136,14 +137,17 @@ test_network() {
   net_ipv4="$(lxc network get lxdt$$ ipv4.address)"
   net_ipv6="$(lxc network get lxdt$$ ipv6.address)"
 
-  lxc network list-allocations | grep -e "${net_ipv4}" -e "${net_ipv6}"
-  lxc network list-allocations | grep -e "/1.0/networks/lxdt$$" -e "/1.0/instances/nettest"
-  lxc network list-allocations | grep -e "${v4_addr}" -e "${v6_addr}"
-  lxc network list-allocations localhost: | grep -e "${net_ipv4}" -e "${net_ipv6}"
-  lxc network list-allocations localhost: | grep -e "/1.0/networks/lxdt$$" -e "/1.0/instances/nettest"
-  lxc network list-allocations localhost: | grep -e "${v4_addr}" -e "${v6_addr}"
-  lxc network list-allocations --format csv | grep -F "/1.0/instances/outsider?project=foo,${v4_addr_foo}"
-  lxc network list-allocations --format csv | grep -F "/1.0/instances/outsider?project=foo,${v6_addr_foo}"
+  list_allocations="$(lxc network list-allocations)"
+  grep -F -e "${net_ipv4}" -e "${net_ipv6}" <<< "${list_allocations}"
+  grep -F -e "/1.0/networks/lxdt$$" -e "/1.0/instances/nettest" <<< "${list_allocations}"
+  grep -F -e "${v4_addr}" -e "${v6_addr}" <<< "${list_allocations}"
+  list_allocations="$(lxc network list-allocations localhost:)"
+  grep -F -e "${net_ipv4}" -e "${net_ipv6}" <<< "${list_allocations}"
+  grep -F -e "/1.0/networks/lxdt$$" -e "/1.0/instances/nettest" <<< "${list_allocations}"
+  grep -F -e "${v4_addr}" -e "${v6_addr}" <<< "${list_allocations}"
+  list_allocations="$(lxc network list-allocations --format csv)"
+  grep -F "/1.0/instances/outsider?project=foo,${v4_addr_foo}/32," <<< "${list_allocations}"
+  grep -F "/1.0/instances/outsider?project=foo,${v6_addr_foo}/128," <<< "${list_allocations}"
 
   lxc delete -f outsider --project foo
   lxc project delete foo

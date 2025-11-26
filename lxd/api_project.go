@@ -320,6 +320,11 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	var id int64
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		id, err = dbCluster.CreateProject(ctx, tx.Tx(), dbCluster.Project{Description: project.Description, Name: project.Name})
@@ -356,8 +361,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed creating project %q: %w", project.Name, err))
 	}
 
-	requestor := request.CreateRequestor(r.Context())
-	lc := lifecycle.ProjectCreated.Event(project.Name, requestor, nil)
+	lc := lifecycle.ProjectCreated.Event(project.Name, requestor.EventLifecycleRequestor(), nil)
 	s.Events.SendLifecycle(project.Name, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
@@ -936,6 +940,11 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(errors.New("The 'default' project cannot be deleted"))
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		project, err := dbCluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
@@ -958,8 +967,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(name, lifecycle.ProjectDeleted.Event(name, requestor, nil))
+	s.Events.SendLifecycle(name, lifecycle.ProjectDeleted.Event(name, requestor.EventLifecycleRequestor(), nil))
 
 	return response.EmptySyncResponse
 }

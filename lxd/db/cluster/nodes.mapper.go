@@ -32,11 +32,11 @@ func GetNodeID(ctx context.Context, tx *sql.Tx, name string) (int64, error) {
 	row := stmt.QueryRowContext(ctx, name)
 	var id int64
 	err = row.Scan(&id)
-	if errors.Is(err, sql.ErrNoRows) {
-		return -1, api.StatusErrorf(http.StatusNotFound, "Node not found")
-	}
-
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return -1, api.StatusErrorf(http.StatusNotFound, "Node not found")
+		}
+
 		return -1, fmt.Errorf("Failed to get \"nodes\" ID: %w", err)
 	}
 

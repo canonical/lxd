@@ -561,8 +561,13 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 
 	recursion := util.IsRecursionRequest(r)
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Check if called from a cluster node.
-	if isClusterNotification(r) {
+	if requestor.IsClusterNotification() {
 		// Only return the local data.
 		if recursion {
 			// Recursive queries.

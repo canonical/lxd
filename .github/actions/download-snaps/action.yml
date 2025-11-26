@@ -1,0 +1,60 @@
+name: Download snap dependencies
+description: Download snaps and their assertion files for "offline" installation and cache them for the day
+
+inputs:
+  snap-cache-dir:
+    description: Where to save the snap dependencies
+    required: true
+    type: string
+
+runs:
+  using: composite
+  steps:
+    - name: snaps cache key
+      id: snaps-cache-key
+      shell: bash
+      run: |
+        set -eux
+        ARCH="$(dpkg --print-architecture)"
+        DATE="$(date --utc '+%Y%m%d')"
+        YESTERDAY="$(date --utc '+%Y%m%d' --date=yesterday)"
+
+        # i.e: snaps-amd64-${DATE}
+        echo "KEY=snaps-${ARCH}-${DATE}" >> $GITHUB_OUTPUT
+        echo "FALLBACK_KEY=snaps-${ARCH}-${YESTERDAY}" >> $GITHUB_OUTPUT
+
+    # GitHub will remove any cache entries that have not been accessed in over 7 days.
+    # https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/caching-dependencies-to-speed-up-workflows#usage-limits-and-eviction-policy
+    - name: Cache snaps
+      uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+      id: cache-snaps
+      with:
+        path: ${{ inputs.snap-cache-dir }}
+        key: ${{ steps.snaps-cache-key.outputs.KEY }}
+        restore-keys: |
+          - ${{ steps.snaps-cache-key.outputs.FALLBACK_KEY }}
+
+    - name: Download snaps
+      if: ${{ steps.cache-snaps.outputs.cache-hit != 'true' }}
+      env:
+        SNAP_CACHE_DIR: ${{ inputs.snap-cache-dir }}
+      shell: bash
+      run: |
+        set -eux
+
+        # XXX: Only needed here because other jobs interact with snapd much later (in terms of uptime)
+        # workaround for https://bugs.launchpad.net/snapd/+bug/2104066
+        sudo mkdir -p /etc/systemd/system/snapd.service.d
+        printf "%s\n%s\n%s\n" "# Workaround for https://bugs.launchpad.net/snapd/+bug/2104066" "[Service]" "Environment=SNAPD_STANDBY_WAIT=1m" | sudo tee  /etc/systemd/system/snapd.service.d/override.conf
+        sudo systemctl daemon-reload
+        sudo systemctl try-restart snapd.service || true
+
+        # XXX: it doesn't matter that `xdelta3` is not installed as no delta
+        # can be used as we start without any snaps
+
+        . test/includes/snap.sh
+
+        # Seed the snap dependencies cache
+        download_snap core24 "latest/stable"
+        download_snap microceph
+        download_snap microovn

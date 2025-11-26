@@ -377,7 +377,6 @@ _backup_import_with_project() {
   fi
 
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   lxc launch testimage c1 -d "${SMALL_ROOT_DISK}"
   lxc launch testimage c2 -d "${SMALL_ROOT_DISK}"
@@ -509,17 +508,17 @@ _backup_import_with_project() {
   lxc storage create pool_2 dir
 
   # Export created container
-  lxc init testimage c3 -d "${SMALL_ROOT_DISK}" -s pool_1
+  lxc init --empty c3 -d "${SMALL_ROOT_DISK}" -s pool_1
   lxc export c3 "${LXD_DIR}/c3.tar.gz"
 
   # Remove container and storage pool
-  lxc delete -f c3
+  lxc delete c3
   lxc storage delete pool_1
 
   # This should succeed as it will fall back on the default pool
   lxc import "${LXD_DIR}/c3.tar.gz"
 
-  lxc delete -f c3
+  lxc delete c3
 
   # Remove root device
   lxc profile device remove default root
@@ -533,7 +532,7 @@ _backup_import_with_project() {
   # Specify pool explicitly
   lxc import "${LXD_DIR}/c3.tar.gz" -s pool_2
 
-  lxc delete -f c3
+  lxc delete c3
 
   # Reset default storage pool
   lxc profile device add default root disk path=/ pool="${default_pool}"
@@ -574,7 +573,6 @@ _backup_export_with_project() {
   fi
 
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   lxc launch testimage c1 -d "${SMALL_ROOT_DISK}"
   lxc snapshot c1
@@ -647,9 +645,6 @@ _backup_export_with_project() {
 }
 
 test_backup_rename() {
-  ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
-
   OUTPUT="$(! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 || false)"
   if ! echo "${OUTPUT}" | grep -F "Error: Instance backup not found" ; then
     echo "invalid rename response for missing container"
@@ -719,10 +714,9 @@ _backup_volume_export_with_project() {
 
     # Add a root device to the default profile of the project.
     lxc profile device add default root disk path="/" pool="${pool}"
+  else
+    ensure_import_testimage
   fi
-
-  ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   mkdir "${LXD_DIR}/optimized" "${LXD_DIR}/non-optimized" "${LXD_DIR}/optimized-none" "${LXD_DIR}/optimized-squashfs" "${LXD_DIR}/non-optimized-none" "${LXD_DIR}/non-optimized-squashfs"
   lxd_backend=$(storage_backend "$LXD_DIR")
@@ -927,8 +921,6 @@ _backup_volume_export_with_project() {
 }
 
 test_backup_volume_rename_delete() {
-  ensure_has_localhost_remote "${LXD_ADDR}"
-
   pool="lxdtest-$(basename "${LXD_DIR}")"
 
   # Create test volume.
@@ -987,9 +979,6 @@ test_backup_volume_rename_delete() {
 }
 
 test_backup_instance_uuid() {
-  ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
-
   echo "==> Checking instance UUIDs during backup operation"
   lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
   initialUUID=$(lxc config get c1 volatile.uuid)
@@ -1052,13 +1041,10 @@ test_backup_export_import_recover() {
 
     poolName=$(lxc profile device get default root pool)
 
-    ensure_import_testimage
-    ensure_has_localhost_remote "${LXD_ADDR}"
-
     # Create and export an instance.
-    lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
+    lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
     lxc export c1 "${LXD_DIR}/c1.tar.gz"
-    lxc delete -f c1
+    lxc delete c1
 
     # Import instance and remove no longer required tarball.
     lxc import "${LXD_DIR}/c1.tar.gz" c2
@@ -1076,15 +1062,12 @@ yes
 EOF
 
     # Remove recovered instance.
-    lxc delete -f c2
+    lxc delete c2
   )
 }
 
 test_backup_export_import_instance_only() {
   poolName=$(lxc profile device get default root pool)
-
-  ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Create an instance with snapshot.
   lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
@@ -1095,7 +1078,7 @@ test_backup_export_import_instance_only() {
 
   # Export the instance and remove it.
   lxc export c1 "${LXD_DIR}/c1.tar.gz" --instance-only
-  lxc delete -f c1
+  lxc delete c1
 
   # Import the instance from tarball.
   lxc import "${LXD_DIR}/c1.tar.gz"
@@ -1104,12 +1087,11 @@ test_backup_export_import_instance_only() {
   [ "$(lxc query "/1.0/storage-pools/${poolName}/volumes/container/c1/snapshots" | jq -r 'length')" = "0" ]
 
   rm "${LXD_DIR}/c1.tar.gz"
-  lxc delete -f c1
+  lxc delete c1
 }
 
 test_backup_metadata() {
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Fetch the least and most recent supported backup metadata version from the range.
   lowest_version=$(lxc query /1.0 | jq -r .environment.backup_metadata_version_range[0])
@@ -1150,7 +1132,7 @@ test_backup_metadata() {
   [ "$(yq '.config.volume_snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
 
   rm -rf "${tmpDir}/backup" "${tmpDir}/c1.tar.gz"
-  lxc delete -f c1
+  lxc delete c1
 
   # Create a custom storage volume with one snapshot.
   poolName=$(lxc profile device get default root pool)

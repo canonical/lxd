@@ -685,6 +685,12 @@ type ResourcesStorageDisk struct {
 	//
 	// API extension: resources_device_fs_uuid
 	DeviceFSUUID string `json:"device_fs_uuid" yaml:"device_fs_uuid"`
+
+	// Parent device type
+	// Example: bcache
+	//
+	// API extension: resources_disk_used_by
+	UsedBy string `json:"used_by,omitempty" yaml:"used_by,omitempty"`
 }
 
 // ResourcesStorageDiskPartition represents a partition on a disk

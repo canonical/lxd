@@ -1,6 +1,5 @@
 test_network_zone() {
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   poolName=$(lxc profile device get default root pool)
 

@@ -93,11 +93,11 @@ func GetProfileID(ctx context.Context, tx *sql.Tx, project string, name string) 
 	row := stmt.QueryRowContext(ctx, project, name)
 	var id int64
 	err = row.Scan(&id)
-	if errors.Is(err, sql.ErrNoRows) {
-		return -1, api.StatusErrorf(http.StatusNotFound, "Profile not found")
-	}
-
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return -1, api.StatusErrorf(http.StatusNotFound, "Profile not found")
+		}
+
 		return -1, fmt.Errorf("Failed to get \"profiles\" ID: %w", err)
 	}
 

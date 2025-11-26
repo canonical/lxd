@@ -15,12 +15,12 @@ import (
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/bgp"
 	"github.com/canonical/lxd/lxd/cluster"
-	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/network/acl"
 	"github.com/canonical/lxd/lxd/project/limits"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
@@ -661,7 +661,7 @@ func (n *common) notifyDependentNetworks(changedKeys []string) {
 		return err
 	})
 	if err != nil {
-		n.logger.Error("Failed to load projects", logger.Ctx{"err": err})
+		n.logger.Error("Failed loading projects", logger.Ctx{"err": err})
 		return
 	}
 

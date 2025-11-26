@@ -17,7 +17,6 @@ import (
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
-	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -321,12 +320,17 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		ctx["target"] = targetNode
 	}
 
-	lc := lifecycle.StoragePoolCreated.Event(req.Name, request.CreateRequestor(r.Context()), ctx)
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	lc := lifecycle.StoragePoolCreated.Event(req.Name, requestor.EventLifecycleRequestor(), ctx)
 	resp := response.SyncResponseLocation(true, nil, lc.Source)
 
-	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	clientType := requestor.ClientType()
 
-	if isClusterNotification(r) {
+	if requestor.IsClusterNotification() {
 		// This is an internal request which triggers the actual
 		// creation of the pool across all nodes, after they have been
 		// previously defined.
@@ -419,7 +423,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	s.Events.SendLifecycle(api.ProjectDefaultName, lc)
+	s.Events.SendLifecycle("", lc)
 
 	return resp
 }
@@ -446,7 +450,7 @@ func storagePoolPartiallyCreated(pool *api.StoragePool) bool {
 
 // storagePoolsPostCluster handles creating storage pools after the per-node config records have been created.
 // Accepts an optional existing pool record, which will exist when performing subsequent re-create attempts.
-func storagePoolsPostCluster(ctx context.Context, s *state.State, pool *api.StoragePool, req api.StoragePoolsPost, clientType clusterRequest.ClientType) error {
+func storagePoolsPostCluster(ctx context.Context, s *state.State, pool *api.StoragePool, req api.StoragePoolsPost, clientType request.ClientType) error {
 	// Check that no node-specific config key has been defined.
 	for key := range req.Config {
 		if slices.Contains(db.NodeSpecificStorageConfig, key) {
@@ -823,18 +827,19 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
-	response := doStoragePoolUpdate(s, pool, req, targetNode, clientType, r.Method, s.ServerClustered)
-
-	requestor := request.CreateRequestor(r.Context())
+	response := doStoragePoolUpdate(s, pool, req, targetNode, requestor.ClientType(), r.Method, s.ServerClustered)
 
 	ctx := logger.Ctx{}
 	if targetNode != "" {
 		ctx["target"] = targetNode
 	}
 
-	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.StoragePoolUpdated.Event(pool.Name(), requestor, ctx))
+	s.Events.SendLifecycle("", lifecycle.StoragePoolUpdated.Event(pool.Name(), requestor.EventLifecycleRequestor(), ctx))
 
 	return response
 }
@@ -884,7 +889,7 @@ func storagePoolPatch(d *Daemon, r *http.Request) response.Response {
 
 // doStoragePoolUpdate takes the current local storage pool config, merges with the requested storage pool config,
 // validates and applies the changes. Will also notify other cluster nodes of non-node specific config if needed.
-func doStoragePoolUpdate(s *state.State, pool storagePools.Pool, req api.StoragePoolPut, targetNode string, clientType clusterRequest.ClientType, httpMethod string, clustered bool) response.Response {
+func doStoragePoolUpdate(s *state.State, pool storagePools.Pool, req api.StoragePoolPut, targetNode string, clientType request.ClientType, httpMethod string, clustered bool) response.Response {
 	if req.Config == nil {
 		req.Config = map[string]string{}
 	}
@@ -918,7 +923,7 @@ func doStoragePoolUpdate(s *state.State, pool storagePools.Pool, req api.Storage
 	}
 
 	// Notify the other nodes, unless this is itself a notification.
-	if clustered && clientType != clusterRequest.ClientTypeNotifier && targetNode == "" {
+	if clustered && clientType != request.ClientTypeNotifier && targetNode == "" {
 		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAll)
 		if err != nil {
 			return response.SmartError(err)
@@ -988,8 +993,13 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
-	clusterNotification := isClusterNotification(r)
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	clientType := requestor.ClientType()
+	clusterNotification := requestor.IsClusterNotification()
 	var notifier cluster.Notifier
 	if !clusterNotification {
 		// Quick checks.
@@ -1071,8 +1081,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.StoragePoolDeleted.Event(pool.Name(), requestor, nil))
+	s.Events.SendLifecycle("", lifecycle.StoragePoolDeleted.Event(pool.Name(), requestor.EventLifecycleRequestor(), nil))
 
 	return response.EmptySyncResponse
 }

@@ -24,7 +24,6 @@ import (
 
 	dqliteClient "github.com/canonical/go-dqlite/v2/client"
 	"github.com/canonical/go-dqlite/v2/driver"
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	liblxc "github.com/lxc/go-lxc"
 	"golang.org/x/sys/unix"
@@ -161,9 +160,6 @@ type Daemon struct {
 	serverName      string
 	serverClustered bool
 
-	// Server's UUID from file.
-	serverUUID string
-
 	lokiClient *loki.Client
 
 	// HTTP-01 challenge provider for ACME
@@ -189,15 +185,11 @@ type DaemonConfig struct {
 
 // newDaemon returns a new Daemon object with the given configuration.
 func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
-	lxdEvents := events.NewServer(daemon.Debug, daemon.Verbose, cluster.EventHubPush)
-	devLXDEvents := events.NewDevLXDServer(daemon.Debug, daemon.Verbose)
 	shutdownCtx := cancel.New()
 
 	d := &Daemon{
 		identityCache:    &identity.Cache{},
 		config:           config,
-		devLXDEvents:     devLXDEvents,
-		events:           lxdEvents,
 		tasks:            task.NewGroup(),
 		clusterTasks:     task.NewGroup(),
 		db:               &db.DB{},
@@ -527,11 +519,6 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.
 		}, nil
 	}
 
-	// Cluster notification with wrong certificate.
-	if isClusterNotification(r) {
-		return nil, errors.New("Cluster notification isn't using trusted server certificate")
-	}
-
 	// Bad query, no TLS found.
 	if r.TLS == nil {
 		return nil, errors.New("Bad/missing TLS on network query")
@@ -706,7 +693,7 @@ func (d *Daemon) handleOIDCAuthenticationResult(r *http.Request, result *oidc.Au
 		}
 
 		lc := action.Event(api.AuthenticationMethodOIDC, result.Email, request.CreateRequestor(r.Context()), nil)
-		s.Events.SendLifecycle(api.ProjectDefaultName, lc)
+		s.Events.SendLifecycle("", lc)
 
 		s.UpdateIdentityCache()
 	}
@@ -753,7 +740,6 @@ func (d *Daemon) State() *state.State {
 		LocalConfig:         localConfig,
 		ServerName:          d.serverName,
 		ServerClustered:     d.serverClustered,
-		ServerUUID:          d.serverUUID,
 		StartTime:           d.startTime,
 		Authorizer:          d.authorizer,
 		UbuntuPro:           d.ubuntuPro,
@@ -1123,9 +1109,9 @@ func (d *Daemon) init() error {
 	d.startStopLock.Lock()
 	defer d.startStopLock.Unlock()
 
-	var err error
-
 	var dbWarnings []dbCluster.Warning
+
+	var err error
 
 	// Set default authorizer.
 	d.authorizer, err = authDrivers.LoadAuthorizer(d.shutdownCtx, authDrivers.DriverTLS, logger.Log, d.identityCache)
@@ -1133,7 +1119,14 @@ func (d *Daemon) init() error {
 		return err
 	}
 
-	// Setup logger
+	// Setup events
+	d.devLXDEvents = events.NewDevLXDServer(daemon.Debug, daemon.Verbose)
+	d.events, err = events.NewServer(daemon.Debug, daemon.Verbose, cluster.EventHubPush)
+	if err != nil {
+		return err
+	}
+
+	// Configure logging events.
 	events.LoggingServer = d.events
 
 	// Setup internal event listener
@@ -1637,29 +1630,6 @@ func (d *Daemon) init() error {
 
 	d.events.SetLocalLocation(d.serverName)
 
-	// Setup and load the server's UUID file.
-	// Use os.VarDir to allow setting up the uuid file also in the test suite.
-	var serverUUID string
-	uuidPath := filepath.Join(d.os.VarDir, "server.uuid")
-	if !shared.PathExists(uuidPath) {
-		serverUUID = uuid.New().String()
-		err := os.WriteFile(uuidPath, []byte(serverUUID), 0600)
-		if err != nil {
-			return fmt.Errorf("Failed to create server.uuid file: %w", err)
-		}
-	}
-
-	if serverUUID == "" {
-		uuidBytes, err := os.ReadFile(uuidPath)
-		if err != nil {
-			return fmt.Errorf("Failed to read server.uuid file: %w", err)
-		}
-
-		serverUUID = string(uuidBytes)
-	}
-
-	d.serverUUID = serverUUID
-
 	// Mount the storage pools.
 	logger.Info("Initializing storage pools")
 	err = storageStartup(d.State())
@@ -2079,7 +2049,11 @@ func (d *Daemon) startClusterTasks() {
 }
 
 func (d *Daemon) stopClusterTasks() {
-	_ = d.clusterTasks.Stop(3 * time.Second)
+	err := d.clusterTasks.Stop(3 * time.Second)
+	if err != nil {
+		logger.Warn("Failed stopping cluster tasks", logger.Ctx{"err": err})
+	}
+
 	d.clusterTasks = task.NewGroup()
 }
 

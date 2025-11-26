@@ -1787,7 +1787,7 @@ func newIdentityNotificationFunc(s *state.State, r *http.Request, networkCert *s
 		}
 
 		lc := action.Event(authenticationMethod, identifier, request.CreateRequestor(r.Context()), nil)
-		s.Events.SendLifecycle(api.ProjectDefaultName, lc)
+		s.Events.SendLifecycle("", lc)
 
 		return &lc, nil
 	}

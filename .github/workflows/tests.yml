@@ -26,8 +26,9 @@ on:
 
 env:
   LXD_REQUIRED_TESTS: "storage_buckets,network_ovn"
-  GOCOVERAGE: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && 'true' || 'false' }}
+  GOCOVERAGE: ${{ ( ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.repository == 'canonical/lxd' ) && 'true' || 'false' }}
   GOCOVERDIR: ''  # Later set to the fully qualified path if needed
+  SNAP_CACHE_DIR: "/home/runner/snap-cache"
 
 permissions:
   contents: read
@@ -139,53 +140,9 @@ jobs:
           tar -xzf lxd-test.tar.gz -C /home/runner/work/lxd/
           rm lxd-test.tar.gz
 
-      - name: deps cache key
-        id: deps-cache-key
-
-        shell: bash
-        env:
-          BRANCH: ${{ ( github.base_ref != '' ) && github.base_ref || github.ref_name }}
-        run: |
-          set -eux
-          . /etc/os-release
-          ARCH="$(dpkg --print-architecture)"
-          DATE="$(date --utc '+%Y%m%d')"
-
-          # i.e: deps-ubuntu-24.04-amd64-${BRANCH}-${DATE}
-          echo "KEY=deps-${ID}-${VERSION_ID}-${ARCH}-${BRANCH}-${DATE}" >> $GITHUB_OUTPUT
-
-      # GitHub will remove any cache entries that have not been accessed in over 7 days.
-      # https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/caching-dependencies-to-speed-up-workflows#usage-limits-and-eviction-policy
-      - name: Cache dqlite/liblxc deps
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        id: cache-deps
-        with:
-          path: |
-            /home/runner/go/bin/dqlite
-            /home/runner/go/bin/liblxc
-          key: ${{ steps.deps-cache-key.outputs.KEY }}
-
-      - name: Build LXD dependencies
-        if: ${{ steps.cache-deps.outputs.cache-hit != 'true' }}
-        run: |
-          set -eux
-
-          # Build from unpacked dist tarball.
-          cd /home/runner/work/lxd/lxd-test
-          make deps
-
-          # Include dqlite libs in dependencies for system tests.
-          mkdir /home/runner/go/bin/dqlite
-          mv /home/runner/work/lxd/lxd-test/vendor/dqlite/include /home/runner/go/bin/dqlite/include
-          mv /home/runner/work/lxd/lxd-test/vendor/dqlite/.libs /home/runner/go/bin/dqlite/libs
-
-          # Include liblxc libs in dependencies for system tests.
-          mkdir -p /home/runner/go/bin/liblxc
-          mv /home/runner/work/lxd/lxd-test/vendor/liblxc/include /home/runner/go/bin/liblxc/include
-          mv /home/runner/work/lxd/lxd-test/vendor/liblxc/lib /home/runner/go/bin/liblxc/libs
-
-          # liblxc requires a rootfs dir
-          mkdir -p /home/runner/go/bin/liblxc/rootfs
+      # In code-tests, this action warms the cache for the system-tests job
+      - name: Build or restore dqlite/liblxc dependencies
+        uses: ./.github/actions/cache-dqlite-liblxc
 
       - name: Update env variables for deps
         run: |
@@ -271,7 +228,7 @@ jobs:
           sudo chmod o+w ./lxd/auth/drivers/openfga_model.openfga
           make static-analysis
 
-      - name: Unit tests (all)
+      - name: Unit tests
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.unit-tests == 'true' }}
         run: |
           set -eux
@@ -287,7 +244,14 @@ jobs:
           retention-days: 1
         if: env.GOCOVERDIR != ''
 
-      - name: Download minio/mc to add to system test dependencies
+      # In code-tests, this action warms the cache for the system-tests job
+      - name: Download snap dependencies
+        uses: ./.github/actions/download-snaps
+        with:
+          snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
+
+      # In code-tests, this action warms the cache for the system-tests job
+      - name: Download minio/mc
         uses: ./.github/actions/download-minio
 
       - name: Upload system test dependencies
@@ -297,10 +261,6 @@ jobs:
           path: |
             /home/runner/go/bin/lxc*
             /home/runner/go/bin/lxd*
-            /home/runner/go/bin/mc
-            /home/runner/go/bin/minio
-            /home/runner/go/bin/dqlite
-            /home/runner/go/bin/liblxc
             /home/runner/go/bin/devlxd-client
             /home/runner/go/bin/fuidshift
             /home/runner/go/bin/mini-oidc
@@ -358,6 +318,20 @@ jobs:
       - name: Install runtime dependencies
         uses: ./.github/actions/install-lxd-runtimedeps
 
+      # Restore the cache warmed in code-tests job
+      - name: Build or restore dqlite/liblxc dependencies
+        uses: ./.github/actions/cache-dqlite-liblxc
+
+      # Restore the cache warmed in code-tests job
+      - name: Download snap dependencies
+        uses: ./.github/actions/download-snaps
+        with:
+          snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
+
+      # Restore the cache warmed in code-tests job
+      - name: Download minio/mc
+        uses: ./.github/actions/download-minio
+
       - name: Download system test dependencies
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
@@ -386,9 +360,12 @@ jobs:
         with:
           microceph-channel: "squid/candidate"
           osd-count: 3
+          snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
 
       - name: Setup MicroOVN
         uses: ./.github/actions/setup-microovn
+        with:
+          snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
 
       - name: Make GOCOVERDIR
         run: |
@@ -436,7 +413,7 @@ jobs:
 
   tics:
     name: Tiobe TICS
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     needs: [client, system-tests, ui-e2e-tests]
     env:
       CGO_CFLAGS: "-I/home/runner/go/bin/dqlite/include/ -I/home/runner/go/bin/liblxc/include/"
@@ -478,6 +455,10 @@ jobs:
           pattern: coverage-*
           path: ${{env.GOCOVERDIR}}
           merge-multiple: true
+
+      # Restore the cache warmed in code-tests job
+      - name: Build or restore dqlite/liblxc dependencies
+        uses: ./.github/actions/cache-dqlite-liblxc
 
       - name: Download system test dependencies
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
@@ -632,7 +613,7 @@ jobs:
 
   ui-e2e-tests:
     name: UI e2e tests
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     needs: [code-tests, documentation]
     if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
     env:
@@ -683,6 +664,14 @@ jobs:
         uses: ./.github/actions/install-lxd-runtimedeps
         with:
           optional: true
+
+      # Restore the cache warmed in code-tests job
+      - name: Build or restore dqlite/liblxc dependencies
+        uses: ./.github/actions/cache-dqlite-liblxc
+
+      # Restore the cache warmed in code-tests job
+      - name: Download minio/mc
+        uses: ./.github/actions/download-minio
 
       - name: Download system test dependencies
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
@@ -820,6 +809,7 @@ jobs:
   documentation:
     name: Documentation
     runs-on: ubuntu-24.04
+    if: github.event_name == 'workflow_dispatch' || github.repository == 'canonical/lxd'
     steps:
       - name: Checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0

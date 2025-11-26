@@ -11,7 +11,6 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
-	clusterRequest "github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network/zone"
@@ -413,19 +412,29 @@ func networkZoneDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	netzone, err := zone.LoadByNameAndProject(s, effectiveProjectName, details.zoneName)
+	err = doNetworkZoneDelete(r.Context(), s, details.zoneName, effectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	return response.EmptySyncResponse
+}
+
+// doNetworkZoneDelete deletes the named network zone in the given project.
+func doNetworkZoneDelete(ctx context.Context, s *state.State, zoneName string, projectName string) error {
+	netzone, err := zone.LoadByNameAndProject(s, projectName, zoneName)
+	if err != nil {
+		return err
 	}
 
 	err = netzone.Delete()
 	if err != nil {
-		return response.SmartError(err)
+		return fmt.Errorf("Failed deleting network zone %q: %w", zoneName, err)
 	}
 
-	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkZoneDeleted.Event(netzone, request.CreateRequestor(r.Context()), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.NetworkZoneDeleted.Event(netzone, request.CreateRequestor(ctx), nil))
 
-	return response.EmptySyncResponse
+	return nil
 }
 
 // swagger:operation GET /1.0/network-zones/{zone} network-zones network_zone_get
@@ -622,14 +631,17 @@ func networkZonePut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
-
-	err = netzone.Update(&req, clientType)
+	requestor, err := request.GetRequestor(r.Context())
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkZoneUpdated.Event(netzone, request.CreateRequestor(r.Context()), nil))
+	err = netzone.Update(&req, requestor.ClientType())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.NetworkZoneUpdated.Event(netzone, requestor.EventLifecycleRequestor(), nil))
 
 	return response.EmptySyncResponse
 }

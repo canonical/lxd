@@ -8,7 +8,8 @@ ensure_has_localhost_remote() {
 }
 
 ensure_import_testimage() {
-    if lxc image alias list testimage | grep -wF "testimage" >/dev/null; then
+    local project=""
+    if lxc image alias list -f csv testimage | grep -wF "testimage" >/dev/null; then
         return
     fi
 
@@ -16,18 +17,7 @@ ensure_import_testimage() {
         echo "Importing ${LXD_TEST_IMAGE} test image from disk"
         lxc image import "${LXD_TEST_IMAGE}" --alias testimage
     else
-        BUSYBOX="$(command -v busybox)"
-        if [ ! -e "${BUSYBOX}" ]; then
-            echo "Please install busybox (busybox-static) or set LXD_TEST_IMAGE"
-            exit 1
-        fi
-
-        if ldd "${BUSYBOX}" >/dev/null 2>&1; then
-            echo "The testsuite requires ${BUSYBOX} to be a static binary"
-            exit 1
-        fi
-
-        project="$(lxc project list | awk '/(current)/ {print $2}')"
+        project="$(lxc project list -f csv | awk '/(current)/ {print $1}')"
         deps/import-busybox --alias testimage --project "$project"
     fi
 }
@@ -89,12 +79,12 @@ install_instance_drivers() {
         exit 1
     fi
 
-    if ! check_dependencies qemu-img "qemu-system-${UNAME}" sgdisk /usr/lib/qemu/virtiofsd && command -v apt-get >/dev/null; then
+    if ! check_dependencies qemu-img "qemu-system-${UNAME}" sgdisk make-bcache /usr/lib/qemu/virtiofsd && command -v apt-get >/dev/null; then
         # On 22.04, QEMU comes with spice modules and virtiofsd
         if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
-            apt-get install --no-install-recommends -y gdisk ovmf qemu-block-extra "${QEMU_SYSTEM}" qemu-utils
+            apt-get install --no-install-recommends -y gdisk ovmf qemu-block-extra "${QEMU_SYSTEM}" qemu-utils bcache-tools
         else
-            apt-get install --no-install-recommends -y gdisk ovmf qemu-block-extra "${QEMU_SYSTEM}" qemu-utils qemu-system-modules-spice virtiofsd
+            apt-get install --no-install-recommends -y gdisk ovmf qemu-block-extra "${QEMU_SYSTEM}" qemu-utils qemu-system-modules-spice virtiofsd bcache-tools
         fi
 
         # Verify that the newly installed tools provided the needed binaries

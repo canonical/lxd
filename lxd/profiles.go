@@ -602,7 +602,14 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if isClusterNotification(r) {
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	clusterNotification := requestor.IsClusterNotification()
+
+	if clusterNotification {
 		// In this case the ProfilePut request payload contains information about the old profile, since
 		// the new one has already been saved in the database.
 		old := api.ProfilePut{}
@@ -649,7 +656,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 
 	err = doProfileUpdate(r.Context(), s, details.effectiveProject, details.profileName, profile, req)
 
-	if err == nil && !isClusterNotification(r) {
+	if err == nil && !clusterNotification {
 		// Notify all other nodes. If a node is down, it will be ignored.
 		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
 		if err != nil {
@@ -664,8 +671,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(details.effectiveProject.Name, lifecycle.ProfileUpdated.Event(details.profileName, details.effectiveProject.Name, requestor, nil))
+	s.Events.SendLifecycle(details.effectiveProject.Name, lifecycle.ProfileUpdated.Event(details.profileName, details.effectiveProject.Name, requestor.EventLifecycleRequestor(), nil))
 
 	return response.SmartError(err)
 }
@@ -909,12 +915,22 @@ func profileDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if details.profileName == "default" {
-		return response.Forbidden(errors.New(`The "default" profile cannot be deleted`))
+	err = doProfileDelete(r.Context(), s, details.profileName, details.effectiveProject.Name)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		profile, err := dbCluster.GetProfile(ctx, tx.Tx(), details.effectiveProject.Name, details.profileName)
+	return response.EmptySyncResponse
+}
+
+// doProfileDelete deletes a named profile in the given project.
+func doProfileDelete(ctx context.Context, s *state.State, name string, effectiveProjectName string) error {
+	if name == "default" {
+		return api.NewStatusError(http.StatusForbidden, `The "default" profile cannot be deleted`)
+	}
+
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		profile, err := dbCluster.GetProfile(ctx, tx.Tx(), effectiveProjectName, name)
 		if err != nil {
 			return err
 		}
@@ -925,17 +941,17 @@ func profileDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if len(usedBy) > 0 {
-			return errors.New("Profile is currently in use")
+			return api.NewStatusError(http.StatusBadRequest, "Profile is currently in use")
 		}
 
-		return dbCluster.DeleteProfile(ctx, tx.Tx(), details.effectiveProject.Name, details.profileName)
+		return dbCluster.DeleteProfile(ctx, tx.Tx(), effectiveProjectName, name)
 	})
 	if err != nil {
-		return response.SmartError(err)
+		return err
 	}
 
-	requestor := request.CreateRequestor(r.Context())
-	s.Events.SendLifecycle(details.effectiveProject.Name, lifecycle.ProfileDeleted.Event(details.profileName, details.effectiveProject.Name, requestor, nil))
+	eventLifecycleRequestor := request.CreateRequestor(ctx)
+	s.Events.SendLifecycle(effectiveProjectName, lifecycle.ProfileDeleted.Event(name, effectiveProjectName, eventLifecycleRequestor, nil))
 
-	return response.EmptySyncResponse
+	return nil
 }

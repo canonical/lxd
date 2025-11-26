@@ -13,10 +13,9 @@ import (
 	"github.com/gorilla/mux"
 
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
-	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/metrics"
-	lxdRequest "github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/lxd/storage/s3"
@@ -223,7 +222,7 @@ func restServer(d *Daemon) *http.Server {
 
 	return &http.Server{
 		Handler:     &lxdHTTPServer{r: mux, d: d},
-		ConnContext: lxdRequest.SaveConnectionInContext,
+		ConnContext: request.SaveConnectionInContext,
 	}
 }
 
@@ -445,13 +444,6 @@ func setCORSHeaders(rw http.ResponseWriter, req *http.Request, config *clusterCo
 	if allowedCredentials {
 		rw.Header().Set("Access-Control-Allow-Credentials", "true")
 	}
-}
-
-// Return true if this an API request coming from a cluster node that is
-// notifying us of some user-initiated API request that needs some action to be
-// taken on this node as well.
-func isClusterNotification(r *http.Request) bool {
-	return r.Header.Get("User-Agent") == request.UserAgentNotifier
 }
 
 type uiHTTPDir struct {

@@ -1,9 +1,7 @@
 package lxd
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -85,8 +83,6 @@ func (r *ProtocolDevLXD) RawQuery(method string, path string, data any, ETag str
 // type and handles the HTTP response, returning parsed results or an error
 // if it occurs.
 func (r *ProtocolDevLXD) rawQuery(method string, url string, data any, ETag string) (devLXDResp *api.DevLXDResponse, etag string, err error) {
-	var req *http.Request
-
 	// Log the request
 	logger.Debug("Sending request to devLXD", logger.Ctx{
 		"method": method,
@@ -94,35 +90,10 @@ func (r *ProtocolDevLXD) rawQuery(method string, url string, data any, ETag stri
 		"etag":   ETag,
 	})
 
-	// Get a new HTTP request setup
-	if data != nil {
-		// Encode the provided data
-		buf := bytes.Buffer{}
-		err := json.NewEncoder(&buf).Encode(data)
-		if err != nil {
-			return nil, "", err
-		}
-
-		// Some data to be sent along with the request
-		// Use a reader since the request body needs to be seekable
-		req, err = http.NewRequestWithContext(r.ctx, method, url, bytes.NewReader(buf.Bytes()))
-		if err != nil {
-			return nil, "", err
-		}
-
-		// Set the encoding accordingly
-		req.Header.Set("Content-Type", "application/json")
-	} else {
-		// No data to be sent along with the request
-		req, err = http.NewRequestWithContext(r.ctx, method, url, nil)
-		if err != nil {
-			return nil, "", err
-		}
-	}
-
-	// Set the ETag.
-	if ETag != "" {
-		req.Header.Set("If-Match", ETag)
+	// Setup new request.
+	req, err := NewRequestWithContext(r.ctx, method, url, data, ETag)
+	if err != nil {
+		return nil, "", err
 	}
 
 	req.Header.Set("User-Agent", r.httpUserAgent)

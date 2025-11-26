@@ -98,9 +98,6 @@ type State struct {
 	// Storage path used by this daemon
 	BackupsStoragePath func() string
 
-	// Local server UUID.
-	ServerUUID string
-
 	// Local server start time.
 	StartTime time.Time
 

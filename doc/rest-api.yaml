@@ -5614,6 +5614,11 @@ definitions:
                 example: "3:5"
                 type: string
                 x-go-name: USBAddress
+            used_by:
+                description: Parent device type
+                example: bcache
+                type: string
+                x-go-name: UsedBy
             wwn:
                 description: WWN identifier
                 example: eui.0000000001000000e4d25cafae2e4c00
@@ -6014,9 +6019,9 @@ definitions:
                 x-go-name: ClientCertificate
             config:
                 additionalProperties: {}
-                description: Server configuration map (refer to doc/server.md)
+                description: Server configuration map (refer to doc/server.md) The available fields for public endpoint (before authentication) are limited.
                 example:
-                    core.https_address: :8443
+                    user.microcloud: "true"
                 type: object
                 x-go-name: Config
             environment:
@@ -6276,6 +6281,13 @@ definitions:
                 readOnly: true
                 type: boolean
                 x-go-name: ClientCertificate
+            config:
+                additionalProperties: {}
+                description: Server configuration map (refer to doc/server.md) The available fields for public endpoint (before authentication) are limited.
+                example:
+                    user.microcloud: "true"
+                type: object
+                x-go-name: Config
             public:
                 description: Whether the server is public-only (only public endpoints are implemented)
                 example: false

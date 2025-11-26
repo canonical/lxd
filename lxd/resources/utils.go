@@ -48,9 +48,18 @@ func readInt(path string) (int64, error) {
 	return value, nil
 }
 
-func sysfsExists(path string) bool {
+func pathExists(path string) bool {
 	_, err := os.Lstat(path)
 	return err == nil
+}
+
+func pathIsDir(path string) bool {
+	f, err := os.Lstat(path)
+	if err != nil {
+		return false
+	}
+
+	return f.IsDir()
 }
 
 func sysfsNumaNode(path string) (uint64, error) {
@@ -64,7 +73,7 @@ func sysfsNumaNode(path string) (uint64, error) {
 	for _, entry := range entries {
 		entryName := entry.Name()
 
-		if strings.HasPrefix(entryName, "node") && sysfsExists(filepath.Join(path, entryName, "numastat")) {
+		if strings.HasPrefix(entryName, "node") && pathExists(filepath.Join(path, entryName, "numastat")) {
 			node := strings.TrimPrefix(entryName, "node")
 
 			nodeNumber, err := strconv.ParseUint(node, 10, 64)
@@ -119,7 +128,7 @@ func pciAddress(devicePath string) (string, error) {
 	}
 
 	// Check if we have a subsystem listed at all.
-	if !sysfsExists(filepath.Join(deviceDeviceDir, "subsystem")) {
+	if !pathExists(filepath.Join(deviceDeviceDir, "subsystem")) {
 		return "", nil
 	}
 
@@ -177,7 +186,7 @@ func usbAddress(devicePath string) (string, error) {
 		}
 
 		// Check if we found a usb device path.
-		if !sysfsExists(filepath.Join(path, "busnum")) || !sysfsExists(filepath.Join(path, "devnum")) {
+		if !pathExists(filepath.Join(path, "busnum")) || !pathExists(filepath.Join(path, "devnum")) {
 			path = filepath.Dir(path)
 			continue
 		}

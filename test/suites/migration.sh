@@ -76,8 +76,7 @@ test_migration() {
   # Test config overrides for migration of instance with snapshots
   lxc_remote network create l1:foonet ipv4.address=10.100.10.1/24
   lxc_remote network create l2:foonet2 ipv4.address=10.100.100.1/24
-  ensure_import_testimage
-  lxc_remote init testimage l1:u1
+  lxc_remote init --empty l1:u1
   lxc_remote config device add l1:u1 eth1 nic name=eth1 network=foonet ipv4.address=10.100.10.10
   lxc_remote snapshot l1:u1 snap
 
@@ -303,9 +302,7 @@ migration() {
   # Refresh the container and validate the contents
   lxc_remote copy l1:c1 l2:c2 --refresh
   lxc_remote start l2:c2
-  lxc_remote file pull l2:c2/root/testfile1 .
-  [ "$(< testfile1)" = "test" ]
-  rm testfile1
+  [ "$(lxc_remote file pull l2:c2/root/testfile1 -)" = "test" ]
   lxc_remote stop -f l2:c2
 
   # Change the files modification time by adding one nanosecond.

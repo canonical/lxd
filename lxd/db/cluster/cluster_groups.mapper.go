@@ -208,11 +208,11 @@ func GetClusterGroupID(ctx context.Context, tx *sql.Tx, name string) (int64, err
 	row := stmt.QueryRowContext(ctx, name)
 	var id int64
 	err = row.Scan(&id)
-	if errors.Is(err, sql.ErrNoRows) {
-		return -1, api.StatusErrorf(http.StatusNotFound, "ClusterGroup not found")
-	}
-
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return -1, api.StatusErrorf(http.StatusNotFound, "ClusterGroup not found")
+		}
+
 		return -1, fmt.Errorf("Failed to get \"clusters_groups\" ID: %w", err)
 	}
 

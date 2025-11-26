@@ -3621,6 +3621,15 @@ You can set the option to `none` to turn off IPv4, or to `auto` to generate a ne
 
 ```
 
+```{config:option} ipv4.dhcp.ranges network-ovn-network-conf
+:condition: "IPv4 DHCP"
+:defaultdesc: "all addresses"
+:scope: "global"
+:shortdesc: "IPv4 ranges to use for DHCP"
+:type: "string"
+Specify a comma-separated list of IPv4 ranges in FIRST-LAST format.
+```
+
 ```{config:option} ipv4.l3only network-ovn-network-conf
 :condition: "IPv4 address"
 :defaultdesc: "`false`"
@@ -4992,6 +5001,192 @@ You may add additional scopes if this is required by your identity provider, or 
 ```
 
 <!-- config group server-oidc end -->
+<!-- config group storage-alletra-pool-conf start -->
+```{config:option} alletra.cpg storage-alletra-pool-conf
+:shortdesc: "HPE Alletra Common Provisioning Group (CPG) name"
+:type: "string"
+
+```
+
+```{config:option} alletra.mode storage-alletra-pool-conf
+:defaultdesc: "the discovered mode"
+:shortdesc: "How volumes are mapped to the local server"
+:type: "string"
+The mode to use to map storage volumes to the local server.
+Supported values are `iscsi` and `nvme`.
+```
+
+```{config:option} alletra.target storage-alletra-pool-conf
+:defaultdesc: "the discovered mode"
+:shortdesc: "List of target addresses."
+:type: "string"
+A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.
+```
+
+```{config:option} alletra.user.name storage-alletra-pool-conf
+:shortdesc: "HPE Alletra storage admin username"
+:type: "string"
+
+```
+
+```{config:option} alletra.user.password storage-alletra-pool-conf
+:shortdesc: "HPE Alletra storage admin password"
+:type: "string"
+
+```
+
+```{config:option} alletra.wsapi storage-alletra-pool-conf
+:shortdesc: "Address of the HPE Alletra Storage UI/WSAPI"
+:type: "string"
+
+```
+
+```{config:option} alletra.wsapi.verify storage-alletra-pool-conf
+:defaultdesc: "`true`"
+:shortdesc: "Whether to verify the HPE Alletra Storage UI/WSAPI certificate"
+:type: "bool"
+
+```
+
+```{config:option} rsync.bwlimit storage-alletra-pool-conf
+:defaultdesc: "`0` (no limit)"
+:scope: "global"
+:shortdesc: "Upper limit on the socket I/O for `rsync`"
+:type: "string"
+When `rsync` must be used to transfer storage entities, this option specifies the upper limit
+to be placed on the socket I/O.
+```
+
+```{config:option} rsync.compression storage-alletra-pool-conf
+:defaultdesc: "`true`"
+:scope: "global"
+:shortdesc: "Whether to use compression while migrating storage pools"
+:type: "bool"
+
+```
+
+```{config:option} volume.size storage-alletra-pool-conf
+:defaultdesc: "`10GiB`"
+:shortdesc: "Size/quota of the storage volume"
+:type: "string"
+Default storage volume size rounded to 256MiB. The minimum size is 256MiB.
+```
+
+<!-- config group storage-alletra-pool-conf end -->
+<!-- config group storage-alletra-volume-conf start -->
+```{config:option} block.filesystem storage-alletra-volume-conf
+:condition: "block-based volume with content type `filesystem`"
+:defaultdesc: "same as `volume.block.filesystem`"
+:shortdesc: "File system of the storage volume"
+:type: "string"
+Valid options are: `btrfs`, `ext4`, `xfs`
+If not set, `ext4` is assumed.
+```
+
+```{config:option} block.mount_options storage-alletra-volume-conf
+:condition: "block-based volume with content type `filesystem`"
+:defaultdesc: "same as `volume.block.mount_options`"
+:shortdesc: "Mount options for block-backed file system volumes"
+:type: "string"
+
+```
+
+```{config:option} security.shared storage-alletra-volume-conf
+:condition: "virtual-machine or custom block volume"
+:defaultdesc: "same as `volume.security.shared` or `false`"
+:scope: "global"
+:shortdesc: "Enable volume sharing"
+:type: "bool"
+Enabling this option allows sharing the volume across multiple instances despite the possibility of data loss.
+
+```
+
+```{config:option} security.shifted storage-alletra-volume-conf
+:condition: "custom volume"
+:defaultdesc: "same as `volume.security.shifted` or `false`"
+:scope: "global"
+:shortdesc: "Enable ID shifting overlay"
+:type: "bool"
+Enabling this option allows attaching the volume to multiple isolated instances.
+```
+
+```{config:option} security.unmapped storage-alletra-volume-conf
+:condition: "custom volume"
+:defaultdesc: "same as `volume.security.unmappped` or `false`"
+:scope: "global"
+:shortdesc: "Disable ID mapping for the volume"
+:type: "bool"
+
+```
+
+```{config:option} size storage-alletra-volume-conf
+:defaultdesc: "`10GiB`"
+:shortdesc: "Size/quota of the storage volume"
+:type: "string"
+Default storage volume size rounded to 256MiB. The minimum size is 256MiB.
+```
+
+```{config:option} snapshots.expiry storage-alletra-volume-conf
+:condition: "custom volume"
+:defaultdesc: "same as `volume.snapshots.expiry`"
+:scope: "global"
+:shortdesc: "When snapshots are to be deleted"
+:type: "string"
+Specify an expression like `1M 2H 3d 4w 5m 6y`.
+```
+
+```{config:option} snapshots.pattern storage-alletra-volume-conf
+:condition: "custom volume"
+:defaultdesc: "same as `volume.snapshots.pattern` or `snap%d`"
+:scope: "global"
+:shortdesc: "Template for the snapshot name"
+:type: "string"
+You can specify a naming template that is used for scheduled snapshots and unnamed snapshots.
+
+The `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.
+
+To add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.
+Make sure to format the date in your template string to avoid forbidden characters in the snapshot name.
+For example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.
+
+Another way to avoid name collisions is to use the placeholder `%d` in the pattern.
+For the first snapshot, the placeholder is replaced with `0`.
+For subsequent snapshots, the existing snapshot names are taken into account to find the highest number at the placeholder's position.
+This number is then incremented by one for the new name.
+```
+
+```{config:option} snapshots.schedule storage-alletra-volume-conf
+:condition: "custom volume"
+:defaultdesc: "same as `snapshots.schedule`"
+:scope: "global"
+:shortdesc: "Schedule for automatic volume snapshots"
+:type: "string"
+Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).
+```
+
+```{config:option} volatile.idmap.last storage-alletra-volume-conf
+:condition: "filesystem"
+:shortdesc: "JSON-serialized UID/GID map that has been applied to the volume"
+:type: "string"
+
+```
+
+```{config:option} volatile.idmap.next storage-alletra-volume-conf
+:condition: "filesystem"
+:shortdesc: "JSON-serialized UID/GID map that has been applied to the volume"
+:type: "string"
+
+```
+
+```{config:option} volatile.uuid storage-alletra-volume-conf
+:defaultdesc: "random UUID"
+:scope: "global"
+:shortdesc: "The volume's UUID"
+:type: "string"
+
+```
+
+<!-- config group storage-alletra-volume-conf end -->
 <!-- config group storage-btrfs-bucket-conf start -->
 ```{config:option} size storage-btrfs-bucket-conf
 :condition: "appropriate driver"

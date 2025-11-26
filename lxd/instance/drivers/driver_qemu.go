@@ -1271,15 +1271,20 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		}
 
 		// Check if nvram path and its target exist.
+		nvramMissing := false
 		nvramPath := d.nvramPath()
 		nvramTarget, err := filepath.EvalSymlinks(nvramPath)
-		if err != nil && !errors.Is(err, fs.ErrNotExist) {
-			op.Done(err)
-			return err
+		if err != nil {
+			if !errors.Is(err, fs.ErrNotExist) {
+				op.Done(err)
+				return err
+			}
+
+			nvramMissing = true
 		}
 
 		// Decide if nvram file needs to be setup/refreshed.
-		if errors.Is(err, fs.ErrNotExist) || shared.IsTrue(d.localConfig["volatile.apply_nvram"]) || ovmfNeedsUpdate(nvramTarget) {
+		if nvramMissing || shared.IsTrue(d.localConfig["volatile.apply_nvram"]) || ovmfNeedsUpdate(nvramTarget) {
 			err = d.setupNvram()
 			if err != nil {
 				op.Done(err)
@@ -4025,20 +4030,59 @@ func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]i
 	}
 
 	// QMP uses two separate values for the cache.
-	directCache := true   // Bypass host cache, use O_DIRECT semantics by default.
-	noFlushCache := false // Don't ignore any flush requests for the device.
+	var directCache bool  // True to bypass host cache and use O_DIRECT semantics
+	var noFlushCache bool // True to ignore any flush requests for the device
+	// "writeback" not supported yet, see https://gitlab.com/qemu-project/qemu/-/issues/3103
+	// var writebackCache bool // True to complete writes once they are in the write page cache
+
+	/*
+		qemu's cache= modes and their interpretation.
+
+		=============  ===============   ============   ==============
+		\              cache.writeback   cache.direct   cache.no-flush
+		=============  ===============   ============   ==============
+		writeback      on                off            off
+		none           on                on             off
+		writethrough   off               off            off
+		directsync     off               on             off
+		unsafe         on                off            on
+		=============  ===============   ============   ==============
+
+		LXD lets users select io.cache=, and this influences opened files' modes
+		we pass around as opened FD to qemu.
+		The expectation should be that LXD's cache= equals Qemu's behavior.
+	*/
 
 	switch cacheMode {
+	case "writeback":
+		// writebackCache = true
+		directCache = false
+		noFlushCache = false
+	case "none":
+		// writebackCache = true
+		directCache = true
+		noFlushCache = false
+	case "writethrough":
+		// writebackCache = false
+		directCache = false
+		noFlushCache = false
+	case "directsync":
+		// writebackCache = false
+		directCache = true
+		noFlushCache = false
 	case "unsafe":
+		// writebackCache = true
 		directCache = false
 		noFlushCache = true
-	case "writeback":
-		directCache = false
+	default:
+		return nil, fmt.Errorf("Unsupported cache mode: %q", cacheMode)
 	}
 
 	blockDev := map[string]any{
 		"aio": aioMode,
+		// BlockdevCacheOptions, which somehow doesn't contain BlockdevCacheInfo's "writeback" (yet).
 		"cache": map[string]any{
+			// "writeback": writebackCache,
 			"direct":   directCache,
 			"no-flush": noFlushCache,
 		},
@@ -4194,7 +4238,12 @@ func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]i
 				permissions = unix.O_RDONLY
 			}
 
-			permissions |= unix.O_DIRECT
+			// only open the file with O_DIRECT when the QEMU caching configuration expects this.
+			// otherwise QEMU will error that the transferred FD has the wrong flags.
+			// qemu checks this since 99c147e2f53726290bbdde795b6efbb4d9138657
+			if directCache {
+				permissions |= unix.O_DIRECT
+			}
 
 			f, err := os.OpenFile(pathSource.Path, permissions, 0)
 			if err != nil {

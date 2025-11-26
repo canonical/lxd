@@ -256,6 +256,15 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 
 	// If not authenticated, return now.
 	if !requestor.IsTrusted() {
+		daemonConfig, _ := daemonConfigRender(s)
+		_, flagExists := daemonConfig["user.microcloud"]
+		if flagExists {
+			// Unprivileged users may see the user.microcloud config key
+			srv.Config = map[string]any{
+				"user.microcloud": daemonConfig["user.microcloud"],
+			}
+		}
+
 		return response.SyncResponseETag(true, srv, nil)
 	}
 
@@ -493,9 +502,14 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// If this is a notification from a cluster node, just run the triggers
 	// for reacting to the values that changed.
-	if isClusterNotification(r) {
+	if requestor.IsClusterNotification() {
 		logger.Debug("Handling config changed notification")
 		changed := make(map[string]string)
 		for key, value := range req.Config {
@@ -835,7 +849,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 
 	revert.Success()
 
-	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ConfigUpdated.Event(request.CreateRequestor(r.Context()), nil))
+	s.Events.SendLifecycle("", lifecycle.ConfigUpdated.Event(request.CreateRequestor(r.Context()), nil))
 
 	return response.EmptySyncResponse
 }

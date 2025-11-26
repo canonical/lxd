@@ -3,8 +3,8 @@ package network
 import (
 	"fmt"
 
-	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"

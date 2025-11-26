@@ -85,6 +85,20 @@ if [ "${LXD_VM_TESTS:-0}" = "1" ]; then
   check_dependencies qemu-img "qemu-system-$(uname -m)" sgdisk
 fi
 
+# If no test image is specified, busybox-static will be needed by test/deps/import-busybox
+if [ -z "${LXD_TEST_IMAGE:-}" ]; then
+  BUSYBOX="$(command -v busybox)"
+  if [ ! -e "${BUSYBOX}" ]; then
+      echo "Please install busybox (busybox-static) or set LXD_TEST_IMAGE"
+      exit 1
+  fi
+
+  if ldd "${BUSYBOX}" >/dev/null 2>&1; then
+      echo "The testsuite requires ${BUSYBOX} to be a static binary"
+      exit 1
+  fi
+fi
+
 # find the path to lxc binary, not the shell wrapper function
 _LXC="$(unset -f lxc; command -v lxc)"
 readonly _LXC
@@ -227,7 +241,7 @@ chmod +x "${TEST_DIR}"
 
 # Verify the dir chain is accessible for other users (other's execute bit has to be `x` or `t` (sticky))
 # This is to catch if `sudo chmod +x ~` was not run and the TEST_DIR is under `~`
-INACCESSIBLE_DIRS="$(namei -m "${TEST_DIR}" | awk '/^ d/ {print $1}' | grep -v '[xt]$' || true)"
+INACCESSIBLE_DIRS="$(namei -m "${TEST_DIR}" | awk '/^ d/ {if ($1 !~ "^d.*[xt]$") print $2}')"
 if [ -n "${INACCESSIBLE_DIRS:-}" ]; then
     echo "Some directories are not accessible by other users" >&2
     namei -m "${TEST_DIR}"
@@ -531,6 +545,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_storage_volume_import "storage volume import"
     run_test test_storage_volume_initial_config "storage volume initial configuration"
     run_test test_resources "resources"
+    run_test test_resources_bcache "resources bcache"
     run_test test_kernel_limits "kernel limits"
     run_test test_console "console"
     run_test test_query "query"

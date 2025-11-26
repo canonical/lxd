@@ -10,9 +10,9 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/ip"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"

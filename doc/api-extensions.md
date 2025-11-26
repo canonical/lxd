@@ -2695,3 +2695,26 @@ The `PATCH /1.0/instances/{name}` endpoint allows removing an instance device by
 
 This introduces support for internal OVN load balancers and network forwards. This approach allows `ovn` networks to define ports on internal IP addresses that can be forwarded to other internal IPs inside their respective networks.
 This change removes the previous limitation on `ovn` networks that load balancers and network forwards could only use external IP addresses to forward to internal IPs.
+
+## `storage_driver_alletra`
+
+Adds a new `alletra` storage driver for the consumption of storage volumes from an HPE Alletra storage array.
+
+The following pool-level configuration keys have been added:
+
+1. {config:option}`storage-alletra-pool-conf:alletra.wsapi`
+1. {config:option}`storage-alletra-pool-conf:alletra.wsapi.verify`
+1. {config:option}`storage-alletra-pool-conf:alletra.user.name`
+1. {config:option}`storage-alletra-pool-conf:alletra.user.password`
+1. {config:option}`storage-alletra-pool-conf:alletra.cpg`
+1. {config:option}`storage-alletra-pool-conf:alletra.target`
+1. {config:option}`storage-alletra-pool-conf:alletra.mode`
+
+## `resources_disk_used_by`
+
+Adds the field `used_by` to potential storage disk returned by the resources end point to indicate its use by any virtual parent device, e.g. `bcache`.
+
+## `ovn_dhcp_ranges`
+
+This introduces support for the {config:option}`network-ovn-network-conf:ipv4.dhcp.ranges` configuration key for `ovn` networks. This key allows specifying a list of IPv4 ranges
+reserved for dynamic allocation using DHCP.

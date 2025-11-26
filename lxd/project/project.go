@@ -131,7 +131,7 @@ func StorageVolumeProject(c *db.Cluster, projectName string, volumeType cluster.
 		return err
 	})
 	if err != nil {
-		return "", fmt.Errorf("Failed to load project %q: %w", projectName, err)
+		return "", fmt.Errorf("Failed loading project %q: %w", projectName, err)
 	}
 
 	return StorageVolumeProjectFromRecord(project, volumeType), nil
@@ -178,7 +178,7 @@ func StorageBucketProject(ctx context.Context, c *db.Cluster, projectName string
 		return err
 	})
 	if err != nil {
-		return "", fmt.Errorf("Failed to load project %q: %w", projectName, err)
+		return "", fmt.Errorf("Failed loading project %q: %w", projectName, err)
 	}
 
 	return StorageBucketProjectFromRecord(p), nil
@@ -214,7 +214,7 @@ func NetworkProject(c *db.Cluster, projectName string) (string, *api.Project, er
 		return err
 	})
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed to load project %q: %w", projectName, err)
+		return "", nil, fmt.Errorf("Failed loading project %q: %w", projectName, err)
 	}
 
 	effectiveProjectName := NetworkProjectFromRecord(p)
@@ -331,7 +331,7 @@ func NetworkZoneProject(c *db.Cluster, projectName string) (string, *api.Project
 		return err
 	})
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed to load project %q: %w", projectName, err)
+		return "", nil, fmt.Errorf("Failed loading project %q: %w", projectName, err)
 	}
 
 	effectiveProjectName := NetworkZoneProjectFromRecord(p)

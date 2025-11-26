@@ -22,7 +22,6 @@ import (
 	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/cluster"
-	"github.com/canonical/lxd/lxd/cluster/request"
 	"github.com/canonical/lxd/lxd/daemon"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -35,6 +34,7 @@ import (
 	"github.com/canonical/lxd/lxd/network/acl"
 	"github.com/canonical/lxd/lxd/network/openvswitch"
 	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/subprocess"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/lxd/warnings"
@@ -1293,14 +1293,13 @@ func (n *bridge) startDnsmasq(dnsmasqCmd []string, dnsClustered bool, dnsCluster
 	// Check dnsmasq started OK.
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Millisecond*time.Duration(500)))
 	_, err = p.Wait(ctx)
-	if !errors.Is(err, context.DeadlineExceeded) {
+	cancel()
+
+	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
 		stderr, _ := os.ReadFile(dnsmasqLogPath)
-		cancel()
 
 		return fmt.Errorf("The DNS and DHCP service exited prematurely: %w (%q)", err, strings.TrimSpace(string(stderr)))
 	}
-
-	cancel()
 
 	err = p.Save(shared.VarPath("networks", n.name, "dnsmasq.pid"))
 	if err != nil {
