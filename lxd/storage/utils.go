@@ -1359,16 +1359,6 @@ func CompareSnapshots(sourceSnapshots []ComparableSnapshot, targetSnapshots []Co
 	return syncFromSource, deleteFromTarget
 }
 
-// GetPoolDefaultBlockSize returns the default block size for the specified storage pool according to its driver.
-func GetPoolDefaultBlockSize(s *state.State, poolName string) (string, error) {
-	pool, err := LoadByName(s, poolName)
-	if err != nil {
-		return "", fmt.Errorf("Failed loading storage pool: %w", err)
-	}
-
-	return pool.Driver().Info().DefaultBlockSize, nil
-}
-
 // VolumeDetermineNextSnapshotName determines a name for next snapshot of a volume
 // following the volume's snapshots.pattern or the provided default pattern.
 func VolumeDetermineNextSnapshotName(ctx context.Context, s *state.State, pool string, volumeName string, volumeConfig map[string]string) (string, error) {

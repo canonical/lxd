@@ -28,12 +28,6 @@ func Slice(typ string) string {
 	return "[]" + typ
 }
 
-// Element is the reverse of Slice, returning the element type name the slice
-// with given type.
-func Element(typ string) string {
-	return typ[len("[]"):]
-}
-
 // Star adds a "*" prefix to the given string.
 func Star(s string) string {
 	return "*" + s

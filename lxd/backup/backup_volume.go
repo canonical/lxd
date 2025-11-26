@@ -43,16 +43,6 @@ func NewVolumeBackup(state *state.State, projectName, poolName, volumeName strin
 	}
 }
 
-// VolumeOnly returns whether only the volume itself is to be backed up.
-func (b *VolumeBackup) VolumeOnly() bool {
-	return b.volumeOnly
-}
-
-// OptimizedStorage returns whether the backup is to be performed using optimization format of the storage driver.
-func (b *VolumeBackup) OptimizedStorage() bool {
-	return b.optimizedStorage
-}
-
 // Rename renames a volume backup.
 func (b *VolumeBackup) Rename(newName string) error {
 	backupsPath := b.state.BackupsStoragePath(b.projectName)

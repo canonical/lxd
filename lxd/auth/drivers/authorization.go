@@ -27,15 +27,7 @@ type authorizer interface {
 // Opts is used as part of the LoadAuthorizer function so that only the relevant configuration fields are passed into a
 // particular driver.
 type Opts struct {
-	config           map[string]any
 	openfgaDatastore storage.OpenFGADatastore
-}
-
-// WithConfig can be passed into LoadAuthorizer to pass in driver specific configuration.
-func WithConfig(c map[string]any) func(*Opts) {
-	return func(o *Opts) {
-		o.config = c
-	}
 }
 
 // WithOpenFGADatastore should be passed into LoadAuthorizer when using the embedded openfga driver.

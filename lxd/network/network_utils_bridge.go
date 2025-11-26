@@ -40,16 +40,6 @@ func BridgeVLANDefaultPVID(interfaceName string) (string, error) {
 	return strings.TrimSpace(string(content)), nil
 }
 
-// BridgeVLANSetDefaultPVID sets the VLAN default port VLAN ID (PVID).
-func BridgeVLANSetDefaultPVID(interfaceName string, vlanID string) error {
-	err := os.WriteFile(fmt.Sprintf("/sys/class/net/%s/bridge/default_pvid", interfaceName), []byte(vlanID), 0)
-	if err != nil {
-		return fmt.Errorf("Failed setting bridge VLAN default PVID for %q: %w", interfaceName, err)
-	}
-
-	return nil
-}
-
 // IsNativeBridge returns whether the bridge name specified is a Linux native bridge.
 func IsNativeBridge(bridgeName string) bool {
 	return shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", bridgeName))
