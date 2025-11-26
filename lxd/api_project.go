@@ -320,6 +320,11 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	var id int64
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		id, err = dbCluster.CreateProject(ctx, tx.Tx(), dbCluster.Project{Description: project.Description, Name: project.Name})
@@ -933,6 +938,11 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 	// Quick checks.
 	if name == api.ProjectDefaultName {
 		return response.Forbidden(errors.New("The 'default' project cannot be deleted"))
+	}
+
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
