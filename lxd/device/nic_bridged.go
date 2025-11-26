@@ -29,7 +29,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/ip"
 	"github.com/canonical/lxd/lxd/network"
-	"github.com/canonical/lxd/lxd/network/openvswitch"
+	"github.com/canonical/lxd/lxd/network/ovs"
 	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -1588,7 +1588,7 @@ func (d *nicBridged) setupNativeBridgePortVLANs(hostName string) error {
 
 // setupOVSBridgePortVLANs configures the bridge port with the specified VLAN settings on the openvswitch bridge.
 func (d *nicBridged) setupOVSBridgePortVLANs(hostName string) error {
-	ovs := openvswitch.NewOVS()
+	ovs := ovs.NewOVS()
 
 	// Set port on bridge to specified untagged PVID.
 	if d.config["vlan"] != "" {
