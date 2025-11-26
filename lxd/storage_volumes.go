@@ -2563,7 +2563,7 @@ func createStoragePoolVolumeFromTarball(s *state.State, r *http.Request, request
 	}
 
 	// Create temporary file to store uploaded tar archive.
-	tarFile, err := os.CreateTemp(s.BackupsStoragePath(projectName), backup.WorkingDirPrefix+"_")
+	tarFile, err := os.CreateTemp(s.BackupsStoragePath(), backup.WorkingDirPrefix+"_")
 	if err != nil {
 		return response.InternalError(err)
 	}
