@@ -76,7 +76,7 @@ type Key struct {
 	Setter func(string) (string, error)
 }
 
-// Type is a numeric code indetifying a node value type.
+// Type is a numeric code identifying a node value type.
 type Type int
 
 // Possible Value types.
