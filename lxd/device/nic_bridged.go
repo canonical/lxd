@@ -1588,7 +1588,7 @@ func (d *nicBridged) setupNativeBridgePortVLANs(hostName string) error {
 
 // setupOVSBridgePortVLANs configures the bridge port with the specified VLAN settings on the openvswitch bridge.
 func (d *nicBridged) setupOVSBridgePortVLANs(hostName string) error {
-	ovs := ovs.NewOVS()
+	vswitch := ovs.NewOVS()
 
 	// Set port on bridge to specified untagged PVID.
 	if d.config["vlan"] != "" {
@@ -1601,7 +1601,7 @@ func (d *nicBridged) setupOVSBridgePortVLANs(hostName string) error {
 		// Order is important here, as vlan_mode is set to "access", assuming that vlan.tagged is not used.
 		// If vlan.tagged is specified, then we expect it to also change the vlan_mode as needed.
 		if d.config["vlan"] != "none" {
-			err := ovs.BridgePortSet(hostName, "vlan_mode=access", "tag="+string(d.config["vlan"]))
+			err := vswitch.BridgePortSet(hostName, "vlan_mode=access", "tag="+string(d.config["vlan"]))
 			if err != nil {
 				return err
 			}
@@ -1631,7 +1631,7 @@ func (d *nicBridged) setupOVSBridgePortVLANs(hostName string) error {
 		// Also set the vlan_mode as needed from above.
 		// Must come after the PortSet command used for setting "vlan" mode above so that the correct
 		// vlan_mode is retained.
-		err = ovs.BridgePortSet(hostName, "vlan_mode="+vlanMode, "trunks="+strings.Join(vlanIDs, ","))
+		err = vswitch.BridgePortSet(hostName, "vlan_mode="+vlanMode, "trunks="+strings.Join(vlanIDs, ","))
 		if err != nil {
 			return err
 		}
