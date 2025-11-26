@@ -493,7 +493,7 @@ var ConfigSchema = config.Schema{
 		//  scope: global
 		//  defaultdesc: `15d`
 		//  shortdesc: Time after which a remote add token expires
-		"core.remote_token_expiry": {Type: config.String, Validator: validate.Optional(expiryValidator)},
+		"core.remote_token_expiry": {Type: config.String, Default: "15d", Validator: expiryValidator},
 
 		// lxdmeta:generate(entities=server; group=core; key=core.shutdown_timeout)
 		// Specify the number of minutes to wait for running operations to complete before the LXD server shuts down.
