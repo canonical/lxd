@@ -5,7 +5,7 @@ test_remote_url() {
     lxc_remote remote add test "${url}" --accept-certificate --password foo
     lxc_remote info test:
     lxc_remote config trust list | awk '/@/ {print $8}' | while read -r line ; do
-      lxc_remote config trust remove "\"${line}\""
+      lxc_remote config trust remove "${line}"
     done
     lxc_remote remote remove test
   done
