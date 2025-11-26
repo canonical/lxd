@@ -601,7 +601,7 @@ func (d *alletra) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, 
 }
 
 // BackupVolume creates an exported version of a volume.
-func (d *alletra) BackupVolume(vol VolumeCopy, projectName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
+func (d *alletra) BackupVolume(vol VolumeCopy, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
 	return genericVFSBackupVolume(d, vol, tarWriter, snapshots, op)
 }
 
