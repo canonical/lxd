@@ -75,7 +75,7 @@ var devLXD10Endpoint = APIEndpoint{
 }
 
 func devLXDAPIGetHandler(d *Daemon, r *http.Request) response.Response {
-	inst, err := getInstanceFromContextAndCheckSecurityFlags(r.Context())
+	inst, err := getInstanceFromContextAndCheckSecurityFlags(r.Context(), devLXDSecurityKey)
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
