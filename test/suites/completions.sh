@@ -173,7 +173,7 @@ test_completions() {
     [ "$(complete config unset localhost: '')" = 'core.https_address,core.trust_password,user.foo' ]
     [ "$(complete config unset localhost:c)" = 'localhost:c1,localhost:c2' ]
     [ "$(complete config unset localhost: c)" = 'core.https_address,core.trust_password' ]
-    [ "$(complete config unset c1 '')" = '' ]
+    [ "$(complete config unset c1 '' || echo fail)" = '' ]
     lxc config set c1 user.foo=bar
     [ "$(complete config unset c1 '')" = 'user.foo' ]
     [ "$(complete config unset localhost:c1 '')" = 'user.foo' ]
