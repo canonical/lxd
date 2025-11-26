@@ -79,7 +79,7 @@ func (d *powerflex) load() error {
 // PowerFlex mode. The connector is cached in the driver struct.
 func (d *powerflex) connector() (connectors.Connector, error) {
 	if d.storageConnector == nil {
-		connector, err := connectors.NewConnector(d.config["powerflex.mode"], d.state.ServerUUID)
+		connector, err := connectors.NewConnector(d.config["powerflex.mode"], d.state.OS.ServerUUID)
 		if err != nil {
 			return nil, err
 		}
