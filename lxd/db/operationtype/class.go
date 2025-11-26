@@ -14,6 +14,8 @@ const (
 	OperationClassWebsocket Class = 2
 	// OperationClassToken represents the Token Class.
 	OperationClassToken Class = 3
+	// OperationClassDurable represents the Durable OperationClass.
+	OperationClassDurable Class = 4
 )
 
 func (t Class) String() string {
@@ -21,5 +23,6 @@ func (t Class) String() string {
 		OperationClassTask:      api.OperationClassTask,
 		OperationClassWebsocket: api.OperationClassWebsocket,
 		OperationClassToken:     api.OperationClassToken,
+		OperationClassDurable:   api.OperationClassDurable,
 	}[t]
 }

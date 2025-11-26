@@ -6,14 +6,23 @@ import (
 	"time"
 )
 
-// OperationClassTask represents the Task OperationClass.
-const OperationClassTask = "task"
+const (
+	// OperationClassTask represents the Task OperationClass.
+	// These are various asynchronous tasks that run in the background.
+	OperationClassTask = "task"
 
-// OperationClassWebsocket represents the Websocket OperationClass.
-const OperationClassWebsocket = "websocket"
+	// OperationClassWebsocket represents the Websocket OperationClass.
+	// These are used for various bi-directional connections such as console.
+	OperationClassWebsocket = "websocket"
 
-// OperationClassToken represents the Token OperationClass.
-const OperationClassToken = "token"
+	// OperationClassToken represents the Token OperationClass.
+	// These are used to track the tokens used by new cluster members joining the cluster.
+	OperationClassToken = "token"
+
+	// OperationClassDurable represents the Durable OperationClass.
+	// These are like task operations, but are restarted on the leader if the member that was initially running the operation goes offline.
+	OperationClassDurable = "durable"
+)
 
 const (
 	// MetadataEntityURL is always set in operation metadata for operations whose associated entity type is not "server".
