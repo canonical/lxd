@@ -1,9 +1,9 @@
 package ovs
 
-// OVS command wrapper.
-type OVS struct{}
+// VSwitch client.
+type VSwitch struct{}
 
-// NewOVS initialises new OVS wrapper.
-func NewOVS() *OVS {
-	return &OVS{}
+// NewVSwitch initialises a new VSwitch client.
+func NewVSwitch() *VSwitch {
+	return &VSwitch{}
 }
