@@ -627,8 +627,8 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{}
 
 	// Get local chassis ID for chassis group.
-	ovs := ovs.NewOVS()
-	chassisID, err := ovs.ChassisID()
+	vswitch := ovs.NewOVS()
+	chassisID, err := vswitch.ChassisID()
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting OVS Chassis ID: %w", err)
 	}
@@ -721,8 +721,8 @@ func (d *nicOVN) setupAcceleration(saveData map[string]string) (cleanup revert.H
 		return nil, "", "", nil, 0, nil, errors.New("VDPA acceleration is not supported for containers")
 	}
 
-	ovs := ovs.NewOVS()
-	if !ovs.HardwareOffloadingEnabled() {
+	vswitch := ovs.NewOVS()
+	if !vswitch.HardwareOffloadingEnabled() {
 		return nil, "", "", nil, 0, nil, errors.New("OVN NIC acceleration requires hardware offloading to be enabled in OVS")
 	}
 
@@ -772,7 +772,7 @@ func (d *nicOVN) setupAcceleration(saveData map[string]string) (cleanup revert.H
 		}
 	} else {
 		// Get all ports on the integration bridge.
-		ports, err := ovs.BridgePortList(d.state.GlobalConfig.NetworkOVNIntegrationBridge())
+		ports, err := vswitch.BridgePortList(d.state.GlobalConfig.NetworkOVNIntegrationBridge())
 		if err != nil {
 			return nil, "", "", nil, 0, nil, fmt.Errorf("Failed to get OVS integration bridge port list: %w", err)
 		}
@@ -973,7 +973,7 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 	var err error
 
 	networkVethFillFromVolatile(d.config, v)
-	ovs := ovs.NewOVS()
+	vswitch := ovs.NewOVS()
 
 	integrationBridgeNICName := d.config["host_name"]
 	if d.config["acceleration"] == "sriov" || d.config["acceleration"] == "vdpa" {
@@ -991,7 +991,7 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 		integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
 
 		// Detach host-side end of veth pair from OVS integration bridge.
-		err = ovs.BridgePortDelete(integrationBridge, integrationBridgeNICName)
+		err = vswitch.BridgePortDelete(integrationBridge, integrationBridgeNICName)
 		if err != nil {
 			// Don't fail here as we want the postStop hook to run to clean up the local veth pair.
 			d.logger.Error("Failed detaching interface from OVS integration bridge", logger.Ctx{"interface": integrationBridgeNICName, "bridge": integrationBridge, "err": err})
@@ -1257,16 +1257,16 @@ func (d *nicOVN) setupHostNIC(hostName string, ovnPortName ovn.OVNSwitchPort) (r
 	// Attach host side veth interface to bridge.
 	integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
 
-	ovs := ovs.NewOVS()
-	err = ovs.BridgePortAdd(integrationBridge, hostName, true)
+	vswitch := ovs.NewOVS()
+	err = vswitch.BridgePortAdd(integrationBridge, hostName, true)
 	if err != nil {
 		return nil, err
 	}
 
-	revert.Add(func() { _ = ovs.BridgePortDelete(integrationBridge, hostName) })
+	revert.Add(func() { _ = vswitch.BridgePortDelete(integrationBridge, hostName) })
 
 	// Link OVS port to OVN logical port.
-	err = ovs.InterfaceAssociateOVNSwitchPort(hostName, string(ovnPortName))
+	err = vswitch.InterfaceAssociateOVNSwitchPort(hostName, string(ovnPortName))
 	if err != nil {
 		return nil, err
 	}
