@@ -528,7 +528,7 @@ var ConfigSchema = config.Schema{
 		//  scope: global
 		//  defaultdesc: `1m`
 		//  shortdesc: How long to use a given cluster secret
-		"core.auth_secret_expiry": {Default: "1m", Validator: func(s string) error {
+		"core.auth_secret_expiry": {Type: config.String, Default: "1m", Validator: func(s string) error {
 			now := time.Now().UTC()
 			exp, err := shared.GetExpiry(now, s)
 			if err != nil {
