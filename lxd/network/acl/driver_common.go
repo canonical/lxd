@@ -623,7 +623,7 @@ func (d *common) Update(ctx context.Context, config *api.NetworkACLPut, clientTy
 	// If there are affected OVN networks, then apply the changes, but only if the request type is normal.
 	// This way we won't apply the same changes multiple times for each LXD cluster member.
 	if len(aclOVNNets) > 0 && clientType == request.ClientTypeNormal {
-		client, err := ovn.NewOVN(d.state.GlobalConfig.NetworkOVNNorthboundConnection(), d.state.GlobalConfig.NetworkOVNSSL)
+		ovnnb, err := ovn.NewOVN(d.state.GlobalConfig.NetworkOVNNorthboundConnection(), d.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
@@ -646,7 +646,7 @@ func (d *common) Update(ctx context.Context, config *api.NetworkACLPut, clientTy
 		// apply those rules to each network affected by the ACL, so pass the full list of OVN networks
 		// affected by this ACL (either because the ACL is assigned directly or because it is assigned to
 		// an OVN NIC in an instance or profile).
-		cleanup, err := OVNEnsureACLs(ctx, d.state, d.logger, client, d.projectName, aclNameIDs, aclOVNNets, []string{d.info.Name}, true)
+		cleanup, err := OVNEnsureACLs(ctx, d.state, d.logger, ovnnb, d.projectName, aclNameIDs, aclOVNNets, []string{d.info.Name}, true)
 		if err != nil {
 			return fmt.Errorf("Failed ensuring ACL is configured in OVN: %w", err)
 		}
@@ -655,7 +655,7 @@ func (d *common) Update(ctx context.Context, config *api.NetworkACLPut, clientTy
 
 		// Run unused port group cleanup in case any formerly referenced ACL in this ACL's rules means that
 		// an ACL port group is now considered unused.
-		err = OVNPortGroupDeleteIfUnused(ctx, d.state, d.logger, client, d.projectName, nil, "", d.info.Name)
+		err = OVNPortGroupDeleteIfUnused(ctx, d.state, d.logger, ovnnb, d.projectName, nil, "", d.info.Name)
 		if err != nil {
 			return fmt.Errorf("Failed removing unused OVN port groups: %w", err)
 		}
