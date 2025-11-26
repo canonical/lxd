@@ -2890,7 +2890,7 @@ func doImageDelete(ctx context.Context, s *state.State, fingerprint string, imag
 				// referenced by other projects. In that case we don't want to
 				// physically delete it just yet, but just to remove the
 				// relevant database entry.
-				referenced, err = tx.ImageIsReferencedByOtherProjects(ctx, projectName, details.image.Fingerprint)
+				referenced, err = tx.ImageIsReferencedByOtherProjects(ctx, projectName, fingerprint)
 				if err != nil {
 					return err
 				}
@@ -2973,7 +2973,7 @@ func doImageDelete(ctx context.Context, s *state.State, fingerprint string, imag
 		}
 
 		// Remove main image file from disk.
-		err = imageDeleteFromDisk(s, details.image.Fingerprint)
+		err = imageDeleteFromDisk(s, fingerprint)
 		if err != nil {
 			return err
 		}
