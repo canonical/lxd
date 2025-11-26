@@ -674,7 +674,7 @@ parts:
         - lsb-release
         - libtirpc-dev
     build-snaps:
-      - go/1.24/stable
+      - go/1.25/stable
     override-stage: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
@@ -717,7 +717,7 @@ parts:
     source-commit: f8daa5e26de9fd7eb79259040b6dd5a52060048c # v1.18.0
     source-type: git
     build-snaps:
-      - go/1.24/stable
+      - go/1.25/stable
     plugin: make
     override-stage: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
@@ -1544,7 +1544,7 @@ parts:
       - python3-pip
       - python3-venv
     build-snaps:
-      - go/1.24/stable
+      - go/1.25/stable
     stage-packages:
       - acl
       - attr
