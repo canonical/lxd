@@ -3157,10 +3157,61 @@ test_clustering_rebalance() {
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -cF -- "- database-standby")" = "0" ]
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list # For debugging.
 
+  echo "Respawn node4"
+  respawn_lxd_cluster_member "${ns4}" "${LXD_FOUR_DIR}"
+  sleep 12
+
+  echo "Verify node4 is back online"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -xF "status: Online"
+
+  echo "Evacuate node1 (leader)"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster evacuate node1 --force
+
+  echo "Verify node1 is evacuated"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -xF "status: Evacuated"
+
+  echo "Wait for heartbeat to trigger rebalancing (evacuated nodes with database-client role are excluded from promotion)"
+  sleep 20
+
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list # For debugging
+
+  echo "Verify node1 is not the leader anymore"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -cF "database-leader")" = 0 ]
+
+  echo "Verify the evacuated leader no longer has database roles"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -xF "database: false"
+
+  echo "Verify a new leader has been elected from non-evacuated nodes"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -c "database-leader")" = "1" ]
+
+  echo "Verify exactly 1 node has database-leader role"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -c "database-leader")" = "1" ]
+
+  echo "Verify node5 with database-client role was not promoted during evacuation rebalancing"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node5 | grep -xF "database: false"
+
+  echo "Restore node1"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster restore node1 --force
+
+  echo "Wait for node1 to come back online and heartbeat to detect it"
+  sleep 20
+
+  echo "Verify node1 is restored and online"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -xF "status: Online"
+
+  echo "Wait for heartbeat to rebalance roles (restored node can be promoted)"
+  sleep 15
+
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list # For debugging
+
+  echo "Verify node1 can participate in Raft again (should have database role)"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -xF "database: true"
+
   echo "Clean up"
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
   LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
   sleep 0.5
   rm -f "${LXD_ONE_DIR}/unix.socket"
