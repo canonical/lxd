@@ -239,15 +239,21 @@ func (p *pureClient) createBodyReader(contents map[string]any) (io.Reader, error
 
 // request issues a HTTP request against the Pure Storage gateway.
 func (p *pureClient) request(method string, url url.URL, reqBody map[string]any, reqHeaders map[string]string, respBody any, respHeaders map[string]string) error {
-	// Extract scheme and host from the gateway URL.
-	scheme, host, found := strings.Cut(p.driver.config["pure.gateway"], "://")
-	if !found {
-		return fmt.Errorf("Invalid Pure Storage gateway URL: %q", p.driver.config["pure.gateway"])
+	gw := p.driver.config["pure.gateway"]
+	if !strings.Contains(gw, "://") {
+		return fmt.Errorf("Invalid Pure Storage gateway URL %q: Missing protocol", gw)
 	}
 
-	// Set request URL scheme and host.
-	url.Scheme = scheme
-	url.Host = host
+	gwURL, err := url.Parse(gw)
+	if err != nil {
+		return fmt.Errorf("Failed to parse Pure Storage gateway URL %q: %w", gw, err)
+	}
+
+	// Ensure the gateway URL does not include the "/api" path, as LXD will handle
+	// the API versioning.
+	if slices.Contains(strings.Split(gwURL.Path, "/"), "api") {
+		return fmt.Errorf(`Invalid Pure Storage gateway URL %q: Pure Storage gateway should not include "/api"`, gw)
+	}
 
 	// Prefixes the given path with the API version in the format "/api/<version>/<path>".
 	// If the path is "/api/api_version", the API version is not included as this path
@@ -274,7 +280,13 @@ func (p *pureClient) request(method string, url url.URL, reqBody map[string]any,
 		url.Path = path.Join("api", p.driver.apiVersion, url.Path)
 	}
 
-	var err error
+	// Set URL scheme and host from the gateway URL.
+	url.Scheme = gwURL.Scheme
+	url.Host = gwURL.Host
+
+	// Prepend the gateway path to the request path.
+	url.Path = path.Join(gwURL.Path, url.Path)
+
 	var reqBodyReader io.Reader
 
 	if reqBody != nil {
