@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2025-11-24 11:38+0000\n"
+"POT-Creation-Date: 2025-11-26 13:38+0000\n"
 "PO-Revision-Date: 2022-03-10 15:07+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Indonesian <https://hosted.weblate.org/projects/linux-"
@@ -133,7 +133,7 @@ msgid ""
 "### Note that the name is shown but cannot be changed"
 msgstr ""
 
-#: lxc/auth.go:1161
+#: lxc/auth.go:1167
 msgid ""
 "### This is a YAML representation of the group.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -178,7 +178,7 @@ msgid ""
 "### - operations\n"
 msgstr ""
 
-#: lxc/auth.go:1820
+#: lxc/auth.go:1824
 msgid ""
 "### This is a YAML representation of the identity provider group.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -557,7 +557,7 @@ msgstr ""
 msgid "AUTH TYPE"
 msgstr ""
 
-#: lxc/auth.go:1007
+#: lxc/auth.go:1013
 msgid "AUTHENTICATION METHOD"
 msgstr ""
 
@@ -600,11 +600,11 @@ msgstr ""
 msgid "Add a cluster member to a cluster group"
 msgstr ""
 
-#: lxc/auth.go:1356 lxc/auth.go:1357
+#: lxc/auth.go:1362 lxc/auth.go:1363
 msgid "Add a group to an identity"
 msgstr ""
 
-#: lxc/auth.go:2109 lxc/auth.go:2110
+#: lxc/auth.go:2113 lxc/auth.go:2114
 msgid "Add a group to an identity provider group"
 msgstr ""
 
@@ -1367,12 +1367,12 @@ msgstr ""
 msgid "Could not find certificate key file path: %s"
 msgstr ""
 
-#: lxc/auth.go:305 lxc/auth.go:1895
+#: lxc/auth.go:305 lxc/auth.go:1899
 #, c-format
 msgid "Could not parse group: %s"
 msgstr ""
 
-#: lxc/auth.go:1244
+#: lxc/auth.go:1250
 #, c-format
 msgid "Could not parse identity: %s"
 msgstr ""
@@ -1441,7 +1441,7 @@ msgstr ""
 msgid "Create groups"
 msgstr ""
 
-#: lxc/auth.go:1706 lxc/auth.go:1707
+#: lxc/auth.go:1710 lxc/auth.go:1711
 msgid "Create identity provider groups"
 msgstr ""
 
@@ -1592,7 +1592,7 @@ msgstr ""
 msgid "Delete all warnings"
 msgstr ""
 
-#: lxc/auth.go:1275 lxc/auth.go:1276
+#: lxc/auth.go:1281 lxc/auth.go:1282
 msgid "Delete an identity"
 msgstr ""
 
@@ -1604,7 +1604,7 @@ msgstr ""
 msgid "Delete groups"
 msgstr ""
 
-#: lxc/auth.go:1758 lxc/auth.go:1759
+#: lxc/auth.go:1762 lxc/auth.go:1763
 msgid "Delete identity provider groups"
 msgstr ""
 
@@ -1685,12 +1685,12 @@ msgstr ""
 #: lxc/alias.go:214 lxc/auth.go:37 lxc/auth.go:66 lxc/auth.go:105
 #: lxc/auth.go:159 lxc/auth.go:208 lxc/auth.go:337 lxc/auth.go:397
 #: lxc/auth.go:446 lxc/auth.go:498 lxc/auth.go:521 lxc/auth.go:580
-#: lxc/auth.go:772 lxc/auth.go:812 lxc/auth.go:959 lxc/auth.go:1027
-#: lxc/auth.go:1087 lxc/auth.go:1149 lxc/auth.go:1276 lxc/auth.go:1333
-#: lxc/auth.go:1357 lxc/auth.go:1409 lxc/auth.go:1465 lxc/auth.go:1487
-#: lxc/auth.go:1669 lxc/auth.go:1707 lxc/auth.go:1759 lxc/auth.go:1808
-#: lxc/auth.go:1927 lxc/auth.go:1987 lxc/auth.go:2036 lxc/auth.go:2087
-#: lxc/auth.go:2110 lxc/auth.go:2163 lxc/cluster.go:33 lxc/cluster.go:126
+#: lxc/auth.go:772 lxc/auth.go:812 lxc/auth.go:965 lxc/auth.go:1033
+#: lxc/auth.go:1093 lxc/auth.go:1155 lxc/auth.go:1282 lxc/auth.go:1339
+#: lxc/auth.go:1363 lxc/auth.go:1415 lxc/auth.go:1469 lxc/auth.go:1491
+#: lxc/auth.go:1673 lxc/auth.go:1711 lxc/auth.go:1763 lxc/auth.go:1812
+#: lxc/auth.go:1931 lxc/auth.go:1991 lxc/auth.go:2040 lxc/auth.go:2091
+#: lxc/auth.go:2114 lxc/auth.go:2167 lxc/cluster.go:33 lxc/cluster.go:126
 #: lxc/cluster.go:218 lxc/cluster.go:275 lxc/cluster.go:334 lxc/cluster.go:407
 #: lxc/cluster.go:489 lxc/cluster.go:533 lxc/cluster.go:591 lxc/cluster.go:682
 #: lxc/cluster.go:776 lxc/cluster.go:899 lxc/cluster.go:983 lxc/cluster.go:1093
@@ -1973,7 +1973,7 @@ msgstr ""
 msgid "Edit a cluster group"
 msgstr ""
 
-#: lxc/auth.go:1148 lxc/auth.go:1149
+#: lxc/auth.go:1154 lxc/auth.go:1155
 msgid "Edit an identity as YAML"
 msgstr ""
 
@@ -1989,7 +1989,7 @@ msgstr ""
 msgid "Edit groups as YAML"
 msgstr ""
 
-#: lxc/auth.go:1807 lxc/auth.go:1808
+#: lxc/auth.go:1811 lxc/auth.go:1812
 msgid "Edit identity provider groups as YAML"
 msgstr ""
 
@@ -2273,12 +2273,12 @@ msgstr ""
 msgid "FIRST SEEN"
 msgstr ""
 
-#: lxc/file.go:1474
+#: lxc/file.go:1495
 #, c-format
 msgid "Failed SSH handshake with client %q: %v"
 msgstr ""
 
-#: lxc/file.go:1497
+#: lxc/file.go:1518
 #, c-format
 msgid "Failed accepting channel client %q: %v"
 msgstr ""
@@ -2293,7 +2293,7 @@ msgstr ""
 msgid "Failed checking instance snapshot exists \"%s:%s\": %w"
 msgstr ""
 
-#: lxc/file.go:1524
+#: lxc/file.go:1545
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
 msgstr ""
@@ -2328,7 +2328,7 @@ msgstr ""
 msgid "Failed fetching fingerprint %q: %w"
 msgstr ""
 
-#: lxc/file.go:1430
+#: lxc/file.go:1451
 #, c-format
 msgid "Failed generating SSH host key: %w"
 msgstr ""
@@ -2343,7 +2343,7 @@ msgstr ""
 msgid "Failed loading profile %q: %w"
 msgstr ""
 
-#: lxc/file.go:1435
+#: lxc/file.go:1456
 #, c-format
 msgid "Failed parsing SSH host key: %w"
 msgstr ""
@@ -2358,7 +2358,7 @@ msgstr ""
 msgid "Failed starting sshfs: %w"
 msgstr ""
 
-#: lxc/file.go:1462
+#: lxc/file.go:1483
 #, c-format
 msgid "Failed to accept incoming connection: %w"
 msgstr ""
@@ -2402,7 +2402,7 @@ msgstr ""
 msgid "Failed to find project: %w"
 msgstr ""
 
-#: lxc/file.go:1447
+#: lxc/file.go:1468
 #, c-format
 msgid "Failed to listen for connection: %w"
 msgstr ""
@@ -2510,7 +2510,7 @@ msgid ""
 "Are you really sure you want to force removing %s? (yes/no): "
 msgstr ""
 
-#: lxc/alias.go:112 lxc/auth.go:341 lxc/auth.go:963 lxc/auth.go:1931
+#: lxc/alias.go:112 lxc/auth.go:341 lxc/auth.go:969 lxc/auth.go:1935
 #: lxc/cluster.go:128 lxc/cluster.go:984 lxc/cluster_group.go:449
 #: lxc/config_template.go:275 lxc/config_trust.go:351 lxc/config_trust.go:433
 #: lxc/image.go:1119 lxc/image_alias.go:182 lxc/list.go:134 lxc/network.go:1024
@@ -2568,7 +2568,7 @@ msgstr ""
 msgid "GPUs:"
 msgstr ""
 
-#: lxc/auth.go:1011 lxc/auth.go:1971
+#: lxc/auth.go:1017 lxc/auth.go:1975
 msgid "GROUPS"
 msgstr ""
 
@@ -2727,7 +2727,7 @@ msgstr ""
 msgid "Group %s deleted"
 msgstr ""
 
-#: lxc/auth.go:431 lxc/auth.go:2021
+#: lxc/auth.go:431 lxc/auth.go:2025
 #, c-format
 msgid "Group %s renamed to %s"
 msgstr ""
@@ -2752,12 +2752,12 @@ msgstr ""
 msgid "Hugepages:\n"
 msgstr ""
 
-#: lxc/file.go:1547
+#: lxc/file.go:1568
 #, c-format
 msgid "I/O copy from SSH to instance failed: %v"
 msgstr ""
 
-#: lxc/file.go:1536
+#: lxc/file.go:1557
 #, c-format
 msgid "I/O copy from instance to SSH failed: %v"
 msgstr ""
@@ -2786,7 +2786,7 @@ msgstr ""
 msgid "ID: %s"
 msgstr ""
 
-#: lxc/auth.go:1010
+#: lxc/auth.go:1016
 msgid "IDENTIFIER"
 msgstr ""
 
@@ -2818,12 +2818,12 @@ msgstr ""
 msgid "ISSUE DATE"
 msgstr ""
 
-#: lxc/auth.go:1743
+#: lxc/auth.go:1747
 #, c-format
 msgid "Identity provider group %s created"
 msgstr ""
 
-#: lxc/auth.go:1793
+#: lxc/auth.go:1797
 #, c-format
 msgid "Identity provider group %s deleted"
 msgstr ""
@@ -2900,16 +2900,12 @@ msgstr ""
 msgid "Immediately attach to the console"
 msgstr ""
 
-#: lxc/storage_volume.go:2839
-msgid "Import backups of custom volumes including their snapshots."
-msgstr ""
-
 #: lxc/import.go:29
 msgid "Import backups of instances including their snapshots."
 msgstr ""
 
-#: lxc/storage_volume.go:2838
-msgid "Import custom storage volumes"
+#: lxc/storage_volume.go:2839
+msgid "Import custom volume backups, iso images, or tarballs."
 msgstr ""
 
 #: lxc/image.go:698
@@ -2930,11 +2926,11 @@ msgstr ""
 msgid "Import instance backups"
 msgstr ""
 
-#: lxc/storage_volume.go:2846
-msgid "Import type, backup or iso (default \"backup\")"
+#: lxc/storage_volume.go:2838
+msgid "Import storage volumes"
 msgstr ""
 
-#: lxc/storage_volume.go:2920
+#: lxc/storage_volume.go:2931
 #, c-format
 msgid "Importing custom volume: %s"
 msgstr ""
@@ -2952,7 +2948,7 @@ msgstr ""
 msgid "Input data"
 msgstr ""
 
-#: lxc/auth.go:1464 lxc/auth.go:1465
+#: lxc/auth.go:1468 lxc/auth.go:1469
 msgid "Inspect permissions"
 msgstr ""
 
@@ -2964,7 +2960,7 @@ msgstr ""
 msgid "Instance disconnected"
 msgstr ""
 
-#: lxc/file.go:1538
+#: lxc/file.go:1559
 #, c-format
 msgid "Instance disconnected for client %q"
 msgstr ""
@@ -3270,11 +3266,11 @@ msgstr ""
 msgid "List groups"
 msgstr ""
 
-#: lxc/auth.go:958 lxc/auth.go:959
+#: lxc/auth.go:964 lxc/auth.go:965
 msgid "List identities"
 msgstr ""
 
-#: lxc/auth.go:1926 lxc/auth.go:1927
+#: lxc/auth.go:1930 lxc/auth.go:1931
 msgid "List identity provider groups"
 msgstr ""
 
@@ -3429,7 +3425,7 @@ msgstr ""
 msgid "List operations from all projects"
 msgstr ""
 
-#: lxc/auth.go:1486 lxc/auth.go:1487
+#: lxc/auth.go:1490 lxc/auth.go:1491
 msgid "List permissions"
 msgstr ""
 
@@ -3645,11 +3641,11 @@ msgstr ""
 msgid "Manage files in instances"
 msgstr ""
 
-#: lxc/auth.go:65 lxc/auth.go:66 lxc/auth.go:1668 lxc/auth.go:1669
+#: lxc/auth.go:65 lxc/auth.go:66 lxc/auth.go:1672 lxc/auth.go:1673
 msgid "Manage groups"
 msgstr ""
 
-#: lxc/auth.go:1332 lxc/auth.go:1333
+#: lxc/auth.go:1338 lxc/auth.go:1339
 msgid "Manage groups for the identity"
 msgstr ""
 
@@ -3657,7 +3653,7 @@ msgstr ""
 msgid "Manage identities"
 msgstr ""
 
-#: lxc/auth.go:2086 lxc/auth.go:2087
+#: lxc/auth.go:2090 lxc/auth.go:2091
 msgid "Manage identity provider group mappings"
 msgstr ""
 
@@ -3898,15 +3894,15 @@ msgid "Missing cluster member name"
 msgstr ""
 
 #: lxc/auth.go:129 lxc/auth.go:183 lxc/auth.go:259 lxc/auth.go:421
-#: lxc/auth.go:470 lxc/auth.go:545 lxc/auth.go:604 lxc/auth.go:2060
+#: lxc/auth.go:470 lxc/auth.go:545 lxc/auth.go:604 lxc/auth.go:2064
 msgid "Missing group name"
 msgstr ""
 
-#: lxc/auth.go:1730 lxc/auth.go:1783 lxc/auth.go:1849 lxc/auth.go:2011
+#: lxc/auth.go:1734 lxc/auth.go:1787 lxc/auth.go:1853 lxc/auth.go:2015
 msgid "Missing identity provider group name"
 msgstr ""
 
-#: lxc/auth.go:2134 lxc/auth.go:2187
+#: lxc/auth.go:2138 lxc/auth.go:2191
 msgid "Missing identity provider group name argument"
 msgstr ""
 
@@ -4127,7 +4123,7 @@ msgstr ""
 msgid "Must supply instance name for: "
 msgstr ""
 
-#: lxc/auth.go:380 lxc/auth.go:1009 lxc/auth.go:1970 lxc/cluster.go:195
+#: lxc/auth.go:380 lxc/auth.go:1015 lxc/auth.go:1974 lxc/cluster.go:195
 #: lxc/cluster.go:1075 lxc/cluster_group.go:510 lxc/config_trust.go:408
 #: lxc/config_trust.go:513 lxc/list.go:571 lxc/network.go:1117
 #: lxc/network_acl.go:172 lxc/network_peer.go:149 lxc/network_zone.go:164
@@ -4536,7 +4532,7 @@ msgstr ""
 msgid "Press ctrl+c to finish"
 msgstr ""
 
-#: lxc/auth.go:306 lxc/auth.go:1245 lxc/auth.go:1896 lxc/cluster.go:866
+#: lxc/auth.go:306 lxc/auth.go:1251 lxc/auth.go:1900 lxc/cluster.go:866
 #: lxc/cluster_group.go:405 lxc/config.go:323 lxc/config.go:398
 #: lxc/config.go:1384 lxc/config_metadata.go:157 lxc/config_template.go:239
 #: lxc/config_trust.go:314 lxc/image.go:493 lxc/network.go:773
@@ -4891,7 +4887,7 @@ msgstr ""
 msgid "Remove %s (yes/no): "
 msgstr ""
 
-#: lxc/auth.go:2162 lxc/auth.go:2163
+#: lxc/auth.go:2166 lxc/auth.go:2167
 msgid "Remove a LXD group from an identity provider group"
 msgstr ""
 
@@ -4899,7 +4895,7 @@ msgstr ""
 msgid "Remove a cluster member from a cluster group"
 msgstr ""
 
-#: lxc/auth.go:1408 lxc/auth.go:1409
+#: lxc/auth.go:1414 lxc/auth.go:1415
 msgid "Remove a group from an identity"
 msgstr ""
 
@@ -4992,7 +4988,7 @@ msgstr ""
 msgid "Rename groups"
 msgstr ""
 
-#: lxc/auth.go:1986 lxc/auth.go:1987
+#: lxc/auth.go:1990 lxc/auth.go:1991
 msgid "Rename identity provider groups"
 msgstr ""
 
@@ -5142,12 +5138,12 @@ msgstr ""
 msgid "SR-IOV information:"
 msgstr ""
 
-#: lxc/file.go:1467
+#: lxc/file.go:1488
 #, c-format
 msgid "SSH client connected %q"
 msgstr ""
 
-#: lxc/file.go:1468
+#: lxc/file.go:1489
 #, c-format
 msgid "SSH client disconnected %q"
 msgstr ""
@@ -5509,7 +5505,7 @@ msgstr ""
 msgid "Show all information messages"
 msgstr ""
 
-#: lxc/auth.go:2035 lxc/auth.go:2036
+#: lxc/auth.go:2039 lxc/auth.go:2040
 msgid "Show an identity provider group"
 msgstr ""
 
@@ -5541,7 +5537,7 @@ msgstr ""
 msgid "Show group configurations"
 msgstr ""
 
-#: lxc/auth.go:1027
+#: lxc/auth.go:1033
 msgid ""
 "Show identity configurations\n"
 "\n"
@@ -5646,7 +5642,7 @@ msgstr ""
 msgid "Show storage volume state information"
 msgstr ""
 
-#: lxc/auth.go:1087
+#: lxc/auth.go:1093
 msgid ""
 "Show the current identity\n"
 "\n"
@@ -5884,12 +5880,12 @@ msgstr ""
 msgid "TARGET"
 msgstr ""
 
-#: lxc/auth.go:917
+#: lxc/auth.go:923
 #, c-format
 msgid "TLS identity %q (%s) pending identity token:"
 msgstr ""
 
-#: lxc/auth.go:943
+#: lxc/auth.go:949
 #, c-format
 msgid "TLS identity %q created with fingerprint %q"
 msgstr ""
@@ -5898,7 +5894,7 @@ msgstr ""
 msgid "TOKEN"
 msgstr ""
 
-#: lxc/auth.go:1008 lxc/config_trust.go:407 lxc/image.go:1148
+#: lxc/auth.go:1014 lxc/config_trust.go:407 lxc/image.go:1148
 #: lxc/image_alias.go:269 lxc/list.go:577 lxc/network.go:1118
 #: lxc/network.go:1204 lxc/network_allocations.go:26 lxc/operation.go:172
 #: lxc/storage_volume.go:1762 lxc/warning.go:217
@@ -6247,6 +6243,14 @@ msgid ""
 "SPICE graphical output"
 msgstr ""
 
+#: lxc/storage_volume.go:2846
+msgid ""
+"Type of the import file. Valid options are:\n"
+"- backup: custom volume backup (default option)\n"
+"- iso: iso image, will be imported as iso volume\n"
+"- tar: tarball, will be imported as custom filesystem volume"
+msgstr ""
+
 #: lxc/image.go:1018 lxc/info.go:281 lxc/info.go:483 lxc/network.go:943
 #: lxc/storage_volume.go:1485
 #, c-format
@@ -6303,7 +6307,7 @@ msgstr ""
 msgid "Unknown certificate type %q"
 msgstr ""
 
-#: lxc/file.go:1490
+#: lxc/file.go:1511
 #, c-format
 msgid "Unknown channel type for client %q: %s"
 msgstr ""
@@ -6580,11 +6584,11 @@ msgstr ""
 msgid "Verb: %s (%s)"
 msgstr ""
 
-#: lxc/auth.go:1026
+#: lxc/auth.go:1032
 msgid "View an identity"
 msgstr ""
 
-#: lxc/auth.go:1086
+#: lxc/auth.go:1092
 msgid "View the current identity"
 msgstr ""
 
@@ -6658,7 +6662,7 @@ msgid ""
 "[<path>]"
 msgstr ""
 
-#: lxc/auth.go:334 lxc/auth.go:956 lxc/auth.go:1085 lxc/auth.go:1924
+#: lxc/auth.go:334 lxc/auth.go:962 lxc/auth.go:1091 lxc/auth.go:1928
 #: lxc/cluster.go:123 lxc/cluster.go:981 lxc/cluster_group.go:444
 #: lxc/config_trust.go:346 lxc/config_trust.go:429 lxc/monitor.go:32
 #: lxc/network.go:1017 lxc/network_acl.go:95 lxc/network_zone.go:87
@@ -6691,7 +6695,7 @@ msgstr ""
 msgid "[<remote>:] [<filters>...]"
 msgstr ""
 
-#: lxc/auth.go:1485
+#: lxc/auth.go:1489
 msgid "[<remote>:] [project=<project_name>] [entity_type=<entity_type>]"
 msgstr ""
 
@@ -6757,7 +6761,7 @@ msgid "[<remote>:]<fingerprint>"
 msgstr ""
 
 #: lxc/auth.go:103 lxc/auth.go:156 lxc/auth.go:206 lxc/auth.go:444
-#: lxc/auth.go:1147 lxc/auth.go:1705 lxc/cluster_group.go:175
+#: lxc/auth.go:1153 lxc/auth.go:1709 lxc/cluster_group.go:175
 #: lxc/cluster_group.go:260 lxc/cluster_group.go:321 lxc/cluster_group.go:673
 msgid "[<remote>:]<group>"
 msgstr ""
@@ -6776,15 +6780,15 @@ msgstr ""
 msgid "[<remote>:]<group> <new_name>"
 msgstr ""
 
-#: lxc/auth.go:1756 lxc/auth.go:1806 lxc/auth.go:2034
+#: lxc/auth.go:1760 lxc/auth.go:1810 lxc/auth.go:2038
 msgid "[<remote>:]<identity_provider_group>"
 msgstr ""
 
-#: lxc/auth.go:2108 lxc/auth.go:2161
+#: lxc/auth.go:2112 lxc/auth.go:2165
 msgid "[<remote>:]<identity_provider_group> <group>"
 msgstr ""
 
-#: lxc/auth.go:1984
+#: lxc/auth.go:1988
 msgid "[<remote>:]<identity_provider_group> <new_name>"
 msgstr ""
 
@@ -7064,10 +7068,6 @@ msgstr ""
 msgid "[<remote>:]<pool>"
 msgstr ""
 
-#: lxc/storage_volume.go:2837
-msgid "[<remote>:]<pool> <backup file> [<volume name>]"
-msgstr ""
-
 #: lxc/storage_bucket.go:187 lxc/storage_bucket.go:249
 #: lxc/storage_bucket.go:646 lxc/storage_bucket.go:788
 msgid "[<remote>:]<pool> <bucket>"
@@ -7089,6 +7089,10 @@ msgstr ""
 
 #: lxc/storage.go:96
 msgid "[<remote>:]<pool> <driver> [key=value...]"
+msgstr ""
+
+#: lxc/storage_volume.go:2837
+msgid "[<remote>:]<pool> <import file> [<volume name>]"
 msgstr ""
 
 #: lxc/storage.go:392 lxc/storage.go:937
@@ -7228,11 +7232,11 @@ msgid ""
 "<group_name>]]"
 msgstr ""
 
-#: lxc/auth.go:1025 lxc/auth.go:1273
+#: lxc/auth.go:1031 lxc/auth.go:1279
 msgid "[<remote>:]<type>/<name_or_identifier>"
 msgstr ""
 
-#: lxc/auth.go:1355 lxc/auth.go:1407
+#: lxc/auth.go:1361 lxc/auth.go:1413
 msgid "[<remote>:]<type>/<name_or_identifier> <group>"
 msgstr ""
 
@@ -7349,13 +7353,13 @@ msgid ""
 "   Update a group using the content of group.yaml"
 msgstr ""
 
-#: lxc/auth.go:1151
+#: lxc/auth.go:1157
 msgid ""
 "lxc auth identity edit <type>/<name_or_identifier> < identity.yaml\n"
 "   Update an identity using the content of identity.yaml"
 msgstr ""
 
-#: lxc/auth.go:1810
+#: lxc/auth.go:1814
 msgid ""
 "lxc auth identity-provider-group edit <identity_provider_group> < identity-"
 "provider-group.yaml\n"
@@ -7769,7 +7773,8 @@ msgstr ""
 #: lxc/storage_volume.go:2841
 msgid ""
 "lxc storage volume import default backup0.tar.gz\n"
-"\t\tCreate a new custom volume using backup0.tar.gz as the source."
+"\t\tCreate a new custom volume using backup0.tar.gz with included snapshots "
+"as the source."
 msgstr ""
 
 #: lxc/storage_volume.go:2447
