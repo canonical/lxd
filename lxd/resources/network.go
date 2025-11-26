@@ -529,7 +529,7 @@ func getNativeBridgeState(bridgePath string, name string) *api.NetworkStateBridg
 // Fetch OVS bridge information.
 // Returns nil if interface is not an OVS bridge.
 func getOVSBridgeState(name string) *api.NetworkStateBridge {
-	vswitch := ovs.NewOVS()
+	vswitch := ovs.NewVSwitch()
 	isOVSBridge := false
 	if vswitch.Installed() {
 		isOVSBridge, _ = vswitch.BridgeExists(name)
