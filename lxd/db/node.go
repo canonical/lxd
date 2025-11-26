@@ -970,7 +970,12 @@ SELECT storage_volumes.name
 
 // ClearNode removes any instance or image associated with this node.
 func (c *ClusterTx) ClearNode(ctx context.Context, id int64) error {
-	_, err := c.tx.Exec("DELETE FROM instances WHERE node_id=?", id)
+	_, err := c.tx.Exec("DELETE FROM storage_volumes WHERE (name, project_id) IN (SELECT name, project_id FROM instances WHERE node_id=?) AND type IN (?, ?)", id, cluster.StoragePoolVolumeTypeContainer, cluster.StoragePoolVolumeTypeVM)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.tx.Exec("DELETE FROM instances WHERE node_id=?", id)
 	if err != nil {
 		return err
 	}
