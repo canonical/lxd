@@ -8,20 +8,46 @@
 #   echo 'source ~/git/lxd/test/main.sh.bash-completion' >> ~/.bashrc
 
 _lxd_test_completion() {
+    # Treat ':' as part of the word so "group:..." stays intact.
+    local _wb="${COMP_WORDBREAKS//:/}"
+    COMP_WORDBREAKS="$_wb"
+
     local cur="${COMP_WORDS[COMP_CWORD]}"
-
-    # Special keywords
-    local keywords="all cluster standalone test-shell"
-
-    # Extract all test function names from main.sh
-    # Remove 'test_' prefix and 'run_test test_' wrapper
-    local script_dir="${MAIN_DIR:-}"
-    if [ -z "${script_dir:-}" ]; then
-        script_dir="$(dirname "${BASH_SOURCE[0]}")"
+    local script_dir
+    if [ -n "${MAIN_DIR:-}" ]; then
+        script_dir="${MAIN_DIR}"
+    else
+        script_dir="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
     fi
 
+    # Source test-groups.sh only once to avoid readonly redefinitions.
+    # shellcheck disable=SC2154
+    if ! declare -p test_group_all >/dev/null 2>&1; then
+        if [ -f "${script_dir}/includes/test-groups.sh" ]; then
+            # shellcheck disable=SC1091
+            . "${script_dir}/includes/test-groups.sh"
+        fi
+    fi
+
+    # Build group keywords dynamically from test_group_* variables
+    local keywords="test-shell"
+    local tests_array=()
+    while IFS= read -r v; do
+        local g="${v#test_group_}"
+        keywords+=" group:${g}"
+
+        # Extract test names from this group's array
+        if [ "${v}" != "test_group_all" ]; then
+            local -n group_ref="${v}"
+            for test in "${group_ref[@]}"; do
+                tests_array+=("${test}")
+            done
+        fi
+    done < <(compgen -A variable test_group_)
+
+    # Sort test names
     local tests
-    tests="$(grep -ohP '^test_\K[a-zA-Z0-9_]+' "${script_dir}/suites/"*.sh | sort -u)"
+    tests="$(printf '%s\n' "${tests_array[@]}" | sort)"
 
     # Combine keywords and tests
     local completions="$keywords $tests"
