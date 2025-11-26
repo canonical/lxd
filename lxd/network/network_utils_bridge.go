@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/canonical/lxd/lxd/ip"
-	"github.com/canonical/lxd/lxd/network/openvswitch"
+	"github.com/canonical/lxd/lxd/network/ovs"
 	"github.com/canonical/lxd/shared"
 )
 
@@ -54,7 +54,7 @@ func AttachInterface(bridgeName string, devName string) error {
 			return err
 		}
 	} else {
-		ovs := openvswitch.NewOVS()
+		ovs := ovs.NewOVS()
 		err := ovs.BridgePortAdd(bridgeName, devName, true)
 		if err != nil {
 			return err
@@ -73,7 +73,7 @@ func DetachInterface(bridgeName string, devName string) error {
 			return err
 		}
 	} else {
-		ovs := openvswitch.NewOVS()
+		ovs := ovs.NewOVS()
 		err := ovs.BridgePortDelete(bridgeName, devName)
 		if err != nil {
 			return err
