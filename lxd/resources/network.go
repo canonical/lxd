@@ -15,7 +15,7 @@ import (
 	"github.com/jaypipes/pcidb"
 	"golang.org/x/sys/unix"
 
-	"github.com/canonical/lxd/lxd/network/openvswitch"
+	"github.com/canonical/lxd/lxd/network/ovs"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/validate"
@@ -529,7 +529,7 @@ func getNativeBridgeState(bridgePath string, name string) *api.NetworkStateBridg
 // Fetch OVS bridge information.
 // Returns nil if interface is not an OVS bridge.
 func getOVSBridgeState(name string) *api.NetworkStateBridge {
-	ovs := openvswitch.NewOVS()
+	ovs := ovs.NewOVS()
 	isOVSBridge := false
 	if ovs.Installed() {
 		isOVSBridge, _ = ovs.BridgeExists(name)
