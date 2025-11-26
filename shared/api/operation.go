@@ -7,13 +7,20 @@ import (
 )
 
 // OperationClassTask represents the Task OperationClass.
+// These are various asynchronous tasks that run in the background.
 const OperationClassTask = "task"
 
 // OperationClassWebsocket represents the Websocket OperationClass.
+// These are used for various bi-directional connections such as console.
 const OperationClassWebsocket = "websocket"
 
 // OperationClassToken represents the Token OperationClass.
+// These are used to track the token generate to allow new cluster members to join.
 const OperationClassToken = "token"
+
+// OperationClassDurable represents the Durable OperationClass.
+// These are like task operations, but are restarted in case of the node running the operation going offline.
+const OperationClassDurable = "durable"
 
 // Operation represents a LXD background operation
 //
