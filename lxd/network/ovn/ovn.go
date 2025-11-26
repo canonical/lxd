@@ -1,4 +1,4 @@
-package openvswitch
+package ovn
 
 import (
 	"context"
@@ -8,13 +8,14 @@ import (
 	"strings"
 
 	"github.com/canonical/lxd/lxd/linux"
+	"github.com/canonical/lxd/lxd/network/openvswitch"
 	"github.com/canonical/lxd/shared"
 )
 
 // NewOVN initialises new OVN client wrapper with the connection set in network.ovn.northbound_connection config.
 func NewOVN(nbConnection string, sslSettings func() (sslCACert string, sslClientCert string, sslClientKey string)) (*OVN, error) {
 	// Get database connection strings.
-	sbConnection, err := NewOVS().OVNSouthboundDBRemoteAddress()
+	sbConnection, err := openvswitch.NewOVS().OVNSouthboundDBRemoteAddress()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get OVN southbound connection string: %w", err)
 	}
