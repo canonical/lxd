@@ -22,6 +22,7 @@ import (
 //go:generate mapper stmt -e operation objects-by-Type
 //go:generate mapper stmt -e operation objects-by-Type-and-EntityID
 //go:generate mapper stmt -e operation objects-by-NodeID
+//go:generate mapper stmt -e operation objects-by-NodeID-and-Class
 //go:generate mapper stmt -e operation objects-by-ID
 //go:generate mapper stmt -e operation objects-by-Reference
 //go:generate mapper stmt -e operation create
@@ -66,6 +67,7 @@ type OperationFilter struct {
 	Reference *string
 	Type      *operationtype.Type
 	EntityID  *int
+	Class     *int64
 }
 
 // UpdateOperationStatus updates the status field of an existing operation in the cluster db.
