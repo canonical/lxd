@@ -4,7 +4,7 @@ spawn_lxd_snap() {
     { set +x; } 2>/dev/null
     # Install the snap and sideload the binaries
     if ! [ -e /var/snap/lxd/common/lxd.debug ]; then
-      sideload_lxd_snap
+      sideload_lxd_snap 5.21/edge
     fi
 
     # Ensure LXD_DIR always points to the snap common dir
