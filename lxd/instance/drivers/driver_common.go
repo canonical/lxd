@@ -712,12 +712,16 @@ func (d *common) rebuildCommon(inst instance.Instance, img *api.Image, op *opera
 // - Calls driver-specific delete function.
 // - Parent backup file update for snapshots.
 func (d *common) deleteCommon(inst instance.Instance, force bool) error {
-	unlock, err := d.updateBackupFileLock(context.Background())
-	if err != nil {
-		return fmt.Errorf("Failed acquiring update backup file lock: %w", err)
-	}
+	isSnapshot := inst.IsSnapshot()
 
-	defer unlock()
+	if isSnapshot {
+		unlock, err := d.updateBackupFileLock(context.Background())
+		if err != nil {
+			return fmt.Errorf("Failed acquiring update backup file lock: %w", err)
+		}
+
+		defer unlock()
+	}
 
 	// Setup a new operation.
 	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionDelete, nil, false, false)
@@ -731,12 +735,15 @@ func (d *common) deleteCommon(inst instance.Instance, force bool) error {
 		return api.StatusErrorf(http.StatusBadRequest, "Instance is running")
 	}
 
-	parentName, _, _ := api.GetParentAndSnapshotName(inst.Name())
+	var parent instance.Instance
+	if isSnapshot {
+		parentName, _, _ := api.GetParentAndSnapshotName(inst.Name())
 
-	// Load the parent for backup file refresh.
-	parent, err := instance.LoadByProjectAndName(d.state, d.project.Name, parentName)
-	if err != nil {
-		return fmt.Errorf("Invalid parent: %w", err)
+		// Load the parent for backup file refresh.
+		parent, err = instance.LoadByProjectAndName(d.state, d.project.Name, parentName)
+		if err != nil {
+			return fmt.Errorf("Invalid parent: %w", err)
+		}
 	}
 
 	switch s := inst.(type) {
@@ -756,8 +763,7 @@ func (d *common) deleteCommon(inst instance.Instance, force bool) error {
 		d.logger.Error("Failed deleting instance")
 	}
 
-	// If dealing with a snapshot, refresh the backup file on the parent.
-	if inst.IsSnapshot() {
+	if isSnapshot {
 		// Update the backup file.
 		err = parent.UpdateBackupFile()
 		if err != nil {
