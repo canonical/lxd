@@ -467,7 +467,7 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 	d.localConfig = config
 	d.globalConfigMu.Unlock()
 
-	op, err := operations.OperationCreate(r.Context(), s, "", operations.OperationClassTask, operationtype.ClusterBootstrap, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(r.Context(), s, "", "", operations.OperationClassTask, operationtype.ClusterBootstrap, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -894,7 +894,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 	resources := map[string][]api.URL{}
 	resources["cluster"] = []api.URL{}
 
-	op, err := operations.OperationCreate(r.Context(), s, "", operations.OperationClassTask, operationtype.ClusterJoin, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(r.Context(), s, "", "", operations.OperationClassTask, operationtype.ClusterJoin, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -1461,7 +1461,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]api.URL{}
 	resources["cluster"] = []api.URL{}
 
-	op, err := operations.OperationCreate(r.Context(), s, api.ProjectDefaultName, operations.OperationClassToken, operationtype.ClusterJoinToken, resources, meta, nil, nil, nil)
+	op, err := operations.OperationCreate(r.Context(), s, "", api.ProjectDefaultName, operations.OperationClassToken, operationtype.ClusterJoinToken, resources, meta, nil, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -3169,7 +3169,7 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 			return evacuateClusterMember(context.Background(), s, d.gateway, op, name, req.Mode, stopFunc, migrateFunc)
 		}
 
-		op, err := operations.OperationCreate(r.Context(), s, "", operations.OperationClassTask, operationtype.ClusterMemberEvacuate, nil, nil, run, nil, nil)
+		op, err := operations.OperationCreate(r.Context(), s, "", "", operations.OperationClassTask, operationtype.ClusterMemberEvacuate, nil, nil, run, nil, nil)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -3618,7 +3618,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 		return nil
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, "", operations.OperationClassTask, operationtype.ClusterMemberRestore, nil, nil, run, nil, nil)
+	op, err := operations.OperationCreate(r.Context(), s, "", "", operations.OperationClassTask, operationtype.ClusterMemberRestore, nil, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -4555,7 +4555,7 @@ func autoHealCluster(ctx context.Context, s *state.State, gateway *cluster.Gatew
 		return nil
 	}
 
-	op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.ClusterHeal, nil, nil, opRun, nil, nil)
+	op, err := operations.OperationCreate(context.Background(), s, "", "", operations.OperationClassTask, operationtype.ClusterHeal, nil, nil, opRun, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating cluster instances heal operation: %w", err)
 	}
