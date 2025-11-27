@@ -2589,7 +2589,8 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 				}
 
 				// Check if a "database-client" node currently has a raft role other than "spare".
-				if slices.Contains(node.Roles, db.ClusterRoleDatabaseClient) && node.RaftRole != int(db.RaftSpare) {
+				// Skip the local node to avoid rebalancing during evacuation operations.
+				if node.Address != localClusterAddress && slices.Contains(node.Roles, db.ClusterRoleDatabaseClient) && node.RaftRole != int(db.RaftSpare) {
 					hasDbClientToProcess = true
 				}
 			} else if role != db.RaftSpare {
