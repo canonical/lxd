@@ -330,12 +330,6 @@ jobs:
       - name: Reclaim some memory
         uses: ./.github/actions/reclaim-memory
 
-      - name: Purge LXD snap
-        # TODO: drop this when moving away from `ubuntu-22.04` runners to `ubuntu-24.04`
-        run: |
-          set -eux
-          sudo snap remove --purge lxd || true
-
       - name: Remove docker
         uses: ./.github/actions/disable-docker
 
