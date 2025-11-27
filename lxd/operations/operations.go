@@ -122,7 +122,7 @@ type Operation struct {
 
 // OperationCreate creates a new operation and returns it. If it cannot be
 // created, it returns an error.
-func OperationCreate(ctx context.Context, s *state.State, projectName string, opClass OperationClass, opType operationtype.Type, opResources map[string][]api.URL, opMetadata any, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error) (*Operation, error) {
+func OperationCreate(ctx context.Context, s *state.State, opUUID string, projectName string, opClass OperationClass, opType operationtype.Type, opResources map[string][]api.URL, opMetadata any, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error) (*Operation, error) {
 	// Don't allow new operations when LXD is shutting down.
 	if s != nil && s.ShutdownCtx.Err() == context.Canceled {
 		return nil, errors.New("LXD is shutting down")
@@ -131,7 +131,11 @@ func OperationCreate(ctx context.Context, s *state.State, projectName string, op
 	// Main attributes
 	op := Operation{}
 	op.projectName = projectName
-	op.id = uuid.New().String()
+	op.id = opUUID
+	if opUUID == "" {
+		op.id = uuid.New().String()
+	}
+
 	op.description = opType.Description()
 	op.entityType, op.entitlement = opType.Permission()
 	op.dbOpType = opType
