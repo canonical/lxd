@@ -310,6 +310,79 @@ spec:
     name: pvc-1                 # Name of the source PVC.
 ```
 
+(howto-storage-csi-usage-vsclass)=
+### VolumeSnapshotClass configuration
+
+The following example demonstrates how to configure a Kubernetes VolumeSnapshotClass that uses the LXD CSI driver for provisioning volume snapshots.
+
+In the VolumeSnapshotClass, the only required field is `driver`, which specifies the name of the LXD CSI driver.
+
+```yaml
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: lxd-csi-snapshotclass
+driver: lxd.csi.canonical.com       # Name of the LXD CSI driver.
+deletionPolicy: Delete              # Possible values are "Retain" and "Delete" (default).
+```
+
+*This resource requires the VolumeSnapshot CRDs to be installed and the snapshot controller to be running.*
+*Using the Helm chart, this is enabled by setting `snapshotter.enabled` to `true`.*
+
+(howto-storage-csi-usage-vsclass-default)=
+#### Default VolumeSnapshotClass
+
+The default VolumeSnapshotClass is used when `volumeSnapshotClassName` is not explicitly set in the VolumeSnapshot configuration.
+You can mark a Kubernetes VolumeSnapshotClass as the default by setting the `snapshot.storage.kubernetes.io/is-default-class: "true"` annotation.
+
+```yaml
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: lxd-csi-snapshotclass-default
+  annotations:
+    snapshot.storage.kubernetes.io/is-default-class: "true"
+driver: lxd.csi.canonical.com
+```
+
+(howto-storage-csi-usage-vsclass-reclaim)=
+#### Prevent volume snapshot deletion
+
+By default, the volume snapshot is deleted when the corresponding VolumeSnapshot is removed.
+Setting the deletion policy to `Retain` prevents the CSI driver from deleting the underlying LXD volume snapshot, allowing for manual cleanup or data recovery later.
+
+```yaml
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: lxd-csi-snapshotclass
+driver: lxd.csi.canonical.com
+deletionPolicy: Retain              # Default is "Delete".
+```
+
+(howto-storage-csi-usage-vs)=
+### VolumeSnapshot configuration
+
+A VolumeSnapshot requests a snapshot of the volume bound to the referenced PVC.
+The fields `spec.volumeSnapshotClassName` and `spec.source.persistentVolumeClaimName` select the LXD CSI snapshot class to handle the snapshot and the PVC to snapshot, respectively.
+
+If the snapshot is taken successfully, a corresponding VolumeSnapshotContent object is created.
+It is bound to the VolumeSnapshot and represents the actual LXD volume snapshot.
+
+```yaml
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: lxd-csi-pvc-snapshot
+spec:
+  volumeSnapshotClassName: lxd-csi-snapshotclass
+  source:
+    persistentVolumeClaimName: lxd-csi-pvc
+```
+
+*This resource requires the VolumeSnapshot CRDs to be installed and the snapshot controller to be running.*
+*Using the Helm chart, this is enabled by setting `snapshotter.enabled` to `true`.*
+
 (howto-storage-csi-usage-example)=
 ### End-to-end examples
 
