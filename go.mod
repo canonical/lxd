@@ -7,7 +7,6 @@ require (
 	github.com/armon/go-proxyproto v0.1.0
 	github.com/canonical/go-dqlite/v2 v2.0.1
 	github.com/checkpoint-restore/go-criu/v6 v6.3.0
-	github.com/dell/goscaleio v1.21.0
 	github.com/digitalocean/go-qemu v0.0.0-20250212194115-ee9b0668d242
 	github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e
 	github.com/dustinkirkland/golang-petname v0.0.0-20240428194347-eebcea082ee0
