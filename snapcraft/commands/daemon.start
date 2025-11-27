@@ -493,11 +493,11 @@ manage_apparmor_restrictions() {
         fi
 
         # Done
-        return
+        return 0
     fi
 
     # Check if an old override snippet needs to be unapplied
-    [ -f "${SYSCTL_FILE}" ] || return
+    [ -f "${SYSCTL_FILE}" ] || return 0
 
     echo "==> Restoring Apparmor unprivileged userns and unconfined mediations"
 
