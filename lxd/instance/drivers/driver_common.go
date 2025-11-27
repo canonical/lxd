@@ -704,11 +704,11 @@ func (d *common) rebuildCommon(inst instance.Instance, img *api.Image, op *opera
 // deleteCommon handles common delete logic for LXC and QEMU instances.
 //
 // It performs the following shared operations:
-// - Backup file lock management
-// - Operation lock setup
-// - Running state check
-// - Calls driver-specific delete function
-// - Parent backup file update for snapshots
+// - Backup file lock management.
+// - Operation lock setup.
+// - Running state check.
+// - Calls driver-specific delete function.
+// - Parent backup file update for snapshots.
 func (d *common) deleteCommon(inst instance.Instance, force bool) error {
 	unlock, err := d.updateBackupFileLock(context.Background())
 	if err != nil {
