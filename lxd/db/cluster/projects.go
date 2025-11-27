@@ -156,7 +156,7 @@ func GetProjectNames(ctx context.Context, tx *sql.Tx) ([]string, error) {
 	return names, nil
 }
 
-// GetProjectIDsToNames returns a map associating each prect ID to its
+// GetProjectIDsToNames returns a map associating each project ID to its
 // project name.
 func GetProjectIDsToNames(ctx context.Context, tx *sql.Tx) (map[int64]string, error) {
 	stmt := "SELECT id, name FROM projects"
