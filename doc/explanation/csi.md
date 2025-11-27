@@ -133,6 +133,26 @@ When a volume is attached to a node, Kubernetes creates a [VolumeAttachment &#85
 The `external-attacher` sidecar watches these objects and invokes the driver's controller to attach or detach the volume as needed.
 With the LXD CSI driver, this attaches or detaches the LXD volume to the target LXD instance.
 
+(exp-csi-architecture-k8s-primitives-vsclass)=
+#### VolumeSnapshotClass
+
+A [VolumeSnapshotClass &#8599;](https://kubernetes.io/docs/concepts/storage/volume-snapshot-classes/) is a snapshot equivalent of StorageClass.
+It references a CSI driver to use when creating volume snapshots, the snapshot deletion policy, and any additional driver-specific parameters.
+
+(exp-csi-architecture-k8s-primitives-vs)=
+#### VolumeSnapshot
+
+A [VolumeSnapshot &#8599;](https://kubernetes.io/docs/concepts/storage/volume-snapshots) represents a user request for a snapshot of a specific PVC.
+Each volume snapshot references a VolumeSnapshotClass and a source PVC.
+The snapshot controller invokes the CSI driver to create a snapshot from a source volume using the parameters defined in this class.
+
+(exp-csi-architecture-k8s-primitives-vsc)=
+#### VolumeSnapshotContent
+
+A [VolumeSnapshotContent &#8599;](https://kubernetes.io/docs/concepts/storage/volume-snapshots/#volume-snapshot-contents) represents the actual snapshot object created by the CSI driver.
+For the LXD CSI driver, it represents a LXD volume snapshot, similar to how a PersistentVolume represents the actual LXD volume.
+It stores driver-managed identifiers and metadata for the snapshot and is bound to the VolumeSnapshot that requested it.
+
 (exp-csi-lifecycle)=
 ## Life cycle
 
