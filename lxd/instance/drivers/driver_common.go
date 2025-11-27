@@ -752,12 +752,16 @@ func (d *common) deleteAttachedVolumeSnapshots(snapInst instance.Instance, diskV
 // - Attached volume snapshot deletion for snapshots (if diskVolumesMode is "all-exclusive").
 // - Parent backup file update for snapshots.
 func (d *common) deleteCommon(inst instance.Instance, force bool, diskVolumesMode string) error {
-	unlock, err := d.updateBackupFileLock(context.Background())
-	if err != nil {
-		return fmt.Errorf("Failed acquiring update backup file lock: %w", err)
-	}
+	isSnapshot := inst.IsSnapshot()
 
-	defer unlock()
+	if isSnapshot {
+		unlock, err := d.updateBackupFileLock(context.Background())
+		if err != nil {
+			return fmt.Errorf("Failed acquiring update backup file lock: %w", err)
+		}
+
+		defer unlock()
+	}
 
 	// Setup a new operation.
 	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionDelete, nil, false, false)
@@ -771,12 +775,15 @@ func (d *common) deleteCommon(inst instance.Instance, force bool, diskVolumesMod
 		return api.StatusErrorf(http.StatusBadRequest, "Instance is running")
 	}
 
-	parentName, _, _ := api.GetParentAndSnapshotName(inst.Name())
+	var parent instance.Instance
+	if isSnapshot {
+		parentName, _, _ := api.GetParentAndSnapshotName(inst.Name())
 
-	// Load the parent for backup file refresh.
-	parent, err := instance.LoadByProjectAndName(d.state, d.project.Name, parentName)
-	if err != nil {
-		return fmt.Errorf("Invalid parent: %w", err)
+		// Load the parent for backup file refresh.
+		parent, err = instance.LoadByProjectAndName(d.state, d.project.Name, parentName)
+		if err != nil {
+			return fmt.Errorf("Invalid parent: %w", err)
+		}
 	}
 
 	switch s := inst.(type) {
@@ -796,7 +803,7 @@ func (d *common) deleteCommon(inst instance.Instance, force bool, diskVolumesMod
 		d.logger.Error("Failed deleting instance")
 	}
 
-	if inst.IsSnapshot() {
+	if isSnapshot {
 		// Delete attached volume snapshots (if requested).
 		if diskVolumesMode == api.DiskVolumesModeAllExclusive {
 			err = d.deleteAttachedVolumeSnapshots(inst, diskVolumesMode)
