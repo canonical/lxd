@@ -52,6 +52,11 @@ var apiDevLXD = []APIEndpoint{
 		Path: "/",
 		Get: APIEndpointAction{
 			Handler: func(d *Daemon, r *http.Request) response.Response {
+				_, err := getInstanceFromContextAndCheckSecurityFlags(r.Context(), devLXDSecurityKey)
+				if err != nil {
+					return response.DevLXDErrorResponse(err)
+				}
+
 				return response.DevLXDResponse(http.StatusOK, []string{"/1.0"}, "json")
 			},
 			AllowUntrusted: true,
