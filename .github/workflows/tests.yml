@@ -114,14 +114,8 @@ jobs:
           sudo chmod o+w {go.mod,go.sum}
           go mod download
 
-      - name: Check compatibility with min Go version
-        run: |
-          set -eux
-          GOMIN="$(sed -n 's/^GOMIN=\([0-9.]\+\)$/\1/p' Makefile)"
-          go mod tidy -go="${GOMIN}"
-
-          DOC_GOMIN="$(sed -n 's/^LXD requires Go \([0-9.]\+\) .*/\1/p' doc/requirements.md)"
-          [ "${GOMIN}" = "${DOC_GOMIN}" ]
+          # Check compatibility with min Go version
+          make check-gomin
 
       - name: Make GOCOVERDIR
         run: |
@@ -161,7 +155,6 @@ jobs:
           # Build from unpacked dist tarball.
           cd /home/runner/work/lxd/lxd-test
           make
-          make test-binaries
 
       - name: Check lxc/lxd-agent binary sizes
         if: env.GOCOVERAGE != 'true'
@@ -810,6 +803,7 @@ jobs:
     name: Documentation
     runs-on: ubuntu-24.04
     if: github.event_name == 'workflow_dispatch' || github.repository == 'canonical/lxd'
+    needs: code-tests
     steps:
       - name: Checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0

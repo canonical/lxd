@@ -182,11 +182,15 @@ linkcheck_ignore = [
     'https://www.dell.com/en-us/shop/powerflex/sf/powerflex',
     'https://www.gnu.org/licenses/agpl-3.0.en.html',
     r"https://ceph\.io(/.*)?",
-    # 403 from GH runners
+    # Blocked from GH runners
     'https://www.schlachter.tech/solutions/pongo2-template-engine/',
-    # Cloudflare protection on SourceForge domains might block linkcheck
     r"https://.*\.sourceforge\.net/.*",
-    'https://www.hpe.com/emea_europe/en/hpe-alletra.html'
+    'https://www.hpe.com/emea_europe/en/hpe-alletra.html',
+    r'https://.*canonical\.com/.*',
+    r'https://snapcraft\.io/.*',
+    r'https://ubuntu\.com/.*',
+    r'https://bugs\.launchpad\.net/.*',
+    r'https://microcloud\.is/.*',
 ]
 
 # Pages on which to ignore anchors

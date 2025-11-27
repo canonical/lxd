@@ -1,4 +1,5 @@
 test_shutdown() {
+    ensure_import_testimage
     lxd_backend=$(storage_backend "$LXD_DIR")
 
     scenario_name="scenario1"
@@ -8,7 +9,6 @@ test_shutdown() {
     echo "----------------------------------------------------------"
 
     lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
-    sleep 2
 
     echo "LXD restarted started successfully."
     rm "$scenario_name.log"
@@ -20,13 +20,12 @@ test_shutdown() {
     echo "Expected behavior: LXD should shutdown without any issues."
     echo "----------------------------------------------------------"
 
-    if ! create_instances 6; then
+    if ! create_instances 2; then
         echo "Failed to create instances."
         exit 1
     fi
 
     lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
-    sleep 2
 
     # Check the logs for expected messages that should be shown in the LXD shutdown sequence.
     # The order of the expected messages does not matter.
@@ -43,7 +42,7 @@ test_shutdown() {
     fi
 
     # Cleanup
-    delete_instances 6
+    lxc delete -f i{1..2}
     rm "$scenario_name.log"
 
     scenario_name="scenario3"
@@ -70,18 +69,19 @@ test_shutdown() {
     instance_ops_duration["i2"]=8s
     instance_ops_duration["i3"]=10s
 
+    pids=""
     for instance_name in "${!instance_ops_duration[@]}"; do
         duration_seconds="${instance_ops_duration[$instance_name]}"
         echo "Starting operation for instance $instance_name for $duration_seconds seconds"
         lxd_websocket_operation "$instance_name" "$duration_seconds" &
+        pids="$pids $!"
     done
 
     # Wait for all instance operations to be registered before initiating the shutdown sequence.
-    sleep 5
+    sleep 1
     # Initiate the LXD shutdown sequence.
     # This call should block until before the global timeout is reached.
     lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
-    sleep 2
 
     # Check the logs for expected messages that should be shown in the LXD shutdown sequence.
     # The order of the expected messages does not matter.
@@ -107,7 +107,8 @@ test_shutdown() {
     fi
 
     # Cleanup
-    delete_instances 4
+    lxc delete -f i{1..4}
+    for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
     rm "$scenario_name.log"
 
     scenario_name="scenario4"
@@ -137,18 +138,19 @@ test_shutdown() {
     lxc config set i3 boot.stop.priority 1
     lxc config set i4 boot.stop.priority 1
 
+    pids=""
     for instance_name in "${!instance_ops_duration[@]}"; do
         duration_seconds="${instance_ops_duration[$instance_name]}"
         echo "Starting operation for instance $instance_name for $duration_seconds seconds"
         lxd_websocket_operation "$instance_name" "$duration_seconds" &
+        pids="$pids $!"
     done
 
     # Wait for all instance operations to be registered before initiating the shutdown sequence.
-    sleep 5
+    sleep 1
     # Initiate the LXD shutdown sequence.
     # This call should block until before the global timeout is reached.
     lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
-    sleep 2
 
     # Check the logs for expected messages that should be shown in the LXD shutdown sequence.
     # The order of the expected messages does not matter.
@@ -188,7 +190,8 @@ test_shutdown() {
     fi
 
     # Cleanup
-    delete_instances 4
+    lxc delete -f i{1..4}
+    for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
     rm "$scenario_name.log"
 
     scenario_name="scenario5"
@@ -218,15 +221,16 @@ test_shutdown() {
     instance_ops_duration["i4"]=8s
     instance_ops_duration["i5"]=12s
 
+    pids=""
     for instance_name in "${!instance_ops_duration[@]}"; do
         duration_seconds="${instance_ops_duration[$instance_name]}"
         echo "Starting operation for instance $instance_name for $duration_seconds seconds"
         lxd_websocket_operation "$instance_name" "$duration_seconds" &
+        pids="$pids $!"
     done
 
-    sleep 5
+    sleep 1
     lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
-    sleep 2
 
     expected_msgs=(
         'Starting shutdown sequence'
@@ -275,7 +279,8 @@ test_shutdown() {
     fi
 
     # Cleanup
-    delete_instances 5
+    lxc delete -f i{1..5}
+    for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
     rm "$scenario_name.log"
 
     # The following scenarios are only relevant for LXD with storage backend other than ceph.
@@ -286,6 +291,13 @@ test_shutdown() {
         return 0
     fi
 
+    # Create a storage pool and set the volumes for images and backups.
+    lxc storage create mypool "$lxd_backend"
+    lxc storage volume create mypool backups
+    lxc storage volume create mypool images
+    lxc config set storage.images_volume=mypool/images
+    lxc config set storage.backups_volume=mypool/backups
+
     scenario_name="scenario6"
     echo "$scenario_name"
     echo "- LXD shutdown sequence with instances running."
@@ -295,10 +307,6 @@ test_shutdown() {
     echo "Expected behavior: LXD should shutdown without any issues."
     echo "----------------------------------------------------------------"
 
-    lxc storage create backups "$lxd_backend"
-    lxc storage volume create backups backups_volume
-
-    lxc config set storage.backups_volume=backups/backups_volume
     if ! create_instances 5; then
         echo "Failed to create instances."
         exit 1
@@ -318,18 +326,20 @@ test_shutdown() {
     instance_ops_duration["i4"]=8s
     instance_ops_duration["i5"]=12s
 
+    pids=""
     for instance_name in "${!instance_ops_duration[@]}"; do
         duration_seconds="${instance_ops_duration[$instance_name]}"
         echo "Starting operation for instance $instance_name for $duration_seconds seconds"
         lxd_websocket_operation "$instance_name" "$duration_seconds" &
+        pids="$pids $!"
     done
 
     # Simulate a volume operation that runs for 10 seconds.
-    lxd_volume_operation backups backups_volume 10s &
+    lxd_volume_operation mypool backups 10s &
+    pids="$pids $!"
 
-    sleep 5
+    sleep 1
     lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
-    sleep 2
 
     expected_msgs=(
         'Starting shutdown sequence'
@@ -380,11 +390,9 @@ test_shutdown() {
     fi
 
     # Cleanup
-    delete_instances 5
+    lxc delete -f i{1..5}
+    for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
     rm "$scenario_name.log"
-    lxc config unset storage.backups_volume
-    lxc storage volume delete backups backups_volume
-    lxc storage delete backups
 
     scenario_name="scenario7"
     echo "$scenario_name"
@@ -395,10 +403,6 @@ test_shutdown() {
     echo "Expected behavior: LXD should shutdown without any issues."
     echo "----------------------------------------------------------------"
 
-    lxc storage create images "$lxd_backend"
-    lxc storage volume create images images_volume
-
-    lxc config set storage.images_volume=images/images_volume
     if ! create_instances 5; then
         echo "Failed to create instances."
         exit 1
@@ -418,18 +422,20 @@ test_shutdown() {
     instance_ops_duration["i4"]=8s
     instance_ops_duration["i5"]=12s
 
+    pids=""
     for instance_name in "${!instance_ops_duration[@]}"; do
         duration_seconds="${instance_ops_duration[$instance_name]}"
         echo "Starting operation for instance $instance_name for $duration_seconds seconds"
         lxd_websocket_operation "$instance_name" "$duration_seconds" &
+        pids="$pids $!"
     done
 
     # Simulate a volume operation that runs for 10 seconds.
-    lxd_volume_operation images images_volume 10s &
+    lxd_volume_operation mypool images 10s &
+    pids="$pids $!"
 
-    sleep 5
+    sleep 1
     lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
-    sleep 2
 
     expected_msgs=(
         'Starting shutdown sequence'
@@ -480,11 +486,9 @@ test_shutdown() {
     fi
 
     # Cleanup
-    delete_instances 5
+    lxc delete -f i{1..5}
+    for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
     rm "$scenario_name.log"
-    lxc config unset storage.images_volume
-    lxc storage volume delete images images_volume
-    lxc storage delete images
 
     scenario_name="scenario8"
     echo "$scenario_name"
@@ -495,13 +499,6 @@ test_shutdown() {
     echo "Expected behavior: LXD should shutdown without any issues."
     echo "----------------------------------------------------------------"
 
-    lxc storage create mypool "$lxd_backend"
-    lxc storage volume create mypool backups_volume
-    lxc storage volume create mypool images_volume
-
-    lxc config set storage.images_volume=mypool/images_volume
-    lxc config set storage.backups_volume=mypool/backups_volume
-
     if ! create_instances 5; then
         echo "Failed to create instances."
         exit 1
@@ -521,19 +518,22 @@ test_shutdown() {
     instance_ops_duration["i4"]=8s
     instance_ops_duration["i5"]=12s
 
+    pids=""
     for instance_name in "${!instance_ops_duration[@]}"; do
         duration_seconds="${instance_ops_duration[$instance_name]}"
         echo "Starting operation for instance $instance_name for $duration_seconds seconds"
         lxd_websocket_operation "$instance_name" "$duration_seconds" &
+        pids="$pids $!"
     done
 
     # Simulate a volume operation on the images volume that runs for 10 seconds and on the backups volume that runs for 20 seconds.
-    lxd_volume_operation mypool images_volume 5s &
-    lxd_volume_operation mypool backups_volume 8s &
+    lxd_volume_operation mypool images 5s &
+    pids="$pids $!"
+    lxd_volume_operation mypool backups 8s &
+    pids="$pids $!"
 
-    sleep 5
+    sleep 1
     lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
-    sleep 2
 
     expected_msgs=(
         'Starting shutdown sequence'
@@ -584,13 +584,9 @@ test_shutdown() {
     fi
 
     # Cleanup
-    delete_instances 5
+    lxc delete -f i{1..5}
+    for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
     rm "$scenario_name.log"
-    lxc config unset storage.backups_volume
-    lxc config unset storage.images_volume
-    lxc storage volume delete mypool backups_volume
-    lxc storage volume delete mypool images_volume
-    lxc storage delete mypool
 
     scenario_name="scenario9"
     echo "$scenario_name"
@@ -604,13 +600,6 @@ test_shutdown() {
     echo "  * Also, we could have a volume operation that is very long and observe the timeout as well."
     echo "Expected behavior: LXD should shutdown without any issues."
     echo "---------------------------------------------------------------------"
-
-    lxc storage create mypool "$lxd_backend"
-    lxc storage volume create mypool backups_volume
-    lxc storage volume create mypool images_volume
-
-    lxc config set storage.images_volume=mypool/images_volume
-    lxc config set storage.backups_volume=mypool/backups_volume
 
     if ! create_instances 5; then
         echo "Failed to create instances."
@@ -631,21 +620,24 @@ test_shutdown() {
     instance_ops_duration["i4"]=5s
     instance_ops_duration["i5"]=10s
 
+    pids=""
     for instance_name in "${!instance_ops_duration[@]}"; do
         duration_seconds="${instance_ops_duration[$instance_name]}"
         echo "Starting operation for instance $instance_name for $duration_seconds seconds"
         lxd_websocket_operation "$instance_name" "$duration_seconds" &
+        pids="$pids $!"
     done
 
     # Simulate a volume operation on the images volume that runs for 10 seconds and on the backups volume that runs for 20 seconds.
-    lxd_volume_operation mypool images_volume 5s &
+    lxd_volume_operation mypool images 5s &
+    pids="$pids $!"
     # This operation will not finish before the shutdown timeout is reached. An error log message should be shown.
     # In this situation, this is the unmount timeout that will be fired (1 minute and not the global shutdown timeout which is set to 2 minutes in this scenario).
-    lxd_volume_operation mypool backups_volume 80s &
+    lxd_volume_operation mypool backups 80s &
+    pids="$pids $!"
 
-    sleep 5
+    sleep 1
     lxd_shutdown_restart "$scenario_name" "$LXD_DIR"
-    sleep 2
 
     expected_msgs=(
         'Starting shutdown sequence'
@@ -675,11 +667,14 @@ test_shutdown() {
     fi
 
     # Cleanup
-    delete_instances 5
+    lxc delete -f i{1..5}
+    for pid in $pids; do kill -9 "$pid" 2>/dev/null || true; done
     rm "$scenario_name.log"
+
+    # Final cleanup.
     lxc config unset storage.backups_volume
     lxc config unset storage.images_volume
-    lxc storage volume delete mypool backups_volume
-    lxc storage volume delete mypool images_volume
+    lxc storage volume delete mypool backups
+    lxc storage volume delete mypool images
     lxc storage delete mypool
 }

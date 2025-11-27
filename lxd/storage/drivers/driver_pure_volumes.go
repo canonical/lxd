@@ -17,6 +17,7 @@ import (
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/validate"
@@ -951,8 +952,81 @@ func (d *pure) GetVolumeDiskPath(vol Volume) (string, error) {
 }
 
 // ListVolumes returns a list of LXD volumes in storage pool.
+// It returns all volumes and sets the volume's volatile.uuid extracted from the name.
 func (d *pure) ListVolumes() ([]Volume, error) {
-	return []Volume{}, nil
+	volumes, err := d.client().getVolumes(d.name)
+	if err != nil {
+		return nil, err
+	}
+
+	volList := make([]Volume, 0, len(volumes))
+	for _, vol := range volumes {
+		var volType VolumeType
+		var volName string
+
+		poolPrefix := d.name + "::"
+
+		if !strings.HasPrefix(vol.Name, poolPrefix) {
+			d.logger.Warn("Ignoring volume name with invalid pool", logger.Ctx{"name": vol.Name})
+			continue
+		}
+
+		vol.Name = strings.TrimLeft(vol.Name, poolPrefix)
+
+		for _, volumeType := range d.Info().VolumeTypes {
+			prefix := pureVolTypePrefixes[volumeType] + "-"
+
+			if strings.HasPrefix(vol.Name, prefix) {
+				volType = volumeType
+				volName = strings.TrimPrefix(vol.Name, prefix)
+			}
+		}
+
+		if volType == "" {
+			d.logger.Debug("Ignoring unrecognised volume type", logger.Ctx{"name": vol.Name})
+			continue
+		}
+
+		isBlock := strings.HasSuffix(volName, pureContentTypeSuffixes[ContentTypeBlock])
+
+		// Ignore VM filesystem volumes as we will just return the VM's block volume.
+		if volType == VolumeTypeVM && !isBlock {
+			continue
+		}
+
+		contentType := ContentTypeFS
+		if volType == VolumeTypeCustom && strings.HasSuffix(volName, pureContentTypeSuffixes[ContentTypeISO]) {
+			contentType = ContentTypeISO
+			volName = strings.TrimSuffix(volName, "-"+pureContentTypeSuffixes[ContentTypeISO])
+		} else if volType == VolumeTypeVM || isBlock {
+			contentType = ContentTypeBlock
+			volName = strings.TrimSuffix(volName, "-"+pureContentTypeSuffixes[ContentTypeBlock])
+		}
+
+		volUUID, err := d.getUUIDFromVolumeName(volName)
+		if err != nil {
+			d.logger.Warn("Ignoring malformed volume name", logger.Ctx{"err": err, "name": vol.Name})
+			continue
+		}
+
+		// This is important to allow subsequent operations on the volume struct (e.g. driver's HasVolume) to be able to
+		// resolve the volume's name using its volatile.uuid.
+		volConfig := map[string]string{
+			"volatile.uuid": volUUID.String(),
+		}
+
+		// We cannot determine the volume's name.
+		// Therefore we set an empty string.
+		v := NewVolume(d, d.name, volType, contentType, "", volConfig, d.config)
+
+		if contentType == ContentTypeFS {
+			v.SetMountFilesystemProbe(true)
+		}
+
+		volList = append(volList, v)
+	}
+
+	return volList, nil
 }
 
 // MountVolume mounts a volume and increments ref counter. Please call UnmountVolume() when done with the volume.

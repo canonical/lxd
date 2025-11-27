@@ -1529,20 +1529,20 @@ func complementRangesIP4(ranges []*shared.IPRange, netAddr *net.IPNet) ([]shared
 		return nil, err
 	}
 
-	// Initialize a cursor to the start of the network. It tracks
-	// the end of the last covered IP range.
+	// Initialize a cursor to the start of the network.
+	// It tracks the end of the last covered IP range.
 	previousEnd := ipv4NetPrefix.Addr()
 
 	// Iterate over the sorted list of given IP ranges to find the gaps between them.
 	for _, r := range ranges {
-		startAddr, err := netip.ParseAddr(r.Start.String())
-		if err != nil {
-			return nil, err
+		startAddr, ok := netip.AddrFromSlice(r.Start.To4())
+		if !ok {
+			return nil, fmt.Errorf("Unable to parse IP %q", r.Start)
 		}
 
-		endAddr, err := netip.ParseAddr(r.End.String())
-		if err != nil {
-			return nil, err
+		endAddr, ok := netip.AddrFromSlice(r.End.To4())
+		if !ok {
+			return nil, fmt.Errorf("Unable to parse IP %q", r.End)
 		}
 
 		previousEndNext := previousEnd.Next()
@@ -1555,16 +1555,15 @@ func complementRangesIP4(ranges []*shared.IPRange, netAddr *net.IPNet) ([]shared
 		if startAddr.Compare(previousEndNext) == 1 {
 			newStart := previousEndNext
 			newEnd := startAddr.Prev()
+			newRange := shared.IPRange{Start: newStart.AsSlice()}
 
 			// Check if the calculated gap is just a single IP or a multi-IP range.
-			if newStart.Compare(newEnd) == 0 {
-				// The gap is a single IP. It is allowed to set only the "Start"
-				// field for single IP ranges.
-				complement = append(complement, shared.IPRange{Start: net.ParseIP(newStart.String())})
-			} else {
-				// The gap consists of multiple IPs, therefore, append a range with both "Start" and "End" fields set.
-				complement = append(complement, shared.IPRange{Start: net.ParseIP(newStart.String()), End: net.ParseIP(newEnd.String())})
+			if newStart.Compare(newEnd) != 0 {
+				// Gap covers multiple IPs so specify an end IP.
+				newRange.End = newEnd.AsSlice()
 			}
+
+			complement = append(complement, newRange)
 		}
 
 		// Advance the cursor to the end of the current range if it extends further
@@ -1574,16 +1573,18 @@ func complementRangesIP4(ranges []*shared.IPRange, netAddr *net.IPNet) ([]shared
 		}
 	}
 
+	broadcastAddr := dhcpalloc.GetIP(netAddr, -1)
+
 	// Set "endAddr" to the end of the network (broadcast address).
-	endAddr, err := netip.ParseAddr(dhcpalloc.GetIP(netAddr, -1).String()) // Returns broadcast address.
-	if err != nil {
-		return nil, err
+	endAddr, ok := netip.AddrFromSlice(broadcastAddr.To4())
+	if !ok {
+		return nil, fmt.Errorf("Unable to parse IP %q", broadcastAddr)
 	}
 
 	// Check for a final gap between the end of the last processed range
 	// and the end of the network.
 	if previousEnd.Compare(endAddr) == -1 {
-		complement = append(complement, shared.IPRange{Start: net.ParseIP(previousEnd.Next().String()), End: net.ParseIP(endAddr.String())})
+		complement = append(complement, shared.IPRange{Start: previousEnd.Next().AsSlice(), End: endAddr.AsSlice()})
 	}
 
 	return complement, nil

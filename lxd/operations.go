@@ -42,7 +42,7 @@ var operationsCmd = APIEndpoint{
 	Path:        "operations",
 	MetricsType: entity.TypeOperation,
 
-	Get: APIEndpointAction{Handler: operationsGet, AccessHandler: allowProjectResourceList},
+	Get: APIEndpointAction{Handler: operationsGet, AccessHandler: allowProjectResourceList(true)},
 }
 
 var operationWait = APIEndpoint{
@@ -163,6 +163,11 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 	// First check if the query is for a local operation from this node
 	op, err := operations.OperationGetInternal(id)
 	if err == nil {
+		err := checkOperationViewAccess(r.Context(), op, s.Authorizer, "")
+		if err != nil {
+			return response.SmartError(err)
+		}
+
 		_, body, err = op.Render()
 		if err != nil {
 			return response.SmartError(err)
@@ -488,14 +493,28 @@ func operationCancel(ctx context.Context, s *state.State, projectName string, op
 func operationsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	projectName, allProjects, err := request.ProjectParams(r)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	userHasPermission, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanViewOperations, entity.TypeProject)
+	canViewProjectOperations, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanViewOperations, entity.TypeProject)
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed to get operation permission checker: %w", err))
+	}
+
+	// Not all operations have a project. Operations that don't have a project should be considered "server level".
+	var canViewServerOperations bool
+	err = s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanViewOperations)
+	if err == nil {
+		canViewServerOperations = true
+	} else if !auth.IsDeniedError(err) {
+		return response.SmartError(fmt.Errorf("Failed to check caller access to server operations: %w", err))
 	}
 
 	localOperationURLs := func() (shared.Jmap, error) {
@@ -506,11 +525,18 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		body := shared.Jmap{}
 
 		for _, v := range localOps {
-			if !allProjects && v.Project() != "" && v.Project() != projectName {
+			operationProject := v.Project()
+			if !allProjects && operationProject != "" && operationProject != projectName {
 				continue
 			}
 
-			if !userHasPermission(entity.ProjectURL(v.Project())) {
+			// Omit operations that don't have a project if the caller does not have access to server operations.
+			if operationProject == "" && !canViewServerOperations {
+				continue
+			}
+
+			// Omit operations if the caller does not have `can_view_operations` on the operations' project and the caller is not the operation owner.
+			if !canViewProjectOperations(entity.ProjectURL(operationProject)) && !requestor.CallerIsEqual(v.Requestor()) {
 				continue
 			}
 
@@ -534,11 +560,18 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		body := shared.Jmap{}
 
 		for _, v := range localOps {
-			if !allProjects && v.Project() != "" && v.Project() != projectName {
+			operationProject := v.Project()
+			if !allProjects && operationProject != "" && operationProject != projectName {
 				continue
 			}
 
-			if !userHasPermission(entity.ProjectURL(v.Project())) {
+			// Omit operations that don't have a project if the caller does not have access.
+			if operationProject == "" && !canViewServerOperations {
+				continue
+			}
+
+			// Omit operations if the caller does not have `can_view_operations` on the operations' project and the caller is not the operation owner.
+			if !canViewProjectOperations(entity.ProjectURL(operationProject)) && !requestor.CallerIsEqual(v.Requestor()) {
 				continue
 			}
 
@@ -560,11 +593,6 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	recursion := util.IsRecursionRequest(r)
-
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	// Check if called from a cluster node.
 	if requestor.IsClusterNotification() {
@@ -937,8 +965,9 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 	// First check if the query is for a local operation from this node
 	op, err := operations.OperationGetInternal(id)
 	if err == nil {
-		if secret != "" && op.Metadata()["secret"] != secret {
-			return response.Forbidden(nil)
+		err := checkOperationViewAccess(r.Context(), op, s.Authorizer, secret)
+		if err != nil {
+			return response.SmartError(err)
 		}
 
 		var ctx context.Context
@@ -1016,6 +1045,42 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.ForwardedResponse(client)
+}
+
+func checkOperationViewAccess(ctx context.Context, op *operations.Operation, authorizer auth.Authorizer, secret string) error {
+	// If a secret is provided and it matches the operation, allow access.
+	if secret != "" && op.Metadata()["secret"] == secret {
+		return nil
+	}
+
+	// There must be a requestor.
+	requestor, err := request.GetRequestor(ctx)
+	if err != nil {
+		return err
+	}
+
+	// The caller must be trusted.
+	if !requestor.IsTrusted() {
+		return api.NewGenericStatusError(http.StatusForbidden)
+	}
+
+	// Allow view access if the caller is the requestor.
+	if requestor.CallerIsEqual(op.Requestor()) {
+		return nil
+	}
+
+	// Otherwise, perform access check based on whether the operation is project specific.
+	operationProject := op.Project()
+	var entityURL *api.URL
+	if operationProject == "" {
+		// If not project specific, this is a server level operation.
+		entityURL = entity.ServerURL()
+	} else {
+		// If project specific, check `can_view_operations` on the operations' project.
+		entityURL = entity.ProjectURL(operationProject)
+	}
+
+	return authorizer.CheckPermission(ctx, entityURL, auth.EntitlementCanViewOperations)
 }
 
 // swagger:operation GET /1.0/operations/{id}/websocket?public operations operation_websocket_get_untrusted
@@ -1274,7 +1339,7 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	op, err := operations.OperationCreate(r.Context(), d.State(), "", req.OpClass, req.OpType, resources, nil, run, nil, onConnect)
+	op, err := operations.OperationCreate(r.Context(), d.State(), request.QueryParam(r, "project"), req.OpClass, req.OpType, resources, nil, run, nil, onConnect)
 	if err != nil {
 		return response.InternalError(err)
 	}

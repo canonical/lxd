@@ -6,7 +6,7 @@ test_waitready() {
   br_name="lxdt$$"
 
   lxc storage create "${storage_pool}" "${lxd_backend}"
-  lxc network create "${br_name}"
+  lxc network create "${br_name}" ipv4.address=none ipv6.address=none
 
   echo "==> Corrupt the network by setting an invalid external interface"
   ip link add foo type dummy

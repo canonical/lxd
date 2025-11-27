@@ -26,8 +26,6 @@ test_clustering_move() {
   ns3="${prefix}3"
   spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}"
 
-  ensure_import_testimage
-
   # Preparation
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster group create foobar1
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster group assign node1 foobar1,default
@@ -38,9 +36,9 @@ test_clustering_move() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster group create foobar3
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster group assign node3 foobar3,default
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c1 --target node1
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c2 --target node2
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c3 --target node3
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c1 --target node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c2 --target node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c3 --target node3
 
   LXD_DIR="${LXD_ONE_DIR}" lxc project create test-project --force-local # Create test project using unix socket.
 
@@ -52,10 +50,10 @@ test_clustering_move() {
   # Make the identity a member of a group that has minimal permissions for moving the instances.
   LXD_DIR=${LXD_ONE_DIR} lxc auth group create instance-movers
   LXD_DIR=${LXD_ONE_DIR} lxc auth identity group add tls/test instance-movers
+  LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers project default can_view # Required to grant can_create_instances and entitlements on project resource.
   LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers project default can_create_instances # Required, since a move constitutes an initial copy.
-  LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers project default can_view_events # Required for the CLI to watch the operation.
+  LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers project test-project can_view # Required to grant can_create_instances
   LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers project test-project can_create_instances # Required, since a move constitutes an initial copy.
-  LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers project test-project can_view_events # Required for the CLI to watch the operation.
   LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers instance c1 can_edit project=default
   LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers instance c1 can_view project=default
 
@@ -68,7 +66,7 @@ test_clustering_move() {
   lxc move cluster:c1 --target-project default --project test-project
 
   lxc move cluster:c1 --target @foobar1
-  lxc info cluster:c1 | grep -xF "Location: node1"
+  [ "$(lxc list -f csv -c L cluster:c1)" = "node1" ]
 
   # c1 can be moved within the same cluster group if it has multiple members
   current_location="$(lxc query cluster:/1.0/instances/c1 | jq -r '.location')"
@@ -80,7 +78,7 @@ test_clustering_move() {
 
   # c1 cannot be moved within the same cluster group if it has a single member
   lxc move cluster:c1 --target=@foobar3
-  lxc info cluster:c1 | grep -xF "Location: node3"
+  [ "$(lxc list -f csv -c L cluster:c1)" = "node3" ]
   ! lxc move cluster:c1 --target=@foobar3 || false
 
   # Perform standard move tests using the `scheduler.instance` cluster member setting.
@@ -97,29 +95,30 @@ test_clustering_move() {
 
   # c1 can be moved to node2 by group targeting.
   lxc move cluster:c1 --target=@foobar2
-  lxc info cluster:c1 | grep -xF "Location: node2"
+  [ "$(lxc list -f csv -c L cluster:c1)" = "node2" ]
 
   # c2 can be moved to node1 by manual targeting.
   LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers instance c2 can_edit project=default
   LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers instance c2 can_view project=default
   lxc move cluster:c2 --target=node1
-  lxc info cluster:c2 | grep -xF "Location: node1"
+  [ "$(lxc list -f csv -c L cluster:c2)" = "node1" ]
 
   # c1 cannot be moved to node3 by group targeting.
   ! lxc move cluster:c1 --target=@foobar3 || false
 
   # c2 can be moved to node2 by manual targeting.
   lxc move cluster:c2 --target=node2
+  [ "$(lxc list -f csv -c L cluster:c2)" = "node2" ]
 
   # c3 can be moved to node1 by manual targeting.
   LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers instance c3 can_edit project=default
   LXD_DIR=${LXD_ONE_DIR} lxc auth group permission add instance-movers instance c3 can_view project=default
   lxc move cluster:c3 --target=node1
-  lxc info cluster:c3 | grep -xF "Location: node1"
+  [ "$(lxc list -f csv -c L cluster:c3)" = "node1" ]
 
   # c3 can be moved back to node by by manual targeting.
   lxc move cluster:c3 --target=node3
-  lxc info cluster:c3 | grep -xF "Location: node3"
+  [ "$(lxc list -f csv -c L cluster:c3)" = "node3" ]
 
   # Clean up
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster unset node2 scheduler.instance
@@ -214,7 +213,7 @@ EOF
 
   # Cleanup
   lxc remote remove cluster
-  LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1 c2 c3
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 c3
   LXD_DIR="${LXD_ONE_DIR}" lxc auth group delete instance-movers
   LXD_DIR="${LXD_ONE_DIR}" lxc auth identity delete tls/test
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown

@@ -412,6 +412,7 @@ var ConfigSchema = config.Schema{
 	// ---
 	//  type: string
 	//  scope: global
+	//  defaultdesc: `0`
 	//  shortdesc: BGP Autonomous System Number for the local server
 	"core.bgp_asn": {Type: config.Int64, Default: "0", Validator: validate.Optional(validate.IsInRange(0, 4294967294))},
 
@@ -587,6 +588,7 @@ var ConfigSchema = config.Schema{
 	// ---
 	//  type: bool
 	//  scope: global
+	//  defaultdesc: `false`
 	//  shortdesc: Whether to set `migration.stateful` to `true` for the instances
 	"instances.migration.stateful": {Type: config.Bool, Default: "false"},
 
@@ -715,6 +717,7 @@ var ConfigSchema = config.Schema{
 	// ---
 	//  type: space-delimited string
 	//  scope: global
+	//  defaultdesc: `openid email offline_access profile`
 	//  shortdesc: Space-separated list of OpenID Connect scopes
 	"oidc.scopes": {
 		Default: strings.Join([]string{oidc.ScopeOpenID, oidc.ScopeEmail, oidc.ScopeOfflineAccess, oidc.ScopeProfile}, " "),

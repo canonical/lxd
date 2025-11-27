@@ -745,6 +745,21 @@ func (p *pureClient) getVolume(poolName string, volName string) (*pureVolume, er
 	return &resp.Items[0], nil
 }
 
+// getVolumes returns the volumes in the pool with the given name.
+func (p *pureClient) getVolumes(poolName string) ([]pureVolume, error) {
+	var resp pureResponse[pureVolume]
+
+	// The 'pod' object in the response has both id and name.
+	// Use the '.' to reference the nested name in the filter.
+	url := api.NewURL().Path("volumes").WithQuery("filter", "pod.name='"+poolName+"'")
+	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to list volumes in pool %q: %w", poolName, err)
+	}
+
+	return resp.Items, nil
+}
+
 // createVolume creates a new volume in the given storage pool. The volume is created with
 // supplied size in bytes. Upon successful creation, volume's ID is returned.
 func (p *pureClient) createVolume(poolName string, volName string, sizeBytes int64) error {
@@ -1308,61 +1323,69 @@ func (d *pure) unmapVolume(vol Volume) error {
 		return err
 	}
 
+	// Get a path of a block device we want to unmap.
+	volumePath, _, _ := d.getMappedDevPath(vol, false)
+
+	// When iSCSI volume is disconnected from the host, the device will remain on the system.
+	//
+	// To remove the device, we need to either logout from the session or remove the
+	// device manually. Logging out of the session is not desired as it would disconnect
+	// from all connected volumes. Therefore, we need to manually remove the device.
+	//
+	// Also, for iSCSI we don't want to unmap the device on the storage array side before removing it
+	// from the host, because on some storage arrays (for example, HPE Alletra and Pure) we've seen that removing
+	// a vLUN from the array immediately makes device inaccessible and traps any task tries to access it
+	// to D-state (and this task can be systemd-udevd which tries to remove a device node!).
+	// That's why it is better to remove the device node from the host and then remove vLUN.
+	if volumePath != "" && connector.Type() == connectors.TypeISCSI {
+		// removeDevice removes device from the system if the device is removable.
+		removeDevice := func(devName string) error {
+			path := "/sys/block/" + devName + "/device/delete"
+			if shared.PathExists(path) {
+				// Delete device.
+				err := os.WriteFile(path, []byte("1"), 0400)
+				if err != nil {
+					return err
+				}
+			}
+
+			return nil
+		}
+
+		devName := filepath.Base(volumePath)
+		if strings.HasPrefix(devName, "dm-") {
+			_, err := shared.RunCommandContext(d.state.ShutdownCtx, "multipath", "-f", volumePath)
+			if err != nil {
+				return fmt.Errorf("Failed to unmap volume %q: Failed to remove multipath device %q: %w", vol.name, devName, err)
+			}
+		} else {
+			// For non-multipath device (/dev/sd*), remove the device itself.
+			err := removeDevice(devName)
+			if err != nil {
+				return fmt.Errorf("Failed to unmap volume %q: Failed to remove device %q: %w", vol.name, devName, err)
+			}
+		}
+
+		// Wait until the volume has disappeared.
+		ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 30*time.Second)
+		defer cancel()
+
+		if !block.WaitDiskDeviceGone(ctx, volumePath) {
+			return fmt.Errorf("Timeout exceeded waiting for Pure Storage volume %q to disappear on path %q", vol.name, volumePath)
+		}
+
+		// Device is not there anymore.
+		volumePath = ""
+	}
+
 	// Disconnect the volume from the host and ignore error if connection does not exist.
 	err = d.client().disconnectHostFromVolume(vol.pool, volName, host.Name)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 		return err
 	}
 
-	volumePath, _, _ := d.getMappedDevPath(vol, false)
-	if volumePath != "" {
-		// When iSCSI volume is disconnected from the host, the device will remain on the system.
-		//
-		// To remove the device, we need to either logout from the session or remove the
-		// device manually. Logging out of the session is not desired as it would disconnect
-		// from all connected volumes. Therefore, we need to manually remove the device.
-		if connector.Type() == connectors.TypeISCSI {
-			// removeDevice removes device from the system if the device is removable.
-			removeDevice := func(devName string) error {
-				path := "/sys/block/" + devName + "/device/delete"
-				if shared.PathExists(path) {
-					// Delete device.
-					err := os.WriteFile(path, []byte("1"), 0400)
-					if err != nil {
-						return err
-					}
-				}
-
-				return nil
-			}
-
-			devName := filepath.Base(volumePath)
-			if strings.HasPrefix(devName, "dm-") {
-				// Multipath device (/dev/dm-*) itself is not removable.
-				// Therefore, we remove its slaves instead.
-				slaves, err := filepath.Glob("/sys/block/" + devName + "/slaves/*")
-				if err != nil {
-					return fmt.Errorf("Failed to unmap volume %q: Failed to list slaves for device %q: %w", vol.name, devName, err)
-				}
-
-				// Remove slave devices.
-				for _, slave := range slaves {
-					slaveDevName := filepath.Base(slave)
-
-					err := removeDevice(slaveDevName)
-					if err != nil {
-						return fmt.Errorf("Failed to unmap volume %q: Failed to remove slave device %q: %w", vol.name, slaveDevName, err)
-					}
-				}
-			} else {
-				// For non-multipath device (/dev/sd*), remove the device itself.
-				err := removeDevice(devName)
-				if err != nil {
-					return fmt.Errorf("Failed to unmap volume %q: Failed to remove device %q: %w", vol.name, devName, err)
-				}
-			}
-		}
-
+	// When NVMe/TCP volume is disconnected from the host, the device automatically disappears.
+	if volumePath != "" && connector.Type() == connectors.TypeNVME {
 		// Wait until the volume has disappeared.
 		ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 30*time.Second)
 		defer cancel()
@@ -1485,7 +1508,7 @@ func (d *pure) getVolumeName(vol Volume) (string, error) {
 		return "", fmt.Errorf(`Failed parsing "volatile.uuid" from volume %q: %w`, vol.name, err)
 	}
 
-	// Remove hypens from the UUID to create a volume name.
+	// Remove hyphens from the UUID to create a volume name.
 	volName := strings.ReplaceAll(volUUID.String(), "-", "")
 
 	// Search for the volume type prefix, and if found, prepend it to the volume name.
@@ -1506,4 +1529,18 @@ func (d *pure) getVolumeName(vol Volume) (string, error) {
 	}
 
 	return volName, nil
+}
+
+// getUUIDFromVolumeName translates the volume's name to the respective UUID.
+// It expects the volume name without any prefix/suffix.
+func (d *pure) getUUIDFromVolumeName(name string) (uuid.UUID, error) {
+	// The UUID library internally handles the UUID without hyphens.
+	// As the Pure volume name uses the UUID's string representation without hyphens,
+	// we can simply parse it in its byte format to get back the original UUID.
+	volUUID, err := uuid.ParseBytes([]byte(name))
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("Failed parsing UUID from volume name %q: %w", name, err)
+	}
+
+	return volUUID, nil
 }

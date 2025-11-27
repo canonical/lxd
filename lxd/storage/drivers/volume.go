@@ -427,6 +427,9 @@ func (v Volume) NewVMBlockFilesystemVolume() Volume {
 	// Propagate filesystem probe mode of parent volume.
 	vol.SetMountFilesystemProbe(v.mountFilesystemProbe)
 
+	// Propagate mount custom path of parent volume.
+	vol.SetMountCustomPath(v.mountCustomPath)
+
 	return vol
 }
 
@@ -443,6 +446,11 @@ func (v Volume) SetConfigSize(size string) {
 // SetConfigStateSize sets the size.state config property on the Volume (does not resize volume).
 func (v Volume) SetConfigStateSize(size string) {
 	v.config["size.state"] = size
+}
+
+// SetMountCustomPath sets a custom path for mounting the volume.
+func (v *Volume) SetMountCustomPath(path string) {
+	v.mountCustomPath = path
 }
 
 // ConfigBlockFilesystem returns the filesystem to use for block volumes. Returns config value "block.filesystem"

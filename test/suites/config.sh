@@ -135,14 +135,14 @@ test_config_profiles() {
   lxc profile assign foo one,two
   [ "$(lxc list -f json foo | jq -r '.[0].profiles | join(" ")')" = "one two" ]
   lxc profile assign foo ""
-  [ "$(lxc list -f json foo | jq -r '.[0].profiles | join(" ")')" = "" ]
+  [ "$(lxc list -f json foo | jq -r '.[0].profiles | join(" ")' || echo fail)" = "" ]
   lxc profile apply foo one # backwards compat check with `lxc profile apply`
   [ "$(lxc list -f json foo | jq -r '.[0].profiles | join(" ")')" = "one" ]
   lxc profile assign foo ""
   lxc profile add foo one
   [ "$(lxc list -f json foo | jq -r '.[0].profiles | join(" ")')" = "one" ]
   lxc profile remove foo one
-  [ "$(lxc list -f json foo | jq -r '.[0].profiles | join(" ")')" = "" ]
+  [ "$(lxc list -f json foo | jq -r '.[0].profiles | join(" ")' || echo fail)" = "" ]
 
   lxc profile create stdintest
   echo "BADCONF" | lxc profile set stdintest user.user_data -
@@ -236,7 +236,7 @@ test_config_profiles() {
   [ "$(lxc config get core.metrics_authentication)" = "false" ]
 
   lxc config unset core.metrics_authentication
-  [ -z "$(lxc config get core.metrics_authentication)" ]
+  [ -z "$(lxc config get core.metrics_authentication || echo fail)" ]
 
   # Validate user.* keys
   ! lxc config set user.⍾ foo || false
@@ -300,7 +300,7 @@ test_property() {
   # Unset a property of an instance
   lxc config unset foo description --property
   # Check that the property is unset
-  [ "$(lxc config get foo description --property)" = "" ]
+  [ "$(lxc config get foo description --property || echo fail)" = "" ]
 
   # Set a property of an instance (bool)
   lxc config set foo ephemeral=true --property
@@ -341,7 +341,7 @@ test_property() {
   lxc config set c1 ephemeral=true --property
   [ "$(lxc config get c1 ephemeral --property)" = "true" ]
   lxc stop -f c1
-  [ "$(lxc list -f csv -c n)" = "" ]
+  [ "$(lxc list -f csv -c n || echo fail)" = "" ]
 
   lxc storage volume delete "${storage_pool}" "${storage_volume}"
 }

@@ -104,7 +104,7 @@ var imageAliasesCmd = APIEndpoint{
 	Path:        "images/aliases",
 	MetricsType: entity.TypeImage,
 
-	Get:  APIEndpointAction{Handler: imageAliasesGet, AccessHandler: allowProjectResourceList},
+	Get:  APIEndpointAction{Handler: imageAliasesGet, AccessHandler: allowProjectResourceList(false)},
 	Post: APIEndpointAction{Handler: imageAliasesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateImageAliases)},
 }
 

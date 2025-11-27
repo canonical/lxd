@@ -25,8 +25,14 @@ import (
 	"github.com/canonical/lxd/shared/validate"
 )
 
-// projectLimitDiskPool is the prefix used for pool-specific disk limits.
-var projectLimitDiskPool = "limits.disk.pool."
+const (
+	// projectLimitDiskPool is the prefix used for pool-specific disk limits.
+	projectLimitDiskPool string = "limits.disk.pool."
+	// projectLimitNetworkUplinkIP4 is the prefix used for network-specific uplink IPv4 IP limits.
+	projectLimitNetworkUplinkIP4 string = "limits.networks.uplink_ips.ipv4."
+	// projectLimitNetworkUplinkIP6 is the prefix used for network-specific uplink IPv6 IP limits.
+	projectLimitNetworkUplinkIP6 string = "limits.networks.uplink_ips.ipv6."
+)
 
 // HiddenStoragePools returns a list of storage pools that should be hidden from users of the project.
 func HiddenStoragePools(ctx context.Context, tx *db.ClusterTx, projectName string) ([]string, error) {
@@ -110,7 +116,7 @@ func AllowInstanceCreation(ctx context.Context, globalConfig *clusterConfig.Conf
 		return err
 	}
 
-	err = checkRestrictionsAndAggregateLimits(globalConfig, tx, info)
+	err = checkInstanceRestrictionsAndAggregateLimits(globalConfig, tx, info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if instance creation allowed: %w", err)
 	}
@@ -279,7 +285,7 @@ func AllowVolumeCreation(ctx context.Context, globalConfig *clusterConfig.Config
 		PoolName: poolName,
 	})
 
-	err = checkRestrictionsAndAggregateLimits(globalConfig, tx, info)
+	err = checkInstanceRestrictionsAndAggregateLimits(globalConfig, tx, info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if volume creation allowed: %w", err)
 	}
@@ -343,14 +349,17 @@ func GetImageSpaceBudget(ctx context.Context, globalConfig *clusterConfig.Config
 
 // Check that we would not violate the project limits or restrictions if we
 // were to commit the given instances and profiles.
-func checkRestrictionsAndAggregateLimits(globalConfig *clusterConfig.Config, tx *db.ClusterTx, info *projectInfo) error {
+// This function does not check the number of created instances. Limits associated
+// to the project-wide instance count should be checked separately where needed.
+func checkInstanceRestrictionsAndAggregateLimits(globalConfig *clusterConfig.Config, tx *db.ClusterTx, info *projectInfo) error {
 	// List of config keys for which we need to check aggregate values
 	// across all project instances.
 	aggregateKeys := []string{}
 	isRestricted := false
 
 	for key, value := range info.Project.Config {
-		if slices.Contains(allAggregateLimits, key) || strings.HasPrefix(key, projectLimitDiskPool) {
+		// Check that the key is a known limits key and the value is not empty.
+		if value != "" && (slices.Contains(allInstanceAggregateLimits, key) || strings.HasPrefix(key, projectLimitDiskPool)) {
 			aggregateKeys = append(aggregateKeys, key)
 			continue
 		}
@@ -825,7 +834,11 @@ func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profi
 	return nil
 }
 
-var allAggregateLimits = []string{
+// allInstanceAggregateLimits is the list of project limits that are affected by instance-level values.
+// I.e., it does not include "limits.networks" because this limit is not affected by instances.
+// This list also does not include "limits.virtual-machines", "limits.containers", and "limits.instances".
+// These limits should be checked separately where needed.
+var allInstanceAggregateLimits = []string{
 	"limits.cpu",
 	"limits.disk",
 	"limits.memory",
@@ -931,7 +944,7 @@ func AllowInstanceUpdate(ctx context.Context, globalConfig *clusterConfig.Config
 		return err
 	}
 
-	err = checkRestrictionsAndAggregateLimits(globalConfig, tx, info)
+	err = checkInstanceRestrictionsAndAggregateLimits(globalConfig, tx, info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if instance update allowed: %w", err)
 	}
@@ -965,7 +978,7 @@ func AllowVolumeUpdate(ctx context.Context, globalConfig *clusterConfig.Config, 
 		info.Volumes[i].Config = req.Config
 	}
 
-	err = checkRestrictionsAndAggregateLimits(globalConfig, tx, info)
+	err = checkInstanceRestrictionsAndAggregateLimits(globalConfig, tx, info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if volume update allowed: %w", err)
 	}
@@ -995,7 +1008,7 @@ func AllowProfileUpdate(ctx context.Context, globalConfig *clusterConfig.Config,
 		info.Profiles[i].Devices = req.Devices
 	}
 
-	err = checkRestrictionsAndAggregateLimits(globalConfig, tx, info)
+	err = checkInstanceRestrictionsAndAggregateLimits(globalConfig, tx, info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if profile update allowed: %w", err)
 	}
@@ -1028,8 +1041,8 @@ func checkUplinkUse(ctx context.Context, tx *db.ClusterTx, projectName string, c
 
 	// Check uplink IP quota limits.
 	for uplink := range uplinksInUseSet {
-		ivp4LimitsRaw, hasIPV4Limits := config["limits.networks.uplink_ips.ipv4."+uplink]
-		ivp6LimitsRaw, hasIPV6Limits := config["limits.networks.uplink_ips.ipv6."+uplink]
+		ivp4LimitsRaw, hasIPV4Limits := config[projectLimitNetworkUplinkIP4+uplink]
+		ivp6LimitsRaw, hasIPV6Limits := config[projectLimitNetworkUplinkIP6+uplink]
 
 		ivp4Limits, err := strconv.Atoi(ivp4LimitsRaw)
 		if err != nil {
@@ -1076,89 +1089,51 @@ func checkUplinkUse(ctx context.Context, tx *db.ClusterTx, projectName string, c
 
 // AllowProjectUpdate checks the new config to be set on a project is valid.
 func AllowProjectUpdate(ctx context.Context, globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, config map[string]string, changed []string) error {
-	var globalConfigDump map[string]any
-	if globalConfig != nil {
-		globalConfigDump = globalConfig.Dump()
-	}
-
 	info, err := fetchProject(ctx, tx, projectName, false)
 	if err != nil {
 		return err
 	}
 
-	info.Instances, err = expandInstancesConfigAndDevices(globalConfigDump, info.Instances, info.Profiles)
+	// Set the fetched project's config to new config for validation.
+	info.Project.Config = config
+
+	// This checks if restricted uplinks are used within this project and if limits
+	// for uplink IP usage are respected.
+	// This is done separately because this may require getting network info from the database.
+	err = checkUplinkUse(ctx, tx, projectName, info.Project.Config)
 	if err != nil {
-		return err
+		return fmt.Errorf("Check project uplink network usage: %w", err)
 	}
 
-	restrictedValue, ok := info.Project.Config["restricted"]
-	projectIsRestricted := ok && shared.IsTrue(restrictedValue)
-
-	// List of keys that need to check aggregate values across all project
-	// instances.
-	aggregateKeys := []string{}
-
-	// This checks if restricted uplinks are used within this project.
-	// This is done separately because this may require getting network info from the database and
-	// restricted.networks.uplinks is an allowlist, so restrictions are enforced even if it is not set.
-	err = checkUplinkUse(ctx, tx, projectName, config)
+	// Check instance restrictions and aggregate limits affected by instance-level values.
+	// This function will also set the "Instances" field for the fetched project.
+	err = checkInstanceRestrictionsAndAggregateLimits(globalConfig, tx, info)
 	if err != nil {
-		return err
+		return fmt.Errorf("Conflict detected when updating project %q: %w", projectName, err)
 	}
 
+	// Handle the changed project limits not yet checked.
 	for _, key := range changed {
-		if strings.HasPrefix(key, "restricted.") {
-			project := api.Project{
-				Name:   projectName,
-				Config: config,
-			}
-
-			if projectIsRestricted {
-				err := checkInstanceRestrictions(project, info.Instances, info.Profiles)
-				if err != nil {
-					return fmt.Errorf("Conflict detected when changing %q in project %q: %w", key, projectName, err)
-				}
-			}
-
-			continue
-		}
-
 		switch key {
 		case "limits.instances":
 			err := validateTotalInstanceCountLimit(info.Instances, config[key], projectName)
 			if err != nil {
-				return fmt.Errorf("Can't change limits.instances in project %q: %w", projectName, err)
+				return fmt.Errorf("Can't change %q in project %q: %w", key, projectName, err)
 			}
 
-		case "limits.containers":
-			fallthrough
-		case "limits.virtual-machines":
+		case "limits.containers", "limits.virtual-machines":
 			err := validateInstanceCountLimit(info.Instances, key, config[key], projectName)
 			if err != nil {
 				return fmt.Errorf("Can't change %q in project %q: %w", key, projectName, err)
 			}
 
-		case "limits.processes":
-			fallthrough
-		case "limits.cpu":
-			fallthrough
-		case "limits.memory":
-			fallthrough
-		case "limits.disk":
-			aggregateKeys = append(aggregateKeys, key)
-		}
-	}
-
-	if len(aggregateKeys) > 0 {
-		totals, err := getTotalsAcrossProjectEntities(info, aggregateKeys, false)
-		if err != nil {
-			return err
-		}
-
-		for _, key := range aggregateKeys {
-			err := validateAggregateLimit(totals, key, config[key])
-			if err != nil {
-				return err
+		case "limits.networks":
+			// If project does not have its own networks, no need to validate limits.networks.
+			if shared.IsTrue(config["features.networks"]) {
+				err := validateNetworksCountLimit(info.Networks, config[key])
+				if err != nil {
+					return fmt.Errorf("Can't change %q in project %q: %w", key, projectName, err)
+				}
 			}
 		}
 	}
@@ -1219,45 +1194,30 @@ func validateInstanceCountLimit(instances []api.Instance, key, value, project st
 	return nil
 }
 
-var countConfigInstanceType = map[string]api.InstanceType{
-	"limits.containers":       api.InstanceTypeContainer,
-	"limits.virtual-machines": api.InstanceTypeVM,
-}
-
-// Validates an aggregate limit, checking that the new value is not below the
-// current total amount.
-func validateAggregateLimit(totals map[string]int64, key, value string) error {
-	if value == "" {
+// validateNetworksCountLimit checks that "limits.networks" is equal or above
+// the current count of project networks.
+func validateNetworksCountLimit(networks []string, limitValue string) error {
+	if limitValue == "" {
 		return nil
 	}
 
-	keyName := key
-
-	// Handle pool-specific limits.
-	if strings.HasPrefix(key, projectLimitDiskPool) {
-		keyName = "limits.disk"
-	}
-
-	parser := aggregateLimitConfigValueParsers[keyName]
-	limit, err := parser(value)
+	limit, err := strconv.Atoi(limitValue)
 	if err != nil {
-		return fmt.Errorf("Invalid value %q for limit %q: %w", value, key, err)
+		return err
 	}
 
-	total := totals[key]
-	if limit < total {
-		keyName := key
+	count := len(networks)
 
-		// Handle pool-specific limits.
-		if strings.HasPrefix(key, projectLimitDiskPool) {
-			keyName = "limits.disk"
-		}
-
-		printer := aggregateLimitConfigValuePrinters[keyName]
-		return fmt.Errorf("%q is too low: current total is %q", key, printer(total))
+	if limit < count {
+		return fmt.Errorf("Network limit exceeded: there currently are %d networks", count)
 	}
 
 	return nil
+}
+
+var countConfigInstanceType = map[string]api.InstanceType{
+	"limits.containers":       api.InstanceTypeContainer,
+	"limits.virtual-machines": api.InstanceTypeVM,
 }
 
 // Return true if the project has some limits or restrictions set.
@@ -1282,13 +1242,14 @@ type projectInfo struct {
 	Profiles  []api.Profile
 	Instances []api.Instance
 	Volumes   []db.StorageVolumeArgs
+	Networks  []string
 
 	// poolName: driverName
 	StoragePoolDrivers map[string]string
 }
 
-// Fetch the given project from the database along with its profiles, instances
-// and possibly custom volumes.
+// Fetch the given project from the database along with its profiles, instances,
+// networks, and possibly custom volumes.
 //
 // If the skipIfNoLimits flag is true, then profiles, instances and volumes
 // won't be loaded if the profile has no limits set on it, and nil will be
@@ -1329,6 +1290,11 @@ func fetchProject(ctx context.Context, tx *db.ClusterTx, projectName string, ski
 	info.Volumes, err = tx.GetCustomVolumesInProject(ctx, projectName)
 	if err != nil {
 		return nil, fmt.Errorf("Fetch project custom volumes from database: %w", err)
+	}
+
+	info.Networks, err = tx.GetCreatedNetworkNamesByProject(ctx, projectName)
+	if err != nil {
+		return nil, fmt.Errorf("Fetch project networks from database: %w", err)
 	}
 
 	return info, nil
@@ -1550,21 +1516,6 @@ var aggregateLimitConfigValueParsers = map[string]func(string) (int64, error){
 	},
 	"limits.disk": func(value string) (int64, error) {
 		return units.ParseByteSizeString(value)
-	},
-}
-
-var aggregateLimitConfigValuePrinters = map[string]func(int64) string{
-	"limits.memory": func(limit int64) string {
-		return units.GetByteSizeStringIEC(limit, 1)
-	},
-	"limits.processes": func(limit int64) string {
-		return strconv.FormatInt(limit, 10)
-	},
-	"limits.cpu": func(limit int64) string {
-		return strconv.FormatInt(limit, 10)
-	},
-	"limits.disk": func(limit int64) string {
-		return units.GetByteSizeStringIEC(limit, 1)
 	},
 }
 

@@ -14,7 +14,6 @@ test_container_devices_nic_bridged_filtering() {
   fi
 
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Record how many nics we started with.
   startNicCount=$(find /sys/class/net | wc -l)
@@ -124,9 +123,8 @@ test_container_devices_nic_bridged_filtering() {
         false
     fi
   else
-    for table in "in" "fwd"
-    do
-      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "${ctAHost}"; then
+    for table in "in" "fwd"; do
+      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0"; then
         echo "MAC filter still applied as part of mac_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
@@ -274,9 +272,8 @@ test_container_devices_nic_bridged_filtering() {
         false
     fi
   else
-    for table in "in" "fwd"
-    do
-      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "${ctAHost}"; then
+    for table in "in" "fwd"; do
+      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0"; then
         echo "IPv4 filter still applied as part of ipv4_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
@@ -531,9 +528,8 @@ test_container_devices_nic_bridged_filtering() {
         false
     fi
   else
-    for table in "in" "fwd"
-    do
-      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "${ctAHost}"; then
+    for table in "in" "fwd"; do
+      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0"; then
         echo "IPv6 filter still applied as part of ipv4_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
@@ -717,9 +713,8 @@ test_container_devices_nic_bridged_filtering() {
         false
     fi
   else
-    for table in "in" "fwd"
-    do
-      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "${ctAHost}"; then
+    for table in "in" "fwd"; do
+      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0"; then
         echo "nftables filter still applied after delete (${table}.${ctPrefix}A.eth0)"
         false
       fi
@@ -784,9 +779,8 @@ test_container_devices_nic_bridged_filtering() {
         false
     fi
   else
-    for table in "in" "fwd"
-    do
-      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "${ctAHost}"; then
+    for table in "in" "fwd"; do
+      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0"; then
         echo "MAC filter still applied as part of mac_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
@@ -875,9 +869,8 @@ test_container_devices_nic_bridged_filtering() {
         false
     fi
   else
-    for table in "in" "fwd"
-    do
-      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -F "${ctAHost}"; then
+    for table in "in" "fwd"; do
+      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0"; then
         echo "Filters still applied as part of IP filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi

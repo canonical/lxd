@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 
@@ -13,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/version"
@@ -75,13 +78,36 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	inst, err := instance.LoadByProjectAndName(s, projectName, name)
+	op, err := doInstanceDelete(r.Context(), s, name, projectName, false)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
+	return operations.OperationResponse(op)
+}
+
+// doInstanceDelete deletes an instance in the given project.
+// If the instance is running and force is true, the instance is force stopped. Otherwise, an error is returned.
+func doInstanceDelete(ctx context.Context, s *state.State, name string, projectName string, force bool) (*operations.Operation, error) {
+	inst, err := instance.LoadByProjectAndName(s, projectName, name)
+	if err != nil {
+		return nil, err
+	}
+
 	if inst.IsRunning() {
-		return response.BadRequest(errors.New("Instance is running"))
+		if !force {
+			return nil, api.NewStatusError(http.StatusBadRequest, "Instance is running")
+		}
+
+		// Stop instance.
+		err = doInstanceStatePut(inst, api.InstanceStatePut{
+			Action:  "stop",
+			Timeout: -1,
+			Force:   true,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("Failed force stopping instance %q before deletion: %w", name, err)
+		}
 	}
 
 	rmct := func(op *operations.Operation) error {
@@ -95,10 +121,10 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(r.Context(), s, projectName, operations.OperationClassTask, operationtype.InstanceDelete, resources, nil, rmct, nil, nil)
+	op, err := operations.OperationCreate(ctx, s, projectName, operations.OperationClassTask, operationtype.InstanceDelete, resources, nil, rmct, nil, nil)
 	if err != nil {
-		return response.InternalError(err)
+		return nil, err
 	}
 
-	return operations.OperationResponse(op)
+	return op, nil
 }

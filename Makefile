@@ -38,7 +38,7 @@ export CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 default: all
 
 .PHONY: all
-all: client lxd lxd-agent lxd-migrate
+all: client lxd lxd-agent lxd-migrate test-binaries
 
 .PHONY: build
 build: lxd
@@ -230,6 +230,43 @@ tics: deps
 	go build -a -x -v ./...
 	CC="cc" CGO_LDFLAGS_ALLOW="(-Wl,-wrap,pthread_create)|(-Wl,-z,now)" go install -v -tags "libsqlite3" -trimpath -a -x -v ./...
 
+.PHONY: check-gomin
+check-gomin:
+	go mod tidy -go=$(GOMIN)
+	@echo "Check the doc mentions the right Go minimum version"
+	$(eval DOC_GOMIN := $(shell sed -n 's/^LXD requires Go \([0-9.]\+\) .*/\1/p' doc/requirements.md))
+	if [ "$(DOC_GOMIN)" != "$(GOMIN)" ]; then \
+		echo "Please update the Go version in 'doc/requirements.md' to be $(GOMIN) instead of $(DOC_GOMIN)"; \
+		exit 1; \
+	fi
+
+.PHONY: update-gomin
+update-gomin:
+ifndef NEW_GOMIN
+	@echo "Usage: make update-gomin NEW_GOMIN=1.x.y"
+	@echo "Current Go minimum version: $(GOMIN)"
+	exit 1
+endif
+ifeq "$(GOMIN)" "$(NEW_GOMIN)"
+	@echo "Error: NEW_GOMIN ($(NEW_GOMIN)) is the same as current GOMIN ($(GOMIN))"
+	exit 1
+endif
+	@echo "Updating Go minimum version from $(GOMIN) to $(NEW_GOMIN)"
+	
+	@# Update GOMIN in Makefile
+	sed -i 's/^GOMIN=[0-9.]\+/GOMIN=$(NEW_GOMIN)/' Makefile
+	
+	@# Update doc/requirements.md and .github/copilot-instructions.md
+	sed -i 's/^\(LXD requires Go \)[0-9.]\+ /\1$(NEW_GOMIN) /' doc/requirements.md .github/copilot-instructions.md
+	
+	@echo "Go minimum version updated to $(NEW_GOMIN)"
+	if [ -t 0 ]; then \
+		read -rp "Would you like to commit Go version changes (Y/n)? " answer; \
+		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
+			git commit -S -sm "go: Update Go minimum version to $(NEW_GOMIN)" -- ./Makefile ./doc/requirements.md ./.github/copilot-instructions.md; \
+		fi; \
+	fi
+
 .PHONY: update-gomod
 update-gomod:
 ifneq "$(LXD_OFFLINE)" ""
@@ -244,7 +281,7 @@ endif
 	go get github.com/olekukonko/tablewriter@v0.0.5 # Due to breaking API in later versions
 
 	# Enforce minimum go version
-	go mod tidy -go=$(GOMIN)
+	$(MAKE) check-gomin
 
 	# Use the bundled toolchain that meets the minimum go version
 	go get toolchain@none
@@ -253,8 +290,8 @@ endif
 	if [ -t 0 ] && ! git diff --quiet -- ./go.mod ./go.sum; then \
 		read -rp "Would you like to commit gomod changes (Y/n)? " answer; \
 		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-			git commit -S -sm "gomod: Update dependencies" -- ./go.mod ./go.sum;\
-		fi;\
+			git commit -S -sm "gomod: Update dependencies" -- ./go.mod ./go.sum; \
+		fi; \
 	fi
 
 
@@ -264,9 +301,8 @@ update-protobuf:
 
 .PHONY: update-schema
 update-schema:
-ifeq ($(shell command -v goimports),)
-	(cd / ; go install golang.org/x/tools/cmd/goimports@latest)
-endif
+	@# XXX: `go install ...@latest` is almost a noop if already up to date
+	go install golang.org/x/tools/cmd/goimports@latest
 	go build -C lxd/db/generate -v -trimpath -o $(GOPATH)/bin/lxd-generate -tags "$(TAG_SQLITE3)" $(DEBUG)
 	go generate ./...
 	@echo "Code generation completed"
@@ -274,7 +310,7 @@ endif
 .PHONY: update-api
 update-api:
 ifeq "$(LXD_OFFLINE)" ""
-	(cd / ; go install github.com/go-swagger/go-swagger/cmd/swagger@latest)
+	go install github.com/go-swagger/go-swagger/cmd/swagger@latest
 endif
 	@# Generate spec and exclude package from dependency which causes a 'classifier: unknown swagger annotation "extendee"' error.
 	@# For more details see: https://github.com/go-swagger/go-swagger/issues/2917.
@@ -282,8 +318,8 @@ endif
 	if [ -t 0 ] && ! git diff --quiet -- ./doc/rest-api.yaml; then \
 		read -rp "Would you like to commit swagger YAML changes (Y/n)? " answer; \
 		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-			git commit -S -sm "doc/rest-api: Refresh swagger YAML" -- ./doc/rest-api.yaml;\
-		fi;\
+			git commit -S -sm "doc/rest-api: Refresh swagger YAML" -- ./doc/rest-api.yaml; \
+		fi; \
 	fi
 
 .PHONY: update-metadata
@@ -293,8 +329,8 @@ update-metadata: build
 	if [ -t 0 ] && ! git diff --quiet -- ./lxd/metadata/configuration.json ./doc/metadata.txt; then \
 		read -rp "Would you like to commit metadata changes (Y/n)? " answer; \
 		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-			git commit -S -sm "doc: Update metadata" -- ./lxd/metadata/configuration.json ./doc/metadata.txt;\
-		fi;\
+			git commit -S -sm "doc: Update metadata" -- ./lxd/metadata/configuration.json ./doc/metadata.txt; \
+		fi; \
 	fi
 
 .PHONY: update-godeps
@@ -324,7 +360,7 @@ endif
 	@echo "LXD built successfully"
 
 .PHONY: check
-check: default check-unit test-binaries
+check: default check-gomin check-unit test-binaries
 	cd test && ./main.sh
 
 .PHONY: check-unit
@@ -412,7 +448,9 @@ update-po:
 .PHONY: update-pot
 update-pot:
 ifeq "$(LXD_OFFLINE)" ""
-	(cd / ; go install github.com/snapcore/snapd/i18n/xgettext-go@2.57.1)
+	@# XXX: `go install ...@latest` is almost a noop if already up to date
+	@# Cannot use newer versions (2.58 to 2.72 all failed)
+	go install github.com/snapcore/snapd/i18n/xgettext-go@2.57.6
 endif
 	xgettext-go -o po/$(DOMAIN).pot --add-comments-tag=TRANSLATORS: --sort-output --package-name=$(DOMAIN) --msgid-bugs-address=lxd@lists.canonical.com --keyword=i18n.G --keyword-plural=i18n.NG lxc/*.go lxc/*/*.go
 	if git diff --quiet --ignore-matching-lines='^\s*"POT-Creation-Date: .*\n"' -- po/*.pot; then git checkout -- po/*.pot; fi
@@ -428,19 +466,18 @@ build-mo: $(MOFILES)
 
 .PHONY: static-analysis
 static-analysis:
-ifeq ($(shell command -v go-licenses),)
-	(cd / ; go install github.com/google/go-licenses@latest)
+ifeq "$(LXD_OFFLINE)" ""
+	@# XXX: `go install ...@latest` is almost a noop if already up to date
+	go install github.com/google/go-licenses@latest
+
+	@# XXX: if errortype becomes available as a golangci-lint linter, remove this and update golangci-lint config
+	go install fillmore-labs.com/errortype@latest
+
+	@# XXX: if zerolint becomes available as a golangci-lint linter, remove this and update golangci-lint config
+	go install fillmore-labs.com/zerolint@latest
 endif
 ifeq ($(shell command -v golangci-lint),)
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin latest
-endif
-ifeq ($(shell command -v errortype), )
-	# XXX: if errortype becomes available as a golangci-lint linter, remove this and update golangci-lint config
-	(cd / ; go install fillmore-labs.com/errortype@latest)
-endif
-ifeq ($(shell command -v zerolint), )
-	# XXX: if zerolint becomes available as a golangci-lint linter, remove this and update golangci-lint config
-	(cd / ; go install fillmore-labs.com/zerolint@latest)
 endif
 ifneq ($(shell command -v yamllint),)
 	yamllint .github/workflows/*.yml
@@ -448,9 +485,8 @@ endif
 ifeq ($(shell command -v shellcheck),)
 	echo "Please install shellcheck"
 	exit 1
-else
 endif
-	echo "Verify test/lint files are properly named and executable"
+	@echo "Verify test/lint files are properly named and executable"
 	@NOT_EXEC="$(shell find test/lint -type f -not -executable)"; \
 	if [ -n "$$NOT_EXEC" ]; then \
 		echo "lint scripts not executable: $$NOT_EXEC"; \
@@ -469,8 +505,8 @@ update-auth:
 	if [ -t 0 ] && ! git diff --quiet -- ./lxd/auth/; then \
 		read -rp "Would you like to commit auth changes (Y/n)? " answer; \
 		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-			git commit -S -sm "lxd/auth: Update auth" -- ./lxd/auth/;\
-		fi;\
+			git commit -S -sm "lxd/auth: Update auth" -- ./lxd/auth/; \
+		fi; \
 	fi
 
 .PHONY: update-fmt

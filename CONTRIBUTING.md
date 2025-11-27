@@ -14,7 +14,7 @@ All contributors must adhere to the [Ubuntu Code of Conduct](https://ubuntu.com/
 
 ## License and copyright
 
-All contributors must sign the [Canonical contributor license agreement (CCLA)](https://ubuntu.com/legal/contributors), which grants Canonical permission to use the contributions.
+All contributors must sign the [Canonical contributor license agreement (CCLA)](https://canonical.com/legal/contributors), which grants Canonical permission to use the contributions.
 
 - You retain copyright ownership of your contributions (no copyright assignment).
 - By default, contributions are licensed under the project's **AGPL-3.0-only** license.
@@ -202,7 +202,7 @@ At this point you might want to learn more on {doc}`debugging`.
 
 #### Updating Copilot instruction file
 
-The LXD repository includes a [Copilot instructions file](https://github.com/canonical/lxd/tree/main/.github/copilot-instructions.md) to improve Copilot Code Review responses. When updating this file, include concise context about LXD's architecture, coding standards, and best practices. Clear guidance helps Copilot produce accurate, relevant suggestions. For details and tips, see the documentation on [GitHub Copilot repository custom instructions](https://docs.github.com/en/copilot/how-tos/configure-custom-instructions/add-repository-instructions#about-repository-custom-instructions-for-copilot).
+The LXD repository includes a [Copilot instructions file](https://github.com/canonical/lxd/blob/main/.github/copilot-instructions.md) to improve Copilot Code Review responses. When updating this file, include concise context about LXD's architecture, coding standards, and best practices. Clear guidance helps Copilot produce accurate, relevant suggestions. For details and tips, see the documentation on [GitHub Copilot repository custom instructions](https://docs.github.com/en/copilot/how-tos/configure-custom-instructions/add-repository-instructions#about-repository-custom-instructions-for-copilot).
 
 <!-- Include end contributing -->
 

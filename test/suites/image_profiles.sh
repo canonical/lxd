@@ -21,7 +21,7 @@ _image_empty_profile_list() {
   # Launch the container and check its profiles
   storage="$(lxc storage list -f csv | tail -n1 | cut -d, -f1)"
   lxc init testimage c1 -s "$storage"
-  [ "$(lxc list -f json c1 | jq -r '.[0].profiles | join(" ")')" = "" ]
+  [ "$(lxc list -f json c1 | jq -r '.[0].profiles | join(" ")' || echo fail)" = "" ]
 
   # Cleanup
   lxc delete c1

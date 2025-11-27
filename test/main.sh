@@ -80,9 +80,14 @@ install_storage_driver_tools
 install_instance_drivers
 
 echo "==> Checking for dependencies"
-check_dependencies lxd lxc curl busybox dnsmasq iptables jq nc ping yq git s3cmd sqlite3 rsync shuf setfacl setfattr socat swtpm dig tar2sqfs unsquashfs xz
+check_dependencies lxd lxc curl busybox dnsmasq iptables jq nc ping python3 yq git s3cmd sqlite3 rsync shuf setfacl setfattr socat swtpm dig tar2sqfs unsquashfs xz
 if [ "${LXD_VM_TESTS:-0}" = "1" ]; then
   check_dependencies qemu-img "qemu-system-$(uname -m)" sgdisk
+fi
+
+echo "==> Checking test dependencies"
+if ! check_dependencies devlxd-client fuidshift mini-oidc sysinfo; then
+  ( cd .. && make test-binaries )
 fi
 
 # If no test image is specified, busybox-static will be needed by test/deps/import-busybox

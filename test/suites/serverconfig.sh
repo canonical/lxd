@@ -6,6 +6,7 @@ test_server_config() {
   _server_config_password
   _server_config_access
   _server_config_storage
+  _server_config_user_microcloud
 
   kill_lxd "${LXD_SERVERCONFIG_DIR}"
 }
@@ -19,6 +20,9 @@ _server_config_password() {
 
   lxc config unset core.trust_password
   lxc config show | grep -Fv "trust_password"
+
+  # PATCH
+  my_curl -X PATCH "https://${LXD_ADDR}/1.0" -d '{"config":{"core.https_address":"'"${LXD_ADDR}"'"}}' | jq -e '.status == "Success" and .status_code == 200'
 }
 
 _server_config_access() {
@@ -58,7 +62,7 @@ _server_config_storage() {
   pool=$(lxc profile device get default root pool)
 
   lxc init testimage foo
-  lxc query --wait /1.0/containers/foo/backups -X POST -d '{\"expires_at\": \"2100-01-01T10:00:00-05:00\"}'
+  lxc query --wait /1.0/containers/foo/backups -X POST -d '{"expires_at": "2100-01-01T10:00:00-05:00"}'
 
   # Record before
   BACKUPS_BEFORE=$(cd "${LXD_DIR}/backups/" && find . | sort)
@@ -146,4 +150,24 @@ _server_config_storage() {
 
   # Cleanup
   lxc delete -f foo
+}
+
+_server_config_user_microcloud() {
+  # Set config key user.microcloud, which is readable by untrusted clients
+  lxc config set user.microcloud true
+  [ "$(lxc config get user.microcloud)" = "true" ]
+  [ "$(curl "https://${LXD_ADDR}/1.0" --insecure | jq '.metadata.config["user.microcloud"]')" = '"true"' ]
+
+  # Set config key user.foo, which is not exposed to untrusted clients
+  lxc config set user.foo bar
+  [ "$(lxc config get user.foo)" = "bar" ]
+  [ "$(curl "https://${LXD_ADDR}/1.0" --insecure | jq '.metadata.config["user.foo"]')" = 'null' ]
+
+  # Unset all config and check it worked
+  lxc config unset user.microcloud
+  lxc config unset user.foo
+  [ "$(lxc config get user.microcloud || echo fail)" = "" ]
+  [ "$(lxc config get user.foo || echo fail)" = "" ]
+  [ "$(curl "https://${LXD_ADDR}/1.0" --insecure | jq '.metadata.config["user.microcloud"]')" = 'null' ]
+  [ "$(curl "https://${LXD_ADDR}/1.0" --insecure | jq '.metadata.config["user.foo"]')" = 'null' ]
 }

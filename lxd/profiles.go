@@ -39,7 +39,7 @@ var profilesCmd = APIEndpoint{
 	Path:        "profiles",
 	MetricsType: entity.TypeProfile,
 
-	Get:  APIEndpointAction{Handler: profilesGet, AccessHandler: allowProjectResourceList},
+	Get:  APIEndpointAction{Handler: profilesGet, AccessHandler: allowProjectResourceList(false)},
 	Post: APIEndpointAction{Handler: profilesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateProfiles)},
 }
 

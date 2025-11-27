@@ -645,7 +645,7 @@ _backup_export_with_project() {
 }
 
 test_backup_rename() {
-  OUTPUT="$(! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 || false)"
+  OUTPUT="$(! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{"name": "backupnewname"}' --wait 2>&1 || false)"
   if ! echo "${OUTPUT}" | grep -F "Error: Instance backup not found" ; then
     echo "invalid rename response for missing container"
     false
@@ -653,14 +653,14 @@ test_backup_rename() {
 
   lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
 
-  OUTPUT="$(! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 || false)"
+  OUTPUT="$(! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{"name": "backupnewname"}' --wait 2>&1 || false)"
   if ! echo "${OUTPUT}" | grep -F "Error: Instance backup not found" ; then
     echo "invalid rename response for missing backup"
     false
   fi
 
   # Create backup
-  lxc query -X POST --wait -d '{\"name\":\"foo\"}' /1.0/instances/c1/backups
+  lxc query -X POST --wait -d '{"name":"foo"}' /1.0/instances/c1/backups
 
   # All backups should be listed
   [ "$(lxc query /1.0/instances/c1/backups | jq -r '.[]')" = "/1.0/instances/c1/backups/foo" ]
@@ -926,14 +926,14 @@ test_backup_volume_rename_delete() {
   # Create test volume.
   lxc storage volume create "${pool}" vol1 size=32MiB
 
-  OUTPUT="$(! lxc query -X POST /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 || false)"
+  OUTPUT="$(! lxc query -X POST /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups/backupmissing -d '{"name": "backupnewname"}' --wait 2>&1 || false)"
   if ! echo "${OUTPUT}" | grep -F "Error: Storage volume backup not found" ; then
     echo "invalid rename response for missing storage volume"
     false
   fi
 
   # Create backup.
-  lxc query -X POST --wait -d '{\"name\":\"foo\"}' /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups
+  lxc query -X POST --wait -d '{"name":"foo"}' /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups
 
   # All backups should be listed.
   lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups
@@ -950,7 +950,7 @@ test_backup_volume_rename_delete() {
   ! stat "${LXD_DIR}"/backups/custom/"${pool}"/default_vol1 || false
 
   # Create backup again to test rename.
-  lxc query -X POST --wait -d '{\"name\":\"foo\"}' /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups
+  lxc query -X POST --wait -d '{"name":"foo"}' /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups
 
   # Rename the container which should rename the backup(s) as well.
   lxc storage volume rename "${pool}" vol1 vol2
@@ -968,7 +968,7 @@ test_backup_volume_rename_delete() {
   ! stat "${LXD_DIR}"/backups/custom/"${pool}"/default_vol1 || false
 
   # Rename backup itself and check its renamed in DB and on disk.
-  lxc query -X POST --wait -d '{\"name\":\"foo2\"}' /1.0/storage-pools/"${pool}"/volumes/custom/vol2/backups/foo
+  lxc query -X POST --wait -d '{"name":"foo2"}' /1.0/storage-pools/"${pool}"/volumes/custom/vol2/backups/foo
   lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol2/backups | jq .'[0]' | grep storage-pools/"${pool}"/volumes/custom/vol2/backups/foo2
   stat "${LXD_DIR}"/backups/custom/"${pool}"/default_vol2/foo2
   ! stat "${LXD_DIR}"/backups/custom/"${pool}"/default_vol2/foo || false
@@ -1011,7 +1011,7 @@ test_backup_volume_expiry() {
 
   # Create storage volume backups using the API directly.
   # The first one is created with an expiry date, the second one never expires.
-  lxc query -X POST -d '{\"expires_at\":\"2023-07-17T00:00:00Z\"}' /1.0/storage-pools/"${poolName}"/volumes/custom/vol1/backups
+  lxc query -X POST -d '{"expires_at":"2023-07-17T00:00:00Z"}' /1.0/storage-pools/"${poolName}"/volumes/custom/vol1/backups
   lxc query -X POST -d '{}' /1.0/storage-pools/"${poolName}"/volumes/custom/vol1/backups
 
   # Check that both backups are listed.

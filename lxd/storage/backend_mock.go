@@ -3,6 +3,7 @@ package storage
 import (
 	"io"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/canonical/lxd/lxd/backup"
@@ -434,5 +435,10 @@ func (b *mockBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcDat
 
 // CreateCustomVolumeFromISO ...
 func (b *mockBackend) CreateCustomVolumeFromISO(projectName string, volName string, srcData io.ReadSeeker, size int64, op *operations.Operation) error {
+	return nil
+}
+
+// CreateCustomVolumeFromTarball ...
+func (b *mockBackend) CreateCustomVolumeFromTarball(projectName string, volName string, srcData *os.File, op *operations.Operation) error {
 	return nil
 }

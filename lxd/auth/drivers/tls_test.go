@@ -105,7 +105,7 @@ func (s *tlsSuite) TestTLSAuthorizer() {
 				auth.EntitlementCanCreateStoragePools,
 				auth.EntitlementCanCreateProjects,
 				auth.EntitlementCanOverrideClusterTargetRestriction,
-				auth.EntitlementCanViewPrivilegedEvents,
+				auth.EntitlementCanViewEvents,
 				auth.EntitlementCanViewWarnings,
 			},
 			expectErr:     true,

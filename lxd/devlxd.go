@@ -579,16 +579,24 @@ func getInstanceFromContextAndCheckSecurityFlags(ctx context.Context, keys ...De
 		return nil, err
 	}
 
-	config := inst.ExpandedConfig()
+	if !hasInstanceSecurityFeatures(inst.ExpandedConfig(), keys...) {
+		return nil, api.NewGenericStatusError(http.StatusForbidden)
+	}
+
+	return inst, nil
+}
+
+// hasInstanceSecurityFeatures checks whether the instance has the provided devLXD security features enabled.
+func hasInstanceSecurityFeatures(expandedConfig map[string]string, keys ...DevLXDSecurityKey) bool {
 	for _, key := range keys {
-		value := config[string(key)]
+		value := expandedConfig[string(key)]
 
 		// The devLXD is enabled by default, therefore we only prevent access if the feature
 		// is explicitly disabled (set to "false"). All other features must be explicitly enabled.
 		if shared.IsFalse(value) || (value == "" && key != devLXDSecurityKey) {
-			return nil, api.NewGenericStatusError(http.StatusForbidden)
+			return false
 		}
 	}
 
-	return inst, nil
+	return true
 }

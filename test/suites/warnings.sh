@@ -3,13 +3,13 @@ test_warnings() {
     lxc warning delete --all
 
     # Create a global warning (no node and no project)
-    lxc query --wait -X POST -d '{\"type_code\": 0, \"message\": \"global warning\"}' /internal/testing/warnings
+    lxc query --wait -X POST -d '{"type_code": 0, "message": "global warning"}' /internal/testing/warnings
 
     # More valid queries
-    lxc query --wait -X POST -d '{\"type_code\": 0, \"message\": \"global warning\", \"project\": \"default\"}' /internal/testing/warnings
+    lxc query --wait -X POST -d '{"type_code": 0, "message": "global warning", "project": "default"}' /internal/testing/warnings
 
     # Update the last warning. This will not create a new warning.
-    lxc query --wait -X POST -d '{\"type_code\": 0, \"message\": \"global warning 2\", \"project\": \"default\"}' /internal/testing/warnings
+    lxc query --wait -X POST -d '{"type_code": 0, "message": "global warning 2", "project": "default"}' /internal/testing/warnings
 
     # There should be two warnings now.
     [ "$(lxc query --wait /1.0/warnings | jq 'length')" = "2" ]
@@ -17,21 +17,21 @@ test_warnings() {
     [ "$(lxc query --wait /1.0/warnings\?recursion=1 | jq 'length')" = "2" ]
 
     # Invalid query (unknown project)
-    ! lxc query --wait -X POST -d '{\"type_code\": 0, \"message\": \"global warning\", \"project\": \"foo\"}' /internal/testing/warnings || false
+    ! lxc query --wait -X POST -d '{"type_code": 0, "message": "global warning", "project": "foo"}' /internal/testing/warnings || false
 
     # Invalid query (unknown type code)
-    ! lxc query --wait -X POST -d '{\"type_code\": 999, \"message\": \"global warning\"}' /internal/testing/warnings || false
+    ! lxc query --wait -X POST -d '{"type_code": 999, "message": "global warning"}' /internal/testing/warnings || false
 
     # Both entity type code as entity ID need to be valid otherwise no warning will be created. Note that empty/null values are valid as well.
-    ! lxc query --wait -X POST -d '{\"type_code\": 0, \"message\": \"global warning\", \"entity_type\": \"invalid_entity_type\", \"entity_id\": 0}' /internal/testing/warnings || false
+    ! lxc query --wait -X POST -d '{"type_code": 0, "message": "global warning", "entity_type": "invalid_entity_type", "entity_id": 0}' /internal/testing/warnings || false
 
     ensure_import_testimage
 
     # Get image ID from database instead of assuming it
-    image_id=$(lxd sql global 'select image_id from images_aliases where name="testimage"' | grep -Eo '[[:digit:]]+')
+    image_id="$(lxd sql global 'SELECT image_id FROM images_aliases WHERE name="testimage"' | grep -Eo '[[:digit:]]+')"
 
     # Create a warning with entity type "image" and entity ID ${image_id} (the imported testimage)
-    lxc query --wait -X POST -d "{\\\"type_code\\\": 0, \\\"message\\\": \\\"global warning\\\", \\\"entity_type\\\": \\\"image\\\", \\\"entity_id\\\": ${image_id}}" /internal/testing/warnings
+    lxc query --wait -X POST -d '{"type_code": 0, "message": "global warning", "entity_type": "image", "entity_id": '"${image_id}"'}' /internal/testing/warnings
 
     # There should be three warnings now.
     [ "$(lxc warning list --format json | jq 'length')" = "3" ]
@@ -60,5 +60,5 @@ test_warnings() {
 
     # Delete all warnings
     lxc warning delete --all
-    [ -z "$(lxc warning ls --format csv)" ]
+    [ -z "$(lxc warning ls --format csv || echo fail)" ]
 }

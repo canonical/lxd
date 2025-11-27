@@ -3,7 +3,7 @@ test_network() {
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Test DNS resolution of instance names
-  lxc network create lxdt$$
+  lxc network create lxdt$$ ipv6.address=none
   lxc launch testimage 0abc -d "${SMALL_ROOT_DISK}" -n lxdt$$
   lxc launch testimage def0 -d "${SMALL_ROOT_DISK}" -n lxdt$$
   v4_addr="$(lxc network get lxdt$$ ipv4.address | cut -d/ -f1)"
@@ -47,40 +47,45 @@ test_network() {
   # validate unset and patch
   [ "$(lxc network get lxdt$$ ipv6.dhcp.stateful)" = "true" ]
   lxc network unset lxdt$$ ipv6.dhcp.stateful
-  [ "$(lxc network get lxdt$$ ipv6.dhcp.stateful)" = "" ]
-  lxc query -X PATCH -d "{\\\"config\\\": {\\\"ipv6.dhcp.stateful\\\": \\\"true\\\"}}" /1.0/networks/lxdt$$
+  [ "$(lxc network get lxdt$$ ipv6.dhcp.stateful || echo fail)" = "" ]
+  lxc query -X PATCH -d '{"config": {"ipv6.dhcp.stateful": "true"}}' /1.0/networks/lxdt$$
   [ "$(lxc network get lxdt$$ ipv6.dhcp.stateful)" = "true" ]
 
   # check ipv4.address and ipv6.address can be unset without triggering random subnet generation.
   lxc network unset lxdt$$ ipv4.address
-  ! lxc network show lxdt$$ | grep ipv4.address || false
+  [ "$(lxc network get "lxdt$$" ipv4.address || echo fail)" = "" ]
   lxc network unset lxdt$$ ipv6.address
-  ! lxc network show lxdt$$ | grep ipv6.address || false
+  [ "$(lxc network get "lxdt$$" ipv6.address || echo fail)" = "" ]
+  ! lxc network show lxdt$$ | grep -F .address || false
 
-  # check ipv4.address and ipv6.address can be regenerated on update using "auto" value.
-  lxc network set lxdt$$ ipv4.address auto
-  lxc network show lxdt$$ | grep ipv4.address
+  # check ipv4.address and ipv6.address can be regenerated individually on update using "auto" value.
+  original_ipv4_address="$(lxc network get "lxdt$$" ipv4.address)"
+  original_ipv6_address="$(lxc network get "lxdt$$" ipv6.address)"
+  lxc network set lxdt$$ ipv4.address=auto
+  new_ipv4_address="$(lxc network get "lxdt$$" ipv4.address)"
+  [ "${new_ipv4_address}" != "${original_ipv4_address}" ]
+  [ "$(lxc network get lxdt$$ ipv6.address)" = "${original_ipv6_address}" ]
   lxc network set lxdt$$ ipv6.address auto
-  lxc network show lxdt$$ | grep ipv6.address
+  new_ipv6_address="$(lxc network get "lxdt$$" ipv6.address)"
+  [ "$(lxc network get lxdt$$ ipv4.address)" = "${new_ipv4_address}" ]
+  [ "${new_ipv6_address}" != "${original_ipv6_address}" ]
+  # the "auto" value is special and should not appear as it is replaced by a random address.
+  ! lxc network show lxdt$$ | grep -F .address | grep -wF auto || false
 
   # delete the network
   lxc network delete lxdt$$
 
   # edit network description
-  lxc network create lxdt$$
+  lxc network create lxdt$$ ipv4.address=none ipv6.address=none
   lxc network show lxdt$$ | sed 's/^description:.*/description: foo/' | lxc network edit lxdt$$
-  lxc network show lxdt$$ | grep -xF 'description: foo'
+  [ "$(lxc network get lxdt$$ -p description)" = "foo" ]
   lxc network delete lxdt$$
 
   # rename network
-  lxc network create lxdt$$
+  lxc network create lxdt$$ ipv4.address=none ipv6.address=none
   lxc network rename lxdt$$ newnet$$
   ! lxc network list | grep -wF "lxdt$$" || false # the old name is gone
   lxc network delete newnet$$
-
-  # Unconfigured bridge
-  lxc network create lxdt$$ ipv4.address=none ipv6.address=none
-  lxc network delete lxdt$$
 
   # Check that we can return state for physical networks
   ip link add dummy0 type dummy

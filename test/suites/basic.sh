@@ -28,7 +28,7 @@ test_basic_usage() {
   lxc image alias create bar "${sum}"
   lxc image alias list local: | grep -wF foo
   lxc image alias list local: | grep -wF bar
-  !  lxc image alias list local: foo | grep -wF bar || false
+  ! lxc image alias list local: foo | grep -wF bar || false
   lxc image alias list local: "${sum}" | grep -wF foo
   ! lxc image alias list local: non-existent | grep -wF non-existent || false
   lxc image alias delete foo
@@ -144,20 +144,21 @@ test_basic_usage() {
 
   # Start the instance to clear apply_template.
   lxc start foo
+  [ "$(lxc config get foo volatile.apply_template || echo fail)" = "" ]
   lxc stop foo -f
 
   # Test container rename
   lxc move foo bar
+  [ "$(lxc list -c n -f csv)" = "bar" ]
 
   # Check volatile.apply_template is altered during rename.
   [ "$(lxc config get bar volatile.apply_template)" = "rename" ]
 
-  [ "$(lxc list -c n | grep -F foo)" = "" ]
-  [ "$(lxc list -c n | grep -F bar)" != "" ]
-
   lxc rename bar foo
-  [ "$(lxc list -c n | grep -F bar)" = "" ]
-  [ "$(lxc list -c n | grep -F foo)" != "" ]
+  [ "$(lxc list -c n -f csv)" = "foo" ]
+
+  # Check volatile.apply_template is kept until applied (instance start).
+  [ "$(lxc config get foo volatile.apply_template)" = "rename" ]
   lxc rename foo bar
 
   # Test container copy
@@ -172,7 +173,7 @@ test_basic_usage() {
 
   # Test unprivileged container publish
   lxc publish bar --alias=foo-image prop1=val1
-  lxc image show foo-image | grep val1
+  [ "$(lxc image get-property foo-image prop1)" = "val1" ]
   ! CERTNAME="client3" my_curl -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" || false
   lxc image delete foo-image
 
@@ -191,7 +192,7 @@ test_basic_usage() {
   lxc delete baz
   lxc image delete foo-image bar-image2
 
-  # the first image should have bar-image2 alias and the second imgae foo-image alias
+  # the first image should have bar-image2 alias and the second image foo-image alias
   if [ "$fooImage" = "$barImage2" ]; then
     echo "foo-image and bar-image2 aliases should be assigned to two different images"
     false
@@ -220,7 +221,7 @@ test_basic_usage() {
 
   # Test image compression on publish
   lxc publish bar --alias=foo-image-compressed --compression=bzip2 prop=val1
-  lxc image show foo-image-compressed | grep val1
+  [ "$(lxc image get-property foo-image-compressed prop)" = "val1" ]
   ! CERTNAME="client3" my_curl -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" || false
   lxc image delete foo-image-compressed
 
@@ -233,7 +234,7 @@ test_basic_usage() {
   lxc profile set priv security.privileged true
   lxc init testimage barpriv -p default -p priv
   lxc publish barpriv --alias=foo-image prop1=val1
-  lxc image show foo-image | grep val1
+  [ "$(lxc image get-property foo-image prop1)" = "val1" ]
   ! CERTNAME="client3" my_curl -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" || false
   lxc image delete foo-image
   lxc delete barpriv
@@ -310,20 +311,19 @@ test_basic_usage() {
   [ ! -d "${LXD_DIR}/snapshots/bar" ]
 
   # Test randomly named container creation
-  lxc launch testimage
-  RDNAME=$(lxc list --format csv --columns n)
-  lxc delete -f "${RDNAME}"
+  RDNAME="$(lxc init --empty --quiet | sed 's/Instance name is: //')"
+  lxc delete "${RDNAME}"
 
   # Test "nonetype" container creation
   wait_for "${LXD_ADDR}" my_curl -X POST --fail-with-body -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/containers" \
-        -d "{\"name\":\"nonetype\",\"source\":{\"type\":\"none\"}}"
+        -d '{"name":"nonetype","source":{"type":"none"}}'
   lxc delete nonetype
 
   # Test "nonetype" container creation with an LXC config
   wait_for "${LXD_ADDR}" my_curl -X POST --fail-with-body -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/containers" \
-        -d "{\"name\":\"configtest\",\"config\":{\"raw.lxc\":\"lxc.hook.clone=/bin/true\"},\"source\":{\"type\":\"none\"}}"
+        -d '{"name":"configtest","config":{"raw.lxc":"lxc.hook.clone=/bin/true"},"source":{"type":"none"}}'
   # shellcheck disable=SC2102
-  [ "$(my_curl "https://${LXD_ADDR}/1.0/containers/configtest" | jq -r .metadata.config[\"raw.lxc\"])" = "lxc.hook.clone=/bin/true" ]
+  [ "$(my_curl "https://${LXD_ADDR}/1.0/containers/configtest" | jq -r '.metadata.config["raw.lxc"]')" = "lxc.hook.clone=/bin/true" ]
   lxc delete configtest
 
   # Test activateifneeded/shutdown
@@ -420,7 +420,7 @@ test_basic_usage() {
 
   # Create and start a container
   lxc launch testimage foo
-  lxc list | grep foo | grep RUNNING
+  [ "$(lxc list -f csv -c ns)" = "foo,RUNNING" ]
   lxc stop foo --force
 
   if lxc info | grep -F 'unpriv_binfmt: "true"'; then
@@ -434,8 +434,7 @@ test_basic_usage() {
   # cycle it a few times
   lxc start foo
   mac1=$(lxc exec foo -- cat /sys/class/net/eth0/address)
-  lxc stop foo --force
-  lxc start foo
+  lxc restart foo --force
   mac2=$(lxc exec foo -- cat /sys/class/net/eth0/address)
 
   if [ -n "${mac1}" ] && [ -n "${mac2}" ] && [ "${mac1}" != "${mac2}" ]; then
@@ -500,11 +499,13 @@ test_basic_usage() {
 
   lxc file push "${LXD_DIR}/in" foo/root/
   [ "$(lxc exec foo -- /bin/cat /root/in)" = "abc" ]
-  lxc exec foo -- /bin/rm -f root/in
+  lxc file delete foo/root/in
 
   lxc file push "${LXD_DIR}/in" foo/root/in1
-  [ "$(lxc exec foo -- /bin/cat /root/in1)" = "abc" ]
-  lxc exec foo -- /bin/rm -f root/in1
+  [ "$(lxc file pull foo/root/in1 -)" = "abc" ]
+  lxc file delete foo/root/in1
+
+  rm "${LXD_DIR}/in"
 
   # test lxc file edit doesn't change target file's owner and permissions
   echo "content" | lxc file push - foo/tmp/edit_test
@@ -512,7 +513,7 @@ test_basic_usage() {
   lxc exec foo -- chmod 555 /tmp/edit_test
   echo "new content" | lxc file edit foo/tmp/edit_test
   [ "$(lxc exec foo -- cat /tmp/edit_test)" = "new content" ]
-  [ "$(lxc exec foo -- stat -c \"%u %g %a\" /tmp/edit_test)" = "55 55 555" ]
+  [ "$(lxc exec foo -- stat -c '%u %g %a' /tmp/edit_test)" = "55 55 555" ]
 
   # make sure stdin is chowned to our container root uid (Issue #590)
   [ -t 0 ] && [ -t 1 ] && lxc exec foo -- chown 1000:1000 /proc/self/fd/0
@@ -524,8 +525,8 @@ test_basic_usage() {
   lxc exec foo true
 
   # Detect regressions/hangs in exec
-  sum=$(ps aux | tee "${LXD_DIR}/out" | lxc exec foo -- md5sum | cut -d' ' -f1)
-  [ "${sum}" = "$(md5sum "${LXD_DIR}/out" | cut -d' ' -f1)" ]
+  sum=$(ps aux | tee "${LXD_DIR}/out" | lxc exec foo -- md5sum)
+  [ "${sum}" = "$(md5sum < "${LXD_DIR}/out")" ]
   rm "${LXD_DIR}/out"
 
   # FIXME: make this backend agnostic
@@ -533,12 +534,12 @@ test_basic_usage() {
     [ "$(< "${LXD_DIR}/containers/foo/rootfs/tmp/foo")" = "foo" ]
   fi
 
+  # cleanup
+  lxc delete foo -f
+
   lxc launch testimage deleterunning
   my_curl -X DELETE "https://${LXD_ADDR}/1.0/containers/deleterunning" | grep "Instance is running"
   lxc delete deleterunning -f
-
-  # cleanup
-  lxc delete foo -f
 
   if [ -e /sys/module/apparmor/ ]; then
     # check that an apparmor profile is created for this container, that it is
@@ -743,7 +744,7 @@ test_basic_usage() {
 
   # Test assigning a profile through a YAML file to an instance.
   poolName=$(lxc profile device get default root pool)
-  lxc profile create foo < <(cat <<EOF
+  lxc profile create foo << EOF
 config:
   limits.cpu: 2
   limits.memory: 1024MiB
@@ -754,7 +755,6 @@ devices:
     pool: ${poolName}
     type: disk
 EOF
-)
   lxc init testimage c1 --profile foo
   [ "$(lxc config get c1 limits.cpu --expanded)" = "2" ]
   [ "$(lxc config get c1 limits.memory --expanded)" = "1024MiB" ]
@@ -767,7 +767,7 @@ EOF
   lxc launch testimage c3 --ephemeral
 
   lxc stop -f c1 c2 c3
-  [ "$(lxc list -f csv -c n)" = "" ]
+  [ "$(lxc list -f csv -c n || echo fail)" = "" ]
 
   fingerprint="$(lxc config trust ls --format csv | cut -d, -f4)"
   lxc config trust remove "${fingerprint}"
@@ -854,7 +854,7 @@ test_duplicate_detection() {
 
   lxc network create foo
   [ "$(! "${_LXC}" network create foo 2>&1 1>/dev/null)" = 'Error: The network already exists' ]
-  lxc network create bar
+  lxc network create bar ipv4.address=none ipv6.address=none
   [ "$(! "${_LXC}" network rename bar foo 2>&1 1>/dev/null)" = 'Error: Network "foo" already exists' ]
   lxc network delete bar
 
@@ -872,6 +872,11 @@ test_duplicate_detection() {
   lxc network forward create foo 10.1.1.1
   [ "$(! "${_LXC}" network forward create foo 10.1.1.1 2>&1 1>/dev/null)" = 'Error: Failed creating forward: A forward for that listen address already exists' ]
   lxc network forward delete foo 10.1.1.1
+
+  lxc network forward create foo 2001:db8::1
+  [ "$(! "${_LXC}" network forward create foo 2001:db8::1 2>&1 1>/dev/null)" = 'Error: Failed creating forward: A forward for that listen address already exists' ]
+  lxc network forward delete foo 2001:db8::1
+
   lxc network delete foo
 
   if ovn_enabled; then

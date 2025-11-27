@@ -2227,7 +2227,7 @@ func (n *ovn) getDHCPv4Reservations() ([]shared.IPRange, error) {
 			dhcpReserveIPv4s = append(dhcpReserveIPv4s, reservedIPs...)
 
 			// Add the router IP in the reserved IP list, if it is not there yet.
-			if !ipInRanges(routerIntPortIPv4, dhcpReserveIPv4s) {
+			if !ipInRanges(routerIntPortIPv4.To4(), dhcpReserveIPv4s) {
 				dhcpReserveIPv4s = append(dhcpReserveIPv4s, shared.IPRange{Start: routerIntPortIPv4})
 			}
 		}
@@ -2715,7 +2715,7 @@ func (n *ovn) setup(update bool) error {
 			Router:             routerIntPortIPv4,
 			RecursiveDNSServer: uplinkNet.dnsIPv4,
 			DomainName:         n.getDomainName(),
-			LeaseTime:          time.Duration(time.Hour * 1),
+			LeaseTime:          time.Hour * 1,
 			MTU:                bridgeMTU,
 			Netmask:            dhcpV4Netmask,
 		})
@@ -2760,8 +2760,8 @@ func (n *ovn) setup(update bool) error {
 
 			// Keep these low until we support DNS search domains via DHCPv4, as otherwise RA DNSSL
 			// won't take effect until advert after DHCPv4 has run on instance.
-			MinInterval: time.Duration(time.Second * 30),
-			MaxInterval: time.Duration(time.Minute * 1),
+			MinInterval: time.Second * 30,
+			MaxInterval: time.Minute * 1,
 		})
 		if err != nil {
 			return fmt.Errorf("Failed setting internal router port IPv6 advertisement settings: %w", err)

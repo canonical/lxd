@@ -1,6 +1,5 @@
 test_container_devices_nic_macvlan() {
   ensure_import_testimage
-  ensure_has_localhost_remote "${LXD_ADDR}"
 
   ctName="nt$$"
   ipRand=$(shuf -i 0-9 -n 1)
@@ -112,7 +111,7 @@ test_container_devices_nic_macvlan() {
   lxc network info "${ctName}net"
 
   echo "==> Check that macvlan network info shows parent's MTU by default."
-  parentMTU=$(</sys/class/net/"${ctName}"/mtu)
+  parentMTU="$(< /sys/class/net/"${ctName}"/mtu)"
   if ! lxc network info "${ctName}net" | grep -xF "MTU: ${parentMTU}" ; then
     echo "default mtu not inherited from parent"
     false

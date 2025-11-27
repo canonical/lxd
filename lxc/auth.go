@@ -1454,8 +1454,6 @@ func (c *cmdIdentityGroupRemove) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Identity %q is not a member of group %q", name, args[1])
 	}
 
-	identity.Groups = append(identity.Groups, args[1])
-
 	return server.UpdateIdentity(method, name, identity.Writable(), eTag)
 }
 

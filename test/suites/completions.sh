@@ -1,17 +1,15 @@
 complete() {
-    # Can't use lxc function as it adds other arguments (like the --verbose flag).
-    cmd=$(unset -f lxc; command -v lxc)
+    # Using ${_LXC} to avoid using the lxc function as it adds other arguments (like the --verbose flag).
 
     # Run the completion and remove the last line (the directive), then sort and convert to csv.
-    "${cmd}" __complete "${@}" 2>/dev/null | head -n -1 | sort | paste -sd,
+    "${_LXC}" __complete "${@}" 2>/dev/null | head -n -1 | sort | paste -sd,
 }
 
 completion_directive() {
-  # Can't use lxc function as it adds other arguments (like the --verbose flag).
-  cmd=$(unset -f lxc; command -v lxc)
+    # Using ${_LXC} to avoid using the lxc function as it adds other arguments (like the --verbose flag).
 
-  # Run the completion and get the last line (the directive).
-  "${cmd}" __complete "${@}" 2>/dev/null | tail -n 1
+    # Run the completion and get the last line (the directive).
+    "${_LXC}" __complete "${@}" 2>/dev/null | tail -n 1
 }
 
 test_completions() {
@@ -20,25 +18,25 @@ test_completions() {
 
     # 'remote'
     [ "$(complete remote remove '')" = 'localhost' ] # Only non-static remotes may be removed
-    [ "$(complete remote remove u)" = '' ]
+    [ "$(complete remote remove u || echo fail)" = '' ]
     [ "$(complete remote remove l)" = 'localhost' ]
     [ "$(complete remote rename '')" = 'localhost' ] # Only non-static remotes may be renamed
     [ "$(complete remote rename l)" = 'localhost' ]
     [ "$(complete remote set-url '')" = 'localhost' ] # Only URLs of non-static remotes may be changed
     [ "$(complete remote set-url l)" = 'localhost' ]
     [ "$(complete remote switch '')" = 'localhost' ] # Only private remotes suggested
-    [ "$(complete remote switch u)" = '' ]
+    [ "$(complete remote switch u || echo fail)" = '' ]
     [ "$(complete image list '')" = 'images:,localhost:,ubuntu-daily:,ubuntu-minimal-daily:,ubuntu-minimal:,ubuntu:' ] # Image list should show all remotes except the default
     [ "$(complete image list i)" = 'images:' ]
     [ "$(complete list '')" = 'localhost:' ] # Instance list should show only instance server remotes and not the default
     [ "$(complete list l)" = 'localhost:' ]
     lxc remote switch localhost
-    [ "$(complete remote remove '')" = '' ] # Can't remove current remote or any static remotes, so no valid suggestions
+    [ "$(complete remote remove '' || echo fail)" = '' ] # Can't remove current remote or any static remotes, so no valid suggestions
     [ "$(complete remote rename '')" = 'localhost' ] # Only non-static remotes may be renamed
     [ "$(complete remote set-url '')" = 'localhost' ] # Only URLs of non-static remotes may be changed
     [ "$(complete remote set-url l)" = 'localhost' ]
     [ "$(complete remote switch '')" = 'local' ] # Only private remotes suggested
-    [ "$(complete remote switch u)" = '' ]
+    [ "$(complete remote switch u || echo fail)" = '' ]
     [ "$(complete image list '')" = 'images:,local:,ubuntu-daily:,ubuntu-minimal-daily:,ubuntu-minimal:,ubuntu:' ] # Image list should show all remotes except the default
     [ "$(complete image list i)" = 'images:' ]
     [ "$(complete list '')" = 'local:' ] # Instance list should show only instance server remotes and not the default
@@ -117,7 +115,7 @@ test_completions() {
     [ "$(complete restore c)" = 'c1,c2' ]
     [ "$(complete restore l)" = 'localhost:' ]
     [ "$(complete restore c1 '')" = 'snap0' ]
-    [ "$(complete restore c2 '')" = '' ]
+    [ "$(complete restore c2 '' || echo fail)" = '' ]
     [ "$(complete snapshot '')" = 'c1,c2,localhost:' ]
     [ "$(complete snapshot l)" = 'localhost:' ]
     [ "$(complete snapshot c)" = 'c1,c2' ]
@@ -175,7 +173,7 @@ test_completions() {
     [ "$(complete config unset localhost: '')" = 'core.https_address,core.trust_password,user.foo' ]
     [ "$(complete config unset localhost:c)" = 'localhost:c1,localhost:c2' ]
     [ "$(complete config unset localhost: c)" = 'core.https_address,core.trust_password' ]
-    [ "$(complete config unset c1 '')" = '' ]
+    [ "$(complete config unset c1 '' || echo fail)" = '' ]
     lxc config set c1 user.foo=bar
     [ "$(complete config unset c1 '')" = 'user.foo' ]
     [ "$(complete config unset localhost:c1 '')" = 'user.foo' ]
@@ -192,7 +190,7 @@ test_completions() {
     [ "$(complete config device add c1 devname disk '')" = 'boot.,ceph.,initial.,io.,limits.,path=,pool=,propagation=,raw.,readonly=,recursive=,required=,shift=,size.,size=,source.,source=' ]
     [ "$(complete config device add c1 devname gpu '')" = 'gputype=' ]
     [ "$(complete config device add c1 devname gpu gputype=)" = 'gputype=mdev,gputype=mig,gputype=physical,gputype=sriov' ]
-    [ "$(complete config device add c1 devname gpu gputype=invalid '')" = '' ]
+    [ "$(complete config device add c1 devname gpu gputype=invalid '' || echo fail)" = '' ]
     [ "$(complete config device add c1 devname gpu gputype=mdev '')" = 'id=,mdev=,pci=,productid=,vendorid=' ]
     [ "$(complete config device add c1 devname gpu gputype=mig '')" = 'id=,mig.,pci=,productid=,vendorid=' ]
     [ "$(complete config device add c1 devname gpu gputype=physical '')" = 'gid=,id=,mode=,pci=,productid=,uid=,vendorid=' ]
@@ -207,9 +205,9 @@ test_completions() {
     [ "$(complete config device add c1 devname usb '')" = 'busnum=,devnum=,gid=,mode=,productid=,required=,serial=,uid=,vendorid=' ]
     [ "$(complete config device add c1 devname nic '')" = 'network=,nictype=' ]
     [ "$(complete config device add c1 devname nic network=)" = "$(lxc query /1.0/networks?recursion=1 | jq -r '["network="+.[].name] | sort | @csv | sub("\"";"";"g")')" ]
-    [ "$(complete config device add c1 devname nic network=lxdbr0 '')" = '' ]
+    [ "$(complete config device add c1 devname nic network=lxdbr0 '' || echo fail)" = '' ]
     [ "$(complete config device add c1 devname nic nictype=)" = 'nictype=bridged,nictype=ipvlan,nictype=macvlan,nictype=ovn,nictype=p2p,nictype=physical,nictype=routed,nictype=sriov' ]
-    [ "$(complete config device add c1 devname nic nictype=invalid '')" = '' ]
+    [ "$(complete config device add c1 devname nic nictype=invalid '' || echo fail)" = '' ]
     [ "$(complete config device add c1 devname nic nictype=bridged '')" = 'boot.,host_name=,hwaddr=,ipv4.,ipv6.,limits.,maas.,mtu=,name=,network=,parent=,queue.,security.,vlan.,vlan=' ]
     [ "$(complete config device add c1 devname nic nictype=ipvlan '')" = 'gvrp=,hwaddr=,ipv4.,ipv6.,mode=,mtu=,name=,parent=,vlan=' ]
     [ "$(complete config device add c1 devname nic nictype=macvlan '')" = 'boot.,gvrp=,hwaddr=,maas.,mtu=,name=,network=,parent=,vlan=' ]
@@ -227,7 +225,7 @@ test_completions() {
     [ "$(complete config device override c1 devname disk '')" = 'boot.,ceph.,initial.,io.,limits.,path=,pool=,propagation=,raw.,readonly=,recursive=,required=,shift=,size.,size=,source.,source=' ]
     [ "$(complete config device override c1 devname gpu '')" = 'gputype=' ]
     [ "$(complete config device override c1 devname gpu gputype=)" = 'gputype=mdev,gputype=mig,gputype=physical,gputype=sriov' ]
-    [ "$(complete config device override c1 devname gpu gputype=invalid '')" = '' ]
+    [ "$(complete config device override c1 devname gpu gputype=invalid '' || echo fail)" = '' ]
     [ "$(complete config device override c1 devname gpu gputype=mdev '')" = 'id=,mdev=,pci=,productid=,vendorid=' ]
     [ "$(complete config device override c1 devname gpu gputype=mig '')" = 'id=,mig.,pci=,productid=,vendorid=' ]
     [ "$(complete config device override c1 devname gpu gputype=physical '')" = 'gid=,id=,mode=,pci=,productid=,uid=,vendorid=' ]
@@ -242,9 +240,9 @@ test_completions() {
     [ "$(complete config device override c1 devname usb '')" = 'busnum=,devnum=,gid=,mode=,productid=,required=,serial=,uid=,vendorid=' ]
     [ "$(complete config device override c1 devname nic '')" = 'network=,nictype=' ]
     [ "$(complete config device override c1 devname nic network=)" = "$(lxc query /1.0/networks?recursion=1 | jq -r '["network="+.[].name] | sort | @csv | sub("\"";"";"g")')" ]
-    [ "$(complete config device override c1 devname nic network=lxdbr0 '')" = '' ]
+    [ "$(complete config device override c1 devname nic network=lxdbr0 '' || echo fail)" = '' ]
     [ "$(complete config device override c1 devname nic nictype=)" = 'nictype=bridged,nictype=ipvlan,nictype=macvlan,nictype=ovn,nictype=p2p,nictype=physical,nictype=routed,nictype=sriov' ]
-    [ "$(complete config device override c1 devname nic nictype=invalid '')" = '' ]
+    [ "$(complete config device override c1 devname nic nictype=invalid '' || echo fail)" = '' ]
     [ "$(complete config device override c1 devname nic nictype=bridged '')" = 'boot.,host_name=,hwaddr=,ipv4.,ipv6.,limits.,maas.,mtu=,name=,network=,parent=,queue.,security.,vlan.,vlan=' ]
     [ "$(complete config device override c1 devname nic nictype=ipvlan '')" = 'gvrp=,hwaddr=,ipv4.,ipv6.,mode=,mtu=,name=,parent=,vlan=' ]
     [ "$(complete config device override c1 devname nic nictype=macvlan '')" = 'boot.,gvrp=,hwaddr=,maas.,mtu=,name=,network=,parent=,vlan=' ]
@@ -282,11 +280,11 @@ test_completions() {
     [ "$(complete image copy localhost:testimage '')" = 'localhost:' ]
     [ "$(complete image delete '')" = "localhost:,testimage" ]
     [ "$(complete image delete l)" = 'localhost:' ]
-    [ "$(complete image delete u)" = '' ]
+    [ "$(complete image delete u || echo fail)" = '' ]
     [ "$(complete image delete localhost:)" = "localhost:testimage" ]
     [ "$(complete image edit '')" = "localhost:,testimage" ]
     [ "$(complete image edit l)" = 'localhost:' ]
-    [ "$(complete image edit u)" = '' ]
+    [ "$(complete image edit u || echo fail)" = '' ]
     [ "$(complete image edit localhost:)" = "localhost:testimage" ]
     [ "$(complete image export '')" = "images:,localhost:,testimage,ubuntu-daily:,ubuntu-minimal-daily:,ubuntu-minimal:,ubuntu:" ]
     [ "$(complete image export l)" = 'localhost:' ]
@@ -298,7 +296,7 @@ test_completions() {
     [ "$(complete image get-property localhost:)" = "localhost:testimage" ]
     [ "$(complete image set-property '')" = "localhost:,testimage" ]
     [ "$(complete image set-property l)" = 'localhost:' ]
-    [ "$(complete image set-property u)" = '' ]
+    [ "$(complete image set-property u || echo fail)" = '' ]
     [ "$(complete image set-property localhost:)" = "localhost:testimage" ]
     [ "$(completion_directive image import '')" = ':0' ]
     [ "$(complete image info '')" = "images:,localhost:,testimage,ubuntu-daily:,ubuntu-minimal-daily:,ubuntu-minimal:,ubuntu:" ]
@@ -326,11 +324,11 @@ test_completions() {
     [ "$(complete image copy localhost:testimage '')" = 'localhost:' ]
     [ "$(complete image delete '')" = "${testimage_fingerprint_prefix},localhost:" ]
     [ "$(complete image delete l)" = 'localhost:' ]
-    [ "$(complete image delete u)" = '' ]
+    [ "$(complete image delete u || echo fail)" = '' ]
     [ "$(complete image delete localhost:)" = "localhost:${testimage_fingerprint_prefix}" ]
     [ "$(complete image edit '')" = "${testimage_fingerprint_prefix},localhost:" ]
     [ "$(complete image edit l)" = 'localhost:' ]
-    [ "$(complete image edit u)" = '' ]
+    [ "$(complete image edit u || echo fail)" = '' ]
     [ "$(complete image edit localhost:)" = "localhost:${testimage_fingerprint_prefix}" ]
     [ "$(complete image export '')" = "${testimage_fingerprint_prefix},images:,localhost:,ubuntu-daily:,ubuntu-minimal-daily:,ubuntu-minimal:,ubuntu:" ]
     [ "$(complete image export l)" = 'localhost:' ]
@@ -342,7 +340,7 @@ test_completions() {
     [ "$(complete image get-property localhost:)" = "localhost:${testimage_fingerprint_prefix}" ]
     [ "$(complete image set-property '')" = "${testimage_fingerprint_prefix},localhost:" ]
     [ "$(complete image set-property l)" = 'localhost:' ]
-    [ "$(complete image set-property u)" = '' ]
+    [ "$(complete image set-property u || echo fail)" = '' ]
     [ "$(complete image set-property localhost:)" = "localhost:${testimage_fingerprint_prefix}" ]
     [ "$(completion_directive image import '')" = ':0' ]
     [ "$(complete image info '')" = "${testimage_fingerprint_prefix},images:,localhost:,ubuntu-daily:,ubuntu-minimal-daily:,ubuntu-minimal:,ubuntu:" ]

@@ -20,7 +20,7 @@ test_devlxd() {
   [ "$(lxc exec devlxd -- devlxd-client image-export "${fingerprint}")" = "Not Found" ]
   lxd sql global "UPDATE images SET cached=1 WHERE fingerprint=\"${fingerprint}\""
   # No output means the export succeeded.
-  [ -z "$(lxc exec devlxd -- devlxd-client image-export "${fingerprint}")" ]
+  [ -z "$(lxc exec devlxd -- devlxd-client image-export "${fingerprint}" || echo fail)" ]
 
   lxc config set devlxd user.foo bar
   [ "$(lxc exec devlxd -- devlxd-client user.foo)" = "bar" ]
@@ -129,7 +129,7 @@ EOF
   respawn_lxd "${LXD_DIR}" true
 
   # volatile.last_state.ready should be unset during daemon init
-  [ -z "$(lxc config get devlxd volatile.last_state.ready)" ]
+  [ -z "$(lxc config get devlxd volatile.last_state.ready || echo fail)" ]
 
   lxc monitor --type=lifecycle > "${TEST_DIR}/devlxd.log" &
   monitorDevlxdPID=$!
