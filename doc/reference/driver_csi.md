@@ -62,6 +62,10 @@ Key                                                | Type   | Default           
 `controller.csiResizer.image.tag`                  | string | Chart release dependent                                 | CSI resizer image tag
 `controller.csiResizer.image.pullPolicy`           | string | `IfNotPresent`                                          | CSI resizer image pull policy
 `controller.csiResizer.resources`                  | object | `{}`                                                    | CSI resizer resource limits and requests
+`controller.csiSnapshotter.image.repository`       | string | `registry.k8s.io/sig-storage/csi-snapshotter`           | CSI snapshotter image
+`controller.csiSnapshotter.image.tag`              | string | Chart release dependent                                 | CSI snapshotter image tag
+`controller.csiSnapshotter.image.pullPolicy`       | string | `IfNotPresent`                                          | CSI snapshotter image pull policy
+`controller.csiSnapshotter.resources`              | object | `{}`                                                    | CSI snapshotter resource limits and requests
 `controller.csiLivenessProbe.image.repository`     | string | `registry.k8s.io/sig-storage/livenessprobe`             | CSI liveness probe image
 `controller.csiLivenessProbe.image.tag`            | string | Chart release dependent                                 | CSI liveness probe image tag
 `controller.csiLivenessProbe.image.pullPolicy`     | string | `IfNotPresent`                                          | CSI liveness probe image pull policy
@@ -86,6 +90,15 @@ Key                                                | Type   | Default           
 `node.csiLivenessProbe.image.tag`                  | string | Chart release dependent                                 | CSI liveness probe image tag
 `node.csiLivenessProbe.image.pullPolicy`           | string | `IfNotPresent`                                          | CSI liveness probe image pull policy
 `node.csiLivenessProbe.resources`                  | object | `{}`                                                    | CSI liveness probe resource limits and requests
+`snapshotter.enabled`                              | bool   | `false`                                                 | Whether to enable support for volume snapshots. If enabled, CSI snapshot controller is deployed along with the CSI driver.
+`snapshotter.installCRDs`                          | bool   | `true`                                                  | Whether to install required volume snapshot CRDs. If CRDs are installed manually or by other CSI drivers, set this to `false` to avoid conflicts with other drivers. The value is ignored if `snapshotter.enabled` is false.
+`snapshotter.controller.name`                      | string | `snapshot-controller`                                   | CSI snapshot controller Deployment name
+`snapshotter.controller.replicas`                  | int    | `1`                                                     | CSI snapshot controller Deployment replicas
+`snapshotter.controller.priorityClassName`         | string | `system-cluster-critical`                               | CSI snapshot controller Pod scheduling priority
+`snapshotter.controller.image.repository`          | string | `registry.k8s.io/sig-storage/snapshot-controller`       | CSI snapshot controller image
+`snapshotter.controller.image.tag`                 | string | Chart release dependent                                 | CSI snapshot controller image tag
+`snapshotter.controller.image.pullPolicy`          | string | `IfNotPresent`                                          | CSI snapshot controller image pull policy
+`snapshotter.controller.resources`                 | object | `{}`                                                    | CSI snapshot controller resource limits and requests
 `storageClasses[].create`                          | bool   | `true`                                                  | Create the specified storage class
 `storageClasses[].name`                            | string | `""`                                                    | Storage class name
 `storageClasses[].storagePool`                     | string | `""`                                                    | Name of the target LXD storage pool
