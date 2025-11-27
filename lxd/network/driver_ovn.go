@@ -980,7 +980,11 @@ func (n *ovn) getUnderlayInfo() (uint32, net.IP, error) {
 		return 0, fmt.Errorf("No matching interface found for OVN enscapsulation IP %q", findIP.String())
 	}
 
-	vswitch := ovs.NewVSwitch()
+	vswitch, err := ovs.NewVSwitch()
+	if err != nil {
+		return 0, nil, fmt.Errorf("Failed to connect to OVS: %w", err)
+	}
+
 	encapIP, err := vswitch.OVNEncapIP()
 	if err != nil {
 		return 0, nil, fmt.Errorf("Failed getting OVN enscapsulation IP from OVS: %w", err)
@@ -1723,8 +1727,12 @@ func (n *ovn) startUplinkPortBridgeNative(uplinkNet Network, bridgeDevice string
 		return fmt.Errorf("Failed to bring up uplink veth interface %q: %w", vars.ovsEnd, err)
 	}
 
+	vswitch, err := ovs.NewVSwitch()
+	if err != nil {
+		return fmt.Errorf("Failed to connect to OVS: %w", err)
+	}
+
 	// Create uplink OVS bridge if needed.
-	vswitch := ovs.NewVSwitch()
 	err = vswitch.BridgeAdd(vars.ovsBridge, true, nil, 0)
 	if err != nil {
 		return fmt.Errorf("Failed to create uplink OVS bridge %q: %w", vars.ovsBridge, err)
@@ -1755,9 +1763,13 @@ func (n *ovn) startUplinkPortBridgeOVS(uplinkNet Network, bridgeDevice string) e
 	revert := revert.New()
 	defer revert.Fail()
 
+	vswitch, err := ovs.NewVSwitch()
+	if err != nil {
+		return fmt.Errorf("Failed to connect to OVS: %w", err)
+	}
+
 	// If uplink is an openvswitch bridge, have OVN logical provider connect directly to it.
-	vswitch := ovs.NewVSwitch()
-	err := vswitch.OVNBridgeMappingAdd(bridgeDevice, uplinkNet.Name())
+	err = vswitch.OVNBridgeMappingAdd(bridgeDevice, uplinkNet.Name())
 	if err != nil {
 		return fmt.Errorf("Failed to associate uplink OVS bridge %q to OVN provider %q: %w", bridgeDevice, uplinkNet.Name(), err)
 	}
@@ -1836,8 +1848,12 @@ func (n *ovn) startUplinkPortPhysical(uplinkNet Network) error {
 		return n.startUplinkPortBridgeNative(uplinkNet, uplinkConfig["parent"])
 	}
 
+	vswitch, err := ovs.NewVSwitch()
+	if err != nil {
+		return fmt.Errorf("Failed to connect to OVS: %w", err)
+	}
+
 	// Detect if uplink interface is a OVS bridge.
-	vswitch := ovs.NewVSwitch()
 	isOVSBridge, _ := vswitch.BridgeExists(uplinkHostName)
 	if isOVSBridge {
 		return n.startUplinkPortBridgeOVS(uplinkNet, uplinkHostName)
@@ -1981,7 +1997,11 @@ func (n *ovn) deleteUplinkPortBridgeNative(uplinkNet Network) error {
 		if !uplinkUsed {
 			removeVeths = true
 
-			vswitch := ovs.NewVSwitch()
+			vswitch, err := ovs.NewVSwitch()
+			if err != nil {
+				return fmt.Errorf("Failed to connect to OVS: %w", err)
+			}
+
 			err = vswitch.OVNBridgeMappingDelete(vars.ovsBridge, uplinkNet.Name())
 			if err != nil {
 				return err
@@ -2027,7 +2047,11 @@ func (n *ovn) deleteUplinkPortBridgeOVS(uplinkNet Network, ovsBridge string) err
 
 	// Remove uplink OVS bridge mapping if not in use by other OVN networks.
 	if !uplinkUsed {
-		vswitch := ovs.NewVSwitch()
+		vswitch, err := ovs.NewVSwitch()
+		if err != nil {
+			return fmt.Errorf("Failed to connect to OVS: %w", err)
+		}
+
 		err = vswitch.OVNBridgeMappingDelete(ovsBridge, uplinkNet.Name())
 		if err != nil {
 			return err
@@ -2047,8 +2071,12 @@ func (n *ovn) deleteUplinkPortPhysical(uplinkNet Network) error {
 		return n.deleteUplinkPortBridgeNative(uplinkNet)
 	}
 
+	vswitch, err := ovs.NewVSwitch()
+	if err != nil {
+		return fmt.Errorf("Failed to connect to OVS: %w", err)
+	}
+
 	// Detect if uplink interface is a OVS bridge.
-	vswitch := ovs.NewVSwitch()
 	isOVSBridge, _ := vswitch.BridgeExists(uplinkHostName)
 	if isOVSBridge {
 		return n.deleteUplinkPortBridgeOVS(uplinkNet, uplinkHostName)
@@ -2069,7 +2097,11 @@ func (n *ovn) deleteUplinkPortPhysical(uplinkNet Network) error {
 		if !uplinkUsed {
 			releaseIF = true
 
-			vswitch := ovs.NewVSwitch()
+			vswitch, err := ovs.NewVSwitch()
+			if err != nil {
+				return fmt.Errorf("Failed to connect to OVS: %w", err)
+			}
+
 			err = vswitch.OVNBridgeMappingDelete(vars.ovsBridge, uplinkNet.Name())
 			if err != nil {
 				return err
@@ -2942,8 +2974,12 @@ func (n *ovn) addChassisGroupEntry() error {
 		return fmt.Errorf("Failed to get OVN client: %w", err)
 	}
 
+	vswitch, err := ovs.NewVSwitch()
+	if err != nil {
+		return fmt.Errorf("Failed to connect to OVS: %w", err)
+	}
+
 	// Get local chassis ID for chassis group.
-	vswitch := ovs.NewVSwitch()
 	chassisID, err := vswitch.ChassisID()
 	if err != nil {
 		return fmt.Errorf("Failed getting OVS Chassis ID: %w", err)
@@ -3007,8 +3043,12 @@ func (n *ovn) deleteChassisGroupEntry() error {
 		return fmt.Errorf("Failed to get OVN client: %w", err)
 	}
 
+	vswitch, err := ovs.NewVSwitch()
+	if err != nil {
+		return fmt.Errorf("Failed to connect to OVS: %w", err)
+	}
+
 	// Remove local chassis from chassis group.
-	vswitch := ovs.NewVSwitch()
 	chassisID, err := vswitch.ChassisID()
 	if err != nil {
 		return fmt.Errorf("Failed getting OVS Chassis ID: %w", err)

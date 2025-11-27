@@ -1391,14 +1391,18 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	// Create the bridge interface if doesn't exist.
 	if !n.isRunning() {
 		if n.config["bridge.driver"] == "openvswitch" {
-			vswitch := ovs.NewVSwitch()
+			vswitch, err := ovs.NewVSwitch()
+			if err != nil {
+				return fmt.Errorf("Failed to connect to OVS: %w", err)
+			}
+
 			if !vswitch.Installed() {
 				return errors.New("Open vSwitch isn't installed on this system")
 			}
 
 			// Add and configure the interface in one operation to reduce the number of executions and
 			// to avoid systemd-udevd from applying the default MACAddressPolicy=persistent policy.
-			err := vswitch.BridgeAdd(n.name, false, bridge.Address, bridge.MTU)
+			err = vswitch.BridgeAdd(n.name, false, bridge.Address, bridge.MTU)
 			if err != nil {
 				return err
 			}
@@ -2297,8 +2301,12 @@ func (n *bridge) Stop() error {
 
 	// Destroy the bridge interface
 	if n.config["bridge.driver"] == "openvswitch" {
-		vswitch := ovs.NewVSwitch()
-		err := vswitch.BridgeDelete(n.name)
+		vswitch, err := ovs.NewVSwitch()
+		if err != nil {
+			return fmt.Errorf("Failed to connect to OVS: %w", err)
+		}
+
+		err = vswitch.BridgeDelete(n.name)
 		if err != nil {
 			return err
 		}

@@ -14,8 +14,13 @@ import (
 
 // NewOVN initialises new OVN client wrapper with the connection set in network.ovn.northbound_connection config.
 func NewOVN(nbConnection string, sslSettings func() (sslCACert string, sslClientCert string, sslClientKey string)) (*OVN, error) {
+	vswitch, err := ovs.NewVSwitch()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to connect to OVS: %w", err)
+	}
+
 	// Get database connection strings.
-	sbConnection, err := ovs.NewVSwitch().OVNSouthboundDBRemoteAddress()
+	sbConnection, err := vswitch.OVNSouthboundDBRemoteAddress()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get OVN southbound connection string: %w", err)
 	}
