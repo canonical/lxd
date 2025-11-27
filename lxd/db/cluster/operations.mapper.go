@@ -31,6 +31,13 @@ SELECT operations.id, operations.reference, operations.project_id, operations.no
   ORDER BY operations.id, operations.reference
 `)
 
+var operationObjectsByNodeIDAndClass = RegisterStmt(`
+SELECT operations.id, operations.reference, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status, operations.error, operations.stage
+  FROM operations
+  WHERE ( operations.node_id = ? AND operations.class = ? )
+  ORDER BY operations.id, operations.reference
+`)
+
 var operationObjectsByID = RegisterStmt(`
 SELECT operations.id, operations.reference, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status, operations.error, operations.stage
   FROM operations
@@ -132,7 +139,31 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 	}
 
 	for i, filter := range filters {
-		if filter.Reference != nil && filter.ID == nil && filter.NodeID == nil {
+		if filter.NodeID != nil && filter.Class != nil && filter.ID == nil && filter.Reference == nil {
+			args = append(args, []any{filter.NodeID, filter.Class}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, operationObjectsByNodeIDAndClass)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"operationObjectsByNodeIDAndClass\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(operationObjectsByNodeIDAndClass)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"operationObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Reference != nil && filter.ID == nil && filter.NodeID == nil && filter.Class == nil {
 			args = append(args, []any{filter.Reference}...)
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, operationObjectsByReference)
@@ -156,7 +187,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
-		} else if filter.NodeID != nil && filter.ID == nil && filter.Reference == nil {
+		} else if filter.NodeID != nil && filter.ID == nil && filter.Reference == nil && filter.Class == nil {
 			args = append(args, []any{filter.NodeID}...)
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, operationObjectsByNodeID)
@@ -180,7 +211,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
-		} else if filter.ID != nil && filter.NodeID == nil && filter.Reference == nil {
+		} else if filter.ID != nil && filter.NodeID == nil && filter.Reference == nil && filter.Class == nil {
 			args = append(args, []any{filter.ID}...)
 			if len(filters) == 1 {
 				sqlStmt, err = Stmt(tx, operationObjectsByID)
@@ -204,7 +235,7 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) 
 
 			_, where, _ := strings.Cut(parts[0], "WHERE")
 			queryParts[0] += "OR" + where
-		} else if filter.ID == nil && filter.NodeID == nil && filter.Reference == nil {
+		} else if filter.ID == nil && filter.NodeID == nil && filter.Reference == nil && filter.Class == nil {
 			return nil, errors.New("Cannot filter on empty OperationFilter")
 		} else {
 			return nil, errors.New("No statement exists for the given Filter")
