@@ -15,6 +15,7 @@ import (
 //
 //go:generate mapper stmt -e operation objects
 //go:generate mapper stmt -e operation objects-by-NodeID
+//go:generate mapper stmt -e operation objects-by-NodeID-and-Class
 //go:generate mapper stmt -e operation objects-by-ID
 //go:generate mapper stmt -e operation objects-by-Reference
 //go:generate mapper stmt -e operation create-or-replace
@@ -54,4 +55,5 @@ type OperationFilter struct {
 	ID        *int64
 	NodeID    *int64
 	Reference *string
+	Class     *int64
 }
