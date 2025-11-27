@@ -18,7 +18,11 @@ Keycloak is a self-hosted open source tool for authentication. Keycloak supports
 
 1. From the main navigation, select {guilabel}`Clients`, then click {guilabel}`Create client`. Enter a {guilabel}`Client ID`, such as `lxd-ui-client`, then click {guilabel}`Next`.
 
-1. Under {guilabel}`Capability config`, turn off {guilabel}`Client authentication` and enable the {guilabel}`OAuth 2.0 Device Authorization Grant` authentication flow to allow both UI and LXD CLI logins. Click {guilabel}`Next`. If you only want to use the UI and enforce client authentication, you can leave the option on but you will need to share the generated {guilabel}`client secret` with your LXD server. The secret can be found under the {guilabel}`Credentials` tab which only appears with the option on.
+1. Under {guilabel}`Capability config`, enable the {guilabel}`OAuth 2.0 Device Authorization Grant` authentication flow to allow both LXD UI and CLI logins. 
+
+   Optionally, to enforce additional authentication via a secret, turn on {guilabel}`Client authentication`. The secret will be available from the client's {guilabel}`Credentials` tab after you finish creating the client, and instructions for sharing it with your LXD server are provided later in this guide. Note: Turning this option on permits UI login only.
+
+   Click {guilabel}`Next`.
 
 1. In the field for {guilabel}`Valid redirect URIs`, enter your LXD UI address, followed by `/oidc/callback`.
    - Example: `https://example.com:8443/oidc/callback`
