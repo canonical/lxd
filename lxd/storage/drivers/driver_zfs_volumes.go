@@ -1934,13 +1934,15 @@ func (d *zfs) getVolumeDiskPathFromDataset(dataset string) (string, error) {
 	// Filter only the relevant ZFS entries.
 	zfsEntries := make([]os.DirEntry, 0, len(entries))
 	for _, entry := range entries {
+		entryName := entry.Name()
+
 		// Skip non-ZFS entries.
-		if !strings.HasPrefix(entry.Name(), "zd") {
+		if !strings.HasPrefix(entryName, "zd") {
 			continue
 		}
 
 		// Skip partitions.
-		if strings.Contains(entry.Name(), "p") {
+		if strings.Contains(entryName, "p") {
 			continue
 		}
 
