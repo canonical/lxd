@@ -3258,6 +3258,36 @@ func evacuateClusterSetState(s *state.State, name string, state int) error {
 			return fmt.Errorf("Failed updating cluster member status: %w", err)
 		}
 
+		// Assign or remove "database-client" role based on state.
+		switch state {
+		case db.ClusterMemberStateEvacuated:
+			// Add database-client role to prevent promotion.
+			if !slices.Contains(node.Roles, db.ClusterRoleDatabaseClient) {
+				roles := append([]db.ClusterRole{}, node.Roles...)
+				roles = append(roles, db.ClusterRoleDatabaseClient)
+				err = tx.UpdateNodeRoles(node.ID, roles)
+				if err != nil {
+					return fmt.Errorf("Failed adding database-client role: %w", err)
+				}
+			}
+
+		case db.ClusterMemberStateCreated:
+			// Remove "database-client" role when restoring.
+			if slices.Contains(node.Roles, db.ClusterRoleDatabaseClient) {
+				roles := make([]db.ClusterRole, 0, len(node.Roles)-1)
+				for _, role := range node.Roles {
+					if role != db.ClusterRoleDatabaseClient {
+						roles = append(roles, role)
+					}
+				}
+
+				err = tx.UpdateNodeRoles(node.ID, roles)
+				if err != nil {
+					return fmt.Errorf("Failed removing database-client role: %w", err)
+				}
+			}
+		}
+
 		return nil
 	})
 }
