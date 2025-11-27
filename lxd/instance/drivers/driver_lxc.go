@@ -6437,7 +6437,7 @@ func (d *lxc) migrate(args *instance.CriuMigrationArgs) error {
 		}
 
 		// Run the shared start code.
-		configPath, postStartHooks, err := d.startCommon()
+		_, configPath, postStartHooks, err := d.startCommon()
 		if err != nil {
 			if args.Op != nil {
 				args.Op.Done(err)
