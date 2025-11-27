@@ -2004,7 +2004,7 @@ func (d *zfs) getVolumeDiskPathFromDataset(dataset string) (string, error) {
 			return ""
 		}
 
-		return string(bytes.Trim(buf[:], "\x00"))
+		return string(bytes.TrimRight(buf[:], "\x00"))
 	}
 
 	// Check each entry for a dataset match.
