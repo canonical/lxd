@@ -277,11 +277,6 @@ jobs:
         with:
           prime-cache-only: true
 
-      - name: Prime cache with virtiofsd
-        uses: ./.github/actions/download-virtiofsd
-        with:
-          prime-cache-only: true
-
       - name: Upload system test dependencies
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
@@ -366,10 +361,6 @@ jobs:
       # Restore the cache warmed in code-tests job
       - name: Download minio/mc
         uses: ./.github/actions/download-minio
-
-      # Restore the cache warmed in code-tests job
-      - name: Download virtiofsd
-        uses: ./.github/actions/download-virtiofsd
 
       - name: Download system test dependencies
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
