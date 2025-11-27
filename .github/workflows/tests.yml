@@ -330,12 +330,6 @@ jobs:
       - name: Reclaim some memory
         uses: ./.github/actions/reclaim-memory
 
-      - name: Purge LXD snap
-        # TODO: drop this when moving away from `ubuntu-22.04` runners to `ubuntu-24.04`
-        run: |
-          set -eux
-          sudo snap remove --purge lxd || true
-
       - name: Remove docker
         uses: ./.github/actions/disable-docker
 
@@ -751,7 +745,7 @@ jobs:
 
   tics:
     name: Tiobe TICS
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [client, system-tests, snap-tests, ui-e2e-tests]
     env:
       CGO_CFLAGS: "-I/home/runner/go/bin/dqlite/include/ -I/home/runner/go/bin/liblxc/include/"
