@@ -104,7 +104,7 @@ kubectl create secret generic lxd-csi-secret \
 (howto-storage-csi-deploy-helm)=
 ### Deploy the CSI driver using a Helm chart
 
-You can deploy the LXD CSI using Helm chart:
+You can deploy the LXD CSI using a Helm chart:
 
 ```sh
 helm install lxd-csi-driver oci://ghcr.io/canonical/charts/lxd-csi-driver \
@@ -310,6 +310,83 @@ spec:
     name: pvc-1                 # Name of the source PVC.
 ```
 
+(howto-storage-csi-usage-vsclass)=
+### VolumeSnapshotClass configuration
+
+The following example demonstrates how to configure a Kubernetes VolumeSnapshotClass that uses the LXD CSI driver for provisioning volume snapshots.
+
+In a VolumeSnapshotClass, the only required fields are `driver` and `deletionPolicy`. The former identifies the LXD CSI driver, and the latter determines whether the underlying LXD snapshot is removed when the corresponding VolumeSnapshot object is deleted in Kubernetes.
+
+```yaml
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: lxd-csi-snapshotclass
+driver: lxd.csi.canonical.com       # Name of the LXD CSI driver.
+deletionPolicy: Delete              # Possible values are "Retain" and "Delete" (default).
+```
+
+```{admonition} Requirement
+:class: note
+Using the {ref}`exp-csi-architecture-k8s-primitives-vsclass` requires installing Kubernetes snapshot custom resource definitions (CRDs). When using the {ref}`LXD CSI Helm chart <howto-storage-csi-deploy-helm>`, you can enable snapshot support by setting `snapshotter.enabled` to `true`. This installs the required CRDs and deploys the snapshot controller.
+```
+
+(howto-storage-csi-usage-vsclass-default)=
+#### Default VolumeSnapshotClass
+
+The default VolumeSnapshotClass is used when `volumeSnapshotClassName` is not explicitly set in the VolumeSnapshot configuration.
+To mark a Kubernetes VolumeSnapshotClass as the default, set the `snapshot.storage.kubernetes.io/is-default-class: "true"` annotation.
+
+```yaml
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: lxd-csi-snapshotclass-default
+  annotations:
+    snapshot.storage.kubernetes.io/is-default-class: "true"
+driver: lxd.csi.canonical.com
+```
+
+(howto-storage-csi-usage-vsclass-reclaim)=
+#### Prevent volume snapshot deletion
+
+By default, the volume snapshot is deleted when the corresponding VolumeSnapshot is removed.
+To prevent the CSI driver from deleting the underlying LXD volume snapshot and the corresponding Kubernetes `VolumeSnapshotContent` object, set the deletion policy to `Retain`. This allows for manual cleanup or data recovery later.
+
+```yaml
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: lxd-csi-snapshotclass
+driver: lxd.csi.canonical.com
+deletionPolicy: Retain              # Default is "Delete".
+```
+
+(howto-storage-csi-usage-vs)=
+### VolumeSnapshot configuration
+
+A VolumeSnapshot requests a snapshot of the volume bound to the referenced PVC.
+Set the fields `spec.volumeSnapshotClassName` and `spec.source.persistentVolumeClaimName` to the LXD CSI snapshot class to handle the snapshot and the PVC to snapshot, respectively.
+
+If the snapshot is taken successfully, a corresponding VolumeSnapshotContent object is created.
+It is bound to the VolumeSnapshot and represents the actual LXD volume snapshot.
+
+```yaml
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: lxd-csi-pvc-snapshot
+spec:
+  volumeSnapshotClassName: lxd-csi-snapshotclass
+  source:
+    persistentVolumeClaimName: lxd-csi-pvc
+```
+
+```{admonition} Requirement
+:class: note
+Using the {ref}`exp-csi-architecture-k8s-primitives-vs` requires installing Kubernetes snapshot custom resource definitions (CRDs). When using the {ref}`LXD CSI Helm chart <howto-storage-csi-deploy-helm>`, you can enable snapshot support by setting `snapshotter.enabled` to `true`. This installs the required CRDs and deploys the snapshot controller.
+```
+
 (howto-storage-csi-usage-example)=
 ### End-to-end examples
 
@@ -325,7 +402,6 @@ Each replica mounts the same volume, which is only safe when:
 + the Deployment has a single replica (`replicas: 1`), as shown below.
 
 ```yaml
----
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -338,7 +414,9 @@ spec:
     requests:
       storage: 10Gi
   volumeMode: Filesystem
+
 ---
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
