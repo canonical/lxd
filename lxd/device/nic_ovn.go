@@ -626,8 +626,12 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 
 	runConf := deviceConfig.RunConfig{}
 
+	vswitch, err := ovs.NewVSwitch()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to connect to OVS: %w", err)
+	}
+
 	// Get local chassis ID for chassis group.
-	vswitch := ovs.NewVSwitch()
 	chassisID, err := vswitch.ChassisID()
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting OVS Chassis ID: %w", err)
@@ -721,7 +725,11 @@ func (d *nicOVN) setupAcceleration(saveData map[string]string) (cleanup revert.H
 		return nil, "", "", nil, 0, nil, errors.New("VDPA acceleration is not supported for containers")
 	}
 
-	vswitch := ovs.NewVSwitch()
+	vswitch, err := ovs.NewVSwitch()
+	if err != nil {
+		return nil, "", "", nil, 0, nil, fmt.Errorf("Failed to connect to OVS: %w", err)
+	}
+
 	if !vswitch.HardwareOffloadingEnabled() {
 		return nil, "", "", nil, 0, nil, errors.New("OVN NIC acceleration requires hardware offloading to be enabled in OVS")
 	}
@@ -973,7 +981,11 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 	var err error
 
 	networkVethFillFromVolatile(d.config, v)
-	vswitch := ovs.NewVSwitch()
+
+	vswitch, err := ovs.NewVSwitch()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to connect to OVS: %w", err)
+	}
 
 	integrationBridgeNICName := d.config["host_name"]
 	if d.config["acceleration"] == "sriov" || d.config["acceleration"] == "vdpa" {
@@ -1257,7 +1269,11 @@ func (d *nicOVN) setupHostNIC(hostName string, ovnPortName ovn.OVNSwitchPort) (r
 	// Attach host side veth interface to bridge.
 	integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
 
-	vswitch := ovs.NewVSwitch()
+	vswitch, err := ovs.NewVSwitch()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to connect to OVS: %w", err)
+	}
+
 	err = vswitch.BridgePortAdd(integrationBridge, hostName, true)
 	if err != nil {
 		return nil, err
