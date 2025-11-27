@@ -1232,7 +1232,7 @@ func autoRemoveOrphanedOperationsTask(stateFunc func() *state.State) (task.Func,
 			return autoRemoveOrphanedOperations(ctx, s)
 		}
 
-		op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.RemoveOrphanedOperations, nil, nil, opRun, nil, nil)
+		op, err := operations.OperationCreate(context.Background(), s, "", "", operations.OperationClassTask, operationtype.RemoveOrphanedOperations, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed creating remove orphaned operations operation", logger.Ctx{"err": err})
 			return
@@ -1353,7 +1353,7 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	op, err := operations.OperationCreate(r.Context(), d.State(), request.QueryParam(r, "project"), req.OpClass, req.OpType, resources, nil, run, nil, onConnect)
+	op, err := operations.OperationCreate(r.Context(), d.State(), "", request.QueryParam(r, "project"), req.OpClass, req.OpType, resources, nil, run, nil, onConnect)
 	if err != nil {
 		return response.InternalError(err)
 	}
