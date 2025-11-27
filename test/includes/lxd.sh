@@ -122,7 +122,7 @@ spawn_lxd() {
     fi
 
     echo "==> Setting trust password"
-    LXD_DIR="${lxddir}" lxc config set core.trust_password foo
+    lxc config set core.trust_password foo
     if [ -n "${SHELL_TRACING:-}" ]; then
         set -x
     fi
