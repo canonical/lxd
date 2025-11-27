@@ -24,6 +24,7 @@ import (
 //go:generate mapper stmt -e operation objects
 //go:generate mapper stmt -e operation objects-by-ConflictReference
 //go:generate mapper stmt -e operation objects-by-NodeID
+//go:generate mapper stmt -e operation objects-by-NodeID-and-Class
 //go:generate mapper stmt -e operation objects-by-ID
 //go:generate mapper stmt -e operation objects-by-UUID
 //go:generate mapper stmt -e operation create
@@ -69,6 +70,7 @@ type OperationFilter struct {
 	NodeID            *int64
 	UUID              *string
 	ConflictReference *string
+	Class             *int64
 }
 
 // RequestorProtocol is the database representation of the Requestor Protocol.
