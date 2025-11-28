@@ -358,7 +358,18 @@ jobs:
           set -eux
           echo "artifact_name=$(echo "${ID}" | tr ': /' '-_-')" >> "${GITHUB_OUTPUT}"
 
+      - name: Pick a fast backend (btrfs or dir) for non-storage tests
+        id: fast
+        run: |
+          set -eux
+          FAST_BACKEND="btrfs"
+          if [ $(( ${GITHUB_RUN_ID} % 2 )) -eq 0 ]; then
+            FAST_BACKEND="dir"
+          fi
+          echo "FAST_BACKEND=${FAST_BACKEND}" >> "$GITHUB_ENV"
+
       - name: "Run system tests (${{ matrix.group }}, ${{ matrix.backend }})"
+        if: ${{ endsWith(matrix.group, '_storage') || matrix.backend == env.FAST_BACKEND }}
         run: |
           set -eux
           chmod +x ~
