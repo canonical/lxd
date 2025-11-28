@@ -1570,6 +1570,22 @@ type operationWaitPost struct {
 	Resources map[string][]string       `json:"resources" yaml:"resources"`
 }
 
+func waitHandlerOperationRunHook(ctx context.Context, op *operations.Operation) error {
+	duration, err := time.ParseDuration(op.Metadata()["duration"].(string))
+	if err != nil {
+		return fmt.Errorf("Invalid duration metadata: %q", err)
+	}
+
+	// Sleep for the duration, or until the run context is cancelled.
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.Tick(duration):
+	}
+
+	return nil
+}
+
 // operationWaitHandler creates a dummy operation that waits for a specified duration.
 func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 	requestor, err := request.GetRequestor(r.Context())
@@ -1615,15 +1631,8 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid operation type %q", req.OpType))
 	}
 
-	run := func(ctx context.Context, op *operations.Operation) error {
-		// Sleep for the duration, or until the run context is cancelled.
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.Tick(duration):
-		}
-
-		return nil
+	metadata := map[string]string{
+		"duration": duration.String(),
 	}
 
 	var onConnect func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error
@@ -1639,7 +1648,8 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		Type:        req.OpType,
 		Class:       req.OpClass,
 		Resources:   resources,
-		RunHook:     run,
+		Metadata:    metadata,
+		RunHook:     waitHandlerOperationRunHook,
 		ConnectHook: onConnect,
 	}
 
