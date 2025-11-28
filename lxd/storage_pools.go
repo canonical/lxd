@@ -194,7 +194,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if !recursion {
-			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s", version.APIVersion, poolName))
+			resultString = append(resultString, api.NewURL().Path(version.APIVersion, "storage-pools", poolName).String())
 		} else {
 			pool, err := storagePools.LoadByName(s, poolName)
 			if err != nil {

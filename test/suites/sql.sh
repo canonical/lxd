@@ -15,6 +15,8 @@ test_sql() {
   lxd sql global --format sql 'SELECT key FROM config' | grep -wF 'key'
   lxd sql global --format table 'SELECT key FROM config' | grep -wF 'KEY'
   lxd sql global --format compact 'SELECT key FROM config' | grep -wF 'KEY'
+  lxd sql global --format json 'SELECT key FROM config' | jq --exit-status '.rows | any(.[] == "user.foo")'
+  lxd sql global --format csv 'SELECT key FROM config' | grep -xF 'user.foo'
 
   # Global database insert
   lxd sql global "INSERT INTO config(key,value) VALUES('core.https_allowed_credentials','true')" | grep -xF "Rows affected: 1"
@@ -62,4 +64,7 @@ test_sql() {
   lxd sql global .sync
   sqlite3 "${SQLITE_SYNC}" "SELECT * FROM schema" | grep "^1|"
   sqlite3 "${SQLITE_SYNC}" "SELECT * FROM profiles" | grep -F "|Default LXD profile|"
+
+  # Cleanup
+  lxc config unset user.foo
 }

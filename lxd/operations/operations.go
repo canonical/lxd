@@ -55,16 +55,6 @@ func Init(d bool) {
 	debug = d
 }
 
-// Lock locks the operations mutex.
-func Lock() {
-	operationsLock.Lock()
-}
-
-// Unlock unlocks the operations mutex.
-func Unlock() {
-	operationsLock.Unlock()
-}
-
 // Clone returns a clone of the internal operations map containing references to the actual operations.
 func Clone() map[string]*Operation {
 	operationsLock.Lock()
@@ -146,7 +136,7 @@ func OperationCreate(ctx context.Context, s *state.State, projectName string, op
 	op.createdAt = time.Now()
 	op.updatedAt = op.createdAt
 	op.status = api.Pending
-	op.url = "/" + version.APIVersion + "/operations/" + op.id
+	op.url = api.NewURL().Path(version.APIVersion, "operations", op.id).String()
 	op.resources = opResources
 	op.finished = cancel.New()
 	op.state = s

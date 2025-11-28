@@ -1,11 +1,40 @@
 test_console() {
-  echo "==> API extension console"
-
   ensure_import_testimage
 
-  lxc init testimage cons1
+  lxc launch testimage cons1
 
-  lxc start cons1
+  # The VGA console is only available for VMs
+  ! lxc console --type vga cons1 || false
+
+  # Simulate console interactions with 'expect' and use 'tr' and 'grep' to
+  # filter out leaked (control) chars. To debug, use 'expect -d'.
+  console_output_file="$(mktemp -p "${TEST_DIR}" console.XXX)"
+  cat << EOF | expect | tr -cd '[:print:]\n\t' | grep -vF '[6n' > "${console_output_file}"
+set timeout 3
+spawn lxc console cons1
+sleep 0.1
+expect "To detach from the console, press: <ctrl>+a q"
+send "reset\r"
+sleep 0.1
+expect "\n\r"
+send "\r"
+sleep 0.1
+expect "/ # *"
+send "env\r"
+sleep 0.1
+expect "/ # *"
+send "exit\r"
+expect "Please press Enter to activate this console."
+# ctrl+a q
+send "\001q"
+EOF
+
+  if ! grep -xF 'TERM=vt102' "${console_output_file}"; then
+    echo "Unexpected console output"
+    cat --show-nonprinting "${console_output_file}"
+    false
+  fi
+  rm "${console_output_file}"
 
   # Make sure there's something in the console ringbuffer.
   echo 'some content' | lxc exec cons1 -- tee /dev/console
@@ -19,5 +48,36 @@ test_console() {
   # Retrieve on-disk representation of the console ringbuffer.
   lxc console cons1 --show-log | grep 'some more content'
 
-  lxc delete --force cons1
+  # Cleanup
+  lxc delete cons1
+}
+
+test_console_vm() {
+  lxc launch --empty v1 --vm -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
+
+  # 'lxc console --show-log' is only available for containers
+  ! lxc console v1 --show-log || false
+
+  # The VGA console is available for VMs
+  echo "===> Check VGA console address"
+  OUTPUT="$(mktemp -p "${TEST_DIR}" console_output.XXX)"
+  lxc console --type vga v1 > "${OUTPUT}" &
+  CONSOLE_PID=$!
+  sleep 0.1
+  grep -F "spice+unix:///" < "${OUTPUT}"
+
+  SPICE_UNIX_SOCKET="$(sed -n '/spice+unix/ s|^\s\+spice+unix://|| p' < "${OUTPUT}")"
+  [ -S "${SPICE_UNIX_SOCKET}" ]
+
+  echo "===> Test SPICE socket connectivity"
+  # This will cause the `lxc console --type vga` command to exit once connected
+  nc -zvU "${SPICE_UNIX_SOCKET}"
+
+  echo "===> Verify console command has exited and cleaned up the socket"
+  wait "${CONSOLE_PID}" || true
+  ! [ -e "${SPICE_UNIX_SOCKET}" ] || false
+
+  # Cleanup
+  lxc delete --force v1
+  rm "${OUTPUT}"
 }

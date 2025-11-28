@@ -64,7 +64,7 @@ var imagesCmd = APIEndpoint{
 	Path:        "images",
 	MetricsType: entity.TypeImage,
 
-	Get:  APIEndpointAction{Handler: imagesGet, AllowUntrusted: true},
+	Get:  APIEndpointAction{Handler: imagesGet, AllowUntrusted: true, AccessHandler: imagesGetAccessHandler},
 	Post: APIEndpointAction{Handler: imagesPost, AllowUntrusted: true, ContentTypes: []string{"application/json", "application/octet-stream", "multipart/form-data"}},
 }
 
@@ -193,6 +193,37 @@ func addImageDetailsToRequestContext(s *state.State, r *http.Request) error {
 	})
 
 	return nil
+}
+
+func imagesGetAccessHandler(d *Daemon, r *http.Request) response.Response {
+	projectName, allProjects, err := request.ProjectParams(r)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Regardless of trust status, if the request is for the default project then we allow it. This is to return public images.
+	if !allProjects && projectName == api.ProjectDefaultName {
+		return response.EmptySyncResponse
+	}
+
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// An untrusted caller has attempted to list images in a non-default project, or to use the all-projects parameter.
+	// Reject immediately.
+	if !requestor.IsTrusted() {
+		if allProjects {
+			return response.Forbidden(errors.New("Untrusted callers may only access public images in the default project"))
+		}
+
+		return response.NotFound(nil)
+	}
+
+	// The caller is trusted and is listing resources in a non-default project (or using all-projects).
+	// Use the same access handler as is used for listing any project specific entity type.
+	return allowProjectResourceList(false)(d, r)
 }
 
 func imageAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
@@ -397,7 +428,6 @@ func imgPostInstanceInfo(s *state.State, req api.ImagesPost, op *operations.Oper
 	}
 
 	// Track progress creating image.
-	metadata := make(map[string]any)
 	imageProgressWriter := &ioprogress.ProgressWriter{
 		Tracker: &ioprogress.ProgressTracker{
 			Handler: func(value, speed int64) {
@@ -411,7 +441,9 @@ func imgPostInstanceInfo(s *state.State, req api.ImagesPost, op *operations.Oper
 					processed = value
 				}
 
+				metadata := make(map[string]any)
 				shared.SetProgressMetadata(metadata, "create_image_from_instance_pack", "Image pack", percent, processed, speed)
+				// Replace metadata to show only current progress, avoiding stale keys from previous stages.
 				_ = op.UpdateMetadata(metadata)
 			},
 			Length: totalSize,
@@ -473,7 +505,9 @@ func imgPostInstanceInfo(s *state.State, req api.ImagesPost, op *operations.Oper
 	// Tracker instance for the export phase.
 	tracker := &ioprogress.ProgressTracker{
 		Handler: func(value, speed int64) {
+			metadata := make(map[string]any)
 			shared.SetProgressMetadata(metadata, "create_image_from_instance_pack", "Exporting", value, 0, 0)
+			// Replace metadata to show only current progress, avoiding stale keys from previous stages.
 			_ = op.UpdateMetadata(metadata)
 		},
 	}
@@ -1822,19 +1856,8 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 
 	trusted := requestor.IsTrusted()
 
-	// Untrusted callers can't request images from all projects or projects other than default.
-	if !trusted {
-		if allProjects {
-			return response.Forbidden(errors.New("Untrusted callers may only access public images in the default project"))
-		}
-
-		if projectName != api.ProjectDefaultName {
-			return response.NotFound(nil)
-		}
-	}
-
 	s := d.State()
-	if !allProjects && trusted {
+	if !allProjects && trusted && projectName != api.ProjectDefaultName {
 		var effectiveProjectName string
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
@@ -2688,9 +2711,8 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 			}
 		}
 
-		// Get all cached images across all projects and store them keyed on fingerprint.
-		cached := true
-		images, err := dbCluster.GetImages(ctx, tx.Tx(), dbCluster.ImageFilter{Cached: &cached})
+		// Get images across all projects and store them keyed on fingerprint.
+		images, err := dbCluster.GetImages(ctx, tx.Tx())
 		if err != nil {
 			return fmt.Errorf("Failed getting images: %w", err)
 		}
@@ -2715,13 +2737,29 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 		default:
 		}
 
-		dbImagesDeleted := 0
+		deleteAtStorage := make(map[string]bool)
 		for _, dbImage := range dbImages {
+			projectImagesStorageVolume := s.LocalConfig.StorageImagesVolume()
+
+			if !dbImage.Cached {
+				// Prevent image files from being deleted because the fingerprint is referenced by
+				// a non-cached image.
+				deleteAtStorage[projectImagesStorageVolume] = false
+				continue // Skip because non-cached images must not be pruned.
+			}
+
+			_, imageSeenInThisStoragePreviously := deleteAtStorage[projectImagesStorageVolume]
+			if !imageSeenInThisStoragePreviously {
+				// First record of a cached image in this project, candidate for image files deletion.
+				deleteAtStorage[projectImagesStorageVolume] = true
+			}
+
 			// Get expiry days for image's project.
 			expiryDays := projectsImageRemoteCacheExpiryDays[dbImage.Project]
 
 			// Skip if no project expiry time set.
 			if expiryDays <= 0 {
+				deleteAtStorage[projectImagesStorageVolume] = false
 				continue
 			}
 
@@ -2735,6 +2773,7 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 
 			// Skip if image is not expired.
 			if imageExpiry.After(time.Now()) {
+				deleteAtStorage[projectImagesStorageVolume] = false
 				continue
 			}
 
@@ -2746,16 +2785,29 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 				return fmt.Errorf("Error deleting image %q in project %q from database: %w", fingerprint, dbImage.Project, err)
 			}
 
-			dbImagesDeleted++
-
 			logger.Info("Deleted expired cached image record", logger.Ctx{"fingerprint": fingerprint, "project": dbImage.Project, "expiry": imageExpiry})
 
 			s.Events.SendLifecycle(dbImage.Project, lifecycle.ImageDeleted.Event(fingerprint, dbImage.Project, op.EventLifecycleRequestor(), nil))
 		}
 
+		// Remove main image files from projects which don't have any images referenced.
+		deleteStorageVolumes := true
+		for _, deleteImageFileInProject := range deleteAtStorage {
+			if !deleteImageFileInProject {
+				// Other projects are still using the image at this location.
+				deleteStorageVolumes = false
+				continue
+			}
+
+			err := imageDeleteFromDisk(s, fingerprint)
+			if err != nil {
+				return err
+			}
+		}
+
 		// Skip deleting the image files and image storage volumes on disk if image is not expired in all
 		// of its projects.
-		if dbImagesDeleted < len(dbImages) {
+		if !deleteStorageVolumes {
 			continue
 		}
 
@@ -2791,12 +2843,6 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 			if err != nil {
 				return fmt.Errorf("Error deleting image volume %q from storage pool %q: %w", fingerprint, pool.Name(), err)
 			}
-		}
-
-		// Remove main image file.
-		err := imageDeleteFromDisk(s, fingerprint)
-		if err != nil {
-			return err
 		}
 
 		logger.Info("Deleted expired cached image files and volumes", logger.Ctx{"fingerprint": fingerprint})

@@ -2,6 +2,11 @@ name: Download snap dependencies
 description: Download snaps and their assertion files for "offline" installation and cache them for the day
 
 inputs:
+  prime-cache-only:
+    description: 'Set to true to only populate cache on miss without restoring files. When false (default), cache will be restored if available.'
+    default: false
+    required: false
+    type: boolean
   snap-cache-dir:
     description: Where to save the snap dependencies
     required: true
@@ -32,7 +37,11 @@ runs:
         path: ${{ inputs.snap-cache-dir }}
         key: ${{ steps.snaps-cache-key.outputs.KEY }}
         restore-keys: |
-          - ${{ steps.snaps-cache-key.outputs.FALLBACK_KEY }}
+          ${{ steps.snaps-cache-key.outputs.FALLBACK_KEY }}
+        # Some jobs only want to prime the cache if not populated already.
+        # Those jobs don't need the files otherwise so they should not restore
+        # from the cache.
+        lookup-only: ${{ inputs.prime-cache-only }}
 
     - name: Download snaps
       if: ${{ steps.cache-snaps.outputs.cache-hit != 'true' }}
@@ -41,6 +50,15 @@ runs:
       shell: bash
       run: |
         set -eux
+
+        # It's possible to get here despite doing a cache-hit because when one
+        # of the restore-keys is used as fallback, the outputs.cache-hit is set
+        # to false. As such, check if the directory is present and if so,
+        # bail out early.
+        if [ -n "$(ls -A "${SNAP_CACHE_DIR}")" ]; then
+          echo "==> SKIP downloading snaps as they were restored from fallback key"
+          exit 0
+        fi
 
         # XXX: Only needed here because other jobs interact with snapd much later (in terms of uptime)
         # workaround for https://bugs.launchpad.net/snapd/+bug/2104066
@@ -55,6 +73,9 @@ runs:
         . test/includes/snap.sh
 
         # Seed the snap dependencies cache
+        download_snap snapd "latest/candidate"
         download_snap core24 "latest/stable"
+        download_snap core22 "latest/stable"
+        download_snap lxd "5.21/edge"
         download_snap microceph
         download_snap microovn

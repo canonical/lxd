@@ -17,6 +17,27 @@ on:
         required: true
         type: boolean
         default: true
+      coverage:
+        description: Whether to enable Go coverage collection
+        required: true
+        type: boolean
+        default: false
+      ubuntu-releases:
+        description: Ubuntu releases to run the tests against. In JSON format, i.e. '["22.04", "24.04"]'.
+        type: choice
+        default: '["24.04"]'
+        options:
+          - '["22.04", "24.04"]'
+          - '["22.04"]'
+          - '["24.04"]'
+      snap-risk:
+        description: Snap risk level, `edge`, `candidate` or `stable`
+        type: choice
+        default: 'edge'
+        options:
+          - 'edge'
+          - 'candidate'
+          - 'stable'
       tmate-debug:
         description: Use tmate debugging session on integration test failure.
         type: boolean
@@ -26,8 +47,9 @@ on:
 
 env:
   LXD_REQUIRED_TESTS: "storage_buckets,network_ovn"
-  GOCOVERAGE: ${{ ( ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.repository == 'canonical/lxd' ) && 'true' || 'false' }}
+  GOCOVERAGE: ${{ (( github.event_name == 'workflow_dispatch' && github.event.inputs.coverage == 'true' ) || ( github.event_name == 'schedule' && github.repository == 'canonical/lxd' )) && 'true' || 'false' }}
   GOCOVERDIR: ''  # Later set to the fully qualified path if needed
+  IMAGE_CACHE_DIR: "/home/runner/image-cache"
   SNAP_CACHE_DIR: "/home/runner/snap-cache"
 
 permissions:
@@ -53,13 +75,14 @@ jobs:
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
     if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
     name: Code
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           # A non-shallow clone is needed for the Differential ShellCheck
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Require GHA pinning
         uses: ./.github/actions/require-gha-pinning
@@ -237,15 +260,22 @@ jobs:
           retention-days: 1
         if: env.GOCOVERDIR != ''
 
-      # In code-tests, this action warms the cache for the system-tests job
-      - name: Download snap dependencies
+      - name: Prime cache with external test images
+        uses: ./.github/actions/download-images
+        with:
+          prime-cache-only: true
+          image-cache-dir: ${{ env.IMAGE_CACHE_DIR }}
+
+      - name: Prime cache with snap dependencies
         uses: ./.github/actions/download-snaps
         with:
+          prime-cache-only: true
           snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
 
-      # In code-tests, this action warms the cache for the system-tests job
-      - name: Download minio/mc
+      - name: Prime cache with minio/mc
         uses: ./.github/actions/download-minio
+        with:
+          prime-cache-only: true
 
       - name: Upload system test dependencies
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
@@ -270,13 +300,12 @@ jobs:
       LXD_OVN_NB_CLIENT_KEY_FILE: "/var/snap/microovn/common/data/pki/client-privkey.pem"
       LXD_OVN_NB_CA_CRT_FILE: "/var/snap/microovn/common/data/pki/cacert.pem"
       LXD_VERBOSE: "1"
-      LXD_VM_TESTS: "1"
       LXD_OFFLINE: "1"
       LXD_TMPFS: "1"
       GOTRACEBACK: "crash"
     if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
     name: System
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: code-tests
     strategy:
       fail-fast: false
@@ -287,18 +316,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          persist-credentials: false
 
       - name: Tune disk performance
         uses: ./.github/actions/tune-disk-performance
 
       - name: Reclaim some memory
         uses: ./.github/actions/reclaim-memory
-
-      - name: Purge LXD snap
-        # TODO: drop this when moving away from `ubuntu-22.04` runners to `ubuntu-24.04`
-        run: |
-          set -eux
-          sudo snap remove --purge lxd || true
 
       - name: Remove docker
         uses: ./.github/actions/disable-docker
@@ -314,6 +339,12 @@ jobs:
       # Restore the cache warmed in code-tests job
       - name: Build or restore dqlite/liblxc dependencies
         uses: ./.github/actions/cache-dqlite-liblxc
+
+      # Restore the cache warmed in code-tests job
+      - name: Download external test images
+        uses: ./.github/actions/download-images
+        with:
+          image-cache-dir: ${{ env.IMAGE_CACHE_DIR }}
 
       # Restore the cache warmed in code-tests job
       - name: Download snap dependencies
@@ -338,15 +369,6 @@ jobs:
           ls -lR /home/runner/go/bin/
           chmod uog+x /home/runner/go/bin/*
 
-      - name: Purge LXD snap
-        # TODO: drop this when moving away from `ubuntu-22.04` runners to `ubuntu-24.04`
-        if: ${{ matrix.backend == 'ceph' }}
-        run: |
-          set -eux
-          # LXD snap holds on to the swap that prevents the clearing of the ephemeral disk for microceph
-          # https://github.com/canonical/lxd/issues/14768
-          sudo snap remove --purge lxd
-
       - name: Setup MicroCeph
         if: ${{ matrix.backend == 'ceph' }}
         uses: ./.github/actions/setup-microceph
@@ -368,21 +390,35 @@ jobs:
           echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
         if: env.GOCOVERAGE == 'true'
 
+      - name: Sanitize Artifact Name
+        id: sanitize
+        env:
+          ID: ${{ matrix.suite }}-${{ matrix.backend }}
+        run: |
+          set -eux
+          echo "artifact_name=$(echo "${ID}" | tr ': /' '-_-')" >> "${GITHUB_OUTPUT}"
+
       - name: "Run system tests (${{ matrix.suite }}, ${{ matrix.backend }})"
         run: |
-          echo '|/bin/sh -c $@ -- eval exec gzip --fast > /var/crash/core-%e.%p.gz' | sudo tee /proc/sys/kernel/core_pattern
           set -eux
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
           cd test
           export PATH="$PATH:/snap/microovn/current/commands"
-          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,LXD_VERBOSE,LXD_VM_TESTS,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OVN_NB_CONNECTION,LXD_OVN_NB_CLIENT_CRT_FILE,LXD_OVN_NB_CLIENT_KEY_FILE,LXD_OVN_NB_CA_CRT_FILE,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,GOTRACEBACK,LXD_TMPFS LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
+
+          # Check if there are existing coredumps
+          if [ -n "$(ls -A /var/crash/)" ]; then
+            echo "WARNING: coredumps found before running the system tests, removing them"
+            sudo rm /var/crash/*
+          fi
+
+          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,LXD_VERBOSE,LXD_REPEAT_TESTS,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OVN_NB_CONNECTION,LXD_OVN_NB_CLIENT_CRT_FILE,LXD_OVN_NB_CLIENT_KEY_FILE,LXD_OVN_NB_CA_CRT_FILE,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,GOTRACEBACK,LXD_TMPFS LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
 
       - name: Upload crash dumps
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: crash-dumps-${{ matrix.suite }}-${{ matrix.backend }}
+          name: crash-dumps-${{ steps.sanitize.outputs.artifact_name }}
           path: |
             /var/crash/core-*
           retention-days: 5
@@ -391,8 +427,303 @@ jobs:
       - name: Upload coverage data
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: coverage-${{ matrix.suite }}-${{ matrix.backend }}
-          path: ${{env.GOCOVERDIR}}
+          name: coverage-${{ steps.sanitize.outputs.artifact_name }}
+          path: ${{ env.GOCOVERDIR }}
+          retention-days: 1
+        if: env.GOCOVERDIR != ''
+
+      - name: Tmate debugging session
+        if: ${{ failure() && inputs.tmate-debug }}
+        timeout-minutes: 30
+        uses: mxschmitt/action-tmate@7b6a61a73bbb9793cb80ad69b8dd8ac19261834c # v3.22
+        with:
+          # Never allow public SSH access
+          limit-access-to-actor: true
+
+  snap-tests:
+    if: false
+    # if: github.event_name != 'schedule' || github.repository == 'canonical/lxd'
+    needs: code-tests
+    env:
+      BRANCH_NAME: ${{ github.ref_name }}
+      SNAP_RISK: ${{ inputs.snap-risk || 'edge' }}
+      SNAP_TRACK: "5.21"
+    name: Snap (${{ matrix.test }} - ${{ matrix.os }})
+    runs-on: ubuntu-${{ matrix.os }}
+    # avoid runaway test burning 6 hours of CI
+    timeout-minutes: 60
+    permissions:
+      # need that to manipulate caches
+      actions: write
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.ubuntu-releases || '["24.04"]') }}
+        test:
+          - cgroup
+          - cloud-init
+          - cluster
+          - container
+          - container-copy
+          - container-nesting
+          - conversion
+          - cpu-vm
+          - devlxd-container
+          - devlxd-vm
+          - docker
+          - efi-vars-editor-vm
+          - lxd-installer
+          - lxd-user
+          - interception
+          - network-bridge-firewall
+          - network-ovn ovn:deb
+          - network-ovn ovn:latest/edge
+          - network-routed
+          - pylxd
+          - qemu-external-vm
+          - snapd
+          - storage-buckets
+          - storage-disks-vm
+          - storage-metadata
+          - storage-vm btrfs
+          - storage-vm ceph
+          - storage-vm dir
+          - storage-vm lvm
+          - storage-vm lvm-thin
+          - storage-vm zfs
+          - storage-volumes-vm
+          - tpm-vm
+          # Skip UI tests as they are unreliable and similar ones are done
+          # against the non-snap daemon
+          #- ui chromium
+          #- ui firefox
+          - vm
+          - vm-migration
+          - vm-nesting
+        exclude:
+          # some tests are not worth testing on specific OSes
+          - os: 22.04
+            test: lxd-installer
+          - os: 22.04
+            test: qemu-external-vm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
+      - name: Tune disk performance
+        uses: ./.github/actions/tune-disk-performance
+
+      - name: Checkout lxd-ci
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          repository: 'canonical/lxd-ci'
+          ref: main
+          path: lxd-ci
+          persist-credentials: false
+
+      - name: Reclaim some memory
+        uses: ./.github/actions/reclaim-memory
+
+      - name: Reclaim disk space
+        # This can take multiple minutes if the runner is busy/slow so only run it when/where absolutely needed.
+        # Storage tests need it except when using ceph as it uses the ephemeral disk.
+        if: ${{ matrix.test == 'conversion' || matrix.test == 'vm-nesting' || (startsWith(matrix.test, 'storage-') && !contains(matrix.test, ' ceph')) }}
+        uses: ./.github/actions/reclaim-disk-space
+
+      - name: Remove docker
+        uses: ./.github/actions/disable-docker
+
+      - name: "Disable br_netfilter"
+        run: |
+          set -eux
+          # XXX: br_netfilter causes subtle issues by subjecting internal
+          #      bridge traffic to NAT/MASQUERADING and IP filtering. This
+          #      modules is not normally loaded on stock Ubuntu installs but it
+          #      is on GHA runners.
+          if lsmod | grep -qw ^br_netfilter; then
+            sudo modprobe -r br_netfilter
+          fi
+
+      # Restore the cache warmed in code-tests job
+      - name: Build or restore dqlite/liblxc dependencies
+        uses: ./.github/actions/cache-dqlite-liblxc
+
+      # Restore the cache warmed in code-tests job
+      - name: Download external test images
+        uses: ./.github/actions/download-images
+        with:
+          image-cache-dir: ${{ env.IMAGE_CACHE_DIR }}
+
+      # Restore the cache warmed in code-tests job
+      - name: Download snap dependencies
+        uses: ./.github/actions/download-snaps
+        with:
+          snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
+
+      # Restore the cache warmed in code-tests job
+      - name: Download minio/mc
+        uses: ./.github/actions/download-minio
+
+      - name: Download system test dependencies
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: system-test-deps
+          merge-multiple: true
+          path: /home/runner/go/bin
+
+      - name: Set exec perms on LXD binaries
+        run: |
+          set -eux
+          ls -lR /home/runner/go/bin/
+          chmod uog+x /home/runner/go/bin/*
+
+      - name: Get Date
+        id: get-date
+        if: ${{ matrix.test == 'qemu-external-vm' }}
+        run: |
+          echo "date=$(/bin/date -u "+%Y%m%d")" >> $GITHUB_OUTPUT
+        shell: bash
+
+      # for simplicity, just use one cache directory
+      # and make it valid for one day
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        id: cache-restore
+        if: ${{ matrix.test == 'qemu-external-vm' }}
+        with:
+          path: /home/runner/work/cache
+          key: cache-${{ steps.get-date.outputs.date }}
+
+      - name: Setup MicroCeph
+        if: ${{ matrix.test == 'conversion' || matrix.test == 'storage-buckets' || matrix.test == 'storage-vm ceph' || matrix.test == 'storage-volumes-vm' }}
+        uses: ./.github/actions/setup-microceph
+        with:
+          osd-count: 3
+          snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
+
+      - name: Setup MicroOVN
+        uses: ./.github/actions/setup-microovn
+        with:
+          snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
+
+      - name: Make GOCOVERDIR
+        run: |
+          set -eux
+          mkdir -p coverage
+          cd coverage
+          echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
+        if: env.GOCOVERAGE == 'true'
+
+      - name: Sanitize Artifact Name
+        id: sanitize
+        env:
+          ID: ${{ matrix.test }}-${{ matrix.os }}
+        run: |
+          set -eux
+          echo "artifact_name=$(echo "${ID}" | tr ': /' '-_-')" >> "${GITHUB_OUTPUT}"
+
+      - name: Snap track selection
+        run: |
+          set -eux
+          if [[ "${BRANCH_NAME}" =~ ^stable- ]]; then
+            SNAP_TRACK="${BRANCH_NAME#stable-}"
+            echo "SNAP_TRACK=${SNAP_TRACK}" >> "${GITHUB_ENV}"
+          fi
+
+      - name: Adapt lxd-ci test for sideloading and coverage collection
+        working-directory: './lxd-ci'
+        run: |
+          set -eux
+
+          # Avoid lxd-installer getting in the way
+          sudo rm -f /usr/sbin/lxd /usr/sbin/lxc
+
+          cat << EOF > /tmp/install_lxd.sh
+          # install_lxd replacement that sideloads the built snap and enables coverage collection
+          install_lxd() (
+            # Ensure our custom binaries are found first
+            export PATH="/home/runner/go/bin:${PATH}"
+
+            sideload_lxd_snap "${SNAP_TRACK}/${SNAP_RISK}"
+            gocoverage_lxd_snap
+          )
+          EOF
+
+          # Add snap helpers from the main repo
+          sed -i '1 r ../test/includes/snap.sh' bin/helpers
+          # Replace the install_lxd helper
+          sed -i '/^# install_lxd:/,/^)$/d' bin/helpers
+          cat /tmp/install_lxd.sh >> bin/helpers
+          rm -f /tmp/install_lxd.sh
+
+          cat bin/helpers
+
+      - name: ${{ matrix.test }}
+        working-directory: './lxd-ci'
+        run: |
+          set -eux
+
+          # XXX: prevent accidental usage of `images:` in CI test jobs.
+          #      All tests should be done using officially supported images.
+          echo '127.0.0.1 images.lxd.canonical.com' | sudo tee /etc/hosts
+
+          TEST_SCRIPT="$(echo ${{ matrix.test }} | cut -d " " -f 1)"
+          EXTRA_ARGS="$(echo ${{ matrix.test }} | cut -d " " -f 2- --only-delimited)"
+          if [ "${TEST_SCRIPT}" = "cluster" ]; then
+            dst_track="${SNAP_TRACK}/${SNAP_RISK}"
+            src_track="${SNAP_TRACK}/stable"
+            EXTRA_ARGS="${EXTRA_ARGS:-3} ${src_track} ${dst_track}"
+          elif [ "${TEST_SCRIPT}" = "network-ovn" ]; then
+            if [ -n "${EXTRA_ARGS}" ]; then
+              # Strip the `ovn:` prefix
+              export OVN_SOURCE="${EXTRA_ARGS##ovn:}"
+              EXTRA_ARGS=""
+            fi
+          fi
+
+          sudo --preserve-env=GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,OVN_SOURCE ./bin/local-run "tests/${TEST_SCRIPT}" "${SNAP_TRACK}/${SNAP_RISK}" ${EXTRA_ARGS:-}
+
+      # always update cache as we have our own logic of
+      # cache invalidation and updates in addition to a date check
+      - name: Delete previous cache
+        if: ${{ steps.cache-restore.outputs.cache-hit }}
+        continue-on-error: true
+        run: |
+          gh cache delete "cache-${{ steps.get-date.outputs.date }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        if: ${{ matrix.test == 'qemu-external-vm' }}
+        with:
+          path: /home/runner/work/cache
+          key: cache-${{ steps.get-date.outputs.date }}
+
+      - name: Upload ${{ matrix.test }} test reports
+        if: ${{ always() && startsWith(matrix.test, 'ui ') }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: test-report-${{ matrix.test }}-lxd-${{ env.SNAP_TRACK }}-${{ env.SNAP_RISK }}-os-${{ matrix.os }}
+          path: lxd-ui/test-results
+          retention-days: 1
+
+      - name: Upload crash dumps
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: crash-dumps-${{ steps.sanitize.outputs.artifact_name }}
+          path: |
+            /var/crash/core-*
+          retention-days: 5
+          if-no-files-found: ignore
+
+      - name: Upload coverage data
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-${{ steps.sanitize.outputs.artifact_name }}
+          path: ${{ env.GOCOVERDIR }}
           retention-days: 1
         if: env.GOCOVERDIR != ''
 
@@ -406,8 +737,8 @@ jobs:
 
   tics:
     name: Tiobe TICS
-    runs-on: ubuntu-22.04
-    needs: [client, system-tests, ui-e2e-tests]
+    runs-on: ubuntu-24.04
+    needs: [client, system-tests, snap-tests, ui-e2e-tests]
     env:
       CGO_CFLAGS: "-I/home/runner/go/bin/dqlite/include/ -I/home/runner/go/bin/liblxc/include/"
       CGO_LDFLAGS: "-L/home/runner/go/bin/dqlite/libs/"
@@ -419,6 +750,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          persist-credentials: false
 
       - name: Tune disk performance
         uses: ./.github/actions/tune-disk-performance
@@ -476,13 +809,18 @@ jobs:
 
       - name: Install dependencies
         run: |
-          go install github.com/axw/gocov/gocov@latest
-          go install github.com/AlekSi/gocov-xml@latest
+          set -eux
+          go install github.com/afunix/gocov/gocov@latest
+          go install github.com/b-dean/gocov-xml@v1.2.1-bdd.0 # XXX: Using this repo is a temporary workaround until https://github.com/AlekSi/gocov-xml/pull/20 is merged. See https://github.com/AlekSi/gocov-xml/pull/20#issuecomment-3275134132 for more details.
           go install honnef.co/go/tools/cmd/staticcheck@latest
 
       - name: Convert coverage files
         run: |
+          set -eux
+          go tool covdata percent -i="${GOCOVERDIR}"
           go tool covdata textfmt -i="${GOCOVERDIR}" -o "${GOCOVERDIR}"/coverage.out
+          head "${GOCOVERDIR}"/coverage.out
+          # Convert to Cobertura XML format.
           gocov convert "${GOCOVERDIR}"/coverage.out > "${GOCOVERDIR}"/coverage.json
           gocov-xml < "${GOCOVERDIR}"/coverage.json > "${GOCOVERDIR}"/coverage-go.xml
 
@@ -513,6 +851,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          persist-credentials: false
 
       - name: Install Go
         uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
@@ -535,58 +875,61 @@ jobs:
       - name: Build static lxc
         env:
           CGO_ENABLED: 0
-          EXTRAS: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '-ldflags "-s -w"' }}
+          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
         run: |
           set -eux
           # Using `go env -w` to avoid dealing with setting variables on Windows
           go env -w GOARCH=arm64
-          go build ${{ env.EXTRAS }} -o trimpath -o bin/lxc.aarch64 ./lxc
+          go build -ldflags "-s -w" -trimpath -o bin/lxc.aarch64 ${COVER} ./lxc
           go env -w GOARCH=amd64
-          go build ${{ env.EXTRAS }} -o trimpath -o bin/lxc.x86_64 ./lxc
+          go build -ldflags "-s -w" -trimpath -o bin/lxc.x86_64 ${COVER} ./lxc
 
       - name: Build static lxd-benchmark
         if: runner.os == 'Linux'
         env:
           CGO_ENABLED: 0
-          EXTRAS: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '-ldflags "-s -w"' }}
+          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
         run: |
           set -eux
-          GOARCH=amd64 go build ${{ env.EXTRAS }} -o trimpath -o bin/lxd-benchmark.x86_64 ./lxd-benchmark
-          GOARCH=arm64 go build ${{ env.EXTRAS }} -o trimpath -o bin/lxd-benchmark.aarch64 ./lxd-benchmark
+          GOARCH=amd64 go build -ldflags "-s -w" -trimpath -o bin/lxd-benchmark.x86_64 ${COVER} ./lxd-benchmark
+          GOARCH=arm64 go build -ldflags "-s -w" -trimpath -o bin/lxd-benchmark.aarch64 ${COVER} ./lxd-benchmark
 
       - name: Build static lxd-migrate
         if: runner.os == 'Linux'
         env:
           CGO_ENABLED: 0
-          EXTRAS: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '-ldflags "-s -w"' }}
+          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
         run: |
           set -eux
-          GOARCH=amd64 go build ${{ env.EXTRAS }} -o trimpath -o bin/lxd-migrate.x86_64 ./lxd-migrate
-          GOARCH=arm64 go build ${{ env.EXTRAS }} -o trimpath -o bin/lxd-migrate.aarch64 ./lxd-migrate
+          GOARCH=amd64 go build -ldflags "-s -w" -trimpath -o bin/lxd-migrate.x86_64 ${COVER} ./lxd-migrate
+          GOARCH=arm64 go build -ldflags "-s -w" -trimpath -o bin/lxd-migrate.aarch64 ${COVER} ./lxd-migrate
 
       - name: Unit tests (client)
         env:
           CGO_ENABLED: 0
-          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover -test.gocoverdir="${GOCOVERDIR}"' || '' }}
+          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
         run: |
           set -eux
-          go test -mod=readonly -v ./client/... ${{ env.COVER }}
+          [ -n "${COVER}" ] && COVER="${COVER} -test.gocoverdir=${GOCOVERDIR}"
+          go test -mod=readonly -v ./client/... ${COVER}
 
       - name: Unit tests (lxc)
         env:
           CGO_ENABLED: 0
-          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover -test.gocoverdir="${GOCOVERDIR}"' || '' }}
+          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
         run: |
           set -eux
-          go test -mod=readonly -v ./lxc/... ${{ env.COVER }}
+          [ -n "${COVER}" ] && COVER="${COVER} -test.gocoverdir=${GOCOVERDIR}"
+          go test -mod=readonly -v ./lxc/... ${COVER}
 
       - name: Unit tests (shared)
         env:
           CGO_ENABLED: 0
-          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover -test.gocoverdir="${GOCOVERDIR}"' || '' }}
+          COVER: ${{ ( env.GOCOVERDIR != '' ) && '-cover' || '' }}
         run: |
           set -eux
-          go test -mod=readonly -v ./shared/... ${{ env.COVER }}
+          [ -n "${COVER}" ] && COVER="${COVER} -test.gocoverdir=${GOCOVERDIR}"
+          go test -mod=readonly -v ./shared/... ${COVER}
 
       - name: Upload coverage data
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
@@ -606,7 +949,7 @@ jobs:
 
   ui-e2e-tests:
     name: UI e2e tests
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [code-tests, documentation]
     if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
     env:
@@ -622,6 +965,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          persist-credentials: false
 
       - name: Tune disk performance
         uses: ./.github/actions/tune-disk-performance
@@ -632,6 +977,7 @@ jobs:
           repository: 'canonical/lxd-ui'
           ref: main
           path: lxd-ui
+          persist-credentials: false
 
       - name: Install Dotrun
         run: sudo pip3 install dotrun
@@ -721,7 +1067,7 @@ jobs:
           set -eux
           cd lxd-ui
           dotrun &
-          curl --head --fail --retry-delay 2 --retry 100 --retry-connrefused --insecure https://localhost:${{ env.PORT }}
+          curl --head --fail --retry-delay 2 --retry 100 --retry-connrefused --insecure https://localhost:${PORT}
 
       - name: Setup LXD
         shell: bash
@@ -810,6 +1156,7 @@ jobs:
         with:
           # A non-shallow clone is needed for the sitemap generation
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Install Go
         uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
@@ -832,16 +1179,16 @@ jobs:
           sudo apt-get install aspell aspell-en
           sudo snap install mdl
 
-      - name: Run markdown linter
-        run: |
-          set -eux
-          make doc-lint
-
       - name: Build docs (Sphinx)
         run: |
           set -eux
           make doc
           if [ -s doc/.sphinx/warnings.txt ]; then cat doc/.sphinx/warnings.txt; exit 1; fi
+
+      - name: Run markdown linter
+        run: |
+          set -eux
+          make doc-lint
 
       - name: Run spell checker
         run: |
@@ -871,6 +1218,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          persist-credentials: false
 
       - name: Install Go
         uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
@@ -921,6 +1270,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          persist-credentials: false
 
       - uses: ./.github/actions/lp-snap-build
         with:

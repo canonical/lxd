@@ -255,11 +255,6 @@ type OVN struct {
 	sslClientKey  string
 }
 
-// SetNorthboundDBAddress sets the address that runs the OVN northbound databases.
-func (o *OVN) SetNorthboundDBAddress(addr string) {
-	o.nbDBAddr = addr
-}
-
 // getNorthboundDB returns connection string to use for northbound database.
 func (o *OVN) getNorthboundDB() string {
 	if o.nbDBAddr == "" {
@@ -267,11 +262,6 @@ func (o *OVN) getNorthboundDB() string {
 	}
 
 	return o.nbDBAddr
-}
-
-// SetSouthboundDBAddress sets the address that runs the OVN northbound databases.
-func (o *OVN) SetSouthboundDBAddress(addr string) {
-	o.sbDBAddr = addr
 }
 
 // getSouthboundDB returns connection string to use for northbound database.
@@ -359,7 +349,16 @@ func (o *OVN) LogicalRouterAdd(routerName OVNRouter, mayExist bool) error {
 		args = append(args, "--may-exist")
 	}
 
-	_, err := o.nbctl(append(args, "lr-add", string(routerName))...)
+	// Create a logical router.
+	args = append(args, "lr-add", string(routerName), "--")
+
+	// Set its properties.
+	args = append(args, "set", "logical_router", string(routerName),
+		"options:always_learn_from_arp_request=false",
+		"options:dynamic_neigh_routers=true",
+	)
+
+	_, err := o.nbctl(args...)
 	if err != nil {
 		return err
 	}

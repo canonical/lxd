@@ -1,3 +1,4 @@
+(rest-api)=
 # REST API
 
 ```{youtube} https://www.youtube.com/watch?v=YvGbvspXObI
@@ -165,7 +166,7 @@ The default value is 0 which means that collection member URLs are
 returned. Setting it to 1 will have those URLs be replaced by the object
 they point to (typically another JSON object).
 
-Recursion is implemented by simply replacing any pointer to an job (URL)
+Recursion is implemented by simply replacing any pointer to a job (URL)
 by the object itself.
 
 (rest-api-filtering)=

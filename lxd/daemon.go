@@ -1333,7 +1333,7 @@ func (d *Daemon) init() error {
 
 	dbWarnings = append(dbWarnings, d.os.CGInfo.Warnings()...)
 
-	logger.Infof(" - cgroup layout: %s", d.os.CGInfo.Mode())
+	logger.Infof(" - cgroup layout: %s", d.os.CGInfo.Layout)
 
 	for _, w := range dbWarnings {
 		logger.Warnf(" - %s, %s", warningtype.TypeNames[warningtype.Type(w.TypeCode)], w.LastMessage)
@@ -1613,7 +1613,11 @@ func (d *Daemon) init() error {
 
 	// Setup the user-agent.
 	if d.serverClustered {
-		version.UserAgentFeatures([]string{"cluster"})
+		features := []string{"cluster"}
+		err = version.UserAgentFeatures(features)
+		if err != nil {
+			logger.Warn("Failed to configure LXD user agent", logger.Ctx{"err": err, "features": features})
+		}
 	}
 
 	// Apply all patches that need to be run before the cluster config gets loaded.
@@ -2060,7 +2064,7 @@ func (d *Daemon) startClusterTasks() {
 	d.clusterTasks.Add(autoRemoveOrphanedOperationsTask(d.State))
 
 	// Perform automatic evacuation for offline cluster members
-	d.clusterTasks.Add(autoHealClusterTask(d.State))
+	d.clusterTasks.Add(autoHealClusterTask(d.State, d.gateway))
 
 	// Start all background tasks
 	d.clusterTasks.Start(d.shutdownCtx)
@@ -2551,11 +2555,9 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 	// Run asynchronously so that connecting to remote members doesn't delay other heartbeat tasks.
 	wg := sync.WaitGroup{}
 
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		cluster.EventsUpdateListeners(d.endpoints, d.db.Cluster, d.serverCert, heartbeatData.Members, d.events.Inject)
-		wg.Done()
-	}()
+	})
 
 	// Only update the node list if there are no state change task failures.
 	// If there are failures, then we leave the old state so that we can re-try the tasks again next heartbeat.

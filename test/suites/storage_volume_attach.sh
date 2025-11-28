@@ -106,3 +106,45 @@ EOF
   lxc delete -f c2
   lxc storage volume delete "${pool}" testvolume
 }
+
+test_snap_storage_volume_attach_vm() {
+  echo "==> Creating storage volumes"
+  pool="$(lxc profile device get default root pool)"
+  lxc storage volume create "${pool}" vol1 size=1MiB --type block
+  lxc storage volume create "${pool}" vol2 size=1MiB
+  lxc storage volume create "${pool}" vol3 size=1MiB --type block
+
+  ensure_import_ubuntu_vm_image
+
+  lxc init ubuntu-vm v1 --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
+  lxc storage volume attach "${pool}" vol1 v1
+  lxc start v1
+  waitInstanceReady v1
+
+  echo "==> Hot plugging storage volumes"
+  lxc storage volume attach "${pool}" vol2 v1 /mnt
+  lxc storage volume attach "${pool}" vol3 v1
+  sleep 2
+
+  echo "==> Checking proper hot-plugging"
+  lxc exec v1 -- stat /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vol1
+  lxc exec v1 -- mount | grep -wF /mnt
+  lxc exec v1 -- stat /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vol3
+
+  echo "==> Detaching storage volumes"
+  lxc storage volume detach "${pool}" vol1 v1
+  lxc storage volume detach "${pool}" vol2 v1
+  lxc storage volume detach "${pool}" vol3 v1
+  sleep 2
+
+  echo "==> Checking proper unplugging"
+  ! lxc exec v1 -- stat /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vol1 || false
+  ! lxc exec v1 -- mount | grep -wF /mnt || false
+  ! lxc exec v1 -- stat /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_vol3 || false
+
+  # Cleanup
+  lxc storage volume delete "${pool}" vol1
+  lxc storage volume delete "${pool}" vol2
+  lxc storage volume delete "${pool}" vol3
+  lxc delete -f v1
+}

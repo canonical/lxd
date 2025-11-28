@@ -149,3 +149,7 @@ _instance_apparmor() {
 test_apparmor() {
   _instance_apparmor
 }
+
+test_snap_apparmor() {
+  _instance_apparmor
+}

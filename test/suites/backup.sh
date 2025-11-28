@@ -3,7 +3,7 @@ test_storage_volume_recover() {
   spawn_lxd "${LXD_IMPORT_DIR}" true
 
   poolName=$(lxc profile device get default root pool)
-  poolDriver=$(lxc storage show "${poolName}" | awk '/^driver:/ {print $2}')
+  poolDriver="$(storage_backend "${LXD_IMPORT_DIR}")"
 
   if [ "${poolDriver}" = "pure" ]; then
     echo "==> SKIP: Storage driver does not support recovery"
@@ -88,7 +88,7 @@ test_container_recover() {
     ensure_import_testimage
 
     poolName=$(lxc profile device get default root pool)
-    poolDriver=$(lxc storage show "${poolName}" | awk '/^driver:/ {print $2}')
+    poolDriver="$(storage_backend "$LXD_DIR")"
 
     lxc storage set "${poolName}" user.foo=bah
     lxc project create test -c features.images=false -c features.profiles=true -c features.storage.volumes=true
@@ -297,59 +297,56 @@ EOF
 }
 
 test_bucket_recover() {
-  if ! command -v "minio" >/dev/null 2>&1; then
-    echo "==> SKIP: Skip bucket recovery test due to missing minio"
+  local lxd_backend
+  lxd_backend=$(storage_backend "$LXD_DIR")
+  if [ "${lxd_backend}" = "ceph" ]; then
+    export TEST_UNMET_REQUIREMENT="ceph does not support storage buckets"
     return
   fi
 
-  (
-    set -e
+  if ! command -v "minio" >/dev/null 2>&1; then
+    export TEST_UNMET_REQUIREMENT="minio command not found"
+    return
+  fi
 
-    poolName=$(lxc profile device get default root pool)
-    poolDriver=$(lxc storage show "${poolName}" | awk '/^driver:/ {print $2}')
-    bucketName="bucket123"
+  poolName=$(lxc profile device get default root pool)
+  bucketName="bucket123"
 
-    # Skip ceph driver - ceph does not support storage buckets
-    if [ "${poolDriver}" = "ceph" ]; then
-      return 0
-    fi
+  # Create storage bucket
+  lxc storage bucket create "${poolName}" "${bucketName}"
 
-    # Create storage bucket
-    lxc storage bucket create "${poolName}" "${bucketName}"
+  # Create storage bucket keys
+  key1="$(lxc storage bucket key create "${poolName}" "${bucketName}" key1 --role admin)"
+  key2="$(lxc storage bucket key create "${poolName}" "${bucketName}" key2 --role read-only)"
+  key1_accessKey="$(echo "$key1" | awk '/^Access key/ { print $3 }')"
+  key1_secretKey="$(echo "$key1" | awk '/^Secret key/ { print $3 }')"
+  key2_accessKey="$(echo "$key2" | awk '/^Access key/ { print $3 }')"
+  key2_secretKey="$(echo "$key2" | awk '/^Secret key/ { print $3 }')"
 
-    # Create storage bucket keys
-    key1=$(lxc storage bucket key create "${poolName}" "${bucketName}" key1 --role admin)
-    key2=$(lxc storage bucket key create "${poolName}" "${bucketName}" key2 --role read-only)
-    key1_accessKey=$(echo "$key1" | awk '/^Access key/ { print $3 }')
-    key1_secretKey=$(echo "$key1" | awk '/^Secret key/ { print $3 }')
-    key2_accessKey=$(echo "$key2" | awk '/^Access key/ { print $3 }')
-    key2_secretKey=$(echo "$key2" | awk '/^Secret key/ { print $3 }')
+  # Remove bucket from global DB
+  lxd sql global "DELETE FROM storage_buckets WHERE name = '${bucketName}'"
 
-    # Remove bucket from global DB
-    lxd sql global "delete from storage_buckets where name = '${bucketName}'"
-
-    # Recover bucket
-    cat <<EOF | lxd recover
+  # Recover bucket
+  lxd recover << EOF
 no
 yes
 yes
 EOF
 
-    # Verify bucket is recovered
-    lxc storage bucket ls "${poolName}" --format compact | grep "${bucketName}"
+  # Verify bucket is recovered
+  lxc storage bucket ls "${poolName}" --format compact | grep "${bucketName}"
 
-    # Verify bucket key with role admin is recovered
-    recoveredKey1=$(lxc storage bucket key show "${poolName}" "${bucketName}" "${key1_accessKey}")
-    echo "${recoveredKey1}" | grep "role: admin"
-    echo "${recoveredKey1}" | grep "access-key: ${key1_accessKey}"
-    echo "${recoveredKey1}" | grep "secret-key: ${key1_secretKey}"
+  # Verify bucket key with role admin is recovered
+  recoveredKey1=$(lxc storage bucket key show "${poolName}" "${bucketName}" "${key1_accessKey}")
+  echo "${recoveredKey1}" | grep -F "role: admin"
+  echo "${recoveredKey1}" | grep -F "access-key: ${key1_accessKey}"
+  echo "${recoveredKey1}" | grep -F "secret-key: ${key1_secretKey}"
 
-    # Verify bucket key with role read-only is recovered
-    recoveredKey2=$(lxc storage bucket key show "${poolName}" "${bucketName}" "${key2_accessKey}")
-    echo "${recoveredKey2}" | grep "role: read-only"
-    echo "${recoveredKey2}" | grep "access-key: ${key2_accessKey}"
-    echo "${recoveredKey2}" | grep "secret-key: ${key2_secretKey}"
-  )
+  # Verify bucket key with role read-only is recovered
+  recoveredKey2=$(lxc storage bucket key show "${poolName}" "${bucketName}" "${key2_accessKey}")
+  echo "${recoveredKey2}" | grep -F "role: read-only"
+  echo "${recoveredKey2}" | grep -F "access-key: ${key2_accessKey}"
+  echo "${recoveredKey2}" | grep -F "secret-key: ${key2_secretKey}"
 }
 
 test_backup_import() {
@@ -358,25 +355,24 @@ test_backup_import() {
 }
 
 _backup_import_with_project() {
-  project="default"
+  project="${1:-"default"}"
   pool="lxdtest-$(basename "${LXD_DIR}")"
 
-  if [ "$#" -ne 0 ]; then
-    # Create a projects
-    project="$1"
+  if [ "${project}" != "default" ]; then
+    # Create 2 projects
     lxc project create "$project"
     lxc project create "$project-b"
     lxc project switch "$project"
 
-    deps/import-busybox --project "$project" --alias testimage
-    deps/import-busybox --project "$project-b" --alias testimage
+    ensure_import_testimage "${project}"
+    ensure_import_testimage "${project}-b"
 
     # Add a root device to the default profile of the project
     lxc profile device add default root disk path="/" pool="${pool}"
     lxc profile device add default root disk path="/" pool="${pool}" --project "$project-b"
+  else
+    ensure_import_testimage
   fi
-
-  ensure_import_testimage
 
   lxc launch testimage c1 -d "${SMALL_ROOT_DISK}"
   lxc launch testimage c2 -d "${SMALL_ROOT_DISK}"
@@ -542,10 +538,10 @@ _backup_import_with_project() {
   # Cleanup exported tarballs
   rm -f "${LXD_DIR}"/c*.tar.gz
 
-  if [ "$#" -ne 0 ]; then
-    lxc image rm testimage
-    lxc image rm testimage --project "$project-b"
+  if [ "${project}" != "default" ]; then
     lxc project switch default
+    lxc image rm testimage --project "$project"
+    lxc image rm testimage --project "$project-b"
     lxc project delete "$project"
     lxc project delete "$project-b"
   fi
@@ -557,15 +553,13 @@ test_backup_export() {
 }
 
 _backup_export_with_project() {
-  project="default"
+  project="${1:-"default"}"
 
-  if [ "$#" -ne 0 ]; then
+  if [ "${project}" != "default" ]; then
     # Create a project
     project="$1"
     lxc project create "$project"
     lxc project switch "$project"
-
-    deps/import-busybox --project "$project" --alias testimage
 
     # Add a root device to the default profile of the project
     pool="lxdtest-$(basename "${LXD_DIR}")"
@@ -637,9 +631,9 @@ _backup_export_with_project() {
   # Cleanup exported tarballs
   rm -f "${LXD_DIR}"/c*.tar.gz
 
-  if [ "$#" -ne 0 ]; then
-    lxc image rm testimage
+  if [ "${project}" != "default" ]; then
     lxc project switch default
+    lxc image rm testimage --project "$project"
     lxc project delete "$project"
   fi
 }
@@ -663,7 +657,7 @@ test_backup_rename() {
   lxc query -X POST --wait -d '{"name":"foo"}' /1.0/instances/c1/backups
 
   # All backups should be listed
-  [ "$(lxc query /1.0/instances/c1/backups | jq -r '.[]')" = "/1.0/instances/c1/backups/foo" ]
+  lxc query /1.0/instances/c1/backups | jq --exit-status '.[] == "/1.0/instances/c1/backups/foo"'
 
   # The specific backup should exist
   lxc query /1.0/instances/c1/backups/foo
@@ -672,7 +666,7 @@ test_backup_rename() {
   lxc mv c1 c2
 
   # All backups should be listed
-  [ "$(lxc query /1.0/instances/c2/backups | jq -r '.[]')" = "/1.0/instances/c2/backups/foo" ]
+  lxc query /1.0/instances/c2/backups | jq --exit-status '.[] == "/1.0/instances/c2/backups/foo"'
 
   # The specific backup should exist
   lxc query /1.0/instances/c2/backups/foo
@@ -680,7 +674,7 @@ test_backup_rename() {
   # The old backup should not exist
   ! lxc query /1.0/instances/c1/backups/foo || false
 
-  lxc delete --force c2
+  lxc delete c2
 }
 
 test_backup_volume_export() {
@@ -689,7 +683,7 @@ test_backup_volume_export() {
 
   if [ "$lxd_backend" = "ceph" ] && [ -n "${LXD_CEPH_CEPHFS:-}" ]; then
     custom_vol_pool="lxdtest-$(basename "${LXD_DIR}")-cephfs"
-    lxc storage create "${custom_vol_pool}" cephfs source="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")-cephfs"
+    lxc storage create "${custom_vol_pool}" cephfs source="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")-cephfs" volume.size=24MiB
 
     _backup_volume_export_with_project default "${custom_vol_pool}"
     _backup_volume_export_with_project fooproject "${custom_vol_pool}"
@@ -704,13 +698,13 @@ _backup_volume_export_with_project() {
   custom_vol_pool="$2"
 
   if [ "${project}" != "default" ]; then
-    # Create a project.
+    # Create projects.
     lxc project create "$project"
     lxc project create "$project-b"
     lxc project switch "$project"
 
-    deps/import-busybox --project "$project" --alias testimage
-    deps/import-busybox --project "$project-b" --alias testimage
+    ensure_import_testimage "${project}"
+    ensure_import_testimage "${project}-b"
 
     # Add a root device to the default profile of the project.
     lxc profile device add default root disk path="/" pool="${pool}"
@@ -937,7 +931,7 @@ test_backup_volume_rename_delete() {
 
   # All backups should be listed.
   lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups
-  lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups | jq .'[0]' | grep storage-pools/"${pool}"/volumes/custom/vol1/backups/foo
+  lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups | jq --exit-status '.[0] == "/1.0/storage-pools/'"${pool}"'/volumes/custom/vol1/backups/foo"'
 
   # The specific backup should exist.
   lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups/foo
@@ -956,7 +950,7 @@ test_backup_volume_rename_delete() {
   lxc storage volume rename "${pool}" vol1 vol2
 
   # All backups should be listed.
-  lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol2/backups | jq .'[0]' | grep storage-pools/"${pool}"/volumes/custom/vol2/backups/foo
+  lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol2/backups | jq --exit-status '.[0] == "/1.0/storage-pools/'"${pool}"'/volumes/custom/vol2/backups/foo"'
 
   # The specific backup should exist.
   lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol2/backups/foo
@@ -969,7 +963,7 @@ test_backup_volume_rename_delete() {
 
   # Rename backup itself and check its renamed in DB and on disk.
   lxc query -X POST --wait -d '{"name":"foo2"}' /1.0/storage-pools/"${pool}"/volumes/custom/vol2/backups/foo
-  lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol2/backups | jq .'[0]' | grep storage-pools/"${pool}"/volumes/custom/vol2/backups/foo2
+  lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol2/backups | jq --exit-status '.[0] == "/1.0/storage-pools/'"${pool}"'/volumes/custom/vol2/backups/foo2"'
   stat "${LXD_DIR}"/backups/custom/"${pool}"/default_vol2/foo2
   ! stat "${LXD_DIR}"/backups/custom/"${pool}"/default_vol2/foo || false
 
@@ -1015,14 +1009,14 @@ test_backup_volume_expiry() {
   lxc query -X POST -d '{}' /1.0/storage-pools/"${poolName}"/volumes/custom/vol1/backups
 
   # Check that both backups are listed.
-  [ "$(lxc query /1.0/storage-pools/"${poolName}"/volumes/custom/vol1/backups | jq '.[]' | wc -l)" -eq 2 ]
+  lxc query /1.0/storage-pools/"${poolName}"/volumes/custom/vol1/backups | jq --exit-status 'length == 2'
 
   # Restart LXD which will trigger the task which removes expired volume backups.
   shutdown_lxd "${LXD_DIR}"
   respawn_lxd "${LXD_DIR}" true
 
   # Check that there's only one backup remaining.
-  [ "$(lxc query /1.0/storage-pools/"${poolName}"/volumes/custom/vol1/backups | jq '.[]' | wc -l)" -eq 1 ]
+  lxc query /1.0/storage-pools/"${poolName}"/volumes/custom/vol1/backups | jq --exit-status 'length == 1'
 
   # Cleanup.
   lxc storage volume delete "${poolName}" vol1
@@ -1051,8 +1045,8 @@ test_backup_export_import_recover() {
     rm "${LXD_DIR}/c1.tar.gz"
 
     # Remove imported instance enteries from database.
-    lxd sql global "delete from instances where name = 'c2'"
-    lxd sql global "delete from storage_volumes where name = 'c2'"
+    lxd sql global "DELETE FROM instances WHERE name = 'c2'"
+    lxd sql global "DELETE FROM storage_volumes WHERE name = 'c2'"
 
     # Recover removed instance.
     cat <<EOF | lxd recover
@@ -1074,7 +1068,7 @@ test_backup_export_import_instance_only() {
   lxc snapshot c1
 
   # Verify the original instance has snapshots.
-  [ "$(lxc query "/1.0/storage-pools/${poolName}/volumes/container/c1/snapshots" | jq -r 'length')" = "1" ]
+  lxc query "/1.0/storage-pools/${poolName}/volumes/container/c1/snapshots" | jq --exit-status 'length == 1'
 
   # Export the instance and remove it.
   lxc export c1 "${LXD_DIR}/c1.tar.gz" --instance-only
@@ -1084,7 +1078,7 @@ test_backup_export_import_instance_only() {
   lxc import "${LXD_DIR}/c1.tar.gz"
 
   # Verify imported instance has no snapshots.
-  [ "$(lxc query "/1.0/storage-pools/${poolName}/volumes/container/c1/snapshots" | jq -r 'length')" = "0" ]
+  lxc query "/1.0/storage-pools/${poolName}/volumes/container/c1/snapshots" | jq --exit-status '. == []'
 
   rm "${LXD_DIR}/c1.tar.gz"
   lxc delete c1
@@ -1094,8 +1088,8 @@ test_backup_metadata() {
   ensure_import_testimage
 
   # Fetch the least and most recent supported backup metadata version from the range.
-  lowest_version=$(lxc query /1.0 | jq -r .environment.backup_metadata_version_range[0])
-  highest_version=$(lxc query /1.0 | jq -r .environment.backup_metadata_version_range[1])
+  lowest_version="$(lxc query /1.0 | jq --exit-status --raw-output '.environment.backup_metadata_version_range[0]')"
+  highest_version="$(lxc query /1.0 | jq --exit-status --raw-output '.environment.backup_metadata_version_range[1]')"
 
   [ "$lowest_version" = "1" ]
   [ "$highest_version" = "2" ]
@@ -1158,14 +1152,14 @@ test_backup_metadata() {
   tar -xzf "${tmpDir}/vol1.tar.gz" -C "${tmpDir}" --occurrence=1 backup/index.yaml
 
   cat "${tmpDir}/backup/index.yaml"
-  [ "$(yq '.snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
-  [ "$(yq .config.version < "${tmpDir}/backup/index.yaml")" = "null" ]
-  [ "$(yq .config.container < "${tmpDir}/backup/index.yaml")" = "null" ]
-  [ "$(yq .config.volume < "${tmpDir}/backup/index.yaml")" != "null" ]
-  [ "$(yq '.config.volume_snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
+  yq --exit-status '.snapshots | length == 1' < "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.version == null' < "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.container == null' < "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.volume != null' < "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.volume_snapshots | length == 1' < "${tmpDir}/backup/index.yaml"
 
   rm -rf "${tmpDir}/backup" "${tmpDir}/vol1.tar.gz"
   lxc storage volume delete "${poolName}" vol1
 
-  rm -rf "${tmpDir}"
+  rmdir "${tmpDir}"
 }

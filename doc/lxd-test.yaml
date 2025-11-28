@@ -31,8 +31,6 @@ config:
     runcmd:
     # Speeds up testing and avoid problem with virtiofs
     - echo "LXD_TMPFS=1" >> /etc/environment
-    # Enable (nested) VM tests
-    - echo "LXD_VM_TESTS=1" >> /etc/environment
     # Disable lxd-installer
     - chmod -x /usr/sbin/lxc /usr/sbin/lxd
     # Disable needrestart
@@ -51,6 +49,7 @@ config:
     packages:
     # dev comfort
     - bash-completion
+    - nano
     - vim
     # build deps
     - autoconf
@@ -61,11 +60,13 @@ config:
     - libacl1-dev
     - libapparmor-dev
     - libcap-dev
+    - liblz4-dev
     - libseccomp-dev
     - libsqlite3-dev
     - libtool
     - libudev-dev
     - libuv1-dev
+    - xfslibs-dev
     - make
     - meson
     - ninja-build
@@ -91,6 +92,7 @@ config:
     - dnsmasq-base
     - dosfstools
     - e2fsprogs
+    - expect
     - iptables
     - iputils-ping
     - jq

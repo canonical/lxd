@@ -6,7 +6,7 @@ test_snapshots() {
     pool="lxdtest-$(basename "${LXD_DIR}")-non-thinpool-lvm-snapshots"
 
     # Test that non-thinpool lvm backends work fine with snaphots.
-    lxc storage create "${pool}" lvm lvm.use_thinpool=false volume.size=25MiB
+    lxc storage create "${pool}" lvm lvm.use_thinpool=false volume.size="${DEFAULT_VOLUME_SIZE}"
     lxc profile device set default root pool "${pool}"
 
     snapshots "${pool}"
@@ -149,14 +149,14 @@ EOF
   [ ! -d "${LXD_DIR}/containers/foosnap1" ]
 }
 
-test_snap_restore() {
+test_snapshot_restore() {
   snap_restore "lxdtest-$(basename "${LXD_DIR}")"
 
   if [ "$(storage_backend "$LXD_DIR")" = "lvm" ]; then
     pool="lxdtest-$(basename "${LXD_DIR}")-non-thinpool-lvm-snap-restore"
 
     # Test that non-thinpool lvm backends work fine with snaphots.
-    lxc storage create "${pool}" lvm lvm.use_thinpool=false volume.size=25MiB
+    lxc storage create "${pool}" lvm lvm.use_thinpool=false volume.size="${DEFAULT_VOLUME_SIZE}"
     lxc profile device set default root pool "${pool}"
 
     snap_restore "${pool}"
@@ -182,6 +182,10 @@ snap_restore() {
 
   ## prepare snap0
   lxc launch testimage bar -d "${SMALL_ROOT_DISK}"
+
+  ## set description
+  lxc config set bar --property description="test_description_snap0"
+
   echo snap0 > state
   lxc file push state bar/root/state
   lxc file push state bar/root/file_only_in_snap0
@@ -255,6 +259,10 @@ snap_restore() {
       echo "==> config didn't match expected value after restore (${cpus})"
       false
     fi
+
+    # Check container description is restored
+    description=$(lxc config get bar --property description)
+    [ "${description}" = "test_description_snap0" ]
 
     # Check storage volume has been restored (user.foo=snap0)
     [ "$(lxc storage volume get "${pool}" container/bar user.foo)" = "snap0" ]
@@ -393,7 +401,7 @@ restore_and_compare_fs() {
   fi
 }
 
-test_snap_expiry() {
+test_snapshot_expiry() {
   local lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
 
@@ -403,7 +411,7 @@ test_snap_expiry() {
   [ "$(lxc config get --property c1/snap0 expires_at)" = "0001-01-01 00:00:00 +0000 UTC" ]
 
   # Check the API returns the zero time representation when listing all snapshots in recursive mode.
-  [ "$(lxc query "/1.0/instances/c1?recursion=2" | jq -r '.snapshots[] | select(.name == "snap0") | .expires_at')" = "0001-01-01T00:00:00Z" ]
+  lxc query "/1.0/instances/c1?recursion=2" | jq --exit-status '.snapshots[] | select(.name == "snap0") | .expires_at == "0001-01-01T00:00:00Z"'
 
   lxc config set c1 snapshots.expiry '1d'
   lxc snapshot c1
@@ -427,7 +435,7 @@ test_snap_expiry() {
   lxc delete c1 c2
 }
 
-test_snap_schedule() {
+test_snapshot_schedule() {
   local lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
 
@@ -452,7 +460,7 @@ test_snap_schedule() {
   lxc delete -f c1 c2 c3 c4 c5
 }
 
-test_snap_volume_db_recovery() {
+test_snapshot_volume_db_recovery() {
   local lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
 
@@ -476,12 +484,12 @@ test_snap_volume_db_recovery() {
   lxc delete -f c1
 }
 
-test_snap_fail() {
+test_snapshot_fail() {
   local lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
 
   if [ "${lxd_backend}" != "zfs" ]; then
-    echo "==> SKIP: test_snap_fail only supports 'zfs', not ${lxd_backend}"
+    echo "==> SKIP: test_snapshot_fail only supports 'zfs', not ${lxd_backend}"
     return
   fi
 

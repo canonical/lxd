@@ -21,8 +21,18 @@ func nicValidationRules(requiredFields []string, optionalFields []string, instCo
 		//  type: string
 		//  defaultdesc: `none`
 		//  managed: no
-		//  shortdesc: Enable hardware offloading
+		//  shortdesc: Enable hardware acceleration
 		"acceleration": validate.Optional(validate.IsOneOf("none", "sriov", "vdpa")),
+		// lxdmeta:generate(entities=device-nic-ovn; group=device-conf; key=acceleration.parent)
+		// Comma separated list of physical function (PF) interfaces to allocate virtual functions (VFs) from for hardware acceleration when {config:option}`device-nic-ovn-device-conf:acceleration` is enabled.
+		// In {config:option}`project-restricted:restricted` projects, it can only be used when {config:option}`project-restricted:restricted.virtual-machines.lowlevel` or {config:option}`project-restricted:restricted.containers.lowlevel` is set to `allow`.
+		// If this is not specified, and {config:option}`device-nic-ovn-device-conf:acceleration` is enabled then all PFs connected to the OVS integration bridge are scanned for a free VF.
+		// See {ref}`devices-nic-hw-acceleration` for more information.
+		// ---
+		//  type: string
+		//  managed: yes
+		//  shortdesc: Physical function interfaces to allocate virtual functions from for hardware acceleration
+		"acceleration.parent": validate.Optional(validate.IsListOf(validate.IsInterfaceName)),
 		// lxdmeta:generate(entities=device-nic-{bridged+macvlan+sriov+physical+ovn}; group=device-conf; key=name)
 		//
 		// ---

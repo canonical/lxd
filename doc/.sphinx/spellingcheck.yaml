@@ -30,3 +30,9 @@ matrix:
       - a.p-navigation__link
       - a.contributor
       - kbd
+  - pyspelling.filters.context:
+      # ignore spelling for snake_case (code terms)
+      context_visible_first: true
+      delimiters:
+      - open: '(?P<content>\b[a-z_]+\b)'
+        close: '\b'

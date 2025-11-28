@@ -13,6 +13,7 @@ var (
 	_ = swaggerBadRequest{}
 	_ = swaggerForbidden{}
 	_ = swaggerPreconditionFailed{}
+	_ = swaggerStatusLocked{}
 	_ = swaggerInternalServerError{}
 	_ = swaggerNotFound{}
 	_ = swaggerNotImplemented{}
@@ -110,6 +111,24 @@ type swaggerPreconditionFailed struct {
 		Error string `json:"error"`
 
 		// Example: 412
+		ErrorCode int `json:"error_code"`
+	}
+}
+
+// Status Locked
+//
+// swagger:response StatusLocked
+type swaggerStatusLocked struct {
+	// Internal server Error
+	// in: body
+	Body struct {
+		// Example: error
+		Type string `json:"type"`
+
+		// Example: status locked
+		Error string `json:"error"`
+
+		// Example: 423
 		ErrorCode int `json:"error_code"`
 	}
 }

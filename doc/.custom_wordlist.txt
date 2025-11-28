@@ -30,6 +30,7 @@ bootable
 bpffs
 BPFFS
 BPF
+BMC
 Btrfs
 bugfix
 bugfixes
@@ -129,11 +130,13 @@ IPAM
 IPs
 IPv
 IPVLAN
+IPVS
 JIT
 JWT
 jq
 kB
 kbit
+Keepalived
 Keycloak
 KiB
 kibi
@@ -207,6 +210,7 @@ OVS
 Pbit
 PCI
 PCIe
+PDU
 passthrough
 passthroughs
 peerings
@@ -323,6 +327,7 @@ TTL
 UDP
 UEFI
 UFW
+UI's
 UID
 UIDs
 unconfigured
@@ -376,3 +381,4 @@ WSAPI
 CPG
 vLUN
 vLUNs
+VRRP

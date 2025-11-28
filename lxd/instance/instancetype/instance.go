@@ -29,6 +29,9 @@ const (
 // ConfigVolatilePrefix indicates the prefix used for volatile config keys.
 const ConfigVolatilePrefix = "volatile."
 
+// TargetClusterGroupPrefix indicates the prefix used for target cluster group names.
+const TargetClusterGroupPrefix = "@"
+
 // ConfigKeyPrefixesAny indicates valid prefixes for configuration options.
 var ConfigKeyPrefixesAny = []string{"environment.", "user.", "image.", "cloud-init.ssh-keys."}
 
@@ -231,7 +234,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	//  defaultdesc: `auto`
 	//  liveupdate: no
 	//  shortdesc: What to do when evacuating the instance
-	"cluster.evacuate": validate.Optional(validate.IsOneOf("auto", "migrate", "live-migrate", "stop")),
+	"cluster.evacuate": validate.Optional(validate.IsOneOf(api.ClusterEvacuateModeAuto, api.ClusterEvacuateModeMigrate, api.ClusterEvacuateModeLiveMigrate, api.ClusterEvacuateModeStop)),
 
 	// lxdmeta:generate(entities=instance; group=resource-limits; key=limits.cpu)
 	// A number or a specific range of CPUs to expose to the instance.
@@ -1175,6 +1178,13 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	//  shortdesc: Whether to regenerate VM NVRAM the next time the instance starts
 	"volatile.apply_nvram": validate.Optional(validate.IsBool),
 
+	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.bus.mode)
+	// Set to `persistent` when persistent bus allocation mode is enabled.
+	// ---
+	//  type: string
+	//  shortdesc: Device bus allocation mode
+	"volatile.bus.mode": validate.Optional(validate.IsOneOf("persistent")),
+
 	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.vsock_id)
 	//
 	// ---
@@ -1264,7 +1274,7 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 		}
 
 		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.host_name)
-		//
+		// Network device name on the host.
 		// ---
 		//  type: string
 		//  shortdesc: Network device name on the host
@@ -1284,10 +1294,10 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.last_state.created)
 		// Possible values are `true` or `false`.
 		// ---
-		//  type: string
+		//  type: bool
 		//  shortdesc: Whether the network device physical device was created
 		if strings.HasSuffix(key, ".created") {
-			return validate.IsAny, nil
+			return validate.Optional(validate.IsBool), nil
 		}
 
 		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.last_state.vf.id)
@@ -1331,7 +1341,7 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 		}
 
 		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.ceph_rbd)
-		//
+		// RBD device path for Ceph disk devices.
 		// ---
 		//  type: string
 		//  shortdesc: RBD device path for Ceph disk devices
@@ -1339,25 +1349,30 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 			return validate.IsAny, nil
 		}
 
-		if strings.HasSuffix(key, ".driver") {
+		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.last_state.pci.driver)
+		// Name of driver device was using on host.
+		// --
+		//  type: string
+		//  shortdesc: Name of driver device was using on host
+		if strings.HasSuffix(key, ".last_state.pci.driver") {
 			return validate.IsAny, nil
 		}
 
-		// lxdmeta:generate(entities=network-physical; group=volatile; key=volatile.last_state.usb.bus)
-		//
+		// lxdmeta:generate(entities=network-physical; group=volatile; key=volatile.<name>.last_state.usb.bus)
+		// USB Bus Number.
 		// --
 		//  type: string
 		//  shortdesc: USB Bus Number
-		if strings.HasSuffix(key, ".bus") {
+		if strings.HasSuffix(key, ".last_state.usb.bus") {
 			return validate.IsAny, nil
 		}
 
-		// lxdmeta:generate(entities=network-physical; group=volatile; key=volatile.last_state.usb.device)
-		//
+		// lxdmeta:generate(entities=network-physical; group=volatile; key=volatile.<name>.last_state.usb.device)
+		// USB Device Number.
 		// --
 		//  type: string
 		//  shortdesc: USB Device Number
-		if strings.HasSuffix(key, ".device") {
+		if strings.HasSuffix(key, ".last_state.usb.device") {
 			return validate.IsAny, nil
 		}
 
@@ -1367,6 +1382,15 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 
 		if strings.HasSuffix(key, ".last_state.ready") {
 			return validate.IsBool, nil
+		}
+
+		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.bus)
+		// Persistent VM bus number.
+		// ---
+		//  type: integer
+		//  shortdesc: Persistent VM bus number
+		if strings.HasSuffix(key, ".bus") {
+			return validate.Optional(validate.IsUint8), nil
 		}
 	}
 

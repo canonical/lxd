@@ -200,7 +200,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 			continue
 		}
 
-		certificateURL := "/" + version.APIVersion + "/certificates/" + identity.Identifier
+		certificateURL := api.NewURL().Path(version.APIVersion, "certificates", identity.Identifier).String()
 		body = append(body, certificateURL)
 	}
 

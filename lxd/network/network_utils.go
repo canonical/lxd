@@ -1165,14 +1165,30 @@ func InterfaceExists(nic string) bool {
 	return false
 }
 
-// IPInSlice returns true if slice has IP element.
-func IPInSlice(key net.IP, list []net.IP) bool {
-	for _, entry := range list {
-		if entry.Equal(key) {
-			return true
-		}
+// IPIsBroadcast returns true if the IP address is the broadcast address of the given IPv4 subnet.
+func IPIsBroadcast(subnet *net.IPNet, address net.IP) bool {
+	if subnet == nil || address == nil {
+		return false
 	}
-	return false
+
+	addrIPv4 := address.To4()
+	networkIPv4 := subnet.IP.To4()
+
+	if addrIPv4 == nil || networkIPv4 == nil {
+		return false
+	}
+
+	mask := subnet.Mask
+	if len(mask) != net.IPv4len {
+		return false
+	}
+
+	broadcast := make(net.IP, net.IPv4len)
+	for i := range net.IPv4len {
+		broadcast[i] = networkIPv4[i] | ^mask[i]
+	}
+
+	return addrIPv4.Equal(broadcast)
 }
 
 // SubnetContains returns true if outerSubnet contains innerSubnet.

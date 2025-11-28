@@ -220,7 +220,7 @@ func (d *lvm) Create() error {
 		if shared.IsTrue(d.config["source.wipe"]) {
 			err := wipeBlockHeaders(srcPath)
 			if err != nil {
-				return fmt.Errorf("Failed to wipe headers from disk %q: %w", d.config["source"], err)
+				return fmt.Errorf("Failed to wipe headers from disk %q: %w", srcPath, err)
 			}
 
 			d.config["source.wipe"] = ""

@@ -68,6 +68,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   deny /proc/kcore rwklx,
   deny /proc/sysrq-trigger rwklx,
   deny /proc/acpi/** rwklx,
+  deny /proc/sys/fs/** wklx,
 
   # Handle securityfs (access handled separately)
   mount fstype=securityfs -> /sys/kernel/security/,
@@ -325,22 +326,9 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   mount options=(rw,move) /sy[^s]*{,/**},
   mount options=(rw,move) /sys?*{,/**},
 
+{{- if not .nesting }}
   # Block dangerous paths under /proc/sys
-  deny /proc/sys/[^fkn]*{,/**} wklx,
-  deny /proc/sys/f[^s]*{,/**} wklx,
-  deny /proc/sys/fs/[^b]*{,/**} wklx,
-  deny /proc/sys/fs/b[^i]*{,/**} wklx,
-  deny /proc/sys/fs/bi[^n]*{,/**} wklx,
-  deny /proc/sys/fs/bin[^f]*{,/**} wklx,
-  deny /proc/sys/fs/binf[^m]*{,/**} wklx,
-  deny /proc/sys/fs/binfm[^t]*{,/**} wklx,
-  deny /proc/sys/fs/binfmt[^_]*{,/**} wklx,
-  deny /proc/sys/fs/binfmt_[^m]*{,/**} wklx,
-  deny /proc/sys/fs/binfmt_m[^i]*{,/**} wklx,
-  deny /proc/sys/fs/binfmt_mi[^s]*{,/**} wklx,
-  deny /proc/sys/fs/binfmt_mis[^c]*{,/**} wklx,
-  deny /proc/sys/fs/binfmt_misc?*{,/**} wklx,
-  deny /proc/sys/fs?*{,/**} wklx,
+  deny /proc/sys/[^kn]*{,/**} wklx,
   deny /proc/sys/k[^e]*{,/**} wklx,
   deny /proc/sys/ke[^r]*{,/**} wklx,
   deny /proc/sys/ker[^n]*{,/**} wklx,
@@ -409,7 +397,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   deny /sys/devices/virtual?*{,/**} wklx,
   deny /sys/devices?*{,/**} wklx,
   deny /sys/f[^s]*{,/**} wklx,
-  deny /sys/fs/[^bc]*{,/**} wklx,
+  deny /sys/fs/[^cb]*{,/**} wklx,
   deny /sys/fs/b[^p]*{,/**} wklx,
   deny /sys/fs/bp[^f]*{,/**} wklx,
   deny /sys/fs/bpf?*{,/**} wklx,
@@ -420,6 +408,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   deny /sys/fs/cgrou[^p]*{,/**} wklx,
   deny /sys/fs/cgroup?*{,/**} wklx,
   deny /sys/fs?*{,/**} wklx,
+{{- end }}
 
 {{- if .feature_unix }}
 
@@ -442,6 +431,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 
 {{- if .feature_stacking }}
 
+{{- if not .nesting }}
   ### Feature: apparmor stacking
   deny /sys/k[^e]*{,/**} wklx,
   deny /sys/ke[^r]*{,/**} wklx,
@@ -467,13 +457,16 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   deny /sys/kernel/security/apparmor?*{,/**} wklx,
   deny /sys/kernel/security?*{,/**} wklx,
   deny /sys/kernel?*{,/**} wklx,
+{{- end }}
 
   change_profile -> ":{{ .namespace }}:*",
   change_profile -> ":{{ .namespace }}://*",
 {{- else }}
 
   ### Feature: apparmor stacking (not present)
+{{- if not .nesting }}
   deny /sys/k*{,/**} wklx,
+{{- end }}
 {{- end }}
 
 {{- if .nesting }}

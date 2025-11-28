@@ -403,6 +403,13 @@ func (n *ovn) Validate(config map[string]string) error {
 		//  type: string
 		//  shortdesc: Uplink network to use for external network access
 		"network": validate.IsAny,
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=acceleration.parent)
+		// Comma separated list of physical function (PF) interfaces to allocate virtual functions (VFs) from for hardware acceleration when {config:option}`device-nic-ovn-device-conf:acceleration` is enabled.
+		// See {ref}`devices-nic-hw-acceleration` for more information.
+		// ---
+		//  type: string
+		//  shortdesc: Physical function interfaces to allocate virtual functions from for hardware acceleration
+		"acceleration.parent": validate.Optional(validate.IsListOf(validate.IsInterfaceName)),
 		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=bridge.hwaddr)
 		//
 		// ---
@@ -3375,7 +3382,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 			uplinkAddrKey = ovnVolatileUplinkIPv6
 		}
 
-		if newNetwork.Config[uplinkAddrKey] == "" && newNetwork.Config[networkAddrKey] != "" {
+		if newNetwork.Config[uplinkAddrKey] == "" && newNetwork.Config[networkAddrKey] != "" && newNetwork.Config[networkAddrKey] != "none" {
 			return fmt.Errorf("Uplink address key %q cannot be empty when network address key %q is populated", uplinkAddrKey, networkAddrKey)
 		}
 	}
@@ -4020,7 +4027,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 				break
 			}
 
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(250 * time.Millisecond)
 		}
 
 		for _, dynamicIP := range dynamicIPs {

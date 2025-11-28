@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -2592,7 +2591,7 @@ func (n *bridge) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
 	}
 
 	// If current list is same as cluster list, nothing to do.
-	if err == nil && reflect.DeepEqual(curList, addresses) {
+	if err == nil && slices.Equal(curList, addresses) {
 		return nil
 	}
 
@@ -3797,14 +3796,11 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 		leasesCh := make(chan api.NetworkLease)
 
 		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			for lease := range leasesCh {
 				leases = append(leases, lease)
 			}
-
-			wg.Done()
-		}()
+		})
 
 		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 			memberLeases, err := client.GetNetworkLeases(n.name)

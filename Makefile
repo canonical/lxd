@@ -15,6 +15,13 @@ GOMIN=1.25.4
 GOTOOLCHAIN=local
 export GOTOOLCHAIN
 GOCOVERDIR ?= $(shell go env GOCOVERDIR)
+ifeq "$(GOCOVERDIR)" ""
+	COVER=
+	COVER_TEST=
+else
+	COVER=-cover
+	COVER_TEST=-test.gocoverdir="$(GOCOVERDIR)"
+endif
 ARCH ?= $(shell uname -m)
 DQLITE_BRANCH=lts-1.17.x
 LIBLXC_BRANCH=stable-6.0
@@ -37,106 +44,69 @@ export CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 .PHONY: default
 default: all
 
-.PHONY: all
-all: client lxd lxd-agent lxd-migrate test-binaries
-
 .PHONY: build
 build: lxd
+
+.PHONY: all
+all: client lxd lxd-agent lxd-benchmark lxd-metadata lxd-migrate lxd-user test-binaries
+
 .PHONY: lxd
-lxd: lxd-metadata
+lxd:
 ifeq "$(TAG_SQLITE3)" ""
 	@echo "Missing dqlite, run \"make deps\" to setup."
 	exit 1
 endif
+	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" -trimpath $(COVER) $(DEBUG) ./lxd
+	@echo "$@ built successfully"
 
-ifeq "$(GOCOVERDIR)" ""
-	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" -trimpath $(DEBUG) ./lxd
-	CGO_ENABLED=0 go install -v -tags netgo -trimpath $(DEBUG) ./lxd-user ./lxd-benchmark
-else
-	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" -trimpath -cover $(DEBUG) ./lxd
-	CGO_ENABLED=0 go install -v -tags netgo -trimpath -cover $(DEBUG) ./lxd-user ./lxd-benchmark
-endif
+.PHONY: lxd-benchmark
+lxd-benchmark:
+	CGO_ENABLED=0 go install -v -tags netgo -trimpath $(COVER) $(DEBUG) ./lxd-benchmark
+	@echo "$@ built successfully"
 
-	@echo "LXD built successfully"
+.PHONY: lxd-user
+lxd-user:
+	CGO_ENABLED=0 go install -v -tags netgo -trimpath $(COVER) $(DEBUG) ./lxd-user
+	@echo "$@ built successfully"
 
 .PHONY: client
 client:
-ifeq "$(GOCOVERDIR)" ""
-	go install -v -trimpath $(DEBUG) ./lxc
-else
-	go install -v -trimpath -cover $(DEBUG) ./lxc
-endif
-
-	@echo "LXD client built successfully"
+	go install -v -trimpath $(COVER) $(DEBUG) ./lxc
+	@echo "LXD $@ built successfully"
 
 .PHONY: lxd-agent
 lxd-agent:
-ifeq "$(GOCOVERDIR)" ""
-	CGO_ENABLED=0 go install -v -trimpath -tags agent,netgo ./lxd-agent
-else
-	CGO_ENABLED=0 go install -v -trimpath -cover -tags agent,netgo ./lxd-agent
-endif
-
-	@echo "LXD agent built successfully"
+	CGO_ENABLED=0 go install -v -trimpath $(COVER) -tags agent,netgo ./lxd-agent
+	@echo "$@ built successfully"
 
 .PHONY: lxd-metadata
 lxd-metadata:
-ifeq "$(GOCOVERDIR)" ""
-	CGO_ENABLED=0 go install -v -trimpath -tags lxd-metadata ./lxd/lxd-metadata
-else
-	CGO_ENABLED=0 go install -v -trimpath -cover -tags lxd-metadata ./lxd/lxd-metadata
-endif
-
-	@echo "LXD metadata built successfully"
+	CGO_ENABLED=0 go install -v -trimpath $(COVER) -tags lxd-metadata ./lxd/lxd-metadata
+	@echo "$@ built successfully"
 
 .PHONY: lxd-migrate
 lxd-migrate:
-ifeq "$(GOCOVERDIR)" ""
-	CGO_ENABLED=0 go install -v -trimpath -tags netgo ./lxd-migrate
-else
-	CGO_ENABLED=0 go install -v -trimpath -cover -tags netgo ./lxd-migrate
-endif
-
-	@echo "LXD-MIGRATE built successfully"
+	CGO_ENABLED=0 go install -v -trimpath $(COVER) -tags netgo ./lxd-migrate
+	@echo "$@ built successfully"
 
 .PHONY: devlxd-client
 devlxd-client:
-ifeq "$(GOCOVERDIR)" ""
-	CGO_ENABLED=0 go install -C test -v -trimpath -buildvcs=false -tags netgo ./devlxd-client
-else
-	CGO_ENABLED=0 go install -C test -v -trimpath -buildvcs=false -cover -tags netgo ./devlxd-client
-endif
-
+	CGO_ENABLED=0 go install -C test -v -trimpath -buildvcs=false $(COVER) -tags netgo ./devlxd-client
 	@echo "$@ built successfully"
 
 .PHONY: fuidshift
 fuidshift:
-ifeq "$(GOCOVERDIR)" ""
-	go install -v -trimpath -buildvcs=false ./fuidshift
-else
-	go install -v -trimpath -buildvcs=false -cover ./fuidshift
-endif
-
+	go install -v -trimpath -buildvcs=false $(COVER) ./fuidshift
 	@echo "$@ built successfully"
 
 .PHONY: mini-oidc
 mini-oidc:
-ifeq "$(GOCOVERDIR)" ""
-	go install -C test -v -trimpath -buildvcs=false ./mini-oidc
-else
-	go install -C test -v -trimpath -buildvcs=false -cover ./mini-oidc
-endif
-
+	go install -C test -v -trimpath -buildvcs=false $(COVER) ./mini-oidc
 	@echo "$@ built successfully"
 
 .PHONY: sysinfo
 sysinfo:
-ifeq "$(GOCOVERDIR)" ""
-	go install -C test -v -trimpath -buildvcs=false ./syscall/sysinfo
-else
-	go install -C test -v -trimpath -buildvcs=false -cover ./syscall/sysinfo
-endif
-
+	go install -C test -v -trimpath -buildvcs=false $(COVER) ./syscall/sysinfo
 	@echo "$@ built successfully"
 
 .PHONY: test-binaries
@@ -150,6 +120,10 @@ dqlite:
 		echo "Retrieving dqlite from ${DQLITE_BRANCH} branch"; \
 		git clone --depth=1 --branch "${DQLITE_BRANCH}" "https://github.com/canonical/dqlite" "$(DQLITE_PATH)"; \
 	elif [ -e "$(DQLITE_PATH)/.git" ]; then \
+		if [ "$(shell git -C "$(DQLITE_PATH)" branch --show-current)" = "master" ]; then \
+			echo "Update your local checkout of dqlite to use the 'main' branch instead of the 'master'"; \
+			exit 1; \
+		fi; \
 		echo "Updating existing dqlite branch"; \
 		git -C "$(DQLITE_PATH)" pull; \
 	fi
@@ -158,6 +132,13 @@ dqlite:
 		autoreconf -i && \
 		./configure --enable-build-raft && \
 		make -j
+
+ifneq ($(shell command -v ldd),)
+	# verify that libdqlite.so is linked against some critically important libs
+	ldd "$(DQLITE_PATH)/.libs/libdqlite.so" | grep -wE 'liblz4|libsqlite3|libuv'
+	[ "$$(ldd "$(DQLITE_PATH)/.libs/libdqlite.so" | grep -cwE 'liblz4|libsqlite3|libuv')" = "3" ]
+	@echo "OK: libdqlite .so link check passed"
+endif
 
 .PHONY: liblxc
 liblxc:
@@ -183,6 +164,7 @@ liblxc:
 			-Dexamples=false \
 			-Dinstall-init-files=false \
 			-Dinstall-state-dirs=false \
+			-Dlibdir="lib/$(ARCH)-linux-gnu" \
 			-Dman=false \
 			-Dmemfd-rexec=false \
 			-Dopenssl=false \
@@ -223,7 +205,7 @@ deps: dqlite liblxc
 .PHONY: test-shell
 test-shell:
 	@eval "$(MAKE) -s env"
-	cd test && ./main.sh test-shell
+	cd test && exec ./main.sh test-shell
 
 .PHONY: tics
 tics: deps
@@ -252,18 +234,21 @@ ifeq "$(GOMIN)" "$(NEW_GOMIN)"
 	exit 1
 endif
 	@echo "Updating Go minimum version from $(GOMIN) to $(NEW_GOMIN)"
-	
+
 	@# Update GOMIN in Makefile
 	sed -i 's/^GOMIN=[0-9.]\+/GOMIN=$(NEW_GOMIN)/' Makefile
-	
+
+	@# Update GOMIN in go.mod
+	sed -i 's/^go [0-9.]\+$$/go $(NEW_GOMIN)/' go.mod
+
 	@# Update doc/requirements.md and .github/copilot-instructions.md
 	sed -i 's/^\(LXD requires Go \)[0-9.]\+ /\1$(NEW_GOMIN) /' doc/requirements.md .github/copilot-instructions.md
-	
+
 	@echo "Go minimum version updated to $(NEW_GOMIN)"
 	if [ -t 0 ]; then \
 		read -rp "Would you like to commit Go version changes (Y/n)? " answer; \
 		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-			git commit -S -sm "go: Update Go minimum version to $(NEW_GOMIN)" -- ./Makefile ./doc/requirements.md ./.github/copilot-instructions.md; \
+			git commit -S -sm "go: Update Go minimum version to $(NEW_GOMIN)" -- Makefile go.mod doc/requirements.md .github/copilot-instructions.md; \
 		fi; \
 	fi
 
@@ -290,7 +275,7 @@ endif
 	if [ -t 0 ] && ! git diff --quiet -- ./go.mod ./go.sum; then \
 		read -rp "Would you like to commit gomod changes (Y/n)? " answer; \
 		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-			git commit -S -sm "gomod: Update dependencies" -- ./go.mod ./go.sum; \
+			git commit -S -sm "go: Update dependencies" -- ./go.mod ./go.sum; \
 		fi; \
 	fi
 
@@ -323,7 +308,7 @@ endif
 	fi
 
 .PHONY: update-metadata
-update-metadata: build
+update-metadata: lxd-metadata
 	@echo "Generating golang documentation metadata"
 	$(GOPATH)/bin/lxd-metadata . --json ./lxd/metadata/configuration.json --txt ./doc/metadata.txt --substitution-db ./doc/substitutions.yaml
 	if [ -t 0 ] && ! git diff --quiet -- ./lxd/metadata/configuration.json ./doc/metadata.txt; then \
@@ -365,11 +350,8 @@ check: default check-gomin check-unit test-binaries
 
 .PHONY: check-unit
 check-unit:
-ifeq "$(GOCOVERDIR)" ""
-	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -mod=readonly -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
-else
-	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -mod=readonly -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./... -cover -test.gocoverdir="$(GOCOVERDIR)"
-endif
+	$(shell [ -n "$(GOCOVERDIR)" ] && mkdir -p "$(GOCOVERDIR)")
+	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -mod=readonly -v -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./... $(COVER) $(COVER_TEST)
 
 .PHONY: dist
 dist:
@@ -441,7 +423,7 @@ update-po:
 	if [ -t 0 ] && ! git diff --quiet -- po/*.po; then \
 		read -rp "Would you like to commit i18n changes (Y/n)? " answer; \
 			if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-				git commit -S -sm "i18n: Update translations." -- po/*.po; \
+				git commit -S -sm "i18n: Update translations" -- po/*.po; \
 			fi; \
 	fi
 
@@ -457,7 +439,7 @@ endif
 	if [ -t 0 ] && ! git diff --quiet --ignore-matching-lines='^\s*"POT-Creation-Date: .*\n"' -- po/*.pot; then \
 		read -rp "Would you like to commit i18n template changes (Y/n)? " answer; \
 			if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-				git commit -S -sm "i18n: Update translation templates." -- po/*.pot; \
+				git commit -S -sm "i18n: Update translation templates" -- po/*.pot; \
 			fi; \
 	fi
 

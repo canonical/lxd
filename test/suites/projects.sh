@@ -57,6 +57,7 @@ test_projects_crud() {
   ! lxc project rename bar foo || false
 
   lxc project switch foo
+  lxc project list -f csv | grep -F "foo (current),"
 
   # Turning off the profiles feature makes the project see the default profile
   # from the default project.
@@ -78,17 +79,20 @@ test_projects_crud() {
   lxc project delete bar
 
   # We're back to the default project
-  lxc project list | grep -F "default (current)"
+  lxc project list -f csv | grep -F "default (current),"
 }
 
 # Use containers in a project.
 test_projects_containers() {
+  lxc list --project default
+  ! lxc list --project nonexistent || false
+
   # Create a project and switch to it
   lxc project create foo
   lxc project switch foo
 
-  deps/import-busybox --project foo --alias testimage
-  fingerprint="$(lxc image list -c f --format json | jq -r ".[0].fingerprint")"
+  ensure_import_testimage
+  fingerprint="$(lxc image list -f csv -c F testimage)"
 
   # Add a root device to the default profile of the project
   pool="lxdtest-$(basename "${LXD_DIR}")"
@@ -199,20 +203,22 @@ test_projects_copy() {
 
 # Use snapshots in a project.
 test_projects_snapshots() {
-  # Create a project and switch to it
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+
+  echo "Create a project and switch to it"
   lxc project create foo
   lxc project switch foo
 
-  # Import an image into the project
-  deps/import-busybox --project foo --alias testimage
+  echo "Import an image into the project"
+  ensure_import_testimage foo
 
-  # Add a root device to the default profile of the project
-  lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")"
+  echo "Add a root device to the default profile of the project"
+  lxc profile device add default root disk path="/" pool="${pool}"
 
-  # Create a container in the project
+  echo "Create a container in the project"
   lxc init testimage c1 -d "${SMALL_ROOT_DISK}"
 
-  # Create, rename, restore and delete a snapshot
+  echo "Create, rename, restore and delete a snapshot"
   lxc snapshot c1
   lxc info c1 | grep -wF snap0
   lxc config show c1/snap0 | grep -wF BusyBox
@@ -220,13 +226,13 @@ test_projects_snapshots() {
   lxc restore c1 foo
   lxc delete c1/foo
 
-  # Test copies
+  echo "Test copies"
   lxc snapshot c1
   lxc snapshot c1
   lxc copy c1 c2
   lxc delete c2
 
-  # Create a snapshot in this project and another one in the default project
+  echo "Create a snapshot in this project and another one in the default project"
   lxc snapshot c1
 
   lxc project switch default
@@ -235,13 +241,13 @@ test_projects_snapshots() {
   lxc snapshot c1
   lxc delete c1
 
-  # Switch back to the project
+  echo "Switch back to the project"
   lxc project switch foo
 
-  # Delete the container
+  echo "Delete the container"
   lxc delete c1
 
-  # Delete the project
+  echo "Delete the project"
   lxc image delete testimage
   lxc project delete foo
 }
@@ -283,6 +289,9 @@ test_projects_backups() {
 
 # Use private profiles in a project.
 test_projects_profiles() {
+  lxc profile list --project default
+  ! lxc profile list --project nonexistent || false
+
   # Create a project and switch to it
   lxc project create foo
   lxc project switch foo
@@ -349,8 +358,8 @@ test_projects_profiles_default() {
   lxc project switch foo
 
   # Import an image into the project and grab its fingerprint
-  deps/import-busybox --project foo
-  fingerprint="$(lxc image list -c f --format json | jq -r ".[0].fingerprint")"
+  ensure_import_testimage
+  fingerprint="$(lxc image list -f csv -c F testimage)"
 
   # Create a container
   lxc init "${fingerprint}" c1 -d "${SMALL_ROOT_DISK}"
@@ -396,13 +405,18 @@ test_projects_profiles_default() {
 
 # Use private images in a project.
 test_projects_images() {
+  lxc image list --project default
+  ! lxc image list --project nonexistent || false
+  lxc image alias list --project default
+  ! lxc image alias list --project nonexistent || false
+
   # Create a project and switch to it
   lxc project create foo
   lxc project switch foo
 
   # Import an image into the project and grab its fingerprint
-  deps/import-busybox --project foo
-  fingerprint="$(lxc image list -c f --format json | jq -r ".[0].fingerprint")"
+  ensure_import_testimage
+  fingerprint="$(lxc image list -f csv -c F testimage)"
 
   # The imported image is not visible in the default project.
   lxc project switch default
@@ -465,8 +479,8 @@ test_projects_images_default() {
   lxc image list | grep -wF testimage
 
   # The image from the default project has correct profile assigned
-  fingerprint="$(lxc image list --format json | jq -r ".[0].fingerprint")"
-  [ "$(lxc query "/1.0/images/${fingerprint}?project=foo" | jq -r ".profiles[0]")" = "default" ]
+  fingerprint="$(lxc image list -f csv -c F testimage)"
+  lxc query "/1.0/images/${fingerprint}?project=foo" | jq --exit-status '.profiles[0] == "default"'
 
   # The project can delete images in the default project
   lxc image delete testimage
@@ -478,8 +492,8 @@ test_projects_images_default() {
   lxc image list | grep -wF foo-image
 
   # Correct profile assigned to images from another project
-  fingerprint="$(lxc image list --format json | jq -r '.[] | select(.aliases[0].name == "foo-image") | .fingerprint')"
-  [ "$(lxc query "/1.0/images/${fingerprint}?project=bar" | jq -r ".profiles[0]")" = "default" ]
+  fingerprint="$(lxc image list --format json | jq --exit-status --raw-output '.[] | select(.aliases[0].name == "foo-image") | .fingerprint')"
+  lxc query "/1.0/images/${fingerprint}?project=bar" | jq --exit-status '.profiles[0] == "default"'
 
   lxc image delete foo-image
 
@@ -490,6 +504,14 @@ test_projects_images_default() {
 # Interaction between projects and storage pools.
 test_projects_storage() {
   pool="lxdtest-$(basename "${LXD_DIR}")"
+  lxd_backend=$(storage_backend "$LXD_DIR")
+
+  lxc storage volume list "${pool}" --project default
+  ! lxc storage volume list "${pool}" --project nonexistent || false
+  if [ "${lxd_backend}" != "ceph" ]; then
+    lxc storage bucket list "${pool}" --project default
+    ! lxc storage bucket list "${pool}" --project nonexistent || false
+  fi
 
   lxc storage volume create "${pool}" vol
 
@@ -526,6 +548,13 @@ test_projects_storage() {
 
 # Interaction between projects and networks.
 test_projects_network() {
+  lxc network list --project default
+  ! lxc network list --project nonexistent || false
+  lxc network zone list --project default
+  ! lxc network zone list --project nonexistent || false
+  lxc network acl list --project default
+  ! lxc network acl list --project nonexistent || false
+
   # Standard bridge with random subnet and a bunch of options
   network="lxdt$$"
   lxc network create "${network}" ipv4.address=none ipv6.address=none
@@ -534,7 +563,7 @@ test_projects_network() {
   lxc project switch foo
 
   # Import an image into the project
-  deps/import-busybox --project foo --alias testimage
+  ensure_import_testimage foo
 
   # Add a root device to the default profile of the project
   lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")"
@@ -745,7 +774,8 @@ test_projects_limits() {
   lxc profile device set default root size=100MiB
   lxc config device add c2 root disk path="/" pool="${pool}" size=50MiB
 
-  if [ "${LXD_BACKEND}" = "lvm" ]; then
+  lxd_backend=$(storage_backend "$LXD_DIR")
+  if [ "${lxd_backend}" = "lvm" ]; then
     # Can't set the project's disk limit because not all volumes have
     # the "size" config defined.
     pool1="lxdtest1-$(basename "${LXD_DIR}")"
@@ -795,7 +825,7 @@ test_projects_limits() {
   # Run the following part of the test only against the dir or zfs backend,
   # since it on other backends it requires resize the rootfs to a value which is
   # too small for resize2fs.
-  if [ "${LXD_BACKEND}" = "dir" ] || [ "${LXD_BACKEND}" = "zfs" ]; then
+  if [ "${lxd_backend}" = "dir" ] || [ "${lxd_backend}" = "zfs" ]; then
     # Add a remote LXD to be used as image server.
     local LXD_REMOTE_DIR
     LXD_REMOTE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
@@ -806,7 +836,7 @@ test_projects_limits() {
     lxc project switch p1
 
     LXD_REMOTE_ADDR=$(< "${LXD_REMOTE_DIR}/lxd.addr")
-    (LXD_DIR=${LXD_REMOTE_DIR} deps/import-busybox --alias remoteimage --template start --public)
+    LXD_DIR=${LXD_REMOTE_DIR} deps/import-busybox --alias remoteimage --template start --public
 
     lxc remote add l2 "${LXD_REMOTE_ADDR}" --accept-certificate --password foo
 
@@ -860,7 +890,7 @@ test_projects_limits() {
   lxc project switch default
   lxc project delete p1
 
-  if [ "${LXD_BACKEND}" = "dir" ] || [ "${LXD_BACKEND}" = "zfs" ]; then
+  if [ "${lxd_backend}" = "dir" ] || [ "${lxd_backend}" = "zfs" ]; then
     lxc remote remove l2
     kill_lxd "$LXD_REMOTE_DIR"
   fi
@@ -1031,8 +1061,8 @@ run_projects_restrictions() {
   pool="lxdtest-$(basename "${LXD_DIR}")"
   lxc profile device add local:default root disk path="/" pool="${pool}"
 
-  deps/import-busybox --project p1 --alias testimage
-  fingerprint="$(lxc image list -c f --format json | jq -r ".[0].fingerprint")"
+  ensure_import_testimage
+  fingerprint="$(lxc image list -f csv -c F testimage)"
 
   # Add a volume.
   lxc storage volume create "local:${pool}" "v-proj$$"
@@ -1218,7 +1248,7 @@ test_projects_usage() {
   lxc profile device set default root size=48MiB --project test-usage
 
   # Spin up a container
-  deps/import-busybox --project test-usage --alias testimage
+  ensure_import_testimage test-usage
   lxc init testimage c1 --project test-usage
   lxc project info test-usage
 
@@ -1250,7 +1280,7 @@ EOF
     limits.memory=512MiB
 
   lxc profile device set default root size=300MiB --project test-project-yaml
-  deps/import-busybox --project test-project-yaml --alias testimage
+  ensure_import_testimage test-project-yaml
 
   lxc init testimage c1 --project test-project-yaml -d "${SMALL_ROOT_DISK}"
   lxc init testimage c2 --project test-project-yaml -d "${SMALL_ROOT_DISK}"
@@ -1273,4 +1303,131 @@ test_projects_before_init() {
   [ "$(LXD_DIR=${LXD_INIT_DIR} lxc project get foo user.foo)" = "bar" ]
 
   shutdown_lxd "${LXD_INIT_DIR}"
+}
+
+test_projects_force_delete() {
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+  create_object_storage_pool s3
+
+  echo "Capture baseline state before creating project."
+  VOLUMES_BEFORE="$(lxc storage volume list "${pool}" -f csv --all-projects)"
+  BUCKETS_BEFORE="$(lxc storage bucket list s3 -f csv --all-projects)"
+  NETWORKS_BEFORE="$(lxc network list -f csv --all-projects)"
+  ACLS_BEFORE="$(lxc network acl list -f csv --all-projects)"
+  ZONES_BEFORE="$(lxc network zone list -f csv --all-projects)"
+  PROFILES_BEFORE="$(lxc profile list -f csv --all-projects)"
+  IMAGES_BEFORE="$(lxc image list -f csv --all-projects)"
+  INSTANCES_BEFORE="$(lxc list -f csv --all-projects)"
+
+  echo "Create project with all features enabled."
+  lxc project create foo -c features.networks=true -c features.networks.zones=true -c features.images=true -c features.profiles=true -c features.storage.volumes=true -c features.storage.buckets=true
+
+  echo "Create storage volume in project."
+  lxc storage volume create "${pool}" custom/vol1 --project foo
+
+  echo "Create storage bucket in project."
+  lxc storage bucket create s3 bucket1 --project foo
+
+  echo "Create network ACL in project."
+  lxc network acl create acl1 --project foo
+
+  echo "Create network zone in project."
+  lxc network zone create zone1 --project foo
+
+  echo "Create profile in project."
+  lxc profile create profile1 --project foo
+
+  echo "Add image to project."
+  ensure_import_testimage foo
+
+  uplink_network="uplink$$"
+  if ovn_enabled; then
+    echo "Create OVN uplink network."
+    setup_ovn
+
+    # Cleanup any leftover from previous run
+    ip link delete dummy0 || true
+
+    echo "Create a dummy physical network for use as an uplink."
+    ip link add dummy0 type dummy
+    lxc network create "${uplink_network}" --type=physical parent=dummy0
+
+    echo "Set OVN ranges."
+    lxc network set "${uplink_network}" ipv4.ovn.ranges=192.0.2.100-192.0.2.254 ipv6.ovn.ranges=2001:db8:1:2::100-2001:db8:1:2::254
+
+    echo "Set IP routes that include OVN ranges."
+    lxc network set "${uplink_network}" ipv4.routes=192.0.2.0/24 ipv6.routes=2001:db8:1:2::/64
+
+    echo "Create OVN network in project."
+    lxc network create foonet --type ovn --project foo network="${uplink_network}" ipv4.address=192.0.2.1/24 ipv6.address=2001:db8:1:2::1/64
+
+    echo "Add NIC to profile in project."
+    lxc profile edit profile1 --project foo << EOF
+config: {}
+description: ""
+devices:
+  eth1:
+    name: eth1
+    network: foonet
+    type: nic
+name: default
+used_by:
+EOF
+  fi
+
+  echo "Check that regular delete fails on non-empty project."
+  ! lxc project delete foo || false
+
+  echo "Check force delete of non-existent project."
+  ! lxc project delete nonexistent --force || false
+
+  echo "Check force delete of default project fails."
+  ! lxc project delete default --force || false
+
+  echo "Create and start instance."
+  lxc launch testimage c1 --project foo -s "${pool}" -p profile1
+
+  echo "Create and start instance with \"security.protection.delete\" set."
+  lxc launch testimage c2 --project foo -s "${pool}" -p profile1 -c security.protection.delete=true
+
+  echo "Check force delete project fails with instance that has \"security.protection.delete\" set."
+  ! lxc project delete foo --force || false
+
+  echo "Unset \"security.protection.delete\" on instance."
+  lxc config unset c2 security.protection.delete --project foo
+
+  echo "Force delete project."
+  lxc project delete foo --force
+
+  echo "Check project is deleted."
+  ! lxc project show foo || false
+
+  echo "Clean up OVN parent network."
+  if ovn_enabled; then
+    lxc network delete "${uplink_network}"
+    ip link delete dummy0
+    unset_ovn_configuration
+  fi
+
+  echo "Verify all entities were cleaned up by comparing before/after state."
+  VOLUMES_AFTER="$(lxc storage volume list "${pool}" -f csv --all-projects)"
+  BUCKETS_AFTER="$(lxc storage bucket list s3 -f csv --all-projects)"
+  NETWORKS_AFTER="$(lxc network list -f csv --all-projects)"
+  ACLS_AFTER="$(lxc network acl list -f csv --all-projects)"
+  ZONES_AFTER="$(lxc network zone list -f csv --all-projects)"
+  PROFILES_AFTER="$(lxc profile list -f csv --all-projects)"
+  IMAGES_AFTER="$(lxc image list -f csv --all-projects)"
+  INSTANCES_AFTER="$(lxc list -f csv --all-projects)"
+
+  [ "${VOLUMES_BEFORE}" = "${VOLUMES_AFTER}" ]
+  [ "${BUCKETS_BEFORE}" = "${BUCKETS_AFTER}" ]
+  [ "${NETWORKS_BEFORE}" = "${NETWORKS_AFTER}" ]
+  [ "${ACLS_BEFORE}" = "${ACLS_AFTER}" ]
+  [ "${ZONES_BEFORE}" = "${ZONES_AFTER}" ]
+  [ "${PROFILES_BEFORE}" = "${PROFILES_AFTER}" ]
+  [ "${IMAGES_BEFORE}" = "${IMAGES_AFTER}" ]
+  [ "${INSTANCES_BEFORE}" = "${INSTANCES_AFTER}" ]
+
+  echo "Clean up object storage pool."
+  delete_object_storage_pool s3
 }

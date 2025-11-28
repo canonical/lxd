@@ -341,7 +341,7 @@ type InstanceServer interface {
 	CreateProject(project api.ProjectsPost) (err error)
 	UpdateProject(name string, project api.ProjectPut, ETag string) (err error)
 	RenameProject(name string, project api.ProjectPost) (op Operation, err error)
-	DeleteProject(name string) (err error)
+	DeleteProject(name string, force bool) (err error)
 
 	// Storage pool functions ("storage" API extension)
 	GetStoragePoolNames() (names []string, err error)
@@ -461,7 +461,7 @@ type InstanceServer interface {
 	GetIdentityProviderGroupNames() (identityProviderGroupNames []string, err error)
 	GetIdentityProviderGroups() (identityProviderGroups []api.IdentityProviderGroup, err error)
 	GetIdentityProviderGroup(identityProviderGroupName string) (identityProviderGroup *api.IdentityProviderGroup, ETag string, err error)
-	CreateIdentityProviderGroup(identityProviderGroup api.IdentityProviderGroup) error
+	CreateIdentityProviderGroup(identityProviderGroup api.IdentityProviderGroupsPost) error
 	UpdateIdentityProviderGroup(identityProviderGroupName string, identityProviderGroupPut api.IdentityProviderGroupPut, ETag string) error
 	RenameIdentityProviderGroup(identityProviderGroupName string, identityProviderGroupPost api.IdentityProviderGroupPost) error
 	DeleteIdentityProviderGroup(identityProviderGroupName string) error

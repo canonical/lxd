@@ -11,68 +11,125 @@ test_image_expiry() {
   lxc_remote remote add l1 "${LXD_ADDR}" --accept-certificate --password foo
   lxc_remote remote add l2 "${LXD2_ADDR}" --accept-certificate --password foo
 
-  # Create containers from a remote image in two projects.
+  echo "Create containers from a remote image in three projects."
   lxc_remote project create l2:p1 -c features.images=true -c features.profiles=false
   lxc_remote init l1:testimage l2:c1 --project default
   lxc_remote project switch l2:p1
   lxc_remote init l1:testimage l2:c2
-  lxc_remote project switch l2:default
+  lxc_remote project create l2:p2 -c features.images=true -c features.profiles=false
+  lxc_remote project switch l2:p2
 
   fp="$(lxc_remote image info testimage | awk '/^Fingerprint/ {print $2}')"
 
-  # Confirm the image is cached
+  echo "Create instance from cached image."
+  lxc_remote init l1:testimage l2:c3
+  lxc_remote delete -f l2:c3
+
+  echo "Confirm the image is cached."
   [ -n "${fp}" ]
   fpbrief=$(echo "${fp}" | cut -c 1-12)
   lxc_remote image list l2: | grep -wF "${fpbrief}"
 
-  # Test modification of image expiry date
+  echo "Project can still be deleted since cached images are pruned."
+  lxc_remote project delete l2:p2
+
+  echo "Switch back to default project and confirm image is still cached."
+  lxc_remote project switch l2:default
+  lxc_remote image list l2: | grep -wF "${fpbrief}"
+
+  echo "Test modification of image expiry date."
   lxc_remote image info "l2:${fp}" | grep "Expires.*never"
   lxc_remote image show "l2:${fp}" | sed "s/expires_at.*/expires_at: 3000-01-01T00:00:00-00:00/" | lxc_remote image edit "l2:${fp}"
   lxc_remote image info "l2:${fp}" | grep "Expires.*3000"
 
-  # Override the upload date for the image record in the default project.
+  echo "Override the upload date for the image record in the default project."
   LXD_DIR="$LXD2_DIR" lxd sql global "UPDATE images SET last_use_date='$(date --rfc-3339=seconds -u -d "2 days ago")' WHERE fingerprint='${fp}' AND project_id = 1" | grep -xF "Rows affected: 1"
 
-  # Trigger the expiry
+  echo "Trigger the expiry."
   lxc_remote config set l2: images.remote_cache_expiry 1
 
   for _ in $(seq 20); do
     sleep 1
-    if lxc_remote image list l2: | grep -wF "${fpbrief}"; then
+    if lxc_remote image info l2:"${fpbrief}"; then
       break
     fi
   done
 
-  ! lxc_remote image list l2: | grep -wF "${fpbrief}" || false
+  ! lxc_remote image info l2:"${fpbrief}" || false
 
-  # Check image is still in p1 project and has not been expired.
+  echo "Check image is still in p1 project and has not been expired."
   lxc_remote image list l2: --project p1 | grep -wF "${fpbrief}"
 
-  # Test instance can still be created in p1 project.
+  echo "Test instance can still be created in p1 project."
   lxc_remote project switch l2:p1
   lxc_remote init l1:testimage l2:c3
   lxc_remote project switch l2:default
 
-  # Override the upload date for the image record in the p1 project.
+  echo "Override the upload date for the image record in the p1 project."
   LXD_DIR="$LXD2_DIR" lxd sql global "UPDATE images SET last_use_date='$(date --rfc-3339=seconds -u -d "2 days ago")' WHERE fingerprint='${fp}' AND project_id > 1" | grep -xF "Rows affected: 1"
   lxc_remote project set l2:p1 images.remote_cache_expiry=1
 
-  # Trigger the expiry in p1 project by changing global images.remote_cache_expiry.
+  echo "Trigger the expiry in p1 project by changing global images.remote_cache_expiry."
   lxc_remote config unset l2: images.remote_cache_expiry
 
   for _ in $(seq 20); do
     sleep 1
-    if lxc_remote image list l2: --project p1 | grep -wF "${fpbrief}"; then
+    if lxc_remote image info l2:"${fpbrief}" --project p1; then
       break
     fi
   done
 
-  ! lxc_remote image list l2: --project p1 | grep -wF "${fpbrief}" || false
+  ! lxc_remote image info l2:"${fpbrief}" --project p1 || false
 
-  # Cleanup and reset
+  echo "==> Clean up instances."
   lxc_remote delete -f l2:c1
   lxc_remote delete -f l2:c2 --project p1
   lxc_remote delete -f l2:c3 --project p1
+
+  echo "==> Copy remote image to a local store in project p1. It should be marked non-cached."
+  lxc_remote image copy l1:testimage l2: --target-project p1
+
+  echo "==> Check that the locally saved image in project p1 is marked as non-cached."
+  lxc_remote image info l2:"${fp}" --project p1 | grep -xF "Cached: no"
+
+  echo "==> Create a new instance in the default project with a remote image. It should be cached."
+  lxc_remote init l1:testimage l2:c1
+
+  echo "==> Check that the locally saved image in default project is marked as cached."
+  lxc_remote image info l2:"${fp}" | grep -xF "Cached: yes"
+
+  echo "==> Check that the image file exists locally."
+  ls -l "${LXD2_DIR}/images/${fp}"
+
+  echo "==> Update last_use_date for both images to Jan 1, 2000."
+  LXD_DIR="$LXD2_DIR" lxd sql global "UPDATE images SET last_use_date = '2000-01-01T00:00:00Z'" | grep -xF "Rows affected: 2"
+
+  echo "==> Trigger the expiry. Image in the default project should get pruned, but image in project p1 should remain."
+  lxc_remote config set l2: images.remote_cache_expiry 1
+
+  for _ in $(seq 20); do
+    sleep 1
+    if lxc_remote image info l2:"${fpbrief}"; then
+      break
+    fi
+  done
+
+  echo "==> Check that image in the default project was deleted."
+  ! lxc_remote image info l2:"${fpbrief}" || false
+
+  echo "==> Check that image in project p1 still exists."
+  lxc_remote image info l2:"${fpbrief}" --project p1
+
+  echo "==> Check that the image file still exists locally because it is used by image in project p1."
+  ls -l "${LXD2_DIR}/images/${fp}"
+
+  echo "==> Create an instance in project p1 using locally saved image."
+  lxc_remote init l2:"${fpbrief}" l2:c2 --project p1
+
+  echo "==> Cleanup and reset."
+  lxc_remote delete -f l2:c1
+  lxc_remote delete -f l2:c2 --project p1
+  lxc_remote image delete l2:"${fpbrief}" --project p1
   lxc_remote project delete l2:p1
   lxc_remote remote remove l1
   lxc_remote remote remove l2
@@ -87,6 +144,7 @@ test_image_list_all_aliases() {
     # both aliases are listed if the "aliases" column is included in output
     lxc image list -c L | grep -wF testimage
     lxc image list -c L | grep -wF zzz
+    lxc image alias delete zzz
 }
 
 test_image_list_remotes() {
@@ -116,6 +174,7 @@ test_image_import_dir() {
     rm -rf "$image" unpacked
 
     lxc image export "$fingerprint"
+    lxc image delete "${fingerprint}"
     local exported
     exported="${fingerprint}.tar.xz"
 
@@ -180,8 +239,8 @@ test_image_refresh() {
 
   if [ "${poolDriver}" != "dir" ]; then
     # Check old storage volume record exists and new one doesn't.
-    lxd sql global 'select name from storage_volumes' | grep "${fp}"
-    ! lxd sql global 'select name from storage_volumes' | grep "${new_fp}" || false
+    lxd sql global 'SELECT name FROM storage_volumes' | grep -F "${fp}"
+    ! lxd sql global 'SELECT name FROM storage_volumes' | grep -F "${new_fp}" || false
   fi
 
   # Refresh image
@@ -192,8 +251,8 @@ test_image_refresh() {
 
   if [ "${poolDriver}" != "dir" ]; then
     # Check old storage volume record has been replaced with new one.
-    ! lxd sql global 'select name from storage_volumes' | grep "${fp}" || false
-    lxd sql global 'select name from storage_volumes' | grep "${new_fp}"
+    ! lxd sql global 'SELECT name FROM storage_volumes' | grep -F "${fp}" || false
+    lxd sql global 'SELECT name FROM storage_volumes' | grep -F "${new_fp}"
   fi
 
   # Cleanup
@@ -273,64 +332,75 @@ run_images_public() {
   deps/import-busybox --project foo --alias foo-img
 
   # All callers see an empty list of images in the default project.
-  query /1.0/images | jq -e '(.metadata | length) == 0 and .status_code == 200'
-  query /1.0/images?project=default | jq -e '(.metadata | length) == 0 and .status_code == 200'
-  query /1.0/images?recursion=1 | jq -e '(.metadata | length) == 0 and .status_code == 200'
-  query /1.0/images?recursion=1\&project=default | jq -e '(.metadata | length) == 0 and .status_code == 200'
+  query /1.0/images | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
+  query /1.0/images?project=default | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
+  query /1.0/images?recursion=1 | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
+  query /1.0/images?recursion=1\&project=default | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
 
   if [ -z "${CERT_NAME:-}" ]; then
-    # Untrusted callers see a generic 404 for project foo, or a 403 if using "all-projects".
-    query /1.0/images?project=foo | jq -e '.error == "Not Found" and .error_code == 404'
-    query /1.0/images?recursion=1\&project=foo | jq -e '.error == "Not Found" and .error_code == 404'
-    query /1.0/images?project=bar | jq -e '.error == "Not Found" and .error_code == 404'
-    query /1.0/images?recursion=1\&project=bar | jq -e '.error == "Not Found" and .error_code == 404'
-    query /1.0/images?all-projects=true | jq -e '.error == "Untrusted callers may only access public images in the default project" and .error_code == 403'
-    query /1.0/images?recursion=1\&all-projects=true | jq -e '.error == "Untrusted callers may only access public images in the default project" and .error_code == 403'
+    # Untrusted callers see a generic 404 for non-default projects, or a 403 if using "all-projects".
+    query /1.0/images?project=foo | jq --exit-status '.error == "Not Found" and .error_code == 404'
+    query /1.0/images?recursion=1\&project=foo | jq --exit-status '.error == "Not Found" and .error_code == 404'
+    query /1.0/images?project=bar | jq --exit-status '.error == "Not Found" and .error_code == 404'
+    query /1.0/images?recursion=1\&project=bar | jq --exit-status '.error == "Not Found" and .error_code == 404'
+    query /1.0/images?all-projects=true | jq --exit-status '.error == "Untrusted callers may only access public images in the default project" and .error_code == 403'
+    query /1.0/images?recursion=1\&all-projects=true | jq --exit-status '.error == "Untrusted callers may only access public images in the default project" and .error_code == 403'
+  elif [ "${CERT_NAME}" = "restricted" ]; then
+    # Restricted TLS clients without access to any projects see a 403 for non-default projects, and a 403 if using all-projects.
+    query /1.0/images?project=foo | jq --exit-status '.error == "Certificate is restricted" and .error_code == 403'
+    query /1.0/images?recursion=1\&project=foo  | jq --exit-status '.error == "Certificate is restricted" and .error_code == 403'
+    query /1.0/images?project=bar | jq --exit-status '.error == "Certificate is restricted" and .error_code == 403'
+    query /1.0/images?recursion=1\&project=bar  | jq --exit-status '.error == "Certificate is restricted" and .error_code == 403'
+    query /1.0/images?all-projects=true  | jq --exit-status '.error == "Certificate is restricted" and .error_code == 403'
+    query /1.0/images?recursion=1\&all-projects=true  | jq --exit-status '.error == "Certificate is restricted" and .error_code == 403'
+  elif [ "${CERT_NAME}" = "fine-grained" ]; then
+    # Fine-grained identities with no permissions see a generic 404 for non-default projects, and a 200 with an empty list if using "all-projects".
+    query /1.0/images?project=foo | jq --exit-status '.error == "Not Found" and .error_code == 404'
+    query /1.0/images?recursion=1\&project=foo | jq --exit-status '.error == "Not Found" and .error_code == 404'
+    query /1.0/images?project=bar | jq --exit-status '.error == "Not Found" and .error_code == 404'
+    query /1.0/images?recursion=1\&project=bar | jq --exit-status '.error == "Not Found" and .error_code == 404'
+    query /1.0/images?all-projects=true | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
+    query /1.0/images?recursion=1\&all-projects=true | jq --exit-status '(.metadata | length) == 0 and .status_code == 200'
   else
-    # Restricted and fine-grained TLS clients see an empty list.
-    query /1.0/images?project=foo | jq -e '(.metadata | length) == 0 and .status_code == 200'
-    query /1.0/images?recursion=1\&project=foo  | jq -e '(.metadata | length) == 0 and .status_code == 200'
-    query /1.0/images?project=bar | jq -e '(.metadata | length) == 0 and .status_code == 200'
-    query /1.0/images?recursion=1\&project=bar  | jq -e '(.metadata | length) == 0 and .status_code == 200'
-    query /1.0/images?all-projects=true  | jq -e '(.metadata | length) == 0 and .status_code == 200'
-    query /1.0/images?recursion=1\&all-projects=true  | jq -e '(.metadata | length) == 0 and .status_code == 200'
+      echo "Unexpected certificate name: ${CERT_NAME}"
+      false
   fi
 
   # All users see a not found error for the aliases.
-  query /1.0/images/aliases/default-img | jq -e '.error == "Not Found" and .error_code == 404'
-  query /1.0/images/aliases/foo-img?project=foo | jq -e '.error == "Not Found" and .error_code == 404'
-  query /1.0/images/aliases/foo-img?project=bar | jq -e '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/aliases/default-img | jq --exit-status '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/aliases/foo-img?project=foo | jq --exit-status '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/aliases/foo-img?project=bar | jq --exit-status '.error == "Not Found" and .error_code == 404'
 
   # Get the image fingerprint.
-  fingerprint="$(lxc query /1.0/images/aliases/foo-img?project=foo | jq -r '.target')"
+  fingerprint="$(lxc query /1.0/images/aliases/foo-img?project=foo | jq --exit-status --raw-output '.target')"
 
   # All users see a not found error when getting or exporting the image.
-  query "/1.0/images/${fingerprint}?project=foo" | jq -e '.error == "Not Found" and .error_code == 404'
-  query "/1.0/images/${fingerprint}/export?project=foo" | jq -e '.error == "Not Found" and .error_code == 404'
-  query "/1.0/images/${fingerprint}?project=bar" | jq -e '.error == "Not Found" and .error_code == 404'
-  query "/1.0/images/${fingerprint}/export?project=bar" | jq -e '.error == "Not Found" and .error_code == 404'
+  query "/1.0/images/${fingerprint}?project=foo" | jq --exit-status '.error == "Not Found" and .error_code == 404'
+  query "/1.0/images/${fingerprint}/export?project=foo" | jq --exit-status '.error == "Not Found" and .error_code == 404'
+  query "/1.0/images/${fingerprint}?project=bar" | jq --exit-status '.error == "Not Found" and .error_code == 404'
+  query "/1.0/images/${fingerprint}/export?project=bar" | jq --exit-status '.error == "Not Found" and .error_code == 404'
 
   # No callers can use an invalid secret.
-  query /1.0/images/"${fingerprint}"?project=foo\&secret=bar | jq -e '.error == "Not Found" and .error_code == 404'
-  query /1.0/images/"${fingerprint}"/export?project=foo\&secret=bar | jq -e '.error == "Not Found" and .error_code == 404'
-  query /1.0/images/"${fingerprint}"?project=bar\&secret=bar | jq -e '.error == "Not Found" and .error_code == 404'
-  query /1.0/images/"${fingerprint}"/export?project=bar\&secret=bar | jq -e '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/"${fingerprint}"?project=foo\&secret=bar | jq --exit-status '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/"${fingerprint}"/export?project=foo\&secret=bar | jq --exit-status '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/"${fingerprint}"?project=bar\&secret=bar | jq --exit-status '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/"${fingerprint}"/export?project=bar\&secret=bar | jq --exit-status '.error == "Not Found" and .error_code == 404'
 
   # Get a secret for "default-img" (in the default project).
-  secret="$(lxc -X POST query "/1.0/images/${fingerprint}/secret" | jq -r '.metadata.secret')"
+  secret="$(lxc -X POST query "/1.0/images/${fingerprint}/secret" | jq --exit-status --raw-output '.metadata.secret')"
 
   # All callers can view the image with a valid secret.
-  query /1.0/images/"${fingerprint}"?secret="${secret}" | jq -e '.status_code == 200'
+  query /1.0/images/"${fingerprint}"?secret="${secret}" | jq --exit-status '.status_code == 200'
 
   # All callers can export the image with a valid secret.
   query /1.0/images/"${fingerprint}"/export?secret="${secret}" -o "${TEST_DIR}/private.img"
   rm "${TEST_DIR}/private.img"
 
   # Get a secret for "foo-img" (in the foo project).
-  secret="$(lxc -X POST query "/1.0/images/${fingerprint}/secret?project=foo" | jq -r '.metadata.secret')"
+  secret="$(lxc -X POST query "/1.0/images/${fingerprint}/secret?project=foo" | jq --exit-status --raw-output '.metadata.secret')"
 
   # All callers can view the image with a valid secret.
-  query /1.0/images/"${fingerprint}"?project=foo\&secret="${secret}" | jq -e '.status_code == 200'
+  query /1.0/images/"${fingerprint}"?project=foo\&secret="${secret}" | jq --exit-status '.status_code == 200'
 
   # All callers can export the image with a valid secret.
   query /1.0/images/"${fingerprint}"/export?project=foo\&secret="${secret}" -o "${TEST_DIR}/private.img"
@@ -338,38 +408,38 @@ run_images_public() {
 
   # The secrets do not work 5 seconds after being used.
   sleep 5
-  query /1.0/images/"${fingerprint}"?secret="${secret}" | jq -e '.error == "Not Found" and .error_code == 404'
-  query /1.0/images/"${fingerprint}"/export?secret="${secret}" | jq -e '.error == "Not Found" and .error_code == 404'
-  query /1.0/images/"${fingerprint}"?project=foo\&secret="${secret}" | jq -e '.error == "Not Found" and .error_code == 404'
-  query /1.0/images/"${fingerprint}"/export?project=foo\&secret="${secret}" | jq -e '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/"${fingerprint}"?secret="${secret}" | jq --exit-status '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/"${fingerprint}"/export?secret="${secret}" | jq --exit-status '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/"${fingerprint}"?project=foo\&secret="${secret}" | jq --exit-status '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/"${fingerprint}"/export?project=foo\&secret="${secret}" | jq --exit-status '.error == "Not Found" and .error_code == 404'
 
   # Set the image in the default project to public.
   lxc image show "${fingerprint}" | sed -e "s/public: false/public: true/" | lxc image edit "${fingerprint}"
 
   # All callers can see the public image when listing.
-  query /1.0/images | jq -e '(.metadata | length) == 1 and .status_code == 200'
-  query /1.0/images?project=default | jq -e '(.metadata | length) == 1 and .status_code == 200'
-  query /1.0/images?recursion=1 | jq -e '(.metadata | length) == 1 and .status_code == 200'
-  query /1.0/images?recursion=1\&project=default | jq -e '(.metadata | length) == 1 and .status_code == 200'
+  query /1.0/images | jq --exit-status '(.metadata | length) == 1 and .status_code == 200'
+  query /1.0/images?project=default | jq --exit-status '(.metadata | length) == 1 and .status_code == 200'
+  query /1.0/images?recursion=1 | jq --exit-status '(.metadata | length) == 1 and .status_code == 200'
+  query /1.0/images?recursion=1\&project=default | jq --exit-status '(.metadata | length) == 1 and .status_code == 200'
 
   # All callers can view aliases of public images in the default project.
-  query /1.0/images/aliases/default-img | jq -e '.status_code == 200'
-  query /1.0/images/aliases/default-img?project=default | jq -e '.status_code == 200'
+  query /1.0/images/aliases/default-img | jq --exit-status '.status_code == 200'
+  query /1.0/images/aliases/default-img?project=default | jq --exit-status '.status_code == 200'
 
   # All callers can get the image with a prefix of 12 characters or more.
-  query "/1.0/images/%25" | jq -r '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
-  query "/1.0/images/${fingerprint:0:11}" | jq -r '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
-  query "/1.0/images/%25${fingerprint:0:11}" | jq -r '.error == "Image fingerprint prefix must contain only lowercase hexadecimal characters" and .error_code == 400'
-  query "/1.0/images/${fingerprint}abc" | jq -r '.error == "Image fingerprint cannot be longer than 64 characters" and .error_code == 400'
-  query "/1.0/images/${fingerprint:0:12}" | jq -r '.status_code == 200'
-  query "/1.0/images/${fingerprint}" | jq -r '.status_code == 200'
-  query "/1.0/images/${fingerprint}?project=default" | jq -r '.status_code == 200'
+  query "/1.0/images/%25" | jq --exit-status '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
+  query "/1.0/images/${fingerprint:0:11}" | jq --exit-status '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
+  query "/1.0/images/%25${fingerprint:0:11}" | jq --exit-status '.error == "Image fingerprint prefix must contain only lowercase hexadecimal characters" and .error_code == 400'
+  query "/1.0/images/${fingerprint}abc" | jq --exit-status '.error == "Image fingerprint cannot be longer than 64 characters" and .error_code == 400'
+  query "/1.0/images/${fingerprint:0:12}" | jq --exit-status '.status_code == 200'
+  query "/1.0/images/${fingerprint}" | jq --exit-status '.status_code == 200'
+  query "/1.0/images/${fingerprint}?project=default" | jq --exit-status '.status_code == 200'
 
   # All callers can export the public image if using a valid prefix.
-  query "/1.0/images/%25/export" | jq -r '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
-  query "/1.0/images/${fingerprint:0:11}/export" | jq -r '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
-  query "/1.0/images/%25${fingerprint:0:11}/export" | jq -r '.error == "Image fingerprint prefix must contain only lowercase hexadecimal characters" and .error_code == 400'
-  query "/1.0/images/${fingerprint}abc/export" | jq -r '.error == "Image fingerprint cannot be longer than 64 characters" and .error_code == 400'
+  query "/1.0/images/%25/export" | jq --exit-status '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
+  query "/1.0/images/${fingerprint:0:11}/export" | jq --exit-status '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
+  query "/1.0/images/%25${fingerprint:0:11}/export" | jq --exit-status '.error == "Image fingerprint prefix must contain only lowercase hexadecimal characters" and .error_code == 400'
+  query "/1.0/images/${fingerprint}abc/export" | jq --exit-status '.error == "Image fingerprint cannot be longer than 64 characters" and .error_code == 400'
   query "/1.0/images/${fingerprint}/export" -o "${TEST_DIR}/public1.img"
   query "/1.0/images/${fingerprint}/export?project=default" -o "${TEST_DIR}/public2.img"
   query "/1.0/images/${fingerprint:0:12}/export?project=default" -o "${TEST_DIR}/public3.img"

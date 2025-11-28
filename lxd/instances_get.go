@@ -273,6 +273,11 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 				filteredProjects = append(filteredProjects, project.Name)
 			}
 		} else {
+			_, err = dbCluster.GetProjectID(ctx, tx.Tx(), projectName)
+			if err != nil {
+				return fmt.Errorf("Failed to get project: %w", err)
+			}
+
 			filteredProjects = []string{projectName}
 		}
 
@@ -433,9 +438,7 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 			queue := make(chan db.Instance, threads)
 
 			for range threads {
-				wg.Add(1)
-
-				go func() {
+				wg.Go(func() {
 					for {
 						dbInst, more := <-queue
 						if !more {
@@ -465,9 +468,7 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 							resultFullListAppend(c)
 						}
 					}
-
-					wg.Done()
-				}()
+				})
 			}
 
 			for _, inst := range instances {

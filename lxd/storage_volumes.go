@@ -1183,7 +1183,7 @@ func clusterCopyCustomVolumeInternal(s *state.State, r *http.Request, sourceAddr
 	req.Source.Type = api.SourceTypeMigration
 	req.Source.Certificate = string(s.Endpoints.NetworkCert().PublicKey())
 	req.Source.Mode = "pull"
-	req.Source.Operation = "https://" + sourceAddress + "/" + version.APIVersion + "/operations/" + opAPI.ID
+	req.Source.Operation = "https://" + sourceAddress + api.NewURL().Path(version.APIVersion, "operations", opAPI.ID).String()
 	req.Source.Websockets = websockets
 	req.Source.Project = ""
 
@@ -2128,6 +2128,8 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "412":
 //	    $ref: "#/responses/PreconditionFailed"
+//	  "423":
+//	    $ref: "#/responses/StatusLocked"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
@@ -2279,6 +2281,8 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/Forbidden"
 //	  "412":
 //	    $ref: "#/responses/PreconditionFailed"
+//	  "423":
+//	    $ref: "#/responses/StatusLocked"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {

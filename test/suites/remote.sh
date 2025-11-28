@@ -116,6 +116,10 @@ test_remote_url_with_token() {
   # Extract token
   token="$(lxc config trust list-tokens -f json | jq -r '.[].Token')"
 
+  # Ensure there is a default expiry set (expressed in UTC)
+  expiresAt="$(lxc config trust list-tokens -f json | jq --exit-status --raw-output '.[].ExpiresAt')"
+  [[ "${expiresAt}" =~ UTC$ ]]
+
   # Add valid token but override projects
   CERTNAME="token-client" my_curl -X POST --fail-with-body -H 'Content-Type: application/json' -d '{"password": "'"${token}"'","projects":["default","foo"],"restricted":false}' "https://${LXD_ADDR}/1.0/certificates"
 

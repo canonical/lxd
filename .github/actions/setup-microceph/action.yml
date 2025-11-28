@@ -66,6 +66,9 @@ runs:
 
     - name: Configure MicroCeph snap
       shell: bash
+      env:
+        STEPS_FREE_EPHEMERAL_DISK_OUTPUTS_EPHEMERAL_DISK: ${{ steps.free_ephemeral_disk.outputs.ephemeral_disk }}
+        INPUTS_OSD_COUNT: ${{ inputs.osd-count }}
       run: |
           set -eux
 
@@ -79,7 +82,7 @@ runs:
           }
           trap cleanup ERR HUP INT TERM
 
-          ephemeral_disk="${{ steps.free_ephemeral_disk.outputs.ephemeral_disk }}"
+          ephemeral_disk="${STEPS_FREE_EPHEMERAL_DISK_OUTPUTS_EPHEMERAL_DISK}"
           sudo microceph cluster bootstrap
           sudo microceph.ceph config set global mon_allow_pool_size_one true
           sudo microceph.ceph config set global mon_allow_pool_delete true
@@ -88,18 +91,18 @@ runs:
           sudo microceph.ceph osd crush rule rm replicated_rule
           sudo microceph.ceph osd crush rule create-replicated replicated default osd
           for flag in nosnaptrim nobackfill norebalance norecover noscrub nodeep-scrub; do
-              sudo microceph.ceph osd set $flag
+              sudo microceph.ceph osd set "${flag}"
           done
 
           # If there is more than one OSD, set up partitions.
-          if [ ${{ inputs.osd-count }} -gt 1 ]; then
+          if [ "${INPUTS_OSD_COUNT}" -gt 1 ]; then
             sudo blkdiscard "${ephemeral_disk}" --force
             sudo parted "${ephemeral_disk}" --script mklabel gpt
 
-            for i in $(seq 1 "${{ inputs.osd-count }}"); do
+            for i in $(seq 1 "${INPUTS_OSD_COUNT}"); do
               # Create equal sized partitions for each OSD.
-              min="$(( (${i}-1) *  100 / ${{ inputs.osd-count }} ))"
-              max="$(( ${i} * 100 / ${{ inputs.osd-count }} ))"
+              min="$(( (i-1) *  100 / INPUTS_OSD_COUNT ))"
+              max="$(( i * 100 / INPUTS_OSD_COUNT ))"
               sudo parted "${ephemeral_disk}" --align optimal --script mkpart primary "${min}%" "${max}%"
             done
 
@@ -110,20 +113,35 @@ runs:
             disk_name="$(basename "${ephemeral_disk}")"
             for _ in 1 2 3; do
               parts="$(grep -cwE "${disk_name}[0-9]+$" /proc/partitions)"
-              [ "${parts}" -ge "${{ inputs.osd-count }}" ] && break
+              [ "${parts}" -ge "${INPUTS_OSD_COUNT}" ] && break
               sleep 1
             done
 
-            for i in $(seq 1 "${{ inputs.osd-count }}"); do
+            for i in $(seq 1 "${INPUTS_OSD_COUNT}"); do
               # MicroCeph does not accept partitions directly.
               # See: https://github.com/canonical/microceph/issues/251
               disk="$(sudo losetup --find --nooverlap --direct-io=on --show "${ephemeral_disk}${i}")"
-              sudo microceph disk add "${disk}"
+
+              # Retry logic for "microceph disk add" that can fail due to partitions not being ready
+              # Error: unable to list system disks: Failed to find "/dev/disk/by-id/scsi-36...9e-part1": lstat /dev/disk/by-id/scsi-36...9e-part1: no such file or directory
+              wipe=""
+              for attempt in 1 2 3; do
+                if sudo microceph disk add "${disk}" ${wipe}; then
+                  break # Success, exit retry loop
+                elif [ "${attempt}" -lt 3 ]; then
+                  echo "WARN: \"microceph disk add ${disk}\" failed, retrying with \"--wipe\" (${attempt}/3)"
+                  # Clear any leftover data on the disk when retrying
+                  wipe="--wipe"
+                  sleep 1
+                else
+                  echo "FAIL: \"microceph disk add ${disk}\" failed ${attempt} times"
+                  exit 1
+                fi
+              done
             done
           else
               sudo microceph disk add --wipe "${ephemeral_disk}"
           fi
-
 
           sudo rm -rf /etc/ceph
           sudo ln -s /var/snap/microceph/current/conf/ /etc/ceph

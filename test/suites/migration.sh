@@ -9,6 +9,8 @@ test_migration() {
     return
   fi
 
+  ensure_import_testimage
+
   LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   spawn_lxd "${LXD2_DIR}" true
   LXD2_ADDR=$(< "${LXD2_DIR}/lxd.addr")
@@ -35,10 +37,10 @@ test_migration() {
     # shellcheck disable=2153
     storage_pool1="lxdtest-$(basename "${LXD_DIR}")-non-thinpool-lvm-migration"
     storage_pool2="lxdtest-$(basename "${LXD2_DIR}")-non-thinpool-lvm-migration"
-    lxc_remote storage create l1:"$storage_pool1" lvm lvm.use_thinpool=false size=1GiB volume.size=25MiB
+    lxc_remote storage create l1:"$storage_pool1" lvm lvm.use_thinpool=false size=1GiB volume.size="${DEFAULT_VOLUME_SIZE}"
     lxc_remote profile device set l1:default root pool "$storage_pool1"
 
-    lxc_remote storage create l2:"$storage_pool2" lvm lvm.use_thinpool=false size=1GiB volume.size=25MiB
+    lxc_remote storage create l2:"$storage_pool2" lvm lvm.use_thinpool=false size=1GiB volume.size="${DEFAULT_VOLUME_SIZE}"
     lxc_remote profile device set l2:default root pool "$storage_pool2"
 
     migration "$LXD2_DIR"
@@ -97,7 +99,6 @@ migration() {
   lxd2_dir="$1"
   lxd_backend=$(storage_backend "$LXD_DIR")
   lxd2_backend=$(storage_backend "$lxd2_dir")
-  ensure_import_testimage
 
   lxc_remote init testimage nonlive
   # test moving snapshots
@@ -540,7 +541,7 @@ migration() {
   lxc_remote storage volume delete l2:dir vol1
 
   # Test VM Migration.
-  if [ "${LXD_VM_TESTS:-0}" = "0" ]; then
+  if [ "${LXD_VM_TESTS}" = "0" ]; then
     echo "==> SKIP: VM tests are disabled"
   elif [ "${LXD_TMPFS:-0}" = "1" ] && ! runsMinimumKernel 6.6; then
     echo "==> SKIP: QEMU requires direct-io support which requires a kernel >= 6.6 for tmpfs support (LXD_TMPFS=${LXD_TMPFS})"

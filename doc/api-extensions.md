@@ -1737,7 +1737,7 @@ A new REST API is also introduced to manage DNS zones:
 
 ## `ovn_nic_acceleration`
 
-Adds new {config:option}`device-nic-ovn-device-conf:acceleration` configuration key to OVN NICs which can be used for enabling hardware offloading.
+Adds new {config:option}`device-nic-ovn-device-conf:acceleration` configuration key to OVN NICs which can be used for enabling hardware acceleration.
 It takes the values `none` or `sriov`.
 
 ## `certificate_self_renewal`
@@ -2669,6 +2669,7 @@ Adds new {config:option}`instance-security:security.delegate_bpf`.* group of opt
 
 This adds a request option to set snapshot's target profile on instance copy to be inherited from target instance.
 
+(extension-backup-metadataversion)=
 ## `backup_metadata_version`
 
 Adds the field `version` when exporting instances and custom storage volumes to define the backup file format.
@@ -2717,11 +2718,13 @@ This adds PCI device hotplugging for VMs.
 
 The `PATCH /1.0/instances/{name}` endpoint allows removing an instance device by setting its value to `null` in the devices map.
 
+(extension-ovn-internal-load-balancer)=
 ## `ovn_internal_load_balancer`
 
 This introduces support for internal OVN load balancers and network forwards. This approach allows `ovn` networks to define ports on internal IP addresses that can be forwarded to other internal IPs inside their respective networks.
 This change removes the previous limitation on `ovn` networks that load balancers and network forwards could only use external IP addresses to forward to internal IPs.
 
+(extension-storage-driver-alletra)=
 ## `storage_driver_alletra`
 
 Adds a new `alletra` storage driver for the consumption of storage volumes from an HPE Alletra storage array.
@@ -2736,19 +2739,49 @@ The following pool-level configuration keys have been added:
 1. {config:option}`storage-alletra-pool-conf:alletra.target`
 1. {config:option}`storage-alletra-pool-conf:alletra.mode`
 
+(extension-resources-disk-used-by)=
 ## `resources_disk_used_by`
 
 Adds the field `used_by` to potential storage disk returned by the resources end point to indicate its use by any virtual parent device, e.g. `bcache`.
 
+(extension-ovn-dhcp-ranges)=
 ## `ovn_dhcp_ranges`
 
 This introduces support for the {config:option}`network-ovn-network-conf:ipv4.dhcp.ranges` configuration key for `ovn` networks. This key allows specifying a list of IPv4 ranges
 reserved for dynamic allocation using DHCP.
 
+(extension-operation-requestor)=
 ## `operation_requestor`
 
 This adds a new `requestor` field to operations, which contains information about the caller that initiated the operation.
 
+(extension-import-custom-volume-tar)=
 ## `import_custom_volume_tar`
 
 This adds new option `tar` for parameter `--type` in `POST /1.0/storage-pools/{poolName}/volumes/{type}` API call.
+
+(extension-projects-force-delete)=
+## `projects_force_delete`
+
+Adds support for force deleting projects and their entities (instances, profiles, images, networks, network ACLs, network zones, storage volumes, and storage buckets) by setting the `force` query parameter on `DELETE /1.0/projects/{name}` requests.
+
+(extension-vm-persistent-bus)=
+## `vm_persistent_bus`
+
+Adds support for persistently recording VM PCIe bus allocations in volatile configuration keys.
+
+This introduces two new volatile VM configuration keys:
+
+* {config:option}`instance-volatile:volatile.<name>.bus` - records the bus number for the device.
+* {config:option}`instance-volatile:volatile.bus.mode` - records whether "persistent" mode is being used for a VM.
+
+(extension-ovn-nic-acceleration-parent)=
+## `ovn_nic_acceleration_parent`
+
+Adds support for specifying the OVN NIC acceleration physical function interfaces to allocate virtual functions from.
+
+This avoids the need for adding physical function interfaces to the OVN integration bridge.
+
+This introduces a new `ovn` network and `ovn` NIC configuration key:
+
+* {config:option}`device-nic-ovn-device-conf:acceleration.parent` - Comma separated list of physical function (PF) interfaces to allocate virtual functions (VFs) from for hardware acceleration when {config:option}`device-nic-ovn-device-conf:acceleration` is enabled.

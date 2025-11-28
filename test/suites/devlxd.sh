@@ -5,7 +5,7 @@ test_devlxd() {
   # Ensure testimage is not set as cached.
   lxd sql global "UPDATE images SET cached=0 WHERE fingerprint=\"${fingerprint}\""
 
-  lxc launch testimage devlxd -c security.devlxd=false
+  lxc launch testimage devlxd -c security.devlxd=false -c boot.autostart=true
 
   ! lxc exec devlxd -- test -S /dev/lxd/sock || false
   lxc config unset devlxd security.devlxd
@@ -22,22 +22,19 @@ test_devlxd() {
   # No output means the export succeeded.
   [ -z "$(lxc exec devlxd -- devlxd-client image-export "${fingerprint}" || echo fail)" ]
 
-  lxc config set devlxd user.foo bar
+  lxc config set devlxd user.foo=bar user.xyz="bar %s bar"
   [ "$(lxc exec devlxd -- devlxd-client user.foo)" = "bar" ]
-
-  lxc config set devlxd user.foo "bar %s bar"
-  [ "$(lxc exec devlxd -- devlxd-client user.foo)" = "bar %s bar" ]
+  [ "$(lxc exec devlxd -- devlxd-client user.xyz)" = "bar %s bar" ]
 
   # Make sure instance configuration keys are not accessible
   [ "$(lxc exec devlxd -- devlxd-client security.nesting)" = "Forbidden" ]
   lxc config set devlxd security.nesting true
   [ "$(lxc exec devlxd -- devlxd-client security.nesting)" = "Forbidden" ]
 
-  cmd=$(unset -f lxc; command -v lxc)
-  ${cmd} exec devlxd -- devlxd-client monitor-websocket > "${TEST_DIR}/devlxd-websocket.log" &
+  "${_LXC}" exec devlxd -- devlxd-client monitor-websocket > "${TEST_DIR}/devlxd-websocket.log" &
   client_websocket=$!
 
-  ${cmd} exec devlxd -- devlxd-client monitor-stream > "${TEST_DIR}/devlxd-stream.log" &
+  "${_LXC}" exec devlxd -- devlxd-client monitor-stream > "${TEST_DIR}/devlxd-stream.log" &
   client_stream=$!
 
   EXPECTED_MD5="$(md5sum - << EOF
@@ -82,14 +79,12 @@ EOF
   MATCH=0
 
   for _ in $(seq 10); do
-    lxc config set devlxd user.foo bar
-    lxc config set devlxd security.nesting true
+    lxc config set devlxd user.foo=bar security.nesting=true
 
     true > "${TEST_DIR}/devlxd-websocket.log"
     true > "${TEST_DIR}/devlxd-stream.log"
 
-    lxc config set devlxd user.foo baz
-    lxc config set devlxd security.nesting false
+    lxc config set devlxd user.foo=baz security.nesting=false
     lxc config device add devlxd mnt disk source="${TEST_DIR}" path=/mnt
     lxc config device remove devlxd mnt
 
@@ -123,7 +118,11 @@ EOF
 
   [ "$(lxc list -f csv -c s devlxd)" = "RUNNING" ]
 
-  kill -9 "${monitorDevlxdPID}" || true
+  kill -9 "${monitorDevlxdPID}"
+  rm "${TEST_DIR}/devlxd.log"
+
+  # Expedite LXD shutdown by forcibly killing the running instance
+  lxc stop -f devlxd
 
   shutdown_lxd "${LXD_DIR}"
   respawn_lxd "${LXD_DIR}" true
@@ -150,10 +149,118 @@ EOF
 
   # Check device configs are available and that NIC hwaddr is available even if volatile.
   hwaddr=$(lxc config get devlxd volatile.eth0.hwaddr)
-  [ "$(lxc exec devlxd -- devlxd-client devices | jq -r .eth0.hwaddr)" = "${hwaddr}" ]
+  [ "$(lxc exec devlxd -- devlxd-client devices | jq --exit-status --raw-output .eth0.hwaddr)" = "${hwaddr}" ]
 
   lxc delete devlxd --force
-  kill -9 "${monitorDevlxdPID}" || true
+  kill -9 "${monitorDevlxdPID}"
+  rm "${TEST_DIR}/devlxd.log"
 
   [ "${MATCH}" = "1" ]
+}
+
+test_devlxd_vm() {
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+  orig_volume_size="$(lxc storage get "${pool}" volume.size)"
+  if [ -n "${orig_volume_size:-}" ]; then
+    echo "==> Override the volume.size to accommodate a large VM"
+    lxc storage set "${pool}" volume.size "${SMALLEST_VM_ROOT_DISK}"
+  fi
+
+  ensure_import_ubuntu_vm_image
+
+  lxc init ubuntu-vm v1 --vm -c agent.nic_config=true -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
+  lxc config device add v1 a-nic nic nictype=p2p name=a-nic mtu=1400
+  lxc start v1
+  waitInstanceReady v1
+
+  setup_lxd_agent_gocoverage v1
+
+  echo "==> Check that devlxd is enabled by default and works"
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0 | jq
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/devices | jq
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/config | jq
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data | grep -F 'instance-id:'
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data | grep -F 'local-hostname:'
+
+  # Run sync before forcefully restarting the VM otherwise the filesystem will be corrupted.
+  lxc exec v1 -- "sync"
+
+  # Coverage data requires clean shutdown
+  if coverage_enabled; then
+    # Errors are possible if the service is stopped before the exec completes
+    # as it kills the communication channel
+    lxc exec v1 -- systemctl stop --no-block lxd-agent.service || true
+  fi
+
+  lxc restart -f v1
+  waitInstanceReady v1
+
+  echo "==> Confirm agent.nic_config applied the NIC configuration"
+  lxc exec v1 -- ip link show a-nic | grep -wF "mtu 1400"
+
+  echo "==> Remove the NIC"
+  lxc config device remove v1 a-nic
+  ! lxc exec v1 -- ip link show a-nic || false
+
+  echo "==> Check that devlxd is working after a restart"
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0 | jq
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/devices | jq
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/config | jq
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data | grep -F 'instance-id:'
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data | grep -F 'local-hostname:'
+
+  echo "==> Check that devlxd is not working once disabled"
+  lxc config set v1 security.devlxd false
+  ! lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0 || false
+
+  echo "==> Check that devlxd can be enabled live"
+  lxc config set v1 security.devlxd true
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0 | jq
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/devices | jq
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/config | jq
+
+  echo "==> Ensure that the output metadata is in correct format"
+  META_DATA="$(lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data)"
+  [ "$(grep -cxE 'instance-id: [^ ]{36}|local-hostname: v1' <<< "${META_DATA}" || echo fail)" = "2" ]
+  [ "$(wc -l <<< "${META_DATA}" || echo fail)" = "2" ]
+
+  echo "==> Test cloud-init user-data"
+  # Ensure the header is preserved and the output value is not escaped.
+  cloudInitUserData='#cloud-config
+package_update: false
+package_upgrade: false
+runcmd:
+- echo test'
+
+  lxc config set v1 cloud-init.user-data "${cloudInitUserData}"
+  out="$(lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock lxd/1.0/config/cloud-init.user-data)"
+  [ "${out}" = "${cloudInitUserData}" ]
+  lxc config unset v1 cloud-init.user-data
+
+  echo "===> Test instance Ready state"
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock -X PATCH -d '{"state":"Ready"}' http://custom.socket/1.0
+  [ "$(lxc config get v1 volatile.last_state.ready)" = "true" ]
+
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock -X PATCH -d '{"state":"Started"}' http://custom.socket/1.0
+  [ "$(lxc config get v1 volatile.last_state.ready)" = "false" ]
+
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock -X PATCH -d '{"state":"Ready"}' http://custom.socket/1.0
+  [ "$(lxc config get v1 volatile.last_state.ready)" = "true" ]
+
+  # If gathering coverage data, the lxd-agent.service needs to be stopped
+  # cleanly to allow the coverage file to be flushed.
+  teardown_lxd_agent_gocoverage v1
+
+  lxc stop -f v1
+  [ "$(lxc config get v1 volatile.last_state.ready)" = "false" ]
+
+  # TODO: add nested virt part from lxd-ci test
+
+  # Cleanup
+  lxc image delete "$(lxc config get v1 volatile.base_image)"
+  lxc delete v1
+  if [ -n "${orig_volume_size:-}" ]; then
+    echo "==> Restore the volume.size"
+    lxc storage set "${pool}" volume.size "${orig_volume_size}"
+  fi
 }

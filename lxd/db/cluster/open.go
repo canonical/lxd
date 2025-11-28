@@ -33,7 +33,7 @@ import (
 func Open(name string, store driver.NodeStore, options ...driver.Option) (*sql.DB, error) {
 	driver, err := driver.New(store, options...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create dqlite driver: %w", err)
+		return nil, fmt.Errorf("Failed creating dqlite driver: %w", err)
 	}
 
 	driverName := dqliteDriverName()
@@ -68,7 +68,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) error {
 		// Check if this is a fresh instance.
 		isUpdate, err := schema.DoesSchemaTableExist(ctx, tx)
 		if err != nil {
-			return fmt.Errorf("Failed to check if schema table exists: %w", err)
+			return fmt.Errorf("Failed checking if schema table exists: %w", err)
 		}
 
 		if !isUpdate {
@@ -79,7 +79,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) error {
 		clustered := true
 		n, err := selectUnclusteredNodesCount(ctx, tx)
 		if err != nil {
-			return fmt.Errorf("Failed to fetch standalone member count: %w", err)
+			return fmt.Errorf("Failed fetching standalone member count: %w", err)
 		}
 
 		if n > 1 {
@@ -100,7 +100,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) error {
 				filepath.Join(dir, "global.bak"),
 			)
 			if err != nil {
-				return fmt.Errorf("Failed to backup global database: %w", err)
+				return fmt.Errorf("Failed backing up global database: %w", err)
 			}
 
 			backupDone = true
@@ -125,7 +125,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) error {
 		// Check if we're clustered
 		n, err := selectUnclusteredNodesCount(ctx, tx)
 		if err != nil {
-			return fmt.Errorf("Failed to fetch standalone member count: %w", err)
+			return fmt.Errorf("Failed fetching standalone member count: %w", err)
 		}
 
 		if n > 1 {
@@ -138,7 +138,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) error {
 		// Update the schema and api_extension columns of ourselves.
 		err = updateNodeVersion(tx, address, apiExtensions)
 		if err != nil {
-			return fmt.Errorf("Failed to update cluster member version info for %q: %w", address, err)
+			return fmt.Errorf("Failed updating cluster member version info for %q: %w", address, err)
 		}
 
 		return checkClusterIsUpgradable(ctx, tx, [2]int{len(updates), apiExtensions})
@@ -154,14 +154,14 @@ func EnsureSchema(db *sql.DB, address string, dir string) error {
 		var err error
 		initial, err = schema.Ensure(db)
 		if err != nil {
-			return fmt.Errorf("Failed to ensure schema: %w", err)
+			return fmt.Errorf("Failed ensuring schema: %w", err)
 		}
 
 		err = query.Transaction(ctx, db, func(ctx context.Context, tx *sql.Tx) error {
 			return applyTriggers(ctx, tx)
 		})
 		if err != nil {
-			return fmt.Errorf("Failed to apply triggers: %w", err)
+			return fmt.Errorf("Failed applying triggers: %w", err)
 		}
 
 		return err

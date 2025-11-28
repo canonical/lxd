@@ -1867,9 +1867,10 @@ func (d *lxc) handleIdmappedStorage() (idmap.IdmapStorageType, *idmap.IdmapSet, 
 		jsonDiskIdmap = string(idmapBytes)
 	}
 
-	err = d.VolatileSet(map[string]string{"volatile.last_state.idmap": jsonDiskIdmap})
+	volatileKey := "volatile.last_state.idmap"
+	err = d.VolatileSet(map[string]string{volatileKey: jsonDiskIdmap})
 	if err != nil {
-		return idmap.IdmapStorageNone, nextIdmap, fmt.Errorf("Set volatile.last_state.idmap config key on container %q (id %d): %w", d.name, d.id, err)
+		return idmap.IdmapStorageNone, nextIdmap, fmt.Errorf("Failed setting config key %q: %w", volatileKey, err)
 	}
 
 	d.updateProgress("")
@@ -1877,7 +1878,7 @@ func (d *lxc) handleIdmappedStorage() (idmap.IdmapStorageType, *idmap.IdmapSet, 
 }
 
 // Start functions.
-func (d *lxc) startCommon() (string, []func() error, error) {
+func (d *lxc) startCommon() (revert.Hook, string, []func() error, error) {
 	postStartHooks := []func() error{}
 
 	revert := revert.New()
@@ -1886,12 +1887,12 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	// Load the go-lxc struct
 	cc, err := d.initLXC(true)
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed loading go-lxc: %w", err)
+		return nil, "", nil, fmt.Errorf("Failed loading go-lxc: %w", err)
 	}
 
 	// Ensure cgroup v1 configuration is set appropriately with the image using systemd
 	if d.localConfig["image.requirements.cgroup"] == "v1" && !shared.PathExists("/sys/fs/cgroup/systemd") {
-		return "", nil, errors.New("The image used by this instance requires a CGroupV1 host system")
+		return nil, "", nil, errors.New("The image used by this instance requires a CGroupV1 host system")
 	}
 
 	// Load any required kernel modules
@@ -1902,7 +1903,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 			module = strings.TrimPrefix(module, " ")
 			err := util.LoadModule(module)
 			if err != nil {
-				return "", nil, fmt.Errorf("Failed to load kernel module '%s': %w", module, err)
+				return nil, "", nil, fmt.Errorf("Failed to load kernel module '%s': %w", module, err)
 			}
 		}
 	}
@@ -1913,7 +1914,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		_ = os.Remove(logfile + ".old")
 		err := os.Rename(logfile, logfile+".old")
 		if err != nil && !os.IsNotExist(err) {
-			return "", nil, err
+			return nil, "", nil, err
 		}
 	}
 
@@ -1925,7 +1926,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	// Mount instance root volume.
 	mountInfo, err := d.mount()
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 
 	// Handle post hooks.
@@ -1944,7 +1945,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 
 	idmapType, nextIdmap, err := d.handleIdmappedStorage()
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed to handle idmapped storage: %w", err)
+		return nil, "", nil, fmt.Errorf("Failed to handle idmapped storage: %w", err)
 	}
 
 	var idmapBytes []byte
@@ -1953,21 +1954,22 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	} else {
 		idmapBytes, err = json.Marshal(nextIdmap.Idmap)
 		if err != nil {
-			return "", nil, err
+			return nil, "", nil, err
 		}
 	}
 
 	if d.localConfig["volatile.idmap.current"] != string(idmapBytes) {
-		err = d.VolatileSet(map[string]string{"volatile.idmap.current": string(idmapBytes)})
+		volatileKey := "volatile.idmap.current"
+		err = d.VolatileSet(map[string]string{volatileKey: string(idmapBytes)})
 		if err != nil {
-			return "", nil, fmt.Errorf("Set volatile.idmap.current config key on container %q (id %d): %w", d.name, d.id, err)
+			return nil, "", nil, fmt.Errorf("Failed setting config key %q: %w", volatileKey, err)
 		}
 	}
 
 	// Generate the Seccomp profile
 	err = seccomp.CreateProfile(d.state, d)
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 
 	// Cleanup any existing leftover devices
@@ -1977,17 +1979,17 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	// Create any missing directories.
 	err = os.MkdirAll(d.LogPath(), 0700)
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 
 	err = os.MkdirAll(d.DevicesPath(), 0711)
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 
 	err = os.MkdirAll(d.ShmountsPath(), 0711)
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 
 	volatileSet := make(map[string]string)
@@ -2009,7 +2011,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	// Apply any volatile changes that need to be made.
 	err = d.VolatileSet(volatileSet)
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed setting volatile keys: %w", err)
+		return nil, "", nil, err
 	}
 
 	// Create the devices
@@ -2029,13 +2031,13 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 				continue // Skip unsupported device (allows for mixed instance type profiles).
 			}
 
-			return "", nil, fmt.Errorf("Failed start validation for device %q: %w", entry.Name, err)
+			return nil, "", nil, fmt.Errorf("Failed start validation for device %q: %w", entry.Name, err)
 		}
 
 		// Run pre-start of check all devices before starting any device to avoid expensive revert.
 		err = dev.PreStartCheck()
 		if err != nil {
-			return "", nil, fmt.Errorf("Failed pre-start check for device %q: %w", dev.Name(), err)
+			return nil, "", nil, fmt.Errorf("Failed pre-start check for device %q: %w", dev.Name(), err)
 		}
 
 		startDevices = append(startDevices, dev)
@@ -2048,7 +2050,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		// Start the device.
 		runConf, err := d.deviceStart(dev, false)
 		if err != nil {
-			return "", nil, fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
+			return nil, "", nil, fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
 		}
 
 		// Stop device on failure to setup container.
@@ -2072,26 +2074,26 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 			// Get an absolute path for the rootfs (avoid constantly traversing the symlink).
 			absoluteRootfs, err := filepath.EvalSymlinks(runConf.RootFS.Path)
 			if err != nil {
-				return "", nil, fmt.Errorf("Unable to resolve container rootfs: %w", err)
+				return nil, "", nil, fmt.Errorf("Unable to resolve container rootfs: %w", err)
 			}
 
 			rootfsPath := "dir:" + absoluteRootfs
 			err = lxcSetConfigItem(cc, "lxc.rootfs.path", rootfsPath)
 			if err != nil {
-				return "", nil, fmt.Errorf("Failed to setup device rootfs %q: %w", dev.Name(), err)
+				return nil, "", nil, fmt.Errorf("Failed to setup device rootfs %q: %w", dev.Name(), err)
 			}
 
 			if len(runConf.RootFS.Opts) > 0 {
 				err = lxcSetConfigItem(cc, "lxc.rootfs.options", strings.Join(runConf.RootFS.Opts, ","))
 				if err != nil {
-					return "", nil, fmt.Errorf("Failed to setup device rootfs %q: %w", dev.Name(), err)
+					return nil, "", nil, fmt.Errorf("Failed to setup device rootfs %q: %w", dev.Name(), err)
 				}
 			}
 
 			if !d.IsPrivileged() && idmapType == idmap.IdmapStorageIdmapped {
 				err = lxcSetConfigItem(cc, "lxc.rootfs.options", "idmap=container")
 				if err != nil {
-					return "", nil, fmt.Errorf("Failed to set \"idmap=container\" rootfs option: %w", err)
+					return nil, "", nil, fmt.Errorf("Failed to set \"idmap=container\" rootfs option: %w", err)
 				}
 			}
 		}
@@ -2110,7 +2112,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 				}
 
 				if err != nil {
-					return "", nil, fmt.Errorf("Failed to setup device cgroup %q: %w", dev.Name(), err)
+					return nil, "", nil, fmt.Errorf("Failed to setup device cgroup %q: %w", dev.Name(), err)
 				}
 			}
 		}
@@ -2120,7 +2122,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 			for _, mount := range runConf.Mounts {
 				pathSource, isPath := mount.DevSource.(deviceConfig.DevSourcePath)
 				if mount.DevSource != nil && !isPath {
-					return "", nil, fmt.Errorf("Device source for device %q was not a host path (was %T)", mount.DevName, mount.DevSource)
+					return nil, "", nil, fmt.Errorf("Device source for device %q was not a host path (was %T)", mount.DevName, mount.DevSource)
 				}
 
 				mntOptions := strings.Join(mount.Opts, ",")
@@ -2130,14 +2132,14 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 					case idmap.IdmapStorageIdmapped:
 						mntOptions = strings.Join([]string{mntOptions, "idmap=container"}, ",")
 					case idmap.IdmapStorageNone:
-						return "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), errors.New("idmapping abilities are required but aren't supported on system"))
+						return nil, "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), errors.New("idmapping abilities are required but aren't supported on system"))
 					}
 				}
 
 				mntVal := shared.EscapePathFstab(pathSource.Path) + " " + shared.EscapePathFstab(mount.TargetPath) + " " + mount.FSType + " " + mntOptions + " " + fmt.Sprint(mount.Freq, " ", mount.PassNo)
 				err = lxcSetConfigItem(cc, "lxc.mount.entry", mntVal)
 				if err != nil {
-					return "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), err)
+					return nil, "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), err)
 				}
 			}
 		}
@@ -2150,7 +2152,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 			for _, nicItem := range runConf.NetworkInterface {
 				err = lxcSetConfigItem(cc, "lxc.net."+strconv.Itoa(nicID)+"."+nicItem.Key, nicItem.Value)
 				if err != nil {
-					return "", nil, fmt.Errorf("Failed to setup device network interface %q: %w", dev.Name(), err)
+					return nil, "", nil, fmt.Errorf("Failed to setup device network interface %q: %w", dev.Name(), err)
 				}
 			}
 		}
@@ -2178,21 +2180,21 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	if len(nvidiaDevices) > 0 {
 		err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_VISIBLE_DEVICES="+strings.Join(nvidiaDevices, ","))
 		if err != nil {
-			return "", nil, fmt.Errorf("Unable to set NVIDIA_VISIBLE_DEVICES in LXC environment: %w", err)
+			return nil, "", nil, fmt.Errorf("Unable to set NVIDIA_VISIBLE_DEVICES in LXC environment: %w", err)
 		}
 	}
 
 	if len(cdiConfigFiles) > 0 {
 		err = lxcSetConfigItem(cc, "lxc.hook.mount", d.state.OS.ExecPath+" callhook "+shared.VarPath("")+" "+strconv.Quote(d.Project().Name)+" "+strconv.Quote(d.Name())+" startmountns --devicesRootFolder "+d.DevicesPath()+" "+strings.Join(cdiConfigFiles, " "))
 		if err != nil {
-			return "", nil, fmt.Errorf("Unable to set the startmountns callhook to process CDI hooks files (%q) for instance %q in project %q: %w", strings.Join(cdiConfigFiles, ","), d.Name(), d.Project().Name, err)
+			return nil, "", nil, fmt.Errorf("Unable to set the startmountns callhook to process CDI hooks files (%q) for instance %q in project %q: %w", strings.Join(cdiConfigFiles, ","), d.Name(), d.Project().Name, err)
 		}
 	}
 
 	// Load the LXC raw config.
 	err = d.loadRawLXCConfig(cc)
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 
 	// Generate the LXC config
@@ -2200,13 +2202,13 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	err = cc.SaveConfigFile(configPath)
 	if err != nil {
 		_ = os.Remove(configPath)
-		return "", nil, err
+		return nil, "", nil, err
 	}
 
 	// Set ownership to match container root
 	currentIdmapset, err := d.CurrentIdmap()
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 
 	uid := int64(0)
@@ -2216,13 +2218,13 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 
 	err = os.Chown(d.Path(), int(uid), 0)
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 
 	// We only need traversal by root in the container
 	err = os.Chmod(d.Path(), 0100)
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 
 	// If starting stateless, wipe state
@@ -2233,13 +2235,13 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	// Snapshot if needed.
 	snapName, expiry, err := d.getStartupSnapNameAndExpiry(d)
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed getting startup snapshot info: %w", err)
+		return nil, "", nil, fmt.Errorf("Failed getting startup snapshot info: %w", err)
 	}
 
 	if snapName != "" && expiry != nil {
 		err := d.snapshot(snapName, expiry, false)
 		if err != nil {
-			return "", nil, fmt.Errorf("Failed taking startup snapshot: %w", err)
+			return nil, "", nil, fmt.Errorf("Failed taking startup snapshot: %w", err)
 		}
 	}
 
@@ -2248,11 +2250,12 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	// can be used for instance cleanup.
 	err = d.UpdateBackupFile()
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 
+	cleanup := revert.Clone().Fail
 	revert.Success()
-	return configPath, postStartHooks, nil
+	return cleanup, configPath, postStartHooks, nil
 }
 
 // detachInterfaceRename enters the container's network namespace and moves the named interface
@@ -2393,7 +2396,7 @@ func (d *lxc) Start(stateful bool) error {
 	}
 
 	// Run the shared start code.
-	configPath, postStartHooks, err := d.startCommon()
+	cleanupInstanceDevices, configPath, postStartHooks, err := d.startCommon()
 	if err != nil {
 		op.Done(err)
 		return err
@@ -2439,6 +2442,23 @@ func (d *lxc) Start(stateful bool) error {
 
 		d.logger.Error("Failed starting instance", ctxMap)
 
+		// Use this context timeout to wait for potential stop operation to complete in case instance start fails.
+		// If run, stop operation will inherit the current operation lock.
+		// The stop operation will never run if forkstart fails too early and does not attempt to start container.
+		// In that case, the context will timeout and op.Wait() will return a "context deadline exceeded" error.
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+
+		stopErr := op.Wait(ctx)
+		if stopErr != nil {
+			d.logger.Warn("Failed running instance stop hooks after failed start", ctxMap, logger.Ctx{"err": stopErr})
+
+			if errors.Is(stopErr, context.DeadlineExceeded) {
+				// Clean up instance devices because stop hooks likely have not run.
+				cleanupInstanceDevices()
+			}
+		}
+
 		// Return the actual error
 		op.Done(err)
 		return err
@@ -2455,7 +2475,7 @@ func (d *lxc) Start(stateful bool) error {
 		return err
 	}
 
-	if op.Action() == "start" {
+	if op.Action() == operationlock.ActionStart {
 		d.logger.Info("Started instance", ctxMap)
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStarted.Event(d, nil))
 	}
@@ -2650,7 +2670,7 @@ func (d *lxc) Stop(stateful bool) error {
 	}
 
 	// Setup a new operation
-	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, true)
+	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore, operationlock.ActionMigrate}, false, true)
 	if err != nil {
 		if errors.Is(err, operationlock.ErrNonReusableSucceeded) {
 			// An existing matching operation has now succeeded, return.
@@ -3737,48 +3757,7 @@ func (d *lxc) cleanup() {
 
 // Delete deletes the instance.
 func (d *lxc) Delete(force bool) error {
-	unlock, err := d.updateBackupFileLock(context.Background())
-	if err != nil {
-		return err
-	}
-
-	defer unlock()
-
-	// Setup a new operation.
-	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionDelete, nil, false, false)
-	if err != nil {
-		return fmt.Errorf("Failed to create instance delete operation: %w", err)
-	}
-
-	defer op.Done(nil)
-
-	if d.IsRunning() {
-		return api.StatusErrorf(http.StatusBadRequest, "Instance is running")
-	}
-
-	err = d.delete(force)
-	if err != nil {
-		return err
-	}
-
-	// If dealing with a snapshot, refresh the backup file on the parent.
-	if d.IsSnapshot() {
-		parentName, _, _ := api.GetParentAndSnapshotName(d.name)
-
-		// Load the parent.
-		parent, err := instance.LoadByProjectAndName(d.state, d.project.Name, parentName)
-		if err != nil {
-			return fmt.Errorf("Invalid parent: %w", err)
-		}
-
-		// Update the backup file.
-		err = parent.UpdateBackupFile()
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return d.deleteCommon(d, force)
 }
 
 // Delete deletes the instance without creating an operation lock.
@@ -5251,12 +5230,19 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	d.logger.Info("Migration send starting")
 	defer d.logger.Info("Migration send stopped")
 
+	// Setup a new operation.
+	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionMigrate, nil, false, true)
+	if err != nil {
+		return err
+	}
+
 	// Wait for essential migration connections before negotiation.
 	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
 	filesystemConn, err := args.FilesystemConn(connectionsCtx)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
@@ -5270,7 +5256,9 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 
 	pool, err := storagePools.LoadByInstance(d.state, d)
 	if err != nil {
-		return fmt.Errorf("Failed loading instance: %w", err)
+		err := fmt.Errorf("Failed loading instance: %w", err)
+		op.Done(err)
+		return err
 	}
 
 	// The refresh argument passed to MigrationTypes() is always set to false here.
@@ -5278,7 +5266,9 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	// sink/receiver will know this, and adjust the migration types accordingly.
 	poolMigrationTypes := pool.MigrationTypes(storagePools.InstanceContentType(d), false, args.Snapshots)
 	if len(poolMigrationTypes) == 0 {
-		return errors.New("No source migration types available")
+		err := errors.New("No source migration types available")
+		op.Done(err)
+		return err
 	}
 
 	// Convert the pool's migration type options to an offer header to target.
@@ -5308,7 +5298,9 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	// Add idmap info to source header for containers.
 	idmapset, err := d.DiskIdmap()
 	if err != nil {
-		return fmt.Errorf("Failed getting container disk idmap: %w", err)
+		err := fmt.Errorf("Failed getting container disk idmap: %w", err)
+		op.Done(err)
+		return err
 	} else if idmapset != nil {
 		offerHeader.Idmap = make([]*migration.IDMapType, 0, len(idmapset.Idmap))
 		for _, ctnIdmap := range idmapset.Idmap {
@@ -5326,7 +5318,9 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 
 	srcConfig, err := pool.GenerateInstanceBackupConfig(d, args.Snapshots, d.op)
 	if err != nil {
-		return fmt.Errorf("Failed generating instance migration config: %w", err)
+		err := fmt.Errorf("Failed generating instance migration config: %w", err)
+		op.Done(err)
+		return err
 	}
 
 	// If we are copying snapshots, retrieve a list of snapshots from source volume.
@@ -5344,7 +5338,9 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	d.logger.Debug("Sending migration offer to target")
 	err = args.ControlSend(offerHeader)
 	if err != nil {
-		return fmt.Errorf("Failed sending migration offer: %w", err)
+		err := fmt.Errorf("Failed sending migration offer: %w", err)
+		op.Done(err)
+		return err
 	}
 
 	// Receive response from target.
@@ -5352,7 +5348,9 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	respHeader := &migration.MigrationHeader{}
 	err = args.ControlReceive(respHeader)
 	if err != nil {
-		return fmt.Errorf("Failed receiving migration offer response: %w", err)
+		err := fmt.Errorf("Failed receiving migration offer response: %w", err)
+		op.Done(err)
+		return err
 	}
 
 	d.logger.Debug("Got migration offer response from target")
@@ -5360,7 +5358,9 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	// Negotiated migration types.
 	migrationTypes, err := migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
 	if err != nil {
-		return fmt.Errorf("Failed to negotiate migration type: %w", err)
+		err := fmt.Errorf("Failed to negotiate migration type: %w", err)
+		op.Done(err)
+		return err
 	}
 
 	volSourceArgs := &migration.VolumeSourceArgs{
@@ -5681,7 +5681,14 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) (err error) {
 			}
 		}
 
-		return err
+		if err != nil {
+			op.Done(err)
+			return err
+		}
+
+		op.Done(nil)
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceMigrated.Event(d, nil))
+		return nil
 	}
 }
 
@@ -5820,9 +5827,10 @@ func (d *lxc) resetContainerDiskIdmap(srcIdmap *idmap.IdmapSet) error {
 		}
 
 		d.logger.Debug("Setting new volatile.last_state.idmap from source instance", logger.Ctx{"sourceIdmap": srcIdmap})
-		err := d.VolatileSet(map[string]string{"volatile.last_state.idmap": jsonIdmap})
+		volatileKey := "volatile.last_state.idmap"
+		err := d.VolatileSet(map[string]string{volatileKey: jsonIdmap})
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed setting config key %q: %w", volatileKey, err)
 		}
 	}
 
@@ -6460,7 +6468,7 @@ func (d *lxc) migrate(args *instance.CriuMigrationArgs) error {
 		}
 
 		// Run the shared start code.
-		configPath, postStartHooks, err := d.startCommon()
+		_, configPath, postStartHooks, err := d.startCommon()
 		if err != nil {
 			if args.Op != nil {
 				args.Op.Done(err)

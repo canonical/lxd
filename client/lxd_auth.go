@@ -362,7 +362,7 @@ func (r *ProtocolLXD) GetIdentityProviderGroup(identityProviderGroupName string)
 }
 
 // CreateIdentityProviderGroup creates a new identity provider group.
-func (r *ProtocolLXD) CreateIdentityProviderGroup(identityProviderGroup api.IdentityProviderGroup) error {
+func (r *ProtocolLXD) CreateIdentityProviderGroup(identityProviderGroup api.IdentityProviderGroupsPost) error {
 	err := r.CheckExtension("access_management")
 	if err != nil {
 		return err

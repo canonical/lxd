@@ -765,6 +765,12 @@ func networksPostCluster(ctx context.Context, s *state.State, projectName string
 			return err
 		}
 
+		// Update only the description of the network.
+		err = tx.UpdateNetworkDescription(networkID, req.Description)
+		if err != nil {
+			return err
+		}
+
 		// Insert the global config keys.
 		err = tx.CreateNetworkConfig(networkID, 0, req.Config)
 		if err != nil {
@@ -890,7 +896,7 @@ func doNetworksCreate(ctx context.Context, s *state.State, n network.Network, cl
 	if clientType != request.ClientTypeJoiner {
 		err = n.Start()
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed starting network: %w", err)
 		}
 	}
 
@@ -1677,7 +1683,7 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 	initNetwork := func(s *state.State, n network.Network, priority int) error {
 		err = n.Start()
 		if err != nil {
-			err = fmt.Errorf("Failed starting: %w", err)
+			err = fmt.Errorf("Failed starting network: %w", err)
 
 			_ = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
 				return tx.UpsertWarningLocalNode(ctx, n.Project(), entity.TypeNetwork, int(n.ID()), warningtype.NetworkUnvailable, err.Error())

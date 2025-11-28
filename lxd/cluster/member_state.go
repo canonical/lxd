@@ -103,14 +103,11 @@ func ClusterState(s *state.State, networkCert *shared.CertInfo, members ...db.No
 	statesChan := make(chan stateTuple)
 
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		for state := range statesChan {
 			memberStates[state.name] = *state.state
 		}
-
-		wg.Done()
-	}()
+	})
 
 	err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
 		state, _, err := client.GetClusterMemberState(member.Name)

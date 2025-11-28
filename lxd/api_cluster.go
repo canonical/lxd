@@ -58,12 +58,11 @@ import (
 )
 
 type evacuateStopFunc func(inst instance.Instance) error
-type evacuateMigrateFunc func(ctx context.Context, s *state.State, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, metadata map[string]any, op *operations.Operation) error
+type evacuateMigrateFunc func(ctx context.Context, s *state.State, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, op *operations.Operation) error
 
 type evacuateOpts struct {
 	s               *state.State
 	gateway         *cluster.Gateway
-	r               *http.Request
 	instances       []instance.Instance
 	mode            string
 	srcMemberName   string
@@ -71,8 +70,6 @@ type evacuateOpts struct {
 	migrateInstance evacuateMigrateFunc
 	op              *operations.Operation
 }
-
-var targetGroupPrefix = "@"
 
 var clusterCmd = APIEndpoint{
 	Path:        "cluster",
@@ -170,13 +167,6 @@ var internalClusterRaftNodeCmd = APIEndpoint{
 	Delete: APIEndpointAction{Handler: internalClusterRaftNodeDelete, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
-var internalClusterHealCmd = APIEndpoint{
-	Path:        "cluster/heal/{name}",
-	MetricsType: entity.TypeClusterMember,
-
-	Post: APIEndpointAction{Handler: internalClusterHeal, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
-}
-
 // swagger:operation GET /1.0/cluster cluster cluster_get
 //
 //	Get the cluster configuration
@@ -268,12 +258,12 @@ func clusterGetMemberConfig(ctx context.Context, cluster *db.Cluster) ([]api.Clu
 
 		pools, err = tx.GetStoragePoolsLocalConfig(ctx)
 		if err != nil {
-			return fmt.Errorf("Failed to fetch storage pools configuration: %w", err)
+			return fmt.Errorf("Failed fetching storage pools configuration: %w", err)
 		}
 
 		networks, err = tx.GetNetworksLocalConfig(ctx)
 		if err != nil {
-			return fmt.Errorf("Failed to fetch networks configuration: %w", err)
+			return fmt.Errorf("Failed fetching networks configuration: %w", err)
 		}
 
 		return nil
@@ -375,8 +365,8 @@ func clusterPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(errors.New("ServerName must be empty when disabling clustering"))
 	}
 
-	if req.ServerName != "" && strings.HasPrefix(req.ServerName, targetGroupPrefix) {
-		return response.BadRequest(fmt.Errorf("ServerName may not start with %q", targetGroupPrefix))
+	if req.ServerName != "" && strings.HasPrefix(req.ServerName, instancetype.TargetClusterGroupPrefix) {
+		return response.BadRequest(fmt.Errorf("ServerName may not start with %q", instancetype.TargetClusterGroupPrefix))
 	}
 
 	if req.ServerName == "none" {
@@ -445,7 +435,7 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 	err = s.DB.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
 		config, err = node.ConfigLoad(ctx, tx)
 		if err != nil {
-			return fmt.Errorf("Failed to fetch member configuration: %w", err)
+			return fmt.Errorf("Failed fetching member configuration: %w", err)
 		}
 
 		localClusterAddress := config.ClusterAddress()
@@ -483,7 +473,11 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 	}
 
 	// Add the cluster flag from the agent
-	version.UserAgentFeatures([]string{"cluster"})
+	features := []string{"cluster"}
+	err = version.UserAgentFeatures(features)
+	if err != nil {
+		logger.Warn("Failed configuring LXD user agent", logger.Ctx{"err": err, "features": features})
+	}
 
 	return operations.OperationResponse(op)
 }
@@ -527,7 +521,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		err = s.DB.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
 			config, err = node.ConfigLoad(ctx, tx)
 			if err != nil {
-				return fmt.Errorf("Failed to load cluster config: %w", err)
+				return fmt.Errorf("Failed loading cluster config: %w", err)
 			}
 
 			_, err = config.Patch(map[string]any{
@@ -564,7 +558,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 			config, err = node.ConfigLoad(ctx, tx)
 			if err != nil {
-				return fmt.Errorf("Failed to load cluster config: %w", err)
+				return fmt.Errorf("Failed loading cluster config: %w", err)
 			}
 
 			_, err = config.Patch(map[string]any{
@@ -600,7 +594,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		if req.ClusterPassword != "" || req.ClusterToken != "" {
 			err := cluster.SetupTrust(serverCert, req)
 			if err != nil {
-				return fmt.Errorf("Failed to setup cluster trust: %w", err)
+				return fmt.Errorf("Failed setting up cluster trust: %w", err)
 			}
 		}
 
@@ -608,7 +602,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		// to associate our member name to the server certificate.
 		err := cluster.UpdateTrust(serverCert, req.ServerName, req.ClusterAddress, req.ClusterCertificate)
 		if err != nil {
-			return fmt.Errorf("Failed to update cluster trust: %w", err)
+			return fmt.Errorf("Failed updating cluster trust: %w", err)
 		}
 
 		// Connect to the target cluster node.
@@ -622,7 +616,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		// Connect to ourselves to initialize storage pools and networks using the API.
 		localClient, err := lxd.ConnectLXDUnix(d.os.GetUnixSocket(), &lxd.ConnectionArgs{UserAgent: request.UserAgentJoiner})
 		if err != nil {
-			return fmt.Errorf("Failed to connect to local LXD: %w", err)
+			return fmt.Errorf("Failed connecting to local LXD: %w", err)
 		}
 
 		revert := revert.New()
@@ -646,7 +640,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		d.events.SetLocalLocation(d.serverName)
 		localRevert, err := clusterInitMember(localClient, client, req.MemberConfig)
 		if err != nil {
-			return fmt.Errorf("Failed to initialize member: %w", err)
+			return fmt.Errorf("Failed initializing member: %w", err)
 		}
 
 		revert.Add(localRevert)
@@ -718,12 +712,12 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		// Update our TLS configuration using the returned cluster certificate.
 		err = util.WriteCert(s.OS.VarDir, "cluster", []byte(req.ClusterCertificate), info.PrivateKey, nil)
 		if err != nil {
-			return fmt.Errorf("Failed to save cluster certificate: %w", err)
+			return fmt.Errorf("Failed saving cluster certificate: %w", err)
 		}
 
 		networkCert, err := util.LoadClusterCert(s.OS.VarDir)
 		if err != nil {
-			return fmt.Errorf("Failed to parse cluster certificate: %w", err)
+			return fmt.Errorf("Failed parsing cluster certificate: %w", err)
 		}
 
 		s.Endpoints.NetworkUpdateCert(networkCert)
@@ -731,7 +725,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		// Add trusted certificates of other members to local trust store.
 		trustedCerts, err := client.GetCertificates()
 		if err != nil {
-			return fmt.Errorf("Failed to get trusted certificates: %w", err)
+			return fmt.Errorf("Failed getting trusted certificates: %w", err)
 		}
 
 		for _, trustedCert := range trustedCerts {
@@ -801,7 +795,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			// Add the new node to the default cluster group.
 			err := tx.AddNodeToClusterGroup(ctx, "default", req.ServerName)
 			if err != nil {
-				return fmt.Errorf("Failed to add new member to the default cluster group: %w", err)
+				return fmt.Errorf("Failed adding new member to the default cluster group: %w", err)
 			}
 
 			return nil
@@ -866,19 +860,23 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		}
 
 		// Add the cluster flag from the agent
-		version.UserAgentFeatures([]string{"cluster"})
+		features := []string{"cluster"}
+		err = version.UserAgentFeatures(features)
+		if err != nil {
+			logger.Warn("Failed configuring LXD user agent", logger.Ctx{"err": err, "features": features})
+		}
 
 		// Notify the leader of successful join, possibly triggering
 		// role changes.
 		_, _, err = client.RawQuery(http.MethodPost, "/internal/cluster/rebalance", nil, "")
 		if err != nil {
-			logger.Warnf("Failed to trigger cluster rebalance: %v", err)
+			logger.Warnf("Failed triggering cluster rebalance: %v", err)
 		}
 
 		// Ensure all images are available after this node has joined.
 		err = autoSyncImages(s.ShutdownCtx, s)
 		if err != nil {
-			logger.Warn("Failed to sync images")
+			logger.Warn("Failed syncing images")
 		}
 
 		// Update the identity cache again to add identities from the cluster we're joining..
@@ -933,7 +931,7 @@ func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.
 
 	networkCert, err := util.LoadCert(s.OS.VarDir)
 	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed to parse member certificate: %w", err))
+		return response.InternalError(fmt.Errorf("Failed parsing member certificate: %w", err))
 	}
 
 	// Reset the cluster database and make it local to this node.
@@ -998,7 +996,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 	// Fetch all pools currently defined in the cluster.
 	pools, err := client.GetStoragePools()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch information about cluster storage pools: %w", err)
+		return nil, fmt.Errorf("Failed fetching information about cluster storage pools: %w", err)
 	}
 
 	// Merge the returned storage pools configs with the node-specific
@@ -1044,7 +1042,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 
 	projects, err := client.GetProjects()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch project information about cluster networks: %w", err)
+		return nil, fmt.Errorf("Failed fetching project information about cluster networks: %w", err)
 	}
 
 	for _, p := range projects {
@@ -1066,7 +1064,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 		// Fetch all project specific networks currently defined in the cluster for the project.
 		networks, err := client.UseProject(p.Name).GetNetworks()
 		if err != nil {
-			return nil, fmt.Errorf("Failed to fetch network information about cluster networks in project %q: %w", p.Name, err)
+			return nil, fmt.Errorf("Failed fetching network information about cluster networks in project %q: %w", p.Name, err)
 		}
 
 		// Merge the returned networks configs with the node-specific configs provided by the user.
@@ -1112,7 +1110,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 
 	revert, err := initDataNodeApply(d, data)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize storage pools and networks: %w", err)
+		return nil, fmt.Errorf("Failed initializing storage pools and networks: %w", err)
 	}
 
 	return revert, nil
@@ -1429,7 +1427,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 			logger.Warn("Cancelling duplicate join token operation", logger.Ctx{"operation": op.ID, "serverName": opServerName})
 			err = operationCancel(r.Context(), s, api.ProjectDefaultName, op)
 			if err != nil {
-				return response.InternalError(fmt.Errorf("Failed to cancel operation %q: %w", op.ID, err))
+				return response.InternalError(fmt.Errorf("Failed cancelling operation %q: %w", op.ID, err))
 			}
 		}
 	}
@@ -1793,7 +1791,7 @@ func updateClusterNode(s *state.State, gateway *cluster.Gateway, r *http.Request
 		// Update node config.
 		err = tx.UpdateNodeConfig(ctx, nodeInfo.ID, req.Config)
 		if err != nil {
-			return fmt.Errorf("Failed to update cluster member config: %w", err)
+			return fmt.Errorf("Failed updating cluster member config: %w", err)
 		}
 
 		// Update the description.
@@ -2130,11 +2128,11 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	err = autoSyncImages(s.ShutdownCtx, s)
 	if err != nil {
 		if force == 0 {
-			return response.SmartError(fmt.Errorf("Failed to sync images: %w", err))
+			return response.SmartError(fmt.Errorf("Failed syncing images: %w", err))
 		}
 
 		// If force is set, only show a warning instead of returning an error.
-		logger.Warn("Failed to sync images")
+		logger.Warn("Failed syncing images")
 	}
 
 	// First check that the node is clear from containers and images and
@@ -2206,12 +2204,12 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	// Remove node from the database
 	err = cluster.Purge(s.DB.Cluster, name)
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed to remove member from database: %w", err))
+		return response.SmartError(fmt.Errorf("Failed removing member from database: %w", err))
 	}
 
 	err = rebalanceMemberRoles(r.Context(), s, d.gateway, nil)
 	if err != nil {
-		logger.Warnf("Failed to rebalance dqlite nodes: %v", err)
+		logger.Warnf("Failed rebalancing dqlite nodes: %v", err)
 	}
 
 	// If this leader node removed itself, just disable clustering.
@@ -2228,7 +2226,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		put.Enabled = false
 		_, err = client.UpdateCluster(put, "")
 		if err != nil {
-			return response.SmartError(fmt.Errorf("Failed to cleanup the member: %w", err))
+			return response.SmartError(fmt.Errorf("Failed cleaning up the member: %w", err))
 		}
 	}
 
@@ -2240,7 +2238,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	// Ensure all images are available after this node has been deleted.
 	err = autoSyncImages(s.ShutdownCtx, s)
 	if err != nil {
-		logger.Warn("Failed to sync images")
+		logger.Warn("Failed syncing images")
 	}
 
 	requestor := request.CreateRequestor(r.Context())
@@ -2402,13 +2400,13 @@ func updateClusterCertificate(ctx context.Context, s *state.State, gateway *clus
 			revert.Add(func() {
 				client, err := cluster.Connect(r.Context(), member.Address, newCertInfo, s.ServerCert(), true)
 				if err != nil {
-					logger.Error("Failed to connect to cluster member", logger.Ctx{"address": member.Address, "err": err})
+					logger.Error("Failed connecting to cluster member", logger.Ctx{"address": member.Address, "err": err})
 					return
 				}
 
 				err = client.UpdateClusterCertificate(oldReq, "")
 				if err != nil {
-					logger.Error("Failed to update cluster certificate on cluster member", logger.Ctx{"address": member.Address, "err": err})
+					logger.Error("Failed updating cluster certificate on cluster member", logger.Ctx{"address": member.Address, "err": err})
 				}
 			})
 		}
@@ -2422,7 +2420,7 @@ func updateClusterCertificate(ctx context.Context, s *state.State, gateway *clus
 	if shared.PathExists(newClusterCertFilename) {
 		err := os.Remove(newClusterCertFilename)
 		if err != nil {
-			return fmt.Errorf("Failed to remove cluster certificate: %w", err)
+			return fmt.Errorf("Failed removing cluster certificate: %w", err)
 		}
 	}
 
@@ -2703,7 +2701,7 @@ findLeader:
 		logger.Info("Transferring leadership", logCtx)
 		err := gateway.TransferLeadership()
 		if err != nil {
-			return fmt.Errorf("Failed to transfer leadership: %w", err)
+			return fmt.Errorf("Failed transferring leadership: %w", err)
 		}
 
 		goto findLeader
@@ -3081,6 +3079,17 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 
 	switch req.Action {
 	case "evacuate":
+		ops, err := operationsGetByType(r.Context(), s, "", operationtype.ClusterMemberRestore)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		for _, op := range ops {
+			if op.Location == name && !op.StatusCode.IsFinal() {
+				return response.BadRequest(fmt.Errorf("Cannot evacuate %q while a restore operation is in progress", name))
+			}
+		}
+
 		stopFunc := func(inst instance.Instance) error {
 			l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 
@@ -3099,20 +3108,20 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 				// Fallback to forced stop.
 				err = inst.Stop(false)
 				if err != nil && !errors.Is(err, instanceDrivers.ErrInstanceIsStopped) {
-					return fmt.Errorf("Failed to stop instance %q in project %q: %w", inst.Name(), inst.Project().Name, err)
+					return fmt.Errorf("Failed stopping instance %q in project %q: %w", inst.Name(), inst.Project().Name, err)
 				}
 			}
 
 			// Mark the instance as RUNNING in volatile so its state can be properly restored.
 			err = inst.VolatileSet(map[string]string{"volatile.last_state.power": instance.PowerStateRunning})
 			if err != nil {
-				l.Warn("Failed to set instance state to RUNNING", logger.Ctx{"err": err})
+				l.Warn("Failed setting instance state to RUNNING", logger.Ctx{"err": err})
 			}
 
 			return nil
 		}
 
-		migrateFunc := func(ctx context.Context, s *state.State, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, metadata map[string]any, op *operations.Operation) error {
+		migrateFunc := func(ctx context.Context, s *state.State, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, op *operations.Operation) error {
 			// Migrate the instance.
 			req := api.InstancePost{
 				Name: inst.Name(),
@@ -3121,7 +3130,7 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 
 			err := migrateInstance(r.Context(), s, inst, targetMemberInfo.Name, req, op)
 			if err != nil {
-				return fmt.Errorf("Failed to migrate instance %q in project %q: %w", inst.Name(), inst.Project().Name, err)
+				return fmt.Errorf("Failed migrating instance %q in project %q: %w", inst.Name(), inst.Project().Name, err)
 			}
 
 			if !startInstance || live {
@@ -3131,14 +3140,13 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 			// Start it back up on target.
 			dest, err := cluster.Connect(r.Context(), targetMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 			if err != nil {
-				return fmt.Errorf("Failed to connect to destination %q for instance %q in project %q: %w", targetMemberInfo.Address, inst.Name(), inst.Project().Name, err)
+				return fmt.Errorf("Failed connecting to destination %q for instance %q in project %q: %w", targetMemberInfo.Address, inst.Name(), inst.Project().Name, err)
 			}
 
 			dest = dest.UseProject(inst.Project().Name)
 
-			if metadata != nil && op != nil {
-				metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project().Name)
-				_ = op.UpdateMetadata(metadata)
+			if op != nil {
+				_ = op.ExtendMetadata(map[string]any{"evacuation_progress": fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project().Name)})
 			}
 
 			startOp, err := dest.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "start"}, "")
@@ -3154,79 +3162,32 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 			return nil
 		}
 
-		return evacuateClusterMember(s, d.gateway, r, req.Mode, stopFunc, migrateFunc)
+		run := func(op *operations.Operation) error {
+			return evacuateClusterMember(context.Background(), s, d.gateway, op, name, req.Mode, stopFunc, migrateFunc)
+		}
+
+		op, err := operations.OperationCreate(r.Context(), s, "", operations.OperationClassTask, operationtype.ClusterMemberEvacuate, nil, nil, run, nil, nil)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return operations.OperationResponse(op)
 	case "restore":
+		ops, err := operationsGetByType(r.Context(), s, "", operationtype.ClusterMemberEvacuate)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		for _, op := range ops {
+			if op.Location == name && !op.StatusCode.IsFinal() {
+				return response.BadRequest(fmt.Errorf("Cannot restore %q while an evacuate operation is in progress", name))
+			}
+		}
+
 		return restoreClusterMember(d, r, req.Mode)
 	}
 
 	return response.BadRequest(fmt.Errorf("Unknown action %q", req.Action))
-}
-
-func internalClusterHeal(d *Daemon, r *http.Request) response.Response {
-	migrateFunc := func(ctx context.Context, s *state.State, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, metadata map[string]any, op *operations.Operation) error {
-		// This returns an error if the instance's storage pool is local.
-		// Since we only care about remote backed instances, this can be ignored and return nil instead.
-		poolName, err := inst.StoragePool()
-		if err != nil {
-			if api.StatusErrorCheck(err, http.StatusNotFound) {
-				return nil // We only care about remote backed instances.
-			}
-
-			return err
-		}
-
-		pool, err := storagePools.LoadByName(s, poolName)
-		if err != nil {
-			return err
-		}
-
-		// Nothing to do as the instance's pool is not CEPH.
-		if !pool.Driver().Info().Remote {
-			return nil
-		}
-
-		// Migrate the instance.
-		req := api.InstancePost{
-			Migration: true,
-		}
-
-		dest, err := cluster.Connect(context.Background(), targetMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
-		if err != nil {
-			return err
-		}
-
-		dest = dest.UseProject(inst.Project().Name)
-		dest = dest.UseTarget(targetMemberInfo.Name)
-
-		migrateOp, err := dest.MigrateInstance(inst.Name(), req)
-		if err != nil {
-			return err
-		}
-
-		err = migrateOp.Wait()
-		if err != nil {
-			return err
-		}
-
-		if !startInstance || live {
-			return nil
-		}
-
-		// Start it back up on target.
-		startOp, err := dest.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "start"}, "")
-		if err != nil {
-			return err
-		}
-
-		err = startOp.Wait()
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	return evacuateClusterMember(d.State(), d.gateway, r, "migrate", nil, migrateFunc)
 }
 
 func evacuateClusterSetState(s *state.State, name string, state int) error {
@@ -3234,7 +3195,7 @@ func evacuateClusterSetState(s *state.State, name string, state int) error {
 		// Get the node.
 		node, err := tx.GetNodeByName(ctx, name)
 		if err != nil {
-			return fmt.Errorf("Failed to get cluster member by name: %w", err)
+			return fmt.Errorf("Failed getting cluster member by name: %w", err)
 		}
 
 		if node.State == db.ClusterMemberStatePending {
@@ -3256,7 +3217,7 @@ func evacuateClusterSetState(s *state.State, name string, state int) error {
 		// Set node status to requested value.
 		err = tx.UpdateNodeStatus(node.ID, state)
 		if err != nil {
-			return fmt.Errorf("Failed to update cluster member status: %w", err)
+			return fmt.Errorf("Failed updating cluster member status: %w", err)
 		}
 
 		return nil
@@ -3266,25 +3227,21 @@ func evacuateClusterSetState(s *state.State, name string, state int) error {
 // evacuateHostShutdownDefaultTimeout default timeout (in seconds) for waiting for clean shutdown to complete.
 const evacuateHostShutdownDefaultTimeout = 30
 
-func evacuateClusterMember(s *state.State, gateway *cluster.Gateway, r *http.Request, mode string, stopInstance evacuateStopFunc, migrateInstance evacuateMigrateFunc) response.Response {
-	nodeName, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+func evacuateClusterMember(ctx context.Context, s *state.State, gateway *cluster.Gateway, op *operations.Operation, name string, mode string, stopInstance evacuateStopFunc, migrateInstance evacuateMigrateFunc) error {
 	// The instances are retrieved in a separate transaction, after the node is in EVACUATED state.
 	var dbInstances []dbCluster.Instance
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// If evacuating, consider only the instances on the node which needs to be evacuated.
-		dbInstances, err = dbCluster.GetInstances(ctx, tx.Tx(), dbCluster.InstanceFilter{Node: &nodeName})
+		var err error
+		dbInstances, err = dbCluster.GetInstances(ctx, tx.Tx(), dbCluster.InstanceFilter{Node: &name})
 		if err != nil {
-			return fmt.Errorf("Failed to get instances: %w", err)
+			return fmt.Errorf("Failed getting instances: %w", err)
 		}
 
 		return nil
 	})
 	if err != nil {
-		return response.SmartError(err)
+		return err
 	}
 
 	instances := make([]instance.Instance, 0, len(dbInstances))
@@ -3292,66 +3249,61 @@ func evacuateClusterMember(s *state.State, gateway *cluster.Gateway, r *http.Req
 	for _, dbInst := range dbInstances {
 		inst, err := instance.LoadByProjectAndName(s, dbInst.Project, dbInst.Name)
 		if err != nil {
-			return response.SmartError(fmt.Errorf("Failed to load instance: %w", err))
+			return fmt.Errorf("Failed loading instance: %w", err)
 		}
 
 		instances = append(instances, inst)
 	}
 
-	run := func(op *operations.Operation) error {
-		// Setup a reverter.
-		revert := revert.New()
-		defer revert.Fail()
+	// Setup a reverter.
+	revert := revert.New()
+	defer revert.Fail()
 
-		// Set node status to EVACUATED.
-		err := evacuateClusterSetState(s, nodeName, db.ClusterMemberStateEvacuated)
-		if err != nil {
-			return err
-		}
-
-		// Ensure node is put into its previous state if anything fails.
-		revert.Add(func() {
-			_ = evacuateClusterSetState(s, nodeName, db.ClusterMemberStateCreated)
-		})
-
-		opts := evacuateOpts{
-			s:               s,
-			gateway:         gateway,
-			r:               r,
-			instances:       instances,
-			mode:            mode,
-			srcMemberName:   nodeName,
-			stopInstance:    stopInstance,
-			migrateInstance: migrateInstance,
-			op:              op,
-		}
-
-		err = evacuateInstances(context.Background(), opts)
-		if err != nil {
-			return err
-		}
-
-		// Evacuate networks too.
-		networkStop(s, true)
-
-		revert.Success()
-		return nil
-	}
-
-	op, err := operations.OperationCreate(r.Context(), s, "", operations.OperationClassTask, operationtype.ClusterMemberEvacuate, nil, nil, run, nil, nil)
+	// Set node status to EVACUATED.
+	err = evacuateClusterSetState(s, name, db.ClusterMemberStateEvacuated)
 	if err != nil {
-		return response.InternalError(err)
+		return err
 	}
 
-	return operations.OperationResponse(op)
+	// Ensure node is put into its previous state if anything fails.
+	revert.Add(func() {
+		_ = evacuateClusterSetState(s, name, db.ClusterMemberStateCreated)
+	})
+
+	opts := evacuateOpts{
+		s:               s,
+		gateway:         gateway,
+		instances:       instances,
+		mode:            mode,
+		srcMemberName:   name,
+		stopInstance:    stopInstance,
+		migrateInstance: migrateInstance,
+		op:              op,
+	}
+
+	err = evacuateInstances(context.Background(), opts)
+	if err != nil {
+		return err
+	}
+
+	// Evacuate networks too, but not during healing.
+	if mode != api.ClusterEvacuateModeHeal {
+		networkStop(s, true)
+	}
+
+	revert.Success()
+
+	if mode != api.ClusterEvacuateModeHeal {
+		s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterMemberEvacuated.Event(name, op.EventLifecycleRequestor(), nil))
+	}
+
+	return nil
 }
 
 func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 	if opts.migrateInstance == nil {
 		return errors.New("Missing migration callback function")
 	}
-
-	metadata := make(map[string]any)
 
 	for _, inst := range opts.instances {
 		instProject := inst.Project()
@@ -3363,13 +3315,13 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 		// Apply overrides.
 		if opts.mode != "" {
 			switch opts.mode {
-			case "stop":
+			case api.ClusterEvacuateModeStop:
 				migrate = false
 				live = false
-			case "migrate":
+			case api.ClusterEvacuateModeMigrate:
 				migrate = true
 				live = false
-			case "live-migrate":
+			case api.ClusterEvacuateModeLiveMigrate:
 				migrate = true
 				live = true
 			default:
@@ -3380,8 +3332,7 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 		// Stop the instance if needed.
 		isRunning := inst.IsRunning()
 		if opts.stopInstance != nil && isRunning && (!migrate || !live) {
-			metadata["evacuation_progress"] = fmt.Sprintf("Stopping %q in project %q", inst.Name(), instProject.Name)
-			_ = opts.op.UpdateMetadata(metadata)
+			_ = opts.op.ExtendMetadata(map[string]any{"evacuation_progress": fmt.Sprintf("Stopping %q in project %q", inst.Name(), instProject.Name)})
 
 			err := opts.stopInstance(inst)
 			if err != nil {
@@ -3422,11 +3373,12 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 				l.Warn("No migration target available for instance")
 				continue
 			}
+
+			return err
 		}
 
 		// Start migrating the instance.
-		metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q to %q", inst.Name(), instProject.Name, targetMemberInfo.Name)
-		_ = opts.op.UpdateMetadata(metadata)
+		_ = opts.op.ExtendMetadata(map[string]any{"evacuation_progress": fmt.Sprintf("Migrating %q in project %q to %q", inst.Name(), instProject.Name, targetMemberInfo.Name)})
 
 		// Set origin server (but skip if already set as that suggests more than one server being evacuated).
 		if inst.LocalConfig()["volatile.evacuate.origin"] == "" {
@@ -3434,7 +3386,7 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 		}
 
 		start := isRunning || instanceShouldAutoStart(inst)
-		err = opts.migrateInstance(ctx, opts.s, inst, targetMemberInfo, live, start, metadata, opts.op)
+		err = opts.migrateInstance(ctx, opts.s, inst, targetMemberInfo, live, start, opts.op)
 		if err != nil {
 			return err
 		}
@@ -3457,7 +3409,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 	skipInstances := false
 	if mode != "" {
 		switch mode {
-		case "skip":
+		case api.ClusterRestoreModeSkip:
 			skipInstances = true
 		default:
 			return response.BadRequest(fmt.Errorf("Invalid mode: %q", mode))
@@ -3489,7 +3441,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 				return nil
 			})
 			if err != nil {
-				return fmt.Errorf("Failed to get instances: %w", err)
+				return fmt.Errorf("Failed getting instances: %w", err)
 			}
 
 			return nil
@@ -3518,8 +3470,6 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 		var source lxd.InstanceServer
 		var sourceNode db.NodeInfo
 
-		metadata := make(map[string]any)
-
 		// Restore the networks.
 		err = networkStartup(d.State, true)
 		if err != nil {
@@ -3540,12 +3490,11 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 				}
 
 				// Start the instance.
-				metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project().Name)
-				_ = op.UpdateMetadata(metadata)
+				_ = op.ExtendMetadata(map[string]any{"evacuation_progress": fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project().Name)})
 
 				err = inst.Start(false)
 				if err != nil {
-					return fmt.Errorf("Failed to start instance %q: %w", inst.Name(), err)
+					return fmt.Errorf("Failed starting instance %q: %w", inst.Name(), err)
 				}
 			}
 
@@ -3556,37 +3505,35 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 				// Check if live-migratable.
 				_, live := inst.CanMigrate()
 
-				metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q from %q", inst.Name(), inst.Project().Name, inst.Location())
-				_ = op.UpdateMetadata(metadata)
+				_ = op.ExtendMetadata(map[string]any{"evacuation_progress": fmt.Sprintf("Migrating %q in project %q from %q", inst.Name(), inst.Project().Name, inst.Location())})
 
 				err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 					sourceNode, err = tx.GetNodeByName(ctx, inst.Location())
 					if err != nil {
-						return fmt.Errorf("Failed to get node %q: %w", inst.Location(), err)
+						return fmt.Errorf("Failed getting node %q: %w", inst.Location(), err)
 					}
 
 					return nil
 				})
 				if err != nil {
-					return fmt.Errorf("Failed to get node: %w", err)
+					return fmt.Errorf("Failed getting node: %w", err)
 				}
 
 				source, err = cluster.Connect(r.Context(), sourceNode.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 				if err != nil {
-					return fmt.Errorf("Failed to connect to source: %w", err)
+					return fmt.Errorf("Failed connecting to source: %w", err)
 				}
 
 				source = source.UseProject(inst.Project().Name)
 
 				apiInst, _, err := source.GetInstance(inst.Name())
 				if err != nil {
-					return fmt.Errorf("Failed to get instance %q: %w", inst.Name(), err)
+					return fmt.Errorf("Failed getting instance %q: %w", inst.Name(), err)
 				}
 
 				isRunning := apiInst.StatusCode == api.Running
 				if isRunning && !live {
-					metadata["evacuation_progress"] = fmt.Sprintf("Stopping %q in project %q", inst.Name(), inst.Project().Name)
-					_ = op.UpdateMetadata(metadata)
+					_ = op.ExtendMetadata(map[string]any{"evacuation_progress": fmt.Sprintf("Stopping %q in project %q", inst.Name(), inst.Project().Name)})
 
 					timeout := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
 					val, err := strconv.Atoi(timeout)
@@ -3597,7 +3544,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 					// Attempt a clean stop.
 					stopOp, err := source.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "stop", Force: false, Timeout: val}, "")
 					if err != nil {
-						return fmt.Errorf("Failed to stop instance %q: %w", inst.Name(), err)
+						return fmt.Errorf("Failed stopping instance %q: %w", inst.Name(), err)
 					}
 
 					// Wait for the stop operation to complete or timeout.
@@ -3609,13 +3556,13 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 						stopOp, err = source.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "stop", Force: true}, "")
 						if err != nil {
 							// If this fails too, fail the whole operation.
-							return fmt.Errorf("Failed to stop instance %q: %w", inst.Name(), err)
+							return fmt.Errorf("Failed stopping instance %q: %w", inst.Name(), err)
 						}
 
 						// Wait for the forceful stop to complete.
 						err = stopOp.Wait()
 						if err != nil && !strings.Contains(err.Error(), "The instance is already stopped") {
-							return fmt.Errorf("Failed to stop instance %q: %w", inst.Name(), err)
+							return fmt.Errorf("Failed stopping instance %q: %w", inst.Name(), err)
 						}
 					}
 				}
@@ -3635,13 +3582,13 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 
 				err = migrationOp.Wait()
 				if err != nil {
-					return fmt.Errorf("Failed to wait for migration to finish: %w", err)
+					return fmt.Errorf("Failed waiting for migration to finish: %w", err)
 				}
 
 				// Reload the instance after migration.
 				inst, err := instance.LoadByProjectAndName(s, inst.Project().Name, inst.Name())
 				if err != nil {
-					return fmt.Errorf("Failed to load instance: %w", err)
+					return fmt.Errorf("Failed loading instance: %w", err)
 				}
 
 				config := inst.LocalConfig()
@@ -3660,19 +3607,18 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 
 				err = inst.Update(args, false)
 				if err != nil {
-					return fmt.Errorf("Failed to update instance %q: %w", inst.Name(), err)
+					return fmt.Errorf("Failed updating instance %q: %w", inst.Name(), err)
 				}
 
 				if !isRunning || live {
 					continue
 				}
 
-				metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project().Name)
-				_ = op.UpdateMetadata(metadata)
+				_ = op.ExtendMetadata(map[string]any{"evacuation_progress": fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project().Name)})
 
 				err = inst.Start(false)
 				if err != nil {
-					return fmt.Errorf("Failed to start instance %q: %w", inst.Name(), err)
+					return fmt.Errorf("Failed starting instance %q: %w", inst.Name(), err)
 				}
 			}
 
@@ -3682,6 +3628,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 		}
 
 		revert.Success()
+		s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterMemberRestored.Event(originName, op.EventLifecycleRequestor(), nil))
 		return nil
 	}
 
@@ -4542,69 +4489,10 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, gateway *c
 	return targetMemberInfo, nil
 }
 
-func autoHealClusterTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
+func autoHealClusterTask(stateFunc func() *state.State, gateway *cluster.Gateway) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		s := stateFunc()
-
-		healingThreshold := s.GlobalConfig.ClusterHealingThreshold()
-		if healingThreshold == 0 {
-			return // Skip healing if it's disabled.
-		}
-
-		leaderInfo, err := s.LeaderInfo()
+		op, err := autoHealCluster(ctx, stateFunc(), gateway)
 		if err != nil {
-			logger.Error("Failed to determine cluster leader", logger.Ctx{"err": err})
-			return
-		}
-
-		if !leaderInfo.Clustered || !leaderInfo.Leader {
-			return // Skip healing if not cluster leader.
-		}
-
-		var offlineMembers []db.NodeInfo
-		{
-			var members []db.NodeInfo
-			err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-				members, err = tx.GetNodes(ctx)
-				if err != nil {
-					return fmt.Errorf("Failed getting cluster members: %w", err)
-				}
-
-				return nil
-			})
-			if err != nil {
-				logger.Error("Failed healing cluster instances", logger.Ctx{"err": err})
-				return
-			}
-
-			for _, member := range members {
-				// Ignore members which have been evacuated, and those which haven't exceeded the
-				// healing offline trigger threshold.
-				if member.State == db.ClusterMemberStateEvacuated || !member.IsOffline(healingThreshold) {
-					continue
-				}
-
-				offlineMembers = append(offlineMembers, member)
-			}
-		}
-
-		if len(offlineMembers) == 0 {
-			return // Skip healing if there are no cluster members to evacuate.
-		}
-
-		opRun := func(_ *operations.Operation) error {
-			err := autoHealCluster(ctx, s, offlineMembers)
-			if err != nil {
-				logger.Error("Failed healing cluster instances", logger.Ctx{"err": err})
-				return err
-			}
-
-			return nil
-		}
-
-		op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.ClusterHeal, nil, nil, opRun, nil, nil)
-		if err != nil {
-			logger.Error("Failed creating cluster instances heal operation", logger.Ctx{"err": err})
 			return
 		}
 
@@ -4624,23 +4512,144 @@ func autoHealClusterTask(stateFunc func() *state.State) (task.Func, task.Schedul
 	return f, task.Every(time.Minute)
 }
 
-func autoHealCluster(_ context.Context, s *state.State, offlineMembers []db.NodeInfo) error {
-	logger.Info("Healing cluster instances")
-
-	dest, err := cluster.Connect(context.Background(), s.LocalConfig.ClusterAddress(), s.Endpoints.NetworkCert(), s.ServerCert(), true)
-	if err != nil {
-		return err
+func autoHealCluster(ctx context.Context, s *state.State, gateway *cluster.Gateway) (*operations.Operation, error) {
+	healingThreshold := s.GlobalConfig.ClusterHealingThreshold()
+	if healingThreshold == 0 {
+		return nil, errors.New("Skipping healing cluster instances as cluster healing is disabled")
 	}
 
-	for _, member := range offlineMembers {
-		logger.Info("Healing cluster member instances", logger.Ctx{"member": member.Name})
-		_, _, err = dest.RawQuery(http.MethodPost, "/internal/cluster/heal/"+member.Name, nil, "")
+	leaderInfo, err := s.LeaderInfo()
+	if err != nil {
+		return nil, fmt.Errorf("Failed determining cluster leader: %w", err)
+	}
+
+	if !leaderInfo.Clustered || !leaderInfo.Leader {
+		return nil, errors.New("Skipping healing cluster instances on non-leader member")
+	}
+
+	var offlineMembers []db.NodeInfo
+	{
+		var members []db.NodeInfo
+		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			members, err = tx.GetNodes(ctx)
+			if err != nil {
+				return fmt.Errorf("Failed getting cluster members: %w", err)
+			}
+
+			return nil
+		})
 		if err != nil {
-			return fmt.Errorf("Failed evacuating cluster member %q: %w", member.Name, err)
+			return nil, fmt.Errorf("Failed healing cluster instances: %w", err)
+		}
+
+		for _, member := range members {
+			// Ignore members which have been evacuated, and those which haven't exceeded the
+			// healing offline trigger threshold.
+			if member.State == db.ClusterMemberStateEvacuated || !member.IsOffline(healingThreshold) {
+				continue
+			}
+
+			offlineMembers = append(offlineMembers, member)
 		}
 	}
 
-	logger.Info("Done healing cluster instances")
+	if len(offlineMembers) == 0 {
+		return nil, errors.New("Skipping healing cluster instances as there are no cluster members to evacuate")
+	}
 
+	opRun := func(op *operations.Operation) error {
+		for _, member := range offlineMembers {
+			err := healClusterMember(s, gateway, op, member.Name)
+			if err != nil {
+				logger.Error("Failed healing cluster instances", logger.Ctx{"err": err})
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.ClusterHeal, nil, nil, opRun, nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("Failed creating cluster instances heal operation: %w", err)
+	}
+
+	return op, nil
+}
+
+func healClusterMember(s *state.State, gateway *cluster.Gateway, op *operations.Operation, name string) error {
+	logger.Info("Starting cluster healing", logger.Ctx{"member": name})
+	defer logger.Info("Completed cluster healing", logger.Ctx{"member": name})
+
+	migrateFunc := func(ctx context.Context, s *state.State, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, op *operations.Operation) error {
+		// This returns an error if the instance's storage pool is local.
+		// Since we only care about remote backed instances, this can be ignored and return nil instead.
+		poolName, err := inst.StoragePool()
+		if err != nil {
+			if api.StatusErrorCheck(err, http.StatusNotFound) {
+				return nil // We only care about remote backed instances.
+			}
+
+			return err
+		}
+
+		pool, err := storagePools.LoadByName(s, poolName)
+		if err != nil {
+			return fmt.Errorf("Failed loading storage pool %q: %w", poolName, err)
+		}
+
+		// Ignore instances on local storage pools.
+		if !pool.Driver().Info().Remote {
+			return nil
+		}
+
+		// Migrate the instance.
+		req := api.InstancePost{
+			Migration: true,
+		}
+
+		dest, err := cluster.Connect(ctx, targetMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+		if err != nil {
+			return err
+		}
+
+		dest = dest.UseProject(inst.Project().Name)
+		dest = dest.UseTarget(targetMemberInfo.Name)
+
+		migrateOp, err := dest.MigrateInstance(inst.Name(), req)
+		if err != nil {
+			return err
+		}
+
+		err = migrateOp.Wait()
+		if err != nil {
+			return err
+		}
+
+		if !startInstance || live {
+			return nil
+		}
+
+		// Start it back up on target.
+		startOp, err := dest.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "start"}, "")
+		if err != nil {
+			return err
+		}
+
+		err = startOp.Wait()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	err := evacuateClusterMember(context.Background(), s, gateway, op, name, api.ClusterEvacuateModeHeal, nil, migrateFunc)
+	if err != nil {
+		logger.Error("Failed healing cluster member", logger.Ctx{"member": name, "err": err})
+		return err
+	}
+
+	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterMemberHealed.Event(name, op.EventLifecycleRequestor(), nil))
 	return nil
 }

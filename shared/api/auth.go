@@ -292,6 +292,20 @@ type IdentityProviderGroupPut struct {
 	Groups []string `json:"groups" yaml:"groups"`
 }
 
+// IdentityProviderGroupsPost is used for creating an IdentityProviderGroup.
+//
+// swagger:model
+//
+// API extension: access_management.
+type IdentityProviderGroupsPost struct {
+	// Name is the name of the IdP group.
+	Name string `json:"name" yaml:"name"`
+
+	// Groups are the groups the IdP group resolves to.
+	// Example: ["foo", "bar"]
+	Groups []string `json:"groups" yaml:"groups"`
+}
+
 // Permission represents a permission that may be granted to a group.
 //
 // swagger:model

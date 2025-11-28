@@ -245,11 +245,7 @@ func createFromMigration(ctx context.Context, s *state.State, projectName string
 
 	// Decide if this is an internal cluster move request.
 	var clusterMoveSourceName string
-	if isClusterNotification {
-		if req.Source.Source == "" {
-			return response.BadRequest(errors.New("Source instance name must be provided for cluster member move"))
-		}
-
+	if isClusterNotification && req.Source.Source != "" {
 		clusterMoveSourceName = req.Source.Source
 	}
 
@@ -1246,6 +1242,22 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			logger.Debug("No name provided for new instance, using auto-generated name", logger.Ctx{"project": targetProjectName, "instance": req.Name})
 		}
 
+		err = instancetype.ValidName(req.Name, false)
+		if err != nil {
+			return err
+		}
+
+		// Check that the name isn't already in use.
+		// We skip this check for copy with refresh and intra-cluster moves as in those cases the instance already exists.
+		if !req.Source.Refresh && !clusterNotification && req.Source.Source == "" {
+			existingID, err := tx.GetInstanceID(ctx, targetProjectName, req.Name)
+			if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+				return fmt.Errorf("Failed checking for existing instance: %w", err)
+			} else if existingID > 0 {
+				return api.StatusErrorf(http.StatusConflict, "Instance %q already exists", req.Name)
+			}
+		}
+
 		if s.ServerClustered && !clusterNotification && targetMemberInfo == nil {
 			architectures, err := instance.SuitableArchitectures(ctx, s, tx, targetProjectName, sourceInst, sourceImageRef, req)
 			if err != nil {
@@ -1293,11 +1305,6 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	})
 	if err != nil {
 		return response.SmartError(err)
-	}
-
-	err = instancetype.ValidName(req.Name, false)
-	if err != nil {
-		return response.BadRequest(err)
 	}
 
 	if s.ServerClustered && !clusterNotification && targetMemberInfo == nil {
@@ -1357,7 +1364,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		opAPI := op.Get()
-		return operations.ForwardedOperationResponse(targetProjectName, &opAPI)
+		return operations.ForwardedOperationResponse(&opAPI)
 	}
 
 	switch req.Source.Type {
@@ -1531,7 +1538,7 @@ func clusterCopyContainerInternal(ctx context.Context, s *state.State, source in
 	req.Source.Type = api.SourceTypeMigration
 	req.Source.Certificate = string(s.Endpoints.NetworkCert().PublicKey())
 	req.Source.Mode = "pull"
-	req.Source.Operation = fmt.Sprintf("https://%s/%s/operations/%s", nodeAddress, version.APIVersion, opAPI.ID)
+	req.Source.Operation = "https://" + nodeAddress + api.NewURL().Path(version.APIVersion, "operations", opAPI.ID).String()
 	req.Source.Websockets = websockets
 	req.Source.Source = ""
 	req.Source.Project = ""

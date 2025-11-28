@@ -15,6 +15,7 @@ You should also be aware of the supported architectures, its release types and s
 
 /requirements
 /architectures
+/reference/release-notes/index
 /reference/releases-snap
 /reference/remote_image_servers
 /reference/image_format

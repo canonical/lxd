@@ -3,6 +3,7 @@ package drivers
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"compress/gzip"
 	"context"
 	"crypto/tls"
@@ -95,7 +96,7 @@ const QEMUDefaultMemSize = "1GiB"
 const qemuSerialChardevName = "qemu_serial-chardev"
 
 // qemuPCIDeviceIDStart is the first PCI slot used for user configurable devices.
-const qemuPCIDeviceIDStart = 4
+const qemuPCIDeviceIDStart uint8 = 4
 
 // qemuDeviceIDPrefix used as part of the name given QEMU devices generated from user added devices.
 const qemuDeviceIDPrefix = "dev-lxd_"
@@ -115,6 +116,9 @@ const qemuMigrationNBDExportName = "lxd_root"
 // qemuSparseUSBPorts is the amount of sparse USB ports for VMs.
 // 4 are reserved, and the other 4 can be used for any USB device.
 const qemuSparseUSBPorts = 8
+
+// qemuBusModePersistent is the volatile.bus.mode for persistent bus allocation mode.
+const qemuBusModePersistent = "persistent"
 
 var errQemuAgentOffline = errors.New("LXD VM agent isn't currently running")
 
@@ -640,7 +644,7 @@ func (d *qemu) onStop(target string) error {
 	// Log and emit lifecycle if not user triggered.
 	if op.GetInstanceInitiated() {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceShutdown.Event(d, nil))
-	} else {
+	} else if op.Action() != operationlock.ActionMigrate {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStopped.Event(d, nil))
 	}
 
@@ -1301,7 +1305,6 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	// Apply any volatile changes that need to be made.
 	err = d.VolatileSet(volatileSet)
 	if err != nil {
-		err = fmt.Errorf("Failed setting volatile keys: %w", err)
 		op.Done(err)
 		return err
 	}
@@ -1346,6 +1349,18 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 			err = fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
 			op.Done(err)
 			return err
+		}
+
+		// Extract the previous bus number from volatile config if set.
+		// Used in generateQemuConfigFile() to ensure that the bus number is consistent across restarts.
+		deviceVolatileKey := "volatile." + dev.Name() + busDeviceVolatileSuffix
+		if d.localConfig[deviceVolatileKey] != "" {
+			busNum, err := strconv.ParseUint(d.localConfig[deviceVolatileKey], 10, 8)
+			if err != nil {
+				return fmt.Errorf("Failed parsing volatile key %q: %w", deviceVolatileKey, err)
+			}
+
+			runConf.BusNum = uint8(busNum)
 		}
 
 		revert.Add(func() {
@@ -2197,7 +2212,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 
 			// Attach PCI to running instance.
 			if len(runConf.PCIDevice) > 0 {
-				err = d.deviceAttachPCI(dev.Name(), runConf.PCIDevice)
+				err = d.deviceAttachPCI(runConf.PCIDevice)
 				if err != nil {
 					return nil, err
 				}
@@ -2216,8 +2231,117 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 	return runConf, nil
 }
 
+// getPCISlotCount returns the number of PCI slots currently provisioned in the instance.
+func (d *qemu) getPCISlotCount() (pciSlots uint8, err error) {
+	// Check if the agent is running.
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return 0, err
+	}
+
+	// Get the current PCI devices.
+	devices, err := monitor.QueryPCI()
+	if err != nil {
+		return 0, fmt.Errorf("Failed to query PCI devices: %w", err)
+	}
+
+	for _, dev := range devices {
+		if strings.HasPrefix(dev.DevID, busDevicePortPrefix) {
+			pciSlots++
+		}
+	}
+
+	return pciSlots, nil
+}
+
 // busAllocatePCIeHotplug provides a busAllocator implementation for hotplugging PCIe devices.
-func (d *qemu) busAllocatePCIeHotplug(deviceName string, _ bool) (busName string, busAddress string, multifunction bool, err error) {
+func (d *qemu) busAllocatePCIeHotplug(deviceName string, _ bool) (cleanup revert.Hook, busName string, busAddress string, multifunction bool, err error) {
+	if d.localConfig["volatile.bus.mode"] != qemuBusModePersistent {
+		return d.busAllocatePCIeHotplugLegacy(deviceName, false)
+	}
+
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	// Get current PCI slot count from QEMU.
+	pciSlotCount, err := d.getPCISlotCount()
+	if err != nil {
+		return nil, "", "", false, fmt.Errorf("Failed to get PCI slot count: %w", err)
+	}
+
+	if pciSlotCount == 0 {
+		return nil, "", "", false, errors.New("No PCIe slots available for hotplugging")
+	}
+
+	firstFunctionAddress := "00.0" // The address of the first function on the port.
+
+	// Identify used PCIe slots based on device volatile keys.
+	usedSlots := make(map[uint8]struct{})
+	for eDevName := range d.expandedDevices {
+		deviceVolatileKey := "volatile." + eDevName + busDeviceVolatileSuffix
+		busNumStr := d.localConfig[deviceVolatileKey]
+		if busNumStr == "" {
+			continue // Skip devices without existing persistent bus number.
+		}
+
+		busNum, err := strconv.ParseUint(busNumStr, 10, 8)
+		if err != nil {
+			return nil, "", "", false, fmt.Errorf("Failed parsing volatile key %q: %w", deviceVolatileKey, err)
+		}
+
+		// Re-use existing PCIe port if its currently assigned to the device.
+		// This occurs when an existing device's settings are changed and the device is hotplugged again.
+		if eDevName == deviceName {
+			busName = busDevicePortPrefix + busNumStr
+			d.logger.Debug("Hotplugging device into bus (reuse)", logger.Ctx{"device": deviceName, "busType": "pcie", "bus": busName})
+
+			cleanup := reverter.Clone().Fail
+			reverter.Success()
+			return cleanup, busName, firstFunctionAddress, false, nil
+		}
+
+		if busNum > 0 {
+			// Record that this port is referenced by an existing device volatile key.
+			usedSlots[uint8(busNum)] = struct{}{}
+		}
+	}
+
+	deviceVolatileKey := "volatile." + deviceName + busDeviceVolatileSuffix
+
+	// Find an unused PCIe slot by iterating through the available slots and checking against the used slots.
+	for i := qemuPCIDeviceIDStart; i < pciSlotCount; i++ {
+		_, used := usedSlots[i]
+		if used {
+			continue
+		}
+
+		busNum := strconv.FormatUint(uint64(i), 10)
+		err = d.VolatileSet(map[string]string{deviceVolatileKey: busNum})
+		if err != nil {
+			return nil, "", "", false, fmt.Errorf("Failed setting config key %q: %w", deviceVolatileKey, err)
+		}
+
+		reverter.Add(func() {
+			err := d.VolatileSet(map[string]string{deviceVolatileKey: ""})
+			if err != nil {
+				d.logger.Warn("Failed clearing config key", logger.Ctx{"key": deviceVolatileKey, "err": err})
+			}
+		})
+
+		busName = busDevicePortPrefix + busNum
+		d.logger.Debug("Hotplugging device into bus", logger.Ctx{"device": deviceName, "busType": "pcie", "bus": busName})
+
+		cleanup := reverter.Clone().Fail
+		reverter.Success()
+		return cleanup, busName, firstFunctionAddress, false, nil
+	}
+
+	return nil, "", "", false, errors.New("No unused PCIe ports available for hotplugging")
+}
+
+// busAllocatePCIeHotplugLegacy provides a busAllocator implementation for hotplugging PCIe devices using the
+// legacy sorted device ordering method.
+func (d *qemu) busAllocatePCIeHotplugLegacy(deviceName string, _ bool) (cleanup revert.Hook, busName string, busAddress string, multifunction bool, err error) {
 	pciDevID := qemuPCIDeviceIDStart
 
 	// Iterate through all the instance devices in the same sorted order as is used when allocating the
@@ -2231,12 +2355,12 @@ func (d *qemu) busAllocatePCIeHotplug(deviceName string, _ bool) (busName string
 		pciDevID++
 	}
 
-	busName = busDevicePortPrefix + strconv.Itoa(pciDevID)
+	busName = busDevicePortPrefix + strconv.FormatUint(uint64(pciDevID), 10)
 	busAddress = "00.0" // First function on the bus.
 
-	d.logger.Debug("Using bus to hotplug device into", logger.Ctx{"device": deviceName, "busType": "pcie", "bus": busName})
+	d.logger.Debug("Hotplugging device into bus (legacy)", logger.Ctx{"device": deviceName, "busType": "pcie", "bus": busName})
 
-	return busName, busAddress, false, nil
+	return nil, busName, busAddress, false, nil
 }
 
 func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) {
@@ -2249,9 +2373,6 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 		return "", errors.New("Virtiofsd isn't running")
 	}
 
-	reverter := revert.New()
-	defer reverter.Fail()
-
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
@@ -2263,6 +2384,13 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 	if err != nil {
 		return "", fmt.Errorf("Failed to open device socket file %q: %w", virtiofsdSockPath, err)
 	}
+
+	defer func() {
+		err := socketFile.Close()
+		if err != nil {
+			d.logger.Warn("Failed closing device socket file", logger.Ctx{"device": deviceName, "file": virtiofsdSockPath, "err": err})
+		}
+	}()
 
 	shortPath := fmt.Sprintf("/dev/fd/%d", socketFile.Fd())
 
@@ -2282,6 +2410,9 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 	if err != nil {
 		return "", fmt.Errorf("Error opening virtiofs socket %q: %w", virtiofsdSockPath, err)
 	}
+
+	reverter := revert.New()
+	defer reverter.Fail()
 
 	err = monitor.SendFile(virtiofsdSockPath, virtiofsFile)
 	if err != nil {
@@ -2312,9 +2443,13 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 	reverter.Add(func() { _ = monitor.RemoveCharDevice(deviceID) })
 
 	// Try to get a PCI address for hotplugging.
-	busName, busAddr, _, err := d.busAllocatePCIeHotplug(deviceName, false)
+	busCleanup, busName, busAddr, _, err := d.busAllocatePCIeHotplug(deviceName, false)
 	if err != nil {
 		return "", err
+	}
+
+	if busCleanup != nil {
+		reverter.Add(busCleanup)
 	}
 
 	qemuDev := map[string]any{
@@ -2349,7 +2484,7 @@ func (d *qemu) deviceAttachBlockDevice(mount deviceConfig.MountEntryItem) error 
 
 	err = monHook(monitor)
 	if err != nil {
-		return fmt.Errorf("Failed to call monitor hook for block device: %w", err)
+		return fmt.Errorf("Failed setting up device via monitor: %w", err)
 	}
 
 	return nil
@@ -2466,76 +2601,33 @@ func (d *qemu) deviceAttachNIC(netIF []deviceConfig.RunConfigItem) error {
 
 	err = monHook(monitor)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed setting up device via monitor: %w", err)
 	}
 
 	return nil
 }
 
 // deviceAttachPCI live attaches a generic PCI device to the instance.
-func (d *qemu) deviceAttachPCI(deviceName string, pciConfig []deviceConfig.RunConfigItem) error {
+func (d *qemu) deviceAttachPCI(pciConfig []deviceConfig.RunConfigItem) error {
+	_, qemuBus, err := d.qemuArchConfig(d.architecture)
+	if err != nil {
+		return err
+	}
+
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
 		return err
 	}
 
-	// Get the device config.
-	var devName, pciSlotName, pciIOMMUGroup string
-	for _, pciItem := range pciConfig {
-		switch pciItem.Key {
-		case "devName":
-			devName = pciItem.Value
-		case "pciSlotName":
-			pciSlotName = pciItem.Value
-		case "pciIOMMUGroup":
-			pciIOMMUGroup = pciItem.Value
-		default:
-			return errors.New("Unexpected PCI configuration key: " + pciItem.Key)
-		}
-	}
-
-	// PCIe and PCI require a port device name to hotplug the device into.
-	_, qemuBus, err := d.qemuArchConfig(d.architecture)
+	monHook, err := d.addPCIDevConfig(qemuBus, d.busAllocatePCIeHotplug, pciConfig)
 	if err != nil {
 		return err
 	}
 
-	if !slices.Contains([]string{"pcie", "pci"}, qemuBus) {
-		return errors.New("Attempting PCI passthrough on a non-PCI system")
-	}
-
-	// Try to get a PCI address for hotplugging.
-	busName, busAddr, _, err := d.busAllocatePCIeHotplug(deviceName, false)
+	err = monHook(monitor)
 	if err != nil {
-		return err
-	}
-
-	escapedDeviceName := filesystem.PathNameEncode(devName)
-
-	qemuDev := map[string]any{
-		"driver": "vfio-pci",
-		"bus":    busName,
-		"addr":   busAddr,
-		"id":     qemuDeviceIDPrefix + escapedDeviceName,
-		"host":   pciSlotName,
-	}
-
-	if d.state.OS.UnprivUser != "" {
-		if pciIOMMUGroup == "" {
-			return errors.New("No PCI IOMMU group supplied")
-		}
-
-		vfioGroupFile := "/dev/vfio/" + pciIOMMUGroup
-		err := os.Chown(vfioGroupFile, int(d.state.OS.UnprivUID), -1)
-		if err != nil {
-			return fmt.Errorf("Failed to chown vfio group device %q: %w", vfioGroupFile, err)
-		}
-	}
-
-	err = monitor.AddDevice(qemuDev)
-	if err != nil {
-		return fmt.Errorf("Failed setting up device %q: %w", devName, err)
+		return fmt.Errorf("Failed setting up device via monitor: %w", err)
 	}
 
 	return nil
@@ -3557,7 +3649,21 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 	}
 
 	// Setup a bus allocator for use with generating QEMU pre-boot config file.
-	busAllocate := func(deviceName string, enableMultifunction bool) (busName string, busAddress string, multifunction bool, err error) {
+	volatileSet := make(map[string]string)
+	if d.localConfig["volatile.bus.mode"] == "" && bus.name == "pcie" {
+		volatileSet["volatile.bus.mode"] = qemuBusModePersistent // Enable persistent mode for PCIe bus.
+	}
+
+	lastBusName := ""                      // Use to detect when the main bus name changes from bus.allocate().
+	lastBusNum := qemuPCIDeviceIDStart - 1 // Initialise to last built-in device bus number.
+
+	// busAllocate allocates the next slot and records it into pending volatile for PCIe devices if needed.
+	// This function should be called in the correct order to maintain a device's persistent bus order.
+	busAllocate := func(deviceName string, enableMultifunction bool) (cleanup revert.Hook, busName string, busAddress string, multifunction bool, err error) {
+		if bus.name != "pci" && bus.name != "pcie" {
+			return nil, "", "", false, fmt.Errorf("Bus allocation not supported for bus type %q", bus.name)
+		}
+
 		multifunctionGroup := busFunctionGroupNone
 		if enableMultifunction {
 			multifunctionGroup = "lxd_" + deviceName
@@ -3565,17 +3671,62 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 		busName, busAddress, multifunction = bus.allocate(multifunctionGroup)
 		if busName != "" {
-			d.logger.Debug("Using bus to plug device into", logger.Ctx{"device": deviceName, "busType": bus.name, "bus": busName})
+			d.logger.Debug("Plugging device into bus", logger.Ctx{"device": deviceName, "busType": bus.name, "bus": busName})
+
+			if bus.name == "pcie" {
+				if lastBusName != busName {
+					lastBusName = busName
+					lastBusNum++ // Increment bus number when bus name changes.
+				}
+
+				// Only PCIe supports hotplugging and needs to store the bus order number in volatile.
+				volatileKey := "volatile." + deviceName + busDeviceVolatileSuffix
+				busNum := strings.TrimPrefix(busName, busDevicePortPrefix)
+				if d.localConfig[volatileKey] != busNum {
+					volatileSet[volatileKey] = busNum
+				}
+			}
 		}
 
-		return busName, busAddress, multifunction, nil
+		return nil, busName, busAddress, multifunction, nil
 	}
+
+	// Sort run configs by bus order (putting devices with no bus order after those with a bus order whilst
+	// retaining their current ordering within those devices).
+	slices.SortStableFunc(devConfs, func(a, b *deviceConfig.RunConfig) int {
+		if a.BusNum == 0 && b.BusNum > 0 {
+			return 1
+		} else if a.BusNum > 0 && b.BusNum == 0 {
+			return -1
+		}
+
+		return cmp.Compare(a.BusNum, b.BusNum)
+	})
+
+	// Number of spare hotplug ports to allocate.
+	// Could go negative by the time its used (below) if there are gaps in the bus numbers.
+	spareHotplugPorts := 8
 
 	// These devices are sorted so that NICs are added first to ensure that the first NIC can use the 5th
 	// PCIe bus port and will be consistently named enp5s0 for compatibility with network configuration in our
 	// existing VM images. Even on non-PCIe busses having NICs first means that their names won't change when
 	// other devices are added.
 	for _, runConf := range devConfs {
+		if bus.name == "pcie" && runConf.BusNum > lastBusNum {
+			// If device has an existing persistent bus number that is higher than current number,
+			// then allocate spare hotplug ports to fill any gap in the bus number sequence.
+			// Decrement any allocated ports against the spare hotplug count so less are added at end.
+			for i := lastBusNum + 1; i < runConf.BusNum; i++ {
+				busName, _, _ := bus.allocate(busFunctionGroupNone)
+				if lastBusName != busName {
+					lastBusName = busName
+					lastBusNum++        // Increment bus number when bus name changes.
+					spareHotplugPorts-- // Reduce number of spare hotplug ports we add at end.
+					d.logger.Debug("Allocating empty bus device", logger.Ctx{"bus": busName})
+				}
+			}
+		}
+
 		// Add drive devices.
 		if len(runConf.Mounts) > 0 {
 			for _, drive := range runConf.Mounts {
@@ -3619,10 +3770,12 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 		// Add PCI device.
 		if len(runConf.PCIDevice) > 0 {
-			err = d.addPCIDevConfig(&cfg, bus.name, busAllocate, runConf.PCIDevice)
+			monHook, err := d.addPCIDevConfig(bus.name, busAllocate, runConf.PCIDevice)
 			if err != nil {
 				return "", nil, err
 			}
+
+			monHooks = append(monHooks, monHook)
 		}
 
 		// Add USB devices.
@@ -3644,6 +3797,14 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		}
 	}
 
+	// Apply any volatile changes that need to be made.
+	if len(volatileSet) > 0 {
+		err = d.VolatileSet(volatileSet)
+		if err != nil {
+			return "", nil, err
+		}
+	}
+
 	err = d.generateAgentMountsFile()
 	if err != nil {
 		return "", nil, fmt.Errorf("Failed generating agent mounts file: %w", err)
@@ -3657,9 +3818,10 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 		}
 	}
 
-	// Allocate 4 PCI slots for hotplug devices.
-	for range 4 {
-		bus.allocate(busFunctionGroupNone)
+	// Allocate remaining empty PCIe slots for hotplug devices.
+	for range spareHotplugPorts {
+		busName, _, _ := bus.allocate(busFunctionGroupNone)
+		d.logger.Debug("Allocating empty bus device", logger.Ctx{"bus": busName})
 	}
 
 	// process any user-specified overrides
@@ -3860,15 +4022,15 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, busName string, busAllocate 
 		}
 	}
 
+	shouldBusAllocate := busName == "pcie" || busName == "pci"
+
+	reverter := revert.New()
+	defer reverter.Fail()
+
 	// If there is a virtiofsd socket path setup the virtio-fs share.
 	if virtiofsdSockPath != "" {
 		if !shared.PathExists(virtiofsdSockPath) {
 			return fmt.Errorf("virtiofsd socket path %q doesn't exist", virtiofsdSockPath)
-		}
-
-		devBus, devAddr, multi, err := busAllocate(driveConf.DevName, true)
-		if err != nil {
-			return fmt.Errorf("Failed allocating bus for virtiofs disk device %q: %w", driveConf.DevName, err)
 		}
 
 		shortPath, err := d.shortenedFilePath(virtiofsdSockPath, fdFiles)
@@ -3878,26 +4040,34 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, busName string, busAllocate 
 
 		// Add virtio-fs device as this will be preferred over 9p.
 		driveDirVirtioOpts := qemuDriveDirOpts{
-			dev: qemuDevOpts{
-				busName:       busName,
-				devBus:        devBus,
-				devAddr:       devAddr,
-				multifunction: multi,
-			},
 			devName:  driveConf.DevName,
 			mountTag: mountTag,
 			path:     shortPath,
 			protocol: "virtio-fs",
 		}
+
+		if shouldBusAllocate {
+			busCleanup, devBus, devAddr, multi, err := busAllocate(driveConf.DevName, true)
+			if err != nil {
+				return fmt.Errorf("Failed allocating bus for virtiofs disk device %q: %w", driveConf.DevName, err)
+			}
+
+			if busCleanup != nil {
+				reverter.Add(busCleanup)
+			}
+
+			driveDirVirtioOpts.dev = qemuDevOpts{
+				devBus:        devBus,
+				devAddr:       devAddr,
+				multifunction: multi,
+			}
+		}
+
+		driveDirVirtioOpts.dev.busName = busName
 		*cfg = append(*cfg, qemuDriveDir(&driveDirVirtioOpts)...)
 	}
 
 	// Add 9p share config.
-	devBus, devAddr, multi, err := busAllocate(driveConf.DevName, true)
-	if err != nil {
-		return fmt.Errorf("Failed allocating bus for 9p disk device %q: %w", driveConf.DevName, err)
-	}
-
 	fdSource, ok := driveConf.DevSource.(deviceConfig.DevSourceFD)
 	if !ok {
 		return fmt.Errorf("Drive config for %q was not a file descriptor", driveConf.DevName)
@@ -3906,20 +4076,34 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, busName string, busAllocate 
 	proxyFD := d.addFileDescriptor(fdFiles, os.NewFile(fdSource.FD, driveConf.DevName))
 
 	driveDir9pOpts := qemuDriveDirOpts{
-		dev: qemuDevOpts{
-			busName:       busName,
-			devBus:        devBus,
-			devAddr:       devAddr,
-			multifunction: multi,
-		},
 		devName:  driveConf.DevName,
 		mountTag: mountTag,
 		proxyFD:  proxyFD, // Pass by file descriptor
 		readonly: readonly,
 		protocol: "9p",
 	}
+
+	if shouldBusAllocate {
+		busCleanup, devBus, devAddr, multi, err := busAllocate(driveConf.DevName, true)
+		if err != nil {
+			return fmt.Errorf("Failed allocating bus for 9p disk device %q: %w", driveConf.DevName, err)
+		}
+
+		if busCleanup != nil {
+			reverter.Add(busCleanup)
+		}
+
+		driveDir9pOpts.dev = qemuDevOpts{
+			devBus:        devBus,
+			devAddr:       devAddr,
+			multifunction: multi,
+		}
+	}
+
+	driveDir9pOpts.dev.busName = busName
 	*cfg = append(*cfg, qemuDriveDir(&driveDir9pOpts)...)
 
+	reverter.Success()
 	return nil
 }
 
@@ -4178,6 +4362,7 @@ func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]i
 		qemuDev["serial"] = qemuDeviceSerial[:36]
 	}
 
+	var busCleanup revert.Hook
 	if busName == "virtio-scsi" {
 		qemuDev["device_id"] = qemuDeviceSerial
 
@@ -4201,7 +4386,10 @@ func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]i
 		qemuDev["driver"] = busName
 
 		// Allocate a device port.
-		devBus, devAddr, multi, err := busAllocate(driveConf.DevName, false)
+		var devBus, devAddr string
+		var multi bool
+		var err error
+		busCleanup, devBus, devAddr, multi, err = busAllocate(driveConf.DevName, false)
 		if err != nil {
 			return nil, fmt.Errorf("Failed allocating bus for disk device %q: %w", driveConf.DevName, err)
 		}
@@ -4217,8 +4405,12 @@ func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]i
 	}
 
 	monHook := func(m *qmp.Monitor) error {
-		revert := revert.New()
-		defer revert.Fail()
+		reverter := revert.New()
+		defer reverter.Fail()
+
+		if busCleanup != nil {
+			reverter.Add(busCleanup)
+		}
 
 		nodeName := qemuDeviceNameOrID(qemuDeviceNamePrefix, driveConf.DevName, "", qemuDeviceNameMaxLength)
 
@@ -4257,7 +4449,7 @@ func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]i
 				return fmt.Errorf("Failed sending file descriptor of %q for disk device %q: %w", f.Name(), driveConf.DevName, err)
 			}
 
-			revert.Add(func() {
+			reverter.Add(func() {
 				_ = m.RemoveFDFromFDSet(nodeName)
 			})
 
@@ -4281,7 +4473,7 @@ func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]i
 			}
 		}
 
-		revert.Success()
+		reverter.Success()
 		return nil
 	}
 
@@ -4291,9 +4483,6 @@ func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]i
 // addNetDevConfig adds the qemu config required for adding a network device.
 // The qemuDev map is expected to be preconfigured with the settings for an existing port to use for the device.
 func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootIndexes map[string]int, nicConfig []deviceConfig.RunConfigItem) (monitorHook, error) {
-	reverter := revert.New()
-	defer reverter.Fail()
-
 	var devName, nicName, devHwaddr, pciSlotName, pciIOMMUGroup, vDPADevName, vhostVDPAPath, maxVQP, mtu, name string
 	for _, nicItem := range nicConfig {
 		switch nicItem.Key {
@@ -4329,10 +4518,15 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 
 	qemuDev := make(map[string]any)
 
+	var busCleanup revert.Hook
+
 	// PCIe and PCI require a port device name to hotplug the NIC into.
 	if slices.Contains([]string{"pcie", "pci"}, busName) {
 		// Allocate a device port.
-		devBus, devAddr, multi, err := busAllocate(devName, false)
+		var devBus, devAddr string
+		var multi bool
+		var err error
+		busCleanup, devBus, devAddr, multi, err = busAllocate(devName, false)
 		if err != nil {
 			return nil, fmt.Errorf("Failed allocating bus for NIC device %q: %w", devName, err)
 		}
@@ -4379,6 +4573,10 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 		return func(m *qmp.Monitor) error {
 			reverter := revert.New()
 			defer reverter.Fail()
+
+			if busCleanup != nil {
+				reverter.Add(busCleanup)
+			}
 
 			cpus, err := m.QueryCPUs()
 			if err != nil {
@@ -4480,6 +4678,13 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 	// Detect MACVTAP interface types and figure out which tap device is being used.
 	// This is so we can open a file handle to the tap device and pass it to the qemu process.
 	if shared.PathExists("/sys/class/net/" + nicName + "/macvtap") {
+		reverter := revert.New()
+		defer reverter.Fail()
+
+		if busCleanup != nil {
+			reverter.Add(busCleanup)
+		}
+
 		content, err := os.ReadFile("/sys/class/net/" + nicName + "/ifindex")
 		if err != nil {
 			return nil, fmt.Errorf("Error getting tap device ifindex: %w", err)
@@ -4489,6 +4694,8 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 		if err != nil {
 			return nil, fmt.Errorf("Error parsing tap device ifindex: %w", err)
 		}
+
+		reverter.Success()
 
 		devFile := func() (*os.File, error) {
 			return os.OpenFile(fmt.Sprintf("/dev/tap%d", ifindex), os.O_RDWR, 0)
@@ -4533,6 +4740,10 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 		monHook = func(m *qmp.Monitor) error {
 			reverter := revert.New()
 			defer reverter.Fail()
+
+			if busCleanup != nil {
+				reverter.Add(busCleanup)
+			}
 
 			vdpaDevFile, err := os.OpenFile(vhostVDPAPath, os.O_RDWR, 0)
 			if err != nil {
@@ -4586,35 +4797,43 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 			return nil
 		}
 	} else if pciSlotName != "" {
-		// Detect physical passthrough device.
-		if slices.Contains([]string{"pcie", "pci"}, busName) {
-			qemuDev["driver"] = "vfio-pci"
-		} else if busName == "ccw" {
-			qemuDev["driver"] = "vfio-ccw"
-		}
-
-		qemuDev["host"] = pciSlotName
-
-		if d.state.OS.UnprivUser != "" {
-			if pciIOMMUGroup == "" {
-				return nil, errors.New("No PCI IOMMU group supplied")
-			}
-
-			vfioGroupFile := "/dev/vfio/" + pciIOMMUGroup
-			err := os.Chown(vfioGroupFile, int(d.state.OS.UnprivUID), -1)
-			if err != nil {
-				return nil, fmt.Errorf("Failed to chown vfio group device %q: %w", vfioGroupFile, err)
-			}
-
-			reverter.Add(func() { _ = os.Chown(vfioGroupFile, 0, -1) })
-		}
-
 		monHook = func(m *qmp.Monitor) error {
+			reverter := revert.New()
+			defer reverter.Fail()
+
+			if busCleanup != nil {
+				reverter.Add(busCleanup)
+			}
+
+			// Detect physical passthrough device.
+			if slices.Contains([]string{"pcie", "pci"}, busName) {
+				qemuDev["driver"] = "vfio-pci"
+			} else if busName == "ccw" {
+				qemuDev["driver"] = "vfio-ccw"
+			}
+
+			qemuDev["host"] = pciSlotName
+
+			if d.state.OS.UnprivUser != "" {
+				if pciIOMMUGroup == "" {
+					return errors.New("No PCI IOMMU group supplied")
+				}
+
+				vfioGroupFile := "/dev/vfio/" + pciIOMMUGroup
+				err := os.Chown(vfioGroupFile, int(d.state.OS.UnprivUID), -1)
+				if err != nil {
+					return fmt.Errorf("Failed to chown vfio group device %q: %w", vfioGroupFile, err)
+				}
+
+				reverter.Add(func() { _ = os.Chown(vfioGroupFile, 0, -1) })
+			}
+
 			err := m.AddNIC(nil, qemuDev)
 			if err != nil {
 				return fmt.Errorf("Failed setting up device %q: %w", devName, err)
 			}
 
+			reverter.Success()
 			return nil
 		}
 	}
@@ -4623,7 +4842,6 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 		return nil, errors.New("Unrecognised device type")
 	}
 
-	reverter.Success()
 	return monHook, nil
 }
 
@@ -4667,35 +4885,73 @@ func (d *qemu) writeNICDevConfig(mtuStr string, devName string, nicName string, 
 }
 
 // addPCIDevConfig adds the qemu config required for adding a raw PCI device.
-func (d *qemu) addPCIDevConfig(cfg *[]cfgSection, busName string, busAllocate busAllocator, pciConfig []deviceConfig.RunConfigItem) error {
-	var devName, pciSlotName string
+func (d *qemu) addPCIDevConfig(busName string, busAllocate busAllocator, pciConfig []deviceConfig.RunConfigItem) (monitorHook, error) {
+	var devName, pciSlotName, pciIOMMUGroup string
 	for _, pciItem := range pciConfig {
 		switch pciItem.Key {
 		case "devName":
 			devName = pciItem.Value
 		case "pciSlotName":
 			pciSlotName = pciItem.Value
+		case "pciIOMMUGroup":
+			pciIOMMUGroup = pciItem.Value
+		default:
+			return nil, errors.New("Unexpected PCI configuration key: " + pciItem.Key)
 		}
 	}
 
-	devBus, devAddr, multi, err := busAllocate(devName, false)
+	if !slices.Contains([]string{"pcie", "pci"}, busName) {
+		return nil, errors.New("Attempting PCI passthrough on a non-PCI system")
+	}
+
+	// Try to get a PCI address for hotplugging.
+	busCleanup, devBus, devAddr, multi, err := busAllocate(devName, false)
 	if err != nil {
-		return fmt.Errorf("Failed allocating bus for PCI device %q: %w", devName, err)
+		return nil, fmt.Errorf("Failed allocating bus for PCI device %q: %w", devName, err)
 	}
 
-	pciPhysicalOpts := qemuPCIPhysicalOpts{
-		dev: qemuDevOpts{
-			busName:       busName,
-			devBus:        devBus,
-			devAddr:       devAddr,
-			multifunction: multi,
-		},
-		devName:     devName,
-		pciSlotName: pciSlotName,
+	escapedDeviceName := filesystem.PathNameEncode(devName)
+	qemuDev := map[string]any{
+		"driver":        "vfio-pci",
+		"bus":           devBus,
+		"addr":          devAddr,
+		"id":            qemuDeviceIDPrefix + escapedDeviceName,
+		"host":          pciSlotName,
+		"multifunction": multi,
 	}
-	*cfg = append(*cfg, qemuPCIPhysical(&pciPhysicalOpts)...)
 
-	return nil
+	monHook := func(m *qmp.Monitor) error {
+		reverter := revert.New()
+		defer reverter.Fail()
+
+		if busCleanup != nil {
+			reverter.Add(busCleanup)
+		}
+
+		if d.state.OS.UnprivUser != "" {
+			if pciIOMMUGroup == "" {
+				return errors.New("No PCI IOMMU group supplied")
+			}
+
+			vfioGroupFile := "/dev/vfio/" + pciIOMMUGroup
+			err := os.Chown(vfioGroupFile, int(d.state.OS.UnprivUID), -1)
+			if err != nil {
+				return fmt.Errorf("Failed to chown vfio group device %q: %w", vfioGroupFile, err)
+			}
+
+			reverter.Add(func() { _ = os.Chown(vfioGroupFile, 0, -1) })
+		}
+
+		err = m.AddDevice(qemuDev)
+		if err != nil {
+			return fmt.Errorf("Failed setting up device %q: %w", devName, err)
+		}
+
+		reverter.Success()
+		return nil
+	}
+
+	return monHook, nil
 }
 
 // addGPUDevConfig adds the qemu config required for adding a GPU device.
@@ -4736,7 +4992,7 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, busName string, busAllocate bu
 		return true
 	}()
 
-	devBus, devAddr, multi, err := busAllocate(devName, true)
+	_, devBus, devAddr, multi, err := busAllocate(devName, true)
 	if err != nil {
 		return fmt.Errorf("Failed allocating bus for GPU device %q: %w", devName, err)
 	}
@@ -4782,7 +5038,7 @@ func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, busName string, busAllocate bu
 			// Match any VFs that are related to the GPU device (but not the GPU device itself).
 			if strings.HasPrefix(iommuSlotName, prefix) && iommuSlotName != pciSlotName {
 				// Add VF device without VGA mode to qemu config.
-				devBus, devAddr, multi, err := busAllocate(devName, true)
+				_, devBus, devAddr, multi, err := busAllocate(devName, true)
 				if err != nil {
 					return fmt.Errorf("Failed allocating bus for GPU VF device %q: %w", devName, err)
 				}
@@ -4903,11 +5159,11 @@ func (d *qemu) pidFilePath() string {
 // pid gets the PID of the running qemu process. Returns 0 if PID file or process not found, and -1 if err non-nil.
 func (d *qemu) pid() (int, error) {
 	pidStr, err := os.ReadFile(d.pidFilePath())
-	if os.IsNotExist(err) {
-		return 0, nil // PID file has gone.
-	}
-
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return 0, nil // PID file has gone.
+		}
+
 		return -1, err
 	}
 
@@ -4974,7 +5230,7 @@ func (d *qemu) Stop(stateful bool) error {
 	// Don't allow reuse when creating a new stop operation. This prevents other operations from intefering.
 	// Allow reuse of a reusable ongoing stop operation as Shutdown() may be called first, which allows reuse
 	// of its operations. This allow for Stop() to inherit from Shutdown() where instance is stuck.
-	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, true)
+	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore, operationlock.ActionMigrate}, false, true)
 	if err != nil {
 		if errors.Is(err, operationlock.ErrNonReusableSucceeded) {
 			// An existing matching operation has now succeeded, return.
@@ -5194,14 +5450,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 
 	d.logger.Info("Restoring instance", ctxMap)
 
-	pool, wasRunning, op, err := d.restoreCommon(d, source)
-	if err != nil {
-		op.Done(err)
-		return err
-	}
-
-	// Restore the rootfs.
-	err = pool.RestoreInstanceSnapshot(d, source, nil)
+	wasRunning, op, err := d.restoreCommon(d, source)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -6131,48 +6380,7 @@ func (d *qemu) init() error {
 
 // Delete the instance.
 func (d *qemu) Delete(force bool) error {
-	unlock, err := d.updateBackupFileLock(context.Background())
-	if err != nil {
-		return err
-	}
-
-	defer unlock()
-
-	// Setup a new operation.
-	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionDelete, nil, false, false)
-	if err != nil {
-		return fmt.Errorf("Failed to create instance delete operation: %w", err)
-	}
-
-	defer op.Done(nil)
-
-	if d.IsRunning() {
-		return api.StatusErrorf(http.StatusBadRequest, "Instance is running")
-	}
-
-	err = d.delete(force)
-	if err != nil {
-		return err
-	}
-
-	// If dealing with a snapshot, refresh the backup file on the parent.
-	if d.IsSnapshot() {
-		parentName, _, _ := api.GetParentAndSnapshotName(d.name)
-
-		// Load the parent.
-		parent, err := instance.LoadByProjectAndName(d.state, d.project.Name, parentName)
-		if err != nil {
-			return fmt.Errorf("Invalid parent: %w", err)
-		}
-
-		// Update the backup file.
-		err = parent.UpdateBackupFile()
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return d.deleteCommon(d, force)
 }
 
 // Delete the instance without creating an operation lock.
@@ -6575,18 +6783,27 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 		return errors.New("Stateful migration requires migration.stateful to be set to true")
 	}
 
+	// Setup a new operation.
+	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionMigrate, nil, false, true)
+	if err != nil {
+		return err
+	}
+
 	// Wait for essential migration connections before negotiation.
 	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
 	filesystemConn, err := args.FilesystemConn(connectionsCtx)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	pool, err := storagePools.LoadByInstance(d.state, d)
 	if err != nil {
-		return fmt.Errorf("Failed loading instance: %w", err)
+		err := fmt.Errorf("Failed loading instance: %w", err)
+		op.Done(err)
+		return err
 	}
 
 	// The refresh argument passed to MigrationTypes() is always set
@@ -6595,7 +6812,9 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	// this, and adjust the migration types accordingly.
 	poolMigrationTypes := pool.MigrationTypes(storagePools.InstanceContentType(d), false, args.Snapshots)
 	if len(poolMigrationTypes) == 0 {
-		return errors.New("No source migration types available")
+		err := errors.New("No source migration types available")
+		op.Done(err)
+		return err
 	}
 
 	// Convert the pool's migration type options to an offer header to target.
@@ -6609,7 +6828,9 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	// For VMs, send block device size hint in offer header so that target can create the volume the same size.
 	blockSize, err := storagePools.InstanceDiskBlockSize(pool, d, d.op)
 	if err != nil {
-		return fmt.Errorf("Failed getting source disk size: %w", err)
+		err := fmt.Errorf("Failed getting source disk size: %w", err)
+		op.Done(err)
+		return err
 	}
 
 	d.logger.Debug("Set migration offer volume size", logger.Ctx{"blockSize": blockSize})
@@ -6617,7 +6838,9 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 
 	srcConfig, err := pool.GenerateInstanceBackupConfig(d, args.Snapshots, d.op)
 	if err != nil {
-		return fmt.Errorf("Failed generating instance migration config: %w", err)
+		err := fmt.Errorf("Failed generating instance migration config: %w", err)
+		op.Done(err)
+		return err
 	}
 
 	// If we are copying snapshots, retrieve a list of snapshots from source volume.
@@ -6643,7 +6866,9 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	d.logger.Debug("Sending migration offer to target")
 	err = args.ControlSend(offerHeader)
 	if err != nil {
-		return fmt.Errorf("Failed sending migration offer header: %w", err)
+		err := fmt.Errorf("Failed sending migration offer header: %w", err)
+		op.Done(err)
+		return err
 	}
 
 	// Receive response from target.
@@ -6651,7 +6876,9 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	respHeader := &migration.MigrationHeader{}
 	err = args.ControlReceive(respHeader)
 	if err != nil {
-		return fmt.Errorf("Failed receiving migration offer response: %w", err)
+		err := fmt.Errorf("Failed receiving migration offer response: %w", err)
+		op.Done(err)
+		return err
 	}
 
 	d.logger.Debug("Got migration offer response from target")
@@ -6659,7 +6886,9 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	// Negotiated migration types.
 	migrationTypes, err := migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
 	if err != nil {
-		return fmt.Errorf("Failed to negotiate migration type: %w", err)
+		err := fmt.Errorf("Failed to negotiate migration type: %w", err)
+		op.Done(err)
+		return err
 	}
 
 	volSourceArgs := &migration.VolumeSourceArgs{
@@ -6700,6 +6929,7 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	if args.Live && respHeader.Criu != nil && *respHeader.Criu == migration.CRIUType_VM_QEMU {
 		stateConn, err = args.StateConn(connectionsCtx)
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 	}
@@ -6794,6 +7024,7 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 	{
 		err := g.Wait()
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 
@@ -6802,6 +7033,8 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) (err error) {
 			d.logger.Error("Post-migration steps failed on source", logger.Ctx{"err": err})
 		}
 
+		op.Done(nil)
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceMigrated.Event(d, nil))
 		return nil
 	}
 }
@@ -9114,7 +9347,7 @@ func (d *qemu) deviceAttachUSB(usbConf deviceConfig.USBDeviceItem) error {
 
 	err = monHook(monitor)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed setting up device via monitor: %w", err)
 	}
 
 	return nil

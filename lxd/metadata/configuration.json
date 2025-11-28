@@ -899,7 +899,15 @@
 							"defaultdesc": "`none`",
 							"longdesc": "Possible values are `none`, `sriov`, or `vdpa`.\nSee {ref}`devices-nic-hw-acceleration` for more information.",
 							"managed": "no",
-							"shortdesc": "Enable hardware offloading",
+							"shortdesc": "Enable hardware acceleration",
+							"type": "string"
+						}
+					},
+					{
+						"acceleration.parent": {
+							"longdesc": "Comma separated list of physical function (PF) interfaces to allocate virtual functions (VFs) from for hardware acceleration when {config:option}`device-nic-ovn-device-conf:acceleration` is enabled.\nIn {config:option}`project-restricted:restricted` projects, it can only be used when {config:option}`project-restricted:restricted.virtual-machines.lowlevel` or {config:option}`project-restricted:restricted.containers.lowlevel` is set to `allow`.\nIf this is not specified, and {config:option}`device-nic-ovn-device-conf:acceleration` is enabled then all PFs connected to the OVS integration bridge are scanned for a free VF.\nSee {ref}`devices-nic-hw-acceleration` for more information.",
+							"managed": "yes",
+							"shortdesc": "Physical function interfaces to allocate virtual functions from for hardware acceleration",
 							"type": "string"
 						}
 					},
@@ -2832,15 +2840,22 @@
 						}
 					},
 					{
+						"volatile.\u003cname\u003e.bus": {
+							"longdesc": "Persistent VM bus number.",
+							"shortdesc": "Persistent VM bus number",
+							"type": "integer"
+						}
+					},
+					{
 						"volatile.\u003cname\u003e.ceph_rbd": {
-							"longdesc": "",
+							"longdesc": "RBD device path for Ceph disk devices.",
 							"shortdesc": "RBD device path for Ceph disk devices",
 							"type": "string"
 						}
 					},
 					{
 						"volatile.\u003cname\u003e.host_name": {
-							"longdesc": "",
+							"longdesc": "Network device name on the host.",
 							"shortdesc": "Network device name on the host",
 							"type": "string"
 						}
@@ -2856,7 +2871,7 @@
 						"volatile.\u003cname\u003e.last_state.created": {
 							"longdesc": "Possible values are `true` or `false`.",
 							"shortdesc": "Whether the network device physical device was created",
-							"type": "string"
+							"type": "bool"
 						}
 					},
 					{
@@ -2926,6 +2941,13 @@
 						"volatile.base_image": {
 							"longdesc": "The hash of the image that the instance was created from (empty if the instance was not created from an image).",
 							"shortdesc": "Hash of the base image",
+							"type": "string"
+						}
+					},
+					{
+						"volatile.bus.mode": {
+							"longdesc": "Set to `persistent` when persistent bus allocation mode is enabled.",
+							"shortdesc": "Device bus allocation mode",
 							"type": "string"
 						}
 					},
@@ -3996,6 +4018,13 @@
 		"network-ovn": {
 			"network-conf": {
 				"keys": [
+					{
+						"acceleration.parent": {
+							"longdesc": "Comma separated list of physical function (PF) interfaces to allocate virtual functions (VFs) from for hardware acceleration when {config:option}`device-nic-ovn-device-conf:acceleration` is enabled.\nSee {ref}`devices-nic-hw-acceleration` for more information.",
+							"shortdesc": "Physical function interfaces to allocate virtual functions from for hardware acceleration",
+							"type": "string"
+						}
+					},
 					{
 						"bridge.hwaddr": {
 							"longdesc": "",
@@ -5253,7 +5282,7 @@
 					},
 					{
 						"core.remote_token_expiry": {
-							"defaultdesc": "no expiry",
+							"defaultdesc": "`15d`",
 							"longdesc": "",
 							"scope": "global",
 							"shortdesc": "Time after which a remote add token expires",
@@ -5973,6 +6002,15 @@
 							"scope": "global",
 							"shortdesc": "Name of the OSD data pool",
 							"type": "string"
+						}
+					},
+					{
+						"ceph.osd.force_reuse": {
+							"defaultdesc": "`false`",
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "Whether to allow reuse of an existing OSD storage pool already used by LXD",
+							"type": "bool"
 						}
 					},
 					{

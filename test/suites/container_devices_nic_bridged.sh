@@ -5,6 +5,7 @@ test_container_devices_nic_bridged() {
   fi
 
   ensure_import_testimage
+  ensure_has_localhost_remote "${LXD_ADDR}"
 
   firewallDriver=$(lxc info | awk -F ":" '/firewall:/{gsub(/ /, "", $0); print $2}')
 
@@ -438,7 +439,7 @@ test_container_devices_nic_bridged() {
   fi
 
   # Check DHCPv4 lease has DNS record assigned.
-  if ! dig @192.0.2.1 "${ctName}.blah" | grep "${ctName}.blah.\\+0.\\+IN.\\+A.\\+192.0.2." ; then
+  if ! dig @192.0.2.1 +timeout=1 "${ctName}.blah" | grep "${ctName}.blah.\\+0.\\+IN.\\+A.\\+192.0.2." ; then
     echo "DNS resolution of DHCP name failed"
     false
   fi
@@ -452,10 +453,10 @@ test_container_devices_nic_bridged() {
   # If testImage can't request a dhcp6 lease, it won't have an ip6 addr, so just
   # check the A record; we only care about access to dnsmasq here, not the
   # record itself.
-  dig -4 +retry=0 +notcp @192.0.2.1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
-  dig -6 +retry=0 +notcp @2001:db8::1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
-  dig -4 +retry=0 +tcp @192.0.2.1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
-  dig -6 +retry=0 +tcp @2001:db8::1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
+  dig -4 +retry=0 +timeout=1 +notcp @192.0.2.1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
+  dig -6 +retry=0 +timeout=1 +notcp @2001:db8::1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
+  dig -4 +retry=0 +timeout=1 +tcp @192.0.2.1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
+  dig -6 +retry=0 +timeout=1 +tcp @2001:db8::1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
 
   # Check that dnsmasq will resolve from the bridge
   # testImage doesn't have dig, so we create a netns with eth0 connected to the
@@ -474,10 +475,10 @@ test_container_devices_nic_bridged() {
   ip addr
   ip netns exec testdns ip addr
 
-  ip netns exec testdns dig -4 +retry=0 +notcp @192.0.2.1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
-  ip netns exec testdns dig -6 +retry=0 +notcp @2001:db8::1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
-  ip netns exec testdns dig -4 +retry=0 +tcp @192.0.2.1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
-  ip netns exec testdns dig -6 +retry=0 +tcp @2001:db8::1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
+  ip netns exec testdns dig -4 +retry=0 +timeout=1 +notcp @192.0.2.1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
+  ip netns exec testdns dig -6 +retry=0 +timeout=1 +notcp @2001:db8::1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
+  ip netns exec testdns dig -4 +retry=0 +timeout=1 +tcp @192.0.2.1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
+  ip netns exec testdns dig -6 +retry=0 +timeout=1 +tcp @2001:db8::1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2."
 
   ip netns exec testdns ip link delete eth0
   ip netns delete testdns
@@ -510,10 +511,10 @@ test_container_devices_nic_bridged() {
   ip addr
   ip netns exec testdns ip addr
 
-  ! ip netns exec testdns dig -4 +retry=0 +notcp @192.0.2.1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2." || false
-  ! ip netns exec testdns dig -6 +retry=0 +notcp @2001:db8::1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2." || false
-  ! ip netns exec testdns dig -4 +retry=0 +tcp @192.0.2.1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2." || false
-  ! ip netns exec testdns dig -6 +retry=0 +tcp @2001:db8::1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2." || false
+  ! ip netns exec testdns dig -4 +retry=0 +timeout=1 +notcp @192.0.2.1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2." || false
+  ! ip netns exec testdns dig -6 +retry=0 +timeout=1 +notcp @2001:db8::1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2." || false
+  ! ip netns exec testdns dig -4 +retry=0 +timeout=1 +tcp @192.0.2.1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2." || false
+  ! ip netns exec testdns dig -6 +retry=0 +timeout=1 +tcp @2001:db8::1 A "${ctName}.${dnsDomain}" | grep "${ctName}.${dnsDomain}.\\+0.\\+IN.\\+A.\\+192.0.2." || false
 
   ip netns exec testdns ip link delete eth0
   ip netns delete testdns
@@ -526,13 +527,13 @@ test_container_devices_nic_bridged() {
   sleep 2
 
   # Check DHCPv4 lease is released (space before the MAC important to avoid mismatching IPv6 lease).
-  if grep -i " ${ctMAC}" "${LXD_DIR}/networks/${brName}/dnsmasq.leases" ; then
+  if grep -iF " ${ctMAC}" "${LXD_DIR}/networks/${brName}/dnsmasq.leases" ; then
     echo "DHCPv4 lease not released"
     false
   fi
 
   # Check DHCPv6 lease is released.
-  if grep -i " ${ctName}" "${LXD_DIR}/networks/${brName}/dnsmasq.leases" ; then
+  if grep -iF " ${ctName}" "${LXD_DIR}/networks/${brName}/dnsmasq.leases" ; then
     echo "DHCPv6 lease not released"
     false
   fi
@@ -687,30 +688,22 @@ test_container_devices_nic_bridged() {
   lxc config device set "${ctName}" eth0 ipv6.address="2001:db8::2"
 
   # Test port isolation.
-  if bridge link set help 2>&1 | grep -wF isolated ; then
-    lxc config device set "${ctName}" eth0 security.port_isolation true
-    lxc start "${ctName}"
-    bridge -d link show dev "${vethHostName}" | grep -F "isolated on"
-    lxc stop -f "${ctName}"
-  else
-    echo "bridge command doesn't support port isolation, skipping port isolation checks"
-  fi
+  lxc config device set "${ctName}" eth0 security.port_isolation true
+  lxc start "${ctName}"
+  bridge -d link show dev "${vethHostName}" | grep -F "isolated on"
+  lxc stop -f "${ctName}"
 
   # Test interface naming scheme.
-  lxc init testimage -d "${SMALL_ROOT_DISK}" test-naming
-  lxc start test-naming
-  lxc query "/1.0/instances/test-naming/state" | jq -r .network.eth0.host_name | grep ^veth
-  lxc stop -f test-naming
+  lxc launch testimage -d "${SMALL_ROOT_DISK}" test-naming
+  lxc query "/1.0/instances/test-naming/state" | jq --exit-status '.network.eth0.host_name | startswith("veth")'
 
   lxc config set instances.nic.host_name random
-  lxc start test-naming
-  lxc query "/1.0/instances/test-naming/state" | jq -r .network.eth0.host_name | grep ^veth
-  lxc stop -f test-naming
+  lxc restart -f test-naming
+  lxc query "/1.0/instances/test-naming/state" | jq --exit-status '.network.eth0.host_name | startswith("veth")'
 
   lxc config set instances.nic.host_name mac
-  lxc start test-naming
-  lxc query "/1.0/instances/test-naming/state" | jq -r .network.eth0.host_name | grep ^lxd
-  lxc stop -f test-naming
+  lxc restart -f test-naming
+  lxc query "/1.0/instances/test-naming/state" | jq --exit-status '.network.eth0.host_name | startswith("lxd")'
 
   lxc config unset instances.nic.host_name
   lxc delete -f test-naming

@@ -332,7 +332,14 @@ func (d *ceph) Validate(config map[string]string) error {
 		//  defaultdesc: `ceph`
 		//  shortdesc: Name of the Ceph cluster in which to create new storage pools
 		//  scope: global
-		"ceph.cluster_name":    validate.IsAny,
+		"ceph.cluster_name": validate.IsAny,
+		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.osd.force_reuse)
+		//
+		// ---
+		//  type: bool
+		//  defaultdesc: `false`
+		//  shortdesc: Whether to allow reuse of an existing OSD storage pool already used by LXD
+		//  scope: global
 		"ceph.osd.force_reuse": validate.Optional(validate.IsBool), // Deprecated, should not be used.
 		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.osd.pg_num)
 		//

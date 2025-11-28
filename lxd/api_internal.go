@@ -29,6 +29,7 @@ import (
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
@@ -49,9 +50,9 @@ var apiInternal = []APIEndpoint{
 	internalClusterAcceptCmd,
 	internalClusterAssignCmd,
 	internalClusterHandoverCmd,
+	internalClusterHealCmd,
 	internalClusterRaftNodeCmd,
 	internalClusterRebalanceCmd,
-	internalClusterHealCmd,
 	internalContainerOnStartCmd,
 	internalContainerOnStartHostCmd,
 	internalContainerOnStopCmd,
@@ -128,6 +129,12 @@ var internalImageRefreshCmd = APIEndpoint{
 	Path: "testing/image-refresh",
 
 	Get: APIEndpointAction{Handler: internalRefreshImage, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+}
+
+var internalClusterHealCmd = APIEndpoint{
+	Path: "testing/cluster/heal",
+
+	Post: APIEndpointAction{Handler: internalHealCluster, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalImageOptimizeCmd = APIEndpoint{
@@ -232,6 +239,17 @@ func internalRefreshImage(d *Daemon, _ *http.Request) response.Response {
 	}
 
 	return response.EmptySyncResponse
+}
+
+func internalHealCluster(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	op, err := autoHealCluster(s.ShutdownCtx, s, d.gateway)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 func internalWaitReady(d *Daemon, r *http.Request) response.Response {

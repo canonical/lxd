@@ -183,11 +183,9 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			if projectName == api.ProjectDefaultName {
-				url := fmt.Sprintf("/%s/instances/%s/snapshots/%s", version.APIVersion, cname, snapName)
-				resultString = append(resultString, url)
+				resultString = append(resultString, api.NewURL().Path(version.APIVersion, "instances", cname, "snapshots", snapName).String())
 			} else {
-				url := fmt.Sprintf("/%s/instances/%s/snapshots/%s?project=%s", version.APIVersion, cname, snapName, projectName)
-				resultString = append(resultString, url)
+				resultString = append(resultString, api.NewURL().Path(version.APIVersion, "instances", cname, "snapshots", snapName).Project(projectName).String())
 			}
 		}
 	} else {
@@ -388,11 +386,6 @@ func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 
 	if resp != nil {
 		return resp
-	}
-
-	snapshotName, err = url.QueryUnescape(snapshotName)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	snapInst, err := instance.LoadByProjectAndName(s, projectName, instName+shared.SnapshotDelimiter+snapshotName)

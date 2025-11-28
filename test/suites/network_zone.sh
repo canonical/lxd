@@ -129,7 +129,7 @@ test_network_zone() {
   [ "$(dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxd.example.net | grep -Fc demo.lxd.example.net)" = "6" ]
   lxc network zone record entry remove lxd.example.net demo A 1.1.1.1
 
-  lxd sql global 'select * from networks_zones_records'
+  lxd sql global 'SELECT * FROM networks_zones_records'
   lxc network zone record create lxdfoo.example.net demo user.foo=bar --project foo
   ! lxc network zone record create lxdfoo.example.net demo user.foo=bar --project foo || false
   lxc network zone record entry add lxdfoo.example.net demo A 1.1.1.1 --ttl 900 --project foo

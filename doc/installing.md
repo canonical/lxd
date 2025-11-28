@@ -80,6 +80,9 @@ Afterward, apply the change to your current shell session by running:
 newgrp lxd
 ```
 
+This only applies to the current shell.
+You will need to log out and log back in again for the change to appear in a new terminal.
+
 <!-- Include end newgrp -->
 
 For more information, see the {ref}`installing-manage-access` section below.
@@ -219,6 +222,7 @@ sudo apt install \
     libtool \
     libudev-dev \
     libuv1-dev \
+    xfslibs-dev \
     make \
     meson \
     ninja-build \
@@ -272,6 +276,7 @@ sudo apt install \
     dnsmasq-base \
     dosfstools \
     e2fsprogs \
+    expect \
     iputils-ping \
     jq \
     netcat-openbsd \
@@ -370,11 +375,11 @@ getent group lxd | grep -qwF "$USER" || sudo usermod -aG lxd "$USER"
     :end-before: <!-- Include end newgrp -->
 ```
 
-Now you can run the daemon (the `--group sudo` bit allows everyone in the `sudo`
-group to talk to LXD; you can create your own group if you want):
+Now you can run the daemon (the `--group lxd` bit allows everyone in the `lxd`
+group to talk to LXD):
 
 ```bash
-sudo -E PATH=${PATH} LD_LIBRARY_PATH=${LD_LIBRARY_PATH} $(go env GOPATH)/bin/lxd --group sudo
+sudo PATH=${PATH} LD_LIBRARY_PATH=${LD_LIBRARY_PATH} $(go env GOPATH)/bin/lxd --group lxd
 ```
 
 ```{note}

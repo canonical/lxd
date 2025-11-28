@@ -133,23 +133,15 @@ func (d *alletra) ensureHost() (hostName string, cleanup revert.Hook, err error)
 
 		err = d.client().CreateHost(connector.Type(), hostname, []string{qn})
 		if err != nil {
-			if !api.StatusErrorCheck(err, http.StatusConflict) {
-				return "", nil, err
-			}
-
-			// The host with the given name already exists, update it instead.
-			err = d.client().UpdateHost(hostname, []string{qn})
-			if err != nil {
-				return "", nil, err
-			}
-		} else {
-			revert.Add(func() {
-				err := d.client().DeleteHost(hostname)
-				if err != nil {
-					d.logger.Warn("DeleteHost API call failed on error path", logger.Ctx{"err": err, "hostname": hostname})
-				}
-			})
+			return "", nil, fmt.Errorf("Failed to create host %q: %w", hostname, err)
 		}
+
+		revert.Add(func() {
+			err := d.client().DeleteHost(hostname)
+			if err != nil {
+				d.logger.Warn("DeleteHost API call failed on error path", logger.Ctx{"err": err, "hostname": hostname})
+			}
+		})
 	} else {
 		// Hostname already exists with the given IQN.
 		hostname = host.Name

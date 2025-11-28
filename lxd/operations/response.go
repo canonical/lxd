@@ -80,25 +80,20 @@ func (r *operationResponse) String() string {
 //
 // Returned when the operation has been created on another node.
 type forwardedOperationResponse struct {
-	op      *api.Operation
-	project string
+	op *api.Operation
 }
 
 // ForwardedOperationResponse creates a response that forwards the metadata of
 // an operation created on another node.
-func ForwardedOperationResponse(project string, op *api.Operation) response.Response {
+func ForwardedOperationResponse(op *api.Operation) response.Response {
 	return &forwardedOperationResponse{
-		op:      op,
-		project: project,
+		op: op,
 	}
 }
 
 // Render builds forwardedOperationResponse and writes it to http.ResponseWriter.
 func (r *forwardedOperationResponse) Render(w http.ResponseWriter, req *http.Request) error {
-	url := "/" + version.APIVersion + "/operations/" + r.op.ID
-	if r.project != "" {
-		url += "?project=" + r.project
-	}
+	url := api.NewURL().Path(version.APIVersion, "operations", r.op.ID).String()
 
 	body := api.ResponseRaw{
 		Type:       api.AsyncResponse,

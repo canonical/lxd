@@ -244,9 +244,10 @@ func (d *common) DeferTemplateApply(trigger instance.TemplateTrigger) error {
 		return nil
 	}
 
-	err := d.VolatileSet(map[string]string{"volatile.apply_template": string(trigger)})
+	volatileKey := "volatile.apply_template"
+	err := d.VolatileSet(map[string]string{volatileKey: string(trigger)})
 	if err != nil {
-		return fmt.Errorf("Failed to set apply_template volatile key: %w", err)
+		return fmt.Errorf("Failed setting config key %q: %w", volatileKey, err)
 	}
 
 	return nil
@@ -349,7 +350,7 @@ func (d *common) VolatileSet(changes map[string]string) error {
 		}
 
 		if err != nil {
-			return fmt.Errorf("Failed to set volatile config: %w", err)
+			return fmt.Errorf("Failed setting volatile config: %w", err)
 		}
 	}
 
@@ -701,6 +702,71 @@ func (d *common) rebuildCommon(inst instance.Instance, img *api.Image, op *opera
 	return nil
 }
 
+// deleteCommon handles common delete logic for LXC and QEMU instances.
+//
+// It performs the following shared operations:
+// - Backup file lock management.
+// - Operation lock setup.
+// - Running state check.
+// - Calls driver-specific delete function.
+// - Parent backup file update for snapshots.
+func (d *common) deleteCommon(inst instance.Instance, force bool) error {
+	unlock, err := d.updateBackupFileLock(context.Background())
+	if err != nil {
+		return fmt.Errorf("Failed acquiring update backup file lock: %w", err)
+	}
+
+	defer unlock()
+
+	// Setup a new operation.
+	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionDelete, nil, false, false)
+	if err != nil {
+		return fmt.Errorf("Failed creating instance delete operation: %w", err)
+	}
+
+	defer op.Done(nil)
+
+	if inst.IsRunning() {
+		return api.StatusErrorf(http.StatusBadRequest, "Instance is running")
+	}
+
+	parentName, _, _ := api.GetParentAndSnapshotName(inst.Name())
+
+	// Load the parent for backup file refresh.
+	parent, err := instance.LoadByProjectAndName(d.state, d.project.Name, parentName)
+	if err != nil {
+		return fmt.Errorf("Invalid parent: %w", err)
+	}
+
+	switch s := inst.(type) {
+	case *lxc:
+		err = s.delete(force)
+		if err != nil {
+			return err
+		}
+
+	case *qemu:
+		err = s.delete(force)
+		if err != nil {
+			return err
+		}
+
+	default:
+		d.logger.Error("Failed deleting instance")
+	}
+
+	// If dealing with a snapshot, refresh the backup file on the parent.
+	if inst.IsSnapshot() {
+		// Update the backup file.
+		err = parent.UpdateBackupFile()
+		if err != nil {
+			return fmt.Errorf("Failed updating parent backup file: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // runHooks executes the callback functions returned from a function.
 func (d *common) runHooks(hooks []func() error) error {
 	// Run any post start hooks.
@@ -730,7 +796,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 		// Use the snapshot creation date as reference for an exact expiry date.
 		instanceSnapshotExpiry, err := shared.GetExpiry(snapshotCreationDate, inst.ExpandedConfig()["snapshots.expiry"])
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed getting snapshot expiry: %w", err)
 		}
 
 		expiry = &instanceSnapshotExpiry
@@ -750,6 +816,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 		Stateful:     stateful,
 		ExpiryDate:   *expiry,
 		CreationDate: snapshotCreationDate,
+		Description:  inst.Description(),
 	}
 
 	// Create the snapshot.
@@ -766,9 +833,25 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 		return err
 	}
 
+	if pool.Driver().Info().RunningCopyFreeze && inst.IsRunning() && !inst.IsFrozen() {
+		// Freeze the processes.
+		err = inst.Freeze()
+		if err != nil {
+			return err
+		}
+
+		defer func() {
+			err := inst.Unfreeze()
+			if err != nil {
+				d.logger.Warn("Failed unfreezing instance after snapshot", logger.Ctx{"err": err})
+			}
+		}()
+	}
+
+	// Snapshot root disk.
 	err = pool.CreateInstanceSnapshot(snap, inst, d.op)
 	if err != nil {
-		return fmt.Errorf("Create instance snapshot: %w", err)
+		return fmt.Errorf("Failed creating instance root volume snapshot: %w", err)
 	}
 
 	revert.Add(func() {
@@ -778,22 +861,27 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 		case *qemu:
 			_ = s.delete(true)
 		default:
-			logger.Error("Failed to delete snapshot during revert", logger.Ctx{"instance": inst.Name(), "snapshot": snap.Name()})
+			d.logger.Error("Failed deleting snapshot during revert", logger.Ctx{"snapshot": snap.Name()})
 		}
 	})
 
 	// Mount volume for backup.yaml writing.
 	_, err = pool.MountInstance(inst, d.op)
 	if err != nil {
-		return fmt.Errorf("Create instance snapshot (mount source): %w", err)
+		return fmt.Errorf("Failed mounting instance root volume for backup file writing during snapshot: %w", err)
 	}
 
-	defer func() { _ = pool.UnmountInstance(inst, d.op) }()
+	defer func() {
+		err := pool.UnmountInstance(inst, d.op)
+		if err != nil {
+			d.logger.Warn("Failed unmounting instance after snapshot", logger.Ctx{"err": err})
+		}
+	}()
 
 	// Attempt to update backup.yaml for instance.
 	err = inst.UpdateBackupFile()
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed updating instance backup file after snapshot: %w", err)
 	}
 
 	revert.Success()
@@ -812,8 +900,7 @@ func (d *common) updateProgress(progress string) {
 	}
 
 	if meta["container_progress"] != progress {
-		meta["container_progress"] = progress
-		_ = d.op.UpdateMetadata(meta)
+		_ = d.op.ExtendMetadata(map[string]any{"container_progress": progress})
 	}
 }
 
@@ -826,20 +913,19 @@ func (d *common) updateProgress(progress string) {
 // target instance and updates snapshot metadata.
 //
 // Returns:
-// - pool: the instance's storage pool.
 // - wasRunning: whether the instance was running before restore.
 // - op: the restore operation lock.
 // - err: error, if any.
-func (d *common) restoreCommon(inst instance.Instance, source instance.Instance) (pool storagePools.Pool, wasRunning bool, op *operationlock.InstanceOperation, err error) {
+func (d *common) restoreCommon(inst instance.Instance, source instance.Instance) (wasRunning bool, op *operationlock.InstanceOperation, err error) {
 	// Load the storage driver.
-	pool, err = storagePools.LoadByInstance(d.state, inst)
+	pool, err := d.getStoragePool()
 	if err != nil {
-		return nil, false, nil, err
+		return false, nil, err
 	}
 
 	op, err = operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
 	if err != nil {
-		return nil, false, nil, fmt.Errorf("Failed to create instance restore operation: %w", err)
+		return false, nil, fmt.Errorf("Failed creating instance restore operation: %w", err)
 	}
 
 	// Stop the instance.
@@ -863,7 +949,7 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 			err := inst.Update(args, false)
 			if err != nil {
 				op.Done(err)
-				return nil, false, nil, err
+				return false, nil, err
 			}
 
 			// On function return, set the flag back on.
@@ -871,7 +957,7 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 				args.Ephemeral = ephemeral
 				err = inst.Update(args, false)
 				if err != nil {
-					d.logger.Error("Failed to restore ephemeral flag after restore", logger.Ctx{"err": err})
+					d.logger.Error("Failed restoring ephemeral flag after restore", logger.Ctx{"err": err})
 				}
 			}()
 		}
@@ -880,13 +966,13 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 		err := inst.Stop(false)
 		if err != nil {
 			op.Done(err)
-			return nil, false, nil, err
+			return false, nil, err
 		}
 
 		// Refresh the operation as that one is now complete.
 		op, err = operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
 		if err != nil {
-			return nil, false, nil, fmt.Errorf("Failed to create instance restore operation: %w", err)
+			return false, nil, fmt.Errorf("Failed creating instance restore operation: %w", err)
 		}
 	}
 
@@ -908,10 +994,17 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance)
 	err = inst.Update(args, false)
 	if err != nil {
 		op.Done(err)
-		return nil, false, nil, err
+		return false, nil, err
 	}
 
-	return pool, wasRunning, op, nil
+	// Restore the rootfs.
+	err = pool.RestoreInstanceSnapshot(inst, source, nil)
+	if err != nil {
+		op.Done(err)
+		return false, nil, fmt.Errorf("Failed restoring snapshot rootfs: %w", err)
+	}
+
+	return wasRunning, op, nil
 }
 
 // insertConfigkey function attempts to insert the instance config key into the database. If the insert fails
@@ -1209,7 +1302,7 @@ func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOpe
 	// If there is another ongoing operation that isn't in our inheritable list, wait until that has finished
 	// before proceeding to run the hook.
 	op := operationlock.Get(d.Project().Name, d.Name())
-	if op != nil && !op.ActionMatch(operationlock.ActionStart, operationlock.ActionRestart, operationlock.ActionStop, operationlock.ActionRestore) {
+	if op != nil && !op.ActionMatch(operationlock.ActionStart, operationlock.ActionRestart, operationlock.ActionStop, operationlock.ActionRestore, operationlock.ActionMigrate) {
 		d.logger.Debug("Waiting for existing operation lock to finish before running hook", logger.Ctx{"action": op.Action()})
 		_ = op.Wait(context.Background())
 		op = nil
@@ -1256,18 +1349,18 @@ func (d *common) canMigrate(inst instance.Instance) (migrate bool, live bool) {
 	config := d.ExpandedConfig()
 	val, ok := config["cluster.evacuate"]
 	if !ok {
-		val = "auto"
+		val = api.ClusterEvacuateModeAuto
 	}
 
-	if val == "migrate" {
+	if val == api.ClusterEvacuateModeMigrate {
 		return true, false
 	}
 
-	if val == "live-migrate" {
+	if val == api.ClusterEvacuateModeLiveMigrate {
 		return true, true
 	}
 
-	if val == "stop" {
+	if val == api.ClusterEvacuateModeStop {
 		return false, false
 	}
 

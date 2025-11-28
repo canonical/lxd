@@ -793,9 +793,19 @@ You can specify this option instead of specifying the `nictype` directly.
 ```{config:option} acceleration device-nic-ovn-device-conf
 :defaultdesc: "`none`"
 :managed: "no"
-:shortdesc: "Enable hardware offloading"
+:shortdesc: "Enable hardware acceleration"
 :type: "string"
 Possible values are `none`, `sriov`, or `vdpa`.
+See {ref}`devices-nic-hw-acceleration` for more information.
+```
+
+```{config:option} acceleration.parent device-nic-ovn-device-conf
+:managed: "yes"
+:shortdesc: "Physical function interfaces to allocate virtual functions from for hardware acceleration"
+:type: "string"
+Comma separated list of physical function (PF) interfaces to allocate virtual functions (VFs) from for hardware acceleration when {config:option}`device-nic-ovn-device-conf:acceleration` is enabled.
+In {config:option}`project-restricted:restricted` projects, it can only be used when {config:option}`project-restricted:restricted.virtual-machines.lowlevel` or {config:option}`project-restricted:restricted.containers.lowlevel` is set to `allow`.
+If this is not specified, and {config:option}`device-nic-ovn-device-conf:acceleration` is enabled then all PFs connected to the OVS integration bridge are scanned for a free VF.
 See {ref}`devices-nic-hw-acceleration` for more information.
 ```
 
@@ -2540,16 +2550,22 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 The disk quota is applied the next time the instance starts.
 ```
 
+```{config:option} volatile.<name>.bus instance-volatile
+:shortdesc: "Persistent VM bus number"
+:type: "integer"
+Persistent VM bus number.
+```
+
 ```{config:option} volatile.<name>.ceph_rbd instance-volatile
 :shortdesc: "RBD device path for Ceph disk devices"
 :type: "string"
-
+RBD device path for Ceph disk devices.
 ```
 
 ```{config:option} volatile.<name>.host_name instance-volatile
 :shortdesc: "Network device name on the host"
 :type: "string"
-
+Network device name on the host.
 ```
 
 ```{config:option} volatile.<name>.hwaddr instance-volatile
@@ -2560,7 +2576,7 @@ The network device MAC address is used when no `hwaddr` property is set on the d
 
 ```{config:option} volatile.<name>.last_state.created instance-volatile
 :shortdesc: "Whether the network device physical device was created"
-:type: "string"
+:type: "bool"
 Possible values are `true` or `false`.
 ```
 
@@ -2622,6 +2638,12 @@ The template with the given name is triggered upon next startup.
 :shortdesc: "Hash of the base image"
 :type: "string"
 The hash of the image that the instance was created from (empty if the instance was not created from an image).
+```
+
+```{config:option} volatile.bus.mode instance-volatile
+:shortdesc: "Device bus allocation mode"
+:type: "string"
+Set to `persistent` when persistent bus allocation mode is enabled.
 ```
 
 ```{config:option} volatile.cloud-init.instance-id instance-volatile
@@ -3558,6 +3580,13 @@ This option specifies whether to register the VLAN using the GARP VLAN Registrat
 
 <!-- config group network-macvlan-network-conf end -->
 <!-- config group network-ovn-network-conf start -->
+```{config:option} acceleration.parent network-ovn-network-conf
+:shortdesc: "Physical function interfaces to allocate virtual functions from for hardware acceleration"
+:type: "string"
+Comma separated list of physical function (PF) interfaces to allocate virtual functions (VFs) from for hardware acceleration when {config:option}`device-nic-ovn-device-conf:acceleration` is enabled.
+See {ref}`devices-nic-hw-acceleration` for more information.
+```
+
 ```{config:option} bridge.hwaddr network-ovn-network-conf
 :shortdesc: "MAC address for the bridge"
 :type: "string"
@@ -4690,7 +4719,7 @@ If this option is not specified, LXD falls back to the `NO_PROXY` environment va
 ```
 
 ```{config:option} core.remote_token_expiry server-core
-:defaultdesc: "no expiry"
+:defaultdesc: "`15d`"
 :scope: "global"
 :shortdesc: "Time after which a remote add token expires"
 :type: "string"
@@ -5351,6 +5380,14 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 :scope: "global"
 :shortdesc: "Name of the OSD data pool"
 :type: "string"
+
+```
+
+```{config:option} ceph.osd.force_reuse storage-ceph-pool-conf
+:defaultdesc: "`false`"
+:scope: "global"
+:shortdesc: "Whether to allow reuse of an existing OSD storage pool already used by LXD"
+:type: "bool"
 
 ```
 

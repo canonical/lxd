@@ -305,10 +305,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 	})
 
 	// Now that process has started, we can start the control handler.
-	wgEOF.Add(1)
-	go func() {
-		defer wgEOF.Done()
-
+	wgEOF.Go(func() {
 		<-s.waitControlConnected.Done() // Indicates control connection has started or command has ended.
 
 		s.connsLock.Lock()
@@ -390,14 +387,11 @@ func (s *execWs) Do(op *operations.Operation) error {
 				}
 			}
 		}
-	}()
+	})
 
 	// Now that process has started, we can start the mirroring of the process channels and websockets.
 	if s.req.Interactive {
-		wgEOF.Add(1)
-		go func() {
-			defer wgEOF.Done()
-
+		wgEOF.Go(func() {
 			var readErr, writeErr error
 			l.Debug("Exec mirror websocket started", logger.Ctx{"number": 0})
 			defer func() {
@@ -421,7 +415,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 			readErr = <-readDone
 			writeErr = <-writeDone
 			_ = conn.Close()
-		}()
+		})
 	} else {
 		wgEOF.Add(len(ttys) - 1)
 		for i := range ttys {
@@ -580,7 +574,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		return operations.ForwardedOperationResponse(projectName, opAPI)
+		return operations.ForwardedOperationResponse(opAPI)
 	}
 
 	inst, err := instance.LoadByProjectAndName(s, projectName, name)
@@ -729,8 +723,8 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 
 			// Update metadata with the right URLs.
 			metadata["output"] = shared.Jmap{
-				"1": fmt.Sprintf("/%s/instances/%s/logs/exec-output/%s", version.APIVersion, inst.Name(), filepath.Base(stdout.Name())),
-				"2": fmt.Sprintf("/%s/instances/%s/logs/exec-output/%s", version.APIVersion, inst.Name(), filepath.Base(stderr.Name())),
+				"1": api.NewURL().Path(version.APIVersion, "instances", inst.Name(), "logs", "exec-output", filepath.Base(stdout.Name())).String(),
+				"2": api.NewURL().Path(version.APIVersion, "instances", inst.Name(), "logs", "exec-output", filepath.Base(stderr.Name())).String(),
 			}
 		}
 

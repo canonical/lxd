@@ -42,15 +42,16 @@ test_basic_usage() {
   # Test image list output formats (table & json)
   lxc image list --format table | grep -wF testimage
   lxc image list --format json \
-    | jq '.[]|select(.alias[0].name="testimage")' \
-    | grep -F '"name": "testimage"'
+    | jq --exit-status '.[]|select(.alias[0].name="testimage").aliases | .[] | .name == "testimage"'
 
   # Test image delete
   lxc image delete testimage
 
   # test GET /1.0, since the client always puts to /1.0/
-  my_curl -f -X GET "https://${LXD_ADDR}/1.0"
-  my_curl -f -X GET "https://${LXD_ADDR}/1.0/containers"
+  my_curl --fail --output /dev/null "https://${LXD_ADDR}/1.0"
+  my_curl --fail --output /dev/null "https://${LXD_ADDR}/1.0/containers"
+  my_curl --fail --output /dev/null "https://${LXD_ADDR}/1.0/virtual-machines"
+  my_curl --fail --output /dev/null "https://${LXD_ADDR}/1.0/instances"
 
   # Re-import the image
   mv "${LXD_DIR}/${sum}.tar.xz" "${LXD_DIR}/testimage.tar.xz"
@@ -134,7 +135,7 @@ test_basic_usage() {
   lxc delete --force c1
 
   # Test list json format
-  lxc list --format json | jq '.[]|select(.name="foo")' | grep '"name": "foo"'
+  lxc list --format json | jq --exit-status '.[] | .name == "foo"'
 
   # Test list with --columns and --fast
   ! lxc list --columns=nsp --fast || false
@@ -169,12 +170,12 @@ test_basic_usage() {
   gen_cert_and_key client3
 
   # don't allow requests without a cert to get trusted data
-  [ "$(curl -k -s -o /dev/null -w "%{http_code}" -X GET "https://${LXD_ADDR}/1.0/containers/foo")" = "403" ]
+  [ "$(curl -k -s -o /dev/null -w "%{http_code}" "https://${LXD_ADDR}/1.0/containers/foo")" = "403" ]
 
   # Test unprivileged container publish
   lxc publish bar --alias=foo-image prop1=val1
   [ "$(lxc image get-property foo-image prop1)" = "val1" ]
-  ! CERTNAME="client3" my_curl -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" || false
+  ! CERTNAME="client3" my_curl "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" || false
   lxc image delete foo-image
 
   # Test container publish with existing alias
@@ -222,7 +223,7 @@ test_basic_usage() {
   # Test image compression on publish
   lxc publish bar --alias=foo-image-compressed --compression=bzip2 prop=val1
   [ "$(lxc image get-property foo-image-compressed prop)" = "val1" ]
-  ! CERTNAME="client3" my_curl -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" || false
+  ! CERTNAME="client3" my_curl "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" || false
   lxc image delete foo-image-compressed
 
   # Test compression options
@@ -235,27 +236,26 @@ test_basic_usage() {
   lxc init testimage barpriv -p default -p priv
   lxc publish barpriv --alias=foo-image prop1=val1
   [ "$(lxc image get-property foo-image prop1)" = "val1" ]
-  ! CERTNAME="client3" my_curl -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" || false
+  ! CERTNAME="client3" my_curl "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" || false
   lxc image delete foo-image
   lxc delete barpriv
+
+  # make sure that privileged containers are not world-readable
+  lxc init testimage foo2 -p priv -s "lxdtest-$(basename "${LXD_DIR}")"
+  [ "$(stat -L -c "%a" "${LXD_DIR}/containers/foo2")" = "100" ]
+  lxc delete foo2
   lxc profile delete priv
 
   # Test that containers without metadata.yaml are published successfully.
-  # Note that this quick hack won't work for LVM, since it doesn't always mount
-  # the container's filesystem. That's ok though: the logic we're trying to
-  # test here is independent of storage backend, so running it for just one
-  # backend (or all non-lvm backends) is enough.
-  if [ "$lxd_backend" = "lvm" ]; then
-    lxc init testimage nometadata
-    rm -f "${LXD_DIR}/containers/nometadata/metadata.yaml"
-    lxc publish nometadata --alias=nometadata-image
-    lxc image delete nometadata-image
-    lxc delete nometadata
-  fi
+  lxc init testimage nometadata
+  rm -f "${LXD_DIR}/containers/nometadata/metadata.yaml"
+  lxc publish nometadata --alias=nometadata-image
+  lxc image delete nometadata-image
+  lxc delete nometadata
 
   # Test public images
   lxc publish --public bar --alias=bar-image2
-  CERTNAME="client3" my_curl -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/"
+  CERTNAME="client3" my_curl "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/"
   lxc image delete bar-image2
 
   # Test invalid instance names
@@ -323,7 +323,7 @@ test_basic_usage() {
   wait_for "${LXD_ADDR}" my_curl -X POST --fail-with-body -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/containers" \
         -d '{"name":"configtest","config":{"raw.lxc":"lxc.hook.clone=/bin/true"},"source":{"type":"none"}}'
   # shellcheck disable=SC2102
-  [ "$(my_curl "https://${LXD_ADDR}/1.0/containers/configtest" | jq -r '.metadata.config["raw.lxc"]')" = "lxc.hook.clone=/bin/true" ]
+  my_curl "https://${LXD_ADDR}/1.0/containers/configtest" | jq --exit-status '.metadata.config["raw.lxc"] == "lxc.hook.clone=/bin/true"'
   lxc delete configtest
 
   # Test activateifneeded/shutdown
@@ -443,11 +443,14 @@ test_basic_usage() {
   fi
 
   # Test freeze/pause
-  lxc freeze foo
+  lxc pause foo
+  [ "$(lxc list -f csv -c s foo)" = "FROZEN" ]
   ! lxc stop foo || false
-  lxc stop -f foo
   lxc start foo
-  lxc freeze foo
+  [ "$(lxc list -f csv -c s foo)" = "RUNNING" ]
+  lxc pause foo
+  [ "$(lxc list -f csv -c s foo)" = "FROZEN" ]
+  lxc stop -f foo
   lxc start foo
 
   # Test instance types
@@ -459,9 +462,9 @@ test_basic_usage() {
 
   # Test last_used_at field is working properly
   lxc init testimage last-used-at-test
-  [ "$(lxc list last-used-at-test --format json | jq -r '.[].last_used_at')" = "1970-01-01T00:00:00Z" ]
+  lxc list last-used-at-test --format json | jq --exit-status '.[].last_used_at == "1970-01-01T00:00:00Z"'
   lxc start last-used-at-test
-  [ "$(lxc list last-used-at-test --format json | jq -r '.[].last_used_at')" != "1970-01-01T00:00:00Z" ]
+  lxc list last-used-at-test --format json | jq --exit-status '.[].last_used_at != "1970-01-01T00:00:00Z"'
   lxc delete last-used-at-test --force
 
   # Test user, group and cwd
@@ -491,8 +494,8 @@ test_basic_usage() {
   lxc profile delete clash
 
   # check that we can get the return code for a non- wait-for-websocket exec
-  op=$(my_curl -X POST --fail-with-body -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/containers/foo/exec" -d '{"command": ["echo", "test"], "environment": {}, "wait-for-websocket": false, "interactive": false}' | jq -r .operation)
-  [ "$(my_curl "https://${LXD_ADDR}${op}/wait" | jq -r .metadata.metadata.return)" != "null" ]
+  op="$(my_curl -X POST --fail-with-body -H 'Content-Type: application/json' "https://${LXD_ADDR}/1.0/containers/foo/exec" -d '{"command": ["echo", "test"], "environment": {}, "wait-for-websocket": false, "interactive": false}' | jq --exit-status --raw-output .operation)"
+  my_curl "https://${LXD_ADDR}${op}/wait" | jq --exit-status '.metadata.metadata.return != "null"'
 
   # test file transfer
   echo abc > "${LXD_DIR}/in"
@@ -546,23 +549,11 @@ test_basic_usage() {
     # unloaded on stop, and that it is deleted when the container is deleted
     lxc launch testimage lxd-apparmor-test
 
-    MAJOR=0
-    MINOR=0
-    if [ -f /sys/kernel/security/apparmor/features/domain/version ]; then
-      MAJOR=$(awk -F. '{print $1}' < /sys/kernel/security/apparmor/features/domain/version)
-      MINOR=$(awk -F. '{print $2}' < /sys/kernel/security/apparmor/features/domain/version)
-    fi
+    aa_namespace="lxd-lxd-apparmor-test_<$(echo "${LXD_DIR}" | sed -e 's/\//-/g' -e 's/^.//')>"
+    aa-status | grep -F ":${aa_namespace}:unconfined" || aa-status | grep -F ":${aa_namespace}://unconfined"
+    lxc stop lxd-apparmor-test --force
+    ! aa-status | grep -F ":${aa_namespace}:" || false
 
-    if [ "${MAJOR}" -gt "1" ] || { [ "${MAJOR}" = "1" ] && [ "${MINOR}" -ge "2" ]; }; then
-      aa_namespace="lxd-lxd-apparmor-test_<$(echo "${LXD_DIR}" | sed -e 's/\//-/g' -e 's/^.//')>"
-      aa-status | grep -F ":${aa_namespace}:unconfined" || aa-status | grep -F ":${aa_namespace}://unconfined"
-      lxc stop lxd-apparmor-test --force
-      ! aa-status | grep -F ":${aa_namespace}:" || false
-    else
-      aa-status | grep "lxd-lxd-apparmor-test_<${LXD_DIR}>"
-      lxc stop lxd-apparmor-test --force
-      ! aa-status | grep -F "lxd-lxd-apparmor-test_<${LXD_DIR}>" || false
-    fi
     lxc delete lxd-apparmor-test
     [ ! -f "${LXD_DIR}/security/apparmor/profiles/lxd-lxd-apparmor-test" ]
   else
@@ -582,14 +573,6 @@ test_basic_usage() {
   else
     echo "==> SKIP: seccomp tests (seccomp filtering is externally enabled)"
   fi
-
-  # make sure that privileged containers are not world-readable
-  lxc profile create unconfined
-  lxc profile set unconfined security.privileged true
-  lxc init testimage foo2 -p unconfined -s "lxdtest-$(basename "${LXD_DIR}")"
-  [ "$(stat -L -c "%a" "${LXD_DIR}/containers/foo2")" = "100" ]
-  lxc delete foo2
-  lxc profile delete unconfined
 
   # Test boot.host_shutdown_timeout config setting
   lxc init testimage configtest --config boot.host_shutdown_timeout=45
@@ -773,6 +756,28 @@ EOF
   lxc config trust remove "${fingerprint}"
 }
 
+test_snap_basic_usage_vm() {
+  ensure_import_ubuntu_vm_image
+
+  echo "==> Create a VM suitable for stateful stop/start"
+  lxc launch ubuntu-vm v1 --vm -c migration.stateful=true -c limits.memory=384MiB -d root,size.state=384MiB -d "${SMALL_VM_ROOT_DISK}"
+  waitInstanceReady v1
+
+  echo "==> Stateful stop"
+  INITIAL_BOOT_ID="$(lxc exec v1 -- cat /proc/sys/kernel/random/boot_id)"
+  lxc stop --stateful v1
+  [ "$(lxc list -f csv -c s)" = "STOPPED" ]
+
+  echo "==> Stateful start"
+  lxc start v1
+  # the lxd-agent needs a bit of time to dial back in even when statefully restored
+  waitInstanceReady v1
+  [ "$(lxc exec v1 -- cat /proc/sys/kernel/random/boot_id)" = "${INITIAL_BOOT_ID}" ]
+
+  # Cleanup
+  lxc delete -f v1
+}
+
 test_basic_version() {
   for bin in lxc lxd lxd-agent lxd-benchmark lxd-migrate lxd-user fuidshift; do
     "${bin}" --version
@@ -792,24 +797,24 @@ test_basic_version() {
 
 test_server_info() {
   # Ensure server always reports support for containers.
-  lxc query /1.0 | jq -e '.environment.instance_types | contains(["container"])'
+  lxc query /1.0 | jq --exit-status '.environment.instance_types | contains(["container"])'
 
   # Ensure server reports support for VMs if it should test them.
-  if [ "${LXD_VM_TESTS:-0}" = "1" ]; then
-    lxc query /1.0 | jq -e '.environment.instance_types | contains(["virtual-machine"])'
+  if [ "${LXD_VM_TESTS}" = "1" ]; then
+    lxc query /1.0 | jq --exit-status '.environment.instance_types | contains(["virtual-machine"])'
   fi
 
   # Ensure the version number has the format (X.Y.Z for LTSes and X.Y otherwise)
-  if lxc query /1.0 | jq -e '.environment.server_lts == true'; then
-    lxc query /1.0 | jq -re '.environment.server_version' | grep -E '[0-9]+\.[0-9]+\.[0-9]+'
+  if lxc query /1.0 | jq --exit-status '.environment.server_lts == true'; then
+    lxc query /1.0 | jq --exit-status --raw-output '.environment.server_version' | grep -xE '[0-9]+\.[0-9]+\.[0-9]+'
   else
-    lxc query /1.0 | jq -re '.environment.server_version' | grep -xE '[0-9]+\.[0-9]+'
+    lxc query /1.0 | jq --exit-status --raw-output '.environment.server_version' | grep -xE '[0-9]+\.[0-9]+'
   fi
 }
 
 test_duplicate_detection() {
   ensure_import_testimage
-  test_image_fingerprint="$(lxc query /1.0/images/aliases/testimage | jq -r '.target')"
+  test_image_fingerprint="$(lxc query /1.0/images/aliases/testimage | jq --exit-status --raw-output '.target')"
 
   lxc auth group create foo
   [ "$(! "${_LXC}" auth group create foo 2>&1 1>/dev/null)" = 'Error: Authorization group "foo" already exists' ]
@@ -839,7 +844,7 @@ test_duplicate_detection() {
   [ "$(! "${_LXC}" image alias create testimage "${test_image_fingerprint}" 2>&1 1>/dev/null)" = 'Error: Alias "testimage" already exists' ]
 
   lxc init foo --empty
-  [ "$(! "${_LXC}" init foo --empty 2>&1 1>/dev/null)" = 'Error: Failed creating instance record: Instance "foo" already exists' ]
+  [ "$(! "${_LXC}" init foo --empty 2>&1 1>/dev/null)" = 'Error: Instance "foo" already exists' ]
   lxc init bar --empty
   [ "$(! "${_LXC}" rename bar foo 2>&1 1>/dev/null)" = 'Error: Name "foo" already in use' ]
   lxc delete bar
@@ -848,8 +853,6 @@ test_duplicate_detection() {
   [ "$(! "${_LXC}" snapshot foo snap0 2>&1 1>/dev/null)" = 'Error: Failed creating instance snapshot record "snap0": Snapshot "foo/snap0" already exists' ]
   lxc snapshot foo snap1
   [ "$(! "${_LXC}" rename foo/snap1 foo/snap0 2>&1 1>/dev/null)" = 'Error: Name "foo/snap0" already in use' ]
-  lxc delete foo/snap0
-  lxc delete foo/snap1
   lxc delete foo
 
   lxc network create foo
@@ -930,8 +933,6 @@ test_duplicate_detection() {
   [ "$(! "${_LXC}" storage volume snapshot foo foo snap0 2>&1 1>/dev/null)" = 'Error: Snapshot "snap0" already in use' ]
   lxc storage volume snapshot foo foo snap1
   [ "$(! "${_LXC}" storage volume rename foo foo/snap1 foo/snap0 2>&1 1>/dev/null)" = 'Error: Storage volume snapshot "snap0" already exists for volume "foo"' ]
-  lxc storage volume delete foo foo/snap0
-  lxc storage volume delete foo foo/snap1
   lxc storage volume delete foo foo
   lxc storage delete foo
 }

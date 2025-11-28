@@ -5,13 +5,16 @@ if [ -z "${GOPATH:-}" ] && command -v go >/dev/null; then
     GOPATH="$(go env GOPATH)"
 fi
 
+if [ -n "${GOPATH:-}" ]; then
+    # Add GOPATH/bin to PATH if not there already
+    [[ "${PATH}" != *"${GOPATH}/bin"* ]] && export "PATH=${GOPATH}/bin:${PATH}"
+fi
+
 # Avoid accidental re-execution
 if [ -n "${LXD_INSPECT_INPROGRESS:-}" ]; then
     echo "Refusing to run tests from inside a LXD_INSPECT session" >&2
     exit 1
 fi
-
-[ -n "${GOPATH:-}" ] && export "PATH=${GOPATH}/bin:${PATH}"
 
 # Don't translate lxc output for parsing in it in tests.
 export LC_ALL="C"
@@ -23,6 +26,13 @@ if [ -z "${NO_PROXY:-}" ]; then
   # Prevent proxy usage for some host names/IPs (comma-separated list)
   export NO_PROXY="127.0.0.1"
 fi
+
+# Detect architecture name for later use
+ARCH="$(dpkg --print-architecture || echo "amd64")"
+export ARCH
+
+LXD_VM_TESTS="${LXD_VM_TESTS:-1}"
+export LXD_VM_TESTS
 
 export CLIENT_DEBUG=""
 export SERVER_DEBUG=""
@@ -70,6 +80,7 @@ if [ "${PWD}" != "$(dirname "${0}")" ]; then
     cd "$(dirname "${0}")"
 fi
 MAIN_DIR="${PWD}"
+readonly MAIN_DIR
 export MAIN_DIR
 import_subdir_files includes
 
@@ -80,14 +91,17 @@ install_storage_driver_tools
 install_instance_drivers
 
 echo "==> Checking for dependencies"
-check_dependencies lxd lxc curl busybox dnsmasq iptables jq nc ping python3 yq git s3cmd sqlite3 rsync shuf setfacl setfattr socat swtpm dig tar2sqfs unsquashfs xz
-if [ "${LXD_VM_TESTS:-0}" = "1" ]; then
+check_dependencies lxd lxc curl busybox dnsmasq expect iptables jq nc ping python3 yq git s3cmd sqlite3 rsync shuf setfacl setfattr socat swtpm dig tar2sqfs unsquashfs xz
+if [ "${LXD_VM_TESTS}" = "1" ]; then
   check_dependencies qemu-img "qemu-system-$(uname -m)" sgdisk
+fi
+if ! check_dependencies minio mc; then
+  download_minio
 fi
 
 echo "==> Checking test dependencies"
 if ! check_dependencies devlxd-client fuidshift mini-oidc sysinfo; then
-  ( cd .. && make test-binaries )
+  make -C "${MAIN_DIR}/.." test-binaries
 fi
 
 # If no test image is specified, busybox-static will be needed by test/deps/import-busybox
@@ -102,6 +116,14 @@ if [ -z "${LXD_TEST_IMAGE:-}" ]; then
       echo "The testsuite requires ${BUSYBOX} to be a static binary"
       exit 1
   fi
+
+  # Cache the busybox testimage for reuse
+  deps/import-busybox --save-image
+
+  # Avoid `.tar.xz` extension that may conflict with some tests
+  mv busybox.tar.xz busybox.tar.xz.cache
+  export LXD_TEST_IMAGE="busybox.tar.xz.cache"
+  echo "==> Saving testimage for reuse (${LXD_TEST_IMAGE})"
 fi
 
 # find the path to lxc binary, not the shell wrapper function
@@ -114,10 +136,18 @@ if [ "${USER:-'root'}" != "root" ]; then
   exit 1
 fi
 
+# Set ulimit to ensure core dump is outputted.
+ulimit -c unlimited
+echo '|/bin/sh -c $@ -- eval exec gzip --fast > /var/crash/core-%e.%p.gz' > /proc/sys/kernel/core_pattern
+
 if [ -n "${LXD_LOGS:-}" ] && [ ! -d "${LXD_LOGS}" ]; then
   echo "Your LXD_LOGS path doesn't exist: ${LXD_LOGS}"
   exit 1
 fi
+
+# Default sizes to be used with storage pools
+export DEFAULT_VOLUME_SIZE="24MiB"
+export DEFAULT_POOL_SIZE="3GiB"
 
 echo "==> Available storage backends: $(available_storage_backends | sort)"
 if [ "$LXD_BACKEND" != "random" ] && ! storage_backend_available "$LXD_BACKEND"; then
@@ -221,10 +251,6 @@ cleanup() {
   echo "==> Test result: ${TEST_RESULT}"
 }
 
-if [ -n "${SHELL_TRACING:-}" ]; then
-  set -x
-fi
-
 # Must be set before cleanup()
 TEST_CURRENT=setup
 TEST_CURRENT_DESCRIPTION=setup
@@ -235,10 +261,6 @@ trap cleanup EXIT HUP INT TERM
 
 # Import all the testsuites
 import_subdir_files suites
-
-if [ -n "${SHELL_TRACING:-}" ]; then
-  set -x
-fi
 
 # Setup test directory
 TEST_DIR="$(mktemp -d -t lxd-test.tmp.XXXX)"
@@ -259,6 +281,10 @@ run_test() {
   TEST_UNMET_REQUIREMENT=""
   cwd="${PWD}"
 
+  if [ "${RUN_COUNT:-0}" -ne 0 ] && [ "${LXD_REPEAT_TESTS:-1}" -ne 1 ]; then
+    TEST_CURRENT_DESCRIPTION="${TEST_CURRENT_DESCRIPTION} (${RUN_COUNT}/${LXD_REPEAT_TESTS})"
+  fi
+
   echo "==> TEST BEGIN: ${TEST_CURRENT_DESCRIPTION}"
   START_TIME=$(date +%s)
 
@@ -276,8 +302,36 @@ run_test() {
   fi
 
   if [ "${skip}" = false ]; then
-    # Run test.
-    ${TEST_CURRENT}
+
+    if [[ "${TEST_CURRENT}" =~ ^test_snap_.*$ ]]; then
+      [ -e "/snap/lxd/current" ] || spawn_lxd_snap
+
+      # For snap based tests, the lxc and lxc_remote functions MUST not be used
+      unset -f lxc lxc_remote
+    elif [ -e "/snap/lxd/current" ]; then
+      kill_lxd_snap
+    fi
+
+    # If there is '_vm' in the test name, then VM tests are expected to be run.
+    # If LXD_VM_TESTS=1, then VM tests can be run.
+    if [[ "${TEST_CURRENT}" =~ ^test_.*_vm.*$ ]] && [ "${LXD_VM_TESTS}" = "0" ]; then
+      export TEST_UNMET_REQUIREMENT="VM test currently disabled due to LXD_VM_TESTS=0"
+    else
+      # Check for any core dump before running the test
+      if ! check_empty /var/crash/; then
+        echo "==> CORE: coredumps found before running the test"
+        false
+      fi
+
+      # Run test.
+      ${TEST_CURRENT}
+
+      # Check for any core dump after running the test
+      if ! check_empty /var/crash/; then
+        echo "==> CORE: coredumps found after running the test"
+        false
+      fi
+    fi
 
     # Check whether test was skipped due to unmet requirements, and if so check if the test is required and fail.
     if [ -n "${TEST_UNMET_REQUIREMENT}" ]; then
@@ -315,74 +369,77 @@ if [ -n "${GITHUB_ACTIONS:-}" ]; then
     echo ":--- | :---" >> "${GITHUB_STEP_SUMMARY}"
 fi
 
-# Spawn an interactive test shell when invoked as `./main.sh test-shell`.
-# This is useful for quick interactions with LXD and its test suite.
-if [ "${1:-"all"}" = "test-shell" ]; then
-  # yellow
-  export PS1="\[\033[0;33mLXD-TEST\033[0m ${PS1:-\u@\h:\w\$ }\]"
-
-  # The `cleanup` handler must run when exiting a `test-shell` session but if the
-  # last command returned non-0 (like `false`), we don't want to output the debug
-  # information accompanying normal failures.
-  #
-  # If a test script runs into an error, the `cleanup` handler will already have
-  # reported the relevant debug info so there is no need to repeat it when exiting
-  # the `test-shell` environment.
-  #
-  # To do so, swallow any error code returned from the interactive \`test-shell\`.
-  bash --rcfile test-shell.bashrc || true
-
-  exit
-fi
-
 # Preflight check
 if ldd "${_LXC}" | grep -F liblxc; then
     echo "lxc binary must not be linked with liblxc"
     exit 1
 fi
 
-if [ "${LXD_TMPFS:-0}" = "1" ]; then
-  mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=7G
+# Only spawn a new LXD if not done yet.
+if [ -z "${LXD_DIR:-}" ]; then
+    if [ "${LXD_TMPFS:-0}" = "1" ]; then
+      mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751 -o size=8G
+    fi
+
+    mkdir -p "${TEST_DIR}/dev"
+    mount -t tmpfs none "${TEST_DIR}"/dev
+    export LXD_DEVMONITOR_DIR="${TEST_DIR}/dev"
+
+    LXD_CONF=$(mktemp -d -p "${TEST_DIR}" XXX)
+    export LXD_CONF
+
+    LXD_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+    export LXD_DIR
+    chmod +x "${LXD_DIR}"
+    spawn_lxd "${LXD_DIR}" true
+    LXD_ADDR=$(< "${LXD_DIR}/lxd.addr")
+    export LXD_ADDR
 fi
-
-mkdir -p "${TEST_DIR}/dev"
-mount -t tmpfs none "${TEST_DIR}"/dev
-export LXD_DEVMONITOR_DIR="${TEST_DIR}/dev"
-
-LXD_CONF=$(mktemp -d -p "${TEST_DIR}" XXX)
-export LXD_CONF
-
-LXD_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-export LXD_DIR
-chmod +x "${LXD_DIR}"
-spawn_lxd "${LXD_DIR}" true
-LXD_ADDR=$(< "${LXD_DIR}/lxd.addr")
-export LXD_ADDR
 
 export LXD_SKIP_TESTS="${LXD_SKIP_TESTS:-}"
 
 export LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
 
-# This must be enough to accomodate the busybox testimage
+# This must be enough to accommodate the busybox testimage
 export SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
 
-# allow for running a specific set of tests
-if [ "$#" -gt 0 ] && [ "$1" != "all" ] && [ "$1" != "cluster" ] && [ "$1" != "standalone" ]; then
-  run_test "test_${1}"
+# This must be enough to accommodate the ubuntu-minimal-daily:24.04 image
+export SMALLEST_VM_ROOT_DISK="3584MiB"
+export SMALL_VM_ROOT_DISK="${SMALL_VM_ROOT_DISK:-"root,size=${SMALLEST_VM_ROOT_DISK}"}"
+
+# Create GOCOVERDIR if needed
+[ -n "${GOCOVERDIR:-}" ] && mkdir -p "${GOCOVERDIR}"
+
+# Spawn an interactive test shell when invoked as `./main.sh test-shell`.
+# This is useful for quick interactions with LXD and its test suite.
+if [ "${1:-"all"}" = "test-shell" ]; then
+  bash --rcfile test-shell.bashrc || true
+  TEST_CURRENT="test-shell"
+  TEST_CURRENT_DESCRIPTION="n/a"
+  TEST_RESULT=success
+  exit 0
+fi
+
+if [ -n "${SHELL_TRACING:-}" ]; then
+  set -x
+fi
+
+# allow for running a specific set of tests possibly multiple times
+if [ "$#" -gt 0 ] && [ "$1" != "all" ] && [ "$1" != "cluster" ] && [ "$1" != "snap" ] && [ "$1" != "standalone" ]; then
+  for t in "${@}"; do
+    RUN_COUNT=1
+    while [ "${RUN_COUNT}" -le "${LXD_REPEAT_TESTS:-1}" ]; do
+      run_test "test_${t}"
+      RUN_COUNT="$((RUN_COUNT+1))"
+    done
+    shift
+  done
   # shellcheck disable=SC2034
   TEST_RESULT=success
   exit
-else
-  # Since we are executing more than one test, cache the busybox testimage for reuse
-  deps/import-busybox --save-image
-
-  # Avoid `.tar.xz` extension that may conflict with some tests
-  mv busybox.tar.xz busybox.tar.xz.cache
-  export LXD_TEST_IMAGE="busybox.tar.xz.cache"
-  echo "==> Saving testimage for reuse (${LXD_TEST_IMAGE})"
 fi
 
-if [ "${1:-"all"}" != "standalone" ]; then
+if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_enable "clustering enable"
     run_test test_clustering_edit_configuration "clustering config edit"
     run_test test_clustering_membership "clustering membership"
@@ -392,6 +449,7 @@ if [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_network "clustering network"
     run_test test_clustering_publish "clustering publish"
     run_test test_clustering_profiles "clustering profiles"
+    run_test test_clustering_projects_force_delete "clustering projects force delete"
     run_test test_clustering_join_api "clustering join api"
     run_test test_clustering_shutdown_nodes "clustering shutdown"
     run_test test_clustering_projects "clustering projects"
@@ -407,11 +465,13 @@ if [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_ha "clustering high availability"
     run_test test_clustering_handover "clustering handover"
     run_test test_clustering_rebalance "clustering rebalance"
+    run_test test_clustering_rebalance_remove_leader "clustering rebalance remove leader"
     run_test test_clustering_remove_raft_node "clustering remove raft node"
     run_test test_clustering_failure_domains "clustering failure domains"
     run_test test_clustering_image_refresh "clustering image refresh"
     run_test test_clustering_evacuation "clustering evacuation"
     run_test test_clustering_instance_placement_scriptlet "clustering instance placement scriptlet"
+    run_test test_clustering_evacuation_restore_operations "clustering evacuation/restore operations"
     run_test test_clustering_move "clustering move"
     run_test test_clustering_remove_members "clustering config remove members"
     run_test test_clustering_autotarget "clustering autotarget member"
@@ -423,10 +483,12 @@ if [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_uuid "clustering uuid"
     run_test test_clustering_trust_add "clustering trust add"
     run_test test_clustering_waitready "clustering waitready"
+    run_test test_clustering_heal_networks_stop "clustering heal networks stop"
+    run_test test_clustering_force_removal "clustering force removal"
 fi
 
-if [ "${1:-"all"}" != "cluster" ]; then
-    run_test test_concurrent "concurrent startup"
+if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "cluster" ]; then
+    #run_test test_concurrent "concurrent startup" # Disabled as flaky.
     run_test test_concurrent_exec "concurrent exec"
     run_test test_database_restore "database restore"
     run_test test_database_no_disk_space "database out of disk space"
@@ -445,7 +507,6 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_remote_url_with_token "remote token handling"
     run_test test_remote_admin "remote administration"
     run_test test_remote_usage "remote usage"
-    run_test test_vm_empty "Empty VM"
     run_test test_projects_default "default project"
     run_test test_projects_copy "copy/move between projects"
     run_test test_projects_crud "projects CRUD operations"
@@ -463,6 +524,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_projects_yaml "projects with yaml initialization"
     run_test test_projects_before_init "project operations before init"
     run_test test_projects_restrictions "projects restrictions"
+    run_test test_projects_force_delete "projects force delete"
     run_test test_container_devices_disk "container devices - disk"
     run_test test_container_devices_disk_restricted "container devices - disk - restricted"
     run_test test_container_devices_nic_p2p "container devices - nic - p2p"
@@ -503,11 +565,11 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_lxd_benchmark_basic "lxd-benchmark basic init/start/stop/delete"
     run_test test_shutdown "lxd shutdown sequence"
     run_test test_snapshots "container snapshots"
-    run_test test_snap_restore "snapshot restores"
-    run_test test_snap_expiry "snapshot expiry"
-    run_test test_snap_schedule "snapshot scheduling"
-    run_test test_snap_volume_db_recovery "snapshot volume database record recovery"
-    run_test test_snap_fail "snapshot creation failure"
+    run_test test_snapshot_restore "snapshot restores"
+    run_test test_snapshot_expiry "snapshot expiry"
+    run_test test_snapshot_schedule "snapshot scheduling"
+    run_test test_snapshot_volume_db_recovery "snapshot volume database record recovery"
+    run_test test_snapshot_fail "snapshot creation failure"
     run_test test_config_profiles "profiles and configuration"
     run_test test_config_edit "container configuration edit"
     run_test test_property "container property"
@@ -526,6 +588,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_template "file templating"
     run_test test_pki "PKI mode"
     run_test test_devlxd "/dev/lxd"
+    run_test test_devlxd_vm "/dev/lxd VM"
     run_test test_fuidshift "fuidshift"
     run_test test_migration "migration"
     run_test test_fdleak "fd leak"
@@ -553,6 +616,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_resources_bcache "resources bcache"
     run_test test_kernel_limits "kernel limits"
     run_test test_console "console"
+    run_test test_console_vm "console VM"
     run_test test_query "query"
     run_test test_storage_local_volume_handling "storage local volume handling"
     run_test test_backup_import "backup import"
@@ -578,6 +642,16 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_syslog_socket "Syslog socket"
     run_test test_lxd_user "lxd user"
     run_test test_waitready "waitready"
+fi
+
+if [ "${1:-"all"}" != "cluster" ] && [ "${1:-"all"}" != "standalone" ]; then
+    run_test test_vm_empty "Empty VM"
+    run_test test_vm_pcie_bus "VM PCIe bus numbers"
+    run_test test_snap_basic_usage_vm "snap basic usage VM"
+    run_test test_snap_vm_empty "snap empty VM"
+    run_test test_snap_lxd_user "snap lxd-user"
+    run_test test_snap_storage_volume_attach_vm "snap attaching storage volumes to VMs"
+    run_test test_snap_apparmor "snap apparmor restrictions"
 fi
 
 # shellcheck disable=SC2034

@@ -99,6 +99,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 		"security.acls.default.ingress.logged",
 		"security.acls.default.egress.logged",
 		"acceleration",
+		"acceleration.parent",
 		"nested",
 		"vlan",
 	}
@@ -137,6 +138,21 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 
 	d.network = ovnNet // Stored loaded network for use by other functions.
 	netConfig := d.network.Config()
+
+	// Copy certain keys verbatim from the network's settings.
+	inheritKeys := []string{"acceleration.parent"}
+	for _, inheritKey := range inheritKeys {
+		// Unlike other NIC types, OVN NICs always require a `network` setting, so the inherited keys are
+		// only applied from the network definition if not explicitly set on the NIC device itself.
+		if d.config[inheritKey] != "" {
+			continue
+		}
+
+		_, found := netConfig[inheritKey]
+		if found {
+			d.config[inheritKey] = netConfig[inheritKey]
+		}
+	}
 
 	if d.config["ipv4.address"] != "" {
 		// Check that DHCPv4 is enabled on parent network (needed to use static assigned IPs).
@@ -508,8 +524,8 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
-	revert := revert.New()
-	defer revert.Fail()
+	reverter := revert.New()
+	defer reverter.Fail()
 
 	saveData := make(map[string]string)
 	saveData["host_name"] = d.config["host_name"]
@@ -531,7 +547,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	// Setup the host network interface (if not nested).
 	var peerName, integrationBridgeNICName string
 	var mtu uint32
-	var vfPCIDev pcidev.Device
+	var vfPCIDev *pcidev.Device
 	var vDPADevice *ip.VDPADev
 	var pciIOMMUGroup uint64
 
@@ -539,109 +555,14 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 		delete(saveData, "host_name") // Nested NICs don't have a host side interface.
 	} else {
 		switch d.config["acceleration"] {
-		case "sriov":
-			ovs := openvswitch.NewOVS()
-			if !ovs.HardwareOffloadingEnabled() {
-				return nil, errors.New("SR-IOV acceleration requires hardware offloading be enabled in OVS")
-			}
-
-			// If VM, then try and load the vfio-pci module first.
-			if d.inst.Type() == instancetype.VM {
-				err := util.LoadModule("vfio-pci")
-				if err != nil {
-					return nil, fmt.Errorf("Error loading %q module: %w", "vfio-pci", err)
-				}
-			}
-
-			integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
-
-			// Find free VF exclusively.
-			network.SRIOVVirtualFunctionMutex.Lock()
-			vfParent, vfRepresentor, vfDev, vfID, err := network.SRIOVFindFreeVFAndRepresentor(d.state, integrationBridge)
+		case "sriov", "vdpa":
+			var cleanup revert.Hook
+			cleanup, integrationBridgeNICName, peerName, vfPCIDev, pciIOMMUGroup, vDPADevice, err = d.setupAcceleration(saveData)
 			if err != nil {
-				network.SRIOVVirtualFunctionMutex.Unlock()
-				return nil, fmt.Errorf("Failed finding a suitable free virtual function on %q: %w", integrationBridge, err)
+				return nil, fmt.Errorf("Failed setting up acceleration: %w", err)
 			}
 
-			// Claim the SR-IOV virtual function (VF) on the parent (PF) and get the PCI information.
-			vfPCIDev, pciIOMMUGroup, err = networkSRIOVSetupVF(d.deviceCommon, vfParent, vfDev, vfID, false, saveData)
-			if err != nil {
-				network.SRIOVVirtualFunctionMutex.Unlock()
-				return nil, fmt.Errorf("Failed setting up VF: %w", err)
-			}
-
-			revert.Add(func() {
-				_ = networkSRIOVRestoreVF(d.deviceCommon, false, saveData)
-			})
-
-			network.SRIOVVirtualFunctionMutex.Unlock()
-
-			// Setup the guest network interface.
-			if d.inst.Type() == instancetype.Container {
-				err := networkSRIOVSetupContainerVFNIC(saveData["host_name"], d.config)
-				if err != nil {
-					return nil, fmt.Errorf("Failed setting up container VF NIC: %w", err)
-				}
-			}
-
-			integrationBridgeNICName = vfRepresentor
-			peerName = vfDev
-		case "vdpa":
-			ovs := openvswitch.NewOVS()
-			if !ovs.HardwareOffloadingEnabled() {
-				return nil, errors.New("SR-IOV acceleration requires hardware offloading be enabled in OVS")
-			}
-
-			err := util.LoadModule("vdpa")
-			if err != nil {
-				return nil, fmt.Errorf("Error loading %q module: %w", "vdpa", err)
-			}
-
-			// If VM, then try and load the vhost_vdpa module first.
-			if d.inst.Type() == instancetype.VM {
-				err = util.LoadModule("vhost_vdpa")
-				if err != nil {
-					return nil, fmt.Errorf("Error loading %q module: %w", "vhost_vdpa", err)
-				}
-			}
-
-			integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
-
-			// Find free VF exclusively.
-			network.SRIOVVirtualFunctionMutex.Lock()
-			vfParent, vfRepresentor, vfDev, vfID, err := network.SRIOVFindFreeVFAndRepresentor(d.state, integrationBridge)
-			if err != nil {
-				network.SRIOVVirtualFunctionMutex.Unlock()
-				return nil, fmt.Errorf("Failed finding a suitable free virtual function on %q: %w", integrationBridge, err)
-			}
-
-			// Claim the SR-IOV virtual function (VF) on the parent (PF) and get the PCI information.
-			vfPCIDev, pciIOMMUGroup, err = networkSRIOVSetupVF(d.deviceCommon, vfParent, vfDev, vfID, false, saveData)
-			if err != nil {
-				network.SRIOVVirtualFunctionMutex.Unlock()
-				return nil, err
-			}
-
-			revert.Add(func() {
-				_ = networkSRIOVRestoreVF(d.deviceCommon, false, saveData)
-			})
-
-			// Create the vDPA management device
-			vDPADevice, err = ip.AddVDPADevice(vfPCIDev.SlotName, saveData)
-			if err != nil {
-				network.SRIOVVirtualFunctionMutex.Unlock()
-				return nil, err
-			}
-
-			network.SRIOVVirtualFunctionMutex.Unlock()
-
-			// Setup the guest network interface.
-			if d.inst.Type() == instancetype.Container {
-				return nil, errors.New("VDPA acceleration is not supported for containers")
-			}
-
-			integrationBridgeNICName = vfRepresentor
-			peerName = vfDev
+			reverter.Add(cleanup)
 		default:
 			// Create veth pair and configure the peer end with custom hwaddr and mtu if supplied.
 			if d.inst.Type() == instancetype.Container {
@@ -673,7 +594,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 				}
 			}
 
-			revert.Add(func() { _ = network.InterfaceRemove(saveData["host_name"]) })
+			reverter.Add(func() { _ = network.InterfaceRemove(saveData["host_name"]) })
 		}
 	}
 
@@ -699,7 +620,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 			return nil, err
 		}
 
-		revert.Add(cleanup)
+		reverter.Add(cleanup)
 	}
 
 	runConf := deviceConfig.RunConfig{}
@@ -786,8 +707,129 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 		}
 	}
 
-	revert.Success()
+	reverter.Success()
 	return &runConf, nil
+}
+
+// setupAcceleration configures SRIOV and VDPA acceleration. It allocates host-side virtual functions from a
+// physical function (interface) and returns information about the representor port, VF interface and VF device.
+// Accepts saveData which is used to store volatile config keys about the VF allocated.
+func (d *nicOVN) setupAcceleration(saveData map[string]string) (cleanup revert.Hook, vfRepresentor string, vfDev string, vfPCIDev *pcidev.Device, pciIOMMUGroup uint64, vDPADevice *ip.VDPADev, err error) {
+	instType := d.inst.Type()
+	if d.config["acceleration"] == "vdpa" && instType == instancetype.Container {
+		return nil, "", "", nil, 0, nil, errors.New("VDPA acceleration is not supported for containers")
+	}
+
+	ovs := openvswitch.NewOVS()
+	if !ovs.HardwareOffloadingEnabled() {
+		return nil, "", "", nil, 0, nil, errors.New("OVN NIC acceleration requires hardware offloading to be enabled in OVS")
+	}
+
+	if instType == instancetype.VM {
+		// Load required modules for acceleration.
+		switch d.config["acceleration"] {
+		case "sriov":
+			err = util.LoadModule("vfio-pci")
+			if err != nil {
+				return nil, "", "", nil, 0, nil, fmt.Errorf("Error loading %q module: %w", "vfio-pci", err)
+			}
+
+		case "vdpa":
+			err = util.LoadModule("vdpa")
+			if err != nil {
+				return nil, "", "", nil, 0, nil, fmt.Errorf("Error loading %q module: %w", "vdpa", err)
+			}
+
+			err = util.LoadModule("vhost_vdpa")
+			if err != nil {
+				return nil, "", "", nil, 0, nil, fmt.Errorf("Error loading %q module: %w", "vhost_vdpa", err)
+			}
+		}
+	}
+
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	var pfCandidates []network.PFSwitchDevPort
+
+	// Find and setup free VF exclusively.
+	network.SRIOVVirtualFunctionMutex.Lock()
+	defer network.SRIOVVirtualFunctionMutex.Unlock()
+
+	if d.config["acceleration.parent"] != "" {
+		for _, port := range shared.SplitNTrimSpace(d.config["acceleration.parent"], ",", -1, true) {
+			pf, err := network.SRIOVGetSwitchAndPFID(port)
+			if err != nil {
+				return nil, "", "", nil, 0, nil, fmt.Errorf("Failed getting switch and PF ID for port %q: %w", port, err)
+			}
+
+			pfCandidates = append(pfCandidates, *pf)
+		}
+
+		if len(pfCandidates) < 1 {
+			return nil, "", "", nil, 0, nil, errors.New(`No PF candidates specified in "acceleration.parent"`)
+		}
+	} else {
+		// Get all ports on the integration bridge.
+		ports, err := ovs.BridgePortList(d.state.GlobalConfig.NetworkOVNIntegrationBridge())
+		if err != nil {
+			return nil, "", "", nil, 0, nil, fmt.Errorf("Failed to get OVS integration bridge port list: %w", err)
+		}
+
+		for _, port := range ports {
+			pf, err := network.SRIOVGetSwitchAndPFID(port)
+			if err != nil {
+				continue // Skip non-PF ports.
+			}
+
+			pfCandidates = append(pfCandidates, *pf)
+		}
+
+		if len(pfCandidates) < 1 {
+			return nil, "", "", nil, 0, nil, errors.New(`No PF candidates connected to OVS integration bridge. Add PFs to integration bridge or specify via "acceleration.parent"`)
+		}
+	}
+
+	vfParent, vfRepresentor, vfDev, vfID, err := network.SRIOVFindFreeVFAndRepresentor(d.state, pfCandidates)
+	if err != nil {
+		pfCandidateNames := make([]string, 0, len(pfCandidates))
+		for _, pf := range pfCandidates {
+			pfCandidateNames = append(pfCandidateNames, pf.Name)
+		}
+
+		return nil, "", "", nil, 0, nil, fmt.Errorf("Failed allocating acceleration VF from PFs %v: %w", pfCandidateNames, err)
+	}
+
+	// Claim the SR-IOV virtual function (VF) on the parent (PF) and get the PCI information.
+	vfPCIDev, pciIOMMUGroup, err = networkSRIOVSetupVF(d.deviceCommon, vfParent, vfDev, vfID, false, saveData)
+	if err != nil {
+		return nil, "", "", nil, 0, nil, fmt.Errorf("Failed setting up acceleration VF: %w", err)
+	}
+
+	reverter.Add(func() {
+		_ = networkSRIOVRestoreVF(d.deviceCommon, false, saveData)
+	})
+
+	switch d.config["acceleration"] {
+	case "sriov":
+		// Setup the guest network interface.
+		if instType == instancetype.Container {
+			err := networkSRIOVSetupContainerVFNIC(saveData["host_name"], d.config)
+			if err != nil {
+				return nil, "", "", nil, 0, nil, fmt.Errorf("Failed setting up container VF NIC: %w", err)
+			}
+		}
+	case "vdpa":
+		// Create the vDPA management device
+		vDPADevice, err = ip.AddVDPADevice(vfPCIDev.SlotName, saveData)
+		if err != nil {
+			return nil, "", "", nil, 0, nil, err
+		}
+	}
+
+	cleanup = reverter.Clone().Fail
+	reverter.Success()
+	return cleanup, vfRepresentor, vfDev, vfPCIDev, pciIOMMUGroup, vDPADevice, nil
 }
 
 // postStart is run after the device is added to the instance.
@@ -894,7 +936,7 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 }
 
 func (d *nicOVN) findRepresentorPort(volatile map[string]string) (string, error) {
-	physSwitchID, pfID, err := network.SRIOVGetSwitchAndPFID(volatile["last_state.vf.parent"])
+	pf, err := network.SRIOVGetSwitchAndPFID(volatile["last_state.vf.parent"])
 	if err != nil {
 		return "", fmt.Errorf("Failed finding physical parent switch and PF ID to release representor port: %w", err)
 	}
@@ -911,7 +953,7 @@ func (d *nicOVN) findRepresentorPort(volatile map[string]string) (string, error)
 	}
 
 	// Track down the representor port to remove it from the integration bridge.
-	representorPort := network.SRIOVFindRepresentorPort(nics, string(physSwitchID), pfID, vfID)
+	representorPort := network.SRIOVFindRepresentorPort(nics, pf.SwitchID, pf.PFID, vfID)
 	if representorPort == "" {
 		return "", errors.New("Failed finding representor")
 	}

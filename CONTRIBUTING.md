@@ -42,6 +42,8 @@ Use separate commits for different types of changes:
 | **CLI changes**      | Files in `lxc/`                                  | `lxc/<command>: Change XYZ`         |
 | **LXD daemon**       | Files in `lxd/`                                  | `lxd/<package>: Add support for XYZ`|
 | **Tests**            | Files in `tests/`                                | `tests: Add test for XYZ`           |
+| **GitHub**           | Files in `.github/`                              | `github: Update XYZ`                |
+| **Makefile**         | `Makefile`                                       | `Makefile: Update XYZ`              |
 
 Depending on complexity, large changes might be further split into smaller, logical commits. This commit structure facilitates the review process and simplifies backporting fixes to stable branches.
 
@@ -202,7 +204,7 @@ At this point you might want to learn more on {doc}`debugging`.
 
 #### Updating Copilot instruction file
 
-The LXD repository includes a [Copilot instructions file](https://github.com/canonical/lxd/blob/main/.github/copilot-instructions.md) to improve Copilot Code Review responses. When updating this file, include concise context about LXD's architecture, coding standards, and best practices. Clear guidance helps Copilot produce accurate, relevant suggestions. For details and tips, see the documentation on [GitHub Copilot repository custom instructions](https://docs.github.com/en/copilot/how-tos/configure-custom-instructions/add-repository-instructions#about-repository-custom-instructions-for-copilot).
+The LXD repository includes a [Copilot instructions file](https://github.com/canonical/lxd/blob/main/.github/copilot-instructions.md) to improve Copilot Code Review responses. When updating this file, include concise context about LXD's architecture, coding standards, and best practices. Clear guidance helps Copilot produce accurate, relevant suggestions. For details and tips, see the documentation on [GitHub Copilot repository custom instructions](https://docs.github.com/en/copilot/how-tos/configure-custom-instructions/add-repository-instructions).
 
 <!-- Include end contributing -->
 

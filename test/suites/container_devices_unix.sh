@@ -1,4 +1,6 @@
 test_container_devices_unix() {
+  ensure_import_testimage
+
   lxdFSMonitorDriver=${LXD_FSMONITOR_DRIVER:-}
 
   shutdown_lxd "${LXD_DIR}"
@@ -38,7 +40,6 @@ _container_devices_unix() {
     false
   fi
 
-  ensure_import_testimage
   ctName="ct$$"
   lxc launch testimage "${ctName}"
 
@@ -111,12 +112,6 @@ _container_devices_unix() {
   lxc exec "${ctName}" -- mount | grep "/tmp/testdev"
   [ "$(lxc exec "${ctName}" -- stat -c '%F %a %t %T' /tmp/testdev)" = "${deviceTypeDesc} 660 0 0" ]
   [ "$(stat -c '%F %a %t %T' "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev)" = "${deviceTypeDesc} 660 0 0" ]
-
-  # Check removal of mount point devices created in /dev.
-  lxc config device add "${ctName}" test-dev5 disk source=/dev/zero path=/dev/test
-  lxc config device remove "${ctName}" test-dev5
-  ! lxc exec "${ctName}" -- mount | grep -F "/dev/test" || false
-  ! lxc exec "${ctName}" -- test -e /dev/test || false
 
   # Remove host side device and check it is dynamically removed from instance.
   rm "${testDev}"

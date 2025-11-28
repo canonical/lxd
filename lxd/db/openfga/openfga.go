@@ -81,10 +81,10 @@ type RequestCache struct {
 //   - This method doesn't actually perform any queries (win!).
 //   - If we change our design to use entity IDs directly, this method will need to change so that we can return the correct project ID.
 //     (Currently we don't need to as the project name is already in the URL).
-func (o *openfgaStore) Read(ctx context.Context, s string, key *openfgav1.TupleKey, options storage.ReadOptions) (storage.TupleIterator, error) {
-	obj := key.GetObject()
-	relation := key.GetRelation()
-	user := key.GetUser()
+func (o *openfgaStore) Read(ctx context.Context, s string, key storage.ReadFilter, options storage.ReadOptions) (storage.TupleIterator, error) {
+	obj := key.Object
+	relation := key.Relation
+	user := key.User
 
 	hasObj := obj != ""
 	hasRelation := relation != ""
@@ -209,9 +209,9 @@ func (o *openfgaStore) Read(ctx context.Context, s string, key *openfgav1.TupleK
 // Implementation:
 //   - The tuples that this method is meant to return have been passed in contextually. So validate the input matches
 //     what is expected and return nil.
-func (o *openfgaStore) ReadUserTuple(ctx context.Context, store string, tk *openfgav1.TupleKey, options storage.ReadUserTupleOptions) (*openfgav1.Tuple, error) {
+func (o *openfgaStore) ReadUserTuple(ctx context.Context, store string, filter storage.ReadUserTupleFilter, options storage.ReadUserTupleOptions) (*openfgav1.Tuple, error) {
 	// Expect the User field to be present.
-	user := tk.GetUser()
+	user := filter.User
 	if user == "" {
 		return nil, errors.New("ReadUserTuple: User field of tuple key must be provided")
 	}
@@ -793,7 +793,7 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 }
 
 // ReadPage is not implemented. It is not required for the functionality we need.
-func (*openfgaStore) ReadPage(ctx context.Context, store string, tk *openfgav1.TupleKey, opts storage.ReadPageOptions) ([]*openfgav1.Tuple, string, error) {
+func (*openfgaStore) ReadPage(ctx context.Context, store string, tk storage.ReadFilter, opts storage.ReadPageOptions) ([]*openfgav1.Tuple, string, error) {
 	return nil, "", api.NewGenericStatusError(http.StatusNotImplemented)
 }
 

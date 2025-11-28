@@ -167,39 +167,40 @@ else:
 ### Link checker
 ############################################################
 
-# Links to ignore when checking links
+# Always ignore these links
 linkcheck_ignore = [
-    'https://127.0.0.1:8443',
-    'https://127.0.0.1:8443/1.0',
-    'https://web.libera.chat/#lxd',
-    'http://localhost:8000',
-    'http://localhost:8080',
-    'http://localhost:8080/admin',
-    r'/lxd/stable-5.21/api/.*',
-    r'/api/.*',
-    # Those links may fail from time to time
-    'https://www.dell.com/',
-    'https://www.dell.com/en-us/shop/powerflex/sf/powerflex',
-    'https://www.gnu.org/licenses/agpl-3.0.en.html',
-    r"https://ceph\.io(/.*)?",
-    # Blocked from GH runners
-    'https://www.schlachter.tech/solutions/pongo2-template-engine/',
-    r"https://.*\.sourceforge\.net/.*",
-    'https://www.hpe.com/emea_europe/en/hpe-alletra.html',
-    r'https://.*canonical\.com/.*',
-    r'https://snapcraft\.io/.*',
-    r'https://ubuntu\.com/.*',
-    r'https://bugs\.launchpad\.net/.*',
-    r'https://microcloud\.is/.*',
+    r"https?://localhost.*",
+    r"https?://127\.0\.0\.1.*",
+    r"/api.*",
+    # These links often/always fail both locally and in GitHub CI
+    r"https://ceph\.io.*",
+    r"https://.*\.sourceforge\.net.*",
+    r"https://www\.gnu\.org.*",
+    # These links often fail due to infra issues
+    r"https://.*\.canonical\.com.*",
+    r"https://snapcraft\.io.*",
+    r"https://ubuntu\.com.*",
+    r"https://.*\.launchpad\.net.*",
+    # Ignore so that we can link change log in release notes before a release is ready
+    r"https://github\.com/canonical/lxd/compare.*",
 ]
+
+# Ignore these links in GitHub CI due to site restrictions causing failures
+# In local checks, they are not ignored and should pass
+if os.environ.get("CI") == "true":
+    linkcheck_ignore.extend([
+        r"https://www\.hpe\.com.*",
+        r"https://www\.schlachter\.tech.*",
+        r"https://www\.dell\.com.*",
+    ])
 
 # Pages on which to ignore anchors
 # (This list will be appended to linkcheck_anchors_ignore_for_url)
-
 custom_linkcheck_anchors_ignore_for_url = [
     r'https://snapcraft\.io/docs/.*',
     'https://docs.docker.com/network/packet-filtering-firewalls/',
-    'https://maas.io/docs/how-to-manage-machines'
+    'https://maas.io/docs/how-to-manage-machines',
+    'https://web.libera.chat'
 ]
 
 linkcheck_exclude_documents = [r'.*/manpages/.*']

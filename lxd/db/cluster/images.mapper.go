@@ -89,12 +89,6 @@ SELECT images.id, projects.name AS project, images.fingerprint, images.type, ima
   ORDER BY projects.id, images.fingerprint
 `)
 
-// imageColumns returns a string of column names to be used with a SELECT statement for the entity.
-// Use this function when building statements to retrieve database entries matching the Image entity.
-func imageColumns() string {
-	return "images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update"
-}
-
 // getImages can be used to run handwritten sql.Stmts to return a slice of objects.
 func getImages(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Image, error) {
 	objects := make([]Image, 0)

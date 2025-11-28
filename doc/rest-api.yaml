@@ -969,6 +969,24 @@ definitions:
         title: IdentityProviderGroupPut contains the editable fields of an IdentityProviderGroup.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
+    IdentityProviderGroupsPost:
+        properties:
+            groups:
+                description: Groups are the groups the IdP group resolves to.
+                example:
+                    - foo
+                    - bar
+                items:
+                    type: string
+                type: array
+                x-go-name: Groups
+            name:
+                description: Name is the name of the IdP group.
+                type: string
+                x-go-name: Name
+        title: IdentityProviderGroupsPost is used for creating an IdentityProviderGroup.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
     IdentityPut:
         properties:
             groups:
@@ -2763,49 +2781,49 @@ definitions:
             bytes_received:
                 description: Number of bytes received
                 example: 192021
-                format: int64
+                format: uint64
                 type: integer
                 x-go-name: BytesReceived
             bytes_sent:
                 description: Number of bytes sent
                 example: 10888579
-                format: int64
+                format: uint64
                 type: integer
                 x-go-name: BytesSent
             errors_received:
                 description: Number of errors received
                 example: 14
-                format: int64
+                format: uint64
                 type: integer
                 x-go-name: ErrorsReceived
             errors_sent:
                 description: Number of errors sent
                 example: 41
-                format: int64
+                format: uint64
                 type: integer
                 x-go-name: ErrorsSent
             packets_dropped_inbound:
                 description: Number of inbound packets dropped
                 example: 179
-                format: int64
+                format: uint64
                 type: integer
                 x-go-name: PacketsDroppedInbound
             packets_dropped_outbound:
                 description: Number of outbound packets dropped
                 example: 541
-                format: int64
+                format: uint64
                 type: integer
                 x-go-name: PacketsDroppedOutbound
             packets_received:
                 description: Number of packets received
                 example: 1748
-                format: int64
+                format: uint64
                 type: integer
                 x-go-name: PacketsReceived
             packets_sent:
                 description: Number of packets sent
                 example: 964
-                format: int64
+                format: uint64
                 type: integer
                 x-go-name: PacketsSent
         type: object
@@ -3991,25 +4009,25 @@ definitions:
             bytes_received:
                 description: Number of bytes received
                 example: 250542118
-                format: int64
+                format: uint64
                 type: integer
                 x-go-name: BytesReceived
             bytes_sent:
                 description: Number of bytes sent
                 example: 17524040140
-                format: int64
+                format: uint64
                 type: integer
                 x-go-name: BytesSent
             packets_received:
                 description: Number of packets received
                 example: 1182515
-                format: int64
+                format: uint64
                 type: integer
                 x-go-name: PacketsReceived
             packets_sent:
                 description: Number of packets sent
                 example: 1567934
-                format: int64
+                format: uint64
                 type: integer
                 x-go-name: PacketsSent
         type: object
@@ -8166,7 +8184,7 @@ paths:
                   name: group
                   required: true
                   schema:
-                    $ref: '#/definitions/IdentityProviderGroup'
+                    $ref: '#/definitions/IdentityProviderGroupsPost'
             produces:
                 - application/json
             responses:
@@ -14951,6 +14969,11 @@ paths:
         delete:
             description: Removes the project.
             operationId: project_delete
+            parameters:
+                - description: Force delete project and its entities
+                  in: query
+                  name: force
+                  type: boolean
             produces:
                 - application/json
             responses:
@@ -16277,6 +16300,8 @@ paths:
                     $ref: '#/responses/Forbidden'
                 "412":
                     $ref: '#/responses/PreconditionFailed'
+                "423":
+                    $ref: '#/responses/StatusLocked'
                 "500":
                     $ref: '#/responses/InternalServerError'
             summary: Partially update the storage volume
@@ -16357,6 +16382,8 @@ paths:
                     $ref: '#/responses/Forbidden'
                 "412":
                     $ref: '#/responses/PreconditionFailed'
+                "423":
+                    $ref: '#/responses/StatusLocked'
                 "500":
                     $ref: '#/responses/InternalServerError'
             summary: Update the storage volume
@@ -17760,6 +17787,24 @@ responses:
                     x-go-name: Error
                 error_code:
                     example: 412
+                    format: int64
+                    type: integer
+                    x-go-name: ErrorCode
+                type:
+                    example: error
+                    type: string
+                    x-go-name: Type
+            type: object
+    StatusLocked:
+        description: Status Locked
+        schema:
+            properties:
+                error:
+                    example: status locked
+                    type: string
+                    x-go-name: Error
+                error_code:
+                    example: 423
                     format: int64
                     type: integer
                     x-go-name: ErrorCode
