@@ -1998,7 +1998,7 @@ func (d *zfs) getVolumeDiskPathFromDataset(dataset string) (string, error) {
 		defer func() { _ = r.Close() }()
 
 		// Perform the BLKZNAME ioctl.
-		buf := [256]byte{}
+		buf := [linux.ZFSMaxDatasetNameLen]byte{}
 		_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(r.Fd()), linux.IoctlBlkZname, uintptr(unsafe.Pointer(&buf)))
 		if errno != 0 {
 			return ""
