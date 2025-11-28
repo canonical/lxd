@@ -369,15 +369,6 @@ jobs:
           ls -lR /home/runner/go/bin/
           chmod uog+x /home/runner/go/bin/*
 
-      - name: Purge LXD snap
-        # TODO: drop this when moving away from `ubuntu-22.04` runners to `ubuntu-24.04`
-        if: ${{ matrix.backend == 'ceph' }}
-        run: |
-          set -eux
-          # LXD snap holds on to the swap that prevents the clearing of the ephemeral disk for microceph
-          # https://github.com/canonical/lxd/issues/14768
-          sudo snap remove --purge lxd
-
       - name: Setup MicroCeph
         if: ${{ matrix.backend == 'ceph' }}
         uses: ./.github/actions/setup-microceph
