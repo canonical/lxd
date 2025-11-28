@@ -4719,7 +4719,7 @@ If this option is not specified, LXD falls back to the `NO_PROXY` environment va
 ```
 
 ```{config:option} core.remote_token_expiry server-core
-:defaultdesc: "no expiry"
+:defaultdesc: "`15d`"
 :scope: "global"
 :shortdesc: "Time after which a remote add token expires"
 :type: "string"

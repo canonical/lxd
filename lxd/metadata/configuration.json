@@ -5282,7 +5282,7 @@
 					},
 					{
 						"core.remote_token_expiry": {
-							"defaultdesc": "no expiry",
+							"defaultdesc": "`15d`",
 							"longdesc": "",
 							"scope": "global",
 							"shortdesc": "Time after which a remote add token expires",
