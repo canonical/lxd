@@ -1343,6 +1343,12 @@ test_projects_before_init() {
 }
 
 test_projects_images_volume() {
+  # Do not depend on previous test deleting the testimage as it is often
+  # left behind to avoid the overhead of re-importing it
+  if lxc image alias list testimage | grep -wF "testimage"; then
+      lxc image delete testimage
+  fi
+
   pool="lxdtest-$(basename "${LXD_DIR}")"
   lxc storage volume create "${pool}" vol
 
