@@ -78,6 +78,8 @@ jobs:
     if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
     name: Code
     runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.build.outputs.matrix }}
     steps:
       - name: Checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
@@ -244,20 +246,7 @@ jobs:
             /home/runner/go/bin/sysinfo
           retention-days: 1
 
-  # Build the system-tests matrix dynamically
-  system-tests-matrix:
-    name: Build system-tests matrix
-    needs: code-tests
-    runs-on: ubuntu-24.04
-    outputs:
-      matrix: ${{ steps.build.outputs.matrix }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
-        with:
-          persist-credentials: false
-
-      - name: Compute matrix
+      - name: Compute system-tests matrix
         id: build
         run: |
           set -eux
@@ -307,10 +296,12 @@ jobs:
 
           # Trim trailing comma and close JSON
           matrix="${matrix%,}]}"
-          echo "matrix=${matrix}" >> "$GITHUB_OUTPUT"
 
           # Pretty print the resulting matrix
           jq <<< "${matrix}"
+
+          # Export the matrix
+          echo "matrix=${matrix}" >> "$GITHUB_OUTPUT"
 
   system-tests:
     env:
@@ -329,10 +320,10 @@ jobs:
     if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
     name: System
     runs-on: ubuntu-24.04
-    needs: [code-tests, system-tests-matrix]
+    needs: code-tests
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.system-tests-matrix.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.code-tests.outputs.matrix) }}
 
     steps:
       - name: Checkout
