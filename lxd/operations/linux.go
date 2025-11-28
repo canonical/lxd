@@ -9,7 +9,9 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 func registerDBOperation(op *Operation, opType operationtype.Type) error {
@@ -77,4 +79,60 @@ func (op *Operation) sendEvent(eventMessage any) {
 	}
 
 	_ = op.events.Send(op.projectName, api.EventTypeOperation, eventMessage)
+}
+
+// RestartDurableOperationsFromNode restarts all durable operations that were running on node,
+// which failed to respond to heartbeats.
+func RestartDurableOperationsFromNode(ctx context.Context, s *state.State, nodeID int64) error {
+	var projects map[int64]string
+	var err error
+	var dbOps []cluster.Operation
+
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// See if there are any durable operations running on this node which need to be restarted.
+		durableClass := (int64)(OperationClassDurable)
+		filter := cluster.OperationFilter{NodeID: &nodeID, Class: &durableClass}
+		dbOps, err = cluster.GetOperations(ctx, tx.Tx(), filter)
+		if err != nil {
+			return fmt.Errorf("Failed loading durable operations for the node %d: %w", nodeID, err)
+		}
+
+		projects, err = cluster.GetProjectIDsToNames(ctx, tx.Tx())
+		if err != nil {
+			return fmt.Errorf("Failed loading project IDs to names: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, dbOp := range dbOps {
+		var projectName string
+
+		// Load the project name if provided.
+		if dbOp.ProjectID != nil {
+			var ok bool
+			projectName, ok = projects[*dbOp.ProjectID]
+			if !ok {
+				logger.Warn("Project ID not found in the map of projects", logger.Ctx{"projectID": *dbOp.ProjectID})
+				continue
+			}
+		}
+
+		op, err := CreateDurableOperation(ctx, s, dbOp.UUID, projectName, dbOp.Type, nil, nil)
+
+		if err != nil {
+			logger.Warn("Failed creating durable operation", logger.Ctx{"err": err})
+			continue
+		}
+
+		err = op.Start()
+		if err != nil {
+			logger.Warn("Failed starting durable operation", logger.Ctx{"err": err})
+		}
+	}
+
+	return nil
 }
