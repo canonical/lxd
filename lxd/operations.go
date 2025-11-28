@@ -1154,6 +1154,33 @@ type operationWaitPost struct {
 	ConflictReference string              `json:"conflict_reference" yaml:"conflict_reference"`
 }
 
+func init() {
+	operations.RegisterDurableOperationRunHook(operationtype.Wait, waitHandlerOperationRunHook)
+}
+
+const operationInputKeyWaitHandlerDuration operations.InputKey = "duration"
+
+func waitHandlerOperationRunHook(ctx context.Context, op *operations.Operation) error {
+	inputDuration, err := operations.GetOperationInputValue[string](op, operationInputKeyWaitHandlerDuration)
+	if err != nil {
+		return err
+	}
+
+	duration, err := time.ParseDuration(inputDuration)
+	if err != nil {
+		return fmt.Errorf("Invalid duration: %w", err)
+	}
+
+	// Sleep for the duration, or until the run context is cancelled.
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.Tick(duration):
+	}
+
+	return nil
+}
+
 // operationWaitHandler creates a dummy operation that waits for a specified duration.
 func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 	// Extract the entity URL and duration from the request.
@@ -1163,28 +1190,9 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Parse the duration.
-	duration, err := time.ParseDuration(req.Duration)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
 	err = operationtype.Validate(req.OpType)
 	if err != nil {
 		return response.BadRequest(fmt.Errorf("Invalid operation type code %d", req.OpType))
-	}
-
-	run := func(ctx context.Context, op *operations.Operation) error {
-		// Sleep for the duration, or until the run context is cancelled.
-		timer := time.NewTimer(duration)
-		defer timer.Stop()
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-timer.C:
-		}
-
-		return nil
 	}
 
 	var entityURL *api.URL
@@ -1205,17 +1213,27 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	args := operations.OperationArgs{
+	args := &operations.OperationArgs{
 		ProjectName:       request.QueryParam(r, "project"),
 		Type:              req.OpType,
 		Class:             req.OpClass,
-		RunHook:           run,
+		RunHook:           waitHandlerOperationRunHook,
 		ConnectHook:       onConnect,
 		EntityURL:         entityURL,
 		ConflictReference: req.ConflictReference,
 	}
 
-	op, err := operations.ScheduleServerOperation(d.State(), args)
+	err = args.SetInputValue(operationInputKeyWaitHandlerDuration, req.Duration)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Can't set the run hook for durable operations.
+	if args.Class == operationtype.OperationClassDurable {
+		args.RunHook = nil
+	}
+
+	op, err := operations.ScheduleServerOperation(d.State(), *args)
 	if err != nil {
 		return response.InternalError(err)
 	}
