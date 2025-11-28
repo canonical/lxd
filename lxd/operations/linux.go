@@ -273,5 +273,14 @@ func ConstructOperationFromDB(ctx context.Context, tx *sql.Tx, s *state.State, d
 		}
 	}
 
+	if op.class == OperationClassDurable {
+		runHook, ok := durableOperations[op.dbOpType]
+		if !ok {
+			return nil, fmt.Errorf("No durable operation handlers defined for operation type %d (%q)", op.dbOpType, op.dbOpType.Description())
+		}
+
+		op.onRun = runHook
+	}
+
 	return &op, nil
 }
