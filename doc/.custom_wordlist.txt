@@ -283,6 +283,7 @@ Solaris
 SPAs
 SPL
 SquashFS
+SQLite
 SSDs
 SSL
 SSO
