@@ -14,13 +14,13 @@ runs:
         DATE="$(date --utc '+%Y%m%d')"
         YESTERDAY="$(date --utc '+%Y%m%d' --date=yesterday)"
 
-        # i.e: deps-ubuntu-22.04-amd64-${DATE}
-        echo "KEY=deps-${ID}-${VERSION_ID}-${ARCH}-${DATE}" >> $GITHUB_OUTPUT
-        echo "FALLBACK_KEY=deps-${ID}-${VERSION_ID}-${ARCH}-${YESTERDAY}" >> $GITHUB_OUTPUT
+        # dqlite/liblxc deps cache key
+        eval "$(grep -E '^(DQLITE|LIBLXC)_BRANCH=' Makefile)"
 
-        echo "ARCH=${ARCH}" >> $GITHUB_OUTPUT
-        echo "DATE=${DATE}" >> $GITHUB_OUTPUT
-        echo "YESTERDAY=${YESTERDAY}" >> $GITHUB_OUTPUT
+        # i.e: deps-ubuntu-24.04-amd64-dqlite-main-liblxc-main-${DATE}
+        KEY_PREFIX="deps-${ID}-${VERSION_ID}-${ARCH}-dqlite-${DQLITE_BRANCH}-liblxc-${LIBLXC_BRANCH}"
+        echo "KEY=${KEY_PREFIX}-${DATE}" >> $GITHUB_OUTPUT
+        echo "FALLBACK_KEY=${KEY_PREFIX}-${YESTERDAY}" >> $GITHUB_OUTPUT
 
     # GitHub will remove any cache entries that have not been accessed in over 7 days.
     # https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/caching-dependencies-to-speed-up-workflows#usage-limits-and-eviction-policy
@@ -32,11 +32,8 @@ runs:
           /home/runner/go/bin/dqlite
           /home/runner/go/bin/liblxc
         key: ${{ steps.deps-cache-key.outputs.KEY }}
-        # Binaries built on 22.04 can be used on 24.04
         restore-keys: |
           ${{ steps.deps-cache-key.outputs.FALLBACK_KEY }}
-          deps-ubuntu-22.04-${{ steps.deps-cache-key.outputs.ARCH }}-${{ steps.deps-cache-key.outputs.DATE }}
-          deps-ubuntu-22.04-${{ steps.deps-cache-key.outputs.ARCH }}-${{ steps.deps-cache-key.outputs.YESTERDAY }}
 
     - name: Build LXD dependencies
       if: ${{ steps.cache-deps.outputs.cache-hit != 'true' }}
