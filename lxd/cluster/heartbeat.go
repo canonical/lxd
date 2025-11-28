@@ -12,8 +12,10 @@ import (
 	"time"
 
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/db/warningtype"
+	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/task"
@@ -187,9 +189,26 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, s *state.State, networkCe
 			logger.Warn("Failed heartbeat", logger.Ctx{"remote": address, "err": err})
 
 			if ctx.Err() == nil {
+				var errOps error
+				var localNodeID int64
+				var ops []cluster.Operation
 				err = hbState.cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+					// See if there are any durable operations running on this node which need to be restarted.
+					durableClass := (int64)(operations.OperationClassDurable)
+					filter := cluster.OperationFilter{NodeID: &nodeID, Class: &durableClass}
+					ops, errOps = cluster.GetOperations(ctx, tx.Tx(), filter)
+					localNodeID = tx.GetNodeID()
+
 					return tx.UpsertWarningLocalNode(ctx, "", entity.TypeClusterMember, int(nodeID), warningtype.OfflineClusterMember, err.Error())
 				})
+				if errOps != nil {
+					logger.Warn("Failed to load durable operations for the node", logger.Ctx{"node_id": nodeID, "err": errOps})
+				} else {
+					if len(ops) > 0 {
+						errOps = operations.RestartDurableOperationsFromNode(ctx, s, localNodeID, ops)
+					}
+				}
+
 				if err != nil {
 					logger.Warn("Failed to create warning", logger.Ctx{"err": err})
 				}
