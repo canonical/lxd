@@ -648,11 +648,11 @@ if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "cluster" ]; then
     run_test test_syslog_socket "Syslog socket"
     run_test test_lxd_user "lxd user"
     run_test test_waitready "waitready"
+    run_test test_vm_empty "Empty VM"
+    run_test test_vm_pcie_bus "VM PCIe bus numbers"
 fi
 
 if [ "${1:-"all"}" != "cluster" ] && [ "${1:-"all"}" != "standalone" ]; then
-    run_test test_vm_empty "Empty VM"
-    run_test test_vm_pcie_bus "VM PCIe bus numbers"
     run_test test_snap_basic_usage_vm "snap basic usage VM"
     run_test test_snap_vm_empty "snap empty VM"
     run_test test_snap_lxd_user "snap lxd-user"
