@@ -343,8 +343,8 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SyncResponse(true, nil)
 	}
 
-	// Send notification to other cluster members to extend the node schema.
-	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+	// Send notification to all cluster members to extend the node schema.
+	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAll)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1003,8 +1003,8 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		// Send notification to other cluster members to update the node schema.
-		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+		// Send notification to all cluster members to update the node schema.
+		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAll)
 		if err != nil {
 			return err
 		}
@@ -1293,16 +1293,12 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	notifyPolicy := cluster.NotifyAlive
 	if force {
 		// Force delete all project entities from the local node.
 		err = doProjectForceDelete(r.Context(), s, name)
 		if err != nil {
 			return response.SmartError(err)
 		}
-
-		// Require all cluster members to process cluster notification to avoid having cluster members with leftover project entities.
-		notifyPolicy = cluster.NotifyAll
 	}
 
 	// Clear the project-specific config keys from the local node config.
@@ -1311,8 +1307,9 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Send notification to other cluster members to update the node schema and handle force deletion (if requested).
-	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), notifyPolicy)
+	// Send notification to all cluster members to update the node schema and handle forced project deletion (if requested).
+	// Require all cluster members to process cluster notification to avoid leaving cluster members in an inconsistent state.
+	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAll)
 	if err != nil {
 		return response.SmartError(err)
 	}
