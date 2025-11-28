@@ -120,6 +120,12 @@ type Operation struct {
 	events *events.Server
 }
 
+// DurableOperationHandlers represents the set of handlers required for a durable operation.
+type DurableOperationHandlers *struct {
+	OnRun    func(*Operation) error
+	OnCancel func(*Operation) error
+}
+
 // OperationCreate creates a new operation and returns it. If it cannot be
 // created, it returns an error.
 func OperationCreate(ctx context.Context, s *state.State, opUUID string, projectName string, opClass OperationClass, opType operationtype.Type, opResources map[string][]api.URL, opMetadata any, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error) (*Operation, error) {
@@ -726,4 +732,15 @@ func (op *Operation) Class() OperationClass {
 // Type returns the db operation type.
 func (op *Operation) Type() operationtype.Type {
 	return op.dbOpType
+}
+
+var durableOperations map[operationtype.Type]DurableOperationHandlers
+
+// InitDurableOperations initializes the durable operations table.
+// As durable operations can be restarted on other nodes, the durable operation handlers cannot be defined only in the memory of the node.
+// Therefore we maintain a static map of durable operation handlers based on operation type.
+// As this map contains handlers from across many packages, the table itself is defined in the main package.
+// Because this table needs to be accessible from the operations package, we provide this Init function to set it.
+func InitDurableOperations(opTable map[operationtype.Type]DurableOperationHandlers) {
+	durableOperations = opTable
 }
