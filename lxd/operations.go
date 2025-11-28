@@ -1405,6 +1405,27 @@ type operationWaitPost struct {
 	ConflictReference string                    `json:"conflict_reference" yaml:"conflict_reference"`
 }
 
+func waitHandlerOperationRunHook(ctx context.Context, op *operations.Operation) error {
+	inputDuration, ok := op.Inputs()["duration"].(string)
+	if !ok {
+		return errors.New("Missing duration input")
+	}
+
+	duration, err := time.ParseDuration(inputDuration)
+	if err != nil {
+		return fmt.Errorf("Invalid duration: %w", err)
+	}
+
+	// Sleep for the duration, or until the run context is cancelled.
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.Tick(duration):
+	}
+
+	return nil
+}
+
 // operationWaitHandler creates a dummy operation that waits for a specified duration.
 func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 	// Extract the entity URL and duration from the request.
@@ -1425,15 +1446,8 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid operation type code %d", req.OpType))
 	}
 
-	run := func(ctx context.Context, op *operations.Operation) error {
-		// Sleep for the duration, or until the run context is cancelled.
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.Tick(duration):
-		}
-
-		return nil
+	inputs := map[string]any{
+		"duration": duration.String(),
 	}
 
 	u, err := url.Parse(req.EntityURL)
@@ -1453,9 +1467,10 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		ProjectName:       request.QueryParam(r, "project"),
 		Type:              req.OpType,
 		Class:             req.OpClass,
-		RunHook:           run,
+		RunHook:           waitHandlerOperationRunHook,
 		ConnectHook:       onConnect,
 		EntityURL:         &api.URL{URL: *u},
+		Inputs:            inputs,
 		ConflictReference: req.ConflictReference,
 	}
 
