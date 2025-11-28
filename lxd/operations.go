@@ -1362,7 +1362,13 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	op, err := operations.OperationCreate(r.Context(), d.State(), "", request.QueryParam(r, "project"), req.OpClass, req.OpType, resources, metadata, waitHandlerOperationOnRun, nil, onConnect)
+	var op *operations.Operation
+	if req.OpClass == operations.OperationClassDurable {
+		op, err = operations.CreateDurableOperation(r.Context(), d.State(), "", request.QueryParam(r, "project"), req.OpType, resources, metadata)
+	} else {
+		op, err = operations.OperationCreate(r.Context(), d.State(), "", request.QueryParam(r, "project"), req.OpClass, req.OpType, resources, metadata, waitHandlerOperationOnRun, nil, onConnect)
+	}
+
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -1370,4 +1376,8 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
-var DurableOperations = map[operationtype.Type]operations.DurableOperationHandlers{}
+var DurableOperations = map[operationtype.Type]operations.DurableOperationHandlers{
+	operationtype.Wait: {
+		OnRun: waitHandlerOperationOnRun,
+	},
+}

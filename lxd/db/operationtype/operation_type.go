@@ -80,6 +80,7 @@ const (
 	ProfileUpdate
 	VolumeUpdate
 	VolumeDelete
+	Wait
 )
 
 // Description return a human-readable description of the operation type.
@@ -211,6 +212,8 @@ func (t Type) Description() string {
 		return "Healing cluster"
 	case RemoveExpiredOIDCSessions:
 		return "Remove expired OIDC sessions"
+	case Wait:
+		return "Just chilling"
 	default:
 		return "Executing operation"
 	}
