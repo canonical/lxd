@@ -1299,6 +1299,17 @@ type operationWaitPost struct {
 	Resources map[string][]string       `json:"resources" yaml:"resources"`
 }
 
+func waitHandlerOperationOnRun(op *operations.Operation) error {
+	duration, ok := op.Metadata()["duration"].(time.Duration)
+	if !ok {
+		return errors.New("Invalid duration metadata")
+	}
+
+	// Just sleep for the duration.
+	time.Sleep(duration)
+	return nil
+}
+
 // operationWaitHandler creates a dummy operation that waits for a specified duration.
 func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 	// Extract the entity URL and duration from the request.
@@ -1339,10 +1350,8 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid operation type %q", req.OpType))
 	}
 
-	run := func(op *operations.Operation) error {
-		// Just sleep for the duration.
-		time.Sleep(duration)
-		return nil
+	metadata := map[string]time.Duration{
+		"duration": duration,
 	}
 
 	var onConnect func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error
@@ -1353,7 +1362,7 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	op, err := operations.OperationCreate(r.Context(), d.State(), "", request.QueryParam(r, "project"), req.OpClass, req.OpType, resources, nil, run, nil, onConnect)
+	op, err := operations.OperationCreate(r.Context(), d.State(), "", request.QueryParam(r, "project"), req.OpClass, req.OpType, resources, metadata, waitHandlerOperationOnRun, nil, onConnect)
 	if err != nil {
 		return response.InternalError(err)
 	}
