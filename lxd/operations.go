@@ -1369,3 +1369,5 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 
 	return operations.OperationResponse(op)
 }
+
+var DurableOperations = map[operationtype.Type]operations.DurableOperationHandlers{}
