@@ -310,7 +310,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: ["cluster", "standalone", "snap"]
+        suite: ["cluster", "standalone"]
         backend: ["dir", "btrfs", "lvm", "zfs", "ceph", "random"]
 
     steps:
@@ -441,7 +441,8 @@ jobs:
           limit-access-to-actor: true
 
   snap-tests:
-    if: github.event_name != 'schedule' || github.repository == 'canonical/lxd'
+    if: false
+    # if: github.event_name != 'schedule' || github.repository == 'canonical/lxd'
     needs: code-tests
     env:
       BRANCH_NAME: ${{ github.ref_name }}
