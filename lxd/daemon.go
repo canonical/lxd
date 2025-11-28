@@ -1113,6 +1113,9 @@ func (d *Daemon) init() error {
 
 	var err error
 
+	// Hack to make a durable operations handler map defined in the main package available to the operations
+	operations.InitDurableOperations(DurableOperations)
+
 	// Set default authorizer.
 	d.authorizer, err = authDrivers.LoadAuthorizer(d.shutdownCtx, authDrivers.DriverTLS, logger.Log)
 	if err != nil {
