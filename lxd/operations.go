@@ -62,6 +62,11 @@ var operationWebsocket = APIEndpoint{
 	Get: APIEndpointAction{Handler: operationWebsocketGet, AllowUntrusted: true},
 }
 
+// DurableOperations is the table of durable operations handlers.
+// This is needed so that we can always find the right handlers based on the operation type.
+// We want this in the main package so the table can contain handlers from various other packages.
+var DurableOperations = operations.DurableOperationTable{}
+
 // runningInstanceOperations returns a map of project name to map of instance name to list of running operations.
 // This is used to determine if an instance is busy and should not be shut down immediately.
 func runningInstanceOperations() map[string]map[string][]*operations.Operation {
