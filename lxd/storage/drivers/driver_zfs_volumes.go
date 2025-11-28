@@ -2229,7 +2229,7 @@ func (d *zfs) deactivateVolume(vol Volume) (bool, error) {
 			return false, fmt.Errorf("Failed to deactivate zvol after %v", waitDuration)
 		}
 
-		// Wait for ZFS a chance to flush and udev to remove the device path.
+		// Wait for ZFS to remove the device path.
 		d.logger.Debug("Waiting for ZFS volume to deactivate", logger.Ctx{"volName": vol.name, "dev": dataset, "path": devPath, "attempt": i})
 
 		if i <= 5 {
@@ -3132,9 +3132,6 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 				return nil, err
 			}
 
-			// Wait half a second to give udev a chance to kick in.
-			time.Sleep(500 * time.Millisecond)
-
 			d.logger.Debug("Activated ZFS snapshot volume", logger.Ctx{"dev": snapshotDataset})
 		}
 
@@ -3180,9 +3177,6 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 						d.logger.Warn("Failed setting volmode=none on ZFS volume snapshot", logger.Ctx{"dev": dataset, "err": err})
 					}
 				}()
-
-				// Wait half a second to give udev a chance to kick in.
-				time.Sleep(500 * time.Millisecond)
 
 				d.logger.Debug("Activated ZFS volume", logger.Ctx{"dev": dataset})
 
