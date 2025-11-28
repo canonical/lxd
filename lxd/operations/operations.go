@@ -744,3 +744,10 @@ var durableOperations map[operationtype.Type]DurableOperationHandlers
 func InitDurableOperations(opTable map[operationtype.Type]DurableOperationHandlers) {
 	durableOperations = opTable
 }
+
+// CreateDurableOperation creates a new durable operation and returns it.
+// Durable operations need to have handlers defined in a durableOperations map rather than provided via arguments.
+// Arguments to these handlers are then looked up in the metadata.
+func CreateDurableOperation(ctx context.Context, s *state.State, opUUID string, projectName string, opType operationtype.Type, opResources map[string][]api.URL, opMetadata map[string]string) (*Operation, error) {
+	return OperationCreate(ctx, s, opUUID, projectName, OperationClassDurable, opType, opResources, opMetadata, durableOperations[opType].OnRun, durableOperations[opType].OnCancel, nil)
+}
