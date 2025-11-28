@@ -21,3 +21,6 @@ const IoctlVhostVsockSetGuestCid = C.VHOST_VSOCK_SET_GUEST_CID
 
 // IoctlBlkZname matches BLKZNAME (ZFS specific).
 const IoctlBlkZname = C.BLKZNAME
+
+// ZFSMaxDatasetNameLen is the maximum length of a ZFS dataset name.
+const ZFSMaxDatasetNameLen = C.ZFS_MAX_DATASET_NAME_LEN
