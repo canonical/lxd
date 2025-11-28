@@ -3866,7 +3866,7 @@ test_clustering_evacuation_restore_operations() {
   setup_clustering_netns 2
   LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}" "${poolDriver}"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${poolDriver}"
 
   LXD_DIR="${LXD_ONE_DIR}"
   ensure_import_testimage
