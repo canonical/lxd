@@ -2875,3 +2875,8 @@ Endpoints converted to asynchronous behavior:
 * `PATCH /storage-pools/{pool}/volumes/{type}/{vol}/snapshots/{snap}` - Patch storage volume snapshot
 * `PUT /1.0/profiles/{name}` - Update profile
 * `PATCH /1.0/profiles/{name}` - Patch profile
+
+(extension-clustering-database-client-role)=
+## `clustering_database_client_role`
+
+Adds a new cluster member role, `database-client`. Cluster members with this role are assigned the Raft spare role, do not replicate the log, and do not participate in quorum.
