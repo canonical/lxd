@@ -3,7 +3,9 @@
 package sys
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 )
