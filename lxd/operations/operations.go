@@ -145,6 +145,9 @@ type Operation struct {
 	events *events.Server
 }
 
+// RunHook represents the function signature for an operation run hook.
+type RunHook func(ctx context.Context, op *Operation) error
+
 // OperationArgs contains all the arguments for operation creation.
 type OperationArgs struct {
 	ProjectName     string
@@ -153,7 +156,7 @@ type OperationArgs struct {
 	EntityURL       *api.URL
 	Resources       map[entity.Type][]api.URL
 	Metadata        map[string]any
-	RunHook         func(ctx context.Context, op *Operation) error
+	RunHook         RunHook
 	ConnectHook     func(op *Operation, r *http.Request, w http.ResponseWriter) error
 	requestor       *opRequestor
 	metricsCallback func(result metrics.RequestResult)
@@ -207,6 +210,25 @@ func ScheduleUserOperationFromOperation(s *state.State, op *Operation, args Oper
 // ScheduleServerOperation schedules a new [Operation] that runs as a server background task.
 func ScheduleServerOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	return scheduleOperation(s, args)
+}
+
+// DurableOperationTable represents the table of durable operation hooks.
+type DurableOperationTable map[operationtype.Type]RunHook
+
+var (
+	durableOperations     DurableOperationTable
+	durableOperationsOnce sync.Once
+)
+
+// InitDurableOperations initializes the durable operations table.
+// As durable operations can be restarted on other nodes, the durable operation handlers cannot be defined only in the memory of the node.
+// Therefore we maintain a static map of durable operation handlers based on operation type.
+// As this map contains handlers from across many packages, the table itself is defined in the main package.
+// Because this table needs to be accessible from the operations package, we provide this Init function to set it.
+func InitDurableOperations(opTable DurableOperationTable) {
+	durableOperationsOnce.Do(func() {
+		durableOperations = opTable
+	})
 }
 
 // scheduleOperation schedules a new operation and returns it. If it cannot be created, it returns an error.
