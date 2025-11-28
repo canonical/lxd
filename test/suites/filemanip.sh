@@ -168,6 +168,16 @@ test_filemanip() {
   [ "$(curl -s -S --insecure sftp://127.0.0.1:2022/foo)" = "foo" ]
   kill -9 "${mountPID}"
 
+  CREDS_FILE="$(mktemp)"
+  "${_LXC}" file mount filemanip --listen=127.0.0.1:2022 > "${CREDS_FILE}" &
+  mountPID=$!
+  sleep 0.1
+  userCreds=$(sed -nE 's/^[^"]+ "([^"]+)" [^"]+ "([^"]+)"$/\1:\2/p' "${CREDS_FILE}")
+  rm "${CREDS_FILE}"
+
+  [ "$(curl -s -S --insecure --user "${userCreds}" sftp://127.0.0.1:2022/foo)" = "foo" ]
+  kill -9 "${mountPID}"
+
   lxc delete -f filemanip
 
   rm "${TEST_DIR}"/filemanip
