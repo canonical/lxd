@@ -244,6 +244,74 @@ jobs:
             /home/runner/go/bin/sysinfo
           retention-days: 1
 
+  # Build the system-tests matrix dynamically
+  system-tests-matrix:
+    name: Build system-tests matrix
+    needs: code-tests
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.build.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          persist-credentials: false
+
+      - name: Compute matrix
+        id: build
+        run: |
+          set -eux
+          set -o pipefail
+
+          # Pick one fast backend for this run (btrfs or dir)
+          FAST_BACKEND="btrfs"
+          if [ $(( GITHUB_RUN_ID % 2 )) -eq 0 ]; then
+            FAST_BACKEND="dir"
+          fi
+          echo "Fast backend: ${FAST_BACKEND}"
+
+          # Load test group definitions.
+          . test/includes/test-groups.sh
+
+          # Discover groups from variables named test_group_*
+          storage_groups=()
+          non_storage_groups=()
+          while IFS= read -r v; do
+            g="${v#test_group_}"
+            # Skip meta group
+            [[ "${g}" == "all" ]] && continue
+
+            if [[ "${g}" == *_storage ]]; then
+              storage_groups+=("${g}")
+            else
+              non_storage_groups+=("${g}")
+            fi
+          done < <(compgen -A variable test_group_)
+
+          backends_all=(dir btrfs lvm zfs ceph random)
+
+          # Build JSON matrix.include
+          matrix='{"include":['
+
+          # Storage groups on all backends
+          for g in "${storage_groups[@]}"; do
+            for b in "${backends_all[@]}"; do
+              matrix+="{\"group\":\"${g}\",\"backend\":\"${b}\"},"
+            done
+          done
+
+          # Non-storage groups only on FAST_BACKEND
+          for g in "${non_storage_groups[@]}"; do
+            matrix+="{\"group\":\"${g}\",\"backend\":\"${FAST_BACKEND}\"},"
+          done
+
+          # Trim trailing comma and close JSON
+          matrix="${matrix%,}]}"
+          echo "matrix=${matrix}" >> "$GITHUB_OUTPUT"
+
+          # Pretty print the resulting matrix
+          jq <<< "${matrix}"
+
   system-tests:
     env:
       LXD_CEPH_CLUSTER: "ceph"
@@ -261,18 +329,10 @@ jobs:
     if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
     name: System
     runs-on: ubuntu-24.04
-    needs: code-tests
+    needs: [code-tests, system-tests-matrix]
     strategy:
       fail-fast: false
-      matrix:
-        group:
-          - "cluster"
-          - "cluster_storage"
-          - "instance"
-          - "image"
-          - "network"
-          - "standalone_storage"
-        backend: ["dir", "btrfs", "lvm", "zfs", "ceph", "random"]
+      matrix: ${{ fromJSON(needs.system-tests-matrix.outputs.matrix) }}
 
     steps:
       - name: Checkout
@@ -358,18 +418,7 @@ jobs:
           set -eux
           echo "artifact_name=$(echo "${ID}" | tr ': /' '-_-')" >> "${GITHUB_OUTPUT}"
 
-      - name: Pick a fast backend (btrfs or dir) for non-storage tests
-        id: fast
-        run: |
-          set -eux
-          FAST_BACKEND="btrfs"
-          if [ $(( ${GITHUB_RUN_ID} % 2 )) -eq 0 ]; then
-            FAST_BACKEND="dir"
-          fi
-          echo "FAST_BACKEND=${FAST_BACKEND}" >> "$GITHUB_ENV"
-
       - name: "Run system tests (${{ matrix.group }}, ${{ matrix.backend }})"
-        if: ${{ endsWith(matrix.group, '_storage') || matrix.backend == env.FAST_BACKEND }}
         run: |
           set -eux
           chmod +x ~
