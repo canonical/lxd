@@ -163,12 +163,12 @@ test_filemanip() {
   # Test SFTP functionality.
   "${_LXC}" file mount filemanip --listen=127.0.0.1:2022 --no-auth &
   mountPID=$!
-  sleep 1
+  sleep 0.1
 
-  output=$(curl -s -S --insecure sftp://127.0.0.1:2022/foo || true)
+  [ "$(curl -s -S --insecure sftp://127.0.0.1:2022/foo)" = "foo" ]
   kill -9 "${mountPID}"
-  lxc delete filemanip -f
-  [ "$output" = "foo" ]
+
+  lxc delete -f filemanip
 
   rm "${TEST_DIR}"/filemanip
   rm -rf "${TEST_DIR}/source" "${TEST_DIR}/dest"
