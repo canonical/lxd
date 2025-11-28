@@ -780,6 +780,36 @@ func validateOIDCSessionExpiry(config *clusterConfig.Config, requestConfig map[s
 	return nil
 }
 
+// validateOIDC validates the OIDC configuration by performing provider discovery.
+// It returns an error if the OIDC issuer cannot be reached or the configuration is invalid.
+func validateOIDC(d *Daemon, r *http.Request, newClusterConfig *clusterConfig.Config, changedConfig map[string]string) error {
+	if changedConfig["oidc.issuer"] == "" &&
+		changedConfig["oidc.client.id"] == "" &&
+		changedConfig["oidc.client.secret"] == "" &&
+		changedConfig["oidc.scopes"] == "" &&
+		changedConfig["oidc.audience"] == "" &&
+		changedConfig["oidc.groups.claim"] == "" {
+		return nil
+	}
+	oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim := newClusterConfig.OIDCServer()
+
+	httpClientFunc := func() (*http.Client, error) {
+		return util.HTTPClient("", d.proxy)
+	}
+
+	sessionHandler := dbOIDC.NewSessionHandler(d.db.Cluster, d.events, d.globalConfig.OIDCSessionExpiry)
+
+	verifier, err := oidc.NewVerifier(oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim, d.globalConfig.ClusterUUID(), d.State().CoreAuthSecrets, httpClientFunc, sessionHandler)
+	if err != nil {
+		return fmt.Errorf("Failed to generate OIDC verifier: %w", err)
+	}
+	err = verifier.Validate(r.Context(), r.Host)
+	if err != nil {
+		return fmt.Errorf("Failed to validate OIDC configuration: %w", err)
+	}
+	return nil
+}
+
 func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) response.Response {
 	s := d.State()
 
@@ -988,6 +1018,15 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 			logger.Warn("Failed reverting cluster config", logger.Ctx{"err": err})
 		}
 	})
+
+	// Validate OIDC configuration.
+	// This must be done here (before the DB transaction) to prevent in-memory state corruption.
+	// If validation were to fail inside the update triggers (after memory update),
+	// the daemon would be left with invalid config despite the DB rollback	err = validateOIDC(d, r, newClusterConfig, clusterChanged)
+	err = validateOIDC(d, r, newClusterConfig, clusterChanged)
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Notify the other nodes about changes
 	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)

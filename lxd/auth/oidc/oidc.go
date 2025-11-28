@@ -791,3 +791,9 @@ func NewVerifier(issuer string, clientID string, clientSecret string, scopes []s
 
 	return verifier, nil
 }
+
+// Validate performs OIDC discovery to ensure the configuration is valid.
+// It wraps ensureConfig to reuse the existing HTTP client and proxy settings.
+func (o *Verifier) Validate(ctx context.Context, host string) error {
+	return o.ensureConfig(ctx, host)
+}
