@@ -328,11 +328,6 @@ jobs:
       - name: Remove docker
         uses: ./.github/actions/disable-docker
 
-      - name: Install Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
-        with:
-          go-version-file: 'go.mod'
-
       - name: Install runtime dependencies
         uses: ./.github/actions/install-lxd-runtimedeps
 
@@ -404,7 +399,7 @@ jobs:
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
           cd test
-          export PATH="$PATH:/snap/microovn/current/commands"
+          export PATH="/home/runner/go/bin:$PATH:/snap/microovn/current/commands"
 
           # Check if there are existing coredumps
           if [ -n "$(ls -A /var/crash/)" ]; then
