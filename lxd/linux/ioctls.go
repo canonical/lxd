@@ -4,6 +4,9 @@ package linux
 #include <linux/btrfs.h>
 #include <linux/hidraw.h>
 #include <linux/vhost.h>
+
+#define ZFS_MAX_DATASET_NAME_LEN 256
+#define BLKZNAME _IOR(0x12, 125, char[ZFS_MAX_DATASET_NAME_LEN])
 */
 import "C"
 
@@ -15,3 +18,9 @@ const IoctlHIDIOCGrawInfo = C.HIDIOCGRAWINFO
 
 // IoctlVhostVsockSetGuestCid is used to set the vsock guest context ID.
 const IoctlVhostVsockSetGuestCid = C.VHOST_VSOCK_SET_GUEST_CID
+
+// IoctlBlkZname matches BLKZNAME (ZFS specific).
+const IoctlBlkZname = C.BLKZNAME
+
+// ZFSMaxDatasetNameLen is the maximum length of a ZFS dataset name.
+const ZFSMaxDatasetNameLen = C.ZFS_MAX_DATASET_NAME_LEN
