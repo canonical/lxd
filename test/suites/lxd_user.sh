@@ -30,13 +30,22 @@ test_lxd_user() {
   lxc_user project list
   lxc_user list --fast
 
-  # Cleanup
+  # Self-cleanup
   lxc_user delete c1
   lxc_user storage volume delete "${pool_name}" myvol
 
+  # Cleanup
   kill -9 "${USER_PID}"
-
+  rm -rf "${USER_TEMPDIR}"
+  rm -rf "${TEST_DIR}/lxd-user"
   LXD_DIR="${bakLxdDir}"
+  local ID
+  ID="$(id -u nobody)"
+  local fingerprint
+  fingerprint="$(lxc config trust list -f csv | awk -F, "/^client,lxd-user-${ID},/ {print \$4}")"
+  lxc config trust remove "${fingerprint}"
+  lxc project delete "user-${ID}"
+  lxc network delete "lxdbr-${ID}"
 }
 
 snap_lxc_user() {
