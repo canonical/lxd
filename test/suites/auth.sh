@@ -381,6 +381,7 @@ fine_grained: true"
   rm "${TEST_DIR}"/unrestricted.{crt,key}
   rm "${TEST_DIR}"/user{4,5,6}.{crt,key}
   lxc config set core.remote_token_expiry="" oidc.issuer="" oidc.client.id=""
+  kill_oidc
 }
 
 events_filtering() {
