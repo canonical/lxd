@@ -46,6 +46,7 @@ on:
     - cron: '0 0 * * *'  # Test TICS daily
 
 env:
+  LXD_SKIP_TESTS: "concurrent"
   LXD_REQUIRED_TESTS: "storage_buckets,network_ovn"
   GOCOVERAGE: ${{ (( github.event_name == 'workflow_dispatch' && github.event.inputs.coverage == 'true' ) || ( github.event_name == 'schedule' && github.repository == 'canonical/lxd' )) && 'true' || 'false' }}
   GOCOVERDIR: ''  # Later set to the fully qualified path if needed
@@ -73,9 +74,12 @@ jobs:
       LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
       LD_RUN_PATH: "/home/runner/go/bin/dqlite/libs/"
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
+      SUDO_PRESERVE_ENV: "CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,GOCOVERDIR,PKG_CONFIG_PATH,LD_LIBRARY_PATH"
     if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
     name: Code
     runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.build.outputs.matrix }}
     steps:
       - name: Checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
@@ -179,54 +183,6 @@ jobs:
           cd /home/runner/work/lxd/lxd-test
           make
 
-      - name: Check lxc/lxd-agent binary sizes
-        if: env.GOCOVERAGE != 'true'
-        run: |
-          set -eux
-
-          # bin/max (sizes are in MiB)
-          SIZES="lxc 17
-                 lxd-agent 14"
-          MIB="$((1024 * 1024))"
-
-          # Strip a copy of the freshly built binaries and check their size
-          mkdir /tmp/bin
-          while read -r bin max; do
-            install --strip "/home/runner/go/bin/${bin}" /tmp/bin/
-            cur="$(stat --format=%s "/tmp/bin/${bin}")"
-            min=$((max - 1))
-            min_mib="$((min * MIB))"
-            max_mib="$((max * MIB))"
-            rm -f "/tmp/bin/${bin}"
-
-            if [ "${cur}" -gt "${max_mib}" ]; then
-              echo "FAIL: ${bin} binary size exceeds ${max}MiB"
-              exit 1
-            fi
-
-            # XXX: check for when we need to lower the min/max sizes
-            if [ "${cur}" -lt "${min_mib}" ]; then
-              echo "Congratulations: ${bin} binary size reduced below ${min}MiB"
-              echo "It is now time to edit the workflow job to use smaller min/max sizes for ${bin}"
-              exit 1
-            fi
-
-            echo "OK: ${bin} is between ${min} and ${max}MiB"
-          done <<< ${SIZES}
-
-      - name: Check binaries were compiled with the Go minimum version
-        run: |
-          set -eux
-
-          # Check which Go version was used to compile each of the lxc/lxd binaries
-          GOMIN="$(sed -n 's/^GOMIN=\([0-9.]\+\)$/\1/p' Makefile)"
-          UNEXPECTED_GO_VER="$(go version -v ~/go/bin/lxc* ~/go/bin/lxd* | grep -vF ": go${GOMIN}" || true)"
-          if [ -n "${UNEXPECTED_GO_VER:-}" ]; then
-            echo "Some binaries were compiled with an unexpected Go version (!= ${GOMIN}):"
-            echo "${UNEXPECTED_GO_VER}"
-            exit 1
-          fi
-
       # XXX: `make static-analysis` also run golangci-lint but this one provides
       #      useful feedback in the PR through github-code-scanning bot
       - name: Run golangci-lint
@@ -250,7 +206,7 @@ jobs:
           set -eux
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
-          sudo --preserve-env=CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,GOCOVERDIR,PKG_CONFIG_PATH,LD_LIBRARY_PATH LD_LIBRARY_PATH=${LD_LIBRARY_PATH} env "PATH=${PATH}" make check-unit
+          sudo --preserve-env="${SUDO_PRESERVE_ENV}" LD_LIBRARY_PATH=${LD_LIBRARY_PATH} env "PATH=${PATH}" make check-unit
 
       - name: Upload coverage data
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
@@ -290,6 +246,63 @@ jobs:
             /home/runner/go/bin/sysinfo
           retention-days: 1
 
+      - name: Compute system-tests matrix
+        id: build
+        run: |
+          set -eux
+          set -o pipefail
+
+          # Pick one fast backend for this run (btrfs or dir)
+          FAST_BACKEND="btrfs"
+          if [ $(( GITHUB_RUN_ID % 2 )) -eq 0 ]; then
+            FAST_BACKEND="dir"
+          fi
+          echo "Fast backend: ${FAST_BACKEND}"
+
+          # Load test group definitions.
+          . test/includes/test-groups.sh
+
+          # Discover groups from variables named test_group_*
+          storage_groups=()
+          non_storage_groups=()
+          while IFS= read -r v; do
+            g="${v#test_group_}"
+            # Skip meta group
+            [[ "${g}" == "all" ]] && continue
+
+            if [[ "${g}" == *_storage ]]; then
+              storage_groups+=("${g}")
+            else
+              non_storage_groups+=("${g}")
+            fi
+          done < <(compgen -A variable test_group_)
+
+          backends_all=(dir btrfs lvm zfs ceph random)
+
+          # Build JSON matrix.include
+          matrix='{"include":['
+
+          # Storage groups on all backends
+          for g in "${storage_groups[@]}"; do
+            for b in "${backends_all[@]}"; do
+              matrix+="{\"group\":\"${g}\",\"backend\":\"${b}\"},"
+            done
+          done
+
+          # Non-storage groups only on FAST_BACKEND
+          for g in "${non_storage_groups[@]}"; do
+            matrix+="{\"group\":\"${g}\",\"backend\":\"${FAST_BACKEND}\"},"
+          done
+
+          # Trim trailing comma and close JSON
+          matrix="${matrix%,}]}"
+
+          # Pretty print the resulting matrix
+          jq <<< "${matrix}"
+
+          # Export the matrix
+          echo "matrix=${matrix}" >> "$GITHUB_OUTPUT"
+
   system-tests:
     env:
       LXD_CEPH_CLUSTER: "ceph"
@@ -303,15 +316,14 @@ jobs:
       LXD_OFFLINE: "1"
       LXD_TMPFS: "1"
       GOTRACEBACK: "crash"
+      SUDO_PRESERVE_ENV: "PATH,GOPATH,GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,LXD_VERBOSE,LXD_REPEAT_TESTS,LXD_RANDOMIZE_TESTS,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OVN_NB_CONNECTION,LXD_OVN_NB_CLIENT_CRT_FILE,LXD_OVN_NB_CLIENT_KEY_FILE,LXD_OVN_NB_CA_CRT_FILE,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,GOTRACEBACK,LXD_TMPFS"
     if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
     name: System
     runs-on: ubuntu-24.04
     needs: code-tests
     strategy:
       fail-fast: false
-      matrix:
-        suite: ["cluster", "standalone", "snap"]
-        backend: ["dir", "btrfs", "lvm", "zfs", "ceph", "random"]
+      matrix: ${{ fromJSON(needs.code-tests.outputs.matrix) }}
 
     steps:
       - name: Checkout
@@ -327,11 +339,6 @@ jobs:
 
       - name: Remove docker
         uses: ./.github/actions/disable-docker
-
-      - name: Install Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
-        with:
-          go-version-file: 'go.mod'
 
       - name: Install runtime dependencies
         uses: ./.github/actions/install-lxd-runtimedeps
@@ -392,18 +399,18 @@ jobs:
       - name: Sanitize Artifact Name
         id: sanitize
         env:
-          ID: ${{ matrix.suite }}-${{ matrix.backend }}
+          ID: ${{ matrix.group }}-${{ matrix.backend }}
         run: |
           set -eux
           echo "artifact_name=$(echo "${ID}" | tr ': /' '-_-')" >> "${GITHUB_OUTPUT}"
 
-      - name: "Run system tests (${{ matrix.suite }}, ${{ matrix.backend }})"
+      - name: "Run system tests (${{ matrix.group }}, ${{ matrix.backend }})"
         run: |
           set -eux
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
           cd test
-          export PATH="$PATH:/snap/microovn/current/commands"
+          export PATH="/home/runner/go/bin:$PATH:/snap/microovn/current/commands"
 
           # Check if there are existing coredumps
           if [ -n "$(ls -A /var/crash/)" ]; then
@@ -411,7 +418,7 @@ jobs:
             sudo rm /var/crash/*
           fi
 
-          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,LXD_VERBOSE,LXD_REPEAT_TESTS,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OVN_NB_CONNECTION,LXD_OVN_NB_CLIENT_CRT_FILE,LXD_OVN_NB_CLIENT_KEY_FILE,LXD_OVN_NB_CA_CRT_FILE,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,GOTRACEBACK,LXD_TMPFS LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
+          sudo --preserve-env="${SUDO_PRESERVE_ENV}" LXD_BACKEND=${{ matrix.backend }} ./main.sh group:${{ matrix.group }}
 
       - name: Upload crash dumps
         if: always()

@@ -467,6 +467,9 @@ test_certificate_edit() {
 
   FINGERPRINT="$(lxc config trust list --format csv | cut -d, -f4)"
 
+  # Ensure the old certificate is in place
+  [ -n "${FINGERPRINT}" ]
+
   # Try replacing the old certificate with a new one.
   # This should succeed as the user is listed as an admin.
   my_curl -X PATCH --fail-with-body -H 'Content-Type: application/json' -d '{"certificate":"'"$(sed ':a;N;$!ba;s/\n/\\n/g' "${LXD_CONF}/client-new.crt")"'"}' "https://${LXD_ADDR}/1.0/certificates/${FINGERPRINT}"

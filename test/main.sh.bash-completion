@@ -11,7 +11,7 @@ _lxd_test_completion() {
     local cur="${COMP_WORDS[COMP_CWORD]}"
 
     # Special keywords
-    local keywords="all cluster standalone test-shell"
+    local keywords="group:all group:cluster group:cluster_storage group:instance group:image group:network group:standalone group:standalone_storage"
 
     # Extract all test function names from main.sh
     # Remove 'test_' prefix and 'run_test test_' wrapper
