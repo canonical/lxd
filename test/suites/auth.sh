@@ -299,77 +299,75 @@ fine_grained: true"
   # The TLS identity is not trusted after deletion.
   LXD_CONF="${LXD_CONF2}" lxc_remote query tls:/1.0 | jq --exit-status '.auth == "untrusted"'
 
-  # Check a TLS identity can update their own certificate.
-  # First create a new TLS identity and add it to test-group
-  LXD_CONF4=$(mktemp -d -p "${TEST_DIR}" XXX)
-  LXD_CONF="${LXD_CONF4}" gen_cert_and_key "client"
-  token="$(lxc auth identity create tls/test-user4 --quiet)"
-  LXD_CONF="${LXD_CONF4}" lxc_remote remote add tls "${token}"
-  lxc auth identity group add tls/test-user4 test-group
-
-  # Pending TLS identity can be added to groups.
+  # Check that a pending TLS identity can be added to groups.
   lxc auth identity create tls/foobar
   lxc auth identity group add tls/foobar test-group
   lxc auth identity delete tls/foobar
 
+  # Check a TLS identity can update their own certificate.
+  # First create a new TLS identity and add it to test-group
+  LXD_CONF="${TEST_DIR}" gen_cert_and_key "user4"
+  lxc auth identity create tls/test-user4 "${TEST_DIR}/user4.crt"
+  lxc auth identity group add tls/test-user4 test-group
+  user4_crt="$(awk '{printf "%s\\n", $0}' "${TEST_DIR}/user4.crt")"
+
   # Create another certificate to update to
-  LXD_CONF5=$(mktemp -d -p "${TEST_DIR}" XXX)
-  LXD_CONF="${LXD_CONF5}" gen_cert_and_key "client"
+  LXD_CONF="${TEST_DIR}" gen_cert_and_key "user5"
+  user5_crt="$(awk '{printf "%s\\n", $0}' "${TEST_DIR}/user5.crt")"
 
   # We're using my_curl because the lxc wrapper function splits the --data argument on the spaces between "BEGIN CERTIFICATE" and lxc query returns a usage error.
   # We could use lxc edit as it accepts stdin input, but replacing the certificate in the yaml was quite complicated.
 
   # This asserts that test-user4 cannot change their own group membership
-  LXD_CONF="${LXD_CONF4}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PUT -H 'Content-Type: application/json' --data '{"tls_certificate":"'"$(awk '{printf "%s\\n", $0}' "${LXD_CONF5}/client.crt")"'"}' | jq --exit-status '.error_code == 403'
+  LXD_CONF="${TEST_DIR}" CERTNAME="user4" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PUT -H 'Content-Type: application/json' --data '{"tls_certificate":"'"${user5_crt}"'"}' | jq --exit-status '.error_code == 403'
 
   # This asserts that test-user4 can change their own certificate as long as the groups are unchanged
-  LXD_CONF="${LXD_CONF4}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PUT -H 'Content-Type: application/json' --data '{"tls_certificate":"'"$(awk '{printf "%s\\n", $0}' "${LXD_CONF5}/client.crt")"'", "groups":["test-group"]}' | jq --exit-status '.status_code == 200'
+  LXD_CONF="${TEST_DIR}" CERTNAME="user4" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PUT -H 'Content-Type: application/json' --data '{"tls_certificate":"'"${user5_crt}"'", "groups":["test-group"]}' | jq --exit-status '.status_code == 200'
 
   # The original certificate is untrusted after the update
-  LXD_CONF="${LXD_CONF4}" lxc_remote query tls:/1.0 | jq --exit-status '.auth == "untrusted"'
+  LXD_CONF="${TEST_DIR}" CERTNAME="user4" my_curl "https://${LXD_ADDR}/1.0" | jq --exit-status '.metadata.auth == "untrusted"'
 
-  # Add the remote for the lxc config directory with the other certificates. No token needed as we're already trusted.
-  LXD_CONF="${LXD_CONF5}" lxc remote add tls "${LXD_ADDR}" --accept-certificate --auth-type tls
-  LXD_CONF="${LXD_CONF5}" lxc_remote query tls:/1.0 | jq --exit-status '.auth == "trusted"'
+  # The new certificate is trusted after the update
+  LXD_CONF="${TEST_DIR}" CERTNAME="user5" my_curl "https://${LXD_ADDR}/1.0" | jq --exit-status '.metadata.auth == "trusted"'
 
   # Do the same tests with patch. test-user4 cannot change their group membership
-  LXD_CONF="${LXD_CONF5}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PATCH -H 'Content-Type: application/json' --data '{"tls_certificate":"'"$(awk '{printf "%s\\n", $0}' "${LXD_CONF4}/client.crt")"'", "groups":["new-group"]}' | jq --exit-status '.error_code == 403'
+  LXD_CONF="${TEST_DIR}" CERTNAME="user5" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PATCH -H 'Content-Type: application/json' --data '{"tls_certificate":"'"${user4_crt}"'", "groups":["new-group"]}' | jq --exit-status '.error_code == 403'
 
   # Change the certificate back to the original, using patch. Here no groups are in the request, only the certificate.
-  LXD_CONF="${LXD_CONF5}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PATCH -H 'Content-Type: application/json' --data '{"tls_certificate":"'"$(awk '{printf "%s\\n", $0}' "${LXD_CONF4}/client.crt")"'"}' | jq --exit-status '.status_code == 200'
-  LXD_CONF="${LXD_CONF4}" lxc_remote query tls:/1.0 | jq --exit-status '.auth == "trusted"'
-  LXD_CONF="${LXD_CONF5}" lxc_remote query tls:/1.0 | jq --exit-status '.auth == "untrusted"'
+  LXD_CONF="${TEST_DIR}" CERTNAME="user5" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PATCH -H 'Content-Type: application/json' --data '{"tls_certificate":"'"${user4_crt}"'"}' | jq --exit-status '.status_code == 200'
+
+  # The previous certificate is untrusted and the reverted certificate is trusted again
+  LXD_CONF="${TEST_DIR}" CERTNAME="user5" my_curl "https://${LXD_ADDR}/1.0" | jq --exit-status '.metadata.auth == "untrusted"'
+  LXD_CONF="${TEST_DIR}" CERTNAME="user4" my_curl "https://${LXD_ADDR}/1.0" | jq --exit-status '.metadata.auth == "trusted"'
 
   # Check that an unrestricted client certificate is not fine grained.
-  LXD_CONF6=$(mktemp -d -p "${TEST_DIR}" XXX)
-  LXD_CONF="${LXD_CONF6}" gen_cert_and_key "unrestricted"
-  lxdconf6_fingerprint_short="$(cert_fingerprint "${LXD_CONF6}/unrestricted.crt" | head -c12)"
-  lxc config trust add "${LXD_CONF6}/unrestricted.crt"
-  lxc config trust show "${lxdconf6_fingerprint_short}" | grep -xF "restricted: false"
-  LXD_CONF="${LXD_CONF6}" CERTNAME=unrestricted my_curl -X GET "https://${LXD_ADDR}/1.0/auth/identities/current" | jq --exit-status '.metadata.fine_grained == false'
-  lxc config trust remove "${lxdconf6_fingerprint_short}"
+  LXD_CONF="${TEST_DIR}" gen_cert_and_key "unrestricted"
+  unrestricted_fingerprint_short="$(cert_fingerprint "${TEST_DIR}/unrestricted.crt" | head -c12)"
+  lxc config trust add "${TEST_DIR}/unrestricted.crt"
+  lxc config trust show "${unrestricted_fingerprint_short}" | grep -xF "restricted: false"
+  LXD_CONF="${TEST_DIR}" CERTNAME=unrestricted my_curl -X GET "https://${LXD_ADDR}/1.0/auth/identities/current" | jq --exit-status '.metadata.fine_grained == false'
+  lxc config trust remove "${unrestricted_fingerprint_short}"
 
   # Check that it is not possible to send a certificate in the request body to update an OIDC or bearer identity.
-  LXD_CONF7=$(mktemp -d -p "${TEST_DIR}" XXX)
-  LXD_CONF="${LXD_CONF7}" gen_cert_and_key "client"
-  conf7_cert="$(awk '{printf "%s\\n", $0}' "${LXD_CONF7}/client.crt")"
+  LXD_CONF="${TEST_DIR}" gen_cert_and_key "user6"
+  user6_cert="$(awk '{printf "%s\\n", $0}' "${TEST_DIR}/user6.crt")"
   lxc auth identity create devlxd/test-bearer
 
   # As an admin
-  ! lxc query -X PUT /1.0/auth/identities/bearer/test-bearer -d "{\"tls_certificate\":\"${conf7_cert}\",\"name\":\" \",\"identifier\":\"test-user@example.com\"}" || false
-  [ "$("${_LXC}" query -X PUT /1.0/auth/identities/bearer/test-bearer -d "{\"tls_certificate\":\"${conf7_cert}\",\"name\":\" \",\"identifier\":\"test-user@example.com\"}"  2>&1 >/dev/null)" = 'Error: Cannot update certificate for identities of type "DevLXD token bearer"' ]
-  ! lxc query -X PATCH /1.0/auth/identities/bearer/test-bearer -d "{\"tls_certificate\":\"${conf7_cert}\"}" || false
-  [ "$("${_LXC}" query -X PATCH /1.0/auth/identities/bearer/test-bearer -d "{\"tls_certificate\":\"${conf7_cert}\"}" 2>&1 >/dev/null)" = 'Error: Cannot update certificate for identities of type "DevLXD token bearer"' ]
-  ! lxc query -X PUT /1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${conf7_cert}\",\"name\":\" \",\"identifier\":\"test-user@example.com\"}" || false
-  [ "$("${_LXC}" query -X PUT /1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${conf7_cert}\",\"name\":\" \",\"identifier\":\"test-user@example.com\"}"  2>&1 >/dev/null)" = 'Error: Cannot update certificate for identities of type "OIDC client"' ]
-  ! lxc query -X PATCH /1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${conf7_cert}\"}" || false
-  [ "$("${_LXC}" query -X PATCH /1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${conf7_cert}\"}" 2>&1 >/dev/null)" = 'Error: Cannot update certificate for identities of type "OIDC client"' ]
+  ! lxc query -X PUT /1.0/auth/identities/bearer/test-bearer -d "{\"tls_certificate\":\"${user6_cert}\",\"name\":\" \",\"identifier\":\"test-user@example.com\"}" || false
+  [ "$("${_LXC}" query -X PUT /1.0/auth/identities/bearer/test-bearer -d "{\"tls_certificate\":\"${user6_cert}\",\"name\":\" \",\"identifier\":\"test-user@example.com\"}"  2>&1 >/dev/null)" = 'Error: Cannot update certificate for identities of type "DevLXD token bearer"' ]
+  ! lxc query -X PATCH /1.0/auth/identities/bearer/test-bearer -d "{\"tls_certificate\":\"${user6_cert}\"}" || false
+  [ "$("${_LXC}" query -X PATCH /1.0/auth/identities/bearer/test-bearer -d "{\"tls_certificate\":\"${user6_cert}\"}" 2>&1 >/dev/null)" = 'Error: Cannot update certificate for identities of type "DevLXD token bearer"' ]
+  ! lxc query -X PUT /1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${user6_cert}\",\"name\":\" \",\"identifier\":\"test-user@example.com\"}" || false
+  [ "$("${_LXC}" query -X PUT /1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${user6_cert}\",\"name\":\" \",\"identifier\":\"test-user@example.com\"}"  2>&1 >/dev/null)" = 'Error: Cannot update certificate for identities of type "OIDC client"' ]
+  ! lxc query -X PATCH /1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${user6_cert}\"}" || false
+  [ "$("${_LXC}" query -X PATCH /1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${user6_cert}\"}" 2>&1 >/dev/null)" = 'Error: Cannot update certificate for identities of type "OIDC client"' ]
 
   # Or the OIDC identity (can't test the bearer identity as they can't authenticate to the main API yet)
-  ! lxc query -X PUT oidc:/1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${conf7_cert}\",\"name\":\" \",\"identifier\":\"test-user@example.com\"}" || false
-  [ "$("${_LXC}" query -X PUT oidc:/1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${conf7_cert}\",\"name\":\" \",\"identifier\":\"test-user@example.com\"}"  2>&1 >/dev/null)" = 'Error: Forbidden' ]
-  ! lxc query -X PATCH oidc:/1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${conf7_cert}\"}" || false
-  [ "$("${_LXC}" query -X PATCH oidc:/1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${conf7_cert}\"}" 2>&1 >/dev/null)" = 'Error: Forbidden' ]
+  ! lxc query -X PUT oidc:/1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${user6_cert}\",\"name\":\" \",\"identifier\":\"test-user@example.com\"}" || false
+  [ "$("${_LXC}" query -X PUT oidc:/1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${user6_cert}\",\"name\":\" \",\"identifier\":\"test-user@example.com\"}"  2>&1 >/dev/null)" = 'Error: Forbidden' ]
+  ! lxc query -X PATCH oidc:/1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${user6_cert}\"}" || false
+  [ "$("${_LXC}" query -X PATCH oidc:/1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${user6_cert}\"}" 2>&1 >/dev/null)" = 'Error: Forbidden' ]
 
   lxc auth identity delete devlxd/test-bearer
   lxc auth identity group add oidc/test-user@example.com test-group
@@ -380,10 +378,8 @@ fine_grained: true"
   lxc remote remove oidc
   rm -r "${LXD_CONF2}"
   rm -r "${LXD_CONF3}"
-  rm -r "${LXD_CONF4}"
-  rm -r "${LXD_CONF5}"
-  rm -r "${LXD_CONF6}"
-  rm -r "${LXD_CONF7}"
+  rm "${TEST_DIR}"/unrestricted.{crt,key}
+  rm "${TEST_DIR}"/user{4,5,6}.{crt,key}
   lxc config set core.remote_token_expiry="" oidc.issuer="" oidc.client.id=""
 }
 
