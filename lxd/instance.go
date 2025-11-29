@@ -668,10 +668,10 @@ func pruneExpiredAndAutoCreateInstanceSnapshotsTask(stateFunc func() *state.Stat
 		// disk space.
 		if len(expiredSnapshotInstances) > 0 {
 			opRun := func(op *operations.Operation) error {
-				return pruneExpiredInstanceSnapshots(ctx, expiredSnapshotInstances)
+				return pruneExpiredInstanceSnapshots(op.Context(), expiredSnapshotInstances)
 			}
 
-			op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.SnapshotsExpire, nil, nil, opRun, nil, nil)
+			op, err := operations.OperationCreate(ctx, s, "", operations.OperationClassTask, operationtype.SnapshotsExpire, nil, nil, opRun, nil, nil)
 			if err != nil {
 				logger.Error("Failed creating instance snapshots expiry operation", logger.Ctx{"err": err})
 			} else {
@@ -694,10 +694,10 @@ func pruneExpiredAndAutoCreateInstanceSnapshotsTask(stateFunc func() *state.Stat
 		// Handle snapshot auto creation.
 		if len(instances) > 0 {
 			opRun := func(op *operations.Operation) error {
-				return autoCreateInstanceSnapshots(ctx, s, instances)
+				return autoCreateInstanceSnapshots(op.Context(), s, instances)
 			}
 
-			op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.SnapshotCreate, nil, nil, opRun, nil, nil)
+			op, err := operations.OperationCreate(ctx, s, "", operations.OperationClassTask, operationtype.SnapshotCreate, nil, nil, opRun, nil, nil)
 			if err != nil {
 				logger.Error("Failed creating scheduled instance snapshot operation", logger.Ctx{"err": err})
 			} else {

@@ -106,12 +106,12 @@ func createFromImage(ctx context.Context, s *state.State, p api.Project, profile
 		}
 
 		if req.Source.Server != "" {
-			img, err = ensureDownloadedImageFitWithinBudget(ctx, s, op, p, imgAlias, req.Source, string(req.Type))
+			img, err = ensureDownloadedImageFitWithinBudget(op.Context(), s, op, p, imgAlias, req.Source, string(req.Type))
 			if err != nil {
 				return err
 			}
 		} else if img != nil {
-			err := ensureImageIsLocallyAvailable(ctx, s, img, args.Project)
+			err := ensureImageIsLocallyAvailable(op.Context(), s, img, args.Project)
 			if err != nil {
 				return err
 			}
@@ -821,7 +821,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	// Copy reverter so far so we can use it inside run after this function has finished.
 	runRevert := revert.Clone()
 
-	run := func(_ *operations.Operation) error {
+	run := func(op *operations.Operation) error {
 		defer func() { _ = backupFile.Close() }()
 		defer runRevert.Fail()
 
@@ -847,7 +847,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 
 		runRevert.Add(revertHook)
 
-		err = internalImportFromBackup(context.TODO(), s, bInfo.Project, bInfo.Name, instanceName != "", devices)
+		err = internalImportFromBackup(op.Context(), s, bInfo.Project, bInfo.Name, instanceName != "", devices)
 		if err != nil {
 			return fmt.Errorf("Failed importing backup: %w", err)
 		}

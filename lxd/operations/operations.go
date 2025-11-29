@@ -82,6 +82,9 @@ func OperationGetInternal(id string) (*Operation, error) {
 
 // Operation represents an operation.
 type Operation struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	projectName string
 	id          string
 	class       OperationClass
@@ -98,7 +101,6 @@ type Operation struct {
 	entityType  entity.Type
 	entitlement auth.Entitlement
 	dbOpType    operationtype.Type
-	requestor   *request.Requestor
 	logger      logger.Logger
 
 	// Those functions are called at various points in the Operation lifecycle
@@ -107,9 +109,6 @@ type Operation struct {
 	onConnect func(*Operation, *http.Request, http.ResponseWriter) error
 	onDone    func(*Operation)
 
-	// Indicates if operation has finished.
-	finished cancel.Canceller
-
 	// Locking for concurent access to the Operation
 	lock sync.Mutex
 
@@ -117,11 +116,38 @@ type Operation struct {
 	events *events.Server
 }
 
+func (op *Operation) setupContext(inCtx context.Context, s *state.State) error {
+	opCtx := context.Background()
+	if s != nil {
+		opCtx = s.ShutdownCtx
+	}
+
+	opCtx, cancel := context.WithCancel(opCtx)
+	conn := inCtx.Value(request.CtxConn)
+
+	// The state may be nil if this is an operation in the LXD agent but should never be nil for LXD.
+	// For all requests to the API, we expect that the connection is saved in the request context.
+	// Background operations do not have a connection.
+	// So, if the connection and state are not nil, then expect that the requestor is present in the context and fail otherwise.
+	if conn != nil && s != nil {
+		var err error
+		opCtx, err = request.CopyRequestor(inCtx, opCtx)
+		if err != nil {
+			cancel()
+			return fmt.Errorf("Failed to create an operation: %w", err)
+		}
+	}
+
+	op.ctx = opCtx
+	op.cancel = cancel
+	return nil
+}
+
 // OperationCreate creates a new operation and returns it. If it cannot be
 // created, it returns an error.
 func OperationCreate(ctx context.Context, s *state.State, projectName string, opClass OperationClass, opType operationtype.Type, opResources map[string][]api.URL, opMetadata any, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error) (*Operation, error) {
 	// Don't allow new operations when LXD is shutting down.
-	if s != nil && s.ShutdownCtx.Err() == context.Canceled {
+	if s != nil && s.ShutdownCtx.Err() != nil {
 		return nil, errors.New("LXD is shutting down")
 	}
 
@@ -138,9 +164,13 @@ func OperationCreate(ctx context.Context, s *state.State, projectName string, op
 	op.status = api.Pending
 	op.url = api.NewURL().Path(version.APIVersion, "operations", op.id).String()
 	op.resources = opResources
-	op.finished = cancel.New()
 	op.state = s
 	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
+
+	err := op.setupContext(ctx, s)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to set up operation context: %w", err)
+	}
 
 	if s != nil {
 		op.SetEventServer(s.Events)
@@ -175,12 +205,6 @@ func OperationCreate(ctx context.Context, s *state.State, projectName string, op
 		return nil, errors.New("Token operations can't have a Cancel hook")
 	}
 
-	// Set requestor if the request context is provided.
-	_, err = request.GetRequestor(ctx)
-	if err == nil {
-		op.SetRequestor(ctx)
-	}
-
 	operationsLock.Lock()
 	operations[op.id] = &op
 	operationsLock.Unlock()
@@ -203,11 +227,6 @@ func OperationCreate(ctx context.Context, s *state.State, projectName string, op
 // SetEventServer allows injection of event server.
 func (op *Operation) SetEventServer(events *events.Server) {
 	op.events = events
-}
-
-// SetRequestor sets a requestor for this operation from an http.Request.
-func (op *Operation) SetRequestor(ctx context.Context) {
-	op.requestor, _ = request.GetRequestor(ctx)
 }
 
 // CheckRequestor checks that the requestor of a given HTTP request is equal to the requestor of the operation.
@@ -236,16 +255,23 @@ func (op *Operation) SetOnDone(f func(*Operation)) {
 
 // Requestor returns the initial requestor for this operation.
 func (op *Operation) Requestor() *request.Requestor {
-	return op.requestor
+	requestor, _ := request.GetRequestor(op.ctx)
+	return requestor
 }
 
 // EventLifecycleRequestor returns the [api.EventLifecycleRequestor] for the operation.
 func (op *Operation) EventLifecycleRequestor() *api.EventLifecycleRequestor {
-	if op.requestor == nil {
+	requestor := op.Requestor()
+	if requestor == nil {
 		return &api.EventLifecycleRequestor{}
 	}
 
-	return op.requestor.EventLifecycleRequestor()
+	return requestor.EventLifecycleRequestor()
+}
+
+// Context returns the [context.Context] of the Operation.
+func (op *Operation) Context() context.Context {
+	return op.ctx
 }
 
 func (op *Operation) done() {
@@ -263,7 +289,7 @@ func (op *Operation) done() {
 	op.onRun = nil
 	op.onCancel = nil
 	op.onConnect = nil
-	op.finished.Cancel()
+	op.cancel()
 	op.lock.Unlock()
 
 	go func() {
@@ -553,7 +579,7 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 // Returns non-nil error if operation failed or context was cancelled.
 func (op *Operation) Wait(ctx context.Context) error {
 	select {
-	case <-op.finished.Done():
+	case <-op.ctx.Done():
 		return op.err
 	case <-ctx.Done():
 		return ctx.Err()

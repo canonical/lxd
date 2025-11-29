@@ -770,7 +770,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	}
 
 	run := func(op *operations.Operation) error {
-		return doStoragePoolVolumeSnapshotUpdate(r.Context(), s, effectiveProjectName, dbVolume.Name, details.volumeType, req, op)
+		return doStoragePoolVolumeSnapshotUpdate(op.Context(), s, details.pool, effectiveProjectName, dbVolume.Name, details.volumeType, req, op)
 	}
 
 	resources := map[string][]api.URL{}
@@ -894,7 +894,7 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 	}
 
 	run := func(op *operations.Operation) error {
-		return doStoragePoolVolumeSnapshotUpdate(r.Context(), s, effectiveProjectName, dbVolume.Name, details.volumeType, req, op)
+		return doStoragePoolVolumeSnapshotUpdate(op.Context(), s, details.pool, effectiveProjectName, dbVolume.Name, details.volumeType, req, op)
 	}
 
 	resources := map[string][]api.URL{}
@@ -908,20 +908,15 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 	return operations.OperationResponse(op)
 }
 
-func doStoragePoolVolumeSnapshotUpdate(ctx context.Context, s *state.State, projectName string, volName string, volumeType dbCluster.StoragePoolVolumeType, req api.StorageVolumeSnapshotPut, op *operations.Operation) error {
+func doStoragePoolVolumeSnapshotUpdate(ctx context.Context, s *state.State, pool storagePools.Pool, projectName string, volName string, volumeType dbCluster.StoragePoolVolumeType, req api.StorageVolumeSnapshotPut, op *operations.Operation) error {
 	expiry := time.Time{}
 	if req.ExpiresAt != nil {
 		expiry = *req.ExpiresAt
 	}
 
-	details, err := request.GetContextValue[storageVolumeDetails](ctx, ctxStorageVolumeDetails)
-	if err != nil {
-		return err
-	}
-
 	// Update the database.
 	if volumeType == dbCluster.StoragePoolVolumeTypeCustom {
-		err = details.pool.UpdateCustomVolumeSnapshot(projectName, volName, req.Description, nil, expiry, op)
+		err := pool.UpdateCustomVolumeSnapshot(projectName, volName, req.Description, nil, expiry, op)
 		if err != nil {
 			return err
 		}
@@ -931,7 +926,7 @@ func doStoragePoolVolumeSnapshotUpdate(ctx context.Context, s *state.State, proj
 			return err
 		}
 
-		err = details.pool.UpdateInstanceSnapshot(inst, req.Description, nil, op)
+		err = pool.UpdateInstanceSnapshot(inst, req.Description, nil, op)
 		if err != nil {
 			return err
 		}
@@ -1191,10 +1186,10 @@ func pruneExpiredAndAutoCreateCustomVolumeSnapshotsTask(stateFunc func() *state.
 		// disk space.
 		if len(expiredSnapshots) > 0 {
 			opRun := func(op *operations.Operation) error {
-				return pruneExpiredCustomVolumeSnapshots(ctx, s, expiredSnapshots)
+				return pruneExpiredCustomVolumeSnapshots(op.Context(), s, expiredSnapshots)
 			}
 
-			op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.CustomVolumeSnapshotsExpire, nil, nil, opRun, nil, nil)
+			op, err := operations.OperationCreate(ctx, s, "", operations.OperationClassTask, operationtype.CustomVolumeSnapshotsExpire, nil, nil, opRun, nil, nil)
 			if err != nil {
 				logger.Error("Failed creating expired custom volume snapshots prune operation", logger.Ctx{"err": err})
 			} else {
@@ -1216,10 +1211,10 @@ func pruneExpiredAndAutoCreateCustomVolumeSnapshotsTask(stateFunc func() *state.
 		// Handle snapshot auto creation.
 		if len(volumes) > 0 {
 			opRun := func(op *operations.Operation) error {
-				return autoCreateCustomVolumeSnapshots(ctx, s, volumes)
+				return autoCreateCustomVolumeSnapshots(op.Context(), s, volumes)
 			}
 
-			op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.VolumeSnapshotCreate, nil, nil, opRun, nil, nil)
+			op, err := operations.OperationCreate(ctx, s, "", operations.OperationClassTask, operationtype.VolumeSnapshotCreate, nil, nil, opRun, nil, nil)
 			if err != nil {
 				logger.Error("Failed creating scheduled volume snapshot operation", logger.Ctx{"err": err})
 			} else {
