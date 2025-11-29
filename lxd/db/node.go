@@ -26,12 +26,15 @@ import (
 type ClusterRole string
 
 // ClusterRoleDatabase represents the database role in a cluster.
+// Assigned to cluster members with the [RaftVoter] role.
 const ClusterRoleDatabase = ClusterRole("database")
 
 // ClusterRoleDatabaseStandBy represents the database stand-by role in a cluster.
+// Assigned to cluster members with the [RaftStandBy] role.
 const ClusterRoleDatabaseStandBy = ClusterRole("database-standby")
 
 // ClusterRoleDatabaseLeader represents the database leader role in a cluster.
+// Assigned to the current Raft leader.
 const ClusterRoleDatabaseLeader = ClusterRole("database-leader")
 
 // ClusterRoleEventHub represents a cluster member who operates as an event hub.
