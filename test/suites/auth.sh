@@ -365,6 +365,7 @@ fine_grained: true"
   rm -r "${LXD_CONF6}"
   rm -r "${LXD_CONF7}"
   lxc config set core.remote_token_expiry="" oidc.issuer="" oidc.client.id=""
+  kill_oidc
 }
 
 events_filtering() {
