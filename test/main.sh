@@ -437,7 +437,11 @@ run_test_n_times() {
 
 run_test_group() {
     local -n group_ref="test_group_${1}"
-    for t in "${group_ref[@]}"; do
+
+    local SHUF='cat'
+    [ "${LXD_RANDOMIZE_TESTS:-0}" = "1" ] && SHUF='shuf'
+
+    for t in $(printf '%s\n' "${group_ref[@]}" | "${SHUF}"); do
       run_test_n_times "${t}"
     done
 }
