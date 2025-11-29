@@ -158,7 +158,7 @@ EOF
       cat >> "${LXD_DIR}/preseed.yaml" <<EOF
   config:
     size: 1GiB
-    zfs.pool_name: lxdtest-$(basename "${TEST_DIR}")-${ns}
+    zfs.pool_name: lxdtest-$(basename "${LXD_DIR}")-${ns}
 EOF
     fi
     if [ "${driver}" = "lvm" ]; then
@@ -166,13 +166,13 @@ EOF
   config:
     volume.size: 25MiB
     size: 1GiB
-    lvm.vg_name: lxdtest-$(basename "${TEST_DIR}")-${ns}
+    lvm.vg_name: lxdtest-$(basename "${LXD_DIR}")-${ns}
 EOF
     fi
     if [ "${driver}" = "ceph" ]; then
       cat >> "${LXD_DIR}/preseed.yaml" <<EOF
   config:
-    source: lxdtest-$(basename "${TEST_DIR}")
+    source: lxdtest-$(basename "${LXD_DIR}")
     volume.size: 25MiB
     ceph.osd.pg_num: 16
 EOF
@@ -216,11 +216,19 @@ spawn_lxd_and_join_cluster() {
   fi
   driver="dir"
   port="8443"
+  source=""
+  source_reuse="false"
   if [ "$#" -ge  "8" ]; then
       driver="${8}"
   fi
   if [ "$#" -ge  "9" ]; then
       port="${9}"
+  fi
+  if [ "$#" -ge  "10" ]; then
+      source="${10}"
+  fi
+  if [ "$#" -ge  "11" ]; then
+      source_reuse="${11}"
   fi
 
   echo "==> Spawn additional cluster node in ${ns} with storage driver ${driver}"
@@ -253,18 +261,18 @@ EOF
   - entity: storage-pool
     name: data
     key: source
-    value: ""
+    value: "${source}"
+  - entity: storage-pool
+    name: data
+    key: source.reuse
+    value: ${source_reuse}
 EOF
       if [ "${driver}" = "zfs" ]; then
         cat >> "${LXD_DIR}/preseed.yaml" <<EOF
   - entity: storage-pool
     name: data
     key: zfs.pool_name
-    value: lxdtest-$(basename "${TEST_DIR}")-${ns}
-  - entity: storage-pool
-    name: data
-    key: size
-    value: 1GiB
+    value: lxdtest-$(basename "${LXD_DIR}")-${ns}
 EOF
       fi
       if [ "${driver}" = "lvm" ]; then
@@ -272,14 +280,11 @@ EOF
   - entity: storage-pool
     name: data
     key: lvm.vg_name
-    value: lxdtest-$(basename "${TEST_DIR}")-${ns}
-  - entity: storage-pool
-    name: data
-    key: size
-    value: 1GiB
+    value: lxdtest-$(basename "${LXD_DIR}")-${ns}
 EOF
       fi
-      if [ "${driver}" = "btrfs" ]; then
+      # shellcheck disable=SC2235
+      if ([ "${driver}" = "btrfs" ] && [ "${source}" = "" ]) || ([ "${driver}" = "zfs" ] && [ "${source}" = "" ]) || ([ "${driver}" = "lvm" ] && [ "${source}" = "" ]); then
         cat >> "${LXD_DIR}/preseed.yaml" <<EOF
   - entity: storage-pool
     name: data
@@ -288,6 +293,9 @@ EOF
 EOF
       fi
     fi
+
+    # Print the preseed for debugging purposes.
+    cat "${LXD_DIR}/preseed.yaml"
 
     lxd init --preseed < "${LXD_DIR}/preseed.yaml"
   )

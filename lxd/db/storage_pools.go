@@ -908,6 +908,7 @@ var NodeSpecificStorageConfig = []string{
 	"size",
 	"source",
 	"source.wipe",
+	"source.reuse",
 	"volatile.initial_source",
 	"zfs.pool_name",
 	"lvm.thinpool_name",

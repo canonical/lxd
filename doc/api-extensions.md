@@ -2875,3 +2875,12 @@ Endpoints converted to asynchronous behavior:
 * `PATCH /storage-pools/{pool}/volumes/{type}/{vol}/snapshots/{snap}` - Patch storage volume snapshot
 * `PUT /1.0/profiles/{name}` - Update profile
 * `PATCH /1.0/profiles/{name}` - Patch profile
+
+## `storage_source_reuse`
+
+As part of the recovery process it might be necessary to reuse already existing remote storage pools or physical drives when creating
+a new storage pool in LXD.
+
+Previously this was only possible for some of the drivers (e.g. `ceph.osd.force_reuse`).
+The new pool level `source.reuse` configuration key can be set per node to allow reuse of an existing `source`.
+What it does not allow is reusing the same source for multiple storage pools.

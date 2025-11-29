@@ -980,6 +980,12 @@ func (c *ClusterTx) ClearNode(ctx context.Context, id int64) error {
 		return err
 	}
 
+	// In case there were any left over instances, make sure to also delete the corresponding volumes.
+	_, err = c.tx.Exec("DELETE FROM storage_volumes WHERE node_id=? AND type IN (?, ?)", id, cluster.StoragePoolVolumeTypeContainer, cluster.StoragePoolVolumeTypeVM)
+	if err != nil {
+		return err
+	}
+
 	// Get the IDs of the images this node is hosting.
 	ids, err := query.SelectIntegers(ctx, c.tx, "SELECT image_id FROM images_nodes WHERE node_id=?", id)
 	if err != nil {
