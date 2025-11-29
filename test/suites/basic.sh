@@ -754,6 +754,7 @@ EOF
 
   fingerprint="$(lxc config trust ls --format csv | cut -d, -f4)"
   lxc config trust remove "${fingerprint}"
+  lxc remote remove localhost
 }
 
 test_snap_basic_usage_vm() {
