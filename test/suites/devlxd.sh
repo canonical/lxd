@@ -617,6 +617,7 @@ EOF
 
     # Write some data to the volume.
     echo "initial-content" | lxc file push --project "${project}" - "${inst}/mnt/vol-01/test.txt"
+    lxc exec "${inst}" --project "${project}" -- sync
     [ "$(lxc exec "${inst}" --project "${project}" -- cat /mnt/vol-01/test.txt)" = "initial-content" ]
 
     # Make snapshot.
