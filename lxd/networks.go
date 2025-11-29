@@ -27,7 +27,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network"
-	"github.com/canonical/lxd/lxd/network/openvswitch"
+	"github.com/canonical/lxd/lxd/network/ovs"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/resources"
@@ -1074,8 +1074,12 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, requestProject
 	} else if shared.PathExists("/sys/class/net/" + apiNet.Name + "/bonding") {
 		apiNet.Type = "bond"
 	} else {
-		ovs := openvswitch.NewOVS()
-		exists, _ := ovs.BridgeExists(apiNet.Name)
+		vswitch, err := ovs.NewVSwitch()
+		if err != nil {
+			return api.Network{}, fmt.Errorf("Failed to connect to OVS: %w", err)
+		}
+
+		exists, _ := vswitch.BridgeExists(apiNet.Name)
 		if exists {
 			apiNet.Type = "bridge"
 		} else {
