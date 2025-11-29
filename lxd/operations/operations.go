@@ -40,6 +40,8 @@ const (
 	OperationClassWebsocket OperationClass = 2
 	// OperationClassToken represents the Token OperationClass.
 	OperationClassToken OperationClass = 3
+	// OperationClassDurable represents the Durable OperationClass.
+	OperationClassDurable OperationClass = 4
 )
 
 func (t OperationClass) String() string {
@@ -47,6 +49,7 @@ func (t OperationClass) String() string {
 		OperationClassTask:      api.OperationClassTask,
 		OperationClassWebsocket: api.OperationClassWebsocket,
 		OperationClassToken:     api.OperationClassToken,
+		OperationClassDurable:   api.OperationClassDurable,
 	}[t]
 }
 
@@ -117,9 +120,15 @@ type Operation struct {
 	events *events.Server
 }
 
+// DurableOperationHandlers represents the set of handlers required for a durable operation.
+type DurableOperationHandlers *struct {
+	OnRun    func(*Operation) error
+	OnCancel func(*Operation) error
+}
+
 // OperationCreate creates a new operation and returns it. If it cannot be
 // created, it returns an error.
-func OperationCreate(ctx context.Context, s *state.State, projectName string, opClass OperationClass, opType operationtype.Type, opResources map[string][]api.URL, opMetadata any, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error) (*Operation, error) {
+func OperationCreate(ctx context.Context, s *state.State, opUUID string, projectName string, opClass OperationClass, opType operationtype.Type, opResources map[string][]api.URL, opMetadata any, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error) (*Operation, error) {
 	// Don't allow new operations when LXD is shutting down.
 	if s != nil && s.ShutdownCtx.Err() == context.Canceled {
 		return nil, errors.New("LXD is shutting down")
@@ -128,7 +137,12 @@ func OperationCreate(ctx context.Context, s *state.State, projectName string, op
 	// Main attributes
 	op := Operation{}
 	op.projectName = projectName
-	op.id = uuid.New().String()
+	if opUUID != "" {
+		op.id = opUUID
+	} else {
+		op.id = uuid.New().String()
+	}
+
 	op.description = opType.Description()
 	op.entityType, op.entitlement = opType.Permission()
 	op.dbOpType = opType
@@ -718,4 +732,22 @@ func (op *Operation) Class() OperationClass {
 // Type returns the db operation type.
 func (op *Operation) Type() operationtype.Type {
 	return op.dbOpType
+}
+
+var durableOperations map[operationtype.Type]DurableOperationHandlers
+
+// InitDurableOperations initializes the durable operations table.
+// As durable operations can be restarted on other nodes, the durable operation handlers cannot be defined only in the memory of the node.
+// Therefore we maintain a static map of durable operation handlers based on operation type.
+// As this map contains handlers from across many packages, the table itself is defined in the main package.
+// Because this table needs to be accessible from the operations package, we provide this Init function to set it.
+func InitDurableOperations(opTable map[operationtype.Type]DurableOperationHandlers) {
+	durableOperations = opTable
+}
+
+// CreateDurableOperation creates a new durable operation and returns it.
+// Durable operations need to have handlers defined in a durableOperations map rather than provided via arguments.
+// Arguments to these handlers are then looked up in the metadata.
+func CreateDurableOperation(ctx context.Context, s *state.State, opUUID string, projectName string, opType operationtype.Type, opResources map[string][]api.URL, opMetadata any) (*Operation, error) {
+	return OperationCreate(ctx, s, opUUID, projectName, OperationClassDurable, opType, opResources, opMetadata, durableOperations[opType].OnRun, durableOperations[opType].OnCancel, nil)
 }

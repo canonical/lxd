@@ -1232,7 +1232,7 @@ func autoRemoveOrphanedOperationsTask(stateFunc func() *state.State) (task.Func,
 			return autoRemoveOrphanedOperations(ctx, s)
 		}
 
-		op, err := operations.OperationCreate(context.Background(), s, "", operations.OperationClassTask, operationtype.RemoveOrphanedOperations, nil, nil, opRun, nil, nil)
+		op, err := operations.OperationCreate(context.Background(), s, "", "", operations.OperationClassTask, operationtype.RemoveOrphanedOperations, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed creating remove orphaned operations operation", logger.Ctx{"err": err})
 			return
@@ -1299,6 +1299,17 @@ type operationWaitPost struct {
 	Resources map[string][]string       `json:"resources" yaml:"resources"`
 }
 
+func waitHandlerOperationOnRun(op *operations.Operation) error {
+	duration, ok := op.Metadata()["duration"].(time.Duration)
+	if !ok {
+		return errors.New("Invalid duration metadata")
+	}
+
+	// Just sleep for the duration.
+	time.Sleep(duration)
+	return nil
+}
+
 // operationWaitHandler creates a dummy operation that waits for a specified duration.
 func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 	// Extract the entity URL and duration from the request.
@@ -1339,10 +1350,8 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid operation type %q", req.OpType))
 	}
 
-	run := func(op *operations.Operation) error {
-		// Just sleep for the duration.
-		time.Sleep(duration)
-		return nil
+	metadata := map[string]time.Duration{
+		"duration": duration,
 	}
 
 	var onConnect func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error
@@ -1353,10 +1362,22 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	op, err := operations.OperationCreate(r.Context(), d.State(), request.QueryParam(r, "project"), req.OpClass, req.OpType, resources, nil, run, nil, onConnect)
+	var op *operations.Operation
+	if req.OpClass == operations.OperationClassDurable {
+		op, err = operations.CreateDurableOperation(r.Context(), d.State(), "", request.QueryParam(r, "project"), req.OpType, resources, metadata)
+	} else {
+		op, err = operations.OperationCreate(r.Context(), d.State(), "", request.QueryParam(r, "project"), req.OpClass, req.OpType, resources, metadata, waitHandlerOperationOnRun, nil, onConnect)
+	}
+
 	if err != nil {
 		return response.InternalError(err)
 	}
 
 	return operations.OperationResponse(op)
+}
+
+var DurableOperations = map[operationtype.Type]operations.DurableOperationHandlers{
+	operationtype.Wait: {
+		OnRun: waitHandlerOperationOnRun,
+	},
 }
