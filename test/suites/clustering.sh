@@ -3057,6 +3057,7 @@ test_clustering_rebalance() {
   # shellcheck disable=SC2034
   local LXD_DIR
 
+  echo "Create cluster with 5 nodes"
   setup_clustering_bridge
   prefix="lxd$$"
   bridge="${prefix}"
@@ -3090,11 +3091,11 @@ test_clustering_rebalance() {
   # Wait a bit for raft roles to update.
   sleep 5
 
-  # Check there is one database-standby member.
+  echo "Check there is one database-standby member."
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -Fc "database-standby")" = "1" ]
 
-  # Kill the second node.
+  echo "Kill the second node."
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 11
   kill -9 "$(< "${LXD_TWO_DIR}/lxd.pid")"
 
@@ -3102,30 +3103,71 @@ test_clustering_rebalance() {
   # fourth node.
   sleep 15
 
-  # The second node is offline and has been demoted.
+  echo "Verify the second node is offline and has been demoted."
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF "status: Offline"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF "database: false"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -xF "status: Online"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -F -- "- database"
 
-  # Respawn the second node. It won't be able to disrupt the current leader,
-  # since dqlite uses pre-vote.
+  echo "Respawn the second node."
+  # It won't be able to disrupt the current leader, since dqlite uses pre-vote.
   respawn_lxd_cluster_member "${ns2}" "${LXD_TWO_DIR}"
   sleep 12
 
+  echo "Verify the second node is back online and has database role."
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF "status: Online"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF "database: true"
 
+  echo "Add a fifth node to the cluster."
+  # Spawn a fifth node
+  setup_clustering_netns 5
+  LXD_FIVE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns5="${prefix}5"
+  spawn_lxd_and_join_cluster "${ns5}" "${bridge}" "${cert}" 5 1 "${LXD_FIVE_DIR}" "${LXD_ONE_DIR}"
+
+  echo "Remove standby role and add client role to fifth node."
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node5 database-standby
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node5 database-client
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list # For debugging.
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -Fc "database-client")" = "1" ]
+
+  echo "Wait for rebalancing to demote node5 to spare (non-database member)."
+  sleep 15
+
+  echo "Verify database-standby role has been removed from node5."
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node5 | grep -Fc "database-standby")" = "0" ]
+
+  echo "Verify node5 has spare raft role (non-database member)."
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node5 | grep -xF "database: false"
+
+  echo "Kill node4 to trigger rebalancing."
+  kill -9 "$(< "${LXD_FOUR_DIR}/lxd.pid")"
+  sleep 15
+
+  echo "Verify node4 is offline and has been demoted."
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -xF "status: Offline"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -xF "database: false"
+
+  echo "Verify node5 with database-client role was not promoted during rebalancing."
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node5 | grep -xF "database: false"
+
+  echo "Verify node2 (standby without database-client) was promoted to voter instead."
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF "database: true"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -cF -- "- database-standby")" = "0" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list # For debugging.
+
+  echo "Clean up"
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
+  LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
   sleep 0.5
   rm -f "${LXD_ONE_DIR}/unix.socket"
   rm -f "${LXD_TWO_DIR}/unix.socket"
   rm -f "${LXD_THREE_DIR}/unix.socket"
   rm -f "${LXD_FOUR_DIR}/unix.socket"
+  rm -f "${LXD_FIVE_DIR}/unix.socket"
 
   teardown_clustering_netns
   teardown_clustering_bridge
@@ -3134,6 +3176,7 @@ test_clustering_rebalance() {
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
   kill_lxd "${LXD_FOUR_DIR}"
+  kill_lxd "${LXD_FIVE_DIR}"
 }
 
 test_clustering_rebalance_remove_leader() {
