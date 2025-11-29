@@ -339,6 +339,7 @@ fine_grained: true"
   LXD_CONF="${LXD_CONF5}" my_curl "https://${LXD_ADDR}/1.0/auth/identities/tls/test-user4" -X PATCH -H 'Content-Type: application/json' --data '{"tls_certificate":"'"$(awk '{printf "%s\\n", $0}' "${LXD_CONF4}/client.crt")"'"}' | jq --exit-status '.status_code == 200'
   LXD_CONF="${LXD_CONF4}" lxc_remote query tls:/1.0 | jq --exit-status '.auth == "trusted"'
   LXD_CONF="${LXD_CONF5}" lxc_remote query tls:/1.0 | jq --exit-status '.auth == "untrusted"'
+  lxc auth identity delete tls/test-user4
 
   # Check that an unrestricted client certificate is not fine grained.
   LXD_CONF6=$(mktemp -d -p "${TEST_DIR}" XXX)
