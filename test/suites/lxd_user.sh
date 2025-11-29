@@ -76,6 +76,9 @@ test_snap_lxd_user() {
   snap_lxc_user query /1.0 | jq --exit-status '.auth_user_method == "tls" and .auth_user_name == "'"${fingerprint}"'"'
 
   # Cleanup
+  snap_lxc_user config trust remove "${fingerprint}"
   lxc project delete user-5000
+  lxc network delete lxdbr-5000
+  rm -rf "${LXD_USER_DIR}/users/5000"
   userdel --remove --force testuser 2>/dev/null || true
 }
