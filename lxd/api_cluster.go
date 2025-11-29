@@ -1759,6 +1759,41 @@ func updateClusterNode(s *state.State, gateway *cluster.Gateway, r *http.Request
 		return response.BadRequest(errors.New("Cluster members need to belong to at least one group"))
 	}
 
+	// Prevent assigning "database-client" role to all nodes.
+	clientNodes := 0
+	nodesCount := 0
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		nodesCount, err = tx.GetNodesCount(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed loading nodes count: %w", err)
+		}
+
+		nodes, err := tx.GetNodes(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed loading nodes: %w", err)
+		}
+
+		for _, n := range nodes {
+			// Ignore the node currently being updated.
+			if n.Name == member.Name {
+				continue
+			}
+
+			if slices.Contains(n.Roles, db.ClusterRoleDatabaseClient) {
+				clientNodes += 1
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if clientNodes+1 >= nodesCount {
+		return response.BadRequest(errors.New("Assigning the 'database-client' role to all nodes is not allowed"))
+	}
+
 	// Convert the roles.
 	newRoles := make([]db.ClusterRole, 0, len(req.Roles))
 	for _, role := range req.Roles {
@@ -3221,6 +3256,36 @@ func evacuateClusterSetState(s *state.State, name string, state int) error {
 		err = tx.UpdateNodeStatus(node.ID, state)
 		if err != nil {
 			return fmt.Errorf("Failed updating cluster member status: %w", err)
+		}
+
+		// Assign or remove "database-client" role based on state.
+		switch state {
+		case db.ClusterMemberStateEvacuated:
+			// Add database-client role to prevent promotion.
+			if !slices.Contains(node.Roles, db.ClusterRoleDatabaseClient) {
+				roles := append([]db.ClusterRole{}, node.Roles...)
+				roles = append(roles, db.ClusterRoleDatabaseClient)
+				err = tx.UpdateNodeRoles(node.ID, roles)
+				if err != nil {
+					return fmt.Errorf("Failed adding database-client role: %w", err)
+				}
+			}
+
+		case db.ClusterMemberStateCreated:
+			// Remove "database-client" role when restoring.
+			if slices.Contains(node.Roles, db.ClusterRoleDatabaseClient) {
+				roles := make([]db.ClusterRole, 0, len(node.Roles)-1)
+				for _, role := range node.Roles {
+					if role != db.ClusterRoleDatabaseClient {
+						roles = append(roles, role)
+					}
+				}
+
+				err = tx.UpdateNodeRoles(node.ID, roles)
+				if err != nil {
+					return fmt.Errorf("Failed removing database-client role: %w", err)
+				}
+			}
 		}
 
 		return nil
