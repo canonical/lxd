@@ -123,8 +123,7 @@ jobs:
         with:
           cache: 'pip' # caching pip dependencies
           cache-dependency-path: |
-            doc/.sphinx/build_requirements.py
-            doc/.sphinx/requirements.txt
+            doc/requirements.txt
             doc/custom_conf.py
           python-version: '3.x'  # satisfied by any 3.x version already installed
 
@@ -1168,8 +1167,7 @@ jobs:
         with:
           cache: 'pip' # caching pip dependencies
           cache-dependency-path: |
-            doc/.sphinx/build_requirements.py
-            doc/.sphinx/requirements.txt
+            doc/requirements.txt
             doc/custom_conf.py
           python-version: '3.x'  # satisfied by any 3.x version already installed
 
@@ -1231,8 +1229,7 @@ jobs:
         with:
           cache: 'pip' # caching pip dependencies
           cache-dependency-path: |
-            doc/.sphinx/build_requirements.py
-            doc/.sphinx/requirements.txt
+            doc/requirements.txt
             doc/custom_conf.py
           python-version: '3.x'  # satisfied by any 3.x version already installed
 
