@@ -124,7 +124,7 @@ jobs:
           cache: 'pip' # caching pip dependencies
           cache-dependency-path: |
             doc/requirements.txt
-            doc/custom_conf.py
+            doc/conf.py
           python-version: '3.x'  # satisfied by any 3.x version already installed
 
       - name: Install build dependencies
@@ -1168,7 +1168,7 @@ jobs:
           cache: 'pip' # caching pip dependencies
           cache-dependency-path: |
             doc/requirements.txt
-            doc/custom_conf.py
+            doc/conf.py
           python-version: '3.x'  # satisfied by any 3.x version already installed
 
       - name: Install dependencies
@@ -1230,7 +1230,7 @@ jobs:
           cache: 'pip' # caching pip dependencies
           cache-dependency-path: |
             doc/requirements.txt
-            doc/custom_conf.py
+            doc/conf.py
           python-version: '3.x'  # satisfied by any 3.x version already installed
 
       - name: Build LXD client
