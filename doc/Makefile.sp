@@ -28,24 +28,12 @@ sp-full-help: $(VENVDIR)
 	@echo "\n\033[1;31mNOTE: This help texts shows unsupported targets!\033[0m"
 	@echo "Run 'make help' to see supported targets."
 
-# Shouldn't assume that venv is available on Ubuntu by default; discussion here:
-# https://bugs.launchpad.net/ubuntu/+source/python3.4/+bug/1290847
-$(SPHINXDIR)/requirements.txt:
-	@python3 -c "import venv" || \
-        (echo "You must install python3-venv before you can build the documentation."; exit 1)
-	python3 -m venv $(VENVDIR)
-	@if [ ! -z "$(ADDPREREQS)" ]; then \
-          . $(VENV); pip install \
-                         $(PIPOPTS) --require-virtualenv $(ADDPREREQS); \
-        fi
-	. $(VENV); python3 $(SPHINXDIR)/build_requirements.py
-
 # If requirements are updated, venv should be rebuilt and timestamped.
-$(VENVDIR): $(SPHINXDIR)/requirements.txt
+$(VENVDIR):
 	@echo "... setting up virtualenv"
-	python3 -m venv $(VENVDIR)
+	python3 -m venv $(VENVDIR) || { echo "You must install python3-venv before you can build the documentation."; exit 1; }
 	. $(VENV); pip install $(PIPOPTS) --require-virtualenv \
-	    --upgrade -r $(SPHINXDIR)/requirements.txt \
+	    --upgrade -r requirements.txt \
             --log $(VENVDIR)/pip_install.log
 	@test ! -f $(VENVDIR)/pip_list.txt || \
             mv $(VENVDIR)/pip_list.txt $(VENVDIR)/pip_list.txt.bak
@@ -81,7 +69,6 @@ sp-serve: sp-html
 sp-clean: sp-clean-doc
 	@test ! -e "$(VENVDIR)" -o -d "$(VENVDIR)" -a "$(abspath $(VENVDIR))" != "$(VENVDIR)"
 	rm -rf $(VENVDIR)
-	rm -f $(SPHINXDIR)/requirements.txt
 	rm -rf $(SPHINXDIR)/node_modules/
 	rm -rf $(SPHINXDIR)/styles
 	rm -rf $(SPHINXDIR)/vale.ini
