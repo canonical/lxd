@@ -956,7 +956,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 	}
 
 	// Load attached volumes for multi-volume snapshot (if requested).
-	var attachedVolumes []*db.StorageVolume
+	var attachedVolumes map[string]db.StorageVolume
 	if diskVolumesMode == api.DiskVolumesModeAllExclusive {
 		var err error
 		attachedVolumes, err = d.getAttachedVolumes(inst)
@@ -1032,10 +1032,10 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 	if len(attachedVolumes) > 0 {
 		// Snapshot attached custom volumes.
 		storageCache := storagePools.NewStorageCache(pool) // Create storage cache for pool lookups.
-		attachedVolumeUUIDs := make(map[string]string)
+		volatileAttachedVolumes := make(map[string]string)
 		instanceProject := inst.Project()
 		instanceType := inst.Type()
-		for _, volume := range attachedVolumes {
+		for deviceName, volume := range attachedVolumes {
 			// Skip ISO volumes (snapshots not supported).
 			if volume.ContentType == dbCluster.StoragePoolVolumeContentTypeNameISO {
 				continue
@@ -1064,9 +1064,9 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 				return fmt.Errorf("Failed creating attached volume %q snapshot %q in storage pool %q: %w", volume.Name, snapshotName, volume.Pool, err)
 			}
 
-			// Set attached volume snapshot UUID.
+			// Map device name to snapshot UUID.
 			// This is used to identify the attached volume snapshots during restore.
-			attachedVolumeUUIDs[volume.Config["volatile.uuid"]] = snapshotUUID.String()
+			volatileAttachedVolumes[deviceName] = snapshotUUID.String()
 
 			revert.Add(func() {
 				err := pool.DeleteCustomVolumeSnapshot(volume.Project, volume.Name+"/"+snapshotName, d.op)
@@ -1076,12 +1076,12 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry *tim
 			})
 		}
 
-		marshalled, err := json.Marshal(attachedVolumeUUIDs)
+		marshalled, err := json.Marshal(volatileAttachedVolumes)
 		if err != nil {
 			return err
 		}
 
-		// Set "volatile.attached_volumes" to attached volume snapshot UUIDs on the snapshot instance.
+		// Set "volatile.attached_volumes" to map of device name to snapshot UUID on the snapshot instance.
 		err = snap.VolatileSet(map[string]string{
 			"volatile.attached_volumes": string(marshalled),
 		})
