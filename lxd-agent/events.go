@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -112,15 +113,18 @@ func eventsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Handle device related actions locally.
-	go eventsProcess(event)
+	err = eventsProcess(event)
+	if err != nil {
+		logger.Error("Failed to process event", logger.Ctx{"err": err, "type": event.Type, "location": event.Location, "project": event.Project})
+	}
 
 	return response.SyncResponse(true, nil)
 }
 
-func eventsProcess(event api.Event) {
+func eventsProcess(event api.Event) error {
 	// We currently only need to react to device events.
 	if event.Type != "device" {
-		return
+		return nil
 	}
 
 	type deviceEvent struct {
@@ -133,23 +137,23 @@ func eventsProcess(event api.Event) {
 	e := deviceEvent{}
 	err := json.Unmarshal(event.Metadata, &e)
 	if err != nil {
-		return
+		return err
 	}
 
 	// Only handle device additions and removals.
 	if e.Action != agentAPI.DeviceAdded && e.Action != agentAPI.DeviceRemoved {
-		return
+		return nil
 	}
 
 	// We only handle disk hotplug/removal.
 	if !filters.IsDisk(e.Config) {
-		return
+		return nil
 	}
 
 	// And only for path based devices.
 	targetPath := e.Config["path"]
 	if targetPath == "" {
-		return
+		return nil
 	}
 
 	mntSource := "lxd_" + e.Name
@@ -161,8 +165,7 @@ func eventsProcess(event api.Event) {
 
 	// Reject path containing "..".
 	if strings.Contains(targetPath, "..") {
-		l.Error("Invalid path containing '..'")
-		return
+		return fmt.Errorf("Invalid path %q: Path must not contain '..'", targetPath)
 	}
 
 	// If the path is not absolute, the mount will be created relative to the current directory.
@@ -170,8 +173,7 @@ func eventsProcess(event api.Event) {
 	// This is not ideal and not consistent with the way mounts are handled with containers. For consistency make the path absolute.
 	targetPath, err = filepath.Abs(targetPath)
 	if err != nil || !strings.HasPrefix(targetPath, "/") {
-		l.Error("Failed to make path absolute")
-		return
+		return fmt.Errorf("Failed to make path %q absolute", targetPath)
 	}
 
 	switch e.Action {
@@ -191,18 +193,17 @@ func eventsProcess(event api.Event) {
 			_, err = shared.RunCommandContext(context.Background(), "mount", args...)
 			if err == nil {
 				l.Info("Mounted hotplug")
-				return
+				return nil
 			}
 
 			time.Sleep(500 * time.Millisecond)
 		}
 
-		l.Info("Failed to mount hotplug", logger.Ctx{"err": err})
+		return fmt.Errorf("Failed to hotplug device %q: %w", mntSource, err)
 	case agentAPI.DeviceRemoved:
 		mountInfoFile, err := os.Open("/proc/self/mountinfo")
 		if err != nil {
-			l.Error("Error opening /proc/self/mountinfo", logger.Ctx{"err": err})
-			return
+			return fmt.Errorf("Error opening /proc/self/mountinfo: %w", err)
 		}
 
 		defer mountInfoFile.Close()
@@ -223,19 +224,18 @@ func eventsProcess(event api.Event) {
 
 		err = scanner.Err()
 		if err != nil {
-			l.Error("Error reading /proc/self/mountinfo", logger.Ctx{"err": err})
-			return
+			return fmt.Errorf("Error reading /proc/self/mountinfo: %w", err)
 		}
 
 		if mountPoint == "" {
-			l.Error("Mount point not found")
-			return
+			return fmt.Errorf("Mount point not found for path %q", targetPath)
 		}
 
 		err = unix.Unmount(mountPoint, unix.MNT_DETACH)
 		if err != nil {
-			l.Error("Failed to unmount", logger.Ctx{"err": err, "mountPoint": mountPoint})
-			return
+			return fmt.Errorf("Failed to unmount %q: %w", mountPoint, err)
 		}
 	}
+
+	return nil
 }
