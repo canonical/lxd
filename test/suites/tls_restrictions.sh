@@ -314,12 +314,16 @@ test_tls_restrictions() {
 
   # The restricted client can view allocations for the blah project. Since blah doesn't have networks enabled, the client
   # should see allocations for the default project, but they can't see the foo instance
-  [ "$(lxc network list-allocations localhost: --project blah --format csv | wc -l)" = 3 ]
+  # The allocations for the default lxdbr0 are ignored due to being visible by
+  # all users and this network often being present due to other tests.
+  # shellcheck disable=SC2126
+  [ "$(lxc network list-allocations localhost: --project blah --format csv | grep -vF '/1.0/networks/lxdbr0,' | wc -l)" = 3 ]
   ! lxc network list-allocations localhost: --project blah --format csv | grep 'instances/foo' || false
 
   # Check restrictions when using blah as current project.
   lxc project switch localhost:blah
-  [ "$(lxc network list-allocations localhost: --format csv | wc -l)" = 3 ]
+  # shellcheck disable=SC2126
+  [ "$(lxc network list-allocations localhost: --format csv | grep -vF '/1.0/networks/lxdbr0,' | wc -l)" = 3 ]
   ! lxc network list-allocations localhost: --format csv | grep 'instances/foo' || false
 
   # Can't switch back to default while restricted to blah, so we need to modify the config file.
