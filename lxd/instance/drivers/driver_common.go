@@ -881,8 +881,8 @@ func (d *common) getAttachedVolumeSnapshots(inst instance.Instance, attachedVolu
 	return volumes, err
 }
 
-// getAttachedVolumes returns the list of storage volumes attached to the instance.
-func (d *common) getAttachedVolumes(inst instance.Instance) (volumes []*db.StorageVolume, err error) {
+// getAttachedVolumes returns a map of device names to storage volumes that are attached to the instance.
+func (d *common) getAttachedVolumes(inst instance.Instance) (attachedVolumes map[string]db.StorageVolume, err error) {
 	// Retrieve the instance's root disk volume storage pool.
 	_, rootDiskDevice, err := d.getRootDiskDevice()
 	if err != nil {
@@ -903,10 +903,9 @@ func (d *common) getAttachedVolumes(inst instance.Instance) (volumes []*db.Stora
 	storageCache := storagePools.NewStorageCache(rootDiskPool)
 
 	// Get attached storage volumes.
-	attachedDiskVolumeDevices := d.expandedDevices.Filter(filters.IsCustomVolumeDisk)
-	volumes = make([]*db.StorageVolume, 0, len(attachedDiskVolumeDevices))
+	attachedVolumes = make(map[string]db.StorageVolume)
 	instanceProject := inst.Project()
-	for name, dev := range attachedDiskVolumeDevices {
+	for name, dev := range d.expandedDevices.Filter(filters.IsCustomVolumeDisk) {
 		// Storage cache lookup.
 		pool, err := storageCache.GetPool(dev["pool"])
 		if err != nil {
@@ -921,7 +920,7 @@ func (d *common) getAttachedVolumes(inst instance.Instance) (volumes []*db.Stora
 				return err
 			}
 
-			volumes = append(volumes, vol)
+			attachedVolumes[name] = *vol
 			return nil
 		})
 		if err != nil {
@@ -929,7 +928,7 @@ func (d *common) getAttachedVolumes(inst instance.Instance) (volumes []*db.Stora
 		}
 	}
 
-	return volumes, nil
+	return attachedVolumes, nil
 }
 
 // snapshotCommon handles the common part of a snapshot.
