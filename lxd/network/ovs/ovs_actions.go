@@ -194,26 +194,25 @@ func (o *VSwitch) OVNEncapIP() (net.IP, error) {
 
 // OVNBridgeMappings gets the current OVN bridge mappings.
 func (o *VSwitch) OVNBridgeMappings(bridgeName string) ([]string, error) {
-	// ovs-vsctl's get command doesn't support its --format flag, so we always get the output quoted.
-	// However ovs-vsctl's find and list commands don't support retrieving a single column's map field.
-	// And ovs-vsctl's JSON output is unfriendly towards statically typed languages as it mixes data types
-	// in a slice. So stick with "get" command and use Go's strconv.Unquote to return the actual values.
-	mappings, err := shared.RunCommandContext(context.TODO(), "ovs-vsctl", "--if-exists", "get", "open_vswitch", ".", "external-ids:ovn-bridge-mappings")
+	ctx := context.TODO()
+
+	// Get the root switch.
+	vSwitch := &ovsSwitch.OpenvSwitch{
+		UUID: o.rootUUID,
+	}
+
+	err := o.client.Get(ctx, vSwitch)
 	if err != nil {
 		return nil, err
 	}
 
-	mappings = strings.TrimSpace(mappings)
-	if mappings == "" {
+	// Return the bridge mappings.
+	val := vSwitch.ExternalIDs["ovn-bridge-mappings"]
+	if val == "" {
 		return []string{}, nil
 	}
 
-	mappings, err = unquote(mappings)
-	if err != nil {
-		return nil, fmt.Errorf("Failed unquoting: %w", err)
-	}
-
-	return strings.Split(mappings, ","), nil
+	return strings.Split(val, ","), nil
 }
 
 // OVNBridgeMappingAdd appends an OVN bridge mapping between a bridge and the logical provider name.
