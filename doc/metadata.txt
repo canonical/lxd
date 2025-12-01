@@ -2662,9 +2662,9 @@ The template with the given name is triggered upon next startup.
 
 ```{config:option} volatile.attached_volumes instance-volatile
 :condition: "snapshot"
-:shortdesc: "JSON-serialized map of attached volume UUIDs to the UUIDs of their corresponding snapshots."
+:shortdesc: "JSON-serialized map of attached volume device names to the UUIDs of their corresponding snapshots."
 :type: "string"
-JSON-serialized map of attached volume UUIDs to the UUIDs of their corresponding
+JSON-serialized map of attached volume device names to the UUIDs of their corresponding
 snapshots, created as part of a multi-volume snapshot.
 
 ```
