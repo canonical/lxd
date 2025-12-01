@@ -357,6 +357,7 @@ fine_grained: true"
   # Cleanup
   lxc auth group delete test-group
   lxc auth identity-provider-group delete test-idp-group
+  lxc auth identity delete oidc/test-user@example.com
   lxc remote remove oidc
   rm -r "${LXD_CONF2}"
   rm -r "${LXD_CONF3}"
