@@ -1269,20 +1269,20 @@ func (d *common) restoreCommon(inst instance.Instance, source instance.Instance,
 
 // resolveRestoreSnapshots returns a list of snapshot volumes to include in an instance restore.
 func (d *common) resolveRestoreSnapshots(inst instance.Instance, source instance.Instance) (restoreSnapshots []*db.StorageVolume, err error) {
-	var attachedVolumeUUIDs map[string]string
-	err = json.Unmarshal([]byte(source.LocalConfig()["volatile.attached_volumes"]), &attachedVolumeUUIDs)
+	var volatileAttachedVolumes map[string]string
+	err = json.Unmarshal([]byte(source.LocalConfig()["volatile.attached_volumes"]), &volatileAttachedVolumes)
 	if err != nil {
 		return nil, fmt.Errorf(`Failed parsing source instance "volatile.attached_volumes": %w`, err)
 	}
 
-	// Get attached volumes.
+	// Get attached volumes (map of device name -> volume).
 	attachedVolumes, err := d.getAttachedVolumes(source)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting attached volumes: %w", err)
 	}
 
 	// Get attached volume snapshots.
-	attachedVolumeSnapshots, err := d.getAttachedVolumeSnapshots(source, attachedVolumeUUIDs)
+	attachedVolumeSnapshots, err := d.getAttachedVolumeSnapshots(source, volatileAttachedVolumes)
 	if err != nil {
 		return nil, err
 	}
@@ -1293,18 +1293,21 @@ func (d *common) resolveRestoreSnapshots(inst instance.Instance, source instance
 		uuidToVolume[vol.Config["volatile.uuid"]] = vol
 	}
 
-	var missing []*db.StorageVolume
-	var shared []*db.StorageVolume
+	var missing []db.StorageVolume
+	var shared []db.StorageVolume
 
 	// Check which attached volumes have matching snapshots.
 	restoreSnapshots = make([]*db.StorageVolume, 0, len(attachedVolumeSnapshots))
-	for _, v := range attachedVolumes {
-		snapshotUUID := attachedVolumeUUIDs[v.Config["volatile.uuid"]]
+	for deviceName, snapshotUUID := range volatileAttachedVolumes {
 		vol, ok := uuidToVolume[snapshotUUID]
 		if ok {
 			restoreSnapshots = append(restoreSnapshots, vol)
 		} else {
-			missing = append(missing, v)
+			// Get volume details for logging.
+			v, ok := attachedVolumes[deviceName]
+			if ok {
+				missing = append(missing, v)
+			}
 		}
 	}
 
