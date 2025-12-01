@@ -837,9 +837,23 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 
 	// Update the daemon config.
 	d.globalConfigMu.Lock()
+
+	// Keep old config around in case something goes wrong. In that case the config will be reverted.
+	currentClusterConfig := d.globalConfig
+	currentNodeConfig := d.localConfig
+
+	// Replace with new config
 	d.globalConfig = newClusterConfig
 	d.localConfig = newNodeConfig
 	d.globalConfigMu.Unlock()
+
+	// Ensures old daemon config to be replaced on failure.
+	revert.Add(func() {
+		d.globalConfigMu.Lock()
+		d.globalConfig = currentClusterConfig
+		d.localConfig = currentNodeConfig
+		d.globalConfigMu.Unlock()
+	})
 
 	// Run any update triggers.
 	err = doAPI10UpdateTriggers(d, nodeChanged, clusterChanged, newNodeConfig, newClusterConfig)
