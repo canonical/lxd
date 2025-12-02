@@ -183,6 +183,7 @@ linkcheck_ignore = [
     r"https://.*\.launchpad\.net.*",
     # Ignore so that we can link change log in release notes before a release is ready
     r"https://github\.com/canonical/lxd/compare.*",
+    r'https://kubernetes\.io/.*',
 ]
 
 # Ignore these links in GitHub CI due to site restrictions causing failures
