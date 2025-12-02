@@ -3,6 +3,7 @@ package lxd
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -296,11 +297,9 @@ func ConnectSimpleStreams(url string, args *ConnectionArgs) (ImageServer, error)
 			cacheExpiry = time.Hour
 		}
 
-		if !shared.PathExists(cachePath) {
-			err := os.Mkdir(cachePath, 0755)
-			if err != nil {
-				return nil, err
-			}
+		err := os.Mkdir(cachePath, 0755)
+		if err != nil && !errors.Is(err, os.ErrExist) {
+			return nil, err
 		}
 
 		ssClient.SetCache(cachePath, cacheExpiry)
