@@ -190,7 +190,7 @@ test_projects_copy() {
   # Move storage volume between projects
   pool="lxdtest-$(basename "${LXD_DIR}")"
 
-  lxc --project foo storage volume create "${pool}" vol1
+  lxc --project foo storage volume create "${pool}" vol1 size=1MiB
   lxc --project foo --target-project bar storage volume move "${pool}"/vol1 "${pool}"/vol1
 
   # Clean things up
