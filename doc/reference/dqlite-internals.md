@@ -31,3 +31,4 @@ For more information on the Canonical Dqlite Raft implementation, see [`dqlite/s
 1. `database`: Assigned to cluster members with the `RAFT_VOTER` role.
 1. `database-standby`: Assigned to cluster members with the `RAFT_STANDBY` role.
 1. `database-leader`: Assigned to the current Raft leader.
+1. `database-client`: When assigned to a cluster member, LXD assigns the `RAFT_SPARE` role to that member.
