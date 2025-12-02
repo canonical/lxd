@@ -9,8 +9,9 @@ fi
 
 if [ -n "${GOPATH:-}" ]; then
     # Add GOPATH/bin to PATH if not there already
-    [[ "${PATH}" != *"${GOPATH}/bin"* ]] && export "PATH=${GOPATH}/bin:${PATH}"
+    [[ "${PATH}" != *"${GOPATH}/bin"* ]] && PATH="${GOPATH}/bin:${PATH}"
 fi
+export PATH
 
 # Avoid accidental re-execution
 if [ -n "${LXD_INSPECT_INPROGRESS:-}" ]; then
