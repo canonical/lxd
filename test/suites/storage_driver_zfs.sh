@@ -95,7 +95,7 @@ do_zfs_cross_pool_copy() {
   lxc storage unset lxdtest-"$(basename "${LXD_DIR}")" volume.zfs.block_mode
 
   # Clean up
-  lxc rm -f c1 c2 c3 c4 c5 c6
+  lxc delete c1 c2 c3 c4 c5 c6
   lxc storage rm lxdtest-"$(basename "${LXD_DIR}")"-dir
   lxc storage rm lxdtest-"$(basename "${LXD_DIR}")"-zfs
 
@@ -144,7 +144,7 @@ do_storage_driver_zfs() {
 
   # Create container in block mode with smaller size override.
   lxc init testimage c3 -d root,size=5GiB
-  lxc delete -f c3
+  lxc delete c3
 
   # Delete image volume
   lxc storage volume rm lxdtest-"$(basename "${LXD_DIR}")" image/"${fingerprint}"
