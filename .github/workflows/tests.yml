@@ -284,6 +284,7 @@ jobs:
             /home/runner/go/bin/lxc*
             /home/runner/go/bin/lxd*
             /home/runner/go/bin/devlxd-client
+            /home/runner/go/bin/lxd-client
             /home/runner/go/bin/fuidshift
             /home/runner/go/bin/mini-oidc
             /home/runner/go/bin/sysinfo
