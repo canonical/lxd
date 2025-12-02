@@ -1288,14 +1288,26 @@ test_projects_usage() {
   lxc init testimage c1 --project test-usage
   lxc project info test-usage
 
-  lxc project info test-usage --format csv | grep -xF "CONTAINERS,UNLIMITED,1"
-  lxc project info test-usage --format csv | grep -xF "CPU,5,1"
-  lxc project info test-usage --format csv | grep -xF "DISK,10.00GiB,48.00MiB"
-  lxc project info test-usage --format csv | grep -xF "INSTANCES,UNLIMITED,1"
-  lxc project info test-usage --format csv | grep -xF "MEMORY,1.00GiB,512.00MiB"
-  lxc project info test-usage --format csv | grep -xF "NETWORKS,3,0"
-  lxc project info test-usage --format csv | grep -xF "PROCESSES,40,20"
-  lxc project info test-usage --format csv | grep -xF "VIRTUAL-MACHINES,UNLIMITED,0"
+  # Check usage output
+  local EXPECTED_OUTPUT="CONTAINERS,UNLIMITED,1
+CPU,5,1
+DISK,10.00GiB,48.00MiB
+INSTANCES,UNLIMITED,1
+MEMORY,1.00GiB,512.00MiB
+NETWORKS,3,0
+PROCESSES,40,20
+VIRTUAL-MACHINES,UNLIMITED,0"
+
+  local USAGE
+  USAGE="$(lxc project info test-usage --format csv)"
+  if [ "${USAGE}" != "${EXPECTED_OUTPUT}" ]; then
+    echo "Project usage output does not match expected output."
+    echo "Expected:"
+    echo "${EXPECTED_OUTPUT}"
+    echo "Got:"
+    echo "${USAGE}"
+    false
+  fi
 
   lxc delete c1 --project test-usage
   lxc image delete testimage --project test-usage
