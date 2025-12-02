@@ -3,6 +3,9 @@
 package cluster
 
 import (
+	"context"
+	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/canonical/lxd/lxd/db/operationtype"
@@ -52,4 +55,56 @@ type OperationFilter struct {
 	NodeID *int64
 	UUID   *string
 	Class  *int64
+}
+
+// GetDurableOperationMetadata retrieves metadata key/value pairs for a durable operation from the cluster db.
+func GetDurableOperationMetadata(ctx context.Context, tx *sql.Tx, opID int64) (map[string]string, error) {
+	stmt := `SELECT key, value FROM operations_metadata WHERE operation_id = ?`
+
+	rows, err := tx.QueryContext(ctx, stmt, opID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = rows.Close() }()
+
+	values := map[string]string{}
+	for rows.Next() {
+		var key string
+		var value string
+
+		err := rows.Scan(&key, &value)
+		if err != nil {
+			return nil, err
+		}
+
+		values[key] = value
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return values, nil
+}
+
+// CreateOrInsertDurableOperationMetadata inserts metadata key/value pairs for a durable operation in the cluster db.
+// This is needed so that the durable operation can be restarted on a different node in case of failure.
+func CreateOrInsertDurableOperationMetadata(ctx context.Context, tx *sql.Tx, opID int64, metadata map[string]any) error {
+	// No metadata to register.
+	if len(metadata) == 0 {
+		return nil
+	}
+
+	for key, value := range metadata {
+		stmt := `INSERT OR REPLACE INTO operations_metadata (operation_id, key, value) VALUES (?, ?, ?)`
+
+		_, err := tx.ExecContext(ctx, stmt, opID, key, value)
+		if err != nil {
+			return fmt.Errorf("Failed to write operation metadata: %w", err)
+		}
+	}
+
+	return nil
 }
