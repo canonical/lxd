@@ -19,6 +19,8 @@ Dqlite provides replication, fault-tolerance, and automatic failover without the
 
 When using LXD as a single machine and not as a cluster, the Dqlite database effectively behaves like a regular SQLite database.
 
+For more information, see {ref}`dqlite-internals`.
+
 (database-location)=
 ## File location
 
