@@ -17,8 +17,8 @@ test_projects_crud() {
   lxc project create foo
 
   # All features are enabled by default
-  lxc project show foo | grep -F 'features.images: "true"'
-  [ "$(lxc project get foo "features.profiles")" = "true" ]
+  [ "$(lxc project get foo features.images)" = "true" ]
+  [ "$(lxc project get foo features.profiles)" = "true" ]
 
   # Set a limit
   lxc project set foo limits.containers 10
@@ -39,15 +39,15 @@ test_projects_crud() {
   lxc project show bar
 
   # Edit the project
-  lxc project show bar| sed 's/^description:.*/description: "Bar project"/' | lxc project edit bar
-  lxc project show bar | grep -xF "description: Bar project"
+  lxc project set bar -p description "Bar project"
+  [ "$(lxc project get bar -p description)" = "Bar project" ]
 
   # Edit the project config via PATCH. Existing key/value pairs should remain or be updated.
   lxc query -X PATCH -d '{"config" : {"limits.memory":"5GiB","features.images":"false"}}' /1.0/projects/bar
-  lxc project show bar | grep -F 'limits.memory: 5GiB'
-  lxc project show bar | grep -F 'features.images: "false"'
-  lxc project show bar | grep -F 'features.profiles: "true"'
-  lxc project show bar | grep -F 'limits.containers: "10"'
+  [ "$(lxc project get bar features.images)" = "false" ]
+  [ "$(lxc project get bar features.profiles)" = "true" ]
+  [ "$(lxc project get bar limits.memory)" = "5GiB" ]
+  [ "$(lxc project get bar limits.containers)" = "10" ]
 
   # Create a second project
   lxc project create foo
@@ -61,12 +61,12 @@ test_projects_crud() {
   # Turning off the profiles feature makes the project see the default profile
   # from the default project.
   lxc project set foo features.profiles false
-  lxc profile show default | grep -xF 'description: Default LXD profile'
+  [ "$(lxc profile get default -p description)" = "Default LXD profile" ]
 
   # Turning on the profiles feature creates a project-specific default
   # profile.
   lxc project set foo features.profiles true
-  lxc profile show default | grep -xF 'description: Default LXD profile for project foo'
+  [ "$(lxc profile get default -p description)" = "Default LXD profile for project foo" ]
 
   # Invalid config values are rejected.
   ! lxc project set foo garbage xxx || false
