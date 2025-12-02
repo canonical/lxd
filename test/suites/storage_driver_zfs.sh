@@ -143,7 +143,7 @@ do_storage_driver_zfs() {
   [ "$(zfs get -H -o value type lxdtest-"$(basename "${LXD_DIR}")/containers/c2")" = "volume" ]
 
   # Create container in block mode with smaller size override.
-  lxc init testimage c3 -d root,size=5GiB
+  lxc init testimage c3 -d root,size=1GiB
   lxc delete c3
 
   # Delete image volume
@@ -237,7 +237,7 @@ do_storage_driver_zfs() {
   lxc exec c4 -- test -f /root/foo
   ! lxc exec c4 -- test -f /root/bar || false
 
-  lxc storage set lxdtest-"$(basename "${LXD_DIR}")" volume.size=5GiB
+  lxc storage set lxdtest-"$(basename "${LXD_DIR}")" volume.size=1GiB
   lxc launch testimage c5
   lxc storage unset lxdtest-"$(basename "${LXD_DIR}")" volume.size
 
