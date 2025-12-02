@@ -95,8 +95,8 @@ func (d *lvm) isLVMNotFoundExitError(err error) bool {
 	return false
 }
 
-// pysicalVolumeExists checks if an LVM Physical Volume exists.
-func (d *lvm) pysicalVolumeExists(pvName string) (bool, error) {
+// physicalVolumeExists checks if an LVM Physical Volume exists.
+func (d *lvm) physicalVolumeExists(pvName string) (bool, error) {
 	_, err := shared.RunCommandContext(context.TODO(), "pvs", "--noheadings", "-o", "pv_name", pvName)
 	if err != nil {
 		if d.isLVMNotFoundExitError(err) {
@@ -107,6 +107,22 @@ func (d *lvm) pysicalVolumeExists(pvName string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// volumeGroupUsingPhysicalVolume checks whether the specified device is used as a physical device and returns the corresponding volume group.
+// In case the device isn't used an empty string is returned.
+func (d *lvm) volumeGroupUsingPhysicalVolume(devPath string) (string, error) {
+	// When creating a PV using any of the "/dev/disk/by-*" paths, the actual used path will be resolved accordingly down to the actual device.
+	volumeGroup, err := shared.RunCommandContext(context.TODO(), "pvs", "--noheadings", "-o", "vg_name", devPath)
+	if err != nil {
+		if d.isLVMNotFoundExitError(err) {
+			return "", nil
+		}
+
+		return "", fmt.Errorf("Error checking for LVM physical volume %q: %w", devPath, err)
+	}
+
+	return strings.TrimSpace(volumeGroup), nil
 }
 
 // volumeGroupExists checks if an LVM Volume Group exists and returns any tags on that volume group.
