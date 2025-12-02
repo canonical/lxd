@@ -51,7 +51,19 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 			}
 		}
 
-		_, err := cluster.CreateOrReplaceOperation(ctx, tx.Tx(), opInfo)
+		opID, err := cluster.CreateOrReplaceOperation(ctx, tx.Tx(), opInfo)
+		if err != nil {
+			return err
+		}
+
+		// For durable operations we need to register metadata and resources in the database.
+		if op.class == OperationClassDurable {
+			err = cluster.CreateOrInsertDurableOperationMetadata(ctx, tx.Tx(), opID, op.metadata)
+			if err != nil {
+				return fmt.Errorf("failed to add operation %s metadata to database: %w", op.id, err)
+			}
+		}
+
 		return err
 	})
 	if err != nil {
@@ -87,6 +99,7 @@ func RestartDurableOperationsFromNode(ctx context.Context, s *state.State, nodeI
 	var projects map[int64]string
 	var err error
 	var dbOps []cluster.Operation
+	metadata := make(map[int64]map[string]string)
 
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// See if there are any durable operations running on this node which need to be restarted.
@@ -95,6 +108,13 @@ func RestartDurableOperationsFromNode(ctx context.Context, s *state.State, nodeI
 		dbOps, err = cluster.GetOperations(ctx, tx.Tx(), filter)
 		if err != nil {
 			return fmt.Errorf("Failed to load durable operations for the node %d: %w", nodeID, err)
+		}
+
+		for _, dbOp := range dbOps {
+			metadata[dbOp.ID], err = cluster.GetDurableOperationMetadata(ctx, tx.Tx(), dbOp.ID)
+			if err != nil {
+				return fmt.Errorf("Failed to load durable operation metadata for operation %d: %w", dbOp.ID, err)
+			}
 		}
 
 		projects, err = cluster.GetProjectIDsToNames(ctx, tx.Tx())
@@ -121,7 +141,7 @@ func RestartDurableOperationsFromNode(ctx context.Context, s *state.State, nodeI
 			}
 		}
 
-		op, err := CreateDurableOperation(ctx, s, dbOp.UUID, projectName, dbOp.Type, nil, nil)
+		op, err := CreateDurableOperation(ctx, s, dbOp.UUID, projectName, dbOp.Type, nil, metadata[dbOp.ID])
 
 		if err != nil {
 			logger.Warn("Failed to create durable operation", logger.Ctx{"err": err})
