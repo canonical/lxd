@@ -154,6 +154,11 @@ func (c *Config) NetworkOVNSSL() (caCert string, clientCert string, clientKey st
 	return c.m.GetString("network.ovn.ca_cert"), c.m.GetString("network.ovn.client_cert"), c.m.GetString("network.ovn.client_key")
 }
 
+// NetworkOVSConnection returns the OVS database socket path.
+func (c *Config) NetworkOVSConnection() string {
+	return c.m.GetString("network.ovs.connection")
+}
+
 // ShutdownTimeout returns the number of minutes to wait for running operation to complete
 // before LXD server shut down.
 func (c *Config) ShutdownTimeout() time.Duration {
@@ -838,6 +843,15 @@ var ConfigSchema = config.Schema{
 		//  defaultdesc: Content of `/etc/ovn/key_host` if present
 		//  shortdesc: OVN SSL client key
 		"network.ovn.client_key": {Default: ""},
+
+		// lxdmeta:generate(entities=server; group=miscellaneous; key=network.ovs.connection)
+		//
+		// ---
+		//  type: string
+		//  scope: global
+		//  defaultdesc: `unix:/run/openvswitch/db.sock`
+		//  shortdesc: OVS database connection string
+		"network.ovs.connection": {Default: "unix:/run/openvswitch/db.sock"},
 
 		// lxdmeta:generate(entities=server; group=miscellaneous; key=volatile.uuid)
 		// This UUID is used as a stable identifier for the cluster. It cannot be changed.
