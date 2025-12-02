@@ -94,6 +94,11 @@ devlxd-client:
 	CGO_ENABLED=0 go install -C test -v -trimpath -buildvcs=false $(COVER) -tags netgo ./devlxd-client
 	@echo "$@ built successfully"
 
+.PHONY: lxd-client
+lxd-client:
+	CGO_ENABLED=0 go install -C test -v -trimpath -buildvcs=false $(COVER) -tags netgo ./lxd-client
+	@echo "$@ built successfully"
+
 .PHONY: fuidshift
 fuidshift:
 	go install -v -trimpath -buildvcs=false $(COVER) ./fuidshift
@@ -110,7 +115,7 @@ sysinfo:
 	@echo "$@ built successfully"
 
 .PHONY: test-binaries
-test-binaries: devlxd-client fuidshift mini-oidc sysinfo
+test-binaries: devlxd-client lxd-client fuidshift mini-oidc sysinfo
 	@echo "$@ built successfully"
 
 .PHONY: dqlite
