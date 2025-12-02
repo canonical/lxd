@@ -5036,6 +5036,14 @@ If set to `mac`, generate a host name in the form `lxd<mac_address>` (MAC withou
 
 ```
 
+```{config:option} network.ovs.connection server-miscellaneous
+:defaultdesc: "`unix:/run/openvswitch/db.sock`"
+:scope: "global"
+:shortdesc: "OVS database connection string"
+:type: "string"
+
+```
+
 ```{config:option} storage.backups_volume server-miscellaneous
 :scope: "local"
 :shortdesc: "Volume to use to store backup tarballs"
