@@ -3409,6 +3409,19 @@ func (d *zfs) restoreVolume(vol Volume, snapVol Volume, migration bool, op *oper
 			return fmt.Errorf("Snapshot %q cannot be restored due to subsequent snapshot(s). Set zfs.remove_snapshots to override", snapshotName)
 		}
 
+		// Check if we can actually delete these snapshots
+		for _, snapName := range snapshots {
+			snapshotPath := d.dataset(vol, false) + "@snapshot-" + snapName
+			clones, err := d.getClones(snapshotPath)
+			if err != nil {
+				return fmt.Errorf("Failed checking clones for snapshot %q: %w", snapName, err)
+			}
+
+			if len(clones) > 0 {
+				return fmt.Errorf("Snapshot %q cannot be restored due to snapshot %q having %d dependent clone(s) which prevents deletion", snapName, snapName, len(clones))
+			}
+		}
+
 		// Setup custom error to tell the backend what to delete.
 		err := ErrDeleteSnapshots{}
 		err.Snapshots = snapshots
