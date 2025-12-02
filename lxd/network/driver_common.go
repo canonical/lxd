@@ -1695,7 +1695,7 @@ func (n *common) peerUsedBy(peerName string, firstOnly bool) ([]string, error) {
 
 // State returns the api.NetworkState for the network.
 func (n *common) State() (*api.NetworkState, error) {
-	return resources.GetNetworkState(n.name)
+	return resources.GetNetworkState(n.state, n.name)
 }
 
 func (n *common) setUnavailable() {

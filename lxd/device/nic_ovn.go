@@ -626,7 +626,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 
 	runConf := deviceConfig.RunConfig{}
 
-	vswitch, err := ovs.NewVSwitch()
+	vswitch, err := ovs.NewVSwitch(d.state.GlobalConfig.NetworkOVSConnection())
 	if err != nil {
 		return nil, fmt.Errorf("Failed to connect to OVS: %w", err)
 	}
@@ -637,7 +637,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 		return nil, fmt.Errorf("Failed getting OVS Chassis ID: %w", err)
 	}
 
-	ovnClient, err := ovn.NewOVN(d.state.GlobalConfig.NetworkOVNNorthboundConnection(), d.state.GlobalConfig.NetworkOVNSSL)
+	ovnClient, err := ovn.NewOVN(d.state.GlobalConfig.NetworkOVNNorthboundConnection(), d.state.GlobalConfig.NetworkOVSConnection(), d.state.GlobalConfig.NetworkOVNSSL)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get OVN client: %w", err)
 	}
@@ -725,7 +725,7 @@ func (d *nicOVN) setupAcceleration(saveData map[string]string) (cleanup revert.H
 		return nil, "", "", nil, 0, nil, errors.New("VDPA acceleration is not supported for containers")
 	}
 
-	vswitch, err := ovs.NewVSwitch()
+	vswitch, err := ovs.NewVSwitch(d.state.GlobalConfig.NetworkOVSConnection())
 	if err != nil {
 		return nil, "", "", nil, 0, nil, fmt.Errorf("Failed to connect to OVS: %w", err)
 	}
@@ -918,7 +918,7 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 		}
 
 		if len(removedACLs) > 0 {
-			client, err := ovn.NewOVN(d.state.GlobalConfig.NetworkOVNNorthboundConnection(), d.state.GlobalConfig.NetworkOVNSSL)
+			client, err := ovn.NewOVN(d.state.GlobalConfig.NetworkOVNNorthboundConnection(), d.state.GlobalConfig.NetworkOVSConnection(), d.state.GlobalConfig.NetworkOVNSSL)
 			if err != nil {
 				return fmt.Errorf("Failed to get OVN client: %w", err)
 			}
@@ -982,7 +982,7 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 
 	networkVethFillFromVolatile(d.config, v)
 
-	vswitch, err := ovs.NewVSwitch()
+	vswitch, err := ovs.NewVSwitch(d.state.GlobalConfig.NetworkOVSConnection())
 	if err != nil {
 		return nil, fmt.Errorf("Failed to connect to OVS: %w", err)
 	}
@@ -1104,7 +1104,7 @@ func (d *nicOVN) Remove() error {
 	// Check for port groups that will become unused (and need deleting) as this NIC is deleted.
 	securityACLs := shared.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)
 	if len(securityACLs) > 0 {
-		client, err := ovn.NewOVN(d.state.GlobalConfig.NetworkOVNNorthboundConnection(), d.state.GlobalConfig.NetworkOVNSSL)
+		client, err := ovn.NewOVN(d.state.GlobalConfig.NetworkOVNNorthboundConnection(), d.state.GlobalConfig.NetworkOVSConnection(), d.state.GlobalConfig.NetworkOVNSSL)
 		if err != nil {
 			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
@@ -1269,7 +1269,7 @@ func (d *nicOVN) setupHostNIC(hostName string, ovnPortName ovn.OVNSwitchPort) (r
 	// Attach host side veth interface to bridge.
 	integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
 
-	vswitch, err := ovs.NewVSwitch()
+	vswitch, err := ovs.NewVSwitch(d.state.GlobalConfig.NetworkOVSConnection())
 	if err != nil {
 		return nil, fmt.Errorf("Failed to connect to OVS: %w", err)
 	}

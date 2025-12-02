@@ -13,8 +13,8 @@ import (
 )
 
 // NewOVN initialises new OVN client wrapper with the connection set in network.ovn.northbound_connection config.
-func NewOVN(nbConnection string, sslSettings func() (sslCACert string, sslClientCert string, sslClientKey string)) (*OVN, error) {
-	vswitch, err := ovs.NewVSwitch()
+func NewOVN(nbConnection string, ovsConnection string, sslSettings func() (sslCACert string, sslClientCert string, sslClientKey string)) (*OVN, error) {
+	vswitch, err := ovs.NewVSwitch(ovsConnection)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to connect to OVS: %w", err)
 	}
