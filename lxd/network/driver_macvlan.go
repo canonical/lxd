@@ -27,7 +27,7 @@ func (n *macvlan) DBType() db.NetworkType {
 
 // State returns the network state.
 func (n *macvlan) State() (*api.NetworkState, error) {
-	parentState, err := resources.GetNetworkState(GetHostDevice(n.config["parent"], n.config["vlan"]))
+	parentState, err := resources.GetNetworkState(n.state, GetHostDevice(n.config["parent"], n.config["vlan"]))
 	if err != nil {
 		// If the parent is not found, return a response indicating the network is unavailable.
 		if api.StatusErrorCheck(err, http.StatusNotFound) {

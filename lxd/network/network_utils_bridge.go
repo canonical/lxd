@@ -7,6 +7,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/ip"
 	"github.com/canonical/lxd/lxd/network/ovs"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 )
 
@@ -46,7 +47,7 @@ func IsNativeBridge(bridgeName string) bool {
 }
 
 // AttachInterface attaches an interface to a bridge.
-func AttachInterface(bridgeName string, devName string) error {
+func AttachInterface(s *state.State, bridgeName string, devName string) error {
 	if IsNativeBridge(bridgeName) {
 		link := &ip.Link{Name: devName}
 		err := link.SetMaster(bridgeName)
@@ -54,7 +55,7 @@ func AttachInterface(bridgeName string, devName string) error {
 			return err
 		}
 	} else {
-		vswitch, err := ovs.NewVSwitch()
+		vswitch, err := ovs.NewVSwitch(s.GlobalConfig.NetworkOVSConnection())
 		if err != nil {
 			return fmt.Errorf("Failed to connect to OVS: %w", err)
 		}
@@ -69,7 +70,7 @@ func AttachInterface(bridgeName string, devName string) error {
 }
 
 // DetachInterface detaches an interface from a bridge.
-func DetachInterface(bridgeName string, devName string) error {
+func DetachInterface(s *state.State, bridgeName string, devName string) error {
 	if IsNativeBridge(bridgeName) {
 		link := &ip.Link{Name: devName}
 		err := link.SetNoMaster()
@@ -77,7 +78,7 @@ func DetachInterface(bridgeName string, devName string) error {
 			return err
 		}
 	} else {
-		vswitch, err := ovs.NewVSwitch()
+		vswitch, err := ovs.NewVSwitch(s.GlobalConfig.NetworkOVSConnection())
 		if err != nil {
 			return fmt.Errorf("Failed to connect to OVS: %w", err)
 		}
