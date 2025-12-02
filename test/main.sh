@@ -2,6 +2,22 @@
 set -eu
 set -o pipefail
 
+# OVN
+export LXD_OVN_NB_CA_CRT_FILE="${LXD_OVN_NB_CA_CRT_FILE:-}"
+export LXD_OVN_NB_CLIENT_CRT_FILE="${LXD_OVN_NB_CLIENT_CRT_FILE:-}"
+export LXD_OVN_NB_CLIENT_KEY_FILE="${LXD_OVN_NB_CLIENT_KEY_FILE:-}"
+if [ -d "/snap/microovn/current/commands" ]; then
+    # Add microovn snap commands to PATH if not there already
+    [[ "${PATH}" != *"/snap/microovn/current/commands"* ]] && PATH="${PATH}:/snap/microovn/current/commands"
+
+    # Handle microovn certificates
+    if [[ "${LXD_OVN_NB_CONNECTION:-}" =~ ^ssl: ]]; then
+      [ -z "${LXD_OVN_NB_CLIENT_CRT_FILE}" ] && LXD_OVN_NB_CLIENT_CRT_FILE=/var/snap/microovn/common/data/pki/client-cert.pem
+      [ -z "${LXD_OVN_NB_CLIENT_KEY_FILE}" ] && LXD_OVN_NB_CLIENT_KEY_FILE=/var/snap/microovn/common/data/pki/client-privkey.pem
+      [ -z "${LXD_OVN_NB_CA_CRT_FILE}" ]     && LXD_OVN_NB_CA_CRT_FILE=/var/snap/microovn/common/data/pki/cacert.pem
+    fi
+fi
+
 export GOTOOLCHAIN=local # Avoid downloading toolchain
 if [ -z "${GOPATH:-}" ] && command -v go >/dev/null; then
     GOPATH="$(go env GOPATH)"
