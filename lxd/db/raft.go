@@ -28,9 +28,9 @@ type RaftRole = client.NodeRole
 
 // RaftNode roles.
 const (
-	RaftVoter   = client.Voter
-	RaftStandBy = client.StandBy
-	RaftSpare   = client.Spare
+	RaftVoter   = client.Voter   // Replicate log, participates in quorum
+	RaftStandBy = client.StandBy // Replicate log, does not participate in quorum
+	RaftSpare   = client.Spare   // Does not replicate log, does not participate in quorum
 )
 
 // GetRaftNodes returns information about all LXD nodes that are members of the
