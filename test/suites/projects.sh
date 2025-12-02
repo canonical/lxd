@@ -376,8 +376,8 @@ test_projects_profiles_default() {
 
   # If we look at the global profile we see that it's being used by both the
   # container in the above project and the one we just created.
-  lxc profile show default | grep -E -q '^- /1.0/instances/c1$'
-  lxc profile show default | grep -E -q '^- /1.0/instances/c1\?project=foo$'
+  lxc profile show default | grep -xF -- '- /1.0/instances/c1'
+  lxc profile show default | grep -xF -- '- /1.0/instances/c1?project=foo'
 
   lxc delete c1
 
@@ -392,8 +392,8 @@ test_projects_profiles_default() {
   lxc project create bar --storage default --network lxdbr0
 
   # Ensure default profile properly set up
-  lxc profile show default --project bar | grep -E -q "network: lxdbr0"
-  lxc profile show default --project bar | grep -E -q "pool: default"
+  lxc profile show default --project bar | grep -F "network: lxdbr0"
+  lxc profile show default --project bar | grep -F "pool: default"
 
   # Delete project
   lxc project delete bar
