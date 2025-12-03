@@ -12,4 +12,5 @@ test_syslog_socket() {
   grep -qF "unix:/var/run/openvswitch/br-int.mgmt: connected" "${TEST_DIR}/ovn.log"
 
   lxc config unset core.syslog_socket
+  rm "${TEST_DIR}/ovn.log"
 }
