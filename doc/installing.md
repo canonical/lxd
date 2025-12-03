@@ -197,7 +197,9 @@ These builds are for the [`lxc`](lxc.md) client only, not the LXD daemon. For an
 (installing_from_source)=
 ## Install LXD from source
 
-These instructions for building and installing from source are suitable for developers who want to build the latest version of LXD, or to build a specific release of LXD which may not be offered by their Linux distribution. Source builds for integration into Linux distributions are not covered.
+These instructions for building and installing from source are suitable for developers who want to build the latest version of LXD, or to build a specific release of LXD which may not be offered by their Linux distribution.
+Source builds for integration into Linux distributions are not covered.
+This guide is written for Ubuntu 24.04 LTS on x86_64.
 
 We recommend having the latest versions of `liblxc` (see {ref}`LXC requirements <requirements-lxc>`)
 available for LXD development. For convenience, `make deps` will pull the
@@ -237,6 +239,19 @@ If you use the `liblxc-dev` package and get compile time errors when building th
 ensure that the value for `LXC_DEVEL` is `0` for your `liblxc` build. To check this, look at `/usr/include/lxc/version.h`.
 If the `LXC_DEVEL` value is `1`, replace it with `0` to work around the problem. It's a packaging bug that is now fixed,
 see [LP: #2039873](https://bugs.launchpad.net/ubuntu/+source/lxc/+bug/2039873).
+```
+
+For your local build of LXD to support virtual machines, you must install QEMU with:
+
+```bash
+sudo apt install --no-install-recommends \
+    qemu-system-x86 \
+    qemu-block-extra \
+    qemu-utils \
+    qemu-system-modules-spice \
+    virtiofsd \
+    ovmf \
+    swtpm
 ```
 
 There are a few storage drivers for LXD besides the default `dir` driver. Installing these tools adds a bit to `initramfs` and may slow down your host boot, but are needed if you'd like to use a particular driver:
